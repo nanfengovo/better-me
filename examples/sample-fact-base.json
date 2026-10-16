@@ -1,0 +1,377 @@
+{
+  "factBase": {
+    "schemaVersion": 1,
+    "updatedAt": "2026-10-16T12:00:00.000Z",
+    "profile": {
+      "displayName": {
+        "zh": "张开源",
+        "en": "Alex Zhang"
+      },
+      "headline": {
+        "zh": "高级工业软件研发工程师 · 工业 AI 与机器人系统全栈",
+        "en": "Senior Industrial Software Engineer · Robotics & Industrial AI"
+      },
+      "yearsOfExperience": 3,
+      "education": {
+        "zh": "统招工科大专 / 本科 · 自动化与电子信息工程",
+        "en": "Associate / Bachelor Degree · Automation & Information Engineering"
+      },
+      "location": {
+        "zh": "上海",
+        "en": "Shanghai"
+      },
+      "email": "alex.zhang.demo@example.com",
+      "phone": "+86 138-0000-0000",
+      "links": [
+        {
+          "label": "GitHub",
+          "url": "https://github.com/example/open-source-showcase"
+        }
+      ],
+      "traits": [
+        "系统架构设计",
+        "抗压落地能力",
+        "技术驱动业务"
+      ],
+      "targetRoles": [
+        {
+          "zh": "高级工业软件研发工程师 (.NET 8 / C#)",
+          "en": "Senior Industrial Software Engineer (.NET 8 / C#)"
+        },
+        {
+          "zh": "机器人调度与工业系统全栈工程师",
+          "en": "Robot Scheduling & Industrial Full-Stack Engineer"
+        }
+      ],
+      "constraints": [
+        "0 出差 (研发岗)",
+        "0 Oncall (健康研发节律)",
+        "外企 / 优质产品团队",
+        "拒绝纯现场打杂交付"
+      ],
+      "salaryRange": {
+        "minK": 20,
+        "maxK": 28,
+        "currency": "CNY"
+      }
+    },
+    "experiences": [
+      {
+        "id": "exp-demo-1",
+        "type": "work",
+        "org": {
+          "zh": "某半导体智能设备制造有限公司",
+          "en": "Semiconductor Robotics Tech Ltd."
+        },
+        "title": {
+          "zh": "全栈 / 后端开发工程师",
+          "en": "Full-Stack / Backend Engineer"
+        },
+        "start": "2024-01",
+        "end": null,
+        "projectName": {
+          "zh": "半导体制造机器人调度控制平台（RCS）",
+          "en": "Semiconductor Robot Control System (RCS)"
+        },
+        "techStack": [
+          "ASP.NET 8",
+          "ABP vNext",
+          "OpenIddict",
+          "Redis"
+        ],
+        "claims": [
+          {
+            "id": "c-demo-1",
+            "kind": "action",
+            "text": {
+              "zh": "基于 ASP.NET 8 + ABP vNext 构建半导体高可靠机器人调度软件核心框架",
+              "en": "Built high-reliability semiconductor robot scheduling software framework on ASP.NET 8 + ABP vNext"
+            },
+            "tags": [
+              "rcs",
+              "dotnet",
+              "abp"
+            ]
+          },
+          {
+            "id": "c-demo-2",
+            "kind": "action",
+            "text": {
+              "zh": "设计 Adapter 设备抽象层，将异构机台/控制器与上层调度解耦，支持标准化即插即用",
+              "en": "Designed device Adapter layer decoupling heterogeneous tools/controllers from scheduling for plug-and-play integration"
+            },
+            "tags": [
+              "adapter",
+              "architecture"
+            ]
+          },
+          {
+            "id": "c-demo-3",
+            "kind": "action",
+            "text": {
+              "zh": "扩展 ABP 细粒度权限与 OpenIddict 认证流，实现工厂级安全控制与 Token 平滑刷新",
+              "en": "Extended ABP fine-grained auth and OpenIddict flows for plant-level security and seamless token refresh"
+            },
+            "tags": [
+              "security",
+              "openiddict"
+            ]
+          },
+          {
+            "id": "c-demo-4",
+            "kind": "metric",
+            "text": {
+              "zh": "提炼跨项目公共内核，调度状态机与核心逻辑复用率达 40%",
+              "en": "Extracted shared kernel; achieved ~40% logic reuse across scheduling and state-machine modules"
+            },
+            "metric": {
+              "value": 40,
+              "unit": "%",
+              "baseline": "优化前两套同类业务系统重复实现核心状态机",
+              "causal": "提取统一业务内核并封装通用服务接口",
+              "confirmed": true
+            },
+            "tags": [
+              "reuse",
+              "state-machine"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "exp-demo-2",
+        "type": "work",
+        "org": {
+          "zh": "某智能视觉与机器人控制技术企业",
+          "en": "Intelligent Vision & Robotics Corp."
+        },
+        "title": {
+          "zh": "后端工程师",
+          "en": "Backend Engineer"
+        },
+        "start": "2023-05",
+        "end": "2023-12",
+        "projectName": {
+          "zh": "智能工业切割机器人控制调度系统",
+          "en": "Intelligent Robot Cutting & Motion Control System"
+        },
+        "techStack": [
+          "状态机",
+          "多线程并发",
+          "Paddle OCR",
+          "机器视觉"
+        ],
+        "claims": [
+          {
+            "id": "c-demo-5",
+            "kind": "action",
+            "text": {
+              "zh": "负责核心控制状态机流转与多线程异步 I/O 调度优化，保障切削轨迹平滑控制",
+              "en": "Owned control state-machine transitions and multi-thread async I/O scheduling for trajectory execution"
+            },
+            "tags": [
+              "state-machine",
+              "concurrency"
+            ]
+          },
+          {
+            "id": "c-demo-6",
+            "kind": "metric",
+            "text": {
+              "zh": "优化状态机与设备通信协议解析，系统响应延时和执行效率提升 15%",
+              "en": "Optimized protocol parsing and state transitions; improved response latency and execution efficiency by ~15%"
+            },
+            "metric": {
+              "value": 15,
+              "unit": "%",
+              "baseline": "优化前同步阻塞式协议解析流",
+              "causal": "重构为异步流式环形缓冲区与零拷贝反序列化",
+              "confirmed": true
+            },
+            "tags": [
+              "performance"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "exp-demo-3",
+        "type": "work",
+        "org": {
+          "zh": "某新能源工厂自动化装备有限公司",
+          "en": "Clean Energy Automation Equipment Co."
+        },
+        "title": {
+          "zh": "工业软件研发工程师",
+          "en": "Industrial Software Engineer"
+        },
+        "start": "2021-07",
+        "end": "2023-04",
+        "projectName": {
+          "zh": "自动化物流控制平台（WCS/RDS）",
+          "en": "Automated Logistics Control Platform (WCS/RDS)"
+        },
+        "techStack": [
+          "ASP.NET Core",
+          "EF Core",
+          "Vue3",
+          "Siemens S7",
+          "Modbus TCP",
+          "WPF"
+        ],
+        "claims": [
+          {
+            "id": "c-demo-7",
+            "kind": "action",
+            "text": {
+              "zh": "主导 WCS 仓储控制系统业务，基于 ASP.NET Core WebAPI + EF Core + Vue3 搭建前后端系统",
+              "en": "Led WCS platform development on ASP.NET Core WebAPI + EF Core + Vue3"
+            },
+            "tags": [
+              "wcs",
+              "fullstack"
+            ]
+          },
+          {
+            "id": "c-demo-8",
+            "kind": "action",
+            "text": {
+              "zh": "编写设备总线驱动，支持西门子 S7、Modbus TCP 与 AGV 调度控制系统可靠对接",
+              "en": "Built device drivers for Siemens S7, Modbus TCP, and AGV fleet dispatching"
+            },
+            "tags": [
+              "plc",
+              "modbus",
+              "agv"
+            ]
+          },
+          {
+            "id": "c-demo-9",
+            "kind": "metric",
+            "text": {
+              "zh": "支持同场最多 40 台不同型号异构 AGV 高并发调度与交通管制，零死锁运行",
+              "en": "Supported concurrent dispatching and traffic control for up to 40 heterogeneous AGVs with zero deadlock"
+            },
+            "metric": {
+              "value": 40,
+              "unit": "台 AGV",
+              "baseline": "单项目多型号异构车辆混行",
+              "causal": "基于拓扑时间窗交通防撞避障算法",
+              "confirmed": true
+            },
+            "tags": [
+              "scheduling",
+              "concurrency"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "exp-demo-open-1",
+        "type": "opensource",
+        "org": {
+          "zh": "开源社区",
+          "en": "Open Source"
+        },
+        "title": {
+          "zh": "作者",
+          "en": "Author"
+        },
+        "start": "2024-01",
+        "end": null,
+        "projectName": {
+          "zh": "Industrial-Agent-Demo",
+          "en": "Industrial-Agent-Demo"
+        },
+        "url": "https://github.com/example/industrial-agent-demo",
+        "techStack": [
+          "React",
+          "FastAPI",
+          "LangChain",
+          "Ollama",
+          "Three.js"
+        ],
+        "claims": [
+          {
+            "id": "c-demo-10",
+            "kind": "action",
+            "text": {
+              "zh": "工业运维 Agent：RAG 排障知识库 + Tool Calling 查库查日志 + Three.js 数字孪生可视化",
+              "en": "Industrial ops agent: RAG troubleshooting KB, tool-calling over logs/DB, Three.js digital twin"
+            },
+            "tags": [
+              "ai-agent",
+              "rag",
+              "digital-twin"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "exp-demo-open-2",
+        "type": "opensource",
+        "org": {
+          "zh": "开源社区",
+          "en": "Open Source"
+        },
+        "title": {
+          "zh": "作者",
+          "en": "Author"
+        },
+        "start": "2024-06",
+        "end": null,
+        "projectName": {
+          "zh": "LocalFirst-DB-Demo",
+          "en": "LocalFirst-DB-Demo"
+        },
+        "url": "https://github.com/example/localfirst-db-demo",
+        "techStack": [
+          "React",
+          "TypeScript",
+          "SQLite WASM",
+          "OPFS"
+        ],
+        "claims": [
+          {
+            "id": "c-demo-11",
+            "kind": "action",
+            "text": {
+              "zh": "无后端 Local-First：SQLite WASM + OPFS，探索前端离线库与大模型数据闭环",
+              "en": "Backend-less local-first stack with SQLite WASM + OPFS and LLM data loop"
+            },
+            "tags": [
+              "local-first",
+              "sqlite",
+              "wasm"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "resumeViews": [
+    {
+      "id": "resume-default",
+      "name": "Default",
+      "locale": "zh",
+      "templateId": "zh-classic",
+      "includedExperienceIds": [
+        "exp-demo-1",
+        "exp-demo-2",
+        "exp-demo-3",
+        "exp-demo-open-1",
+        "exp-demo-open-2"
+      ],
+      "includedClaimIds": [],
+      "sectionOrder": [
+        "summary",
+        "experience",
+        "projects",
+        "skills",
+        "education"
+      ],
+      "updatedAt": "2026-10-16T12:00:00.000Z"
+    }
+  ],
+  "activeResumeId": "resume-default"
+}

@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+*.local
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# User data (local-first)
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# Agent runtime noise
+.agent-memory/.tmp/
+
+# Personal Career SSOT & Private User Data (NEVER push to GitHub)
+.agent-memory/careerObjectives.md
+.agent-memory/factBase.md
+.agent-memory/resumeGuidelines.md
+.agent-memory/careerStrategy.md
+*.private.*
+*.personal.*
+*.backup.json
+better-me-backup-*.json
+better-me-draft-*.json

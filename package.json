@@ -1,0 +1,29 @@
+{
+  "name": "better-me",
+  "private": true,
+  "version": "0.1.0",
+  "description": "迈向更好 / BetterMe — local-first growth & career workstation",
+  "type": "module",
+  "scripts": {
+    "dev": "turbo run dev --filter=@better-me/web",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "eslint apps/web/src packages/core/src packages/storage/src",
+    "test": "pnpm --filter @better-me/core build && tsx --test packages/core/tests/*.test.mjs packages/storage/tests/*.test.ts apps/web/tests/*.test.tsx",
+    "memory:check": "node scripts/check-memory.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.12.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "tsx": "^4.23.15",
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.71.2"
+  },
+  "engines": {
+    "node": "^22.13.0 || >=24",
+    "pnpm": ">=11"
+  },
+  "packageManager": "pnpm@11.9.0"
+}
