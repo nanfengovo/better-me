@@ -1,0 +1,37 @@
+---
+description: Memory Bank — 开局必读、收工必写，跨会话 SSOT
+alwaysApply: true
+---
+
+# Memory Bank
+
+本仓库的跨会话真相源是 `.agent-memory/`（不要另建并行的 `.handoff/`）。
+地图与拆分规则：`.agent-memory/README.md`。
+
+## 开局
+
+新对话、换 Agent，或用户说「聊到哪了 / 继续 / resume」时：
+
+1. 读 `.agent-memory/activeContext.md`
+2. 读 `.agent-memory/progress.md`
+3. 若 `activeContext` 的 **「必读附加」** 非空 → 按列表再读（不要等用户点名文件）
+4. 需要产品边界时再读 `projectbrief.md`、`decisionLog.md`
+5. 改简历 / 面试 / Fact → 读 `careerObjectives.md`、`factBase.md`、`resumeGuidelines.md`
+
+## 收工（Agent 无法感知你何时关窗，靠触发点写盘）
+
+在以下任一情况**立即**更新 `activeContext.md` 与 `progress.md`（有新决策则写 `decisionLog.md`），不要等用户说「我要切对话」：
+
+- 完成一个可交付小目标（文件落地、功能跑通、决策拍板）
+- 用户说：保存 / handoff / 收工 / 换窗 / 新开对话 / resume 准备
+- 准备跑长命令或大改动之前（先记下意图，防中断丢失）
+- 本轮回复结束前若本轮有实质进展，默认写回 memory（短更新即可）
+
+`activeContext` 必须保持薄：写清 **当前焦点 / 卡点 / 下一步 / 必读附加**；长事实进对应 SSOT，不进本文件。
+
+## 原则
+
+- 稳定共识进 memory / AGENTS.md，不依赖聊天压缩摘要
+- 短会话优先；用文件续航，不靠无限拉长同一对话
+- 拆文件遵循 `README.md`（体量 / 受众 / 更新节奏 / 开局误读）；拆完更新地图、索引与 decisionLog
+- **没有魔法**：关聊天窗口不会自动回调 Agent；及时保存 = 里程碑触发 + 你随口一句「保存一下」
