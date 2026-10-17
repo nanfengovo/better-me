@@ -8,3 +8,20 @@ export {
   exportDocumentJson,
   parseDocumentJson,
 } from "./local-json.js";
+export {
+  DRAFT_STORAGE_KEY,
+  PREVIOUS_DRAFT_STORAGE_KEY,
+  HISTORY_LIMIT,
+  AUTO_SNAPSHOT_COALESCE_MS,
+  DraftDocumentSchema,
+  LocalDocumentHistory,
+  IndexedDbVersionRepository,
+  DocumentPersistenceController,
+  documentFingerprint,
+  describeDocumentChanges,
+} from "./document-history.js";
+export type { DocumentVersion, VersionKind, VersionRepository, PersistenceStatus, PersistenceState } from "./document-history.js";
+export { getDocumentFieldChanges } from "./document-diff.js";
+export type { DocumentFieldChange } from "./document-diff.js";
+export { DEFAULT_AUTO_SAVE_SETTINGS, normalizeAutoSaveSettings } from "./autosave-policy.js";
+export type { AutoSaveSettings } from "./autosave-policy.js";

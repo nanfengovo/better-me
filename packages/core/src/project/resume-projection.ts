@@ -1,5 +1,5 @@
 import type { FactBase, Experience, FactClaim } from "../schema/fact.js";
-import type { ResumeView } from "../schema/resume.js";
+import { getResumeLayout, getResumeSectionOrder, isResumeProfileVisible, isResumeSectionVisible, type ResumeView, type ResumeLayout, type ResumeSectionId, type TextStyleRange } from "../schema/resume.js";
 import { pickLocale, type Locale } from "../schema/locale.js";
 
 export type ProjectedClaim = {
@@ -26,6 +26,13 @@ export type ProjectedExperience = {
 export type ProjectedResume = {
   locale: Locale;
   templateId: string;
+  sectionOrder?: ResumeSectionId[];
+  sectionVisibility?: ResumeView["sectionVisibility"];
+  layout?: ResumeLayout;
+  textStyles?: Record<string, TextStyleRange[]>;
+  /** Education in its own movable section, independent of header visibility. */
+  educationSummary?: string;
+  skills?: string[];
   profile: {
     displayName: string;
     headline?: string;
@@ -61,6 +68,20 @@ export function projectResume(
   view: ResumeView,
 ): ProjectedResume {
   const locale = view.locale;
+  // A translated view may fall back to Chinese. Formatting follows the actual source text.
+  const textStyles = view.textStyles ? { ...view.textStyles } : undefined;
+  const projectStyles = (key: string, text: { zh: string; en?: string }) => {
+    if (!textStyles) return;
+    const sourceLocale = locale === "en" && text.en?.trim() ? "en" : "zh";
+    const ranges = view.textStyles?.[`${key}:${sourceLocale}`];
+    if (ranges) textStyles[`${key}:${locale}`] = ranges;
+    else delete textStyles[`${key}:${locale}`];
+  };
+  projectStyles("profile:displayName", base.profile.displayName);
+  if (base.profile.headline) projectStyles("profile:headline", base.profile.headline);
+  for (const experience of base.experiences) {
+    for (const claim of experience.claims) projectStyles(`claim:${claim.id}`, claim.text);
+  }
   const experiences = base.experiences
     .filter((exp) => includeExperience(view, exp.id))
     .map((exp) => {
@@ -101,25 +122,32 @@ export function projectResume(
   return {
     locale,
     templateId: view.templateId,
+    sectionOrder: getResumeSectionOrder(view.sectionOrder),
+    sectionVisibility: view.sectionVisibility,
+    layout: getResumeLayout(view.layout),
+    textStyles,
+    educationSummary: isResumeSectionVisible(view, "education") && base.profile.education ? pickLocale(base.profile.education, locale) : undefined,
+    skills: isResumeSectionVisible(view, "skills") ? [...new Set(experiences.flatMap((experience) => experience.techStack))] : [],
     profile: {
       displayName: pickLocale(base.profile.displayName, locale),
-      headline: base.profile.headline
+      headline: isResumeProfileVisible(view, "headline") && base.profile.headline
         ? pickLocale(base.profile.headline, locale)
         : undefined,
-      avatarUrl: base.profile.avatarUrl,
-      education: base.profile.education
+      avatarUrl: isResumeProfileVisible(view, "photo") && view.templateId !== "en-ats" ? base.profile.avatarUrl : undefined,
+      education: isResumeProfileVisible(view, "education") && base.profile.education
         ? pickLocale(base.profile.education, locale)
         : undefined,
-      location: base.profile.location
+      location: isResumeProfileVisible(view, "location") && base.profile.location
         ? pickLocale(base.profile.location, locale)
         : undefined,
-      email: base.profile.email,
-      phone: base.profile.phone,
-      links: base.profile.links,
-      targetRoles: base.profile.targetRoles.map((r) => pickLocale(r, locale)),
-      traits: base.profile.traits,
+      email: isResumeProfileVisible(view, "email") ? base.profile.email : undefined,
+      phone: isResumeProfileVisible(view, "phone") ? base.profile.phone : undefined,
+      links: isResumeProfileVisible(view, "links") ? base.profile.links : [],
+      targetRoles: isResumeProfileVisible(view, "targetRoles") && isResumeSectionVisible(view, "summary") ? base.profile.targetRoles.map((r) => pickLocale(r, locale)) : [],
+      traits: isResumeProfileVisible(view, "traits") && isResumeSectionVisible(view, "summary") ? base.profile.traits : [],
     },
-    experiences,
+    experiences: experiences.filter((experience) => isResumeSectionVisible(view,
+      experience.type === "work" ? "experience" : experience.type === "education" ? "education" : "projects")),
   };
 }
 
@@ -143,6 +171,8 @@ export function createDefaultResumeView(
       "skills",
       "education",
     ],
+    profileVisibility: { education: false, photo: true },
+    layout: { ...getResumeLayout() },
     updatedAt: now,
   };
 }

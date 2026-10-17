@@ -10,8 +10,8 @@ export function IssuesPanel({ issues }: { issues: ClaimIssue[] }) {
       <div className="no-print flex items-center justify-between rounded-xl border border-emerald-200/80 bg-emerald-50/70 px-4 py-2.5 text-xs text-emerald-800 shadow-2xs">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-emerald-600" />
-          <span className="font-semibold">Fact 事实质量体检通过：</span>
-          <span>未发现未确认量化指标或明显空洞套话，简历处于健康可答辩状态。</span>
+          <span className="font-semibold">内容检查：</span>
+          <span>未发现待确认的量化或明显空洞表述。投递前请核对真实经历。</span>
         </div>
       </div>
     );
@@ -23,10 +23,10 @@ export function IssuesPanel({ issues }: { issues: ClaimIssue[] }) {
         <div className="flex items-center gap-2">
           <ShieldAlert className="h-4 w-4 text-amber-600" />
           <span className="text-xs font-bold text-amber-900">
-            事实库体检提示：
+            内容检查：
           </span>
           <span className="text-xs text-amber-800">
-            发现 <strong>{issues.length}</strong> 处质量建议（未确认的量化指标已自动从简历投影中过滤）
+            <strong>{issues.length}</strong> 项待检查 · 未核实的量化内容暂不展示
           </span>
         </div>
 

@@ -42,10 +42,10 @@ function render(resume: ProjectedResume, templateId: ResumeTemplateId, showAvata
 
 function claimTexts(markup: string) {
   return [...markup.matchAll(/<ul class="resume-claims">(.*?)<\/ul>/gs)]
-    .flatMap((list) => [...list[1]!.matchAll(/<li>(.*?)<\/li>/gs)].map((item) => item[1]));
+    .flatMap((list) => [...list[1]!.matchAll(/<li(?:\s[^>]*)?>(.*?)<\/li>/gs)].map((item) => item[1]));
 }
 
-test("all three templates retain profile, every experience type and the same factual bullets", () => {
+test("all six original templates retain profile, every experience type and the same factual bullets", () => {
   const resume = createResume();
   const expectedClaims = resume.experiences.flatMap((experience) => experience.claims.map((claim) => claim.text));
 
@@ -72,6 +72,21 @@ test("ATS always omits photos; classic and modern follow the explicit photo pref
     assert.doesNotMatch(render(resume, templateId, false), /<img\b/);
     const noPhoto = { ...resume, profile: { ...resume.profile, avatarUrl: undefined } };
     assert.doesNotMatch(render(noPhoto, templateId, true), /<img\b/);
+  }
+});
+
+test("all templates keep semantic follow anchors after reordering and omit hidden claims", () => {
+  const resume = createResume();
+  resume.sectionOrder = ["education", "projects", "experience", "skills", "summary"];
+  resume.experiences[0]!.claims = [];
+  for (const template of RESUME_TEMPLATES) {
+    const markup = render(resume, template.id);
+    for (const anchor of ["profile", "profile:displayName", "profile:headline", "profile:location", "profile:education", "profile:email", "profile:phone", "profile:links", "profile:targetRoles", "profile:traits", "section:summary", "section:experience", "section:projects", "section:education", "section:skills", "experience:experience-0", "experience:experience-3", "claim:claim-3"]) {
+      assert.ok(markup.includes(`data-preview-anchor="${anchor}"`), `${template.id} is missing ${anchor}`);
+    }
+    assert.ok(markup.indexOf('data-preview-anchor="section:education"') < markup.indexOf('data-preview-anchor="section:experience"'));
+    assert.ok(!markup.includes('data-preview-anchor="claim:claim-0"'));
+    assert.equal(markup.includes('data-preview-anchor="profile:photo"'), template.id !== "en-ats");
   }
 });
 
@@ -119,4 +134,41 @@ test("resume text stays escaped instead of becoming executable HTML", () => {
 test("unknown saved template identifiers fall back to a usable classic template", () => {
   assert.equal(resolveResumeTemplate("old-theme"), "zh-classic");
   for (const template of RESUME_TEMPLATES) assert.equal(resolveResumeTemplate(template.id), template.id);
+});
+
+test("every layout honors movable sections, visibility and custom typography", () => {
+  const resume = { ...createResume(), sectionOrder: ["education", "experience", "projects", "skills", "summary"] as const, sectionVisibility: { projects: false, skills: false }, layout: { accentColor: "#69424c", bodyFontSize: 12, lineHeight: 1.8, pageMargin: 22 } };
+  for (const template of RESUME_TEMPLATES) {
+    const markup = render({ ...resume, sectionOrder: [...resume.sectionOrder] }, template.id);
+    assert.ok(markup.indexOf('data-section="education"') < markup.indexOf('data-section="experience"'));
+    assert.ok(markup.indexOf('data-section="experience"') < markup.indexOf('data-section="summary"'));
+    assert.doesNotMatch(markup, /data-section="projects"|data-section="skills"|Organization 1|Project 2/);
+    assert.match(markup, /--resume-accent:#69424c/);
+    assert.match(markup, /font-size:12pt/);
+    assert.match(markup, /padding:22mm/);
+  }
+});
+
+test("rich formatting preserves text nodes, overlap overrides and selection font size", () => {
+  const resume = createResume();
+  resume.experiences[0]!.claims[0]!.text = "<script>safe</script>";
+  resume.textStyles = { "claim:claim-0:zh": [{ start: 0, end: 20, bold: true, fontScale: 1.3 }, { start: 8, end: 12, bold: false, highlight: true, italic: true, underline: true }] };
+  const markup = render(resume, "editorial");
+  assert.doesNotMatch(markup, /<script>/);
+  assert.match(markup, /&lt;script&gt;/);
+  assert.match(markup, /font-size:1.3em/);
+  assert.match(markup, /font-weight:400;font-style:italic;text-decoration:underline;background-color:#fae6a1/);
+});
+
+test("education can appear only in its section with its header field absent", () => {
+  const resume = createResume();
+  resume.profile.education = undefined;
+  resume.experiences = resume.experiences.filter((experience) => experience.type !== "education");
+  resume.educationSummary = "独立学历事实";
+  for (const template of RESUME_TEMPLATES) {
+    const markup = render(resume, template.id);
+    const header = markup.slice(markup.indexOf("<header"), markup.indexOf("</header>"));
+    assert.doesNotMatch(header, /独立学历事实/);
+    assert.match(markup, /data-section="education"[^>]*><h2>教育背景<\/h2><div class="resume-experience-list"><p[^>]*>独立学历事实<\/p>/);
+  }
 });

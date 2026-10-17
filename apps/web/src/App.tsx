@@ -1,471 +1,172 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  projectResume,
-  scanFactBase,
-  createDefaultResumeView,
-  syncResumeViewsWithFactBase,
-  LlmConfigSchema,
-  type FactBase,
-  type Locale,
-  type ResumeView,
-  type LlmConfig,
+  projectResume, scanFactBase, createDefaultResumeView, syncResumeViewsWithFactBase,
+  LlmConfigSchema, type FactBase, type Locale, type ResumeView, type LlmConfig, type TextStyleRange,
 } from "@better-me/core";
-import {
-  LocalJsonStore,
-  createInitialDocument,
-  exportDocumentJson,
-  parseDocumentJson,
-  STORAGE_KEY,
-  type BetterMeDocument,
-} from "@better-me/storage";
+import { createInitialDocument, exportDocumentJson, parseDocumentJson, DocumentSchema, STORAGE_KEY, type DocumentVersion } from "@better-me/storage";
 import { FactEditor } from "./components/FactEditor";
 import { ResumePreview } from "./components/ResumePreview";
+import { ResizableWorkspace } from "./components/ResizableWorkspace";
+import { ResumeDesignPanel } from "./components/ResumeDesignPanel";
+import { VersionHistoryPanel } from "./components/VersionHistoryPanel";
+import { AutoSaveControls } from "./components/AutoSaveControls";
 import { IssuesPanel } from "./components/IssuesPanel";
 import { AiConfigModal, DEFAULT_LLM_CONFIG } from "./components/AiConfigModal";
 import { JdMatchModal } from "./components/JdMatchModal";
 import { ResumeImportModal } from "./components/ResumeImportModal";
-import {
-  Sparkles,
-  Download,
-  Upload,
-  RotateCcw,
-  Languages,
-  Target,
-  Bot,
-} from "lucide-react";
+import { useDocumentPersistence } from "./lib/useDocumentPersistence";
+import { rebaseViewTextStyles } from "./lib/text-formatting";
+import type { PreviewFollowTarget } from "./lib/preview-follow";
+import { ArrowUpRight, Bot, Check, ChevronRight, CloudOff, Download, FileText, GitBranch, History, Languages, Loader2, MoreHorizontal, Palette, RotateCcw, Settings2, ShieldCheck, Target, Upload } from "lucide-react";
 
-const store = new LocalJsonStore();
 const LLM_CONFIG_KEY = "better-me:llm-config";
+function downloadJson(content: string, fileName: string) {
+  const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
+  const anchor = document.createElement("a");
+  anchor.href = url; anchor.download = fileName; anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 export function App() {
-  const [doc, setDoc] = useState<BetterMeDocument | null>(null);
-  const [ready, setReady] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const { doc, ready, loadError, status, update, replace, checkpoint, flush, history, autoSaveSettings, setAutoSaveSettings, autoSavePreferenceError } = useDocumentPersistence();
+  const [workspaceTab, setWorkspaceTab] = useState<"content" | "design">("content");
+  const [previewTarget, setPreviewTarget] = useState<PreviewFollowTarget | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
-  const restoreOperationRef = useRef(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Modals
   const [isAiConfigOpen, setIsAiConfigOpen] = useState(false);
   const [isJdMatchOpen, setIsJdMatchOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [actionError, setActionError] = useState("");
   const [llmConfig, setLlmConfig] = useState<LlmConfig>(DEFAULT_LLM_CONFIG);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const restoreOperationRef = useRef(0);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const docRef = useRef(doc);
+  docRef.current = doc;
 
   useEffect(() => {
-    void (async () => {
-      try {
-        const loaded = await store.load();
-        const next = loaded ?? createInitialDocument();
-        setDoc(next);
-        if (!loaded) {
-          try { await store.save(next); }
-          catch { setSaveError("浏览器无法保存本地数据，请检查存储权限或空间。当前修改仅在页面内。"); }
-        }
-      } catch (error) {
-        setLoadError(error instanceof Error ? error.message : "本地存储读取失败，原始数据已保留。");
-      }
-
-      // Load LLM Config
-      try {
-        const savedConfig = localStorage.getItem(LLM_CONFIG_KEY);
-        if (savedConfig) {
-          const parsed = LlmConfigSchema.safeParse(JSON.parse(savedConfig));
-          if (parsed.success) setLlmConfig(parsed.data);
-        }
-      } catch (e) {
-        console.warn("Failed to load llm config from local storage", e);
-      }
-
-      setReady(true);
-    })();
+    try {
+      const saved = localStorage.getItem(LLM_CONFIG_KEY);
+      if (saved) { const parsed = LlmConfigSchema.safeParse(JSON.parse(saved)); if (parsed.success) setLlmConfig(parsed.data); }
+    } catch { /* Separate model configuration must not prevent opening the resume. */ }
   }, []);
-
   useEffect(() => {
-    if (!saveError) return;
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [saveError]);
-
-  const activeResume: ResumeView | null = useMemo(() => {
-    if (!doc) return null;
-    return (
-      doc.resumeViews.find((r) => r.id === doc.activeResumeId) ??
-      doc.resumeViews[0] ??
-      null
-    );
-  }, [doc]);
-
-  const issues = useMemo(
-    () => (doc ? scanFactBase(doc.factBase) : []),
-    [doc],
-  );
-
-  const projected = useMemo(() => {
-    if (!doc || !activeResume) return null;
-    return projectResume(doc.factBase, activeResume);
-  }, [doc, activeResume]);
-
-  async function persist(next: BetterMeDocument, replace = false): Promise<boolean> {
-    restoreOperationRef.current += 1;
-    setIsRestoring(false);
-    if (!replace) setDoc(next);
-    try {
-      await store.save(next);
-      if (replace) setDoc(next);
-      setSaveError(null);
-      setLoadError(null);
-      return true;
-    } catch (error) {
-      const message = error && typeof error === "object" && "issues" in error
-        ? "部分字段尚未填完或格式无效（如姓名、邮箱、起止月份）。请补全后自动保存。"
-        : "本地保存失败，请检查浏览器存储权限或空间，或先导出页面草稿。";
-      setSaveError(`${message} 当前修改仍保留在页面，刷新会丢失未保存内容。`);
-      return false;
-    }
-  }
-
-  function handleSaveLlmConfig(newConfig: LlmConfig) {
-    const validated = LlmConfigSchema.parse(newConfig);
-    localStorage.setItem(LLM_CONFIG_KEY, JSON.stringify(validated));
-    setLlmConfig(validated);
-  }
-
-  async function handleImportResumeSuccess(
-    factBase: FactBase,
-    rawText: string,
-    fileName: string,
-  ) {
-    if (!doc) return;
-    const newResumeView = createDefaultResumeView(factBase);
-    const nextDoc: BetterMeDocument = {
-      factBase,
-      resumeViews: [newResumeView],
-      activeResumeId: newResumeView.id,
+    const save = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault(); if (event.shiftKey) setIsHistoryOpen(true); else void flush();
+      }
     };
+    window.addEventListener("keydown", save); return () => window.removeEventListener("keydown", save);
+  }, [flush]);
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const close = (event: PointerEvent) => { if (!menuRef.current?.contains(event.target as Node)) setIsMenuOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setIsMenuOpen(false); };
+    document.addEventListener("pointerdown", close); document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", escape); };
+  }, [isMenuOpen]);
 
-    if (!(await persist(nextDoc, true))) throw new Error("未能保存导入结果，当前简历未被替换。请检查存储空间或导入字段。");
-
-    // Save record to local document records
-    try {
-      const recordsRaw = localStorage.getItem("better-me:imported-files");
-      const records = recordsRaw ? JSON.parse(recordsRaw) : [];
-      records.unshift({
-        id: `imported-${Date.now()}`,
-        fileName,
-        importedAt: new Date().toISOString(),
-        charCount: rawText.length,
-        displayName:
-          factBase.profile.displayName.zh ||
-          factBase.profile.displayName.en ||
-          "未命名",
-      });
-      localStorage.setItem(
-        "better-me:imported-files",
-        JSON.stringify(records.slice(0, 30)),
-      );
-    } catch (err) {
-      console.warn("Failed to save imported file record", err);
-    }
-  }
-
+  const activeResume = useMemo(() => doc?.resumeViews.find((view) => view.id === doc.activeResumeId) ?? doc?.resumeViews[0] ?? null, [doc]);
+  const issues = useMemo(() => doc ? scanFactBase(doc.factBase) : [], [doc]);
+  const projected = useMemo(() => doc && activeResume ? projectResume(doc.factBase, activeResume) : null, [doc, activeResume]);
+  const hasIncompleteDraft = useMemo(() => !!doc && !DocumentSchema.safeParse(doc).success, [doc]);
+  function edit(next: NonNullable<typeof doc>) { restoreOperationRef.current += 1; setIsRestoring(false); setActionError(""); docRef.current = next; update(next); }
   function updateFactBase(factBase: FactBase) {
-    if (!doc) return;
-    void persist({
-      ...doc,
-      factBase: { ...factBase, updatedAt: new Date().toISOString() },
-      resumeViews: syncResumeViewsWithFactBase(doc.factBase, factBase, doc.resumeViews, doc.activeResumeId),
-    });
+    const current = docRef.current; if (!current) return;
+    const next = { ...factBase, updatedAt: new Date().toISOString() };
+    const synced = syncResumeViewsWithFactBase(current.factBase, next, current.resumeViews, current.activeResumeId);
+    edit({ ...current, factBase: next, resumeViews: rebaseViewTextStyles(current.factBase, next, synced) });
   }
-
-  function setLocale(locale: Locale) {
-    if (!doc || !activeResume) return;
-    const resumeViews = doc.resumeViews.map((r) =>
-      r.id === activeResume.id
-        ? { ...r, locale, updatedAt: new Date().toISOString() }
-        : r,
-    );
-    void persist({ ...doc, resumeViews });
+  function updateResume(view: ResumeView) {
+    const current = docRef.current; if (!current) return;
+    edit({ ...current, resumeViews: current.resumeViews.map((item) => item.id === view.id ? { ...view, updatedAt: new Date().toISOString() } : item) });
   }
-
-  function setTemplate(templateId: string) {
-    if (!doc || !activeResume) return;
-    const resumeViews = doc.resumeViews.map((r) =>
-      r.id === activeResume.id
-        ? { ...r, templateId, updatedAt: new Date().toISOString() }
-        : r,
-    );
-    void persist({ ...doc, resumeViews });
+  function updateStyles(key: string, ranges: TextStyleRange[]) {
+    const current = docRef.current;
+    const view = current?.resumeViews.find((item) => item.id === current.activeResumeId);
+    if (view) updateResume({ ...view, textStyles: { ...view.textStyles, [key]: ranges } });
   }
-
-  // Backup & Restore
-  function downloadJson(content: string, fileName: string) {
-    const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
+  function setLocale(locale: Locale) { if (activeResume) updateResume({ ...activeResume, locale }); }
+  function setTemplate(templateId: string) { if (activeResume) updateResume({ ...activeResume, templateId }); }
+  function handleSaveLlmConfig(config: LlmConfig) {
+    const validated = LlmConfigSchema.parse(config); localStorage.setItem(LLM_CONFIG_KEY, JSON.stringify(validated)); setLlmConfig(validated);
   }
-
+  async function handleImportResumeSuccess(factBase: FactBase, _rawText: string, fileName: string) {
+    const view = createDefaultResumeView(factBase); view.name = fileName.replace(/\.[^.]+$/, "") || "我的简历";
+    restoreOperationRef.current += 1; setIsRestoring(false);
+    if (!(await replace({ factBase, resumeViews: [view], activeResumeId: view.id }, `导入 · ${fileName}`, "import"))) throw new Error("导入结果未能保存，当前简历已保留。请检查浏览器空间与字段格式。");
+    setWorkspaceTab("content");
+  }
   function handleExportBackup() {
     if (!doc) return;
-    try {
-      const jsonStr = exportDocumentJson(doc);
-      downloadJson(jsonStr, `better-me-backup-${new Date().toISOString().slice(0, 10)}.json`);
-    } catch {
-      downloadJson(JSON.stringify(doc, null, 2), `better-me-draft-${new Date().toISOString().slice(0, 10)}.json`);
-      alert("已导出页面草稿，其中包含未完成字段；修正格式后才能作为完整备份恢复。");
-    }
+    try { downloadJson(exportDocumentJson(doc), `better-me-backup-${new Date().toISOString().slice(0, 10)}.json`); }
+    catch { downloadJson(JSON.stringify(doc, (_key, value) => typeof value === "number" && !Number.isFinite(value) ? null : value, 2), `better-me-draft-${new Date().toISOString().slice(0, 10)}.json`); setActionError("已下载未完成草稿。补齐必填字段后，可以导出可恢复的完整备份。"); }
+    setIsMenuOpen(false);
   }
-
-  function handleImportClick() {
-    fileInputRef.current?.click();
-  }
-
-  function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const operation = ++restoreOperationRef.current;
-    setIsRestoring(true);
-    const reader = new FileReader();
-    reader.onload = async (event) => {
+  function handleFileSelected(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]; event.target.value = ""; if (!file) return;
+    const operation = ++restoreOperationRef.current; setIsRestoring(true); setActionError("");
+    void file.text().then(async (raw) => {
       if (operation !== restoreOperationRef.current) return;
-      try {
-        const content = event.target?.result as string;
-        const imported = parseDocumentJson(content);
-        if (await persist(imported, true)) alert("备份数据恢复成功！");
-      } catch {
-        alert("导入失败：文件格式不符合 BetterMe 规范。");
-      } finally {
-        if (operation === restoreOperationRef.current) setIsRestoring(false);
-      }
-    };
-    reader.onerror = () => {
-      if (operation !== restoreOperationRef.current) return;
-      setIsRestoring(false);
-      alert("文件读取失败，请重新选择备份文件。");
-    };
-    reader.readAsText(file);
-    e.target.value = "";
+      const restored = parseDocumentJson(raw);
+      const saved = await replace(restored, `恢复备份 · ${file.name}`, "import");
+      if (operation === restoreOperationRef.current && !saved) setActionError("备份未能保存，当前简历已保留。");
+    }).catch((error) => {
+      if (operation === restoreOperationRef.current) setActionError(error instanceof Error ? `恢复失败：${error.message}` : "备份读取失败，请选择有效的 BetterMe JSON 文件。");
+    }).finally(() => { if (operation === restoreOperationRef.current) setIsRestoring(false); });
+    setIsMenuOpen(false);
   }
-
   async function resetDemo() {
-    restoreOperationRef.current += 1;
-    setIsRestoring(false);
-    if (confirm("确定要重置为初始演示数据吗？当前所做的未备份修改将会丢失。")) {
-      const next = createInitialDocument();
-      await persist(next, true);
-    }
+    setIsMenuOpen(false); if (!confirm("恢复演示简历？当前有效文档会先记录到历史版本。未完成草稿建议先下载备份。")) return;
+    restoreOperationRef.current += 1; setIsRestoring(false); await replace(createInitialDocument(), "恢复演示简历", "import");
   }
-
-  if (ready && loadError) {
-    return (
-      <div className="mx-auto max-w-xl space-y-4 p-8 text-sm text-slate-700">
-        <h1 className="text-lg font-bold">本地数据需要恢复</h1>
-        <p role="alert">{loadError}</p>
-        {saveError && <p role="alert">{saveError}</p>}
-        <input type="file" ref={fileInputRef} accept=".json" onChange={handleFileSelected} className="hidden" />
-        <div className="flex flex-wrap gap-3">
-          <button className="rounded border p-2" onClick={() => {
-            try { downloadJson(localStorage.getItem(STORAGE_KEY) ?? "", "better-me-backup-recovery.json"); }
-            catch { alert("浏览器拒绝读取本地存储，请检查权限。"); }
-          }}>下载原始数据</button>
-          <button className="rounded border p-2" onClick={handleImportClick}>恢复 JSON 备份</button>
-          <button className="rounded border p-2 text-rose-700" onClick={() => void resetDemo()}>确认后重置演示</button>
-        </div>
-      </div>
-    );
+  async function restoreVersion(version: DocumentVersion) {
+    restoreOperationRef.current += 1; setIsRestoring(false); setActionError("");
+    return replace(version.document, `恢复 · ${version.label}`, "restore");
   }
+  if (ready && loadError && !doc) return <div className="recovery-screen"><div className="recovery-card"><ShieldCheck size={28} /><h1>先保护好你的简历</h1><p role="alert">{loadError}</p><p>原始数据已保留。可以下载原文，或从有效备份恢复。</p><input type="file" ref={fileInputRef} accept=".json" onChange={handleFileSelected} className="hidden" /><div className="flex flex-wrap gap-3"><button className="studio-button" onClick={() => { try { downloadJson(localStorage.getItem(STORAGE_KEY) ?? "", "better-me-backup-recovery.json"); } catch { setActionError("浏览器拒绝读取存储。"); } }}>下载原始数据</button><button className="studio-button primary" onClick={() => fileInputRef.current?.click()}>恢复 JSON 备份</button><button className="studio-button" onClick={() => void resetDemo()}>恢复演示</button></div>{actionError && <p role="alert">{actionError}</p>}</div></div>;
+  if (!ready || !doc || !activeResume || !projected) return <div className="studio-loading"><Loader2 size={24} className="animate-spin" /><span>正在打开你的简历工作室…</span></div>;
+  const statusIcon = status.kind === "pending" ? <Loader2 size={12} className="animate-spin" /> : status.kind === "error" ? <CloudOff size={12} /> : <Check size={12} />;
+  const saveLabel = status.kind === "saved" ? "已保存" : status.kind === "draft" ? "草稿已保护" : status.kind === "pending" ? "等待保存" : status.kind === "error" ? "保存需要处理" : "正在载入";
+  const autoSaveDescription = !autoSaveSettings.enabled ? "自动保存已关闭" : autoSaveSettings.trigger === "enter" ? "按回车保存" : autoSaveSettings.trigger === "blur" ? "离开编辑项时保存" : `停止输入 ${autoSaveSettings.delayMs / 1000} 秒后保存`;
 
-  if (!ready || !doc || !activeResume || !projected) {
-    return (
-      <div className="grid h-full place-items-center text-slate-500 font-medium text-sm">
-        正在载入本地 Fact 事实库与简历引擎…
+  return <div className="studio-app">
+    <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".json" className="hidden" />
+    <aside className="studio-rail no-print" aria-label="工作室导航">
+      <a className="studio-monogram" href="#" aria-label="BetterMe 简历工作室" onClick={(event) => { event.preventDefault(); setWorkspaceTab("content"); }}>b<span>m</span><i /></a><div className="rail-divider" />
+      <button aria-label="内容编辑" aria-pressed={workspaceTab === "content"} className={workspaceTab === "content" ? "active" : ""} onClick={() => setWorkspaceTab("content")}><FileText size={20} /><span>内容</span></button>
+      <button aria-label="排版设计" aria-pressed={workspaceTab === "design"} className={workspaceTab === "design" ? "active" : ""} onClick={() => setWorkspaceTab("design")}><Palette size={20} /><span>设计</span></button>
+      <button aria-label="查看历史版本" onClick={() => setIsHistoryOpen(true)}><History size={20} /><span>版本</span></button>
+      <button aria-label="打开 JD 工作台" onClick={() => setIsJdMatchOpen(true)}><Target size={20} /><span>岗位</span></button>
+      <div className="rail-bottom"><span className="rail-local" title="简历与历史版本保存在当前浏览器"><ShieldCheck size={19} /></span><button aria-label="打开 AI 配置" onClick={() => setIsAiConfigOpen(true)}><Settings2 size={19} /><span>设置</span></button></div>
+    </aside>
+    <div className="studio-workspace">
+      <header className="studio-header no-print"><div className="studio-brand"><strong>BetterMe<span> / </span></strong><span>迈向更好</span><ChevronRight size={13} /><span className="header-location">简历工作室</span></div><div className="header-actions"><span className={`save-indicator ${status.kind}`} title={status.message} role="status" aria-live="polite">{statusIcon}<span>{saveLabel}</span></span><button className="studio-button subtle" onClick={() => setIsAiConfigOpen(true)}><Bot size={15} />AI 配置</button><div className="studio-user" title="个人本地工作空间">{doc.factBase.profile.displayName.zh.slice(0, 1) || "我"}</div></div></header>
+      <div className="studio-document-bar no-print">
+        <div className="document-heading"><div className="studio-eyebrow">YOUR STORY, WELL TOLD</div><div className="document-title-row"><input aria-label="简历名称" value={activeResume.name === "Default" ? "我的简历" : activeResume.name} onChange={(event) => updateResume({ ...activeResume, name: event.target.value })} spellCheck={false} /><span className="document-badge">个人工作空间</span></div><p>把真实的经历，变成有分量的表达。</p></div>
+        <div className="document-actions"><AutoSaveControls settings={autoSaveSettings} onChange={setAutoSaveSettings} onSave={() => void flush()} preferenceError={autoSavePreferenceError} /><div className="output-language" aria-label="简历输出语言"><Languages size={14} />{(["zh", "en"] as const).map((locale) => <button key={locale} aria-pressed={activeResume.locale === locale} className={activeResume.locale === locale ? "active" : ""} onClick={() => setLocale(locale)}>{locale === "zh" ? "中文" : "English"}</button>)}</div><button className="studio-button" onClick={() => setIsHistoryOpen(true)}><GitBranch size={14} />历史版本</button><button className="studio-button primary" onClick={() => setIsImportModalOpen(true)}><Upload size={14} />导入简历</button><div className="document-menu" ref={menuRef}><button className="studio-button icon-button" aria-label="更多简历操作" aria-expanded={isMenuOpen} onClick={() => setIsMenuOpen(!isMenuOpen)}><MoreHorizontal size={19} /></button>{isMenuOpen && <div className="document-dropdown"><button onClick={handleExportBackup}><Download size={14} />下载 JSON 备份</button><button onClick={() => fileInputRef.current?.click()}><RotateCcw size={14} />从备份恢复</button><button onClick={() => { void flush(); setIsMenuOpen(false); }}><Check size={14} />立即保存<span>Ctrl S</span></button><hr /><button onClick={() => void resetDemo()}><RotateCcw size={14} />恢复演示简历</button></div>}</div></div>
       </div>
-    );
-  }
-
-  return (
-    <div className="mx-auto flex h-full max-w-[1720px] flex-col gap-3.5 p-3 sm:p-5">
-      {/* Hidden File Input for Backup Import */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileSelected}
-        accept=".json"
-        className="hidden"
-      />
-
-      {/* Top Application Header (Hidden in Print) */}
-      <header className="no-print flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--color-line)] bg-white/80 backdrop-blur-md px-5 py-3.5 shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-accent)] text-white shadow-xs">
-            <Sparkles className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-bold text-base tracking-tight text-slate-900">
-                迈向更好 · BetterMe
-              </h1>
-              <span className="rounded bg-[var(--color-accent-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-accent)]">
-                V1 事实与简历工作台
-              </span>
-            </div>
-            <p className="text-xs text-slate-500">
-              事实优先 · 量化待核实 · 中英同源 · 本地简历工作台
-            </p>
-          </div>
-        </div>
-
-        {/* Global Toolbar */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Resume Import Button */}
-          <button
-            type="button"
-            onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-xs font-semibold shadow-xs transition"
-            title="支持导入 PDF、Word (DOCX/DOC)、HTML、Markdown、TXT 简历并自动结构化"
-          >
-            <Upload className="h-3.5 w-3.5" />
-            <span>导入简历</span>
-          </button>
-
-          {/* AI JD Match Button */}
-          <button
-            type="button"
-            onClick={() => setIsJdMatchOpen(true)}
-            className="flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 text-xs font-semibold shadow-xs transition"
-          >
-            <Target className="h-3.5 w-3.5" />
-            <span>JD 匹配与 AI 诊断</span>
-          </button>
-
-          {/* AI Settings Button */}
-          <button
-            type="button"
-            onClick={() => setIsAiConfigOpen(true)}
-            className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-50 transition"
-            title="配置云端大模型 API 或本地 Ollama"
-          >
-            <Bot className="h-3.5 w-3.5 text-slate-500" />
-            <span className="hidden sm:inline">AI 配置</span>
-          </button>
-
-          <div className="h-4 w-px bg-slate-200 mx-1" />
-
-          {/* Target Language Switcher */}
-          <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50/80 p-0.5 shadow-2xs">
-            {(["zh", "en"] as const).map((locale) => (
-              <button
-                key={locale}
-                type="button"
-                onClick={() => setLocale(locale)}
-                className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-semibold transition ${
-                  activeResume.locale === locale
-                    ? "bg-[var(--color-accent)] text-white shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <Languages className="h-3 w-3" />
-                <span>{locale === "zh" ? "输出: 中文" : "Output: EN"}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="h-4 w-px bg-slate-200 mx-1" />
-
-          {/* Backup / Restore */}
-          <button
-            type="button"
-            onClick={handleExportBackup}
-            className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
-            title="导出全部数据为 JSON 本地备份"
-          >
-            <Download className="h-3.5 w-3.5 text-slate-500" />
-            <span className="hidden sm:inline">备份</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleImportClick}
-            className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
-            title="从本地 JSON 恢复数据"
-          >
-            <RotateCcw className="h-3.5 w-3.5 text-slate-500" />
-            <span className="hidden sm:inline">恢复</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => void resetDemo()}
-            className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 shadow-2xs hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50/50 transition"
-            title="重置为初始 Demo 数据"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">重置</span>
-          </button>
-        </div>
-      </header>
-
-      <div className={`no-print flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs ${saveError ? "bg-amber-50 text-amber-900" : "bg-emerald-50 text-emerald-800"}`} role="status" aria-live="polite">
-        <span>{isRestoring ? "正在读取 JSON 备份…继续编辑会取消本次恢复。" : saveError ?? "修改已自动保存到本机浏览器。建议定期导出 JSON 备份。"}</span>
-        {saveError && <div className="flex gap-3">
-          <button className="underline" onClick={() => void persist(doc)}>重试保存</button>
-          <button className="underline" onClick={handleExportBackup}>导出页面草稿</button>
-        </div>}
+      <div className="studio-notices no-print">
+        {(status.kind === "error" || (status.kind === "draft" && hasIncompleteDraft) || status.historyError || isRestoring || actionError || status.rawDraftRecovery || status.rawOfficialRecovery || status.rawPreviousDraftRecovery || loadError) && <div className={`persistence-notice ${status.kind === "error" ? "error" : ""}`} role="status" aria-live="polite"><span>{isRestoring ? "正在读取备份，继续编辑会取消本次恢复。" : actionError || loadError || status.message}{status.historyError && ` ${status.historyError}`}</span><div>{status.kind === "error" && <button onClick={() => void flush()}>重试保存</button>}{status.rawDraftRecovery && <button onClick={() => downloadJson(status.rawDraftRecovery!, "better-me-draft-recovery.json")}>下载原始草稿</button>}<button onClick={handleExportBackup}>下载备份</button>{status.rawOfficialRecovery && <button onClick={() => downloadJson(status.rawOfficialRecovery!, "better-me-backup-recovery.json")}>下载原始文档</button>}{status.rawPreviousDraftRecovery && <button onClick={() => downloadJson(status.rawPreviousDraftRecovery!, "better-me-draft-before-switch.json")}>下载切换前草稿</button>}</div></div>}
+        <IssuesPanel issues={issues} />
       </div>
-
-      {/* Issues / Quality Guardrails Panel */}
-      <IssuesPanel issues={issues} />
-
-      {/* Main Split Workstation */}
-      <main className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
-        <div className="no-print min-h-0 flex flex-col">
-          <FactEditor factBase={doc.factBase} onChange={updateFactBase} />
+      <ResizableWorkspace>
+        <div id="resume-editor-panel" className="studio-editor-pane no-print">
+          <div className="editor-workspace-tabs" role="tablist" aria-label="简历编辑工作区"><button role="tab" aria-selected={workspaceTab === "content"} aria-controls="content-panel" className={workspaceTab === "content" ? "active" : ""} onClick={() => setWorkspaceTab("content")}><FileText size={15} />内容编辑</button><button role="tab" aria-selected={workspaceTab === "design"} aria-controls="design-panel" className={workspaceTab === "design" ? "active" : ""} onClick={() => setWorkspaceTab("design")}><Palette size={15} />排版与模板</button><span className="workspace-tab-spacer" /><span className="edit-live-dot" title="修改实时反映在右侧预览" /></div>
+          <div id="content-panel" role="tabpanel" className="studio-panel-slot" hidden={workspaceTab !== "content"}><FactEditor factBase={doc.factBase} onChange={updateFactBase} textStyles={activeResume.textStyles} onTextStylesChange={updateStyles} onPreviewTargetChange={setPreviewTarget} /></div>
+          <div id="design-panel" role="tabpanel" className="studio-panel-slot" hidden={workspaceTab !== "design"}><ResumeDesignPanel view={activeResume} factBase={doc.factBase} onChange={updateResume} /></div>
+          <button className="jd-workspace-invite" onClick={() => setIsJdMatchOpen(true)}><span className="jd-invite-icon"><Target size={17} /></span><span><strong>为下一个机会，调整这份简历</strong><small>招聘分享链接 · 截图识别 · JD 匹配</small></span><ArrowUpRight size={17} /></button>
         </div>
-        <div className="min-h-0 flex flex-col">
-          <ResumePreview
-            resume={projected}
-            onTemplateChange={setTemplate}
-          />
-        </div>
-      </main>
-
-      {/* AI Configuration Modal */}
-      <div className="no-print">
-      <AiConfigModal
-        isOpen={isAiConfigOpen}
-        onClose={() => setIsAiConfigOpen(false)}
-        config={llmConfig}
-        onSave={handleSaveLlmConfig}
-      />
-
-      {/* JD Match Analysis Modal */}
-      <JdMatchModal
-        isOpen={isJdMatchOpen}
-        onClose={() => setIsJdMatchOpen(false)}
-        resume={projected}
-        llmConfig={llmConfig}
-        onOpenConfig={() => {
-          setIsJdMatchOpen(false);
-          setIsAiConfigOpen(true);
-        }}
-      />
-
-      {/* Resume Import & Auto-Structuring Modal */}
-      <ResumeImportModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        llmConfig={llmConfig}
-        onImportSuccess={handleImportResumeSuccess}
-        onOpenAiConfig={() => {
-          setIsImportModalOpen(false);
-          setIsAiConfigOpen(true);
-        }}
-      />
-      </div>
+        <div id="resume-preview-panel" className="studio-preview-pane"><ResumePreview resume={projected} view={activeResume} onViewChange={updateResume} onTemplateChange={setTemplate} followTarget={workspaceTab === "content" ? previewTarget : null} /></div>
+      </ResizableWorkspace>
+      <footer className="studio-footer no-print"><span><ShieldCheck size={12} />本地保存 · 真实经历由你核实</span><span>{autoSaveDescription} · Ctrl + S 立即保存</span></footer>
     </div>
-  );
+    <div className="no-print">
+      <AiConfigModal isOpen={isAiConfigOpen} onClose={() => setIsAiConfigOpen(false)} config={llmConfig} onSave={handleSaveLlmConfig} />
+      <JdMatchModal isOpen={isJdMatchOpen} onClose={() => setIsJdMatchOpen(false)} resume={projected} llmConfig={llmConfig} onOpenConfig={() => { setIsJdMatchOpen(false); setIsAiConfigOpen(true); }} />
+      <ResumeImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} llmConfig={llmConfig} onImportSuccess={handleImportResumeSuccess} onOpenAiConfig={() => { setIsImportModalOpen(false); setIsAiConfigOpen(true); }} />
+      {isHistoryOpen && <VersionHistoryPanel history={history} currentDocument={doc} onCheckpoint={checkpoint} onRestore={restoreVersion} onClose={() => setIsHistoryOpen(false)} />}
+    </div>
+  </div>;
 }

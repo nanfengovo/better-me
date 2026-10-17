@@ -4,7 +4,11 @@ import type {
   Experience,
   FactClaim,
   Profile,
+  TextStyleRange,
 } from "@better-me/core";
+import { TextFormattingField } from "./TextFormattingField";
+import { selectEditorFollowTarget } from "../lib/editor-follow";
+import type { PreviewFollowTarget } from "../lib/preview-follow";
 import {
   Briefcase,
   User,
@@ -20,6 +24,9 @@ import {
 type Props = {
   factBase: FactBase;
   onChange: (next: FactBase) => void;
+  textStyles?: Record<string, TextStyleRange[]>;
+  onTextStylesChange?: (key: string, ranges: TextStyleRange[]) => void;
+  onPreviewTargetChange?: (target: PreviewFollowTarget) => void;
 };
 
 type ViewMode = "bilingual" | "zh" | "en";
@@ -31,25 +38,97 @@ const EXPERIENCE_TYPES: { value: Experience["type"]; label: string }[] = [
   { value: "other", label: "项目 / 其他经历" },
 ];
 
-export function FactEditor({ factBase, onChange }: Props) {
+export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange, onPreviewTargetChange }: Props) {
   const [activeTab, setActiveTab] = useState<"experiences" | "profile">("experiences");
-  const [viewMode, setViewMode] = useState<ViewMode>("bilingual");
+  const [viewMode, setViewMode] = useState<ViewMode>("zh");
   const [collapsedExps, setCollapsedExps] = useState<Record<string, boolean>>({});
   const [newExperienceType, setNewExperienceType] = useState<Experience["type"]>("work");
   const [avatarError, setAvatarError] = useState("");
   const factBaseRef = useRef(factBase);
   const onChangeRef = useRef(onChange);
   const avatarReadIdRef = useRef(0);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const followCallbackRef = useRef(onPreviewTargetChange);
+  const pendingFollowFrameRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     factBaseRef.current = factBase;
     onChangeRef.current = onChange;
   }, [factBase, onChange]);
 
+  useEffect(() => { followCallbackRef.current = onPreviewTargetChange; }, [onPreviewTargetChange]);
+
+  useEffect(() => () => {
+    if (pendingFollowFrameRef.current !== undefined) cancelAnimationFrame(pendingFollowFrameRef.current);
+  }, []);
+
+  const emitPreviewTarget = useCallback((target: PreviewFollowTarget) => {
+    const progress = target.progress === undefined ? undefined : Math.round(target.progress * 50) / 50;
+    const normalized = { ...target, ...(progress === undefined ? {} : { progress }) };
+    // A fresh object resumes following after independent preview browsing, even
+    // when the same field or short scroll block is still the active target.
+    followCallbackRef.current?.(normalized);
+  }, []);
+
+  const targetForElement = useCallback((element: Element) => {
+    const scroller = scrollerRef.current;
+    const block = element.closest<HTMLElement>("[data-editor-anchor]");
+    if (!scroller || !block || !scroller.contains(block)) return;
+    const anchor = block.dataset.editorAnchor;
+    if (!anchor) return;
+    const fallbacks: string[] = [];
+    let current: HTMLElement | null = block;
+    while (current && scroller.contains(current)) {
+      const parentAnchor = current.dataset.editorAnchor;
+      if (parentAnchor && parentAnchor !== anchor) fallbacks.push(parentAnchor);
+      current = current.parentElement;
+    }
+    return { anchor, fallbackAnchors: [...new Set(fallbacks)] };
+  }, []);
+
+  const followEditingTarget = useCallback((event: React.SyntheticEvent) => {
+    if (!(event.target instanceof Element)) return;
+    const target = targetForElement(event.target);
+    if (!target) return;
+    // Typing takes over from scroll even when the browser kept the same input focused.
+    if (pendingFollowFrameRef.current !== undefined) {
+      cancelAnimationFrame(pendingFollowFrameRef.current);
+      pendingFollowFrameRef.current = undefined;
+    }
+    emitPreviewTarget({ ...target, source: "focus" });
+  }, [emitPreviewTarget, targetForElement]);
+
+  const followEditorScroll = useCallback(() => {
+    if (!followCallbackRef.current || pendingFollowFrameRef.current !== undefined) return;
+    pendingFollowFrameRef.current = requestAnimationFrame(() => {
+      pendingFollowFrameRef.current = undefined;
+      const scroller = scrollerRef.current;
+      if (!scroller || !scroller.isConnected || scroller.clientWidth === 0 || scroller.clientHeight === 0) return;
+      const bounds = scroller.getBoundingClientRect();
+      const candidates = Array.from(scroller.querySelectorAll<HTMLElement>("[data-editor-anchor]")).map((element) => {
+        const target = targetForElement(element);
+        if (!target) return undefined;
+        const rect = element.getBoundingClientRect();
+        let depth = 0;
+        let parent: HTMLElement | null = element;
+        while (parent && parent !== scroller) { depth += 1; parent = parent.parentElement; }
+        return { ...target, top: rect.top, bottom: rect.bottom, depth };
+      }).filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== undefined);
+      const target = selectEditorFollowTarget({ top: bounds.top + scroller.clientTop, height: scroller.clientHeight }, candidates);
+      if (target) emitPreviewTarget(target);
+    });
+  }, [emitPreviewTarget, targetForElement]);
+
+  const experienceTarget = (id: string): PreviewFollowTarget => ({ anchor: `experience:${id}`, source: "focus" });
+
   useEffect(() => () => { avatarReadIdRef.current += 1; }, []);
 
   const toggleExpCollapse = (id: string) => {
-    setCollapsedExps((prev) => ({ ...prev, [id]: !prev[id] }));
+    setCollapsedExps((prev) => ({
+      ...prev,
+      [id]: !(prev[id] ?? (factBaseRef.current.experiences.findIndex((item) => item.id === id) > 0)),
+    }));
+    emitPreviewTarget(experienceTarget(id));
   };
 
   // --- Profile Helpers ---
@@ -187,14 +266,18 @@ export function FactEditor({ factBase, onChange }: Props) {
   };
 
   return (
-    <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] shadow-sm">
+    <section onPointerDownCapture={followEditingTarget} onFocusCapture={followEditingTarget} onInputCapture={followEditingTarget} onChangeCapture={followEditingTarget} className="fact-editor flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] shadow-sm">
       {/* Editor Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-line)] px-5 py-3.5 bg-slate-50/50">
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-[var(--color-line)] bg-white p-0.5 shadow-xs">
             <button
               type="button"
-              onClick={() => setActiveTab("experiences")}
+              onClick={() => {
+                setActiveTab("experiences");
+                const first = factBase.experiences[0];
+                if (first) emitPreviewTarget(experienceTarget(first.id));
+              }}
               className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition ${
                 activeTab === "experiences"
                   ? "bg-[var(--color-accent)] text-white shadow-xs"
@@ -202,14 +285,14 @@ export function FactEditor({ factBase, onChange }: Props) {
               }`}
             >
               <Briefcase className="h-3.5 w-3.5" />
-              <span>经历与战绩</span>
+              <span>经历与成果</span>
               <span className="ml-1 rounded-full bg-slate-200/60 px-1.5 py-0.2 text-[10px] text-slate-700">
                 {factBase.experiences.length}
               </span>
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab("profile")}
+              onClick={() => { setActiveTab("profile"); emitPreviewTarget({ anchor: "profile", source: "focus" }); }}
               className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition ${
                 activeTab === "profile"
                   ? "bg-[var(--color-accent)] text-white shadow-xs"
@@ -217,7 +300,7 @@ export function FactEditor({ factBase, onChange }: Props) {
               }`}
             >
               <User className="h-3.5 w-3.5" />
-              <span>画像与目标</span>
+              <span>个人信息</span>
             </button>
           </div>
         </div>
@@ -265,10 +348,10 @@ export function FactEditor({ factBase, onChange }: Props) {
       </div>
 
       {/* Editor Content Area */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-5">
+      <div ref={scrollerRef} onScroll={followEditorScroll} className="min-h-0 flex-1 overflow-y-auto p-5 space-y-5">
         {activeTab === "profile" ? (
           /* ================= Profile Editor ================= */
-          <div className="space-y-6 max-w-2xl mx-auto py-2">
+          <div data-editor-anchor="profile" className="space-y-6 max-w-2xl mx-auto py-2">
             <div className="rounded-xl border border-[var(--color-line)] bg-white p-5 shadow-xs space-y-4">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
                 <User className="h-4 w-4 text-[var(--color-accent)]" />
@@ -276,7 +359,7 @@ export function FactEditor({ factBase, onChange }: Props) {
               </h3>
 
               {/* Avatar Photo Section */}
-              <div className="flex items-center gap-4 border-b border-slate-100 pb-4">
+              <div data-editor-anchor="profile:photo" className="flex items-center gap-4 border-b border-slate-100 pb-4">
                 <div className="relative group shrink-0">
                   {factBase.profile.avatarUrl ? (
                     <img
@@ -322,29 +405,29 @@ export function FactEditor({ factBase, onChange }: Props) {
                       </button>
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-400">
-                    支持 JPG、PNG 格式或直接剪贴板 Ctrl+V 粘贴照片，将按标准简历 1 寸规格比例展示在简历右上角（纯净打印自适应）
-                  </p>
+                  <p className="text-[11px] text-slate-400">上传 JPG、PNG 或粘贴照片。在「排版设计」中选择是否展示；照片设置随简历保存。</p>
                   {avatarError && <p role="alert" className="text-xs text-rose-700">{avatarError}</p>}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div data-editor-anchor="profile:displayName" className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {(viewMode === "bilingual" || viewMode === "zh") && (
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       中文姓名
                     </label>
-                    <input
-                      type="text"
+                    <TextFormattingField
+                      label="中文姓名"
+                      rows={1}
+                      ranges={textStyles?.["profile:displayName:zh"]}
+                      onStylesChange={onTextStylesChange ? (ranges) => onTextStylesChange("profile:displayName:zh", ranges) : undefined}
                       value={factBase.profile.displayName.zh}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         updateProfile((p) => ({
                           ...p,
-                          displayName: { ...p.displayName, zh: e.target.value },
+                          displayName: { ...p.displayName, zh: value },
                         }))
                       }
-                      className="w-full rounded-lg border border-[var(--color-line)] px-3 py-1.5 text-sm focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] outline-none"
                     />
                   </div>
                 )}
@@ -354,41 +437,45 @@ export function FactEditor({ factBase, onChange }: Props) {
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       英文姓名 (English Name)
                     </label>
-                    <input
-                      type="text"
+                    <TextFormattingField
+                      label="英文姓名"
+                      rows={1}
+                      ranges={textStyles?.["profile:displayName:en"]}
+                      onStylesChange={onTextStylesChange ? (ranges) => onTextStylesChange("profile:displayName:en", ranges) : undefined}
                       value={factBase.profile.displayName.en ?? ""}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         updateProfile((p) => ({
                           ...p,
-                          displayName: { ...p.displayName, en: e.target.value },
+                          displayName: { ...p.displayName, en: value },
                         }))
                       }
-                      className="w-full rounded-lg border border-[var(--color-line)] px-3 py-1.5 text-sm focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] outline-none"
                     />
                   </div>
                 )}
               </div>
 
               {/* Headline */}
-              <div className="space-y-3 pt-1">
+              <div data-editor-anchor="profile:headline" className="space-y-3 pt-1">
                 {(viewMode === "bilingual" || viewMode === "zh") && (
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       个人定位 / 一句话简介 (中文)
                     </label>
-                    <input
-                      type="text"
+                    <TextFormattingField
+                      label="中文个人定位"
+                      rows={1}
+                      ranges={textStyles?.["profile:headline:zh"]}
+                      onStylesChange={onTextStylesChange ? (ranges) => onTextStylesChange("profile:headline:zh", ranges) : undefined}
                       value={factBase.profile.headline?.zh ?? ""}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         updateProfile((p) => ({
                           ...p,
                           headline: {
-                            zh: e.target.value,
+                            zh: value,
                             en: p.headline?.en ?? "",
                           },
                         }))
                       }
-                      className="w-full rounded-lg border border-[var(--color-line)] px-3 py-1.5 text-sm focus:border-[var(--color-accent)] outline-none"
                       placeholder="例如：高级工业软件研发工程师 · 工业 AI 落地实践者"
                     />
                   </div>
@@ -399,19 +486,21 @@ export function FactEditor({ factBase, onChange }: Props) {
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Professional Headline (English)
                     </label>
-                    <input
-                      type="text"
+                    <TextFormattingField
+                      label="英文个人定位"
+                      rows={1}
+                      ranges={textStyles?.["profile:headline:en"]}
+                      onStylesChange={onTextStylesChange ? (ranges) => onTextStylesChange("profile:headline:en", ranges) : undefined}
                       value={factBase.profile.headline?.en ?? ""}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         updateProfile((p) => ({
                           ...p,
                           headline: {
                             zh: p.headline?.zh ?? "",
-                            en: e.target.value,
+                            en: value,
                           },
                         }))
                       }
-                      className="w-full rounded-lg border border-[var(--color-line)] px-3 py-1.5 text-sm focus:border-[var(--color-accent)] outline-none"
                       placeholder="e.g. Industrial Software Engineer · Industrial AI Practitioner"
                     />
                   </div>
@@ -420,7 +509,7 @@ export function FactEditor({ factBase, onChange }: Props) {
 
               {/* Education & Location */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-                <div>
+                <div data-editor-anchor="profile:education">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     学历 (Education)
                   </label>
@@ -439,7 +528,7 @@ export function FactEditor({ factBase, onChange }: Props) {
                     className="w-full rounded-lg border border-[var(--color-line)] px-3 py-1.5 text-sm focus:border-[var(--color-accent)] outline-none"
                   />
                 </div>
-                <div>
+                <div data-editor-anchor="profile:location">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     所在城市 (Location)
                   </label>
@@ -462,7 +551,7 @@ export function FactEditor({ factBase, onChange }: Props) {
 
               {/* Contact */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-                <div>
+                <div data-editor-anchor="profile:email">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     邮箱 (Email)
                   </label>
@@ -476,7 +565,7 @@ export function FactEditor({ factBase, onChange }: Props) {
                     placeholder="name@example.com"
                   />
                 </div>
-                <div>
+                <div data-editor-anchor="profile:phone">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     电话 (Phone)
                   </label>
@@ -500,7 +589,7 @@ export function FactEditor({ factBase, onChange }: Props) {
                 求职偏好与硬性红线 (SSOT)
               </h3>
 
-              <div className="space-y-2">
+              <div data-editor-anchor="profile:targetRoles" className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-xs font-semibold text-slate-700">目标岗位</h4>
                   <button type="button" onClick={() => updateProfile((profile) => ({ ...profile, targetRoles: [...profile.targetRoles, { zh: "", en: "" }] }))} className="text-xs font-medium text-[var(--color-accent)]">+ 添加目标岗位</button>
@@ -526,7 +615,7 @@ export function FactEditor({ factBase, onChange }: Props) {
                 ))}
               </div>
 
-              <div className="space-y-2 border-t border-slate-100 pt-3">
+              <div data-editor-anchor="profile:traits" className="space-y-2 border-t border-slate-100 pt-3">
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-xs font-semibold text-slate-700">核心优势与专长</h4>
                   <button type="button" onClick={() => updateProfile((profile) => ({ ...profile, traits: [...profile.traits, ""] }))} className="text-xs font-medium text-[var(--color-accent)]">+ 添加优势</button>
@@ -540,7 +629,7 @@ export function FactEditor({ factBase, onChange }: Props) {
                 <p className="text-[11px] text-slate-500">优势字段目前共用一份文字，不随编辑语言自动翻译。</p>
               </div>
 
-              <div className="space-y-2 border-t border-slate-100 pt-3">
+              <div data-editor-anchor="profile:links" className="space-y-2 border-t border-slate-100 pt-3">
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-xs font-semibold text-slate-700">作品与个人链接</h4>
                   <button type="button" onClick={() => updateProfile((profile) => ({ ...profile, links: [...profile.links, { label: "", url: "" }] }))} className="text-xs font-medium text-[var(--color-accent)]">+ 添加链接</button>
@@ -664,12 +753,13 @@ export function FactEditor({ factBase, onChange }: Props) {
               </div>
             </div>
 
-            {factBase.experiences.map((exp) => {
-              const isCollapsed = collapsedExps[exp.id] ?? false;
+            {factBase.experiences.map((exp, index) => {
+              const isCollapsed = collapsedExps[exp.id] ?? (index > 0);
 
               return (
                 <article
                   key={exp.id}
+                  data-editor-anchor={`experience:${exp.id}`}
                   className="rounded-xl border border-[var(--color-line)] bg-white shadow-xs overflow-hidden transition"
                 >
                   {/* Experience Card Header */}
@@ -720,7 +810,7 @@ export function FactEditor({ factBase, onChange }: Props) {
                   {!isCollapsed && (
                     <div className="p-4 space-y-4">
                       {/* Basic Meta Inputs */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label htmlFor={`experience-type-${exp.id}`} className="mb-1 block text-[11px] font-semibold text-slate-600">经历类型</label>
                           <select id={`experience-type-${exp.id}`} value={exp.type} onChange={(event) => updateExperiences((experiences) => experiences.map((item) => item.id === exp.id ? { ...item, type: event.target.value as Experience["type"] } : item))} className="w-full rounded-md border border-[var(--color-line)] bg-white px-2.5 py-1 text-xs outline-none focus:border-[var(--color-accent)]">
@@ -940,7 +1030,7 @@ export function FactEditor({ factBase, onChange }: Props) {
                       <div className="border-t border-slate-100 pt-3">
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                            事实要点与答辩亮点 (Claims)
+                            成果与职责
                           </h4>
                           <button
                             type="button"
@@ -953,9 +1043,10 @@ export function FactEditor({ factBase, onChange }: Props) {
                         </div>
 
                         <div className="space-y-3">
-                          {exp.claims.map((claim) => (
+                          {exp.claims.map((claim, claimIndex) => (
                             <div
                               key={claim.id}
+                              data-editor-anchor={`claim:${claim.id}`}
                               className="rounded-lg border border-slate-200/90 bg-slate-50/40 p-3 space-y-2.5 hover:border-slate-300 transition"
                             >
                               {/* Claim Header / Controls */}
@@ -1032,17 +1123,19 @@ export function FactEditor({ factBase, onChange }: Props) {
                               {/* Claim Text Area (Zh) */}
                               {(viewMode === "bilingual" || viewMode === "zh") && (
                                 <div>
-                                  <textarea
+                                  <TextFormattingField
+                                    label={`${exp.org.zh || "新经历"} · 中文要点 ${claimIndex + 1}`}
+                                    ranges={textStyles?.[`claim:${claim.id}:zh`]}
+                                    onStylesChange={onTextStylesChange ? (ranges) => onTextStylesChange(`claim:${claim.id}:zh`, ranges) : undefined}
                                     value={claim.text.zh}
-                                    onChange={(e) =>
+                                    onChange={(value) =>
                                       updateClaim(exp.id, claim.id, (c) => ({
                                         ...c,
-                                        text: { ...c.text, zh: e.target.value },
+                                        text: { ...c.text, zh: value },
                                         ...(c.metric ? { metric: { ...c.metric, confirmed: false } } : {}),
                                       }))
                                     }
                                     rows={2}
-                                    className="w-full resize-y rounded-md border border-[var(--color-line)] bg-white px-2.5 py-1.5 text-xs leading-relaxed outline-none focus:border-[var(--color-accent)]"
                                     placeholder="中文事实要点描述（尽量包含 STAR：动作、工具、对标结果）..."
                                   />
                                 </div>
@@ -1051,17 +1144,19 @@ export function FactEditor({ factBase, onChange }: Props) {
                               {/* Claim Text Area (En) */}
                               {(viewMode === "bilingual" || viewMode === "en") && (
                                 <div>
-                                  <textarea
+                                  <TextFormattingField
+                                    label={`${exp.org.en || exp.org.zh || "新经历"} · 英文要点 ${claimIndex + 1}`}
+                                    ranges={textStyles?.[`claim:${claim.id}:en`]}
+                                    onStylesChange={onTextStylesChange ? (ranges) => onTextStylesChange(`claim:${claim.id}:en`, ranges) : undefined}
                                     value={claim.text.en ?? ""}
-                                    onChange={(e) =>
+                                    onChange={(value) =>
                                       updateClaim(exp.id, claim.id, (c) => ({
                                         ...c,
-                                        text: { ...c.text, en: e.target.value },
+                                        text: { ...c.text, en: value },
                                         ...(c.metric ? { metric: { ...c.metric, confirmed: false } } : {}),
                                       }))
                                     }
                                     rows={2}
-                                    className="w-full resize-y rounded-md border border-[var(--color-line)] bg-white px-2.5 py-1.5 text-xs leading-relaxed outline-none focus:border-[var(--color-accent)]"
                                     placeholder="English bullet point (Action verb + context + impact)..."
                                   />
                                 </div>

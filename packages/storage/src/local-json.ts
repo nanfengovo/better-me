@@ -42,7 +42,20 @@ export class LocalJsonStore implements DocumentStore {
 
   async save(doc: BetterMeDocument): Promise<void> {
     const validated = DocumentSchema.parse(doc);
-    localStorage.setItem(this.key, JSON.stringify(validated));
+    // Internal commit time keeps a failed/older draft from superseding a newer import.
+    // It is stripped by DocumentSchema and never appears in exported JSON backups.
+    let newest = Date.now();
+    for (const key of [this.key, `${this.key}:draft:v1`]) {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        try {
+          const previous = JSON.parse(raw);
+          const timestamp = Date.parse(key === this.key ? previous._betterMeSavedAt : previous.savedAt);
+          if (Number.isFinite(timestamp)) newest = Math.max(newest, timestamp + 1);
+        } catch { /* Keep corrupt bytes until a deliberate, validated save. */ }
+      }
+    }
+    localStorage.setItem(this.key, JSON.stringify({ ...validated, _betterMeSavedAt: new Date(newest).toISOString() }));
   }
 
   async clear(): Promise<void> {

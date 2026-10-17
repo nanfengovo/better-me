@@ -1,0 +1,44 @@
+.autosave-controls { display:flex; align-items:center; gap:7px; position:relative; color:#53634e; }
+.autosave-control-group { display:flex; align-items:stretch; border:1px solid #dce4d3; border-radius:8px; background:#fffefb; box-shadow:0 1px 2px #28382a03; }
+.autosave-switch { display:flex; align-items:center; gap:7px; min-height:34px; padding:7px 9px; font-size:11px; white-space:nowrap; cursor:pointer; border-radius:7px 0 0 7px; }
+.autosave-switch small { color:#97a18b; font-size:9px; }
+.autosave-switch.is-on small { color:#67804d; }
+.autosave-switch:hover,.autosave-settings-button:hover { background:#f0f4e9; }
+.autosave-switch-track { display:flex; align-items:center; flex-shrink:0; width:27px; height:16px; padding:2px; border-radius:20px; background:#d8dfd0; transition:background .15s; }
+.autosave-switch-track>span { display:grid; place-items:center; width:12px; height:12px; border-radius:50%; background:#fff; color:#416343; box-shadow:0 1px 2px #2c43251a; transition:transform .15s; }
+.autosave-switch.is-on .autosave-switch-track { background:#49734a; }
+.autosave-switch.is-on .autosave-switch-track>span { transform:translateX(11px); }
+.autosave-settings-button { display:flex; align-items:center; justify-content:center; gap:2px; min-width:34px; padding:7px 6px; border-left:1px solid #e7ebdf; border-radius:0 7px 7px 0; color:#7c8c6c; cursor:pointer; }
+.autosave-settings-button>svg:last-child { transition:transform .15s; }
+.autosave-settings-button>svg.is-open { transform:rotate(180deg); }
+.autosave-now:disabled { opacity:.55; cursor:wait; }
+.autosave-controls button:focus-visible,.autosave-controls input:focus-visible,.autosave-controls select:focus-visible { outline:2px solid #668755; outline-offset:3px; }
+.autosave-popover { position:absolute; top:calc(100% + 12px); right:0; z-index:55; width:328px; max-width:calc(100vw - 32px); padding:17px; border:1px solid #dbe3d2; border-radius:13px; background:#fffef9; box-shadow:0 14px 40px #233b2824,0 2px 6px #233b2808; white-space:normal; }
+.autosave-popover-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:15px; margin-bottom:16px; }
+.autosave-eyebrow { display:block; color:#92a17f; font-size:9px; letter-spacing:.08em; margin-bottom:4px; }
+.autosave-popover h2 { margin:0; font-size:15px; font-weight:550; color:#365139; }
+.autosave-close { display:grid; place-items:center; width:25px; height:25px; flex-shrink:0; border-radius:6px; color:#8b9980; cursor:pointer; }
+.autosave-close:hover { background:#eef3e6; color:#405f3b; }
+.autosave-setting-field { display:grid; grid-template-columns:1fr auto; align-items:center; gap:8px; margin:12px 0; font-size:11px; color:#5b6d50; }
+.autosave-setting-field select { min-width:129px; padding:7px 25px 7px 8px; border:1px solid #dfe6d6; border-radius:6px; background:#fbfcf6; color:#49623f; font-size:11px; cursor:pointer; }
+.autosave-seconds-input { display:flex; align-items:center; gap:6px; color:#8d9b7f; font-size:10px; }
+.autosave-seconds-input input { width:76px; padding:7px 6px; border:1px solid #dfe6d6; border-radius:6px; background:#fbfcf6; color:#49623f; font-size:11px; font-variant-numeric:tabular-nums; }
+.autosave-setting-field small { grid-column:1/-1; font-size:9px; color:#9ba68f; margin-top:-3px; line-height:1.5; }
+.autosave-explanation { padding-top:11px; margin-top:15px; border-top:1px solid #e8eddf; color:#879579; font-size:10px; line-height:1.75; }
+.autosave-explanation p { margin:0 0 6px; }
+.autosave-explanation p:last-child { margin-bottom:0; }
+.autosave-paused,.autosave-preference-error { margin:10px 0 0; padding:7px 9px; border-radius:6px; background:#f0f3e8; color:#7b895e; font-size:10px; line-height:1.6; }
+.autosave-preference-error { background:#fff4e7; color:#9c723e; }
+@media(max-width:1200px) { .autosave-switch small { display:none; } }
+@media(max-width:620px) {
+  .autosave-controls { gap:5px; }
+  .autosave-switch { min-height:31px; padding:6px 7px; gap:5px; font-size:10px; }
+  .autosave-settings-button { min-width:29px; padding:6px 4px; }
+  .autosave-now { min-height:31px; padding:6px 8px; }
+  .autosave-now>span { display:none; }
+  .autosave-popover { position:fixed; top:66px; left:70px; right:12px; width:auto; max-width:none; padding:14px; }
+  .autosave-setting-field { gap:6px; font-size:10px; }
+  .autosave-setting-field select { min-width:116px; max-width:145px; font-size:10px; }
+  .autosave-popover-heading { margin-bottom:12px; }
+}
+@media(max-width:360px) { .autosave-popover { left:12px; } .autosave-setting-field select { min-width:108px; } }

@@ -6,13 +6,13 @@
   --color-ink: #14212b;
   --color-ink-muted: #64748b;
   --color-ink-faint: #94a3b8;
-  --color-paper: #f8fafc;
+  --color-paper: #f5f5ef;
   --color-panel: #ffffff;
-  --color-line: #e2e8f0;
+  --color-line: #e3e6df;
   --color-line-strong: #cbd5e1;
-  --color-accent: #0f766e;
-  --color-accent-hover: #0d9488;
-  --color-accent-soft: #ccfbf1;
+  --color-accent: #1b5147;
+  --color-accent-hover: #286758;
+  --color-accent-soft: #edf4ed;
   --color-warn: #b45309;
   --color-warn-soft: #fef3c7;
   --color-danger: #e11d48;
@@ -29,10 +29,7 @@ body {
   margin: 0;
   font-family: var(--font-sans);
   color: var(--color-ink);
-  background:
-    radial-gradient(1200px 600px at 10% -10%, #ccfbf1 0%, transparent 55%),
-    radial-gradient(900px 500px at 100% 0%, #f1f5f9 0%, transparent 50%),
-    var(--color-paper);
+  background: var(--color-paper);
   -webkit-font-smoothing: antialiased;
 }
 
