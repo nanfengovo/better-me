@@ -1,5 +1,7 @@
 import * as pdfjsLib from "pdfjs-dist";
 import mammoth from "mammoth";
+import { readResumeImage, resolveImageCrop } from "./resume-image";
+import { reflowPdfText } from "./pdf-text";
 
 // Configure pdf.js worker
 if (typeof window !== "undefined") {
@@ -15,7 +17,7 @@ if (typeof window !== "undefined") {
 
 export interface ExtractedFileResult {
   fileName: string;
-  fileType: "pdf" | "docx" | "doc" | "html" | "md" | "txt" | "json" | "unknown";
+  fileType: "pdf" | "docx" | "doc" | "html" | "md" | "txt" | "json" | "image" | "unknown";
   rawText: string;
   isScannedPdf: boolean;
   pageImages: string[];
@@ -33,6 +35,13 @@ export async function extractTextFromFile(file: File): Promise<ExtractedFileResu
   const ext = fileName.slice(fileName.lastIndexOf(".")).toLowerCase();
 
   switch (ext) {
+    case ".jpg":
+    case ".jpeg":
+    case ".png":
+    case ".webp": {
+      const pageImage = await readResumeImage(file);
+      return { fileName, fileType: "image", rawText: "", isScannedPdf: false, pageImages: [pageImage], detectedAvatars: [], charCount: 0, numPages: 1 };
+    }
     case ".pdf":
       return extractFromPdf(file);
     case ".docx":
@@ -50,7 +59,7 @@ export async function extractTextFromFile(file: File): Promise<ExtractedFileResu
     case ".json":
       return extractFromPlainText(file, "json");
     default:
-      return extractFromPlainText(file, "unknown");
+      throw new Error("暂不支持此文件格式。请选择 PDF、DOCX、DOC、HTML、Markdown、TXT、JSON 或 JPG / PNG / WebP 图片。");
   }
 }
 
@@ -297,44 +306,7 @@ async function extractFromPdf(file: File): Promise<ExtractedFileResult> {
     const page = await pdf.getPage(pageNum);
     const textContent = await page.getTextContent();
 
-    // Group text items by line using Y coordinates
-    const items = textContent.items as Array<{
-      str?: string;
-      transform?: number[];
-      hasEOL?: boolean;
-    }>;
-
-    // Filter valid text items
-    const validItems = items.filter((item) => typeof item.str === "string" && item.str.trim().length > 0);
-
-    // Sort items vertically (top to bottom), then horizontally (left to right)
-    validItems.sort((a, b) => {
-      const yA = a.transform?.[5] ?? 0;
-      const yB = b.transform?.[5] ?? 0;
-      if (Math.abs(yA - yB) > 4) {
-        return yB - yA; // Higher Y coordinate comes first
-      }
-      const xA = a.transform?.[4] ?? 0;
-      const xB = b.transform?.[4] ?? 0;
-      return xA - xB;
-    });
-
-    let pageText = "";
-    let lastY: number | null = null;
-
-    for (const item of validItems) {
-      const currentY = item.transform?.[5] ?? 0;
-      const text = item.str ?? "";
-
-      if (lastY === null) {
-        pageText += text;
-      } else if (Math.abs(currentY - lastY) > 8) {
-        pageText += "\n" + text;
-      } else {
-        pageText += " " + text;
-      }
-      lastY = currentY;
-    }
+    const pageText = reflowPdfText(textContent.items.filter((item) => "str" in item));
 
     if (pageText.trim()) {
       textChunks.push(pageText.trim());
@@ -554,28 +526,21 @@ export async function cropImageRegion(
   sourceImageUrl: string,
   rect: { x: number; y: number; width: number; height: number },
   isPercentage = true,
+  outputType: "image/jpeg" | "image/png" = "image/jpeg",
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
       try {
-        const sx = isPercentage ? (rect.x / 100) * img.width : rect.x;
-        const sy = isPercentage ? (rect.y / 100) * img.height : rect.y;
-        const sw = isPercentage ? (rect.width / 100) * img.width : rect.width;
-        const sh = isPercentage ? (rect.height / 100) * img.height : rect.height;
-
-        const clampedX = Math.max(0, Math.min(img.width - 1, sx));
-        const clampedY = Math.max(0, Math.min(img.height - 1, sy));
-        const clampedW = Math.max(10, Math.min(img.width - clampedX, sw));
-        const clampedH = Math.max(10, Math.min(img.height - clampedY, sh));
+        const { x: clampedX, y: clampedY, width: clampedW, height: clampedH } = resolveImageCrop(rect, img.width, img.height, isPercentage);
 
         const canvas = document.createElement("canvas");
-        canvas.width = Math.round(clampedW);
-        canvas.height = Math.round(clampedH);
+        canvas.width = Math.max(1, Math.round(clampedW));
+        canvas.height = Math.max(1, Math.round(clampedH));
         const ctx = canvas.getContext("2d");
         if (!ctx) {
-          resolve(sourceImageUrl);
+          reject(new Error("浏览器无法创建图片裁剪画布，请重试。"));
           return;
         }
 
@@ -590,7 +555,7 @@ export async function cropImageRegion(
           canvas.width,
           canvas.height,
         );
-        resolve(canvas.toDataURL("image/jpeg", 0.92));
+        resolve(canvas.toDataURL(outputType, 0.92));
       } catch (err) {
         reject(err);
       }

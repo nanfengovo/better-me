@@ -82,11 +82,24 @@ export const ProfileSchema = z.object({
 
 export type Profile = z.infer<typeof ProfileSchema>;
 
+/** Import evidence for review; excluded from the projected resume. */
+export const ResumeImportSourceSchema = z.object({
+  fileName: z.string().min(1),
+  importedAt: z.string().datetime(),
+  rawText: z.string(),
+  /** Model transcription is a review aid, not ground truth from the original image. */
+  ocrText: z.string().optional(),
+  unparsedLines: z.array(z.string()),
+});
+
+export type ResumeImportSource = z.infer<typeof ResumeImportSourceSchema>;
+
 export const FactBaseSchema = z.object({
   schemaVersion: z.literal(1),
   updatedAt: z.string().datetime(),
   profile: ProfileSchema,
   experiences: z.array(ExperienceSchema).default([]),
+  importSource: ResumeImportSourceSchema.optional(),
 });
 
 export type FactBase = z.infer<typeof FactBaseSchema>;
