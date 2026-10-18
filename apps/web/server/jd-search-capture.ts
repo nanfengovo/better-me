@@ -2,7 +2,7 @@ import { load, type CheerioAPI } from "cheerio";
 import { z } from "zod";
 import { allowedJobUrl, type JobPlatform } from "../src/lib/jd-source";
 import type { JobSearchCard, JobSearchCaptureResult, JobSearchCaptureStatus } from "../src/lib/job-search-types";
-import type { BrowserSnapshot } from "./jd-browser-snapshot";
+import { SearchProjectionDiagnosticsSchema, type BrowserSnapshot } from "./jd-browser-snapshot";
 
 export type { JobSearchCard, JobSearchCaptureResult, JobSearchCaptureStatus, JobSearchField } from "../src/lib/job-search-types";
 type DomNode = CheerioAPI["_root"]["children"][number];
@@ -46,10 +46,10 @@ export const JOB_SEARCH_CAPTURE_CONFIGS: Readonly<Record<JobPlatform, JobSearchC
     emptySelectors: [".job-list-empty", ".search-no-result", ".job-empty", ".no-result"],
   },
   猎聘: {
-    platform: "猎聘", cardSelectors: [".job-card-pc-container", ".job-card-wrap", ".sojob-list > li"],
-    titleSelectors: [".job-title", ".job-title-box h3", ".job-info h3", ".job-name"],
-    companySelectors: [".company-name", ".company-info .name", ".company-text .name"],
-    locationSelectors: [".job-dq-box", ".job-area", ".job-dq"],
+    platform: "猎聘", cardSelectors: [".jobCardPcContainer", ".job-card-pc-container", ".job-card-wrap", ".sojob-list > li"],
+    titleSelectors: [".jobTitleBox > .ellipsis-1", ".job-title", ".job-title-box h3", ".job-info h3", ".job-name"],
+    companySelectors: [".companyName", ".company-name", ".company-info .name", ".company-text .name"],
+    locationSelectors: [".jobTitleBox > div > span.ellipsis-1", ".job-dq-box", ".job-area", ".job-dq"],
     salarySelectors: [".job-salary", ".salary", ".text-warning"],
     publicationSelectors: [".job-publish-time", ".job-published-time", "time[itemprop='datePosted']"],
     emptySelectors: [".search-empty", ".job-empty", ".no-result", ".empty-result"],
@@ -65,7 +65,7 @@ export const JOB_SEARCH_CAPTURE_CONFIGS: Readonly<Record<JobPlatform, JobSearchC
   },
 };
 
-export type JobSearchSnapshot = Pick<BrowserSnapshot, "html" | "url" | "title" | "gate" | "oversized"> & { captureTruncated?: boolean };
+export type JobSearchSnapshot = Pick<BrowserSnapshot, "html" | "url" | "title" | "gate" | "oversized" | "pageLoad" | "searchDiagnostics"> & { captureTruncated?: boolean };
 
 const EXCLUDED = "script,style,template,noscript,iframe,frame,input,textarea,select,option,nav,aside,footer,.recommend,.recommendation,.recommendations,.job-recommend,.job-recommend-list,.related-jobs";
 const GATE_SELECTORS = "[role='dialog'],[aria-modal='true'],dialog[open],.login-mask,.login-panel,.login-page,.verify-wrap,.verify-box,.captcha-container,.geetest_panel,.security-check";
@@ -121,6 +121,28 @@ function field($: CheerioAPI, card: DomNode, candidates: readonly string[], max:
   }
 }
 
+type SearchParserCounts = { beforeSanitize?: number; afterSanitize?: number; afterExclusion?: number; selected: number; rejectedLink: number; rejectedTitle: number; rejectedSelector: number };
+const boundedCount = (value: number) => Math.min(25_000, value);
+function configuredRootCount($: CheerioAPI, config: JobSearchCaptureConfig): number | undefined {
+  const roots = new Set<DomNode>();
+  try {
+    for (const selector of [".betterme-visible-search-card", ...config.cardSelectors]) {
+      for (const node of $(selector).toArray()) if (node.type === "tag") roots.add(node);
+    }
+    return boundedCount(roots.size);
+  } catch { return undefined; }
+}
+function searchDiagnosticWarning(snapshot: JobSearchSnapshot, platform: JobPlatform, counts: SearchParserCounts): string {
+  const diagnostic = SearchProjectionDiagnosticsSchema.safeParse(snapshot.searchDiagnostics);
+  const projection = diagnostic.success && diagnostic.data.platform === platform ? diagnostic.data : undefined;
+  const count = (value: number | undefined) => value === undefined ? "未计数" : String(boundedCount(value));
+  const load = snapshot.pageLoad;
+  const ready = load && ["loading", "interactive", "complete", "unknown"].includes(load.readyState) ? load.readyState : "unknown";
+  const frames = load && Number.isInteger(load.visibleFrames) && load.visibleFrames >= 0 && load.visibleFrames <= 1000 ? String(load.visibleFrames) : "未知";
+  const native = projection ? `投影前已知根=${projection.rawRoots}，隐藏移除=${projection.hiddenRoots}，排除区域移除=${projection.excludedRoots}，不完整字段祖先移除=${projection.incompleteRoots}，其他移除=${projection.otherRemovedRoots}，投影保留=${projection.projectedRoots}，有安全文字=${projection.projectedRootsWithText}；` : "投影计数=未提供；";
+  return `结构诊断（非岗位数，计数上限25000）：${native}解析输入根=${count(counts.beforeSanitize)}，去隐藏后=${count(counts.afterSanitize)}，去排除区域后=${count(counts.afterExclusion)}，采用选择器候选=${count(counts.selected)}，单岗链接拒绝=${count(counts.rejectedLink)}，标题缺失=${count(counts.rejectedTitle)}，字段选择器拒绝=${count(counts.rejectedSelector)}；加载=${ready}，可见框架=${frames}。`;
+}
+
 /** Caller supplies rendered, visibility-filtered HTML (native projection or the evaluation below).
  * Raw HTML can only be filtered for explicit hidden attributes/inline styles; CSS visibility is a capture responsibility. */
 export function extractJobSearchCards(
@@ -129,7 +151,9 @@ export function extractJobSearchCards(
   options: { limit?: number; config?: JobSearchCaptureConfig } = {},
 ): JobSearchCaptureResult {
   const base = { platform, url: typeof snapshot?.url === "string" ? snapshot.url : "", cards: [] as JobSearchCard[] };
-  const stopped = (status: JobSearchCaptureStatus, warning: string): JobSearchCaptureResult => ({ ...base, status, partial: status !== "empty", warnings: [warning] });
+  const diagnostic: { parserCounts?: SearchParserCounts } = {};
+  const stopped = (status: JobSearchCaptureStatus, warning: string): JobSearchCaptureResult => ({ ...base, status, partial: status !== "empty", warnings: [warning,
+    ...(status === "unknown_layout" && diagnostic.parserCounts ? [searchDiagnosticWarning(snapshot, platform, diagnostic.parserCounts)] : [])] });
   if (!snapshot || typeof snapshot.html !== "string" || typeof snapshot.title !== "string") return stopped("unknown_layout", "搜索快照格式无效，未确认结果数量。");
   if (snapshot.oversized || new TextEncoder().encode(snapshot.html).byteLength > MAX_HTML_BYTES) return stopped("oversized", "搜索快照超出单页读取上限，未确认结果数量。");
   let page: URL;
@@ -142,7 +166,10 @@ export function extractJobSearchCards(
   if (config.platform !== platform || options.limit !== undefined && (!Number.isInteger(options.limit) || options.limit < 1 || options.limit > MAX_CARDS)) throw new Error("搜索卡片配置或数量上限无效。");
   const limit = options.limit ?? MAX_CARDS;
   const $ = load(snapshot.html);
+  const parserCounts: SearchParserCounts = { beforeSanitize: configuredRootCount($, config), selected: 0, rejectedLink: 0, rejectedTitle: 0, rejectedSelector: 0 };
+  diagnostic.parserCounts = parserCounts;
   sanitize($);
+  parserCounts.afterSanitize = configuredRootCount($, config);
   const visibleText = text($("body").text() || $.root().text());
   if (snapshot.gate === "verification_required" || VERIFICATION.test(visibleText)) return stopped("verification_required", "原站要求人工完成访问验证，尚未确认搜索结果数量。");
   if (snapshot.gate === "login_required") return stopped("login_required", "原站要求登录后查看，尚未确认搜索结果数量。");
@@ -154,6 +181,7 @@ export function extractJobSearchCards(
     return stopped("unsupported_page", "当前页面不是已支持的岗位搜索列表，未读取详情页推荐岗位。");
   }
   $(EXCLUDED).remove();
+  parserCounts.afterExclusion = configuredRootCount($, config);
   let selected = "";
   let candidates: DomNode[] = [];
   try {
@@ -162,6 +190,7 @@ export function extractJobSearchCards(
       if (matched.length) { selected = candidate; candidates = matched; break; }
     }
   } catch { return stopped("unknown_layout", "搜索卡片选择器不适用于当前页面，未确认结果数量。"); }
+  parserCounts.selected = boundedCount(candidates.length);
   const cards: JobSearchCard[] = [];
   const seen = new Set<string>();
   let rejected = 0;
@@ -176,7 +205,7 @@ export function extractJobSearchCards(
       const target = detailIdentity(href, platform, base.url);
       if (target) targets.set(target.id, targets.get(target.id) ?? target);
     }
-    if (targets.size !== 1) { rejected++; continue; }
+    if (targets.size !== 1) { rejected++; parserCounts.rejectedLink++; continue; }
     const target = [...targets.values()][0]!;
     if (seen.has(target.id)) continue;
     let title: ReturnType<typeof field>;
@@ -190,8 +219,8 @@ export function extractJobSearchCards(
       location = field($, card, config.locationSelectors, 1000);
       salary = field($, card, config.salarySelectors, 1000);
       publication = field($, card, config.publicationSelectors, 1000);
-    } catch { rejected++; continue; }
-    if (!title || !text($(card).text())) { rejected++; continue; }
+    } catch { rejected++; parserCounts.rejectedSelector++; continue; }
+    if (!title || !text($(card).text())) { rejected++; parserCounts.rejectedTitle++; continue; }
     if (publication && NOT_PUBLICATION.test(publication.text)) publication = undefined;
     const fields: JobSearchCard["evidence"]["fields"] = [{ field: "url", selector: "a[href]", text: target.url }, { field: "title", ...title }];
     for (const [name, value] of [["company", company], ["locationText", location], ["salaryText", salary], ["publicationText", publication]] as const) {

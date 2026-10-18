@@ -72,6 +72,41 @@ test("relative single-job links resolve against the actual official page without
   assert.equal(result.cards[0]!.url, "https://www.zhipin.com/job_detail/relative_123.html?from=visible");
 });
 
+function currentLiepinCard(options: { title?: string; href?: string; extraLink?: string } = {}) {
+  const title = options.title ?? '<div class="ellipsis-1">C# 合成平台工程师</div>';
+  return `<div class="synthetic-build jobCardPcContainer"><div><div class="jobDetailBox"><a href="${escape(options.href ?? fixtures.猎聘.detail)}"><div><div class="jobTitleBox">${title}<div><span>【</span><span class="ellipsis-1">上海-浦东新区</span><span>】</span></div></div><span class="synthetic-salary-hash">20-30k</span></div><div><span>3年以上</span><span>统招本科</span></div></a><div class="jobCompanyInfoBox"><span class="companyName ellipsis-1">合成设备公司</span></div>${options.extraLink ?? ""}</div></div><div class="jobCardRightBox"><span class="recruiterName ellipsis-1">合成招聘者</span><span>1天前在线</span></div></div>`;
+}
+
+test("current Liepin card keeps the observed camel-case title, company and location fields distinct", () => {
+  const result = extractJobSearchCards(snapshot("猎聘", currentLiepinCard()), "猎聘");
+  assert.equal(result.status, "ready");
+  assert.equal(result.partial, true);
+  assert.equal(result.cards.length, 1);
+  const item = result.cards[0];
+  assert.equal(item.title, "C# 合成平台工程师");
+  assert.equal(item.company, "合成设备公司");
+  assert.equal(item.locationText, "上海-浦东新区");
+  assert.equal(item.salaryText, undefined);
+  assert.equal(item.publicationText, undefined);
+  assert.equal(item.evidence.cardSelector, ".jobCardPcContainer");
+  assert.deepEqual(item.evidence.fields.map(({ field, selector }) => [field, selector]), [
+    ["url", "a[href]"], ["title", ".jobTitleBox > .ellipsis-1"], ["company", ".companyName"], ["locationText", ".jobTitleBox > div > span.ellipsis-1"],
+  ]);
+});
+
+test("current Liepin roots still require a complete explicit title and one supported single-job identity", () => {
+  for (const html of [
+    currentLiepinCard({ title: "" }),
+    currentLiepinCard({ title: '<div class="ellipsis-1" hidden>隐藏岗位标题</div>' }),
+    currentLiepinCard({ href: "https://www.liepin.com/a/12345678.shtml" }),
+    currentLiepinCard({ extraLink: '<a href="https://www.liepin.com/job/123456788.shtml">另一岗位</a>' }),
+  ]) {
+    const result = extractJobSearchCards(snapshot("猎聘", html), "猎聘");
+    assert.equal(result.status, "unknown_layout");
+    assert.equal(result.cards.length, 0);
+  }
+});
+
 test("links must identify an official HTTPS single job from the same platform", () => {
   const rejected = [
     fixtures.BOSS直聘.search, "https://www.zhipin.com/gongsi/123.html", fixtures.LinkedIn.detail,
@@ -155,6 +190,65 @@ test("explicit empty results differ from loading, blank, unknown, login and veri
     assert.equal(result.status, status, html);
     assert.equal(result.cards.length, 0);
     assert.equal(result.partial, status !== "empty");
+  }
+});
+
+test("unknown layout diagnostics distinguish hidden and excluded roots from invalid links and missing titles", () => {
+  const input = snapshot("BOSS直聘", `<section hidden>${card("BOSS直聘", { title: "PRIVATE_HIDDEN_TITLE" })}</section>`
+    + `<aside>${card("BOSS直聘", { title: "PRIVATE_RECOMMENDED_TITLE" })}</aside>`
+    + card("BOSS直聘", { href: null, title: "PRIVATE_LINKLESS_TITLE" })
+    + card("BOSS直聘", { title: null }), { pageLoad: { readyState: "complete", content: "visible_text", visibleFrames: 0 } });
+  const result = extractJobSearchCards(input, "BOSS直聘");
+  assert.equal(result.status, "unknown_layout");
+  assert.equal(result.cards.length, 0);
+  assert.equal(result.warnings.length, 2);
+  assert.match(result.warnings[1], /结构诊断（非岗位数/);
+  assert.match(result.warnings[1], /解析输入根=4，去隐藏后=3，去排除区域后=2，采用选择器候选=2，单岗链接拒绝=1，标题缺失=1/);
+  assert.match(result.warnings[1], /加载=complete，可见框架=0/);
+  assert.doesNotMatch(result.warnings.join(" "), /PRIVATE_|https:|abc_123/);
+});
+
+test("unknown roots and lost native roots remain distinguishable without promoting either into a zero-jobs result", () => {
+  const diagnostic = { schemaVersion: 1 as const, platform: "猎聘" as const, rawRoots: 3,
+    hiddenRoots: 1, excludedRoots: 1, incompleteRoots: 1, otherRemovedRoots: 0, projectedRoots: 0, projectedRootsWithText: 0 };
+  const result = extractJobSearchCards(snapshot("猎聘", '<section class="unrecognized">PRIVATE_OTHER_LAYOUT</section>', { searchDiagnostics: diagnostic }), "猎聘");
+  assert.equal(result.status, "unknown_layout"); assert.equal(result.partial, true);
+  assert.match(result.warnings[1], /投影前已知根=3，隐藏移除=1，排除区域移除=1，不完整字段祖先移除=1/);
+  assert.match(result.warnings[1], /投影保留=0，有安全文字=0；解析输入根=0/);
+  assert.doesNotMatch(result.warnings.join(" "), /PRIVATE_/);
+  const noKnownRoots = extractJobSearchCards(snapshot("猎聘", "", { searchDiagnostics: { ...diagnostic, rawRoots: 0, hiddenRoots: 0, excludedRoots: 0, incompleteRoots: 0 } }), "猎聘");
+  assert.match(noKnownRoots.warnings[1], /投影前已知根=0/);
+});
+
+test("malformed or cross-platform diagnostic metadata contributes no text or claimed root counts", () => {
+  const diagnostic = { schemaVersion: 1, platform: "LinkedIn", rawRoots: 99,
+    hiddenRoots: 99, excludedRoots: 0, incompleteRoots: 0, otherRemovedRoots: 0, projectedRoots: 0, projectedRootsWithText: 0 };
+  for (const value of [diagnostic, { ...diagnostic, platform: "猎聘", rawTitle: "PRIVATE_DIAGNOSTIC_TITLE" }]) {
+    const result = extractJobSearchCards(snapshot("猎聘", "", { searchDiagnostics: value as JobSearchSnapshot["searchDiagnostics"] }), "猎聘");
+    assert.equal(result.status, "unknown_layout");
+    assert.match(result.warnings[1], /投影计数=未提供/);
+    assert.doesNotMatch(result.warnings.join(" "), /PRIVATE_|99/);
+  }
+});
+
+test("count diagnostics are bounded independently of the 500-candidate parsing budget", () => {
+  const result = extractJobSearchCards(snapshot("BOSS直聘", '<article class="job-card-wrapper"></article>'.repeat(25_001)), "BOSS直聘");
+  assert.equal(result.status, "unknown_layout");
+  assert.match(result.warnings[1], /计数上限25000/);
+  assert.match(result.warnings[1], /解析输入根=25000.*采用选择器候选=25000，单岗链接拒绝=500/);
+  assert.doesNotMatch(result.warnings[1], /25001/);
+});
+
+test("diagnostic counts never override gates, explicit emptiness or a successful partial capture", () => {
+  for (const [html, expected] of [
+    ['<form>请完成安全验证</form>', "verification_required"],
+    ['<div role="dialog">请登录后查看</div>', "login_required"],
+    ['<div class="job-list-empty">暂无匹配岗位</div>', "empty"],
+    [card("BOSS直聘"), "ready"],
+  ]) {
+    const result = extractJobSearchCards(snapshot("BOSS直聘", html), "BOSS直聘");
+    assert.equal(result.status, expected);
+    assert.equal(result.warnings.some(value => value.includes("结构诊断")), false);
   }
 });
 

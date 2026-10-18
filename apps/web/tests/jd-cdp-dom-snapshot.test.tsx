@@ -78,6 +78,93 @@ function projectSearch(f: ReturnType<typeof fixture>) {
   return projectNativeDomSnapshot(f.snapshot, frame, load, { purpose: "search", rootDocument: { nodeType: 9, backendNodeId: 1, documentURL: source, compatibilityMode: "NoQuirksMode" } });
 }
 
+test("search root diagnostics locate hidden, excluded and incomplete ancestor losses without exposing their contents", () => {
+  const f = fixture();
+  const safe = f.add("ARTICLE", f.body, { attrs: { class: "job-card-pc-container job-card-wrap" } });
+  const title = f.add("H3", safe, { attrs: { class: "job-title" } }); f.add("#text", title, { text: "SAFE_VISIBLE_TITLE" });
+  f.add("ARTICLE", f.body, { attrs: { class: "job-card-wrap" } });
+  const hidden = f.add("DIV", f.body, { attrs: { hidden: "", "data-private": "PRIVATE_HIDDEN_VALUE" } });
+  const hiddenCard = f.add("ARTICLE", hidden, { attrs: { class: "job-card-wrap" } }); f.add("#text", hiddenCard, { text: "PRIVATE_HIDDEN_TITLE" });
+  const aside = f.add("ASIDE", f.body);
+  const excluded = f.add("ARTICLE", aside, { attrs: { class: "job-card-wrap" } }); f.add("#text", excluded, { text: "PRIVATE_ASIDE_TITLE" });
+  const atomic = f.add("A", f.body, { attrs: { class: "job-card-wrap", href: "PRIVATE_ATOMIC_URL" } });
+  f.add("#text", atomic, { text: "PRIVATE_INCOMPLETE_PREFIX" });
+  const unsafe = f.add("SPAN", atomic, { styles: { filter: "blur(1px)" } }); f.add("#text", unsafe, { text: "PRIVATE_INCOMPLETE_SUFFIX" });
+  f.add("ARTICLE", f.head, { attrs: { class: "job-card-wrap" } });
+  f.add("ARTICLE", f.body, { attrs: { class: "job-card-wrapper" } });
+  const result = projectSearch(f);
+  assert.deepEqual(result.searchDiagnostics, { schemaVersion: 1, platform: "猎聘", rawRoots: 6,
+    hiddenRoots: 1, excludedRoots: 1, incompleteRoots: 1, otherRemovedRoots: 1, projectedRoots: 2, projectedRootsWithText: 1 });
+  assert.doesNotMatch(JSON.stringify(result), /PRIVATE_/);
+  const position = { url: source, navigation: 1 };
+  assert.deepEqual(validateBrowserSnapshot(result, position, position).snapshot?.searchDiagnostics, result.searchDiagnostics);
+});
+
+test("search diagnostics recognize a configured direct-child root without counting unrelated or nested list items", () => {
+  const f = fixture(); const url = "https://www.zhipin.com/web/geek/job?query=C%23";
+  f.doc.documentURL = f.str(url);
+  const list = f.add("UL", f.body, { attrs: { class: "job-list-box" } });
+  const card = f.add("LI", list); f.add("#text", card, { text: "SAFE_CARD_EXCERPT" });
+  const unrelated = f.add("UL", f.body); f.add("LI", unrelated);
+  const wrapper = f.add("DIV", list); f.add("LI", wrapper);
+  const result = projectNativeDomSnapshot(f.snapshot, { ...frame, url }, load, { purpose: "search" });
+  assert.equal(result.searchDiagnostics?.platform, "BOSS直聘");
+  assert.equal(result.searchDiagnostics?.rawRoots, 1);
+  assert.equal(result.searchDiagnostics?.projectedRoots, 1);
+  assert.equal(result.searchDiagnostics?.projectedRootsWithText, 1);
+  const parsed = extractJobSearchCards(result, "BOSS直聘");
+  assert.equal(parsed.status, "unknown_layout");
+  assert.match(parsed.warnings[1], /投影前已知根=1.*投影保留=1.*采用选择器候选=1.*单岗链接拒绝=1/);
+});
+
+test("current Liepin camel-case fields remain atomic while safe sibling fields survive", () => {
+  for (const unsafeField of ["none", "title", "company", "location"] as const) {
+    const f = fixture();
+    const card = f.add("DIV", f.body, { attrs: { class: "jobCardPcContainer" } });
+    const detail = f.add("DIV", card, { attrs: { class: "jobDetailBox" } });
+    const link = f.add("A", detail, { attrs: { href: source } });
+    const titleBox = f.add("DIV", link, { attrs: { class: "jobTitleBox" } });
+    const title = f.add("DIV", titleBox, { attrs: { class: "ellipsis-1" } });
+    const locationBox = f.add("DIV", titleBox);
+    const location = f.add("SPAN", locationBox, { attrs: { class: "ellipsis-1" } });
+    const company = f.add("SPAN", detail, { attrs: { class: "companyName ellipsis-1" } });
+    for (const [name, node, value] of [["title", title, "合成平台工程师"], ["company", company, "合成设备公司"], ["location", location, "上海-浦东新区"]] as const) {
+      f.add("#text", node, { text: name === unsafeField ? "PRIVATE_INCOMPLETE_PREFIX" : value });
+      if (name === unsafeField) {
+        const suffix = f.add("I", node, { styles: { filter: "blur(1px)" } });
+        f.add("#text", suffix, { text: "PRIVATE_INCOMPLETE_SUFFIX" });
+      }
+    }
+    const projected = projectSearch(f);
+    assert.equal(projected.searchDiagnostics?.rawRoots, 1);
+    assert.equal(projected.searchDiagnostics?.projectedRoots, 1);
+    assert.doesNotMatch(projected.html, /PRIVATE_/);
+    const parsed = extractJobSearchCards({ ...projected, url: "https://www.liepin.com/zhaopin/?key=C%23" }, "猎聘");
+    if (unsafeField === "title") {
+      assert.equal(parsed.status, "unknown_layout");
+      assert.equal(parsed.cards.length, 0);
+    } else {
+      assert.equal(parsed.status, "ready");
+      assert.equal(parsed.cards.length, 1);
+      assert.equal(parsed.cards[0].title, "合成平台工程师");
+      assert.equal(parsed.cards[0].company, unsafeField === "company" ? undefined : "合成设备公司");
+      assert.equal(parsed.cards[0].locationText, unsafeField === "location" ? undefined : "上海-浦东新区");
+    }
+  }
+});
+
+test("search gates return before root diagnostic collection and ordinary detail captures gain no diagnostic", () => {
+  const gated = fixture();
+  const card = gated.add("ARTICLE", gated.body, { attrs: { class: "job-card-wrap" } }); gated.add("#text", card, { text: "PRIVATE_GATED_TITLE" });
+  const form = gated.add("FORM", gated.body); gated.add("#text", form, { text: "请完成安全验证" });
+  const result = projectSearch(gated);
+  assert.equal(result.gate, "verification_required");
+  assert.equal(result.searchDiagnostics, undefined);
+  assert.doesNotMatch(JSON.stringify(result), /PRIVATE_/);
+  const ordinary = fixture(); ordinary.paragraph();
+  assert.equal(projectNativeDomSnapshot(ordinary.snapshot, frame, load).searchDiagnostics, undefined);
+});
+
 test("search omits an unsafe field and unrelated cropped banner while retaining other complete card fields", () => {
   const f = fixture();
   const card = f.add("ARTICLE", f.body, { attrs: { class: "job-card-pc-container" } });

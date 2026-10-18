@@ -1,9 +1,28 @@
+import { z } from "zod";
+import { allowedJobUrl } from "../src/lib/jd-source";
+
+/** Fixed count-only diagnostics. These describe parser roots, never job totals. */
+export const SearchProjectionDiagnosticsSchema = z.object({
+  schemaVersion: z.literal(1),
+  platform: z.enum(["51JOB", "BOSS直聘", "猎聘", "LinkedIn"]),
+  rawRoots: z.number().int().min(0).max(25_000),
+  hiddenRoots: z.number().int().min(0).max(25_000),
+  excludedRoots: z.number().int().min(0).max(25_000),
+  incompleteRoots: z.number().int().min(0).max(25_000),
+  otherRemovedRoots: z.number().int().min(0).max(25_000),
+  projectedRoots: z.number().int().min(0).max(25_000),
+  projectedRootsWithText: z.number().int().min(0).max(25_000),
+}).strict().refine(value => value.rawRoots === value.hiddenRoots + value.excludedRoots + value.incompleteRoots + value.otherRemovedRoots + value.projectedRoots
+  && value.projectedRootsWithText <= value.projectedRoots, "inconsistent-search-root-counts");
+export type SearchProjectionDiagnostics = z.infer<typeof SearchProjectionDiagnosticsSchema>;
+
 export type BrowserSnapshot = {
   html: string;
   url: string;
   title: string;
   oversized?: boolean;
   gate?: "login_required" | "verification_required";
+  searchDiagnostics?: SearchProjectionDiagnostics;
   pageLoad?: {
     readyState: "loading" | "interactive" | "complete" | "unknown";
     content: "empty" | "visible_text" | "embedded_content" | "unknown";
@@ -35,6 +54,12 @@ export function validateBrowserSnapshot(value: unknown, before: SnapshotPosition
         || !Number.isInteger(load.visibleFrames) || (load.visibleFrames as number) < 0 || (load.visibleFrames as number) > 1000) return { state: "failed" };
       pageLoad = { readyState: load.readyState as NonNullable<BrowserSnapshot["pageLoad"]>["readyState"], content: load.content as NonNullable<BrowserSnapshot["pageLoad"]>["content"], visibleFrames: load.visibleFrames as number };
     }
+    let searchDiagnostics: SearchProjectionDiagnostics | undefined;
+    if (snapshot.searchDiagnostics !== undefined) {
+      const diagnostic = SearchProjectionDiagnosticsSchema.safeParse(snapshot.searchDiagnostics);
+      if (!diagnostic.success || allowedJobUrl(snapshot.url).platform !== diagnostic.data.platform) return { state: "failed" };
+      searchDiagnostics = diagnostic.data;
+    }
     if (snapshot.oversized || Buffer.byteLength(snapshot.html, "utf8") > 2 * 1024 * 1024) return { state: "oversized" };
     return {
       state: "ready",
@@ -43,6 +68,7 @@ export function validateBrowserSnapshot(value: unknown, before: SnapshotPosition
         ...(snapshot.oversized !== undefined ? { oversized: snapshot.oversized } : {}),
         ...(snapshot.gate !== undefined ? { gate: snapshot.gate } : {}),
         ...(pageLoad ? { pageLoad } : {}),
+        ...(searchDiagnostics ? { searchDiagnostics } : {}),
       },
     };
   } catch { return { state: "failed" }; }

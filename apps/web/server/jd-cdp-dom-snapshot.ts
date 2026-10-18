@@ -1,4 +1,6 @@
-import type { BrowserSnapshot } from "./jd-browser-snapshot";
+import type { BrowserSnapshot, SearchProjectionDiagnostics } from "./jd-browser-snapshot";
+import { JOB_SEARCH_CAPTURE_CONFIGS } from "./jd-search-capture";
+import { allowedJobUrl } from "../src/lib/jd-source";
 import type { SnapshotVisibilityDetail, SnapshotFailureDetail } from "../src/lib/jd-capture-diagnostics";
 import { isLiepinDescriptionHeading, isLiepinRequirementsHeading } from "./jd-liepin-description";
 
@@ -511,7 +513,7 @@ export function projectNativeDomSnapshot(
     // would turn the retained prefix into a full-looking title or salary.
     // These are the scalar wrappers used by the built-in search configurations.
     const fieldClasses = new Set([
-      "jobname", "job-name", "job-title", "jname", "company-name", "cname", "com_name",
+      "jobname", "job-name", "job-title", "jname", "company-name", "companyName", "cname", "com_name",
       "job-area", "jobarea", "workarea", "work-area", "job-location", "job-dq-box", "job-dq",
       "salary", "job-salary", "sal", "text-warning", "job-publish-time", "published-time", "job-published-time",
       "base-search-card__title", "job-card-list__title--link", "job-card-list__title", "job-card-container__link",
@@ -519,7 +521,17 @@ export function projectNativeDomSnapshot(
       "job-search-card__salary-info", "job-card-container__salary-info",
     ]);
     const classes = nodes.map(node => (node.attrs.get("class") ?? "").split(/\s+/));
+    // The current Liepin card places the title and location in distinct
+    // ellipsis wrappers. Keep each scalar atomic when only a prefix renders.
+    const currentLiepinTitleField = (index: number): boolean => {
+      const node = nodes[index], parent = node.parent;
+      if (!classes[index].includes("ellipsis-1") || parent < 0) return false;
+      if (classes[parent].includes("jobTitleBox")) return true;
+      const grandparent = nodes[parent].parent;
+      return node.name === "SPAN" && nodes[parent].name === "DIV" && grandparent >= 0 && classes[grandparent].includes("jobTitleBox");
+    };
     const fields = nodes.map((node, index) => node.type === 1 && (/^(?:H[1-6]|TIME)$/.test(node.name) || classes[index].some(name => fieldClasses.has(name))
+      || currentLiepinTitleField(index)
       || classes[index].includes("name") && (() => { for (let at = node.parent; at >= 0; at = nodes[at].parent) if (classes[at].some(name => name === "company-info" || name === "company-text")) return true; return false; })()));
     const nestedFields = new Set<number>();
     for (let index = count - 1; index >= 0; index--) if (fields[index] || nestedFields.has(index)) { const parent = nodes[index].parent; if (parent >= 0) nestedFields.add(parent); }
@@ -541,6 +553,23 @@ export function projectNativeDomSnapshot(
       contentCache.set(index, result); return result;
     };
     let units = 0;
+    // Only the configured class/tag root selectors are inspected. Do not retain
+    // class names, attributes, text or URLs in the diagnostic result.
+    let searchPlatform: SearchProjectionDiagnostics["platform"] | undefined;
+    try { searchPlatform = allowedJobUrl(frame.url).platform; } catch { /* Unrecognized pages receive no platform diagnostic. */ }
+    const diagnosticSelectors = searchPlatform ? JOB_SEARCH_CAPTURE_CONFIGS[searchPlatform].cardSelectors : [];
+    const simpleMatch = (index: number, selector: string): boolean => {
+      const node = nodes[index];
+      if (!node || node.type !== 1) return false;
+      if (/^\.[\w-]+$/.test(selector)) return classes[index].includes(selector.slice(1));
+      return /^[a-z][a-z0-9-]*$/i.test(selector) && node.name.toLowerCase() === selector.toLowerCase();
+    };
+    const diagnosticRoots = new Set<number>();
+    for (let index = 0; index < count; index++) if (nodes[index].type === 1 && diagnosticSelectors.some(selector => {
+      const parts = selector.split(/\s*>\s*/);
+      return parts.length === 1 ? simpleMatch(index, parts[0]) : parts.length === 2 && simpleMatch(index, parts[1]) && simpleMatch(nodes[index].parent, parts[0]);
+    })) diagnosticRoots.add(index);
+    const projectedRoots = new Set<number>();
     const renderSearch = (index: number): string => {
       const node = nodes[index];
       if (incomplete.has(index)) return "";
@@ -548,6 +577,7 @@ export function projectNativeDomSnapshot(
       if (node.type !== 1) return node.children.map(renderSearch).join("");
       if (hidden(index) || excluded(index) || ["HEAD", "TITLE"].includes(node.name)) return "";
       const name = node.name.toLowerCase(); if (!/^[a-z][a-z0-9-]*$/.test(name)) return "";
+      if (diagnosticRoots.has(index)) projectedRoots.add(index);
       const keys = ["class", "id", "role", "aria-modal", "open", ...(hasContent(index) && node.name === "A" ? ["href"] : []), ...(hasContent(index) && node.name === "TIME" ? ["datetime"] : [])];
       const attrs = keys.filter(key => node.attrs.has(key)).map(key => ` ${key}="${escapeAttribute(node.attrs.get(key)!)}"`).join("");
       const result = `<${name}${attrs}>${node.children.map(renderSearch).join("")}${VOID_TAGS.has(node.name) ? "" : `</${name}>`}`;
@@ -556,7 +586,24 @@ export function projectNativeDomSnapshot(
     // Search never copies hidden JSON-LD, canonical tags or DOM text as fallback.
     const html = `<html><head></head>${renderSearch(bodyIndex)}</html>`;
     if (Buffer.byteLength(html, "utf8") > MAX_HTML_BYTES) fail("snapshot_limit_exceeded");
-    return { html, url: frame.url, title, pageLoad: { readyState: load.readyState, content: hasContent(bodyIndex) ? "visible_text" : visibleFrames ? "embedded_content" : "empty", visibleFrames } };
+    let searchDiagnostics: SearchProjectionDiagnostics | undefined;
+    if (searchPlatform) {
+      searchDiagnostics = { schemaVersion: 1, platform: searchPlatform, rawRoots: diagnosticRoots.size,
+        hiddenRoots: 0, excludedRoots: 0, incompleteRoots: 0, otherRemovedRoots: 0,
+        projectedRoots: projectedRoots.size, projectedRootsWithText: [...projectedRoots].filter(hasContent).length };
+      for (const index of diagnosticRoots) {
+        if (projectedRoots.has(index)) continue;
+        if (hidden(index)) searchDiagnostics.hiddenRoots++;
+        else if (excluded(index)) searchDiagnostics.excludedRoots++;
+        else {
+          let incompleteAncestor = false;
+          for (let at = index; at >= 0; at = nodes[at].parent) if (incomplete.has(at)) { incompleteAncestor = true; break; }
+          if (incompleteAncestor) searchDiagnostics.incompleteRoots++;
+          else searchDiagnostics.otherRemovedRoots++;
+        }
+      }
+    }
+    return { html, url: frame.url, title, ...(searchDiagnostics ? { searchDiagnostics } : {}), pageLoad: { readyState: load.readyState, content: hasContent(bodyIndex) ? "visible_text" : visibleFrames ? "embedded_content" : "empty", visibleFrames } };
   }
 
   // Scope only explicitly identified original jobs. Decode the whole protocol
