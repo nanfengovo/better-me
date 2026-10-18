@@ -145,7 +145,7 @@ function unresolvedOfficeFixture() {
   data.locations.forEach((location) => { location.kind = "office"; });
   return AtlasDatasetSchema.parse(data);
 }
-afterEach(async () => { if (root) await act(async () => root!.unmount()); root = undefined; mapProps = undefined; detailData = undefined; dom.localStorage.clear(); mock.restoreAll(); });
+afterEach(async () => { if (root) await act(async () => root!.unmount()); root = undefined; mapProps = undefined; detailData = undefined; dom.localStorage.clear(); dom.sessionStorage.clear(); mock.restoreAll(); });
 after(() => {
   hooks.deregister(); dom.happyDOM.abort();
   for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); }
