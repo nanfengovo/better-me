@@ -21,11 +21,13 @@ import { PlatformSearchLinks } from "./atlas/PlatformSearchLinks";
 import { buildChinaRegionFilter, findChinaProvinceByMapId, getChinaProvinces, getChinaCities, getChinaDistricts, type ChinaRegionSelection } from "./atlas/china-regions";
 import countryCatalog from "../../../../config/geography/countries.json";
 import { useUiPreferences } from "../lib/ui-preferences";
+import { ReviewedCardsCaptureSchema, type ReviewedCardsCapture } from "@better-me/source-adapters/browser-contracts";
 import "./atlas/atlas.css";
 
 const AtlasMap = lazy(() => import("./atlas/prototypes/MapLibrePrototype"));
 const AtlasSourcesPanel = lazy(() => import("./atlas/AtlasSourcesPanel").then((m) => ({ default: m.AtlasSourcesPanel })));
 const AtlasSourceCandidateReview = lazy(() => import("./atlas/AtlasSourceCandidateReview").then((m) => ({ default: m.AtlasSourceCandidateReview })));
+const AtlasReviewedCardImport = lazy(() => import("./atlas/AtlasReviewedCardImport").then((m) => ({ default: m.AtlasReviewedCardImport })));
 const COLOR_KEY = "better-me:atlas-colors:v1";
 type Props = { active?: boolean; onSaveOpportunity: (seed: OpportunitySeed) => void; onAnalyze: (item: AtlasJobAction) => void; onOpenOpportunitySources?: () => void };
 const regionNames = typeof Intl.DisplayNames === "function" ? new Intl.DisplayNames(["zh"], { type: "region" }) : undefined;
@@ -52,6 +54,7 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
   const [sourceSearching, setSourceSearching] = useState(false);
   const [searchProgress, setSearchProgress] = useState<AtlasAggregateProgress | null>(null);
   const [sourceReview, setSourceReview] = useState<AtlasAggregateSource>();
+  const [cardReview, setCardReview] = useState<ReviewedCardsCapture>();
   const [searchDepth, setSearchDepth] = useState("standard");
   const [sourceSearchMessage, setSourceSearchMessage] = useState("");
   const [sourceSearchError, setSourceSearchError] = useState("");
@@ -115,7 +118,7 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
   const searchableSources = (connected ? liveData?.sources : [])?.filter((entry) => entry.enabled && entry.status === "active" && entry.entityType === "job-posting" && entry.runtime.includes("local-service") && entry.capabilities.includes("list-jobs") && entry.entryUrl) ?? [];
   const selectedSearchSources = searchSourceId ? searchableSources.filter((entry) => entry.sourceId === searchSourceId) : searchableSources;
   const reviewSource = sourceReview ? liveData?.sources.find((entry) => entry.sourceId === sourceReview.sourceId) : undefined;
-  useEffect(() => { setSourceReview(undefined); }, [endpoint, token]);
+  useEffect(() => { setSourceReview(undefined); setCardReview(undefined); }, [endpoint, token]);
   const result = resultData === data ? rawResult : null;
   const presentListing = useMemo(() => data ? createAtlasListingPresenter(data, { now: publicationNow }) : undefined, [data, publicationNow]);
   useEffect(() => { if (!active) return; setPublicationNow(new Date().toISOString()); const timer = setInterval(() => setPublicationNow(new Date().toISOString()), 60000); return () => clearInterval(timer); }, [active]);
@@ -331,7 +334,16 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
     <p className="atlas-small atlas-search-scope">输入会实时筛选已收录的 {data?.jobs.length ?? 0} 个岗位；{connected ? `点击获取后，查询 ${selectedSearchSources.length} 个已配置岗位来源，先返回的结果先展示；不包含下方四平台浏览器搜索。` : "连接本机服务后，可同时查询已启用的真实来源。"}读取不超过来源配置额度；详情完整度见逐源状态。</p>
     {mode === "domestic" && <p className="atlas-small">按省 → 市 → 区县逐级选择，修改上级会清除下级。大陆三级目录采用 2023 统计区划快照，部分末级为镇街/功能区；港澳台保留地区筛选，下级目录待补充。岗位只披露城市时，选择区县会排除位置不明确的岗位。</p>}
     {connected && selectedSearchSources.length > 0 && <details className="atlas-source-limits"><summary>本次实际读取范围 · {selectedSearchSources.length} 个已配置岗位来源</summary><ul>{selectedSearchSources.map((entry) => <li key={entry.sourceId}>{entry.attribution.label}：最多 {Math.min(searchDepth === "quick" ? 50 : 500, entry.refreshPolicy.maxRecords)} 条 / {Math.min(searchDepth === "quick" ? 2 : 20, entry.refreshPolicy.maxPages)} 页{entry.options?.fetchDetails === true && typeof entry.options.maxDetailRequestsPerPage === "number" ? `，每页最多 ${entry.options.maxDetailRequestsPerPage} 个详情` : ""}</li>)}</ul><p>这里只查询已配置的岗位来源（企业官网或公开聚合源）。下方原站浏览器搜索独立执行，不计入官网来源回执。</p><button type="button" onClick={() => setSourcesOpen(true)}>管理与扩展来源</button></details>}
-    <PlatformSearchLinks keyword={text} regionText={mode === "domestic" ? (chinaFilter.selectedCity?.isGrouping && ["11", "12", "31", "50"].includes(chinaFilter.selectedProvince?.code ?? "") ? chinaFilter.selectedProvince?.name : chinaFilter.selectedCity?.name) ?? chinaFilter.selectedProvince?.name ?? "" : regionText || (region ? regions.find((entry) => entry.id === region)?.label ?? region : "")} countryCode={mode === "domestic" ? chinaFilter.workCountryCodes[0] ?? "CN" : country} onOpenSingleJob={onOpenOpportunitySources} onReviewCard={(card, capturedAt) => onSaveOpportunity({ token: crypto.randomUUID(), title: card.title, description: `[原站搜索列表卡片摘要，非完整 JD；请打开岗位原文核对]\n${card.cardText}`, sourceUrl: card.url, sourcePlatform: card.platform, collectedAt: capturedAt, sourcePublishedText: card.publicationText })} />
+    <PlatformSearchLinks keyword={text} regionText={mode === "domestic" ? (chinaFilter.selectedCity?.isGrouping && ["11", "12", "31", "50"].includes(chinaFilter.selectedProvince?.code ?? "") ? chinaFilter.selectedProvince?.name : chinaFilter.selectedCity?.name) ?? chinaFilter.selectedProvince?.name ?? "" : regionText || (region ? regions.find((entry) => entry.id === region)?.label ?? region : "")} countryCode={mode === "domestic" ? chinaFilter.workCountryCodes[0] ?? "CN" : country} onOpenSingleJob={onOpenOpportunitySources} onReviewCard={(card, capturedAt) => onSaveOpportunity({ token: crypto.randomUUID(), title: card.title, description: `[原站搜索列表卡片摘要，非完整 JD；请打开岗位原文核对]\n${card.cardText}`, sourceUrl: card.url, sourcePlatform: card.platform, collectedAt: capturedAt, sourcePublishedText: card.publicationText })} onIndexCard={(card, receipt, provider) => {
+      if (!connected) { setSettings("connection"); setSourceSearchMessage("请先连接本机岗位索引，再核对卡片入库。"); return; }
+      const parsed = ReviewedCardsCaptureSchema.safeParse({ provider, pageUrl: receipt.url, capturedAt: receipt.capturedAt, cards: [card] });
+      if (!parsed.success) { setSourceSearchError("这张卡片的来源或字段证据不足，未加入索引；请打开原岗位核对。"); return; }
+      setCardReview(parsed.data);
+    }} />
+    {cardReview && connected && liveData && <Suspense fallback={<p role="status">正在打开卡片核对…</p>}><AtlasReviewedCardImport key={`${cardReview.capturedAt}:${cardReview.cards[0]!.url}`} endpoint={endpoint} token={token} capture={cardReview} revision={liveData.revision} onClose={() => setCardReview(undefined)} onSnapshot={snapshot => {
+      searchAbort.current?.abort();
+      setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live");
+    }} /></Suspense>}
     {mode === "domestic" && chinaFilter.selectedDistrict && <p className="atlas-small">原站搜索链接只应用城市范围；区县条件在已收录岗位的位置原文中复核。尚未披露区县不算命中。</p>}
     <AtlasSearchProgress progress={searchProgress} busy={sourceSearching} onCancel={() => searchAbort.current?.abort()} onReviewSource={setSourceReview} />
     {sourceReview?.receipt && reviewSource && <Suspense fallback={<p role="status">正在加载来源候选核对…</p>}><AtlasSourceCandidateReview key={`${sourceReview.receipt.run.runId}:${endpoint}`} endpoint={endpoint} token={token} source={reviewSource} request={{ scope: sourceReview.receipt.localFilters, maxRecords: sourceReview.receipt.run.scope.maxRecords }} onClose={() => setSourceReview(undefined)} onReview={onSaveOpportunity} /></Suspense>}

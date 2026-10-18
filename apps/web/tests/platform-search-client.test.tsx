@@ -7,7 +7,7 @@ import { createJdStartRequestId } from "../src/lib/jd-start-request.ts";
 const input = { provider: "liepin", keyword: "C#", regionId: "cn-shanghai" } as const;
 const plan = buildPlatformSearchRequest(input);
 const session = { sessionId: "synthetic-search-session-1234", platform: plan.platform, url: plan.url, expiresAt: "2026-10-18T18:00:00Z" };
-const card = { platform: "猎聘", title: "Synthetic engineer", url: "https://www.liepin.com/job/1999999999.shtml", company: "Synthetic employer", cardText: "Synthetic list excerpt", evidence: { pageUrl: plan.url } };
+const card = { platform: "猎聘", title: "Synthetic engineer", url: "https://www.liepin.com/job/1999999999.shtml", company: "Synthetic employer", cardText: "Synthetic list excerpt", evidence: { pageUrl: plan.url, cardSelector: ".job-card-pc-container", fields: [] } };
 const receipt = () => ({ status: "ready", platform: "猎聘", url: plan.url, cards: [card], partial: true, warnings: ["Single page only"], capturedAt: "2026-10-18T17:00:00Z" });
 afterEach(() => mock.restoreAll());
 

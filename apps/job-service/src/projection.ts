@@ -17,9 +17,16 @@ export function emptyDelta(revision = 0): AtlasDataset {
 }
 export type ProjectedLead = { id: string; sourceId: string; observedAt: string; record: SourceJobRecord };
 export type SourceProjection = { delta: AtlasDataset; leads: ProjectedLead[]; unchangedJobs: number };
+/** Host-selected provenance; source records and tool arguments cannot elevate their own trust. */
+export type SourceProjectionOptions = { mode?: "source" | "user-reviewed-browser" };
+const completenessRank = { lead: 0, excerpt: 1, detail: 2 } as const;
 
 /** Pure projection. External claims never become personal facts or inferred company ownership. */
-export async function projectSourcePage(snapshot: AtlasDataset, source: SourceDefinition, page: SourcePage, runId: string): Promise<SourceProjection> {
+export async function projectSourcePage(snapshot: AtlasDataset, source: SourceDefinition, page: SourcePage, runId: string, options: SourceProjectionOptions = {}): Promise<SourceProjection> {
+  const reviewedBrowser = options.mode === "user-reviewed-browser";
+  // Confirming adoption of a parsed card is not a manual title override.
+  const titleMethod = reviewedBrowser ? "parser" : "source-structured";
+  const extractionMethod = reviewedBrowser ? "browser" : "source-structured";
   const delta = emptyDelta(snapshot.revision);
   delta.sources.push(source);
   const leads: ProjectedLead[] = [];
@@ -29,7 +36,7 @@ export async function projectSourcePage(snapshot: AtlasDataset, source: SourceDe
     const record = SourceJobRecordSchema.parse(input);
     const identity = record.sourceRecordId ?? normalizeSourceUrl(record.url!);
     const listingId = await deriveEntityId("listing", [source.sourceId, identity]);
-    const signature = digest(record);
+    const signature = reviewedBrowser ? digest({ record, mode: "user-reviewed-browser" }) : digest(record);
     if (seen.has(listingId)) {
       if (seen.get(listingId) !== signature) throw new Error("conflicting-source-record");
       continue;
@@ -78,17 +85,22 @@ export async function projectSourcePage(snapshot: AtlasDataset, source: SourceDe
     if (!record.compensations.length) compensationIds.push(...(oldListing?.compensationIds ?? []));
     const description = record.description ?? "";
     const contentHash = createHash("sha256").update(description).digest("hex");
-    const oldSnapshot = snapshot.snapshots.find((item) => item.listingId === listingId && item.contentHash === contentHash && item.text === description);
-    const snapshotId = description ? oldSnapshot?.id ?? await deriveEntityId("snapshot", [listingId, contentHash]) : undefined;
-    if (snapshotId && !oldSnapshot && !delta.snapshots.some((item) => item.id === snapshotId)) delta.snapshots.push({ id: snapshotId, listingId, observationId, text: description, contentHash, createdAt: page.observedAt, ...(record.url ? { sourceUrl: record.url } : {}), extractionMethod: "source-structured", completeness: record.completeness });
+    // Reuse legacy IDs when their content and provenance match, while keeping a card
+    // excerpt distinct from a later complete JD or another extraction method.
+    const oldSnapshot = snapshot.snapshots.find((item) => item.listingId === listingId && item.contentHash === contentHash && item.text === description
+      && item.completeness === record.completeness && item.extractionMethod === extractionMethod);
+    const snapshotId = description ? oldSnapshot?.id ?? await deriveEntityId("snapshot", [listingId, contentHash, record.completeness, extractionMethod]) : undefined;
+    if (snapshotId && !oldSnapshot && !delta.snapshots.some((item) => item.id === snapshotId)) delta.snapshots.push({ id: snapshotId, listingId, observationId, text: description, contentHash, createdAt: page.observedAt, ...(record.url ? { sourceUrl: record.url } : {}), extractionMethod, completeness: record.completeness });
+    const selectedSnapshot = snapshot.snapshots.find((item) => item.id === oldJob?.selectedSnapshotId);
+    const retainDescription = Boolean(selectedSnapshot && completenessRank[selectedSnapshot.completeness] > completenessRank[record.completeness]);
     const keepOther = (current: string[], oldContribution: string[] | undefined) => oldJob && oldJob.listingIds.length > 1 ? current.filter((id) => !oldContribution?.includes(id)) : [];
-    const title = oldJob?.title.value === record.title || oldJob?.title.method === "manual" ? oldJob.title : { value: record.title, evidence: evidence("title", record.title), method: "source-structured" as const, verification: "unverified" as const, revision: (oldJob?.title.revision ?? -1) + 1 };
+    const title: CanonicalJob["title"] = oldJob?.title.value === record.title || oldJob?.title.method === "manual" ? oldJob.title : { value: record.title, evidence: evidence("title", record.title), method: titleMethod, verification: "unverified", revision: (oldJob?.title.revision ?? -1) + 1 };
     const next: CanonicalJob = {
-      ...oldJob, id: jobId, companyId, title, description: record.description ?? oldJob?.description ?? "",
+      ...oldJob, id: jobId, companyId, title, description: retainDescription ? oldJob!.description : record.description ?? oldJob?.description ?? "",
       locationIds: unique([...keepOther(oldJob?.locationIds ?? [], oldListing?.locationIds), ...locationIds]),
       compensationIds: unique([...keepOther(oldJob?.compensationIds ?? [], oldListing?.compensationIds), ...compensationIds]),
       listingIds: unique([...(oldJob?.listingIds ?? []), listingId]),
-      ...(snapshotId ? { selectedSnapshotId: snapshotId } : {}), workMode: record.workMode === "unknown" ? oldJob?.workMode ?? "unknown" : record.workMode, employmentType: record.employmentType === "unknown" ? oldJob?.employmentType ?? "unknown" : record.employmentType,
+      ...(snapshotId && !retainDescription ? { selectedSnapshotId: snapshotId } : {}), workMode: record.workMode === "unknown" ? oldJob?.workMode ?? "unknown" : record.workMode, employmentType: record.employmentType === "unknown" ? oldJob?.employmentType ?? "unknown" : record.employmentType,
       remoteEligibleRegions: unique(record.remoteEligibleRegions.length ? record.remoteEligibleRegions : oldJob?.remoteEligibleRegions ?? []), status: record.availability === "unknown" ? oldJob?.status ?? "unknown" : record.availability,
       revision: oldJob?.revision ?? 0, updatedAt: oldJob?.updatedAt ?? page.observedAt,
     };

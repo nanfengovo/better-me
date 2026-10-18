@@ -1,5 +1,6 @@
 /** @jsxRuntime automatic */
 import { useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 import type { PlatformSearchRequest, PlatformSearchInput } from "@better-me/source-adapters/browser-contracts";
 import { closeJdBrowserSession, focusJdBrowserSession, inspectJdBrowserSession, type JdBrowserSession, type JdBrowserSessionInspection } from "../../lib/jd-import";
 import { startPlatformSearch, readPlatformSearch, cancelPlatformSearch, type PlatformSearchReceipt, type PlatformSearchCard } from "../../lib/platform-search-client";
@@ -8,7 +9,8 @@ import { JdExtractionError } from "../../lib/jd-errors";
 import { snapshotFailureMessage } from "../../lib/jd-capture-diagnostics";
 import { SourcePublicationBadges } from "./JobSourceBadges";
 
-type Props = { requests: PlatformSearchRequest[]; onReviewCard?: (card: PlatformSearchCard, capturedAt: string) => void };
+type Props = { requests: PlatformSearchRequest[]; onReviewCard?: (card: PlatformSearchCard, capturedAt: string) => void;
+  onIndexCard?: (card: PlatformSearchCard, receipt: PlatformSearchReceipt, provider: PlatformSearchRequest["provider"]) => void };
 const labels: Record<PlatformSearchReceipt["status"], string> = {
   ready: "已读取当前页岗位卡片", empty: "原站当前页明确显示暂无结果", login_required: "原站需要登录，请在专用窗口完成后再次读取",
   verification_required: "原站需要人工验证，完成后可再次读取", unknown_layout: "尚未识别到可靠的岗位卡片，请核对页面是否加载完成",
@@ -29,7 +31,7 @@ const pageLabels: Record<JdBrowserSessionInspection["pageState"], string> = {
 };
 
 /** One visible browser session, explicit read/close, no automatic applications or account actions. */
-export function PlatformSearchSessionPanel({ requests, onReviewCard }: Props) {
+export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard }: Props) {
   const [provider, setProvider] = useState("liepin");
   const [session, setSession] = useState<JdBrowserSession>();
   const [scope, setScope] = useState<PlatformSearchRequest>();
@@ -104,6 +106,7 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard }: Props) {
       </>}
       {pending && <button type="button" disabled={busy} onClick={() => void end()}>{session ? "结束搜索会话" : "结束本次搜索请求"}</button>}
     </div>
+    {busy && <p className="atlas-platform-reader-loading" role="status"><Loader2 size={16} className="animate-spin" aria-hidden="true" />正在等待原站页面并核对可见卡片… 页面加载、身份与字段检查完成后会显示结果。</p>}
     {scope && <p className="atlas-small">本次搜索：{scope.platform} · {scope.keyword || "不限关键词"} · {scope.region?.name ?? "原站默认地区"}。上方筛选改变后，结束本次会话再发起新的搜索。</p>}
     {error && <p role="alert" className="atlas-platform-search-error">{error}</p>}
     {inspection && <div className="atlas-small" role="status" aria-label="搜索页面状态检查结果">
@@ -119,7 +122,7 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard }: Props) {
     </div>}
     {receipt && <div className="atlas-platform-reader-result" role="status">
       <strong>{labels[receipt.status]}{receipt.status === "ready" || receipt.status === "empty" ? ` · ${receipt.cards.length} 岗` : " · 岗位数量尚未确认"}</strong>
-      <p>仅本次单页读取，未自动遍历全站。结果保留在当前面板；核对后可预填到机会库，尚未确认的位置不会生成地图标记。</p>
+      <p>仅本次单页读取，未自动遍历全站。核对后可加入统一索引继续搜索，或预填机会库；缺少坐标的岗位仍列为待定位。</p>
       {receipt.warnings.map((warning, index) => <p className="atlas-small" key={index}>{warning}</p>)}
       <ul className="atlas-platform-card-list">{receipt.cards.map((card) => <li key={card.url}>
         <SourcePublicationBadges sourceLabel={card.platform} platform={card.platform} publishedRaw={card.publicationText} sourceUrl={card.url} link />
@@ -128,6 +131,7 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard }: Props) {
         <span>{card.salaryText || "薪资未披露"}</span>
         <details><summary>查看实际读取的卡片原文</summary><pre>{card.cardText}</pre></details>
         {onReviewCard && <button type="button" onClick={() => onReviewCard(card, receipt.capturedAt)}>核对并收藏此岗位</button>}
+        {onIndexCard && scope && <button type="button" disabled={!card.company?.trim()} title={!card.company?.trim() ? "雇主未披露，请先打开原文核对" : undefined} onClick={() => onIndexCard(card, receipt, scope.provider)}>核对并加入统一索引</button>}
       </li>)}</ul>
     </div>}
   </section>;

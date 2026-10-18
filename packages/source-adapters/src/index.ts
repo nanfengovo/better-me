@@ -13,3 +13,4 @@ export * from "./career-discovery.js";
 export * from "./career-discovery-contracts.js";
 export * from "./platform-search.js";
 export * from "./local-match.js";
+export * from "./reviewed-cards.js";

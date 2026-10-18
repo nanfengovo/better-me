@@ -6,7 +6,7 @@ import {
 import { useUiPreferences, type UiTranslator } from "../../lib/ui-preferences";
 import "./platform-search-links.css";
 import { PlatformSearchSessionPanel } from "./PlatformSearchSessionPanel";
-import type { PlatformSearchCard } from "../../lib/platform-search-client";
+import type { PlatformSearchCard, PlatformSearchReceipt } from "../../lib/platform-search-client";
 
 export type PlatformSearchLinksProps = {
   keyword: string;
@@ -14,6 +14,7 @@ export type PlatformSearchLinksProps = {
   countryCode: string;
   onOpenSingleJob?: () => void;
   onReviewCard?: (card: PlatformSearchCard, capturedAt: string) => void;
+  onIndexCard?: (card: PlatformSearchCard, receipt: PlatformSearchReceipt, provider: PlatformSearchRequest["provider"]) => void;
 };
 
 type RegionSelection = { region?: PlatformSearchRegion; error?: string };
@@ -57,7 +58,7 @@ function platformNote(request: PlatformSearchRequest, t: UiTranslator): string |
 }
 
 /** External launch links only; rendering never fetches, imports or updates map results. */
-export function PlatformSearchLinks({ keyword, regionText, countryCode, onOpenSingleJob, onReviewCard }: PlatformSearchLinksProps) {
+export function PlatformSearchLinks({ keyword, regionText, countryCode, onOpenSingleJob, onReviewCard, onIndexCard }: PlatformSearchLinksProps) {
   const { t } = useUiPreferences();
   const selection = selectedRegion(regionText, countryCode, t);
   const inputError = selection.error;
@@ -91,7 +92,7 @@ export function PlatformSearchLinks({ keyword, regionText, countryCode, onOpenSi
         {!inputError && error && <small className="atlas-platform-search-error">{error}</small>}
       </li>)}
     </ul>
-    <PlatformSearchSessionPanel requests={searches.flatMap((search) => search.request ? [search.request] : [])} onReviewCard={onReviewCard} />
+    <PlatformSearchSessionPanel requests={searches.flatMap((search) => search.request ? [search.request] : [])} onReviewCard={onReviewCard} onIndexCard={onIndexCard} />
     <div className="atlas-platform-search-followup"><p>{t(
       "在原站选择具体岗位后，可通过单岗读取核对来源并收藏。打开搜索页不会自动导入岗位。",
       "After selecting a specific job on the platform, use the single-job reader to review its source and save it. Opening a search page does not import jobs.",

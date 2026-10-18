@@ -14,6 +14,8 @@ export interface JobHttpOptions {
 
 const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }> = [
   { method: "POST", path: /^\/api\/v1\/jobs\/search$/, tool: "jobs.search" },
+  { method: "POST", path: /^\/api\/v1\/jobs\/reviewed-cards\/preview$/, tool: "jobs.preview-reviewed-cards" },
+  { method: "POST", path: /^\/api\/v1\/jobs\/reviewed-cards\/import$/, tool: "jobs.import-reviewed-cards" },
   { method: "POST", path: /^\/api\/v1\/locations\/geocode-candidates$/, tool: "locations.geocode-candidates" },
   { method: "GET", path: /^\/api\/v1\/jobs\/([^/]+)$/, tool: "jobs.read-detail", key: "jobId" },
   { method: "GET", path: /^\/api\/v1\/sources$/, tool: "sources.list" },

@@ -3,10 +3,10 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { type SourceDefinition } from "@better-me/opportunities";
+import { deriveEntityId, type SourceDefinition } from "@better-me/opportunities";
 import { type SourceJobRecord, type SourcePage } from "@better-me/source-adapters";
 import { openJobRepository, type JobRepository } from "../src/repository.ts";
-import { emptyDelta, projectSourcePage } from "../src/projection.ts";
+import { emptyDelta, projectSourcePage, type SourceProjectionOptions } from "../src/projection.ts";
 
 const source: SourceDefinition = {
   sourceId: "projection-source", name: "合成投影来源", adapterId: "synthetic", adapterVersion: "1", capabilities: ["list-jobs"], runtime: ["local-service"], entityType: "job-posting", enabled: true, status: "active", remoteFilters: [],
@@ -28,10 +28,10 @@ async function withRepository(task: (repo: JobRepository) => Promise<void>) {
     await task(repo);
   } finally { repo.close(); await rm(dir, { recursive: true, force: true }); }
 }
-async function applyPage(repo: JobRepository, records: SourceJobRecord[], key: string, observedAt: string, runId?: string) {
+async function applyPage(repo: JobRepository, records: SourceJobRecord[], key: string, observedAt: string, runId?: string, options?: SourceProjectionOptions) {
   const run = runId ?? (await repo.startRun({ sourceId: source.sourceId, scope: {}, actorScope, idempotencyKey: `${key}.start` })).runId;
   const before = await repo.readSnapshot();
-  const projection = await projectSourcePage(before, source, page(records, observedAt), run);
+  const projection = await projectSourcePage(before, source, page(records, observedAt), run, options);
   const receipt = await repo.importSnapshot(projection.delta, { actorScope, idempotencyKey: key, expectedRevision: before.revision, runId: run });
   return { projection, receipt, runId: run };
 }
@@ -161,5 +161,136 @@ test("duplicate source locations, salaries and remote regions normalize to valid
     assert.equal(actual.listings[0]!.locationIds.length, 1);
     assert.equal(actual.listings[0]!.compensationIds.length, 1);
     assert.deepEqual(actual.jobs[0]!.remoteEligibleRegions, ["中国大陆"]);
+  });
+});
+
+test("host-selected reviewed-browser provenance stays parser/browser and unverified without changing source defaults", async () => {
+  await withRepository(async (repo) => {
+    await applyPage(repo, [record("source-default", "上海")], "default", "2026-10-18T00:00:00.000Z");
+    const ordinary = await repo.readSnapshot();
+    assert.equal(ordinary.jobs[0]!.title.method, "source-structured");
+    assert.equal(ordinary.snapshots[0]!.extractionMethod, "source-structured");
+    await applyPage(repo, [{ ...record("reviewed-card", "北京"), completeness: "excerpt" }], "reviewed", "2026-10-19T00:00:00.000Z", undefined, { mode: "user-reviewed-browser" });
+    const reviewed = await repo.readSnapshot();
+    const listing = reviewed.listings.find((item) => item.sourceRecordId === "reviewed-card")!;
+    const job = reviewed.jobs.find((item) => item.id === listing.canonicalJobId)!;
+    const snapshot = reviewed.snapshots.find((item) => item.id === job.selectedSnapshotId)!;
+    assert.equal(job.title.method, "parser");
+    assert.equal(job.title.verification, "unverified");
+    assert.equal(job.status, "unknown");
+    assert.equal(snapshot.extractionMethod, "browser");
+    assert.equal(snapshot.completeness, "excerpt");
+    assert.equal(reviewed.observations.find((item) => item.id === snapshot.observationId)!.result, "partial");
+    assert.equal(reviewed.locations.find((item) => job.locationIds.includes(item.id))!.verification, "unverified");
+  });
+});
+
+test("a later reviewed card updates its parsed title while retaining a genuine manual title override", async () => {
+  await withRepository(async (repo) => {
+    const entry = { ...record("reviewed-title", "上海"), completeness: "excerpt" as const };
+    await applyPage(repo, [entry], "reviewed-title-first", "2026-10-18T00:00:00.000Z", undefined, { mode: "user-reviewed-browser" });
+    const initial = await repo.readSnapshot();
+    const updated = { ...entry, title: "原站后来更新的高级工程师标题", description: "原站更新后的岗位卡片摘要。" };
+    await applyPage(repo, [updated], "reviewed-title-next", "2026-10-19T00:00:00.000Z", undefined, { mode: "user-reviewed-browser" });
+    const latest = await repo.readSnapshot();
+    assert.equal(latest.jobs[0]!.title.value, updated.title);
+    assert.equal(latest.jobs[0]!.title.method, "parser");
+    assert.equal(latest.jobs[0]!.title.verification, "unverified");
+    assert.equal(latest.jobs[0]!.title.revision, initial.jobs[0]!.title.revision + 1);
+    assert.notDeepEqual(latest.jobs[0]!.title.evidence, initial.jobs[0]!.title.evidence);
+
+    const manual = emptyDelta(latest.revision);
+    manual.jobs = [{ ...latest.jobs[0]!, title: { ...latest.jobs[0]!.title, value: "用户明确手工覆盖的标题", method: "manual", revision: latest.jobs[0]!.title.revision + 1 },
+      revision: latest.jobs[0]!.revision + 1, updatedAt: "2026-10-20T00:00:00.000Z" }];
+    await repo.importSnapshot(manual, { actorScope, idempotencyKey: "manual-title-override", expectedRevision: latest.revision });
+    const overridden = await repo.readSnapshot();
+    await applyPage(repo, [{ ...updated, title: "又一次更新的外部标题" }], "reviewed-after-manual", "2026-10-21T00:00:00.000Z", undefined, { mode: "user-reviewed-browser" });
+    const retained = await repo.readSnapshot();
+    assert.deepEqual(retained.jobs[0]!.title, overridden.jobs[0]!.title);
+    assert.equal(retained.jobs[0]!.title.value, "用户明确手工覆盖的标题");
+    assert.equal(retained.observations.length, overridden.observations.length + 1);
+  });
+});
+
+test("later source and reviewed-browser excerpts append evidence while preserving the selected complete JD", async () => {
+  for (const mode of ["source", "user-reviewed-browser"] as const) {
+    await withRepository(async (repo) => {
+      const entry = record(`complete-${mode}`, "上海");
+      await applyPage(repo, [entry], "full-detail", "2026-10-18T00:00:00.000Z");
+      const initial = await repo.readSnapshot();
+      const excerpt: SourceJobRecord = { ...entry, description: "本次搜索卡片仅含简短职责摘录。", completeness: "excerpt" };
+      const result = await applyPage(repo, [excerpt], "later-card", "2026-10-19T00:00:00.000Z", undefined, { mode });
+      const actual = await repo.readSnapshot();
+      assert.equal(actual.jobs[0]!.description, entry.description);
+      assert.equal(actual.jobs[0]!.selectedSnapshotId, initial.jobs[0]!.selectedSnapshotId);
+      assert.equal(result.receipt.counts.newSnapshots, 1);
+      assert.equal(result.receipt.counts.newObservations, 1);
+      assert.equal(result.receipt.counts.updatedJobs, 0);
+      assert.equal(actual.snapshots.length, 2);
+      const newObservation = actual.observations.find((item) => item.completeness === "excerpt")!;
+      assert.equal(actual.snapshots.find((item) => item.id === newObservation.snapshotId)!.text, excerpt.description);
+      assert.equal(newObservation.result, "partial");
+    });
+  }
+});
+
+test("same text at different completeness creates separate immutable snapshots and only upgrades the selected JD", async () => {
+  await withRepository(async (repo) => {
+    const complete = record("same-text", "上海");
+    await applyPage(repo, [{ ...complete, completeness: "excerpt" }], "first-card", "2026-10-18T00:00:00.000Z");
+    const initial = await repo.readSnapshot();
+    assert.equal(initial.snapshots[0]!.completeness, "excerpt");
+    const full = await applyPage(repo, [complete], "full-read", "2026-10-19T00:00:00.000Z");
+    const upgraded = await repo.readSnapshot();
+    assert.equal(full.receipt.counts.newSnapshots, 1);
+    assert.equal(upgraded.snapshots.length, 2);
+    assert.notEqual(upgraded.jobs[0]!.selectedSnapshotId, initial.jobs[0]!.selectedSnapshotId);
+    assert.equal(upgraded.snapshots.find((item) => item.id === upgraded.jobs[0]!.selectedSnapshotId)!.completeness, "detail");
+    const again = await applyPage(repo, [{ ...complete, completeness: "excerpt" }], "repeat-card", "2026-10-20T00:00:00.000Z");
+    const retained = await repo.readSnapshot();
+    assert.equal(again.receipt.counts.newSnapshots, 0);
+    assert.equal(retained.jobs[0]!.selectedSnapshotId, upgraded.jobs[0]!.selectedSnapshotId);
+    assert.deepEqual(retained.snapshots.find((item) => item.id === initial.snapshots[0]!.id), initial.snapshots[0]);
+  });
+});
+
+test("same text with different host provenance keeps distinct observations and snapshots within one run", async () => {
+  await withRepository(async (repo) => {
+    const entry = { ...record("provenance", "上海"), completeness: "excerpt" as const };
+    const first = await applyPage(repo, [entry], "source-page", "2026-10-18T00:00:00.000Z");
+    const next = await applyPage(repo, [entry], "reviewed-page", "2026-10-18T00:01:00.000Z", first.runId, { mode: "user-reviewed-browser" });
+    const actual = await repo.readSnapshot();
+    assert.equal(next.receipt.counts.newSnapshots, 1);
+    assert.equal(next.receipt.counts.newObservations, 1);
+    assert.deepEqual(actual.snapshots.map((item) => item.extractionMethod).sort(), ["browser", "source-structured"]);
+    assert.equal(actual.observations.length, 2);
+    assert.equal(new Set(actual.observations.map((item) => item.snapshotId)).size, 2);
+    const repeat = await applyPage(repo, [entry], "reviewed-repeat", "2026-10-18T00:02:00.000Z", first.runId, { mode: "user-reviewed-browser" });
+    assert.equal(repeat.receipt.counts.newObservations, 0);
+    assert.equal(repeat.receipt.counts.newSnapshots, 0);
+  });
+});
+
+test("matching source detail reuses a legacy text-only snapshot ID without rewriting its provenance", async () => {
+  await withRepository(async (repo) => {
+    const entry = record("legacy-snapshot", "上海");
+    const before = await repo.readSnapshot();
+    const projection = await projectSourcePage(before, source, page([entry], "2026-10-18T00:00:00.000Z"), "legacy-run");
+    const snapshot = projection.delta.snapshots[0]!;
+    const oldId = snapshot.id;
+    const legacyId = await deriveEntityId("snapshot", [snapshot.listingId, snapshot.contentHash]);
+    assert.notEqual(oldId, legacyId);
+    snapshot.id = legacyId;
+    projection.delta.jobs[0]!.selectedSnapshotId = legacyId;
+    projection.delta.observations[0]!.snapshotId = legacyId;
+    await repo.importSnapshot(projection.delta, { actorScope, idempotencyKey: "legacy-seed", expectedRevision: before.revision });
+    const result = await applyPage(repo, [entry], "legacy-refresh", "2026-10-19T00:00:00.000Z");
+    const actual = await repo.readSnapshot();
+    assert.equal(result.receipt.counts.newSnapshots, 0);
+    assert.equal(actual.snapshots.length, 1);
+    assert.equal(actual.snapshots[0]!.id, legacyId);
+    assert.equal(actual.jobs[0]!.selectedSnapshotId, legacyId);
+    assert.equal(actual.observations.length, 2);
+    assert.ok(actual.observations.every((item) => item.snapshotId === legacyId));
   });
 });

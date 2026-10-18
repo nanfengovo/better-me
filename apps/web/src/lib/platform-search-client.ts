@@ -10,7 +10,12 @@ const card = z.object({
   url: z.string().url().max(8_000), platform, title: z.string().trim().min(1).max(500),
   company: z.string().max(500).optional(), locationText: z.string().max(1_000).optional(),
   salaryText: z.string().max(1_000).optional(), publicationText: z.string().max(1_000).optional(),
-  cardText: z.string().max(20_000), evidence: z.unknown(),
+  cardText: z.string().max(20_000), evidence: z.object({
+    pageUrl: z.string().url().max(8_000), cardSelector: z.string().min(1).max(1_000),
+    fields: z.array(z.object({ field: z.enum(["url", "title", "company", "locationText", "salaryText", "publicationText"]),
+      selector: z.string().min(1).max(1_000), text: z.string().min(1).max(8_000),
+    }).strict()).max(30),
+  }).strict(),
 });
 const result = z.object({
   status: z.enum(["ready", "empty", "login_required", "verification_required", "unknown_layout", "oversized", "unsupported_page"]),

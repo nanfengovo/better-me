@@ -6,6 +6,8 @@ import {
   SourcePageSchema, SourceRegistrationProposalSchema, SourceScopeSchema,
   DiscoverCompanyCareersInputSchema, CompanyCareerDiscoveryResultSchema, type DiscoverCompanyCareersInput,
   type DiscoverSourceCandidatesInput, type InspectSourceCandidateInput, type ProposeSourceRegistrationInput,
+  PreviewReviewedCardsInputSchema, ReviewedCardsPreviewSchema, ImportReviewedCardsInputSchema,
+  type PreviewReviewedCardsInput, type ImportReviewedCardsInput,
 } from "@better-me/source-adapters/browser-contracts";
 import { AtlasClientError, readAtlasSnapshot } from "./client";
 
@@ -136,6 +138,8 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
     inspect: async (sourceId: string, value: InspectSourceCandidateInput, options: Options = {}) => request("sources/inspect", SourceCandidateInspectionSchema, options, { sourceId: input(EntityIdSchema, sourceId), request: input(InspectSourceCandidateInputSchema, value) }),
     propose: async (value: ProposeSourceRegistrationInput, options: Options = {}) => request("sources/propose", SourceRegistrationProposalSchema, options, input(ProposeSourceRegistrationInputSchema, value)),
     snapshot: (options: Options = {}) => readAtlasSnapshot(endpoint, token, options),
+    previewReviewedCards: (value: PreviewReviewedCardsInput, options: Options = {}) => request("jobs/reviewed-cards/preview", ReviewedCardsPreviewSchema, options, input(PreviewReviewedCardsInputSchema, value)),
+    importReviewedCards: (value: ImportReviewedCardsInput, options: WriteOptions) => request("jobs/reviewed-cards/import", ReceiptSchema, options, input(ImportReviewedCardsInputSchema, value), input(KeySchema, options.idempotencyKey)),
   };
 }
 

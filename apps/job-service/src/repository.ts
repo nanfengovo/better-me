@@ -29,7 +29,9 @@ const PUBLIC_ERRORS: Record<RepositoryErrorCode, string> = {
 export class RepositoryError extends Error {
   constructor(public readonly code: RepositoryErrorCode) { super(PUBLIC_ERRORS[code]); this.name = "RepositoryError"; }
 }
-export type ImportOptions = { expectedRevision?: number; actorScope: string; idempotencyKey: string; runId?: string };
+export type ImportOptions = { expectedRevision?: number; actorScope: string; idempotencyKey: string; runId?: string;
+  /** Host-computed identity of a fully validated command, independent of its projected delta. */
+  requestFingerprint?: string };
 export type StartRunOptions = { sourceId: string; scope: RunScope; actorScope: string; idempotencyKey: string; requestFingerprint?: string };
 export type FindRunByRequestOptions = { actorScope: string; idempotencyKey: string; requestFingerprint: string };
 export type ReconciliationWriteOptions = Omit<ImportOptions, "runId"> & { expectedRevision: number };
@@ -69,6 +71,7 @@ function checked<T>(schema: { safeParse(input: unknown): { success: boolean; dat
 }
 function validateOptions(options: ImportOptions) {
   checked(ActorScopeSchema, options.actorScope); checked(IdempotencyKeySchema, options.idempotencyKey);
+  if (options.requestFingerprint !== undefined) checked(RequestFingerprintSchema, options.requestFingerprint);
   if (options.expectedRevision !== undefined && (!Number.isSafeInteger(options.expectedRevision) || options.expectedRevision < 0)) throw new RepositoryError("invalid-data");
 }
 function emptyDataset(revision = 0): AtlasDataset {
@@ -388,10 +391,19 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     async readSnapshot(): Promise<AtlasDataset> { return transaction(read); },
     /** Ingestion-only origins: never use this view for map totals or user-facing search. */
     async readProjectionSnapshot(): Promise<AtlasDataset> { return transaction(() => baseSnapshot()); },
+    /** Recover a committed command before re-projecting against a newer index revision. */
+    async findImportReceipt(options: ImportOptions & { requestFingerprint: string }): Promise<ImportReceipt | undefined> {
+      validateOptions(options);
+      const requestSignature = signature({ requestFingerprint: options.requestFingerprint, expectedRevision: options.expectedRevision, runId: options.runId });
+      return transaction(() => {
+        const cached = receipt<ImportReceipt>(options.actorScope, "dataset.import", options.idempotencyKey, requestSignature);
+        return cached ? checked(ImportReceiptSchema, cached) : undefined;
+      });
+    },
     async importSnapshot(input: unknown, importOptions: ImportOptions): Promise<ImportReceipt> {
       validateOptions(importOptions);
       const incoming = checked(AtlasDatasetObjectSchema, input);
-      const requestSignature = signature({ input: incoming, expectedRevision: importOptions.expectedRevision, runId: importOptions.runId });
+      const requestSignature = signature({ ...(importOptions.requestFingerprint === undefined ? { input: incoming } : { requestFingerprint: importOptions.requestFingerprint }), expectedRevision: importOptions.expectedRevision, runId: importOptions.runId });
       return transaction(() => {
         const cached = receipt<ImportReceipt>(importOptions.actorScope, "dataset.import", importOptions.idempotencyKey, requestSignature);
         if (cached) return checked(ImportReceiptSchema, cached);
