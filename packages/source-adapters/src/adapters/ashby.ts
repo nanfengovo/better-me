@@ -1,7 +1,8 @@
 import { ToolError } from '@better-me/opportunities';
 import type { SourceAdapter } from '../contracts.js';
-import { baseRecord, companyName, idValue, jsonResponse, own, page, plainText, publicUrl, record, slug, stringValue, timeValue, workMode } from './common.js';
+import { baseRecord, companyName, idValue, jsonResponse, own, page, plainText, publicUrl, record, slug, timeValue, workMode } from './common.js';
 import { allocateDownloadedRecordQuota } from './bounded-records.js';
+import { applyAshbyCompensation, applyAshbyLocations } from './ashby-fields.js';
 
 export const ashbyAdapter: SourceAdapter = {
   adapterId: 'ashby', version: '1', capabilities: ['list-jobs'], remoteFilters: [], entityTypes: ['job-posting'],
@@ -23,28 +24,11 @@ export const ashbyAdapter: SourceAdapter = {
       if (result.workMode === 'unknown' && job.isRemote === true) result.workMode = 'remote';
       const descriptions = plainText(job.descriptionPlain ?? job.descriptionHtml);
       if (descriptions) { result.description = descriptions; result.completeness = 'detail'; result.evidence.push({ field: 'description', selector: `jobs[${index}].descriptionPlain`, sourceUrl: response.url }); }
-      const rawPlaces: Array<{ raw: string; countryCode?: string; region?: string; city?: string }> = [];
-      const primary = stringValue(job.location);
-      const address = record(own(job.address, 'postalAddress'));
-      const countryValue = stringValue(address.addressCountry);
-      const country = countryValue && /^[A-Za-z]{2}$/.test(countryValue) ? countryValue.toUpperCase() : undefined;
-      if (primary) rawPlaces.push({ raw: primary, ...(country ? { countryCode: country } : {}), ...(stringValue(address.addressRegion) ? { region: stringValue(address.addressRegion) } : {}), ...(stringValue(address.addressLocality) ? { city: stringValue(address.addressLocality) } : {}) });
-      if (Array.isArray(job.secondaryLocations)) for (const secondary of job.secondaryLocations) {
-        const raw = stringValue(own(secondary, 'location'));
-        if (raw && !rawPlaces.some((entry) => entry.raw === raw)) rawPlaces.push({ raw });
-      }
-      if (result.workMode === 'remote') result.remoteEligibleRegions = rawPlaces.map((entry) => entry.raw);
-      else result.locations = rawPlaces;
-      if (rawPlaces.length) result.evidence.push({ field: result.workMode === 'remote' ? 'remoteEligibleRegions' : 'locations', selector: `jobs[${index}].location`, sourceUrl: response.url });
+      applyAshbyLocations(result, job, `jobs[${index}]`, response.url);
       const published = timeValue(job.publishedAt);
       if (published.raw) result.sourcePublishedRaw = published.raw;
       if (published.at) result.sourcePublishedAt = published.at;
-      const compensation = record(job.compensation);
-      const compensationText = stringValue(compensation.compensationTierSummary) ?? stringValue(compensation.summary) ?? stringValue(compensation.scrapeableCompensationSalarySummary);
-      if (compensationText) {
-        result.compensations = [{ raw: compensationText, period: 'unknown', tax: 'unknown', kind: 'unknown' }];
-        result.evidence.push({ field: 'compensations', selector: `jobs[${index}].compensation`, quote: compensationText, sourceUrl: response.url });
-      }
+      applyAshbyCompensation(result, job, `jobs[${index}]`, response.url);
       if (job.isListed === false) result.warnings.push('Source marks this posting as unlisted; this is not an independent availability verification.');
       return result;
     });

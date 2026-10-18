@@ -61,6 +61,7 @@ const countryAliases: ReadonlyArray<readonly [string, readonly string[]]> = [
   ["GB", ["GB", "UK", "英国", "United Kingdom", "Great Britain"]],
   ["SG", ["SG", "新加坡", "Singapore"]], ["DE", ["DE", "德国", "Germany"]], ["FR", ["FR", "法国", "France"]],
   ["JP", ["JP", "日本", "Japan"]], ["CA", ["CA", "加拿大", "Canada"]], ["AU", ["AU", "澳大利亚", "Australia"]],
+  ["IN", ["IN", "印度", "India"]],
 ];
 const countryAliasKey = (value: string) => value.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
 const legacyCountryCodes = new Map(countryAliases.flatMap(([code, aliases]) => aliases.map((alias) => [countryAliasKey(alias), code] as const)));

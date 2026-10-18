@@ -83,7 +83,7 @@ test("manual opportunities do not invent URLs, snapshots, country codes or coord
 
 test("legacy country aliases are exact and preserve separate work jurisdictions", async () => {
   for (const [country, expected] of [["中国", "CN"], ["中国内地", "CN"], ["  Mainland   China  ", "CN"], ["ＣＮ", "CN"],
-    ["中国香港", "HK"], ["Hong Kong", "HK"], ["澳门", "MO"], ["Taiwan", "TW"], ["uSa", "US"], ["英国", "GB"], ["新加坡", "SG"]]) {
+    ["中国香港", "HK"], ["Hong Kong", "HK"], ["澳门", "MO"], ["Taiwan", "TW"], ["uSa", "US"], ["英国", "GB"], ["新加坡", "SG"], ["India", "IN"], ["印度", "IN"]]) {
     assert.equal(resolveLegacyCountryCode(country!), expected);
     const original = fixture(); original.jobs[0]!.location.country = country!;
     const { dataset } = await previewLegacyImport(original);
