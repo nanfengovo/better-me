@@ -144,6 +144,95 @@ test("recognized Greenhouse, Lever, Ashby and Tencent entries generate existing 
   assert.deepEqual(tencent.remoteFilters, ["roles"]);
 });
 
+test("SmartRecruiters career seeds create one disabled company-scoped proposal without requesting the ATS", async () => {
+  const run = execution(), before = structuredClone(run.source), tenant = "Synthetic-Industries";
+  const result = await discoverCompanyCareers({ companyName, seedUrls: [
+    `https://CAREERS.SMARTRECRUITERS.COM/${tenant}/`,
+    `https://jobs.smartrecruiters.com/${tenant}/123456-synthetic-role?ref=careers`,
+  ] }, run);
+  assert.equal(run.requests.length, 0); assert.equal(run.charged.requests, 0); assert.equal(result.status, "needs-review");
+  assert.equal(result.candidates.length, 1); assert.equal(result.proposals.length, 1);
+  const candidate = result.candidates[0]!;
+  assert.equal(candidate.entryKind, "smartrecruiters"); assert.equal(candidate.companyAssociation, "unverified");
+  assert.equal(candidate.candidate.homeUrl, `https://careers.smartrecruiters.com/${tenant}`);
+  assert.equal(candidate.evidence.length, 2); assert.deepEqual(candidate.candidate.entryHints, [{ url: `https://api.smartrecruiters.com/v1/companies/${tenant}/postings`, format: "json" }]);
+  const proposal = result.proposals[0]!, configured = proposal.source;
+  assert.equal(configured.adapterId, "smartrecruiters"); assert.equal(configured.adapterVersion, "1");
+  assert.equal(configured.enabled, false); assert.equal(configured.status, "needs-review"); assert.equal(configured.entityType, "job-posting");
+  assert.equal(configured.entryUrl, `https://api.smartrecruiters.com/v1/companies/${tenant}/postings`);
+  assert.deepEqual(configured.options, { companyName, companyIdentifier: tenant, pageSize: 20, fetchDetails: true, maxDetailRequestsPerPage: 2 });
+  assert.deepEqual(configured.endpointPolicy, { allowedHosts: ["api.smartrecruiters.com"], allowedPathPrefixes: [`/v1/companies/${tenant}/postings`], requireHttps: true, allowRedirects: false, maxRedirects: 0 });
+  assert.deepEqual(configured.capabilities, ["list-jobs"]); assert.deepEqual(configured.remoteFilters, ["roles"]);
+  assert.equal(configured.attribution.usage, "link-only"); assert.equal(configured.attribution.homepageUrl, candidate.candidate.homeUrl);
+  assert.ok(proposal.reviewRequired.some(warning => warning.includes("companyName")));
+  assert.deepEqual(run.source, before); assert.equal(CompanyCareerDiscoveryResultSchema.safeParse(result).success, true);
+});
+
+test("a company HTML SmartRecruiters link keeps original anchor evidence and does not expand discovery network scope", async () => {
+  const tenant = "SyntheticIndustries", destination = `https://jobs.smartrecruiters.com/${tenant}/123456-example`;
+  const run = execution(() => `<html><body><a href="${destination}">查看我们的技术招聘岗位</a></body></html>`), before = structuredClone(run.source);
+  const result = await discoverCompanyCareers({ companyName, companyWebsite }, run);
+  assert.deepEqual(run.requests, [companyWebsite]); assert.deepEqual(result.visitedUrls, [companyWebsite]);
+  assert.equal(result.candidates.length, 1); const candidate = result.candidates[0]!;
+  assert.equal(candidate.entryKind, "smartrecruiters"); assert.equal(candidate.matchedBy, "career-link"); assert.equal(candidate.companyAssociation, "unverified");
+  assert.deepEqual(candidate.evidence, [{ kind: "html-link", sourceUrl: companyWebsite, targetUrl: destination, quote: "查看我们的技术招聘岗位" }]);
+  assert.equal(candidate.candidate.homeUrl, `https://careers.smartrecruiters.com/${tenant}`);
+  assert.equal(result.proposals[0]!.source.options!.companyIdentifier, tenant);
+  assert.equal(result.proposals[0]!.source.options!.fetchDetails, true);
+  assert.equal(result.proposals[0]!.source.options!.maxDetailRequestsPerPage, 2);
+  assert.equal(result.proposals[0]!.source.enabled, false); assert.equal(result.proposals[0]!.source.status, "needs-review");
+  assert.deepEqual(run.source, before); assert.equal(run.source.endpointPolicy.allowedHosts.includes("api.smartrecruiters.com"), false);
+});
+
+test("SmartRecruiters shared hosts cannot identify another company or match an unrelated installed tenant", async () => {
+  const installed: SourceDefinition = { ...source(), sourceId: "other-smartrecruiters", name: "Other employer", adapterId: "smartrecruiters",
+    options: { companyName: "Other Employer", companyIdentifier: "OtherTenant" }, entryUrl: "https://api.smartrecruiters.com/v1/companies/OtherTenant/postings",
+    attribution: { label: "Other employer", homepageUrl: "https://careers.smartrecruiters.com/OtherTenant", usage: "link-only", requiresAttribution: true } };
+  const run = execution(); run.registeredSources = [installed];
+  const result = await discoverCompanyCareers({ companyName, seedUrls: ["https://careers.smartrecruiters.com/SyntheticTenant"] }, run);
+  assert.equal(result.matchedSources.length, 0); assert.equal(result.candidates[0]!.entryKind, "smartrecruiters"); assert.equal(run.requests.length, 0);
+  for (const host of ["careers.smartrecruiters.com", "jobs.smartrecruiters.com", "api.smartrecruiters.com"]) {
+    const root = execution(); root.source.endpointPolicy.allowedHosts = [host];
+    root.registeredSources = [{ ...installed, attribution: { ...installed.attribution, homepageUrl: `https://${host}/` } }];
+    const rootResult = await discoverCompanyCareers({ companyName, companyWebsite: `https://${host}/` }, root);
+    assert.equal(rootResult.matchedSources.length, 0, `shared root ${host} is not employer ownership evidence`);
+    assert.equal(rootResult.status, "no-candidates"); assert.deepEqual(root.requests, [`https://${host}/`]);
+  }
+});
+
+test("SmartRecruiters existing-source matching uses the exact companyIdentifier and preserves tenant case", async () => {
+  const run = execution(), tenant = "SyntheticIndustries";
+  const installed: SourceDefinition = { ...source(), sourceId: "installed-smartrecruiters", name: "Custom saved label", adapterId: "smartrecruiters", enabled: false, status: "needs-review",
+    options: { companyName: "Saved unrelated label", companyIdentifier: tenant }, entryUrl: `https://api.smartrecruiters.com/v1/companies/${tenant}/postings` };
+  run.registeredSources = [installed]; const before = structuredClone(installed);
+  for (const seed of [`https://careers.smartrecruiters.com/${tenant}`, `https://JOBS.SMARTRECRUITERS.COM/${tenant}/123456-role`]) {
+    const result = await discoverCompanyCareers({ companyName, seedUrls: [seed] }, run);
+    assert.equal(result.status, "matched-existing"); assert.equal(result.matchedSources[0]!.sourceId, installed.sourceId);
+    assert.equal(result.matchedSources[0]!.matchedBy, "entry-url"); assert.equal(result.matchedSources[0]!.enabled, false);
+    assert.deepEqual(result.proposals, []); assert.equal(run.requests.length, 0);
+  }
+  const differentCase = await discoverCompanyCareers({ companyName, seedUrls: [`https://careers.smartrecruiters.com/${tenant.toLowerCase()}`] }, run);
+  assert.equal(differentCase.matchedSources.length, 0); assert.equal(differentCase.proposals[0]!.source.options!.companyIdentifier, tenant.toLowerCase());
+  assert.deepEqual(installed, before); assert.equal(run.requests.length, 0);
+});
+
+test("SmartRecruiters escaped, dot and lookalike paths never acquire executable company-scoped proposals", async () => {
+  const roots = [
+    "https://careers.smartrecruiters.com/Synthetic%2fOther", "https://careers.smartrecruiters.com/Synthetic%252fOther",
+    "https://careers.smartrecruiters.com/Synthetic/../Other", "https://careers.smartrecruiters.com/Synthetic/%2e%2e/Other",
+    "https://jobs.smartrecruiters.com/Synthetic%5cOther/123", "https://careers.smartrecruiters.com.evil.example.com/Other",
+    "https://notcareers.smartrecruiters.com/Other",
+  ];
+  for (const destination of roots) {
+    const run = execution(() => `<html><body><a href="${destination}">Careers</a></body></html>`);
+    const before = structuredClone(run.source);
+    const result = await discoverCompanyCareers({ companyName, companyWebsite }, run);
+    assert.ok(result.proposals.every(proposal => proposal.source.adapterId !== "smartrecruiters"), `Unsafe URL obtained an ATS proposal: ${destination}`);
+    assert.ok(result.proposals.every(proposal => !proposal.source.enabled)); assert.deepEqual(run.requests, [companyWebsite]);
+    assert.deepEqual(run.source, before);
+  }
+});
+
 test("HTML career entries have no fake runnable generic parser", async () => {
   const run = execution(() => '<html><a href="/careers">Careers</a></html>');
   const result = await discoverCompanyCareers({ companyName, companyWebsite, maxPages: 1 }, run);

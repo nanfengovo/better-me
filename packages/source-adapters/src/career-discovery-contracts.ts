@@ -11,7 +11,7 @@ export const DiscoverCompanyCareersInputSchema = z.object({
 }).strict();
 export type DiscoverCompanyCareersInput = z.input<typeof DiscoverCompanyCareersInputSchema>;
 
-export const CareerEntryKindSchema = z.enum(["greenhouse", "lever", "ashby", "tencent", "html"]);
+export const CareerEntryKindSchema = z.enum(["greenhouse", "lever", "ashby", "tencent", "smartrecruiters", "html"]);
 export type CareerEntryKind = z.infer<typeof CareerEntryKindSchema>;
 export const CareerDiscoveryEvidenceSchema = z.object({
   kind: z.enum(["provided-website", "provided-seed", "html-link", "search-result"]),

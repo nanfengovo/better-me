@@ -383,6 +383,78 @@
         "https://temporal.io/careers/9a2e32f5-2f85-49ea-b1af-855178bb0af8",
         "https://api.ashbyhq.com/posting-api/job-board/temporal?includeCompensation=true"
       ]
+    },
+    {
+      "source": {
+        "sourceId": "reviewed-bosch-china-official",
+        "name": "Bosch · 中国官网岗位",
+        "adapterId": "smartrecruiters",
+        "adapterVersion": "1",
+        "capabilities": [
+          "list-jobs"
+        ],
+        "runtime": [
+          "local-service",
+          "server"
+        ],
+        "entityType": "job-posting",
+        "enabled": false,
+        "status": "needs-review",
+        "entryUrl": "https://api.smartrecruiters.com/v1/companies/BoschGroup/postings",
+        "options": {
+          "companyIdentifier": "BoschGroup",
+          "companyName": "Bosch Group",
+          "countryCode": "CN",
+          "pageSize": 20,
+          "fetchDetails": true,
+          "maxDetailRequestsPerPage": 2
+        },
+        "remoteFilters": [
+          "roles"
+        ],
+        "endpointPolicy": {
+          "allowedHosts": [
+            "api.smartrecruiters.com"
+          ],
+          "allowedPathPrefixes": [
+            "/v1/companies/BoschGroup/postings"
+          ],
+          "requireHttps": true,
+          "allowRedirects": false,
+          "maxRedirects": 0
+        },
+        "attribution": {
+          "label": "Bosch 官网 · SmartRecruiters",
+          "homepageUrl": "https://jobs.bosch.com/en/",
+          "usage": "unknown",
+          "requiresAttribution": true,
+          "notes": "博世官网招聘入口明确关联 BoschGroup 租户；采用通用 SmartRecruiters 公开 GET 协议。q 只返回候选，必须依据本次实际读取的职责和要求核对；country=cn 为此来源的显式范围，工作地点仍按逐岗证据筛选。releasedDate 是来源发布时间，可能重新发布，不声称首次发布或独立核验在招。API 坐标不作为办公地址，控股和薪资保持未知；启用前复核条款。"
+        },
+        "refreshPolicy": {
+          "mode": "manual",
+          "minIntervalSeconds": 3600,
+          "maxRecords": 100,
+          "maxPages": 5,
+          "requestsPerMinute": 30
+        }
+      },
+      "tags": [
+        "中国",
+        "官网",
+        "SmartRecruiters",
+        "C#",
+        ".NET",
+        "软件开发"
+      ],
+      "coverage": "博世公开招聘的中国岗位范围；关键词上游宽检索后本地核对，每页最多读取 2 个完整职责/要求。来源原始数量不等于匹配数，不代表所有企业或整个市场。",
+      "checkedAt": "2026-10-18T19:55:02Z",
+      "evidenceUrls": [
+        "https://www.bosch.com/careers/job-offers/",
+        "https://jobs.bosch.com/en/",
+        "https://careers.smartrecruiters.com/BoschGroup",
+        "https://api.smartrecruiters.com/v1/companies/BoschGroup/postings",
+        "https://developers.smartrecruiters.com/docs/posting-api"
+      ]
     }
   ]
 }

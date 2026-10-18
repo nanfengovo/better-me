@@ -23,9 +23,9 @@ export type CompanyCareerDiscoveryExecution = SourceDiscoveryExecution & {
   searchProvider?: CareerWebSearchProvider;
 };
 
-type RecognizedEntry = { kind: Exclude<CareerEntryKind, "html">; homeUrl: string; apiUrl: string; boardToken?: string };
+type RecognizedEntry = { kind: Exclude<CareerEntryKind, "html">; homeUrl: string; apiUrl: string; boardToken?: string; companyIdentifier?: string };
 const slug = "([A-Za-z0-9][A-Za-z0-9_-]{0,99})";
-const sharedCareerHosts = new Set(["boards.greenhouse.io", "job-boards.greenhouse.io", "jobs.lever.co", "jobs.ashbyhq.com"]);
+const sharedCareerHosts = new Set(["boards.greenhouse.io", "job-boards.greenhouse.io", "jobs.lever.co", "jobs.ashbyhq.com", "careers.smartrecruiters.com", "jobs.smartrecruiters.com", "api.smartrecruiters.com"]);
 const careerWords = /(?:\b(?:careers?|jobs?|recruit(?:ment|ing)?|vacanc(?:y|ies)|join[\s_-]*us|work[\s_-]*(?:with|for)[\s_-]*us|opportunities)\b|招聘|职位|岗位|加入我们|人才招聘)/i;
 const associationWarning = "Company affiliation and website ownership remain unverified; review the original evidence before registration. This is a source lead, not a verified current job.";
 
@@ -34,6 +34,7 @@ function safeUrl(value: string, base?: string): string | undefined {
   try {
     const url = new URL(value, base);
     if (url.username || url.password || url.hostname.endsWith(".")) return undefined;
+    if (sharedCareerHosts.has(url.hostname) && /(?:^|\/)(?:\.|%2e){1,2}(?=\/|[?#]|$)/i.test(value)) return undefined;
     url.hash = "";
     return publicUrl(url.toString());
   } catch { return undefined; }
@@ -56,6 +57,10 @@ function recognize(value: string): RecognizedEntry | undefined {
   };
   if (url.hostname === "careers.tencent.com") return {
     kind: "tencent", homeUrl: "https://careers.tencent.com/", apiUrl: "https://careers.tencent.com/tencentcareer/api/post/Query",
+  };
+  if (["careers.smartrecruiters.com", "jobs.smartrecruiters.com"].includes(url.hostname) && board) return {
+    kind: "smartrecruiters", companyIdentifier: board, homeUrl: `https://careers.smartrecruiters.com/${board}`,
+    apiUrl: `https://api.smartrecruiters.com/v1/companies/${board}/postings`,
   };
   return undefined;
 }
@@ -175,7 +180,8 @@ function existingMatches(options: zOptions, execution: CompanyCareerDiscoveryExe
     else for (const value of urls) {
       const entry = recognize(value);
       if (value.replace(/\/$/, "") === source.entryUrl?.replace(/\/$/, "")
-        || (entry && entry.kind === source.adapterId && (entry.kind === "tencent" || entry.boardToken === source.options?.boardToken))) { matchedBy = "entry-url"; break; }
+        || (entry && entry.kind === source.adapterId && (entry.kind === "tencent" || (entry.kind === "smartrecruiters"
+          ? entry.companyIdentifier === source.options?.companyIdentifier : entry.boardToken === source.options?.boardToken)))) { matchedBy = "entry-url"; break; }
       const homepage = source.attribution.homepageUrl && safeUrl(source.attribution.homepageUrl);
       // Shared ATS domains cannot establish a company match by host alone.
       if (!entry && homepage && new URL(value).hostname === new URL(homepage).hostname
@@ -200,8 +206,9 @@ async function proposalFor(item: CareerSourceCandidate, companyName: string): Pr
       runtime: ["local-service"], entityType: entry ? "job-posting" : "company-directory", enabled: false, status: "needs-review", entryUrl: endpoint.toString(),
       ...(entry ? { options: entry.kind === "tencent"
         ? { companyName, apiHost: "careers.tencent.com", language: "zh-cn", pageSize: 20, fetchDetails: false, maxDetailRequestsPerPage: 2 }
+        : entry.kind === "smartrecruiters" ? { companyName, companyIdentifier: entry.companyIdentifier, pageSize: 20, fetchDetails: true, maxDetailRequestsPerPage: 2 }
         : { companyName, boardToken: entry.boardToken } } : {}),
-      remoteFilters: entry?.kind === "tencent" ? ["roles"] : [],
+      remoteFilters: entry && ["tencent", "smartrecruiters"].includes(entry.kind) ? ["roles"] : [],
       endpointPolicy: { allowedHosts: [endpoint.hostname], allowedPathPrefixes: [endpoint.pathname], requireHttps: true, allowRedirects: false, maxRedirects: 0 },
       attribution: { label: name, homepageUrl: item.candidate.homeUrl, usage: "link-only", requiresAttribution: true, notes: associationWarning },
       refreshPolicy: { mode: "manual", minIntervalSeconds: 300, maxRecords: 100, maxPages: 3, requestsPerMinute: 10 },

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { HttpUrlSchema, SourceDefinitionSchema, TimestampSchema, type SourceDefinition } from "@better-me/opportunities";
-import { JsonFieldMappingSchema } from "@better-me/source-adapters/browser-contracts";
+import { JsonFieldMappingSchema, SmartRecruitersSourceOptionsSchema } from "@better-me/source-adapters/browser-contracts";
 import catalogJson from "../../../../../config/sources/catalog.json";
 
 export const SourceCatalogSchema = z.object({
@@ -9,6 +9,13 @@ export const SourceCatalogSchema = z.object({
     source: SourceDefinitionSchema.refine((source) => !source.enabled && source.status === "needs-review", "Catalog sources start disabled")
       .refine((source) => source.entityType === "job-posting" && source.runtime.includes("local-service") && source.capabilities.includes("list-jobs") && Boolean(source.entryUrl), "Catalog entries must provide searchable job sources")
       .superRefine((source, context) => {
+        if (source.adapterId === "smartrecruiters") {
+          const options = SmartRecruitersSourceOptionsSchema.safeParse(source.options ?? {});
+          const endpoint = options.success ? `https://api.smartrecruiters.com/v1/companies/${options.data.companyIdentifier}/postings` : undefined;
+          if (!options.success || source.entryUrl !== endpoint || !source.remoteFilters.includes("roles")) {
+            context.addIssue({ code: "custom", path: ["options"], message: "SmartRecruiters requires a valid tenant, exact posting endpoint and declared keyword candidate query" });
+          }
+        }
         if (source.adapterId !== "mapped-json") return;
         const mapping = JsonFieldMappingSchema.strip().safeParse(source.options ?? {});
         if (!mapping.success || mapping.data.discoveryOnly) context.addIssue({ code: "custom", path: ["options"], message: "Catalog JSON job feeds require a valid mapping with discoveryOnly disabled" });

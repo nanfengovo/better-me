@@ -9,6 +9,7 @@
     { "id": "greenhouse", "adapterIds": ["greenhouse"], "platforms": ["greenhouse"], "colors": { "foreground": "#166534", "background": "#F0FDF4", "border": "#86EFAC" } },
     { "id": "lever", "adapterIds": ["lever"], "platforms": ["lever"], "colors": { "foreground": "#075985", "background": "#F0F9FF", "border": "#7DD3FC" } },
     { "id": "ashby", "adapterIds": ["ashby"], "platforms": ["ashby"], "colors": { "foreground": "#6B21A8", "background": "#FAF5FF", "border": "#D8B4FE" } },
+    { "id": "smartrecruiters", "adapterIds": ["smartrecruiters"], "platforms": ["smartrecruiters"], "colors": { "foreground": "#155E75", "background": "#ECFEFF", "border": "#67E8F9" } },
     { "id": "github", "adapterIds": ["github-json"], "platforms": ["github"], "colors": { "foreground": "#334155", "background": "#F1F5F9", "border": "#CBD5E1" } },
     { "id": "feed", "adapterIds": ["mapped-json"], "colors": { "foreground": "#854D0E", "background": "#FEFCE8", "border": "#FDE047" } }
   ],

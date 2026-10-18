@@ -21,6 +21,20 @@ test("catalog rejects activated, duplicate or non-job entries instead of silentl
   assert.equal(SourceCatalogSchema.safeParse({ schemaVersion: 1, entries: [entry, structuredClone(entry)] }).success, false);
 });
 
+test("SmartRecruiters catalog entries bind one tenant and remain explicit reviewable configuration", () => {
+  const preset = sourceCatalog.find((item) => item.source.adapterId === "smartrecruiters");
+  assert.ok(preset);
+  assert.equal(preset.source.options?.companyIdentifier, "BoschGroup");
+  assert.equal(preset.source.options?.countryCode, "CN");
+  assert.equal(preset.source.options?.fetchDetails, true);
+  assert.deepEqual(preset.source.endpointPolicy.allowedPathPrefixes, ["/v1/companies/BoschGroup/postings"]);
+  assert.deepEqual(preset.source.remoteFilters, ["roles"]);
+  for (const changed of [{ options: { companyIdentifier: "../Other" } }, { entryUrl: "https://api.smartrecruiters.com/v1/companies/Other/postings" }, { remoteFilters: [] }]) {
+    assert.equal(SourceCatalogSchema.safeParse({ schemaVersion: 1, entries: [{ ...preset, source: { ...preset.source, ...changed } }] }).success, false);
+  }
+  assert.equal(availableCatalogEntries([preset], [preset.source]).length, 0);
+});
+
 test("catalog rejects unusable mapped job feeds while preserving valid options and native adapters", () => {
   for (const options of [undefined, {}, { titlePath: "title" }, { titlePath: "title", discoveryOnly: true },
     { titlePath: "__proto__.title", discoveryOnly: false }, { titlePath: "title", discoveryOnly: false, publishedFormat: "guess" }]) {
