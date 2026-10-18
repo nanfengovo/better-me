@@ -1,0 +1,177 @@
+import assert from "node:assert/strict";
+import { registerHooks } from "node:module";
+import test, { after, afterEach } from "node:test";
+import { Window, type HTMLButtonElement, type HTMLAnchorElement } from "happy-dom";
+import { queryJobs } from "@better-me/opportunities";
+import { createAtlasDemo } from "../src/components/atlas/demo.ts";
+import { buildAtlasListingPresentations } from "../src/components/atlas/presentation.ts";
+import type { AtlasJobDetailProps } from "../src/components/atlas/AtlasJobDetail.tsx";
+
+const dom = new Window({ url: "http://atlas-job-detail-fixture.invalid" });
+const React = await import("react");
+const { act, createElement: h } = React;
+const globals = { window: dom, document: dom.document, navigator: dom.navigator, HTMLElement: dom.HTMLElement,
+  Element: dom.Element, Node: dom.Node, React, IS_REACT_ACT_ENVIRONMENT: true };
+const descriptors = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+const hooks = registerHooks({
+  load(url, context, nextLoad) {
+    if (url.endsWith(".css")) return { source: "export {};", format: "module", shortCircuit: true };
+    return nextLoad(url, context);
+  },
+});
+const { createRoot } = await import("react-dom/client");
+const { AtlasJobDetail } = await import("../src/components/atlas/AtlasJobDetail.tsx");
+let root: ReturnType<typeof createRoot> | undefined;
+const noAction = () => {};
+
+async function fixture(): Promise<AtlasJobDetailProps> {
+  const data = createAtlasDemo();
+  data.observations[0]!.sourcePublishedRaw = "2026-10-10";
+  const item = (await queryJobs(data, { jobIds: [data.jobs[0]!.id] }, { now: "2026-10-19T00:00:00Z" })).items[0]!;
+  return { item, data, demo: false, originalCurrency: false,
+    presentations: buildAtlasListingPresentations(data, item, { now: "2026-10-19T00:00:00Z" }),
+    onClose: noAction, onLocate: noAction, onSave: noAction, onAnalyze: noAction };
+}
+async function render(props: AtlasJobDetailProps) {
+  if (!root) {
+    dom.document.body.innerHTML = '<button id="job-card">A job card</button><main></main>';
+    dom.document.getElementById("job-card")!.focus();
+    root = createRoot(dom.document.querySelector("main")! as unknown as Element);
+  }
+  await act(async () => { root!.render(h(AtlasJobDetail, props)); });
+  return dom.document.querySelector(".atlas-job-detail")!;
+}
+function button(label: string) {
+  const node = [...dom.document.querySelectorAll<HTMLButtonElement>(".atlas-job-detail button")].find((entry) => entry.textContent?.trim() === label);
+  assert.ok(node, `Missing button: ${label}`); return node;
+}
+function descriptionFixture(props: AtlasJobDetailProps, completeness: "detail" | "excerpt") {
+  const observation = props.data.observations.find((entry) => entry.listingId === props.item.sources[0]!.listingId)!;
+  props.item.job.selectedSnapshotId = "snapshot.synthetic";
+  observation.snapshotId = "snapshot.synthetic"; observation.completeness = completeness;
+  props.data.snapshots.push({ id: "snapshot.synthetic", listingId: observation.listingId, observationId: observation.id,
+    text: props.item.job.description, contentHash: "a".repeat(64), createdAt: "2026-10-19T00:00:00Z", extractionMethod: "manual", completeness });
+}
+
+afterEach(async () => {
+  if (root) await act(async () => root!.unmount());
+  root = undefined; dom.document.body.innerHTML = "";
+});
+after(() => {
+  hooks.deregister(); void dom.happyDOM.abort();
+  for (const [key, descriptor] of descriptors) {
+    if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key);
+  }
+});
+
+test("the non-modal pane leaves card focus intact and closes by its visible button or Escape", async () => {
+  const props = await fixture(); let closes = 0; props.onClose = () => { closes++; };
+  const pane = await render(props);
+  assert.equal(pane.id, "atlas-job-detail"); assert.equal(pane.tagName, "ASIDE");
+  assert.equal(pane.getAttribute("aria-modal"), null);
+  assert.equal(dom.document.activeElement?.id, "job-card", "mounting must not steal the second click/double-click focus");
+  assert.equal(pane.querySelector("h2")?.textContent, props.item.job.title.value);
+  const close = pane.querySelector<HTMLButtonElement>('[aria-label="关闭岗位详情"]')!;
+  assert.ok(close); await act(async () => close.click()); assert.equal(closes, 1);
+  await act(async () => dom.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape" }))); assert.equal(closes, 2);
+  const handled = new dom.KeyboardEvent("keydown", { key: "Escape", cancelable: true }); handled.preventDefault();
+  await act(async () => dom.dispatchEvent(handled)); assert.equal(closes, 2);
+  await act(async () => dom.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape", isComposing: true }))); assert.equal(closes, 2);
+  await act(async () => root!.unmount()); root = undefined;
+  dom.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape" })); assert.equal(closes, 2, "unmount removes the listener");
+});
+
+test("the prominent original link is bound to this listing, safe and accompanied by source/date badges", async () => {
+  const props = await fixture(); const pane = await render(props);
+  const original = pane.querySelector<HTMLAnchorElement>(".atlas-job-detail-original")!;
+  assert.ok(original); assert.match(original.textContent!, /打开岗位原文/);
+  assert.equal(original.href, props.presentations[0]!.url); assert.equal(original.target, "_blank");
+  assert.equal(original.rel, "noopener noreferrer");
+  assert.equal(pane.querySelector(".job-source-badge")?.textContent, props.presentations[0]!.label);
+  assert.equal(pane.querySelector(".job-publication-badge")?.getAttribute("data-publication-precision"), "date");
+  assert.equal(pane.querySelector<HTMLAnchorElement>(".job-source-badge")?.href, original.href);
+});
+
+test("unsafe or unrelated original URLs never become anchors", async () => {
+  const props = await fixture();
+  for (const url of ["javascript:alert(1)", "https://user:password@example.invalid/job", "https://unrelated.example.invalid/job"]) {
+    props.presentations = [{ ...props.presentations[0]!, url }];
+    const pane = await render(props);
+    assert.equal(pane.querySelector(".atlas-job-detail-original"), null);
+    assert.equal(pane.querySelector("a.job-source-badge"), null);
+    assert.match(pane.textContent!, /尚未提供可核对的岗位原文链接/);
+  }
+  props.presentations = [{ ...props.presentations[0]!, listingId: "another-job-listing", url: "https://example.invalid/another-job" }];
+  const pane = await render(props); assert.equal(pane.querySelector(".job-source-badge"), null);
+});
+
+test("locations use existing coordinates or original text and missing coordinates remain actionable", async () => {
+  const props = await fixture(); const calls: Array<string | undefined> = []; props.onLocate = (id) => calls.push(id);
+  let pane = await render(props);
+  let maps = pane.querySelector<HTMLAnchorElement>('.atlas-job-detail-location a')!;
+  assert.equal(new URL(maps.href).searchParams.get("query"), "31.23,121.47");
+  assert.match(pane.querySelector(".atlas-job-detail-location small")!.textContent!, /城市级估算.*非办公地址/);
+  await act(async () => button("地图定位").click()); assert.deepEqual(calls, [props.item.locations[0]!.id]);
+  delete props.item.locations[0]!.coordinates;
+  pane = await render(props); maps = pane.querySelector<HTMLAnchorElement>('.atlas-job-detail-location a')!;
+  assert.equal(new URL(maps.href).searchParams.get("query"), props.item.locations[0]!.raw);
+  await act(async () => button("查找城市位置").click()); assert.equal(calls[1], props.item.locations[0]!.id);
+  props.item.locations = []; await render(props);
+  await act(async () => button("查找岗位位置").click()); assert.equal(calls[2], undefined);
+});
+
+test("remote eligibility is not offered as an office coordinate or city candidate", async () => {
+  const props = await fixture(); props.item.locations[0]!.kind = "remote-region";
+  const pane = await render(props);
+  assert.match(pane.querySelector(".atlas-job-detail-location small")!.textContent!, /远程资格范围.*非办公地点/);
+  assert.equal(pane.querySelector(".atlas-job-detail-location button"), null);
+  const maps = pane.querySelector<HTMLAnchorElement>(".atlas-job-detail-location a")!;
+  assert.equal(new URL(maps.href).searchParams.get("query"), props.item.locations[0]!.raw);
+});
+
+test("source excerpts stay labelled and untrusted description text never becomes markup", async () => {
+  const props = await fixture(); props.item.job.description = '<script>bad()</script>\nResponsibilities from a synthetic source.';
+  descriptionFixture(props, "excerpt");
+  let pane = await render(props);
+  assert.match(pane.querySelector(".atlas-job-detail-section-heading")!.textContent!, /来源摘录/);
+  assert.match(pane.querySelector(".atlas-job-detail-excerpt")!.textContent!, /可能缺少任职要求/);
+  assert.equal(pane.querySelector("script"), null); assert.match(pane.querySelector(".atlas-job-detail-copy")!.textContent!, /<script>/);
+  props.data.snapshots[0]!.text = "An unrelated snapshot body";
+  pane = await render(props); assert.match(pane.querySelector(".atlas-job-detail-section-heading")!.textContent!, /完整性未核实/);
+});
+
+test("a matching full snapshot, actions and the root-owned candidate slot retain their business behavior", async () => {
+  const props = await fixture(); descriptionFixture(props, "detail");
+  let saves = 0; let analyses = 0; let candidates = 0;
+  props.onSave = () => { saves++; }; props.onAnalyze = () => { analyses++; };
+  props.children = h("div", { "data-root-candidate-state": true }, h("button", { onClick: () => { candidates++; } }, "选择测试城市候选"));
+  const pane = await render(props);
+  assert.equal(pane.querySelector(".atlas-job-detail-excerpt"), null);
+  assert.match(pane.querySelector(".atlas-job-detail-section-heading")!.textContent!, /来源正文/);
+  await act(async () => { button("收藏到机会与投递").click(); button("用这份 JD 分析简历").click(); button("选择测试城市候选").click(); });
+  assert.equal(saves, 1); assert.equal(analyses, 1); assert.equal(candidates, 1);
+  assert.ok(pane.querySelector(".atlas-job-detail-locations [data-root-candidate-state]"));
+});
+
+test("demo records and empty descriptions cannot invoke live career actions", async () => {
+  const props = await fixture(); let writes = 0; props.demo = true; props.onSave = props.onAnalyze = () => { writes++; };
+  let pane = await render(props);
+  assert.equal(pane.querySelector(".atlas-job-detail-original"), null); assert.equal(pane.querySelector("a.job-source-badge"), null);
+  assert.equal(button("收藏到机会与投递").disabled, true); assert.equal(button("用这份 JD 分析简历").disabled, true);
+  await act(async () => { button("收藏到机会与投递").click(); button("用这份 JD 分析简历").click(); }); assert.equal(writes, 0);
+  props.demo = false; props.item.job.description = "   "; pane = await render(props);
+  assert.equal(button("收藏到机会与投递").disabled, false); assert.equal(button("用这份 JD 分析简历").disabled, true);
+  assert.match(pane.querySelector(".atlas-job-detail-copy")!.textContent!, /未提供岗位正文/);
+});
+
+test("switching to another job resets only the pane scroll and preserves outside focus", async () => {
+  const props = await fixture(); await render(props);
+  const body = dom.document.querySelector<HTMLDivElement>(".atlas-job-detail-body")!;
+  body.scrollTop = 260;
+  const other = (await queryJobs(props.data, { jobIds: [props.data.jobs[1]!.id] }, { now: "2026-10-19T00:00:00Z" })).items[0]!;
+  props.item = other; props.presentations = buildAtlasListingPresentations(props.data, other);
+  await render(props);
+  assert.equal(body.scrollTop, 0); assert.equal(dom.document.activeElement?.id, "job-card");
+  assert.equal(dom.document.querySelector(".atlas-job-detail")!.getAttribute("data-job-id"), other.job.id);
+});

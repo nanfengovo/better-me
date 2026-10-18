@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
+import { registerHooks } from "node:module";
 import test, { after, afterEach } from "node:test";
 import { setImmediate as nextTurn } from "node:timers/promises";
 import { Window } from "happy-dom";
 import type { LlmConfig, ProjectedResume } from "@better-me/core";
 
+const css = registerHooks({ load(url, context, nextLoad) {
+  return url.endsWith(".css") ? { source: "export {};", format: "module", shortCircuit: true } : nextLoad(url, context);
+} });
 const dom = new Window({ url: "http://ui-modal-fixture.invalid" });
 const React = await import("react");
 const globals = {
@@ -56,6 +60,7 @@ afterEach(async () => {
   globalThis.fetch = originalFetch;
 });
 after(() => {
+  css.deregister();
   dom.happyDOM.abort();
   for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); }
 });

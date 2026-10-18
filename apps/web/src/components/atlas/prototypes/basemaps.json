@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "defaultProviderId": "openfreemap-dark",
+  "providers": [
+    {
+      "id": "openfreemap-positron",
+      "name": "OpenFreeMap · 浅色街道",
+      "type": "vector-style",
+      "styleUrl": "https://tiles.openfreemap.org/styles/positron",
+      "maxZoom": 22,
+      "attributions": [
+        { "label": "OpenFreeMap", "url": "https://openfreemap.org/" },
+        { "label": "© OpenMapTiles", "url": "https://openmaptiles.org/" },
+        { "label": "© OpenStreetMap contributors", "url": "https://www.openstreetmap.org/copyright" }
+      ],
+      "policyUrl": "https://openfreemap.org/tos/"
+    },
+    {
+      "id": "openfreemap-dark",
+      "name": "OpenFreeMap · 深色街道",
+      "type": "vector-style",
+      "styleUrl": "https://tiles.openfreemap.org/styles/dark",
+      "maxZoom": 22,
+      "attributions": [
+        { "label": "OpenFreeMap", "url": "https://openfreemap.org/" },
+        { "label": "© OpenMapTiles", "url": "https://openmaptiles.org/" },
+        { "label": "© OpenStreetMap contributors", "url": "https://www.openstreetmap.org/copyright" }
+      ],
+      "policyUrl": "https://openfreemap.org/tos/"
+    },
+    {
+      "id": "osm-standard",
+      "name": "OpenStreetMap · 标准街道",
+      "type": "raster",
+      "tiles": ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      "tileSize": 256,
+      "maxNativeZoom": 19,
+      "maxZoom": 22,
+      "attributions": [
+        { "label": "© OpenStreetMap contributors", "url": "https://www.openstreetmap.org/copyright" }
+      ],
+      "policyUrl": "https://operations.osmfoundation.org/policies/tiles/"
+    }
+  ]
+}

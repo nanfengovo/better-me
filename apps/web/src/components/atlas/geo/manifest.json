@@ -1,0 +1,332 @@
+{
+  "schemaVersion": 1,
+  "dataset": "BetterMe atlas overview boundaries",
+  "upstream": {
+    "repository": "https://github.com/nvkelso/natural-earth-vector",
+    "commit": "ca96624a56bd078437bca8184e78163e5039ad19",
+    "commitDate": "2022-06-02T07:25:00Z",
+    "license": "public-domain",
+    "sources": {
+      "license": {
+        "path": "LICENSE.md",
+        "bytes": 4636,
+        "sha256": "2631b5b39b6d1acc56de75235109b5af2dbb4b0ac5a127b6f06185977247fd4b",
+        "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/ca96624a56bd078437bca8184e78163e5039ad19/LICENSE.md"
+      },
+      "world": {
+        "path": "geojson/ne_110m_admin_0_countries.geojson",
+        "bytes": 838726,
+        "sha256": "6866c877d39cba9c357620878839b336d569f8c662d3cfab4cb1dbe2d39c977f",
+        "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/ca96624a56bd078437bca8184e78163e5039ad19/geojson/ne_110m_admin_0_countries.geojson"
+      },
+      "admin1": {
+        "path": "geojson/ne_10m_admin_1_states_provinces.geojson",
+        "bytes": 40726851,
+        "sha256": "22d0e3ad85eb3e27f17cabf8ba2d50e554fbc27a87796ff891d958185da62fb5",
+        "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/ca96624a56bd078437bca8184e78163e5039ad19/geojson/ne_10m_admin_1_states_provinces.geojson"
+      }
+    }
+  },
+  "licenseFile": "NATURAL-EARTH-LICENSE.md",
+  "build": {
+    "script": "build-assets.py",
+    "scriptSha256": "7350d3ee2dfab920f5995ca0b9e182e15e473437e2593ff8f819e09081bc7728",
+    "pythonMinimum": "3.11",
+    "toolchain": {
+      "numpy": "2.2.6",
+      "shapely": "2.1.2",
+      "geos": "3.13.1"
+    },
+    "coordinates": "WGS84 longitude,latitude; no GCJ-02/BD-09 conversion",
+    "serialization": "UTF-8, compact JSON, one LF; RFC 7946 winding, deterministic feature and polygon ordering"
+  },
+  "limitations": [
+    "Generalized overview boundaries, not survey, geocoding, location precision or evidence of employer ownership.",
+    "Names, country codes and disputed boundaries are inherited source metadata, not canonical job facts.",
+    "110m omits many small territories and islands; missing shape never means zero jobs or unsupported region.",
+    "China display grouping is separate from job-country filters; retained source scope is not an official complete standard map."
+  ],
+  "assets": [
+    {
+      "file": "world-countries-110m.geojson",
+      "sourceKey": "world",
+      "sha256": "d414410c022972efa3841d21f0e4c3f7a01f299619aadbb7511945e75bef841e",
+      "bytes": 276625,
+      "validation": {
+        "featureCount": 177,
+        "polygonCount": 290,
+        "holeCount": 1,
+        "coordinateCount": 10659,
+        "validFeatureCount": 177,
+        "bounds": [
+          -180.0,
+          -90.0,
+          180.0,
+          83.64513
+        ],
+        "ringClosure": "all-closed",
+        "ringWinding": "outer-ccw-inner-cw",
+        "coordinateSystem": "WGS84-longitude-latitude"
+      },
+      "processing": {
+        "source": {
+          "featureCount": 177,
+          "polygonCount": 288,
+          "holeCount": 1,
+          "coordinateCount": 10654
+        },
+        "repairs": [
+          {
+            "id": "USA",
+            "reason": "Self-intersection[-140.986000000796 69.7119995456579]",
+            "method": "make_valid(method=structure, keep_collapsed=false)",
+            "before": {
+              "featureCount": 1,
+              "polygonCount": 10,
+              "holeCount": 0,
+              "coordinateCount": 447
+            },
+            "after": {
+              "featureCount": 1,
+              "polygonCount": 11,
+              "holeCount": 0,
+              "coordinateCount": 449
+            },
+            "beforePlanarAreaDegreesSquared": 1122.2819220111753,
+            "afterPlanarAreaDegreesSquared": 1122.2819220111803,
+            "relativePlanarAreaChange": 4.457187415784904e-15
+          },
+          {
+            "id": "SDN",
+            "reason": "Self-intersection[33.9633927979515 9.46428502886449]",
+            "method": "make_valid(method=structure, keep_collapsed=false)",
+            "before": {
+              "featureCount": 1,
+              "polygonCount": 1,
+              "holeCount": 0,
+              "coordinateCount": 81
+            },
+            "after": {
+              "featureCount": 1,
+              "polygonCount": 2,
+              "holeCount": 0,
+              "coordinateCount": 84
+            },
+            "beforePlanarAreaDegreesSquared": 156.44454484537448,
+            "afterPlanarAreaDegreesSquared": 156.44454500258226,
+            "relativePlanarAreaChange": 1.0048786258048694e-09
+          }
+        ],
+        "additionalSimplification": "none",
+        "unmappedCountryFeatureIds": [
+          "CYN",
+          "SOL"
+        ],
+        "countryCodeMapping": "ISO_A2_EH matching two uppercase letters; XK is retained as upstream code; -99 becomes null"
+      }
+    },
+    {
+      "file": "china-provinces-10m.geojson",
+      "sourceKey": "admin1",
+      "sha256": "35e62dbe24bd11ee0645164b4a7b5f8604cc4f7e930dcd896f0ca8ab17e1130d",
+      "bytes": 585038,
+      "validation": {
+        "featureCount": 34,
+        "polygonCount": 113,
+        "holeCount": 0,
+        "coordinateCount": 25465,
+        "validFeatureCount": 34,
+        "bounds": [
+          73.602256,
+          15.775377,
+          134.772579,
+          53.569444
+        ],
+        "ringClosure": "all-closed",
+        "ringWinding": "outer-ccw-inner-cw",
+        "coordinateSystem": "WGS84-longitude-latitude"
+      },
+      "processing": {
+        "selection": "adm0_a3 in CHN,HKG,MAC,TWN",
+        "sourceScopeCounts": {
+          "CHN": 32,
+          "HKG": 18,
+          "MAC": 1,
+          "TWN": 21
+        },
+        "source": {
+          "featureCount": 72,
+          "polygonCount": 148,
+          "holeCount": 2,
+          "coordinateCount": 55758
+        },
+        "dissolved": {
+          "featureCount": 34,
+          "polygonCount": 113,
+          "holeCount": 0,
+          "coordinateCount": 54329
+        },
+        "grouping": {
+          "CHN": "Keep each CN-XX source ISO subdivision; PFA+00? (Paracel Islands) joins the CN-HI display group.",
+          "HKG": "Dissolve all 18 upstream units into CN-HK.",
+          "MAC": "Map the one upstream unit to CN-MO.",
+          "TWN": "Dissolve all 21 upstream units into CN-TW.",
+          "labels": "Mainland names copied from source; CN-HK/CN-MO/CN-TW are explicit bilingual UI display labels.",
+          "domainBoundary": "Display grouping never assigns or rewrites a job countryCode, ownership jurisdiction, or location evidence."
+        },
+        "simplification": {
+          "method": "shapely.coverage_simplify",
+          "tolerance": 0.02,
+          "units": "source coordinate degrees; algorithm parameter, not a guaranteed metric displacement bound",
+          "simplify_boundary": false,
+          "validCoverageBefore": true,
+          "validCoverageAfter": true,
+          "outerUnionTopologicallyEqual": true,
+          "outerUnionSymmetricDifferenceArea": 0.0,
+          "sourceComponentsAndHolesPreservedAfterDissolve": true,
+          "maximumRelativePlanarAreaChange": 0.0015040912507101182,
+          "perFeatureAreaChanges": [
+            {
+              "id": "CN-AH",
+              "relativePlanarAreaChange": 0.0002619171413367513
+            },
+            {
+              "id": "CN-BJ",
+              "relativePlanarAreaChange": 7.071307056762742e-05
+            },
+            {
+              "id": "CN-CQ",
+              "relativePlanarAreaChange": 0.0002870970710664568
+            },
+            {
+              "id": "CN-FJ",
+              "relativePlanarAreaChange": 0.00033755286582562736
+            },
+            {
+              "id": "CN-GD",
+              "relativePlanarAreaChange": 1.6302368011370327e-05
+            },
+            {
+              "id": "CN-GS",
+              "relativePlanarAreaChange": 6.562827848873549e-05
+            },
+            {
+              "id": "CN-GX",
+              "relativePlanarAreaChange": 0.00016804207367640992
+            },
+            {
+              "id": "CN-GZ",
+              "relativePlanarAreaChange": 0.0001505127306062657
+            },
+            {
+              "id": "CN-HA",
+              "relativePlanarAreaChange": 5.05496422745734e-05
+            },
+            {
+              "id": "CN-HB",
+              "relativePlanarAreaChange": 2.9442264849984653e-05
+            },
+            {
+              "id": "CN-HE",
+              "relativePlanarAreaChange": 0.0002917397703909291
+            },
+            {
+              "id": "CN-HI",
+              "relativePlanarAreaChange": 0.0
+            },
+            {
+              "id": "CN-HK",
+              "relativePlanarAreaChange": 0.0004446932678346553
+            },
+            {
+              "id": "CN-HL",
+              "relativePlanarAreaChange": 1.9969642443971355e-05
+            },
+            {
+              "id": "CN-HN",
+              "relativePlanarAreaChange": 0.0001188018323839739
+            },
+            {
+              "id": "CN-JL",
+              "relativePlanarAreaChange": 0.00012843571360369416
+            },
+            {
+              "id": "CN-JS",
+              "relativePlanarAreaChange": 2.371764484361875e-05
+            },
+            {
+              "id": "CN-JX",
+              "relativePlanarAreaChange": 2.254956432432482e-05
+            },
+            {
+              "id": "CN-LN",
+              "relativePlanarAreaChange": 0.00012700231495231526
+            },
+            {
+              "id": "CN-MO",
+              "relativePlanarAreaChange": 0.0
+            },
+            {
+              "id": "CN-NM",
+              "relativePlanarAreaChange": 3.9074307581813086e-05
+            },
+            {
+              "id": "CN-NX",
+              "relativePlanarAreaChange": 9.732320429004365e-05
+            },
+            {
+              "id": "CN-QH",
+              "relativePlanarAreaChange": 5.903305588415588e-05
+            },
+            {
+              "id": "CN-SC",
+              "relativePlanarAreaChange": 1.4866680823201777e-05
+            },
+            {
+              "id": "CN-SD",
+              "relativePlanarAreaChange": 5.527873108327732e-05
+            },
+            {
+              "id": "CN-SH",
+              "relativePlanarAreaChange": 0.0005322531139946299
+            },
+            {
+              "id": "CN-SN",
+              "relativePlanarAreaChange": 0.00011829825780718024
+            },
+            {
+              "id": "CN-SX",
+              "relativePlanarAreaChange": 0.00019268943422769225
+            },
+            {
+              "id": "CN-TJ",
+              "relativePlanarAreaChange": 0.0015040912507101182
+            },
+            {
+              "id": "CN-TW",
+              "relativePlanarAreaChange": 0.0
+            },
+            {
+              "id": "CN-XJ",
+              "relativePlanarAreaChange": 4.8315875296114126e-08
+            },
+            {
+              "id": "CN-XZ",
+              "relativePlanarAreaChange": 6.35073409322753e-06
+            },
+            {
+              "id": "CN-YN",
+              "relativePlanarAreaChange": 0.00010651751633685445
+            },
+            {
+              "id": "CN-ZJ",
+              "relativePlanarAreaChange": 8.773507093365205e-05
+            }
+          ]
+        },
+        "labelPointRule": "Interior representative point of largest polygon; visual labels only, never a job or home coordinate.",
+        "knownScopeLimits": "Only source-covered islands are retained. This pinned subset has no complete South China Sea islands or claim-line layer and is not an official standard map."
+      }
+    }
+  ]
+}

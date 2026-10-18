@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
+import { registerHooks } from "node:module";
 import test, { after, afterEach } from "node:test";
 import { setImmediate as nextTurn } from "node:timers/promises";
 import { Window } from "happy-dom";
 import type { ProjectedResume, LlmConfig } from "@better-me/core";
 
 // Mount the real modal and client; every HTTP request stays in this test process.
+const css = registerHooks({ load(url, context, nextLoad) {
+  return url.endsWith(".css") ? { source: "export {};", format: "module", shortCircuit: true } : nextLoad(url, context);
+} });
 const dom = new Window({ url: "http://127.0.0.1:5199" });
 const globals = { window: dom, document: dom.document, navigator: dom.navigator, localStorage: dom.localStorage, HTMLElement: dom.HTMLElement, HTMLTextAreaElement: dom.HTMLTextAreaElement, IS_REACT_ACT_ENVIRONMENT: true };
 const descriptors = new Map(Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -87,6 +91,7 @@ afterEach(async () => {
   globalThis.fetch = originalFetch;
 });
 after(async () => {
+  css.deregister();
   await dom.happyDOM.close();
   for (const [key, descriptor] of descriptors) {
     if (descriptor) Object.defineProperty(globalThis, key, descriptor);

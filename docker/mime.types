@@ -5,6 +5,7 @@ types {
     text/xml                       xml;
     application/javascript         js mjs;
     application/json               json map;
+    application/geo+json            geojson;
     application/manifest+json       webmanifest;
     application/pdf                pdf;
     application/wasm               wasm;

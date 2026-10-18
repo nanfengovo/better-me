@@ -9,6 +9,10 @@
 !turbo.json
 !tsconfig.base.json
 
+!config/geography/countries.json
+!config/geography/china-administrative/catalog.json
+!config/geography/china-administrative/source-manifest.json
+
 !apps/web/package.json
 !apps/web/index.html
 !apps/web/tsconfig.json
@@ -18,6 +22,16 @@
 !apps/web/src/**/*.tsx
 !apps/web/src/**/*.css
 !apps/web/src/**/*.json
+!apps/web/src/components/atlas/geo/world-countries-110m.geojson
+!apps/web/src/components/atlas/geo/china-provinces-10m.geojson
+!apps/web/src/components/atlas/geo/world-land-dots.geojson
+!apps/web/src/components/atlas/geo/NOTICE.md
+!apps/web/src/components/atlas/geo/NATURAL-EARTH-LICENSE.md
+!apps/web/src/components/atlas/geo/README.md
+!apps/web/src/components/atlas/geo/RENDERER-NOTES.md
+!apps/web/src/components/atlas/geo/build-assets.py
+!apps/web/src/components/atlas/geo/build-dots.py
+!apps/web/src/components/atlas/geo/requirements-build.txt
 !apps/web/server/**/*.ts
 !apps/job-service/package.json
 !apps/job-service/tsconfig.json

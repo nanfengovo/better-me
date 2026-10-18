@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { registerHooks } from "node:module";
 import test, { after, afterEach } from "node:test";
 import { setImmediate as nextTurn } from "node:timers/promises";
 import { Window } from "happy-dom";
@@ -13,6 +14,9 @@ import {
 
 // Mount the real React modal and AI client. Every request is intercepted, and
 // only a reserved .invalid fixture URL can reach this in-process fetch mock.
+const css = registerHooks({ load(url, context, nextLoad) {
+  return url.endsWith(".css") ? { source: "export {};", format: "module", shortCircuit: true } : nextLoad(url, context);
+} });
 const dom = new Window({ url: "http://127.0.0.1:5199" });
 const globals = {
   window: dom, document: dom.document, navigator: dom.navigator,
@@ -132,6 +136,7 @@ afterEach(async () => {
   else Reflect.deleteProperty(dom.navigator, "clipboard");
 });
 after(async () => {
+  css.deregister();
   await dom.happyDOM.close();
   for (const [key, descriptor] of descriptors) {
     if (descriptor) Object.defineProperty(globalThis, key, descriptor);

@@ -23,10 +23,17 @@ COPY packages/core ./packages/core
 COPY packages/storage ./packages/storage
 COPY packages/opportunities ./packages/opportunities
 COPY packages/source-adapters ./packages/source-adapters
+COPY config/geography/countries.json ./config/geography/countries.json
+COPY config/geography/china-administrative/catalog.json config/geography/china-administrative/source-manifest.json ./config/geography/china-administrative/
 COPY docker/collect-licenses.mjs ./docker/collect-licenses.mjs
 COPY docker/license-overrides ./docker/license-overrides
 # The container is served at /; Pages has its own /better-me/ build in CI.
-RUN pnpm build && node docker/collect-licenses.mjs /tmp/better-me-dependency-licenses
+RUN pnpm build \
+    && test -s apps/web/dist/legal/geography/NOTICE.md \
+    && test -s apps/web/dist/legal/geography/NATURAL-EARTH-LICENSE.md \
+    && test -s apps/web/dist/legal/geography/manifest.json \
+    && test -s apps/web/dist/legal/geography/dots-manifest.json \
+    && node docker/collect-licenses.mjs /tmp/better-me-dependency-licenses
 
 FROM nginx:1.30.6-alpine@sha256:970364228b1e4f932abc22d321932816782cca8a20b85a77552a7cfe9acfb3b5 AS runtime
 ARG VCS_REF=unknown

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Decorative globe land mask, not job data",
+  "source": "world-countries-110m.geojson",
+  "sourceSha256": "d414410c022972efa3841d21f0e4c3f7a01f299619aadbb7511945e75bef841e",
+  "license": "public-domain",
+  "licenseFile": "NATURAL-EARTH-LICENSE.md",
+  "noticeFile": "NOTICE.md",
+  "script": "build-dots.py",
+  "gridLatitudeDegrees": 1.1,
+  "longitudeSpacing": "latitude-adjusted for approximately equal surface density",
+  "latitudeRange": [
+    -56,
+    83
+  ],
+  "file": "world-land-dots.geojson",
+  "pointCount": 9016,
+  "bytes": 157896,
+  "sha256": "286be968012356d5c247767c62cd509454749023e2dde2294740bc37f931be31"
+}

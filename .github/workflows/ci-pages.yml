@@ -70,6 +70,8 @@ jobs:
             exit 1
           fi
           pnpm --filter @better-me/web exec vite build --base="$pages_base_path"
+      - name: Verify geography provenance and MapLibre worker in the Pages artifact
+        run: node scripts/check-atlas-distribution.mjs apps/web/dist
       - name: Upload static site
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:

@@ -2,17 +2,18 @@
 <html lang="zh-CN">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>BetterMe · 模板来源与许可</title>
+  <title>BetterMe · 来源与许可</title>
   <style>
     body { max-width: 52rem; margin: 3rem auto; padding: 0 1.5rem; font: 1rem/1.8 system-ui, sans-serif; color: #26352e; }
     a { color: #185a43; } code { overflow-wrap: anywhere; }
   </style>
-  <h1>BetterMe 模板来源与许可</h1>
+  <h1>BetterMe 来源与许可</h1>
   <p>此镜像提供静态简历工作台。模板使用不同的逐源许可；这些条款不自动覆盖用户填写的事实内容或独立应用模块。本项目整体许可证仍待维护者确定，本页不授予额外权利。</p>
   <ul>
     <li><a href="templates/README.md">模板说明、授权与功能边界</a></li>
     <li><a href="templates/CATALOG.md">完整模板目录与逐源 LICENSE / NOTICE 路径</a></li>
     <li><a href="templates/catalog.json">机器可读模板目录</a></li>
+    <li><a href="geography/">地图边界与装饰点阵：来源、原始许可、两份哈希清单与构建脚本</a></li>
     <li><a href="dependencies/">浏览器库及生产依赖的逐包版本、完整 LICENSE / NOTICE</a></li>
     <li><a href="https://github.com/nanfengovo/better-me">项目源码、原生适配源文件及完整修改说明</a></li>
   </ul>
@@ -22,5 +23,7 @@
     <li><a href="templates/licenses/jsonresume-rickosborne/NOTICE.md">Rick Osborne 来源、修改和适用范围</a></li>
     <li><a href="templates/licenses/jsonresume-rickosborne/LICENSE">CC BY-NC-SA 4.0 完整文本</a></li>
   </ul>
-  <p>依赖许可目录按锁定的 pnpm workspace 生产依赖生成，覆盖应用、core 和 storage 的直接及传递依赖，亦保留未进入静态产物的服务端及可选依赖作为授权超集。nginx 基础镜像自身条款仍分别适用；本页的模板许可不替代它们。此镜像不包含个人简历、API Key、招聘站登录会话或浏览器资料目录。</p>
+  <p>地图概略边界和派生点阵来自固定版本 Natural Earth 公有领域数据。<a href="geography/NOTICE.md">地理来源声明</a>解释范围及修改，<a href="geography/manifest.json">边界清单</a>和<a href="geography/dots-manifest.json">点阵清单</a>保留 SHA-256 与来源。地图不代表岗位地址或企业控股来源的证据。</p>
+  <p>在线街道、建筑与文字由独立地图服务实时提供，不是离线镜像内的数据。默认 <a href="https://openfreemap.org/">OpenFreeMap</a>、OpenMapTiles 和 OpenStreetMap 署名继续适用；<a href="https://openfreemap.org/tos/">服务条款</a>及可选 <a href="https://operations.osmfoundation.org/policies/tiles/">OpenStreetMap 标准瓦片政策</a>分别适用。离线模式保留镜像内的概略轮廓。</p>
+  <p>依赖许可目录按锁定的 pnpm workspace 生产依赖生成，覆盖浏览器库（含 MapLibre / Three）、共享域及其直接和传递依赖，亦保留未进入静态产物的服务端及可选依赖作为授权超集。nginx 基础镜像自身条款仍分别适用；本页的模板许可不替代它们。此镜像不包含个人简历、API Key、招聘站登录会话、浏览器资料目录或本机地名/岗位索引。</p>
 </html>

@@ -1,0 +1,6 @@
+# Asset/manifest hashes are reproducible across Windows and POSIX checkouts.
+*.geojson text eol=lf
+manifest.json text eol=lf
+build-assets.py text eol=lf
+# Retain the exact bytes of the pinned upstream license.
+NATURAL-EARTH-LICENSE.md -text

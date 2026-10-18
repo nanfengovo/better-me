@@ -42,7 +42,8 @@ for (const entry of installed.sort((left, right) => left.name.localeCompare(righ
 
     if (!fullLicense) {
       if ((pkg.name === "hash.js" && pkg.version === "1.1.7")
-        || (pkg.name === "isarray" && pkg.version === "1.0.0")) {
+        || (pkg.name === "isarray" && pkg.version === "1.0.0")
+        || (pkg.name === "murmurhash-js" && pkg.version === "1.0.0")) {
         // These exact published packages put the full MIT text and copyright in README.
         const text = await readFile(path.join(packagePath, "README.md"), "utf8");
         if (!text.includes("Permission is hereby granted") || !text.includes("THE SOFTWARE IS PROVIDED")) {
@@ -75,7 +76,7 @@ for (const entry of installed.sort((left, right) => left.name.localeCompare(righ
 }
 
 // Do not accidentally collect just the private workspace root (which has no prod deps).
-for (const required of ["react", "react-dom", "lucide-react", "docx", "mammoth", "pdfjs-dist", "zod"]) {
+for (const required of ["react", "react-dom", "lucide-react", "docx", "mammoth", "pdfjs-dist", "zod", "maplibre-gl", "three"]) {
   if (!manifest.some((item) => item.name === required)) throw new Error(`Dependency coverage missing: ${required}`);
 }
 const report = { schemaVersion: 1, scope: "Locked workspace production dependencies, including server and optional dependencies as a superset of browser bundles", packages: manifest };

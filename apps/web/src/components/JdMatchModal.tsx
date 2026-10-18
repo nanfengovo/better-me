@@ -56,6 +56,7 @@ import {
 } from "../lib/jd-import";
 import { JdBrowserStartCleanupError, JdExtractionError, jdFailureGuidance, type JdFailure } from "../lib/jd-errors";
 import { jdBrowserCleanupTracker } from "../lib/jd-browser-cleanup";
+import { SourcePublicationBadges } from "./atlas/JobSourceBadges";
 
 async function closeTrackedBrowserSession(sessionId: string): Promise<void> {
   const key = `session:${sessionId}`;
@@ -78,7 +79,7 @@ type Props = {
   onImportResume?: () => void;
   onEditResume?: () => void;
   initialText?: string;
-  initialSource?: { title: string; url?: string; platform: string; observedAt: string };
+  initialSource?: { title: string; url?: string; platform: string; observedAt?: string; sourcePublishedAt?: string; sourcePublishedText?: string };
   onSaveOpportunity?: (draft: { text: string; provenance: JdProvenance | null }) => void;
 };
 
@@ -907,6 +908,7 @@ ${report.interviewDefenseTips.map((tip) => `- ${tip}`).join("\n")}
 
             {pending && <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-3">
               <div className="flex items-center justify-between gap-2"><h4 className="text-xs font-semibold text-amber-900">{t("提取完成，请核对后使用", "Extraction complete; review before use")}</h4><span className="text-[11px] text-amber-700">{pending.method}</span></div>
+              <SourcePublicationBadges sourceLabel={pending.provenance.platform ?? t("岗位来源", "Job source")} sourceUrl={pending.provenance.url} publishedAt={pending.provenance.sourcePublishedAt} publishedRaw={pending.provenance.sourcePublishedText} link />
               <label htmlFor="jd-extracted" className="sr-only">{t("核对提取的岗位文字", "Review extracted job text")}</label><textarea id="jd-extracted" rows={7} value={pending.text} onChange={(event) => setPending({ ...pending, text: event.target.value, provenance: { ...pending.provenance, edited: true } })} className="w-full rounded-lg border border-amber-200 bg-white p-3 text-xs leading-relaxed outline-none focus:border-[#244e43]" />
               <div className="flex items-center gap-3"><button type="button" disabled={!pending.text.trim()} onClick={() => { requestVersion.current += 1; setJdText(pending.text); setDraftEdited(true); setProvenance(pending.provenance); setPending(null); setTab("text"); }} className="inline-flex items-center gap-1.5 rounded-lg bg-[#244e43] px-4 py-2 text-xs font-semibold text-white disabled:opacity-45"><Check className="h-3.5 w-3.5" />{t("确认并使用正文", "Confirm and use text")}</button><button type="button" onClick={() => setPending(null)} className="text-xs text-slate-500 hover:underline">{t("放弃本次提取", "Discard extraction")}</button></div>
             </div>}
@@ -916,7 +918,9 @@ ${report.interviewDefenseTips.map((tip) => `- ${tip}`).join("\n")}
               <textarea id="jd-text" value={jdText} disabled={closingBrowser} onChange={(event) => changeJdText(event.target.value)} rows={tab === "text" ? 9 : 5} placeholder={t("粘贴岗位职责与任职要求，或通过上方链接/截图提取。你可以在这里继续修改和核对原文。", "Paste responsibilities and requirements, or extract them from a link or screenshot above. Edit and review the original text here.")} className="w-full resize-y rounded-lg border border-slate-200 bg-[#fdfdfb] p-3 text-xs leading-relaxed outline-none focus:border-[#244e43] disabled:opacity-45" />
               {isJdLinkOnly(jdText) && <p role="status" className="text-xs text-amber-800">{t("这里目前只有链接，还没有岗位正文。请在“分享链接”中读取并确认正文，再开始匹配或收藏。", "Only a link is present. Read and confirm its description under Shared link before matching or saving.")}</p>}
               {initialSource && <p className="text-xs text-slate-500">{initialSource.title} · {initialSource.platform}{initialSource.url && <> · <a href={initialSource.url} target="_blank" rel="noreferrer" className="text-[#244e43] underline">{t("原始岗位", "Original job")}</a></>}</p>}
+              {initialSource && <SourcePublicationBadges sourceLabel={initialSource.platform} sourceUrl={initialSource.url} publishedAt={initialSource.sourcePublishedAt} publishedRaw={initialSource.sourcePublishedText} link />}
               {provenance && jdText.trim() && <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500"><span>{provenance.platform ?? (provenance.kind === "screenshot" ? t("截图识别", "Screenshot OCR") : t("文字输入", "Text input"))}{provenance.edited ? t(" · 已编辑", " · Edited") : ""}</span><span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" />{t("采集于", "Captured")} {new Date(provenance.observedAt).toLocaleString(locale === "en" ? "en-US" : "zh-CN", { timeZone: "Asia/Shanghai" })}{t("（北京时间）", "(Beijing time)")}</span>{provenance.url && <a href={provenance.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#244e43] hover:underline"><ExternalLink className="h-3 w-3" />{t("原岗位链接", "Original job link")}</a>}{provenance.title && <span>{provenance.title}</span>}</div>}
+              {provenance && jdText.trim() && <SourcePublicationBadges sourceLabel={provenance.platform ?? (provenance.kind === "screenshot" ? t("截图识别", "Screenshot OCR") : t("文字输入", "Text input"))} sourceUrl={provenance.url} publishedAt={provenance.sourcePublishedAt} publishedRaw={provenance.sourcePublishedText} link />}
               <p className={`text-[11px] ${draftStatus.includes("未保存") || draftStatus.includes("失败") || /not saved|failed/i.test(draftStatus) ? "text-rose-700" : "text-slate-400"}`}>{draftStatus}</p>
               {initialDraft.recoveryRaw !== undefined && <button type="button" onClick={() => {
                 const url = URL.createObjectURL(new Blob([initialDraft.recoveryRaw!], { type: "application/json;charset=utf-8" }));

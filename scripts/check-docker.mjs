@@ -4,6 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { ATLAS_GEO_PUBLIC_FILES } from "./check-atlas-distribution.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -137,12 +138,16 @@ try {
   for (const entry of entryPaths) assert.ok(assetPaths.includes(entry), `Entry asset exists: ${entry}`);
   const workerPaths = assetPaths.filter((file) => /pdf\.worker[^/]*\.mjs$/.test(file));
   assert.ok(workerPaths.length > 0, "Build must include the PDF worker");
+  const mapWorkerPaths = assetPaths.filter((file) => /\/maplibre-gl-worker-[\w-]+\.mjs$/.test(file));
+  assert.equal(mapWorkerPaths.length, 1, "Build must include the standalone ESM MapLibre worker");
   const lazyPaths = assetPaths.filter((file) => file.endsWith(".js") && !entryPaths.includes(file));
   assert.ok(lazyPaths.length > 0, "Build must include lazy JavaScript chunks");
   let javascript = "";
+  const publishedAssetHashes = new Map();
   for (const assetPath of assetPaths) {
     const asset = await request(assetPath);
     assert.ok(asset.body.length > 0, `${assetPath} is not empty`);
+    publishedAssetHashes.set(assetPath, createHash("sha256").update(asset.body).digest("hex"));
     const cache = asset.response.headers.get("cache-control") ?? "";
     assert.match(cache, /\bimmutable\b/, `${assetPath} immutable cache`);
     assert.match(cache, /\bmax-age=31536000\b/, `${assetPath} annual cache`);
@@ -152,17 +157,19 @@ try {
       javascript += asset.body.toString("utf8");
     } else if (assetPath.endsWith(".css")) {
       assert.match(mime, /text\/css/, `${assetPath} CSS MIME`);
+    } else if (assetPath.endsWith(".geojson")) {
+      assert.match(mime, /application\/geo\+json/, `${assetPath} GeoJSON MIME`);
     }
   }
-  for (const worker of workerPaths) {
-    assert.ok(javascript.includes(path.posix.basename(worker)), "The app must reference the shipped PDF worker");
+  for (const worker of [...workerPaths, ...mapWorkerPaths]) {
+    assert.ok(javascript.includes(path.posix.basename(worker)), `The app must reference its shipped worker: ${worker}`);
   }
   assert.ok(lazyPaths.some((file) => javascript.includes(path.posix.basename(file))), "App must reference lazy chunks");
   await request("/assets/__better_me_missing__.js", { status: 404 });
   await request("/assets/__missing__/chunk.css", { status: 404 });
   await request("/__better_me_missing__.js", { status: 404 });
 
-  for (const urlPath of ["/api", "/api/jd/extract", "/api/network/status"]) {
+  for (const urlPath of ["/api", "/api/jd/extract", "/api/network/status", "/api/v1/jobs/search"]) {
     for (const method of ["GET", "POST"]) {
       const api = await request(urlPath, { status: 501, method });
       assert.match(api.response.headers.get("content-type") ?? "", /application\/json/);
@@ -174,6 +181,25 @@ try {
   const legal = await request("/legal/");
   assert.match(legal.response.headers.get("content-type") ?? "", /text\/html/);
   assert.match(legal.body.toString("utf8"), /(?:LICENSE|NOTICE|许可证|许可)/);
+  assert.match(legal.body.toString("utf8"), /href="geography\/"/, "The distribution index links geography notices");
+  const geographyIndex = await request("/legal/geography/");
+  assert.match(geographyIndex.response.headers.get("content-type") ?? "", /text\/html/);
+  const expectedGeographyFiles = [...ATLAS_GEO_PUBLIC_FILES, "index.html"].sort();
+  const actualGeographyFiles = (await docker(["exec", containerId, "find", `${webRoot}/legal/geography`, "-maxdepth", "1", "-type", "f"]))
+    .split(/\r?\n/).filter(Boolean).map((file) => path.posix.basename(file)).sort();
+  assert.deepEqual(actualGeographyFiles, expectedGeographyFiles, "Only explicitly public geography files are shipped");
+  for (const file of ATLAS_GEO_PUBLIC_FILES) {
+    const published = await request(`/legal/geography/${file}`);
+    assert.deepEqual(published.body, await readFile(path.join(root, "apps/web/src/components/atlas/geo", file)), `Unchanged public geography: ${file}`);
+    assertNotCached(published.response, `Geography metadata ${file}`);
+    assert.ok(geographyIndex.body.toString("utf8").includes(`href="${file}"`), `Geography index links ${file}`);
+  }
+  const geoManifest = JSON.parse((await request("/legal/geography/manifest.json")).body);
+  const dotManifest = JSON.parse((await request("/legal/geography/dots-manifest.json")).body);
+  for (const asset of [...geoManifest.assets, dotManifest]) {
+    assert.ok(assetPaths.some((file) => file.startsWith(`/assets/${path.parse(asset.file).name}-`) && file.endsWith(".geojson") && publishedAssetHashes.get(file) === asset.sha256), `The rendered map asset matches its published provenance: ${asset.file}`);
+  }
+  for (const privatePath of ["/.env", "/.git/config", "/.agent-memory/activeContext.md", "/config/geography/gazetteer/manifest.json"]) await request(privatePath, { status: 404 });
   const licenseFiles = ["templates/README.md", "templates/CATALOG.md", "templates/catalog.json", ...await sourceFiles("templates/licenses")];
   for (const file of licenseFiles) {
     const published = await request(`/legal/${file}`);
@@ -209,12 +235,15 @@ try {
       dependencyLicenseFiles += 1;
     }
   }
+  for (const required of ["maplibre-gl", "three"]) assert.ok(manifest.packages.some((pkg) => pkg.name === required), `Map engine complete notices: ${required}`);
   await request("/legal/templates/licenses/__missing__/LICENSE", { status: 404 });
+  await request("/legal/geography/__missing__.geojson", { status: 404 });
   console.log(JSON.stringify({
     result: "passed", image, imageId: state.Image, runtimeUid: uid,
     readOnlyRootFilesystem: true, health: state.State.Health.Status,
     requests, assets: assetPaths.length, lazyChunks: lazyPaths.length,
-    pdfWorkers: workerPaths.length, licenseFiles: licenseFiles.length, adaptedSourceFiles: adaptedFiles.length,
+    pdfWorkers: workerPaths.length, maplibreWorkers: mapWorkerPaths.length, geographyPublicFiles: actualGeographyFiles.length,
+    licenseFiles: licenseFiles.length, adaptedSourceFiles: adaptedFiles.length,
     dependencyPackages: manifest.packages.length, dependencyLicenseFiles,
     scope: "Container health, HTTP resources/cache/MIME, API boundary and license distribution; not browser or visual acceptance.",
   }, null, 2));
