@@ -1,4 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useUiPreferences } from "../lib/ui-preferences";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
+import { scanClaim } from "@better-me/core";
 import type {
   FactBase,
   Experience,
@@ -7,8 +9,11 @@ import type {
   TextStyleRange,
 } from "@better-me/core";
 import { TextFormattingField } from "./TextFormattingField";
+import { useConfirm } from "./ConfirmationDialog";
 import { selectEditorFollowTarget } from "../lib/editor-follow";
 import type { PreviewFollowTarget } from "../lib/preview-follow";
+import { getIssueGuidance } from "../lib/issue-guidance";
+import type { IssueNavigationRequest } from "../lib/issue-navigation";
 import {
   Briefcase,
   User,
@@ -27,18 +32,22 @@ type Props = {
   textStyles?: Record<string, TextStyleRange[]>;
   onTextStylesChange?: (key: string, ranges: TextStyleRange[]) => void;
   onPreviewTargetChange?: (target: PreviewFollowTarget) => void;
+  issueNavigation?: IssueNavigationRequest | null;
+  onDismissIssue?: () => void;
 };
 
 type ViewMode = "bilingual" | "zh" | "en";
 
-const EXPERIENCE_TYPES: { value: Experience["type"]; label: string }[] = [
-  { value: "work", label: "工作经历" },
-  { value: "opensource", label: "开源经历" },
-  { value: "education", label: "教育经历" },
-  { value: "other", label: "项目 / 其他经历" },
-];
+export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange, onPreviewTargetChange, issueNavigation, onDismissIssue }: Props) {
+  const { t, locale } = useUiPreferences();
+  const EXPERIENCE_TYPES: { value: Experience["type"]; label: string }[] = [
+    { value: "work", label: t("工作经历", "Work experience") },
+    { value: "opensource", label: t("开源经历", "Open-source experience") },
+    { value: "education", label: t("教育经历", "Education") },
+    { value: "other", label: t("项目 / 其他经历", "Projects / other experience") },
+  ];
 
-export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange, onPreviewTargetChange }: Props) {
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<"experiences" | "profile">("experiences");
   const [viewMode, setViewMode] = useState<ViewMode>("zh");
   const [collapsedExps, setCollapsedExps] = useState<Record<string, boolean>>({});
@@ -50,6 +59,24 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
   const scrollerRef = useRef<HTMLDivElement>(null);
   const followCallbackRef = useRef(onPreviewTargetChange);
   const pendingFollowFrameRef = useRef<number | undefined>(undefined);
+  const focusedIssueRequestRef = useRef<IssueNavigationRequest | null>(null);
+
+  const issueExperience = issueNavigation && factBase.experiences.find((item) => item.id === issueNavigation.issue.experienceId);
+  const issueClaim = issueExperience?.claims.find((item) => item.id === issueNavigation?.issue.claimId);
+  const issueGuidance = issueNavigation && getIssueGuidance(issueNavigation.issue.code, locale);
+  const issueResolved = !!issueNavigation && !!issueClaim && (issueNavigation.issue.code === "missing_locale_en"
+    ? !!issueClaim.text.en?.trim()
+    : !scanClaim(issueClaim, issueNavigation.issue.experienceId).some((item) => item.code === issueNavigation.issue.code));
+  const isIssueField = (expId: string, claimId: string, field: IssueNavigationRequest["field"]) =>
+    issueNavigation?.issue.experienceId === expId && issueNavigation.issue.claimId === claimId && issueNavigation.field === field;
+
+  useEffect(() => {
+    if (!issueNavigation) { focusedIssueRequestRef.current = null; return; }
+    setActiveTab("experiences");
+    setCollapsedExps((previous) => ({ ...previous, [issueNavigation.issue.experienceId]: false }));
+    if (issueNavigation.field === "text-zh") setViewMode((previous) => previous === "en" ? "zh" : previous);
+    if (issueNavigation.field === "text-en") setViewMode((previous) => previous === "zh" ? "en" : previous);
+  }, [issueNavigation]);
 
   useEffect(() => {
     factBaseRef.current = factBase;
@@ -121,6 +148,28 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
 
   const experienceTarget = (id: string): PreviewFollowTarget => ({ anchor: `experience:${id}`, source: "focus" });
 
+  useLayoutEffect(() => {
+    if (!issueNavigation || focusedIssueRequestRef.current === issueNavigation || activeTab !== "experiences") return;
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    // Compare imported IDs as attribute values, never interpolate them into selectors.
+    const experience = Array.from(scroller.querySelectorAll<HTMLElement>("[data-editor-anchor]"))
+      .find((element) => element.dataset.editorAnchor === `experience:${issueNavigation.issue.experienceId}`);
+    const claim = experience && Array.from(experience.querySelectorAll<HTMLElement>("[data-editor-anchor]"))
+      .find((element) => element.dataset.editorAnchor === `claim:${issueNavigation.issue.claimId}`);
+    const field = claim?.querySelector<HTMLElement>(`[data-issue-field="${issueNavigation.field}"]`);
+    const control = field?.matches("input, textarea") ? field : field?.querySelector<HTMLElement>("textarea, input");
+    if (!control || control.matches(":disabled")) return;
+    focusedIssueRequestRef.current = issueNavigation;
+    if (pendingFollowFrameRef.current !== undefined) {
+      cancelAnimationFrame(pendingFollowFrameRef.current);
+      pendingFollowFrameRef.current = undefined;
+    }
+    control.focus({ preventScroll: true });
+    control.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+    emitPreviewTarget({ anchor: `claim:${issueNavigation.issue.claimId}`, fallbackAnchors: [`experience:${issueNavigation.issue.experienceId}`], source: "focus" });
+  }, [issueNavigation, activeTab, collapsedExps, viewMode, factBase, emitPreviewTarget]);
+
   useEffect(() => () => { avatarReadIdRef.current += 1; }, []);
 
   const toggleExpCollapse = (id: string) => {
@@ -143,7 +192,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
 
   const readAvatar = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) {
-      setAvatarError("请选择图片文件。");
+      setAvatarError(t("请选择图片文件。", "Choose an image file."));
       return;
     }
     const readId = ++avatarReadIdRef.current;
@@ -152,17 +201,17 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
     reader.onload = () => {
       if (readId !== avatarReadIdRef.current) return;
       if (typeof reader.result !== "string") {
-        setAvatarError("图片读取失败，请重新选择。");
+        setAvatarError(t("图片读取失败，请重新选择。", "The image could not be read. Choose it again."));
         return;
       }
       const dataUrl = reader.result;
       updateProfile((profile) => ({ ...profile, avatarUrl: dataUrl }));
     };
     reader.onerror = () => {
-      if (readId === avatarReadIdRef.current) setAvatarError("图片读取失败，请重新选择。");
+      if (readId === avatarReadIdRef.current) setAvatarError(t("图片读取失败，请重新选择。", "The image could not be read. Choose it again."));
     };
     reader.readAsDataURL(file);
-  }, [updateProfile]);
+  }, [updateProfile, t]);
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -175,7 +224,10 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
     if (activeTab !== "profile") return;
     const handlePaste = (e: ClipboardEvent) => {
       const target = e.target;
-      if (target instanceof HTMLElement && (target.closest("input, textarea, select") || target.isContentEditable)) return;
+      // Other pages stay mounted; their screenshots must never become an avatar.
+      if (!(target instanceof HTMLElement) || !scrollerRef.current?.contains(target)
+        || !scrollerRef.current.getClientRects().length
+        || target.closest("input, textarea, select") || target.isContentEditable) return;
       const items = e.clipboardData?.items;
       if (!items) return;
       for (let i = 0; i < items.length; i++) {
@@ -217,8 +269,8 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
     updateExperiences((exps) => [newExp, ...exps]);
   };
 
-  const deleteExperience = (id: string) => {
-    if (confirm("确定要删除这条经历及其所有事实要点吗？")) {
+  const deleteExperience = async (id: string) => {
+    if (await confirm(t("确定要删除这条经历及其所有事实要点吗？", "Delete this experience and all its fact entries?"), { title: t("删除经历", "Delete experience"), confirmLabel: t("删除经历", "Delete experience"), danger: true })) {
       updateExperiences((exps) => exps.filter((e) => e.id !== id));
     }
   };
@@ -285,7 +337,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
               }`}
             >
               <Briefcase className="h-3.5 w-3.5" />
-              <span>经历与成果</span>
+              <span>{t("经历与成果", "Experience & achievements")}</span>
               <span className="ml-1 rounded-full bg-slate-200/60 px-1.5 py-0.2 text-[10px] text-slate-700">
                 {factBase.experiences.length}
               </span>
@@ -300,15 +352,15 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
               }`}
             >
               <User className="h-3.5 w-3.5" />
-              <span>个人信息</span>
+              <span>{t("个人信息", "Personal information")}</span>
             </button>
           </div>
         </div>
 
         {/* Bilingual / Locale Toggle */}
-        <div className="flex items-center gap-1.5 text-xs text-[var(--color-ink-muted)]">
+        <div className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-ink-muted)]" aria-describedby="editor-fields-help">
           <Languages className="h-3.5 w-3.5 text-slate-400" />
-          <span className="font-medium">编辑视图:</span>
+          <span className="font-medium">{t("编辑字段：", "Editor fields:")}</span>
           <div className="inline-flex rounded-lg border border-[var(--color-line)] bg-white p-0.5 text-xs shadow-xs">
             <button
               type="button"
@@ -319,8 +371,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              中英双语
-            </button>
+              {t("中英双语", "Chinese & English")}</button>
             <button
               type="button"
               onClick={() => setViewMode("zh")}
@@ -330,8 +381,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              仅中文
-            </button>
+              {t("仅中文", "Chinese only")}</button>
             <button
               type="button"
               onClick={() => setViewMode("en")}
@@ -341,22 +391,32 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              仅英文
-            </button>
+              {t("仅英文", "English only")}</button>
           </div>
+          <p id="editor-fields-help" className="w-full text-[10px] leading-relaxed">{t("仅显示所选语言的编辑字段，不会翻译内容或更改简历输出语言。", "Shows fields in the selected language only. It does not translate content or change the resume output language.")}</p>
         </div>
       </div>
 
+      {issueNavigation && issueGuidance && (
+        <aside className={`issue-guide no-print ${issueResolved ? "resolved" : ""}`} aria-label={t("内容检查修改指引", "Content review guidance")} id="content-issue-guidance">
+          <div className="issue-guide-heading"><strong>{issueResolved ? t("此项已处理 · ", "Resolved · ") : t("修改指引 · ", "Editing guidance · ")}{issueGuidance.title}</strong><button type="button" aria-label={t("关闭修改指引", "Close editing guidance")} onClick={onDismissIssue}>×</button></div>
+          {!issueClaim ? <p role="status">{t("这条要点已删除或不在当前文档中，请重新选择检查项。", "This entry was deleted or is unavailable in the current document. Select another review item.")}</p> : <>
+            <p className="issue-guide-context">{issueExperience?.org.zh || issueExperience?.org.en || t("当前经历", "Current experience")}{t(` · 第 ${(issueExperience?.claims.findIndex((item) => item.id === issueClaim.id) ?? 0) + 1} 条要点`, ` · Entry ${(issueExperience?.claims.findIndex((item) => item.id === issueClaim.id) ?? 0) + 1}`)}</p>
+            <p role="status" aria-live="polite">{issueResolved ? t("当前草稿已不再触发这项提醒。请核对真实内容，并按保存设置保存修改。", "The current draft no longer triggers this warning. Verify the facts and save using your selected settings.") : issueGuidance.description}</p>
+            {!issueResolved && (issueNavigation.field === "value" || issueNavigation.field === "unit") && <p>{t("请先填写有效数值与单位，再核对并确认量化。", "Enter a valid value and unit, then verify the metric before confirming it.")}</p>}
+            <details key={issueNavigation.requestId}><summary>{t("查看具体修改步骤", "View editing steps")}</summary><ol>{issueGuidance.steps.map((step) => <li key={step}>{step}</li>)}</ol>{issueGuidance.example && <p>{issueGuidance.example}</p>}</details>
+          </>}
+        </aside>
+      )}
       {/* Editor Content Area */}
-      <div ref={scrollerRef} onScroll={followEditorScroll} className="min-h-0 flex-1 overflow-y-auto p-5 space-y-5">
+      <div ref={scrollerRef} onScroll={followEditorScroll} className="fact-editor-scroller min-h-0 flex-1 overflow-y-auto p-5 space-y-5">
         {activeTab === "profile" ? (
           /* ================= Profile Editor ================= */
           <div data-editor-anchor="profile" className="space-y-6 max-w-2xl mx-auto py-2">
             <div className="rounded-xl border border-[var(--color-line)] bg-white p-5 shadow-xs space-y-4">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
                 <User className="h-4 w-4 text-[var(--color-accent)]" />
-                基本个人信息
-              </h3>
+                {t("基本个人信息", "Basic information")}</h3>
 
               {/* Avatar Photo Section */}
               <div data-editor-anchor="profile:photo" className="flex items-center gap-4 border-b border-slate-100 pb-4">
@@ -370,7 +430,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                   ) : (
                     <div className="flex h-20 w-16 flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 text-slate-400">
                       <User className="h-6 w-6" />
-                      <span className="text-[10px] mt-1 font-medium">无头像</span>
+                      <span className="text-[10px] mt-1 font-medium">{t("无头像", "No photo")}</span>
                     </div>
                   )}
                 </div>
@@ -389,7 +449,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                       className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
                     >
                       <Camera className="h-3.5 w-3.5 text-slate-500" />
-                      <span>{factBase.profile.avatarUrl ? "更换照片" : "上传个人头像"}</span>
+                      <span>{factBase.profile.avatarUrl ? t("更换照片", "Change photo") : t("上传个人头像", "Upload photo")}</span>
                     </button>
                     {factBase.profile.avatarUrl && (
                       <button
@@ -401,11 +461,10 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                         }}
                         className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-rose-600 hover:bg-rose-50 transition"
                       >
-                        移除
-                      </button>
+                        {t("移除", "Remove")}</button>
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-400">上传 JPG、PNG 或粘贴照片。在「排版设计」中选择是否展示；照片设置随简历保存。</p>
+                  <p className="text-[11px] text-slate-400">{t("上传 JPG、PNG 或粘贴照片。在「排版设计」中选择是否展示；照片设置随简历保存。", "Upload JPG or PNG, or paste a photo. Choose whether to show it in Design; this preference is saved with the resume.")}</p>
                   {avatarError && <p role="alert" className="text-xs text-rose-700">{avatarError}</p>}
                 </div>
               </div>
@@ -414,10 +473,9 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                 {(viewMode === "bilingual" || viewMode === "zh") && (
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      中文姓名
-                    </label>
+                      {t("中文姓名", "Name in Chinese")}</label>
                     <TextFormattingField
-                      label="中文姓名"
+                      label={t("中文姓名", "Name in Chinese")}
                       rows={1}
                       ranges={textStyles?.["profile:displayName:zh"]}
                       onStylesChange={onTextStylesChange ? (ranges) => onTextStylesChange("profile:displayName:zh", ranges) : undefined}
@@ -435,10 +493,9 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                 {(viewMode === "bilingual" || viewMode === "en") && (
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      英文姓名 (English Name)
-                    </label>
+                      {t("英文姓名 (English Name)", "Name in English")}</label>
                     <TextFormattingField
-                      label="英文姓名"
+                      label={t("英文姓名", "Name in English")}
                       rows={1}
                       ranges={textStyles?.["profile:displayName:en"]}
                       onStylesChange={onTextStylesChange ? (ranges) => onTextStylesChange("profile:displayName:en", ranges) : undefined}
@@ -459,10 +516,9 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                 {(viewMode === "bilingual" || viewMode === "zh") && (
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      个人定位 / 一句话简介 (中文)
-                    </label>
+                      {t("个人定位 / 一句话简介 (中文)", "Headline / short introduction (Chinese)")}</label>
                     <TextFormattingField
-                      label="中文个人定位"
+                      label={t("中文个人定位", "Headline in Chinese")}
                       rows={1}
                       ranges={textStyles?.["profile:headline:zh"]}
                       onStylesChange={onTextStylesChange ? (ranges) => onTextStylesChange("profile:headline:zh", ranges) : undefined}
@@ -476,7 +532,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                           },
                         }))
                       }
-                      placeholder="例如：高级工业软件研发工程师 · 工业 AI 落地实践者"
+                      placeholder={t("例如：高级工业软件研发工程师 · 工业 AI 落地实践者", "For example: Senior Industrial Software Engineer · Applied Industrial AI")}
                     />
                   </div>
                 )}
@@ -487,7 +543,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                       Professional Headline (English)
                     </label>
                     <TextFormattingField
-                      label="英文个人定位"
+                      label={t("英文个人定位", "Headline in English")}
                       rows={1}
                       ranges={textStyles?.["profile:headline:en"]}
                       onStylesChange={onTextStylesChange ? (ranges) => onTextStylesChange("profile:headline:en", ranges) : undefined}
@@ -511,8 +567,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
                 <div data-editor-anchor="profile:education">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    学历 (Education)
-                  </label>
+                    {t("学历 (Education)", "Education")}</label>
                   <input
                     type="text"
                     value={factBase.profile.education?.zh ?? ""}
@@ -530,8 +585,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                 </div>
                 <div data-editor-anchor="profile:location">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    所在城市 (Location)
-                  </label>
+                    {t("所在城市 (Location)", "Location")}</label>
                   <input
                     type="text"
                     value={factBase.profile.location?.zh ?? ""}
@@ -553,8 +607,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
                 <div data-editor-anchor="profile:email">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    邮箱 (Email)
-                  </label>
+                    {t("邮箱 (Email)", "Email")}</label>
                   <input
                     type="email"
                     value={factBase.profile.email ?? ""}
@@ -567,8 +620,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                 </div>
                 <div data-editor-anchor="profile:phone">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    电话 (Phone)
-                  </label>
+                    {t("电话 (Phone)", "Phone")}</label>
                   <input
                     type="text"
                     value={factBase.profile.phone ?? ""}
@@ -586,21 +638,20 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
             <div className="rounded-xl border border-[var(--color-line)] bg-white p-5 shadow-xs space-y-4">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
                 <Tag className="h-4 w-4 text-[var(--color-accent)]" />
-                求职偏好与硬性红线 (SSOT)
-              </h3>
+                {t("求职偏好与硬性红线 (SSOT)", "Job preferences & firm constraints (SSOT)")}</h3>
 
               <div data-editor-anchor="profile:targetRoles" className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-xs font-semibold text-slate-700">目标岗位</h4>
-                  <button type="button" onClick={() => updateProfile((profile) => ({ ...profile, targetRoles: [...profile.targetRoles, { zh: "", en: "" }] }))} className="text-xs font-medium text-[var(--color-accent)]">+ 添加目标岗位</button>
+                  <h4 className="text-xs font-semibold text-slate-700">{t("目标岗位", "Target roles")}</h4>
+                  <button type="button" onClick={() => updateProfile((profile) => ({ ...profile, targetRoles: [...profile.targetRoles, { zh: "", en: "" }] }))} className="text-xs font-medium text-[var(--color-accent)]">{t("+ 添加目标岗位", "+ Add target role")}</button>
                 </div>
                 {factBase.profile.targetRoles.map((role, index) => (
                   <div key={index} className="flex items-start gap-2 rounded-lg border border-slate-200 p-2">
                     <div className="grid flex-1 gap-2 sm:grid-cols-2">
                       {viewMode !== "en" && (
                         <div>
-                          <label htmlFor={`target-role-zh-${index}`} className="mb-1 block text-[11px] text-slate-600">目标岗位（中文）</label>
-                          <input id={`target-role-zh-${index}`} value={role.zh} placeholder="填写实际目标岗位" onChange={(event) => updateProfile((profile) => ({ ...profile, targetRoles: profile.targetRoles.map((item, itemIndex) => itemIndex === index ? { ...item, zh: event.target.value } : item) }))} className="w-full rounded border border-slate-200 px-2 py-1 text-xs outline-none focus:border-[var(--color-accent)]" />
+                          <label htmlFor={`target-role-zh-${index}`} className="mb-1 block text-[11px] text-slate-600">{t("目标岗位（中文）", "Target role (Chinese)")}</label>
+                          <input id={`target-role-zh-${index}`} value={role.zh} placeholder={t("填写实际目标岗位", "Enter your actual target role")} onChange={(event) => updateProfile((profile) => ({ ...profile, targetRoles: profile.targetRoles.map((item, itemIndex) => itemIndex === index ? { ...item, zh: event.target.value } : item) }))} className="w-full rounded border border-slate-200 px-2 py-1 text-xs outline-none focus:border-[var(--color-accent)]" />
                         </div>
                       )}
                       {viewMode !== "zh" && (
@@ -610,37 +661,37 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                         </div>
                       )}
                     </div>
-                    <button type="button" aria-label={`删除第 ${index + 1} 个目标岗位`} onClick={() => updateProfile((profile) => ({ ...profile, targetRoles: profile.targetRoles.filter((_, itemIndex) => itemIndex !== index) }))} className="rounded p-1 text-slate-400 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button>
+                    <button type="button" aria-label={t(`删除第 ${index + 1} 个目标岗位`, `Delete target role ${index + 1}`)} onClick={() => updateProfile((profile) => ({ ...profile, targetRoles: profile.targetRoles.filter((_, itemIndex) => itemIndex !== index) }))} className="rounded p-1 text-slate-400 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
                 ))}
               </div>
 
               <div data-editor-anchor="profile:traits" className="space-y-2 border-t border-slate-100 pt-3">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-xs font-semibold text-slate-700">核心优势与专长</h4>
-                  <button type="button" onClick={() => updateProfile((profile) => ({ ...profile, traits: [...profile.traits, ""] }))} className="text-xs font-medium text-[var(--color-accent)]">+ 添加优势</button>
+                  <h4 className="text-xs font-semibold text-slate-700">{t("核心优势与专长", "Strengths & expertise")}</h4>
+                  <button type="button" onClick={() => updateProfile((profile) => ({ ...profile, traits: [...profile.traits, ""] }))} className="text-xs font-medium text-[var(--color-accent)]">{t("+ 添加优势", "+ Add strength")}</button>
                 </div>
                 {factBase.profile.traits.map((trait, index) => (
                   <div key={index} className="flex items-center gap-2">
-                    <input aria-label={`第 ${index + 1} 条核心优势`} value={trait} placeholder="填写有经历或作品支持的优势" onChange={(event) => updateProfile((profile) => ({ ...profile, traits: profile.traits.map((item, itemIndex) => itemIndex === index ? event.target.value : item) }))} className="w-full rounded border border-slate-200 px-2 py-1 text-xs outline-none focus:border-[var(--color-accent)]" />
-                    <button type="button" aria-label={`删除第 ${index + 1} 条核心优势`} onClick={() => updateProfile((profile) => ({ ...profile, traits: profile.traits.filter((_, itemIndex) => itemIndex !== index) }))} className="rounded p-1 text-slate-400 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button>
+                    <input aria-label={t(`第 ${index + 1} 条核心优势`, `Strength ${index + 1}`)} value={trait} placeholder={t("填写有经历或作品支持的优势", "Enter a strength supported by experience or work samples")} onChange={(event) => updateProfile((profile) => ({ ...profile, traits: profile.traits.map((item, itemIndex) => itemIndex === index ? event.target.value : item) }))} className="w-full rounded border border-slate-200 px-2 py-1 text-xs outline-none focus:border-[var(--color-accent)]" />
+                    <button type="button" aria-label={t(`删除第 ${index + 1} 条核心优势`, `Delete strength ${index + 1}`)} onClick={() => updateProfile((profile) => ({ ...profile, traits: profile.traits.filter((_, itemIndex) => itemIndex !== index) }))} className="rounded p-1 text-slate-400 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
                 ))}
-                <p className="text-[11px] text-slate-500">优势字段目前共用一份文字，不随编辑语言自动翻译。</p>
+                <p className="text-[11px] text-slate-500">{t("优势字段目前共用一份文字，不随编辑语言自动翻译。", "Strengths use one shared text value and are not translated when the editing language changes.")}</p>
               </div>
 
               <div data-editor-anchor="profile:links" className="space-y-2 border-t border-slate-100 pt-3">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-xs font-semibold text-slate-700">作品与个人链接</h4>
-                  <button type="button" onClick={() => updateProfile((profile) => ({ ...profile, links: [...profile.links, { label: "", url: "" }] }))} className="text-xs font-medium text-[var(--color-accent)]">+ 添加链接</button>
+                  <h4 className="text-xs font-semibold text-slate-700">{t("作品与个人链接", "Portfolio & personal links")}</h4>
+                  <button type="button" onClick={() => updateProfile((profile) => ({ ...profile, links: [...profile.links, { label: "", url: "" }] }))} className="text-xs font-medium text-[var(--color-accent)]">{t("+ 添加链接", "+ Add link")}</button>
                 </div>
                 {factBase.profile.links.map((link, index) => (
                   <div key={index} className="flex items-start gap-2 rounded-lg border border-slate-200 p-2">
                     <div className="grid flex-1 gap-2">
-                      <input aria-label={`第 ${index + 1} 个链接名称`} value={link.label} placeholder="链接名称，如 GitHub / 作品集" onChange={(event) => updateProfile((profile) => ({ ...profile, links: profile.links.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item) }))} className="w-full rounded border border-slate-200 px-2 py-1 text-xs outline-none focus:border-[var(--color-accent)]" />
-                      <input type="url" aria-label={`第 ${index + 1} 个链接地址`} value={link.url} placeholder="https://" onChange={(event) => updateProfile((profile) => ({ ...profile, links: profile.links.map((item, itemIndex) => itemIndex === index ? { ...item, url: event.target.value.trim() } : item) }))} className="w-full rounded border border-slate-200 px-2 py-1 text-xs outline-none focus:border-[var(--color-accent)]" />
+                      <input aria-label={t(`第 ${index + 1} 个链接名称`, `Link ${index + 1} label`)} value={link.label} placeholder={t("链接名称，如 GitHub / 作品集", "Link label, such as GitHub / Portfolio")} onChange={(event) => updateProfile((profile) => ({ ...profile, links: profile.links.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item) }))} className="w-full rounded border border-slate-200 px-2 py-1 text-xs outline-none focus:border-[var(--color-accent)]" />
+                      <input type="url" aria-label={t(`第 ${index + 1} 个链接地址`, `Link ${index + 1} URL`)} value={link.url} placeholder="https://" onChange={(event) => updateProfile((profile) => ({ ...profile, links: profile.links.map((item, itemIndex) => itemIndex === index ? { ...item, url: event.target.value.trim() } : item) }))} className="w-full rounded border border-slate-200 px-2 py-1 text-xs outline-none focus:border-[var(--color-accent)]" />
                     </div>
-                    <button type="button" aria-label={`删除第 ${index + 1} 个链接`} onClick={() => updateProfile((profile) => ({ ...profile, links: profile.links.filter((_, itemIndex) => itemIndex !== index) }))} className="rounded p-1 text-slate-400 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button>
+                    <button type="button" aria-label={t(`删除第 ${index + 1} 个链接`, `Delete link ${index + 1}`)} onClick={() => updateProfile((profile) => ({ ...profile, links: profile.links.filter((_, itemIndex) => itemIndex !== index) }))} className="rounded p-1 text-slate-400 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
                 ))}
               </div>
@@ -648,8 +699,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
               {/* Salary Range */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  期望薪资范围 (K / 月)
-                </label>
+                  {t("期望薪资范围 (K / 月)", "Expected salary (thousands / month)")}</label>
                 <div className="flex items-center gap-2 max-w-xs">
                   <input
                     type="number"
@@ -666,7 +716,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                     }
                     className="w-24 rounded-lg border border-[var(--color-line)] px-3 py-1.5 text-sm outline-none focus:border-[var(--color-accent)]"
                   />
-                  <span className="text-slate-400">至</span>
+                  <span className="text-slate-400">{t("至", "to")}</span>
                   <input
                     type="number"
                     value={factBase.profile.salaryRange?.maxK ?? 28}
@@ -689,8 +739,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
               {/* Constraints */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  求职红线约束（绝不妥协的原则）
-                </label>
+                  {t("求职红线约束（绝不妥协的原则）", "Firm job constraints")}</label>
                 <div className="flex flex-wrap gap-2">
                   {factBase.profile.constraints.map((c, i) => (
                     <span
@@ -715,7 +764,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                   <button
                     type="button"
                     onClick={() => {
-                      const val = prompt("输入新的约束规则（例如：0出差、0Oncall）");
+                      const val = prompt(t("输入新的约束规则（例如：0出差、0Oncall）", "Enter a new constraint (for example: no travel, no on-call)"));
                       if (val?.trim()) {
                         updateProfile((p) => ({
                           ...p,
@@ -725,8 +774,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                     }}
                     className="rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-xs text-slate-600 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
                   >
-                    + 添加约束
-                  </button>
+                    {t("+ 添加约束", "+ Add constraint")}</button>
                 </div>
               </div>
             </div>
@@ -736,10 +784,9 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs text-slate-500">
-                新增内容保持空白，补齐必填字段后保存。未核实的量化不会投影到最终简历。
-              </p>
+                {t("新增内容保持空白，补齐必填字段后保存。未核实的量化不会投影到最终简历。", "New entries start blank. Complete required fields before saving. Unverified metrics stay out of the final resume.")}</p>
               <div className="flex items-center gap-2">
-                <select aria-label="新增经历类型" value={newExperienceType} onChange={(event) => setNewExperienceType(event.target.value as Experience["type"])} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-[var(--color-accent)]">
+                <select aria-label={t("新增经历类型", "New experience type")} value={newExperienceType} onChange={(event) => setNewExperienceType(event.target.value as Experience["type"])} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-[var(--color-accent)]">
                   {EXPERIENCE_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
               <button
@@ -748,8 +795,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                 className="flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-[var(--color-accent-hover)] transition"
               >
                 <Plus className="h-3.5 w-3.5" />
-                新增经历
-              </button>
+                {t("新增经历", "Add experience")}</button>
               </div>
             </div>
 
@@ -777,29 +823,28 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-sm text-slate-900">
-                            {(viewMode === "en" ? exp.org.en || exp.org.zh : exp.org.zh || exp.org.en) || "机构 / 学校待填写"}
+                            {(viewMode === "en" ? exp.org.en || exp.org.zh : exp.org.zh || exp.org.en) || t("机构 / 学校待填写", "Organization / school not entered")}
                           </span>
                           <span className="rounded bg-slate-200/70 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 uppercase">
                             {exp.type}
                           </span>
                         </div>
                         <p className="text-xs text-slate-500">
-                          {(viewMode === "en" ? exp.title.en || exp.title.zh : exp.title.zh || exp.title.en) || "职位 / 学位待填写"}
+                          {(viewMode === "en" ? exp.title.en || exp.title.zh : exp.title.zh || exp.title.en) || t("职位 / 学位待填写", "Role / degree not entered")}
                           {exp.projectName?.zh ? ` · ${exp.projectName.zh}` : ""} (
-                          {exp.start || "起始月份待填"} ~ {exp.end === null ? "至今" : exp.end || "结束月份待填"})
+                          {exp.start || t("起始月份待填", "Start month not entered")} ~ {exp.end === null ? t("至今", "Present") : exp.end || t("结束月份待填", "End month not entered")})
                         </p>
                       </div>
                     </button>
 
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-slate-400">
-                        {exp.claims.length} 条事实
-                      </span>
+                        {exp.claims.length} {t("条事实", "facts")}</span>
                       <button
                         type="button"
                         onClick={() => deleteExperience(exp.id)}
                         className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
-                        title="删除此经历"
+                        title={t("删除此经历", "Delete this experience")}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -812,7 +857,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                       {/* Basic Meta Inputs */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                          <label htmlFor={`experience-type-${exp.id}`} className="mb-1 block text-[11px] font-semibold text-slate-600">经历类型</label>
+                          <label htmlFor={`experience-type-${exp.id}`} className="mb-1 block text-[11px] font-semibold text-slate-600">{t("经历类型", "Experience type")}</label>
                           <select id={`experience-type-${exp.id}`} value={exp.type} onChange={(event) => updateExperiences((experiences) => experiences.map((item) => item.id === exp.id ? { ...item, type: event.target.value as Experience["type"] } : item))} className="w-full rounded-md border border-[var(--color-line)] bg-white px-2.5 py-1 text-xs outline-none focus:border-[var(--color-accent)]">
                             {EXPERIENCE_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                           </select>
@@ -820,12 +865,11 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                         {viewMode !== "en" && (
                         <div>
                           <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                            公司 / 机构 (中文)
-                          </label>
+                            {t("公司 / 机构 (中文)", "Company / organization (Chinese)")}</label>
                           <input
                             type="text"
                             value={exp.org.zh}
-                            placeholder="填写实际机构 / 学校名称"
+                            placeholder={t("填写实际机构 / 学校名称", "Enter the actual organization / school name")}
                             onChange={(e) =>
                               updateExperiences((exps) =>
                                 exps.map((it) =>
@@ -866,12 +910,11 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                         {viewMode !== "en" && (
                         <div>
                           <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                            职位 / 角色 / 学位 (中文)
-                          </label>
+                            {t("职位 / 角色 / 学位 (中文)", "Title / role / degree (Chinese)")}</label>
                           <input
                             type="text"
                             value={exp.title.zh}
-                            placeholder="填写实际职位、角色或学位专业"
+                            placeholder={t("填写实际职位、角色或学位专业", "Enter your actual title, role or degree subject")}
                             onChange={(e) =>
                               updateExperiences((exps) =>
                                 exps.map((it) =>
@@ -895,8 +938,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
 
                         <div>
                           <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                            起始月份 (YYYY-MM)
-                          </label>
+                            {t("起始月份 (YYYY-MM)", "Start month (YYYY-MM)")}</label>
                           <input
                             type="text"
                             value={exp.start}
@@ -910,14 +952,13 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                               )
                             }
                             className="w-full rounded-md border border-[var(--color-line)] px-2.5 py-1 text-xs outline-none focus:border-[var(--color-accent)]"
-                            placeholder="YYYY-MM，按实际经历填写"
+                            placeholder={t("YYYY-MM，按实际经历填写", "YYYY-MM, based on your actual experience")}
                           />
                         </div>
 
                         <div>
                           <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                            结束月份 (YYYY-MM)
-                          </label>
+                            {t("结束月份 (YYYY-MM)", "End month (YYYY-MM)")}</label>
                           <input
                             type="text"
                             value={exp.end ?? ""}
@@ -933,18 +974,16 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                               );
                             }}
                             className="w-full rounded-md border border-[var(--color-line)] px-2.5 py-1 text-xs outline-none focus:border-[var(--color-accent)]"
-                            placeholder="填写结束月份，或勾选仍在进行"
+                            placeholder={t("填写结束月份，或勾选仍在进行", "Enter an end month or mark as ongoing")}
                           />
                           <label className="mt-1.5 flex items-center gap-1.5 text-[11px] text-slate-600">
                             <input type="checkbox" checked={exp.end === null} onChange={(event) => updateExperiences((experiences) => experiences.map((item) => item.id === exp.id ? { ...item, end: event.target.checked ? null : "" } : item))} />
-                            仍在进行 / 就读至今
-                          </label>
+                            {t("仍在进行 / 就读至今", "Ongoing / currently enrolled")}</label>
                         </div>
 
                         <div>
                           <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                            项目名称 (可选)
-                          </label>
+                            {t("项目名称 (可选)", "Project name (optional)")}</label>
                           <input
                             type="text"
                             value={exp.projectName?.zh ?? ""}
@@ -971,8 +1010,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                       {/* Tech Stack Tags */}
                       <div>
                         <label className="block text-[11px] font-semibold text-slate-600 mb-1.5">
-                          技术栈标签 (Tech Stack)
-                        </label>
+                          {t("技术栈标签 (Tech Stack)", "Technology tags")}</label>
                         <div className="flex flex-wrap gap-1.5 items-center">
                           {exp.techStack.map((tech, idx) => (
                             <span
@@ -1005,14 +1043,14 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                           <button
                             type="button"
                             onClick={() => {
-                              const t = prompt("输入技术栈名称 (例如：C#, React, Redis)");
-                              if (t?.trim()) {
+                              const technology = prompt(t("输入技术栈名称 (例如：C#, React, Redis)", "Enter a technology (for example: C#, React, Redis)"));
+                              if (technology?.trim()) {
                                 updateExperiences((exps) =>
                                   exps.map((it) =>
                                     it.id === exp.id
                                       ? {
                                           ...it,
-                                          techStack: [...it.techStack, t.trim()],
+                                          techStack: [...it.techStack, technology.trim()],
                                         }
                                       : it,
                                   ),
@@ -1021,8 +1059,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                             }}
                             className="rounded border border-dashed border-slate-300 px-2 py-0.5 text-xs text-slate-500 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
                           >
-                            + 标签
-                          </button>
+                            {t("+ 标签", "+ Tag")}</button>
                         </div>
                       </div>
 
@@ -1030,16 +1067,14 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                       <div className="border-t border-slate-100 pt-3">
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                            成果与职责
-                          </h4>
+                            {t("成果与职责", "Achievements & responsibilities")}</h4>
                           <button
                             type="button"
                             onClick={() => addClaim(exp.id)}
                             className="flex items-center gap-1 rounded border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition shadow-2xs"
                           >
                             <Plus className="h-3 w-3" />
-                            添加要点
-                          </button>
+                            {t("添加要点", "Add entry")}</button>
                         </div>
 
                         <div className="space-y-3">
@@ -1047,6 +1082,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                             <div
                               key={claim.id}
                               data-editor-anchor={`claim:${claim.id}`}
+                              data-issue-active={issueNavigation?.issue.experienceId === exp.id && issueNavigation.issue.claimId === claim.id ? "true" : undefined}
                               className="rounded-lg border border-slate-200/90 bg-slate-50/40 p-3 space-y-2.5 hover:border-slate-300 transition"
                             >
                               {/* Claim Header / Controls */}
@@ -1074,11 +1110,11 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                                     }
                                     className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 outline-none"
                                   >
-                                    <option value="action">行动 (Action)</option>
-                                    <option value="metric">量化指标 (Metric)</option>
-                                    <option value="note">备忘 (Note)</option>
-                                    <option value="pitfall">防坑/避雷 (Pitfall)</option>
-                                    <option value="interview">答辩考点 (Interview)</option>
+                                    <option value="action">{t("行动 (Action)", "Action")}</option>
+                                    <option value="metric">{t("量化指标 (Metric)", "Metric")}</option>
+                                    <option value="note">{t("备忘 (Note)", "Note")}</option>
+                                    <option value="pitfall">{t("防坑/避雷 (Pitfall)", "Pitfall")}</option>
+                                    <option value="interview">{t("答辩考点 (Interview)", "Interview notes")}</option>
                                   </select>
 
                                   {/* Metric Confirmed Switch */}
@@ -1086,6 +1122,10 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                                     <label className="flex items-center gap-1 text-xs font-medium cursor-pointer ml-2">
                                       <input
                                         type="checkbox"
+                                        data-issue-field="confirmation"
+                                        className={`rounded text-[var(--color-accent)] cursor-pointer ${isIssueField(exp.id, claim.id, "confirmation") ? "issue-field-highlight" : ""}`}
+                                        aria-label={t(`${exp.org.zh || exp.org.en || t("新经历", "New experience")} · 要点 ${claimIndex + 1} · 已核实量化`, `${exp.org.zh || exp.org.en || t("新经历", "New experience")} · Entry ${claimIndex + 1} · Verified metric`)}
+                                        aria-describedby={isIssueField(exp.id, claim.id, "confirmation") ? "content-issue-guidance" : undefined}
                                         checked={claim.metric?.confirmed ?? false}
                                         disabled={!claim.metric || !Number.isFinite(claim.metric.value) || !claim.metric.unit.trim()}
                                         onChange={(e) =>
@@ -1093,7 +1133,6 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                                             ? { ...c, metric: { ...c.metric, confirmed: e.target.checked } }
                                             : c)
                                         }
-                                        className="rounded text-[var(--color-accent)] focus:ring-0 cursor-pointer"
                                       />
                                       <span
                                         className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
@@ -1103,8 +1142,8 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                                         }`}
                                       >
                                         {claim.metric?.confirmed
-                                          ? "✓ 已核实量化（将进入简历）"
-                                          : "⚠ 待核实（简历将过滤此条）"}
+                                          ? t("✓ 已核实量化（将进入简历）", "✓ Metric verified (included in resume)")
+                                          : t("⚠ 待核实（简历将过滤此条）", "⚠ Unverified (excluded from resume)")}
                                       </span>
                                     </label>
                                   ) : null}
@@ -1114,7 +1153,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                                   type="button"
                                   onClick={() => deleteClaim(exp.id, claim.id)}
                                   className="text-slate-400 hover:text-rose-600 p-1 rounded transition"
-                                  title="删除此要点"
+                                  title={t("删除此要点", "Delete this entry")}
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>
@@ -1122,9 +1161,10 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
 
                               {/* Claim Text Area (Zh) */}
                               {(viewMode === "bilingual" || viewMode === "zh") && (
-                                <div>
+                                <div data-issue-field="text-zh" className={isIssueField(exp.id, claim.id, "text-zh") ? "issue-field-highlight" : undefined}>
                                   <TextFormattingField
-                                    label={`${exp.org.zh || "新经历"} · 中文要点 ${claimIndex + 1}`}
+                                    label={t(`${exp.org.zh || t("新经历", "New experience")} · 中文要点 ${claimIndex + 1}`, `${exp.org.zh || t("新经历", "New experience")} · Chinese entry ${claimIndex + 1}`)}
+                                    describedBy={isIssueField(exp.id, claim.id, "text-zh") ? "content-issue-guidance" : undefined}
                                     ranges={textStyles?.[`claim:${claim.id}:zh`]}
                                     onStylesChange={onTextStylesChange ? (ranges) => onTextStylesChange(`claim:${claim.id}:zh`, ranges) : undefined}
                                     value={claim.text.zh}
@@ -1136,16 +1176,17 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                                       }))
                                     }
                                     rows={2}
-                                    placeholder="中文事实要点描述（尽量包含 STAR：动作、工具、对标结果）..."
+                                    placeholder={t("中文事实要点描述（尽量包含 STAR：动作、工具、对标结果）...", "Describe the fact in Chinese (consider STAR: action, tools and supported results)...")}
                                   />
                                 </div>
                               )}
 
                               {/* Claim Text Area (En) */}
                               {(viewMode === "bilingual" || viewMode === "en") && (
-                                <div>
+                                <div data-issue-field="text-en" className={isIssueField(exp.id, claim.id, "text-en") ? "issue-field-highlight" : undefined}>
                                   <TextFormattingField
-                                    label={`${exp.org.en || exp.org.zh || "新经历"} · 英文要点 ${claimIndex + 1}`}
+                                    label={t(`${exp.org.en || exp.org.zh || t("新经历", "New experience")} · 英文要点 ${claimIndex + 1}`, `${exp.org.en || exp.org.zh || t("新经历", "New experience")} · English entry ${claimIndex + 1}`)}
+                                    describedBy={isIssueField(exp.id, claim.id, "text-en") ? "content-issue-guidance" : undefined}
                                     ranges={textStyles?.[`claim:${claim.id}:en`]}
                                     onStylesChange={onTextStylesChange ? (ranges) => onTextStylesChange(`claim:${claim.id}:en`, ranges) : undefined}
                                     value={claim.text.en ?? ""}
@@ -1168,10 +1209,12 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                     <div>
                                       <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
-                                        数值 (Value)
-                                      </label>
+                                        {t("数值 (Value)", "Value")}</label>
                                       <input
                                         type="number"
+                                        data-issue-field="value"
+                                        aria-label={t(`${exp.org.zh || exp.org.en || t("新经历", "New experience")} · 要点 ${claimIndex + 1} · 数值`, `${exp.org.zh || exp.org.en || t("新经历", "New experience")} · Entry ${claimIndex + 1} · Value`)}
+                                        aria-describedby={isIssueField(exp.id, claim.id, "value") ? "content-issue-guidance" : undefined}
                                         step="any"
                                         value={claim.metric && Number.isFinite(claim.metric.value) ? claim.metric.value : ""}
                                         onChange={(e) =>
@@ -1186,16 +1229,18 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                                             },
                                           }))
                                         }
-                                        className="w-full rounded border border-slate-200 bg-white px-2 py-1 outline-none text-xs"
-                                        placeholder="填写原始数值"
+                                        className={`w-full rounded border border-slate-200 bg-white px-2 py-1 outline-none text-xs ${isIssueField(exp.id, claim.id, "value") ? "issue-field-highlight" : ""}`}
+                                        placeholder={t("填写原始数值", "Enter the original value")}
                                       />
                                     </div>
                                     <div>
                                       <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
-                                        单位 (Unit)
-                                      </label>
+                                        {t("单位 (Unit)", "Unit")}</label>
                                       <input
                                         type="text"
+                                        data-issue-field="unit"
+                                        aria-label={t(`${exp.org.zh || exp.org.en || t("新经历", "New experience")} · 要点 ${claimIndex + 1} · 单位`, `${exp.org.zh || exp.org.en || t("新经历", "New experience")} · Entry ${claimIndex + 1} · Unit`)}
+                                        aria-describedby={isIssueField(exp.id, claim.id, "unit") ? "content-issue-guidance" : undefined}
                                         value={claim.metric?.unit ?? ""}
                                         onChange={(e) =>
                                           updateClaim(exp.id, claim.id, (c) => ({
@@ -1209,16 +1254,18 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                                             },
                                           }))
                                         }
-                                        className="w-full rounded border border-slate-200 bg-white px-2 py-1 outline-none text-xs"
-                                        placeholder="%, 台, ms"
+                                        className={`w-full rounded border border-slate-200 bg-white px-2 py-1 outline-none text-xs ${isIssueField(exp.id, claim.id, "unit") ? "issue-field-highlight" : ""}`}
+                                        placeholder={t("%, 台, ms", "%, devices, ms")}
                                       />
                                     </div>
                                     <div className="col-span-2">
                                       <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
-                                        对比基线 (Baseline)
-                                      </label>
+                                        {t("对比基线 (Baseline)", "Comparison baseline")}</label>
                                       <input
                                         type="text"
+                                        data-issue-field="baseline"
+                                        aria-label={t(`${exp.org.zh || exp.org.en || t("新经历", "New experience")} · 要点 ${claimIndex + 1} · 对比基线`, `${exp.org.zh || exp.org.en || t("新经历", "New experience")} · Entry ${claimIndex + 1} · Comparison baseline`)}
+                                        aria-describedby={isIssueField(exp.id, claim.id, "baseline") ? "content-issue-guidance" : undefined}
                                         value={claim.metric?.baseline ?? ""}
                                         onChange={(e) =>
                                           updateClaim(exp.id, claim.id, (c) => ({
@@ -1232,8 +1279,20 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                                             },
                                           }))
                                         }
+                                        className={`w-full rounded border border-slate-200 bg-white px-2 py-1 outline-none text-xs ${isIssueField(exp.id, claim.id, "baseline") ? "issue-field-highlight" : ""}`}
+                                        placeholder={t("写明真实原值、比较对象和统计口径", "State the actual original value, comparison and measurement method")}
+                                      />
+                                    </div>
+                                    <div className="col-span-2 sm:col-span-4">
+                                      <label className="block text-[10px] font-semibold text-slate-600 mb-0.5" htmlFor={`claim-causal-${claim.id}`}>{t("因果说明（与对比基线至少补充一项）", "Cause and action (provide this or a comparison baseline)")}</label>
+                                      <textarea
+                                        id={`claim-causal-${claim.id}`}
+                                        aria-label={t(`${exp.org.zh || exp.org.en || t("新经历", "New experience")} · 要点 ${claimIndex + 1} · 因果说明`, `${exp.org.zh || exp.org.en || t("新经历", "New experience")} · Entry ${claimIndex + 1} · Cause and action`)}
+                                        value={claim.metric?.causal ?? ""}
+                                        rows={2}
+                                        onChange={(event) => updateClaim(exp.id, claim.id, (current) => ({ ...current, metric: { value: current.metric?.value ?? Number.NaN, unit: current.metric?.unit ?? "", baseline: current.metric?.baseline, causal: event.target.value, confirmed: false } }))}
                                         className="w-full rounded border border-slate-200 bg-white px-2 py-1 outline-none text-xs"
-                                        placeholder="例如：优化前单次解析耗时 120ms"
+                                        placeholder={t("写清实际采取的措施，以及它如何带来可核对的结果；不要推测因果关系", "Describe the actions actually taken and how they produced a verifiable result; do not assume causation")}
                                       />
                                     </div>
                                   </div>

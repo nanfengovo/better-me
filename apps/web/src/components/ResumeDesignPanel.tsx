@@ -1,17 +1,27 @@
 /** @jsxRuntime automatic */
+import { useUiPreferences, type UiLocale } from "../lib/ui-preferences";
 import { useState } from "react";
 import { ArrowDown, ArrowUp, Check, GripVertical, LayoutTemplate, Palette, SlidersHorizontal, Eye, ListChecks } from "lucide-react";
 import { getResumeLayout, getResumeSectionOrder, isResumeProfileVisible, isResumeSectionVisible, pickLocale, type FactBase, type ResumeView, type ResumeSectionId, type ResumeProfileField, type ResumeLayout } from "@better-me/core";
-import { RESUME_TEMPLATES } from "./ResumeTemplate";
+import { RESUME_TEMPLATES, type ResumeTemplateId } from "./ResumeTemplate";
 
 type Props = { view: ResumeView; factBase: FactBase; onChange: (view: ResumeView) => void };
-const SECTION_NAMES: Record<ResumeSectionId, string> = { summary: "目标方向与优势", experience: "工作经历", projects: "项目与作品", skills: "专业技能", education: "教育背景", custom: "自定义" };
-const PROFILE_FIELDS: { field: ResumeProfileField; label: string }[] = [
-  { field: "photo", label: "个人照片" }, { field: "headline", label: "职业定位" }, { field: "education", label: "抬头中的学历" },
-  { field: "location", label: "所在城市" }, { field: "email", label: "电子邮箱" }, { field: "phone", label: "联系电话" },
-  { field: "links", label: "作品与社交链接" }, { field: "targetRoles", label: "目标岗位" }, { field: "traits", label: "核心优势" },
-];
+
 const COLORS = ["#1b5147", "#293c58", "#69424c", "#7a613d", "#292929", "#0f5d65"];
+
+const ENGLISH_TEMPLATE_METADATA: Record<ResumeTemplateId, { name: string; description: string; tag: string }> = {
+  "zh-classic": { name: "Classic", description: "Centered header, serif headings and fine section rules for a formal, restrained layout.", tag: "Formal applications" },
+  "en-ats": { name: "Minimal single column", description: "Natural reading order and plain text, always without a photo. Actual ATS parsing still needs verification.", tag: "International / ATS" },
+  "clean-modern": { name: "Modern professional", description: "A structured header and experience timeline highlight technical results with clear hierarchy.", tag: "Technical roles" },
+  editorial: { name: "Editorial", description: "A large name, side labels and generous spacing give the resume an editorial feel.", tag: "Refined presentation" },
+  sidebar: { name: "Left bank", description: "Personal details sit in a narrow sidebar while the main column focuses on experience. Suits detailed Chinese resumes.", tag: "Two columns" },
+  compact: { name: "Compact", description: "Tighter line spacing, a horizontal information bar and compact sections concentrate the key points.", tag: "High density" },
+};
+
+/** UI metadata only: the resume paper continues to use its own output locale. */
+export function getTemplateUiMetadata(id: ResumeTemplateId, locale: UiLocale) {
+  return locale === "en" ? ENGLISH_TEMPLATE_METADATA[id] : RESUME_TEMPLATES.find((template) => template.id === id)!;
+}
 
 function TemplateMiniature({ id }: { id: string }) {
   return <span className={`template-mini template-mini-${id}`} aria-hidden="true"><span className="mini-header"><i /><i /><i /></span><span className="mini-sidebar"><i /><i /><i /><i /></span><span className="mini-body">{[0, 1, 2].map((i) => <span className="mini-section" key={i}><i /><i /><i /><i /></span>)}</span></span>;
@@ -22,6 +32,14 @@ function Toggle({ checked, disabled, label, onChange }: { checked: boolean; disa
 }
 
 export function ResumeDesignPanel({ view, factBase, onChange }: Props) {
+  const { t, locale } = useUiPreferences();
+  const SECTION_NAMES: Record<ResumeSectionId, string> = { summary: t("目标方向与优势", "Goals & strengths"), experience: t("工作经历", "Work experience"), projects: t("项目与作品", "Projects & portfolio"), skills: t("专业技能", "Skills"), education: t("教育背景", "Education"), custom: t("自定义", "Custom") };
+  const PROFILE_FIELDS: { field: ResumeProfileField; label: string }[] = [
+    { field: "photo", label: t("个人照片", "Photo") }, { field: "headline", label: t("职业定位", "Headline") }, { field: "education", label: t("抬头中的学历", "Education in header") },
+    { field: "location", label: t("所在城市", "Location") }, { field: "email", label: t("电子邮箱", "Email") }, { field: "phone", label: t("联系电话", "Phone") },
+    { field: "links", label: t("作品与社交链接", "Portfolio & social links") }, { field: "targetRoles", label: t("目标岗位", "Target roles") }, { field: "traits", label: t("核心优势", "Strengths") },
+  ];
+
   const [dragging, setDragging] = useState<ResumeSectionId | null>(null);
   const layout = getResumeLayout(view.layout);
   const order: ResumeSectionId[] = getResumeSectionOrder(view.sectionOrder).filter((section) => section !== "custom");
@@ -45,50 +63,53 @@ export function ResumeDesignPanel({ view, factBase, onChange }: Props) {
     change({ claimSelection: "selected", includedClaimIds: [...selected] });
   };
   const sliders: { field: keyof ResumeLayout; label: string; min: number; max: number; step: number; unit: string }[] = [
-    { field: "bodyFontSize", label: "正文字号", min: 8, max: 14, step: .5, unit: "pt" },
-    { field: "nameFontSize", label: "姓名字号", min: 20, max: 40, step: 1, unit: "pt" },
-    { field: "headingFontSize", label: "分节字号", min: 10, max: 17, step: .5, unit: "pt" },
-    { field: "lineHeight", label: "行间距", min: 1.2, max: 2, step: .05, unit: "倍" },
-    { field: "sectionSpacing", label: "分节间距", min: 12, max: 36, step: 1, unit: "px" },
-    { field: "pageMargin", label: "页面边距", min: 12, max: 28, step: 1, unit: "mm" },
+    { field: "bodyFontSize", label: t("正文字号", "Body font size"), min: 8, max: 14, step: .5, unit: "pt" },
+    { field: "nameFontSize", label: t("姓名字号", "Name font size"), min: 20, max: 40, step: 1, unit: "pt" },
+    { field: "headingFontSize", label: t("分节字号", "Section heading size"), min: 10, max: 17, step: .5, unit: "pt" },
+    { field: "lineHeight", label: t("行间距", "Line height"), min: 1.2, max: 2, step: .05, unit: t("倍", "×") },
+    { field: "sectionSpacing", label: t("分节间距", "Section spacing"), min: 12, max: 36, step: 1, unit: "px" },
+    { field: "pageMargin", label: t("页面边距", "Page margin"), min: 12, max: 28, step: 1, unit: "mm" },
   ];
 
   return <div className="resume-design-panel">
-    <div className="design-intro"><span className="design-eyebrow">MAKE IT YOURS</span><h2>让优势先被看见。</h2><p>选择版式，调整顺序，只展示这次投递需要的信息。</p></div>
-    <section className="design-card"><div className="design-card-title"><LayoutTemplate size={17} /><h3>模板库</h3><span className="design-count">06 ORIGINALS</span></div>
-      <div className="template-gallery">{RESUME_TEMPLATES.map((template) => <button type="button" key={template.id} className={`template-card${view.templateId === template.id ? " is-selected" : ""}`} onClick={() => change({ templateId: template.id })} aria-pressed={view.templateId === template.id} title={template.description}>
-        <TemplateMiniature id={template.id} /><span className="template-card-name">{template.name}{view.templateId === template.id && <Check size={13} aria-hidden="true" />}</span><span className="template-card-label">{template.label} · {template.tag}</span>
-      </button>)}</div><p className="design-help">每套模板采用独立排版。切换模板保留你的事实与显示设置。</p>
+    <div className="design-intro"><span className="design-eyebrow">MAKE IT YOURS</span><h2>{t("让优势先被看见。", "Make your strengths stand out.")}</h2><p>{t("选择版式，调整顺序，只展示这次投递需要的信息。", "Choose a layout, arrange sections and show what matters for this application.")}</p></div>
+    <section className="design-card"><div className="design-card-title"><LayoutTemplate size={17} /><h3>{t("模板库", "Template library")}</h3><span className="design-count">06 ORIGINALS</span></div>
+      <div className="template-gallery">{RESUME_TEMPLATES.map((template) => {
+        const metadata = getTemplateUiMetadata(template.id, locale);
+        return <button type="button" key={template.id} className={`template-card${view.templateId === template.id ? " is-selected" : ""}`} onClick={() => change({ templateId: template.id })} aria-pressed={view.templateId === template.id} title={metadata.description}>
+          <TemplateMiniature id={template.id} /><span className="template-card-name">{metadata.name}{view.templateId === template.id && <Check size={13} aria-hidden="true" />}</span><span className="template-card-label">{template.label} · {metadata.tag}</span>
+        </button>;
+      })}</div><p className="design-help">{t("每套模板采用独立排版。切换模板保留你的事实与显示设置。", "Each template has its own layout. Switching preserves facts and visibility settings.")}</p>
     </section>
 
-    <section className="design-card"><div className="design-card-title"><GripVertical size={17} /><h3>内容顺序</h3><span className="design-count">拖动 / 上下移动</span></div>
-      <p className="design-help">工作经历可以放在最前，教育背景可以放到最后或隐藏。</p>
+    <section className="design-card"><div className="design-card-title"><GripVertical size={17} /><h3>{t("内容顺序", "Section order")}</h3><span className="design-count">{t("拖动 / 上下移动", "Drag / move up or down")}</span></div>
+      <p className="design-help">{t("工作经历可以放在最前，教育背景可以放到最后或隐藏。", "Put work experience first, move education later or hide it.")}</p>
       <div className="design-section-list">{order.map((section, index) => <div className={`design-section-row${dragging === section ? " is-dragging" : ""}`} key={section} draggable onDragStart={(event) => { setDragging(section); event.dataTransfer.setData("text/plain", section); event.dataTransfer.effectAllowed = "move"; }} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }} onDrop={(event) => { event.preventDefault(); if (dragging && dragging !== section) move(dragging, index); setDragging(null); }} onDragEnd={() => setDragging(null)}>
         <GripVertical size={15} className="design-grip" aria-hidden="true" /><span className="design-section-number">0{index + 1}</span><span className="design-section-name">{SECTION_NAMES[section]}</span>
-        <button type="button" aria-label={`${SECTION_NAMES[section]}上移`} disabled={index === 0} onClick={() => move(section, index - 1)}><ArrowUp size={13} /></button><button type="button" aria-label={`${SECTION_NAMES[section]}下移`} disabled={index === order.length - 1} onClick={() => move(section, index + 1)}><ArrowDown size={13} /></button>
-        <label className="design-section-visible"><input type="checkbox" checked={isResumeSectionVisible(view, section)} aria-label={`显示${SECTION_NAMES[section]}`} onChange={() => change({ sectionVisibility: { ...view.sectionVisibility, [section]: !isResumeSectionVisible(view, section) } })} /></label>
+        <button type="button" aria-label={t(`${SECTION_NAMES[section]}上移`, `Move ${SECTION_NAMES[section]} up`)} disabled={index === 0} onClick={() => move(section, index - 1)}><ArrowUp size={13} /></button><button type="button" aria-label={t(`${SECTION_NAMES[section]}下移`, `Move ${SECTION_NAMES[section]} down`)} disabled={index === order.length - 1} onClick={() => move(section, index + 1)}><ArrowDown size={13} /></button>
+        <label className="design-section-visible"><input type="checkbox" checked={isResumeSectionVisible(view, section)} aria-label={t(`显示${SECTION_NAMES[section]}`, `Show ${SECTION_NAMES[section]}`)} onChange={() => change({ sectionVisibility: { ...view.sectionVisibility, [section]: !isResumeSectionVisible(view, section) } })} /></label>
       </div>)}</div>
     </section>
 
-    <section className="design-card"><div className="design-card-title"><Eye size={17} /><h3>个人信息开关</h3></div>
-      <div className="design-presets"><button type="button" onClick={() => change({ profileVisibility: { ...view.profileVisibility, photo: true, education: false } })}>国内投递 · 可带照片</button><button type="button" onClick={() => change({ profileVisibility: { ...view.profileVisibility, photo: false, education: false } })}>海外投递 · 不带照片</button></div>
+    <section className="design-card"><div className="design-card-title"><Eye size={17} /><h3>{t("个人信息开关", "Personal information visibility")}</h3></div>
+      <div className="design-presets"><button type="button" onClick={() => change({ profileVisibility: { ...view.profileVisibility, photo: true, education: false } })}>{t("国内投递 · 可带照片", "Domestic applications · photo optional")}</button><button type="button" onClick={() => change({ profileVisibility: { ...view.profileVisibility, photo: false, education: false } })}>{t("海外投递 · 不带照片", "International applications · no photo")}</button></div>
       <div className="design-toggle-grid">{PROFILE_FIELDS.map(({ field, label }) => <Toggle key={field} label={label} checked={field === "photo" && view.templateId === "en-ats" ? false : isResumeProfileVisible(view, field)} disabled={field === "photo" && view.templateId === "en-ats"} onChange={() => change({ profileVisibility: { ...view.profileVisibility, [field]: !isResumeProfileVisible(view, field) } })} />)}</div>
-      <p className="design-help">抬头学历与「教育背景」分节独立控制。ATS 模板固定不显示照片；开关控制已有内容，不会补造信息。</p>
+      <p className="design-help">{t("抬头学历与「教育背景」分节独立控制。ATS 模板固定不显示照片；开关控制已有内容，不会补造信息。", "Header education and the Education section are independent. ATS always hides photos. Toggles only control existing information.")}</p>
     </section>
 
-    <section className="design-card"><div className="design-card-title"><Palette size={17} /><h3>字形与留白</h3><SlidersHorizontal size={15} className="design-title-end" /></div>
-      <div className="design-color-row"><span>主题色</span><div className="design-swatches">{COLORS.map((color) => <button key={color} type="button" style={{ backgroundColor: color }} aria-label={`主题色 ${color}`} aria-pressed={layout.accentColor === color} onClick={() => layoutChange({ accentColor: color })}>{layout.accentColor === color && <Check size={12} />}</button>)}<input type="color" value={layout.accentColor} aria-label="自定义主题色" onChange={(event) => layoutChange({ accentColor: event.target.value })} /></div></div>
-      <label className="design-font-row"><span>字体风格</span><select value={layout.fontFamily} onChange={(event) => layoutChange({ fontFamily: event.target.value as ResumeLayout["fontFamily"] })}><option value="sans">现代无衬线</option><option value="serif">书刊衬线</option><option value="mono">技术等宽</option></select></label>
+    <section className="design-card"><div className="design-card-title"><Palette size={17} /><h3>{t("字形与留白", "Typography & spacing")}</h3><SlidersHorizontal size={15} className="design-title-end" /></div>
+      <div className="design-color-row"><span>{t("主题色", "Accent color")}</span><div className="design-swatches">{COLORS.map((color) => <button key={color} type="button" style={{ backgroundColor: color }} aria-label={t(`主题色 ${color}`, `Accent color ${color}`)} aria-pressed={layout.accentColor === color} onClick={() => layoutChange({ accentColor: color })}>{layout.accentColor === color && <Check size={12} />}</button>)}<input type="color" value={layout.accentColor} aria-label={t("自定义主题色", "Custom accent color")} onChange={(event) => layoutChange({ accentColor: event.target.value })} /></div></div>
+      <label className="design-font-row"><span>{t("字体风格", "Font style")}</span><select value={layout.fontFamily} onChange={(event) => layoutChange({ fontFamily: event.target.value as ResumeLayout["fontFamily"] })}><option value="sans">{t("现代无衬线", "Modern sans serif")}</option><option value="serif">{t("书刊衬线", "Editorial serif")}</option><option value="mono">{t("技术等宽", "Technical monospace")}</option></select></label>
       <div className="design-sliders">{sliders.map(({ field, label, min, max, step, unit }) => <label className="design-slider" key={field}><span>{label}<output>{typeof layout[field] === "number" ? Number((layout[field] as number).toFixed(2)) : layout[field]} {unit}</output></span><input type="range" min={min} max={max} step={step} value={layout[field] as number} onChange={(event) => layoutChange({ [field]: Number(event.target.value) })} /></label>)}</div>
-      <p className="design-help">文字编辑时选中片段，可加粗、斜体、下划线、高亮和放大。字号与边距影响预览和 PDF；Markdown 保留结构与强调。</p>
+      <p className="design-help">{t("文字编辑时选中片段，可加粗、斜体、下划线、高亮和放大。字号与边距影响预览和 PDF；Markdown 保留结构与强调。", "Select text to apply bold, italics, underline, highlight or size. Font size and margins affect preview and PDF; Markdown preserves structure and emphasis.")}</p>
     </section>
 
-    <section className="design-card"><div className="design-card-title"><ListChecks size={17} /><h3>选择经历与要点</h3></div><p className="design-help">隐藏仅影响这份简历，事实库仍保留完整内容。</p>
-      {factBase.experiences.length === 0 ? <p className="design-empty">先在「内容」中添加经历，再选择本次投递需要的部分。</p> : <div className="design-fact-list">{factBase.experiences.map((experience) => {
+    <section className="design-card"><div className="design-card-title"><ListChecks size={17} /><h3>{t("选择经历与要点", "Choose experiences & entries")}</h3></div><p className="design-help">{t("隐藏仅影响这份简历，事实库仍保留完整内容。", "Hiding affects this resume only. The fact base keeps all content.")}</p>
+      {factBase.experiences.length === 0 ? <p className="design-empty">{t("先在「内容」中添加经历，再选择本次投递需要的部分。", "Add experience in Content, then choose what to include in this application.")}</p> : <div className="design-fact-list">{factBase.experiences.map((experience) => {
         const included = allExperiences || view.includedExperienceIds.includes(experience.id);
-        return <details className="design-experience-select" key={experience.id}><summary><input type="checkbox" checked={included} aria-label={`包含经历 ${pickLocale(experience.org, view.locale)}`} onClick={(event) => event.stopPropagation()} onChange={() => toggleExperience(experience.id)} /><span>{pickLocale(experience.org, view.locale) || "未命名经历"}<small>{pickLocale(experience.title, view.locale)} · {experience.start || "日期待补"}</small></span><span className="design-claim-count">{experience.claims.length} 条</span></summary><div className="design-claim-select-list">
-          {experience.claims.filter((claim) => claim.kind !== "pitfall" && claim.kind !== "interview").map((claim) => <label key={claim.id}><input type="checkbox" checked={allClaims || view.includedClaimIds.includes(claim.id)} disabled={!included} onChange={() => toggleClaim(claim.id)} /><span>{pickLocale(claim.text, view.locale) || "未填写要点"}{claim.metric && !claim.metric.confirmed && <small>量化待核实，暂不输出</small>}</span></label>)}
-          {experience.claims.length === 0 && <p className="design-empty">这段经历暂无事实要点。</p>}
+        return <details className="design-experience-select" key={experience.id}><summary><input type="checkbox" checked={included} aria-label={t(`包含经历 ${pickLocale(experience.org, view.locale)}`, `Include experience ${pickLocale(experience.org, view.locale)}`)} onClick={(event) => event.stopPropagation()} onChange={() => toggleExperience(experience.id)} /><span>{pickLocale(experience.org, view.locale) || t("未命名经历", "Untitled experience")}<small>{pickLocale(experience.title, view.locale)} · {experience.start || t("日期待补", "Date not entered")}</small></span><span className="design-claim-count">{experience.claims.length} {t(" 条", "entries")}</span></summary><div className="design-claim-select-list">
+          {experience.claims.filter((claim) => claim.kind !== "pitfall" && claim.kind !== "interview").map((claim) => <label key={claim.id}><input type="checkbox" checked={allClaims || view.includedClaimIds.includes(claim.id)} disabled={!included} onChange={() => toggleClaim(claim.id)} /><span>{pickLocale(claim.text, view.locale) || t("未填写要点", "Entry not entered")}{claim.metric && !claim.metric.confirmed && <small>{t("量化待核实，暂不输出", "Metric unverified; excluded from output")}</small>}</span></label>)}
+          {experience.claims.length === 0 && <p className="design-empty">{t("这段经历暂无事实要点。", "This experience has no fact entries yet.")}</p>}
         </div></details>;
       })}</div>}
     </section>
