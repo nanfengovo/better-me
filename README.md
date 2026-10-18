@@ -285,6 +285,7 @@ packages/core/
   src/themes/          # 10 套 JSON 简历主题与解析器
   src/project/         # 事实投影、展示规则与结构化出口
 packages/storage/      # 本地文档、草稿、版本、差异、恢复与备份
+packages/opportunities/ # 共享岗位证据域、薪资/距离/配色、查询工具与兼容迁移
 templates/             # 来源目录、固定版本、LICENSE 与 NOTICE
 examples/              # 虚构 / 泛化样例
 docs/                  # 部署、路线图、来源研究与验收报告
@@ -322,7 +323,7 @@ pnpm memory:check
 | 当前基础 | 简历、模板/主题、导出、机会记录与恢复 | 已实现；继续处理真实反馈与有限样本以外的问题 |
 | 发布与可靠性 | 自动检查/发布、性能与跨环境质量 | 失败不发布、可追溯提交、更多真实文件与字体分页检查 |
 | 有依据的匹配 | 区分能力、简历呈现与岗位条件 | 判断关联 JD 原句与事实证据，未知不当作不会 |
-| 岗位搜索与三维地图 | 通用来源工具、国内 / 全球 3D、模糊搜索与薪资 / 企业 / 距离筛选 | 已完成研究与架构方案，待实现；共享查询、来源醒目、保留私人材料 |
+| 岗位搜索与三维地图 | 通用来源工具、国内 / 全球 3D、模糊搜索与薪资 / 企业 / 距离筛选 | M0 共享领域、参考查询、工具和迁移保护已实现；独立后台、来源与三维界面继续建设 |
 | 长期探索 | 职业对话、练习/测评、证据回流、可选宿主 | 独立范围与授权；当前 V1 不做自动投递、学习打卡或插件 |
 
 完整状态与验收事项见 **[ROADMAP](docs/ROADMAP.md)**。阶段不承诺日期，愿景不等于已实现；真实机会地图、全站持续同步、跨设备同步与自动申请尚未提供。
@@ -330,6 +331,8 @@ pnpm memory:check
 新增岗位地图目标采用**本机自用后台 + 按关注范围手动刷新**：全球 3D 地球与国内 3D 地图连接同一岗位查询，默认按人民币税前年薪比较（可切原币），支持地区、已核实企业归属与直线离家距离。企业分类颜色通过配置管理，未知信息保持待核实。来源目录、适配器和可调用工具供地图、现有机会工作台以及未来 TypeScript LangChain / LangGraph 共用；服务器部署、定时更新和通勤服务保留扩展接口。本段描述开发目标，现有 Pages / Docker 静态版尚未提供这套后台能力。
 
 方案与分阶段验收见 [岗位地图架构](docs/planning/job-atlas-architecture-2026-10-18.md)、[来源实查](docs/planning/job-atlas-sources-research-2026-10-18.md) 和 [三维地图研究](docs/research/job-atlas-map-references-2026-10-18.md)。研究已覆盖用户参考之外的 ATS、结构化招聘页、聚合 API 和 GitHub 来源发现，并记录实际字段、时效与可用范围。
+
+已落地的 [共享岗位包](packages/opportunities/README.md) 提供严格 Zod 契约、人民币税前年固定薪资与原币证据、WGS84 直线距离、可配置企业配色、模糊关键词和统一列表/地图统计查询，以及真实可调用的 `jobs.search` 工具。旧机会迁移先生成公共白名单预览和独立私人引用，不读取或自动搬迁现有用户数据。当前查询采用内存参考实现；SQLite 索引、来源刷新和正式 3D 渲染尚未接入产品，验收范围见 [M0 报告](docs/reports/job-atlas-m0-2026-10-18.md)。
 
 ## 文档与验收记录
 
@@ -347,6 +350,7 @@ pnpm memory:check
 | 岗位读取与网络 | [浏览器验收](docs/reports/job-browser-reading-2026-10-17.md) · [网络与代理](docs/reports/network-proxy-settings-2026-10-17.md) |
 | 机会工作台与来源研究 | [跟进与导出](docs/reports/non-agent-followups-and-export-2026-10-17.md) · [开源做法](docs/research/non-agent-patterns-2026-10-17.md) |
 | 岗位搜索 / 三维地图目标 | [架构与里程碑](docs/planning/job-atlas-architecture-2026-10-18.md) · [来源实查](docs/planning/job-atlas-sources-research-2026-10-18.md) · [地图选型](docs/research/job-atlas-map-references-2026-10-18.md) |
+| 岗位共享底座 | [包 API 与示例](packages/opportunities/README.md) · [M0 契约 / 迁移 / 查询验收](docs/reports/job-atlas-m0-2026-10-18.md) |
 | 分批发布历史 | [首轮发布](docs/reports/github-feature-batches-2026-10-18.md) · [模板与主题发布](docs/reports/github-theme-template-batches-2026-10-18.md) |
 
 ## 许可证与致谢
