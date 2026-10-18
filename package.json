@@ -10,7 +10,10 @@
     "typecheck": "turbo run typecheck",
     "lint": "eslint apps/web/src apps/web/server apps/web/vite.config.ts packages/core/src packages/storage/src",
     "test": "pnpm --filter @better-me/core build && tsx --test packages/core/tests/*.test.mjs packages/storage/tests/*.test.ts apps/web/tests/*.test.tsx",
-    "memory:check": "node scripts/check-memory.mjs"
+    "memory:check": "node scripts/check-memory.mjs",
+    "network:domestic:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/domestic-route.ps1 -Action Start",
+    "network:domestic:status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/domestic-route.ps1 -Action Status",
+    "network:domestic:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/domestic-route.ps1 -Action Stop"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

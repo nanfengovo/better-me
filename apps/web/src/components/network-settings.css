@@ -1,0 +1,97 @@
+.network-settings-dialog { width: min(730px, calc(100vw - 32px)); max-width: 100%; max-height: calc(100dvh - 32px); margin: auto; padding: 0; border: 1px solid #dbe2d6; border-radius: 20px; color: #263b30; background: #fbfaf6; box-shadow: 0 28px 100px #102c2350; overflow: clip; }
+.network-settings-dialog[open] { display: flex; flex-direction: column; }
+.network-settings-dialog::backdrop { background: #18312766; backdrop-filter: blur(4px); }
+.network-settings-dialog *, .network-settings-dialog *::before, .network-settings-dialog *::after { box-sizing: border-box; }
+.network-settings-dialog button, .network-settings-dialog input, .network-settings-dialog select { font: inherit; }
+.network-settings-header { display: flex; align-items: center; flex-shrink: 0; gap: 12px; padding: 21px 25px; border-bottom: 1px solid #e4e7df; background: #fffefa; }
+.network-settings-icon { display: grid; place-items: center; flex-shrink: 0; width: 40px; height: 40px; color: #fff; background: #285545; border-radius: 13px; }
+.network-settings-header > div { min-width: 0; }
+.network-settings-header h2 { margin: 0; font-size: 17px; font-weight: 700; }
+.network-settings-header p { margin: 4px 0 0; color: #7c8878; font-size: 11px; line-height: 1.5; }
+.network-close-button { display: grid; place-items: center; flex-shrink: 0; width: 32px; height: 32px; margin-left: auto; padding: 5px; border: 0; border-radius: 8px; color: #879582; background: transparent; cursor: pointer; }
+.network-close-button:hover { color: #315640; background: #edf1e7; }
+.network-settings-body { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; gap: 22px; padding: 22px 25px; overflow-y: auto; overscroll-behavior: contain; }
+.network-scope-note { display: flex; gap: 9px; padding: 11px 13px; border-radius: 10px; color: #5c725d; background: #edf2e8; font-size: 11px; line-height: 1.7; }
+.network-scope-note > svg { margin-top: 2px; flex-shrink: 0; }
+.network-scope-note p { margin: 0; }
+.network-mode-fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.network-mode-fieldset legend { margin: 0 0 10px; padding: 0; font-size: 12px; font-weight: 650; }
+.network-mode-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.network-mode-option { display: flex; align-items: flex-start; gap: 7px; min-width: 0; padding: 13px 11px; border: 1px solid #e0e5d9; border-radius: 10px; background: #fffefa; cursor: pointer; }
+.network-mode-option.is-selected { border-color: #6d9379; background: #edf3e9; box-shadow: inset 0 0 0 1px #6d93791a; }
+.network-mode-option input { flex-shrink: 0; width: 13px; height: 13px; margin: 3px 0 0; accent-color: #315b40; }
+.network-mode-title { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; color: #38503c; font-size: 12px; font-weight: 650; }
+.network-mode-title small { padding: 1px 5px; border-radius: 4px; color: #426143; background: #dde9d4; font-size: 9px; font-weight: 500; }
+.network-mode-description { display: block; margin-top: 5px; color: #85907e; font-size: 10px; line-height: 1.65; }
+.network-field { display: flex; flex-direction: column; min-width: 0; gap: 7px; }
+.network-field > span { font-size: 12px; font-weight: 600; }
+.network-field > span > small { margin-left: 5px; color: #9aa38e; font-size: 10px; font-weight: 400; }
+.network-field input, .network-field select { display: block; min-width: 0; width: 100%; min-height: 39px; padding: 10px 11px; border: 1px solid #dce2d3; border-radius: 8px; background: #fffefa; color: #3f5542; font-size: 12px; line-height: 1.5; }
+.network-field input::placeholder { color: #a4ad9b; }
+.network-field > small { color: #8a947e; font-size: 10px; line-height: 1.7; }
+.network-domestic-proxy { padding: 14px; border: 1px solid #d9e3d1; border-radius: 10px; background: #f0f5eb; }
+.network-domestic-proxy > p { margin: 9px 0 0; color: #7b8b70; font-size: 10px; line-height: 1.8; }
+.network-detection, .network-connectivity { min-width: 0; padding: 15px; border: 1px solid #e1e5d9; border-radius: 11px; background: #f6f7ef; }
+.network-section-heading { display: flex; align-items: flex-start; gap: 12px; justify-content: space-between; }
+.network-section-heading > div { min-width: 0; }
+.network-section-heading h3 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; font-weight: 650; }
+.network-section-heading p { margin: 5px 0 0; color: #89947f; font-size: 10px; line-height: 1.7; }
+.network-button { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 6px; min-height: 33px; padding: 7px 11px; border: 1px solid #d7dfce; border-radius: 7px; background: #fffefa; color: #4c6649; font-size: 11px !important; line-height: 1.5; white-space: nowrap; cursor: pointer; }
+.network-button:hover:not(:disabled) { border-color: #9cb28d; background: #f1f5e9; }
+.network-button.is-primary { border-color: #285545; background: #285545; color: #fff; }
+.network-button.is-primary:hover:not(:disabled) { background: #346950; }
+.network-settings-dialog button:disabled, .network-settings-dialog input:disabled, .network-settings-dialog select:disabled, .network-mode-fieldset:disabled { opacity: .55; cursor: default; }
+.network-settings-dialog button:focus-visible, .network-settings-dialog input:focus-visible, .network-settings-dialog select:focus-visible { outline: 2px solid #6e9560; outline-offset: 3px; }
+.network-candidates { margin: 13px 0 0; padding: 0; list-style: none; }
+.network-candidates li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid #e1e7d8; }
+.network-candidates li > div { display: flex; flex-direction: column; min-width: 0; gap: 4px; }
+.network-candidates code { color: #385542; font-size: 11px; overflow-wrap: anywhere; }
+.network-candidates li > div > span { color: #89947f; font-size: 10px; line-height: 1.6; overflow-wrap: anywhere; }
+.network-detection-note, .network-empty, .network-test-boundary { margin: 12px 0 0; color: #8a947e; font-size: 10px; line-height: 1.8; overflow-wrap: anywhere; }
+.network-empty { color: #6f7d65; }
+.network-auto-route { display: flex; flex-direction: column; gap: 4px; margin: 12px 0 0; padding: 9px 10px; border-radius: 7px; background: #eaf0e2; color: #6a805b; font-size: 10px; }
+.network-route-summary { display: flex; flex-direction: column; gap: 3px; font-size: 11px; line-height: 1.7; overflow-wrap: anywhere; }
+.network-route-summary code { font-size: 10px; white-space: normal; overflow-wrap: anywhere; }
+.network-warnings { margin: 10px 0 0; padding-left: 16px; color: #8b7441; font-size: 10px; line-height: 1.8; }
+.network-test-controls { display: flex; gap: 9px; margin-top: 12px; }
+.network-test-controls > label { flex: 1; }
+.network-test-controls select { min-height: 36px; padding: 7px 8px; font-size: 11px; }
+.network-result { display: flex; align-items: flex-start; gap: 9px; min-width: 0; margin-top: 12px; padding: 12px; border: 1px solid #d7e3cc; border-radius: 9px; background: #edf4e7; color: #4b6c42; font-size: 11px; line-height: 1.75; overflow-wrap: anywhere; }
+.network-result > svg { flex-shrink: 0; margin-top: 2px; }
+.network-result > div { min-width: 0; }
+.network-result strong { font-size: 12px; }
+.network-result p { margin: 5px 0; }
+.network-result.is-warning { border-color: #eadab2; background: #fbf5e7; color: #937335; }
+.network-result.is-error { margin-top: 0; border-color: #efcec4; background: #fcf0e9; color: #9e5d4b; }
+.network-result .network-button { margin-top: 7px; }
+.network-recovery-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.network-test-meta { opacity: .8; font-size: 10px; }
+.network-inline-error { margin: 10px 0 0; color: #b05f48; font-size: 11px; line-height: 1.75; overflow-wrap: anywhere; }
+.network-status { display: flex; align-items: center; gap: 7px; margin: 0; color: #849277; font-size: 11px; line-height: 1.7; }
+.network-settings-footer { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; gap: 15px; padding: 16px 25px; border-top: 1px solid #e1e6d9; background: #fffefa; }
+.network-settings-footer p { min-width: 0; max-width: 290px; margin: 0; color: #97a08c; font-size: 10px; line-height: 1.7; }
+.network-settings-footer > div { display: flex; flex-shrink: 0; gap: 8px; }
+.network-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.network-spinner { animation: network-spin 1s linear infinite; }
+@keyframes network-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .network-spinner { animation: none; } }
+@media (max-width: 540px) {
+  .network-settings-dialog { width: calc(100vw - 18px); max-height: calc(100dvh - 18px); border-radius: 15px; }
+  .network-settings-header { gap: 9px; padding: 16px; }
+  .network-settings-header h2 { font-size: 16px; }
+  .network-settings-icon { width: 35px; height: 35px; border-radius: 10px; }
+  .network-settings-body { gap: 19px; padding: 16px; }
+  .network-mode-options { grid-template-columns: 1fr; gap: 7px; }
+  .network-mode-option { padding: 10px; }
+  .network-mode-description { margin-top: 3px; }
+  .network-detection, .network-connectivity { padding: 12px; }
+  .network-section-heading { flex-wrap: wrap; gap: 9px; }
+  .network-section-heading .network-button { margin-left: auto; }
+  .network-candidates li { align-items: flex-start; gap: 8px; }
+  .network-candidates .network-button { padding: 6px 8px; font-size: 10px !important; }
+  .network-test-controls { flex-direction: column; }
+  .network-test-controls .network-button { align-self: flex-start; }
+  .network-settings-footer { flex-wrap: wrap; padding: 13px 16px; gap: 10px; }
+  .network-settings-footer p { max-width: none; flex-basis: 100%; }
+  .network-settings-footer > div { width: 100%; justify-content: flex-end; }
+}
