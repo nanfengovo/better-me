@@ -4,6 +4,9 @@
 
 ## 当前交付
 
+- [x] 2026-10-18 岗位聚合 / 国内全球三维地图完成五项口径确认、现有架构核对、指定与扩展来源实查、地图源码 / 官方能力研究；已建立完整工程 Goal（active）。方案与 M0–M5 验收见 docs/planning/job-atlas-architecture-2026-10-18.md，来源和地图研究由其链接；本轮仅研究 / 规划，未实现新产品能力。
+- [ ] 按 M0–M5 实现共享岗位域与工具、增量迁移、可配置来源 / 手动范围刷新、证据归一 / 去重、统一模糊搜索 / 薪资 / 企业 / 地区 / 距离排序、国内全球 3D 与现有机会工作台联动；先非 Agent 底座，后接 LangChain / LangGraph 薄适配。完整目标尚未完成。
+
 - [x] 新增Docker后的真实Actions39126393123（d7bdf1f）Windows质量、Linux Pages构建、Docker构建运行及Pages部署四任务全部success；后续文档更新继续执行同一工作流。
 - [x] GitHub About Website已设在线体验链接；Dockerfile/Compose生产静态版真实Linux/amd64构建通过、镜像约28.5MiB、非root只读健康服务localhost8080。208次HTTP、96模板许可目录+20适配源逐字节、69依赖71许可SHA通过；真实Chrome模板/主题/独立深色/保存刷新/JSON下载通过。额外PDF上传因扩展文件访问设置受阻，未扩大权限，不能算实际提取通过；源构建/CI及README详见docs/reports/docker-release-2026-10-18.md。镜像仓库和远程Docker更新未配置，原5173及其他容器未动。
 - [x] 免费托管最终选GitHub Pages（替代先前Cloudflare偏好）；质量/构建/部署工作流与完整部署说明已推送，Pages Source已启用Actions，无额外部署Token。
