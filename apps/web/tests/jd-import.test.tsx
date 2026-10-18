@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { allowedJobUrl, normalizeJobShare } from "../src/lib/jd-source.ts";
+import { allowedJobUrl, normalizeJobShare, jobPostingPublication, readJdPublicationFields } from "../src/lib/jd-source.ts";
 import { cleanJobHtml, extractPublicJobHtml, fetchPublicJd, readLimitedJobPage } from "../server/jd-extractor.ts";
 import { parseJdOcrResponse, recognizeJdScreenshots, validateScreenshotFiles, readJdDraft, saveJdDraft, reserveScreenshotBatch, completeScreenshotBatch, extractJdLink } from "../src/lib/jd-import.ts";
 
@@ -57,6 +57,68 @@ test("JobPosting graph 保留标题公司正文并解码实体", () => {
   assert.match(result.text, /三年以上 C# 经验/);
   assert.equal(result.method, "JobPosting 结构化正文");
   assert.equal(cleanJobHtml("<p>A&#x4e2d;&#25991;</p><script>discard</script><li>B&nbsp;&amp; C</li>"), "A中文\n• B & C");
+});
+
+test("bound JobPosting.datePosted preserves exact source precision for all four platforms", () => {
+  const platforms = [
+    ["LinkedIn", "https://www.linkedin.com/jobs/view/123"], ["猎聘", "https://www.liepin.com/job/123.shtml"],
+    ["51JOB", "https://jobs.51job.com/shanghai/123.html"], ["BOSS直聘", "https://www.zhipin.com/job_detail/target.html"],
+  ] as const;
+  for (const [platform, url] of platforms) for (const datePosted of ["2026-10-18", "2026-10-18T09:34:56.789+08:00", "2026-10-18 09:34:56", "3天前"]) {
+    const metadata = { "@type": "JobPosting", title: "工程师", url, description, datePosted, dateModified: "2026-10-19T00:00:00Z" };
+    const result = extractPublicJobHtml(`<title>工程师</title><script type="application/ld+json">${JSON.stringify(metadata)}</script>`, platform, url);
+    assert.equal(result.sourcePublishedText, datePosted);
+    assert.equal(result.sourcePublishedAt, datePosted.includes("+08:00") ? datePosted : undefined);
+  }
+});
+
+test("source publication parsing keeps unresolved date text, rejects non-text and requires a valid explicit timezone for instants", () => {
+  for (const raw of ["2026-02-30", "2026-10-18T09:30:00", "3天前", "2026-02-30T00:00:00Z"]) {
+    assert.deepEqual(jobPostingPublication(raw), { sourcePublishedText: raw });
+  }
+  for (const value of [undefined, null, 1_700_000_000_000, { date: "2026-10-18" }, " ", "x".repeat(1_001)]) assert.deepEqual(jobPostingPublication(value), {});
+  assert.deepEqual(readJdPublicationFields({ sourcePublishedAt: "2026-10-18" }), { sourcePublishedText: "2026-10-18" });
+  assert.deepEqual(readJdPublicationFields({ sourcePublishedAt: 123, sourcePublishedText: { unexpected: true } }), {});
+});
+
+test("publication uses only accepted current-job posting, never recommendations, update fields or arbitrary meta", () => {
+  const url = "https://www.zhipin.com/job_detail/target.html";
+  const current = { "@type": "JobPosting", title: "Current engineer", url, description };
+  const other = { ...current, title: "Recommended engineer", url: url.replace("target", "other"), datePosted: "2026-10-18T10:00:00Z" };
+  const metadata = (value: unknown) => `<script type="application/ld+json">${JSON.stringify(value)}</script>`;
+  const noPublication = extractPublicJobHtml(`<title>Current engineer</title><meta property="article:published_time" content="2026-10-18T00:00:00Z">${metadata([{ ...current, dateModified: "2026-10-18T00:00:00Z" }, other])}`, "BOSS直聘", url);
+  assert.equal(noPublication.sourcePublishedAt, undefined); assert.equal(noPublication.sourcePublishedText, undefined);
+  const dated = extractPublicJobHtml(`<title>Current engineer</title>${metadata([{ ...current, datePosted: "2026-09-01" }, other])}`, "BOSS直聘", url);
+  assert.equal(dated.sourcePublishedText, "2026-09-01");
+  const unbound = extractPublicJobHtml(metadata({ "@type": "JobPosting", description, datePosted: "2026-10-18" }), "BOSS直聘", url);
+  assert.equal(unbound.sourcePublishedText, undefined, "a metadata object without current URL/title evidence cannot contribute a date");
+  const conflicts = extractPublicJobHtml(`<title>Current engineer</title>${metadata([{ ...current, datePosted: "2026-09-01" }, { ...current, datePosted: "2026-09-02" }])}`, "BOSS直聘", url);
+  assert.equal(conflicts.sourcePublishedText, undefined, "duplicate metadata with contradictory dates is not resolved arbitrarily");
+});
+
+test("static fetch, client response and local JD draft retain publication separately from observed time", async () => {
+  const url = "https://www.linkedin.com/jobs/view/123";
+  const datePosted = "2026-09-01T12:34:56.789Z";
+  const body = `<title>Engineer</title><script type="application/ld+json">${JSON.stringify({ "@type": "JobPosting", title: "Engineer", url, description, datePosted })}</script>`;
+  const result = await fetchPublicJd(url, async () => new Response(body, { headers: { "content-type": "text/html" } }));
+  assert.equal(result.provenance.sourcePublishedAt, datePosted); assert.equal(result.provenance.sourcePublishedText, datePosted);
+  assert.notEqual(result.provenance.observedAt, datePosted);
+  const originalFetch = globalThis.fetch, originalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  const entries = new Map<string, string>();
+  try {
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem: (key: string) => entries.get(key) ?? null, setItem: (key: string, value: string) => { entries.set(key, value); } } });
+    for (const raw of [datePosted, "2026-09-01", "3天前"]) {
+      const provenance = { ...result.provenance, sourcePublishedAt: raw === datePosted ? raw : undefined, sourcePublishedText: raw };
+      globalThis.fetch = async () => new Response(JSON.stringify({ ...result, provenance }), { headers: { "content-type": "application/json" } });
+      const imported = await extractJdLink(url, new AbortController().signal);
+      assert.equal(imported.provenance.sourcePublishedText, raw); assert.equal(imported.provenance.sourcePublishedAt, raw === datePosted ? raw : undefined);
+      saveJdDraft({ text: imported.text, shareInput: url, provenance: imported.provenance });
+      assert.equal(readJdDraft().provenance?.sourcePublishedText, raw); assert.equal(readJdDraft().provenance?.sourcePublishedAt, raw === datePosted ? raw : undefined);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalStorage) Object.defineProperty(globalThis, "localStorage", originalStorage); else Reflect.deleteProperty(globalThis, "localStorage");
+  }
 });
 
 test("平台正文支持嵌套标签且不把登录页误识别为 JD", () => {

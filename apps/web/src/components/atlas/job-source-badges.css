@@ -1,0 +1,9 @@
+.job-source-badges { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; min-width:0; max-width:100%; margin-top:8px; text-align:left; }
+.job-source-publication { display:inline-flex; flex-wrap:wrap; align-items:center; gap:5px; max-width:100%; min-width:0; }
+.job-source-badges .job-source-badge,.job-source-badges .job-publication-badge { display:inline-block; max-width:100%; padding:3px 7px; border:1px solid; border-radius:5px; font-size:10px; font-weight:600; line-height:1.5; font-style:normal; letter-spacing:0; overflow-wrap:anywhere; text-align:left; text-transform:none; }
+.job-source-badges .job-source-badge { border-radius:5px; }
+.job-source-badges .job-publication-badge { font-weight:500; }
+.job-source-badges a.job-source-badge { text-decoration:underline; text-underline-offset:3px; }
+.job-source-badges a.job-source-badge:focus-visible { outline:2px solid currentColor; outline-offset:3px; }
+.opportunity-detail>.job-source-badges { margin:0 0 14px; }
+.opportunity-provenance dd>.job-source-badges { margin-top:0; }

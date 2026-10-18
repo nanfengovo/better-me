@@ -96,6 +96,18 @@ function snapshotBrowser(initialUrl: string, read: (evaluation: number, navigate
   };
 }
 
+test("browser extraction keeps current JobPosting publication fields and date-only precision", async () => {
+  for (const datePosted of ["2026-09-01T12:34:56.789Z", "2026-09-01"]) {
+    const metadata = `<script type="application/ld+json">${JSON.stringify({ "@type": "JobPosting", title: "合成研发岗位", url: source, description, datePosted })}</script>`;
+    const visible = html(`<div class="job-sec-text">${description}</div>`, metadata);
+    const f = snapshotBrowser(source, () => ({ html: visible, url: source, title: "合成研发岗位" }));
+    const result = await fetchBrowserJd(source, operation(), undefined, { launch: async () => f.browser });
+    assert.equal(result.provenance.sourcePublishedText, datePosted);
+    assert.equal(result.provenance.sourcePublishedAt, datePosted.includes("T") ? datePosted : undefined);
+    assert.notEqual(result.provenance.observedAt, datePosted); assert.equal(f.closes, 1);
+  }
+});
+
 test("浏览器资源仅允许同平台HTTPS域名边界，不接受凭据、端口或跨平台", () => {
   for (const url of ["https://zhipin.com/a.js", "https://static.zhipin.com/bundle.js", "https://m.zhipin.com:443/app", "https://ZHIPIN.COM/css"]) assert.equal(allowedBrowserResource(url, "BOSS直聘"), true, url);
   for (const url of ["https://zhipin.com.evil.test/a.js", "https://evilzhipin.com/a", "https://liepin.com/a", "http://static.zhipin.com/a", "https://user:pass@zhipin.com/a", "https://zhipin.com:8443/a", "https://127.0.0.1/", "https://[::1]/", "file:///temp/page.html", "javascript:void(0)", "bad-url"]) assert.equal(allowedBrowserResource(url, "BOSS直聘"), false, url);

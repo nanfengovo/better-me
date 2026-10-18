@@ -1,3 +1,4 @@
+import { readJdPublicationFields } from "../src/lib/jd-source";
 import { type Browser, type BrowserContext, type LaunchOptions, type Page, type Request, type Response } from "playwright-core";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -488,7 +489,7 @@ export async function fetchBrowserJd(input: string, operation: NetworkOperation,
         if (result.text.length > 120_000) throw failure("unsupported_page", "岗位正文超过 12 万字，请核对是否为具体岗位。");
         if (previous !== result.text) { previous = result.text; stableAt = Date.now(); }
         else if (Date.now() - stableAt >= 800) {
-          return { ...result, method: `浏览器加载 · ${result.method}`, provenance: { kind: "link", platform: initial.platform, url: initial.url, observedAt: new Date().toISOString(), title: result.title } };
+          return { ...result, method: `浏览器加载 · ${result.method}`, provenance: { kind: "link", platform: initial.platform, url: initial.url, observedAt: new Date().toISOString(), title: result.title, ...readJdPublicationFields(result) } };
         }
       } catch (error) {
         resetStability();

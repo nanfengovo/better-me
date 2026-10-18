@@ -31,7 +31,7 @@ type Layout = { bounds: Rect; styles: string[]; text: string; opacity?: number; 
 type Node = { type: number; name: string; value: string; parent: number; children: number[]; attrs: Map<string, string>; layouts: Layout[]; depth: number; special: boolean };
 type ReadyState = NonNullable<BrowserSnapshot["pageLoad"]>["readyState"];
 /** rootDocument must come from a fresh protocol document node, never a DOM doctype inference. */
-export type NativeProjectionOptions = { scope?: "boss-share" | "liepin-job"; sourceUrl?: string; rootScroll?: "liepin"; rootDocument?: unknown; detect51JobWaf?: boolean };
+export type NativeProjectionOptions = { scope?: "boss-share" | "liepin-job"; sourceUrl?: string; rootScroll?: "liepin"; rootDocument?: unknown; detect51JobWaf?: boolean; purpose?: "search" };
 
 export function isOriginalLiepinJob(frameUrl: string, sourceUrl: string | undefined): boolean {
   if (!sourceUrl) return false;
@@ -184,7 +184,7 @@ export function projectNativeDomSnapshot(
     const index = typeof rawIndex === "number" && Number.isSafeInteger(rawIndex) && rawIndex >= 0 && rawIndex < count ? rawIndex : fail("layout_entry", "node_index");
     const node = nodes[index];
     const styles = Array.isArray(layoutStyles[i]) ? layoutStyles[i] as unknown[] : fail("layout_entry", "style_count");
-    if (styles.length !== NATIVE_SNAPSHOT_STYLES.length && !(rootScrollMode && hasRootStyleColumns(styles.length)) && !(styles.length === 0 && node.type !== 1)) fail("layout_entry", "style_count");
+    if (styles.length !== NATIVE_SNAPSHOT_STYLES.length && !((rootScrollMode || options.purpose === "search") && hasRootStyleColumns(styles.length)) && !(styles.length === 0 && node.type !== 1)) fail("layout_entry", "style_count");
     const alpha = opacity?.[i];
     if (alpha !== undefined && (typeof alpha !== "number" || !Number.isFinite(alpha) || alpha < 0 || alpha > 1)) fail("layout_entry", "text_opacity");
     const computed = styles.map(optionalString);
@@ -422,6 +422,143 @@ export function projectNativeDomSnapshot(
   // Return a real gate even when all its text lives inside an excluded form and body is empty.
   if (gate) return { html: "<html><head></head><body></body></html>", url: frame.url, title, gate, pageLoad: { readyState: load.readyState, content: "unknown", visibleFrames } };
 
+  if (options.purpose === "search") {
+    // Do not let a hidden row conceal contradictory visible gate evidence.
+    for (const node of nodes) {
+      const styled = node.layouts;
+      if (styled.some(row => row.styles.length !== styled[0].styles.length || row.styles.some((value, at) => value !== styled[0].styles[at]))) fail("snapshot_visibility_unsupported", "layout_style_conflict");
+    }
+    // A list is a partial excerpt. Check the entire rendered page for gates
+    // before omitting any unsafe field, including text inside navigation/forms.
+    const gateText = descendants(bodyIndex).replace(/\s+/g, " ").trim();
+    const rawTitle = (index: number): string => nodes[index].type === 3 ? nodes[index].value : nodes[index].children.map(rawTitle).join("");
+    const titles = [title.trim(), ...nodes.flatMap((node, index) => node.name === "TITLE" && node.parent >= 0 && nodes[node.parent].name === "HEAD" ? [rawTitle(index).trim()] : [])];
+    if (/安全验证|人机验证|访问验证|请.{0,12}验证码|拖动.{0,12}滑块|verify.{0,25}(?:human|identity)|checking your browser|猎聘安全中心发现您的(?:帐号|账号)或IP可能存在异常/i.test(gateText)
+      || titles.some(value => /^(?:安全验证|访问验证|人机验证|验证码|security verification|just a moment|access denied|robot check)(?:\s|[|·:：_—-]|$)/i.test(value))) gate = "verification_required";
+    else if (/请先登录|请登录后|登录后(?:查看|浏览|继续)|sign in to (?:view|continue|see)|join to (?:view|see)/i.test(gateText)
+      || titles.some(value => /^(?:(?:用户|账号|帐号|会员)?登录|sign[ -]?in|log[ -]?in)(?:\s*(?:[|·:：_—-]|$))/i.test(value))) gate = "login_required";
+    if (gate) return { html: "<html><head></head><body></body></html>", url: frame.url, title, gate, pageLoad: { readyState: load.readyState, content: "unknown", visibleFrames } };
+
+    const ordinary = (row: Layout) => hasRootStyleColumns(row.styles.length) && row.styles[15] === "1" && row.styles[16] === "ltr"
+      && row.styles[17] === "horizontal-tb" && ["static", "relative", "absolute"].includes(row.styles[18]) && row.styles[19] === "none";
+    const sameStyles = (node: Node) => node.layouts.every(row => row.styles.length === node.layouts[0].styles.length && row.styles.every((value, at) => value === node.layouts[0].styles[at]));
+    const finite = (number: unknown): number is number => typeof number === "number" && Number.isFinite(number) && number >= 0 && number <= 10_000_000;
+    const rootIndex = nodes[bodyIndex].parent, root = nodes[rootIndex];
+    let rootArea: Rect | undefined;
+    if (identifiedHtmlRoot && root?.name === "HTML" && root.parent === 0 && root.layouts.length === 1 && ordinary(root.layouts[0])) {
+      const row = root.layouts[0], offset = row.offsetRect, client = row.clientRect, scroll = row.scrollRect;
+      if (offset && client && scroll && offset[2] > 0 && offset[3] > 0 && client[2] > 0 && client[3] > 0) {
+        const scale = row.bounds[2] / offset[2], near = (actual: number, expected: number) => Math.abs(actual - expected) <= scale + 1e-6;
+        if (scale >= .25 && scale <= 8 && row.bounds[0] === 0 && row.bounds[1] === 0 && offset[0] === 0 && offset[1] === 0
+          && client[0] === 0 && client[1] === 0 && scroll[0] >= 0 && scroll[1] >= 0 && scroll[2] >= client[2] && scroll[3] >= client[3]
+          && scroll[0] <= scroll[2] - client[2] + 1 && scroll[1] <= scroll[3] - client[3] + 1 && near(row.bounds[3], offset[3] * scale)
+          && finite(doc.contentWidth) && finite(doc.contentHeight) && finite(doc.scrollOffsetX) && finite(doc.scrollOffsetY)
+          && near(doc.contentWidth, scroll[2] * scale) && near(doc.contentHeight, scroll[3] * scale)
+          && near(doc.scrollOffsetX, scroll[0] * scale) && near(doc.scrollOffsetY, scroll[1] * scale)) rootArea = [0, 0, doc.contentWidth, doc.contentHeight];
+      }
+    }
+    const clientArea = (row: Layout): Rect | undefined => {
+      const offset = row.offsetRect, client = row.clientRect, scroll = row.scrollRect;
+      if (!ordinary(row) || !offset || !client || !scroll || offset[2] <= 0 || offset[3] <= 0 || client[0] < 0 || client[1] < 0 || client[2] <= 0 || client[3] <= 0) return;
+      const scale = row.bounds[2] / offset[2];
+      if (scale < .25 || scale > 8 || Math.abs(row.bounds[3] - offset[3] * scale) > scale + 1e-6
+        || client[0] + client[2] > offset[2] + 1 || client[1] + client[3] > offset[3] + 1
+        || scroll[0] < 0 || scroll[1] < 0 || scroll[2] < client[2] || scroll[3] < client[3]
+        || scroll[0] > scroll[2] - client[2] + 1 || scroll[1] > scroll[3] - client[3] + 1) return;
+      // clientLeft/Top are border offsets in CSS units. Text boxes already
+      // reflect local scrolling, so never subtract scrollLeft/Top a second time.
+      return [row.bounds[0] + client[0] * scale, row.bounds[1] + client[1] * scale, client[2] * scale, client[3] * scale];
+    };
+    const contained = (box: Rect, area: Rect, axis: 0 | 1) => box[axis] >= area[axis] && box[axis] + box[axis + 2] <= area[axis] + area[axis + 2];
+    const snippets = new Map<number, string>();
+    for (let index = 0; index < count; index++) {
+      if (nodes[index].type !== 3 || !visible(index)) continue;
+      const layouts = visibleLayouts(index), text = layouts[0].text;
+      if (layouts.some(row => row.text !== text)) continue;
+      const ranges = layouts.flatMap(row => row.boxes).sort((first, second) => first.start - second.start);
+      let safe = true;
+      for (let at = index; at >= 0 && safe; at = nodes[at].parent) {
+        const node = nodes[at];
+        if (node.special || !sameStyles(node)) { safe = false; break; }
+        if (node.type !== 1) continue;
+        if (node.layouts.length !== 1) { safe = false; break; }
+        const row = node.layouts[0], styles = row.styles;
+        if (styles.some(value => !value) || styles[3] !== "visible" || (styles[8] && styles[8] !== "auto") || styles.slice(9, 14).some(value => value !== "none")
+          || (styles.length > NATIVE_SNAPSHOT_STYLES.length && !ordinary(row))) { safe = false; break; }
+        const clipX = !["visible", "unset", "initial"].includes(styles[4]), clipY = !["visible", "unset", "initial"].includes(styles[5]);
+        const decorated = styles[6] !== "clip" || !["none", "0"].includes(styles[7]);
+        if (clipX || clipY || decorated) {
+          if (!["visible", "unset", "initial", "hidden", "clip", "auto", "scroll"].includes(styles[4]) || !["visible", "unset", "initial", "hidden", "clip", "auto", "scroll"].includes(styles[5])) { safe = false; break; }
+          const area = at === rootIndex ? rootArea : clientArea(row);
+          if (!area) { safe = false; break; }
+          // An ellipsis or line fold can cover otherwise intersecting glyphs.
+          // Adopt it only when independent scroll metrics prove no overflow.
+          if (decorated && (!row.clientRect || !row.scrollRect || row.scrollRect[2] > row.clientRect[2] || row.scrollRect[3] > row.clientRect[3])) { safe = false; break; }
+          if (ranges.some(range => (clipX || decorated) && !contained(range.bounds, area, 0) || (clipY || decorated) && !contained(range.bounds, area, 1))) { safe = false; break; }
+        }
+      }
+      if (!safe) continue;
+      const merged: Array<{ start: number; end: number }> = [];
+      for (const range of ranges) { const previous = merged.at(-1); if (previous && range.start <= previous.end) previous.end = Math.max(previous.end, range.end); else merged.push({ start: range.start, end: range.end }); }
+      let previous = 0;
+      for (const range of merged) { if (text.slice(previous, range.start).trim()) safe = false; previous = range.end; }
+      if (text.slice(previous).trim()) safe = false;
+      // Omit incomplete semantic fields rather than publishing a title/salary
+      // prefix as a complete value. Other safe fields in the card survive.
+      if (safe) snippets.set(index, merged.map(range => text.slice(range.start, range.end)).join(" "));
+    }
+    // A field can span several text nodes. Suppressing only its clipped suffix
+    // would turn the retained prefix into a full-looking title or salary.
+    // These are the scalar wrappers used by the built-in search configurations.
+    const fieldClasses = new Set([
+      "jobname", "job-name", "job-title", "jname", "company-name", "cname", "com_name",
+      "job-area", "jobarea", "workarea", "work-area", "job-location", "job-dq-box", "job-dq",
+      "salary", "job-salary", "sal", "text-warning", "job-publish-time", "published-time", "job-published-time",
+      "base-search-card__title", "job-card-list__title--link", "job-card-list__title", "job-card-container__link",
+      "base-search-card__subtitle", "job-card-container__primary-description", "job-search-card__location", "job-card-container__location",
+      "job-search-card__salary-info", "job-card-container__salary-info",
+    ]);
+    const classes = nodes.map(node => (node.attrs.get("class") ?? "").split(/\s+/));
+    const fields = nodes.map((node, index) => node.type === 1 && (/^(?:H[1-6]|TIME)$/.test(node.name) || classes[index].some(name => fieldClasses.has(name))
+      || classes[index].includes("name") && (() => { for (let at = node.parent; at >= 0; at = nodes[at].parent) if (classes[at].some(name => name === "company-info" || name === "company-text")) return true; return false; })()));
+    const nestedFields = new Set<number>();
+    for (let index = count - 1; index >= 0; index--) if (fields[index] || nestedFields.has(index)) { const parent = nodes[index].parent; if (parent >= 0) nestedFields.add(parent); }
+    // A bare title link is atomic. A link surrounding independently identified
+    // card fields keeps the complete fields when another scalar field is omitted.
+    for (let index = 0; index < count; index++) if (nodes[index].name === "A" && !nestedFields.has(index)) fields[index] = true;
+    const incomplete = new Set<number>();
+    for (let index = 0; index < count; index++) {
+      const node = nodes[index];
+      if (node.type !== 3 || snippets.has(index) || hidden(index) || excluded(index) || transparent(index)) continue;
+      const uncertain = node.layouts.length ? node.layouts.some(row => row.opacity !== 0 && !!row.text.trim()) : !!node.value.trim();
+      if (!uncertain) continue;
+      for (let at = node.parent; at >= 0; at = nodes[at].parent) if (fields[at]) incomplete.add(at);
+    }
+    const contentCache = new Map<number, boolean>();
+    const hasContent = (index: number): boolean => {
+      if (contentCache.has(index)) return contentCache.get(index)!;
+      const node = nodes[index], result = !incomplete.has(index) && (node.type === 3 ? !!snippets.get(index)?.trim() : node.children.some(hasContent));
+      contentCache.set(index, result); return result;
+    };
+    let units = 0;
+    const renderSearch = (index: number): string => {
+      const node = nodes[index];
+      if (incomplete.has(index)) return "";
+      if (node.type === 3) { const text = escapeText(snippets.get(index) ?? ""); units += text.length; if (units > MAX_HTML_BYTES) fail("snapshot_limit_exceeded"); return text; }
+      if (node.type !== 1) return node.children.map(renderSearch).join("");
+      if (hidden(index) || excluded(index) || ["HEAD", "TITLE"].includes(node.name)) return "";
+      const name = node.name.toLowerCase(); if (!/^[a-z][a-z0-9-]*$/.test(name)) return "";
+      const keys = ["class", "id", "role", "aria-modal", "open", ...(hasContent(index) && node.name === "A" ? ["href"] : []), ...(hasContent(index) && node.name === "TIME" ? ["datetime"] : [])];
+      const attrs = keys.filter(key => node.attrs.has(key)).map(key => ` ${key}="${escapeAttribute(node.attrs.get(key)!)}"`).join("");
+      const result = `<${name}${attrs}>${node.children.map(renderSearch).join("")}${VOID_TAGS.has(node.name) ? "" : `</${name}>`}`;
+      units += name.length * 2 + attrs.length + 5; if (units > MAX_HTML_BYTES) fail("snapshot_limit_exceeded"); return result;
+    };
+    // Search never copies hidden JSON-LD, canonical tags or DOM text as fallback.
+    const html = `<html><head></head>${renderSearch(bodyIndex)}</html>`;
+    if (Buffer.byteLength(html, "utf8") > MAX_HTML_BYTES) fail("snapshot_limit_exceeded");
+    return { html, url: frame.url, title, pageLoad: { readyState: load.readyState, content: hasContent(bodyIndex) ? "visible_text" : visibleFrames ? "embedded_content" : "empty", visibleFrames } };
+  }
+
   // Scope only explicitly identified original jobs. Decode the whole protocol
   // table and retain full-page gate and text semantics in every mode.
   let adopted: Set<number> | undefined;
@@ -625,6 +762,13 @@ export function projectNativeDomSnapshot(
   }
   let outputUnits = metadata.join("").length;
   let hasText = false;
+  const visibleSearchContent = (index: number): boolean => {
+    const node = nodes[index];
+    if (adopted && !adopted.has(index)) return false;
+    if (node.type === 3) return visible(index);
+    if (node.type === 1 && (hidden(index) || excluded(index))) return false;
+    return node.children.some(visibleSearchContent);
+  };
   const render = (index: number): string => {
     if (adopted && !adopted.has(index)) return "";
     const node = nodes[index];
@@ -638,7 +782,13 @@ export function projectNativeDomSnapshot(
     if (hidden(index) || excluded(index) || ["HEAD", "TITLE"].includes(node.name)) return "";
     const name = node.name.toLowerCase();
     if (!/^[a-z][a-z0-9-]*$/.test(name)) return "";
-    const attrs = ["class", "id", "role", "aria-modal", "open"].filter(key => node.attrs.has(key)).map(key => ` ${key}="${escapeAttribute(node.attrs.get(key)!)}"`).join("");
+    const attributeNames = ["class", "id", "role", "aria-modal", "open"];
+    // Search metadata remains exact untrusted text, never resolved URLs or inferred dates.
+    if (options.purpose === "search" && ((node.name === "A" && node.attrs.has("href")) || (node.name === "TIME" && node.attrs.has("datetime"))) && visibleSearchContent(index)) {
+      if (node.name === "A") attributeNames.push("href");
+      if (node.name === "TIME") attributeNames.push("datetime");
+    }
+    const attrs = attributeNames.filter(key => node.attrs.has(key)).map(key => ` ${key}="${escapeAttribute(node.attrs.get(key)!)}"`).join("");
     const result = `<${name}${attrs}>${node.children.map(render).join("")}${VOID_TAGS.has(node.name) ? "" : `</${name}>`}`;
     outputUnits += name.length * 2 + attrs.length + 5;
     if (outputUnits > MAX_HTML_BYTES) fail("snapshot_limit_exceeded");

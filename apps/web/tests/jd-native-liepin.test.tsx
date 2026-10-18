@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildPlatformSearchRequest } from "@better-me/source-adapters/browser-contracts";
 import test from "node:test";
 import { createNativeLiepinSessions } from "../server/jd-native-liepin.ts";
 import { NativeCaptureError, NativePageAcquisitionError, type NativeJobPlatform, type NativeLiepinPage, type NativeCapture } from "../server/jd-native-liepin-browser.ts";
@@ -34,6 +35,95 @@ function fixture(platform: NativeJobPlatform = "猎聘") {
   return { manager, page, get captures() { return captures; }, get releases() { return releases; }, get browserStops() { return browserStops; }, get navigations() { return navigations; },
     setSnapshot: (value: NativeCapture) => { snapshot = value; }, setCloseFails: (value: boolean) => { closeFails = value; }, setProxy: (value: string) => { proxyUrl = value; }, setCurrent: (value: boolean) => { current = value; }, onCapture: (value: typeof onCapture) => { onCapture = value; }, advance: (ms: number) => { clock += ms; } };
 }
+
+const nativeSearchProviders = { 猎聘: "liepin", BOSS直聘: "boss", "51JOB": "51job" } as const;
+function searchSnapshot(platform: NativeJobPlatform, url: string): NativeCapture {
+  const cardClass = { 猎聘: "job-card-pc-container", BOSS直聘: "job-card-wrapper", "51JOB": "joblist-item" }[platform];
+  return { state: "ready", identity: "search-document-1", snapshot: { url, title: "岗位搜索", html: `<div class="${cardClass}"><a class="job-title" href="${platformSources[platform]}">软件工程师</a><span class="company-name">测试公司</span><span class="salary">20-30K</span></div>` } };
+}
+
+for (const platform of ["猎聘", "BOSS直聘", "51JOB"] as const) {
+  test(`native ${platform} search uses the same owner-bound lease, keeps detail readers separate and confirms fresh identity`, async () => {
+    const f = fixture(platform);
+    const input = { provider: nativeSearchProviders[platform], keyword: "软件", regionId: "cn-beijing" };
+    const planned = buildPlatformSearchRequest(input);
+    const capture = f.page.capture;
+    f.page.capture = async (...args) => { assert.equal(args[1], 1000); assert.equal(args[2], planned.url); assert.deepEqual(args[3], { purpose: "search" }); return capture(...args); };
+    f.setSnapshot(searchSnapshot(platform, planned.url));
+    try {
+      const info = await f.manager.startSearch("owner", input);
+      assert.equal(info.url, planned.url); assert.equal(info.platform, platform); assert.equal(f.navigations, 1);
+      await assert.rejects(f.manager.read("owner", info.sessionId), isFailure("unsupported_page"));
+      await assert.rejects(f.manager.readSearch("other", info.sessionId), isFailure("browser_session_expired"));
+      assert.equal(f.captures, 0);
+      await assert.rejects(f.manager.start("owner", platformSources[platform]), isFailure("browser_unavailable"));
+      const result = await f.manager.readSearch("owner", info.sessionId);
+      assert.equal(result.status, "ready"); assert.equal(result.cards.length, 1); assert.equal(result.cards[0].title, "软件工程师");
+      assert.ok(f.captures >= 5); assert.equal(f.navigations, 1); assert.equal(f.releases, 0);
+      f.advance(1000); assert.equal((await f.manager.extend("owner", info.sessionId)).sessionId, info.sessionId);
+      assert.deepEqual(await f.manager.focus("owner", info.sessionId), { activationRequested: true });
+      await f.manager.close("other", info.sessionId); assert.equal(f.manager.hasSession(), true);
+      await f.manager.close("owner", info.sessionId); assert.equal(f.releases, 1);
+      const detail = await f.manager.start("owner", platformSources[platform]);
+      await assert.rejects(f.manager.readSearch("owner", detail.sessionId), isFailure("unsupported_page"));
+    } finally { await f.manager.stopBrowser(); }
+  });
+}
+
+test("native search preserves the page on gates, rejects changed conditions and never accepts stale document receipts", async () => {
+  for (const mode of ["gate", "keyword", "region", "stale", "network"] as const) {
+    const f = fixture(); const input = { provider: "liepin", keyword: "软件", regionId: "cn-beijing" } as const;
+    const planned = buildPlatformSearchRequest(input), snapshot = searchSnapshot("猎聘", planned.url);
+    const info = await f.manager.startSearch("owner", input);
+    try {
+      if (mode === "gate") snapshot.snapshot!.gate = "login_required";
+      if (mode === "keyword" || mode === "region") { const url = new URL(planned.url); url.searchParams.set(mode === "keyword" ? "key" : "city", "changed"); snapshot.snapshot!.url = url.href; }
+      if (mode === "stale") f.setCurrent(false);
+      if (mode === "network") f.setProxy("http://127.0.0.1:1234");
+      f.setSnapshot(snapshot);
+      await assert.rejects(f.manager.readSearch("owner", info.sessionId), isFailure(mode === "gate" ? "login_required" : mode === "stale" ? "unsupported_page" : mode === "network" ? "browser_unavailable" : "job_mismatch"));
+      assert.equal(f.releases, 0); assert.equal(f.manager.isActive("owner", info.sessionId), true);
+      if (mode === "network") assert.equal(f.captures, 0);
+    } finally { await f.manager.stopBrowser(); }
+  }
+});
+
+test("cancelled native search capture keeps its lease busy until the command settles and TTL still ends the page", async () => {
+  const f = fixture(); const input = { provider: "liepin", keyword: "软件" } as const;
+  const planned = buildPlatformSearchRequest(input), ready = searchSnapshot("猎聘", planned.url);
+  const entered = deferred<AbortSignal>(), pending = deferred<NativeCapture>();
+  f.page.capture = async signal => { entered.resolve(signal); return pending.promise; };
+  const info = await f.manager.startSearch("owner", input), cancel = new AbortController();
+  try {
+    const work = f.manager.readSearch("owner", info.sessionId, cancel.signal); const signal = await entered.promise;
+    const rejected = assert.rejects(work, /cancel search/); cancel.abort(new Error("cancel search")); await rejected;
+    assert.equal(signal.aborted, true); assert.equal(f.releases, 0);
+    await assert.rejects(f.manager.extend("owner", info.sessionId), isFailure("browser_unavailable"));
+    pending.resolve(ready); await new Promise(resolve => setImmediate(resolve));
+    f.page.capture = async () => structuredClone(ready);
+    assert.equal((await f.manager.readSearch("owner", info.sessionId)).status, "ready");
+    f.advance(600_000);
+    await assert.rejects(f.manager.readSearch("owner", info.sessionId), isFailure("browser_session_expired"));
+    await new Promise(resolve => setImmediate(resolve)); assert.equal(f.releases, 1);
+  } finally { pending.resolve(ready); await f.manager.stopBrowser(); }
+});
+
+test("native extraction carries only the accepted JobPosting publication with unchanged raw precision", async () => {
+  for (const platform of ["猎聘", "BOSS直聘", "51JOB"] as const) for (const datePosted of ["2026-09-01T12:34:56.789Z", "2026-09-01"]) {
+    const f = fixture(platform);
+    const capture = await f.page.capture(new AbortController().signal);
+    assert.ok(capture.snapshot);
+    const metadata = { "@type": "JobPosting", title: "本地测试工程师", url: platformSources[platform], description, datePosted };
+    capture.snapshot.html += `<script type="application/ld+json">${JSON.stringify(metadata)}</script>`;
+    f.setSnapshot(capture);
+    try {
+      const info = await f.manager.start("owner", platformSources[platform]);
+      const result = await f.manager.read("owner", info.sessionId);
+      assert.equal(result.provenance.sourcePublishedText, datePosted); assert.equal(result.provenance.sourcePublishedAt, datePosted.includes("T") ? datePosted : undefined);
+      assert.notEqual(result.provenance.observedAt, datePosted);
+    } finally { await f.manager.stopBrowser(); }
+  }
+});
 
 test("native isActive is an owner-bound synchronous query and TTL expiry never captures or releases", async () => {
   for (const platform of ["猎聘", "BOSS直聘", "51JOB"] as const) {

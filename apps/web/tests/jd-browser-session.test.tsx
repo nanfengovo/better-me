@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { buildPlatformSearchRequest } from "@better-me/source-adapters/browser-contracts";
+import { VISIBLE_JOB_SEARCH_SNAPSHOT } from "../server/jd-search-capture.ts";
 import { EventEmitter } from "node:events";
 import { createServer, request as httpRequest } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -111,6 +113,83 @@ function fixture(overrides: BrowserSessionOptions = {}) {
     socketRoute: () => socketRoute,
   };
 }
+
+const linkedinSearchInput = { provider: "linkedin", keyword: "software", regionId: "us" } as const;
+const linkedinSearchUrl = buildPlatformSearchRequest(linkedinSearchInput).url;
+const linkedinSearchHtml = `<li class="base-search-card"><a class="base-search-card__full-link" href="https://www.linkedin.com/jobs/view/123456/"><h3 class="base-search-card__title">Software Engineer</h3></a><span class="base-search-card__subtitle">Example Company</span></li>`;
+
+test("standard search captures the fixed visible-card expression and shares detail ownership, focus, renewal and close", async () => {
+  const f = fixture(); f.setNavigation(url => ({ url, html: linkedinSearchHtml, title: "Jobs" }));
+  const evaluate = f.page.evaluate; let evaluations = 0;
+  Object.assign(f.page, { evaluate: async (expression: unknown) => { assert.equal(expression, VISIBLE_JOB_SEARCH_SNAPSHOT); evaluations++; return evaluate(); } });
+  try {
+    const info = await f.manager.startSearch("owner", linkedinSearchInput);
+    assert.equal(info.url, linkedinSearchUrl); assert.equal(info.platform, "LinkedIn");
+    await assert.rejects(f.manager.read("owner", info.sessionId), isFailure("unsupported_page"));
+    await assert.rejects(f.manager.readSearch("other", info.sessionId), isFailure("browser_session_expired"));
+    assert.equal(evaluations, 0);
+    await assert.rejects(f.manager.start("owner", standardSource), isFailure("browser_unavailable"));
+    const result = await f.manager.readSearch("owner", info.sessionId);
+    assert.equal(result.status, "ready"); assert.equal(result.cards.length, 1); assert.equal(result.cards[0].title, "Software Engineer");
+    assert.ok(evaluations >= 3); assert.deepEqual(f.navigations, [linkedinSearchUrl]);
+    assert.equal((await f.manager.extend("owner", info.sessionId)).sessionId, info.sessionId);
+    await f.manager.focus("owner", info.sessionId);
+    await f.manager.close("other", info.sessionId); assert.equal(f.manager.hasSession(), true);
+    await f.manager.close("owner", info.sessionId); assert.equal(f.manager.hasSession(), false);
+    const detail = await f.manager.start("owner", standardSource);
+    await assert.rejects(f.manager.readSearch("owner", detail.sessionId), isFailure("unsupported_page"));
+  } finally { await f.manager.closeAll(); }
+});
+
+test("standard search rejects changed keyword/location and forged snapshot URLs, keeps login gates and reports honest empty state", async () => {
+  for (const mode of ["keyword", "location", "forged", "gate", "empty", "paging"] as const) {
+    const f = fixture(); f.setNavigation(url => ({ url, html: linkedinSearchHtml, title: "Jobs" }));
+    const info = await f.manager.startSearch("owner", linkedinSearchInput);
+    try {
+      const url = new URL(linkedinSearchUrl);
+      if (mode === "keyword" || mode === "location") url.searchParams.set(mode === "keyword" ? "keywords" : "location", "changed");
+      if (mode === "paging") url.searchParams.set("start", "25");
+      f.setSnapshot({ url: url.href, title: "Jobs", html: mode === "empty" ? '<div class="no-results">No matching jobs found</div>' : linkedinSearchHtml, ...(mode === "gate" ? { gate: "login_required" as const } : {}) });
+      if (mode === "forged") f.setPageUrl("https://www.linkedin.com/jobs/search?keywords=other");
+      if (mode === "empty" || mode === "paging") {
+        const result = await f.manager.readSearch("owner", info.sessionId);
+        assert.equal(result.status, mode === "empty" ? "empty" : "ready");
+      } else await assert.rejects(f.manager.readSearch("owner", info.sessionId), isFailure(mode === "gate" ? "login_required" : mode === "forged" ? "unsupported_page" : "job_mismatch"));
+      assert.equal(f.manager.isActive("owner", info.sessionId), true); assert.equal(f.count().closed, 0);
+      assert.deepEqual(f.navigations, [linkedinSearchUrl]);
+    } finally { await f.manager.closeAll(); }
+  }
+});
+
+test("cancelled standard search keeps an outstanding snapshot locked and cannot reuse its late result after close", async () => {
+  const f = fixture(); f.setNavigation(url => ({ url, html: linkedinSearchHtml, title: "Jobs" }));
+  const info = await f.manager.startSearch("owner", linkedinSearchInput);
+  const entered = deferred<void>(), pending = deferred<unknown>(), cancel = new AbortController();
+  f.page.evaluate = () => { entered.resolve(); return pending.promise; };
+  try {
+    const work = f.manager.readSearch("owner", info.sessionId, cancel.signal); await entered.promise;
+    const rejected = assert.rejects(work, /cancel search/); cancel.abort(new Error("cancel search")); await rejected;
+    assert.equal(f.manager.isActive("owner", info.sessionId), true); assert.equal(f.count().closed, 0);
+    await assert.rejects(f.manager.extend("owner", info.sessionId), isFailure("browser_unavailable"));
+    await f.manager.close("owner", info.sessionId);
+    pending.resolve({ url: linkedinSearchUrl, html: linkedinSearchHtml, title: "Jobs" }); await nextTurn();
+    assert.equal(f.manager.hasSession(), false);
+    await assert.rejects(f.manager.readSearch("owner", info.sessionId), isFailure("browser_session_expired"));
+  } finally { pending.resolve({}); await f.manager.closeAll(); }
+});
+
+test("manual browser sessions retain bound JobPosting publication without reloading or guessing update times", async () => {
+  for (const datePosted of ["2026-09-01T12:34:56.789Z", "2026-09-01"]) {
+    const f = fixture();
+    try {
+      f.setSnapshot({ html: html + `<script type="application/ld+json">${JSON.stringify({ "@type": "JobPosting", title: "匿名研发职位", url: source, description, datePosted })}</script>`, url: source, title: "匿名研发职位" });
+      const info = await f.manager.start(owner, source);
+      const result = await f.manager.read(owner, info.sessionId);
+      assert.equal(result.provenance.sourcePublishedText, datePosted); assert.equal(result.provenance.sourcePublishedAt, datePosted.includes("T") ? datePosted : undefined);
+      assert.notEqual(result.provenance.observedAt, datePosted); assert.deepEqual(f.navigations, [source]);
+    } finally { await f.manager.closeAll(); }
+  }
+});
 
 test("51job verification network stays on its owned page through busy reads and ignores ended-session responses", async () => {
   const f = fixture();

@@ -3,9 +3,15 @@ import { JdExtractionError } from "../src/lib/jd-errors";
 import type { BrowserSessionInfo, BrowserSessionInspection } from "./jd-browser-session";
 import type { NativeBrowserStopMode } from "./jd-native-liepin-browser";
 import { jdStartRequestCreatedAt, JD_START_REQUEST_WINDOW_MS, JD_START_REQUEST_FUTURE_SKEW_MS } from "../src/lib/jd-start-request";
+import { buildPlatformSearchRequest, type PlatformSearchInput } from "@better-me/source-adapters/platform-search";
+import type { JobSearchCaptureResult } from "./jd-search-capture";
 
 export type JobSessionBackend = {
   start(owner: string, input: string, signal?: AbortSignal): Promise<BrowserSessionInfo>;
+  startSearch?(owner: string, input: PlatformSearchInput, signal?: AbortSignal): Promise<BrowserSessionInfo>;
+  startSearchRequest?(owner: string, input: PlatformSearchInput, requestId: string, signal?: AbortSignal): Promise<BrowserSessionInfo>;
+  cancelSearchStart?(owner: string, input: PlatformSearchInput, requestId: string): Promise<{ cancelled: true; closed: boolean }>;
+  readSearch?(owner: string, id: string, signal?: AbortSignal): Promise<JobSearchCaptureResult>;
   startRequest?(owner: string, input: string, requestId: string, signal?: AbortSignal): Promise<BrowserSessionInfo>;
   cancelStart?(owner: string, input: string, requestId: string): Promise<{ cancelled: true; closed: boolean }>;
   read(owner: string, id: string, signal?: AbortSignal): Promise<JdImportResult>;
@@ -23,6 +29,21 @@ export type JobSessionBackend = {
   hasSession(): boolean;
 };
 
+/** Keep the planned origin, route and conditions while allowing platform paging/tracking additions. */
+export function matchesPlannedJobSearchUrl(current: string, planned: string): boolean {
+  try {
+    const actual = new URL(current), expected = new URL(planned);
+    if (actual.username || actual.password || actual.origin !== expected.origin
+      || actual.pathname.replace(/\/$/, "") !== expected.pathname.replace(/\/$/, "")) return false;
+    for (const key of new Set(expected.searchParams.keys())) {
+      const wanted = expected.searchParams.getAll(key), found = actual.searchParams.getAll(key);
+      if (wanted.length === 1 && wanted[0] === "" && found.length === 0) continue;
+      if (wanted.length !== found.length || wanted.some((value, index) => value !== found[index])) return false;
+    }
+    return true;
+  } catch { return false; }
+}
+
 /** Select a reader once at start, retaining one active job across all engines. */
 export function createJobSessionRouter(standard: JobSessionBackend, liepin: JobSessionBackend, options: { useNativeLiepin?: boolean; useNativeBoss?: boolean; useNative51Job?: boolean; nativeBoss?: JobSessionBackend; native51Job?: JobSessionBackend; requestOptions?: { now?: () => number; maxRecords?: number; startTimeoutMs?: number; cancelWaitMs?: number } } = {}) {
   let useNativeLiepin = options.useNativeLiepin ?? false;
@@ -38,7 +59,7 @@ export function createJobSessionRouter(standard: JobSessionBackend, liepin: JobS
   const now = options.requestOptions?.now ?? Date.now;
   const maxRecords = options.requestOptions?.maxRecords ?? 256;
   type StartRequest = {
-    owner: string; url: string; selected: JobSessionBackend; createdAt: number;
+    owner: string; url: string; kind: "detail" | "search"; selected: JobSessionBackend; createdAt: number;
     abort: AbortController; pending?: Promise<BrowserSessionInfo>; settled: boolean;
     ended: boolean; info?: BrowserSessionInfo; error?: unknown; cleanup?: Promise<boolean>;
   };
@@ -49,6 +70,19 @@ export function createJobSessionRouter(standard: JobSessionBackend, liepin: JobS
   const sourceFor = (input: string) => {
     try { return normalizeJobShare(input); }
     catch { throw new JdExtractionError({ code: "invalid_link", stage: "service", message: "请提供单个有效的官方岗位分享链接。" }); }
+  };
+  const searchSourceFor = (input: PlatformSearchInput) => {
+    try { return buildPlatformSearchRequest(input); }
+    catch { throw new JdExtractionError({ code: "invalid_link", stage: "service", message: "平台搜索条件无效，请使用已配置的平台和地区。" }); }
+  };
+  const searchInput = (source: ReturnType<typeof searchSourceFor>): PlatformSearchInput => ({
+    provider: source.provider, keyword: source.keyword, ...(source.region ? { regionId: source.region.id } : {}),
+  });
+  const selectSearch = (source: ReturnType<typeof searchSourceFor>) => {
+    // Search routing is independent of legacy detail-route configuration.
+    const selected = source.platform === "51JOB" ? job51 : source.platform === "BOSS直聘" ? boss : source.platform === "猎聘" ? liepin : standard;
+    if (!selected?.startSearch) throw new JdExtractionError({ code: "service_unavailable", stage: "service", message: "当前平台尚未提供搜索页读取，请更新本地服务。" });
+    return selected;
   };
   const select = (source: ReturnType<typeof sourceFor>) => {
     const { platform } = source;
@@ -72,20 +106,20 @@ export function createJobSessionRouter(standard: JobSessionBackend, liepin: JobS
       if (now() > request.createdAt + JD_START_REQUEST_WINDOW_MS && request.settled && !request.cleanup && !active(request) && cleared(request)) requests.delete(key);
     }
   };
-  const binding = (owner: string, input: string, requestId: string, purpose: "start" | "cancel" = "start") => {
+  type RequestSource = { url: string; kind: StartRequest["kind"]; select: () => JobSessionBackend; open: (signal: AbortSignal) => Promise<BrowserSessionInfo> };
+  const binding = (owner: string, source: Pick<RequestSource, "url" | "kind">, requestId: string, purpose: "start" | "cancel" = "start") => {
     const createdAt = jdStartRequestCreatedAt(requestId);
     if (!Number.isFinite(createdAt)) throw new JdExtractionError({ code: "invalid_link", stage: "service", message: "启动请求标识无效，请刷新本地工作台。" });
-    const source = sourceFor(input);
     prune();
     const existing = requests.get(requestId);
     // A logical request retains its original engine even after an idle routing
     // change. Replays cannot start again, and exact cleanup targets that engine.
-    if (existing && (existing.owner !== owner || existing.url !== source.url)) throw new JdExtractionError({ code: "job_mismatch", stage: "service", message: "启动请求已绑定其他岗位或窗口，未操作已有会话。" });
+    if (existing && (existing.owner !== owner || existing.url !== source.url || existing.kind !== source.kind)) throw new JdExtractionError({ code: "job_mismatch", stage: "service", message: "启动请求已绑定其他岗位、搜索或窗口，未操作已有会话。" });
     // An old ID cannot launch a new page, but exact cancellation remains useful
     // after a user pauses or a completed record has already been pruned.
     if (!existing && (createdAt > now() + JD_START_REQUEST_FUTURE_SKEW_MS || (purpose === "start" && now() > createdAt + JD_START_REQUEST_WINDOW_MS))) throw expired();
     if (!existing && requests.size >= maxRecords) throw new JdExtractionError({ code: "browser_unavailable", stage: "service", message: "近期启动请求尚在处理或等待清理，请稍后再试。" });
-    return { existing, source, createdAt };
+    return { existing, createdAt };
   };
   const cleanupRequest = (request: StartRequest): Promise<boolean> => {
     if (request.cleanup) return request.cleanup;
@@ -107,6 +141,44 @@ export function createJobSessionRouter(standard: JobSessionBackend, liepin: JobS
       if (signals.some(signal => signal.aborted)) cancelled();
     });
   };
+  const startBoundRequest = (owner: string, source: RequestSource, requestId: string, signal?: AbortSignal): Promise<BrowserSessionInfo> => {
+    signal?.throwIfAborted();
+    const { existing, createdAt } = binding(owner, source, requestId);
+    if (existing) {
+      if (existing.ended) throw existing.error ?? expired();
+      if (existing.settled && !active(existing)) { existing.ended = true; throw expired(); }
+      return waitForRequest(existing.settled && existing.info ? Promise.resolve(existing.info) : existing.pending!, signal, existing.abort.signal);
+    }
+    const request: StartRequest = { owner, url: source.url, kind: source.kind, selected: source.select(), createdAt, abort: new AbortController(), settled: false, ended: false };
+    requests.set(requestId, request);
+    // Waiter cancellation only detaches that HTTP call. Exact cancellation,
+    // lifecycle cleanup, or the finite logical deadline owns this launch.
+    const timer = setTimeout(() => { request.ended = true; request.abort.abort(expired()); }, options.requestOptions?.startTimeoutMs ?? 60_000);
+    timer.unref?.();
+    request.pending = source.open(request.abort.signal).then(async info => {
+      request.info = info;
+      if (request.ended || request.abort.signal.aborted) { await cleanupRequest(request); throw request.abort.signal.reason ?? expired(); }
+      return info;
+    }).catch(error => { request.ended = true; request.error = error; throw error; }).finally(() => { request.settled = true; clearTimeout(timer); });
+    void request.pending.catch(() => undefined);
+    return waitForRequest(request.pending, signal, request.abort.signal);
+  };
+  const cancelBoundRequest = async (owner: string, source: RequestSource, requestId: string): Promise<{ cancelled: true; closed: boolean }> => {
+    const { existing, createdAt } = binding(owner, source, requestId, "cancel");
+    const request: StartRequest = existing ?? { owner, url: source.url, kind: source.kind, selected: source.select(), createdAt, abort: new AbortController(), settled: true, ended: true };
+    // Preserve a pre-launch cancellation so a delayed POST cannot reopen it.
+    if (!existing) requests.set(requestId, request);
+    request.ended = true; request.abort.abort(expired());
+    if (request.pending && !request.settled) {
+      await new Promise<void>(resolve => {
+        const timer = setTimeout(resolve, options.requestOptions?.cancelWaitMs ?? 1000);
+        void request.pending!.then(() => { clearTimeout(timer); resolve(); }, () => { clearTimeout(timer); resolve(); });
+      });
+      // A bounded wait is not proof that an ignored-abort acquisition closed.
+      if (!request.settled) return { cancelled: true, closed: false };
+    }
+    return { cancelled: true, closed: await cleanupRequest(request) };
+  };
   const endRequests = () => {
     for (const request of requests.values()) { request.ended = true; request.abort.abort(expired()); }
   };
@@ -115,78 +187,70 @@ export function createJobSessionRouter(standard: JobSessionBackend, liepin: JobS
     const failed = results.find((result) => result.status === "rejected");
     if (failed?.status === "rejected") throw failed.reason;
   };
+  const launch = async (owner: string, selected: JobSessionBackend, open: (signal: AbortSignal) => Promise<BrowserSessionInfo>, signal?: AbortSignal) => {
+    signal?.throwIfAborted();
+    if (starting || draining || stopping) throw unavailable();
+    const abort = new AbortController();
+    const cancelled = () => abort.abort(signal?.reason);
+    signal?.addEventListener("abort", cancelled, { once: true });
+    if (signal?.aborted) cancelled();
+    const pending = Promise.resolve().then(async () => {
+      abort.signal.throwIfAborted();
+      // Detail and search reserve this same slot before any asynchronous recovery.
+      await settle(engines.map(engine => engine.recoverExited?.() ?? Promise.resolve(false)));
+      abort.signal.throwIfAborted();
+      await settle(engines.map(engine => engine.retryEnded?.(owner) ?? Promise.resolve()));
+      abort.signal.throwIfAborted();
+      if (engines.some(engine => engine.hasSession())) throw unavailable();
+      const info = await open(abort.signal);
+      if (abort.signal.aborted) {
+        await selected.close(owner, info.sessionId);
+        abort.signal.throwIfAborted();
+      }
+      return info;
+    });
+    const reservation = { abort, pending };
+    starting = reservation;
+    try { return await pending; }
+    finally { signal?.removeEventListener("abort", cancelled); if (starting === reservation) starting = undefined; }
+  };
   const router = {
     async start(owner: string, input: string, signal?: AbortSignal) {
       signal?.throwIfAborted();
       if (starting || draining || stopping) throw unavailable();
       const selected = select(sourceFor(input));
-      const abort = new AbortController();
-      const cancelled = () => abort.abort(signal?.reason);
-      signal?.addEventListener("abort", cancelled, { once: true });
-      if (signal?.aborted) cancelled();
-      const pending = Promise.resolve().then(async () => {
-        abort.signal.throwIfAborted();
-        // Reserve the shared starting slot before this async preflight. A closed
-        // native browser may still own an old page until OS exit is proved.
-        await settle(engines.map(engine => engine.recoverExited?.() ?? Promise.resolve(false)));
-        abort.signal.throwIfAborted();
-        await settle(engines.map(engine => engine.retryEnded?.(owner) ?? Promise.resolve()));
-        abort.signal.throwIfAborted();
-        if (engines.some(engine => engine.hasSession())) throw unavailable();
-        const info = await selected.start(owner, input, abort.signal);
-        if (abort.signal.aborted) {
-          await selected.close(owner, info.sessionId);
-          abort.signal.throwIfAborted();
-        }
-        return info;
-      });
-      const launch = { abort, pending };
-      starting = launch;
-      try { return await pending; }
-      finally { signal?.removeEventListener("abort", cancelled); if (starting === launch) starting = undefined; }
+      return launch(owner, selected, operationSignal => selected.start(owner, input, operationSignal), signal);
+    },
+    async startSearch(owner: string, input: PlatformSearchInput, signal?: AbortSignal): Promise<BrowserSessionInfo> {
+      signal?.throwIfAborted();
+      if (starting || draining || stopping) throw unavailable();
+      const request = searchSourceFor(input), selected = selectSearch(request), validated = searchInput(request);
+      return launch(owner, selected, operationSignal => selected.startSearch!(owner, validated, operationSignal), signal);
     },
     async startRequest(owner: string, input: string, requestId: string, signal?: AbortSignal): Promise<BrowserSessionInfo> {
       signal?.throwIfAborted();
-      const { existing, source, createdAt } = binding(owner, input, requestId);
-      if (existing) {
-        if (existing.ended) throw existing.error ?? expired();
-        if (existing.settled && !active(existing)) { existing.ended = true; throw expired(); }
-        return waitForRequest(existing.settled && existing.info ? Promise.resolve(existing.info) : existing.pending!, signal, existing.abort.signal);
-      }
-      const request: StartRequest = { owner, url: source.url, selected: select(source), createdAt, abort: new AbortController(), settled: false, ended: false };
-      requests.set(requestId, request);
-      // The logical launch survives a lost HTTP waiter. Only exact cancellation,
-      // its own timeout, or explicit lifecycle cleanup can end it.
-      const timer = setTimeout(() => { request.ended = true; request.abort.abort(expired()); }, options.requestOptions?.startTimeoutMs ?? 60_000);
-      timer.unref?.();
-      request.pending = router.start(owner, source.url, request.abort.signal).then(async info => {
-        request.info = info;
-        if (request.ended || request.abort.signal.aborted) { await cleanupRequest(request); throw request.abort.signal.reason ?? expired(); }
-        return info;
-      }).catch(error => { request.ended = true; request.error = error; throw error; }).finally(() => { request.settled = true; clearTimeout(timer); });
-      void request.pending.catch(() => undefined);
-      return waitForRequest(request.pending, signal, request.abort.signal);
+      const source = sourceFor(input);
+      return startBoundRequest(owner, { url: source.url, kind: "detail", select: () => select(source), open: operationSignal => router.start(owner, source.url, operationSignal) }, requestId, signal);
     },
     async cancelStart(owner: string, input: string, requestId: string): Promise<{ cancelled: true; closed: boolean }> {
-      const { existing, source, createdAt } = binding(owner, input, requestId, "cancel");
-      const request: StartRequest = existing ?? { owner, url: source.url, selected: select(source), createdAt, abort: new AbortController(), settled: true, ended: true };
-      // A cancellation may arrive before its POST start. Keep its tombstone for
-      // the entire remaining acceptance window so a delayed POST cannot reopen it.
-      if (!existing) requests.set(requestId, request);
-      request.ended = true; request.abort.abort(expired());
-      if (request.pending && !request.settled) {
-        // Record cancellation immediately, but leave the underlying reservation
-        // intact when an acquire/recovery ignores abort. Do not hold this HTTP
-        // response indefinitely or claim an unresolved page has been closed.
-        await new Promise<void>(resolve => {
-          const timer = setTimeout(resolve, options.requestOptions?.cancelWaitMs ?? 1000);
-          void request.pending!.then(() => { clearTimeout(timer); resolve(); }, () => { clearTimeout(timer); resolve(); });
-        });
-        if (!request.settled) return { cancelled: true, closed: false };
-      }
-      return { cancelled: true, closed: await cleanupRequest(request) };
+      const source = sourceFor(input);
+      return cancelBoundRequest(owner, { url: source.url, kind: "detail", select: () => select(source), open: operationSignal => router.start(owner, source.url, operationSignal) }, requestId);
+    },
+    async startSearchRequest(owner: string, input: PlatformSearchInput, requestId: string, signal?: AbortSignal): Promise<BrowserSessionInfo> {
+      signal?.throwIfAborted();
+      const source = searchSourceFor(input), validated = searchInput(source);
+      return startBoundRequest(owner, { url: source.url, kind: "search", select: () => selectSearch(source), open: operationSignal => router.startSearch(owner, validated, operationSignal) }, requestId, signal);
+    },
+    async cancelSearchStart(owner: string, input: PlatformSearchInput, requestId: string): Promise<{ cancelled: true; closed: boolean }> {
+      const source = searchSourceFor(input), validated = searchInput(source);
+      return cancelBoundRequest(owner, { url: source.url, kind: "search", select: () => selectSearch(source), open: operationSignal => router.startSearch(owner, validated, operationSignal) }, requestId);
     },
     read: (owner: string, id: string, signal?: AbortSignal) => backend(id).read(owner, id, signal),
+    readSearch: (owner: string, id: string, signal?: AbortSignal): Promise<JobSearchCaptureResult> => {
+      const selected = backend(id);
+      if (!selected.readSearch) return Promise.reject(new JdExtractionError({ code: "service_unavailable", stage: "service", message: "本地服务尚不支持读取平台搜索结果。" }));
+      return selected.readSearch(owner, id, signal);
+    },
     inspect: (owner: string, id: string, signal?: AbortSignal) => backend(id).inspect(owner, id, signal),
     focus: (owner: string, id: string, signal?: AbortSignal) => backend(id).focus(owner, id, signal),
     async extend(owner: string, id: string, signal?: AbortSignal): Promise<BrowserSessionInfo> {

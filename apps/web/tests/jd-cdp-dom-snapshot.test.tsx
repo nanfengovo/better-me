@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { load as parseHtml } from "cheerio";
 import { NativeDomSnapshotError, NATIVE_SNAPSHOT_STYLES, NATIVE_ROOT_SCROLL_STYLES, NATIVE_LIEPIN_PARAGRAPH_STYLES, projectNativeDomSnapshot, type NativeDomSnapshotCode } from "../server/jd-cdp-dom-snapshot";
 import { validateBrowserSnapshot } from "../server/jd-browser-snapshot";
 import { extractPublicJobHtml } from "../server/jd-extractor";
 import { isLiepinDescriptionHeading } from "../server/jd-liepin-description";
 import { isObservedLiepinVerification } from "../server/jd-browser";
+import { extractJobSearchCards } from "../server/jd-search-capture";
 
 const source = "https://www.liepin.com/job/123456789.shtml";
 const frame = { id: "main-frame", url: source };
@@ -56,6 +58,257 @@ function fixture() {
   return { snapshot, strings, str, add, nodes, layout, textBoxes, doc, html, head, body, paragraph, layoutIndex, style, appendLayout, textBox };
 }
 const fails = (code: NativeDomSnapshotCode) => (error: unknown) => error instanceof NativeDomSnapshotError && error.code === code && error.message === code && !error.cause;
+
+function searchGeometry(f: ReturnType<typeof fixture>, scale = 1) {
+  const geometry = {
+    offsetRects: f.layout.bounds.map((bounds, row) => f.nodes.nodeType[f.layout.nodeIndex[row]] === 1 ? [0, 0, bounds[2], bounds[3]] as Box : []),
+    clientRects: f.layout.bounds.map((bounds, row) => f.nodes.nodeType[f.layout.nodeIndex[row]] === 1 ? [0, 0, bounds[2], bounds[3]] as Box : []),
+    scrollRects: f.layout.bounds.map((bounds, row) => f.nodes.nodeType[f.layout.nodeIndex[row]] === 1 ? [0, 0, bounds[2], bounds[3]] as Box : []),
+  };
+  Object.assign(f.layout, geometry);
+  for (let row = 0; row < f.layout.styles.length; row++) {
+    if (f.layout.styles[row].length) f.layout.styles[row].push(...["1", "ltr", "horizontal-tb", "static", "none"].map(f.str));
+    f.layout.bounds[row] = f.layout.bounds[row].map(value => value * scale) as Box;
+  }
+  f.textBoxes.bounds = f.textBoxes.bounds.map(bounds => bounds.map(value => value * scale) as Box);
+  Object.assign(f.doc, { contentWidth: 1000 * scale, contentHeight: 1000 * scale, scrollOffsetX: 0, scrollOffsetY: 0 });
+  return geometry;
+}
+function projectSearch(f: ReturnType<typeof fixture>) {
+  return projectNativeDomSnapshot(f.snapshot, frame, load, { purpose: "search", rootDocument: { nodeType: 9, backendNodeId: 1, documentURL: source, compatibilityMode: "NoQuirksMode" } });
+}
+
+test("search omits an unsafe field and unrelated cropped banner while retaining other complete card fields", () => {
+  const f = fixture();
+  const card = f.add("ARTICLE", f.body, { attrs: { class: "job-card-pc-container" } });
+  const link = f.add("A", card, { attrs: { class: "job-title", href: "https://www.liepin.com/job/123456789.shtml" } });
+  f.add("#text", link, { text: "完整的合成岗位标题" });
+  const company = f.add("SPAN", card, { attrs: { class: "company-name" }, styles: { "overflow-x": "hidden", "text-overflow": "ellipsis" } });
+  f.add("#text", company, { text: "PRIVATE_COMPANY_SUFFIX" });
+  const salary = f.add("SPAN", card, { attrs: { class: "job-salary" } }); f.add("#text", salary, { text: "20-30k·13薪" });
+  const banner = f.add("DIV", f.body, { styles: { "overflow-y": "auto", transform: "matrix(1,0,0,1,20,0)" } });
+  f.add("#text", banner, { text: "PRIVATE_UNRELATED_BANNER" });
+  const projected = projectSearch(f);
+  assert.match(projected.html, /完整的合成岗位标题/); assert.doesNotMatch(projected.html, /PRIVATE_/);
+  const listUrl = "https://www.liepin.com/zhaopin/?key=C%23";
+  const parsed = extractJobSearchCards({ ...projected, url: listUrl }, "猎聘");
+  assert.equal(parsed.status, "ready"); assert.equal(parsed.partial, true); assert.equal(parsed.cards.length, 1);
+  assert.equal(parsed.cards[0].company, undefined); assert.equal(parsed.cards[0].salaryText, "20-30k·13薪");
+  assert.throws(() => projectNativeDomSnapshot(f.snapshot, frame, load), fails("snapshot_visibility_unsupported"));
+});
+
+test("search local clipping requires whole boxes inside the proven padding client area on each clipping axis", () => {
+  for (const overflow of ["hidden", "clip", "auto", "scroll"]) for (const axis of ["x", "y"] as const) {
+    const f = fixture(); const clip = f.add("DIV", f.body, { bounds: [0, 0, 100, 40], styles: { [`overflow-${axis}`]: overflow } });
+    const inside = f.add("A", clip, { attrs: { href: "VISIBLE_HREF" } }); f.add("#text", inside, { text: "VISIBLE_FIELD", bounds: [10, 10, 60, 10] });
+    const outside = f.add("A", clip, { attrs: { href: "PRIVATE_OUTSIDE_HREF" } }); f.add("#text", outside, { text: "PRIVATE_OUTSIDE", bounds: axis === "x" ? [110, 10, 60, 10] : [10, 50, 60, 10] });
+    const crossing = f.add("A", clip, { attrs: { href: "PRIVATE_CROSSING_HREF" } }); f.add("#text", crossing, { text: "PRIVATE_CROSSING", bounds: axis === "x" ? [90, 10, 60, 10] : [10, 35, 60, 10] });
+    searchGeometry(f); const result = projectSearch(f);
+    assert.match(result.html, /VISIBLE_FIELD/); assert.match(result.html, /href="VISIBLE_HREF"/); assert.doesNotMatch(result.html, /PRIVATE_/);
+  }
+});
+
+test("search clip geometry uses border offsets and scaled document boxes without subtracting local scroll twice", () => {
+  for (const scale of [1, 2]) {
+    const f = fixture(); const clip = f.add("DIV", f.body, { bounds: [20, 30, 104, 44], styles: { "overflow-x": "hidden", "overflow-y": "scroll" } });
+    const link = f.add("A", clip, { attrs: { href: "VISIBLE_HREF" } }); f.add("#text", link, { text: "VISIBLE_AFTER_SCROLL", bounds: [23, 33, 60, 10] });
+    const clipped = f.add("SPAN", clip); f.add("#text", clipped, { text: "PRIVATE_BORDER_TEXT", bounds: [20, 30, 1, 1] });
+    const geometry = searchGeometry(f, scale), row = f.layoutIndex(clip);
+    geometry.clientRects[row] = [2, 2, 100, 40]; geometry.scrollRects[row] = [0, 20, 100, 80];
+    const result = projectSearch(f); assert.match(result.html, /VISIBLE_AFTER_SCROLL/); assert.doesNotMatch(result.html, /PRIVATE_/);
+  }
+});
+
+test("search requires all nested clipping intersections and omits text when any ancestor lacks geometry", () => {
+  const f = fixture(); const outer = f.add("DIV", f.body, { bounds: [0, 0, 100, 100], styles: { "overflow-x": "hidden" } });
+  const inner = f.add("DIV", outer, { bounds: [0, 0, 200, 50], styles: { "overflow-y": "hidden" } });
+  f.add("#text", inner, { text: "VISIBLE_INTERSECTION", bounds: [10, 10, 50, 10] });
+  f.add("#text", inner, { text: "PRIVATE_OUTER_CLIP", bounds: [110, 10, 50, 10] });
+  f.add("#text", inner, { text: "PRIVATE_INNER_CLIP", bounds: [10, 60, 50, 10] });
+  const geometry = searchGeometry(f); const result = projectSearch(f);
+  assert.match(result.html, /VISIBLE_INTERSECTION/); assert.doesNotMatch(result.html, /PRIVATE_/);
+  geometry.clientRects[f.layoutIndex(outer)] = [];
+  assert.doesNotMatch(projectSearch(f).html, /VISIBLE_INTERSECTION|PRIVATE_/);
+});
+
+test("search never uses a rendered prefix, an internal gap or overlapping fragments as a complete semantic field", () => {
+  for (const mode of ["suffix", "internal", "different-layout"] as const) {
+    const f = fixture(); const link = f.add("A", f.body, { attrs: { href: "PRIVATE_INCOMPLETE_HREF", title: "PRIVATE_RAW_FALLBACK" } });
+    const text = "VISIBLE_PREFIX PRIVATE_SUFFIX", node = f.add("#text", link, { text }); const row = f.layoutIndex(node), box = f.textBoxes.layoutIndex.indexOf(row);
+    if (mode === "suffix") f.textBoxes.length[box] = "VISIBLE_PREFIX".length;
+    if (mode === "internal") { f.textBoxes.length[box] = 4; f.textBox(row, 10, text.length - 10); }
+    if (mode === "different-layout") { const other = f.appendLayout(node, { text: "OTHER_PRIVATE_FRAGMENT" }); f.textBox(other, 0, 22); }
+    assert.doesNotMatch(projectSearch(f).html, /VISIBLE_PREFIX|PRIVATE_|OTHER_/);
+  }
+});
+
+test("search permits ellipsis styles only when scroll and complete box evidence prove that no truncation actually occurred", () => {
+  for (const mode of ["complete", "overflow", "missing-geometry", "clamped-suffix"] as const) {
+    const f = fixture(); const link = f.add("A", f.body, { attrs: { href: "FIELD_HREF" }, bounds: [0, 0, 100, 40], styles: { "overflow-x": "hidden", "text-overflow": "ellipsis", "-webkit-line-clamp": "2" } });
+    const node = f.add("#text", link, { text: "FIELD_TEXT", bounds: [10, 10, 60, 10] });
+    const geometry = searchGeometry(f), row = f.layoutIndex(link);
+    if (mode === "overflow") geometry.scrollRects[row] = [0, 0, 200, 40];
+    if (mode === "missing-geometry") geometry.offsetRects[row] = [];
+    if (mode === "clamped-suffix") f.textBoxes.length[f.textBoxes.layoutIndex.indexOf(f.layoutIndex(node))] -= 1;
+    const result = projectSearch(f);
+    if (mode === "complete") assert.match(result.html, /href="FIELD_HREF">FIELD_TEXT/);
+    else assert.doesNotMatch(result.html, /FIELD_HREF|FIELD_TEXT/);
+  }
+});
+
+test("search full-page gates precede discarded visual effects, including gates in forms outside the adopted card", () => {
+  for (const [text, expected] of [["请登录后查看岗位", "login_required"], ["猎聘安全中心发现您的账号或IP可能存在异常，为了保障资源安全，请进行安全验证", "verification_required"]] as const) {
+    const f = fixture(); const link = f.add("A", f.body, { attrs: { href: "PRIVATE_JOB_LINK" } }); f.add("#text", link, { text: "PRIVATE_JOB_TITLE" });
+    const form = f.add("FORM", f.body, { styles: { "overflow-y": "hidden", transform: "matrix(1,0,0,1,2,0)" } }); f.add("#text", form, { text });
+    const result = projectSearch(f); assert.equal(result.gate, expected); assert.doesNotMatch(result.html, /PRIVATE_/);
+  }
+});
+
+test("search discards a whole scalar field when a separate child text node has uncertain visibility", () => {
+  for (const [tag, fieldClass] of [["SPAN", "salary"], ["DIV", "company-name"], ["H3", ""], ["TIME", ""], ["A", ""]]) {
+    for (const missingLayout of [false, true]) {
+      const f = fixture();
+      const field = f.add(tag, f.body, { attrs: { class: fieldClass, href: "PRIVATE_INCOMPLETE_HREF", datetime: "PRIVATE_INCOMPLETE_DATE" } });
+      const prefix = f.add("B", field); f.add("#text", prefix, { text: "PRIVATE_PREFIX" });
+      const suffix = f.add("I", field, { styles: { transform: "matrix(1,0,0,1,2,0)" } });
+      f.add("#text", suffix, { text: "PRIVATE_SUFFIX", hiddenLayout: missingLayout });
+      f.paragraph("SAFE_OTHER_FIELD");
+      const projected = projectSearch(f);
+      assert.match(projected.html, /SAFE_OTHER_FIELD/);
+      assert.doesNotMatch(projected.html, /PRIVATE_/);
+    }
+  }
+});
+
+test("search propagates incomplete fragments through every scalar wrapper while preserving other fields in a linked card", () => {
+  const f = fixture();
+  const card = f.add("A", f.body, { attrs: { class: "job-card-pc-container", href: source } });
+  const title = f.add("H3", card, { attrs: { class: "job-title" } }); f.add("#text", title, { text: "完整的岗位标题" });
+  const company = f.add("DIV", card, { attrs: { class: "company-name" } }); f.add("#text", company, { text: "完整的企业名称" });
+  const salary = f.add("SPAN", card, { attrs: { class: "salary" } });
+  const prefix = f.add("B", salary); f.add("#text", prefix, { text: "PRIVATE_SALARY_PREFIX" });
+  const suffix = f.add("I", salary, { styles: { filter: "blur(1px)" } }); f.add("#text", suffix, { text: "PRIVATE_SALARY_SUFFIX" });
+  const nestedTitle = f.add("DIV", f.body, { attrs: { class: "job-title" } });
+  const nestedLink = f.add("A", nestedTitle, { attrs: { href: "PRIVATE_PARTIAL_TITLE_LINK" } });
+  f.add("#text", nestedLink, { text: "PRIVATE_TITLE_PREFIX" });
+  const cropped = f.add("SPAN", nestedLink, { styles: { "overflow-x": "hidden" } }); f.add("#text", cropped, { text: "PRIVATE_TITLE_SUFFIX" });
+  const projected = projectSearch(f);
+  assert.doesNotMatch(projected.html, /PRIVATE_/);
+  const parsed = extractJobSearchCards({ ...projected, url: "https://www.liepin.com/zhaopin/?key=C%23" }, "猎聘");
+  assert.equal(parsed.status, "ready"); assert.equal(parsed.cards.length, 1);
+  assert.equal(parsed.cards[0].title, "完整的岗位标题"); assert.equal(parsed.cards[0].company, "完整的企业名称");
+  assert.equal(parsed.cards[0].salaryText, undefined); assert.equal(parsed.cards[0].url, source);
+});
+
+test("search explicitly hidden or excluded duplicate text does not invalidate a complete visible field", () => {
+  const f = fixture(); const link = f.add("A", f.body, { attrs: { class: "job-title", href: source } });
+  f.add("#text", link, { text: "COMPLETE_VISIBLE_TITLE" });
+  const hidden = f.add("SPAN", link, { attrs: { "aria-hidden": "true" } }); f.add("#text", hidden, { text: "PRIVATE_DUPLICATE" });
+  const script = f.add("SCRIPT", link); f.add("#text", script, { text: "PRIVATE_SCRIPT", hiddenLayout: true });
+  const transparent = f.add("SPAN", link, { styles: { color: "transparent" } }); f.add("#text", transparent, { text: "PRIVATE_TRANSPARENT" });
+  const projected = projectSearch(f);
+  assert.match(projected.html, /href=.*COMPLETE_VISIBLE_TITLE/); assert.doesNotMatch(projected.html, /PRIVATE_/);
+});
+
+test("search rejects conflicting visibility before it can conceal full-page gate text", () => {
+  const f = fixture(); f.paragraph("UNRELATED_CARD_TEXT");
+  const form = f.add("FORM", f.body); f.add("#text", form, { text: "请登录后查看岗位" });
+  f.appendLayout(form, { styles: { visibility: "hidden" } });
+  assert.throws(() => projectSearch(f), (error: unknown) => error instanceof NativeDomSnapshotError && error.detail === "layout_style_conflict");
+});
+
+test("search checks actual HEAD titles for gates even when protocol title still describes a job", () => {
+  for (const [text, gate] of [["登录 - 猎聘", "login_required"], ["安全验证 - 猎聘", "verification_required"]]) {
+    const f = fixture(); const title = f.add("TITLE", f.head); f.add("#text", title, { text, hiddenLayout: true });
+    const link = f.add("A", f.body, { attrs: { href: "PRIVATE_STALE_CARD_LINK" } }); f.add("#text", link, { text: "PRIVATE_STALE_CARD_TITLE" });
+    const projected = projectSearch(f); assert.equal(projected.gate, gate); assert.doesNotMatch(projected.html, /PRIVATE_/);
+  }
+});
+
+test("search does not copy hidden JSON-LD, canonical metadata, unsafe time attributes or generated effects into partial cards", () => {
+  const f = fixture(); f.paragraph("VISIBLE_SAFE_TEXT");
+  const script = f.add("SCRIPT", f.head, { attrs: { type: "application/ld+json" } }); f.add("#text", script, { text: '{"title":"PRIVATE_JSON_TITLE"}', hiddenLayout: true });
+  f.add("LINK", f.head, { attrs: { rel: "canonical", href: "PRIVATE_CANONICAL" } });
+  for (const [property, value] of [["transform", "matrix(1,0,0,1,2,0)"], ["filter", "blur(1px)"], ["mask-image", "linear-gradient(black,transparent)"], ["clip-path", "inset(1px)"], ["clip", "rect(0px,1px,1px,0px)"], ["content-visibility", "auto"]]) {
+    const time = f.add("TIME", f.body, { attrs: { datetime: "PRIVATE_TIME" }, styles: { [property]: value } }); f.add("#text", time, { text: "PRIVATE_UNSAFE_TIME" });
+  }
+  const result = projectSearch(f); assert.match(result.html, /VISIBLE_SAFE_TEXT/); assert.doesNotMatch(result.html, /PRIVATE_|application\/ld\+json|canonical/);
+});
+
+test("search ordinary root scrolling preserves the rendered page beyond the first viewport with fresh consistent root evidence", () => {
+  for (const scale of [1, 2]) {
+    const f = fixture(); f.style(f.html, "overflow-y", "auto");
+    const node = f.add("DIV", f.body); f.add("#text", node, { text: "VISIBLE_LOWER_CARD", bounds: [10, 800, 200, 20] });
+    const geometry = searchGeometry(f, scale), row = f.layoutIndex(f.html);
+    geometry.clientRects[row] = [0, 0, 1000, 500]; geometry.scrollRects[row] = [0, 300, 1000, 1000];
+    Object.assign(f.doc, { scrollOffsetY: 300 * scale });
+    assert.match(projectSearch(f).html, /VISIBLE_LOWER_CARD/);
+    assert.doesNotMatch(projectNativeDomSnapshot(f.snapshot, frame, load, { purpose: "search" }).html, /VISIBLE_LOWER_CARD/);
+  }
+});
+
+test("explicit search projection preserves exact visible anchor href and time datetime while default projection stays unchanged", () => {
+  const f = fixture();
+  const href = '  ../job/123.shtml?query=C%23&title="<Engineer>"  ';
+  const datetime = ' 2026-10-18T11:22:33+08:00 "&<raw> ';
+  const link = f.add("A", f.body, { attrs: { class: "job-title", id: "job-123", href, onclick: "PRIVATE_EVENT", style: "PRIVATE_STYLE", target: "_blank", datetime: "WRONG_TAG_DATE", "data-secret": "PRIVATE_DATA" } });
+  f.add("#text", link, { text: "C# engineer" });
+  const time = f.add("TIME", f.body, { attrs: { datetime, href: "WRONG_TAG_HREF", onmouseover: "PRIVATE_TIME_EVENT" } });
+  f.add("#text", time, { text: "今天发布" });
+  const ordinary = projectNativeDomSnapshot(f.snapshot, frame, load);
+  assert.equal(ordinary.html, '<html><head></head><body><a class="job-title" id="job-123">C# engineer</a><time>今天发布</time></body></html>');
+  const search = projectNativeDomSnapshot(f.snapshot, frame, load, { purpose: "search" });
+  const html = parseHtml(search.html);
+  assert.equal(html("a").attr("href"), href); assert.equal(html("time").attr("datetime"), datetime);
+  assert.deepEqual(Object.keys(html("a")[0]!.attribs), ["class", "id", "href"]);
+  assert.deepEqual(Object.keys(html("time")[0]!.attribs), ["datetime"]);
+  assert.match(search.html, /href=" {2}\.\.\/job\/123\.shtml\?query=C%23&amp;title=&quot;&lt;Engineer&gt;&quot; {2}"/);
+  assert.doesNotMatch(search.html, /PRIVATE_|WRONG_TAG|<script|<style/);
+  assert.deepEqual(search.pageLoad, ordinary.pageLoad);
+  assert.equal(projectNativeDomSnapshot(f.snapshot, frame, load).html, ordinary.html, "an explicit search must not change later default capture");
+});
+
+test("search metadata never leaks hidden excluded or unrendered links and timestamps", () => {
+  const f = fixture(); f.paragraph();
+  for (const options of [
+    { attrs: { hidden: "" } }, { attrs: { "aria-hidden": "true" } }, { styles: { display: "none" } },
+    { styles: { visibility: "hidden" } }, { styles: { opacity: "0" } }, { styles: { "content-visibility": "hidden" } },
+    { attrs: { class: "job-recommend-list" } },
+  ]) {
+    const parent = f.add("DIV", f.body, options);
+    for (const tag of ["A", "TIME"]) {
+      const element = f.add(tag, parent, { attrs: { href: "HIDDEN_HREF", datetime: "HIDDEN_DATE" } });
+      f.add("#text", element, { text: "HIDDEN_TEXT" });
+    }
+  }
+  const emptyLink = f.add("A", f.body, { attrs: { href: "UNRENDERED_HREF" } });
+  const transparent = f.add("#text", emptyLink, { text: "UNRENDERED_TEXT" });
+  f.layout.textColorOpacities[f.layoutIndex(transparent)] = 0;
+  f.add("TIME", f.body, { attrs: { datetime: "EMPTY_TIME_DATE" } });
+  for (const tag of ["SCRIPT", "STYLE", "FORM", "INPUT", "TEMPLATE"]) {
+    const parent = f.add(tag, f.body, { attrs: { href: "EXCLUDED_HREF", datetime: "EXCLUDED_DATE" } });
+    const child = f.add("A", parent, { attrs: { href: "EXCLUDED_CHILD_HREF" } }); f.add("#text", child, { text: "EXCLUDED_TEXT" });
+  }
+  const result = projectNativeDomSnapshot(f.snapshot, frame, load, { purpose: "search" });
+  assert.ok(result.html.includes(description));
+  assert.doesNotMatch(result.html, /HIDDEN_|UNRENDERED_|EMPTY_TIME_DATE|EXCLUDED_|<script|<style|onclick|onmouseover/);
+});
+
+test("search metadata preserves raw URLs as untrusted data without bypassing visibility failures or verification gates", () => {
+  const f = fixture();
+  const href = 'javascript:untrusted("value")';
+  const link = f.add("A", f.body, { attrs: { href } }); f.add("#text", link, { text: "工程师" });
+  assert.equal(parseHtml(projectNativeDomSnapshot(f.snapshot, frame, load, { purpose: "search" }).html)("a").attr("href"), href);
+  f.style(link, "transform", "matrix(1, 0, 0, 1, 10, 20)");
+  const omitted = projectNativeDomSnapshot(f.snapshot, frame, load, { purpose: "search" });
+  assert.doesNotMatch(omitted.html, /工程师|href=/);
+  assert.throws(() => projectNativeDomSnapshot(f.snapshot, frame, load), fails("snapshot_visibility_unsupported"));
+  const gate = fixture(); const dialog = gate.add("DIV", gate.body, { attrs: { role: "dialog" } });
+  const form = gate.add("FORM", dialog); const button = gate.add("BUTTON", form); gate.add("#text", button, { text: "请完成安全验证" });
+  const hidden = gate.add("A", gate.body, { attrs: { href: "PRIVATE_GATE_HREF" } }); gate.add("#text", hidden, { text: "工程师" });
+  const blocked = projectNativeDomSnapshot(gate.snapshot, frame, load, { purpose: "search" });
+  assert.equal(blocked.gate, "verification_required"); assert.doesNotMatch(blocked.html, /PRIVATE_GATE_HREF/);
+});
 
 const job51Source = "https://jobs.51job.com/shanghai/166509900.html";
 const job51Frame = { id: frame.id, url: job51Source };

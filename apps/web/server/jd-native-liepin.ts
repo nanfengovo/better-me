@@ -1,3 +1,4 @@
+import { readJdPublicationFields } from "../src/lib/jd-source";
 import { randomUUID } from "node:crypto";
 import { normalizeJobShare, allowedJobUrl, type JdImportResult } from "../src/lib/jd-source";
 import { JdExtractionError, type JdFailureCode } from "../src/lib/jd-errors";
@@ -9,8 +10,11 @@ import type { BrowserSessionInfo, BrowserSessionInspection } from "./jd-browser-
 import { createNativeLiepinBrowser, NativeCaptureError, NativePageAcquisitionError, type NativeJobPlatform, type NativeBrowserStopMode, type NativeLiepinBrowser, type NativeLiepinPage } from "./jd-native-liepin-browser";
 import { abortNative, nativePause } from "./jd-native-edge";
 import { isBossDescriptionCollapsed, isSnapshotFailure, type SnapshotFailure } from "../src/lib/jd-capture-diagnostics";
+import { buildPlatformSearchRequest, type PlatformSearchInput } from "@better-me/source-adapters/platform-search";
+import { extractJobSearchCards, type JobSearchCaptureResult } from "./jd-search-capture";
+import { matchesPlannedJobSearchUrl } from "./jd-session-router";
 
-type Session = { id: string; owner: string; url: string; expires: number; expiryGeneration: number; lifetime: AbortController; page?: NativeLiepinPage; acquiring?: Promise<NativeLiepinPage>; busy: boolean; ended: boolean; closing?: Promise<void>; timer: ReturnType<typeof setTimeout>; proxyUrl?: string };
+type Session = { id: string; owner: string; url: string; purpose: "detail" | "search"; expires: number; expiryGeneration: number; lifetime: AbortController; page?: NativeLiepinPage; acquiring?: Promise<NativeLiepinPage>; busy: boolean; ended: boolean; closing?: Promise<void>; timer: ReturnType<typeof setTimeout>; proxyUrl?: string };
 export type NativeLiepinOptions = {
   platform?: NativeJobPlatform;
   browser?: NativeLiepinBrowser;
@@ -106,7 +110,20 @@ export function createNativeLiepinSessions(options: NativeLiepinOptions = {}) {
     let source: ReturnType<typeof normalizeJobShare>;
     try { source = normalizeJobShare(input); } catch { throw failure("invalid_link", `请提供有效的${platform}官方岗位分享链接。`, "service"); }
     if (source.platform !== platform) throw failure("invalid_link", `本次原生浏览器仅用于${platform}岗位。`, "service");
-    const session: Session = { id: randomUUID(), owner, url: source.url, expires: now() + 600_000, expiryGeneration: 0, lifetime: new AbortController(), busy: false, ended: false, timer: undefined as unknown as ReturnType<typeof setTimeout> };
+    return startValidated(owner, source, "detail", signal);
+  }
+  async function startSearch(owner: string, input: PlatformSearchInput, signal?: AbortSignal): Promise<BrowserSessionInfo> {
+    abortNative(signal);
+    let source: ReturnType<typeof buildPlatformSearchRequest>;
+    try { source = buildPlatformSearchRequest(input); }
+    catch { throw failure("invalid_link", "平台搜索条件无效，请使用已配置的平台和地区。", "service"); }
+    if (source.platform !== platform) throw failure("invalid_link", `本次原生浏览器仅用于${platform}搜索。`, "service");
+    return startValidated(owner, source, "search", signal);
+  }
+  async function startValidated(owner: string, source: { url: string }, purpose: Session["purpose"], signal?: AbortSignal): Promise<BrowserSessionInfo> {
+    abortNative(signal);
+    if (draining || stopping || recovering || sessions.size || launching.size) throw failure("browser_unavailable", "已有专用岗位页正在运行或等待关闭，请先结束本次会话。", "service");
+    const session: Session = { id: randomUUID(), owner, url: source.url, purpose, expires: now() + 600_000, expiryGeneration: 0, lifetime: new AbortController(), busy: false, ended: false, timer: undefined as unknown as ReturnType<typeof setTimeout> };
     sessions.set(session.id, session); armExpiry(session);
     try {
       return await run(session, signal, 30_000, async (operationSignal) => {
@@ -137,6 +154,7 @@ export function createNativeLiepinSessions(options: NativeLiepinOptions = {}) {
   }
   async function read(owner: string, id: string, signal?: AbortSignal): Promise<JdImportResult> {
     const session = owned(owner, id);
+    if (session.purpose !== "detail") throw failure("unsupported_page", "本会话用于搜索结果，请使用搜索结果读取操作。", "service");
     return run(session, signal, 45_000, async (operationSignal) => {
       const operation = await (options.getOperation ?? getNetworkOperation)(); abortNative(operationSignal);
       if (operation.routeFor(new URL(session.url)).proxyUrl !== session.proxyUrl) throw failure("browser_unavailable", "网络设置已变化，请先显式关闭岗位专用浏览器再重开。", "service");
@@ -185,7 +203,7 @@ export function createNativeLiepinSessions(options: NativeLiepinOptions = {}) {
           if (previous !== key) { previous = key; since = now(); }
           else if (now() - since >= 800 && await page.current(capture.identity, operationSignal)) {
             abortNative(operationSignal);
-            return { text: result.text, method: `人工接续 · ${result.method}`, provenance: { kind: "link", platform, url: session.url, observedAt: new Date(now()).toISOString(), title: result.title } };
+            return { text: result.text, method: `人工接续 · ${result.method}`, provenance: { kind: "link", platform, url: session.url, observedAt: new Date(now()).toISOString(), title: result.title, ...readJdPublicationFields(result) } };
           }
         } catch (error) {
           if (!(error instanceof JdExtractionError)) throw failure("unsupported_page", "当前页面尚未完成岗位正文解析，请核对后再读取。");
@@ -197,16 +215,67 @@ export function createNativeLiepinSessions(options: NativeLiepinOptions = {}) {
       throw last;
     }, false);
   }
+  async function readSearch(owner: string, id: string, signal?: AbortSignal): Promise<JobSearchCaptureResult> {
+    const session = owned(owner, id);
+    if (session.purpose !== "search") throw failure("unsupported_page", "本会话用于单个岗位详情，不能按搜索列表读取。", "service");
+    return run(session, signal, 45_000, async operationSignal => {
+      const operation = await (options.getOperation ?? getNetworkOperation)(); abortNative(operationSignal);
+      if (operation.routeFor(new URL(session.url)).proxyUrl !== session.proxyUrl) throw failure("browser_unavailable", "网络设置已变化，请先显式关闭岗位专用浏览器再重开。", "service");
+      const page = session.page!;
+      await page.verifyNetwork?.(operationSignal); abortNative(operationSignal);
+      const deadline = now() + 40_000;
+      let previous = "", since = 0, invalidSince: number | undefined;
+      const last = failure("unsupported_page", "尚未取得可确认的搜索结果，请在专用页面核对登录、地区和关键词后再读取。");
+      while (now() < deadline) {
+        abortNative(operationSignal);
+        if (page.closed) throw failure("browser_session_expired", "专用搜索页已关闭。", "service");
+        const capture = await page.capture(operationSignal, 1000, session.url, { purpose: "search" });
+        abortNative(operationSignal);
+        if (capture.failure === "visibility_unsupported") throw failure("unsupported_page", "搜索页面使用了尚未支持的裁剪或特殊布局，未采用可能被遮挡的结果。");
+        if (capture.state !== "ready" || !capture.snapshot || !capture.identity) {
+          previous = "";
+          if (capture.state === "navigation_in_progress") invalidSince = undefined;
+          else { invalidSince ??= now(); if (now() - invalidSince >= 2400) throw last; }
+          await sleep(200, operationSignal); continue;
+        }
+        const snapshot = capture.snapshot;
+        const checked = validateBrowserSnapshot(snapshot, { url: snapshot.url, navigation: 0 }, { url: snapshot.url, navigation: 0 });
+        if (checked.state === "oversized") throw failure("unsupported_page", "搜索页面过大，请缩小搜索范围后重试。");
+        if (checked.state !== "ready") { previous = ""; await sleep(200, operationSignal); continue; }
+        gated(snapshot);
+        if (snapshot.url === "about:blank") {
+          previous = ""; invalidSince ??= now(); if (now() - invalidSince >= 2400) throw last;
+          await sleep(200, operationSignal); continue;
+        }
+        if (!allowedBrowserResource(snapshot.url, platform) || !matchesPlannedJobSearchUrl(snapshot.url, session.url)) throw failure("job_mismatch", "搜索页面的来源、关键词或地区已变化，请返回本次搜索条件后再读取。");
+        invalidSince = undefined;
+        const result = extractJobSearchCards(snapshot, platform);
+        const key = JSON.stringify([capture.identity, result]);
+        if (previous !== key) { previous = key; since = now(); }
+        else if (now() - since >= 800 && await page.current(capture.identity, operationSignal)) {
+          abortNative(operationSignal);
+          return result;
+        }
+        await sleep(200, operationSignal);
+      }
+      throw last;
+    }, false);
+  }
   async function inspect(owner: string, id: string, signal?: AbortSignal): Promise<BrowserSessionInspection> {
     const session = owned(owner, id);
     return run(session, signal, 10_000, async (operationSignal) => {
       const page = session.page!;
       try {
-        await page.verifyNetwork?.(operationSignal); abortNative(operationSignal); const capture = await page.capture(operationSignal, 1000, session.url); abortNative(operationSignal);
+        await page.verifyNetwork?.(operationSignal); abortNative(operationSignal); const capture = await page.capture(operationSignal, 1000, session.url, session.purpose === "search" ? { purpose: "search" } : undefined); abortNative(operationSignal);
         const snapshot = capture.snapshot; const reason = snapshot ? gate(snapshot) : undefined;
         let pageState: BrowserSessionInspection["pageState"] = snapshot?.url === "about:blank" ? "blank" : "unknown";
         if (snapshot && capture.state === "ready" && allowedBrowserResource(snapshot.url, platform)) {
-          if (!matchesJobUrl(snapshot.url, new URL(session.url), platform)) pageState = detailIdentity(new URL(snapshot.url), platform) ? "different_job" : "platform_intermediate";
+          if (session.purpose === "search") {
+            // The legacy inspection enum has no search-list state. Preserve
+            // unknown rather than claiming a list is a verified single job.
+            if (!matchesPlannedJobSearchUrl(snapshot.url, session.url)) pageState = detailIdentity(new URL(snapshot.url), platform) ? "different_job" : "platform_intermediate";
+          }
+          else if (!matchesJobUrl(snapshot.url, new URL(session.url), platform)) pageState = detailIdentity(new URL(snapshot.url), platform) ? "different_job" : "platform_intermediate";
           else if (!reason) { try { extractPublicJobHtml(snapshot.html, platform, session.url, { requireVisibleDescription: true, allowValidatedBossShareDescription: platform === "BOSS直聘", allowValidatedLiepinDescription: platform === "猎聘" }); pageState = "original_job"; } catch { /* Identity alone does not establish visible job content. */ } }
         }
         if (capture.state === "ready" && capture.identity && snapshot?.url !== "about:blank" && !await page.current(capture.identity, operationSignal)) {
@@ -268,7 +337,7 @@ export function createNativeLiepinSessions(options: NativeLiepinOptions = {}) {
     stopping = pending; return pending;
   }
   return {
-    start, read, inspect, focus, extend, close, closeAll, stopBrowser, recoverExited, retryEnded,
+    start, startSearch, read, readSearch, inspect, focus, extend, close, closeAll, stopBrowser, recoverExited, retryEnded,
     owns: (id: string) => sessions.has(id),
     isActive: (owner: string, id: string): boolean => {
       const session = sessions.get(id);

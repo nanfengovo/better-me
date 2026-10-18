@@ -5,7 +5,7 @@ import type { BrowserSessionInspection } from "./jd-browser-session";
 import type { BrowserSnapshot } from "./jd-browser-snapshot";
 import { closeNativeTarget, nativeUnavailable, type NativeTargetList } from "./jd-native-cdp";
 import { abortNative, startNativeEdge, inspectNativeProfileOccupancy, NativeEdgeStartupError, type NativeEdge } from "./jd-native-edge";
-import { NATIVE_SNAPSHOT_STYLES, NATIVE_LIEPIN_PARAGRAPH_STYLES, isOriginalLiepinJob, projectNativeDomSnapshot, NativeDomSnapshotError } from "./jd-cdp-dom-snapshot";
+import { NATIVE_SNAPSHOT_STYLES, NATIVE_ROOT_SCROLL_STYLES, NATIVE_LIEPIN_PARAGRAPH_STYLES, isOriginalLiepinJob, projectNativeDomSnapshot, NativeDomSnapshotError } from "./jd-cdp-dom-snapshot";
 import { createNativeTargetPolicy, isNativeBrowserSetupTarget } from "./jd-native-target-policy";
 import type { SnapshotFailure } from "../src/lib/jd-capture-diagnostics";
 import { JdExtractionError } from "../src/lib/jd-errors";
@@ -42,7 +42,7 @@ export type NativeJobPlatform = "猎聘" | "BOSS直聘" | "51JOB";
 export type NativeCapture = { state: "ready" | "navigation_in_progress" | "failed" | "oversized"; snapshot?: BrowserSnapshot; identity?: string; failure?: "visibility_unsupported" | "snapshot_invalid"; diagnostic?: SnapshotFailure; expansionPlan?: BossExpandPlan; frameId?: string };
 export type NativeLiepinPage = {
   navigate(url: string, signal: AbortSignal): Promise<void>;
-  capture(signal: AbortSignal, timeoutMs?: number, sourceUrl?: string): Promise<NativeCapture>;
+  capture(signal: AbortSignal, timeoutMs?: number, sourceUrl?: string, options?: { purpose: "search" }): Promise<NativeCapture>;
   expandDescription?(signal: AbortSignal, sourceUrl: string, expectedIdentity: string): Promise<boolean>;
   current(identity: string, signal: AbortSignal): Promise<boolean>;
   verifyNetwork?(signal: AbortSignal): Promise<void>;
@@ -403,7 +403,7 @@ export function createNativeLiepinBrowser(options: NativeBrowserOptions = {}): N
         const response = await cdp.send<{ errorText?: string }>("Page.navigate", { url }, sessionId, 7000);
         abortNative(operationSignal); if (response.errorText) throw nativeUnavailable("原岗位未完成导航，请核对网络路线与工具窗口。");
       },
-      async capture(operationSignal, timeoutMs = 1000, sourceUrl) {
+      async capture(operationSignal, timeoutMs = 1000, sourceUrl, captureOptions) {
         abortNative(operationSignal); if (page.closed) throw new NativeCaptureError(nativeUnavailable(), { stage: "document_state", reason: "protocol_unavailable" });
         await setupSettled(ownedEdge); abortNative(operationSignal);
         try { await networkSettled(); abortNative(operationSignal); }
@@ -428,24 +428,27 @@ export function createNativeLiepinBrowser(options: NativeBrowserOptions = {}): N
           return { state: "ready", identity: key, snapshot: { html: "<html><body></body></html>", url: before.url, title: "", gate: knownGate, pageLoad: { readyState: "unknown", content: "unknown", visibleFrames: 0 } } };
         }
         const rootScroll = platform === "猎聘" && isOriginalLiepinJob(before.url, sourceUrl);
+        const rootGeometry = rootScroll || captureOptions?.purpose === "search";
         let rootBefore: RootDocument | undefined; let rootAfter: RootDocument | undefined;
         let raw: unknown; let after: Frame;
         try {
-          if (rootScroll) { rootBefore = rootDocument((await cdp.send<{ root?: unknown }>("DOM.getDocument", { depth: 0, pierce: false }, sessionId, timeoutMs)).root); abortNative(operationSignal); }
-          raw = await cdp.send("DOMSnapshot.captureSnapshot", { computedStyles: [...(rootScroll ? NATIVE_LIEPIN_PARAGRAPH_STYLES : NATIVE_SNAPSHOT_STYLES)], includeDOMRects: true, includeTextColorOpacities: true }, sessionId, timeoutMs);
+          if (rootGeometry) { rootBefore = rootDocument((await cdp.send<{ root?: unknown }>("DOM.getDocument", { depth: 0, pierce: false }, sessionId, timeoutMs)).root); abortNative(operationSignal); }
+          raw = await cdp.send("DOMSnapshot.captureSnapshot", { computedStyles: [...(captureOptions?.purpose === "search" ? NATIVE_ROOT_SCROLL_STYLES : rootScroll ? NATIVE_LIEPIN_PARAGRAPH_STYLES : NATIVE_SNAPSHOT_STYLES)], includeDOMRects: true, includeTextColorOpacities: true }, sessionId, timeoutMs);
           abortNative(operationSignal);
-          if (rootScroll) { rootAfter = rootDocument((await cdp.send<{ root?: unknown }>("DOM.getDocument", { depth: 0, pierce: false }, sessionId, timeoutMs)).root); abortNative(operationSignal); }
+          if (rootGeometry) { rootAfter = rootDocument((await cdp.send<{ root?: unknown }>("DOM.getDocument", { depth: 0, pierce: false }, sessionId, timeoutMs)).root); abortNative(operationSignal); }
           after = await frame(timeoutMs); abortNative(operationSignal);
         } catch (error) { abortNative(operationSignal); throw new NativeCaptureError(error, { stage: "capture", reason: "protocol_unavailable" }); }
         const afterFailure = frameFailure(after);
         if (afterFailure || key !== identity(after)) return { state: "navigation_in_progress", diagnostic: { stage: "capture", reason: afterFailure ?? "navigation_changed" } };
-        if (rootScroll && rootIdentity(rootBefore) !== rootIdentity(rootAfter)) return { state: "navigation_in_progress", diagnostic: { stage: "capture", reason: "navigation_changed" } };
+        if (rootGeometry && rootIdentity(rootBefore) !== rootIdentity(rootAfter)) return { state: "navigation_in_progress", diagnostic: { stage: "capture", reason: "navigation_changed" } };
         if (rootScroll && (!validRootDocument(rootBefore, before) || !validRootDocument(rootAfter, after))) return { state: "failed", failure: "visibility_unsupported", diagnostic: { stage: "capture", reason: "snapshot_visibility_unsupported", detail: "overflow_clip_or_scroll" } };
         const observed = lifecycle.get(after.loaderId);
         let snapshot: BrowserSnapshot;
         try {
-          snapshot = projectNativeDomSnapshot(raw, after, { readyState: observed?.load ? "complete" : observed?.dom ? "interactive" : "unknown" },
-            platform === "BOSS直聘" ? { scope: "boss-share", sourceUrl } : rootScroll ? { scope: "liepin-job", rootScroll: "liepin", sourceUrl, rootDocument: rootAfter } : platform === "51JOB" ? { detect51JobWaf: true } : {});
+          snapshot = projectNativeDomSnapshot(raw, after, { readyState: observed?.load ? "complete" : observed?.dom ? "interactive" : "unknown" }, {
+            ...(platform === "BOSS直聘" && captureOptions?.purpose !== "search" ? { scope: "boss-share" as const, sourceUrl } : rootScroll ? { scope: "liepin-job" as const, rootScroll: "liepin" as const, sourceUrl, rootDocument: rootAfter } : platform === "51JOB" ? { detect51JobWaf: true } : {}),
+            ...(captureOptions?.purpose === "search" ? { purpose: "search" as const, rootDocument: rootAfter } : {}),
+          });
         } catch (error) {
           abortNative(operationSignal);
           const reason = error instanceof NativeDomSnapshotError ? error.code : "projection_internal_error";

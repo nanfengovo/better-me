@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createJobSessionRouter, type JobSessionBackend } from "../server/jd-session-router.ts";
+import { createJobSessionRouter, matchesPlannedJobSearchUrl, type JobSessionBackend } from "../server/jd-session-router.ts";
+import { buildPlatformSearchRequest, type PlatformSearchInput } from "@better-me/source-adapters/browser-contracts";
 import { JdExtractionError } from "../src/lib/jd-errors.ts";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -34,6 +35,95 @@ function fixture(name: string) {
   return { backend, sessions, calls };
 }
 const unavailable = (error: unknown) => error instanceof JdExtractionError && error.failure.code === "browser_unavailable";
+
+function searchRouterFixture() {
+  const standard = fixture("standard"), native = fixture("native"), boss = fixture("boss"), job51 = fixture("job51");
+  for (const f of [standard, native, boss, job51]) {
+    f.backend.startSearch = async (owner, input, signal) => {
+      signal?.throwIfAborted();
+      const planned = buildPlatformSearchRequest(input);
+      const info = await f.backend.start(owner, planned.url, signal);
+      return { ...info, platform: planned.platform };
+    };
+    f.backend.readSearch = async (owner, id) => {
+      f.calls.push("readSearch"); assert.equal(f.sessions.get(id), owner);
+      return { status: "empty", platform: "LinkedIn", url: "https://www.linkedin.com/jobs/search", cards: [], partial: false, warnings: [] };
+    };
+  }
+  const router = createJobSessionRouter(standard.backend, native.backend, { nativeBoss: boss.backend, native51Job: job51.backend });
+  return { standard, native, boss, job51, router };
+}
+
+test("platform searches route domestic pages to native engines independently of detail flags and keep one shared lease", async () => {
+  const f = searchRouterFixture();
+  for (const [provider, engine] of [["liepin", f.native], ["boss", f.boss], ["51job", f.job51], ["linkedin", f.standard]] as const) {
+    const input: PlatformSearchInput = { provider, keyword: "software" };
+    const info = await f.router.startSearch("owner", input);
+    assert.equal(engine.sessions.get(info.sessionId), "owner"); assert.equal(f.router.hasSession(), true);
+    await assert.rejects(f.router.startSearch("other", { provider: "linkedin", keyword: "other" }), unavailable);
+    await assert.rejects(f.router.start("owner", original), unavailable);
+    assert.throws(() => f.router.configure({ useNativeLiepin: true }), unavailable);
+    await assert.rejects(f.router.readSearch("other", info.sessionId));
+    await f.router.readSearch("owner", info.sessionId); await f.router.focus("owner", info.sessionId);
+    await f.router.close("other", info.sessionId); assert.equal(f.router.hasSession(), true);
+    await f.router.close("owner", info.sessionId); assert.equal(f.router.hasSession(), false);
+    assert.equal(engine.calls.includes("stopBrowser"), false);
+  }
+  const detail = await f.router.start("owner", original);
+  await assert.rejects(f.router.startSearch("owner", { provider: "liepin", keyword: "software" }), unavailable);
+  await f.router.close("owner", detail.sessionId);
+});
+
+test("search start reserves shared recovery and closeAll cancels it before any browser acquisition", async () => {
+  const f = searchRouterFixture(), gate = deferred();
+  f.native.backend.recoverExited = async () => { await gate.promise; return false; };
+  const pending = f.router.startSearch("owner", { provider: "boss", keyword: "software" });
+  const rejected = assert.rejects(pending, unavailable);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.router.hasSession(), true);
+  await assert.rejects(f.router.start("owner", other), unavailable);
+  await assert.rejects(f.router.startSearch("owner", { provider: "linkedin", keyword: "software" }), unavailable);
+  const closing = f.router.closeAll(); gate.resolve(); await rejected; await closing;
+  assert.equal(f.router.hasSession(), false);
+  for (const engine of [f.standard, f.native, f.boss, f.job51]) assert.equal(engine.calls.includes("start"), false);
+});
+
+test("late uncooperative search launch stays reserved and releases its own receipt after cancellation", async () => {
+  const f = searchRouterFixture(), gate = deferred(), started = deferred();
+  const open = f.boss.backend.startSearch!; let operationSignal: AbortSignal | undefined;
+  f.boss.backend.startSearch = async (owner, input, signal) => { operationSignal = signal; started.resolve(); await gate.promise; return open(owner, input); };
+  const pending = f.router.startSearch("owner", { provider: "boss", keyword: "software" });
+  const rejected = assert.rejects(pending, unavailable); await started.promise;
+  const closing = f.router.closeAll();
+  assert.equal(operationSignal?.aborted, true);
+  await assert.rejects(f.router.start("owner", other), unavailable);
+  gate.resolve(); await rejected; await closing;
+  assert.equal(f.boss.sessions.size, 0); assert.equal(f.router.hasSession(), false);
+  assert.ok(f.boss.calls.includes("close"));
+});
+
+test("search planner rejects arbitrary URLs and a missing search backend without touching browser engines", async () => {
+  const f = searchRouterFixture();
+  for (const input of [{ provider: "boss", keyword: "software", url: "https://evil.test" }, { provider: "unknown", keyword: "software" }]) {
+    await assert.rejects(f.router.startSearch("owner", input as PlatformSearchInput), error => error instanceof JdExtractionError && error.failure.code === "invalid_link");
+  }
+  const missing = createJobSessionRouter(f.standard.backend, f.native.backend);
+  await assert.rejects(missing.startSearch("owner", { provider: "boss", keyword: "software" }), error => error instanceof JdExtractionError && error.failure.code === "service_unavailable");
+  for (const engine of [f.standard, f.native, f.boss, f.job51]) assert.deepEqual(engine.calls, []);
+});
+
+test("search identity keeps every planned condition, rejects duplicate overrides and permits explicit next-page parameters", () => {
+  for (const provider of ["51job", "boss", "liepin", "linkedin"] as const) {
+    const planned = buildPlatformSearchRequest({ provider, keyword: "软件", regionId: "cn-beijing" }).url;
+    const current = new URL(planned); current.searchParams.set("page", "2");
+    assert.equal(matchesPlannedJobSearchUrl(current.href, planned), true);
+    const condition = [...current.searchParams.keys()].find(key => key !== "page")!;
+    current.searchParams.append(condition, "other");
+    assert.equal(matchesPlannedJobSearchUrl(current.href, planned), false);
+    assert.equal(matchesPlannedJobSearchUrl(planned.replace("https:", "http:"), planned), false);
+    assert.equal(matchesPlannedJobSearchUrl("https://evil.test/", planned), false);
+  }
+});
 
 function endedRecoveryFixture() {
   const controls = new Map<string, { fail: boolean; releases: number; acquisitions: number; stops: number }>();

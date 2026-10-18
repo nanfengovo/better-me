@@ -315,6 +315,47 @@ test("native capture accepts its selected platform and rejects the other platfor
   }
 });
 
+test("native capture opts into raw search link and timestamp attributes only for its explicit fourth argument", async () => {
+  const searchUrl = "https://www.liepin.com/zhaopin/?key=TypeScript";
+  const href = '../job/123.shtml?keyword=C%23&title="<Engineer>"';
+  const datetime = "2026-10-18T12:00:00+08:00";
+  const f = fixture(); const page = await f.browser.acquire(undefined, signal());
+  try {
+    f.commit("search", "search-loader", searchUrl);
+    f.setRawCapture(raw => {
+      const doc = raw.documents[0]!;
+      const str = (value: string) => { const known = raw.strings.indexOf(value); return known >= 0 ? known : raw.strings.push(value) - 1; };
+      doc.nodes.nodeName[4] = str("A");
+      doc.nodes.attributes[4] = [str("class"), str("job-title"), str("href"), str(href), str("onclick"), str("PRIVATE_EVENT")];
+      doc.nodes.nodeType.push(1, 3); doc.nodes.parentIndex.push(3, 6); doc.nodes.nodeName.push(str("TIME"), str("#text"));
+      doc.nodes.nodeValue.push(-1, str("今天发布")); doc.nodes.backendNodeId.push(7, 8);
+      doc.nodes.attributes.push([str("datetime"), str(datetime), str("style"), str("PRIVATE_STYLE")], []);
+      const textLayout = doc.layout.nodeIndex.length + 1;
+      doc.layout.nodeIndex.push(6, 7); doc.layout.styles.push([...doc.layout.styles[0]!], []);
+      doc.layout.bounds.push([0, 300, 900, 20], [0, 300, 900, 20]); doc.layout.text.push(-1, str("今天发布")); doc.layout.textColorOpacities.push(1, 1);
+      doc.textBoxes.layoutIndex.push(textLayout); doc.textBoxes.bounds.push([0, 300, 900, 20]); doc.textBoxes.start.push(0); doc.textBoxes.length.push(4);
+      return raw;
+    });
+    const captureCallsStart = f.calls.length;
+    const ordinary = await page.capture(signal(), 1000, searchUrl);
+    assert.equal(ordinary.state, "ready"); assert.doesNotMatch(ordinary.snapshot!.html, /href=|datetime=/);
+    const searched = await page.capture(signal(), 1000, searchUrl, { purpose: "search" });
+    assert.equal(searched.state, "ready"); assert.equal(searched.identity, ordinary.identity);
+    assert.ok(searched.snapshot!.html.includes('href="../job/123.shtml?keyword=C%23&amp;title=&quot;&lt;Engineer&gt;&quot;"'));
+    assert.ok(searched.snapshot!.html.includes(`datetime="${datetime}"`));
+    assert.doesNotMatch(searched.snapshot!.html, /PRIVATE_|onclick=|style=/);
+    assert.deepEqual(searched.snapshot!.pageLoad, ordinary.snapshot!.pageLoad);
+    const after = await page.capture(signal(), 1000, searchUrl);
+    assert.equal(after.snapshot!.html, ordinary.snapshot!.html);
+    const captures = f.calls.filter(call => call.method === "DOMSnapshot.captureSnapshot");
+    for (const [index, capture] of captures.entries()) {
+      assert.deepEqual(capture.params, { computedStyles: [...(index === 1 ? NATIVE_ROOT_SCROLL_STYLES : NATIVE_SNAPSHOT_STYLES)], includeDOMRects: true, includeTextColorOpacities: true });
+    }
+    assert.equal(f.calls.slice(captureCallsStart).some(call => call.method.startsWith("Runtime.")), false);
+    assert.equal(f.calls.slice(captureCallsStart).filter(call => call.method === "DOM.getDocument").length, 2);
+  } finally { await f.browser.stop(); }
+});
+
 test("native 51JOB WAF projection reports a gate without leaking metadata or enabling Liepin scope or Runtime", async () => {
   const f = fixture({ platform: "51JOB", networkMode: "managed-proxy", verifyManagedProxy: async () => true });
   const page = await f.browser.acquire("http://127.0.0.1:17891", signal());
@@ -334,6 +375,9 @@ test("native 51JOB WAF projection reports a gate without leaking metadata or ena
     assert.ok(f.calls.some(call => call.method === "DOMSnapshot.captureSnapshot"));
     assert.equal(f.calls.some(call => call.method === "DOM.getDocument" || call.method.startsWith("Runtime.")), false);
     assert.deepEqual(f.calls.find(call => call.method === "DOMSnapshot.captureSnapshot")!.params.computedStyles, [...NATIVE_SNAPSHOT_STYLES]);
+    const searchCapture = await page.capture(signal(), undefined, job51Source, { purpose: "search" });
+    assert.equal(searchCapture.snapshot?.gate, capture.snapshot?.gate);
+    assert.equal(searchCapture.snapshot?.html, capture.snapshot?.html);
   } finally { await f.browser.stop(); }
 });
 
@@ -843,6 +887,48 @@ test("native BOSS desktop URLs keep full-page validation even with share-shaped 
     const result = await page.capture(signal(), 1000, bossSource);
     assert.equal(result.state, "failed"); assert.deepEqual(result.diagnostic, { stage: "projection", reason: "snapshot_visibility_unsupported", detail: "overflow_clip_or_scroll" });
     assert.equal(result.snapshot, undefined); assert.equal(result.identity, undefined); assert.equal(page.closed, false);
+  } finally { await f.browser.stop(); }
+});
+
+test("native BOSS search purpose never adopts the detail-share scope even for a matching mobile share URL", async () => {
+  const mobile = "https://m.zhipin.com/mpa/html/weijd/weijd-job/syntheticNativeSearchScope?fromSource=2";
+  const f = fixture({ platform: "BOSS直聘" }); const page = await f.browser.acquire(undefined, signal());
+  try {
+    f.commit("main", "loader", mobile); f.setRawCapture(nativeShareSnapshot);
+    const detail = await page.capture(signal(), 1000, mobile);
+    assert.equal(detail.state, "ready"); assert.ok(detail.snapshot?.html.includes("SYNTHETIC_SCOPE_JD"));
+    const search = await page.capture(signal(), 1000, mobile, { purpose: "search" });
+    assert.equal(search.state, "ready"); assert.ok(search.identity);
+    assert.match(search.snapshot!.html, /SYNTHETIC_SCOPE_JD/);
+    assert.match(search.snapshot!.html, /<div class="banner"><\/div>/);
+    assert.doesNotMatch(search.snapshot!.html, /SYNTHETIC_UNADOPTED_BANNER/);
+    assert.equal(search.expansionPlan, undefined);
+    const detailAgain = await page.capture(signal(), 1000, mobile);
+    assert.equal(detailAgain.state, "ready"); assert.equal(detailAgain.snapshot?.html, detail.snapshot?.html);
+    assert.equal(f.calls.some(call => ["Runtime.enable", "Runtime.evaluate", "Runtime.callFunctionOn"].includes(call.method)), false);
+    assert.equal(f.calls.filter(call => call.method === "DOM.getDocument").length, 2);
+  } finally { await f.browser.stop(); }
+});
+
+test("native BOSS search page preserves visible job links with fresh root identity and without detail scope or page-script execution", async () => {
+  const searchUrl = "https://www.zhipin.com/web/geek/job?query=C%23&city=101020100";
+  const f = fixture({ platform: "BOSS直聘" }); const page = await f.browser.acquire(undefined, signal());
+  try {
+    f.commit("main", "loader", searchUrl);
+    f.setRawCapture(raw => {
+      const doc = raw.documents[0]!;
+      const str = (value: string) => { const known = raw.strings.indexOf(value); return known >= 0 ? known : raw.strings.push(value) - 1; };
+      doc.nodes.nodeName[4] = str("A");
+      doc.nodes.attributes[4] = [str("class"), str("job-name"), str("href"), str(bossSource), str("onclick"), str("PRIVATE_EVENT")];
+      return raw;
+    });
+    const captured = await page.capture(signal(), 1000, searchUrl, { purpose: "search" });
+    assert.equal(captured.state, "ready"); assert.equal(captured.snapshot?.url, searchUrl); assert.ok(captured.identity);
+    assert.ok(captured.snapshot?.html.includes(`href="${bossSource}"`));
+    assert.doesNotMatch(captured.snapshot!.html, /PRIVATE_EVENT|onclick=/);
+    assert.equal(f.calls.some(call => ["Runtime.enable", "Runtime.evaluate", "Runtime.callFunctionOn"].includes(call.method)), false);
+    assert.equal(f.calls.filter(call => call.method === "DOM.getDocument").length, 2);
+    assert.deepEqual(f.calls.find(call => call.method === "DOMSnapshot.captureSnapshot")!.params.computedStyles, [...NATIVE_ROOT_SCROLL_STYLES]);
   } finally { await f.browser.stop(); }
 });
 

@@ -1,3 +1,8 @@
+import { z } from "zod";
+
+// Keep this Vite server boundary independent of workspace package runtime resolution.
+const SourceTimestampSchema = z.string().datetime({ offset: true }).max(64);
+
 export type JobPlatform = "LinkedIn" | "猎聘" | "51JOB" | "BOSS直聘";
 
 const HOSTS: Record<string, JobPlatform> = {
@@ -76,7 +81,23 @@ export function normalizeJobShare(input: string): { url: string; platform: JobPl
   return { url, platform };
 }
 
-export type JdProvenance = {
+export type JdSourcePublication = { sourcePublishedAt?: string; sourcePublishedText?: string };
+
+/** Preserve a source disclosure verbatim; only an explicit timezone establishes an instant. */
+export function jobPostingPublication(value: unknown): JdSourcePublication {
+  if (typeof value !== "string" || !value.trim() || value.length > 1_000) return {};
+  const text = value.trim();
+  return { sourcePublishedText: text, ...(SourceTimestampSchema.safeParse(text).success ? { sourcePublishedAt: text } : {}) };
+}
+
+/** Public service and local backup boundary: optional publication fields never inherit capture time. */
+export function readJdPublicationFields(value: { sourcePublishedAt?: unknown; sourcePublishedText?: unknown }): JdSourcePublication {
+  const publication = jobPostingPublication(value.sourcePublishedText);
+  if (SourceTimestampSchema.safeParse(value.sourcePublishedAt).success) return { ...publication, sourcePublishedAt: value.sourcePublishedAt as string };
+  return publication.sourcePublishedText ? publication : jobPostingPublication(value.sourcePublishedAt);
+}
+
+export type JdProvenance = JdSourcePublication & {
   kind: "text" | "link" | "screenshot";
   platform?: JobPlatform;
   url?: string;

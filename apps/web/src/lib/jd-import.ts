@@ -1,5 +1,5 @@
 import { fetchChatCompletion, type ChatMessageContent, type LlmConfig } from "@better-me/core";
-import { normalizeJobShare, allowedJobUrl, type JdImportResult, type JdProvenance, type JobPlatform } from "./jd-source";
+import { normalizeJobShare, allowedJobUrl, readJdPublicationFields, type JdImportResult, type JdProvenance, type JobPlatform } from "./jd-source";
 import { JdBrowserStartCleanupError, JdExtractionError, readJdFailure } from "./jd-errors";
 import { isSnapshotFailure, type SnapshotFailure } from "./jd-capture-diagnostics";
 import { createJdStartRequestId, isJdStartRequestId } from "./jd-start-request";
@@ -31,7 +31,7 @@ export function readJdDraft(): JdDraft {
     if (obj.provenance && typeof obj.provenance === "object") {
       const source = obj.provenance as JdProvenance;
       if (["text", "link", "screenshot"].includes(source.kind) && typeof source.observedAt === "string" && Number.isFinite(Date.parse(source.observedAt))) {
-        provenance = { kind: source.kind, observedAt: source.observedAt, edited: source.edited === true };
+        provenance = { kind: source.kind, observedAt: source.observedAt, edited: source.edited === true, ...readJdPublicationFields(source) };
         if (source.url) {
           try { Object.assign(provenance, allowedJobUrl(source.url)); } catch { recoveryRaw = raw; }
         }
@@ -95,7 +95,7 @@ function readJdImportPayload(payload: Record<string, unknown>, ok: boolean): JdI
   if (typeof source.url !== "string" || typeof source.observedAt !== "string" || !Number.isFinite(Date.parse(source.observedAt))) throw new JdExtractionError({ code: "service_unavailable", stage: "service", message: "提取服务返回的岗位来源信息不完整，请重试或粘贴文字。" });
   try {
     const normalized = allowedJobUrl(source.url);
-    return { text: payload.text, provenance: { ...normalized, kind: "link", observedAt: source.observedAt, ...(typeof source.title === "string" ? { title: source.title.slice(0, 300) } : {}), ...(source.edited === true ? { edited: true } : {}) }, method: typeof payload.method === "string" ? payload.method : "公开页面" };
+    return { text: payload.text, provenance: { ...normalized, kind: "link", observedAt: source.observedAt, ...readJdPublicationFields(source), ...(typeof source.title === "string" ? { title: source.title.slice(0, 300) } : {}), ...(source.edited === true ? { edited: true } : {}) }, method: typeof payload.method === "string" ? payload.method : "公开页面" };
   } catch (cause) {
     throw new JdExtractionError({ code: "service_unavailable", stage: "service", message: "提取服务返回了无效岗位来源，请打开原页面核对后使用文字或截图。" }, { cause });
   }

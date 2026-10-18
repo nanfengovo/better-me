@@ -1,3 +1,4 @@
+import { readJdPublicationFields } from "../src/lib/jd-source";
 import { randomUUID } from "node:crypto";
 import { isIP } from "node:net";
 import { type Browser, type BrowserContext, type LaunchOptions, type Page, type Request } from "playwright-core";
@@ -9,11 +10,13 @@ import type { PersistentJobPage } from "./jd-persistent-browser";
 import { detailIdentity, extractPublicJobHtml, matchesJobUrl } from "./jd-extractor";
 import { validateBrowserSnapshot, type BrowserSnapshot as Snapshot } from "./jd-browser-snapshot";
 import { createBossResponseObserver } from "./jd-boss-response";
-import { createJobSessionRouter, type JobSessionBackend } from "./jd-session-router";
+import { createJobSessionRouter, matchesPlannedJobSearchUrl, type JobSessionBackend } from "./jd-session-router";
 import type { SnapshotFailure } from "../src/lib/jd-capture-diagnostics";
 import type { NativeBrowserStopMode } from "./jd-native-liepin-browser";
 import { createVerificationNetworkRecorder } from "./jd-verification-network";
 import type { VerificationNetworkSnapshot } from "../src/lib/jd-verification-network";
+import { buildPlatformSearchRequest, type PlatformSearchInput } from "@better-me/source-adapters/platform-search";
+import { extractJobSearchCards, VISIBLE_JOB_SEARCH_SNAPSHOT, type JobSearchCaptureResult } from "./jd-search-capture";
 
 const SESSION_TTL_MS = 10 * 60_000;
 const START_TIMEOUT_MS = 30_000;
@@ -48,7 +51,7 @@ export type BrowserSessionInspection = {
   scriptErrorsCollected?: boolean;
 };
 type Session = {
-  id: string; owner: string; url: string; platform: JobPlatform; expires: number; expiryGeneration: number; lifetime: AbortController;
+  id: string; owner: string; url: string; platform: JobPlatform; purpose: "detail" | "search"; expires: number; expiryGeneration: number; lifetime: AbortController;
   browser?: Browser; context?: BrowserContext; page?: Page; lease?: PersistentJobPage; operation?: NetworkOperation; timer?: Timer;
   closed: boolean; busy: boolean; acquiring: number; closePromise?: Promise<JdExtractionError | undefined>; closeError?: JdExtractionError;
   resources: BrowserSessionInspection["resources"]; resourcesTruncated: boolean; blockedRequests: WeakSet<Request>;
@@ -291,15 +294,28 @@ export function createBrowserSessionManager(options: BrowserSessionOptions = {})
 
   async function start(owner: string, input: string, signal?: AbortSignal): Promise<BrowserSessionInfo> {
     signal?.throwIfAborted();
+    let initial: ReturnType<typeof normalizeJobShare>;
+    try { initial = normalizeJobShare(input); }
+    catch { throw failure("invalid_link", "请提供单个有效的官方岗位分享链接。"); }
+    return startValidated(owner, initial, "detail", signal);
+  }
+
+  async function startSearch(owner: string, input: PlatformSearchInput, signal?: AbortSignal): Promise<BrowserSessionInfo> {
+    signal?.throwIfAborted();
+    let initial: ReturnType<typeof buildPlatformSearchRequest>;
+    try { initial = buildPlatformSearchRequest(input); }
+    catch { throw failure("invalid_link", "平台搜索条件无效，请使用已配置的平台和地区。"); }
+    return startValidated(owner, initial, "search", signal);
+  }
+
+  async function startValidated(owner: string, initial: { url: string; platform: JobPlatform }, purpose: Session["purpose"], signal?: AbortSignal): Promise<BrowserSessionInfo> {
+    signal?.throwIfAborted();
     if (draining || stopping) throw failure("browser_unavailable", "人工接续浏览器正在关闭，请稍后重新打开岗位。");
     if (active && now() >= active.expires) await dispose(active);
     if (draining || stopping) throw failure("browser_unavailable", "人工接续浏览器正在关闭，请稍后重新打开岗位。");
     if (unclosed.size && !closing.size) throw failure("browser_unavailable", "上次岗位页尚未确认关闭，请重试结束本次会话，或先关闭专用浏览器，再打开另一个岗位。");
     if (active || closing.size || launching.size) throw failure("browser_unavailable", "已有人工接续浏览器会话正在运行或关闭，请等待结束后再打开另一个岗位。");
-    let initial: ReturnType<typeof normalizeJobShare>;
-    try { initial = normalizeJobShare(input); }
-    catch { throw failure("invalid_link", "请提供单个有效的官方岗位分享链接。"); }
-    const session: Session = { id: randomUUID(), owner, url: initial.url, platform: initial.platform, expires: now() + SESSION_TTL_MS, expiryGeneration: 0, lifetime: new AbortController(), closed: false, busy: false, acquiring: 0, resources: [], resourcesTruncated: false, blockedRequests: new WeakSet(), blockedPopups: 0, blockedSockets: 0, scriptErrors: 0, mainDocument: { state: "unknown" }, navigationGeneration: 0, snapshotNavigation: 0, documentRequests: new WeakMap() };
+    const session: Session = { id: randomUUID(), owner, url: initial.url, platform: initial.platform, purpose, expires: now() + SESSION_TTL_MS, expiryGeneration: 0, lifetime: new AbortController(), closed: false, busy: false, acquiring: 0, resources: [], resourcesTruncated: false, blockedRequests: new WeakSet(), blockedPopups: 0, blockedSockets: 0, scriptErrors: 0, mainDocument: { state: "unknown" }, navigationGeneration: 0, snapshotNavigation: 0, documentRequests: new WeakMap() };
     if (session.platform === "51JOB") session.verificationNetwork = createVerificationNetworkRecorder(session.platform, { now });
     active = session;
     armExpiry(session);
@@ -532,6 +548,7 @@ export function createBrowserSessionManager(options: BrowserSessionOptions = {})
 
   async function read(owner: string, sessionId: string, signal?: AbortSignal): Promise<JdImportResult> {
     const session = owned(owner, sessionId);
+    if (session.purpose !== "detail") throw failure("unsupported_page", "本会话用于搜索结果，请使用搜索结果读取操作。");
     if (session.busy || !session.page) throw failure("browser_unavailable", "本会话正在读取，请等待当前操作完成。");
     session.busy = true;
     return run(session, signal, READ_TIMEOUT_MS, async (operationSignal, track) => {
@@ -629,7 +646,7 @@ export function createBrowserSessionManager(options: BrowserSessionOptions = {})
             })();
             if (result.text.length > 120_000) throw failure("unsupported_page", "岗位正文超过 12 万字，请确认这是具体岗位详情。", "page");
             if (previous !== result.text) { previous = result.text; stableAt = now(); }
-            else if (now() - stableAt >= 800) return { ...result, method: `人工接续 · ${result.method}`, provenance: { kind: "link", platform: session.platform, url: session.url, observedAt: new Date(now()).toISOString(), title: result.title } };
+            else if (now() - stableAt >= 800) return { ...result, method: `人工接续 · ${result.method}`, provenance: { kind: "link", platform: session.platform, url: session.url, observedAt: new Date(now()).toISOString(), title: result.title, ...readJdPublicationFields(result) } };
           } catch (error) {
             previous = undefined;
             if (!(error instanceof JdExtractionError)) throw failure("unsupported_page", "当前页面尚未完成岗位正文解析，窗口已保留，请核对原岗位后再读取。", "page");
@@ -640,6 +657,71 @@ export function createBrowserSessionManager(options: BrowserSessionOptions = {})
         }
         throw lastError;
       }, true);
+  }
+
+  async function readSearch(owner: string, sessionId: string, signal?: AbortSignal): Promise<JobSearchCaptureResult> {
+    const session = owned(owner, sessionId);
+    if (session.purpose !== "search") throw failure("unsupported_page", "本会话用于单个岗位详情，不能按搜索列表读取。");
+    if (session.busy || !session.page) throw failure("browser_unavailable", "本会话正在操作，请等待当前操作完成。");
+    session.busy = true;
+    return run(session, signal, READ_TIMEOUT_MS, async (operationSignal, track) => {
+      const operation = await (options.getOperation ?? getNetworkOperation)();
+      operationSignal.throwIfAborted();
+      if (operation.routeFor(new URL(session.url)).proxyUrl !== session.operation?.routeFor(new URL(session.url)).proxyUrl) throw failure("browser_unavailable", "网络设置已变化，请先关闭岗位专用浏览器再重开。");
+      const page = session.page!;
+      const deadline = now() + 40_000;
+      let previous = "", stableAt = 0, invalidSince: number | undefined;
+      const last = failure("unsupported_page", "尚未取得可确认的搜索结果，请在专用页面核对登录、地区和关键词后再读取。", "page");
+      while (now() < deadline) {
+        operationSignal.throwIfAborted();
+        if (page.isClosed()) throw failure("browser_session_expired", "专用搜索页已关闭。");
+        if (documentSnapshotState(session) === "navigation_in_progress") {
+          previous = ""; invalidSince = undefined;
+          await (options.sleep ?? pause)(400, operationSignal); continue;
+        }
+        if (documentSnapshotState(session) === "failed") throw last;
+        const before = { url: page.url(), navigation: session.snapshotNavigation };
+        const requestGeneration = session.navigationGeneration;
+        let candidate: unknown;
+        try { candidate = await track(page.evaluate(VISIBLE_JOB_SEARCH_SNAPSHOT)); }
+        catch {
+          operationSignal.throwIfAborted(); previous = "";
+          await (options.sleep ?? pause)(400, operationSignal); continue;
+        }
+        operationSignal.throwIfAborted();
+        const checked = documentSnapshotState(session) || session.navigationGeneration !== requestGeneration
+          ? { state: documentSnapshotState(session) ?? "navigation_in_progress" as const }
+          : validateBrowserSnapshot(candidate, before, { url: page.url(), navigation: session.snapshotNavigation });
+        if (checked.state === "oversized") throw failure("unsupported_page", "搜索页面过大，请缩小搜索范围后重试。", "page");
+        if (checked.state !== "ready" || !checked.snapshot) {
+          previous = "";
+          if (checked.state === "failed") { invalidSince ??= now(); if (now() - invalidSince >= BLANK_PAGE_WAIT_MS) throw last; }
+          else invalidSince = undefined;
+          await (options.sleep ?? pause)(400, operationSignal); continue;
+        }
+        const snapshot = checked.snapshot;
+        if (snapshot.url === "about:blank") {
+          previous = ""; invalidSince ??= now(); if (now() - invalidSince >= BLANK_PAGE_WAIT_MS) throw last;
+          await (options.sleep ?? pause)(400, operationSignal); continue;
+        }
+        if (!allowedBrowserResource(snapshot.url, session.platform)) throw failure("job_mismatch", "搜索页面已离开本次平台来源，未采用其他页面。", "page");
+        if (snapshot.gate) throw failure(snapshot.gate, snapshot.gate === "login_required" ? "搜索页仍显示登录提示，请自行完成后再读取。" : "搜索页仍显示访问验证，请自行完成后再读取。", "page");
+        if (isBrowserVerificationUrl(snapshot.url, session.platform) || isObservedLiepinVerification(snapshot.html, snapshot.url, session.platform)) throw failure("verification_required", "搜索页要求访问验证，请在专用页面自行处理后再读取。", "page");
+        if (isObservedBrowserLogin(snapshot.html, snapshot.url, session.platform)) throw failure("login_required", "搜索页要求登录，请在专用页面自行完成后再读取。", "page");
+        if (!matchesPlannedJobSearchUrl(snapshot.url, session.url)) throw failure("job_mismatch", "搜索页面的来源、关键词或地区已变化，请返回本次搜索条件后再读取。", "page");
+        invalidSince = undefined;
+        const captureTruncated = typeof candidate === "object" && candidate !== null
+          && "captureTruncated" in candidate && candidate.captureTruncated === true;
+        const result = extractJobSearchCards({ ...snapshot, ...(captureTruncated ? { captureTruncated: true } : {}) }, session.platform);
+        const key = JSON.stringify([before.navigation, snapshot.url, result]);
+        if (previous !== key) { previous = key; stableAt = now(); }
+        else if (now() - stableAt >= 800
+          && !documentSnapshotState(session) && session.navigationGeneration === requestGeneration
+          && session.snapshotNavigation === before.navigation && page.url() === before.url) return result;
+        await (options.sleep ?? pause)(400, operationSignal);
+      }
+      throw last;
+    }, true);
   }
 
   async function inspect(owner: string, sessionId: string, signal?: AbortSignal): Promise<BrowserSessionInspection> {
@@ -751,7 +833,7 @@ export function createBrowserSessionManager(options: BrowserSessionOptions = {})
         && persistentJobBrowser.status().some((slot) => slot.state !== "ready" || slot.activePages > 0);
       return !!active || unclosed.size > 0 || closing.size > 0 || launching.size > 0 || !!draining || !!stopping || runtimeBusy;
     },
-    start, read, inspect, focus, extend, retryEnded,
+    start, startSearch, read, readSearch, inspect, focus, extend, retryEnded,
     close: async (owner: string, sessionId: string) => {
       // Idempotent for expired/unknown IDs and never closes another owner's/newer session.
       const session = active?.id === sessionId ? active : unclosed.get(sessionId);
@@ -794,7 +876,9 @@ function nativeBackend(platform: "猎聘" | "BOSS直聘" | "51JOB"): JobSessionB
   }));
   return {
     start: async (...args) => (await load()).start(...args),
+    startSearch: async (...args) => (await load()).startSearch(...args),
     read: async (...args) => (await load()).read(...args),
+    readSearch: async (...args) => (await load()).readSearch(...args),
     inspect: async (...args) => (await load()).inspect(...args),
     focus: async (...args) => (await load()).focus(...args),
     extend: async (...args) => (await load()).extend(...args),

@@ -3,6 +3,7 @@ import test from "node:test";
 import { createJobSessionRouter, type JobSessionBackend } from "../server/jd-session-router.ts";
 import { JdExtractionError } from "../src/lib/jd-errors.ts";
 import { createJdStartRequestId, isJdStartRequestId, JD_START_REQUEST_WINDOW_MS } from "../src/lib/jd-start-request.ts";
+import { buildPlatformSearchRequest } from "@better-me/source-adapters/browser-contracts";
 
 const original = "https://m.liepin.com/job/1984701079.shtml?mscid=wx_h5_001";
 const other = "https://msearch.51job.com/jobs/all/166761768.html";
@@ -15,11 +16,11 @@ function fixture(options: { maxRecords?: number; startTimeoutMs?: number; cancel
   let time = base;
   let starts = 0, closes = 0, stops = 0, closeFailure = false;
   let gate: ReturnType<typeof deferred> | undefined;
-  const pages = new Map<string, { owner: string; active: boolean; expires: number }>();
+  const pages = new Map<string, { owner: string; active: boolean; expires: number; url: string }>();
   const backend: JobSessionBackend = {
     async start(owner, input, signal) {
       const id = `session_${++starts}`;
-      const page = { owner, active: false, expires: time + 600_000 }; pages.set(id, page);
+      const page = { owner, active: false, expires: time + 600_000, url: input }; pages.set(id, page);
       if (gate) await gate.promise;
       if (signal?.aborted) {
         if (!closeFailure) pages.delete(id);
@@ -38,10 +39,95 @@ function fixture(options: { maxRecords?: number; startTimeoutMs?: number; cancel
     isActive: (owner, id) => { const page = pages.get(id); return page?.owner === owner && page.active && time < page.expires; },
     hasSession: () => pages.size > 0,
   };
+  backend.startSearch = async (owner, input, signal) => {
+    const planned = buildPlatformSearchRequest(input);
+    return { ...await backend.start(owner, planned.url, signal), platform: planned.platform };
+  };
+  backend.extend = async (owner, id) => {
+    const page = pages.get(id);
+    if (!page || page.owner !== owner || !page.active || time >= page.expires) throw new JdExtractionError({ code: "browser_session_expired", stage: "service", message: "fixture expired" });
+    page.expires = Math.max(page.expires, time + 600_000);
+    return { sessionId: id, platform: "猎聘", url: page.url, expiresAt: new Date(page.expires).toISOString() };
+  };
   const router = createJobSessionRouter(backend, backend, { useNativeLiepin: true, requestOptions: { now: () => time, ...options } });
   return { router, backend, pages, get starts() { return starts; }, get closes() { return closes; }, get stops() { return stops; },
     tick(ms: number) { time += ms; }, waitStart() { gate = deferred(); return gate; }, failClose(value: boolean) { closeFailure = value; } };
 }
+
+const searchInput = { provider: "liepin", keyword: "software", regionId: "cn-beijing" } as const;
+
+test("search lost-response replay returns one owner-bound SID and renewal refreshes that same receipt", async () => {
+  const f = fixture(), gate = f.waitStart(), dropped = new AbortController(), id = key(201);
+  const first = f.router.startSearchRequest("owner", { ...searchInput, keyword: " software " }, id, dropped.signal);
+  const cancelled = assert.rejects(first, { name: "AbortError" });
+  await new Promise(resolve => setImmediate(resolve));
+  const retry = f.router.startSearchRequest("owner", searchInput, id);
+  dropped.abort(new DOMException("search transport lost", "AbortError")); await cancelled;
+  gate.resolve(); const info = await retry;
+  assert.equal(info.url, buildPlatformSearchRequest(searchInput).url);
+  assert.deepEqual(await f.router.startSearchRequest("owner", searchInput, id), info);
+  assert.equal(f.starts, 1); assert.equal(f.closes, 0); assert.equal(f.stops, 0);
+  f.tick(1000); const renewed = await f.router.extend("owner", info.sessionId);
+  assert.ok(Date.parse(renewed.expiresAt) > Date.parse(info.expiresAt));
+  assert.deepEqual(await f.router.startSearchRequest("owner", searchInput, id), renewed);
+  await f.router.close("owner", info.sessionId);
+  await assert.rejects(f.router.startSearchRequest("owner", searchInput, id), code("browser_session_expired"));
+  assert.equal(f.starts, 1);
+});
+
+test("search request binding rejects another owner, keyword, region, platform or detail action without closing any page", async () => {
+  const f = fixture(), id = key(202), info = await f.router.startSearchRequest("owner", searchInput, id);
+  for (const action of ["startSearchRequest", "cancelSearchStart"] as const) {
+    await assert.rejects(f.router[action]("foreign", searchInput, id), code("job_mismatch"));
+    await assert.rejects(f.router[action]("owner", { ...searchInput, keyword: "other" }, id), code("job_mismatch"));
+    await assert.rejects(f.router[action]("owner", { ...searchInput, regionId: "cn-shanghai" }, id), code("job_mismatch"));
+    await assert.rejects(f.router[action]("owner", { ...searchInput, provider: "linkedin" }, id), code("job_mismatch"));
+  }
+  for (const action of ["startRequest", "cancelStart"] as const) {
+    await assert.rejects(f.router[action]("owner", buildPlatformSearchRequest(searchInput).url, id), code("job_mismatch"));
+  }
+  assert.equal(f.closes, 0); assert.equal(f.starts, 1); assert.equal(f.backend.isActive?.("owner", info.sessionId), true);
+  await f.router.close("owner", info.sessionId);
+});
+
+test("search cancel-before-start keeps a purpose-bound tombstone, while cancelling a different request never closes an active page", async () => {
+  const f = fixture(), cancelled = key(203), live = key(204);
+  assert.deepEqual(await f.router.cancelSearchStart("owner", searchInput, cancelled), { cancelled: true, closed: true });
+  await assert.rejects(f.router.startSearchRequest("owner", searchInput, cancelled), code("browser_session_expired"));
+  await assert.rejects(f.router.startRequest("owner", buildPlatformSearchRequest(searchInput).url, cancelled), code("job_mismatch"));
+  assert.equal(f.starts, 0);
+  const info = await f.router.startSearchRequest("owner", searchInput, live);
+  assert.deepEqual(await f.router.cancelSearchStart("owner", { ...searchInput, keyword: "other" }, key(205)), { cancelled: true, closed: false });
+  assert.equal(f.closes, 0); assert.equal(f.backend.isActive?.("owner", info.sessionId), true);
+  await f.router.close("owner", info.sessionId);
+});
+
+test("search cancellation cannot claim a stalled acquisition closed and its late receipt is released exactly once", async () => {
+  const f = fixture({ cancelWaitMs: 1 }), gate = f.waitStart(), id = key(206);
+  const open = f.backend.startSearch!;
+  f.backend.startSearch = (owner, input) => open(owner, input);
+  const pending = f.router.startSearchRequest("owner", searchInput, id), rejected = assert.rejects(pending, code("browser_session_expired"));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(await f.router.cancelSearchStart("owner", searchInput, id), { cancelled: true, closed: false });
+  assert.equal(f.router.hasSession(), true); assert.equal(f.closes, 0);
+  await assert.rejects(f.router.start("owner", other), code("browser_unavailable"));
+  gate.resolve(); await rejected; await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(await f.router.cancelSearchStart("owner", searchInput, id), { cancelled: true, closed: true });
+  assert.equal(f.pages.size, 0); assert.equal(f.starts, 1); assert.equal(f.closes, 1); assert.equal(f.stops, 0);
+});
+
+test("search cancellation retries only its retained failed page and never replays an ended request after TTL", async () => {
+  const f = fixture(), id = key(207), info = await f.router.startSearchRequest("owner", searchInput, id);
+  f.failClose(true);
+  await assert.rejects(f.router.cancelSearchStart("owner", searchInput, id), /fixture close failed/);
+  assert.equal(f.pages.has(info.sessionId), true);
+  await assert.rejects(f.router.startSearchRequest("owner", searchInput, id), code("browser_session_expired"));
+  f.failClose(false);
+  assert.deepEqual(await f.router.cancelSearchStart("owner", searchInput, id), { cancelled: true, closed: true });
+  f.tick(600_000);
+  await assert.rejects(f.router.startSearchRequest("owner", searchInput, id), code("browser_session_expired"));
+  assert.equal(f.starts, 1); assert.equal(f.stops, 0);
+});
 
 test("start request IDs are unique, timestamped, and never accept arbitrary text", () => {
   const first = createJdStartRequestId(), second = createJdStartRequestId();

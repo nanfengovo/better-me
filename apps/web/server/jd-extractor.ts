@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import { load } from "cheerio";
-import { allowedJobUrl, normalizeJobShare, type JdImportResult, type JobPlatform } from "../src/lib/jd-source";
+import { allowedJobUrl, normalizeJobShare, jobPostingPublication, readJdPublicationFields, type JdImportResult, type JdSourcePublication, type JobPlatform } from "../src/lib/jd-source";
 import { JdExtractionError, type JdFailureCode } from "../src/lib/jd-errors";
 import { getNetworkFetch, isTrustedLocalRequest } from "./network-proxy";
 import { browserSessionManager } from "./jd-browser-session";
@@ -139,7 +139,7 @@ function postingUrls(posting: Record<string, unknown>): string[] {
   return urls;
 }
 
-export function extractPublicJobHtml(html: string, platform: JobPlatform, sourceUrl?: string, options: { requireVisibleDescription?: boolean; allowValidatedBossShareDescription?: boolean; allowValidatedLiepinDescription?: boolean } = {}): { text: string; title?: string; method: string } {
+export function extractPublicJobHtml(html: string, platform: JobPlatform, sourceUrl?: string, options: { requireVisibleDescription?: boolean; allowValidatedBossShareDescription?: boolean; allowValidatedLiepinDescription?: boolean } = {}): { text: string; title?: string; method: string } & JdSourcePublication {
   const $ = load(html);
   // Observed public 51job response identifies its JavaScript challenge with these meta names.
   // Inspect the marker only; never execute challenge code or persist its content/cookies.
@@ -178,7 +178,8 @@ export function extractPublicJobHtml(html: string, platform: JobPlatform, source
   const matchesMetadataUrl = (candidate: string) => !!source && (matchesJobUrl(candidate, source, platform)
     || (pairedMetadata && matches51jobMetadataUrl(candidate, source, platform)));
   if (source && canonical && !matchesMetadataUrl(canonical)) pageFailure("job_mismatch", "网页声明的岗位来源与当前链接不匹配，请打开原岗位核对。");
-  const unique = [...new Map(postings.map((posting) => [JSON.stringify([posting.title, posting.description, postingUrls(posting)]), posting])).values()]
+  const postingKey = (posting: Record<string, unknown>) => JSON.stringify([posting.title, posting.description, postingUrls(posting)]);
+  const unique = [...new Map(postings.map((posting) => [postingKey(posting), posting])).values()]
     .filter((posting) => !source || !detailIdentity(source, platform) || postingUrls(posting).length > 0 || !hasConflictingPrimaryHeading(posting, primaryHeading));
   const matching = source ? unique.filter((posting) => { const urls = postingUrls(posting); return urls.length > 0 && urls.every(matchesMetadataUrl); }) : [];
   if (matching.length > 1 || (!matching.length && unique.length > 1)) pageFailure("ambiguous_jobs", "链接包含多个岗位，请打开一个具体岗位详情后复制链接，或截图识别。");
@@ -290,7 +291,14 @@ export function extractPublicJobHtml(html: string, platform: JobPlatform, source
     const title = typeof posting.title === "string" ? cleanJobHtml(posting.title) : undefined;
     const organization = posting.hiringOrganization as { name?: unknown } | undefined;
     const company = organization && typeof organization.name === "string" ? cleanJobHtml(organization.name) : undefined;
-    return { text: [title, company, fullDescription].filter(Boolean).join("\n\n"), title, method: fullDescription === description ? "JobPosting 结构化正文" : "结构化信息 + 公开岗位详情正文" };
+    // Publication belongs only to this accepted posting with current-job URL or primary-title evidence.
+    // Duplicate metadata may omit dates, but contradictory disclosures must not select an arbitrary date.
+    const boundPublication = source && (postingUrls(posting).length > 0 || hasPrimaryTitleEvidence(posting, primaryHeading, pageTitle));
+    const disclosures = boundPublication ? postings.filter((candidate) => postingKey(candidate) === postingKey(posting))
+      .map((candidate) => jobPostingPublication(candidate.datePosted)).filter((value) => value.sourcePublishedText) : [];
+    const publicationKeys = new Set(disclosures.map((value) => value.sourcePublishedAt ? `instant:${Date.parse(value.sourcePublishedAt)}` : `raw:${value.sourcePublishedText}`));
+    const publication = publicationKeys.size === 1 ? disclosures[0] : {};
+    return { text: [title, company, fullDescription].filter(Boolean).join("\n\n"), title, method: fullDescription === description ? "JobPosting 结构化正文" : "结构化信息 + 公开岗位详情正文", ...publication };
   }
   for (const text of candidateTexts) checkDescriptionGate(text);
   if (independent.length > 1) pageFailure("ambiguous_jobs", "页面包含多份不同岗位正文，请打开一个具体岗位详情后复制链接，或截图识别。");
@@ -393,7 +401,7 @@ export async function fetchPublicJd(input: string, request: typeof fetch = fetch
       }
       const result = extractPublicJobHtml(await readLimitedJobPage(response, controller.signal), source.platform, source.url);
       if (result.text.length > 120_000) throw new Error("提取的岗位正文超过 12 万字，请确认链接是否为具体岗位，或使用截图选取职责与要求。");
-      return { ...result, provenance: { kind: "link", platform: source.platform, url: source.url, observedAt: new Date().toISOString(), title: result.title } };
+      return { ...result, provenance: { kind: "link", platform: source.platform, url: source.url, observedAt: new Date().toISOString(), title: result.title, ...readJdPublicationFields(result) } };
     }
     return pageFailure("unsupported_page", "平台分享链接跳转过多，请打开后复制最终岗位链接，或使用截图识别。");
   } catch (error) {
@@ -411,6 +419,7 @@ function sendJson(response: ServerResponse, status: number, value: unknown) {
 }
 
 export async function jdExtractionMiddleware(request: IncomingMessage, response: ServerResponse, next: () => void, sessions: Pick<typeof browserSessionManager, "readOnce"> = browserSessionManager) {
+  if (request.url?.split("?")[0] === "/api/jd/search-session") { const { jobSearchMiddleware } = await import("./jd-search-api"); await jobSearchMiddleware(request, response, browserSessionManager); return; }
   if (request.url?.split("?")[0] === "/api/jd/browser-session") { await browserSessionMiddleware(request, response); return; }
   if (request.url?.split("?")[0] !== "/api/jd/extract") { next(); return; }
   if (request.method !== "POST") { sendJson(response, 405, { error: "请使用 POST 提交岗位分享链接。" }); return; }
