@@ -38,9 +38,12 @@ export function normalizeJobShare(input: string): { url: string; platform: JobPl
     if (visited.has(value)) return visited.get(value)!;
     visited.set(value, []);
     const recognized: string[] = [];
-    const matches: string[] = value.match(/https?:\/\/[^\s<>"「」『』]+/gi) ?? [];
-    if (!matches.length && /^(?:www\.|jobs\.|m\.|msearch\.|we\.|cn\.)/.test(value.trim())) {
-      matches.push(`https://${value.trim()}`);
+    // Unescaped Chinese sentence punctuation ends a share URL. Encoded punctuation
+    // remains part of the URL, as do Chinese path segments and query values.
+    const matches: string[] = value.match(/https?:\/\/[^\s<>"「」『』。，；！？【】《》]+/gi) ?? [];
+    if (!matches.length) {
+      const bare = value.trim().match(/^([a-z\d.-]+)(?=[:/?#\s]|$)([^\s<>"「」『』。，；！？【】《》]*)/i);
+      if (bare && Object.hasOwn(HOSTS, bare[1]!.toLowerCase())) matches.push(`https://${bare[0]}`);
     }
     for (const match of matches) {
       const candidate = match.replace(/[。，、；：！？）】》\]),.;!?]+$/g, "").replace(/&amp;/g, "&");

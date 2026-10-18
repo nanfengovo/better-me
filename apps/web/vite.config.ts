@@ -3,9 +3,11 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { jdExtractorPlugin } from "./server/jd-extractor";
+import { opportunitySourcesPlugin } from "./server/opportunity-sources";
+import { networkProxyPlugin } from "./server/network-proxy";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), jdExtractorPlugin()],
+  plugins: [react(), tailwindcss(), networkProxyPlugin(), jdExtractorPlugin({ useNativeLiepin: true, useNativeBoss: true, useNative51Job: true }), opportunitySourcesPlugin()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
