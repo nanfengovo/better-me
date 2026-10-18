@@ -10,15 +10,19 @@ RUN npm install --global pnpm@11.9.0
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
 COPY apps/web/package.json ./apps/web/package.json
+COPY apps/job-service/package.json ./apps/job-service/package.json
 COPY packages/core/package.json ./packages/core/package.json
 COPY packages/storage/package.json ./packages/storage/package.json
 COPY packages/opportunities/package.json ./packages/opportunities/package.json
+COPY packages/source-adapters/package.json ./packages/source-adapters/package.json
 RUN pnpm install --frozen-lockfile
 
 COPY apps/web ./apps/web
+COPY apps/job-service ./apps/job-service
 COPY packages/core ./packages/core
 COPY packages/storage ./packages/storage
 COPY packages/opportunities ./packages/opportunities
+COPY packages/source-adapters ./packages/source-adapters
 COPY docker/collect-licenses.mjs ./docker/collect-licenses.mjs
 COPY docker/license-overrides ./docker/license-overrides
 # The container is served at /; Pages has its own /better-me/ build in CI.

@@ -30,6 +30,28 @@ importers:
         specifier: ^8.71.2
         version: 8.71.2(eslint@10.12.0(jiti@2.7.0))(typescript@5.8.3)
 
+  apps/job-service:
+    dependencies:
+      '@better-me/opportunities':
+        specifier: workspace:*
+        version: link:../../packages/opportunities
+      '@better-me/source-adapters':
+        specifier: workspace:*
+        version: link:../../packages/source-adapters
+      zod:
+        specifier: ^3.25.67
+        version: 3.25.67
+    devDependencies:
+      '@types/node':
+        specifier: ^24.19.2
+        version: 24.19.2
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ^5.8.3
+        version: 5.8.3
+
   apps/web:
     dependencies:
       '@better-me/core':
@@ -119,6 +141,22 @@ importers:
         specifier: ^3.25.67
         version: 3.25.67
     devDependencies:
+      typescript:
+        specifier: ^5.8.3
+        version: 5.8.3
+
+  packages/source-adapters:
+    dependencies:
+      '@better-me/opportunities':
+        specifier: workspace:*
+        version: link:../opportunities
+      zod:
+        specifier: ^3.25.67
+        version: 3.25.67
+    devDependencies:
+      '@types/node':
+        specifier: ^24.19.2
+        version: 24.19.2
       typescript:
         specifier: ^5.8.3
         version: 5.8.3

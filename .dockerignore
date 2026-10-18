@@ -19,6 +19,9 @@
 !apps/web/src/**/*.css
 !apps/web/src/**/*.json
 !apps/web/server/**/*.ts
+!apps/job-service/package.json
+!apps/job-service/tsconfig.json
+!apps/job-service/src/**/*.ts
 
 !packages/core/package.json
 !packages/core/tsconfig.json
@@ -31,6 +34,10 @@
 !packages/opportunities/tsconfig.json
 !packages/opportunities/src/**/*.ts
 !packages/opportunities/src/**/*.json
+!packages/source-adapters/package.json
+!packages/source-adapters/tsconfig.json
+!packages/source-adapters/src/**/*.ts
+!packages/source-adapters/src/**/*.json
 
 !templates/README.md
 !templates/CATALOG.md

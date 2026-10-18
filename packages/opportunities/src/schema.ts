@@ -291,6 +291,9 @@ export const SourceListingSchema = z.object({
   discoverySourceIds: uniqueArray(EntityIdSchema, 100).optional(),
   discoveredViaUrls: uniqueArray(HttpUrlSchema, 100).optional(),
   canonicalJobId: EntityIdSchema.optional(),
+  /** Current source contributions keep refreshes from removing another listing's locations/pay. */
+  locationIds: uniqueArray(EntityIdSchema, 1000).optional(),
+  compensationIds: uniqueArray(EntityIdSchema, 1000).optional(),
   observationIds: uniqueArray(EntityIdSchema, 10_000),
   firstDiscoveredAt: TimestampSchema,
   recordLastSeenAt: TimestampSchema.optional(),
@@ -449,6 +452,8 @@ export function validateAtlasDatasetReferences(dataset: AtlasDataset): DatasetRe
   });
   dataset.listings.forEach((listing, index) => {
     requireRef("sources", listing.sourceId, ["listings", index, "sourceId"]);
+    listing.locationIds?.forEach((id, i) => requireRef("locations", id, ["listings", index, "locationIds", i]));
+    listing.compensationIds?.forEach((id, i) => requireRef("compensations", id, ["listings", index, "compensationIds", i]));
     listing.discoverySourceIds?.forEach((id, i) => requireRef("sources", id, ["listings", index, "discoverySourceIds", i]));
     if (listing.canonicalJobId) {
       requireRef("jobs", listing.canonicalJobId, ["listings", index, "canonicalJobId"]);
