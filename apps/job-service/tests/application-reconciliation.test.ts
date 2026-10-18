@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
-import type { AtlasDataset, CanonicalJob, JdSnapshot, JobQueryResult, SourceDefinition, SourceListing, SourceObservation, ToolResult, TrustedToolContext } from "@better-me/opportunities";
+import type { AtlasDataset, CanonicalJob, Compensation, JdSnapshot, JobLocation, JobQueryResult, SourceDefinition, SourceListing, SourceObservation, ToolResult, TrustedToolContext } from "@better-me/opportunities";
 import type { SourceAdapter, SourceJobRecord } from "@better-me/source-adapters";
 import { createJobApplication } from "../src/application.js";
 import { createJobHttpServer } from "../src/http.js";
@@ -42,7 +42,7 @@ function record(suffix: string, overrides: Partial<SourceJobRecord> = {}): Sourc
     compensations: [{ raw: "Synthetic annual salary", currency: "CNY", period: "year", min: suffix === "a" ? 200_000 : 300_000, tax: "gross", kind: "base" }],
     workMode: "on-site", employmentType: "social", remoteEligibleRegions: [], availability: "unknown", completeness: "detail", evidence: [], warnings: [], ...overrides };
 }
-type Detail = { job: CanonicalJob; listings: SourceListing[]; observations: SourceObservation[]; snapshots: JdSnapshot[]; sources: SourceDefinition[] };
+type Detail = { snapshotRevision: number; job: CanonicalJob; locations: JobLocation[]; compensations: Compensation[]; listings: SourceListing[]; observations: SourceObservation[]; snapshots: JdSnapshot[]; sources: SourceDefinition[] };
 async function fixture() {
   const directory = await mkdtemp(join(tmpdir(), "better-me-app-reconciliation-test-")); const path = join(directory, "jobs.sqlite");
   let now = AT;
@@ -87,6 +87,9 @@ test("HTTP keeps canonical search/export and old-ID detail while source refresh 
     const get = async <T,>(path: string) => { const response = await fetch(`${url}${path}`, { headers }); assert.equal(response.status, 200); return value<T>(await response.json() as ToolResult<unknown>); };
     const before = await get<Detail>(`/api/v1/jobs/${b}`);
     assert.equal(before.job.id, a); assert.equal(before.listings.length, 2); assert.equal(before.sources.length, 2);
+    assert.equal(before.snapshotRevision, merge.revision);
+    assert.deepEqual(before.locations.map((location) => location.city).sort(), ["上海", "北京"].sort());
+    assert.deepEqual(before.compensations.map((pay) => pay.min).sort(), [200_000, 300_000]);
     f.setNow(LATER);
     const updated = record("b", { title: "Synthetic senior software engineer", description: "Synthetic updated source B responsibilities.",
       locations: [{ raw: "深圳", countryCode: "CN", city: "深圳" }], compensations: [{ raw: "Synthetic gross annual 450000", currency: "CNY", period: "year", min: 450_000, tax: "gross", kind: "base" }] });
@@ -95,6 +98,9 @@ test("HTTP keeps canonical search/export and old-ID detail while source refresh 
     assert.equal(refresh.status, 200); assert.equal(value<{ run: SyncRun }>(await refresh.json() as ToolResult<unknown>).run.status, "completed");
     const detail = await get<Detail>(`/api/v1/jobs/${b}`);
     assert.equal(detail.job.id, a); assert.equal(detail.job.title.value, before.job.title.value); assert.equal(detail.observations.length, 3); assert.equal(detail.snapshots.length, 3);
+    assert.ok(detail.snapshotRevision > before.snapshotRevision);
+    assert.deepEqual(detail.locations.map((location) => location.city).sort(), ["上海", "深圳"].sort());
+    assert.deepEqual(detail.compensations.map((pay) => pay.min).sort(), [200_000, 450_000]);
     assert.ok(detail.snapshots.some((snapshot) => snapshot.text === updated.description));
     const exported = await get<AtlasDataset>("/api/v1/dataset/export");
     assert.equal(exported.jobs.length, 1); assert.equal(exported.jobs[0]!.id, a); assert.equal(exported.listings.length, 2);
@@ -104,6 +110,9 @@ test("HTTP keeps canonical search/export and old-ID detail while source refresh 
     await f.repository.revokeMerge({ decisionId: merge.decision.id, reason: "Synthetic independent source split" }, writeOptions("revoke-after-refresh", exported.revision));
     const split = await get<Detail>(`/api/v1/jobs/${b}`);
     assert.equal(split.job.id, b); assert.equal(split.job.title.value, updated.title); assert.equal(split.job.description, updated.description);
+    assert.ok(split.snapshotRevision > detail.snapshotRevision);
+    assert.deepEqual(split.locations.map((location) => location.city), ["深圳"]);
+    assert.deepEqual(split.compensations.map((pay) => pay.min), [450_000]);
     const latest = await f.repository.readSnapshot();
     assert.deepEqual(split.job.locationIds.map((id) => latest.locations.find((location) => location.id === id)!.city), ["深圳"]);
     assert.deepEqual(split.job.compensationIds.map((id) => latest.compensations.find((pay) => pay.id === id)!.min), [450_000]);
@@ -144,11 +153,18 @@ test("detail binds old-ID resolution to its captured snapshot when a merge or re
         decisionId = (await f.repository.mergeJobs({ targetJobId: a!, sourceJobId: b!, reason: "Synthetic concurrent merge", companyIdentityConfirmed: true }, writeOptions("concurrent-merge", (await f.repository.readSnapshot()).revision))).decision.id;
       };
       // The request captured the unmerged snapshot; it must still return B from that snapshot.
-      assert.equal(value<Detail>(await app.registry.execute("jobs.read-detail", { jobId: b }, context())).job.id, b);
+      const unmerged = value<Detail>(await app.registry.execute("jobs.read-detail", { jobId: b }, context()));
+      assert.equal(unmerged.job.id, b);
+      assert.deepEqual(unmerged.locations.map((location) => location.city), ["北京"]);
+      assert.deepEqual(unmerged.compensations.map((pay) => pay.min), [300_000]);
       assert.equal((await f.repository.readSnapshot()).jobs.length, 1);
       action = async () => { await f.repository.revokeMerge({ decisionId, reason: "Synthetic concurrent revoke" }, writeOptions("concurrent-revoke", (await f.repository.readSnapshot()).revision)); };
       // This request captured the merged snapshot; the same old ID resolves to A at that revision.
-      assert.equal(value<Detail>(await app.registry.execute("jobs.read-detail", { jobId: b }, context())).job.id, a);
+      const merged = value<Detail>(await app.registry.execute("jobs.read-detail", { jobId: b }, context()));
+      assert.equal(merged.job.id, a);
+      assert.ok(merged.snapshotRevision > unmerged.snapshotRevision);
+      assert.deepEqual(merged.locations.map((location) => location.city).sort(), ["上海", "北京"].sort());
+      assert.deepEqual(merged.compensations.map((pay) => pay.min).sort(), [200_000, 300_000]);
       assert.equal((await f.repository.readSnapshot()).jobs.length, 2);
     } finally { await app.shutdown(); }
   } finally { await f.close(); }

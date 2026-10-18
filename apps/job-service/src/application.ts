@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { fileURLToPath } from "node:url";
 import {
-  AtlasDatasetSchema, CanonicalJobSchema, CompanySchema, SourceDefinitionSchema, SourceListingSchema, SourceObservationSchema, JdSnapshotSchema,
+  AtlasDatasetSchema, CanonicalJobSchema, CompanySchema, JobLocationSchema, CompensationSchema, RevisionSchema, SourceDefinitionSchema, SourceListingSchema, SourceObservationSchema, JdSnapshotSchema,
   EntityIdSchema, createJobQueryService, createJobsSearchTool, createToolRegistry, defineTool, normalizeSearchText, ToolError,
   type QueryOptions, type SourceDefinition, type ToolHandlerContext, type ToolDefinition,
 } from "@better-me/opportunities";
@@ -261,15 +261,16 @@ export function createJobApplication(options: JobApplicationOptions) {
       execute: (input, context) => guarded(async () => { context.throwIfCancelled(); return repository.importSnapshot(input.dataset, { expectedRevision: input.expectedRevision, actorScope: context.actorScope, idempotencyKey: key(context) }); }),
     }),
     defineTool({ name: "jobs.export-public", version: 1, description: "导出公共岗位快照，不包含浏览器简历、投递记录或服务凭据。", effect: "read-index", inputSchema: emptyInput, outputSchema: AtlasDatasetSchema, execute: () => guarded(() => repository.readSnapshot()) }),
-    defineTool({ name: "jobs.read-detail", version: 1, description: "返回岗位全部来源、观察和不可变JD快照，保留多源差异。", effect: "read-index", inputSchema: z.object({ jobId: EntityIdSchema }).strict(),
-      outputSchema: z.object({ job: CanonicalJobSchema, company: CompanySchema, listings: z.array(SourceListingSchema), observations: z.array(SourceObservationSchema), snapshots: z.array(JdSnapshotSchema), sources: z.array(SourceDefinitionSchema) }).strict(),
+    defineTool({ name: "jobs.read-detail", version: 1, description: "返回同一索引版本中的岗位、结构化地点、薪资分项、全部来源、观察和不可变JD快照，保留多源差异。", effect: "read-index", inputSchema: z.object({ jobId: EntityIdSchema }).strict(),
+      outputSchema: z.object({ snapshotRevision: RevisionSchema, job: CanonicalJobSchema, company: CompanySchema, locations: z.array(JobLocationSchema), compensations: z.array(CompensationSchema), listings: z.array(SourceListingSchema), observations: z.array(SourceObservationSchema), snapshots: z.array(JdSnapshotSchema), sources: z.array(SourceDefinitionSchema) }).strict(),
       execute: (input) => guarded(async () => {
         const snapshot = await repository.readSnapshot();
         // Resolve against the captured snapshot so a concurrent merge/revoke cannot mix IDs and rows.
         const resolved = await repository.resolveJobId(input.jobId, { atRevision: snapshot.revision });
         const job = snapshot.jobs.find((job) => job.id === resolved?.canonicalJobId); if (!job) throw new ToolError("invalid-input");
+        const locationIds = new Set(job.locationIds), compensationIds = new Set(job.compensationIds);
         const listings = snapshot.listings.filter((listing) => job.listingIds.includes(listing.id));
-        return { job, company: snapshot.companies.find((company) => company.id === job.companyId)!, listings, observations: snapshot.observations.filter((observation) => job.listingIds.includes(observation.listingId)), snapshots: snapshot.snapshots.filter((item) => job.listingIds.includes(item.listingId)), sources: snapshot.sources.filter((source) => listings.some((listing) => listing.sourceId === source.sourceId)) };
+        return { snapshotRevision: snapshot.revision, job, company: snapshot.companies.find((company) => company.id === job.companyId)!, locations: snapshot.locations.filter((location) => locationIds.has(location.id)), compensations: snapshot.compensations.filter((compensation) => compensationIds.has(compensation.id)), listings, observations: snapshot.observations.filter((observation) => job.listingIds.includes(observation.listingId)), snapshots: snapshot.snapshots.filter((item) => job.listingIds.includes(item.listingId)), sources: snapshot.sources.filter((source) => listings.some((listing) => listing.sourceId === source.sourceId)) };
       }),
     }),
     defineTool({ name: "runs.list", version: 1, description: "查看持久手动刷新任务和明确的完成/部分/失败状态。", effect: "read-index", inputSchema: emptyInput, outputSchema: z.array(SyncRunSchema), execute: () => guarded(() => repository.listRuns()) }),
