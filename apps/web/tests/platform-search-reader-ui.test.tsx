@@ -202,6 +202,79 @@ test("inspection displays fixed snapshot diagnostics without raw page data and c
   assert.equal(dom.document.querySelector('[aria-label="搜索页面状态检查结果"]'), null);
 });
 
+test("51JOB safe-empty inspection exposes HTTP and bounded resource failures without claiming zero jobs or successful scripts", async () => {
+  const request = buildPlatformSearchRequest({ provider: "51job", keyword: "C#", regionId: "cn-shanghai" });
+  const calls = installFetch(call => {
+    if (call.body.action === "start") return response(session(request));
+    if (call.body.action === "read") return response({ ...extractJobSearchCards({ url: request.url, title: "", html: "<html><body></body></html>" }, "51JOB"), capturedAt: at });
+    if (call.body.action === "inspect") return response({ ...inspection({
+      pageLoad: { readyState: "complete", content: "empty", visibleFrames: 0 }, mainDocumentRequests: 1000,
+      scriptErrorsCollected: false, truncated: true, blockedPopups: 1, blockedSockets: 2,
+      resources: [
+        { host: "synthetic-cdn.example.invalid", type: "script", outcome: "blocked_by_tool", detail: "blocked_by_tool", frame: "unknown", url: "https://private-user:private-password@example.invalid/private-path", body: "PRIVATE_RESOURCE_BODY" },
+        { host: "synthetic-api.example.invalid", type: "fetch", outcome: "http_error", detail: "http", frame: "main", httpStatus: 503 },
+        { host: "synthetic-css.example.invalid", type: "stylesheet", outcome: "load_failed", detail: "tls", frame: "child" },
+      ] as JdBrowserSessionInspection["resources"],
+    }), html: "PRIVATE_DOM_BODY", protocolError: "PRIVATE_PROTOCOL_TEXT" });
+    return response({ cancelled: true, closed: true });
+  });
+  await render([request]); await click("搜索并读取当前页");
+  await waitFor(() => Boolean(dom.document.querySelector(".atlas-platform-reader-result")), "unconfirmed empty shell");
+  await click("检查页面状态");
+  await waitFor(() => Boolean(dom.document.querySelector('[aria-label="搜索页面状态检查结果"]')), "51JOB finite diagnostics");
+  const diagnostic = dom.document.querySelector('[aria-label="搜索页面状态检查结果"]')!;
+  assert.match(diagnostic.textContent!, /HTTP 200 响应；这不代表已取得岗位结果/);
+  assert.match(diagnostic.textContent!, /主文档请求至少 1000 次/);
+  assert.match(diagnostic.textContent!, /主页面已完成加载，动态内容仍可能继续更新/);
+  assert.match(diagnostic.textContent!, /安全读取未保留主页面文字.*不能据此认定原站没有内容或岗位/);
+  assert.match(diagnostic.textContent!, /可见内嵌页面：0 个/);
+  const details = diagnostic.querySelector("details")!;
+  assert.equal(details.open, false);
+  assert.match(details.querySelector("summary")!.textContent!, /3 项资源问题/);
+  await act(async () => { details.querySelector("summary")!.click(); });
+  assert.equal(details.open, true);
+  assert.match(details.textContent!, /未采集脚本错误，无法判断页面是否发生脚本异常/);
+  assert.doesNotMatch(details.textContent!, /暂未记录到未处理的脚本错误/);
+  assert.match(details.textContent!, /被本工具限制 · synthetic-cdn.example.invalid · script · 所属页面未知 · 资源范围限制/);
+  assert.match(details.textContent!, /HTTP 错误 · synthetic-api.example.invalid · fetch · 主页面 · HTTP 响应错误（HTTP 503）/);
+  assert.match(details.textContent!, /加载失败或已取消 · synthetic-css.example.invalid · stylesheet · 内嵌页面 · TLS 连接失败/);
+  assert.match(details.textContent!, /最多记录 30 项.*未包含全部问题/);
+  assert.match(details.textContent!, /已阻止 1 个新窗口/); assert.match(details.textContent!, /已阻止 2 个实时连接/);
+  assert.doesNotMatch(diagnostic.textContent!, /0 岗|原站.*明确.*暂无结果/);
+  assert.doesNotMatch(dom.document.body.innerHTML, /private-user|private-password|private-path|PRIVATE_RESOURCE_BODY|PRIVATE_DOM_BODY|PRIVATE_PROTOCOL_TEXT/);
+  assert.deepEqual(calls.map(call => [call.path, call.body.action]), [
+    ["/api/jd/search-session", "start"], ["/api/jd/search-session", "read"], ["/api/jd/browser-session", "inspect"],
+  ]);
+  assert.equal(button("再次读取当前页").disabled, false);
+});
+
+test("inspection distinguishes pending, failed and unknown main documents while an empty resource log remains inconclusive", async () => {
+  let inspected = 0;
+  const states = ["pending", "failed", "unknown"] as const;
+  const messages = ["主文档请求尚未收到响应", "最近一次主文档请求失败", "暂未记录到主文档请求结果"];
+  installFetch(call => {
+    if (call.body.action === "start") return response(session());
+    if (call.body.action === "read") return response(ready());
+    if (call.body.action === "inspect") return response(inspection({
+      snapshotState: "failed", pageLoad: { readyState: "unknown", content: "unknown", visibleFrames: 0 },
+      mainDocument: { state: states[inspected++]! }, scriptErrors: 2, scriptErrorsCollected: true,
+    }));
+    return response({ cancelled: true, closed: true });
+  });
+  await render(); await startReady();
+  for (const message of messages) {
+    await click("检查页面状态");
+    await waitFor(() => dom.document.querySelector('[aria-label="搜索页面状态检查结果"]')?.textContent?.includes(message) ?? false, message);
+    const diagnostic = dom.document.querySelector('[aria-label="搜索页面状态检查结果"]')!;
+    assert.match(diagnostic.textContent!, /本次未能检查当前页面，登录或访问验证状态尚未确认/);
+    assert.match(diagnostic.textContent!, /暂未确认主页面加载阶段.*本次无法确认页面显示内容/);
+    assert.match(diagnostic.textContent!, /暂未记录到资源错误；这不能确认所有资源均已成功加载/);
+    assert.match(diagnostic.textContent!, /已记录 2 次未处理的脚本错误.*尚不能据此确定故障原因/);
+    assert.doesNotMatch(diagnostic.textContent!, /HTTP 200|未检测到登录|没有岗位/);
+    assert.equal(dom.document.querySelectorAll(".atlas-platform-card-list li").length, 2);
+  }
+});
+
 test("inspection errors and cancellation retain the owned session, receipt and precise launch binding", async () => {
   let inspections = 0, pendingSignal: AbortSignal | undefined;
   const calls = installFetch(call => {

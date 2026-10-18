@@ -8,6 +8,7 @@ import { createJdStartRequestId } from "../../lib/jd-start-request";
 import { JdExtractionError } from "../../lib/jd-errors";
 import { snapshotFailureMessage } from "../../lib/jd-capture-diagnostics";
 import { SourcePublicationBadges } from "./JobSourceBadges";
+import "./PlatformSearchSessionPanel.css";
 
 type Props = { requests: PlatformSearchRequest[]; onReviewCard?: (card: PlatformSearchCard, capturedAt: string) => void;
   onIndexCard?: (card: PlatformSearchCard, receipt: PlatformSearchReceipt, provider: PlatformSearchRequest["provider"]) => void };
@@ -28,6 +29,23 @@ const pageLabels: Record<JdBrowserSessionInspection["pageState"], string> = {
   different_job: "当前页面与本次搜索范围不一致，请返回原搜索列表。",
   blank: "当前窗口是空白页，尚未取得搜索页面内容。",
   unknown: "尚未确认当前页面类型，请核对专用窗口中的搜索列表。",
+};
+const loadLabels: Record<JdBrowserSessionInspection["pageLoad"]["readyState"], string> = {
+  loading: "主页面仍在加载。", interactive: "主页面文档已就绪，部分资源可能仍在加载。",
+  complete: "主页面已完成加载，动态内容仍可能继续更新。", unknown: "暂未确认主页面加载阶段。",
+};
+const contentLabels: Record<JdBrowserSessionInspection["pageLoad"]["content"], string> = {
+  empty: "本次安全读取未保留主页面文字，未发现可见内嵌页面；不能据此认定原站没有内容或岗位。",
+  visible_text: "安全读取保留了主页面文字，是否为可靠岗位卡片仍需再次读取确认。",
+  embedded_content: "检测到可见内嵌页面，本次未检查其中内容；主页面未保留安全文字。",
+  unknown: "本次无法确认页面显示内容。",
+};
+const resourceOutcomes: Record<JdBrowserSessionInspection["resources"][number]["outcome"], string> = {
+  blocked_by_tool: "被本工具限制", load_failed: "加载失败或已取消", http_error: "HTTP 错误",
+};
+const resourceDetails: Record<JdBrowserSessionInspection["resources"][number]["detail"], string> = {
+  unknown: "失败原因未知", blocked_by_tool: "资源范围限制", cancelled: "请求已取消", dns: "域名解析失败",
+  proxy: "代理连接失败", connection: "连接中断或失败", tls: "TLS 连接失败", timeout: "请求超时", http: "HTTP 响应错误", other: "其他加载失败",
 };
 
 /** One visible browser session, explicit read/close, no automatic applications or account actions. */
@@ -109,7 +127,7 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
     {busy && <p className="atlas-platform-reader-loading" role="status"><Loader2 size={16} className="animate-spin" aria-hidden="true" />正在等待原站页面并核对可见卡片… 页面加载、身份与字段检查完成后会显示结果。</p>}
     {scope && <p className="atlas-small">本次搜索：{scope.platform} · {scope.keyword || "不限关键词"} · {scope.region?.name ?? "原站默认地区"}。上方筛选改变后，结束本次会话再发起新的搜索。</p>}
     {error && <p role="alert" className="atlas-platform-search-error">{error}</p>}
-    {inspection && <div className="atlas-small" role="status" aria-label="搜索页面状态检查结果">
+    {inspection && <div className="atlas-small atlas-search-inspection" role="status" aria-label="搜索页面状态检查结果">
       <strong>上次页面状态检查</strong>
       <p>{snapshotLabels[inspection.snapshotState]}</p>
       <p>{pageLabels[inspection.pageState]}</p>
@@ -119,6 +137,24 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
           ? "当前页面要求访问验证，请在专用窗口自行完成后再次读取当前页。"
           : "本次未检测到登录或访问验证提示，搜索结果是否可读仍需再次读取确认。"}</p>}
       {inspection.snapshotFailure && <p>{snapshotFailureMessage(inspection.snapshotFailure)}</p>}
+      <p>{inspection.mainDocument.state === "response"
+        ? `最近一次主文档请求收到 HTTP ${inspection.mainDocument.status} 响应；这不代表已取得岗位结果。`
+        : { pending: "主文档请求尚未收到响应。", failed: "最近一次主文档请求失败，请结合资源记录核对网络。", unknown: "暂未记录到主文档请求结果。" }[inspection.mainDocument.state]}
+        {inspection.mainDocumentRequests !== undefined && ` 本次主文档请求${inspection.mainDocumentRequests === 1000 ? "至少 1000" : ` ${inspection.mainDocumentRequests}`} 次（包含跳转）。`}</p>
+      <p>{loadLabels[inspection.pageLoad.readyState]} {contentLabels[inspection.pageLoad.content]} 可见内嵌页面：{inspection.pageLoad.visibleFrames} 个。</p>
+      <details className="atlas-search-resource-diagnostics">
+        <summary>加载与资源诊断（{inspection.resources.length} 项资源问题）</summary>
+        <p>{inspection.scriptErrorsCollected === false
+          ? "当前读取方式未采集脚本错误，无法判断页面是否发生脚本异常。"
+          : inspection.scriptErrors > 0 ? `本次会话已记录 ${inspection.scriptErrors} 次未处理的脚本错误，尚不能据此确定故障原因。`
+            : "本次会话暂未记录到未处理的脚本错误；这不代表页面全部正常。"}</p>
+        {inspection.resources.length > 0 ? <ul>{inspection.resources.map((resource, index) => <li key={index}>
+          <strong>{resourceOutcomes[resource.outcome]}</strong> · {resource.host} · {resource.type} · {{ main: "主页面", child: "内嵌页面", unknown: "所属页面未知" }[resource.frame]} · {resourceDetails[resource.detail]}{resource.httpStatus !== undefined && `（HTTP ${resource.httpStatus}）`}
+        </li>)}</ul> : <p>暂未记录到资源错误；这不能确认所有资源均已成功加载。</p>}
+        {inspection.truncated && <p>资源问题最多记录 30 项，以上列表可能未包含全部问题。</p>}
+        {inspection.blockedPopups > 0 && <p>本工具已阻止 {inspection.blockedPopups} 个新窗口。</p>}
+        {inspection.blockedSockets > 0 && <p>本工具已阻止 {inspection.blockedSockets} 个实时连接。</p>}
+      </details>
     </div>}
     {receipt && <div className="atlas-platform-reader-result" role="status">
       <strong>{labels[receipt.status]}{receipt.status === "ready" || receipt.status === "empty" ? ` · ${receipt.cards.length} 岗` : " · 岗位数量尚未确认"}</strong>
