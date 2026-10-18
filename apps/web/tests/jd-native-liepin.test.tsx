@@ -553,9 +553,11 @@ test("native TTL expiry and explicit stop retain existing API ownership semantic
 
 test("native TTL callback releases its page then reads a fresh session in the same browser", async () => {
   const f = fixture(); let expire: (() => void) | undefined; let acquisitions = 0; let stops = 0;
+  let clock = 1_700_000_000_000;
   const manager = createNativeLiepinSessions({
     browser: { acquire: async () => { acquisitions++; return f.page; }, stop: async () => { stops++; } },
     getOperation: async () => ({ fetch, routeFor: () => ({ mode: "direct", source: "fixture" }) }),
+    now: () => clock, sleep: async ms => { clock += ms; },
     setTimer: ((callback: () => void, ms: number) => { assert.equal(ms, 600_000); expire = callback; return { unref() {} }; }) as unknown as typeof setTimeout,
     clearTimer: (() => undefined) as typeof clearTimeout,
   });
