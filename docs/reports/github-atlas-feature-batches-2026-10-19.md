@@ -110,3 +110,9 @@ Ashby文档`aa06e40`已正常推送，[Actions39173399390](https://github.com/na
 功能`7755cf17fdd449f1a435d1d836b2947577058a8d`已正常推送main，远端SHA已核对。仅5文件冻结产品树`514b0353c9ecca7f9e1671b07f15bc70b71aaf36`完成离线冻结安装、types10/10、lint、65/65定向回归（失败／取消／跳过／todo0）与build6/6；20项新增会话／React回归另经独立只读审查通过。远端质量、Linux构建、Docker及Pages以[Actions39175293892](https://github.com/nanfengovo/better-me/actions/runs/39175293892)的实际结果为准，本机未新建本批Docker。
 
 修复每次刷新默认local／丢失成功连接而重新显示旧机会库的问题：仅明确成功连接后在当前标签页sessionStorage记loopback身份，刷新真实重读；失败仍live并提示重试，切视图／改资料／断开取消旧请求和核对面板，拒绝迟到快照覆盖，StrictMode与存储失败分别回归。旧页首次仍需连接，未自动读取私人凭据。85岗／rev59及26国内／48全球C#真实HTTP复查未变，无新办公坐标；本轮没有新私人索引UI目视。并行Career Agent成果保留，详见[国内来源报告](job-atlas-domestic-source-expansion-2026-10-19.md)。
+
+## 跨来源岗位归并受审工具与界面 · 2026-10-19
+
+工具`d40a7f50c9613955f8ebbc41fd17aa10446a63c4`、界面`4873aa87f51257b52a5b14a73d829517f44523fe`已正常推送main，最终产品树精确等于独立树`7e727e4ed84ba675300051a8e3bd97a6f60ae5bb`。16文件离线冻结安装、memory:check、types10/10、lint、2053/2053测试和build6/6全部通过；失败／取消／跳过／todo为0，独立审查72/72不相加。[Actions39177331005](https://github.com/nanfengovo/better-me/actions/runs/39177331005)的Windows质量、Linux构建、Docker／HTTP和Pages四任务均success。普通HTTP逐级核对首页、主JS、Atlas及归并动态面板200，入口、撤销预览及原key回执代码存在；这不代表新UI目视验收。没有复用旧Docker验证数字，构建原有chunk体积提示保留。
+
+服务更新前完整SQLite备份／quick_check、0运行任务通过，原自有session结束并确认旧进程／监听已无后恢复同一5178；dataset／token哈希不变、恢复任务0。真实85岗／rev59、5对弱线索候选、0历史、首对同版本来源预览且前后库哈希不变；国内C#26／22企业、全球48／33企业等真实共享HTTP复查未变。未合并真实岗位／新增来源／办公坐标，无新私人页面UI目视。详见[归并报告](job-atlas-reconciliation-2026-10-19.md)。并行Career、导入、依赖／锁文件、Docker修改及私人资料均未混入发布，整个Goal active。

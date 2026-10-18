@@ -2,7 +2,7 @@
 
 `@better-me/job-service` 提供独立的 TypeScript 本机服务：把受控来源的公开岗位记录保存到 SQLite，以同一套应用工具服务 HTTP 查询和后续 Agent 适配。它不读取浏览器简历、Fact、投递材料、联系人、API Key 或浏览器 profile。
 
-这是岗位地图的本机服务底座，包含 M1 HTTP / 采集能力、M2 repository 层的人工归并与撤销，以及 V3 可撤销地区确认。地区确认已通过共享工具与认证 HTTP 接入 Web；归并写入仍尚未接入应用工具或 HTTP。地图、私人机会工作台联动、LangChain / LangGraph Agent、定时刷新及数据迁移需分别验收。原有四平台单岗读取不等于本服务已经实现这些平台的全站搜索。
+这是岗位地图的本机服务底座，包含 M1 HTTP / 采集能力、M2 repository 层的人工归并与撤销，以及 V3 可撤销地区确认。地区确认已通过共享工具与认证 HTTP 接入 Web；归并已通过七项受审工具、认证HTTP和Web面板接入，包含撤销影响预览与耐久回执恢复。地图、私人机会工作台联动、LangChain / LangGraph Agent、定时刷新及数据迁移需分别验收。原有四平台单岗读取不等于本服务已经实现这些平台的全站搜索。
 
 ## 环境与启动
 
@@ -187,7 +187,7 @@ SQLite 持久保存来源、公司、岗位、位置、薪资、来源 listing�
 
 ## 人工跨源归并：repository 接口
 
-数据库 schema v2 增加原始岗位投影 `base_jobs`、不可变决策、当前 / 历史岗位别名及岗位版本高水位。已有 schema v1 SQLite 文件会在事务中升级，保留岗位 ID、来源、观察和 JD。以下接口可由可信应用代码调用，**当前 HTTP 路由表尚未提供归并入口**。
+数据库 schema v2 增加原始岗位投影 `base_jobs`、不可变决策、当前 / 历史岗位别名及岗位版本高水位。已有 schema v1 SQLite 文件会在事务中升级，保留岗位 ID、来源、观察和 JD。以下接口可由可信应用代码调用，下节列出当前受审工具／HTTP；底层接口由可信应用代码调用。
 
 | repository 方法 | 行为 |
 | --- | --- |
@@ -249,3 +249,21 @@ SmartRecruiters专项见`packages/source-adapters/tests/smartrecruiters.test.ts`
 `jobs.read-detail`／`GET /api/v1/jobs/:jobId`返回`snapshotRevision`、`job`、`company`、`locations`、`compensations`、`listings`、`observations`、`snapshots`、`sources`。单次读取快照，并按其版本解析旧岗位ID；地点和薪资仅包含当前岗位引用，不混入其他岗位或旧记录。缺字段为空数组，沿用严格公共Schema和read-index权限，没有新采集或私人材料读取。
 
 功能`3a56bc6`的3文件冻结树86f43dc4经离线冻结安装、独立job-service135/135、仓库types10/10及lint通过，远端四任务success。原服务已实际返回新增字段；85岗／revision59、dataset及token哈希在本轮受控更新前后一致。严格国内C#26／22企业、全球48／33企业；平台卡片与逐项地区确认仍不等于完整JD、核实在招或办公定位。详见[本轮报告](../../docs/reports/job-atlas-domestic-source-expansion-2026-10-19.md)。
+
+## 已接入的归并工具与 HTTP
+
+岗位地图的“重复岗位核对”复用以下严格工具，执行身份／effect／预算由可信宿主提供。`candidates`和`history`输入默认limit50、最多100；`preview`绑定目标／来源、expectedRevision、reason和companyIdentityConfirmed，返回同版本双边公开详情、冲突及指纹。`merge`／`reject`必须提交同一input、previewFingerprint、reviewed:true及Idempotency-Key。
+
+| 工具 | POST /api/v1/jobs/reconciliation/ 路径 |
+| --- | --- |
+| jobs.list-merge-candidates | candidates |
+| jobs.preview-merge | preview |
+| jobs.merge | merge |
+| jobs.reject-merge | reject |
+| jobs.list-merge-decisions | history |
+| jobs.preview-revoke-merge | preview-revoke |
+| jobs.revoke-merge | revoke |
+
+撤销先用decisionId／expectedRevision／reason预览实际before／after相关组，再提交同一输入、指纹与reviewed。只允许原执行身份撤销。完整命令哈希进入SQLite耐久签名；原键回执查找早于当前revision和预览验证，服务重启也能取回旧请求。工具运行时的可信只读恢复回调解决提交后超时／取消／输出失败的旧错误缓存，不重新执行写入；没有回执保留原错误。
+
+有限候选内部最多枚举10000对、生成1000候选，返回不超过100；false或空列表不能证明全库无重复。共享协议不开放客户端自封verified的requisitionLinks。见[实施与验收](../../docs/reports/job-atlas-reconciliation-2026-10-19.md)。
