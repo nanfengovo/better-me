@@ -5,6 +5,7 @@ import {
   normalizeAutoSaveSettings,
   type AutoSaveSettings,
   type BetterMeDocument,
+  type DocumentFieldChange,
   type VersionKind,
 } from "@better-me/storage";
 
@@ -113,7 +114,8 @@ export function useDocumentPersistence() {
 
   const update = useCallback((document: BetterMeDocument) => controller.update(document), [controller]);
   const replace = useCallback((document: BetterMeDocument, label?: string, kind?: VersionKind) => controller.replace(document, label, kind), [controller]);
+  const restoreField = useCallback((change: DocumentFieldChange, label?: string) => controller.restoreField(change, label), [controller]);
   const checkpoint = useCallback((label: string) => controller.checkpoint(label), [controller]);
   const flush = useCallback(() => controller.flush(true), [controller]);
-  return { ...state, update, replace, checkpoint, flush, history: controller.history, autoSaveSettings, setAutoSaveSettings, autoSavePreferenceError };
+  return { ...state, update, replace, restoreField, checkpoint, flush, history: controller.history, autoSaveSettings, setAutoSaveSettings, autoSavePreferenceError };
 }

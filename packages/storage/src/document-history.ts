@@ -2,6 +2,8 @@ import { z } from "zod";
 import { DocumentSchema, LocalJsonStore, STORAGE_KEY, createInitialDocument } from "./local-json.js";
 import type { BetterMeDocument } from "./types.js";
 import { normalizeAutoSaveSettings, type AutoSaveSettings } from "./autosave-policy.js";
+import type { DocumentFieldChange } from "./document-diff.js";
+import { applyDocumentFieldChange } from "./document-field-restore.js";
 
 export const DRAFT_STORAGE_KEY = `${STORAGE_KEY}:draft:v1`;
 export const PREVIOUS_DRAFT_STORAGE_KEY = `${STORAGE_KEY}:previous-draft:v1`;
@@ -465,6 +467,91 @@ export class DocumentPersistenceController {
       if (operation === this.operation) this.emit({ status: { ...this.state.status, kind: "error", message: `${storageError(error)} 当前简历未被替换。` } });
       return false;
     }
+  }
+  /** Restore a single compared field against the current editor, never a stale whole document. */
+  async restoreField(change: DocumentFieldChange, label = "恢复单项差异"): Promise<boolean> {
+    const previous = this.state.doc;
+    if (!this.state.ready || !previous) throw new Error("当前简历尚未就绪，请稍后重新比较。");
+    // A field restore is not consent to overwrite another window's document.
+    if (this.state.status.externalConflict) throw new Error("另一窗口修改了这份简历。请先处理窗口冲突，再重新比较并恢复单项差异；当前内容未被覆盖。");
+    const applied = applyDocumentFieldChange(previous, change);
+    if (!applied.ok) throw new Error(applied.message);
+    const draft = DraftDocumentSchema.safeParse(applied.document);
+    if (!draft.success) throw new Error("单项恢复后的草稿结构无效，当前编辑未被修改。");
+    const next = draft.data as BetterMeDocument;
+    const validNext = DocumentSchema.safeParse(next);
+    const validPrevious = DocumentSchema.safeParse(previous);
+    clearTimeout(this.timer);
+    this.timer = undefined;
+    const operation = ++this.operation;
+    const assertCurrent = () => {
+      if (operation !== this.operation || this.state.status.externalConflict) {
+        throw new Error("当前编辑或其他窗口的数据已变化，未继续应用该项恢复。请重新比较后再操作。");
+      }
+    };
+    const fail = (message: string, historyError?: string): never => {
+      if (operation === this.operation) {
+        this.emit({ status: { ...this.state.status, kind: "error", message, ...(historyError ? { historyError } : {}) } });
+      }
+      throw new Error(message);
+    };
+
+    // A complete current editor must have an undo snapshot before replacement.
+    // Incomplete inputs retain their exact draft form, including NaN, separately.
+    try {
+      if (validPrevious.success) {
+        await this.history.append(validPrevious.data as BetterMeDocument, "单项恢复前 · 当前编辑", "checkpoint");
+        assertCurrent();
+      } else {
+        const rawPrevious = encodeDraft({ schemaVersion: 1, savedAt: new Date().toISOString(), document: DraftDocumentSchema.parse(previous) });
+        localStorage.setItem(PREVIOUS_DRAFT_STORAGE_KEY, rawPrevious);
+        assertCurrent();
+        this.emit({ status: { ...this.state.status, rawPreviousDraftRecovery: rawPrevious } });
+      }
+    } catch (error) {
+      if (operation !== this.operation || this.state.status.externalConflict) throw error;
+      fail("无法保护恢复前的当前编辑，该项尚未恢复。请先下载备份或检查本地存储。", error instanceof Error ? error.message : "恢复前快照保存失败。");
+    }
+    assertCurrent();
+    const adjustmentNotice = applied.adjustments.length ? ` ${applied.adjustments.join("；")}` : "";
+
+    if (!validNext.success) {
+      const status = this.writeDraft(next);
+      if (status.kind === "error") fail(`${status.message} 该项尚未恢复，当前编辑仍保留。`);
+      this.emit({ doc: next, status: { ...status, kind: "draft", hasPendingChanges: this.hasPendingChanges(next), message: `该项已恢复并保存为本地草稿；其他未完成字段仍保留，尚未生成完整版本。${adjustmentNotice}` } });
+      return true;
+    }
+
+    try {
+      // LocalJsonStore writes synchronously inside its Promise. Custom async
+      // stores retain writeOfficial's existing ordering and cancellation bounds.
+      if (!await this.writeOfficial(validNext.data as BetterMeDocument, operation)) {
+        assertCurrent();
+        fail("该项尚未保存，请重新比较后再恢复。当前编辑仍保留。");
+      }
+    } catch (error) {
+      if (operation !== this.operation || this.state.status.externalConflict) throw error;
+      fail(`${storageError(error)} 该项尚未恢复，当前编辑仍保留。`);
+    }
+    assertCurrent();
+    const complete = validNext.data as BetterMeDocument;
+    this.persistedFingerprint = documentFingerprint(complete);
+    const draftStatus = this.writeDraft(complete);
+    this.emit({ doc: complete, loadError: null, status: {
+      ...draftStatus, kind: "saved", hasPendingChanges: false,
+      message: `该项已恢复并保存，其余当前编辑已保留。${adjustmentNotice}`,
+      savedAt: new Date().toISOString(),
+      historyError: draftStatus.kind === "error" ? "完整版本已保存；草稿保护失败，请检查存储空间。" : undefined,
+    } });
+    try {
+      await this.history.append(complete, label, "restore");
+    } catch (error) {
+      if (operation === this.operation) this.emit({ status: {
+        ...this.state.status,
+        historyError: `该项已保存，但恢复结果快照未保存。恢复前内容已保护，可从“单项恢复前 · 当前编辑”快照或切换前草稿撤回。${error instanceof Error ? ` ${error.message}` : ""}`,
+      } });
+    }
+    return true;
   }
   async checkpoint(label: string): Promise<boolean> {
     const next = this.state.doc;

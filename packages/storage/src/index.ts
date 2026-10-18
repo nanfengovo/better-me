@@ -22,6 +22,7 @@ export {
 } from "./document-history.js";
 export type { DocumentVersion, VersionKind, VersionRepository, PersistenceStatus, PersistenceState } from "./document-history.js";
 export { getDocumentFieldChanges } from "./document-diff.js";
-export type { DocumentFieldChange } from "./document-diff.js";
+export { applyDocumentFieldChange } from "./document-field-restore.js";
+export type { DocumentFieldChange, DocumentFieldTarget, DocumentFieldRestoreResult } from "./document-field-restore.js";
 export { DEFAULT_AUTO_SAVE_SETTINGS, normalizeAutoSaveSettings } from "./autosave-policy.js";
 export type { AutoSaveSettings } from "./autosave-policy.js";
