@@ -50,7 +50,10 @@ export const JOB_SEARCH_CAPTURE_CONFIGS: Readonly<Record<JobPlatform, JobSearchC
     titleSelectors: [".jobTitleBox > .ellipsis-1", ".job-title", ".job-title-box h3", ".job-info h3", ".job-name"],
     companySelectors: [".companyName", ".company-name", ".company-info .name", ".company-text .name"],
     locationSelectors: [".jobTitleBox > div > span.ellipsis-1", ".job-dq-box", ".job-area", ".job-dq"],
-    salarySelectors: [".job-salary", ".salary", ".text-warning"],
+    // The observed current build places this salary scalar after jobTitleBox,
+    // sometimes with an intervening urgent badge. Keep the exact field class;
+    // an arbitrary following span could be a badge, experience or education.
+    salarySelectors: [".jobDetailBox > a > div > .jobTitleBox ~ span._40108qjbMk", ".job-salary", ".salary", ".text-warning"],
     publicationSelectors: [".job-publish-time", ".job-published-time", "time[itemprop='datePosted']"],
     emptySelectors: [".search-empty", ".job-empty", ".no-result", ".empty-result"],
   },

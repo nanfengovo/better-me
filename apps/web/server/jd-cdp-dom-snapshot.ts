@@ -515,7 +515,9 @@ export function projectNativeDomSnapshot(
     const fieldClasses = new Set([
       "jobname", "job-name", "job-title", "jname", "company-name", "companyName", "cname", "com_name",
       "job-area", "jobarea", "workarea", "work-area", "job-location", "job-dq-box", "job-dq",
-      "salary", "job-salary", "sal", "text-warning", "job-publish-time", "published-time", "job-published-time",
+      // The observed Liepin build's salary span must remain a whole scalar,
+      // including when only its suffix is clipped or visually unsupported.
+      "salary", "job-salary", "sal", "text-warning", "_40108qjbMk", "job-publish-time", "published-time", "job-published-time",
       "base-search-card__title", "job-card-list__title--link", "job-card-list__title", "job-card-container__link",
       "base-search-card__subtitle", "job-card-container__primary-description", "job-search-card__location", "job-card-container__location",
       "job-search-card__salary-info", "job-card-container__salary-info",

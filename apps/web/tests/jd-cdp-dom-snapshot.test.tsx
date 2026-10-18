@@ -118,17 +118,20 @@ test("search diagnostics recognize a configured direct-child root without counti
 });
 
 test("current Liepin camel-case fields remain atomic while safe sibling fields survive", () => {
-  for (const unsafeField of ["none", "title", "company", "location"] as const) {
+  for (const unsafeField of ["none", "title", "company", "location", "salary"] as const) {
     const f = fixture();
     const card = f.add("DIV", f.body, { attrs: { class: "jobCardPcContainer" } });
     const detail = f.add("DIV", card, { attrs: { class: "jobDetailBox" } });
     const link = f.add("A", detail, { attrs: { href: source } });
-    const titleBox = f.add("DIV", link, { attrs: { class: "jobTitleBox" } });
+    const titleRow = f.add("DIV", link);
+    const titleBox = f.add("DIV", titleRow, { attrs: { class: "jobTitleBox" } });
     const title = f.add("DIV", titleBox, { attrs: { class: "ellipsis-1" } });
     const locationBox = f.add("DIV", titleBox);
     const location = f.add("SPAN", locationBox, { attrs: { class: "ellipsis-1" } });
+    const badge = f.add("SPAN", titleRow, { attrs: { class: "_40108V9EEZ" } }); f.add("#text", badge, { text: "急聘" });
+    const salary = f.add("SPAN", titleRow, { attrs: { class: "_40108qjbMk" } });
     const company = f.add("SPAN", detail, { attrs: { class: "companyName ellipsis-1" } });
-    for (const [name, node, value] of [["title", title, "合成平台工程师"], ["company", company, "合成设备公司"], ["location", location, "上海-浦东新区"]] as const) {
+    for (const [name, node, value] of [["title", title, "合成平台工程师"], ["company", company, "合成设备公司"], ["location", location, "上海-浦东新区"], ["salary", salary, "15-30k"]] as const) {
       f.add("#text", node, { text: name === unsafeField ? "PRIVATE_INCOMPLETE_PREFIX" : value });
       if (name === unsafeField) {
         const suffix = f.add("I", node, { styles: { filter: "blur(1px)" } });
@@ -149,6 +152,7 @@ test("current Liepin camel-case fields remain atomic while safe sibling fields s
       assert.equal(parsed.cards[0].title, "合成平台工程师");
       assert.equal(parsed.cards[0].company, unsafeField === "company" ? undefined : "合成设备公司");
       assert.equal(parsed.cards[0].locationText, unsafeField === "location" ? undefined : "上海-浦东新区");
+      assert.equal(parsed.cards[0].salaryText, unsafeField === "salary" ? undefined : "15-30k");
     }
   }
 });

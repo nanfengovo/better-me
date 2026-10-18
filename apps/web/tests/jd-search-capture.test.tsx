@@ -72,9 +72,9 @@ test("relative single-job links resolve against the actual official page without
   assert.equal(result.cards[0]!.url, "https://www.zhipin.com/job_detail/relative_123.html?from=visible");
 });
 
-function currentLiepinCard(options: { title?: string; href?: string; extraLink?: string } = {}) {
+function currentLiepinCard(options: { title?: string; href?: string; extraLink?: string; salaryMarkup?: string; recruiterState?: string } = {}) {
   const title = options.title ?? '<div class="ellipsis-1">C# 合成平台工程师</div>';
-  return `<div class="synthetic-build jobCardPcContainer"><div><div class="jobDetailBox"><a href="${escape(options.href ?? fixtures.猎聘.detail)}"><div><div class="jobTitleBox">${title}<div><span>【</span><span class="ellipsis-1">上海-浦东新区</span><span>】</span></div></div><span class="synthetic-salary-hash">20-30k</span></div><div><span>3年以上</span><span>统招本科</span></div></a><div class="jobCompanyInfoBox"><span class="companyName ellipsis-1">合成设备公司</span></div>${options.extraLink ?? ""}</div></div><div class="jobCardRightBox"><span class="recruiterName ellipsis-1">合成招聘者</span><span>1天前在线</span></div></div>`;
+  return `<div class="synthetic-build jobCardPcContainer"><div><div class="jobDetailBox"><a href="${escape(options.href ?? fixtures.猎聘.detail)}"><div><div class="jobTitleBox">${title}<div><span>【</span><span class="ellipsis-1">上海-浦东新区</span><span>】</span></div></div>${options.salaryMarkup ?? '<span class="synthetic-salary-hash">20-30k</span>'}</div><div><span>3年以上</span><span>统招本科</span></div></a><div class="jobCompanyInfoBox"><span class="companyName ellipsis-1">合成设备公司</span></div>${options.extraLink ?? ""}</div></div><div class="jobCardRightBox"><span class="recruiterName ellipsis-1">合成招聘者</span><span>${options.recruiterState ?? "1天前在线"}</span></div></div>`;
 }
 
 test("current Liepin card keeps the observed camel-case title, company and location fields distinct", () => {
@@ -92,6 +92,36 @@ test("current Liepin card keeps the observed camel-case title, company and locat
   assert.deepEqual(item.evidence.fields.map(({ field, selector }) => [field, selector]), [
     ["url", "a[href]"], ["title", ".jobTitleBox > .ellipsis-1"], ["company", ".companyName"], ["locationText", ".jobTitleBox > div > span.ellipsis-1"],
   ]);
+});
+
+test("observed Liepin salary scalar keeps exact visible text and selector despite an intervening urgent badge", () => {
+  for (const badge of ["", '<span class="_40108V9EEZ">急聘</span>']) {
+    const result = extractJobSearchCards(snapshot("猎聘", currentLiepinCard({
+      salaryMarkup: `${badge}<span class="_40108qjbMk">15-30k</span>`, recruiterState: "2天前在线",
+    })), "猎聘");
+    assert.equal(result.status, "ready");
+    const item = result.cards[0]!;
+    assert.equal(item.salaryText, "15-30k");
+    assert.equal(item.publicationText, undefined);
+    assert.deepEqual(item.evidence.fields.find(({ field }) => field === "salaryText"), {
+      field: "salaryText", selector: ".jobDetailBox > a > div > .jobTitleBox ~ span._40108qjbMk", text: "15-30k",
+    });
+    assert.equal("salary" in item || "currency" in item || "publishedAt" in item, false);
+  }
+});
+
+test("Liepin salary selector rejects hidden fields, unrelated siblings and unrecognized builds", () => {
+  for (const salaryMarkup of [
+    '<span class="_40108V9EEZ">急聘</span><span class="_40108qjbMk" hidden>15-30k</span>',
+    '<span class="_40108V9EEZ">急聘</span><span class="_40108qjbMk" aria-hidden="true">15-30k</span>',
+    '<span class="_40108qjbMk" style="display:none">15-30k</span><span>8年以上</span>',
+    '<span class="_40108V9EEZ">急聘</span><span class="unrecognized-build">15-30k</span>',
+    '<div><span class="_40108qjbMk">15-30k</span></div>',
+  ]) {
+    const item = extractJobSearchCards(snapshot("猎聘", currentLiepinCard({ salaryMarkup })), "猎聘").cards[0]!;
+    assert.equal(item.salaryText, undefined, salaryMarkup);
+    assert.equal(item.evidence.fields.some(({ field }) => field === "salaryText"), false);
+  }
 });
 
 test("current Liepin roots still require a complete explicit title and one supported single-job identity", () => {
@@ -334,6 +364,21 @@ test("DOM capture supports each platform and a caller's finite custom selectors"
   const config = { ...JOB_SEARCH_CAPTURE_CONFIGS.BOSS直聘, cardSelectors: [".configured-card"], titleSelectors: [".configured-title"] };
   const captured = await evaluate('<div class="configured-card"><a href="/job_detail/config_123.html"><strong class="configured-title">配置驱动岗位</strong></a></div>', fixtures.BOSS直聘.search, buildVisibleJobSearchSnapshot(config));
   assert.equal(extractJobSearchCards(captured, "BOSS直聘", { config }).cards[0]!.title, "配置驱动岗位");
+});
+
+test("current Liepin visible DOM roundtrip isolates salary from badges and CSS-hidden siblings", async () => {
+  for (const hidden of [false, true]) {
+    const html = '<style>.hidden-salary{display:none}</style>' + currentLiepinCard({
+      salaryMarkup: `<span class="_40108V9EEZ">急聘</span><span class="_40108qjbMk${hidden ? " hidden-salary" : ""}">15-30k</span><span>8年以上</span>`,
+      recruiterState: "2天前在线",
+    });
+    const captured = await evaluate(html, fixtures.猎聘.search);
+    const item = extractJobSearchCards(captured, "猎聘").cards[0]!;
+    assert.equal(item.salaryText, hidden ? undefined : "15-30k");
+    assert.equal(item.publicationText, undefined);
+    assert.equal(captured.html.includes("15-30k"), !hidden);
+    assert.match(item.cardText, /急聘/);
+  }
 });
 
 test("DOM capture distinguishes visible gates and explicit empty state; unsupported pages cannot become records", async () => {
