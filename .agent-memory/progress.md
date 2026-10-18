@@ -4,6 +4,8 @@
 
 ## 当前交付
 
+- [x] 新增Docker后的真实Actions39126393123（d7bdf1f）Windows质量、Linux Pages构建、Docker构建运行及Pages部署四任务全部success；后续文档更新继续执行同一工作流。
+- [x] GitHub About Website已设在线体验链接；Dockerfile/Compose生产静态版真实Linux/amd64构建通过、镜像约28.5MiB、非root只读健康服务localhost8080。208次HTTP、96模板许可目录+20适配源逐字节、69依赖71许可SHA通过；真实Chrome模板/主题/独立深色/保存刷新/JSON下载通过。额外PDF上传因扩展文件访问设置受阻，未扩大权限，不能算实际提取通过；源构建/CI及README详见docs/reports/docker-release-2026-10-18.md。镜像仓库和远程Docker更新未配置，原5173及其他容器未动。
 - [x] 免费托管最终选GitHub Pages（替代先前Cloudflare偏好）；质量/构建/部署工作流与完整部署说明已推送，Pages Source已启用Actions，无额外部署Token。
 - [x] 公开README重写、9张真实合成WebP截图及来源/哈希清单、分阶段开发路线图已推送main；截图合计约833KiB，不使用私人履历或API Key。
 - [x] GitHub Pages实际上线；首次Actions39124587077三个任务全success，Windows全量1251/1251（fail/cancelled/skipped/todo0）、lint、types5/5；Linux完整/子路径构建与部署通过。公网全新Edge完成模板/主题/深色独立、保存刷新、实际JSON下载、合成PDF实际提取/worker；12响应全200、运行/请求失败0。字体测试allowlist修正和有限范围见docs/reports/github-pages-release-2026-10-18.md，未重做全组合长文PDF/真实模型/岗位验收。

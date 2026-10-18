@@ -10,7 +10,7 @@ BetterMe 是一个本地优先的简历与求职工作台：从核对履历、�
 
 **119 套版式 · 10 套简历主题 · 4 套工作台配色 × 浅深模式 · 中英输出 · 本地草稿与版本历史**
 
-[在线体验](https://nanfengovo.github.io/better-me/) · [快速开始](#快速开始) · [功能一览](#功能一览) · [部署与自动更新](#部署与自动更新) · [开发规划](docs/ROADMAP.md) · [模板来源](templates/CATALOG.md) · [验收记录](#文档与验收记录)
+[在线体验](https://nanfengovo.github.io/better-me/) · [快速开始](#快速开始) · [Docker 部署](#docker-部署) · [功能一览](#功能一览) · [部署与自动更新](#部署与自动更新) · [开发规划](docs/ROADMAP.md) · [模板来源](templates/CATALOG.md) · [验收记录](#文档与验收记录)
 
 ![BetterMe 浅色工作台：左侧编辑结构化内容，右侧实时呈现 A4 简历](docs/images/workspace-light.webp)
 
@@ -143,6 +143,37 @@ pnpm --filter @better-me/web preview
 
 `preview` 用于本机检查生产构建；岗位读取等接口由本地 Vite 服务提供。公共发布方式见 [部署文档](docs/deployment.md)。
 
+### Docker 部署
+
+安装 Docker Engine 和 Compose v2+；Windows / macOS 可使用 Docker Desktop，Windows 需切换到 **Linux containers**。宿主机无需安装 Node 或 pnpm，首次构建需要联网下载官方基础镜像与锁定依赖。
+
+```bash
+git clone https://github.com/nanfengovo/better-me.git
+cd better-me
+docker compose up -d --build
+```
+
+启动后打开 **[http://localhost:8080](http://localhost:8080)**。查看状态、日志与停止：
+
+```bash
+docker compose ps
+docker compose logs --tail=100 web
+docker compose down
+```
+
+更新到仓库最新版：
+
+```bash
+git pull --ff-only
+docker compose up -d --build
+```
+
+默认只监听本机 `127.0.0.1:8080`。端口占用时可在 PowerShell 执行 `$env:BETTER_ME_PORT = '8081'`，或在 Bash 使用 `BETTER_ME_PORT=8081 docker compose up -d --build`，随后访问相应端口。更换端口会改变浏览器数据来源，迁移前请导出备份。
+
+镜像通过多阶段构建生成生产静态文件，由非 root Nginx 在容器内的 `8080` 端口提供服务；Compose 使用只读文件系统与临时 `/tmp`。`/healthz` 可用于健康检查，`/legal/` 提供模板许可证、署名、适配源码及运行依赖的完整许可文本。源码构建方式不需要镜像仓库账号；目前未发布 Docker Hub / GHCR 预构建镜像。
+
+**Docker 版与 Pages 版提供相同的浏览器工作台能力**：简历编辑、模板/主题、导入导出、本地保存及手动机会管理。岗位抓取、公司源、网络探测和 Windows 专用招聘浏览器仍需本地 Node 服务，容器中的 `/api/*` 明确返回 `501` JSON。简历和 Key 存在访问者浏览器中，不在容器卷里；重建容器不会替你同步或备份这些资料。完整单容器命令、反向代理、验证和更新说明见 [部署文档](docs/deployment.md#docker-自托管)。
+
 ### 从第一份简历开始
 
 1. **导入或填写**：先用示例熟悉操作；导入自己的材料时核对原文与待补录项，确认前先备份原有内容。
@@ -192,15 +223,19 @@ Windows 国内独立通路的可选辅助脚本见 [操作说明](scripts/README
 
 远端 CI/CD 由推送触发，仅在本地保存文件不会发布。主分支检查通过后更新静态网页；具体工作流、仓库 Pages 启用步骤、首次部署与排错见 **[免费部署与 CI/CD](docs/deployment.md)**。
 
+工作流还会实际构建并运行 Docker 镜像，检查健康状态、非 root / 只读运行、JS/CSS/PDF worker、缓存、SPA 刷新、缺失资源、静态版接口及模板授权副本。三个验证任务全部成功才部署 Pages。自托管 Docker 使用上方更新命令；当前工作流不连接你的服务器，也不推送镜像仓库。
+
+2026-10-18 的 [Docker 交付运行](https://github.com/nanfengovo/better-me/actions/runs/39126393123)四个任务均成功；本机镜像约 28.5 MiB，208 次 HTTP 检查及 Compose 实际启动通过，详见 [Docker 验收记录](docs/reports/docker-release-2026-10-18.md)。
+
 2026-10-18 [首次真实发布](https://github.com/nanfengovo/better-me/actions/runs/39124587077)的三个任务均成功，Windows runner 全量 **1251/1251**。公网 HTTPS 已验证加载、模板/简历主题与工作台外观独立、保存刷新、JSON 下载及合成 PDF 的实际文字提取；范围与限制见 [上线验收记录](docs/reports/github-pages-release-2026-10-18.md)。
 
-| 能力 | GitHub Pages 静态版 | 本地开发 / 本地预览 |
+| 能力 | GitHub Pages / Docker 静态版 | 本地开发 / 本地预览 |
 | --- | --- | --- |
 | 编辑、模板、主题、预览、浏览器本地保存 | 支持 | 支持 |
 | 浏览器生成 PDF、DOCX、Markdown、JSON 等 | 支持 | 支持 |
 | 手动管理机会、材料与投递记录 | 支持 | 支持 |
 | 用户配置的云模型调用 | 取决于服务商 CORS、网络与浏览器策略 | 同样依赖服务商与网络 |
-| 岗位提取、公司源、网络检测 | 需独立兼容服务，Pages 不运行 Node | 当前 Node / Vite 服务提供 |
+| 岗位提取、公司源、网络检测 | 需独立兼容服务；Docker 的 `/api/*` 返回 501 | 当前 Node / Vite 服务提供 |
 | 本机专用招聘 Edge 与人工验证接续 | 不能由静态页面独立提供 | 在运行本地服务的电脑使用 |
 
 免费托管提供应用发布与更新，不自动提供数据库、跨设备同步、模型额度或常驻浏览器。需要完整本机岗位读取时继续使用本地版；独立后端的身份校验、环境与访问边界另行设计。Cloudflare Pages、Vercel 可作替代，方案对照见部署文档。
@@ -298,6 +333,7 @@ pnpm memory:check
 | --- | --- |
 | 免费托管、部署与自动发布 | [部署与 CI/CD](docs/deployment.md) |
 | 首次线上发布与公网验证 | [GitHub Pages 上线记录](docs/reports/github-pages-release-2026-10-18.md) |
+| Docker 构建、容器与许可验证 | [Docker 交付记录](docs/reports/docker-release-2026-10-18.md) |
 | 当前完成情况与长期方向 | [开发路线图](docs/ROADMAP.md) · [产品草案](docs/planning/betterme-product-roadmap-2026-10-16.md) |
 | 模板全目录、来源与授权 | [目录](templates/CATALOG.md) · [维护与许可](templates/README.md) · [LICENSE/NOTICE](templates/licenses/) |
 | 工作台与响应式 | [UI 实施与视觉验收](docs/reports/ui-paper-atelier-2026-10-18.md) |
