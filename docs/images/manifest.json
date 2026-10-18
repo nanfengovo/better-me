@@ -1,0 +1,99 @@
+{
+  "capturedAt": "2026-10-18T11:41:03.228Z",
+  "synthetic": true,
+  "method": "Microsoft Edge headless, isolated origin and new contexts, real application UI",
+  "format": "WebP quality 90, original dimensions",
+  "pageErrors": [],
+  "images": [
+    {
+      "file": "workspace-light.webp",
+      "scene": "中文编辑与实时简历预览，浅色森林工作室",
+      "dimensions": [
+        1600,
+        1050
+      ],
+      "bytes": 116974,
+      "sha256": "5c9dc28cb62d3b2b5d92dd527c026e41140e5a7b99ed757aa0602cec2e6bc1d5"
+    },
+    {
+      "file": "workspace-dark.webp",
+      "scene": "深色工作台与独立白纸简历主题",
+      "dimensions": [
+        1600,
+        1050
+      ],
+      "bytes": 116504,
+      "sha256": "c81dfb6b844657afe4e82e1355c4654cfcf7399385e301776b12170b7510c317"
+    },
+    {
+      "file": "template-gallery.webp",
+      "scene": "119套模板目录、来源筛选、真实缩略图与实时预览",
+      "dimensions": [
+        1600,
+        1250
+      ],
+      "bytes": 123062,
+      "sha256": "adf1b0ca874b7c8908838c34d35f9cce4ff22b8ddd525c4f8ed5b2ed7b4ea993"
+    },
+    {
+      "file": "resume-themes.webp",
+      "scene": "10套独立简历主题及暖调编辑部实时预览",
+      "dimensions": [
+        1600,
+        1050
+      ],
+      "bytes": 113872,
+      "sha256": "d75920f288359350905beb4596d876ddfef46bf479cdfb76fc702ca89fe75c23"
+    },
+    {
+      "file": "workspace-palettes.webp",
+      "scene": "梅紫画室工作台配色独立于暖调简历主题",
+      "dimensions": [
+        1600,
+        1050
+      ],
+      "bytes": 115726,
+      "sha256": "2666c63930753b5bfa2291a956f6492ca4a82ebd2c267cf5c8090f564ee56d85"
+    },
+    {
+      "file": "opportunities.webp",
+      "scene": "由4条明确虚构岗位构成的机会与投递工作台",
+      "dimensions": [
+        1600,
+        1300
+      ],
+      "bytes": 90118,
+      "sha256": "7c097cee08b32e61f9043eb219a9aa174788a947fa073570bb481e908b99db09"
+    },
+    {
+      "file": "history.webp",
+      "scene": "真实命名检查点、主题差异及单项恢复入口",
+      "dimensions": [
+        1600,
+        1050
+      ],
+      "bytes": 64064,
+      "sha256": "c432c172daf80b43cfe3c44879082c1b54f1ab892f102d107cb633c6e05ecbf2"
+    },
+    {
+      "file": "import-review.webp",
+      "scene": "真实TXT提取与离线结构化结果核对，未确认替换",
+      "dimensions": [
+        1600,
+        1200
+      ],
+      "bytes": 71994,
+      "sha256": "883f497e97b5407ec9884a60652d34fc6a6cf4a5f24a9e94bc3b0afa6231666e"
+    },
+    {
+      "file": "mobile.webp",
+      "scene": "390px真实响应式内容编辑界面",
+      "dimensions": [
+        390,
+        1050
+      ],
+      "bytes": 40414,
+      "sha256": "30fff2cc54b1b02b35a9729b55ebf1cb1f850e6867465a364d81e210266810df"
+    }
+  ]
+}
