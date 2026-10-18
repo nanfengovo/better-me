@@ -1,0 +1,41 @@
+{
+  "private": false,
+  "name": "@jsonresume/jsonresume-theme-professional",
+  "version": "1.0.22",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "license": "MIT",
+  "devDependencies": {
+    "@repo/eslint-config-custom": "workspace:^",
+    "react": "^19.2.0",
+    "styled-components": "^6.1.19",
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.4.3"
+  },
+  "peerDependencies": {
+    "styled-components": "^6"
+  },
+  "scripts": {
+    "lint": "eslint src --ext .js,.jsx",
+    "publish": "npm publish --access public",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@jsonresume/core": "workspace:*",
+    "marked": "^16.3.0",
+    "prismjs": "^1.29.0",
+    "react-icons": "^5.0.1"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./dist": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  }
+}

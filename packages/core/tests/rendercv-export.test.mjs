@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createDemoFactBase, createDefaultResumeView, projectResume, projectedResumeToRenderCvYaml, RENDERCV_EXPORT_TARGET } from "../dist/index.js";
+import { createDemoFactBase, createDefaultResumeView, projectResume, projectedResumeToRenderCvYaml, RENDERCV_EXPORT_TARGET, RENDERCV_TEMPLATE_THEMES, resolveRenderCvTheme } from "../dist/index.js";
 
 function fixture() {
   const base = createDemoFactBase();
@@ -21,6 +21,26 @@ function fixture() {
   ];
   return { base, view: createDefaultResumeView(base) };
 }
+
+test("all reviewed RenderCV web themes select their upstream theme without changing factual content", () => {
+  const { base, view } = fixture();
+  const baseline = projectedResumeToRenderCvYaml(projectResume(base, view)).document.cv;
+  for (const [templateId, theme] of Object.entries(RENDERCV_TEMPLATE_THEMES)) {
+    const result = projectedResumeToRenderCvYaml(projectResume(base, { ...view, templateId }));
+    assert.equal(result.document.design.theme, theme);
+    assert.deepEqual(result.document.cv, baseline);
+    assert.match(result.yaml, new RegExp(`"theme": "${theme}"`));
+    assert.ok(result.diagnostics.some(item => item.code === "renderer-design" && item.message.includes(theme)));
+  }
+  for (const id of ["newfuture", "jsonresume-kendall", "__proto__", "constructor", "rendercv-classic\nunsafe: true"]) {
+    assert.equal(resolveRenderCvTheme(id), "classic");
+    const result = projectedResumeToRenderCvYaml(projectResume(base, { ...view, templateId: id }));
+    assert.equal(result.document.design.theme, "classic");
+    assert.deepEqual(result.document.cv, baseline);
+    assert.doesNotMatch(result.yaml, /unsafe: true/);
+    assert.ok(result.diagnostics.some(item => item.message.includes("不是 RenderCV")));
+  }
+});
 
 test("RenderCV maps the selected projection in section order without inventing degree or metrics", () => {
   const { base, view } = fixture();

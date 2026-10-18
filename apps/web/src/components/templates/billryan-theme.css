@@ -1,0 +1,138 @@
+/* billryan/resume (MIT) HTML/CSS adaptation, eadc3955cf006254dc8f2419e971fbe3f5bab413.
+   No upstream fonts or personal resume content are distributed.
+   Attribution and modifications: templates/licenses/billryan/NOTICE.md (repository root). */
+.resume-sheet.resume-template-billryan { color: #252525; }
+.resume-sheet.resume-template-billryan .resume-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 2.5mm;
+  padding: 0 0 1mm;
+  border: 0;
+  background: none;
+  text-align: center;
+}
+.resume-sheet.resume-template-billryan .resume-header.has-avatar {
+  grid-template-columns: minmax(0, 1fr) 23mm;
+  column-gap: 5mm;
+}
+.resume-template-billryan .resume-identity,
+.resume-template-billryan .resume-contact { text-align: center; }
+.resume-sheet.resume-template-billryan h1 {
+  font-family: var(--resume-serif-family);
+  font-variant-caps: small-caps;
+  font-size: var(--resume-name-size);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: .025em;
+}
+.resume-sheet.resume-template-billryan:lang(zh-CN) h1 { letter-spacing: .14em; }
+.resume-sheet.resume-template-billryan .resume-headline {
+  margin-top: 2mm;
+  color: #333;
+  font-size: 1em;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.resume-sheet.resume-template-billryan .resume-contact {
+  color: #333;
+  font-size: .9em;
+  line-height: 1.6;
+}
+.resume-template-billryan .resume-links {
+  justify-content: center;
+  gap: 1mm 4mm;
+  margin-top: 1mm;
+}
+.resume-template-billryan .resume-header.has-avatar .resume-avatar {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  width: 23mm;
+  height: 30mm;
+  align-self: center;
+  border: 0;
+  border-radius: 0;
+}
+.resume-sheet.resume-template-billryan .resume-section {
+  display: block;
+  margin-top: var(--resume-section-spacing);
+}
+.resume-sheet.resume-template-billryan .resume-section h2 {
+  display: block;
+  margin: 0 0 2.7mm;
+  padding: 0 0 1.2mm;
+  border: 0;
+  border-bottom: .25mm solid var(--resume-accent);
+  font-family: var(--resume-serif-family);
+  font-variant-caps: small-caps;
+  font-size: var(--resume-heading-size);
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: .025em;
+}
+.resume-sheet.resume-template-billryan:lang(zh-CN) .resume-section h2 {
+  font-weight: 600;
+  letter-spacing: .07em;
+}
+.resume-template-billryan .resume-summary { display: block; }
+.resume-template-billryan .resume-keywords {
+  display: block;
+  line-height: var(--resume-line-height);
+}
+.resume-template-billryan .resume-keywords li { display: inline; }
+.resume-template-billryan .resume-keywords li + li::before { content: "; "; }
+.resume-template-billryan:lang(zh-CN) .resume-keywords li + li::before { content: "；"; }
+.resume-template-billryan .resume-experience + .resume-experience {
+  margin-top: calc(var(--resume-section-spacing) * .65);
+}
+.resume-template-billryan .resume-experience-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: .8mm 4mm;
+}
+.resume-sheet.resume-template-billryan .resume-experience-heading h3 {
+  flex: 1 1 64%;
+  color: #222;
+  font-size: 1.07em;
+  font-weight: 700;
+  line-height: 1.45;
+}
+.resume-template-billryan .resume-role { font-weight: 400; font-style: italic; }
+.resume-sheet.resume-template-billryan .resume-dates {
+  margin-left: auto !important;
+  color: #333;
+  font-size: .9em;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.resume-template-billryan .resume-project-name {
+  margin-top: 1mm !important;
+  color: #333;
+  font-weight: 400;
+  font-style: italic;
+}
+.resume-template-billryan .resume-tech,
+.resume-template-billryan .resume-experience-url {
+  margin-top: 1mm !important;
+  color: #444;
+  font-size: .9em;
+  line-height: 1.5;
+}
+.resume-template-billryan .resume-claims {
+  margin-top: 1.6mm;
+  padding-left: 1.5em;
+  line-height: var(--resume-line-height);
+}
+.resume-template-billryan .resume-claims li + li { margin-top: .15em; }
+.resume-template-billryan .resume-claims li::marker { color: #333; font-size: .8em; }
+
+@media print {
+  .resume-sheet.resume-template-billryan .resume-section,
+  .resume-sheet.resume-template-billryan .resume-experience,
+  .resume-sheet.resume-template-billryan .resume-claims {
+    break-inside: auto;
+  }
+}

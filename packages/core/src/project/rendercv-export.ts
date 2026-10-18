@@ -8,6 +8,24 @@ export const RENDERCV_EXPORT_TARGET = {
   schemaUrl: "https://raw.githubusercontent.com/rendercv/rendercv/1d4b87bc427e4cf61c0ef49623c971b0e2224708/schema.json",
 } as const;
 
+/** Only reviewed built-in theme names may cross the YAML boundary. Other web
+ * layouts continue to export through Classic, with a visible diagnostic. */
+export const RENDERCV_TEMPLATE_THEMES = {
+  "rendercv-classic": "classic",
+  "rendercv-engineeringresumes": "engineeringresumes",
+  "rendercv-moderncv": "moderncv",
+  "rendercv-engineeringclassic": "engineeringclassic",
+  "rendercv-sb2nov": "sb2nov",
+  "rendercv-harvard": "harvard",
+  "rendercv-ink": "ink",
+  "rendercv-opal": "opal",
+  "rendercv-ember": "ember",
+} as const;
+export type RenderCvTheme = (typeof RENDERCV_TEMPLATE_THEMES)[keyof typeof RENDERCV_TEMPLATE_THEMES];
+export function resolveRenderCvTheme(templateId: string): RenderCvTheme {
+  return Object.hasOwn(RENDERCV_TEMPLATE_THEMES, templateId) ? RENDERCV_TEMPLATE_THEMES[templateId as keyof typeof RENDERCV_TEMPLATE_THEMES] : "classic";
+}
+
 export type RenderCvExportDiagnostic = {
   code: "renderer-design" | "photo-omitted" | "text-styles-omitted" | "education-as-text" | "unsafe-link-omitted" | "chinese-font" | "blank-name" | "unsupported-character";
   severity: "info" | "warning";
@@ -35,7 +53,7 @@ export type RenderCvYamlDocument = {
     sections: Record<string, string[] | RenderCvEntry[]>;
   };
   design: {
-    theme: "classic";
+    theme: RenderCvTheme;
     page: { size: "a4"; show_top_note: false };
     typography?: { font_family: "Noto Sans" };
   };
@@ -91,6 +109,7 @@ export function projectedResumeToRenderCvYaml(resume: ProjectedResume): RenderCv
   const diagnostics: RenderCvExportDiagnostic[] = [];
   const add = (code: RenderCvExportDiagnostic["code"], path: string, message: string, severity: RenderCvExportDiagnostic["severity"] = "info") => diagnostics.push({ code, path, message, severity });
   const isZh = resume.locale === "zh";
+  const theme = resolveRenderCvTheme(resume.templateId);
   const plain = (value: string, path: string): string => {
     // YAML does not accept lone UTF-16 surrogates or non-characters. Report any repair.
     const validUnicode = Array.from(value, (char) => {
@@ -170,14 +189,14 @@ export function projectedResumeToRenderCvYaml(resume: ProjectedResume): RenderCv
     }
   }
 
-  add("renderer-design", "design", "导出使用 RenderCV 2.8 的 classic/A4 排版；保留内容和分节顺序，网页模板、颜色、字号和间距不映射。");
+  add("renderer-design", "design", `导出使用 RenderCV 2.8 的 ${theme}/A4 排版；保留内容和分节顺序，网页适配与 Typst 原版可能不同，网页颜色、字号和间距不映射。${Object.hasOwn(RENDERCV_TEMPLATE_THEMES, resume.templateId) ? "" : "当前网页模板不是 RenderCV 主题，YAML 使用 classic。"}`);
   if (resume.profile.avatarUrl && resume.templateId !== "en-ats") add("photo-omitted", "profile.avatarUrl", "此 YAML 不打包或下载照片。若需要照片，请在本地放置图片并自行设置 cv.photo。", "warning");
   if (resume.textStyles && Object.values(resume.textStyles).some((ranges) => ranges.length)) add("text-styles-omitted", "textStyles", "选中文字的粗体、斜体、下划线、高亮和大小未映射；原文按纯文本保留。");
   if (isZh) add("chinese-font", "design.typography.font_family", "中文使用 RenderCV 支持的 Noto Sans 字体族；请在本地核验中文字形，缺字时安装相应字体并调整字体名，或在 YAML 同级 fonts/ 放置许可允许的字体。未打包字体。");
 
   const document: RenderCvYamlDocument = {
     cv,
-    design: { theme: "classic", page: { size: "a4", show_top_note: false }, ...(isZh ? { typography: { font_family: "Noto Sans" as const } } : {}) },
+    design: { theme, page: { size: "a4", show_top_note: false }, ...(isZh ? { typography: { font_family: "Noto Sans" as const } } : {}) },
     locale: { language: isZh ? "mandarin_chinese" : "english" },
   };
   const yaml = `# yaml-language-server: $schema=${RENDERCV_EXPORT_TARGET.schemaUrl}\n# BetterMe selected resume → RenderCV ${RENDERCV_EXPORT_TARGET.version}; render locally with RenderCV.\n${yamlLines(document).join("\n")}\n`;

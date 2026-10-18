@@ -1,0 +1,223 @@
+/* NewFuture/CV adaptation (MIT), upstream 748b54d843fab4347a82943967ba8eedbeaa4ae6.
+   Sources and modifications: templates/licenses/newfuture/NOTICE.md (repository root).
+   All rules stay inside this template; the shared renderer owns data and anchors. */
+.resume-sheet:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) {
+  --newfuture-label-width: calc((210mm - var(--resume-margin) * 2) * .18);
+  --newfuture-label-gap: 5mm;
+  --newfuture-section-inset: calc(var(--newfuture-label-width) + var(--newfuture-label-gap));
+  color: #333;
+}
+
+.resume-sheet:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: 5mm 7mm;
+  padding: 4mm 0 4.5mm;
+  border: 0;
+  border-bottom: .8mm solid var(--resume-accent);
+  background: none;
+}
+
+.resume-sheet:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-header.has-avatar {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) 21mm;
+  column-gap: 5mm;
+}
+
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-identity { text-align: center; }
+.resume-sheet:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) h1 {
+  font-family: var(--resume-serif-family);
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: .015em;
+}
+.resume-sheet:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block):lang(zh-CN) h1 { letter-spacing: .08em; }
+.resume-sheet:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-headline {
+  margin-top: 2.5mm;
+  color: #333;
+  font-size: 1.12em;
+  line-height: 1.5;
+  font-weight: 700;
+}
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block):lang(en) .resume-headline { font-style: italic; }
+.resume-sheet:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-contact {
+  text-align: left;
+  color: #444;
+  font-size: .86em;
+  line-height: 1.75;
+}
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-links {
+  display: block;
+  margin-top: 1.5mm;
+}
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-links li + li { margin-top: .8mm; }
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-links a {
+  border-bottom: .2mm dashed #aaa;
+  text-decoration: none;
+}
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-header.has-avatar .resume-avatar {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: center;
+  width: 21mm;
+  height: 27mm;
+  border: 0;
+  border-radius: 1mm;
+}
+
+/* Original side labels are 20% wide (15% for Chinese). A shared physical
+   label width keeps both locales aligned and also respects page margins. */
+.resume-sheet:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-section {
+  display: grid;
+  grid-template-columns: minmax(0, var(--newfuture-label-width)) minmax(0, 1fr);
+  gap: var(--newfuture-label-gap);
+  margin-top: var(--resume-section-spacing);
+  padding-top: 3mm;
+  border-top: .25mm solid #bbb;
+}
+.resume-sheet:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-section h2 {
+  margin: 0;
+  padding: .5mm 0 0;
+  border: 0;
+  text-align: right;
+  font-family: var(--resume-serif-family);
+  font-size: var(--resume-heading-size);
+  font-weight: 900;
+  line-height: 1.55;
+  letter-spacing: .01em;
+  text-transform: uppercase;
+}
+.resume-sheet:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block):lang(zh-CN) .resume-section h2 {
+  letter-spacing: .08em;
+}
+/* Keep English chapter words intact at generous page margins. The minimum
+   follows the editable heading size instead of squeezing COMPETENCIES into
+   a fixed percentage rail; Chinese retains its original compact side label. */
+.resume-sheet:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block):lang(en) {
+  --newfuture-label-width: max(calc((210mm - var(--resume-margin) * 2) * .18), calc(var(--resume-heading-size) * 8.5));
+}
+.resume-sheet:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block):lang(en) .resume-section h2 {
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+  letter-spacing: 0;
+}
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-summary { display: block; }
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-keywords { gap: 1.5mm 2.5mm; }
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-keywords li {
+  padding: .4mm 1.5mm;
+  border: .2mm solid #e4e7e5;
+  border-radius: .7mm;
+  background: #fafafa;
+  line-height: 1.6;
+}
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-experience + .resume-experience {
+  margin-top: calc(var(--resume-section-spacing) * .7);
+  padding-top: 2mm;
+}
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-experience-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1.5mm 3mm;
+}
+.resume-sheet:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-experience-heading h3 {
+  flex-basis: 60%;
+  color: #111;
+  font-size: 1.08em;
+  font-weight: 800;
+}
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-role { color: #606060; font-weight: 600; }
+.resume-sheet:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-dates {
+  padding: .2mm 1.2mm;
+  border: .2mm solid #e7e7e7;
+  border-radius: .7mm;
+  color: #666;
+  font-size: .8em;
+  font-style: italic;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-project-name { color: #333; }
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-tech,
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-experience-url {
+  margin-top: 1.5mm !important;
+  color: #626262;
+  font-size: .86em;
+}
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-tech {
+  padding: .7mm 1.5mm;
+  border-left: .5mm solid var(--resume-rule);
+  background: #f7f7f7;
+}
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-claims {
+  margin-top: 2mm;
+  padding-left: 1.25em;
+  line-height: var(--resume-line-height);
+}
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-claims li + li { margin-top: .35em; }
+:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-claims li::marker { color: #666; }
+
+/* Source print/flex.scss: denser side-label sections, compact inline metadata
+   and unboxed/comma-separated tags. The native edition applies that paper
+   presentation to both preview and print, rather than changing on export. */
+.resume-sheet.resume-template-newfuture-flex .resume-section,
+.resume-sheet.resume-template-newfuture-block .resume-section {
+  margin-top: calc(var(--resume-section-spacing) * .65);
+  padding-top: 2mm;
+}
+.resume-sheet.resume-template-newfuture-flex .resume-experience + .resume-experience,
+.resume-sheet.resume-template-newfuture-block .resume-experience + .resume-experience {
+  margin-top: calc(var(--resume-section-spacing) * .4);
+  padding-top: 1mm;
+}
+.resume-sheet.resume-template-newfuture-flex .resume-experience-heading h3,
+.resume-sheet.resume-template-newfuture-block .resume-experience-heading h3 { font-size: 1em; }
+.resume-sheet.resume-template-newfuture-flex .resume-dates,
+.resume-sheet.resume-template-newfuture-block .resume-dates {
+  border: 0;
+  padding: 0;
+  color: #222;
+  font-size: .84em;
+}
+.resume-template-newfuture-flex .resume-tech,
+.resume-template-newfuture-block .resume-tech { padding: 0; border: 0; background: none; color: #444; font-size: .84em; }
+.resume-template-newfuture-flex .resume-keywords,
+.resume-template-newfuture-block .resume-keywords { display: block; }
+.resume-template-newfuture-flex .resume-keywords li,
+.resume-template-newfuture-block .resume-keywords li { display: inline; padding: 0; border: 0; background: none; }
+.resume-template-newfuture-flex .resume-keywords li:not(:last-child)::after,
+.resume-template-newfuture-block .resume-keywords li:not(:last-child)::after { content: ", "; }
+.resume-template-newfuture-flex .resume-claims,
+.resume-template-newfuture-block .resume-claims { margin-top: 1mm; }
+.resume-template-newfuture-flex .resume-claims li + li,
+.resume-template-newfuture-block .resume-claims li + li { margin-top: .1em; }
+
+/* Source print/block.scss: chapters become centered full-width rows, with
+   no marginal column. Compact entry/date/tag presentation is retained. */
+.resume-sheet.resume-template-newfuture-block .resume-section { display: block; }
+.resume-sheet.resume-template-newfuture-block .resume-section h2 { text-align: center; padding: 0; margin: 0 0 2mm; }
+
+@media print {
+  /* Normal-flow fragmentation keeps long content printable. This replaces
+     upstream's blanket article/ul keep-together and avoids nested grid breaks. */
+  .resume-sheet:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-section {
+    display: block;
+    padding-left: var(--newfuture-section-inset);
+    break-inside: auto;
+  }
+  .resume-sheet:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-section > h2 {
+    float: left;
+    width: var(--newfuture-label-width);
+    margin-left: calc(0mm - var(--newfuture-section-inset));
+    break-after: avoid;
+  }
+  .resume-sheet:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-section::after {
+    content: "";
+    display: block;
+    clear: both;
+  }
+  .resume-sheet:is(.resume-template-newfuture,.resume-template-newfuture-flex,.resume-template-newfuture-block) .resume-links a { border: 0; }
+  .resume-sheet.resume-template-newfuture-block .resume-section { padding-left: 0; }
+  .resume-sheet.resume-template-newfuture-block .resume-section > h2 { float: none; width: auto; margin-left: 0; }
+}

@@ -1,0 +1,189 @@
+/* Modified browser adaptation of dyweb/Deedy-Resume-for-Chinese,
+   revision 3fe0e55a52ad3a96958b1bcd3c8e4674fc72f5ce.
+   Original template author: Debarghya Das (http://debarghyadas.com).
+   Chinese support: dyweb / gaocegege. Apache-2.0; see
+   templates/licenses/deedy/LICENSE and NOTICE.md.
+   Changes: fixed minipages become a flowing 25% profile rail plus ordered
+   main chapters. No bundled font, personal example, date stamp or TeX engine. */
+
+.resume-sheet.resume-template-deedy {
+  --deedy-rail: 25%;
+  --deedy-gap: 4mm;
+  color: #2b2b2b;
+}
+
+.resume-sheet.resume-template-deedy::after {
+  content: "";
+  display: block;
+  clear: both;
+}
+
+.resume-sheet.resume-template-deedy .resume-header {
+  display: contents;
+}
+
+.resume-sheet.resume-template-deedy .resume-identity {
+  margin-bottom: 5mm;
+  padding-bottom: 3mm;
+  border-bottom: .4pt solid var(--resume-accent);
+  text-align: center;
+}
+
+.resume-sheet.resume-template-deedy h1 {
+  color: #2b2b2b;
+  font-family: var(--resume-serif-family);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+/* The actual Chinese class selects SourceHanSerifSC-Bold; its English
+   OpenFonts sibling selects SourceSerifPro-Light. Preserve that difference
+   with installed serif families rather than copying either font asset. */
+.resume-sheet.resume-template-deedy:lang(en) h1 {
+  font-weight: 300;
+}
+
+.resume-sheet.resume-template-deedy .resume-headline {
+  margin-top: 5pt;
+  color: #6a6a6a;
+  font-size: 1em;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+
+.resume-sheet.resume-template-deedy .resume-contact {
+  float: left;
+  box-sizing: border-box;
+  width: var(--deedy-rail);
+  padding-right: 2mm;
+  color: #6a6a6a;
+  font-size: .9em;
+  line-height: 1.6;
+}
+
+.resume-sheet.resume-template-deedy .resume-links {
+  display: block;
+  margin-top: 3mm;
+}
+
+.resume-sheet.resume-template-deedy .resume-links li + li {
+  margin-top: 2mm;
+}
+
+.resume-sheet.resume-template-deedy .resume-avatar {
+  float: left;
+  clear: left;
+  width: 21mm;
+  height: 28mm;
+  margin-top: 4mm;
+  border: 0;
+}
+
+.resume-sheet.resume-template-deedy .resume-body {
+  margin-left: calc(var(--deedy-rail) + var(--deedy-gap));
+}
+
+.resume-sheet.resume-template-deedy .resume-body > .resume-section:first-child,
+.resume-sheet.resume-template-deedy .resume-body > .resume-summary:first-child > .resume-section:first-child {
+  margin-top: 0;
+}
+
+.resume-sheet.resume-template-deedy .resume-section h2 {
+  margin-bottom: 8pt;
+  padding: 0;
+  border: 0;
+  color: var(--resume-accent);
+  font-family: var(--resume-serif-family);
+  font-size: var(--resume-heading-size);
+  font-weight: 700;
+  line-height: 1.5;
+  font-variant-caps: small-caps;
+  letter-spacing: 0;
+}
+
+.resume-sheet.resume-template-deedy .resume-experience-heading {
+  display: block;
+}
+
+.resume-sheet.resume-template-deedy .resume-experience-heading h3 {
+  color: #333;
+  font-size: 1.05em;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.resume-sheet.resume-template-deedy .resume-role {
+  display: block;
+  font-size: .88em;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.resume-sheet.resume-template-deedy .resume-role-separator {
+  display: none;
+}
+
+.resume-sheet.resume-template-deedy .resume-dates {
+  margin: 1pt 0 0 !important;
+  color: #6a6a6a;
+  font-size: .88em;
+  line-height: 1.4;
+  white-space: normal;
+}
+
+.resume-sheet.resume-template-deedy :is(.resume-tech, .resume-experience-url) {
+  margin-top: 2pt !important;
+  color: #666;
+  font-size: .88em;
+  line-height: 1.45;
+}
+
+.resume-sheet.resume-template-deedy .resume-experience + .resume-experience {
+  margin-top: calc(var(--resume-section-spacing) * .65);
+}
+
+.resume-sheet.resume-template-deedy .resume-claims {
+  margin-top: 4pt;
+  padding-left: 1.1em;
+}
+
+.resume-sheet.resume-template-deedy .resume-claims li + li {
+  margin-top: 1pt;
+}
+
+.resume-sheet.resume-template-deedy .resume-claims li::marker {
+  color: #333;
+  font-size: .8em;
+}
+
+.resume-sheet.resume-template-deedy .resume-skill-list {
+  display: block;
+}
+
+.resume-sheet.resume-template-deedy .resume-skill-list li {
+  display: inline;
+}
+
+.resume-sheet.resume-template-deedy .resume-skill-list li + li::before {
+  content: " · ";
+}
+
+@media print {
+  .resume-sheet.resume-template-deedy :is(.resume-section, .resume-experience-list, .resume-experience) {
+    break-inside: auto;
+  }
+
+  .resume-sheet.resume-template-deedy .resume-identity {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .resume-sheet.resume-template-deedy .resume-experience-heading {
+    break-inside: avoid;
+    break-after: avoid;
+    page-break-inside: avoid;
+    page-break-after: avoid;
+  }
+}

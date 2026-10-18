@@ -120,7 +120,7 @@ test("English template gallery changes layout without changing resume output lan
   const before = structuredClone({ factBase, view }); const changed: typeof view[] = [];
   await mount(h(ResumeDesignPanel, { factBase, view, onChange: next => { changed.push(next); } }), "en");
   const cards = [...dom.document.querySelectorAll<HTMLButtonElement>(".template-card")];
-  assert.equal(cards.length, 6);
+  assert.equal(cards.length, 12);
   assert.match(cards[0]!.textContent!, /Classic.*Formal applications/);
   assert.match(cards[1]!.title, /Actual ATS parsing still needs verification/);
   assert.ok(cards.every(card => !/[\u3400-\u9fff]/.test(card.textContent! + card.title)));

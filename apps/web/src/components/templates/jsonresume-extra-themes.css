@@ -1,0 +1,522 @@
+/* Native adaptations of all 48 JSON Resume Team themes from jsonresume.org.
+ * Source revision dd0155358c8d85a134d434e49834705243b5eede; see templates/licenses/jsonresume-team.
+ * Each design below has its own source-derived rules and indexed evidence in
+ * templates/jsonresume-team-source-index.json. No upstream runtime, external
+ * font, icon, remote stylesheet, fact sample or fixed page margin is loaded. */
+
+.resume-sheet:is(.resume-template-jsonresume-desert-modern,.resume-template-jsonresume-elegant-pink,.resume-template-jsonresume-tailwind,.resume-template-jsonresume-academic-cv-lite,.resume-template-jsonresume-bold-header-statement,.resume-template-jsonresume-architects-portfolio,.resume-template-jsonresume-consultant-polished,.resume-template-jsonresume-creative-studio,.resume-template-jsonresume-data-driven,.resume-template-jsonresume-developer-mono,.resume-template-jsonresume-executive-slate,.resume-template-jsonresume-government-standard,.resume-template-jsonresume-marketing-narrative,.resume-template-jsonresume-minimalist-grid,.resume-template-jsonresume-modern-classic,.resume-template-jsonresume-operations-precision,.resume-template-jsonresume-product-manager-canvas,.resume-template-jsonresume-reference,.resume-template-jsonresume-sales-hunter,.resume-template-jsonresume-sidebar,.resume-template-jsonresume-tokyo-modernist,.resume-template-jsonresume-university-first,.resume-template-jsonresume-writers-portfolio,.resume-template-jsonresume-nordic-minimal,.resume-template-jsonresume-graph-paper-grid,.resume-template-jsonresume-monochrome-noir,.resume-template-jsonresume-mid-century-resume,.resume-template-jsonresume-two-column-modernist,.resume-template-jsonresume-sidebar-photo-strip,.resume-template-jsonresume-diagonal-accent-bar,.resume-template-jsonresume-asymmetric-timeline,.resume-template-jsonresume-typewriter-modern,.resume-template-jsonresume-new-york-editorial,.resume-template-jsonresume-berlin-grid,.resume-template-jsonresume-californian-warm,.resume-template-jsonresume-london-bureau,.resume-template-jsonresume-pacific-horizon,.resume-template-jsonresume-french-atelier,.resume-template-jsonresume-clinical-precision,.resume-template-jsonresume-field-researcher,.resume-template-jsonresume-urban-techno,.resume-template-jsonresume-coastal-creative,.resume-template-jsonresume-investor-brief,.resume-template-jsonresume-art-school-modern,.resume-template-jsonresume-community-garden,.resume-template-jsonresume-industrial-engineer,.resume-template-jsonresume-brutalist,.resume-template-jsonresume-art-deco) { --jr-name-weight:700; --jr-name-track:-.02em; --jr-heading-track:.03em; }
+.resume-sheet:is(.resume-template-jsonresume-desert-modern,.resume-template-jsonresume-elegant-pink,.resume-template-jsonresume-tailwind,.resume-template-jsonresume-academic-cv-lite,.resume-template-jsonresume-bold-header-statement,.resume-template-jsonresume-architects-portfolio,.resume-template-jsonresume-consultant-polished,.resume-template-jsonresume-creative-studio,.resume-template-jsonresume-data-driven,.resume-template-jsonresume-developer-mono,.resume-template-jsonresume-executive-slate,.resume-template-jsonresume-government-standard,.resume-template-jsonresume-marketing-narrative,.resume-template-jsonresume-minimalist-grid,.resume-template-jsonresume-modern-classic,.resume-template-jsonresume-operations-precision,.resume-template-jsonresume-product-manager-canvas,.resume-template-jsonresume-reference,.resume-template-jsonresume-sales-hunter,.resume-template-jsonresume-sidebar,.resume-template-jsonresume-tokyo-modernist,.resume-template-jsonresume-university-first,.resume-template-jsonresume-writers-portfolio,.resume-template-jsonresume-nordic-minimal,.resume-template-jsonresume-graph-paper-grid,.resume-template-jsonresume-monochrome-noir,.resume-template-jsonresume-mid-century-resume,.resume-template-jsonresume-two-column-modernist,.resume-template-jsonresume-sidebar-photo-strip,.resume-template-jsonresume-diagonal-accent-bar,.resume-template-jsonresume-asymmetric-timeline,.resume-template-jsonresume-typewriter-modern,.resume-template-jsonresume-new-york-editorial,.resume-template-jsonresume-berlin-grid,.resume-template-jsonresume-californian-warm,.resume-template-jsonresume-london-bureau,.resume-template-jsonresume-pacific-horizon,.resume-template-jsonresume-french-atelier,.resume-template-jsonresume-clinical-precision,.resume-template-jsonresume-field-researcher,.resume-template-jsonresume-urban-techno,.resume-template-jsonresume-coastal-creative,.resume-template-jsonresume-investor-brief,.resume-template-jsonresume-art-school-modern,.resume-template-jsonresume-community-garden,.resume-template-jsonresume-industrial-engineer,.resume-template-jsonresume-brutalist,.resume-template-jsonresume-art-deco) h1 { color:var(--resume-accent);font-weight:var(--jr-name-weight);letter-spacing:var(--jr-name-track); }
+.resume-sheet:is(.resume-template-jsonresume-desert-modern,.resume-template-jsonresume-elegant-pink,.resume-template-jsonresume-tailwind,.resume-template-jsonresume-academic-cv-lite,.resume-template-jsonresume-bold-header-statement,.resume-template-jsonresume-architects-portfolio,.resume-template-jsonresume-consultant-polished,.resume-template-jsonresume-creative-studio,.resume-template-jsonresume-data-driven,.resume-template-jsonresume-developer-mono,.resume-template-jsonresume-executive-slate,.resume-template-jsonresume-government-standard,.resume-template-jsonresume-marketing-narrative,.resume-template-jsonresume-minimalist-grid,.resume-template-jsonresume-modern-classic,.resume-template-jsonresume-operations-precision,.resume-template-jsonresume-product-manager-canvas,.resume-template-jsonresume-reference,.resume-template-jsonresume-sales-hunter,.resume-template-jsonresume-sidebar,.resume-template-jsonresume-tokyo-modernist,.resume-template-jsonresume-university-first,.resume-template-jsonresume-writers-portfolio,.resume-template-jsonresume-nordic-minimal,.resume-template-jsonresume-graph-paper-grid,.resume-template-jsonresume-monochrome-noir,.resume-template-jsonresume-mid-century-resume,.resume-template-jsonresume-two-column-modernist,.resume-template-jsonresume-sidebar-photo-strip,.resume-template-jsonresume-diagonal-accent-bar,.resume-template-jsonresume-asymmetric-timeline,.resume-template-jsonresume-typewriter-modern,.resume-template-jsonresume-new-york-editorial,.resume-template-jsonresume-berlin-grid,.resume-template-jsonresume-californian-warm,.resume-template-jsonresume-london-bureau,.resume-template-jsonresume-pacific-horizon,.resume-template-jsonresume-french-atelier,.resume-template-jsonresume-clinical-precision,.resume-template-jsonresume-field-researcher,.resume-template-jsonresume-urban-techno,.resume-template-jsonresume-coastal-creative,.resume-template-jsonresume-investor-brief,.resume-template-jsonresume-art-school-modern,.resume-template-jsonresume-community-garden,.resume-template-jsonresume-industrial-engineer,.resume-template-jsonresume-brutalist,.resume-template-jsonresume-art-deco) .resume-section h2 { color:var(--resume-accent);letter-spacing:var(--jr-heading-track); }
+.resume-sheet:is(.resume-template-jsonresume-desert-modern,.resume-template-jsonresume-elegant-pink,.resume-template-jsonresume-tailwind,.resume-template-jsonresume-academic-cv-lite,.resume-template-jsonresume-bold-header-statement,.resume-template-jsonresume-architects-portfolio,.resume-template-jsonresume-consultant-polished,.resume-template-jsonresume-creative-studio,.resume-template-jsonresume-data-driven,.resume-template-jsonresume-developer-mono,.resume-template-jsonresume-executive-slate,.resume-template-jsonresume-government-standard,.resume-template-jsonresume-marketing-narrative,.resume-template-jsonresume-minimalist-grid,.resume-template-jsonresume-modern-classic,.resume-template-jsonresume-operations-precision,.resume-template-jsonresume-product-manager-canvas,.resume-template-jsonresume-reference,.resume-template-jsonresume-sales-hunter,.resume-template-jsonresume-sidebar,.resume-template-jsonresume-tokyo-modernist,.resume-template-jsonresume-university-first,.resume-template-jsonresume-writers-portfolio,.resume-template-jsonresume-nordic-minimal,.resume-template-jsonresume-graph-paper-grid,.resume-template-jsonresume-monochrome-noir,.resume-template-jsonresume-mid-century-resume,.resume-template-jsonresume-two-column-modernist,.resume-template-jsonresume-sidebar-photo-strip,.resume-template-jsonresume-diagonal-accent-bar,.resume-template-jsonresume-asymmetric-timeline,.resume-template-jsonresume-typewriter-modern,.resume-template-jsonresume-new-york-editorial,.resume-template-jsonresume-berlin-grid,.resume-template-jsonresume-californian-warm,.resume-template-jsonresume-london-bureau,.resume-template-jsonresume-pacific-horizon,.resume-template-jsonresume-french-atelier,.resume-template-jsonresume-clinical-precision,.resume-template-jsonresume-field-researcher,.resume-template-jsonresume-urban-techno,.resume-template-jsonresume-coastal-creative,.resume-template-jsonresume-investor-brief,.resume-template-jsonresume-art-school-modern,.resume-template-jsonresume-community-garden,.resume-template-jsonresume-industrial-engineer,.resume-template-jsonresume-brutalist,.resume-template-jsonresume-art-deco) .resume-skill-list { align-items:stretch;gap:5px 9px; }
+.resume-sheet:is(.resume-template-jsonresume-desert-modern,.resume-template-jsonresume-elegant-pink,.resume-template-jsonresume-tailwind,.resume-template-jsonresume-academic-cv-lite,.resume-template-jsonresume-bold-header-statement,.resume-template-jsonresume-architects-portfolio,.resume-template-jsonresume-consultant-polished,.resume-template-jsonresume-creative-studio,.resume-template-jsonresume-data-driven,.resume-template-jsonresume-developer-mono,.resume-template-jsonresume-executive-slate,.resume-template-jsonresume-government-standard,.resume-template-jsonresume-marketing-narrative,.resume-template-jsonresume-minimalist-grid,.resume-template-jsonresume-modern-classic,.resume-template-jsonresume-operations-precision,.resume-template-jsonresume-product-manager-canvas,.resume-template-jsonresume-reference,.resume-template-jsonresume-sales-hunter,.resume-template-jsonresume-sidebar,.resume-template-jsonresume-tokyo-modernist,.resume-template-jsonresume-university-first,.resume-template-jsonresume-writers-portfolio,.resume-template-jsonresume-nordic-minimal,.resume-template-jsonresume-graph-paper-grid,.resume-template-jsonresume-monochrome-noir,.resume-template-jsonresume-mid-century-resume,.resume-template-jsonresume-two-column-modernist,.resume-template-jsonresume-sidebar-photo-strip,.resume-template-jsonresume-diagonal-accent-bar,.resume-template-jsonresume-asymmetric-timeline,.resume-template-jsonresume-typewriter-modern,.resume-template-jsonresume-new-york-editorial,.resume-template-jsonresume-berlin-grid,.resume-template-jsonresume-californian-warm,.resume-template-jsonresume-london-bureau,.resume-template-jsonresume-pacific-horizon,.resume-template-jsonresume-french-atelier,.resume-template-jsonresume-clinical-precision,.resume-template-jsonresume-field-researcher,.resume-template-jsonresume-urban-techno,.resume-template-jsonresume-coastal-creative,.resume-template-jsonresume-investor-brief,.resume-template-jsonresume-art-school-modern,.resume-template-jsonresume-community-garden,.resume-template-jsonresume-industrial-engineer,.resume-template-jsonresume-brutalist,.resume-template-jsonresume-art-deco) .resume-skill-list li { min-width:0;overflow-wrap:anywhere; }
+
+/* Desert Modern — 暖沙色抬头、宽字距章节与轻线条。 Source: packages/themes/jsonresume-theme-desert-modern/src/styles.jsx */
+.resume-sheet.resume-template-jsonresume-desert-modern { --jr-name-weight:700;--jr-name-track:.02em;--jr-heading-track:.22em; }
+.resume-sheet.resume-template-jsonresume-desert-modern .resume-header { padding:18px 20px;background:color-mix(in srgb,var(--resume-accent) 6%,white);border-bottom:1px solid var(--resume-rule); }
+.resume-sheet.resume-template-jsonresume-desert-modern .resume-headline { text-transform:uppercase;letter-spacing:.12em;color:var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-desert-modern .resume-section h2 { border:0;display:flex;gap:12px;align-items:center; }
+.resume-sheet.resume-template-jsonresume-desert-modern .resume-section h2::before { content:"";width:18px;height:2px;background:var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-desert-modern .resume-skill-list li { padding:3px 8px;border-radius:12px;border:1px solid var(--resume-rule); }
+
+/* Elegant Pink — 玫瑰渐变身份栏、醒目的姓名和浅色技能块。 Source: packages/themes/jsonresume-theme-elegant-pink/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-elegant-pink .resume-header { padding:25px;background:linear-gradient(135deg,color-mix(in srgb,var(--resume-accent) 80%,black),var(--resume-accent));border:0; }
+.resume-sheet.resume-template-jsonresume-elegant-pink h1 { color:#fff; }
+.resume-sheet.resume-template-jsonresume-elegant-pink .resume-headline,
+.resume-sheet.resume-template-jsonresume-elegant-pink .resume-contact,
+.resume-sheet.resume-template-jsonresume-elegant-pink .resume-links a { color:#fff; }
+.resume-sheet.resume-template-jsonresume-elegant-pink { --jr-name-weight:800;--jr-name-track:-.025em; }
+.resume-sheet.resume-template-jsonresume-elegant-pink .resume-section h2 { border-bottom:2px solid var(--resume-rule); }
+.resume-sheet.resume-template-jsonresume-elegant-pink .resume-skill-list li { padding:6px 10px;background:var(--resume-tint);border-left:3px solid var(--resume-accent); }
+
+/* Tailwind — 轻量身份栏、等宽日期与圆角细框标签。 Source: packages/themes/jsonresume-theme-tailwind/src/ui/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-tailwind { --jr-name-weight:600;--jr-name-track:-.035em; }
+.resume-sheet.resume-template-jsonresume-tailwind .resume-header { border:0; }
+.resume-sheet.resume-template-jsonresume-tailwind .resume-contact,
+.resume-sheet.resume-template-jsonresume-tailwind .resume-dates { font-family:Consolas,"Microsoft YaHei",monospace; }
+.resume-sheet.resume-template-jsonresume-tailwind .resume-section h2 { border:0;padding:0;letter-spacing:-.02em; }
+.resume-sheet.resume-template-jsonresume-tailwind .resume-skill-list li { padding:3px 7px;border:1px solid var(--resume-rule);border-radius:5px;font-size:.83em; }
+.resume-sheet.resume-template-jsonresume-tailwind .resume-avatar { width:25mm;height:25mm;border-radius:10px; }
+
+/* Academic CV Lite — 居中学术抬头、纯文字层级与细线分节。 Source: packages/themes/jsonresume-theme-academic-cv-lite/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-academic-cv-lite .resume-identity { text-align:center; }
+.resume-sheet.resume-template-jsonresume-academic-cv-lite .resume-contact { text-align:center; }
+.resume-sheet.resume-template-jsonresume-academic-cv-lite .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-academic-cv-lite { --jr-name-weight:700;--jr-name-track:.01em; }
+.resume-sheet.resume-template-jsonresume-academic-cv-lite .resume-header { border-bottom:1px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-academic-cv-lite .resume-section h2 { font-weight:700;text-transform:none;letter-spacing:0; }
+.resume-sheet.resume-template-jsonresume-academic-cv-lite .resume-dates { font-size:.9em; }
+.resume-sheet.resume-template-jsonresume-academic-cv-lite .resume-skill-list { display:block; }
+.resume-sheet.resume-template-jsonresume-academic-cv-lite .resume-skill-list li { display:inline; }
+.resume-sheet.resume-template-jsonresume-academic-cv-lite .resume-skill-list li + li::before { content:"; "; }
+
+/* Bold Header Statement — 深青身份横幅、粗体大字和线框技能块。 Source: packages/themes/jsonresume-theme-bold-header-statement/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-bold-header-statement .resume-header { padding:24px;background:var(--resume-accent);border:0; }
+.resume-sheet.resume-template-jsonresume-bold-header-statement h1 { color:#fff;font-size:calc(var(--resume-name-size) * 1.2); }
+.resume-sheet.resume-template-jsonresume-bold-header-statement .resume-headline,
+.resume-sheet.resume-template-jsonresume-bold-header-statement .resume-contact,
+.resume-sheet.resume-template-jsonresume-bold-header-statement .resume-links a { color:#fff; }
+.resume-sheet.resume-template-jsonresume-bold-header-statement { --jr-name-weight:900;--jr-name-track:-.045em; }
+.resume-sheet.resume-template-jsonresume-bold-header-statement .resume-section h2 { border:0;border-left:4px solid var(--resume-accent);padding-left:10px;text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-bold-header-statement .resume-skill-list li { padding:7px 11px;border:2px solid var(--resume-accent); }
+
+/* Architect's Portfolio — 轻字重几何抬头、长横线与细框标签。 Source: packages/themes/jsonresume-theme-architects-portfolio/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-architects-portfolio { --jr-name-weight:300;--jr-name-track:.05em;--jr-heading-track:.2em; }
+.resume-sheet.resume-template-jsonresume-architects-portfolio .resume-header { border-bottom:2px solid var(--resume-rule); }
+.resume-sheet.resume-template-jsonresume-architects-portfolio h1 { text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-architects-portfolio .resume-headline { font-size:.94em;letter-spacing:.14em;text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-architects-portfolio .resume-section h2 { display:flex;align-items:center;gap:14px;border:0;font-weight:500; }
+.resume-sheet.resume-template-jsonresume-architects-portfolio .resume-section h2::after { content:"";height:1px;flex:1;background:var(--resume-rule); }
+.resume-sheet.resume-template-jsonresume-architects-portfolio .resume-skill-list li { padding:7px 10px;border:1px solid var(--resume-rule); }
+
+/* Consultant Polished — 深海军蓝标题、衬线推荐字体和稳健双线层级。 Source: packages/themes/jsonresume-theme-consultant-polished/src/ui/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-consultant-polished { --jr-name-weight:700;--jr-name-track:-.015em; }
+.resume-sheet.resume-template-jsonresume-consultant-polished .resume-header { border-bottom:2px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-consultant-polished .resume-section h2 { padding-bottom:7px;border-bottom:1px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-consultant-polished .resume-experience-heading { padding-bottom:4px;border-bottom:1px solid var(--resume-rule); }
+.resume-sheet.resume-template-jsonresume-consultant-polished .resume-role { font-style:italic; }
+.resume-sheet.resume-template-jsonresume-consultant-polished .resume-skill-list li { padding:3px 9px;border-bottom:1px solid var(--resume-rule); }
+
+/* Creative Studio — 珊瑚色浅底抬头、圆角标签与柔和卡片。 Source: packages/themes/jsonresume-theme-creative-studio/src/ui/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-creative-studio .resume-identity { text-align:center; }
+.resume-sheet.resume-template-jsonresume-creative-studio .resume-contact { text-align:center; }
+.resume-sheet.resume-template-jsonresume-creative-studio .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-creative-studio { --jr-name-weight:800;--jr-name-track:-.025em; }
+.resume-sheet.resume-template-jsonresume-creative-studio .resume-header { padding:22px;border-bottom:3px solid var(--resume-accent);background:var(--resume-tint);border-radius:13px 13px 0 0; }
+.resume-sheet.resume-template-jsonresume-creative-studio .resume-headline { color:var(--resume-accent);font-weight:600; }
+.resume-sheet.resume-template-jsonresume-creative-studio .resume-experience { padding:12px 14px;background:color-mix(in srgb,var(--resume-accent) 3%,white);border-radius:7px; }
+.resume-sheet.resume-template-jsonresume-creative-studio .resume-section h2 { border:0; }
+.resume-sheet.resume-template-jsonresume-creative-studio .resume-skill-list li { padding:4px 11px;background:var(--resume-tint);color:var(--resume-accent);border-radius:15px; }
+
+/* Data-Driven — 几何大写抬头、数字日期与细框技能标签。 Source: packages/themes/jsonresume-theme-data-driven/src/ui/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-data-driven { --jr-name-weight:700;--jr-name-track:-.03em;--jr-heading-track:.06em; }
+.resume-sheet.resume-template-jsonresume-data-driven h1 { text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-data-driven .resume-header { border-bottom:2px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-data-driven .resume-dates { font-variant-numeric:tabular-nums;font-weight:600; }
+.resume-sheet.resume-template-jsonresume-data-driven .resume-section h2 { text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-data-driven .resume-skill-list li { padding:3px 8px;border:1px solid var(--resume-accent);color:var(--resume-accent);font-size:.85em;text-transform:uppercase; }
+
+/* Developer Mono — 等宽身份、代码块式技能区与蓝色强调。 Source: packages/themes/jsonresume-theme-developer-mono/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-developer-mono { --jr-name-weight:700;--jr-name-track:-.02em; }
+.resume-sheet.resume-template-jsonresume-developer-mono .resume-header { border-bottom:2px solid var(--resume-rule); }
+.resume-sheet.resume-template-jsonresume-developer-mono .resume-headline { color:var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-developer-mono .resume-section h2 { border:0;text-transform:uppercase;letter-spacing:.045em; }
+.resume-sheet.resume-template-jsonresume-developer-mono .resume-skill-list { padding:12px;background:#f8fafc;border-left:3px solid var(--resume-accent);gap:4px 13px; }
+.resume-sheet.resume-template-jsonresume-developer-mono .resume-claims { list-style:square; }
+
+/* Executive Slate — 石板色资料侧栏、清楚的正文与技能强调线。 Source: packages/themes/jsonresume-theme-executive-slate/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-executive-slate { display:grid;grid-template-columns:46mm minmax(0,1fr);gap:8mm;align-items:start;--jr-rail-width:46mm; }
+.resume-sheet.resume-template-jsonresume-executive-slate .resume-header { display:flex;flex-direction:column;gap:13px;padding:17px 13px;border:0;background:var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-executive-slate h1 { font-size:calc(var(--resume-name-size) * .78);color:#fff; }
+.resume-sheet.resume-template-jsonresume-executive-slate .resume-headline,
+.resume-sheet.resume-template-jsonresume-executive-slate .resume-contact,
+.resume-sheet.resume-template-jsonresume-executive-slate .resume-links a { color:#fff; }
+.resume-sheet.resume-template-jsonresume-executive-slate .resume-links { display:block; }
+.resume-sheet.resume-template-jsonresume-executive-slate .resume-avatar { order:-1;align-self:flex-start;border-color:#ffffff66; }
+.resume-sheet.resume-template-jsonresume-executive-slate .resume-body > .resume-section:first-child,
+.resume-sheet.resume-template-jsonresume-executive-slate .resume-body > .resume-summary:first-child > .resume-section:first-child { margin-top:0; }
+.resume-sheet.resume-template-jsonresume-executive-slate .resume-section h2 { font-weight:700;border-bottom:2px solid var(--resume-rule); }
+.resume-sheet.resume-template-jsonresume-executive-slate .resume-skill-list li { padding:5px 9px;background:#f8fafc;border-left:3px solid var(--resume-accent); }
+
+/* Government Standard — 居中正式身份、粗细分明的横线与黑白结构。 Source: packages/themes/jsonresume-theme-government-standard/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-government-standard .resume-identity { text-align:center; }
+.resume-sheet.resume-template-jsonresume-government-standard .resume-contact { text-align:center; }
+.resume-sheet.resume-template-jsonresume-government-standard .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-government-standard { --jr-name-weight:700;--jr-name-track:0;--jr-heading-track:0; }
+.resume-sheet.resume-template-jsonresume-government-standard h1 { text-transform:uppercase;font-size:calc(var(--resume-name-size) * .9); }
+.resume-sheet.resume-template-jsonresume-government-standard .resume-header { border-bottom:2pt solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-government-standard .resume-section h2 { text-transform:uppercase;border-bottom:1pt solid var(--resume-accent);padding-bottom:4px; }
+.resume-sheet.resume-template-jsonresume-government-standard .resume-experience-heading h3 { font-weight:700; }
+.resume-sheet.resume-template-jsonresume-government-standard .resume-skill-list { display:block; }
+.resume-sheet.resume-template-jsonresume-government-standard .resume-skill-list li { display:inline; }
+.resume-sheet.resume-template-jsonresume-government-standard .resume-skill-list li + li::before { content:"; "; }
+
+/* Marketing Narrative — 居中身份、玫红定位与叙事感的经历块。 Source: packages/themes/jsonresume-theme-marketing-narrative/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-marketing-narrative .resume-identity { text-align:center; }
+.resume-sheet.resume-template-jsonresume-marketing-narrative .resume-contact { text-align:center; }
+.resume-sheet.resume-template-jsonresume-marketing-narrative .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-marketing-narrative { --jr-name-weight:700;--jr-name-track:-.02em; }
+.resume-sheet.resume-template-jsonresume-marketing-narrative .resume-header { border:0;padding-bottom:11px; }
+.resume-sheet.resume-template-jsonresume-marketing-narrative .resume-headline { color:var(--resume-accent);text-transform:uppercase;letter-spacing:.04em; }
+.resume-sheet.resume-template-jsonresume-marketing-narrative .resume-section h2 { border:0;font-weight:600; }
+.resume-sheet.resume-template-jsonresume-marketing-narrative .resume-experience { padding-left:13px;border-left:2px solid var(--resume-rule); }
+.resume-sheet.resume-template-jsonresume-marketing-narrative .resume-skill-list li { padding:6px 10px;background:var(--resume-tint);border-left:3px solid var(--resume-accent); }
+
+/* Minimalist Grid — 轻字重、大字距、细线和留白。 Source: packages/themes/jsonresume-theme-minimalist-grid/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-minimalist-grid { --jr-name-weight:300;--jr-name-track:.065em;--jr-heading-track:.15em; }
+.resume-sheet.resume-template-jsonresume-minimalist-grid h1 { text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-minimalist-grid .resume-header { border-bottom:1px solid #e5e7eb; }
+.resume-sheet.resume-template-jsonresume-minimalist-grid .resume-headline { font-size:.95em;letter-spacing:.1em;font-weight:400; }
+.resume-sheet.resume-template-jsonresume-minimalist-grid .resume-section h2 { font-weight:500;border:0;text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-minimalist-grid .resume-experience-heading h3 { font-weight:500; }
+.resume-sheet.resume-template-jsonresume-minimalist-grid .resume-skill-list { gap:6px 22px; }
+.resume-sheet.resume-template-jsonresume-minimalist-grid .resume-skill-list li { padding-bottom:3px;border-bottom:1px solid var(--resume-rule); }
+
+/* Modern Classic — 清楚的姓名层级、细灰分节与侧线技能块。 Source: packages/themes/jsonresume-theme-modern-classic/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-modern-classic { --jr-name-weight:700;--jr-name-track:-.025em; }
+.resume-sheet.resume-template-jsonresume-modern-classic .resume-header { border-bottom:2px solid #e5e7eb; }
+.resume-sheet.resume-template-jsonresume-modern-classic .resume-section h2 { border-bottom:1px solid var(--resume-rule);font-weight:600; }
+.resume-sheet.resume-template-jsonresume-modern-classic .resume-skill-list li { padding:6px 10px;background:#f3f4f6;border-left:3px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-modern-classic .resume-dates { font-size:.83em;font-weight:500; }
+
+/* Operations Precision — 紧凑抬头、青色横线与表格式技能区。 Source: packages/themes/jsonresume-theme-operations-precision/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-operations-precision { --jr-name-weight:700;--jr-name-track:-.01em;--jr-heading-track:.045em; }
+.resume-sheet.resume-template-jsonresume-operations-precision .resume-header { padding-bottom:14px;border-bottom:2px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-operations-precision .resume-headline { font-size:1em;text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-operations-precision .resume-section h2 { border-bottom:1px solid var(--resume-rule);text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-operations-precision .resume-skill-list { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--resume-rule);background:#f9fafb; }
+.resume-sheet.resume-template-jsonresume-operations-precision .resume-skill-list li { padding:7px 9px;border-bottom:1px solid var(--resume-rule);color:var(--resume-accent);font-weight:600; }
+
+/* Product Manager Canvas — 居中身份、紫色定位与清晰的线框卡片。 Source: packages/themes/jsonresume-theme-product-manager-canvas/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-product-manager-canvas .resume-identity { text-align:center; }
+.resume-sheet.resume-template-jsonresume-product-manager-canvas .resume-contact { text-align:center; }
+.resume-sheet.resume-template-jsonresume-product-manager-canvas .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-product-manager-canvas { --jr-name-weight:700;--jr-name-track:-.02em; }
+.resume-sheet.resume-template-jsonresume-product-manager-canvas .resume-header { border:0; }
+.resume-sheet.resume-template-jsonresume-product-manager-canvas .resume-headline { color:var(--resume-accent);font-weight:600; }
+.resume-sheet.resume-template-jsonresume-product-manager-canvas .resume-experience { padding:12px 14px;border:1px solid #e5e7eb; }
+.resume-sheet.resume-template-jsonresume-product-manager-canvas .resume-section h2 { border:0; }
+.resume-sheet.resume-template-jsonresume-product-manager-canvas .resume-skill-list li { padding:7px 10px;border:1px solid #e5e7eb;background:#fafafa; }
+
+/* Reference — 中性的居中身份、标准文字层级与自然阅读。 Source: packages/themes/jsonresume-theme-reference/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-reference .resume-identity { text-align:center; }
+.resume-sheet.resume-template-jsonresume-reference .resume-contact { text-align:center; }
+.resume-sheet.resume-template-jsonresume-reference .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-reference { --jr-name-weight:700;--jr-name-track:0; }
+.resume-sheet.resume-template-jsonresume-reference .resume-header { border:0; }
+.resume-sheet.resume-template-jsonresume-reference .resume-section h2 { border-bottom:1px solid #d8d8d8;padding-bottom:4px; }
+.resume-sheet.resume-template-jsonresume-reference .resume-experience-heading h3 { font-size:1em; }
+.resume-sheet.resume-template-jsonresume-reference .resume-skill-list { display:block; }
+.resume-sheet.resume-template-jsonresume-reference .resume-skill-list li { display:inline; }
+.resume-sheet.resume-template-jsonresume-reference .resume-skill-list li + li::before { content:" · "; }
+
+/* Sales Hunter — 强势大写身份、绿色粗线和实色技能标签。 Source: packages/themes/jsonresume-theme-sales-hunter/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-sales-hunter { --jr-name-weight:800;--jr-name-track:-.03em; }
+.resume-sheet.resume-template-jsonresume-sales-hunter h1 { text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-sales-hunter .resume-header { border-bottom:3px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-sales-hunter .resume-headline { text-transform:uppercase;color:var(--resume-accent);font-weight:700; }
+.resume-sheet.resume-template-jsonresume-sales-hunter .resume-section h2 { border:0;font-weight:800; }
+.resume-sheet.resume-template-jsonresume-sales-hunter .resume-skill-list li { padding:6px 10px;background:var(--resume-accent);color:white;font-weight:700; }
+
+/* Sidebar — 深蓝资料栏、主栏清楚分节与开放正文。 Source: packages/themes/jsonresume-theme-sidebar/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-sidebar { display:grid;grid-template-columns:45mm minmax(0,1fr);gap:8mm;align-items:start;--jr-rail-width:45mm; }
+.resume-sheet.resume-template-jsonresume-sidebar .resume-header { display:flex;flex-direction:column;gap:13px;padding:17px 13px;border:0;background:var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-sidebar h1 { font-size:calc(var(--resume-name-size) * .85);color:#fff;font-weight:700; }
+.resume-sheet.resume-template-jsonresume-sidebar .resume-headline,
+.resume-sheet.resume-template-jsonresume-sidebar .resume-contact,
+.resume-sheet.resume-template-jsonresume-sidebar .resume-links a { color:#fff; }
+.resume-sheet.resume-template-jsonresume-sidebar .resume-links { display:block; }
+.resume-sheet.resume-template-jsonresume-sidebar .resume-avatar { order:-1;align-self:flex-start;border-color:#ffffff66; }
+.resume-sheet.resume-template-jsonresume-sidebar .resume-body > .resume-section:first-child,
+.resume-sheet.resume-template-jsonresume-sidebar .resume-body > .resume-summary:first-child > .resume-section:first-child { margin-top:0; }
+.resume-sheet.resume-template-jsonresume-sidebar .resume-section h2 { border-bottom:2px solid var(--resume-rule); }
+.resume-sheet.resume-template-jsonresume-sidebar .resume-skill-list li { padding:3px 8px;background:var(--resume-tint); }
+
+/* Tokyo Modernist — 品红侧线、几何切角与利落大写身份。 Source: packages/themes/jsonresume-theme-tokyo-modernist/src/ui/styles.jsx */
+.resume-sheet.resume-template-jsonresume-tokyo-modernist { --jr-name-weight:800;--jr-name-track:-.04em;--jr-heading-track:.04em; }
+.resume-sheet.resume-template-jsonresume-tokyo-modernist .resume-header { position:relative;padding:20px;border:0;border-left:7px solid var(--resume-accent);background:var(--resume-tint); }
+.resume-sheet.resume-template-jsonresume-tokyo-modernist .resume-header::after { content:"";position:absolute;right:0;bottom:0;width:18px;height:18px;background:linear-gradient(135deg,transparent 50%,var(--resume-accent) 50%); }
+.resume-sheet.resume-template-jsonresume-tokyo-modernist h1 { text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-tokyo-modernist .resume-section h2 { border:0;border-left:3px solid var(--resume-accent);padding-left:10px; }
+.resume-sheet.resume-template-jsonresume-tokyo-modernist .resume-skill-list li { padding:6px 9px;border:2px solid var(--resume-rule); }
+
+/* University First — 蓝色居中身份横幅与轻巧的分节。 Source: packages/themes/jsonresume-theme-university-first/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-university-first .resume-identity { text-align:center; }
+.resume-sheet.resume-template-jsonresume-university-first .resume-contact { text-align:center; }
+.resume-sheet.resume-template-jsonresume-university-first .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-university-first .resume-header { padding:24px;background:var(--resume-accent);border:0; }
+.resume-sheet.resume-template-jsonresume-university-first h1 { color:#fff; }
+.resume-sheet.resume-template-jsonresume-university-first .resume-headline,
+.resume-sheet.resume-template-jsonresume-university-first .resume-contact,
+.resume-sheet.resume-template-jsonresume-university-first .resume-links a { color:#fff; }
+.resume-sheet.resume-template-jsonresume-university-first { --jr-name-weight:800;--jr-name-track:-.02em; }
+.resume-sheet.resume-template-jsonresume-university-first .resume-section h2 { border:0;border-bottom:2px solid var(--resume-rule); }
+.resume-sheet.resume-template-jsonresume-university-first .resume-skill-list li { padding:5px 9px;background:var(--resume-tint);border-left:3px solid var(--resume-accent); }
+
+/* Writer's Portfolio — 居中衬线推荐字体、文学留白与细侧线。 Source: packages/themes/jsonresume-theme-writers-portfolio/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-writers-portfolio .resume-identity { text-align:center; }
+.resume-sheet.resume-template-jsonresume-writers-portfolio .resume-contact { text-align:center; }
+.resume-sheet.resume-template-jsonresume-writers-portfolio .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-writers-portfolio { --jr-name-weight:400;--jr-name-track:.015em; }
+.resume-sheet.resume-template-jsonresume-writers-portfolio .resume-header { border-bottom:1px solid var(--resume-rule); }
+.resume-sheet.resume-template-jsonresume-writers-portfolio .resume-headline { font-style:italic;font-weight:400; }
+.resume-sheet.resume-template-jsonresume-writers-portfolio .resume-section h2 { border:0;font-weight:400;letter-spacing:.045em; }
+.resume-sheet.resume-template-jsonresume-writers-portfolio .resume-experience-heading { display:block; }
+.resume-sheet.resume-template-jsonresume-writers-portfolio .resume-dates { margin-top:3px!important; }
+.resume-sheet.resume-template-jsonresume-writers-portfolio .resume-skill-list li { padding:2px 9px;border-left:2px solid var(--resume-rule); }
+
+/* Nordic Minimal — 轻字重身份、冷灰横线与宽松的视觉节奏。 Source: packages/themes/jsonresume-theme-nordic-minimal/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-nordic-minimal { --jr-name-weight:300;--jr-name-track:-.015em;--jr-heading-track:.08em; }
+.resume-sheet.resume-template-jsonresume-nordic-minimal .resume-header { padding-bottom:25px;border-bottom:1px solid #e5ebee; }
+.resume-sheet.resume-template-jsonresume-nordic-minimal .resume-headline { font-weight:300;color:#64748b; }
+.resume-sheet.resume-template-jsonresume-nordic-minimal .resume-section h2 { border:0;font-weight:500; }
+.resume-sheet.resume-template-jsonresume-nordic-minimal .resume-experience-heading h3 { font-weight:500; }
+.resume-sheet.resume-template-jsonresume-nordic-minimal .resume-skill-list { gap:7px 22px; }
+.resume-sheet.resume-template-jsonresume-nordic-minimal .resume-skill-list li { padding-bottom:3px;color:var(--resume-accent);border-bottom:1px solid var(--resume-rule); }
+
+/* Graph Paper Grid — 细网格背景、线框抬头和技术标签。 Source: packages/themes/jsonresume-theme-graph-paper-grid/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-graph-paper-grid { --jr-name-weight:700;--jr-name-track:-.015em;background-image:linear-gradient(#e5e9ed66 1px,transparent 1px),linear-gradient(90deg,#e5e9ed66 1px,transparent 1px);background-size:5mm 5mm; }
+.resume-sheet.resume-template-jsonresume-graph-paper-grid .resume-header { padding:18px;border:2px solid var(--resume-accent);background:#fffffff2; }
+.resume-sheet.resume-template-jsonresume-graph-paper-grid h1 { text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-graph-paper-grid .resume-section h2 { padding:5px 8px;background:white;border-bottom:2px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-graph-paper-grid .resume-skill-list li { padding:5px 8px;border:1px solid var(--resume-rule);background:#fff; }
+
+/* Monochrome Noir — 黑白强对比、大写粗字和极细分隔。 Source: packages/themes/jsonresume-theme-monochrome-noir/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-monochrome-noir { --jr-name-weight:800;--jr-name-track:-.05em;--jr-heading-track:.12em; }
+.resume-sheet.resume-template-jsonresume-monochrome-noir h1 { text-transform:uppercase;font-size:calc(var(--resume-name-size) * 1.14); }
+.resume-sheet.resume-template-jsonresume-monochrome-noir .resume-header { border-bottom:1px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-monochrome-noir .resume-headline { text-transform:uppercase;font-weight:400;letter-spacing:.03em; }
+.resume-sheet.resume-template-jsonresume-monochrome-noir .resume-section h2 { text-transform:uppercase;font-weight:700;border-bottom:1px solid var(--resume-rule); }
+.resume-sheet.resume-template-jsonresume-monochrome-noir .resume-skill-list li { padding:3px 0;border-bottom:1px solid var(--resume-accent); }
+
+/* Mid-Century Resume — 复古几何身份、琥珀粗线与居中线框标签。 Source: packages/themes/jsonresume-theme-mid-century-resume/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-mid-century-resume .resume-identity { text-align:center; }
+.resume-sheet.resume-template-jsonresume-mid-century-resume .resume-contact { text-align:center; }
+.resume-sheet.resume-template-jsonresume-mid-century-resume .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-mid-century-resume { --jr-name-weight:700;--jr-name-track:.04em;--jr-heading-track:.09em; }
+.resume-sheet.resume-template-jsonresume-mid-century-resume h1 { text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-mid-century-resume .resume-header { border-bottom:4px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-mid-century-resume .resume-headline { color:var(--resume-accent);letter-spacing:.12em;text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-mid-century-resume .resume-section h2 { border:0;border-top:1px solid var(--resume-rule);padding-top:10px; }
+.resume-sheet.resume-template-jsonresume-mid-century-resume .resume-skill-list { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-mid-century-resume .resume-skill-list li { padding:6px 11px;border:2px solid var(--resume-accent);text-align:center; }
+
+/* Two-Column Modernist — 非对称资料栏、细分隔线与中性标签。 Source: packages/themes/jsonresume-theme-two-column-modernist/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-two-column-modernist { display:grid;grid-template-columns:43mm minmax(0,1fr);gap:8mm;align-items:start;--jr-rail-width:43mm; }
+.resume-sheet.resume-template-jsonresume-two-column-modernist .resume-header { display:flex;flex-direction:column;gap:15px;padding:0 15px 0 0;background:white;border:0;border-right:1px solid var(--resume-rule); }
+.resume-sheet.resume-template-jsonresume-two-column-modernist h1 { color:var(--resume-accent);font-size:calc(var(--resume-name-size) * .84);letter-spacing:-.025em; }
+.resume-sheet.resume-template-jsonresume-two-column-modernist .resume-headline,
+.resume-sheet.resume-template-jsonresume-two-column-modernist .resume-contact,
+.resume-sheet.resume-template-jsonresume-two-column-modernist .resume-links a { color:#4b5563; }
+.resume-sheet.resume-template-jsonresume-two-column-modernist .resume-links { display:block; }
+.resume-sheet.resume-template-jsonresume-two-column-modernist .resume-avatar { order:-1;align-self:flex-start;border-color:#ffffff66; }
+.resume-sheet.resume-template-jsonresume-two-column-modernist .resume-body > .resume-section:first-child,
+.resume-sheet.resume-template-jsonresume-two-column-modernist .resume-body > .resume-summary:first-child > .resume-section:first-child { margin-top:0; }
+.resume-sheet.resume-template-jsonresume-two-column-modernist .resume-section h2 { border-bottom:1px solid #d1d5db;letter-spacing:-.01em; }
+.resume-sheet.resume-template-jsonresume-two-column-modernist .resume-skill-list li { padding:3px 8px;background:#f3f4f6; }
+
+/* Sidebar Photo Strip — 深色照片资料栏、灰度头像与轻量正文。 Source: packages/themes/jsonresume-theme-sidebar-photo-strip/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-sidebar-photo-strip { display:grid;grid-template-columns:42mm minmax(0,1fr);gap:8mm;align-items:start;--jr-rail-width:42mm; }
+.resume-sheet.resume-template-jsonresume-sidebar-photo-strip .resume-header { display:flex;flex-direction:column;gap:15px;padding:17px 12px;background:var(--resume-accent);border:0; }
+.resume-sheet.resume-template-jsonresume-sidebar-photo-strip h1 { font-size:calc(var(--resume-name-size) * .78);color:#fff; }
+.resume-sheet.resume-template-jsonresume-sidebar-photo-strip .resume-headline,
+.resume-sheet.resume-template-jsonresume-sidebar-photo-strip .resume-contact,
+.resume-sheet.resume-template-jsonresume-sidebar-photo-strip .resume-links a { color:#fff; }
+.resume-sheet.resume-template-jsonresume-sidebar-photo-strip .resume-links { display:block; }
+.resume-sheet.resume-template-jsonresume-sidebar-photo-strip .resume-avatar { order:-1;align-self:stretch;width:100%;height:auto;aspect-ratio:3 / 4;filter:grayscale(1);object-fit:cover;border:0;border-radius:3px; }
+.resume-sheet.resume-template-jsonresume-sidebar-photo-strip .resume-body > .resume-section:first-child,
+.resume-sheet.resume-template-jsonresume-sidebar-photo-strip .resume-body > .resume-summary:first-child > .resume-section:first-child { margin-top:0; }
+.resume-sheet.resume-template-jsonresume-sidebar-photo-strip .resume-section h2 { border:0;font-weight:600; }
+.resume-sheet.resume-template-jsonresume-sidebar-photo-strip .resume-experience-heading h3 { font-weight:600; }
+
+/* Diagonal Accent Bar — 玫红斜向边线、宽字距身份与侧线标签。 Source: packages/themes/jsonresume-theme-diagonal-accent-bar/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-diagonal-accent-bar { --jr-name-weight:700;--jr-name-track:.055em;--jr-heading-track:.08em; }
+.resume-sheet.resume-template-jsonresume-diagonal-accent-bar .resume-header { position:relative;padding-left:20px;border:0;border-left:5px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-diagonal-accent-bar .resume-header::before { content:"";position:absolute;left:0;top:0;width:9px;height:100%;background:var(--resume-tint);transform:skewY(-14deg);transform-origin:left top; }
+.resume-sheet.resume-template-jsonresume-diagonal-accent-bar h1 { text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-diagonal-accent-bar .resume-headline { color:var(--resume-accent);letter-spacing:.09em;text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-diagonal-accent-bar .resume-section h2 { border-bottom:1px solid var(--resume-rule); }
+.resume-sheet.resume-template-jsonresume-diagonal-accent-bar .resume-skill-list li { padding:6px 10px;border:1px solid var(--resume-rule);border-left:4px solid var(--resume-accent); }
+
+/* Asymmetric Timeline — 居中身份、交错缩进经历卡片与细时间线。 Source: packages/themes/jsonresume-theme-asymmetric-timeline/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-asymmetric-timeline .resume-identity { text-align:center; }
+.resume-sheet.resume-template-jsonresume-asymmetric-timeline .resume-contact { text-align:center; }
+.resume-sheet.resume-template-jsonresume-asymmetric-timeline .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-asymmetric-timeline { --jr-name-weight:600;--jr-name-track:-.015em; }
+.resume-sheet.resume-template-jsonresume-asymmetric-timeline .resume-header { border-bottom:1px solid #e2e8f0; }
+.resume-sheet.resume-template-jsonresume-asymmetric-timeline .resume-experience { padding:12px 14px;border:1px solid #e2e8f0;border-left:4px solid var(--resume-accent);border-radius:5px; }
+.resume-sheet.resume-template-jsonresume-asymmetric-timeline .resume-experience:nth-child(odd) { margin-right:7mm; }
+.resume-sheet.resume-template-jsonresume-asymmetric-timeline .resume-experience:nth-child(even) { margin-left:7mm; }
+.resume-sheet.resume-template-jsonresume-asymmetric-timeline .resume-section h2 { text-align:center;border:0; }
+.resume-sheet.resume-template-jsonresume-asymmetric-timeline .resume-dates { font-weight:400; }
+
+/* Typewriter Modern — 打字机推荐字体、虚线分节与纸张感标签。 Source: packages/themes/jsonresume-theme-typewriter-modern/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-typewriter-modern { --jr-name-weight:600;--jr-name-track:.02em; }
+.resume-sheet.resume-template-jsonresume-typewriter-modern h1 { text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-typewriter-modern .resume-header { border-bottom:2px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-typewriter-modern .resume-section h2 { border:0;border-bottom:1px dashed var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-typewriter-modern .resume-skill-list li { padding:5px 8px;background:#fffdef;border:1px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-typewriter-modern .resume-dates { font-family:inherit; }
+
+/* New York Editorial — 重衬线推荐身份、居中横线与红色细节。 Source: packages/themes/jsonresume-theme-new-york-editorial/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-new-york-editorial .resume-identity { text-align:center; }
+.resume-sheet.resume-template-jsonresume-new-york-editorial .resume-contact { text-align:center; }
+.resume-sheet.resume-template-jsonresume-new-york-editorial .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-new-york-editorial { --jr-name-weight:900;--jr-name-track:-.025em; }
+.resume-sheet.resume-template-jsonresume-new-york-editorial .resume-header { border-bottom:3px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-new-york-editorial .resume-headline { font-weight:400;color:#555; }
+.resume-sheet.resume-template-jsonresume-new-york-editorial .resume-section h2 { border:0;font-weight:700; }
+.resume-sheet.resume-template-jsonresume-new-york-editorial .resume-experience-heading { padding-bottom:5px;border-bottom:1px solid var(--resume-rule); }
+.resume-sheet.resume-template-jsonresume-new-york-editorial .resume-skill-list li { padding:3px 0;border-bottom:1px solid color-mix(in srgb,var(--resume-accent) 50%,#b22222); }
+
+/* Berlin Grid — 工程化粗横线、矩形技能网格与精确对齐。 Source: packages/themes/jsonresume-theme-berlin-grid/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-berlin-grid { --jr-name-weight:700;--jr-name-track:-.01em;--jr-heading-track:.08em; }
+.resume-sheet.resume-template-jsonresume-berlin-grid h1 { text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-berlin-grid .resume-header { border-bottom:3px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-berlin-grid .resume-section h2 { text-transform:uppercase;border-bottom:2px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-berlin-grid .resume-skill-list { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px; }
+.resume-sheet.resume-template-jsonresume-berlin-grid .resume-skill-list li { padding:8px;border:2px solid #e5e5e5;background:#fafafa;font-weight:600; }
+.resume-sheet.resume-template-jsonresume-berlin-grid .resume-dates { font-variant-numeric:tabular-nums; }
+
+/* Californian Warm — 暖琥珀圆角身份栏、轻阴影与柔和标签。 Source: packages/themes/jsonresume-theme-californian-warm/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-californian-warm { --jr-name-weight:800;--jr-name-track:-.025em; }
+.resume-sheet.resume-template-jsonresume-californian-warm .resume-header { padding:22px;background:var(--resume-tint);border:0;border-radius:15px;box-shadow:0 4px 15px #a76c0b0c; }
+.resume-sheet.resume-template-jsonresume-californian-warm .resume-section h2 { border:0;text-transform:none;font-weight:700; }
+.resume-sheet.resume-template-jsonresume-californian-warm .resume-experience { padding:10px 13px;border-radius:8px;border:1px solid color-mix(in srgb,var(--resume-accent) 13%,white); }
+.resume-sheet.resume-template-jsonresume-californian-warm .resume-skill-list li { padding:7px 11px;background:var(--resume-tint);border-radius:8px;color:var(--resume-accent); }
+
+/* London Bureau — 传统衬线推荐身份、三重层级横线与紧凑正文。 Source: packages/themes/jsonresume-theme-london-bureau/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-london-bureau { --jr-name-weight:700;--jr-name-track:-.015em; }
+.resume-sheet.resume-template-jsonresume-london-bureau .resume-header { border-bottom:3px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-london-bureau .resume-section h2 { border-top:1px solid var(--resume-accent);border-bottom:1px solid var(--resume-rule);padding:6px 0; }
+.resume-sheet.resume-template-jsonresume-london-bureau .resume-experience-heading h3 { font-weight:700; }
+.resume-sheet.resume-template-jsonresume-london-bureau .resume-skill-list { gap:3px 18px; }
+.resume-sheet.resume-template-jsonresume-london-bureau .resume-skill-list li { font-weight:500; }
+
+/* Pacific Horizon — 居中现代身份、蓝色短线和开放式技能组。 Source: packages/themes/jsonresume-theme-pacific-horizon/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-pacific-horizon .resume-identity { text-align:center; }
+.resume-sheet.resume-template-jsonresume-pacific-horizon .resume-contact { text-align:center; }
+.resume-sheet.resume-template-jsonresume-pacific-horizon .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-pacific-horizon { --jr-name-weight:700;--jr-name-track:-.03em; }
+.resume-sheet.resume-template-jsonresume-pacific-horizon .resume-header { border:0; }
+.resume-sheet.resume-template-jsonresume-pacific-horizon .resume-headline { color:var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-pacific-horizon .resume-section h2 { border:0;position:relative;padding-bottom:10px; }
+.resume-sheet.resume-template-jsonresume-pacific-horizon .resume-section h2::after { content:"";position:absolute;left:0;bottom:0;width:22px;height:3px;background:var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-pacific-horizon .resume-skill-list li { padding:4px 9px;border-radius:3px;background:var(--resume-tint); }
+
+/* French Atelier — 高对比衬线推荐身份、梅紫色细线与编辑节奏。 Source: packages/themes/jsonresume-theme-french-atelier/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-french-atelier { --jr-name-weight:900;--jr-name-track:-.04em; }
+.resume-sheet.resume-template-jsonresume-french-atelier .resume-header { border-bottom:2px solid var(--resume-accent);padding-bottom:25px; }
+.resume-sheet.resume-template-jsonresume-french-atelier h1 { font-size:calc(var(--resume-name-size) * 1.13); }
+.resume-sheet.resume-template-jsonresume-french-atelier .resume-headline { font-style:italic;font-weight:400; }
+.resume-sheet.resume-template-jsonresume-french-atelier .resume-section h2 { border:0;font-style:italic;font-weight:500; }
+.resume-sheet.resume-template-jsonresume-french-atelier .resume-experience-heading { display:block; }
+.resume-sheet.resume-template-jsonresume-french-atelier .resume-dates { margin-top:4px!important;letter-spacing:.04em; }
+.resume-sheet.resume-template-jsonresume-french-atelier .resume-skill-list li { padding-bottom:4px;border-bottom:1px solid var(--resume-accent); }
+
+/* Clinical Precision — 病历式抬头、绿色条目轨、等宽日期和薄荷技能格。 Source: packages/themes/jsonresume-theme-clinical-precision/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-clinical-precision { --jr-name-weight:700;--jr-name-track:-.015em;--jr-heading-track:.1em; }
+.resume-sheet.resume-template-jsonresume-clinical-precision .resume-header { border:1px solid var(--resume-rule);border-top:4px solid var(--resume-accent);padding:17px; }
+.resume-sheet.resume-template-jsonresume-clinical-precision .resume-section h2 { text-transform:uppercase;border-bottom:1.5px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-clinical-precision .resume-experience-heading { padding:8px 11px;background:var(--resume-tint);border-left:3px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-clinical-precision .resume-dates { font-family:Consolas,"Microsoft YaHei",monospace;font-size:.83em; }
+.resume-sheet.resume-template-jsonresume-clinical-precision .resume-skill-list li { padding:6px 9px;background:var(--resume-tint);border:1px solid var(--resume-rule);border-radius:3px; }
+
+/* Field Researcher — 笔记式分节编号、等宽元信息与青绿色页边线。 Source: packages/themes/jsonresume-theme-field-researcher/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-field-researcher { --jr-name-weight:700;--jr-name-track:-.015em;counter-reset:jr-field; }
+.resume-sheet.resume-template-jsonresume-field-researcher .resume-header { border-bottom:1px solid var(--resume-rule);padding-left:15px;border-left:3px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-field-researcher .resume-section h2 { border:0;border-top:1px solid var(--resume-rule);padding-top:9px;counter-increment:jr-field; }
+.resume-sheet.resume-template-jsonresume-field-researcher .resume-section h2::before { content:counter(jr-field,decimal-leading-zero) " / ";font-family:Consolas,monospace;font-size:.72em;color:var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-field-researcher .resume-dates { font-family:Consolas,"Microsoft YaHei",monospace; }
+.resume-sheet.resume-template-jsonresume-field-researcher .resume-skill-list li { padding:4px 7px;background:var(--resume-tint); }
+
+/* Urban Techno — 黑色分割身份栏、硬边框与密实的技术标签。 Source: packages/themes/jsonresume-theme-urban-techno/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-urban-techno { --jr-name-weight:900;--jr-name-track:.015em;--jr-heading-track:.06em; }
+.resume-sheet.resume-template-jsonresume-urban-techno .resume-header { grid-template-columns:minmax(0,1fr) minmax(0,.85fr);gap:15px;border-bottom:2px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-urban-techno .resume-identity { padding:14px;background:var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-urban-techno h1 { color:#fff;text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-urban-techno .resume-headline { color:#fff;font-size:.95em; }
+.resume-sheet.resume-template-jsonresume-urban-techno .resume-contact { align-self:center; }
+.resume-sheet.resume-template-jsonresume-urban-techno .resume-section h2 { padding:5px 0;border-top:2px solid var(--resume-accent);border-bottom:1px solid var(--resume-rule);text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-urban-techno .resume-skill-list li { padding:4px 7px;border:1px solid var(--resume-accent);font-weight:700;text-transform:uppercase;font-size:.83em; }
+.resume-sheet.resume-template-jsonresume-urban-techno .resume-header.has-avatar { grid-template-columns:minmax(0,1fr) minmax(0,.85fr) 23mm; }
+.resume-sheet.resume-template-jsonresume-urban-techno .resume-header.has-avatar .resume-avatar { grid-column:3;grid-row:1; }
+
+/* Coastal Creative — 平静居中身份、海蓝色标题与柔和技能卡片。 Source: packages/themes/jsonresume-theme-coastal-creative/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-coastal-creative .resume-identity { text-align:center; }
+.resume-sheet.resume-template-jsonresume-coastal-creative .resume-contact { text-align:center; }
+.resume-sheet.resume-template-jsonresume-coastal-creative .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-coastal-creative { --jr-name-weight:600;--jr-name-track:-.02em; }
+.resume-sheet.resume-template-jsonresume-coastal-creative .resume-header { border:0; }
+.resume-sheet.resume-template-jsonresume-coastal-creative .resume-headline { color:var(--resume-accent);font-weight:500; }
+.resume-sheet.resume-template-jsonresume-coastal-creative .resume-section h2 { border:0;font-weight:600; }
+.resume-sheet.resume-template-jsonresume-coastal-creative .resume-skill-list li { padding:8px 11px;border-radius:7px;background:white;box-shadow:0 1px 4px #25352c14;border:1px solid var(--resume-rule); }
+.resume-sheet.resume-template-jsonresume-coastal-creative .resume-experience { padding-left:11px;border-left:2px solid var(--resume-rule); }
+
+/* Investor Brief — 居中简报身份、紧凑数据层级与浅灰技能块。 Source: packages/themes/jsonresume-theme-investor-brief/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-investor-brief .resume-identity { text-align:center; }
+.resume-sheet.resume-template-jsonresume-investor-brief .resume-contact { text-align:center; }
+.resume-sheet.resume-template-jsonresume-investor-brief .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-investor-brief { --jr-name-weight:600;--jr-name-track:-.01em; }
+.resume-sheet.resume-template-jsonresume-investor-brief .resume-header { border-bottom:1px solid #e5e7eb; }
+.resume-sheet.resume-template-jsonresume-investor-brief .resume-section h2 { border:0;text-transform:uppercase;letter-spacing:.065em;font-weight:700; }
+.resume-sheet.resume-template-jsonresume-investor-brief .resume-experience-heading { border-bottom:1px solid var(--resume-rule);padding-bottom:6px; }
+.resume-sheet.resume-template-jsonresume-investor-brief .resume-dates { font-variant-numeric:tabular-nums;font-weight:500; }
+.resume-sheet.resume-template-jsonresume-investor-brief .resume-skill-list li { padding:6px 10px;background:#f9fafb;border-left:2px solid var(--resume-accent); }
+
+/* Art School Modern — 画廊式粗字身份、编号章节与朱红细节。 Source: packages/themes/jsonresume-theme-art-school-modern/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-art-school-modern { --jr-name-weight:900;--jr-name-track:-.04em;counter-reset:jr-art; }
+.resume-sheet.resume-template-jsonresume-art-school-modern h1 { text-transform:uppercase;font-size:calc(var(--resume-name-size) * 1.2); }
+.resume-sheet.resume-template-jsonresume-art-school-modern .resume-header { border-bottom:3px solid #111; }
+.resume-sheet.resume-template-jsonresume-art-school-modern .resume-avatar { padding:4px;border:2px solid var(--resume-accent);border-radius:0; }
+.resume-sheet.resume-template-jsonresume-art-school-modern .resume-headline { font-style:italic;font-size:1.2em; }
+.resume-sheet.resume-template-jsonresume-art-school-modern .resume-section h2 { border:0;counter-increment:jr-art;display:flex;align-items:baseline;gap:11px; }
+.resume-sheet.resume-template-jsonresume-art-school-modern .resume-section h2::before { content:counter(jr-art,decimal-leading-zero);font-size:.65em;letter-spacing:.08em;color:var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-art-school-modern .resume-skill-list li { padding:4px 0;border-bottom:2px solid var(--resume-accent);text-transform:uppercase;font-weight:600;font-size:.9em; }
+
+/* Community Garden — 天空蓝与浅绿身份面板、圆角技能块和亲和留白。 Source: packages/themes/jsonresume-theme-community-garden/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-community-garden .resume-identity { text-align:center; }
+.resume-sheet.resume-template-jsonresume-community-garden .resume-contact { text-align:center; }
+.resume-sheet.resume-template-jsonresume-community-garden .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-community-garden { --jr-name-weight:700;--jr-name-track:.015em; }
+.resume-sheet.resume-template-jsonresume-community-garden .resume-header { padding:22px;border:2px solid color-mix(in srgb,var(--resume-accent) 50%,#38bdf8);border-radius:10px;background:linear-gradient(135deg,#eaf6fe,var(--resume-tint)); }
+.resume-sheet.resume-template-jsonresume-community-garden .resume-headline { color:var(--resume-accent);font-weight:600; }
+.resume-sheet.resume-template-jsonresume-community-garden .resume-section h2 { border:0; }
+.resume-sheet.resume-template-jsonresume-community-garden .resume-skill-list li { padding:5px 11px;border-radius:13px;background:color-mix(in srgb,var(--resume-accent) 10%,#e0f2fe);color:color-mix(in srgb,var(--resume-accent) 75%,black); }
+
+/* Industrial Engineer — 图纸铭牌抬头、规格表联系人与尺寸线分节。 Source: packages/themes/jsonresume-theme-industrial-engineer/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-industrial-engineer .resume-header { padding:17px;background:var(--resume-accent);border:2px solid color-mix(in srgb,var(--resume-accent) 80%,black); }
+.resume-sheet.resume-template-jsonresume-industrial-engineer h1 { color:#fff; }
+.resume-sheet.resume-template-jsonresume-industrial-engineer .resume-headline,
+.resume-sheet.resume-template-jsonresume-industrial-engineer .resume-contact,
+.resume-sheet.resume-template-jsonresume-industrial-engineer .resume-links a { color:#fff; }
+.resume-sheet.resume-template-jsonresume-industrial-engineer { --jr-name-weight:700;--jr-name-track:.03em;--jr-heading-track:.1em; }
+.resume-sheet.resume-template-jsonresume-industrial-engineer .resume-contact { padding:9px;border:1px solid #ffffff66;font-size:.8em; }
+.resume-sheet.resume-template-jsonresume-industrial-engineer .resume-section h2 { display:flex;gap:10px;align-items:center;border:0;text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-industrial-engineer .resume-section h2::after { content:"";flex:1;height:7px;border-top:1px solid var(--resume-accent);border-left:1px solid var(--resume-accent);border-right:1px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-industrial-engineer .resume-experience-heading { padding:7px 9px;background:#f4f6f8;border:1px solid var(--resume-rule); }
+.resume-sheet.resume-template-jsonresume-industrial-engineer .resume-skill-list li { padding:6px 9px;border:1px solid var(--resume-rule);border-top:3px solid var(--resume-accent);font-size:.87em; }
+
+/* Brutalist — 硬黑粗线、编号章节与错位块阴影。 Source: packages/themes/jsonresume-theme-brutalist/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-brutalist { --jr-name-weight:900;--jr-name-track:-.03em;counter-reset:jr-brutal; }
+.resume-sheet.resume-template-jsonresume-brutalist .resume-header { border-top:4px solid #111;border-bottom:4px solid #111;padding-top:16px; }
+.resume-sheet.resume-template-jsonresume-brutalist h1 { color:#111;text-transform:uppercase;text-decoration:underline;text-decoration-color:var(--resume-accent);text-decoration-thickness:8px;text-underline-offset:7px; }
+.resume-sheet.resume-template-jsonresume-brutalist .resume-headline { display:inline-block;padding:4px 8px;background:#111;color:white;font-weight:700; }
+.resume-sheet.resume-template-jsonresume-brutalist .resume-section h2 { border:0;color:#111;counter-increment:jr-brutal;display:flex;gap:10px;align-items:center; }
+.resume-sheet.resume-template-jsonresume-brutalist .resume-section h2::before { content:counter(jr-brutal,decimal-leading-zero);padding:2px 6px;background:var(--resume-accent);color:#111;font-size:.7em; }
+.resume-sheet.resume-template-jsonresume-brutalist .resume-experience { border:2px solid #111;padding:12px;box-shadow:4px 4px 0 #111; }
+.resume-sheet.resume-template-jsonresume-brutalist .resume-skill-list li { padding:5px 9px;border:2px solid #111;background:color-mix(in srgb,var(--resume-accent) 28%,white);color:#111;font-weight:700; }
+
+/* Art Deco — 对称珠宝色身份、金色双线与几何装饰。 Source: packages/themes/jsonresume-theme-art-deco/src/Resume.jsx */
+.resume-sheet.resume-template-jsonresume-art-deco .resume-identity { text-align:center; }
+.resume-sheet.resume-template-jsonresume-art-deco .resume-contact { text-align:center; }
+.resume-sheet.resume-template-jsonresume-art-deco .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-art-deco .resume-header { padding:25px;background:linear-gradient(150deg,#0f1418,color-mix(in srgb,var(--resume-accent) 25%,#103b34));border:1px solid var(--resume-accent);border-bottom:3px double var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-art-deco h1 { color:#fff;text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-art-deco .resume-headline,
+.resume-sheet.resume-template-jsonresume-art-deco .resume-contact,
+.resume-sheet.resume-template-jsonresume-art-deco .resume-links a { color:#fff; }
+.resume-sheet.resume-template-jsonresume-art-deco { --jr-name-weight:700;--jr-name-track:.075em;--jr-heading-track:.12em; }
+.resume-sheet.resume-template-jsonresume-art-deco .resume-headline { color:#f0ddad;letter-spacing:.15em;font-weight:400; }
+.resume-sheet.resume-template-jsonresume-art-deco .resume-section h2 { text-align:center;border:0;border-top:3px double var(--resume-rule);padding-top:10px;text-transform:uppercase; }
+.resume-sheet.resume-template-jsonresume-art-deco .resume-section h2::after { content:" ◆";font-size:.65em;color:var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-art-deco .resume-skill-list { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-art-deco .resume-skill-list li { padding:3px 9px;border-bottom:1px solid var(--resume-accent); }
+
+@media print {
+  .resume-sheet:is(.resume-template-jsonresume-desert-modern,.resume-template-jsonresume-elegant-pink,.resume-template-jsonresume-tailwind,.resume-template-jsonresume-academic-cv-lite,.resume-template-jsonresume-bold-header-statement,.resume-template-jsonresume-architects-portfolio,.resume-template-jsonresume-consultant-polished,.resume-template-jsonresume-creative-studio,.resume-template-jsonresume-data-driven,.resume-template-jsonresume-developer-mono,.resume-template-jsonresume-executive-slate,.resume-template-jsonresume-government-standard,.resume-template-jsonresume-marketing-narrative,.resume-template-jsonresume-minimalist-grid,.resume-template-jsonresume-modern-classic,.resume-template-jsonresume-operations-precision,.resume-template-jsonresume-product-manager-canvas,.resume-template-jsonresume-reference,.resume-template-jsonresume-sales-hunter,.resume-template-jsonresume-sidebar,.resume-template-jsonresume-tokyo-modernist,.resume-template-jsonresume-university-first,.resume-template-jsonresume-writers-portfolio,.resume-template-jsonresume-nordic-minimal,.resume-template-jsonresume-graph-paper-grid,.resume-template-jsonresume-monochrome-noir,.resume-template-jsonresume-mid-century-resume,.resume-template-jsonresume-two-column-modernist,.resume-template-jsonresume-sidebar-photo-strip,.resume-template-jsonresume-diagonal-accent-bar,.resume-template-jsonresume-asymmetric-timeline,.resume-template-jsonresume-typewriter-modern,.resume-template-jsonresume-new-york-editorial,.resume-template-jsonresume-berlin-grid,.resume-template-jsonresume-californian-warm,.resume-template-jsonresume-london-bureau,.resume-template-jsonresume-pacific-horizon,.resume-template-jsonresume-french-atelier,.resume-template-jsonresume-clinical-precision,.resume-template-jsonresume-field-researcher,.resume-template-jsonresume-urban-techno,.resume-template-jsonresume-coastal-creative,.resume-template-jsonresume-investor-brief,.resume-template-jsonresume-art-school-modern,.resume-template-jsonresume-community-garden,.resume-template-jsonresume-industrial-engineer,.resume-template-jsonresume-brutalist,.resume-template-jsonresume-art-deco) { background-image:none; }
+  .resume-sheet:is(.resume-template-jsonresume-desert-modern,.resume-template-jsonresume-elegant-pink,.resume-template-jsonresume-tailwind,.resume-template-jsonresume-academic-cv-lite,.resume-template-jsonresume-bold-header-statement,.resume-template-jsonresume-architects-portfolio,.resume-template-jsonresume-consultant-polished,.resume-template-jsonresume-creative-studio,.resume-template-jsonresume-data-driven,.resume-template-jsonresume-developer-mono,.resume-template-jsonresume-executive-slate,.resume-template-jsonresume-government-standard,.resume-template-jsonresume-marketing-narrative,.resume-template-jsonresume-minimalist-grid,.resume-template-jsonresume-modern-classic,.resume-template-jsonresume-operations-precision,.resume-template-jsonresume-product-manager-canvas,.resume-template-jsonresume-reference,.resume-template-jsonresume-sales-hunter,.resume-template-jsonresume-sidebar,.resume-template-jsonresume-tokyo-modernist,.resume-template-jsonresume-university-first,.resume-template-jsonresume-writers-portfolio,.resume-template-jsonresume-nordic-minimal,.resume-template-jsonresume-graph-paper-grid,.resume-template-jsonresume-monochrome-noir,.resume-template-jsonresume-mid-century-resume,.resume-template-jsonresume-two-column-modernist,.resume-template-jsonresume-sidebar-photo-strip,.resume-template-jsonresume-diagonal-accent-bar,.resume-template-jsonresume-asymmetric-timeline,.resume-template-jsonresume-typewriter-modern,.resume-template-jsonresume-new-york-editorial,.resume-template-jsonresume-berlin-grid,.resume-template-jsonresume-californian-warm,.resume-template-jsonresume-london-bureau,.resume-template-jsonresume-pacific-horizon,.resume-template-jsonresume-french-atelier,.resume-template-jsonresume-clinical-precision,.resume-template-jsonresume-field-researcher,.resume-template-jsonresume-urban-techno,.resume-template-jsonresume-coastal-creative,.resume-template-jsonresume-investor-brief,.resume-template-jsonresume-art-school-modern,.resume-template-jsonresume-community-garden,.resume-template-jsonresume-industrial-engineer,.resume-template-jsonresume-brutalist,.resume-template-jsonresume-art-deco) .resume-experience { box-shadow:none; }
+  .resume-sheet:is(.resume-template-jsonresume-desert-modern,.resume-template-jsonresume-elegant-pink,.resume-template-jsonresume-tailwind,.resume-template-jsonresume-academic-cv-lite,.resume-template-jsonresume-bold-header-statement,.resume-template-jsonresume-architects-portfolio,.resume-template-jsonresume-consultant-polished,.resume-template-jsonresume-creative-studio,.resume-template-jsonresume-data-driven,.resume-template-jsonresume-developer-mono,.resume-template-jsonresume-executive-slate,.resume-template-jsonresume-government-standard,.resume-template-jsonresume-marketing-narrative,.resume-template-jsonresume-minimalist-grid,.resume-template-jsonresume-modern-classic,.resume-template-jsonresume-operations-precision,.resume-template-jsonresume-product-manager-canvas,.resume-template-jsonresume-reference,.resume-template-jsonresume-sales-hunter,.resume-template-jsonresume-sidebar,.resume-template-jsonresume-tokyo-modernist,.resume-template-jsonresume-university-first,.resume-template-jsonresume-writers-portfolio,.resume-template-jsonresume-nordic-minimal,.resume-template-jsonresume-graph-paper-grid,.resume-template-jsonresume-monochrome-noir,.resume-template-jsonresume-mid-century-resume,.resume-template-jsonresume-two-column-modernist,.resume-template-jsonresume-sidebar-photo-strip,.resume-template-jsonresume-diagonal-accent-bar,.resume-template-jsonresume-asymmetric-timeline,.resume-template-jsonresume-typewriter-modern,.resume-template-jsonresume-new-york-editorial,.resume-template-jsonresume-berlin-grid,.resume-template-jsonresume-californian-warm,.resume-template-jsonresume-london-bureau,.resume-template-jsonresume-pacific-horizon,.resume-template-jsonresume-french-atelier,.resume-template-jsonresume-clinical-precision,.resume-template-jsonresume-field-researcher,.resume-template-jsonresume-urban-techno,.resume-template-jsonresume-coastal-creative,.resume-template-jsonresume-investor-brief,.resume-template-jsonresume-art-school-modern,.resume-template-jsonresume-community-garden,.resume-template-jsonresume-industrial-engineer,.resume-template-jsonresume-brutalist,.resume-template-jsonresume-art-deco) .resume-header { box-shadow:none; }
+  .resume-sheet.resume-template-jsonresume-executive-slate { display:block; }
+  .resume-sheet.resume-template-jsonresume-executive-slate .resume-header { float:left;width:var(--jr-rail-width);box-sizing:border-box; }
+  .resume-sheet.resume-template-jsonresume-executive-slate .resume-body { margin-left:calc(var(--jr-rail-width) + 8mm); }
+  .resume-sheet.resume-template-jsonresume-sidebar { display:block; }
+  .resume-sheet.resume-template-jsonresume-sidebar .resume-header { float:left;width:var(--jr-rail-width);box-sizing:border-box; }
+  .resume-sheet.resume-template-jsonresume-sidebar .resume-body { margin-left:calc(var(--jr-rail-width) + 8mm); }
+  .resume-sheet.resume-template-jsonresume-two-column-modernist { display:block; }
+  .resume-sheet.resume-template-jsonresume-two-column-modernist .resume-header { float:left;width:var(--jr-rail-width);box-sizing:border-box; }
+  .resume-sheet.resume-template-jsonresume-two-column-modernist .resume-body { margin-left:calc(var(--jr-rail-width) + 8mm); }
+  .resume-sheet.resume-template-jsonresume-sidebar-photo-strip { display:block; }
+  .resume-sheet.resume-template-jsonresume-sidebar-photo-strip .resume-header { float:left;width:var(--jr-rail-width);box-sizing:border-box; }
+  .resume-sheet.resume-template-jsonresume-sidebar-photo-strip .resume-body { margin-left:calc(var(--jr-rail-width) + 8mm); }
+  .resume-sheet.resume-template-jsonresume-asymmetric-timeline .resume-experience:nth-child(n) { margin-left:0;margin-right:0; }
+}

@@ -1,0 +1,3436 @@
+{
+  "schemaVersion": 1,
+  "generatedFrom": "apps/web/src/components/template-catalog.ts",
+  "auditedOn": "2026-10-18",
+  "count": 119,
+  "groups": [
+    {
+      "id": "original",
+      "name": "BetterMe",
+      "label": "自研",
+      "count": 6
+    },
+    {
+      "id": "rendercv",
+      "name": "RenderCV",
+      "label": "RenderCV",
+      "count": 9
+    },
+    {
+      "id": "jsonresume",
+      "name": "JSON Resume",
+      "label": "JSON Resume",
+      "count": 65
+    },
+    {
+      "id": "newfuture",
+      "name": "NewFuture",
+      "label": "NewFuture",
+      "count": 3
+    },
+    {
+      "id": "community",
+      "name": "Community",
+      "label": "开源社区",
+      "count": 36
+    }
+  ],
+  "scope": "Native React/CSS adaptations on current Fact projection; no upstream runtime, bundled font assets or pixel-identity guarantee.",
+  "nonCommercialTemplateIds": [
+    "jsonresume-rickosborne"
+  ],
+  "templates": [
+    {
+      "id": "zh-classic",
+      "source": "original",
+      "name": "经典正式",
+      "label": "CLASSIC",
+      "description": "居中抬头、衬线标题与细线分节，正式而克制。",
+      "tag": "正式投递",
+      "en": {
+        "name": "Classic",
+        "description": "Centered header, serif headings and fine section rules for a formal, restrained layout.",
+        "tag": "Formal applications"
+      },
+      "recommended": {
+        "accentColor": "#1b5147",
+        "fontFamily": "sans"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "Project license (original design)",
+        "licenseFile": null,
+        "noticeFile": null,
+        "classification": "original-project-design",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "en-ats",
+      "source": "original",
+      "name": "极简单栏",
+      "label": "ATS",
+      "description": "自然阅读顺序、纯文本信息、固定无照片；实际 ATS 解析仍需验证。",
+      "tag": "海外 / ATS",
+      "en": {
+        "name": "Minimal single column",
+        "description": "Natural reading order and plain text, always without a photo. Actual ATS parsing still needs verification.",
+        "tag": "International / ATS"
+      },
+      "recommended": {
+        "accentColor": "#292929",
+        "fontFamily": "sans"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "Project license (original design)",
+        "licenseFile": null,
+        "noticeFile": null,
+        "classification": "original-project-design",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "clean-modern",
+      "source": "original",
+      "name": "现代专业",
+      "label": "MODERN",
+      "description": "信息块抬头与时间线经历，用清晰层次突出技术成果。",
+      "tag": "技术岗位",
+      "en": {
+        "name": "Modern professional",
+        "description": "A structured header and experience timeline highlight technical results with clear hierarchy.",
+        "tag": "Technical roles"
+      },
+      "recommended": {
+        "accentColor": "#1b5147",
+        "fontFamily": "sans"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "Project license (original design)",
+        "licenseFile": null,
+        "noticeFile": null,
+        "classification": "original-project-design",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "editorial",
+      "source": "original",
+      "name": "编辑部",
+      "label": "EDITORIAL",
+      "description": "大字抬头、侧标分节与宽松留白，像一份精心编辑的作品。",
+      "tag": "高级质感",
+      "en": {
+        "name": "Editorial",
+        "description": "A large name, side labels and generous spacing give the resume an editorial feel.",
+        "tag": "Refined presentation"
+      },
+      "recommended": {
+        "accentColor": "#69424c",
+        "fontFamily": "serif"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "Project license (original design)",
+        "licenseFile": null,
+        "noticeFile": null,
+        "classification": "original-project-design",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "sidebar",
+      "source": "original",
+      "name": "左岸",
+      "label": "SIDEBAR",
+      "description": "个人资料置于独立窄栏，正文聚焦经历；适合信息丰富的中文简历。",
+      "tag": "双栏布局",
+      "en": {
+        "name": "Left bank",
+        "description": "Personal details sit in a narrow sidebar while the main column focuses on experience. Suits detailed Chinese resumes.",
+        "tag": "Two columns"
+      },
+      "recommended": {
+        "accentColor": "#1b5147",
+        "fontFamily": "sans"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "Project license (original design)",
+        "licenseFile": null,
+        "noticeFile": null,
+        "classification": "original-project-design",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "compact",
+      "source": "original",
+      "name": "精练履历",
+      "label": "COMPACT",
+      "description": "窄行距、横向信息带与紧凑分节，让重点更集中。",
+      "tag": "高密度",
+      "en": {
+        "name": "Compact",
+        "description": "Tighter line spacing, a horizontal information bar and compact sections concentrate the key points.",
+        "tag": "High density"
+      },
+      "recommended": {
+        "accentColor": "#293c58",
+        "fontFamily": "sans"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "Project license (original design)",
+        "licenseFile": null,
+        "noticeFile": null,
+        "classification": "original-project-design",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "rendercv-classic",
+      "source": "rendercv",
+      "name": "RenderCV · Classic",
+      "label": "CLASSIC",
+      "description": "原生适配 RenderCV Classic：居中身份、延伸节线与清楚的日期对齐；不依赖 Typst。",
+      "tag": "居中经典",
+      "en": {
+        "name": "RenderCV · Classic",
+        "description": "Native adaptation of RenderCV Classic: centered identity, extended section rules and aligned dates. No Typst runtime required.",
+        "tag": "Centered classic"
+      },
+      "recommended": {
+        "accentColor": "#004f90",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/rendercv/rendercv",
+      "licensePath": "rendercv",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/rendercv/LICENSE",
+        "noticeFile": "templates/licenses/rendercv/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "rendercv-engineeringresumes",
+      "source": "rendercv",
+      "name": "RenderCV · Engineering",
+      "label": "ENGINEERING",
+      "description": "原生适配 EngineeringResumes：职位优先、衬线层次、完整链接地址与细线分节。",
+      "tag": "工程师单栏",
+      "en": {
+        "name": "RenderCV · Engineering",
+        "description": "Native EngineeringResumes adaptation with role-first headings, serif hierarchy, visible link destinations and fine rules.",
+        "tag": "Engineering single column"
+      },
+      "recommended": {
+        "accentColor": "#111111",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/rendercv/rendercv",
+      "licensePath": "rendercv",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/rendercv/LICENSE",
+        "noticeFile": "templates/licenses/rendercv/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "rendercv-moderncv",
+      "source": "rendercv",
+      "name": "RenderCV · ModernCV",
+      "label": "MODERNCV",
+      "description": "原生适配 ModernCV：左侧日期轨、左对齐大字姓名与明确的章节横线。",
+      "tag": "日期侧轨",
+      "en": {
+        "name": "RenderCV · ModernCV",
+        "description": "Native ModernCV adaptation with a date rail, left-aligned name and pronounced section rules.",
+        "tag": "Date rail"
+      },
+      "recommended": {
+        "accentColor": "#004f90",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/rendercv/rendercv",
+      "licensePath": "rendercv",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/rendercv/LICENSE",
+        "noticeFile": "templates/licenses/rendercv/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "rendercv-engineeringclassic",
+      "source": "rendercv",
+      "name": "RenderCV · 工程经典",
+      "label": "ENGINEERING CLASSIC",
+      "description": "左对齐姓名、常规字重标题和全宽节线；工作职位优先，保留 Engineering Classic 的轻盈无衬线节奏。",
+      "tag": "左对齐工程履历",
+      "en": {
+        "name": "RenderCV · Engineering Classic",
+        "description": "Left-aligned identity, regular-weight headings, full-width rules and role-first work entries follow Engineering Classic's light sans-serif rhythm.",
+        "tag": "Left-aligned engineering"
+      },
+      "recommended": {
+        "accentColor": "#004f90",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/rendercv/rendercv",
+      "licensePath": "rendercv",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/rendercv/LICENSE",
+        "noticeFile": "templates/licenses/rendercv/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "rendercv-sb2nov",
+      "source": "rendercv",
+      "name": "RenderCV · Sb2nov",
+      "label": "SB2NOV",
+      "description": "居中姓名、全宽节线、职位与斜体机构上下排列，配合斜体日期、完整链接和空心圆要点。",
+      "tag": "双行学术层次",
+      "en": {
+        "name": "RenderCV · Sb2nov",
+        "description": "Centered identity and full rules frame stacked role/italic organization headings, italic dates, visible link destinations and hollow bullets.",
+        "tag": "Stacked academic hierarchy"
+      },
+      "recommended": {
+        "accentColor": "#111111",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/rendercv/rendercv",
+      "licensePath": "rendercv",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/rendercv/LICENSE",
+        "noticeFile": "templates/licenses/rendercv/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "rendercv-harvard",
+      "source": "rendercv",
+      "name": "RenderCV · Harvard",
+      "label": "HARVARD",
+      "description": "居中姓名与章节、标题两侧等长细线、机构优先的简练单栏；衬线默认保留正式感。",
+      "tag": "居中双侧节线",
+      "en": {
+        "name": "RenderCV · Harvard",
+        "description": "Centered identity and chapter labels between balanced rules, with company-first headings and a concise serif default.",
+        "tag": "Balanced centered rules"
+      },
+      "recommended": {
+        "accentColor": "#111111",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/rendercv/rendercv",
+      "licensePath": "rendercv",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/rendercv/LICENSE",
+        "noticeFile": "templates/licenses/rendercv/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "rendercv-ink",
+      "source": "rendercv",
+      "name": "RenderCV · 墨韵",
+      "label": "INK",
+      "description": "左对齐大字姓名、无横线小型大写章节、机构下的斜体职位与紧凑要点，建议使用深紫衬线配色。",
+      "tag": "无节线衬线",
+      "en": {
+        "name": "RenderCV · Ink",
+        "description": "A left-aligned name, unruled small-cap chapters, italic roles below organizations and compact bullets. A deep-purple serif palette is suggested.",
+        "tag": "Unruled serif"
+      },
+      "recommended": {
+        "accentColor": "#2a1852",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/rendercv/rendercv",
+      "licensePath": "rendercv",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/rendercv/LICENSE",
+        "noticeFile": "templates/licenses/rendercv/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "rendercv-opal",
+      "source": "rendercv",
+      "name": "RenderCV · 蛋白石",
+      "label": "OPAL",
+      "description": "居中无节线章节、轻字重小型大写、空心圆要点与收窄正文列；建议青绿无衬线配色。",
+      "tag": "轻盈短行正文",
+      "en": {
+        "name": "RenderCV · Opal",
+        "description": "Centered unruled chapters, light small caps and hollow bullets, with shorter body rows aligned before the date column. A teal sans-serif palette is suggested.",
+        "tag": "Light short rows"
+      },
+      "recommended": {
+        "accentColor": "#00645a",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/rendercv/rendercv",
+      "licensePath": "rendercv",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/rendercv/LICENSE",
+        "noticeFile": "templates/licenses/rendercv/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "rendercv-ember",
+      "source": "rendercv",
+      "name": "RenderCV · 余烬",
+      "label": "EMBER",
+      "description": "衬线姓名与无衬线正文、居中无节线章节、独立斜体职位和菱形要点；建议暖红配色。",
+      "tag": "混合字体菱形要点",
+      "en": {
+        "name": "RenderCV · Ember",
+        "description": "A serif identity over a sans-serif default body, centered unruled chapters, separate italic roles and diamond bullets. A warm-red palette is suggested.",
+        "tag": "Mixed type and diamonds"
+      },
+      "recommended": {
+        "accentColor": "#9b2319",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/rendercv/rendercv",
+      "licensePath": "rendercv",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/rendercv/LICENSE",
+        "noticeFile": "templates/licenses/rendercv/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-stackoverflow",
+      "source": "jsonresume",
+      "name": "JSON Resume · Stack Overflow",
+      "label": "STACK OVERFLOW",
+      "description": "适配 Stack Overflow 主题的横线分节、浅蓝关键词与清晰字级，直接使用当前简历内容。",
+      "tag": "清晰技术履历",
+      "en": {
+        "name": "JSON Resume · Stack Overflow",
+        "description": "Adapts the Stack Overflow theme's ruled sections, blue keywords and clear hierarchy to your current resume.",
+        "tag": "Technical clarity"
+      },
+      "recommended": {
+        "accentColor": "#315c7b",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/phoinixi/jsonresume-theme-stackoverflow",
+      "licensePath": "jsonresume-stackoverflow",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-stackoverflow/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-stackoverflow/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-kendall",
+      "source": "jsonresume",
+      "name": "JSON Resume · Kendall",
+      "label": "KENDALL",
+      "description": "居中身份、灰底经历抬头和青色技能标签；适配为顺序单栏，保留自由分节排序。",
+      "tag": "顺序单栏适配",
+      "en": {
+        "name": "JSON Resume · Kendall",
+        "description": "Centered identity, shaded experience headings and teal skill tags. Adapted to one column to preserve your section order.",
+        "tag": "Sequential adaptation"
+      },
+      "recommended": {
+        "accentColor": "#257d87",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/LinuxBozo/jsonresume-theme-kendall",
+      "licensePath": "jsonresume-kendall",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-kendall/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-kendall/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-elegant",
+      "source": "jsonresume",
+      "name": "JSON Resume · Elegant",
+      "label": "ELEGANT",
+      "description": "浅底身份卡、细边章节和蓝色强调。 原生适配，保留现有分节顺序与字段。",
+      "tag": "资料卡片",
+      "en": {
+        "name": "JSON Resume · Elegant",
+        "description": "A softly shaded identity card, fine chapter borders and blue accents. Native adaptation retaining section order and existing fields.",
+        "tag": "Profile cards"
+      },
+      "recommended": {
+        "accentColor": "#428bca",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/mudassir0909/jsonresume-theme-elegant",
+      "licensePath": "jsonresume-elegant",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-elegant/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-elegant/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-even",
+      "source": "jsonresume",
+      "name": "JSON Resume · Even",
+      "label": "EVEN",
+      "description": "轻字重抬头、自然分节与连续的经历时间线。 原生适配，保留现有分节顺序与字段。",
+      "tag": "轻字时间线",
+      "en": {
+        "name": "JSON Resume · Even",
+        "description": "A light masthead, clear sections and a continuous experience timeline. Native adaptation retaining section order and existing fields.",
+        "tag": "Light timeline"
+      },
+      "recommended": {
+        "accentColor": "#0073aa",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/rbardini/jsonresume-theme-even",
+      "licensePath": "jsonresume-even",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-even/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-even/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-flat",
+      "source": "jsonresume",
+      "name": "JSON Resume · Flat",
+      "label": "FLAT",
+      "description": "浅灰信息抬头、黄色侧标章节和细线经历。 原生适配，保留现有分节顺序与字段。",
+      "tag": "侧标平面",
+      "en": {
+        "name": "JSON Resume · Flat",
+        "description": "A light gray masthead, yellow marginal chapter labels and fine entry rules. Native adaptation retaining section order and existing fields.",
+        "tag": "Flat side labels"
+      },
+      "recommended": {
+        "accentColor": "#b18a00",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org",
+      "licensePath": "jsonresume-flat",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-flat/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-flat/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-jacrys",
+      "source": "jsonresume",
+      "name": "JSON Resume · Jacrys",
+      "label": "JACRYS",
+      "description": "大写居中身份、青绿标题、深色技能标签。 原生适配，保留现有分节顺序与字段。",
+      "tag": "青绿章节",
+      "en": {
+        "name": "JSON Resume · Jacrys",
+        "description": "Centered uppercase identity, teal chapters and dark skill tags. Native adaptation retaining section order and existing fields.",
+        "tag": "Teal chapters"
+      },
+      "recommended": {
+        "accentColor": "#227c74",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jacrys/jsonresume-theme-jacrys",
+      "licensePath": "jsonresume-jacrys",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-jacrys/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-jacrys/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-lucide",
+      "source": "jsonresume",
+      "name": "JSON Resume · Lucide",
+      "label": "LUCIDE",
+      "description": "蓝色圆角资料侧轨、清楚的正文与时间层次。 原生适配，保留现有分节顺序与字段。",
+      "tag": "蓝色资料轨",
+      "en": {
+        "name": "JSON Resume · Lucide",
+        "description": "A blue rounded profile rail with clear body and date hierarchy. Native adaptation retaining section order and existing fields.",
+        "tag": "Blue profile rail"
+      },
+      "recommended": {
+        "accentColor": "#0077cc",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/Clement-Cauet/jsonresume-theme-lucide",
+      "licensePath": "jsonresume-lucide",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-lucide/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-lucide/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-macchiato",
+      "source": "jsonresume",
+      "name": "JSON Resume · Macchiato",
+      "label": "MACCHIATO",
+      "description": "疏朗字距、轻字章节与独立个人资料侧栏。 原生适配，保留现有分节顺序与字段。",
+      "tag": "轻盈双栏",
+      "en": {
+        "name": "JSON Resume · Macchiato",
+        "description": "Open tracking, light section labels and a separate profile rail. Native adaptation retaining section order and existing fields.",
+        "tag": "Light two columns"
+      },
+      "recommended": {
+        "accentColor": "#39424b",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/biosan/jsonresume-theme-macchiato",
+      "licensePath": "jsonresume-macchiato",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-macchiato/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-macchiato/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-minyma",
+      "source": "jsonresume",
+      "name": "JSON Resume · Minyma",
+      "label": "MINYMA",
+      "description": "居中身份、粗字章节、细分隔线与深色胶囊技能标签。 原生适配，保留现有分节顺序与字段。",
+      "tag": "极简胶囊标签",
+      "en": {
+        "name": "JSON Resume · Minyma",
+        "description": "Centered identity, bold chapters, fine dividers and dark pill tags. Native adaptation retaining section order and existing fields.",
+        "tag": "Minimal pill tags"
+      },
+      "recommended": {
+        "accentColor": "#0369a1",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/godraadam/jsonresume-theme-minyma",
+      "licensePath": "jsonresume-minyma",
+      "licenseLabel": "ISC",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "ISC",
+        "licenseFile": "templates/licenses/jsonresume-minyma/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-minyma/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-paper-plus-plus",
+      "source": "jsonresume",
+      "name": "JSON Resume · Paper++",
+      "label": "PAPER++",
+      "description": "居中衬线抬头、窄侧标与淡灰正文竖线。 原生适配，保留现有分节顺序与字段。",
+      "tag": "书页侧标",
+      "en": {
+        "name": "JSON Resume · Paper++",
+        "description": "A centered serif masthead, narrow marginal labels and a pale vertical text rail. Native adaptation retaining section order and existing fields.",
+        "tag": "Paper side labels"
+      },
+      "recommended": {
+        "accentColor": "#424242",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/lindell/jsonresume-theme-paper",
+      "licensePath": "jsonresume-paper-plus-plus",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-paper-plus-plus/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-paper-plus-plus/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-professional",
+      "source": "jsonresume",
+      "name": "JSON Resume · Professional",
+      "label": "PROFESSIONAL",
+      "description": "居中大字身份、斜体职位与简洁开放章节。 原生适配，保留现有分节顺序与字段。",
+      "tag": "专业居中",
+      "en": {
+        "name": "JSON Resume · Professional",
+        "description": "A large centered identity, italic roles and open, simple chapters. Native adaptation retaining section order and existing fields.",
+        "tag": "Professional centered"
+      },
+      "recommended": {
+        "accentColor": "#222222",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org",
+      "licensePath": "jsonresume-professional",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-professional/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-professional/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-pumpkin",
+      "source": "jsonresume",
+      "name": "JSON Resume · Pumpkin",
+      "label": "PUMPKIN",
+      "description": "炭黑身份横幅、金黄色强调与平面分节。 原生适配，保留现有分节顺序与字段。",
+      "tag": "深色金黄抬头",
+      "en": {
+        "name": "JSON Resume · Pumpkin",
+        "description": "A charcoal identity banner, golden accents and flat chapter labels. Native adaptation retaining section order and existing fields.",
+        "tag": "Charcoal and gold"
+      },
+      "recommended": {
+        "accentColor": "#b88600",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/bvosk/jsonresume-theme-pumpkin",
+      "licensePath": "jsonresume-pumpkin",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-pumpkin/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-pumpkin/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-tan-responsive",
+      "source": "jsonresume",
+      "name": "JSON Resume · Tan Responsive",
+      "label": "TAN RESPONSIVE",
+      "description": "浅灰信息横幅、琥珀细线与斜体章节侧标。 原生适配，保留现有分节顺序与字段。",
+      "tag": "琥珀侧标",
+      "en": {
+        "name": "JSON Resume · Tan Responsive",
+        "description": "A gray information band, amber rule and italic marginal chapter labels. Native adaptation retaining section order and existing fields.",
+        "tag": "Amber side labels"
+      },
+      "recommended": {
+        "accentColor": "#b77c05",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/veeravn/jsonresume-theme-responsive",
+      "licensePath": "jsonresume-tan-responsive",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-tan-responsive/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-tan-responsive/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-claude",
+      "source": "jsonresume",
+      "name": "JSON Resume · Claude",
+      "label": "CLAUDE",
+      "description": "三色细条抬头、等宽日期与清楚的经历分隔。 原生适配，保留现有分节顺序与字段。",
+      "tag": "条纹技术卡片",
+      "en": {
+        "name": "JSON Resume · Claude",
+        "description": "A three-color header stripe, monospaced dates and clearly separated entries. Native adaptation retaining section order and existing fields.",
+        "tag": "Striped technical card"
+      },
+      "recommended": {
+        "accentColor": "#2563eb",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org",
+      "licensePath": "jsonresume-claude",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-claude/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-claude/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-colophon",
+      "source": "jsonresume",
+      "name": "JSON Resume · Colophon",
+      "label": "COLOPHON",
+      "description": "大字衬线姓名、等宽边注章节与暖色细线。 原生适配，保留现有分节顺序与字段。",
+      "tag": "书刊边注",
+      "en": {
+        "name": "JSON Resume · Colophon",
+        "description": "A large serif name, monospaced marginal chapter notes and warm fine rules. Native adaptation retaining section order and existing fields.",
+        "tag": "Editorial margin notes"
+      },
+      "recommended": {
+        "accentColor": "#a8442d",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/dmnelson/jsonresume-theme-colophon",
+      "licensePath": "jsonresume-colophon",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-colophon/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-colophon/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-creative-confidence",
+      "source": "jsonresume",
+      "name": "JSON Resume · Creative Confidence",
+      "label": "CREATIVE CONFIDENCE",
+      "description": "居中深蓝横幅、斜体经历副题与淡蓝技能区；正文按用户顺序排列。 原生适配，保留现有分节顺序与字段。",
+      "tag": "深蓝身份横幅",
+      "en": {
+        "name": "JSON Resume · Creative Confidence",
+        "description": "A centered navy banner, italic entry subtitles and a pale-blue skill area; sections retain your order. Native adaptation retaining section order and existing fields.",
+        "tag": "Navy identity banner"
+      },
+      "recommended": {
+        "accentColor": "#0f274d",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org",
+      "licensePath": "jsonresume-creative-confidence",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-creative-confidence/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-creative-confidence/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-desert-modern",
+      "source": "jsonresume",
+      "name": "JSON Resume · 沙漠现代",
+      "label": "DESERT MODERN",
+      "description": "暖沙色抬头、宽字距章节与轻线条。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Desert Modern",
+        "description": "Native adaptation with sand-tinted identity, widely spaced chapter labels and fine rules. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#b45309",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-desert-modern",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-elegant-pink",
+      "source": "jsonresume",
+      "name": "JSON Resume · 玫瑰优雅",
+      "label": "ELEGANT PINK",
+      "description": "玫瑰渐变身份栏、醒目的姓名和浅色技能块。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Elegant Pink",
+        "description": "Native adaptation with rose gradient masthead, strong name and lightly shaded skill labels. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#9f1239",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-elegant-pink",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-tailwind",
+      "source": "jsonresume",
+      "name": "JSON Resume · Tailwind 工具风格",
+      "label": "TAILWIND",
+      "description": "轻量身份栏、等宽日期与圆角细框标签。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Tailwind",
+        "description": "Native adaptation with lightweight identity, monospaced dates and rounded outlined badges. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#334155",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-tailwind",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-academic-cv-lite",
+      "source": "jsonresume",
+      "name": "JSON Resume · 学术履历",
+      "label": "ACADEMIC CV LITE",
+      "description": "居中学术抬头、纯文字层级与细线分节。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Academic CV Lite",
+        "description": "Native adaptation with centered scholarly header, text hierarchy and fine chapter rules. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#111827",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-academic-cv-lite",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-bold-header-statement",
+      "source": "jsonresume",
+      "name": "JSON Resume · 醒目主张",
+      "label": "BOLD HEADER STATEMENT",
+      "description": "深青身份横幅、粗体大字和线框技能块。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Bold Header Statement",
+        "description": "Native adaptation with teal identity banner, bold display name and outlined skill blocks. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#0f766e",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-bold-header-statement",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-architects-portfolio",
+      "source": "jsonresume",
+      "name": "JSON Resume · 建筑师作品",
+      "label": "ARCHITECT'S PORTFOLIO",
+      "description": "轻字重几何抬头、长横线与细框标签。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Architect's Portfolio",
+        "description": "Native adaptation with light geometric identity, extended keylines and fine framed labels. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#4b5563",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-architects-portfolio",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-consultant-polished",
+      "source": "jsonresume",
+      "name": "JSON Resume · 顾问精排",
+      "label": "CONSULTANT POLISHED",
+      "description": "深海军蓝标题、衬线推荐字体和稳健双线层级。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Consultant Polished",
+        "description": "Native adaptation with navy headings, recommended serif type and measured double-rule hierarchy. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#0b1f3a",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-consultant-polished",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-creative-studio",
+      "source": "jsonresume",
+      "name": "JSON Resume · 创意工作室",
+      "label": "CREATIVE STUDIO",
+      "description": "珊瑚色浅底抬头、圆角标签与柔和卡片。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Creative Studio",
+        "description": "Native adaptation with coral-tinted masthead, rounded labels and soft experience cards. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#c74444",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-creative-studio",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-data-driven",
+      "source": "jsonresume",
+      "name": "JSON Resume · 数据驱动",
+      "label": "DATA-DRIVEN",
+      "description": "几何大写抬头、数字日期与细框技能标签。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Data-Driven",
+        "description": "Native adaptation with geometric uppercase identity, tabular dates and outlined skill tags. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#1e40af",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-data-driven",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-developer-mono",
+      "source": "jsonresume",
+      "name": "JSON Resume · 开发者等宽",
+      "label": "DEVELOPER MONO",
+      "description": "等宽身份、代码块式技能区与蓝色强调。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Developer Mono",
+        "description": "Native adaptation with monospaced identity, code-block skills and blue accents. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#2563eb",
+        "fontFamily": "mono"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-developer-mono",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-executive-slate",
+      "source": "jsonresume",
+      "name": "JSON Resume · 高管石板灰",
+      "label": "EXECUTIVE SLATE",
+      "description": "石板色资料侧栏、清楚的正文与技能强调线。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Executive Slate",
+        "description": "Native adaptation with slate profile rail, open main content and ruled skills. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#475569",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-executive-slate",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-government-standard",
+      "source": "jsonresume",
+      "name": "JSON Resume · 正式公文",
+      "label": "GOVERNMENT STANDARD",
+      "description": "居中正式身份、粗细分明的横线与黑白结构。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Government Standard",
+        "description": "Native adaptation with centered formal identity, weighted rules and monochrome structure. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#111111",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-government-standard",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-marketing-narrative",
+      "source": "jsonresume",
+      "name": "JSON Resume · 叙事营销",
+      "label": "MARKETING NARRATIVE",
+      "description": "居中身份、玫红定位与叙事感的经历块。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Marketing Narrative",
+        "description": "Native adaptation with centered masthead, rose role line and narrative experience blocks. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#be123c",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-marketing-narrative",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-minimalist-grid",
+      "source": "jsonresume",
+      "name": "JSON Resume · 极简栅格",
+      "label": "MINIMALIST GRID",
+      "description": "轻字重、大字距、细线和留白。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Minimalist Grid",
+        "description": "Native adaptation with light typography, open tracking, fine rules and whitespace. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#4b5563",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-minimalist-grid",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-modern-classic",
+      "source": "jsonresume",
+      "name": "JSON Resume · 现代经典",
+      "label": "MODERN CLASSIC",
+      "description": "清楚的姓名层级、细灰分节与侧线技能块。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Modern Classic",
+        "description": "Native adaptation with clear name hierarchy, fine grey sections and railed skills. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#0066cc",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-modern-classic",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-operations-precision",
+      "source": "jsonresume",
+      "name": "JSON Resume · 运营精度",
+      "label": "OPERATIONS PRECISION",
+      "description": "紧凑抬头、青色横线与表格式技能区。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Operations Precision",
+        "description": "Native adaptation with compact header, teal rules and a skills table. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#0f766e",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-operations-precision",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-product-manager-canvas",
+      "source": "jsonresume",
+      "name": "JSON Resume · 产品经理画布",
+      "label": "PRODUCT MANAGER CANVAS",
+      "description": "居中身份、紫色定位与清晰的线框卡片。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Product Manager Canvas",
+        "description": "Native adaptation with centered identity, violet role line and outlined blocks. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#6d28d9",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-product-manager-canvas",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-reference",
+      "source": "jsonresume",
+      "name": "JSON Resume · 参考版式",
+      "label": "REFERENCE",
+      "description": "中性的居中身份、标准文字层级与自然阅读。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Reference",
+        "description": "Native adaptation with neutral centered identity, standard hierarchy and natural reading order. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#222222",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-reference",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-sales-hunter",
+      "source": "jsonresume",
+      "name": "JSON Resume · 业绩先锋",
+      "label": "SALES HUNTER",
+      "description": "强势大写身份、绿色粗线和实色技能标签。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Sales Hunter",
+        "description": "Native adaptation with bold uppercase name, green rules and solid skill labels. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#15803d",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-sales-hunter",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-sidebar",
+      "source": "jsonresume",
+      "name": "JSON Resume · 侧栏专业",
+      "label": "SIDEBAR",
+      "description": "深蓝资料栏、主栏清楚分节与开放正文。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Sidebar",
+        "description": "Native adaptation with deep blue profile rail, divided main chapters and open content. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#1e3a5f",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-sidebar",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-tokyo-modernist",
+      "source": "jsonresume",
+      "name": "JSON Resume · 东京现代",
+      "label": "TOKYO MODERNIST",
+      "description": "品红侧线、几何切角与利落大写身份。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Tokyo Modernist",
+        "description": "Native adaptation with magenta edge, geometric corner accents and uppercase identity. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#c71585",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-tokyo-modernist",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-university-first",
+      "source": "jsonresume",
+      "name": "JSON Resume · 校园启程",
+      "label": "UNIVERSITY FIRST",
+      "description": "蓝色居中身份横幅与轻巧的分节。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · University First",
+        "description": "Native adaptation with blue centered identity banner and approachable sections. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#1d4ed8",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-university-first",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-writers-portfolio",
+      "source": "jsonresume",
+      "name": "JSON Resume · 写作者作品",
+      "label": "WRITER'S PORTFOLIO",
+      "description": "居中衬线推荐字体、文学留白与细侧线。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Writer's Portfolio",
+        "description": "Native adaptation with centered literary identity, recommended serif type and fine side rules. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#4b413a",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-writers-portfolio",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-nordic-minimal",
+      "source": "jsonresume",
+      "name": "JSON Resume · 北欧留白",
+      "label": "NORDIC MINIMAL",
+      "description": "轻字重身份、冷灰横线与宽松的视觉节奏。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Nordic Minimal",
+        "description": "Native adaptation with light identity, cool grey rules and calm spacing. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#456578",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-nordic-minimal",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-graph-paper-grid",
+      "source": "jsonresume",
+      "name": "JSON Resume · 方格工程纸",
+      "label": "GRAPH PAPER GRID",
+      "description": "细网格背景、线框抬头和技术标签。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Graph Paper Grid",
+        "description": "Native adaptation with fine graph background, framed header and technical labels. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#374151",
+        "fontFamily": "mono"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-graph-paper-grid",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-monochrome-noir",
+      "source": "jsonresume",
+      "name": "JSON Resume · 黑白画册",
+      "label": "MONOCHROME NOIR",
+      "description": "黑白强对比、大写粗字和极细分隔。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Monochrome Noir",
+        "description": "Native adaptation with monochrome contrast, bold uppercase name and fine separators. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#111111",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-monochrome-noir",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-mid-century-resume",
+      "source": "jsonresume",
+      "name": "JSON Resume · 世纪中叶",
+      "label": "MID-CENTURY RESUME",
+      "description": "复古几何身份、琥珀粗线与居中线框标签。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Mid-Century Resume",
+        "description": "Native adaptation with retro geometric identity, amber rules and centered framed labels. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#b45309",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-mid-century-resume",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-two-column-modernist",
+      "source": "jsonresume",
+      "name": "JSON Resume · 双栏现代主义",
+      "label": "TWO-COLUMN MODERNIST",
+      "description": "非对称资料栏、细分隔线与中性标签。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Two-Column Modernist",
+        "description": "Native adaptation with asymmetric profile rail, fine dividers and neutral labels. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#374151",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-two-column-modernist",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-sidebar-photo-strip",
+      "source": "jsonresume",
+      "name": "JSON Resume · 照片侧栏",
+      "label": "SIDEBAR PHOTO STRIP",
+      "description": "深色照片资料栏、灰度头像与轻量正文。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Sidebar Photo Strip",
+        "description": "Native adaptation with dark portrait rail, grayscale optional photo and lightweight body. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#1f2937",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-sidebar-photo-strip",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-diagonal-accent-bar",
+      "source": "jsonresume",
+      "name": "JSON Resume · 斜向强调",
+      "label": "DIAGONAL ACCENT BAR",
+      "description": "玫红斜向边线、宽字距身份与侧线标签。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Diagonal Accent Bar",
+        "description": "Native adaptation with rose diagonal accent, tracked identity and railed skill labels. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#be123c",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-diagonal-accent-bar",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-asymmetric-timeline",
+      "source": "jsonresume",
+      "name": "JSON Resume · 交错时间线",
+      "label": "ASYMMETRIC TIMELINE",
+      "description": "居中身份、交错缩进经历卡片与细时间线。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Asymmetric Timeline",
+        "description": "Native adaptation with centered identity, staggered experience cards and a fine timeline. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#334155",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-asymmetric-timeline",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-typewriter-modern",
+      "source": "jsonresume",
+      "name": "JSON Resume · 现代打字机",
+      "label": "TYPEWRITER MODERN",
+      "description": "打字机推荐字体、虚线分节与纸张感标签。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Typewriter Modern",
+        "description": "Native adaptation with recommended typewriter face, dashed chapters and paper-like labels. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#3f3f3f",
+        "fontFamily": "mono"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-typewriter-modern",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-new-york-editorial",
+      "source": "jsonresume",
+      "name": "JSON Resume · 纽约编辑部",
+      "label": "NEW YORK EDITORIAL",
+      "description": "重衬线推荐身份、居中横线与红色细节。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · New York Editorial",
+        "description": "Native adaptation with heavy recommended serif identity, centered rule and restrained red details. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#303030",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-new-york-editorial",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-berlin-grid",
+      "source": "jsonresume",
+      "name": "JSON Resume · 柏林栅格",
+      "label": "BERLIN GRID",
+      "description": "工程化粗横线、矩形技能网格与精确对齐。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Berlin Grid",
+        "description": "Native adaptation with engineered heavy rules, rectangular skill grid and precise alignment. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#1a1a1a",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-berlin-grid",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-californian-warm",
+      "source": "jsonresume",
+      "name": "JSON Resume · 加州暖阳",
+      "label": "CALIFORNIAN WARM",
+      "description": "暖琥珀圆角身份栏、轻阴影与柔和标签。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Californian Warm",
+        "description": "Native adaptation with warm amber rounded identity, soft shadows and gentle labels. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#b45309",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-californian-warm",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-london-bureau",
+      "source": "jsonresume",
+      "name": "JSON Resume · 伦敦事务所",
+      "label": "LONDON BUREAU",
+      "description": "传统衬线推荐身份、三重层级横线与紧凑正文。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · London Bureau",
+        "description": "Native adaptation with heritage recommended serif identity, weighted rules and compact hierarchy. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#3c332c",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-london-bureau",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-pacific-horizon",
+      "source": "jsonresume",
+      "name": "JSON Resume · 太平洋天际",
+      "label": "PACIFIC HORIZON",
+      "description": "居中现代身份、蓝色短线和开放式技能组。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Pacific Horizon",
+        "description": "Native adaptation with centered modern identity, short blue rules and open skills. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#0369a1",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-pacific-horizon",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-french-atelier",
+      "source": "jsonresume",
+      "name": "JSON Resume · 法式工坊",
+      "label": "FRENCH ATELIER",
+      "description": "高对比衬线推荐身份、梅紫色细线与编辑节奏。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · French Atelier",
+        "description": "Native adaptation with contrasting recommended serif identity, plum rules and editorial rhythm. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#3b0a45",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-french-atelier",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-clinical-precision",
+      "source": "jsonresume",
+      "name": "JSON Resume · 临床精度",
+      "label": "CLINICAL PRECISION",
+      "description": "病历式抬头、绿色条目轨、等宽日期和薄荷技能格。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Clinical Precision",
+        "description": "Native adaptation with chart-like identity, green entry rail, monospaced dates and mint skills. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#047857",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-clinical-precision",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-field-researcher",
+      "source": "jsonresume",
+      "name": "JSON Resume · 田野研究笔记",
+      "label": "FIELD RESEARCHER",
+      "description": "笔记式分节编号、等宽元信息与青绿色页边线。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Field Researcher",
+        "description": "Native adaptation with notebook chapter numbering, monospaced metadata and teal marginal rules. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#0b5f57",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-field-researcher",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-urban-techno",
+      "source": "jsonresume",
+      "name": "JSON Resume · 都市技术",
+      "label": "URBAN TECHNO",
+      "description": "黑色分割身份栏、硬边框与密实的技术标签。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Urban Techno",
+        "description": "Native adaptation with split black identity, hard rules and dense technical labels. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#171717",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-urban-techno",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-coastal-creative",
+      "source": "jsonresume",
+      "name": "JSON Resume · 海岸创作",
+      "label": "COASTAL CREATIVE",
+      "description": "平静居中身份、海蓝色标题与柔和技能卡片。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Coastal Creative",
+        "description": "Native adaptation with calm centered identity, ocean-blue headings and softly framed skills. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#0369a1",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-coastal-creative",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-investor-brief",
+      "source": "jsonresume",
+      "name": "JSON Resume · 投资简报",
+      "label": "INVESTOR BRIEF",
+      "description": "居中简报身份、紧凑数据层级与浅灰技能块。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Investor Brief",
+        "description": "Native adaptation with centered report identity, compact data hierarchy and pale skill blocks. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#334155",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-investor-brief",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-art-school-modern",
+      "source": "jsonresume",
+      "name": "JSON Resume · 艺术学院现代",
+      "label": "ART SCHOOL MODERN",
+      "description": "画廊式粗字身份、编号章节与朱红细节。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Art School Modern",
+        "description": "Native adaptation with gallery-like display identity, numbered chapters and vermilion details. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#d32f18",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-art-school-modern",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-community-garden",
+      "source": "jsonresume",
+      "name": "JSON Resume · 社区花园",
+      "label": "COMMUNITY GARDEN",
+      "description": "天空蓝与浅绿身份面板、圆角技能块和亲和留白。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Community Garden",
+        "description": "Native adaptation with sky-and-garden identity panel, rounded skills and approachable spacing. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#047857",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-community-garden",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-industrial-engineer",
+      "source": "jsonresume",
+      "name": "JSON Resume · 工业工程图",
+      "label": "INDUSTRIAL ENGINEER",
+      "description": "图纸铭牌抬头、规格表联系人与尺寸线分节。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Industrial Engineer",
+        "description": "Native adaptation with drawing-title identity, spec-table contacts and dimension rules. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#1b3a5b",
+        "fontFamily": "mono"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-industrial-engineer",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-brutalist",
+      "source": "jsonresume",
+      "name": "JSON Resume · 粗野结构",
+      "label": "BRUTALIST",
+      "description": "硬黑粗线、编号章节与错位块阴影。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Brutalist",
+        "description": "Native adaptation with heavy black rules, chapter numbers and offset block shadows. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#ffe600",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-brutalist",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-art-deco",
+      "source": "jsonresume",
+      "name": "JSON Resume · 装饰艺术",
+      "label": "ART DECO",
+      "description": "对称珠宝色身份、金色双线与几何装饰。开源原生适配，使用系统字体并保留当前分节顺序。",
+      "tag": "开源原生适配",
+      "en": {
+        "name": "JSON Resume · Art Deco",
+        "description": "Native adaptation with symmetric jewel-tone identity, gold double rules and geometric ornament. System fonts and your selected section order are retained.",
+        "tag": "Native adaptation"
+      },
+      "recommended": {
+        "accentColor": "#b18c3a",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-art-deco",
+      "licensePath": "jsonresume-team",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/jsonresume-team/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-team/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "jsonresume-rickosborne",
+      "source": "jsonresume",
+      "name": "JSON Resume · Rick Osborne",
+      "label": "RICK OSBORNE",
+      "description": "轻衬线姓名、右侧联系资料轨、灰色圆角技能标签与方形要点。仅限非商业使用，改编采用相同许可并保留署名。",
+      "tag": "仅限非商业 · 衬线右轨",
+      "en": {
+        "name": "JSON Resume · Rick Osborne",
+        "description": "A light serif identity, right contact rail, pale rounded skill tags and square bullets. Noncommercial use only; adaptations retain attribution and share alike.",
+        "tag": "Noncommercial · serif right rail"
+      },
+      "recommended": {
+        "accentColor": "#224488",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/rickosborne/jsonresume-theme-rickosborne",
+      "licensePath": "jsonresume-rickosborne",
+      "licenseLabel": "CC BY-NC-SA 4.0",
+      "usageRestriction": {
+        "zh": "仅限非商业使用",
+        "en": "Noncommercial use only"
+      },
+      "attribution": {
+        "text": "Rick Osborne · jsonresume-theme-rickosborne · modified BetterMe adaptation",
+        "url": "https://github.com/rickosborne/jsonresume-theme-rickosborne",
+        "license": "CC BY-NC-SA 4.0 · Noncommercial use only",
+        "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "CC BY-NC-SA 4.0",
+        "licenseFile": "templates/licenses/jsonresume-rickosborne/LICENSE",
+        "noticeFile": "templates/licenses/jsonresume-rickosborne/NOTICE.md",
+        "classification": "source-available-noncommercial",
+        "nonCommercial": true,
+        "attribution": {
+          "text": "Rick Osborne · jsonresume-theme-rickosborne · modified BetterMe adaptation",
+          "url": "https://github.com/rickosborne/jsonresume-theme-rickosborne",
+          "license": "CC BY-NC-SA 4.0 · Noncommercial use only",
+          "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+        }
+      }
+    },
+    {
+      "id": "newfuture",
+      "source": "newfuture",
+      "name": "NewFuture · 中文履历",
+      "label": "NEWFUTURE",
+      "description": "适配 NewFuture/CV 的中文侧标、蓝色线条与轻框日期，保留正文的完整阅读顺序。",
+      "tag": "中文侧标",
+      "en": {
+        "name": "NewFuture · CV",
+        "description": "Adapts NewFuture/CV's marginal section labels, blue rules and outlined dates while preserving content order.",
+        "tag": "Chinese side labels"
+      },
+      "recommended": {
+        "accentColor": "#66aaee",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/NewFuture/CV",
+      "licensePath": "newfuture",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/newfuture/LICENSE",
+        "noticeFile": "templates/licenses/newfuture/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "billryan",
+      "source": "community",
+      "name": "billryan · 经典技术履历",
+      "label": "BILLRYAN",
+      "description": "从 awesome-resume-for-chinese 索引选入，适配 billryan/resume 的单栏、衬线标题与清晰分节。",
+      "tag": "中文技术单栏",
+      "en": {
+        "name": "billryan · Technical CV",
+        "description": "Selected via awesome-resume-for-chinese. A native adaptation of billryan/resume's single column, serif headings and clear sections.",
+        "tag": "Chinese technical CV"
+      },
+      "recommended": {
+        "accentColor": "#222222",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/billryan/resume",
+      "licensePath": "billryan",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/billryan/LICENSE",
+        "noticeFile": "templates/licenses/billryan/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "newfuture-flex",
+      "source": "newfuture",
+      "name": "NewFuture · 密集侧标",
+      "label": "NEWFUTURE FLEX",
+      "description": "适配源码 flex 打印配置：保留侧标、紧凑经历、无框日期与逗号技能。",
+      "tag": "密集侧标",
+      "en": {
+        "name": "NewFuture · Dense side labels",
+        "description": "Adapts the flex print configuration: marginal labels, compact entries, plain dates and comma-separated tags.",
+        "tag": "Dense side labels"
+      },
+      "recommended": {
+        "accentColor": "#66aaee",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/NewFuture/CV",
+      "licensePath": "newfuture",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/newfuture/LICENSE",
+        "noticeFile": "templates/licenses/newfuture/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "newfuture-block",
+      "source": "newfuture",
+      "name": "NewFuture · 居中分节",
+      "label": "NEWFUTURE BLOCK",
+      "description": "适配源码 block 打印配置：取消侧标栏、居中整行章节与紧凑条目。",
+      "tag": "整行章节",
+      "en": {
+        "name": "NewFuture · Centered chapters",
+        "description": "Adapts the block print configuration: centered full-width chapters, no side-label column and compact entries.",
+        "tag": "Full-width chapters"
+      },
+      "recommended": {
+        "accentColor": "#66aaee",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/NewFuture/CV",
+      "licensePath": "newfuture",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/newfuture/LICENSE",
+        "noticeFile": "templates/licenses/newfuture/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "source": "community",
+      "recommended": {
+        "accentColor": "#42b883",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/salomonelli/best-resume-ever",
+      "licensePath": "best-resume-ever",
+      "id": "best-resume-cool",
+      "name": "Best Resume · Cool",
+      "label": "COOL",
+      "description": "绿色页首、深色资料侧轨、方形技能标签；正文按当前分节顺序呈现。",
+      "tag": "横幅与深色侧轨",
+      "en": {
+        "name": "Best Resume · Cool",
+        "description": "Green masthead, dark contact rail and squared skill tags with your current section order.",
+        "tag": "Banner and dark rail"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/best-resume-ever/LICENSE",
+        "noticeFile": "templates/licenses/best-resume-ever/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "source": "community",
+      "recommended": {
+        "accentColor": "#42b883",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/salomonelli/best-resume-ever",
+      "licensePath": "best-resume-ever",
+      "id": "best-resume-cool-rtl",
+      "name": "Best Resume · Cool 镜像",
+      "label": "COOL MIRRORED",
+      "description": "Cool 的右侧深色资料轨变体，沿用原版从左到右的页首文字。",
+      "tag": "右侧资料轨",
+      "en": {
+        "name": "Best Resume · Cool mirrored",
+        "description": "The source Cool variant mirrors the dark contact rail to the right while keeping its left-aligned masthead.",
+        "tag": "Right contact rail"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/best-resume-ever/LICENSE",
+        "noticeFile": "templates/licenses/best-resume-ever/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "source": "community",
+      "recommended": {
+        "accentColor": "#42b883",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/salomonelli/best-resume-ever",
+      "licensePath": "best-resume-ever",
+      "id": "best-resume-cool-rtl2",
+      "name": "Best Resume · Cool 右对齐",
+      "label": "COOL RIGHT",
+      "description": "右侧深色资料轨与右对齐页首、章节和条目；保留源 cool-rtl2 的对齐变化。",
+      "tag": "右对齐镜像",
+      "en": {
+        "name": "Best Resume · Cool right-aligned",
+        "description": "The cool-rtl2 source adds right-aligned identity, chapters and entries to the mirrored contact rail.",
+        "tag": "Mirrored and right aligned"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/best-resume-ever/LICENSE",
+        "noticeFile": "templates/licenses/best-resume-ever/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "source": "community",
+      "recommended": {
+        "accentColor": "#a800fa",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/salomonelli/best-resume-ever",
+      "licensePath": "best-resume-ever",
+      "id": "best-resume-creative",
+      "name": "Best Resume · Creative",
+      "label": "CREATIVE",
+      "description": "紫色身份侧栏与白色联系方式、方形技能块；不添加原版兴趣和示例人物资料。",
+      "tag": "彩色身份侧栏",
+      "en": {
+        "name": "Best Resume · Creative",
+        "description": "A violet identity rail, white contact text and squared skills. Source hobbies and sample personal data are not added.",
+        "tag": "Colour identity rail"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/best-resume-ever/LICENSE",
+        "noticeFile": "templates/licenses/best-resume-ever/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "source": "community",
+      "recommended": {
+        "accentColor": "#008000",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/salomonelli/best-resume-ever",
+      "licensePath": "best-resume-ever",
+      "id": "best-resume-green",
+      "name": "Best Resume · Green",
+      "label": "GREEN",
+      "description": "渐暗绿色页首、上方职位、白色大写姓名和缩进经历；与 Purple 为同布局配色变体。",
+      "tag": "绿色配色变体",
+      "en": {
+        "name": "Best Resume · Green",
+        "description": "A shaded green masthead, headline above the name and indented entries. Shares the source layout with Purple.",
+        "tag": "Green palette variant"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/best-resume-ever/LICENSE",
+        "noticeFile": "templates/licenses/best-resume-ever/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "source": "community",
+      "recommended": {
+        "accentColor": "#333333",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/salomonelli/best-resume-ever",
+      "licensePath": "best-resume-ever",
+      "id": "best-resume-left-right",
+      "name": "Best Resume · Left Right",
+      "label": "LEFT RIGHT",
+      "description": "细框大写姓名、居中圆形头像与自然双栏正文，保留当前内容阅读顺序。",
+      "tag": "框姓名双栏",
+      "en": {
+        "name": "Best Resume · Left Right",
+        "description": "A framed uppercase name, centered circular portrait and sequential two-column body preserve the current content order.",
+        "tag": "Framed identity, two columns"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/best-resume-ever/LICENSE",
+        "noticeFile": "templates/licenses/best-resume-ever/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "source": "community",
+      "recommended": {
+        "accentColor": "#333333",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/salomonelli/best-resume-ever",
+      "licensePath": "best-resume-ever",
+      "id": "best-resume-left-right-projects",
+      "name": "Best Resume · Left Right 项目",
+      "label": "LEFT RIGHT PROJECTS",
+      "description": "Left Right 的紧凑项目版，项目章节跨越正文双栏；项目仍来自当前已选事实。",
+      "tag": "双栏与跨栏项目",
+      "en": {
+        "name": "Best Resume · Left Right projects",
+        "description": "A compact Left Right variant with projects spanning the two body columns, using the current selected facts.",
+        "tag": "Two columns, spanning projects"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/best-resume-ever/LICENSE",
+        "noticeFile": "templates/licenses/best-resume-ever/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "source": "community",
+      "recommended": {
+        "accentColor": "#333333",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/salomonelli/best-resume-ever",
+      "licensePath": "best-resume-ever",
+      "id": "best-resume-left-right-rtl",
+      "name": "Best Resume · Left Right RTL",
+      "label": "LEFT RIGHT RTL",
+      "description": "框姓名与双栏正文的 RTL 变体，调整阅读方向但不翻译或改写事实。",
+      "tag": "双栏 RTL",
+      "en": {
+        "name": "Best Resume · Left Right RTL",
+        "description": "The framed-name and two-column layout with the source RTL direction. Facts are neither translated nor rewritten.",
+        "tag": "Two-column RTL"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/best-resume-ever/LICENSE",
+        "noticeFile": "templates/licenses/best-resume-ever/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "source": "community",
+      "recommended": {
+        "accentColor": "#78909c",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/salomonelli/best-resume-ever",
+      "licensePath": "best-resume-ever",
+      "id": "best-resume-material-dark",
+      "name": "Best Resume · Material Dark",
+      "label": "MATERIAL DARK",
+      "description": "深色身份资料轨、灰色画布和白色分节卡片，保留原版 Material 层次。",
+      "tag": "深轨白卡",
+      "en": {
+        "name": "Best Resume · Material Dark",
+        "description": "A dark identity rail, grey canvas and white section cards retain the source Material hierarchy.",
+        "tag": "Dark rail, white cards"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/best-resume-ever/LICENSE",
+        "noticeFile": "templates/licenses/best-resume-ever/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "source": "community",
+      "recommended": {
+        "accentColor": "#78909c",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/salomonelli/best-resume-ever",
+      "licensePath": "best-resume-ever",
+      "id": "best-resume-material-dark-projects",
+      "name": "Best Resume · Material Dark 项目",
+      "label": "MATERIAL PROJECTS",
+      "description": "紧凑白卡与项目双列，适配原版三栏项目页，保留可调整的分节顺序。",
+      "tag": "项目双列白卡",
+      "en": {
+        "name": "Best Resume · Material Dark projects",
+        "description": "Compact white cards and a two-column project area adapt the source's three-column project layout while keeping section order adjustable.",
+        "tag": "Project columns and cards"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/best-resume-ever/LICENSE",
+        "noticeFile": "templates/licenses/best-resume-ever/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "source": "community",
+      "recommended": {
+        "accentColor": "#006064",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/salomonelli/best-resume-ever",
+      "licensePath": "best-resume-ever",
+      "id": "best-resume-oblique",
+      "name": "Best Resume · Oblique",
+      "label": "OBLIQUE",
+      "description": "深青斜切页首、大写姓名与粗字重章节，使用可增长页首承接长姓名。",
+      "tag": "斜切页首",
+      "en": {
+        "name": "Best Resume · Oblique",
+        "description": "A teal diagonal masthead, uppercase identity and bold chapters, with a flexible header that can grow for long names.",
+        "tag": "Diagonal masthead"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/best-resume-ever/LICENSE",
+        "noticeFile": "templates/licenses/best-resume-ever/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "source": "community",
+      "recommended": {
+        "accentColor": "#006064",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/salomonelli/best-resume-ever",
+      "licensePath": "best-resume-ever",
+      "id": "best-resume-oblique-projects",
+      "name": "Best Resume · Oblique 项目",
+      "label": "OBLIQUE PROJECTS",
+      "description": "更紧凑的斜切页首与强调项目区，按源 Projects 变体调整密度。",
+      "tag": "紧凑斜切项目",
+      "en": {
+        "name": "Best Resume · Oblique projects",
+        "description": "A shorter diagonal masthead and emphasized projects adapt the denser source Projects variant.",
+        "tag": "Compact diagonal projects"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/best-resume-ever/LICENSE",
+        "noticeFile": "templates/licenses/best-resume-ever/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "source": "community",
+      "recommended": {
+        "accentColor": "#006064",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/salomonelli/best-resume-ever",
+      "licensePath": "best-resume-ever",
+      "id": "best-resume-oblique-rtl",
+      "name": "Best Resume · Oblique RTL",
+      "label": "OBLIQUE RTL",
+      "description": "镜像斜切页首与 RTL 阅读方向，技术链接和日期仍保持自身书写顺序。",
+      "tag": "斜切 RTL",
+      "en": {
+        "name": "Best Resume · Oblique RTL",
+        "description": "A mirrored diagonal masthead and RTL body preserve the writing order of technical URLs and dates.",
+        "tag": "Diagonal RTL"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/best-resume-ever/LICENSE",
+        "noticeFile": "templates/licenses/best-resume-ever/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "source": "community",
+      "recommended": {
+        "accentColor": "#800080",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/salomonelli/best-resume-ever",
+      "licensePath": "best-resume-ever",
+      "id": "best-resume-purple",
+      "name": "Best Resume · Purple",
+      "label": "PURPLE",
+      "description": "Green 同源布局的紫色版本：渐暗页首、上方职位、白色大写姓名和缩进经历。",
+      "tag": "紫色配色变体",
+      "en": {
+        "name": "Best Resume · Purple",
+        "description": "The purple palette of the same source layout as Green: shaded masthead, headline above the name and indented entries.",
+        "tag": "Purple palette variant"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/best-resume-ever/LICENSE",
+        "noticeFile": "templates/licenses/best-resume-ever/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "source": "community",
+      "recommended": {
+        "accentColor": "#333333",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/salomonelli/best-resume-ever",
+      "licensePath": "best-resume-ever",
+      "id": "best-resume-side-bar",
+      "name": "Best Resume · Side Bar",
+      "label": "SIDE BAR",
+      "description": "大留白居中姓名、窄资料轨、轻字重分节与圆形技能标签。",
+      "tag": "留白侧栏",
+      "en": {
+        "name": "Best Resume · Side Bar",
+        "description": "A widely spaced centered identity, narrow contact rail, light chapters and circular skill labels.",
+        "tag": "Spacious sidebar"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/best-resume-ever/LICENSE",
+        "noticeFile": "templates/licenses/best-resume-ever/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "source": "community",
+      "recommended": {
+        "accentColor": "#333333",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/salomonelli/best-resume-ever",
+      "licensePath": "best-resume-ever",
+      "id": "best-resume-side-bar-projects",
+      "name": "Best Resume · Side Bar 项目",
+      "label": "SIDE BAR PROJECTS",
+      "description": "缩小留白与姓名的 Side Bar 项目版，保持圆形技能和独立项目分节。",
+      "tag": "紧凑侧栏项目",
+      "en": {
+        "name": "Best Resume · Side Bar projects",
+        "description": "The compact project variant reduces masthead spacing and name size while retaining circular skills and an explicit project chapter.",
+        "tag": "Compact sidebar projects"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/best-resume-ever/LICENSE",
+        "noticeFile": "templates/licenses/best-resume-ever/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "source": "community",
+      "recommended": {
+        "accentColor": "#333333",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/salomonelli/best-resume-ever",
+      "licensePath": "best-resume-ever",
+      "id": "best-resume-side-bar-rtl",
+      "name": "Best Resume · Side Bar RTL",
+      "label": "SIDE BAR RTL",
+      "description": "右侧资料轨与 RTL 正文的镜像版本，圆形技能和居中姓名保持一致。",
+      "tag": "右轨 RTL",
+      "en": {
+        "name": "Best Resume · Side Bar RTL",
+        "description": "A mirrored right contact rail and RTL body retain the source centered identity and circular skills.",
+        "tag": "Right-rail RTL"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/best-resume-ever/LICENSE",
+        "noticeFile": "templates/licenses/best-resume-ever/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "community-hijiangtao",
+      "source": "community",
+      "name": "Hijiangtao · 紧凑技术",
+      "label": "HIJIANGTAO",
+      "description": "居中衬线抬头、细线分节与更紧凑的原版条目节奏。",
+      "tag": "开源适配",
+      "en": {
+        "name": "Tight technical CV",
+        "description": "Centered serif identity, fine chapter rules and the fork’s tighter entry rhythm.",
+        "tag": "Open source adaptation"
+      },
+      "recommended": {
+        "accentColor": "#222222",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/hijiangtao/resume",
+      "licensePath": "hijiangtao",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/hijiangtao/LICENSE",
+        "noticeFile": "templates/licenses/hijiangtao/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "community-luooofan",
+      "source": "community",
+      "name": "Luooofan · 蓝线",
+      "label": "LUOOOFAN",
+      "description": "适配源码 default 章节样式，蓝色加粗标题与全宽细线。",
+      "tag": "开源适配",
+      "en": {
+        "name": "Luooofan · Blue rules",
+        "description": "The original default title style: blue bold chapters with full-width rules.",
+        "tag": "Open source adaptation"
+      },
+      "recommended": {
+        "accentColor": "#01408f",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/luooofan/resume",
+      "licensePath": "luooofan",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/luooofan/LICENSE",
+        "noticeFile": "templates/licenses/luooofan/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "community-luooofan-partial",
+      "source": "community",
+      "name": "Luooofan · 标题底色",
+      "label": "LUOOOFAN PARTIAL",
+      "description": "适配源码 partialbg，浅青底标题标签与下划线。",
+      "tag": "开源适配",
+      "en": {
+        "name": "Luooofan · Label tint",
+        "description": "Adapts the partialbg branch with tinted chapter labels and an underline.",
+        "tag": "Open source adaptation"
+      },
+      "recommended": {
+        "accentColor": "#00a6a7",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/luooofan/resume",
+      "licensePath": "luooofan",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/luooofan/LICENSE",
+        "noticeFile": "templates/licenses/luooofan/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "community-luooofan-full",
+      "source": "community",
+      "name": "Luooofan · 整行底色",
+      "label": "LUOOOFAN FULL",
+      "description": "适配源码 fullbg，整行浅青章节色带与居中身份。",
+      "tag": "开源适配",
+      "en": {
+        "name": "Luooofan · Full tint",
+        "description": "Adapts the fullbg branch with full-width tinted chapter bands.",
+        "tag": "Open source adaptation"
+      },
+      "recommended": {
+        "accentColor": "#00a6a7",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/luooofan/resume",
+      "licensePath": "luooofan",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/luooofan/LICENSE",
+        "noticeFile": "templates/licenses/luooofan/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "community-kody-work",
+      "source": "community",
+      "name": "Kody · 中文求职",
+      "label": "KODY WORK",
+      "description": "蓝色衬线姓名与章节底线、右对齐日期；仅展示现有事实。",
+      "tag": "开源适配",
+      "en": {
+        "name": "Kody · Chinese applications",
+        "description": "Blue serif name and ruled chapters, aligned dates and existing facts only.",
+        "tag": "Open source adaptation"
+      },
+      "recommended": {
+        "accentColor": "#2e74b5",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/kodyyu1126/Chinese-resume-template-work",
+      "licensePath": "kody-work",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/kody-work/LICENSE",
+        "noticeFile": "templates/licenses/kody-work/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "community-kody-postgraduate",
+      "source": "community",
+      "name": "Kody · 复试纸面",
+      "label": "KODY POSTGRADUATE",
+      "description": "复试模板的蓝色单栏纸面适配；不生成政治面貌或初试成绩表。",
+      "tag": "开源适配",
+      "en": {
+        "name": "Kody · Postgraduate paper",
+        "description": "Adapts the blue single-column paper style; no invented affiliation or exam-score table.",
+        "tag": "Open source adaptation"
+      },
+      "recommended": {
+        "accentColor": "#2e74b5",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/kodyyu1126/Chinese-resume-template-postgraduate",
+      "licensePath": "kody-postgraduate",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/kody-postgraduate/LICENSE",
+        "noticeFile": "templates/licenses/kody-postgraduate/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "community-mix",
+      "source": "community",
+      "name": "Mix · 棕色侧标",
+      "label": "MIX",
+      "description": "分列身份与联系信息、棕色衬线侧标和虚线分节。",
+      "tag": "开源适配",
+      "en": {
+        "name": "Mix · Brown side labels",
+        "description": "Split identity/contact header, brown serif side labels and dashed section rules.",
+        "tag": "Open source adaptation"
+      },
+      "recommended": {
+        "accentColor": "#a52a2a",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/hoochanlon/jsonresume-theme-mix",
+      "licensePath": "mix",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/mix/LICENSE",
+        "noticeFile": "templates/licenses/mix/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "community-crisp",
+      "source": "community",
+      "name": "Crisp · 极简侧标",
+      "label": "CRISP",
+      "description": "适配 Crisp 的分列抬头、左侧章节名称与细线留白。",
+      "tag": "开源适配",
+      "en": {
+        "name": "Crisp · Minimal margin",
+        "description": "Crisp’s split masthead, marginal section labels and fine ruled spacing.",
+        "tag": "Open source adaptation"
+      },
+      "recommended": {
+        "accentColor": "#81a1c1",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/crispgm/resume",
+      "licensePath": "crisp",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/crisp/LICENSE",
+        "noticeFile": "templates/licenses/crisp/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "community-lxxyx",
+      "source": "community",
+      "name": "Lxxyx · 深色时间线",
+      "label": "LXXYX",
+      "description": "深灰抬头、青色章节和深色经历卡片；顺序单栏适配。",
+      "tag": "开源适配",
+      "en": {
+        "name": "Lxxyx · Charcoal timeline",
+        "description": "Charcoal masthead, teal chapters and dark entry bars; adapted to sequential paper.",
+        "tag": "Open source adaptation"
+      },
+      "recommended": {
+        "accentColor": "#008080",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/Lxxyx/LxxyxResume",
+      "licensePath": "lxxyx",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/lxxyx/LICENSE",
+        "noticeFile": "templates/licenses/lxxyx/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "community-xiao555",
+      "source": "community",
+      "name": "Xiao555 · 青色侧轨",
+      "label": "XIAO555",
+      "description": "保留青色个人侧轨与项目时间线；不生成技能熟练度数值。",
+      "tag": "开源适配",
+      "en": {
+        "name": "Xiao555 · Teal rail",
+        "description": "Teal profile rail and project timeline without invented proficiency meters.",
+        "tag": "Open source adaptation"
+      },
+      "recommended": {
+        "accentColor": "#007f70",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/xiao555/resume-it",
+      "licensePath": "xiao555",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/xiao555/LICENSE",
+        "noticeFile": "templates/licenses/xiao555/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "community-nzbin",
+      "source": "community",
+      "name": "Nzbin · 黄色书签",
+      "label": "NZBIN",
+      "description": "文章附带真实 HTML 模板：黄色章节书签、浅灰条目卡片。",
+      "tag": "开源适配",
+      "en": {
+        "name": "Nzbin · Yellow bookmark",
+        "description": "Adapts the real HTML example with yellow chapter markers and light entry cards.",
+        "tag": "Open source adaptation"
+      },
+      "recommended": {
+        "accentColor": "#f8b62d",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/nzbin/resume-boilerplate",
+      "licensePath": "nzbin",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/nzbin/LICENSE",
+        "noticeFile": "templates/licenses/nzbin/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "community-itsay",
+      "source": "community",
+      "name": "Itsay · 双卡片",
+      "label": "ITSAY",
+      "description": "分离个人资料卡与履历正文，圆形头像和轻描边链接。",
+      "tag": "开源适配",
+      "en": {
+        "name": "Itsay · Profile cards",
+        "description": "Separate profile and resume cards, circular portrait and outlined links.",
+        "tag": "Open source adaptation"
+      },
+      "recommended": {
+        "accentColor": "#1abc9c",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://gitee.com/itsay/resume",
+      "licensePath": "itsay",
+      "licenseLabel": "MIT",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "MIT",
+        "licenseFile": "templates/licenses/itsay/LICENSE",
+        "noticeFile": "templates/licenses/itsay/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "community-geekplux",
+      "source": "community",
+      "name": "Geekplux · 中文 ModernCV",
+      "label": "GEEKPLUX",
+      "description": "遵循源文件 LPPL 许可适配：灰色姓名、蓝色节线、左侧日期。",
+      "tag": "开源适配",
+      "en": {
+        "name": "Geekplux · Chinese ModernCV",
+        "description": "LPPL source adaptation: gray identity, blue chapter rules and a left date rail.",
+        "tag": "Open source adaptation"
+      },
+      "recommended": {
+        "accentColor": "#3873b3",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/geekplux/cv_resume",
+      "licensePath": "geekplux",
+      "licenseLabel": "LPPL-1.3c",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "LPPL-1.3c",
+        "licenseFile": "templates/licenses/geekplux/LICENSE",
+        "noticeFile": "templates/licenses/geekplux/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "community-resume-ng",
+      "source": "community",
+      "name": "Resume NG · 高密度",
+      "label": "RESUME NG",
+      "description": "居中黑体身份、贯穿横线与紧凑经历，遵循 LPPL 源许可。",
+      "tag": "开源适配",
+      "en": {
+        "name": "Resume NG · Dense paper",
+        "description": "Centered bold identity, full-width rules and dense entries under the source LPPL.",
+        "tag": "Open source adaptation"
+      },
+      "recommended": {
+        "accentColor": "#222222",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/fky2015/resume-ng",
+      "licensePath": "resume-ng",
+      "licenseLabel": "LPPL-1.3c",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "LPPL-1.3c",
+        "licenseFile": "templates/licenses/resume-ng/LICENSE",
+        "noticeFile": "templates/licenses/resume-ng/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "community-liweitianux",
+      "source": "community",
+      "name": "Weitian Li · 日期轨",
+      "label": "LIWEITIANUX",
+      "description": "深蓝衬线身份、左侧日期和经历竖线，带轮廓技能标签。",
+      "tag": "开源适配",
+      "en": {
+        "name": "Weitian Li · Date rail",
+        "description": "Navy serif identity, left date rail, vertical entry rules and outlined tags.",
+        "tag": "Open source adaptation"
+      },
+      "recommended": {
+        "accentColor": "#000066",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/liweitianux/resume",
+      "licensePath": "liweitianux",
+      "licenseLabel": "LPPL-1.3c",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "LPPL-1.3c",
+        "licenseFile": "templates/licenses/liweitianux/LICENSE",
+        "noticeFile": "templates/licenses/liweitianux/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    },
+    {
+      "id": "community-pandoc",
+      "source": "community",
+      "name": "Pandoc · 绿色节条",
+      "label": "PANDOC",
+      "description": "灰色居中姓名、绿色章节横条与左日期；样式 CC BY-SA 3.0。",
+      "tag": "开源适配",
+      "en": {
+        "name": "Pandoc · Green bars",
+        "description": "Gray centered identity, green chapter bars and left dates. Style: CC BY-SA 3.0.",
+        "tag": "Open source adaptation"
+      },
+      "recommended": {
+        "accentColor": "#397249",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/mszep/pandoc_resume",
+      "licensePath": "pandoc-resume",
+      "licenseLabel": "CC-BY-SA-3.0",
+      "attribution": {
+        "text": "Style adapted from Christophe-Marie Duquesne · CC BY-SA 3.0",
+        "license": "CC-BY-SA-3.0",
+        "url": "https://github.com/mszep/pandoc_resume",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "CC-BY-SA-3.0",
+        "licenseFile": "templates/licenses/pandoc-resume/LICENSE",
+        "noticeFile": "templates/licenses/pandoc-resume/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": {
+          "text": "Style adapted from Christophe-Marie Duquesne · CC BY-SA 3.0",
+          "license": "CC-BY-SA-3.0",
+          "url": "https://github.com/mszep/pandoc_resume",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+        }
+      }
+    },
+    {
+      "id": "community-mcc108",
+      "source": "community",
+      "name": "CONGMIN · 青绿履历",
+      "label": "MCC108",
+      "description": "青绿通栏抬头、居中胶囊章节；保序单栏适配，样式 CC BY-SA 4.0。",
+      "tag": "开源适配",
+      "en": {
+        "name": "CONGMIN · Teal CV",
+        "description": "Teal masthead and centered pill chapters, adapted in sequence. Style: CC BY-SA 4.0.",
+        "tag": "Open source adaptation"
+      },
+      "recommended": {
+        "accentColor": "#008365",
+        "fontFamily": "sans"
+      },
+      "upstreamUrl": "https://github.com/mcc108/resume",
+      "licensePath": "mcc108",
+      "licenseLabel": "CC-BY-SA-4.0",
+      "attribution": {
+        "text": "Style adapted from CONGMIN · CC BY-SA 4.0",
+        "license": "CC-BY-SA-4.0",
+        "url": "https://github.com/mcc108/resume",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      "rendering": "native-react-css",
+      "license": {
+        "label": "CC-BY-SA-4.0",
+        "licenseFile": "templates/licenses/mcc108/LICENSE",
+        "noticeFile": "templates/licenses/mcc108/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": {
+          "text": "Style adapted from CONGMIN · CC BY-SA 4.0",
+          "license": "CC-BY-SA-4.0",
+          "url": "https://github.com/mcc108/resume",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+        }
+      }
+    },
+    {
+      "id": "deedy",
+      "source": "community",
+      "name": "Deedy · 中文适配",
+      "label": "DEEDY 中文",
+      "description": "居中宋体姓名、细分隔线与四分之一资料轨；教育、技能和经历按当前分节顺序保留在正文。",
+      "tag": "宋体与窄资料轨",
+      "en": {
+        "name": "Deedy · Chinese adaptation",
+        "description": "A centered serif identity, fine rule and quarter-width profile rail. Education, skills and experience retain the current chapter order in the main column.",
+        "tag": "Serif identity and narrow rail"
+      },
+      "recommended": {
+        "accentColor": "#6a6a6a",
+        "fontFamily": "serif"
+      },
+      "upstreamUrl": "https://github.com/dyweb/Deedy-Resume-for-Chinese",
+      "licensePath": "deedy",
+      "licenseLabel": "Apache-2.0",
+      "rendering": "native-react-css",
+      "license": {
+        "label": "Apache-2.0",
+        "licenseFile": "templates/licenses/deedy/LICENSE",
+        "noticeFile": "templates/licenses/deedy/NOTICE.md",
+        "classification": "open-source-or-open-content-style",
+        "nonCommercial": false,
+        "attribution": null
+      }
+    }
+  ]
+}

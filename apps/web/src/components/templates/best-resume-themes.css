@@ -1,0 +1,653 @@
+/* Native browser adaptations of the 17 real Vue resume templates in
+   salomonelli/best-resume-ever @ 29e753cd842585b4a2e9dbbb5e1ef3a0f5e66767.
+   MIT / Copyright (c) 2017 Sara Steiert: templates/licenses/best-resume-ever/.
+   template.vue is an empty authoring scaffold and is intentionally excluded.
+   Source families and their projects/RTL/palette variations are explicit;
+   no upstream personal data, font files, icons or skill scores are bundled. */
+
+.resume-sheet[data-template^="best-resume-"] {
+  color: #30343a;
+  --best-rail: 32%;
+  --best-main-offset: calc(var(--best-rail) + 6mm);
+}
+
+.resume-sheet[data-template^="best-resume-"]::after {
+  content: "";
+  display: block;
+  clear: both;
+}
+
+.resume-sheet[data-template^="best-resume-"] .resume-header {
+  border: 0;
+}
+
+.resume-sheet[data-template^="best-resume-"] .resume-experience-heading h3 {
+  color: inherit;
+  font-size: 1em;
+}
+
+.resume-sheet[data-template^="best-resume-"] .resume-dates {
+  white-space: normal;
+}
+
+.resume-sheet[data-template^="best-resume-"] .resume-role {
+  font-weight: 400;
+}
+
+.resume-sheet[data-template^="best-resume-"] .resume-experience + .resume-experience {
+  margin-top: calc(var(--resume-section-spacing) * .7);
+}
+
+.resume-sheet[data-template^="best-resume-"] .resume-section h2 {
+  font-size: var(--resume-heading-size);
+}
+
+/* COOL: a green banner over a dark information rail. The two source rtl
+   files mirror the rail; rtl2 additionally right-aligns names and entries.
+   They do not both set the Unicode RTL direction in the upstream source. */
+.resume-sheet[data-template^="best-resume-cool"] {
+  background-image: linear-gradient(90deg, #34495e var(--best-rail), #fff var(--best-rail));
+  background-origin: content-box;
+  background-clip: content-box;
+}
+
+.resume-sheet[data-template^="best-resume-cool"] .resume-header {
+  display: contents;
+}
+
+.resume-sheet[data-template^="best-resume-cool"] .resume-identity {
+  padding: 7mm;
+  background: color-mix(in srgb, var(--resume-accent) 52%, #173c2d);
+}
+
+.resume-sheet[data-template^="best-resume-cool"] h1,
+.resume-sheet[data-template^="best-resume-cool"] .resume-headline {
+  color: #fff;
+}
+
+.resume-sheet[data-template^="best-resume-cool"] .resume-headline {
+  font-weight: 400;
+}
+
+.resume-sheet[data-template^="best-resume-cool"] .resume-contact {
+  float: left;
+  box-sizing: border-box;
+  width: var(--best-rail);
+  padding: 7mm 5mm;
+  color: #edf1f5;
+}
+
+.resume-sheet[data-template^="best-resume-cool"] .resume-links {
+  display: block;
+}
+
+.resume-sheet[data-template^="best-resume-cool"] .resume-links li + li {
+  margin-top: 3mm;
+}
+
+.resume-sheet[data-template^="best-resume-cool"] .resume-avatar {
+  float: left;
+  clear: left;
+  width: 22mm;
+  height: 22mm;
+  margin: 0 5mm 5mm;
+  border: 1mm solid #52677c;
+  border-radius: 50%;
+}
+
+.resume-sheet[data-template^="best-resume-cool"] .resume-body {
+  margin-left: var(--best-main-offset);
+  padding: 1mm 4mm 5mm 0;
+}
+
+.resume-sheet[data-template^="best-resume-cool"] .resume-section h2 {
+  border: 0;
+  padding: 0;
+  font-weight: 500;
+  color: #34495e;
+}
+
+.resume-sheet[data-template^="best-resume-cool"] .resume-skill-list li {
+  padding: 1mm 2mm;
+  border: 1px solid var(--resume-rule);
+  font-size: .9em;
+}
+
+.resume-sheet:is(.resume-template-best-resume-cool-rtl, .resume-template-best-resume-cool-rtl2) {
+  background-image: linear-gradient(270deg, #34495e var(--best-rail), #fff var(--best-rail));
+}
+
+.resume-sheet:is(.resume-template-best-resume-cool-rtl, .resume-template-best-resume-cool-rtl2) .resume-contact,
+.resume-sheet:is(.resume-template-best-resume-cool-rtl, .resume-template-best-resume-cool-rtl2) .resume-avatar {
+  float: right;
+  clear: right;
+}
+
+.resume-sheet:is(.resume-template-best-resume-cool-rtl, .resume-template-best-resume-cool-rtl2) .resume-body {
+  margin-left: 0;
+  margin-right: var(--best-main-offset);
+  padding: 1mm 0 5mm 4mm;
+}
+
+.resume-sheet.resume-template-best-resume-cool-rtl2 :is(.resume-identity, .resume-contact, .resume-body) {
+  text-align: right;
+}
+
+.resume-sheet.resume-template-best-resume-cool-rtl2 :is(.resume-experience-heading, .resume-keywords, .resume-links) {
+  justify-content: flex-end;
+}
+
+.resume-sheet.resume-template-best-resume-cool-rtl2 .resume-experience-heading {
+  display: block;
+}
+
+/* CREATIVE: a vivid identity column with white contact text and squared
+   skills, beside an ordered main column. No cover photo or hobby is added. */
+.resume-sheet.resume-template-best-resume-creative .resume-header {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  float: left;
+  box-sizing: border-box;
+  width: var(--best-rail);
+  padding: 7mm 5mm;
+  color: #fff;
+  background: color-mix(in srgb, var(--resume-accent) 85%, #29113c);
+}
+
+.resume-sheet.resume-template-best-resume-creative h1 {
+  color: #fff;
+  font-size: calc(var(--resume-name-size) * .72);
+  line-height: 1.35;
+}
+
+.resume-sheet.resume-template-best-resume-creative :is(.resume-headline, .resume-contact) {
+  color: #f4e9ff;
+}
+
+.resume-sheet.resume-template-best-resume-creative .resume-links {
+  display: block;
+}
+
+.resume-sheet.resume-template-best-resume-creative .resume-links li + li {
+  margin-top: 3mm;
+}
+
+.resume-sheet.resume-template-best-resume-creative .resume-avatar {
+  order: -1;
+  width: 22mm;
+  height: 27mm;
+  border: 0;
+}
+
+.resume-sheet.resume-template-best-resume-creative .resume-body {
+  margin-left: var(--best-main-offset);
+}
+
+.resume-sheet.resume-template-best-resume-creative .resume-section h2 {
+  padding: 0;
+  border: 0;
+  font-weight: 500;
+}
+
+.resume-sheet.resume-template-best-resume-creative .resume-skill-list li {
+  padding: 1mm 2mm;
+  color: #fff;
+  background: color-mix(in srgb, var(--resume-accent) 85%, #29113c);
+  font-size: .9em;
+}
+
+/* LEFT-RIGHT: framed, letter-spaced identity over a sequential two-column
+   body. Projects spans both columns only in the source projects variant. */
+.resume-sheet[data-template^="best-resume-left-right"] .resume-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5mm;
+  padding: 8mm 0;
+  text-align: center;
+}
+
+.resume-sheet[data-template^="best-resume-left-right"] h1 {
+  display: inline-block;
+  border: 1px solid currentColor;
+  padding: 3mm 5mm;
+  color: #242424;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.resume-sheet[data-template^="best-resume-left-right"] .resume-headline {
+  color: #656565;
+  font-size: .9em;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.resume-sheet[data-template^="best-resume-left-right"] .resume-links {
+  justify-content: center;
+}
+
+.resume-sheet[data-template^="best-resume-left-right"] .resume-avatar {
+  order: 1;
+  width: 24mm;
+  height: 24mm;
+  border: 0;
+  border-radius: 50%;
+}
+
+.resume-sheet[data-template^="best-resume-left-right"] .resume-contact {
+  order: 2;
+}
+
+.resume-sheet[data-template^="best-resume-left-right"] .resume-body {
+  columns: 2;
+  column-gap: 8mm;
+}
+
+.resume-sheet[data-template^="best-resume-left-right"] .resume-section h2 {
+  border: 0;
+  padding: 0;
+  color: #343434;
+}
+
+.resume-sheet[data-template^="best-resume-left-right"] .resume-experience-heading {
+  display: block;
+}
+
+.resume-sheet[data-template^="best-resume-left-right"] .resume-role {
+  display: block;
+  font-style: italic;
+}
+
+.resume-sheet[data-template^="best-resume-left-right"] .resume-role-separator {
+  display: none;
+}
+
+.resume-sheet[data-template^="best-resume-left-right"] .resume-dates {
+  margin: 1mm 0 0 !important;
+}
+
+.resume-sheet.resume-template-best-resume-left-right-projects .resume-section[data-section="projects"] {
+  column-span: all;
+  padding-top: 3mm;
+  border-top: 1px solid #bbb;
+}
+
+.resume-sheet.resume-template-best-resume-left-right-projects .resume-experience + .resume-experience {
+  margin-top: calc(var(--resume-section-spacing) * .5);
+}
+
+.resume-sheet.resume-template-best-resume-left-right-rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+/* MATERIAL DARK: dark profile rail and white, shallow-elevation section
+   cards on a grey canvas. The projects version adds a two-column project
+   area rather than forcing all source data into three fixed columns. */
+.resume-sheet[data-template^="best-resume-material-dark"] {
+  background-color: #fff;
+  background-image: linear-gradient(#ccc, #ccc);
+  background-origin: content-box;
+  background-clip: content-box;
+}
+
+.resume-sheet[data-template^="best-resume-material-dark"] .resume-header {
+  display: flex;
+  flex-direction: column;
+  float: left;
+  box-sizing: border-box;
+  width: var(--best-rail);
+  padding: 6mm 4mm;
+  background: #16151c;
+  color: #e2e1e7;
+}
+
+.resume-sheet[data-template^="best-resume-material-dark"] h1 {
+  color: #fff;
+  font-size: calc(var(--resume-name-size) * .72);
+  font-weight: 400;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+
+.resume-sheet[data-template^="best-resume-material-dark"] :is(.resume-headline, .resume-contact) {
+  color: #d8d7e0;
+}
+
+.resume-sheet[data-template^="best-resume-material-dark"] .resume-avatar {
+  order: -1;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  border: 0;
+}
+
+.resume-sheet[data-template^="best-resume-material-dark"] .resume-links {
+  display: block;
+}
+
+.resume-sheet[data-template^="best-resume-material-dark"] .resume-links li + li {
+  margin-top: 3mm;
+}
+
+.resume-sheet[data-template^="best-resume-material-dark"] .resume-body {
+  margin-left: calc(var(--best-rail) + 3mm);
+  padding: 1mm 3mm 3mm 0;
+}
+
+.resume-sheet[data-template^="best-resume-material-dark"] .resume-section {
+  padding: 4mm;
+  background: #fff;
+  box-shadow: 0 1px 4px #16151c21;
+}
+
+.resume-sheet[data-template^="best-resume-material-dark"] .resume-section h2 {
+  border: 0;
+  padding: 0;
+  color: #3f3d3c;
+  font-weight: 500;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.resume-sheet[data-template^="best-resume-material-dark"] .resume-experience + .resume-experience {
+  padding-top: 3mm;
+  border-top: 1px solid #bdbdbd;
+}
+
+.resume-sheet[data-template^="best-resume-material-dark"] .resume-dates {
+  color: #7b5748;
+}
+
+.resume-sheet.resume-template-best-resume-material-dark-projects .resume-section[data-section="projects"] .resume-experience-list {
+  columns: 2;
+  column-gap: 4mm;
+}
+
+.resume-sheet.resume-template-best-resume-material-dark-projects .resume-section {
+  padding: 3mm;
+}
+
+/* OBLIQUE: a clipped diagonal masthead without the upstream oversized
+   1500px triangle or absolute text coordinates, so long names can grow. */
+.resume-sheet[data-template^="best-resume-oblique"] .resume-header {
+  padding: 8mm 8mm 17mm;
+  background: linear-gradient(167deg, var(--resume-accent) 0 84%, transparent 84%);
+  text-align: right;
+}
+
+.resume-sheet[data-template^="best-resume-oblique"] h1 {
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: -.02em;
+  line-height: 1.1;
+}
+
+.resume-sheet[data-template^="best-resume-oblique"] :is(.resume-headline, .resume-contact) {
+  color: #fff;
+}
+
+.resume-sheet[data-template^="best-resume-oblique"] .resume-links {
+  justify-content: flex-end;
+}
+
+.resume-sheet[data-template^="best-resume-oblique"] .resume-body {
+  margin: 0 7mm;
+}
+
+.resume-sheet[data-template^="best-resume-oblique"] .resume-section h2 {
+  padding: 0;
+  border: 0;
+  color: #252525;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.resume-sheet[data-template^="best-resume-oblique"] .resume-experience-heading h3 {
+  text-transform: uppercase;
+}
+
+.resume-sheet.resume-template-best-resume-oblique-projects .resume-header {
+  padding-bottom: 11mm;
+  background: linear-gradient(171deg, var(--resume-accent) 0 88%, transparent 88%);
+}
+
+.resume-sheet.resume-template-best-resume-oblique-projects .resume-section[data-section="projects"] .resume-experience {
+  padding-left: 3mm;
+  border-left: 2px solid var(--resume-accent);
+}
+
+.resume-sheet.resume-template-best-resume-oblique-rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+.resume-sheet.resume-template-best-resume-oblique-rtl .resume-header {
+  text-align: left;
+  background: linear-gradient(13deg, transparent 0 16%, var(--resume-accent) 16%);
+}
+
+.resume-sheet.resume-template-best-resume-oblique-rtl .resume-links {
+  justify-content: flex-start;
+}
+
+/* GREEN / PURPLE: the upstream files share one layout and differ in the
+   colour palette. Keep that fact explicit instead of inventing new shapes. */
+.resume-sheet:is(.resume-template-best-resume-green, .resume-template-best-resume-purple) .resume-header {
+  padding: 8mm;
+  background: var(--resume-accent);
+  box-shadow: inset 0 0 40mm #30103066;
+  color: #fff;
+}
+
+.resume-sheet:is(.resume-template-best-resume-green, .resume-template-best-resume-purple) .resume-identity {
+  display: flex;
+  flex-direction: column;
+}
+
+.resume-sheet:is(.resume-template-best-resume-green, .resume-template-best-resume-purple) h1 {
+  order: 2;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.resume-sheet:is(.resume-template-best-resume-green, .resume-template-best-resume-purple) .resume-headline {
+  order: 1;
+  margin: 0 0 2mm;
+  color: #fff;
+}
+
+.resume-sheet:is(.resume-template-best-resume-green, .resume-template-best-resume-purple) .resume-contact {
+  color: #fff;
+}
+
+.resume-sheet:is(.resume-template-best-resume-green, .resume-template-best-resume-purple) .resume-body {
+  padding: 0 5mm;
+}
+
+.resume-sheet:is(.resume-template-best-resume-green, .resume-template-best-resume-purple) .resume-section h2 {
+  text-transform: uppercase;
+  border-color: var(--resume-accent);
+  font-weight: 600;
+}
+
+.resume-sheet:is(.resume-template-best-resume-green, .resume-template-best-resume-purple) .resume-experience {
+  padding-left: 5mm;
+}
+
+.resume-sheet:is(.resume-template-best-resume-green, .resume-template-best-resume-purple) .resume-role,
+.resume-sheet:is(.resume-template-best-resume-green, .resume-template-best-resume-purple) .resume-dates {
+  color: var(--resume-accent);
+}
+
+/* SIDE-BAR: a wide-spaced centred identity, a narrow contact rail and
+   circular skill labels. The source projects version reduces the masthead. */
+.resume-sheet[data-template^="best-resume-side-bar"] {
+  --best-rail: 28%;
+}
+
+.resume-sheet[data-template^="best-resume-side-bar"] .resume-header {
+  display: contents;
+}
+
+.resume-sheet[data-template^="best-resume-side-bar"] .resume-identity {
+  padding: 10mm 0;
+  text-align: center;
+}
+
+.resume-sheet[data-template^="best-resume-side-bar"] h1 {
+  color: #252525;
+  font-weight: 400;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.resume-sheet[data-template^="best-resume-side-bar"] .resume-headline {
+  font-size: .95em;
+  letter-spacing: .12em;
+  font-weight: 400;
+}
+
+.resume-sheet[data-template^="best-resume-side-bar"] .resume-contact {
+  float: left;
+  box-sizing: border-box;
+  width: var(--best-rail);
+  padding: 4mm 2mm;
+  text-align: center;
+  font-size: .85em;
+  line-height: 1.9;
+}
+
+.resume-sheet[data-template^="best-resume-side-bar"] .resume-links {
+  display: block;
+  margin-top: 4mm;
+}
+
+.resume-sheet[data-template^="best-resume-side-bar"] .resume-links li + li {
+  margin-top: 4mm;
+}
+
+.resume-sheet[data-template^="best-resume-side-bar"] .resume-avatar {
+  float: left;
+  clear: left;
+  width: 23mm;
+  height: 30mm;
+  margin: 4mm;
+  border: 0;
+}
+
+.resume-sheet[data-template^="best-resume-side-bar"] .resume-body {
+  margin-left: var(--best-main-offset);
+}
+
+.resume-sheet[data-template^="best-resume-side-bar"] .resume-section h2 {
+  border: 0;
+  padding: 0;
+  color: #363636;
+  font-weight: 400;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.resume-sheet[data-template^="best-resume-side-bar"] .resume-skill-list {
+  gap: 2mm;
+}
+
+.resume-sheet[data-template^="best-resume-side-bar"] .resume-skill-list li {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 21mm;
+  min-height: 21mm;
+  padding: 2mm;
+  border: 1px solid #555;
+  border-radius: 50%;
+  font-size: .85em;
+  text-align: center;
+}
+
+.resume-sheet.resume-template-best-resume-side-bar-projects .resume-identity {
+  padding: 6mm 0;
+}
+
+.resume-sheet.resume-template-best-resume-side-bar-projects h1 {
+  font-size: calc(var(--resume-name-size) * .8);
+}
+
+.resume-sheet.resume-template-best-resume-side-bar-projects .resume-section[data-section="projects"] {
+  padding-top: 3mm;
+  border-top: 1px solid #bbb;
+}
+
+.resume-sheet.resume-template-best-resume-side-bar-rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+.resume-sheet.resume-template-best-resume-side-bar-rtl .resume-contact,
+.resume-sheet.resume-template-best-resume-side-bar-rtl .resume-avatar {
+  float: right;
+  clear: right;
+}
+
+.resume-sheet.resume-template-best-resume-side-bar-rtl .resume-body {
+  margin-left: 0;
+  margin-right: var(--best-main-offset);
+}
+
+/* Preserve technical strings within the explicitly RTL source variants.
+   Selecting an RTL layout never translates or rewrites the stored facts. */
+.resume-sheet:is(.resume-template-best-resume-left-right-rtl, .resume-template-best-resume-oblique-rtl, .resume-template-best-resume-side-bar-rtl) :is(.resume-contact-details, .resume-experience-url, .resume-dates, .resume-tech) {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: right;
+}
+
+@media print {
+  .resume-sheet[data-template^="best-resume-"] :is(.resume-section, .resume-experience-list, .resume-experience) {
+    break-inside: auto;
+  }
+
+  .resume-sheet[data-template^="best-resume-"] :is(.resume-header, .resume-identity, .resume-experience-heading) {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .resume-sheet[data-template^="best-resume-left-right"] .resume-experience-heading,
+  .resume-sheet[data-template^="best-resume-material-dark"] .resume-experience-heading {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .resume-sheet[data-template^="best-resume-material-dark"] .resume-section {
+    box-shadow: none;
+    border: .3pt solid #ccc;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+
+  /* A card can fragment, but the title/link/technology chain should reach
+     its first bullet together. In the projects variant this also keeps a
+     project from starting in the small remainder of a balanced column.
+     Chromium may still split an entry taller than a complete page/column. */
+  .resume-sheet[data-template^="best-resume-material-dark"] :is(.resume-experience-heading, .resume-experience-url, .resume-tech) {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .resume-sheet[data-template^="best-resume-material-dark"] .resume-claims > li:first-child {
+    break-before: avoid;
+    page-break-before: avoid;
+  }
+
+  .resume-sheet[data-template^="best-resume-material-dark"] .resume-section[data-section="projects"] .resume-experience {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

@@ -1,0 +1,225 @@
+/* jsonresume-theme-rickosborne 2022.09.16-T1450 by Rick Osborne
+   https://github.com/rickosborne/jsonresume-theme-rickosborne
+   Modified BetterMe browser adaptation of resume.css and section renderers.
+   CC BY-NC-SA 4.0: noncommercial use only; adaptations share alike.
+   Full terms and changes: templates/licenses/jsonresume-rickosborne/.
+   Changes include scoped selectors, flowing right profile rail, user-ordered
+   chapters, configurable type/margins and system fonts; no upstream runtime. */
+
+.resume-sheet.resume-template-jsonresume-rickosborne {
+  --rick-main: 64%;
+  --rick-rail: 30%;
+  color: #222;
+  font-weight: 300;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne::after {
+  content: "";
+  display: block;
+  clear: both;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-header {
+  display: contents;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-identity {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2mm 4mm;
+  float: left;
+  box-sizing: border-box;
+  width: var(--rick-main);
+  padding-bottom: 3mm;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne h1 {
+  color: #222;
+  font-family: var(--resume-serif-family);
+  font-size: var(--resume-name-size);
+  font-weight: 300;
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-headline {
+  margin: 0;
+  color: #444;
+  font-size: 1.2em;
+  font-weight: 300;
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-contact {
+  float: right;
+  box-sizing: border-box;
+  width: var(--rick-rail);
+  padding: 2mm 0 3mm;
+  color: #444;
+  font-size: .9em;
+  line-height: 1.55;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-links {
+  display: block;
+  margin-top: 3mm;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-links li + li {
+  margin-top: 2mm;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne a {
+  color: var(--resume-accent);
+  text-decoration: none;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne a:hover {
+  text-decoration: underline;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-avatar {
+  float: right;
+  clear: right;
+  width: 21mm;
+  height: 21mm;
+  margin: 0 7mm 4mm 0;
+  border: 0;
+  border-radius: 50%;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-body {
+  clear: left;
+  margin-right: calc(100% - var(--rick-main));
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-body > .resume-section:first-child,
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-body > .resume-summary:first-child > .resume-section:first-child {
+  margin-top: 0;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-section h2 {
+  margin-bottom: 3mm;
+  padding: 0;
+  border: 0;
+  color: #666;
+  font-size: var(--resume-heading-size);
+  font-weight: 400;
+  line-height: 1.6;
+  text-transform: uppercase;
+  letter-spacing: .025em;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-summary .resume-keywords {
+  color: #666;
+  font-style: italic;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-experience-heading {
+  display: block;
+  color: #666;
+  line-height: 1.5;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-experience-heading h3 {
+  display: inline;
+  color: #222;
+  font-size: 1em;
+  font-weight: 400;
+  line-height: inherit;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-role {
+  font-weight: 400;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-organization {
+  color: #666;
+  font-weight: 300;
+  letter-spacing: -.025em;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-dates {
+  display: inline;
+  margin: 0 !important;
+  color: #666;
+  font-size: .9em;
+  line-height: inherit;
+  white-space: normal;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-dates::before {
+  content: ", ";
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-experience + .resume-experience {
+  margin-top: calc(var(--resume-section-spacing) * .55);
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne :is(.resume-tech, .resume-experience-url) {
+  color: #666;
+  font-size: .9em;
+  line-height: 1.45;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-project-name {
+  color: #666;
+  font-style: italic;
+  font-weight: 300;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-claims {
+  margin-top: 2mm;
+  padding-left: 1.6em;
+  list-style: square;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-claims li::marker {
+  color: #444;
+  font-size: .85em;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-claims li + li {
+  margin-top: .2em;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-skill-list {
+  gap: 1.5mm;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-skill-list li {
+  padding: 1mm 2mm;
+  border-radius: 1.5mm;
+  background: #eee;
+  color: #444;
+  font-size: .9em;
+  line-height: 1.3;
+}
+
+.resume-sheet.resume-template-jsonresume-rickosborne .resume-template-attribution {
+  clear: both;
+  color: #444;
+}
+
+@media print {
+  .resume-sheet.resume-template-jsonresume-rickosborne :is(.resume-section, .resume-experience-list, .resume-experience) {
+    break-inside: auto;
+  }
+
+  .resume-sheet.resume-template-jsonresume-rickosborne :is(.resume-identity, .resume-experience-heading, .resume-template-attribution) {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .resume-sheet.resume-template-jsonresume-rickosborne .resume-experience-heading {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .resume-sheet.resume-template-jsonresume-rickosborne a {
+    color: #222;
+  }
+}

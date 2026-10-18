@@ -4,6 +4,7 @@ import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ProjectedResume } from "@better-me/core";
 import { RESUME_TEMPLATES, resolveResumeTemplate, ResumeTemplate, type ResumeTemplateId } from "../src/components/ResumeTemplate";
+import { getResumeTemplate } from "../src/components/template-catalog";
 
 function createResume(): ProjectedResume {
   return {
@@ -45,7 +46,7 @@ function claimTexts(markup: string) {
     .flatMap((list) => [...list[1]!.matchAll(/<li(?:\s[^>]*)?>(.*?)<\/li>/gs)].map((item) => item[1]));
 }
 
-test("all six original templates retain profile, every experience type and the same factual bullets", () => {
+test("all registered templates retain profile, every experience type and the same factual bullets", () => {
   const resume = createResume();
   const expectedClaims = resume.experiences.flatMap((experience) => experience.claims.map((claim) => claim.text));
 
@@ -87,6 +88,20 @@ test("all templates keep semantic follow anchors after reordering and omit hidde
     assert.ok(markup.indexOf('data-preview-anchor="section:education"') < markup.indexOf('data-preview-anchor="section:experience"'));
     assert.ok(!markup.includes('data-preview-anchor="claim:claim-0"'));
     assert.equal(markup.includes('data-preview-anchor="profile:photo"'), template.id !== "en-ats");
+  }
+});
+
+test("decorative catalogue pages retain content without becoming preview-follow targets or nested links", () => {
+  const resume = createResume();
+  const expectedClaims = resume.experiences.flatMap((experience) => experience.claims.map((claim) => claim.text));
+  for (const template of RESUME_TEMPLATES) {
+    const markup = renderToStaticMarkup(<ResumeTemplate resume={resume} templateId={template.id} decorative />);
+    assert.doesNotMatch(markup, /data-preview-anchor=|<a\b|href=|tabindex=/, `${template.id} catalogue page must not intercept editor navigation`);
+    assert.ok(markup.includes(resume.profile.displayName));
+    assert.ok(markup.includes(resume.profile.email!));
+    assert.ok(markup.includes(resume.profile.links[0]!.label));
+    assert.deepEqual(claimTexts(markup), expectedClaims);
+    assert.equal(markup.includes('class="resume-avatar"'), template.id !== "en-ats");
   }
 });
 
@@ -171,4 +186,33 @@ test("education can appear only in its section with its header field absent", ()
     assert.doesNotMatch(header, /独立学历事实/);
     assert.match(markup, /data-section="education"[^>]*><h2>教育背景<\/h2><div class="resume-experience-list"><p[^>]*>独立学历事实<\/p>/);
   }
+});
+
+// Semantic variants are rendered in reading order, rather than visually moved
+// with CSS; thumbnail template IDs must work independently of saved view IDs.
+test("upstream heading variants preserve role and date semantics with an independent effective template", () => {
+  const resume = createResume();
+  const engineering = render(resume, "rendercv-engineeringresumes");
+  assert.ok(engineering.indexOf('resume-role resume-role-name') < engineering.indexOf('resume-organization'));
+  assert.ok(engineering.includes('Portfolio: https://example.test/portfolio'));
+  assert.match(engineering, /<img\b/);
+  const modern = render(resume, "rendercv-moderncv");
+  assert.ok(modern.indexOf('class="resume-dates"') < modern.indexOf('<h3>'));
+  assert.equal(resume.templateId, "zh-classic");
+});
+
+test("required attribution survives all chapter visibility and stays outside factual text", () => {
+  const resume = createResume();
+  resume.sectionVisibility = { summary: false, experience: false, education: false, skills: false, projects: false };
+  const original = structuredClone(resume);
+  for (const template of RESUME_TEMPLATES) {
+    const attribution = getResumeTemplate(template.id).attribution;
+    if (!attribution) continue;
+    const markup = render(resume, template.id);
+    assert.ok(markup.includes('class="resume-template-attribution"'), template.id);
+    assert.ok(markup.includes(attribution.text) && markup.includes(attribution.license), template.id);
+    assert.ok(markup.includes(attribution.url) && markup.includes(attribution.licenseUrl), template.id);
+    assert.doesNotMatch(markup, /data-section=|class="resume-claims"/);
+  }
+  assert.deepEqual(resume, original);
 });

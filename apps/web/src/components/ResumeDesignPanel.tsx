@@ -1,31 +1,14 @@
 /** @jsxRuntime automatic */
-import { useUiPreferences, type UiLocale } from "../lib/ui-preferences";
+import { useUiPreferences } from "../lib/ui-preferences";
 import { useState } from "react";
 import { ArrowDown, ArrowUp, Check, GripVertical, LayoutTemplate, Palette, SlidersHorizontal, Eye, ListChecks } from "lucide-react";
 import { getResumeLayout, getResumeSectionOrder, isResumeProfileVisible, isResumeSectionVisible, pickLocale, type FactBase, type ResumeView, type ResumeSectionId, type ResumeProfileField, type ResumeLayout } from "@better-me/core";
-import { RESUME_TEMPLATES, type ResumeTemplateId } from "./ResumeTemplate";
+import { RESUME_TEMPLATES, TEMPLATE_SOURCES, getResumeTemplate, getTemplateUiMetadata, resolveResumeTemplate, type TemplateSourceId } from "./template-catalog";
+import { TemplateThumbnail } from "./TemplateThumbnail";
 
 type Props = { view: ResumeView; factBase: FactBase; onChange: (view: ResumeView) => void };
 
 const COLORS = ["#1b5147", "#293c58", "#69424c", "#7a613d", "#292929", "#0f5d65"];
-
-const ENGLISH_TEMPLATE_METADATA: Record<ResumeTemplateId, { name: string; description: string; tag: string }> = {
-  "zh-classic": { name: "Classic", description: "Centered header, serif headings and fine section rules for a formal, restrained layout.", tag: "Formal applications" },
-  "en-ats": { name: "Minimal single column", description: "Natural reading order and plain text, always without a photo. Actual ATS parsing still needs verification.", tag: "International / ATS" },
-  "clean-modern": { name: "Modern professional", description: "A structured header and experience timeline highlight technical results with clear hierarchy.", tag: "Technical roles" },
-  editorial: { name: "Editorial", description: "A large name, side labels and generous spacing give the resume an editorial feel.", tag: "Refined presentation" },
-  sidebar: { name: "Left bank", description: "Personal details sit in a narrow sidebar while the main column focuses on experience. Suits detailed Chinese resumes.", tag: "Two columns" },
-  compact: { name: "Compact", description: "Tighter line spacing, a horizontal information bar and compact sections concentrate the key points.", tag: "High density" },
-};
-
-/** UI metadata only: the resume paper continues to use its own output locale. */
-export function getTemplateUiMetadata(id: ResumeTemplateId, locale: UiLocale) {
-  return locale === "en" ? ENGLISH_TEMPLATE_METADATA[id] : RESUME_TEMPLATES.find((template) => template.id === id)!;
-}
-
-function TemplateMiniature({ id }: { id: string }) {
-  return <span className={`template-mini template-mini-${id}`} aria-hidden="true"><span className="mini-header"><i /><i /><i /></span><span className="mini-sidebar"><i /><i /><i /><i /></span><span className="mini-body">{[0, 1, 2].map((i) => <span className="mini-section" key={i}><i /><i /><i /><i /></span>)}</span></span>;
-}
 
 function Toggle({ checked, disabled, label, onChange }: { checked: boolean; disabled?: boolean; label: string; onChange: () => void }) {
   return <label className={`design-toggle${disabled ? " is-disabled" : ""}`}><span>{label}</span><input type="checkbox" checked={checked} disabled={disabled} onChange={onChange} /><span className="design-switch" aria-hidden="true" /></label>;
@@ -41,10 +24,23 @@ export function ResumeDesignPanel({ view, factBase, onChange }: Props) {
   ];
 
   const [dragging, setDragging] = useState<ResumeSectionId | null>(null);
+  const [templateSource, setTemplateSource] = useState<"all" | TemplateSourceId>("all");
+  const [templateSearch, setTemplateSearch] = useState("");
+  const [templatePage, setTemplatePage] = useState(0);
+  const selectedTemplateId = resolveResumeTemplate(view.templateId);
+  const selectedTemplate = getResumeTemplate(selectedTemplateId);
+  const selectedMetadata = getTemplateUiMetadata(selectedTemplateId, locale);
+  const query = templateSearch.trim().toLocaleLowerCase();
+  const matchingTemplates = RESUME_TEMPLATES.filter((template) => (templateSource === "all" || template.source === templateSource) && (!query || [template.id, template.name, template.tag, template.en.name, template.en.tag, template.source].some((text) => text.toLocaleLowerCase().includes(query))));
+  const pageSize = 12;
+  const pageCount = Math.max(1, Math.ceil(matchingTemplates.length / pageSize));
+  const currentPage = Math.min(templatePage, pageCount - 1);
+  const visibleTemplates = matchingTemplates.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+  const filterSource = (source: "all" | TemplateSourceId) => { setTemplateSource(source); setTemplatePage(0); };
   const layout = getResumeLayout(view.layout);
   const order: ResumeSectionId[] = getResumeSectionOrder(view.sectionOrder).filter((section) => section !== "custom");
   const change = (patch: Partial<ResumeView>) => onChange({ ...view, ...patch, updatedAt: new Date().toISOString() });
-  const layoutChange = (patch: Partial<ResumeLayout>) => change({ layout: { ...layout, ...patch } });
+  const layoutChange = (patch: Partial<ResumeLayout>) => change({ layout: { ...view.layout, ...patch } });
   const move = (section: ResumeSectionId, destination: number) => {
     const next = order.filter((id) => id !== section);
     next.splice(Math.max(0, Math.min(next.length, destination)), 0, section);
@@ -72,15 +68,34 @@ export function ResumeDesignPanel({ view, factBase, onChange }: Props) {
   ];
 
   return <div className="resume-design-panel">
-    <div className="design-intro"><span className="design-eyebrow">MAKE IT YOURS</span><h2>{t("让优势先被看见。", "Make your strengths stand out.")}</h2><p>{t("选择版式，调整顺序，只展示这次投递需要的信息。", "Choose a layout, arrange sections and show what matters for this application.")}</p></div>
-    <section className="design-card"><div className="design-card-title"><LayoutTemplate size={17} /><h3>{t("模板库", "Template library")}</h3><span className="design-count">06 ORIGINALS</span></div>
-      <div className="template-gallery">{RESUME_TEMPLATES.map((template) => {
+    <div className="design-intro"><span className="design-eyebrow">{t("为你而排", "MAKE IT YOURS")}</span><h2>{t("让优势先被看见。", "Make your strengths stand out.")}</h2><p>{t("选择版式，调整顺序，只展示这次投递需要的信息。", "Choose a layout, arrange sections and show what matters for this application.")}</p></div>
+    <section className="design-card template-library"><div className="design-card-title"><LayoutTemplate size={17} /><h3>{t("模板库", "Template library")}</h3><span className="design-count">{RESUME_TEMPLATES.length} {t("套版式", "LAYOUTS")}</span></div>
+      <p className="template-library-caption">{t("为你的下一程，选一份好版式。", "A considered layout for your next chapter.")}</p>
+      <div className="template-source-filters" role="group" aria-label={t("筛选模板来源", "Filter template sources")}>
+        <button type="button" aria-pressed={templateSource === "all"} onClick={() => filterSource("all")}>{t("全部", "All")}<span>{RESUME_TEMPLATES.length}</span></button>
+        {TEMPLATE_SOURCES.map((source) => <button key={source.id} type="button" aria-pressed={templateSource === source.id} onClick={() => filterSource(source.id)}>{source[locale]}<span>{RESUME_TEMPLATES.filter((template) => template.source === source.id).length}</span></button>)}
+      </div>
+      <label className="template-search"><span>{t("查找版式", "Find a layout")}</span><input type="search" value={templateSearch} placeholder={t("按名称、来源或风格查找", "Search name, source or style")} onChange={(event) => { setTemplateSearch(event.target.value); setTemplatePage(0); }} /></label>
+      <div className="template-selection-details" aria-label={t("当前模板", "Selected template")}>
+        <div><strong>{selectedMetadata.name}</strong><span>{selectedTemplate.source === "original" ? t("BetterMe 自研", "BetterMe original") : `${t("来源原生适配", "Native source adaptation")} · ${selectedTemplate.licenseLabel ?? "MIT"}`}</span></div>
+        <p>{selectedMetadata.description}</p>
+        {selectedTemplate.usageRestriction && <p className="template-license-restriction">{selectedTemplate.usageRestriction[locale]}</p>}
+        <div className="template-selection-actions"><button type="button" onClick={() => layoutChange(selectedTemplate.recommended)}>{t("采用推荐配色与字形", "Use recommended color & type")}</button>{selectedTemplate.upstreamUrl && <a href={selectedTemplate.upstreamUrl} target="_blank" rel="noreferrer">{t("上游源码 ↗", "Upstream source ↗")}</a>}</div>
+      </div>
+      <div className="template-gallery">{visibleTemplates.map((template) => {
         const metadata = getTemplateUiMetadata(template.id, locale);
-        return <button type="button" key={template.id} className={`template-card${view.templateId === template.id ? " is-selected" : ""}`} onClick={() => change({ templateId: template.id })} aria-pressed={view.templateId === template.id} title={metadata.description}>
-          <TemplateMiniature id={template.id} /><span className="template-card-name">{metadata.name}{view.templateId === template.id && <Check size={13} aria-hidden="true" />}</span><span className="template-card-label">{template.label} · {metadata.tag}</span>
+        const definition = getResumeTemplate(template.id);
+        const selected = view.templateId === template.id;
+        return <button type="button" key={template.id} data-template-choice={template.id} className={`template-card${selected ? " is-selected" : ""}`} onClick={() => change({ templateId: template.id })} aria-pressed={selected} aria-label={`${metadata.name} ${template.label} · ${metadata.tag}`} title={metadata.description}>
+          <span className="template-card-stage"><span className="template-card-index" aria-hidden="true">{String(RESUME_TEMPLATES.findIndex((item) => item.id === template.id) + 1).padStart(2, "0")}</span><TemplateThumbnail id={template.id} locale={locale} /><span className="template-card-status" aria-hidden="true">{selected && <Check size={12} strokeWidth={2.6} />}</span></span>
+          <span className="template-card-info"><span className="template-card-name">{metadata.name}</span><span className="template-card-label">{template.label} · {metadata.tag}</span>{definition.usageRestriction && <span className="template-license-restriction">{definition.usageRestriction[locale]}</span>}<span className="template-card-origin">{template.source === "original" ? t("自研", "Original") : (definition.licenseLabel ?? "MIT") + " · " + TEMPLATE_SOURCES.find((source) => source.id === template.source)!.name}</span></span>
         </button>;
-      })}</div><p className="design-help">{t("每套模板采用独立排版。切换模板保留你的事实与显示设置。", "Each template has its own layout. Switching preserves facts and visibility settings.")}</p>
+      })}</div>
+      {matchingTemplates.length === 0 && <p className="template-empty" role="status">{t("没有匹配的版式，试试其他关键词或来源。", "No matching layouts. Try another search or source.")}</p>}
+      <div className="template-pagination"><span role="status">{t(`共 ${matchingTemplates.length} 套 · 第 ${currentPage + 1} / ${pageCount} 页`, `${matchingTemplates.length} layouts · Page ${currentPage + 1} of ${pageCount}`)}</span><button type="button" disabled={currentPage === 0} onClick={() => setTemplatePage(currentPage - 1)}>{t("上一页", "Previous")}</button><button type="button" disabled={currentPage + 1 >= pageCount} onClick={() => setTemplatePage(currentPage + 1)}>{t("下一页", "Next")}</button></div>
+      <p className="design-help">{t("切换保留事实、分节顺序与设计参数。缩略图使用推荐配色与字形；开源适配版使用系统字体，PDF 采用当前网页排版。", "Switching preserves facts, section order and design settings. Thumbnails use recommended color and type. Adaptations use system fonts; PDF follows the current web layout.")}</p>
     </section>
+
 
     <section className="design-card"><div className="design-card-title"><GripVertical size={17} /><h3>{t("内容顺序", "Section order")}</h3><span className="design-count">{t("拖动 / 上下移动", "Drag / move up or down")}</span></div>
       <p className="design-help">{t("工作经历可以放在最前，教育背景可以放到最后或隐藏。", "Put work experience first, move education later or hide it.")}</p>
@@ -115,3 +130,5 @@ export function ResumeDesignPanel({ view, factBase, onChange }: Props) {
     </section>
   </div>;
 }
+
+export { getTemplateUiMetadata } from "./template-catalog";

@@ -1,0 +1,228 @@
+/* Original BetterMe paper system. System fonts only; all sizing and colour
+   controls come from the selected ResumeView, including when printing. */
+.a4-sheet {
+  width: 210mm;
+  min-height: 297mm;
+  box-sizing: border-box;
+  margin: 0 auto;
+  background: #fff;
+  box-shadow: 0 1px 2px #25352c0d, 0 8px 20px #25352c0a, 0 30px 65px -28px #25352c30;
+}
+
+.resume-document {
+  --resume-rule: color-mix(in srgb, var(--resume-accent) 24%, white);
+  --resume-tint: color-mix(in srgb, var(--resume-accent) 4%, white);
+  padding: var(--resume-margin);
+  color: #26332f;
+  font-size: var(--resume-body-size);
+  line-height: var(--resume-line-height);
+  overflow-wrap: anywhere;
+  word-break: normal;
+  text-rendering: optimizeLegibility;
+  font-kerning: normal;
+}
+
+.resume-document h1,
+.resume-document h2,
+.resume-document h3,
+.resume-document p { margin: 0; }
+.resume-document a { color: inherit; text-decoration-thickness: .6px; text-underline-offset: 3px; }
+.resume-document a:hover { text-decoration: underline; }
+.resume-sheet.resume-document h1 {
+  font-size: var(--resume-name-size);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -.035em;
+  color: var(--resume-accent);
+}
+.resume-sheet:lang(zh-CN) h1 { letter-spacing: .065em; }
+.resume-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--resume-accent);
+}
+.resume-identity, .resume-contact, .resume-body, .resume-experience-list { min-width: 0; }
+.resume-header.has-avatar { grid-template-columns: minmax(0, 1fr) 23mm; column-gap: 22px; }
+.resume-sheet .resume-headline {
+  margin-top: 9px;
+  color: #3e4c46;
+  font-size: 1.08em;
+  line-height: 1.5;
+  font-weight: 500;
+  letter-spacing: .015em;
+}
+.resume-contact { color: #5c6660; font-size: .84em; line-height: 1.7; }
+.resume-contact-details > span { display: inline; }
+.resume-links { display: flex; flex-wrap: wrap; gap: 2px 15px; margin: 4px 0 0; padding: 0; list-style: none; }
+.resume-links > li { min-width: 0; }
+.resume-avatar {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: start;
+  width: 23mm;
+  height: 30mm;
+  object-fit: cover;
+  border: 1px solid var(--resume-rule);
+  border-radius: 1px;
+}
+.resume-sheet .resume-section { margin-top: var(--resume-section-spacing); }
+.resume-sheet .resume-section h2 {
+  margin-bottom: 11px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--resume-rule);
+  color: var(--resume-accent);
+  font-size: var(--resume-heading-size);
+  font-weight: 700;
+  line-height: 1.45;
+  letter-spacing: -.01em;
+}
+.resume-sheet:lang(zh-CN) .resume-section h2 { letter-spacing: .09em; }
+.resume-keywords { display: flex; flex-wrap: wrap; gap: 3px 16px; margin: 0; padding: 0; list-style: none; }
+.resume-keywords li { min-width: 0; }
+.resume-experience + .resume-experience { margin-top: calc(var(--resume-section-spacing) * .78); }
+.resume-experience-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 18px; }
+.resume-sheet .resume-experience-heading h3 { flex: 1 1 58%; min-width: 0; font-size: 1.04em; line-height: 1.55; font-weight: 700; color: #23362c; text-wrap: pretty; }
+.resume-role { font-weight: 500; }
+.resume-dates { margin-left: auto !important; color: #657069; font-size: .82em; line-height: 1.65; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.resume-project-name { margin-top: 5px !important; font-weight: 600; }
+.resume-tech, .resume-experience-url { margin-top: 4px !important; color: #5a6860; font-size: .87em; line-height: 1.65; }
+.resume-tech strong { font-weight: 600; }
+.resume-experience-url a { text-decoration: underline; }
+.resume-claims { margin: 7px 0 0; padding-left: 1.2em; list-style: disc; white-space: pre-line; }
+.resume-claims li { padding-left: .12em; }
+.resume-claims li::marker { color: color-mix(in srgb, var(--resume-accent) 65%, #78837b); font-size: .7em; }
+.resume-claims li + li { margin-top: .32em; }
+.resume-template-attribution { clear:both; grid-column:1 / -1; margin-top:var(--resume-section-spacing); padding-top:7px; border-top:1px solid #ddd; color:#656565; font-size:7pt; line-height:1.5; break-inside:avoid; overflow-wrap:anywhere; }
+
+/* CLASSIC — centered identity, serif chapter labels and quiet horizontal rules. */
+.resume-sheet.resume-template-zh-classic .resume-header { gap: 9px; padding-bottom: 21px; }
+.resume-template-zh-classic .resume-identity,
+.resume-template-zh-classic .resume-contact { text-align: center; }
+.resume-template-zh-classic .resume-links { justify-content: center; }
+.resume-sheet.resume-template-zh-classic h1 { font-family: var(--resume-serif-family); font-weight: 600; }
+.resume-sheet.resume-template-zh-classic .resume-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  border: 0;
+  padding: 0;
+  font-family: var(--resume-serif-family);
+  font-weight: 700;
+}
+.resume-template-zh-classic .resume-section h2::after { content: ""; flex: 1; min-width: 8mm; height: 1px; background: var(--resume-rule); }
+.resume-sheet.resume-template-zh-classic:lang(en) .resume-section h2 { font-family: inherit; font-size: var(--resume-heading-size); letter-spacing: .055em; }
+
+/* ATS — a single sequential text column, readable link destinations and no
+   visual reordering. Actual parser compatibility remains a separate check. */
+.resume-sheet.resume-template-en-ats { color: #202020; }
+.resume-sheet.resume-template-en-ats h1 { color: #202020; font-weight: 700; }
+.resume-sheet.resume-template-en-ats .resume-header { display: block; padding-bottom: 15px; border-color: #363636; }
+.resume-sheet.resume-template-en-ats .resume-headline { margin-top: 7px; font-size: 1em; font-weight: 400; color: inherit; }
+.resume-template-en-ats .resume-contact { margin-top: 8px; color: #393939; }
+.resume-template-en-ats .resume-links { display: block; }
+.resume-template-en-ats .resume-links li + li { margin-top: 2px; }
+.resume-template-en-ats .resume-summary,
+.resume-template-en-ats .resume-keywords { display: block; }
+.resume-template-en-ats .resume-keywords li { display: inline; }
+.resume-template-en-ats .resume-keywords li + li::before { content: "; "; }
+.resume-sheet.resume-template-en-ats .resume-section h2 { padding: 0 0 5px; border-color: #c9c9c9; color: #202020; }
+.resume-sheet.resume-template-en-ats:lang(en) .resume-section h2 { text-transform: uppercase; font-size: var(--resume-heading-size); letter-spacing: .065em; }
+.resume-template-en-ats .resume-experience-heading { display: block; }
+.resume-sheet.resume-template-en-ats .resume-experience-heading h3 { color: #202020; }
+.resume-sheet.resume-template-en-ats .resume-dates { margin: 2px 0 0 !important; font-size: .86em; color: #444; }
+.resume-template-en-ats .resume-tech,
+.resume-template-en-ats .resume-experience-url { color: #444; }
+.resume-template-en-ats .resume-claims li::marker { color: #444; }
+
+/* MODERN — an architectural masthead, restrained tint and a fine experience rail. */
+.resume-sheet.resume-template-clean-modern .resume-header {
+  grid-template-columns: minmax(0, 1fr) minmax(0, .83fr);
+  align-items: center;
+  gap: 16px 22px;
+  border: 0;
+  border-top: 3px solid var(--resume-accent);
+  padding: 20px;
+  background: var(--resume-tint);
+}
+.resume-sheet.resume-template-clean-modern .resume-header.has-avatar { grid-template-columns: minmax(0, 1fr) minmax(0, .83fr) 23mm; }
+.resume-template-clean-modern .resume-header.has-avatar .resume-avatar { grid-column: 3; grid-row: 1; }
+.resume-sheet.resume-template-clean-modern .resume-headline { color: var(--resume-accent); font-size: 1.03em; }
+.resume-template-clean-modern .resume-links { display: block; }
+.resume-template-clean-modern .resume-summary { display: flex; flex-wrap: wrap; gap: 0 23px; }
+.resume-template-clean-modern .resume-summary-section { flex: 1 1 180px; min-width: 0; }
+.resume-template-clean-modern .resume-keywords { gap: 5px 6px; }
+.resume-template-clean-modern .resume-keywords li { padding: 2px 7px; border: 1px solid var(--resume-rule); border-radius: 2px; background: var(--resume-tint); color: var(--resume-accent); font-size: .94em; }
+.resume-sheet.resume-template-clean-modern .resume-section h2 { padding-bottom: 7px; border-bottom: 2px solid var(--resume-rule); }
+.resume-template-clean-modern .resume-experience { padding-left: 13px; border-left: 1px solid var(--resume-rule); }
+
+/* EDITORIAL — a broad serif masthead and a consistent marginal label column. */
+.resume-sheet.resume-template-editorial .resume-header { padding-bottom: 25px; gap: 13px; border-bottom: 1px solid var(--resume-accent); }
+.resume-sheet.resume-template-editorial h1 { font-family: var(--resume-serif-family); font-weight: 400; line-height: 1.15; }
+.resume-sheet.resume-template-editorial:lang(zh-CN) h1 { letter-spacing: .035em; }
+.resume-sheet.resume-template-editorial .resume-headline { margin-top: 11px; font-weight: 400; letter-spacing: .015em; }
+.resume-sheet.resume-template-editorial .resume-section { display: grid; grid-template-columns: minmax(0, 29mm) minmax(0, 1fr); gap: 5mm; }
+.resume-sheet.resume-template-editorial .resume-section h2 { margin: 0; padding: 2px 0 0; border: 0; font-family: var(--resume-serif-family); font-weight: 500; letter-spacing: .015em; }
+.resume-sheet.resume-template-editorial:lang(zh-CN) .resume-section h2 { letter-spacing: .02em; }
+.resume-template-editorial .resume-experience-heading { display: block; }
+.resume-sheet.resume-template-editorial .resume-dates { margin: 4px 0 7px !important; font-size: .8em; letter-spacing: .03em; }
+.resume-template-editorial .resume-experience + .resume-experience { margin-top: var(--resume-section-spacing); }
+.resume-template-editorial .resume-keywords { gap: 4px 14px; }
+.resume-template-editorial .resume-avatar { border: 0; border-radius: 0; }
+
+/* SIDEBAR — a restrained personal-information rail and an open main column. */
+.resume-sheet.resume-template-sidebar { display: grid; grid-template-columns: 42mm minmax(0, 1fr); column-gap: 9mm; align-items: start; }
+.resume-sheet.resume-template-sidebar .resume-header { display: flex; flex-direction: column; align-items: stretch; gap: 14px; padding: 17px 13px; border: 0; border-top: 3px solid var(--resume-accent); background: var(--resume-tint); }
+.resume-sheet.resume-template-sidebar h1 { font-size: calc(var(--resume-name-size) * .72); line-height: 1.35; letter-spacing: -.025em; }
+.resume-sheet.resume-template-sidebar:lang(zh-CN) h1 { letter-spacing: .035em; }
+.resume-sheet.resume-template-sidebar .resume-headline { margin-top: 9px; font-size: 1em; line-height: 1.65; }
+.resume-template-sidebar .resume-contact-details { white-space: normal; line-height: 1.9; }
+.resume-template-sidebar .resume-links { display: block; margin-top: 8px; }
+.resume-template-sidebar .resume-links li + li { margin-top: 5px; }
+.resume-template-sidebar .resume-avatar { order: -1; align-self: flex-start; border: 0; border-radius: 0; }
+.resume-sheet.resume-template-sidebar .resume-body > .resume-section:first-child,
+.resume-sheet.resume-template-sidebar .resume-body > .resume-summary:first-child > .resume-section:first-child { margin-top: 0; }
+.resume-sheet.resume-template-sidebar .resume-section h2 { border: 0; padding-bottom: 0; }
+.resume-template-sidebar .resume-experience-heading { display: block; }
+.resume-sheet.resume-template-sidebar .resume-dates { margin: 3px 0 0 !important; }
+.resume-template-sidebar .resume-claims { padding-left: 1.05em; }
+
+/* COMPACT — a clean information band and economical, adjustable rhythm. */
+.resume-sheet.resume-template-compact .resume-header { grid-template-columns: minmax(0, 1fr) minmax(0, .8fr); gap: 12px 20px; padding-bottom: 13px; border-bottom: 2px solid var(--resume-accent); }
+.resume-sheet.resume-template-compact .resume-header.has-avatar { grid-template-columns: minmax(0, 1fr) minmax(0, .8fr) 18mm; gap: 10px; }
+.resume-template-compact .resume-header.has-avatar .resume-avatar { grid-column: 3; grid-row: 1; width: 18mm; height: 24mm; }
+.resume-sheet.resume-template-compact h1 { font-size: calc(var(--resume-name-size) * .85); }
+.resume-sheet.resume-template-compact .resume-contact { font-size: .8em; }
+.resume-sheet.resume-template-compact .resume-section { margin-top: calc(var(--resume-section-spacing) * .7); }
+.resume-sheet.resume-template-compact .resume-section h2 { margin-bottom: 8px; padding: 4px 8px; border: 0; background: var(--resume-tint); }
+.resume-template-compact .resume-experience + .resume-experience { margin-top: calc(var(--resume-section-spacing) * .48); }
+.resume-template-compact .resume-claims li + li { margin-top: .16em; }
+.resume-template-compact .resume-links { gap: 2px 10px; }
+.resume-template-compact .resume-summary { display: flex; gap: 20px; }
+.resume-template-compact .resume-summary-section { flex: 1; min-width: 0; }
+
+@media print {
+  .a4-sheet { width: 100% !important; min-height: auto !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; }
+  .resume-document, .resume-document * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* @page uses the selected margin from ResumePreview. Removing this padding
+     avoids counting that same user-controlled margin a second time. */
+  .resume-sheet.resume-document { font-size: var(--resume-body-size) !important; line-height: var(--resume-line-height) !important; padding: 0 !important; box-shadow: none; }
+  .resume-sheet .resume-header, .resume-sheet .resume-experience-heading { break-inside: avoid; page-break-inside: avoid; }
+  .resume-sheet .resume-section, .resume-sheet .resume-experience, .resume-sheet .resume-claims { break-inside: auto; }
+  .resume-sheet .resume-section h2, .resume-sheet .resume-experience-heading,
+  .resume-sheet .resume-project-name, .resume-sheet .resume-experience-url,
+  .resume-sheet .resume-tech { break-after: avoid; page-break-after: avoid; }
+  .resume-sheet .resume-claims > li { break-inside: avoid; page-break-inside: avoid; }
+  .resume-sheet p, .resume-sheet li { orphans: 2; widows: 2; }
+  .resume-sheet.resume-template-clean-modern .resume-summary { display: block; }
+  /* Chromium fragments nested grids before honouring descendants' keep rules.
+     Keep the exact same label/rail widths using normal flow on printed pages. */
+  .resume-sheet.resume-template-editorial .resume-section { display: block; padding-left: 34mm; }
+  .resume-sheet.resume-template-editorial .resume-section > h2 { float: left; width: 29mm; margin-left: -34mm; }
+  .resume-sheet.resume-template-editorial .resume-section::after { content: ""; display: block; clear: both; }
+  .resume-sheet.resume-template-sidebar { display: block !important; }
+  .resume-sheet.resume-template-sidebar .resume-header { float: left; width: 42mm; box-sizing: border-box; }
+  .resume-sheet.resume-template-sidebar .resume-body { margin-left: 51mm; }
+  .resume-sheet a { text-decoration: none; }
+}

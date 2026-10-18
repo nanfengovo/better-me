@@ -1,0 +1,37 @@
+{
+  "name": "jsonresume-theme-minyma",
+  "version": "0.0.5",
+  "description": "A custom theme for jsonresume",
+  "private": false,
+  "main": "index.js",
+  "scripts": {
+    "compile:hbs": "node scripts/render-example.js",
+    "compile:tw": "tailwindcss -i ./src/input.css -o ./output/styles.css --minify",
+    "watch": "watch \"npm run compile:hbs && npm run compile:tw && npm run inlineOutput\" ./src",
+    "serve": "live-server output",
+    "dev": "concurrently \"npm run watch\" \"npm run serve\"",
+    "inlineOutput": "node scripts/inline-output.js",
+    "prepublishOnly": "npm run compile:hbs && npm run compile:tw && npm run inlineOutput"
+  },
+  "keywords": [
+    "jsonresume",
+    "theme"
+  ],
+  "author": "godraadam",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/godraadam/jsonresume-theme-minyma.git"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^7.6.0",
+    "live-server": "^1.2.2",
+    "prettier": "^3.1.0",
+    "prettier-plugin-tailwindcss": "^0.5.7",
+    "tailwindcss": "^3.2.4",
+    "watch": "^1.0.2"
+  },
+  "dependencies": {
+    "handlebars": "^4.7.7"
+  }
+}

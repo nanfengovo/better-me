@@ -1,0 +1,52 @@
+/* LPPL-1.3c native CSS adaptations, maintained by BetterMe contributors.
+   These are renamed HTML/CSS translations, not drop-in LaTeX classes.
+   Original copyrights, full license, source revisions, exact download URLs
+   and change logs: templates/licenses/{geekplux,resume-ng,liweitianux}/NOTICE.md.
+   No upstream support/endorsement is implied; no fonts or facts are bundled. */
+
+/* geekplux/cv_resume: template_cn_blue.tex retains Xavier Danaux's LPPL notice. */
+.resume-sheet.resume-template-community-geekplux .resume-header { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .85fr); align-items: end; border: 0; padding-bottom: 4mm; }
+.resume-sheet.resume-template-community-geekplux .resume-header.has-avatar { grid-template-columns: minmax(0, 1fr) minmax(0, .85fr) 23mm; }
+.resume-template-community-geekplux .resume-header.has-avatar .resume-avatar { grid-column: 3; grid-row: 1; }
+.resume-sheet.resume-template-community-geekplux h1 { font-family: var(--resume-serif-family); font-weight: 400; color: #666; }
+.resume-sheet.resume-template-community-geekplux .resume-headline { color: var(--resume-accent); font-weight: 400; }
+.resume-template-community-geekplux .resume-contact { text-align: right; }
+.resume-template-community-geekplux .resume-links { display: block; }
+.resume-sheet.resume-template-community-geekplux .resume-section h2 { display: flex; gap: 3mm; align-items: center; border: 0; padding: 0; font-weight: 400; }
+.resume-template-community-geekplux .resume-section h2::before { content: ""; flex: 0 0 25mm; height: 1.1mm; background: var(--resume-accent); }
+.resume-template-community-geekplux .resume-experience { padding-left: 28mm; }
+.resume-template-community-geekplux .resume-experience-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 1mm 3mm; }
+.resume-sheet.resume-template-community-geekplux .resume-experience-heading h3 { flex: 1 1 70%; }
+.resume-sheet.resume-template-community-geekplux .resume-dates { order: -1; flex: 0 0 25mm; margin: 0 0 0 -28mm !important; text-align: right; white-space: normal; color: #777; }
+.resume-template-community-geekplux .resume-keywords { padding-left: 28mm; }
+
+/* fky2015/resume-ng: dense ctexart, centered identity and full-width rules. */
+.resume-sheet.resume-template-community-resume-ng .resume-header { text-align: center; border: 0; gap: 1.5mm; padding-bottom: 0; }
+.resume-template-community-resume-ng .resume-links { justify-content: center; }
+.resume-sheet.resume-template-community-resume-ng h1 { font-weight: 800; color: #111; }
+.resume-sheet.resume-template-community-resume-ng .resume-section { margin-top: calc(var(--resume-section-spacing) * .6); }
+.resume-sheet.resume-template-community-resume-ng .resume-section h2 { color: #111; font-weight: 800; border-color: #111; padding-bottom: 1mm; margin-bottom: 2mm; }
+.resume-template-community-resume-ng .resume-experience + .resume-experience { margin-top: calc(var(--resume-section-spacing) * .4); }
+.resume-template-community-resume-ng .resume-role { font-weight: 400; }
+.resume-sheet.resume-template-community-resume-ng .resume-dates { color: #222; }
+.resume-template-community-resume-ng .resume-claims li + li { margin-top: .08em; }
+.resume-template-community-resume-ng .resume-keywords { display: block; }
+.resume-template-community-resume-ng .resume-keywords li { display: inline; }
+.resume-template-community-resume-ng .resume-keywords li + li::before { content: " / "; }
+
+/* liweitianux/resume: left date rail, vertical entry rule and outlined tags. */
+.resume-sheet.resume-template-community-liweitianux .resume-header { border: 0; padding-bottom: 3mm; gap: 3mm; }
+.resume-sheet.resume-template-community-liweitianux h1 { font-family: var(--resume-serif-family); font-weight: 700; }
+.resume-template-community-liweitianux .resume-header.has-avatar .resume-avatar { border-radius: 50%; width: 25mm; height: 25mm; }
+.resume-sheet.resume-template-community-liweitianux .resume-section h2 { color: var(--resume-accent); border-color: #888; padding-bottom: 1mm; margin-bottom: 3mm; }
+.resume-template-community-liweitianux .resume-experience { margin-left: 26mm; border-left: .25mm solid var(--resume-rule); padding-left: 3mm; }
+.resume-template-community-liweitianux .resume-experience-heading { display: flex; flex-wrap: wrap; gap: 1mm 3mm; }
+.resume-sheet.resume-template-community-liweitianux .resume-experience-heading h3 { flex: 1 1 70%; }
+.resume-sheet.resume-template-community-liweitianux .resume-dates { order: -1; flex: 0 0 auto; min-width: 23mm; margin: 0 0 0 -30mm !important; color: #666; white-space: nowrap; overflow-wrap: normal; word-break: normal; text-align: right; }
+.resume-template-community-liweitianux .resume-keywords { gap: 1.5mm; }
+.resume-template-community-liweitianux .resume-keywords li { padding: .7mm 1.7mm; border: .25mm solid var(--resume-rule); border-radius: 1mm; }
+.resume-template-community-liweitianux .resume-tech { padding: .7mm 1.5mm; border: .2mm solid var(--resume-rule); border-radius: 1mm; }
+
+@media print {
+  .resume-sheet:is(.resume-template-community-geekplux,.resume-template-community-liweitianux) .resume-experience-heading { break-inside: avoid; }
+}

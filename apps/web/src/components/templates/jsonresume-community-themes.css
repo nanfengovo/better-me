@@ -1,0 +1,131 @@
+/* Individually licensed JSON Resume adaptations. Pinned package/source and
+   author notices: templates/licenses/jsonresume-<theme>/NOTICE.md.
+   Shared facts and reading order always belong to ResumeTemplate. */
+
+/* ELEGANT: light profile card and outlined background chapters. */
+.resume-sheet.resume-template-jsonresume-elegant .resume-header { padding:18px; border:1px solid #e6e6e6; border-radius:3px; background:#f8f9fa; }
+.resume-template-jsonresume-elegant :is(.resume-identity,.resume-contact) { text-align:center; }
+.resume-template-jsonresume-elegant .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-elegant h1 { font-weight:400; }
+.resume-sheet.resume-template-jsonresume-elegant .resume-section { padding:13px 16px; border:1px solid #e6e6e6; border-radius:3px; }
+.resume-sheet.resume-template-jsonresume-elegant .resume-section h2 { border:0; padding:0; font-weight:400; }
+.resume-template-jsonresume-elegant .resume-skill-list li { padding:2px 7px; border:1px solid var(--resume-rule); border-radius:3px; color:var(--resume-accent); }
+
+/* EVEN: light typography and connected timeline entries. Source duration
+   calculations and web components are excluded from the factual renderer. */
+.resume-sheet.resume-template-jsonresume-even .resume-header { border:0; padding-bottom:5px; gap:10px; }
+.resume-sheet.resume-template-jsonresume-even h1 { font-weight:400; }
+.resume-sheet.resume-template-jsonresume-even .resume-section h2 { border:0; padding:0; font-weight:400; }
+.resume-template-jsonresume-even .resume-experience { position:relative; margin-left:7px; padding-left:18px; border-left:2px solid #cdd2d7; }
+.resume-template-jsonresume-even .resume-experience::before { content:""; position:absolute; left:-5px; top:.5em; width:8px; height:8px; border:2px solid #fff; border-radius:50%; background:#6c7781; box-sizing:border-box; }
+.resume-sheet.resume-template-jsonresume-even .resume-experience + .resume-experience { margin-top:0; padding-top:calc(var(--resume-section-spacing) * .8); }
+.resume-template-jsonresume-even .resume-skill-list li { padding:2px 7px; background:#f3f4f5; }
+
+/* FLAT / PAPER++ / TAN / COLOPHON: marginal chapter labels retain a real
+   sequential body. Normal flow also supports long printed entries. */
+.resume-sheet:is(.resume-template-jsonresume-flat,.resume-template-jsonresume-paper-plus-plus,.resume-template-jsonresume-tan-responsive,.resume-template-jsonresume-colophon) { --jsonresume-label-width:27mm; --jsonresume-label-gap:6mm; --jsonresume-label-inset:calc(var(--jsonresume-label-width) + var(--jsonresume-label-gap)); }
+.resume-sheet:is(.resume-template-jsonresume-flat,.resume-template-jsonresume-paper-plus-plus,.resume-template-jsonresume-tan-responsive,.resume-template-jsonresume-colophon) .resume-section { padding-left:var(--jsonresume-label-inset); display:flow-root; }
+.resume-sheet:is(.resume-template-jsonresume-flat,.resume-template-jsonresume-paper-plus-plus,.resume-template-jsonresume-tan-responsive,.resume-template-jsonresume-colophon) .resume-section h2 { float:left; width:var(--jsonresume-label-width); margin-left:calc(-1 * var(--jsonresume-label-inset)); border:0; padding:0; }
+.resume-sheet.resume-template-jsonresume-flat .resume-header { padding:19px; border:0; background:#f4f6f6; }
+.resume-sheet.resume-template-jsonresume-flat .resume-section h2 { font-weight:400; text-align:right; }
+.resume-template-jsonresume-flat .resume-experience { padding-top:7px; border-top:1px solid #e7e9ec; }
+.resume-template-jsonresume-flat .resume-role { display:block; }
+.resume-template-jsonresume-flat .resume-role-separator { display:none; }
+
+/* JACRYS: centered identity, teal uppercase chapters and dark skill chips. */
+.resume-template-jsonresume-jacrys :is(.resume-identity,.resume-contact) { text-align:center; }
+.resume-template-jsonresume-jacrys .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-jacrys h1 { text-transform:uppercase; font-weight:800; }
+.resume-sheet.resume-template-jsonresume-jacrys .resume-section h2 { border:0; padding:0; text-transform:uppercase; }
+.resume-template-jsonresume-jacrys .resume-experience { padding-left:12px; border-left:2px solid #e1e6e9; }
+.resume-template-jsonresume-jacrys .resume-skill-list li { padding:4px 8px; background:color-mix(in srgb,var(--resume-accent) 48%,#334960); color:#fff; }
+
+/* LUCIDE / MACCHIATO: upstream fixed section assignments become a profile
+   rail; movable body sections keep their exact reading and DOM order. */
+.resume-sheet:is(.resume-template-jsonresume-lucide,.resume-template-jsonresume-macchiato) { display:flow-root; --jsonresume-profile-width:40mm; --jsonresume-profile-gap:8mm; }
+.resume-sheet:is(.resume-template-jsonresume-lucide,.resume-template-jsonresume-macchiato) .resume-header { display:flex; flex-direction:column; align-items:stretch; float:left; width:var(--jsonresume-profile-width); box-sizing:border-box; padding:13px; border:0; }
+.resume-sheet:is(.resume-template-jsonresume-lucide,.resume-template-jsonresume-macchiato) .resume-body { margin-left:calc(var(--jsonresume-profile-width) + var(--jsonresume-profile-gap)); }
+.resume-sheet:is(.resume-template-jsonresume-lucide,.resume-template-jsonresume-macchiato) h1 { font-size:calc(var(--resume-name-size) * .73); }
+.resume-template-jsonresume-lucide .resume-header { background:color-mix(in srgb,var(--resume-accent) 80%,#0067b0); border-radius:10px; }
+.resume-sheet.resume-template-jsonresume-lucide .resume-header :is(h1,.resume-headline,.resume-contact) { color:#fff; }
+.resume-template-jsonresume-lucide .resume-avatar { order:-1; align-self:center; width:25mm; height:25mm; border:2px solid #fff; border-radius:50%; }
+.resume-template-jsonresume-lucide .resume-links { display:block; }
+.resume-sheet.resume-template-jsonresume-lucide .resume-section h2 { border:0; padding:0; }
+.resume-template-jsonresume-macchiato .resume-header { background:transparent; border-right:1px solid #e2e5e7 !important; padding-left:0 !important; letter-spacing:.02em; }
+.resume-sheet.resume-template-jsonresume-macchiato h1 { color:#39424b; font-weight:700; letter-spacing:.04em; }
+.resume-sheet.resume-template-jsonresume-macchiato .resume-section h2 { font-weight:300; letter-spacing:.05em; text-transform:uppercase; border:0; padding:0; }
+.resume-template-jsonresume-macchiato .resume-links { display:block; }
+.resume-sheet.resume-template-jsonresume-macchiato .resume-dates { font-weight:300; }
+
+/* MINYMA: centered identity, divided chapters, bold labels and dark pills. */
+.resume-template-jsonresume-minyma :is(.resume-identity,.resume-contact) { text-align:center; }
+.resume-template-jsonresume-minyma .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-minyma .resume-header { border:0; padding-bottom:10px; }
+.resume-sheet.resume-template-jsonresume-minyma .resume-section h2 { border-top:2px solid #e5e5e5; border-bottom:0; padding-top:12px; padding-bottom:0; color:#262626; font-weight:700; }
+.resume-template-jsonresume-minyma .resume-skill-list li { padding:3px 10px; color:#fff; background:color-mix(in srgb,var(--resume-accent) 22%,#262626); border-radius:20px; }
+.resume-sheet.resume-template-jsonresume-minyma .resume-headline { font-weight:300; color:#737373; }
+
+/* PAPER++: serif masthead and pale vertical content rail. */
+.resume-template-jsonresume-paper-plus-plus :is(.resume-identity,.resume-contact) { text-align:center; }
+.resume-template-jsonresume-paper-plus-plus .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-paper-plus-plus .resume-header { border:0; }
+.resume-sheet.resume-template-jsonresume-paper-plus-plus h1 { font-family:var(--resume-serif-family); font-weight:400; }
+.resume-sheet.resume-template-jsonresume-paper-plus-plus .resume-section { border-left:2px solid #ddd; padding-left:calc(var(--jsonresume-label-inset) - 2px); }
+.resume-sheet.resume-template-jsonresume-paper-plus-plus .resume-section h2 { font-weight:400; font-family:var(--resume-serif-family); text-align:right; }
+
+/* PROFESSIONAL: centered title, italic entry subtitles, open chapters. */
+.resume-template-jsonresume-professional :is(.resume-identity,.resume-contact) { text-align:center; }
+.resume-template-jsonresume-professional .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-professional .resume-header { border:0; padding:12px 0; }
+.resume-sheet.resume-template-jsonresume-professional h1 { font-weight:400; }
+.resume-sheet.resume-template-jsonresume-professional .resume-section h2 { border:0; padding:0; font-weight:600; }
+.resume-template-jsonresume-professional .resume-role { font-style:italic; font-weight:400; }
+.resume-sheet.resume-template-jsonresume-professional .resume-dates { font-style:italic; }
+
+/* PUMPKIN: source flat layout with a dark masthead and gold underline. */
+.resume-sheet.resume-template-jsonresume-pumpkin .resume-header { padding:19px; background:#1e1e1e; border:0; }
+.resume-sheet.resume-template-jsonresume-pumpkin h1,.resume-sheet.resume-template-jsonresume-pumpkin .resume-contact { color:#fff; }
+.resume-sheet.resume-template-jsonresume-pumpkin .resume-headline { color:color-mix(in srgb,var(--resume-accent) 55%,#fff); }
+.resume-sheet.resume-template-jsonresume-pumpkin .resume-section h2 { border:0; padding:0; color:#222; font-weight:400; }
+.resume-template-jsonresume-pumpkin a { text-decoration:underline; text-decoration-color:var(--resume-accent); text-decoration-thickness:2px; }
+.resume-template-jsonresume-pumpkin .resume-experience { padding-top:7px; border-top:1px solid #f0f0f0; }
+
+/* TAN RESPONSIVE: gray information band and italic amber marginal labels. */
+.resume-sheet.resume-template-jsonresume-tan-responsive .resume-header { padding:17px; background:#ededed; border-bottom:2px solid var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-tan-responsive h1 { font-family:var(--resume-serif-family); }
+.resume-sheet.resume-template-jsonresume-tan-responsive .resume-section { border-top:1px solid #dedede; padding-top:14px; }
+.resume-sheet.resume-template-jsonresume-tan-responsive .resume-section h2 { font-family:var(--resume-serif-family); font-style:italic; font-weight:400; }
+
+/* CLAUDE: source's thin three-color stripe and monospaced date metadata. */
+.resume-sheet.resume-template-jsonresume-claude .resume-header { border:1px solid #e7e5e4; border-top:3px solid transparent; border-image:linear-gradient(90deg,var(--resume-accent),#7c3aed,#ec4899) 1; padding:18px; }
+.resume-sheet.resume-template-jsonresume-claude h1 { font-weight:800; color:#1c1917; }
+.resume-sheet.resume-template-jsonresume-claude .resume-headline { color:var(--resume-accent); }
+.resume-sheet.resume-template-jsonresume-claude .resume-section h2 { text-transform:uppercase; letter-spacing:.09em; color:#78716c; font-weight:700; }
+.resume-template-jsonresume-claude .resume-experience { padding-bottom:12px; border-bottom:1px solid #e7e5e4; }
+.resume-template-jsonresume-claude .resume-dates { font-family:Consolas,"Cascadia Code",monospace; }
+.resume-template-jsonresume-claude .resume-skill-list li { padding:3px 7px; background:#f5f5f4; border:1px solid #e7e5e4; border-radius:4px; }
+
+/* COLOPHON: serif name with monospaced marginal chapter notes. */
+.resume-sheet.resume-template-jsonresume-colophon h1 { color:#242321; font-family:var(--resume-serif-family); font-weight:400; letter-spacing:-.025em; }
+.resume-sheet.resume-template-jsonresume-colophon .resume-header { border:0; padding-bottom:12px; }
+.resume-sheet.resume-template-jsonresume-colophon .resume-section { border-top:1px solid #d8d2c7; padding-top:9px; }
+.resume-sheet.resume-template-jsonresume-colophon .resume-section h2 { color:#6b675f; font-family:Consolas,"Cascadia Code",monospace; font-weight:500; font-size:calc(var(--resume-heading-size) * .8); letter-spacing:0; }
+.resume-template-jsonresume-colophon a { color:var(--resume-accent); }
+
+/* CREATIVE CONFIDENCE: dark identity banner and light-blue skill panel.
+   The fixed source right-column assignment is intentionally sequential. */
+.resume-sheet.resume-template-jsonresume-creative-confidence .resume-header { padding:14px 18px; border:1px solid #0b1f3f; background:color-mix(in srgb,var(--resume-accent) 70%,#0f274d); }
+.resume-template-jsonresume-creative-confidence :is(.resume-identity,.resume-contact) { text-align:center; }
+.resume-template-jsonresume-creative-confidence .resume-links { justify-content:center; }
+.resume-sheet.resume-template-jsonresume-creative-confidence .resume-header :is(h1,.resume-headline,.resume-contact) { color:#f8fbff; }
+.resume-sheet.resume-template-jsonresume-creative-confidence .resume-headline { font-style:italic; }
+.resume-sheet.resume-template-jsonresume-creative-confidence .resume-section h2 { border:0; padding:0; color:var(--resume-accent); }
+.resume-template-jsonresume-creative-confidence .resume-role { font-style:italic; font-weight:400; }
+.resume-template-jsonresume-creative-confidence [data-section="skills"] { padding:12px; background:#edf4ff; }
+
+@media print {
+  .resume-sheet:is(.resume-template-jsonresume-lucide,.resume-template-jsonresume-macchiato) { display:flow-root; }
+  .resume-sheet:is(.resume-template-jsonresume-flat,.resume-template-jsonresume-paper-plus-plus,.resume-template-jsonresume-tan-responsive,.resume-template-jsonresume-colophon) .resume-section { display:block; }
+  .resume-sheet:is(.resume-template-jsonresume-flat,.resume-template-jsonresume-paper-plus-plus,.resume-template-jsonresume-tan-responsive,.resume-template-jsonresume-colophon) .resume-section::after { content:""; display:block; clear:both; }
+  .resume-sheet.resume-template-jsonresume-elegant .resume-section { border-radius:0; }
+}

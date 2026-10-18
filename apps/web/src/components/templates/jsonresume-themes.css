@@ -1,0 +1,168 @@
+/* Native React adaptations of two independently licensed JSON Resume themes.
+   Upstream authors, pinned revisions and MIT notices:
+   templates/licenses/jsonresume-stackoverflow and jsonresume-kendall.
+   The shared renderer owns facts, section order, links and rich-text ranges.
+   Fonts, icons, source runtimes and global resets are deliberately excluded. */
+
+/* STACK OVERFLOW — light identity, ruled chapter labels and blue keyword tags.
+   Adapted from Basics, SectionHeader, TimelineItem and KeywordList.svelte. */
+.resume-sheet.resume-template-jsonresume-stackoverflow {
+  color: #40484f;
+  --jsonresume-keyword-bg: color-mix(in srgb, var(--resume-accent) 7%, #e6eff5);
+  --jsonresume-keyword-ink: color-mix(in srgb, var(--resume-accent) 40%, #25313c);
+}
+.resume-sheet.resume-template-jsonresume-stackoverflow .resume-header {
+  gap: 6px;
+  padding-bottom: 0;
+  border: 0;
+}
+.resume-sheet.resume-template-jsonresume-stackoverflow h1 {
+  color: var(--resume-accent);
+  font-weight: 300;
+  letter-spacing: -.025em;
+}
+.resume-sheet.resume-template-jsonresume-stackoverflow:lang(zh-CN) h1 { letter-spacing: .035em; }
+.resume-sheet.resume-template-jsonresume-stackoverflow .resume-headline {
+  margin-top: 5px;
+  font-size: 1.19em;
+  font-weight: 400;
+  color: #53616d;
+}
+.resume-template-jsonresume-stackoverflow .resume-contact { color: #5b6b77; }
+.resume-template-jsonresume-stackoverflow .resume-links { gap: 3px 14px; }
+.resume-template-jsonresume-stackoverflow a { color: #006db7; }
+.resume-template-jsonresume-stackoverflow .resume-avatar { border-radius: 3px; }
+.resume-sheet.resume-template-jsonresume-stackoverflow .resume-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  font-weight: 700;
+}
+.resume-sheet.resume-template-jsonresume-stackoverflow:lang(en) .resume-section h2 {
+  text-transform: uppercase;
+  letter-spacing: .095em;
+}
+.resume-template-jsonresume-stackoverflow .resume-section h2::after {
+  content: "";
+  flex: 1;
+  min-width: 6mm;
+  height: .6px;
+  background: color-mix(in srgb, var(--resume-accent) 35%, #d1d9de);
+}
+.resume-template-jsonresume-stackoverflow .resume-summary-section > .resume-keywords {
+  padding: 11px 13px;
+  background: #f1f6f9;
+  line-height: 1.6;
+}
+.resume-template-jsonresume-stackoverflow .resume-experience-heading { gap: 2px 16px; }
+.resume-sheet.resume-template-jsonresume-stackoverflow .resume-experience-heading h3 { color: #354b5c; }
+.resume-template-jsonresume-stackoverflow .resume-role { color: #64737e; font-weight: 400; }
+.resume-sheet.resume-template-jsonresume-stackoverflow .resume-dates { color: #3c4851; font-weight: 600; }
+.resume-template-jsonresume-stackoverflow .resume-skill-list { gap: 5px 6px; }
+.resume-template-jsonresume-stackoverflow .resume-skill-list li {
+  padding: 2px 7px;
+  border-left: 2px solid var(--resume-accent);
+  border-radius: 2px;
+  background: var(--jsonresume-keyword-bg);
+  color: var(--jsonresume-keyword-ink);
+  font-size: .9em;
+  overflow-wrap: anywhere;
+}
+.resume-template-jsonresume-stackoverflow .resume-tech { color: var(--jsonresume-keyword-ink); }
+.resume-template-jsonresume-stackoverflow .resume-claims { list-style: square; }
+.resume-template-jsonresume-stackoverflow .resume-claims li::marker { color: #5c6c78; font-size: .8em; }
+
+/* KENDALL — centered masthead, shaded experience heads and dark keyword labels.
+   The source's fixed 60/40 columns become sequential sections here: this keeps
+   the user's section order and supports browser print fragmentation. */
+.resume-sheet.resume-template-jsonresume-kendall { color: #363e43; }
+.resume-sheet.resume-template-jsonresume-kendall .resume-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 19px;
+  border-bottom: 1px solid #d8dde0;
+}
+.resume-template-jsonresume-kendall .resume-identity,
+.resume-template-jsonresume-kendall .resume-contact { width: 100%; text-align: center; }
+.resume-template-jsonresume-kendall .resume-links { justify-content: center; }
+.resume-sheet.resume-template-jsonresume-kendall h1 {
+  color: var(--resume-accent);
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -.025em;
+}
+.resume-sheet.resume-template-jsonresume-kendall:lang(en) h1 { text-transform: uppercase; }
+.resume-sheet.resume-template-jsonresume-kendall:lang(zh-CN) h1 { letter-spacing: .065em; }
+.resume-sheet.resume-template-jsonresume-kendall .resume-headline {
+  margin-top: 7px;
+  color: #596b7a;
+  font-weight: 600;
+}
+.resume-template-jsonresume-kendall .resume-avatar {
+  order: -1;
+  width: 27mm;
+  height: 27mm;
+  align-self: center;
+  border: 4px solid color-mix(in srgb, var(--resume-accent) 24%, #e9edef);
+  border-radius: 50%;
+}
+.resume-sheet.resume-template-jsonresume-kendall .resume-section h2 {
+  padding: 0;
+  border: 0;
+  font-weight: 700;
+}
+.resume-sheet.resume-template-jsonresume-kendall:lang(en) .resume-section h2 {
+  text-transform: uppercase;
+  letter-spacing: .025em;
+}
+.resume-template-jsonresume-kendall .resume-experience-heading {
+  padding: 10px 12px;
+  border-right: 1px solid #dfe5e7;
+  border-bottom: 1px solid #dfe5e7;
+  background: #f0f2f3;
+}
+.resume-sheet.resume-template-jsonresume-kendall .resume-experience-heading h3 { color: color-mix(in srgb, var(--resume-accent) 60%, #334960); }
+.resume-template-jsonresume-kendall .resume-role { font-weight: 600; }
+.resume-sheet.resume-template-jsonresume-kendall .resume-dates { color: #596a77; }
+.resume-template-jsonresume-kendall .resume-project-name,
+.resume-template-jsonresume-kendall .resume-tech,
+.resume-template-jsonresume-kendall .resume-experience-url { margin-left: 12px; margin-right: 12px; }
+.resume-template-jsonresume-kendall .resume-claims { margin-left: 12px; margin-right: 12px; }
+.resume-template-jsonresume-kendall .resume-skill-list { gap: 5px 6px; }
+.resume-template-jsonresume-kendall .resume-skill-list li {
+  padding: 4px 9px;
+  color: #fff;
+  background: var(--resume-accent);
+  font-size: .9em;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.resume-template-jsonresume-kendall [data-section="education"] .resume-experience {
+  padding-left: 12px;
+  border-left: 3px solid var(--resume-rule);
+}
+.resume-template-jsonresume-kendall [data-section="education"] .resume-experience-heading {
+  background: #f4f5f5;
+  border-right: 0;
+}
+
+@media print {
+  /* BetterMe's selected @page margin and all its keep-with-next rules apply.
+     Never import upstream fixed @page margins or global page/column styling. */
+  .resume-template-jsonresume-stackoverflow .resume-summary-section > .resume-keywords {
+    padding: 0;
+    background: transparent;
+  }
+  .resume-template-jsonresume-stackoverflow .resume-skill-list li {
+    padding: 0;
+    background: transparent;
+    color: var(--jsonresume-keyword-ink);
+  }
+  .resume-template-jsonresume-stackoverflow .resume-skill-list { gap: 3px 12px; }
+  .resume-template-jsonresume-kendall .resume-experience-heading { padding: 7px 10px; }
+  .resume-template-jsonresume-kendall .resume-skill-list li { padding: 3px 7px; }
+}

@@ -1,0 +1,41 @@
+/* Independent Creative Commons style units. Each block remains under its
+   original ShareAlike license; this does not relicense the application.
+   Exact attribution, source, modifications and full licenses are distributed
+   at repository-root templates/licenses/{pandoc-resume,mcc108}/. */
+
+/* CC-BY-SA-3.0: Christophe-Marie Duquesne, 2013 <chmd@chmd.fr>.
+   Adapted from mszep/pandoc_resume/styles/chmduquesne.css at
+   b5abc55e0cbe54b132069c9c487c81d6f10b8679. Changes: scoped selectors,
+   editable parameters, React data, wrapping dates and long-content printing. */
+.resume-sheet.resume-template-community-pandoc .resume-header { text-align: center; border: 0; padding-bottom: 2mm; }
+.resume-sheet.resume-template-community-pandoc h1 { color: #757575; font-weight: 700; }
+.resume-template-community-pandoc .resume-links { justify-content: center; }
+.resume-sheet.resume-template-community-pandoc .resume-section h2 { display: flex; align-items: center; gap: 3mm; border: 0; padding: 0; color: var(--resume-accent); }
+.resume-template-community-pandoc .resume-section h2::before { content: ""; width: 24mm; height: 2mm; flex-shrink: 0; background: color-mix(in srgb, var(--resume-accent) 50%, #b7cd8b); }
+.resume-template-community-pandoc .resume-experience { padding-left: 27mm; }
+.resume-template-community-pandoc .resume-experience-heading { display: flex; flex-wrap: wrap; gap: 1mm 3mm; }
+.resume-sheet.resume-template-community-pandoc .resume-experience-heading h3 { flex: 1 1 70%; }
+.resume-sheet.resume-template-community-pandoc .resume-dates { order: -1; flex: 0 0 auto; min-width: 24mm; margin: 0 0 0 -27mm !important; color: #555; font-weight: 700; white-space: nowrap; overflow-wrap: normal; word-break: normal; }
+.resume-template-community-pandoc .resume-keywords { padding-left: 27mm; }
+
+/* CC-BY-SA-4.0: CONGMIN / mcc108/resume at
+   79e3e64b147ac94895e565f39646341fcbe7492b. Changes: native sequential
+   paper adaptation; theme header, centered pill headings and entry hierarchy
+   retained. No skill-level meters, private facts, icons or font assets. */
+.resume-sheet.resume-template-community-mcc108 .resume-header { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding: 5mm 6mm; background: var(--resume-accent); border: 0; align-items: end; }
+.resume-sheet.resume-template-community-mcc108 .resume-header.has-avatar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 23mm; }
+.resume-template-community-mcc108 .resume-header.has-avatar .resume-avatar { grid-column: 3; grid-row: 1; }
+.resume-sheet.resume-template-community-mcc108 h1,
+.resume-sheet.resume-template-community-mcc108 .resume-headline,
+.resume-sheet.resume-template-community-mcc108 .resume-contact { color: #fff; }
+.resume-template-community-mcc108 .resume-contact { text-align: right; }
+.resume-template-community-mcc108 .resume-links { justify-content: flex-end; }
+.resume-sheet.resume-template-community-mcc108 .resume-section h2 { display: table; margin: 0 auto 3mm; padding: 1mm 7mm; background: #f1f1f1; color: #474747; border: 0; border-radius: 8mm; text-align: center; }
+.resume-sheet.resume-template-community-mcc108 .resume-experience-heading h3 { color: #363636; }
+.resume-template-community-mcc108 .resume-role { font-weight: 400; }
+.resume-template-community-mcc108 .resume-tech { color: var(--resume-accent); }
+.resume-template-community-mcc108 .resume-keywords { justify-content: center; }
+
+@media print {
+  .resume-sheet.resume-template-community-pandoc .resume-experience-heading { break-inside: avoid; }
+}

@@ -1,0 +1,19 @@
+{
+  "author": {
+    "name": "Rick Osborne",
+    "url": "https://rickosborne.org"
+  },
+  "description": "Rick O's theme for registry.jsonresume.org",
+  "license": "CC-BY-NC-SA-4.0",
+  "main": "index.js",
+  "name": "jsonresume-theme-rickosborne",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rickosborne/jsonresume-theme-rickosborne"
+  },
+  "scripts": {
+    "test:example": "node test.js example.json example.html",
+    "test:rickosborne": "node test.js rickosborne.json rickosborne.html"
+  },
+  "version": "2022.09.16-T1450"
+}

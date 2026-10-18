@@ -1,0 +1,914 @@
+{
+  "title": "awesome-resume-for-chinese complete top-level entry audit",
+  "auditedOn": "2026-10-18",
+  "indexRevision": "fefc06e7dd667ff78bf7c5cccad715efddaef15f",
+  "indexLicense": "No root LICENSE found; linked repositories reviewed individually",
+  "entryCount": 31,
+  "notes": [
+    "31 top-level entries are discovery references, not 31 uniformly licensed templates.",
+    "Native adaptation means real selectable styles on projected user facts, not upstream runtime execution or pixel-identical output.",
+    "This inventory includes honest gaps; unsupported or unlicensed entries are never presented as implemented."
+  ],
+  "entries": [
+    {
+      "entry": "dyweb/Deedy-Resume-for-Chinese",
+      "sourceUrl": "https://github.com/dyweb/Deedy-Resume-for-Chinese",
+      "repository": "dyweb/Deedy-Resume-for-Chinese",
+      "revision": "3fe0e55a52ad3a96958b1bcd3c8e4674fc72f5ce",
+      "sourceFiles": [
+        "MacFonts/deedy-resume.cls",
+        "OpenFonts.Chinese/deedy-resume-openfont.cls",
+        "OpenFonts.Chinese/resume.tex",
+        "OpenFonts/deedy-resume-openfont.cls",
+        "OpenFonts/resume.tex"
+      ],
+      "licenseEvidence": [
+        "LICENSE"
+      ],
+      "templateIds": [
+        "deedy"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "Apache-2.0 (fonts separate)",
+      "reason": "实际全宽身份+四分之一联系轨+保序正文适配；不将教育/技能固定分区或minipage不可分页行为冒充完整复刻。"
+    },
+    {
+      "entry": "cv_resume",
+      "sourceUrl": "https://github.com/geekplux/cv_resume",
+      "repository": "geekplux/cv_resume",
+      "revision": "e5260c845847c3fbf4c0ca4457f751718d7f98b2",
+      "sourceFiles": [
+        "template_cn_blue.tex"
+      ],
+      "licenseEvidence": [
+        "LICENSE"
+      ],
+      "templateIds": [
+        "community-geekplux"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "LPPL-1.3c",
+      "reason": "template_cn_blue.tex保留原LPPL1.3c头部，按该源文件许可适配，另保留根MIT。"
+    },
+    {
+      "entry": "billryan/resume",
+      "sourceUrl": "https://github.com/billryan/resume",
+      "repository": "billryan/resume",
+      "revision": "eadc3955cf006254dc8f2419e971fbe3f5bab413",
+      "sourceFiles": [
+        "resume.cls",
+        "resume.tex",
+        "resume_photo.tex",
+        "zh_CN-Adobefonts_external.sty",
+        "zh_CN-Adobefonts_internal.sty"
+      ],
+      "licenseEvidence": [
+        "LICENSE"
+      ],
+      "templateIds": [
+        "billryan"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "MIT (fonts excluded)",
+      "reason": "实际resume.cls居中抬头/横线分节单栏已适配，Adobe/TeX Gyre/FontAwesome不分发。"
+    },
+    {
+      "entry": "hijiangtao/resume",
+      "sourceUrl": "https://github.com/hijiangtao/resume",
+      "repository": "hijiangtao/resume",
+      "revision": "408f9ab0558f72174badb89a9d626bedb66040a3",
+      "sourceFiles": [
+        "linespacing_fix.sty",
+        "resume-zh_CN.tex",
+        "resume.cls",
+        "zh_CN-Adobefonts_external.sty",
+        "zh_CN-Adobefonts_internal.sty"
+      ],
+      "licenseEvidence": [
+        "LICENSE"
+      ],
+      "templateIds": [
+        "community-hijiangtao"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "MIT",
+      "reason": "固定源码实际阅读后翻译为共享React纸面；独立许可/修改说明见templates/licenses。"
+    },
+    {
+      "entry": "resume-ng",
+      "sourceUrl": "https://github.com/fky2015/resume-ng",
+      "repository": "fky2015/resume-ng",
+      "revision": "8fb52d64342171d0e3c3ec166495e31fc25271c2",
+      "sourceFiles": [
+        "main.tex",
+        "resume.cls"
+      ],
+      "licenseEvidence": [
+        "LICENSE"
+      ],
+      "templateIds": [
+        "community-resume-ng"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "LPPL-1.3c",
+      "reason": "固定源码实际阅读后翻译为共享React纸面；独立许可/修改说明见templates/licenses。"
+    },
+    {
+      "entry": "liweitianux/resume",
+      "sourceUrl": "https://github.com/liweitianux/resume",
+      "repository": "liweitianux/resume",
+      "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+      "sourceFiles": [
+        "resume-en.tex",
+        "resume-zh.tex",
+        "resume.cls"
+      ],
+      "licenseEvidence": [],
+      "templateIds": [
+        "community-liweitianux"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "LPPL-1.3c",
+      "reason": "resume.cls为LPPL1.3c；工具MIT/个人正文CCBY4不冒充类文件许可；不复制个人内容。"
+    },
+    {
+      "entry": "mszep/pandoc_resume",
+      "sourceUrl": "https://github.com/mszep/pandoc_resume",
+      "repository": "mszep/pandoc_resume",
+      "revision": "b5abc55e0cbe54b132069c9c487c81d6f10b8679",
+      "sourceFiles": [
+        "styles/chmduquesne.css",
+        "styles/chmduquesne.tex"
+      ],
+      "licenseEvidence": [
+        "LICENSE"
+      ],
+      "templateIds": [
+        "community-pandoc"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "CC-BY-SA-3.0",
+      "reason": "根MIT与style-specific CC BY-SA 3.0区分；样式适配保留CC BY-SA3.0和可打印署名。"
+    },
+    {
+      "entry": "luooofan/resume",
+      "sourceUrl": "https://github.com/luooofan/resume",
+      "repository": "luooofan/resume",
+      "revision": "874173fdf343941169e7f673f4344c075fc85422",
+      "sourceFiles": [
+        "resume-zh_CN.tex",
+        "resume.cls",
+        "stys/NotoSansSC_external.sty",
+        "stys/NotoSerifCJKsc_external.sty",
+        "stys/linespacing_fix.sty",
+        "stys/zh_CN-Adobefonts_external.sty",
+        "stys/zh_CN-Adobefonts_internal.sty",
+        "texs/header.tex",
+        "texs/header_with_photo.tex",
+        "texs/sections.tex"
+      ],
+      "licenseEvidence": [
+        "LICENSE"
+      ],
+      "templateIds": [
+        "community-luooofan",
+        "community-luooofan-partial",
+        "community-luooofan-full"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "MIT",
+      "reason": "固定源码实际阅读后翻译为共享React纸面；独立许可/修改说明见templates/licenses。"
+    },
+    {
+      "entry": "horldsence/resume_template",
+      "sourceUrl": "https://github.com/Horldsence/resume_template",
+      "repository": "Horldsence/resume_template",
+      "revision": null,
+      "sourceFiles": [],
+      "licenseEvidence": [],
+      "templateIds": [],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "unavailable",
+      "license": "Unknown",
+      "reason": "指定URL实际返回404，不能确定删除/改名/私有；不以相似repo替代。"
+    },
+    {
+      "entry": "kodyyu1126/Chinese-resume-template-work",
+      "sourceUrl": "https://github.com/kodyyu1126/Chinese-resume-template-work",
+      "repository": "kodyyu1126/Chinese-resume-template-work",
+      "revision": "be6468cb9c1ac4f15c443006d30d8d012d65e16a",
+      "sourceFiles": [
+        "work-resume.tex"
+      ],
+      "licenseEvidence": [
+        "LICENSE"
+      ],
+      "templateIds": [
+        "community-kody-work"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "MIT",
+      "reason": "固定源码实际阅读后翻译为共享React纸面；独立许可/修改说明见templates/licenses。"
+    },
+    {
+      "entry": "kodyyu1126/Chinese-resume-template-postgraduate",
+      "sourceUrl": "https://github.com/kodyyu1126/Chinese-resume-template-postgraduate",
+      "repository": "kodyyu1126/Chinese-resume-template-postgraduate",
+      "revision": "9bf00633308956cbfb3eccd29b93e413260f5c2f",
+      "sourceFiles": [
+        "fushi-resume-template.tex"
+      ],
+      "licenseEvidence": [
+        "LICENSE"
+      ],
+      "templateIds": [
+        "community-kody-postgraduate"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "MIT",
+      "reason": "纸面视觉已适配；原初试成绩表/政治面貌等不在Fact模型，未伪造或宣称已实现。"
+    },
+    {
+      "entry": "NewFuture/CV",
+      "sourceUrl": "https://github.com/NewFuture/CV",
+      "repository": "NewFuture/CV",
+      "revision": "748b54d843fab4347a82943967ba8eedbeaa4ae6",
+      "sourceFiles": [
+        "_layouts/default.html",
+        "_layouts/markdown.html",
+        "_layouts/redirect.html",
+        "_layouts/resume.html",
+        "_sass/_mixins.scss",
+        "_sass/_special.scss",
+        "_sass/ie.scss",
+        "_sass/mobile.scss",
+        "_sass/print/_print.scss",
+        "_sass/print/basic.scss",
+        "_sass/print/block.scss",
+        "_sass/print/flex.scss",
+        "_sass/resume.scss",
+        "assets/css/ie.scss",
+        "assets/css/main.scss",
+        "index.html"
+      ],
+      "licenseEvidence": [
+        "LICENSE"
+      ],
+      "templateIds": [
+        "newfuture",
+        "newfuture-flex",
+        "newfuture-block"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "MIT",
+      "reason": "Liquid/Sass三种basic/flex/block源内打印样式实际适配；不执行Jekyll，使用现有Fact投影。"
+    },
+    {
+      "entry": "Ovilia/cv",
+      "sourceUrl": "https://github.com/Ovilia/cv",
+      "repository": "Ovilia/cv",
+      "revision": "61b903a207fd0fc803ada5a940b1abbaaf36460d",
+      "sourceFiles": [
+        "cn.html",
+        "css/main.css",
+        "index.html",
+        "scss/_base.global.scss",
+        "scss/_components.columns.scss",
+        "scss/_components.image.scss",
+        "scss/_components.social.scss",
+        "scss/_mobile.settings.scss",
+        "scss/_settings.colors.scss",
+        "scss/_settings.fonts.scss",
+        "scss/_settings.links.scss",
+        "scss/_settings.text.scss",
+        "scss/main.scss"
+      ],
+      "licenseEvidence": [
+        "license.md"
+      ],
+      "templateIds": [],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "unsupported-medium",
+      "license": "MIT",
+      "reason": "HTML源码为pagePiling整屏个人网站；PDF原稿是InDesign cv.indd二进制，不把网页配色伪称纸面模板集成。"
+    },
+    {
+      "entry": "Orbit-Theme",
+      "sourceUrl": "https://github.com/xriley/Orbit-Theme",
+      "repository": "xriley/Orbit-Theme",
+      "revision": "698e748edd7ecee49710a1d21fad05b71298a2d9",
+      "sourceFiles": [
+        "assets/css/orbit-1.css",
+        "assets/css/orbit-2.css",
+        "assets/css/orbit-3.css",
+        "assets/css/orbit-4.css",
+        "assets/css/orbit-5.css",
+        "assets/css/orbit-6.css",
+        "assets/scss/orbit-1.scss",
+        "assets/scss/orbit-2.scss",
+        "assets/scss/orbit-3.scss",
+        "assets/scss/orbit-4.scss",
+        "assets/scss/orbit-5.scss",
+        "assets/scss/orbit-6.scss",
+        "assets/scss/theme/base.scss",
+        "assets/scss/theme/mixins.scss",
+        "assets/scss/theme/responsive.scss",
+        "index.html"
+      ],
+      "licenseEvidence": [
+        "assets/fontawesome/LICENSE.txt"
+      ],
+      "templateIds": [],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "restricted-license",
+      "license": "Custom",
+      "reason": "README保留页脚署名且禁止模板单独再分发；根无主题LICENSE，FontAwesome LICENSE仅覆盖字体。没有将其当MIT或CC模板复制。"
+    },
+    {
+      "entry": "DreamBroke/resume-master",
+      "sourceUrl": "https://github.com/DreamBroke/resume-master",
+      "repository": "DreamBroke/resume-master",
+      "revision": null,
+      "sourceFiles": [],
+      "licenseEvidence": [],
+      "templateIds": [],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "unavailable",
+      "license": "Unknown",
+      "reason": "指定URL实际返回404，无法核实源码和许可。"
+    },
+    {
+      "entry": "itsay/resume",
+      "sourceUrl": "https://gitee.com/itsay/resume",
+      "repository": "itsay/resume",
+      "revision": "3713efb55163048cf9aa726b55ee698c356097a2",
+      "sourceFiles": [
+        "assets/sass/components/_container.scss",
+        "assets/sass/components/_global.scss",
+        "assets/sass/components/_custom.scss",
+        "index.html"
+      ],
+      "licenseEvidence": [
+        "LICENSE"
+      ],
+      "templateIds": [
+        "community-itsay"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "MIT",
+      "reason": "固定源码实际阅读后翻译为共享React纸面；独立许可/修改说明见templates/licenses。"
+    },
+    {
+      "entry": "jsonresume-theme-mix",
+      "sourceUrl": "https://github.com/hoochanlon/jsonresume-theme-mix",
+      "repository": "hoochanlon/jsonresume-theme-mix",
+      "revision": "d5c44906823338235706ff0255e4360d466baa3f",
+      "sourceFiles": [
+        "index.html",
+        "resume.hbs",
+        "resume.tex",
+        "style.css"
+      ],
+      "licenseEvidence": [
+        "LICENSE"
+      ],
+      "templateIds": [
+        "community-mix"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "MIT",
+      "reason": "固定源码实际阅读后翻译为共享React纸面；独立许可/修改说明见templates/licenses。"
+    },
+    {
+      "entry": "ckjbug/resume",
+      "sourceUrl": "https://github.com/ckjbug/Resume",
+      "repository": "ckjbug/Resume",
+      "revision": "6b1794835581dfdaef92eb56c9032c4f1d7e20cd",
+      "sourceFiles": [],
+      "licenseEvidence": [],
+      "templateIds": [],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "missing-template-license",
+      "license": "Unspecified",
+      "reason": "实际主要是个人履历README，无模板实现与明确再分发许可，不复制人物内容。"
+    },
+    {
+      "entry": "crispgm/resume",
+      "sourceUrl": "https://github.com/crispgm/resume",
+      "repository": "crispgm/resume",
+      "revision": "e0501c35ea266afa82aefcac95da79e3363017b7",
+      "sourceFiles": [
+        "_includes/foot.html",
+        "_includes/head.html",
+        "_layouts/default.html",
+        "_layouts/resume.html",
+        "_layouts/resume_zh_cn.html",
+        "_sass/_body.scss",
+        "_sass/_footer.scss",
+        "_sass/_header.scss",
+        "_sass/_main.scss",
+        "assets/css/resume.scss",
+        "port-hexo/source/resume.css",
+        "resume.html",
+        "resume_zh-CN.html"
+      ],
+      "licenseEvidence": [
+        "LICENSE"
+      ],
+      "templateIds": [
+        "community-crisp"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "MIT",
+      "reason": "固定源码实际阅读后翻译为共享React纸面；独立许可/修改说明见templates/licenses。"
+    },
+    {
+      "entry": "guanpengchn/markdown-resume",
+      "sourceUrl": "https://github.com/guanpengchn/markdown-resume",
+      "repository": "guanpengchn/markdown-resume",
+      "revision": "12425dfc17db293610c8599841026521f66a81ff",
+      "sourceFiles": [
+        "public/index.css",
+        "public/index.html",
+        "src/index.css"
+      ],
+      "licenseEvidence": [],
+      "templateIds": [],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "tool-without-license",
+      "license": "Unspecified",
+      "reason": "实际是Markdown编辑/排版工具，未见根代码许可，不能整工具伪装成主题。"
+    },
+    {
+      "entry": "Lxxyx/LxxyxResume",
+      "sourceUrl": "https://github.com/Lxxyx/LxxyxResume",
+      "repository": "Lxxyx/LxxyxResume",
+      "revision": "080168ee92a24d1bc7894b9459e36ce8f7286236",
+      "sourceFiles": [
+        "src/iconfont/iconfont.css",
+        "src/scss/_include-media.scss",
+        "src/scss/components/aside.scss",
+        "src/scss/components/content.scss",
+        "src/scss/components/footer.scss",
+        "src/scss/components/header.scss",
+        "src/scss/iconfont.scss",
+        "src/scss/resume.scss"
+      ],
+      "licenseEvidence": [
+        "LICENSE"
+      ],
+      "templateIds": [
+        "community-lxxyx"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "MIT",
+      "reason": "固定源码实际阅读后翻译为共享React纸面；独立许可/修改说明见templates/licenses。"
+    },
+    {
+      "entry": "mcc108/resume",
+      "sourceUrl": "https://github.com/mcc108/resume",
+      "repository": "mcc108/resume",
+      "revision": "79e3e64b147ac94895e565f39646341fcbe7492b",
+      "sourceFiles": [
+        "index.html",
+        "src/css/base.less",
+        "src/css/icons.less",
+        "src/css/index.less",
+        "src/css/print-page.css",
+        "src/css/print.less",
+        "src/css/style.less",
+        "src/index.html"
+      ],
+      "licenseEvidence": [
+        "LICENSE"
+      ],
+      "templateIds": [
+        "community-mcc108"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "CC-BY-SA-4.0",
+      "reason": "固定源码实际阅读后翻译为共享React纸面；独立许可/修改说明见templates/licenses。"
+    },
+    {
+      "entry": "xiao555/resume-it",
+      "sourceUrl": "https://github.com/xiao555/resume-it",
+      "repository": "xiao555/resume-it",
+      "revision": "7cb44f5685a669610d0e2fccd089fc1a285a758e",
+      "sourceFiles": [
+        "template/base.html",
+        "template/head.html",
+        "template/index.html",
+        "template/print.html"
+      ],
+      "licenseEvidence": [
+        "LICENSE"
+      ],
+      "templateIds": [
+        "community-xiao555"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "MIT",
+      "reason": "固定源码实际阅读后翻译为共享React纸面；独立许可/修改说明见templates/licenses。"
+    },
+    {
+      "entry": "zhaoky/flqin",
+      "sourceUrl": "https://github.com/zhaoky/flqin",
+      "repository": "zhaoky/flqin",
+      "revision": "294e622f91df866fccb32427a9d9066c43a2aa76",
+      "sourceFiles": [
+        "2015/ajax/ajax.html",
+        "2015/css/component.css",
+        "2015/css/index.css",
+        "2015/demo/js_demo/ganxie.html",
+        "2015/demo/js_demo/index.css",
+        "2015/demo/js_demo/index.html",
+        "2015/demo/js_demo/jineng.html",
+        "2015/demo/js_demo/jiqiao.html",
+        "2015/demo/js_demo/lianxi.html",
+        "2015/demo/js_demo/paihang.html",
+        "2015/demo/main.html",
+        "2015/demo/shop_demo/css/main.css",
+        "2015/demo/shop_demo/css/skin_css/skin_0.css",
+        "2015/demo/shop_demo/css/skin_css/skin_1.css",
+        "2015/demo/shop_demo/css/skin_css/skin_2.css",
+        "2015/demo/shop_demo/css/skin_css/skin_3.css",
+        "2015/demo/shop_demo/css/skin_css/skin_4.css",
+        "2015/demo/shop_demo/css/skin_css/skin_5.css",
+        "2015/demo/shop_demo/shop_detail.html",
+        "2015/demo/shop_demo/shop_home.html",
+        "2015/index.html",
+        "src/less/index.less",
+        "src/less/media.less",
+        "src/template/index-seo.html",
+        "src/template/index.html"
+      ],
+      "licenseEvidence": [
+        "LICENSE"
+      ],
+      "templateIds": [],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "not-a-paper-theme",
+      "license": "MIT",
+      "reason": "当前源码是全屏交互个人站与动画/导航，没有独立可复用纸面打印模板；不拿颜色换皮声称完整接入。"
+    },
+    {
+      "entry": "yujiangshui/about-me",
+      "sourceUrl": "https://github.com/yujiangshui/about-me",
+      "repository": "yujiangshui/about-me",
+      "revision": "73d6bf8e6204fdbd5dde09ddd1b6f400ebeff8a2",
+      "sourceFiles": [
+        "index.html",
+        "scss/custom.scss",
+        "scss/html-elements.scss",
+        "scss/media-queries.scss",
+        "scss/utils.scss",
+        "scss/var.scss",
+        "style.css",
+        "style.scss"
+      ],
+      "licenseEvidence": [],
+      "templateIds": [],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "missing-template-license",
+      "license": "Unspecified",
+      "reason": "个人网页有HTML/SCSS，但当前固定revision未见代码LICENSE或可再分发声明。"
+    },
+    {
+      "entry": "JSON Resume",
+      "sourceUrl": "https://jsonresume.org/",
+      "repository": null,
+      "revision": null,
+      "status": "duplicate-ecosystem-entry",
+      "license": "Per-theme",
+      "reason": "JSON Resume生态入口，已由单独JSON Resume全量目录审计接入，不将入口再计作独立模板。",
+      "templateIds": [],
+      "sourceFiles": [],
+      "excludedAssets": []
+    },
+    {
+      "entry": "nuterian/resume",
+      "sourceUrl": "https://github.com/nuterian/resume",
+      "repository": "nuterian/resume",
+      "revision": "09af31db379191163636664277f2abe500ef1380",
+      "sourceFiles": [
+        "src/styles/global.css"
+      ],
+      "licenseEvidence": [],
+      "templateIds": [],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "missing-template-license",
+      "license": "Unspecified",
+      "reason": "Astro单页简历实际有纸面实现，但当前固定revision未见LICENSE或明确代码授权。"
+    },
+    {
+      "entry": "salomonelli/best-resume-ever",
+      "sourceUrl": "https://github.com/salomonelli/best-resume-ever",
+      "repository": "salomonelli/best-resume-ever",
+      "revision": "29e753cd842585b4a2e9dbbb5e1ef3a0f5e66767",
+      "sourceFiles": [
+        "docs/index.html",
+        "docs/src/static/css/app.fed28444d168a46a5bee35ce88b580f6.css",
+        "docs/static/css/app.964bcc5c6475cdc60df5.css",
+        "index.html",
+        "src/App.vue",
+        "src/pages/home.vue",
+        "src/pages/resume.vue",
+        "src/resumes/cool-rtl.vue",
+        "src/resumes/cool-rtl2.vue",
+        "src/resumes/cool.vue",
+        "src/resumes/creative.vue",
+        "src/resumes/green.vue",
+        "src/resumes/left-right-projects.vue",
+        "src/resumes/left-right-rtl.vue",
+        "src/resumes/left-right.vue",
+        "src/resumes/material-dark-projects.vue",
+        "src/resumes/material-dark.vue",
+        "src/resumes/oblique-projects.vue",
+        "src/resumes/oblique-rtl.vue",
+        "src/resumes/oblique.vue",
+        "src/resumes/purple.vue",
+        "src/resumes/side-bar-projects.vue",
+        "src/resumes/side-bar-rtl.vue",
+        "src/resumes/side-bar.vue",
+        "src/resumes/template.vue"
+      ],
+      "licenseEvidence": [
+        "LICENCE.md"
+      ],
+      "templateIds": [
+        "best-resume-cool",
+        "best-resume-cool-rtl",
+        "best-resume-cool-rtl2",
+        "best-resume-creative",
+        "best-resume-green",
+        "best-resume-left-right",
+        "best-resume-left-right-projects",
+        "best-resume-left-right-rtl",
+        "best-resume-material-dark",
+        "best-resume-material-dark-projects",
+        "best-resume-oblique",
+        "best-resume-oblique-projects",
+        "best-resume-oblique-rtl",
+        "best-resume-purple",
+        "best-resume-side-bar",
+        "best-resume-side-bar-projects",
+        "best-resume-side-bar-rtl"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "MIT",
+      "reason": "18个Vue文件中17个实际主题已适配；template.vue仅TODO空骨架，不作为主题。RTL/Projects变体保留实际差异。"
+    },
+    {
+      "entry": "nzbin/resume-boilerplate",
+      "sourceUrl": "https://nzbin.github.io/resume-boilerplate/",
+      "repository": "nzbin/resume-boilerplate",
+      "revision": "ee3717b3c77390db39a4185bf73d3d604c971d62",
+      "sourceFiles": [
+        "src/css/snack-helper.css",
+        "src/css/snack.css",
+        "src/index.html"
+      ],
+      "licenseEvidence": [
+        "LICENSE"
+      ],
+      "templateIds": [
+        "community-nzbin"
+      ],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "native-adaptation-implemented",
+      "license": "MIT",
+      "reason": "固定源码实际阅读后翻译为共享React纸面；独立许可/修改说明见templates/licenses。"
+    },
+    {
+      "entry": "CyC2018/Markdown-Resume",
+      "sourceUrl": "https://github.com/CyC2018/Markdown-Resume",
+      "repository": "CyC2018/Markdown-Resume",
+      "revision": "7438472644daad5dbb6a7578643a6f37bfc82639",
+      "sourceFiles": [
+        "Resume.html",
+        "resume.css"
+      ],
+      "licenseEvidence": [],
+      "templateIds": [],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "missing-template-license",
+      "license": "Unspecified",
+      "reason": "实际有Resume.html/resume.css；README仅链接FontAwesome许可，不授权模板本体。"
+    },
+    {
+      "entry": "OrangeX4/Chinese-Resume-in-Typst",
+      "sourceUrl": "https://github.com/OrangeX4/Chinese-Resume-in-Typst",
+      "repository": "OrangeX4/Chinese-Resume-in-Typst",
+      "revision": "d2f85d4e63bfdeb09de3c121f46b2d20093e4057",
+      "sourceFiles": [
+        "resume.typ",
+        "simple-resume.typ",
+        "template.typ"
+      ],
+      "licenseEvidence": [],
+      "templateIds": [],
+      "excludedAssets": [
+        "original personal resume facts",
+        "photographs",
+        "fonts and font icons",
+        "build scripts",
+        "third-party runtime libraries"
+      ],
+      "status": "missing-template-license",
+      "license": "Unspecified",
+      "reason": "实际有template.typ/resume.typ/simple-resume.typ，但当前固定revision未见模板代码LICENSE或明确授权。"
+    }
+  ]
+}

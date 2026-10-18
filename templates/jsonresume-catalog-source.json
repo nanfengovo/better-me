@@ -1,0 +1,464 @@
+{
+  "catalogUrl": "https://www.jsonresume.org/themes",
+  "sourceRepository": "https://github.com/jsonresume/jsonresume.org",
+  "sourceRevision": "dd0155358c8d85a134d434e49834705243b5eede",
+  "auditedOn": "2026-10-18",
+  "scope": "Exact public theme metadata snapshot; each theme license is checked independently.",
+  "entries": [
+  {
+    "slug": "desert-modern",
+    "name": "Desert Modern",
+    "author": "JSON Resume Team",
+    "description": "Sun-baked Southwest palette of warm sand and terracotta with a calm, contemporary single-column layout.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=desert-modern"
+  },
+  {
+    "slug": "elegant-pink",
+    "name": "Elegant Pink",
+    "author": "JSON Resume Team",
+    "description": "Refined, graceful layout with a soft rose accent and elegant serif headings.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=elegant-pink"
+  },
+  {
+    "slug": "tailwind",
+    "name": "Tailwind",
+    "author": "JSON Resume Team",
+    "description": "Utility-first, component-driven layout with an avatar hero and social links.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=tailwind"
+  },
+  {
+    "slug": "academic-cv-lite",
+    "name": "Academic CV Lite",
+    "author": "JSON Resume Team",
+    "description": "Scholarly, data-rich resume with structured lists and serif typography. Simple text hierarchy with no color.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=academic-cv-lite"
+  },
+  {
+    "slug": "bold-header-statement",
+    "name": "Bold Header Statement",
+    "author": "JSON Resume Team",
+    "description": "Magazine-inspired layout with commanding header and confident personal brand aesthetic.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=bold-header-statement"
+  },
+  {
+    "slug": "architects-portfolio",
+    "name": "Architect's Portfolio",
+    "author": "JSON Resume Team",
+    "description": "Structural elegance with horizontal keylines and geometric precision like a drafting sheet.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=architects-portfolio"
+  },
+  {
+    "slug": "consultant-polished",
+    "name": "Consultant Polished",
+    "author": "JSON Resume Team",
+    "description": "Elegant, structured resume with transitional serif headers and modern sans body. Optimized for narrative-driven roles.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=consultant-polished"
+  },
+  {
+    "slug": "creative-studio",
+    "name": "Creative Studio",
+    "author": "JSON Resume Team",
+    "description": "Artistic yet professional theme with rounded sans-serif typography and soft color accents. Inspired by Behance portfolios.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=creative-studio"
+  },
+  {
+    "slug": "data-driven",
+    "name": "Data-Driven",
+    "author": "JSON Resume Team",
+    "description": "Analytical and factual theme with geometric sans-serif typography. Prioritizes metrics and measurable results.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=data-driven"
+  },
+  {
+    "slug": "developer-mono",
+    "name": "Developer Mono",
+    "author": "JSON Resume Team",
+    "description": "Technical, efficient theme with monospace headers and sans-serif body. Code-style aesthetics without gimmicks.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=developer-mono"
+  },
+  {
+    "slug": "elegant",
+    "name": "Elegant",
+    "author": "JSON Resume",
+    "description": "Elegant and refined design with sophisticated typography",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=elegant"
+  },
+  {
+    "slug": "even",
+    "name": "Even",
+    "author": "JSON Resume",
+    "description": "Balanced and clean theme with modern styling",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=even"
+  },
+  {
+    "slug": "executive-slate",
+    "name": "Executive Slate",
+    "author": "JSON Resume Team",
+    "description": "Authoritative, polished theme with serif headings and modern sans body. Classic print-like layout with elegant type hierarchy.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=executive-slate"
+  },
+  {
+    "slug": "flat",
+    "name": "Flat",
+    "author": "JSON Resume",
+    "description": "Flat design with minimalist aesthetic",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=flat"
+  },
+  {
+    "slug": "government-standard",
+    "name": "Government Standard",
+    "author": "JSON Resume Team",
+    "description": "Formal, structured resume with serif typography and grayscale design. Perfect for civil service, defense, or government contracts.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=government-standard"
+  },
+  {
+    "slug": "jacrys",
+    "name": "Jacrys",
+    "author": "Community",
+    "description": "Modern professional theme",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=jacrys"
+  },
+  {
+    "slug": "kendall",
+    "name": "Kendall",
+    "author": "Community",
+    "description": "Clean and readable resume theme",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=kendall"
+  },
+  {
+    "slug": "lucide",
+    "name": "Lucide",
+    "author": "Community",
+    "description": "Light and elegant design",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=lucide"
+  },
+  {
+    "slug": "macchiato",
+    "name": "Macchiato",
+    "author": "Community",
+    "description": "Warm, coffee-inspired design",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=macchiato"
+  },
+  {
+    "slug": "marketing-narrative",
+    "name": "Marketing Narrative",
+    "author": "JSON Resume Team",
+    "description": "Creative, persuasive theme with rounded humanist sans-serif. Flows like an article with narrative emphasis over bullet structure.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=marketing-narrative"
+  },
+  {
+    "slug": "minimalist-grid",
+    "name": "Minimalist Grid",
+    "author": "JSON Resume Team",
+    "description": "Clean, contemporary theme with geometric design aligned to a consistent baseline grid. Light-weight sans-serif with ample letter spacing.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=minimalist-grid"
+  },
+  {
+    "slug": "minyma",
+    "name": "Minyma",
+    "author": "Community",
+    "description": "Minimal and compact design",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=minyma"
+  },
+  {
+    "slug": "modern-classic",
+    "name": "Modern Classic",
+    "author": "JSON Resume Team",
+    "description": "Professional, timeless resume with humanist sans-serif typography. Print-optimized with perfect balance between aesthetics and ATS compliance.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=modern-classic"
+  },
+  {
+    "slug": "operations-precision",
+    "name": "Operations Precision",
+    "author": "JSON Resume Team",
+    "description": "Efficient, dependable theme with compact sans-serif typography. Highlights toolsets and process improvements.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=operations-precision"
+  },
+  {
+    "slug": "paper-plus-plus",
+    "name": "Paper Plus Plus",
+    "author": "Community",
+    "description": "Enhanced paper-style design",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=paper-plus-plus"
+  },
+  {
+    "slug": "product-manager-canvas",
+    "name": "Product Manager Canvas",
+    "author": "JSON Resume Team",
+    "description": "Analytical yet creative theme with neutral sans-serif typography. Prioritizes brevity and measurable impact.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=product-manager-canvas"
+  },
+  {
+    "slug": "professional",
+    "name": "Professional",
+    "author": "JSON Resume",
+    "description": "Clean professional theme with serif typography",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=professional"
+  },
+  {
+    "slug": "pumpkin",
+    "name": "Pumpkin",
+    "author": "Community",
+    "description": "Warm and friendly design",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=pumpkin"
+  },
+  {
+    "slug": "reference",
+    "name": "Reference",
+    "author": "JSON Resume Team",
+    "description": "Clean and professional reference theme showcasing all JSON Resume features",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=reference"
+  },
+  {
+    "slug": "rickosborne",
+    "name": "Rickosborne",
+    "author": "Community",
+    "description": "Custom professional layout",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=rickosborne"
+  },
+  {
+    "slug": "sales-hunter",
+    "name": "Sales Hunter",
+    "author": "JSON Resume Team",
+    "description": "Energetic, confident theme with bold sans-serif typography. Emphasizes quotas, wins, and measurable success.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=sales-hunter"
+  },
+  {
+    "slug": "sidebar",
+    "name": "Sidebar",
+    "author": "JSON Resume Team",
+    "description": "Two-column layout with dark blue sidebar and professional appearance",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=sidebar"
+  },
+  {
+    "slug": "stackoverflow",
+    "name": "Stack Overflow",
+    "author": "JSON Resume",
+    "description": "Developer-focused theme inspired by Stack Overflow",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=stackoverflow"
+  },
+  {
+    "slug": "tan-responsive",
+    "name": "Tan Responsive",
+    "author": "Community",
+    "description": "Responsive design with warm tones",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=tan-responsive"
+  },
+  {
+    "slug": "tokyo-modernist",
+    "name": "Tokyo Modernist",
+    "author": "JSON Resume Team",
+    "description": "Minimal futurism with geometric precision, built on 8pt grid with variable-width typography and deep magenta accents.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=tokyo-modernist"
+  },
+  {
+    "slug": "university-first",
+    "name": "University First",
+    "author": "JSON Resume Team",
+    "description": "Fresh, optimistic theme with education-first layout. Friendly sans-serif with large headings and generous spacing.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=university-first"
+  },
+  {
+    "slug": "writers-portfolio",
+    "name": "Writer's Portfolio",
+    "author": "JSON Resume Team",
+    "description": "Literary, elegant theme with transitional serif typography. Reads like prose with larger body font for readability.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=writers-portfolio"
+  },
+  {
+    "slug": "nordic-minimal",
+    "name": "Nordic Minimal",
+    "author": "JSON Resume Team",
+    "description": "Scandinavian restraint with white space worship and quiet confidence. Two-column layout with wide margins and extra line height for air.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=nordic-minimal"
+  },
+  {
+    "slug": "graph-paper-grid",
+    "name": "Graph Paper Grid",
+    "author": "JSON Resume Team",
+    "description": "Technical design precision with subtle graph paper grid background and monospace typography. Built for engineers, architects, and UX designers.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=graph-paper-grid"
+  },
+  {
+    "slug": "monochrome-noir",
+    "name": "Monochrome Noir",
+    "author": "JSON Resume Team",
+    "description": "Sharp, modern, ultra-clean theme with bold contrasts and minimal design. Reads like an art catalog with condensed sans typography and thin white separator lines.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=monochrome-noir"
+  },
+  {
+    "slug": "mid-century-resume",
+    "name": "Mid-Century Resume",
+    "author": "JSON Resume Team",
+    "description": "Retro modernist elegance inspired by 1960s design offices with vintage typography.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=mid-century-resume"
+  },
+  {
+    "slug": "two-column-modernist",
+    "name": "Two-Column Modernist",
+    "author": "JSON Resume Team",
+    "description": "Structured European minimalism with asymmetric two-column layout and neutral grotesk typography.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=two-column-modernist"
+  },
+  {
+    "slug": "sidebar-photo-strip",
+    "name": "Sidebar Photo Strip",
+    "author": "JSON Resume Team",
+    "description": "European creative layout with integrated grayscale photo sidebar and minimal aesthetic.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=sidebar-photo-strip"
+  },
+  {
+    "slug": "diagonal-accent-bar",
+    "name": "Diagonal Accent Bar",
+    "author": "JSON Resume Team",
+    "description": "Dynamic architectural design with bold diagonal accent and kinetic energy. Wide sans headings with condensed body text.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=diagonal-accent-bar"
+  },
+  {
+    "slug": "asymmetric-timeline",
+    "name": "Asymmetric Timeline",
+    "author": "JSON Resume Team",
+    "description": "Cinematic storytelling with staggered timeline layout and serif-sans typography mix. Experiences arranged in alternating left-right bands along a central rule.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=asymmetric-timeline"
+  },
+  {
+    "slug": "typewriter-modern",
+    "name": "Typewriter Modern",
+    "author": "JSON Resume Team",
+    "description": "Nostalgic typewriter aesthetic with monospace body and contemporary clarity.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=typewriter-modern"
+  },
+  {
+    "slug": "new-york-editorial",
+    "name": "New York Editorial",
+    "author": "JSON Resume Team",
+    "description": "Magazine-quality editorial polish with tight column layout, serif headings, and typographic elegance. Inspired by The Atlantic.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=new-york-editorial"
+  },
+  {
+    "slug": "berlin-grid",
+    "name": "Berlin Grid",
+    "author": "JSON Resume Team",
+    "description": "Geometric precision with modular grid layout and grotesk sans-serif typography. Feels engineered — angular, structured, and meticulously aligned.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=berlin-grid"
+  },
+  {
+    "slug": "californian-warm",
+    "name": "Californian Warm",
+    "author": "JSON Resume Team",
+    "description": "Friendly and inviting with relaxed spacing, warm amber tones, and rounded corners. Optimistic energy with generous whitespace.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=californian-warm"
+  },
+  {
+    "slug": "london-bureau",
+    "name": "London Bureau",
+    "author": "JSON Resume Team",
+    "description": "Traditional professionalism with heritage feel. Modeled after Financial Times style with serif typography, tight columns, and consistent rule dividers.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=london-bureau"
+  },
+  {
+    "slug": "pacific-horizon",
+    "name": "Pacific Horizon",
+    "author": "JSON Resume Team",
+    "description": "Contemporary corporate theme with clean typography and blue tones. Layout feels like a SaaS landing page distilled into a resume.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=pacific-horizon"
+  },
+  {
+    "slug": "french-atelier",
+    "name": "French Atelier",
+    "author": "JSON Resume Team",
+    "description": "Artistic precision with editorial-inspired layout. High-contrast serif titles with fine sans body and deep plum accents. Like a typographer's resume.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=french-atelier"
+  },
+  {
+    "slug": "clinical-precision",
+    "name": "Clinical Precision",
+    "author": "JSON Resume Team",
+    "description": "Clean, clinical, calm resume styled like a medical chart record. Each entry is a chart row with a green-railed vital column of monospaced date codes, lab-panel skill cards, and a \"chart note\" summary. Clinical green accents on white with mint tints. Tailored for doctors, nurses, and healthcare administrators.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=clinical-precision"
+  },
+  {
+    "slug": "field-researcher",
+    "name": "Field Researcher",
+    "author": "JSON Resume Team",
+    "description": "Academic-meets-exploratory resume styled like a naturalist field notebook. Classic serif narrative, monospaced metadata margins, numbered log sections, and a calm teal-green accent on tinted paper. Tailored for research and sustainability roles.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=field-researcher"
+  },
+  {
+    "slug": "urban-techno",
+    "name": "Urban Techno",
+    "author": "JSON Resume Team",
+    "description": "Brutalist tech theme with high contrast, dense two-column layout, and bold typography. Black borders, uppercase section titles, and monochrome palette — power through simplicity.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=urban-techno"
+  },
+  {
+    "slug": "coastal-creative",
+    "name": "Coastal Creative",
+    "author": "JSON Resume Team",
+    "description": "Calm, spacious theme with ocean blue accents and generous line heights. Design-forward yet approachable with rounded corners and soft shadows.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=coastal-creative"
+  },
+  {
+    "slug": "investor-brief",
+    "name": "Investor Brief",
+    "author": "JSON Resume Team",
+    "description": "Crisp, analytical, results-focused theme resembling a fund report. Features Key Metrics section and data-first presentation.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=investor-brief"
+  },
+  {
+    "slug": "claude",
+    "name": "Claude",
+    "author": "Roland Sharp",
+    "description": "Clean, modern theme with gradient accent header, dark mode support, and inline SVG icons. Designed and built entirely by Claude Code.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=claude"
+  },
+  {
+    "slug": "colophon",
+    "name": "Colophon",
+    "author": "David Nelson",
+    "description": "Warm, text-first resume theme with editorial typography, semantic HTML, and polished print styles.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=colophon"
+  },
+  {
+    "slug": "creative-confidence",
+    "name": "Creative Confidence",
+    "author": "Scott Lynde",
+    "description": "Professional two-column resume theme with dark blue header, profile photo support, and print-optimized layout. Features a clean right sidebar for contact, education, certifications, and skills.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=creative-confidence"
+  },
+  {
+    "slug": "art-school-modern",
+    "name": "Art School Modern",
+    "author": "JSON Resume Team",
+    "description": "Avant-garde gallery aesthetic for designers and artists. Oversized Archivo Black display type, an asymmetric off-grid header with a framed photo plate, an editorial Fraunces serif statement, catalogue-numbered sections, and a single vivid vermilion accent.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=art-school-modern"
+  },
+  {
+    "slug": "community-garden",
+    "name": "Community Garden",
+    "author": "JSON Resume Team",
+    "description": "Beautiful, warm theme celebrating education and community service. Sky blue and garden green colors with prominent certifications and volunteer sections.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=community-garden"
+  },
+  {
+    "slug": "industrial-engineer",
+    "name": "Industrial Engineer",
+    "author": "JSON Resume Team",
+    "description": "Engineering-datasheet aesthetic with a precise grid, monospace technical labels, spec-table contact block, part-number section headers, and dimension-line rules. Drafting-blue with safety-orange accents for dense, legible data presentation.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=industrial-engineer"
+  },
+  {
+    "slug": "brutalist",
+    "name": "Brutalist",
+    "author": "JSON Resume Team",
+    "description": "Raw concrete brutalism with heavy 4px black rules, oversized uppercase Archivo Black headings, hard edges, monospace spec labels, numbered sections, and offset block-shadows. Stark black-on-white with a single harsh safety-yellow accent.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=brutalist"
+  },
+  {
+    "slug": "art-deco",
+    "name": "Art Deco",
+    "author": "JSON Resume Team",
+    "description": "1920s Gatsby elegance with a symmetric centered masthead on a deep midnight-and-emerald jewel panel, metallic-gold accents, geometric chevron and sunburst dividers, and a high-contrast Cinzel didone-style display serif over a graceful Cormorant Garamond body.",
+    "previewUrl": "https://registry.jsonresume.org/thomasdavis?theme=art-deco"
+  }
+]
+}

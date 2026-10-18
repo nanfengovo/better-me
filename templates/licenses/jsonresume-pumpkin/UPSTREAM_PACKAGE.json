@@ -1,0 +1,19 @@
+{
+  "name": "jsonresume-theme-pumpkin",
+  "version": "1.1.4",
+  "description": "A dark, orangy theme based on the original flat theme",
+  "author": "Brian",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bvosk/jsonresume-theme-pumpkin"
+  },
+  "scripts": {
+    "start": "resume serve --theme ."
+  },
+  "dependencies": {
+    "dateformat": "^3.0.3",
+    "handlebars": "^4.7.7",
+    "underscore": "^1.13.2"
+  },
+  "license": "MIT"
+}

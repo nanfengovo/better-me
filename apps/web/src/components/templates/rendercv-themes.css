@@ -1,0 +1,580 @@
+/* Browser adaptations of RenderCV 2.8 theme parameters.
+   Upstream: rendercv/rendercv @ 1d4b87bc427e4cf61c0ef49623c971b0e2224708.
+   MIT notices and renderer/font differences: templates/licenses/rendercv/.
+   All typography, accent and page controls remain the ResumeView's values. */
+
+.resume-sheet[data-template^="rendercv-"] {
+  color: #171717;
+  --rendercv-entry-spacing: calc(var(--resume-section-spacing) * .8);
+}
+
+.resume-sheet[data-template^="rendercv-"] .resume-header {
+  border: 0;
+  padding-bottom: 0;
+  gap: .3cm;
+}
+
+.resume-sheet[data-template^="rendercv-"] .resume-headline {
+  margin-top: .3cm;
+  font-size: 1em;
+  line-height: var(--resume-line-height);
+  font-weight: 400;
+}
+
+.resume-sheet[data-template^="rendercv-"] .resume-contact {
+  font-size: .95em;
+  line-height: var(--resume-line-height);
+}
+
+.resume-sheet[data-template^="rendercv-"] .resume-section h2 {
+  font-size: var(--resume-heading-size);
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+.resume-sheet[data-template^="rendercv-"] .resume-experience + .resume-experience {
+  margin-top: var(--rendercv-entry-spacing);
+}
+
+.resume-sheet[data-template^="rendercv-"] .resume-experience-heading h3 {
+  color: inherit;
+  font-size: 1em;
+  line-height: var(--resume-line-height);
+}
+
+.resume-sheet[data-template^="rendercv-"] .resume-dates {
+  color: inherit;
+  font-size: .94em;
+  line-height: var(--resume-line-height);
+}
+
+.resume-sheet[data-template^="rendercv-"] :is(.resume-tech, .resume-experience-url) {
+  color: #303030;
+  font-size: .92em;
+}
+
+.resume-sheet[data-template^="rendercv-"] .resume-claims {
+  margin-top: .12cm;
+  padding-left: 1em;
+}
+
+.resume-sheet[data-template^="rendercv-"] .resume-claims li {
+  padding-left: .15em;
+}
+
+.resume-sheet[data-template^="rendercv-"] .resume-claims li::marker {
+  color: currentColor;
+  font-size: .8em;
+}
+
+.resume-sheet[data-template^="rendercv-"] .resume-claims li + li {
+  margin-top: .1cm;
+}
+
+/* CLASSIC: a centred, coloured masthead and a line continuing each section
+   title, corresponding to ClassicTheme's `with_partial_line`. */
+.resume-sheet.resume-template-rendercv-classic :is(.resume-identity, .resume-contact) {
+  text-align: center;
+}
+
+.resume-sheet.resume-template-rendercv-classic :is(.resume-headline, .resume-contact) {
+  color: var(--resume-accent);
+}
+
+.resume-sheet.resume-template-rendercv-classic .resume-links {
+  justify-content: center;
+  gap: .1cm .5cm;
+}
+
+.resume-sheet.resume-template-rendercv-classic .resume-section h2 {
+  display: flex;
+  align-items: baseline;
+  gap: .3em;
+  margin-bottom: .3cm;
+  padding: 0;
+  border: 0;
+}
+
+.resume-sheet.resume-template-rendercv-classic .resume-section h2::after {
+  content: "";
+  flex: 1;
+  min-width: 5mm;
+  height: .5pt;
+  background: var(--resume-accent);
+}
+
+.resume-sheet.resume-template-rendercv-classic .resume-experience-heading {
+  align-items: baseline;
+  column-gap: 3mm;
+}
+
+.resume-sheet.resume-template-rendercv-classic :is(.resume-project-name, .resume-tech, .resume-experience-url, .resume-claims) {
+  margin-right: 1mm;
+}
+
+/* ENGINEERING RESUMES: centred regular-weight name, full section rules,
+   plain contact text, explicit destinations and dense round bullets. */
+.resume-sheet.resume-template-rendercv-engineeringresumes :is(.resume-identity, .resume-contact) {
+  text-align: center;
+}
+
+.resume-sheet.resume-template-rendercv-engineeringresumes h1 {
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.resume-sheet.resume-template-rendercv-engineeringresumes :is(.resume-headline, .resume-contact) {
+  color: inherit;
+}
+
+.resume-sheet.resume-template-rendercv-engineeringresumes .resume-links {
+  justify-content: center;
+  gap: .08cm .4cm;
+}
+
+.resume-sheet.resume-template-rendercv-engineeringresumes .resume-section h2 {
+  margin-bottom: .25cm;
+  padding: 0 0 .08cm;
+  border-bottom: .5pt solid var(--resume-accent);
+  color: var(--resume-accent);
+}
+
+.resume-sheet.resume-template-rendercv-engineeringresumes .resume-role {
+  font-weight: 700;
+}
+
+.resume-sheet.resume-template-rendercv-engineeringresumes .resume-section[data-section="experience"] h3:has(.resume-role) .resume-organization {
+  font-weight: 400;
+}
+
+.resume-sheet.resume-template-rendercv-engineeringresumes .resume-claims {
+  margin-top: .08cm;
+  padding-left: .95em;
+}
+
+.resume-sheet.resume-template-rendercv-engineeringresumes .resume-claims li + li {
+  margin-top: .08cm;
+}
+
+.resume-sheet.resume-template-rendercv-engineeringresumes a {
+  text-decoration: underline;
+  text-decoration-thickness: .5pt;
+  text-underline-offset: .12em;
+}
+
+/* MODERNCV: a date rail on the left, a coloured bar aligned with each
+   section title and all main text aligned to one vertical axis.
+   Normal flow is deliberate: Chromium can fragment nested grids before
+   respecting heading and first-bullet keep rules on printed pages. */
+.resume-sheet.resume-template-rendercv-moderncv {
+  --rendercv-date-rail: 41.5mm;
+  --rendercv-column-gap: 3mm;
+  --rendercv-main-inset: calc(var(--rendercv-date-rail) + var(--rendercv-column-gap));
+}
+
+.resume-sheet.resume-template-rendercv-moderncv h1 {
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.resume-sheet.resume-template-rendercv-moderncv :is(.resume-headline, .resume-contact) {
+  color: var(--resume-accent);
+}
+
+.resume-sheet.resume-template-rendercv-moderncv .resume-links {
+  gap: .1cm .5cm;
+}
+
+.resume-sheet.resume-template-rendercv-moderncv .resume-section h2 {
+  position: relative;
+  margin: 0 0 .3cm var(--rendercv-main-inset);
+  padding: 0;
+  border: 0;
+  font-weight: 400;
+}
+
+.resume-sheet.resume-template-rendercv-moderncv .resume-section h2::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--rendercv-main-inset));
+  top: .54em;
+  width: var(--rendercv-date-rail);
+  height: .15cm;
+  background: var(--resume-accent);
+}
+
+.resume-sheet.resume-template-rendercv-moderncv .resume-experience {
+  padding-left: var(--rendercv-main-inset);
+}
+
+.resume-sheet.resume-template-rendercv-moderncv .resume-experience-heading {
+  display: block;
+}
+
+.resume-sheet.resume-template-rendercv-moderncv .resume-dates {
+  float: left;
+  width: var(--rendercv-date-rail);
+  margin: 0 var(--rendercv-column-gap) 0 calc(-1 * var(--rendercv-main-inset)) !important;
+  text-align: right;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.resume-sheet.resume-template-rendercv-moderncv .resume-experience::after {
+  content: "";
+  display: block;
+  clear: both;
+}
+
+.resume-sheet.resume-template-rendercv-moderncv .resume-section > .resume-keywords,
+.resume-sheet.resume-template-rendercv-moderncv .resume-experience-list > p {
+  margin-left: var(--rendercv-main-inset);
+}
+
+.resume-sheet.resume-template-rendercv-moderncv a {
+  text-decoration: underline;
+  text-underline-offset: .12em;
+}
+
+/* ENGINEERING CLASSIC: left-aligned, regular-weight identity and section
+   labels, a full-width rule and slightly more space around each highlight.
+   These are the engineeringclassic.yaml overrides, not a Classic alias. */
+.resume-sheet.resume-template-rendercv-engineeringclassic h1 {
+  font-weight: 400;
+  letter-spacing: -.025em;
+}
+
+.resume-sheet.resume-template-rendercv-engineeringclassic :is(.resume-headline, .resume-contact) {
+  color: var(--resume-accent);
+}
+
+.resume-sheet.resume-template-rendercv-engineeringclassic .resume-section h2 {
+  margin-bottom: .3cm;
+  padding: 0 0 .1cm;
+  border-bottom: .5pt solid var(--resume-accent);
+  font-weight: 400;
+}
+
+.resume-sheet.resume-template-rendercv-engineeringclassic .resume-role,
+.resume-sheet.resume-template-rendercv-moderncv .resume-role {
+  font-weight: 700;
+}
+
+.resume-sheet:is(.resume-template-rendercv-engineeringclassic, .resume-template-rendercv-moderncv) .resume-section[data-section="experience"] h3:has(.resume-role) .resume-organization {
+  font-weight: 400;
+}
+
+.resume-sheet.resume-template-rendercv-engineeringclassic .resume-claims {
+  margin-top: .12cm;
+  padding-left: .95em;
+}
+
+.resume-sheet.resume-template-rendercv-engineeringclassic .resume-claims li + li {
+  margin-top: .12cm;
+}
+
+/* SB2NOV: full section rules, serif defaults, hollow bullets, italic
+   dates, and a role/organization stack for work entries. */
+.resume-sheet.resume-template-rendercv-sb2nov :is(.resume-identity, .resume-contact) {
+  text-align: center;
+}
+
+.resume-sheet.resume-template-rendercv-sb2nov :is(.resume-headline, .resume-contact) {
+  color: inherit;
+}
+
+.resume-sheet.resume-template-rendercv-sb2nov .resume-links {
+  justify-content: center;
+  gap: .1cm .4cm;
+}
+
+.resume-sheet.resume-template-rendercv-sb2nov .resume-section h2 {
+  margin-bottom: .25cm;
+  padding: 0 0 .1cm;
+  border-bottom: .5pt solid var(--resume-accent);
+}
+
+.resume-sheet.resume-template-rendercv-sb2nov .resume-role-separator,
+.resume-sheet:is(.resume-template-rendercv-ink, .resume-template-rendercv-ember) .resume-role-separator {
+  display: none;
+}
+
+.resume-sheet.resume-template-rendercv-sb2nov .resume-section[data-section="experience"] .resume-role {
+  display: block;
+  font-weight: 700;
+}
+
+.resume-sheet.resume-template-rendercv-sb2nov .resume-section[data-section="experience"] h3:has(.resume-role) .resume-organization {
+  display: block;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.resume-sheet.resume-template-rendercv-sb2nov .resume-section[data-section="education"] .resume-role {
+  display: block;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.resume-sheet.resume-template-rendercv-sb2nov .resume-dates {
+  font-style: italic;
+}
+
+.resume-sheet.resume-template-rendercv-sb2nov .resume-claims {
+  list-style-type: circle;
+}
+
+.resume-sheet.resume-template-rendercv-sb2nov a {
+  text-decoration: underline;
+  text-underline-offset: .12em;
+}
+
+/* HARVARD: a centred identity and each centred section title suspended
+   between two equal rules. Company-first entry titles remain in order. */
+.resume-sheet.resume-template-rendercv-harvard :is(.resume-identity, .resume-contact) {
+  text-align: center;
+}
+
+.resume-sheet.resume-template-rendercv-harvard :is(.resume-headline, .resume-contact) {
+  color: inherit;
+}
+
+.resume-sheet.resume-template-rendercv-harvard .resume-header {
+  gap: .5cm;
+}
+
+.resume-sheet.resume-template-rendercv-harvard .resume-headline {
+  margin-top: .5cm;
+}
+
+.resume-sheet.resume-template-rendercv-harvard .resume-contact {
+  font-size: .9em;
+}
+
+.resume-sheet.resume-template-rendercv-harvard .resume-links {
+  justify-content: center;
+  gap: .1cm .4cm;
+}
+
+.resume-sheet.resume-template-rendercv-harvard .resume-section h2 {
+  display: flex;
+  align-items: center;
+  gap: .3em;
+  margin-bottom: .2cm;
+  padding: 0;
+  border: 0;
+  text-align: center;
+}
+
+.resume-sheet.resume-template-rendercv-harvard .resume-section h2::before,
+.resume-sheet.resume-template-rendercv-harvard .resume-section h2::after {
+  content: "";
+  flex: 1;
+  min-width: 4mm;
+  height: .5pt;
+  background: var(--resume-accent);
+}
+
+.resume-sheet.resume-template-rendercv-harvard {
+  --rendercv-entry-spacing: calc(var(--resume-section-spacing) * .67);
+}
+
+/* INK: left-aligned identity, no rules, small-cap section titles, a
+   compact rhythm and organization above an italic role/education line. */
+.resume-sheet.resume-template-rendercv-ink {
+  --rendercv-entry-spacing: calc(var(--resume-section-spacing) * .67);
+}
+
+.resume-sheet.resume-template-rendercv-ink .resume-header {
+  gap: .4cm;
+}
+
+.resume-sheet.resume-template-rendercv-ink .resume-headline {
+  margin-top: .5cm;
+  font-size: 1.1em;
+  color: var(--resume-accent);
+}
+
+.resume-sheet.resume-template-rendercv-ink .resume-contact {
+  font-size: 1em;
+  color: color-mix(in srgb, var(--resume-accent) 80%, #51475f);
+}
+
+.resume-sheet.resume-template-rendercv-ink .resume-section h2 {
+  margin-bottom: .2cm;
+  padding: 0;
+  border: 0;
+  font-variant-caps: small-caps;
+  font-weight: 700;
+}
+
+.resume-sheet.resume-template-rendercv-ink .resume-role,
+.resume-sheet.resume-template-rendercv-ember .resume-role {
+  display: block;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.resume-sheet.resume-template-rendercv-ink .resume-claims {
+  margin-top: .06cm;
+  padding-left: 1em;
+  text-align: justify;
+}
+
+.resume-sheet.resume-template-rendercv-ink .resume-claims li + li {
+  margin-top: .06cm;
+}
+
+.resume-sheet.resume-template-rendercv-ink a {
+  text-decoration: underline;
+  text-underline-offset: .12em;
+}
+
+/* OPAL: centred unruled section labels, small caps, hollow bullets and
+   a short second row which ends at the right-hand date column. */
+.resume-sheet.resume-template-rendercv-opal {
+  --rendercv-entry-spacing: calc(var(--resume-section-spacing) * .74);
+  --rendercv-short-row: 41.5mm;
+}
+
+.resume-sheet.resume-template-rendercv-opal :is(.resume-identity, .resume-contact) {
+  text-align: center;
+}
+
+.resume-sheet.resume-template-rendercv-opal :is(.resume-headline, .resume-contact) {
+  color: color-mix(in srgb, var(--resume-accent) 85%, #173f38);
+}
+
+.resume-sheet.resume-template-rendercv-opal .resume-headline {
+  font-variant-caps: small-caps;
+}
+
+.resume-sheet.resume-template-rendercv-opal .resume-contact {
+  font-size: .9em;
+}
+
+.resume-sheet.resume-template-rendercv-opal .resume-links {
+  justify-content: center;
+  gap: .1cm .5cm;
+}
+
+.resume-sheet.resume-template-rendercv-opal .resume-section h2 {
+  margin-bottom: .25cm;
+  padding: 0;
+  border: 0;
+  font-weight: 400;
+  font-variant-caps: small-caps;
+  text-align: center;
+}
+
+.resume-sheet.resume-template-rendercv-opal .resume-experience {
+  padding: 0 1.5mm;
+}
+
+.resume-sheet.resume-template-rendercv-opal .resume-role {
+  font-weight: 400;
+  font-style: italic;
+}
+
+.resume-sheet.resume-template-rendercv-opal :is(.resume-project-name, .resume-experience-url, .resume-tech, .resume-claims) {
+  margin-right: var(--rendercv-short-row);
+}
+
+.resume-sheet.resume-template-rendercv-opal .resume-claims {
+  margin-top: .04cm;
+  list-style-type: circle;
+}
+
+.resume-sheet.resume-template-rendercv-opal .resume-claims li + li {
+  margin-top: .04cm;
+}
+
+/* EMBER: a serif identity over a sans-serif default body, centred unruled
+   section labels, stacked italic roles and diamond highlight markers. */
+.resume-sheet.resume-template-rendercv-ember {
+  --rendercv-entry-spacing: calc(var(--resume-section-spacing) * .74);
+  color: #231f20;
+}
+
+.resume-sheet.resume-template-rendercv-ember :is(.resume-identity, .resume-contact) {
+  text-align: center;
+}
+
+.resume-sheet.resume-template-rendercv-ember h1,
+.resume-sheet.resume-template-rendercv-ember .resume-headline {
+  font-family: var(--resume-serif-family);
+}
+
+.resume-sheet.resume-template-rendercv-ember .resume-header {
+  gap: .4cm;
+}
+
+.resume-sheet.resume-template-rendercv-ember .resume-headline {
+  margin-top: .5cm;
+  color: color-mix(in srgb, var(--resume-accent) 55%, #443c38);
+  font-size: 1.05em;
+  font-variant-caps: small-caps;
+}
+
+.resume-sheet.resume-template-rendercv-ember .resume-contact {
+  color: color-mix(in srgb, var(--resume-accent) 45%, #514b44);
+  font-size: .9em;
+}
+
+.resume-sheet.resume-template-rendercv-ember .resume-links {
+  justify-content: center;
+  gap: .1cm .5cm;
+}
+
+.resume-sheet.resume-template-rendercv-ember .resume-section h2 {
+  margin-bottom: .25cm;
+  padding: 0;
+  border: 0;
+  font-weight: 400;
+  font-variant-caps: small-caps;
+  text-align: center;
+}
+
+.resume-sheet.resume-template-rendercv-ember .resume-experience {
+  padding: 0 1mm;
+}
+
+.resume-sheet.resume-template-rendercv-ember .resume-claims {
+  margin-top: .05cm;
+  padding-left: 1.1em;
+  list-style-type: "◆  ";
+  text-align: justify;
+  hyphens: none;
+}
+
+.resume-sheet.resume-template-rendercv-ember .resume-claims li + li {
+  margin-top: .04cm;
+}
+
+.resume-sheet.resume-template-rendercv-ember a {
+  text-decoration: underline;
+  text-underline-offset: .12em;
+}
+
+@media print {
+  .resume-sheet[data-template^="rendercv-"] .resume-experience-heading {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .resume-sheet.resume-template-rendercv-moderncv :is(.resume-section, .resume-experience-list, .resume-experience) {
+    display: block;
+    break-inside: auto;
+  }
+
+  .resume-sheet.resume-template-rendercv-moderncv .resume-section > h2 {
+    break-inside: avoid;
+    break-after: avoid;
+  }
+
+  .resume-sheet:is(.resume-template-rendercv-engineeringresumes, .resume-template-rendercv-moderncv, .resume-template-rendercv-sb2nov, .resume-template-rendercv-ink, .resume-template-rendercv-ember) a {
+    text-decoration: underline;
+  }
+}

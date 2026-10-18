@@ -1,0 +1,129 @@
+/* Scoped native adaptations of MIT community themes discovered via
+   awesome-resume-for-chinese. Each source/revision and change log is recorded
+   under repository-root templates/licenses/<source>/NOTICE.md.
+   Shared Fact rendering, section order and user layout controls remain intact. */
+
+/* hijiangtao/resume — tighter original billryan fork (MIT). */
+.resume-sheet.resume-template-community-hijiangtao .resume-header { text-align: center; border: 0; gap: 2mm; padding-bottom: 0; }
+.resume-template-community-hijiangtao .resume-links { justify-content: center; }
+.resume-sheet.resume-template-community-hijiangtao h1 { font-family: var(--resume-serif-family); font-variant-caps: small-caps; font-weight: 600; }
+.resume-sheet.resume-template-community-hijiangtao .resume-section { margin-top: calc(var(--resume-section-spacing) * .65); }
+.resume-sheet.resume-template-community-hijiangtao .resume-section h2 { font-family: var(--resume-serif-family); font-variant-caps: small-caps; font-weight: 500; padding-bottom: 1mm; margin-bottom: 2mm; border-color: #555; }
+.resume-template-community-hijiangtao .resume-experience + .resume-experience { margin-top: calc(var(--resume-section-spacing) * .45); }
+.resume-template-community-hijiangtao .resume-role { font-style: italic; }
+.resume-template-community-hijiangtao .resume-claims li + li { margin-top: .1em; }
+.resume-template-community-hijiangtao .resume-contact { color: #333; }
+
+/* luooofan/resume — all three titlelinestyle branches in resume.cls (MIT).
+   Icon and font files are excluded; headings retain their underlying text. */
+.resume-sheet:is(.resume-template-community-luooofan,.resume-template-community-luooofan-partial,.resume-template-community-luooofan-full) .resume-header { text-align: center; border: 0; gap: 2mm; padding-bottom: 1mm; }
+:is(.resume-template-community-luooofan,.resume-template-community-luooofan-partial,.resume-template-community-luooofan-full) .resume-links { justify-content: center; }
+.resume-sheet:is(.resume-template-community-luooofan,.resume-template-community-luooofan-partial,.resume-template-community-luooofan-full) h1 { font-family: var(--resume-serif-family); font-weight: 800; }
+.resume-sheet:is(.resume-template-community-luooofan,.resume-template-community-luooofan-partial,.resume-template-community-luooofan-full) .resume-section h2 { font-family: var(--resume-serif-family); font-weight: 800; padding-bottom: 1mm; border-color: var(--resume-accent); }
+.resume-sheet.resume-template-community-luooofan-partial .resume-section h2 { display: table; padding: 1mm 2mm; background: var(--resume-tint); border-bottom: .3mm solid var(--resume-accent); }
+.resume-sheet.resume-template-community-luooofan-full .resume-section h2 { padding: 1mm 2mm; background: var(--resume-tint); border: 0; }
+:is(.resume-template-community-luooofan,.resume-template-community-luooofan-partial,.resume-template-community-luooofan-full) .resume-role { font-style: italic; }
+:is(.resume-template-community-luooofan,.resume-template-community-luooofan-partial,.resume-template-community-luooofan-full) .resume-claims li + li { margin-top: .15em; }
+
+/* Kody work / postgraduate — same source paper system, independent selections.
+   Unknown dates, age, political affiliation and exam scores are never invented. */
+.resume-sheet:is(.resume-template-community-kody-work,.resume-template-community-kody-postgraduate) .resume-header { border: 0; text-align: center; padding: 0 0 2mm; gap: 3mm; }
+.resume-sheet:is(.resume-template-community-kody-work,.resume-template-community-kody-postgraduate) h1 { font-family: var(--resume-serif-family); font-weight: 800; }
+:is(.resume-template-community-kody-work,.resume-template-community-kody-postgraduate) .resume-links { justify-content: center; }
+.resume-sheet:is(.resume-template-community-kody-work,.resume-template-community-kody-postgraduate) .resume-contact { color: #222; font-size: .9em; }
+.resume-sheet:is(.resume-template-community-kody-work,.resume-template-community-kody-postgraduate) .resume-section { margin-top: calc(var(--resume-section-spacing) * .62); }
+.resume-sheet:is(.resume-template-community-kody-work,.resume-template-community-kody-postgraduate) .resume-section h2 { font-family: var(--resume-serif-family); font-weight: 800; border-bottom: .35mm solid var(--resume-accent); padding-bottom: .8mm; margin-bottom: 2mm; }
+.resume-sheet:is(.resume-template-community-kody-work,.resume-template-community-kody-postgraduate) .resume-experience-heading h3 { color: #111; font-size: 1em; }
+.resume-sheet:is(.resume-template-community-kody-work,.resume-template-community-kody-postgraduate) .resume-dates { font-weight: 700; color: #222; }
+:is(.resume-template-community-kody-work,.resume-template-community-kody-postgraduate) .resume-claims li + li { margin-top: .1em; }
+.resume-template-community-kody-postgraduate .resume-keywords { gap: 2mm 5mm; }
+
+/* hoochanlon/jsonresume-theme-mix (MIT) — brown serif side-label paper. */
+.resume-sheet.resume-template-community-mix { --community-label-width: 27mm; --community-label-gap: 4mm; }
+.resume-sheet.resume-template-community-mix .resume-header { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; border: 0; border-bottom: .25mm dashed #cfcfcf; padding-bottom: 4mm; }
+.resume-sheet.resume-template-community-mix .resume-header.has-avatar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 23mm; }
+.resume-template-community-mix .resume-header.has-avatar .resume-avatar { grid-column: 3; grid-row: 1; }
+.resume-sheet.resume-template-community-mix h1 { font-family: var(--resume-serif-family); font-weight: 700; }
+.resume-template-community-mix .resume-links { display: block; }
+.resume-sheet.resume-template-community-mix .resume-section { display: grid; grid-template-columns: var(--community-label-width) minmax(0, 1fr); gap: var(--community-label-gap); padding-bottom: 3mm; border-bottom: .25mm dashed #cfcfcf; }
+.resume-sheet.resume-template-community-mix .resume-section h2 { border: 0; margin: 0; padding: 0; font-family: var(--resume-serif-family); font-weight: 500; }
+.resume-sheet.resume-template-community-mix .resume-experience-heading h3 { color: var(--resume-accent); font-family: var(--resume-serif-family); font-size: 1.08em; }
+.resume-template-community-mix .resume-claims { list-style: circle; }
+
+/* crispgm/resume (MIT) — minimal marginal section titles and split masthead. */
+.resume-sheet.resume-template-community-crisp { --community-label-width: 28mm; --community-label-gap: 5mm; color: #495057; }
+.resume-sheet.resume-template-community-crisp .resume-header { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; padding: 3mm 0 5mm; border-color: var(--resume-accent); }
+.resume-sheet.resume-template-community-crisp .resume-header.has-avatar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 23mm; }
+.resume-template-community-crisp .resume-header.has-avatar .resume-avatar { grid-column: 3; grid-row: 1; }
+.resume-sheet.resume-template-community-crisp h1 { color: #495057; font-weight: 500; letter-spacing: .015em; }
+.resume-template-community-crisp .resume-links { display: block; }
+.resume-sheet.resume-template-community-crisp .resume-section { display: grid; grid-template-columns: var(--community-label-width) minmax(0, 1fr); gap: var(--community-label-gap); padding-bottom: 5mm; border-bottom: .25mm solid var(--resume-accent); }
+.resume-sheet.resume-template-community-crisp .resume-section h2 { border: 0; color: #495057; font-weight: 500; margin: 0; padding: 0; letter-spacing: 0; }
+.resume-sheet.resume-template-community-crisp .resume-experience-heading { display: block; }
+.resume-sheet.resume-template-community-crisp .resume-dates { margin-top: 1mm !important; color: #707c8c; }
+.resume-template-community-crisp .resume-tech { color: #707c8c; }
+.resume-template-community-crisp .resume-keywords { gap: 2mm 5mm; }
+
+/* Lxxyx/LxxyxResume (MIT) — charcoal masthead, teal accents and timeline entries.
+   Original equal columns are translated to ordered single-column paper. */
+.resume-sheet.resume-template-community-lxxyx .resume-header { padding: 5mm; background: #333; border: 0; text-align: right; }
+.resume-sheet.resume-template-community-lxxyx h1,
+.resume-sheet.resume-template-community-lxxyx .resume-headline,
+.resume-sheet.resume-template-community-lxxyx .resume-contact { color: #fff; }
+.resume-template-community-lxxyx .resume-links { justify-content: flex-end; }
+.resume-sheet.resume-template-community-lxxyx .resume-section h2 { border: 0; border-left: 1.1mm solid #333; padding: 0 0 0 3mm; color: var(--resume-accent); }
+.resume-template-community-lxxyx .resume-experience { border-left: .9mm solid #333; padding-left: 3mm; }
+.resume-template-community-lxxyx .resume-experience-heading { padding: 1.5mm 2mm; border-radius: 1mm; background: #333; }
+.resume-sheet.resume-template-community-lxxyx .resume-experience-heading h3,
+.resume-sheet.resume-template-community-lxxyx .resume-role,
+.resume-sheet.resume-template-community-lxxyx .resume-dates { color: #fff; }
+.resume-template-community-lxxyx .resume-keywords li { padding: .7mm 2mm; background: var(--resume-tint); border-left: .6mm solid var(--resume-accent); }
+
+/* xiao555/resume-it (MIT) — teal personal rail and project timeline. */
+.resume-sheet.resume-template-community-xiao555 { display: grid; grid-template-columns: 44mm minmax(0, 1fr); gap: 7mm; align-items: start; }
+.resume-sheet.resume-template-community-xiao555 .resume-header { display: flex; flex-direction: column; gap: 3mm; padding: 5mm 3mm; background: var(--resume-accent); border: 0; text-align: center; }
+.resume-sheet.resume-template-community-xiao555 h1 { color: #fff; font-size: calc(var(--resume-name-size) * .72); font-weight: 500; }
+.resume-sheet.resume-template-community-xiao555 .resume-headline,
+.resume-sheet.resume-template-community-xiao555 .resume-contact { color: #fff; }
+.resume-template-community-xiao555 .resume-links { display: block; }
+.resume-template-community-xiao555 .resume-avatar { order: -1; align-self: center; border: 0; }
+.resume-sheet.resume-template-community-xiao555 .resume-section:first-child { margin-top: 0; }
+.resume-sheet.resume-template-community-xiao555 .resume-section h2 { padding-bottom: 1.5mm; border-color: var(--resume-accent); }
+.resume-template-community-xiao555 .resume-experience { padding-left: 3mm; border-left: .5mm solid var(--resume-accent); }
+.resume-template-community-xiao555 .resume-experience-heading { display: block; }
+.resume-sheet.resume-template-community-xiao555 .resume-dates { margin: 1mm 0 0 !important; }
+
+/* nzbin/resume-boilerplate (MIT) — actual src/index.html paper example. */
+.resume-sheet.resume-template-community-nzbin .resume-header { padding: 4mm; border: 0; background: #f5f5f5; }
+.resume-sheet.resume-template-community-nzbin h1 { color: #333; font-weight: 600; }
+.resume-sheet.resume-template-community-nzbin .resume-section h2 { border: 0; border-left: 1.2mm solid var(--resume-accent); padding: .7mm 0 .7mm 3mm; color: #333; }
+.resume-template-community-nzbin .resume-experience { padding: 3mm; background: #f6f6f6; }
+.resume-template-community-nzbin .resume-experience + .resume-experience { margin-top: 2mm; }
+.resume-template-community-nzbin .resume-keywords li { padding: 1mm 2mm; background: #f6f6f6; }
+.resume-sheet.resume-template-community-nzbin .resume-dates { color: #555; }
+
+/* itsay/resume (Gitee, MIT) — separate pale profile and main cards. */
+.resume-sheet.resume-template-community-itsay { display: grid; grid-template-columns: 43mm minmax(0, 1fr); gap: 6mm; align-items: start; }
+.resume-sheet.resume-template-community-itsay .resume-header { display: flex; flex-direction: column; align-items: stretch; gap: 3mm; padding: 4mm 3mm; border: .25mm solid #e5e5e5; border-radius: 1mm; background: #fafafa; text-align: center; }
+.resume-sheet.resume-template-community-itsay h1 { color: #333; font-size: calc(var(--resume-name-size) * .7); font-weight: 500; }
+.resume-sheet.resume-template-community-itsay .resume-headline { font-size: 1em; color: #555; }
+.resume-template-community-itsay .resume-links { display: block; }
+.resume-template-community-itsay .resume-avatar { order: -1; align-self: center; width: 25mm; height: 25mm; border: 0; border-radius: 50%; }
+.resume-sheet.resume-template-community-itsay .resume-body { border-left: .25mm solid #e5e5e5; padding-left: 4mm; }
+.resume-sheet.resume-template-community-itsay .resume-section:first-child { margin-top: 0; }
+.resume-sheet.resume-template-community-itsay .resume-section h2 { font-weight: 700; color: #333; border-color: #ddd; }
+.resume-sheet.resume-template-community-itsay .resume-experience-heading h3 { font-weight: 500; }
+.resume-template-community-itsay .resume-experience-url a { padding: .3mm 1mm; border: .2mm solid var(--resume-accent); border-radius: 1mm; color: var(--resume-accent); text-decoration: none; }
+.resume-template-community-itsay .resume-claims { list-style: circle; }
+
+@media print {
+  .resume-sheet:is(.resume-template-community-mix,.resume-template-community-crisp) .resume-section { display: block; padding-left: calc(var(--community-label-width) + var(--community-label-gap)); }
+  .resume-sheet:is(.resume-template-community-mix,.resume-template-community-crisp) .resume-section > h2 { float: left; width: var(--community-label-width); margin-left: calc(0mm - var(--community-label-width) - var(--community-label-gap)); }
+  .resume-sheet:is(.resume-template-community-mix,.resume-template-community-crisp) .resume-section::after { content: ""; display: block; clear: both; }
+  .resume-sheet.resume-template-community-xiao555 { display: block; }
+  .resume-template-community-xiao555 .resume-header { float: left; width: 44mm; box-sizing: border-box; }
+  .resume-template-community-xiao555 .resume-body { margin-left: 51mm; }
+  .resume-sheet.resume-template-community-itsay { display: block; }
+  .resume-template-community-itsay .resume-header { float: left; width: 43mm; box-sizing: border-box; }
+  .resume-template-community-itsay .resume-body { margin-left: 49mm; }
+}

@@ -1,0 +1,2185 @@
+{
+  "catalogUrl": "https://www.jsonresume.org/themes",
+  "catalogSourceRevision": "dd0155358c8d85a134d434e49834705243b5eede",
+  "count": 48,
+  "themes": [
+    {
+      "slug": "desert-modern",
+      "id": "jsonresume-desert-modern",
+      "name": "Desert Modern",
+      "author": "JSON Resume Team",
+      "version": "0.1.5",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-desert-modern",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "sand-tinted identity, widely spaced chapter labels and fine rules",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-desert-modern/src/index.jsx",
+          "sha256": "72f1e6d0098eb603aa5d4083a8dbb0378cba73b573c558ec4554eb69aa5f3e0d"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-desert-modern/src/Resume.jsx",
+          "sha256": "81c1316c88ff864df8e41d78b207a0b81fb04de17945c7693322fdf20060e9c0"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-desert-modern/src/styles.jsx",
+          "sha256": "334c30923aa3a8ef48cac1d5e8d88f2c861693f211b80b595e3e2bebfc614a1c"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-desert-modern/tests/theme.test.js",
+          "sha256": "c187778689137d35b41a516e8fff29d157ac609f0cbfe5d6be7847c71f0a8b89"
+        }
+      ]
+    },
+    {
+      "slug": "elegant-pink",
+      "id": "jsonresume-elegant-pink",
+      "name": "Elegant Pink",
+      "author": "JSON Resume Team",
+      "version": "0.1.5",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-elegant-pink",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "rose gradient masthead, strong name and lightly shaded skill labels",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-elegant-pink/src/index.jsx",
+          "sha256": "a3d64d6e61b38a2206d788f8038327e60b7e0cf194cf6e5ef046d7dbd2530ec8"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-elegant-pink/src/Resume.jsx",
+          "sha256": "efb104376aa27e930cdbeb74b5f604aac68df9d31aa355c91e1024361ff1547f"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-elegant-pink/tests/theme.test.js",
+          "sha256": "87146bd75e6059ffe9d4c7e3ed341ff453085dd45f25316a7631fabbbbc1598c"
+        }
+      ]
+    },
+    {
+      "slug": "tailwind",
+      "id": "jsonresume-tailwind",
+      "name": "Tailwind",
+      "author": "JSON Resume Team",
+      "version": "0.0.0",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-tailwind",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@radix-ui/react-avatar": "^1.0.4",
+        "@radix-ui/react-slot": "^1.0.2",
+        "class-variance-authority": "^0.7.0",
+        "clsx": "^2.1.1",
+        "google": "link:next/font/google",
+        "react-icons": "^5.0.1",
+        "server": "link:twind/shim/server",
+        "tailwind-merge": "^2.3.0",
+        "twind": "^0.16.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "lightweight identity, monospaced dates and rounded outlined badges",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/index.jsx",
+          "sha256": "36b3d98e9b4b610d441cab8ec614b5a1b81786be0484b70593c76680a092e535"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/About.jsx",
+          "sha256": "649afc2c566172fc219a6cb3e3c874f809049f8ce98932174888837476c19a60"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Avatar.jsx",
+          "sha256": "d12f8e9e600010aa4c4b884a7f768867b64df06849d999e826545433a4e3235d"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Awards.jsx",
+          "sha256": "e82e4f64bc15643baf153329ab2e396e603dbaa9a0b5d74c5a9c1b082a5e0325"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Badge.jsx",
+          "sha256": "9593932880383b0f24e2b38eaafe5ecffb6e54d6a3179ac49af259c249296f96"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Basics.jsx",
+          "sha256": "499af1675c04e050977402c30a90053ae28e245ccdbc8db89f3702272263ab50"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Button.jsx",
+          "sha256": "3cad6ffc9214a74105040f73773265545634f52eaf17712269a606d53a07ff98"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Card.jsx",
+          "sha256": "7d2448a56fac9ca1f64c19e5506099daff8176ba2df6b8f863fed81e473c046f"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Certificates.jsx",
+          "sha256": "b6fc5d5bb7480f7b031d0dbc2b513900572c64e2dd901fd5567ecd05e534cb6d"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Date.jsx",
+          "sha256": "fb4a023a6880e227111bcb40eb4cd7ca3ab240ffcfdb77b1d56b5500da15ed8c"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/DateRange.jsx",
+          "sha256": "9b50b3211855b99d4082f6d9cc51b63e9053a5501fe20dafbd65d15934d75f3c"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Education.jsx",
+          "sha256": "92a50911c8af7f592103a7000f39a4a12ca0974fac6f740dcb803b961ea9ce6b"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Experience.jsx",
+          "sha256": "652cbd7e52e40d0da78e18040df1d03aca83ffeeaf97fe3abcf3ab4da04c8ca7"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Hero.jsx",
+          "sha256": "baf36d8fc37f24716681d9828631e3c4242f82c09fbb9f51edb12c3eabbb6410"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Interests.jsx",
+          "sha256": "7aa233b7c5cf971fa6d3650ac464c3bc6122a015ab157cfdb1705b521b718372"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Languages.jsx",
+          "sha256": "cd10cf83318c1c665a3416eaa5c3e76f4ba658075d64b18241a6fb97958cd413"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/List.jsx",
+          "sha256": "57b7b057d3f8831565144fedeb37362b2ff7b795c7936987ca75e2c9b10d8752"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/ProjectCard.jsx",
+          "sha256": "3d6390ce7c0f43aad73f9cad41d3d458ce9d69313cb8b9625b6eca107c989051"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Projects.jsx",
+          "sha256": "49e47cc3ff46339a300acfea0767e2c8cbece1cd014423096d993f76a86dd234"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Publications.jsx",
+          "sha256": "cd9dde544b8e7c4bfa5ec63df49419910a5ebd81275c3690eec6a24e785f5903"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/References.jsx",
+          "sha256": "71f7f2006f1d711c6bb2792565f64685615a7a2214ea0c2c272ab2045a583cca"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Resume.jsx",
+          "sha256": "534716f45f7442ba65e1e322022c1fea87cf31566200f54262326b3496ffe0f4"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Section.jsx",
+          "sha256": "fb66cb89ddc2475207ad71040ebcf324b5695094c0aad9400cdf12b3d1419f58"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Skills.jsx",
+          "sha256": "6fd24394784cd8c7ed03cc7449b0eec78d934bd45b29a25e08936511330efcb9"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/SubTitle.jsx",
+          "sha256": "932eba0a50fde74c2fb1c2f6559a29d94f9d5b5b9a7fa63e0611e35ec0f6af55"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Summary.jsx",
+          "sha256": "1799e249f89ccbc3a307295734c245f11ff8eff5afb2510cba59b4c701d68f43"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/utils.js",
+          "sha256": "5c3b48f48299afa215a3748779d7c19e9db1b3e3687dcd656cc72cc135d2aba7"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Volunteer.jsx",
+          "sha256": "c9b52ee3dc9ac515693639da31ce020236ffb509f5f891eba45d21e87721fcc5"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/src/ui/Work.jsx",
+          "sha256": "eb7182d079faeba6df36713195794a06fa9231cd952ae4b6ebc33bdff25f1b00"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/tailwind.config.js",
+          "sha256": "306645c326595ed0af7381cca611aea710081fd8b7f4928222ae0672246d30f7"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tailwind/tests/theme.test.js",
+          "sha256": "b4018ee129b2d7399d4b2c4ba4841f471500ce1bc753969645f24b3c487565ae"
+        }
+      ]
+    },
+    {
+      "slug": "academic-cv-lite",
+      "id": "jsonresume-academic-cv-lite",
+      "name": "Academic CV Lite",
+      "author": "JSON Resume Team",
+      "version": "0.2.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-academic-cv-lite",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "centered scholarly header, text hierarchy and fine chapter rules",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-academic-cv-lite/src/index.jsx",
+          "sha256": "e501910851bca676eb1db9ed3db9f2a99b4ca25cc27047d3774413a4dfa46cad"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-academic-cv-lite/src/Resume.jsx",
+          "sha256": "3346e48ae04aabfe321dd62ac8dcf84d4a327119366c36af123796412c78ea5c"
+        }
+      ]
+    },
+    {
+      "slug": "bold-header-statement",
+      "id": "jsonresume-bold-header-statement",
+      "name": "Bold Header Statement",
+      "author": "JSON Resume Team",
+      "version": "1.1.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-bold-header-statement",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "teal identity banner, bold display name and outlined skill blocks",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-bold-header-statement/src/index.jsx",
+          "sha256": "801639fc5a90340bb961ba66f07a7ddd172f115082e7b0f6d10eb37ec0ee26b7"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-bold-header-statement/src/Resume.jsx",
+          "sha256": "dac64533783485f47dad97d30cca297fbd214d5d19ac039314701be409cd86dc"
+        }
+      ]
+    },
+    {
+      "slug": "architects-portfolio",
+      "id": "jsonresume-architects-portfolio",
+      "name": "Architect's Portfolio",
+      "author": "JSON Resume Team",
+      "version": "1.1.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-architects-portfolio",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "light geometric identity, extended keylines and fine framed labels",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-architects-portfolio/src/index.jsx",
+          "sha256": "c64892e876dd05761223639c72d65373f3e54615d0081c0848714f91f3bd61b2"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-architects-portfolio/src/Resume.jsx",
+          "sha256": "5870b035382747f2df980e5707aa6d7cbf141be17636e9cf8dab0ba80fb61427"
+        }
+      ]
+    },
+    {
+      "slug": "consultant-polished",
+      "id": "jsonresume-consultant-polished",
+      "name": "Consultant Polished",
+      "author": "JSON Resume Team",
+      "version": "1.0.3",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-consultant-polished",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:^",
+        "marked": "^16.3.0",
+        "react-icons": "^5.0.1"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "navy headings, recommended serif type and measured double-rule hierarchy",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-consultant-polished/src/index.jsx",
+          "sha256": "50368e84676eed407b781eb683b143d1e5d24c1157cd43766ab868fced2d4934"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-consultant-polished/src/ui/Awards.jsx",
+          "sha256": "f5c75cc37950868bee383d8b35b4ade91a43dfd26e4451675596bb102ff0e059"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-consultant-polished/src/ui/Certificates.jsx",
+          "sha256": "437b515a62dad030fcdb7a91af2a02f51a32f10edc105d629336b7b2789c0529"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-consultant-polished/src/ui/Education.jsx",
+          "sha256": "012fa099dfe66e22004a26460a0f1e85748dc354d8a54f6d2a04ded1a4a4a21a"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-consultant-polished/src/ui/Hero.jsx",
+          "sha256": "896422cf2c5e61bda149a8f8330a9b3180886e381efda584fbf4341239f24d24"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-consultant-polished/src/ui/Interests.jsx",
+          "sha256": "999947b2a4302e22f1441c86be5b737531e5de3372ee882b44a716ff1721cd9e"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-consultant-polished/src/ui/Languages.jsx",
+          "sha256": "6b33b8c05d4db13a4734dd00ef45582ccf79a163b22c64343cbe2222623b343d"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-consultant-polished/src/ui/Projects.jsx",
+          "sha256": "f3aee5f76dad9660de6493aa8b647c0799c4e0bf406aab9d329d0d3577358ebd"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-consultant-polished/src/ui/Publications.jsx",
+          "sha256": "d35ff1ae34e8849805952ccebc05c2c6595fb6ba8cd06166e10ad559a7042782"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-consultant-polished/src/ui/References.jsx",
+          "sha256": "0bcb14b1b370e541cb2d08238a6b286ca311c0c7a04851dadc05a4088fefe130"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-consultant-polished/src/ui/Resume.jsx",
+          "sha256": "4aa80437b0cdc1e3793c2119f3dd0a5f08e65e2713498a5b173f75331ff118a3"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-consultant-polished/src/ui/Section.jsx",
+          "sha256": "426f0de250ab49fc491ffeecdb99d669ca2db8143a113f1cf1f2c5616eecf633"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-consultant-polished/src/ui/Skills.jsx",
+          "sha256": "76bba8e29660b47c10a381871997d294a32c40a984ff40969bd3538d3f32289f"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-consultant-polished/src/ui/Summary.jsx",
+          "sha256": "44e2013cf2efa3354e6eda8a0e4da445c531c79f1471aea714a9df76175d7eae"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-consultant-polished/src/ui/Volunteer.jsx",
+          "sha256": "eafa684981da9c764c56e90d4e0b73f4f1e698f50b85c24e6dfd659f3c84297a"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-consultant-polished/src/ui/Work.jsx",
+          "sha256": "b68a6678de296cceb0c9d9c6e3dfa4c269afd18abf45b0ea70f8dde63a4a65f1"
+        }
+      ]
+    },
+    {
+      "slug": "creative-studio",
+      "id": "jsonresume-creative-studio",
+      "name": "Creative Studio",
+      "author": "JSON Resume Team",
+      "version": "1.1.3",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-creative-studio",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:^",
+        "marked": "^16.3.0",
+        "prismjs": "^1.29.0",
+        "react-icons": "^5.0.1"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "coral-tinted masthead, rounded labels and soft experience cards",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-creative-studio/src/index.jsx",
+          "sha256": "8763e5cbe606ec94afea4207453658b3ae7555d70fada572377717bcd6ebd8d8"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-creative-studio/src/ui/Awards.jsx",
+          "sha256": "f7bfb8f8587000b8954875b7b18c529a73706a0af096359c6373b039e385d68a"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-creative-studio/src/ui/Certificates.jsx",
+          "sha256": "1eaa67163cc6151d1683bb8d1442429b50e1be9679574eca4260bb4b0d9d057c"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-creative-studio/src/ui/Date.js",
+          "sha256": "673c65afc7d6b658a255c74eac6b608e23db4ea7872476088d10974467f90437"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-creative-studio/src/ui/DateRange.jsx",
+          "sha256": "73034c9592744882ec2d4ba062cf479934a0d8d520b3d0fe89a8ee536fbac579"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-creative-studio/src/ui/Education.jsx",
+          "sha256": "e329f125389a3672aa6f022d7d4f4fef2f822d37a11977c3e5d4055780ddd700"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-creative-studio/src/ui/Hero.jsx",
+          "sha256": "2098b90e5e5c2897e5be5f44e475eb6fbcaaed5988d83f50d64d741486bf7584"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-creative-studio/src/ui/Interests.jsx",
+          "sha256": "6ed8527541baa676d2cabb3cf3a138037c1c808f7928d27b8a0b2d657567f0a5"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-creative-studio/src/ui/Languages.jsx",
+          "sha256": "c76e6f5fc64ebaf530d9024c0d33e03a6dc129fa2e860706dd2e6f618760f4e3"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-creative-studio/src/ui/Projects.jsx",
+          "sha256": "6f1e06dd3a4d6ffc089913b6b03d76e235c2362feb7a70a8e8420925af00eb15"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-creative-studio/src/ui/Publications.jsx",
+          "sha256": "e2abef9e3fdebee868d34494fee4b1e42d336fde0050ca626891f841949ef194"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-creative-studio/src/ui/References.jsx",
+          "sha256": "9cc04e03c517af8132d347db7dddf18207e3efad30e3d713210d03030f2cb5a8"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-creative-studio/src/ui/Resume.jsx",
+          "sha256": "a2b71cab1d57c70e90acadba24a0758278f7ed64834056df91404884ceb9305c"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-creative-studio/src/ui/Section.jsx",
+          "sha256": "bb827ff81b5f8d6b33119dce79b383084d6282385c07e7973346850d9bccea6e"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-creative-studio/src/ui/Skills.jsx",
+          "sha256": "af5d0fd2ef2fd640914b42aec3396ce2f1be2744a0511cc8224e326a96d170c4"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-creative-studio/src/ui/Summary.jsx",
+          "sha256": "9ea3197708a048a34f29e928e31352753f2c1f82402d022cceef29f5e7cedc39"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-creative-studio/src/ui/Volunteer.jsx",
+          "sha256": "c5165866a63eea75d5aac927af9d46caccf93fbffa7923235179e444c9b725c3"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-creative-studio/src/ui/Work.jsx",
+          "sha256": "10e73b8ba3df2d5f83097f9df69dc5ea72d0885514ae786141c0d7f194190a2e"
+        }
+      ]
+    },
+    {
+      "slug": "data-driven",
+      "id": "jsonresume-data-driven",
+      "name": "Data-Driven",
+      "author": "JSON Resume Team",
+      "version": "0.2.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-data-driven",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "geometric uppercase identity, tabular dates and outlined skill tags",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-data-driven/src/index.jsx",
+          "sha256": "f099b1dba94dceeabcce886ac93a12000dad6f67f427f497595b18343f2e28b1"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-data-driven/src/ui/Resume.jsx",
+          "sha256": "ab241e28d63284f9af3efa6151d698c21f2336577cd3806599cddb1900233276"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-data-driven/tests/theme.test.js",
+          "sha256": "1b6a065fb71d2b7ed96d3290698795e4255bd8f022572305c277bca66420472e"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-data-driven/vitest.config.js",
+          "sha256": "423c87e01bba0e46de6e9598ed914ad913956951458ff2898da4934eb637dbe8"
+        }
+      ]
+    },
+    {
+      "slug": "developer-mono",
+      "id": "jsonresume-developer-mono",
+      "name": "Developer Mono",
+      "author": "JSON Resume Team",
+      "version": "0.2.5",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-developer-mono",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "monospaced identity, code-block skills and blue accents",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-developer-mono/index.js",
+          "sha256": "98c0dbf5c18d4debff4b7a285fdd595a1cdbda6a6e34ad8136da7cd94b7a6639"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-developer-mono/src/index.jsx",
+          "sha256": "97bca63bb388889e2960e2fded4ec04f6d971f1b06ff74cbb6b5e57f9e52ae63"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-developer-mono/src/Resume.jsx",
+          "sha256": "7f85a03dd3e91bfb497868d58ae1f2acdd7b6ead9f72956bfd8df8d82200a2b0"
+        }
+      ]
+    },
+    {
+      "slug": "executive-slate",
+      "id": "jsonresume-executive-slate",
+      "name": "Executive Slate",
+      "author": "JSON Resume Team",
+      "version": "1.1.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-executive-slate",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "slate profile rail, open main content and ruled skills",
+      "adaptationLimits": "The original category assignments become a profile-only rail; every resume section keeps the user-selected sequence. System fonts replace web fonts.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-executive-slate/src/index.jsx",
+          "sha256": "9a97827889c78616d19cdb3324db13d5f115c08e989a3d72148a2abe3c115913"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-executive-slate/src/Resume.jsx",
+          "sha256": "8d3840f6e47f02aafd0b7f23152b61ac76c5d8d102de980a77b719dcc997e462"
+        }
+      ]
+    },
+    {
+      "slug": "government-standard",
+      "id": "jsonresume-government-standard",
+      "name": "Government Standard",
+      "author": "JSON Resume Team",
+      "version": "0.2.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-government-standard",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "centered formal identity, weighted rules and monochrome structure",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-government-standard/src/components/EducationSection.jsx",
+          "sha256": "a0b23c7cc35d15594bd0c61379288f35052fa8a577263b9a8b3f1a6f1f85e8c8"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-government-standard/src/components/OtherSections.jsx",
+          "sha256": "8f9222c641b0fb25573e3a233e5a075545fb2d7d02d244e2d287698a7df38a6e"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-government-standard/src/components/SkillsSection.jsx",
+          "sha256": "9d82f5392fd5258e9e497d7621cfaaad7507c21fb2c5afafae7f4f5335e135d8"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-government-standard/src/components/WorkSection.jsx",
+          "sha256": "56fc28c1e9fc9f54543eed9a4a0a8687573eab369707e30575c1384e76bb01f7"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-government-standard/src/index.jsx",
+          "sha256": "da009ff60c4de6df902321e4250adf5d345973ab3b2b7224c34e0bae4e484df1"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-government-standard/src/Resume.jsx",
+          "sha256": "6b790b91113929c85ea7c125f7906e4296b9ab056fd33429032f11e561b2bbcd"
+        }
+      ]
+    },
+    {
+      "slug": "marketing-narrative",
+      "id": "jsonresume-marketing-narrative",
+      "name": "Marketing Narrative",
+      "author": "JSON Resume Team",
+      "version": "0.2.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-marketing-narrative",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "centered masthead, rose role line and narrative experience blocks",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-marketing-narrative/src/index.jsx",
+          "sha256": "8d816d0100f634625b9d668a6e465b7e5c191d90a7aa414f9761b3cc93837641"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-marketing-narrative/src/Resume.jsx",
+          "sha256": "0e50d992f31b5140bb9ac15f9c4f781ced0e0d73aec4c37fd81baf65d035862d"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-marketing-narrative/src/sections/EducationSection.jsx",
+          "sha256": "298b307f8bf671a8759c5358ab378046ca1f33717d431ef1f8beac47fe5939d6"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-marketing-narrative/src/sections/OtherSections.jsx",
+          "sha256": "6201329e27e1808a74aaea56f2654ee827d070ab3d2cc5729c6c569a2040c67a"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-marketing-narrative/src/sections/SkillsSection.jsx",
+          "sha256": "3f40bb7868ce26ae79446017b76bbae149e6866556b040f4f353edc0d2cd8d4a"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-marketing-narrative/src/sections/WorkSection.jsx",
+          "sha256": "88eeb5b489d418d807c2f4729220075c1a4f40138f18f5c6f59439d680b4e147"
+        }
+      ]
+    },
+    {
+      "slug": "minimalist-grid",
+      "id": "jsonresume-minimalist-grid",
+      "name": "Minimalist Grid",
+      "author": "JSON Resume Team",
+      "version": "0.2.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-minimalist-grid",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "light typography, open tracking, fine rules and whitespace",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-minimalist-grid/index.js",
+          "sha256": "35edb6ef8b7bd4a42767be3dbe9f61cee3501339a5f49b787c40ea7f251be5be"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-minimalist-grid/src/index.jsx",
+          "sha256": "aaec7c6fe77d3f4933ad2f9766ecd06f98a367242bd5924c32b8148ede3ded40"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-minimalist-grid/src/Resume.jsx",
+          "sha256": "d6618bfe2667bb2bbea42c5e5afbe74ef30c906fdfc0c51b9ad459c808d2d065"
+        }
+      ]
+    },
+    {
+      "slug": "modern-classic",
+      "id": "jsonresume-modern-classic",
+      "name": "Modern Classic",
+      "author": "JSON Resume Team",
+      "version": "1.1.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-modern-classic",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "clear name hierarchy, fine grey sections and railed skills",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-modern-classic/src/index.jsx",
+          "sha256": "c9cd9cf3786648d8f939e5583737eb38aad1a72f313e13e0b7a64b6341e1945f"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-modern-classic/src/Resume.jsx",
+          "sha256": "a7ccdd4aa7c2b4d9e0855810c3a9c41603e26100b2bb29fda69671f78d4619a0"
+        }
+      ]
+    },
+    {
+      "slug": "operations-precision",
+      "id": "jsonresume-operations-precision",
+      "name": "Operations Precision",
+      "author": "JSON Resume Team",
+      "version": "0.3.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-operations-precision",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "marked": "^16.3.0",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "compact header, teal rules and a skills table",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-operations-precision/src/index.jsx",
+          "sha256": "412742c37ef162d4a4a52174c2800c05864a79107432f2858d0a9126feaddfa6"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-operations-precision/src/Resume.jsx",
+          "sha256": "aa957703244a58b8eb361b59126ca65214e3fbb08a5dd6873305337b2d68d620"
+        }
+      ]
+    },
+    {
+      "slug": "product-manager-canvas",
+      "id": "jsonresume-product-manager-canvas",
+      "name": "Product Manager Canvas",
+      "author": "JSON Resume Team",
+      "version": "0.2.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-product-manager-canvas",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "centered identity, violet role line and outlined blocks",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-product-manager-canvas/index.js",
+          "sha256": "c8fee90997b333406b2f822bbf72ab2256f90bc5013b02def3e7e41be11137a2"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-product-manager-canvas/src/index.jsx",
+          "sha256": "0e7b080fa899ca7a9049bb553d0eb33f2e38ee843a3256c7fdf0fa672b3a53bc"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-product-manager-canvas/src/Resume.jsx",
+          "sha256": "9293072f4ad5858a4a2ca7e23b5be2fe1d3fdea5479913b77106fa7bb577363a"
+        }
+      ]
+    },
+    {
+      "slug": "reference",
+      "id": "jsonresume-reference",
+      "name": "Reference",
+      "author": "JSON Resume Team",
+      "version": "0.2.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-reference",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "neutral centered identity, standard hierarchy and natural reading order",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-reference/src/index.jsx",
+          "sha256": "179cb9399b6c882179a897c8e919ad7ac1cebba44dafdeedf4e72317ecd84787"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-reference/src/Resume.jsx",
+          "sha256": "814cd27c28c89f4f6426db6e1ba67bed186619d97e45e658cd8bbe5dd8f837e6"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-reference/tests/theme.test.js",
+          "sha256": "e1e32029b3c5e1d7c51f5852f7c2df3c93c5c6af18bc5678a69c090429ff602c"
+        }
+      ]
+    },
+    {
+      "slug": "sales-hunter",
+      "id": "jsonresume-sales-hunter",
+      "name": "Sales Hunter",
+      "author": "JSON Resume Team",
+      "version": "0.2.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-sales-hunter",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "bold uppercase name, green rules and solid skill labels",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-sales-hunter/src/index.jsx",
+          "sha256": "7cd3591b1d6387f52f6995b8609cc3c4de356e693f8ddeac3c790ba6aafdcb86"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-sales-hunter/src/Resume.jsx",
+          "sha256": "953b13c248eefceb3a8d015f6b0aa7b2780b2001dcd060f29cea6e7a1feebab9"
+        }
+      ]
+    },
+    {
+      "slug": "sidebar",
+      "id": "jsonresume-sidebar",
+      "name": "Sidebar",
+      "author": "JSON Resume Team",
+      "version": "0.2.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-sidebar",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "deep blue profile rail, divided main chapters and open content",
+      "adaptationLimits": "The original fixed skills/sidebar category split becomes a profile-only rail, preserving all section order. System fonts replace web fonts.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-sidebar/src/index.jsx",
+          "sha256": "9a23c5f3095774c9a358dd1d78b5fd0297957aa80a39307b1b41e3bccddcdb84"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-sidebar/src/Resume.jsx",
+          "sha256": "7c7756ff7b1c03d42c958f1965ef415d05ea1d45cab4f84ce7107042cd2c99c4"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-sidebar/tests/theme.test.js",
+          "sha256": "8559e5588d0154ee26cd2d16476475417fbc3b6d4d6237e67cb379786c206ccf"
+        }
+      ]
+    },
+    {
+      "slug": "tokyo-modernist",
+      "id": "jsonresume-tokyo-modernist",
+      "name": "Tokyo Modernist",
+      "author": "JSON Resume Team",
+      "version": "1.0.7",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-tokyo-modernist",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:^",
+        "marked": "^16.3.0",
+        "prismjs": "^1.29.0",
+        "react-icons": "^5.0.1",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "magenta edge, geometric corner accents and uppercase identity",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-tokyo-modernist/src/index.jsx",
+          "sha256": "f09e604482918fd64fc5d2287acf4818f1c08fc9769c0de425c92acf47407e60"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tokyo-modernist/src/ui/Resume.jsx",
+          "sha256": "9c56b11c74357d928c4bf64e03ce9635c381f9634daacb0c43b02f1e8128e4fe"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tokyo-modernist/src/ui/styles.jsx",
+          "sha256": "a0953fe7003e5f904c9e6591da84f4b5dafd60ad67ad6f311f36d2a052996172"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-tokyo-modernist/tests/theme.test.js",
+          "sha256": "10db9e005179ca0282f96435bd8239e5a96ed8a5c81e825c9639824a33d4c4b2"
+        }
+      ]
+    },
+    {
+      "slug": "university-first",
+      "id": "jsonresume-university-first",
+      "name": "University First",
+      "author": "JSON Resume Team",
+      "version": "0.2.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-university-first",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "blue centered identity banner and approachable sections",
+      "adaptationLimits": "Education is never automatically moved ahead of another section: the user-selected order remains authoritative. System fonts replace web fonts.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-university-first/src/index.jsx",
+          "sha256": "11709c9c9ac6223adac336de556a66e2769320d344e5686aea4ced5f86e11e89"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-university-first/src/Resume.jsx",
+          "sha256": "8a4c8d21e8577f894a0feed16bdbf961d5040711e6d8ebd83d1b35e0b3681055"
+        }
+      ]
+    },
+    {
+      "slug": "writers-portfolio",
+      "id": "jsonresume-writers-portfolio",
+      "name": "Writer's Portfolio",
+      "author": "JSON Resume Team",
+      "version": "0.2.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-writers-portfolio",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "centered literary identity, recommended serif type and fine side rules",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-writers-portfolio/src/index.jsx",
+          "sha256": "e259951446c342bb33bfe6ae053979717a4d6ca388410ff48dbcc54c08914c93"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-writers-portfolio/src/Resume.jsx",
+          "sha256": "164783d928e9af245115136c980f282873cfc4ed07d38ba35aa79c159fd03c63"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-writers-portfolio/tests/theme.test.js",
+          "sha256": "bca6cda3f81d0b31846f968e419702ba4a1692cedeff82f470302a1f663c04e8"
+        }
+      ]
+    },
+    {
+      "slug": "nordic-minimal",
+      "id": "jsonresume-nordic-minimal",
+      "name": "Nordic Minimal",
+      "author": "JSON Resume Team",
+      "version": "1.1.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-nordic-minimal",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "light identity, cool grey rules and calm spacing",
+      "adaptationLimits": "The source multi-column category layout is adapted to sequential sections to preserve user ordering and print flow. System fonts replace web fonts.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-nordic-minimal/src/index.jsx",
+          "sha256": "a71410917ec776ab8dbe1268f1778ea327b394cf0f8364cf01bf86d526d3c993"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-nordic-minimal/src/Resume.jsx",
+          "sha256": "543958696ccb3a01301fd7857ecba0d88adff9a9d8eb6aab4e7d83ccda932c5e"
+        }
+      ]
+    },
+    {
+      "slug": "graph-paper-grid",
+      "id": "jsonresume-graph-paper-grid",
+      "name": "Graph Paper Grid",
+      "author": "JSON Resume Team",
+      "version": "1.1.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-graph-paper-grid",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "fine graph background, framed header and technical labels",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-graph-paper-grid/src/index.jsx",
+          "sha256": "bac92874253a1568213d8c89775abba4743fa9127c3777fcb61ad6227fc63ae1"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-graph-paper-grid/src/Resume.jsx",
+          "sha256": "2cb891e24e31660be8f4bf827eeba703626bf7cc6bc8fe99755c59aababc4792"
+        }
+      ]
+    },
+    {
+      "slug": "monochrome-noir",
+      "id": "jsonresume-monochrome-noir",
+      "name": "Monochrome Noir",
+      "author": "JSON Resume Team",
+      "version": "1.1.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-monochrome-noir",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "monochrome contrast, bold uppercase name and fine separators",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-monochrome-noir/src/index.jsx",
+          "sha256": "358b09909bbbc5c45d071b02b2d6ec22b6c575c5c39b8c94cabdb187f9ff2c48"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-monochrome-noir/src/Resume.jsx",
+          "sha256": "1f311c4741633e92d0119c098b625f2cbdf08f106e6727274877e7d9f7d579c0"
+        }
+      ]
+    },
+    {
+      "slug": "mid-century-resume",
+      "id": "jsonresume-mid-century-resume",
+      "name": "Mid-Century Resume",
+      "author": "JSON Resume Team",
+      "version": "1.1.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-mid-century-resume",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "retro geometric identity, amber rules and centered framed labels",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-mid-century-resume/src/index.jsx",
+          "sha256": "c4e3696c09401fb985fdf9671db53c42c5497de44ff8ce623503a3cb795a5672"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-mid-century-resume/src/Resume.jsx",
+          "sha256": "328a750951beefa6c5b496bd3b79457501b87fa3f1520382a4a5ab90ad7f9048"
+        }
+      ]
+    },
+    {
+      "slug": "two-column-modernist",
+      "id": "jsonresume-two-column-modernist",
+      "name": "Two-Column Modernist",
+      "author": "JSON Resume Team",
+      "version": "1.1.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-two-column-modernist",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "workspace:*"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "asymmetric profile rail, fine dividers and neutral labels",
+      "adaptationLimits": "Only profile data occupies the asymmetrical rail; section categories remain in the main column in user order. System fonts replace web fonts.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-two-column-modernist/src/index.jsx",
+          "sha256": "a23df5ee53a10395ac01fbe40e0d5d458608693998e842e24e776366ca6606c7"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-two-column-modernist/src/Resume.jsx",
+          "sha256": "e34178480c10a5918104d72a17a4d5b7a219f4482b5844ebd92b8a54a7e5160a"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-two-column-modernist/tests/theme.test.js",
+          "sha256": "e1ff100a82aed7fecc4cfcac94a4884e48616e61fc7ffe228acbd557ab750039"
+        }
+      ]
+    },
+    {
+      "slug": "sidebar-photo-strip",
+      "id": "jsonresume-sidebar-photo-strip",
+      "name": "Sidebar Photo Strip",
+      "author": "JSON Resume Team",
+      "version": "1.1.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-sidebar-photo-strip",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "workspace:*"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "dark portrait rail, grayscale optional photo and lightweight body",
+      "adaptationLimits": "The source profile photo strip is retained; skills and education remain in user-selected order rather than being fixed to the rail. No photo is fabricated.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-sidebar-photo-strip/src/index.jsx",
+          "sha256": "9779d9c1ddb00107e1287b0ffcbb377c799c16d2d9ebba1e1ae3e0dcd788d5db"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-sidebar-photo-strip/src/Resume.jsx",
+          "sha256": "e246eb99512ad1d5f4b37faa75f8af4c89727f55656e21f9e028fbd83c13eb3d"
+        }
+      ]
+    },
+    {
+      "slug": "diagonal-accent-bar",
+      "id": "jsonresume-diagonal-accent-bar",
+      "name": "Diagonal Accent Bar",
+      "author": "JSON Resume Team",
+      "version": "1.1.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-diagonal-accent-bar",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "workspace:*"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "rose diagonal accent, tracked identity and railed skill labels",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-diagonal-accent-bar/src/index.jsx",
+          "sha256": "496c908b275a9525ffe11cfe76077f85cbaeb846805ad5b2a7140bbbeb93923c"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-diagonal-accent-bar/src/Resume.jsx",
+          "sha256": "7936d44ad043f5f545c4e1c827ddafbe1926c8889e7699f317fb7ecfb4484da9"
+        }
+      ]
+    },
+    {
+      "slug": "asymmetric-timeline",
+      "id": "jsonresume-asymmetric-timeline",
+      "name": "Asymmetric Timeline",
+      "author": "JSON Resume Team",
+      "version": "1.1.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-asymmetric-timeline",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "centered identity, staggered experience cards and a fine timeline",
+      "adaptationLimits": "The original alternate half-width timeline becomes staggered sequential cards, retaining reading order and long-content print flow.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-asymmetric-timeline/src/index.jsx",
+          "sha256": "5aba34134ed4ba68b6f36285cbdbf0dfc87f99ec99aac0629f071e8c22ae8096"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-asymmetric-timeline/src/Resume.jsx",
+          "sha256": "12290c4d989c5ff3065f37efa2a93c63a7f3b302f272d4e9227a9628b9c4a818"
+        }
+      ]
+    },
+    {
+      "slug": "typewriter-modern",
+      "id": "jsonresume-typewriter-modern",
+      "name": "Typewriter Modern",
+      "author": "JSON Resume Team",
+      "version": "1.1.4",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-typewriter-modern",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "workspace:*"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "recommended typewriter face, dashed chapters and paper-like labels",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-typewriter-modern/src/index.jsx",
+          "sha256": "21669963c37d3036e27d0334c0c2aae97ceb8fccbcab940d8d8efa77f14832f8"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-typewriter-modern/src/Resume.jsx",
+          "sha256": "c9d6b7dc27c47904164a0b951453cd3d0bc088e5f405d485283734280cdf5269"
+        }
+      ]
+    },
+    {
+      "slug": "new-york-editorial",
+      "id": "jsonresume-new-york-editorial",
+      "name": "New York Editorial",
+      "author": "JSON Resume Team",
+      "version": "0.2.5",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-new-york-editorial",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "heavy recommended serif identity, centered rule and restrained red details",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-new-york-editorial/index.jsx",
+          "sha256": "264466002bc718680c7be7e30ca41a5158b4ef277af1228aa96536fc2942dfe5"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-new-york-editorial/src/Resume.jsx",
+          "sha256": "b23e5516f9167018a75d7b9ab0e2adf71dc821487f4f492bdc190bff143b6463"
+        }
+      ]
+    },
+    {
+      "slug": "berlin-grid",
+      "id": "jsonresume-berlin-grid",
+      "name": "Berlin Grid",
+      "author": "JSON Resume Team",
+      "version": "0.2.5",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-berlin-grid",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "engineered heavy rules, rectangular skill grid and precise alignment",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-berlin-grid/index.jsx",
+          "sha256": "3e2977ed11d2ce8ab0bdd11dd40bf46c0bf8bcf4625afd6823e5096070f9d975"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-berlin-grid/src/Resume.jsx",
+          "sha256": "24bb01857768bc654c046cd91a8bb9ab69a541fd11752261ff6fdefa263fb973"
+        }
+      ]
+    },
+    {
+      "slug": "californian-warm",
+      "id": "jsonresume-californian-warm",
+      "name": "Californian Warm",
+      "author": "JSON Resume Team",
+      "version": "0.2.5",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-californian-warm",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "warm amber rounded identity, soft shadows and gentle labels",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-californian-warm/index.jsx",
+          "sha256": "01783ef33275fb7c2764512a01ce1e281c2899d35d85941747d10200efea585c"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-californian-warm/src/Resume.jsx",
+          "sha256": "23ea50d114928d7d0a112d612a0b50ce5e2e3a0b5055f30fafdde5d32076ea08"
+        }
+      ]
+    },
+    {
+      "slug": "london-bureau",
+      "id": "jsonresume-london-bureau",
+      "name": "London Bureau",
+      "author": "JSON Resume Team",
+      "version": "0.2.5",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-london-bureau",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "heritage recommended serif identity, weighted rules and compact hierarchy",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-london-bureau/index.jsx",
+          "sha256": "2d1b438134528e8d8ee0d5265be5f4793f321b6e6465f3d29cf5d4819f90514e"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-london-bureau/src/Resume.jsx",
+          "sha256": "e66f77a661fa1f9439a38c04c9d4ee2fa6d6bc0fab65316857c483c2ddc0a7ec"
+        }
+      ]
+    },
+    {
+      "slug": "pacific-horizon",
+      "id": "jsonresume-pacific-horizon",
+      "name": "Pacific Horizon",
+      "author": "JSON Resume Team",
+      "version": "0.2.5",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-pacific-horizon",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "centered modern identity, short blue rules and open skills",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-pacific-horizon/index.jsx",
+          "sha256": "5a6f148e898092ee91fbf1bc12822e321e69922554d99cc9a5e9759202730fed"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-pacific-horizon/src/Resume.jsx",
+          "sha256": "6cfc4e30bc432adf2037b127769fadbc0dac0ee7c3c05e0c87194ee9a8cdef68"
+        }
+      ]
+    },
+    {
+      "slug": "french-atelier",
+      "id": "jsonresume-french-atelier",
+      "name": "French Atelier",
+      "author": "JSON Resume Team",
+      "version": "0.2.5",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-french-atelier",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "contrasting recommended serif identity, plum rules and editorial rhythm",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-french-atelier/index.jsx",
+          "sha256": "c5d4926eb9291eaabc5135ec6de51f4237e6ceeedf3186b45e8090deffabe5b2"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-french-atelier/src/Resume.jsx",
+          "sha256": "5c3df73126e37a9cb2fa8dd4567a58b416a2a5b4b007cec98f2cb76a3852fdf9"
+        }
+      ]
+    },
+    {
+      "slug": "clinical-precision",
+      "id": "jsonresume-clinical-precision",
+      "name": "Clinical Precision",
+      "author": "JSON Resume Team",
+      "version": "0.2.5",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-clinical-precision",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "chart-like identity, green entry rail, monospaced dates and mint skills",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-clinical-precision/index.jsx",
+          "sha256": "a3bcf8b56a64d5aeefe027232bd792dc0636f7bf60a5dbc23cb5f0dea7dd4921"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-clinical-precision/src/Resume.jsx",
+          "sha256": "14e5f0d27b2d6ec0afa9f66bd198e86384812ce240d91e7ff44e81cf2ab71eac"
+        }
+      ]
+    },
+    {
+      "slug": "field-researcher",
+      "id": "jsonresume-field-researcher",
+      "name": "Field Researcher",
+      "author": "JSON Resume Team",
+      "version": "0.2.5",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-field-researcher",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "notebook chapter numbering, monospaced metadata and teal marginal rules",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-field-researcher/index.jsx",
+          "sha256": "dba41995d5a3f701a8c4663dee30ff12aae9a9478708e9295d26e4cefa86c36b"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-field-researcher/src/Resume.jsx",
+          "sha256": "65f4edccf01ac561bee0e083b5f7d3c426392eb7a50ca602938cc7142aae31b8"
+        }
+      ]
+    },
+    {
+      "slug": "urban-techno",
+      "id": "jsonresume-urban-techno",
+      "name": "Urban Techno",
+      "author": "JSON Resume Team",
+      "version": "0.2.5",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-urban-techno",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "split black identity, hard rules and dense technical labels",
+      "adaptationLimits": "The source dense two-column body is adapted into sequential sections. The split identity bar is retained without changing factual reading order.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-urban-techno/index.jsx",
+          "sha256": "c2f757d27ce5c2e6b85fdcd40aedc6231b54608cc5d915d07c20cde660fbfc5e"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-urban-techno/src/Resume.jsx",
+          "sha256": "40073ae50b499bd90e7ad6625674cbbe983ecfc052871b160347544060ab0951"
+        }
+      ]
+    },
+    {
+      "slug": "coastal-creative",
+      "id": "jsonresume-coastal-creative",
+      "name": "Coastal Creative",
+      "author": "JSON Resume Team",
+      "version": "0.2.5",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-coastal-creative",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "calm centered identity, ocean-blue headings and softly framed skills",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-coastal-creative/index.jsx",
+          "sha256": "d76eadc22637e49dd67476395bb18bd0d4733e7f42d08de3c6f69f654d4248b2"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-coastal-creative/src/Resume.jsx",
+          "sha256": "fbc5f660291751cc12eba845d8cd3bd68af6eb46563adddb801940352097c7a9"
+        }
+      ]
+    },
+    {
+      "slug": "investor-brief",
+      "id": "jsonresume-investor-brief",
+      "name": "Investor Brief",
+      "author": "JSON Resume Team",
+      "version": "0.2.5",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-investor-brief",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "centered report identity, compact data hierarchy and pale skill blocks",
+      "adaptationLimits": "No Key Metrics section or numerical achievements are inferred; only the user-provided facts are rendered.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-investor-brief/index.jsx",
+          "sha256": "ce3c3c84f35b80d0476f3b84eb5b77f025d77953eae4f340df1248cbc01fd823"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-investor-brief/src/Resume.jsx",
+          "sha256": "fa470dfa493cb7c620a71505d64323e38d28d8f6a1f15698f3b44ca03136733c"
+        }
+      ]
+    },
+    {
+      "slug": "art-school-modern",
+      "id": "jsonresume-art-school-modern",
+      "name": "Art School Modern",
+      "author": "JSON Resume Team",
+      "version": "0.2.5",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-art-school-modern",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": "MIT",
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "gallery-like display identity, numbered chapters and vermilion details",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-art-school-modern/index.jsx",
+          "sha256": "e55f7fe27c9c42c84bb17fcf8f69aba78742e52e9aa8f378dfc70647bf5fce9b"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-art-school-modern/src/Resume.jsx",
+          "sha256": "75259739b112e5d8313c1f022ee8f669a3cc6ed214f45784a3e7ce0c8d78b1a1"
+        }
+      ]
+    },
+    {
+      "slug": "community-garden",
+      "id": "jsonresume-community-garden",
+      "name": "Community Garden",
+      "author": "JSON Resume Team",
+      "version": "0.1.6",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-community-garden",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "sky-and-garden identity panel, rounded skills and approachable spacing",
+      "adaptationLimits": "Volunteer and certificate facts are not inferred or promoted ahead of the user-selected sections. System fonts replace web fonts.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-community-garden/index.jsx",
+          "sha256": "4da9edc106fdce476805b2c2d7de9730d3d269542f0b212320e69c4dfe5dbe71"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-community-garden/src/Resume.jsx",
+          "sha256": "3da6d2e18c381a15410c6c4aa44df5ab445e3fdc2e79042dbdd8d3755f44504d"
+        }
+      ]
+    },
+    {
+      "slug": "industrial-engineer",
+      "id": "jsonresume-industrial-engineer",
+      "name": "Industrial Engineer",
+      "author": "JSON Resume Team",
+      "version": "0.2.5",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-industrial-engineer",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "drawing-title identity, spec-table contacts and dimension rules",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-industrial-engineer/index.jsx",
+          "sha256": "ebb47d97d3bdc293be0dd16fb5cf8be984e8f3e2adac3f4242d0fd3bfb64cf35"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-industrial-engineer/src/Resume.jsx",
+          "sha256": "8f945758a406742cc13ee162343240e2c2d5a6c6dc861f3d0c55bba896ead8f4"
+        }
+      ]
+    },
+    {
+      "slug": "brutalist",
+      "id": "jsonresume-brutalist",
+      "name": "Brutalist",
+      "author": "JSON Resume Team",
+      "version": "0.2.5",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-brutalist",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "heavy black rules, chapter numbers and offset block shadows",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-brutalist/index.jsx",
+          "sha256": "0954f39f5d4e7a7c3a157272f2bb5cc398d788def861a097a94f0f28092afa7a"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-brutalist/src/Resume.jsx",
+          "sha256": "c6da22de553ede7fe63a8beed4eb98e0ceb5609273068c2ea94d4cecff635121"
+        }
+      ]
+    },
+    {
+      "slug": "art-deco",
+      "id": "jsonresume-art-deco",
+      "name": "Art Deco",
+      "author": "JSON Resume Team",
+      "version": "0.2.5",
+      "upstreamUrl": "https://github.com/jsonresume/jsonresume.org/tree/dd0155358c8d85a134d434e49834705243b5eede/packages/themes/jsonresume-theme-art-deco",
+      "revision": "dd0155358c8d85a134d434e49834705243b5eede",
+      "license": {
+        "spdx": "MIT",
+        "basis": "Repository root LICENSE; no overriding license in this Team source directory",
+        "packageField": null,
+        "copyright": "2014-2026 JSON Resume contributors"
+      },
+      "activity": {
+        "repositoryArchived": false,
+        "repositoryPushedAt": "2026-09-09T17:43:35Z",
+        "perThemeLastCommitChecked": false
+      },
+      "buildDependencies": {
+        "@jsonresume/core": "workspace:*",
+        "styled-components": "^6.1.19"
+      },
+      "buildCommand": "vite build",
+      "buildExecuted": false,
+      "designBasis": "symmetric jewel-tone identity, gold double rules and geometric ornament",
+      "adaptationLimits": "System fonts replace upstream web fonts; user section order is retained.",
+      "sourceFiles": [
+        {
+          "path": "packages/themes/jsonresume-theme-art-deco/index.jsx",
+          "sha256": "23233bff2a5cb63c70ac634f377f35bcb9fbdce201a4a2e12f47a3f19cd12cd8"
+        },
+        {
+          "path": "packages/themes/jsonresume-theme-art-deco/src/Resume.jsx",
+          "sha256": "b538991a49549d04b6d9d8059b49e77878cf04332019310deef0ecf41fa9dd66"
+        }
+      ]
+    }
+  ]
+}

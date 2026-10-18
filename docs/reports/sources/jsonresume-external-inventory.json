@@ -1,0 +1,125 @@
+[
+  {
+    "slug": "elegant",
+    "status": "integrated-native",
+    "source": "https://github.com/mudassir0909/jsonresume-theme-elegant",
+    "ref": "npm 1.16.1; tarball SHA-1 7882cea1378684f76dc3aef770e15cd27ebdf4f9",
+    "license": "MIT",
+    "licenseProvenance": "The pinned package explicitly declares SPDX MIT in package.json but ships no standalone license file. LICENSE reproduces the standard license terms; it is not represented as a verbatim upstream file. The original package metadata and authorship are retained in UPSTREAM_PACKAGE.json. No copyright year has been invented."
+  },
+  {
+    "slug": "even",
+    "status": "integrated-native",
+    "source": "https://github.com/rbardini/jsonresume-theme-even",
+    "ref": "npm 0.26.1; tarball SHA-1 5213abd46f48ba65854c4a4eca7dccbf1d0a3bfa",
+    "license": "MIT",
+    "licenseProvenance": "LICENSE copied verbatim from the pinned npm package."
+  },
+  {
+    "slug": "flat",
+    "status": "integrated-native",
+    "source": "https://github.com/jsonresume/jsonresume.org",
+    "ref": "Git dd0155358c8d85a134d434e49834705243b5eede; packages/themes/jsonresume-theme-flat",
+    "license": "MIT",
+    "licenseProvenance": "LICENSE copied verbatim from the fixed monorepo root. Package metadata independently declares MIT. Original package authorship is retained in UPSTREAM_PACKAGE.json."
+  },
+  {
+    "slug": "jacrys",
+    "status": "integrated-native",
+    "source": "https://github.com/jacrys/jsonresume-theme-jacrys",
+    "ref": "npm 1.0.4; tarball SHA-1 993c523d992da503d9a45a5bbd7bc1a6616cb205",
+    "license": "MIT",
+    "licenseProvenance": "LICENSE copied verbatim from the pinned npm package."
+  },
+  {
+    "slug": "lucide",
+    "status": "integrated-native",
+    "source": "https://github.com/Clement-Cauet/jsonresume-theme-lucide",
+    "ref": "npm 1.1.0; tarball SHA-1 7f73c295c1d5ef85bdaf352906a2938d579d6cfe",
+    "license": "MIT",
+    "licenseProvenance": "The pinned package explicitly declares SPDX MIT in package.json but ships no standalone license file. LICENSE reproduces the standard license terms; it is not represented as a verbatim upstream file. The original package metadata and authorship are retained in UPSTREAM_PACKAGE.json. No copyright year has been invented."
+  },
+  {
+    "slug": "macchiato",
+    "status": "integrated-native",
+    "source": "https://github.com/biosan/jsonresume-theme-macchiato",
+    "ref": "npm 1.1.0; tarball SHA-1 66d61b804b191f9402dfbe95d39d9586be5199b4",
+    "license": "MIT",
+    "licenseProvenance": "LICENSE copied verbatim from the pinned npm package."
+  },
+  {
+    "slug": "minyma",
+    "status": "integrated-native",
+    "source": "https://github.com/godraadam/jsonresume-theme-minyma",
+    "ref": "npm 0.0.5; tarball SHA-1 609debd20376b8b319bff025543626d66b74bac7",
+    "license": "ISC",
+    "licenseProvenance": "The pinned package explicitly declares SPDX ISC in package.json but ships no standalone license file. LICENSE reproduces the standard license terms; it is not represented as a verbatim upstream file. The original package metadata and authorship are retained in UPSTREAM_PACKAGE.json. No copyright year has been invented."
+  },
+  {
+    "slug": "paper-plus-plus",
+    "status": "integrated-native",
+    "source": "https://github.com/lindell/jsonresume-theme-paper",
+    "ref": "npm 0.6.0; tarball SHA-1 7b052a13fb8f9183548aea26eb2f973277956592",
+    "license": "MIT",
+    "licenseProvenance": "The pinned package explicitly declares SPDX MIT in package.json but ships no standalone license file. LICENSE reproduces the standard license terms; it is not represented as a verbatim upstream file. The original package metadata and authorship are retained in UPSTREAM_PACKAGE.json. No copyright year has been invented."
+  },
+  {
+    "slug": "professional",
+    "status": "integrated-native",
+    "source": "https://github.com/jsonresume/jsonresume.org",
+    "ref": "Git dd0155358c8d85a134d434e49834705243b5eede; packages/themes/jsonresume-theme-professional",
+    "license": "MIT",
+    "licenseProvenance": "LICENSE copied verbatim from the fixed monorepo root. Package metadata independently declares MIT. Original package authorship is retained in UPSTREAM_PACKAGE.json."
+  },
+  {
+    "slug": "pumpkin",
+    "status": "integrated-native",
+    "source": "https://github.com/bvosk/jsonresume-theme-pumpkin",
+    "ref": "npm 1.1.4; tarball SHA-1 ec5dbc0f80556fdc6c12d93cbb062b5cd4543ebc",
+    "license": "MIT",
+    "licenseProvenance": "The pinned package explicitly declares SPDX MIT in package.json but ships no standalone license file. LICENSE reproduces the standard license terms; it is not represented as a verbatim upstream file. The original package metadata and authorship are retained in UPSTREAM_PACKAGE.json. No copyright year has been invented."
+  },
+  {
+    "slug": "tan-responsive",
+    "status": "integrated-native",
+    "source": "https://github.com/veeravn/jsonresume-theme-responsive",
+    "ref": "npm 0.0.7; tarball SHA-1 7049b9dc06e6567e85fc97466dcabe91a24976aa",
+    "license": "MIT",
+    "licenseProvenance": "LICENSE copied verbatim from the pinned npm package."
+  },
+  {
+    "slug": "claude",
+    "status": "integrated-native",
+    "source": "https://github.com/jsonresume/jsonresume.org",
+    "ref": "Git dd0155358c8d85a134d434e49834705243b5eede; packages/themes/jsonresume-theme-claude",
+    "license": "MIT",
+    "licenseProvenance": "LICENSE copied verbatim from the fixed monorepo root. Package metadata independently declares MIT. Original package authorship is retained in UPSTREAM_PACKAGE.json."
+  },
+  {
+    "slug": "colophon",
+    "status": "integrated-native",
+    "source": "https://github.com/dmnelson/jsonresume-theme-colophon",
+    "ref": "npm 0.2.0; tarball SHA-1 5f4ad827d81a8b907ba54737035ce0263ba8167a",
+    "license": "MIT",
+    "licenseProvenance": "LICENSE copied verbatim from the pinned npm package."
+  },
+  {
+    "slug": "creative-confidence",
+    "status": "integrated-native",
+    "source": "https://github.com/jsonresume/jsonresume.org",
+    "ref": "Git dd0155358c8d85a134d434e49834705243b5eede; packages/themes/jsonresume-theme-creative-confidence",
+    "license": "MIT",
+    "licenseProvenance": "LICENSE copied verbatim from the fixed monorepo root. Package metadata independently declares MIT. Original package authorship is retained in UPSTREAM_PACKAGE.json."
+  },
+  {
+    "slug": "rickosborne",
+    "status": "integrated-native",
+    "source": "https://github.com/rickosborne/jsonresume-theme-rickosborne",
+    "license": "CC-BY-NC-SA-4.0",
+    "version": "2022.09.16-T1450",
+    "ref": "npm tarball SHA-1 33537a210ad6ab334025f1fdf6270d2bd7364e26",
+    "usageRestriction": "Noncommercial use only; adaptations share alike under CC BY-NC-SA 4.0 and retain attribution and a notice of modifications.",
+    "licenseProvenance": "The pinned package explicitly declares CC-BY-NC-SA-4.0 in package.json and README but ships no standalone license file. LICENSE is the complete standard legal text from https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode.txt, not a verbatim upstream LICENSE. Original package metadata and Rick Osborne authorship are retained verbatim in UPSTREAM_PACKAGE.json. No copyright year has been invented.",
+    "reason": "Integrated after explicit user authorization for the separately restricted theme. Catalogue descriptions, tags and localized restriction labels identify noncommercial use. The shared preview/print renderer retains a visible Rick Osborne / modified BetterMe adaptation / CC BY-NC-SA 4.0 footer. No upstream runtime, font, icons or sample resume facts are bundled."
+  }
+]
