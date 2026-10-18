@@ -30,6 +30,7 @@ const AtlasSourcesPanel = lazy(() => import("./atlas/AtlasSourcesPanel").then((m
 const AtlasSourceCandidateReview = lazy(() => import("./atlas/AtlasSourceCandidateReview").then((m) => ({ default: m.AtlasSourceCandidateReview })));
 const AtlasReviewedCardImport = lazy(() => import("./atlas/AtlasReviewedCardImport").then((m) => ({ default: m.AtlasReviewedCardImport })));
 const AtlasLocationConfirmation = lazy(() => import("./atlas/AtlasLocationConfirmation").then((m) => ({ default: m.AtlasLocationConfirmation })));
+const AtlasReconciliationPanel = lazy(() => import("./atlas/AtlasReconciliationPanel").then((m) => ({ default: m.AtlasReconciliationPanel })));
 const COLOR_KEY = "better-me:atlas-colors:v1";
 type Props = { active?: boolean; onSaveOpportunity: (seed: OpportunitySeed) => void; onAnalyze: (item: AtlasJobAction) => void; onOpenOpportunitySources?: () => void };
 const regionNames = typeof Intl.DisplayNames === "function" ? new Intl.DisplayNames(["zh"], { type: "region" }) : undefined;
@@ -54,6 +55,7 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
   const [publicationNow, setPublicationNow] = useState(() => new Date().toISOString());
   const [localReload, setLocalReload] = useState(0);
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [reconciliationOpen, setReconciliationOpen] = useState(false);
   const [searchSourceId, setSearchSourceId] = useState("");
   const [sourceSearching, setSourceSearching] = useState(false);
   const [searchProgress, setSearchProgress] = useState<AtlasAggregateProgress | null>(null);
@@ -197,7 +199,7 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
     locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined);
     connectionAbort.current?.abort();
     const abort = new AbortController(); connectionAbort.current = abort;
-    setSourcesOpen(false); setSourceReview(undefined); setCardReview(undefined); setLocationReview(undefined);
+    setSourcesOpen(false); setReconciliationOpen(false); setSourceReview(undefined); setCardReview(undefined); setLocationReview(undefined);
     setConnecting(true); setConnectionError(""); setConnectionNotice(""); setDataMode("live");
     const timeout = setTimeout(() => abort.abort(), 20000);
     try {
@@ -225,7 +227,7 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
     const abort = connectionAbort.current; connectionAbort.current = null; abort?.abort();
     searchAbort.current?.abort(); setConnecting(false);
     locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined);
-    setSourcesOpen(false); setSourceReview(undefined); setCardReview(undefined); setLocationReview(undefined);
+    setSourcesOpen(false); setReconciliationOpen(false); setSourceReview(undefined); setCardReview(undefined); setLocationReview(undefined);
   }
   function changeConnection(field: "endpoint" | "token", value: string) {
     cancelConnection(); clearAtlasConnectionSession(); connectedIdentity.current = null;
@@ -368,12 +370,16 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
 
   return <section className="atlas-workspace" aria-label={t("岗位地图", "Opportunity atlas")}>
     <div className="atlas-heading"><div><span className="atlas-eyebrow">BETTERME / OPPORTUNITY ATLAS</span><h1>{t("让下一个机会，有迹可循。", "Find where your next chapter begins.")}</h1><p>{t("从全球视野，找到与你更近的工作。", "Explore opportunities across the world, and closer to home.")}</p></div><div className="atlas-top-actions"><button onClick={() => setSettings(settings === "maps" ? null : "maps")}><Globe2 size={15} />地图服务</button><button onClick={() => setSettings(settings === "home" ? null : "home")}><Home size={15} />{anchor ? t("已设置家庭参照点", "Home set") : t("设置离家距离", "Set home distance")}</button><button onClick={() => setSettings(settings === "connection" ? null : "connection")}><Database size={15} />{t("连接本机服务", "Connect local service")}</button></div></div>
-    <div className={`atlas-data-banner ${dataMode}`} role="status"><span className="atlas-status-dot" /><strong>{dataMode === "demo" ? "演示模式 · 非真实招聘" : dataMode === "live" ? "真实来源 · 本机索引" : "真实来源 · 当前机会库"}</strong><span>{dataMode === "demo" ? "企业、岗位和薪资均为合成样本，不计入真实岗位。" : `${data?.jobs.length ?? 0} 个来源岗位 · ${dataMode === "local" ? "只在本页读取公开岗位字段，原机会库不变" : connecting ? "正在连接并读取本机索引…" : liveData ? `索引版本 ${liveData.revision} · 手动刷新` : "索引尚未读取 · 请重试连接"}`}</span><label className="atlas-data-selector">数据视图<select aria-label="岗位数据视图" value={dataMode} onChange={(e) => chooseDataMode(e.target.value as AtlasDataMode)}><option value="local">当前机会库 · 真实来源</option>{(liveData || dataMode === "live") && <option value="live">本机采集索引 · 真实来源</option>}<option value="demo">合成演示 · 仅体验地图</option></select></label>{dataMode === "local" && <button disabled={localLoading} onClick={() => setLocalReload((n) => n + 1)}>{localLoading ? "正在读取…" : "重新读取机会库"}</button>}{dataMode === "live" && <button disabled={connecting} onClick={() => { restoreConnection.current = false; void connect({ endpoint, token }, true); }}>重新读取索引</button>}<button onClick={() => { setSourcesOpen(!sourcesOpen); setSettings(null); }}>来源工具</button>{onOpenOpportunitySources && <button onClick={onOpenOpportunitySources}>51JOB / BOSS / 猎聘 / LinkedIn 单岗读取</button>}</div>
+    <div className={`atlas-data-banner ${dataMode}`} role="status"><span className="atlas-status-dot" /><strong>{dataMode === "demo" ? "演示模式 · 非真实招聘" : dataMode === "live" ? "真实来源 · 本机索引" : "真实来源 · 当前机会库"}</strong><span>{dataMode === "demo" ? "企业、岗位和薪资均为合成样本，不计入真实岗位。" : `${data?.jobs.length ?? 0} 个来源岗位 · ${dataMode === "local" ? "只在本页读取公开岗位字段，原机会库不变" : connecting ? "正在连接并读取本机索引…" : liveData ? `索引版本 ${liveData.revision} · 手动刷新` : "索引尚未读取 · 请重试连接"}`}</span><label className="atlas-data-selector">数据视图<select aria-label="岗位数据视图" value={dataMode} onChange={(e) => chooseDataMode(e.target.value as AtlasDataMode)}><option value="local">当前机会库 · 真实来源</option>{(liveData || dataMode === "live") && <option value="live">本机采集索引 · 真实来源</option>}<option value="demo">合成演示 · 仅体验地图</option></select></label>{dataMode === "local" && <button disabled={localLoading} onClick={() => setLocalReload((n) => n + 1)}>{localLoading ? "正在读取…" : "重新读取机会库"}</button>}{dataMode === "live" && <button disabled={connecting} onClick={() => { restoreConnection.current = false; void connect({ endpoint, token }, true); }}>重新读取索引</button>}<button onClick={() => { setSourcesOpen(!sourcesOpen); setReconciliationOpen(false); setSettings(null); }}>来源工具</button>{dataMode === "live" && connected && <button aria-expanded={reconciliationOpen} onClick={() => { setReconciliationOpen(!reconciliationOpen); setSourcesOpen(false); }}>重复岗位核对</button>}{onOpenOpportunitySources && <button onClick={onOpenOpportunitySources}>51JOB / BOSS / 猎聘 / LinkedIn 单岗读取</button>}</div>
     {connectionError && <p role="alert" className="atlas-error">{connectionError}</p>}
     {connectionNotice && <p role="status" className="atlas-small">{connectionNotice}</p>}
     {localError && dataMode === "local" && <p role="alert" className="atlas-error">{localError}</p>}
     {dataMode === "local" && !!localData?.jobs.length && localWarnings > 0 && <p className="atlas-small">有 {localWarnings} 项来源字段提示：未提供的日期、结构化薪资与坐标保持未知。查看岗位详情核对原文；投递记录和联系人未进入地图数据。</p>}
-    {sourcesOpen && <Suspense fallback={<p role="status">正在加载来源工具…</p>}><AtlasSourcesPanel endpoint={endpoint} token={token} onSnapshot={(snapshot) => { searchAbort.current?.abort(); setLiveData(snapshot); setDataMode("live"); }} onClose={() => setSourcesOpen(false)} /></Suspense>}
+    {active && reconciliationOpen && connected && dataMode === "live" && liveData && <Suspense fallback={<p role="status">正在打开重复岗位核对…</p>}><AtlasReconciliationPanel endpoint={endpoint} token={token} data={liveData} onClose={() => setReconciliationOpen(false)} onSnapshot={snapshot => {
+      searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot);
+      setSourceSearchMessage(`已读取岗位处理记录，索引版本 ${snapshot.revision}。列表与地图会按当前来源组合重新计算。`);
+    }} /></Suspense>}
+    {sourcesOpen && <Suspense fallback={<p role="status">正在加载来源工具…</p>}><AtlasSourcesPanel endpoint={endpoint} token={token} onSnapshot={(snapshot) => { searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live"); }} onClose={() => setSourcesOpen(false)} /></Suspense>}
     {settings && <div className="atlas-settings"><button className="atlas-panel-close" aria-label="关闭地图设置" onClick={() => setSettings(null)}><X size={17} /></button>
       {settings === "maps" && <div><h2>地图与街道底图</h2><p>全球与国内均使用同一经纬度视图，可连续缩放至街道。开放底图无需 API Key；联网底图会向所选服务请求当前视野的瓦片，离线轮廓不请求外部地图服务。</p><label className="atlas-basemap-select">底图来源<select value={basemapId} onChange={(e) => { setBasemapId(e.target.value); setMapError(""); }}><option value="auto">OpenFreeMap · 跟随浅深主题</option>{ATLAS_BASEMAPS.map((provider) => <option value={provider.id} key={provider.id}>{provider.name}</option>)}<option value="offline">本地概览 · 离线边界</option></select></label><p className="atlas-small">道路、建筑、门牌和地名是否显示取决于底图覆盖。城市级岗位不会显示成精确办公地址。Google 地图可从岗位详情的“Google 地图”入口打开；内嵌 Google Maps 尚未启用，需要个人 Key、服务权限及对应计费配置。</p></div>}
       {settings === "connection" && <form onSubmit={(e) => { e.preventDefault(); restoreConnection.current = false; void connect({ endpoint, token }, true); }}><h2>{t("连接你的本机岗位索引", "Connect your local job index")}</h2><p>请先按 <code>apps/job-service/README.md</code> 启动服务，允许当前网页 Origin：<code>{window.location.origin}</code>。连接成功后，访问令牌仅保留在当前标签页的会话存储中，刷新可恢复连接；可随时断开并清除，不写入永久存储或网址。</p><div className="atlas-form-row"><label>服务地址<input value={endpoint} onChange={(e) => changeConnection("endpoint", e.target.value)} placeholder="http://127.0.0.1:5178" /></label><label>访问令牌<input type="password" autoComplete="off" value={token} onChange={(e) => changeConnection("token", e.target.value)} /></label><button type="submit" disabled={connecting}>{connecting ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}{connecting ? "正在连接" : "连接并读取索引"}</button><button type="button" onClick={disconnect}>断开并清除会话连接</button></div><p className="atlas-small">读取公开岗位快照，在本页执行共享查询。家庭参照坐标不发送给服务。公网 HTTPS 页面连接本机可能需要浏览器本地网络授权；完整体验建议使用本机网页。</p></form>}

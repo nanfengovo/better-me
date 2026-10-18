@@ -55,6 +55,25 @@ function seedLocal() {
 afterEach(async () => { if (root) await act(async () => root!.unmount()); root = undefined; dom.localStorage.clear(); dom.sessionStorage.clear(); mock.restoreAll(); });
 after(() => { hooks.deregister(); dom.happyDOM.abort(); for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } });
 
+test("reconciliation is offered only for a connected live index, and changing data view cancels its pending read", async () => {
+  seedLocal(); let release: ((response: Response) => void) | undefined; let candidateSignal: AbortSignal | undefined;
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, options?: RequestInit) => {
+    const path = new URL(String(url)).pathname;
+    if (path.endsWith("/candidates")) { candidateSignal = options?.signal as AbortSignal; return new Promise<Response>(resolve => { release = resolve; }); }
+    if (path.endsWith("/history")) return new Response(JSON.stringify({ ok: true, requestId: "synthetic-history", value: { snapshotRevision: 42, items: [], totalAvailable: 0, limit: 50, truncated: false, warnings: [] } }));
+    return response();
+  });
+  await mount(); assert.ok(!dom.document.querySelector('button[aria-expanded]')?.textContent?.includes("重复岗位核对"));
+  await explicitConnect(); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "connected live index");
+  await act(async () => button("重复岗位核对").click()); await waitFor(() => !!dom.document.querySelector(".atlas-merge-review"), "lazy reconciliation panel");
+  assert.equal(release, undefined, "opening a review does not send requests");
+  await act(async () => button("读取候选与记录").click()); await waitFor(() => !!release, "candidate read");
+  await choose("local"); assert.equal(candidateSignal!.aborted, true); assert.equal(dom.document.querySelector(".atlas-merge-review"), null);
+  await act(async () => release!(new Response(JSON.stringify({ ok: true, requestId: "synthetic-candidates", value: { snapshotRevision: 42, candidates: [], limit: 50, scannedCandidateLimit: 1000, truncated: false, warnings: [] } }))));
+  assert.equal(view().value, "local"); assert.equal(dom.document.querySelector(".atlas-merge-review"), null);
+  await choose("demo"); assert.ok(![...dom.document.querySelectorAll("button")].some(entry => entry.textContent === "重复岗位核对"));
+});
+
 test("only an explicitly successful connection persists, and a same-tab reload restores the full live index rather than the one-job library", async () => {
   seedLocal(); let release: ((value: Response) => void) | undefined;
   const requests: Array<{ url: string; authorization: string | null }> = [];

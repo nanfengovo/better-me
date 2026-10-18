@@ -14,6 +14,13 @@ import {
   PreviewLocationConfirmationInputSchema, ConfirmLocationInputSchema, RevokeLocationConfirmationInputSchema,
   LocationConfirmationPreviewSchema, LocationConfirmationReceiptSchema,
   type PreviewLocationConfirmationInput, type ConfirmLocationInput, type RevokeLocationConfirmationInput,
+  ListMergeCandidatesInputSchema, MergeCandidatesPageSchema, PreviewMergeReviewInputSchema, MergeReviewPreviewSchema,
+  ConfirmMergeReviewInputSchema, RejectMergeReviewInputSchema, ReconciliationReceiptSchema,
+  ListMergeDecisionsInputSchema, MergeDecisionsPageSchema, PreviewRevokeMergeReviewInputSchema,
+  RevokeMergeReviewPreviewSchema, RevokeMergeReviewInputSchema,
+  type ListMergeCandidatesInput, type PreviewMergeReviewInput, type ConfirmMergeReviewInput, type RejectMergeReviewInput,
+  type ListMergeDecisionsInput, type PreviewRevokeMergeReviewInput, type RevokeMergeReviewInput,
+  type MergeReviewPreview, type ReconciliationReceipt,
 } from "@better-me/opportunities";
 
 export const AtlasSourceListSchema = z.object({ sources: z.array(SourceDefinitionSchema), adapters: z.array(SourceAdapterMetadataSchema) }).strict();
@@ -50,6 +57,37 @@ const ErrorEnvelopeSchema = z.object({ ok: z.literal(false), requestId, error: z
 const KeySchema = z.string().min(1).max(200).regex(/^[A-Za-z0-9._:-]+$/);
 type Options = { signal?: AbortSignal; maxBytes?: number };
 type WriteOptions = Options & { idempotencyKey: string };
+
+const samePair = (left: readonly string[], right: readonly string[]) => left.length === 2 && right.length === 2
+  && left[0] !== left[1] && right[0] !== right[1] && left.every(id => right.includes(id));
+function matchingMergeSide(side: MergeReviewPreview["target"]) {
+  return side.canonicalJobId === side.job.id && side.company.id === side.job.companyId
+    && sameIds(side.listings.map(value => value.id), side.job.listingIds)
+    && sameIds(side.locations.map(value => value.id), side.job.locationIds)
+    && sameIds(side.compensations.map(value => value.id), side.job.compensationIds)
+    && sameIds(side.sources.map(value => value.sourceId), [...new Set(side.listings.map(value => value.sourceId))]);
+}
+function sameIds(left: readonly string[], right: readonly string[]) {
+  return left.length === right.length && new Set(left).size === left.length && new Set(right).size === right.length
+    && left.every(id => right.includes(id));
+}
+function matchingReceiptRevision(receipt: ReconciliationReceipt, expectedRevision: number, reason: string) {
+  return receipt.revision === expectedRevision + 1 && receipt.decision.revision === receipt.revision && receipt.decision.reason === reason;
+}
+function matchingMergeReceipt(receipt: ReconciliationReceipt, query: z.output<typeof ConfirmMergeReviewInputSchema>, kind: "merge" | "reject") {
+  const decision = receipt.decision;
+  if (decision.kind !== kind || !matchingReceiptRevision(receipt, query.expectedRevision, query.reason)
+    || decision.candidate.snapshotRevision !== query.expectedRevision) return false;
+  const pair = [decision.candidate.leftJobId, decision.candidate.rightJobId];
+  const alias = (id: string) => receipt.aliases.find(value => value.jobId === id)?.canonicalJobId;
+  if (decision.kind === "reject") return samePair(pair, [decision.leftJobId, decision.rightJobId])
+    && samePair(pair, [alias(query.targetJobId) ?? query.targetJobId, alias(query.sourceJobId) ?? query.sourceJobId]);
+  // Current IDs bind direction directly. Historical aliases resolve through the returned
+  // projection; their original direction was already bound by the authenticated preview.
+  return samePair(pair, [decision.targetJobId, decision.sourceJobId]) && decision.companyIdentityConfirmed === query.companyIdentityConfirmed
+    && (pair.includes(query.targetJobId) ? decision.targetJobId === query.targetJobId : alias(query.targetJobId) === decision.targetJobId)
+    && (pair.includes(query.sourceJobId) ? decision.sourceJobId === query.sourceJobId : alias(query.sourceJobId) === decision.targetJobId);
+}
 
 export class AtlasSourceServiceError extends Error {
   constructor(readonly code: "invalid-input" | "invalid-response" | "too-large" | "http-error" | "transport-error" | typeof TOOL_ERROR_CODES[number], message: string, readonly status?: number) {
@@ -128,6 +166,73 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
   }
   const sourcePath = (id: string) => `sources/${encodeURIComponent(input(EntityIdSchema, id))}`;
   return {
+    listMergeCandidates: async (value: ListMergeCandidatesInput = {}, options: Options = {}) => {
+      const query = input(ListMergeCandidatesInputSchema, value);
+      const result = await request("jobs/reconciliation/candidates", MergeCandidatesPageSchema, options, query);
+      if (result.limit !== query.limit || result.candidates.length > query.limit
+        || new Set(result.candidates.map(candidate => candidate.id)).size !== result.candidates.length
+        || result.candidates.some(candidate => candidate.snapshotRevision !== result.snapshotRevision || candidate.leftJobId === candidate.rightJobId))
+        throw new AtlasSourceServiceError("invalid-response", "重复岗位候选与本次范围或索引版本不一致，请重新读取。");
+      return result;
+    },
+    previewMerge: async (value: PreviewMergeReviewInput, options: Options = {}) => {
+      const query = input(PreviewMergeReviewInputSchema, value);
+      const result = await request("jobs/reconciliation/preview", MergeReviewPreviewSchema, options, query);
+      if (result.snapshotRevision !== query.expectedRevision || result.expectedRevision !== query.expectedRevision
+        || result.candidate.snapshotRevision !== query.expectedRevision || JSON.stringify(result.input) !== JSON.stringify(query)
+        || result.target.requestedJobId !== query.targetJobId || result.source.requestedJobId !== query.sourceJobId
+        || !samePair([result.candidate.leftJobId, result.candidate.rightJobId], [result.target.canonicalJobId, result.source.canonicalJobId])
+        || !matchingMergeSide(result.target) || !matchingMergeSide(result.source))
+        throw new AtlasSourceServiceError("invalid-response", "归并预览与本次岗位、方向、核对说明或版本不一致，请重新预览。");
+      return result;
+    },
+    mergeJobs: async (value: ConfirmMergeReviewInput, options: WriteOptions) => {
+      const query = input(ConfirmMergeReviewInputSchema, value);
+      const result = await request("jobs/reconciliation/merge", ReconciliationReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
+      if (!matchingMergeReceipt(result, query, "merge"))
+        throw new AtlasSourceServiceError("invalid-response", "归并回执与本次请求不一致，请沿用原请求核对回执。");
+      return result;
+    },
+    rejectMerge: async (value: RejectMergeReviewInput, options: WriteOptions) => {
+      const query = input(RejectMergeReviewInputSchema, value);
+      const result = await request("jobs/reconciliation/reject", ReconciliationReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
+      if (!matchingMergeReceipt(result, query, "reject"))
+        throw new AtlasSourceServiceError("invalid-response", "拒绝归并回执与本次请求不一致，请沿用原请求核对回执。");
+      return result;
+    },
+    listMergeDecisions: async (value: ListMergeDecisionsInput = {}, options: Options = {}) => {
+      const query = input(ListMergeDecisionsInputSchema, value);
+      const result = await request("jobs/reconciliation/history", MergeDecisionsPageSchema, options, query);
+      if (result.limit !== query.limit || result.items.length !== Math.min(result.totalAvailable, query.limit)
+        || result.truncated !== (result.totalAvailable > query.limit)
+        || new Set(result.items.map(item => item.decision.id)).size !== result.items.length
+        || result.items.some(item => item.decision.revision > result.snapshotRevision
+          || (item.decision.kind === "revoke") !== (item.status === "revocation")))
+        throw new AtlasSourceServiceError("invalid-response", "归并历史与本次范围或索引版本不一致，请重新读取。");
+      return result;
+    },
+    previewRevokeMerge: async (value: PreviewRevokeMergeReviewInput, options: Options = {}) => {
+      const query = input(PreviewRevokeMergeReviewInputSchema, value);
+      const result = await request("jobs/reconciliation/preview-revoke", RevokeMergeReviewPreviewSchema, options, query);
+      if (result.snapshotRevision !== query.expectedRevision || result.expectedRevision !== query.expectedRevision
+        || JSON.stringify(result.input) !== JSON.stringify(query) || result.decision.id !== query.decisionId
+        || result.decision.kind === "revoke" || result.decision.revision > result.snapshotRevision
+        || result.before.length === 0 || result.after.length === 0
+        || result.counts.beforeJobs !== result.before.length || result.counts.afterJobs !== result.after.length
+        || new Set(result.before.map(side => side.canonicalJobId)).size !== result.before.length
+        || new Set(result.after.map(side => side.canonicalJobId)).size !== result.after.length
+        || result.before.some(side => !matchingMergeSide(side)) || result.after.some(side => !matchingMergeSide(side)))
+        throw new AtlasSourceServiceError("invalid-response", "撤销预览与本次决议、说明或版本不一致，请重新预览。");
+      return result;
+    },
+    revokeMerge: async (value: RevokeMergeReviewInput, options: WriteOptions) => {
+      const query = input(RevokeMergeReviewInputSchema, value);
+      const result = await request("jobs/reconciliation/revoke", ReconciliationReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
+      if (result.decision.kind !== "revoke" || result.decision.targetDecisionId !== query.decisionId
+        || !matchingReceiptRevision(result, query.expectedRevision, query.reason))
+        throw new AtlasSourceServiceError("invalid-response", "撤销归并回执与本次请求不一致，请沿用原请求核对回执。");
+      return result;
+    },
     previewLocationConfirmation: async (value: PreviewLocationConfirmationInput, options: Options = {}) => {
       const query = input(PreviewLocationConfirmationInputSchema, value);
       const result = await request("locations/confirmations/preview", LocationConfirmationPreviewSchema, options, query);
