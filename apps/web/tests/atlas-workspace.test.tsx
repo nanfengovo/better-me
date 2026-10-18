@@ -316,6 +316,85 @@ test("leaving demo mode hides all synthetic results before the real-source query
   assert.equal(mapProps!.buckets.length, 0);
 });
 
+function confirmedAreaFixture(confirmed: boolean): AtlasDataset {
+  const data = createAtlasDemo(), job = data.jobs[0]!, location = data.locations[0]!;
+  data.revision = confirmed ? 25 : 26;
+  data.jobs = [job]; data.companies = data.companies.filter(company => company.id === job.companyId);
+  data.locations = [{ id: location.id, raw: "上海-浦东新区（合成来源）", kind: "unknown", precision: "unknown", verification: "unverified", evidence: location.evidence,
+    ...(confirmed ? { countryCode: "CN", regionId: "CN-SH", region: "上海市", city: "上海市", district: "浦东新区", precision: "city" as const,
+      userResolution: { decisionId: "synthetic-active-area", method: "explicit-user-confirmation" as const, at: "2026-10-19T12:00:00.000Z", originalLocationId: location.id,
+        basis: { kind: "china-catalog" as const, datasetId: "synthetic-region-catalog", version: "2023", provinceCode: "31", cityCode: "3101", districtCode: "310115" } } } : {}) }];
+  data.compensations = data.compensations.filter(compensation => job.compensationIds.includes(compensation.id));
+  data.listings = data.listings.filter(listing => job.listingIds.includes(listing.id));
+  data.observations = data.observations.filter(observation => data.listings.some(listing => listing.id === observation.listingId));
+  data.snapshots = data.snapshots.filter(snapshot => data.listings.some(listing => listing.id === snapshot.listingId));
+  return AtlasDatasetSchema.parse(data);
+}
+
+async function selectConfirmedDomesticCard() {
+  await render(true, false); await connectFixture(); await flush(() => button("国内").click());
+  const province = dom.document.querySelector<HTMLSelectElement>('[aria-label="工作省份"]')!;
+  const city = dom.document.querySelector<HTMLSelectElement>('[aria-label="工作城市"]')!;
+  const district = dom.document.querySelector<HTMLSelectElement>('[aria-label="工作区县"]')!;
+  await flush(() => { province.value = "31"; province.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  await flush(() => { city.value = "3101"; city.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  await flush(() => { district.value = "310115"; district.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 1);
+  await flush(() => pointerClick(dom.document.querySelector<HTMLButtonElement>(".atlas-job-card")!, 0));
+  const detail = dom.document.querySelector('[aria-label="地图岗位详情"]'); assert.ok(detail);
+  assert.match(detail.textContent!, /本人确认的行政范围.*浦东新区/);
+  assert.equal(mapProps!.buckets.length, 0, "a confirmed administrative area still has no office point");
+}
+
+test("refreshing a live index after area revocation removes the domestic result and closes its cached detail", async () => {
+  let revoked = false, reads = 0;
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL) => {
+    assert.equal(new URL(String(url)).pathname, "/api/v1/dataset/export"); reads++;
+    return sourceResponse(confirmedAreaFixture(!revoked));
+  });
+  await selectConfirmedDomesticCard(); revoked = true;
+  await flush(() => button("重新读取索引").click());
+  assert.equal(reads, 2); assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0);
+  assert.match(resultsHeading(), /0/); assert.match(dom.document.querySelector(".atlas-data-banner")!.textContent!, /索引版本 26/);
+  assert.equal(dom.document.querySelector('[aria-label="地图岗位详情"]'), null);
+  assert.equal(mapProps!.selectedJobId, ""); assert.equal(mapProps!.focus, undefined);
+});
+
+test("revoking the selected area closes a now-excluded domestic detail and retains the saved outcome outside the pane", async () => {
+  let revoked = false; const writes: Array<{ body: Record<string, unknown>; key: string | null }> = [];
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(url)).pathname;
+    if (path === "/api/v1/dataset/export") return sourceResponse(confirmedAreaFixture(!revoked));
+    assert.equal(path, "/api/v1/locations/confirmations/revoke");
+    writes.push({ body: JSON.parse(String(init!.body)), key: new Headers(init?.headers).get("Idempotency-Key") }); revoked = true;
+    const data = confirmedAreaFixture(false);
+    return sourceResponse({ ok: true, revision: 26, jobId: data.jobs[0]!.id, locationId: data.locations[0]!.id,
+      decisionId: "synthetic-area-revocation", location: data.locations[0] });
+  });
+  await selectConfirmedDomesticCard();
+  await flush(() => button("核对并保存地区").click());
+  await waitFor(() => Boolean(dom.document.querySelector('[aria-label="地区核对说明"]')), "the lazy area confirmation panel");
+  await act(async () => {
+    const reason = dom.document.querySelector('[aria-label="地区核对说明"]')!;
+    Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype, "value")!.set!.call(reason, "合成原文无法确认国家，撤销本人地区选择。");
+    reason.dispatchEvent(new dom.Event("input", { bubbles: true }));
+  });
+  await act(async () => dom.document.querySelector<HTMLInputElement>('.atlas-location-revoke input[type="checkbox"]')!.click());
+  await flush(() => button("撤销当前地区确认").click());
+  await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 0, "the revoked source to leave domestic search");
+  assert.equal(writes.length, 1); assert.deepEqual(writes[0]!.body, { jobId: "demo-0", locationId: "demo-0-location", decisionId: "synthetic-active-area", expectedRevision: 25,
+    reason: "合成原文无法确认国家，撤销本人地区选择。", reviewed: true });
+  assert.match(writes[0]!.key!, /^location-revoke-/); assert.match(resultsHeading(), /0/);
+  assert.equal(dom.document.querySelector('[aria-label="地图岗位详情"]'), null, "cached selectedCard must not retain the revoked confirmation after its current query excludes the job");
+  assert.equal(dom.document.querySelector('.atlas-job-card[aria-expanded="true"]'), null); assert.equal(mapProps!.selectedJobId, "");
+  assert.match(dom.document.querySelector(".atlas-search-notice")!.textContent!, /已读取地区记录.*索引版本 26/);
+  await flush(() => button("全球").click());
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 1, "the real source record still exists globally");
+  await flush(() => pointerClick(dom.document.querySelector<HTMLButtonElement>(".atlas-job-card")!, 0));
+  const freshDetail = dom.document.querySelector('[aria-label="地图岗位详情"]'); assert.ok(freshDetail);
+  assert.doesNotMatch(freshDetail.textContent!, /本人确认的行政范围/); assert.equal(detailData!.revision, 26);
+});
+
 test("main search without a connection opens connection settings and never sends a source or snapshot request", async () => {
   const fetcher = mock.method(globalThis, "fetch", async () => { throw new Error("An unconnected search must never request a service"); });
   await render(true, false);

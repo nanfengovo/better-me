@@ -269,6 +269,12 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
   const visibleItems = resultData === data ? listItems : [];
   const selected = visibleItems.find((item) => item.job.id === selectedId)
     ?? (selectedCard.current?.job.id === selectedId && data?.jobs.some((job) => job.id === selectedId) ? selectedCard.current : undefined);
+  useEffect(() => {
+    if (resultData !== data || !rawResult || !selectedId || listItems.some(item => item.job.id === selectedId)) return;
+    // A saved location may remove this job from the active area. Discard the old card's facts.
+    selectedCard.current = undefined; setSelectedId(""); setLocationReview(undefined); setFocus(undefined);
+    locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined);
+  }, [data, resultData, rawResult, selectedId, listItems]);
   function openJob(item: JobSearchItem) {
     cancelCardClick();
     if (selectedId !== item.job.id) { locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); }
@@ -371,6 +377,7 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
     {selected && data && <AtlasJobDetail key={selected.job.id} item={selected} data={data} demo={dataMode === "demo"} originalCurrency={originalCurrency} presentations={presentListing?.(selected) ?? []} onClose={closeJob} onLocate={(locationId) => void locateJob(selected, locationId)} onSave={() => routeJob(selected, false)} onAnalyze={() => routeJob(selected, true)} onConfirmLocation={connected ? location => setLocationReview({ jobId: selected.job.id, location }) : undefined}>
       {locationReview?.jobId === selected.job.id && connected && liveData && <Suspense fallback={<p role="status">正在打开地区核对…</p>}><AtlasLocationConfirmation key={`${locationReview.jobId}:${locationReview.location.id}:${endpoint}`} endpoint={endpoint} token={token} jobId={locationReview.jobId} location={locationReview.location} revision={liveData.revision} onClose={() => setLocationReview(undefined)} onSnapshot={snapshot => {
         searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live");
+        setSourceSearchMessage(`已读取地区记录，索引版本 ${snapshot.revision}。当前筛选会按最新确认结果重新计算；不再符合条件的岗位会退出列表。`);
       }} /></Suspense>}
       {locationSearch?.jobId === selected.job.id && <div className="atlas-location-candidates" aria-label="城市定位候选">
         {locationSearch.loading && <p role="status"><Loader2 size={15} className="animate-spin" /> 正在查询本地地名库…</p>}
