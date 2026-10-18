@@ -1,0 +1,536 @@
+/* BetterMe Atelier — workspace surfaces, never resume typography or print output.
+   The shell owns these tokens locally so white paper keeps its own color system. */
+@media screen {
+  html .studio-app {
+    --ui-canvas: #f0efeb;
+    --ui-surface: #fffefa;
+    --ui-surface-raised: #f8f7f3;
+    --ui-surface-soft: #efeee9;
+    --ui-input: #ffffff;
+    --ui-hover: #eaece6;
+    --ui-border: #deded6;
+    --ui-border-strong: #b7bdb3;
+    --ui-text: #282e2b;
+    --ui-text-secondary: #555f58;
+    --ui-text-muted: #72796f;
+    --ui-accent: #245345;
+    --ui-accent-soft: #e7eee7;
+    --ui-action: #244f42;
+    --ui-action-hover: #326451;
+    --ui-on-action: #ffffff;
+    --ui-focus: #46765e;
+    --ui-warning: #865b21;
+    --ui-warning-soft: #fff6e4;
+    --ui-warning-border: #e8d2a7;
+    --ui-danger: #a2433d;
+    --ui-danger-soft: #fff0eb;
+    --ui-danger-border: #e7bdb1;
+    --ui-info: #3b6180;
+    --ui-info-soft: #eef4f7;
+    --ui-info-border: #c9dbe6;
+    --ui-shadow: 0 22px 60px #252e2521, 0 3px 8px #252e2509;
+    --atelier-rail: #193d34;
+    --atelier-rail-text: #b1c4b9;
+    --atelier-rail-active: #ffffff;
+    --atelier-rail-selected: #ffffff14;
+    --atelier-panel-shadow: 0 3px 8px #242c2103, 0 18px 34px -28px #242c213b;
+    --atelier-canvas: #e7e6df;
+    --atelier-dot: #8b8c7c26;
+    --atelier-gutter: 28px;
+    --atelier-ease: cubic-bezier(.2,.75,.2,1);
+    color: var(--ui-text);
+    background: var(--ui-canvas);
+  }
+
+  html[data-theme="dark"] .studio-app {
+    --ui-canvas: #181b1a;
+    --ui-surface: #232725;
+    --ui-surface-raised: #292d2a;
+    --ui-surface-soft: #303632;
+    --ui-input: #1e2320;
+    --ui-hover: #363e37;
+    --ui-border: #3b423c;
+    --ui-border-strong: #627064;
+    --ui-text: #eceee8;
+    --ui-text-secondary: #c2c8bd;
+    --ui-text-muted: #a0aa9a;
+    --ui-accent: #b5d1ba;
+    --ui-accent-soft: #324437;
+    --ui-action: #41694f;
+    --ui-action-hover: #4f7b5e;
+    --ui-focus: #b6d0b9;
+    --ui-warning: #f0d39b;
+    --ui-warning-soft: #393124;
+    --ui-warning-border: #79603c;
+    --ui-danger: #f4b5aa;
+    --ui-danger-soft: #3e2a29;
+    --ui-danger-border: #805551;
+    --ui-info: #b7cedc;
+    --ui-info-soft: #28343e;
+    --ui-info-border: #536c7d;
+    --ui-shadow: 0 22px 60px #00000055, 0 3px 8px #00000025;
+    --atelier-rail: #111a16;
+    --atelier-rail-text: #a8b7aa;
+    --atelier-rail-selected: #c1ddc515;
+    --atelier-panel-shadow: 0 1px 0 #ffffff03, 0 18px 34px -28px #00000080;
+    --atelier-canvas: #151917;
+    --atelier-dot: #a5b49e1a;
+  }
+
+  /* A dark, quiet spine gives the working paper a recognizable setting. */
+  html .studio-app .studio-rail {
+    width: 78px;
+    gap: 9px;
+    padding: 26px 10px 18px;
+    background: var(--atelier-rail);
+    border-right: 1px solid #ffffff09;
+    color: var(--atelier-rail-text);
+  }
+  html .studio-app .studio-monogram {
+    color: #f6f6eb;
+    padding: 3px 4px 20px;
+    font-size: 31px;
+    letter-spacing: -4px;
+  }
+  html .studio-app .studio-monogram i { width: 5px; height: 5px; background: #c5d7ab; }
+  html .studio-app .rail-divider { width: 26px; background: #ffffff21; margin: 0 0 14px; }
+  html .studio-app .studio-rail button {
+    position: relative;
+    width: 56px;
+    min-height: 60px;
+    gap: 7px;
+    border: 1px solid transparent;
+    border-radius: 13px;
+    color: var(--atelier-rail-text);
+    transition: color 160ms, background 160ms, border-color 160ms, transform 160ms var(--atelier-ease);
+  }
+  html .studio-app .studio-rail button span { font-size: 10px; line-height: 1.35; font-weight: 550; }
+  html .studio-app .studio-rail button > svg { stroke-width: 1.65; }
+  html .studio-app .studio-rail button:hover { color: #f6f7ef; background: #ffffff0c; }
+  html .studio-app .studio-rail button.active {
+    color: var(--atelier-rail-active);
+    background: var(--atelier-rail-selected);
+    border-color: #ffffff12;
+    box-shadow: inset 0 1px 0 #ffffff08;
+  }
+  html .studio-app .studio-rail button.active::before {
+    content: "";
+    position: absolute;
+    left: -11px;
+    top: 20px;
+    bottom: 20px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: #d5e5be;
+  }
+  html .studio-app .studio-rail button:focus-visible { outline: 2px solid #d9e6c9; outline-offset: 2px; }
+  html .studio-app .rail-bottom { gap: 14px; }
+  html .studio-app .rail-local { color: #9cb49f; opacity: .85; }
+
+  /* Header controls are instruments; the document title is the hierarchy. */
+  html .studio-app .studio-header {
+    min-height: 70px;
+    padding: 12px var(--atelier-gutter);
+    gap: 16px;
+    background: var(--ui-surface-raised);
+    border-color: var(--ui-border);
+  }
+  html .studio-app .studio-brand { gap: 11px; color: var(--ui-text-muted); font-size: 11px; line-height: 1.5; }
+  html .studio-app .studio-brand strong { color: var(--ui-text); font-size: 20px; font-weight: 500; letter-spacing: -.7px; }
+  html .studio-app .studio-brand strong span { color: var(--ui-border-strong); margin-left: 10px; font-weight: 400; }
+  html .studio-app .header-location { color: var(--ui-text-secondary); }
+  html .studio-app .header-actions { gap: 13px; }
+  html .studio-app .studio-user {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--ui-border);
+    background: var(--ui-accent-soft);
+    color: var(--ui-accent);
+    font-size: 12px;
+    font-weight: 650;
+    box-shadow: inset 0 1px 1px #ffffff33;
+  }
+  html .studio-app .save-indicator { color: var(--ui-accent); font-size: 11px; gap: 6px; }
+  html .studio-app .save-indicator.pending { color: var(--ui-text-muted); }
+  html .studio-app .save-indicator.draft { color: var(--ui-warning); }
+  html .studio-app .save-indicator.error { color: var(--ui-danger); font-weight: 650; }
+  html .studio-app .workspace-preferences { gap: 7px; }
+  html .studio-app .workspace-preference-group {
+    gap: 2px;
+    padding: 3px;
+    background: var(--ui-surface-soft);
+    border-color: var(--ui-border);
+    border-radius: 9px;
+  }
+  html .studio-app .workspace-preference-label { color: var(--ui-text-muted); font-size: 10px; padding: 0 5px; }
+  html .studio-app .workspace-preference-group button {
+    color: var(--ui-text-secondary);
+    min-height: 27px;
+    padding: 4px 7px;
+    font-size: 11px;
+    transition: background 140ms, color 140ms, box-shadow 140ms;
+  }
+  html .studio-app .workspace-preference-group button[aria-pressed="true"] {
+    color: var(--ui-text);
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+    box-shadow: 0 1px 3px #172d1710;
+  }
+  html .studio-app .workspace-preference-group button:hover:not([aria-pressed="true"]) { background: var(--ui-hover); }
+  html .studio-app .workspace-preference-error { color: var(--ui-danger); }
+
+  html .studio-app .studio-document-bar {
+    align-items: center;
+    gap: 14px 24px;
+    padding: 23px var(--atelier-gutter) 22px;
+  }
+  html .studio-app .document-heading { flex: 1; min-width: 0; }
+  html .studio-app .document-title-row { gap: 10px 12px; min-width: 0; }
+  html .studio-app .document-title-row input {
+    width: 180px;
+    max-width: 100%;
+    min-width: 0;
+    padding: 1px 0 4px;
+    color: var(--ui-text);
+    font-size: 27px;
+    font-weight: 600;
+    letter-spacing: -.04em;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+  }
+  html .studio-app .document-title-row input:hover { border-bottom-color: var(--ui-border-strong); }
+  html .studio-app .document-title-row input:focus { border-bottom-color: var(--ui-accent); }
+  html .studio-app .atelier-document-kicker { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; color: var(--ui-text-muted); font-size: 10px; letter-spacing: .14em; font-weight: 600; }
+  html .studio-app .atelier-document-subtitle { margin: 7px 0 0; font-size: 11px; line-height: 1.6; color: var(--ui-text-muted); }
+  html .studio-app .document-badge { color: var(--ui-text-secondary); background: transparent; border-color: var(--ui-border); border-radius: 5px; padding: 3px 7px; font-size: 10px; }
+  html .studio-app .document-actions { gap: 7px; min-width: 0; }
+  html .studio-app .resume-view-picker { gap: 5px; min-width: 0; }
+  html .studio-app .resume-view-picker select {
+    min-width: 90px;
+    max-width: 160px;
+    padding: 6px 8px;
+    color: var(--ui-text-secondary);
+    background: var(--ui-surface-raised);
+    border-color: var(--ui-border);
+    border-radius: 7px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  html .studio-app .resume-view-picker button { padding: 5px 7px; min-height: 28px; border-radius: 6px; color: var(--ui-text-secondary); background: transparent; border-color: transparent; }
+  html .studio-app .resume-view-picker button:hover:not(:disabled) { background: var(--ui-surface); border-color: var(--ui-border); color: var(--ui-accent); }
+  html .studio-app .output-language { padding: 3px; background: var(--ui-surface-soft); border-color: var(--ui-border); color: var(--ui-text-muted); font-size: 11px; border-radius: 9px; }
+  html .studio-app .output-language-label { font-size: 10px; padding-right: 3px; }
+  html .studio-app .output-language button { min-height: 28px; padding: 5px 8px; border-radius: 6px; }
+  html .studio-app .output-language button.active { background: var(--ui-surface); color: var(--ui-accent); box-shadow: 0 1px 3px #1e2d1d0d; }
+
+  /* Buttons have a small amount of depth, with no movement while typing. */
+  html .studio-app .studio-button {
+    min-height: 36px;
+    padding: 8px 11px;
+    border-color: var(--ui-border);
+    border-radius: 8px;
+    color: var(--ui-text-secondary);
+    background: var(--ui-surface);
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 550;
+    box-shadow: 0 1px 2px #19281906, inset 0 1px 0 #ffffff1a;
+    transition: background 150ms, border-color 150ms, box-shadow 150ms, transform 150ms var(--atelier-ease);
+  }
+  html .studio-app .studio-button:hover:not(:disabled) { background: var(--ui-surface-raised); border-color: var(--ui-border-strong); color: var(--ui-text); box-shadow: 0 2px 5px #1928190a; }
+  html .studio-app .studio-button.primary { color: var(--ui-on-action); background: var(--ui-action); border-color: var(--ui-action); box-shadow: 0 2px 3px #1f42311c, inset 0 1px 0 #ffffff15; }
+  html .studio-app .studio-button.primary:hover:not(:disabled) { color: var(--ui-on-action); background: var(--ui-action-hover); border-color: var(--ui-action-hover); }
+  html .studio-app .studio-button.subtle { min-height: 30px; padding: 5px 3px; color: var(--ui-text-secondary); background: transparent; border-color: transparent; box-shadow: none; font-size: 11px; }
+  html .studio-app .studio-button.subtle:hover { background: transparent; color: var(--ui-accent); box-shadow: none; }
+  html .studio-app :is(.studio-button,.studio-rail button):active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+  html .studio-app :is(.studio-button,.resume-view-picker select,.resume-view-picker button,.output-language button,.workspace-preference-group button):focus-visible { outline: 2px solid var(--ui-focus); outline-offset: 3px; }
+  html .studio-app .studio-button:disabled { opacity: .5; cursor: not-allowed; }
+  html .studio-app .document-dropdown {
+    width: 230px;
+    padding: 7px;
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+    border-radius: 13px;
+    box-shadow: var(--ui-shadow);
+    animation: atelier-menu-enter 150ms var(--atelier-ease) both;
+    transform-origin: top right;
+  }
+  html .studio-app .document-dropdown button { padding: 11px 9px; color: var(--ui-text-secondary); border-radius: 7px; font-size: 12px; }
+  html .studio-app .document-dropdown button:hover { color: var(--ui-text); background: var(--ui-hover); }
+  html .studio-app .document-dropdown button span { color: var(--ui-text-muted); font-size: 10px; }
+  html .studio-app .document-dropdown hr { border-color: var(--ui-border); margin: 5px 0; }
+
+  /* Full-height panels: one outer surface, precise internal dividers. */
+  html .studio-app .studio-main { padding: 0 var(--atelier-gutter); grid-template-columns: minmax(0,var(--studio-editor-share,38fr)) 24px minmax(0,var(--studio-preview-share,62fr)); }
+  html .studio-app .studio-editor-pane { border-color: var(--ui-border); border-radius: 17px; background: var(--ui-surface); box-shadow: var(--atelier-panel-shadow); }
+  html .studio-app .studio-panel-slot > .fact-editor { background: var(--ui-surface-raised); }
+  html .studio-app .studio-splitter { min-width: 24px; }
+  html .studio-app .studio-splitter::before { top: 20px; bottom: 20px; width: 1px; background: var(--ui-border); }
+  html .studio-app .studio-splitter-line { width: 15px; height: 44px; border-color: var(--ui-border); background: var(--ui-surface-raised); color: var(--ui-text-muted); box-shadow: 0 1px 3px #00000007; }
+  html .studio-app :is(.studio-splitter:hover,.studio-splitter:focus-visible,.is-resizing .studio-splitter) .studio-splitter-line { background: var(--ui-accent-soft); border-color: var(--ui-border-strong); color: var(--ui-accent); }
+  html .studio-app :is(.studio-splitter:hover,.studio-splitter:focus-visible,.is-resizing .studio-splitter)::before { width: 2px; background: var(--ui-border-strong); }
+  html .studio-app .studio-splitter-value { color: var(--ui-accent); background: var(--ui-surface); border-color: var(--ui-border); box-shadow: var(--ui-shadow); font-size: 11px; }
+  html .studio-app .studio-preview-pane > .resume-preview { border-color: var(--ui-border); border-radius: 17px; background: var(--atelier-canvas); box-shadow: var(--atelier-panel-shadow); }
+  html .studio-app .resume-preview-canvas { background-color: var(--atelier-canvas); background-image: radial-gradient(var(--atelier-dot) .7px,transparent .7px); background-size: 18px 18px; }
+  html .studio-app .resume-preview-stage { padding: 35px; }
+  html .studio-app .resume-preview-scale { box-shadow: 0 30px 65px -35px #27312545; }
+
+  /* Editing remains calm: dark readable text, white input faces, restrained chrome. */
+  html .studio-app .fact-editor > div:first-child {
+    padding: 16px 18px 13px;
+    gap: 12px;
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+  }
+  html .studio-app .fact-editor > div:first-child > div { min-width: 0; }
+  html .studio-app .fact-editor > div:first-child > div:first-child > div { border-color: var(--ui-border); background: var(--ui-surface-raised); border-radius: 9px; box-shadow: none; }
+  html .studio-app .fact-editor > div:first-child button { min-height: 30px; font-size: 12px; border-radius: 6px; }
+  html .studio-app .fact-editor [aria-describedby="editor-fields-help"] { color: var(--ui-text-secondary); font-size: 11px; }
+  html .studio-app .fact-editor #editor-fields-help { margin-top: 2px; color: var(--ui-text-muted); font-size: 11px; line-height: 1.65; }
+  html .studio-app .fact-editor .fact-editor-scroller { padding: 20px 18px 24px; scrollbar-gutter: stable; }
+  html .studio-app .fact-editor .fact-editor-scroller > div > div:first-child > p { color: var(--ui-text-secondary); font-size: 11px; line-height: 1.8; }
+  html .studio-app .fact-editor article {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px #22302504;
+    transition: border-color 160ms, box-shadow 160ms;
+  }
+  html .studio-app .fact-editor article:focus-within { border-color: var(--ui-border-strong); box-shadow: 0 0 0 1px #456c4b0a; }
+  html .studio-app .fact-editor article > div:first-child { padding: 16px; gap: 8px; background: var(--ui-surface); border-color: var(--ui-border); }
+  html .studio-app .fact-editor article > div:first-child > button { min-width: 0; }
+  html .studio-app .fact-editor article > div:first-child > button > div { min-width: 0; }
+  html .studio-app .fact-editor article > div:first-child > button > div > div { flex-wrap: wrap; gap: 5px 8px; }
+  html .studio-app .fact-editor article > div:first-child > button > div > div > span:first-child { color: var(--ui-text); font-size: 14px; letter-spacing: -.01em; overflow-wrap: anywhere; }
+  html .studio-app .fact-editor article > div:first-child p { margin-top: 4px; color: var(--ui-text-muted); line-height: 1.65; overflow-wrap: anywhere; }
+  html .studio-app .fact-editor article > div:first-child > div { flex-shrink: 0; gap: 5px; }
+  html .studio-app .fact-editor article > div:first-child > div > span { font-size: 10px; color: var(--ui-text-muted); }
+  html .studio-app .fact-editor article > div:nth-child(2) { padding: 18px 16px; }
+  html .studio-app .fact-editor :is(input:not([type="checkbox"]):not([type="color"]),select) {
+    min-height: 34px;
+    max-width: 100%;
+    min-width: 0;
+    border-color: var(--ui-border);
+    border-radius: 7px;
+    color: var(--ui-text);
+    background: var(--ui-input);
+    font-size: 12px;
+    line-height: 1.5;
+    transition: border-color 150ms, box-shadow 150ms;
+  }
+  html .studio-app .fact-editor :is(input:not([type="checkbox"]):not([type="color"]),select):focus { border-color: var(--ui-focus); box-shadow: 0 0 0 3px #6b8c6e14; }
+  html .studio-app .fact-editor input:disabled { color: var(--ui-text-muted); background: var(--ui-surface-soft); opacity: .65; }
+  html .studio-app .fact-editor input[type="checkbox"] { accent-color: var(--ui-action); width: 14px; height: 14px; flex-shrink: 0; cursor: pointer; }
+  html .studio-app .fact-editor label { color: var(--ui-text-secondary); font-size: 11px; font-weight: 550; line-height: 1.6; }
+  html .studio-app .fact-editor :is(input,textarea)::placeholder { color: var(--ui-text-muted); opacity: .75; }
+  html .studio-app .fact-editor :is(.text-slate-800,.text-slate-900) { color: var(--ui-text); }
+  html .studio-app .fact-editor :is(.text-slate-600,.text-slate-700) { color: var(--ui-text-secondary); }
+  html .studio-app .fact-editor :is(.text-slate-400,.text-slate-500) { color: var(--ui-text-muted); }
+  html .studio-app .fact-editor :is(.bg-white,[class~="bg-white/70"],[class~="bg-white/80"]) { background-color: var(--ui-surface); }
+  html .studio-app .fact-editor :is(.bg-slate-100,[class~="bg-slate-200/60"],[class~="bg-slate-200/70"]) { background-color: var(--ui-surface-soft); }
+  html .studio-app .fact-editor :is(.border-slate-100,.border-slate-200,[class~="border-slate-200/90"]) { border-color: var(--ui-border); }
+  html .studio-app .fact-editor [class~="bg-[var(--color-accent)]"] { background: var(--ui-action); color: var(--ui-on-action); }
+  html .studio-app .fact-editor [class~="text-[var(--color-accent)]"] { color: var(--ui-accent); }
+  html .studio-app .fact-editor :is(.bg-slate-800,.bg-slate-900) { background: var(--ui-action); color: var(--ui-on-action); }
+  html .studio-app .fact-editor [data-editor-anchor^="claim:"] {
+    padding: 13px;
+    border-color: var(--ui-border);
+    border-radius: 9px;
+    background: var(--ui-surface-raised);
+  }
+  html .studio-app .fact-editor [data-editor-anchor^="claim:"]:hover { border-color: var(--ui-border-strong); }
+  html .studio-app .fact-editor [data-editor-anchor^="claim:"] > div:first-child > div { flex-wrap: wrap; min-width: 0; }
+  html .studio-app .fact-editor [data-editor-anchor^="claim:"] label span { line-height: 1.6; white-space: normal; }
+  html .studio-app .fact-editor [data-issue-active="true"] { border-color: var(--ui-warning); box-shadow: 0 0 0 2px #d9ac532d; }
+  html .studio-app .fact-editor .issue-field-highlight { outline-color: var(--ui-warning); }
+  html .studio-app .fact-editor [data-editor-anchor="profile"] > div { background: var(--ui-surface); border-color: var(--ui-border); border-radius: 12px; box-shadow: none; }
+
+  /* A formatting strip should feel like a tool, not another nested card. */
+  html .studio-app .formatted-field { border-color: var(--ui-border); border-radius: 8px; background: var(--ui-input); }
+  html .studio-app .formatted-field:focus-within { border-color: var(--ui-focus); box-shadow: 0 0 0 3px #6b8c6e14; }
+  html .studio-app .formatted-field textarea { padding: 11px 12px; color: var(--ui-text); background: var(--ui-input); font-size: 13px; line-height: 1.85; }
+  html .studio-app .text-format-toolbar { min-height: 33px; padding: 4px 6px; background: var(--ui-surface-raised); border-color: var(--ui-border); color: var(--ui-text-muted); }
+  html .studio-app .text-format-toolbar button { width: 26px; height: 25px; border-radius: 5px; color: var(--ui-text-secondary); }
+  html .studio-app .text-format-toolbar button:hover:not(:disabled) { background: var(--ui-hover); }
+  html .studio-app .text-format-toolbar button[aria-pressed="true"] { color: var(--ui-accent); background: var(--ui-accent-soft); }
+  html .studio-app .text-format-toolbar select { min-height: 24px; width: 55px; padding: 2px; border: 0; background: transparent; color: var(--ui-text-secondary); font-size: 11px; box-shadow: none; }
+  html .studio-app .text-format-toolbar .format-highlight-color { width: 41px; }
+  html .studio-app .format-divider { background: var(--ui-border); }
+  html .studio-app .format-selection-hint { color: var(--ui-text-muted); font-size: 10px; }
+
+  /* The assistant invitation reads as a final action, not a competing banner. */
+  html .studio-app .jd-workspace-invite { padding: 15px 18px; gap: 11px; background: var(--ui-surface); border-color: var(--ui-border); transition: background 150ms; }
+  html .studio-app .jd-workspace-invite:hover { background: var(--ui-accent-soft); }
+  html .studio-app .jd-invite-icon { width: 34px; height: 34px; border-radius: 10px; color: var(--ui-accent); background: var(--ui-accent-soft); border-color: transparent; }
+  html .studio-app .jd-workspace-invite strong { color: var(--ui-text); font-size: 12px; line-height: 1.5; font-weight: 600; }
+  html .studio-app .jd-workspace-invite small { margin-top: 4px; color: var(--ui-text-muted); font-size: 10px; line-height: 1.5; }
+  html .studio-app .jd-workspace-invite > svg { color: var(--ui-accent); }
+  html .studio-app .studio-footer { padding: 12px var(--atelier-gutter); gap: 12px; font-size: 10px; color: var(--ui-text-muted); letter-spacing: 0; line-height: 1.5; }
+  html .studio-app .studio-footer span { min-width: 0; }
+  html .studio-app .studio-footer svg { flex-shrink: 0; }
+
+  /* Persistence and factual warnings always retain semantic contrast. */
+  html .studio-app .studio-notices { padding: 0 var(--atelier-gutter) 10px; }
+  html .studio-app .studio-notices:empty { padding-bottom: 0; }
+  html .studio-app .persistence-notice { padding: 11px 13px; background: var(--ui-warning-soft); border-color: var(--ui-warning-border); border-radius: 9px; color: var(--ui-warning); font-size: 12px; line-height: 1.7; }
+  html .studio-app .persistence-notice.error { color: var(--ui-danger); background: var(--ui-danger-soft); border-color: var(--ui-danger-border); }
+  html .studio-app .persistence-notice > div { flex-wrap: wrap; gap: 7px 13px; }
+  html .studio-app .issue-guide { padding: 13px 18px; color: var(--ui-warning); background: var(--ui-warning-soft); border-color: var(--ui-warning-border); font-size: 12px; }
+  html .studio-app .issue-guide-context { color: var(--ui-warning); font-size: 11px; opacity: .85; }
+  html .studio-app .issue-guide.resolved { color: var(--ui-accent); background: var(--ui-accent-soft); border-color: var(--ui-border-strong); }
+
+  html .studio-app .autosave-control-group { color: var(--ui-text-secondary); border-color: var(--ui-border); background: var(--ui-surface); border-radius: 8px; box-shadow: 0 1px 2px #19281905; }
+  html .studio-app .autosave-switch { font-size: 11px; min-height: 34px; }
+  html .studio-app .autosave-switch small { color: var(--ui-text-muted); }
+  html .studio-app .autosave-switch.is-on small { color: var(--ui-accent); }
+  html .studio-app .autosave-switch-track { background: var(--ui-border-strong); }
+  html .studio-app .autosave-switch.is-on .autosave-switch-track { background: var(--ui-action); }
+  html .studio-app .autosave-settings-button { color: var(--ui-text-muted); border-color: var(--ui-border); }
+  html .studio-app :is(.autosave-switch,.autosave-settings-button,.autosave-close):hover { color: var(--ui-text); background: var(--ui-hover); }
+  html .studio-app .autosave-popover { width: 340px; padding: 20px; border-radius: 14px; color: var(--ui-text); background: var(--ui-surface); border-color: var(--ui-border); box-shadow: var(--ui-shadow); animation: atelier-menu-enter 150ms var(--atelier-ease) both; }
+  html .studio-app .autosave-popover h2 { color: var(--ui-text); font-size: 17px; }
+  html .studio-app .autosave-eyebrow { color: var(--ui-text-muted); font-size: 10px; }
+  html .studio-app .autosave-close { color: var(--ui-text-secondary); }
+  html .studio-app .autosave-setting-field { color: var(--ui-text-secondary); font-size: 12px; }
+  html .studio-app .autosave-setting-field :is(select,input) { color: var(--ui-text); background: var(--ui-input); border-color: var(--ui-border); font-size: 12px; }
+  html .studio-app :is(.autosave-setting-field small,.autosave-explanation,.autosave-seconds-input) { color: var(--ui-text-muted); font-size: 11px; line-height: 1.7; border-color: var(--ui-border); }
+  html .studio-app .autosave-paused { color: var(--ui-text-secondary); background: var(--ui-surface-soft); font-size: 11px; }
+  html .studio-app .autosave-preference-error { color: var(--ui-warning); background: var(--ui-warning-soft); font-size: 11px; }
+
+  /* Selection and keyboard affordances use a single visual grammar. */
+  html .studio-app .fact-editor button:focus-visible { outline: 2px solid var(--ui-focus); outline-offset: 3px; }
+  html .studio-app .fact-editor :is(input,select,textarea):focus-visible { outline: 2px solid var(--ui-focus); outline-offset: 2px; }
+  html .studio-app .fact-editor .formatted-field textarea:focus-visible { outline: none; }
+
+  @keyframes atelier-menu-enter {
+    from { opacity: 0; transform: translateY(-4px) scale(.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+}
+
+@media screen and (min-width:1700px) {
+  html .studio-app { --atelier-gutter: 42px; }
+  html .studio-app .studio-document-bar { padding-top: 27px; padding-bottom: 25px; }
+  html .studio-app .document-title-row input { font-size: 29px; }
+  html .studio-app .fact-editor .fact-editor-scroller { padding: 22px; }
+}
+@media screen and (max-width:1280px) {
+  html .studio-app { --atelier-gutter: 21px; }
+  html .studio-app .studio-header { gap: 12px; }
+  html .studio-app .header-actions { gap: 8px; }
+  html .studio-app .studio-brand { gap: 8px; }
+  html .studio-app .studio-brand > span:not(.header-location) { display: none; }
+  html .studio-app .workspace-preference-label > span { display: none; }
+  html .studio-app .document-title-row input { width: 155px; font-size: 25px; }
+  html .studio-app .studio-document-bar { flex-wrap: wrap; gap: 12px; padding-top: 19px; padding-bottom: 18px; }
+  html .studio-app .document-actions { max-width: none; }
+  html .studio-app .output-language-label { display: none; }
+}
+@media screen and (max-width:940px) {
+  html .studio-app { --atelier-gutter: 20px; height: auto; min-height: 100dvh; overflow: visible; }
+  html .studio-app .studio-rail { width: 66px; padding: 25px 7px 18px; height: 100dvh; position: sticky; top: 0; }
+  html .studio-app .studio-rail button { width: 50px; min-height: 58px; }
+  html .studio-app .studio-rail button.active::before { left: -8px; }
+  html .studio-app .studio-workspace { overflow: visible; }
+  html .studio-app .studio-header { align-items: center; flex-wrap: wrap; min-height: 70px; }
+  html .studio-app .studio-brand { padding-top: 0; }
+  html .studio-app .studio-brand strong { font-size: 20px; }
+  html .studio-app .header-actions { flex: 1; }
+  html .studio-app .save-indicator { max-width: 24ch; }
+  html .studio-app .studio-document-bar { align-items: flex-start; }
+  html .studio-app .document-heading { flex-basis: 100%; }
+  html .studio-app .document-title-row input { width: 210px; }
+  html .studio-app .document-badge { display: inline-flex; }
+  html .studio-app .document-actions { justify-content: flex-start; flex-wrap: wrap; width: 100%; gap: 8px; }
+  html .studio-app .studio-main { grid-template-columns: minmax(0,1fr); gap: 20px; }
+  html .studio-app .studio-splitter { display: none; }
+  html .studio-app .studio-editor-pane { height: 730px; }
+  html .studio-app .studio-preview-pane { height: 900px; }
+  html .studio-app .resume-preview-stage { padding: 28px; }
+  html .studio-app .persistence-notice { flex-wrap: wrap; }
+  html .studio-app .persistence-notice > div { flex-shrink: 1; }
+  html .studio-app .studio-footer { flex-wrap: wrap; }
+}
+@media screen and (max-width:620px) {
+  html .studio-app { --atelier-gutter: 13px; }
+  html .studio-app .studio-rail { width: 54px; padding: 19px 4px 14px; gap: 7px; }
+  html .studio-app .studio-monogram { font-size: 27px; padding-bottom: 17px; }
+  html .studio-app .studio-monogram i { width: 4px; height: 4px; margin-left: 5px; }
+  html .studio-app .rail-divider { margin-bottom: 10px; width: 23px; }
+  html .studio-app .studio-rail button { width: 44px; min-height: 54px; gap: 6px; border-radius: 10px; }
+  html .studio-app .studio-rail button span { font-size: 9px; }
+  html .studio-app .studio-rail button > svg { width: 18px; height: 18px; }
+  html .studio-app .studio-rail button.active::before { left: -5px; top: 17px; bottom: 17px; }
+  html .studio-app .rail-bottom { gap: 11px; }
+  html .studio-app .studio-header { padding: 13px var(--atelier-gutter); gap: 11px; }
+  html .studio-app .studio-brand { flex-basis: 100%; }
+  html .studio-app .studio-brand strong { font-size: 19px; }
+  html .studio-app .header-actions { flex-basis: 100%; gap: 7px; justify-content: space-between; }
+  html .studio-app .workspace-preferences { order: -1; flex: 1 1 100%; justify-content: flex-start; gap: 6px; }
+  html .studio-app .workspace-preference-group { gap: 1px; padding: 2px; }
+  html .studio-app .workspace-preference-label { padding: 0 4px; }
+  html .studio-app .workspace-preference-group button { min-height: 29px; padding: 5px 7px; font-size: 10px; }
+  html .studio-app .studio-header .studio-user { width: 27px; height: 27px; }
+  html .studio-app .save-indicator { flex: 1; text-align: left; font-size: 10px; max-width: none; }
+  html .studio-app .studio-header .studio-button.subtle { font-size: 10px; }
+  html .studio-app .studio-document-bar { flex-wrap: nowrap; gap: 14px; padding: 20px var(--atelier-gutter); }
+  html .studio-app .document-heading { flex: 0 0 auto; width: 100%; }
+  html .studio-app .document-title-row { gap: 10px; }
+  html .studio-app .document-title-row input { width: 100%; max-width: 100%; font-size: 28px; }
+  html .studio-app .resume-view-picker { flex-wrap: wrap; gap: 3px; }
+  html .studio-app .resume-view-picker select { max-width: 125px; min-width: 85px; font-size: 11px; }
+  html .studio-app .resume-view-picker button { font-size: 10px; padding: 5px 6px; }
+  html .studio-app .document-badge { display: none; }
+  html .studio-app .document-actions { gap: 7px; }
+  html .studio-app .document-actions > .studio-button { min-height: 34px; padding: 7px 9px; font-size: 11px; }
+  html .studio-app .output-language { font-size: 10px; }
+  html .studio-app .output-language button { min-height: 26px; padding: 5px 6px; }
+  html .studio-app .autosave-controls { gap: 5px; }
+  html .studio-app .autosave-switch { min-height: 32px; font-size: 10px; padding: 6px 7px; }
+  html .studio-app .autosave-settings-button { min-width: 29px; padding: 6px 4px; }
+  html .studio-app .autosave-now { min-height: 34px; padding: 7px 8px; }
+  html .studio-app .autosave-popover { position: fixed; left: 64px; right: 12px; top: 80px; width: auto; max-width: none; padding: 16px; max-height: calc(100dvh - 100px); overflow-y: auto; }
+  html .studio-app .autosave-setting-field { grid-template-columns: minmax(0,1fr) auto; gap: 7px; font-size: 11px; }
+  html .studio-app .autosave-setting-field select { min-width: 100px; max-width: 133px; padding-left: 6px; padding-right: 15px; font-size: 11px; }
+  html .studio-app .autosave-seconds-input input { width: 60px; }
+  html .studio-app .studio-main { gap: 16px; }
+  html .studio-app :is(.studio-editor-pane,.studio-preview-pane > .resume-preview) { border-radius: 13px; }
+  html .studio-app .studio-editor-pane { height: 780px; }
+  html .studio-app .studio-preview-pane { height: 780px; }
+  html .studio-app .resume-preview-stage { padding: 20px; }
+  html .studio-app .fact-editor > div:first-child { padding: 13px 12px; gap: 12px; }
+  html .studio-app .fact-editor > div:first-child > div:first-child > div { flex-wrap: wrap; }
+  html .studio-app .fact-editor > div:first-child button { font-size: 11px; padding-left: 8px; padding-right: 8px; }
+  html .studio-app .fact-editor .fact-editor-scroller { padding: 15px 12px 20px; }
+  html .studio-app .fact-editor .fact-editor-scroller > div > div:first-child > p + div { min-width: 0; width: 100%; flex-wrap: wrap; }
+  html .studio-app .fact-editor .fact-editor-scroller > div > div:first-child > p + div > select { flex: 1 1 130px; width: auto; }
+  html .studio-app .fact-editor .fact-editor-scroller > div > div:first-child > p + div > button { flex: 0 1 auto; max-width: 100%; min-height: 34px; white-space: normal; }
+  html .studio-app .fact-editor article > div:first-child { padding: 13px 11px; }
+  html .studio-app .fact-editor article > div:nth-child(2) { padding: 14px 11px; }
+  html .studio-app .fact-editor article > div:first-child > div > span { display: none; }
+  html .studio-app .fact-editor [data-editor-anchor^="claim:"] { padding: 10px; }
+  html .studio-app .fact-editor [data-editor-anchor="profile"] > div { padding: 15px 12px; }
+  html .studio-app .fact-editor [data-editor-anchor="profile:photo"] { gap: 10px; }
+  html .studio-app .fact-editor [data-editor-anchor="profile:photo"] > div:nth-child(2) > div { flex-wrap: wrap; }
+  html .studio-app .fact-editor [data-editor-anchor^="claim:"] .text-format-toolbar { gap: 1px; }
+  html .studio-app .formatted-field textarea { padding: 10px; font-size: 13px; }
+  html .studio-app .jd-workspace-invite { padding: 13px 12px; gap: 9px; }
+  html .studio-app .jd-workspace-invite strong { font-size: 11px; }
+  html .studio-app .jd-workspace-invite small { font-size: 10px; }
+  html .studio-app .studio-footer { font-size: 9px; gap: 6px; padding-top: 11px; padding-bottom: 15px; }
+}
+@media screen and (max-width:390px) {
+  html .studio-app { --atelier-gutter: 10px; }
+  html .studio-app .workspace-preference-group button { padding-left: 5px; padding-right: 5px; }
+  html .studio-app .workspace-preference-label { padding: 0 3px; }
+  html .studio-app .workspace-preference-label > span { display: none; }
+  html .studio-app .studio-brand strong { font-size: 19px; }
+  html .studio-app .document-actions { gap: 6px; }
+  html .studio-app .autosave-settings-button { min-width: 26px; }
+  html .studio-app .output-language > svg { display: none; }
+  html .studio-app .fact-editor article > div:first-child > button > div > div > span:first-child { font-size: 13px; }
+}
+@media screen and (prefers-reduced-motion:reduce) {
+  html .studio-app :is(.studio-button,.studio-rail button,.document-dropdown,.autosave-popover,.workspace-preference-group button,.studio-splitter-line,.studio-splitter::before,.fact-editor article,.formatted-field,.jd-workspace-invite) { animation: none; transition: none; }
+  html .studio-app :is(.studio-button,.studio-rail button):active:not(:disabled) { transform: none; }
+}

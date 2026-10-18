@@ -1,9 +1,10 @@
 import { useUiPreferences } from "../lib/ui-preferences";
-import { useState, useRef, useLayoutEffect, useEffect, useCallback } from "react";
-import { getResumeLayout, projectedResumeToMarkdown, projectedResumeToRenderCvYaml, type ProjectedResume, type ResumeView } from "@better-me/core";
-import { Printer, FileDown, Copy, Check, Layout, ZoomIn, ZoomOut, User, Maximize2, ScanLine } from "lucide-react";
+import { useState, useRef, useLayoutEffect, useEffect, useCallback, useId } from "react";
+import { projectedResumeToMarkdown, projectedResumeToRenderCvYaml, type ProjectedResume, type ResumeView } from "@better-me/core";
+import { getResumePrintCss } from "../lib/resume-print";
+import { Printer, FileDown, Copy, Check, Layout, ZoomIn, ZoomOut, User, Maximize2, ScanLine, ChevronDown, HelpCircle } from "lucide-react";
 import { RESUME_TEMPLATES, resolveResumeTemplate, ResumeTemplate } from "./ResumeTemplate";
-import { getTemplateUiMetadata } from "./ResumeDesignPanel";
+import { getTemplateUiMetadata, TEMPLATE_SOURCES } from "./template-catalog";
 import { getFitPreviewZoom, getPreviewScrollTop, resolvePreviewAnchor, type PreviewFollowTarget } from "../lib/preview-follow";
 import { projectedResumeToDocx } from "../lib/docx-export";
 import "./resume-design.css";
@@ -25,6 +26,19 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
   const [copyError, setCopyError] = useState("");
   const [exportNotes, setExportNotes] = useState<string[]>([]);
   const [docxExporting, setDocxExporting] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+  const exportTriggerRef = useRef<HTMLButtonElement>(null);
+  const exportPanelRef = useRef<HTMLDivElement>(null);
+  const exportKeyboardRef = useRef<"first" | "last" | null>(null);
+  const exportMenuId = useId();
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const helpRef = useRef<HTMLDivElement>(null);
+  const helpTriggerRef = useRef<HTMLButtonElement>(null);
+  const helpPanelRef = useRef<HTMLDivElement>(null);
+  const helpId = useId();
+  const paperRef = useRef<HTMLDivElement>(null);
+  const animatedTemplateRef = useRef<string | null>(null);
   const [zoom, setZoom] = useState(80);
   const [fitMode, setFitMode] = useState(true);
   const [followEnabled, setFollowEnabled] = useState(() => {
@@ -45,7 +59,6 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
   const templateId = resolveResumeTemplate(resume.templateId);
   const template = getTemplateUiMetadata(templateId, locale);
   const isAts = templateId === "en-ats";
-  const pageMargin = Math.max(12, Math.min(28, getResumeLayout(resume.layout).pageMargin));
   const updateFitWidth = useCallback(() => {
     const canvas = canvasRef.current;
     const stage = stageRef.current;
@@ -95,6 +108,68 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
     try { localStorage.setItem(FOLLOW_PREFERENCE_KEY, String(followEnabled)); }
     catch { /* A UI preference must not interfere with document saving. */ }
   }, [followEnabled]);
+
+  useEffect(() => {
+    if (!isExportMenuOpen && !isHelpOpen) return;
+    if (isExportMenuOpen && exportKeyboardRef.current) {
+      const items = exportMenuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)');
+      const index = exportKeyboardRef.current === "last" ? (items?.length ?? 1) - 1 : 0;
+      items?.[index]?.focus();
+      exportKeyboardRef.current = null;
+    }
+    const close = (event: PointerEvent) => {
+      if (!exportMenuRef.current?.contains(event.target as Node)) setIsExportMenuOpen(false);
+      if (!helpRef.current?.contains(event.target as Node)) setIsHelpOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (isExportMenuOpen) {
+        setIsExportMenuOpen(false);
+        if (exportMenuRef.current?.contains(event.target as Node)) { event.stopPropagation(); exportTriggerRef.current?.focus(); }
+      }
+      if (isHelpOpen) {
+        setIsHelpOpen(false);
+        if (helpRef.current?.contains(event.target as Node)) { event.stopPropagation(); helpTriggerRef.current?.focus(); }
+      }
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", escape); };
+  }, [isExportMenuOpen, isHelpOpen]);
+
+  useLayoutEffect(() => {
+    const panel = isExportMenuOpen ? exportPanelRef.current : isHelpOpen ? helpPanelRef.current : null;
+    if (!panel) return;
+    const place = () => {
+      if (isHelpOpen && helpTriggerRef.current && helpPanelRef.current) {
+        const toolbar = helpTriggerRef.current.closest(".preview-toolbar");
+        if (toolbar) helpPanelRef.current.style.top = `${helpTriggerRef.current.getBoundingClientRect().bottom - toolbar.getBoundingClientRect().top + 9}px`;
+      }
+    };
+    place();
+    // A stacked workspace can put its toolbar at the viewport's lower edge.
+    // An explicit open should reveal the entire surface without a hidden menu.
+    panel.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [isExportMenuOpen, isHelpOpen]);
+
+  // Animate only an explicit template change. Typing, zooming and saving keep
+  // the same paper DOM and never restart a presentation animation.
+  useEffect(() => {
+    const previousTemplate = animatedTemplateRef.current;
+    animatedTemplateRef.current = templateId;
+    if (previousTemplate === null || previousTemplate === templateId) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const animation = paperRef.current?.animate?.(
+      [{ opacity: .65, transform: "translateY(6px)" }, { opacity: 1, transform: "translateY(0)" }],
+      { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" },
+    );
+    // Interrupting a presentation transition is expected when switching again.
+    // Consume the platform's rejected finished promise before canceling it.
+    void animation?.finished?.catch(() => {});
+    return () => animation?.cancel();
+  }, [templateId]);
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
@@ -152,7 +227,7 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
       const url = URL.createObjectURL(new Blob([result.yaml], { type: "application/yaml;charset=utf-8" }));
       const link = document.createElement("a"); link.href = url; link.download = `better-me-rendercv-${resume.locale}.yaml`; link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setExportNotes([t(`已导出 RenderCV ${result.targetVersion} YAML；需在本地 RenderCV 中渲染。`, `Exported RenderCV ${result.targetVersion} YAML; render it with local RenderCV.`), ...result.diagnostics.map((item) => item.message)]);
+      setExportNotes([t(`已导出 RenderCV ${result.targetVersion} YAML；需在本地 RenderCV 中渲染。`, `Exported RenderCV ${result.targetVersion} YAML; render it with local RenderCV.`), ...(resume.themeId ? [t("RenderCV 使用自身的主题与字体设置；本次 YAML 不复现所选简历主题。保留纸面风格请导出 PDF。", "RenderCV uses its own theme and font settings. This YAML does not reproduce the selected resume theme. Export PDF to keep the paper styling.")] : []), ...result.diagnostics.map((item) => item.message)]);
     } catch (err) { setCopyError(err instanceof Error ? err.message : t("RenderCV 导出失败。", "RenderCV export failed.")); }
   }
 
@@ -179,48 +254,80 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
   }
 
   return (
-    <section className="resume-preview flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[var(--color-line)] bg-slate-100/70 shadow-sm" aria-label={t("简历预览", "Resume preview")}>
-      <style media="print">{`@page { size: A4; margin: ${pageMargin}mm; }`}</style>
-      <div className="no-print border-b border-[var(--color-line)] bg-white px-4 py-3 shadow-2xs">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Layout className="h-4 w-4 text-[var(--color-accent)]" aria-hidden="true" />
-            <label htmlFor="resume-template" className="text-xs font-bold text-slate-700">{t("模板", "Template")}</label>
-            <select id="resume-template" value={templateId} onChange={(event) => { if (onTemplateChange) onTemplateChange(event.target.value); else if (view && onViewChange) onViewChange({ ...view, templateId: event.target.value, updatedAt: new Date().toISOString() }); }} className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 outline-none focus:border-[var(--color-accent)]">
-              {RESUME_TEMPLATES.map((item) => <option key={item.id} value={item.id}>{getTemplateUiMetadata(item.id, locale).name}</option>)}
+    <section className="resume-preview flex min-h-0 flex-col overflow-hidden" aria-label={t("简历预览", "Resume preview")}>
+      <style media="print">{getResumePrintCss(resume)}</style>
+      <div className="preview-toolbar no-print">
+        <div className="preview-toolbar-main">
+          <div className="preview-template-control">
+            <label htmlFor="resume-template"><Layout size={15} aria-hidden="true" />{t("模板", "Template")}</label>
+            <select id="resume-template" value={templateId} onChange={(event) => { if (onTemplateChange) onTemplateChange(event.target.value); else if (view && onViewChange) onViewChange({ ...view, templateId: event.target.value, updatedAt: new Date().toISOString() }); }}>
+              {TEMPLATE_SOURCES.map((source) => <optgroup key={source.id} label={source[locale]}>{RESUME_TEMPLATES.filter((item) => item.source === source.id).map((item) => <option key={item.id} value={item.id}>{getTemplateUiMetadata(item.id, locale).name}</option>)}</optgroup>)}
             </select>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <div className="mr-1 flex items-center gap-1 border-r border-slate-200 pr-2">
-              <button type="button" onClick={() => changeZoom(-10)} disabled={!fitMode && zoom <= 20} className="rounded p-1 text-slate-500 hover:text-slate-900 disabled:opacity-30" aria-label={t("缩小预览", "Zoom out")}><ZoomOut className="h-3.5 w-3.5" /></button>
-              <output className="w-9 text-center font-mono text-[11px] text-slate-500" aria-label={t("预览缩放比例", "Preview zoom")}>{zoom}%</output>
-              <button type="button" onClick={() => changeZoom(10)} disabled={!fitMode && zoom >= 130} className="rounded p-1 text-slate-500 hover:text-slate-900 disabled:opacity-30" aria-label={t("放大预览", "Zoom in")}><ZoomIn className="h-3.5 w-3.5" /></button>
-              <button type="button" onClick={fitWidth} className={`rounded p-1 ${fitMode ? "bg-emerald-50 text-emerald-800" : "text-slate-500 hover:text-slate-900"}`} aria-label={t("适应预览宽度", "Fit preview width")} aria-pressed={fitMode} title={t("适应宽度，拖动分栏时自动调整", "Fit width and resize automatically when dragging the divider")}><Maximize2 className="h-3.5 w-3.5" /></button>
+          <div className="preview-export-actions">
+            <div className="preview-help" ref={helpRef} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setIsHelpOpen(false); }}>
+              <button ref={helpTriggerRef} type="button" className="preview-icon-button" aria-label={t("预览与导出说明", "Preview and export information")} aria-expanded={isHelpOpen} aria-controls={helpId} onClick={() => { setIsHelpOpen((value) => !value); setIsExportMenuOpen(false); }}><HelpCircle size={16} /></button>
+              {isHelpOpen && <div ref={helpPanelRef} id={helpId} className="preview-help-panel" role="region" aria-label={t("预览与导出说明", "Preview and export information")}>
+                <strong>{template.name}</strong><p>{template.description}</p>
+                <p>{t("缩放仅影响预览。DOCX 为可编辑单栏正文，不含照片；PDF 保留所选模板。", "Zoom affects preview only. DOCX is editable single-column content without photos; PDF keeps the selected template.")}</p>
+              </div>}
             </div>
-            <button type="button" onClick={() => { manualPreviewRef.current = false; setFollowEnabled((value) => !value); }} aria-pressed={followEnabled} title={t("跟随左侧编辑位置；手动浏览预览后，继续编辑会恢复跟随", "Follow the editor position; editing resumes following after manual preview browsing")} className={`preview-follow-toggle inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${followEnabled ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-600"}`}>
-              <ScanLine className="h-3.5 w-3.5" aria-hidden="true" /><span>{t("跟随编辑", "Follow editing")}</span>
-            </button>
-            {(view || resume.profile.avatarUrl) && (
-              <button type="button" onClick={toggleAvatar} disabled={isAts} aria-pressed={!isAts && showAvatar} title={isAts ? t("简洁 ATS 模板固定不显示照片", "The ATS template always hides photos") : t("切换并保存照片显示偏好", "Toggle and save photo visibility")} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-default disabled:opacity-50">
-                <User className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>{isAts ? t("ATS 无照片", "ATS · no photo") : showAvatar ? t("照片：显示", "Photo: shown") : t("照片：隐藏", "Photo: hidden")}</span>
-              </button>
-            )}
-            <button type="button" onClick={() => void handleCopyMarkdown()} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-              {copied ? <Check className="h-3.5 w-3.5 text-emerald-700" /> : <Copy className="h-3.5 w-3.5" />}<span>{copied ? t("已复制 MD", "MD copied") : t("复制 MD", "Copy MD")}</span>
-            </button>
-            <button type="button" onClick={handleDownloadMarkdown} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"><FileDown className="h-3.5 w-3.5" /><span>{t("下载 MD", "Download MD")}</span></button>
-            <button type="button" onClick={() => void handleDocxExport()} disabled={docxExporting} aria-busy={docxExporting} title={t("可编辑 A4 单栏正文，不含照片；保留可见文字与基本格式", "Editable A4 single-column content without photos; preserves visible text and basic formatting")} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-50"><FileDown className="h-3.5 w-3.5" /><span>{docxExporting ? t("正在生成 DOCX…", "Creating DOCX…") : t("下载 DOCX", "Download DOCX")}</span></button>
-            <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--color-accent-hover)]"><Printer className="h-3.5 w-3.5" /><span>{t("导出 PDF / 打印", "Export PDF / Print")}</span></button>
+            <div className="preview-export" ref={exportMenuRef} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setIsExportMenuOpen(false); }}>
+              <div className="preview-export-split">
+                <button type="button" onClick={() => window.print()} className="preview-export-primary"><Printer size={15} aria-hidden="true" /><span>{t("导出 PDF / 打印", "Export PDF / Print")}</span></button>
+                <button ref={exportTriggerRef} type="button" className="preview-export-toggle" aria-label={t("更多导出格式", "More export formats")} aria-haspopup="menu" aria-expanded={isExportMenuOpen} aria-controls={exportMenuId} onClick={() => { setIsExportMenuOpen((value) => !value); setIsHelpOpen(false); }} onKeyDown={(event) => {
+                  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                    event.preventDefault();
+                    const edge = event.key === "ArrowUp" ? "last" : "first";
+                    if (isExportMenuOpen) {
+                      const items = exportMenuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)');
+                      items?.[edge === "last" ? items.length - 1 : 0]?.focus();
+                    } else {
+                      exportKeyboardRef.current = edge;
+                      setIsExportMenuOpen(true);
+                    }
+                    setIsHelpOpen(false);
+                  }
+                }}><ChevronDown size={15} aria-hidden="true" /></button>
+              </div>
+              {isExportMenuOpen && <div ref={exportPanelRef} id={exportMenuId} className="preview-export-menu" role="menu" aria-label={t("更多导出格式", "More export formats")} onKeyDown={(event) => {
+                if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+                event.preventDefault();
+                const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)'));
+                const current = items.indexOf(document.activeElement as HTMLButtonElement);
+                const next = event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : (current + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+                items[next]?.focus();
+              }}>
+                <div className="preview-menu-heading">{t("其他格式", "Other formats")}</div>
+                <button type="button" role="menuitem" onClick={() => { setIsExportMenuOpen(false); exportTriggerRef.current?.focus(); void handleDocxExport(); }} disabled={docxExporting} aria-busy={docxExporting}><FileDown size={17} /><span>{docxExporting ? t("正在生成 DOCX…", "Creating DOCX…") : t("下载 DOCX", "Download DOCX")}<small>{t("可编辑文档", "Editable document")}</small></span><span className="preview-format-extension">.docx</span></button>
+                <button type="button" role="menuitem" onClick={() => { setIsExportMenuOpen(false); exportTriggerRef.current?.focus(); void handleCopyMarkdown(); }}>{copied ? <Check size={17} /> : <Copy size={17} />}<span>{copied ? t("已复制 MD", "MD copied") : t("复制 MD", "Copy MD")}<small>{t("复制为 Markdown", "Copy as Markdown")}</small></span></button>
+                <button type="button" role="menuitem" onClick={() => { setIsExportMenuOpen(false); exportTriggerRef.current?.focus(); handleDownloadMarkdown(); }}><FileDown size={17} /><span>{t("下载 MD", "Download MD")}<small>{t("纯文本与基本格式", "Text and basic formatting")}</small></span><span className="preview-format-extension">.md</span></button>
+                <div className="preview-menu-divider" role="separator" />
+                <button type="button" role="menuitem" onClick={() => { setIsExportMenuOpen(false); exportTriggerRef.current?.focus(); handleRenderCvExport(); }}><FileDown size={17} /><span>{t("导出 RenderCV YAML", "Export RenderCV YAML")}<small>{t("用于本地 RenderCV", "For local RenderCV")}</small></span><span className="preview-format-extension">.yaml</span></button>
+              </div>}
+            </div>
           </div>
         </div>
-        <p className="mt-2 text-[11px] leading-relaxed text-slate-500">{template.description} {t(" 缩放仅影响预览。DOCX 为可编辑单栏正文，不含照片；PDF 保留所选模板。", "Zoom affects preview only. DOCX is editable single-column content without photos; PDF keeps the selected template.")}</p>
-        {copyError && <p role="status" className="mt-1 text-xs text-amber-800">{copyError}</p>}
-        <div className="mt-2 flex flex-wrap items-start gap-2"><button type="button" className="studio-button" onClick={handleRenderCvExport}><FileDown size={13} />{t("导出 RenderCV YAML", "Export RenderCV YAML")}</button>{exportNotes.length > 0 && <details className="text-[11px] text-slate-500"><summary className="cursor-pointer">{t(`导出说明（${exportNotes.length}）`, `Export notes (${exportNotes.length})`)}</summary><ul className="mt-2 max-w-xl list-disc space-y-1 pl-4" role="status">{exportNotes.map((note, index) => <li key={index}>{note}</li>)}</ul></details>}</div>
+        <div className="preview-toolbar-secondary">
+          <span className="preview-paper-spec"><span className="preview-live-dot" />{t("实时预览", "Live preview")}<span className="preview-spec-divider" />A4</span>
+          <div className="preview-zoom-control" role="group" aria-label={t("预览缩放", "Preview zoom controls")}>
+            <button type="button" onClick={() => changeZoom(-10)} disabled={!fitMode && zoom <= 20} aria-label={t("缩小预览", "Zoom out")}><ZoomOut size={14} /></button>
+            <output aria-label={t("预览缩放比例", "Preview zoom")}>{zoom}%</output>
+            <button type="button" onClick={() => changeZoom(10)} disabled={!fitMode && zoom >= 130} aria-label={t("放大预览", "Zoom in")}><ZoomIn size={14} /></button>
+            <button type="button" onClick={fitWidth} aria-label={t("适应预览宽度", "Fit preview width")} aria-pressed={fitMode} title={t("适应宽度，拖动分栏时自动调整", "Fit width and resize automatically when dragging the divider")}><Maximize2 size={14} /></button>
+          </div>
+          <div className="preview-display-controls">
+            <button type="button" className="preview-follow-toggle" onClick={() => { manualPreviewRef.current = false; setFollowEnabled((value) => !value); }} aria-pressed={followEnabled} title={t("跟随左侧编辑位置；手动浏览预览后，继续编辑会恢复跟随", "Follow the editor position; editing resumes following after manual preview browsing")}><ScanLine size={14} /><span>{t("跟随编辑", "Follow editing")}</span></button>
+            {(view || resume.profile.avatarUrl) && <button type="button" onClick={toggleAvatar} disabled={isAts} aria-pressed={!isAts && showAvatar} title={isAts ? t("简洁 ATS 模板固定不显示照片", "The ATS template always hides photos") : t("切换并保存照片显示偏好", "Toggle and save photo visibility")}><User size={14} /><span>{isAts ? t("ATS 无照片", "ATS · no photo") : showAvatar ? t("照片：显示", "Photo: shown") : t("照片：隐藏", "Photo: hidden")}</span></button>}
+          </div>
+        </div>
+        {copied && !copyError && <p role="status" className="preview-feedback"><Check size={13} />{t("Markdown 已复制", "Markdown copied")}</p>}
+        {copyError && <p role="status" className="preview-feedback preview-feedback-error">{copyError}</p>}
+        {exportNotes.length > 0 && <details className="preview-export-notes"><summary>{t(`导出说明（${exportNotes.length}）`, `Export notes (${exportNotes.length})`)}</summary><ul role="status">{exportNotes.map((note, index) => <li key={index}>{note}</li>)}</ul></details>}
       </div>
       <div ref={canvasRef} className="resume-preview-canvas min-h-0 flex-1" tabIndex={0} aria-label={t("可滚动简历纸张", "Scrollable resume page")} onWheelCapture={pauseForManualPreview} onPointerDownCapture={pauseForManualPreview} onTouchStartCapture={pauseForManualPreview} onKeyDownCapture={(event) => { if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) pauseForManualPreview(); }}>
         <div ref={stageRef} className="resume-preview-stage" onLoadCapture={followCurrentTarget}>
-          <div className="resume-preview-scale" style={{ zoom: zoom / 100 }}>
+          <div ref={paperRef} className="resume-preview-scale" style={{ zoom: zoom / 100 }}>
             <ResumeTemplate resume={resume} templateId={templateId} showAvatar={showAvatar} />
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { useUiPreferences } from "../lib/ui-preferences";
 import { useId, useState } from "react";
 import type { ClaimIssue, FactBase } from "@better-me/core";
-import { ShieldAlert, ShieldCheck, ChevronDown, ChevronRight, Info } from "lucide-react";
+import { ShieldAlert, ChevronDown, ChevronRight, Info } from "lucide-react";
 import { getIssueGuidance } from "../lib/issue-guidance";
 import { createIssueNavigation } from "../lib/issue-navigation";
 
@@ -28,15 +28,7 @@ export function IssuesPanel({ issues, factBase, onNavigate, activeIssue }: Props
   };
 
   if (issues.length === 0) {
-    return (
-      <div className="no-print flex items-center justify-between rounded-xl border border-emerald-200/80 bg-emerald-50/70 px-4 py-2.5 text-xs text-emerald-800 shadow-2xs">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-emerald-600" />
-          <span className="font-semibold">{t("内容检查：", "Content review:")}</span>
-          <span>{t("未发现待确认的量化或明显空洞表述。投递前请核对真实经历。", "No unverified metrics or obvious vague wording found. Check your actual experience before applying.")}</span>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (

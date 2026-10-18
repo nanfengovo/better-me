@@ -104,9 +104,11 @@
 .opportunity-timeline span { color:#a0af8d; }
 .opportunity-workspace button:disabled,.opportunity-workspace select:disabled { opacity:.5; cursor:not-allowed; }
 .opportunity-workspace button:focus-visible,.opportunity-workspace a:focus-visible { outline:2px solid #6d8f4f; outline-offset:3px; }
-.resume-view-picker { display:flex; align-items:center; gap:6px; margin:9px 0 0; flex-wrap:wrap; }
-.resume-view-picker select { min-width:130px; max-width:240px; border:1px solid #dfe5d6; background:#fffefb; border-radius:6px; padding:6px; color:#778769; font-size:11px; }
-.resume-view-picker button { padding:4px 7px; font-size:10px; color:#8b9b7a; cursor:pointer; border:1px solid #e0e7d5; border-radius:5px; }
+.resume-view-picker { display:inline-flex; align-items:center; gap:6px; margin:0; flex-wrap:wrap; }
+.resume-view-picker select { min-width:110px; max-width:180px; border:1px solid #dfe5d6; background:#fffefb; border-radius:6px; padding:4px 7px; color:#586a4e; font-size:11px; outline:none; }
+.resume-view-picker button { padding:3px 7px; font-size:10px; font-weight:500; color:#67785a; cursor:pointer; border:1px solid #e0e7d5; border-radius:5px; background:#fff; transition:background .15s, border-color .15s; }
+.resume-view-picker button:hover:not(:disabled) { background:#eff4e8; color:#2c4b37; border-color:#b9cbb0; }
+.resume-view-picker button:disabled { opacity:.4; cursor:default; }
 .resource-workspace { padding:30px 32px; overflow:auto; width:100%; }
 .resource-tabs { display:flex; gap:8px; margin:24px 0; flex-wrap:wrap; }
 .resource-tabs button { border:1px solid #dde5d1; border-radius:7px; padding:8px 13px; color:#889b70; font-size:11px; cursor:pointer; }

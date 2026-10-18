@@ -93,15 +93,13 @@
 
   /* Original workbench surfaces and text. These class names never occur in paper. */
   html[data-theme="dark"] :is(.studio-app,.studio-panel-slot>.fact-editor,.studio-loading,.recovery-screen) { background:var(--ui-canvas); color:var(--ui-text); }
-  html[data-theme="dark"] :is(.studio-rail,.studio-header,.editor-workspace-tabs,.fact-editor>div:first-child,.fact-editor article>div:first-child,.resume-preview>div:first-child,.text-format-toolbar) { background:var(--ui-surface-raised); border-color:var(--ui-border); }
+  html[data-theme="dark"] :is(.studio-rail,.studio-header,.fact-editor>div:first-child,.fact-editor article>div:first-child,.text-format-toolbar) { background:var(--ui-surface-raised); border-color:var(--ui-border); }
   html[data-theme="dark"] :is(.studio-editor-pane,.fact-editor article,.formatted-field,.document-dropdown,.autosave-popover,.recovery-card) { background:var(--ui-surface); border-color:var(--ui-border); }
   html[data-theme="dark"] :is(.studio-monogram,.studio-brand strong,.document-title-row input,.recovery-card h1,.design-intro h2) { color:var(--ui-text); }
-  html[data-theme="dark"] :is(.studio-brand,.studio-eyebrow,.document-heading p,.studio-footer,.document-badge,.header-location,.rail-local,.document-dropdown button span,.resume-preview>div:first-child p,.format-selection-hint) { color:var(--ui-text-muted); }
-  html[data-theme="dark"] :is(.studio-rail button,.editor-workspace-tabs button,.document-dropdown button,.text-format-toolbar button,.text-format-toolbar select) { color:var(--ui-text-secondary); }
+  html[data-theme="dark"] :is(.studio-brand,.studio-eyebrow,.document-heading p,.studio-footer,.document-badge,.header-location,.rail-local,.document-dropdown button span,.format-selection-hint) { color:var(--ui-text-muted); }
+  html[data-theme="dark"] :is(.studio-rail button,.document-dropdown button,.text-format-toolbar button,.text-format-toolbar select) { color:var(--ui-text-secondary); }
   html[data-theme="dark"] :is(.rail-divider,.format-divider) { background:var(--ui-border); }
-  html[data-theme="dark"] :is(.studio-rail button.active,.output-language button.active,.editor-workspace-tabs button.active,.text-format-toolbar button[aria-pressed="true"]) { color:var(--ui-accent); background:var(--ui-accent-soft); }
-  html[data-theme="dark"] .editor-workspace-tabs button.active { background:transparent; }
-  html[data-theme="dark"] .editor-workspace-tabs button.active::after { background:var(--ui-accent); }
+  html[data-theme="dark"] :is(.studio-rail button.active,.output-language button.active,.text-format-toolbar button[aria-pressed="true"]) { color:var(--ui-accent); background:var(--ui-accent-soft); }
   html[data-theme="dark"] :is(.studio-rail button:hover,.document-dropdown button:hover,.text-format-toolbar button:hover:not(:disabled)) { background:var(--ui-hover); color:var(--ui-text); }
   html[data-theme="dark"] :is(.document-badge,.document-dropdown hr,.output-language,.studio-preview-pane>.resume-preview,.resume-view-picker button) { border-color:var(--ui-border); }
   html[data-theme="dark"] :is(.output-language,.studio-user,.studio-splitter-line,.studio-splitter-value) { background:var(--ui-surface-soft); color:var(--ui-text-secondary); border-color:var(--ui-border); }
@@ -274,8 +272,6 @@
   .workspace-preference-group button { min-height:30px; padding:5px 7px; }
   .save-indicator { text-align:left; max-width:none; flex:1; }
   .studio-header .studio-user { width:26px; height:26px; }
-  .editor-workspace-tabs { padding:0 12px; gap:14px; }
-  html[data-ui-locale="en"] .editor-workspace-tabs { gap:10px; }
   .document-title-row { min-width:0; width:100%; }
   .document-title-row input { min-width:0; max-width:100%; }
   .document-actions>.studio-button { white-space:normal; text-align:center; }

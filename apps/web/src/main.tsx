@@ -20,6 +20,8 @@ import "./components/templates/lppl-community-themes.css";
 import "./components/templates/cc-community-themes.css";
 import "./components/templates/deedy-theme.css";
 import "./components/templates/rickosborne-theme.css";
+import "./atelier.css";
+import "./components/preview-toolbar.css";
 import "./components/template-gallery.css";
 
 const uiPreferences = initializeUiAppearance();
