@@ -25,6 +25,7 @@ const INSPECT_TIMEOUT_MS = 10_000;
 const FOCUS_TIMEOUT_MS = 5_000;
 const INSPECT_SNAPSHOT_TIMEOUT_MS = 1_000;
 const BLANK_PAGE_WAIT_MS = 2_400;
+const SEARCH_UNKNOWN_WAIT_MS = 8_000;
 const MAX_RESOURCE_ISSUES = 30;
 const DIAGNOSTIC_RESOURCE_TYPES = new Set(["document", "script", "stylesheet", "xhr", "fetch", "image", "font"]);
 type Timer = ReturnType<typeof setTimeout>;
@@ -670,6 +671,7 @@ export function createBrowserSessionManager(options: BrowserSessionOptions = {})
       if (operation.routeFor(new URL(session.url)).proxyUrl !== session.operation?.routeFor(new URL(session.url)).proxyUrl) throw failure("browser_unavailable", "网络设置已变化，请先关闭岗位专用浏览器再重开。");
       const page = session.page!;
       const deadline = now() + 40_000;
+      const unknownDeadline = now() + SEARCH_UNKNOWN_WAIT_MS;
       let previous = "", stableAt = 0, invalidSince: number | undefined;
       const last = failure("unsupported_page", "尚未取得可确认的搜索结果，请在专用页面核对登录、地区和关键词后再读取。", "page");
       while (now() < deadline) {
@@ -715,9 +717,16 @@ export function createBrowserSessionManager(options: BrowserSessionOptions = {})
         const result = extractJobSearchCards({ ...snapshot, ...(captureTruncated ? { captureTruncated: true } : {}) }, session.platform);
         const key = JSON.stringify([before.navigation, snapshot.url, result]);
         if (previous !== key) { previous = key; stableAt = now(); }
-        else if (now() - stableAt >= 800
+        // A stable SPA shell is not a loaded results list. Re-sample unknown
+        // layouts for one bounded grace period without navigating or clicking.
+        // The absolute deadline cannot be extended by changing unknown markup.
+        if (result.status === "unknown_layout" && now() < unknownDeadline) {
+          await (options.sleep ?? pause)(400, operationSignal); continue;
+        }
+        if (now() - stableAt >= 800
           && !documentSnapshotState(session) && session.navigationGeneration === requestGeneration
           && session.snapshotNavigation === before.navigation && page.url() === before.url) return result;
+        if (result.status === "unknown_layout") throw last;
         await (options.sleep ?? pause)(400, operationSignal);
       }
       throw last;

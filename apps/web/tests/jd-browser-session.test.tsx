@@ -161,6 +161,83 @@ test("standard search rejects changed keyword/location and forged snapshot URLs,
   }
 });
 
+test("standard search waits through a complete but unrendered SPA shell and accepts later stable cards without navigating again", async () => {
+  const f = fixture();
+  f.setNavigation(url => ({ url, html: "<body></body>", title: "Jobs", pageLoad: { readyState: "complete", content: "empty", visibleFrames: 0 } }));
+  const info = await f.manager.startSearch("owner", linkedinSearchInput), started = f.now();
+  const evaluate = f.page.evaluate;
+  f.page.evaluate = async () => {
+    if (f.now() - started >= 2_800) f.setSnapshot({ url: linkedinSearchUrl, html: linkedinSearchHtml, title: "Jobs" });
+    return evaluate();
+  };
+  try {
+    const result = await f.manager.readSearch("owner", info.sessionId);
+    assert.equal(result.status, "ready"); assert.equal(result.cards.length, 1);
+    assert.equal(f.now() - started, 3_600);
+    assert.deepEqual(f.navigations, [linkedinSearchUrl]); assert.equal(f.count().closed, 0);
+  } finally { await f.manager.closeAll(); }
+});
+
+test("standard search returns honest stable unknown diagnostics after eight seconds and cannot extend that budget with changing layouts", async () => {
+  for (const changing of [false, true]) {
+    const f = fixture(); f.setNavigation(url => ({ url, html: "<body></body>", title: "Jobs" }));
+    const info = await f.manager.startSearch("owner", linkedinSearchInput), started = f.now();
+    if (changing) {
+      let attempt = 0;
+      f.page.evaluate = async () => ({ url: linkedinSearchUrl, title: "Jobs", html: '<div class="base-search-card">Still loading</div>'.repeat(++attempt % 2 + 1) });
+    }
+    try {
+      if (changing) await assert.rejects(f.manager.readSearch("owner", info.sessionId), isFailure("unsupported_page"));
+      else {
+        const result = await f.manager.readSearch("owner", info.sessionId);
+        assert.equal(result.status, "unknown_layout"); assert.equal(result.cards.length, 0);
+        assert.match(result.warnings.join(" "), /未确认结果数量/);
+      }
+      assert.equal(f.now() - started, 8_000);
+      assert.deepEqual(f.navigations, [linkedinSearchUrl]); assert.equal(f.count().closed, 0);
+      assert.equal(f.manager.isActive("owner", info.sessionId), true);
+    } finally { await f.manager.closeAll(); }
+  }
+});
+
+test("standard search stops the loading grace promptly for explicit empty results or either gate", async () => {
+  for (const outcome of ["empty", "login_required", "verification_required"] as const) {
+    const f = fixture(); f.setNavigation(url => ({ url, html: "<body></body>", title: "Jobs" }));
+    const info = await f.manager.startSearch("owner", linkedinSearchInput), started = f.now(), evaluate = f.page.evaluate;
+    f.page.evaluate = async () => {
+      if (f.now() - started >= 1_600) f.setSnapshot({ url: linkedinSearchUrl, title: "Jobs",
+        html: outcome === "empty" ? '<div class="no-results">No matching jobs found</div>' : "",
+        ...(outcome === "empty" ? {} : { gate: outcome }) });
+      return evaluate();
+    };
+    try {
+      if (outcome === "empty") assert.equal((await f.manager.readSearch("owner", info.sessionId)).status, "empty");
+      else await assert.rejects(f.manager.readSearch("owner", info.sessionId), isFailure(outcome));
+      assert.equal(f.now() - started, outcome === "empty" ? 2_400 : 1_600);
+      assert.deepEqual(f.navigations, [linkedinSearchUrl]); assert.equal(f.count().closed, 0);
+    } finally { await f.manager.closeAll(); }
+  }
+});
+
+test("standard search loading grace remains cancellable and keeps the owned page available for a later explicit read", async () => {
+  const cancel = new AbortController(); let waited = 0;
+  const f = fixture({ sleep: async (ms, signal) => {
+    waited += ms; f.advance(ms);
+    if (waited === 1_200) cancel.abort(new Error("cancel loading wait"));
+    signal.throwIfAborted();
+  } });
+  f.setNavigation(url => ({ url, html: "<body></body>", title: "Jobs" }));
+  const info = await f.manager.startSearch("owner", linkedinSearchInput);
+  try {
+    await assert.rejects(f.manager.readSearch("owner", info.sessionId, cancel.signal), /cancel loading wait/);
+    await nextTurn();
+    assert.equal(waited, 1_200); assert.equal(f.manager.isActive("owner", info.sessionId), true); assert.equal(f.count().closed, 0);
+    f.setSnapshot({ url: linkedinSearchUrl, html: linkedinSearchHtml, title: "Jobs" });
+    assert.equal((await f.manager.readSearch("owner", info.sessionId)).status, "ready");
+    assert.deepEqual(f.navigations, [linkedinSearchUrl]);
+  } finally { await f.manager.closeAll(); }
+});
+
 test("cancelled standard search keeps an outstanding snapshot locked and cannot reuse its late result after close", async () => {
   const f = fixture(); f.setNavigation(url => ({ url, html: linkedinSearchHtml, title: "Jobs" }));
   const info = await f.manager.startSearch("owner", linkedinSearchInput);

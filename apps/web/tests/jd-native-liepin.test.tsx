@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { buildPlatformSearchRequest } from "@better-me/source-adapters/browser-contracts";
 import test from "node:test";
-import { createNativeLiepinSessions } from "../server/jd-native-liepin.ts";
+import { createNativeLiepinSessions, type NativeLiepinOptions } from "../server/jd-native-liepin.ts";
 import { NativeCaptureError, NativePageAcquisitionError, type NativeJobPlatform, type NativeLiepinPage, type NativeCapture } from "../server/jd-native-liepin-browser.ts";
 import { JdExtractionError } from "../src/lib/jd-errors.ts";
 import type { NetworkOperation } from "../server/network-proxy.ts";
@@ -17,7 +17,7 @@ const job51Html = `<title>本地测试工程师</title><link rel="canonical" hre
 const platformSources = { 猎聘: source, BOSS直聘: bossSource, "51JOB": job51Source };
 const isFailure = (code: string) => (error: unknown) => error instanceof JdExtractionError && error.failure.code === code;
 const deferred = <T,>() => { let resolve!: (value: T) => void; const promise = new Promise<T>((done) => { resolve = done; }); return { promise, resolve }; };
-function fixture(platform: NativeJobPlatform = "猎聘") {
+function fixture(platform: NativeJobPlatform = "猎聘", overrides: NativeLiepinOptions = {}) {
   let clock = 1_700_000_000_000; let captures = 0; let releases = 0; let browserStops = 0; let navigations = 0; let closeFails = false; let proxyUrl: string | undefined;
   const initial = { 猎聘: { html, url: "https://www.liepin.com/job/1984701079.shtml" }, BOSS直聘: { html: bossHtml, url: bossSource }, "51JOB": { html: job51Html, url: job51Source } }[platform];
   let snapshot: NativeCapture = { state: "ready", identity: "generation-1", snapshot: { ...initial, title: "本地测试工程师", pageLoad: { readyState: "complete", content: "visible_text", visibleFrames: 0 } } };
@@ -31,9 +31,9 @@ function fixture(platform: NativeJobPlatform = "猎聘") {
     release: async () => { releases++; if (closeFails) throw new Error("fixture close failure"); },
   };
   const operation = () => Promise.resolve({ fetch, routeFor: () => ({ mode: "direct", source: "local fixture", proxyUrl }) } as NetworkOperation);
-  const manager = createNativeLiepinSessions({ platform, browser: { acquire: async () => page, stop: async () => { browserStops++; } }, getOperation: operation, now: () => clock, sleep: async (ms, signal) => { if (signal?.aborted) throw signal.reason; clock += ms; } });
+  const manager = createNativeLiepinSessions({ platform, browser: { acquire: async () => page, stop: async () => { browserStops++; } }, getOperation: operation, now: () => clock, sleep: async (ms, signal) => { if (signal?.aborted) throw signal.reason; clock += ms; }, ...overrides });
   return { manager, page, get captures() { return captures; }, get releases() { return releases; }, get browserStops() { return browserStops; }, get navigations() { return navigations; },
-    setSnapshot: (value: NativeCapture) => { snapshot = value; }, setCloseFails: (value: boolean) => { closeFails = value; }, setProxy: (value: string) => { proxyUrl = value; }, setCurrent: (value: boolean) => { current = value; }, onCapture: (value: typeof onCapture) => { onCapture = value; }, advance: (ms: number) => { clock += ms; } };
+    setSnapshot: (value: NativeCapture) => { snapshot = value; }, setCloseFails: (value: boolean) => { closeFails = value; }, setProxy: (value: string) => { proxyUrl = value; }, setCurrent: (value: boolean) => { current = value; }, onCapture: (value: typeof onCapture) => { onCapture = value; }, advance: (ms: number) => { clock += ms; }, now: () => clock };
 }
 
 const nativeSearchProviders = { 猎聘: "liepin", BOSS直聘: "boss", "51JOB": "51job" } as const;
@@ -86,6 +86,75 @@ test("native search preserves the page on gates, rejects changed conditions and 
       if (mode === "network") assert.equal(f.captures, 0);
     } finally { await f.manager.stopBrowser(); }
   }
+});
+
+test("native search waits through a complete but unrendered SPA shell and accepts later stable cards without navigating again", async () => {
+  for (const platform of ["猎聘", "BOSS直聘", "51JOB"] as const) {
+    const f = fixture(platform), input = { provider: nativeSearchProviders[platform], keyword: "软件" };
+    const planned = buildPlatformSearchRequest(input), info = await f.manager.startSearch("owner", input), started = f.now();
+    f.setSnapshot({ state: "ready", identity: "search-document-1", snapshot: { url: planned.url, title: "岗位搜索", html: "<body></body>", pageLoad: { readyState: "complete", content: "empty", visibleFrames: 0 } } });
+    f.onCapture(() => { if (f.now() - started >= 2_800) f.setSnapshot(searchSnapshot(platform, planned.url)); });
+    try {
+      const result = await f.manager.readSearch("owner", info.sessionId);
+      assert.equal(result.status, "ready"); assert.equal(result.cards.length, 1); assert.equal(f.now() - started, 3_600);
+      assert.equal(f.navigations, 1); assert.equal(f.releases, 0);
+    } finally { await f.manager.stopBrowser(); }
+  }
+});
+
+test("native search returns honest stable unknown diagnostics after eight seconds and cannot extend that budget with changing layouts", async () => {
+  for (const changing of [false, true]) {
+    const f = fixture(), input = { provider: "liepin", keyword: "软件" } as const;
+    const planned = buildPlatformSearchRequest(input), info = await f.manager.startSearch("owner", input), started = f.now();
+    f.setSnapshot({ state: "ready", identity: "search-document-1", snapshot: { url: planned.url, title: "岗位搜索", html: "<body></body>" } });
+    if (changing) f.onCapture(count => f.setSnapshot({ state: "ready", identity: "search-document-1", snapshot: { url: planned.url, title: "岗位搜索", html: '<div class="job-card-pc-container">Still loading</div>'.repeat(count % 2 + 1) } }));
+    try {
+      if (changing) await assert.rejects(f.manager.readSearch("owner", info.sessionId), isFailure("unsupported_page"));
+      else {
+        const result = await f.manager.readSearch("owner", info.sessionId);
+        assert.equal(result.status, "unknown_layout"); assert.equal(result.cards.length, 0);
+        assert.match(result.warnings.join(" "), /未确认结果数量/);
+      }
+      assert.equal(f.now() - started, 8_000); assert.equal(f.navigations, 1); assert.equal(f.releases, 0);
+      assert.equal(f.manager.isActive("owner", info.sessionId), true);
+    } finally { await f.manager.stopBrowser(); }
+  }
+});
+
+test("native search stops the loading grace promptly for explicit empty results or either gate", async () => {
+  for (const outcome of ["empty", "login_required", "verification_required"] as const) {
+    const f = fixture(), input = { provider: "liepin", keyword: "软件" } as const;
+    const planned = buildPlatformSearchRequest(input), info = await f.manager.startSearch("owner", input), started = f.now();
+    f.setSnapshot({ state: "ready", identity: "search-document-1", snapshot: { url: planned.url, title: "岗位搜索", html: "<body></body>" } });
+    f.onCapture(() => { if (f.now() - started >= 1_600) f.setSnapshot({ state: "ready", identity: "search-document-1", snapshot: {
+      url: planned.url, title: "岗位搜索", html: outcome === "empty" ? '<div class="search-empty">暂无匹配岗位</div>' : "",
+      ...(outcome === "empty" ? {} : { gate: outcome }) } }); });
+    try {
+      if (outcome === "empty") assert.equal((await f.manager.readSearch("owner", info.sessionId)).status, "empty");
+      else await assert.rejects(f.manager.readSearch("owner", info.sessionId), isFailure(outcome));
+      assert.equal(f.now() - started, outcome === "empty" ? 2_400 : 1_600);
+      assert.equal(f.navigations, 1); assert.equal(f.releases, 0);
+    } finally { await f.manager.stopBrowser(); }
+  }
+});
+
+test("native search loading grace remains cancellable and keeps the owned page available for a later explicit read", async () => {
+  const cancel = new AbortController(); let waited = 0;
+  const f = fixture("猎聘", { sleep: async (ms, signal) => {
+    waited += ms; f.advance(ms);
+    if (waited === 1_200) cancel.abort(new Error("cancel loading wait"));
+    signal?.throwIfAborted();
+  } });
+  const input = { provider: "liepin", keyword: "软件" } as const, planned = buildPlatformSearchRequest(input);
+  const info = await f.manager.startSearch("owner", input);
+  f.setSnapshot({ state: "ready", identity: "search-document-1", snapshot: { url: planned.url, title: "岗位搜索", html: "<body></body>" } });
+  try {
+    await assert.rejects(f.manager.readSearch("owner", info.sessionId, cancel.signal), /cancel loading wait/);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(waited, 1_200); assert.equal(f.manager.isActive("owner", info.sessionId), true); assert.equal(f.releases, 0);
+    f.setSnapshot(searchSnapshot("猎聘", planned.url));
+    assert.equal((await f.manager.readSearch("owner", info.sessionId)).status, "ready"); assert.equal(f.navigations, 1);
+  } finally { await f.manager.stopBrowser(); }
 });
 
 test("cancelled native search capture keeps its lease busy until the command settles and TTL still ends the page", async () => {

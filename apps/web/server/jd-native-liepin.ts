@@ -26,6 +26,7 @@ export type NativeLiepinOptions = {
 };
 function failure(code: JdFailureCode, message: string, stage: "service" | "page" | "connect" = "page") { return new JdExtractionError({ code, stage, message }); }
 const unknownLoad = { readyState: "unknown", content: "unknown", visibleFrames: 0 } as const;
+const SEARCH_UNKNOWN_WAIT_MS = 8_000;
 function captureDiagnostic(value: unknown): SnapshotFailure | undefined {
   return isSnapshotFailure(value) ? { stage: value.stage, reason: value.reason, ...(value.detail ? { detail: value.detail } : {}) } : undefined;
 }
@@ -224,6 +225,7 @@ export function createNativeLiepinSessions(options: NativeLiepinOptions = {}) {
       const page = session.page!;
       await page.verifyNetwork?.(operationSignal); abortNative(operationSignal);
       const deadline = now() + 40_000;
+      const unknownDeadline = now() + SEARCH_UNKNOWN_WAIT_MS;
       let previous = "", since = 0, invalidSince: number | undefined;
       const last = failure("unsupported_page", "尚未取得可确认的搜索结果，请在专用页面核对登录、地区和关键词后再读取。");
       while (now() < deadline) {
@@ -252,10 +254,16 @@ export function createNativeLiepinSessions(options: NativeLiepinOptions = {}) {
         const result = extractJobSearchCards(snapshot, platform);
         const key = JSON.stringify([capture.identity, result]);
         if (previous !== key) { previous = key; since = now(); }
-        else if (now() - since >= 800 && await page.current(capture.identity, operationSignal)) {
+        // A stable SPA shell is not a loaded results list. The one absolute
+        // grace period permits passive re-sampling, never navigation or input.
+        if (result.status === "unknown_layout" && now() < unknownDeadline) {
+          await sleep(200, operationSignal); continue;
+        }
+        if (now() - since >= 800 && await page.current(capture.identity, operationSignal)) {
           abortNative(operationSignal);
           return result;
         }
+        if (result.status === "unknown_layout") throw last;
         await sleep(200, operationSignal);
       }
       throw last;
