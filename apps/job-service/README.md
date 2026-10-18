@@ -63,6 +63,8 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/jobs/search" -Headers $jobHe
 | GET | `/healthz` | 认证后的进程存活检查。 |
 | POST | `/api/v1/jobs/search` | `jobs.search`；直接传共享 `JobQuery`。 |
 | GET | `/api/v1/jobs/:jobId` | `jobs.read-detail`；旧 ID 按本次快照解析到规范岗位，返回公司、全部来源、观察与 JD 快照。 |
+| POST | `/api/v1/jobs/reviewed-cards/preview` | `jobs.preview-reviewed-cards`；校验本人核对的四平台卡片、索引版本和字段证据，返回预览指纹，不联网、不写库。 |
+| POST | `/api/v1/jobs/reviewed-cards/import` | `jobs.import-reviewed-cards`；完整预览输入加 `previewFingerprint`、`reviewed: true`，并提供 `Idempotency-Key`，原子写入卡片摘录。 |
 | GET | `/api/v1/sources` | `sources.list`；已保存来源及当前安装的适配器能力。 |
 | POST | `/api/v1/sources` | `sources.register`；`{ source, expectedRevision? }`，修改既有配置需版本号。 |
 | POST | `/api/v1/sources/:sourceId/preview` | `sources.preview`；`{ scope?, maxRecords? }`，读取一页，不写岗位索引。 |
@@ -92,6 +94,22 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/sources/my-reviewed-source/s
 ```
 
 `my-reviewed-source` 是用户自己保存的来源 ID，示例不会自动创建它。[来源配置示例](../../config/sources/examples.json)全部默认禁用、待审核；必须先核对原站、许可、稳定身份、字段映射和请求范围，再显式注册 / 启用。配置修改使同源正在进行的旧任务失效。
+
+## 用户核对的四平台卡片
+
+`jobs.preview-reviewed-cards` 和 `jobs.import-reviewed-cards` 为 51JOB、BOSS 直聘、猎聘、LinkedIn 共用的独立应用工具，Web 审核面板和 HTTP 复用同一实现。它们接受用户提供并明确核对的证据，不认证受管浏览器捕获，不访问原站，也不证明岗位仍在招；四个平台的契约支持不等于四站真实列表均已通过验收。
+
+预览输入为 `{ provider, pageUrl, capturedAt, cards, expectedRevision }`，`provider` 为 `51job | boss | liepin | linkedin`。每次 1–50 张卡片，单张必须有 `platform`、官方 HTTPS 单岗 `url`、`title`、`company`、`cardText` 和 `evidence`；`locationText`、`salaryText`、`publicationText` 可省略。`evidence` 必须含同一搜索页的 `pageUrl`、卡片 `cardSelector` 和逐字段 `{ field, selector, text }`。所有提交字段都必须有相同可见值的证据，非链接字段还必须实际出现在卡片原文中。严格契约定义见 [reviewed-cards.ts](../../packages/source-adapters/src/reviewed-cards.ts)。
+
+校验只接受匹配平台的官方搜索页 / 稳定单岗 ID 和明确字段；不接受任意数据集、坐标、企业控股结论、核实状态、来源端点策略或额外 CSS / 执行代码。抓取时间不能比服务时间超前超过 5 分钟，旧于该 listing 最近观察的卡片会被拒绝。预览基于当前 `expectedRevision`，返回 `previewFingerprint`、保留的岗位 / listing ID、新旧标志、`completeness: "excerpt"`、`availability: "unknown"` 和警告。
+
+导入必须重交同一份预览输入，并增加返回的 `previewFingerprint` 和 `reviewed: true`；`Idempotency-Key` 必填。当前 revision 或内容变化时需要重新预览，不能把旧指纹应用于新内容。导入通过主机计算的完整命令指纹和 SQLite 耐久回执恢复丢失响应：同键同内容可在索引已前进或服务重启后重放原回执，同键不同内容返回冲突，不重新投影新版本。关闭客户端或取消等待不能回滚已提交事务。
+
+每个平台使用保留来源 `reviewed-platform-<provider>`，标明原平台和“人工核对卡片”，配置禁用、无同步能力和网络访问权限；已有同 ID 来源定义不一致时拒绝写入。稳定身份由平台和原单岗 ID 确定，跟踪 URL 或 LinkedIn 标题 slug 不产生新岗位。同一捕获的所选子集或顺序不改变已有卡片观察身份；变化的原文追加新观察。标题标为 parser / unverified，真正的人工覆盖继续受保护；摘要快照单独保留，不替换已选完整 JD。
+
+地点保留原文且 `kind: "unknown"`，不从平台、搜索地区或地名推断国家 / 行政区 / 办公室或地图坐标。因此这类记录可通过全球关键词和地点原文检索，但在有结构化国家 / 国内省市区条件时可能被排除。薪资不推断原币、数值、周期或税制；发布时间仅在原文已是显式带时区的合法时间戳时映射为时间，相对时间和无时区原文保留，活跃 / 更新时间不当发布时间。缺失字段、在招状态、企业控股和完整职责要求均保持未知。
+
+Web 使用步骤见[本机岗位地图说明](../../docs/job-atlas.md#核对卡片并加入统一搜索)，实现与验证范围见[审核入库报告](../../docs/reports/job-atlas-reviewed-cards-2026-10-19.md)。本机服务提供审核入库 API；原站卡片读取仍属于本机 Vite 浏览器宿主，静态 Pages / Docker 不会因此获得浏览器控制能力。
 
 ## 查询与数据边界
 
@@ -145,5 +163,7 @@ GitHub Pages 与现有 nginx Docker 镜像仍然只发布静态网页。本包�
 pnpm --filter @better-me/job-service typecheck
 pnpm --filter @better-me/job-service test
 ```
+
+审核卡片专项见 `tests/reviewed-cards.test.ts` 和 `tests/reviewed-cards-http.test.ts`：覆盖预览零写入、未知字段、旧捕获 / 来源冲突拒绝、重开后的幂等回执、同键不同内容冲突、卡片子集顺序去重，以及实际认证 HTTP 的预览 → 导入 → 重放 → 搜索 / 详情 / 导出。`tests/projection-repository.test.ts` 进一步验证 parser 标题可按新核对更新、真正人工覆盖受保护、卡片摘录不取代完整 JD。对应 Web 审核流程和固定等待宽限测试属于独立前端 / 浏览器宿主验收。
 
 仓库根 `pnpm test` 和 `pnpm lint` 已包含本包。自动化覆盖临时目录中的真实 SQLite 事务、重开、回执、来源范围、取消 / 迟到、备份恢复、投影历史、受控 HTTP 以及生命周期。`tests/reconciliation.test.ts` 还覆盖同名不自动归并、人工身份确认、嵌套合并 / 独立撤销、源刷新后拆回最新 JD / 地点 / 薪资、旧 ID 历史解析、实际 SQL 写入故障整笔回滚、v2 完整备份及持久 v1 SQLite 升级。`tests/application-reconciliation.test.ts` 进一步通过实际 HTTP 验证合并后刷新、旧 ID 详情、规范搜索 / 导出和撤销最新来源，并覆盖 v1 升级后应用兼容及读取期间并发合并 / 撤销的快照一致性。证据见 [M2 归并报告](../../docs/reports/job-atlas-m2-reconciliation-2026-10-18.md)。这些合成检查不代表所有真实来源长期可用、生产服务器部署、私人迁移或三维地图已验收。

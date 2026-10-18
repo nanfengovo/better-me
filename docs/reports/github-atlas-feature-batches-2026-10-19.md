@@ -41,3 +41,16 @@
 收尾记录时，新远端状态为：[4e98df0 / Actions39153265664](https://github.com/nanfengovo/better-me/actions/runs/39153265664)与[f4903ae / Actions39153408986](https://github.com/nanfengovo/better-me/actions/runs/39153408986)均已success；[8ebda82 / Actions39153701727](https://github.com/nanfengovo/better-me/actions/runs/39153701727)的Windows质量检查失败，Linux构建与Docker成功，Pages skipped。失败仅为旧native TTL测试使用真实Date.now造成边界值599999与600000差1ms，不能将本轮Pages写为成功。
 
 后续仅测试两行修复 `1da8bcb0c4cab439918dbba083db5a898ba5af25` 已正常提交推送，为现有测试注入固定now / sleep，产品计时不变；66/66目标测试与ESLint通过，新CI待跑。上文1843 / types10 / build6 / Docker271对应原产品验证树，不能声称是后续测试修复后的全量重跑。自有猎聘搜索会话已明确结束，原用户tab5已重新连接5178并恢复C#结果视图，49岗 / revision22、13个文本命中 / 8家企业与9个可搜索来源已再核对；截图只保存在Git忽略目录。 文档候选批次仍待独立检查 / 提交；整个岗位地图Goal保持active。
+
+后续发布核对：`1da8bcb` 与最终文档批 `ad504ff` 已实际完成 Windows 质量、Linux 构建、Docker 和 Pages 四项 success；最终运行见 [Actions 39154486097](https://github.com/nanfengovo/better-me/actions/runs/39154486097)。上文失败和待跑状态是各自历史时点，不能继续作为最新发布状态。
+
+## 首屏等待与卡片审核入统一索引 · 2026-10-19
+
+| 提交 | 范围 | 验证与远端运行 |
+| --- | --- | --- |
+| `b1fbc6e` | unknown 布局固定 8 秒被动等待，保留门禁 / 取消 / 身份检查，避免 SPA 首屏过早返回 | 定向浏览器回归与最终独立产品检查通过；[Actions 39156486021](https://github.com/nanfengovo/better-me/actions/runs/39156486021) 的 Windows 质量 / Linux 构建 / Docker / Pages 四项已 success |
+| `53b6be6` | 严格四平台审核契约、preview / import 工具与 HTTP、SQLite 耐久重试、完整 JD 保护、Web 明确预览 / 勾选 / 提交与实际刷新 | 提交树精确等于独立验证树 `3ec471651276cd661a8a4fccab860d8fe848045b`；[Actions 39156558283](https://github.com/nanfengovo/better-me/actions/runs/39156558283) 的 Windows 质量 / Linux 构建 / Docker / Pages 四项已 success |
+
+25 个本批产品 / 测试文件从独立暂存区导出，冻结离线安装、typecheck 10/10、lint、1886/1886 测试、build 6/6 通过；失败 / 取消 / 跳过 / todo 均为 0。两个批次正常推送 main，没有 force 或历史改写。未混入 Career Agent / 导入、其依赖 / 锁文件、Docker 或共享文档中的并行内容。
+
+真实本机服务更新前完成在线完整备份及 quick_check，重启后原 49 岗 / revision 22 保留。正式主 UI 猎聘 C# / 上海首读 22 卡，明确核对一张并提交后为 50 岗 / revision 23；清地区后 C#14 文本命中 / 9 家企业。该新增岗位的原文、来源摘录和待核实地点在统一列表详情可见；自有浏览器会话已结束。原文薪资专用字段未提取、结构化地点 / 地图点以及 51JOB / BOSS 等未验边界继续保留，详见 [审核入库报告](job-atlas-reviewed-cards-2026-10-19.md)。私人证据不发布，整个岗位聚合 Goal 仍 active。
