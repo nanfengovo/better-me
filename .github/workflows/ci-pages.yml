@@ -76,9 +76,26 @@ jobs:
           path: apps/web/dist
           retention-days: 1
 
+  docker:
+    name: Docker image and HTTP checks (Linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.15.0
+          package-manager-cache: false
+      # Builds and runs the actual image, then removes only its own container.
+      # PRs validate the image locally on the runner; no registry credentials or push.
+      - name: Build and verify the static Docker distribution
+        run: node scripts/check-docker.mjs
+
   deploy:
     name: Deploy GitHub Pages
-    needs: [quality, build]
+    needs: [quality, build, docker]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
