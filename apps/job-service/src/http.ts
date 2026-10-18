@@ -13,6 +13,13 @@ export interface JobHttpOptions {
 }
 
 const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }> = [
+  { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/candidates$/, tool: "jobs.list-merge-candidates" },
+  { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/preview$/, tool: "jobs.preview-merge" },
+  { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/preview-revoke$/, tool: "jobs.preview-revoke-merge" },
+  { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/merge$/, tool: "jobs.merge" },
+  { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/reject$/, tool: "jobs.reject-merge" },
+  { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/history$/, tool: "jobs.list-merge-decisions" },
+  { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/revoke$/, tool: "jobs.revoke-merge" },
   { method: "POST", path: /^\/api\/v1\/jobs\/search$/, tool: "jobs.search" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reviewed-cards\/preview$/, tool: "jobs.preview-reviewed-cards" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reviewed-cards\/import$/, tool: "jobs.import-reviewed-cards" },

@@ -40,7 +40,7 @@ export type ImportOptions = { expectedRevision?: number; actorScope: string; ide
   requestFingerprint?: string };
 export type StartRunOptions = { sourceId: string; scope: RunScope; actorScope: string; idempotencyKey: string; requestFingerprint?: string };
 export type FindRunByRequestOptions = { actorScope: string; idempotencyKey: string; requestFingerprint: string };
-export type ReconciliationWriteOptions = Omit<ImportOptions, "runId"> & { expectedRevision: number };
+export type ReconciliationWriteOptions = Omit<ImportOptions, "runId"> & { expectedRevision: number; throwIfCancelled?: () => void };
 export type CandidateQuery = { search?: string; mode?: "exact" | "fuzzy"; viewport?: [number, number, number, number] };
 export type CandidateResult = { jobIds: string[]; indexedHits: string[]; exact: false; reason: "safe-superset"; snapshotVersion: number };
 
@@ -64,6 +64,9 @@ function json(value: unknown): string {
   return JSON.stringify(sorted(value));
 }
 function signature(value: unknown) { return createHash("sha256").update(json(value)).digest("hex"); }
+function reconciliationSignature(input: unknown, options: ReconciliationWriteOptions) {
+  return signature({ input, expectedRevision: options.expectedRevision, ...(options.requestFingerprint === undefined ? {} : { requestFingerprint: options.requestFingerprint }) });
+}
 function same(a: unknown, b: unknown) { return json(a) === json(b); }
 function compareIds(a: string, b: string) { return a < b ? -1 : a > b ? 1 : 0; }
 function union<T>(left: readonly T[], right: readonly T[]) { return [...new Set([...left, ...right])]; }
@@ -534,6 +537,22 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       return (await findMergeCandidates(state.dataset, options)).filter((candidate) => !rejected.has(JSON.stringify([candidate.leftJobId, candidate.rightJobId].sort(compareIds))));
     },
     async listMergeDecisions(): Promise<MergeDecision[]> { return transaction(decisions); },
+    /** Public review composition reads aliases, evidence and decisions under one SQLite version. */
+    async readReconciliationState() {
+      return transaction(() => {
+        const dataset = read();
+        return { dataset, originDataset: projectLocationConfirmations(baseSnapshot(dataset), locationDecisions()), decisions: decisions(), aliases: (db.prepare("SELECT job_id,canonical_job_id FROM job_aliases ORDER BY job_id").all() as Array<{ job_id: string; canonical_job_id: string }>).map(row => ({ jobId: row.job_id, canonicalJobId: row.canonical_job_id })) };
+      });
+    },
+    /** Recover a lost reviewed-command receipt before checking its now-stale preview revision. */
+    async findReconciliationReceipt(tool: "jobs.merge" | "jobs.reject-merge" | "jobs.revoke-merge", input: unknown, writeOptions: ReconciliationWriteOptions): Promise<ReconciliationReceipt | undefined> {
+      validateOptions(writeOptions);
+      const parsed = tool === "jobs.merge" ? checked(ConfirmMergeInputSchema, input) : tool === "jobs.reject-merge" ? checked(RejectMergeInputSchema, input) : checked(RevokeMergeInputSchema, input);
+      return transaction(() => {
+        const saved = receipt<ReconciliationReceipt>(writeOptions.actorScope, tool, writeOptions.idempotencyKey, reconciliationSignature(parsed, writeOptions));
+        return saved ? checked(ReconciliationReceiptSchema, saved) : undefined;
+      });
+    },
     async resolveJobId(jobId: string, options: { atRevision?: number } = {}) {
       checked(EntityIdSchema, jobId);
       if (options.atRevision !== undefined && (!Number.isSafeInteger(options.atRevision) || options.atRevision < 0)) throw new RepositoryError("invalid-data");
@@ -555,7 +574,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     },
     async mergeJobs(input: ConfirmMergeInput, writeOptions: ReconciliationWriteOptions): Promise<ReconciliationReceipt> {
       validateOptions(writeOptions); const parsed = checked(ConfirmMergeInputSchema, input);
-      const requestSignature = signature({ input: parsed, expectedRevision: writeOptions.expectedRevision });
+      const requestSignature = reconciliationSignature(parsed, writeOptions);
       const state = transaction(() => {
         const cached = receipt<ReconciliationReceipt>(writeOptions.actorScope, "jobs.merge", writeOptions.idempotencyKey, requestSignature);
         if (cached) return { cached: checked(ReconciliationReceiptSchema, cached) };
@@ -571,6 +590,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       return transaction(() => {
         const cached = receipt<ReconciliationReceipt>(writeOptions.actorScope, "jobs.merge", writeOptions.idempotencyKey, requestSignature);
         if (cached) return checked(ReconciliationReceiptSchema, cached);
+        writeOptions.throwIfCancelled?.();
         const current = read(); assertWriteVersion(writeOptions, current);
         const entry: MergeDecision = { id: `merge_${randomUUID()}`, kind: "merge", at: now(), revision: current.revision + 1, actorScope: writeOptions.actorScope, reason: parsed.reason, targetJobId: state.targetJobId!, sourceJobId: state.sourceJobId!, companyIdentityConfirmed: parsed.companyIdentityConfirmed, candidate };
         return commitDecision(current, entry, writeOptions, "jobs.merge", requestSignature);
@@ -578,17 +598,22 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     },
     async rejectMerge(input: { leftJobId: string; rightJobId: string; reason: string }, writeOptions: ReconciliationWriteOptions): Promise<ReconciliationReceipt> {
       validateOptions(writeOptions); const parsed = checked(RejectMergeInputSchema, input);
-      const requestSignature = signature({ input: parsed, expectedRevision: writeOptions.expectedRevision });
+      const requestSignature = reconciliationSignature(parsed, writeOptions);
       const state = transaction(() => {
         const cached = receipt<ReconciliationReceipt>(writeOptions.actorScope, "jobs.reject-merge", writeOptions.idempotencyKey, requestSignature);
         if (cached) return { cached: checked(ReconciliationReceiptSchema, cached) };
-        const current = read(); assertWriteVersion(writeOptions, current); return { current };
+        const current = read(); assertWriteVersion(writeOptions, current);
+        const leftJobId = aliasId(parsed.leftJobId), rightJobId = aliasId(parsed.rightJobId);
+        if (!leftJobId || !rightJobId) throw new RepositoryError("not-found");
+        if (leftJobId === rightJobId) throw new RepositoryError("conflict");
+        return { current, leftJobId, rightJobId };
       });
       if (state.cached) return state.cached;
-      const candidate = await explainMergeCandidate(state.current!, parsed);
+      const candidate = await explainMergeCandidate(state.current!, { leftJobId: state.leftJobId!, rightJobId: state.rightJobId! });
       return transaction(() => {
         const cached = receipt<ReconciliationReceipt>(writeOptions.actorScope, "jobs.reject-merge", writeOptions.idempotencyKey, requestSignature);
         if (cached) return checked(ReconciliationReceiptSchema, cached);
+        writeOptions.throwIfCancelled?.();
         const current = read(); assertWriteVersion(writeOptions, current);
         const entry: MergeDecision = { id: `merge-reject_${randomUUID()}`, kind: "reject", at: now(), revision: current.revision + 1, actorScope: writeOptions.actorScope, reason: parsed.reason, leftJobId: candidate.leftJobId, rightJobId: candidate.rightJobId, candidate };
         return commitDecision(current, entry, writeOptions, "jobs.reject-merge", requestSignature);
@@ -596,10 +621,11 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     },
     async revokeMerge(input: { decisionId: string; reason: string }, writeOptions: ReconciliationWriteOptions): Promise<ReconciliationReceipt> {
       validateOptions(writeOptions); const parsed = checked(RevokeMergeInputSchema, input);
-      const requestSignature = signature({ input: parsed, expectedRevision: writeOptions.expectedRevision });
+      const requestSignature = reconciliationSignature(parsed, writeOptions);
       return transaction(() => {
         const cached = receipt<ReconciliationReceipt>(writeOptions.actorScope, "jobs.revoke-merge", writeOptions.idempotencyKey, requestSignature);
         if (cached) return checked(ReconciliationReceiptSchema, cached);
+        writeOptions.throwIfCancelled?.();
         const current = read(); assertWriteVersion(writeOptions, current); const entries = decisions();
         const target = entries.find((entry) => entry.id === parsed.decisionId);
         if (!target) throw new RepositoryError("not-found");

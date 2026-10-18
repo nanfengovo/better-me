@@ -64,6 +64,8 @@ export type ToolDefinition<I = unknown, O = unknown> = {
   readonly outputSchema: z.ZodType<O, z.ZodTypeDef, unknown>;
   readonly effect: ToolEffect;
   readonly execute: (input: I, context: ToolHandlerContext) => O | Promise<O>;
+  /** Trusted, read-only durable-receipt lookup after a failed write result. Never resubmit the mutation here. */
+  readonly recoverInterrupted?: (input: I, context: ToolHandlerContext) => O | undefined | Promise<O | undefined>;
 };
 
 export type ToolResult<O = unknown> =
@@ -87,7 +89,8 @@ export function defineTool<I, O>(definition: ToolDefinition<I, O>): ToolDefiniti
     || definition.name.length > 150 || !Number.isSafeInteger(definition.version) || definition.version < 1
     || typeof definition.description !== "string" || !definition.description.trim() || definition.description.length > 2_000
     || !TOOL_EFFECTS.includes(definition.effect) || typeof definition.execute !== "function"
-    || !(definition.inputSchema instanceof z.ZodType) || !(definition.outputSchema instanceof z.ZodType)) {
+    || !(definition.inputSchema instanceof z.ZodType) || !(definition.outputSchema instanceof z.ZodType)
+    || definition.recoverInterrupted !== undefined && (typeof definition.recoverInterrupted !== "function" || !["local-write", "external-action"].includes(definition.effect))) {
     throw new ToolError("invalid-input");
   }
   return Object.freeze({ ...definition });
@@ -208,20 +211,29 @@ export function createToolRegistry(definitions: readonly ToolDefinition<any, any
       const receiptKey = mutating ? JSON.stringify([trusted.data.actorScope, tool.name, trusted.data.idempotencyKey]) : undefined;
       const signature = JSON.stringify([tool.version, inputText]);
       if (Date.now() >= deadline) throw new ToolError("timeout");
+      let recoveryOf: Extract<ToolResult, { ok: false }> | undefined;
       if (receiptKey) {
-        const existing = receipts.get(receiptKey);
-        if (existing) {
+        // Retain the original identity even when the first caller lost its result. A recovery
+        // only reads the durable receipt; it cannot start a second mutation or accept a new body.
+        while (true) {
+          const existing = receipts.get(receiptKey);
+          if (!existing) break;
           if (existing.signature !== signature) throw new ToolError("idempotency-conflict");
           const result = await awaitReceipt(existing.pending, context, deadline);
           if (context.signal.aborted) throw new ToolError("cancelled");
           if (Date.now() >= deadline) throw new ToolError("timeout");
+          if (receipts.get(receiptKey) !== existing) continue;
+          // The write may have committed before cancellation, serialization, schema or budget
+          // validation failed. Lookup is read-only for any cached failure; absent a receipt the
+          // original failure remains and the mutation is never submitted a second time.
+          if (!result.ok && tool.recoverInterrupted) { recoveryOf = result; break; }
           if (result.ok) jsonText(result.value, "invalid-output", trusted.data.budget.bytes);
           const detached = detachedResult<O>(result, requestId);
           if (Date.now() >= deadline) throw new ToolError("timeout");
           return detached;
         }
       }
-      if (receiptKey && receipts.size >= 10_000) throw new ToolError("budget-exceeded");
+      if (receiptKey && !receipts.has(receiptKey) && receipts.size >= 10_000) throw new ToolError("budget-exceeded");
 
       const run = async (): Promise<ToolResult> => {
         const controller = new AbortController();
@@ -258,7 +270,8 @@ export function createToolRegistry(definitions: readonly ToolDefinition<any, any
             const parsed = await tool.inputSchema.safeParseAsync(JSON.parse(inputText));
             if (!parsed.success) throw new ToolError("invalid-input");
             check();
-            const output: unknown = await tool.execute(parsed.data, handlerContext);
+            const output: unknown = recoveryOf ? await tool.recoverInterrupted!(parsed.data, handlerContext) : await tool.execute(parsed.data, handlerContext);
+            if (recoveryOf && output === undefined) throw new ToolError(recoveryOf.error.code);
             check();
             // Validate before and after parsing: coercions must not conceal an unserializable service result.
             jsonText(output, "invalid-output", trusted.data.budget.bytes - bytes);
@@ -284,8 +297,8 @@ export function createToolRegistry(definitions: readonly ToolDefinition<any, any
       const pending = run();
       if (receiptKey) {
         receipts.set(receiptKey, { signature, pending });
-        // Failed / interrupted operations are not silently retried by this runtime. A service must
-        // use durable receipts for writes that may have committed before a timeout or cancellation.
+        // Mutations never rerun here. Only an explicitly supplied read-only recovery callback
+        // can replace an interrupted result with its durable receipt under the original key/body.
       }
       const result = detachedResult<O>(await pending, requestId);
       if (Date.now() >= deadline) throw new ToolError("timeout");
