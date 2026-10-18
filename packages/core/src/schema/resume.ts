@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { LocaleSchema } from "./locale.js";
+import { ResumeThemeIdSchema, ResumeThemeOverridesSchema } from "./resume-theme.js";
 
 export const ResumeSectionIdSchema = z.enum([
   "summary",
@@ -61,6 +62,9 @@ export const ResumeViewSchema = z.object({
   name: z.string().min(1),
   locale: LocaleSchema.default("zh"),
   templateId: z.string().min(1).default("zh-classic"),
+  /** Absent in legacy views: preserve the template's original visual defaults. */
+  themeId: ResumeThemeIdSchema.optional(),
+  themeOverrides: ResumeThemeOverridesSchema.optional(),
   /** Legacy views infer all from an empty list; explicit selected may be empty. */
   experienceSelection: z.enum(["all", "selected"]).optional(),
   includedExperienceIds: z.array(z.string()).default([]),

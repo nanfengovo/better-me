@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "slate-blue",
+  "name": {
+    "zh": "岩青蓝",
+    "en": "Slate Blue"
+  },
+  "description": {
+    "zh": "岩蓝强调、细致分隔与书卷感姓名抬头。",
+    "en": "Slate-blue accents, fine rules and a literary serif nameplate."
+  },
+  "tokens": {
+    "colors": {
+      "paper": "#ffffff",
+      "text": "#2d3445",
+      "muted": "#6c7283",
+      "accent": "#4a5f92",
+      "accentSoft": "#edf0fa",
+      "rule": "#d7ddef"
+    },
+    "typography": {
+      "bodyFamily": "sans",
+      "headingFamily": "sans",
+      "nameFamily": "serif"
+    },
+    "decoration": {
+      "sectionHeading": "soft-band",
+      "keywordStyle": "outlined",
+      "dividerStyle": "solid"
+    }
+  }
+}

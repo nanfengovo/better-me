@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "corporate-navy",
+  "name": {
+    "zh": "商务藏蓝",
+    "en": "Corporate Navy"
+  },
+  "description": {
+    "zh": "白纸、藏蓝标题与清晰细线，适合正式投递。",
+    "en": "White paper, navy accents and crisp rules for formal applications."
+  },
+  "tokens": {
+    "colors": {
+      "paper": "#ffffff",
+      "text": "#243247",
+      "muted": "#647084",
+      "accent": "#293c58",
+      "accentSoft": "#edf1f7",
+      "rule": "#d5dce6"
+    },
+    "typography": {
+      "bodyFamily": "sans",
+      "headingFamily": "sans",
+      "nameFamily": "sans"
+    },
+    "decoration": {
+      "sectionHeading": "accent-rule",
+      "keywordStyle": "outlined",
+      "dividerStyle": "solid"
+    }
+  }
+}

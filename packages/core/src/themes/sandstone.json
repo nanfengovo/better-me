@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "sandstone",
+  "name": {
+    "zh": "暖砂岩",
+    "en": "Sandstone"
+  },
+  "description": {
+    "zh": "柔和砂色、棕褐重点与温暖的书页气质。",
+    "en": "Soft sand paper, umber accents and warm book-like typography."
+  },
+  "tokens": {
+    "colors": {
+      "paper": "#fffcf6",
+      "text": "#3c332a",
+      "muted": "#7a6e5d",
+      "accent": "#855d36",
+      "accentSoft": "#f4ebdb",
+      "rule": "#e3d5bf"
+    },
+    "typography": {
+      "bodyFamily": "sans",
+      "headingFamily": "serif",
+      "nameFamily": "serif"
+    },
+    "decoration": {
+      "sectionHeading": "side-rule",
+      "keywordStyle": "soft-tag",
+      "dividerStyle": "solid"
+    }
+  }
+}

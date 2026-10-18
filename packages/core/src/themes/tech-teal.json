@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "tech-teal",
+  "name": {
+    "zh": "科技深青",
+    "en": "Tech Teal"
+  },
+  "description": {
+    "zh": "深青重点、等宽标题与简洁技术表达。",
+    "en": "Deep teal accents and monospace headings for a technical character."
+  },
+  "tokens": {
+    "colors": {
+      "paper": "#ffffff",
+      "text": "#20353a",
+      "muted": "#5f7479",
+      "accent": "#126779",
+      "accentSoft": "#e6f3f5",
+      "rule": "#c9e1e6"
+    },
+    "typography": {
+      "bodyFamily": "sans",
+      "headingFamily": "mono",
+      "nameFamily": "sans"
+    },
+    "decoration": {
+      "sectionHeading": "soft-band",
+      "keywordStyle": "soft-tag",
+      "dividerStyle": "solid"
+    }
+  }
+}

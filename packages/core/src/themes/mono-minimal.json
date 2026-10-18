@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "mono-minimal",
+  "name": {
+    "zh": "纯粹黑白",
+    "en": "Mono Minimal"
+  },
+  "description": {
+    "zh": "黑灰层级、白纸与克制装饰，适合打印。",
+    "en": "Clear monochrome hierarchy and restrained decoration for print."
+  },
+  "tokens": {
+    "colors": {
+      "paper": "#ffffff",
+      "text": "#202020",
+      "muted": "#666666",
+      "accent": "#303030",
+      "accentSoft": "#f1f1f1",
+      "rule": "#d4d4d4"
+    },
+    "typography": {
+      "bodyFamily": "sans",
+      "headingFamily": "sans",
+      "nameFamily": "sans"
+    },
+    "decoration": {
+      "sectionHeading": "plain",
+      "keywordStyle": "plain",
+      "dividerStyle": "none"
+    }
+  }
+}

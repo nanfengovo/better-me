@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "graphite",
+  "name": {
+    "zh": "石墨灰",
+    "en": "Graphite"
+  },
+  "description": {
+    "zh": "冷静石墨色、现代无衬线与简洁标题。",
+    "en": "Calm graphite tones and clean contemporary sans-serif type."
+  },
+  "tokens": {
+    "colors": {
+      "paper": "#ffffff",
+      "text": "#292c32",
+      "muted": "#6a6f79",
+      "accent": "#454b57",
+      "accentSoft": "#edf0f4",
+      "rule": "#d6dbe3"
+    },
+    "typography": {
+      "bodyFamily": "sans",
+      "headingFamily": "sans",
+      "nameFamily": "sans"
+    },
+    "decoration": {
+      "sectionHeading": "side-rule",
+      "keywordStyle": "plain",
+      "dividerStyle": "solid"
+    }
+  }
+}

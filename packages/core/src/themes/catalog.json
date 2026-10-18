@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "defaultThemeId": "forest-professional",
+  "themes": [
+    "corporate-navy",
+    "editorial-warm",
+    "mono-minimal",
+    "tech-teal",
+    "forest-professional",
+    "burgundy-elegant",
+    "graphite",
+    "nordic-gray",
+    "slate-blue",
+    "sandstone"
+  ]
+}

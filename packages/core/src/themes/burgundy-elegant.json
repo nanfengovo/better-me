@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "burgundy-elegant",
+  "name": {
+    "zh": "酒红典雅",
+    "en": "Burgundy Elegant"
+  },
+  "description": {
+    "zh": "酒红细节、暖白背景与优雅衬线抬头。",
+    "en": "Burgundy detail, warm paper and elegant serif titles."
+  },
+  "tokens": {
+    "colors": {
+      "paper": "#fffdfb",
+      "text": "#382b30",
+      "muted": "#7a6971",
+      "accent": "#7e334e",
+      "accentSoft": "#f6e9ee",
+      "rule": "#e0ccd4"
+    },
+    "typography": {
+      "bodyFamily": "sans",
+      "headingFamily": "serif",
+      "nameFamily": "serif"
+    },
+    "decoration": {
+      "sectionHeading": "underline",
+      "keywordStyle": "outlined",
+      "dividerStyle": "solid"
+    }
+  }
+}

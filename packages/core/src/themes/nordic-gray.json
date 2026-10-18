@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "nordic-gray",
+  "name": {
+    "zh": "北欧浅灰",
+    "en": "Nordic Gray"
+  },
+  "description": {
+    "zh": "浅冷纸色、低饱和蓝灰与轻盈视觉层级。",
+    "en": "Cool pale paper and muted blue-gray for an airy hierarchy."
+  },
+  "tokens": {
+    "colors": {
+      "paper": "#fcfdff",
+      "text": "#34414b",
+      "muted": "#687681",
+      "accent": "#526d82",
+      "accentSoft": "#edf3f7",
+      "rule": "#d9e3eb"
+    },
+    "typography": {
+      "bodyFamily": "sans",
+      "headingFamily": "sans",
+      "nameFamily": "sans"
+    },
+    "decoration": {
+      "sectionHeading": "underline",
+      "keywordStyle": "soft-tag",
+      "dividerStyle": "dashed"
+    }
+  }
+}

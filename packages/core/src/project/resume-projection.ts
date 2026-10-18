@@ -26,6 +26,8 @@ export type ProjectedExperience = {
 export type ProjectedResume = {
   locale: Locale;
   templateId: string;
+  themeId?: ResumeView["themeId"];
+  themeOverrides?: ResumeView["themeOverrides"];
   sectionOrder?: ResumeSectionId[];
   sectionVisibility?: ResumeView["sectionVisibility"];
   layout?: ResumeLayout;
@@ -124,9 +126,12 @@ export function projectResume(
   return {
     locale,
     templateId: view.templateId,
+    themeId: view.themeId,
+    themeOverrides: view.themeOverrides,
     sectionOrder: getResumeSectionOrder(view.sectionOrder),
     sectionVisibility: view.sectionVisibility,
-    layout: getResumeLayout(view.layout),
+    // Keep themed overrides sparse: materializing the legacy accent/font would hide theme defaults.
+    layout: view.themeId ? view.layout : getResumeLayout(view.layout),
     textStyles,
     educationSummary: isResumeSectionVisible(view, "education") && base.profile.education ? pickLocale(base.profile.education, locale) : undefined,
     skills: isResumeSectionVisible(view, "skills") ? [...new Set(visibleExperiences.flatMap((experience) => experience.techStack))] : [],
@@ -173,7 +178,8 @@ export function createDefaultResumeView(
       "education",
     ],
     profileVisibility: { education: false, photo: true },
-    layout: { ...getResumeLayout() },
+    // Defaults belong to the renderer; only persist values the user explicitly changes.
+    layout: {},
     updatedAt: now,
   };
 }

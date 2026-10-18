@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "forest-professional",
+  "name": {
+    "zh": "沉稳墨绿",
+    "en": "Forest Professional"
+  },
+  "description": {
+    "zh": "米白纸张、墨绿标题与沉静的衬线层级。",
+    "en": "Ivory paper, forest green accents and composed serif headings."
+  },
+  "tokens": {
+    "colors": {
+      "paper": "#fffefb",
+      "text": "#26352f",
+      "muted": "#65776e",
+      "accent": "#1b5147",
+      "accentSoft": "#eaf1ec",
+      "rule": "#d0ddd4"
+    },
+    "typography": {
+      "bodyFamily": "sans",
+      "headingFamily": "serif",
+      "nameFamily": "serif"
+    },
+    "decoration": {
+      "sectionHeading": "accent-rule",
+      "keywordStyle": "soft-tag",
+      "dividerStyle": "solid"
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "editorial-warm",
+  "name": {
+    "zh": "暖调编辑部",
+    "en": "Warm Editorial"
+  },
+  "description": {
+    "zh": "暖白纸张、陶土色与书刊衬线字体。",
+    "en": "Warm paper, terracotta accents and editorial serif typography."
+  },
+  "tokens": {
+    "colors": {
+      "paper": "#fffdf8",
+      "text": "#292725",
+      "muted": "#756f68",
+      "accent": "#985743",
+      "accentSoft": "#f3e8e1",
+      "rule": "#ded3c9"
+    },
+    "typography": {
+      "bodyFamily": "serif",
+      "headingFamily": "serif",
+      "nameFamily": "serif"
+    },
+    "decoration": {
+      "sectionHeading": "side-rule",
+      "keywordStyle": "plain",
+      "dividerStyle": "solid"
+    }
+  }
+}
