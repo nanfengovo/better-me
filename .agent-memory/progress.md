@@ -4,6 +4,9 @@
 
 ## 当前交付
 
+- [x] 免费托管最终选GitHub Pages（替代先前Cloudflare偏好）；质量/构建/部署工作流与完整部署说明已推送，Pages Source已启用Actions，无额外部署Token。
+- [x] 公开README重写、9张真实合成WebP截图及来源/哈希清单、分阶段开发路线图已推送main；截图合计约833KiB，不使用私人履历或API Key。
+- [x] GitHub Pages实际上线；首次Actions39124587077三个任务全success，Windows全量1251/1251（fail/cancelled/skipped/todo0）、lint、types5/5；Linux完整/子路径构建与部署通过。公网全新Edge完成模板/主题/深色独立、保存刷新、实际JSON下载、合成PDF实际提取/worker；12响应全200、运行/请求失败0。字体测试allowlist修正和有限范围见docs/reports/github-pages-release-2026-10-18.md，未重做全组合长文PDF/真实模型/岗位验收。
 - [x] 四个指定开源来源全量审查与原生适配：119套可选版式（自研6、RenderCV9、JSON Resume官网65、NewFuture3、社区36），新增113；五来源筛选、搜索、每页12张真实缩略图、选中详情及显式推荐配色/字体。切换保留事实、分节与排版；RenderCV YAML映射全部9主题。
 - [x] 逐源LICENSE/NOTICE、固定版本/文件哈希与完整目录；awesome31入口逐项审计，19个实际来源贡献39套（含NewFuture），12项重复/工具/失效/授权缺口明确记录。Rick Osborne依用户选择接入CC BY-NC-SA4.0，单独标明非商业，预览/PDF保留作者、修改声明和许可；不覆盖其他模板许可。
 - [x] 模板集成基线1212/1212、局部修正后30/30；当前包含并行主题系统的共享工作区1251/1251、lint、types5/5、build3/3通过。6组视口/390次JSON Resume切换/30组功能检查、126份416页实际长内容PDF完成检查与逐页目视复核；原用户数据/服务未操作，已随本次功能批次推送。主题CSS仍统一加载并有大包告警；不将本轮PDF结果外推所有并行新增主题组合或ATS认证。

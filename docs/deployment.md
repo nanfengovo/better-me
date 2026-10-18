@@ -2,7 +2,7 @@
 
 BetterMe 的简历工作台可以部署为静态网站。本仓库选用 **GitHub Pages + GitHub Actions**：沿用现有 GitHub 仓库，无需购买服务器，也无需在仓库填写云服务 API Token。
 
-默认站点地址为 <https://nanfengovo.github.io/better-me/>。**链接已规划不等于部署已成功**；实际上线状态以 [Actions](https://github.com/nanfengovo/better-me/actions/workflows/ci-pages.yml) 的部署任务及站点 HTTP/浏览器检查为准。
+站点已上线：<https://nanfengovo.github.io/better-me/>。2026-10-18 [首次 Actions 运行](https://github.com/nanfengovo/better-me/actions/runs/39124587077)的质量、构建、部署三个任务全部成功，已完成公网 HTTP 与独立浏览器验收；具体样本和限制见 [上线记录](reports/github-pages-release-2026-10-18.md)。后续发布状态查看 [Actions](https://github.com/nanfengovo/better-me/actions/workflows/ci-pages.yml)。
 
 ## 静态站点能使用哪些功能
 
@@ -42,6 +42,8 @@ Node 固定为 `24.15.0`；pnpm 从根 `package.json` 的 `packageManager` 读�
 普通任务只有 `contents: read`；仅部署任务持有 `pages: write` 和 OIDC `id-token: write`。部署使用当前运行的构建产物，不接收其他 PR / fork 的产物；不使用 `pull_request_target`，不需要 PAT。构建产物保留 1 天，避免长期积累验收文件与存储。
 
 ## 首次启用 GitHub Pages
+
+本仓库已完成以下设置与首次发布；这份步骤保留给复现、迁移或 fork 使用。
 
 1. 打开仓库 **Settings → Pages → Build and deployment**，将 **Source** 设为 **GitHub Actions**。
 2. 确认仓库允许 Actions 运行，所引用的固定 SHA 未被组织策略禁止。默认 `github-pages` environment 应允许 `main` 部署；如配置必需审批人，每次部署会停下来等待该审批，按需保留。

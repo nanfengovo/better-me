@@ -1,5 +1,7 @@
 # 迈向更好 · BetterMe
 
+[![CI and GitHub Pages](https://github.com/nanfengovo/better-me/actions/workflows/ci-pages.yml/badge.svg?branch=main)](https://github.com/nanfengovo/better-me/actions/workflows/ci-pages.yml)
+
 **把真实经历，整理成值得投递的简历。**
 
 A local-first resume and job search workspace.
@@ -8,7 +10,7 @@ BetterMe 是一个本地优先的简历与求职工作台：从核对履历、�
 
 **119 套版式 · 10 套简历主题 · 4 套工作台配色 × 浅深模式 · 中英输出 · 本地草稿与版本历史**
 
-[快速开始](#快速开始) · [功能一览](#功能一览) · [部署与自动更新](#部署与自动更新) · [开发规划](docs/ROADMAP.md) · [模板来源](templates/CATALOG.md) · [验收记录](#文档与验收记录)
+[在线体验](https://nanfengovo.github.io/better-me/) · [快速开始](#快速开始) · [功能一览](#功能一览) · [部署与自动更新](#部署与自动更新) · [开发规划](docs/ROADMAP.md) · [模板来源](templates/CATALOG.md) · [验收记录](#文档与验收记录)
 
 ![BetterMe 浅色工作台：左侧编辑结构化内容，右侧实时呈现 A4 简历](docs/images/workspace-light.webp)
 
@@ -182,13 +184,15 @@ Windows 国内独立通路的可选辅助脚本见 [操作说明](scripts/README
 
 ## 部署与自动更新
 
-推荐使用 **GitHub Pages + GitHub Actions**：代码和发布流程在同一仓库管理，不需要额外托管账号或部署密钥。
+已使用 **GitHub Pages + GitHub Actions** 部署：[打开在线工作台](https://nanfengovo.github.io/better-me/)。代码和发布流程在同一仓库管理，不需要额外托管账号或部署密钥。
 
 ```text
 本地修改 → git commit / git push → GitHub Actions 检查 → 构建产物 → GitHub Pages
 ```
 
-远端 CI/CD 由推送触发，仅在本地保存文件不会发布。主分支检查通过后更新静态网页；具体工作流、仓库 Pages 启用步骤、首次部署与排错见 **[免费部署与 CI/CD](docs/deployment.md)**。线上地址与已验收状态以部署记录为准。
+远端 CI/CD 由推送触发，仅在本地保存文件不会发布。主分支检查通过后更新静态网页；具体工作流、仓库 Pages 启用步骤、首次部署与排错见 **[免费部署与 CI/CD](docs/deployment.md)**。
+
+2026-10-18 [首次真实发布](https://github.com/nanfengovo/better-me/actions/runs/39124587077)的三个任务均成功，Windows runner 全量 **1251/1251**。公网 HTTPS 已验证加载、模板/简历主题与工作台外观独立、保存刷新、JSON 下载及合成 PDF 的实际文字提取；范围与限制见 [上线验收记录](docs/reports/github-pages-release-2026-10-18.md)。
 
 | 能力 | GitHub Pages 静态版 | 本地开发 / 本地预览 |
 | --- | --- | --- |
@@ -293,6 +297,7 @@ pnpm memory:check
 | 想了解什么 | 文档 |
 | --- | --- |
 | 免费托管、部署与自动发布 | [部署与 CI/CD](docs/deployment.md) |
+| 首次线上发布与公网验证 | [GitHub Pages 上线记录](docs/reports/github-pages-release-2026-10-18.md) |
 | 当前完成情况与长期方向 | [开发路线图](docs/ROADMAP.md) · [产品草案](docs/planning/betterme-product-roadmap-2026-10-16.md) |
 | 模板全目录、来源与授权 | [目录](templates/CATALOG.md) · [维护与许可](templates/README.md) · [LICENSE/NOTICE](templates/licenses/) |
 | 工作台与响应式 | [UI 实施与视觉验收](docs/reports/ui-paper-atelier-2026-10-18.md) |
