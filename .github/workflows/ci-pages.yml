@@ -1,0 +1,97 @@
+name: CI and GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Pull requests never receive a write token or deployment credentials.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-pages-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  quality:
+    name: Lint, types and tests (Windows / Edge)
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.15.0
+          package-manager-cache: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+        with:
+          cache: true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm memory:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      # Includes isolated synthetic browser cases, using the runner's Edge.
+      # These are not live recruitment-site or PDF visual acceptance checks.
+      - run: pnpm test
+
+  build:
+    name: Production build (Linux / Pages subpath)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.15.0
+          package-manager-cache: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+        with:
+          cache: true
+      - run: pnpm install --frozen-lockfile
+      - name: Build all workspace packages
+        run: pnpm build
+      - name: Build Pages assets with the correct base path
+        shell: bash
+        env:
+          # Leave unset for https://<owner>.github.io/<repository>/.
+          # Set to / when using a custom domain or an owner.github.io repository.
+          REQUESTED_BASE_PATH: ${{ vars.PAGES_BASE_PATH }}
+        run: |
+          pages_base_path="${REQUESTED_BASE_PATH:-/${GITHUB_REPOSITORY#*/}/}"
+          if [[ ! "$pages_base_path" =~ ^(/[A-Za-z0-9._~-]+)*/$ ]]; then
+            echo "PAGES_BASE_PATH must be / or a path such as /better-me/." >&2
+            exit 1
+          fi
+          pnpm --filter @better-me/web exec vite build --base="$pages_base_path"
+      - name: Upload static site
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: apps/web/dist
+          retention-days: 1
+
+  deploy:
+    name: Deploy GitHub Pages
+    needs: [quality, build]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    steps:
+      - name: Deploy the verified artifact
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
