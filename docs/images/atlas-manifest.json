@@ -1,0 +1,36 @@
+{
+  "capturedAt": "2026-10-18T17:02:28.387147+00:00",
+  "method": "Codex in-app browser UI; isolated 5287 demo tab; global full-page capture and natural viewport focus capture",
+  "format": "WebP quality 90; no content editing or compositing",
+  "synthetic": true,
+  "containsPrivateResume": false,
+  "captures": [
+    {
+      "file": "atlas-global.webp",
+      "scene": "22个明确合成岗位的全球点阵地球、列表与来源标签",
+      "synthetic": true,
+      "dimensions": [
+        1600,
+        1300
+      ],
+      "bytes": 135662,
+      "sha256": "9ac35519e215347eae2f67f3538c79f814a75719d582ca402d8ac856ab6b406c"
+    },
+    {
+      "file": "atlas-detail-focus.webp",
+      "scene": "合成岗位详情、上海城市中心高亮与选中列表，非真实招聘",
+      "synthetic": true,
+      "dimensions": [
+        1280,
+        720
+      ],
+      "bytes": 99430,
+      "sha256": "6c68ac155149653a64a73a5b12885723a5b3db68967435a6a123c0a9a963880c"
+    }
+  ],
+  "notes": [
+    "Independent capture session from manifest.json dated 2026-10-18.",
+    "Map candidates and known city centers are estimates, not verified office addresses.",
+    "Temporary viewport and reduced-motion overrides used for separate QA were restored."
+  ]
+}

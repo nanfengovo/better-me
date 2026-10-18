@@ -22,7 +22,7 @@ BetterMe 的简历工作台可以部署为静态网站。本仓库选用 **GitHu
 
 现有接口通过 Vite 的 `configureServer` / `configurePreviewServer` 提供。它们没有被打包进 `apps/web/dist`，也不是已部署的云函数。Windows 专用浏览器会话还依赖本机 Microsoft Edge、独立 profile 及人工验证窗口。需要完整本地能力时继续使用 `pnpm dev`，不要把 `vite preview` 当作公共生产服务器暴露。
 
-新增的独立岗位索引服务与以上旧接口分开：`apps/job-service` 使用 Node 24.15+ 的 SQLite，在精确允许 Origin、Bearer 凭据和 loopback 绑定下提供 `/api/v1/*`。启动命令、来源注册 / 同步、DNS 选择、目录锁与 API 示例见 [本机服务说明](../apps/job-service/README.md)。它尚未接入网页的机会面板，不在 Pages 或现有静态 Docker 中运行；本机 HTTPS / HTTP 与浏览器本地网络权限仍需分别验证。当前不开放公网监听，也未配置服务器采集或定时任务。
+新增的独立岗位索引服务与以上旧接口分开：`apps/job-service` 使用 Node 24.15+ 的 SQLite，在精确允许 Origin、Bearer 凭据和 loopback 绑定下提供 `/api/v1/*`。网页“岗位地图”已提供连接、真实来源获取和来源工具入口，使用方式见[岗位地图说明](job-atlas.md)。启动命令、来源注册 / 同步、DNS 选择、目录锁与 API 示例见 [本机服务说明](../apps/job-service/README.md)。该服务不在 Pages 或现有静态 Docker 中运行；本机 HTTPS / HTTP 与浏览器本地网络权限仍需分别验证。当前不开放公网监听，也未配置服务器采集或定时任务。
 
 从 `http://localhost:5173` 切换到 GitHub Pages 是更换浏览器 origin，原来的本地简历、历史和 API 配置不会自动搬过去。请先从原站导出 JSON 备份，在新站导入，再自行填写模型配置。清理站点数据或更换浏览器也可能清除本地保存；JSON 备份仍由用户保管。本机 Ollama 的 HTTP 地址在 HTTPS 站点下还受混合内容、CORS 和浏览器本地网络访问限制，不能把本地开发环境连通直接视为线上可用。
 

@@ -47,3 +47,15 @@ CI 包含本地合成 Edge 回归，未访问真实招聘站、执行真人验�
 线上与 localhost 是不同 origin，简历/历史/Key 不自动同步。发布只更新应用；迁移使用 JSON 备份，AI 配置单独填写。云模型仍受服务商费用、CORS 和网络限制，本机模型另受 HTTPS 与本地网络策略约束。
 
 本轮没有重做所有模板/主题的长文 PDF、Word 逐页视觉、全浏览器或物理打印验收，也没有验证真实模型生成、真实岗位长期覆盖、跨设备同步。既有验收与待办继续保留。日常发布、回滚和免费层取舍见 [部署说明](../deployment.md)，下一阶段见 [路线图](../ROADMAP.md)。
+
+## 附录：地图与来源工具的本地 Pages 子路径复核 · 2026-10-18
+
+本附录仅记录本地发布产物检查，前文真实公网历史验收保持独立。本次 `pnpm build` 六个任务成功，随后 `pnpm --filter @better-me/web exec vite build --base=/better-me/ --outDir <隔离输出目录> --emptyOutDir` 成功。根路径与子路径产物均通过 `scripts/check-atlas-distribution.mjs`：13 项公开地理白名单、三份 GeoJSON hash、518,806 字节的原始 ESM MapLibre worker 全部一致。
+
+在随机 loopback 端口使用独立 Vite preview 检查 **31/31 HTTP 请求**，包括首页 `/better-me/assets/` 引用、地理声明及数据、9 个 JS chunk、CSS 和 MapLibre worker。worker Content-Type 为 `text/javascript`；来源工具独立延迟模块存在，所有 JS chunk 均无 `node:` import 和 Vite Node 外部模块占位。服务器检查结束即关闭，没有占用原 5173 / 8080。这里未进行实际浏览器操作或在线瓦片访问。
+
+初始 340 文件检查快照聚合 SHA-256 `5eea46cbf7c28e17722f7c663446dc64748fc3b3c1b9c8f2e4e62565ba370583`；末尾聚合 hash `23ea84813acc39da5dc58a4da252cfb4c847432c8f6049623fecb858147818d1`。期间两处并行 UI 文件变更已在本地逐文件 hash 清单中保留，没有把早期构建结果外推为所有后续改动的验收。命令、产物、请求回执和 hash 证据位于 Git 忽略的 `.agent-memory/.tmp/atlas-sources-distribution-2026-10-18/`。该目录最初因命令中相对路径多一层 `../` 输出到相邻位置，核实精确目录后已原样移入本项目验收目录；未重新编译来隐藏检查路径修正。
+
+同轮 Docker 的 269 次 HTTP、96 项模板许可目录、20 项改编源码、95 个依赖及 97 份许可检查见 [Docker 报告附录](docker-release-2026-10-18.md#附录岗位地图与来源工具分发复核--2026-10-18)。Docker frontend registry 网络失败与临时副本回退已明确记录。这些本地检查不代表本次已经推送、真实 Actions 成功或公网 Pages 已更新，也不替代后续公网浏览器、招聘来源、在线地图与长文打印验收。
+
+本附录现固定为**来源工具阶段的已验历史快照**。用户随后反馈搜索 / 筛选行为不足，已开始新的腾讯真实国内远程搜索、主搜索入口及覆盖范围提示修订；这些新改动尚未包含在上述 Pages / Docker 检查中。后续必须以新的定点源码检查记录为准，当前结果不称为整个岗位搜索目标的最终验收。

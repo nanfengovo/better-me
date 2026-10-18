@@ -60,3 +60,22 @@ docker compose down
 ```
 
 完整说明见 [README](../../README.md#docker-部署) 和 [Docker 自托管](../deployment.md#docker-自托管)。静态容器不提供现有 Node 岗位接口与 Windows 专用招聘浏览器；数据属于当前浏览器 origin，变更地址或端口应先备份迁移。镜像未发布 Docker Hub / GHCR，当前 CI 不更新未配置的远程 Docker 服务器。模板各自的许可、Rick Osborne 非商业限制和根项目整体许可证尚未选定的状态继续适用。
+
+## 附录：岗位地图与来源工具分发复核 · 2026-10-18
+
+本附录记录新增地图、来源工具及来源标签接线后的本机分发检查，保留前文历史结果。`pnpm build` 六个 workspace 任务全部成功；正常根路径产物和 `/better-me/` 子路径产物均通过 `node scripts/check-atlas-distribution.mjs <产物目录>`。公开地理目录精确包含 13 项，三份 GeoJSON 与其来源 manifest SHA-256 一致，独立 ESM MapLibre worker 为 518,806 字节且与锁定包原文件逐字节相同。
+
+本次正常 `node scripts/check-docker.mjs --image better-me:atlas-sources-check` 在编译前被 Docker Hub frontend 匿名认证网络超时阻断。随后仅在 Git 忽略目录创建 Dockerfile 临时副本，省略第一行 `# syntax=docker/dockerfile:1`，其余正文与仓库文件一致；通过 `docker build --pull=false --file <临时副本> --tag better-me:atlas-sources-check .` 完成实际 Linux 构建。两个 digest 固定基础镜像、安装锁文件及全部构建步骤不变，仓库 Dockerfile、系统代理和 DNS 未改。这一结果不冒充正常 frontend 联网路径或远端 Actions 成功。
+
+实际镜像 `sha256:9154b99c6ea48beb56eb12275fe36eeabcf81b1af4a704d2055f459e00004fb8`，`linux/amd64`，inspect 大小 31,122,064 字节。`node scripts/check-docker.mjs --image better-me:atlas-sources-check --skip-build` 在随机本机端口启动专用临时容器，**269/269 HTTP 请求通过**；UID 101、只读根文件系统、健康状态正确，完成后仅移除该检查容器。
+
+- 18 个实际资源、8 个延迟模块、各 1 个 PDF / MapLibre worker；`.mjs` JavaScript MIME、缓存、缺失资源 404 与静态 `/api` 501 边界通过。
+- 13 项公开地理文件按白名单逐字节校验，渲染 GeoJSON 对照 manifest SHA 校验。
+- 96 项模板许可及目录文件、20 项改编源码逐字节相同；95 个生产依赖、97 份完整许可原文和 manifest SHA-256 全部通过 HTTP 校验。
+- 来源工具作为独立延迟模块发布。Pages 构建的 9 个 JS chunk 均没有 `node:` import 或 Vite Node 外部模块占位；纯 `@better-me/source-adapters/browser-contracts` 不携带 Node transport。
+
+起始检查快照覆盖 340 个构建相关文件，聚合 SHA-256 `5eea46cbf7c28e17722f7c663446dc64748fc3b3c1b9c8f2e4e62565ba370583`。检查结束快照 `23ea84813acc39da5dc58a4da252cfb4c847432c8f6049623fecb858147818d1`；期间 `JobSourceBadges.tsx` 和 `JdMatchModal.tsx` 有并行 UI 变更，前后逐文件 hash 单独留存，未因界面文案变更机械重做整个 Docker 验收。因此这里标注检查快照，不将其说成后续所有修改均已重新进入镜像。MapLibre 渲染源码 SHA-256 仍为 `f3cd266ef19ead9cb69fd4dfc57588a867134c5eb400717b2554078bb5e22fbc`。
+
+命令、完整构建日志、初次 registry 失败日志、临时 Dockerfile、镜像 inspect、两次源码清单及容器前后清单保存在 Git 忽略的 `.agent-memory/.tmp/atlas-sources-distribution-2026-10-18/`。原 `agent-web-1`（本机 8080）与 SQL Server 容器 ID、镜像及端口保持相同。本轮只验证本机构建 / HTTP / 分发，不代表公网已经更新，也未重做实际浏览器视觉、在线地图可用性、全部模板打印或真实岗位覆盖。既有大 JS chunk 提示继续保留。
+
+本附录现固定为**来源工具阶段的已验历史快照**。用户随后反馈搜索 / 筛选行为不足，已开始新的腾讯真实国内远程搜索、主搜索入口及覆盖范围提示修订；这些新改动尚未包含在上述 Pages / Docker 检查中。后续必须以新的定点源码检查记录为准，当前结果不称为整个岗位搜索目标的最终验收。

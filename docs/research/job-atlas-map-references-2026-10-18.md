@@ -1,14 +1,30 @@
 # 岗位分布图：地图与地球技术调研
 
-核查日期：2026-10-18（Asia/Shanghai）。本轮只读调研与文档整理，未安装地图依赖、移植第三方代码、修改产品或发布新的地图能力。在线文档与服务政策可能更新，实施时须固定依赖版本与地图数据版本后再验。
+核查及实施更新日期：2026-10-18（Asia/Shanghai）。**本文同时记录当前实现和早期研究，二者以下分开说明。** 当前正式工作台已接入 `maplibre-gl@6.15.0` 连续地图，支持全球地球 / 国内省域概览进入在线街道底图；此前 Three 展示方案未获用户认可，已退出正式入口。以下历史案例与官方页面的研究不等于这些方案均已安装或采用，在线文档与服务政策也可能继续更新。
 
 整体目标、已确认范围与实施验收见 [架构方案](../planning/job-atlas-architecture-2026-10-18.md)；岗位获取与来源能力证据见 [信息源研究](../planning/job-atlas-sources-research-2026-10-18.md)。
 
-## 建议与待验证项
+## 当前实施状态与未完成范围
 
-推荐先以 **MapLibre GL JS 的 globe / 地图投影，加按需 deck.gl 数据图层**作为工程基线候选。MapLibre 官方已有地球、大气层、地球挤出多边形和点聚合示例，能沿用真实经纬度从全球进入国家、城市与地址层级。岗位搜索、列表、收藏和地图应读取同一查询结果，而不是为地球另建一份岗位数据。
+正式入口使用一套 MapLibre 镜头与地理数据图层，全球为 globe 点阵概览，国内为省域挤出概览，连续缩放后显示 OpenFreeMap 街道、地名和建筑数据。MVP Global 的 MIT 源码已用于核对点阵、光晕、有限标签、选中反馈和镜头交互的视觉方向；BetterMe 在 MapLibre 上实现这些设计，未把 COBE 的有限放大当作街道地图。Three 原型只保留为历史比较代码；deck.gl、R3F 和 Cesium 没有成为当前正式入口。
 
-这不等于现成实现了用户想要的国内玻璃立体地图。**省份挤出效果、国家视图的机位、聚合点与地图遮挡、深绿色分类在明暗主题下的识别度，都要通过视觉原型与真实设备验证。**先比较同一批合成岗位在 MapLibre 方案与 Three.js / React Three Fiber 方案中的效果，再确定最终渲染器；本轮不把 R3F 路线写死。
+| 层次 | 当前已接入 | 仍需区分的边界 |
+| --- | --- | --- |
+| 地球 / 国内 / 街道 | 低缩放点阵地球、国内省域挤出、地图区域 / 岗位选择、位置聚焦及同一镜头连续缩放；切换工作台、主题或底图后恢复街道镜头 | 先前 Three 方案被用户拒绝；新实现不代表用户已认可或正式三维目标全部完成，仍需实际视觉与设备反馈。 |
+| 底图与地址 | 可配置 OpenFreeMap 浅 / 深色、OSM 标准及离线概览，显示来源署名；Google Maps 为所选位置的官方外链 | 默认 OpenFreeMap `/planet` 原生瓦片最大 zoom 为 **14**，视图最大 **22 是矢量 overzoom**，不是新增 22 级实测数据或厘米精度。道路 / 建筑 / 门牌是否存在取决于源数据；没有内嵌 Google 地图或请求 Google 瓦片。 |
+| 查询与显示 | 地图、总计、列表使用共享查询；关键词、地区、控股来源、性质、来源、薪资、直线距离、排序、分页、原币展示与可保存分类配色已接 UI | 列表分页和地图点选择不会把地图总计错误缩成当前页。当前 UI 在浏览器查询受限公共快照，尚未完成数据库查询下推或规模性能验收。 |
+| 本机连接与私人接续 | loopback 公开快照连接、取消 / 失败状态、来源详情、JD 分析入口及私人机会预填已接 UI；连接 token 和家庭参照坐标仅在页面内存中 | 不是自动迁移或双主库同步；机会仍经现有编辑流程确认，JD / Fact 匹配的既有真实性约束继续生效。尚无来源采集 / 刷新管理与地图的完整 UI 闭环。 |
+| 地理与归并底座 | M2 GeoNames 城市候选、可撤销 repository 归并和现有应用 / HTTP 兼容已落盘 | 城市候选不自动变成办公室地址；候选审核 / 归并审核 UI 与 HTTP 写入口、汇率配置、控股修订 UI、真实采集联动和规模测量仍待完成。 |
+
+默认演示是明确标注的 **22 个全合成示例岗位**，企业、薪资、地点和控制方信息均用于功能演示，不能表述为真实岗位库、当前市场供给或在招核验。用户显式连接本机服务后才读取其公共索引，没有自动导入个人事实或创建采集任务。
+
+当前集成回归为 **1493/1493**，失败 / 取消 / 跳过 / todo 均为 0；typecheck 10 项、build 6 项和 lint 通过；静态 Docker **267 次 HTTP**、Pages 子路径 **18 次 HTTP** 校验通过。这些结果证明对应代码与资源检查，不等于地图帧率、所有网络、真实岗位覆盖、用户视觉认可或整个工程目标完成。当前实现说明见 [地图实现说明](../../apps/web/src/components/atlas/prototypes/README.md)，数据范围见 [边界 NOTICE](../../apps/web/src/components/atlas/geo/NOTICE.md)，领域进展见 [M2 地名候选](../reports/job-atlas-m2-geocoding-2026-10-18.md) 与 [M2 归并](../reports/job-atlas-m2-reconciliation-2026-10-18.md)。
+
+## 历史方案比较与取舍
+
+早期以 **MapLibre globe / 地图投影，加按需 deck.gl 数据图层**作为基线候选，并研究 Three.js / React Three Fiber 的独立造型。此比较支持现在采用真实经纬度、统一镜头和外部街道数据的路线；按需 deck.gl 仅保留为未来数量实际需要时的扩展方向。
+
+省份挤出效果、国家机位、聚合点遮挡和深绿色分类的明暗可读性仍需真实设备验证。旧 Three 原型没有满足用户要求，不继续以雕塑造型替代可进入详细地址的地图。当前在 MapLibre 中维护省域概览和街道层级，而不是同时维护两个正式主地图。
 
 如果最终要求是明显独立于普通 GIS 的雕塑感玻璃省份、金属底座、影棚级布光，R3F 对全球球体和国内挤出地图的造型控制更强；代价是自己承担投影、地理拾取、标签避让、几何简化、聚合、LOD 和接近地面时的精度问题。可把它作为同一数据契约下的另一种展示适配器，不必同时引入多个长期维护的主地图。
 
@@ -61,7 +77,7 @@ Cesium 适合地形、地理椭球、真实建筑与 3D Tiles；当前岗位分�
 
 官方核验入口：
 
-- MapLibre：[地球 + 大气层](https://maplibre.org/maplibre-gl-js/docs/examples/display-a-globe-with-an-atmosphere/)、[矢量地球](https://maplibre.org/maplibre-gl-js/docs/examples/display-a-globe-with-a-vector-map/)、[地球挤出面](https://maplibre.org/maplibre-gl-js/docs/examples/display-a-globe-with-a-fill-extrusion-layer/)、[点聚合](https://maplibre.org/maplibre-gl-js/docs/examples/create-and-style-clusters/)、[大 GeoJSON 优化](https://maplibre.org/maplibre-gl-js/docs/guides/large-data/)、[LICENSE](https://github.com/maplibre/maplibre-gl-js/blob/main/LICENSE.txt)。本轮页面示例使用 `maplibre-gl@6.14.0`，尚未在 BetterMe 安装或兼容性验收。
+- MapLibre：[地球 + 大气层](https://maplibre.org/maplibre-gl-js/docs/examples/display-a-globe-with-an-atmosphere/)、[矢量地球](https://maplibre.org/maplibre-gl-js/docs/examples/display-a-globe-with-a-vector-map/)、[地球挤出面](https://maplibre.org/maplibre-gl-js/docs/examples/display-a-globe-with-a-fill-extrusion-layer/)、[点聚合](https://maplibre.org/maplibre-gl-js/docs/examples/create-and-style-clusters/)、[大 GeoJSON 优化](https://maplibre.org/maplibre-gl-js/docs/guides/large-data/)、[LICENSE](https://github.com/maplibre/maplibre-gl-js/blob/main/LICENSE.txt)。早期官方页面示例使用 `maplibre-gl@6.14.0`；BetterMe 当前安装固定 `6.15.0`，实际接入与分发记录见上面的当前实施状态。
 - deck.gl：[Mapbox/MapLibre 同步](https://deck.gl/docs/api-reference/mapbox/overview)当前明确写出“Maplibre's globe projection is fully supported”；[独立 GlobeView](https://deck.gl/docs/api-reference/core/globe-view)仍标 Experimental 且说明高缩放精度限制；[性能指南](https://deck.gl/docs/developer-guide/performance)、[LICENSE](https://github.com/visgl/deck.gl/blob/master/LICENSE)。两者不应混为“deck globe 一律实验”或“一律稳定”。
 - R3F：[性能指南](https://docs.pmnd.rs/react-three-fiber/advanced/scaling-performance)强调 on-demand rendering、实例化、draw call 控制；[LICENSE](https://github.com/pmndrs/react-three-fiber/blob/master/LICENSE)。
 - Cesium：[LICENSE](https://github.com/CesiumGS/cesium/blob/main/LICENSE.md)、[ion 定价](https://cesium.com/platform/cesium-ion/pricing/)。
@@ -74,8 +90,8 @@ Cesium 适合地形、地理椭球、真实建筑与 3D Tiles；当前岗位分�
 | 层次 | 候选与已核边界 | 对实现的约束 |
 | --- | --- | --- |
 | 全球概览边界 | Natural Earth 项目 [LICENSE.md](https://github.com/nvkelso/natural-earth-vector/blob/master/LICENSE.md) 明示 public domain；World Atlas [ISC LICENSE](https://github.com/topojson/world-atlas/blob/master/LICENSE) | 适合简化国家概览，不具备门牌精度；小地区可能只用点。需记录上游版本、处理步骤和来源。Natural Earth 官网 terms 本轮直取 HTTP 406，以上游仓库许可及 MVP Global 引用交叉核验，未假称官网页面读取成功。 |
-| 中国省市边界 | 现有样例用 DataV 数据，但样例本身未补齐数据授权链；[标准地图服务系统](https://bzdt.ch.mnr.gov.cn/)可作为展示边界与标注核对入口 | 标准地图图像不是可直接转换后任意发布的 GeoJSON。实施前选择有来源、版本、使用许可和完整标注的矢量数据；核验港澳台、南海诸岛和省市边界，不能沿用“为画面铺满而裁掉远处岛屿”的取景。该服务本轮 TLS 连接失败，未读取其当前条款。 |
-| 全球瓦片 | [OpenFreeMap](https://openfreemap.org/)官方说明可用公开实例或自托管、无 API Key / 注册，且要求 attribution | 可作为零 Token 原型候选，仍需实际中国网络延迟、稳定性和可用性验证；不能保证外部免费服务永远不变。MapLibre demotiles 是演示资源，不应默认作为生产承诺。 |
+| 中国省市边界 | 历史 DataV 样例未补齐数据授权链；当前实际使用固定版本 Natural Earth admin-1 派生的 34 个省级显示组，保留处理清单与许可；[标准地图服务系统](https://bzdt.ch.mnr.gov.cn/)是展示边界与标注核对入口 | 当前数据为概略展示，不是官方完整标准地图，源数据缺少完整南海诸岛 / 主张线图层；详见本地 NOTICE，不能声称完整或门牌精度。历史标准地图网站核查 TLS 失败，未读取其当时条款；也未直接移植 DataV 文件。 |
+| 全球瓦片 | [OpenFreeMap](https://openfreemap.org/)公开实例 / 可自托管、无 API Key / 注册，当前已接入浅 / 深样式及可见 attribution | 当前原生最大 zoom 14，视图 overzoom 至 22；矢量边线清晰不表示出现额外测量细节。仍需中国网络与跨环境长期稳定性验证，不能保证外部免费服务永远不变。Google 目前仅外链，未内嵌。 |
 | 自托管静态瓦片 | [PMTiles](https://docs.protomaps.com/pmtiles/)：通过 HTTP Range 按需读取归档，格式只读 | 可减少常驻瓦片服务需求，但底图数据许可、存储、带宽、Range/CORS、更新和地理数据制作仍有成本。GitHub Pages 的存在不能证明任意大瓦片档案都适合放进仓库。 |
 | OSM 公共瓦片 | [Tile Usage Policy](https://operations.osmfoundation.org/policies/tiles/)禁止批量下载 / 预取 / 公共服务离线包，要求识别、署名、缓存 | OSM 数据开放不等于官方瓦片服务无限免费；禁止把免费公共端点当爬虫批量离线源。 |
 | OSM 公共地理编码 | [Nominatim policy](https://operations.osmfoundation.org/policies/nominatim/)为 absolute maximum 1 request/sec，要求识别与缓存，限制系统化批量检索，不允许客户端自动补全 | 不作为实时批量岗位地址解析的无限公共后端。少量手动查询与持续采集需要区分；允许自托管或选择适合的服务商，但都有运维/配额边界。 |
@@ -86,11 +102,11 @@ Cesium 适合地形、地理椭球、真实建筑与 3D Tiles；当前岗位分�
 
 “距家距离”默认可用本地球面直线距离计算，无需付费路线 API；必须标注直线距离与位置精度。通勤里程 / 驾车时长 / 公交时长需要另外的路线能力、方式与时间条件，不能用直线距离冒充。按通勤排序建议先用直线距离缩小候选，再对有限候选批量询价和缓存，避免每次拖地图对所有岗位发路线请求。
 
-家庭位置建议只存在本地用户偏好中；共享地图链接、公共快照与日志不能包含精确住址。地理编码和通勤服务发送哪些坐标应让用户看得见，地图服务供应商也应可替换。远程岗位另列，不能定位到公司总部后假装是上班地址。
+当前家庭参照点由用户输入 WGS84 坐标，保留在页面内存；连接 token 同样不写 localStorage。企业配色可单独保存到浏览器偏好。共享地图链接、公共快照与日志不得包含精确住址；未来若扩展持久家庭设置，应继续独立私人主库。地理编码和通勤服务发送哪些坐标应让用户看得见，供应商可替换。远程岗位不能定位到总部后假装是上班地址。
 
 ## 与工具 / Agent 适配的地图契约
 
-地图模块可以分成三组边界，供后续 TypeScript 工具和 LangChain / LangGraph 调用；本轮仅提出契约方向，未创建这些工具：
+地图模块按三组边界组织，供 TypeScript 应用与未来 LangChain / LangGraph 适配。共享查询和工具、离线地名候选及 MapLibre 展示适配已实现；在线通勤、候选审核写入及 Agent SDK 尚未接入：
 
 1. `queryJobs` / `aggregateJobLocations`：同一规范查询给出岗位结果、去重计数、地区 / 企业类别聚合、未定位数、来源覆盖与新鲜度；输出与地图引擎无关。
 2. `GeoProvider`：地址解析、位置纠正、距离与路线能力，独立处理配额、取消、缓存、坐标系和费用边界；Agent 不能因为要绘图就获得无限外部请求能力。
@@ -100,13 +116,13 @@ Cesium 适合地形、地理椭球、真实建筑与 3D Tiles；当前岗位分�
 
 地图点的企业分类颜色应来自统一、版本化规则配置，而不是渲染代码 `if country === ...`。企业最终控制方 / 总部国家（或地区）与岗位所在国家必须分开；证据未知用“待核实”与中性色，不能从语言、站点或品牌名猜国别。深绿到浅绿、国企黄、私企红可以作为用户要求的默认方案，需允许覆盖、排序优先级和新增类别。聚合点含多个类别时用分段 / 环图或可展开构成，不能只染多数类别后隐去其他岗位。颜色同时配文字、图例和形状，薪资高低不要再占用同一颜色通道。
 
-## 计划中的真实验收，不是本轮已通过
+## 后续实际验收与工程待办
 
-- 固定地图与图层库版本，验证 globe → country/city、挤出面、过滤、聚合、点击 / 键盘选择、列表一致性；跨源同岗和多地点岗位的岗位数 / 地点数要分别定义。
+- 在当前固定 MapLibre 与图层版本上继续核对 globe → 国内省域 / 城市 / 街道、选中与键盘操作、明暗、分页及列表一致性；保留跨源岗位数与多地点点数的独立口径，补更多真实来源样本。已有合成集成检查不能替代这些持续验收。
 - 对可重复合成的 1k / 10k / 100k 点做数据加载、筛选延迟、GPU / 内存和帧率测量，结论只适用于实测设备；未测不声称“百万岗位流畅”。
 - 桌面集显与移动设备上分档降低 DPR、阴影、玻璃透射与后处理；减少动态效果时停自动运镜，后台暂停，按需渲染，切页销毁 GPU 资源。
 - WebGL/context lost/瓦片或边界请求失败时保留搜索与列表；“2D 地图”若仍依赖 WebGL，不能称其已覆盖无 WebGL 设备，需进一步退为 SVG 地区图 / 列表。
 - 在真实中国网络分别验证瓦片、字体、边界、地理编码和路径服务；离线 / 无 Token 的静态能力与配置服务后的能力分别呈现。
 - 用已核来源的边界和合成岗位核验坐标系、行政边界、标签、港澳台 / 南海诸岛表现；检验未知地址、城市级地址、多办公点、跨国远程岗位与家庭位置不外泄。
 
-本轮源码和官方页面调研支持技术取舍，不构成视觉、规模性能、国内服务稳定性或地图数据完整性的验收。最终渲染路线和上线范围由主规划结合用户对造型、地址层级、通勤和外部服务预算的选择确定。
+当前正式渲染路线已选 MapLibre 连续地图，历史源码和官方页面研究保留为取舍依据。已通过的代码 / HTTP 检查不构成规模性能、国内服务长期稳定性或地图数据完整性的结论，也不代表用户已认可新版视觉；整个工程目标仍在继续。
