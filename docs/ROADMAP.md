@@ -88,6 +88,8 @@
 
 详见 [真实技能匹配与优化规划](planning/job-skill-matching-loop-2026-10-17.md)。这是设计方向，现有 JD 诊断不等于完整的证据匹配系统。
 
+2026-10-19 刷新连接修复：Atlas显式成功连接后，以严格版本化的标签页会话恢复同一loopback索引；恢复失败可见且不回退成旧机会库。切视图、改资料及断开会取消旧请求与面板，迟到结果不覆盖本人新选择；未保存历史连接的旧页首次仍需连接。本机来源实证、回归与未验边界见[国内来源报告](reports/job-atlas-domestic-source-expansion-2026-10-19.md)。
+
 2026-10-19 最新国内采集停点：原85岗／revision59，严格国内C#26条／22家企业、全球48条／33家企业；猎聘与LinkedIn分别实读24／50卡，明确核对后新增18＋6，省市区按原卡逐项确认。通用详情工具补齐同版本地点、薪资分项和snapshotRevision，独立135/135／types10/10／lint，远端四任务success；没有新增办公坐标或宣称全网覆盖。51JOB／BOSS、更多国内地区／官网、完整JD与规模继续，详见[本轮报告](reports/job-atlas-domestic-source-expansion-2026-10-19.md)。下方61岗／国内2条为上一批历史时点。
 
 2026-10-19 Ashby字段批次已正常推送：原已公开的国家／次地点／remote-region和多档工资／佣金／股权分别保留，税制未知继续不比较年薪。独立产品树1975/1975、types10/10、lint和build6/6，远端四任务success；独立真实Temporal70条→C#7条及US＋Chicago／India筛选已验。原工作台61岗／rev33未更新（服务重启被自动审批拒绝），国内C#仍2条；来源覆盖、完整JD、办公坐标、控股证据、归并UI和规模性能继续。详情见[Ashby字段报告](reports/job-atlas-ashby-fields-2026-10-19.md)。

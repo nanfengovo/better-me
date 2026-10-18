@@ -228,7 +228,7 @@ docker compose up -d --build
 
 地图与列表使用同一模糊搜索／筛选／排序规则，可按人民币税前年薪、原币、企业控股来源、地区及直线离家距离查看。未知薪资、有效汇率或坐标会明确保留；家庭参照点只在当前页面内存中。Google 当前提供官方 Maps 外链，内嵌 SDK／Key 与计费尚未配置。
 
-本机独立服务启动、Origin 与令牌说明见 [job-service](apps/job-service/README.md)，配置样例见 [sources](config/sources/examples.json)。有限索引数量和真实交互条件记录在 [本轮聚合与定位报告](docs/reports/job-atlas-aggregation-interaction-2026-10-19.md)；它们不是公开内置数据、全站覆盖或独立在招核验。早期官网联调的原始条件与缺少坐标／薪资的范围保留在 [有限真实来源报告](docs/reports/job-atlas-real-local-index-2026-10-18.md)，不把历史数字改写成当前快照。
+本机独立服务启动、Origin 与令牌说明见 [job-service](apps/job-service/README.md)，配置样例见 [sources](config/sources/examples.json)。 **刷新后仍看到旧机会库时，先在“连接本机服务”完成一次连接，并确认数据视图为“本机采集索引”。** 连接成功后，本标签页会暂存该 loopback 地址与令牌，刷新自动恢复；恢复连接失败会显示错误，不静默退回当前机会库。可使用“断开并清除会话连接”清除，切换机会库或演示也会移除暂存凭据。旧页面没有保存过连接记录，升级后仍需首次连接；浏览器阻止会话存储时会提示重新连接。有限索引数量和真实交互条件记录在 [本轮聚合与定位报告](docs/reports/job-atlas-aggregation-interaction-2026-10-19.md)；它们不是公开内置数据、全站覆盖或独立在招核验。早期官网联调的原始条件与缺少坐标／薪资的范围保留在 [有限真实来源报告](docs/reports/job-atlas-real-local-index-2026-10-18.md)，不把历史数字改写成当前快照。
 
 Pages 和 Docker 版提供静态网页；认证索引由独立本机服务运行，四平台浏览器读取由本机 Vite 开发宿主提供，独立索引服务尚未提供其 browser companion。本轮临时 `5287` 开发宿主完成有限验收后已关闭；原 `5286` 的 preview 不提供搜索 API，已在同一 Origin 和端口更换为持续运行的新版 dev，浏览器数据来源不变。LinkedIn 美国范围当前页读取与首条原文导航已有限验收，其余平台、更多范围和完整 JD 继续分别验证。发布不会把个人岗位库上传 GitHub，静态网页也不能单独启动招聘 Edge。
 

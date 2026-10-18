@@ -104,3 +104,9 @@
 Ashby文档`aa06e40`已正常推送，[Actions39173399390](https://github.com/nanfengovo/better-me/actions/runs/39173399390)四任务success。随后功能`3a56bc6939e174dd8e1ea855385393457d255c62`补齐jobs.read-detail的同版本locations／compensations／snapshotRevision；独立3文件树`86f43dc458556fea03b17bcfd65ba3bb72fd0533`冻结安装、types10/10、lint、job-service135/135（fail／cancel／skip／todo0）通过。[Actions39174077550](https://github.com/nanfengovo/better-me/actions/runs/39174077550)的Windows质量、Linux构建、Docker和Pages均success。未混入Career Agent或重用旧Docker数字。
 
 原5178／5286均已停止、旧PID不存在后，先核61岗／schema3与完整备份，再恢复；同一受限招聘helper固定配置／binarySHA不变。真实猎聘24卡核对19条（18新增），LinkedIn上海50卡核对6条近月标题C#岗位（6新增），地区逐项确认，最终85岗／rev59、严格国内C#26／22企业、全球48／33企业。两精确会话均关闭；原服务更新后dataset／token哈希不变，新详情HTTP真实通过。原错误页浏览器观察被策略拒绝，未绕过，不称本轮UI目视验收。详细证据与边界见[国内来源报告](job-atlas-domestic-source-expansion-2026-10-19.md)。
+
+## 标签页刷新恢复本机索引 · 2026-10-19
+
+功能`7755cf17fdd449f1a435d1d836b2947577058a8d`已正常推送main，远端SHA已核对。仅5文件冻结产品树`514b0353c9ecca7f9e1671b07f15bc70b71aaf36`完成离线冻结安装、types10/10、lint、65/65定向回归（失败／取消／跳过／todo0）与build6/6；20项新增会话／React回归另经独立只读审查通过。远端质量、Linux构建、Docker及Pages以[Actions39175293892](https://github.com/nanfengovo/better-me/actions/runs/39175293892)的实际结果为准，本机未新建本批Docker。
+
+修复每次刷新默认local／丢失成功连接而重新显示旧机会库的问题：仅明确成功连接后在当前标签页sessionStorage记loopback身份，刷新真实重读；失败仍live并提示重试，切视图／改资料／断开取消旧请求和核对面板，拒绝迟到快照覆盖，StrictMode与存储失败分别回归。旧页首次仍需连接，未自动读取私人凭据。85岗／rev59及26国内／48全球C#真实HTTP复查未变，无新办公坐标；本轮没有新私人索引UI目视。并行Career Agent成果保留，详见[国内来源报告](job-atlas-domestic-source-expansion-2026-10-19.md)。
