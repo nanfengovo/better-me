@@ -2,26 +2,26 @@
 
 ## 当前焦点
 
-2026-10-18：按功能完成九批代码提交与逐批 GitHub 推送，文档、规划和续聊记录单独收尾；沿用 main，仓库 nanfengovo/better-me。功能与验证索引见发布报告。
+2026-10-18：已按用户要求将简历主题、119套模板、纸张工作室和网页配色拆为6批功能代码及1批文档，逐批推送GitHub main；发布索引见docs/reports/github-theme-template-batches-2026-10-18.md。
 
 ## 卡点
 
-- 当前无代码或推送阻断。全量1192/1192、lint、types5/5、build3/3通过；保留既有大chunk提示。
-- Chrome Gemini网页TLS问题仍独立未恢复；官方mTLS曾成功读取46模型，生成/视觉未据此验收。当前不继续改系统网络。
-- PDF/DOCX实际逐页视觉、更多岗位长期覆盖、真实个人匹配仍另验。受管招聘网络为本机适配，clone或换机不保证直接可用。
+- 无发布阻塞。最终暂存代码全量1251/1251、lint及四份TypeScript配置通过；仓库typecheck5/5、build3/3通过。逐批核对远端SHA；保留既有大包提示，未做性能基准。
+- 主题含10套简历JSON、4套工作台配色×明暗，模板/主题/排版独立；旧layout手动颜色/字体优先，显式恢复主题默认才清除覆盖。自研6套完整装饰，来源113套保留特殊装饰；DOCX为可编辑单栏，RenderCV不复现网页主题。
+- 既有视觉证据：模板126份/416页PDF；主题2380组真实CSS与4份PDF。结果限各报告中的Windows/Edge合成样本，本次发布未重做浏览器/PDF验收，原localhost:5173数据与服务未操作。
+- Rick Osborne依用户选择保留CC BY-NC-SA4.0/非商业标记及纸面署名；根项目整体许可证仍待维护者确定。
+- ChatGPT代码读取已恢复，独立图像评审未完成；此前Headless受控输入差异仍未定位。Gemini实际生成/个人匹配及岗位长期覆盖独立待验。
 
 ## 下一步
 
-1. 根据新反馈继续使用与修复；高亮提供色板/自定义Hex和选区预览，界面语言/主题与简历语言独立，历史差异可逐项恢复。
-2. 三平台四个指定岗位最终读取通过，其他覆盖不外推；网络或岗位接续以精简公开报告为准，原始本机证据仍保留在Git忽略目录。
-3. 本轮仅Git拆分、检查与文档整理，未重启原工作台、改代理或操作私人简历。后续提交先核对git status和origin/main。
+1. 从已发布main继续，先核对工作区与远端；按用户真实画面反馈精修，保留两项并行需求的模板与主题成果。
+2. 模板来源以注册表/templates为准，主题以core themes与web workspace-theme JSON为准；后续可单独评估大包按需加载和更多真实内容/字体分页。
+3. 外部图像可见性、Headless输入差异及模型/岗位覆盖按对应报告另验，继续保护Fact、草稿、历史与私人数据。
 
 ## 必读附加
 
-- docs/reports/github-feature-batches-2026-10-18.md
-- docs/reports/selectable-highlight-colors-2026-10-18.md
-- docs/reports/workspace-language-theme-2026-10-18.md
-- docs/reports/version-field-restore-2026-10-18.md
-- docs/reports/jd-analysis-input-guard-2026-10-18.md（继续个人匹配时）
-- docs/reports/ai-connection-repair-2026-10-18.md（继续网络时）
-- docs/reports/job-browser-reading-2026-10-17.md（继续岗位读取时）
+- docs/reports/github-theme-template-batches-2026-10-18.md
+- docs/reports/open-source-template-integration-2026-10-18.md
+- docs/reports/theme-system-2026-10-18.md
+- templates/README.md
+- docs/reports/chatgpt-connection-review-2026-10-18.md（仅继续外部协作时）
