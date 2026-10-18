@@ -1,4 +1,4 @@
-import { getResumeSectionOrder, splitStyledText, type TextStyleRange } from "../schema/resume.js";
+import { getHighlightColor, getResumeSectionOrder, splitStyledText, type TextStyleRange } from "../schema/resume.js";
 import type { ProjectedResume, ProjectedExperience } from "./resume-projection.js";
 
 function escapeMarkdown(text: string): string {
@@ -14,7 +14,11 @@ function formatText(text: string, ranges?: TextStyleRange[]): string {
     if (segment.style.bold) content = `**${content}**`;
     if (segment.style.italic) content = `*${content}*`;
     if (segment.style.underline) content = `<u>${content}</u>`;
-    if (segment.style.highlight) content = `<mark>${content}</mark>`;
+    const highlightColor = getHighlightColor(segment.style);
+    if (highlightColor) {
+      const customColor = typeof segment.style.highlightColor === "string" && /^#[\da-fA-F]{6}$/.test(segment.style.highlightColor);
+      content = customColor ? `<mark style="background-color: ${highlightColor}">${content}</mark>` : `<mark>${content}</mark>`;
+    }
     return leading + content + trailing;
   }).join("");
 }

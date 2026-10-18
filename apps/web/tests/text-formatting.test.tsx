@@ -17,3 +17,24 @@ test("typing before a marked word shifts ranges without styling new characters",
 test("replacing part of styled text keeps only surviving original text", () => {
   assert.deepEqual(rebaseTextStyles("abcdef", "abXYef", [{ start: 0, end: 6, highlight: true }]), [{ start: 0, end: 2, highlight: true }, { start: 4, end: 6, highlight: true }]);
 });
+
+test("recoloring only the selection preserves adjacent colors and other formatting", () => {
+  const initial = [{ start: 0, end: 6, bold: true, highlight: true, highlightColor: "#fae6a1" }];
+  const colored = formatSelection("abcdefgh", initial, 2, 4, { highlight: true, highlightColor: "#CCE5FF" });
+  assert.deepEqual(colored, [
+    { start: 0, end: 2, bold: true, highlight: true, highlightColor: "#fae6a1" },
+    { start: 2, end: 4, bold: true, highlight: true, highlightColor: "#cce5ff" },
+    { start: 4, end: 6, bold: true, highlight: true, highlightColor: "#fae6a1" },
+  ]);
+  assert.deepEqual(formatSelection("abcdefgh", colored, 2, 4, { highlight: false }), [
+    colored[0], { start: 2, end: 4, bold: true }, colored[2],
+  ]);
+  assert.deepEqual(formatSelection("abcdefgh", colored, 2, 4, "clear"), [colored[0], colored[2]]);
+});
+
+test("text edits retain colors only on surviving characters", () => {
+  assert.deepEqual(rebaseTextStyles("abcdef", "abXYef", [{ start: 0, end: 6, highlight: true, highlightColor: "#cce5ff" }]), [
+    { start: 0, end: 2, highlight: true, highlightColor: "#cce5ff" },
+    { start: 4, end: 6, highlight: true, highlightColor: "#cce5ff" },
+  ]);
+});

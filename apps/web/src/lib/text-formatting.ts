@@ -1,7 +1,7 @@
-import type { FactBase, ResumeView, TextStyleRange } from "@better-me/core";
+import { getHighlightColor, type FactBase, type ResumeView, type TextStyleRange } from "@better-me/core";
 
 export type TextStylePatch = Partial<Omit<TextStyleRange, "start" | "end">>;
-const STYLE_KEYS = ["bold", "italic", "underline", "highlight", "fontScale"] as const;
+const STYLE_KEYS = ["bold", "italic", "underline", "highlight", "highlightColor", "fontScale"] as const;
 
 /** Store disjoint runs so toggling one selection never loses adjacent formatting. */
 export function formatSelection(
@@ -28,6 +28,8 @@ export function formatSelection(
     }
     if (from >= start && to <= end) style = patch === "clear" ? {} : { ...style, ...patch };
     for (const key of STYLE_KEYS) if (style[key] === false || (key === "fontScale" && style[key] === 1)) delete style[key];
+    if (!style.highlight) delete style.highlightColor;
+    else if (style.highlightColor !== undefined) style.highlightColor = getHighlightColor(style);
     if (Object.keys(style).length === 0) continue;
     const previous = result[result.length - 1];
     const previousStyle = previous ? Object.fromEntries(STYLE_KEYS.filter((key) => previous[key] !== undefined).map((key) => [key, previous[key]])) : null;

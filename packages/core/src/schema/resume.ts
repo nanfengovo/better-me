@@ -37,10 +37,20 @@ export const TextStyleRangeSchema = z.object({
   italic: z.boolean().optional(),
   underline: z.boolean().optional(),
   highlight: z.boolean().optional(),
+  highlightColor: z.string().regex(/^#[\da-fA-F]{6}$/).optional(),
   fontScale: z.number().min(0.8).max(1.8).optional(),
 }).refine((range) => range.end > range.start, { message: "格式范围的结束位置必须大于开始位置。" });
 export type TextStyleRange = z.infer<typeof TextStyleRangeSchema>;
 export type ResumeTextStyle = Omit<TextStyleRange, "start" | "end">;
+
+export const DEFAULT_HIGHLIGHT_COLOR = "#fae6a1";
+
+/** Drafts may temporarily bypass string validation; never emit an unchecked CSS color. */
+export function getHighlightColor(style: Pick<ResumeTextStyle, "highlight" | "highlightColor">): string | undefined {
+  if (style.highlight !== true) return undefined;
+  return typeof style.highlightColor === "string" && /^#[\da-fA-F]{6}$/.test(style.highlightColor)
+    ? style.highlightColor.toLowerCase() : DEFAULT_HIGHLIGHT_COLOR;
+}
 
 /**
  * A resume is a *view* over FactBase — selection + ordering + template.
@@ -107,7 +117,7 @@ export function splitStyledText(text: string, ranges: TextStyleRange[] = []): { 
     const style: ResumeTextStyle = {};
     for (const range of validRanges) {
       if (range.start <= start && range.end >= end) {
-        for (const key of ["bold", "italic", "underline", "highlight", "fontScale"] as const) {
+        for (const key of ["bold", "italic", "underline", "highlight", "highlightColor", "fontScale"] as const) {
           if (range[key] !== undefined) Object.assign(style, { [key]: range[key] });
         }
       }
