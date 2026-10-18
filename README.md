@@ -358,6 +358,8 @@ pnpm memory:check
 
 随后在原工作台以全球 `C#` 明确刷新10个配置来源，9个返回回执、原始返回705条，实际新增10岗（Arbeitnow 3、Temporal官网7），最终为 **61岗 / revision33、C# 24个文本命中 / 13家企业**。另400条候选要求尚未读全，Bosch受3600秒刷新间隔拒绝、腾讯详情超时，仍保留部分覆盖。Temporal新增样本原文和回链已实际核对，C#是多种可选语言之一，不把24条当专职C#或个人适岗。原页披露的薪资与地点尚未完整映射到索引，当前仍有字段缺口。
 
+2026-10-19 字段准确度修复：通用Ashby适配器保留远程岗位的明确国家／主次地点，以及工资、佣金、奖金、股权分项和档位；不从货币或公司猜国家，不把远程范围画成办公室，不推断税前或合并总包。独立真实服务读取Temporal70条、C#匹配7条，浏览器美国＋Chicago与印度筛选、全部分项及原链已核；原61岗索引未更新，不将隔离样本当新增。隔离1975/1975、types10/10、lint、build6/6通过，功能`8c8d347`的[远端四任务](https://github.com/nanfengovo/better-me/actions/runs/39165884279)均success；原服务更新仍受自动审批阻断，详见[Ashby字段报告](docs/reports/job-atlas-ashby-fields-2026-10-19.md)。
+
 来源扩展发布已核对：旧 Windows TTL 测试抖动修复后，`1da8bcb` 与最终文档批 `ad504ff` 的质量、Linux 构建、Docker 和 Pages 均已成功；最终运行见 [Actions 39154486097](https://github.com/nanfengovo/better-me/actions/runs/39154486097)。后续卡片审核入库批次的发布状态单独记录。
 
 该来源扩展批次的独立冻结产品树通过 **1843/1843 测试、Typecheck 10/10、Build 6/6、Lint 和 Docker 271 次 HTTP**，排除了并行 Agent / 导入改动。`4e98df0`、`f4903ae`、`8ebda82` 已按来源适配、浏览器解析、目录与候选界面三批正常推送；新远端 Actions / Pages 的逐批状态见 [发布记录](docs/reports/github-atlas-feature-batches-2026-10-19.md)，不以本机通过代替公网更新。

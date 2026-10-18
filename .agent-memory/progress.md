@@ -4,6 +4,8 @@
 
 ## 当前交付
 
+- [x] 2026-10-19 Ashby真实字段修复8c8d347正常推送，远端Actions39165884279四任务success；仅6文件冻结树a3c7c6d9完成1975/1975、types10/10、lint、build6/6。主次结构化国家／地区、remote-region及工资／佣金／股权分项保留，无坐标／tax unknown／无tier地点猜测。独立真实70条→C#7条、rev2，US+Chicago1／India1／CN0、全部薪资及原链UI已验；原库61岗／rev33、C#24／13企业、国内2条未变，服务重启被自动审批拒绝，完整备份quick_check通过。文档发布收尾中，详见Ashby字段报告；未混入Career Agent，完整Goal active。
+
 - [x] 2026-10-19 官网协议／英文地点／加载诊断三批6f967a3／2aa6936／32186f7及测试收尾1209042正常推送，产品后两批远端四任务已success。Bosch.NET1新增后51岗／rev29，再全球C#刷新新增10（Arbeitnow3／Temporal7）至61岗／rev33、24文本命中／13企业，10可抓取源；9/10回执、705原始、400要求待核，间隔与超时保留。Temporal原文及可选C#要求核对，地点／薪资投影待补；国内C#仍2岗。原产品源码1965、types10、lint、build6与最终Docker275通过；测试收尾独立树ce36b767再次1965/1965、types10／lint通过，后续CI／文档发布另核；Career Agent未混入，完整Goal active，详见官网接入报告。
 
 - [x] 2026-10-19 薪资与可撤销地区确认落地：猎聘C#上海22卡中目标15-30k重新审核更新同岗，50岗／rev23→24；V2克隆迁移V3、完整备份quick_check通过；上海浦东确认rev25重启保留，明确撤销rev26恢复来源且退出国内筛选。a6abdc6／53503b3已推送，两批远端质量／Linux构建／Docker／Pages均success；详情缓存收尾d450d5d独立冻结树1916/1916、types10/10、lint、build6/6通过，工作台29/29。原页5286恢复C#14文本命中／9企业、9源和50岗／rev26；无新增办公坐标，自有会话结束。最终详情／文档提交远端结果另核，并行Career Agent未混入，整体Goal active；详见job-atlas-location-confirmation-2026-10-19.md。

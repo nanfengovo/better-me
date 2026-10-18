@@ -237,3 +237,9 @@ SmartRecruiters专项见`packages/source-adapters/tests/smartrecruiters.test.ts`
 仓库根 `pnpm test` 和 `pnpm lint` 已包含本包。自动化覆盖临时目录中的真实 SQLite 事务、重开、回执、来源范围、取消 / 迟到、备份恢复、投影历史、受控 HTTP 以及生命周期。`tests/reconciliation.test.ts` 还覆盖同名不自动归并、人工身份确认、嵌套合并 / 独立撤销、源刷新后拆回最新 JD / 地点 / 薪资、旧 ID 历史解析、实际 SQL 写入故障整笔回滚、完整备份及持久 v1 SQLite 升级。`tests/application-reconciliation.test.ts` 进一步通过实际 HTTP 验证合并后刷新、旧 ID 详情、规范搜索 / 导出和撤销最新来源，并覆盖 v1 升级后应用兼容及读取期间并发合并 / 撤销的快照一致性。历史 M2 范围见[归并报告](../../docs/reports/job-atlas-m2-reconciliation-2026-10-18.md)，V3 地区范围见[地区确认报告](../../docs/reports/job-atlas-location-confirmation-2026-10-19.md)。这些合成检查不代表所有真实来源长期可用、生产服务器部署、私人迁移或三维地图已验收。
 
 本批后续全局C#手动刷新已到61岗／revision33、24个文本命中／13企业：Arbeitnow新增3、Temporal新增7，仍有400条要求未读全和间隔／超时边界。最终产品`32186f7`远端四任务已success；测试就绪等待修复`1209042`另有独立1965项回归，最新运行按[本批报告](../../docs/reports/job-atlas-smartrecruiters-2026-10-19.md)核对。公共程序发布不上传本机数据。
+
+## Ashby 结构化字段与真实范围
+
+`ashby@1`继续访问配置的公共Posting API，读取明确嵌套／扁平postal address，主次地点分别保留；纯Remote的结构化地区通过既有投影成为remote-region，不产生办公室坐标。国家只规范化明确国家字段，复用有限别名并补India，不从城市或币种猜国家。Salary／Bonus／Commission／EquityCashValue分开映射，百分比和未知类型不进入货币金额，税制保持unknown；多tier不重复summary envelope、不猜locationIds。
+
+本批仅6文件冻结树`a3c7c6d9509b4710a3ba7908195f3140c21a0f6a`，1975/1975、types10/10、lint和build6/6；功能`8c8d347`远端质量／Linux／Docker／Pages均success。独立服务真实读取Temporal70条并按C#入库7条，原61岗／revision33服务未更新（自动审批拒绝重启）；新增字段需获准更新后按原来源间隔读取，不缩短3600秒、不清空刷新记录。完整证据及局限见[Ashby字段报告](../../docs/reports/job-atlas-ashby-fields-2026-10-19.md)。

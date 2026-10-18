@@ -92,3 +92,9 @@
 首批Windows失败日志仅显示分类unknown，没有记录snapshotState，未声称复现了确切瞬态。测试修复`1209042`只改既有Edge合成测试：在人工导航后有界等待公开navigation_in_progress结束，严格断言ready；ready未知、failed和oversized不重试，原分类／gate／URL／请求数／不导航断言保留。5/5定向及ESLint通过；独立最终树`ce36b767f8d2e4c49a6e49a4b7d3da44f436ce71`冻结安装、types10/10、lint和1965/1965全量（失败／取消／跳过／todo0）通过，未改生产代码，未重复未变的产品构建和Docker检查。该修复正常提交推送，后续[Actions39164275826](https://github.com/nanfengovo/better-me/actions/runs/39164275826)以实际运行结果为准。
 
 产品第二批及最终产品第三批的Windows质量、Linux构建、Docker和Pages已分别全部success，最终产品运行见[Actions39163675586](https://github.com/nanfengovo/better-me/actions/runs/39163675586)。首批失败是历史记录，不能继续当作最新产品发布失败；测试收尾和文档提交的后续CI独立核对。Pages只更新静态程序，本机61岗位、来源配置、密钥与浏览器profile没有上传到GitHub或公共站点。
+
+## Ashby 国家、远程地区与分项薪资 · 2026-10-19
+
+功能`8c8d3479602284a83444aabbe0877ddd6be62252`已正常推送main；冻结产品树`a3c7c6d9509b4710a3ba7908195f3140c21a0f6a`仅6文件，1975/1975（失败／取消／跳过／todo0）、types10/10、lint和build6/6通过。[Actions39165884279](https://github.com/nanfengovo/better-me/actions/runs/39165884279)的Windows质量、Linux构建、Docker镜像／HTTP和Pages均success。本机未另建新Docker镜像，不引用上批275检查冒充本批。
+
+独立真实服务／SQLite读取Temporal70条→C#7条，US＋Chicago／India筛选及完整分项薪资UI通过；原库61岗／rev33、C#24／13企业未改变，原服务停止重启被自动审批拒绝，备份及quick_check完成。并行Career Agent、导入、依赖／锁文件和Docker改动未混入；原本机私人库、凭据、profile和实证截图不公开，详见[Ashby字段报告](job-atlas-ashby-fields-2026-10-19.md)。
