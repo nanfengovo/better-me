@@ -4,6 +4,8 @@
 
 ## 当前交付
 
+- [x] 岗位地图M1后端：独立TS CLI / loopback认证HTTP / SQLite、五适配器与配置、来源发现/有限抽样/禁用提案、范围预览/手动刷新、分页/部分/429/取消/代次、不可变JD/观察、持久任务指纹/回执、私有目录锁和安全drain。最终1449/1449、lint、types10任务、build6任务通过；Docker静态运行208 HTTP通过；有限4源probe及真实临时HTTP+SQLite+GH两轮5岗10观察5快照通过。功能92ce19f已推送，Actions39133633839执行中。未接新UI/四平台companion，FTS/RTree仍全量安全候选，地理编码/跨源归并/3D/私人联动继续建设，Goal active，详见M1报告。
+
 - [x] 岗位地图 M0：独立 opportunities 包、严格证据 / 来源 / 公司 / 岗位 / 观察 / JD / 薪资 / 位置及引用契约；薪资换算 / WGS84 / 可配控股来源颜色、模糊共享查询 / 全量地图桶 / 稳定分页、实际 jobs.search 工具、v1 公共白名单与私人sidecar保护完成。最后全量1343/1343（新包92）、lint、types6/6、build4/4通过；最终Docker隔离208请求通过；合成HTTP / UI / 工具结果一致。真实用户未迁移，正式采集 / 持久索引 / 3D未实现，详见docs/reports/job-atlas-m0-2026-10-18.md。完整Goal仍active。
 
 - [x] 2026-10-18 岗位聚合 / 国内全球三维地图完成五项口径确认、现有架构核对、指定与扩展来源实查、地图源码 / 官方能力研究；已建立完整工程 Goal（active）。方案与 M0–M5 验收见 docs/planning/job-atlas-architecture-2026-10-18.md，来源和地图研究由其链接；本轮仅研究 / 规划，未实现新产品能力。

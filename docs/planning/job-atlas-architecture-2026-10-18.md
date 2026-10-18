@@ -1,8 +1,8 @@
 # 岗位地图与统一机会工具：可执行架构方案
 
-日期：2026-10-18，Asia/Shanghai。状态：**M0 共享领域、内存参考查询、工具与迁移保护已实现；正式后台、采集和三维界面待实施**。本文为架构 SSOT，草图以实际包 Schema 为准；阶段证据见 [M0 报告](../reports/job-atlas-m0-2026-10-18.md)。
+日期：2026-10-18，Asia/Shanghai。状态：**M0 与 M1 后端底座已实现；网页接线、跨源归并、地理编码和正式三维继续建设**。本文为架构 SSOT，草图以实际包 Schema 为准；阶段证据见 [M0 报告](../reports/job-atlas-m0-2026-10-18.md)、[M1 报告](../reports/job-atlas-m1-2026-10-18.md)。
 
-前期研究完成现有源码、来源与地图核查。其后 M0 在独立 `packages/opportunities` 实现契约和纯规则，测试通过临时 loopback HTTP 调用实际查询工具；尚未创建持久岗位数据库、定时任务或模型调用，未迁移个人数据或改动正在运行的工作台。
+前期研究完成现有源码、来源与地图核查。M0 在独立 `packages/opportunities` 实现契约和纯规则；M1 在 `packages/source-adapters` 与 `apps/job-service` 建立可配置来源、手动刷新、SQLite、认证 loopback HTTP 和 CLI。服务测试与公开有限来源探测已执行，尚未接入网页或创建真实用户索引；未迁移个人数据、启动定时任务或改动原工作台实例。
 
 相关研究：[信息源与通用接入](job-atlas-sources-research-2026-10-18.md)、[地图与三维参考](../research/job-atlas-map-references-2026-10-18.md)。历史依据：[产品总规划](betterme-product-roadmap-2026-10-16.md)、[自用聚合定位](recruitment-aggregation-assessment-2026-10-17.md)、[真实技能匹配闭环](job-skill-matching-loop-2026-10-17.md)。本文中的最新用户选择覆盖历史文档里“先二维、三维后置”的建议。
 
@@ -63,7 +63,7 @@ flowchart LR
   Link --> Q
 ```
 
-保留现有 React/Vite、TS Core 与存储端口。建议新增的目录是目标结构，**不代表已存在**：
+保留现有 React/Vite、TS Core 与存储端口。下列目录中 opportunities、source-adapters、job-service 和 sources 已实现；网页地图及独立颜色文件目录仍是接线目标，公共默认颜色目前位于 opportunities 包：
 
 ```text
 packages/
@@ -455,7 +455,7 @@ type ToolDefinition<I, O> = {
 | `opportunities.save` / `opportunities.link` | 收藏并连回现有工作区 | 通过私人存储端口，不让后台复制完整 career |
 | `resumes.matchJob` / `resumes.proposeChanges` | 选定 JD 与真实 Fact/Resume 的可追溯对比 | 继续 Fact 真实性与用户确认；不把来源字段写成个人事实 |
 
-API 草案可为 `POST /api/v1/jobs/search`、`GET /api/v1/jobs/:id`、`POST /api/v1/sources/:id/sync`、`GET /api/v1/runs/:id`、`POST /api/v1/runs/:id/cancel`；这些路径尚未实现。请求与响应 Schema、typed error、JSON/OpenAPI 描述可供 TS 客户端和 Agent 共用。
+已实现 `POST /api/v1/jobs/search`、`GET /api/v1/jobs/:id`、`POST /api/v1/sources/:id/sync`、`GET /api/v1/runs/:id`、`POST /api/v1/runs/:id/cancel`，以及来源配置 / 发现 / 检查 / 提案、线索和公共字段导入导出。实际工具名与完整路由见 [服务说明](../../apps/job-service/README.md)，其中 `jobs.read-detail` 等采用 kebab 格式。上表尚未实现的工具仍是后续目标；没有提供 OpenAPI 或 LangChain SDK wrapper。
 
 错误应区分 unsupported-capability、needs-auth、needs-human-verification、rate-limited、partial-result、source-changed、timeout、cancelled、stale-version、incomparable-salary、location-unresolved，不统一包成“成功但空数组”。
 
@@ -475,7 +475,7 @@ API 草案可为 `POST /api/v1/jobs/search`、`GET /api/v1/jobs/:id`、`POST /ap
 
 ## 15. M0–M5 阶段、依赖和验收
 
-阶段不是承诺日期，实施范围和完成证据逐阶段记录。M0 已通过合成迁移、实际查询工具 / 临时 HTTP 同一结果验收；M1–M5 仍待完成。M0 参考查询提前固定 M2 规则，不等于持久索引或正式地图已交付。
+阶段不是承诺日期，实施范围和完成证据逐阶段记录。M0 已通过合成迁移与查询验收；M1 本机索引和手动来源工具已实现，旧 companion 与网页接线仍待完成。持久查询继续使用 M0 的完整候选参考规则，建有 FTS / RTree 不等于已完成规模性能或正式地图。
 
 | 阶段 | 工作与依赖 | 阶段出口与实际验收案例 |
 | --- | --- | --- |
@@ -521,6 +521,6 @@ M1/M2 与 M3 视觉原型可在固定契约和合成数据边界后并行，最�
 
 ## 17. 当前真实状态与下一施工停点
 
-截至 2026-10-18：用户五项关键选择已确认；来源研究、地图研究和本架构方案为工程目标输入。现有产品仍是已交付的简历/主题/机会工作台和本地单岗读取；**尚无本轮新增岗位服务、SQLite 索引、模糊搜索、薪资归一化、企业控制方库或 3D 岗位地图**。
+截至 2026-10-18：用户五项关键选择已确认，M0 共享领域与 M1 后端已实现。已有持久岗位服务、来源注册 / 发现 / 预览 / 手动同步、真实查询工具、薪资与距离规则；企业控制方保持证据契约和未知，不存在自动核实公司国别的完整数据库。原简历 / 主题 / 私人机会和四平台单岗工作流保留；**新网页服务面板、跨源同岗操作、地理编码和正式 3D 尚未交付**。
 
-下一施工停点为 M0：在不修改私人主库和运行实例的条件下，落实可评审的领域/工具/查询契约、迁移 fixture 和独立 TS 服务骨架，确认这些边界后推进 M1/M2 与 M3 原型。每阶段交付时更新实现、真实测试/视觉/来源覆盖报告及路线图；功能截图和计数必须来自实际或明确标注的合成数据，不能把研究计划包装成完成。
+下一步在保持私人主库和运行实例的条件下，继续 M2 地理 / 归并 / 计量与 M3 真实渲染原型，随后接现有工作台。每阶段交付时更新实现、测试 / 视觉 / 来源覆盖报告及路线图；截图和计数必须来自实际或明确标注的合成数据。持久任务身份与状态回执不代表原 HTTP warnings / sourceError 的完整重放；静态 Pages 和现有 Nginx 容器不运行新服务。

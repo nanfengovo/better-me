@@ -119,7 +119,7 @@ DOCX 已有 OOXML 结构与正文回读验证，尚未完成所有中文字体�
 
 ## 快速开始
 
-需要 **Node.js `^22.13.0` 或 `>=24`**，使用仓库指定的 **pnpm 11.9.0**。建议新环境采用 Node.js 24 LTS。
+需要 **Node.js `^24.15.0` 或 `>=26`**，使用仓库指定的 **pnpm 11.9.0**。CI 与 Docker 使用 Node.js 24.15.0；新增岗位服务依赖内置 SQLite，Node 22 不在完整仓库支持范围内。
 
 ```bash
 git clone https://github.com/nanfengovo/better-me.git
@@ -332,7 +332,21 @@ pnpm memory:check
 
 方案与分阶段验收见 [岗位地图架构](docs/planning/job-atlas-architecture-2026-10-18.md)、[来源实查](docs/planning/job-atlas-sources-research-2026-10-18.md) 和 [三维地图研究](docs/research/job-atlas-map-references-2026-10-18.md)。研究已覆盖用户参考之外的 ATS、结构化招聘页、聚合 API 和 GitHub 来源发现，并记录实际字段、时效与可用范围。
 
-已落地的 [共享岗位包](packages/opportunities/README.md) 提供严格 Zod 契约、人民币税前年固定薪资与原币证据、WGS84 直线距离、可配置企业配色、模糊关键词和统一列表/地图统计查询，以及真实可调用的 `jobs.search` 工具。旧机会迁移先生成公共白名单预览和独立私人引用，不读取或自动搬迁现有用户数据。当前查询采用内存参考实现；SQLite 索引、来源刷新和正式 3D 渲染尚未接入产品，验收范围见 [M0 报告](docs/reports/job-atlas-m0-2026-10-18.md)。
+已落地的 [共享岗位包](packages/opportunities/README.md) 提供严格 Zod 契约、人民币税前年固定薪资与原币证据、WGS84 直线距离、可配置企业配色、模糊关键词和统一列表/地图统计查询。新增 [独立本机服务](apps/job-service/README.md) 将同一工具注册表接到认证 HTTP API 和 SQLite，支持来源配置、关注范围预览 / 手动刷新、任务取消、重启回执、不可变 JD 和来源观察。旧机会迁移先生成公共白名单预览和独立私人引用，不自动搬迁现有用户数据。
+
+[来源适配器](packages/source-adapters/README.md) 支持 Greenhouse、Lever、Ashby、可配置 JSON 和 GitHub JSON 线索；同协议的新公司主要增加配置。通用发现工具可搜索 GitHub 仓库或检查种子链接，有限检查 JSON / CSV / Markdown 的字段并生成**禁用、待审核的来源提案**。这不等于已经接入全部招聘平台或把校招活动当成真实单岗。
+
+服务可独立运行，当前网页尚未接入新的服务面板和正式 3D 地图。完整仓库安装后，在单独终端启动：
+
+```powershell
+pnpm --filter @better-me/job-service start `
+  --data-dir "$env:LOCALAPPDATA\BetterMe\job-service" `
+  --origin http://localhost:5173
+```
+
+默认只监听 `127.0.0.1:5178`，凭据保存在指定私有目录的 `service.token`，日志只显示文件路径。需要受控客户端设置 Bearer 凭据，写请求还需幂等键；来源示例全部默认禁用，不会在启动时采集。如果系统 DNS 使用代理 Fake-IP，可显式添加 `--dns google-doh`；此选项仅作用于服务内的固定可信解析器，仍检查并固定公网地址，不修改系统设置。
+
+本阶段建有 FTS5 / RTree，但模糊查询仍采用完整候选的业务参考实现，尚未承诺大库加速。真实来源读取与在招核验分开，工资、控股方和坐标未知时不补造。API、样例、运行和验证范围见 [服务说明](apps/job-service/README.md)、[M1 报告](docs/reports/job-atlas-m1-2026-10-18.md) 与 [有限来源实测](docs/reports/job-atlas-m1-source-probes-2026-10-18.md)。
 
 ## 文档与验收记录
 
@@ -351,6 +365,7 @@ pnpm memory:check
 | 机会工作台与来源研究 | [跟进与导出](docs/reports/non-agent-followups-and-export-2026-10-17.md) · [开源做法](docs/research/non-agent-patterns-2026-10-17.md) |
 | 岗位搜索 / 三维地图目标 | [架构与里程碑](docs/planning/job-atlas-architecture-2026-10-18.md) · [来源实查](docs/planning/job-atlas-sources-research-2026-10-18.md) · [地图选型](docs/research/job-atlas-map-references-2026-10-18.md) |
 | 岗位共享底座 | [包 API 与示例](packages/opportunities/README.md) · [M0 契约 / 迁移 / 查询验收](docs/reports/job-atlas-m0-2026-10-18.md) |
+| 岗位本机服务与来源工具 | [运行与 API](apps/job-service/README.md) · [来源适配](packages/source-adapters/README.md) · [M1 验收](docs/reports/job-atlas-m1-2026-10-18.md) · [真实有限来源探测](docs/reports/job-atlas-m1-source-probes-2026-10-18.md) |
 | 分批发布历史 | [首轮发布](docs/reports/github-feature-batches-2026-10-18.md) · [模板与主题发布](docs/reports/github-theme-template-batches-2026-10-18.md) |
 
 ## 许可证与致谢
