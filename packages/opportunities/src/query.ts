@@ -220,17 +220,17 @@ function increment(target: Record<string, number>, key: string): void {
   Object.defineProperty(target, key, { value: (Object.hasOwn(target, key) ? target[key]! : 0) + 1, enumerable: true, writable: true, configurable: true });
 }
 function regionMatch(location: JobLocation, ids: string[]): boolean {
-  return !ids.length || ids.some((id) => [location.regionId, location.countryCode, location.region, location.city].includes(id));
+  return !ids.length || ids.some((id) => [location.regionId, location.countryCode, location.region, location.city, location.district].includes(id));
 }
 
 function regionTextMatch(location: JobLocation, text: string | undefined): boolean {
-  return text === undefined || [location.raw, location.regionId, location.region, location.city].some((value) =>
+  return text === undefined || [...(location.userResolution ? [] : [location.raw]), location.regionId, location.region, location.city, location.district].some((value) =>
     value !== undefined && normalizeGeographicName(value).includes(text));
 }
 
 function regionGroupsMatch(location: JobLocation, groups: string[][]): boolean {
   if (!groups.length) return true;
-  const fields = [location.raw, location.regionId, location.region, location.city]
+  const fields = [...(location.userResolution ? [] : [location.raw]), location.regionId, location.region, location.city, location.district]
     .filter((value): value is string => value !== undefined).map(normalizeGeographicName);
   return groups.every((group) => group.some((term) => fields.some((value) => value.includes(term))));
 }

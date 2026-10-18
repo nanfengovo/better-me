@@ -18,6 +18,7 @@ export type AtlasJobDetailProps = {
   onLocate: (locationId?: string) => void;
   onSave: () => void;
   onAnalyze: () => void;
+  onConfirmLocation?: (location: JobLocation) => void;
   /** Root owns city-candidate requests, their selection and their status. */
   children?: ReactNode;
 };
@@ -62,7 +63,7 @@ function sourcesForDetail(item: JobSearchItem, data: AtlasDataset, presentations
 }
 
 /** A non-modal reading pane. It never moves focus, locks the page or intercepts card clicks. */
-export function AtlasJobDetail({ item, data, demo, originalCurrency, presentations, onClose, onLocate, onSave, onAnalyze, children }: AtlasJobDetailProps) {
+export function AtlasJobDetail({ item, data, demo, originalCurrency, presentations, onClose, onLocate, onSave, onAnalyze, onConfirmLocation, children }: AtlasJobDetailProps) {
   const { t, locale } = useUiPreferences();
   const titleId = useId();
   const body = useRef<HTMLDivElement>(null);
@@ -102,7 +103,7 @@ export function AtlasJobDetail({ item, data, demo, originalCurrency, presentatio
 
     <div ref={body} className="atlas-job-detail-body">
       <section className="atlas-job-detail-section atlas-job-detail-opening" aria-label={t("薪资与岗位原文", "Salary and original posting")}>
-        <div className="atlas-job-detail-salary">{annual(salary, t, locale)}</div>
+        <div className="atlas-job-detail-salary">{!salary && rawPay.length ? t("来源薪资已披露 · 年薪口径待核实", "Source pay disclosed · annual comparison unverified") : annual(salary, t, locale)}</div>
         {salary && <p className="atlas-job-detail-caption">{originalCurrency ? t("原币 · 税前固定年薪", "Original currency · annual gross base pay") : t("统一口径 · 人民币税前固定年薪", "Comparable annual gross base pay in CNY")}{item.salary?.estimated && t(" · 含估算", " · estimated")}</p>}
         {rawPay.length > 0 && <div className="atlas-job-detail-raw-pay">{rawPay.map((raw, index) => <p key={`${index}:${raw}`}>{raw}</p>)}</div>}
         {item.salarySelection === "ambiguous" && <p className="atlas-job-detail-caption">{t("多地或多种薪资披露，当前没有单一可比较金额。", "Multiple pay disclosures have no single comparable amount.")}</p>}
@@ -128,7 +129,9 @@ export function AtlasJobDetail({ item, data, demo, originalCurrency, presentatio
           const query = coordinates ? `${coordinates.latitude},${coordinates.longitude}` : location.raw.trim();
           return <article className="atlas-job-detail-location" key={location.id}>
             <strong>{location.raw}</strong><small>{locationPrecision(location, t)}</small>
+            {location.userResolution && <small>{t("本人确认的行政范围", "Locally confirmed administrative area")}：{[location.countryCode, location.region, location.city, location.district].filter(Boolean).join(" / ")} · {t("原文保留，非办公坐标核验", "Source retained; office coordinates unverified")}</small>}
             <div className="atlas-job-detail-location-actions">{location.kind !== "remote-region" && <button type="button" onClick={() => onLocate(location.id)}><Navigation size={12} />{coordinates ? t("地图定位", "Locate on map") : t("查找城市位置", "Find city location")}</button>}
+              {!demo && onConfirmLocation && <button type="button" onClick={() => onConfirmLocation(location)}>{t("核对并保存地区", "Review and save area")}</button>}
               {query && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`} target="_blank" rel="noopener noreferrer">Google {t("地图", "Maps")}<ArrowUpRight size={12} /></a>}
             </div>
           </article>;

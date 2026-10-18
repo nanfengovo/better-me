@@ -158,6 +158,7 @@ export const JobLocationSchema = z.object({
   countryCode: CountryCodeSchema.optional(),
   region: z.string().min(1).max(500).optional(),
   city: z.string().min(1).max(500).optional(),
+  district: z.string().min(1).max(500).optional(),
   coordinates: CoordinatesSchema.optional(),
   originalCoordinates: OriginalCoordinatesSchema.optional(),
   precision: LocationPrecisionSchema,
@@ -165,6 +166,17 @@ export const JobLocationSchema = z.object({
   resolvedAt: TimestampSchema.optional(),
   evidence: z.array(EvidenceRefSchema).max(200),
   verification: VerificationSchema,
+  /** A local area selection is separate from the unchanged source text/evidence. */
+  userResolution: z.object({
+    decisionId: EntityIdSchema, method: z.literal("explicit-user-confirmation"), at: TimestampSchema,
+    originalLocationId: EntityIdSchema,
+    basis: z.discriminatedUnion("kind", [
+      z.object({ kind: z.literal("manual-area") }).strict(),
+      z.object({ kind: z.literal("china-catalog"), datasetId: EntityIdSchema, version: EntityIdSchema,
+        provinceCode: z.string().regex(/^\d{2}$/), cityCode: z.string().regex(/^\d{4}$/).optional(),
+        districtCode: z.string().regex(/^\d{6}(?:\d{3})?$/).optional() }).strict(),
+    ]),
+  }).strict().optional(),
 }).strict().superRefine((location, context) => {
   if (location.verification === "verified" && location.evidence.length === 0) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["evidence"], message: "Verified locations require evidence." });
@@ -174,6 +186,10 @@ export const JobLocationSchema = z.object({
   }
   if (location.kind === "remote-region" && location.coordinates) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["coordinates"], message: "A remote eligibility region is not an office point." });
+  }
+  if (location.userResolution && (location.userResolution.originalLocationId !== location.id || location.verification !== "unverified" || location.coordinates || location.originalCoordinates
+    || !location.countryCode || location.precision !== (location.city ? "city" : location.region ? "region" : "country"))) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["userResolution"], message: "A confirmed area stays unverified, retains its source identity and has no inferred office coordinates." });
   }
 });
 export type JobLocation = z.infer<typeof JobLocationSchema>;

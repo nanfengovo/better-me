@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { AtlasDatasetSchema, CanonicalJobSchema, CountryCodeSchema, EntityIdSchema, TimestampSchema, MergeDecisionSchema, JobAliasEventSchema, ReconciliationReceiptSchema } from "@better-me/opportunities";
+import { AtlasDatasetSchema, CanonicalJobSchema, CountryCodeSchema, EntityIdSchema, TimestampSchema, MergeDecisionSchema, JobAliasEventSchema, ReconciliationReceiptSchema, JobLocationSchema, LocationConfirmationDecisionSchema, LocationConfirmationReceiptSchema } from "@better-me/opportunities";
 import { SourceJobRecordSchema } from "@better-me/source-adapters";
 
-export const REPOSITORY_SCHEMA_VERSION = 2;
+export const REPOSITORY_SCHEMA_VERSION = 3;
 export const ActorScopeSchema = z.string().min(1).max(200).regex(/^[A-Za-z0-9._:/-]+$/);
 export const IdempotencyKeySchema = z.string().min(1).max(200).regex(/^[A-Za-z0-9._:-]+$/);
 export const RequestFingerprintSchema = z.string().regex(/^[a-f0-9]{64}$/);
@@ -44,13 +44,15 @@ export type DiscoveryLead = z.infer<typeof DiscoveryLeadSchema>;
 export const DiscoveryLeadReceiptSchema = z.object({ ok: z.literal(true), revision: z.number().int().nonnegative(), leadIds: z.array(EntityIdSchema) }).strict();
 export type DiscoveryLeadReceipt = z.infer<typeof DiscoveryLeadReceiptSchema>;
 export const StoredReceiptSchema = z.object({
-  actorScope: ActorScopeSchema, tool: z.enum(["dataset.import", "dataset.restore", "runs.start", "leads.save", "sources.register", "jobs.merge", "jobs.reject-merge", "jobs.revoke-merge"]),
+  actorScope: ActorScopeSchema, tool: z.enum(["dataset.import", "dataset.restore", "runs.start", "leads.save", "sources.register", "jobs.merge", "jobs.reject-merge", "jobs.revoke-merge", "locations.confirm", "locations.revoke-confirmation"]),
   idempotencyKey: IdempotencyKeySchema, signature: z.string().regex(/^[a-f0-9]{64}$/),
-  response: z.union([ImportReceiptSchema, SyncRunSchema, DiscoveryLeadReceiptSchema, ReconciliationReceiptSchema]), createdAt: TimestampSchema,
-}).strict();
+  response: z.union([ImportReceiptSchema, SyncRunSchema, DiscoveryLeadReceiptSchema, ReconciliationReceiptSchema, LocationConfirmationReceiptSchema]), createdAt: TimestampSchema,
+}).strict().superRefine((receipt, context) => {
+  if ((receipt.tool === "locations.confirm" || receipt.tool === "locations.revoke-confirmation") && !LocationConfirmationReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Location command receipts require a location response." });
+});
 export type StoredReceipt = z.infer<typeof StoredReceiptSchema>;
 export const RepositoryBackupSchema = z.object({
-  format: z.literal("better-me/job-repository"), schemaVersion: z.union([z.literal(1), z.literal(2)]),
+  format: z.literal("better-me/job-repository"), schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   createdAt: TimestampSchema, dataset: AtlasDatasetSchema,
   runs: z.array(SyncRunSchema).max(100_000), receipts: z.array(StoredReceiptSchema).max(1_000_000),
   leads: z.array(DiscoveryLeadSchema).max(300_000).default([]),
@@ -58,13 +60,18 @@ export const RepositoryBackupSchema = z.object({
   mergeDecisions: z.array(MergeDecisionSchema).max(100_000).default([]),
   aliasHistory: z.array(JobAliasEventSchema).max(1_000_000).default([]),
   jobVersions: z.array(z.object({ jobId: EntityIdSchema, revision: z.number().int().nonnegative() }).strict()).max(100_000).default([]),
+  baseLocations: z.array(JobLocationSchema.refine(value => !value.userResolution, "Source locations cannot contain local decisions.")).max(200_000).optional(),
+  locationDecisions: z.array(LocationConfirmationDecisionSchema).max(200_000).default([]),
 }).strict().superRefine((backup, context) => {
   if (new Set(backup.runs.map((run) => run.runId)).size !== backup.runs.length) context.addIssue({ code: "custom", message: "Duplicate run IDs." });
   const keys = backup.receipts.map((receipt) => JSON.stringify([receipt.actorScope, receipt.tool, receipt.idempotencyKey]));
   if (new Set(keys).size !== keys.length) context.addIssue({ code: "custom", message: "Duplicate receipt keys." });
   const sources = new Set(backup.dataset.sources.map((source) => source.sourceId));
   if (new Set(backup.leads.map((lead) => lead.id)).size !== backup.leads.length || backup.leads.some((lead) => !sources.has(lead.sourceId))) context.addIssue({ code: "custom", message: "Invalid lead source references." });
-  if (backup.schemaVersion === 2 && !backup.baseJobs) context.addIssue({ code: "custom", message: "Version 2 backups require origin jobs." });
+  if (backup.schemaVersion >= 2 && !backup.baseJobs) context.addIssue({ code: "custom", message: "Version 2 and later backups require origin jobs." });
+  if (backup.schemaVersion === 3 && !backup.baseLocations) context.addIssue({ code: "custom", message: "Version 3 backups require origin locations." });
+  if (backup.schemaVersion < 3 && (backup.baseLocations !== undefined || backup.locationDecisions.length || backup.dataset.locations.some(value => value.userResolution))) context.addIssue({ code: "custom", message: "Old backups cannot contain local location decisions." });
+  if (backup.baseLocations && new Set(backup.baseLocations.map(value => value.id)).size !== backup.baseLocations.length) context.addIssue({ code: "custom", message: "Duplicate source location identities." });
   if (backup.schemaVersion === 1 && (backup.baseJobs !== undefined || backup.mergeDecisions.length || backup.aliasHistory.length || backup.jobVersions.length)) context.addIssue({ code: "custom", message: "Version 1 backups cannot contain version 2 reconciliation state." });
   if (new Set(backup.mergeDecisions.map((decision) => decision.id)).size !== backup.mergeDecisions.length
     || new Set(backup.baseJobs?.map((job) => job.id)).size !== backup.baseJobs?.length && backup.baseJobs !== undefined
@@ -116,6 +123,15 @@ CREATE TRIGGER merge_decisions_no_update BEFORE UPDATE ON merge_decisions BEGIN 
 CREATE TRIGGER merge_decisions_no_delete BEFORE DELETE ON merge_decisions BEGIN SELECT RAISE(ABORT,'immutable-merge-decision'); END;
 CREATE TRIGGER job_alias_history_no_update BEFORE UPDATE ON job_alias_history BEGIN SELECT RAISE(ABORT,'immutable-alias-history'); END;
 CREATE TRIGGER job_alias_history_no_delete BEFORE DELETE ON job_alias_history BEGIN SELECT RAISE(ABORT,'immutable-alias-history'); END;
+`;
+export const REPOSITORY_MIGRATION_V3 = `
+CREATE TABLE base_locations (id TEXT PRIMARY KEY,document TEXT NOT NULL CHECK(json_valid(document))) STRICT;
+INSERT INTO base_locations(id,document) SELECT id,document FROM locations;
+CREATE TABLE location_decisions (id TEXT PRIMARY KEY,revision INTEGER NOT NULL UNIQUE,document TEXT NOT NULL CHECK(json_valid(document))) STRICT;
+`;
+export const LOCATION_DECISION_TRIGGERS = `
+CREATE TRIGGER location_decisions_no_update BEFORE UPDATE ON location_decisions BEGIN SELECT RAISE(ABORT,'immutable-location-decision'); END;
+CREATE TRIGGER location_decisions_no_delete BEFORE DELETE ON location_decisions BEGIN SELECT RAISE(ABORT,'immutable-location-decision'); END;
 `;
 export const APPEND_ONLY_TRIGGERS = `
 CREATE TRIGGER observations_no_update BEFORE UPDATE ON observations BEGIN SELECT RAISE(ABORT,'immutable-observation'); END;

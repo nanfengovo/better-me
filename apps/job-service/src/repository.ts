@@ -6,16 +6,22 @@ import {
   CanonicalJobSchema, EntityIdSchema, MergeDecisionSchema, ReconciliationReceiptSchema, JobAliasEventSchema,
   ConfirmMergeInputSchema, RejectMergeInputSchema, RevokeMergeInputSchema, explainMergeCandidate,
   findMergeCandidates, projectReconciliation,
+  JobLocationSchema, LocationConfirmationDecisionSchema, LocationConfirmationPreviewSchema, LocationConfirmationReceiptSchema,
+  PreviewLocationConfirmationInputSchema, ConfirmLocationInputSchema, RevokeLocationConfirmationInputSchema,
+  applyLocationConfirmation, projectLocationConfirmations,
+  type PreviewLocationConfirmationInput, type ConfirmLocationInput, type RevokeLocationConfirmationInput,
+  type LocationConfirmationDecision, type LocationConfirmationPreview, type LocationConfirmationReceipt, type JobLocation,
   type MergeDecision, type ReconciliationReceipt, type JobAliasEvent, type ConfirmMergeInput, type OfficialRequisitionLink,
 } from "@better-me/opportunities";
 import {
   ActorScopeSchema, IdempotencyKeySchema, SyncRunSchema, RunScopeSchema, PublicRunSummarySchema,
   RequestFingerprintSchema,
-  ImportReceiptSchema, RepositoryBackupSchema, REPOSITORY_SCHEMA_VERSION, REPOSITORY_MIGRATION_V1, REPOSITORY_MIGRATION_V2,
+  ImportReceiptSchema, RepositoryBackupSchema, REPOSITORY_SCHEMA_VERSION, REPOSITORY_MIGRATION_V1, REPOSITORY_MIGRATION_V2, REPOSITORY_MIGRATION_V3, LOCATION_DECISION_TRIGGERS,
   APPEND_ONLY_TRIGGERS, RECONCILIATION_TRIGGERS, type ImportReceipt, type SyncRun, type RunScope, type PublicRunSummary,
   type RepositoryBackup, type StoredReceipt, DiscoveryLeadSchema, DiscoveryLeadReceiptSchema,
   type DiscoveryLead, type DiscoveryLeadReceipt,
 } from "./repository-schema.js";
+import { resolveLocationArea } from "./location-catalog.js";
 
 export type RepositoryErrorCode = "invalid-data" | "conflict" | "stale-version" | "idempotency-conflict" | "cancelled" | "not-authorized" | "not-found" | "closed" | "unsupported-schema" | "invalid-backup" | "storage-error" | "rate-limited";
 const PUBLIC_ERRORS: Record<RepositoryErrorCode, string> = {
@@ -158,12 +164,19 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       try { db.exec(REPOSITORY_MIGRATION_V2); db.exec(RECONCILIATION_TRIGGERS); db.exec("PRAGMA user_version=2; COMMIT;"); }
       catch (error) { db.exec("ROLLBACK"); throw error; }
     }
+    if (version < 3) {
+      db.exec("BEGIN IMMEDIATE");
+      try { db.exec(REPOSITORY_MIGRATION_V3); db.exec(LOCATION_DECISION_TRIGGERS); db.exec("PRAGMA user_version=3; COMMIT;"); }
+      catch (error) { db.exec("ROLLBACK"); throw error; }
+    }
     db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;");
     // Opening a file with a matching user_version is not sufficient proof of this schema.
     db.prepare("SELECT value FROM metadata WHERE key='revision'").get();
     for (const table of TABLES) db.prepare(`SELECT id,document FROM ${table} LIMIT 0`).all();
     db.prepare("SELECT id,document FROM base_jobs LIMIT 0").all();
     db.prepare("SELECT id,revision,document FROM merge_decisions LIMIT 0").all();
+    db.prepare("SELECT id,document FROM base_locations LIMIT 0").all();
+    db.prepare("SELECT id,revision,document FROM location_decisions LIMIT 0").all();
     const check = db.prepare("PRAGMA quick_check").get() as Record<string, unknown>;
     if (Object.values(check)[0] !== "ok") throw new RepositoryError("storage-error");
   } catch (error) { db.close(); throw error instanceof RepositoryError ? error : new RepositoryError("storage-error"); }
@@ -190,7 +203,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     if (row.signature !== expectedSignature) throw new RepositoryError("idempotency-conflict");
     return JSON.parse(row.response) as T;
   }
-  function saveReceipt(actorScope: string, tool: string, idempotencyKey: string, requestSignature: string, result: ImportReceipt | SyncRun | DiscoveryLeadReceipt | ReconciliationReceipt) {
+  function saveReceipt(actorScope: string, tool: string, idempotencyKey: string, requestSignature: string, result: ImportReceipt | SyncRun | DiscoveryLeadReceipt | ReconciliationReceipt | LocationConfirmationReceipt) {
     db.prepare("INSERT INTO receipts(actor_scope,tool,idempotency_key,signature,response,created_at) VALUES (?,?,?,?,?,?)").run(actorScope, tool, idempotencyKey, requestSignature, json(result), now());
   }
   function runById(runId: string): SyncRun | undefined {
@@ -213,24 +226,35 @@ export function openJobRepository(path: string, options: { now?: () => string } 
   function decisions(): MergeDecision[] {
     return (db.prepare("SELECT document FROM merge_decisions ORDER BY revision").all() as Array<{ document: string }>).map((row) => checked(MergeDecisionSchema, JSON.parse(row.document)));
   }
+  function locationDecisions(): LocationConfirmationDecision[] {
+    return (db.prepare("SELECT document FROM location_decisions ORDER BY revision").all() as Array<{ document: string }>).map(row => checked(LocationConfirmationDecisionSchema, JSON.parse(row.document)));
+  }
   function baseSnapshot(current = read()): AtlasDataset {
     const jobs = (db.prepare("SELECT document FROM base_jobs ORDER BY id").all() as Array<{ document: string }>).map((row) => checked(CanonicalJobSchema, JSON.parse(row.document)));
     const owner = new Map(jobs.flatMap((job) => job.listingIds.map((id) => [id, job.id] as const)));
-    return checked(AtlasDatasetSchema, { ...current, jobs, listings: current.listings.map((listing) => ({ ...listing, ...(owner.has(listing.id) ? { canonicalJobId: owner.get(listing.id) } : {}) })) });
+    const locations = (db.prepare("SELECT document FROM base_locations ORDER BY id").all() as Array<{ document: string }>).map(row => checked(JobLocationSchema, JSON.parse(row.document)));
+    return checked(AtlasDatasetSchema, { ...current, jobs, locations, listings: current.listings.map((listing) => ({ ...listing, ...(owner.has(listing.id) ? { canonicalJobId: owner.get(listing.id) } : {}) })) });
   }
   function writeBaseJobs(jobs: readonly CanonicalJob[], replace = false) {
     if (replace) db.exec("DELETE FROM base_jobs");
     for (const job of jobs) db.prepare("INSERT INTO base_jobs(id,document) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document").run(job.id, json(job));
   }
-  function canonicalProjection(base: AtlasDataset, current: AtlasDataset, entries: readonly MergeDecision[], changedAt: string) {
-    const projection = projectReconciliation(base, entries);
+  function writeBaseLocations(locations: readonly JobLocation[], replace = false) {
+    if (replace) db.exec("DELETE FROM base_locations");
+    for (const location of locations) {
+      if (location.userResolution) throw new RepositoryError("conflict");
+      db.prepare("INSERT INTO base_locations(id,document) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document").run(location.id, json(location));
+    }
+  }
+  function canonicalProjection(base: AtlasDataset, current: AtlasDataset, entries: readonly MergeDecision[], changedAt: string, locationEntries = locationDecisions()) {
+    const projection = projectReconciliation(projectLocationConfirmations(base, locationEntries), entries);
     const old = new Map(current.jobs.map((job) => [job.id, job]));
-    const body = (job: CanonicalJob) => { const { revision: _revision, updatedAt: _updatedAt, ...value } = job; return value; };
+    const body = (job: CanonicalJob, dataset: AtlasDataset) => { const { revision: _revision, updatedAt: _updatedAt, ...value } = job; return { job: value, locations: job.locationIds.map(id => dataset.locations.find(location => location.id === id)) }; };
     projection.dataset.jobs = projection.dataset.jobs.map((job) => {
       const previous = old.get(job.id);
       if (!previous && !db.prepare("SELECT job_id FROM job_versions WHERE job_id=?").get(job.id)) return job;
       const count = projection.aliases.filter((alias) => alias.canonicalJobId === job.id).length;
-      if (previous && same(body(previous), body(job))) return count === 1 && job.revision > previous.revision ? job : previous;
+      if (previous && same(body(previous, current), body(job, projection.dataset))) return count === 1 && job.revision > previous.revision ? job : previous;
       const counter = db.prepare("SELECT revision FROM job_versions WHERE job_id=?").get(job.id) as { revision: number } | undefined;
       const version = Math.max(job.revision, counter ? counter.revision + 1 : 0, previous ? previous.revision + 1 : 0);
       const updatedAt = [job.updatedAt, ...(previous ? [previous.updatedAt] : []), changedAt].sort((a, b) => Date.parse(b) - Date.parse(a))[0]!;
@@ -387,10 +411,86 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     return result;
   }
 
+  function locationTarget(current: AtlasDataset, jobId: string, locationId: string, requireCurrent = true) {
+    const canonicalJobId = aliasId(jobId); const job = current.jobs.find(value => value.id === canonicalJobId);
+    const base = baseSnapshot(current); const original = base.locations.find(value => value.id === locationId);
+    if (!job || !original || requireCurrent && !job.locationIds.includes(locationId)) throw new RepositoryError("not-found");
+    if (!original.evidence.length) throw new RepositoryError("conflict");
+    const owners = base.jobs.filter(value => value.locationIds.includes(locationId));
+    const listings = base.listings.filter(value => value.locationIds?.includes(locationId));
+    if (owners.length !== 1 || listings.length !== 1 || !owners[0]!.listingIds.includes(listings[0]!.id) || !job.listingIds.includes(listings[0]!.id)) throw new RepositoryError("conflict");
+    return { base, original, owner: owners[0]!, listing: listings[0]!, job };
+  }
+  function prepareLocation(input: PreviewLocationConfirmationInput, current: AtlasDataset): { preview: LocationConfirmationPreview; target: ReturnType<typeof locationTarget>; area: Extract<LocationConfirmationDecision, { kind: "confirm" }>["area"] } {
+    if (current.revision !== input.expectedRevision) throw new RepositoryError("stale-version");
+    const target = locationTarget(current, input.jobId, input.locationId);
+    let area: Extract<LocationConfirmationDecision, { kind: "confirm" }>["area"];
+    try { area = resolveLocationArea(input.proposal); } catch { throw new RepositoryError("invalid-data"); }
+    const currentLocation = current.locations.find(value => value.id === input.locationId)!;
+    const entry: Extract<LocationConfirmationDecision, { kind: "confirm" }> = { id: "location-preview", kind: "confirm", jobId: target.owner.id, listingId: target.listing.id, locationId: input.locationId, sourceLocation: target.original, area, actorScope: "preview", at: now(), revision: current.revision + 1, reason: input.reason };
+    const preview = checked(LocationConfirmationPreviewSchema, { expectedRevision: current.revision, previewFingerprint: signature({ input, original: target.original, area }), jobId: input.jobId, locationId: input.locationId,
+      original: target.original, current: currentLocation, proposed: applyLocationConfirmation(target.original, entry),
+      ...(currentLocation.userResolution ? { activeDecisionId: currentLocation.userResolution.decisionId } : {}), warnings: [
+        "这是本人确认的工作地区，原站地点原文及证据保持不变；不代表原站已核实该行政区域。",
+        "本次不生成或沿用办公坐标。城市名称不是精确办公地址；地图参考点需另行明确选择。",
+        ...(area.basis.kind === "china-catalog" ? ["省市区目录为2023年统计快照；分组、镇街及功能区按原目录保留，不声明为现行行政权威。"] : []),
+      ] });
+    return { preview, target, area };
+  }
+  function commitLocation(current: AtlasDataset, entry: LocationConfirmationDecision, options: ReconciliationWriteOptions, tool: string, requestSignature: string, requestedJobId: string): LocationConfirmationReceipt {
+    const entries = [...locationDecisions(), entry];
+    const base = { ...baseSnapshot(current), revision: entry.revision };
+    const projection = canonicalProjection(base, current, decisions(), entry.at, entries);
+    projection.dataset.revision = entry.revision;
+    db.prepare("INSERT INTO location_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
+    write(projection.dataset);
+    const location = projection.dataset.locations.find(value => value.id === entry.locationId)!;
+    const result = checked(LocationConfirmationReceiptSchema, { ok: true, revision: entry.revision, jobId: requestedJobId, locationId: entry.locationId, decisionId: entry.id, ...(location.userResolution ? { activeDecisionId: location.userResolution.decisionId } : {}), location });
+    saveReceipt(options.actorScope, tool, options.idempotencyKey, requestSignature, result);
+    return result;
+  }
+
   return {
     async readSnapshot(): Promise<AtlasDataset> { return transaction(read); },
     /** Ingestion-only origins: never use this view for map totals or user-facing search. */
     async readProjectionSnapshot(): Promise<AtlasDataset> { return transaction(() => baseSnapshot()); },
+    async previewLocationConfirmation(input: unknown): Promise<LocationConfirmationPreview> {
+      const parsed = checked(PreviewLocationConfirmationInputSchema, input);
+      return transaction(() => prepareLocation(parsed, read()).preview);
+    },
+    async confirmLocation(input: ConfirmLocationInput, options: ReconciliationWriteOptions): Promise<LocationConfirmationReceipt> {
+      validateOptions(options); const parsed = checked(ConfirmLocationInputSchema, input);
+      if (options.expectedRevision !== parsed.expectedRevision) throw new RepositoryError("invalid-data");
+      const requestSignature = signature({ input: parsed });
+      return transaction(() => {
+        const cached = receipt<LocationConfirmationReceipt>(options.actorScope, "locations.confirm", options.idempotencyKey, requestSignature);
+        if (cached) return checked(LocationConfirmationReceiptSchema, cached);
+        const current = read(); assertWriteVersion(options, current);
+        const { reviewed: _reviewed, previewFingerprint, ...previewInput } = parsed;
+        const { preview, target, area } = prepareLocation(previewInput, current);
+        if (preview.previewFingerprint !== previewFingerprint) throw new RepositoryError("stale-version");
+        const entry: LocationConfirmationDecision = { id: `location-confirm_${randomUUID()}`, kind: "confirm", jobId: target.owner.id, listingId: target.listing.id, locationId: parsed.locationId, sourceLocation: target.original, area, actorScope: options.actorScope, at: now(), revision: current.revision + 1, reason: parsed.reason };
+        return commitLocation(current, entry, options, "locations.confirm", requestSignature, parsed.jobId);
+      });
+    },
+    async revokeLocationConfirmation(input: RevokeLocationConfirmationInput, options: ReconciliationWriteOptions): Promise<LocationConfirmationReceipt> {
+      validateOptions(options); const parsed = checked(RevokeLocationConfirmationInputSchema, input);
+      if (options.expectedRevision !== parsed.expectedRevision) throw new RepositoryError("invalid-data");
+      const requestSignature = signature({ input: parsed });
+      return transaction(() => {
+        const cached = receipt<LocationConfirmationReceipt>(options.actorScope, "locations.revoke-confirmation", options.idempotencyKey, requestSignature);
+        if (cached) return checked(LocationConfirmationReceiptSchema, cached);
+        const current = read(); assertWriteVersion(options, current);
+        const entries = locationDecisions(); const target = entries.find(value => value.id === parsed.decisionId);
+        if (!target || target.kind !== "confirm" || target.locationId !== parsed.locationId) throw new RepositoryError("not-found");
+        if (target.actorScope !== options.actorScope) throw new RepositoryError("not-authorized");
+        const job = current.jobs.find(value => value.id === aliasId(parsed.jobId));
+        if (!job?.listingIds.includes(target.listingId)) throw new RepositoryError("not-found");
+        if (entries.some(value => value.kind === "revoke" && value.targetDecisionId === target.id)) throw new RepositoryError("conflict");
+        const entry: LocationConfirmationDecision = { id: `location-revoke_${randomUUID()}`, kind: "revoke", jobId: target.jobId, listingId: target.listingId, locationId: target.locationId, actorScope: options.actorScope, at: now(), revision: current.revision + 1, reason: parsed.reason, targetDecisionId: target.id };
+        return commitLocation(current, entry, options, "locations.revoke-confirmation", requestSignature, parsed.jobId);
+      });
+    },
     /** Recover a committed command before re-projecting against a newer index revision. */
     async findImportReceipt(options: ImportOptions & { requestFingerprint: string }): Promise<ImportReceipt | undefined> {
       validateOptions(options);
@@ -403,6 +503,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     async importSnapshot(input: unknown, importOptions: ImportOptions): Promise<ImportReceipt> {
       validateOptions(importOptions);
       const incoming = checked(AtlasDatasetObjectSchema, input);
+      if (incoming.locations.some(location => location.userResolution)) throw new RepositoryError("conflict");
       const requestSignature = signature({ ...(importOptions.requestFingerprint === undefined ? { input: incoming } : { requestFingerprint: importOptions.requestFingerprint }), expectedRevision: importOptions.expectedRevision, runId: importOptions.runId });
       return transaction(() => {
         const cached = receipt<ImportReceipt>(importOptions.actorScope, "dataset.import", importOptions.idempotencyKey, requestSignature);
@@ -421,7 +522,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const targets = new Set(incoming.jobs.map((job) => projection.aliases.find((alias) => alias.jobId === job.id)!.canonicalJobId));
         const effectiveIncoming = { ...incoming, jobs: next.jobs.filter((job) => targets.has(job.id)) };
         const result: ImportReceipt = { ok: true, revision: next.revision, jobIds: effectiveIncoming.jobs.map((job) => job.id), snapshotIds: incoming.snapshots.map((snapshot) => snapshot.id), counts: counts(current, next, effectiveIncoming) };
-        if (changed) { writeBaseJobs(nextBase.jobs); write(next); saveAliases(projection.aliases, next.revision, now()); }
+        if (changed) { writeBaseJobs(nextBase.jobs); writeBaseLocations(nextBase.locations); write(next); saveAliases(projection.aliases, next.revision, now()); }
         saveReceipt(importOptions.actorScope, "dataset.import", importOptions.idempotencyKey, requestSignature, result);
         return result;
       });
@@ -667,7 +768,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const baseJobs = baseSnapshot(dataset).jobs;
         const aliasHistory = (db.prepare("SELECT document FROM job_alias_history ORDER BY sequence").all() as Array<{ document: string }>).map((row) => checked(JobAliasEventSchema, JSON.parse(row.document)));
         const jobVersions = (db.prepare("SELECT job_id,revision FROM job_versions ORDER BY job_id").all() as Array<{ job_id: string; revision: number }>).map((row) => ({ jobId: row.job_id, revision: row.revision }));
-        return checked(RepositoryBackupSchema, { format: "better-me/job-repository", schemaVersion: REPOSITORY_SCHEMA_VERSION, createdAt: now(), dataset, runs, receipts, leads, baseJobs, mergeDecisions: decisions(), aliasHistory, jobVersions }, "invalid-backup");
+        return checked(RepositoryBackupSchema, { format: "better-me/job-repository", schemaVersion: REPOSITORY_SCHEMA_VERSION, createdAt: now(), dataset, runs, receipts, leads, baseJobs, baseLocations: baseSnapshot(dataset).locations, locationDecisions: locationDecisions(), mergeDecisions: decisions(), aliasHistory, jobVersions }, "invalid-backup");
       });
     },
     async restore(input: unknown, restoreOptions: Omit<ImportOptions, "runId"> & { expectedRevision: number }): Promise<ImportReceipt> {
@@ -676,8 +777,9 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       verifyContentHashes(backup.dataset, "invalid-backup");
       if (encoder.encode(json(backup)).byteLength > 128 * 1024 * 1024) throw new RepositoryError("invalid-backup");
       const baseJobs = backup.baseJobs ?? backup.dataset.jobs;
+      const baseLocations = backup.baseLocations ?? backup.dataset.locations;
       const owners = new Map(baseJobs.flatMap((job) => job.listingIds.map((id) => [id, job.id] as const)));
-      const restoredBase = checked(AtlasDatasetSchema, { ...backup.dataset, jobs: baseJobs, listings: backup.dataset.listings.map((listing) => ({ ...listing, ...(owners.has(listing.id) ? { canonicalJobId: owners.get(listing.id) } : {}) })) }, "invalid-backup");
+      const restoredBase = checked(AtlasDatasetSchema, { ...backup.dataset, jobs: baseJobs, locations: baseLocations, listings: backup.dataset.listings.map((listing) => ({ ...listing, ...(owners.has(listing.id) ? { canonicalJobId: owners.get(listing.id) } : {}) })) }, "invalid-backup");
       const originIds = new Set(baseJobs.map((job) => job.id)); const decisionIds = new Set<string>(); const decisionRevisions = new Set<number>();
       const priorDecisions = new Map<string, MergeDecision>(); const revokedDecisions = new Set<string>(); let previousRevision = 0;
       for (const entry of backup.mergeDecisions) {
@@ -708,12 +810,35 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         lastAliases.set(event.jobId, event);
       }
       let restoredProjection: ReturnType<typeof projectReconciliation>;
-      try { restoredProjection = projectReconciliation(restoredBase, backup.mergeDecisions); } catch { throw new RepositoryError("invalid-backup"); }
+      try {
+        for (const entry of backup.locationDecisions) {
+          if (entry.revision > backup.dataset.revision || entry.revision < 1 || decisionRevisions.has(entry.revision)) throw new Error("invalid-location-revision");
+          decisionRevisions.add(entry.revision);
+          if (entry.kind === "confirm") {
+            const { basis, countryCode, kind, region, city, district } = entry.area;
+            const proposal = { countryCode, locationKind: kind, area: basis.kind === "china-catalog" ? { kind: basis.kind, provinceCode: basis.provinceCode, ...(basis.cityCode ? { cityCode: basis.cityCode } : {}), ...(basis.districtCode ? { districtCode: basis.districtCode } : {}) } : { kind: basis.kind, ...(region ? { region } : {}), ...(city ? { city } : {}), ...(district ? { district } : {}) } };
+            if (!same(resolveLocationArea(proposal), entry.area)) throw new Error("invalid-location-area");
+          }
+        }
+        const resolvedBase = projectLocationConfirmations(restoredBase, backup.locationDecisions);
+        restoredProjection = projectReconciliation(resolvedBase, backup.mergeDecisions);
+        if (!same(restoredProjection.dataset.locations, backup.dataset.locations)) throw new Error("invalid-location-projection");
+        for (const stored of backup.receipts) if (stored.tool === "locations.confirm" || stored.tool === "locations.revoke-confirmation") {
+          const response = checked(LocationConfirmationReceiptSchema, stored.response, "invalid-backup");
+          const event = backup.locationDecisions.find(entry => entry.id === response.decisionId);
+          if (!event || event.actorScope !== stored.actorScope || event.revision !== response.revision || event.locationId !== response.locationId || event.kind !== (stored.tool === "locations.confirm" ? "confirm" : "revoke") || !originIds.has(response.jobId)) throw new Error("invalid-location-receipt");
+          const thenProjection = projectReconciliation(restoredBase, backup.mergeDecisions.filter(entry => entry.revision < event.revision));
+          const thenAlias = thenProjection.aliases.find(alias => alias.jobId === response.jobId)?.canonicalJobId;
+          if (!thenProjection.dataset.jobs.find(job => job.id === thenAlias)?.listingIds.includes(event.listingId)) throw new Error("invalid-location-receipt-job");
+          const expectedLocation = projectLocationConfirmations(restoredBase, backup.locationDecisions.filter(entry => entry.revision <= event.revision)).locations.find(location => location.id === response.locationId);
+          if (!same(expectedLocation, response.location) || expectedLocation?.userResolution?.decisionId !== response.activeDecisionId) throw new Error("invalid-location-receipt-body");
+        }
+      } catch { throw new RepositoryError("invalid-backup"); }
       const jobBodies = (jobs: readonly CanonicalJob[]) => jobs.map(({ revision: _revision, updatedAt: _updatedAt, ...job }) => job).sort((a, b) => compareIds(a.id, b.id));
       const listingOwners = (dataset: AtlasDataset) => dataset.listings.map((listing) => ({ id: listing.id, canonicalJobId: listing.canonicalJobId })).sort((a, b) => compareIds(a.id, b.id));
       if (!same(jobBodies(restoredProjection.dataset.jobs), jobBodies(backup.dataset.jobs)) || !same(listingOwners(restoredProjection.dataset), listingOwners(backup.dataset))) throw new RepositoryError("invalid-backup");
       const restoredVersions = new Map(backup.jobVersions.map((value) => [value.jobId, value.revision]));
-      if (backup.schemaVersion === 2 && (backup.jobVersions.length !== originIds.size
+      if (backup.schemaVersion >= 2 && (backup.jobVersions.length !== originIds.size
         || restoredProjection.aliases.some((alias) => lastAliases.get(alias.jobId)?.canonicalJobId !== alias.canonicalJobId)
         || backup.dataset.jobs.some((job) => (restoredVersions.get(job.id) ?? -1) < job.revision))) throw new RepositoryError("invalid-backup");
       const requestSignature = signature({ backup, expectedRevision: restoreOptions.expectedRevision });
@@ -727,6 +852,10 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const dataset = { ...backup.dataset, revision: Math.max(current.revision, backup.dataset.revision) + 1 };
         write(dataset, true);
         writeBaseJobs(baseJobs, true);
+        writeBaseLocations(baseLocations, true);
+        db.exec("DROP TRIGGER location_decisions_no_update; DROP TRIGGER location_decisions_no_delete; DELETE FROM location_decisions;");
+        for (const entry of backup.locationDecisions) db.prepare("INSERT INTO location_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
+        db.exec(LOCATION_DECISION_TRIGGERS);
         db.exec("DROP TRIGGER merge_decisions_no_update; DROP TRIGGER merge_decisions_no_delete; DROP TRIGGER job_alias_history_no_update; DROP TRIGGER job_alias_history_no_delete; DELETE FROM merge_decisions; DELETE FROM job_alias_history; DELETE FROM job_aliases; DELETE FROM job_versions;");
         for (const entry of backup.mergeDecisions) db.prepare("INSERT INTO merge_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
         for (const event of backup.aliasHistory) db.prepare("INSERT INTO job_alias_history(job_id,revision,document) VALUES (?,?,?)").run(event.jobId, event.revision, json(event));

@@ -10,6 +10,11 @@ import {
   type PreviewReviewedCardsInput, type ImportReviewedCardsInput,
 } from "@better-me/source-adapters/browser-contracts";
 import { AtlasClientError, readAtlasSnapshot } from "./client";
+import {
+  PreviewLocationConfirmationInputSchema, ConfirmLocationInputSchema, RevokeLocationConfirmationInputSchema,
+  LocationConfirmationPreviewSchema, LocationConfirmationReceiptSchema,
+  type PreviewLocationConfirmationInput, type ConfirmLocationInput, type RevokeLocationConfirmationInput,
+} from "@better-me/opportunities";
 
 export const AtlasSourceListSchema = z.object({ sources: z.array(SourceDefinitionSchema), adapters: z.array(SourceAdapterMetadataSchema) }).strict();
 export type AtlasSourceList = z.infer<typeof AtlasSourceListSchema>;
@@ -123,6 +128,27 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
   }
   const sourcePath = (id: string) => `sources/${encodeURIComponent(input(EntityIdSchema, id))}`;
   return {
+    previewLocationConfirmation: async (value: PreviewLocationConfirmationInput, options: Options = {}) => {
+      const query = input(PreviewLocationConfirmationInputSchema, value);
+      const result = await request("locations/confirmations/preview", LocationConfirmationPreviewSchema, options, query);
+      if (result.expectedRevision !== query.expectedRevision || result.jobId !== query.jobId || result.locationId !== query.locationId)
+        throw new AtlasSourceServiceError("invalid-response", "地点预览与本次岗位或版本不一致，请重新核对。");
+      return result;
+    },
+    confirmLocation: async (value: ConfirmLocationInput, options: WriteOptions) => {
+      const query = input(ConfirmLocationInputSchema, value);
+      const result = await request("locations/confirmations", LocationConfirmationReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
+      if (result.jobId !== query.jobId || result.locationId !== query.locationId || result.revision <= query.expectedRevision)
+        throw new AtlasSourceServiceError("invalid-response", "地点写入回执与本次请求不一致，请重试同一请求核对回执。");
+      return result;
+    },
+    revokeLocationConfirmation: async (value: RevokeLocationConfirmationInput, options: WriteOptions) => {
+      const query = input(RevokeLocationConfirmationInputSchema, value);
+      const result = await request("locations/confirmations/revoke", LocationConfirmationReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
+      if (result.jobId !== query.jobId || result.locationId !== query.locationId || result.revision <= query.expectedRevision)
+        throw new AtlasSourceServiceError("invalid-response", "地点撤销回执与本次请求不一致，请重试同一请求核对回执。");
+      return result;
+    },
     geocodeCandidates: async (value: GeocodingInput, options: Options = {}) => {
       const query = input(GeocodingRequestSchema, value);
       const result = await request("locations/geocode-candidates", GeocodingResultSchema, options, query);

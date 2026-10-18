@@ -20,6 +20,7 @@ import { RepositoryError, type JobRepository } from "./repository.js";
 import { DiscoveryLeadSchema, ImportReceiptSchema, SyncRunSchema, type PublicRunSummary } from "./repository-schema.js";
 import { projectSourcePage } from "./projection.js";
 import { createReviewedCardsTools } from "./reviewed-cards.js";
+import { createLocationConfirmationTools } from "./location-confirmation.js";
 
 const emptyInput = z.object({}).strict();
 const usableScope = SourceScopeSchema.superRefine((scope, context) => {
@@ -100,6 +101,7 @@ export function createJobApplication(options: JobApplicationOptions) {
     manifestPath: fileURLToPath(new URL("../../../config/geography/gazetteer/manifest.json", import.meta.url)),
   }));
   const definitions: ToolDefinition<any, any>[] = [
+    ...createLocationConfirmationTools(repository).map(definition => ({ ...definition, execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     ...createReviewedCardsTools({ repository, now }).map(definition => ({ ...definition, execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     defineTool({ ...searchTool, execute: (input, context) => guarded(async () => searchTool.execute(input, context)) }),
     defineTool({ ...geocodingTool, execute: (input, context) => guarded(async () => {
