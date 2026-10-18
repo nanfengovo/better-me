@@ -27,6 +27,8 @@ export const JdMatchReportSchema = z.object({
   matchingStrengths: z.array(z.string()).default([]),
   missingGaps: z.array(z.string()).default([]),
   tailoredSuggestions: z.array(JdRecommendationSchema).default([]),
+  /** Computed locally: suggestions excluded because their source could not be bound. */
+  unverifiedSuggestionCount: z.number().int().nonnegative().default(0),
   interviewDefenseTips: z.array(z.string()).default([]),
 });
 

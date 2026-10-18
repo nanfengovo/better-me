@@ -1,3 +1,5 @@
+import { useUiPreferences } from "../lib/ui-preferences";
+/** @jsxRuntime automatic */
 import { useEffect, useRef, useState } from "react";
 import {
   testLlmConnection,
@@ -30,42 +32,7 @@ export const DEFAULT_LLM_CONFIG: LlmConfig = {
   temperature: 0.3,
 };
 
-const PRESETS = [
-  {
-    name: "Google Gemini / AI Studio",
-    provider: "gemini" as const,
-    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/",
-    defaultModel: "gemini-1.5-flash",
-    fallbackModels: ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash-exp"],
-    keyDocUrl: "https://aistudio.google.com/app/apikey",
-    keyDocLabel: "前往 Google AI Studio 获取 Key",
-  },
-  {
-    name: "DeepSeek (高性价比)",
-    provider: "openai-compatible" as const,
-    baseUrl: "https://api.deepseek.com/v1",
-    defaultModel: "deepseek-chat",
-    fallbackModels: ["deepseek-chat", "deepseek-reasoner"],
-    keyDocUrl: "https://platform.deepseek.com/api_keys",
-    keyDocLabel: "前往 DeepSeek 平台获取 Key",
-  },
-  {
-    name: "OpenAI 官方",
-    provider: "openai-compatible" as const,
-    baseUrl: "https://api.openai.com/v1",
-    defaultModel: "gpt-4o-mini",
-    fallbackModels: ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"],
-    keyDocUrl: "https://platform.openai.com/api-keys",
-    keyDocLabel: "前往 OpenAI 控制台获取 Key",
-  },
-  {
-    name: "Ollama（本地服务）",
-    provider: "ollama" as const,
-    baseUrl: "http://localhost:11434/v1",
-    defaultModel: "qwen2.5:latest",
-    fallbackModels: ["qwen2.5:latest", "llama3:latest", "deepseek-r1:latest"],
-  },
-];
+
 
 type Props = {
   isOpen: boolean;
@@ -75,6 +42,45 @@ type Props = {
 };
 
 export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
+  const { t } = useUiPreferences();
+
+const PRESETS = [
+  {
+    name: "Google Gemini / AI Studio",
+    provider: "gemini" as const,
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/",
+    defaultModel: "gemini-1.5-flash",
+    fallbackModels: ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash-exp"],
+    keyDocUrl: "https://aistudio.google.com/app/apikey",
+    keyDocLabel: t("前往 Google AI Studio 获取 Key", "Get a key from Google AI Studio"),
+  },
+  {
+    name: t("DeepSeek (高性价比)", "DeepSeek (cost effective)"),
+    provider: "openai-compatible" as const,
+    baseUrl: "https://api.deepseek.com/v1",
+    defaultModel: "deepseek-chat",
+    fallbackModels: ["deepseek-chat", "deepseek-reasoner"],
+    keyDocUrl: "https://platform.deepseek.com/api_keys",
+    keyDocLabel: t("前往 DeepSeek 平台获取 Key", "Get a key from DeepSeek"),
+  },
+  {
+    name: t("OpenAI 官方", "OpenAI"),
+    provider: "openai-compatible" as const,
+    baseUrl: "https://api.openai.com/v1",
+    defaultModel: "gpt-4o-mini",
+    fallbackModels: ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"],
+    keyDocUrl: "https://platform.openai.com/api-keys",
+    keyDocLabel: t("前往 OpenAI 控制台获取 Key", "Get a key from OpenAI"),
+  },
+  {
+    name: t("Ollama（本地服务）", "Ollama (local server)"),
+    provider: "ollama" as const,
+    baseUrl: "http://localhost:11434/v1",
+    defaultModel: "qwen2.5:latest",
+    fallbackModels: ["qwen2.5:latest", "llama3:latest", "deepseek-r1:latest"],
+  },
+];
+
   const [formData, setFormData] = useState<LlmConfig>(config);
   const [showKey, setShowKey] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -87,18 +93,27 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const requestVersion = useRef(0);
+  const requestController = useRef<AbortController | null>(null);
 
   useEffect(() => {
     requestVersion.current += 1;
-    if (!isOpen) return;
-    setFormData({ ...config });
-    setShowKey(false);
-    setTesting(false);
-    setSaving(false);
-    setTestResult(null);
-    setSaveError(null);
-    setAvailableModels([]);
-    setCustomModelMode(false);
+    requestController.current?.abort();
+    requestController.current = null;
+    if (isOpen) {
+      setFormData({ ...config });
+      setShowKey(false);
+      setTesting(false);
+      setSaving(false);
+      setTestResult(null);
+      setSaveError(null);
+      setAvailableModels([]);
+      setCustomModelMode(false);
+    }
+    return () => {
+      requestVersion.current += 1;
+      requestController.current?.abort();
+      requestController.current = null;
+    };
   }, [isOpen, config]);
 
   if (!isOpen) return null;
@@ -138,25 +153,28 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
     if (!parsed.success) {
       const fields = [...new Set(parsed.error.issues.map((issue) => issue.path[0]))];
       const labels: Record<string, string> = {
-        baseUrl: "API Base URL（须为完整地址）", model: "模型名称（不能为空）",
-        temperature: "温度（0–2）", provider: "服务商类型", apiKey: "API Key",
+        baseUrl: t("API Base URL（须为完整地址）", "API Base URL (full URL required)"), model: t("模型名称（不能为空）", "Model name (required)"),
+        temperature: t("温度（0–2）", "Temperature (0–2)"), provider: t("服务商类型", "Provider type"), apiKey: "API Key",
       };
-      throw new Error(`请检查配置：${fields.map((field) => labels[String(field)] ?? String(field)).join("、")}。`);
+      throw new Error(t(`请检查配置：${fields.map((field) => labels[String(field)] ?? String(field)).join("、")}。`, `Check configuration: ${fields.map((field) => labels[String(field)] ?? String(field)).join(", ")}.`));
     }
     if (!["http:", "https:"].includes(new URL(parsed.data.baseUrl).protocol)) {
-      throw new Error("API Base URL 必须使用 http 或 https 地址。");
+      throw new Error(t("API Base URL 必须使用 http 或 https 地址。", "API Base URL must use http or https."));
     }
     return parsed.data;
   };
 
   const handleTestConnection = async () => {
+    requestController.current?.abort();
+    const controller = new AbortController();
+    requestController.current = controller;
     const version = ++requestVersion.current;
     setTesting(true);
     setTestResult(null);
     setAvailableModels([]);
     try {
-      const res = await testLlmConnection(validatedConfig());
-      if (version !== requestVersion.current) return;
+      const res = await testLlmConnection(validatedConfig(), { signal: controller.signal });
+      if (controller.signal.aborted || version !== requestVersion.current) return;
       setTestResult({
         success: res.success,
         message: res.message,
@@ -164,29 +182,28 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
 
       if (res.success && res.models.length > 0) {
         setAvailableModels(res.models);
-        // If current model is not in available models, suggest the first valid one
-        if (!res.models.includes(formData.model)) {
-          const preferred =
-            res.models.find(
-              (m) =>
-                m.includes("flash") ||
-                m.includes("chat") ||
-                m.includes("mini"),
-            ) ?? res.models[0];
-          if (preferred) {
-            setFormData((prev) => ({ ...prev, model: preferred }));
-          }
-        }
       }
     } catch (err) {
-      if (version !== requestVersion.current) return;
+      if (controller.signal.aborted || version !== requestVersion.current) return;
       setTestResult({
         success: false,
-        message: (err as Error).message || "获取模型列表失败",
+        message: (err as Error).message || t("获取模型列表失败", "Could not retrieve the model list"),
       });
     } finally {
-      if (version === requestVersion.current) setTesting(false);
+      if (version === requestVersion.current) {
+        requestController.current = null;
+        setTesting(false);
+      }
     }
+  };
+
+  const handleClose = () => {
+    requestVersion.current += 1;
+    requestController.current?.abort();
+    requestController.current = null;
+    setTesting(false);
+    setShowKey(false);
+    onClose();
   };
 
   const handleSave = async () => {
@@ -196,7 +213,7 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
       await onSave(validatedConfig());
       onClose();
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "配置保存失败，请重试。");
+      setSaveError(error instanceof Error ? error.message : t("配置保存失败，请重试。", "Could not save the configuration. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -214,7 +231,7 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
+      <div role="dialog" aria-modal="true" aria-labelledby="ai-config-title" className="w-full min-w-0 max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
@@ -222,19 +239,19 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
               <Bot className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">
-                AI 模型接入配置
+              <h2 id="ai-config-title" className="text-base font-bold text-slate-900">
+                {t("AI 模型接入配置", "AI model configuration")}
               </h2>
               <p className="text-xs text-slate-500">
-                读取模型列表 · 支持 Google Gemini、DeepSeek、OpenAI 与 Ollama
+                {t("读取模型列表 · 支持 Google Gemini、DeepSeek、OpenAI 与 Ollama", "Model discovery · Google Gemini, DeepSeek, OpenAI and Ollama")}
               </p>
             </div>
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={saving}
-            aria-label="关闭 AI 配置"
+            aria-label={t("关闭 AI 配置", "Close AI configuration")}
             className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
           >
             <X className="h-5 w-5" />
@@ -245,7 +262,7 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
         <fieldset disabled={saving || testing} className="contents">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              模型服务商预设
+              {t("模型服务商预设", "Provider presets")}
             </label>
             <div className="grid grid-cols-2 gap-2">
               {PRESETS.map((p) => {
@@ -279,11 +296,11 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
             <div className="rounded-xl border border-blue-200/90 bg-blue-50/70 p-3 text-xs text-blue-900 space-y-1.5">
               <div className="flex items-center gap-1.5 font-bold">
                 <Sparkles className="h-4 w-4 text-blue-600" />
-                <span>Google AI Studio / Gemini 原生兼容支持</span>
+                <span>{t("Google AI Studio / Gemini 原生兼容支持", "Google AI Studio / native Gemini compatibility")}</span>
               </div>
               <p className="text-[11px] text-blue-800 leading-relaxed">
-                Google 官方原生开放了 OpenAI 规范的端点，你可以使用在{" "}
-                <strong>Google AI Studio</strong> 创建的 Gemini API Key 直接调用。模型名称、可用地区、配额与费用以服务商当前规则为准。
+                {t("Google 官方原生开放了 OpenAI 规范的端点，你可以使用在", "Google provides an OpenAI compatible endpoint. Use a Gemini API key created in")}{" "}
+                <strong>Google AI Studio</strong> {t("创建的 Gemini API Key 直接调用。模型名称、可用地区、配额与费用以服务商当前规则为准。", "to make requests directly. Model names, regions, quotas and pricing follow the provider's current policies.")}
               </p>
               <div className="pt-0.5">
                 <a
@@ -292,7 +309,7 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
                   rel="noreferrer"
                   className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:underline"
                 >
-                  <span>前往 Google AI Studio 获取 API Key</span>
+                  <span>{t("前往 Google AI Studio 获取 API Key", "Get an API key from Google AI Studio")}</span>
                   <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
@@ -300,14 +317,15 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
           )}
 
           {/* Form Inputs */}
-          <div className="space-y-3">
+          <div className="min-w-0 space-y-3">
             {/* Base URL */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+              <label htmlFor="ai-base-url" className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
                 <Globe className="h-3.5 w-3.5 text-slate-400" />
                 API Base URL
               </label>
               <input
+                id="ai-base-url"
                 type="text"
                 value={formData.baseUrl}
                 onChange={(e) =>
@@ -320,12 +338,12 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
 
             {/* API Key */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-1">
+                <label htmlFor="ai-api-key" className="shrink-0 text-xs font-semibold text-slate-700 flex items-center gap-1.5">
                   <Key className="h-3.5 w-3.5 text-slate-400" />
                   API Key
                 </label>
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                   {currentPreset?.keyDocUrl && (
                     <a
                       href={currentPreset.keyDocUrl}
@@ -340,14 +358,17 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
                   <button
                     type="button"
                     onClick={() => setShowKey(!showKey)}
-                    className="text-[11px] text-slate-400 hover:text-slate-600"
+                    className="shrink-0 text-[11px] text-slate-400 hover:text-slate-600"
                   >
-                    {showKey ? "隐藏" : "显示"}
+                    {showKey ? t("隐藏", "Hide") : t("显示", "Show")}
                   </button>
                 </div>
               </div>
               <input
+                id="ai-api-key"
                 type={showKey ? "text" : "password"}
+                autoComplete="off"
+                spellCheck={false}
                 value={formData.apiKey ?? ""}
                 onChange={(e) =>
                   updateDraft({ apiKey: e.target.value })
@@ -355,8 +376,8 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
                 className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs outline-none focus:border-[var(--color-accent)] font-mono"
                 placeholder={
                   isGemini
-                    ? "AIzaSy... (在 aistudio.google.com 创建的 Key)"
-                    : "sk-... (如果使用本地 Ollama 可留空)"
+                    ? t("AIzaSy... (在 aistudio.google.com 创建的 Key)", "AIzaSy... (key created at aistudio.google.com)")
+                    : t("sk-... (如果使用本地 Ollama 可留空)", "sk-... (optional for local Ollama)")
                 }
               />
             </div>
@@ -364,9 +385,9 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
             {/* Model Name & Dynamic Model Selector */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                <label htmlFor="ai-model" className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
                   <Cpu className="h-3.5 w-3.5 text-slate-400" />
-                  模型名称 (Model)
+                  {t("模型名称 (Model)", "Model name")}
                 </label>
                 <div className="flex items-center gap-2">
                   <button
@@ -377,12 +398,12 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
                     {customModelMode ? (
                       <>
                         <List className="h-3 w-3" />
-                        <span>下拉选择</span>
+                        <span>{t("下拉选择", "Select from list")}</span>
                       </>
                     ) : (
                       <>
                         <Edit3 className="h-3 w-3" />
-                        <span>手动输入</span>
+                        <span>{t("手动输入", "Enter manually")}</span>
                       </>
                     )}
                   </button>
@@ -391,22 +412,24 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
 
               {customModelMode ? (
                 <input
+                  id="ai-model"
                   type="text"
                   value={formData.model}
                   onChange={(e) =>
                     updateDraft({ model: e.target.value })
                   }
                   className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs outline-none focus:border-[var(--color-accent)] font-mono"
-                  placeholder="例如：gemini-1.5-flash, deepseek-chat"
+                  placeholder={t("例如：gemini-1.5-flash, deepseek-chat", "For example: gemini-1.5-flash, deepseek-chat")}
                 />
               ) : (
-                <div className="flex gap-2">
+                <div className="flex min-w-0 flex-wrap gap-2 sm:flex-nowrap">
                   <select
+                    id="ai-model"
                     value={formData.model}
                     onChange={(e) =>
                       updateDraft({ model: e.target.value })
                     }
-                    className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-[var(--color-accent)] font-mono"
+                    className="min-w-0 flex-1 basis-44 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-[var(--color-accent)] font-mono"
                   >
                     {displayModels.map((m) => (
                       <option key={m} value={m}>
@@ -416,7 +439,7 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
                     {/* Keep current model in options if not listed */}
                     {!displayModels.includes(formData.model) && formData.model && (
                       <option value={formData.model}>
-                        {formData.model} (当前自定义)
+                        {formData.model} {t("(当前自定义)", "(current custom model)")}
                       </option>
                     )}
                   </select>
@@ -425,12 +448,12 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
                     onClick={handleTestConnection}
                     disabled={testing}
                     className="shrink-0 flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
-                    title="请求服务商的模型列表；不发送生成请求"
+                    title={t("请求服务商的模型列表；不发送生成请求", "Request the provider's model list; no generation request is sent")}
                   >
                     <RefreshCw
                       className={`h-3 w-3 ${testing ? "animate-spin" : ""}`}
                     />
-                    <span>刷新列表</span>
+                    <span>{t("刷新列表", "Refresh list")}</span>
                   </button>
                 </div>
               )}
@@ -438,14 +461,17 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
               {availableModels.length > 0 && (
                 <p className="text-[10px] text-emerald-600 mt-1 flex items-center gap-1">
                   <CheckCircle2 className="h-3 w-3" />
-                  已获取 {availableModels.length} 个模型标识；生成权限与文本/视觉能力尚未验证
+                  {t("已获取", "Retrieved")} {availableModels.length} {t("个模型标识；生成权限与文本/视觉能力尚未验证", "model identifiers; generation access and text/vision capabilities have not been verified")}
                 </p>
               )}
               {availableModels.length === 0 && (
                 <p className="text-[10px] text-slate-500 mt-1">
-                  预设名称仅作示例，可能已变更或停用。请获取列表或按服务商文档手动填写。
+                  {t("预设名称仅作示例，可能已变更或停用。请获取列表或按服务商文档手动填写。", "Preset names are examples and may change or be retired. Retrieve the list or enter a name from the provider's documentation.")}
                 </p>
               )}
+              <p className="text-[10px] text-slate-500 mt-1">
+                {t("AI 请求跟随浏览器与系统代理／TUN；“网络与代理”中的岗位连接设置不作用于此处。刷新列表后保留当前模型，由你选择是否更换。", "AI requests use the browser and system proxy/TUN. Job connection settings in Network & proxy do not apply here. Refreshing the list keeps your current model until you choose another.")}
+              </p>
             </div>
 
             {/* Test Connection Banner & Button */}
@@ -460,12 +486,12 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
                   {testing ? (
                     <>
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      <span>正在获取模型列表...</span>
+                      <span>{t("正在获取模型列表...", "Retrieving model list...")}</span>
                     </>
                   ) : (
                     <>
                       <Sparkles className="h-3.5 w-3.5" />
-                      <span>获取模型列表（不测试生成）</span>
+                      <span>{t("获取模型列表（不测试生成）", "Get model list (no generation test)")}</span>
                     </>
                   )}
                 </button>
@@ -473,7 +499,8 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
 
               {testResult && (
                 <div
-                  className={`mt-2 rounded-lg p-2.5 text-xs flex items-start gap-2 ${
+                  role={testResult.success ? "status" : "alert"}
+                  className={`mt-2 min-w-0 rounded-lg p-2.5 text-xs flex items-start gap-2 ${
                     testResult.success
                       ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
                       : "bg-rose-50 border border-rose-200 text-rose-800"
@@ -484,9 +511,9 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
                   ) : (
                     <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
                   )}
-                  <div className="leading-relaxed">
+                  <div className="min-w-0 break-words [overflow-wrap:anywhere] leading-relaxed">
                     <p className="font-semibold">
-                      {testResult.success ? "模型列表已获取" : "未获得模型列表"}
+                      {testResult.success ? t("模型列表已获取", "Model list retrieved") : t("未获得模型列表", "Model list not retrieved")}
                     </p>
                     <p className="text-[11px] mt-0.5">{testResult.message}</p>
                   </div>
@@ -498,7 +525,7 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
             <div className="rounded-lg bg-slate-50 border border-slate-200 p-2.5 flex items-start gap-2 text-[11px] text-slate-600">
               <ShieldCheck className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
               <span>
-                配置与简历保存在本机浏览器 localStorage。使用云模型时，相关简历、JD 或页面图片会直接发往所选服务商；本项目没有中转服务。使用本机 Ollama 且地址指向本机时，推理才在本机进行。模型列表请求也会携带 API Key。
+                {t("配置与简历保存在本机浏览器 localStorage。使用云模型时，相关简历、JD 或页面图片会直接发往所选服务商；本项目没有中转服务。使用本机 Ollama 且地址指向本机时，推理才在本机进行。模型列表请求也会携带 API Key。", "Configuration and resumes are stored in this browser's localStorage. Cloud models receive the relevant resume, job description or page images directly, without a BetterMe relay. Inference is local only when Ollama and its address are on this computer. Model list requests also include your API key.")}
               </span>
             </div>
           </div>
@@ -514,11 +541,11 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
         <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={saving}
             className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
           >
-            取消
+            {t("取消", "Cancel")}
           </button>
           <button
             type="button"
@@ -527,7 +554,7 @@ export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
             className="flex items-center gap-1 rounded-lg bg-[var(--color-accent)] px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-[var(--color-accent-hover)] transition"
           >
             <Check className="h-3.5 w-3.5" />
-            {saving ? "正在保存..." : "保存配置"}
+            {saving ? t("正在保存...", "Saving...") : t("保存配置", "Save configuration")}
           </button>
         </div>
       </div>

@@ -118,6 +118,8 @@ export function projectResume(
         exp.type === "work" ||
         exp.type === "education",
     );
+  const visibleExperiences = experiences.filter((experience) => isResumeSectionVisible(view,
+    experience.type === "work" ? "experience" : experience.type === "education" ? "education" : "projects"));
 
   return {
     locale,
@@ -127,7 +129,7 @@ export function projectResume(
     layout: getResumeLayout(view.layout),
     textStyles,
     educationSummary: isResumeSectionVisible(view, "education") && base.profile.education ? pickLocale(base.profile.education, locale) : undefined,
-    skills: isResumeSectionVisible(view, "skills") ? [...new Set(experiences.flatMap((experience) => experience.techStack))] : [],
+    skills: isResumeSectionVisible(view, "skills") ? [...new Set(visibleExperiences.flatMap((experience) => experience.techStack))] : [],
     profile: {
       displayName: pickLocale(base.profile.displayName, locale),
       headline: isResumeProfileVisible(view, "headline") && base.profile.headline
@@ -146,8 +148,7 @@ export function projectResume(
       targetRoles: isResumeProfileVisible(view, "targetRoles") && isResumeSectionVisible(view, "summary") ? base.profile.targetRoles.map((r) => pickLocale(r, locale)) : [],
       traits: isResumeProfileVisible(view, "traits") && isResumeSectionVisible(view, "summary") ? base.profile.traits : [],
     },
-    experiences: experiences.filter((experience) => isResumeSectionVisible(view,
-      experience.type === "work" ? "experience" : experience.type === "education" ? "education" : "projects")),
+    experiences: visibleExperiences,
   };
 }
 

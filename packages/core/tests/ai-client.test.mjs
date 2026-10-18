@@ -47,7 +47,181 @@ test("listing HTTP and network failures remain visible", async (t) => {
   fetchMock.mock.mockImplementation(async () => { throw new TypeError("network unavailable"); });
   const failed = await testLlmConnection(config);
   assert.equal(failed.success, false);
-  assert.match(failed.message, /network unavailable/);
+  assert.match(failed.message, /未收到可读取的服务商响应/);
+  assert.match(failed.message, /网络、代理、API 地址或浏览器跨域限制/);
+  assert.match(failed.message, /无法据此判断 API Key 或模型是否有效/);
+});
+
+test("official Gemini versions use native model listing with header authentication and no key URL", async (t) => {
+  const requests = [];
+  t.mock.method(globalThis, "fetch", async (url, init) => {
+    requests.push({ url, init });
+    return Response.json({ models: [
+      { name: "models/gemini-example", supportedGenerationMethods: ["generateContent"] },
+      { name: "models/embedding-example", supportedGenerationMethods: ["embedContent"] },
+    ] });
+  });
+  for (const version of ["v1beta", "v1alpha"]) {
+    for (const suffix of ["", "/", "/openai/", "/openai/chat/completions", "/chat/completions/"]) {
+      const baseUrl = `https://generativelanguage.googleapis.com/${version}${suffix}`;
+      assert.deepEqual(await fetchAvailableModels({ ...config, provider: "gemini", baseUrl }), ["gemini-example"]);
+      const request = requests.at(-1);
+      assert.equal(request.url, `https://generativelanguage.googleapis.com/${version}/models`);
+      assert.equal(new Headers(request.init.headers).get("x-goog-api-key"), "test-only");
+      assert.equal(new Headers(request.init.headers).get("Authorization"), null);
+      assert.equal(new URL(request.url).search, "");
+      assert.ok(!request.url.includes(config.apiKey));
+    }
+  }
+  const before = requests.length;
+  await assert.rejects(fetchAvailableModels({ ...config, apiKey: " ", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai" }), /请先填写 Google Gemini API Key/);
+  assert.equal(requests.length, before);
+});
+
+test("the explicitly configured official Gemini mTLS host is preserved for listing and generation", async (t) => {
+  const requests = [];
+  t.mock.method(globalThis, "fetch", async (url, init) => {
+    requests.push({ url, init });
+    return init.method === "POST"
+      ? Response.json({ choices: [{ message: { content: "response" } }] })
+      : Response.json({ models: [{ name: "models/example-model", supportedGenerationMethods: ["generateContent"] }] });
+  });
+  for (const version of ["v1beta", "v1alpha"]) {
+    for (const suffix of ["", "/", "/openai/", "/openai/chat/completions", "/chat/completions/"]) {
+      const baseUrl = `https://generativelanguage.mtls.googleapis.com/${version}${suffix}`;
+      const sharedConfig = { ...config, provider: "gemini", baseUrl };
+      assert.deepEqual(await fetchAvailableModels(sharedConfig), ["example-model"]);
+      const listing = requests.at(-1);
+      assert.equal(listing.url, `https://generativelanguage.mtls.googleapis.com/${version}/models`);
+      assert.equal(new Headers(listing.init.headers).get("x-goog-api-key"), config.apiKey);
+      assert.equal(new Headers(listing.init.headers).get("Authorization"), null);
+      assert.equal(await fetchChatCompletion(sharedConfig, messages), "response");
+      const generation = requests.at(-1);
+      assert.equal(generation.url, `https://generativelanguage.mtls.googleapis.com/${version}/openai/chat/completions`);
+      assert.deepEqual(JSON.parse(generation.init.body), { model: config.model, messages, temperature: config.temperature });
+      for (const request of [listing, generation]) {
+        assert.equal(new URL(request.url).search, "");
+        assert.ok(!request.url.includes(config.apiKey));
+      }
+    }
+  }
+  assert.equal(requests.length, 20);
+});
+
+test("Gemini provider custom gateways and lookalike hosts keep their own compatible models endpoint", async (t) => {
+  const requests = [];
+  t.mock.method(globalThis, "fetch", async (url, init) => {
+    requests.push({ url, init });
+    return Response.json({ data: [{ id: "gateway-model" }] });
+  });
+  const targets = [
+    ["https://gateway.invalid/v1", "https://gateway.invalid/v1/models"],
+    ["https://gateway.invalid/v1/chat/completions", "https://gateway.invalid/v1/models"],
+    ["https://generativelanguage.googleapis.com.attacker.invalid/v1beta/openai", "https://generativelanguage.googleapis.com.attacker.invalid/v1beta/openai/models"],
+    ["https://generativelanguage.mtls.googleapis.com.attacker.invalid/v1beta/openai", "https://generativelanguage.mtls.googleapis.com.attacker.invalid/v1beta/openai/models"],
+    ["https://gateway.invalid/generativelanguage.googleapis.com/v1beta", "https://gateway.invalid/generativelanguage.googleapis.com/v1beta/models"],
+    ["http://generativelanguage.googleapis.com/v1beta", "http://generativelanguage.googleapis.com/v1beta/models"],
+    ["https://generativelanguage.googleapis.com/custom", "https://generativelanguage.googleapis.com/custom/models"],
+  ];
+  for (const [baseUrl, expected] of targets) {
+    assert.deepEqual(await fetchAvailableModels({ ...config, provider: "gemini", baseUrl }), ["gateway-model"]);
+    const request = requests.at(-1);
+    assert.equal(request.url, expected);
+    assert.equal(new Headers(request.init.headers).get("Authorization"), "Bearer test-only");
+    assert.equal(new Headers(request.init.headers).get("x-goog-api-key"), null);
+  }
+  assert.equal(requests.length, targets.length);
+});
+
+test("model listing and generation respect the same official or custom Gemini configuration", async (t) => {
+  const requests = [];
+  t.mock.method(globalThis, "fetch", async (url, init) => {
+    requests.push({ url, init });
+    if (init.method === "POST") return Response.json({ choices: [{ message: { content: "response" } }] });
+    return Response.json({
+      data: [{ id: "example-model" }],
+      models: [{ name: "models/example-model", supportedGenerationMethods: ["generateContent"] }],
+    });
+  });
+  const targets = [
+    ["https://gateway.invalid/v1", "https://gateway.invalid/v1/models", "https://gateway.invalid/v1/chat/completions"],
+    ["https://gateway.invalid/v1/chat/completions/", "https://gateway.invalid/v1/models", "https://gateway.invalid/v1/chat/completions"],
+    ["https://generativelanguage.googleapis.com.attacker.invalid/v1beta", "https://generativelanguage.googleapis.com.attacker.invalid/v1beta/models", "https://generativelanguage.googleapis.com.attacker.invalid/v1beta/chat/completions"],
+    ["https://generativelanguage.mtls.googleapis.com.attacker.invalid/v1beta", "https://generativelanguage.mtls.googleapis.com.attacker.invalid/v1beta/models", "https://generativelanguage.mtls.googleapis.com.attacker.invalid/v1beta/chat/completions"],
+    ["https://gateway.invalid/generativelanguage.googleapis.com/v1beta", "https://gateway.invalid/generativelanguage.googleapis.com/v1beta/models", "https://gateway.invalid/generativelanguage.googleapis.com/v1beta/chat/completions"],
+  ];
+  for (const version of ["v1beta", "v1alpha"]) {
+    for (const suffix of ["", "/openai/", "/openai/chat/completions", "/chat/completions/"]) {
+      targets.push([
+        `https://generativelanguage.googleapis.com/${version}${suffix}`,
+        `https://generativelanguage.googleapis.com/${version}/models`,
+        `https://generativelanguage.googleapis.com/${version}/openai/chat/completions`,
+      ]);
+    }
+  }
+  for (const provider of ["gemini", "custom"]) {
+    for (const [baseUrl, modelsUrl, completionUrl] of targets) {
+      const sharedConfig = { ...config, provider, baseUrl };
+      assert.deepEqual(await fetchAvailableModels(sharedConfig), ["example-model"]);
+      assert.equal(requests.at(-1).url, modelsUrl);
+      assert.equal(await fetchChatCompletion(sharedConfig, messages), "response");
+      const generation = requests.at(-1);
+      assert.equal(generation.url, completionUrl);
+      assert.equal(generation.init.method, "POST");
+      assert.equal(new Headers(generation.init.headers).get("Authorization"), "Bearer test-only");
+      assert.deepEqual(JSON.parse(generation.init.body), { model: config.model, messages, temperature: config.temperature });
+    }
+  }
+  assert.equal(requests.length, targets.length * 2 * 2);
+});
+
+test("network diagnostics do not expose raw fetch URLs or keys in listing or generation", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => {
+    throw new TypeError(`Failed to fetch https://service.invalid?key=${config.apiKey}&token=private-token`);
+  });
+  const result = await testLlmConnection(config);
+  assert.equal(result.success, false);
+  assert.match(result.message, /未收到可读取的服务商响应/);
+  assert.doesNotMatch(result.message, /test-only|private-token|Failed to fetch/);
+  await assert.rejects(fetchChatCompletion(config, messages), (error) => {
+    assert.match(error.message, /AI 生成请求未收到可读取的服务商响应/);
+    assert.doesNotMatch(error.message, /test-only|private-token|Failed to fetch/);
+    return true;
+  });
+});
+
+test("response body transport failures receive the same actionable diagnostic", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => ({
+    ok: true,
+    json: async () => { throw new TypeError(`Failed to fetch body for ${config.apiKey}`); },
+  }));
+  for (const baseUrl of [config.baseUrl, "https://generativelanguage.googleapis.com/v1beta/openai"]) {
+    const result = await testLlmConnection({ ...config, baseUrl });
+    assert.equal(result.success, false);
+    assert.match(result.message, /未收到可读取的服务商响应/);
+    assert.doesNotMatch(result.message, /test-only|Failed to fetch/);
+  }
+  await assert.rejects(fetchChatCompletion(config, messages), /AI 生成请求未收到可读取的服务商响应/);
+});
+
+test("HTTP failures keep provider details and status while redacting actual keys and URL credentials", async (t) => {
+  const secretConfig = { ...config, apiKey: "test/key+only" };
+  t.mock.method(globalThis, "fetch", async () => Response.json({ error: { message:
+    `account denied ${secretConfig.apiKey} ${encodeURIComponent(secretConfig.apiKey)} https://service.invalid/path?key=unrelated-key&token=private-token&access_token=another-secret` } }, { status: 403 }));
+  const compatible = await testLlmConnection(secretConfig);
+  const native = await testLlmConnection({ ...secretConfig, baseUrl: "https://generativelanguage.googleapis.com/v1alpha/openai" });
+  for (const result of [compatible, native]) {
+    assert.equal(result.success, false);
+    assert.match(result.message, /403.*account denied/);
+    assert.doesNotMatch(result.message, /test\/key\+only|test%2Fkey%2Bonly|unrelated-key|private-token|another-secret/);
+    assert.match(result.message, /\[已隐藏\]/);
+    assert.doesNotMatch(result.message, /未收到可读取的服务商响应/);
+  }
+  await assert.rejects(fetchChatCompletion(secretConfig, messages), (error) => {
+    assert.match(error.message, /AI 接口请求失败 \(403\): account denied/);
+    assert.doesNotMatch(error.message, /test\/key\+only|test%2Fkey%2Bonly|unrelated-key|private-token|another-secret/);
+    return true;
+  });
 });
 
 test("generation normalizes Gemini URL and requires nonempty string content", async (t) => {
@@ -68,7 +242,11 @@ test("invalid JD model output is neither logged nor echoed in parse errors", asy
   const sensitiveOutput = "private model content not valid JSON";
   t.mock.method(globalThis, "fetch", async () => Response.json({ choices: [{ message: { content: sensitiveOutput } }] }));
   const errorLog = t.mock.method(console, "error", () => {});
-  await assert.rejects(analyzeJdMatch(config, {}, "example JD"), (error) => {
+  await assert.rejects(analyzeJdMatch(config, {
+    locale: "zh", templateId: "zh-classic",
+    profile: { displayName: "Synthetic fixture", links: [], targetRoles: [], traits: [] },
+    experiences: [{ id: "fixture-work", type: "work", org: "Fixture Lab", title: "Developer", start: "2024-01", end: null, techStack: ["C#"], claims: [{ id: "fixture-claim", kind: "action", text: "Developed a device status API with automated tests.", tags: [] }] }],
+  }, "example JD"), (error) => {
     assert.match(error.message, /标准诊断报告/);
     assert.ok(!error.message.includes(sensitiveOutput));
     return true;
@@ -113,6 +291,60 @@ test("model listing times out after 20 seconds", async (t) => {
   await assert.rejects(pending, /获取模型列表超时（20 秒）/);
 });
 
+test("already cancelled model requests do not start fetch", async (t) => {
+  const fetchMock = t.mock.method(globalThis, "fetch", async () => { throw new Error("must not fetch"); });
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(fetchAvailableModels(config, { signal: controller.signal }), (error) => {
+    assert.equal(error.name, "AbortError");
+    assert.match(error.message, /已取消/);
+    assert.doesNotMatch(error.message, /超时/);
+    return true;
+  });
+  const result = await testLlmConnection(config, { signal: controller.signal });
+  assert.equal(result.success, false);
+  assert.match(result.message, /已取消/);
+  assert.equal(fetchMock.mock.callCount(), 0);
+});
+
+test("caller cancellation aborts a pending fetch without becoming a timeout", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let requestSignal;
+  t.mock.method(globalThis, "fetch", async (_url, init) => {
+    requestSignal = init.signal;
+    return rejectWhenAborted(init.signal);
+  });
+  const controller = new AbortController();
+  const pending = fetchAvailableModels(config, { signal: controller.signal });
+  assert.notEqual(requestSignal, controller.signal);
+  controller.abort(new Error("test-only private cancellation reason"));
+  t.mock.timers.tick(20_000);
+  await assert.rejects(pending, (error) => {
+    assert.equal(error.name, "AbortError");
+    assert.match(error.message, /已取消/);
+    assert.doesNotMatch(error.message, /超时|private cancellation/);
+    return true;
+  });
+  assert.equal(requestSignal.aborted, true);
+});
+
+test("caller cancellation remains active while a model-list response body is pending", async (t) => {
+  let requestSignal;
+  let finishBody;
+  const body = new Promise((resolve) => { finishBody = resolve; });
+  t.mock.method(globalThis, "fetch", async (_url, init) => {
+    requestSignal = init.signal;
+    return { ok: true, json: () => body };
+  });
+  const controller = new AbortController();
+  const pending = fetchAvailableModels(config, { signal: controller.signal });
+  await Promise.resolve();
+  controller.abort();
+  finishBody({ data: [{ id: "late-model" }] });
+  await assert.rejects(pending, (error) => error.name === "AbortError" && /已取消/.test(error.message));
+  assert.equal(requestSignal.aborted, true);
+});
+
 test("Gemini native and fallback list requests share a single 20-second deadline", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const signals = [];
@@ -124,7 +356,7 @@ test("Gemini native and fallback list requests share a single 20-second deadline
     fallbackStarted();
     return rejectWhenAborted(init.signal);
   });
-  const pending = fetchAvailableModels({ ...config, provider: "gemini" });
+  const pending = fetchAvailableModels({ ...config, provider: "gemini", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai" });
   await fallbackReady;
   t.mock.timers.tick(20_000);
   await assert.rejects(pending, /获取模型列表超时（20 秒）/);

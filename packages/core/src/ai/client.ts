@@ -1,32 +1,120 @@
 import type { ProjectedResume } from "../project/resume-projection.js";
+import { getJdMatchReadiness } from "../project/jd-match-readiness.js";
 import {
   type LlmConfig,
   type JdMatchReport,
   JdMatchReportSchema,
 } from "./types.js";
 
+export type AiRequestOptions = { signal?: AbortSignal };
+
+function cancelledRequest(label: string): DOMException {
+  return new DOMException(`${label}已取消。`, "AbortError");
+}
+
 async function withRequestTimeout<T>(
   timeoutMs: number,
   label: string,
   request: (signal: AbortSignal) => Promise<T>,
+  externalSignal?: AbortSignal,
 ): Promise<T> {
+  if (externalSignal?.aborted) throw cancelledRequest(label);
   const controller = new AbortController();
   let timedOut = false;
+  let cancelled = false;
+  const cancel = () => {
+    if (controller.signal.aborted) return;
+    cancelled = true;
+    controller.abort();
+  };
+  externalSignal?.addEventListener("abort", cancel, { once: true });
   const timer = setTimeout(() => {
+    if (controller.signal.aborted) return;
     timedOut = true;
     controller.abort();
   }, timeoutMs);
 
   try {
-    return await request(controller.signal);
+    const result = await request(controller.signal);
+    controller.signal.throwIfAborted();
+    return result;
   } catch (error) {
+    if (cancelled) throw cancelledRequest(label);
     if (timedOut) {
-      throw new Error(`${label}超时（${timeoutMs / 1000} 秒），请检查服务地址、网络或模型状态后重试。`, { cause: error });
+      // eslint-disable-next-line preserve-caught-error -- Raw fetch causes may contain API keys in URLs.
+      throw new Error(`${label}超时（${timeoutMs / 1000} 秒），请检查服务地址、网络或模型状态后重试。`);
     }
     throw error;
   } finally {
     clearTimeout(timer);
+    externalSignal?.removeEventListener("abort", cancel);
   }
+}
+
+function redactApiSecrets(text: string, apiKey?: string): string {
+  const key = apiKey?.trim();
+  let safe = text;
+  if (key) {
+    for (const secret of new Set([key, encodeURIComponent(key)])) {
+      safe = safe.split(secret).join("[已隐藏]");
+    }
+  }
+  return safe.replace(
+    /([?&](?:key|api[_-]?key|token|access[_-]?token)=)[^&#\s"'<>]*/gi,
+    "$1[已隐藏]",
+  );
+}
+
+function aiTransportError(
+  error: unknown,
+  label: string,
+  apiKey?: string,
+): unknown {
+  if (error instanceof TypeError) {
+    return new Error(`${label}未收到可读取的服务商响应。可能与网络、代理、API 地址或浏览器跨域限制有关；请检查这些连接条件后重试。目前无法据此判断 API Key 或模型是否有效。`);
+  }
+  if (error instanceof Error && error.name !== "AbortError") {
+    return new Error(redactApiSecrets(error.message, apiKey));
+  }
+  return error;
+}
+
+async function fetchAiEndpoint(
+  url: string,
+  init: RequestInit,
+  label: string,
+  apiKey?: string,
+): Promise<Response> {
+  try { return await fetch(url, init); }
+  catch (error) { throw aiTransportError(error, label, apiKey); }
+}
+
+async function readAiJson(response: Response, label: string, apiKey?: string) {
+  try { return await response.json(); }
+  catch (error) { throw aiTransportError(error, label, apiKey); }
+}
+
+async function providerErrorDetail(response: Response, apiKey?: string): Promise<string> {
+  const text = await response.text().catch(() => "");
+  let detail = text;
+  try {
+    const parsed = JSON.parse(text);
+    const message = parsed?.error?.message ?? parsed?.message;
+    if (typeof message === "string") detail = message;
+  } catch {
+    // Some services return a plain text HTTP error.
+  }
+  return redactApiSecrets(detail, apiKey).slice(0, 600);
+}
+
+/** Recognize only official Gemini API addresses, preserving the configured host and version. */
+function geminiVersionBaseUrl(baseUrl: string): string | undefined {
+  let url: URL;
+  try { url = new URL(baseUrl.trim()); } catch { return undefined; }
+  if (url.protocol !== "https:" || !["generativelanguage.googleapis.com", "generativelanguage.mtls.googleapis.com"].includes(url.hostname) ||
+    url.port || url.username || url.password) return undefined;
+  const version = url.pathname.match(/^\/(v1beta|v1alpha)(?:\/(?:openai(?:\/chat\/completions)?|chat\/completions))?\/?$/)?.[1];
+  return version ? `${url.origin}/${version}` : undefined;
 }
 
 /** Clean markdown json blocks if the model outputs them. */
@@ -53,18 +141,10 @@ export async function fetchChatCompletion(
 ): Promise<string> {
   let url = config.baseUrl.trim().replace(/\/+$/, "");
 
-  // Normalize Gemini OpenAI-compatible URL from Google AI Studio
-  // (https://generativelanguage.googleapis.com/v1beta/openai/chat/completions)
-  if (
-    config.provider === "gemini" ||
-    url.includes("generativelanguage.googleapis.com")
-  ) {
-    if (!url.includes("/openai")) {
-      url = `${url}/openai`;
-    }
-  }
-
-  if (!url.endsWith("/chat/completions")) {
+  const officialGeminiBaseUrl = geminiVersionBaseUrl(config.baseUrl);
+  if (officialGeminiBaseUrl) {
+    url = `${officialGeminiBaseUrl}/openai/chat/completions`;
+  } else if (!url.endsWith("/chat/completions")) {
     url = `${url}/chat/completions`;
   }
 
@@ -83,28 +163,21 @@ export async function fetchChatCompletion(
   };
 
   return withRequestTimeout(90_000, "AI 生成请求", async (signal) => {
-    const response = await fetch(url, {
+    const response = await fetchAiEndpoint(url, {
       method: "POST",
       headers,
       body: JSON.stringify(body),
       signal,
-    });
+    }, "AI 生成请求", config.apiKey);
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => "Unknown error");
-      let detail = errorText;
-      try {
-        const errJson = JSON.parse(errorText);
-        detail = errJson.error?.message || errJson.message || errorText;
-      } catch {
-        // not json
-      }
+      const detail = await providerErrorDetail(response, config.apiKey);
       throw new Error(
-        `AI 接口请求失败 (${response.status}): ${detail.slice(0, 300)}`,
+        `AI 接口请求失败 (${response.status}): ${detail}`,
       );
     }
 
-    const json = await response.json();
+    const json = await readAiJson(response, "AI 生成请求", config.apiKey);
     const content = json.choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim()) {
       throw new Error("AI 接口未返回有效的 choices 文本。");
@@ -120,25 +193,39 @@ export async function analyzeJdMatch(
   resume: ProjectedResume,
   jdText: string,
 ): Promise<JdMatchReport> {
-  const systemPrompt = `你是一个资深技术招聘专家与工业/软件架构师面试官。
-你的任务是将候选人当前的真实简历（已通过事实库校验）与用户提供的【目标岗位招聘需求 (JD)】进行精确比对，输出客观、犀利的匹配度诊断报告。
+  const readiness = getJdMatchReadiness(resume);
+  if (!readiness.ready) throw new Error(readiness.message);
 
-【绝对守则与防编造原则】：
-1. 严禁捏造事实！严禁凭空为候选人添加未在简历中出现过的项目经历、未掌握的技术栈或未经核实的量化数字。
-2. 润色建议必须基于候选人既有的真实经历，仅允许进行关键词对齐、语序重构、STAR 因果逻辑强化，绝不篡改事实。
-3. 请以严格、理性的工业研发视角审视，指出真实的短板（如缺乏某协议经验、学历硬伤、年限差距等）。
-4. 必须输出纯 JSON，符合以下 TypeScript 格式：
+  // Snapshot only the claims actually sent with this request. A duplicate ID is
+  // ambiguous even when both claims happen to contain the same words.
+  const sourceClaims = new Map<string, string | null>();
+  for (const experience of resume.experiences) {
+    for (const claim of experience.claims) {
+      sourceClaims.set(claim.id, sourceClaims.has(claim.id) ? null : claim.text);
+    }
+  }
+  const normalizeQuote = (text: string) => text.replace(/\s+/gu, " ").trim();
+
+  const systemPrompt = `你是一个资深技术招聘专家与工业/软件架构师面试官。
+你的任务是比较当前选择的简历文本与用户提供的【目标岗位招聘需求 (JD)】，输出文字层面的参考报告。简历内容由用户提供，未经独立核实；结构校验不能证明事实真实。你无法判断用户未在本次材料中展示的实际能力。
+
+【报告约束】：
+1. 不得添加材料未提供的项目经历、技术栈、责任范围、业务场景、成果或量化数字，也不得把 JD 要求改写为用户已具备的事实。
+2. 未提及不等于不会。对没有依据的技能或条件，只能写“当前材料未提供相关依据，需本人确认”，不能断言用户不会、能力不足或没有经验。隐藏或未选择的简历内容同样属于未知。
+3. 亮点只列材料中有依据的内容，可以为空；missingGaps 中的材料缺失项必须明确标为待确认，不能冒充已经证实的能力缺口。评分仅是本次文本的 AI 参考评分，不是能力认证或录用概率。
+4. 每条表达建议必须引用本次输入中唯一的 claimId，currentText 必须逐字引用该条完整原文，不得概括、拼接或虚构。只能在原文信息范围内调整表达；不得加入新技能、经历、场景或数字。没有可引用的合适条目时，tailoredSuggestions 返回空数组。引用存在也不代表建议内容已经通过真实性核验。
+5. 必须输出纯 JSON，符合以下 TypeScript 格式：
 {
   "matchScore": number (0-100),
-  "scoreSummary": string (1-2句中肯的总体评分评价),
-  "matchingStrengths": string[] (候选人与该JD高度契合的3-5个硬核亮点),
-  "missingGaps": string[] (该JD要求但候选人简历中明显缺失或偏弱的技术/业务项),
+  "scoreSummary": string (说明当前文本依据及判断局限),
+  "matchingStrengths": string[] (当前材料有依据的契合点，可以为空),
+  "missingGaps": string[] (区分有明确依据的冲突与当前材料未提供依据的待确认项),
   "tailoredSuggestions": [
     {
-      "claimId": string (对应简历中的事实条目ID，若有),
-      "currentText": string (候选人原文字),
-      "suggestedText": string (在不造假的前提下，更对齐该JD痛点的优化表述),
-      "reason": string (为什么这样微调能更好地打动面试官)
+      "claimId": string (本次输入中唯一的原文条目ID，必须提供),
+      "currentText": string (该条完整原文，必须提供),
+      "suggestedText": string (信息范围不变的待核实候选表达),
+      "reason": string (说明表达调整目的与需要本人核对的内容)
     }
   ],
   "interviewDefenseTips": string[] (面试官极可能针对此JD对候选人进行深挖的3-4个刁钻技术追问或考点)
@@ -157,8 +244,21 @@ ${jdText.trim()}`;
 
   try {
     const cleaned = extractJsonString(rawOutput);
-    const parsed = JSON.parse(cleaned);
-    return JdMatchReportSchema.parse(parsed);
+    // The provider cannot choose the local exclusion count, including through a
+    // malformed value. It is always derived from the suggestions below.
+    const parsed = JdMatchReportSchema.parse({ ...JSON.parse(cleaned), unverifiedSuggestionCount: 0 });
+    const tailoredSuggestions = parsed.tailoredSuggestions.flatMap((suggestion) => {
+      if (!suggestion.claimId?.trim() || suggestion.currentText === undefined) return [];
+      const original = sourceClaims.get(suggestion.claimId);
+      if (typeof original !== "string" || !normalizeQuote(original) ||
+        normalizeQuote(suggestion.currentText) !== normalizeQuote(original)) return [];
+      return [{ ...suggestion, currentText: original }];
+    });
+    return {
+      ...parsed,
+      tailoredSuggestions,
+      unverifiedSuggestionCount: parsed.tailoredSuggestions.length - tailoredSuggestions.length,
+    };
   } catch {
     throw new Error(
       "AI 返回内容未能成功解析为标准诊断报告，请重试或更换模型。",
@@ -167,36 +267,26 @@ ${jdText.trim()}`;
 }
 
 /** Fetch list of available models for a given provider/config */
-export async function fetchAvailableModels(config: LlmConfig): Promise<string[]> {
+export async function fetchAvailableModels(config: LlmConfig, options: AiRequestOptions = {}): Promise<string[]> {
   return withRequestTimeout(20_000, "获取模型列表", async (signal) => {
-    const isGemini =
-      config.provider === "gemini" ||
-      config.baseUrl.includes("generativelanguage.googleapis.com");
+    const officialGeminiBaseUrl = geminiVersionBaseUrl(config.baseUrl);
+    const nativeModelsUrl = officialGeminiBaseUrl ? `${officialGeminiBaseUrl}/models` : undefined;
 
-    if (isGemini) {
+    if (nativeModelsUrl) {
       if (!config.apiKey?.trim()) {
         throw new Error("请先填写 Google Gemini API Key 以获取可用模型列表。");
       }
 
-      // Try Google AI Studio native models endpoint
-      const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(
-        config.apiKey.trim(),
-      )}`;
-
-      const res = await fetch(url, { signal });
+      const res = await fetchAiEndpoint(nativeModelsUrl, {
+        signal,
+        headers: { "x-goog-api-key": config.apiKey.trim() },
+      }, "获取模型列表", config.apiKey);
       if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        let msg = errText;
-        try {
-          const j = JSON.parse(errText);
-          msg = j.error?.message || errText;
-        } catch {
-          // ignore
-        }
+        const msg = await providerErrorDetail(res, config.apiKey);
         throw new Error(`Google API 获取模型失败 (${res.status}): ${msg}`);
       }
 
-      const data = await res.json();
+      const data = await readAiJson(res, "获取模型列表", config.apiKey);
       if (Array.isArray(data.models)) {
         const models = data.models
           .filter((m: { supportedGenerationMethods?: string[] }) => {
@@ -230,20 +320,13 @@ export async function fetchAvailableModels(config: LlmConfig): Promise<string[]>
       headers["Authorization"] = `Bearer ${config.apiKey.trim()}`;
     }
 
-    const res = await fetch(modelsUrl, { headers, signal });
+    const res = await fetchAiEndpoint(modelsUrl, { headers, signal }, "获取模型列表", config.apiKey);
     if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      let msg = errText;
-      try {
-        const j = JSON.parse(errText);
-        msg = j.error?.message || j.message || errText;
-      } catch {
-        // ignore
-      }
+      const msg = await providerErrorDetail(res, config.apiKey);
       throw new Error(`获取模型列表失败 (${res.status}): ${msg}`);
     }
 
-    const data = await res.json();
+    const data = await readAiJson(res, "获取模型列表", config.apiKey);
     if (Array.isArray(data.data)) {
       return data.data.map((m: { id?: string }) => m.id).filter((id: unknown) => typeof id === "string" && Boolean(id.trim()));
     }
@@ -252,15 +335,16 @@ export async function fetchAvailableModels(config: LlmConfig): Promise<string[]>
     }
 
     return [];
-  });
+  }, options.signal);
 }
 
 /** Read the models endpoint; this does not validate a generation request. */
 export async function testLlmConnection(
   config: LlmConfig,
+  options: AiRequestOptions = {},
 ): Promise<{ success: boolean; message: string; models: string[] }> {
   try {
-    const models = await fetchAvailableModels(config);
+    const models = await fetchAvailableModels(config, options);
     if (models.length === 0) {
       return {
         success: false,
@@ -276,7 +360,7 @@ export async function testLlmConnection(
   } catch (err) {
     return {
       success: false,
-      message: (err as Error).message || "获取模型列表失败",
+      message: redactApiSecrets(err instanceof Error ? err.message : "获取模型列表失败", config.apiKey),
       models: [],
     };
   }
