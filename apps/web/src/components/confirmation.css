@@ -1,0 +1,9 @@
+.confirmation-dialog { margin: auto; width: min(460px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 28px; border: 1px solid #d9dfd5; border-radius: 20px; background: #fbfaf5; color: #28372e; box-shadow: 0 24px 80px #142c2250; }
+.confirmation-dialog::backdrop { background: #152d2666; backdrop-filter: blur(3px); }
+.confirmation-dialog h2 { margin: 0 0 12px; font-size: 18px; font-weight: 650; }
+.confirmation-dialog p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.8; color: #5e6a61; }
+.confirmation-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.confirmation-actions button { padding: 9px 18px; border: 1px solid #d0d9ce; border-radius: 10px; background: #fff; cursor: pointer; font: inherit; font-size: 13px; }
+.confirmation-actions button:focus-visible { outline: 3px solid #a3b59a; outline-offset: 3px; }
+.confirmation-actions .confirm { border-color: #2e4b3b; background: #2e4b3b; color: #fff; }
+.confirmation-actions .danger { border-color: #983f3a; background: #983f3a; color: #fff; }

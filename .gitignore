@@ -44,3 +44,18 @@ npm-debug.log*
 *.backup.json
 better-me-backup-*.json
 better-me-draft-*.json
+
+# Resume / opportunity exports (may contain private data)
+better-me-opportunities*.json
+better-me-opportunities*.csv
+better-me-opportunities-recovery*.txt
+better-me-material-*.md
+better-me-rendercv-*.yaml
+resume-zh-*.md
+resume-en-*.md
+resume-zh-*.docx
+resume-en-*.docx
+*-解析核对.json
+*-extracted.txt
+*-原文.txt
+*-source.txt

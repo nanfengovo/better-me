@@ -1,3 +1,4 @@
+import { useUiPreferences } from "../lib/ui-preferences";
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { GripVertical } from "lucide-react";
 import { clampWorkspaceSplit, DEFAULT_EDITOR_PERCENT, getWorkspaceSplitBounds, parseWorkspaceSplit, SPLIT_HANDLE_WIDTH, WORKSPACE_SPLIT_KEY, workspaceSplitFromPointer } from "../lib/workspace-split";
@@ -5,6 +6,8 @@ import { clampWorkspaceSplit, DEFAULT_EDITOR_PERCENT, getWorkspaceSplitBounds, p
 type Props = { children: [ReactNode, ReactNode] };
 
 export function ResizableWorkspace({ children: [editor, preview] }: Props) {
+  const { t } = useUiPreferences();
+
   const containerRef = useRef<HTMLElement>(null);
   const separatorRef = useRef<HTMLDivElement>(null);
   const [preferredPercent, setPreferredPercent] = useState(() => {
@@ -92,7 +95,7 @@ export function ResizableWorkspace({ children: [editor, preview] }: Props) {
 
   return <main ref={containerRef} className={`studio-main${dragging ? " is-resizing" : ""}`} style={{ "--studio-editor-share": `${percent}fr`, "--studio-preview-share": `${100 - percent}fr` } as CSSProperties}>
     {editor}
-    <div ref={separatorRef} className="studio-splitter no-print" role="separator" tabIndex={0} aria-label="调整编辑区与预览区宽度" aria-orientation="vertical" aria-controls="resume-editor-panel resume-preview-panel" aria-valuemin={Math.round(bounds.min)} aria-valuemax={Math.round(bounds.max)} aria-valuenow={Math.round(percent)} aria-valuetext={`编辑区 ${Math.round(percent)}%，预览区 ${Math.round(100 - percent)}%`} title="左右拖动调整宽度；双击恢复默认。方向键微调，Enter 重置。" onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} onLostPointerCapture={endDrag} onDoubleClick={reset} onKeyDown={handleKey}>
+    <div ref={separatorRef} className="studio-splitter no-print" role="separator" tabIndex={0} aria-label={t("调整编辑区与预览区宽度", "Resize editor and preview")} aria-orientation="vertical" aria-controls="resume-editor-panel resume-preview-panel" aria-valuemin={Math.round(bounds.min)} aria-valuemax={Math.round(bounds.max)} aria-valuenow={Math.round(percent)} aria-valuetext={t(`编辑区 ${Math.round(percent)}%，预览区 ${Math.round(100 - percent)}%`, `Editor ${Math.round(percent)}%, preview ${Math.round(100 - percent)}%`)} title={t("左右拖动调整宽度；双击恢复默认。方向键微调，Enter 重置。", "Drag left or right to resize; double-click to reset. Use arrow keys for small adjustments and Enter to reset.")} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} onLostPointerCapture={endDrag} onDoubleClick={reset} onKeyDown={handleKey}>
       <span className="studio-splitter-line"><GripVertical size={14} aria-hidden="true" /></span>
       <span className="studio-splitter-value" aria-hidden="true">{Math.round(percent)} / {Math.round(100 - percent)}</span>
     </div>
