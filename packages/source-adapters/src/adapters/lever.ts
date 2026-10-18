@@ -1,6 +1,7 @@
 import { ToolError } from '@better-me/opportunities';
 import type { SourceAdapter, SourceRecordCompensation } from '../contracts.js';
 import { baseRecord, companyName, idValue, jsonResponse, own, page, plainText, publicUrl, record, slug, stringValue, workMode } from './common.js';
+import { allocateDownloadedRecordQuota } from './bounded-records.js';
 
 export const leverAdapter: SourceAdapter = {
   adapterId: 'lever', version: '1', capabilities: ['list-jobs'], remoteFilters: [], entityTypes: ['job-posting'],
@@ -11,7 +12,7 @@ export const leverAdapter: SourceAdapter = {
     const endpoint = `https://api.lever.co/v0/postings/${slug(request.source)}?mode=json&skip=${skip}&limit=${limit}`;
     const response = await jsonResponse(request, endpoint);
     if (!Array.isArray(response.data)) throw new ToolError('source-changed');
-    const records = response.data.slice(0, limit).map((value, index) => {
+    const downloaded = response.data.map((value, index) => {
       const job = record(value);
       const result = baseRecord(plainText(job.text), response.url, `[${index}].text`);
       result.sourceRecordId = idValue(job.id);
@@ -47,6 +48,12 @@ export const leverAdapter: SourceAdapter = {
       }
       return result;
     });
-    return page(request, records, { fetchedRecords: response.data.length, ...(response.data.length >= limit ? { nextCursor: String(skip + response.data.length) } : {}), partial: response.data.length > limit, stopReason: 'record-limit' });
+    const selected = allocateDownloadedRecordQuota(downloaded, request, limit);
+    return page(request, selected.records, { fetchedRecords: response.data.length,
+      ...(response.data.length >= limit ? { nextCursor: String(skip + response.data.length) } : {}),
+      partial: response.data.length > limit || selected.invalidRecords > 0,
+      stopReason: response.data.length > limit ? 'record-limit' : 'source-error',
+      ...(selected.invalidRecords ? { warning: `${selected.invalidRecords} downloaded source records failed validation and were omitted; enumeration is partial.` } : {}),
+    });
   },
 };

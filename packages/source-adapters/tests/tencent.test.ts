@@ -171,12 +171,76 @@ test("cancellation during a detail prevents returning a successful page or reque
   assert.equal(urls.length, 2);
 });
 
-test("detail budgets, rate limits and timeouts retain their original failure semantics", async () => {
-  for (const failure of [new ToolError('budget-exceeded'), new SourceTransportError('rate-limited', 429, 30), new SourceTransportError('timeout')]) {
+test("detail budgets, rate limits, cancellation and authentication failures retain their original failure semantics", async () => {
+  for (const failure of [new ToolError('budget-exceeded'), new SourceTransportError('rate-limited', 429, 30),
+    new SourceTransportError('cancelled'), new SourceTransportError('http-error', 401), new SourceTransportError('http-error', 403)]) {
     const { input } = detailRequest([post()]); const delegate = input.transport;
     input.transport = { request: async (args) => { if (args.url.includes('/ByPostId')) throw failure; return delegate.request(args); } };
     await assert.rejects(tencentAdapter.list(input), (error) => error === failure);
   }
+});
+
+test("a detail timeout retains the downloaded page and successful same-ID details, stops later requests and suppresses pagination", async () => {
+  const posts = ['1', '2', '3'].map((id) => ({ ...post(id), RecruitPostName: '服务端工程师', Responsibility: 'Develop services' }));
+  const { input, urls } = detailRequest(posts, { pageSize: 3, maxDetailRequestsPerPage: 3 });
+  const delegate = input.transport;
+  input.transport = { request: async (args) => {
+    if (args.url.includes('/Query')) return { ...await delegate.request(args), text: JSON.stringify({ Code: 200, Data: { Posts: posts, Count: 100 } }) };
+    urls.push(args.url);
+    const id = new URL(args.url).searchParams.get('postId');
+    if (id === '2') throw new SourceTransportError('timeout');
+    return { url: args.url, status: 200, headers: {}, text: JSON.stringify({ Code: 200, Data: { PostId: id, Responsibility: 'Develop services', Requirement: 'Use C# services' } }) };
+  } };
+  const result = await createSourceRegistry([tencentAdapter]).list(input);
+  assert.equal(urls.length, 3, 'only the list, one successful detail and one timeout are requested');
+  assert.deepEqual(urls.filter((url) => url.includes('/ByPostId')).map((url) => new URL(url).searchParams.get('postId')), ['1', '2']);
+  assert.deepEqual(result.records.map((record) => record.sourceRecordId), ['1', '2', '3']);
+  assert.equal(result.records[0]!.completeness, 'detail'); assert.ok(result.records[0]!.description!.includes('Use C# services'));
+  assert.ok(result.records[0]!.evidence.some((evidence) => evidence.selector === 'Data.Requirement' && evidence.sourceUrl === urls[1]));
+  assert.equal(result.records[1]!.completeness, 'excerpt'); assert.equal(result.records[2]!.completeness, 'excerpt');
+  assert.equal(result.records[1]!.evidence.some((evidence) => evidence.selector === 'Data.Requirement'), false);
+  assert.deepEqual(countSourceScopeMatches(result.records, input.scope), { matched: 1, unknown: 2, excluded: 0 });
+  assert.equal(result.coverage.fetchedRecords, 3); assert.equal(result.coverage.totalAvailable, 100);
+  assert.equal(result.coverage.partial, true); assert.equal(result.coverage.complete, false);
+  assert.equal(result.stopReason, 'source-error'); assert.equal(result.nextCursor, undefined);
+  assert.ok(result.warnings.some((warning) => warning.includes('timeout') && warning.includes('pagination stopped')));
+  assert.ok(result.records[1]!.warnings.some((warning) => warning.includes('timed out') && warning.includes('remain unread')));
+});
+
+test("a first-detail timeout returns original excerpts without a positive keyword match or another detail call", async () => {
+  const posts = ['1', '2'].map((id) => ({ ...post(id), RecruitPostName: '服务端工程师', Responsibility: 'Develop services' }));
+  const { input, urls } = detailRequest(posts);
+  const delegate = input.transport;
+  input.transport = { request: async (args) => {
+    if (!args.url.includes('/ByPostId')) return delegate.request(args);
+    urls.push(args.url); throw new SourceTransportError('timeout');
+  } };
+  const result = await tencentAdapter.list(input);
+  assert.equal(urls.length, 2); assert.equal(result.records.length, 2);
+  assert.equal(result.records.every((record) => record.completeness === 'excerpt'), true);
+  assert.deepEqual(countSourceScopeMatches(result.records, input.scope), { matched: 0, unknown: 2, excluded: 0 });
+  assert.equal(result.coverage.partial, true); assert.equal(result.nextCursor, undefined); assert.equal(result.stopReason, 'source-error');
+});
+
+test("cancellation concurrent with a detail timeout still propagates rather than returning a retained page", async () => {
+  const { input, urls } = detailRequest([post('1'), post('2')]);
+  const abort = new AbortController();
+  input.context = { ...input.context, signal: abort.signal, throwIfCancelled: () => abort.signal.throwIfAborted() };
+  const delegate = input.transport;
+  input.transport = { request: async (args) => {
+    if (!args.url.includes('/ByPostId')) return delegate.request(args);
+    urls.push(args.url); abort.abort(); throw new SourceTransportError('timeout');
+  } };
+  await assert.rejects(tencentAdapter.list(input), { name: 'AbortError' });
+  assert.equal(urls.length, 2);
+});
+
+test("a list timeout still propagates because no source page has been received", async () => {
+  const { input, urls } = detailRequest([post()]);
+  const failure = new SourceTransportError('timeout');
+  input.transport = { request: async (args) => { urls.push(args.url); throw failure; } };
+  await assert.rejects(tencentAdapter.list(input), (error) => error === failure);
+  assert.equal(urls.length, 1); assert.equal(new URL(urls[0]!).pathname.endsWith('/Query'), true);
 });
 
 test("detail configuration defaults to no requests and requires an explicit bounded detail endpoint policy", async () => {

@@ -1,6 +1,7 @@
 import { ToolError } from '@better-me/opportunities';
 import type { SourceAdapter } from '../contracts.js';
 import { baseRecord, companyName, idValue, jsonResponse, own, page, plainText, publicUrl, record, slug, stringValue, timeValue } from './common.js';
+import { allocateDownloadedRecordQuota } from './bounded-records.js';
 
 export const greenhouseAdapter: SourceAdapter = {
   adapterId: 'greenhouse', version: '1', capabilities: ['list-jobs'], remoteFilters: [], entityTypes: ['job-posting'],
@@ -11,7 +12,7 @@ export const greenhouseAdapter: SourceAdapter = {
     const jobs = own(response.data, 'jobs');
     if (!Array.isArray(jobs)) throw new ToolError('source-changed');
     const limit = request.source.refreshPolicy.maxRecords;
-    const records = jobs.slice(0, limit).map((value, index) => {
+    const downloaded = jobs.map((value, index) => {
       const job = record(value);
       const result = baseRecord(plainText(job.title), response.url, `jobs[${index}].title`);
       result.sourceRecordId = idValue(job.id);
@@ -35,6 +36,11 @@ export const greenhouseAdapter: SourceAdapter = {
     });
     const declaredTotal = own(own(response.data, 'meta'), 'total');
     const total = typeof declaredTotal === 'number' && Number.isSafeInteger(declaredTotal) && declaredTotal >= jobs.length ? declaredTotal : jobs.length;
-    return page(request, records, { totalAvailable: total, fetchedRecords: jobs.length, partial: jobs.length > limit || total > jobs.length, stopReason: jobs.length > limit ? 'record-limit' : 'source-error' });
+    const selected = allocateDownloadedRecordQuota(downloaded, request, limit);
+    return page(request, selected.records, { totalAvailable: total, fetchedRecords: jobs.length,
+      partial: jobs.length > limit || total > jobs.length || selected.invalidRecords > 0,
+      stopReason: jobs.length > limit ? 'record-limit' : 'source-error',
+      ...(selected.invalidRecords ? { warning: `${selected.invalidRecords} downloaded source records failed validation and were omitted; enumeration is partial.` } : {}),
+    });
   },
 };

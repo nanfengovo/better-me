@@ -1,6 +1,7 @@
 import { ToolError } from '@better-me/opportunities';
 import type { SourceAdapter } from '../contracts.js';
 import { baseRecord, companyName, idValue, jsonResponse, own, page, plainText, publicUrl, record, slug, stringValue, timeValue, workMode } from './common.js';
+import { allocateDownloadedRecordQuota } from './bounded-records.js';
 
 export const ashbyAdapter: SourceAdapter = {
   adapterId: 'ashby', version: '1', capabilities: ['list-jobs'], remoteFilters: [], entityTypes: ['job-posting'],
@@ -11,7 +12,7 @@ export const ashbyAdapter: SourceAdapter = {
     const jobs = own(response.data, 'jobs');
     if (!Array.isArray(jobs)) throw new ToolError('source-changed');
     const limit = request.source.refreshPolicy.maxRecords;
-    const records = jobs.slice(0, limit).map((value, index) => {
+    const downloaded = jobs.map((value, index) => {
       const job = record(value);
       const result = baseRecord(plainText(job.title), response.url, `jobs[${index}].title`);
       result.sourceRecordId = idValue(job.id);
@@ -47,6 +48,11 @@ export const ashbyAdapter: SourceAdapter = {
       if (job.isListed === false) result.warnings.push('Source marks this posting as unlisted; this is not an independent availability verification.');
       return result;
     });
-    return page(request, records, { totalAvailable: jobs.length, fetchedRecords: jobs.length, partial: jobs.length > limit, stopReason: 'record-limit' });
+    const selected = allocateDownloadedRecordQuota(downloaded, request, limit);
+    return page(request, selected.records, { totalAvailable: jobs.length, fetchedRecords: jobs.length,
+      partial: jobs.length > limit || selected.invalidRecords > 0,
+      stopReason: jobs.length > limit ? 'record-limit' : 'source-error',
+      ...(selected.invalidRecords ? { warning: `${selected.invalidRecords} downloaded source records failed validation and were omitted; enumeration is partial.` } : {}),
+    });
   },
 };

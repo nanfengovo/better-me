@@ -101,7 +101,7 @@ export const tencentAdapter: SourceAdapter = {
       job.warnings.push("Official search excerpt only. DateCreated semantics and IsValid do not independently establish publication or current availability; salary, ownership and coordinates remain unknown.");
       records.push(job);
     }
-    let detailed = 0, detailFailures = 0;
+    let detailed = 0, detailFailures = 0, detailTimedOut = false;
     if (options.fetchDetails) {
       // Spend the existing detail allowance on eligible unresolved requirements first.
       // Sort a separate work list: the source's original record order is evidence.
@@ -145,7 +145,14 @@ export const tencentAdapter: SourceAdapter = {
           }
         } catch (error) {
           request.context.throwIfCancelled();
-          if (error instanceof ToolError && error.code === "source-changed"
+          if (error instanceof SourceTransportError && error.code === "timeout") {
+            // The list and earlier same-ID details are already usable evidence.
+            // Stop here rather than dropping them or retrying other details/pages.
+            detailTimedOut = true;
+            detailFailures++;
+            job.warnings.push("The official detail request timed out; its original search excerpt is retained and its requirements remain unread.");
+            break;
+          } else if (error instanceof ToolError && error.code === "source-changed"
             || error instanceof SourceTransportError && ["http-error", "response-too-large", "invalid-response"].includes(error.code) && error.status !== 401 && error.status !== 403) {
             detailFailures++;
             job.warnings.push("The bounded official detail could not be verified for this posting identity; its original search excerpt is retained.");
@@ -164,13 +171,14 @@ export const tencentAdapter: SourceAdapter = {
     const shortPage = expectedMore && posts.length < pageSize;
     const continueSameTerm = expectedMore && !shortPage;
     const continueNextTerm = !expectedMore && termIndex + 1 < terms.length;
-    const next = !truncated && !shortPage && (continueSameTerm || continueNextTerm)
+    const next = !detailTimedOut && !truncated && !shortPage && (continueSameTerm || continueNextTerm)
       ? { version: 1 as const, fingerprint, term: continueSameTerm ? termIndex : termIndex + 1, page: continueSameTerm ? pageIndex + 1 : 1, pageSize }
       : undefined;
     const result = page(request, records, {
       fetchedRecords: posts.length, ...(terms.length === 1 ? { totalAvailable: data.Count } : {}),
       ...(next ? { nextCursor: Buffer.from(JSON.stringify(next)).toString("base64url") } : {}),
-      partial: truncated || invalid > 0 || shortPage || detailIncomplete, stopReason: truncated || detailCapped ? "record-limit" : "source-error",
+      partial: truncated || invalid > 0 || shortPage || detailIncomplete || detailTimedOut,
+      stopReason: detailTimedOut ? "source-error" : truncated || detailCapped ? "record-limit" : "source-error",
     });
     result.coverage.appliedFilters = keywords.length ? ["roles"] : [];
     result.coverage.ignoredFilters = (['regions', 'companyNames'] as const).filter((field) => request.scope[field].length > 0);
@@ -181,6 +189,7 @@ export const tencentAdapter: SourceAdapter = {
       ...(terms.length > 1 ? ["OR keywords are enumerated separately and may overlap; no summed unique total is claimed."] : []),
       ...(invalid ? [`${invalid} records lacked a valid official posting identity/title/URL and were omitted.`] : []),
       ...(shortPage ? ["Upstream returned a short page despite a larger Count; enumeration stopped as partial."] : []),
+      ...(detailTimedOut ? ["Official detail timeout: downloaded search records and successful same-ID details were retained. Remaining detail requests and pagination stopped; unread requirements remain unresolved and coverage is partial."] : []),
       ...(options.fetchDetails ? [`Official details completed ${detailed}/${records.length}; configured maximum ${options.maxDetailRequestsPerPage} per page. Undetailed requirements can still contain matching keywords.`] : []),
       ...(options.fetchDetails ? ["The bounded detail queue prioritizes locally eligible postings with unresolved keyword requirements, then already matching excerpts; original result order is preserved."] : []),
       ...(localMatches.unknown ? [`Local keyword verification remains unknown for ${localMatches.unknown} eligible excerpts whose requirements were not fully read; they are not counted as confirmed keyword matches.`] : []),
