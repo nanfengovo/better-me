@@ -8,6 +8,8 @@
 
 卡片读取仍由本机 Vite 的专用浏览器宿主完成；审核入库由独立本机岗位服务执行。静态 GitHub Pages 和 nginx Docker 不包含浏览器宿主或 SQLite 服务。已有 9 个可抓取来源保留，新增人工核对来源无同步能力，不计为新接通的原站采集接口。
 
+后续更新：本报告中的“薪资字段未提取／地点未结构化”是本批时点。后续已增加猎聘精确薪资字段和本人可撤销行政范围确认，真实同岗薪资更新、确认／重启／撤销与1916项最终检查见[地区与薪资报告](job-atlas-location-confirmation-2026-10-19.md)；仍未产生办公坐标。
+
 ## 共同工具与 HTTP
 
 新增严格共享契约位于 `packages/source-adapters/src/reviewed-cards.ts`，工具实现在 `apps/job-service/src/reviewed-cards.ts`，经 application 注册后由 Web 与 HTTP 复用：

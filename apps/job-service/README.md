@@ -2,7 +2,7 @@
 
 `@better-me/job-service` 提供独立的 TypeScript 本机服务：把受控来源的公开岗位记录保存到 SQLite，以同一套应用工具服务 HTTP 查询和后续 Agent 适配。它不读取浏览器简历、Fact、投递材料、联系人、API Key 或浏览器 profile。
 
-这是岗位地图的本机服务底座，包含 M1 HTTP / 采集能力及 M2 repository 层的人工归并与撤销。归并 API 尚未接入应用工具或 HTTP；三维地图、私人机会工作台联动、LangChain / LangGraph Agent、定时刷新及真实用户迁移需分别验收。原有四平台单岗读取不等于本服务已经实现这些平台的全站搜索。
+这是岗位地图的本机服务底座，包含 M1 HTTP / 采集能力、M2 repository 层的人工归并与撤销，以及 V3 可撤销地区确认。地区确认已通过共享工具与认证 HTTP 接入 Web；归并写入仍尚未接入应用工具或 HTTP。地图、私人机会工作台联动、LangChain / LangGraph Agent、定时刷新及数据迁移需分别验收。原有四平台单岗读取不等于本服务已经实现这些平台的全站搜索。
 
 ## 环境与启动
 
@@ -65,6 +65,10 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/jobs/search" -Headers $jobHe
 | GET | `/api/v1/jobs/:jobId` | `jobs.read-detail`；旧 ID 按本次快照解析到规范岗位，返回公司、全部来源、观察与 JD 快照。 |
 | POST | `/api/v1/jobs/reviewed-cards/preview` | `jobs.preview-reviewed-cards`；校验本人核对的四平台卡片、索引版本和字段证据，返回预览指纹，不联网、不写库。 |
 | POST | `/api/v1/jobs/reviewed-cards/import` | `jobs.import-reviewed-cards`；完整预览输入加 `previewFingerprint`、`reviewed: true`，并提供 `Idempotency-Key`，原子写入卡片摘录。 |
+| POST | `/api/v1/locations/geocode-candidates` | `locations.geocode-candidates`；离线城市参考点候选，仅查询，需本人明确选择。 |
+| POST | `/api/v1/locations/confirmations/preview` | `locations.preview-confirmation`；本人结构化地区选择的只读预览，返回原始 / 当前 / 拟保存地点及指纹。 |
+| POST | `/api/v1/locations/confirmations` | `locations.confirm`；完整预览输入加 `previewFingerprint`、`reviewed: true` 和 `Idempotency-Key`，追加地区确认并保存有效投影。 |
+| POST | `/api/v1/locations/confirmations/revoke` | `locations.revoke-confirmation`；`{ jobId, locationId, decisionId, expectedRevision, reason, reviewed: true }`，追加撤销并恢复上一有效选择或来源地点。 |
 | GET | `/api/v1/sources` | `sources.list`；已保存来源及当前安装的适配器能力。 |
 | POST | `/api/v1/sources` | `sources.register`；`{ source, expectedRevision? }`，修改既有配置需版本号。 |
 | POST | `/api/v1/sources/:sourceId/preview` | `sources.preview`；`{ scope?, maxRecords? }`，读取一页，不写岗位索引。 |
@@ -111,6 +115,37 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/sources/my-reviewed-source/s
 
 Web 使用步骤见[本机岗位地图说明](../../docs/job-atlas.md#核对卡片并加入统一搜索)，实现与验证范围见[审核入库报告](../../docs/reports/job-atlas-reviewed-cards-2026-10-19.md)。本机服务提供审核入库 API；原站卡片读取仍属于本机 Vite 浏览器宿主，静态 Pages / Docker 不会因此获得浏览器控制能力。
 
+## 本人确认的国家与省市区
+
+`locations.preview-confirmation`、`locations.confirm` 和 `locations.revoke-confirmation` 使用 [location-confirmation.ts](../../packages/opportunities/src/location-confirmation.ts) 的共同 Schema，Web 与未来 Agent 执行器调用同一组工具。预览输入示例：
+
+```json
+{
+  "jobId": "existing-job-id",
+  "locationId": "existing-source-location-id",
+  "expectedRevision": 24,
+  "proposal": {
+    "locationKind": "unknown",
+    "countryCode": "CN",
+    "area": {
+      "kind": "china-catalog",
+      "provinceCode": "31",
+      "cityCode": "3101",
+      "districtCode": "310115"
+    }
+  },
+  "reason": "本人对照岗位原文核对工作地区"
+}
+```
+
+示例 ID 和 revision 必须替换为当前索引实际值；选择地区不等于确认办公性质，`locationKind` 可为 `office | remote-region | unknown`。`china-catalog` 的名称、父子关系、版本和省域标识由服务从固定目录解析，不接受客户端自带的可信名称或坐标。目录为2023年统计快照；直辖市使用实际名称，镇街 / 功能区不冒充法定区县。海外或仅国家的选择可使用 `{ "kind": "manual-area", "region": "…", "city": "…", "district": "…" }`，各文本字段可省略，国家须属于项目目录。
+
+预览返回 `{ expectedRevision, previewFingerprint, jobId, locationId, original, current, proposed, activeDecisionId?, warnings }`。提交确认须重交完整原预览输入，并增加 `previewFingerprint`、`reviewed: true`。预览指纹绑定输入、原始地点及服务解析的范围；陈旧 revision、错误归属或无效目录路径拒绝写入。写入成功返回 `{ ok: true, revision, jobId, locationId, decisionId, activeDecisionId?, location }`。客户端应保留原请求和幂等键恢复丢失回执，不能自行改变旧请求的 revision。
+
+地区决议只修改有效地区投影，原地点 `raw` 和来源 `evidence` 完整保留；`userResolution` 标明本人确认的决议、时间和目录 / 手动依据，`verification` 保持 `unverified`。国内和地区筛选使用有效结构化字段，避免旧原文同时匹配已纠正地区；岗位文本检索仍能查原文。地区确认不生成办公室坐标，且清除有效投影中的原坐标；全部撤销后恢复来源地点，包括原坐标。精度最多为城市，选择区县也不升级为街道 / 地址精度。城市候选查询继续只用于临时浏览，尚未保存为地区决议。
+
+同一来源地点刷新保持确认，地点内容变更生成新 ID 后不迁移旧确认。决议绑定单一来源地点贡献，岗位归并 / 撤销归并后不转给其他来源。没有来源观察证据或旧数据共享同一地点、归属不能唯一确定时拒绝写入。撤销要求目标执行身份和明确核对，历史保持不可变；可恢复上一未撤销选择。实际有限验证和 UI 操作见[地区确认报告](../../docs/reports/job-atlas-location-confirmation-2026-10-19.md)。
+
 ## 查询与数据边界
 
 查询契约来自 [`@better-me/opportunities`](../../packages/opportunities/README.md)，支持模糊 / 精确关键词、国内 / 全球 / 海外范围、企业与有证据的控股来源分类、来源、地区、工作方式、状态、人民币税前年薪和距离筛选，以及稳定分页和全量地图桶。
@@ -137,7 +172,7 @@ SQLite 持久保存来源、公司、岗位、位置、薪资、来源 listing�
 | `resolveJobId(jobId, { atRevision? })` | 将旧 ID 解析到当前或指定 revision 的规范 ID，并返回完整别名历史；未知 ID 返回 `undefined`。 |
 | `readReconciliationConflicts(jobId)` | 返回当前规范 ID、选定摘要来源、冲突预览及有效决策 ID；完整原文仍从各来源观察 / 快照读取。 |
 | `readSnapshot()` | 当前去重后的公共快照，供搜索、地图计数和公共导出使用。 |
-| `readProjectionSnapshot()` | 各来源的原始岗位 / listing 归属，供 `projectSourcePage()` 和来源导入使用；保留当前全局 revision。 |
+| `readProjectionSnapshot()` | 各来源的原始岗位、地点与 listing 归属，供 `projectSourcePage()` 和来源导入使用；保留当前全局 revision，不混入本地地区确认。 |
 
 `writeOptions` 必须包含 `{ expectedRevision, actorScope, idempotencyKey }`。人工决策、规范投影、索引、别名历史、受影响来源任务失效和耐久回执在同一事务提交；陈旧 revision 拒绝写入，同键同输入可以在重启后重放。已有 `jobId` 和 `snapshotId` 保留，私人收藏 / 投递无需被归并代码改写。
 
@@ -149,9 +184,11 @@ SQLite 持久保存来源、公司、岗位、位置、薪资、来源 listing�
 
 写入、版本号和耐久幂等回执在同一个 SQLite 事务内提交。取消、同源新任务和来源配置变更使用代次校验，迟到结果不能覆盖新任务。进程内工具结果缓存不等于这些耐久回执；涉及外部网络的读取本身也不具备事务回滚。
 
-`GET /api/v1/dataset/export` 是公共领域交换格式，不包含任务、回执、leads、归并原始投影或决策历史，不能当作完整仓库备份。已合并的公共投影也不能重新覆盖原始岗位，必须使用完整备份保留拆分能力。
+`GET /api/v1/dataset/export` 是公共领域交换格式，包含当前有效地区及其本人确认标记，但不包含任务、回执、leads、归并 / 地点原始投影或完整决策历史，不能当作完整仓库备份。已合并的公共投影不能重新覆盖原始岗位，普通公共导入也不能伪造 `userResolution`；必须使用完整备份保留拆分和地区撤销能力。
 
-仓库层提供 `repository.backup()` / `repository.restore(backup, { expectedRevision, actorScope, idempotencyKey })`：schema v2 完整备份包含公共数据、任务、回执、线索、原始岗位、决策、别名历史及岗位版本计数；仍接受 v1 仓库备份并将其作为未归并数据恢复。恢复先校验内容哈希、领域引用、决策引用 / 身份 / 先后关系、当前别名与投影一致性，再原子替换，运行中任务恢复为已取消。当前没有 HTTP 恢复路由或 CLI 备份 / 恢复命令；集成方应通过可信应用代码调用，不应在服务运行时只复制主 SQLite 文件而遗漏 WAL。
+仓库层提供 `repository.backup()` / `repository.restore(backup, { expectedRevision, actorScope, idempotencyKey })`：当前 schema v3 完整备份包含公共数据、任务、回执、线索、原始岗位、归并决策、别名历史、岗位版本计数，以及 `baseLocations` 与 `locationDecisions`。仍接受符合各自规则的 v1 / v2 仓库备份；已有 SQLite v1 / v2 文件在事务中升级，V2 地点初始化来源基线，不改变现有行或全局 revision。
+
+恢复先校验内容哈希、领域引用、决策引用 / 身份 / 先后关系、可信目录解析、当前别名及有效投影，再重放地区与归并历史；地点回执还需与其当时版本和岗位归属一致。伪造来源地点、目录名称、投影或回执会被拒绝，现库保留。通过后原子替换，运行中任务恢复为已取消。当前没有 HTTP 恢复路由或 CLI 备份 / 恢复命令；集成方应通过可信应用代码调用，不应在服务运行时只复制主 SQLite 文件而遗漏 WAL。
 
 GitHub Pages 与现有 nginx Docker 镜像仍然只发布静态网页。本包参与工作区检查 / 编译，不会自动运行在静态容器或 Pages 上。当前 HTTP 只允许本机回环并使用单一 `local-owner` 身份；服务器部署需另行实现服务器身份认证、授权与部署运行配置，不能直接把监听地址改为公网使用。
 
@@ -166,4 +203,6 @@ pnpm --filter @better-me/job-service test
 
 审核卡片专项见 `tests/reviewed-cards.test.ts` 和 `tests/reviewed-cards-http.test.ts`：覆盖预览零写入、未知字段、旧捕获 / 来源冲突拒绝、重开后的幂等回执、同键不同内容冲突、卡片子集顺序去重，以及实际认证 HTTP 的预览 → 导入 → 重放 → 搜索 / 详情 / 导出。`tests/projection-repository.test.ts` 进一步验证 parser 标题可按新核对更新、真正人工覆盖受保护、卡片摘录不取代完整 JD。对应 Web 审核流程和固定等待宽限测试属于独立前端 / 浏览器宿主验收。
 
-仓库根 `pnpm test` 和 `pnpm lint` 已包含本包。自动化覆盖临时目录中的真实 SQLite 事务、重开、回执、来源范围、取消 / 迟到、备份恢复、投影历史、受控 HTTP 以及生命周期。`tests/reconciliation.test.ts` 还覆盖同名不自动归并、人工身份确认、嵌套合并 / 独立撤销、源刷新后拆回最新 JD / 地点 / 薪资、旧 ID 历史解析、实际 SQL 写入故障整笔回滚、v2 完整备份及持久 v1 SQLite 升级。`tests/application-reconciliation.test.ts` 进一步通过实际 HTTP 验证合并后刷新、旧 ID 详情、规范搜索 / 导出和撤销最新来源，并覆盖 v1 升级后应用兼容及读取期间并发合并 / 撤销的快照一致性。证据见 [M2 归并报告](../../docs/reports/job-atlas-m2-reconciliation-2026-10-18.md)。这些合成检查不代表所有真实来源长期可用、生产服务器部署、私人迁移或三维地图已验收。
+地区确认专项见 `tests/location-confirmation.test.ts`：预览不写入、国家 / 省市区实际过滤、原文证据不变、同源刷新 / 新地址、归并 / 拆分、服务重开耐久回执、撤销恢复坐标、追加表 UPDATE / DELETE 保护、SQL 故障整笔回滚、V2→V3迁移与V3备份重放，及篡改目录、投影或其他现存岗位回执的拒绝。Web 单独覆盖明确确认、级联选择、重试与迟到响应隔离；本机真实地点另做有限验证，不由合成测试外推。
+
+仓库根 `pnpm test` 和 `pnpm lint` 已包含本包。自动化覆盖临时目录中的真实 SQLite 事务、重开、回执、来源范围、取消 / 迟到、备份恢复、投影历史、受控 HTTP 以及生命周期。`tests/reconciliation.test.ts` 还覆盖同名不自动归并、人工身份确认、嵌套合并 / 独立撤销、源刷新后拆回最新 JD / 地点 / 薪资、旧 ID 历史解析、实际 SQL 写入故障整笔回滚、完整备份及持久 v1 SQLite 升级。`tests/application-reconciliation.test.ts` 进一步通过实际 HTTP 验证合并后刷新、旧 ID 详情、规范搜索 / 导出和撤销最新来源，并覆盖 v1 升级后应用兼容及读取期间并发合并 / 撤销的快照一致性。历史 M2 范围见[归并报告](../../docs/reports/job-atlas-m2-reconciliation-2026-10-18.md)，V3 地区范围见[地区确认报告](../../docs/reports/job-atlas-location-confirmation-2026-10-19.md)。这些合成检查不代表所有真实来源长期可用、生产服务器部署、私人迁移或三维地图已验收。
