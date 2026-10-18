@@ -1,9 +1,10 @@
 /** @jsxRuntime automatic */
 import type { CSSProperties } from "react";
-import { getResumeLayout, getResumeSectionOrder, type ProjectedResume, type ResumeSectionId } from "@better-me/core";
+import { getResumeLayout, getResumeThemeCssVariables, resolveResumeTheme, getResumeSectionOrder, type ProjectedResume, type ResumeSectionId } from "@better-me/core";
 import { RichResumeText } from "./RichResumeText";
 
 import { getResumeTemplate, type ResumeTemplateId } from "./template-catalog";
+import { getResumeThemeCompatibility } from "./resume-theme-compatibility";
 export { RESUME_TEMPLATES, resolveResumeTemplate, type ResumeTemplateId } from "./template-catalog";
 
 type Props = { resume: ProjectedResume; templateId: ResumeTemplateId; showAvatar?: boolean; decorative?: boolean };
@@ -77,7 +78,8 @@ export function ResumeTemplate({ resume, templateId, showAvatar = true, decorati
   const roleFirst = ["rendercv-engineeringresumes", "rendercv-engineeringclassic", "rendercv-moderncv", "rendercv-sb2nov", "jsonresume-rickosborne"].includes(templateId);
   const separator = ["rendercv-sb2nov", "rendercv-harvard", "rendercv-opal"].includes(templateId) ? " • " : templateId === "rendercv-ember" ? " · " : ["rendercv-classic", "rendercv-moderncv", "rendercv-engineeringclassic"].includes(templateId) ? "   " : " | ";
   const avatarVisible = templateId !== "en-ats" && showAvatar && Boolean(resume.profile.avatarUrl);
-  const layout = getResumeLayout(resume.layout);
+  const theme = resume.themeId ? resolveResumeTheme(resume) : undefined;
+  const layout = theme?.layout ?? getResumeLayout(resume.layout);
   const families = { sans: '"Inter", "Microsoft YaHei", "PingFang SC", Arial, sans-serif', serif: '"Noto Serif SC", "Songti SC", SimSun, Georgia, serif', mono: '"Cascadia Code", "Microsoft YaHei", Consolas, monospace' };
   const style = {
     "--resume-accent": layout.accentColor, "--resume-body-size": `${layout.bodyFontSize}pt`,
@@ -85,10 +87,13 @@ export function ResumeTemplate({ resume, templateId, showAvatar = true, decorati
     "--resume-line-height": layout.lineHeight, "--resume-section-spacing": `${layout.sectionSpacing}px`,
     "--resume-margin": `${layout.pageMargin}mm`, "--resume-font-family": families[layout.fontFamily],
     "--resume-serif-family": isEnglish ? 'Georgia, "Times New Roman", serif' : '"Songti SC", SimSun, "Noto Serif SC", serif',
-    fontFamily: families[layout.fontFamily], fontSize: `${layout.bodyFontSize}pt`, lineHeight: layout.lineHeight,
+    fontFamily: theme ? "var(--resume-body-font)" : families[layout.fontFamily], fontSize: `${layout.bodyFontSize}pt`, lineHeight: layout.lineHeight,
     padding: `${layout.pageMargin}mm`,
+    ...(theme ? getResumeThemeCssVariables(resume, resume.locale) : {}),
   } as CSSProperties;
-  return <article className={`a4-sheet resume-sheet resume-document resume-template-${templateId}`} style={style} lang={isEnglish ? "en" : "zh-CN"} data-template={templateId}>
+  return <article className={`a4-sheet resume-sheet resume-document resume-template-${templateId}`} style={style} lang={isEnglish ? "en" : "zh-CN"} data-template={templateId}
+    data-resume-theme={theme?.id} data-theme-decoration={theme ? getResumeThemeCompatibility(templateId).decoration : undefined}
+    data-section-heading={theme?.tokens.decoration.sectionHeading} data-keyword-style={theme?.tokens.decoration.keywordStyle} data-divider-style={theme?.tokens.decoration.dividerStyle}>
     <header className={`resume-header${avatarVisible ? " has-avatar" : ""}`} {...previewAnchor("profile", decorative)}>
       <div className="resume-identity"><h1 {...previewAnchor("profile:displayName", decorative)}><RichResumeText text={resume.profile.displayName} ranges={resume.textStyles?.[`profile:displayName:${resume.locale}`]} /></h1>{resume.profile.headline && <p className="resume-headline" {...previewAnchor("profile:headline", decorative)}><RichResumeText text={resume.profile.headline} ranges={resume.textStyles?.[`profile:headline:${resume.locale}`]} /></p>}</div>
       <ContactDetails resume={resume} plain={plain} decorative={decorative} separator={separator} />

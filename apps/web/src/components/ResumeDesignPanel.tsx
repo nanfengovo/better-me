@@ -2,9 +2,10 @@
 import { useUiPreferences } from "../lib/ui-preferences";
 import { useState } from "react";
 import { ArrowDown, ArrowUp, Check, GripVertical, LayoutTemplate, Palette, SlidersHorizontal, Eye, ListChecks } from "lucide-react";
-import { getResumeLayout, getResumeSectionOrder, isResumeProfileVisible, isResumeSectionVisible, pickLocale, type FactBase, type ResumeView, type ResumeSectionId, type ResumeProfileField, type ResumeLayout } from "@better-me/core";
+import { getResumeLayout, resolveResumeTheme, getResumeSectionOrder, isResumeProfileVisible, isResumeSectionVisible, pickLocale, type FactBase, type ResumeView, type ResumeSectionId, type ResumeProfileField, type ResumeLayout } from "@better-me/core";
 import { RESUME_TEMPLATES, TEMPLATE_SOURCES, getResumeTemplate, getTemplateUiMetadata, resolveResumeTemplate, type TemplateSourceId } from "./template-catalog";
 import { TemplateThumbnail } from "./TemplateThumbnail";
+import { ResumeThemePanel } from "./ResumeThemePanel";
 
 type Props = { view: ResumeView; factBase: FactBase; onChange: (view: ResumeView) => void };
 
@@ -37,7 +38,7 @@ export function ResumeDesignPanel({ view, factBase, onChange }: Props) {
   const currentPage = Math.min(templatePage, pageCount - 1);
   const visibleTemplates = matchingTemplates.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
   const filterSource = (source: "all" | TemplateSourceId) => { setTemplateSource(source); setTemplatePage(0); };
-  const layout = getResumeLayout(view.layout);
+  const layout = view.themeId ? resolveResumeTheme(view).layout : getResumeLayout(view.layout);
   const order: ResumeSectionId[] = getResumeSectionOrder(view.sectionOrder).filter((section) => section !== "custom");
   const change = (patch: Partial<ResumeView>) => onChange({ ...view, ...patch, updatedAt: new Date().toISOString() });
   const layoutChange = (patch: Partial<ResumeLayout>) => change({ layout: { ...view.layout, ...patch } });
@@ -96,6 +97,7 @@ export function ResumeDesignPanel({ view, factBase, onChange }: Props) {
       <p className="design-help">{t("切换保留事实、分节顺序与设计参数。缩略图使用推荐配色与字形；开源适配版使用系统字体，PDF 采用当前网页排版。", "Switching preserves facts, section order and design settings. Thumbnails use recommended color and type. Adaptations use system fonts; PDF follows the current web layout.")}</p>
     </section>
 
+    <ResumeThemePanel view={view} onChange={change} />
 
     <section className="design-card"><div className="design-card-title"><GripVertical size={17} /><h3>{t("内容顺序", "Section order")}</h3><span className="design-count">{t("拖动 / 上下移动", "Drag / move up or down")}</span></div>
       <p className="design-help">{t("工作经历可以放在最前，教育背景可以放到最后或隐藏。", "Put work experience first, move education later or hide it.")}</p>
@@ -130,5 +132,3 @@ export function ResumeDesignPanel({ view, factBase, onChange }: Props) {
     </section>
   </div>;
 }
-
-export { getTemplateUiMetadata } from "./template-catalog";
