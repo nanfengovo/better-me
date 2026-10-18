@@ -1,9 +1,12 @@
-import type { Experience, FactClaim, Profile, ResumeImportSource, ResumeLayout, ResumeProfileField, ResumeSectionId, ResumeView, TextStyleRange } from "@better-me/core";
+import { ResumeThemeIdSchema, ResumeThemeOverridesSchema, type Experience, type FactClaim, type Profile, type ResumeImportSource, type ResumeLayout, type ResumeProfileField, type ResumeSectionId, type ResumeThemeOverrides, type ResumeView, type TextStyleRange } from "@better-me/core";
 import type { BetterMeDocument } from "./types.js";
 
 type ExperienceField = "type" | "org" | "title" | "projectName" | "start" | "end" | "url" | "techStack";
 type ClaimField = "text" | "kind" | "tags" | "metric";
-type ViewField = "name" | "locale" | "templateId" | "targetJdId" | "sectionOrder";
+type ViewField = "name" | "locale" | "templateId" | "themeId" | "targetJdId" | "sectionOrder";
+type ThemeTokenTarget = { [Group in keyof ResumeThemeOverrides]-?: {
+  scope: "theme-token"; viewId: string; group: Group; field: keyof NonNullable<ResumeThemeOverrides[Group]>;
+} }[keyof ResumeThemeOverrides];
 export type DocumentFieldTarget =
   | { scope: "profile"; field: keyof Profile; locale?: "zh" | "en" }
   | { scope: "source"; field: keyof ResumeImportSource }
@@ -18,6 +21,7 @@ export type DocumentFieldTarget =
   | { scope: "view"; viewId: string; field: ViewField }
   | { scope: "selection"; viewId: string; field: "experiences" | "claims" }
   | { scope: "layout"; viewId: string; field: keyof ResumeLayout }
+  | ThemeTokenTarget
   | { scope: "section-visibility"; viewId: string; field: ResumeSectionId }
   | { scope: "profile-visibility"; viewId: string; field: ResumeProfileField }
   | { scope: "text-style"; viewId: string; key: string }
@@ -84,6 +88,7 @@ function read(document: BetterMeDocument, target: DocumentFieldTarget): unknown 
     case "selection": { const item = view(document, target.viewId); return item && (target.field === "experiences"
       ? { mode: item.experienceSelection, ids: item.includedExperienceIds } : { mode: item.claimSelection, ids: item.includedClaimIds }); }
     case "layout": return view(document, target.viewId)?.layout?.[target.field];
+    case "theme-token": return (view(document, target.viewId)?.themeOverrides?.[target.group] as Record<string, unknown> | undefined)?.[target.field];
     case "section-visibility": return view(document, target.viewId)?.sectionVisibility?.[target.field];
     case "profile-visibility": return view(document, target.viewId)?.profileVisibility?.[target.field];
     case "text-style": return view(document, target.viewId)?.textStyles?.[target.key];
@@ -120,6 +125,8 @@ function invalidDate(document: BetterMeDocument, target: DocumentFieldTarget, de
 }
 function unavailable(before: BetterMeDocument, after: BetterMeDocument, target: DocumentFieldTarget): string | undefined {
   if (!uniqueIds(before) || !uniqueIds(after)) return "文档存在重复经历、要点或简历 ID，无法安全定位单项。";
+  if (target.scope === "view" && target.field === "themeId" && !ResumeThemeIdSchema.optional().safeParse(read(after, target)).success ||
+    target.scope === "theme-token" && !ResumeThemeOverridesSchema.safeParse({ [target.group]: { [target.field]: read(after, target) } }).success) return "主题设置不符合当前支持的颜色、字体或装饰规范，不能恢复此项。";
   if (target.scope === "source" && (!before.factBase.importSource || !after.factBase.importSource)) return "导入来源不存在或需整体移除，请先恢复“导入来源资料（整组）”后重新比较。";
   if (invalidDate(before, target, read(after, target))) return "单独恢复会使结束月份早于开始月份，请先恢复另一日期后重新比较。";
   if ((target.scope === "profile" || target.scope === "experience" || target.scope === "claim") && target.locale) {
@@ -297,6 +304,15 @@ export function applyDocumentFieldChange(current: BetterMeDocument, change: Docu
       break;
     }
     case "layout": { const item = view(next, target.viewId)!; item.layout ??= {}; assign(item.layout, target.field, value); break; }
+    case "theme-token": {
+      const item = view(next, target.viewId)!;
+      item.themeOverrides ??= {};
+      item.themeOverrides[target.group] ??= {};
+      assign(item.themeOverrides[target.group]!, target.field, value);
+      if (!Object.keys(item.themeOverrides[target.group]!).length) delete item.themeOverrides[target.group];
+      if (!Object.keys(item.themeOverrides).length) delete item.themeOverrides;
+      break;
+    }
     case "section-visibility": { const item = view(next, target.viewId)!; item.sectionVisibility ??= {}; assign(item.sectionVisibility, target.field, value); break; }
     case "profile-visibility": { const item = view(next, target.viewId)!; item.profileVisibility ??= {}; assign(item.profileVisibility, target.field, value); break; }
     case "text-style": { const item = view(next, target.viewId)!; item.textStyles ??= {}; assign(item.textStyles, target.key, value); break; }

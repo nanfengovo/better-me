@@ -2,6 +2,7 @@ import {
   getResumeLayout,
   getResumeSectionOrder,
   getHighlightColor,
+  RESUME_THEMES,
   splitStyledText,
   type Experience,
   type FactClaim,
@@ -20,6 +21,9 @@ const TEMPLATE_LABELS: Record<string, string> = { "zh-classic": "经典正式", 
 const EXPERIENCE_LABELS = { work: "工作经历", opensource: "开源 / 项目经历", education: "教育经历", other: "其他经历" };
 const CLAIM_LABELS = { action: "行动", metric: "量化成果", note: "补充说明", pitfall: "问题复盘", interview: "面试素材" };
 const EMPTY = "未设置";
+const FONT_NAMES = { sans: "无衬线字体", serif: "衬线字体", mono: "等宽字体" };
+const DECORATION_NAMES: Record<string, string> = { "accent-rule": "主题色细线", underline: "下划线", plain: "简洁", "soft-band": "浅色底带", "side-rule": "侧边线", "soft-tag": "浅色标签", outlined: "描边标签", solid: "实线", dashed: "虚线", none: "无分隔线" };
+function themeName(id?: string): string { return id ? RESUME_THEMES.find((theme) => theme.id === id)?.name.zh ?? `未知主题（${id}）` : "模板原始样式"; }
 function text(value: string | number | undefined | null): string {
   if (value === undefined || value === null || value === "") return EMPTY;
   if (typeof value === "number" && !Number.isFinite(value)) return "未完成";
@@ -168,6 +172,19 @@ export function getDocumentFieldChanges(before: BetterMeDocument, after: BetterM
       add({ scope: "view", viewId: id, field }, `${prefix}${label}`, oldText, newText, "changed", true);
     }
     add({ scope: "view", viewId: id, field: "locale" }, `${prefix}输出语言`, previous.locale === "zh" ? "中文" : "英文", next.locale === "zh" ? "中文" : "英文");
+    add({ scope: "view", viewId: id, field: "themeId" }, `${prefix}简历主题`, themeName(previous.themeId), themeName(next.themeId), "changed", rawDiffers(previous.themeId, next.themeId));
+    for (const [field, label] of [["paper", "纸张"], ["text", "正文"], ["muted", "辅助文字"], ["accent", "主题色"], ["accentSoft", "浅色背景"], ["rule", "分隔线"]] as const) {
+      const oldValue = previous.themeOverrides?.colors?.[field], newValue = next.themeOverrides?.colors?.[field];
+      add({ scope: "theme-token", viewId: id, group: "colors", field }, `${prefix}主题覆盖 · ${label}颜色`, oldValue ?? "沿用主题", newValue ?? "沿用主题");
+    }
+    for (const [field, label] of [["bodyFamily", "正文"], ["headingFamily", "标题"], ["nameFamily", "姓名"]] as const) {
+      const oldValue = previous.themeOverrides?.typography?.[field], newValue = next.themeOverrides?.typography?.[field];
+      add({ scope: "theme-token", viewId: id, group: "typography", field }, `${prefix}主题覆盖 · ${label}字体`, oldValue ? FONT_NAMES[oldValue] : "沿用主题", newValue ? FONT_NAMES[newValue] : "沿用主题");
+    }
+    for (const [field, label] of [["sectionHeading", "章节标题"], ["keywordStyle", "技能标签"], ["dividerStyle", "分隔线"]] as const) {
+      const oldValue = previous.themeOverrides?.decoration?.[field], newValue = next.themeOverrides?.decoration?.[field];
+      add({ scope: "theme-token", viewId: id, group: "decoration", field }, `${prefix}主题覆盖 · ${label}装饰`, oldValue ? DECORATION_NAMES[oldValue] ?? oldValue : "沿用主题", newValue ? DECORATION_NAMES[newValue] ?? newValue : "沿用主题");
+    }
     add({ scope: "view", viewId: id, field: "sectionOrder" }, `${prefix}区块顺序`, getResumeSectionOrder(previous.sectionOrder).map((section) => SECTION_LABELS[section]).join(" → "), getResumeSectionOrder(next.sectionOrder).map((section) => SECTION_LABELS[section]).join(" → "));
     for (const section of Object.keys(SECTION_LABELS) as ResumeSectionId[]) add({ scope: "section-visibility", viewId: id, field: section }, `${prefix}${SECTION_LABELS[section]}展示`, previous.sectionVisibility?.[section] === false ? "隐藏" : "显示", next.sectionVisibility?.[section] === false ? "隐藏" : "显示");
     for (const field of Object.keys(PROFILE_LABELS) as ResumeProfileField[]) add({ scope: "profile-visibility", viewId: id, field }, `${prefix}${PROFILE_LABELS[field]}展示`, previous.profileVisibility?.[field] === false ? "隐藏" : "显示", next.profileVisibility?.[field] === false ? "隐藏" : "显示");
@@ -176,9 +193,9 @@ export function getDocumentFieldChanges(before: BetterMeDocument, after: BetterM
     const oldLayout = getResumeLayout(previous.layout);
     const newLayout = getResumeLayout(next.layout);
     for (const [key, label, unit] of [["bodyFontSize", "正文字号", "pt"], ["nameFontSize", "姓名字号", "pt"], ["headingFontSize", "标题字号", "pt"], ["lineHeight", "行高", "倍"], ["sectionSpacing", "区块间距", "px"], ["pageMargin", "页边距", "mm"]] as const) add({ scope: "layout", viewId: id, field: key }, `${prefix}${label}`, `${text(oldLayout[key])} ${unit}`, `${text(newLayout[key])} ${unit}`);
-    add({ scope: "layout", viewId: id, field: "accentColor" }, `${prefix}主题颜色`, oldLayout.accentColor, newLayout.accentColor);
-    const fontNames = { sans: "无衬线字体", serif: "衬线字体", mono: "等宽字体" };
-    add({ scope: "layout", viewId: id, field: "fontFamily" }, `${prefix}字体`, fontNames[oldLayout.fontFamily], fontNames[newLayout.fontFamily]);
+    const themed = !!(previous.themeId || next.themeId);
+    if (!themed || rawDiffers(previous.layout?.accentColor, next.layout?.accentColor)) add({ scope: "layout", viewId: id, field: "accentColor" }, `${prefix}主题颜色`, previous.themeId && !previous.layout?.accentColor ? "沿用主题" : oldLayout.accentColor, next.themeId && !next.layout?.accentColor ? "沿用主题" : newLayout.accentColor, "changed", themed);
+    if (!themed || rawDiffers(previous.layout?.fontFamily, next.layout?.fontFamily)) add({ scope: "layout", viewId: id, field: "fontFamily" }, `${prefix}字体`, previous.themeId && !previous.layout?.fontFamily ? "沿用主题" : FONT_NAMES[oldLayout.fontFamily], next.themeId && !next.layout?.fontFamily ? "沿用主题" : FONT_NAMES[newLayout.fontFamily], "changed", themed);
     for (const key of new Set([...Object.keys(previous.textStyles ?? {}), ...Object.keys(next.textStyles ?? {})])) {
       const oldRanges = previous.textStyles?.[key] ?? [];
       const newRanges = next.textStyles?.[key] ?? [];

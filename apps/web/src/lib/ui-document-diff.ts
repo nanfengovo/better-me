@@ -22,7 +22,7 @@ const CLAIM_FIELDS: Record<TargetField<"claim">, string> = {
 };
 const VIEW_FIELDS: Record<TargetField<"view">, string> = {
   name: "Name", locale: "Output language", templateId: "Template", targetJdId: "Linked target job",
-  sectionOrder: "Section order",
+  sectionOrder: "Section order", themeId: "Theme",
 };
 const LAYOUT_FIELDS: Record<TargetField<"layout">, string> = {
   bodyFontSize: "Body font size", nameFontSize: "Name font size", headingFontSize: "Heading font size",
@@ -59,6 +59,7 @@ function englishFieldLabel(change: DocumentFieldChange): string {
     case "view": return `Resume · ${VIEW_FIELDS[target.field]}`;
     case "selection": return target.field === "experiences" ? "Resume · Selected experiences" : "Resume · Selected entries";
     case "layout": return `Resume · ${LAYOUT_FIELDS[target.field]}`;
+    case "theme-token": return `Resume · Theme · ${{ paper: "Paper", text: "Body text", muted: "Secondary text", accent: "Accent", accentSoft: "Soft accent", rule: "Divider", bodyFamily: "Body font", headingFamily: "Heading font", nameFamily: "Name font", sectionHeading: "Section heading", keywordStyle: "Keyword style", dividerStyle: "Divider style" }[target.field]}`;
     case "section-visibility": return `Resume · ${SECTION_FIELDS[target.field]} visibility`;
     case "profile-visibility": return `Resume · ${VISIBLE_PROFILE_FIELDS[target.field]} visibility`;
     case "text-style": return "Resume · Text formatting";
@@ -72,6 +73,7 @@ export function localizeFieldChangeLabel(change: DocumentFieldChange, t: UiTrans
 }
 
 const RESTORE_REASONS = new Map<string, string>([
+  ["主题设置不符合当前支持的颜色、字体或装饰规范，不能恢复此项。", "These theme settings use unsupported colors, fonts or decorations and cannot be restored."],
   ["文档存在重复经历、要点或简历 ID，无法安全定位单项。", "The document contains duplicate experience, entry or resume IDs. This item cannot be located safely."],
   ["导入来源不存在或需整体移除，请先恢复“导入来源资料（整组）”后重新比较。", "The import source is missing or must be removed as a group. Restore “Imported source material (group)” first, then compare again."],
   ["单独恢复会使结束月份早于开始月份，请先恢复另一日期后重新比较。", "Restoring this date alone would put the end month before the start month. Restore the other date first, then compare again."],
