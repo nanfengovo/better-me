@@ -90,6 +90,19 @@ test("unsupported scope filters remain explicit rather than being claimed as ups
   await assert.rejects(omitted.list(request({ scope })), hasCode("invalid-output"));
 });
 
+test("optional country scope remains a local constraint rather than a fabricated remote filter capability", async () => {
+  const countryScope = { ...emptyScope, countryCodes: ["CN"] };
+  const registry = createSourceRegistry([adapter(async (input) => { assert.deepEqual(input.scope, countryScope); return page(); })]);
+  const result = await registry.list(request({ scope: countryScope }));
+  assert.deepEqual(result.coverage.appliedFilters, []);
+  assert.deepEqual(result.coverage.ignoredFilters, []);
+  assert.match(result.warnings.join(" "), /Country-code constraints are checked locally/);
+  assert.deepEqual(SourceScopeSchema.parse(emptyScope), emptyScope, "legacy shapes are not expanded by a default field");
+  assert.equal(SourceScopeSchema.safeParse({ ...emptyScope, countryCodes: ["cn"] }).success, false);
+  assert.equal(SourceScopeSchema.safeParse({ ...emptyScope, countryCodes: ["中国"] }).success, false);
+  assert.equal(SourceScopeSchema.safeParse({ ...emptyScope, countryCodes: Array(301).fill("CN") }).success, false);
+});
+
 test("a declared upstream filter requires both adapter and source capability declarations", async () => {
   const supported = { ...adapter(async () => page({ coverage: { complete: true, partial: false, fetchedRecords: 1, appliedFilters: ["regions"], ignoredFilters: ["roles"] } })), remoteFilters: ["regions" as const] };
   const registry = createSourceRegistry([supported]);

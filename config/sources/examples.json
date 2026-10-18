@@ -1,5 +1,22 @@
 [
   {
+    "sourceId": "tencent-official-search-example",
+    "name": "腾讯招聘官网 · 远程关键词搜索",
+    "adapterId": "tencent",
+    "adapterVersion": "1",
+    "capabilities": ["list-jobs"],
+    "runtime": ["local-service", "server"],
+    "entityType": "job-posting",
+    "enabled": false,
+    "status": "needs-review",
+    "entryUrl": "https://careers.tencent.com/tencentcareer/api/post/Query",
+    "options": { "companyName": "腾讯", "apiHost": "careers.tencent.com", "language": "zh-cn", "pageSize": 20, "fetchDetails": false, "maxDetailRequestsPerPage": 2 },
+    "remoteFilters": ["roles"],
+    "endpointPolicy": { "allowedHosts": ["careers.tencent.com"], "allowedPathPrefixes": ["/tencentcareer/api/post/Query", "/tencentcareer/api/post/ByPostId"], "requireHttps": true, "allowRedirects": false, "maxRedirects": 0 },
+    "attribution": { "label": "腾讯招聘官网", "homepageUrl": "https://careers.tencent.com/", "usage": "unknown", "requiresAttribution": true, "notes": "官方公开 Query 关键词搜索，roles 逐词按 OR 分页；地区和公司条件仅本地过滤。默认仅职责摘录，可显式启用受限ByPostId详情补全；每页默认最多2条、上限10条，共享请求/字节/取消预算，未补全要求时保持partial。PostId 为岗位身份，RecruitPostId 不作唯一岗位 ID。CountryName 明确为中国才标 CN，海外保留原文；LastUpdateTime 不冒充发布时间，DateCreated 语义未核不写 publication。薪资、控股方、坐标与独立在招核验未知。请核对来源使用范围后显式启用。" },
+    "refreshPolicy": { "mode": "manual", "minIntervalSeconds": 60, "maxRecords": 60, "maxPages": 3, "requestsPerMinute": 10 }
+  },
+  {
     "sourceId": "greenhouse-duolingo-example",
     "name": "Duolingo · Greenhouse 官网岗位",
     "adapterId": "greenhouse",

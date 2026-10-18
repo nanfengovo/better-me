@@ -1,0 +1,2490 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "datasetId": "geonames-cities15000",
+    "version": "geonames-cities15000-7d1c80d5be048502",
+    "sourceUrl": "https://download.geonames.org/export/dump/cities15000.zip",
+    "sourceArchiveSha256": "7d1c80d5be04850227384c1f6f9163b56401dc46270be1012e1a2de0a5bf4a70",
+    "retrievedAt": "2026-10-18T13:58:09.120914+00:00",
+    "sourceLastModified": "Sun, 18 Oct 2026 02:41:39 GMT",
+    "license": "CC-BY-4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "GeoNames geographical database, https://www.geonames.org/; transformed by BetterMe into country shards.",
+    "coordinateSystem": "WGS84",
+    "coverage": "GeoNames cities15000 snapshot: populated places with population > 15000 or capitals. Finite city-reference points, not all addresses/offices; country/admin codes and aliases retain source values."
+  },
+  "recordCount": 34167,
+  "shards": [
+    {
+      "countryCode": "AD",
+      "alternateCountryCodes": [],
+      "file": "AD.json.gz",
+      "encoding": "gzip",
+      "sha256": "b9bfd6bc2b7837e55e73120bd64fd3b589e6da282e69b28f6867d431121d55ef",
+      "bytes": 1229,
+      "decodedBytes": 2459,
+      "count": 2
+    },
+    {
+      "countryCode": "AE",
+      "alternateCountryCodes": [],
+      "file": "AE.json.gz",
+      "encoding": "gzip",
+      "sha256": "eb3508d8594396bc29a8843f4ba683e6179ada8a409e149aabc50a35b4e4a711",
+      "bytes": 7696,
+      "decodedBytes": 35189,
+      "count": 63
+    },
+    {
+      "countryCode": "AF",
+      "alternateCountryCodes": [],
+      "file": "AF.json.gz",
+      "encoding": "gzip",
+      "sha256": "e1020410f81390bf5b3c1141cfa1e0a98228fa53b222adaa1f1604f422aa61af",
+      "bytes": 11582,
+      "decodedBytes": 42170,
+      "count": 55
+    },
+    {
+      "countryCode": "AG",
+      "alternateCountryCodes": [],
+      "file": "AG.json.gz",
+      "encoding": "gzip",
+      "sha256": "4c03db3e27eb779adc8d39341e135990cebd38185e6654c4b7ed3180c86a2f90",
+      "bytes": 642,
+      "decodedBytes": 1022,
+      "count": 1
+    },
+    {
+      "countryCode": "AI",
+      "alternateCountryCodes": [],
+      "file": "AI.json.gz",
+      "encoding": "gzip",
+      "sha256": "34511fb6d461135e9dc8c7e88718ff5f23a039caa5157be94161687f2686c09f",
+      "bytes": 591,
+      "decodedBytes": 863,
+      "count": 1
+    },
+    {
+      "countryCode": "AL",
+      "alternateCountryCodes": [],
+      "file": "AL.json.gz",
+      "encoding": "gzip",
+      "sha256": "f28ba98d2f26d346bb62c218d853945c97340c75ce0d30ccdfe809afa8c2d5cc",
+      "bytes": 6438,
+      "decodedBytes": 20526,
+      "count": 25
+    },
+    {
+      "countryCode": "AM",
+      "alternateCountryCodes": [],
+      "file": "AM.json.gz",
+      "encoding": "gzip",
+      "sha256": "508ae98ae653eabab7c5ae80168cf6a52998852c0eef1f19d774b608f3a86311",
+      "bytes": 7895,
+      "decodedBytes": 27043,
+      "count": 29
+    },
+    {
+      "countryCode": "AO",
+      "alternateCountryCodes": [],
+      "file": "AO.json.gz",
+      "encoding": "gzip",
+      "sha256": "b9e21cad95af024f3af190d2926fba72c6b43feb7f831959020de7886f014803",
+      "bytes": 11591,
+      "decodedBytes": 63590,
+      "count": 133
+    },
+    {
+      "countryCode": "AR",
+      "alternateCountryCodes": [],
+      "file": "AR.json.gz",
+      "encoding": "gzip",
+      "sha256": "d813c08503fd496e37fbb22f8d2fe0a83f65bd8a4c4cccd7350a81033ed6b09b",
+      "bytes": 61991,
+      "decodedBytes": 248325,
+      "count": 329
+    },
+    {
+      "countryCode": "AS",
+      "alternateCountryCodes": [],
+      "file": "AS.json.gz",
+      "encoding": "gzip",
+      "sha256": "3d40e51da2a8359cc0f5d1d3c46df0257d945edd164649c01fe2d874f02ca012",
+      "bytes": 612,
+      "decodedBytes": 1057,
+      "count": 1
+    },
+    {
+      "countryCode": "AT",
+      "alternateCountryCodes": [],
+      "file": "AT.json.gz",
+      "encoding": "gzip",
+      "sha256": "41fbde8080e6b88b38a0b5b883642e23d59408461e037bccf7926190b1cb0583",
+      "bytes": 9752,
+      "decodedBytes": 40315,
+      "count": 66
+    },
+    {
+      "countryCode": "AU",
+      "alternateCountryCodes": [],
+      "file": "AU.json.gz",
+      "encoding": "gzip",
+      "sha256": "576c5de5cdb11cdd80aab0d3a5c87ebbfcdab8747088c786be04ca279aba00fa",
+      "bytes": 35566,
+      "decodedBytes": 172072,
+      "count": 313
+    },
+    {
+      "countryCode": "AW",
+      "alternateCountryCodes": [],
+      "file": "AW.json.gz",
+      "encoding": "gzip",
+      "sha256": "a7d55aa8ba0ea4d806c211b49975996cfd6563352c7f8ca3dcf6d7912ecc5bcf",
+      "bytes": 951,
+      "decodedBytes": 2431,
+      "count": 4
+    },
+    {
+      "countryCode": "AX",
+      "alternateCountryCodes": [
+        "FI"
+      ],
+      "file": "AX.json.gz",
+      "encoding": "gzip",
+      "sha256": "6fe14e0b9e071276233a837089c85c7318d0b6084d94a3ce65941cb81929f579",
+      "bytes": 471,
+      "decodedBytes": 735,
+      "count": 1
+    },
+    {
+      "countryCode": "AZ",
+      "alternateCountryCodes": [],
+      "file": "AZ.json.gz",
+      "encoding": "gzip",
+      "sha256": "54b0858156907d24271389636ed8a5bc0ca9186337891523d9b55e61222b1369",
+      "bytes": 12645,
+      "decodedBytes": 46049,
+      "count": 65
+    },
+    {
+      "countryCode": "BA",
+      "alternateCountryCodes": [],
+      "file": "BA.json.gz",
+      "encoding": "gzip",
+      "sha256": "1c1ca4e4e07c043dfa80b96b9ea07502d7323b62a1d73cd02bf56fa94dc11540",
+      "bytes": 5339,
+      "decodedBytes": 16943,
+      "count": 23
+    },
+    {
+      "countryCode": "BB",
+      "alternateCountryCodes": [],
+      "file": "BB.json.gz",
+      "encoding": "gzip",
+      "sha256": "088eb112a3d0e97d5cc35eff14ab592982d725353a4deb24b64dff6bca0c95ef",
+      "bytes": 568,
+      "decodedBytes": 822,
+      "count": 1
+    },
+    {
+      "countryCode": "BD",
+      "alternateCountryCodes": [],
+      "file": "BD.json.gz",
+      "encoding": "gzip",
+      "sha256": "cf97600bdf21045572bc0a8df8e89a4c2f779e843d5921d31c93b590d22f3fb5",
+      "bytes": 13626,
+      "decodedBytes": 73361,
+      "count": 139
+    },
+    {
+      "countryCode": "BE",
+      "alternateCountryCodes": [],
+      "file": "BE.json.gz",
+      "encoding": "gzip",
+      "sha256": "4aab9d1768676f80f8f3e07076d0776cd327d4e71a8c30ffcf210a0450510faf",
+      "bytes": 26815,
+      "decodedBytes": 129286,
+      "count": 223
+    },
+    {
+      "countryCode": "BF",
+      "alternateCountryCodes": [],
+      "file": "BF.json.gz",
+      "encoding": "gzip",
+      "sha256": "8fbf60a0a5baf77bcd5f452955a628ea00dde7394f015c1137b3fd3ebb7a2804",
+      "bytes": 8652,
+      "decodedBytes": 39987,
+      "count": 74
+    },
+    {
+      "countryCode": "BG",
+      "alternateCountryCodes": [],
+      "file": "BG.json.gz",
+      "encoding": "gzip",
+      "sha256": "5a4b978c7df5dbf295c71b7601b5a734c3a9dcfa3eea8c1fc5c0db79e84eeb03",
+      "bytes": 13533,
+      "decodedBytes": 46508,
+      "count": 56
+    },
+    {
+      "countryCode": "BH",
+      "alternateCountryCodes": [],
+      "file": "BH.json.gz",
+      "encoding": "gzip",
+      "sha256": "0275d2ec25768957dbf4d1c34ea321b35723a17bc85318d238056b93fce709be",
+      "bytes": 2064,
+      "decodedBytes": 5978,
+      "count": 8
+    },
+    {
+      "countryCode": "BI",
+      "alternateCountryCodes": [],
+      "file": "BI.json.gz",
+      "encoding": "gzip",
+      "sha256": "415df60ecec7c0cf2298e6b31c3f2f7b336ec37ece23409558d7737264f5ec96",
+      "bytes": 2445,
+      "decodedBytes": 8485,
+      "count": 14
+    },
+    {
+      "countryCode": "BJ",
+      "alternateCountryCodes": [],
+      "file": "BJ.json.gz",
+      "encoding": "gzip",
+      "sha256": "3fbd83120ef0aabb265b081b2eb180214902c1f1f7d0d44ac0e7c2766cf31233",
+      "bytes": 5929,
+      "decodedBytes": 31664,
+      "count": 66
+    },
+    {
+      "countryCode": "BL",
+      "alternateCountryCodes": [],
+      "file": "BL.json.gz",
+      "encoding": "gzip",
+      "sha256": "a03bba2bdd6f5bf806e386bbe8cfdddb85f5c213003fc6658e20f12323739575",
+      "bytes": 657,
+      "decodedBytes": 1028,
+      "count": 1
+    },
+    {
+      "countryCode": "BM",
+      "alternateCountryCodes": [],
+      "file": "BM.json.gz",
+      "encoding": "gzip",
+      "sha256": "4de2b299c0d8b6e827bb2a69ee2394c598f74a72cc27d8ae701807e1cdfc3e35",
+      "bytes": 681,
+      "decodedBytes": 1054,
+      "count": 1
+    },
+    {
+      "countryCode": "BN",
+      "alternateCountryCodes": [],
+      "file": "BN.json.gz",
+      "encoding": "gzip",
+      "sha256": "4a0e708c0aec233e61c209470f981bd294c19eb7ec9c60293d95e825a7a54c00",
+      "bytes": 2069,
+      "decodedBytes": 5701,
+      "count": 7
+    },
+    {
+      "countryCode": "BO",
+      "alternateCountryCodes": [],
+      "file": "BO.json.gz",
+      "encoding": "gzip",
+      "sha256": "2caae07ac02251d665f41979c9bf90dc42e03158f9765bb4ed2ac83b0e4fc83f",
+      "bytes": 7886,
+      "decodedBytes": 26928,
+      "count": 39
+    },
+    {
+      "countryCode": "BQ",
+      "alternateCountryCodes": [],
+      "file": "BQ.json.gz",
+      "encoding": "gzip",
+      "sha256": "b06d5bf5d0e44dcc377dcd4fa63e85afa46f39574fb2c9be412f302413ac3de6",
+      "bytes": 615,
+      "decodedBytes": 960,
+      "count": 1
+    },
+    {
+      "countryCode": "BR",
+      "alternateCountryCodes": [],
+      "file": "BR.json.gz",
+      "encoding": "gzip",
+      "sha256": "825b170855b058dc7bcec93497ea305fa8dc6f0583a323ffd0ac1ee38802d5d2",
+      "bytes": 167627,
+      "decodedBytes": 1096361,
+      "count": 2377
+    },
+    {
+      "countryCode": "BS",
+      "alternateCountryCodes": [],
+      "file": "BS.json.gz",
+      "encoding": "gzip",
+      "sha256": "618f2e59c53221f9c560803daa00fed3e03d026794925d2f638c48493875c92e",
+      "bytes": 1184,
+      "decodedBytes": 2728,
+      "count": 4
+    },
+    {
+      "countryCode": "BT",
+      "alternateCountryCodes": [],
+      "file": "BT.json.gz",
+      "encoding": "gzip",
+      "sha256": "0457dc37c2b927eeadcc7d406227bf0a27157b4462c80e64b27971061447c5fa",
+      "bytes": 1531,
+      "decodedBytes": 3532,
+      "count": 4
+    },
+    {
+      "countryCode": "BW",
+      "alternateCountryCodes": [],
+      "file": "BW.json.gz",
+      "encoding": "gzip",
+      "sha256": "bf7b95be7c85a8a1d6658c7e73d2269cd5c51f900a8a68702d0669f63c147f2f",
+      "bytes": 4425,
+      "decodedBytes": 16035,
+      "count": 25
+    },
+    {
+      "countryCode": "BY",
+      "alternateCountryCodes": [],
+      "file": "BY.json.gz",
+      "encoding": "gzip",
+      "sha256": "2c5424ff27c0c864d5b970b8e1ccb6f8eabd9439d22a522d9169a236cbb94964",
+      "bytes": 8761,
+      "decodedBytes": 35171,
+      "count": 56
+    },
+    {
+      "countryCode": "BZ",
+      "alternateCountryCodes": [],
+      "file": "BZ.json.gz",
+      "encoding": "gzip",
+      "sha256": "149961c55f96f0d065c715f620c53dca6a72655467589cdf2a6df45210848492",
+      "bytes": 2082,
+      "decodedBytes": 4827,
+      "count": 5
+    },
+    {
+      "countryCode": "CA",
+      "alternateCountryCodes": [],
+      "file": "CA.json.gz",
+      "encoding": "gzip",
+      "sha256": "edf11ba87a5db43368f3a5f52577c0dadbe923053d0d52ea9ccb41177a419787",
+      "bytes": 55231,
+      "decodedBytes": 279019,
+      "count": 512
+    },
+    {
+      "countryCode": "CC",
+      "alternateCountryCodes": [],
+      "file": "CC.json.gz",
+      "encoding": "gzip",
+      "sha256": "69f92fbe479996652ec1e6bf21c1a1c7fde3ceb165f4f3b101209bee13d0a3c5",
+      "bytes": 353,
+      "decodedBytes": 519,
+      "count": 1
+    },
+    {
+      "countryCode": "CD",
+      "alternateCountryCodes": [],
+      "file": "CD.json.gz",
+      "encoding": "gzip",
+      "sha256": "0cecacc29aa37da20ea183347324060d8e3cbfc3d2efa0a75b9f7f42df946b08",
+      "bytes": 11944,
+      "decodedBytes": 57695,
+      "count": 114
+    },
+    {
+      "countryCode": "CF",
+      "alternateCountryCodes": [],
+      "file": "CF.json.gz",
+      "encoding": "gzip",
+      "sha256": "fe732c0b184185b0349798a9f86d3e4d9a4a7c0a58f7e714340effca7f1e325c",
+      "bytes": 4511,
+      "decodedBytes": 18715,
+      "count": 33
+    },
+    {
+      "countryCode": "CG",
+      "alternateCountryCodes": [],
+      "file": "CG.json.gz",
+      "encoding": "gzip",
+      "sha256": "ce3bd4cdd657b8f97785b29e97b55f7c9f67367f0a9a70c39219ea8b014e34d4",
+      "bytes": 2930,
+      "decodedBytes": 11741,
+      "count": 23
+    },
+    {
+      "countryCode": "CH",
+      "alternateCountryCodes": [],
+      "file": "CH.json.gz",
+      "encoding": "gzip",
+      "sha256": "9be573531d25b6987fb32affa2c52e76d71d11bec1d58615ff76239acb3d9a08",
+      "bytes": 14246,
+      "decodedBytes": 58586,
+      "count": 95
+    },
+    {
+      "countryCode": "CI",
+      "alternateCountryCodes": [],
+      "file": "CI.json.gz",
+      "encoding": "gzip",
+      "sha256": "af0f753a78cf6204fddabdee9b6fcfb70ac709ea8a3c1992fcd9a59f60707e2d",
+      "bytes": 12774,
+      "decodedBytes": 81224,
+      "count": 183
+    },
+    {
+      "countryCode": "CK",
+      "alternateCountryCodes": [],
+      "file": "CK.json.gz",
+      "encoding": "gzip",
+      "sha256": "a7b1fc4d4b246f6ff4d102258783a7b7c86379ffd699f94cb8bc8e65bcd17852",
+      "bytes": 625,
+      "decodedBytes": 887,
+      "count": 1
+    },
+    {
+      "countryCode": "CL",
+      "alternateCountryCodes": [],
+      "file": "CL.json.gz",
+      "encoding": "gzip",
+      "sha256": "4e91dee619da489fe9f69256fafbe4ff5d65ff1ee85df1a575cf7afdb8bbe1e0",
+      "bytes": 19134,
+      "decodedBytes": 85995,
+      "count": 147
+    },
+    {
+      "countryCode": "CM",
+      "alternateCountryCodes": [],
+      "file": "CM.json.gz",
+      "encoding": "gzip",
+      "sha256": "76016c6c23b87175a19aa539f51c283cc83ce965e47ce1d323cdcab69f723172",
+      "bytes": 6620,
+      "decodedBytes": 38248,
+      "count": 87
+    },
+    {
+      "countryCode": "CN",
+      "alternateCountryCodes": [
+        "MO"
+      ],
+      "file": "CN.json.gz",
+      "encoding": "gzip",
+      "sha256": "c102792bcf6ad9930fbde6449fac4d9cb9702c42daa9bff2719c764bac25c0b3",
+      "bytes": 216869,
+      "decodedBytes": 1174675,
+      "count": 2122
+    },
+    {
+      "countryCode": "CO",
+      "alternateCountryCodes": [],
+      "file": "CO.json.gz",
+      "encoding": "gzip",
+      "sha256": "4c046f3fc992b7e72a850091e85c401e4a90451f055739e4a833f33617cf8340",
+      "bytes": 26905,
+      "decodedBytes": 153335,
+      "count": 319
+    },
+    {
+      "countryCode": "CR",
+      "alternateCountryCodes": [],
+      "file": "CR.json.gz",
+      "encoding": "gzip",
+      "sha256": "a5d08e3757aefc48660803ff7a676ec27eda497642bbf6eb5948bad2e3bc5aa1",
+      "bytes": 4839,
+      "decodedBytes": 22123,
+      "count": 41
+    },
+    {
+      "countryCode": "CU",
+      "alternateCountryCodes": [],
+      "file": "CU.json.gz",
+      "encoding": "gzip",
+      "sha256": "5ee24204b59613552b3a3eb300ff91e9d8260940723cc91ddbbfb6da9c010f74",
+      "bytes": 13263,
+      "decodedBytes": 70958,
+      "count": 140
+    },
+    {
+      "countryCode": "CV",
+      "alternateCountryCodes": [],
+      "file": "CV.json.gz",
+      "encoding": "gzip",
+      "sha256": "274dbfedef352be3a9fd7e97879d7dafde0f9dfab0e10f393d418d9c95dfd540",
+      "bytes": 1370,
+      "decodedBytes": 3117,
+      "count": 4
+    },
+    {
+      "countryCode": "CW",
+      "alternateCountryCodes": [],
+      "file": "CW.json.gz",
+      "encoding": "gzip",
+      "sha256": "c62338373c190e10b2901cda8f4f6de88086b6d81a0af8492abe8a2291e0253f",
+      "bytes": 777,
+      "decodedBytes": 1477,
+      "count": 2
+    },
+    {
+      "countryCode": "CX",
+      "alternateCountryCodes": [],
+      "file": "CX.json.gz",
+      "encoding": "gzip",
+      "sha256": "b48238fb71151b8c00324ec79c6b8419b9bce8f3029d3698f4ce73200241fc9d",
+      "bytes": 848,
+      "decodedBytes": 1323,
+      "count": 1
+    },
+    {
+      "countryCode": "CY",
+      "alternateCountryCodes": [],
+      "file": "CY.json.gz",
+      "encoding": "gzip",
+      "sha256": "c31e506a457ce9cf0f35141a8782162ad0fe628f7d700d6e28a0e72e60a000b7",
+      "bytes": 3625,
+      "decodedBytes": 11227,
+      "count": 15
+    },
+    {
+      "countryCode": "CZ",
+      "alternateCountryCodes": [],
+      "file": "CZ.json.gz",
+      "encoding": "gzip",
+      "sha256": "d34b3e538437e5583158394b832f9afa6db042acc475c9dda3415e58ab4b2013",
+      "bytes": 18238,
+      "decodedBytes": 76497,
+      "count": 123
+    },
+    {
+      "countryCode": "DE",
+      "alternateCountryCodes": [],
+      "file": "DE.json.gz",
+      "encoding": "gzip",
+      "sha256": "af8a9f6c9e13ea35d633601d1dba8ae1cbf3d00410c4ef1cfa3bd2e7755ab976",
+      "bytes": 154178,
+      "decodedBytes": 728404,
+      "count": 1140
+    },
+    {
+      "countryCode": "DJ",
+      "alternateCountryCodes": [],
+      "file": "DJ.json.gz",
+      "encoding": "gzip",
+      "sha256": "550e9e7e01ec20cefb16e4a74ef1722918fa0fc045ecf79edfc61160edb1fddb",
+      "bytes": 2261,
+      "decodedBytes": 5933,
+      "count": 7
+    },
+    {
+      "countryCode": "DK",
+      "alternateCountryCodes": [],
+      "file": "DK.json.gz",
+      "encoding": "gzip",
+      "sha256": "f74d4a9bdb7e52f940e0168aa5a235d873a471615c2d5689b252302fd8d7f910",
+      "bytes": 9392,
+      "decodedBytes": 40584,
+      "count": 67
+    },
+    {
+      "countryCode": "DM",
+      "alternateCountryCodes": [],
+      "file": "DM.json.gz",
+      "encoding": "gzip",
+      "sha256": "48008ce487cfeb645ad402caf15ecc0d03a10e3f2053cea359323e074e2ffaf6",
+      "bytes": 576,
+      "decodedBytes": 806,
+      "count": 1
+    },
+    {
+      "countryCode": "DO",
+      "alternateCountryCodes": [],
+      "file": "DO.json.gz",
+      "encoding": "gzip",
+      "sha256": "667f23939f3bdd065bf15c73eedde2321fb0e256595156ea1123f99ed36d3d12",
+      "bytes": 9342,
+      "decodedBytes": 38880,
+      "count": 50
+    },
+    {
+      "countryCode": "DZ",
+      "alternateCountryCodes": [],
+      "file": "DZ.json.gz",
+      "encoding": "gzip",
+      "sha256": "857d0fc7bb8108cb01c547ff564c9525304c257c62e7d0faa7755ea342aae977",
+      "bytes": 30993,
+      "decodedBytes": 158494,
+      "count": 295
+    },
+    {
+      "countryCode": "EC",
+      "alternateCountryCodes": [],
+      "file": "EC.json.gz",
+      "encoding": "gzip",
+      "sha256": "86bf8db5eaaeab8549815656eaf46cf319a2d809a171a702f3a40df3bb26016d",
+      "bytes": 9543,
+      "decodedBytes": 41161,
+      "count": 71
+    },
+    {
+      "countryCode": "EE",
+      "alternateCountryCodes": [],
+      "file": "EE.json.gz",
+      "encoding": "gzip",
+      "sha256": "5160bea5153634d0e8f097645f32ef488c818dfedb8343900b6353b41f226d73",
+      "bytes": 2890,
+      "decodedBytes": 10066,
+      "count": 15
+    },
+    {
+      "countryCode": "EG",
+      "alternateCountryCodes": [],
+      "file": "EG.json.gz",
+      "encoding": "gzip",
+      "sha256": "5978ba76fd4e65db0eab52d258b043542ac3d38bce6c884531273b8b82c78dd0",
+      "bytes": 27681,
+      "decodedBytes": 132759,
+      "count": 242
+    },
+    {
+      "countryCode": "EH",
+      "alternateCountryCodes": [
+        "MA"
+      ],
+      "file": "EH.json.gz",
+      "encoding": "gzip",
+      "sha256": "666bc39eb89d58cb4f9e18fed5f02dcd7bb0d69fe707693d4569cc37436f80b1",
+      "bytes": 921,
+      "decodedBytes": 2430,
+      "count": 4
+    },
+    {
+      "countryCode": "ER",
+      "alternateCountryCodes": [],
+      "file": "ER.json.gz",
+      "encoding": "gzip",
+      "sha256": "39ea933f7841ad1ec1eccb5acd263be1341d3b18d81d4c1fa4286bd000d4f81d",
+      "bytes": 1805,
+      "decodedBytes": 5015,
+      "count": 8
+    },
+    {
+      "countryCode": "ES",
+      "alternateCountryCodes": [],
+      "file": "ES.json.gz",
+      "encoding": "gzip",
+      "sha256": "9fad33b0f4a18d2f41154cb1ea78cf889172e48a4f034aec9d6a4749be641a3d",
+      "bytes": 72749,
+      "decodedBytes": 396670,
+      "count": 736
+    },
+    {
+      "countryCode": "ET",
+      "alternateCountryCodes": [],
+      "file": "ET.json.gz",
+      "encoding": "gzip",
+      "sha256": "be5b85a2503ee5c44df54cb68557d3d5195771fbfb6559d11aad93d47872e22f",
+      "bytes": 17671,
+      "decodedBytes": 106839,
+      "count": 233
+    },
+    {
+      "countryCode": "FI",
+      "alternateCountryCodes": [],
+      "file": "FI.json.gz",
+      "encoding": "gzip",
+      "sha256": "05089d3a990c31fbd6874c29ecdcf73717e939319e663d750e9ef3af8aba79a1",
+      "bytes": 14054,
+      "decodedBytes": 60336,
+      "count": 102
+    },
+    {
+      "countryCode": "FJ",
+      "alternateCountryCodes": [],
+      "file": "FJ.json.gz",
+      "encoding": "gzip",
+      "sha256": "785091efadcfcee25b9e1bc20a64ec27774ca2d3bf0a0022878d2499af75dd87",
+      "bytes": 1236,
+      "decodedBytes": 3720,
+      "count": 7
+    },
+    {
+      "countryCode": "FK",
+      "alternateCountryCodes": [],
+      "file": "FK.json.gz",
+      "encoding": "gzip",
+      "sha256": "8ed7214e8009567aafa37160f3a46133220776a0f75f13a153b6c09429bc3bc1",
+      "bytes": 821,
+      "decodedBytes": 1379,
+      "count": 1
+    },
+    {
+      "countryCode": "FM",
+      "alternateCountryCodes": [],
+      "file": "FM.json.gz",
+      "encoding": "gzip",
+      "sha256": "6541e0e427080173bcd6e8939c88f95fe9c397be5e141576704a367bcc432d4b",
+      "bytes": 553,
+      "decodedBytes": 773,
+      "count": 1
+    },
+    {
+      "countryCode": "FO",
+      "alternateCountryCodes": [
+        "DK"
+      ],
+      "file": "FO.json.gz",
+      "encoding": "gzip",
+      "sha256": "44f03a5c9af3691acb731aafd6c70c6ebba486a4557a45ee087c8c3a804a605c",
+      "bytes": 783,
+      "decodedBytes": 1257,
+      "count": 1
+    },
+    {
+      "countryCode": "FR",
+      "alternateCountryCodes": [],
+      "file": "FR.json.gz",
+      "encoding": "gzip",
+      "sha256": "451b1ad8518d71f1e6118d399e3eaede612792a202582ae31858d06e30ac9216",
+      "bytes": 103519,
+      "decodedBytes": 455606,
+      "count": 692
+    },
+    {
+      "countryCode": "GA",
+      "alternateCountryCodes": [],
+      "file": "GA.json.gz",
+      "encoding": "gzip",
+      "sha256": "e583db4c0fb5162c10a014454e1ac8832e0c220ecf36ae853b1f17a0b0d48583",
+      "bytes": 2260,
+      "decodedBytes": 8075,
+      "count": 15
+    },
+    {
+      "countryCode": "GB",
+      "alternateCountryCodes": [],
+      "file": "GB.json.gz",
+      "encoding": "gzip",
+      "sha256": "ef3818d041691d9b9ad17b6fba8c7bef7d6c990eed909260c4064dabc74c0a8c",
+      "bytes": 102403,
+      "decodedBytes": 485710,
+      "count": 866
+    },
+    {
+      "countryCode": "GD",
+      "alternateCountryCodes": [],
+      "file": "GD.json.gz",
+      "encoding": "gzip",
+      "sha256": "2988ce16af148914da4b04c095b1bd306fd6b5bafcaa6e2c66e3dd58c1bd97b1",
+      "bytes": 580,
+      "decodedBytes": 895,
+      "count": 1
+    },
+    {
+      "countryCode": "GE",
+      "alternateCountryCodes": [],
+      "file": "GE.json.gz",
+      "encoding": "gzip",
+      "sha256": "3a02d62a736c157728e0c00f943e7b07eb6437dae7bff4f1b027ed542e2529bf",
+      "bytes": 3428,
+      "decodedBytes": 11393,
+      "count": 17
+    },
+    {
+      "countryCode": "GF",
+      "alternateCountryCodes": [],
+      "file": "GF.json.gz",
+      "encoding": "gzip",
+      "sha256": "46d711d46470f71267e89ac8f2733856946eff93b51857777c2d879e569df14b",
+      "bytes": 1250,
+      "decodedBytes": 3535,
+      "count": 5
+    },
+    {
+      "countryCode": "GG",
+      "alternateCountryCodes": [],
+      "file": "GG.json.gz",
+      "encoding": "gzip",
+      "sha256": "986aca789de334fe72714e84d396f2d677c9892b90c52efb26244b4d59859f09",
+      "bytes": 740,
+      "decodedBytes": 1295,
+      "count": 1
+    },
+    {
+      "countryCode": "GH",
+      "alternateCountryCodes": [],
+      "file": "GH.json.gz",
+      "encoding": "gzip",
+      "sha256": "b2fc5927a7c89760e7c16494549c219846fbdbf977c017bd6610962a7f0537f2",
+      "bytes": 8548,
+      "decodedBytes": 46856,
+      "count": 102
+    },
+    {
+      "countryCode": "GI",
+      "alternateCountryCodes": [],
+      "file": "GI.json.gz",
+      "encoding": "gzip",
+      "sha256": "8c1794e4767a67ea12690968e07f8b3c0e20e9f66be9c818efa6a3093734dc65",
+      "bytes": 619,
+      "decodedBytes": 953,
+      "count": 1
+    },
+    {
+      "countryCode": "GL",
+      "alternateCountryCodes": [],
+      "file": "GL.json.gz",
+      "encoding": "gzip",
+      "sha256": "d35740dcbe69ce118a8ce54af5eafedd0274df21c25b3e33d2ad3f4f401e4ca9",
+      "bytes": 590,
+      "decodedBytes": 882,
+      "count": 1
+    },
+    {
+      "countryCode": "GM",
+      "alternateCountryCodes": [],
+      "file": "GM.json.gz",
+      "encoding": "gzip",
+      "sha256": "552718417435650ea97f855d141f17966040dfdabb2d75bf396854be44510f5c",
+      "bytes": 2634,
+      "decodedBytes": 14540,
+      "count": 33
+    },
+    {
+      "countryCode": "GN",
+      "alternateCountryCodes": [],
+      "file": "GN.json.gz",
+      "encoding": "gzip",
+      "sha256": "212fec65a74dc98dcb61d0919350c762c578d189ae9fd425f1abd2495d300f15",
+      "bytes": 3228,
+      "decodedBytes": 20208,
+      "count": 47
+    },
+    {
+      "countryCode": "GP",
+      "alternateCountryCodes": [],
+      "file": "GP.json.gz",
+      "encoding": "gzip",
+      "sha256": "aa5c24aabe083e11e061c6105f691bac3e57832ecd01034f93e0015cbb8327b8",
+      "bytes": 1864,
+      "decodedBytes": 6340,
+      "count": 10
+    },
+    {
+      "countryCode": "GQ",
+      "alternateCountryCodes": [],
+      "file": "GQ.json.gz",
+      "encoding": "gzip",
+      "sha256": "e871f6b02875993cc152d91f3e3b63e19d7a2a25ff7d73d3827862fb5a0f6397",
+      "bytes": 1500,
+      "decodedBytes": 3899,
+      "count": 6
+    },
+    {
+      "countryCode": "GR",
+      "alternateCountryCodes": [],
+      "file": "GR.json.gz",
+      "encoding": "gzip",
+      "sha256": "d741fda1a619890a3bcf12024366769d4291fe2f60945f0cfc0405ed289197c8",
+      "bytes": 14959,
+      "decodedBytes": 69284,
+      "count": 118
+    },
+    {
+      "countryCode": "GS",
+      "alternateCountryCodes": [
+        "GB"
+      ],
+      "file": "GS.json.gz",
+      "encoding": "gzip",
+      "sha256": "87b249aaeb3c4e65a83c113995ceab20a48efb42424a88d5744acb51a32013a6",
+      "bytes": 578,
+      "decodedBytes": 877,
+      "count": 1
+    },
+    {
+      "countryCode": "GT",
+      "alternateCountryCodes": [],
+      "file": "GT.json.gz",
+      "encoding": "gzip",
+      "sha256": "bed168c36ddad8ab00a64018f1f6d4d4a6b81ac6863fdee320fa0dca336fe571",
+      "bytes": 7792,
+      "decodedBytes": 47684,
+      "count": 102
+    },
+    {
+      "countryCode": "GU",
+      "alternateCountryCodes": [],
+      "file": "GU.json.gz",
+      "encoding": "gzip",
+      "sha256": "46abd652b52c49f7a3bc888f5ac50c991e29eaefb889de1f5916ea226fdd8f8e",
+      "bytes": 1165,
+      "decodedBytes": 3461,
+      "count": 6
+    },
+    {
+      "countryCode": "GW",
+      "alternateCountryCodes": [],
+      "file": "GW.json.gz",
+      "encoding": "gzip",
+      "sha256": "8dfa903c076326db94e2c9763ac6f30fca925c21f7c812344945414051a39ea7",
+      "bytes": 1410,
+      "decodedBytes": 6738,
+      "count": 15
+    },
+    {
+      "countryCode": "GY",
+      "alternateCountryCodes": [],
+      "file": "GY.json.gz",
+      "encoding": "gzip",
+      "sha256": "9b0dabf68e5cfd2f6e85c00ddd495a5240f0c7af6bf9789d74f0a18b032bb2ca",
+      "bytes": 1266,
+      "decodedBytes": 2608,
+      "count": 3
+    },
+    {
+      "countryCode": "HK",
+      "alternateCountryCodes": [],
+      "file": "HK.json.gz",
+      "encoding": "gzip",
+      "sha256": "c7ec08ea861a078623f9b6e3e285b265ff953ff05757948da422d1348c53acef",
+      "bytes": 9786,
+      "decodedBytes": 63350,
+      "count": 141
+    },
+    {
+      "countryCode": "HN",
+      "alternateCountryCodes": [],
+      "file": "HN.json.gz",
+      "encoding": "gzip",
+      "sha256": "108b4789a7a53ec1ffa80406210094022aa23732e50434cef9ab0052784e6546",
+      "bytes": 4916,
+      "decodedBytes": 29830,
+      "count": 65
+    },
+    {
+      "countryCode": "HR",
+      "alternateCountryCodes": [],
+      "file": "HR.json.gz",
+      "encoding": "gzip",
+      "sha256": "e887ad692e9bf72fc91ebaaf74c995399cd1134927fdcca11c0aa57ee11fe496",
+      "bytes": 5851,
+      "decodedBytes": 18811,
+      "count": 26
+    },
+    {
+      "countryCode": "HT",
+      "alternateCountryCodes": [],
+      "file": "HT.json.gz",
+      "encoding": "gzip",
+      "sha256": "a321063fdd889ac047cfb51cb4e2900b9cc053b8fd6a91b526fd723a59ac8590",
+      "bytes": 4086,
+      "decodedBytes": 17403,
+      "count": 32
+    },
+    {
+      "countryCode": "HU",
+      "alternateCountryCodes": [],
+      "file": "HU.json.gz",
+      "encoding": "gzip",
+      "sha256": "f48b2a3245d5c3dd0ff7cd04ec456d4fc261087cb541847aa79f938d6c18b52d",
+      "bytes": 17437,
+      "decodedBytes": 78093,
+      "count": 141
+    },
+    {
+      "countryCode": "ID",
+      "alternateCountryCodes": [],
+      "file": "ID.json.gz",
+      "encoding": "gzip",
+      "sha256": "cea5303fe68341dbc0c2109b33afebed41d5b97c24ab1be5974d145fd2e320f6",
+      "bytes": 32512,
+      "decodedBytes": 206603,
+      "count": 448
+    },
+    {
+      "countryCode": "IE",
+      "alternateCountryCodes": [],
+      "file": "IE.json.gz",
+      "encoding": "gzip",
+      "sha256": "22ad1ad8af331438984c928355676d7dbb1db6aeefaa168c9b645d80b3debc01",
+      "bytes": 7335,
+      "decodedBytes": 27194,
+      "count": 43
+    },
+    {
+      "countryCode": "IL",
+      "alternateCountryCodes": [],
+      "file": "IL.json.gz",
+      "encoding": "gzip",
+      "sha256": "a75db4a4c74bbe2eed564652c27622f3f67d0eedc60737ab1bcc515ecab59154",
+      "bytes": 20714,
+      "decodedBytes": 77975,
+      "count": 106
+    },
+    {
+      "countryCode": "IM",
+      "alternateCountryCodes": [
+        "GB"
+      ],
+      "file": "IM.json.gz",
+      "encoding": "gzip",
+      "sha256": "c5fc40eb6e2c304e5e291f9ebf2eed69df7a91e281c995f8076ede380760d41b",
+      "bytes": 674,
+      "decodedBytes": 1049,
+      "count": 1
+    },
+    {
+      "countryCode": "IN",
+      "alternateCountryCodes": [],
+      "file": "IN.json.gz",
+      "encoding": "gzip",
+      "sha256": "c84810aae007f9e59af37f0878568d6324b7370aae71e6a22778eadafb77e341",
+      "bytes": 311237,
+      "decodedBytes": 1885179,
+      "count": 3780
+    },
+    {
+      "countryCode": "IQ",
+      "alternateCountryCodes": [],
+      "file": "IQ.json.gz",
+      "encoding": "gzip",
+      "sha256": "29db7c52d8c45a20ed4c4a8d78a9481030a79a652a453676b64d78ff6c09f106",
+      "bytes": 15368,
+      "decodedBytes": 65723,
+      "count": 105
+    },
+    {
+      "countryCode": "IR",
+      "alternateCountryCodes": [],
+      "file": "IR.json.gz",
+      "encoding": "gzip",
+      "sha256": "b92ab8e6b8be68c9e6b7372101485f0b1baa4da474c5346b79fbea83d68e935c",
+      "bytes": 46712,
+      "decodedBytes": 230155,
+      "count": 429
+    },
+    {
+      "countryCode": "IS",
+      "alternateCountryCodes": [],
+      "file": "IS.json.gz",
+      "encoding": "gzip",
+      "sha256": "fefd2a3d49722e8153c9179a5a31ce83b88bc2b6491bc9999143604a35d7b6ff",
+      "bytes": 2469,
+      "decodedBytes": 6431,
+      "count": 6
+    },
+    {
+      "countryCode": "IT",
+      "alternateCountryCodes": [],
+      "file": "IT.json.gz",
+      "encoding": "gzip",
+      "sha256": "aa07a19cc18758b3d78f034fbdc6d9b747c8478d1aa5cc8fa58ba225abd3ed65",
+      "bytes": 54033,
+      "decodedBytes": 327448,
+      "count": 661
+    },
+    {
+      "countryCode": "JE",
+      "alternateCountryCodes": [
+        "GB"
+      ],
+      "file": "JE.json.gz",
+      "encoding": "gzip",
+      "sha256": "e11417191ed0f45592f22546fcd36f7957946da09e6ec5e71d169e1c6fbdf0b1",
+      "bytes": 440,
+      "decodedBytes": 670,
+      "count": 1
+    },
+    {
+      "countryCode": "JM",
+      "alternateCountryCodes": [],
+      "file": "JM.json.gz",
+      "encoding": "gzip",
+      "sha256": "a747da177ad35316f575c8e890e58a81cf12877f3da3668606c7a7ea8997b4b4",
+      "bytes": 1965,
+      "decodedBytes": 6852,
+      "count": 13
+    },
+    {
+      "countryCode": "JO",
+      "alternateCountryCodes": [],
+      "file": "JO.json.gz",
+      "encoding": "gzip",
+      "sha256": "007ee35e8fc494c6c4c82b46232cf885c40bf534656d5a6fdb9f82e77fe7df87",
+      "bytes": 4545,
+      "decodedBytes": 18354,
+      "count": 34
+    },
+    {
+      "countryCode": "JP",
+      "alternateCountryCodes": [],
+      "file": "JP.json.gz",
+      "encoding": "gzip",
+      "sha256": "441b9d815d50667792e102c6c369e6b54ca6d5e65836a8cd2f1b15c78323fa91",
+      "bytes": 128155,
+      "decodedBytes": 703002,
+      "count": 1300
+    },
+    {
+      "countryCode": "KE",
+      "alternateCountryCodes": [],
+      "file": "KE.json.gz",
+      "encoding": "gzip",
+      "sha256": "ae75882d510b7c67276aecba1cf3820a47b96b321d670f9e4ad0701e45003d0b",
+      "bytes": 10001,
+      "decodedBytes": 55234,
+      "count": 123
+    },
+    {
+      "countryCode": "KG",
+      "alternateCountryCodes": [],
+      "file": "KG.json.gz",
+      "encoding": "gzip",
+      "sha256": "adc4551524ef7eed4b13938eb9409c0db04fbe3fd2e6f8868785a9a0a42a8c5d",
+      "bytes": 5130,
+      "decodedBytes": 19282,
+      "count": 32
+    },
+    {
+      "countryCode": "KH",
+      "alternateCountryCodes": [],
+      "file": "KH.json.gz",
+      "encoding": "gzip",
+      "sha256": "7ebb40cb672a06d6a9b27a0aa99ffa059d05ed687864cf9c3748eba59531f1cd",
+      "bytes": 8506,
+      "decodedBytes": 33283,
+      "count": 46
+    },
+    {
+      "countryCode": "KI",
+      "alternateCountryCodes": [],
+      "file": "KI.json.gz",
+      "encoding": "gzip",
+      "sha256": "669cd4c8a7ddb3a6d66d077cc15f609f2c687b3474ee92a2fbd094634f57752c",
+      "bytes": 491,
+      "decodedBytes": 783,
+      "count": 1
+    },
+    {
+      "countryCode": "KM",
+      "alternateCountryCodes": [],
+      "file": "KM.json.gz",
+      "encoding": "gzip",
+      "sha256": "82d5e20e8b2ea8f860ea7fd6b4c870f341d434eff615ad4544293ca44bfd3873",
+      "bytes": 1041,
+      "decodedBytes": 2275,
+      "count": 3
+    },
+    {
+      "countryCode": "KN",
+      "alternateCountryCodes": [],
+      "file": "KN.json.gz",
+      "encoding": "gzip",
+      "sha256": "7fb5e0b0f5754d9a3e58e5c8fedbb4ecf52ee81d67c36c14110dc86a883d8139",
+      "bytes": 671,
+      "decodedBytes": 989,
+      "count": 1
+    },
+    {
+      "countryCode": "KP",
+      "alternateCountryCodes": [],
+      "file": "KP.json.gz",
+      "encoding": "gzip",
+      "sha256": "8a156c65b210d8c1a68d28351fb7e07bfeb23aa4b29a396f0d8992fa6fd0b350",
+      "bytes": 11102,
+      "decodedBytes": 54585,
+      "count": 97
+    },
+    {
+      "countryCode": "KR",
+      "alternateCountryCodes": [],
+      "file": "KR.json.gz",
+      "encoding": "gzip",
+      "sha256": "d25d8351264f9d3c2f3e8b6e306e08bf8b308106b62951fc77cfc4402eb8f079",
+      "bytes": 16635,
+      "decodedBytes": 82767,
+      "count": 148
+    },
+    {
+      "countryCode": "KW",
+      "alternateCountryCodes": [],
+      "file": "KW.json.gz",
+      "encoding": "gzip",
+      "sha256": "41c41a649383fc304df083a436194fe4cc79b1deae841011717ce36dd0e66807",
+      "bytes": 3110,
+      "decodedBytes": 11480,
+      "count": 18
+    },
+    {
+      "countryCode": "KY",
+      "alternateCountryCodes": [],
+      "file": "KY.json.gz",
+      "encoding": "gzip",
+      "sha256": "947a9f8dc59690ef6e7f2fa32c8bfce230610081d33552485e0ab9e619c096e4",
+      "bytes": 1211,
+      "decodedBytes": 2169,
+      "count": 2
+    },
+    {
+      "countryCode": "KZ",
+      "alternateCountryCodes": [],
+      "file": "KZ.json.gz",
+      "encoding": "gzip",
+      "sha256": "c386b544c94cf37e579b05cf6539d24db66ce0ff17652716b5a5d6272879585e",
+      "bytes": 13979,
+      "decodedBytes": 54814,
+      "count": 84
+    },
+    {
+      "countryCode": "LA",
+      "alternateCountryCodes": [],
+      "file": "LA.json.gz",
+      "encoding": "gzip",
+      "sha256": "0552f89c361cbbd09c88bebf95706faa500f710f8cc99c05a8a35b219e1e8f92",
+      "bytes": 4060,
+      "decodedBytes": 13533,
+      "count": 18
+    },
+    {
+      "countryCode": "LB",
+      "alternateCountryCodes": [],
+      "file": "LB.json.gz",
+      "encoding": "gzip",
+      "sha256": "06f291ecfc5589155ca94ef89eb6db718d4a2d42355b2fefbe3f7991b013530b",
+      "bytes": 4651,
+      "decodedBytes": 13977,
+      "count": 18
+    },
+    {
+      "countryCode": "LC",
+      "alternateCountryCodes": [],
+      "file": "LC.json.gz",
+      "encoding": "gzip",
+      "sha256": "ff06cdb1e519531e99df6df329642bf90a8d158047018231ab39ede49ff597b3",
+      "bytes": 1059,
+      "decodedBytes": 1994,
+      "count": 2
+    },
+    {
+      "countryCode": "LI",
+      "alternateCountryCodes": [],
+      "file": "LI.json.gz",
+      "encoding": "gzip",
+      "sha256": "b5c762b739645ef8d3c007b8a8ee29f2bd4785666b52135afdf15fecca6def55",
+      "bytes": 503,
+      "decodedBytes": 690,
+      "count": 1
+    },
+    {
+      "countryCode": "LK",
+      "alternateCountryCodes": [],
+      "file": "LK.json.gz",
+      "encoding": "gzip",
+      "sha256": "5e88caa9d4c43d27f558c3fbf7728bee3c1fe65a5effddc576d541f15d5a780a",
+      "bytes": 11301,
+      "decodedBytes": 42602,
+      "count": 60
+    },
+    {
+      "countryCode": "LR",
+      "alternateCountryCodes": [],
+      "file": "LR.json.gz",
+      "encoding": "gzip",
+      "sha256": "4908af88de5e061745c62fa3cc3fa70ccedf727f872c55604cff0b42d7ac091f",
+      "bytes": 3484,
+      "decodedBytes": 10858,
+      "count": 16
+    },
+    {
+      "countryCode": "LS",
+      "alternateCountryCodes": [],
+      "file": "LS.json.gz",
+      "encoding": "gzip",
+      "sha256": "517f17c79cbdf1c37cc2409ca278475f07e8d1e5ae46a74795deef53550bfb79",
+      "bytes": 2317,
+      "decodedBytes": 7235,
+      "count": 11
+    },
+    {
+      "countryCode": "LT",
+      "alternateCountryCodes": [],
+      "file": "LT.json.gz",
+      "encoding": "gzip",
+      "sha256": "0b11f752229cb69fc288ccf9b4fd50918b27406483b65946978fb7340b207424",
+      "bytes": 6872,
+      "decodedBytes": 25086,
+      "count": 36
+    },
+    {
+      "countryCode": "LU",
+      "alternateCountryCodes": [],
+      "file": "LU.json.gz",
+      "encoding": "gzip",
+      "sha256": "d7bf72602ecaf1974329068638ff9df95300f0b6baa5461d0e817d6e6a5d61d2",
+      "bytes": 1696,
+      "decodedBytes": 3786,
+      "count": 3
+    },
+    {
+      "countryCode": "LV",
+      "alternateCountryCodes": [],
+      "file": "LV.json.gz",
+      "encoding": "gzip",
+      "sha256": "571e5e9b5841ca1381215bc1a5989710fdf4da3223d1eab74e97305127d5eb1f",
+      "bytes": 4409,
+      "decodedBytes": 13280,
+      "count": 15
+    },
+    {
+      "countryCode": "LY",
+      "alternateCountryCodes": [],
+      "file": "LY.json.gz",
+      "encoding": "gzip",
+      "sha256": "2e6aa263bde0f33bc8dace5c73b507cbd4549dc56e22267531a74c477e8dfbf0",
+      "bytes": 9961,
+      "decodedBytes": 37979,
+      "count": 59
+    },
+    {
+      "countryCode": "MA",
+      "alternateCountryCodes": [
+        "EH"
+      ],
+      "file": "MA.json.gz",
+      "encoding": "gzip",
+      "sha256": "d3c5ef6e68f30af10ee952705ea3dbfe3cae59a69e22ee75e13e5f6e1bf17f5e",
+      "bytes": 18185,
+      "decodedBytes": 93944,
+      "count": 180
+    },
+    {
+      "countryCode": "MC",
+      "alternateCountryCodes": [],
+      "file": "MC.json.gz",
+      "encoding": "gzip",
+      "sha256": "45af4f64de89cfdb1f1cab7186870e6313d7ce48ff369763c35436c81a8bd604",
+      "bytes": 505,
+      "decodedBytes": 1082,
+      "count": 2
+    },
+    {
+      "countryCode": "MD",
+      "alternateCountryCodes": [],
+      "file": "MD.json.gz",
+      "encoding": "gzip",
+      "sha256": "46030ab1c0a5ae8fb2483a21c2b85b4df7f7d30531595a9587c809ee6955aa00",
+      "bytes": 5481,
+      "decodedBytes": 17350,
+      "count": 22
+    },
+    {
+      "countryCode": "ME",
+      "alternateCountryCodes": [],
+      "file": "ME.json.gz",
+      "encoding": "gzip",
+      "sha256": "ba59b7a9c391fc906ef3d21e15f6c8f48c8ceb8738eded3dda4a6886b00810a9",
+      "bytes": 2489,
+      "decodedBytes": 6473,
+      "count": 8
+    },
+    {
+      "countryCode": "MF",
+      "alternateCountryCodes": [],
+      "file": "MF.json.gz",
+      "encoding": "gzip",
+      "sha256": "fce88ba2ba07fd2faa8eea2abe995eb9e96f0fa8e65a2c78115edf72c953452d",
+      "bytes": 578,
+      "decodedBytes": 848,
+      "count": 1
+    },
+    {
+      "countryCode": "MG",
+      "alternateCountryCodes": [],
+      "file": "MG.json.gz",
+      "encoding": "gzip",
+      "sha256": "f9bdde0e65d9982b0e6a045e6f4edc0d41f7c2d81b9d3c0c819d8e954d42c85a",
+      "bytes": 12555,
+      "decodedBytes": 61335,
+      "count": 106
+    },
+    {
+      "countryCode": "MH",
+      "alternateCountryCodes": [],
+      "file": "MH.json.gz",
+      "encoding": "gzip",
+      "sha256": "4b7ef55c64f1f3009d52c265fa82d2a8e90f7882266ceffdddf92e0077131bad",
+      "bytes": 475,
+      "decodedBytes": 991,
+      "count": 2
+    },
+    {
+      "countryCode": "MK",
+      "alternateCountryCodes": [],
+      "file": "MK.json.gz",
+      "encoding": "gzip",
+      "sha256": "8af26d1ad9b5793da62be73355da969a17c710c046f83dfd29f6c8171144e0aa",
+      "bytes": 8002,
+      "decodedBytes": 27342,
+      "count": 38
+    },
+    {
+      "countryCode": "ML",
+      "alternateCountryCodes": [],
+      "file": "ML.json.gz",
+      "encoding": "gzip",
+      "sha256": "3eabcb0cfb20482c686932eed31f51f1fba4f095e5c4db3775d9df74a23d3bed",
+      "bytes": 5725,
+      "decodedBytes": 28680,
+      "count": 60
+    },
+    {
+      "countryCode": "MM",
+      "alternateCountryCodes": [],
+      "file": "MM.json.gz",
+      "encoding": "gzip",
+      "sha256": "1671b99672a210b2bbb605c45da089cac7313a64b230b4915fb028e133b5cd62",
+      "bytes": 19757,
+      "decodedBytes": 101882,
+      "count": 178
+    },
+    {
+      "countryCode": "MN",
+      "alternateCountryCodes": [],
+      "file": "MN.json.gz",
+      "encoding": "gzip",
+      "sha256": "57e451857eb1f5249f856cfab9b4f8f0c2508a6cf97f3b98a48ab8b2a4b12efd",
+      "bytes": 6530,
+      "decodedBytes": 20672,
+      "count": 24
+    },
+    {
+      "countryCode": "MO",
+      "alternateCountryCodes": [],
+      "file": "MO.json.gz",
+      "encoding": "gzip",
+      "sha256": "1835e5801bbaa61485e14a1a5772caee47724a164c25b3f608396552e903b3a9",
+      "bytes": 1424,
+      "decodedBytes": 3767,
+      "count": 6
+    },
+    {
+      "countryCode": "MP",
+      "alternateCountryCodes": [],
+      "file": "MP.json.gz",
+      "encoding": "gzip",
+      "sha256": "6e0ec5b5535278c97782923ff923363822521eff76ee15df2f458a93344949d9",
+      "bytes": 366,
+      "decodedBytes": 539,
+      "count": 1
+    },
+    {
+      "countryCode": "MQ",
+      "alternateCountryCodes": [],
+      "file": "MQ.json.gz",
+      "encoding": "gzip",
+      "sha256": "5ce1f83a75b2f468a456b5d6add0354efc4a849a605778cb2e5e017dcffede03",
+      "bytes": 1530,
+      "decodedBytes": 5076,
+      "count": 8
+    },
+    {
+      "countryCode": "MR",
+      "alternateCountryCodes": [],
+      "file": "MR.json.gz",
+      "encoding": "gzip",
+      "sha256": "657d5e40365728b43ec6bfc22f9ee6f67919a2f97f4ab28026871e492ae1a010",
+      "bytes": 4546,
+      "decodedBytes": 15957,
+      "count": 26
+    },
+    {
+      "countryCode": "MS",
+      "alternateCountryCodes": [],
+      "file": "MS.json.gz",
+      "encoding": "gzip",
+      "sha256": "9b530771546fa0a07bb6b6fa4cae526b2d534674ff3a7423dd6213d23378e73b",
+      "bytes": 926,
+      "decodedBytes": 1658,
+      "count": 2
+    },
+    {
+      "countryCode": "MT",
+      "alternateCountryCodes": [],
+      "file": "MT.json.gz",
+      "encoding": "gzip",
+      "sha256": "d70e25df59e3d28f64341e81676f04bd3aeb061dc335ada60a4e6b9ee96978cc",
+      "bytes": 2222,
+      "decodedBytes": 5881,
+      "count": 7
+    },
+    {
+      "countryCode": "MU",
+      "alternateCountryCodes": [],
+      "file": "MU.json.gz",
+      "encoding": "gzip",
+      "sha256": "17349a536083f89d71f275eb4912fb14bb052cc9797a6b84d926700766075191",
+      "bytes": 2829,
+      "decodedBytes": 8779,
+      "count": 14
+    },
+    {
+      "countryCode": "MV",
+      "alternateCountryCodes": [],
+      "file": "MV.json.gz",
+      "encoding": "gzip",
+      "sha256": "0eb4bd84875c2d6b19c9d8f999d5e4bc85049fcac445b06a001de844d326002d",
+      "bytes": 505,
+      "decodedBytes": 717,
+      "count": 1
+    },
+    {
+      "countryCode": "MW",
+      "alternateCountryCodes": [],
+      "file": "MW.json.gz",
+      "encoding": "gzip",
+      "sha256": "1ba4b7657b19080b6627ebb4065782034fd5e30a1fd9370dd9a2d15d4c8897d1",
+      "bytes": 2780,
+      "decodedBytes": 11658,
+      "count": 23
+    },
+    {
+      "countryCode": "MX",
+      "alternateCountryCodes": [],
+      "file": "MX.json.gz",
+      "encoding": "gzip",
+      "sha256": "2be8b472ddb6cedae8bb46387fe5032d77b6df7b024d91631369f181a1e1cfcc",
+      "bytes": 70554,
+      "decodedBytes": 365670,
+      "count": 643
+    },
+    {
+      "countryCode": "MY",
+      "alternateCountryCodes": [],
+      "file": "MY.json.gz",
+      "encoding": "gzip",
+      "sha256": "22f260ad9773c956824e6ffdab484a947227c5f24b7e650bfc899a0524af88bc",
+      "bytes": 29423,
+      "decodedBytes": 173710,
+      "count": 355
+    },
+    {
+      "countryCode": "MZ",
+      "alternateCountryCodes": [],
+      "file": "MZ.json.gz",
+      "encoding": "gzip",
+      "sha256": "8655d0ceaf36addef5c9296389003437e239b7b95a2ee1e19e9c7656db1d6718",
+      "bytes": 7140,
+      "decodedBytes": 33427,
+      "count": 66
+    },
+    {
+      "countryCode": "NA",
+      "alternateCountryCodes": [],
+      "file": "NA.json.gz",
+      "encoding": "gzip",
+      "sha256": "dfcbd648db295d1b67ab8e9de06b0dfc85f6c1caa428e8dd843b2a0ffb355bac",
+      "bytes": 4328,
+      "decodedBytes": 13108,
+      "count": 19
+    },
+    {
+      "countryCode": "NC",
+      "alternateCountryCodes": [],
+      "file": "NC.json.gz",
+      "encoding": "gzip",
+      "sha256": "ef8e8ef51f0aece9e062793f838699884fda0e06cdff2bd5273ee3db1b7aab66",
+      "bytes": 699,
+      "decodedBytes": 1624,
+      "count": 3
+    },
+    {
+      "countryCode": "NE",
+      "alternateCountryCodes": [],
+      "file": "NE.json.gz",
+      "encoding": "gzip",
+      "sha256": "0d35f66c93526d7b550c1fd2fb5c36e30cd5261cca8ca0ef5ee7efc5a1b7bfb9",
+      "bytes": 4170,
+      "decodedBytes": 19855,
+      "count": 42
+    },
+    {
+      "countryCode": "NF",
+      "alternateCountryCodes": [
+        "AU"
+      ],
+      "file": "NF.json.gz",
+      "encoding": "gzip",
+      "sha256": "76eeb052de410f8597d63c8456e476cd68d2e268ed0ae9778c516a61cdcb5f62",
+      "bytes": 665,
+      "decodedBytes": 1034,
+      "count": 1
+    },
+    {
+      "countryCode": "NG",
+      "alternateCountryCodes": [],
+      "file": "NG.json.gz",
+      "encoding": "gzip",
+      "sha256": "bd3d8ce06f4515558b47c237aca916a4b2fde706b1e33ac2132ce552faa3d430",
+      "bytes": 21347,
+      "decodedBytes": 124309,
+      "count": 270
+    },
+    {
+      "countryCode": "NI",
+      "alternateCountryCodes": [],
+      "file": "NI.json.gz",
+      "encoding": "gzip",
+      "sha256": "ca4ca2a7045f6e43ad563fd3fa09db6cc1feb347a69749768b1a3110a5da4216",
+      "bytes": 5075,
+      "decodedBytes": 20656,
+      "count": 37
+    },
+    {
+      "countryCode": "NL",
+      "alternateCountryCodes": [],
+      "file": "NL.json.gz",
+      "encoding": "gzip",
+      "sha256": "fd9df8e09729a2438c646810bcf4ee9dea9e24765dcc81e439f3def1c385a6f6",
+      "bytes": 26206,
+      "decodedBytes": 131079,
+      "count": 253
+    },
+    {
+      "countryCode": "NO",
+      "alternateCountryCodes": [],
+      "file": "NO.json.gz",
+      "encoding": "gzip",
+      "sha256": "7dc51f20c08502a90d003a51e3651e0094386e62294acc438cd30986f8435672",
+      "bytes": 8131,
+      "decodedBytes": 29385,
+      "count": 42
+    },
+    {
+      "countryCode": "NP",
+      "alternateCountryCodes": [],
+      "file": "NP.json.gz",
+      "encoding": "gzip",
+      "sha256": "c3215620eabbfcc51ab68c15413e8838bced12a8ec5216dfa4f5ebf43032359a",
+      "bytes": 6298,
+      "decodedBytes": 27828,
+      "count": 46
+    },
+    {
+      "countryCode": "NR",
+      "alternateCountryCodes": [],
+      "file": "NR.json.gz",
+      "encoding": "gzip",
+      "sha256": "544e6e9bbd1d80b5dedf75ee682fea55323974747419c632616c8554d77cec82",
+      "bytes": 708,
+      "decodedBytes": 1019,
+      "count": 1
+    },
+    {
+      "countryCode": "NU",
+      "alternateCountryCodes": [
+        "NZ"
+      ],
+      "file": "NU.json.gz",
+      "encoding": "gzip",
+      "sha256": "e6fa8ff005205c4a5309f1b6155b99556c6035af2416ffab1147a757f9470d13",
+      "bytes": 559,
+      "decodedBytes": 789,
+      "count": 1
+    },
+    {
+      "countryCode": "NZ",
+      "alternateCountryCodes": [],
+      "file": "NZ.json.gz",
+      "encoding": "gzip",
+      "sha256": "99c4985267ffd1781cf10aa35c5e38e043e1ee999935d1b5e7304f1c39bb7654",
+      "bytes": 10491,
+      "decodedBytes": 39098,
+      "count": 58
+    },
+    {
+      "countryCode": "OM",
+      "alternateCountryCodes": [],
+      "file": "OM.json.gz",
+      "encoding": "gzip",
+      "sha256": "e62c5f50d1dc2f337721174ec4c951d6b2680124edbc8e1158d38416d6394d08",
+      "bytes": 3783,
+      "decodedBytes": 15244,
+      "count": 28
+    },
+    {
+      "countryCode": "PA",
+      "alternateCountryCodes": [],
+      "file": "PA.json.gz",
+      "encoding": "gzip",
+      "sha256": "a3013876a99e619ae368cddd91e01a06dbae99aa89405720b60ed17c93a9b639",
+      "bytes": 3578,
+      "decodedBytes": 15032,
+      "count": 27
+    },
+    {
+      "countryCode": "PE",
+      "alternateCountryCodes": [],
+      "file": "PE.json.gz",
+      "encoding": "gzip",
+      "sha256": "b8ae93cd0c93ba9bad7ee4e5fb7c8d5ff0062988a00a340ee250612cae85f878",
+      "bytes": 15548,
+      "decodedBytes": 75777,
+      "count": 140
+    },
+    {
+      "countryCode": "PF",
+      "alternateCountryCodes": [],
+      "file": "PF.json.gz",
+      "encoding": "gzip",
+      "sha256": "1084c9c92688ac54372ab24ddb1d6c2ecd6776460e2b39eda3ad5bede7619805",
+      "bytes": 726,
+      "decodedBytes": 1790,
+      "count": 3
+    },
+    {
+      "countryCode": "PG",
+      "alternateCountryCodes": [],
+      "file": "PG.json.gz",
+      "encoding": "gzip",
+      "sha256": "afc256746ae51ceb81a31f4ab8f165ec36d3057dcac20d3ebb200ee389b94ef0",
+      "bytes": 2881,
+      "decodedBytes": 8733,
+      "count": 13
+    },
+    {
+      "countryCode": "PH",
+      "alternateCountryCodes": [],
+      "file": "PH.json.gz",
+      "encoding": "gzip",
+      "sha256": "d34aed148651c9f502c6848bab5170bfc8a60d691bf53025f6b5d93dd5d1379a",
+      "bytes": 40344,
+      "decodedBytes": 256493,
+      "count": 529
+    },
+    {
+      "countryCode": "PK",
+      "alternateCountryCodes": [],
+      "file": "PK.json.gz",
+      "encoding": "gzip",
+      "sha256": "7177e25ce0db18a70262b0fda08ac2765168928ddae1e42843e3f3312b0f4572",
+      "bytes": 35048,
+      "decodedBytes": 189297,
+      "count": 372
+    },
+    {
+      "countryCode": "PL",
+      "alternateCountryCodes": [],
+      "file": "PL.json.gz",
+      "encoding": "gzip",
+      "sha256": "f896eb572a376fc7bbd8cd4b153e65fbf6a47e551678df2de11694df962818e0",
+      "bytes": 58322,
+      "decodedBytes": 244583,
+      "count": 363
+    },
+    {
+      "countryCode": "PM",
+      "alternateCountryCodes": [],
+      "file": "PM.json.gz",
+      "encoding": "gzip",
+      "sha256": "62c683a14a900df7eb820333af27b800df6c151914bea42814db4237d72f582b",
+      "bytes": 420,
+      "decodedBytes": 615,
+      "count": 1
+    },
+    {
+      "countryCode": "PN",
+      "alternateCountryCodes": [],
+      "file": "PN.json.gz",
+      "encoding": "gzip",
+      "sha256": "90c8f9ee2f490a0dc939dcd825f896ce8c201971c22e0d126269629fd79098df",
+      "bytes": 726,
+      "decodedBytes": 1052,
+      "count": 1
+    },
+    {
+      "countryCode": "PR",
+      "alternateCountryCodes": [],
+      "file": "PR.json.gz",
+      "encoding": "gzip",
+      "sha256": "e95f92ce1b78bf5ad564c7f92ccbaca319dc8fa62e2c227161868e7b611a9340",
+      "bytes": 4872,
+      "decodedBytes": 16225,
+      "count": 21
+    },
+    {
+      "countryCode": "PS",
+      "alternateCountryCodes": [
+        "IL",
+        "PS"
+      ],
+      "file": "PS.json.gz",
+      "encoding": "gzip",
+      "sha256": "8dc6cb1c8329f4e39dc14f92b1d39e03ea739a365391fc61285db6ee88f83946",
+      "bytes": 7964,
+      "decodedBytes": 29923,
+      "count": 45
+    },
+    {
+      "countryCode": "PT",
+      "alternateCountryCodes": [],
+      "file": "PT.json.gz",
+      "encoding": "gzip",
+      "sha256": "90663bcb5855ac97b2fa61d700cea555c794d6dc9e8d292f9dbbdb38f9ef2716",
+      "bytes": 16883,
+      "decodedBytes": 91941,
+      "count": 179
+    },
+    {
+      "countryCode": "PW",
+      "alternateCountryCodes": [],
+      "file": "PW.json.gz",
+      "encoding": "gzip",
+      "sha256": "f4c701525c529eac62600ce0b8e8a2f0857bdc544272fec832fcceac1a5b13e8",
+      "bytes": 378,
+      "decodedBytes": 548,
+      "count": 1
+    },
+    {
+      "countryCode": "PY",
+      "alternateCountryCodes": [],
+      "file": "PY.json.gz",
+      "encoding": "gzip",
+      "sha256": "fdf17226955d06fa3b4fbb1bf0a8e7e0f283153ec694fd1e1b6f80c0bc7ed22b",
+      "bytes": 6484,
+      "decodedBytes": 22459,
+      "count": 30
+    },
+    {
+      "countryCode": "QA",
+      "alternateCountryCodes": [],
+      "file": "QA.json.gz",
+      "encoding": "gzip",
+      "sha256": "dee34e4b74e7865726dfc50a6b1e34d980a468b1d86f4976b2af49663ddb3f76",
+      "bytes": 3575,
+      "decodedBytes": 15195,
+      "count": 26
+    },
+    {
+      "countryCode": "RE",
+      "alternateCountryCodes": [],
+      "file": "RE.json.gz",
+      "encoding": "gzip",
+      "sha256": "bbf2858b6296509dc341d6ca14de2f2bfa81e02f648916071f3ae99810359e72",
+      "bytes": 1432,
+      "decodedBytes": 7226,
+      "count": 14
+    },
+    {
+      "countryCode": "RO",
+      "alternateCountryCodes": [],
+      "file": "RO.json.gz",
+      "encoding": "gzip",
+      "sha256": "05071a0d7aadad904ffba59e78a345a2c255459602df756b44475ba050d7a7ae",
+      "bytes": 23987,
+      "decodedBytes": 93451,
+      "count": 134
+    },
+    {
+      "countryCode": "RS",
+      "alternateCountryCodes": [],
+      "file": "RS.json.gz",
+      "encoding": "gzip",
+      "sha256": "0c9374424dfb15ba007409d46f8afa16c3ce5f730318a98ac149099a9a3a505e",
+      "bytes": 10093,
+      "decodedBytes": 36887,
+      "count": 51
+    },
+    {
+      "countryCode": "RU",
+      "alternateCountryCodes": [],
+      "file": "RU.json.gz",
+      "encoding": "gzip",
+      "sha256": "058d860e905f9eaf5e4e30abc03f109b6b56e863819429d26939a8bedeafce23",
+      "bytes": 154406,
+      "decodedBytes": 691528,
+      "count": 1108
+    },
+    {
+      "countryCode": "RW",
+      "alternateCountryCodes": [],
+      "file": "RW.json.gz",
+      "encoding": "gzip",
+      "sha256": "606608ca9c6548255351d2d56768a75697d127a1bdc1ee4e5ad7dae945d22741",
+      "bytes": 3982,
+      "decodedBytes": 21769,
+      "count": 45
+    },
+    {
+      "countryCode": "SA",
+      "alternateCountryCodes": [],
+      "file": "SA.json.gz",
+      "encoding": "gzip",
+      "sha256": "fdfa52666233793f308ccb6bcb6cef5cd7a8a17357599bf36b70d8b62ad9cc90",
+      "bytes": 12662,
+      "decodedBytes": 54556,
+      "count": 98
+    },
+    {
+      "countryCode": "SB",
+      "alternateCountryCodes": [],
+      "file": "SB.json.gz",
+      "encoding": "gzip",
+      "sha256": "30b43363d0891b8eb59ea598e31883a1ec5d3ca86cd82e50740af5d8e1c6f619",
+      "bytes": 866,
+      "decodedBytes": 3174,
+      "count": 7
+    },
+    {
+      "countryCode": "SC",
+      "alternateCountryCodes": [],
+      "file": "SC.json.gz",
+      "encoding": "gzip",
+      "sha256": "22892545520e868c9195697509f43ebbee61ab090bc1d857b90404b12abf5903",
+      "bytes": 863,
+      "decodedBytes": 1403,
+      "count": 1
+    },
+    {
+      "countryCode": "SD",
+      "alternateCountryCodes": [],
+      "file": "SD.json.gz",
+      "encoding": "gzip",
+      "sha256": "fda4a901f2421fe010f70ab1944e7c8794703d1f0de638e0c87a21643b1cbfe8",
+      "bytes": 10233,
+      "decodedBytes": 43186,
+      "count": 76
+    },
+    {
+      "countryCode": "SE",
+      "alternateCountryCodes": [],
+      "file": "SE.json.gz",
+      "encoding": "gzip",
+      "sha256": "9eda098fef60a8874e755c2590f6e4f8fbcfc90b2cb05a6c091d5a0311afea0e",
+      "bytes": 18598,
+      "decodedBytes": 74499,
+      "count": 111
+    },
+    {
+      "countryCode": "SG",
+      "alternateCountryCodes": [],
+      "file": "SG.json.gz",
+      "encoding": "gzip",
+      "sha256": "bf79ec7a22bddc7873cf6791fb2c8c77e0b842e24adb2e55e8eaca7f62dd739b",
+      "bytes": 5785,
+      "decodedBytes": 31509,
+      "count": 65
+    },
+    {
+      "countryCode": "SH",
+      "alternateCountryCodes": [],
+      "file": "SH.json.gz",
+      "encoding": "gzip",
+      "sha256": "51961ba6366f61022edebc55267788686232e18cce9388f283e6e4f243b8f79a",
+      "bytes": 825,
+      "decodedBytes": 1321,
+      "count": 1
+    },
+    {
+      "countryCode": "SI",
+      "alternateCountryCodes": [],
+      "file": "SI.json.gz",
+      "encoding": "gzip",
+      "sha256": "8f9d8617025836f3165dacd51ae03b9128714dc3a328c4a86cb8bc04e5364ed7",
+      "bytes": 2839,
+      "decodedBytes": 7689,
+      "count": 9
+    },
+    {
+      "countryCode": "SJ",
+      "alternateCountryCodes": [
+        "NO"
+      ],
+      "file": "SJ.json.gz",
+      "encoding": "gzip",
+      "sha256": "6dec91738f8e8a4eab3b3664a9592bacab7cf4f1955f3d95cfd6d0d6fbe9b27a",
+      "bytes": 793,
+      "decodedBytes": 1346,
+      "count": 1
+    },
+    {
+      "countryCode": "SK",
+      "alternateCountryCodes": [],
+      "file": "SK.json.gz",
+      "encoding": "gzip",
+      "sha256": "831ab8de34e90a41101aac9cc79a8a8673b0476ec57a3b933297d74c4cfed8f5",
+      "bytes": 11281,
+      "decodedBytes": 42926,
+      "count": 61
+    },
+    {
+      "countryCode": "SL",
+      "alternateCountryCodes": [],
+      "file": "SL.json.gz",
+      "encoding": "gzip",
+      "sha256": "3cf84f7129570dd6b5dc027e7ab7226883d15fc4d57e5c71e5738ee0b27ebcc6",
+      "bytes": 3114,
+      "decodedBytes": 9212,
+      "count": 14
+    },
+    {
+      "countryCode": "SM",
+      "alternateCountryCodes": [],
+      "file": "SM.json.gz",
+      "encoding": "gzip",
+      "sha256": "beded675e98d4a7d8342f3eb8703e5d143bfb1622915097fd21684043af2be3a",
+      "bytes": 1045,
+      "decodedBytes": 2180,
+      "count": 1
+    },
+    {
+      "countryCode": "SN",
+      "alternateCountryCodes": [],
+      "file": "SN.json.gz",
+      "encoding": "gzip",
+      "sha256": "add6879bb51b524991c1a0e162c104e2c47697d13ee3ca369df0fc143f921be9",
+      "bytes": 7486,
+      "decodedBytes": 35120,
+      "count": 71
+    },
+    {
+      "countryCode": "SO",
+      "alternateCountryCodes": [],
+      "file": "SO.json.gz",
+      "encoding": "gzip",
+      "sha256": "8d55e00123d4d0bd957494352ae9fae82a0b0f4b9877ef042a5dbd18109fb151",
+      "bytes": 6581,
+      "decodedBytes": 24727,
+      "count": 42
+    },
+    {
+      "countryCode": "SR",
+      "alternateCountryCodes": [],
+      "file": "SR.json.gz",
+      "encoding": "gzip",
+      "sha256": "4649987e60a2d25e4e3d8b93f86f691ff02877d0ba04945d2997726adf2a1da0",
+      "bytes": 1483,
+      "decodedBytes": 5839,
+      "count": 12
+    },
+    {
+      "countryCode": "SS",
+      "alternateCountryCodes": [],
+      "file": "SS.json.gz",
+      "encoding": "gzip",
+      "sha256": "67937ee9c2648aba3ab8ad81a2550a4f3b4185f4b6e934dae24fc655061b7dd6",
+      "bytes": 3201,
+      "decodedBytes": 9928,
+      "count": 16
+    },
+    {
+      "countryCode": "ST",
+      "alternateCountryCodes": [],
+      "file": "ST.json.gz",
+      "encoding": "gzip",
+      "sha256": "898a87d860b3016e8ba655b4f46fcf3fa1bba7d1e9a0bc31dc54d87b27ca41e9",
+      "bytes": 881,
+      "decodedBytes": 1396,
+      "count": 1
+    },
+    {
+      "countryCode": "SV",
+      "alternateCountryCodes": [],
+      "file": "SV.json.gz",
+      "encoding": "gzip",
+      "sha256": "cc669d970f4042958ee4515040dea909f638e4a13ab48dbf081c5613de437ac0",
+      "bytes": 5352,
+      "decodedBytes": 21727,
+      "count": 35
+    },
+    {
+      "countryCode": "SX",
+      "alternateCountryCodes": [],
+      "file": "SX.json.gz",
+      "encoding": "gzip",
+      "sha256": "f72d022bd86464b2ff5f2f504c66dcf5365662923201ee4d26d98cf37e39a1c3",
+      "bytes": 793,
+      "decodedBytes": 1168,
+      "count": 1
+    },
+    {
+      "countryCode": "SY",
+      "alternateCountryCodes": [
+        "TR"
+      ],
+      "file": "SY.json.gz",
+      "encoding": "gzip",
+      "sha256": "0985e7aa741a702db86492b6d88fa0ddada664489259c88df505a3fe5f422318",
+      "bytes": 14029,
+      "decodedBytes": 56523,
+      "count": 89
+    },
+    {
+      "countryCode": "SZ",
+      "alternateCountryCodes": [],
+      "file": "SZ.json.gz",
+      "encoding": "gzip",
+      "sha256": "7f722bfc525528b5e32ca78a9dbfd8485c655243f672a0f375712a2c1f156473",
+      "bytes": 1104,
+      "decodedBytes": 2510,
+      "count": 3
+    },
+    {
+      "countryCode": "TC",
+      "alternateCountryCodes": [],
+      "file": "TC.json.gz",
+      "encoding": "gzip",
+      "sha256": "55a2eb3535419cd596197ad41f64dddbd07ef1f7e4bc952a6322965291a29ee0",
+      "bytes": 876,
+      "decodedBytes": 1573,
+      "count": 2
+    },
+    {
+      "countryCode": "TD",
+      "alternateCountryCodes": [],
+      "file": "TD.json.gz",
+      "encoding": "gzip",
+      "sha256": "0dd23c84a7ef68d426f66c1948430c63c3d8b003e2bdc841958230876cf0c1ba",
+      "bytes": 5962,
+      "decodedBytes": 24897,
+      "count": 46
+    },
+    {
+      "countryCode": "TF",
+      "alternateCountryCodes": [
+        "FR"
+      ],
+      "file": "TF.json.gz",
+      "encoding": "gzip",
+      "sha256": "d22bcbbc47439565d50b45f9645553e426d405e714bd90c1cd5c335ae1dd7940",
+      "bytes": 553,
+      "decodedBytes": 845,
+      "count": 1
+    },
+    {
+      "countryCode": "TG",
+      "alternateCountryCodes": [],
+      "file": "TG.json.gz",
+      "encoding": "gzip",
+      "sha256": "f88d3d14e31bb559addd1e68b4798886aeab6a8b7d8338e3cc4799ef342c7518",
+      "bytes": 3064,
+      "decodedBytes": 11008,
+      "count": 20
+    },
+    {
+      "countryCode": "TH",
+      "alternateCountryCodes": [],
+      "file": "TH.json.gz",
+      "encoding": "gzip",
+      "sha256": "84c668fe9a15353928c498749e94b4dbb56321e4b68b0ecd67fd202856384c62",
+      "bytes": 41659,
+      "decodedBytes": 212421,
+      "count": 330
+    },
+    {
+      "countryCode": "TJ",
+      "alternateCountryCodes": [],
+      "file": "TJ.json.gz",
+      "encoding": "gzip",
+      "sha256": "ce1c92e7e68de73ab6a7bd707404f19ae145165f956f9a7f46ac83f72a1d624c",
+      "bytes": 4255,
+      "decodedBytes": 17003,
+      "count": 31
+    },
+    {
+      "countryCode": "TL",
+      "alternateCountryCodes": [],
+      "file": "TL.json.gz",
+      "encoding": "gzip",
+      "sha256": "48027e1b56a3589e9dcbc37a2bfd69ee1fb13df9eef3e728ca6ea1453c087968",
+      "bytes": 2272,
+      "decodedBytes": 6670,
+      "count": 10
+    },
+    {
+      "countryCode": "TM",
+      "alternateCountryCodes": [],
+      "file": "TM.json.gz",
+      "encoding": "gzip",
+      "sha256": "b23886e624934701f65479ea2393f4655e9a8bd9499de87a6a16ffa8ce8f5cf7",
+      "bytes": 6108,
+      "decodedBytes": 22813,
+      "count": 36
+    },
+    {
+      "countryCode": "TN",
+      "alternateCountryCodes": [],
+      "file": "TN.json.gz",
+      "encoding": "gzip",
+      "sha256": "a13e570e191bda2abae3c489db6a2d3cdd692842f67d3d94a35736940353196d",
+      "bytes": 15535,
+      "decodedBytes": 72114,
+      "count": 130
+    },
+    {
+      "countryCode": "TO",
+      "alternateCountryCodes": [],
+      "file": "TO.json.gz",
+      "encoding": "gzip",
+      "sha256": "67c4bd4331c484fd7e1e2ee9a51b7cadfa38adb91e29a54c77fe16264dc92b17",
+      "bytes": 611,
+      "decodedBytes": 932,
+      "count": 1
+    },
+    {
+      "countryCode": "TR",
+      "alternateCountryCodes": [],
+      "file": "TR.json.gz",
+      "encoding": "gzip",
+      "sha256": "dfdec6599a65ee4df2401cb8bfb1b4c09aad7baaf7fe1b1eb57b5f63010f401a",
+      "bytes": 57896,
+      "decodedBytes": 252794,
+      "count": 435
+    },
+    {
+      "countryCode": "TT",
+      "alternateCountryCodes": [],
+      "file": "TT.json.gz",
+      "encoding": "gzip",
+      "sha256": "7af02feffe1b8f3606636fbd1710fb724b5744e5e87a3270647b9b9d276336d9",
+      "bytes": 3434,
+      "decodedBytes": 10750,
+      "count": 14
+    },
+    {
+      "countryCode": "TV",
+      "alternateCountryCodes": [],
+      "file": "TV.json.gz",
+      "encoding": "gzip",
+      "sha256": "eba07e3024ab218daae3a254f2631821a57d388bac3aa132fd787be78fbbdd8b",
+      "bytes": 418,
+      "decodedBytes": 643,
+      "count": 1
+    },
+    {
+      "countryCode": "TW",
+      "alternateCountryCodes": [],
+      "file": "TW.json.gz",
+      "encoding": "gzip",
+      "sha256": "f747d3cbb18484e22589bb28106015d31e6b77a66502653667bdf119de8f48b2",
+      "bytes": 10635,
+      "decodedBytes": 44478,
+      "count": 67
+    },
+    {
+      "countryCode": "TZ",
+      "alternateCountryCodes": [],
+      "file": "TZ.json.gz",
+      "encoding": "gzip",
+      "sha256": "13c037ed0a0fb97de401b2dd90c91f04cd7407cc1408282dceafa46a73f8a9e4",
+      "bytes": 16121,
+      "decodedBytes": 104839,
+      "count": 228
+    },
+    {
+      "countryCode": "UA",
+      "alternateCountryCodes": [],
+      "file": "UA.json.gz",
+      "encoding": "gzip",
+      "sha256": "78971fdee5902809c5542f272daac940b29ea32b7504923cac3f9a5f5c8ff609",
+      "bytes": 62651,
+      "decodedBytes": 282492,
+      "count": 401
+    },
+    {
+      "countryCode": "UG",
+      "alternateCountryCodes": [],
+      "file": "UG.json.gz",
+      "encoding": "gzip",
+      "sha256": "aa4fb49d55871e6baf0a3cff1d5df8ef1392645c954758faf0249f0ec526f9e4",
+      "bytes": 9049,
+      "decodedBytes": 64049,
+      "count": 141
+    },
+    {
+      "countryCode": "US",
+      "alternateCountryCodes": [],
+      "file": "US.json.gz",
+      "encoding": "gzip",
+      "sha256": "21fa8b30ed9b789bf0a082a19115c895fdbcacbb852a12ce3afebf3e3fc5523c",
+      "bytes": 532385,
+      "decodedBytes": 2328604,
+      "count": 3408
+    },
+    {
+      "countryCode": "UY",
+      "alternateCountryCodes": [],
+      "file": "UY.json.gz",
+      "encoding": "gzip",
+      "sha256": "98774275d2c59213ffd901ff2212bdec3b99d82a553fe68cc3138379050b3f67",
+      "bytes": 9416,
+      "decodedBytes": 29908,
+      "count": 31
+    },
+    {
+      "countryCode": "UZ",
+      "alternateCountryCodes": [],
+      "file": "UZ.json.gz",
+      "encoding": "gzip",
+      "sha256": "94e9c8782ad9575b49b08f360c696dac804101b395033ede9b6e1b6b6efce637",
+      "bytes": 13966,
+      "decodedBytes": 62490,
+      "count": 112
+    },
+    {
+      "countryCode": "VA",
+      "alternateCountryCodes": [
+        "IT"
+      ],
+      "file": "VA.json.gz",
+      "encoding": "gzip",
+      "sha256": "3bd2775f334562a28ce6767564749565eee0f522bdc4f0dba1cd70fb00bc6ff6",
+      "bytes": 547,
+      "decodedBytes": 983,
+      "count": 1
+    },
+    {
+      "countryCode": "VC",
+      "alternateCountryCodes": [],
+      "file": "VC.json.gz",
+      "encoding": "gzip",
+      "sha256": "4a61fe140eaed76ae80588fa19d07b0484640190e83637b71ae8b8ee95923a15",
+      "bytes": 942,
+      "decodedBytes": 1720,
+      "count": 2
+    },
+    {
+      "countryCode": "VE",
+      "alternateCountryCodes": [],
+      "file": "VE.json.gz",
+      "encoding": "gzip",
+      "sha256": "da95a5c4b100404799de9c4b3837ce7ee6443c91a29e1777ea3bb7e29a5aa768",
+      "bytes": 20064,
+      "decodedBytes": 109142,
+      "count": 216
+    },
+    {
+      "countryCode": "VG",
+      "alternateCountryCodes": [],
+      "file": "VG.json.gz",
+      "encoding": "gzip",
+      "sha256": "c913654f1dd97ff69e12abe681945679d3147940e7b7c76ebe6ef4b8205580b3",
+      "bytes": 597,
+      "decodedBytes": 884,
+      "count": 1
+    },
+    {
+      "countryCode": "VI",
+      "alternateCountryCodes": [],
+      "file": "VI.json.gz",
+      "encoding": "gzip",
+      "sha256": "4e291c384b5db420a00015eadbc308763a7bfa321701993ebd3e69eb6849af28",
+      "bytes": 1332,
+      "decodedBytes": 2762,
+      "count": 2
+    },
+    {
+      "countryCode": "VN",
+      "alternateCountryCodes": [],
+      "file": "VN.json.gz",
+      "encoding": "gzip",
+      "sha256": "07cb1e56bf2fb5e197c03bc526971b7f5f67774726d01e53b23b8c930c501217",
+      "bytes": 30052,
+      "decodedBytes": 162380,
+      "count": 314
+    },
+    {
+      "countryCode": "VU",
+      "alternateCountryCodes": [],
+      "file": "VU.json.gz",
+      "encoding": "gzip",
+      "sha256": "11eea3ef7c421cb32eca4370733bf18286cc1455777a00f0599985727c71e533",
+      "bytes": 518,
+      "decodedBytes": 754,
+      "count": 1
+    },
+    {
+      "countryCode": "WF",
+      "alternateCountryCodes": [],
+      "file": "WF.json.gz",
+      "encoding": "gzip",
+      "sha256": "1b65ab814135d5289596116f0ebf85e00e46047ba0d93abf386daa2a48bd0706",
+      "bytes": 574,
+      "decodedBytes": 863,
+      "count": 1
+    },
+    {
+      "countryCode": "WS",
+      "alternateCountryCodes": [],
+      "file": "WS.json.gz",
+      "encoding": "gzip",
+      "sha256": "a279acafb99ec6f69a4da83827667fb71f026a7ff9137f180dacc22c89e34067",
+      "bytes": 606,
+      "decodedBytes": 912,
+      "count": 1
+    },
+    {
+      "countryCode": "XK",
+      "alternateCountryCodes": [],
+      "file": "XK.json.gz",
+      "encoding": "gzip",
+      "sha256": "fc9abf97dd29cd13a992bbc52df1f5cf0f426342eb33420dcd53b54be0383978",
+      "bytes": 3339,
+      "decodedBytes": 12815,
+      "count": 21
+    },
+    {
+      "countryCode": "YE",
+      "alternateCountryCodes": [],
+      "file": "YE.json.gz",
+      "encoding": "gzip",
+      "sha256": "7f8f17502044370d39ba274fee93391f4afdf2e295976c0ecbc2bef70d9078ff",
+      "bytes": 4609,
+      "decodedBytes": 16580,
+      "count": 25
+    },
+    {
+      "countryCode": "YT",
+      "alternateCountryCodes": [],
+      "file": "YT.json.gz",
+      "encoding": "gzip",
+      "sha256": "78ebbc2c2ad0c8a9997fcf90761a43bc01f9c6441926cd4542bf389028c06a6f",
+      "bytes": 1001,
+      "decodedBytes": 3102,
+      "count": 6
+    },
+    {
+      "countryCode": "ZA",
+      "alternateCountryCodes": [],
+      "file": "ZA.json.gz",
+      "encoding": "gzip",
+      "sha256": "08db6507bd694ae1c47c10d074c58fef8b328edeaec234fdede1f66de5903023",
+      "bytes": 27761,
+      "decodedBytes": 152710,
+      "count": 307
+    },
+    {
+      "countryCode": "ZM",
+      "alternateCountryCodes": [],
+      "file": "ZM.json.gz",
+      "encoding": "gzip",
+      "sha256": "f5f089f9392bad9c04eaa9ffc33ee956b8d45440f8d937c14b5187428ae21fdc",
+      "bytes": 6928,
+      "decodedBytes": 35707,
+      "count": 77
+    },
+    {
+      "countryCode": "ZW",
+      "alternateCountryCodes": [],
+      "file": "ZW.json.gz",
+      "encoding": "gzip",
+      "sha256": "c2bf9ecd4389dcbe8185f6bcee5269a7548cf811901fe87e89668f03c5840cc0",
+      "bytes": 4139,
+      "decodedBytes": 16592,
+      "count": 31
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "references": [
+    {
+      "provider": "51job",
+      "url": "https://fccdn.51jobcdn.com/we/static/js/app-91587e8f-788ad3af.js",
+      "basis": "official-city-catalog",
+      "checkedAt": "2026-10-18",
+      "note": "Official application bundle contains code/value city entries. The app-e2e93592-ec742271.js bundle reads keyword, jobArea and searchType=2."
+    },
+    {
+      "provider": "boss",
+      "url": "https://www.zhipin.com/web/geek/job",
+      "basis": "parameter-only",
+      "checkedAt": "2026-10-18",
+      "note": "Official homepage and application link to query-based job search. Search shell was readable; the public city catalogue rejected this machine. City-code bindings need confirmation in the opened platform page."
+    },
+    {
+      "provider": "liepin",
+      "url": "https://www.liepin.com/zhaopin/?city=020&dq=020",
+      "basis": "official-response-title",
+      "checkedAt": "2026-10-18",
+      "note": "Public responses confirmed Beijing, Shanghai, Guangzhou, Shenzhen, Hangzhou, Nanjing, Suzhou, Wuhan, Chengdu, Xian and nationwide 410 in page titles. Current application reads city/dq and key."
+    },
+    {
+      "provider": "linkedin",
+      "url": "https://www.linkedin.com/jobs/search?keywords=software&location=Shanghai%2C%20China",
+      "basis": "official-form",
+      "checkedAt": "2026-10-18",
+      "note": "Official public search form has action /jobs/search and inputs keywords/location. Location is a text request, not a confirmed geoId or an imported job result."
+    }
+  ],
+  "regions": [
+    {
+      "id": "cn", "name": "中国", "countryCode": "CN",
+      "aliases": ["CN", "中国", "中国大陆", "China", "全国"],
+      "platforms": { "51job": "000000", "boss": "100010000", "liepin": "410", "linkedin": "China" }
+    },
+    {
+      "id": "cn-beijing", "name": "北京", "countryCode": "CN",
+      "aliases": ["北京", "北京市", "Beijing"],
+      "platforms": { "51job": "010000", "boss": "101010100", "liepin": "010", "linkedin": "Beijing, China" }
+    },
+    {
+      "id": "cn-shanghai", "name": "上海", "countryCode": "CN",
+      "aliases": ["上海", "上海市", "Shanghai"],
+      "platforms": { "51job": "020000", "boss": "101020100", "liepin": "020", "linkedin": "Shanghai, China" }
+    },
+    {
+      "id": "cn-guangzhou", "name": "广州", "countryCode": "CN",
+      "aliases": ["广州", "广州市", "Guangzhou"],
+      "platforms": { "51job": "030200", "boss": "101280100", "liepin": "050020", "linkedin": "Guangzhou, Guangdong, China" }
+    },
+    {
+      "id": "cn-shenzhen", "name": "深圳", "countryCode": "CN",
+      "aliases": ["深圳", "深圳市", "Shenzhen"],
+      "platforms": { "51job": "040000", "boss": "101280600", "liepin": "050090", "linkedin": "Shenzhen, Guangdong, China" }
+    },
+    {
+      "id": "cn-hangzhou", "name": "杭州", "countryCode": "CN",
+      "aliases": ["杭州", "杭州市", "Hangzhou"],
+      "platforms": { "51job": "080200", "boss": "101210100", "liepin": "070020", "linkedin": "Hangzhou, Zhejiang, China" }
+    },
+    {
+      "id": "cn-nanjing", "name": "南京", "countryCode": "CN",
+      "aliases": ["南京", "南京市", "Nanjing"],
+      "platforms": { "51job": "070200", "boss": "101190100", "liepin": "060020", "linkedin": "Nanjing, Jiangsu, China" }
+    },
+    {
+      "id": "cn-suzhou", "name": "苏州", "countryCode": "CN",
+      "aliases": ["苏州", "苏州市", "Suzhou"],
+      "platforms": { "51job": "070300", "boss": "101190400", "liepin": "060080", "linkedin": "Suzhou, Jiangsu, China" }
+    },
+    {
+      "id": "cn-wuhan", "name": "武汉", "countryCode": "CN",
+      "aliases": ["武汉", "武汉市", "Wuhan"],
+      "platforms": { "51job": "180200", "boss": "101200100", "liepin": "170020", "linkedin": "Wuhan, Hubei, China" }
+    },
+    {
+      "id": "cn-chengdu", "name": "成都", "countryCode": "CN",
+      "aliases": ["成都", "成都市", "Chengdu"],
+      "platforms": { "51job": "090200", "boss": "101270100", "liepin": "280020", "linkedin": "Chengdu, Sichuan, China" }
+    },
+    {
+      "id": "cn-xian", "name": "西安", "countryCode": "CN",
+      "aliases": ["西安", "西安市", "Xian", "Xi'an", "Xi’an"],
+      "platforms": { "51job": "200200", "boss": "101110100", "liepin": "270020", "linkedin": "Xi'an, Shaanxi, China" }
+    },
+    { "id": "us", "name": "美国", "countryCode": "US", "aliases": ["US", "USA", "美国", "United States"], "platforms": { "linkedin": "United States" } },
+    { "id": "gb", "name": "英国", "countryCode": "GB", "aliases": ["GB", "UK", "英国", "United Kingdom"], "platforms": { "linkedin": "United Kingdom" } },
+    { "id": "de", "name": "德国", "countryCode": "DE", "aliases": ["DE", "德国", "Germany"], "platforms": { "linkedin": "Germany" } },
+    { "id": "fr", "name": "法国", "countryCode": "FR", "aliases": ["FR", "法国", "France"], "platforms": { "linkedin": "France" } },
+    { "id": "sg", "name": "新加坡", "countryCode": "SG", "aliases": ["SG", "新加坡", "Singapore"], "platforms": { "linkedin": "Singapore" } },
+    { "id": "hk", "name": "中国香港", "countryCode": "HK", "aliases": ["HK", "香港", "中国香港", "Hong Kong"], "platforms": { "linkedin": "Hong Kong SAR" } }
+  ]
+}

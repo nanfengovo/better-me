@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { z } from "zod";
-import { previewLegacyImport, applyLegacyBindings, LegacyImportError, type LegacyImportPreview } from "../src/legacy.ts";
+import { previewLegacyImport, applyLegacyBindings, resolveLegacyCountryCode, LegacyImportError, type LegacyImportPreview } from "../src/legacy.ts";
 import { defineTool, createToolRegistry, ToolError, type ToolDefinition, type TrustedToolContext, type ToolEffect, type ToolResult } from "../src/tools.ts";
 import { AtlasDatasetSchema } from "../src/schema.ts";
 
@@ -79,6 +79,33 @@ test("manual opportunities do not invent URLs, snapshots, country codes or coord
   assert.equal(result.privateBindings[0]!.snapshotId, undefined);
   assert.deepEqual(result.dataset.locations, []);
   assert.ok(result.warnings.some((warning) => warning.code === "manual-source"));
+});
+
+test("legacy country aliases are exact and preserve separate work jurisdictions", async () => {
+  for (const [country, expected] of [["中国", "CN"], ["中国内地", "CN"], ["  Mainland   China  ", "CN"], ["ＣＮ", "CN"],
+    ["中国香港", "HK"], ["Hong Kong", "HK"], ["澳门", "MO"], ["Taiwan", "TW"], ["uSa", "US"], ["英国", "GB"], ["新加坡", "SG"]]) {
+    assert.equal(resolveLegacyCountryCode(country!), expected);
+    const original = fixture(); original.jobs[0]!.location.country = country!;
+    const { dataset } = await previewLegacyImport(original);
+    assert.equal(dataset.locations[0]!.countryCode, expected);
+    assert.equal(dataset.locations[0]!.precision, "unknown"); assert.equal(dataset.locations[0]!.coordinates, undefined);
+  }
+  for (const country of ["", "上海", "Europe", "全球", "中国/美国", "美国公司", "CN/US", "domestic", "China - Shanghai"]) {
+    assert.equal(resolveLegacyCountryCode(country), undefined);
+    const original = fixture(); original.jobs[0]!.location.country = country;
+    const { dataset } = await previewLegacyImport(original);
+    assert.equal(dataset.locations[0]!.countryCode, undefined, country);
+  }
+});
+
+test("market and city labels never become country evidence or override an explicit saved country", async () => {
+  const original = fixture(); original.jobs[0]!.location.country = "";
+  const unknown = await previewLegacyImport(original);
+  assert.equal(unknown.dataset.locations[0]!.countryCode, undefined, "domestic market plus Shanghai city is insufficient");
+  original.jobs[0]!.location.country = "United States";
+  const explicit = await previewLegacyImport(original);
+  assert.equal(explicit.dataset.locations[0]!.countryCode, "US", "explicit country is preserved despite domestic market and Shanghai text");
+  assert.match(explicit.dataset.locations[0]!.raw, /United States/);
 });
 
 test("public changes create new immutable observations while private edits do not change public IDs", async () => {

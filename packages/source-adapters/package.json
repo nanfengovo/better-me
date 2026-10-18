@@ -10,6 +10,16 @@
       "types": "./src/index.ts",
       "import": "./src/index.ts",
       "default": "./dist/index.js"
+    },
+    "./browser-contracts": {
+      "types": "./src/browser-contracts.ts",
+      "import": "./src/browser-contracts.ts",
+      "default": "./dist/browser-contracts.js"
+    },
+    "./platform-search": {
+      "types": "./src/platform-search.ts",
+      "import": "./src/platform-search.ts",
+      "default": "./dist/platform-search.js"
     }
   },
   "scripts": {

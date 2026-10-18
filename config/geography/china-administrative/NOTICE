@@ -1,0 +1,53 @@
+China region selection reference
+===============================
+
+The unmodified catalog.json is dist/pca-code.json from
+modood/Administrative-divisions-of-China, pinned to repository commit
+c49d495b40ac73eb1a66f6eeae5f8fd10696f035 (2025-12-27).
+The data file was last changed at dc3a1d7acd85ca1b0979543e9259604142c52e8e
+(2023-09-13). Upstream licenses this repository under WTFPL Version 2;
+the original license is preserved verbatim in LICENSE.
+
+https://github.com/modood/Administrative-divisions-of-China
+
+Upstream describes the data as the 2023 National Bureau of Statistics
+statistical division snapshot, as of 2023-06-30, published 2023-09-11.
+Its pinned README says that the project is no longer updated and that the
+statistics bureau stopped publishing the individual codes in October 2024.
+This is a historical selection reference, not a statement of current legal
+administrative divisions or proof of current job coverage.
+
+Coverage: 31 mainland province-level units, 342 prefecture-level nodes
+(including statistical grouping nodes), and 3,056 third-level entries.
+Hong Kong (HK), Macao (MO), and Taiwan (TW) are absent from this source.
+The UI separately offers these three existing domestic-market country/region
+codes as region-only choices, labeled as having no subordinate catalog.
+Their map selection keys CN-HK/CN-MO/CN-TW reuse the existing Natural Earth
+display grouping. No cities, districts, county codes or coordinates are
+invented for them. These three choices are not entries in catalog.json.
+
+Of the third-level entries, 2,974 have six-digit statistical codes, including
+some development/management areas, and 82 have nine-digit township codes.
+Dongguan, Zhongshan, Danzhou and Jiayuguan directly list towns, streets or
+functional areas in the upstream third slot. The UI must not label these
+as legally constituted districts or counties. Municipality "市辖区"/"县"
+and province-administered county-level groups retain their original codes
+and names; a display label may add their parent municipality for clarity.
+
+BetterMe uses this file only for province/city/district selection and literal
+matching against already disclosed location text. Catalog membership does
+not establish an employer location, job administrative fields, coordinates,
+office precision, or current availability. No location facts are added to
+jobs and no map coordinates are derived from this directory. Ambiguous short
+city names are omitted from automatic text aliases; unknown locations remain
+unknown. The shared query still requires country and all selected levels on
+the same disclosed location.
+
+provinceMapIds in source-manifest.json copies identifiers only from the
+existing Natural Earth derived china-provinces-10m.geojson by an exact,
+unique Chinese province-name join. Its own source/license notice remains at
+apps/web/src/components/atlas/geo/NOTICE.md. This crosswalk is for map/UI
+selection and literal identifier matching, not enrichment of job facts.
+
+Pinned URLs, source dates, exact file byte sizes, SHA-256 checksums and
+crosswalk provenance are recorded in source-manifest.json.

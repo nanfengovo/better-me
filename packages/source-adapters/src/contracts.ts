@@ -13,6 +13,9 @@ export const SourceScopeSchema = z.object({
   roles: scopeValues(),
   regions: scopeValues(),
   companyNames: scopeValues(),
+  /** Structured work-country evidence, checked locally with regions on the same location.
+   * This field is not an upstream SourceFilter capability. Omitted values preserve legacy scopes. */
+  countryCodes: z.array(CountryCodeSchema).max(300).optional(),
 }).strict();
 export type SourceScope = z.infer<typeof SourceScopeSchema>;
 

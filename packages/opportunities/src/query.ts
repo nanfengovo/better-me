@@ -1,9 +1,10 @@
 import { z } from "zod";
-import { AtlasDatasetSchema, EntityIdSchema, type AtlasDataset, type CanonicalJob, type Company, type JobLocation } from "./schema.js";
+import { AtlasDatasetSchema, CountryCodeSchema, EntityIdSchema, type AtlasDataset, type CanonicalJob, type Company, type JobLocation } from "./schema.js";
 import { deriveEntityId } from "./identity.js";
 import { normalizeCompensation, salaryMetric, FxSnapshotSchema, type FxSnapshot } from "./compensation.js";
 import { distanceToLocations, evaluateLocationDistance, Wgs84CoordinateSchema } from "./geo.js";
 import { classifyCompany, CompanyColorConfigSchema, resolveCompanyColor, type CompanyColorConfig } from "./colors.js";
+import { normalizeGeographicName } from "./geocoding.js";
 
 const ids = () => z.array(z.string().trim().min(1).max(240)).max(200).default([]);
 const entityIds = () => z.array(EntityIdSchema).max(200).default([]);
@@ -16,7 +17,17 @@ export const JobQuerySchema = z.object({
   schemaVersion: z.literal(1).default(1),
   search: z.object({ text: z.string().trim().max(300), mode: z.enum(["fuzzy", "exact"]).default("fuzzy") }).strict().optional(),
   market: z.enum(["domestic", "global", "overseas"]).default("global"),
+  /** Country and region constraints must match the same office, including multi-office jobs. */
+  workCountryCodes: z.array(CountryCodeSchema).max(300).default([]),
   workRegionIds: ids(), companyIds: entityIds(),
+  /** Literal substring of original/structured place text after Unicode, whitespace and case normalization.
+   * No typo correction, administrative hierarchy, translation or inferred coordinates. */
+  workRegionText: z.string().trim().min(1).max(300).optional(),
+  /** Explicit aliases supplied by a caller: OR within a group, AND across groups on the same office.
+   * Literal field-by-field place-text matching; no inferred administrative hierarchy or coordinates. */
+  workRegionGroups: z.array(z.array(z.string().trim().min(1).max(300)).min(1).max(500)).max(3).optional(),
+  /** Explicit canonical-job subset; an empty subset matches nothing. */
+  jobIds: z.array(EntityIdSchema).max(100_000).optional(),
   controllerJurisdictions: z.array(z.union([z.string().regex(/^[A-Z]{2}$/), z.literal("unknown")])).max(300).default([]),
   ownershipKinds: z.array(z.enum(["state", "private", "dispersed", "joint", "unknown"])).max(5).default([]), sourceIds: entityIds(),
   employmentTypes: z.array(z.enum(["social", "campus", "internship", "unknown"])).max(4).default([]),
@@ -92,10 +103,43 @@ export type JobQueryResult = {
 };
 
 const technicalAliases: Record<string, string> = { "dotnet": "dotnet", "csharp": "csharp", "cpp": "cpp", "js": "javascript", "ts": "typescript" };
+const exactTechnicalTerms = new Set(["cpp", "csharp", "dotnet"]);
+const asciiWord = (value: string | undefined) => value !== undefined && /^[a-z0-9_]$/.test(value);
 const compareIds = (left: string, right: string) => left < right ? -1 : left > right ? 1 : 0;
 export function normalizeSearchText(value: string): string {
-  return value.normalize("NFKC").toLowerCase().replace(/\.net\b/g, " dotnet ").replace(/c\+\+/g, " cpp ").replace(/c#/g, " csharp ")
+  return value.normalize("NFKC").toLowerCase()
+    .replace(/(?<![a-z0-9_])\.net(?=$|[^a-z_])|(?<=\basp)\.net(?=$|[^a-z_])|(?<=\bvb)\.net(?=$|[^a-z_])/g, " dotnet ")
+    .replace(/(?<![a-z0-9_])c\+\+/g, " cpp ").replace(/(?<![a-z0-9_])c#/g, " csharp ")
     .replace(/[\p{L}\p{N}_]+/gu, (word) => Object.hasOwn(technicalAliases, word) ? technicalAliases[word]! : word).replace(/[^\p{L}\p{N}_]+/gu, " ").trim().replace(/\s+/g, " ");
+}
+
+/** Literal substring matching keeps symbol-bearing languages distinct from C and near spellings. */
+function containsNormalizedPhrase(haystack: string, term: string): boolean {
+  if (!term) return false;
+  const words = term.split(" ");
+  const protectedStart = exactTechnicalTerms.has(words[0]!);
+  const protectedEnd = exactTechnicalTerms.has(words.at(-1)!);
+  let offset = haystack.indexOf(term);
+  while (offset !== -1) {
+    const end = offset + term.length;
+    if ((!protectedStart || !asciiWord(haystack[offset - 1])) && (!protectedEnd || !asciiWord(haystack[end]))) {
+      let firstStart = offset, firstEnd = offset, lastStart = end, lastEnd = end;
+      while (asciiWord(haystack[firstStart - 1])) firstStart--;
+      while (asciiWord(haystack[firstEnd])) firstEnd++;
+      while (asciiWord(haystack[lastStart - 1])) lastStart--;
+      while (asciiWord(haystack[lastEnd])) lastEnd++;
+      const startsInsideTechnical = firstStart < offset && exactTechnicalTerms.has(haystack.slice(firstStart, firstEnd));
+      const endsInsideTechnical = lastEnd > end && exactTechnicalTerms.has(haystack.slice(lastStart, lastEnd));
+      if (!startsInsideTechnical && !endsInsideTechnical) return true;
+    }
+    offset = haystack.indexOf(term, offset + 1);
+  }
+  return false;
+}
+
+/** Shared source-scope phrase check; no fuzzy rewrite of an upstream keyword or original record. */
+export function includesSearchText(haystack: string, term: string): boolean {
+  return containsNormalizedPhrase(normalizeSearchText(haystack), normalizeSearchText(term));
 }
 
 /** Bounded edit distance over word candidates; short technical tokens retain exact meaning. */
@@ -117,15 +161,17 @@ function closeWord(a: string, b: string): boolean {
   return previous[b.length]! <= max;
 }
 
-function matchesTerm(haystack: string, term: string, fuzzy: boolean): number {
-  if (haystack.includes(term)) return 1;
-  if (!fuzzy) return 0;
+/** Shared matching quality for a normalized field and one normalized query term.
+ * Callers split a query into AND terms; C#/C++/.NET retain exact token meaning. */
+export function getSearchTermMatchQuality(haystack: string, term: string, fuzzy: boolean): number {
+  if (containsNormalizedPhrase(haystack, term)) return 1;
+  if (!fuzzy || exactTechnicalTerms.has(term)) return 0;
   if (/^\p{Script=Han}{3,}$/u.test(term)) {
     const grams = new Set(Array.from({ length: term.length - 1 }, (_, i) => term.slice(i, i + 2)));
     const hits = [...grams].filter((gram) => haystack.includes(gram)).length;
     return hits >= Math.max(2, Math.ceil(grams.size * 0.65)) ? 0.55 : 0;
   }
-  return haystack.split(" ").some((word) => closeWord(term, word)) ? 0.6 : 0;
+  return haystack.split(" ").some((word) => !exactTechnicalTerms.has(word) && closeWord(term, word)) ? 0.6 : 0;
 }
 
 function searchScore(job: CanonicalJob, company: Company, locations: JobLocation[], query: JobQuery, aliases?: Record<string, string[]>): { score: number; fields: string[] } | undefined {
@@ -145,7 +191,7 @@ function searchScore(job: CanonicalJob, company: Company, locations: JobLocation
     const alternatives = [term, ...(aliases && Object.hasOwn(aliases, term) ? aliases[term]! : []).map(normalizeSearchText).filter(Boolean)];
     let best = 0;
     for (const field of normalized) {
-      const quality = Math.max(...alternatives.map((candidate) => matchesTerm(field.value, candidate, query.search!.mode === "fuzzy")));
+      const quality = Math.max(...alternatives.map((candidate) => getSearchTermMatchQuality(field.value, candidate, query.search!.mode === "fuzzy")));
       if (quality) { matched.add(field.field); best = Math.max(best, quality * field.weight); }
     }
     if (!best) return undefined;
@@ -175,6 +221,18 @@ function increment(target: Record<string, number>, key: string): void {
 }
 function regionMatch(location: JobLocation, ids: string[]): boolean {
   return !ids.length || ids.some((id) => [location.regionId, location.countryCode, location.region, location.city].includes(id));
+}
+
+function regionTextMatch(location: JobLocation, text: string | undefined): boolean {
+  return text === undefined || [location.raw, location.regionId, location.region, location.city].some((value) =>
+    value !== undefined && normalizeGeographicName(value).includes(text));
+}
+
+function regionGroupsMatch(location: JobLocation, groups: string[][]): boolean {
+  if (!groups.length) return true;
+  const fields = [location.raw, location.regionId, location.region, location.city]
+    .filter((value): value is string => value !== undefined).map(normalizeGeographicName);
+  return groups.every((group) => group.some((term) => fields.some((value) => value.includes(term))));
 }
 
 function filterSalary(salary: JobSearchItem["salary"], query: JobQuery): boolean {
@@ -251,8 +309,13 @@ export async function queryJobs(inputDataset: AtlasDataset, input: JobQueryInput
   const listings = new Map(dataset.listings.map((listing) => [listing.id, listing]));
   const sources = new Map(dataset.sources.map((source) => [source.sourceId, source]));
   const domestic = new Set(options.domesticCountryCodes ?? ["CN", "HK", "MO", "TW"]);
+  const workRegionText = query.workRegionText === undefined ? undefined : normalizeGeographicName(query.workRegionText);
+  const workRegionGroups = (query.workRegionGroups ?? []).map((group) => group.map(normalizeGeographicName));
+  const hasLocationFilter = query.workCountryCodes.length > 0 || query.workRegionIds.length > 0 || workRegionText !== undefined || workRegionGroups.length > 0;
+  const selectedJobIds = query.jobIds === undefined ? undefined : new Set(query.jobIds);
   const items: JobSearchItem[] = [];
   for (const job of dataset.jobs) {
+    if (selectedJobIds && !selectedJobIds.has(job.id)) continue;
     if (!query.statuses.includes(job.status) || (query.companyIds.length && !query.companyIds.includes(job.companyId)) || (query.workModes.length && !query.workModes.includes(job.workMode)) || (query.employmentTypes.length && !query.employmentTypes.includes(job.employmentType))) continue;
     const company = companies.get(job.companyId)!;
     const facts = companyFacts(company);
@@ -260,9 +323,13 @@ export async function queryJobs(inputDataset: AtlasDataset, input: JobQueryInput
     const jobListings = job.listingIds.map((id) => listings.get(id)!);
     if (query.sourceIds.length && !jobListings.some((listing) => query.sourceIds.includes(listing.sourceId))) continue;
     const jobLocations = job.locationIds.map((id) => locations.get(id)!);
-    let matchedLocations = jobLocations.filter((location) => (query.includeUnknownLocations || location.countryCode !== undefined) && regionMatch(location, query.workRegionIds) && (!query.viewport?.enabled || inBounds(location, query.viewport.bounds)) && (query.market === "global" || (location.countryCode ? domestic.has(location.countryCode) === (query.market === "domestic") : query.includeUnknownLocations)));
-    const spatialFilter = !query.includeUnknownLocations || query.market !== "global" || query.workRegionIds.length > 0 || query.viewport?.enabled;
-    if (spatialFilter && !matchedLocations.length && !(query.includeUnknownLocations && !jobLocations.length && !query.viewport?.enabled && !query.workRegionIds.length)) continue;
+    let matchedLocations = jobLocations.filter((location) => (query.includeUnknownLocations || location.countryCode !== undefined)
+      && (!query.workCountryCodes.length || location.countryCode !== undefined && query.workCountryCodes.includes(location.countryCode))
+      && regionMatch(location, query.workRegionIds) && regionTextMatch(location, workRegionText) && regionGroupsMatch(location, workRegionGroups)
+      && (!query.viewport?.enabled || inBounds(location, query.viewport.bounds))
+      && (query.market === "global" || (location.countryCode ? domestic.has(location.countryCode) === (query.market === "domestic") : query.includeUnknownLocations)));
+    const spatialFilter = !query.includeUnknownLocations || query.market !== "global" || hasLocationFilter || query.viewport?.enabled;
+    if (spatialFilter && !matchedLocations.length && !(query.includeUnknownLocations && !jobLocations.length && !query.viewport?.enabled && !hasLocationFilter)) continue;
     const anchor = options.anchor ? { latitude: options.anchor.latitude, longitude: options.anchor.longitude, coordinateSystem: options.anchor.coordinateSystem } : undefined;
     if (query.distance && anchor) {
       matchedLocations = matchedLocations.filter((location) => {

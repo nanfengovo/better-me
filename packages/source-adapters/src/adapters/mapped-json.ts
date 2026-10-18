@@ -1,23 +1,12 @@
-import { z } from 'zod';
+import { JsonMappingPathSchema, JsonFieldMappingSchema } from "../mapping-contracts.js";
+export { JsonFieldMappingSchema, type JsonFieldMapping } from "../mapping-contracts.js";
 import { ToolError } from '@better-me/opportunities';
 import type { SourceAdapter } from '../contracts.js';
 import { baseRecord, idValue, jsonResponse, page, plainText, publicUrl, timeValue } from './common.js';
 
-const PathSchema = z.string().max(500).refine((path) => path === '' || path.split('.').every((part) =>
-  /^[\p{L}\p{N}_-]{1,100}$/u.test(part) && !['__proto__', 'prototype', 'constructor'].includes(part)), 'Expected a finite own-property field path');
-export const JsonFieldMappingSchema = z.object({
-  recordsPath: PathSchema.default(''),
-  idPath: PathSchema.optional(), titlePath: PathSchema,
-  urlPath: PathSchema.optional(), applicationUrlPath: PathSchema.optional(), companyPath: PathSchema.optional(),
-  descriptionPath: PathSchema.optional(), locationsPath: PathSchema.optional(), salaryTextPath: PathSchema.optional(),
-  publishedPath: PathSchema.optional(), updatedPath: PathSchema.optional(),
-  discoveryOnly: z.boolean().default(true),
-}).strict();
-export type JsonFieldMapping = z.infer<typeof JsonFieldMappingSchema>;
-
 /** No eval, bracket expressions, wildcards, getters, prototype traversal or JavaScript mapping code. */
 export function readJsonField(value: unknown, path: string): unknown {
-  if (!PathSchema.safeParse(path).success) throw new ToolError('invalid-input');
+  if (!JsonMappingPathSchema.safeParse(path).success) throw new ToolError('invalid-input');
   if (path === '') return value;
   let cursor: unknown = value;
   for (const part of path.split('.')) {

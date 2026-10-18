@@ -57,11 +57,14 @@ export class SourceRegistry {
     const value = page.data;
     if (value.observedAt !== request.context.observedAt || value.records.length > source.data.refreshPolicy.maxRecords ||
         value.records.some((record) => !resolution.adapter.entityTypes.includes(record.entityType))) throw new SourceRegistryError("invalid-output");
-    const requestedFilters = (Object.keys(scope.data) as SourceFilter[]).filter((filter) => scope.data[filter].length > 0);
+    const requestedFilters = (["roles", "regions", "companyNames"] as SourceFilter[]).filter((filter) => scope.data[filter].length > 0);
     if (value.coverage.appliedFilters.some((filter) => !resolution.remoteFilters.includes(filter) || !requestedFilters.includes(filter)) ||
         value.coverage.ignoredFilters.some((filter) => !requestedFilters.includes(filter)) ||
         requestedFilters.some((filter) => !value.coverage.appliedFilters.includes(filter) && !value.coverage.ignoredFilters.includes(filter))) throw new SourceRegistryError("invalid-output");
-    return value;
+    return scope.data.countryCodes?.length ? { ...value, warnings: [...new Set([
+      "Country-code constraints are checked locally on the same location as region interests; no upstream country-filter support is claimed.",
+      ...value.warnings,
+    ])].slice(0, 100) } : value;
   }
 }
 

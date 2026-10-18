@@ -1,0 +1,3 @@
+# Keep the pinned upstream data and license bytes identical on Windows and Linux.
+/catalog.json -text
+/LICENSE -text

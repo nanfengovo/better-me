@@ -2,7 +2,7 @@
 
 `@better-me/job-service` 提供独立的 TypeScript 本机服务：把受控来源的公开岗位记录保存到 SQLite，以同一套应用工具服务 HTTP 查询和后续 Agent 适配。它不读取浏览器简历、Fact、投递材料、联系人、API Key 或浏览器 profile。
 
-这是岗位地图的 M1 服务底座。当前尚未提供国内 / 全球三维地图界面、地图与既有机会库的界面联动、自动跨源同岗归并、LangChain / LangGraph Agent、定时刷新或真实用户私人数据迁移。原有四平台单岗读取不等于本服务已经实现这些平台的全站搜索。
+这是岗位地图的本机服务底座，包含 M1 HTTP / 采集能力及 M2 repository 层的人工归并与撤销。归并 API 尚未接入应用工具或 HTTP；三维地图、私人机会工作台联动、LangChain / LangGraph Agent、定时刷新及真实用户迁移需分别验收。原有四平台单岗读取不等于本服务已经实现这些平台的全站搜索。
 
 ## 环境与启动
 
@@ -62,7 +62,7 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/jobs/search" -Headers $jobHe
 | --- | --- | --- |
 | GET | `/healthz` | 认证后的进程存活检查。 |
 | POST | `/api/v1/jobs/search` | `jobs.search`；直接传共享 `JobQuery`。 |
-| GET | `/api/v1/jobs/:jobId` | `jobs.read-detail`；岗位、公司、全部来源、观察与 JD 快照。 |
+| GET | `/api/v1/jobs/:jobId` | `jobs.read-detail`；旧 ID 按本次快照解析到规范岗位，返回公司、全部来源、观察与 JD 快照。 |
 | GET | `/api/v1/sources` | `sources.list`；已保存来源及当前安装的适配器能力。 |
 | POST | `/api/v1/sources` | `sources.register`；`{ source, expectedRevision? }`，修改既有配置需版本号。 |
 | POST | `/api/v1/sources/:sourceId/preview` | `sources.preview`；`{ scope?, maxRecords? }`，读取一页，不写岗位索引。 |
@@ -105,11 +105,35 @@ SQLite 持久保存来源、公司、岗位、位置、薪资、来源 listing�
 
 数据库已建立 FTS5 和 RTree，但 **当前业务查询仍读取完整一致性快照并执行共享查询逻辑**。`candidateIds()` 的 `indexedHits` 仅为诊断，真实候选返回全部岗位的 `safe-superset`，避免漏掉模糊词、中文、未知位置或远程岗位。写入当前会重建辅助索引；还未完成查询下推或大规模性能验收，不能把“已有索引表”表述为已完成高性能搜索。
 
+## 人工跨源归并：repository 接口
+
+数据库 schema v2 增加原始岗位投影 `base_jobs`、不可变决策、当前 / 历史岗位别名及岗位版本高水位。已有 schema v1 SQLite 文件会在事务中升级，保留岗位 ID、来源、观察和 JD。以下接口可由可信应用代码调用，**当前 HTTP 路由表尚未提供归并入口**。
+
+| repository 方法 | 行为 |
+| --- | --- |
+| `listMergeCandidates({ limit?, requisitionLinks? })` | 可解释的待确认候选；排除尚未撤销的拒绝决策。相同标题和企业名不会触发自动写入。 |
+| `mergeJobs({ targetJobId, sourceJobId, reason, companyIdentityConfirmed?, requisitionLinks? }, writeOptions)` | 显式合并，采用目标岗位的摘要；不同企业实体且缺共同已核实法人时，必须人工确认企业身份。 |
+| `rejectMerge({ leftJobId, rightJobId, reason }, writeOptions)` | 保存拒绝提案的理由；来源刷新不会清掉该决策。 |
+| `revokeMerge({ decisionId, reason }, writeOptions)` | 原决策身份撤销合并或拒绝；每条合并边可独立拆回，撤销本身也保留为不可变事件。 |
+| `listMergeDecisions()` | 按 revision 返回完整决策审计记录。 |
+| `resolveJobId(jobId, { atRevision? })` | 将旧 ID 解析到当前或指定 revision 的规范 ID，并返回完整别名历史；未知 ID 返回 `undefined`。 |
+| `readReconciliationConflicts(jobId)` | 返回当前规范 ID、选定摘要来源、冲突预览及有效决策 ID；完整原文仍从各来源观察 / 快照读取。 |
+| `readSnapshot()` | 当前去重后的公共快照，供搜索、地图计数和公共导出使用。 |
+| `readProjectionSnapshot()` | 各来源的原始岗位 / listing 归属，供 `projectSourcePage()` 和来源导入使用；保留当前全局 revision。 |
+
+`writeOptions` 必须包含 `{ expectedRevision, actorScope, idempotencyKey }`。人工决策、规范投影、索引、别名历史、受影响来源任务失效和耐久回执在同一事务提交；陈旧 revision 拒绝写入，同键同输入可以在重启后重放。已有 `jobId` 和 `snapshotId` 保留，私人收藏 / 投递无需被归并代码改写。
+
+合并保留所有 listing、不可变观察和 JD、薪资、位置及字段冲突。规范岗位按最近一次有效合并所选目标来源提供标量摘要；来源刷新仍更新各自原始投影，未选中来源的新标题或 JD 不静默取代人工摘要来源。撤销合并恢复各自最新投影。多源地点和薪资保留为集合，查询继续按共享规则报告歧义；不会默认采用最高工资或把冲突状态当已核实。
+
+现有 application 已接通归并兼容：**来源刷新从 `readProjectionSnapshot()` 调用 `projectSourcePage()`**，查询与公共导出继续使用 `readSnapshot()`。详情先捕获公共快照，再以其 revision 调用 `resolveJobId()`，避免合并 / 撤销发生在异步读取间时混用不同版本。现有 HTTP 路由复用这些应用工具，无须增加路由；人工归并写入仍只由可信 repository API 提供，尚无归并 UI 或 HTTP 写入入口。候选发现与投影尚未做规模优化，测试通过不代表大量来源下的吞吐结论。
+
 ## 一致性、备份与部署
 
 写入、版本号和耐久幂等回执在同一个 SQLite 事务内提交。取消、同源新任务和来源配置变更使用代次校验，迟到结果不能覆盖新任务。进程内工具结果缓存不等于这些耐久回执；涉及外部网络的读取本身也不具备事务回滚。
 
-`GET /api/v1/dataset/export` 是公共领域交换格式，不包含任务、回执和 leads，不能当作完整仓库备份。仓库层提供 `repository.backup()` / `repository.restore(backup, { expectedRevision, actorScope, idempotencyKey })`：版本化完整备份包含公共数据、任务、回执和线索，恢复是显式原子替换，运行中任务恢复为已取消。当前没有 HTTP 恢复路由或 CLI 备份 / 恢复命令；集成方应通过可信应用代码调用，不应在服务运行时只复制主 SQLite 文件而遗漏 WAL。
+`GET /api/v1/dataset/export` 是公共领域交换格式，不包含任务、回执、leads、归并原始投影或决策历史，不能当作完整仓库备份。已合并的公共投影也不能重新覆盖原始岗位，必须使用完整备份保留拆分能力。
+
+仓库层提供 `repository.backup()` / `repository.restore(backup, { expectedRevision, actorScope, idempotencyKey })`：schema v2 完整备份包含公共数据、任务、回执、线索、原始岗位、决策、别名历史及岗位版本计数；仍接受 v1 仓库备份并将其作为未归并数据恢复。恢复先校验内容哈希、领域引用、决策引用 / 身份 / 先后关系、当前别名与投影一致性，再原子替换，运行中任务恢复为已取消。当前没有 HTTP 恢复路由或 CLI 备份 / 恢复命令；集成方应通过可信应用代码调用，不应在服务运行时只复制主 SQLite 文件而遗漏 WAL。
 
 GitHub Pages 与现有 nginx Docker 镜像仍然只发布静态网页。本包参与工作区检查 / 编译，不会自动运行在静态容器或 Pages 上。当前 HTTP 只允许本机回环并使用单一 `local-owner` 身份；服务器部署需另行实现服务器身份认证、授权与部署运行配置，不能直接把监听地址改为公网使用。
 
@@ -122,4 +146,4 @@ pnpm --filter @better-me/job-service typecheck
 pnpm --filter @better-me/job-service test
 ```
 
-仓库根 `pnpm test` 和 `pnpm lint` 已包含本包。自动化覆盖临时目录中的真实 SQLite 事务、重开、回执、来源范围、取消 / 迟到、备份恢复、投影历史、受控 HTTP 以及生命周期；这些合成检查不代表所有真实来源长期可用、生产服务器部署、私人迁移或三维地图已验收。
+仓库根 `pnpm test` 和 `pnpm lint` 已包含本包。自动化覆盖临时目录中的真实 SQLite 事务、重开、回执、来源范围、取消 / 迟到、备份恢复、投影历史、受控 HTTP 以及生命周期。`tests/reconciliation.test.ts` 还覆盖同名不自动归并、人工身份确认、嵌套合并 / 独立撤销、源刷新后拆回最新 JD / 地点 / 薪资、旧 ID 历史解析、实际 SQL 写入故障整笔回滚、v2 完整备份及持久 v1 SQLite 升级。`tests/application-reconciliation.test.ts` 进一步通过实际 HTTP 验证合并后刷新、旧 ID 详情、规范搜索 / 导出和撤销最新来源，并覆盖 v1 升级后应用兼容及读取期间并发合并 / 撤销的快照一致性。证据见 [M2 归并报告](../../docs/reports/job-atlas-m2-reconciliation-2026-10-18.md)。这些合成检查不代表所有真实来源长期可用、生产服务器部署、私人迁移或三维地图已验收。

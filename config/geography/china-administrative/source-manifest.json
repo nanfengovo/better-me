@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "datasetId": "china-statistical-divisions-pca-2023",
+  "repository": "https://github.com/modood/Administrative-divisions-of-China",
+  "revision": "c49d495b40ac73eb1a66f6eeae5f8fd10696f035",
+  "revisionDate": "2025-12-27T10:03:06Z",
+  "dataFileRevision": "dc3a1d7acd85ca1b0979543e9259604142c52e8e",
+  "dataFileRevisionDate": "2023-09-13T01:31:33Z",
+  "retrievedAt": "2026-10-18T23:37:55.4419161+08:00",
+  "dataAsOf": "2023-06-30",
+  "upstreamPublicationDate": "2023-09-11",
+  "upstreamMaintenance": "discontinued",
+  "license": "WTFPL-2.0",
+  "licenseFile": "LICENSE",
+  "sourceReadme": "https://github.com/modood/Administrative-divisions-of-China/blob/c49d495b40ac73eb1a66f6eeae5f8fd10696f035/README.md",
+  "files": [
+    {
+      "file": "catalog.json",
+      "source": "https://raw.githubusercontent.com/modood/Administrative-divisions-of-China/c49d495b40ac73eb1a66f6eeae5f8fd10696f035/dist/pca-code.json",
+      "bytes": 136996,
+      "sha256": "83b7536f853ad16beb4d37b92890a3fd7bb9d33d4f37e7c8885fb948749a9bc4"
+    },
+    {
+      "file": "LICENSE",
+      "source": "https://raw.githubusercontent.com/modood/Administrative-divisions-of-China/c49d495b40ac73eb1a66f6eeae5f8fd10696f035/LICENSE",
+      "bytes": 479,
+      "sha256": "ee820ff0db4ce628569e0975ac27dc926052a9f85d102b101edb104311ef4d90"
+    }
+  ],
+  "counts": {
+    "sixDigitStatisticalAreas": 2974,
+    "provinceLevel": 31,
+    "thirdLevelEntries": 3056,
+    "prefectureNodesIncludingStatisticalGroups": 342,
+    "nineDigitTownshipsAndFunctionalAreas": 82
+  },
+  "coverage": {
+    "coordinates": false,
+    "jobFacts": false,
+    "included": "31 mainland province-level units in the upstream 2023 statistical snapshot",
+    "currentAdministrativeAuthority": false,
+    "excluded": [
+      "HK",
+      "MO",
+      "TW"
+    ],
+    "thirdLevel": "Statistical county-level entries include functional areas; some prefecture cities directly list nine-digit towns, streets and functional areas. These are not relabeled as legal counties."
+  },
+  "provinceMapIds": {
+    "11": "CN-BJ",
+    "12": "CN-TJ",
+    "13": "CN-HE",
+    "14": "CN-SX",
+    "15": "CN-NM",
+    "21": "CN-LN",
+    "22": "CN-JL",
+    "23": "CN-HL",
+    "31": "CN-SH",
+    "32": "CN-JS",
+    "33": "CN-ZJ",
+    "34": "CN-AH",
+    "35": "CN-FJ",
+    "36": "CN-JX",
+    "37": "CN-SD",
+    "41": "CN-HA",
+    "42": "CN-HB",
+    "43": "CN-HN",
+    "44": "CN-GD",
+    "45": "CN-GX",
+    "46": "CN-HI",
+    "50": "CN-CQ",
+    "51": "CN-SC",
+    "52": "CN-GZ",
+    "53": "CN-YN",
+    "54": "CN-XZ",
+    "61": "CN-SN",
+    "62": "CN-GS",
+    "63": "CN-QH",
+    "64": "CN-NX",
+    "65": "CN-XJ"
+  },
+  "provinceMapIdProvenance": {
+    "file": "apps/web/src/components/atlas/geo/china-provinces-10m.geojson",
+    "method": "Exact unique match of upstream province name to existing public-domain Natural Earth derived feature.properties.nameZh, copying feature.properties.id only. No coordinates are copied.",
+    "notice": "apps/web/src/components/atlas/geo/NOTICE.md",
+    "sha256": "35e62dbe24bd11ee0645164b4a7b5f8604cc4f7e930dcd896f0ca8ab17e1130d"
+  },
+  "supplementalUiRegions": {
+    "scope": "Region-only selection, no subordinate administrative directory or derived job facts",
+    "source": "Existing domestic-market code policy and existing Natural Earth map display grouping",
+    "mapIds": {
+      "HK": "CN-HK",
+      "MO": "CN-MO",
+      "TW": "CN-TW"
+    },
+    "codes": [
+      "HK",
+      "MO",
+      "TW"
+    ],
+    "catalogAvailable": false
+  }
+}

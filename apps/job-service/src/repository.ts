@@ -3,12 +3,16 @@ import { DatabaseSync } from "node:sqlite";
 import {
   AtlasDatasetObjectSchema, AtlasDatasetSchema, normalizeSearchText,
   SourceDefinitionSchema, type AtlasDataset, type Company, type CanonicalJob, type SourceListing,
+  CanonicalJobSchema, EntityIdSchema, MergeDecisionSchema, ReconciliationReceiptSchema, JobAliasEventSchema,
+  ConfirmMergeInputSchema, RejectMergeInputSchema, RevokeMergeInputSchema, explainMergeCandidate,
+  findMergeCandidates, projectReconciliation,
+  type MergeDecision, type ReconciliationReceipt, type JobAliasEvent, type ConfirmMergeInput, type OfficialRequisitionLink,
 } from "@better-me/opportunities";
 import {
   ActorScopeSchema, IdempotencyKeySchema, SyncRunSchema, RunScopeSchema, PublicRunSummarySchema,
   RequestFingerprintSchema,
-  ImportReceiptSchema, RepositoryBackupSchema, REPOSITORY_SCHEMA_VERSION, REPOSITORY_MIGRATION_V1,
-  APPEND_ONLY_TRIGGERS, type ImportReceipt, type SyncRun, type RunScope, type PublicRunSummary,
+  ImportReceiptSchema, RepositoryBackupSchema, REPOSITORY_SCHEMA_VERSION, REPOSITORY_MIGRATION_V1, REPOSITORY_MIGRATION_V2,
+  APPEND_ONLY_TRIGGERS, RECONCILIATION_TRIGGERS, type ImportReceipt, type SyncRun, type RunScope, type PublicRunSummary,
   type RepositoryBackup, type StoredReceipt, DiscoveryLeadSchema, DiscoveryLeadReceiptSchema,
   type DiscoveryLead, type DiscoveryLeadReceipt,
 } from "./repository-schema.js";
@@ -28,6 +32,7 @@ export class RepositoryError extends Error {
 export type ImportOptions = { expectedRevision?: number; actorScope: string; idempotencyKey: string; runId?: string };
 export type StartRunOptions = { sourceId: string; scope: RunScope; actorScope: string; idempotencyKey: string; requestFingerprint?: string };
 export type FindRunByRequestOptions = { actorScope: string; idempotencyKey: string; requestFingerprint: string };
+export type ReconciliationWriteOptions = Omit<ImportOptions, "runId"> & { expectedRevision: number };
 export type CandidateQuery = { search?: string; mode?: "exact" | "fuzzy"; viewport?: [number, number, number, number] };
 export type CandidateResult = { jobIds: string[]; indexedHits: string[]; exact: false; reason: "safe-superset"; snapshotVersion: number };
 
@@ -142,13 +147,20 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       const tables = db.prepare("SELECT name FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%'").all();
       if (tables.length) throw new RepositoryError("unsupported-schema");
       db.exec("BEGIN IMMEDIATE");
-      try { db.exec(REPOSITORY_MIGRATION_V1); db.exec(APPEND_ONLY_TRIGGERS); db.exec(`PRAGMA user_version=${REPOSITORY_SCHEMA_VERSION}; COMMIT;`); }
+      try { db.exec(REPOSITORY_MIGRATION_V1); db.exec(APPEND_ONLY_TRIGGERS); db.exec("PRAGMA user_version=1; COMMIT;"); }
+      catch (error) { db.exec("ROLLBACK"); throw error; }
+    }
+    if (version < 2) {
+      db.exec("BEGIN IMMEDIATE");
+      try { db.exec(REPOSITORY_MIGRATION_V2); db.exec(RECONCILIATION_TRIGGERS); db.exec("PRAGMA user_version=2; COMMIT;"); }
       catch (error) { db.exec("ROLLBACK"); throw error; }
     }
     db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;");
     // Opening a file with a matching user_version is not sufficient proof of this schema.
     db.prepare("SELECT value FROM metadata WHERE key='revision'").get();
     for (const table of TABLES) db.prepare(`SELECT id,document FROM ${table} LIMIT 0`).all();
+    db.prepare("SELECT id,document FROM base_jobs LIMIT 0").all();
+    db.prepare("SELECT id,revision,document FROM merge_decisions LIMIT 0").all();
     const check = db.prepare("PRAGMA quick_check").get() as Record<string, unknown>;
     if (Object.values(check)[0] !== "ok") throw new RepositoryError("storage-error");
   } catch (error) { db.close(); throw error instanceof RepositoryError ? error : new RepositoryError("storage-error"); }
@@ -175,7 +187,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     if (row.signature !== expectedSignature) throw new RepositoryError("idempotency-conflict");
     return JSON.parse(row.response) as T;
   }
-  function saveReceipt(actorScope: string, tool: string, idempotencyKey: string, requestSignature: string, result: ImportReceipt | SyncRun | DiscoveryLeadReceipt) {
+  function saveReceipt(actorScope: string, tool: string, idempotencyKey: string, requestSignature: string, result: ImportReceipt | SyncRun | DiscoveryLeadReceipt | ReconciliationReceipt) {
     db.prepare("INSERT INTO receipts(actor_scope,tool,idempotency_key,signature,response,created_at) VALUES (?,?,?,?,?,?)").run(actorScope, tool, idempotencyKey, requestSignature, json(result), now());
   }
   function runById(runId: string): SyncRun | undefined {
@@ -194,6 +206,54 @@ export function openJobRepository(path: string, options: { now?: () => string } 
   function saveRun(run: SyncRun) {
     const clean = checked(SyncRunSchema, run);
     db.prepare("INSERT INTO runs(id,source_id,generation,status,document) VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,document=excluded.document").run(clean.runId, clean.sourceId, clean.generation, clean.status, json(clean));
+  }
+  function decisions(): MergeDecision[] {
+    return (db.prepare("SELECT document FROM merge_decisions ORDER BY revision").all() as Array<{ document: string }>).map((row) => checked(MergeDecisionSchema, JSON.parse(row.document)));
+  }
+  function baseSnapshot(current = read()): AtlasDataset {
+    const jobs = (db.prepare("SELECT document FROM base_jobs ORDER BY id").all() as Array<{ document: string }>).map((row) => checked(CanonicalJobSchema, JSON.parse(row.document)));
+    const owner = new Map(jobs.flatMap((job) => job.listingIds.map((id) => [id, job.id] as const)));
+    return checked(AtlasDatasetSchema, { ...current, jobs, listings: current.listings.map((listing) => ({ ...listing, ...(owner.has(listing.id) ? { canonicalJobId: owner.get(listing.id) } : {}) })) });
+  }
+  function writeBaseJobs(jobs: readonly CanonicalJob[], replace = false) {
+    if (replace) db.exec("DELETE FROM base_jobs");
+    for (const job of jobs) db.prepare("INSERT INTO base_jobs(id,document) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document").run(job.id, json(job));
+  }
+  function canonicalProjection(base: AtlasDataset, current: AtlasDataset, entries: readonly MergeDecision[], changedAt: string) {
+    const projection = projectReconciliation(base, entries);
+    const old = new Map(current.jobs.map((job) => [job.id, job]));
+    const body = (job: CanonicalJob) => { const { revision: _revision, updatedAt: _updatedAt, ...value } = job; return value; };
+    projection.dataset.jobs = projection.dataset.jobs.map((job) => {
+      const previous = old.get(job.id);
+      if (!previous && !db.prepare("SELECT job_id FROM job_versions WHERE job_id=?").get(job.id)) return job;
+      const count = projection.aliases.filter((alias) => alias.canonicalJobId === job.id).length;
+      if (previous && same(body(previous), body(job))) return count === 1 && job.revision > previous.revision ? job : previous;
+      const counter = db.prepare("SELECT revision FROM job_versions WHERE job_id=?").get(job.id) as { revision: number } | undefined;
+      const version = Math.max(job.revision, counter ? counter.revision + 1 : 0, previous ? previous.revision + 1 : 0);
+      const updatedAt = [job.updatedAt, ...(previous ? [previous.updatedAt] : []), changedAt].sort((a, b) => Date.parse(b) - Date.parse(a))[0]!;
+      return { ...job, revision: version, updatedAt };
+    });
+    projection.dataset = checked(AtlasDatasetSchema, projection.dataset);
+    return projection;
+  }
+  function saveAliases(aliases: readonly { jobId: string; canonicalJobId: string }[], version: number, at: string, decisionId?: string) {
+    const previous = new Map((db.prepare("SELECT job_id,canonical_job_id FROM job_aliases").all() as Array<{ job_id: string; canonical_job_id: string }>).map((row) => [row.job_id, row.canonical_job_id]));
+    db.exec("DELETE FROM job_aliases");
+    for (const alias of aliases) {
+      db.prepare("INSERT INTO job_aliases VALUES (?,?)").run(alias.jobId, alias.canonicalJobId);
+      if (previous.get(alias.jobId) !== alias.canonicalJobId) {
+        const event: JobAliasEvent = { ...alias, revision: version, at, ...(decisionId ? { decisionId } : {}) };
+        db.prepare("INSERT INTO job_alias_history(job_id,revision,document) VALUES (?,?,?)").run(alias.jobId, version, json(event));
+      }
+    }
+  }
+  function supersedeSources(dataset: AtlasDataset, jobIds: readonly string[], reason: string) {
+    const sources = new Set(dataset.listings.filter((listing) => listing.canonicalJobId && jobIds.includes(listing.canonicalJobId)).map((listing) => listing.sourceId));
+    const active = db.prepare("SELECT document FROM runs WHERE status='running'").all() as Array<{ document: string }>;
+    for (const row of active) {
+      const run = checked(SyncRunSchema, JSON.parse(row.document));
+      if (sources.has(run.sourceId)) saveRun({ ...run, status: "superseded", finishedAt: now(), summary: { partial: true, errorCode: reason } });
+    }
   }
   function write(dataset: AtlasDataset, replace = false) {
     if (replace) {
@@ -224,6 +284,9 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       } else db.prepare(`INSERT INTO ${table}(id,document) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document`).run(id, document);
     }
     db.exec("DELETE FROM job_locations; DELETE FROM job_compensations; DELETE FROM job_listings; DELETE FROM listing_observations; DELETE FROM location_rtree; DELETE FROM location_rtree_ids; DELETE FROM jobs_fts;");
+    const activeJobIds = new Set(dataset.jobs.map((job) => job.id));
+    for (const row of db.prepare("SELECT id FROM jobs").all() as Array<{ id: string }>) if (!activeJobIds.has(row.id)) db.prepare("DELETE FROM jobs WHERE id=?").run(row.id);
+    for (const job of dataset.jobs) db.prepare("INSERT INTO job_versions VALUES (?,?) ON CONFLICT(job_id) DO UPDATE SET revision=MAX(revision,excluded.revision)").run(job.id, job.revision);
     const companyById = new Map(dataset.companies.map((company) => [company.id, company]));
     for (const job of dataset.jobs) {
       for (const id of job.locationIds) db.prepare("INSERT INTO job_locations VALUES (?,?)").run(job.id, id);
@@ -298,9 +361,33 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     const addedIds = (table: "listings" | "observations" | "snapshots") => { const oldIds = new Set(current[table].map((value) => value.id)); return incoming[table].filter((value) => !oldIds.has(value.id)).length; };
     return { newJobs: added, updatedJobs: updated, unchangedJobs: unchanged, newListings: addedIds("listings"), newObservations: addedIds("observations"), newSnapshots: addedIds("snapshots") };
   }
+  function aliasId(jobId: string): string | undefined {
+    return (db.prepare("SELECT canonical_job_id FROM job_aliases WHERE job_id=?").get(jobId) as { canonical_job_id: string } | undefined)?.canonical_job_id;
+  }
+  function assertWriteVersion(writeOptions: ReconciliationWriteOptions, current: AtlasDataset) {
+    validateOptions(writeOptions);
+    if (writeOptions.expectedRevision === undefined || writeOptions.expectedRevision !== current.revision) throw new RepositoryError("stale-version");
+  }
+  function commitDecision(current: AtlasDataset, entry: MergeDecision, options: ReconciliationWriteOptions, tool: string, requestSignature: string): ReconciliationReceipt {
+    const base = baseSnapshot(current);
+    const prior = decisions();
+    const revoked = entry.kind === "revoke" ? prior.find((decision) => decision.id === entry.targetDecisionId) : undefined;
+    const affected = entry.kind === "merge" ? [entry.targetJobId, entry.sourceJobId] : revoked?.kind === "merge" ? [aliasId(revoked.targetJobId), aliasId(revoked.sourceJobId)].filter((id): id is string => Boolean(id)) : [];
+    const projection = canonicalProjection(base, current, [...prior, entry], entry.at);
+    projection.dataset.revision = entry.revision;
+    db.prepare("INSERT INTO merge_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
+    write(projection.dataset);
+    saveAliases(projection.aliases, entry.revision, entry.at, entry.id);
+    if (affected.length) supersedeSources(current, affected, "reconciliation-changed");
+    const result: ReconciliationReceipt = { ok: true, revision: entry.revision, decision: entry, aliases: projection.aliases };
+    saveReceipt(options.actorScope, tool, options.idempotencyKey, requestSignature, result);
+    return result;
+  }
 
   return {
     async readSnapshot(): Promise<AtlasDataset> { return transaction(read); },
+    /** Ingestion-only origins: never use this view for map totals or user-facing search. */
+    async readProjectionSnapshot(): Promise<AtlasDataset> { return transaction(() => baseSnapshot()); },
     async importSnapshot(input: unknown, importOptions: ImportOptions): Promise<ImportReceipt> {
       validateOptions(importOptions);
       const incoming = checked(AtlasDatasetObjectSchema, input);
@@ -311,15 +398,102 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const current = read();
         if (importOptions.expectedRevision !== undefined && current.revision !== importOptions.expectedRevision) throw new RepositoryError("stale-version");
         const run = importOptions.runId ? currentRun(importOptions.runId, importOptions.actorScope) : undefined;
-        const next = merged(current, incoming);
-        if (run) validateRunDelta(incoming, next, current, run);
-        verifyContentHashes(next);
-        const changed = TABLES.some((table) => !same(current[table], next[table]));
+        const base = baseSnapshot(current);
+        const nextBase = merged(base, incoming);
+        if (run) validateRunDelta(incoming, nextBase, base, run);
+        verifyContentHashes(nextBase);
+        const projection = canonicalProjection(nextBase, current, decisions(), now());
+        const next = projection.dataset;
+        const changed = TABLES.some((table) => !same(base[table], nextBase[table])) || TABLES.some((table) => !same(current[table], next[table]));
         next.revision = current.revision + Number(changed);
-        const result: ImportReceipt = { ok: true, revision: next.revision, jobIds: incoming.jobs.map((job) => job.id), snapshotIds: incoming.snapshots.map((snapshot) => snapshot.id), counts: counts(current, next, incoming) };
-        if (changed) write(next);
+        const targets = new Set(incoming.jobs.map((job) => projection.aliases.find((alias) => alias.jobId === job.id)!.canonicalJobId));
+        const effectiveIncoming = { ...incoming, jobs: next.jobs.filter((job) => targets.has(job.id)) };
+        const result: ImportReceipt = { ok: true, revision: next.revision, jobIds: effectiveIncoming.jobs.map((job) => job.id), snapshotIds: incoming.snapshots.map((snapshot) => snapshot.id), counts: counts(current, next, effectiveIncoming) };
+        if (changed) { writeBaseJobs(nextBase.jobs); write(next); saveAliases(projection.aliases, next.revision, now()); }
         saveReceipt(importOptions.actorScope, "dataset.import", importOptions.idempotencyKey, requestSignature, result);
         return result;
+      });
+    },
+    async listMergeCandidates(options: { limit?: number; requisitionLinks?: readonly OfficialRequisitionLink[] } = {}) {
+      const state = transaction(() => ({ dataset: read(), decisions: decisions() }));
+      const revoked = new Set(state.decisions.filter((decision) => decision.kind === "revoke").map((decision) => decision.targetDecisionId));
+      const rejected = new Set(state.decisions.filter((decision): decision is Extract<MergeDecision, { kind: "reject" }> => decision.kind === "reject" && !revoked.has(decision.id)).map((decision) => JSON.stringify([decision.leftJobId, decision.rightJobId].sort(compareIds))));
+      return (await findMergeCandidates(state.dataset, options)).filter((candidate) => !rejected.has(JSON.stringify([candidate.leftJobId, candidate.rightJobId].sort(compareIds))));
+    },
+    async listMergeDecisions(): Promise<MergeDecision[]> { return transaction(decisions); },
+    async resolveJobId(jobId: string, options: { atRevision?: number } = {}) {
+      checked(EntityIdSchema, jobId);
+      if (options.atRevision !== undefined && (!Number.isSafeInteger(options.atRevision) || options.atRevision < 0)) throw new RepositoryError("invalid-data");
+      return transaction(() => {
+        const history = (db.prepare("SELECT document FROM job_alias_history WHERE job_id=? ORDER BY revision,sequence").all(jobId) as Array<{ document: string }>).map((row) => checked(JobAliasEventSchema, JSON.parse(row.document)));
+        const canonicalJobId = options.atRevision === undefined ? aliasId(jobId) : history.filter((event) => event.revision <= options.atRevision!).at(-1)?.canonicalJobId;
+        if (!canonicalJobId) return undefined;
+        return { requestedJobId: jobId, canonicalJobId, snapshotRevision: revision(), history };
+      });
+    },
+    async readReconciliationConflicts(jobId: string) {
+      checked(EntityIdSchema, jobId);
+      return transaction(() => {
+        const current = read(); const canonicalJobId = aliasId(jobId);
+        if (!canonicalJobId) throw new RepositoryError("not-found");
+        const projection = projectReconciliation(baseSnapshot(current), decisions());
+        return projection.conflicts.find((group) => group.canonicalJobId === canonicalJobId) ?? { canonicalJobId, summaryJobId: canonicalJobId, conflicts: [], decisionIds: [] };
+      });
+    },
+    async mergeJobs(input: ConfirmMergeInput, writeOptions: ReconciliationWriteOptions): Promise<ReconciliationReceipt> {
+      validateOptions(writeOptions); const parsed = checked(ConfirmMergeInputSchema, input);
+      const requestSignature = signature({ input: parsed, expectedRevision: writeOptions.expectedRevision });
+      const state = transaction(() => {
+        const cached = receipt<ReconciliationReceipt>(writeOptions.actorScope, "jobs.merge", writeOptions.idempotencyKey, requestSignature);
+        if (cached) return { cached: checked(ReconciliationReceiptSchema, cached) };
+        const current = read(); assertWriteVersion(writeOptions, current);
+        const targetJobId = aliasId(parsed.targetJobId); const sourceJobId = aliasId(parsed.sourceJobId);
+        if (!targetJobId || !sourceJobId) throw new RepositoryError("not-found");
+        if (targetJobId === sourceJobId) throw new RepositoryError("conflict");
+        return { current, targetJobId, sourceJobId };
+      });
+      if (state.cached) return state.cached;
+      const candidate = await explainMergeCandidate(state.current!, { leftJobId: state.targetJobId!, rightJobId: state.sourceJobId!, requisitionLinks: parsed.requisitionLinks });
+      if (candidate.requiresCompanyConfirmation && !parsed.companyIdentityConfirmed) throw new RepositoryError("conflict");
+      return transaction(() => {
+        const cached = receipt<ReconciliationReceipt>(writeOptions.actorScope, "jobs.merge", writeOptions.idempotencyKey, requestSignature);
+        if (cached) return checked(ReconciliationReceiptSchema, cached);
+        const current = read(); assertWriteVersion(writeOptions, current);
+        const entry: MergeDecision = { id: `merge_${randomUUID()}`, kind: "merge", at: now(), revision: current.revision + 1, actorScope: writeOptions.actorScope, reason: parsed.reason, targetJobId: state.targetJobId!, sourceJobId: state.sourceJobId!, companyIdentityConfirmed: parsed.companyIdentityConfirmed, candidate };
+        return commitDecision(current, entry, writeOptions, "jobs.merge", requestSignature);
+      });
+    },
+    async rejectMerge(input: { leftJobId: string; rightJobId: string; reason: string }, writeOptions: ReconciliationWriteOptions): Promise<ReconciliationReceipt> {
+      validateOptions(writeOptions); const parsed = checked(RejectMergeInputSchema, input);
+      const requestSignature = signature({ input: parsed, expectedRevision: writeOptions.expectedRevision });
+      const state = transaction(() => {
+        const cached = receipt<ReconciliationReceipt>(writeOptions.actorScope, "jobs.reject-merge", writeOptions.idempotencyKey, requestSignature);
+        if (cached) return { cached: checked(ReconciliationReceiptSchema, cached) };
+        const current = read(); assertWriteVersion(writeOptions, current); return { current };
+      });
+      if (state.cached) return state.cached;
+      const candidate = await explainMergeCandidate(state.current!, parsed);
+      return transaction(() => {
+        const cached = receipt<ReconciliationReceipt>(writeOptions.actorScope, "jobs.reject-merge", writeOptions.idempotencyKey, requestSignature);
+        if (cached) return checked(ReconciliationReceiptSchema, cached);
+        const current = read(); assertWriteVersion(writeOptions, current);
+        const entry: MergeDecision = { id: `merge-reject_${randomUUID()}`, kind: "reject", at: now(), revision: current.revision + 1, actorScope: writeOptions.actorScope, reason: parsed.reason, leftJobId: candidate.leftJobId, rightJobId: candidate.rightJobId, candidate };
+        return commitDecision(current, entry, writeOptions, "jobs.reject-merge", requestSignature);
+      });
+    },
+    async revokeMerge(input: { decisionId: string; reason: string }, writeOptions: ReconciliationWriteOptions): Promise<ReconciliationReceipt> {
+      validateOptions(writeOptions); const parsed = checked(RevokeMergeInputSchema, input);
+      const requestSignature = signature({ input: parsed, expectedRevision: writeOptions.expectedRevision });
+      return transaction(() => {
+        const cached = receipt<ReconciliationReceipt>(writeOptions.actorScope, "jobs.revoke-merge", writeOptions.idempotencyKey, requestSignature);
+        if (cached) return checked(ReconciliationReceiptSchema, cached);
+        const current = read(); assertWriteVersion(writeOptions, current); const entries = decisions();
+        const target = entries.find((entry) => entry.id === parsed.decisionId);
+        if (!target) throw new RepositoryError("not-found");
+        if (target.actorScope !== writeOptions.actorScope) throw new RepositoryError("not-authorized");
+        if (target.kind === "revoke" || entries.some((entry) => entry.kind === "revoke" && entry.targetDecisionId === target.id)) throw new RepositoryError("conflict");
+        const entry: MergeDecision = { id: `merge-revoke_${randomUUID()}`, kind: "revoke", at: now(), revision: current.revision + 1, actorScope: writeOptions.actorScope, reason: parsed.reason, targetDecisionId: target.id };
+        return commitDecision(current, entry, writeOptions, "jobs.revoke-merge", requestSignature);
       });
     },
     /** Explicit trusted configuration action, kept separate from source observations/imports. */
@@ -478,7 +652,10 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const runs = (db.prepare("SELECT document FROM runs ORDER BY id").all() as Array<{ document: string }>).map((row) => JSON.parse(row.document) as SyncRun);
         const receipts = (db.prepare("SELECT * FROM receipts ORDER BY actor_scope,tool,idempotency_key").all() as Array<{ actor_scope: string; tool: StoredReceipt["tool"]; idempotency_key: string; signature: string; response: string; created_at: string }>).map((row) => ({ actorScope: row.actor_scope, tool: row.tool, idempotencyKey: row.idempotency_key, signature: row.signature, response: JSON.parse(row.response) as StoredReceipt["response"], createdAt: row.created_at }));
         const leads = (db.prepare("SELECT document FROM discovery_leads ORDER BY id").all() as Array<{ document: string }>).map((row) => JSON.parse(row.document) as DiscoveryLead);
-        return checked(RepositoryBackupSchema, { format: "better-me/job-repository", schemaVersion: REPOSITORY_SCHEMA_VERSION, createdAt: now(), dataset, runs, receipts, leads }, "invalid-backup");
+        const baseJobs = baseSnapshot(dataset).jobs;
+        const aliasHistory = (db.prepare("SELECT document FROM job_alias_history ORDER BY sequence").all() as Array<{ document: string }>).map((row) => checked(JobAliasEventSchema, JSON.parse(row.document)));
+        const jobVersions = (db.prepare("SELECT job_id,revision FROM job_versions ORDER BY job_id").all() as Array<{ job_id: string; revision: number }>).map((row) => ({ jobId: row.job_id, revision: row.revision }));
+        return checked(RepositoryBackupSchema, { format: "better-me/job-repository", schemaVersion: REPOSITORY_SCHEMA_VERSION, createdAt: now(), dataset, runs, receipts, leads, baseJobs, mergeDecisions: decisions(), aliasHistory, jobVersions }, "invalid-backup");
       });
     },
     async restore(input: unknown, restoreOptions: Omit<ImportOptions, "runId"> & { expectedRevision: number }): Promise<ImportReceipt> {
@@ -486,6 +663,47 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       const backup = checked(RepositoryBackupSchema, input, "invalid-backup");
       verifyContentHashes(backup.dataset, "invalid-backup");
       if (encoder.encode(json(backup)).byteLength > 128 * 1024 * 1024) throw new RepositoryError("invalid-backup");
+      const baseJobs = backup.baseJobs ?? backup.dataset.jobs;
+      const owners = new Map(baseJobs.flatMap((job) => job.listingIds.map((id) => [id, job.id] as const)));
+      const restoredBase = checked(AtlasDatasetSchema, { ...backup.dataset, jobs: baseJobs, listings: backup.dataset.listings.map((listing) => ({ ...listing, ...(owners.has(listing.id) ? { canonicalJobId: owners.get(listing.id) } : {}) })) }, "invalid-backup");
+      const originIds = new Set(baseJobs.map((job) => job.id)); const decisionIds = new Set<string>(); const decisionRevisions = new Set<number>();
+      const priorDecisions = new Map<string, MergeDecision>(); const revokedDecisions = new Set<string>(); let previousRevision = 0;
+      for (const entry of backup.mergeDecisions) {
+        if (entry.revision > backup.dataset.revision || decisionRevisions.has(entry.revision) || entry.revision <= previousRevision) throw new RepositoryError("invalid-backup");
+        decisionRevisions.add(entry.revision);
+        if (entry.kind === "merge" || entry.kind === "reject") {
+          const left = entry.kind === "merge" ? entry.targetJobId : entry.leftJobId;
+          const right = entry.kind === "merge" ? entry.sourceJobId : entry.rightJobId;
+          if (left === right || !originIds.has(left) || !originIds.has(right)
+            || !same([left, right].sort(compareIds), [entry.candidate.leftJobId, entry.candidate.rightJobId].sort(compareIds))
+            || entry.candidate.snapshotRevision !== entry.revision - 1
+            || entry.kind === "merge" && entry.candidate.requiresCompanyConfirmation && !entry.companyIdentityConfirmed) throw new RepositoryError("invalid-backup");
+        } else {
+          const target = priorDecisions.get(entry.targetDecisionId);
+          if (!target || target.kind === "revoke" || target.actorScope !== entry.actorScope || revokedDecisions.has(target.id)) throw new RepositoryError("invalid-backup");
+          revokedDecisions.add(target.id);
+        }
+        decisionIds.add(entry.id); priorDecisions.set(entry.id, entry); previousRevision = entry.revision;
+      }
+      if (backup.aliasHistory.some((event) => !originIds.has(event.jobId) || !originIds.has(event.canonicalJobId) || event.revision > backup.dataset.revision || event.decisionId && !decisionIds.has(event.decisionId))
+        || backup.jobVersions.some((value) => !originIds.has(value.jobId))) throw new RepositoryError("invalid-backup");
+      const lastAliases = new Map<string, JobAliasEvent>();
+      for (const event of backup.aliasHistory) {
+        const previous = lastAliases.get(event.jobId); const decision = event.decisionId ? priorDecisions.get(event.decisionId) : undefined;
+        if (previous && previous.revision >= event.revision
+          || decision && (decision.revision !== event.revision || decision.kind === "reject"
+            || decision.kind === "revoke" && priorDecisions.get(decision.targetDecisionId)?.kind !== "merge")) throw new RepositoryError("invalid-backup");
+        lastAliases.set(event.jobId, event);
+      }
+      let restoredProjection: ReturnType<typeof projectReconciliation>;
+      try { restoredProjection = projectReconciliation(restoredBase, backup.mergeDecisions); } catch { throw new RepositoryError("invalid-backup"); }
+      const jobBodies = (jobs: readonly CanonicalJob[]) => jobs.map(({ revision: _revision, updatedAt: _updatedAt, ...job }) => job).sort((a, b) => compareIds(a.id, b.id));
+      const listingOwners = (dataset: AtlasDataset) => dataset.listings.map((listing) => ({ id: listing.id, canonicalJobId: listing.canonicalJobId })).sort((a, b) => compareIds(a.id, b.id));
+      if (!same(jobBodies(restoredProjection.dataset.jobs), jobBodies(backup.dataset.jobs)) || !same(listingOwners(restoredProjection.dataset), listingOwners(backup.dataset))) throw new RepositoryError("invalid-backup");
+      const restoredVersions = new Map(backup.jobVersions.map((value) => [value.jobId, value.revision]));
+      if (backup.schemaVersion === 2 && (backup.jobVersions.length !== originIds.size
+        || restoredProjection.aliases.some((alias) => lastAliases.get(alias.jobId)?.canonicalJobId !== alias.canonicalJobId)
+        || backup.dataset.jobs.some((job) => (restoredVersions.get(job.id) ?? -1) < job.revision))) throw new RepositoryError("invalid-backup");
       const requestSignature = signature({ backup, expectedRevision: restoreOptions.expectedRevision });
       return transaction(() => {
         const cached = receipt<ImportReceipt>(restoreOptions.actorScope, "dataset.restore", restoreOptions.idempotencyKey, requestSignature);
@@ -494,8 +712,16 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         if (current.revision !== restoreOptions.expectedRevision) throw new RepositoryError("stale-version");
         // A source run that was active in the saved file has no live executor after restoration.
         const restoredRuns = backup.runs.map((run): SyncRun => run.status === "running" ? { ...run, status: "cancelled", finishedAt: now() } : run);
-        const dataset = { ...backup.dataset, revision: current.revision + 1 };
+        const dataset = { ...backup.dataset, revision: Math.max(current.revision, backup.dataset.revision) + 1 };
         write(dataset, true);
+        writeBaseJobs(baseJobs, true);
+        db.exec("DROP TRIGGER merge_decisions_no_update; DROP TRIGGER merge_decisions_no_delete; DROP TRIGGER job_alias_history_no_update; DROP TRIGGER job_alias_history_no_delete; DELETE FROM merge_decisions; DELETE FROM job_alias_history; DELETE FROM job_aliases; DELETE FROM job_versions;");
+        for (const entry of backup.mergeDecisions) db.prepare("INSERT INTO merge_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
+        for (const event of backup.aliasHistory) db.prepare("INSERT INTO job_alias_history(job_id,revision,document) VALUES (?,?,?)").run(event.jobId, event.revision, json(event));
+        for (const value of backup.jobVersions) db.prepare("INSERT INTO job_versions VALUES (?,?)").run(value.jobId, value.revision);
+        for (const job of dataset.jobs) db.prepare("INSERT INTO job_versions VALUES (?,?) ON CONFLICT(job_id) DO UPDATE SET revision=MAX(revision,excluded.revision)").run(job.id, job.revision);
+        saveAliases(restoredProjection.aliases, dataset.revision, now());
+        db.exec(RECONCILIATION_TRIGGERS);
         db.exec("DELETE FROM runs; DELETE FROM source_generations;");
         for (const run of restoredRuns) {
           saveRun(run);

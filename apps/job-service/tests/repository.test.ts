@@ -44,7 +44,7 @@ test("real SQLite migrations, normalized references, FTS5, RTree and immutable t
   assert.deepEqual(imported.counts, { newJobs: 1, updatedJobs: 0, unchangedJobs: 0, newListings: 1, newObservations: 1, newSnapshots: 1 });
   const inspector = new DatabaseSync(path);
   try {
-    assert.equal((inspector.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 1);
+    assert.equal((inspector.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 2);
     assert.equal((inspector.prepare("SELECT COUNT(*) AS n FROM job_listings").get() as { n: number }).n, 1);
     assert.equal((inspector.prepare("SELECT COUNT(*) AS n FROM location_rtree").get() as { n: number }).n, 1);
     assert.equal((inspector.prepare("SELECT COUNT(*) AS n FROM jobs_fts WHERE jobs_fts MATCH 'dotnet OR csharp OR cpp OR 后端'").get() as { n: number }).n, 1);
@@ -150,13 +150,15 @@ test("durable sync runs enforce actor ownership, cancellation, supersession and 
 
 test("sync summaries reject private and raw-text fields and run state persists after reopen", async () => tempRepo(async (repo, path) => {
   await repo.importSnapshot(sourceOnly(), options("source"));
-  const run = await repo.startRun({ sourceId: "source-one", scope: {}, actorScope, idempotencyKey: "run" });
+  const scoped = { countryCodes: ["CN"], regions: ["北京"] };
+  const run = await repo.startRun({ sourceId: "source-one", scope: scoped, actorScope, idempotencyKey: "run" });
   await assert.rejects(repo.finishRun(run.runId, { actorScope, status: "failed", summary: { records: 0, apiKey: "PRIVATE" } as never }), code("invalid-data"));
   repo.close(); const reopened = openJobRepository(path);
   try {
     assert.equal((await reopened.getRun(run.runId))!.status, "running");
+    assert.deepEqual((await reopened.getRun(run.runId))!.scope, scoped);
     assert.deepEqual(await reopened.recoverInterruptedRuns(), { recovered: 1 });
-    const replay = await reopened.startRun({ sourceId: "source-one", scope: {}, actorScope, idempotencyKey: "run" });
+    const replay = await reopened.startRun({ sourceId: "source-one", scope: scoped, actorScope, idempotencyKey: "run" });
     assert.equal(replay.status, "failed"); assert.equal(replay.summary?.errorCode, "service-restarted");
     assert.deepEqual(await reopened.recoverInterruptedRuns(), { recovered: 0 });
   }

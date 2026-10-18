@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { fileURLToPath } from "node:url";
 import {
   AtlasDatasetSchema, CanonicalJobSchema, CompanySchema, SourceDefinitionSchema, SourceListingSchema, SourceObservationSchema, JdSnapshotSchema,
   EntityIdSchema, createJobQueryService, createJobsSearchTool, createToolRegistry, defineTool, normalizeSearchText, ToolError,
@@ -6,11 +7,14 @@ import {
 } from "@better-me/opportunities";
 import {
   SourceScopeSchema, SourcePageSchema, SourceAdapterMetadataSchema, SourceRegistryError, SourceTransportError,
-  createSourceRegistry, createControlledSourceTransport, greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter,
+  createSourceRegistry, createControlledSourceTransport, greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter,
   discoverSourceCandidates, inspectSourceCandidate, proposeSourceRegistration,
   DiscoverSourceCandidatesInputSchema, SourceDiscoveryPageSchema, InspectSourceCandidateInputSchema, SourceCandidateInspectionSchema,
   ProposeSourceRegistrationInputSchema, SourceRegistrationProposalSchema,
-  type SourceAdapter, type SourceScope, type SourceJobRecord, type SourceTransport,
+  discoverCompanyCareers, DiscoverCompanyCareersInputSchema, CompanyCareerDiscoveryResultSchema,
+  createLocalGazetteerProvider, createGeocodingTool, type GeocodingProvider,
+  locallyMatchesSourceScope as locallyMatches, countSourceScopeMatches,
+  type SourceAdapter, type SourceTransport,
 } from "@better-me/source-adapters";
 import { RepositoryError, type JobRepository } from "./repository.js";
 import { DiscoveryLeadSchema, ImportReceiptSchema, SyncRunSchema, type PublicRunSummary } from "./repository-schema.js";
@@ -18,7 +22,7 @@ import { projectSourcePage } from "./projection.js";
 
 const emptyInput = z.object({}).strict();
 const usableScope = SourceScopeSchema.superRefine((scope, context) => {
-  for (const [field, terms] of Object.entries(scope)) for (const term of terms) {
+  for (const [field, terms] of Object.entries(scope)) for (const term of terms ?? []) {
     if (!normalizeSearchText(term).trim()) context.addIssue({ code: z.ZodIssueCode.custom, path: [field], message: "A scope term must contain searchable characters." });
   }
 });
@@ -39,30 +43,34 @@ function mappedError(error: unknown): ToolError {
   if (error instanceof SourceTransportError) return new ToolError(error.code === "rate-limited" ? "rate-limited" : error.code === "cancelled" ? "cancelled" : error.code === "timeout" ? "timeout" : error.status === 401 || error.status === 403 ? "needs-auth" : "source-changed");
   return new ToolError("internal-error");
 }
-function locallyMatches(record: SourceJobRecord, scope: SourceScope): boolean {
-  const includes = (haystack: string, values: string[]) => !values.length || values.some((term) => normalizeSearchText(haystack).includes(normalizeSearchText(term)));
-  return includes(`${record.title} ${record.description ?? ""}`, scope.roles) && includes(record.companyName ?? "", scope.companyNames)
-    && includes([...record.locations.map((location) => [location.raw, location.countryCode, location.region, location.city].filter(Boolean).join(" ")), ...record.remoteEligibleRegions].join(" "), scope.regions);
-}
 export type JobApplicationOptions = {
   repository: JobRepository;
   adapters?: readonly SourceAdapter[];
   transport?: SourceTransport;
   now?: () => string;
   resolveQueryOptions?: (context: ToolHandlerContext) => QueryOptions | Promise<QueryOptions>;
+  /** Host-only dependency; tool requests cannot select a provider, file or endpoint. */
+  geocodingProvider?: GeocodingProvider;
 };
 
 /** One application service backs HTTP and future Agent tools. Private opportunity data stays outside. */
 export function createJobApplication(options: JobApplicationOptions) {
   const repository = options.repository;
   const now = options.now ?? (() => new Date().toISOString());
-  const sources = createSourceRegistry(options.adapters ?? [greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter]);
+  const sources = createSourceRegistry(options.adapters ?? [greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter]);
   const transport = options.transport ?? createControlledSourceTransport();
   const query = createJobQueryService(repository);
   const running = new Map<string, AbortController>();
   const pending = new Set<Promise<unknown>>();
   const stopSignal = new AbortController();
   let stopping = false;
+  let pageMutation: Promise<void> = Promise.resolve();
+  function serializePageMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const task = pageMutation.then(operation);
+    // A failed page must not prevent another source from committing its page.
+    pageMutation = task.then(() => undefined, () => undefined);
+    return task;
+  }
   async function getSource(id: string): Promise<SourceDefinition> {
     const source = (await repository.readSnapshot()).sources.find((source) => source.sourceId === id);
     if (!source) throw new ToolError("invalid-input");
@@ -85,8 +93,19 @@ export function createJobApplication(options: JobApplicationOptions) {
     return { source, context: { ...context, observedAt: now() }, transport };
   }
   const searchTool = createJobsSearchTool(query, async (_query, context) => ({ now: now(), ...(options.resolveQueryOptions ? await options.resolveQueryOptions(context) : {}) }));
+  // The checked-in dataset stays on the server. The provider loads its trusted
+  // manifest and country shards lazily, only after an explicit office query.
+  const geocodingTool = createGeocodingTool(options.geocodingProvider ?? createLocalGazetteerProvider({
+    manifestPath: fileURLToPath(new URL("../../../config/geography/gazetteer/manifest.json", import.meta.url)),
+  }));
   const definitions: ToolDefinition<any, any>[] = [
     defineTool({ ...searchTool, execute: (input, context) => guarded(async () => searchTool.execute(input, context)) }),
+    defineTool({ ...geocodingTool, execute: (input, context) => guarded(async () => {
+      context.throwIfCancelled();
+      const result = await geocodingTool.execute(input, context);
+      context.throwIfCancelled();
+      return result;
+    }) }),
     defineTool({ name: "sources.list", version: 1, description: "列出来源配置和已安装适配器的实际能力。", effect: "read-index", inputSchema: emptyInput,
       outputSchema: z.object({ sources: z.array(SourceDefinitionSchema), adapters: z.array(SourceAdapterMetadataSchema) }).strict(),
       execute: () => guarded(async () => ({ sources: (await repository.readSnapshot()).sources, adapters: sources.describe() })),
@@ -123,7 +142,8 @@ export function createJobApplication(options: JobApplicationOptions) {
         if (source.secretRef) throw new ToolError("needs-auth");
         const maxRecords = Math.min(input.maxRecords ?? source.refreshPolicy.maxRecords, source.refreshPolicy.maxRecords);
         const maxPages = Math.min(input.maxPages ?? source.refreshPolicy.maxPages, source.refreshPolicy.maxPages);
-        const run = await repository.startRun({ sourceId: source.sourceId, scope: { keywords: input.scope.roles, regions: input.scope.regions, companies: input.scope.companyNames, maxRecords, maxPages }, actorScope: context.actorScope, idempotencyKey: sameKey, requestFingerprint });
+        const run = await repository.startRun({ sourceId: source.sourceId, scope: { keywords: input.scope.roles, regions: input.scope.regions, companies: input.scope.companyNames,
+          ...(input.scope.countryCodes ? { countryCodes: input.scope.countryCodes } : {}), maxRecords, maxPages }, actorScope: context.actorScope, idempotencyKey: sameKey, requestFingerprint });
         if (run.status !== "running") return { run, localFilters: input.scope, warnings: ["This idempotent request already has a terminal run; use a new key for a new refresh."] };
         const controller = new AbortController();
         const forwardAbort = () => controller.abort();
@@ -149,18 +169,50 @@ export function createJobApplication(options: JobApplicationOptions) {
             summary.pages!++; summary.records! += page.coverage.fetchedRecords;
             summary.partial ||= page.coverage.partial;
             warnings.push(...page.warnings);
-            const snapshot = await repository.readSnapshot();
-            const projection = await projectSourcePage(snapshot, source, { ...page, records: page.records.filter((record) => locallyMatches(record, input.scope)) }, run.runId);
-            // Observations may not restore a stale enabled/endpoint/usage configuration.
-            projection.delta.sources = [];
-            syncContext.throwIfCancelled();
-            const receipt = await repository.importSnapshot(projection.delta, { actorScope: context.actorScope, idempotencyKey: `${run.runId}.page-${pageNumber}`, expectedRevision: snapshot.revision, runId: run.runId });
-            summary.added! += receipt.counts.newJobs; summary.changed! += receipt.counts.updatedJobs; summary.unchanged! += receipt.counts.unchangedJobs;
-            if (projection.leads.length) {
+            const unresolvedScope = countSourceScopeMatches(page.records, input.scope).unknown;
+            if (unresolvedScope) summary.needsHuman = (summary.needsHuman ?? 0) + unresolvedScope;
+            const matchedPage = { ...page, records: page.records.filter((record) => locallyMatches(record, input.scope)) };
+            // Network reads remain concurrent. Only each local read/project/write
+            // sequence is serialized, so independent sources use the latest base.
+            const leads = await serializePageMutation(async () => {
               syncContext.throwIfCancelled();
-              await repository.saveDiscoveryLeads(projection.leads, { actorScope: context.actorScope, idempotencyKey: `${run.runId}.leads-${pageNumber}`, runId: run.runId });
-              summary.leads! += projection.leads.length;
-            }
+              let snapshot = await repository.readProjectionSnapshot();
+              for (let attempt = 0; ; attempt++) {
+                syncContext.throwIfCancelled();
+                await repository.assertRunCurrent(run.runId, context.actorScope);
+                await assertSourceConfiguration(source);
+                // Refresh source origins rather than a merged canonical summary.
+                const projection = await projectSourcePage(snapshot, source, matchedPage, run.runId);
+                // Observations cannot restore an old endpoint/policy configuration.
+                projection.delta.sources = [];
+                syncContext.throwIfCancelled();
+                await repository.assertRunCurrent(run.runId, context.actorScope);
+                await assertSourceConfiguration(source);
+                let receipt;
+                try {
+                  receipt = await repository.importSnapshot(projection.delta, { actorScope: context.actorScope, idempotencyKey: `${run.runId}.page-${pageNumber}`, expectedRevision: snapshot.revision, runId: run.runId });
+                } catch (error) {
+                  if (!(error instanceof RepositoryError) || error.code !== "stale-version") throw error;
+                  syncContext.throwIfCancelled();
+                  await repository.assertRunCurrent(run.runId, context.actorScope);
+                  await assertSourceConfiguration(source);
+                  const latest = await repository.readProjectionSnapshot();
+                  // An external registration/import can advance the index while
+                  // this page is projected. Retry only a real CAS race, never a
+                  // replaced source/run or an unchanged-version semantic failure.
+                  if (attempt >= 2 || latest.revision <= snapshot.revision) throw error;
+                  snapshot = latest;
+                  continue;
+                }
+                summary.added! += receipt.counts.newJobs; summary.changed! += receipt.counts.updatedJobs; summary.unchanged! += receipt.counts.unchangedJobs;
+                if (projection.leads.length) {
+                  syncContext.throwIfCancelled();
+                  await repository.saveDiscoveryLeads(projection.leads, { actorScope: context.actorScope, idempotencyKey: `${run.runId}.leads-${pageNumber}`, runId: run.runId });
+                }
+                return projection.leads.length;
+              }
+            });
+            summary.leads! += leads;
             if (!page.nextCursor) { summary.partial ||= !page.coverage.complete; break; }
             if (cursors.has(page.nextCursor)) { summary.partial = true; warnings.push("repeated-source-cursor"); break; }
             cursors.add(page.nextCursor); cursor = page.nextCursor;
@@ -188,6 +240,12 @@ export function createJobApplication(options: JobApplicationOptions) {
       inputSchema: z.object({ sourceId: EntityIdSchema, request: DiscoverSourceCandidatesInputSchema }).strict(), outputSchema: SourceDiscoveryPageSchema,
       execute: (input, context) => guarded(async () => discoverSourceCandidates(input.request, await discoveryExecution(input.sourceId, context))),
     }),
+    defineTool({ name: "companies.discover-careers", version: 1, description: "匹配已登记企业招聘来源，或按允许的官网范围发现招聘入口，返回带证据的待审提案。", effect: "external-read",
+      inputSchema: z.object({ sourceId: EntityIdSchema, request: DiscoverCompanyCareersInputSchema }).strict(), outputSchema: CompanyCareerDiscoveryResultSchema,
+      execute: (input, context) => guarded(async () => discoverCompanyCareers(input.request, {
+        ...await discoveryExecution(input.sourceId, context), registeredSources: (await repository.readSnapshot()).sources,
+      })),
+    }),
     defineTool({ name: "sources.inspect", version: 1, description: "有限检查候选结构、字段覆盖和许可元数据，不执行陌生仓库代码。", effect: "external-read",
       inputSchema: z.object({ sourceId: EntityIdSchema, request: InspectSourceCandidateInputSchema }).strict(), outputSchema: SourceCandidateInspectionSchema,
       execute: (input, context) => guarded(async () => inspectSourceCandidate(input.request, await discoveryExecution(input.sourceId, context))),
@@ -203,7 +261,9 @@ export function createJobApplication(options: JobApplicationOptions) {
       outputSchema: z.object({ job: CanonicalJobSchema, company: CompanySchema, listings: z.array(SourceListingSchema), observations: z.array(SourceObservationSchema), snapshots: z.array(JdSnapshotSchema), sources: z.array(SourceDefinitionSchema) }).strict(),
       execute: (input) => guarded(async () => {
         const snapshot = await repository.readSnapshot();
-        const job = snapshot.jobs.find((job) => job.id === input.jobId); if (!job) throw new ToolError("invalid-input");
+        // Resolve against the captured snapshot so a concurrent merge/revoke cannot mix IDs and rows.
+        const resolved = await repository.resolveJobId(input.jobId, { atRevision: snapshot.revision });
+        const job = snapshot.jobs.find((job) => job.id === resolved?.canonicalJobId); if (!job) throw new ToolError("invalid-input");
         const listings = snapshot.listings.filter((listing) => job.listingIds.includes(listing.id));
         return { job, company: snapshot.companies.find((company) => company.id === job.companyId)!, listings, observations: snapshot.observations.filter((observation) => job.listingIds.includes(observation.listingId)), snapshots: snapshot.snapshots.filter((item) => job.listingIds.includes(item.listingId)), sources: snapshot.sources.filter((source) => listings.some((listing) => listing.sourceId === source.sourceId)) };
       }),

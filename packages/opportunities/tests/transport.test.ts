@@ -22,10 +22,15 @@ function context(requestId = "test-request"): TrustedToolContext {
 
 test("real domain query is identical through UI, tool and an isolated HTTP test transport", async () => {
   const snapshot = dataset();
+  snapshot.locations.push({ id: "synthetic-beijing", raw: "中国 · 北京市海淀区", countryCode: "CN", city: "北京", kind: "office", precision: "city", verification: "unverified", evidence: [] });
+  snapshot.jobs[0]!.locationIds.push("synthetic-beijing");
   const service = createJobQueryService({ readSnapshot: async () => structuredClone(snapshot) });
   const registry = createToolRegistry([createJobsSearchTool(service, () => ({ now: NOW }))]);
-  const query: JobQueryInput = { search: { text: "cpp" } };
+  const query: JobQueryInput = { search: { text: "cpp" }, workCountryCodes: ["CN"], workRegionIds: ["北京"], workRegionText: "海淀" };
   const ui = await service.search(query, { now: NOW });
+  assert.equal(ui.totalJobs, 1);
+  assert.deepEqual(ui.normalizedQuery.workCountryCodes, ["CN"]);
+  assert.equal(ui.normalizedQuery.workRegionText, "海淀");
   const tool = await registry.execute<JobQueryResult>("jobs.search", query, context());
   assert.equal(tool.ok, true);
   if (!tool.ok) throw new Error(tool.error.code);

@@ -10,7 +10,7 @@ import {
   type SourceDefinition,
   type SourceObservation,
 } from "../src/schema.js";
-import { JobQueryError, createJobQueryService, normalizeSearchText, queryJobs } from "../src/query.js";
+import { JobQueryError, createJobQueryService, includesSearchText, normalizeSearchText, queryJobs } from "../src/query.js";
 
 const AS_OF = "2026-10-18T12:00:00.000Z";
 const EVALUATION_DAY = "2026-10-18T00:00:00.000Z";
@@ -92,6 +92,17 @@ function addObservation(dataset: AtlasDataset, job: string, suffix: string, resu
   listing.observationIds.push(id);
   dataset.observations.push({ id, listingId: listing.id, fetchedAt, result, availability: "unknown", completeness: result === "read" ? "detail" : "excerpt", warnings: [] });
 }
+
+test("explicit canonical job subsets are shared filters, preserve exact empty selection and use the dataset job-count boundary", async () => {
+  const dataset = datasetFor([{ id: "first" }, { id: "second" }, { id: "third" }]);
+  assert.deepEqual(ids(await queryJobs(dataset, { jobIds: ["job-second", "job-third", "absent-job"], page: { limit: 1 } }, OPTIONS)), ["job-second"]);
+  assert.equal((await queryJobs(dataset, { jobIds: [] }, OPTIONS)).totalJobs, 0);
+  const first = await queryJobs(dataset, { jobIds: ["job-second", "job-third"], page: { limit: 1 } }, OPTIONS);
+  assert.deepEqual(ids(await queryJobs(dataset, { jobIds: ["job-second", "job-third"], page: { limit: 1, cursor: first.nextCursor } }, OPTIONS)), ["job-third"]);
+  assert.equal((await queryJobs(dataset, { jobIds: Array(100_000).fill("job-second") }, OPTIONS)).totalJobs, 1);
+  await assert.rejects(queryJobs(dataset, { jobIds: Array(100_001).fill("job-second") }, OPTIONS), (error: unknown) => error instanceof JobQueryError && error.code === "invalid-query");
+  await assert.rejects(queryJobs(dataset, { jobIds: ["invalid/job-id"] }, OPTIONS), (error: unknown) => error instanceof JobQueryError && error.code === "invalid-query");
+});
 
 test("list pagination does not page the full query map, facets or coverage counts", async () => {
   const dataset = datasetFor([
@@ -194,6 +205,179 @@ test("a multi-country role appears once and shows only locations matching the wo
   assert.deepEqual(Object.keys(result.facets.countries), ["CN"]);
 });
 
+test("country constraints AND region identifiers on the same office and preserve legacy region-only queries", async () => {
+  const dataset = datasetFor([
+    { id: "us-springfield", locations: [{ countryCode: "US", city: "Springfield" }] },
+    { id: "au-springfield", locations: [{ countryCode: "AU", city: "Springfield" }] },
+    { id: "crossed", locations: [{ countryCode: "US", city: "Seattle" }, { countryCode: "AU", city: "Springfield" }] },
+    { id: "unknown-country", locations: [{ raw: "Springfield", city: "Springfield" }] },
+    { id: "no-office" },
+  ]);
+  const filtered = await queryJobs(dataset, { workCountryCodes: ["US"], workRegionIds: ["Springfield"], includeUnknownLocations: true }, OPTIONS);
+  assert.deepEqual(ids(filtered), ["job-us-springfield"]);
+  assert.deepEqual(filtered.items[0]!.locations.map((location) => [location.countryCode, location.city]), [["US", "Springfield"]]);
+  const countryOnly = await queryJobs(dataset, { workCountryCodes: ["US"], includeUnknownLocations: true }, OPTIONS);
+  assert.deepEqual(ids(countryOnly), ["job-crossed", "job-us-springfield"]);
+  assert.ok(countryOnly.items.every((item) => item.locations.every((location) => location.countryCode === "US")));
+  const legacy = await queryJobs(dataset, { workRegionIds: ["US"] }, OPTIONS);
+  assert.deepEqual(ids(legacy), ids(countryOnly), "existing exact country-in-region callers remain supported");
+  assert.deepEqual(ids(await queryJobs(dataset, { workCountryCodes: ["US", "AU"], workRegionIds: ["Springfield"] }, OPTIONS)), ["job-au-springfield", "job-crossed", "job-us-springfield"]);
+});
+
+test("region free text is a literal normalized substring of source place text without coordinates or administrative inference", async () => {
+  const dataset = datasetFor([
+    { id: "beijing", locations: [{ countryCode: "CN", raw: "中国 · 北京市海淀区", precision: "unknown" }] },
+    { id: "shenzhen", locations: [{ countryCode: "CN", raw: "China / Shenzhen", city: "Shenzhen", precision: "city" }] },
+    { id: "crossed", locations: [{ countryCode: "CN", city: "上海" }, { countryCode: "US", city: "北京" }] },
+    { id: "raw-unknown", locations: [{ raw: "北京", city: "北京", precision: "unknown" }] },
+    { id: "no-office" },
+  ]);
+  const local = await queryJobs(dataset, { workCountryCodes: ["CN"], workRegionText: "北京", includeUnknownLocations: true }, OPTIONS);
+  assert.deepEqual(ids(local), ["job-beijing"]);
+  assert.equal(local.mappedJobs, 0);
+  assert.equal(local.unlocatedJobs, 1, "place-text filtering does not manufacture a map point");
+  assert.deepEqual(ids(await queryJobs(dataset, { workCountryCodes: ["CN"], workRegionText: "  ＳＨＥＮＺＨＥＮ  " }, OPTIONS)), ["job-shenzhen"]);
+  assert.deepEqual(ids(await queryJobs(dataset, { workRegionText: "北京" }, OPTIONS)), ["job-beijing", "job-crossed", "job-raw-unknown"]);
+  assert.equal((await queryJobs(dataset, { workRegionText: ".*" }, OPTIONS)).totalJobs, 0, "text is not an executable regular expression");
+  assert.equal((await queryJobs(dataset, { workRegionIds: ["北京"] }, OPTIONS)).items.some((item) => item.job.id === "job-beijing"), false, "predefined identifiers retain exact semantics");
+  assert.equal((await queryJobs(dataset, { workRegionIds: ["CN-GD"], workCountryCodes: ["CN"] }, OPTIONS)).totalJobs, 0, "city text does not assert its province's identifier");
+  assert.equal((await queryJobs(dataset, { workCountryCodes: ["CN"], workRegionIds: ["Shenzhen"], workRegionText: "北京" }, OPTIONS)).totalJobs, 0, "country, exact region and text are separate AND constraints");
+});
+
+test("country and region text are validated query fields and participate in cursor identity", async () => {
+  const dataset = datasetFor([
+    { id: "one", locations: [{ countryCode: "US", city: "Springfield" }] },
+    { id: "two", locations: [{ countryCode: "US", city: "Springfield" }] },
+  ]);
+  const query = { workCountryCodes: ["US"], workRegionText: "Spring", page: { limit: 1 } };
+  const first = await queryJobs(dataset, query, OPTIONS);
+  assert.ok(first.nextCursor);
+  assert.deepEqual(first.normalizedQuery.workCountryCodes, ["US"]);
+  assert.equal(first.normalizedQuery.workRegionText, "Spring");
+  const second = await queryJobs(dataset, { ...query, page: { limit: 1, cursor: first.nextCursor } }, OPTIONS);
+  assert.equal(second.items.length, 1);
+  assert.notEqual(second.items[0]!.job.id, first.items[0]!.job.id);
+  const stale = (error: unknown) => error instanceof JobQueryError && error.code === "stale-cursor";
+  await assert.rejects(queryJobs(dataset, { ...query, workCountryCodes: ["AU"], page: { limit: 1, cursor: first.nextCursor } }, OPTIONS), stale);
+  await assert.rejects(queryJobs(dataset, { ...query, workRegionText: "Springfield", page: { limit: 1, cursor: first.nextCursor } }, OPTIONS), stale);
+  const invalid = (error: unknown) => error instanceof JobQueryError && error.code === "invalid-query";
+  for (const input of [{ workCountryCodes: ["us"] }, { workCountryCodes: ["中国"] }, { workRegionText: " " }, { workRegionText: "x".repeat(301) }]) {
+    await assert.rejects(queryJobs(dataset, input, OPTIONS), invalid);
+  }
+});
+
+test("explicit region alias groups OR their terms and AND province, city and district on one office", async () => {
+  const dataset = datasetFor([
+    { id: "guangzhou-tianhe", locations: [{ countryCode: "CN", region: "广东省", city: "广州市", raw: "天河区体育东路" }] },
+    { id: "guangzhou-yuexiu", locations: [{ countryCode: "CN", region: "广东省", city: "Guangzhou", raw: "越秀区" }] },
+    { id: "shenzhen", locations: [{ countryCode: "CN", city: "Shenzhen", raw: "南山区" }] },
+    { id: "hangzhou", locations: [{ countryCode: "CN", region: "浙江省", city: "杭州市", raw: "西湖区" }] },
+  ]);
+  const province = ["广东省", "广东", "广州", "Guangzhou", "深圳", "Shenzhen"];
+  const city = ["广州", "Guangzhou"];
+  const district = ["天河区", "Tianhe"];
+  const provinceResult = await queryJobs(dataset, { workCountryCodes: ["CN"], workRegionGroups: [province] }, OPTIONS);
+  assert.deepEqual(ids(provinceResult), ["job-guangzhou-tianhe", "job-guangzhou-yuexiu", "job-shenzhen"]);
+  assert.deepEqual(ids(await queryJobs(dataset, { workCountryCodes: ["CN"], workRegionGroups: [province, city] }, OPTIONS)), ["job-guangzhou-tianhe", "job-guangzhou-yuexiu"]);
+  const precise = await queryJobs(dataset, { workCountryCodes: ["CN"], workRegionGroups: [province, city, district] }, OPTIONS);
+  assert.deepEqual(ids(precise), ["job-guangzhou-tianhe"]);
+  assert.equal(precise.mappedJobs, 0, "administrative text does not manufacture map points");
+  assert.equal(precise.items[0]!.locations[0]!.coordinates, undefined);
+});
+
+test("region groups, exact identifiers, free text and country all constrain the same location", async () => {
+  const dataset = datasetFor([
+    { id: "matching", locations: [{ countryCode: "CN", regionId: "CN-GD", city: "广州", raw: "广东省广州市天河区珠江新城" }] },
+    { id: "groups-crossed", locations: [
+      { countryCode: "CN", regionId: "CN-GD", city: "广州", raw: "广东省广州市越秀区珠江新城" },
+      { countryCode: "CN", regionId: "CN-GD", city: "深圳", raw: "广东省深圳市天河区珠江新城" },
+    ] },
+    { id: "country-crossed", locations: [
+      { countryCode: "CN", regionId: "CN-GD", city: "广州", raw: "广东省广州市越秀区珠江新城" },
+      { countryCode: "US", regionId: "CN-GD", city: "广州", raw: "广东省广州市天河区珠江新城" },
+    ] },
+    { id: "identifier-crossed", locations: [
+      { countryCode: "CN", regionId: "CN-GD", city: "深圳", raw: "珠江新城" },
+      { countryCode: "CN", regionId: "other-region", city: "广州", raw: "广东省广州市天河区珠江新城" },
+    ] },
+    { id: "text-crossed", locations: [
+      { countryCode: "CN", regionId: "CN-GD", city: "广州", raw: "广东省广州市天河区" },
+      { countryCode: "CN", regionId: "CN-GD", city: "深圳", raw: "珠江新城" },
+    ] },
+  ]);
+  const result = await queryJobs(dataset, {
+    workCountryCodes: ["CN"], workRegionIds: ["CN-GD"], workRegionText: "珠江新城",
+    workRegionGroups: [["广东", "深圳"], ["广州"], ["天河"]], includeUnknownLocations: true,
+  }, OPTIONS);
+  assert.deepEqual(ids(result), ["job-matching"]);
+  assert.equal(result.items[0]!.locations.length, 1);
+  assert.deepEqual(result.facets.countries, { CN: 1 });
+});
+
+test("region group terms normalize case, width and whitespace but never join fields or execute regex", async () => {
+  const dataset = datasetFor([
+    { id: "literal", locations: [{ countryCode: "CN", region: "Guangdong", city: "Guangzhou", regionId: "CN-GD", raw: "Tianhe   District .*" }] },
+    { id: "cross-field", locations: [{ countryCode: "CN", region: "Guangdong", city: "Tianhe", raw: "Unrelated office" }] },
+    { id: "near-spelling", locations: [{ countryCode: "CN", city: "Guangzhuo", raw: "Tianhe District" }] },
+  ]);
+  assert.deepEqual(ids(await queryJobs(dataset, { workRegionGroups: [["  ＧＵＡＮＧＺＨＯＵ  "], [" tianhe district "], ["cn-gd"]] }, OPTIONS)), ["job-literal"]);
+  assert.deepEqual(ids(await queryJobs(dataset, { workRegionGroups: [[".*"]] }, OPTIONS)), ["job-literal"]);
+  assert.deepEqual(ids(await queryJobs(dataset, { workRegionGroups: [["Guangdong Tianhe"]] }, OPTIONS)), [], "a term must fit inside one source field");
+  assert.deepEqual(ids(await queryJobs(dataset, { workRegionGroups: [["Guangzhou"]] }, OPTIONS)), ["job-literal"], "groups do not use typo matching");
+});
+
+test("missing and empty region groups preserve existing unknown-location behavior without mutating input", async () => {
+  const dataset = datasetFor([
+    { id: "unknown-country", locations: [{ raw: "广东省广州市天河区", precision: "unknown" }] },
+    { id: "no-location" },
+    { id: "different", locations: [{ countryCode: "CN", city: "北京" }] },
+  ]);
+  const before = structuredClone(dataset);
+  const query = { workRegionGroups: [[" 广东 ", "广州"], [" 天河区 "]], includeUnknownLocations: true };
+  const queryBefore = structuredClone(query);
+  const noGroups = await queryJobs(dataset, {}, OPTIONS);
+  const emptyGroups = await queryJobs(dataset, { workRegionGroups: [] }, OPTIONS);
+  assert.deepEqual(ids(emptyGroups), ids(noGroups));
+  const filtered = await queryJobs(dataset, query, OPTIONS);
+  assert.deepEqual(ids(filtered), ["job-unknown-country"]);
+  assert.deepEqual(filtered.normalizedQuery.workRegionGroups, [["广东", "广州"], ["天河区"]]);
+  assert.equal((await queryJobs(dataset, { ...query, workCountryCodes: ["CN"] }, OPTIONS)).totalJobs, 0, "a text match does not infer missing country evidence");
+  assert.deepEqual(dataset, before);
+  assert.deepEqual(query, queryBefore);
+});
+
+test("region groups accept three bounded alias groups and reject malformed or oversized input", async () => {
+  const dataset = datasetFor([{ id: "one", locations: [{ countryCode: "CN", city: "广州" }] }]);
+  const maximum = Array.from({ length: 3 }, () => Array.from({ length: 500 }, () => "x".repeat(300)));
+  assert.equal((await queryJobs(dataset, { workRegionGroups: maximum }, OPTIONS)).totalJobs, 0);
+  const invalid = (error: unknown) => error instanceof JobQueryError && error.code === "invalid-query";
+  for (const groups of [
+    [["a"], ["b"], ["c"], ["d"]], [Array(501).fill("x")], [["x".repeat(301)]],
+    [[]], [[" "]], ["广州"], [[123]], null,
+  ]) {
+    await assert.rejects(queryJobs(dataset, { workRegionGroups: groups } as Parameters<typeof queryJobs>[1], OPTIONS), invalid);
+  }
+});
+
+test("region group filters participate in cursor identity and unchanged groups preserve pagination", async () => {
+  const dataset = datasetFor([
+    { id: "one", locations: [{ countryCode: "CN", city: "广州", raw: "广东省广州市天河区" }] },
+    { id: "two", locations: [{ countryCode: "CN", city: "广州", raw: "广东省广州市天河区" }] },
+  ]);
+  const query = { workCountryCodes: ["CN"], workRegionGroups: [["广东", "广州"], ["天河"]], page: { limit: 1 } };
+  const first = await queryJobs(dataset, query, OPTIONS);
+  assert.ok(first.nextCursor);
+  const second = await queryJobs(dataset, { ...query, page: { limit: 1, cursor: first.nextCursor } }, OPTIONS);
+  assert.equal(second.totalJobs, 2);
+  assert.notEqual(first.items[0]!.job.id, second.items[0]!.job.id);
+  const stale = (error: unknown) => error instanceof JobQueryError && error.code === "stale-cursor";
+  for (const groups of [[["广东", "深圳"], ["天河"]], [["广东", "广州"], ["天河区"]], [["广东", "广州"]], []]) {
+    await assert.rejects(queryJobs(dataset, { ...query, workRegionGroups: groups, page: { limit: 1, cursor: first.nextCursor } }, OPTIONS), stale);
+  }
+  const unrestricted = await queryJobs(dataset, { page: { limit: 1 } }, OPTIONS);
+  await assert.rejects(queryJobs(dataset, { ...query, page: { limit: 1, cursor: unrestricted.nextCursor } }, OPTIONS), stale);
+});
+
 test("technical keyword normalization preserves C++, C# and .NET and handles bounded typos", async () => {
   const dataset = datasetFor([
     { id: "cpp", title: "C++ Engineer", description: "Modern C++ applications." },
@@ -207,6 +391,46 @@ test("technical keyword normalization preserves C++, C# and .NET and handles bou
   assert.deepEqual(ids(await queryJobs(dataset, { search: { text: "C++ engnieer", mode: "fuzzy" } }, OPTIONS)), ["job-cpp"]);
   assert.deepEqual(ids(await queryJobs(dataset, { search: { text: "C++ engnieer", mode: "exact" } }, OPTIONS)), []);
   assert.equal(normalizeSearchText("  Ｃ＋＋ / .NET / C# "), "cpp dotnet csharp");
+});
+
+test("symbol-bearing technology terms remain exact semantic tokens even when ordinary words use fuzzy matching", async () => {
+  const dataset = datasetFor([
+    { id: "csharp", title: "精通Ｃ＃后端工程师", description: "开发服务" },
+    { id: "csharp-name", title: "CSharp engineer", description: "Build services" },
+    { id: "cpp", title: "熟悉C++17开发", description: "开发服务" },
+    { id: "dotnet", title: "ASP.NET Core Engineer", description: "开发服务" },
+    { id: "dotnet-version", title: ".NET8后端开发", description: "开发服务" },
+    { id: "c-product", title: "C端产品经理", description: "面向消费者的产品" },
+    { id: "c-only", title: "C developer", description: "Embedded language" },
+    { id: "sharp", title: "Sharp designer", description: "Visual design" },
+    { id: "csharpener", title: "CSharpener operator", description: "Operations" },
+    { id: "cppcheck", title: "Cppcheck maintainer", description: "Static analyzer" },
+    { id: "dotne", title: "Dotne specialist", description: "Synthetic near spelling" },
+    { id: "domain", title: "Network operator", description: "Operate example.net website" },
+  ]);
+  for (const mode of ["fuzzy", "exact"] as const) {
+    assert.deepEqual(new Set(ids(await queryJobs(dataset, { search: { text: "C#", mode } }, OPTIONS))), new Set(["job-csharp", "job-csharp-name"]));
+    assert.deepEqual(ids(await queryJobs(dataset, { search: { text: "Ｃ＋＋", mode } }, OPTIONS)), ["job-cpp"]);
+    assert.deepEqual(new Set(ids(await queryJobs(dataset, { search: { text: ".NET", mode } }, OPTIONS))), new Set(["job-dotnet", "job-dotnet-version"]));
+  }
+  assert.deepEqual(ids(await queryJobs(dataset, { search: { text: "C# engnieer", mode: "fuzzy" } }, OPTIONS)), ["job-csharp-name"]);
+  assert.equal(includesSearchText("C# / .NET8 developer", "C#"), true);
+  assert.equal(includesSearchText("熟悉C++17开发", "C++"), true);
+  assert.equal(includesSearchText("VB.NET developer", ".NET"), true);
+  for (const [haystack, term] of [["C端产品经理", "C#"], ["C developer", "C#"], ["CSharpener", "C#"], ["Cppcheck", "C++"], ["sharp", "C#"], ["dotne", ".NET"], ["example.net", ".NET"], ["C#", "sharp"], ["C++", "C"]]) {
+    assert.equal(includesSearchText(haystack!, term!), false, `${term} must not match ${haystack}`);
+  }
+  assert.equal(includesSearchText("上海自动化开发工程师", "自动化"), true);
+  assert.equal(includesSearchText("Industrial automation engineer", "automation"), true);
+  assert.equal(includesSearchText("C# services and CSharpener", "C# services"), true);
+  assert.equal(includesSearchText("CSharpener services", "C# services"), false);
+  assert.equal(normalizeSearchText("ABC# ABC++ example.net ASP.NET8 Ｃ＃ Ｃ＋＋"), "abc abc example net asp dotnet 8 csharp cpp");
+  const ordinary = datasetFor([
+    { id: "chinese", title: "工业自动化工程师", description: "设备研发" },
+    { id: "english", title: "Industrial automation engineer", description: "Factory systems" },
+  ]);
+  assert.deepEqual(ids(await queryJobs(ordinary, { search: { text: "自动化开", mode: "fuzzy" } }, OPTIONS)), ["job-chinese"]);
+  assert.deepEqual(ids(await queryJobs(ordinary, { search: { text: "automtaion", mode: "fuzzy" } }, OPTIONS)), ["job-english"]);
 });
 
 test("query aliases can find a role without changing its original text", async () => {

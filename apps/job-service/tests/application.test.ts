@@ -24,7 +24,7 @@ function record(id: string, overrides: Partial<SourceJobRecord> = {}): SourceJob
     locations: [{ raw: "上海", countryCode: "CN", city: "上海" }], compensations: [], workMode: "on-site", employmentType: "social", remoteEligibleRegions: [], availability: "unknown", completeness: "detail", evidence: [], warnings: [], ...overrides };
 }
 function page(request: SourceAdapterRequest, records: SourceJobRecord[], nextCursor?: string): SourcePage {
-  return { records, observedAt: request.context.observedAt, ...(nextCursor ? { nextCursor } : {}), coverage: { complete: !nextCursor, partial: false, fetchedRecords: records.length, appliedFilters: [], ignoredFilters: (Object.keys(request.scope) as Array<keyof typeof scope>).filter((key) => request.scope[key].length > 0) }, warnings: [] };
+  return { records, observedAt: request.context.observedAt, ...(nextCursor ? { nextCursor } : {}), coverage: { complete: !nextCursor, partial: false, fetchedRecords: records.length, appliedFilters: [], ignoredFilters: (["roles", "regions", "companyNames"] as const).filter((key) => request.scope[key].length > 0) }, warnings: [] };
 }
 function context(key?: string, signal = new AbortController().signal): TrustedToolContext {
   return { requestId: randomUUID(), actorScope: "local-owner", allowedEffects: ["read-index", "local-write", "external-read"], signal, budget: { requests: 20, bytes: 4_000_000, timeoutMs: 4000 }, ...(key ? { idempotencyKey: key } : {}) };
@@ -136,6 +136,126 @@ test("unknown employers and campaigns stay leads, and local scope filtering does
   } finally { await f.close(); }
 });
 
+test("source scope preview and sync preserve C#, C++ and .NET semantics despite broad upstream matches", async () => {
+  const rows = [
+    record("csharp", { title: "Ｃ＃开发工程师", description: "开发后台服务" }),
+    record("cpp", { title: "熟悉C++17开发", description: "开发服务" }),
+    record("dotnet", { title: "ASP.NET8工程师", description: "开发服务" }),
+    record("c-product", { title: "C端产品经理", description: "面向消费者的产品" }),
+    record("c-only", { title: "C developer", description: "Embedded language" }),
+    record("sharp", { title: "Sharp designer", description: "Visual design" }),
+    record("csharpener", { title: "CSharpener operator", description: "Operations" }),
+    record("cppcheck", { title: "Cppcheck maintainer", description: "Static analyzer" }),
+    record("dotne", { title: "Dotne specialist", description: "Near spelling" }),
+    record("domain", { title: "Network operator", description: "Operate example.net website" }),
+  ];
+  const f = await fixture(async (request) => page(request, rows));
+  try {
+    for (const [keyword, expectedId] of [["C#", "csharp"], ["C++", "cpp"], [".NET", "dotnet"]]) {
+      const input = { sourceId: source.sourceId, scope: { ...scope, roles: [keyword!] } };
+      const preview = value(await f.application.registry.execute("sources.preview", input, context()));
+      assert.equal(preview.page.records.length, rows.length); assert.equal(preview.localMatchedRecords, 1, keyword);
+      const synced = value(await f.application.registry.execute("sources.sync", input, context(`symbol-${expectedId}`)));
+      assert.equal(synced.run.summary.records, rows.length); assert.equal(synced.run.summary.added, 1);
+      const result = value(await f.application.registry.execute("jobs.search", { search: { text: keyword!, mode: "fuzzy" } }, context()));
+      assert.equal(result.totalJobs, 1); assert.equal(result.items[0].sources[0].listingId !== undefined, true);
+      const snapshot = await f.repository.readSnapshot();
+      assert.equal(snapshot.listings.filter((listing) => listing.sourceRecordId === expectedId).length, 1);
+    }
+    assert.equal((await f.repository.readSnapshot()).jobs.length, 3);
+    const ordinary = value(await f.application.registry.execute("sources.preview", { sourceId: source.sourceId, scope: { ...scope, roles: ["产品经理"], regions: ["上海"], companyNames: ["Synthetic"] } }, context()));
+    assert.equal(ordinary.localMatchedRecords, 1);
+  } finally { await f.close(); }
+});
+
+test("main text scope includes an explicit employer name while the company filter remains an additional AND condition", async () => {
+  const rows = [record("company-only", { companyName: "UniqueEmployerOnly", title: "Platform engineer", description: "Build distributed systems" }),
+    record("description-only", { companyName: "Another employer", title: "Platform engineer", description: "Integrate UniqueEmployerOnly products" }),
+    record("unrelated", { companyName: "Unrelated employer", title: "Platform engineer", description: "Build distributed systems" })];
+  const f = await fixture(async (request) => page(request, rows));
+  try {
+    const input = { sourceId: source.sourceId, scope: { ...scope, roles: ["UniqueEmployerOnly"] } };
+    const preview = value(await f.application.registry.execute("sources.preview", input, context()));
+    assert.equal(preview.localMatchedRecords, 2);
+    const restricted = value(await f.application.registry.execute("sources.preview", { ...input, scope: { ...input.scope, companyNames: ["UniqueEmployerOnly"] } }, context()));
+    assert.equal(restricted.localMatchedRecords, 1, "a keyword in another company description cannot bypass the separate employer condition");
+    const synced = value(await f.application.registry.execute("sources.sync", input, context("company-keyword")));
+    assert.equal(synced.run.summary.records, 3); assert.equal(synced.run.summary.added, 2);
+    const searched = value(await f.application.registry.execute("jobs.search", { search: { text: "UniqueEmployerOnly", mode: "fuzzy" } }, context()));
+    assert.equal(searched.totalJobs, 2);
+    assert.deepEqual((await f.repository.readSnapshot()).listings.map((listing) => listing.sourceRecordId).sort(), ["company-only", "description-only"]);
+  } finally { await f.close(); }
+});
+
+test("country scope codes match structured country evidence exactly while ordinary region text retains literal matching", async () => {
+  const rows = [
+    record("us", { locations: [{ raw: "Seattle, United States", countryCode: "US", city: "Seattle" }] }),
+    record("au", { locations: [{ raw: "Sydney, Australia", countryCode: "AU", city: "Sydney" }] }),
+    record("raw-us", { locations: [{ raw: "Seattle, US", city: "Seattle" }] }),
+    record("remote-us", { locations: [], remoteEligibleRegions: ["US"] }),
+    record("shanghai", { locations: [{ raw: "上海", countryCode: "CN", city: "上海" }] }),
+  ];
+  const f = await fixture(async (request) => page(request, rows));
+  try {
+    const input = { sourceId: source.sourceId, scope: { ...scope, regions: ["US"] } };
+    const preview = value(await f.application.registry.execute("sources.preview", input, context()));
+    assert.equal(preview.localMatchedRecords, 1, "US never matches Australia, unstructured US text or remote eligibility alone");
+    const ordinary = value(await f.application.registry.execute("sources.preview", { ...input, scope: { ...scope, regions: ["上海"] } }, context()));
+    assert.equal(ordinary.localMatchedRecords, 1);
+    const combined = value(await f.application.registry.execute("sources.preview", { ...input, scope: { ...scope, regions: ["US", "上海"] } }, context()));
+    assert.equal(combined.localMatchedRecords, 2, "requested regions retain OR semantics");
+    const synced = value(await f.application.registry.execute("sources.sync", input, context("country-code")));
+    assert.equal(synced.run.summary.records, 5); assert.equal(synced.run.summary.added, 1);
+    const local = value(await f.application.registry.execute("jobs.search", { workRegionIds: ["US"] }, context()));
+    assert.equal(local.totalJobs, 1);
+    assert.deepEqual((await f.repository.readSnapshot()).listings.map((listing) => listing.sourceRecordId), ["us"]);
+  } finally { await f.close(); }
+});
+
+test("source country constraints and city interests match the same location and persist in preview, sync and run receipts", async () => {
+  const rows = [
+    record("target", { locations: [{ raw: "US Springfield", countryCode: "US", city: "Springfield" }] }),
+    record("other-country", { locations: [{ raw: "AU Springfield", countryCode: "AU", city: "Springfield" }] }),
+    record("crossed-offices", { locations: [{ raw: "US Seattle", countryCode: "US", city: "Seattle" }, { raw: "AU Springfield", countryCode: "AU", city: "Springfield" }] }),
+    record("raw-country-unknown", { locations: [{ raw: "Springfield, US", city: "Springfield" }] }),
+    record("remote", { locations: [], remoteEligibleRegions: ["Springfield"] }),
+    record("remote-crossed", { locations: [{ raw: "US Seattle", countryCode: "US", city: "Seattle" }], remoteEligibleRegions: ["Springfield"] }),
+  ];
+  const f = await fixture(async (request) => page(request, rows));
+  try {
+    const input = { sourceId: source.sourceId, scope: { ...scope, regions: ["Springfield"], countryCodes: ["US"] } };
+    const preview = value(await f.application.registry.execute("sources.preview", input, context()));
+    assert.equal(preview.localMatchedRecords, 1);
+    assert.deepEqual(preview.localFilters, input.scope);
+    assert.deepEqual(preview.page.coverage.appliedFilters, []);
+    assert.deepEqual(preview.page.coverage.ignoredFilters, ["regions"]);
+    assert.match(preview.page.warnings.join(" "), /Country-code constraints are checked locally/);
+    assert.equal((await f.repository.readSnapshot()).jobs.length, 0, "preview is still read-only");
+    const eitherCity = value(await f.application.registry.execute("sources.preview", { ...input, scope: { ...input.scope, regions: ["Springfield", "Seattle"] } }, context()));
+    assert.equal(eitherCity.localMatchedRecords, 3, "city interests remain OR within a country");
+    const countryOnly = value(await f.application.registry.execute("sources.preview", { ...input, scope: { ...input.scope, regions: [] } }, context()));
+    assert.equal(countryOnly.localMatchedRecords, 3);
+    const legacy = value(await f.application.registry.execute("sources.preview", { ...input, scope: { ...scope, regions: ["Springfield"] } }, context()));
+    assert.equal(legacy.localMatchedRecords, 6, "omitting the country constraint retains legacy remote eligibility matching");
+    const explicitEmpty = value(await f.application.registry.execute("sources.preview", { ...input, scope: { ...input.scope, countryCodes: [] } }, context()));
+    assert.equal(explicitEmpty.localMatchedRecords, legacy.localMatchedRecords);
+    const synced = value(await f.application.registry.execute("sources.sync", input, context("country-and-city")));
+    assert.equal(synced.run.summary.records, 6); assert.equal(synced.run.summary.added, 1);
+    assert.deepEqual(synced.run.scope.countryCodes, ["US"]);
+    assert.deepEqual((await f.repository.getRun(synced.run.runId))!.scope.countryCodes, ["US"]);
+    assert.deepEqual((await f.repository.readSnapshot()).listings.map((listing) => listing.sourceRecordId), ["target"]);
+    await f.restartApplication();
+    const replay = value(await f.application.registry.execute("sources.sync", input, context("country-and-city")));
+    assert.equal(replay.run.runId, synced.run.runId); assert.deepEqual(replay.run.scope.countryCodes, ["US"]);
+    const changedCountry = await f.application.registry.execute("sources.sync", { ...input, scope: { ...input.scope, countryCodes: ["AU"] } }, context("country-and-city"));
+    assert.equal(changedCountry.ok, false); if (!changedCountry.ok) assert.equal(changedCountry.error.code, "idempotency-conflict");
+    const queried = value(await f.application.registry.execute("jobs.search", { workCountryCodes: ["US"], workRegionText: "Spring" }, context()));
+    assert.equal(queried.totalJobs, 1);
+    const invalid = await f.application.registry.execute("sources.preview", { ...input, scope: { ...input.scope, countryCodes: ["us"] } }, context());
+    assert.equal(invalid.ok, false); if (!invalid.ok) assert.equal(invalid.error.code, "invalid-input");
+  } finally { await f.close(); }
+});
+
 test("source refresh interval is checked before superseding a running task", async () => {
   const entered = deferred<void>(); const release = deferred<void>();
   const f = await fixture(async (request) => { entered.resolve(); await release.promise; return page(request, []); });
@@ -168,4 +288,118 @@ test("discovery tools use configured transport and remain candidates rather than
     assert.equal(discovered.candidates.length, 1); assert.equal(discovered.candidates[0].status, "needs-review");
     assert.equal((await f.repository.readSnapshot()).sources.length, 1); assert.equal((await f.repository.readSnapshot()).jobs.length, 0);
   } finally { await f.close(); }
+});
+
+test("company career discovery reuses registered company metadata without fetching jobs, making HTTP requests or changing the index", async () => {
+  let lists = 0; let requests = 0;
+  const f = await fixture(async (request) => { lists++; return page(request, []); }, { async request() { requests++; throw new Error("Unexpected company discovery request"); } });
+  try {
+    await f.repository.registerSource({ ...source, options: { companyName: "Unique Registered Company" } }, {
+      expectedRevision: (await f.repository.readSnapshot()).revision, actorScope: "local-owner", idempotencyKey: "company-metadata",
+    });
+    const before = await f.repository.readSnapshot();
+    const found = value(await f.application.registry.execute("companies.discover-careers", {
+      sourceId: source.sourceId, request: { companyName: "  UNIQUE   Registered Company  " },
+    }, context()));
+    assert.equal(found.status, "matched-existing");
+    assert.equal(found.observedAt, at);
+    assert.deepEqual(found.matchedSources, [{ sourceId: source.sourceId, name: source.name, matchedBy: "company-name", enabled: true, status: "active" }]);
+    assert.deepEqual(found.candidates, []); assert.deepEqual(found.proposals, []); assert.deepEqual(found.visitedUrls, []);
+    assert.equal(lists, 0); assert.equal(requests, 0);
+    assert.deepEqual(await f.repository.readSnapshot(), before);
+    assert.deepEqual(await f.repository.listRuns(), []);
+    assert.deepEqual(value(await f.application.registry.execute("leads.list", {}, context())), []);
+  } finally { await f.close(); }
+});
+
+test("unknown company discovery requires a website without guessing a domain or writing an empty search into the index", async () => {
+  let lists = 0; let requests = 0;
+  const f = await fixture(async (request) => { lists++; return page(request, []); }, { async request() { requests++; throw new Error("Unexpected company discovery request"); } });
+  try {
+    const before = await f.repository.readSnapshot();
+    const found = value(await f.application.registry.execute("companies.discover-careers", {
+      sourceId: source.sourceId, request: { companyName: "Unknown Company With No Reviewed Website" },
+    }, context()));
+    assert.equal(found.status, "requires-company-website");
+    assert.deepEqual(found.matchedSources, []); assert.deepEqual(found.candidates, []); assert.deepEqual(found.proposals, []); assert.deepEqual(found.visitedUrls, []);
+    assert.equal(found.partial, false);
+    assert.match(found.warnings.join(" "), /domains are never guessed/);
+    assert.equal(lists, 0); assert.equal(requests, 0);
+    assert.deepEqual(await f.repository.readSnapshot(), before);
+    assert.deepEqual(await f.repository.listRuns(), []);
+  } finally { await f.close(); }
+});
+
+test("company career discovery enforces tool effects, endpoint policy and discovery capability before registered-source reuse", async () => {
+  let requests = 0;
+  const f = await fixture(async (request) => page(request, []), { async request() { requests++; throw new Error("Unexpected unauthorized discovery request"); } });
+  try {
+    const before = await f.repository.readSnapshot();
+    const deniedEffect = await f.application.registry.execute("companies.discover-careers", {
+      sourceId: source.sourceId, request: { companyName: source.name },
+    }, { ...context(), allowedEffects: ["read-index"] });
+    assert.equal(deniedEffect.ok, false); if (!deniedEffect.ok) assert.equal(deniedEffect.error.code, "not-authorized");
+    const deniedHost = await f.application.registry.execute("companies.discover-careers", {
+      sourceId: source.sourceId, request: { companyName: "Unknown Company", companyWebsite: "https://outside-policy.example.test/" },
+    }, context());
+    assert.equal(deniedHost.ok, false); if (!deniedHost.ok) assert.equal(deniedHost.error.code, "not-authorized");
+    assert.deepEqual(await f.repository.readSnapshot(), before);
+    for (const [key, policy] of [
+      ["no-discovery-capability", { capabilities: ["list-jobs"] }],
+      ["disabled-discovery-source", { enabled: false, status: "disabled" }],
+    ] as const) {
+      await f.repository.registerSource({ ...source, ...policy, capabilities: [...("capabilities" in policy ? policy.capabilities : source.capabilities)] }, {
+        expectedRevision: (await f.repository.readSnapshot()).revision, actorScope: "local-owner", idempotencyKey: key,
+      });
+      const configured = await f.repository.readSnapshot();
+      const denied = await f.application.registry.execute("companies.discover-careers", {
+        sourceId: source.sourceId, request: { companyName: source.name },
+      }, context());
+      assert.equal(denied.ok, false); if (!denied.ok) assert.equal(denied.error.code, "unsupported-capability");
+      assert.deepEqual(await f.repository.readSnapshot(), configured);
+    }
+    assert.equal(requests, 0);
+    assert.deepEqual(await f.repository.listRuns(), []);
+  } finally { await f.close(); }
+});
+
+test("authenticated company career HTTP route returns existing and unknown results while rejecting missing auth and disallowed discovery hosts", async () => {
+  let lists = 0; let requests = 0;
+  const f = await fixture(async (request) => { lists++; return page(request, []); }, { async request() { requests++; throw new Error("Unexpected company HTTP discovery request"); } });
+  let server: ReturnType<typeof createJobHttpServer> | undefined;
+  try {
+    await f.repository.registerSource({ ...source, options: { companyName: "HTTP Registered Company" } }, {
+      expectedRevision: (await f.repository.readSnapshot()).revision, actorScope: "local-owner", idempotencyKey: "http-company-metadata",
+    });
+    const before = await f.repository.readSnapshot();
+    const token = "synthetic-company-http-token-1234567890";
+    const origin = "http://localhost:5173";
+    server = createJobHttpServer({ registry: f.application.registry, token, allowedOrigins: [origin], port: 0 });
+    const address = await server.listen();
+    const url = `${address.url}/api/v1/companies/discover-careers`;
+    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Origin: origin };
+    for (const [companyName, status, matches] of [
+      ["HTTP Registered Company", "matched-existing", 1],
+      ["HTTP Unknown Company", "requires-company-website", 0],
+    ] as const) {
+      const response = await fetch(url, { method: "POST", headers, body: JSON.stringify({ sourceId: source.sourceId, request: { companyName } }) });
+      assert.equal(response.status, 200); assert.equal(response.headers.get("access-control-allow-origin"), origin);
+      const found = value(await response.json() as ToolResult);
+      assert.equal(found.status, status); assert.equal(found.matchedSources.length, matches);
+      assert.deepEqual(found.candidates, []); assert.deepEqual(found.proposals, []); assert.deepEqual(found.visitedUrls, []);
+    }
+    const noAuth = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Origin: origin }, body: "{}" });
+    assert.equal(noAuth.status, 401); assert.deepEqual(await noAuth.json(), { error: "unauthorized" });
+    const foreignOrigin = await fetch(url, { method: "POST", headers: { ...headers, Origin: "https://not-the-ui.example.test" }, body: "{}" });
+    assert.equal(foreignOrigin.status, 403); assert.deepEqual(await foreignOrigin.json(), { error: "origin-not-allowed" });
+    const outsidePolicy = await fetch(url, { method: "POST", headers, body: JSON.stringify({
+      sourceId: source.sourceId, request: { companyName: "HTTP Unknown Company", companyWebsite: "https://outside-policy.example.test/" },
+    }) });
+    assert.equal(outsidePolicy.status, 403);
+    const denied = await outsidePolicy.json() as ToolResult;
+    assert.equal(denied.ok, false); if (!denied.ok) assert.equal(denied.error.code, "not-authorized");
+    assert.equal(lists, 0); assert.equal(requests, 0);
+    assert.deepEqual(await f.repository.readSnapshot(), before);
+    assert.deepEqual(await f.repository.listRuns(), []);
+  } finally { await server?.close(); await f.close(); }
 });

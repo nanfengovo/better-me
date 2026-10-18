@@ -51,6 +51,24 @@ function text(value: unknown, max: number, required = false): string {
   if (typeof value !== "string" || value.length > max || (required && !value.trim())) throw new LegacyImportError("invalid-library");
   return value;
 }
+
+const countryAliases: ReadonlyArray<readonly [string, readonly string[]]> = [
+  ["CN", ["CN", "中国", "中国大陆", "中国内地", "中华人民共和国", "China", "Mainland China", "People's Republic of China", "PRC"]],
+  ["HK", ["HK", "香港", "中国香港", "香港特别行政区", "中国香港特别行政区", "Hong Kong", "Hong Kong SAR", "Hong Kong SAR China"]],
+  ["MO", ["MO", "澳门", "中国澳门", "澳门特别行政区", "中国澳门特别行政区", "Macao", "Macau", "Macao SAR", "Macao SAR China"]],
+  ["TW", ["TW", "台湾", "中国台湾", "台湾地区", "Taiwan"]],
+  ["US", ["US", "USA", "美国", "美利坚合众国", "United States", "United States of America"]],
+  ["GB", ["GB", "UK", "英国", "United Kingdom", "Great Britain"]],
+  ["SG", ["SG", "新加坡", "Singapore"]], ["DE", ["DE", "德国", "Germany"]], ["FR", ["FR", "法国", "France"]],
+  ["JP", ["JP", "日本", "Japan"]], ["CA", ["CA", "加拿大", "Canada"]], ["AU", ["AU", "澳大利亚", "Australia"]],
+];
+const countryAliasKey = (value: string) => value.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
+const legacyCountryCodes = new Map(countryAliases.flatMap(([code, aliases]) => aliases.map((alias) => [countryAliasKey(alias), code] as const)));
+
+/** Exact, finite names from the explicitly saved country field only. Market, cities and brands are never inputs. */
+export function resolveLegacyCountryCode(country: string): string | undefined {
+  return legacyCountryCodes.get(countryAliasKey(country));
+}
 function choice<T extends string>(value: unknown, values: readonly T[]): T {
   if (typeof value !== "string" || !values.includes(value as T)) throw new LegacyImportError("invalid-library");
   return value as T;
@@ -215,7 +233,8 @@ export async function previewLegacyImport(input: unknown): Promise<LegacyImportP
       if (country || region || city) {
         const id = await deriveEntityId("location", [listingId, country, region, city]);
         locationIds.push(id);
-        dataset.locations.push({ id, raw: [country, region, city].filter(Boolean).join(" / "), kind: "unknown", ...(region ? { region } : {}), ...(city ? { city } : {}), precision: "unknown", evidence, verification: "unverified" });
+        const countryCode = resolveLegacyCountryCode(country);
+        dataset.locations.push({ id, raw: [country, region, city].filter(Boolean).join(" / "), kind: "unknown", ...(countryCode ? { countryCode } : {}), ...(region ? { region } : {}), ...(city ? { city } : {}), precision: "unknown", evidence, verification: "unverified" });
       }
       const compensationIds: string[] = [];
       if (salaryRaw.trim()) {

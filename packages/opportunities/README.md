@@ -1,8 +1,8 @@
 # `@better-me/opportunities`
 
-BetterMe 的共享 TypeScript 岗位领域与 M0 参考实现。UI、HTTP、后台任务和未来 Agent 使用相同的数据与业务契约；本包不依赖 React、地图 SDK、SQLite、LangChain 或 LangGraph。
+BetterMe 的共享 TypeScript 岗位领域。UI、HTTP、后台任务和未来 Agent 使用相同的数据与业务契约；本包不依赖 React、地图 SDK、SQLite、LangChain 或 LangGraph。
 
-**当前实现包含领域校验、纯值规则、内存查询、工具执行器和旧机会库迁移预览。** 本包尚不提供常驻后端、数据库、来源采集、平台搜索、三维地图或自动投递，也没有自动读取或迁移用户浏览器存储。内存查询的合成测试不代表任何招聘平台的实时覆盖或在招核验。
+**当前实现包含领域校验、纯值规则、内存查询、工具执行器、旧机会库迁移预览及可撤销跨源归并的纯规则。** 持久服务与采集分别由 [`apps/job-service`](../../apps/job-service/README.md) 和 [`packages/source-adapters`](../source-adapters/README.md) 提供。本包自身没有数据库、网络采集、地图渲染或自动投递，也不读取用户浏览器存储。内存查询的合成测试不代表任何招聘平台的实时覆盖或在招核验。
 
 整体需求与 M0–M5 验收见[岗位地图架构](../../docs/planning/job-atlas-architecture-2026-10-18.md)，来源范围见[来源研究](../../docs/planning/job-atlas-sources-research-2026-10-18.md)，地图候选见[三维研究](../../docs/research/job-atlas-map-references-2026-10-18.md)。
 
@@ -101,7 +101,27 @@ export function createSnapshotSearch(publicInput: unknown) {
 - `sources` 保留列表项的来源 ID、标签、原链接和 Listing ID。`sourceCoverage` 只描述已索引记录及其观察状态，不表示全站/全球覆盖，也不是一次上游枚举任务的完整回执。
 - 距离只通过查询中的 `anchorRef` 引用私人参照点；真实坐标由可信 `QueryOptions.anchor` 注入，不回显到 `normalizedQuery` 或结果。家庭位置变化时调用方必须更新 ref，不将家庭地址交给模型或写公共岗位库。
 
-这是内存扫描与聚合基线，用于固定口径和合成验收；大索引、数据库全文索引、持续刷新、跨源归并和性能工程仍需后续阶段实现。返回的数据桶可以被地图渲染器使用，本包不绘制二维或三维地图。
+这是内存扫描与聚合基线，用于固定口径和合成验收；数据库查询下推、大索引性能和持续调度仍需后续阶段实现。返回的数据桶可以被地图渲染器使用，本包不绘制二维或三维地图。
+
+## 可解释候选与可撤销归并
+
+`src/reconciliation.ts` 提供纯函数及运行时 Schema；它不会自行确认同岗或写数据库。持久决策与事务实现位于 job-service repository；现有采集、详情、搜索和导出已兼容规范岗位及旧 ID，人工归并写入尚未注册为 HTTP 或应用工具。
+
+| API / Schema | 职责 |
+| --- | --- |
+| `explainMergeCandidate(dataset, { leftJobId, rightJobId, requisitionLinks? })` | 为两个当前岗位生成带索引 revision、关联信号、企业核对要求和字段冲突的候选。 |
+| `findMergeCandidates(dataset, { limit?, requisitionLinks? })` | 发现有限候选，强信号优先；默认 100，最多 1,000。该参考实现仍扫描快照，尚无规模性能结论。 |
+| `OfficialRequisitionLinkSchema` | 显式已核实的官网职位号、命名空间及各 listing 的观察证据；不把不同平台的同名记录号当官网职位号。 |
+| `MergeCandidateSchema` / `MergeSignalSchema` / `MergeConflictSchema` | 保留关联理由和公司、标题、JD、状态、工作方式、地点、薪资等冲突；预览最多 1,000 字，原正文留在不可变快照中。 |
+| `MergeDecisionSchema` | 追加式人工合并、拒绝与撤销事件，含身份、理由、时间、revision 和确认时的候选。 |
+| `projectReconciliation(baseDataset, decisions)` | 根据原始岗位及有效决策生成当前规范岗位、旧 ID 别名和摘要依据；保留所有原始 listing、观察、JD、地点和薪资。 |
+| `JobAliasEventSchema` / `ReconciliationReceiptSchema` | 旧岗位 ID 的路由历史和写入成功回执；持久化与历史完整性由 repository 负责。 |
+
+精确且具体的共同申请链接、带各自观察证据的共同官网职位号才构成强信号。公司名、岗位名、相同公司 ID 或已核实法人只提供核对线索；首页、招聘列表和搜索页不构成岗位身份。**所有信号都只生成提案，强信号也不会自动合并。** 不同公司 ID 且没有共同已核实法人时，需要额外的人工企业身份确认。
+
+合并是稳定原始岗位 ID 之间的可撤销边。一个连通组采用最近一次有效合并所选 `targetJobId` 的标量摘要，合并其 listing、地点、薪资和远程资格数组，并报告各来源冲突。新来源刷新更新各自原始投影，人工选择的摘要来源继续生效；撤销某条合并后重新计算连通组，已拆出的来源保留刷新后的最新值及全部旧快照。标题、公司和正文并非永久冻结，所选摘要来源自身更新时仍可变化。
+
+私人收藏、投递和材料不属于本包。集成方应保存原 `jobId` 与采用的 `snapshotId`，通过 repository 解析旧 ID，不能因合并去重覆盖私人材料快照。公共规范快照本身不包含可拆分的原始投影与决策历史，不能替代完整仓库备份。
 
 ## 工具工厂与执行器
 
