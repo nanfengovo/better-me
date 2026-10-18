@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "ownership-origin-default",
+  "defaultColor": "#84908A",
+  "defaultLabel": "控股来源待核实",
+  "unverifiedLabel": "控股来源未核实",
+  "conflictingColor": "#8B7A99",
+  "conflictingLabel": "控股来源存在冲突",
+  "groups": [
+    { "id": "nordic", "label": "北欧", "match": "include", "jurisdictions": ["DK", "FI", "IS", "NO", "SE"] },
+    { "id": "europe", "label": "欧洲", "match": "include", "jurisdictions": ["AL", "AD", "AT", "BY", "BE", "BA", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IS", "IE", "IT", "LV", "LI", "LT", "LU", "MT", "MD", "MC", "ME", "NL", "MK", "NO", "PL", "PT", "RO", "RU", "SM", "RS", "SK", "SI", "ES", "SE", "CH", "TR", "UA", "GB", "VA"] },
+    { "id": "domestic-control", "label": "国内控股来源分组", "match": "include", "jurisdictions": ["CN", "HK", "MO", "TW"] },
+    { "id": "other-verified-foreign", "label": "其他已核实控股来源", "match": "all-except", "jurisdictions": ["CN", "HK", "MO", "TW"] }
+  ],
+  "rules": [
+    { "id": "joint", "priority": 110, "ownership": "joint", "color": "#81739D", "label": "共同控制 / 合资" },
+    { "id": "nordic", "priority": 100, "group": "nordic", "color": "#052E16", "label": "北欧控股" },
+    { "id": "de-fr", "priority": 90, "jurisdictions": ["DE", "FR"], "color": "#14532D", "label": "德国 / 法国控股" },
+    { "id": "europe", "priority": 80, "group": "europe", "color": "#287447", "label": "其他欧洲控股" },
+    { "id": "us", "priority": 70, "jurisdictions": ["US"], "color": "#76BD8A", "label": "美国控股" },
+    { "id": "sg-hk", "priority": 60, "jurisdictions": ["SG", "HK"], "color": "#B5DDBE", "label": "新加坡 / 香港控股" },
+    { "id": "domestic-state", "priority": 50, "group": "domestic-control", "ownership": "state", "color": "#D6A627", "label": "国有控股" },
+    { "id": "domestic-private", "priority": 40, "group": "domestic-control", "ownership": "private", "color": "#D75E61", "label": "民营控股" },
+    { "id": "other-known", "priority": 10, "group": "other-verified-foreign", "color": "#5F8B7A", "label": "其他已核实控股来源" }
+  ]
+}

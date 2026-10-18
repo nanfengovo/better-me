@@ -27,6 +27,10 @@
 !packages/storage/package.json
 !packages/storage/tsconfig.json
 !packages/storage/src/**/*.ts
+!packages/opportunities/package.json
+!packages/opportunities/tsconfig.json
+!packages/opportunities/src/**/*.ts
+!packages/opportunities/src/**/*.json
 
 !templates/README.md
 !templates/CATALOG.md

@@ -113,6 +113,16 @@ importers:
         specifier: ^5.8.3
         version: 5.8.3
 
+  packages/opportunities:
+    dependencies:
+      zod:
+        specifier: ^3.25.67
+        version: 3.25.67
+    devDependencies:
+      typescript:
+        specifier: ^5.8.3
+        version: 5.8.3
+
   packages/storage:
     dependencies:
       '@better-me/core':

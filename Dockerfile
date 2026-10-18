@@ -12,11 +12,13 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.js
 COPY apps/web/package.json ./apps/web/package.json
 COPY packages/core/package.json ./packages/core/package.json
 COPY packages/storage/package.json ./packages/storage/package.json
+COPY packages/opportunities/package.json ./packages/opportunities/package.json
 RUN pnpm install --frozen-lockfile
 
 COPY apps/web ./apps/web
 COPY packages/core ./packages/core
 COPY packages/storage ./packages/storage
+COPY packages/opportunities ./packages/opportunities
 COPY docker/collect-licenses.mjs ./docker/collect-licenses.mjs
 COPY docker/license-overrides ./docker/license-overrides
 # The container is served at /; Pages has its own /better-me/ build in CI.
