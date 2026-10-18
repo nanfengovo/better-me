@@ -138,6 +138,20 @@ test("真实Edge人工接续保留登录完成页，用户返回原岗位后读�
   const owner = "http://[::1]:5175";
   try {
     const first = await manager.start(owner, original);
+    const inspectAfterNavigation = async () => {
+      const deadline = Date.now() + 5_000;
+      for (;;) {
+        const inspection = await manager.inspect(owner, first.sessionId);
+        // goto/load and the manager's independent commit observer can settle
+        // in different turns. Retry only the public navigation-pending state;
+        // ready-but-unknown and failed snapshots must still fail immediately.
+        if (inspection.snapshotState !== "navigation_in_progress" || Date.now() >= deadline) {
+          assert.equal(inspection.snapshotState, "ready", "主文档导航应在有界等待内生成有效快照");
+          return inspection;
+        }
+        await new Promise<void>((resolve) => setImmediate(resolve));
+      }
+    };
     const afterStart = requested.length;
     await assert.rejects(manager.read(owner, first.sessionId), (error: unknown) => error instanceof JdExtractionError && error.failure.code === "login_required");
     assert.equal(requested.length, afterStart, "read遇到当前登录提示不能刷新页面");
@@ -158,7 +172,7 @@ test("真实Edge人工接续保留登录完成页，用户返回原岗位后读�
     assert.equal(await pages[0].getByRole("textbox", { name: "合成验证进度" }).inputValue(), "fixture-progress", "合成验证页面的现场状态仍保留");
     await pages[0].goto(complete);
     const afterLogin = requested.length;
-    const intermediateStatus = await manager.inspect(owner, first.sessionId);
+    const intermediateStatus = await inspectAfterNavigation();
     assert.equal(intermediateStatus.pageState, "platform_intermediate");
     assert.equal(intermediateStatus.gate, undefined);
     assert.equal(pages[0].url(), complete, "检查不会把刚完成登录的页面跳回原岗位");
@@ -192,7 +206,7 @@ test("真实Edge人工接续保留登录完成页，用户返回原岗位后读�
     const automaticReloaded = pages[0].waitForEvent("load");
     await pages[0].evaluate("setTimeout(() => location.reload(), 0)");
     await automaticReloaded;
-    const afterAutomaticReload = await manager.inspect(owner, first.sessionId);
+    const afterAutomaticReload = await inspectAfterNavigation();
     assert.equal(afterAutomaticReload.mainDocumentRequests, afterManualReturn + 1, "合成网页自行reload会增加主页面请求计数");
     assert.equal(requested.length, afterManualReturn + 1, "只有页面自行触发的一次主网络请求");
     const afterRead = requested.length;
@@ -206,7 +220,7 @@ test("真实Edge人工接续保留登录完成页，用户返回原岗位后读�
     assert.equal((await manager.inspect(owner, first.sessionId)).mainDocumentRequests, afterAutomaticReload.mainDocumentRequests, "网页reload结束后read与inspect不再增加计数");
     await pages[0].goto("about:blank");
     assert.equal(requested.length, afterRead, "about:blank不发出网络请求");
-    const blank = await manager.inspect(owner, first.sessionId);
+    const blank = await inspectAfterNavigation();
     assert.equal(blank.snapshotState, "ready");
     assert.equal(blank.pageState, "blank");
     assert.equal(blank.gate, undefined);
