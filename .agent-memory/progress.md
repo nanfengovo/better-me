@@ -4,6 +4,8 @@
 
 ## 当前交付
 
+- [x] 2026-10-19 国内来源实补：原61→85岗／rev33→59，猎聘上海24卡核对19（18新增／1已有），LinkedIn上海50卡核对6近月标题C#（6新增），逐条确认原卡行政范围，无坐标／性质unknown。严格国内C#26／22企业，全球48文本命中／33企业，上海25／浦东7／松江3真实HTTP通过；两精确搜索会话已结束。详情工具3a56bc6新增同版本locations／compensations／snapshotRevision，独立3文件树86f43dc4冻结安装、135/135、types10/10、lint，远端Actions39174077550四项success；Ashby文档aa06e40四项success。已停止旧PID不存在后恢复原服务／页面，完整备份quick_check与更新前后dataset／token哈希通过，新详情真实HTTP已验；原错误页浏览器观察被策略拒绝未绕过，不称新UI目视通过。并行Career Agent保留，整体Goal active，详见国内来源报告。
+
 - [x] 2026-10-19 Ashby真实字段修复8c8d347正常推送，远端Actions39165884279四任务success；仅6文件冻结树a3c7c6d9完成1975/1975、types10/10、lint、build6/6。主次结构化国家／地区、remote-region及工资／佣金／股权分项保留，无坐标／tax unknown／无tier地点猜测。独立真实70条→C#7条、rev2，US+Chicago1／India1／CN0、全部薪资及原链UI已验；原库61岗／rev33、C#24／13企业、国内2条未变，服务重启被自动审批拒绝，完整备份quick_check通过。文档发布收尾中，详见Ashby字段报告；未混入Career Agent，完整Goal active。
 
 - [x] 2026-10-19 官网协议／英文地点／加载诊断三批6f967a3／2aa6936／32186f7及测试收尾1209042正常推送，产品后两批远端四任务已success。Bosch.NET1新增后51岗／rev29，再全球C#刷新新增10（Arbeitnow3／Temporal7）至61岗／rev33、24文本命中／13企业，10可抓取源；9/10回执、705原始、400要求待核，间隔与超时保留。Temporal原文及可选C#要求核对，地点／薪资投影待补；国内C#仍2岗。原产品源码1965、types10、lint、build6与最终Docker275通过；测试收尾独立树ce36b767再次1965/1965、types10／lint通过，后续CI／文档发布另核；Career Agent未混入，完整Goal active，详见官网接入报告。

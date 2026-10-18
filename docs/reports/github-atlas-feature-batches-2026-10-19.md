@@ -98,3 +98,9 @@
 功能`8c8d3479602284a83444aabbe0877ddd6be62252`已正常推送main；冻结产品树`a3c7c6d9509b4710a3ba7908195f3140c21a0f6a`仅6文件，1975/1975（失败／取消／跳过／todo0）、types10/10、lint和build6/6通过。[Actions39165884279](https://github.com/nanfengovo/better-me/actions/runs/39165884279)的Windows质量、Linux构建、Docker镜像／HTTP和Pages均success。本机未另建新Docker镜像，不引用上批275检查冒充本批。
 
 独立真实服务／SQLite读取Temporal70条→C#7条，US＋Chicago／India筛选及完整分项薪资UI通过；原库61岗／rev33、C#24／13企业未改变，原服务停止重启被自动审批拒绝，备份及quick_check完成。并行Career Agent、导入、依赖／锁文件和Docker改动未混入；原本机私人库、凭据、profile和实证截图不公开，详见[Ashby字段报告](job-atlas-ashby-fields-2026-10-19.md)。
+
+## 国内来源实采与完整详情 · 2026-10-19
+
+Ashby文档`aa06e40`已正常推送，[Actions39173399390](https://github.com/nanfengovo/better-me/actions/runs/39173399390)四任务success。随后功能`3a56bc6939e174dd8e1ea855385393457d255c62`补齐jobs.read-detail的同版本locations／compensations／snapshotRevision；独立3文件树`86f43dc458556fea03b17bcfd65ba3bb72fd0533`冻结安装、types10/10、lint、job-service135/135（fail／cancel／skip／todo0）通过。[Actions39174077550](https://github.com/nanfengovo/better-me/actions/runs/39174077550)的Windows质量、Linux构建、Docker和Pages均success。未混入Career Agent或重用旧Docker数字。
+
+原5178／5286均已停止、旧PID不存在后，先核61岗／schema3与完整备份，再恢复；同一受限招聘helper固定配置／binarySHA不变。真实猎聘24卡核对19条（18新增），LinkedIn上海50卡核对6条近月标题C#岗位（6新增），地区逐项确认，最终85岗／rev59、严格国内C#26／22企业、全球48／33企业。两精确会话均关闭；原服务更新后dataset／token哈希不变，新详情HTTP真实通过。原错误页浏览器观察被策略拒绝，未绕过，不称本轮UI目视验收。详细证据与边界见[国内来源报告](job-atlas-domestic-source-expansion-2026-10-19.md)。

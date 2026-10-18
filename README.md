@@ -358,6 +358,8 @@ pnpm memory:check
 
 随后在原工作台以全球 `C#` 明确刷新10个配置来源，9个返回回执、原始返回705条，实际新增10岗（Arbeitnow 3、Temporal官网7），最终为 **61岗 / revision33、C# 24个文本命中 / 13家企业**。另400条候选要求尚未读全，Bosch受3600秒刷新间隔拒绝、腾讯详情超时，仍保留部分覆盖。Temporal新增样本原文和回链已实际核对，C#是多种可选语言之一，不把24条当专职C#或个人适岗。原页披露的薪资与地点尚未完整映射到索引，当前仍有字段缺口。
 
+2026-10-19 国内来源继续补实：原本机索引现85岗／revision59，严格国内C#实际查询26条／22家企业（腾讯官网1、猎聘19、LinkedIn6），全球C#文本命中48条／33家企业；上海25、浦东7、松江3均经共享HTTP查询核对。猎聘当前页24卡选19条，新增18；LinkedIn上海当前页50卡选6条近月标题C#岗位，新增6，原卡地区逐项确认且无办公坐标。通用`jobs.read-detail`已补同版本locations／compensations，独立135/135、types10/10和lint通过，功能`3a56bc6`[远端四任务](https://github.com/nanfengovo/better-me/actions/runs/39174077550)全success。有限卡片摘要与文本命中不等于全部完整JD、在招或个人适岗，51JOB／BOSS继续；详见[国内来源与详情工具报告](docs/reports/job-atlas-domestic-source-expansion-2026-10-19.md)。下方61岗等为此前批次历史时点。
+
 2026-10-19 字段准确度修复：通用Ashby适配器保留远程岗位的明确国家／主次地点，以及工资、佣金、奖金、股权分项和档位；不从货币或公司猜国家，不把远程范围画成办公室，不推断税前或合并总包。独立真实服务读取Temporal70条、C#匹配7条，浏览器美国＋Chicago与印度筛选、全部分项及原链已核；原61岗索引未更新，不将隔离样本当新增。隔离1975/1975、types10/10、lint、build6/6通过，功能`8c8d347`的[远端四任务](https://github.com/nanfengovo/better-me/actions/runs/39165884279)均success；原服务更新仍受自动审批阻断，详见[Ashby字段报告](docs/reports/job-atlas-ashby-fields-2026-10-19.md)。
 
 来源扩展发布已核对：旧 Windows TTL 测试抖动修复后，`1da8bcb` 与最终文档批 `ad504ff` 的质量、Linux 构建、Docker 和 Pages 均已成功；最终运行见 [Actions 39154486097](https://github.com/nanfengovo/better-me/actions/runs/39154486097)。后续卡片审核入库批次的发布状态单独记录。

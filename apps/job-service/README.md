@@ -243,3 +243,9 @@ SmartRecruiters专项见`packages/source-adapters/tests/smartrecruiters.test.ts`
 `ashby@1`继续访问配置的公共Posting API，读取明确嵌套／扁平postal address，主次地点分别保留；纯Remote的结构化地区通过既有投影成为remote-region，不产生办公室坐标。国家只规范化明确国家字段，复用有限别名并补India，不从城市或币种猜国家。Salary／Bonus／Commission／EquityCashValue分开映射，百分比和未知类型不进入货币金额，税制保持unknown；多tier不重复summary envelope、不猜locationIds。
 
 本批仅6文件冻结树`a3c7c6d9509b4710a3ba7908195f3140c21a0f6a`，1975/1975、types10/10、lint和build6/6；功能`8c8d347`远端质量／Linux／Docker／Pages均success。独立服务真实读取Temporal70条并按C#入库7条，原61岗／revision33服务未更新（自动审批拒绝重启）；新增字段需获准更新后按原来源间隔读取，不缩短3600秒、不清空刷新记录。完整证据及局限见[Ashby字段报告](../../docs/reports/job-atlas-ashby-fields-2026-10-19.md)。
+
+## 完整岗位详情与国内采集停点
+
+`jobs.read-detail`／`GET /api/v1/jobs/:jobId`返回`snapshotRevision`、`job`、`company`、`locations`、`compensations`、`listings`、`observations`、`snapshots`、`sources`。单次读取快照，并按其版本解析旧岗位ID；地点和薪资仅包含当前岗位引用，不混入其他岗位或旧记录。缺字段为空数组，沿用严格公共Schema和read-index权限，没有新采集或私人材料读取。
+
+功能`3a56bc6`的3文件冻结树86f43dc4经离线冻结安装、独立job-service135/135、仓库types10/10及lint通过，远端四任务success。原服务已实际返回新增字段；85岗／revision59、dataset及token哈希在本轮受控更新前后一致。严格国内C#26／22企业、全球48／33企业；平台卡片与逐项地区确认仍不等于完整JD、核实在招或办公定位。详见[本轮报告](../../docs/reports/job-atlas-domestic-source-expansion-2026-10-19.md)。
