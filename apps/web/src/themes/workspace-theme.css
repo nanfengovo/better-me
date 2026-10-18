@@ -1,0 +1,250 @@
+/* Workspace colors are screen-only; resume paper owns a separate token system.
+   Root tokens are set before React mounts. More specific shell aliases override
+   Atelier's local defaults without changing its structure or legacy stylesheet. */
+@media screen {
+  html[data-workspace-theme][data-theme],
+  html[data-workspace-theme][data-theme] .studio-app {
+    --ui-canvas: var(--workspace-canvas);
+    --ui-surface: var(--workspace-surface);
+    --ui-surface-raised: var(--workspace-surface-raised);
+    --ui-surface-soft: var(--workspace-surface-soft);
+    --ui-input: var(--workspace-input);
+    --ui-hover: var(--workspace-hover);
+    --ui-border: var(--workspace-border);
+    --ui-border-strong: var(--workspace-border-strong);
+    --ui-text: var(--workspace-text);
+    --ui-text-secondary: var(--workspace-text-secondary);
+    --ui-text-muted: var(--workspace-text-muted);
+    --ui-accent: var(--workspace-accent);
+    --ui-accent-soft: var(--workspace-accent-soft);
+    --ui-action: var(--workspace-action);
+    --ui-action-hover: var(--workspace-action-hover);
+    --ui-on-action: var(--workspace-on-action);
+    --ui-focus: var(--workspace-focus);
+    --ui-warning: var(--workspace-warning);
+    --ui-warning-soft: var(--workspace-warning-soft);
+    --ui-warning-border: var(--workspace-warning-border);
+    --ui-danger: var(--workspace-danger);
+    --ui-danger-soft: var(--workspace-danger-soft);
+    --ui-danger-border: var(--workspace-danger-border);
+    --ui-info: var(--workspace-info);
+    --ui-info-soft: var(--workspace-info-soft);
+    --ui-info-border: var(--workspace-info-border);
+    --ui-shadow: var(--workspace-dialog-shadow);
+    --atelier-rail: var(--workspace-rail);
+    --atelier-rail-text: var(--workspace-rail-text);
+    --atelier-rail-active: var(--workspace-rail-active);
+    --atelier-rail-selected: var(--workspace-rail-selected);
+    --atelier-canvas: var(--workspace-preview-canvas);
+    --atelier-dot: var(--workspace-preview-dot);
+  }
+  html[data-workspace-theme][data-theme] .workspace-theme-picker {
+    gap: 5px; padding: 3px 6px; min-width: 0; max-width: 170px;
+  }
+  html[data-workspace-theme][data-theme] .workspace-theme-dot {
+    display: inline-block; flex-shrink: 0; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--ui-action); box-shadow: 0 0 0 1px var(--ui-border);
+  }
+  html[data-workspace-theme][data-theme] .workspace-theme-picker select {
+    min-width: 0; width: auto; max-width: 145px; min-height: 27px; padding: 3px 16px 3px 2px;
+    border: 0; border-radius: 5px; background-color: transparent; color: var(--ui-text-secondary);
+    font: inherit; font-size: 11px; line-height: 1.3; cursor: pointer;
+  }
+  html[data-workspace-theme][data-theme] .workspace-theme-picker select:focus-visible {
+    outline: 2px solid var(--ui-focus); outline-offset: 2px;
+  }
+  html[data-workspace-theme][data-theme] .workspace-theme-picker option {
+    background: var(--ui-surface); color: var(--ui-text);
+  }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .studio-app {
+    --atelier-panel-shadow: var(--workspace-panel-shadow);
+    --color-ink: var(--ui-text);
+    --color-ink-muted: var(--ui-text-secondary);
+    --color-ink-faint: var(--ui-text-muted);
+    --color-paper: var(--ui-canvas);
+    --color-panel: var(--ui-surface);
+    --color-line: var(--ui-border);
+    --color-line-strong: var(--ui-border-strong);
+    --color-accent: var(--ui-action);
+    --color-accent-hover: var(--ui-action-hover);
+    --color-accent-soft: var(--ui-accent-soft);
+  }
+}
+
+/* Existing panels use semantic class allowlists, including portal dialogs.
+   Extra workspace palettes bridge their legacy colors in both light and dark.
+   Every utility rule excludes real and miniature resume paper. */
+@media screen {
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) body { background:var(--ui-canvas); color:var(--ui-text); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) ::-webkit-scrollbar-thumb { background:var(--ui-border-strong); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) ::-webkit-scrollbar-thumb:hover { background:var(--ui-text-muted); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(dialog,[role="dialog"]) { color:var(--ui-text); background:var(--ui-surface); border-color:var(--ui-border); box-shadow:var(--ui-shadow); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) dialog::backdrop { background:#04060ab3; }
+
+  /* Original workbench surfaces and text. These class names never occur in paper. */
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.studio-app,.studio-panel-slot>.fact-editor,.studio-loading,.recovery-screen) { background:var(--ui-canvas); color:var(--ui-text); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.studio-header,.fact-editor>div:first-child,.fact-editor article>div:first-child,.text-format-toolbar) { background:var(--ui-surface-raised); border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.studio-editor-pane,.fact-editor article,.formatted-field,.document-dropdown,.autosave-popover,.recovery-card) { background:var(--ui-surface); border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.studio-monogram,.studio-brand strong,.document-title-row input,.recovery-card h1,.design-intro h2) { color:var(--ui-text); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.studio-brand,.studio-eyebrow,.document-heading p,.studio-footer,.document-badge,.header-location,.rail-local,.document-dropdown button span,.format-selection-hint) { color:var(--ui-text-muted); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.studio-rail button,.document-dropdown button,.text-format-toolbar button,.text-format-toolbar select) { color:var(--ui-text-secondary); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.rail-divider,.format-divider) { background:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.studio-rail button.active,.output-language button.active,.text-format-toolbar button[aria-pressed="true"]) { color:var(--ui-accent); background:var(--ui-accent-soft); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.studio-rail button:hover,.document-dropdown button:hover,.text-format-toolbar button:hover:not(:disabled)) { background:var(--ui-hover); color:var(--ui-text); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.document-badge,.document-dropdown hr,.output-language,.studio-preview-pane>.resume-preview,.resume-view-picker button) { border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.output-language,.studio-user,.studio-splitter-line,.studio-splitter-value) { background:var(--ui-surface-soft); color:var(--ui-text-secondary); border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .studio-splitter::before { background:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.studio-splitter:hover,.studio-splitter:focus-visible,.is-resizing .studio-splitter) .studio-splitter-line { background:var(--ui-hover); color:var(--ui-accent); border-color:var(--ui-border-strong); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.studio-splitter:hover,.studio-splitter:focus-visible,.is-resizing .studio-splitter)::before { background:var(--ui-border-strong); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .studio-preview-pane>.resume-preview { background:var(--atelier-canvas); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .resume-preview-canvas { background:radial-gradient(ellipse at 50% 20%,var(--ui-surface-soft),var(--atelier-canvas)); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.studio-button,.network-button,.confirmation-actions button,.autosave-control-group,.resume-view-picker button) { color:var(--ui-text-secondary); background:var(--ui-surface); border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.studio-button:hover:not(:disabled),.network-button:hover:not(:disabled),.confirmation-actions button:hover:not(:disabled),.autosave-switch:hover,.autosave-settings-button:hover,.autosave-close:hover) { color:var(--ui-text); background:var(--ui-hover); border-color:var(--ui-border-strong); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.studio-button.primary,.network-button.is-primary,.confirmation-actions .confirm) { color:var(--ui-on-action); background:var(--ui-action); border-color:var(--ui-action); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.studio-button.primary:hover:not(:disabled),.network-button.is-primary:hover:not(:disabled),.confirmation-actions .confirm:hover:not(:disabled)) { background:var(--ui-action-hover); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .studio-button.subtle { color:var(--ui-text-muted); background:transparent; }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .confirmation-actions .danger { color:#fff; background:#983f46; border-color:#b9676e; }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.save-indicator,.autosave-switch.is-on small) { color:var(--ui-accent); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.save-indicator.pending,.autosave-controls,.autosave-setting-field,.autosave-seconds-input,.autosave-close,.autosave-settings-button,.autosave-popover h2) { color:var(--ui-text-secondary); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.save-indicator.draft,.save-indicator.error,.application-deadline,.application-deadline-list,.application-queue.overdue time,.application-queue.overdue h3) { color:var(--ui-warning); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.autosave-switch small,.autosave-eyebrow,.autosave-setting-field small,.autosave-explanation) { color:var(--ui-text-muted); border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .autosave-settings-button { border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .autosave-switch-track { background:var(--ui-border-strong); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .autosave-switch.is-on .autosave-switch-track { background:var(--ui-action-hover); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.autosave-paused,.jd-workspace-invite) { background:var(--ui-accent-soft); color:var(--ui-text-secondary); border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .jd-workspace-invite:hover { background:var(--ui-hover); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.jd-invite-icon,.jd-workspace-invite strong,.jd-workspace-invite>svg) { color:var(--ui-accent); border-color:var(--ui-border); background:transparent; }
+  html[data-workspace-theme][data-theme] .studio-app .jd-workspace-invite small { color:var(--ui-text-secondary); }
+
+  /* Consistent fields, including utility-built AI/JD/import/history dialogs. */
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"])),textarea,select):not(:where(.a4-sheet *,.resume-document *,.template-mini *)) { color:var(--ui-text); background-color:var(--ui-input); border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .document-title-row input { background:transparent; border-color:transparent; }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .opportunity-search input { background:transparent; }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .formatted-field textarea { background:var(--ui-input); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(input,textarea)::placeholder { color:var(--ui-text-muted); opacity:1; }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(input[type="checkbox"],input[type="radio"],input[type="range"]) { accent-color:var(--ui-accent); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(button,a,input,textarea,select,summary,[tabindex="0"]):focus-visible:not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { outline:2px solid var(--ui-focus); outline-offset:3px; }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(input,textarea,select):focus:not(:where(.a4-sheet *,.resume-document *,.template-mini *)),html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .formatted-field:focus-within { border-color:var(--ui-focus); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(input,textarea,select):disabled { color:var(--ui-text-muted); background-color:var(--ui-surface-soft); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(button,select,input,textarea):disabled:not(:where(.a4-sheet *,.resume-document *,.template-mini *)) { opacity:.58; cursor:not-allowed; }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .design-toggle.is-disabled { opacity:.58; }
+
+  /* Design cards surround unchanged miniature paper. Swatch colors stay literal. */
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .resume-design-panel { color:var(--ui-text); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.design-card,.design-section-row) { color:var(--ui-text); background:var(--ui-surface); border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .template-card { background:var(--ui-input); border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .template-card:hover { background:var(--ui-hover); border-color:var(--ui-border-strong); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .template-card.is-selected { background:var(--ui-accent-soft); border-color:var(--ui-accent); box-shadow:0 0 0 1px var(--ui-accent); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.template-card-name,.design-card-title,.design-card-title h3,.design-experience-select summary) { color:var(--ui-text); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.design-intro p,.design-eyebrow,.design-help,.design-count,.design-title-end,.template-card-label,.design-grip,.design-section-number,.design-slider output,.design-experience-select summary small,.design-claim-count,.design-empty) { color:var(--ui-text-muted); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.design-section-row button,.design-presets button) { background:var(--ui-surface-soft); color:var(--ui-text-secondary); border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.design-section-row button:hover:not(:disabled),.design-presets button:hover) { background:var(--ui-hover); border-color:var(--ui-border-strong); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.design-toggle,.design-experience-select) { border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .design-switch { background:var(--ui-border-strong); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .design-toggle input:checked + .design-switch { background:var(--ui-action-hover); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .design-toggle input:focus-visible + .design-switch { outline-color:var(--ui-focus); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .design-swatches button { border-color:var(--ui-surface); outline-color:var(--ui-border-strong); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .design-swatches button[aria-pressed="true"] { outline-color:var(--ui-focus); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .design-claim-select-list label { color:var(--ui-text-secondary); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .design-claim-select-list small { color:var(--ui-warning); }
+
+  /* Opportunities, follow-ups, and the resource library share the workspace palette. */
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.opportunity-workspace,.resource-workspace,.opportunity-dialog) { color:var(--ui-text); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.opportunity-stats>div,.opportunity-list,.opportunity-context-card,.opportunity-empty,.opportunity-board-card,.resource-card,.opportunity-source-panel,.opportunity-source-jobs>label,.application-queue,.application-communications) { background:var(--ui-surface); border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.opportunity-column,.opportunity-dialog-header,.opportunity-followup,.application-queues,.application-communication-form) { background:var(--ui-surface-raised); border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.opportunity-search,.opportunity-material) { background:var(--ui-input); border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.opportunity-toolbar,.opportunity-row,.opportunity-place,.opportunity-board-card em,.opportunity-dialog details,.opportunity-form-footer,.opportunity-source-jobs,.opportunity-source-jobs>label,.application-queue-item,.application-communication-list li) { border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.opportunity-heading h1,.opportunity-stats strong,.opportunity-row-main strong,.opportunity-context h2,.opportunity-empty h2,.opportunity-board-card strong,.opportunity-dialog-header h2,.resource-card h2,.opportunity-material>strong,.opportunity-source-panel summary,.opportunity-source-jobs strong,.application-queues-heading h2,.application-queue h3,.application-queue-item strong,.application-communication-list strong,.opportunity-detail h3) { color:var(--ui-text); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.opportunity-form label,.opportunity-followup label,.application-communication-form label,.opportunity-jd,.opportunity-provenance dd,.opportunity-place,.opportunity-context ol,.opportunity-row-meta,.opportunity-dialog summary,.opportunity-source-select label,.application-communication-list p) { color:var(--ui-text-secondary); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.opportunity-heading p,.opportunity-stats span,.opportunity-stats small,.opportunity-row-main small,.opportunity-row-side small,.opportunity-row i,.opportunity-context p,.opportunity-context small,.opportunity-context-card,.opportunity-coverage,.opportunity-empty p,.opportunity-column h2 small,.opportunity-column-empty,.opportunity-board-card small,.opportunity-board-card span,.opportunity-board-card em,.opportunity-dialog-header small,.opportunity-muted,.opportunity-form-footer>span,.opportunity-form label>small,.opportunity-followup>small,.opportunity-remote,.opportunity-linked,.opportunity-provenance dt,.opportunity-timeline span,.resource-card>span,.resource-card p,.resource-card small,.opportunity-material>small,.opportunity-source-panel p,.opportunity-source-panel summary>span,.opportunity-source-jobs small,.application-queues-heading p,.application-queue>p,.application-queue-item small,.application-queue-item time,.application-queue-item svg,.application-queue-empty,.application-communication-empty,.application-communications-heading h3 span,.application-communication-list time,.application-communication-list footer small,.application-communication-list p.application-communication-contact) { color:var(--ui-text-muted); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.company-initial,.opportunity-empty>div,.opportunity-detail-badges span,.opportunity-markets>button span,.application-queues-heading span,.job-status.open,.resource-tabs button[aria-pressed="true"],.opportunity-view-toggle button.active) { background:var(--ui-accent-soft); color:var(--ui-accent); border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.opportunity-markets>button,.opportunity-view-toggle button,.opportunity-column h2,.resource-tabs button,.resume-view-picker button) { color:var(--ui-text-secondary); border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.opportunity-markets>button.active,.resource-card a,.opportunity-source-results a,.opportunity-provenance a,.opportunity-timeline a) { color:var(--ui-accent); border-color:var(--ui-accent); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .opportunity-context-card.quiet { background:transparent; }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .job-status { color:var(--ui-warning); background:var(--ui-warning-soft); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .job-status.closed { color:var(--ui-danger); background:var(--ui-danger-soft); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .application-queue.overdue { border-color:var(--ui-warning-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .application-communication-list footer button { color:var(--ui-warning); }
+
+  /* Network and confirmation dialogs, including readable semantic notices. */
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.network-settings-header,.network-settings-footer) { background:var(--ui-surface-raised); border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.network-mode-option,.network-domestic-proxy,.network-detection,.network-connectivity) { background:var(--ui-surface-raised); border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .network-mode-option.is-selected { background:var(--ui-accent-soft); border-color:var(--ui-border-strong); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.network-mode-title,.network-candidates code,.network-empty,.network-route-summary,.confirmation-dialog p) { color:var(--ui-text-secondary); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.network-settings-header p,.network-mode-description,.network-field>span>small,.network-field>small,.network-domestic-proxy>p,.network-section-heading p,.network-candidates li>div>span,.network-detection-note,.network-test-boundary,.network-status,.network-settings-footer p) { color:var(--ui-text-muted); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .network-candidates li { border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.network-scope-note,.network-auto-route,.network-mode-title small,.network-result,.opportunity-notice,.opportunity-dialog-status,.issue-guide.resolved) { background:var(--ui-accent-soft); color:var(--ui-accent); border-color:var(--ui-border-strong); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .network-close-button { color:var(--ui-text-secondary); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .network-close-button:hover { background:var(--ui-hover); color:var(--ui-text); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.persistence-notice,.issue-guide,.network-result.is-warning,.opportunity-notice.error,.opportunity-form-error,.autosave-preference-error) { background:var(--ui-warning-soft); color:var(--ui-warning); border-color:var(--ui-warning-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.issue-guide-context,.network-warnings,.application-communication-error) { color:var(--ui-warning); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .issue-guide-heading button:hover { background:var(--ui-warning-soft); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.persistence-notice.error,.network-result.is-error) { background:var(--ui-danger-soft); color:var(--ui-danger); border-color:var(--ui-danger-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.network-inline-error,.workspace-preference-error) { color:var(--ui-danger); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .fact-editor [data-issue-active="true"] { border-color:var(--ui-warning); box-shadow:0 0 0 2px #efd09540; }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .fact-editor .issue-field-highlight { outline-color:var(--ui-warning); }
+
+  /* Utility-built panels: exact classes only; hover classes do not change base states.
+     Every utility rule excludes actual resume paper and miniature paper subtrees. */
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.bg-white,[class~="bg-white/70"],[class~="bg-white/80"],[class~="bg-white/90"],[class~="bg-[#fbfaf7]"],[class~="bg-[#fdfdfb]"]):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { background-color:var(--ui-surface); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.bg-slate-50,[class~="bg-slate-50/40"],[class~="bg-slate-50/50"],[class~="bg-slate-50/60"],[class~="bg-slate-50/70"],[class~="bg-slate-50/80"],[class~="bg-[#f7f8fa]"],[class~="bg-[#faf9f5]"],[class~="bg-[#f1f2ee]"],[class~="bg-[#f4f7f2]"]):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { background-color:var(--ui-surface-raised); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.bg-slate-100,[class~="bg-slate-100/70"],[class~="bg-slate-200/60"],[class~="bg-slate-200/70"]):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { background-color:var(--ui-surface-soft); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.text-slate-800,.text-slate-900):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { color:var(--ui-text); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.text-slate-600,.text-slate-700):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { color:var(--ui-text-secondary); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.text-slate-400,.text-slate-500):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { color:var(--ui-text-muted); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.border-slate-100,.border-slate-200,[class~="border-slate-200/90"],[class~="border-white/30"],[class~="border-white/50"],[class~="border-[#dce5dd]"]):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { border-color:var(--ui-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.border-slate-300,[class~="border-[#b9cbbf]"],[class~="border-[#b9cdbf]"]):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { border-color:var(--ui-border-strong); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.bg-slate-800,.bg-slate-900,[class~="bg-[#244e43]"],.bg-emerald-600,.bg-emerald-700):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { color:var(--ui-on-action); background-color:var(--ui-action); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .border-slate-900:not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { border-color:var(--ui-action-hover); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is([class~="text-[#244e43]"],[class~="text-[var(--color-accent)]"]):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { color:var(--ui-accent); }
+
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.bg-emerald-50,[class~="bg-emerald-50/50"],[class~="bg-emerald-50/70"],.bg-emerald-100):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { background-color:var(--ui-accent-soft); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.text-emerald-500,.text-emerald-600,.text-emerald-700,.text-emerald-800,.text-emerald-900,.text-emerald-950):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { color:var(--ui-accent); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.border-emerald-100,.border-emerald-200,[class~="border-emerald-200/60"],[class~="border-emerald-200/80"],[class~="border-emerald-200/90"],.border-emerald-300):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { border-color:var(--ui-border-strong); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.bg-amber-50,[class~="bg-amber-50/40"],[class~="bg-amber-50/60"],[class~="bg-amber-50/80"],.bg-amber-100,[class~="bg-amber-100/70"],.bg-amber-200):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { background-color:var(--ui-warning-soft); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.text-amber-500,.text-amber-600,.text-amber-700,.text-amber-800,.text-amber-900,.text-amber-950):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { color:var(--ui-warning); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.border-amber-100,.border-amber-200,[class~="border-amber-200/60"],[class~="border-amber-200/80"],[class~="border-amber-200/90"],.border-amber-300,.border-amber-400):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { border-color:var(--ui-warning-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.bg-rose-50,[class~="bg-rose-50/70"],[class~="bg-rose-50/80"]):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { background-color:var(--ui-danger-soft); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.text-rose-600,.text-rose-700,.text-rose-800):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { color:var(--ui-danger); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .border-rose-200:not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { border-color:var(--ui-danger-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.bg-blue-50,[class~="bg-blue-50/40"],[class~="bg-blue-50/60"],[class~="bg-blue-50/70"],[class~="bg-blue-50/80"],.bg-blue-100,[class~="bg-indigo-50/40"]):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { background-color:var(--ui-info-soft); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.text-blue-600,.text-blue-700,.text-blue-800,.text-blue-900,.text-indigo-600):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { color:var(--ui-info); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.border-blue-100,.border-blue-200,[class~="border-blue-200/90"],.border-blue-300,.border-blue-400,.border-blue-500,.border-blue-600,.border-indigo-100):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { border-color:var(--ui-info-border); }
+
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is([class~="hover:bg-white"],[class~="hover:bg-slate-50"],[class~="hover:bg-slate-100"],[class~="hover:bg-slate-200"],[class~="hover:bg-slate-200/60"],[class~="hover:bg-[#f4f7f2]"],[class~="hover:bg-[#e9f0e8]"]):hover:not(:disabled):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { background-color:var(--ui-hover); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is([class~="hover:text-slate-600"],[class~="hover:text-slate-700"],[class~="hover:text-slate-800"],[class~="hover:text-slate-900"]):hover:not(:disabled):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { color:var(--ui-text); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is([class~="hover:bg-emerald-50"],[class~="hover:bg-blue-50"],[class~="hover:bg-blue-50/20"],[class~="hover:bg-blue-100"]):hover:not(:disabled):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { background-color:var(--ui-hover); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is([class~="hover:bg-amber-50"],[class~="hover:bg-amber-100"]):hover:not(:disabled):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { background-color:var(--ui-warning-soft); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is([class~="hover:bg-rose-50"],[class~="hover:bg-rose-100"]):hover:not(:disabled):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { background-color:var(--ui-danger-soft); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is([class~="hover:text-rose-600"],[class~="hover:text-rose-700"]):hover:not(:disabled):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { color:var(--ui-danger); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is([class~="hover:text-amber-800"],[class~="hover:text-amber-950"]):hover:not(:disabled):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { color:var(--ui-warning); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is([class~="hover:bg-[#193c32]"],[class~="hover:bg-emerald-800"]):hover:not(:disabled):not(:where(.a4-sheet,.a4-sheet *,.resume-document,.resume-document *,.template-mini,.template-mini *)) { background-color:var(--ui-action-hover); }
+
+}
+
+/* Navigation and gallery chrome have a few structural rules with literal
+   colors. These selectors recolor chrome only; thumbnail paper stays intact. */
+@media screen {
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .studio-app .studio-rail {
+    background: var(--atelier-rail); color: var(--atelier-rail-text); border-color: var(--workspace-rail-border);
+  }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .studio-app .studio-monogram { color: var(--atelier-rail-active); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .studio-app .studio-monogram i { background: var(--workspace-rail-marker); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .studio-app .rail-divider { background: var(--workspace-rail-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .studio-app .rail-local { color: var(--atelier-rail-text); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .studio-app .studio-rail button { color: var(--atelier-rail-text); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .studio-app .studio-rail button:hover { color: var(--atelier-rail-active); background: var(--workspace-rail-hover); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .studio-app .studio-rail button.active { color: var(--atelier-rail-active); background: var(--atelier-rail-selected); border-color: var(--workspace-rail-border); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .studio-app .studio-rail button.active::before { background: var(--workspace-rail-marker); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .studio-app .studio-rail button:focus-visible { outline-color: var(--workspace-rail-marker); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .studio-app .studio-preview-pane > .resume-preview { background: var(--atelier-canvas); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .studio-app .resume-preview-canvas { background-color: var(--atelier-canvas); background-image: radial-gradient(var(--atelier-dot) .7px,transparent .7px); background-size: 18px 18px; }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .template-card-stage { background: radial-gradient(ellipse at 45% 35%,var(--ui-surface-raised),var(--ui-surface-soft)); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .template-library .template-card-index { color: var(--ui-text-muted); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .template-card.is-selected .template-card-status { background: var(--ui-action); color: var(--ui-on-action); }
+}
+
+@media screen and (max-width:620px) {
+  html[data-workspace-theme][data-theme] .workspace-theme-picker { max-width: 132px; padding-inline: 5px; }
+  html[data-workspace-theme][data-theme] .workspace-theme-picker select { max-width: 109px; min-height: 29px; font-size: 10px; }
+}

@@ -129,3 +129,83 @@ test("blocked storage still allows switching and explains the persistence limita
     assert.match(dom.document.body.textContent!, /preferences could not be saved/);
   } finally { Object.defineProperty(globalThis, "localStorage", original); }
 });
+
+function palettePicker() {
+  const select = dom.document.querySelector<HTMLSelectElement>(".workspace-theme-picker select");
+  assert.ok(select, "workspace palette selector is missing");
+  return select;
+}
+async function choosePalette(id: string) {
+  await flush(() => {
+    palettePicker().value = id;
+    palettePicker().dispatchEvent(new dom.Event("change", { bubbles: true }));
+  });
+}
+
+test("old preferences use the original atelier palette and unsafe palette IDs are ignored", async () => {
+  assert.deepEqual(parseUiPreferences('{"locale":"en","theme":"dark","workspaceThemeId":"url(evil)"}'), { locale: "en", theme: "dark" });
+  dom.localStorage.setItem(UI_PREFERENCES_KEY, '{"locale":"en","theme":"dark"}');
+  initializeUiAppearance();
+  assert.equal(dom.document.documentElement.dataset.workspaceTheme, "atelier");
+  assert.equal(dom.document.documentElement.style.getPropertyValue("--workspace-action"), "#41694f");
+  await mount();
+  assert.equal(palettePicker().value, "atelier");
+  assert.equal(palettePicker().getAttribute("aria-label"), "Workspace color palette");
+});
+
+test("workspace palette persists independently of language, light mode, and resume style", async () => {
+  const facts = createDemoFactBase("2000-01-01T00:00:00.000Z");
+  const view = createDefaultResumeView(facts);
+  const before = structuredClone({ facts, view });
+  dom.localStorage.setItem("betterme.resume.fixture", "unchanged official resume");
+  await mount(h(React.Fragment, null, h(WorkspacePreferences), h(ResumeTemplate, { resume: projectResume(facts, view), templateId: "zh-classic" })));
+  const paperBefore = dom.document.querySelector(".resume-document")!.outerHTML;
+  await choosePalette("navy");
+  assert.equal(dom.document.documentElement.dataset.workspaceTheme, "navy");
+  assert.equal(dom.document.documentElement.dataset.theme, "light");
+  assert.equal(dom.document.documentElement.style.getPropertyValue("--workspace-action"), "#294e80");
+  await click("English"); await click("Dark theme");
+  assert.equal(palettePicker().value, "navy");
+  assert.equal(dom.document.documentElement.style.getPropertyValue("--workspace-action"), "#3e6192");
+  assert.deepEqual(JSON.parse(dom.localStorage.getItem(UI_PREFERENCES_KEY)!), { locale: "en", theme: "dark", workspaceThemeId: "navy" });
+  assert.equal(dom.document.querySelector(".resume-document")!.outerHTML, paperBefore);
+  assert.deepEqual({ facts, view }, before);
+  assert.equal(dom.localStorage.getItem("betterme.resume.fixture"), "unchanged official resume");
+  await flush(() => root!.unmount()); root = undefined;
+  dom.document.body.replaceChildren();
+  initializeUiAppearance(); await mount();
+  assert.equal(palettePicker().value, "navy");
+  assert.equal(button("Dark theme").getAttribute("aria-pressed"), "true");
+});
+
+test("palette-only remote changes apply the latest storage value without echo writes", async () => {
+  await mount();
+  const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage")!;
+  let writes = 0;
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+    getItem: (key: string) => dom.localStorage.getItem(key), setItem: () => { writes += 1; },
+  } });
+  try {
+    dom.localStorage.setItem(UI_PREFERENCES_KEY, '{"locale":"zh","theme":"light","workspaceThemeId":"plum"}');
+    await flush(() => dom.dispatchEvent(new dom.StorageEvent("storage", { key: UI_PREFERENCES_KEY, newValue: '{"locale":"zh","theme":"light","workspaceThemeId":"navy"}' })));
+    assert.equal(palettePicker().value, "plum");
+    assert.equal(dom.document.documentElement.style.getPropertyValue("--workspace-action"), "#744381");
+    assert.equal(writes, 0);
+    dom.localStorage.removeItem(UI_PREFERENCES_KEY);
+    await flush(() => dom.dispatchEvent(new dom.StorageEvent("storage", { key: null, newValue: null })));
+    assert.equal(palettePicker().value, "atelier");
+    assert.equal(writes, 0);
+  } finally { Object.defineProperty(globalThis, "localStorage", original); }
+});
+
+test("blocked preference storage still applies workspace palette changes for this session", async () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage")!;
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, get: () => { throw new Error("storage blocked"); } });
+  try {
+    await mount(); await choosePalette("graphite");
+    assert.equal(palettePicker().value, "graphite");
+    assert.equal(dom.document.documentElement.dataset.workspaceTheme, "graphite");
+    assert.equal(dom.document.documentElement.style.getPropertyValue("--workspace-action"), "#494d5c");
+    assert.match(dom.document.body.textContent!, /偏好未能保存/);
+  } finally { Object.defineProperty(globalThis, "localStorage", original); }
+});

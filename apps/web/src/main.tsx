@@ -23,6 +23,7 @@ import "./components/templates/rickosborne-theme.css";
 import "./atelier.css";
 import "./components/preview-toolbar.css";
 import "./components/template-gallery.css";
+import "./themes/workspace-theme.css";
 
 const uiPreferences = initializeUiAppearance();
 
