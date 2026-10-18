@@ -13,6 +13,7 @@
 !config/sources/catalog.json
 !config/geography/china-administrative/catalog.json
 !config/geography/china-administrative/source-manifest.json
+!config/geography/china-administrative/text-aliases.json
 
 !apps/web/package.json
 !apps/web/index.html

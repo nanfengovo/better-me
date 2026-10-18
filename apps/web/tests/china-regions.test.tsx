@@ -5,6 +5,9 @@ import test from "node:test";
 import { queryJobs } from "@better-me/opportunities";
 import catalog from "../../../config/geography/china-administrative/catalog.json";
 import manifest from "../../../config/geography/china-administrative/source-manifest.json";
+import textAliases from "../../../config/geography/china-administrative/text-aliases.json";
+import { assessSourceScopeMatch } from "../../../packages/source-adapters/src/local-match.ts";
+import { SourceJobRecordSchema } from "../../../packages/source-adapters/src/contracts.ts";
 import {
   buildChinaRegionFilter, findChinaProvinceByMapId, getChinaCities, getChinaDistricts, getChinaProvinces,
   getChinaRegionChildren, matchDisclosedChinaCities, resolveChinaRegionSelection,
@@ -48,7 +51,7 @@ test("municipality grouping keeps real source codes and township entries are vis
   const dongguan = getChinaDistricts("44", "4419");
   assert.ok(dongguan.length > 0); assert.ok(dongguan.every((node) => node.level === "township" && node.code.length === 9 && node.label.includes("镇街／功能区")));
   const beijing = buildChinaRegionFilter({ provinceCode: "11", cityCode: "1101", districtCode: "110108" });
-  assert.deepEqual(beijing.workRegionGroups[1], ["北京市", "北京"]); assert.deepEqual(beijing.workRegionGroups[2], ["海淀区"]);
+  assert.deepEqual(beijing.workRegionGroups[1], ["北京市", "北京", "Beijing"]); assert.deepEqual(beijing.workRegionGroups[2], ["海淀区"]);
 });
 
 test("map province identifiers are exact known crosswalks and missing HK MO TW subordinate catalogs stay explicit", () => {
@@ -155,4 +158,110 @@ test("Chongqing municipality district and county groups require their own disclo
   assert.ok(!matchDisclosedChinaCities(data.locations[3]!).some((match) => match.province.code === "50"), "a same-name district in Ningbo never establishes Chongqing");
   assert.deepEqual(matchDisclosedChinaCities(data.locations[1]!).map((match) => match.city.code), ["5002"]);
   assert.equal(JSON.stringify(data), before);
+});
+
+test("versioned finite English aliases stay bound to the pinned catalog and omit ambiguous bare city spellings from province expansion", () => {
+  assert.equal(textAliases.schemaVersion, 1); assert.equal(textAliases.catalogDatasetId, manifest.datasetId);
+  assert.match(textAliases.revision, /^\d{4}-\d{2}-\d{2}\.\d+$/);
+  assert.equal(textAliases.provinces.length, 31);
+  for (const entry of textAliases.provinces) {
+    assert.ok(catalog.some(node => node.code === entry.code && node.name === entry.name));
+    const filter = buildChinaRegionFilter({ provinceCode: entry.code });
+    for (const alias of entry.aliases) {
+      assert.ok(filter.workRegionGroups[0]!.includes(alias)); assert.ok(filter.sourceRegions.includes(alias));
+    }
+  }
+  for (const entry of textAliases.cities) {
+    assert.ok(catalog.some(province => province.code === entry.provinceCode && province.children.some(city => city.code === entry.code && city.name === entry.name)));
+    const filter = buildChinaRegionFilter({ provinceCode: entry.provinceCode, cityCode: entry.code });
+    for (const alias of [...entry.aliases, ...entry.parentRequiredAliases]) {
+      assert.ok(filter.workRegionGroups[1]!.includes(alias)); assert.ok(filter.sourceRegions.includes(alias));
+    }
+    for (const alias of entry.parentRequiredAliases) assert.equal(filter.workRegionGroups[0]!.includes(alias), false);
+  }
+  const jilin = buildChinaRegionFilter({ provinceCode: "22", cityCode: "2202" });
+  assert.equal(jilin.workRegionGroups[1]!.includes("Jilin"), false);
+  assert.ok(jilin.workRegionGroups[1]!.includes("Jilin City"));
+  assert.equal(buildChinaRegionFilter({ provinceCode: "61", cityCode: "6101" }).workRegionGroups[1]!.includes("Xian"), false);
+  assert.equal(buildChinaRegionFilter({ provinceCode: "46" }).workRegionGroups[0]!.includes("Hainan"), false);
+  assert.doesNotMatch(JSON.stringify(textAliases), /"(?:coordinates|latitude|longitude|jobs)"/);
+});
+
+test("English Suzhou acquisition and actual index queries agree while Jiangsu and Anhui need province evidence on the same location", async () => {
+  const suzhou = buildChinaRegionFilter({ provinceCode: "32", cityCode: "3205" });
+  const source = SourceJobRecordSchema.parse({
+    entityType: "job-posting", sourceRecordId: "synthetic-suzhou", title: "Synthetic .NET Engineer", companyName: "Synthetic Employer",
+    locations: [{ raw: "Suzhou, Jiangsu, China", city: "Suzhou", region: "Jiangsu", countryCode: "CN" }],
+    compensations: [], workMode: "unknown", employmentType: "unknown", remoteEligibleRegions: [], availability: "unknown", completeness: "excerpt", evidence: [], warnings: [],
+  });
+  assert.equal(assessSourceScopeMatch(source, { roles: [".NET"], regions: suzhou.sourceRegions, companyNames: [], countryCodes: suzhou.workCountryCodes }).status, "matched");
+  const data = createAtlasDemo();
+  data.locations.forEach(location => { delete location.coordinates; Object.assign(location, { countryCode: "US", raw: "Unrelated", city: undefined, region: undefined, regionId: undefined }); });
+  const rows = [
+    { countryCode: "CN", raw: source.locations[0]!.raw, city: "Suzhou", region: "Jiangsu" },
+    { countryCode: "CN", raw: "SUZHOU, ANHUI", city: "SUZHOU", region: "ANHUI" },
+    { countryCode: "CN", raw: "Suzhou", city: "Suzhou" },
+    { countryCode: "CN", raw: "Suzhou", city: "Suzhou", regionId: "CN-JS" },
+    { countryCode: "CN", raw: "苏州市", city: "苏州" },
+    { countryCode: "CN", raw: "Jiangsu" },
+    { countryCode: "US", raw: "Suzhou, Jiangsu", city: "Suzhou", region: "Jiangsu" },
+  ];
+  rows.forEach((row, index) => Object.assign(data.locations[index]!, row));
+  const otherOffice = { ...data.locations[1]!, id: "synthetic-other-office" }; data.locations.push(otherOffice); data.jobs[5]!.locationIds.push(otherOffice.id);
+  const before = JSON.stringify(data);
+  const query = async (provinceCode: string, cityCode?: string) => {
+    const filter = buildChinaRegionFilter({ provinceCode, cityCode });
+    return queryJobs(data, { workCountryCodes: filter.workCountryCodes, workRegionGroups: filter.workRegionGroups });
+  };
+  const result = await query("32", "3205");
+  assert.deepEqual(result.items.map(item => item.job.id).sort(), ["demo-0", "demo-3", "demo-4"]);
+  assert.equal(result.mappedJobs, 0); assert.equal(result.unlocatedJobs, 3);
+  assert.deepEqual((await query("34", "3413")).items.map(item => item.job.id).sort(), ["demo-1", "demo-5"]);
+  const province = await query("32");
+  assert.deepEqual(province.items.map(item => item.job.id).sort(), ["demo-0", "demo-3", "demo-4", "demo-5"]);
+  assert.equal(JSON.stringify(data), before);
+});
+
+test("finite English city reference matches require CN and disambiguate shared spellings without changing disclosures", () => {
+  const cases = [
+    [{ countryCode: "CN", city: "Suzhou", region: "Jiangsu", raw: "Suzhou, Jiangsu, China" }, ["3205"]],
+    [{ countryCode: "CN", city: "SUZHOU", region: "ANHUI", raw: "SUZHOU, ANHUI" }, ["3413"]],
+    [{ countryCode: "CN", city: "Suzhou", raw: "Suzhou" }, []],
+    [{ countryCode: "CN", city: "Suzhou", raw: "Suzhou", regionId: "CN-JS" }, ["3205"]],
+    [{ countryCode: "CN", city: "Changchun", region: "Jilin", raw: "Changchun, Jilin, China" }, []],
+    [{ countryCode: "CN", city: "Jilin City", region: "Jilin", raw: "Jilin City, Jilin" }, ["2202"]],
+    [{ countryCode: "CN", city: "Hangzhou", region: "Zhejiang", raw: "Hangzhou, Zhejiang" }, ["3301"]],
+    [{ countryCode: "CN", city: "Changzhou", region: "Jiangsu", raw: "Changzhou, Jiangsu" }, []],
+    [{ countryCode: "CN", city: "Nanjing County", region: "Fujian", raw: "Nanjing County, Fujian" }, []],
+    [{ countryCode: "CN", city: "Xi'an", region: "Shaanxi", raw: "Xi'an, Shaanxi" }, ["6101"]],
+    [{ countryCode: "CN", city: "Xianyang", region: "Shaanxi", raw: "Xianyang, Shaanxi" }, []],
+    [{ countryCode: "CN", city: "Shanghai", raw: "Shanghai, China" }, ["3101"]],
+    [{ countryCode: "US", city: "Suzhou", region: "Jiangsu", raw: "Suzhou, Jiangsu" }, []],
+  ] as const;
+  for (const [location, expected] of cases) {
+    const before = JSON.stringify(location);
+    assert.deepEqual(matchDisclosedChinaCities(location).map(match => match.city.code), expected, before);
+    assert.equal(JSON.stringify(location), before);
+  }
+});
+
+test("shared index query distinguishes Jilin province from its city and requires English parent province evidence for ambiguous city names", async () => {
+  const data = createAtlasDemo();
+  data.locations.forEach(location => { delete location.coordinates; Object.assign(location, { countryCode: "US", raw: "Unrelated", city: undefined, region: undefined, regionId: undefined }); });
+  const rows = [
+    { raw: "Changchun, Jilin, China", city: "Changchun", region: "Jilin" },
+    { raw: "Jilin City, Jilin, China", city: "Jilin City", region: "Jilin" },
+    { raw: "Hangzhou, Zhejiang", city: "Hangzhou", region: "Zhejiang" },
+    { raw: "Changzhou, Jiangsu", city: "Changzhou", region: "Jiangsu" },
+    { raw: "Nanjing County, Fujian", city: "Nanjing County", region: "Fujian" },
+    { raw: "Nanjing, Jiangsu", city: "Nanjing", region: "Jiangsu" },
+    { raw: "Xi'an, Shaanxi", city: "Xi'an", region: "Shaanxi" },
+    { raw: "Xianyang, Shaanxi", city: "Xianyang", region: "Shaanxi" },
+  ];
+  rows.forEach((row, index) => Object.assign(data.locations[index]!, row, { countryCode: "CN" }));
+  for (const [provinceCode, cityCode, expected] of [["22", undefined, ["demo-0", "demo-1"]], ["22", "2202", ["demo-1"]], ["33", "3301", ["demo-2"]], ["32", "3201", ["demo-5"]], ["61", "6101", ["demo-6"]]] as const) {
+    const filter = buildChinaRegionFilter({ provinceCode, cityCode });
+    const result = await queryJobs(data, { workCountryCodes: filter.workCountryCodes, workRegionGroups: filter.workRegionGroups });
+    assert.deepEqual(result.items.map(item => item.job.id).sort(), expected);
+  }
 });

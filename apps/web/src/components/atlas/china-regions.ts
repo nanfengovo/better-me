@@ -1,5 +1,6 @@
 import catalog from "../../../../../config/geography/china-administrative/catalog.json";
 import manifest from "../../../../../config/geography/china-administrative/source-manifest.json";
+import textAliases from "../../../../../config/geography/china-administrative/text-aliases.json";
 
 type RegionNode = { code: string; name: string; children?: readonly RegionNode[] };
 export type ChinaRegionSelection = { provinceCode?: string; cityCode?: string; districtCode?: string };
@@ -44,6 +45,27 @@ const allNamedNodes = provinces.flatMap((province) => [
   ]),
 ]).filter(({ node }) => !isGrouping(node));
 const cityAliasCache = new Map<string, readonly string[]>();
+// This finite reference configuration never rewrites a source location or supplies coordinates.
+if (textAliases.schemaVersion !== 1 || textAliases.catalogDatasetId !== manifest.datasetId
+  || new Set(textAliases.provinces.map(({ code }) => code)).size !== textAliases.provinces.length
+  || new Set(textAliases.cities.map(({ code }) => code)).size !== textAliases.cities.length
+  || textAliases.provinces.some((entry) => !provinces.some((province) => province.code === entry.code && province.name === entry.name))
+  || textAliases.cities.some((entry) => !provinces.some((province) => province.code === entry.provinceCode
+    && province.children?.some((city) => city.code === entry.code && city.name === entry.name)))) throw new Error("Chinese location text aliases do not match the pinned administrative catalog.");
+const provinceTextAliases = new Map(textAliases.provinces.map(({ code, aliases }) => [code, aliases]));
+const cityTextAliases = new Map(textAliases.cities.map((entry) => [entry.code, entry]));
+const normalizeAlias = (value: string) => value.normalize("NFKC").replace(/\s+/gu, " ").trim().toLowerCase();
+const hasAlias = (value: string, term: string) => {
+  const normalized = normalizeAlias(value), alias = normalizeAlias(term);
+  if (!/[a-z]/u.test(alias)) return normalized.includes(alias);
+  // The reference matcher must not read Hangzhou inside Changzhou or Xi'an inside Xi'anmen.
+  let offset = normalized.indexOf(alias);
+  while (offset >= 0) {
+    if (!/[a-z]/u.test(normalized[offset - 1] ?? "") && !/[a-z]/u.test(normalized[offset + alias.length] ?? "")) return true;
+    offset = normalized.indexOf(alias, offset + 1);
+  }
+  return false;
+};
 
 function option(node: RegionNode, level: ChinaRegionOption["level"], province?: RegionNode): ChinaRegionOption {
   const grouping = isGrouping(node);
@@ -89,25 +111,28 @@ export function resolveChinaRegionSelection(input: ChinaRegionSelection = {}): R
     selectedProvince, selectedCity, ...(selectedDistrict ? { selectedDistrict } : {}) };
 }
 
-function cityNames(province: RegionNode, city: RegionNode): string[] {
-  const cached = cityAliasCache.get(city.code);
+function cityNames(province: RegionNode, city: RegionNode, forProvinceExpansion = false): string[] {
+  const cacheKey = `${city.code}:${forProvinceExpansion}`;
+  const cached = cityAliasCache.get(cacheKey);
   if (cached) return [...cached];
   if (municipalities.has(province.code)) {
     // Chongqing's two statistical groups must not both mean every place in Chongqing.
-    return province.children!.length > 1 ? (city.children ?? []).map((child) => child.name) : unique([province.name, shortName(province.name)]);
+    return province.children!.length > 1 ? (city.children ?? []).map((child) => child.name) : unique([province.name, shortName(province.name), ...(provinceTextAliases.get(province.code) ?? [])]);
   }
-  if (isGrouping(city)) return (city.children ?? []).flatMap((child) => cityNames(province, child));
+  if (isGrouping(city)) return (city.children ?? []).flatMap((child) => cityNames(province, child, forProvinceExpansion));
   const short = city.name.endsWith("市") ? shortName(city.name) : city.name;
   // Literal substring filters cannot disambiguate e.g. 辽宁朝阳市 from 北京朝阳区.
   const ambiguous = short !== city.name && allNamedNodes.some(({ node, cityCode }) => node.code !== city.code && cityCode !== city.code && node.name.includes(short));
-  const names = unique([city.name, ...(!ambiguous && short.length >= 2 ? [short] : [])]);
-  cityAliasCache.set(city.code, names);
+  const translated = cityTextAliases.get(city.code);
+  const names = unique([city.name, ...(!ambiguous && short.length >= 2 ? [short] : []), ...(translated?.aliases ?? []),
+    ...(forProvinceExpansion ? [] : translated?.parentRequiredAliases ?? [])]);
+  cityAliasCache.set(cacheKey, names);
   return [...names];
 }
 function provinceNames(province: RegionNode): string[] {
   const short = autonomousAliases[province.code] ?? shortName(province.name);
   const ambiguous = allNamedNodes.some(({ node, provinceCode }) => provinceCode !== province.code && node.name.includes(short));
-  return unique([province.name, mapIds[province.code] ?? "", ...(!ambiguous ? [short] : [])]);
+  return unique([province.name, mapIds[province.code] ?? "", ...(!ambiguous ? [short] : []), ...(provinceTextAliases.get(province.code) ?? [])]);
 }
 
 /** Directory aliases select disclosed text only; they do not populate job location fields. */
@@ -118,7 +143,7 @@ export function buildChinaRegionFilter(input: ChinaRegionSelection = {}): ChinaR
   if (supplemental) return { workCountryCodes: [supplemental.code], workRegionGroups: [], sourceRegions: [supplemental.code], selectedProvince };
   const province = provinces.find((node) => node.code === selectedProvince.code)!;
   const city = province.children?.find((node) => node.code === selectedCity?.code);
-  const cityTerms = (province.children ?? []).map((node) => cityNames(province, node));
+  const cityTerms = (province.children ?? []).map((node) => cityNames(province, node, true));
   // A municipality's district names alone cannot establish its province (e.g. 宁波 also has 江北区).
   const workRegionGroups = [unique([...provinceNames(province), ...(municipalities.has(province.code) ? [] : cityTerms.flat())])];
   if (city) workRegionGroups.push(cityNames(province, city));
@@ -126,7 +151,7 @@ export function buildChinaRegionFilter(input: ChinaRegionSelection = {}): ChinaR
   const sourceCities = (province.children ?? []).flatMap((node) => isGrouping(node) && !municipalities.has(province.code) ? node.children ?? [] : [node]);
   const sourceRegions = selectedDistrict ? [selectedDistrict.name] : city ? cityNames(province, city)
     : municipalities.has(province.code) ? provinceNames(province)
-    : unique([provinceNames(province)[0]!, ...sourceCities.map((node) => cityNames(province, node).at(-1)!)]);
+    : unique([...provinceNames(province), ...sourceCities.flatMap((node) => cityNames(province, node))]);
   return { workCountryCodes: ["CN"], workRegionGroups, sourceRegions, selectedProvince,
     ...(selectedCity ? { selectedCity } : {}), ...(selectedDistrict ? { selectedDistrict } : {}) };
 }
@@ -143,16 +168,20 @@ export type DisclosedChinaCityMatch = {
 export function matchDisclosedChinaCities(location: DisclosedChinaLocation): DisclosedChinaCityMatch[] {
   if (location.countryCode !== "CN") return [];
   const matches: DisclosedChinaCityMatch[] = [];
+  const disclosedFields = [location.city, location.raw, location.region, location.regionId].filter((value): value is string => Boolean(value));
   for (const province of provinces) {
+    const hasParent = disclosedFields.some((field) => provinceNames(province).some((term) => hasAlias(field, term)));
     for (const city of province.children ?? []) {
       const municipality = municipalities.has(province.code);
       if (municipality && province.children!.length > 1 && ![location.city, location.raw, location.region].some((field) =>
         field && cityNames(province, city).some((district) => field.normalize("NFKC").includes(district)))) continue;
-      const terms = municipality ? unique([province.name, shortName(province.name)]) : cityNames(province, city);
+      const translated = cityTextAliases.get(city.code);
+      const terms = municipality ? unique([province.name, shortName(province.name), ...(provinceTextAliases.get(province.code) ?? [])])
+        : unique([...cityNames(province, city, true), ...(hasParent ? translated?.parentRequiredAliases ?? [] : [])]);
       for (const field of ["city", "raw", "region"] as const) {
         const disclosed = location[field]?.normalize("NFKC");
         if (!disclosed) continue;
-        const matchedText = terms.find((term) => disclosed.includes(term));
+        const matchedText = terms.find((term) => hasAlias(disclosed, term));
         if (!matchedText) continue;
         matches.push({ province: option(province, "province"), city: option(city, "city", province), matchedField: field, matchedText, method: "disclosed-text-catalog-reference" });
         break;
