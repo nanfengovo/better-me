@@ -99,6 +99,31 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/sources/my-reviewed-source/s
 
 `my-reviewed-source` 是用户自己保存的来源 ID，示例不会自动创建它。[来源配置示例](../../config/sources/examples.json)全部默认禁用、待审核；必须先核对原站、许可、稳定身份、字段映射和请求范围，再显式注册 / 启用。配置修改使同源正在进行的旧任务失效。
 
+## SmartRecruiters 企业官网来源
+
+服务默认安装 `smartrecruiters@1`，`GET /api/v1/sources` 返回其 `list-jobs` 与 `remoteFilters: ["roles"]`。它是可配置的企业招聘系统适配器，每个来源固定一个已审核的 `companyIdentifier`，全部列表与详情继续经过既有受控GET transport、DNS／端点策略、请求／字节／超时预算、取消和来源刷新间隔：
+
+```text
+GET https://api.smartrecruiters.com/v1/companies/{companyIdentifier}/postings
+GET https://api.smartrecruiters.com/v1/companies/{companyIdentifier}/postings/{postingId}
+```
+
+配置Schema位于 [smartrecruiters-contracts.ts](../../packages/source-adapters/src/smartrecruiters-contracts.ts)。`companyIdentifier` 必填；`companyName` 为可选后备名称，优先保留来源实际名称；`countryCode` 为可选的显式固定国家范围。`pageSize` 为1—100，默认20；`fetchDetails` 默认false；`maxDetailRequestsPerPage` 为1—10，默认2。来源JSON不能指定其他API主机、执行代码或任意请求方法。
+
+关键词以 `q` 发送，多项关注词分别查询，游标绑定来源、配置和本地查询条件；结果可能重复，不能把多词总量相加当唯一岗位数。**上游q只取候选，本地实际文本才决定关键词命中**。请求的地区／公司条件未送上游，仍按共享匹配器核对；配置的 `countryCode` 不代替逐岗国家证据。未读要求且正文尚未命中的候选保持unknown，不当确定不匹配，也不写入本次关注范围的统一索引。
+
+显式开启详情后，只访问同租户、同岗位ID的详情；在满足地区／公司条件的候选中，先为关键词已命中但缺链接的记录获取原链，再补读关键词仍未确认的候选，返回保持列表顺序。职责／资格不截断，缺少章节或包含未支持正文章节时保留摘录；每页详情额度不等于整页已读全。详情超时保留已有且有有效原链的记录，并停止后续详情／分页；429、认证失败、取消和预算错误保持明确。返回的coverage和warning说明分页、额度及未读取范围。
+
+真实列表可能没有原站`postingUrl`。合法租户／岗位ID但缺链接的记录先在内存保留，允许在有界详情中取得同租户、同ID详情提供的真实原链；链接须通过原站主机和岗位身份校验，保留准确slug。最终仍无有效原链的候选排除、覆盖标为partial，不从ID或标题合成URL；列表或详情明确给出非法链接时拒绝相应数据。详情省略URL时可以沿用已经验证的列表原链。
+
+源`releasedDate`保存为发布时间原文和可解析的带时区时间，可能是重新发布，不称首次发布。读取时间、`active`标记不能代替独立在招核验。API经纬度常为城市中心，本适配器不写为办公坐标；不推断控股方、薪资或远程资格。
+
+[来源目录](../../config/sources/catalog.json)含默认禁用／待审核的Bosch中国预设 `reviewed-bosch-china-official`，固定`BoschGroup`／CN，每页20条、开启详情且每页最多2次。使用前核对原站和条款，再明确添加／启用；添加只保存配置，仍须手动预览或刷新。`companies.discover-careers`可以识别careers／jobs两种SmartRecruiters入口，保留静态官网锚点证据并给出禁用提案；提案同样建议`fetchDetails: true`及每页最多2次详情，Schema默认值仍为false。共享ATS主机不证明企业归属，提案不自动注册或抓岗。
+
+2026-10-19原主界面有限验收：Bosch`.NET`／CN预览首次超时、手动重试后fetched4，返回2条有链候选、确认匹配1条、完整详情2/4；明确sync为partial并新增1条。总库从50岗／revision27，经添加配置revision28，变为51岗／revision29；12项配置中10项可抓取。国内`.NET`全国为3条文本命中／3家企业，江苏→苏州市仅Bosch1条，保留`Suzhou, Jiangsu, China`且无办公室坐标；[原岗位](https://jobs.smartrecruiters.com/BoschGroup/744000140377569--net-bci)新标签的标题／ID／JD实际核对成功。最终恢复全球`C#`14条文本命中／9企业；**本批没有增加C#命中，不能把.NET与C#混算**。
+
+有限实站、隔离检查和发布状态见[本批报告](../../docs/reports/job-atlas-smartrecruiters-2026-10-19.md)。这次成功不保证每次网络读取或所有租户均可用。该协议不提供全市场搜索，也不增加51JOB／BOSS／猎聘／LinkedIn的访问权限；静态Pages和Docker仍需连接独立运行的本机服务。
+
 ## 用户核对的四平台卡片
 
 `jobs.preview-reviewed-cards` 和 `jobs.import-reviewed-cards` 为 51JOB、BOSS 直聘、猎聘、LinkedIn 共用的独立应用工具，Web 审核面板和 HTTP 复用同一实现。它们接受用户提供并明确核对的证据，不认证受管浏览器捕获，不访问原站，也不证明岗位仍在招；四个平台的契约支持不等于四站真实列表均已通过验收。
@@ -149,6 +174,8 @@ Web 使用步骤见[本机岗位地图说明](../../docs/job-atlas.md#核对卡�
 ## 查询与数据边界
 
 查询契约来自 [`@better-me/opportunities`](../../packages/opportunities/README.md)，支持模糊 / 精确关键词、国内 / 全球 / 海外范围、企业与有证据的控股来源分类、来源、地区、工作方式、状态、人民币税前年薪和距离筛选，以及稳定分页和全量地图桶。
+
+国内省市筛选的英文文本别名由共用 [text-aliases.json](../../config/geography/china-administrative/text-aliases.json)配置：现有31个大陆省级节点与有限10个城市，绑定固定行政目录及父省。它只扩展文本核对，保留原地点且不生成坐标；`Suzhou`须结合江苏／安徽等父省证据消歧，单独同名英文不归到苏州或宿州。国家和各级地区仍须匹配同一地点，不把有限别名表描述为完整地名解析服务。
 
 家庭坐标、汇率快照、配色与别名覆盖是可信 host 注入的 `QueryOptions`。当前 CLI 不提供保存家庭住址、自动获取汇率或用户配色面板；未注入坐标时不能完成距离查询，未具备薪资比较证据时保留原文 / 原币和未知状态，不自行补工资、汇率、税制、奖金或控股国别。
 
@@ -205,4 +232,8 @@ pnpm --filter @better-me/job-service test
 
 地区确认专项见 `tests/location-confirmation.test.ts`：预览不写入、国家 / 省市区实际过滤、原文证据不变、同源刷新 / 新地址、归并 / 拆分、服务重开耐久回执、撤销恢复坐标、追加表 UPDATE / DELETE 保护、SQL 故障整笔回滚、V2→V3迁移与V3备份重放，及篡改目录、投影或其他现存岗位回执的拒绝。Web 单独覆盖明确确认、级联选择、重试与迟到响应隔离；本机真实地点另做有限验证，不由合成测试外推。
 
+SmartRecruiters专项见`packages/source-adapters/tests/smartrecruiters.test.ts`和本包`tests/smartrecruiters-integration.test.ts`：定向协议检查及临时SQLite上的默认注册→预览→同步→搜索／详情，覆盖全列表缺`postingUrl`后同ID详情补链、有界读取、正文命中、无关／无链／未读候选不入索引、准确slug及来源时间保留，不写API城市坐标。官网发现、目录和Web接线另有独立回归；国内英文地名与工作台专项分别12项和29项通过。本批20文件隔离产品源码树完整1965/1965、types10/10、lint及build6/6通过，随后Docker两行新增JSON复制／白名单的最终22文件树容器复验275次HTTP已通过，产品三批已正常推送，远端CI与部署按报告另核；最终状态以[本批报告](../../docs/reports/job-atlas-smartrecruiters-2026-10-19.md)为准。
+
 仓库根 `pnpm test` 和 `pnpm lint` 已包含本包。自动化覆盖临时目录中的真实 SQLite 事务、重开、回执、来源范围、取消 / 迟到、备份恢复、投影历史、受控 HTTP 以及生命周期。`tests/reconciliation.test.ts` 还覆盖同名不自动归并、人工身份确认、嵌套合并 / 独立撤销、源刷新后拆回最新 JD / 地点 / 薪资、旧 ID 历史解析、实际 SQL 写入故障整笔回滚、完整备份及持久 v1 SQLite 升级。`tests/application-reconciliation.test.ts` 进一步通过实际 HTTP 验证合并后刷新、旧 ID 详情、规范搜索 / 导出和撤销最新来源，并覆盖 v1 升级后应用兼容及读取期间并发合并 / 撤销的快照一致性。历史 M2 范围见[归并报告](../../docs/reports/job-atlas-m2-reconciliation-2026-10-18.md)，V3 地区范围见[地区确认报告](../../docs/reports/job-atlas-location-confirmation-2026-10-19.md)。这些合成检查不代表所有真实来源长期可用、生产服务器部署、私人迁移或三维地图已验收。
+
+本批后续全局C#手动刷新已到61岗／revision33、24个文本命中／13企业：Arbeitnow新增3、Temporal新增7，仍有400条要求未读全和间隔／超时边界。最终产品`32186f7`远端四任务已success；测试就绪等待修复`1209042`另有独立1965项回归，最新运行按[本批报告](../../docs/reports/job-atlas-smartrecruiters-2026-10-19.md)核对。公共程序发布不上传本机数据。

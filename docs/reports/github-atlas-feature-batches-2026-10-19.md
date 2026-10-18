@@ -66,3 +66,29 @@
 最终1916项失败／取消／跳过／todo均为0，冻结离线安装通过；已有chunk体积提示保留。并行Career Agent／简历导入、依赖／锁文件、Docker白名单及其共享文档改动排除在产品树之外，原工作树成果保留。详情修复和本批文档为独立提交，按既有main正常推送，不force或重写历史。
 
 真实猎聘C#／上海当前页22卡，目标15-30k明确审核后更新同岗，50岗／revision23→24；完整备份、V2克隆迁移与quick_check通过，地区确认到25、服务重启保留、明确撤销到26恢复来源未知字段，明确国内筛选排除。最终原页面恢复C#14文本命中／9企业，9个可抓取源保留；不生成坐标、不把来源数当本次成功来源数。来源范围、工具语义和用户操作见[地区与薪资报告](job-atlas-location-confirmation-2026-10-19.md)。51JOB／BOSS、更多地区／完整JD、规模与整体Goal继续。
+
+## 官网协议、英文地点与加载诊断 · 2026-10-19
+
+| 提交 | 范围 | 独立验证／远端检查 |
+| --- | --- | --- |
+| `6f967a3` | SmartRecruiters通用适配、服务注册、官网发现、Bosch目录与来源标签 | 冻结快照安装、types及相关定向测试通过；[Actions39163391393](https://github.com/nanfengovo/better-me/actions/runs/39163391393)的Linux构建／Docker成功，Windows既有Edge合成导航测试失败，Pages skipped |
+| `2aa6936` | 版本化国内英文别名、父省消歧、原事实保持，Docker精确分发新JSON | 独立快照typecheck及地区12项通过；[Actions39163578591](https://github.com/nanfengovo/better-me/actions/runs/39163578591)的Windows质量／Linux构建／Docker／Pages四项success |
+| `32186f7` | 原站HTTP／投影／加载阶段／有限资源失败诊断，样式与18项UI回归 | 最终产品树精确等于`857588e439e13d2a9130ab23228a6ceccc659dc0`；[Actions39163675586](https://github.com/nanfengovo/better-me/actions/runs/39163675586)的Windows质量／Linux构建／Docker／Pages四项success |
+
+20文件源码冻结树`9203c15962e3c929ccc030cb73ab239e30317eb3`完成离线冻结安装、1965/1965测试（fail／cancel／skip／todo0）、types10/10、lint、build6/6；随后只补Docker两行JSON复制／白名单，得到最终22文件树`857588e439e13d2a9130ab23228a6ceccc659dc0`。最终树实际Docker构建、UID101、只读根目录、healthy与275次HTTP通过，包含13地理资源、96模板许可文件／20适配源文件、95依赖／97依赖许可文件。不把不同源码时点的验证数量相加，不把最终Docker复验说成重新执行全部测试。
+
+真实主UI明确添加Bosch与同步：50岗／revision27→50岗／revision28→51岗／revision29，12配置／10可抓取源。`.NET`读取4候选、返回2有原链／2完整详情、匹配新增1条；国内全国3条／3企业、江苏苏州Bosch1条，原文／具体发布日期／来源标签／新标签跳转已核。首次超时后手动重试成功。最终原页恢复全球C#14文本命中／9企业，本批.NET不增加C#命中；无办公坐标。更多国内平台、地区、官网来源与规模覆盖仍继续，见[接入报告](job-atlas-smartrecruiters-2026-10-19.md)。
+
+三批均正常推送main，没有force或历史改写；Career Agent／导入／依赖／锁文件及其Docker修改保留原工作树，私人数据库／令牌／备份／profile／实证截图不入仓库。
+
+上一批发布补核：详情修复`d450d5d`及文档`0b69ce9`最终[Actions39159859168](https://github.com/nanfengovo/better-me/actions/runs/39159859168)的Windows质量、Linux构建、Docker和Pages四项均已success；上节待核查文字为其历史时点。
+
+### 本轮C#刷新与测试收尾
+
+随后在原工作台以全球 `C#` 明确刷新10个配置来源，9个返回回执、原始返回705条，实际新增10岗（Arbeitnow 3、Temporal官网7），最终为 **61岗 / revision33、C# 24个文本命中 / 13家企业**。另400条候选要求尚未读全，Bosch受3600秒刷新间隔拒绝、腾讯详情超时，仍保留部分覆盖。Temporal新增样本原文和回链已实际核对，C#是多种可选语言之一，不把24条当专职C#或个人适岗。原页披露的薪资与地点尚未完整映射到索引，当前仍有字段缺口。
+
+新增Temporal样本[Staff Solutions Architect, Majors (Central)](https://jobs.ashbyhq.com/temporal/e8dc6efc-67da-4a5d-859c-85865d6ed21d)原文新标签已核对岗位标题、相同ID和正文；要求在Java／Golang／Python／C#／TypeScript等语言中至少一种。原页显示美国Central时区及多个地点、薪资和佣金区分，但本次API投影尚未把这些规范成国家、可比年薪或办公坐标，保持待补；不以标题中的Singapore或Central猜事实。原本机页面保持全球C#、无国家或城市限制；所有本轮来源等待已终结，61岗／revision33。
+
+首批Windows失败日志仅显示分类unknown，没有记录snapshotState，未声称复现了确切瞬态。测试修复`1209042`只改既有Edge合成测试：在人工导航后有界等待公开navigation_in_progress结束，严格断言ready；ready未知、failed和oversized不重试，原分类／gate／URL／请求数／不导航断言保留。5/5定向及ESLint通过；独立最终树`ce36b767f8d2e4c49a6e49a4b7d3da44f436ce71`冻结安装、types10/10、lint和1965/1965全量（失败／取消／跳过／todo0）通过，未改生产代码，未重复未变的产品构建和Docker检查。该修复正常提交推送，后续[Actions39164275826](https://github.com/nanfengovo/better-me/actions/runs/39164275826)以实际运行结果为准。
+
+产品第二批及最终产品第三批的Windows质量、Linux构建、Docker和Pages已分别全部success，最终产品运行见[Actions39163675586](https://github.com/nanfengovo/better-me/actions/runs/39163675586)。首批失败是历史记录，不能继续当作最新产品发布失败；测试收尾和文档提交的后续CI独立核对。Pages只更新静态程序，本机61岗位、来源配置、密钥与浏览器profile没有上传到GitHub或公共站点。
