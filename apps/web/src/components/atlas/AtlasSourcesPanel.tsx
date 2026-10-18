@@ -7,6 +7,8 @@ import { useUiPreferences } from "../../lib/ui-preferences";
 import { AtlasSourceServiceError, createAtlasSourceClient, parseAtlasSourceJson, type AtlasRegisterSource, type AtlasSourceList, type AtlasSourcePreview, type AtlasSourceSync } from "./service-client";
 import "./sources-panel.css";
 import { CompanyCareersPanel } from "./CompanyCareersPanel";
+import { SourceCatalogPanel } from "./SourceCatalogPanel";
+import { sourceCatalogIdentity } from "./source-catalog";
 
 export type AtlasSourcesPanelProps = {
   endpoint: string;
@@ -115,6 +117,31 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose }: Atla
     await loadCatalog(signal);
     const snapshot = await client.snapshot({ signal }); signal.throwIfAborted(); onSnapshot(snapshot);
   }
+  async function installCatalogSources(sources: SourceDefinition[], signal: AbortSignal) {
+    let added = 0;
+    for (const preset of sources) {
+      signal.throwIfAborted();
+      const source: SourceDefinition = { ...preset, enabled: true, status: "active" };
+      const identity = JSON.stringify(["catalog-register", source]);
+      if (!pending.current.has(identity)) {
+        const snapshot = await client.snapshot({ signal }); signal.throwIfAborted();
+        if (snapshot.sources.some((entry) => entry.sourceId === source.sourceId || sourceCatalogIdentity(entry) === sourceCatalogIdentity(source))) continue;
+        pending.current.set(identity, { identity, key: crypto.randomUUID(), registration: { source, expectedRevision: snapshot.revision } });
+      }
+      const write = pending.current.get(identity)!;
+      try { await client.register(write.registration!, { signal, idempotencyKey: write.key }); }
+      catch (failure) {
+        if (failure instanceof AtlasSourceServiceError && failure.code === "stale-version") pending.current.delete(identity);
+        // Unknown receipts keep the exact configuration, revision and key for an explicit retry.
+        throw failure;
+      }
+      signal.throwIfAborted(); pending.current.delete(identity); added++;
+      await loadCatalog(signal);
+      const snapshot = await client.snapshot({ signal }); signal.throwIfAborted(); onSnapshot(snapshot);
+      setNotice(`已添加 ${added}/${sources.length} 个来源；尚未采集岗位。`);
+    }
+    setNotice(`已添加 ${added} 个来源，已有配置未覆盖。关闭来源工具后，主搜索可同时查询已启用来源。`);
+  }
   function editJson(value: string) { setJsonText(value); setConfigs([]); setConfigIndex(0); setReviewed(false); }
   function checkJson() {
     setError(""); setNotice("");
@@ -140,6 +167,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose }: Atla
     {busy && <div role="status" className="atlas-sources-actions"><Loader2 size={15} className="animate-spin" /><span>{busy}</span><button type="button" onClick={() => active.current?.abort()}>{t("取消操作", "Cancel operation")}</button></div>}
     {error && <p role="alert" className="atlas-sources-error">{error}</p>}
     {notice && <p role="status" className="atlas-sources-callout">{notice}</p>}
+    <SourceCatalogPanel installed={catalog.sources} busy={Boolean(busy)} connected={usable} onInstall={(sources) => void operation(t("添加来源", "Add sources"), (signal) => installCatalogSources(sources, signal))} />
     <div className="atlas-sources-actions">
       <button type="button" disabled={!usable || Boolean(busy)} onClick={() => void operation(t("读取来源", "Read sources"), loadCatalog)}><RefreshCw size={14} />{t("重新读取来源", "Reload sources")}</button>
       <button type="button" disabled={!usable || Boolean(busy)} onClick={() => void operation(t("读取公开快照", "Read public snapshot"), async (signal) => {

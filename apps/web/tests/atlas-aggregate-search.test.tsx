@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { SourceDefinitionSchema } from "@better-me/opportunities";
 import { runAtlasSourceSearch, type AtlasAggregateOptions, type AtlasAggregateProgress } from "../src/components/atlas/aggregate-search.ts";
-import { AtlasSourceServiceError, type AtlasSourceSync } from "../src/components/atlas/service-client.ts";
+import { AtlasSourceServiceError, createAtlasSourceClient, type AtlasSourceSync } from "../src/components/atlas/service-client.ts";
 
 const fixture = SourceDefinitionSchema.parse(JSON.parse(readFileSync(new URL("../../../config/sources/examples.json", import.meta.url), "utf8"))[0]);
 const sources = Array.from({ length: 4 }, (_, index) => ({ ...fixture, sourceId: `aggregate-source-${index}`, attribution: { ...fixture.attribution, label: `Synthetic source ${index}` } }));
@@ -58,6 +58,44 @@ test("one transport failure does not stop other sources; partial receipts keep w
   assert.equal(result.sources[0]!.outcomeUnknown, true);
   assert.deepEqual(result.sources[1]!.receipt, partial); assert.equal(received.length, 2);
   assert.equal(result.settled, 3);
+});
+
+test("a checked sync 429 exposes its refresh interval reason while preserving an earlier unknown request identity", async () => {
+  const source = sources[0]!;
+  const calls: string[] = [];
+  let attempt = 0;
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (_url, options) => {
+      calls.push(new Headers(options?.headers).get("Idempotency-Key")!);
+      if (attempt++ === 0) throw new TypeError("Synthetic lost receipt after dispatch.");
+      return new Response(JSON.stringify({ ok: false, requestId: "checked-sync-429", error: { code: "rate-limited", message: "Rate limited." } }), {
+        status: 429, headers: { "Content-Type": "application/json" },
+      });
+    };
+    const client = createAtlasSourceClient("http://127.0.0.1:5178", "synthetic-token");
+    const first = await runAtlasSourceSearch({ sources: [source], buildRequest, sync: client.sync });
+    assert.equal(first.sources[0]!.outcomeUnknown, true);
+    const second = await runAtlasSourceSearch({ sources: [source], buildRequest, sync: client.sync });
+    assert.deepEqual(calls, [`same-key-${source.sourceId}`, `same-key-${source.sourceId}`]);
+    assert.equal(second.sources[0]!.status, "failed");
+    assert.equal(second.sources[0]!.outcomeUnknown, true, "a new rejection must not erase an earlier unknown outcome");
+    assert.equal(second.sources[0]!.error?.code, "rate-limited");
+    assert.equal(second.sources[0]!.error?.status, 429);
+    assert.match(second.sources[0]!.error!.message, /刷新间隔限制.*未开始新的刷新.*原标识核对/);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("bare HTTP 429, malformed tool errors and rate limits without matching status do not claim a known refresh rejection", async () => {
+  const errors = [
+    new AtlasSourceServiceError("http-error", "Bare HTTP 429", 429),
+    new AtlasSourceServiceError("rate-limited", "Unbound rate limit", 503),
+    Object.assign(new Error("Foreign 429"), { code: "rate-limited", status: 429 }),
+  ];
+  const result = await runAtlasSourceSearch({ sources: sources.slice(0, 3), buildRequest,
+    sync: async (id) => { throw errors[sources.findIndex((source) => source.sourceId === id)]!; } });
+  assert.ok(result.sources.every((source) => source.outcomeUnknown && source.status === "failed"));
+  assert.deepEqual(result.sources.map((source) => source.error!.message), errors.map((error) => error.message));
 });
 
 test("abort retains settled receipts, cancels queued work and suppresses a late receipt from a transport ignoring abort", async () => {

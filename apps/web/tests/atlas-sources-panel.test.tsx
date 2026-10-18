@@ -16,6 +16,7 @@ for (const [key, value] of Object.entries(globals)) Object.defineProperty(global
 const hooks = registerHooks({ load(url, context, nextLoad) { return url.endsWith(".css") ? { source: "export {};", format: "module", shortCircuit: true } : nextLoad(url, context); } });
 const { createRoot } = await import("react-dom/client");
 const { AtlasSourcesPanel } = await import("../src/components/atlas/AtlasSourcesPanel.tsx");
+const { sourceCatalog } = await import("../src/components/atlas/source-catalog.ts");
 let root: ReturnType<typeof createRoot> | undefined;
 const at = "2026-10-18T12:00:00.000Z";
 const source = { ...SourceDefinitionSchema.parse(JSON.parse(readFileSync(new URL("../../../config/sources/examples.json", import.meta.url), "utf8"))[0]), enabled: true, status: "active" as const };
@@ -51,6 +52,36 @@ test("missing token leaves real tools inactive and does not request localhost", 
   const fetcher = mock.method(globalThis, "fetch", async () => { throw new Error("must not fetch"); });
   await render(""); assert.match(dom.document.body.textContent!, /请先在“本机服务”/); assert.equal(fetcher.mock.callCount(), 0);
   assert.equal(button("更新地图快照").disabled, true);
+});
+
+test("catalog addition is explicit, preserves unknown-write identity and never fetches jobs or overwrites an existing source", async () => {
+  const preset = sourceCatalog[0]; assert.ok(preset, "a verified real catalog preset must be present");
+  const installed = [source]; const writes: Array<{ body: any; key: string | null }> = [];
+  const paths: string[] = []; let updates = 0;
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(url)).pathname; paths.push(path);
+    if (path === "/api/v1/sources" && !init?.body) return response({ sources: installed, adapters });
+    if (path === "/api/v1/dataset/export") return response({ ...snapshot, sources: [...snapshot.sources, ...installed] });
+    assert.equal(path, "/api/v1/sources");
+    const body = JSON.parse(String(init!.body)); writes.push({ body, key: new Headers(init!.headers).get("Idempotency-Key") });
+    if (writes.length === 1) throw new TypeError("Synthetic response lost after registration");
+    installed.push(body.source); return response(receipt);
+  });
+  await render("synthetic-panel-token", () => { updates++; });
+  assert.equal(writes.length, 0, "opening source tools must not add or activate sources");
+  const card = [...dom.document.querySelectorAll(".atlas-catalog-list article")].find((node) => node.textContent?.includes(preset.source.attribution.label))!;
+  assert.ok(card);
+  await act(async () => card.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+  await click("添加并启用所选 1 个来源");
+  assert.equal(writes.length, 1); assert.equal(updates, 0);
+  await click("添加并启用所选 1 个来源");
+  assert.equal(writes.length, 2);
+  assert.deepEqual(writes[1], writes[0], "ambiguous retries keep the exact body, revision and key");
+  assert.equal(writes[0]!.body.source.enabled, true); assert.equal(writes[0]!.body.source.status, "active");
+  assert.equal(writes[0]!.body.source.sourceId, preset.source.sourceId);
+  assert.equal(installed[0], source); assert.equal(updates, 1);
+  assert.ok(paths.every((path) => ["/api/v1/sources", "/api/v1/dataset/export"].includes(path)));
+  assert.ok(!dom.document.querySelector(".atlas-catalog-list")!.textContent!.includes(preset.source.attribution.label), "registered preset no longer offered for overwrite");
 });
 
 test("company website discovery displays incomplete coverage without treating an entry as a job or registering it", async () => {
@@ -115,7 +146,7 @@ test("JSON array requires per-source review and ambiguous registration retries r
   await render(); await change("完整来源 JSON", JSON.stringify([{ ...source, enabled: false, status: "needs-review" }, { ...source, sourceId: "synthetic-second", enabled: false, status: "needs-review" }]));
   await click("检查 JSON"); assert.equal(writes.length, 0); assert.equal(button("保存所选来源").disabled, true);
   await change("本次保存项", "1");
-  const checkbox = dom.document.querySelector('input[type="checkbox"]')!;
+  const checkbox = dom.document.querySelector('.atlas-sources-check input[type="checkbox"]')!;
   await act(async () => checkbox.click()); await click("保存所选来源");
   assert.equal(writes.length, 1); assert.equal(writes[0]!.body.source.sourceId, "synthetic-second"); assert.equal(writes[0]!.body.source.enabled, false); assert.equal(snapshots, 1);
   await click("保存所选来源"); assert.equal(writes.length, 2); assert.deepEqual(writes[1], writes[0]); assert.equal(snapshots, 2);

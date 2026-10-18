@@ -10,6 +10,7 @@
 !tsconfig.base.json
 
 !config/geography/countries.json
+!config/sources/catalog.json
 !config/geography/china-administrative/catalog.json
 !config/geography/china-administrative/source-manifest.json
 

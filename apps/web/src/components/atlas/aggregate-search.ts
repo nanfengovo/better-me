@@ -1,5 +1,5 @@
 import type { SourceDefinition } from "@better-me/opportunities";
-import type { AtlasSourceScopeInput, AtlasSourceSync } from "./service-client";
+import { AtlasSourceServiceError, type AtlasSourceScopeInput, type AtlasSourceSync } from "./service-client";
 
 export type AtlasAggregateSourceStatus = "queued" | AtlasSourceSync["run"]["status"];
 export type AtlasAggregateError = { message: string; code?: string; status?: number };
@@ -45,6 +45,13 @@ function describeError(error: unknown): AtlasAggregateError {
   if (!(error instanceof Error)) return { message: "来源请求失败，未收到可确认回执。" };
   const code = "code" in error && typeof error.code === "string" ? error.code : undefined;
   const status = "status" in error && typeof error.status === "number" ? error.status : undefined;
+  // The sync route replays an existing idempotent run before its interval check.
+  // An authenticated tool-envelope 429 therefore rejected this attempt before
+  // starting a new run. This says nothing about an earlier lost receipt held by
+  // the caller, so it must not clear outcomeUnknown or replace its request key.
+  if (error instanceof AtlasSourceServiceError && code === "rate-limited" && status === 429) {
+    return { code, status, message: "刷新间隔限制：来源尚未到刷新时间，本次请求未开始新的刷新。请稍后再试；此前未确认的请求仍保留原标识核对。" };
+  }
   return { message: error.message, ...(code ? { code } : {}), ...(status !== undefined ? { status } : {}) };
 }
 

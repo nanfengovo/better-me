@@ -1,0 +1,388 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "source": {
+        "sourceId": "arbeitnow-public-feed",
+        "name": "Arbeitnow · 欧洲多公司公开岗位",
+        "adapterId": "mapped-json",
+        "adapterVersion": "1",
+        "capabilities": [
+          "list-jobs"
+        ],
+        "runtime": [
+          "local-service",
+          "server"
+        ],
+        "entityType": "job-posting",
+        "enabled": false,
+        "status": "needs-review",
+        "entryUrl": "https://www.arbeitnow.com/api/job-board-api",
+        "options": {
+          "recordsPath": "data",
+          "idPath": "slug",
+          "titlePath": "title",
+          "urlPath": "url",
+          "companyPath": "company_name",
+          "descriptionPath": "description",
+          "descriptionCompleteness": "excerpt",
+          "enumerationComplete": false,
+          "locationsPath": "location",
+          "publishedPath": "created_at",
+          "publishedFormat": "unix-seconds",
+          "discoveryOnly": false
+        },
+        "remoteFilters": [],
+        "endpointPolicy": {
+          "allowedHosts": [
+            "www.arbeitnow.com"
+          ],
+          "allowedPathPrefixes": [
+            "/api/job-board-api"
+          ],
+          "requireHttps": true,
+          "allowRedirects": false,
+          "maxRedirects": 0
+        },
+        "attribution": {
+          "label": "Arbeitnow · 原始职位回链",
+          "homepageUrl": "https://www.arbeitnow.com/blog/job-board-api",
+          "usage": "unknown",
+          "requiresAttribution": true,
+          "notes": "官方免费免 Key 多公司 API；遵守其 TOS 并回链 Arbeitnow 原职位。官方说明每小时更新，created_at 明确为 Unix 秒。此配置只读当前第一页，响应 links.next 仍有后页，不代表全站完整列举。来源正文保守标摘录；不推断国家、办公坐标、控股、薪资或独立在招。"
+        },
+        "refreshPolicy": {
+          "mode": "manual",
+          "minIntervalSeconds": 3600,
+          "maxRecords": 300,
+          "maxPages": 1,
+          "requestsPerMinute": 5
+        }
+      },
+      "tags": [
+        "多公司",
+        "欧洲",
+        "C#",
+        ".NET",
+        "软件开发"
+      ],
+      "coverage": "多家公司发布的欧洲岗位；只读取当前第一页，支持在实际返回文本中筛选。地点保留原文，不自动识别国家、办公地址或远程资格。",
+      "checkedAt": "2026-10-18T17:50:53.137155Z",
+      "evidenceUrls": [
+        "https://www.arbeitnow.com/blog/job-board-api",
+        "https://www.arbeitnow.com/api/job-board-api"
+      ]
+    },
+    {
+      "source": {
+        "sourceId": "remoteok-public-feed",
+        "name": "Remote OK · 多公司远程公开岗位",
+        "adapterId": "mapped-json",
+        "adapterVersion": "1",
+        "capabilities": [
+          "list-jobs"
+        ],
+        "runtime": [
+          "local-service",
+          "server"
+        ],
+        "entityType": "job-posting",
+        "enabled": false,
+        "status": "needs-review",
+        "entryUrl": "https://remoteok.com/api",
+        "options": {
+          "recordsPath": "",
+          "idPath": "id",
+          "titlePath": "position",
+          "urlPath": "url",
+          "companyPath": "company",
+          "descriptionPath": "description",
+          "descriptionCompleteness": "excerpt",
+          "enumerationComplete": false,
+          "locationsPath": "location",
+          "publishedPath": "date",
+          "publishedFormat": "iso",
+          "discoveryOnly": false
+        },
+        "remoteFilters": [],
+        "endpointPolicy": {
+          "allowedHosts": [
+            "remoteok.com"
+          ],
+          "allowedPathPrefixes": [
+            "/api"
+          ],
+          "requireHttps": true,
+          "allowRedirects": false,
+          "maxRedirects": 0
+        },
+        "attribution": {
+          "label": "Remote OK",
+          "homepageUrl": "https://remoteok.com/api",
+          "usage": "unknown",
+          "requiresAttribution": true,
+          "notes": "官方 API 首项载明：须标 Remote OK 来源并 follow 回链提供的原职位 URL（不加 nofollow）；未经许可不使用 Remote OK 商标 Logo。首项免责声明不是职位，将省略并保留警告。只读取本次有限 feed，未承诺全历史分页；来源正文保守标摘录，location 为空保持未知，远程资格不冒充办公室，数值薪资缺 period / currency 时不猜。"
+        },
+        "refreshPolicy": {
+          "mode": "manual",
+          "minIntervalSeconds": 3600,
+          "maxRecords": 100,
+          "maxPages": 1,
+          "requestsPerMinute": 5
+        }
+      },
+      "tags": [
+        "多公司",
+        "远程",
+        "C#",
+        ".NET",
+        "软件开发"
+      ],
+      "coverage": "多公司的最新远程岗位窗口；不是全历史或全市场搜索。保留 Remote OK 来源和其原职位回链，空地点保持未知。",
+      "checkedAt": "2026-10-18T17:50:53.137155Z",
+      "evidenceUrls": [
+        "https://remoteok.com/api"
+      ]
+    },
+    {
+      "source": {
+        "sourceId": "reviewed-hudl-official",
+        "name": "Hudl · 官网岗位",
+        "adapterId": "greenhouse",
+        "adapterVersion": "1",
+        "capabilities": [
+          "list-jobs"
+        ],
+        "runtime": [
+          "local-service",
+          "server"
+        ],
+        "entityType": "job-posting",
+        "enabled": false,
+        "status": "needs-review",
+        "entryUrl": "https://boards-api.greenhouse.io/v1/boards/hudl/jobs?content=true",
+        "options": {
+          "boardToken": "hudl",
+          "companyName": "Hudl"
+        },
+        "remoteFilters": [],
+        "endpointPolicy": {
+          "allowedHosts": [
+            "boards-api.greenhouse.io"
+          ],
+          "allowedPathPrefixes": [
+            "/v1/boards/hudl/jobs"
+          ],
+          "requireHttps": true,
+          "allowRedirects": false,
+          "maxRedirects": 0
+        },
+        "attribution": {
+          "label": "Hudl careers · greenhouse",
+          "homepageUrl": "https://www.hudl.com/jobs/search",
+          "usage": "unknown",
+          "requiresAttribution": true,
+          "notes": "Official careers page links to https://boards-api.greenhouse.io/v1/boards/hudl/jobs. Public readability does not imply redistribution permission; recheck terms before enabling. Salary, dates, office precision, eligibility and ultimate ownership remain evidence based."
+        },
+        "refreshPolicy": {
+          "mode": "manual",
+          "minIntervalSeconds": 3600,
+          "maxRecords": 100,
+          "maxPages": 1,
+          "requestsPerMinute": 10
+        }
+      },
+      "tags": [
+        "企业官网",
+        "greenhouse",
+        "C#"
+      ],
+      "coverage": "Hudl 企业官网公开职位；已观察到 C# 正文提及，含软件开发岗位。只代表本公司本次公开列表；地区、要求及在招状态以原岗位为准。",
+      "checkedAt": "2026-10-18T17:50:18.008Z",
+      "evidenceUrls": [
+        "https://www.hudl.com/jobs/search",
+        "https://boards-api.greenhouse.io/v1/boards/hudl/jobs?content=true"
+      ]
+    },
+    {
+      "source": {
+        "sourceId": "reviewed-launchdarkly-official",
+        "name": "LaunchDarkly · 官网岗位",
+        "adapterId": "greenhouse",
+        "adapterVersion": "1",
+        "capabilities": [
+          "list-jobs"
+        ],
+        "runtime": [
+          "local-service",
+          "server"
+        ],
+        "entityType": "job-posting",
+        "enabled": false,
+        "status": "needs-review",
+        "entryUrl": "https://boards-api.greenhouse.io/v1/boards/launchdarkly/jobs?content=true",
+        "options": {
+          "boardToken": "launchdarkly",
+          "companyName": "LaunchDarkly"
+        },
+        "remoteFilters": [],
+        "endpointPolicy": {
+          "allowedHosts": [
+            "boards-api.greenhouse.io"
+          ],
+          "allowedPathPrefixes": [
+            "/v1/boards/launchdarkly/jobs"
+          ],
+          "requireHttps": true,
+          "allowRedirects": false,
+          "maxRedirects": 0
+        },
+        "attribution": {
+          "label": "LaunchDarkly careers · greenhouse",
+          "homepageUrl": "https://launchdarkly.com/careers/",
+          "usage": "unknown",
+          "requiresAttribution": true,
+          "notes": "Official careers page links to https://boards.greenhouse.io/launchdarkly. Public readability does not imply redistribution permission; recheck terms before enabling. Salary, dates, office precision, eligibility and ultimate ownership remain evidence based."
+        },
+        "refreshPolicy": {
+          "mode": "manual",
+          "minIntervalSeconds": 3600,
+          "maxRecords": 100,
+          "maxPages": 1,
+          "requestsPerMinute": 10
+        }
+      },
+      "tags": [
+        "企业官网",
+        "greenhouse",
+        ".NET"
+      ],
+      "coverage": "LaunchDarkly 企业官网公开职位；已观察到 .NET 正文提及，主要为解决方案 / 售前场景，不能当成 .NET 开发岗位保证。",
+      "checkedAt": "2026-10-18T17:50:24.109Z",
+      "evidenceUrls": [
+        "https://launchdarkly.com/careers/",
+        "https://boards-api.greenhouse.io/v1/boards/launchdarkly/jobs?content=true"
+      ]
+    },
+    {
+      "source": {
+        "sourceId": "reviewed-sentry-official",
+        "name": "Sentry · 官网岗位",
+        "adapterId": "ashby",
+        "adapterVersion": "1",
+        "capabilities": [
+          "list-jobs"
+        ],
+        "runtime": [
+          "local-service",
+          "server"
+        ],
+        "entityType": "job-posting",
+        "enabled": false,
+        "status": "needs-review",
+        "entryUrl": "https://api.ashbyhq.com/posting-api/job-board/sentry?includeCompensation=true",
+        "options": {
+          "boardToken": "sentry",
+          "companyName": "Sentry"
+        },
+        "remoteFilters": [],
+        "endpointPolicy": {
+          "allowedHosts": [
+            "api.ashbyhq.com"
+          ],
+          "allowedPathPrefixes": [
+            "/posting-api/job-board/sentry"
+          ],
+          "requireHttps": true,
+          "allowRedirects": false,
+          "maxRedirects": 0
+        },
+        "attribution": {
+          "label": "Sentry careers · ashby",
+          "homepageUrl": "https://sentry.io/careers/",
+          "usage": "unknown",
+          "requiresAttribution": true,
+          "notes": "Official careers page links to https://jobs.ashbyhq.com/sentry/1c34ea48-ab62-4b71-a7d7-d0ac9eb07bba. Public readability does not imply redistribution permission; recheck terms before enabling. Salary, dates, office precision, eligibility and ultimate ownership remain evidence based."
+        },
+        "refreshPolicy": {
+          "mode": "manual",
+          "minIntervalSeconds": 3600,
+          "maxRecords": 100,
+          "maxPages": 1,
+          "requestsPerMinute": 10
+        }
+      },
+      "tags": [
+        "企业官网",
+        "ashby",
+        ".NET"
+      ],
+      "coverage": "Sentry 企业官网公开职位；已观察到 .NET 正文提及，主要为解决方案 / 售前场景，需逐条核对岗位职责。",
+      "checkedAt": "2026-10-18T17:50:24.109Z",
+      "evidenceUrls": [
+        "https://sentry.io/careers/",
+        "https://api.ashbyhq.com/posting-api/job-board/sentry?includeCompensation=true"
+      ]
+    },
+    {
+      "source": {
+        "sourceId": "reviewed-temporal-official",
+        "name": "Temporal · 官网岗位",
+        "adapterId": "ashby",
+        "adapterVersion": "1",
+        "capabilities": [
+          "list-jobs"
+        ],
+        "runtime": [
+          "local-service",
+          "server"
+        ],
+        "entityType": "job-posting",
+        "enabled": false,
+        "status": "needs-review",
+        "entryUrl": "https://api.ashbyhq.com/posting-api/job-board/temporal?includeCompensation=true",
+        "options": {
+          "boardToken": "temporal",
+          "companyName": "Temporal"
+        },
+        "remoteFilters": [],
+        "endpointPolicy": {
+          "allowedHosts": [
+            "api.ashbyhq.com"
+          ],
+          "allowedPathPrefixes": [
+            "/posting-api/job-board/temporal"
+          ],
+          "requireHttps": true,
+          "allowRedirects": false,
+          "maxRedirects": 0
+        },
+        "attribution": {
+          "label": "Temporal careers · ashby",
+          "homepageUrl": "https://temporal.io/careers/9a2e32f5-2f85-49ea-b1af-855178bb0af8",
+          "usage": "unknown",
+          "requiresAttribution": true,
+          "notes": "Official careers page links to https://jobs.ashbyhq.com/temporal/9a2e32f5-2f85-49ea-b1af-855178bb0af8/application. Public readability does not imply redistribution permission; recheck terms before enabling. Salary, dates, office precision, eligibility and ultimate ownership remain evidence based."
+        },
+        "refreshPolicy": {
+          "mode": "manual",
+          "minIntervalSeconds": 3600,
+          "maxRecords": 100,
+          "maxPages": 1,
+          "requestsPerMinute": 10
+        }
+      },
+      "tags": [
+        "企业官网",
+        "ashby",
+        "C#"
+      ],
+      "coverage": "Temporal 企业官网公开职位；已观察到 C# 正文提及，涉及解决方案架构及产品岗位，不能仅凭关键词认定为 C# 开发职位。",
+      "checkedAt": "2026-10-18T17:52:11.349Z",
+      "evidenceUrls": [
+        "https://temporal.io/careers/9a2e32f5-2f85-49ea-b1af-855178bb0af8",
+        "https://api.ashbyhq.com/posting-api/job-board/temporal?includeCompensation=true"
+      ]
+    }
+  ]
+}

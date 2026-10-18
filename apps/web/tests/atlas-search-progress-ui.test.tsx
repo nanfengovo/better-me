@@ -50,9 +50,9 @@ test("cancelled work reports received receipts separately from settled sources a
   const bar = dom.document.querySelector('[role="progressbar"]')!;
   assert.equal(bar.getAttribute("aria-valuenow"), "4"); assert.equal(bar.getAttribute("aria-valuemax"), "4");
   assert.match(bar.getAttribute("aria-valuetext")!, /包含完成、失败或取消/);
-  assert.equal(dom.document.querySelectorAll("button").length, 0);
+  assert.equal(dom.document.querySelectorAll(".atlas-acquisition-cancel").length, 0);
   assert.match(dom.document.body.textContent!, /部分岗位可能已保存/);
-  assert.match(dom.document.body.textContent!, /读取 7 条 · 2 页 · 新增 3 · 待人工核对 1/);
+  assert.match(dom.document.body.textContent!, /原始返回 7 条 · 2 页 · 新增 3 · 待人工核对 1/);
   const details = dom.document.querySelector("details")!;
   assert.equal(details.hasAttribute("open"), false);
   assert.match(details.textContent!, /rate-limited/); assert.match(details.textContent!, /来源建议 45 秒后重试/);
@@ -80,4 +80,36 @@ test("server-side running receipts remain pending verification and absent counte
   assert.match(dom.document.body.textContent!, /尚不能确认最终结果/);
   assert.doesNotMatch(dom.document.body.textContent!, /读取 0 条|新增 0/);
   assert.match(dom.document.querySelector('[role="status"]')!.textContent!, /已返回 1 \/ 1 个来源回执/);
+});
+
+test("partial timeout stays visible in the compact outcome and source details can be reopened", async () => {
+  const partial = receipt("timed-out", "partial");
+  partial.run.summary = { records: 10, pages: 1, added: 0, needsHuman: 8 };
+  partial.sourceError = { code: "timeout" };
+  const progress: AtlasAggregateProgress = { total: 1, settled: 1, queued: 0, running: 0, cancelled: false,
+    sources: [state("timed-out", { status: "partial", receipt: partial })] };
+  await render({ progress, busy: false, onCancel() {} });
+  assert.match(dom.document.querySelector('[role="status"]')!.textContent!, /仅完成部分读取/);
+  assert.match(dom.document.querySelector('.atlas-acquisition-summary')!.textContent!, /读取超时，尚未读完，8 条要求待核对/);
+  assert.match(dom.document.querySelector('.atlas-acquisition-explanation')!.textContent!, /原始返回条数不是关键词命中数/);
+  const list = dom.document.querySelector<HTMLUListElement>('.atlas-acquisition-sources')!;
+  assert.equal(list.hidden, true);
+  const toggle = dom.document.querySelector<HTMLButtonElement>('button[aria-controls="atlas-acquisition-details"]')!;
+  assert.equal(toggle.getAttribute('aria-expanded'), 'false');
+  await act(async () => toggle.click());
+  assert.equal(list.hidden, false); assert.equal(toggle.getAttribute('aria-expanded'), 'true');
+  assert.match(list.textContent!, /原始返回 10 条/);
+  await act(async () => toggle.click()); assert.equal(list.hidden, true);
+  await render({ progress: { ...progress, settled: 0, running: 1 }, busy: true, onCancel() {} });
+  assert.equal(list.hidden, false, "new reads expose source progress without requiring expansion");
+});
+
+
+test("refresh-policy rejection is explicit without erasing an earlier uncertain request", async () => {
+  const progress: AtlasAggregateProgress = { total: 1, settled: 1, queued: 0, running: 0, cancelled: false,
+    sources: [state("cooldown", { status: "failed", outcomeUnknown: true, error: { code: "rate-limited", status: 429, message: "刷新间隔限制" } })] };
+  await render({ progress, busy: false, onCancel() {} });
+  assert.match(dom.document.querySelector('.atlas-acquisition-summary')!.textContent!, /刷新间隔限制 · 稍后重试/);
+  assert.match(dom.document.body.textContent!, /此前未确认的请求继续保留原标识/);
+  assert.match(dom.document.querySelector('[role="status"]')!.textContent!, /已返回 0 \/ 1 个来源回执/);
 });

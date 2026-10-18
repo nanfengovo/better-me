@@ -356,7 +356,8 @@ test("connected main search calls the selected source with exact C# and bounded 
   assert.equal(headers.get("Authorization"), "Bearer synthetic-fixture-token"); assert.ok(headers.get("Idempotency-Key"));
   assert.equal(request.init!.method, "POST");
   assert.match(dom.document.querySelector('[aria-label="真实来源读取进度"]')!.textContent!, /合成关键词来源/);
-  assert.match(dom.document.querySelector(".atlas-search-notice")!.textContent!, /1\/1 个来源返回回执，读取 9 条/);
+  assert.match(dom.document.querySelector(".atlas-search-notice")!.textContent!, /1\/1 个来源返回回执，原始返回 9 条/);
+  assert.match(dom.document.querySelector(".atlas-search-notice")!.textContent!, /原始条数不代表匹配岗位数/);
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 3, "C++ jobs must not match C#");
   assert.ok([...dom.document.querySelectorAll(".atlas-job-card strong")].every((title) => title.textContent!.startsWith("C#")));
   assert.match(dom.document.querySelector('[aria-label="当前索引筛选覆盖"]')!.textContent!, /当前视图 22 岗/);
@@ -387,6 +388,28 @@ test("connected main search calls the selected source with exact C# and bounded 
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 3);
   await flush(() => unknown.click());
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 2);
+});
+
+test("source review opens without rereading and a new search closes candidates bound to the previous query", async () => {
+  let previews = 0;
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(url)).pathname;
+    if (path === "/api/v1/dataset/export") return sourceResponse(searchFixture());
+    if (path.endsWith("/preview")) { previews++; throw new Error("Opening review must not automatically reread"); }
+    assert.equal(path, "/api/v1/sources/atlas-demo/sync");
+    const receipt = sourceReceipt(JSON.parse(String(init!.body)).scope);
+    return sourceResponse({ ...receipt, run: { ...receipt.run, summary: { ...receipt.run.summary, needsHuman: 2 } } });
+  });
+  await render(true, false); await connectFixture();
+  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "C#"));
+  await flush(() => button("从来源获取岗位").click());
+  await flush(() => button("查看 合成关键词来源 未核对候选").click());
+  await waitFor(() => Boolean(dom.document.querySelector(".atlas-source-review")), "lazy candidate review");
+  assert.equal(previews, 0);
+  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "Java"));
+  await flush(() => button("从来源获取岗位").click());
+  assert.equal(dom.document.querySelector(".atlas-source-review"), null, "C# candidates cannot appear as Java results");
+  assert.equal(previews, 0);
 });
 
 test("an unknown main-search response retries the same write key and a completed refresh starts a fresh bounded request", async () => {

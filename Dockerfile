@@ -24,6 +24,7 @@ COPY packages/storage ./packages/storage
 COPY packages/opportunities ./packages/opportunities
 COPY packages/source-adapters ./packages/source-adapters
 COPY config/geography/countries.json ./config/geography/countries.json
+COPY config/sources/catalog.json ./config/sources/catalog.json
 COPY config/geography/china-administrative/catalog.json config/geography/china-administrative/source-manifest.json ./config/geography/china-administrative/
 COPY docker/collect-licenses.mjs ./docker/collect-licenses.mjs
 COPY docker/license-overrides ./docker/license-overrides
