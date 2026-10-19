@@ -4,6 +4,8 @@
 
 ## 当前交付
 
+- [x] 2026-10-19 来源办公地点与地图性能：0b04056/d99c6d8/ecb7197/8ce6e20/729d474已按功能正常推送。四平台同岗JSON-LD地点、受审保存来源位置、右栏单岗/批量核对、pending多地点、官网唯一同source/编号/URL线索、50岗并发2、内部office保存地址级定位/Esc、空库两栏入口完成。最终15文件树4c151dab22离线冻结2474/2474（fail/cancel/skip/todo0）、types10/lint/build6通过；性能89相关通过，2000点120无关更新0上传、100mousemove1查询/运动中0。完整备份后原5178更新，真实89岗rev67/V4、dataset/token和五查询保持；26国内C#只读计划25平台+1官网、office0/26地点待补，未外读或写入。Actions 39212094106：四任务 success；最新浏览器URL拒绝未绕过，无GPU帧率/新样式目视；并行Career保留，整体Goal active。详见detail-address-review报告。
+
 - [x] 2026-10-19 SmartRecruiters地址保留：稀疏同地点详情仅补省略街道／邮编，国家+单城明确一致且共享字段无冲突，原selector／quote／URL保持，异地或显式地址变更不拼接。旧码2回归失败已复现；修后适配器44／冻结4文件62/62、types10／lint／build6通过。完整备份后原5178更新后台PID82132，89岗rev67、dataset/token、V4和五组C#查询保持，office0，无来源刷新。前桌面文档68535b3四任务success、6公开资源含截图200；本补修发布跟踪中，四平台详情地点闭环继续，Career保留、Goal active。
 
 - [x] 2026-10-19 桌面稳定阅读与地址约束8ddf788／dc2f2a5已正常推送：15文件最终树b7f5c3887完成156/156相关、types10／lint／build6；独立合成UI即时单击前后卡片／地图rect和scrollTop一致、原生双击街址核对→保存1→2→50m高亮、900／390无溢出，viewport复原。离线旧3错误城镇均拒；真实structured地标HTTP200仍错城／道路，正确拒成0候选，未证实际目标。完整备份后原5178更新后台PID29468，89岗rev67／V4、dataset/token和五组C#查询不变、office0；Career保留。原5286旧进程退出后恢复隐藏后台PID57368，首页与3模块200。Actions39195657845首轮旧文件级失败未定根因，独立TAP两次24/24；同SHA仅重跑一次后全量2355/2355、四任务success，公开5资源200；详见desktop-precision报告，完整Goal active。

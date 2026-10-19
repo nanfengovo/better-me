@@ -318,3 +318,11 @@ Web 展开“来源工具 → 企业官网招聘”后才读配置，点击发�
 SQLite V4保留base地点、行政决议、办公确认／撤销／source失效事件和耐久回执。来源地点或证据一度变化后旧办公点不会在A→B→A时自动激活。公共快照导入拒绝本地overlay；完整备份恢复包含历史。保存仍待核实，不把GCJ02当WGS84、城市／道路候选当门牌、地图候选当雇主认证。超时使用原body／key核对回执，已保存后读快照失败只重读。详见[本批报告](../../docs/reports/job-atlas-desktop-office-address-2026-10-19.md)。
 
 `locations.office-address-candidates`可显式传`locality`（≤200字符）和`postalCode`（≤100字符），二者必须与`query`同传；无query仍只读配置。宿主不会隐式发送来源城市或邮编。有约束时Nominatim使用structured查询并严格核对实际市级字段及邮编；州县不当市、未知或不符拒绝，缓存按全部约束隔离。不猜翻译、门牌或办公关联。详见[桌面与精度报告](../../docs/reports/job-atlas-desktop-precision-2026-10-19.md)。
+
+## 逐岗地址规划与来源地点补充
+
+`jobs.plan-address-enrichment` / `POST /api/v1/jobs/address-enrichment/plan` 是认证只读工具，输入 `{ "jobIds": ["当前规范岗位ID"], "expectedRevision": 67 }`。示例ID和版本须替换为真实值；最多50个唯一ID，空数组明确处理0岗，无幂等写入key、不联网、不写索引。响应绑定相同版本与岗位集合，逐岗包含currentOffice、pendingLocationIds、sourceStreetTargets、exactPlatformTargets、ownedOfficialTargets和弱companyLookup。宿主使用实际已安装Registry确认官网协议能力，不能根据source版本猜可执行能力。
+
+四平台原岗详情的受审地点使用 `jobs.preview-detail-locations` / `jobs.import-detail-locations`，HTTP对应 `/api/v1/jobs/detail-locations/preview` 与 `/api/v1/jobs/detail-locations/import`。要求同provider/岗位ID/URL和可重解析原JSON-LD证据，绑定当前listing、版本与预览指纹；导入需明确reviewed和幂等键，仅更新该listing地点贡献，保留正文、薪资和其他来源，不自动生成坐标。同捕获重放no-op，旧捕获不复活旧地点；位置变化按V4规则失效旧确认。
+
+Web逐岗外读、官网发现、地址候选、来源保存与办公坐标确认分别调用现有工具；官网同岗位线索仅供核对，候选需本人确认。只读计划不是爬取/补全回执，单个办公点不代表所有地点已覆盖。详见[办公地点与性能报告](../../docs/reports/job-atlas-detail-address-review-2026-10-19.md)。
