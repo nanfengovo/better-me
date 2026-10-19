@@ -7,7 +7,7 @@ import {
 } from "@better-me/opportunities";
 import {
   SourceScopeSchema, SourcePageSchema, SourceAdapterMetadataSchema, SourceRegistryError, SourceTransportError,
-  createSourceRegistry, createControlledSourceTransport, greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter,
+  createSourceRegistry, createControlledSourceTransport, greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter,
   discoverSourceCandidates, inspectSourceCandidate, proposeSourceRegistration,
   DiscoverSourceCandidatesInputSchema, SourceDiscoveryPageSchema, InspectSourceCandidateInputSchema, SourceCandidateInspectionSchema,
   ProposeSourceRegistrationInputSchema, SourceRegistrationProposalSchema,
@@ -71,7 +71,7 @@ export type JobApplicationOptions = {
 export function createJobApplication(options: JobApplicationOptions) {
   const repository = options.repository;
   const now = options.now ?? (() => new Date().toISOString());
-  const sources = createSourceRegistry(options.adapters ?? [greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter]);
+  const sources = createSourceRegistry(options.adapters ?? [greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter]);
   const transport = options.transport ?? createControlledSourceTransport();
   const query = createJobQueryService(repository);
   const running = new Map<string, AbortController>();
@@ -134,7 +134,14 @@ export function createJobApplication(options: JobApplicationOptions) {
       execute: (input, context) => guarded(async () => {
         context.throwIfCancelled();
         // Disabled candidates can be staged; enabling requires an installed matching adapter.
-        if (input.source.enabled) sources.resolve(input.source, "list-jobs", "local-service");
+        if (input.source.enabled) {
+          // Preserve existing collectors, which may also authorize the host's discovery tools.
+          // A pure access policy must advertise only discovery and have an installed adapter.
+          const capability = input.source.capabilities.includes("list-jobs") ? "list-jobs"
+            : input.source.capabilities.length === 1 && input.source.capabilities[0] === "discover-sources" ? "discover-sources" : undefined;
+          if (!capability) throw new ToolError("unsupported-capability");
+          sources.resolve(input.source, capability, "local-service");
+        }
         return repository.registerSource(input.source, { actorScope: context.actorScope, idempotencyKey: key(context), expectedRevision: input.expectedRevision });
       }),
     }),

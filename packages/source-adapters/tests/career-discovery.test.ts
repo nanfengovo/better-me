@@ -84,6 +84,20 @@ test("shared ATS hosts never match a different installed company's board by host
   assert.equal(run.requests.length, 0);
 });
 
+test("a discovery-policy with matching company name, alias and website remains an access policy rather than an existing recruiting source", async () => {
+  const run = execution(() => '<html><a href="https://jobs.lever.co/synthetic">Careers</a></html>');
+  const policy = { ...source(), adapterId: "discovery-policy", name: companyName, entryUrl: companyWebsite,
+    options: { companyName }, attribution: { ...source().attribution, homepageUrl: companyWebsite } };
+  run.source = policy; run.registeredSources = [policy]; run.companyAliases = { [policy.sourceId]: ["Synthetic alias"] };
+  const nameOnly = await discoverCompanyCareers({ companyName }, run);
+  const aliasOnly = await discoverCompanyCareers({ companyName: "Synthetic alias" }, run);
+  assert.equal(nameOnly.status, "requires-company-website"); assert.equal(aliasOnly.status, "requires-company-website");
+  assert.deepEqual(nameOnly.matchedSources, []); assert.deepEqual(aliasOnly.matchedSources, []); assert.deepEqual(run.requests, []);
+  const website = await discoverCompanyCareers({ companyName, companyWebsite }, run);
+  assert.equal(website.status, "needs-review"); assert.deepEqual(website.matchedSources, []);
+  assert.deepEqual(run.requests, [companyWebsite]); assert.equal(website.candidates[0]!.entryKind, "lever");
+});
+
 test("a shared repository host cannot match another company's source solely by host", async () => {
   const run = execution();
   run.registeredSources = [{ ...source(), sourceId: "other-github-source", name: "Other project", options: { companyName: "Other Company" },

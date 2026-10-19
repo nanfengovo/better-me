@@ -11,6 +11,7 @@ export * from "./tencent-contracts.js";
 export * from "./adapters/tencent.js";
 export * from "./smartrecruiters-contracts.js";
 export * from "./adapters/smartrecruiters.js";
+export * from "./adapters/discovery-policy.js";
 export * from "./career-discovery.js";
 export * from "./career-web-search.js";
 export * from "./career-discovery-contracts.js";

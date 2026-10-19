@@ -1,5 +1,6 @@
 import { SourceDefinitionSchema, TimestampSchema, ToolError, deriveEntityId, type SourceDefinition } from "@better-me/opportunities";
 import { plainText, publicUrl } from "./adapters/common.js";
+import { discoveryPolicyAdapter } from "./adapters/discovery-policy.js";
 import type { SourceAdapterContext, SourceTransport } from "./contracts.js";
 import type { SourceDiscoveryExecution } from "./discovery.js";
 import { SourceCandidateSchema, SourceRegistrationProposalSchema, type SourceRegistrationProposal } from "./discovery-contracts.js";
@@ -174,6 +175,8 @@ function existingMatches(options: zOptions, execution: CompanyCareerDiscoveryExe
     const parsed = SourceDefinitionSchema.safeParse(supplied);
     if (!parsed.success) throw new ToolError("invalid-context");
     const source = parsed.data;
+    // An access policy is permission to inspect a site, never an existing recruiting source.
+    if (source.adapterId === discoveryPolicyAdapter.adapterId) continue;
     let matchedBy: CompanyCareerDiscoveryResult["matchedSources"][number]["matchedBy"] | undefined;
     if (typeof source.options?.companyName === "string" && normalizeName(source.options.companyName) === name) matchedBy = "company-name";
     else if (execution.companyAliases && Object.hasOwn(execution.companyAliases, source.sourceId)

@@ -1,0 +1,32 @@
+{
+  "sourceId": "company-career-discovery-policy-example",
+  "name": "企业官网发现访问策略 · 待配置",
+  "adapterId": "discovery-policy",
+  "adapterVersion": "1",
+  "capabilities": ["discover-sources"],
+  "runtime": ["local-service"],
+  "entityType": "company-directory",
+  "enabled": false,
+  "status": "needs-review",
+  "remoteFilters": [],
+  "endpointPolicy": {
+    "allowedHosts": ["careers.example.org"],
+    "allowedPathPrefixes": ["/company"],
+    "requireHttps": true,
+    "allowRedirects": false,
+    "maxRedirects": 0
+  },
+  "attribution": {
+    "label": "企业官网发现访问策略",
+    "usage": "link-only",
+    "requiresAttribution": true,
+    "notes": "这是占位访问策略，不是真实公司或岗位源。先核对官网及使用范围，把 allowedHosts 和 allowedPathPrefixes 改为获准访问的精确域名与路径，再通过 sources.register 显式设 enabled=true/status=active。通过 companies.discover-careers 传入此 sourceId 与 companyWebsite/seedUrls，按页数限制发现招聘入口；策略本身不列举岗位，不支持 sources.preview/sources.sync。发现结果仅为待核实候选，不自动注册或采集；跨域链接不自动扩大访问权限。无需在 options 或 JSON 中填入 API Key。"
+  },
+  "refreshPolicy": {
+    "mode": "manual",
+    "minIntervalSeconds": 0,
+    "maxRecords": 20,
+    "maxPages": 3,
+    "requestsPerMinute": 6
+  }
+}
