@@ -31,3 +31,5 @@
 前一产品`02dc34f`的四项CI均success。后续纯文档`9419438`的Actions39181377434中，Linux构建／Docker成功，Windows记录2114/2115且opportunity-sources文件级失败，Pages skipped；日志缺实际断言、退出码、信号和异常，不能认定原因。本机同Node24.15、旧源码独立快照单文件及原全套2116/2116通过，未复现；没有降低断言或修改生产超时。旧源码全套结果与本批96项范围分别记录，不相加。
 
 本批正常提交／推送后，以实际远端CI和公开资源核查决定发布状态；提交前不称新版已上线。私人SQLite／备份／令牌／浏览器资料、合成证据及并行Career Agent成果不入本批提交。
+
+发布后核查：`e862b08`已正常推送main，本地与远端SHA一致。[Actions39182359402](https://github.com/nanfengovo/better-me/actions/runs/39182359402)的Windows质量、Linux生产构建、Docker与Pages四项均success。公开首页、主JS、Atlas、卡片导入与地区确认模块五项HTTP200；新入口、原筛选说明、陈旧版本提示、无办公坐标说明、实际地区表单及连接恢复代码均已核对。不将资源检查冒充私人页面视觉验收，旧9419438失败仍保留为历史记录。
