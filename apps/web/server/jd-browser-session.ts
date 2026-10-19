@@ -17,7 +17,7 @@ import { createVerificationNetworkRecorder } from "./jd-verification-network";
 import type { VerificationNetworkSnapshot } from "../src/lib/jd-verification-network";
 import { buildPlatformSearchRequest, type PlatformSearchInput } from "@better-me/source-adapters/platform-search";
 import { extractJobSearchCards, VISIBLE_JOB_SEARCH_SNAPSHOT, type JobSearchCaptureResult } from "./jd-search-capture";
-import { rebindPlatformDetailLocations } from "@better-me/source-adapters/browser-contracts";
+import { rebindPlatformDetailLocations } from "@better-me/source-adapters/platform-detail-locations";
 
 const SESSION_TTL_MS = 10 * 60_000;
 const START_TIMEOUT_MS = 30_000;

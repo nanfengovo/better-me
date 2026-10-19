@@ -13,7 +13,7 @@ import { createPersistentJobBrowser, type PersistentJobPageLease } from "./jd-pe
 import { inspectNativeProfileOccupancy } from "./jd-native-edge";
 import { createBossResponseObserver } from "./jd-boss-response";
 import { VERIFICATION_HOSTS_51JOB } from "../src/lib/jd-verification-network";
-import { rebindPlatformDetailLocations } from "@better-me/source-adapters/browser-contracts";
+import { rebindPlatformDetailLocations } from "@better-me/source-adapters/platform-detail-locations";
 
 const TIMEOUT_MS = 60_000;
 const MAX_DOCUMENT_BYTES = 2 * 1024 * 1024;

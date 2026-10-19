@@ -20,6 +20,16 @@
       "types": "./src/platform-search.ts",
       "import": "./src/platform-search.ts",
       "default": "./dist/platform-search.js"
+    },
+    "./platform-job-identity": {
+      "types": "./src/platform-job-identity.ts",
+      "import": "./src/platform-job-identity.ts",
+      "default": "./dist/platform-job-identity.js"
+    },
+    "./platform-detail-locations": {
+      "types": "./src/platform-detail-locations.ts",
+      "import": "./src/platform-detail-locations.ts",
+      "default": "./dist/platform-detail-locations.js"
     }
   },
   "scripts": {

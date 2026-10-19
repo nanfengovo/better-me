@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { PlatformDetailLocations } from "@better-me/source-adapters/browser-contracts";
+import type { PlatformDetailLocations } from "@better-me/source-adapters/platform-detail-locations";
 
 // Keep this Vite server boundary independent of workspace package runtime resolution.
 const SourceTimestampSchema = z.string().datetime({ offset: true }).max(64);

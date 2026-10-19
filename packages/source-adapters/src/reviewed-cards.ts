@@ -1,19 +1,8 @@
 import { z } from "zod";
 import { EntityIdSchema, RevisionSchema, TimestampSchema } from "@better-me/opportunities";
-import { PlatformSearchProviderSchema, type PlatformSearchProvider, type PlatformSearchJobPlatform } from "./platform-search.js";
-
-export const REVIEWED_PLATFORM_NAMES: Readonly<Record<PlatformSearchProvider, PlatformSearchJobPlatform>> = {
-  "51job": "51JOB", boss: "BOSS直聘", liepin: "猎聘", linkedin: "LinkedIn",
-};
-
-// Keep these exact hosts and single-job patterns aligned with the browser reader's
-// allowedJobUrl/detailIdentity rules. A share wrapper or search page is not a job.
-const hosts: Readonly<Record<PlatformSearchProvider, readonly string[]>> = {
-  "51job": ["51job.com", "www.51job.com", "jobs.51job.com", "m.51job.com", "msearch.51job.com", "we.51job.com", "q.51job.com"],
-  boss: ["zhipin.com", "www.zhipin.com", "m.zhipin.com"],
-  liepin: ["liepin.com", "www.liepin.com", "m.liepin.com"],
-  linkedin: ["linkedin.com", "www.linkedin.com", "cn.linkedin.com", "m.linkedin.com", "uk.linkedin.com", "de.linkedin.com", "fr.linkedin.com", "au.linkedin.com", "ca.linkedin.com", "sg.linkedin.com", "hk.linkedin.com", "jp.linkedin.com", "in.linkedin.com", "nl.linkedin.com", "tw.linkedin.com", "ae.linkedin.com", "nz.linkedin.com", "ie.linkedin.com", "lnkd.in"],
-};
+import { PlatformSearchProviderSchema, type PlatformSearchProvider } from "./platform-search.js";
+import { reviewedCardIdentity, reviewedPlatformUrl, REVIEWED_PLATFORM_NAMES } from "@better-me/source-adapters/platform-job-identity";
+export { reviewedCardIdentity, REVIEWED_PLATFORM_NAMES } from "@better-me/source-adapters/platform-job-identity";
 const text = (max: number) => z.string().trim().min(1).max(max)
   .refine((value) => !/[\p{Cc}\p{Cs}]/u.test(value), "Expected plain visible text.");
 const urlText = text(4096);
@@ -21,33 +10,8 @@ const visibleText = z.string().trim().min(1).max(10_000)
   .refine((value) => !/[\p{Cc}\p{Cs}]/u.test(value.replace(/[\n\r\t]/gu, "")), "Expected a visible card excerpt.");
 const normalized = (value: string) => value.replace(/\s+/gu, " ").trim();
 
-function officialUrl(input: string, provider: PlatformSearchProvider): URL | undefined {
-  try {
-    const url = new URL(input);
-    if (url.protocol !== "https:" || url.username || url.password || url.port || !hosts[provider].includes(url.hostname)) return;
-    url.hash = "";
-    return url;
-  } catch { return; }
-}
-
-/** The platform plus its actual single-job ID is stable across tracking URLs and title slugs. */
-export function reviewedCardIdentity(input: string, provider: PlatformSearchProvider): { id: string; url: string } | undefined {
-  const url = officialUrl(input, provider);
-  if (!url) return;
-  const patterns: Record<PlatformSearchProvider, RegExp[]> = {
-    boss: [/^\/job_detail\/([a-z\d_-]+)\.html\/?$/i, /^\/mpa\/html\/weijd\/weijd-job\/([a-z\d_-]+)\/?$/i],
-    liepin: [/^\/job\/(\d+)\.shtml\/?$/i],
-    "51job": [/^\/jobs\/(?:[^/]+\/)*(\d+)\.html\/?$/i, ...(url.hostname === "jobs.51job.com" ? [/^\/(?!jobs\/)[^/]+\/(\d+)\.html\/?$/i] : [])],
-    linkedin: [/^\/jobs\/view\/(?:[^/]*-)?(\d+)\/?$/i],
-  };
-  for (const pattern of patterns[provider]) {
-    const id = url.pathname.match(pattern)?.[1];
-    if (id) return { id, url: url.toString() };
-  }
-}
-
 export function reviewedCardsSearchPage(input: string, provider: PlatformSearchProvider): string | undefined {
-  const url = officialUrl(input, provider);
+  const url = reviewedPlatformUrl(input, provider);
   const patterns: Record<PlatformSearchProvider, RegExp> = {
     "51job": /^\/pc\/search\/?$/i,
     boss: /^(?:\/web\/geek\/jobs?\/?|\/c\d{9}\/)$/i,

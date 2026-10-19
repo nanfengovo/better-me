@@ -1,10 +1,25 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { PlatformDetailLocationsSchema, parsePlatformJobLocations, rebindPlatformDetailLocations } from "../src/platform-detail-locations.js";
 
 const address = { "@type": "Place", address: { "@type": "PostalAddress", streetAddress: "100 Synthetic Road", addressLocality: "Test City", addressRegion: "Test Region", postalCode: "00101", addressCountry: "us" } };
 const at = "2026-10-19T09:00:00Z";
 function capture() { return { version: 1, provider: "liepin", url: "https://www.liepin.com/job/12345.shtml", capturedAt: at, ...parsePlatformJobLocations({ jobLocation: address }) }; }
+
+test("the Vite server contract loads through its standalone subpath in native Node without a TS loader", () => {
+  const runtimeEnvironment = { ...process.env }; delete runtimeEnvironment.NODE_OPTIONS;
+  const output = execFileSync(process.execPath, ["--input-type=module", "--eval", `
+    import { PlatformDetailLocationsSchema, parsePlatformJobLocations } from '@better-me/source-adapters/platform-detail-locations';
+    import { reviewedCardIdentity, PlatformSearchProviderSchema } from '@better-me/source-adapters/platform-job-identity';
+    import { PlatformSearchProviderSchema as searchProvider } from '@better-me/source-adapters/platform-search';
+    const locations = parsePlatformJobLocations({ jobLocation: { address: { addressCountry: 'CN', addressLocality: 'Shanghai' } } });
+    console.log(JSON.stringify({ sameSchema: PlatformSearchProviderSchema === searchProvider, id: reviewedCardIdentity('https://www.liepin.com/job/12345.shtml', 'liepin')?.id,
+      valid: PlatformDetailLocationsSchema.safeParse({ version: 1, provider: 'liepin', url: 'https://www.liepin.com/job/12345.shtml', capturedAt: '2026-10-19T09:00:00Z', ...locations }).success }));
+  `], { cwd: fileURLToPath(new URL("../", import.meta.url)), env: runtimeEnvironment, encoding: "utf8" });
+  assert.deepEqual(JSON.parse(output), { sameSchema: true, id: "12345", valid: true });
+});
 
 test("platform detail location disclosure reproduces only explicit address fields and preserves leading-zero postcodes", () => {
   const actual = PlatformDetailLocationsSchema.parse(capture());

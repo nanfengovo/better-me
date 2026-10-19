@@ -1,11 +1,9 @@
 import { z } from "zod";
 import catalogJson from "./platform-search-regions.json" with { type: "json" };
+import { PlatformSearchProviderSchema, type PlatformSearchProvider, type PlatformSearchJobPlatform } from "@better-me/source-adapters/platform-job-identity";
+export { PlatformSearchProviderSchema, type PlatformSearchProvider, type PlatformSearchJobPlatform } from "@better-me/source-adapters/platform-job-identity";
 
 /** Pure request planning: no browser, transport, storage or platform session is accessed. */
-export const PlatformSearchProviderSchema = z.enum(["51job", "boss", "liepin", "linkedin"]);
-export type PlatformSearchProvider = z.infer<typeof PlatformSearchProviderSchema>;
-export type PlatformSearchJobPlatform = "51JOB" | "BOSS直聘" | "猎聘" | "LinkedIn";
-
 const safeText = (max: number) => z.string().trim().min(1).max(max)
   .refine((value) => !/[\p{Cc}\p{Cs}]/u.test(value), "Control characters and unpaired surrogates are not allowed.");
 const regionKey = z.string().regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/).max(100);

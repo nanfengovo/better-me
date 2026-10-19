@@ -8,7 +8,7 @@ import { browserSessionManager } from "./jd-browser-session";
 import type { JobSessionBackend } from "./jd-session-router";
 import { isJdStartRequestId } from "../src/lib/jd-start-request";
 import { isLiepinDescriptionHeading, isLiepinRequirementsHeading } from "./jd-liepin-description";
-import { PlatformDetailLocationsSchema, parsePlatformJobLocations, platformDetailProvider, type PlatformDetailLocations } from "@better-me/source-adapters/browser-contracts";
+import { PlatformDetailLocationsSchema, parsePlatformJobLocations, platformDetailProvider, type PlatformDetailLocations } from "@better-me/source-adapters/platform-detail-locations";
 
 const MAX_PAGE_BYTES = 2 * 1024 * 1024;
 const BLOCKED_MESSAGE = "平台未公开返回岗位正文，可能需要登录、验证码或页面加载。请打开原岗位页面，截图后用视觉识别，或手动粘贴文字。";

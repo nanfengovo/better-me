@@ -1,7 +1,10 @@
 import { z } from "zod";
-import { CountryCodeSchema, TimestampSchema } from "@better-me/opportunities";
-import { PlatformSearchProviderSchema, type PlatformSearchProvider, type PlatformSearchJobPlatform } from "./platform-search.js";
-import { reviewedCardIdentity, REVIEWED_PLATFORM_NAMES } from "./reviewed-cards.js";
+import { PlatformSearchProviderSchema, reviewedCardIdentity, REVIEWED_PLATFORM_NAMES, type PlatformSearchProvider, type PlatformSearchJobPlatform } from "@better-me/source-adapters/platform-job-identity";
+
+// These wire scalars deliberately stay local: Vite's server config loads this
+// standalone subpath with Node, without traversing workspace source .js exports.
+const CountryCodeSchema = z.string().regex(/^[A-Z]{2}$/);
+const TimestampSchema = z.string().datetime({ offset: true }).max(64);
 
 const text = (max: number) => z.string().min(1).max(max).refine(value => value === value.trim() && !/[\p{Cc}\p{Cs}]/u.test(value), "Expected bounded plain text.");
 const fields = {
