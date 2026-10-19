@@ -4,6 +4,8 @@
 
 ## 当前交付
 
+- [x] 2026-10-19 真实来源地址补齐与Key准备：当前国内C#19条Liepin原目标全静态读取成功；6+12份有效来源地址分别preview/import，89岗rev67→73→85、source street18（9道路编号），另1条仅上海市未作为办公室采用。完整备份、JD/snapshots/薪资/其他事实/token/五组查询保持，office仍0；2次Nominatim实际查询均0匹配。原服务PID68700运行新版。用户选择无高德Key需步骤，已核官方教程/坐标/服务范围并写amap-setup；没有添加不可用参数或伪装已接通。a21fc4a Actions39214993602四任务success；最新公网资源继续核对，GUI/GPU未新验。
+
 - [x] 2026-10-19 同岗可见地址与来源换址：28840e5/a21fc4a已正常推送，18文件冻结树caf30cd10b离线安装、memory、types10/lint/build6、2504/2504通过（fail/cancel/skip/todo0）。Liepin唯一职责section直接工作地址DD可在完整CSS/text-range验证后作为V2 sidecar，不混入JD、不猜行政值；远程/总部地址等拒绝，V1兼容。换址新地点身份、稀疏刷新跟当前、A→B→A旧坐标不复活。真实6份V1来源地址经预览保存，89岗rev67→73、street0→6（2含道路编号），正文/薪资等保持；2次地址查询均0匹配，office仍0。完整备份后原5178更新PID68700，V4/快检/外键/token/dataset及五组查询保持；GPU/最新UI未目视，完整Goal active。详见visible-office-evidence报告。
 
 - [x] 2026-10-19 来源办公地点与地图性能：0b04056/d99c6d8/ecb7197/8ce6e20/729d474已按功能正常推送。四平台同岗JSON-LD地点、受审保存来源位置、右栏单岗/批量核对、pending多地点、官网唯一同source/编号/URL线索、50岗并发2、内部office保存地址级定位/Esc、空库两栏入口完成。最终15文件树4c151dab22离线冻结2474/2474（fail/cancel/skip/todo0）、types10/lint/build6通过；性能89相关通过，2000点120无关更新0上传、100mousemove1查询/运动中0。完整备份后原5178更新，真实89岗rev67/V4、dataset/token和五查询保持；26国内C#只读计划25平台+1官网、office0/26地点待补，未外读或写入。Actions 39212094106：四任务 success；最新浏览器URL拒绝未绕过，无GPU帧率/新样式目视；并行Career保留，整体Goal active。详见detail-address-review报告。

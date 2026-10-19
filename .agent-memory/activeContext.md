@@ -2,25 +2,27 @@
 
 ## 当前焦点
 
-2026-10-19：来源换址28840e5、native可见工作地址V2 a21fc4a已按功能推送。18文件冻结树caf30cd10b经离线安装、memory、types10/lint/build6、2504/2504通过。完整备份后真实猎聘6份同岗V1来源地址保存至89岗/rev73（6 street字段，2含道路编号；office0），JD/薪资保持；2次真实地址查询均无匹配。原5178已更新PID68700/session22212，V4/哈希/五查询保持。地图性能8ce6e20及空库两栏已发布；最新GPU/布局未目视（浏览器URL拒绝不绕过）。真实逐岗坐标仍未完成，Career dirty保留，Goal active；发布CI/公开资源继续核对。
+2026-10-19：来源换址28840e5、native可见地址V2 a21fc4a及文档321a110已按功能推送；产品Actions39214993602四任务success。18文件冻结caf30cd10b离线安装/memory/types10/lint/build6、2504/2504通过。真实猎聘19目标全部静态同岗读取，18份source地址经预览保存到89岗/rev85（9含道路编号），1份仅上海市未采用；JD/薪资与五组查询保持，office0，2次真实地址匹配0候选。原5178已更新PID68700/session22212，V4/快检/外键/token通过。用户无高德Key、要步骤，已写docs/amap-setup.md；现仅Nominatim，高德未接，坐标/展示存储许可需先适配。地图差量更新/空库两栏已发布；新GPU/布局未目视（URL拒绝未绕过）。Career dirty保留、整体Goal active。
 
 ## 卡点
 
 - 网页搜索默认关闭；DDG真实遇挑战，SearXNG仍需可用自管HTTPS JSON实例，尚无实时陌生企业闭环。大型meta截断已修，官网hidden／CSS可见性判断仍不全面；线索不能当岗位。
 - 51JOB安全投影空，BOSS曾遇验证；猎聘／LinkedIn仅有限当前页卡片摘录，更多国内地区／官网及完整JD继续，48文本命中不当个人适岗或全网覆盖。
-- 真实89岗rev73，6份来源street字段（2道路编号），office仍0；2真实地址查询均0匹配。受审薪资字段、FX持久与Web同版接线、控股证据操作缺口已审查，未实现；规模性能继续。归并及行政确认保留；Temporal旧字段按原刷新间隔补，不自动重抓。
+- 真实89岗rev85，18份来源street字段（9道路编号），office仍0；2真实地址查询均0匹配。受审薪资字段、FX持久与Web同版接线、控股证据操作缺口已审查，未实现；规模性能继续。归并及行政确认保留；Temporal旧字段按原刷新间隔补，不自动重抓。
 - 原错误标签页的自动浏览器观察被URL策略拒绝，未换方式绕过；本轮最新采集／筛选／详情通过HTTP，不称新UI目视已验。原5173／8080和并行Career Agent保留，私人库／备份／profile／实证不入Git。
 
 ## 下一步
 
-1. 本批已按功能推送，继续核CI/公开资源；优先接可靠国内地址匹配与逐岗坐标。89岗rev73、source street6（2道路编号）、office0；待选地址provider配置，不能用城市点补办公室。
+1. 本批产品CI四任务success，完成最新文档/公网资源核对；接下来用户按docs/amap-setup.md准备Web服务Key，正式provider仍待坐标/展示使用方式适配。当前89岗rev85、source street18、office0，逐岗精确坐标仍是核心缺口。
 2. 扩更多国内来源／地区、官网实际岗位协议与完整JD；保留平台人工验证与来源刷新间隔，不绕既有私人页面URL策略。
 3. 依据薪资／FX／控股缺口报告先落受审薪资CNY闭环，再接带出处的同版FX和企业证据；原文、版本失效、幂等回执、撤销与地图列表统一投影必须保持。
 
 ## 必读附加
 
+- docs/amap-setup.md（用户无Key需步骤；当前尚未接高德，不能写假参数）
+
 - docs/reports/job-atlas-visible-office-evidence-2026-10-19.md（最新V2/换址、2504项、真实6地址/rev73/office0；其余旧报告数字为历史）
-- .agent-memory/.tmp/atlas-visible-office-final-verified.json、.agent-memory/.tmp/visible-office-runtime-postcheck.json（本机最终验证）
+- .agent-memory/.tmp/atlas-visible-office-final-verified.json、.agent-memory/.tmp/visible-office-final-postcheck.json（本机最终验证）
 
 - docs/reports/job-atlas-detail-address-review-2026-10-19.md（当前来源地址/批量计划/性能/真实覆盖缺口与发布）
 
