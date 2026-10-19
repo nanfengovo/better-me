@@ -17,6 +17,7 @@ import { createVerificationNetworkRecorder } from "./jd-verification-network";
 import type { VerificationNetworkSnapshot } from "../src/lib/jd-verification-network";
 import { buildPlatformSearchRequest, type PlatformSearchInput } from "@better-me/source-adapters/platform-search";
 import { extractJobSearchCards, VISIBLE_JOB_SEARCH_SNAPSHOT, type JobSearchCaptureResult } from "./jd-search-capture";
+import { rebindPlatformDetailLocations } from "@better-me/source-adapters/browser-contracts";
 
 const SESSION_TTL_MS = 10 * 60_000;
 const START_TIMEOUT_MS = 30_000;
@@ -636,8 +637,9 @@ export function createBrowserSessionManager(options: BrowserSessionOptions = {})
             throw failure("unsupported_page", "当前窗口停留在平台中转或非岗位页面，请自行返回原岗位后再读取；当前窗口已保留。", "page");
           }
           try {
-            const result = (() => {
-              try { return extractPublicJobHtml(snapshot.html, session.platform, final.url, { requireVisibleDescription: true }); }
+            const capturedAt = new Date(now()).toISOString();
+            const result: ReturnType<typeof extractPublicJobHtml> = (() => {
+              try { return extractPublicJobHtml(snapshot.html, session.platform, final.url, { requireVisibleDescription: true, capturedAt }); }
               catch (error) {
                 if (!(error instanceof JdExtractionError) || error.failure.code !== "unsupported_page") throw error;
                 const observed = session.bossResponse?.candidate(snapshot, { committed: session.documentNavigation?.state === "committed" });
@@ -647,7 +649,11 @@ export function createBrowserSessionManager(options: BrowserSessionOptions = {})
             })();
             if (result.text.length > 120_000) throw failure("unsupported_page", "岗位正文超过 12 万字，请确认这是具体岗位详情。", "page");
             if (previous !== result.text) { previous = result.text; stableAt = now(); }
-            else if (now() - stableAt >= 800) return { ...result, method: `人工接续 · ${result.method}`, provenance: { kind: "link", platform: session.platform, url: session.url, observedAt: new Date(now()).toISOString(), title: result.title, ...readJdPublicationFields(result) } };
+            else if (now() - stableAt >= 800) {
+              const detailLocations = rebindPlatformDetailLocations(result.detailLocations, session.url, capturedAt);
+              const { detailLocations: _unbound, ...content } = result;
+              return { ...content, ...(detailLocations ? { detailLocations } : {}), method: `人工接续 · ${result.method}`, provenance: { kind: "link", platform: session.platform, url: session.url, observedAt: capturedAt, title: result.title, ...readJdPublicationFields(result) } };
+            }
           } catch (error) {
             previous = undefined;
             if (!(error instanceof JdExtractionError)) throw failure("unsupported_page", "当前页面尚未完成岗位正文解析，窗口已保留，请核对原岗位后再读取。", "page");

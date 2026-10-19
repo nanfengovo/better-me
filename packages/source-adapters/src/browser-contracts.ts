@@ -9,3 +9,5 @@ export * from "./platform-search.js";
 export * from "./local-match.js";
 export * from "./reviewed-cards.js";
 export * from "./jobposting-jsonld-contracts.js";
+export * from "./platform-detail-locations.js";
+export * from "./reviewed-detail-locations.js";

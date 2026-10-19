@@ -13,6 +13,7 @@ import { createPersistentJobBrowser, type PersistentJobPageLease } from "./jd-pe
 import { inspectNativeProfileOccupancy } from "./jd-native-edge";
 import { createBossResponseObserver } from "./jd-boss-response";
 import { VERIFICATION_HOSTS_51JOB } from "../src/lib/jd-verification-network";
+import { rebindPlatformDetailLocations } from "@better-me/source-adapters/browser-contracts";
 
 const TIMEOUT_MS = 60_000;
 const MAX_DOCUMENT_BYTES = 2 * 1024 * 1024;
@@ -477,8 +478,9 @@ export async function fetchBrowserJd(input: string, operation: NetworkOperation,
       }
       try {
         if (!matchesJobUrl(final.url, new URL(initial.url), initial.platform)) throw failure("job_mismatch", "浏览器显示的岗位与原始分享链接无法确认一致，请打开原岗位核对。");
-        const result = (() => {
-          try { return extractPublicJobHtml(snapshot.html, initial.platform, final.url, { requireVisibleDescription: true }); }
+        const capturedAt = new Date().toISOString();
+        const result: ReturnType<typeof extractPublicJobHtml> = (() => {
+          try { return extractPublicJobHtml(snapshot.html, initial.platform, final.url, { requireVisibleDescription: true, capturedAt }); }
           catch (error) {
             if (!(error instanceof JdExtractionError) || error.failure.code !== "unsupported_page") throw error;
             const observed = bossResponse?.candidate(snapshot, { committed: documentCheck?.committed === true });
@@ -489,7 +491,9 @@ export async function fetchBrowserJd(input: string, operation: NetworkOperation,
         if (result.text.length > 120_000) throw failure("unsupported_page", "岗位正文超过 12 万字，请核对是否为具体岗位。");
         if (previous !== result.text) { previous = result.text; stableAt = Date.now(); }
         else if (Date.now() - stableAt >= 800) {
-          return { ...result, method: `浏览器加载 · ${result.method}`, provenance: { kind: "link", platform: initial.platform, url: initial.url, observedAt: new Date().toISOString(), title: result.title, ...readJdPublicationFields(result) } };
+          const detailLocations = rebindPlatformDetailLocations(result.detailLocations, initial.url, capturedAt);
+          const { detailLocations: _unbound, ...content } = result;
+          return { ...content, ...(detailLocations ? { detailLocations } : {}), method: `浏览器加载 · ${result.method}`, provenance: { kind: "link", platform: initial.platform, url: initial.url, observedAt: capturedAt, title: result.title, ...readJdPublicationFields(result) } };
         }
       } catch (error) {
         resetStability();

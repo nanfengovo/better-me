@@ -268,6 +268,20 @@ test("manual browser sessions retain bound JobPosting publication without reload
   }
 });
 
+test("manual browser sessions retain explicit same-job addresses and bind capture to the request URL and clock", async () => {
+  const f = fixture();
+  const jobLocation = { address: { addressCountry: "CN", addressLocality: "合成城市", streetAddress: "合成办公路100号" } };
+  try {
+    f.setSnapshot({ html: html + `<script type="application/ld+json">${JSON.stringify({ "@type": "JobPosting", title: "匿名研发职位", url: source, description, jobLocation })}</script>`, url: source, title: "匿名研发职位" });
+    const info = await f.manager.start(owner, source);
+    const result = await f.manager.read(owner, info.sessionId);
+    assert.equal(result.detailLocations?.capturedAt, result.provenance.observedAt);
+    assert.equal(result.detailLocations?.url, source);
+    assert.equal(result.detailLocations?.locations[0].streetAddress, "合成办公路100号");
+    assert.deepEqual(f.navigations, [source]);
+  } finally { await f.manager.closeAll(); }
+});
+
 test("51job verification network stays on its owned page through busy reads and ignores ended-session responses", async () => {
   const f = fixture();
   f.setSnapshot({ ...standardSnapshot, gate: "verification_required" });

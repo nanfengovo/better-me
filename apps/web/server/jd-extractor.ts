@@ -8,6 +8,7 @@ import { browserSessionManager } from "./jd-browser-session";
 import type { JobSessionBackend } from "./jd-session-router";
 import { isJdStartRequestId } from "../src/lib/jd-start-request";
 import { isLiepinDescriptionHeading, isLiepinRequirementsHeading } from "./jd-liepin-description";
+import { PlatformDetailLocationsSchema, parsePlatformJobLocations, platformDetailProvider, type PlatformDetailLocations } from "@better-me/source-adapters/browser-contracts";
 
 const MAX_PAGE_BYTES = 2 * 1024 * 1024;
 const BLOCKED_MESSAGE = "平台未公开返回岗位正文，可能需要登录、验证码或页面加载。请打开原岗位页面，截图后用视觉识别，或手动粘贴文字。";
@@ -139,7 +140,7 @@ function postingUrls(posting: Record<string, unknown>): string[] {
   return urls;
 }
 
-export function extractPublicJobHtml(html: string, platform: JobPlatform, sourceUrl?: string, options: { requireVisibleDescription?: boolean; allowValidatedBossShareDescription?: boolean; allowValidatedLiepinDescription?: boolean } = {}): { text: string; title?: string; method: string } & JdSourcePublication {
+export function extractPublicJobHtml(html: string, platform: JobPlatform, sourceUrl?: string, options: { requireVisibleDescription?: boolean; allowValidatedBossShareDescription?: boolean; allowValidatedLiepinDescription?: boolean; capturedAt?: string } = {}): { text: string; title?: string; method: string; detailLocations?: PlatformDetailLocations } & JdSourcePublication {
   const $ = load(html);
   // Observed public 51job response identifies its JavaScript challenge with these meta names.
   // Inspect the marker only; never execute challenge code or persist its content/cookies.
@@ -298,7 +299,25 @@ export function extractPublicJobHtml(html: string, platform: JobPlatform, source
       .map((candidate) => jobPostingPublication(candidate.datePosted)).filter((value) => value.sourcePublishedText) : [];
     const publicationKeys = new Set(disclosures.map((value) => value.sourcePublishedAt ? `instant:${Date.parse(value.sourcePublishedAt)}` : `raw:${value.sourcePublishedText}`));
     const publication = publicationKeys.size === 1 ? disclosures[0] : {};
-    return { text: [title, company, fullDescription].filter(Boolean).join("\n\n"), title, method: fullDescription === description ? "JobPosting 结构化正文" : "结构化信息 + 公开岗位详情正文", ...publication };
+    // Address metadata is a separate disclosure. A readable JD never establishes an
+    // office by itself, and bad/contradictory locations must not discard valid JD text.
+    // Without a posting URL, both a matching canonical and primary title are required.
+    const urls = postingUrls(posting);
+    const locationIdentity = !!source && !!detailIdentity(source, platform) && (urls.length > 0
+      ? urls.every(matchesMetadataUrl)
+      : !!canonical && matchesMetadataUrl(canonical) && hasPrimaryTitleEvidence(posting, primaryHeading, pageTitle));
+    let detailLocations: PlatformDetailLocations | undefined;
+    if (locationIdentity && source) {
+      const duplicates = postings.filter(candidate => postingKey(candidate) === postingKey(posting)
+        && (candidate.jobLocation !== undefined || candidate.jobLocationType !== undefined));
+      const parsed = duplicates.map(parsePlatformJobLocations);
+      const signatures = parsed.map(value => value ? JSON.stringify({ locations: value.locations.map(({ evidence: _evidence, ...fields }) => fields), workMode: value.workMode }) : undefined);
+      if (parsed.length && parsed.every(Boolean) && new Set(signatures).size === 1) {
+        const capture = PlatformDetailLocationsSchema.safeParse({ version: 1, provider: platformDetailProvider(platform), url: source.toString(), capturedAt: options.capturedAt ?? new Date().toISOString(), ...parsed[0] });
+        if (capture.success) detailLocations = capture.data;
+      }
+    }
+    return { text: [title, company, fullDescription].filter(Boolean).join("\n\n"), title, method: fullDescription === description ? "JobPosting 结构化正文" : "结构化信息 + 公开岗位详情正文", ...publication, ...(detailLocations ? { detailLocations } : {}) };
   }
   for (const text of candidateTexts) checkDescriptionGate(text);
   if (independent.length > 1) pageFailure("ambiguous_jobs", "页面包含多份不同岗位正文，请打开一个具体岗位详情后复制链接，或截图识别。");
@@ -399,9 +418,10 @@ export async function fetchPublicJd(input: string, request: typeof fetch = fetch
         await response.body?.cancel();
         pageFailure("job_mismatch", "跳转后的岗位与原始分享链接不一致，请打开原岗位核对。");
       }
-      const result = extractPublicJobHtml(await readLimitedJobPage(response, controller.signal), source.platform, source.url);
+      const page = await readLimitedJobPage(response, controller.signal), capturedAt = new Date().toISOString();
+      const result = extractPublicJobHtml(page, source.platform, source.url, { capturedAt });
       if (result.text.length > 120_000) throw new Error("提取的岗位正文超过 12 万字，请确认链接是否为具体岗位，或使用截图选取职责与要求。");
-      return { ...result, provenance: { kind: "link", platform: source.platform, url: source.url, observedAt: new Date().toISOString(), title: result.title, ...readJdPublicationFields(result) } };
+      return { ...result, provenance: { kind: "link", platform: source.platform, url: source.url, observedAt: capturedAt, title: result.title, ...readJdPublicationFields(result) } };
     }
     return pageFailure("unsupported_page", "平台分享链接跳转过多，请打开后复制最终岗位链接，或使用截图识别。");
   } catch (error) {

@@ -4,6 +4,7 @@ import { JdBrowserStartCleanupError, JdExtractionError, readJdFailure } from "./
 import { isSnapshotFailure, type SnapshotFailure } from "./jd-capture-diagnostics";
 import { createJdStartRequestId, isJdStartRequestId } from "./jd-start-request";
 import { readVerificationNetworkSnapshot, type VerificationNetworkSnapshot } from "./jd-verification-network";
+import { PlatformDetailLocationsSchema, platformDetailProvider, type PlatformDetailLocations } from "@better-me/source-adapters/browser-contracts";
 
 export { normalizeJobShare } from "./jd-source";
 export type { JdImportResult, JdProvenance } from "./jd-source";
@@ -95,7 +96,14 @@ function readJdImportPayload(payload: Record<string, unknown>, ok: boolean): JdI
   if (typeof source.url !== "string" || typeof source.observedAt !== "string" || !Number.isFinite(Date.parse(source.observedAt))) throw new JdExtractionError({ code: "service_unavailable", stage: "service", message: "提取服务返回的岗位来源信息不完整，请重试或粘贴文字。" });
   try {
     const normalized = allowedJobUrl(source.url);
-    return { text: payload.text, provenance: { ...normalized, kind: "link", observedAt: source.observedAt, ...readJdPublicationFields(source), ...(typeof source.title === "string" ? { title: source.title.slice(0, 300) } : {}), ...(source.edited === true ? { edited: true } : {}) }, method: typeof payload.method === "string" ? payload.method : "公开页面" };
+    let detailLocations: PlatformDetailLocations | undefined;
+    if (payload.detailLocations !== undefined) {
+      const capture = PlatformDetailLocationsSchema.safeParse(payload.detailLocations);
+      if (!capture.success || source.kind !== "link" || source.platform !== normalized.platform || capture.data.provider !== platformDetailProvider(normalized.platform)
+        || capture.data.url !== normalized.url || capture.data.capturedAt !== source.observedAt) throw new Error("Unbound or malformed platform location disclosure.");
+      detailLocations = capture.data;
+    }
+    return { text: payload.text, provenance: { ...normalized, kind: "link", observedAt: source.observedAt, ...readJdPublicationFields(source), ...(typeof source.title === "string" ? { title: source.title.slice(0, 300) } : {}), ...(source.edited === true ? { edited: true } : {}) }, method: typeof payload.method === "string" ? payload.method : "公开页面", ...(detailLocations ? { detailLocations } : {}) };
   } catch (cause) {
     throw new JdExtractionError({ code: "service_unavailable", stage: "service", message: "提取服务返回了无效岗位来源，请打开原页面核对后使用文字或截图。" }, { cause });
   }

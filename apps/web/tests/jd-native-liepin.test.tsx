@@ -194,6 +194,25 @@ test("native extraction carries only the accepted JobPosting publication with un
   }
 });
 
+test("native platform readers preserve same-job structured office and remote disclosures on their normal result", async () => {
+  for (const platform of ["猎聘", "BOSS直聘", "51JOB"] as const) for (const remote of [false, true]) {
+    const f = fixture(platform), capture = await f.page.capture(new AbortController().signal);
+    assert.ok(capture.snapshot);
+    const jobLocation = { address: { addressCountry: "CN", addressLocality: "合成城市", streetAddress: "合成办公路100号", postalCode: "00123" } };
+    const metadata = { "@type": "JobPosting", title: "本地测试工程师", url: platformSources[platform], description, ...(remote ? { jobLocationType: "TELECOMMUTE" } : { jobLocation }) };
+    capture.snapshot.html += `<script type="application/ld+json">${JSON.stringify(metadata)}</script>`; f.setSnapshot(capture);
+    try {
+      const info = await f.manager.start("owner", platformSources[platform]);
+      const result = await f.manager.read("owner", info.sessionId);
+      assert.equal(result.detailLocations?.capturedAt, result.provenance.observedAt);
+      assert.equal(result.detailLocations?.url, result.provenance.url);
+      assert.equal(result.detailLocations?.workMode, remote ? "remote" : "unknown");
+      if (remote) { assert.deepEqual(result.detailLocations?.locations, []); assert.equal(result.detailLocations?.workModeEvidence?.quote, '"TELECOMMUTE"'); }
+      else { assert.equal(result.detailLocations?.locations[0].postalCode, "00123"); assert.equal(result.detailLocations?.locations[0].evidence.quote, JSON.stringify(jobLocation)); }
+    } finally { await f.manager.stopBrowser(); }
+  }
+});
+
 test("native isActive is an owner-bound synchronous query and TTL expiry never captures or releases", async () => {
   for (const platform of ["猎聘", "BOSS直聘", "51JOB"] as const) {
     const f = fixture(platform);

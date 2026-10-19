@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { PlatformDetailLocations } from "@better-me/source-adapters/browser-contracts";
 
 // Keep this Vite server boundary independent of workspace package runtime resolution.
 const SourceTimestampSchema = z.string().datetime({ offset: true }).max(64);
@@ -107,4 +108,4 @@ export type JdProvenance = JdSourcePublication & {
   edited?: boolean;
 };
 
-export type JdImportResult = { text: string; provenance: JdProvenance; method: string };
+export type JdImportResult = { text: string; provenance: JdProvenance; method: string; detailLocations?: PlatformDetailLocations };

@@ -198,13 +198,14 @@ export function createNativeLiepinSessions(options: NativeLiepinOptions = {}) {
         }
         invalidSince = undefined;
         try {
-          const result = extractPublicJobHtml(snapshot.html, platform, session.url, { requireVisibleDescription: true, allowValidatedBossShareDescription: platform === "BOSS直聘", allowValidatedLiepinDescription: platform === "猎聘" });
+          const capturedAt = new Date(now()).toISOString();
+          const result = extractPublicJobHtml(snapshot.html, platform, session.url, { requireVisibleDescription: true, allowValidatedBossShareDescription: platform === "BOSS直聘", allowValidatedLiepinDescription: platform === "猎聘", capturedAt });
           if (result.text.length > 120_000) throw failure("unsupported_page", "正文超过12万字，请确认是具体岗位详情。");
           const key = JSON.stringify([capture.identity, result.text]);
           if (previous !== key) { previous = key; since = now(); }
           else if (now() - since >= 800 && await page.current(capture.identity, operationSignal)) {
             abortNative(operationSignal);
-            return { text: result.text, method: `人工接续 · ${result.method}`, provenance: { kind: "link", platform, url: session.url, observedAt: new Date(now()).toISOString(), title: result.title, ...readJdPublicationFields(result) } };
+            return { text: result.text, ...(result.detailLocations ? { detailLocations: result.detailLocations } : {}), method: `人工接续 · ${result.method}`, provenance: { kind: "link", platform, url: session.url, observedAt: capturedAt, title: result.title, ...readJdPublicationFields(result) } };
           }
         } catch (error) {
           if (!(error instanceof JdExtractionError)) throw failure("unsupported_page", "当前页面尚未完成岗位正文解析，请核对后再读取。");
