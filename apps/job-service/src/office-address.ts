@@ -8,7 +8,7 @@ import { RepositoryError, type JobRepository } from "./repository.js";
 /** Installed only by the host. Requests cannot select endpoints, credentials or coordinate transformations. */
 export interface OfficeAddressProvider {
   readonly providerId: string;
-  search(input: { query: string; location: JobLocation }, context: ToolHandlerContext): Promise<readonly OfficeAddressCandidate[]>;
+  search(input: { query: string; location: JobLocation; locality?: string; postalCode?: string }, context: ToolHandlerContext): Promise<readonly OfficeAddressCandidate[]>;
 }
 function writeOptions(context: ToolHandlerContext, expectedRevision: number) {
   context.throwIfCancelled();
@@ -25,7 +25,9 @@ export function createOfficeAddressTools(repository: JobRepository, provider?: O
         const target = await repository.readOfficeAddressTarget(input);
         if (!input.query || !provider) return { ...target, configured: Boolean(provider), status: input.query ? "not-configured" as const : "manual-available" as const, candidates: [],
           warnings: [input.query && !provider ? "尚未配置地址查询provider，可手工填写来源确实披露的街址、WGS84坐标和出处核对。" : "来源原文保留不变；可核对街址与WGS84坐标，或明确输入地址查询。"] };
-        const candidates = (await provider.search({ query: input.query, location: target.sourceLocation }, context)).map(candidate => OfficeAddressCandidateSchema.parse(candidate));
+        const candidates = (await provider.search({ query: input.query, location: target.sourceLocation,
+          ...(input.locality ? { locality: input.locality } : {}), ...(input.postalCode ? { postalCode: input.postalCode } : {}),
+        }, context)).map(candidate => OfficeAddressCandidateSchema.parse(candidate));
         context.throwIfCancelled();
         if (candidates.length > 20 || candidates.some(candidate => candidate.providerId !== provider.providerId)) throw new ToolError("source-changed");
         // A slow provider response cannot be applied to a new source/admin snapshot.

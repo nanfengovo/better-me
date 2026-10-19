@@ -1,5 +1,5 @@
 /** @jsxRuntime automatic */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ArrowUpRight, Check, Loader2, MapPin, Search, X } from "lucide-react";
 import { HttpUrlSchema, OfficeAddressCandidatesInputSchema, PreviewOfficeConfirmationInputSchema,
   type AtlasDataset, type JobLocation, type OfficeAddressCandidatesResult, type OfficeAddressProposal,
@@ -40,8 +40,10 @@ export function AtlasOfficeAddressConfirmation(props: AtlasOfficeAddressConfirma
 
 function OfficeAddressSession({ endpoint, token, jobId, location, revision, onClose, onSnapshot }: AtlasOfficeAddressConfirmationProps) {
   const client = useMemo(() => createAtlasSourceClient(endpoint, token), [endpoint, token]);
+  const queryHelpId = useId();
   const [draft, setDraft] = useState(() => initial(location));
   const [query, setQuery] = useState("");
+  const [queryLocality, setQueryLocality] = useState(""), [queryPostalCode, setQueryPostalCode] = useState("");
   const [candidates, setCandidates] = useState<OfficeAddressCandidatesResult>();
   const [preview, setPreview] = useState<{ input: PreviewOfficeConfirmationInput; value: OfficeAddressPreview }>();
   const [reviewed, setReviewed] = useState(false), [revokeReviewed, setRevokeReviewed] = useState(false);
@@ -78,9 +80,17 @@ function OfficeAddressSession({ endpoint, token, jobId, location, revision, onCl
     if (locked) return;
     setDraft(value => ({ ...value, ...update })); setPreview(undefined); setReviewed(false); setRevokeReviewed(false); setError("");
   }
+  function editQuery(value: string, field: "address" | "locality" | "postalCode") {
+    if (locked) return;
+    if (field === "address") setQuery(value);
+    else if (field === "locality") setQueryLocality(value);
+    else setQueryPostalCode(value);
+    setCandidates(undefined); setError("");
+  }
   const readCandidates = (external: boolean) => run(async signal => {
     const input = OfficeAddressCandidatesInputSchema.safeParse({ jobId, locationId: location.id, expectedRevision: revision,
-      ...(external ? { query: query.trim() } : {}) });
+      ...(external ? { query: query.trim(), ...(queryLocality.trim() ? { locality: queryLocality.trim() } : {}),
+        ...(queryPostalCode.trim() ? { postalCode: queryPostalCode.trim() } : {}) } : {}) });
     if (!input.success) throw new Error("请先填写具体街道、楼宇或园区地址，再查询地址候选。");
     const result = await client.officeAddressCandidates(input.data, { signal }); alive(signal);
     if (input.data.expectedRevision !== latestRevision.current) { setError("索引已更新，已丢弃过期地址候选，请重新查询。"); return; }
@@ -132,9 +142,14 @@ function OfficeAddressSession({ endpoint, token, jobId, location, revision, onCl
     <p>来源地点原文：<strong>{location.raw}</strong></p>
     <p className="atlas-office-boundary">保存的是本人核对的地址与位置，始终标为待核实。城市分布参考不能直接升级成楼宇坐标；Google 地图链接只打开查询，不代表本系统已经核验。</p>
     {!eligible ? <p role="note">请先确认该地点是有来源证据的工作地点。远程资格范围与性质未明的地点不能保存为办公地址。</p> : <>
-      <div className="atlas-office-candidate-tools"><label>具体地址查询<input aria-label="办公地址查询" maxLength={2000} disabled={locked} value={query} placeholder="输入来源披露的街道、门牌、楼宇或园区" onChange={event => { setQuery(event.target.value); setCandidates(undefined); setError(""); }} /></label>
-        <button type="button" disabled={locked} onClick={() => void readCandidates(false)}>读取地址来源与查询配置</button>
-        <button type="button" disabled={locked || !query.trim()} onClick={() => void readCandidates(true)}><Search size={13} />查询地址候选</button>
+      <div className="atlas-office-candidate-tools"><label>具体地址查询<input aria-label="办公地址查询" maxLength={2000} disabled={locked} value={query} placeholder="输入来源披露的街道、门牌、楼宇或园区" onChange={event => editQuery(event.target.value, "address")} /></label>
+        <div className="atlas-office-query-constraints">
+          <label>限定城市（可选）<input aria-label="办公地址限定城市" maxLength={200} disabled={locked} value={queryLocality} placeholder="上海市 / New York" onChange={event => editQuery(event.target.value, "locality")} /></label>
+          <label>限定邮编（可选）<input aria-label="办公地址限定邮编" maxLength={100} disabled={locked} value={queryPostalCode} placeholder="保留原文和前导零" onChange={event => editQuery(event.target.value, "postalCode")} /></label>
+        </div>
+        <p id={queryHelpId} className="atlas-small">城市填写地图使用的名称，邮编按原文填写。点击查询时，所填地址及限定条件会发送给地址服务核对；未匹配的结果不会成为办公地址候选。</p>
+        <div className="atlas-office-query-actions"><button type="button" disabled={locked} onClick={() => void readCandidates(false)}>读取地址来源与查询配置</button>
+          <button type="button" disabled={locked || !query.trim()} aria-describedby={queryHelpId} onClick={() => void readCandidates(true)}><Search size={13} />查询地址候选</button></div>
       </div>
       {candidates && <div className="atlas-office-candidates" aria-label="办公地址候选">
         {candidates.status === "not-configured" && <p>宿主尚未配置地址查询服务，可继续手工填写并核对。</p>}

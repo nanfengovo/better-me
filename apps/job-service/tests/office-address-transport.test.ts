@@ -45,6 +45,24 @@ test("Nominatim place/house address points retain disclosed street evidence as m
   }
 });
 
+test("explicit structured address constraints retain the pinned transport policy and a single request budget", async () => {
+  let sends = 0;
+  const transport = createControlledSourceTransport({
+    resolve: async hostname => { assert.equal(hostname, "nominatim.openstreetmap.org"); return [{ address: "8.8.8.8", family: 4 }]; },
+    send: async request => {
+      sends++; assert.equal(request.url.origin, "https://nominatim.openstreetmap.org"); assert.equal(request.url.pathname, "/search");
+      assert.equal(request.url.searchParams.has("q"), false); assert.equal(request.url.searchParams.get("street"), "10 Synthetic Road");
+      assert.equal(request.url.searchParams.get("city"), "Synthetic City"); assert.equal(request.url.searchParams.get("postalcode"), "00123");
+      assert.equal(request.url.searchParams.get("countrycodes"), "us"); assert.equal(request.address.address, "8.8.8.8");
+      return { status: 200, headers: { "content-type": "application/json" },
+        body: (async function* () { yield new TextEncoder().encode(JSON.stringify([{ ...row, address: { ...row.address, city: "Synthetic City" } }])); })(), close() {} };
+    },
+  });
+  const execution = context();
+  const result = await createNominatimOfficeProvider(transport).search({ query: "10 Synthetic Road", location, locality: "Synthetic City", postalCode: "00123" }, execution.value);
+  assert.equal(sends, 1); assert.equal(execution.accounting.requests, 1); assert.equal(result.length, 1); assert.equal(result[0]!.proposal.postalCode, "00123");
+});
+
 test("place/house support never admits areas, roads, postcodes, missing address evidence or foreign countries", () => {
   const house = {...row, category: "place", type: "house"};
   for (const change of [

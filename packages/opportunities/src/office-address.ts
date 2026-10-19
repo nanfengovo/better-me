@@ -3,6 +3,7 @@ import { AtlasDatasetSchema, CoordinatesSchema, CountryCodeSchema, EntityIdSchem
 import { sameLocationValue } from "./location-confirmation.js";
 
 const text = (max: number) => z.string().trim().min(1).max(max).refine(value => !/[\p{Cc}\p{Cs}]/u.test(value), "Use plain address text.");
+const lookupConstraintText = (max: number) => z.string().refine(value => !/[\p{Cc}\p{Cs}]/u.test(value), "Use plain address text.").transform(value => value.trim()).pipe(z.string().min(1).max(max));
 /** A person confirms an address and a map point; this never claims the employer/provider verified it. */
 export const OfficeAddressProposalSchema = z.object({
   basis: z.literal("manual-user-confirmation"), countryCode: CountryCodeSchema,
@@ -13,8 +14,10 @@ export const OfficeAddressProposalSchema = z.object({
 export type OfficeAddressProposal = z.infer<typeof OfficeAddressProposalSchema>;
 export const OfficeAddressCandidatesInputSchema = z.object({ jobId: EntityIdSchema, locationId: EntityIdSchema, expectedRevision: RevisionSchema,
   /** Explicit address only. A host provider is never invoked merely by opening a job. */
-  query: text(2000).optional(),
-}).strict();
+  query: lookupConstraintText(2000).optional(),
+  /** Explicit constraints only; source/admin fields are never implicitly sent to a provider. */
+  locality: lookupConstraintText(200).optional(), postalCode: lookupConstraintText(100).optional(),
+}).strict().refine(value => value.query || !value.locality && !value.postalCode, "Address constraints require an explicit query.");
 export type OfficeAddressCandidatesInput = z.infer<typeof OfficeAddressCandidatesInputSchema>;
 export const OfficeAddressCandidateSchema = z.object({ id: EntityIdSchema, providerId: EntityIdSchema,
   proposal: OfficeAddressProposalSchema, attribution: text(2000), evidenceUrl: HttpUrlSchema,

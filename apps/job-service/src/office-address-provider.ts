@@ -24,11 +24,20 @@ const point = z.object({
   address: z.record(z.string().max(2000)),
 }).passthrough();
 const payload = z.array(z.unknown()).max(5);
+const lookupText = (max: number) => z.string().refine(value => !/[\p{Cc}\p{Cs}]/u.test(value), "Use plain address text.").transform(value => value.trim()).pipe(z.string().min(1).max(max));
+const constraintsSchema = z.object({ locality: lookupText(200).optional(), postalCode: lookupText(100).optional() }).strict();
+const searchSchema = constraintsSchema.extend({ query: lookupText(2000) });
+type OfficeAddressConstraints = z.infer<typeof constraintsSchema>;
+const localityFields = ["city", "town", "village", "municipality"] as const;
+const normalizedLocality = (value: string) => value.trim().toLowerCase();
+const normalizedPostalCode = (value: string) => value.replace(/[\s-]/gu, "").toUpperCase();
 
 /** Only provider-disclosed house/road points qualify. A country, city, postcode or road is never an office candidate. */
-export function parseNominatimOfficeCandidates(value: unknown, countryCode?: string): OfficeAddressCandidate[] {
+export function parseNominatimOfficeCandidates(value: unknown, countryCode?: string, options: OfficeAddressConstraints = {}): OfficeAddressCandidate[] {
   const parsed = payload.safeParse(value);
   if (!parsed.success) throw new ToolError("source-changed");
+  const constraints = constraintsSchema.safeParse(options);
+  if (!constraints.success) throw new ToolError("invalid-input");
   const candidates: OfficeAddressCandidate[] = [];
   for (const row of parsed.data) {
     const result = point.safeParse(row);
@@ -41,6 +50,12 @@ export function parseNominatimOfficeCandidates(value: unknown, countryCode?: str
     // They still need a door number, road and address rank; category alone is not precision.
     if (item.place_rank !== 30 || !road?.trim() || !address.house_number?.trim() || !country || !countries.has(country)
       || countryCode && country !== countryCode || ["boundary", "highway"].includes(category ?? "") || category === "place" && item.type !== "house") continue;
+    // A state/county can share a city name. Only explicit provider settlement fields prove locality.
+    if (constraints.data.locality && !localityFields.some(field => address[field]
+      && normalizedLocality(address[field]) === normalizedLocality(constraints.data.locality!))) continue;
+    // Preserve significant digits (including leading zeroes); do not infer missing postal codes.
+    if (constraints.data.postalCode && (!address.postcode
+      || normalizedPostalCode(address.postcode) !== normalizedPostalCode(constraints.data.postalCode))) continue;
     const number = (text: string) => /^-?\d+(?:\.\d+)?$/.test(text) ? Number(text) : NaN;
     const coordinates = { latitude: number(item.lat), longitude: number(item.lon), coordinateSystem: "WGS84" as const };
     const evidenceUrl = `https://www.openstreetmap.org/${item.osm_type}/${item.osm_id}`;
@@ -62,18 +77,26 @@ export function createNominatimOfficeProvider(transport: SourceTransport, option
   let nextRequestAt = -Infinity, pending = false;
   const cache = new Map<string, { at: number; candidates: OfficeAddressCandidate[] }>();
   const rateLimit = (seconds = 60) => { nextRequestAt = Math.max(nextRequestAt, now() + Math.max(1.1, Math.min(31_536_000, seconds)) * 1000); };
-  return Object.freeze({ providerId: "nominatim", async search(input: { query: string; location: JobLocation }, context: ToolHandlerContext) {
+  return Object.freeze({ providerId: "nominatim", async search(input: { query: string; location: JobLocation; locality?: string; postalCode?: string }, context: ToolHandlerContext) {
     context.throwIfCancelled();
-    const query = input.query.trim();
-    if (!query || query.length > 2000 || /[\p{Cc}\p{Cs}]/u.test(query) || input.location.kind !== "office") throw new ToolError("invalid-input");
-    const key = JSON.stringify([query, input.location.countryCode ?? null]);
+    const parsedInput = searchSchema.safeParse({ query: input.query,
+      ...(input.locality !== undefined ? { locality: input.locality } : {}), ...(input.postalCode !== undefined ? { postalCode: input.postalCode } : {}),
+    });
+    if (!parsedInput.success || input.location.kind !== "office") throw new ToolError("invalid-input");
+    const { query, ...constraints } = parsedInput.data;
+    const key = JSON.stringify([query, input.location.countryCode ?? null, constraints.locality ?? null, constraints.postalCode ?? null]);
     const cached = cache.get(key);
     if (cached && now() - cached.at >= 0 && now() - cached.at < 900_000) return structuredClone(cached.candidates);
     if (pending || now() < nextRequestAt) throw new ToolError("rate-limited");
     pending = true; nextRequestAt = now() + 1100;
     try {
       const url = new URL(endpoint);
-      url.searchParams.set("q", query); url.searchParams.set("format", "jsonv2"); url.searchParams.set("addressdetails", "1"); url.searchParams.set("limit", "5");
+      if (constraints.locality || constraints.postalCode) {
+        url.searchParams.set("street", query);
+        if (constraints.locality) url.searchParams.set("city", constraints.locality);
+        if (constraints.postalCode) url.searchParams.set("postalcode", constraints.postalCode);
+      } else url.searchParams.set("q", query);
+      url.searchParams.set("format", "jsonv2"); url.searchParams.set("addressdetails", "1"); url.searchParams.set("limit", "5");
       if (input.location.countryCode) url.searchParams.set("countrycodes", input.location.countryCode.toLowerCase());
       const response = await transport.request({ url: url.toString(), source: policy, context: { ...context, observedAt: new Date(now()).toISOString() }, headers: { accept: "application/json" } });
       context.throwIfCancelled();
@@ -87,7 +110,7 @@ export function createNominatimOfficeProvider(transport: SourceTransport, option
       if (new TextEncoder().encode(response.text).byteLength > 512 * 1024) throw new ToolError("budget-exceeded");
       let value: unknown;
       try { value = JSON.parse(response.text) as unknown; } catch { throw new ToolError("source-changed"); }
-      const candidates = parseNominatimOfficeCandidates(value, input.location.countryCode);
+      const candidates = parseNominatimOfficeCandidates(value, input.location.countryCode, constraints);
       context.throwIfCancelled();
       if (cache.size >= 64) cache.delete(cache.keys().next().value!);
       cache.set(key, { at: now(), candidates: structuredClone(candidates) });

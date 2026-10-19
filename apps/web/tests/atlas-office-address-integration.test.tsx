@@ -34,7 +34,7 @@ const proposal: OfficeAddressProposal = { basis: "manual-user-confirmation", cou
   coordinateMeaning: "building", evidenceUrl: "https://careers.example.invalid/jobs/synthetic-42" };
 const record: SourceJobRecord = { entityType: "job-posting", sourceRecordId: "synthetic-42", url: proposal.evidenceUrl, title: "Synthetic integration engineer",
   companyName: "Synthetic integration employer", description: "Synthetic full job description; no actual employer or office is represented.",
-  locations: [{ raw: "Shanghai, China", countryCode: "CN", city: "Shanghai" }], compensations: [], workMode: "on-site", employmentType: "unknown",
+  locations: [{ raw: "Shanghai, China", countryCode: "CN", city: "Shanghai", postalCode: "200001" }], compensations: [], workMode: "on-site", employmentType: "unknown",
   remoteEligibleRegions: [], availability: "unknown", completeness: "detail", evidence: [], warnings: [] };
 
 function button(label: string) {
@@ -75,7 +75,9 @@ test("React explicitly queries, previews, confirms and revokes an office through
     { records: [record], observedAt: AT, coverage: { complete: true, partial: false, fetchedRecords: 1, appliedFilters: [], ignoredFilters: [] }, warnings: [] }, "synthetic-seed");
   await repository.importSnapshot(projection.delta, { actorScope: "synthetic-seeder", idempotencyKey: "synthetic-seed", expectedRevision: 0 });
   let providerReads = 0;
+  const providerInputs: Array<Record<string, unknown>> = [];
   const application = createJobApplication({ repository, now: () => AT, officeAddressProvider: { providerId: "synthetic-provider", async search(input, context) {
+    providerInputs.push({ ...input });
     providerReads++; context.consumeRequests(); assert.equal(input.query, proposal.formattedAddress);
     assert.equal(input.location.raw, record.locations[0]!.raw);
     return [{ id: "synthetic-candidate", providerId: "synthetic-provider", proposal, evidenceUrl: proposal.evidenceUrl,
@@ -100,11 +102,21 @@ test("React explicitly queries, previews, confirms and revokes an office through
     assert.equal((await fetch(path, { method: "POST", headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" }, body: JSON.stringify({ ...candidateInput, actorScope: "forged-admin", provider: "forged-provider" }) })).status, 400);
     assert.equal(providerReads, 0); assert.deepEqual(await repository.readSnapshot(), before);
 
+    await change("办公地址限定城市", "  Shanghai  "); await change("办公地址限定邮编", "  00007  ");
+    assert.equal(providerReads, 0);
     await click("读取地址来源与查询配置"); await settled(() => !!dom.document.querySelector(".atlas-office-candidates"));
     assert.equal(providerReads, 0);
     await change("办公地址查询", proposal.formattedAddress); await click("查询地址候选");
     await settled(() => dom.document.body.textContent!.includes("Synthetic provider only"));
-    assert.equal(providerReads, 1); await click("填入表单，继续人工核对");
+    assert.equal(providerReads, 1); assert.equal(providerInputs[0]!.locality, "Shanghai"); assert.equal(providerInputs[0]!.postalCode, "00007");
+    assert.equal(dom.document.querySelector<HTMLInputElement>('[aria-label="办公地址邮编"]')!.value, "200001");
+    await change("办公地址限定城市", " ");
+    assert.equal(dom.document.querySelector(".atlas-office-candidates"), null); assert.equal(providerReads, 1);
+    await change("办公地址限定邮编", " "); await click("查询地址候选");
+    await settled(() => dom.document.body.textContent!.includes("Synthetic provider only"));
+    assert.equal(providerReads, 2); assert.equal(Object.hasOwn(providerInputs[1]!, "locality"), false); assert.equal(Object.hasOwn(providerInputs[1]!, "postalCode"), false);
+    assert.equal((providerInputs[1]!.location as typeof sourceLocation).postalCode, "200001");
+    await click("填入表单，继续人工核对");
     await change("办公地址核对说明", "Synthetic user explicitly checked this job, address and WGS84 building point.");
     await click("预览办公地址变更"); await settled(() => !!dom.document.querySelector(".atlas-office-preview"));
     assert.equal(button("确认保存办公地址").disabled, true); assert.deepEqual(await repository.readSnapshot(), before);
@@ -115,7 +127,7 @@ test("React explicitly queries, previews, confirms and revokes an office through
     assert.equal(point.precision, "address"); assert.equal(point.verification, "unverified"); assert.ok(point.officeResolution);
     assert.equal(point.raw, sourceLocation.raw); assert.deepEqual(point.evidence, sourceLocation.evidence);
     assert.deepEqual((await repository.readProjectionSnapshot()).locations, before.locations);
-    assert.equal((await repository.backup()).officeDecisions.length, 1); assert.equal(providerReads, 1);
+    assert.equal((await repository.backup()).officeDecisions.length, 1); assert.equal(providerReads, 2);
 
     await act(async () => root.render(h(AtlasOfficeAddressConfirmation, { ...props, revision: confirmed.revision, location: point })));
     await change("办公地址核对说明", "Synthetic explicit revocation restores the disclosed source location.");
@@ -123,7 +135,7 @@ test("React explicitly queries, previews, confirms and revokes an office through
     const revoked = snapshots[1]!;
     assert.equal(revoked.revision, confirmed.revision + 1);
     assert.deepEqual(revoked.locations.find(value => value.id === sourceLocation.id), sourceLocation);
-    assert.equal((await repository.backup()).officeDecisions.length, 2); assert.equal(providerReads, 1);
+    assert.equal((await repository.backup()).officeDecisions.length, 2); assert.equal(providerReads, 2);
     assert.match(dom.document.querySelector(".atlas-office-saved")!.textContent!, /已恢复/);
   } finally {
     await act(async () => root.unmount()); await server.close(); await application.shutdown(); repository.close();

@@ -85,10 +85,12 @@ after(() => {
 
 test("opening is inert, source text stays text, and a city point never prefills an office coordinate", async () => {
   const calls = installFetch(), props = fixture();
-  props.location = { ...props.location, raw: '<script>syntheticUnsafe()</script>', coordinates: { latitude: 31, longitude: 121, coordinateSystem: "WGS84" }, precision: "city" };
+  props.location = { ...props.location, raw: '<script>syntheticUnsafe()</script>', postalCode: "00100", coordinates: { latitude: 31, longitude: 121, coordinateSystem: "WGS84" }, precision: "city" };
   const before = structuredClone(props.location); await render(props);
   assert.equal(calls.length, 0); assert.equal(field("办公地址纬度").value, ""); assert.equal(field("办公地址经度").value, "");
   assert.equal(field("完整办公地址").value, ""); assert.equal(field("办公街道门牌").value, "");
+  assert.equal(field("办公地址限定城市").value, ""); assert.equal(field("办公地址限定邮编").value, "");
+  assert.equal(field("办公地址邮编").value, "00100");
   assert.equal(dom.document.querySelector("script"), null); assert.match(dom.document.body.textContent!, /<script>/);
   assert.match(dom.document.body.textContent!, /城市分布参考不能直接升级成楼宇/); assert.deepEqual(props.location, before);
   const link = [...dom.document.querySelectorAll("a")].find(node => node.textContent?.includes("Google"))!;
@@ -111,6 +113,40 @@ test("source reads never imply an external query and an unconfigured provider le
   await change("办公地址查询", "  Synthetic Example Road 10  "); await click("查询地址候选");
   assert.equal(calls[1]!.body?.query, "Synthetic Example Road 10"); assert.equal(calls.length, 2);
   assert.match(dom.document.body.textContent!, /尚未配置地址查询服务/); assert.equal(field("完整办公地址").disabled, false);
+});
+
+test("only an explicit candidate query sends entered locality and postal constraints; source and confirmation fields stay independent", async () => {
+  const calls = installFetch(call => respond(call.body?.query ? officeCandidates : { ...officeCandidates, candidates: [], status: "manual-available" }));
+  await render({ ...fixture(), location: { ...officeSource, postalCode: "00100" } });
+  await change("办公地址限定城市", "  Shanghai  "); await change("办公地址限定邮编", "  00007  ");
+  assert.equal(calls.length, 0); assert.equal(button("查询地址候选").disabled, true);
+  await click("读取地址来源与查询配置");
+  assert.deepEqual(calls[0]!.body, { jobId: officeJobId, locationId: officeSource.id, expectedRevision: 11 });
+  await change("办公地址查询", "  Synthetic Example Road 10  ");
+  assert.equal(calls.length, 1); assert.equal(dom.document.querySelector(".atlas-office-candidates"), null);
+  await click("查询地址候选");
+  assert.deepEqual(calls[1]!.body, { jobId: officeJobId, locationId: officeSource.id, expectedRevision: 11,
+    query: "Synthetic Example Road 10", locality: "Shanghai", postalCode: "00007" });
+  assert.equal(field("办公地址邮编").value, "00100");
+  assert.equal(field("办公地址纬度").value, ""); assert.equal(dom.document.querySelector(".atlas-office-preview"), null);
+  assert.match(dom.document.body.textContent!, /城市填写地图使用的名称/);
+  assert.match(dom.document.body.textContent!, /限定条件会发送给地址服务核对/);
+});
+
+test("editing any candidate-query field clears old candidates and blank constraints are omitted", async () => {
+  const calls = installFetch(); await render(fixture());
+  await change("办公地址查询", "Synthetic Example Road 10"); await click("查询地址候选");
+  assert.equal(calls[0]!.body?.locality, undefined); assert.equal(calls[0]!.body?.postalCode, undefined);
+  for (const [label, value] of [["办公地址限定城市", "Shanghai"], ["办公地址限定邮编", "00007"], ["办公地址查询", "Synthetic Example Road 11"]]) {
+    assert.ok(dom.document.querySelector(".atlas-office-candidates"));
+    const before = calls.length; await change(label!, value!);
+    assert.equal(dom.document.querySelector(".atlas-office-candidates"), null);
+    assert.equal([...dom.document.querySelectorAll("button")].some(node => node.textContent?.includes("填入表单，继续人工核对")), false);
+    assert.equal(calls.length, before); await click("查询地址候选");
+  }
+  await change("办公地址限定城市", " "); await change("办公地址限定邮编", " "); await click("查询地址候选");
+  assert.deepEqual(calls.at(-1)!.body, { jobId: officeJobId, locationId: officeSource.id, expectedRevision: 11, query: "Synthetic Example Road 11" });
+  assert.equal(field("办公地址纬度").value, ""); assert.equal(field("办公地址邮编").value, "");
 });
 
 test("candidate choice only fills a manual unverified proposal; it never previews or saves automatically", async () => {

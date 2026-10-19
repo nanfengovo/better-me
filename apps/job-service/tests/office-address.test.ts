@@ -10,6 +10,7 @@ import { createJobApplication } from "../src/application.js";
 import { createJobHttpServer } from "../src/http.js";
 import { openJobRepository, RepositoryError, type JobRepository } from "../src/repository.js";
 import { projectSourcePage } from "../src/projection.js";
+import type { OfficeAddressProvider } from "../src/office-address.js";
 
 const AT = "2026-10-19T00:00:00.000Z";
 const opts = (idempotencyKey: string, expectedRevision: number, actorScope = "owner") => ({ actorScope, idempotencyKey, expectedRevision });
@@ -246,6 +247,30 @@ test("tool candidates are manual by default; configured provider runs only on ex
   } finally { await app.shutdown(); }
   const stale = createJobApplication({ repository: repo, officeAddressProvider: { providerId: "synthetic-provider", search: async () => { await confirm(repo); return []; } } });
   try { const result = await stale.registry.execute("locations.office-address-candidates", { ...targetInput, query: proposal.formattedAddress }, context); assert.equal(result.ok, false); if (!result.ok) assert.equal(result.error.code, "stale-version"); } finally { await stale.shutdown(); }
+}));
+
+test("office candidate tool forwards only explicitly supplied locality and postal constraints and performs no write", async () => fixture(async repo => {
+  await ingest(repo, "postal-source", undefined, { postalCode: "PRIVATE_SOURCE_POSTAL" });
+  const before = await repo.backup(), value = input(before.dataset), targetInput = { jobId: value.jobId, locationId: value.locationId, expectedRevision: value.expectedRevision };
+  const reads: Parameters<OfficeAddressProvider["search"]>[0][] = [];
+  const app = createJobApplication({ repository: repo, now: () => AT, officeAddressProvider: { providerId: "synthetic-provider", search: async request => { reads.push(structuredClone(request)); return []; } } });
+  const context: TrustedToolContext = { requestId: "office-explicit-constraints", actorScope: "owner", signal: new AbortController().signal,
+    allowedEffects: ["read-index", "external-read"], budget: { requests: 1, bytes: 1000000, timeoutMs: 5000 } };
+  try {
+    const query = "10 Synthetic Road";
+    assert.equal((await app.registry.execute("locations.office-address-candidates", { ...targetInput, query }, context)).ok, true);
+    assert.equal(Object.hasOwn(reads[0]!, "locality"), false); assert.equal(Object.hasOwn(reads[0]!, "postalCode"), false);
+    const constraints = { locality: "Explicit City", postalCode: "00123" };
+    assert.equal((await app.registry.execute("locations.office-address-candidates", { ...targetInput, query, ...constraints }, context)).ok, true);
+    assert.deepEqual(reads[1], { query, location: before.dataset.locations[0], ...constraints });
+    assert.equal((await app.registry.execute("locations.office-address-candidates", { ...targetInput, query, locality: "Explicit City" }, context)).ok, true);
+    assert.equal(reads[2]!.locality, "Explicit City"); assert.equal(Object.hasOwn(reads[2]!, "postalCode"), false);
+    for (const invalid of [{ ...targetInput, locality: "Explicit City" }, { ...targetInput, postalCode: "00123" }, { ...targetInput, query, locality: "\nExplicit City" }]) {
+      const result = await app.registry.execute("locations.office-address-candidates", invalid, context); assert.equal(result.ok, false);
+      if (!result.ok) assert.equal(result.error.code, "invalid-input");
+    }
+    assert.equal(reads.length, 3); assert.deepEqual(await repo.backup(), before);
+  } finally { await app.shutdown(); }
 }));
 
 test("an interrupted office tool recovers only the committed durable receipt without resubmitting the write", async () => fixture(async repo => {
