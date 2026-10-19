@@ -20,6 +20,7 @@ export type AtlasJobDetailProps = {
   onAnalyze: () => void;
   onConfirmLocation?: (location: JobLocation) => void;
   onConfirmOffice?: (location: JobLocation) => void;
+  onReadLocations?: () => void;
   /** Root owns city-candidate requests, their selection and their status. */
   children?: ReactNode;
 };
@@ -65,7 +66,7 @@ function sourcesForDetail(item: JobSearchItem, data: AtlasDataset, presentations
 }
 
 /** A non-modal reading pane. It never moves focus, locks the page or intercepts card clicks. */
-export function AtlasJobDetail({ item, data, demo, originalCurrency, presentations, onClose, onLocate, onSave, onAnalyze, onConfirmLocation, onConfirmOffice, children }: AtlasJobDetailProps) {
+export function AtlasJobDetail({ item, data, demo, originalCurrency, presentations, onClose, onLocate, onSave, onAnalyze, onConfirmLocation, onConfirmOffice, onReadLocations, children }: AtlasJobDetailProps) {
   const { t, locale } = useUiPreferences();
   const titleId = useId();
   const body = useRef<HTMLDivElement>(null);
@@ -151,6 +152,7 @@ export function AtlasJobDetail({ item, data, demo, originalCurrency, presentatio
           </article>;
         })}
         {!item.locations.length && <div className="atlas-job-detail-location"><p>{t("来源尚未提供结构化工作地点。", "The source has not provided a structured work location.")}</p><button type="button" onClick={() => onLocate()}><Navigation size={12} />{t("查找岗位位置", "Find job location")}</button></div>}
+        {!demo && onReadLocations && <button type="button" onClick={onReadLocations}><FileSearch size={13} />{t("读取原岗位办公地点", "Read office locations from original posting")}</button>}
         {children}
       </section>
 

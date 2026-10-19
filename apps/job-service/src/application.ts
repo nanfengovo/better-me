@@ -20,6 +20,7 @@ import { RepositoryError, type JobRepository } from "./repository.js";
 import { DiscoveryLeadSchema, ImportReceiptSchema, SyncRunSchema, type PublicRunSummary } from "./repository-schema.js";
 import { projectSourcePage } from "./projection.js";
 import { createReviewedCardsTools } from "./reviewed-cards.js";
+import { createReviewedDetailLocationsTools } from "./reviewed-detail-locations.js";
 import { createLocationConfirmationTools } from "./location-confirmation.js";
 import { createReconciliationTools } from "./reconciliation.js";
 import { createLocationMapReferencesTool } from "./location-map-references.js";
@@ -131,6 +132,9 @@ export function createJobApplication(options: JobApplicationOptions) {
       ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
       execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     ...createReviewedCardsTools({ repository, now }).map(definition => ({ ...definition, execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
+    ...createReviewedDetailLocationsTools({ repository, now }).map(definition => ({ ...definition,
+      ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
+      execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     defineTool({ ...searchTool, execute: (input, context) => guarded(async () => searchTool.execute(input, context)) }),
     defineTool({ ...mapReferenceTool, execute: (input, context) => guarded(async () => mapReferenceTool.execute(input, context)) }),
     defineTool({ ...geocodingTool, execute: (input, context) => guarded(async () => {

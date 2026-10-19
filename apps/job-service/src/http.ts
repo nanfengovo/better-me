@@ -23,6 +23,8 @@ const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }
   { method: "POST", path: /^\/api\/v1\/jobs\/search$/, tool: "jobs.search" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reviewed-cards\/preview$/, tool: "jobs.preview-reviewed-cards" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reviewed-cards\/import$/, tool: "jobs.import-reviewed-cards" },
+  { method: "POST", path: /^\/api\/v1\/jobs\/detail-locations\/preview$/, tool: "jobs.preview-detail-locations" },
+  { method: "POST", path: /^\/api\/v1\/jobs\/detail-locations\/import$/, tool: "jobs.import-detail-locations" },
   { method: "POST", path: /^\/api\/v1\/locations\/geocode-candidates$/, tool: "locations.geocode-candidates" },
   { method: "POST", path: /^\/api\/v1\/locations\/office-address\/candidates$/, tool: "locations.office-address-candidates" },
   { method: "POST", path: /^\/api\/v1\/locations\/office-address\/preview$/, tool: "locations.preview-office-confirmation" },

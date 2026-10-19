@@ -8,6 +8,8 @@ import {
   type DiscoverSourceCandidatesInput, type InspectSourceCandidateInput, type ProposeSourceRegistrationInput,
   PreviewReviewedCardsInputSchema, ReviewedCardsPreviewSchema, ImportReviewedCardsInputSchema,
   type PreviewReviewedCardsInput, type ImportReviewedCardsInput,
+  PreviewDetailLocationsInputSchema, ImportDetailLocationsInputSchema, DetailLocationsPreviewSchema,
+  type PreviewDetailLocationsInput, type ImportDetailLocationsInput,
 } from "@better-me/source-adapters/browser-contracts";
 import { AtlasClientError, readAtlasSnapshot } from "./client";
 import {
@@ -350,6 +352,30 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
     inspect: async (sourceId: string, value: InspectSourceCandidateInput, options: Options = {}) => request("sources/inspect", SourceCandidateInspectionSchema, options, { sourceId: input(EntityIdSchema, sourceId), request: input(InspectSourceCandidateInputSchema, value) }),
     propose: async (value: ProposeSourceRegistrationInput, options: Options = {}) => request("sources/propose", SourceRegistrationProposalSchema, options, input(ProposeSourceRegistrationInputSchema, value)),
     snapshot: (options: Options = {}) => readAtlasSnapshot(endpoint, token, options),
+    previewDetailLocations: async (value: PreviewDetailLocationsInput, options: Options = {}) => {
+      const query = input(PreviewDetailLocationsInputSchema, value);
+      const result = await request("jobs/detail-locations/preview", DetailLocationsPreviewSchema, options, query);
+      const sameAddress = (location: JobLocation, address: typeof query.capture.locations[number]) =>
+        (["raw", "countryCode", "region", "city", "streetAddress", "postalCode"] as const).every(field => location[field] === address[field])
+        && location.evidence.some(ref => ref.sourceUrl === query.capture.url && ref.observedAt === query.capture.capturedAt && ref.selector === address.evidence.selector && ref.quote === address.evidence.quote);
+      if (result.jobId !== query.jobId || result.listingId !== query.listingId || result.sourceId !== `reviewed-platform-${query.capture.provider}` || result.expectedRevision !== query.expectedRevision
+        || !result.newLocations.length || result.newLocations.length > query.capture.locations.length
+        || result.newLocations.some(location => location.coordinates || location.originalCoordinates || location.officeResolution || location.userResolution || location.verification !== "unverified"
+          || location.kind !== (query.capture.workMode === "remote" ? "remote-region" : "office") || !query.capture.locations.some(address => sameAddress(location, address)))
+        || query.capture.locations.some(address => !result.newLocations.some(location => sameAddress(location, address))))
+        throw new AtlasSourceServiceError("invalid-response", "地点预览与本次岗位、来源或索引版本不一致。");
+      return result;
+    },
+    importDetailLocations: async (value: ImportDetailLocationsInput, options: WriteOptions) => {
+      const query = input(ImportDetailLocationsInputSchema, value);
+      const result = await request("jobs/detail-locations/import", ReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
+      if (result.jobIds.length !== 1 || result.jobIds[0] !== query.jobId || ![query.expectedRevision, query.expectedRevision + 1].includes(result.revision)
+        || result.counts.newJobs !== 0 || result.counts.newListings !== 0 || result.counts.newSnapshots !== 0 || result.snapshotIds.length !== 0
+        || result.counts.updatedJobs + result.counts.unchangedJobs !== 1 || result.counts.updatedJobs > 1 || result.counts.newObservations > 1
+        || (result.revision === query.expectedRevision && (result.counts.updatedJobs !== 0 || result.counts.newObservations !== 0)))
+        throw new AtlasSourceServiceError("invalid-response", "地点保存回执与本次已有岗位不一致，请使用原请求核对回执。");
+      return result;
+    },
     previewReviewedCards: (value: PreviewReviewedCardsInput, options: Options = {}) => request("jobs/reviewed-cards/preview", ReviewedCardsPreviewSchema, options, input(PreviewReviewedCardsInputSchema, value)),
     importReviewedCards: (value: ImportReviewedCardsInput, options: WriteOptions) => request("jobs/reviewed-cards/import", ReceiptSchema, options, input(ImportReviewedCardsInputSchema, value), input(KeySchema, options.idempotencyKey)),
   };
