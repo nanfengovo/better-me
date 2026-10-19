@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PlanAddressEnrichmentInputSchema, AddressEnrichmentPlanSchema, type PlanAddressEnrichmentInput } from "@better-me/opportunities";
 import { EntityIdSchema, SourceDefinitionSchema, TimestampSchema, TOOL_ERROR_CODES, GeocodingRequestSchema, GeocodingResultSchema, MapReferencesInputSchema, MapReferencesResultSchema, type GeocodingInput, type MapReferencesInput } from "@better-me/opportunities";
 import {
   DiscoverSourceCandidatesInputSchema, InspectSourceCandidateInputSchema, ProposeSourceRegistrationInputSchema,
@@ -351,6 +352,13 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
     },
     inspect: async (sourceId: string, value: InspectSourceCandidateInput, options: Options = {}) => request("sources/inspect", SourceCandidateInspectionSchema, options, { sourceId: input(EntityIdSchema, sourceId), request: input(InspectSourceCandidateInputSchema, value) }),
     propose: async (value: ProposeSourceRegistrationInput, options: Options = {}) => request("sources/propose", SourceRegistrationProposalSchema, options, input(ProposeSourceRegistrationInputSchema, value)),
+    planAddressEnrichment: async (value: PlanAddressEnrichmentInput, options: Options = {}) => {
+      const query = input(PlanAddressEnrichmentInputSchema, value);
+      const result = await request("jobs/address-enrichment/plan", AddressEnrichmentPlanSchema, options, query);
+      if (result.snapshotRevision !== query.expectedRevision || result.requestedJobs !== query.jobIds.length
+        || !sameIds(result.items.map(item => item.jobId), query.jobIds)) throw new AtlasSourceServiceError("invalid-response", "办公地点补全计划与当前岗位或索引版本不一致，请重新读取。");
+      return result;
+    },
     snapshot: (options: Options = {}) => readAtlasSnapshot(endpoint, token, options),
     previewDetailLocations: async (value: PreviewDetailLocationsInput, options: Options = {}) => {
       const query = input(PreviewDetailLocationsInputSchema, value);

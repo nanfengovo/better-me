@@ -13,6 +13,7 @@ export interface JobHttpOptions {
 }
 
 const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }> = [
+  { method: "POST", path: /^\/api\/v1\/jobs\/address-enrichment\/plan$/, tool: "jobs.plan-address-enrichment" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/candidates$/, tool: "jobs.list-merge-candidates" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/preview$/, tool: "jobs.preview-merge" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/preview-revoke$/, tool: "jobs.preview-revoke-merge" },

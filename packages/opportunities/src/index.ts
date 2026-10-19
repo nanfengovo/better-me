@@ -15,3 +15,4 @@ export * from "./reconciliation.js";
 export * from "./reconciliation-tools.js";
 export * from "./location-confirmation.js";
 export * from "./office-address.js";
+export * from "./address-enrichment.js";
