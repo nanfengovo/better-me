@@ -11,10 +11,10 @@ import {
   discoverSourceCandidates, inspectSourceCandidate, proposeSourceRegistration,
   DiscoverSourceCandidatesInputSchema, SourceDiscoveryPageSchema, InspectSourceCandidateInputSchema, SourceCandidateInspectionSchema,
   ProposeSourceRegistrationInputSchema, SourceRegistrationProposalSchema,
-  discoverCompanyCareers, DiscoverCompanyCareersInputSchema, CompanyCareerDiscoveryResultSchema,
+  discoverCompanyCareers, DiscoverCompanyCareersRequestSchema, CompanyCareerDiscoveryResultSchema, CompanyCareerDiscoveryCapabilitiesSchema,
   createLocalGazetteerProvider, createGeocodingTool, type GeocodingProvider,
   locallyMatchesSourceScope as locallyMatches, countSourceScopeMatches,
-  type SourceAdapter, type SourceTransport,
+  type SourceAdapter, type SourceTransport, type CareerWebSearchProvider,
 } from "@better-me/source-adapters";
 import { RepositoryError, type JobRepository } from "./repository.js";
 import { DiscoveryLeadSchema, ImportReceiptSchema, SyncRunSchema, type PublicRunSummary } from "./repository-schema.js";
@@ -24,6 +24,15 @@ import { createLocationConfirmationTools } from "./location-confirmation.js";
 import { createReconciliationTools } from "./reconciliation.js";
 
 const emptyInput = z.object({}).strict();
+// Name-only discovery has no permission to follow arbitrary URLs. This host policy is
+// transient: it is never registered as a source or included in the public dataset.
+const nameOnlyDiscoverySource = SourceDefinitionSchema.parse({
+  sourceId: "host-company-career-discovery", name: "Host company career discovery", adapterId: "host-company-career-discovery", adapterVersion: "1",
+  capabilities: ["discover-sources"], runtime: ["local-service"], entityType: "company-directory", enabled: true, status: "active", remoteFilters: [],
+  endpointPolicy: { allowedHosts: [], allowedPathPrefixes: [], requireHttps: true, allowRedirects: false, maxRedirects: 0 },
+  attribution: { label: "Host company career discovery", usage: "link-only", requiresAttribution: true },
+  refreshPolicy: { mode: "manual", minIntervalSeconds: 0, maxRecords: 20, maxPages: 3, requestsPerMinute: 30 },
+});
 const usableScope = SourceScopeSchema.superRefine((scope, context) => {
   for (const [field, terms] of Object.entries(scope)) for (const term of terms ?? []) {
     if (!normalizeSearchText(term).trim()) context.addIssue({ code: z.ZodIssueCode.custom, path: [field], message: "A scope term must contain searchable characters." });
@@ -54,6 +63,8 @@ export type JobApplicationOptions = {
   resolveQueryOptions?: (context: ToolHandlerContext) => QueryOptions | Promise<QueryOptions>;
   /** Host-only dependency; tool requests cannot select a provider, file or endpoint. */
   geocodingProvider?: GeocodingProvider;
+  /** Host-only web search; requests cannot install providers or select their endpoints. */
+  careerWebSearchProvider?: CareerWebSearchProvider;
 };
 
 /** One application service backs HTTP and future Agent tools. Private opportunity data stays outside. */
@@ -248,10 +259,20 @@ export function createJobApplication(options: JobApplicationOptions) {
       inputSchema: z.object({ sourceId: EntityIdSchema, request: DiscoverSourceCandidatesInputSchema }).strict(), outputSchema: SourceDiscoveryPageSchema,
       execute: (input, context) => guarded(async () => discoverSourceCandidates(input.request, await discoveryExecution(input.sourceId, context))),
     }),
-    defineTool({ name: "companies.discover-careers", version: 1, description: "匹配已登记企业招聘来源，或按允许的官网范围发现招聘入口，返回带证据的待审提案。", effect: "external-read",
-      inputSchema: z.object({ sourceId: EntityIdSchema, request: DiscoverCompanyCareersInputSchema }).strict(), outputSchema: CompanyCareerDiscoveryResultSchema,
+    defineTool({ name: "companies.discovery-capabilities", version: 1, description: "只读查看宿主是否配置企业招聘搜索能力，不联网检测、不返回服务端点或凭据。", effect: "read-index",
+      inputSchema: emptyInput, outputSchema: CompanyCareerDiscoveryCapabilitiesSchema,
+      execute: (_input, context) => guarded(async () => {
+        context.throwIfCancelled();
+        const provider = options.careerWebSearchProvider;
+        return { schemaVersion: 1 as const, webSearch: provider ? { configured: true as const,
+          providerId: provider.metadata?.providerId ?? "host-installed", label: provider.metadata?.label ?? "Host-installed career search" } : { configured: false as const } };
+      }),
+    }),
+    defineTool({ name: "companies.discover-careers", version: 1, description: "匹配已登记企业招聘来源，或使用宿主搜索及允许的官网范围发现招聘入口，返回带证据的待审提案。", effect: "external-read",
+      inputSchema: DiscoverCompanyCareersRequestSchema, outputSchema: CompanyCareerDiscoveryResultSchema,
       execute: (input, context) => guarded(async () => discoverCompanyCareers(input.request, {
-        ...await discoveryExecution(input.sourceId, context), registeredSources: (await repository.readSnapshot()).sources,
+        ...(input.sourceId ? await discoveryExecution(input.sourceId, context) : { source: nameOnlyDiscoverySource, context: { ...context, observedAt: now() }, transport }),
+        registeredSources: (await repository.readSnapshot()).sources, ...(options.careerWebSearchProvider ? { searchProvider: options.careerWebSearchProvider } : {}),
       })),
     }),
     defineTool({ name: "sources.inspect", version: 1, description: "有限检查候选结构、字段覆盖和许可元数据，不执行陌生仓库代码。", effect: "external-read",

@@ -4,7 +4,7 @@ import {
   DiscoverSourceCandidatesInputSchema, InspectSourceCandidateInputSchema, ProposeSourceRegistrationInputSchema,
   SourceAdapterMetadataSchema, SourceCandidateInspectionSchema, SourceDiscoveryPageSchema,
   SourcePageSchema, SourceRegistrationProposalSchema, SourceScopeSchema,
-  DiscoverCompanyCareersInputSchema, CompanyCareerDiscoveryResultSchema, type DiscoverCompanyCareersInput,
+  DiscoverCompanyCareersRequestSchema, CompanyCareerDiscoveryResultSchema, CompanyCareerDiscoveryCapabilitiesSchema, type DiscoverCompanyCareersInput,
   type DiscoverSourceCandidatesInput, type InspectSourceCandidateInput, type ProposeSourceRegistrationInput,
   PreviewReviewedCardsInputSchema, ReviewedCardsPreviewSchema, ImportReviewedCardsInputSchema,
   type PreviewReviewedCardsInput, type ImportReviewedCardsInput,
@@ -265,7 +265,15 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
     preview: async (sourceId: string, value: Omit<AtlasSourceScopeInput, "maxPages">, options: Options = {}) => request(`${sourcePath(sourceId)}/preview`, AtlasSourcePreviewSchema, options, input(PreviewInputSchema, value)),
     sync: async (sourceId: string, value: AtlasSourceScopeInput, options: WriteOptions) => request(`${sourcePath(sourceId)}/sync`, AtlasSourceSyncSchema, options, input(SyncInputSchema, value), input(KeySchema, options.idempotencyKey)),
     discover: async (sourceId: string, value: DiscoverSourceCandidatesInput, options: Options = {}) => request("sources/discover", SourceDiscoveryPageSchema, options, { sourceId: input(EntityIdSchema, sourceId), request: input(DiscoverSourceCandidatesInputSchema, value) }),
-    discoverCompany: async (sourceId: string, value: DiscoverCompanyCareersInput, options: Options = {}) => request("companies/discover-careers", CompanyCareerDiscoveryResultSchema, options, { sourceId: input(EntityIdSchema, sourceId), request: input(DiscoverCompanyCareersInputSchema, value) }),
+    companyDiscoveryCapabilities: (options: Options = {}) => request("companies/discovery-capabilities", CompanyCareerDiscoveryCapabilitiesSchema, options),
+    discoverCompany: async (sourceId: string | undefined, value: DiscoverCompanyCareersInput, options: Options = {}) => {
+      const query = input(DiscoverCompanyCareersRequestSchema, { ...(sourceId === undefined ? {} : { sourceId }), request: value });
+      const result = await request("companies/discover-careers", CompanyCareerDiscoveryResultSchema, options, query);
+      if (result.companyName !== query.request.companyName
+        || result.proposals.some(proposal => proposal.source.enabled || proposal.source.status !== "needs-review"))
+        throw new AtlasSourceServiceError("invalid-response", "企业发现结果与本次企业或禁用提案不一致，请重新核对。");
+      return result;
+    },
     inspect: async (sourceId: string, value: InspectSourceCandidateInput, options: Options = {}) => request("sources/inspect", SourceCandidateInspectionSchema, options, { sourceId: input(EntityIdSchema, sourceId), request: input(InspectSourceCandidateInputSchema, value) }),
     propose: async (value: ProposeSourceRegistrationInput, options: Options = {}) => request("sources/propose", SourceRegistrationProposalSchema, options, input(ProposeSourceRegistrationInputSchema, value)),
     snapshot: (options: Options = {}) => readAtlasSnapshot(endpoint, token, options),

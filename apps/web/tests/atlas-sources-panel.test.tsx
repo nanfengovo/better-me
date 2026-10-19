@@ -90,7 +90,7 @@ test("company website discovery displays incomplete coverage without treating an
     const path = new URL(String(url)).pathname; paths.push(path);
     if (path === "/api/v1/sources") return response({ sources: [discoverySource], adapters });
     assert.equal(path, "/api/v1/companies/discover-careers");
-    assert.deepEqual(JSON.parse(String(init!.body)), { sourceId: discoverySource.sourceId,
+    assert.deepEqual(JSON.parse(String(init!.body)), {
       request: { companyName: "Synthetic New Employer", limit: 10, maxPages: 3 } });
     return response({ status: "requires-company-website", companyName: "Synthetic New Employer", observedAt: at,
       matchedSources: [], candidates: [], proposals: [], visitedUrls: [], partial: false, warnings: ["Synthetic missing search provider."] });

@@ -11,6 +11,30 @@ export const DiscoverCompanyCareersInputSchema = z.object({
 }).strict();
 export type DiscoverCompanyCareersInput = z.input<typeof DiscoverCompanyCareersInputSchema>;
 
+/** Website reads require a registered endpoint policy; name-only lookup uses the host policy. */
+export const DiscoverCompanyCareersRequestSchema = z.object({
+  sourceId: EntityIdSchema.optional(),
+  request: DiscoverCompanyCareersInputSchema,
+}).strict().superRefine((value, context) => {
+  if ((value.request.companyWebsite || value.request.seedUrls?.length) && !value.sourceId) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["sourceId"], message: "An explicit website or seed requires a registered discovery policy." });
+  }
+});
+export const CareerWebSearchProviderIdSchema = z.enum(["duckduckgo-html", "searxng", "host-installed"]);
+export const CareerWebSearchProviderMetadataSchema = z.object({
+  providerId: CareerWebSearchProviderIdSchema,
+  label: z.string().trim().min(1).max(160),
+}).strict();
+export type CareerWebSearchProviderMetadata = z.infer<typeof CareerWebSearchProviderMetadataSchema>;
+export const CompanyCareerDiscoveryCapabilitiesSchema = z.object({
+  schemaVersion: z.literal(1),
+  webSearch: z.discriminatedUnion("configured", [
+    z.object({ configured: z.literal(false) }).strict(),
+    CareerWebSearchProviderMetadataSchema.extend({ configured: z.literal(true) }).strict(),
+  ]),
+}).strict();
+export type CompanyCareerDiscoveryCapabilities = z.infer<typeof CompanyCareerDiscoveryCapabilitiesSchema>;
+
 export const CareerEntryKindSchema = z.enum(["greenhouse", "lever", "ashby", "tencent", "smartrecruiters", "html"]);
 export type CareerEntryKind = z.infer<typeof CareerEntryKindSchema>;
 export const CareerDiscoveryEvidenceSchema = z.object({
@@ -43,6 +67,10 @@ export const CompanyCareerDiscoveryResultSchema = z.object({
   candidates: z.array(CareerSourceCandidateSchema).max(20),
   proposals: z.array(SourceRegistrationProposalSchema).max(20),
   visitedUrls: z.array(HttpUrlSchema).max(10),
+  search: CareerWebSearchProviderMetadataSchema.extend({
+    query: z.string().min(1).max(500),
+    resultCount: z.number().int().min(0).max(20),
+  }).strict().optional(),
   partial: z.boolean(),
   warnings: z.array(z.string().min(1).max(2000)).max(30),
 }).strict();

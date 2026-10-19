@@ -12,6 +12,7 @@ export * from "./adapters/tencent.js";
 export * from "./smartrecruiters-contracts.js";
 export * from "./adapters/smartrecruiters.js";
 export * from "./career-discovery.js";
+export * from "./career-web-search.js";
 export * from "./career-discovery-contracts.js";
 export * from "./platform-search.js";
 export * from "./local-match.js";

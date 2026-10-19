@@ -32,6 +32,7 @@ const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }
   { method: "POST", path: /^\/api\/v1\/sources$/, tool: "sources.register" },
   { method: "POST", path: /^\/api\/v1\/sources\/discover$/, tool: "sources.discover" },
   { method: "POST", path: /^\/api\/v1\/companies\/discover-careers$/, tool: "companies.discover-careers" },
+  { method: "GET", path: /^\/api\/v1\/companies\/discovery-capabilities$/, tool: "companies.discovery-capabilities" },
   { method: "POST", path: /^\/api\/v1\/sources\/inspect$/, tool: "sources.inspect" },
   { method: "POST", path: /^\/api\/v1\/sources\/propose$/, tool: "sources.propose" },
   { method: "POST", path: /^\/api\/v1\/sources\/([^/]+)\/preview$/, tool: "sources.preview", key: "sourceId" },

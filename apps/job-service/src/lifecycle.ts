@@ -3,7 +3,7 @@ import { chmod, lstat, mkdir, open, readdir, realpath, rename, rmdir, unlink } f
 import { randomBytes, randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
-import { createControlledSourceTransport, createGoogleDohResolver } from "@better-me/source-adapters";
+import { createControlledSourceTransport, createGoogleDohResolver, CareerWebSearchConfigSchema, createCareerWebSearchProvider, type CareerWebSearchConfig } from "@better-me/source-adapters";
 import { createJobApplication } from "./application.js";
 import { createJobHttpServer, type JobHttpOptions } from "./http.js";
 import { openJobRepository, type JobRepository } from "./repository.js";
@@ -20,13 +20,16 @@ export type JobServiceConfig = {
   port?: number;
   allowedOrigins: readonly string[];
   dns?: "system" | "google-doh";
+  careerSearch?: CareerWebSearchConfig;
 };
-export type ValidatedJobServiceConfig = Required<JobServiceConfig>;
+export type ValidatedJobServiceConfig = Required<Omit<JobServiceConfig, "careerSearch">> & Pick<JobServiceConfig, "careerSearch">;
 export function validateJobServiceConfig(config: JobServiceConfig): ValidatedJobServiceConfig {
   if (typeof config.dataDirectory !== "string" || !isAbsolute(config.dataDirectory) || config.dataDirectory.includes("\0")) throw new LocalJobServiceError("invalid-config", "Choose an explicit absolute data directory.");
   const host = config.host ?? "127.0.0.1";
   const port = config.port ?? 5178;
   const dns = config.dns ?? "system";
+  const careerSearch = config.careerSearch === undefined ? undefined : CareerWebSearchConfigSchema.safeParse(config.careerSearch);
+  if (careerSearch && !careerSearch.success) throw new LocalJobServiceError("invalid-config", "Invalid career search configuration. Choose a supported provider and its permitted endpoint options.");
   if (!["127.0.0.1", "::1"].includes(host) || !Number.isInteger(port) || port < 0 || port > 65535 || !["system", "google-doh"].includes(dns)) throw new LocalJobServiceError("invalid-config", "Invalid loopback listener or DNS configuration.");
   if (!Array.isArray(config.allowedOrigins) || config.allowedOrigins.length === 0) throw new LocalJobServiceError("invalid-config", "Configure at least one exact UI origin.");
   for (const origin of config.allowedOrigins) {
@@ -35,7 +38,7 @@ export function validateJobServiceConfig(config: JobServiceConfig): ValidatedJob
       if (!["http:", "https:"].includes(parsed.protocol) || parsed.origin !== origin || parsed.username || parsed.password || parsed.hostname.includes("*")) throw new Error();
     } catch { throw new LocalJobServiceError("invalid-config", "UI origins must be exact HTTP(S) origins without a path or wildcard."); }
   }
-  return { dataDirectory: resolve(config.dataDirectory), host, port, allowedOrigins: [...new Set(config.allowedOrigins)], dns };
+  return { dataDirectory: resolve(config.dataDirectory), host, port, allowedOrigins: [...new Set(config.allowedOrigins)], dns, ...(careerSearch?.success ? { careerSearch: careerSearch.data } : {}) };
 }
 
 const LOCK_NAME = ".job-service.lock";
@@ -200,7 +203,8 @@ export async function startLocalJobService(input: JobServiceConfig, dependencies
     // Recovery cannot classify a still-running owner's work as interrupted: the lock is already exclusive.
     const recovered = await repository.recoverInterruptedRuns();
     const transport = createControlledSourceTransport({ ...(config.dns === "google-doh" ? { resolve: createGoogleDohResolver() } : {}) });
-    application = (dependencies.createApplication ?? createJobApplication)({ repository, transport });
+    application = (dependencies.createApplication ?? createJobApplication)({ repository, transport,
+      ...(config.careerSearch ? { careerWebSearchProvider: createCareerWebSearchProvider(config.careerSearch) } : {}) });
     http = (dependencies.createHttpServer ?? createJobHttpServer)({ registry: application.registry, token, allowedOrigins: config.allowedOrigins, host: config.host, port: config.port });
     const address = await http.listen();
     listening = true;

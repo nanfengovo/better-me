@@ -6,11 +6,13 @@ import { SourceCandidateSchema, SourceRegistrationProposalSchema, type SourceReg
 import {
   CareerWebSearchResultSchema, CompanyCareerDiscoveryResultSchema, DiscoverCompanyCareersInputSchema,
   type CareerDiscoveryEvidence, type CareerEntryKind, type CareerSourceCandidate,
-  type CompanyCareerDiscoveryResult, type DiscoverCompanyCareersInput,
+  CareerWebSearchProviderMetadataSchema,
+  type CompanyCareerDiscoveryResult, type DiscoverCompanyCareersInput, type CareerWebSearchProviderMetadata,
 } from "./career-discovery-contracts.js";
 
 /** A host-installed provider, never executable code or an endpoint supplied by a tool caller. */
 export type CareerWebSearchProvider = {
+  readonly metadata?: CareerWebSearchProviderMetadata;
   search(input: {
     query: string; companyName: string; limit: number; source: SourceDefinition;
     context: SourceAdapterContext; transport: SourceTransport;
@@ -279,6 +281,8 @@ export async function discoverCompanyCareers(input: DiscoverCompanyCareersInput,
       warn("Provide an already-reviewed company website or seed URL, or configure a trusted web-search provider. Company domains are never guessed from names.");
       return CompanyCareerDiscoveryResultSchema.parse(result);
     }
+    const metadata = CareerWebSearchProviderMetadataSchema.safeParse(execution.searchProvider.metadata ?? { providerId: "host-installed", label: "Host-installed web search" });
+    if (!metadata.success) throw new ToolError("invalid-context");
     const response = await execution.searchProvider.search({
       query: `${options.companyName} official careers 招聘`, companyName: options.companyName, limit: options.limit,
       source, context: execution.context, transport: execution.transport,
@@ -286,6 +290,7 @@ export async function discoverCompanyCareers(input: DiscoverCompanyCareersInput,
     execution.context.throwIfCancelled();
     const search = CareerWebSearchResultSchema.safeParse(response);
     if (!search.success) throw new ToolError("source-changed");
+    result.search = { ...metadata.data, query: `${options.companyName} official careers 招聘`, resultCount: search.data.results.length };
     result.partial = search.data.partial;
     for (const item of search.data.results) {
       const url = safeUrl(item.url), evidenceUrl = safeUrl(item.evidenceUrl ?? item.url);

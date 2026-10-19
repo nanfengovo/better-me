@@ -15,6 +15,8 @@ Options:
   --host <address>       127.0.0.1 (default) or ::1 only.
   --port <number>        5178 by default; 1-65535.
   --dns <provider>       system (default) or google-doh; applies only inside this service.
+  --career-search <id>   Optional duckduckgo-html or searxng; disabled by default.
+  --career-search-endpoint <https-url>  Required only for searxng; no API keys are supported.
   --help, -h            Show help without creating files or starting a listener.
 
 The service stores jobs.sqlite, service.token and an exclusive owner lock in the data directory.
@@ -22,12 +24,14 @@ Logs show the token file path only. Read that private file locally to configure 
 On Windows, choose a directory whose NTFS permissions are restricted to your account.
 On POSIX systems, an existing data directory must exclude group and other users.
 Ctrl+C stops new requests and waits for running writes before closing SQLite.
+duckduckgo-html is an explicitly enabled experimental HTML provider, not an official search API.
+For searxng, use an instance you manage; this service does not rotate public instances.
 `;
 export function parseJobServiceArgs(args: readonly string[]): { help: true } | { help: false; config: JobServiceConfig } {
   if (args.length === 1 && ["--help", "-h"].includes(args[0]!)) return { help: true };
   const values = new Map<string, string>();
   const origins: string[] = [];
-  const supported = new Set(["--data-dir", "--origin", "--host", "--port", "--dns"]);
+  const supported = new Set(["--data-dir", "--origin", "--host", "--port", "--dns", "--career-search", "--career-search-endpoint"]);
   for (let index = 0; index < args.length; index += 2) {
     const flag = args[index]!;
     const value = args[index + 1];
@@ -36,12 +40,18 @@ export function parseJobServiceArgs(args: readonly string[]): { help: true } | {
   }
   const rawPort = values.get("--port");
   if (rawPort !== undefined && (!/^\d+$/.test(rawPort) || Number(rawPort) < 1 || Number(rawPort) > 65535)) throw new LocalJobServiceError("invalid-config", "The CLI port must be an integer from 1 to 65535.");
+  const careerProvider = values.get("--career-search"), careerEndpoint = values.get("--career-search-endpoint");
+  if (careerProvider !== undefined && !["duckduckgo-html", "searxng"].includes(careerProvider)
+    || careerEndpoint !== undefined && careerProvider !== "searxng") throw new LocalJobServiceError("invalid-config", "Career search supports duckduckgo-html or searxng; only searxng accepts an endpoint.");
+  const careerSearch: JobServiceConfig["careerSearch"] = careerProvider === "duckduckgo-html" ? { provider: "duckduckgo-html" }
+    : careerProvider === "searxng" ? { provider: "searxng", endpoint: careerEndpoint ?? "" } : undefined;
   const config = validateJobServiceConfig({
     dataDirectory: values.get("--data-dir") ?? "",
     host: (values.get("--host") ?? "127.0.0.1") as JobServiceConfig["host"],
     port: rawPort === undefined ? 5178 : Number(rawPort),
     allowedOrigins: origins,
     dns: (values.get("--dns") ?? "system") as JobServiceConfig["dns"],
+    ...(careerSearch ? { careerSearch } : {}),
   });
   return { help: false, config };
 }
@@ -68,7 +78,7 @@ export async function runJobServiceCli(args: readonly string[], options: {
   signals.on("SIGTERM", notifyStop);
   try {
     const service = await (options.start ?? startLocalJobService)(parsed.config);
-    output(`BetterMe job service: ${service.url}\nData directory: ${JSON.stringify(service.dataDirectory)}\nDatabase: ${JSON.stringify(service.databasePath)}\nToken file: ${JSON.stringify(service.tokenPath)}\nAllowed UI origins: ${JSON.stringify(service.allowedOrigins)}\nDNS provider: ${service.dns}\nRecovered interrupted runs: ${service.recoveredRuns}\n`);
+    output(`BetterMe job service: ${service.url}\nData directory: ${JSON.stringify(service.dataDirectory)}\nDatabase: ${JSON.stringify(service.databasePath)}\nToken file: ${JSON.stringify(service.tokenPath)}\nAllowed UI origins: ${JSON.stringify(service.allowedOrigins)}\nDNS provider: ${service.dns}\nCareer search: ${parsed.config.careerSearch?.provider ?? "disabled"}\nRecovered interrupted runs: ${service.recoveredRuns}\n`);
     await stopRequested;
     await service.close();
     output("Job service stopped after pending writes finished.\n");
