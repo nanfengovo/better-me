@@ -28,8 +28,9 @@ export const ResolvedLocationAreaSchema = z.object({
 export type ResolvedLocationArea = z.infer<typeof ResolvedLocationAreaSchema>;
 const metadata = { id: EntityIdSchema, jobId: EntityIdSchema, listingId: EntityIdSchema, locationId: EntityIdSchema, actorScope: z.string().min(1).max(200).regex(/^[A-Za-z0-9._:/-]+$/), at: TimestampSchema, revision: RevisionSchema, reason: label };
 export const LocationConfirmationDecisionSchema = z.discriminatedUnion("kind", [
-  z.object({ ...metadata, kind: z.literal("confirm"), sourceLocation: JobLocationSchema.refine(value => !value.userResolution, "Decisions must retain the original source location."), area: ResolvedLocationAreaSchema }).strict(),
-  z.object({ ...metadata, kind: z.literal("revoke"), targetDecisionId: EntityIdSchema }).strict(),
+  z.object({ ...metadata, kind: z.literal("confirm"), sourceLocation: JobLocationSchema.refine(value => !value.userResolution && !value.officeResolution, "Decisions must retain the original source location."), area: ResolvedLocationAreaSchema }).strict(),
+  z.object({ ...metadata, kind: z.literal("revoke"), targetDecisionId: EntityIdSchema,
+    sourceLocation: JobLocationSchema.refine(value => !value.userResolution && !value.officeResolution, "Keep original source at revocation.").optional() }).strict(),
 ]);
 export type LocationConfirmationDecision = z.infer<typeof LocationConfirmationDecisionSchema>;
 export const LocationConfirmationPreviewSchema = z.object({ expectedRevision: RevisionSchema, previewFingerprint: z.string().regex(/^[a-f0-9]{64}$/), jobId: EntityIdSchema, locationId: EntityIdSchema, original: JobLocationSchema, current: JobLocationSchema, proposed: JobLocationSchema, activeDecisionId: EntityIdSchema.optional(), warnings: z.array(z.string().min(1).max(3000)).max(20) }).strict();
@@ -39,6 +40,13 @@ export type LocationConfirmationReceipt = z.infer<typeof LocationConfirmationRec
 
 function stable(value: unknown): unknown { return Array.isArray(value) ? value.map(stable) : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, entry]) => [key, stable(entry)])) : value; }
 export function sameLocationValue(left: unknown, right: unknown) { return JSON.stringify(stable(left)) === JSON.stringify(stable(right)); }
+/** Only additive source address/evidence enrichment may retain a prior administrative decision. */
+export function compatibleSourceLocation(previous: JobLocation, current: JobLocation): boolean {
+  const { streetAddress: oldStreet, postalCode: oldPostal, evidence: oldEvidence, ...oldCore } = previous;
+  const { streetAddress, postalCode, evidence, ...core } = current;
+  return sameLocationValue(oldCore, core) && (!oldStreet || oldStreet === streetAddress) && (!oldPostal || oldPostal === postalCode)
+    && oldEvidence.every(entry => evidence.some(value => sameLocationValue(entry, value)));
+}
 /** Administrative confirmation never guesses or inherits an office point. Revocation restores the source point. */
 export function applyLocationConfirmation(source: JobLocation, decision: Extract<LocationConfirmationDecision, { kind: "confirm" }>): JobLocation {
   const { countryCode: _country, regionId: _regionId, region: _region, city: _city, district: _district, coordinates: _coordinates, originalCoordinates: _originalCoordinates, provider: _provider, resolvedAt: _resolvedAt, userResolution: _userResolution, ...original } = source;
@@ -56,12 +64,14 @@ export function projectLocationConfirmations(base: AtlasDataset, input: readonly
       || !base.jobs.some(job => job.id === decision.jobId && job.listingIds.includes(decision.listingId))) throw new Error("invalid-location-decision");
     previousRevision = decision.revision;
     if (decision.kind === "confirm") {
-      if (!decision.sourceLocation.evidence.length || decision.sourceLocation.id !== decision.locationId || !sameLocationValue(sources.get(decision.locationId), decision.sourceLocation)
+      if (!decision.sourceLocation.evidence.length || decision.sourceLocation.id !== decision.locationId || !compatibleSourceLocation(decision.sourceLocation, sources.get(decision.locationId)!)
         || decision.sourceLocation.evidence.some(evidence => base.observations.find(observation => observation.id === evidence.observationId)?.listingId !== decision.listingId)) throw new Error("invalid-location-source");
     } else {
       const target = seen.get(decision.targetDecisionId);
       if (!target || target.kind !== "confirm" || target.locationId !== decision.locationId || target.jobId !== decision.jobId || target.listingId !== decision.listingId || target.actorScope !== decision.actorScope || revoked.has(target.id)) throw new Error("invalid-location-revocation");
       revoked.add(target.id);
+      if (decision.sourceLocation && (decision.sourceLocation.id !== decision.locationId || !compatibleSourceLocation(decision.sourceLocation, sources.get(decision.locationId)!)
+        || decision.sourceLocation.evidence.some(evidence => base.observations.find(observation => observation.id === evidence.observationId)?.listingId !== decision.listingId))) throw new Error("invalid-location-revoke-source");
     }
     seen.set(decision.id, decision);
   }

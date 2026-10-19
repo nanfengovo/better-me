@@ -20,10 +20,30 @@ test("one literal JobPosting produces evidenced source fields, date-only raw tim
   assert.equal(record.sourcePublishedRaw, "2026-10-17"); assert.equal(record.sourcePublishedAt, undefined);
   assert.equal(record.employmentType, "unknown"); assert.equal(record.workMode, "unknown"); assert.equal(record.availability, "unknown");
   assert.equal(record.applicationUrl, undefined); assert.deepEqual(record.compensations, []);
-  assert.deepEqual(record.locations, [{ raw: "Shanghai office · Original street 10, 上海市, 上海, 200000, 中国", countryCode: "CN", city: "上海市", region: "上海" }]);
+  assert.deepEqual(record.locations, [{ raw: "Shanghai office · Original street 10, 上海市, 上海, 200000, 中国", countryCode: "CN", city: "上海市", region: "上海", streetAddress: "Original street 10", postalCode: "200000" }]);
   assert.ok(record.evidence.every(e => e.sourceUrl === url && e.selector?.startsWith("jsonld-script[0]$") && !!e.quote));
   for (const field of ["title", "sourceRecordId", "companyName", "description", "locations", "sourcePublishedRaw", "source.employmentType"]) assert.ok(record.evidence.some(e => e.field === field));
   assert.match(result.warnings.join(" "), /not verified availability.*contexts and references were not fetched/);
+});
+
+test("only explicit job postal fields retain streets and leading-zero postcodes; labels, HQ and geo never fill them", () => {
+  const value = readJobPostingJsonLd(script(job({ hiringOrganization: { name: "Original Employer", address: { streetAddress: "HQ only 99", postalCode: "99999" } }, jobLocation: [
+    { address: { streetAddress: "Source street 1", postalCode: "00123" }, geo: { latitude: 31, longitude: 121 } },
+    { name: "Source street 2, 00456", address: "Source street 3, 00789", geo: { latitude: 31, longitude: 121 } },
+    { address: { addressLocality: "City street 4, 00222", addressCountry: "US" } },
+  ] })), url).record!;
+  assert.deepEqual(value.locations[0], { raw: "Source street 1, 00123", streetAddress: "Source street 1", postalCode: "00123" });
+  for (const location of value.locations.slice(1)) {
+    assert.equal(location.streetAddress, undefined); assert.equal(location.postalCode, undefined);
+  }
+  assert.doesNotMatch(JSON.stringify(value.locations), /HQ only|99999|coordinates|latitude|longitude/);
+});
+
+test("structured postal fields reject unsupported types, excess length and control characters without promoting geo", () => {
+  for (const address of [{ streetAddress: "x".repeat(1001) }, { postalCode: "x".repeat(101) }, { streetAddress: "Street\u0000ID" },
+    { postalCode: "00\u0000ID" }, { streetAddress: ["Not a string"] }, { postalCode: 123 }]) {
+    assert.throws(() => readJobPostingJsonLd(script(job({ jobLocation: { address } })), url), error("source-changed"));
+  }
 });
 
 test("root arrays and @graph find one explicit JobPosting and identical blocks can repeat without conflicting identity", () => {

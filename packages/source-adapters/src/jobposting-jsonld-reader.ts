@@ -152,14 +152,15 @@ export function readJobPostingJsonLd(html: string, pageUrl: string): { record?: 
   for (const [index, value] of locations.entries()) {
     const place = record(value), address = record(place.address);
     const name = text(typeof value === "string" ? value : place.name, 5000), addressText = typeof place.address === "string" ? text(place.address, 5000) : undefined;
-    const street = text(address.streetAddress, 1000), postal = text(address.postalCode, 500), region = text(address.addressRegion, 500), city = text(address.addressLocality, 500);
+    const street = text(address.streetAddress, 1000), postal = text(address.postalCode, 100), region = text(address.addressRegion, 500), city = text(address.addressLocality, 500);
     const country = text(typeof address.addressCountry === "string" ? address.addressCountry : record(address.addressCountry).name, 500);
     const countryCode = country ? resolveSourceCountryCode(country) : undefined;
     const fields = [street, city, region, postal, country].filter(Boolean).join(", ");
     const raw = [name, addressText, fields].filter(Boolean).join(" · ");
     if (!raw) { warnings.push("A JobPosting location has no readable address fields and was omitted."); continue; }
     if (raw.length > 5000) throw changed();
-    const location: SourceRecordLocation = { raw, ...(countryCode ? { countryCode } : {}), ...(region ? { region } : {}), ...(city ? { city } : {}) };
+    const location: SourceRecordLocation = { raw, ...(countryCode ? { countryCode } : {}), ...(region ? { region } : {}), ...(city ? { city } : {}),
+      ...(street ? { streetAddress: street } : {}), ...(postal ? { postalCode: postal } : {}) };
     if (!job.locations.some(old => JSON.stringify(old) === JSON.stringify(location))) job.locations.push(location);
     evidence("locations", `jobLocation[${index}]`, value);
   }

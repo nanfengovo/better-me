@@ -7,6 +7,7 @@ import { createAtlasDemo } from "../src/components/atlas/demo.ts";
 import { createMapReferenceFixture } from "./fixtures/atlas-map-references.ts";
 import { buildAtlasListingPresentations } from "../src/components/atlas/presentation.ts";
 import type { AtlasJobDetailProps } from "../src/components/atlas/AtlasJobDetail.tsx";
+import { officeConfirmed } from "./fixtures/atlas-office-address.ts";
 
 const dom = new Window({ url: "http://atlas-job-detail-fixture.invalid" });
 const React = await import("react");
@@ -98,6 +99,44 @@ test("a city distribution reference is labelled separately, links its place sour
   props.item.locations[0]!.coordinates = { latitude: 40, longitude: 116, coordinateSystem: "WGS84" }; props.item.locations[0]!.precision = "address";
   await render(props); assert.equal([...pane.querySelectorAll("button")].some(entry => entry.textContent?.includes("定位城市参考")), false);
   assert.ok(button("地图定位"));
+});
+
+test("manual office addresses retain source text, structured street/postal fields, unverified labels and their own evidence link", async () => {
+  const props = await fixture();
+  props.item.locations = [structuredClone(officeConfirmed)];
+  let chosen: typeof officeConfirmed | undefined; props.onConfirmOffice = location => { chosen = location; };
+  const pane = await render(props), location = props.item.locations[0]!;
+  assert.match(pane.textContent!, /本人核对的办公位置.*待核实.*非来源认证/);
+  assert.match(pane.textContent!, /本人核对的街道／门牌.*Synthetic Example Road 10/); assert.match(pane.textContent!, /本人核对的邮政编码.*200000/);
+  assert.doesNotMatch(pane.textContent!, /来源披露的街道／门牌|来源披露的邮政编码/);
+  assert.match(pane.textContent!, /本人核对的地址.*手工核对，仍待核实/);
+  assert.ok(pane.textContent!.includes(location.raw), "the publisher location remains visible next to the local address");
+  const evidence = [...pane.querySelectorAll<HTMLAnchorElement>("a")].find(link => link.textContent?.includes("地址核对出处"))!;
+  assert.equal(evidence.href, location.officeResolution!.evidenceUrl); assert.equal(evidence.target, "_blank"); assert.match(evidence.rel, /noopener/);
+  await act(async () => button("核对办公地址").click()); assert.equal(chosen, location);
+  location.officeResolution!.evidenceUrl = "javascript:syntheticUnsafe()";
+  await render(props); assert.equal([...pane.querySelectorAll("a")].some(link => link.getAttribute("href")?.startsWith("javascript:")), false);
+});
+
+test("publisher-disclosed street and postal fields retain their source label without a local office decision", async () => {
+  const props = await fixture();
+  props.item.locations = [{ ...props.item.locations[0]!, streetAddress: "Synthetic published street 20", postalCode: "100000" }];
+  const pane = await render(props);
+  assert.match(pane.textContent!, /来源披露的街道／门牌.*Synthetic published street 20/);
+  assert.match(pane.textContent!, /来源披露的邮政编码.*100000/);
+  assert.doesNotMatch(pane.textContent!, /本人核对的街道／门牌|本人核对的邮政编码/);
+  const maps = [...pane.querySelectorAll<HTMLAnchorElement>("a")].find(link => link.textContent?.includes("Google"))!;
+  assert.ok(new URL(maps.href).searchParams.get("query")!.startsWith("Synthetic published street 20"), "a disclosed street takes priority over a coarse city point in the external maps query");
+});
+
+test("office review is offered only for real office locations with source evidence", async () => {
+  const props = await fixture(); props.onConfirmOffice = () => {};
+  for (const value of [{ ...officeConfirmed, kind: "remote-region" as const }, { ...officeConfirmed, kind: "unknown" as const }, { ...officeConfirmed, evidence: [] }]) {
+    props.item.locations = [value]; const pane = await render(props);
+    assert.equal([...pane.querySelectorAll("button")].some(node => node.textContent === "核对办公地址"), false);
+  }
+  props.item.locations = [structuredClone(officeConfirmed)]; props.demo = true;
+  const pane = await render(props); assert.equal([...pane.querySelectorAll("button")].some(node => node.textContent === "核对办公地址"), false);
 });
 
 test("the prominent original link is bound to this listing, safe and accompanied by source/date badges", async () => {

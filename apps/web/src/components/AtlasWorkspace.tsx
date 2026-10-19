@@ -32,6 +32,7 @@ const AtlasSourcesPanel = lazy(() => import("./atlas/AtlasSourcesPanel").then((m
 const AtlasSourceCandidateReview = lazy(() => import("./atlas/AtlasSourceCandidateReview").then((m) => ({ default: m.AtlasSourceCandidateReview })));
 const AtlasReviewedCardImport = lazy(() => import("./atlas/AtlasReviewedCardImport").then((m) => ({ default: m.AtlasReviewedCardImport })));
 const AtlasLocationConfirmation = lazy(() => import("./atlas/AtlasLocationConfirmation").then((m) => ({ default: m.AtlasLocationConfirmation })));
+const AtlasOfficeAddressConfirmation = lazy(() => import("./atlas/AtlasOfficeAddressConfirmation").then((m) => ({ default: m.AtlasOfficeAddressConfirmation })));
 const AtlasReconciliationPanel = lazy(() => import("./atlas/AtlasReconciliationPanel").then((m) => ({ default: m.AtlasReconciliationPanel })));
 const COLOR_KEY = "better-me:atlas-colors:v1";
 type Props = { active?: boolean; onSaveOpportunity: (seed: OpportunitySeed) => void; onAnalyze: (item: AtlasJobAction) => void; onOpenOpportunitySources?: () => void };
@@ -65,6 +66,13 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
   const [sourceReview, setSourceReview] = useState<AtlasAggregateSource>();
   const [cardReview, setCardReview] = useState<ReviewedCardsCapture>();
   const [locationReview, setLocationReview] = useState<{ jobId: string; location: JobLocation }>();
+  const [officeReview, setOfficeReview] = useState<{ jobId: string; location: JobLocation }>();
+  const [locationChoices, setLocationChoices] = useState<string>();
+  const [officeFocusRequest, setOfficeFocusRequest] = useState<{ id: string; jobId: string; locationId: string; snapshot: AtlasDataset; selectionKey: string; endpoint: string; token: string }>();
+  const officeFocusAbort = useRef<AbortController | null>(null);
+  const officeFocusApplied = useRef<string | undefined>(undefined);
+  const recoveredOfficeSelection = useRef<{ data: AtlasDataset; selectionKey: string; jobId: string } | undefined>(undefined);
+  function cancelOfficeFocus() { officeFocusAbort.current?.abort(); officeFocusAbort.current = null; setOfficeFocusRequest(undefined); recoveredOfficeSelection.current = undefined; }
   const [searchDepth, setSearchDepth] = useState("standard");
   const [sourceSearchMessage, setSourceSearchMessage] = useState("");
   const [sourceSearchError, setSourceSearchError] = useState("");
@@ -172,14 +180,15 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
   const generation = useMemo(() => ({ data, query, now: new Date().toISOString() }), [data, query]);
   const queryOptions = useMemo<QueryOptions>(() => ({ now: generation.now, colorConfig: colors, anchor, domesticCountryCodes: countryCatalog.domesticCountryCodes, ...(mapReferences.result ? { mapReferences: mapReferences.result } : {}) }), [generation, colors, anchor, mapReferences.result]);
   const selectionKey = JSON.stringify({ ...query, mapLevel: "city", sort: undefined });
-  useEffect(() => { cancelCardClick(); setBucket(null); setSelectedId(""); setFocus(undefined); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); }, [selectionKey, dataMode]);
-  useEffect(() => { if (!active) cancelCardClick(); }, [active]);
-  useEffect(() => { cancelCardClick(); setBucket(null); selectedCard.current = undefined; setSelectedId(""); setLocationReview(undefined); setFocus(undefined); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); }, [data, endpoint, token]);
+  useEffect(() => { cancelCardClick(); cancelOfficeFocus(); setOfficeReview(undefined); setLocationChoices(undefined); setBucket(null); setSelectedId(""); setFocus(undefined); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); }, [selectionKey, dataMode]);
+  useEffect(() => { if (!active) { cancelCardClick(); cancelOfficeFocus(); setOfficeReview(undefined); setLocationChoices(undefined); } }, [active]);
+  useEffect(() => { cancelOfficeFocus(); }, [endpoint, token]);
+  useEffect(() => { cancelCardClick(); setBucket(null); recoveredOfficeSelection.current = undefined; selectedCard.current = undefined; setSelectedId(""); setLocationReview(undefined); setOfficeReview(undefined); setLocationChoices(undefined); setFocus(undefined); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); }, [data, endpoint, token]);
   useEffect(() => {
     cancelCardClick(); setBucket(current => current?.positionBasis === "city-reference" ? null : current);
     setFocus(current => current?.positionBasis === "city-reference" ? undefined : current);
-    if (selectedCard.current?.mapReferences?.length) { selectedCard.current = undefined; setSelectedId(""); setLocationReview(undefined); }
-  }, [mapReferences.result]);
+    if (selectedCard.current?.mapReferences?.length && recoveredOfficeSelection.current?.data !== data) { selectedCard.current = undefined; setSelectedId(""); setLocationReview(undefined); }
+  }, [mapReferences.result, data]);
   useEffect(() => {
     queryAbort.current?.abort();
     const abort = new AbortController(); queryAbort.current = abort;
@@ -202,7 +211,7 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
     } catch (error) { if (!abort.signal.aborted) setQueryError(error instanceof Error ? error.message : "加载失败"); }
     finally { if (!abort.signal.aborted) setLoadingMore(false); }
   }
-  useEffect(() => () => { cancelCardClick(); connectionAbort.current?.abort(); searchAbort.current?.abort(); locationAbort.current?.abort(); }, []);
+  useEffect(() => () => { cancelCardClick(); connectionAbort.current?.abort(); searchAbort.current?.abort(); locationAbort.current?.abort(); officeFocusAbort.current?.abort(); }, []);
 
   const connect = useCallback(async (identity: AtlasConnectionIdentity, remember: boolean) => {
     searchAbort.current?.abort();
@@ -321,14 +330,40 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
   const selected = visibleItems.find((item) => item.job.id === selectedId)
     ?? (selectedCard.current?.job.id === selectedId && data?.jobs.some((job) => job.id === selectedId) ? selectedCard.current : undefined);
   useEffect(() => {
+    const request = officeFocusRequest;
+    if (!request) return;
+    if (!active || !connected || dataMode !== "live" || data !== request.snapshot || selectionKey !== request.selectionKey || endpoint !== request.endpoint || token !== request.token) {
+      cancelOfficeFocus(); return;
+    }
+    // A saved job may be beyond the first page. Recheck it against the same snapshot and
+    // current filters; queryAtlasPage intersects this ID with any existing job filter.
+    const abort = new AbortController(); officeFocusAbort.current = abort;
+    void queryAtlasPage(data, { ...query, page: { limit: 1 } }, queryOptions, { signal: abort.signal, selectedJobIds: [request.jobId] }).then(next => {
+      if (abort.signal.aborted) return;
+      const item = next.page.items.find(value => value.job.id === request.jobId);
+      if (!item) { cancelOfficeFocus(); selectedCard.current = undefined; setSelectedId(""); setFocus(undefined); return; }
+      recoveredOfficeSelection.current = { data, selectionKey, jobId: item.job.id };
+      selectedCard.current = item; setSelectedId(item.job.id);
+      if (officeFocusApplied.current === request.id) return;
+      officeFocusApplied.current = request.id;
+      const target = createJobMapFocus(item, crypto.randomUUID(), { locationId: request.locationId });
+      if (target) { setFocus({ ...target, viewportOffset: [0, 0] }); setRotating(false); }
+    }, (error: unknown) => {
+      if (!abort.signal.aborted) { cancelOfficeFocus(); setSourceSearchError(error instanceof Error ? error.message : "无法重新核对已保存岗位，请重新读取索引。"); }
+    });
+    return () => abort.abort();
+  }, [officeFocusRequest, active, connected, dataMode, data, selectionKey, endpoint, token, query, queryOptions]);
+  useEffect(() => {
     if (resultData !== data || !rawResult || !selectedId || listItems.some(item => item.job.id === selectedId)) return;
+    const recovered = recoveredOfficeSelection.current;
+    if (recovered?.data === data && recovered.selectionKey === selectionKey && recovered.jobId === selectedId) return;
     // A saved location may remove this job from the active area. Discard the old card's facts.
-    selectedCard.current = undefined; setSelectedId(""); setLocationReview(undefined); setFocus(undefined);
+    selectedCard.current = undefined; setSelectedId(""); setLocationReview(undefined); setOfficeReview(undefined); setLocationChoices(undefined); setFocus(undefined);
     locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined);
-  }, [data, resultData, rawResult, selectedId, listItems]);
+  }, [data, resultData, rawResult, selectedId, listItems, selectionKey]);
   function openJob(item: JobSearchItem) {
     cancelCardClick();
-    if (selectedId !== item.job.id) { locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); }
+    if (selectedId !== item.job.id) { cancelOfficeFocus(); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); setOfficeReview(undefined); setLocationChoices(undefined); }
     selectedCard.current = item; setSelectedId(item.job.id);
   }
   function clickJob(item: JobSearchItem, detail: number) {
@@ -338,19 +373,25 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
     if (detail === 0) openJob(item);
     else if (detail === 1) cardClickTimer.current = setTimeout(() => openJob(item), 520);
   }
-  function closeJob() { cancelCardClick(); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); setSelectedId(""); setFocus(undefined); }
+  function closeJob() { cancelCardClick(); cancelOfficeFocus(); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); setOfficeReview(undefined); setLocationChoices(undefined); setSelectedId(""); setFocus(undefined); }
   function flyToJob(target: AtlasMapFocus) {
-    const offset = window.innerWidth > 1200 ? Math.min(220, (scene.current?.clientWidth ?? 0) * .28) : 0;
-    setFocus({ ...target, viewportOffset: [offset, 0] }); setRotating(false);
+    setFocus({ ...target, viewportOffset: [0, 0] }); setRotating(false);
     scene.current?.scrollIntoView({ block: "center", behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
   }
   async function locateJob(item: JobSearchItem, locationId?: string) {
     openJob(item);
-    const direct = createJobMapFocus(item, crypto.randomUUID(), { locationId });
+    const choices = item.job.workMode === "remote" ? [] : item.locations.filter(location => location.kind === "office");
+    if (!locationId && choices.length > 1) {
+      locationAbort.current?.abort(); setLocationSearch(undefined); setFocus(undefined); setLocationChoices(item.job.id);
+      return;
+    }
+    setLocationChoices(undefined);
+    const direct = createJobMapFocus(item, crypto.randomUUID(), { locationId: locationId ?? choices[0]?.id });
     if (direct) { locationAbort.current?.abort(); setLocationSearch(undefined); flyToJob(direct); return; }
-    const location = item.locations.find((entry) => (!locationId || entry.id === locationId) && entry.kind === "office");
-    if (!location) { setLocationSearch({ jobId: item.job.id, locationId: locationId ?? "", loading: false, error: "该岗位未披露可确认的办公地点，不能将远程资格或未知地点标成办公地址。" }); return; }
-    if (!connected) { setLocationSearch({ jobId: item.job.id, locationId: location.id, loading: false, error: "来源只有地点原文。连接本机服务后，可查询离线城市候选；也可以打开 Google 地图核对。" }); return; }
+    const location = choices.find(entry => !locationId || entry.id === locationId);
+    if (!location) { locationAbort.current?.abort(); setFocus(undefined); setLocationSearch({ jobId: item.job.id, locationId: locationId ?? "", loading: false, error: "该岗位未披露可确认的办公地点，不能将远程资格或未知地点标成办公地址。" }); return; }
+    if (connected && location.streetAddress) { setLocationSearch(undefined); setOfficeReview({ jobId: item.job.id, location }); return; }
+    if (!connected) { setLocationSearch({ jobId: item.job.id, locationId: location.id, loading: false, error: "来源只有地点原文。连接本机服务后，可核对具体办公地址或查询离线城市候选；也可以打开 Google 地图核对。" }); return; }
     locationAbort.current?.abort(); const abort = new AbortController(); locationAbort.current = abort;
     setLocationSearch({ jobId: item.job.id, locationId: location.id, loading: true });
     const timer = setTimeout(() => abort.abort(), 15000);
@@ -432,13 +473,20 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
     {mapReferences.error && <p className="atlas-small" role="status">{mapReferences.error} <button type="button" onClick={mapReferences.retry}>重新读取城市参考</button></p>}
     {mapReferences.result && <div className="atlas-small" aria-label="城市参考数据来源">城市分布采用离线地名数据，保留来源岗位地点；不确认办公地址。{mapReferences.result.provenance?.attribution}{mapReferences.result.truncated && ` · 本次只处理 ${mapReferences.result.processedLocations}/${mapReferences.result.totalLocations} 个地点，未处理地点仍待定位。`}{mapReferences.result.warnings.length > 0 && <details><summary>城市参考范围与提示</summary><ul>{mapReferences.result.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul></details>}</div>}
     <div className={`atlas-main-grid ${selected && data ? "has-detail" : ""}`}><div className="atlas-map-column"><div className={`atlas-map-card ${theme}`}><div className="atlas-map-top"><div className="atlas-mode-switch" role="group" aria-label="地图范围"><button aria-pressed={mode === "global"} className={mode === "global" ? "active" : ""} onClick={() => changeMapMode("global")}><Globe2 size={15} />{t("全球", "Global")}</button><button aria-pressed={mode === "domestic"} className={mode === "domestic" ? "active" : ""} onClick={() => changeMapMode("domestic")}><MapPin size={15} />{t("国内", "China")}</button></div><span>{mapLevel === "location" ? "STREET & ADDRESS" : "3D EXPLORER"} <i /></span></div><div className="atlas-scene" ref={scene}>{active && <Suspense fallback={<div className="atlas-map-loading"><Loader2 className="animate-spin" />正在加载三维地图…</div>}><AtlasMap key={mapKey} mode={mode} basemap={basemapId === "offline" ? null : basemapId === "auto" ? undefined : ATLAS_BASEMAPS.find((p) => p.id === basemapId)} buckets={result?.mapBuckets ?? []} selectedBucketId={bucket?.id} selectedRegionId={mode === "domestic" ? chinaFilter.selectedProvince?.mapId : region || country || undefined} initialView={camera.current} focus={focus} selectedJobId={selectedId} visual={{ autoRotate: rotating, maxDpr: 1.5, pedestal: true, entrance: true, theme }} onViewChange={(view) => { camera.current = view; setMapZoom(view.zoom); }} onPick={setBucket} onCountry={(pick) => { if (mode === "domestic") { const province = findChinaProvinceByMapId(pick.id); if (province) setChinaSelection({ provinceCode: province.code }); else setSourceSearchMessage("该区域尚未纳入当前国内行政目录，请按来源披露地点查询。"); } else if (pick.countryCode) { setCountry(pick.countryCode); setRegion(""); setRegionText(""); } }} onError={(error) => setMapError(error.message)} /></Suspense>}</div><div className="atlas-map-caption"><div><span className="atlas-eyebrow">{mode === "global" ? "A WORLD OF POSSIBILITIES" : "CLOSER TO YOUR NEXT CHAPTER"}</span><strong>{mode === "global" ? t("机会，不止一座城。", "Your next role could be anywhere.") : t("在熟悉的土地，发现新可能。", "A new perspective, closer to home.")}</strong><small>拖动旋转 · 连续缩放至街道 · 城市中心与精确地址分开标注</small></div><div className="atlas-map-controls"><button aria-label="重置地图视角" title="重置视角" onClick={resetCamera}><Compass size={17} /></button><button aria-pressed={rotating} onClick={() => setRotating(!rotating)}>{rotating ? "暂停旋转" : "自动旋转"}</button></div></div>{mapError && <div role="alert" className="atlas-render-error">三维地图暂不可用：{mapError}。岗位列表仍可使用。<button onClick={() => { setMapKey((k) => k + 1); setMapError(""); }}>重试</button></div>}</div>
-      <div className="atlas-stat-grid" aria-live="polite">{[[result?.totalJobs ?? 0, "匹配岗位"], [result?.companyCount ?? 0, "企业"], [result?.mapReferenceCoverage?.mapVisibleJobs ?? result?.mappedJobs ?? 0, "地图可展示"], [result?.mapReferenceCoverage?.mapPendingJobs ?? result?.unlocatedJobs ?? 0, "待定位岗位"]].map(([number, label]) => <div key={label}><strong>{number}</strong><span>{label}</span></div>)}</div><p className="atlas-small" aria-label="地图位置口径">来源坐标 {result?.mappedJobs ?? 0} 岗 · 城市分布参考 {result?.mapReferenceCoverage?.cityReferenceJobs ?? 0} 岗。城市参考为估算展示，非办公地址，不参与离家距离；多地点按岗位去重。</p><div className="atlas-legend"><div className="atlas-legend-title"><strong>企业控股来源</strong><button onClick={() => setSettings(settings === "colors" ? null : "colors")}><Palette size={14} />配置颜色</button></div><div>{colors.rules.filter((r) => r.id !== "joint" && r.id !== "other-known").map((r) => <span key={r.id}><i style={{ background: r.color }} />{r.label}</span>)}<span><i style={{ background: colors.defaultColor }} />待核实</span></div></div><p className="atlas-footnote">Natural Earth 概略边界 · OpenFreeMap / OpenStreetMap 街道 · WGS84 · 地图展示来源位置，并区分城市估算与办公地址，远程资格不作为办公地址。国内行政分组用于展示；本地图不用于正式测绘。多地点岗位可有多个标记，统计按岗位去重。</p></div>
-      <aside className="atlas-results"><div className="atlas-results-heading"><div><span className="atlas-eyebrow">YOUR OPPORTUNITY RADAR</span><h2>{bucket ? bucket.label : t("探索机会", "Explore opportunities")} <span>{bucket ? bucket.jobCount : result?.totalJobs ?? 0}</span></h2></div>{querying && <Loader2 size={16} className="animate-spin" />}{bucket && <button aria-label="取消城市选择" onClick={() => setBucket(null)}><X size={16} /></button>}</div><div className="atlas-sort"><select aria-label="岗位排序" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}><option value="relevance">相关度</option><option value="salary" disabled={!coverage.salary.sortSupported}>人民币税前年薪下限{!coverage.salary.sortSupported ? " · 暂无可比数据" : ""}</option><option value="distance" disabled={!coverage.distance.ready}>离家直线距离{!coverage.distance.supported ? " · 缺岗位坐标" : !anchor ? " · 请设参照点" : ""}</option><option value="updated">最近更新</option></select><button aria-label={direction === "desc" ? "当前降序，切换升序" : "当前升序，切换降序"} onClick={() => setDirection(direction === "desc" ? "asc" : "desc")}><ArrowDownUp size={14} />{direction === "desc" ? "降序" : "升序"}</button><label><input type="checkbox" checked={originalCurrency} onChange={(e) => setOriginalCurrency(e.target.checked)} />原币</label></div><div className="atlas-job-list" aria-busy={querying || sourceSearching}>{(querying || sourceSearching) && !visibleItems.length && <div className="atlas-results-loading" role="status"><span>{sourceSearching ? "正在从真实来源获取岗位…" : "正在匹配岗位…"}</span>{[0, 1, 2].map((n) => <div key={n} className="atlas-skeleton-card" aria-hidden="true"><i /><i /><i /></div>)}</div>}{visibleItems.map((item) => <button key={item.job.id} className={`atlas-job-card ${selectedId === item.job.id ? "selected" : ""}`} aria-expanded={selectedId === item.job.id} aria-controls="atlas-job-detail" onClick={(event) => clickJob(item, event.detail)} onDoubleClick={() => { cancelCardClick(); void locateJob(item); }}><span className="atlas-company-line"><i style={{ background: item.color.color }} />{item.company.names[0]}<ArrowUpRight size={14} /></span><strong>{item.job.title.value}</strong><span className="atlas-job-meta"><MapPin size={12} />{item.locations.map((l) => l.city ?? l.raw).join(" / ") || "地点待核实"}{item.distance?.km !== undefined && ` · ${item.distance.estimated ? "约 " : ""}${Math.round(item.distance.km)} km`}</span><span className="atlas-job-salary">{annual(originalCurrency ? item.salary?.originalAnnual : item.salary?.cnyAnnual)}</span><AtlasListingBadges presentations={presentListing?.(item) ?? []} />{!!item.mapReferences?.length && <span className="atlas-card-hint">城市分布参考 · 城市级估算，非办公地址</span>}<span className="atlas-card-hint">单击查看详情 · 双击定位地图</span><span className="atlas-job-classification">{item.color.label} {item.color.classification.jurisdictions.map(countryName).join(" / ")}</span></button>)}{!visibleItems.length && !querying && !sourceSearching && <div className="atlas-empty"><Search size={24} /><strong>暂未找到匹配岗位</strong><p>{dataMode === "local" && !localData?.jobs.length ? "当前机会库暂无岗位。点击“连接真实来源搜索”，或先读取并收藏四平台岗位。" : "当前已收录数据没有匹配项。可从所选来源获取岗位，或放宽关键词与地区；有查询上限时不代表全站无结果。"}</p><button onClick={resetFilters}>清除筛选</button></div>}{resultData === data && listPage?.nextCursor && <button disabled={loadingMore || querying} className="atlas-load-more" onClick={() => void loadMore()}>{loadingMore ? "正在加载…" : "显示更多岗位"}</button>}</div><p className="atlas-list-note">统一比较税前固定年薪，奖金与股票不混入。未知薪资、缺少有效汇率和未知距离放在排序末尾。{result?.unknownSalaryCount ?? 0} 个岗位薪资暂不可比较。</p></aside>
-    {selected && data && <AtlasJobDetail key={selected.job.id} item={selected} data={data} demo={dataMode === "demo"} originalCurrency={originalCurrency} presentations={presentListing?.(selected) ?? []} onClose={closeJob} onLocate={(locationId) => void locateJob(selected, locationId)} onSave={() => routeJob(selected, false)} onAnalyze={() => routeJob(selected, true)} onConfirmLocation={connected ? location => setLocationReview({ jobId: selected.job.id, location }) : undefined}>
+      <div className="atlas-stat-grid" aria-live="polite">{[[result?.totalJobs ?? 0, "匹配岗位"], [result?.companyCount ?? 0, "企业"], [result?.mapReferenceCoverage?.mapVisibleJobs ?? result?.mappedJobs ?? 0, "地图可展示"], [result?.mapReferenceCoverage?.mapPendingJobs ?? result?.unlocatedJobs ?? 0, "待定位岗位"]].map(([number, label]) => <div key={label}><strong>{number}</strong><span>{label}</span></div>)}</div><p className="atlas-small" aria-label="地图位置口径">有效岗位坐标 {result?.mappedJobs ?? 0} 岗 · 城市分布参考 {result?.mapReferenceCoverage?.cityReferenceJobs ?? 0} 岗。城市参考为估算展示，非办公地址，不参与离家距离；多地点按岗位去重。</p><div className="atlas-legend"><div className="atlas-legend-title"><strong>企业控股来源</strong><button onClick={() => setSettings(settings === "colors" ? null : "colors")}><Palette size={14} />配置颜色</button></div><div>{colors.rules.filter((r) => r.id !== "joint" && r.id !== "other-known").map((r) => <span key={r.id}><i style={{ background: r.color }} />{r.label}</span>)}<span><i style={{ background: colors.defaultColor }} />待核实</span></div></div><p className="atlas-footnote">Natural Earth 概略边界 · OpenFreeMap / OpenStreetMap 街道 · WGS84 · 地图展示来源位置，并区分城市估算与办公地址，远程资格不作为办公地址。国内行政分组用于展示；本地图不用于正式测绘。多地点岗位可有多个标记，统计按岗位去重。</p></div>
+      <aside className="atlas-results"><div className="atlas-results-heading"><div><span className="atlas-eyebrow">YOUR OPPORTUNITY RADAR</span><h2>{bucket ? bucket.label : t("探索机会", "Explore opportunities")} <span>{bucket ? bucket.jobCount : result?.totalJobs ?? 0}</span></h2></div>{querying && <Loader2 size={16} className="animate-spin" />}{bucket && <button aria-label="取消城市选择" onClick={() => setBucket(null)}><X size={16} /></button>}</div><div className="atlas-sort"><select aria-label="岗位排序" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}><option value="relevance">相关度</option><option value="salary" disabled={!coverage.salary.sortSupported}>人民币税前年薪下限{!coverage.salary.sortSupported ? " · 暂无可比数据" : ""}</option><option value="distance" disabled={!coverage.distance.ready}>离家直线距离{!coverage.distance.supported ? " · 缺岗位坐标" : !anchor ? " · 请设参照点" : ""}</option><option value="updated">最近更新</option></select><button aria-label={direction === "desc" ? "当前降序，切换升序" : "当前升序，切换降序"} onClick={() => setDirection(direction === "desc" ? "asc" : "desc")}><ArrowDownUp size={14} />{direction === "desc" ? "降序" : "升序"}</button><label><input type="checkbox" checked={originalCurrency} onChange={(e) => setOriginalCurrency(e.target.checked)} />原币</label></div><div className="atlas-job-list" aria-busy={querying || sourceSearching}>{(querying || sourceSearching) && !visibleItems.length && <div className="atlas-results-loading" role="status"><span>{sourceSearching ? "正在从真实来源获取岗位…" : "正在匹配岗位…"}</span>{[0, 1, 2].map((n) => <div key={n} className="atlas-skeleton-card" aria-hidden="true"><i /><i /><i /></div>)}</div>}{visibleItems.map((item) => <button key={item.job.id} className={`atlas-job-card ${selectedId === item.job.id ? "selected" : ""}`} aria-expanded={selectedId === item.job.id} aria-controls="atlas-job-detail" onClick={(event) => clickJob(item, event.detail)} onDoubleClick={() => { cancelCardClick(); void locateJob(item); }}><span className="atlas-company-line"><i style={{ background: item.color.color }} />{item.company.names[0]}<ArrowUpRight size={14} /></span><strong>{item.job.title.value}</strong><span className="atlas-job-meta"><MapPin size={12} />{item.locations.map((l) => l.officeResolution?.formattedAddress ?? l.streetAddress ?? l.city ?? l.raw).join(" / ") || "地点待核实"}{item.distance?.km !== undefined && ` · ${item.distance.estimated ? "约 " : ""}${Math.round(item.distance.km)} km`}</span><span className="atlas-job-salary">{annual(originalCurrency ? item.salary?.originalAnnual : item.salary?.cnyAnnual)}</span><AtlasListingBadges presentations={presentListing?.(item) ?? []} />{!!item.mapReferences?.length && <span className="atlas-card-hint">城市分布参考 · 城市级估算，非办公地址</span>}<span className="atlas-card-hint">单击查看详情 · 双击定位地图</span><span className="atlas-job-classification">{item.color.label} {item.color.classification.jurisdictions.map(countryName).join(" / ")}</span></button>)}{!visibleItems.length && !querying && !sourceSearching && <div className="atlas-empty"><Search size={24} /><strong>暂未找到匹配岗位</strong><p>{dataMode === "local" && !localData?.jobs.length ? "当前机会库暂无岗位。点击“连接真实来源搜索”，或先读取并收藏四平台岗位。" : "当前已收录数据没有匹配项。可从所选来源获取岗位，或放宽关键词与地区；有查询上限时不代表全站无结果。"}</p><button onClick={resetFilters}>清除筛选</button></div>}{resultData === data && listPage?.nextCursor && <button disabled={loadingMore || querying} className="atlas-load-more" onClick={() => void loadMore()}>{loadingMore ? "正在加载…" : "显示更多岗位"}</button>}</div><p className="atlas-list-note">统一比较税前固定年薪，奖金与股票不混入。未知薪资、缺少有效汇率和未知距离放在排序末尾。{result?.unknownSalaryCount ?? 0} 个岗位薪资暂不可比较。</p></aside>
+    {selected && data && <AtlasJobDetail key={selected.job.id} item={selected} data={data} demo={dataMode === "demo"} originalCurrency={originalCurrency} presentations={presentListing?.(selected) ?? []} onClose={closeJob} onLocate={(locationId) => void locateJob(selected, locationId)} onSave={() => routeJob(selected, false)} onAnalyze={() => routeJob(selected, true)} onConfirmLocation={connected ? location => { setOfficeReview(undefined); setLocationReview({ jobId: selected.job.id, location }); } : undefined} onConfirmOffice={connected ? location => { setLocationReview(undefined); setOfficeReview({ jobId: selected.job.id, location }); } : undefined}>
       {locationReview?.jobId === selected.job.id && connected && liveData && <Suspense fallback={<p role="status">正在打开地区核对…</p>}><AtlasLocationConfirmation key={`${locationReview.jobId}:${locationReview.location.id}:${endpoint}`} endpoint={endpoint} token={token} jobId={locationReview.jobId} location={locationReview.location} revision={liveData.revision} onClose={() => setLocationReview(undefined)} onSnapshot={snapshot => {
         searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live");
         setSourceSearchMessage(`已读取地区记录，索引版本 ${snapshot.revision}。当前筛选会按最新确认结果重新计算；不再符合条件的岗位会退出列表。`);
       }} /></Suspense>}
+      {officeReview?.jobId === selected.job.id && active && connected && liveData && <Suspense fallback={<p role="status">正在打开办公地址核对…</p>}><AtlasOfficeAddressConfirmation key={`${officeReview.jobId}:${officeReview.location.id}:${endpoint}:${token}`} endpoint={endpoint} token={token} jobId={officeReview.jobId} location={officeReview.location} revision={liveData.revision} onClose={() => setOfficeReview(undefined)} onSnapshot={snapshot => {
+        if (liveData.revision > snapshot.revision) return;
+        setOfficeFocusRequest({ id: crypto.randomUUID(), jobId: officeReview.jobId, locationId: officeReview.location.id, snapshot, selectionKey, endpoint, token });
+        searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live");
+        setSourceSearchMessage(`已读取办公地址记录，索引版本 ${snapshot.revision}。地图将使用最新有效位置，来源未披露的地址仍待核对。`);
+      }} /></Suspense>}
+      {locationChoices === selected.job.id && <div className="atlas-location-candidates" aria-label="选择要定位的工作地点"><p>该岗位披露多个地点，请选择本次要定位的办公地点。</p>{selected.locations.filter(location => location.kind === "office").map(location => <button type="button" key={location.id} onClick={() => void locateJob(selected, location.id)}><MapPin size={14} />{location.officeResolution?.formattedAddress ?? location.streetAddress ?? location.raw}</button>)}</div>}
       {locationSearch?.jobId === selected.job.id && <div className="atlas-location-candidates" aria-label="城市定位候选">
         {locationSearch.loading && <p role="status"><Loader2 size={15} className="animate-spin" /> 正在查询本地地名库…</p>}
         {locationSearch.error && <p role="status">{locationSearch.error}</p>}

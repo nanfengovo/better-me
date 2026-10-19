@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Window } from "happy-dom";
-import { GeocodingCandidateSchema, queryJobs, type JobSearchItem } from "@better-me/opportunities";
+import { GeocodingCandidateSchema, LocationDistanceSchema, evaluateLocationDistance, queryJobs, type JobSearchItem } from "@better-me/opportunities";
 import { createAtlasDemo } from "../src/components/atlas/demo.ts";
 import { createMapReferenceFixture } from "./fixtures/atlas-map-references.ts";
 import { activeMapFocus, createJobMapFocus, createMapFocusMarker, mapFocusCameraOptions, mapFocusPrecisionLabel, validMapFocus } from "../src/components/atlas/map-focus.ts";
@@ -46,6 +46,24 @@ test("each explicit location can be focused without using another office's coord
   assert.equal(createJobMapFocus(input, "missing", { locationId: "missing-office" }), null);
 });
 
+test("a reviewed office point takes priority over a city, retains its address and remains an estimated home distance", async () => {
+  const input = await item();
+  const location = { ...structuredClone(input.locations[0]!), id: "reviewed-office", raw: "Source city retained", precision: "address" as const,
+    verification: "unverified" as const, coordinates: { coordinateSystem: "WGS84" as const, latitude: 31.123456, longitude: 121.654321 },
+    officeResolution: { decisionId: "synthetic-office-decision", method: "manual-user-confirmation" as const, at: "2026-10-19T01:00:00Z", originalLocationId: "reviewed-office",
+      formattedAddress: "Synthetic office, 10 Synthetic Road", streetAddress: "10 Synthetic Road", coordinateMeaning: "building" as const, evidenceUrl: "https://source.example.invalid/job" } };
+  input.locations.push(location);
+  const target = createJobMapFocus(input, "reviewed-office-request")!;
+  assert.equal(target.locationId, location.id); assert.equal(target.locationLabel, location.officeResolution.formattedAddress);
+  assert.equal(target.zoom, 16.5); assert.equal(target.positionBasis, "office-confirmation"); assert.equal(target.estimated, true);
+  assert.match(mapFocusPrecisionLabel(target), /本人核对的办公位置.*地址级坐标.*待核实/);
+  assert.equal(mapFocusCameraOptions(target, 22, false)!.zoom, 16.5);
+  const distance = evaluateLocationDistance({ latitude: 31, longitude: 121, coordinateSystem: "WGS84" }, location);
+  assert.equal(distance.reason, "available"); assert.equal(distance.distance?.estimated, true);
+  assert.equal(LocationDistanceSchema.safeParse(distance.distance).success, true);
+  assert.equal(createJobMapFocus(input, "city-only", { locationId: input.locations[0]!.id })!.precision, "city");
+});
+
 test("snapshot-derived city references focus directly without office coordinates or building zoom, while source coordinates win", async () => {
   const data = createAtlasDemo(); delete data.locations[0]!.coordinates; data.locations[0]!.precision = "unknown"; data.locations[0]!.kind = "unknown";
   const batch = await createMapReferenceFixture(data), before = structuredClone(data);
@@ -57,7 +75,7 @@ test("snapshot-derived city references focus directly without office coordinates
   assert.equal(mapFocusCameraOptions({ ...target, zoom: 22 }, 22, false)!.zoom, 9);
   assert.equal(createJobMapFocus(input, "wrong-location", { locationId: "another-office" }), null);
   assert.deepEqual(input, original); assert.deepEqual(data, before);
-  input.locations[0]!.coordinates = { latitude: 40, longitude: 116, coordinateSystem: "WGS84" }; input.locations[0]!.precision = "address";
+  input.locations[0]!.coordinates = { latitude: 40, longitude: 116, coordinateSystem: "WGS84" }; input.locations[0]!.precision = "address"; input.locations[0]!.kind = "office";
   const direct = createJobMapFocus(input, "source-coordinate")!;
   assert.equal(direct.latitude, 40); assert.equal(direct.positionBasis, undefined); assert.equal(direct.precision, "address");
   delete input.locations[0]!.coordinates; input.job.workMode = "remote"; assert.equal(createJobMapFocus(input, "remote"), null);
@@ -71,6 +89,8 @@ test("missing, invalid, remote eligibility and unspecified precision do not crea
     (value: JobSearchItem) => { value.locations[0]!.coordinates!.latitude = Number.NaN; },
     (value: JobSearchItem) => { value.locations[0]!.coordinates!.longitude = 181; },
     (value: JobSearchItem) => { value.locations[0]!.kind = "remote-region"; },
+    (value: JobSearchItem) => { value.locations[0]!.kind = "unknown"; },
+    (value: JobSearchItem) => { value.job.workMode = "remote"; },
     (value: JobSearchItem) => { value.locations[0]!.precision = "unknown"; },
   ]) {
     const value = structuredClone(input); change(value);

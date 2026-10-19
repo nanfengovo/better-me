@@ -21,6 +21,10 @@ import {
   type ListMergeCandidatesInput, type PreviewMergeReviewInput, type ConfirmMergeReviewInput, type RejectMergeReviewInput,
   type ListMergeDecisionsInput, type PreviewRevokeMergeReviewInput, type RevokeMergeReviewInput,
   type MergeReviewPreview, type ReconciliationReceipt,
+  OfficeAddressCandidatesInputSchema, OfficeAddressCandidatesResultSchema, PreviewOfficeConfirmationInputSchema,
+  ConfirmOfficeAddressInputSchema, RevokeOfficeAddressInputSchema, OfficeAddressPreviewSchema, OfficeAddressReceiptSchema,
+  sameLocationValue, type OfficeAddressCandidatesInput, type PreviewOfficeConfirmationInput,
+  type ConfirmOfficeAddressInput, type RevokeOfficeAddressInput, type OfficeAddressProposal, type JobLocation,
 } from "@better-me/opportunities";
 
 export const AtlasSourceListSchema = z.object({ sources: z.array(SourceDefinitionSchema), adapters: z.array(SourceAdapterMetadataSchema) }).strict();
@@ -87,6 +91,18 @@ function matchingMergeReceipt(receipt: ReconciliationReceipt, query: z.output<ty
   return samePair(pair, [decision.targetJobId, decision.sourceJobId]) && decision.companyIdentityConfirmed === query.companyIdentityConfirmed
     && (pair.includes(query.targetJobId) ? decision.targetJobId === query.targetJobId : alias(query.targetJobId) === decision.targetJobId)
     && (pair.includes(query.sourceJobId) ? decision.sourceJobId === query.sourceJobId : alias(query.sourceJobId) === decision.targetJobId);
+}
+
+function matchingOfficeProposal(location: JobLocation, proposal: OfficeAddressProposal) {
+  const resolution = location.officeResolution;
+  return location.kind === "office" && location.precision === "address" && location.verification === "unverified"
+    && location.provider === "manual-user-confirmation" && location.countryCode === proposal.countryCode
+    && location.streetAddress === proposal.streetAddress && location.postalCode === proposal.postalCode
+    && sameLocationValue(location.coordinates, proposal.coordinates) && !location.originalCoordinates
+    && resolution?.originalLocationId === location.id && resolution.method === proposal.basis
+    && resolution.formattedAddress === proposal.formattedAddress && resolution.streetAddress === proposal.streetAddress
+    && resolution.postalCode === proposal.postalCode && resolution.coordinateMeaning === proposal.coordinateMeaning
+    && resolution.evidenceUrl === proposal.evidenceUrl && location.resolvedAt === resolution.at;
 }
 
 export class AtlasSourceServiceError extends Error {
@@ -265,6 +281,50 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
       const result = await request("locations/confirmations/revoke", LocationConfirmationReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
       if (result.jobId !== query.jobId || result.locationId !== query.locationId || result.revision <= query.expectedRevision)
         throw new AtlasSourceServiceError("invalid-response", "地点撤销回执与本次请求不一致，请重试同一请求核对回执。");
+      return result;
+    },
+    officeAddressCandidates: async (value: OfficeAddressCandidatesInput, options: Options = {}) => {
+      const query = input(OfficeAddressCandidatesInputSchema, value);
+      const result = await request("locations/office-address/candidates", OfficeAddressCandidatesResultSchema, options, query);
+      if (result.revision !== query.expectedRevision || result.jobId !== query.jobId || result.locationId !== query.locationId
+        || result.sourceLocation.id !== query.locationId || result.sourceLocation.kind !== "office"
+        || !result.sourceLocation.evidence.length || new Set(result.candidates.map(candidate => candidate.id)).size !== result.candidates.length
+        || !query.query && (result.status !== "manual-available" || result.candidates.length !== 0)
+        || !!query.query && !result.configured && result.status !== "not-configured"
+        || !!query.query && result.configured && !["candidates", "no-address-match"].includes(result.status)
+        || !result.configured && (result.candidates.length !== 0 || result.status === "candidates")
+        || (result.status === "candidates") !== (result.candidates.length > 0))
+        throw new AtlasSourceServiceError("invalid-response", "地址候选与本次岗位、地点、读取范围或版本不一致，请重新读取。");
+      return result;
+    },
+    previewOfficeConfirmation: async (value: PreviewOfficeConfirmationInput, options: Options = {}) => {
+      const query = input(PreviewOfficeConfirmationInputSchema, value);
+      const result = await request("locations/office-address/preview", OfficeAddressPreviewSchema, options, query);
+      if (result.expectedRevision !== query.expectedRevision || result.jobId !== query.jobId || result.locationId !== query.locationId
+        || [result.current.id, result.sourceLocation.id, result.proposed.id].some(id => id !== query.locationId)
+        || result.sourceLocation.officeResolution || !result.sourceLocation.evidence.length
+        || result.activeDecisionId !== result.current.officeResolution?.decisionId
+        || !matchingOfficeProposal(result.proposed, query.proposal)
+        || result.proposed.raw !== result.sourceLocation.raw || !sameLocationValue(result.proposed.evidence, result.sourceLocation.evidence))
+        throw new AtlasSourceServiceError("invalid-response", "办公地址预览与本次输入、岗位或版本不一致，请重新核对。");
+      return result;
+    },
+    confirmOfficeAddress: async (value: ConfirmOfficeAddressInput, options: WriteOptions) => {
+      const query = input(ConfirmOfficeAddressInputSchema, value);
+      const result = await request("locations/office-address/confirmations", OfficeAddressReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
+      if (result.jobId !== query.jobId || result.locationId !== query.locationId || result.location.id !== query.locationId
+        || result.revision !== query.expectedRevision + 1 || result.activeDecisionId !== result.decisionId
+        || result.location.officeResolution?.decisionId !== result.decisionId || !matchingOfficeProposal(result.location, query.proposal))
+        throw new AtlasSourceServiceError("invalid-response", "办公地址写入回执与本次输入不一致，请沿用原请求核对回执。");
+      return result;
+    },
+    revokeOfficeAddress: async (value: RevokeOfficeAddressInput, options: WriteOptions) => {
+      const query = input(RevokeOfficeAddressInputSchema, value);
+      const result = await request("locations/office-address/revoke", OfficeAddressReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
+      if (result.jobId !== query.jobId || result.locationId !== query.locationId || result.location.id !== query.locationId
+        || result.revision !== query.expectedRevision + 1 || result.decisionId === query.decisionId
+        || result.activeDecisionId === query.decisionId || result.activeDecisionId !== result.location.officeResolution?.decisionId)
+        throw new AtlasSourceServiceError("invalid-response", "办公地址撤销回执与本次请求不一致，请沿用原请求核对回执。");
       return result;
     },
     geocodeCandidates: async (value: GeocodingInput, options: Options = {}) => {

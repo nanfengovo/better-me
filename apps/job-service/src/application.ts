@@ -23,6 +23,7 @@ import { createReviewedCardsTools } from "./reviewed-cards.js";
 import { createLocationConfirmationTools } from "./location-confirmation.js";
 import { createReconciliationTools } from "./reconciliation.js";
 import { createLocationMapReferencesTool } from "./location-map-references.js";
+import { createOfficeAddressTools, type OfficeAddressProvider } from "./office-address.js";
 
 const emptyInput = z.object({}).strict();
 // Name-only discovery has no permission to follow arbitrary URLs. This host policy is
@@ -64,6 +65,7 @@ export type JobApplicationOptions = {
   resolveQueryOptions?: (context: ToolHandlerContext) => QueryOptions | Promise<QueryOptions>;
   /** Host-only dependency; tool requests cannot select a provider, file or endpoint. */
   geocodingProvider?: GeocodingProvider;
+  officeAddressProvider?: OfficeAddressProvider;
   /** Offline only, host-installed city display references. Never supplied by query arguments. */
   mapReferenceProvider?: MapReferenceProvider;
   /** Host-only web search; requests cannot install providers or select their endpoints. */
@@ -125,6 +127,9 @@ export function createJobApplication(options: JobApplicationOptions) {
       ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
       execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     ...createLocationConfirmationTools(repository).map(definition => ({ ...definition, execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
+    ...createOfficeAddressTools(repository, options.officeAddressProvider).map(definition => ({ ...definition,
+      ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
+      execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     ...createReviewedCardsTools({ repository, now }).map(definition => ({ ...definition, execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     defineTool({ ...searchTool, execute: (input, context) => guarded(async () => searchTool.execute(input, context)) }),
     defineTool({ ...mapReferenceTool, execute: (input, context) => guarded(async () => mapReferenceTool.execute(input, context)) }),

@@ -17,6 +17,7 @@ Options:
   --dns <provider>       system (default) or google-doh; applies only inside this service.
   --career-search <id>   Optional duckduckgo-html or searxng; disabled by default.
   --career-search-endpoint <https-url>  Required only for searxng; no API keys are supported.
+  --office-geocoder <id> Optional nominatim address lookup; disabled by default, explicit per-address queries only.
   --help, -h            Show help without creating files or starting a listener.
 
 The service stores jobs.sqlite, service.token and an exclusive owner lock in the data directory.
@@ -26,12 +27,14 @@ On POSIX systems, an existing data directory must exclude group and other users.
 Ctrl+C stops new requests and waits for running writes before closing SQLite.
 duckduckgo-html is an explicitly enabled experimental HTML provider, not an official search API.
 For searxng, use an instance you manage; this service does not rotate public instances.
+Nominatim is for occasional user-triggered office address lookup, not autocomplete or bulk collection.
+Address queries go to OpenStreetMap Nominatim; candidates require your review and retain attribution.
 `;
 export function parseJobServiceArgs(args: readonly string[]): { help: true } | { help: false; config: JobServiceConfig } {
   if (args.length === 1 && ["--help", "-h"].includes(args[0]!)) return { help: true };
   const values = new Map<string, string>();
   const origins: string[] = [];
-  const supported = new Set(["--data-dir", "--origin", "--host", "--port", "--dns", "--career-search", "--career-search-endpoint"]);
+  const supported = new Set(["--data-dir", "--origin", "--host", "--port", "--dns", "--career-search", "--career-search-endpoint", "--office-geocoder"]);
   for (let index = 0; index < args.length; index += 2) {
     const flag = args[index]!;
     const value = args[index + 1];
@@ -45,6 +48,8 @@ export function parseJobServiceArgs(args: readonly string[]): { help: true } | {
     || careerEndpoint !== undefined && careerProvider !== "searxng") throw new LocalJobServiceError("invalid-config", "Career search supports duckduckgo-html or searxng; only searxng accepts an endpoint.");
   const careerSearch: JobServiceConfig["careerSearch"] = careerProvider === "duckduckgo-html" ? { provider: "duckduckgo-html" }
     : careerProvider === "searxng" ? { provider: "searxng", endpoint: careerEndpoint ?? "" } : undefined;
+  const officeProvider = values.get("--office-geocoder");
+  if (officeProvider !== undefined && officeProvider !== "nominatim") throw new LocalJobServiceError("invalid-config", "Office geocoding supports nominatim only; omit the option to disable external address queries.");
   const config = validateJobServiceConfig({
     dataDirectory: values.get("--data-dir") ?? "",
     host: (values.get("--host") ?? "127.0.0.1") as JobServiceConfig["host"],
@@ -52,6 +57,7 @@ export function parseJobServiceArgs(args: readonly string[]): { help: true } | {
     allowedOrigins: origins,
     dns: (values.get("--dns") ?? "system") as JobServiceConfig["dns"],
     ...(careerSearch ? { careerSearch } : {}),
+    ...(officeProvider === "nominatim" ? { officeGeocoder: { provider: "nominatim" } } : {}),
   });
   return { help: false, config };
 }
@@ -78,7 +84,7 @@ export async function runJobServiceCli(args: readonly string[], options: {
   signals.on("SIGTERM", notifyStop);
   try {
     const service = await (options.start ?? startLocalJobService)(parsed.config);
-    output(`BetterMe job service: ${service.url}\nData directory: ${JSON.stringify(service.dataDirectory)}\nDatabase: ${JSON.stringify(service.databasePath)}\nToken file: ${JSON.stringify(service.tokenPath)}\nAllowed UI origins: ${JSON.stringify(service.allowedOrigins)}\nDNS provider: ${service.dns}\nCareer search: ${parsed.config.careerSearch?.provider ?? "disabled"}\nRecovered interrupted runs: ${service.recoveredRuns}\n`);
+    output(`BetterMe job service: ${service.url}\nData directory: ${JSON.stringify(service.dataDirectory)}\nDatabase: ${JSON.stringify(service.databasePath)}\nToken file: ${JSON.stringify(service.tokenPath)}\nAllowed UI origins: ${JSON.stringify(service.allowedOrigins)}\nDNS provider: ${service.dns}\nCareer search: ${parsed.config.careerSearch?.provider ?? "disabled"}\nOffice address lookup: ${parsed.config.officeGeocoder?.provider ?? "disabled"}\nRecovered interrupted runs: ${service.recoveredRuns}\n`);
     await stopRequested;
     await service.close();
     output("Job service stopped after pending writes finished.\n");

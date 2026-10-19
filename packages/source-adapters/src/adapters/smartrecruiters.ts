@@ -40,15 +40,18 @@ async function readJson(request: SourceAdapterRequest, url: string) {
 
 function locationFor(job: SourceJobRecord, value: unknown, selector: string, sourceUrl: string): void {
   const location = record(value);
-  const full = plainText(location.fullLocation), address = plainText(location.address);
+  const full = plainText(location.fullLocation), address = plainText(location.address), postalCode = plainText(location.postalCode);
   const city = plainText(location.city), region = plainText(location.region), country = plainText(location.country);
   const original = full || [city, region, country].filter(Boolean).join(", ");
   const raw = [original, address && address !== original ? address : ""].filter(Boolean).join(" · ");
   if (raw) {
     const code = CountryCodeSchema.safeParse(country.toUpperCase());
     job.locations = [{ raw, ...(code.success ? { countryCode: code.data } : {}),
-      ...(region ? { region } : {}), ...(city && !/[,，、/;；\n]/.test(city) ? { city } : {}) }];
+      ...(region ? { region } : {}), ...(city && !/[,，、/;；\n]/.test(city) ? { city } : {}),
+      ...(address ? { streetAddress: address } : {}), ...(postalCode ? { postalCode } : {}) }];
     job.evidence.push({ field: "locations", selector, quote: raw.slice(0, 20_000), sourceUrl });
+    if (address) job.evidence.push({ field: "locations.streetAddress", selector: `${selector}.address`, quote: address.slice(0, 20_000), sourceUrl });
+    if (postalCode) job.evidence.push({ field: "locations.postalCode", selector: `${selector}.postalCode`, quote: postalCode.slice(0, 20_000), sourceUrl });
   }
   if (location.remote === true && location.hybrid !== true) job.workMode = "remote";
   else if (location.hybrid === true && location.remote !== true) job.workMode = "hybrid";
@@ -160,6 +163,12 @@ export const smartRecruitersAdapter: SourceAdapter = {
           if (!description || description.length > 2_000_000) throw new ToolError("source-changed");
           const full = Boolean(plainText(record(sections.jobDescription).text) && plainText(record(sections.qualifications).text))
             && !Object.keys(sections).some((key) => !order.includes(key) && plainText(record(sections[key]).text));
+          if (Object.hasOwn(detail, "location")) {
+            const located = structuredClone(job);
+            locationFor(located, detail.location, "location", detailResponse.url);
+            if (!SourceJobRecordSchema.safeParse(located).success) throw new ToolError("source-changed");
+            job.locations = located.locations; job.workMode = located.workMode; job.evidence = located.evidence; job.warnings = located.warnings;
+          }
           job.description = description;
           job.evidence.push(...evidence, { field: "sourceRecordId", selector: "id", quote: job.sourceRecordId, sourceUrl: detailResponse.url });
           // The same-ID detail URL is authoritative; never manufacture an application route or follow it.

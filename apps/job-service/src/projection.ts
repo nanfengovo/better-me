@@ -70,9 +70,32 @@ export async function projectSourcePage(snapshot: AtlasDataset, source: SourceDe
     const locationIds: string[] = [];
     for (const location of record.locations) {
       const kind = (record.workMode === "unknown" ? oldJob?.workMode : record.workMode) === "remote" ? "remote-region" : "office";
-      const id = await deriveEntityId("location", [listingId, kind, digest(location)]);
+      // Keep the original location identity stable when an adapter begins retaining
+      // separately disclosed address fields. A raw/source-area change still creates a new ID.
+      const identityFields = { raw: location.raw, countryCode: location.countryCode, region: location.region, city: location.city };
+      const id = await deriveEntityId("location", [listingId, kind, digest(identityFields)]);
       locationIds.push(id);
-      if (!snapshot.locations.some((item) => item.id === id) && !delta.locations.some((item) => item.id === id)) delta.locations.push({ id, ...location, kind, precision: location.city ? "city" : location.region ? "region" : location.countryCode ? "country" : "unknown", evidence: evidence("locations", location.raw), verification: "unverified" });
+      const queued = delta.locations.findIndex((item) => item.id === id);
+      const existing = queued >= 0 ? delta.locations[queued] : snapshot.locations.find((item) => item.id === id);
+      if (!existing) {
+        delta.locations.push({ id, ...location, kind, precision: location.city ? "city" : location.region ? "region" : location.countryCode ? "country" : "unknown", evidence: evidence("locations", location.raw), verification: "unverified" });
+      } else {
+        const additions: { streetAddress?: string; postalCode?: string } = {};
+        for (const field of ["streetAddress", "postalCode"] as const) {
+          const supplied = location[field], prior = existing[field];
+          // A changed address is not a compatible enrichment of the legacy identity.
+          if (supplied && prior && supplied !== prior) throw new ToolError("source-changed");
+          if (supplied && !prior) additions[field] = supplied;
+        }
+        if (Object.keys(additions).length) {
+          // Source projection is fed the repository's base snapshot. Do not import
+          // a user overlay if a caller accidentally supplies the visible snapshot.
+          if (existing.userResolution || existing.officeResolution) throw new ToolError("source-changed");
+          const refs = [...new Map([...existing.evidence, ...evidence("locations", location.raw)].map(ref => [digest(ref), ref])).values()].slice(0, 200);
+          const enhanced = { ...existing, ...additions, evidence: refs };
+          if (queued >= 0) delta.locations[queued] = enhanced; else delta.locations.push(enhanced);
+        }
+      }
     }
     // No disclosed value is not evidence that a former address or salary was removed.
     if (!record.locations.length) locationIds.push(...(oldListing?.locationIds ?? []).filter((id) => record.workMode !== "remote" || snapshot.locations.find((location) => location.id === id)?.kind === "remote-region"));

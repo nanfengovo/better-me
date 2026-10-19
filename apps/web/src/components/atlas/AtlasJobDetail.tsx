@@ -19,6 +19,7 @@ export type AtlasJobDetailProps = {
   onSave: () => void;
   onAnalyze: () => void;
   onConfirmLocation?: (location: JobLocation) => void;
+  onConfirmOffice?: (location: JobLocation) => void;
   /** Root owns city-candidate requests, their selection and their status. */
   children?: ReactNode;
 };
@@ -37,6 +38,7 @@ function usableCoordinates(location: JobLocation) {
 }
 
 function locationPrecision(location: JobLocation, t: UiTranslator) {
+  if (location.officeResolution) return t("本人核对的办公位置 · 待核实，非来源认证", "Locally confirmed office point · unverified, not publisher verified");
   if (location.kind === "remote-region") return t("远程资格范围 · 非办公地点", "Remote eligibility region · not an office");
   if (!usableCoordinates(location)) return t("位置原文 · 尚未解析坐标", "Source location text · coordinates not resolved");
   const label = {
@@ -63,7 +65,7 @@ function sourcesForDetail(item: JobSearchItem, data: AtlasDataset, presentations
 }
 
 /** A non-modal reading pane. It never moves focus, locks the page or intercepts card clicks. */
-export function AtlasJobDetail({ item, data, demo, originalCurrency, presentations, onClose, onLocate, onSave, onAnalyze, onConfirmLocation, children }: AtlasJobDetailProps) {
+export function AtlasJobDetail({ item, data, demo, originalCurrency, presentations, onClose, onLocate, onSave, onAnalyze, onConfirmLocation, onConfirmOffice, children }: AtlasJobDetailProps) {
   const { t, locale } = useUiPreferences();
   const titleId = useId();
   const body = useRef<HTMLDivElement>(null);
@@ -128,13 +130,20 @@ export function AtlasJobDetail({ item, data, demo, originalCurrency, presentatio
           const coordinates = usableCoordinates(location);
           const reference = !coordinates && location.kind !== "remote-region" && item.job.workMode !== "remote"
             ? item.mapReferences?.find(entry => entry.locationId === location.id) : undefined;
-          const query = coordinates ? `${coordinates.latitude},${coordinates.longitude}` : location.raw.trim();
+          const addressQuery = location.officeResolution?.formattedAddress ?? (location.streetAddress
+            ? [location.streetAddress, location.city, location.region, location.countryCode].filter(Boolean).join(", ") : undefined);
+          const query = coordinates && ["address", "manual"].includes(location.precision) ? `${coordinates.latitude},${coordinates.longitude}`
+            : addressQuery ?? (coordinates ? `${coordinates.latitude},${coordinates.longitude}` : location.raw.trim());
           return <article className="atlas-job-detail-location" key={location.id}>
             <strong>{location.raw}</strong><small>{locationPrecision(location, t)}</small>
+            {location.streetAddress && <small>{location.officeResolution ? t("本人核对的街道／门牌", "Locally confirmed street / building") : t("来源披露的街道／门牌", "Publisher-disclosed street / building")}：{location.streetAddress}</small>}
+            {location.postalCode && <small>{location.officeResolution ? t("本人核对的邮政编码", "Locally confirmed postal code") : t("来源披露的邮政编码", "Publisher-disclosed postal code")}：{location.postalCode}</small>}
+            {location.officeResolution && <small>{t("本人核对的地址", "Locally confirmed address")}：{location.officeResolution.formattedAddress} · {{ building: t("楼宇", "Building"), entrance: t("入口", "Entrance"), site: t("园区／场地", "Site") }[location.officeResolution.coordinateMeaning]} · {t("手工核对，仍待核实", "Manually confirmed, still unverified")}{HttpUrlSchema.safeParse(location.officeResolution.evidenceUrl).success && <> · <a href={location.officeResolution.evidenceUrl} target="_blank" rel="noopener noreferrer">{t("地址核对出处", "Address evidence")}<ArrowUpRight size={12} /></a></>}</small>}
             {reference && <small>{t("城市分布参考", "City distribution reference")}：{reference.label} · {t("城市级估算，非办公地址；不用于离家距离", "Estimated city point, not an office address; excluded from home distance")}{HttpUrlSchema.safeParse(reference.sourceRecordUrl).success && <> · <a href={reference.sourceRecordUrl} target="_blank" rel="noopener noreferrer">{t("地名数据出处", "Place data source")}<ArrowUpRight size={12} /></a></>}</small>}
             {location.userResolution && <small>{t("本人确认的行政范围", "Locally confirmed administrative area")}：{[location.countryCode, location.region, location.city, location.district].filter(Boolean).join(" / ")} · {t("原文保留，非办公坐标核验", "Source retained; office coordinates unverified")}</small>}
             <div className="atlas-job-detail-location-actions">{location.kind !== "remote-region" && <button type="button" onClick={() => onLocate(location.id)}><Navigation size={12} />{coordinates ? t("地图定位", "Locate on map") : reference ? t("定位城市参考", "Locate city reference") : t("查找城市位置", "Find city location")}</button>}
               {!demo && onConfirmLocation && <button type="button" onClick={() => onConfirmLocation(location)}>{t("核对并保存地区", "Review and save area")}</button>}
+              {!demo && onConfirmOffice && location.kind === "office" && location.evidence.length > 0 && <button type="button" onClick={() => onConfirmOffice(location)}>{t("核对办公地址", "Review office address")}</button>}
               {query && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`} target="_blank" rel="noopener noreferrer">Google {t("地图", "Maps")}<ArrowUpRight size={12} /></a>}
             </div>
           </article>;

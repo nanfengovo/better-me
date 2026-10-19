@@ -159,6 +159,8 @@ export const JobLocationSchema = z.object({
   region: z.string().min(1).max(500).optional(),
   city: z.string().min(1).max(500).optional(),
   district: z.string().min(1).max(500).optional(),
+  streetAddress: z.string().trim().min(1).max(1000).refine(value => !/[\p{Cc}\p{Cs}]/u.test(value), "Use plain address text.").optional(),
+  postalCode: z.string().trim().min(1).max(100).refine(value => !/[\p{Cc}\p{Cs}]/u.test(value), "Use plain postal text.").optional(),
   coordinates: CoordinatesSchema.optional(),
   originalCoordinates: OriginalCoordinatesSchema.optional(),
   precision: LocationPrecisionSchema,
@@ -166,6 +168,12 @@ export const JobLocationSchema = z.object({
   resolvedAt: TimestampSchema.optional(),
   evidence: z.array(EvidenceRefSchema).max(200),
   verification: VerificationSchema,
+  /** A manually checked office point, with its immutable source basis retained by the decision log. */
+  officeResolution: z.object({
+    decisionId: EntityIdSchema, method: z.literal("manual-user-confirmation"), at: TimestampSchema, originalLocationId: EntityIdSchema,
+    formattedAddress: z.string().trim().min(1).max(2000), streetAddress: z.string().trim().min(1).max(1000), postalCode: z.string().trim().min(1).max(100).optional(),
+    coordinateMeaning: z.enum(["building", "entrance", "site"]), evidenceUrl: HttpUrlSchema,
+  }).strict().optional(),
   /** A local area selection is separate from the unchanged source text/evidence. */
   userResolution: z.object({
     decisionId: EntityIdSchema, method: z.literal("explicit-user-confirmation"), at: TimestampSchema,
@@ -187,9 +195,14 @@ export const JobLocationSchema = z.object({
   if (location.kind === "remote-region" && location.coordinates) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["coordinates"], message: "A remote eligibility region is not an office point." });
   }
-  if (location.userResolution && (location.userResolution.originalLocationId !== location.id || location.verification !== "unverified" || location.coordinates || location.originalCoordinates
-    || !location.countryCode || location.precision !== (location.city ? "city" : location.region ? "region" : "country"))) {
+  if (location.userResolution && (location.userResolution.originalLocationId !== location.id || location.verification !== "unverified"
+    || !location.countryCode || !location.officeResolution && (location.coordinates || location.originalCoordinates || location.precision !== (location.city ? "city" : location.region ? "region" : "country")))) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["userResolution"], message: "A confirmed area stays unverified, retains its source identity and has no inferred office coordinates." });
+  }
+  if (location.officeResolution && (location.officeResolution.originalLocationId !== location.id || location.kind !== "office" || location.verification !== "unverified"
+    || !location.countryCode || !location.coordinates || location.precision !== "address" || location.provider !== "manual-user-confirmation" || location.originalCoordinates
+    || location.streetAddress !== location.officeResolution.streetAddress || location.postalCode !== location.officeResolution.postalCode || location.resolvedAt !== location.officeResolution.at)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["officeResolution"], message: "Office confirmation requires an explicit WGS84 office point and remains unverified." });
   }
 });
 export type JobLocation = z.infer<typeof JobLocationSchema>;

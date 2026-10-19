@@ -84,6 +84,51 @@ test('same raw labels do not merge offices with different disclosed countries or
   assert.equal(value.evidence.filter(item => item.field === 'locations').length, 3);
 });
 
+test('Ashby retains explicit nested and flat street/postal fields without changing an existing source location label', async () => {
+  const { input } = request([job({
+    location: 'Original source office label', address: { postalAddress: { addressCountry: 'US', addressLocality: 'Boston', streetAddress: 'Source street 10', postalCode: '00123' } },
+    secondaryLocations: [
+      { location: 'Second source office label', address: { addressCountry: 'GB', streetAddress: 'Source street 20', postalCode: 'AB1 2CD' } },
+      { address: { streetAddress: 'Source street 30', postalCode: '00345' } },
+    ],
+  })]);
+  const result = await ashbyAdapter.list(input), value = result.records[0]!;
+  assert.deepEqual(value.locations, [
+    { raw: 'Original source office label', countryCode: 'US', city: 'Boston', streetAddress: 'Source street 10', postalCode: '00123' },
+    { raw: 'Second source office label', countryCode: 'GB', streetAddress: 'Source street 20', postalCode: 'AB1 2CD' },
+    { raw: 'Source street 30, 00345', streetAddress: 'Source street 30', postalCode: '00345' },
+  ]);
+  assert.ok(value.evidence.some(item => item.field === 'locations.streetAddress' && item.selector === 'jobs[0].address.postalAddress.streetAddress' && item.quote === 'Source street 10'));
+  assert.ok(value.evidence.some(item => item.field === 'locations.postalCode' && item.selector === 'jobs[0].secondaryLocations[0].address.postalCode' && item.quote === 'AB1 2CD'));
+  assert.ok(value.evidence.every(item => item.sourceUrl === SOURCE));
+  assert.doesNotMatch(JSON.stringify(value.locations), /coordinates|latitude|longitude/);
+});
+
+test('Ashby never extracts street/postal from raw labels, administrative text, headquarters or geocoordinates', async () => {
+  const { input } = request([job({ location: 'Source street 10, 00123', address: { addressLocality: 'City street 20, 00234', latitude: 31, longitude: 121 },
+    company: { address: { streetAddress: 'Headquarters 99', postalCode: '99999' } } })]);
+  const result = await ashbyAdapter.list(input), location = result.records[0]!.locations[0]!;
+  assert.deepEqual(location, { raw: 'Source street 10, 00123', city: 'City street 20, 00234' });
+  assert.equal(result.records[0]!.evidence.some(item => /^locations\.(?:streetAddress|postalCode)$/.test(item.field)), false);
+});
+
+test('Ashby invalid structured street/postal values leave the record omitted with partial coverage', async () => {
+  for (const address of [{ streetAddress: 'x'.repeat(1001) }, { postalCode: 'x'.repeat(101) }, { streetAddress: 'Street\u0000ID' }, { postalCode: '00\u0000ID' }]) {
+    const { input } = request([job({ location: 'Original office', address })]);
+    const result = await ashbyAdapter.list(input);
+    assert.equal(result.records.length, 0); assert.equal(result.coverage.partial, true);
+  }
+});
+
+test('explicit Ashby postal fields remain source data for remote jobs without creating an office coordinate', async () => {
+  const { input } = request([job({ workplaceType: 'Remote', address: { streetAddress: 'Source street 10', postalCode: '00123' } })]);
+  const value = (await ashbyAdapter.list(input)).records[0]!;
+  assert.equal(value.workMode, 'remote');
+  assert.deepEqual(value.locations, [{ raw: 'Source street 10, 00123', streetAddress: 'Source street 10', postalCode: '00123' }]);
+  assert.equal(value.locations[0]!.countryCode, undefined);
+  assert.doesNotMatch(JSON.stringify(value.locations), /coordinates|latitude|longitude/);
+});
+
 test('missing labels retain disclosed address text while unsupported country names and market labels never establish a country', async () => {
   const { input } = request([job({
     title: 'Synthetic US and Singapore engineer', address: postal('de', 'Berlin', 'Berlin'), secondaryLocations: [

@@ -43,7 +43,7 @@ export const LocationDistanceSchema: z.ZodType<LocationDistance> = z.object({
   precision: z.enum(['city', 'street', 'address', 'manual']),
   ruleVersion: z.literal(DISTANCE_RULE_VERSION),
 }).strict().refine(
-  (distance) => distance.estimated === (distance.precision === 'city' || distance.precision === 'street'),
+  (distance) => !['city', 'street'].includes(distance.precision) || distance.estimated,
   'Coarse location distance must be marked as an estimate',
 );
 export const LocationDistanceReasonSchema = z.enum([
@@ -71,7 +71,7 @@ export function evaluateLocationDistance(
     distance: {
       km,
       locationId: location.id,
-      estimated: location.precision === 'city' || location.precision === 'street',
+      estimated: location.precision === 'city' || location.precision === 'street' || Boolean(location.officeResolution),
       precision: location.precision,
       ruleVersion: DISTANCE_RULE_VERSION,
     },

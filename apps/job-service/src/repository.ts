@@ -9,6 +9,11 @@ import {
   JobLocationSchema, LocationConfirmationDecisionSchema, LocationConfirmationPreviewSchema, LocationConfirmationReceiptSchema,
   PreviewLocationConfirmationInputSchema, ConfirmLocationInputSchema, RevokeLocationConfirmationInputSchema,
   applyLocationConfirmation, projectLocationConfirmations,
+  compatibleSourceLocation, applyOfficeAddressConfirmation, projectOfficeAddressConfirmations,
+  OfficeAddressCandidatesInputSchema, OfficeAddressDecisionSchema, OfficeAddressPreviewSchema, OfficeAddressReceiptSchema,
+  PreviewOfficeConfirmationInputSchema, ConfirmOfficeAddressInputSchema, RevokeOfficeAddressInputSchema,
+  type OfficeAddressCandidatesInput, type OfficeAddressDecision, type OfficeAddressPreview, type OfficeAddressReceipt,
+  type PreviewOfficeConfirmationInput, type ConfirmOfficeAddressInput, type RevokeOfficeAddressInput,
   type PreviewLocationConfirmationInput, type ConfirmLocationInput, type RevokeLocationConfirmationInput,
   type LocationConfirmationDecision, type LocationConfirmationPreview, type LocationConfirmationReceipt, type JobLocation,
   type MergeDecision, type ReconciliationReceipt, type JobAliasEvent, type ConfirmMergeInput, type OfficialRequisitionLink,
@@ -16,7 +21,7 @@ import {
 import {
   ActorScopeSchema, IdempotencyKeySchema, SyncRunSchema, RunScopeSchema, PublicRunSummarySchema,
   RequestFingerprintSchema,
-  ImportReceiptSchema, RepositoryBackupSchema, REPOSITORY_SCHEMA_VERSION, REPOSITORY_MIGRATION_V1, REPOSITORY_MIGRATION_V2, REPOSITORY_MIGRATION_V3, LOCATION_DECISION_TRIGGERS,
+  ImportReceiptSchema, RepositoryBackupSchema, REPOSITORY_SCHEMA_VERSION, REPOSITORY_MIGRATION_V1, REPOSITORY_MIGRATION_V2, REPOSITORY_MIGRATION_V3, LOCATION_DECISION_TRIGGERS, REPOSITORY_MIGRATION_V4, OFFICE_DECISION_TRIGGERS,
   APPEND_ONLY_TRIGGERS, RECONCILIATION_TRIGGERS, type ImportReceipt, type SyncRun, type RunScope, type PublicRunSummary,
   type RepositoryBackup, type StoredReceipt, DiscoveryLeadSchema, DiscoveryLeadReceiptSchema,
   type DiscoveryLead, type DiscoveryLeadReceipt,
@@ -172,6 +177,11 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       try { db.exec(REPOSITORY_MIGRATION_V3); db.exec(LOCATION_DECISION_TRIGGERS); db.exec("PRAGMA user_version=3; COMMIT;"); }
       catch (error) { db.exec("ROLLBACK"); throw error; }
     }
+    if (version < 4) {
+      db.exec("BEGIN IMMEDIATE");
+      try { db.exec(REPOSITORY_MIGRATION_V4); db.exec(OFFICE_DECISION_TRIGGERS); db.exec("PRAGMA user_version=4; COMMIT;"); }
+      catch (error) { db.exec("ROLLBACK"); throw error; }
+    }
     db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;");
     // Opening a file with a matching user_version is not sufficient proof of this schema.
     db.prepare("SELECT value FROM metadata WHERE key='revision'").get();
@@ -180,6 +190,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     db.prepare("SELECT id,revision,document FROM merge_decisions LIMIT 0").all();
     db.prepare("SELECT id,document FROM base_locations LIMIT 0").all();
     db.prepare("SELECT id,revision,document FROM location_decisions LIMIT 0").all();
+    db.prepare("SELECT id,revision,document FROM office_decisions LIMIT 0").all();
     const check = db.prepare("PRAGMA quick_check").get() as Record<string, unknown>;
     if (Object.values(check)[0] !== "ok") throw new RepositoryError("storage-error");
   } catch (error) { db.close(); throw error instanceof RepositoryError ? error : new RepositoryError("storage-error"); }
@@ -206,7 +217,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     if (row.signature !== expectedSignature) throw new RepositoryError("idempotency-conflict");
     return JSON.parse(row.response) as T;
   }
-  function saveReceipt(actorScope: string, tool: string, idempotencyKey: string, requestSignature: string, result: ImportReceipt | SyncRun | DiscoveryLeadReceipt | ReconciliationReceipt | LocationConfirmationReceipt) {
+  function saveReceipt(actorScope: string, tool: string, idempotencyKey: string, requestSignature: string, result: ImportReceipt | SyncRun | DiscoveryLeadReceipt | ReconciliationReceipt | LocationConfirmationReceipt | OfficeAddressReceipt) {
     db.prepare("INSERT INTO receipts(actor_scope,tool,idempotency_key,signature,response,created_at) VALUES (?,?,?,?,?,?)").run(actorScope, tool, idempotencyKey, requestSignature, json(result), now());
   }
   function runById(runId: string): SyncRun | undefined {
@@ -232,6 +243,9 @@ export function openJobRepository(path: string, options: { now?: () => string } 
   function locationDecisions(): LocationConfirmationDecision[] {
     return (db.prepare("SELECT document FROM location_decisions ORDER BY revision").all() as Array<{ document: string }>).map(row => checked(LocationConfirmationDecisionSchema, JSON.parse(row.document)));
   }
+  function officeDecisions(): OfficeAddressDecision[] {
+    return (db.prepare("SELECT document FROM office_decisions ORDER BY revision").all() as Array<{ document: string }>).map(row => checked(OfficeAddressDecisionSchema, JSON.parse(row.document)));
+  }
   function baseSnapshot(current = read()): AtlasDataset {
     const jobs = (db.prepare("SELECT document FROM base_jobs ORDER BY id").all() as Array<{ document: string }>).map((row) => checked(CanonicalJobSchema, JSON.parse(row.document)));
     const owner = new Map(jobs.flatMap((job) => job.listingIds.map((id) => [id, job.id] as const)));
@@ -245,12 +259,12 @@ export function openJobRepository(path: string, options: { now?: () => string } 
   function writeBaseLocations(locations: readonly JobLocation[], replace = false) {
     if (replace) db.exec("DELETE FROM base_locations");
     for (const location of locations) {
-      if (location.userResolution) throw new RepositoryError("conflict");
+      if (location.userResolution || location.officeResolution) throw new RepositoryError("conflict");
       db.prepare("INSERT INTO base_locations(id,document) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document").run(location.id, json(location));
     }
   }
-  function canonicalProjection(base: AtlasDataset, current: AtlasDataset, entries: readonly MergeDecision[], changedAt: string, locationEntries = locationDecisions()) {
-    const projection = projectReconciliation(projectLocationConfirmations(base, locationEntries), entries);
+  function canonicalProjection(base: AtlasDataset, current: AtlasDataset, entries: readonly MergeDecision[], changedAt: string, locationEntries = locationDecisions(), officeEntries = officeDecisions()) {
+    const projection = projectReconciliation(projectOfficeAddressConfirmations(projectLocationConfirmations(base, locationEntries), officeEntries), entries);
     const old = new Map(current.jobs.map((job) => [job.id, job]));
     const body = (job: CanonicalJob, dataset: AtlasDataset) => { const { revision: _revision, updatedAt: _updatedAt, ...value } = job; return { job: value, locations: job.locationIds.map(id => dataset.locations.find(location => location.id === id)) }; };
     projection.dataset.jobs = projection.dataset.jobs.map((job) => {
@@ -353,7 +367,13 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         else if (table === "sources") {
           // Refresh observations never silently enable a source or replace its endpoint/attribution policy.
           if (!same(old, value)) throw new RepositoryError("conflict");
-        } else if (table === "locations" || table === "compensations") throw new RepositoryError("conflict");
+        } else if (table === "locations") {
+          const before = old as JobLocation, after = value as JobLocation;
+          const combined = JobLocationSchema.parse({ ...before, ...after, streetAddress: after.streetAddress ?? before.streetAddress, postalCode: after.postalCode ?? before.postalCode,
+            evidence: [...before.evidence, ...after.evidence.filter(entry => !before.evidence.some(previous => same(entry, previous)))] });
+          if (!compatibleSourceLocation(before, combined) || before.userResolution || before.officeResolution || after.userResolution || after.officeResolution) throw new RepositoryError("conflict");
+          values.set(id, combined);
+        } else if (table === "compensations") throw new RepositoryError("conflict");
       }
       (result[table] as unknown[]) = [...values.values()].sort((a, b) => compareIds(sourceIdOrId(table, a), sourceIdOrId(table, b)));
     }
@@ -422,6 +442,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     const owners = base.jobs.filter(value => value.locationIds.includes(locationId));
     const listings = base.listings.filter(value => value.locationIds?.includes(locationId));
     if (owners.length !== 1 || listings.length !== 1 || !owners[0]!.listingIds.includes(listings[0]!.id) || !job.listingIds.includes(listings[0]!.id)) throw new RepositoryError("conflict");
+    if (original.evidence.some(ref => base.observations.find(value => value.id === ref.observationId)?.listingId !== listings[0]!.id)) throw new RepositoryError("conflict");
     return { base, original, owner: owners[0]!, listing: listings[0]!, job };
   }
   function prepareLocation(input: PreviewLocationConfirmationInput, current: AtlasDataset): { preview: LocationConfirmationPreview; target: ReturnType<typeof locationTarget>; area: Extract<LocationConfirmationDecision, { kind: "confirm" }>["area"] } {
@@ -452,11 +473,105 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     saveReceipt(options.actorScope, tool, options.idempotencyKey, requestSignature, result);
     return result;
   }
+  function officeTarget(current: AtlasDataset, jobId: string, locationId: string) {
+    const target = locationTarget(current, jobId, locationId);
+    const sourceLocation = projectLocationConfirmations(target.base, locationDecisions()).locations.find(value => value.id === locationId)!;
+    if (sourceLocation.kind !== "office" || target.job.workMode === "remote") throw new RepositoryError("conflict");
+    return { ...target, sourceLocation };
+  }
+  function prepareOffice(input: PreviewOfficeConfirmationInput, current: AtlasDataset) {
+    if (current.revision !== input.expectedRevision) throw new RepositoryError("stale-version");
+    const target = officeTarget(current, input.jobId, input.locationId);
+    try { resolveLocationArea({ countryCode: input.proposal.countryCode, locationKind: "office", area: { kind: "manual-area" } }); } catch { throw new RepositoryError("invalid-data"); }
+    const simple = (value: string | undefined) => value?.normalize("NFKC").replace(/\s/gu, "").toLowerCase();
+    if ([target.sourceLocation.city, target.sourceLocation.region, target.sourceLocation.countryCode].some(value => value && simple(value) === simple(input.proposal.streetAddress))) throw new RepositoryError("invalid-data");
+    const entry: Extract<OfficeAddressDecision, { kind: "confirm" }> = { id: "office-preview", kind: "confirm", jobId: target.owner.id, listingId: target.listing.id, locationId: input.locationId,
+      sourceLocation: target.sourceLocation, proposal: input.proposal, actorScope: "preview", at: now(), revision: current.revision + 1, reason: input.reason };
+    let proposed: JobLocation;
+    try { proposed = applyOfficeAddressConfirmation(target.sourceLocation, entry); } catch { throw new RepositoryError("invalid-data"); }
+    const currentLocation = current.locations.find(value => value.id === input.locationId)!;
+    const preview = checked(OfficeAddressPreviewSchema, { expectedRevision: current.revision, previewFingerprint: signature({ input, sourceLocation: target.sourceLocation }), jobId: input.jobId,
+      locationId: input.locationId, current: currentLocation, sourceLocation: target.sourceLocation, proposed,
+      ...(currentLocation.officeResolution ? { activeDecisionId: currentLocation.officeResolution.decisionId } : {}), warnings: [
+        "这是本人核对的具体街址与WGS84点，仍为待核实；不代表原站、地图provider或雇主认证办公地址。",
+        "来源原文与证据保持不变。来源地点或有效地区确认变化后，本次办公位置不再自动采用；历史可撤销。",
+        "楼宇、入口或园区点不代表具体楼层；离家直线距离仍为估算，不是通勤路线。",
+      ] });
+    return { preview, target };
+  }
+  function commitOffice(current: AtlasDataset, entry: Exclude<OfficeAddressDecision, { kind: "invalidate" }>, options: ReconciliationWriteOptions, tool: string, requestSignature: string, requestedJobId: string): OfficeAddressReceipt {
+    options.throwIfCancelled?.();
+    const base = { ...baseSnapshot(current), revision: entry.revision };
+    const projection = canonicalProjection(base, current, decisions(), entry.at, locationDecisions(), [...officeDecisions(), entry]);
+    projection.dataset.revision = entry.revision;
+    db.prepare("INSERT INTO office_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
+    write(projection.dataset);
+    const location = projection.dataset.locations.find(value => value.id === entry.locationId)!;
+    const result = checked(OfficeAddressReceiptSchema, { ok: true, revision: entry.revision, jobId: requestedJobId, locationId: entry.locationId, decisionId: entry.id,
+      ...(location.officeResolution ? { activeDecisionId: location.officeResolution.decisionId } : {}), location });
+    saveReceipt(options.actorScope, tool, options.idempotencyKey, requestSignature, result);
+    return result;
+  }
 
   return {
     async readSnapshot(): Promise<AtlasDataset> { return transaction(read); },
     /** Ingestion-only origins: never use this view for map totals or user-facing search. */
     async readProjectionSnapshot(): Promise<AtlasDataset> { return transaction(() => baseSnapshot()); },
+    async readOfficeAddressTarget(input: OfficeAddressCandidatesInput) {
+      const parsed = checked(OfficeAddressCandidatesInputSchema, input);
+      return transaction(() => {
+        const current = read(); if (current.revision !== parsed.expectedRevision) throw new RepositoryError("stale-version");
+        const target = officeTarget(current, parsed.jobId, parsed.locationId);
+        return { revision: current.revision, jobId: parsed.jobId, locationId: parsed.locationId, sourceLocation: target.sourceLocation };
+      });
+    },
+    async previewOfficeConfirmation(input: unknown): Promise<OfficeAddressPreview> {
+      const parsed = checked(PreviewOfficeConfirmationInputSchema, input);
+      return transaction(() => prepareOffice(parsed, read()).preview);
+    },
+    async findOfficeAddressReceipt(tool: "locations.confirm-office-address" | "locations.revoke-office-address", input: unknown, options: ReconciliationWriteOptions): Promise<OfficeAddressReceipt | undefined> {
+      validateOptions(options);
+      const parsed = tool === "locations.confirm-office-address" ? checked(ConfirmOfficeAddressInputSchema, input) : checked(RevokeOfficeAddressInputSchema, input);
+      if (parsed.expectedRevision !== options.expectedRevision) throw new RepositoryError("invalid-data");
+      const requestSignature = signature({ input: parsed });
+      return transaction(() => { const saved = receipt<OfficeAddressReceipt>(options.actorScope, tool, options.idempotencyKey, requestSignature); return saved ? checked(OfficeAddressReceiptSchema, saved) : undefined; });
+    },
+    async confirmOfficeAddress(input: ConfirmOfficeAddressInput, options: ReconciliationWriteOptions): Promise<OfficeAddressReceipt> {
+      validateOptions(options); const parsed = checked(ConfirmOfficeAddressInputSchema, input);
+      if (options.expectedRevision !== parsed.expectedRevision) throw new RepositoryError("invalid-data");
+      const requestSignature = signature({ input: parsed });
+      return transaction(() => {
+        const cached = receipt<OfficeAddressReceipt>(options.actorScope, "locations.confirm-office-address", options.idempotencyKey, requestSignature);
+        if (cached) return checked(OfficeAddressReceiptSchema, cached);
+        const current = read(); assertWriteVersion(options, current);
+        const { reviewed: _reviewed, previewFingerprint, ...previewInput } = parsed;
+        const { preview, target } = prepareOffice(previewInput, current);
+        if (preview.previewFingerprint !== previewFingerprint) throw new RepositoryError("stale-version");
+        const entry: OfficeAddressDecision = { id: `office-confirm_${randomUUID()}`, kind: "confirm", jobId: target.owner.id, listingId: target.listing.id, locationId: parsed.locationId,
+          sourceLocation: target.sourceLocation, proposal: parsed.proposal, actorScope: options.actorScope, at: now(), revision: current.revision + 1, reason: parsed.reason };
+        return commitOffice(current, entry, options, "locations.confirm-office-address", requestSignature, parsed.jobId);
+      });
+    },
+    async revokeOfficeAddress(input: RevokeOfficeAddressInput, options: ReconciliationWriteOptions): Promise<OfficeAddressReceipt> {
+      validateOptions(options); const parsed = checked(RevokeOfficeAddressInputSchema, input);
+      if (options.expectedRevision !== parsed.expectedRevision) throw new RepositoryError("invalid-data");
+      const requestSignature = signature({ input: parsed });
+      return transaction(() => {
+        const cached = receipt<OfficeAddressReceipt>(options.actorScope, "locations.revoke-office-address", options.idempotencyKey, requestSignature);
+        if (cached) return checked(OfficeAddressReceiptSchema, cached);
+        const current = read(); assertWriteVersion(options, current);
+        const entries = officeDecisions(), target = entries.find(value => value.id === parsed.decisionId);
+        if (!target || target.kind !== "confirm" || target.locationId !== parsed.locationId) throw new RepositoryError("not-found");
+        if (target.actorScope !== options.actorScope) throw new RepositoryError("not-authorized");
+        const job = current.jobs.find(value => value.id === aliasId(parsed.jobId));
+        if (!job?.listingIds.includes(target.listingId)) throw new RepositoryError("not-found");
+        if (entries.some(value => value.kind === "revoke" && value.targetDecisionId === target.id)) throw new RepositoryError("conflict");
+        const entry: OfficeAddressDecision = { id: `office-revoke_${randomUUID()}`, kind: "revoke", jobId: target.jobId, listingId: target.listingId, locationId: target.locationId,
+          actorScope: options.actorScope, at: now(), revision: current.revision + 1, reason: parsed.reason, targetDecisionId: target.id,
+          sourceLocation: projectLocationConfirmations(baseSnapshot(current), locationDecisions()).locations.find(location => location.id === target.locationId)! };
+        return commitOffice(current, entry, options, "locations.revoke-office-address", requestSignature, parsed.jobId);
+      });
+    },
     async previewLocationConfirmation(input: unknown): Promise<LocationConfirmationPreview> {
       const parsed = checked(PreviewLocationConfirmationInputSchema, input);
       return transaction(() => prepareLocation(parsed, read()).preview);
@@ -490,7 +605,8 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const job = current.jobs.find(value => value.id === aliasId(parsed.jobId));
         if (!job?.listingIds.includes(target.listingId)) throw new RepositoryError("not-found");
         if (entries.some(value => value.kind === "revoke" && value.targetDecisionId === target.id)) throw new RepositoryError("conflict");
-        const entry: LocationConfirmationDecision = { id: `location-revoke_${randomUUID()}`, kind: "revoke", jobId: target.jobId, listingId: target.listingId, locationId: target.locationId, actorScope: options.actorScope, at: now(), revision: current.revision + 1, reason: parsed.reason, targetDecisionId: target.id };
+        const entry: LocationConfirmationDecision = { id: `location-revoke_${randomUUID()}`, kind: "revoke", jobId: target.jobId, listingId: target.listingId, locationId: target.locationId, actorScope: options.actorScope, at: now(), revision: current.revision + 1, reason: parsed.reason, targetDecisionId: target.id,
+          sourceLocation: baseSnapshot(current).locations.find(location => location.id === target.locationId)! };
         return commitLocation(current, entry, options, "locations.revoke-confirmation", requestSignature, parsed.jobId);
       });
     },
@@ -506,7 +622,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     async importSnapshot(input: unknown, importOptions: ImportOptions): Promise<ImportReceipt> {
       validateOptions(importOptions);
       const incoming = checked(AtlasDatasetObjectSchema, input);
-      if (incoming.locations.some(location => location.userResolution)) throw new RepositoryError("conflict");
+      if (incoming.locations.some(location => location.userResolution || location.officeResolution)) throw new RepositoryError("conflict");
       const requestSignature = signature({ ...(importOptions.requestFingerprint === undefined ? { input: incoming } : { requestFingerprint: importOptions.requestFingerprint }), expectedRevision: importOptions.expectedRevision, runId: importOptions.runId });
       return transaction(() => {
         const cached = receipt<ImportReceipt>(importOptions.actorScope, "dataset.import", importOptions.idempotencyKey, requestSignature);
@@ -518,14 +634,30 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const nextBase = merged(base, incoming);
         if (run) validateRunDelta(incoming, nextBase, base, run);
         verifyContentHashes(nextBase);
-        const projection = canonicalProjection(nextBase, current, decisions(), now());
+        const priorOffice = officeDecisions();
+        const inactiveOffice = new Set(priorOffice.flatMap(entry => entry.kind === "revoke" ? [entry.targetDecisionId] : entry.kind === "invalidate" ? entry.targetDecisionIds : []));
+        const sourceBasis = (dataset: AtlasDataset, decision: Extract<OfficeAddressDecision, { kind: "confirm" }>) => ({
+          location: dataset.locations.find(value => value.id === decision.locationId),
+          listingStillUsesLocation: Boolean(dataset.listings.find(value => value.id === decision.listingId)?.locationIds?.includes(decision.locationId)),
+          jobStillUsesLocation: Boolean(dataset.jobs.find(value => value.id === decision.jobId)?.locationIds.includes(decision.locationId)),
+          workMode: dataset.jobs.find(value => value.id === decision.jobId)?.workMode,
+        });
+        const invalidatedIds = priorOffice.filter((entry): entry is Extract<OfficeAddressDecision, { kind: "confirm" }> => entry.kind === "confirm" && !inactiveOffice.has(entry.id))
+          .filter(entry => !same(sourceBasis(base, entry), sourceBasis(nextBase, entry))).map(entry => entry.id);
+        const invalidation: OfficeAddressDecision | undefined = invalidatedIds.length ? { id: `office-invalidate_${randomUUID()}`, kind: "invalidate", actorScope: importOptions.actorScope,
+          at: now(), revision: current.revision + 1, reason: "source-changed", targetDecisionIds: invalidatedIds } : undefined;
+        if (invalidation) nextBase.revision = invalidation.revision;
+        const projection = canonicalProjection(nextBase, current, decisions(), now(), locationDecisions(), [...priorOffice, ...(invalidation ? [invalidation] : [])]);
         const next = projection.dataset;
         const changed = TABLES.some((table) => !same(base[table], nextBase[table])) || TABLES.some((table) => !same(current[table], next[table]));
         next.revision = current.revision + Number(changed);
         const targets = new Set(incoming.jobs.map((job) => projection.aliases.find((alias) => alias.jobId === job.id)!.canonicalJobId));
         const effectiveIncoming = { ...incoming, jobs: next.jobs.filter((job) => targets.has(job.id)) };
         const result: ImportReceipt = { ok: true, revision: next.revision, jobIds: effectiveIncoming.jobs.map((job) => job.id), snapshotIds: incoming.snapshots.map((snapshot) => snapshot.id), counts: counts(current, next, effectiveIncoming) };
-        if (changed) { writeBaseJobs(nextBase.jobs); writeBaseLocations(nextBase.locations); write(next); saveAliases(projection.aliases, next.revision, now()); }
+        if (changed) {
+          if (invalidation) db.prepare("INSERT INTO office_decisions VALUES (?,?,?)").run(invalidation.id, invalidation.revision, json(invalidation));
+          writeBaseJobs(nextBase.jobs); writeBaseLocations(nextBase.locations); write(next); saveAliases(projection.aliases, next.revision, now());
+        }
         saveReceipt(importOptions.actorScope, "dataset.import", importOptions.idempotencyKey, requestSignature, result);
         return result;
       });
@@ -541,7 +673,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     async readReconciliationState() {
       return transaction(() => {
         const dataset = read();
-        return { dataset, originDataset: projectLocationConfirmations(baseSnapshot(dataset), locationDecisions()), decisions: decisions(), aliases: (db.prepare("SELECT job_id,canonical_job_id FROM job_aliases ORDER BY job_id").all() as Array<{ job_id: string; canonical_job_id: string }>).map(row => ({ jobId: row.job_id, canonicalJobId: row.canonical_job_id })) };
+        return { dataset, originDataset: projectOfficeAddressConfirmations(projectLocationConfirmations(baseSnapshot(dataset), locationDecisions()), officeDecisions()), decisions: decisions(), aliases: (db.prepare("SELECT job_id,canonical_job_id FROM job_aliases ORDER BY job_id").all() as Array<{ job_id: string; canonical_job_id: string }>).map(row => ({ jobId: row.job_id, canonicalJobId: row.canonical_job_id })) };
       });
     },
     /** Recover a lost reviewed-command receipt before checking its now-stale preview revision. */
@@ -794,7 +926,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const baseJobs = baseSnapshot(dataset).jobs;
         const aliasHistory = (db.prepare("SELECT document FROM job_alias_history ORDER BY sequence").all() as Array<{ document: string }>).map((row) => checked(JobAliasEventSchema, JSON.parse(row.document)));
         const jobVersions = (db.prepare("SELECT job_id,revision FROM job_versions ORDER BY job_id").all() as Array<{ job_id: string; revision: number }>).map((row) => ({ jobId: row.job_id, revision: row.revision }));
-        return checked(RepositoryBackupSchema, { format: "better-me/job-repository", schemaVersion: REPOSITORY_SCHEMA_VERSION, createdAt: now(), dataset, runs, receipts, leads, baseJobs, baseLocations: baseSnapshot(dataset).locations, locationDecisions: locationDecisions(), mergeDecisions: decisions(), aliasHistory, jobVersions }, "invalid-backup");
+        return checked(RepositoryBackupSchema, { format: "better-me/job-repository", schemaVersion: REPOSITORY_SCHEMA_VERSION, createdAt: now(), dataset, runs, receipts, leads, baseJobs, baseLocations: baseSnapshot(dataset).locations, locationDecisions: locationDecisions(), officeDecisions: officeDecisions(), mergeDecisions: decisions(), aliasHistory, jobVersions }, "invalid-backup");
       });
     },
     async restore(input: unknown, restoreOptions: Omit<ImportOptions, "runId"> & { expectedRevision: number }): Promise<ImportReceipt> {
@@ -806,6 +938,11 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       const baseLocations = backup.baseLocations ?? backup.dataset.locations;
       const owners = new Map(baseJobs.flatMap((job) => job.listingIds.map((id) => [id, job.id] as const)));
       const restoredBase = checked(AtlasDatasetSchema, { ...backup.dataset, jobs: baseJobs, locations: baseLocations, listings: backup.dataset.listings.map((listing) => ({ ...listing, ...(owners.has(listing.id) ? { canonicalJobId: owners.get(listing.id) } : {}) })) }, "invalid-backup");
+      const historicalLocationBasis = (event: { jobId: string; listingId: string; locationId: string }, sourceLocation: JobLocation): AtlasDataset => checked(AtlasDatasetSchema, {
+        ...restoredBase, locations: restoredBase.locations.map(location => location.id === event.locationId ? sourceLocation : location),
+        jobs: restoredBase.jobs.map(job => job.id === event.jobId ? { ...job, locationIds: union(job.locationIds, [event.locationId]) } : job),
+        listings: restoredBase.listings.map(listing => listing.id === event.listingId ? { ...listing, locationIds: union(listing.locationIds ?? [], [event.locationId]) } : listing),
+      }, "invalid-backup");
       const originIds = new Set(baseJobs.map((job) => job.id)); const decisionIds = new Set<string>(); const decisionRevisions = new Set<number>();
       const priorDecisions = new Map<string, MergeDecision>(); const revokedDecisions = new Set<string>(); let previousRevision = 0;
       for (const entry of backup.mergeDecisions) {
@@ -846,7 +983,12 @@ export function openJobRepository(path: string, options: { now?: () => string } 
             if (!same(resolveLocationArea(proposal), entry.area)) throw new Error("invalid-location-area");
           }
         }
-        const resolvedBase = projectLocationConfirmations(restoredBase, backup.locationDecisions);
+        for (const entry of backup.officeDecisions) {
+          if (entry.revision > backup.dataset.revision || entry.revision < 1 || decisionRevisions.has(entry.revision)) throw new Error("invalid-office-revision");
+          decisionRevisions.add(entry.revision);
+          if (entry.kind === "confirm") resolveLocationArea({ countryCode: entry.proposal.countryCode, locationKind: "office", area: { kind: "manual-area" } });
+        }
+        const resolvedBase = projectOfficeAddressConfirmations(projectLocationConfirmations(restoredBase, backup.locationDecisions), backup.officeDecisions);
         restoredProjection = projectReconciliation(resolvedBase, backup.mergeDecisions);
         if (!same(restoredProjection.dataset.locations, backup.dataset.locations)) throw new Error("invalid-location-projection");
         for (const stored of backup.receipts) if (stored.tool === "locations.confirm" || stored.tool === "locations.revoke-confirmation") {
@@ -856,8 +998,37 @@ export function openJobRepository(path: string, options: { now?: () => string } 
           const thenProjection = projectReconciliation(restoredBase, backup.mergeDecisions.filter(entry => entry.revision < event.revision));
           const thenAlias = thenProjection.aliases.find(alias => alias.jobId === response.jobId)?.canonicalJobId;
           if (!thenProjection.dataset.jobs.find(job => job.id === thenAlias)?.listingIds.includes(event.listingId)) throw new Error("invalid-location-receipt-job");
-          const expectedLocation = projectLocationConfirmations(restoredBase, backup.locationDecisions.filter(entry => entry.revision <= event.revision)).locations.find(location => location.id === response.locationId);
-          if (!same(expectedLocation, response.location) || expectedLocation?.userResolution?.decisionId !== response.activeDecisionId) throw new Error("invalid-location-receipt-body");
+          if (event.kind === "confirm") {
+            const expectedLocation = applyLocationConfirmation(event.sourceLocation, event);
+            if (!same(expectedLocation, response.location) || response.activeDecisionId !== event.id) throw new Error("invalid-location-receipt-body");
+          } else {
+            const receiptBase = event.sourceLocation ? historicalLocationBasis(event, event.sourceLocation) : restoredBase;
+            const thenLocations = projectLocationConfirmations(receiptBase, backup.locationDecisions.filter(entry => entry.revision <= event.revision));
+            const expectedLocation = projectOfficeAddressConfirmations(thenLocations, backup.officeDecisions.filter(entry => entry.revision < event.revision)).locations.find(location => location.id === response.locationId);
+            const target = backup.locationDecisions.find(entry => entry.id === event.targetDecisionId);
+            if (!expectedLocation || !target || target.kind !== "confirm" || !(event.sourceLocation ? same(response.location, expectedLocation) : compatibleSourceLocation(response.location, expectedLocation))
+              || !target.sourceLocation.evidence.every(ref => response.location.evidence.some(value => same(ref, value)))
+              || expectedLocation.userResolution?.decisionId !== response.activeDecisionId) throw new Error("invalid-location-receipt-body");
+          }
+        }
+        for (const stored of backup.receipts) if (stored.tool === "locations.confirm-office-address" || stored.tool === "locations.revoke-office-address") {
+          const response = checked(OfficeAddressReceiptSchema, stored.response, "invalid-backup");
+          const event = backup.officeDecisions.find(entry => entry.id === response.decisionId);
+          if (!event || event.kind === "invalidate" || event.actorScope !== stored.actorScope || event.revision !== response.revision || event.locationId !== response.locationId
+            || event.kind !== (stored.tool === "locations.confirm-office-address" ? "confirm" : "revoke") || !originIds.has(response.jobId)) throw new Error("invalid-office-receipt");
+          const thenProjection = projectReconciliation(restoredBase, backup.mergeDecisions.filter(entry => entry.revision < event.revision));
+          const thenAlias = thenProjection.aliases.find(alias => alias.jobId === response.jobId)?.canonicalJobId;
+          if (!thenProjection.dataset.jobs.find(job => job.id === thenAlias)?.listingIds.includes(event.listingId)) throw new Error("invalid-office-receipt-job");
+          if (event.kind === "confirm") {
+            const expectedLocation = applyOfficeAddressConfirmation(event.sourceLocation, event);
+            if (!same(expectedLocation, response.location) || response.activeDecisionId !== event.id) throw new Error("invalid-office-receipt-body");
+          } else {
+            const target = backup.officeDecisions.find(entry => entry.id === event.targetDecisionId);
+            if (!target || target.kind !== "confirm") throw new Error("invalid-office-receipt-target");
+            const receiptBase = historicalLocationBasis(event, event.sourceLocation);
+            const expected = projectOfficeAddressConfirmations(receiptBase, backup.officeDecisions.filter(entry => entry.revision <= event.revision)).locations.find(location => location.id === response.locationId);
+            if (!expected || !same(response.location, expected) || response.activeDecisionId !== expected.officeResolution?.decisionId) throw new Error("invalid-office-receipt-body");
+          }
         }
       } catch { throw new RepositoryError("invalid-backup"); }
       const jobBodies = (jobs: readonly CanonicalJob[]) => jobs.map(({ revision: _revision, updatedAt: _updatedAt, ...job }) => job).sort((a, b) => compareIds(a.id, b.id));
@@ -882,6 +1053,9 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         db.exec("DROP TRIGGER location_decisions_no_update; DROP TRIGGER location_decisions_no_delete; DELETE FROM location_decisions;");
         for (const entry of backup.locationDecisions) db.prepare("INSERT INTO location_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
         db.exec(LOCATION_DECISION_TRIGGERS);
+        db.exec("DROP TRIGGER office_decisions_no_update; DROP TRIGGER office_decisions_no_delete; DELETE FROM office_decisions;");
+        for (const entry of backup.officeDecisions) db.prepare("INSERT INTO office_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
+        db.exec(OFFICE_DECISION_TRIGGERS);
         db.exec("DROP TRIGGER merge_decisions_no_update; DROP TRIGGER merge_decisions_no_delete; DROP TRIGGER job_alias_history_no_update; DROP TRIGGER job_alias_history_no_delete; DELETE FROM merge_decisions; DELETE FROM job_alias_history; DELETE FROM job_aliases; DELETE FROM job_versions;");
         for (const entry of backup.mergeDecisions) db.prepare("INSERT INTO merge_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
         for (const event of backup.aliasHistory) db.prepare("INSERT INTO job_alias_history(job_id,revision,document) VALUES (?,?,?)").run(event.jobId, event.revision, json(event));

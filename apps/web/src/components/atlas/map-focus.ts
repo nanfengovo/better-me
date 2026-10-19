@@ -13,7 +13,7 @@ export type AtlasMapFocus = {
   precision?: LocationPrecision;
   verification?: JobLocation["verification"];
   estimated?: boolean;
-  positionBasis?: "city-reference";
+  positionBasis?: "city-reference" | "office-confirmation";
   color?: string;
   /** Temporary screen offset supplied by the workspace to keep the pin beside its detail panel. */
   viewportOffset?: [number, number];
@@ -42,22 +42,24 @@ type FocusOptions = {
 
 /** Source coordinates take priority. A separate city reference never changes the source location. */
 export function createJobMapFocus(item: FocusJob, requestId: string, options: FocusOptions = {}): AtlasMapFocus | null {
+  if (item.job.workMode === "remote") return null;
   const selectedLocationId = options.locationId ?? options.cityCandidate?.locationId;
   const locations = item.locations.filter((location) => location.kind !== "remote-region"
     && (!selectedLocationId || location.id === selectedLocationId));
-  const location = locations.find((entry) => entry.coordinates?.coordinateSystem === "WGS84"
-    && entry.precision !== "unknown" && validMapFocus(entry.coordinates));
+  const location = locations.filter((entry) => entry.kind === "office" && entry.coordinates?.coordinateSystem === "WGS84"
+    && entry.precision !== "unknown" && validMapFocus(entry.coordinates))
+    .sort((left, right) => precisionZoom[right.precision] - precisionZoom[left.precision])[0];
   const common = { requestId, jobId: item.job.id, label: item.job.title.value,
     color: /^#[a-fA-F0-9]{6}$/.test(item.color.color) ? item.color.color : undefined };
   if (location?.coordinates) return {
     ...common, longitude: location.coordinates.longitude, latitude: location.coordinates.latitude,
-    locationId: location.id, locationLabel: location.raw, precision: location.precision,
-    verification: location.verification, estimated: ["country", "region", "city", "street"].includes(location.precision),
+    locationId: location.id, locationLabel: location.officeResolution?.formattedAddress ?? location.streetAddress ?? location.raw, precision: location.precision,
+    verification: location.verification, estimated: ["country", "region", "city", "street"].includes(location.precision) || !!location.officeResolution,
+    ...(location.officeResolution ? { positionBasis: "office-confirmation" as const } : {}),
     zoom: precisionZoom[location.precision],
   };
   const candidateInput = options.cityCandidate;
   if (!candidateInput) {
-    if (item.job.workMode === "remote") return null;
     const reference = item.mapReferences?.find(entry => entry.precision === "city" && entry.estimated === true
       && entry.coordinateMeaning === "populated-place-reference-point" && entry.coordinates.coordinateSystem === "WGS84" && validMapFocus(entry.coordinates)
       && locations.some(location => location.id === entry.locationId && !location.coordinates && location.countryCode === entry.countryCode && location.city === entry.label));
@@ -86,7 +88,7 @@ export function mapFocusPrecisionLabel(target: AtlasMapFocus): string {
     country: "国家级概略位置", region: "地区级概略位置", city: "城市级估算 · 非办公地址",
     street: "街道级估算 · 非精确办公地址", address: "地址级坐标", manual: "手动设置位置", unknown: "位置精度未说明",
   };
-  const label = `${target.positionBasis === "city-reference" ? "城市分布参考 · " : ""}${precision[target.precision ?? "unknown"]}`;
+  const label = `${target.positionBasis === "city-reference" ? "城市分布参考 · " : target.positionBasis === "office-confirmation" ? "本人核对的办公位置 · " : ""}${precision[target.precision ?? "unknown"]}`;
   if (target.verification === "conflicting") return `${label} · 来源有冲突`;
   if (target.verification !== "verified") return `${label} · 待核实`;
   return label;

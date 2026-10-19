@@ -86,6 +86,44 @@ test("broad upstream candidate counts never become confirmed C# matches and unre
   assert.equal(result.coverage.totalAvailable, 2); assert.equal(result.records[0]!.description, undefined);
 });
 
+test("SmartRecruiters retains explicit listing address and postalCode with exact source paths and unchanged raw label", async () => {
+  const { input } = fixture([post("1", { location: { city: "Boston", country: "us", fullLocation: "Boston, USA", address: "Source street 10", postalCode: "00123", latitude: 31, longitude: 121 } })]);
+  const result = await smartRecruitersAdapter.list(input), job = result.records[0]!;
+  assert.deepEqual(job.locations, [{ raw: "Boston, USA · Source street 10", countryCode: "US", city: "Boston", streetAddress: "Source street 10", postalCode: "00123" }]);
+  for (const [field, selector, quote] of [["streetAddress", "address", "Source street 10"], ["postalCode", "postalCode", "00123"]]) {
+    assert.ok(job.evidence.some(item => item.field === `locations.${field}` && item.selector === `content[0].location.${selector}` && item.quote === quote && new URL(item.sourceUrl).pathname.endsWith("/postings")));
+  }
+  assert.doesNotMatch(JSON.stringify(job.locations), /coordinates|latitude|longitude/);
+});
+
+test("SmartRecruiters same-ID detail can disclose an office address; absent detail location preserves listing fields", async () => {
+  const { input } = fixture([post()], { fetchDetails: true });
+  changeDetails(input, detail("123", { location: { city: "Boston", country: "us", fullLocation: "Boston, USA", address: "Source street 20", postalCode: "00234" } }));
+  const result = await smartRecruitersAdapter.list(input), job = result.records[0]!;
+  assert.deepEqual(job.locations, [{ raw: "Boston, USA · Source street 20", countryCode: "US", city: "Boston", streetAddress: "Source street 20", postalCode: "00234" }]);
+  assert.ok(job.evidence.some(item => item.field === "locations.streetAddress" && item.selector === "location.address" && item.sourceUrl === `${ENDPOINT}/123`));
+  assert.equal(job.completeness, "detail");
+  const retained = fixture([post("123", { location: { city: "Boston", country: "us", address: "Source street 30", postalCode: "00345" } })], { fetchDetails: true });
+  const retainedJob = (await smartRecruitersAdapter.list(retained.input)).records[0]!;
+  assert.equal(retainedJob.locations[0]!.streetAddress, "Source street 30"); assert.equal(retainedJob.locations[0]!.postalCode, "00345");
+});
+
+test("SmartRecruiters never derives structured address fields from fullLocation, city, HQ, zip aliases or geo", async () => {
+  const { input } = fixture([post("1", { location: { fullLocation: "Source street 10, 00123", city: "City street 20, 00234", country: "us", zipCode: "00345", latitude: 31, longitude: 121 },
+    company: { identifier: "SyntheticOrg", name: "Synthetic Company", address: "HQ street 99", postalCode: "99999" } })]);
+  const result = await smartRecruitersAdapter.list(input), location = result.records[0]!.locations[0]!;
+  assert.deepEqual(location, { raw: "Source street 10, 00123", countryCode: "US" });
+});
+
+test("SmartRecruiters invalid detail postal fields retain the unchanged listing as a partial excerpt", async () => {
+  for (const location of [{ address: "x".repeat(1001) }, { address: "Source street", postalCode: "x".repeat(101) }, { address: "Source\u0000ID" }, { address: "Source street", postalCode: "00\u0000ID" }]) {
+    const { input } = fixture([post()], { fetchDetails: true }); changeDetails(input, detail("123", { location }));
+    const result = await smartRecruitersAdapter.list(input), job = result.records[0]!;
+    assert.deepEqual(job.locations, [{ raw: "Shanghai, China", countryCode: "CN", region: "Shanghai", city: "Shanghai" }]);
+    assert.equal(job.completeness, "excerpt"); assert.equal(result.coverage.partial, true);
+  }
+});
+
 test("bounded same-ID detail recovers C# only in qualifications without truncating long responsibilities", async () => {
   const { input, urls } = fixture([post()], { fetchDetails: true });
   const data = detail();

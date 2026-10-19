@@ -33,6 +33,8 @@ export const SourceRecordLocationSchema = z.object({
   countryCode: CountryCodeSchema.optional(),
   region: z.string().min(1).max(500).optional(),
   city: z.string().min(1).max(500).optional(),
+  streetAddress: z.string().trim().min(1).max(1000).refine(value => !/[\p{Cc}\p{Cs}]/u.test(value), "Use plain address text.").optional(),
+  postalCode: z.string().trim().min(1).max(100).refine(value => !/[\p{Cc}\p{Cs}]/u.test(value), "Use plain postal text.").optional(),
 }).strict();
 export type SourceRecordLocation = z.infer<typeof SourceRecordLocationSchema>;
 

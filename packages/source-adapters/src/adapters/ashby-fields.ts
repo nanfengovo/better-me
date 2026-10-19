@@ -1,6 +1,6 @@
 import { resolveLegacyCountryCode } from '@better-me/opportunities';
 import type { SourceJobRecord, SourceRecordLocation } from '../contracts.js';
-import { own, record, stringValue } from './common.js';
+import { own, plainText, record, stringValue } from './common.js';
 
 /** Interpret explicit address fields only; a board, currency or region label is not a country. */
 function location(value: unknown): SourceRecordLocation | undefined {
@@ -11,9 +11,11 @@ function location(value: unknown): SourceRecordLocation | undefined {
   const countryCode = country && (/^[a-z]{2}$/i.test(country) ? country.toUpperCase() : resolveLegacyCountryCode(country));
   const region = stringValue(postal.addressRegion);
   const city = stringValue(postal.addressLocality);
+  const streetAddress = plainText(postal.streetAddress), postalCode = plainText(postal.postalCode);
   // If a label is missing, retain the disclosed address values as readable source text.
-  const raw = stringValue(input.location) ?? [city, region, country].filter(Boolean).join(', ');
-  return raw ? { raw, ...(countryCode ? { countryCode } : {}), ...(region ? { region } : {}), ...(city ? { city } : {}) } : undefined;
+  const raw = stringValue(input.location) ?? ([city, region, country].filter(Boolean).join(', ') || [streetAddress, postalCode].filter(Boolean).join(', '));
+  return raw ? { raw, ...(countryCode ? { countryCode } : {}), ...(region ? { region } : {}), ...(city ? { city } : {}),
+    ...(streetAddress ? { streetAddress } : {}), ...(postalCode ? { postalCode } : {}) } : undefined;
 }
 
 export function applyAshbyLocations(result: SourceJobRecord, job: Record<string, unknown>, selector: string, sourceUrl: string): void {
@@ -27,11 +29,17 @@ export function applyAshbyLocations(result: SourceJobRecord, job: Record<string,
     if (seen.has(key)) continue;
     seen.add(key);
     const remote = result.workMode === 'remote';
+    const structured = place.countryCode || place.region || place.city || place.streetAddress || place.postalCode;
     if (remote && place.raw.length <= 240 && !result.remoteEligibleRegions.includes(place.raw)) result.remoteEligibleRegions.push(place.raw);
     // Broad labels such as Europe remain text, never a set of inferred countries or offices.
-    if (!remote || place.countryCode || place.region || place.city) result.locations.push(place);
-    result.evidence.push({ field: remote && !place.countryCode && !place.region && !place.city ? 'remoteEligibleRegions' : 'locations', selector: `${entry.selector}.${own(entry.value, 'address') ? 'address' : 'location'}`,
+    if (!remote || structured) result.locations.push(place);
+    result.evidence.push({ field: remote && !structured ? 'remoteEligibleRegions' : 'locations', selector: `${entry.selector}.${own(entry.value, 'address') ? 'address' : 'location'}`,
       quote: JSON.stringify({ location: own(entry.value, 'location'), address: own(entry.value, 'address') }).slice(0, 20_000), sourceUrl });
+    const address = record(own(entry.value, 'address'));
+    const addressPath = `${entry.selector}.address${Object.hasOwn(address, 'postalAddress') ? '.postalAddress' : ''}`;
+    for (const field of ['streetAddress', 'postalCode'] as const) if (place[field]) {
+      result.evidence.push({ field: `locations.${field}`, selector: `${addressPath}.${field}`, quote: place[field], sourceUrl });
+    }
   }
 }
 

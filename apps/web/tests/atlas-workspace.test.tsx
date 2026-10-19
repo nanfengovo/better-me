@@ -3,11 +3,14 @@ import { registerHooks } from "node:module";
 import test, { after, afterEach, mock } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { Window, type HTMLButtonElement, type HTMLInputElement, type HTMLSelectElement } from "happy-dom";
-import { AtlasDatasetSchema, GeocodingRequestSchema, GeocodingResultSchema, type AtlasDataset, type GeocodingRequest } from "@better-me/opportunities";
+import { AtlasDatasetSchema, GeocodingRequestSchema, GeocodingResultSchema, applyOfficeAddressConfirmation, type AtlasDataset, type GeocodingRequest } from "@better-me/opportunities";
 import { createOpportunity, OPPORTUNITY_STORAGE_KEY } from "../src/lib/opportunities.ts";
 import { createAtlasDemo } from "../src/components/atlas/demo.ts";
 import type { AtlasPrototypeProps } from "../src/components/atlas/prototypes/types.ts";
 import type { AtlasJobDetailProps } from "../src/components/atlas/AtlasJobDetail.tsx";
+import type { AtlasOfficeAddressConfirmationProps } from "../src/components/atlas/AtlasOfficeAddressConfirmation.tsx";
+import { queryAtlasPage } from "../src/components/atlas/client.ts";
+import { officeProposal, officeAt } from "./fixtures/atlas-office-address.ts";
 import { createMapReferenceFixture } from "./fixtures/atlas-map-references.ts";
 
 // Exercise the real React workspace and shared queries. The map probe only replaces WebGL/network rendering.
@@ -19,6 +22,13 @@ const { createElement: h, act, useEffect } = React;
 let mapProps: AtlasPrototypeProps | undefined;
 let mapMounts = 0;
 let detailData: AtlasDataset | undefined;
+let officeProps: AtlasOfficeAddressConfirmationProps | undefined;
+let pauseRecovery: undefined | ((signal: AbortSignal) => Promise<void>);
+async function workspacePage(...args: Parameters<typeof queryAtlasPage>) {
+  if (args[1].page?.limit === 1 && args[3]?.selectedJobIds && pauseRecovery) await pauseRecovery(args[3].signal!);
+  return queryAtlasPage(...args);
+}
+function OfficeProbe(props: AtlasOfficeAddressConfirmationProps) { officeProps = props; return h("p", { "data-office-probe": true }, "Synthetic office review"); }
 function MapProbe(props: AtlasPrototypeProps) {
   mapProps = props;
   useEffect(() => { mapMounts++; }, []);
@@ -31,13 +41,15 @@ function DetailProbe(props: AtlasJobDetailProps) {
 }
 const globals = { window: dom, document: dom.document, navigator: dom.navigator, localStorage: dom.localStorage,
   HTMLElement: dom.HTMLElement, Element: dom.Element, Node: dom.Node, React, IS_REACT_ACT_ENVIRONMENT: true,
-  __atlasMapProbe: MapProbe, __atlasDetailProbe: DetailProbe };
+  __atlasMapProbe: MapProbe, __atlasDetailProbe: DetailProbe, __atlasOfficeProbe: OfficeProbe, __atlasWorkspacePage: workspacePage };
 const descriptors = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
 const hooks = registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier.includes("MapLibrePrototype")) return { url: "data:text/javascript,export default globalThis.__atlasMapProbe", shortCircuit: true };
     if (specifier === "./atlas/AtlasJobDetail") return { url: "data:text/javascript,export const AtlasJobDetail = globalThis.__atlasDetailProbe", shortCircuit: true };
+    if (specifier === "./atlas/AtlasOfficeAddressConfirmation") return { url: "data:text/javascript,export const AtlasOfficeAddressConfirmation = globalThis.__atlasOfficeProbe", shortCircuit: true };
+    if (specifier === "./atlas/client") return { url: `data:text/javascript,export {buildAtlasJobAction,readAtlasSnapshot} from ${JSON.stringify(new URL("../src/components/atlas/client.ts", import.meta.url).href)};export const queryAtlasPage=globalThis.__atlasWorkspacePage`, shortCircuit: true };
     return nextResolve(specifier, context);
   },
   load(url, context, nextLoad) {
@@ -143,6 +155,23 @@ function jobCard(title: string) {
   const card = [...dom.document.querySelectorAll<HTMLButtonElement>(".atlas-job-card")].find((entry) => entry.textContent?.includes(title));
   assert.ok(card, `Missing synthetic job card ${title}`); return card;
 }
+
+test("double-clicking a job with multiple workplaces asks for a location and focuses only the chosen office", async () => {
+  const data = createAtlasDemo();
+  const first = data.jobs[0]!, original = data.locations.find(location => location.id === first.locationIds[0])!;
+  const second = { ...structuredClone(original), id: "synthetic-second-office", raw: "Synthetic second office address", city: "Synthetic city", precision: "address" as const,
+    coordinates: { coordinateSystem: "WGS84" as const, latitude: 40, longitude: 116 } };
+  data.locations.push(second); first.locationIds.push(second.id);
+  data.listings[0]!.locationIds = [...first.locationIds];
+  installWorkspaceFetch(async () => sourceResponse(AtlasDatasetSchema.parse(data)));
+  await render(true, false); await connectFixture();
+  await flush(() => pointerDoubleClick(jobCard(first.title.value)));
+  assert.ok(dom.document.querySelector('[aria-label="选择要定位的工作地点"]'));
+  assert.equal(mapProps?.focus, undefined, "no arbitrary first-office focus");
+  await flush(() => button(second.raw).click());
+  assert.equal(mapProps?.focus?.locationId, second.id); assert.equal(mapProps?.focus?.latitude, 40);
+  assert.equal(mapProps?.focus?.zoom, 16.5); assert.deepEqual(mapProps?.focus?.viewportOffset, [0, 0]);
+});
 function cityCandidates(request: GeocodingRequest) {
   return GeocodingResultSchema.parse({
     schemaVersion: 1, providerId: "synthetic-workspace-gazetteer", request,
@@ -166,7 +195,7 @@ function unresolvedOfficeFixture() {
   data.locations.forEach((location) => { location.kind = "office"; });
   return AtlasDatasetSchema.parse(data);
 }
-afterEach(async () => { if (root) await act(async () => root!.unmount()); root = undefined; mapProps = undefined; detailData = undefined; dom.localStorage.clear(); dom.sessionStorage.clear(); mock.restoreAll(); });
+afterEach(async () => { if (root) await act(async () => root!.unmount()); root = undefined; mapProps = undefined; detailData = undefined; officeProps = undefined; pauseRecovery = undefined; dom.localStorage.clear(); dom.sessionStorage.clear(); mock.restoreAll(); });
 after(() => {
   hooks.deregister(); dom.happyDOM.abort();
   for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); }
@@ -303,6 +332,107 @@ test("live snapshot list loads beyond the first page and keeps loaded jobs after
   await flush(() => button("显示更多岗位").click());
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 66);
   assert.equal(dom.document.querySelector(".atlas-load-more"), null);
+});
+
+function pagedOfficeFixture() {
+  const base = createAtlasDemo(), data = structuredClone(base);
+  const groups = ["companies", "jobs", "locations", "compensations", "listings", "observations", "snapshots"] as const;
+  for (const group of groups) data[group] = [];
+  for (let n = 0; n < 3; n++) {
+    const renamed = new Map(groups.flatMap(group => base[group].map(entity => [entity.id, `${entity.id}-page${n}`])));
+    const copy = JSON.parse(JSON.stringify(base, (_key, value: unknown) => typeof value === "string" && renamed.has(value) ? renamed.get(value) : value)) as AtlasDataset;
+    for (const group of groups) (data[group] as unknown[]).push(...copy[group]);
+  }
+  data.jobs.forEach((job, index) => { job.title.value = `Synthetic office role ${String(index).padStart(2, "0")}`; job.workMode = "on-site"; });
+  data.locations.forEach(location => { location.kind = "office"; location.countryCode = "CN"; location.city = "Shanghai"; location.precision = "city"; delete location.coordinates; });
+  for (const job of data.jobs) {
+    const reference = { ...structuredClone(data.locations.find(location => location.id === job.locationIds[0])!), id: `${job.id}-reference-office` };
+    data.locations.push(reference); job.locationIds.push(reference.id);
+    const listing = data.listings.find(value => value.id === job.listingIds[0])!; listing.locationIds = [...job.locationIds];
+  }
+  return AtlasDatasetSchema.parse(data);
+}
+async function saveSecondPageOffice(data: AtlasDataset, mutate?: (saved: AtlasDataset) => void) {
+  await render(true, false); await connectFixture();
+  await flush(() => button("显示更多岗位").click());
+  const card = dom.document.querySelectorAll<HTMLButtonElement>(".atlas-job-card")[40]!;
+  await flush(() => pointerClick(card, 0)); await flush(() => button("核对办公地址").click());
+  await waitFor(() => Boolean(officeProps), "synthetic office panel callback");
+  const props = officeProps!, saved = structuredClone(data); saved.revision++;
+  const job = saved.jobs.find(value => value.id === props.jobId)!, source = saved.locations.find(value => value.id === props.location.id)!;
+  const confirmed = applyOfficeAddressConfirmation(source, { id: "synthetic-page2-office", kind: "confirm", jobId: job.id, listingId: job.listingIds[0]!,
+    locationId: source.id, actorScope: "synthetic-owner", at: officeAt, revision: saved.revision, reason: "Synthetic explicit office review", sourceLocation: source, proposal: officeProposal });
+  saved.locations[saved.locations.indexOf(source)] = confirmed; mutate?.(saved);
+  await act(async () => props.onSnapshot(AtlasDatasetSchema.parse(saved)));
+  return { saved, jobId: job.id, locationId: source.id };
+}
+
+test("saved second-page office is rechecked outside pagination, remains selected after late city references, and focuses exactly once", async () => {
+  const data = pagedOfficeFixture();
+  const pending: Array<{ revision: number; resolve: (response: Response) => void }> = [];
+  installWorkspaceFetch(async () => sourceResponse(data), async input => input.expectedRevision === data.revision ? sourceResponse(await createMapReferenceFixture(data)) : new Promise(resolve => pending.push({ revision: input.expectedRevision, resolve })));
+  const saved = await saveSecondPageOffice(data);
+  await waitFor(() => mapProps?.focus?.locationId === saved.locationId, "the saved second-page office focus");
+  await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 30, "the new snapshot's first page");
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30, "the list resets to its first page");
+  assert.equal(mapProps!.selectedJobId, saved.jobId); assert.equal(mapProps!.focus!.positionBasis, "office-confirmation");
+  assert.equal(detailData!.revision, saved.saved.revision); const firstRequest = mapProps!.focus!.requestId;
+  await waitFor(() => pending.some(value => value.revision === saved.saved.revision), "the new snapshot's city projection");
+  const batch = await createMapReferenceFixture(saved.saved);
+  await act(async () => pending.find(value => value.revision === saved.saved.revision)!.resolve(sourceResponse(batch)));
+  await waitFor(() => Boolean(mapProps!.buckets.some(bucket => bucket.positionBasis === "city-reference")), "late city references");
+  await flush(); assert.equal(mapProps!.selectedJobId, saved.jobId); assert.equal(mapProps!.focus!.requestId, firstRequest);
+  assert.ok(dom.document.querySelector('[aria-label="地图岗位详情"]'));
+  await flush(() => button("显示更多岗位").click());
+  const recoveredCard = dom.document.querySelectorAll<HTMLButtonElement>(".atlas-job-card")[40]!;
+  assert.match(recoveredCard.querySelector(".atlas-job-meta")!.textContent!, /Synthetic Example Road 10, Shanghai/);
+});
+
+test("source-disclosed office street is shown directly in the job card", async () => {
+  const data = createAtlasDemo(); data.locations[0]!.streetAddress = "Synthetic source street 10";
+  installWorkspaceFetch(async () => sourceResponse(data)); await render(true, false); await connectFixture();
+  assert.match(jobCard(data.jobs[0]!.title.value).querySelector(".atlas-job-meta")!.textContent!, /Synthetic source street 10/);
+});
+
+test("a saved job which no longer matches the active filters is never recovered", async () => {
+  const data = pagedOfficeFixture(); installWorkspaceFetch(async () => sourceResponse(data));
+  await render(true, false); await connectFixture();
+  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "Synthetic office role"));
+  const saved = await saveSecondPageOffice(data, snapshot => { snapshot.jobs.find(job => job.id === officeProps!.jobId)!.title.value = "No longer matches"; snapshot.jobs.find(job => job.id === officeProps!.jobId)!.description = "Unrelated"; });
+  await flush(); assert.equal(mapProps!.focus, undefined); assert.notEqual(mapProps!.selectedJobId, saved.jobId);
+  assert.equal(dom.document.querySelector('[aria-label="地图岗位详情"]'), null);
+});
+
+for (const action of ["filter", "identity", "inactive", "different-job", "close"] as const) test(`late saved office query is cancelled after ${action}`, async () => {
+  const data = pagedOfficeFixture(); installWorkspaceFetch(async () => sourceResponse(data));
+  let signal: AbortSignal | undefined, release: (() => void) | undefined;
+  pauseRecovery = async value => { signal = value; await new Promise<void>(resolve => { release = resolve; }); };
+  const saved = await saveSecondPageOffice(data);
+  await waitFor(() => Boolean(release), "independent office query to start");
+  if (action === "filter") await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "No match anywhere"));
+  if (action === "identity") { await flush(() => button("连接本机服务").click()); await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('input[type="password"]')!, "different-synthetic-token")); }
+  if (action === "inactive") await render(false, false);
+  if (action === "different-job") { await flush(); await flush(() => pointerClick(dom.document.querySelector<HTMLButtonElement>(".atlas-job-card")!, 0)); }
+  if (action === "close") {
+    // The saved snapshot clears the old pane while the independent read is pending;
+    // explicitly opening and closing another card must cancel that pending focus.
+    await flush(); await flush(() => pointerClick(dom.document.querySelector<HTMLButtonElement>(".atlas-job-card")!, 0));
+    await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="关闭岗位详情"]')!.click());
+  }
+  assert.equal(signal!.aborted, true);
+  await act(async () => release!()); await flush();
+  assert.notEqual(mapProps?.selectedJobId, saved.jobId); assert.notEqual(mapProps?.focus?.locationId, saved.locationId);
+});
+
+for (const kind of ["remote", "unknown"] as const) test(`${kind} location facts cannot become an office focus or office choice`, async () => {
+  const data = createAtlasDemo(), job = data.jobs[0]!, location = data.locations.find(value => value.id === job.locationIds[0])!;
+  job.workMode = kind === "remote" ? "remote" : "on-site";
+  location.kind = kind === "unknown" ? "unknown" : "office"; location.precision = "address";
+  location.coordinates = { latitude: 31, longitude: 121, coordinateSystem: "WGS84" };
+  installWorkspaceFetch(async () => sourceResponse(data)); await render(true, false); await connectFixture();
+  await flush(() => pointerDoubleClick(jobCard(job.title.value)));
+  assert.equal(mapProps!.focus, undefined); assert.equal(dom.document.querySelector('[aria-label="选择要定位的工作地点"]'), null);
+  assert.match(dom.document.querySelector('[aria-label="城市定位候选"]')!.textContent!, /不能将远程资格或未知地点标成办公地址/);
 });
 
 
@@ -757,7 +887,7 @@ test("live city distribution references share the real filters and bucket select
   }, input => { mapReads++; assert.equal(input.expectedRevision, data.revision); return sourceResponse(batch); });
   await render(true, false); await connectFixture();
   assert.equal(mapReads, 1); assert.ok(mapProps!.buckets.length > 0); assert.equal(mapProps!.buckets.every(bucket => bucket.positionBasis === "city-reference"), true);
-  assert.match(dom.document.querySelector('[aria-label="地图位置口径"]')!.textContent!, /来源坐标 0 岗.*城市分布参考 21 岗.*不参与离家距离/);
+  assert.match(dom.document.querySelector('[aria-label="地图位置口径"]')!.textContent!, /有效岗位坐标 0 岗.*城市分布参考 21 岗.*不参与离家距离/);
   const keyword = dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]'); assert.ok(keyword);
   await flush(() => changeInput(keyword, "C#"));
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 3); assert.equal(mapReads, 1, "filters reuse this snapshot's projection");
