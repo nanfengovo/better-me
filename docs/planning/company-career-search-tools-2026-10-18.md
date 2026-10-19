@@ -1,6 +1,6 @@
 # 公司招聘发现与岗位搜索工具
 
-日期：2026-10-18；搜索启动恢复协议更新：2026-10-19。本文同时记录已经实现的工具、有限验收与后续浏览器搜索设计。总体目标见[岗位地图架构](job-atlas-architecture-2026-10-18.md)，来源研究见[信息源核验](job-atlas-sources-research-2026-10-18.md)，实现入口见[来源适配器](../../packages/source-adapters/README.md)与[本机服务](../../apps/job-service/README.md)。
+日期：2026-10-18；搜索启动恢复协议及宿主搜索provider接线更新：2026-10-19。本文同时记录已经实现的工具、有限验收与后续浏览器搜索设计。总体目标见[岗位地图架构](job-atlas-architecture-2026-10-18.md)，来源研究见[信息源核验](job-atlas-sources-research-2026-10-18.md)，实现入口见[来源适配器](../../packages/source-adapters/README.md)与[本机服务](../../apps/job-service/README.md)。
 
 ## 能力边界
 
@@ -9,9 +9,9 @@
 | 能力 | 当前实现 | 输入与结果的边界 |
 | --- | --- | --- |
 | 公司来源匹配 | `discoverCompanyCareers()` / `companies.discover-careers` | 先匹配已登记来源。名称、配置别名与入口匹配是配置关系，不是独立企业核验。 |
-| 官网入口发现 | 同一工具 | 显式官网 / 种子、同 origin 有限静态链接、四类已知 ATS / 官网入口识别；输出待审证据与禁用提案。 |
-| 从任意公司名搜索互联网官网 | 底层预留 `CareerWebSearchProvider`，当前服务未注入 | 无官网、种子或已有匹配时返回 `requires-company-website`；不猜公司域名。 |
-| 获取已登记官网岗位 | `sources.preview` / `sources.sync` | 已安装 Greenhouse、Lever、Ashby、腾讯及有限 JSON 适配器，受实际配置、端点与预算限制。 |
+| 官网入口发现 | 同一工具 | 显式官网 / 种子、同 origin 有限静态链接、五类已知 ATS / 官网入口识别；输出待审证据与禁用提案。 |
+| 从公司名发现互联网招聘入口 | 宿主可显式注入DDG实验HTML／SearXNG provider，默认关闭 | 仅名无需sourceId；无已有匹配时有限搜索，候选仍未核实，不自动跟随或抓岗；真实网络受限范围见[本轮报告](../reports/job-atlas-career-web-search-2026-10-19.md)。 |
+| 获取已登记官网岗位 | `sources.preview` / `sources.sync` | 已安装 Greenhouse、Lever、Ashby、SmartRecruiters、腾讯及有限 JSON 适配器，受实际配置、端点与预算限制。 |
 | 查询与地图 | `jobs.search` | 读同一个公共岗位索引，返回列表、全量统计 / 地图桶、覆盖与未知值；不会自动发起来源采集。 |
 | 四平台搜索入口 | `buildPlatformSearchRequest()` | 按官方固定入口与平台独立地区映射生成搜索请求；允许空关键词按地区浏览，入口生成本身不捕获结果或写入索引。 |
 | 四平台单岗正文 | 既有 JD 浏览器会话 | 保留原有打开具体岗位、人工验证与读取流程；搜索列表明确不会作为 JD。 |
@@ -43,7 +43,7 @@ discoverCompanyCareers(request, execution)
 
 已登记来源先按显式公司名 / 别名、来源名或明确公司官网 / 入口匹配。公司名会做 Unicode、空白和大小写规范化，不做品牌印象推断。共享 ATS board 和仓库 URL 不因主机相同就匹配另一公司。命中后立即返回已有来源，保持其启用状态，不发网页请求。
 
-有限发现只读取原策略内页面，跟随同 origin 招聘链接，保留原页、目标链接与锚文本。跨域招聘链接进入待审证据，不访问；识别 Greenhouse、Lever、Ashby 与腾讯已知 URL 形式后可以映射到安装的适配器，但识别过程不调用其 API。脚本和浏览器渲染不执行，因此静态 HTML 没有入口不能解释成企业没有岗位。
+有限发现只读取原策略内页面，跟随同 origin 招聘链接，保留原页、目标链接与锚文本。跨域招聘链接进入待审证据，不访问；识别 Greenhouse、Lever、Ashby、SmartRecruiters 与腾讯已知 URL 形式后可以映射到安装的适配器，但识别过程不调用其 API。脚本和浏览器渲染不执行，因此静态 HTML 没有入口不能解释成企业没有岗位。
 
 结果固定包含：
 
@@ -57,16 +57,17 @@ discoverCompanyCareers(request, execution)
   candidates,    // SourceCandidate + entryKind、matchedBy、unverified 归属、evidence
   proposals,     // 现有 SourceRegistrationProposal，禁用且待审
   visitedUrls,
+  search?, // providerId、label、query、resultCount，搜索线索和官网页数分开
   partial,
   warnings
 }
 ```
 
-候选 `entryKind` 为 `greenhouse | lever | ashby | tencent | html`，`companyAssociation` 始终为 `unverified`。证据包含 `kind`、`sourceUrl`、`targetUrl` 和可选 `quote`。`observedAt` 是本次发现时间，不能转换为岗位发布时间。`no-candidates` 只描述本次有限发现；页数 / 候选 / 静态扫描等上限在 `partial` 和 `warnings` 中说明。
+候选 `entryKind` 为 `greenhouse | lever | ashby | tencent | smartrecruiters | html`，`companyAssociation` 始终为 `unverified`。证据包含 `kind`、`sourceUrl`、`targetUrl` 和可选 `quote`。`observedAt` 是本次发现时间，不能转换为岗位发布时间。`no-candidates` 只描述本次有限发现；页数 / 候选 / 静态扫描等上限在 `partial` 和 `warnings` 中说明。
 
 已知协议提案保持 `enabled: false`、`status: "needs-review"`，待核对企业归属、原站条件、请求范围和实际解析结果。HTML 提案为 `adapterId: "review-required-html"`、`capabilities: []`、`entityType: "company-directory"`；当前没有通用 HTML 岗位解析器，登记禁用草案也不会变成可采集来源。
 
-当前 application 只注入已有来源列表，未注入 Web 搜索 provider 或公司别名表。底层 provider 接口是将来可信主机的扩展点；其搜索结果仍通过 Schema 校验并作为未核实候选，不自动成为官网，不自动跟随，也不登记来源。
+application 已支持宿主注入 Web 搜索provider，并由CLI显式配置；默认关闭，公司别名表仍未注入。搜索结果通过Schema校验并作为未核实候选，不自动成为官网、不自动跟随或登记。`companies.discovery-capabilities`只返回非秘密配置投影，不探测网络。DDG实验适配本轮实际遇202挑战并正确停止；SearXNG需自备可用公开HTTPS JSON实例，未完成真实闭环。
 
 ## HTTP 与应用工具
 
@@ -87,7 +88,7 @@ Content-Type: application/json
 }
 ```
 
-这里的 `sourceId` 是**发现策略来源**：必须已登记、启用、`status: "active"`、包含 `discover-sources` 和 `local-service`，且不能需要当前服务尚未提供的来源凭据。它控制能读哪些外部端点；它不必是目标公司的岗位来源。目标企业有待发现的来源 ID 放在结果中，不能凭空作为请求的已登记 `sourceId`。
+仅名称请求可传 `{ "request": { "companyName": "示例企业" } }`；明确官网／种子则必须指定策略。这里的 `sourceId` 是**发现策略来源**：必须已登记、启用、`status: "active"`、包含 `discover-sources` 和 `local-service`，且不能需要当前服务尚未提供的来源凭据。它控制能读哪些外部端点；它不必是目标公司的岗位来源。目标企业有待发现的来源 ID 放在结果中，不能凭空作为请求的已登记 `sourceId`。
 
 如果该策略仅允许 GitHub API，给它增加一个 `companyWebsite` 参数不会获得访问企业官网的权限。可信配置需要先明确审核允许范围；URL 不在策略内时不会自动扩张。仅匹配已登记公司名的分支不需要网页读取。
 
@@ -103,7 +104,7 @@ Content-Type: application/json
 
 | 工具 / HTTP | 输入 | 副作用 |
 | --- | --- | --- |
-| `companies.discover-careers` / `POST /companies/discover-careers` | `{ sourceId, request: { companyName, companyWebsite?, seedUrls?, limit?, maxPages? } }` | 外部只读；可能零请求，不登记来源。 |
+| `companies.discover-careers` / `POST /companies/discover-careers` | `{ sourceId?, request: { companyName, companyWebsite?, seedUrls?, limit?, maxPages? } }` | 外部只读；可能零请求，不登记来源。 |
 | `sources.register` / `POST /sources` | `{ source: SourceDefinition, expectedRevision? }` | 保存来源；写入要求独立幂等键，更新可约束 revision。 |
 | `sources.preview` / `POST /sources/:sourceId/preview` | `{ scope?, maxRecords? }` | 有限读取一页，不写岗位索引；路径绑定 `sourceId`。 |
 | `sources.sync` / `POST /sources/:sourceId/sync` | `{ scope?, maxRecords?, maxPages? }` | 手动写索引和持久任务；路径绑定 `sourceId`，要求幂等键。 |
@@ -153,9 +154,9 @@ flowchart TD
   D -->|needs-review| R[核对归属 原站条件 协议与端点]
   D -->|requires-company-website| W[补明确官网或配置受信搜索 provider]
   D -->|no-candidates| N[保留有限未发现结论]
-  R --> G[sources.register 显式保存审核后的配置]
+  R --> G[sources.register 显式保存审核后的岗位适配器配置]
   E --> P[sources.preview]
-  G --> P
+  G -->|已安装且支持岗位读取| P
   P --> S[sources.sync 手动有限刷新]
   S --> Q[jobs.search 共享索引]
   Q --> V[列表 地图 机会库与简历匹配入口]
@@ -163,19 +164,14 @@ flowchart TD
 
 应用不会自动串行完成以上所有动作。编排器根据 status 分支，保留候选原证据、来源 ID、任务 ID 与后续岗位 / 快照引用；已有来源的禁用状态也不能被发现步骤绕过。发现失败或列表缺席不更新岗位为已关闭。薪资、坐标与企业控股来源仍使用各自证据，不能由发现器补猜。
 
-未来 LangChain 包装应调用已经运行的 registry / HTTP 应用服务，不在模型工具内复制解析器或直接获得 token、浏览器 profile、任意 URL 请求能力。下面是**未来宿主集成示意**，当前仓库没有安装或启动 LangChain Agent；`application` 和 `createTrustedContext` 由可信宿主创建：
+未来 LangChain 包装应调用已经运行的 registry / HTTP 应用服务，不在模型工具内复制解析器或直接获得 token、浏览器 profile、任意 URL 请求能力。下面是**未来宿主集成示意**，企业招聘搜索尚未接入 LangChain / LangGraph Agent；`application` 和 `createTrustedContext` 由可信宿主创建：
 
 ```ts
 import { tool } from "@langchain/core/tools";
-import { z } from "zod";
-import { DiscoverCompanyCareersInputSchema } from
+import { DiscoverCompanyCareersRequestSchema } from
   "@better-me/source-adapters/browser-contracts";
-import { EntityIdSchema } from "@better-me/opportunities";
 
-const discoverInput = z.object({
-  sourceId: EntityIdSchema,
-  request: DiscoverCompanyCareersInputSchema,
-}).strict();
+const discoverInput = DiscoverCompanyCareersRequestSchema;
 
 const discoverCompanyTool = tool(async (input) => {
   // 身份、外部只读权限、预算和取消信号都由宿主提供。
@@ -244,3 +240,5 @@ async function queryJobsNode(state) {
 2026-10-18 15:35 UTC，对实际运行的本机 HTTP 新接口做了两项有限验证。使用已有、启用且具备发现能力的配置来源，以已登记腾讯配置中的公司名查询，返回 `matched-existing` 并指向既有腾讯岗位来源；未登记的合成公司名未附官网，返回 `requires-company-website`。两次 `visitedUrls` 均为空，未同步、未新增候选岗位；前后完整公共数据集与来源配置一致。该结果证明实际路由 / 工具 / 已有来源匹配和缺官网分支可用，**没有证明腾讯官网 HTML 发现、任意公司网站识别、通用 Web 搜索或四平台列表采集可用**。
 
 四平台新解析器的 20/20、会话 / 路由相关测试的 167/167、HTTP / 客户端组合的 5/5 是各自阶段时点的局部结果。其后根目录完整测试在一个快照达到 **1692/1692**；新增面板 13 项和防护 2 项位于该快照之后，分别记录，不相加成新的全仓通过总数，也不能用 1692/1692 覆盖后续改动。**这些结果都不是四个真实站点验证，最终全仓检查仍需覆盖新增代码。** 后续首先补真实官网静态入口与四平台列表的有限样本、人工验证接续、重定向 / 多语言 / JS 渲染边界，并为受信搜索 provider 建立明确来源配置及验收。行政目录继续提供显式地区输入和过滤映射。LangChain / LangGraph 最后只包装已经能独立执行和验证的业务工具。
+
+2026-10-19 搜索provider接线及验证范围见[本轮报告](../reports/job-atlas-career-web-search-2026-10-19.md)。以上2026-10-18数字和四平台停点属于历史时点，最新国内索引与各站有限实证见[国内来源报告](../reports/job-atlas-domestic-source-expansion-2026-10-19.md)。显式官网可使用已安装的`discovery-policy@1`纯访问策略（只声明discover-sources），默认禁用[配置示例](../../config/sources/company-career-discovery.example.json)须核对精确范围后明确启用。策略不匹配成招聘来源、不支持preview／sync，不需捏造list-jobs；已有含list-jobs来源的注册语义保留。

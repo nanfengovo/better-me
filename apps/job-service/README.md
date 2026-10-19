@@ -25,6 +25,8 @@ pnpm --filter @better-me/job-service start --data-dir $jobDataDirectory --origin
 | `--host 127.0.0.1\|::1` | 默认 `127.0.0.1`，仅允许本机回环地址。 |
 | `--port <1–65535>` | 默认 `5178`。不会停止占用端口的其他程序。 |
 | `--dns system\|google-doh` | 默认系统 DNS；仅改变本服务的解析方式。 |
+| `--career-search duckduckgo-html\|searxng` | 可选的企业招聘入口搜索，默认关闭；DDG 为实验 HTML 提供方。 |
+| `--career-search-endpoint <https-url>` | 仅 SearXNG，填写自己管理的公开 HTTPS JSON 搜索路径，不含凭据／查询参数。 |
 | `--help` | 显示帮助，不创建文件、不启动监听。 |
 
 `google-doh` 是可选的显式设置，适用于系统返回 Fake-IP 的环境。它通过固定的 Google DNS HTTPS 端点解析来源主机名，并继续验证返回的是公网地址；不会修改操作系统 DNS 或把保留地址加入允许列表。DNS HTTPS 流量与来源 HTTP 流量共同消耗调用预算，且来源主机名会发送给所选 DNS 服务。Google 端点自身不可达时仍会失败。
@@ -73,6 +75,8 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/jobs/search" -Headers $jobHe
 | POST | `/api/v1/sources` | `sources.register`；`{ source, expectedRevision? }`，修改既有配置需版本号。 |
 | POST | `/api/v1/sources/:sourceId/preview` | `sources.preview`；`{ scope?, maxRecords? }`，读取一页，不写岗位索引。 |
 | POST | `/api/v1/sources/:sourceId/sync` | `sources.sync`；`{ scope?, maxRecords?, maxPages? }`，受限手动刷新。 |
+| GET | `/api/v1/companies/discovery-capabilities` | `companies.discovery-capabilities`；仅读取配置投影，不联网探测或返回端点。 |
+| POST | `/api/v1/companies/discover-careers` | `companies.discover-careers`；`{ sourceId?, request }`，仅企业名可省略 sourceId，明确官网／seed 必须指定已审核策略。 |
 | POST | `/api/v1/sources/discover` | `sources.discover`；`{ sourceId, request }`，发现待审核来源候选。 |
 | POST | `/api/v1/sources/inspect` | `sources.inspect`；`{ sourceId, request }`，有限抽样检查。 |
 | POST | `/api/v1/sources/propose` | `sources.propose`；直接传提案输入，只生成禁用配置。 |
@@ -205,7 +209,7 @@ SQLite 持久保存来源、公司、岗位、位置、薪资、来源 listing�
 
 合并保留所有 listing、不可变观察和 JD、薪资、位置及字段冲突。规范岗位按最近一次有效合并所选目标来源提供标量摘要；来源刷新仍更新各自原始投影，未选中来源的新标题或 JD 不静默取代人工摘要来源。撤销合并恢复各自最新投影。多源地点和薪资保留为集合，查询继续按共享规则报告歧义；不会默认采用最高工资或把冲突状态当已核实。
 
-现有 application 已接通归并兼容：**来源刷新从 `readProjectionSnapshot()` 调用 `projectSourcePage()`**，查询与公共导出继续使用 `readSnapshot()`。详情先捕获公共快照，再以其 revision 调用 `resolveJobId()`，避免合并 / 撤销发生在异步读取间时混用不同版本。现有 HTTP 路由复用这些应用工具，无须增加路由；人工归并写入仍只由可信 repository API 提供，尚无归并 UI 或 HTTP 写入入口。候选发现与投影尚未做规模优化，测试通过不代表大量来源下的吞吐结论。
+现有 application 已接通归并兼容：**来源刷新从 `readProjectionSnapshot()` 调用 `projectSourcePage()`**，查询与公共导出继续使用 `readSnapshot()`。详情先捕获公共快照，再以其 revision 调用 `resolveJobId()`，避免合并 / 撤销发生在异步读取间时混用不同版本。归并操作已通过受审工具、认证HTTP及Web显式预览确认接入，repository继续保持一致投影。候选发现与投影尚未做规模优化，测试通过不代表大量来源下的吞吐结论。
 
 ## 一致性、备份与部署
 
@@ -267,3 +271,13 @@ SmartRecruiters专项见`packages/source-adapters/tests/smartrecruiters.test.ts`
 撤销先用decisionId／expectedRevision／reason预览实际before／after相关组，再提交同一输入、指纹与reviewed。只允许原执行身份撤销。完整命令哈希进入SQLite耐久签名；原键回执查找早于当前revision和预览验证，服务重启也能取回旧请求。工具运行时的可信只读恢复回调解决提交后超时／取消／输出失败的旧错误缓存，不重新执行写入；没有回执保留原错误。
 
 有限候选内部最多枚举10000对、生成1000候选，返回不超过100；false或空列表不能证明全库无重复。共享协议不开放客户端自封verified的requisitionLinks。见[实施与验收](../../docs/reports/job-atlas-reconciliation-2026-10-19.md)。
+
+## 可选企业招聘入口网页搜索
+
+服务默认不配置网页搜索。需要时在原启动命令追加 `--career-search searxng --career-search-endpoint https://search.your-domain.com/search`，使用自己管理且允许 JSON 查询的公开 HTTPS 实例；当前不支持本机 HTTP、IP、私网、API Key 或自动补路径。也可显式使用 `--career-search duckduckgo-html` 试用实验 HTML 适配；它不是官方搜索 API，需核对提供方条款，可能遇验证、限流或结构变化。启动不联网，服务不轮换公共实例或自动切提供方。
+
+Web 展开“来源工具 → 企业官网招聘”后才读配置，点击发现才搜索。仅名先匹配已登记来源，无匹配时使用已配置提供方；搜索结果不自动访问、登记或启用。每次一页、最多20条、2 MiB解析上限，受既有transport／DNS／请求预算，始终partial；搜索线索数与实际官网读取页数分开。具体岗位仍须核对ATS配置后另行预览／同步。普通HTML入口无通用岗位解析器，不能直接启用抓岗。
+
+显式官网／seed使用独立的`discovery-policy@1`访问策略，只声明`discover-sources`，无岗位读取能力。[默认禁用示例](../../config/sources/company-career-discovery.example.json)需先替换精确官网主机／路径，再明确设enabled:true和status:active，通过来源JSON检查、勾选核对、显式保存；更新既有配置还需expectedRevision。它可以用于企业官网／GitHub来源发现，不能用于sources.preview或sources.sync，也不计作可搜索岗位来源。策略自身不会命中为企业招聘源，同名／同域仍执行实际官网读取；其他来源的既有匹配语义保留。
+
+本轮当前代码真实Grafana查询收到DDG202挑战，正确needs-auth并停止；已保存Siemens真实HTML重放10条仅证明解析，不称实时成功。配置／接口／测试和实证见[通用搜索报告](../../docs/reports/job-atlas-career-web-search-2026-10-19.md)。

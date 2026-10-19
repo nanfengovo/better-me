@@ -4,6 +4,8 @@
 
 ## 当前交付
 
+- [x] 2026-10-19 通用企业名搜索及官网访问策略：c1b3140／d10bd5d／6fc3761正常推送，2099与2109两个独立源码快照分别全通过，均types10/10、lint、build6/6。默认关闭宿主搜索、可显式DDG实验HTML／SearXNG，能力API／仅名无需policy／Web取消隔离；新增discovery-policy只允许精确官网发现、不伪造list-jobs、不自命中，示例默认禁用。完整备份后原5178新版已恢复，新能力和策略元数据HTTP通过，85岗／rev59、dataset/token哈希及全球48／33、国内26／22未变，mapped0。DDG202验证、Siemens实时未取到HTTP和离线扫描截断均明确失败／partial，没有新增岗位。最终CI与部署跟踪见通用搜索报告，Career未混入，整个Goal继续。
+
 - [x] 2026-10-19 归并受审工具／HTTP／UI及实际撤销分组预览完成：d40a7f5／4873aa8正常推送，16文件独立树7e727e4ed离线安装、memory检查、types10/10、lint、2053/2053（fail/cancel/skip/todo0）、build6/6通过；独立审查72/72不相加。提交后超时／取消／输出失败可仅查原key耐久回执，不重写。完整备份后恢复原5178，85岗／rev59、dataset／token哈希不变，真实5对弱线索／0历史／首对只读预览通过；国内26／22与全球48／33复查未变，无新办公坐标或私人UI目视。CI39177331005质量／Linux构建／Docker／Pages四任务success，公网新Atlas与归并动态面板200、入口／回执代码已核；本批文档收尾中，Career未混入，整体Goal继续。
 
 - [x] 2026-10-19 Atlas刷新连接修复7755cf1已正常推送：仅显式成功后在当前tab sessionStorage保存loopback身份，刷新重新读取；失败保持live，切视图／改资料／断开取消旧连接、来源及城市候选／核对面板，防迟到回调与loading残留。5文件冻结树514b0353离线安装、65/65定向、types10/10、lint、build6/6通过，20新增回归独立审查通过；功能CI39175293892四任务success，文档df9bb0b已推送／CI39175389049四任务success；公网新Atlas会话代码实际200，149相对链接／隐私／memory检查通过。本机85岗／rev59、国内C#26／22企业、全球48／33企业真实HTTP复查未变，旧页首次仍需连接，无新办公坐标或私人索引UI目视。Career Agent未混入，整个Goal继续。
