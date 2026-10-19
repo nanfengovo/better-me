@@ -13,6 +13,8 @@ const source: SourceDefinition = {
   endpointPolicy: { allowedHosts: ["careers.example.test"], allowedPathPrefixes: ["/"], requireHttps: true, allowRedirects: false, maxRedirects: 0 }, attribution: { label: "合成来源", usage: "metadata", requiresAttribution: true }, refreshPolicy: { mode: "manual", minIntervalSeconds: 0, maxRecords: 100, maxPages: 10, requestsPerMinute: 30 },
 };
 const actorScope = "local-ui:projection-test";
+// Keep repository commit timestamps within the fixture's observation timeline.
+const fixtureNow = () => "2026-10-18T00:00:00.000Z";
 function record(id: string, city: string): SourceJobRecord {
   return { entityType: "job-posting", sourceRecordId: id, url: `https://careers.example.test/jobs/${id}`, title: "同名合成软件工程师", companyName: "合成同公司", description: `合成公开职责 ${city}，TypeScript 与测试。`, locations: [{ raw: `中国 ${city}`, countryCode: "CN", city }], compensations: [], workMode: "on-site", employmentType: "social", remoteEligibleRegions: [], availability: "unknown", completeness: "detail", evidence: [], warnings: [] };
 }
@@ -21,7 +23,7 @@ function page(records: SourceJobRecord[], observedAt: string): SourcePage {
 }
 async function withRepository(task: (repo: JobRepository) => Promise<void>) {
   const dir = await mkdtemp(join(tmpdir(), "better-me-project-repository-test-"));
-  const repo = openJobRepository(join(dir, "jobs.sqlite"));
+  const repo = openJobRepository(join(dir, "jobs.sqlite"), { now: fixtureNow });
   try {
     const seed = emptyDelta(); seed.sources = [source];
     await repo.importSnapshot(seed, { actorScope, idempotencyKey: "seed" });
@@ -37,7 +39,7 @@ async function applyPage(repo: JobRepository, records: SourceJobRecord[], key: s
 }
 test("real projection+SQLite repeated runs keep identities/snapshots and distinct same-title cities, while changed JD appends history", async () => {
   const dir = await mkdtemp(join(tmpdir(), "better-me-project-repository-test-"));
-  const repo = openJobRepository(join(dir, "jobs.sqlite"));
+  const repo = openJobRepository(join(dir, "jobs.sqlite"), { now: fixtureNow });
   try {
     const seed = emptyDelta(); seed.sources = [source];
     await repo.importSnapshot(seed, { actorScope, idempotencyKey: "seed" });
