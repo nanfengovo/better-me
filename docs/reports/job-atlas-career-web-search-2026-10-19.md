@@ -75,3 +75,22 @@ DDG 只接受预期结果锚点，并保守忽略脚本、惰性与隐藏节点�
 ## 后续
 
 优先接入用户自行管理、实际可用的搜索服务，完成陌生企业→候选→人工核对→明确登记→有限岗位刷新实证。继续完善具体 ATS／官网适配与国内来源覆盖，保持搜索线索、招聘活动、卡片摘录、完整 JD 与已核实在招分别计量。当前提供方不等于可搜索所有企业或全平台岗位。
+
+## 后续修复：大型 metadata 挡住静态招聘导航
+
+保存的 Siemens 官网页面中，一个合法的13,802字符meta配置标签位于所有导航之前。原扫描器在普通标签8192偏移限制处停止，因此未到达后面的Job Search与All Jobs锚点；不能将这次无候选解释为企业没有招聘。
+
+修复提交`02dc34f`仅为明确的opening meta提供最多65,536 UTF-16 code units的总标签长度扫描额度，通过引号状态找到真正的结束位置后直接跳过。metadata属性及其中伪链接不会形成候选，也不会进入真实锚点的证据文字；不建立新作用域。普通标签仍沿用原8192偏移限制（完整标签最多8193 code units），2MiB响应字节、10,000标签、2,000锚点、端点／页数和取消边界保持。未闭合或超限仍停止并报告partial。
+
+对同一份保存的85,329字节官网HTML，通过完整application工具离线重放，现在得到needs-review／partial和6条待核对线索。其中只有以下两条是实际静态招聘导航：
+
+- [Job Search](https://jobs.siemens.com/en_US/externaljobs/Home)
+- [All Jobs](https://jobs.siemens.com/en_US/externaljobs/SearchJobs)
+
+前文10条来自DDG搜索结果页，本节6条来自Siemens官网HTML，是不同输入，不能相加。其余4条是FAQ、公司文化、申请流程和无障碍支持说明，不能说成6个招聘入口或6个岗位。当前已无anchor-scan-limit警告；partial来自单页上限及跨域链接未跟随。全部提案仍禁用、待审、无岗位采集能力，前后完整备份一致，内存仓库只有1条访问策略、0岗位／企业／观察／正文快照。本次没有重新联网，不改变此前实时官网transport未取得HTTP和DDG挑战的结论；原响应及完整实证继续只保存在忽略目录。
+
+独立2文件源码树`297ccc7df44eaf3735bad49ade189fecdeb15d0a`经冻结离线安装、memory检查、仓库types10/10、lint、source-adapters全部测试与企业发现host／policy测试合计223/223、source-adapters构建通过，失败／取消／跳过／todo均0。另有23项独立边界探针通过，不与旧2109全仓数字或本次223相加。没有重复未变的前端全量构建；远端工作流另做完整质量、Linux构建、Docker与Pages检查。官网hidden属性及CSS可见性尚未全面支持，不能把本次窄修宣称为完整DOM可见性解析。
+
+本机服务再次在完整在线SQLite备份、quick_check=ok和无采集任务后更新，原85岗／revision59、dataset及token哈希保持。认证共享查询再次得到C#全球48／33企业、严格国内26／22、上海25／21、浦东7／6、松江3／2，mappedJobs均0。本轮未新增岗位、来源或办公坐标，没有新的私人页面目视。若旧页面仍显示腾讯一条，需确认数据视图是“本机采集索引”，首次显式连接后本标签页刷新会恢复；[操作说明](../job-atlas.md)已说明两个数据入口与来源获取的区别。
+
+前四批`c1b3140`、`d10bd5d`、`6fc3761`与`22f40fe`的Windows质量、Linux构建、Docker和Pages均已完成success。最终文档运行见[Actions39180535027](https://github.com/nanfengovo/better-me/actions/runs/39180535027)；公开首页、主JS、Atlas与来源面板实际200，已核新能力接口、搜索配置文案和连接恢复代码，HTTP资源检查不替代UI目视。本次meta修复见[Actions39181034245](https://github.com/nanfengovo/better-me/actions/runs/39181034245)，检查进行中。并行Career Agent、简历导入、依赖／锁文件和私人索引未混入该修复或文档。

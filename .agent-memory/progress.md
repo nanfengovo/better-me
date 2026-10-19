@@ -4,6 +4,8 @@
 
 ## 当前交付
 
+- [x] 2026-10-19 官网大型metadata漏识别修复02dc34f正常推送：仅明确meta有64K UTF-16总标签扫描额度，普通标签、2MiB响应、raw/inert及取消保持。独立2文件树297ccc7d冻结安装、memory、types10/10、lint、223/223相关测试、source包build通过；独立23项边界探针无阻断，不与旧2109相加。Siemens保存页完整应用离线重放得到2条招聘导航与4条说明线索，全部禁用待审、partial、0岗且backup不变；不冒充实时官网成功。完整备份后原服务更新，85岗／rev59、dataset/token哈希及国内26／22企业、全球48／33未变，mapped0；无新私人UI目视。前四批Actions均四任务success，公开能力／连接恢复资源200；本修复Actions39181034245四任务success。Career未混入，完整Goal继续。
+
 - [x] 2026-10-19 通用企业名搜索及官网访问策略：c1b3140／d10bd5d／6fc3761正常推送，2099与2109两个独立源码快照分别全通过，均types10/10、lint、build6/6。默认关闭宿主搜索、可显式DDG实验HTML／SearXNG，能力API／仅名无需policy／Web取消隔离；新增discovery-policy只允许精确官网发现、不伪造list-jobs、不自命中，示例默认禁用。完整备份后原5178新版已恢复，新能力和策略元数据HTTP通过，85岗／rev59、dataset/token哈希及全球48／33、国内26／22未变，mapped0。DDG202验证、Siemens实时未取到HTTP和离线扫描截断均明确失败／partial，没有新增岗位。最终CI与部署跟踪见通用搜索报告，Career未混入，整个Goal继续。
 
 - [x] 2026-10-19 归并受审工具／HTTP／UI及实际撤销分组预览完成：d40a7f5／4873aa8正常推送，16文件独立树7e727e4ed离线安装、memory检查、types10/10、lint、2053/2053（fail/cancel/skip/todo0）、build6/6通过；独立审查72/72不相加。提交后超时／取消／输出失败可仅查原key耐久回执，不重写。完整备份后恢复原5178，85岗／rev59、dataset／token哈希不变，真实5对弱线索／0历史／首对只读预览通过；国内26／22与全球48／33复查未变，无新办公坐标或私人UI目视。CI39177331005质量／Linux构建／Docker／Pages四任务success，公网新Atlas与归并动态面板200、入口／回执代码已核；本批文档收尾中，Career未混入，整体Goal继续。
