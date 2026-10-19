@@ -2,7 +2,7 @@
 
 ## 当前焦点
 
-2026-10-19：已补卡片入库成功后的直接地区核对入口，解决国内筛选隐藏新卡、详情入口不可达的断点。仅2文件独立树b0c36f9b通过96/96相关回归、types10/10、lint、Web build；真实React→工具→内存SQLite合成联动为原国内上海C#查询0→0→1，无坐标或自动行政推断。本机仍85岗／rev59、C#国内26／22企业、全球48／33，mapped0。官网meta修复02dc34f远端四任务success；后续纯文档9419438的Windows文件级失败本机未复现（旧源码2116/2116），保留原失败记录，本次e862b08已正常推送，Actions39182359402质量／Linux构建／Docker／Pages四项success；公开首页及4个JS资源200并核新入口。实时陌生企业搜索未打通；Career并行保留，整体Goal active。
+2026-10-19：真实岗位城市分布参考已落地并推送fe89dc0；25文件冻结树f38ea445通过2155/2155、types10/10、lint、build6/6。完整备份后原5178更新，自有session1288／PID74392，原dataset/token哈希不变、87岗／rev64；C#全球50／35企业，国内26／22，上海25／21。72地点得到34参考／3地名，国内26与上海25可显示城市估算，原mapped0、距离不变；无新私人UI目视。远端CI39184573691质量／Linux构建／Docker／Pages四任务success。当前继续通用JobPosting JSON-LD＋受审清单协议，3名子Agent分别reader／枚举Schema／adapter；新加htmlparser2及saxes依赖在工作树，未发布，不混Career。完整Goal active。
 
 ## 卡点
 
@@ -19,6 +19,7 @@
 
 ## 必读附加
 
+- docs/reports/job-atlas-city-references-2026-10-19.md（独立城市分布、2155隔离回归、87岗真实HTTP与发布范围）
 - docs/reports/job-atlas-import-location-2026-10-19.md（入库成功后接续地区核对、96相关回归与合成真实应用联动）
 - docs/reports/job-atlas-career-web-search-2026-10-19.md（provider／独立访问策略、2099／2109与meta修复223检查、真实挑战与未完成闭环）
 - docs/reports/job-atlas-reconciliation-2026-10-19.md（七工具／受审UI／持久回执恢复、2053隔离验证与5对真实弱候选）

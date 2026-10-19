@@ -68,6 +68,7 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/jobs/search" -Headers $jobHe
 | POST | `/api/v1/jobs/reviewed-cards/preview` | `jobs.preview-reviewed-cards`；校验本人核对的四平台卡片、索引版本和字段证据，返回预览指纹，不联网、不写库。 |
 | POST | `/api/v1/jobs/reviewed-cards/import` | `jobs.import-reviewed-cards`；完整预览输入加 `previewFingerprint`、`reviewed: true`，并提供 `Idempotency-Key`，原子写入卡片摘录。 |
 | POST | `/api/v1/locations/geocode-candidates` | `locations.geocode-candidates`；离线城市参考点候选，仅查询，需本人明确选择。 |
+| POST | `/api/v1/locations/map-references` | `locations.map-references`；`expectedRevision`、可选 `locationIds`／`limit`，只读独立城市分布参考，最多 1,000 地点。 |
 | POST | `/api/v1/locations/confirmations/preview` | `locations.preview-confirmation`；本人结构化地区选择的只读预览，返回原始 / 当前 / 拟保存地点及指纹。 |
 | POST | `/api/v1/locations/confirmations` | `locations.confirm`；完整预览输入加 `previewFingerprint`、`reviewed: true` 和 `Idempotency-Key`，追加地区确认并保存有效投影。 |
 | POST | `/api/v1/locations/confirmations/revoke` | `locations.revoke-confirmation`；`{ jobId, locationId, decisionId, expectedRevision, reason, reviewed: true }`，追加撤销并恢复上一有效选择或来源地点。 |
@@ -281,3 +282,7 @@ Web 展开“来源工具 → 企业官网招聘”后才读配置，点击发�
 显式官网／seed使用独立的`discovery-policy@1`访问策略，只声明`discover-sources`，无岗位读取能力。[默认禁用示例](../../config/sources/company-career-discovery.example.json)需先替换精确官网主机／路径，再明确设enabled:true和status:active，通过来源JSON检查、勾选核对、显式保存；更新既有配置还需expectedRevision。它可以用于企业官网／GitHub来源发现，不能用于sources.preview或sources.sync，也不计作可搜索岗位来源。策略自身不会命中为企业招聘源，同名／同域仍执行实际官网读取；其他来源的既有匹配语义保留。
 
 本轮当前代码真实Grafana查询收到DDG202挑战，正确needs-auth并停止；已保存Siemens真实HTML重放10条仅证明解析，不称实时成功。配置／接口／测试和实证见[通用搜索报告](../../docs/reports/job-atlas-career-web-search-2026-10-19.md)。
+
+## 独立城市分布参考
+
+`locations.map-references` 从同版本地点的明确国家与完整城市名，在已分发的离线地名数据内唯一匹配；返回城市估算、出处、完整地点指纹与实际处理范围，不写库、不核实办公地址、不计算离家距离。`jobs.search` 可传 `mapCityReferences: true` 使用同一工具，结果另含城市参考与地图可见并集统计，既有 `mappedJobs` 仍只计来源坐标。每批最多 1,000 地点，超出明确 `truncated`；未知、冲突与远程资格不填造坐标。Web 的双击城市定位、版本／取消隔离及验证边界见[城市参考报告](../../docs/reports/job-atlas-city-references-2026-10-19.md)。
