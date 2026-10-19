@@ -769,8 +769,32 @@ test("details occupy a third grid pane while the list, map instance and keyboard
   assert.equal(grid.querySelector("[data-map-probe]"), map); assert.equal(dom.document.activeElement, card);
 });
 
-test("a first detail=1 click event waits 520ms while keyboard activation opens the pane immediately", async (t) => {
+test("desktop keeps a reading column and opens mouse clicks immediately without replacing the map, list or double-click target", async () => {
+  mock.method(dom.HTMLElement.prototype, "getBoundingClientRect", () => new dom.DOMRect(0, 0, 1000, 600));
   await render();
+  assert.equal(dom.document.querySelector(".atlas-workspace")!.getAttribute("data-pane-layout"), "wide");
+  const grid = dom.document.querySelector(".atlas-main-grid")!, map = grid.querySelector("[data-map-probe]"), list = grid.querySelector(".atlas-results");
+  const [first, second] = [...dom.document.querySelectorAll<HTMLButtonElement>(".atlas-job-card")];
+  assert.deepEqual([...grid.children].map(element => element.classList[0]), ["atlas-map-column", "atlas-results", "atlas-detail-placeholder"]);
+  assert.match(grid.children[2]!.textContent!, /单击阅读.*双击在地图中定位/);
+  const mounts = mapMounts; first!.focus();
+  await act(async () => pointerClick(first!, 1));
+  assert.ok(dom.document.querySelector('[aria-label="地图岗位详情"]'), "desktop mouse reading must not wait for a double-click timer");
+  assert.equal(grid.children.length, 3); assert.equal(grid.querySelector("[data-map-probe]"), map); assert.equal(grid.querySelector(".atlas-results"), list);
+  assert.equal(dom.document.querySelector(".atlas-job-card"), first); assert.equal(dom.document.activeElement, first); assert.equal(mapProps!.focus, undefined);
+  await act(async () => { pointerClick(first!, 2); first!.dispatchEvent(new dom.MouseEvent("dblclick", { bubbles: true, detail: 2 })); });
+  assert.equal(mapProps!.selectedJobId, mapProps!.focus!.jobId); assert.equal(mapMounts, mounts);
+  await act(async () => pointerClick(second!, 1));
+  assert.equal(second!.getAttribute("aria-expanded"), "true"); assert.equal(first!.getAttribute("aria-expanded"), "false");
+  await act(async () => dom.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape" })));
+  assert.deepEqual([...grid.children].map(element => element.classList[0]), ["atlas-map-column", "atlas-results", "atlas-detail-placeholder"]);
+  assert.equal(grid.querySelector("[data-map-probe]"), map); assert.equal(grid.querySelector(".atlas-results"), list); assert.equal(mapMounts, mounts);
+});
+
+for (const width of [750, 390]) test(`${width}px layout delays the first mouse click while keyboard activation opens immediately`, async (t) => {
+  mock.method(dom.HTMLElement.prototype, "getBoundingClientRect", () => new dom.DOMRect(0, 0, width, 600));
+  await render();
+  assert.equal(dom.document.querySelector(".atlas-detail-placeholder"), null, "smaller layouts must not reserve a desktop reading column");
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const card = dom.document.querySelector<HTMLButtonElement>(".atlas-job-card")!;
   await act(async () => pointerClick(card, 1));
@@ -784,6 +808,64 @@ test("a first detail=1 click event waits 520ms while keyboard activation opens t
   await act(async () => dom.document.querySelector<HTMLButtonElement>('[aria-label="关闭岗位详情"]')!.click());
   await act(async () => pointerClick(card, 0));
   assert.ok(dom.document.querySelector('[aria-label="地图岗位详情"]'), "keyboard/assistive click is not delayed");
+});
+
+test("double-click leaves a visible map in place and scrolls to it only when the map is outside the viewport", async () => {
+  mock.method(dom.HTMLElement.prototype, "getBoundingClientRect", () => new dom.DOMRect(0, 0, 1000, 600));
+  const scrolling = mock.method(dom.HTMLElement.prototype, "scrollIntoView");
+  await render();
+  const scene = dom.document.querySelector<HTMLElement>(".atlas-scene")!, card = dom.document.querySelector<HTMLButtonElement>(".atlas-job-card")!;
+  const rect = mock.method(scene, "getBoundingClientRect", () => new dom.DOMRect(10, 50, 500, 400));
+  await act(async () => pointerDoubleClick(card));
+  assert.ok(mapProps!.focus); assert.equal(scrolling.mock.callCount(), 0, "the desktop selection must not move a visible map and list");
+  rect.mock.mockImplementation(() => new dom.DOMRect(10, 2000, 500, 400));
+  await act(async () => pointerDoubleClick(card));
+  assert.equal(scrolling.mock.callCount(), 1); assert.equal(scrolling.mock.calls[0]!.this, scene);
+  assert.deepEqual(scrolling.mock.calls[0]!.arguments, [{ block: "center", behavior: "smooth" }]);
+});
+
+test("a map inside the browser viewport still scrolls into view when clipped by the workspace scrollport", async () => {
+  mock.method(dom.HTMLElement.prototype, "getBoundingClientRect", () => new dom.DOMRect(0, 0, 1000, 600));
+  const scrolling = mock.method(dom.HTMLElement.prototype, "scrollIntoView");
+  await render();
+  const workspace = dom.document.querySelector<HTMLElement>(".atlas-workspace")!, scene = dom.document.querySelector<HTMLElement>(".atlas-scene")!;
+  const card = dom.document.querySelector<HTMLButtonElement>(".atlas-job-card")!;
+  mock.method(workspace, "getBoundingClientRect", () => new dom.DOMRect(100, 100, 900, 500));
+  const rect = mock.method(scene, "getBoundingClientRect", () => new dom.DOMRect(120, 10, 500, 50));
+  const clipped = [new dom.DOMRect(120, 10, 500, 50), new dom.DOMRect(120, 650, 500, 30),
+    new dom.DOMRect(10, 120, 50, 400), new dom.DOMRect(1005, 120, 10, 400)];
+  for (const [index, bounds] of clipped.entries()) {
+    rect.mock.mockImplementation(() => bounds);
+    await act(async () => pointerDoubleClick(card));
+    assert.equal(scrolling.mock.callCount(), index + 1, "a window intersection must not hide workspace clipping on any edge");
+    assert.equal(scrolling.mock.calls[index]!.this, scene);
+  }
+  rect.mock.mockImplementation(() => new dom.DOMRect(120, 50, 500, 100));
+  await act(async () => pointerDoubleClick(card));
+  assert.equal(scrolling.mock.callCount(), clipped.length, "a map still partly visible inside both rectangles keeps the user's scroll position");
+});
+
+for (const position of ["city-reference", "city-coordinate", "address"] as const) test(`published street takes priority over ${position} during live job location`, async () => {
+  const data = unresolvedOfficeFixture(), location = data.locations[0]!;
+  location.streetAddress = "Synthetic published office street 10";
+  if (position !== "city-reference") {
+    location.coordinates = { latitude: 31.2, longitude: 121.4, coordinateSystem: "WGS84" };
+    location.precision = position === "address" ? "address" : "city";
+  }
+  const references = await createMapReferenceFixture(data), before = structuredClone(data), routes: string[] = [];
+  installWorkspaceFetch(async (url: RequestInfo | URL) => { const path = new URL(String(url)).pathname; routes.push(path);
+    assert.equal(path, "/api/v1/dataset/export", "locating a source address must not guess an office point or write to the index"); return sourceResponse(data);
+  }, () => sourceResponse(references));
+  await render(true, false); await connectFixture();
+  await flush(() => pointerDoubleClick(jobCard(data.jobs[0]!.title.value)));
+  if (position === "address") {
+    assert.equal(officeProps, undefined, "a usable address point can be focused directly");
+    assert.equal(mapProps!.focus!.locationId, location.id); assert.equal(mapProps!.focus!.zoom, 16.5);
+  } else {
+    await waitFor(() => Boolean(officeProps), "the published street to open office review instead of a coarse focus");
+    assert.equal(officeProps!.location.streetAddress, location.streetAddress); assert.equal(mapProps!.focus, undefined);
+  }
+  assert.deepEqual(routes, ["/api/v1/dataset/export"]); assert.deepEqual(data, before);
 });
 
 test("a detail=1, detail=2 and dblclick event sequence focuses once and never reopens after closing", async (t) => {

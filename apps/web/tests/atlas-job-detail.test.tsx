@@ -101,6 +101,18 @@ test("a city distribution reference is labelled separately, links its place sour
   assert.ok(button("地图定位"));
 });
 
+test("published streets with only a coarse point label the next action as address review; precise points keep locate", async () => {
+  const props = await fixture(), location = props.item.locations[0]!;
+  location.kind = "office"; location.streetAddress = "Synthetic Source Road 10"; location.precision = "city";
+  location.coordinates = {latitude: 31.2, longitude: 121.4, coordinateSystem: "WGS84"};
+  props.onConfirmOffice = noAction;
+  let located: string | undefined; props.onLocate = id => { located = id; };
+  await render(props); await act(async () => button("核对地址后定位").click()); assert.equal(located, location.id);
+  location.precision = "address"; await render(props); assert.ok(button("地图定位"));
+  location.precision = "city"; props.onConfirmOffice = undefined;
+  await render(props); assert.ok(button("地图定位"), "a disconnected reading pane does not promise the local review flow");
+});
+
 test("manual office addresses retain source text, structured street/postal fields, unverified labels and their own evidence link", async () => {
   const props = await fixture();
   props.item.locations = [structuredClone(officeConfirmed)];
