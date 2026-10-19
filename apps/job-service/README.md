@@ -326,3 +326,9 @@ SQLite V4保留base地点、行政决议、办公确认／撤销／source失效�
 四平台原岗详情的受审地点使用 `jobs.preview-detail-locations` / `jobs.import-detail-locations`，HTTP对应 `/api/v1/jobs/detail-locations/preview` 与 `/api/v1/jobs/detail-locations/import`。要求同provider/岗位ID/URL和可重解析原JSON-LD证据，绑定当前listing、版本与预览指纹；导入需明确reviewed和幂等键，仅更新该listing地点贡献，保留正文、薪资和其他来源，不自动生成坐标。同捕获重放no-op，旧捕获不复活旧地点；位置变化按V4规则失效旧确认。
 
 Web逐岗外读、官网发现、地址候选、来源保存与办公坐标确认分别调用现有工具；官网同岗位线索仅供核对，候选需本人确认。只读计划不是爬取/补全回执，单个办公点不代表所有地点已覆盖。详见[办公地点与性能报告](../../docs/reports/job-atlas-detail-address-review-2026-10-19.md)。
+
+### 可见地址V2与来源搬迁
+
+原JSON-LD `PlatformDetailLocations.version:1`保持兼容，新增`version:2` Liepin可见地址证据。`selector:liepin-work-address[n]`与quote中的`{selector:"liepin-work-address",label:"工作地址"|"工作地点",text}`必须逐项规范重放；V1拒绝此分支，V2不混合JSON-LD与可见数组，坐标字段禁止。native projector/caller才开启可见sidecar，不把普通`requireVisibleDescription`视为证明；URL/provider/同岗/时间/预览版本检查保持。
+
+工具层只将selector/quote映射到领域evidence，完整capture保存在观察rawText，避免wire-only kind污染严格domain。来源原文无行政字段时不会自动继承，地点精度保持unknown。只补来源的street字段不代表已取得办公坐标；明确远程或非本岗位地址的可见披露拒绝。源刷新在同label明确街道/邮编冲突时换新location身份，搬迁后稀疏刷新跟随当前贡献，不拼旧值；V4在同revision持久失效旧office。验证及限制见[可见地址与换址报告](../../docs/reports/job-atlas-visible-office-evidence-2026-10-19.md)。
