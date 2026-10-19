@@ -4,10 +4,12 @@ import { dirname, isAbsolute, join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import {
   GazetteerManifestSchema, GazetteerShardSchema, GeocodingRequestSchema, GeocodingResultSchema,
+  MapReferenceProjectionSchema, fingerprintMapReferenceLocation,
   normalizeGeographicName, defineTool, ToolError,
   EntityIdSchema,
   type GazetteerManifest, type GazetteerPlace, type GazetteerShardDescriptor, type GeocodingCandidate,
   type GeocodingInput, type GeocodingResult, type ToolHandlerContext,
+  type GeocodingRequest, type JobLocation, type MapReferenceProjection, type MapReferencePlace,
 } from "@better-me/opportunities";
 
 export type GeocodingContext = Pick<ToolHandlerContext, "signal" | "throwIfCancelled">;
@@ -15,6 +17,12 @@ export interface GeocodingProvider {
   readonly providerId: string;
   readonly offline: boolean;
   search(input: GeocodingInput, context: GeocodingContext): Promise<GeocodingResult>;
+}
+/** Independent read-only city distribution; it neither selects office candidates nor writes locations. */
+export interface MapReferenceProvider {
+  readonly providerId: string;
+  readonly offline: true;
+  resolveMapReferences(locations: readonly JobLocation[], context: GeocodingContext): Promise<MapReferenceProjection>;
 }
 export class GeocodingProviderError extends Error {
   constructor(readonly code: "invalid-request" | "invalid-data" | "dataset-unavailable" | "cancelled") {
@@ -85,9 +93,67 @@ export function createGazetteerProvider(options: GazetteerLoader & { providerId?
     }
     return task;
   }
+  async function exactMatches(request: Pick<GeocodingRequest, "raw" | "countryCodes" | "bounds" | "administrativeCodes">, context: GeocodingContext) {
+    const data = await manifest(); check(context);
+    const normalized = normalizeGeographicName(request.raw);
+    const countryScope = new Set(request.countryCodes);
+    const descriptors = data.shards.filter(shard => !countryScope.size || [shard.countryCode, ...shard.alternateCountryCodes].some(country => countryScope.has(country)));
+    const matches = new Map<string, Match>();
+    const add = (place: GazetteerPlace, matchedName: string, match: Match["match"], shard: GazetteerShardDescriptor) => {
+      if (countryScope.size && ![place.countryCode, ...place.alternateCountryCodes].some(country => countryScope.has(country))) return;
+      if (!inBounds(place, request.bounds)) return;
+      for (const [level, value] of Object.entries(request.administrativeCodes ?? {})) if (place.administrativeCodes[level as keyof typeof place.administrativeCodes] !== value) return;
+      const old = matches.get(place.id);
+      if (old && old.shard.countryCode !== shard.countryCode) throw new GeocodingProviderError("invalid-data");
+      if (!old) matches.set(place.id, { place, matchedName, match, shard });
+    };
+    for (const descriptor of descriptors) {
+      check(context);
+      const loaded = await loadShard(descriptor, data); check(context);
+      for (const entry of loaded.names.get(normalized) ?? []) add(loaded.places[entry.index]!, entry.matchedName, entry.match, descriptor);
+    }
+    return { data, descriptors, matches, add, normalized };
+  }
   return {
     providerId, offline: true as const,
     clearCache() { manifestTask = undefined; cache.clear(); },
+    async resolveMapReferences(locations: readonly JobLocation[], context: GeocodingContext): Promise<MapReferenceProjection> {
+      check(context);
+      if (locations.length > 1000 || new Set(locations.map(location => location.id)).size !== locations.length) throw new GeocodingProviderError("invalid-request");
+      const result: MapReferenceProjection = { providerId, places: [], references: [], unresolved: [], warnings: [] };
+      const places = new Map<string, MapReferencePlace>();
+      // Repeated locations in the same city share one finite lookup and one source evidence record.
+      const lookups = new Map<string, Awaited<ReturnType<typeof exactMatches>>>();
+      for (const location of locations) {
+        check(context);
+        const reason = location.kind === "remote-region" ? "remote-region" : location.coordinates ? "existing-coordinate"
+          : location.verification === "conflicting" ? "conflicting-location" : !location.countryCode ? "missing-country"
+            : !location.city || !normalizeGeographicName(location.city) ? "missing-city" : undefined;
+        if (reason) { result.unresolved.push({ locationId: location.id, reason }); continue; }
+        const city = location.city!, countryCode = location.countryCode!;
+        const key = JSON.stringify([countryCode, normalizeGeographicName(city)]);
+        let lookup = lookups.get(key);
+        if (!lookup) {
+          lookup = await exactMatches({ raw: city, countryCodes: [countryCode] }, context);
+          lookups.set(key, lookup);
+        }
+        result.provenance = lookup.data.provenance;
+        if (lookup.matches.size !== 1) {
+          result.unresolved.push({ locationId: location.id, reason: lookup.matches.size ? "ambiguous-city" : "no-exact-match" });
+          continue;
+        }
+        const match = lookup.matches.values().next().value!;
+        if (match.match === "prefix") throw new GeocodingProviderError("invalid-data");
+        places.set(match.place.id, { place: match.place, shardSha256: match.shard.sha256, precision: "city", estimated: true,
+          coordinateMeaning: "populated-place-reference-point", verification: "unverified" });
+        const locationFingerprint = await fingerprintMapReferenceLocation(location); check(context);
+        result.references.push({ locationId: location.id, locationFingerprint, countryCode, city, placeId: match.place.id, matchedName: match.matchedName, match: match.match });
+      }
+      result.places = [...places.values()];
+      if (result.provenance) result.warnings = [result.provenance.coverage, "City distribution references are estimated populated-place points, not employer office addresses; they do not provide distance evidence."];
+      check(context);
+      return MapReferenceProjectionSchema.parse(result);
+    },
     async search(input: GeocodingInput, context: GeocodingContext): Promise<GeocodingResult> {
       check(context);
       const parsed = GeocodingRequestSchema.safeParse(input);
@@ -95,24 +161,7 @@ export function createGazetteerProvider(options: GazetteerLoader & { providerId?
       const request = parsed.data;
       const base = { schemaVersion: 1 as const, providerId, request, requiresConfirmation: true as const };
       if (request.kind !== "office") return GeocodingResultSchema.parse({ ...base, status: "not-applicable", reason: "not-an-office", candidates: [], totalCandidates: 0, truncated: false, searchedCountryCodes: [], warnings: ["Remote eligibility and unknown locations are not office addresses."] });
-      const data = await manifest(); check(context);
-      const normalized = normalizeGeographicName(request.raw);
-      const countryScope = new Set(request.countryCodes);
-      const descriptors = data.shards.filter((shard) => !countryScope.size || [shard.countryCode, ...shard.alternateCountryCodes].some((country) => countryScope.has(country)));
-      const matches = new Map<string, Match>();
-      const add = (place: GazetteerPlace, matchedName: string, match: Match["match"], shard: GazetteerShardDescriptor) => {
-        if (countryScope.size && ![place.countryCode, ...place.alternateCountryCodes].some((country) => countryScope.has(country))) return;
-        if (!inBounds(place, request.bounds)) return;
-        for (const [level, value] of Object.entries(request.administrativeCodes ?? {})) if (place.administrativeCodes[level as keyof typeof place.administrativeCodes] !== value) return;
-        const old = matches.get(place.id);
-        if (old && old.shard.countryCode !== shard.countryCode) throw new GeocodingProviderError("invalid-data");
-        if (!old) matches.set(place.id, { place, matchedName, match, shard });
-      };
-      for (const descriptor of descriptors) {
-        check(context);
-        const loaded = await loadShard(descriptor, data); check(context);
-        for (const entry of loaded.names.get(normalized) ?? []) add(loaded.places[entry.index]!, entry.matchedName, entry.match, descriptor);
-      }
+      const { data, descriptors, matches, add, normalized } = await exactMatches(request, context);
       if (!matches.size && request.allowPrefix) {
         for (const descriptor of descriptors) {
           check(context);

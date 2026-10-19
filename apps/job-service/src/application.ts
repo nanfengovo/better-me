@@ -12,7 +12,7 @@ import {
   DiscoverSourceCandidatesInputSchema, SourceDiscoveryPageSchema, InspectSourceCandidateInputSchema, SourceCandidateInspectionSchema,
   ProposeSourceRegistrationInputSchema, SourceRegistrationProposalSchema,
   discoverCompanyCareers, DiscoverCompanyCareersRequestSchema, CompanyCareerDiscoveryResultSchema, CompanyCareerDiscoveryCapabilitiesSchema,
-  createLocalGazetteerProvider, createGeocodingTool, type GeocodingProvider,
+  createLocalGazetteerProvider, createGeocodingTool, type GeocodingProvider, type MapReferenceProvider,
   locallyMatchesSourceScope as locallyMatches, countSourceScopeMatches,
   type SourceAdapter, type SourceTransport, type CareerWebSearchProvider,
 } from "@better-me/source-adapters";
@@ -22,6 +22,7 @@ import { projectSourcePage } from "./projection.js";
 import { createReviewedCardsTools } from "./reviewed-cards.js";
 import { createLocationConfirmationTools } from "./location-confirmation.js";
 import { createReconciliationTools } from "./reconciliation.js";
+import { createLocationMapReferencesTool } from "./location-map-references.js";
 
 const emptyInput = z.object({}).strict();
 // Name-only discovery has no permission to follow arbitrary URLs. This host policy is
@@ -63,6 +64,8 @@ export type JobApplicationOptions = {
   resolveQueryOptions?: (context: ToolHandlerContext) => QueryOptions | Promise<QueryOptions>;
   /** Host-only dependency; tool requests cannot select a provider, file or endpoint. */
   geocodingProvider?: GeocodingProvider;
+  /** Offline only, host-installed city display references. Never supplied by query arguments. */
+  mapReferenceProvider?: MapReferenceProvider;
   /** Host-only web search; requests cannot install providers or select their endpoints. */
   careerWebSearchProvider?: CareerWebSearchProvider;
 };
@@ -106,11 +109,16 @@ export function createJobApplication(options: JobApplicationOptions) {
     if (source.secretRef) throw new ToolError("needs-auth");
     return { source, context: { ...context, observedAt: now() }, transport };
   }
-  const searchTool = createJobsSearchTool(query, async (_query, context) => ({ now: now(), ...(options.resolveQueryOptions ? await options.resolveQueryOptions(context) : {}) }));
   // The checked-in dataset stays on the server. The provider loads its trusted
-  // manifest and country shards lazily, only after an explicit office query.
-  const geocodingTool = createGeocodingTool(options.geocodingProvider ?? createLocalGazetteerProvider({
+  // manifest and country shards lazily, only after a requested city/office query.
+  const localGazetteer = createLocalGazetteerProvider({
     manifestPath: fileURLToPath(new URL("../../../config/geography/gazetteer/manifest.json", import.meta.url)),
+  });
+  const geocodingTool = createGeocodingTool(options.geocodingProvider ?? localGazetteer);
+  const mapReferenceTool = createLocationMapReferencesTool(repository, options.mapReferenceProvider ?? localGazetteer);
+  const searchTool = createJobsSearchTool(query, async (input, context) => ({ now: now(),
+    ...(options.resolveQueryOptions ? await options.resolveQueryOptions(context) : {}),
+    ...(input.mapCityReferences ? { mapReferences: await mapReferenceTool.execute({ expectedRevision: (await repository.readSnapshot()).revision, limit: 1000 }, context) } : {}),
   }));
   const definitions: ToolDefinition<any, any>[] = [
     ...createReconciliationTools(repository).map(definition => ({ ...definition,
@@ -119,6 +127,7 @@ export function createJobApplication(options: JobApplicationOptions) {
     ...createLocationConfirmationTools(repository).map(definition => ({ ...definition, execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     ...createReviewedCardsTools({ repository, now }).map(definition => ({ ...definition, execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     defineTool({ ...searchTool, execute: (input, context) => guarded(async () => searchTool.execute(input, context)) }),
+    defineTool({ ...mapReferenceTool, execute: (input, context) => guarded(async () => mapReferenceTool.execute(input, context)) }),
     defineTool({ ...geocodingTool, execute: (input, context) => guarded(async () => {
       context.throwIfCancelled();
       const result = await geocodingTool.execute(input, context);

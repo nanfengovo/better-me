@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   acceptGeocodingCandidate, createToolRegistry, GazetteerManifestSchema, GeocodingResultSchema,
   type GazetteerManifest, type GazetteerPlace, type GazetteerShardDescriptor,
+  type JobLocation,
 } from "@better-me/opportunities";
 import { createGazetteerProvider, createLocalGazetteerProvider, createGeocodingTool, GeocodingProviderError, type GeocodingContext } from "../src/geocoding.js";
 
@@ -150,4 +151,52 @@ test("a future online provider cannot hide its external effect behind the offlin
     budget: { requests: 0, bytes: 100_000, timeoutMs: 3000 },
   });
   assert.equal(result.ok, false); if (!result.ok) assert.equal(result.error.code, "not-authorized"); assert.equal(called, false);
+});
+
+function location(id: string, overrides: Partial<JobLocation> = {}): JobLocation {
+  return { id, raw: "Synthetic source city", city: "Synthetic city", countryCode: "US", kind: "unknown", precision: "city", verification: "unverified", evidence: [], ...overrides };
+}
+
+test("distribution references use unique whole city aliases without assigning an office or mutating source locations", async () => {
+  const f = fixture([place("place.us", "US"), place("place.ca", "CA")]);
+  const locations = [location("location.a"), location("location.b", { kind: "office" })];
+  const before = structuredClone(locations);
+  const result = await f.provider.resolveMapReferences(locations, context());
+  assert.equal(result.references.length, 2); assert.equal(result.places.length, 1); assert.deepEqual(result.unresolved, []);
+  assert.equal(result.references[0]!.match, "exact-alias"); assert.equal(result.references[0]!.countryCode, "US");
+  assert.equal(result.places[0]!.estimated, true); assert.equal(result.places[0]!.verification, "unverified");
+  assert.equal(result.places[0]!.coordinateMeaning, "populated-place-reference-point");
+  assert.equal(result.provenance!.version, f.manifest.provenance.version);
+  assert.deepEqual(f.loaded, ["US"]); assert.deepEqual(locations, before);
+  result.places[0]!.place.name = "Caller mutation";
+  const again = await f.provider.resolveMapReferences(locations, context());
+  assert.equal(again.places[0]!.place.name, "Springfield"); assert.deepEqual(f.loaded, ["US"]);
+  const office = await f.provider.search({ raw: "Synthetic city", kind: "office", countryCodes: ["US"] }, context());
+  assert.equal(office.requiresConfirmation, true, "Distribution projection does not relax office-candidate confirmation.");
+});
+
+test("distribution skips remote, existing coordinates, missing fields and conflicts without loading data", async () => {
+  const f = fixture([place("place.us", "US")]);
+  const rows = [location("remote", { kind: "remote-region" }), location("coordinate", { coordinates: { latitude: 10, longitude: 20, coordinateSystem: "WGS84" } }),
+    location("conflict", { verification: "conflicting" }), location("country", { countryCode: undefined }), location("city", { city: undefined })];
+  const result = await f.provider.resolveMapReferences(rows, context());
+  assert.deepEqual(result.unresolved.map(row => row.reason), ["remote-region", "existing-coordinate", "conflicting-location", "missing-country", "missing-city"]);
+  assert.equal(result.references.length, 0); assert.equal(result.provenance, undefined); assert.deepEqual(f.loaded, []);
+});
+
+test("distribution never takes a first ambiguous name, prefix, raw address or foreign country match", async () => {
+  const f = fixture([place("place.us.a", "US"), place("place.us.b", "US"), place("place.ca", "CA", { name: "Only Canadian Town", aliases: [] })]);
+  const rows = [location("ambiguous", { city: "Springfield" }), location("prefix", { city: "Spring" }), location("address", { city: "Springfield office" }),
+    location("foreign", { city: "Only Canadian Town" }), location("raw", { city: undefined, raw: "Only Canadian Town" })];
+  const result = await f.provider.resolveMapReferences(rows, context());
+  assert.equal(result.references.length, 0);
+  assert.deepEqual(result.unresolved.map(row => row.reason), ["ambiguous-city", "no-exact-match", "no-exact-match", "no-exact-match", "missing-city"]);
+  assert.deepEqual(f.loaded, ["US"]);
+});
+
+test("distribution cancellation stops before loading or returning a late batch", async () => {
+  const f = fixture([place("place.us", "US")]); const controller = new AbortController(); controller.abort();
+  await assert.rejects(f.provider.resolveMapReferences([location("one")], context(controller.signal)), error("cancelled"));
+  assert.deepEqual(f.loaded, []);
+  await assert.rejects(f.provider.resolveMapReferences([location("one"), location("one")], context()), error("invalid-request"));
 });

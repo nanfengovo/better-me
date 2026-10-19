@@ -5,6 +5,8 @@ import { normalizeCompensation, salaryMetric, FxSnapshotSchema, type FxSnapshot 
 import { distanceToLocations, evaluateLocationDistance, Wgs84CoordinateSchema } from "./geo.js";
 import { classifyCompany, CompanyColorConfigSchema, resolveCompanyColor, type CompanyColorConfig } from "./colors.js";
 import { normalizeGeographicName } from "./geocoding.js";
+import { MapReferencesResultSchema, type MapReferencesResult } from "./map-references.js";
+import { buildCityReferenceBuckets, prepareCityMapReferences, type ResolvedCityMapReference } from "./query-map-references.js";
 
 const ids = () => z.array(z.string().trim().min(1).max(240)).max(200).default([]);
 const entityIds = () => z.array(EntityIdSchema).max(200).default([]);
@@ -49,6 +51,8 @@ export const JobQuerySchema = z.object({
   viewport: z.object({ enabled: z.boolean(), bounds: BoundsSchema }).strict().optional(),
   sort: z.object({ field: z.enum(["relevance", "salary", "distance", "updated"]).default("relevance"), direction: z.enum(["asc", "desc"]).default("desc") }).strict().default({}),
   mapLevel: z.enum(["country", "region", "city", "location"]).default("city"),
+  /** Request the host's offline city distribution projection; office/distance facts remain separate. */
+  mapCityReferences: z.boolean().optional(),
   page: z.object({ cursor: z.string().max(500).optional(), limit: z.number().int().min(1).max(200).default(30) }).strict().default({}),
 }).strict();
 export type JobQuery = z.infer<typeof JobQuerySchema>;
@@ -62,6 +66,7 @@ const QueryOptionsSchema = z.object({
   anchor: Wgs84CoordinateSchema.extend({ ref: z.string().min(1).max(200) }).optional(),
   aliases: z.record(z.string().min(1).max(100), z.array(z.string().min(1).max(100)).max(30))
     .refine((aliases) => Object.keys(aliases).length <= 1000, "Too many search aliases").optional(),
+  mapReferences: MapReferencesResultSchema.optional(),
 }).strict();
 
 export class JobQueryError extends Error {
@@ -75,6 +80,8 @@ export type QueryOptions = {
   /** Ref must be replaced whenever the private position changes. Coordinates never enter query results. */
   anchor?: { ref: string; latitude: number; longitude: number; coordinateSystem: "WGS84" };
   aliases?: Record<string, string[]>;
+  /** Snapshot-bound city display references. They never supply office coordinates or distance. */
+  mapReferences?: MapReferencesResult;
 };
 
 export type JobSearchItem = {
@@ -87,11 +94,13 @@ export type JobSearchItem = {
   color: ReturnType<typeof resolveCompanyColor>;
   relevance: number; matchedFields: string[];
   sources: Array<{ sourceId: string; label: string; url?: string; listingId: string }>;
+  mapReferences?: ResolvedCityMapReference[];
 };
 export type MapBucket = {
   id: string; label: string; latitude: number; longitude: number;
   jobIds: string[]; locationIds: string[]; jobCount: number; pinCount: number;
   categories: Array<{ ruleId: string; label: string; color: string; jobCount: number }>;
+  positionBasis?: "city-reference"; precision?: "city"; estimated?: true;
 };
 export type JobQueryResult = {
   queryId: string; snapshotVersion: number; asOf: string; normalizedQuery: JobQuery;
@@ -100,6 +109,8 @@ export type JobQueryResult = {
   items: JobSearchItem[]; nextCursor?: string; mapBuckets: MapBucket[];
   facets: { countries: Record<string, number>; controllerJurisdictions: Record<string, number>; ownership: Record<string, number>; sources: Record<string, number> };
   sourceCoverage: Array<{ sourceId: string; listings: number; lastObservedAt?: string; partial: boolean; failed: boolean; needsHuman: boolean }>;
+  mapReferenceCoverage?: { cityReferenceJobs: number; cityReferencePinCount: number; mapVisibleJobs: number; mapPendingJobs: number;
+    processedLocations: number; totalLocations: number; truncated: boolean };
 };
 
 const technicalAliases: Record<string, string> = { "dotnet": "dotnet", "csharp": "csharp", "cpp": "cpp", "js": "javascript", "ts": "typescript" };
@@ -210,7 +221,7 @@ async function fingerprint(value: unknown): Promise<string> {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function inBounds(location: JobLocation, bounds: [number, number, number, number]): boolean {
+function inBounds(location: Pick<JobLocation, "coordinates">, bounds: [number, number, number, number]): boolean {
   const c = location.coordinates;
   if (!c) return false;
   const [west, south, east, north] = bounds;
@@ -294,9 +305,15 @@ export async function queryJobs(inputDataset: AtlasDataset, input: JobQueryInput
   // Freeze derived values for the UTC calendar day so cursors survive separate requests.
   const asOf = `${new Date(options.now ?? Date.now()).toISOString().slice(0, 10)}T00:00:00.000Z`;
   const dataset = AtlasDatasetSchema.parse(inputDataset);
+  if (query.mapCityReferences && !options.mapReferences) throw new JobQueryError("invalid-query", "城市分布参考尚未读取，请先取得当前索引的参考结果。");
+  let cityReferences: Map<string, ResolvedCityMapReference> | undefined;
+  if (options.mapReferences) {
+    try { cityReferences = await prepareCityMapReferences(dataset, options.mapReferences); }
+    catch { throw new JobQueryError("invalid-query", "城市分布参考与当前索引或地点不一致，请重新读取。"); }
+  }
   if ((query.distance || query.sort.field === "distance") && (!options.anchor || options.anchor.ref !== query.distance?.anchorRef)) throw new JobQueryError("anchor-required", "请先设置本次查询的本地距离参照点。");
   const { cursor, ...page } = query.page;
-  const queryId = await deriveEntityId("query", [await fingerprint({ ...query, page }), await fingerprint(dataset), await fingerprint({ domestic: options.domesticCountryCodes ?? ["CN", "HK", "MO", "TW"], fx: options.fx, asOf, aliases: options.aliases, colors: options.colorConfig })]);
+  const queryId = await deriveEntityId("query", [await fingerprint({ ...query, page }), await fingerprint(dataset), await fingerprint({ domestic: options.domesticCountryCodes ?? ["CN", "HK", "MO", "TW"], fx: options.fx, asOf, aliases: options.aliases, colors: options.colorConfig, ...(options.mapReferences ? { mapReferences: options.mapReferences } : {}) })]);
   let offset = 0;
   if (cursor) {
     const match = /^(query_[a-f0-9]{64}):(\d+)$/.exec(cursor);
@@ -326,7 +343,7 @@ export async function queryJobs(inputDataset: AtlasDataset, input: JobQueryInput
     let matchedLocations = jobLocations.filter((location) => (query.includeUnknownLocations || location.countryCode !== undefined)
       && (!query.workCountryCodes.length || location.countryCode !== undefined && query.workCountryCodes.includes(location.countryCode))
       && regionMatch(location, query.workRegionIds) && regionTextMatch(location, workRegionText) && regionGroupsMatch(location, workRegionGroups)
-      && (!query.viewport?.enabled || inBounds(location, query.viewport.bounds))
+      && (!query.viewport?.enabled || inBounds({ coordinates: location.coordinates ?? (job.workMode === "remote" ? undefined : cityReferences?.get(location.id)?.coordinates) }, query.viewport.bounds))
       && (query.market === "global" || (location.countryCode ? domestic.has(location.countryCode) === (query.market === "domestic") : query.includeUnknownLocations)));
     const spatialFilter = !query.includeUnknownLocations || query.market !== "global" || hasLocationFilter || query.viewport?.enabled;
     if (spatialFilter && !matchedLocations.length && !(query.includeUnknownLocations && !jobLocations.length && !query.viewport?.enabled && !hasLocationFilter)) continue;
@@ -354,7 +371,9 @@ export async function queryJobs(inputDataset: AtlasDataset, input: JobQueryInput
     const distance = anchor && query.distance ? distanceToLocations(anchor, matchedLocations, { allowCityEstimate: query.distance.allowCityEstimate }) : undefined;
     if (query.distance && ((!distance && !query.distance.includeUnknown) || (distance && query.distance.maxKm !== undefined && distance.km > query.distance.maxKm))) continue;
     const color = resolveCompanyColor(company, options.colorConfig);
+    const mapReferences = job.workMode === "remote" ? [] : matchedLocations.flatMap(location => cityReferences?.get(location.id) ?? []);
     items.push({ job, company, locations: matchedLocations, ...(salary ? { salary } : {}), ...(salaryCny !== undefined ? { salaryCny } : {}), ...(distance ? { distance } : {}), salaryCandidates, salarySelection, salaryLocationScope: salaryRecords.some((record) => !record.locationIds?.length) ? "unscoped" : "bound", color, relevance: relevance.score, matchedFields: relevance.fields,
+      ...(mapReferences.length ? { mapReferences } : {}),
       sources: jobListings.map((listing) => ({ sourceId: listing.sourceId, label: sources.get(listing.sourceId)!.name, ...(listing.canonicalUrl ? { url: listing.canonicalUrl } : {}), listingId: listing.id })),
     });
   }
@@ -368,11 +387,15 @@ export async function queryJobs(inputDataset: AtlasDataset, input: JobQueryInput
     return (left !== undefined && right !== undefined ? (left - right) * direction : 0) || compareIds(a.job.id, b.job.id);
   });
   const facets: JobQueryResult["facets"] = { countries: {}, controllerJurisdictions: {}, ownership: {}, sources: {} };
-  let mappedJobs = 0, locationPinCount = 0;
+  let mappedJobs = 0, locationPinCount = 0, cityReferenceJobs = 0, cityReferencePinCount = 0, mapVisibleJobs = 0;
   for (const item of items) {
     const mapped = new Set(item.locations.filter((l) => l.coordinates).map((l) => l.id));
     if (mapped.size) mappedJobs++;
     locationPinCount += mapped.size;
+    const references = new Set((item.mapReferences ?? []).map(reference => reference.locationId));
+    if (references.size) cityReferenceJobs++;
+    cityReferencePinCount += references.size;
+    if (mapped.size || references.size) mapVisibleJobs++;
     for (const country of new Set(item.locations.map((l) => l.countryCode ?? "unknown"))) increment(facets.countries, country);
     if (!item.locations.length) increment(facets.countries, "unknown");
     for (const kind of companyFacts(item.company).ownership) increment(facets.ownership, kind);
@@ -392,7 +415,9 @@ export async function queryJobs(inputDataset: AtlasDataset, input: JobQueryInput
     totalJobs: items.length, companyCount: new Set(items.map((item) => item.company.id)).size, mappedJobs, unlocatedJobs: items.length - mappedJobs, locationPinCount,
     unknownSalaryCount: items.filter((item) => item.salaryCny === undefined).length, unknownDistanceCount: items.filter((item) => !item.distance).length,
     items: items.slice(offset, offset + query.page.limit), ...(offset + query.page.limit < items.length ? { nextCursor: `${queryId}:${offset + query.page.limit}` } : {}),
-    mapBuckets: buildMapBuckets(items, query.mapLevel), facets, sourceCoverage,
+    mapBuckets: [...buildMapBuckets(items, query.mapLevel), ...buildCityReferenceBuckets(items, query.mapLevel)], facets, sourceCoverage,
+    ...(options.mapReferences ? { mapReferenceCoverage: { cityReferenceJobs, cityReferencePinCount, mapVisibleJobs, mapPendingJobs: items.length - mapVisibleJobs,
+      processedLocations: options.mapReferences.processedLocations, totalLocations: options.mapReferences.totalLocations, truncated: options.mapReferences.truncated } } : {}),
   };
 }
 

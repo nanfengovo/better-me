@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { EntityIdSchema, SourceDefinitionSchema, TimestampSchema, TOOL_ERROR_CODES, GeocodingRequestSchema, GeocodingResultSchema, type GeocodingInput } from "@better-me/opportunities";
+import { EntityIdSchema, SourceDefinitionSchema, TimestampSchema, TOOL_ERROR_CODES, GeocodingRequestSchema, GeocodingResultSchema, MapReferencesInputSchema, MapReferencesResultSchema, type GeocodingInput, type MapReferencesInput } from "@better-me/opportunities";
 import {
   DiscoverSourceCandidatesInputSchema, InspectSourceCandidateInputSchema, ProposeSourceRegistrationInputSchema,
   SourceAdapterMetadataSchema, SourceCandidateInspectionSchema, SourceDiscoveryPageSchema,
@@ -154,6 +154,10 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
       throw new AtlasSourceServiceError("transport-error", "未收到本机服务回执。请检查服务连接；写操作重试会沿用原幂等键。");
     }
     if (options.signal?.aborted || response.redirected) { void response.body?.cancel().catch(() => {}); options.signal?.throwIfAborted(); throw new AtlasSourceServiceError("http-error", "服务发生了不允许的跳转。", response.status); }
+    if (path === "locations/map-references" && response.status === 404) {
+      void response.body?.cancel().catch(() => {});
+      throw new AtlasSourceServiceError("http-error", "本机服务尚不支持城市分布参考，请更新岗位服务后重试。", 404);
+    }
     const value = await bodyJson(response, options); options.signal?.throwIfAborted();
     const error = ErrorEnvelopeSchema.safeParse(value);
     if (error.success) throw new AtlasSourceServiceError(error.data.error.code, `来源工具返回 ${error.data.error.code}。请检查来源状态、版本、范围与服务日志。`, response.status);
@@ -166,6 +170,15 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
   }
   const sourcePath = (id: string) => `sources/${encodeURIComponent(input(EntityIdSchema, id))}`;
   return {
+    mapReferences: async (value: MapReferencesInput, options: Options = {}) => {
+      const query = input(MapReferencesInputSchema, value);
+      const result = await request("locations/map-references", MapReferencesResultSchema, options, query);
+      const ids = [...result.references, ...result.unresolved].map(entry => entry.locationId);
+      if (result.snapshotRevision !== query.expectedRevision || result.processedLocations > query.limit
+        || (query.locationIds && (result.totalLocations !== query.locationIds.length || ids.some(id => !query.locationIds!.includes(id)))))
+        throw new AtlasSourceServiceError("invalid-response", "城市分布参考与本次地点范围或索引版本不一致，请重新读取。");
+      return result;
+    },
     listMergeCandidates: async (value: ListMergeCandidatesInput = {}, options: Options = {}) => {
       const query = input(ListMergeCandidatesInputSchema, value);
       const result = await request("jobs/reconciliation/candidates", MergeCandidatesPageSchema, options, query);

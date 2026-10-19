@@ -24,6 +24,7 @@ const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }
   { method: "POST", path: /^\/api\/v1\/jobs\/reviewed-cards\/preview$/, tool: "jobs.preview-reviewed-cards" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reviewed-cards\/import$/, tool: "jobs.import-reviewed-cards" },
   { method: "POST", path: /^\/api\/v1\/locations\/geocode-candidates$/, tool: "locations.geocode-candidates" },
+  { method: "POST", path: /^\/api\/v1\/locations\/map-references$/, tool: "locations.map-references" },
   { method: "POST", path: /^\/api\/v1\/locations\/confirmations\/preview$/, tool: "locations.preview-confirmation" },
   { method: "POST", path: /^\/api\/v1\/locations\/confirmations$/, tool: "locations.confirm" },
   { method: "POST", path: /^\/api\/v1\/locations\/confirmations\/revoke$/, tool: "locations.revoke-confirmation" },

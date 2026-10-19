@@ -8,6 +8,7 @@ import { createOpportunity, OPPORTUNITY_STORAGE_KEY } from "../src/lib/opportuni
 import { createAtlasDemo } from "../src/components/atlas/demo.ts";
 import type { AtlasPrototypeProps } from "../src/components/atlas/prototypes/types.ts";
 import type { AtlasJobDetailProps } from "../src/components/atlas/AtlasJobDetail.tsx";
+import { createMapReferenceFixture } from "./fixtures/atlas-map-references.ts";
 
 // Exercise the real React workspace and shared queries. The map probe only replaces WebGL/network rendering.
 const dom = new Window({ url: "http://atlas-workspace-fixture.invalid" });
@@ -109,6 +110,26 @@ function searchFixture(empty = false): AtlasDataset {
   return AtlasDatasetSchema.parse(data);
 }
 const sourceResponse = (value: unknown) => new Response(JSON.stringify({ ok: true, requestId: "synthetic-workspace-source-request", value }));
+// Existing scenarios return an explicit unresolved projection; city-reference scenarios supply their own response.
+function installWorkspaceFetch(handler: typeof fetch, mapReply?: (input: { expectedRevision: number }, init?: RequestInit) => Response | Promise<Response>) {
+  let latest: AtlasDataset | undefined;
+  return mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(url)).pathname;
+    if (path === "/api/v1/locations/map-references") {
+      const input = JSON.parse(String(init!.body));
+      if (mapReply) return mapReply(input, init);
+      const locations = latest?.locations ?? [];
+      return sourceResponse({ schemaVersion: 1, snapshotRevision: input.expectedRevision, providerId: "synthetic-unresolved-map",
+        places: [], references: [], unresolved: locations.map(location => ({ locationId: location.id, reason: location.coordinates ? "existing-coordinate" : "no-exact-match" })),
+        totalLocations: locations.length, processedLocations: locations.length, truncated: false, warnings: ["No synthetic city reference in this scenario."] });
+    }
+    const response = await handler(url, init);
+    if (path === "/api/v1/dataset/export" && response.ok) {
+      try { const payload = await response.clone().json(); latest = payload.value; } catch { /* Failure fixtures remain failures. */ }
+    }
+    return response;
+  });
+}
 const sourceReceipt = (scope: unknown) => ({ run: { runId: "synthetic-main-search-run", sourceId: "atlas-demo", actorScope: "local-owner", generation: 1,
   scope: {}, status: "partial", startedAt: "2026-10-18T12:00:00.000Z", summary: { records: 9, pages: 1, partial: true } }, localFilters: scope, warnings: ["Synthetic bounded fixture, not real recruitment coverage"] });
 function pointerClick(card: HTMLButtonElement, detail: number) {
@@ -260,7 +281,7 @@ test("live snapshot list loads beyond the first page and keeps loaded jobs after
     at: "2026-10-18T08:00:00.000Z", reason: "合成来源证据校正，用于验证有效控股来源筛选。",
     value: { ...corrected.ultimateControllers, revision: 1, method: "manual", verification: "verified",
       value: [{ name: "合成瑞士控股方", jurisdictionCode: "CH", kind: "private" }] } });
-  mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ ok: true, requestId: "workspace-live-fixture", value: AtlasDatasetSchema.parse(data) })));
+  installWorkspaceFetch(async () => new Response(JSON.stringify({ ok: true, requestId: "workspace-live-fixture", value: AtlasDatasetSchema.parse(data) })));
   await render();
   await flush(() => button("连接本机服务").click());
   const token = dom.document.querySelector('input[type="password"]')!;
@@ -348,7 +369,7 @@ async function selectConfirmedDomesticCard() {
 
 test("refreshing a live index after area revocation removes the domestic result and closes its cached detail", async () => {
   let revoked = false, reads = 0;
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL) => {
+  installWorkspaceFetch(async (url: RequestInfo | URL) => {
     assert.equal(new URL(String(url)).pathname, "/api/v1/dataset/export"); reads++;
     return sourceResponse(confirmedAreaFixture(!revoked));
   });
@@ -362,7 +383,7 @@ test("refreshing a live index after area revocation removes the domestic result 
 
 test("revoking the selected area closes a now-excluded domestic detail and retains the saved outcome outside the pane", async () => {
   let revoked = false; const writes: Array<{ body: Record<string, unknown>; key: string | null }> = [];
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  installWorkspaceFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname;
     if (path === "/api/v1/dataset/export") return sourceResponse(confirmedAreaFixture(!revoked));
     assert.equal(path, "/api/v1/locations/confirmations/revoke");
@@ -396,7 +417,7 @@ test("revoking the selected area closes a now-excluded domestic detail and retai
 });
 
 test("main search without a connection opens connection settings and never sends a source or snapshot request", async () => {
-  const fetcher = mock.method(globalThis, "fetch", async () => { throw new Error("An unconnected search must never request a service"); });
+  const fetcher = installWorkspaceFetch(async () => { throw new Error("An unconnected search must never request a service"); });
   await render(true, false);
   await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "C#"));
   await flush(() => button("连接真实来源搜索").click());
@@ -412,7 +433,7 @@ test("connected main search calls the selected source with exact C# and bounded 
   for (const data of [initial, updated]) data.sources.unshift({ ...data.sources[0]!, sourceId: "synthetic-other-source", attribution: { ...data.sources[0]!.attribution, label: "另一个合成来源" } });
   const requests: Array<{ path: string; body?: any; init?: RequestInit }> = [];
   let synced = false;
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  installWorkspaceFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname, body = init?.body ? JSON.parse(String(init.body)) : undefined;
     requests.push({ path, body, init });
     if (path === "/api/v1/sources/atlas-demo/sync") { synced = true; return sourceResponse(sourceReceipt(body.scope)); }
@@ -471,7 +492,7 @@ test("connected main search calls the selected source with exact C# and bounded 
 
 test("source review opens without rereading and a new search closes candidates bound to the previous query", async () => {
   let previews = 0;
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  installWorkspaceFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname;
     if (path === "/api/v1/dataset/export") return sourceResponse(searchFixture());
     if (path.endsWith("/preview")) { previews++; throw new Error("Opening review must not automatically reread"); }
@@ -495,7 +516,7 @@ test("an unknown main-search response retries the same write key and a completed
   const initial = searchFixture(true), updated = searchFixture();
   for (const data of [initial, updated]) { data.sources[0]!.refreshPolicy.maxRecords = 100; data.sources[0]!.refreshPolicy.maxPages = 10; }
   const writes: Array<{ body: any; key: string | null }> = []; let snapshots = 0;
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  installWorkspaceFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname;
     if (path === "/api/v1/dataset/export") { snapshots++; return sourceResponse(writes.length >= 2 ? updated : initial); }
     assert.equal(path, "/api/v1/sources/atlas-demo/sync");
@@ -526,7 +547,7 @@ test("searching the configured employer enumerates that company and sends the se
   data.locations[0]!.countryCode = "US";
   data.sources.unshift({ ...data.sources[0]!, sourceId: "synthetic-different-employer", options: { companyName: "DifferentEmployer" } });
   const writes: Array<{ scope: unknown }> = [];
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  installWorkspaceFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname;
     if (path === "/api/v1/dataset/export") return sourceResponse(data);
     assert.equal(path, "/api/v1/sources/atlas-demo/sync");
@@ -549,7 +570,7 @@ test("empty index allows country and city preselection and preserves the same-lo
   updated.locations.forEach((location) => { location.countryCode = "US"; location.city = "北京"; location.raw = "北京"; });
   updated.locations[0]!.countryCode = "CN";
   const writes: any[] = []; let synced = false;
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  installWorkspaceFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname;
     if (path === "/api/v1/dataset/export") return sourceResponse(synced ? updated : initial);
     assert.equal(path, "/api/v1/sources/atlas-demo/sync");
@@ -575,7 +596,7 @@ test("empty index allows country and city preselection and preserves the same-lo
 test("switching data view during a source request prevents its late response from replacing the chosen view", async () => {
   const data = searchFixture();
   let releaseSync: ((response: Response) => void) | undefined;
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  installWorkspaceFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname;
     if (path === "/api/v1/dataset/export") return sourceResponse(data);
     assert.equal(path, "/api/v1/sources/atlas-demo/sync"); assert.ok(init?.signal);
@@ -678,7 +699,7 @@ test("unmount explicitly clears the scheduled pointer intent", async (t) => {
 
 test("unresolved office double-click queries once, requires explicit city choice and never changes the canonical dataset", async () => {
   const data = unresolvedOfficeFixture(); const requests: GeocodingRequest[] = [];
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  installWorkspaceFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname;
     if (path === "/api/v1/dataset/export") return sourceResponse(data);
     assert.equal(path, "/api/v1/locations/geocode-candidates", "candidate browsing performs no source or location write");
@@ -705,10 +726,51 @@ test("unresolved office double-click queries once, requires explicit city choice
   assert.equal(mapProps!.focus, undefined); assert.deepEqual(detailData, canonical);
 });
 
+test("live city distribution references share the real filters and bucket selection, and double-click focuses at city precision without a geocoding request", async () => {
+  const data = searchFixture(), before = structuredClone(data), batch = await createMapReferenceFixture(data);
+  let mapReads = 0; const routes: string[] = [];
+  installWorkspaceFetch(async (url: RequestInfo | URL) => {
+    const path = new URL(String(url)).pathname; routes.push(path); assert.equal(path, "/api/v1/dataset/export"); return sourceResponse(data);
+  }, input => { mapReads++; assert.equal(input.expectedRevision, data.revision); return sourceResponse(batch); });
+  await render(true, false); await connectFixture();
+  assert.equal(mapReads, 1); assert.ok(mapProps!.buckets.length > 0); assert.equal(mapProps!.buckets.every(bucket => bucket.positionBasis === "city-reference"), true);
+  assert.match(dom.document.querySelector('[aria-label="地图位置口径"]')!.textContent!, /来源坐标 0 岗.*城市分布参考 21 岗.*不参与离家距离/);
+  const keyword = dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]'); assert.ok(keyword);
+  await flush(() => changeInput(keyword, "C#"));
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 3); assert.equal(mapReads, 1, "filters reuse this snapshot's projection");
+  assert.equal(mapProps!.buckets.reduce((count, bucket) => count + bucket.jobCount, 0), 2);
+  assert.match(dom.document.querySelector('[aria-label="地图位置口径"]')!.textContent!, /城市分布参考 2 岗/);
+  await flush(() => pointerDoubleClick(jobCard("C# 合成工程师 0")));
+  assert.equal(mapProps!.focus!.positionBasis, "city-reference"); assert.equal(mapProps!.focus!.precision, "city"); assert.equal(mapProps!.focus!.zoom, 9);
+  assert.match(dom.document.querySelector('[aria-label="地图岗位详情"]')!.textContent!, /城市级估算，非办公地址；不用于离家距离.*地名数据出处/s);
+  assert.deepEqual(routes, ["/api/v1/dataset/export"]); assert.deepEqual(detailData, before);
+  const city = mapProps!.buckets.find(bucket => bucket.label === "上海")!; assert.ok(city);
+  await flush(() => mapProps!.onPick!(city)); assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 1);
+  assert.ok(resultsHeading().startsWith("上海")); assert.equal(mapProps!.buckets.length, 2, "selected list remains a subset of the base map query");
+  assert.equal(mapReads, 1); assert.deepEqual(data, before);
+  await render(false, false); await render(true, false);
+  assert.equal(mapReads, 1, "completed references reuse the same snapshot cache after activation");
+  assert.equal(mapProps!.selectedBucketId, undefined); assert.equal(mapProps!.focus, undefined); assert.equal(mapProps!.selectedJobId, "");
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 3, "a retired city-reference bucket must not continue filtering the list");
+});
+
+test("city-reference errors preserve the live list and explicit retry adds estimates without reconnecting or writing jobs", async () => {
+  const data = unresolvedOfficeFixture(), batch = await createMapReferenceFixture(data); let reads = 0, snapshots = 0;
+  installWorkspaceFetch(async (url: RequestInfo | URL) => {
+    assert.equal(new URL(String(url)).pathname, "/api/v1/dataset/export"); snapshots++; return sourceResponse(data);
+  }, () => ++reads === 1 ? new Response(JSON.stringify({ ok: false, requestId: "synthetic-missing-map-route", error: { code: "not-found", message: "Private service text" } }), { status: 404 }) : sourceResponse(batch));
+  await render(true, false); await connectFixture();
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 22); assert.equal(mapProps!.buckets.length, 0);
+  assert.match(dom.document.body.textContent!, /尚不支持城市分布参考.*更新并重启/); assert.doesNotMatch(dom.document.body.textContent!, /Private service text/);
+  await flush(() => button("重新读取城市参考").click()); assert.equal(reads, 2); assert.equal(snapshots, 1);
+  assert.ok(mapProps!.buckets.some(bucket => bucket.positionBasis === "city-reference"));
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 22);
+});
+
 test("switching jobs and closing details abort geocoding and suppress both late responses", async () => {
   const data = unresolvedOfficeFixture();
   const pending: Array<{ request: GeocodingRequest; signal: AbortSignal; resolve: (response: Response) => void }> = [];
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  installWorkspaceFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname;
     if (path === "/api/v1/dataset/export") return sourceResponse(data);
     assert.equal(path, "/api/v1/locations/geocode-candidates");
@@ -739,7 +801,7 @@ test("default aggregate search exposes fast source results before a slow source 
   const initial = searchFixture(true), updated = searchFixture();
   for (const dataset of [initial, updated]) dataset.sources.unshift({ ...dataset.sources[0]!, sourceId: "synthetic-slow", attribution: { ...dataset.sources[0]!.attribution, label: "慢速合成来源" } });
   const writes: string[] = []; let synced = false;
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  installWorkspaceFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname;
     if (path === "/api/v1/dataset/export") return sourceResponse(synced ? updated : initial);
     writes.push(path);

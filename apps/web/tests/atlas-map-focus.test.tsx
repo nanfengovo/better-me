@@ -3,6 +3,7 @@ import test from "node:test";
 import { Window } from "happy-dom";
 import { GeocodingCandidateSchema, queryJobs, type JobSearchItem } from "@better-me/opportunities";
 import { createAtlasDemo } from "../src/components/atlas/demo.ts";
+import { createMapReferenceFixture } from "./fixtures/atlas-map-references.ts";
 import { activeMapFocus, createJobMapFocus, createMapFocusMarker, mapFocusCameraOptions, mapFocusPrecisionLabel, validMapFocus } from "../src/components/atlas/map-focus.ts";
 
 async function item(): Promise<JobSearchItem> {
@@ -43,6 +44,24 @@ test("each explicit location can be focused without using another office's coord
   assert.equal(target.locationId, "second-office"); assert.equal(target.longitude, 116); assert.equal(target.precision, "address");
   assert.equal(target.estimated, false); assert.equal(mapFocusPrecisionLabel(target), "地址级坐标");
   assert.equal(createJobMapFocus(input, "missing", { locationId: "missing-office" }), null);
+});
+
+test("snapshot-derived city references focus directly without office coordinates or building zoom, while source coordinates win", async () => {
+  const data = createAtlasDemo(); delete data.locations[0]!.coordinates; data.locations[0]!.precision = "unknown"; data.locations[0]!.kind = "unknown";
+  const batch = await createMapReferenceFixture(data), before = structuredClone(data);
+  const result = await queryJobs(data, { jobIds: [data.jobs[0]!.id] }, { now: "2026-10-19T00:00:00Z", mapReferences: batch });
+  const input = result.items[0]!, original = structuredClone(input), target = createJobMapFocus(input, "reference")!;
+  assert.equal(target.positionBasis, "city-reference"); assert.equal(target.precision, "city"); assert.equal(target.estimated, true);
+  assert.equal(target.verification, "unverified"); assert.equal(target.zoom, 9); assert.equal(target.latitude, 31);
+  assert.match(mapFocusPrecisionLabel(target), /城市分布参考.*城市级估算.*非办公地址/);
+  assert.equal(mapFocusCameraOptions({ ...target, zoom: 22 }, 22, false)!.zoom, 9);
+  assert.equal(createJobMapFocus(input, "wrong-location", { locationId: "another-office" }), null);
+  assert.deepEqual(input, original); assert.deepEqual(data, before);
+  input.locations[0]!.coordinates = { latitude: 40, longitude: 116, coordinateSystem: "WGS84" }; input.locations[0]!.precision = "address";
+  const direct = createJobMapFocus(input, "source-coordinate")!;
+  assert.equal(direct.latitude, 40); assert.equal(direct.positionBasis, undefined); assert.equal(direct.precision, "address");
+  delete input.locations[0]!.coordinates; input.job.workMode = "remote"; assert.equal(createJobMapFocus(input, "remote"), null);
+  input.job.workMode = "unknown"; input.locations[0]!.kind = "remote-region"; assert.equal(createJobMapFocus(input, "remote-region"), null);
 });
 
 test("missing, invalid, remote eligibility and unspecified precision do not create an office marker", async () => {

@@ -126,11 +126,14 @@ export function AtlasJobDetail({ item, data, demo, originalCurrency, presentatio
         <h3><MapPin size={15} />{t("工作地点", "Work locations")}</h3>
         {item.locations.map((location) => {
           const coordinates = usableCoordinates(location);
+          const reference = !coordinates && location.kind !== "remote-region" && item.job.workMode !== "remote"
+            ? item.mapReferences?.find(entry => entry.locationId === location.id) : undefined;
           const query = coordinates ? `${coordinates.latitude},${coordinates.longitude}` : location.raw.trim();
           return <article className="atlas-job-detail-location" key={location.id}>
             <strong>{location.raw}</strong><small>{locationPrecision(location, t)}</small>
+            {reference && <small>{t("城市分布参考", "City distribution reference")}：{reference.label} · {t("城市级估算，非办公地址；不用于离家距离", "Estimated city point, not an office address; excluded from home distance")}{HttpUrlSchema.safeParse(reference.sourceRecordUrl).success && <> · <a href={reference.sourceRecordUrl} target="_blank" rel="noopener noreferrer">{t("地名数据出处", "Place data source")}<ArrowUpRight size={12} /></a></>}</small>}
             {location.userResolution && <small>{t("本人确认的行政范围", "Locally confirmed administrative area")}：{[location.countryCode, location.region, location.city, location.district].filter(Boolean).join(" / ")} · {t("原文保留，非办公坐标核验", "Source retained; office coordinates unverified")}</small>}
-            <div className="atlas-job-detail-location-actions">{location.kind !== "remote-region" && <button type="button" onClick={() => onLocate(location.id)}><Navigation size={12} />{coordinates ? t("地图定位", "Locate on map") : t("查找城市位置", "Find city location")}</button>}
+            <div className="atlas-job-detail-location-actions">{location.kind !== "remote-region" && <button type="button" onClick={() => onLocate(location.id)}><Navigation size={12} />{coordinates ? t("地图定位", "Locate on map") : reference ? t("定位城市参考", "Locate city reference") : t("查找城市位置", "Find city location")}</button>}
               {!demo && onConfirmLocation && <button type="button" onClick={() => onConfirmLocation(location)}>{t("核对并保存地区", "Review and save area")}</button>}
               {query && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`} target="_blank" rel="noopener noreferrer">Google {t("地图", "Maps")}<ArrowUpRight size={12} /></a>}
             </div>

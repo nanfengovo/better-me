@@ -13,6 +13,7 @@ export type AtlasMapFocus = {
   precision?: LocationPrecision;
   verification?: JobLocation["verification"];
   estimated?: boolean;
+  positionBasis?: "city-reference";
   color?: string;
   /** Temporary screen offset supplied by the workspace to keep the pin beside its detail panel. */
   viewportOffset?: [number, number];
@@ -32,14 +33,14 @@ export function activeMapFocus(target: AtlasMapFocus | undefined, selectedJobId?
   return validMapFocus(target) && (selectedJobId === undefined || !target.jobId || target.jobId === selectedJobId) ? target : undefined;
 }
 
-type FocusJob = Pick<JobSearchItem, "job" | "company" | "locations" | "color">;
+type FocusJob = Pick<JobSearchItem, "job" | "company" | "locations" | "color" | "mapReferences">;
 type FocusOptions = {
   locationId?: string;
   /** An explicit candidate for this location; its reference point remains visibly estimated. */
   cityCandidate?: { locationId: string; candidate: GeocodingCandidate };
 };
 
-/** No name matching, network geocoding or mutation: a missing coordinate stays missing. */
+/** Source coordinates take priority. A separate city reference never changes the source location. */
 export function createJobMapFocus(item: FocusJob, requestId: string, options: FocusOptions = {}): AtlasMapFocus | null {
   const selectedLocationId = options.locationId ?? options.cityCandidate?.locationId;
   const locations = item.locations.filter((location) => location.kind !== "remote-region"
@@ -55,7 +56,17 @@ export function createJobMapFocus(item: FocusJob, requestId: string, options: Fo
     zoom: precisionZoom[location.precision],
   };
   const candidateInput = options.cityCandidate;
-  if (!candidateInput) return null;
+  if (!candidateInput) {
+    if (item.job.workMode === "remote") return null;
+    const reference = item.mapReferences?.find(entry => entry.precision === "city" && entry.estimated === true
+      && entry.coordinateMeaning === "populated-place-reference-point" && entry.coordinates.coordinateSystem === "WGS84" && validMapFocus(entry.coordinates)
+      && locations.some(location => location.id === entry.locationId && !location.coordinates && location.countryCode === entry.countryCode && location.city === entry.label));
+    if (!reference) return null;
+    const source = locations.find(location => location.id === reference.locationId)!;
+    return { ...common, longitude: reference.coordinates.longitude, latitude: reference.coordinates.latitude,
+      locationId: reference.locationId, locationLabel: `${source.raw} · ${reference.label}`,
+      precision: "city", verification: "unverified", estimated: true, positionBasis: "city-reference", zoom: 9 };
+  }
   const candidateLocation = locations.find((entry) => entry.id === candidateInput.locationId);
   const { candidate } = candidateInput;
   if (!candidateLocation || candidateLocation.kind !== "office" || candidate.precision !== "city" || candidate.estimated !== true
@@ -75,7 +86,7 @@ export function mapFocusPrecisionLabel(target: AtlasMapFocus): string {
     country: "国家级概略位置", region: "地区级概略位置", city: "城市级估算 · 非办公地址",
     street: "街道级估算 · 非精确办公地址", address: "地址级坐标", manual: "手动设置位置", unknown: "位置精度未说明",
   };
-  const label = precision[target.precision ?? "unknown"];
+  const label = `${target.positionBasis === "city-reference" ? "城市分布参考 · " : ""}${precision[target.precision ?? "unknown"]}`;
   if (target.verification === "conflicting") return `${label} · 来源有冲突`;
   if (target.verification !== "verified") return `${label} · 待核实`;
   return label;
@@ -85,7 +96,7 @@ export function mapFocusPrecisionLabel(target: AtlasMapFocus): string {
 export function mapFocusCameraOptions(target: AtlasMapFocus, maxZoom: number, reducedMotion: boolean) {
   if (!validMapFocus(target)) return null;
   const limit = Number.isFinite(maxZoom) ? Math.max(1, maxZoom) : 22;
-  const precisionLimit = target.precision ? precisionZoom[target.precision] : 22;
+  const precisionLimit = target.positionBasis === "city-reference" ? 9 : target.precision ? precisionZoom[target.precision] : 22;
   const requestedZoom = target.zoom !== undefined && Number.isFinite(target.zoom) ? target.zoom : target.precision ? precisionLimit : 16;
   return {
     center: [target.longitude, target.latitude] as [number, number],

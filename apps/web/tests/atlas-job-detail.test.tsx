@@ -4,6 +4,7 @@ import test, { after, afterEach } from "node:test";
 import { Window, type HTMLButtonElement, type HTMLAnchorElement } from "happy-dom";
 import { queryJobs } from "@better-me/opportunities";
 import { createAtlasDemo } from "../src/components/atlas/demo.ts";
+import { createMapReferenceFixture } from "./fixtures/atlas-map-references.ts";
 import { buildAtlasListingPresentations } from "../src/components/atlas/presentation.ts";
 import type { AtlasJobDetailProps } from "../src/components/atlas/AtlasJobDetail.tsx";
 
@@ -80,6 +81,23 @@ test("the non-modal pane leaves card focus intact and closes by its visible butt
   await act(async () => dom.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape", isComposing: true }))); assert.equal(closes, 2);
   await act(async () => root!.unmount()); root = undefined;
   dom.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape" })); assert.equal(closes, 2, "unmount removes the listener");
+});
+
+test("a city distribution reference is labelled separately, links its place source and never supplies an office or home distance", async () => {
+  const props = await fixture(), location = props.data.locations[0]!; delete location.coordinates; location.precision = "unknown";
+  const before = structuredClone(props.data), batch = await createMapReferenceFixture(props.data);
+  props.item = (await queryJobs(props.data, { jobIds: [props.data.jobs[0]!.id] }, { now: "2026-10-19T00:00:00Z", mapReferences: batch })).items[0]!;
+  let located: string | undefined; props.onLocate = id => { located = id; };
+  const pane = await render(props); assert.match(pane.textContent!, /城市分布参考.*城市级估算，非办公地址；不用于离家距离/);
+  const link = [...pane.querySelectorAll<HTMLAnchorElement>("a")].find(entry => entry.textContent?.includes("地名数据出处")); assert.ok(link);
+  assert.equal(link.getAttribute("href"), "https://places.example.invalid/0"); assert.equal(link.getAttribute("rel"), "noopener noreferrer");
+  await act(async () => button("定位城市参考").click()); assert.equal(located, location.id);
+  assert.equal(props.item.distance, undefined); assert.equal(props.item.locations[0]!.coordinates, undefined); assert.deepEqual(props.data, before);
+  props.item.mapReferences![0]!.sourceRecordUrl = "javascript:syntheticUnsafe()"; await render(props);
+  assert.equal([...pane.querySelectorAll("a")].some(entry => entry.textContent?.includes("地名数据出处")), false);
+  props.item.locations[0]!.coordinates = { latitude: 40, longitude: 116, coordinateSystem: "WGS84" }; props.item.locations[0]!.precision = "address";
+  await render(props); assert.equal([...pane.querySelectorAll("button")].some(entry => entry.textContent?.includes("定位城市参考")), false);
+  assert.ok(button("地图定位"));
 });
 
 test("the prominent original link is bound to this listing, safe and accompanied by source/date badges", async () => {

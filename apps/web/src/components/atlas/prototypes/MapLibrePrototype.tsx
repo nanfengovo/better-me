@@ -17,7 +17,7 @@ function bucketData(props: AtlasPrototypeProps): BucketGeoJSON {
   for (const bucket of buckets) {
     const colors = categories(bucket); const base = bucketRadius(bucket);
     const point = { type: "Point" as const, coordinates: [bucket.longitude, bucket.latitude] as [number, number] };
-    const label = `${bucket.label} · ${bucket.jobCount}`; const labelVisible = bucket.id === props.selectedBucketId || labelIds.has(bucket.id);
+    const label = `${bucket.label} · ${bucket.jobCount}${bucket.positionBasis === "city-reference" ? " · 城市估算" : ""}`; const labelVisible = bucket.id === props.selectedBucketId || labelIds.has(bucket.id);
     features.push({ type: "Feature", geometry: point, properties: { bucketId: bucket.id, kind: "core", color: colors.length === 1 ? colors[0]!.color : "#a5bbb6", radius: base * .46, label, labelVisible } });
     colors.forEach((category, index) => features.push({ type: "Feature", geometry: point, properties: { bucketId: bucket.id, kind: "category", color: category.color, radius: base * .58 + index * 2.1, label, labelVisible: false } }));
   }
