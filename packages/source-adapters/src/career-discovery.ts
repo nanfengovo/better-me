@@ -115,11 +115,14 @@ function hrefAttribute(attributes: string): string | undefined {
 /** A bounded inert anchor reader; no DOM, JS, embedded frames, forms or user selectors execute. */
 function anchorLinks(html: string): { links: { href: string; text: string }[]; truncated: boolean } {
   const links: { href: string; text: string }[] = [];
-  let pending: { href: string; end: number } | undefined;
+  let pending: { href: string; end: number; text?: string } | undefined;
   let count = 0, cursor = 0;
   const blocked: string[] = [];
   const flush = (end: number) => {
-    if (pending) links.push({ href: pending.href, text: plainText(html.slice(pending.end, Math.min(end, pending.end + 1000))).slice(0, 500) });
+    if (pending) {
+      const text = pending.text ?? "";
+      links.push({ href: pending.href, text: plainText(text + html.slice(pending.end, Math.min(end, pending.end + 1000 - text.length))).slice(0, 500) });
+    }
     pending = undefined;
   };
   while (cursor < html.length) {
@@ -131,15 +134,29 @@ function anchorLinks(html: string): { links: { href: string; text: string }[]; t
       continue;
     }
     if (++count > 10_000 || links.length >= 2000) { flush(start); return { links, truncated: true }; }
+    // Large, inert wizard/configuration metadata can precede all visible navigation.
+    // Only an exact opening meta tag gets a 64K UTF-16 code-unit total-length
+    // skip budget. Its attributes are never links/text and it introduces no scope.
+    // The caller separately enforces the 2 MiB response byte limit.
+    const metadata = /^<meta[\t\n\f\r />]/i.test(html.slice(start, start + 6));
+    const maxOffset = metadata ? 64 * 1024 - 1 : 8192;
     let end = start + 1, quote = "";
     // Quotes in attributes cannot manufacture nested anchor tags.
-    for (; end < html.length && end - start <= 8192; end++) {
+    for (; end < html.length && end - start <= maxOffset; end++) {
       const character = html[end]!;
       if (quote) { if (character === quote) quote = ""; }
       else if (character === '"' || character === "'") quote = character;
       else if (character === ">") break;
     }
-    if (end >= html.length || end - start > 8192) { flush(start); return { links, truncated: true }; }
+    if (end >= html.length || end - start > maxOffset) { flush(start); return { links, truncated: true }; }
+    if (metadata) {
+      if (pending) {
+        const text = pending.text ?? "";
+        pending.text = text + html.slice(pending.end, Math.min(start, pending.end + 1000 - text.length));
+        pending.end = end + 1;
+      }
+      cursor = end + 1; continue;
+    }
     const token = html.slice(start + 1, end), match = token.match(/^\s*(\/?)\s*([a-z][a-z0-9:-]*)\b/i);
     cursor = end + 1;
     if (!match) continue;

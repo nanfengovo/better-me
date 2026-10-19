@@ -295,6 +295,108 @@ test("scripts, inert template links, private hosts, unsafe schemes and credentia
   assert.equal(run.requests.length, 1);
 });
 
+test("large inert metadata before static career navigation is skipped without becoming a source or scope", async () => {
+  const metadata = `<MeTa name="synthetic.wizard.configuration" content="${"&quot;configuration&quot;:true,".repeat(600)}"/>`;
+  const run = execution(() => `<html><head>${metadata}</head><body><a href="https://jobs.lever.co/visible-navigation">All Jobs</a></body></html>`);
+  const result = await discoverCompanyCareers({ companyName, companyWebsite, maxPages: 1 }, run);
+  assert.equal(result.status, "needs-review");
+  assert.deepEqual(result.candidates.map(item => item.candidate.homeUrl), ["https://jobs.lever.co/visible-navigation"]);
+  assert.equal(result.candidates[0]!.evidence[0]!.quote, "All Jobs");
+  assert.equal(result.partial, false);
+  assert.equal(result.warnings.some(warning => warning.includes("anchor scan limit")), false);
+  assert.deepEqual(run.requests, [companyWebsite]);
+  assert.ok(result.proposals.every(proposal => !proposal.source.enabled && proposal.source.status === "needs-review"));
+});
+
+test("meta skipping honors an exact 64K UTF-16 code-unit total tag length and preserves ordinary tag limits", async () => {
+  const opening = '<meta content="', closing = '">';
+  for (const character of ["x", "中"]) for (const length of [64 * 1024 - 1, 64 * 1024, 64 * 1024 + 1]) {
+    const metadata = opening + character.repeat(length - opening.length - closing.length) + closing;
+    assert.equal(metadata.length, length);
+    const run = execution(() => `<html>${metadata}<a href="https://jobs.lever.co/after-boundary">Jobs</a></html>`);
+    const result = await discoverCompanyCareers({ companyName, companyWebsite, maxPages: 1 }, run);
+    assert.equal(result.candidates.length, length <= 64 * 1024 ? 1 : 0, `Total meta tag length ${length}`);
+    assert.equal(result.partial, length > 64 * 1024);
+    assert.equal(result.warnings.some(warning => warning.includes("anchor scan limit")), length > 64 * 1024);
+  }
+  for (const prefix of ["<metadata", "<metax", "<meta:configuration", "< meta", "</meta", "<a", "<div", "<link"]) {
+    const run = execution(() => `<html>${prefix} data-copy="${"x".repeat(9000)}"><a href="https://jobs.lever.co/after-ordinary-limit">Jobs</a></html>`);
+    const result = await discoverCompanyCareers({ companyName, companyWebsite, maxPages: 1 }, run);
+    assert.deepEqual(result.candidates, [], prefix);
+    assert.equal(result.partial, true, prefix);
+    assert.ok(result.warnings.some(warning => warning.includes("anchor scan limit")), prefix);
+  }
+});
+
+test("quoted meta contents, hrefs and encoded pseudo anchors never become candidates or evidence text", async () => {
+  const fake = "<a href='https://jobs.lever.co/from-meta'>Forged Jobs</a> > </template> <div hidden>";
+  for (const metadata of [
+    `<meta name="configuration" href="https://jobs.lever.co/meta-href" content="${"x".repeat(9000)}${fake}">`,
+    `<meta content='${"x".repeat(9000)}<a href="https://jobs.lever.co/from-single-quote">Jobs</a> >'>`,
+    `<meta content="${"x".repeat(9000)}&quot;&gt;&lt;a href=&quot;https://jobs.lever.co/from-entity&quot;&gt;Jobs&lt;/a&gt;">`,
+  ]) {
+    const run = execution(() => `<html><a href="https://jobs.lever.co/visible-label">Visible label${metadata} after metadata</a><a href="https://jobs.lever.co/after-meta">Actual Jobs</a></html>`);
+    const result = await discoverCompanyCareers({ companyName, companyWebsite, maxPages: 1 }, run);
+    assert.deepEqual(result.candidates.map(item => item.candidate.homeUrl), ["https://jobs.lever.co/visible-label", "https://jobs.lever.co/after-meta"]);
+    assert.equal(result.candidates[0]!.evidence[0]!.quote, "Visible label after metadata");
+    assert.equal(result.candidates[1]!.evidence[0]!.quote, "Actual Jobs");
+    assert.equal(result.partial, false);
+    assert.deepEqual(run.requests, [companyWebsite]);
+  }
+});
+
+test("incomplete or oversized metadata remains partial and cannot expose following pseudo anchors", async () => {
+  for (const malformed of [
+    `<meta content="${"x".repeat(9000)}<a href='https://jobs.lever.co/incomplete'>Jobs</a>`,
+    `<meta content='${"x".repeat(9000)}<a href="https://jobs.lever.co/incomplete-single">Jobs</a>`,
+    `<meta content="${"x".repeat(9000)}"`,
+    `<meta content="${"x".repeat(64 * 1024)}"><a href="https://jobs.lever.co/after-oversized">Jobs</a>`,
+  ]) {
+    const run = execution(() => `<html>${malformed}`);
+    const result = await discoverCompanyCareers({ companyName, companyWebsite, maxPages: 1 }, run);
+    assert.equal(result.status, "no-candidates"); assert.deepEqual(result.candidates, []); assert.equal(result.partial, true);
+    assert.ok(result.warnings.some(warning => warning.includes("anchor scan limit")));
+  }
+});
+
+test("metadata skips cannot escape existing raw or inert subtrees, including self-closing non-void tags", async () => {
+  const metadata = `<meta content="${"x".repeat(9000)} > </template> <a href='https://jobs.lever.co/meta-fake'>Jobs</a>">`;
+  for (const tag of ["script", "style", "textarea", "title", "xmp", "template", "noscript", "iframe", "object"]) {
+    for (const slash of ["", "/"]) {
+      const run = execution(() => `<html><${tag}${slash}>${metadata}<a href="https://jobs.lever.co/inert-fake">Jobs</a></${tag}><a href="https://jobs.lever.co/visible-after-block">Jobs</a></html>`);
+      const result = await discoverCompanyCareers({ companyName, companyWebsite, maxPages: 1 }, run);
+      assert.deepEqual(result.candidates.map(item => item.candidate.homeUrl), ["https://jobs.lever.co/visible-after-block"], `${tag}${slash}`);
+      assert.equal(result.partial, false);
+    }
+  }
+  const plaintext = execution(() => `<html><plaintext>${metadata}<a href="https://jobs.lever.co/plaintext-fake">Jobs</a></plaintext>`);
+  assert.deepEqual((await discoverCompanyCareers({ companyName, companyWebsite }, plaintext)).candidates, []);
+});
+
+test("large metadata does not lift page bytes, tag count, cancellation or per-page endpoint limits", async () => {
+  const metadata = `<meta content="${"x".repeat(9000)}">`;
+  const tags = execution(() => `<html>${"<meta>".repeat(10_000)}<a href="https://jobs.lever.co/after-many-tags">Jobs</a></html>`);
+  const tagResult = await discoverCompanyCareers({ companyName, companyWebsite, maxPages: 1 }, tags);
+  assert.deepEqual(tagResult.candidates, []); assert.equal(tagResult.partial, true);
+  const bytes = execution(() => `<html><meta content="${"x".repeat(2 * 1024 * 1024)}"></html>`);
+  await assert.rejects(discoverCompanyCareers({ companyName, companyWebsite }, bytes), errorCode("budget-exceeded"));
+  const cancelled = execution(() => { cancelled.cancel(); return `<html>${metadata}<a href="/careers">Jobs</a></html>`; });
+  await assert.rejects(discoverCompanyCareers({ companyName, companyWebsite }, cancelled), errorCode("cancelled"));
+  assert.equal(cancelled.requests.length, 1);
+  const page = execution(() => `<html>${metadata}<a href="/careers">Jobs</a><a href="https://outside.example.com/careers">Careers</a></html>`);
+  const result = await discoverCompanyCareers({ companyName, companyWebsite, maxPages: 1 }, page);
+  assert.equal(result.candidates.length, 2); assert.equal(result.partial, true); assert.deepEqual(page.requests, [companyWebsite]);
+  assert.deepEqual(page.source.endpointPolicy.allowedHosts, ["company.example.com"]);
+});
+
+test("script-only and metadata-only career URLs still return no candidates rather than invented job coverage", async () => {
+  const run = execution(() => `<html><head><meta content="${"x".repeat(9000)} https://jobs.lever.co/metadata-only"></head><body><script>const careers = 'https://jobs.lever.co/script-only';</script></body></html>`);
+  const result = await discoverCompanyCareers({ companyName, companyWebsite, maxPages: 1 }, run);
+  assert.equal(result.status, "no-candidates"); assert.deepEqual(result.candidates, []); assert.deepEqual(result.proposals, []);
+  assert.ok(result.warnings.some(warning => warning.includes("JavaScript-rendered")));
+  assert.equal("totalJobs" in result, false); assert.deepEqual(run.requests, [companyWebsite]);
+});
+
 test("explicit unsafe sites reject before transport and endpoint restrictions remain in force", async () => {
   for (const companyWebsite of ["https://127.0.0.1/careers", "https://user:password@company.example.com/", "http://company.example.com/", "https://company.example.com:8080/"]) {
     const run = execution();
