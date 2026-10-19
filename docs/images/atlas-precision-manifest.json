@@ -1,0 +1,20 @@
+{
+  "capturedAt": "2026-10-19",
+  "file": "atlas-desktop-precision.webp",
+  "width": 1223,
+  "height": 804,
+  "sha256": "71b05499d3c59f7c65d3b46fce9b8a9e511a7e82739d13f8214be1d142393d06",
+  "encoding": "WebP quality 90, original dimensions",
+  "source": "CUA screenshot of actual local React app; no injected layout CSS or compositing",
+  "origin": "http://127.0.0.1:5297",
+  "data": "Explicitly synthetic job, company, source, address and provider. Not a real office or vacancy.",
+  "checks": [
+    "stable desktop rectangles and scroll position",
+    "native double-click enters published-street review",
+    "explicit city and postal form",
+    "preview and explicit confirmation revision1 to2",
+    "double-click address highlight with50m scale",
+    "no horizontal overflow or page errors"
+  ],
+  "codeTree": "b7f5c3887afd03d2f629835ad13fa1e078e0c8d3"
+}

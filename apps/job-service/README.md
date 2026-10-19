@@ -316,3 +316,5 @@ Web 展开“来源工具 → 企业官网招聘”后才读配置，点击发�
 候选输入为`{jobId,locationId,expectedRevision,query?}`；没有query只返回来源／配置、不外发请求。query只发送明确文本和已知国家过滤，不附带来源正文、家庭位置或owner。`proposal`固定为`basis:manual-user-confirmation`、countryCode、formattedAddress、streetAddress、可选postalCode、WGS84 coordinates、evidenceUrl和`coordinateMeaning:building|entrance|site`。预览与确认共用job／location／版本／proposal／reason；确认还需previewFingerprint、reviewed:true及Idempotency-Key。撤销提交原decisionId、expectedRevision、reason、reviewed:true及Idempotency-Key。
 
 SQLite V4保留base地点、行政决议、办公确认／撤销／source失效事件和耐久回执。来源地点或证据一度变化后旧办公点不会在A→B→A时自动激活。公共快照导入拒绝本地overlay；完整备份恢复包含历史。保存仍待核实，不把GCJ02当WGS84、城市／道路候选当门牌、地图候选当雇主认证。超时使用原body／key核对回执，已保存后读快照失败只重读。详见[本批报告](../../docs/reports/job-atlas-desktop-office-address-2026-10-19.md)。
+
+`locations.office-address-candidates`可显式传`locality`（≤200字符）和`postalCode`（≤100字符），二者必须与`query`同传；无query仍只读配置。宿主不会隐式发送来源城市或邮编。有约束时Nominatim使用structured查询并严格核对实际市级字段及邮编；州县不当市、未知或不符拒绝，缓存按全部约束隔离。不猜翻译、门牌或办公关联。详见[桌面与精度报告](../../docs/reports/job-atlas-desktop-precision-2026-10-19.md)。

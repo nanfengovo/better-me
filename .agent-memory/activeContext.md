@@ -2,7 +2,7 @@
 
 ## 当前焦点
 
-2026-10-19：桌面三栏／V4办公地址及文档已发布；b010dd3窄修place/house漏召回，冻结39相关／types10／lint／build6和Actions39192115753四任务success。真实Nominatim按当前google-doh配置HTTP200，但3候选未命中地标，不证明岗位办公关联。原5178session7066／PID43896、V4，最小ABB增量一次import使89岗rev66→67／postal2，street／coords／office仍0；完整在线备份、27行政／89alias及所有旧回执、token和五组C#查询保留。5286四新模块200；文档发布收尾中，Career并行dirty保留，整个Goal active。
+2026-10-19：桌面固定三栏即时阅读与城市／邮编约束两功能已正常推送8ddf788／dc2f2a5；最终冻结15文件b7f5c38完成156相关／types10／lint／build6。独立合成UI卡片／地图rect与scrollTop保持，双击街址核对→保存1→2→再双击50m高亮、900／390无溢出，viewport复原。真实structured地标HTTP200仍错城／道路，已拒成0候选而非认办公室。完整备份后原5178更新后台PID29468，89岗rev67／V4、dataset/token与五查询不变、office0；5286确认旧进程退出后恢复隐藏后台PID57368，4资源200。新功能CI39195657845首轮旧文件级失败未定根因，独立TAP两次24/24；同SHA仅重跑一次后2355/2355与四任务success，部署后5公开资源200；Career dirty保留，完整Goal active。
 
 ## 卡点
 
@@ -13,12 +13,13 @@
 
 ## 下一步
 
-1. 本批代码四任务、真实邮编增量与原服务核对已通过，完成文档发布收尾；逐岗补办公证据、地址匹配精度和国内覆盖，不把城市／错误候选当办公室。
+1. 功能CI／公开资源与文档检查通过，完成文档发布收尾；继续补真实办公地址证据及更可靠的地图匹配，不把排错、城市或公司总部当办公室。
 2. 扩更多国内来源／地区、官网实际岗位协议与完整JD；保留平台人工验证与来源刷新间隔，不绕既有私人页面URL策略。
 3. 依据薪资／FX／控股缺口报告先落受审薪资CNY闭环，再接带出处的同版FX和企业证据；原文、版本失效、幂等回执、撤销与地图列表统一投影必须保持。
 
 ## 必读附加
 
+- docs/reports/job-atlas-desktop-precision-2026-10-19.md（当前桌面稳定轨道、地址约束、156回归、实际合成UI和原服务更新）
 - docs/reports/job-atlas-office-provider-real-2026-10-19.md（本轮真实HTTP、门牌格式修复、39隔离相关测试、原服务及邮编增强）
 - docs/reports/job-atlas-salary-control-gap-2026-10-19.md（下一步薪资／FX／控股源码缺口及未实现范围）
 - docs/reports/job-atlas-desktop-office-address-2026-10-19.md（本轮桌面三栏、V4办公地址、2332隔离回归、合成浏览器及原服务升级）

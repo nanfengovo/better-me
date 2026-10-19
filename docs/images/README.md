@@ -21,3 +21,5 @@ WebP 使用质量 90 编码，保留原始像素尺寸，逐张检查文字、�
 ## 桌面地图与办公地址截图 · 2026-10-19
 
 [atlas-desktop-office.webp](atlas-desktop-office.webp) 为 1280×720 的真实桌面三栏与街道定位截图，使用独立 origin、合成 HTTP 和内存 SQLite。岗位、企业、来源、街址与地图候选均明确标记合成；画面中的位置不代表真实招聘或已核实办公室。经真实页面预览、独立确认、双击、撤销流程捕获；没有注入展示 CSS 或拼接界面。WebP 质量90、原尺寸，来源和哈希见 [atlas-office-manifest.json](atlas-office-manifest.json)。原真实索引和私人页面未读取。
+
+[atlas-desktop-precision.webp](atlas-desktop-precision.webp) 是后续固定三栏与地址约束验收截图，1223×804默认视口。真实React／合成HTTP／内存SQLite完成即时单击、双击地址核对、明确保存及再次双击50m高亮；只含明确合成岗位、企业和地址。未注入布局或拼接，原尺寸WebP质量90。出处与SHA见[清单](atlas-precision-manifest.json)，不得作为真实办公地址覆盖证据。
