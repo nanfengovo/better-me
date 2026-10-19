@@ -29,6 +29,8 @@
   },
   "dependencies": {
     "@better-me/opportunities": "workspace:*",
+    "parse5": "7.3.0",
+    "saxes": "6.0.0",
     "zod": "^3.25.67"
   },
   "devDependencies": {

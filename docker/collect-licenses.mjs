@@ -50,6 +50,14 @@ for (const entry of installed.sort((left, right) => left.name.localeCompare(righ
           throw new Error(`Expected complete README license missing: ${id}`);
         }
         await copyText(path.join(packagePath, "README.md"), "README.md", "Full MIT text in published README, unchanged");
+      } else if (pkg.name === "saxes" && pkg.version === "6.0.0" && pkg.license === "ISC") {
+        const override = path.join(scriptRoot, "license-overrides", "saxes-6.0.0");
+        const contents = await readFile(path.join(override, "LICENSE"));
+        if (createHash("sha256").update(contents).digest("hex") !== "0fac2374380621b22e6b50451057721a9c52935b02d16d106a9f04897f061d0e") {
+          throw new Error("Pinned saxes upstream license changed");
+        }
+        await copyText(path.join(override, "LICENSE"), "LICENSE", "Fixed upstream commit for saxes@6.0.0; provenance in NOTICE.md");
+        await copyText(path.join(override, "NOTICE.md"), "NOTICE.md", "BetterMe provenance note");
       } else if (pkg.name === "boolbase" && pkg.version === "1.0.0" && pkg.license === "ISC") {
         const override = path.join(scriptRoot, "license-overrides", "boolbase-1.0.0");
         const contents = await readFile(path.join(override, "LICENSE"));

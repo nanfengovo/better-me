@@ -1,0 +1,67 @@
+{
+  "sourceId": "abb-official-structured-jobs",
+  "name": "ABB 官网 · 结构化岗位",
+  "adapterId": "jobposting-jsonld",
+  "adapterVersion": "1",
+  "capabilities": [
+    "list-jobs"
+  ],
+  "runtime": [
+    "local-service",
+    "server"
+  ],
+  "entityType": "job-posting",
+  "enabled": false,
+  "status": "needs-review",
+  "entryUrl": "https://careers.abb/global/en/sitemap1.xml",
+  "options": {
+    "companyName": "ABB",
+    "enumerationKind": "sitemap-urlset",
+    "enumerationUrls": [
+      "https://careers.abb/global/en/sitemap1.xml",
+      "https://careers.abb/global/en/sitemap2.xml",
+      "https://careers.abb/global/en/sitemap3.xml",
+      "https://careers.abb/global/en/sitemap4.xml",
+      "https://careers.abb/global/en/sitemap5.xml"
+    ],
+    "postingPathPrefixes": [
+      "/global/en/job/"
+    ],
+    "pageSize": 3,
+    "priorityPostingUrls": [
+      "https://careers.abb/global/en/job/JR00044541/C-NET-Software-Developer",
+      "https://careers.abb/global/en/job/JR00042905/Senior-Software-Engineer-m-f-d-MES"
+    ]
+  },
+  "remoteFilters": [],
+  "endpointPolicy": {
+    "allowedHosts": [
+      "careers.abb"
+    ],
+    "allowedPathPrefixes": [
+      "/global/en/sitemap1.xml",
+      "/global/en/sitemap2.xml",
+      "/global/en/sitemap3.xml",
+      "/global/en/sitemap4.xml",
+      "/global/en/sitemap5.xml",
+      "/global/en/job/"
+    ],
+    "requireHttps": true,
+    "allowRedirects": false,
+    "maxRedirects": 0
+  },
+  "attribution": {
+    "label": "ABB 官网 · 原始岗位",
+    "homepageUrl": "https://global.abb/group/en/careers",
+    "usage": "unknown",
+    "requiresAttribution": true,
+    "notes": "企业官网明确链接careers.abb；robots公开声明sitemap。采用通用JobPosting JSON-LD协议，仅GET已核对叶子清单及同源详情。优先URL必须实际出现在本次清单才调整顺序，最多有限读取，不代表全站搜索。发布时间原文、正文、雇主及工作地点保留源证据；城市geo不作为办公坐标，控股与在招保持未知。启用前复核来源条款与使用范围。"
+  },
+  "refreshPolicy": {
+    "mode": "manual",
+    "minIntervalSeconds": 3600,
+    "maxRecords": 6,
+    "maxPages": 2,
+    "requestsPerMinute": 30
+  }
+}

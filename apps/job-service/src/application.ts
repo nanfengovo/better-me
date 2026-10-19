@@ -7,7 +7,7 @@ import {
 } from "@better-me/opportunities";
 import {
   SourceScopeSchema, SourcePageSchema, SourceAdapterMetadataSchema, SourceRegistryError, SourceTransportError,
-  createSourceRegistry, createControlledSourceTransport, greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter,
+  createSourceRegistry, createControlledSourceTransport, greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter, jobPostingJsonLdAdapter,
   discoverSourceCandidates, inspectSourceCandidate, proposeSourceRegistration,
   DiscoverSourceCandidatesInputSchema, SourceDiscoveryPageSchema, InspectSourceCandidateInputSchema, SourceCandidateInspectionSchema,
   ProposeSourceRegistrationInputSchema, SourceRegistrationProposalSchema,
@@ -74,7 +74,7 @@ export type JobApplicationOptions = {
 export function createJobApplication(options: JobApplicationOptions) {
   const repository = options.repository;
   const now = options.now ?? (() => new Date().toISOString());
-  const sources = createSourceRegistry(options.adapters ?? [greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter]);
+  const sources = createSourceRegistry(options.adapters ?? [greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter, jobPostingJsonLdAdapter]);
   const transport = options.transport ?? createControlledSourceTransport();
   const query = createJobQueryService(repository);
   const running = new Map<string, AbortController>();

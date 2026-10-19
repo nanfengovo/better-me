@@ -1,2 +1,3 @@
 # Preserve the verified upstream license bytes across Windows/Linux checkouts.
 /docker/license-overrides/boolbase-1.0.0/LICENSE -text
+/docker/license-overrides/saxes-6.0.0/LICENSE -text

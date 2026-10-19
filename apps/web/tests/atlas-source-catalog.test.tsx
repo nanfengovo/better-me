@@ -48,6 +48,21 @@ test("catalog rejects unusable mapped job feeds while preserving valid options a
   assert.equal(SourceCatalogSchema.safeParse({ schemaVersion: 1, entries: [{ ...entry, source: { ...source, adapterId: "greenhouse", options: undefined } }] }).success, true);
 });
 
+test("structured job presets require reviewed manifests, stay disabled and do not claim country coverage from a locale", () => {
+  const preset = sourceCatalog.find(item => item.source.adapterId === "jobposting-jsonld");
+  assert.ok(preset);
+  assert.equal(preset.source.enabled, false);
+  assert.equal(preset.source.status, "needs-review");
+  assert.deepEqual(preset.source.remoteFilters, []);
+  assert.match(preset.coverage, /不按语言猜工作国家/);
+  assert.match(preset.coverage, /候选URL数量不等于岗位数量/);
+  for (const change of [{ entryUrl: "https://other.example.test/sitemap.xml" }, { options: { ...preset.source.options, enumerationUrls: ["https://other.example.test/sitemap.xml"] } },
+    { options: { ...preset.source.options, postingPathPrefixes: ["../jobs"] } }, { options: { ...preset.source.options, code: "arbitrary" } }]) {
+    assert.equal(SourceCatalogSchema.safeParse({ schemaVersion: 1, entries: [{ ...preset, source: { ...preset.source, ...change } }] }).success, false);
+  }
+  assert.equal(availableCatalogEntries([preset], [preset.source]).length, 0);
+});
+
 test("catalog UI explains that technical text mentions do not establish job requirements", async () => {
   const hooks = registerHooks({ load(url, context, nextLoad) { return url.endsWith(".css") ? { source: "export {};", format: "module", shortCircuit: true } : nextLoad(url, context); } });
   try {
