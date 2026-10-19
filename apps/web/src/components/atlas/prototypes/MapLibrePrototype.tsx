@@ -5,24 +5,12 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "../map-focus.css";
 import { activeMapFocus, createMapFocusMarker, mapFocusCameraOptions, mapFocusPrecisionLabel } from "../map-focus";
 import { ATLAS_BASEMAPS, attributionHtml, DEFAULT_ATLAS_BASEMAP, parseAtlasBasemap } from "./basemaps";
-import { bucketRadius, categories, canvasHostStyle, CHINA_BOUNDS, creditStyle, errorStyle, loadBoundary, NATURAL_EARTH_CREDIT, prototypeFrameStyle, regionSelection, validBuckets, type AtlasPrototypeProps, type BoundaryFeature, type PrototypeHandle } from "./types";
+import { canvasHostStyle, CHINA_BOUNDS, creditStyle, errorStyle, loadBoundary, NATURAL_EARTH_CREDIT, prototypeFrameStyle, regionSelection, type AtlasPrototypeProps, type BoundaryFeature, type PrototypeHandle } from "./types";
+import { atlasBucketData, createAtlasHover, createAtlasMapUpdates } from "./map-performance";
 
 // Vite's optimized module URL does not preserve the upstream worker's sibling path.
 setWorkerUrl(maplibreWorkerUrl);
 
-type BucketGeoJSON = { type: "FeatureCollection"; features: Array<{ type: "Feature"; properties: { bucketId: string; kind: string; color: string; radius: number; label: string; labelVisible: boolean }; geometry: { type: "Point"; coordinates: [number, number] } }> };
-function bucketData(props: AtlasPrototypeProps): BucketGeoJSON {
-  const features: BucketGeoJSON["features"] = []; const buckets = validBuckets(props.buckets);
-  const labelIds = new Set([...buckets].sort((a, b) => b.jobCount - a.jobCount || a.id.localeCompare(b.id)).slice(0, 6).map((bucket) => bucket.id));
-  for (const bucket of buckets) {
-    const colors = categories(bucket); const base = bucketRadius(bucket);
-    const point = { type: "Point" as const, coordinates: [bucket.longitude, bucket.latitude] as [number, number] };
-    const label = `${bucket.label} · ${bucket.jobCount}${bucket.positionBasis === "city-reference" ? " · 城市估算" : ""}`; const labelVisible = bucket.id === props.selectedBucketId || labelIds.has(bucket.id);
-    features.push({ type: "Feature", geometry: point, properties: { bucketId: bucket.id, kind: "core", color: colors.length === 1 ? colors[0]!.color : "#a5bbb6", radius: base * .46, label, labelVisible } });
-    colors.forEach((category, index) => features.push({ type: "Feature", geometry: point, properties: { bucketId: bucket.id, kind: "category", color: category.color, radius: base * .58 + index * 2.1, label, labelVisible: false } }));
-  }
-  return { type: "FeatureCollection", features };
-}
 function featureBounds(feature: BoundaryFeature): [number, number, number, number] {
   const positions = feature.geometry.type === "Polygon" ? feature.geometry.coordinates.flat() : feature.geometry.coordinates.flat(2);
   const longitudes = [...new Set(positions.map((point) => (point[0] + 360) % 360))].sort((a, b) => a - b);
@@ -48,15 +36,16 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
     const openingFocus = latest.current.focus;
     const provider = basemapKey === "null" ? null : parseAtlasBasemap(JSON.parse(basemapKey));
     let stopped = false; let map: Map | undefined; let observer: ResizeObserver | undefined; let rotationFrame = 0;
+    let rotationResume: ReturnType<typeof setTimeout> | undefined, interacting = false; let cancelHover = () => {};
     let focusMarker: Marker | undefined; let markerSignature = "";
     const abort = new AbortController(); const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const report = (error: unknown) => { if (stopped || abort.signal.aborted) return; setFailure("三维地图暂不可用，仍可通过岗位列表浏览与选择。"); latest.current.onError?.(error instanceof Error ? error : new Error("Map renderer unavailable.")); };
     const warnTiles = () => { if (!stopped) setBasemapWarning("在线底图未完整加载，概略轮廓和岗位列表仍可使用。可切换底图或稍后重试。"); };
     const stopRotation = () => { if (rotationFrame) cancelAnimationFrame(rotationFrame); rotationFrame = 0; };
     const rotate = () => {
-      stopRotation(); if (!map || stopped || document.hidden || motion.matches || latest.current.visual?.autoRotate !== true || mode !== "global" || map.getZoom() >= 3.5) return;
+      stopRotation(); if (!map || stopped || interacting || document.hidden || motion.matches || latest.current.visual?.autoRotate !== true || mode !== "global" || map.getZoom() >= 3.5 || map.isMoving()) return;
       let previous = performance.now();
-      const tick = (now: number) => { if (stopped || document.hidden || motion.matches || latest.current.visual?.autoRotate !== true || !map || map.getZoom() >= 3.5) { rotationFrame = 0; return; } map.setCenter([map.getCenter().lng + Math.min(50, now - previous) * .0016, map.getCenter().lat]); previous = now; rotationFrame = requestAnimationFrame(tick); };
+      const tick = (now: number) => { if (stopped || interacting || document.hidden || motion.matches || latest.current.visual?.autoRotate !== true || !map || map.getZoom() >= 3.5 || map.isMoving()) { rotationFrame = 0; return; } map.setCenter([map.getCenter().lng + Math.min(50, now - previous) * .0016, map.getCenter().lat]); previous = now; rotationFrame = requestAnimationFrame(tick); };
       rotationFrame = requestAnimationFrame(tick);
     };
     const visibility = () => { if (document.hidden) { stopRotation(); map?.stop(); } else rotate(); };
@@ -64,7 +53,8 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
     document.addEventListener("visibilitychange", visibility); motion.addEventListener("change", motionChange); setFailure(null); setBasemapWarning("");
     void (async () => {
       const boundary = await loadBoundary(mode, abort.signal);
-      const sources: Record<string, SourceSpecification> = { boundaries: { type: "geojson", data: boundary }, buckets: { type: "geojson", data: bucketData(latest.current) } };
+      const initialBuckets = latest.current.buckets, initialBucketData = atlasBucketData(initialBuckets);
+      const sources: Record<string, SourceSpecification> = { boundaries: { type: "geojson", data: boundary }, buckets: { type: "geojson", data: initialBucketData } };
       const remoteLayers: LayerSpecification[] = []; let remote: Partial<StyleSpecification> = {};
       if (provider?.type === "vector-style") {
         try {
@@ -125,13 +115,20 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
           if (target) focusMarker = new Marker({ element: createMapFocusMarker(document, target, light), anchor: "center", pitchAlignment: "viewport", rotationAlignment: "viewport" })
             .setLngLat([target.longitude, target.latitude]).addTo(ownedMap);
         };
+        const updateFacts = createAtlasMapUpdates(initialBuckets, initialBucketData, {
+          buckets: data => (ownedMap.getSource("buckets") as GeoJSONSource).setData(data),
+          bucketSelection: id => {
+            ownedMap.setFilter("bucket-selection", ["all", ["==", ["get", "kind"], "core"], ["==", ["get", "bucketId"], id]]);
+            if (ownedMap.getLayer("bucket-labels")) ownedMap.setFilter("bucket-labels", ["all", ["==", ["get", "kind"], "core"], ["any", ["==", ["get", "labelVisible"], true], ["==", ["get", "bucketId"], id]]]);
+          },
+          regionSelection: id => {
+            const color: ["case", ["==", ["get", "id"], string], string, string] = ["case", ["==", ["get", "id"], id], light ? "#5d929b" : "#4d97ac", mode === "global" ? light ? "#769696" : "#6b9aad" : light ? "#829fa8" : "#153f57"];
+            ownedMap.setPaintProperty("regions", mode === "global" ? "fill-color" : "fill-extrusion-color", color);
+          },
+        });
         let rotating = latest.current.visual?.autoRotate === true;
         const update = (current: AtlasPrototypeProps) => {
-          (ownedMap.getSource("buckets") as GeoJSONSource).setData(bucketData(current));
-          highlight(current);
-          ownedMap.setFilter("bucket-selection", ["all", ["==", ["get", "kind"], "core"], ["==", ["get", "bucketId"], current.selectedBucketId ?? ""]]);
-          const color: ["case", ["==", ["get", "id"], string], string, string] = ["case", ["==", ["get", "id"], current.selectedRegionId ?? ""], light ? "#5d929b" : "#4d97ac", mode === "global" ? light ? "#769696" : "#6b9aad" : light ? "#829fa8" : "#153f57"];
-          ownedMap.setPaintProperty("regions", mode === "global" ? "fill-color" : "fill-extrusion-color", color);
+          updateFacts(current); highlight(current);
           if (rotating !== (current.visual?.autoRotate === true)) { rotating = current.visual?.autoRotate === true; rotate(); }
         };
         handle.current = { fit, update, focus, dispose: () => { focusMarker?.remove(); ownedMap.getCanvas().removeEventListener("webglcontextlost", lost); ownedMap.getCanvas().removeEventListener("webglcontextrestored", restored); } };
@@ -151,12 +148,23 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
         const region = ownedMap.queryRenderedFeatures(event.point, { layers: ["regions", "overview-land"] })[0]; const feature = boundary.features.find((item) => item.id === String(region?.id ?? ""));
         if (feature) { latest.current.onCountry?.(regionSelection(feature)); const bounds = featureBounds(feature); stopRotation(); ownedMap.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 65, maxZoom: 9, duration: motion.matches ? 0 : 1200, pitch: mode === "domestic" ? 40 : 15 }); }
       });
-      ownedMap.on("mousemove", (event) => { if (!ownedMap.getLayer("bucket-cores")) return; const hits = ownedMap.queryRenderedFeatures(event.point, { layers: ["bucket-cores", "bucket-rings", ...(ownedMap.getZoom() <= 6.5 ? ["regions"] : [])] }); ownedMap.getCanvas().style.cursor = hits.length ? "pointer" : "grab"; });
-      ownedMap.on("dragstart", stopRotation); ownedMap.on("dragend", rotate); ownedMap.on("zoomstart", stopRotation); ownedMap.on("zoomend", rotate);
+      const hover = createAtlasHover<Parameters<Map["queryRenderedFeatures"]>[0]>({ requestFrame: callback => requestAnimationFrame(callback), cancelFrame: id => cancelAnimationFrame(id),
+        moving: () => stopped || ownedMap.isMoving() || !!rotationFrame,
+        hit: point => { if (!ownedMap.getLayer("bucket-cores")) return; const hits = ownedMap.queryRenderedFeatures(point, { layers: ["bucket-cores", "bucket-rings", ...(ownedMap.getZoom() <= 6.5 ? ["regions"] : [])] }); const cursor = hits.length ? "pointer" : "grab"; if (ownedMap.getCanvas().style.cursor !== cursor) ownedMap.getCanvas().style.cursor = cursor; },
+      });
+      cancelHover = hover.cancel;
+      ownedMap.on("mousemove", event => hover.queue(event.point));
+      const leave = () => { hover.cancel(); ownedMap.getCanvas().style.cursor = ""; };
+      ownedMap.getCanvas().addEventListener("mouseleave", leave);
+      const pauseInteraction = () => { interacting = true; if (rotationResume) clearTimeout(rotationResume); rotationResume = undefined; stopRotation(); hover.cancel(); ownedMap.getCanvas().style.cursor = "grabbing"; };
+      const resumeInteraction = () => { if (rotationResume) clearTimeout(rotationResume); ownedMap.getCanvas().style.cursor = "grab"; rotationResume = setTimeout(() => { rotationResume = undefined; interacting = false; rotate(); }, 700); };
+      ownedMap.on("dragstart", pauseInteraction); ownedMap.on("dragend", resumeInteraction); ownedMap.on("zoomstart", pauseInteraction); ownedMap.on("zoomend", resumeInteraction);
+      ownedMap.on("rotatestart", pauseInteraction); ownedMap.on("rotateend", resumeInteraction); ownedMap.on("pitchstart", pauseInteraction); ownedMap.on("pitchend", resumeInteraction);
+      abort.signal.addEventListener("abort", () => ownedMap.getCanvas().removeEventListener("mouseleave", leave), { once: true });
     })().catch(report);
-    return () => { stopped = true; abort.abort(); stopRotation(); observer?.disconnect(); document.removeEventListener("visibilitychange", visibility); motion.removeEventListener("change", motionChange); handle.current?.dispose(); handle.current = null; map?.remove(); };
+    return () => { stopped = true; abort.abort(); stopRotation(); if (rotationResume) clearTimeout(rotationResume); cancelHover(); observer?.disconnect(); document.removeEventListener("visibilitychange", visibility); motion.removeEventListener("change", motionChange); handle.current?.dispose(); handle.current = null; map?.remove(); };
   }, [mode, background, maxDpr, entrance, basemapKey, light]);
-  useEffect(() => { handle.current?.update(props); }, [props]);
+  useEffect(() => { handle.current?.update(latest.current); }, [props.buckets, props.selectedBucketId, props.selectedRegionId, props.focus, props.selectedJobId, props.visual?.autoRotate]);
   useEffect(() => { handle.current?.fit(props.bounds); }, [props.bounds]);
   useEffect(() => { if (props.focus) handle.current?.focus?.(props.focus); }, [props.focus]);
   const visibleFocus = activeMapFocus(props.focus, props.selectedJobId);
