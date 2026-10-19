@@ -302,7 +302,7 @@ Web 展开“来源工具 → 企业官网招聘”后才读配置，点击发�
 
 ## 办公地址核对与可选地址提供方
 
-默认关闭外部地址查询；需要时在原启动命令末尾增加`--office-geocoder nominatim`，保留原data-dir／port／Origin／DNS配置。它只安装提供方，不启动批量请求；网页必须输入具体query并点击查询。固定Nominatim HTTPS、最多5候选、至少1.1秒门控、15分钟有限进程缓存，尊重Retry-After，不自动重试、自动补全或扫描索引。署名／OSM记录随候选返回。国内覆盖由地图数据决定；本轮单次公开地标联网探针未成功，不能将合成端到端验收等同实时地理编码可用。
+默认关闭外部地址查询；需要时在原启动命令末尾增加`--office-geocoder nominatim`，保留原data-dir／port／Origin／DNS配置。它只安装提供方，不启动批量请求；网页必须输入具体query并点击查询。固定Nominatim HTTPS、最多5候选、至少1.1秒门控、15分钟有限进程缓存，尊重Retry-After，不自动重试、自动补全或扫描索引。署名／OSM记录随候选返回。国内覆盖由地图数据决定。后续按宿主已配置Google DoH完成一次公开地标请求，Nominatim HTTP200；真实响应的place/house门牌漏召回已修。但3个候选属于其他城镇，未准确命中目标地标，也没有证明岗位办公关联；必须核对完整地址后再明确保存。旧system探针失败原因仍未知。实证与验证见[本批报告](../../docs/reports/job-atlas-office-provider-real-2026-10-19.md)。
 
 四项共享工具与认证POST路径如下，执行身份由宿主提供；客户端不能传provider端点、actorScope或任意代码。
 
