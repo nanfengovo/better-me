@@ -4,6 +4,10 @@
 
 ## 当前交付
 
+- [x] 最新桌面反馈已修：3eb8a2f按workspace实际宽度布局，≥900地图／列表／详情三栏，600–899详情正常流，<600才底部sheet，保留地图实例／焦点／Esc。独立树3c826479离线冻结安装、types10／lint／build6与layout＋workspace35／detail10两次测试通过；独立5294合成页1057三栏无重叠、900正常流、390抽屉无溢出，viewport复原；CI39188287804四任务success。未访问私人页，Career未混入。
+
+- [x] 办公地址3a0c8ee已正常推送：来源street／postal保留、四共享工具／认证HTTP／Web预览确认与撤销、SQLite V4永久来源失效与耐久回执、地址级双击高亮。43文件独立树714769506通过冻结安装、memory、types10／lint／2332全量（fail/cancel/skip/todo0）／build6；独立合成UI保存1→2、撤销2→3、重确认3→4、双击50m尺度、三栏无溢出和error空通过。完整备份及V3克隆验证后原5178升级V4、89岗rev66与dataset/token哈希不变、office0；C#全球52／36、国内26／22及上海25／21保留。真实地标探针出站0失败，Nominatim不称实时可用；Career未混入，CI／公开资源收尾见本批报告。
+
 - [x] 2026-10-19 通用官网JSON-LD d00ed1e与Docker许可白名单af903e9已推送；parse5 WHATWG／saxes、受审清单／同源身份／有限预算／企业关联与原始日期，24文件树a152cc42的2234/2234、types10、lint、build6、97依赖许可通过；fix隔离Docker280HTTP通过。原5178更新session88446/PID57336，live首详情timeout partial0且间隔保留；SHA核验原真实公开响应禁止网络重放并public导入ABB2岗到89／rev66，原观察时点不改。全球C#52／36、国内26／22、上海25／21，无办公坐标／私人UI目视；CI继续核。不混Career，Goal active。
 
 - [x] 2026-10-19 独立城市分布参考fe89dc0已正常推送：严格国家+唯一整词城市、完整地点指纹/revision、独立query桶与并集统计、详情出处、双击zoom9、取消/404/重试及旧选择清理；不写source coords或距离。25文件树f38ea445经离线冻结安装、memory、types10、lint、2155/2155、build6通过。完整备份后原5178自有session1288/PID74392已更新，87岗/rev64及dataset/token哈希不变；C#全球50/35、国内26/22、上海25/21；国内26均可城市参考展示但原mapped0。CI39184573691质量／Linux构建／Docker／Pages四任务success，无新私人UI目视。

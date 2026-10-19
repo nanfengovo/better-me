@@ -1,0 +1,22 @@
+{
+  "capturedAt": "2026-10-19",
+  "file": "atlas-desktop-office.webp",
+  "width": 1280,
+  "height": 720,
+  "sha256": "6125ef9f3c55fc899c4bc89dfe5789e3c5e7bd8df62e7a2c82b66570d2a843a1",
+  "encoding": "WebP quality 90, original dimensions",
+  "source": "CUA IAB screenshot of real local Web app; no injected layout CSS or compositing",
+  "origin": "http://127.0.0.1:5295",
+  "service": "Synthetic authenticated HTTP and in-memory SQLite on loopback; no production job writes",
+  "data": "Explicitly synthetic job, company, source, street address and geocoder candidate; not a real vacancy or office verification",
+  "checks": [
+    "desktop three-pane layout",
+    "source street retained",
+    "preview and explicit confirmation",
+    "double-click to address scale",
+    "revoke restores source",
+    "no horizontal overflow",
+    "no page error logs"
+  ],
+  "codeTree": "71476950671ba510cf9ff4808c5bcc0e5b6650df"
+}

@@ -299,3 +299,20 @@ Web 展开“来源工具 → 企业官网招聘”后才读配置，点击发�
 角色／地区／国家／企业条件按已读字段本地筛选，无上游搜索承诺。每次新sync从有限队首开始，不提供跨次采集进度；ABB示例每页3详情、最多2页6个尝试，两个优先样本不等于搜遍ABB。缺雇主只保留线索，FULL_TIME不推定社招；date-only保留raw而不补午夜，薪资仅原文不进入可比税前年薪，城市geo不成为办公室或距离。国家只从明确country字段匹配共享249项ISO白名单及Node/ICU英中名称、有限既有别名，未知保留原文。
 
 企业搜索可关联已登记同名源；陌生企业仍需官网线索／已配置宿主搜索与另行审核，不能据零命中认定官网无岗位。源码编译后仍需保留根目录 `config/geography/countries.json`；现有仓库与Docker构建布局已包含它。静态Pages／Docker网页需连接独立本机服务，并不内置这个采集后台。实测与限制见[官网结构化来源报告](../../docs/reports/job-atlas-jsonld-sources-2026-10-19.md)。
+
+## 办公地址核对与可选地址提供方
+
+默认关闭外部地址查询；需要时在原启动命令末尾增加`--office-geocoder nominatim`，保留原data-dir／port／Origin／DNS配置。它只安装提供方，不启动批量请求；网页必须输入具体query并点击查询。固定Nominatim HTTPS、最多5候选、至少1.1秒门控、15分钟有限进程缓存，尊重Retry-After，不自动重试、自动补全或扫描索引。署名／OSM记录随候选返回。国内覆盖由地图数据决定；本轮单次公开地标联网探针未成功，不能将合成端到端验收等同实时地理编码可用。
+
+四项共享工具与认证POST路径如下，执行身份由宿主提供；客户端不能传provider端点、actorScope或任意代码。
+
+| 工具 | /api/v1/locations/office-address/ 路径 |
+| --- | --- |
+| locations.office-address-candidates | candidates |
+| locations.preview-office-confirmation | preview |
+| locations.confirm-office-address | confirmations |
+| locations.revoke-office-address | revoke |
+
+候选输入为`{jobId,locationId,expectedRevision,query?}`；没有query只返回来源／配置、不外发请求。query只发送明确文本和已知国家过滤，不附带来源正文、家庭位置或owner。`proposal`固定为`basis:manual-user-confirmation`、countryCode、formattedAddress、streetAddress、可选postalCode、WGS84 coordinates、evidenceUrl和`coordinateMeaning:building|entrance|site`。预览与确认共用job／location／版本／proposal／reason；确认还需previewFingerprint、reviewed:true及Idempotency-Key。撤销提交原decisionId、expectedRevision、reason、reviewed:true及Idempotency-Key。
+
+SQLite V4保留base地点、行政决议、办公确认／撤销／source失效事件和耐久回执。来源地点或证据一度变化后旧办公点不会在A→B→A时自动激活。公共快照导入拒绝本地overlay；完整备份恢复包含历史。保存仍待核实，不把GCJ02当WGS84、城市／道路候选当门牌、地图候选当雇主认证。超时使用原body／key核对回执，已保存后读快照失败只重读。详见[本批报告](../../docs/reports/job-atlas-desktop-office-address-2026-10-19.md)。
