@@ -4,6 +4,8 @@
 
 ## 当前交付
 
+- [x] 2026-10-19 SmartRecruiters地址保留：稀疏同地点详情仅补省略街道／邮编，国家+单城明确一致且共享字段无冲突，原selector／quote／URL保持，异地或显式地址变更不拼接。旧码2回归失败已复现；修后适配器44／冻结4文件62/62、types10／lint／build6通过。完整备份后原5178更新后台PID82132，89岗rev67、dataset/token、V4和五组C#查询保持，office0，无来源刷新。前桌面文档68535b3四任务success、6公开资源含截图200；本补修发布跟踪中，四平台详情地点闭环继续，Career保留、Goal active。
+
 - [x] 2026-10-19 桌面稳定阅读与地址约束8ddf788／dc2f2a5已正常推送：15文件最终树b7f5c3887完成156/156相关、types10／lint／build6；独立合成UI即时单击前后卡片／地图rect和scrollTop一致、原生双击街址核对→保存1→2→50m高亮、900／390无溢出，viewport复原。离线旧3错误城镇均拒；真实structured地标HTTP200仍错城／道路，正确拒成0候选，未证实际目标。完整备份后原5178更新后台PID29468，89岗rev67／V4、dataset/token和五组C#查询不变、office0；Career保留。原5286旧进程退出后恢复隐藏后台PID57368，首页与3模块200。Actions39195657845首轮旧文件级失败未定根因，独立TAP两次24/24；同SHA仅重跑一次后全量2355/2355、四任务success，公开5资源200；详见desktop-precision报告，完整Goal active。
 
 - [x] 2026-10-19 地址provider真实补验：按当前显式google-doh路径公开地标HTTP200、4.035s／2144B；3个place/house门牌旧规则误滤，b010dd3已推送。冻结树11d0296f2e完成39相关／types10／lint／build6，Actions39192115753四任务success。返回点属于其他城镇，未证目标匹配或岗位办公关联。完整备份后原5178更新session7066／PID43896，89岗rev66／V4与dataset/token不变、0office／0running、五组C#查询保持。最小ABB一次import89／rev66→67，postal0→2、street／coords／office仍0；完整备份及27行政／89alias／所有旧回执／token／五组查询保持。5286四新模块200，最新发布收尾见office-provider-real报告；Career未混入、Goal active。

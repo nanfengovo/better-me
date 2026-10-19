@@ -108,6 +108,79 @@ test("SmartRecruiters same-ID detail can disclose an office address; absent deta
   assert.equal(retainedJob.locations[0]!.streetAddress, "Source street 30"); assert.equal(retainedJob.locations[0]!.postalCode, "00345");
 });
 
+test("SmartRecruiters sparse same-place detail retains listing office fields with their original evidence", async () => {
+  const { input } = fixture([post("123", { location: { city: "Boston", region: "Massachusetts", country: "us", address: "Source street 30", postalCode: "00345" } })], { fetchDetails: true });
+  changeDetails(input, detail("123", { location: { city: "boston", country: "US" } }));
+  const result = await createSourceRegistry([smartRecruitersAdapter]).list(input), job = result.records[0]!;
+  assert.deepEqual(job.locations, [{ raw: "boston, US", city: "boston", countryCode: "US", streetAddress: "Source street 30", postalCode: "00345" }]);
+  assert.equal(job.completeness, "detail"); assert.equal(result.coverage.partial, false);
+  for (const [field, selector, quote] of [["streetAddress", "address", "Source street 30"], ["postalCode", "postalCode", "00345"]]) {
+    const evidence = job.evidence.filter(item => item.field === `locations.${field}`);
+    assert.equal(evidence.length, 1);
+    assert.equal(evidence[0]!.selector, `content[0].location.${selector}`);
+    assert.equal(evidence[0]!.quote, quote);
+    assert.equal(new URL(evidence[0]!.sourceUrl).pathname, "/v1/companies/SyntheticOrg/postings");
+  }
+  const detailLocationEvidence = job.evidence.find(item => item.field === "locations" && item.selector === "location");
+  assert.equal(detailLocationEvidence?.quote, "boston, US", "detail evidence must not claim the retained street was in the detail response");
+  assert.equal(detailLocationEvidence?.sourceUrl, `${ENDPOINT}/123`);
+  assert.doesNotMatch(JSON.stringify(job.locations), /coordinates|latitude|longitude/);
+});
+
+test("SmartRecruiters consistent explicit office fields can retain only the omitted counterpart", async () => {
+  for (const [supplied, expected] of [
+    [{ address: "Source street 30" }, { streetAddress: "Source street 30", postalCode: "00345" }],
+    [{ postalCode: "00345" }, { streetAddress: "Source street 30", postalCode: "00345" }],
+  ] as const) {
+    const { input } = fixture([post("123", { location: { city: "Boston", country: "us", address: "Source street 30", postalCode: "00345" } })], { fetchDetails: true });
+    changeDetails(input, detail("123", { location: { city: "Boston", country: "us", ...supplied } }));
+    const job = (await smartRecruitersAdapter.list(input)).records[0]!;
+    assert.equal(job.locations[0]!.streetAddress, expected.streetAddress); assert.equal(job.locations[0]!.postalCode, expected.postalCode);
+    const explicitField = "address" in supplied ? "streetAddress" : "postalCode";
+    assert.ok(job.evidence.some(item => item.field === `locations.${explicitField}` && item.selector === `location.${"address" in supplied ? "address" : "postalCode"}` && item.sourceUrl === `${ENDPOINT}/123`));
+  }
+});
+
+test("SmartRecruiters different or insufficient detail geography never borrows a listing office", async () => {
+  const listingLocation = { city: "Boston", region: "Massachusetts", country: "us", address: "Source street 30", postalCode: "00345" };
+  for (const location of [
+    { city: "Cambridge", country: "us" }, { city: "Boston", country: "gb" },
+    { city: "Boston", country: "us", region: "Other region" },
+    { city: "Boston" }, { city: "Boston", country: "United States" },
+    { country: "us" }, { city: "Boston / Cambridge", country: "us" },
+  ]) {
+    const { input } = fixture([post("123", { location: listingLocation })], { fetchDetails: true });
+    changeDetails(input, detail("123", { location }));
+    const job = (await smartRecruitersAdapter.list(input)).records[0]!;
+    assert.equal(job.locations[0]!.streetAddress, undefined, JSON.stringify(location));
+    assert.equal(job.locations[0]!.postalCode, undefined, JSON.stringify(location));
+    assert.equal(job.completeness, "detail");
+  }
+  for (const location of [{ country: "us", address: "Source street 30", postalCode: "00345" }, { city: "Boston", address: "Source street 30", postalCode: "00345" }]) {
+    const { input } = fixture([post("123", { location })], { fetchDetails: true });
+    changeDetails(input, detail("123", { location: { city: "Boston", country: "us" } }));
+    const job = (await smartRecruitersAdapter.list(input)).records[0]!;
+    assert.equal(job.locations[0]!.streetAddress, undefined); assert.equal(job.locations[0]!.postalCode, undefined);
+  }
+});
+
+test("SmartRecruiters explicit detail office changes never splice in fields from another office in the same city", async () => {
+  for (const [supplied, expectedStreet, expectedPostal] of [
+    [{ address: "Different street 80" }, "Different street 80", undefined],
+    [{ postalCode: "00999" }, undefined, "00999"],
+    [{ address: "Different street 80", postalCode: "00999" }, "Different street 80", "00999"],
+  ] as const) {
+    const { input } = fixture([post("123", { location: { city: "Boston", country: "us", address: "Source street 30", postalCode: "00345" } })], { fetchDetails: true });
+    changeDetails(input, detail("123", { location: { city: "Boston", country: "us", ...supplied } }));
+    const job = (await smartRecruitersAdapter.list(input)).records[0]!;
+    assert.equal(job.locations[0]!.streetAddress, expectedStreet); assert.equal(job.locations[0]!.postalCode, expectedPostal);
+    assert.equal(job.completeness, "detail");
+    for (const [sourceField, outputField] of [["address", "streetAddress"], ["postalCode", "postalCode"]] as const) if (sourceField in supplied) {
+      assert.ok(job.evidence.some(item => item.field === `locations.${outputField}` && item.selector === `location.${sourceField}` && item.sourceUrl === `${ENDPOINT}/123`));
+    }
+  }
+});
+
 test("SmartRecruiters never derives structured address fields from fullLocation, city, HQ, zip aliases or geo", async () => {
   const { input } = fixture([post("1", { location: { fullLocation: "Source street 10, 00123", city: "City street 20, 00234", country: "us", zipCode: "00345", latitude: 31, longitude: 121 },
     company: { identifier: "SyntheticOrg", name: "Synthetic Company", address: "HQ street 99", postalCode: "99999" } })]);

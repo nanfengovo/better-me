@@ -62,6 +62,24 @@ function locationFor(job: SourceJobRecord, value: unknown, selector: string, sou
   // Provider coordinates are often city centroids. They never establish an office or remote eligibility.
 }
 
+function retainListingOfficeFields(listing: SourceJobRecord["locations"], detailed: SourceJobRecord["locations"]): void {
+  if (listing.length !== 1 || detailed.length !== 1) return;
+  const previous = listing[0]!, current = detailed[0]!;
+  const equal = (left: string, right: string) => left.trim().toLowerCase() === right.trim().toLowerCase();
+  // A same posting ID does not prove that two different places are the same office.
+  // Require explicit country + single city, and reject every shared field conflict.
+  if (!previous.countryCode || !current.countryCode || previous.countryCode !== current.countryCode
+    || !previous.city || !current.city || !equal(previous.city, current.city)) return;
+  for (const field of ["region", "streetAddress", "postalCode"] as const) {
+    if (previous[field] && current[field] && !equal(previous[field], current[field])) return;
+  }
+  for (const field of ["streetAddress", "postalCode"] as const) {
+    if (!current[field] && previous[field]) current[field] = previous[field];
+  }
+  // Keep the detail raw text and both original evidence paths unchanged. Inherited
+  // fields were disclosed by the listing, not by the sparse detail response.
+}
+
 function publicationFor(job: SourceJobRecord, value: unknown, selector: string, sourceUrl: string): void {
   const published = timeValue(value);
   if (published.raw) {
@@ -166,6 +184,7 @@ export const smartRecruitersAdapter: SourceAdapter = {
           if (Object.hasOwn(detail, "location")) {
             const located = structuredClone(job);
             locationFor(located, detail.location, "location", detailResponse.url);
+            retainListingOfficeFields(job.locations, located.locations);
             if (!SourceJobRecordSchema.safeParse(located).success) throw new ToolError("source-changed");
             job.locations = located.locations; job.workMode = located.workMode; job.evidence = located.evidence; job.warnings = located.warnings;
           }

@@ -38,4 +38,13 @@ Nominatim在有约束时采用structured street／city／postalcode，不混用q
 
 桌面提交`8ddf788675302d73cce8805f945ad816ac9846e8`与地址约束提交`dc2f2a5b7b7953eed1e3f726467c2f54f6bbef1d`已正常推送main。远端Actions39195657845首轮Windows全量2346项、2345通过、1个未修改jd-session-extension文件级失败；Linux构建与Docker成功、Pages skipped。失败没有具体子进程exit／signal栈，尚不能确定根因。相同冻结文件独立TAP两次24/24、exit0且stderr为空；同一远端SHA仅重跑失败任务一次，attempt2全量2355/2355，失败／取消／跳过／todo均0，Windows质量、Linux构建、Docker与Pages四任务最终success。未修改产品、测试、timeout、并发或workflow，不称首次根因已修复。部署后实际读取公开首页、main、Atlas、办公面板和CSS共5个资源均200，核固定阅读空态／三栏及城市／邮编字段。并行Career Agent代码、依赖与共享文档改动保留，未混入Atlas发布；私人库、令牌、备份和完整来源响应不入Git。
 
+
+## 来源地址字段保留补修
+
+后续只读审查复现SmartRecruiters同ID详情回补的字段丢失：列表明确包含街道、邮编，但详情仅披露城市／国家时，整体地点替换会丢弃列表字段。本批只在双方明确有效国家代码和单一城市相同，且共同披露的地区、街道、邮编均无冲突时，补回详情省略的街道／邮编。详情显式值优先；异城、异国、缺少明确地理字段或地址冲突时不拼接。保留字段仍指向列表原selector、quote和sourceUrl，详情raw不伪称包含继承字段。
+
+新增4项回归含多组边界，在旧实现复现2失败，修复后适配器44/44。两文件冻结树`048488bca2d14d27ff2b7ef57a5a935fc5022bbd`经离线冻结安装、Memory、Types10/10、Lint、4文件62/62相关测试与Build6/6通过；62为独立结果，不与156相加。完整在线备份quick_check通过后，按原配置更新同端口本机服务；89岗／revision67、dataset与token哈希、V4、外键检查和五组C#查询保持，办公决议仍0。未请求真实来源刷新或新地址查询，不能称既有岗位已补齐街道。
+
+四平台的同岗位详情结果目前仍未将结构化jobLocation贯通为受审规范地点；搜索卡片的locationText仍是原文。该闭环需要继续补齐，不能把读取完整JD等同取得办公地址。源未披露门牌、远程资格和城市质心仍不能当具体办公室。本补修的远端CI／最终发布状态另以实际Actions记录为准。
+
 [使用说明](../job-atlas.md) · [本机服务](../../apps/job-service/README.md) · [路线图](../ROADMAP.md)
