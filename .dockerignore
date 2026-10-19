@@ -87,3 +87,5 @@
 **/*-extracted.txt
 **/*-原文.txt
 **/*-source.txt
+!docker/license-overrides/saxes-6.0.0/LICENSE
+!docker/license-overrides/saxes-6.0.0/NOTICE.md
