@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { PlatformDetailLocationsSchema, parsePlatformJobLocations, rebindPlatformDetailLocations } from "../src/platform-detail-locations.js";
+import { PlatformDetailLocationsSchema, PlatformVisibleOfficeDisclosureSchema, parsePlatformJobLocations, parsePlatformVisibleOfficeDisclosure, parsePlatformVisibleOfficeLocations, rebindPlatformDetailLocations } from "../src/platform-detail-locations.js";
 
 const address = { "@type": "Place", address: { "@type": "PostalAddress", streetAddress: "100 Synthetic Road", addressLocality: "Test City", addressRegion: "Test Region", postalCode: "00101", addressCountry: "us" } };
 const at = "2026-10-19T09:00:00Z";
@@ -11,14 +11,99 @@ function capture() { return { version: 1, provider: "liepin", url: "https://www.
 test("the Vite server contract loads through its standalone subpath in native Node without a TS loader", () => {
   const runtimeEnvironment = { ...process.env }; delete runtimeEnvironment.NODE_OPTIONS;
   const output = execFileSync(process.execPath, ["--input-type=module", "--eval", `
-    import { PlatformDetailLocationsSchema, parsePlatformJobLocations } from '@better-me/source-adapters/platform-detail-locations';
+    import { PlatformDetailLocationsSchema, PlatformVisibleOfficeDisclosureSchema, parsePlatformJobLocations, parsePlatformVisibleOfficeLocations } from '@better-me/source-adapters/platform-detail-locations';
     import { reviewedCardIdentity, PlatformSearchProviderSchema } from '@better-me/source-adapters/platform-job-identity';
     import { PlatformSearchProviderSchema as searchProvider } from '@better-me/source-adapters/platform-search';
     const locations = parsePlatformJobLocations({ jobLocation: { address: { addressCountry: 'CN', addressLocality: 'Shanghai' } } });
     console.log(JSON.stringify({ sameSchema: PlatformSearchProviderSchema === searchProvider, id: reviewedCardIdentity('https://www.liepin.com/job/12345.shtml', 'liepin')?.id,
-      valid: PlatformDetailLocationsSchema.safeParse({ version: 1, provider: 'liepin', url: 'https://www.liepin.com/job/12345.shtml', capturedAt: '2026-10-19T09:00:00Z', ...locations }).success }));
+      valid: PlatformDetailLocationsSchema.safeParse({ version: 1, provider: 'liepin', url: 'https://www.liepin.com/job/12345.shtml', capturedAt: '2026-10-19T09:00:00Z', ...locations }).success,
+      visible: PlatformDetailLocationsSchema.safeParse({ version: 2, provider: 'liepin', url: 'https://www.liepin.com/job/12345.shtml', capturedAt: '2026-10-19T09:00:00Z', ...parsePlatformVisibleOfficeLocations([PlatformVisibleOfficeDisclosureSchema.parse({selector:'liepin-work-address',label:'工作地址',text:'合成路100号'})]) }).success }));
   `], { cwd: fileURLToPath(new URL("../", import.meta.url)), env: runtimeEnvironment, encoding: "utf8" });
-  assert.deepEqual(JSON.parse(output), { sameSchema: true, id: "12345", valid: true });
+  assert.deepEqual(JSON.parse(output), { sameSchema: true, id: "12345", valid: true, visible: true });
+});
+
+const visibleAddress = { selector: "liepin-work-address", label: "工作地址", text: "上海市浦东新区合成路100号 2号楼" };
+function visibleCapture() { return { version: 2, provider: "liepin", url: "https://www.liepin.com/job/12345.shtml", capturedAt: at, ...parsePlatformVisibleOfficeLocations([visibleAddress]) }; }
+
+test("version 2 visible address evidence preserves the complete labelled text without guessing administrative fields", () => {
+  const parsed = PlatformDetailLocationsSchema.parse(visibleCapture());
+  assert.deepEqual(parsed.locations, [{ raw: visibleAddress.text, streetAddress: visibleAddress.text,
+    evidence: { kind: "visible-labelled-address", selector: "liepin-work-address[0]", quote: JSON.stringify(visibleAddress) } }]);
+  assert.equal(parsed.workMode, "unknown");
+  assert.equal(parsed.workModeEvidence, undefined);
+  const reordered = { text: visibleAddress.text, label: "工作地址", selector: "liepin-work-address" };
+  assert.equal(parsePlatformVisibleOfficeDisclosure(reordered)?.evidence.quote, JSON.stringify(visibleAddress));
+  assert.equal(rebindPlatformDetailLocations(parsed, "https://m.liepin.com/job/12345.shtml?from=share", at)?.version, 2);
+});
+
+test("visible region, city, park and unnumbered building names remain raw disclosures without street precision", () => {
+  for (const raw of ["上海", "上海 浦东新区", "张江高科技园区", "合成大厦", "上海市合成路", "合成路口附近", "合成园区", "10号楼", "中国 上海"]) {
+    const parsed = parsePlatformVisibleOfficeDisclosure({ ...visibleAddress, text: raw });
+    assert.ok(parsed, raw); assert.equal(parsed.streetAddress, undefined, raw);
+    assert.equal(parsed.raw, raw); assert.equal(parsed.countryCode, undefined); assert.equal(parsed.region, undefined); assert.equal(parsed.city, undefined);
+  }
+  for (const raw of ["合成路100号", "合成街18号", "合成大道300号", "合成路100弄8号", "合成大厦A座1601室", "合成科技园10号楼", "合成写字楼2栋"]) {
+    assert.equal(parsePlatformVisibleOfficeDisclosure({ ...visibleAddress, text: raw })?.streetAddress, raw, raw);
+  }
+});
+
+test("explicit remote, home, no-attendance and reference-only headquarters disclosures never become office captures", () => {
+  for (const raw of ["完全远程，无需到岗，上海合成路100号为总部", "无需到岗，上海合成路100号", "无须到场，合成路100号", "远程办公，合成路100号", "居家办公，合成路100号", "在家工作，合成路100号", "仅供参考的总部地址：上海合成路100号", "注册地址：上海合成路100号", "非本岗位办公地址：上海合成路100号", "不作为工作地点：上海合成路100号"]) {
+    const disclosure = { ...visibleAddress, text: raw };
+    assert.equal(PlatformVisibleOfficeDisclosureSchema.safeParse(disclosure).success, true);
+    assert.equal(parsePlatformVisibleOfficeDisclosure(disclosure), undefined, raw);
+    assert.equal(parsePlatformVisibleOfficeLocations([disclosure]), undefined, raw);
+    const ordinary = parsePlatformVisibleOfficeDisclosure(visibleAddress)!;
+    assert.equal(PlatformDetailLocationsSchema.safeParse({ ...visibleCapture(), locations: [{ ...ordinary, raw, streetAddress: raw,
+      evidence: { ...ordinary.evidence, quote: JSON.stringify(disclosure) } }] }).success, false, raw);
+  }
+  for (const raw of ["总部工作，上海合成路100号", "上海合成路100号 总部办公室", "上海远程科技大厦A座1601室"]) {
+    assert.equal(parsePlatformVisibleOfficeDisclosure({ ...visibleAddress, text: raw })?.streetAddress, raw, raw);
+  }
+});
+
+test("visible wire evidence cannot change raw, street, inferred administration, label, selector or quote independently", () => {
+  const original = PlatformDetailLocationsSchema.parse(visibleCapture()), location = original.locations[0];
+  for (const patch of [{ raw: "其他路100号" }, { streetAddress: "其他路100号" }, { streetAddress: undefined }, { countryCode: "CN" }, { region: "上海" }, { city: "上海" }, { postalCode: "200000" }, { coordinates: { latitude: 30, longitude: 120 } },
+    { evidence: { ...location.evidence, kind: undefined } }, { evidence: { ...location.evidence, kind: "json-ld" } },
+    { evidence: { ...location.evidence, selector: "liepin-work-address" } }, { evidence: { ...location.evidence, selector: "liepin-work-address[1]" } },
+    { evidence: { ...location.evidence, quote: JSON.stringify({ ...visibleAddress, label: "公司地址" }) } },
+    { evidence: { ...location.evidence, quote: JSON.stringify({ ...visibleAddress, selector: "other" }) } },
+    { evidence: { ...location.evidence, quote: JSON.stringify({ ...visibleAddress, text: "其他路100号" }) } },
+    { evidence: { ...location.evidence, quote: JSON.stringify(visibleAddress, undefined, 2) } },
+    { evidence: { ...location.evidence, quote: "{}" } }, { evidence: { ...location.evidence, quote: "invalid" } }]) {
+    assert.equal(PlatformDetailLocationsSchema.safeParse({ ...original, locations: [{ ...location, ...patch }] }).success, false, JSON.stringify(patch));
+  }
+  const changedLabel = { ...visibleAddress, label: "工作地点" };
+  assert.equal(PlatformDetailLocationsSchema.safeParse({ ...original, locations: [{ ...location, evidence: { ...location.evidence, quote: JSON.stringify(changedLabel) } }] }).success, true);
+});
+
+test("visible evidence is restricted to a Liepin V2 capture and never mixed with JSON-LD locations", () => {
+  assert.equal(PlatformDetailLocationsSchema.safeParse({ ...visibleCapture(), version: 1 }).success, false);
+  assert.equal(PlatformDetailLocationsSchema.safeParse({ ...visibleCapture(), provider: "boss", url: "https://www.zhipin.com/job_detail/12345.html" }).success, false);
+  const jsonLd = PlatformDetailLocationsSchema.parse(capture());
+  assert.equal(PlatformDetailLocationsSchema.safeParse({ ...jsonLd, version: 2 }).success, true);
+  assert.equal(PlatformDetailLocationsSchema.safeParse({ ...visibleCapture(), locations: [...jsonLd.locations, ...PlatformDetailLocationsSchema.parse(visibleCapture()).locations] }).success, false);
+  for (const mode of ["onsite", "hybrid", "remote"]) assert.equal(PlatformDetailLocationsSchema.safeParse({ ...visibleCapture(), workMode: mode }).success, false);
+});
+
+test("visible disclosures require normalized bounded plain text, fixed labels, strict shape and contiguous bounded indices", () => {
+  for (const disclosure of [{ ...visibleAddress, label: "地址" }, { ...visibleAddress, selector: "jobLocation" }, { ...visibleAddress, text: "" }, { ...visibleAddress, text: " 合成路100号" },
+    { ...visibleAddress, text: "合成路  100号" }, { ...visibleAddress, text: "合成路\n100号" }, { ...visibleAddress, text: "合成路\u00a0100号" },
+    { ...visibleAddress, text: "合成\u0000路100号" }, { ...visibleAddress, text: "合成路\ud800100号" }, { ...visibleAddress, text: "x".repeat(1001) }, { ...visibleAddress, city: "上海" },
+    { ...visibleAddress, text: { text: "合成路100号" } }]) {
+    assert.equal(PlatformVisibleOfficeDisclosureSchema.safeParse(disclosure).success, false, JSON.stringify(disclosure));
+    assert.equal(parsePlatformVisibleOfficeDisclosure(disclosure), undefined);
+    assert.equal(parsePlatformVisibleOfficeLocations([visibleAddress, disclosure]), undefined);
+  }
+  assert.equal(parsePlatformVisibleOfficeLocations([]), undefined);
+  assert.equal(parsePlatformVisibleOfficeLocations(Array.from({ length: 21 }, () => visibleAddress)), undefined);
+  for (const index of [-1, 20, 0.5, Number.NaN]) assert.equal(parsePlatformVisibleOfficeDisclosure(visibleAddress, index), undefined);
+  const twenty = parsePlatformVisibleOfficeLocations(Array.from({ length: 20 }, () => visibleAddress));
+  assert.equal(twenty?.locations[19].evidence.selector, "liepin-work-address[19]");
+  assert.equal(PlatformDetailLocationsSchema.safeParse({ ...visibleCapture(), ...twenty }).success, true);
+  const depthBomb: Record<string, unknown> = { ...visibleAddress }; depthBomb.extra = { nested: { nested: { nested: depthBomb } } };
+  assert.equal(parsePlatformVisibleOfficeDisclosure(depthBomb), undefined);
 });
 
 test("platform detail location disclosure reproduces only explicit address fields and preserves leading-zero postcodes", () => {

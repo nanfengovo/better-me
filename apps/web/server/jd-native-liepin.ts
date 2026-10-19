@@ -199,9 +199,9 @@ export function createNativeLiepinSessions(options: NativeLiepinOptions = {}) {
         invalidSince = undefined;
         try {
           const capturedAt = new Date(now()).toISOString();
-          const result = extractPublicJobHtml(snapshot.html, platform, session.url, { requireVisibleDescription: true, allowValidatedBossShareDescription: platform === "BOSS直聘", allowValidatedLiepinDescription: platform === "猎聘", capturedAt });
+          const result = extractPublicJobHtml(snapshot.html, platform, session.url, { requireVisibleDescription: true, allowValidatedBossShareDescription: platform === "BOSS直聘", allowValidatedLiepinDescription: platform === "猎聘", visibleOfficeDisclosures: checked.snapshot?.visibleOfficeDisclosures, capturedAt });
           if (result.text.length > 120_000) throw failure("unsupported_page", "正文超过12万字，请确认是具体岗位详情。");
-          const key = JSON.stringify([capture.identity, result.text]);
+          const key = JSON.stringify([capture.identity, result.text, result.detailLocations ? { ...result.detailLocations, capturedAt: undefined } : undefined]);
           if (previous !== key) { previous = key; since = now(); }
           else if (now() - since >= 800 && await page.current(capture.identity, operationSignal)) {
             abortNative(operationSignal);

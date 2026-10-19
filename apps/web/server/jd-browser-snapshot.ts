@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { allowedJobUrl } from "../src/lib/jd-source";
+import { PlatformVisibleOfficeDisclosureSchema, type PlatformVisibleOfficeDisclosure } from "@better-me/source-adapters/platform-detail-locations";
+import { reviewedCardIdentity } from "@better-me/source-adapters/platform-job-identity";
 
 /** Fixed count-only diagnostics. These describe parser roots, never job totals. */
 export const SearchProjectionDiagnosticsSchema = z.object({
@@ -23,6 +25,8 @@ export type BrowserSnapshot = {
   oversized?: boolean;
   gate?: "login_required" | "verification_required";
   searchDiagnostics?: SearchProjectionDiagnostics;
+  /** A separate native-visible disclosure; it never becomes part of the JD HTML. */
+  visibleOfficeDisclosures?: PlatformVisibleOfficeDisclosure[];
   pageLoad?: {
     readyState: "loading" | "interactive" | "complete" | "unknown";
     content: "empty" | "visible_text" | "embedded_content" | "unknown";
@@ -60,6 +64,12 @@ export function validateBrowserSnapshot(value: unknown, before: SnapshotPosition
       if (!diagnostic.success || allowedJobUrl(snapshot.url).platform !== diagnostic.data.platform) return { state: "failed" };
       searchDiagnostics = diagnostic.data;
     }
+    let visibleOfficeDisclosures: PlatformVisibleOfficeDisclosure[] | undefined;
+    if (snapshot.visibleOfficeDisclosures !== undefined) {
+      const disclosure = z.array(PlatformVisibleOfficeDisclosureSchema).max(20).safeParse(snapshot.visibleOfficeDisclosures);
+      if (!disclosure.success || !reviewedCardIdentity(snapshot.url, "liepin") || snapshot.gate !== undefined) return { state: "failed" };
+      visibleOfficeDisclosures = disclosure.data;
+    }
     if (snapshot.oversized || Buffer.byteLength(snapshot.html, "utf8") > 2 * 1024 * 1024) return { state: "oversized" };
     return {
       state: "ready",
@@ -69,6 +79,7 @@ export function validateBrowserSnapshot(value: unknown, before: SnapshotPosition
         ...(snapshot.gate !== undefined ? { gate: snapshot.gate } : {}),
         ...(pageLoad ? { pageLoad } : {}),
         ...(searchDiagnostics ? { searchDiagnostics } : {}),
+        ...(visibleOfficeDisclosures ? { visibleOfficeDisclosures } : {}),
       },
     };
   } catch { return { state: "failed" }; }

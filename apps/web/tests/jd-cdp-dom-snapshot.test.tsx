@@ -1465,6 +1465,107 @@ function liepinFixture(options: { label?: string; withHeading?: boolean; withCan
 }
 const projectLiepin = (f: ReturnType<typeof liepinFixture>) => projectNativeDomSnapshot(f.snapshot, frame, load, liepinScope);
 
+function visibleOfficeFixture(text = "上海市浦东新区合成路100号 A座", label = "工作地址：") {
+  const f = liepinFixture();
+  f.setStyle(f.addressDd, "overflow-x", "visible"); f.setStyle(f.addressDd, "text-overflow", "clip");
+  const labelNode = f.nodes.parentIndex.findIndex((parent, index) => parent === f.addressDt && f.nodes.nodeType[index] === 3);
+  const addressText = f.nodes.parentIndex.findIndex((parent, index) => parent === f.addressDd && f.nodes.nodeType[index] === 3);
+  const replaceText = (node: number, text: string) => {
+    const row = f.layoutIndex(node), box = f.textBoxes.layoutIndex.indexOf(row);
+    f.nodes.nodeValue[node] = f.str(text); f.layout.text[row] = f.str(text); f.textBoxes.length[box] = text.length;
+  };
+  replaceText(labelNode, label); replaceText(addressText, text);
+  return { ...f, labelNode, addressText, replaceText };
+}
+
+test("visible Liepin office address stays in a normalized sidecar while the original JD HTML remains unchanged", () => {
+  for (const label of ["工作地址", " 工作\n地点： "]) {
+    const f = visibleOfficeFixture(" 上海市浦东新区\n合成路100号\t A座 ", label), projected = projectLiepin(f);
+    assert.deepEqual(projected.visibleOfficeDisclosures, [{ selector: "liepin-work-address", label: label.includes("地址") ? "工作地址" : "工作地点", text: "上海市浦东新区 合成路100号 A座" }]);
+    assert.doesNotMatch(projected.html, /合成路100号|工作地址|工作地点|UNADOPTED_WORK_ADDRESS|class="paragraph address"/);
+    assert.ok(projected.html.includes(description + rootTail));
+    const accepted = validateBrowserSnapshot(projected, { url: source, navigation: 1 }, { url: source, navigation: 1 });
+    assert.deepEqual(accepted.snapshot?.visibleOfficeDisclosures, projected.visibleOfficeDisclosures);
+  }
+});
+
+test("optional office proof rejects hidden, clipped, transparent and incomplete address CSS without adding a JD failure", () => {
+  for (const mode of ["hidden", "aria-hidden", "display", "visibility", "opacity", "color", "text-alpha", "no-boxes", "no-layout", "overflow", "ellipsis", "clamp", "transform", "filter", "mask", "contain", "missing-style", "nested-hidden", "button"] as const) {
+    const f = visibleOfficeFixture();
+    if (mode === "hidden") f.nodes.attributes[f.addressDd].push(f.str("hidden"), f.str(""));
+    if (mode === "aria-hidden") f.nodes.attributes[f.addressDd].push(f.str("aria-hidden"), f.str("true"));
+    if (mode === "display") f.setStyle(f.addressDd, "display", "none");
+    if (mode === "visibility") f.setStyle(f.addressDd, "visibility", "hidden");
+    if (mode === "opacity") f.setStyle(f.addressDd, "opacity", "0");
+    if (mode === "color") f.setStyle(f.addressDd, "color", "rgba(0, 0, 0, 0)");
+    if (mode === "text-alpha") f.layout.textColorOpacities[f.layoutIndex(f.addressText)] = 0;
+    if (mode === "no-boxes") f.textBoxes.length[f.textBoxes.layoutIndex.indexOf(f.layoutIndex(f.addressText))] = 0;
+    if (mode === "no-layout") f.layout.bounds[f.layoutIndex(f.addressText)] = [0, 0, 0, 0];
+    if (mode === "overflow") f.setStyle(f.addressDd, "overflow-y", "hidden");
+    if (mode === "ellipsis") f.setStyle(f.addressDd, "text-overflow", "ellipsis");
+    if (mode === "clamp") f.setStyle(f.addressDd, "-webkit-line-clamp", "2");
+    if (mode === "transform") f.setStyle(f.addressDd, "transform", "matrix(1,0,0,1,2,0)");
+    if (mode === "filter") f.setStyle(f.addressDd, "filter", "blur(1px)");
+    if (mode === "mask") f.setStyle(f.addressDd, "mask-image", "linear-gradient(black, transparent)");
+    if (mode === "contain") f.setStyle(f.addressDd, "contain", "paint");
+    if (mode === "missing-style") f.setStyle(f.addressDd, "contain", "");
+    if (mode === "nested-hidden") { const hidden = f.add("SPAN", f.addressDd, { attrs: { hidden: "" } }); f.add("#text", hidden, { text: "PRIVATE_HIDDEN_ADDRESS_SUFFIX" }); f.completeStyles(); }
+    if (mode === "button") { const button = f.add("BUTTON", f.addressDd); f.add("#text", button, { text: "查看地图" }); f.completeStyles(); }
+    const projected = projectLiepin(f);
+    assert.equal(projected.visibleOfficeDisclosures, undefined, mode); assert.ok(projected.html.includes(description + rootTail), mode);
+    assert.doesNotMatch(projected.html, /合成路100号|PRIVATE_HIDDEN_ADDRESS_SUFFIX/);
+  }
+});
+
+test("office labels must themselves be complete visible exact work-location labels", () => {
+  for (const label of ["公司地址", "总部地址", "企业联系地址", "地址", "工作地址详情", "推荐工作地址", "工作地址::", "工作地址：：", "【工作地址】"]) assert.equal(projectLiepin(visibleOfficeFixture(undefined, label)).visibleOfficeDisclosures, undefined, label);
+  for (const target of ["addressDt", "address"] as const) {
+    const f = visibleOfficeFixture(); f.nodes.attributes[f[target]].push(f.str("hidden"), f.str(""));
+    assert.equal(projectLiepin(f).visibleOfficeDisclosures, undefined);
+  }
+  const clipped = visibleOfficeFixture(); clipped.setStyle(clipped.addressDt, "text-overflow", "ellipsis");
+  assert.equal(projectLiepin(clipped).visibleOfficeDisclosures, undefined);
+});
+
+test("office sidecar never adopts another section, nested DL, recommendation or ambiguously owned duties", () => {
+  for (const mode of ["other-section", "nested-dl", "recommendation", "second-duties", "legacy-description", "multiple-dd", "extra-child"] as const) {
+    const f = visibleOfficeFixture();
+    if (mode === "other-section" || mode === "nested-dl") {
+      f.replaceText(f.labelNode, "公司地址");
+      const parent = mode === "other-section" ? f.add("SECTION", f.outer, { attrs: { class: "job-intro-container" } }) : f.add("DIV", f.section);
+      const dl = f.add("DL", parent, { attrs: { class: "paragraph" } }); const dt = f.add("DT", dl); f.add("#text", dt, { text: "工作地址" }); const dd = f.add("DD", dl); f.add("#text", dd, { text: "OTHER_SCOPE_OFFICE_ADDRESS" });
+    }
+    if (mode === "recommendation") f.nodes.attributes[f.address] = [f.str("class"), f.str("paragraph recommend")];
+    if (mode === "second-duties") { const duties = f.add("DL", f.section, { attrs: { class: "paragraph" } }); const dt = f.add("DT", duties); f.add("#text", dt, { text: "岗位职责" }); const dd = f.add("DD", duties); f.add("#text", dd, { text: description }); }
+    if (mode === "legacy-description") { const legacy = f.add("DIV", f.outer, { attrs: { class: "job-description" } }); f.add("#text", legacy, { text: description }); }
+    if (mode === "multiple-dd") { const dd = f.add("DD", f.address); f.add("#text", dd, { text: "其他办公室" }); }
+    if (mode === "extra-child") { const span = f.add("SPAN", f.address); f.add("#text", span, { text: "其他工作地点" }); }
+    f.completeStyles();
+    assert.equal(projectLiepin(f).visibleOfficeDisclosures, undefined, mode);
+  }
+});
+
+test("office proof respects bounded text and never backfills raw DOM suffixes or changes existing global text failures", () => {
+  for (const text of ["", "x".repeat(1001), "合成地址\u0000尾部", "合成地址\ud800尾部"]) {
+    const f = visibleOfficeFixture(text);
+    assert.equal(projectLiepin(f).visibleOfficeDisclosures, undefined);
+  }
+  const f = visibleOfficeFixture(); f.nodes.nodeValue[f.addressText] = f.str("RAW_ADDRESS_MUST_NOT_BACKFILL");
+  assert.equal(projectLiepin(f).visibleOfficeDisclosures?.[0].text, "上海市浦东新区合成路100号 A座");
+  const gap = visibleOfficeFixture(); gap.textBoxes.length[gap.textBoxes.layoutIndex.indexOf(gap.layoutIndex(gap.addressText))] -= 1;
+  assert.throws(() => projectLiepin(gap), visibilityFails("text_range_gap"), "existing full-page text semantics still reject a visible range gap");
+});
+
+test("office sidecar limits complete disclosed locations without silently returning a truncated set", () => {
+  const f = visibleOfficeFixture();
+  for (let index = 1; index <= 20; index++) {
+    const dl = f.add("DL", f.section, { attrs: { class: "paragraph" } }); const dt = f.add("DT", dl); f.add("#text", dt, { text: "工作地址" }); const dd = f.add("DD", dl); f.add("#text", dd, { text: `合成办公路${index}号` });
+  }
+  f.completeStyles();
+  const projected = projectLiepin(f);
+  assert.equal(projected.visibleOfficeDisclosures, undefined); assert.ok(projected.html.includes(description + rootTail));
+});
+
 const splitDuties = "负责设备通信平台的架构设计、接口开发、问题定位和自动化测试，维护交付文档并与产品团队协作完成项目。";
 const splitRequirements = "熟悉 C#、SQL Server 与异步编程，具备独立分析需求和编写测试的能力。REQUIREMENTS_TAIL_SENTINEL";
 function liepinSplitFixture(label = "任职要求") {

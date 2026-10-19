@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { createToolRegistry, type AtlasDataset, type ToolHandlerContext, type TrustedToolContext } from "@better-me/opportunities";
-import { PlatformDetailLocationsSchema, parsePlatformJobLocations, type PreviewDetailLocationsInput, type ImportDetailLocationsInput } from "@better-me/source-adapters";
+import { PlatformDetailLocationsSchema, parsePlatformJobLocations, parsePlatformVisibleOfficeLocations, type PreviewDetailLocationsInput, type ImportDetailLocationsInput } from "@better-me/source-adapters";
 import { reviewedCardsPage, reviewedCardsSource } from "../src/reviewed-cards.ts";
 import { projectSourcePage } from "../src/projection.ts";
 import { openJobRepository, RepositoryError, type JobRepository } from "../src/repository.ts";
@@ -45,6 +45,11 @@ function disclosure(url = "https://m.liepin.com/job/123456789.shtml?synthetic=de
     addressLocality: "Shanghai", addressRegion: "Shanghai", addressCountry: "CN", postalCode: "020000" } }, ...(remote ? { jobLocationType: "TELECOMMUTE" } : {}) })!;
   return PlatformDetailLocationsSchema.parse({ version: 1, provider: "liepin", url, capturedAt, ...parsed });
 }
+const VISIBLE_STREET = "上海市浦东新区合成路100号 2号楼";
+function visibleDisclosure(raw = VISIBLE_STREET) {
+  return PlatformDetailLocationsSchema.parse({ version: 2, provider: "liepin", url: "https://m.liepin.com/job/123456789.shtml?synthetic=visible-detail", capturedAt: CAPTURED,
+    ...parsePlatformVisibleOfficeLocations([{ selector: "liepin-work-address", label: "工作地址", text: raw }]) });
+}
 async function prepare(repo: JobRepository, target?: { jobId: string; listingId: string }, capture = disclosure()) {
   const before = await repo.readSnapshot(); const listing = before.listings.find(entry => entry.sourceRecordId === "123456789")!;
   const input: PreviewDetailLocationsInput = { ...(target ?? { jobId: listing.canonicalJobId!, listingId: listing.id }), expectedRevision: before.revision, capture };
@@ -82,6 +87,73 @@ test("address-only preview is read-only and import preserves job, JD, pay, compa
     assert.equal(observation.snapshotId, undefined); assert.equal(observation.sourcePublishedAt, undefined); assert.equal(observation.sourcePublishedRaw, undefined);
     assert.equal(observation.completeness, "excerpt"); assert.equal(observation.availability, "unknown"); assert.equal(observation.result, "partial");
     assert.equal(JSON.parse(observation.rawText!).url, command.capture.url);
+  } finally { repo.close(); }
+});
+
+test("V2 visible same-job street imports without inferred country or wire-only kind and preserves the merged job's JD, pay and other listing", async () => {
+  const repo = openJobRepository(":memory:", { now: () => NOW });
+  try {
+    const first = await seed(repo), second = await seed(repo, "987654321"); const seeded = await repo.readSnapshot();
+    await repo.mergeJobs({ targetJobId: second.jobId, sourceJobId: first.jobId, reason: "Synthetic reviewed shared requirement", companyIdentityConfirmed: true },
+      { actorScope: ACTOR, idempotencyKey: "merge-before-visible", expectedRevision: seeded.revision });
+    const before = await repo.readSnapshot(), originalOtherListing = before.listings.find(entry => entry.id === second.listingId)!;
+    const prepared = await prepare(repo, { jobId: second.jobId, listingId: first.listingId }, visibleDisclosure());
+    assert.deepEqual(await repo.readSnapshot(), before);
+    const location = prepared.preview.newLocations[0]!;
+    assert.equal(location.raw, VISIBLE_STREET); assert.equal(location.streetAddress, VISIBLE_STREET);
+    assert.equal(location.countryCode, undefined); assert.equal(location.region, undefined); assert.equal(location.city, undefined); assert.equal(location.postalCode, undefined);
+    assert.equal(location.precision, "unknown"); assert.equal(location.kind, "office"); assert.equal(location.verification, "unverified"); assert.equal(location.coordinates, undefined);
+    assert.deepEqual(location.evidence[0], { observationId: location.evidence[0]!.observationId, sourceUrl: prepared.input.capture.url, observedAt: CAPTURED,
+      selector: "liepin-work-address[0]", quote: prepared.input.capture.locations[0]!.evidence.quote });
+    assert.equal("kind" in location.evidence[0]!, false);
+    const receipt = await prepared.tools[1].execute(prepared.command, context("visible-merged")); const after = await repo.readSnapshot();
+    assert.equal(receipt.counts.newJobs, 0); assert.equal(receipt.counts.newListings, 0); assert.equal(receipt.counts.newSnapshots, 0); assert.equal(receipt.counts.newObservations, 1);
+    const { locationIds: _beforeLocations, revision: _beforeRevision, updatedAt: _beforeTime, ...beforeJob } = before.jobs[0]!;
+    const { locationIds: _afterLocations, revision: _afterRevision, updatedAt: _afterTime, ...afterJob } = after.jobs[0]!;
+    assert.deepEqual(afterJob, beforeJob); assert.deepEqual(after.snapshots, before.snapshots); assert.deepEqual(after.compensations, before.compensations);
+    assert.deepEqual(after.companies, before.companies); assert.deepEqual(after.sources, before.sources);
+    assert.deepEqual(after.listings.find(entry => entry.id === second.listingId), originalOtherListing);
+    assert.ok(originalOtherListing.locationIds!.every(id => after.jobs[0]!.locationIds.includes(id)));
+    assert.deepEqual(after.locations.find(entry => entry.id === location.id), location);
+    const observation = after.observations.find(entry => !before.observations.some(prior => prior.id === entry.id))!;
+    assert.deepEqual(JSON.parse(observation.rawText!), prepared.input.capture);
+    assert.equal(JSON.parse(observation.rawText!).locations[0].evidence.kind, "visible-labelled-address");
+    assert.equal(observation.sourcePublishedAt, undefined); assert.equal(observation.snapshotId, undefined);
+    const repeated = await prepare(repo, { jobId: second.jobId, listingId: first.listingId }, visibleDisclosure());
+    const replayReceipt = await repeated.tools[1].execute(repeated.command, context("visible-new-key"));
+    assert.equal(replayReceipt.revision, receipt.revision); assert.equal(replayReceipt.counts.newObservations, 0); assert.deepEqual(await repo.readSnapshot(), after);
+  } finally { repo.close(); }
+});
+
+test("V2 visible region-only disclosures do not acquire street or country precision during preview/import", async () => {
+  const repo = openJobRepository(":memory:", { now: () => NOW });
+  try {
+    await seed(repo); const prepared = await prepare(repo, undefined, visibleDisclosure("上海 浦东新区 合成园区"));
+    const location = prepared.preview.newLocations[0]!;
+    assert.equal(location.raw, "上海 浦东新区 合成园区"); assert.equal(location.streetAddress, undefined); assert.equal(location.countryCode, undefined);
+    assert.equal(location.city, undefined); assert.equal(location.region, undefined); assert.equal(location.precision, "unknown"); assert.equal(location.coordinates, undefined);
+    await prepared.tools[1].execute(prepared.command, context("visible-region"));
+    assert.deepEqual((await repo.readSnapshot()).locations.find(entry => entry.id === location.id), location);
+  } finally { repo.close(); }
+});
+
+test("V2 altered visible evidence, injected administration, V1 visible and wrong provider fail before any write", async () => {
+  const repo = openJobRepository(":memory:", { now: () => NOW });
+  try {
+    await seed(repo); const prepared = await prepare(repo, undefined, visibleDisclosure()), saved = await repo.readSnapshot();
+    const capture = prepared.input.capture, location = capture.locations[0]!;
+    const changedLocations = [
+      { ...location, raw: "其他路200号" }, { ...location, streetAddress: "其他路200号" }, { ...location, countryCode: "CN" }, { ...location, city: "Shanghai" },
+      { ...location, evidence: { ...location.evidence, selector: "liepin-work-address[1]" } },
+      { ...location, evidence: { ...location.evidence, quote: JSON.stringify({ selector: "liepin-work-address", label: "公司地址", text: VISIBLE_STREET }) } },
+      { ...location, evidence: { ...location.evidence, quote: "{}" } },
+    ];
+    for (const changed of [...changedLocations.map(location => ({ ...capture, locations: [location] })), { ...capture, version: 1 },
+      { ...capture, provider: "boss", url: "https://www.zhipin.com/job_detail/synthetic123.html" }]) {
+      await assert.rejects(prepared.tools[0].execute({ ...prepared.input, capture: changed } as PreviewDetailLocationsInput, context("invalid-visible-preview")), hasCode("invalid-input"));
+      await assert.rejects(prepared.tools[1].execute({ ...prepared.command, capture: changed } as ImportDetailLocationsInput, context("invalid-visible-import")), hasCode("invalid-input"));
+      assert.deepEqual(await repo.readSnapshot(), saved);
+    }
   } finally { repo.close(); }
 });
 
@@ -280,7 +352,7 @@ test("office confirmation is permanently invalidated on address A to B to A and 
   } finally { repo.close(); }
 });
 
-test("authenticated HTTP preview/import exposes the complete same-index address flow and preserves JD", async () => {
+for (const [version, makeCapture] of [["V1 JSON-LD", disclosure], ["V2 visible", visibleDisclosure]] as const) test(`authenticated HTTP preview/import exposes the ${version} same-index address flow and preserves JD`, async () => {
   const repo = openJobRepository(":memory:", { now: () => NOW }); const target = await seed(repo);
   const app = createJobApplication({ repository: repo, now: () => NOW });
   const token = "synthetic-detail-locations-token-0123456789", origin = "http://synthetic-atlas.invalid";
@@ -290,7 +362,7 @@ test("authenticated HTTP preview/import exposes the complete same-index address 
     return { status: response.status, data: await response.json() as { ok: boolean; value: any } };
   };
   try {
-    const before = await repo.readSnapshot(); const input = { ...target, expectedRevision: before.revision, capture: disclosure() };
+    const before = await repo.readSnapshot(); const input = { ...target, expectedRevision: before.revision, capture: makeCapture() };
     assert.equal((await request("jobs/detail-locations/preview", input, undefined, false)).status, 401);
     const preview = await request("jobs/detail-locations/preview", input); assert.equal(preview.status, 200); assert.equal(preview.data.ok, true);
     assert.deepEqual(await repo.readSnapshot(), before);
@@ -298,6 +370,10 @@ test("authenticated HTTP preview/import exposes the complete same-index address 
     const first = await request("jobs/detail-locations/import", command, "http-detail"); assert.equal(first.status, 200); assert.equal(first.data.value.counts.newJobs, 0);
     assert.deepEqual((await request("jobs/detail-locations/import", command, "http-detail")).data.value, first.data.value);
     const after = await repo.readSnapshot(); assert.equal(after.jobs[0]!.description, before.jobs[0]!.description);
-    assert.equal(after.locations.find(entry => entry.id === after.jobs[0]!.locationIds[0])!.streetAddress, "Synthetic Road 10");
+    const storedLocation = after.locations.find(entry => entry.id === after.jobs[0]!.locationIds[0])!;
+    assert.equal(storedLocation.streetAddress, input.capture.locations[0]!.streetAddress);
+    assert.equal(storedLocation.evidence[0]!.selector, input.capture.locations[0]!.evidence.selector);
+    assert.equal(storedLocation.evidence[0]!.quote, input.capture.locations[0]!.evidence.quote);
+    assert.equal("kind" in storedLocation.evidence[0]!, false);
   } finally { await app.shutdown(); await server.close(); repo.close(); }
 });

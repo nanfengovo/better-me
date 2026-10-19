@@ -77,3 +77,65 @@ test("client transports preserve exact details but reject malformed fields and U
     for (const patch of [{ detailLocations: null }, { detailLocations: { ...parsed.detailLocations, url: "https://www.liepin.com/job/654321.shtml" } }, { detailLocations: { ...parsed.detailLocations, capturedAt: "2026-10-19T09:00:01.000Z" } }, { detailLocations: { ...parsed.detailLocations, provider: "boss" } }, { detailLocations: { ...parsed.detailLocations, locations: [{ ...parsed.detailLocations!.locations[0], streetAddress: "篡改街道" }] } }, { provenance: { ...payload.provenance, platform: "LinkedIn" } }, { provenance: { ...payload.provenance, platform: undefined } }, { provenance: { ...payload.provenance, kind: "screenshot" } }]) await assert.rejects(request({ ...payload, ...patch }), error => error instanceof JdExtractionError && error.failure.code === "service_unavailable");
   } finally { globalThis.fetch = originalFetch; }
 });
+
+const visibleOffice = { selector: "liepin-work-address", label: "工作地址", text: "上海市浦东新区合成办公路100号" } as const;
+const nativeOptions = { requireVisibleDescription: true, allowValidatedLiepinDescription: true, visibleOfficeDisclosures: [visibleOffice], capturedAt: at };
+function nativeHtml(metadata?: unknown) {
+  return `<title>合成研发岗位</title><h1>合成研发岗位</h1><link rel="canonical" href="${fixtures[1].url}">${metadata ? script(metadata) : ""}<section class="job-intro-container"><dl class="paragraph"><dt>职位描述</dt><dd>${description}</dd></dl></section>`;
+}
+
+test("native same-job visible office sidecar binds V2 and keeps address outside accepted JD and administrative facts", () => {
+  for (const metadata of [undefined, { ...posting(fixtures[1].url), jobLocation: undefined }]) {
+    const result = extractPublicJobHtml(nativeHtml(metadata), "猎聘", fixtures[1].url, nativeOptions);
+    assert.match(result.text, /C#/); assert.doesNotMatch(result.text, /合成办公路|工作地址/);
+    const capture = result.detailLocations!;
+    assert.ok(PlatformDetailLocationsSchema.safeParse(capture).success);
+    assert.equal(capture.version, 2); assert.equal(capture.url, fixtures[1].url); assert.equal(capture.capturedAt, at);
+    assert.equal(capture.locations[0].streetAddress, visibleOffice.text);
+    assert.equal(capture.locations[0].countryCode, undefined); assert.equal(capture.locations[0].city, undefined);
+    assert.equal(capture.locations[0].evidence.quote, JSON.stringify(visibleOffice));
+  }
+});
+
+test("visible office sidecars require the native flag, one adopted duties owner and a meaningful current title", () => {
+  for (const options of [{}, { ...nativeOptions, requireVisibleDescription: false }, { ...nativeOptions, allowValidatedLiepinDescription: false }, { ...nativeOptions, visibleOfficeDisclosures: [] }]) {
+    try { assert.equal(extractPublicJobHtml(nativeHtml(), "猎聘", fixtures[1].url, options).detailLocations, undefined); }
+    catch (error) { assert.ok(error instanceof JdExtractionError && error.failure.code === "unsupported_page"); }
+  }
+  for (const page of [nativeHtml().replace(/合成研发岗位/g, "职位详情"), nativeHtml().replace("职位描述", "工作地址"), nativeHtml().replace("job-intro-container", "job-intro-content"), nativeHtml().replace("</section>", `</section><section class="job-intro-container"><dl class="paragraph"><dt>工作地址</dt><dd>其他所有者</dd></dl></section>`), nativeHtml().replace("</section>", `<dl class="paragraph"><dt>岗位职责</dt><dd>${description}</dd></dl></section>`)]) {
+    try { assert.equal(extractPublicJobHtml(page, "猎聘", fixtures[1].url, nativeOptions).detailLocations, undefined); }
+    catch (error) { assert.ok(error instanceof JdExtractionError && error.failure.code === "unsupported_page"); }
+  }
+  const foreign = nativeHtml().replaceAll(fixtures[1].url, "https://www.liepin.com/job/999999.shtml");
+  assert.throws(() => extractPublicJobHtml(foreign, "猎聘", fixtures[1].url, nativeOptions), error => error instanceof JdExtractionError && error.failure.code === "job_mismatch");
+  const unsupported = nativeHtml().replaceAll(fixtures[1].url, "https://www.liepin.com/job/unknown.shtml");
+  assert.throws(() => extractPublicJobHtml(unsupported, "猎聘", "https://www.liepin.com/job/unknown.shtml", nativeOptions), error => error instanceof JdExtractionError && error.failure.code === "unsupported_page");
+});
+
+test("visible office cannot override conflicting, malformed or remote metadata, and identical structured street keeps V1", () => {
+  const target = posting(fixtures[1].url);
+  for (const metadata of [target, { ...target, jobLocation: { address: { addressLocality: 42 } } }, { ...target, jobLocation: { address: { addressLocality: "上海" } } }]) {
+    const result = extractPublicJobHtml(nativeHtml(metadata), "猎聘", fixtures[1].url, nativeOptions);
+    assert.equal(result.detailLocations, undefined); assert.match(result.text, /C#/);
+  }
+  const remote = extractPublicJobHtml(nativeHtml({ ...target, jobLocation: undefined, jobLocationType: "TELECOMMUTE" }), "猎聘", fixtures[1].url, nativeOptions);
+  assert.equal(remote.detailLocations?.workMode, "remote"); assert.deepEqual(remote.detailLocations?.locations, []);
+  const consistent = extractPublicJobHtml(nativeHtml({ ...target, jobLocation: { address: { streetAddress: visibleOffice.text } } }), "猎聘", fixtures[1].url, nativeOptions);
+  assert.equal(consistent.detailLocations?.version, 1); assert.equal(consistent.detailLocations?.locations[0].streetAddress, visibleOffice.text);
+  const rejectedMetadata = nativeHtml({ ...target, description: "metadata summary is too short", jobLocation: undefined });
+  assert.equal(extractPublicJobHtml(rejectedMetadata, "猎聘", fixtures[1].url, nativeOptions).detailLocations, undefined);
+});
+
+test("client accepts native V2 evidence with exact binding and rejects changed quote, provider, timestamp and address", async () => {
+  const parsed = extractPublicJobHtml(nativeHtml(), "猎聘", fixtures[1].url, nativeOptions);
+  const payload = { ...parsed, provenance: { kind: "link", platform: "猎聘", url: fixtures[1].url, observedAt: at } };
+  const originalFetch = globalThis.fetch;
+  const request = async (value: unknown) => { globalThis.fetch = async () => new Response(JSON.stringify(value)); return extractJdLink(fixtures[1].url, new AbortController().signal); };
+  try {
+    assert.deepEqual((await request(payload)).detailLocations, parsed.detailLocations);
+    const location = parsed.detailLocations!.locations[0];
+    for (const patch of [{ provider: "linkedin" }, { capturedAt: "2026-10-19T09:00:01.000Z" }, { locations: [{ ...location, streetAddress: "另一条合成路1号" }] }, { locations: [{ ...location, evidence: { ...location.evidence, quote: JSON.stringify({ ...visibleOffice, text: "篡改路1号" }) } }] }]) {
+      await assert.rejects(request({ ...payload, detailLocations: { ...parsed.detailLocations, ...patch } }), error => error instanceof JdExtractionError && error.failure.code === "service_unavailable");
+    }
+  } finally { globalThis.fetch = originalFetch; }
+});

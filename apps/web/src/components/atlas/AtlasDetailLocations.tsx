@@ -108,7 +108,7 @@ function DetailLocationReader({ endpoint, token, data, target, onSnapshot, onOff
     const value = result.detailLocations;
     const identity = value && reviewedCardIdentity(value.url, target.provider), expected = reviewedCardIdentity(target.url, target.provider);
     if (result.provenance.edited || !value || !identity || identity.id !== expected?.id || value.provider !== target.provider || !value.locations.length) {
-      setMessage("原岗位正文已读取，但没有可核对的结构化工作地址。当前地点保持不变；可打开原文核对工作地址。"); return;
+      setMessage("原岗位正文已读取，但没有可核对的来源工作地址。当前地点保持不变；可打开原文核对工作地址。"); return;
     }
     setCapture(value); setMessage(`已读取 ${value.locations.length} 个来源地点，请核对后预览。尚未保存地址或坐标。`);
   }

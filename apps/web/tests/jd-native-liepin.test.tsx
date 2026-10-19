@@ -480,6 +480,28 @@ test("native Liepin new validated DD structure reaches both inspect and read wit
   } finally { await f.manager.stopBrowser(); }
 });
 
+test("native Liepin forwards only validated same-job visible office sidecars and waits for their own stability", async () => {
+  const f = fixture();
+  const pageHtml = `<title>本地猎聘工程师</title><link rel="canonical" href="${source}"><section class="job-intro-container"><dl class="paragraph"><dt>职位描述</dt><dd>${description}</dd></dl></section>`;
+  const snapshot = (text: string): NativeCapture => ({ state: "ready", identity: "same-document", snapshot: {
+    html: pageHtml, url: source, title: "本地猎聘工程师", pageLoad: { readyState: "complete", content: "visible_text", visibleFrames: 0 },
+    visibleOfficeDisclosures: [{ selector: "liepin-work-address", label: "工作地址", text }],
+  } });
+  f.setSnapshot(snapshot("合成办公路100号"));
+  f.onCapture(count => f.setSnapshot(snapshot(count < 5 ? "合成办公路100号" : "另一合成路200号")));
+  const session = await f.manager.start("owner", source);
+  try {
+    const result = await f.manager.read("owner", session.sessionId);
+    assert.ok(f.captures >= 9, "unchanged JD cannot hide an address change during the 800ms stability interval");
+    assert.equal(result.detailLocations?.version, 2); assert.equal(result.detailLocations?.url, source);
+    assert.equal(result.detailLocations?.capturedAt, result.provenance.observedAt);
+    assert.equal(result.detailLocations?.locations[0].streetAddress, "另一合成路200号");
+    assert.doesNotMatch(result.text, /办公路|合成路|工作地址/);
+    f.onCapture(() => undefined); f.setCurrent(false);
+    await assert.rejects(f.manager.read("owner", session.sessionId), isFailure("unsupported_page"));
+  } finally { await f.manager.stopBrowser(); }
+});
+
 test("native Liepin inspect and read do not turn address paragraphs or independent descriptions into one original job", async () => {
   for (const kind of ["address", "independent", "canonical_conflict"] as const) {
     const f = fixture(); const original = `<dl class="paragraph"><dt>职位描述</dt><dd>${description}</dd></dl>`;

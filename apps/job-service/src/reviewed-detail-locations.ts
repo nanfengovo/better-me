@@ -79,7 +79,7 @@ export function createReviewedDetailLocationsTools(options: { repository: JobRep
       const id = await deriveEntityId("location", [listing.id, "reviewed-detail-locations", digest({ ...address, kind })]);
       const location = JobLocationSchema.parse({ ...address, id, kind,
         precision: address.city ? "city" : address.region ? "region" : address.countryCode ? "country" : "unknown",
-        verification: "unverified", evidence: [{ observationId, sourceUrl: capture.url, observedAt: capture.capturedAt, ...evidence }] });
+        verification: "unverified", evidence: [{ observationId, sourceUrl: capture.url, observedAt: capture.capturedAt, selector: evidence.selector, quote: evidence.quote }] });
       const existing = locations.find(entry => entry.id === id);
       if (existing) existing.evidence.push(...location.evidence.filter(entry => !existing.evidence.some(prior => digest(prior) === digest(entry))));
       else locations.push(location);

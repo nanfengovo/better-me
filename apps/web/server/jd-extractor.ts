@@ -8,7 +8,7 @@ import { browserSessionManager } from "./jd-browser-session";
 import type { JobSessionBackend } from "./jd-session-router";
 import { isJdStartRequestId } from "../src/lib/jd-start-request";
 import { isLiepinDescriptionHeading, isLiepinRequirementsHeading } from "./jd-liepin-description";
-import { PlatformDetailLocationsSchema, parsePlatformJobLocations, platformDetailProvider, type PlatformDetailLocations } from "@better-me/source-adapters/platform-detail-locations";
+import { PlatformDetailLocationsSchema, parsePlatformJobLocations, parsePlatformVisibleOfficeLocations, platformDetailProvider, type PlatformDetailLocations, type PlatformVisibleOfficeDisclosure } from "@better-me/source-adapters/platform-detail-locations";
 
 const MAX_PAGE_BYTES = 2 * 1024 * 1024;
 const BLOCKED_MESSAGE = "平台未公开返回岗位正文，可能需要登录、验证码或页面加载。请打开原岗位页面，截图后用视觉识别，或手动粘贴文字。";
@@ -140,7 +140,7 @@ function postingUrls(posting: Record<string, unknown>): string[] {
   return urls;
 }
 
-export function extractPublicJobHtml(html: string, platform: JobPlatform, sourceUrl?: string, options: { requireVisibleDescription?: boolean; allowValidatedBossShareDescription?: boolean; allowValidatedLiepinDescription?: boolean; capturedAt?: string } = {}): { text: string; title?: string; method: string; detailLocations?: PlatformDetailLocations } & JdSourcePublication {
+export function extractPublicJobHtml(html: string, platform: JobPlatform, sourceUrl?: string, options: { requireVisibleDescription?: boolean; allowValidatedBossShareDescription?: boolean; allowValidatedLiepinDescription?: boolean; visibleOfficeDisclosures?: readonly PlatformVisibleOfficeDisclosure[]; capturedAt?: string } = {}): { text: string; title?: string; method: string; detailLocations?: PlatformDetailLocations } & JdSourcePublication {
   const $ = load(html);
   // Observed public 51job response identifies its JavaScript challenge with these meta names.
   // Inspect the marker only; never execute challenge code or persist its content/cookies.
@@ -278,6 +278,26 @@ export function extractPublicJobHtml(html: string, platform: JobPlatform, source
   }
   const independent = [...candidates].filter((text, index, all) => !all.some((other, otherIndex) => otherIndex !== index && other.includes(text) && other.length > text.length));
   const compact = (text: string) => text.replace(/\s+/g, "");
+  // The sidecar is available only from the native CSS/text-range projector. A
+  // generic visible snapshot, raw HTML, address-like prose or an unowned sibling
+  // must never enable it. The accepted JD still has its original identity gates.
+  const visibleOfficeCapture = (): PlatformDetailLocations | undefined => {
+    if (!validatedLiepinDescription || !source || independent.length !== 1 || !options.visibleOfficeDisclosures?.length) return;
+    const title = primaryHeading || pageTitle;
+    if (title.length < 2 || /^(?:职位详情|岗位详情|职位搜索|岗位搜索|招聘|job details?|jobs?)(?:\s*[|·:：_—-]|$)/i.test(title)) return;
+    const sections = $("section.job-intro-container").filter((_index, section) => !$(section).closest(excludedRegions).length);
+    if (sections.length !== 1) return;
+    const duties = sections.children("dl.paragraph").filter((_index, element) => $(element).children("dt").toArray()
+      .some(heading => isLiepinDescriptionHeading(cleanJobHtml($(heading).html() ?? ""))));
+    if (duties.length !== 1 || !duties.children("dd").toArray().some(element => {
+      const text = cleanJobHtml($(element).html() ?? "");
+      return text.length >= 40 && compact(independent[0]!).includes(compact(text));
+    })) return;
+    const parsed = parsePlatformVisibleOfficeLocations(options.visibleOfficeDisclosures);
+    if (!parsed) return;
+    const capture = PlatformDetailLocationsSchema.safeParse({ version: 2, provider: "liepin", url: source.toString(), capturedAt: options.capturedAt ?? new Date().toISOString(), ...parsed });
+    return capture.success ? capture.data : undefined;
+  };
   for (const posting of selected) {
     const description = cleanJobHtml(posting.description as string);
     if (description.length < 40) continue;
@@ -317,11 +337,29 @@ export function extractPublicJobHtml(html: string, platform: JobPlatform, source
         if (capture.success) detailLocations = capture.data;
       }
     }
+    const visibleCapture = visibleOfficeCapture();
+    if (visibleCapture) {
+      // Never manufacture one office by combining conflicting metadata with a
+      // visible disclosure. Explicit remote metadata retains its own semantics.
+      const metadata = postings.filter(candidate => postingKey(candidate) === postingKey(posting)
+        && (candidate.jobLocation !== undefined || candidate.jobLocationType !== undefined));
+      if (!metadata.length) detailLocations = visibleCapture;
+      else if (detailLocations && detailLocations.workMode !== "remote") {
+        const streets = detailLocations.locations.map(location => location.streetAddress);
+        const visibleStreets = visibleCapture.locations.map(location => location.streetAddress);
+        if (streets.some(street => !street) || visibleStreets.some(street => !street)
+          || JSON.stringify([...streets].sort()) !== JSON.stringify([...visibleStreets].sort())) detailLocations = undefined;
+      }
+    }
     return { text: [title, company, fullDescription].filter(Boolean).join("\n\n"), title, method: fullDescription === description ? "JobPosting 结构化正文" : "结构化信息 + 公开岗位详情正文", ...publication, ...(detailLocations ? { detailLocations } : {}) };
   }
   for (const text of candidateTexts) checkDescriptionGate(text);
   if (independent.length > 1) pageFailure("ambiguous_jobs", "页面包含多份不同岗位正文，请打开一个具体岗位详情后复制链接，或截图识别。");
-  if (independent[0]) return { text: [pageTitle, independent[0]].filter(Boolean).join("\n\n"), title: pageTitle || undefined, method: "公开岗位详情正文" };
+  if (independent[0]) {
+    // Unaccepted or other-job metadata cannot be used to bypass location gates.
+    const detailLocations = postings.length ? undefined : visibleOfficeCapture();
+    return { text: [pageTitle, independent[0]].filter(Boolean).join("\n\n"), title: pageTitle || undefined, method: "公开岗位详情正文", ...(detailLocations ? { detailLocations } : {}) };
+  }
   pageFailure("unsupported_page");
 }
 

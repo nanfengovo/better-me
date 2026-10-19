@@ -2,7 +2,7 @@ import path from "node:path";
 import { isIP } from "node:net";
 import { allowedBrowserResource, isBrowserVerificationUrl } from "./jd-browser";
 import type { BrowserSessionInspection } from "./jd-browser-session";
-import type { BrowserSnapshot } from "./jd-browser-snapshot";
+import { validateBrowserSnapshot, type BrowserSnapshot } from "./jd-browser-snapshot";
 import { closeNativeTarget, nativeUnavailable, type NativeTargetList } from "./jd-native-cdp";
 import { abortNative, startNativeEdge, inspectNativeProfileOccupancy, NativeEdgeStartupError, type NativeEdge } from "./jd-native-edge";
 import { NATIVE_SNAPSHOT_STYLES, NATIVE_ROOT_SCROLL_STYLES, NATIVE_LIEPIN_PARAGRAPH_STYLES, isOriginalLiepinJob, projectNativeDomSnapshot, NativeDomSnapshotError } from "./jd-cdp-dom-snapshot";
@@ -418,6 +418,7 @@ export function createNativeLiepinBrowser(options: NativeBrowserOptions = {}): N
         const beforeFailure = frameFailure(before);
         if (beforeFailure) return { state: "failed", diagnostic: { stage: "document_state", reason: beforeFailure } };
         const key = identity(before);
+        const snapshotGeneration = generation;
         if (!allowedBrowserResource(before.url, platform)) return { state: "failed", failure: "snapshot_invalid", diagnostic: { stage: "document_state", reason: "source_rejected" } };
         const url = new URL(before.url);
         const knownGate = isBrowserVerificationUrl(before.url, platform) ? "verification_required"
@@ -472,7 +473,9 @@ export function createNativeLiepinBrowser(options: NativeBrowserOptions = {}): N
         await setupSettled(ownedEdge); abortNative(operationSignal);
         const adoptedFailure = frameFailure(adopted);
         if (adoptedFailure || key !== identity(adopted)) return { state: "navigation_in_progress", diagnostic: { stage: "post_projection", reason: adoptedFailure ?? "navigation_changed" } };
-        return { state: "ready", snapshot, identity: key };
+        const validated = validateBrowserSnapshot(snapshot, { url: before.url, navigation: snapshotGeneration }, { url: adopted.url, navigation: generation });
+        if (validated.state !== "ready" || !validated.snapshot) return { state: validated.state === "oversized" ? "oversized" : "failed", failure: "snapshot_invalid", diagnostic: { stage: "post_projection", reason: "projection_internal_error" } };
+        return { state: "ready", snapshot: validated.snapshot, identity: key };
       },
       async expandDescription(operationSignal, sourceUrl, expectedIdentity) {
         abortNative(operationSignal);

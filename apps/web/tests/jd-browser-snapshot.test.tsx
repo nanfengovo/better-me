@@ -38,3 +38,36 @@ test("diagnostics cannot cross platform, page identity or existing visibility me
   const other = "https://www.liepin.com/zhaopin/?key=other";
   assert.deepEqual(validateBrowserSnapshot({ ...snapshot, url: other }, position, position), { state: "failed" });
 });
+
+const officeUrl = "https://www.liepin.com/job/123456789.shtml";
+const officePosition = { url: officeUrl, navigation: 2 };
+const officeDisclosure = { selector: "liepin-work-address", label: "工作地址", text: "上海市浦东新区合成路100号 A座" };
+const officeSnapshot = { html: "<html><body>岗位正文</body></html>", url: officeUrl, title: "合成岗位", visibleOfficeDisclosures: [officeDisclosure] };
+
+test("visible office disclosures are separately validated and copied without becoming JD HTML", () => {
+  const result = validateBrowserSnapshot(officeSnapshot, officePosition, officePosition);
+  assert.equal(result.state, "ready"); assert.deepEqual(result.snapshot?.visibleOfficeDisclosures, [officeDisclosure]);
+  assert.notEqual(result.snapshot?.visibleOfficeDisclosures, officeSnapshot.visibleOfficeDisclosures);
+  assert.notEqual(result.snapshot?.visibleOfficeDisclosures?.[0], officeDisclosure);
+  assert.equal(result.snapshot?.html, officeSnapshot.html);
+  assert.equal(validateBrowserSnapshot({ ...officeSnapshot, visibleOfficeDisclosures: undefined }, officePosition, officePosition).state, "ready");
+});
+
+test("visible office sidecars reject forged shape, unnormalized text, unsupported selectors and excess budget", () => {
+  for (const invalid of [null, {}, [null], [{ ...officeDisclosure, selector: "boss-work-address" }],
+    [{ ...officeDisclosure, label: "公司地址" }], [{ ...officeDisclosure, text: "" }], [{ ...officeDisclosure, text: "x".repeat(1001) }],
+    [{ ...officeDisclosure, text: " 地址 " }], [{ ...officeDisclosure, text: "地址\n尾部" }], [{ ...officeDisclosure, text: "地址  尾部" }],
+    [{ ...officeDisclosure, text: "地址\u0000尾部" }], [{ ...officeDisclosure, text: "地址\ud800尾部" }],
+    [{ ...officeDisclosure, url: "https://example.invalid" }], Array.from({ length: 21 }, () => officeDisclosure),
+  ]) assert.deepEqual(validateBrowserSnapshot({ ...officeSnapshot, visibleOfficeDisclosures: invalid }, officePosition, officePosition), { state: "failed" });
+});
+
+test("visible office sidecars stay bound to a Liepin single job, a current observation and absence of gates", () => {
+  for (const url of ["https://www.liepin.com/zhaopin/?key=C%23", "https://www.zhipin.com/job_detail/synthetic.html", "https://www.linkedin.com/jobs/view/123456789/", "https://www.liepin.com.invalid/job/123456789.shtml"]) {
+    const samePosition = { url, navigation: 2 };
+    assert.deepEqual(validateBrowserSnapshot({ ...officeSnapshot, url }, samePosition, samePosition), { state: "failed" });
+  }
+  for (const gate of ["login_required", "verification_required"]) assert.deepEqual(validateBrowserSnapshot({ ...officeSnapshot, gate }, officePosition, officePosition), { state: "failed" });
+  assert.deepEqual(validateBrowserSnapshot(officeSnapshot, officePosition, { ...officePosition, navigation: 3 }), { state: "navigation_in_progress" });
+  assert.deepEqual(validateBrowserSnapshot(officeSnapshot, officePosition, { ...officePosition, url: officeUrl.replace("123456789", "987654321") }), { state: "navigation_in_progress" });
+});

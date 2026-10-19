@@ -69,6 +69,34 @@ function rootScrollSnapshot(raw: ReturnType<typeof snapshot>) {
   }] };
 }
 
+function visibleOfficeSnapshot(raw: ReturnType<typeof snapshot>, clipped = false) {
+  const scoped = rootScrollSnapshot(raw), doc = scoped.documents[0]!;
+  const str = (value: string) => { const at = scoped.strings.indexOf(value); return at >= 0 ? at : scoped.strings.push(value) - 1; };
+  const baseStyle = [...doc.layout.styles[1]!, str("normal")];
+  const nodes = { nodeType: [] as number[], parentIndex: [] as number[], nodeName: [] as number[], nodeValue: [] as number[], backendNodeId: [] as number[], attributes: [] as number[][] };
+  const layout = { nodeIndex: [] as number[], styles: [] as number[][], bounds: [] as number[][], text: [] as number[], textColorOpacities: [] as number[], offsetRects: [] as number[][], clientRects: [] as number[][], scrollRects: [] as number[][] };
+  const textBoxes = { layoutIndex: [] as number[], bounds: [] as number[][], start: [] as number[], length: [] as number[] };
+  const add = (name: string, parent: number, text?: string, className?: string) => {
+    const index = nodes.nodeType.length, type = name === "#document" ? 9 : name === "#text" ? 3 : 1;
+    nodes.nodeType.push(type); nodes.parentIndex.push(parent); nodes.nodeName.push(str(name)); nodes.nodeValue.push(type === 3 ? str(text ?? "") : -1); nodes.backendNodeId.push(index + 1); nodes.attributes.push(className ? [str("class"), str(className)] : []);
+    if (name !== "#document" && name !== "HEAD") {
+      const row = layout.nodeIndex.length;
+      layout.nodeIndex.push(index); layout.styles.push(type === 3 ? [] : [...baseStyle]); layout.bounds.push([0, 0, 900, 100]); layout.text.push(type === 3 ? str(text ?? "") : -1); layout.textColorOpacities.push(1); layout.offsetRects.push([]); layout.clientRects.push([]); layout.scrollRects.push([]);
+      if (text) { textBoxes.layoutIndex.push(row); textBoxes.bounds.push([0, 0, 900, 100]); textBoxes.start.push(0); textBoxes.length.push(text.length); }
+    }
+    return index;
+  };
+  const root = add("#document", -1), html = add("HTML", root); add("HEAD", html); const body = add("BODY", html);
+  const section = add("SECTION", body, undefined, "job-intro-container");
+  const duties = add("DL", section, undefined, "paragraph"), dutiesDt = add("DT", duties); add("#text", dutiesDt, "职位描述"); const dutiesDd = add("DD", duties); add("#text", dutiesDd, "SYNTHETIC_NATIVE_OFFICE_JD：维护企业软件系统，分析生产问题，编写维护文档并完成回归。任职要求：熟悉网络、数据库及异步编程。");
+  const address = add("DL", section, undefined, "paragraph"), addressDt = add("DT", address); add("#text", addressDt, "工作地址："); const addressDd = add("DD", address); add("#text", addressDd, "上海市浦东新区合成办公路100号 A座");
+  if (clipped) layout.styles[layout.nodeIndex.indexOf(addressDd)]![NATIVE_SNAPSHOT_STYLES.indexOf("text-overflow")] = str("ellipsis");
+  for (const node of [html, body]) {
+    const row = layout.nodeIndex.indexOf(node); layout.bounds[row] = [0, 0, 1000, 1000]; layout.offsetRects[row] = [0, 0, 1000, 1000]; layout.clientRects[row] = [0, 0, 1000, 1000]; layout.scrollRects[row] = [0, 0, 1000, 1000];
+  }
+  return { strings: scoped.strings, documents: [{ ...doc, scrollOffsetY: 0, nodes, layout, textBoxes }] };
+}
+
 /** This transport never creates a process or sends a network request. */
 function fixture(browserOptions: Pick<NativeBrowserOptions, "networkMode" | "verifyManagedProxy" | "platform" | "profileDirectory"> = {}) {
   let frame: Frame = { id: "main", loaderId: "initial", url: "about:blank" };
@@ -963,6 +991,23 @@ test("native original Liepin capture brackets the extended snapshot with fresh s
     assert.equal(f.calls.some(call => ["Page.navigate", "Runtime.enable", "Runtime.evaluate", "Runtime.callFunctionOn"].includes(call.method)), false);
     assert.equal(page.inspect().mainDocumentRequests, 1); assert.equal(page.closed, false);
   } finally { await f.browser.stop(); }
+});
+
+test("native owned same-job capture returns only validated office sidecars and keeps address CSS optional for its JD", async () => {
+  for (const clipped of [false, true]) {
+    const f = fixture(), page = await f.browser.acquire(undefined, signal());
+    try {
+      f.commit("original", "loader"); f.setRawCapture(raw => visibleOfficeSnapshot(raw, clipped));
+      const result = await page.capture(signal(), 1000, source);
+      assert.equal(result.state, "ready"); assert.ok(result.identity); assert.ok(result.snapshot?.html.includes("SYNTHETIC_NATIVE_OFFICE_JD"));
+      assert.doesNotMatch(result.snapshot!.html, /合成办公路100号|工作地址/);
+      assert.deepEqual(result.snapshot?.visibleOfficeDisclosures, clipped ? undefined : [{ selector: "liepin-work-address", label: "工作地址", text: "上海市浦东新区合成办公路100号 A座" }]);
+      assert.equal(result.snapshot?.url, source); assert.equal(await page.current(result.identity!, signal()), true);
+      assert.equal(f.calls.filter(call => call.method === "DOM.getDocument").length, 2);
+      assert.equal(f.calls.some(call => ["Page.navigate", "Runtime.enable", "Runtime.evaluate", "Runtime.callFunctionOn"].includes(call.method)), false);
+      assert.equal(page.inspect().mainDocumentRequests, 1);
+    } finally { await f.browser.stop(); }
+  }
 });
 
 test("native original Liepin capture scopes validated description geometry while preserving the owned document evidence", async () => {

@@ -613,6 +613,7 @@ export function projectNativeDomSnapshot(
   let adopted: Set<number> | undefined;
   let liepinParagraphNodes: Set<number> | undefined;
   const liepinRequirements: number[] = [];
+  const liepinOfficeCandidates: number[] = [];
   let bossDescriptionCandidates: number[] = [];
   const bossScoped = options.scope === "boss-share" && isOriginalBossShare(frame.url, options.sourceUrl);
   const liepinScoped = options.scope === "liepin-job" && rootScrollMode && identifiedHtmlRoot;
@@ -663,6 +664,22 @@ export function projectNativeDomSnapshot(
               || !node.children.some(child => nodes[child].name === "DT" && isLiepinRequirementsHeading(publicText(child)))) continue;
           liepinRequirements.push(index);
           if (!candidates.includes(index)) candidates.push(index);
+        }
+      }
+      // Address evidence belongs only to the single adopted duties section.
+      // Keep these nodes outside `adopted`: address failures must not add a new
+      // JD failure, and the JD HTML must continue to omit address paragraphs.
+      if (dutiesBySection.size === 1) {
+        const [section, duties] = [...dutiesBySection][0];
+        if (duties.length === 1 && candidates.every(index => nodes[index].name === "DL" && nodes[index].parent === section)) {
+          for (const index of nodes[section].children) {
+            const node = nodes[index];
+            if (node.type !== 1 || node.name !== "DL" || !hasClass(index, "paragraph") || duties.includes(index)) continue;
+            const headings = node.children.filter(child => nodes[child].type === 1 && nodes[child].name === "DT");
+            if (headings.length !== 1) continue;
+            const label = publicText(headings[0]).replace(/\s+/gu, "").replace(/[:：]$/u, "");
+            if (label === "工作地址" || label === "工作地点") liepinOfficeCandidates.push(index);
+          }
         }
       }
     }
@@ -797,6 +814,51 @@ export function projectNativeDomSnapshot(
     for (const paragraph of paragraphs) if (!completeRequirements(paragraph).trim()) fail("snapshot_visibility_unsupported", "text_range_gap");
   }
   if (foldedBossCandidate !== undefined) fail("snapshot_visibility_unsupported", "boss_description_collapsed");
+  const visibleOfficeDisclosures: NonNullable<BrowserSnapshot["visibleOfficeDisclosures"]> = [];
+  if (liepinOfficeCandidates.length <= 20) {
+    // Only rendered ranges supply output. Raw node values may reject an omitted
+    // suffix but never backfill one. These checks are additive to the unchanged
+    // full-page gate/text semantics above; unsupported address CSS omits only
+    // this sidecar, while an existing global JD rejection remains a rejection.
+    const completeOfficeText = (index: number): string | undefined => {
+      const node = nodes[index];
+      if (node.special || hidden(index) || excluded(index) || transparent(index)) return;
+      if (node.type === 3) {
+        const meaningful = node.value.trim() || node.layouts.some(layout => layout.text.trim());
+        if (!visible(index)) return meaningful ? undefined : "";
+        if (!ordinaryRootText(index) || unsupported(index)) return;
+        return renderedText(index, false, ordinaryRootText(index));
+      }
+      if (node.type !== 1 || !ordinaryElementChain(index) || unsupported(index)
+        || ["BUTTON", "SVG", "CANVAS", "VIDEO", "AUDIO", "OBJECT", "EMBED", "IMG"].includes(node.name)
+        || node.layouts.some(row => !row.bounds[2] || !row.bounds[3])) return;
+      const parts: string[] = [];
+      for (const child of node.children) {
+        const text = completeOfficeText(child);
+        if (text === undefined) return;
+        parts.push(text);
+      }
+      return node.name === "BR" ? "\n" : parts.join("") + (/^(?:P|DIV|LI|SECTION|ARTICLE|TR)$/.test(node.name) ? "\n" : "");
+    };
+    for (const index of liepinOfficeCandidates) {
+      try {
+        const node = nodes[index];
+        const headings = node.children.filter(child => nodes[child].type === 1 && nodes[child].name === "DT");
+        const contents = node.children.filter(child => nodes[child].type === 1 && nodes[child].name === "DD");
+        if (headings.length !== 1 || contents.length !== 1 || node.children.some(child => nodes[child].type === 1
+          ? !headings.includes(child) && !contents.includes(child) : nodes[child].type === 3 && !!nodes[child].value.trim())) continue;
+        const headingText = completeOfficeText(headings[0]), contentText = completeOfficeText(contents[0]);
+        if (headingText === undefined || contentText === undefined) continue;
+        const label = headingText.replace(/\s+/gu, "").replace(/[:：]$/u, "");
+        const text = contentText.replace(/\s+/gu, " ").trim();
+        if ((label !== "工作地址" && label !== "工作地点") || !text || text.length > 1000 || /[\p{Cc}\p{Cs}]/u.test(text)) continue;
+        visibleOfficeDisclosures.push({ selector: "liepin-work-address", label, text });
+      } catch (error) {
+        if (!(error instanceof NativeDomSnapshotError)) throw error;
+        // A failed optional address proof never broadens or fails the JD proof.
+      }
+    }
+  }
   const metadata: string[] = [];
   const content = (index: number): string => nodes[index].type === 3 ? nodes[index].value : nodes[index].children.map(content).join("");
   const hasAncestor = (index: number, name: string): boolean => {
@@ -845,5 +907,5 @@ export function projectNativeDomSnapshot(
   };
   const html = `<html><head>${metadata.join("")}</head>${render(bodyIndex)}</html>`;
   if (Buffer.byteLength(html, "utf8") > MAX_HTML_BYTES) fail("snapshot_limit_exceeded");
-  return { html, url: frame.url, title, pageLoad: { readyState: load.readyState, content: hasText ? "visible_text" : visibleFrames ? "embedded_content" : "empty", visibleFrames } };
+  return { html, url: frame.url, title, ...(visibleOfficeDisclosures.length ? { visibleOfficeDisclosures } : {}), pageLoad: { readyState: load.readyState, content: hasText ? "visible_text" : visibleFrames ? "embedded_content" : "empty", visibleFrames } };
 }
