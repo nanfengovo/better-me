@@ -286,3 +286,16 @@ Web 展开“来源工具 → 企业官网招聘”后才读配置，点击发�
 ## 独立城市分布参考
 
 `locations.map-references` 从同版本地点的明确国家与完整城市名，在已分发的离线地名数据内唯一匹配；返回城市估算、出处、完整地点指纹与实际处理范围，不写库、不核实办公地址、不计算离家距离。`jobs.search` 可传 `mapCityReferences: true` 使用同一工具，结果另含城市参考与地图可见并集统计，既有 `mappedJobs` 仍只计来源坐标。每批最多 1,000 地点，超出明确 `truncated`；未知、冲突与远程资格不填造坐标。Web 的双击城市定位、版本／取消隔离及验证边界见[城市参考报告](../../docs/reports/job-atlas-city-references-2026-10-19.md)。
+
+
+## 通用 JobPosting JSON-LD 来源
+
+已安装 `jobposting-jsonld@1`，复用 `sources.register`、`sources.preview`、`sources.sync`、`jobs.search` 和 `jobs.read-detail`。读取 [JSON 示例](../../config/sources/jobposting-jsonld.example.json)，先核对官网、条款、域名／路径和清单，再显式启用；分发示例与目录均默认禁用待审，不覆盖已登记来源。`options.companyName` 仅供企业招聘入口关联，不会填入缺失的真实雇主。
+
+`enumerationKind` 为 `sitemap-urlset` 或 `html-list`；`enumerationUrls` 为同源1–20个受审地址，`entryUrl` 必须等于第一项；`postingPathPrefixes` 限定岗位路径，`pageSize` 为1–20。可选 `priorityPostingUrls` 仅调整本次真实清单中已有地址的队列次序，不直接造岗位。所有请求仍经过已登记 endpointPolicy、公开DNS、HTTPS、禁止跳转及请求／字节／超时预算；不递归 sitemap index、不猜分页、不执行网站脚本或远程 JSON-LD context。
+
+静态HTML以 parse5 的WHATWG解析读取真实锚点，XML以saxes拒绝DTD／实体／畸形结构；每页2MiB、最多10,000候选URL，节点／深度／JSON脚本另有限额。候选URL数、实际详情请求数、返回记录数和本地匹配数分别计量。游标绑定来源配置、完整关注范围及本次队列；队列变化拒绝旧游标。404或不可用结构标partial，timeout保留成功结果并停止后续详情／续页，401／403／429及安全／预算错误不当空岗位。
+
+角色／地区／国家／企业条件按已读字段本地筛选，无上游搜索承诺。每次新sync从有限队首开始，不提供跨次采集进度；ABB示例每页3详情、最多2页6个尝试，两个优先样本不等于搜遍ABB。缺雇主只保留线索，FULL_TIME不推定社招；date-only保留raw而不补午夜，薪资仅原文不进入可比税前年薪，城市geo不成为办公室或距离。国家只从明确country字段匹配共享249项ISO白名单及Node/ICU英中名称、有限既有别名，未知保留原文。
+
+企业搜索可关联已登记同名源；陌生企业仍需官网线索／已配置宿主搜索与另行审核，不能据零命中认定官网无岗位。源码编译后仍需保留根目录 `config/geography/countries.json`；现有仓库与Docker构建布局已包含它。静态Pages／Docker网页需连接独立本机服务，并不内置这个采集后台。实测与限制见[官网结构化来源报告](../../docs/reports/job-atlas-jsonld-sources-2026-10-19.md)。

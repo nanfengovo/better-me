@@ -2,7 +2,7 @@
 
 ## 当前焦点
 
-2026-10-19：真实岗位城市分布参考已落地并推送fe89dc0；25文件冻结树f38ea445通过2155/2155、types10/10、lint、build6/6。完整备份后原5178更新，自有session1288／PID74392，原dataset/token哈希不变、87岗／rev64；C#全球50／35企业，国内26／22，上海25／21。72地点得到34参考／3地名，国内26与上海25可显示城市估算，原mapped0、距离不变；无新私人UI目视。远端CI39184573691质量／Linux构建／Docker／Pages四任务success。当前继续通用JobPosting JSON-LD＋受审清单协议，3名子Agent分别reader／枚举Schema／adapter；新加htmlparser2及saxes依赖在工作树，未发布，不混Career。完整Goal active。
+2026-10-19：通用官网JSON-LD功能d00ed1e与Docker许可白名单修复af903e9已推送；24文件树a152cc42通过2234/2234、types10、lint、build6／97依赖许可；fix隔离Docker280HTTP通过。原5178更新为自有session88446／PID57336，备份quick_check通过；live同步首详情timeout partial0，未重试／降3600间隔，随后SHA核验原公开响应经新版离线解析＋public导入2条ABB到89岗／rev66，保留原观察时点；C#全球52／36企业、国内26／22、上海25／21，无办公室坐标。用户最新反馈桌面详情底部大抽屉不适用，要求右侧同屏与双击精确办公地址：detail_tool做桌面布局；connection_restore只读地址证据／确认架构核查，下一步高精度工具接续。Career并行保留、Goal active。
 
 ## 卡点
 
@@ -19,6 +19,7 @@
 
 ## 必读附加
 
+- docs/reports/job-atlas-jsonld-sources-2026-10-19.md（通用JSON-LD、2234隔离回归、实时timeout与原响应导入分开、Docker许可）
 - docs/reports/job-atlas-city-references-2026-10-19.md（独立城市分布、2155隔离回归、87岗真实HTTP与发布范围）
 - docs/reports/job-atlas-import-location-2026-10-19.md（入库成功后接续地区核对、96相关回归与合成真实应用联动）
 - docs/reports/job-atlas-career-web-search-2026-10-19.md（provider／独立访问策略、2099／2109与meta修复223检查、真实挑战与未完成闭环）

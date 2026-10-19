@@ -4,6 +4,8 @@
 
 ## 当前交付
 
+- [x] 2026-10-19 通用官网JSON-LD d00ed1e与Docker许可白名单af903e9已推送；parse5 WHATWG／saxes、受审清单／同源身份／有限预算／企业关联与原始日期，24文件树a152cc42的2234/2234、types10、lint、build6、97依赖许可通过；fix隔离Docker280HTTP通过。原5178更新session88446/PID57336，live首详情timeout partial0且间隔保留；SHA核验原真实公开响应禁止网络重放并public导入ABB2岗到89／rev66，原观察时点不改。全球C#52／36、国内26／22、上海25／21，无办公坐标／私人UI目视；CI继续核。不混Career，Goal active。
+
 - [x] 2026-10-19 独立城市分布参考fe89dc0已正常推送：严格国家+唯一整词城市、完整地点指纹/revision、独立query桶与并集统计、详情出处、双击zoom9、取消/404/重试及旧选择清理；不写source coords或距离。25文件树f38ea445经离线冻结安装、memory、types10、lint、2155/2155、build6通过。完整备份后原5178自有session1288/PID74392已更新，87岗/rev64及dataset/token哈希不变；C#全球50/35、国内26/22、上海25/21；国内26均可城市参考展示但原mapped0。CI39184573691质量／Linux构建／Docker／Pages四任务success，无新私人UI目视。
 
 - [x] 2026-10-19 卡片导入成功后接续地区核对：仅回执jobIds对应的实际地点，成功快照须不低于回执和父版本；lazy复用原地区预览／确认，版本变更、身份切换、关闭及重读隔离迟到回调，失败只GET重读，不重写卡片。2文件独立树b0c36f9b通过96/96相关回归、types10/10、lint、Web build；独立真实React→service-client→工具→内存SQLite的固定国内上海C#查询0→0→1，两个写各1次、mapped0，无真实岗位新增。原85岗／rev59及并行Career保留；9419438旧Windows测试文件级失败未复现（旧源码全套2116/2116），未削弱检查或猜定原因；e862b08正常推送，Actions39182359402质量／Linux构建／Docker／Pages四任务success；公网首页与4个JS均200，核新导入地区入口、版本提示及连接恢复，未称私人UI目视。详见导入地区报告。
