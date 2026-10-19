@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolError, type JobLocation, type ToolHandlerContext } from "@better-me/opportunities";
 import { createControlledSourceTransport, SourceTransportError, type SourceTransport } from "@better-me/source-adapters";
-import { createNominatimOfficeProvider } from "../src/office-address-provider.js";
+import { createNominatimOfficeProvider, parseNominatimOfficeCandidates } from "../src/office-address-provider.js";
 
 const location: JobLocation = { id: "synthetic-policy-location", kind: "office", raw: "Synthetic source", countryCode: "US", precision: "unknown", verification: "unverified", evidence: [] };
 const input = { query: "10 Synthetic Road, Synthetic City", location };
@@ -34,6 +34,26 @@ test("fixed office provider policy passes the real controlled URL/DNS/budget tra
   const result = await createNominatimOfficeProvider(transport).search(input, execution.value);
   assert.equal(dnsCalls, 1); assert.equal(sends, 1); assert.equal(execution.accounting.requests, 1); assert.equal(execution.accounting.bytes, Buffer.byteLength(payload));
   assert.equal(result.length, 1); assert.equal(result[0]!.proposal.countryCode, "US"); assert.equal(result[0]!.verification, "unverified");
+});
+
+test("Nominatim place/house address points retain disclosed street evidence as manual unverified site candidates", () => {
+  for (const classification of [{category: "place"}, {category: undefined, class: "place"}]) {
+    const candidate = parseNominatimOfficeCandidates([{...row, ...classification, type: "house"}], "US")[0]!;
+    assert.ok(candidate); assert.equal(candidate.proposal.streetAddress, "Synthetic Road 10"); assert.equal(candidate.proposal.coordinateMeaning, "site");
+    assert.equal(candidate.proposal.basis, "manual-user-confirmation"); assert.equal(candidate.verification, "unverified"); assert.equal(candidate.estimated, true);
+    assert.equal(candidate.evidenceUrl, "https://www.openstreetmap.org/way/1234");
+  }
+});
+
+test("place/house support never admits areas, roads, postcodes, missing address evidence or foreign countries", () => {
+  const house = {...row, category: "place", type: "house"};
+  for (const change of [
+    {place_rank: 16}, {place_rank: 26}, {type: "city"}, {type: "town"}, {type: "suburb"}, {type: "postcode"}, {type: "road"},
+    {category: "boundary"}, {category: "highway"}, {address: {country_code: "us", road: "Synthetic Road"}},
+    {address: {country_code: "us", house_number: "10"}}, {address: {country_code: "us", postcode: "00123"}},
+    {address: {country_code: "xx", road: "Synthetic Road", house_number: "10"}},
+    {address: {country_code: "ca", road: "Synthetic Road", house_number: "10"}}, {lat: "NaN"}, {lon: "181"},
+  ]) assert.deepEqual(parseNominatimOfficeCandidates([{...house, ...change}], "US"), []);
 });
 
 test("controlled transport rejects a Fake-IP DNS answer before any pinned send, without a fallback or retry", async () => {

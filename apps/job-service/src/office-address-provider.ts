@@ -20,7 +20,7 @@ const policy = SourceDefinitionSchema.parse({
 const scalar = z.string().trim().min(1).max(2000);
 const point = z.object({
   place_rank: z.number().int(), osm_type: z.enum(["node", "way", "relation"]), osm_id: z.number().int().positive().safe(),
-  lat: scalar, lon: scalar, display_name: scalar, class: z.string().max(200).optional(), category: z.string().max(200).optional(),
+  lat: scalar, lon: scalar, display_name: scalar, class: z.string().max(200).optional(), category: z.string().max(200).optional(), type: z.string().max(200).optional(),
   address: z.record(z.string().max(2000)),
 }).passthrough();
 const payload = z.array(z.unknown()).max(5);
@@ -36,14 +36,17 @@ export function parseNominatimOfficeCandidates(value: unknown, countryCode?: str
     const item = result.data, address = item.address;
     const country = address.country_code?.toUpperCase();
     const road = address.road ?? address.pedestrian ?? address.residential;
+    const category = item.category ?? item.class;
+    // Nominatim represents address-only OSM house points as place/house, unlike place/city.
+    // They still need a door number, road and address rank; category alone is not precision.
     if (item.place_rank !== 30 || !road?.trim() || !address.house_number?.trim() || !country || !countries.has(country)
-      || countryCode && country !== countryCode || ["boundary", "highway", "place"].includes(item.category ?? item.class ?? "")) continue;
+      || countryCode && country !== countryCode || ["boundary", "highway"].includes(category ?? "") || category === "place" && item.type !== "house") continue;
     const number = (text: string) => /^-?\d+(?:\.\d+)?$/.test(text) ? Number(text) : NaN;
     const coordinates = { latitude: number(item.lat), longitude: number(item.lon), coordinateSystem: "WGS84" as const };
     const evidenceUrl = `https://www.openstreetmap.org/${item.osm_type}/${item.osm_id}`;
     const proposal = { basis: "manual-user-confirmation", countryCode: country, formattedAddress: item.display_name,
       streetAddress: `${road} ${address.house_number}`, ...(address.postcode?.trim() ? { postalCode: address.postcode } : {}),
-      coordinates, evidenceUrl, coordinateMeaning: (item.category ?? item.class) === "building" ? "building" : "site" };
+      coordinates, evidenceUrl, coordinateMeaning: category === "building" ? "building" : "site" };
     const candidate = OfficeAddressCandidateSchema.safeParse({
       id: `osm-office-${createHash("sha256").update(JSON.stringify({ evidenceUrl, proposal })).digest("hex")}`, providerId: "nominatim",
       proposal, attribution: "© OpenStreetMap contributors · ODbL · https://www.openstreetmap.org/copyright", evidenceUrl, estimated: true, verification: "unverified",
