@@ -31,3 +31,26 @@
 .atlas-source-limits > summary { cursor: pointer; color: var(--color-accent); }
 .atlas-source-limits > ul { padding-left: 20px; }
 .atlas-source-limits button { font-size: 11px; }
+
+/* The Codex/browser side panel can be narrower than window: measure this workspace itself. */
+.atlas-workspace[data-pane-layout="wide"] .atlas-main-grid{grid-template-columns:minmax(0,1fr) minmax(240px,28%);gap:16px}
+.atlas-workspace[data-pane-layout="wide"] .atlas-main-grid.has-detail{grid-template-columns:minmax(0,1fr) minmax(200px,23%) clamp(300px,32%,420px);gap:12px}
+.atlas-workspace[data-pane-layout="wide"] .has-detail .atlas-scene{height:clamp(360px,52dvh,560px)}
+.atlas-workspace[data-pane-layout="wide"] .has-detail .atlas-map-top>span{display:none}
+.atlas-workspace[data-pane-layout="wide"] .has-detail .atlas-map-caption{flex-wrap:wrap;padding:0 16px 18px}
+.atlas-workspace[data-pane-layout="wide"] .has-detail .atlas-map-caption strong{font-size:18px}
+.atlas-workspace[data-pane-layout="wide"] .has-detail .atlas-map-caption small{font-size:9px}
+.atlas-workspace[data-pane-layout="wide"] .has-detail .atlas-map-controls{flex-direction:row}
+.atlas-workspace[data-pane-layout="wide"] .has-detail .atlas-results{display:flex;flex-direction:column;max-height:min(780px,calc(100dvh - 120px));min-height:360px}
+.atlas-workspace[data-pane-layout="wide"] .has-detail .atlas-results-heading{padding:16px 13px 12px}
+.atlas-workspace[data-pane-layout="wide"] .has-detail .atlas-results h2{font-size:16px}
+.atlas-workspace[data-pane-layout="wide"] .has-detail .atlas-sort{flex-wrap:wrap;gap:5px;padding:0 9px 10px}
+.atlas-workspace[data-pane-layout="wide"] .has-detail .atlas-job-list{flex:1;min-height:0;max-height:none;padding:0 10px}
+.atlas-workspace[data-pane-layout="wide"] .has-detail .atlas-list-note{flex:none;padding:10px;font-size:9px}
+.atlas-workspace[data-pane-layout="medium"] .atlas-main-grid{grid-template-columns:minmax(0,1fr) minmax(230px,36%);gap:12px}
+.atlas-workspace[data-pane-layout="medium"] .atlas-scene{height:440px}
+.atlas-workspace[data-pane-layout="medium"] .atlas-map-caption{flex-wrap:wrap}
+.atlas-workspace[data-pane-layout="medium"] .atlas-map-top>span{display:none}
+.atlas-workspace[data-pane-layout="narrow"] .atlas-main-grid{grid-template-columns:1fr;gap:16px}
+.atlas-workspace[data-pane-layout="narrow"] .atlas-map-caption{flex-wrap:wrap}
+.atlas-workspace[data-pane-layout="narrow"] .atlas-map-controls{flex-direction:row}

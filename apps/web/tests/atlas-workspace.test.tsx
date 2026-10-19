@@ -616,6 +616,29 @@ test("switching data view during a source request prevents its late response fro
 });
 
 
+test("details occupy a third grid pane while the list, map instance and keyboard focus remain available", async () => {
+  await render();
+  const card = dom.document.querySelector<HTMLButtonElement>(".atlas-job-card")!;
+  const grid = dom.document.querySelector(".atlas-main-grid")!;
+  const map = grid.querySelector("[data-map-probe]");
+  const list = grid.querySelector(".atlas-results");
+  const before = mapMounts;
+  card.focus();
+  await act(async () => pointerClick(card, 0));
+  const detail = dom.document.querySelector('[aria-label="地图岗位详情"]')!;
+  assert.equal(detail.parentElement, grid, "the reading pane must reserve a grid column instead of floating over the map");
+  assert.deepEqual([...grid.children].map(element => element.classList[0]), ["atlas-map-column", "atlas-results", "atlas-job-detail"]);
+  assert.equal(grid.classList.contains("has-detail"), true);
+  assert.equal(grid.querySelector("[data-map-probe]"), map); assert.equal(grid.querySelector(".atlas-results"), list);
+  assert.equal(mapMounts, before, "opening the right column resizes the existing map without remounting its camera");
+  assert.equal(dom.document.activeElement, card);
+  await act(async () => pointerDoubleClick(card));
+  assert.ok(mapProps!.focus?.requestId); assert.equal(mapProps!.selectedJobId, mapProps!.focus?.jobId);
+  await act(async () => dom.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape" })));
+  assert.equal(grid.classList.contains("has-detail"), false); assert.equal(grid.children.length, 2);
+  assert.equal(grid.querySelector("[data-map-probe]"), map); assert.equal(dom.document.activeElement, card);
+});
+
 test("a first detail=1 click event waits 520ms while keyboard activation opens the pane immediately", async (t) => {
   await render();
   t.mock.timers.enable({ apis: ["setTimeout"] });
