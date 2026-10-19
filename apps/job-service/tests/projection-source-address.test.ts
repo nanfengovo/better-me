@@ -61,13 +61,47 @@ test("location enrichment within one source page deduplicates the legacy ID whil
   assert.equal(result.delta.jobs[0]!.locationIds.length, 1); assert.equal(result.delta.listings[0]!.locationIds.length, 1);
 });
 
-test("conflicting explicit street/postal fields reject the legacy identity; a changed raw location gets a distinct identity", async () => {
+test("an explicit street or postal change creates a new identity without inheriting the old office's missing fields", async () => {
   const initial = (await projectSourcePage(emptyDelta(), source, page(record({ ...core, streetAddress: "Source street 10", postalCode: "00123" })), "synthetic-initial-run")).delta;
-  for (const location of [{ ...core, streetAddress: "Different source street" }, { ...core, postalCode: "00999" }]) {
-    await assert.rejects(projectSourcePage(initial, source, page(record(location), nextAt), "synthetic-conflicting-run"), changed);
+  const locations: SourceJobRecord["locations"] = [{ ...core, streetAddress: "Different source street" }, { ...core, postalCode: "00999" }];
+  for (const location of locations) {
+    const moved = await projectSourcePage(initial, source, page(record(location), nextAt), "synthetic-conflicting-run");
+    const current = moved.delta.locations[0]!;
+    assert.notEqual(current.id, initial.locations[0]!.id);
+    assert.equal(current.streetAddress, location.streetAddress); assert.equal(current.postalCode, location.postalCode);
+    assert.deepEqual(moved.delta.jobs[0]!.locationIds, [current.id]);
+    assert.deepEqual(moved.delta.listings[0]!.locationIds, [current.id]);
+    assert.equal(current.coordinates, undefined); assert.equal(current.officeResolution, undefined);
   }
   const changedRaw = await projectSourcePage(initial, source, page(record({ ...core, raw: "New original source office label", streetAddress: "Different source street" }), nextAt), "synthetic-new-location-run");
   assert.notEqual(changedRaw.delta.locations[0]!.id, initial.locations[0]!.id);
+});
+
+test("a sparse refresh follows the current moved office rather than the historical legacy address", async () => {
+  const initial = (await projectSourcePage(emptyDelta(), source, page(record({ ...core, streetAddress: "Source street 10", postalCode: "00123" })), "synthetic-first-office")).delta;
+  const moved = (await projectSourcePage(initial, source, page(record({ ...core, streetAddress: "New source street 20" }), nextAt), "synthetic-moved-office")).delta;
+  const current = { ...initial, ...moved, locations: [...initial.locations, ...moved.locations], observations: [...initial.observations, ...moved.observations] };
+  const sparse = await projectSourcePage(current, source, page(record(), "2026-10-19T02:00:00.000Z"), "synthetic-sparse-after-move");
+  assert.deepEqual(sparse.delta.listings[0]!.locationIds, moved.listings[0]!.locationIds);
+  assert.deepEqual(sparse.delta.jobs[0]!.locationIds, moved.jobs[0]!.locationIds);
+  assert.deepEqual(sparse.delta.locations, []);
+  assert.equal(moved.locations[0]!.postalCode, undefined);
+  const postal = await projectSourcePage(current, source, page(record({ ...core, streetAddress: "New source street 20", postalCode: "00456" }), "2026-10-19T03:00:00.000Z"), "synthetic-new-office-postal");
+  assert.notEqual(postal.delta.locations[0]!.id, moved.locations[0]!.id);
+  assert.equal(postal.delta.locations[0]!.streetAddress, "New source street 20");
+  assert.equal(postal.delta.locations[0]!.postalCode, "00456");
+});
+
+test("two explicitly different offices with the same source label remain distinct and sparse evidence cannot choose one", async () => {
+  const entry = record({ ...core, streetAddress: "Source street 10", postalCode: "00123" });
+  entry.locations.push({ ...core, streetAddress: "Second source street 20", postalCode: "00456" });
+  const initial = (await projectSourcePage(emptyDelta(), source, page(entry), "synthetic-two-offices")).delta;
+  assert.equal(initial.locations.length, 2); assert.equal(initial.jobs[0]!.locationIds.length, 2);
+  assert.deepEqual(initial.locations.map(location => location.streetAddress), ["Source street 10", "Second source street 20"]);
+  const sparse = await projectSourcePage(initial, source, page(record(), nextAt), "synthetic-two-office-sparse");
+  assert.deepEqual(sparse.delta.listings[0]!.locationIds, initial.listings[0]!.locationIds);
+  assert.deepEqual(sparse.delta.jobs[0]!.locationIds, initial.jobs[0]!.locationIds);
+  assert.deepEqual(sparse.delta.locations, []);
 });
 
 test("source address enrichment rejects visible administrative overlays and requires the repository base snapshot", async () => {

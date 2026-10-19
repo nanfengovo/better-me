@@ -70,15 +70,50 @@ export async function projectSourcePage(snapshot: AtlasDataset, source: SourceDe
     const locationIds: string[] = [];
     for (const location of record.locations) {
       const kind = (record.workMode === "unknown" ? oldJob?.workMode : record.workMode) === "remote" ? "remote-region" : "office";
-      // Keep the original location identity stable when an adapter begins retaining
-      // separately disclosed address fields. A raw/source-area change still creates a new ID.
+      // The pre-address identity stays compatible. Explicit address changes instead
+      // identify a new source place; omitted fields cannot be spliced from the old office.
       const identityFields = { raw: location.raw, countryCode: location.countryCode, region: location.region, city: location.city };
-      const id = await deriveEntityId("location", [listingId, kind, digest(identityFields)]);
+      const identityDigest = digest(identityFields);
+      const legacyId = await deriveEntityId("location", [listingId, kind, identityDigest]);
+      const findLocation = (id: string) => delta.locations.find(item => item.id === id) ?? snapshot.locations.find(item => item.id === id);
+      const samePlace = (item: NonNullable<ReturnType<typeof findLocation>>) => item.kind === kind
+        && digest({ raw: item.raw, countryCode: item.countryCode, region: item.region, city: item.city }) === identityDigest;
+      const conflicts = (item: NonNullable<ReturnType<typeof findLocation>>) => (["streetAddress", "postalCode"] as const)
+        .some(field => location[field] && item[field] && location[field] !== item[field]);
+      // Prefer this listing's current contribution over historical locations with
+      // the same label, so a sparse refresh after a move cannot restore its old street.
+      const current = unique([...(oldListing?.locationIds ?? []), ...locationIds]).map(findLocation)
+        .filter((item): item is NonNullable<typeof item> => Boolean(item && samePlace(item)));
+      if (current.some(item => item.userResolution || item.officeResolution)) throw new ToolError("source-changed");
+      const compatible = current.filter(item => !conflicts(item));
+      if (compatible.length > 1 && !location.streetAddress && !location.postalCode) {
+        locationIds.push(...compatible.map(item => item.id));
+        continue;
+      }
+      let existing = compatible.length === 1 ? compatible[0] : undefined;
+      let id = existing?.id ?? legacyId, supplied = location, locationEvidence = evidence("locations", location.raw);
+      const legacy = findLocation(legacyId);
+      const previous = existing;
+      const additions = previous && (["streetAddress", "postalCode"] as const).some(field => location[field] && !previous[field]);
+      const replacement = !existing && (current.length > 0 || !!legacy?.streetAddress || !!legacy?.postalCode);
+      if (replacement || additions && id !== legacyId) {
+        // An address-specific ID is immutable. Compatible additive disclosures can
+        // retain the explicitly known counterpart, but an actual move starts only
+        // from this response's fields, even when a previous postcode was present.
+        if (existing) {
+          supplied = { ...(existing.streetAddress ? { streetAddress: existing.streetAddress } : {}),
+            ...(existing.postalCode ? { postalCode: existing.postalCode } : {}), ...location };
+          locationEvidence = [...new Map([...existing.evidence, ...locationEvidence].map(ref => [digest(ref), ref])).values()].slice(0, 200);
+        }
+        id = await deriveEntityId("location", [listingId, kind, digest({ ...identityFields,
+          streetAddress: supplied.streetAddress, postalCode: supplied.postalCode, addressIdentityVersion: 1 })]);
+        existing = findLocation(id);
+      } else if (!existing) existing = legacy;
+      if (existing?.userResolution || existing?.officeResolution) throw new ToolError("source-changed");
       locationIds.push(id);
       const queued = delta.locations.findIndex((item) => item.id === id);
-      const existing = queued >= 0 ? delta.locations[queued] : snapshot.locations.find((item) => item.id === id);
       if (!existing) {
-        delta.locations.push({ id, ...location, kind, precision: location.city ? "city" : location.region ? "region" : location.countryCode ? "country" : "unknown", evidence: evidence("locations", location.raw), verification: "unverified" });
+        delta.locations.push({ id, ...supplied, kind, precision: location.city ? "city" : location.region ? "region" : location.countryCode ? "country" : "unknown", evidence: locationEvidence, verification: "unverified" });
       } else {
         const additions: { streetAddress?: string; postalCode?: string } = {};
         for (const field of ["streetAddress", "postalCode"] as const) {
