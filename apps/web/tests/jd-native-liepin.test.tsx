@@ -580,6 +580,30 @@ test("native gate stays open and is reported before empty-body adoption", async 
   } finally { await f.manager.stopBrowser(); }
 });
 
+test("native human verification strategy auto-extends TTL and waitForVerification resolves when user completes challenge", async () => {
+  const f = fixture(); const session = await f.manager.start("owner", source);
+  try {
+    f.setSnapshot({ state: "ready", identity: "captcha-gate", snapshot: { html: "<body><div class='nc_scale'></div></body>", url: session.url, title: "安全验证", gate: "verification_required", pageLoad: { readyState: "complete", content: "visible_text", visibleFrames: 0 } } });
+    const inspection = await f.manager.inspect("owner", session.sessionId);
+    assert.equal(inspection.gate, "verification_required");
+    assert.equal(f.manager.owns(session.sessionId), true);
+
+    // Solve captcha on subsequent capture
+    f.onCapture((count) => {
+      if (count >= 2) {
+        f.setSnapshot({ state: "ready", identity: "solved-captcha", snapshot: { html, url: "https://www.liepin.com/job/1984701079.shtml", title: "本地测试工程师", pageLoad: { readyState: "complete", content: "visible_text", visibleFrames: 0 } } });
+      }
+    });
+
+    const verified = await f.manager.waitForVerification("owner", session.sessionId, 5000);
+    assert.equal(verified, true);
+
+    const result = await f.manager.read("owner", session.sessionId);
+    assert.match(result.text, /维护企业网络与服务器/);
+    assert.equal(result.provenance.platform, "猎聘");
+  } finally { await f.manager.stopBrowser(); }
+});
+
 test("native 51JOB keeps the exact desktop source, rejects another job and preserves verification transport evidence without re-navigation", async () => {
   const f = fixture("51JOB"); const info = await f.manager.start("owner", job51Source);
   try {

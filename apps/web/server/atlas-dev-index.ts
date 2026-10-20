@@ -29,11 +29,12 @@ export function defaultJobAtlasDataDirectory(home = homedir()): string {
   return join(home, "Library", "Application Support", "BetterMe", "job-atlas");
 }
 
-export function jobServiceLaunchArgs(spec: { dataDirectory: string; port: string; origins: readonly string[]; cliPath: string; tsxLoader: string }): string[] {
+export function jobServiceLaunchArgs(spec: { dataDirectory: string; port: string; origins: readonly string[]; cliPath: string; tsxLoader: string; officeGeocoder?: string }): string[] {
   return [
     "--import", spec.tsxLoader, spec.cliPath,
     "--data-dir", spec.dataDirectory, "--host", "127.0.0.1", "--port", spec.port,
     ...spec.origins.flatMap((origin) => ["--origin", origin]),
+    ...(spec.officeGeocoder ? ["--office-geocoder", spec.officeGeocoder] : []),
   ];
 }
 
@@ -82,12 +83,14 @@ function launchJobService(spec: JobServiceStartSpec): StartedJobService {
   const url = new URL(spec.endpoint);
   const directory = jobServiceDirectory();
   const loader = createRequire(join(directory, "package.json")).resolve("tsx");
+  const hasAmap = existsSync(join(spec.dataDirectory, "amap.key")) || Boolean(process.env.AMAP_KEY) || Boolean(process.env.AMAP_WEB_KEY);
   const child: ChildProcess = spawn(process.execPath, jobServiceLaunchArgs({
     dataDirectory: spec.dataDirectory,
     port: url.port || "5178",
     origins: spec.origins,
     cliPath: join(directory, "src", "cli.ts"),
     tsxLoader: loader,
+    ...(hasAmap ? { officeGeocoder: "amap" } : {}),
   }), { cwd: directory, stdio: ["ignore", "ignore", "pipe"] });
   let stderr = "";
   let exitMessage: string | undefined;

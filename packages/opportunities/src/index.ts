@@ -16,3 +16,6 @@ export * from "./reconciliation-tools.js";
 export * from "./location-confirmation.js";
 export * from "./office-address.js";
 export * from "./address-enrichment.js";
+export * from "./compensation-audit.js";
+export * from "./company-controllers.js";
+export * from "./agent/index.js";

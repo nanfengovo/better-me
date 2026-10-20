@@ -17,6 +17,16 @@ import {
   type PreviewLocationConfirmationInput, type ConfirmLocationInput, type RevokeLocationConfirmationInput,
   type LocationConfirmationDecision, type LocationConfirmationPreview, type LocationConfirmationReceipt, type JobLocation,
   type MergeDecision, type ReconciliationReceipt, type JobAliasEvent, type ConfirmMergeInput, type OfficialRequisitionLink,
+  classifyCompany, resolveCompanyColor, normalizeCompensation,
+  CompensationSchema, type Compensation, type CompanyManualOverride,
+  PreviewCompanyControllerOverrideInputSchema, ConfirmCompanyControllerOverrideInputSchema, RevokeCompanyControllerOverrideInputSchema,
+  CompanyControllerOverridePreviewSchema, CompanyControllerOverrideReceiptSchema,
+  PreviewCompensationAuditInputSchema, ConfirmCompensationAuditInputSchema, RevokeCompensationAuditInputSchema,
+  CompensationAuditPreviewSchema, CompensationAuditReceiptSchema,
+  type PreviewCompanyControllerOverrideInput, type ConfirmCompanyControllerOverrideInput, type RevokeCompanyControllerOverrideInput,
+  type CompanyControllerOverridePreview, type CompanyControllerOverrideReceipt,
+  type PreviewCompensationAuditInput, type ConfirmCompensationAuditInput, type RevokeCompensationAuditInput,
+  type CompensationAuditPreview, type CompensationAuditReceipt,
 } from "@better-me/opportunities";
 import {
   ActorScopeSchema, IdempotencyKeySchema, SyncRunSchema, RunScopeSchema, PublicRunSummarySchema,
@@ -217,7 +227,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     if (row.signature !== expectedSignature) throw new RepositoryError("idempotency-conflict");
     return JSON.parse(row.response) as T;
   }
-  function saveReceipt(actorScope: string, tool: string, idempotencyKey: string, requestSignature: string, result: ImportReceipt | SyncRun | DiscoveryLeadReceipt | ReconciliationReceipt | LocationConfirmationReceipt | OfficeAddressReceipt) {
+  function saveReceipt(actorScope: string, tool: string, idempotencyKey: string, requestSignature: string, result: ImportReceipt | SyncRun | DiscoveryLeadReceipt | ReconciliationReceipt | LocationConfirmationReceipt | OfficeAddressReceipt | CompanyControllerOverrideReceipt | CompensationAuditReceipt) {
     db.prepare("INSERT INTO receipts(actor_scope,tool,idempotency_key,signature,response,created_at) VALUES (?,?,?,?,?,?)").run(actorScope, tool, idempotencyKey, requestSignature, json(result), now());
   }
   function runById(runId: string): SyncRun | undefined {
@@ -570,6 +580,287 @@ export function openJobRepository(path: string, options: { now?: () => string } 
           actorScope: options.actorScope, at: now(), revision: current.revision + 1, reason: parsed.reason, targetDecisionId: target.id,
           sourceLocation: projectLocationConfirmations(baseSnapshot(current), locationDecisions()).locations.find(location => location.id === target.locationId)! };
         return commitOffice(current, entry, options, "locations.revoke-office-address", requestSignature, parsed.jobId);
+      });
+    },
+    async previewCompanyControllerOverride(input: unknown): Promise<CompanyControllerOverridePreview> {
+      const parsed = checked(PreviewCompanyControllerOverrideInputSchema, input);
+      return transaction(() => {
+        const current = read();
+        if (current.revision !== parsed.expectedRevision) throw new RepositoryError("stale-version");
+        const company = current.companies.find(c => c.id === parsed.companyId);
+        if (!company) throw new RepositoryError("not-found");
+        const obsIds = new Set(current.observations.map(o => o.id));
+        if (parsed.proposal.evidence.some(ref => !obsIds.has(ref.observationId))) throw new RepositoryError("invalid-data");
+        const proposedControllers = {
+          value: parsed.proposal.controllers,
+          evidence: parsed.proposal.evidence,
+          method: "manual" as const,
+          verification: "verified" as const,
+          revision: company.ultimateControllers.revision + 1,
+        };
+        const simulatedOverride: CompanyManualOverride = {
+          id: "ctrl-override-preview",
+          field: "ultimateControllers",
+          reason: parsed.proposal.reason,
+          at: now(),
+          actor: "preview",
+          basedOnRevision: company.ultimateControllers.revision,
+          value: proposedControllers,
+        };
+        const simulatedCompany: Company = {
+          ...company,
+          manualOverrides: [...company.manualOverrides, simulatedOverride],
+        };
+        const classification = classifyCompany(simulatedCompany);
+        const colorMatch = resolveCompanyColor(simulatedCompany);
+        const previewFingerprint = signature({ input: parsed, companyId: parsed.companyId, controllers: parsed.proposal.controllers });
+        return checked(CompanyControllerOverridePreviewSchema, {
+          companyId: parsed.companyId,
+          previewFingerprint,
+          proposedControllers,
+          classification,
+          colorMatch,
+        });
+      });
+    },
+    async confirmCompanyControllerOverride(input: ConfirmCompanyControllerOverrideInput, options: ReconciliationWriteOptions): Promise<CompanyControllerOverrideReceipt> {
+      validateOptions(options);
+      const parsed = checked(ConfirmCompanyControllerOverrideInputSchema, input);
+      if (options.expectedRevision !== parsed.expectedRevision) throw new RepositoryError("invalid-data");
+      const requestSignature = signature({ input: parsed });
+      return transaction(() => {
+        const cached = receipt<CompanyControllerOverrideReceipt>(options.actorScope, "companies.confirm-controller-override", options.idempotencyKey, requestSignature);
+        if (cached) return checked(CompanyControllerOverrideReceiptSchema, cached);
+        options.throwIfCancelled?.();
+        const current = read();
+        assertWriteVersion(options, current);
+        const company = current.companies.find(c => c.id === parsed.companyId);
+        if (!company) throw new RepositoryError("not-found");
+        const obsIds = new Set(current.observations.map(o => o.id));
+        if (parsed.proposal.evidence.some(ref => !obsIds.has(ref.observationId))) throw new RepositoryError("invalid-data");
+        const previewInput = { companyId: parsed.companyId, expectedRevision: parsed.expectedRevision, proposal: parsed.proposal };
+        const previewFingerprint = signature({ input: previewInput, companyId: parsed.companyId, controllers: parsed.proposal.controllers });
+        if (previewFingerprint !== parsed.previewFingerprint) throw new RepositoryError("stale-version");
+        const nextRevision = current.revision + 1;
+        const decisionId = `ctrl-override_${randomUUID()}`;
+        const override: CompanyManualOverride = {
+          id: decisionId,
+          field: "ultimateControllers",
+          reason: parsed.proposal.reason,
+          at: now(),
+          actor: options.actorScope,
+          basedOnRevision: company.ultimateControllers.revision,
+          value: {
+            value: parsed.proposal.controllers,
+            evidence: parsed.proposal.evidence,
+            method: "manual",
+            verification: "verified",
+            revision: company.ultimateControllers.revision + 1,
+          },
+        };
+        const updatedCompany: Company = {
+          ...company,
+          manualOverrides: [...company.manualOverrides, override],
+        };
+        const nextDataset: AtlasDataset = {
+          ...current,
+          revision: nextRevision,
+          companies: current.companies.map(c => c.id === company.id ? updatedCompany : c),
+        };
+        write(checked(AtlasDatasetSchema, nextDataset));
+        const classification = classifyCompany(updatedCompany);
+        const colorMatch = resolveCompanyColor(updatedCompany);
+        const result: CompanyControllerOverrideReceipt = {
+          ok: true,
+          revision: nextRevision,
+          decisionId,
+          activeDecisionId: decisionId,
+          company: updatedCompany,
+          classification,
+          colorMatch,
+        };
+        saveReceipt(options.actorScope, "companies.confirm-controller-override", options.idempotencyKey, requestSignature, result);
+        return result;
+      });
+    },
+    async revokeCompanyControllerOverride(input: RevokeCompanyControllerOverrideInput, options: ReconciliationWriteOptions): Promise<CompanyControllerOverrideReceipt> {
+      validateOptions(options);
+      const parsed = checked(RevokeCompanyControllerOverrideInputSchema, input);
+      if (options.expectedRevision !== parsed.expectedRevision) throw new RepositoryError("invalid-data");
+      const requestSignature = signature({ input: parsed });
+      return transaction(() => {
+        const cached = receipt<CompanyControllerOverrideReceipt>(options.actorScope, "companies.revoke-controller-override", options.idempotencyKey, requestSignature);
+        if (cached) return checked(CompanyControllerOverrideReceiptSchema, cached);
+        options.throwIfCancelled?.();
+        const current = read();
+        assertWriteVersion(options, current);
+        const company = current.companies.find(c => c.id === parsed.companyId);
+        if (!company) throw new RepositoryError("not-found");
+        const targetOverride = company.manualOverrides.find(o => o.id === parsed.decisionId);
+        if (!targetOverride) throw new RepositoryError("not-found");
+        if (targetOverride.actor && targetOverride.actor !== options.actorScope) throw new RepositoryError("not-authorized");
+        const nextRevision = current.revision + 1;
+        const updatedCompany: Company = {
+          ...company,
+          manualOverrides: company.manualOverrides.filter(o => o.id !== parsed.decisionId),
+        };
+        const nextDataset: AtlasDataset = {
+          ...current,
+          revision: nextRevision,
+          companies: current.companies.map(c => c.id === company.id ? updatedCompany : c),
+        };
+        write(checked(AtlasDatasetSchema, nextDataset));
+        const classification = classifyCompany(updatedCompany);
+        const colorMatch = resolveCompanyColor(updatedCompany);
+        const result: CompanyControllerOverrideReceipt = {
+          ok: true,
+          revision: nextRevision,
+          decisionId: parsed.decisionId,
+          company: updatedCompany,
+          classification,
+          colorMatch,
+        };
+        saveReceipt(options.actorScope, "companies.revoke-controller-override", options.idempotencyKey, requestSignature, result);
+        return result;
+      });
+    },
+    async previewCompensationAudit(input: unknown): Promise<CompensationAuditPreview> {
+      const parsed = checked(PreviewCompensationAuditInputSchema, input);
+      return transaction(() => {
+        const current = read();
+        if (current.revision !== parsed.expectedRevision) throw new RepositoryError("stale-version");
+        const canonicalJobId = aliasId(parsed.jobId);
+        const job = current.jobs.find(j => j.id === canonicalJobId);
+        if (!job || !job.compensationIds.includes(parsed.compensationId)) throw new RepositoryError("not-found");
+        const target = current.compensations.find(c => c.id === parsed.compensationId);
+        if (!target) throw new RepositoryError("not-found");
+        const obsIds = new Set(current.observations.map(o => o.id));
+        if (parsed.proposal.evidence.some(ref => !obsIds.has(ref.observationId))) throw new RepositoryError("invalid-data");
+        const proposed: Compensation = checked(CompensationSchema, {
+          id: target.id,
+          locationIds: target.locationIds,
+          raw: target.raw,
+          currency: parsed.proposal.currency,
+          period: parsed.proposal.period,
+          min: parsed.proposal.min,
+          max: parsed.proposal.max,
+          tax: parsed.proposal.tax,
+          kind: parsed.proposal.kind,
+          monthsPerYear: parsed.proposal.monthsPerYear,
+          hoursPerYear: parsed.proposal.hoursPerYear,
+          daysPerYear: parsed.proposal.daysPerYear,
+          weeksPerYear: parsed.proposal.weeksPerYear,
+          verification: "verified",
+          evidence: parsed.proposal.evidence,
+        });
+        const normalized = normalizeCompensation(proposed);
+        const previewFingerprint = signature({ input: parsed, target });
+        return checked(CompensationAuditPreviewSchema, {
+          jobId: parsed.jobId,
+          compensationId: parsed.compensationId,
+          previewFingerprint,
+          proposed,
+          normalized,
+        });
+      });
+    },
+    async confirmCompensationAudit(input: ConfirmCompensationAuditInput, options: ReconciliationWriteOptions): Promise<CompensationAuditReceipt> {
+      validateOptions(options);
+      const parsed = checked(ConfirmCompensationAuditInputSchema, input);
+      if (options.expectedRevision !== parsed.expectedRevision) throw new RepositoryError("invalid-data");
+      const requestSignature = signature({ input: parsed });
+      return transaction(() => {
+        const cached = receipt<CompensationAuditReceipt>(options.actorScope, "compensations.confirm-audit", options.idempotencyKey, requestSignature);
+        if (cached) return checked(CompensationAuditReceiptSchema, cached);
+        options.throwIfCancelled?.();
+        const current = read();
+        assertWriteVersion(options, current);
+        const canonicalJobId = aliasId(parsed.jobId);
+        const job = current.jobs.find(j => j.id === canonicalJobId);
+        if (!job || !job.compensationIds.includes(parsed.compensationId)) throw new RepositoryError("not-found");
+        const target = current.compensations.find(c => c.id === parsed.compensationId);
+        if (!target) throw new RepositoryError("not-found");
+        const obsIds = new Set(current.observations.map(o => o.id));
+        if (parsed.proposal.evidence.some(ref => !obsIds.has(ref.observationId))) throw new RepositoryError("invalid-data");
+        const previewInput = { jobId: parsed.jobId, compensationId: parsed.compensationId, expectedRevision: parsed.expectedRevision, proposal: parsed.proposal };
+        const previewFingerprint = signature({ input: previewInput, target });
+        if (previewFingerprint !== parsed.previewFingerprint) throw new RepositoryError("stale-version");
+        const nextRevision = current.revision + 1;
+        const decisionId = `comp-audit_${randomUUID()}`;
+        const updatedCompensation: Compensation = checked(CompensationSchema, {
+          id: target.id,
+          locationIds: target.locationIds,
+          raw: target.raw,
+          currency: parsed.proposal.currency,
+          period: parsed.proposal.period,
+          min: parsed.proposal.min,
+          max: parsed.proposal.max,
+          tax: parsed.proposal.tax,
+          kind: parsed.proposal.kind,
+          monthsPerYear: parsed.proposal.monthsPerYear,
+          hoursPerYear: parsed.proposal.hoursPerYear,
+          daysPerYear: parsed.proposal.daysPerYear,
+          weeksPerYear: parsed.proposal.weeksPerYear,
+          verification: "verified",
+          evidence: parsed.proposal.evidence,
+        });
+        const normalized = normalizeCompensation(updatedCompensation);
+        const nextDataset: AtlasDataset = {
+          ...current,
+          revision: nextRevision,
+          compensations: current.compensations.map(c => c.id === target.id ? updatedCompensation : c),
+        };
+        write(checked(AtlasDatasetSchema, nextDataset));
+        const result: CompensationAuditReceipt = {
+          ok: true,
+          revision: nextRevision,
+          decisionId,
+          activeDecisionId: decisionId,
+          compensation: updatedCompensation,
+          normalized,
+        };
+        saveReceipt(options.actorScope, "compensations.confirm-audit", options.idempotencyKey, requestSignature, result);
+        return result;
+      });
+    },
+    async revokeCompensationAudit(input: RevokeCompensationAuditInput, options: ReconciliationWriteOptions): Promise<CompensationAuditReceipt> {
+      validateOptions(options);
+      const parsed = checked(RevokeCompensationAuditInputSchema, input);
+      if (options.expectedRevision !== parsed.expectedRevision) throw new RepositoryError("invalid-data");
+      const requestSignature = signature({ input: parsed });
+      return transaction(() => {
+        const cached = receipt<CompensationAuditReceipt>(options.actorScope, "compensations.revoke-audit", options.idempotencyKey, requestSignature);
+        if (cached) return checked(CompensationAuditReceiptSchema, cached);
+        options.throwIfCancelled?.();
+        const current = read();
+        assertWriteVersion(options, current);
+        const canonicalJobId = aliasId(parsed.jobId);
+        const job = current.jobs.find(j => j.id === canonicalJobId);
+        if (!job || !job.compensationIds.includes(parsed.compensationId)) throw new RepositoryError("not-found");
+        const target = current.compensations.find(c => c.id === parsed.compensationId);
+        if (!target) throw new RepositoryError("not-found");
+        const nextRevision = current.revision + 1;
+        const revertedCompensation: Compensation = checked(CompensationSchema, {
+          ...target,
+          verification: "unverified",
+          evidence: [],
+        });
+        const normalized = normalizeCompensation(revertedCompensation);
+        const nextDataset: AtlasDataset = {
+          ...current,
+          revision: nextRevision,
+          compensations: current.compensations.map(c => c.id === target.id ? revertedCompensation : c),
+        };
+        write(checked(AtlasDatasetSchema, nextDataset));
+        const result: CompensationAuditReceipt = {
+          ok: true,
+          revision: nextRevision,
+          decisionId: parsed.decisionId,
+          compensation: revertedCompensation,
+          normalized,
+        };
+        saveReceipt(options.actorScope, "compensations.revoke-audit", options.idempotencyKey, requestSignature, result);
+        return result;
       });
     },
     async previewLocationConfirmation(input: unknown): Promise<LocationConfirmationPreview> {

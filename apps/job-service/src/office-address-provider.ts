@@ -1,4 +1,7 @@
 import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { z } from "zod";
 import { OfficeAddressCandidateSchema, SourceDefinitionSchema, ToolError, type JobLocation, type OfficeAddressCandidate, type ToolHandlerContext } from "@better-me/opportunities";
 import { SourceTransportError, type SourceTransport } from "@better-me/source-adapters";
@@ -6,7 +9,10 @@ import type { OfficeAddressProvider } from "./office-address.js";
 import countryCatalog from "../../../config/geography/countries.json" with { type: "json" };
 
 /** Host opt-in only. Never autocomplete or bulk-geocode the job index against this public service. */
-export const OfficeGeocoderConfigSchema = z.object({ provider: z.literal("nominatim") }).strict();
+export const OfficeGeocoderConfigSchema = z.discriminatedUnion("provider", [
+  z.object({ provider: z.literal("nominatim") }).strict(),
+  z.object({ provider: z.literal("amap"), key: z.string().trim().min(1).optional() }).strict(),
+]);
 export type OfficeGeocoderConfig = z.infer<typeof OfficeGeocoderConfigSchema>;
 const endpoint = "https://nominatim.openstreetmap.org/search";
 const countries = new Set(countryCatalog.countries);
@@ -122,3 +128,248 @@ export function createNominatimOfficeProvider(transport: SourceTransport, option
     } finally { pending = false; nextRequestAt = Math.max(nextRequestAt, now() + 1100); }
   } });
 }
+
+const A_ELLIPSOID = 6378245.0;
+const EE_ELLIPSOID = 0.00669342162296594323;
+
+function transformLat(x: number, y: number): number {
+  let ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+  ret += (20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * (2.0 / 3.0);
+  ret += (20.0 * Math.sin(y * Math.PI) + 40.0 * Math.sin((y / 3.0) * Math.PI)) * (2.0 / 3.0);
+  ret += (160.0 * Math.sin((y / 12.0) * Math.PI) + 320 * Math.sin((y * Math.PI) / 30.0)) * (2.0 / 3.0);
+  return ret;
+}
+
+function transformLon(x: number, y: number): number {
+  let ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+  ret += (20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * (2.0 / 3.0);
+  ret += (20.0 * Math.sin(x * Math.PI) + 40.0 * Math.sin((x / 3.0) * Math.PI)) * (2.0 / 3.0);
+  ret += (150.0 * Math.sin((x / 12.0) * Math.PI) + 300.0 * Math.sin((x / 30.0) * Math.PI)) * (2.0 / 3.0);
+  return ret;
+}
+
+/** Precise iterative GCJ-02 to WGS-84 coordinate transformation (sub-decimeter accuracy). */
+export function gcj02ToWgs84(gcjLon: number, gcjLat: number): { longitude: number; latitude: number } {
+  if (gcjLon < 72.004 || gcjLon > 137.8347 || gcjLat < 0.8293 || gcjLat > 55.8271) {
+    return { longitude: gcjLon, latitude: gcjLat };
+  }
+  let wgsLon = gcjLon;
+  let wgsLat = gcjLat;
+  for (let i = 0; i < 3; i++) {
+    const dLat = transformLat(wgsLon - 105.0, wgsLat - 35.0);
+    const dLon = transformLon(wgsLon - 105.0, wgsLat - 35.0);
+    const radLat = (wgsLat / 180.0) * Math.PI;
+    let magic = Math.sin(radLat);
+    magic = 1 - EE_ELLIPSOID * magic * magic;
+    const sqrtMagic = Math.sqrt(magic);
+    const deltaLat = (dLat * 180.0) / (((A_ELLIPSOID * (1 - EE_ELLIPSOID)) / (magic * sqrtMagic)) * Math.PI);
+    const deltaLon = (dLon * 180.0) / ((A_ELLIPSOID / sqrtMagic) * Math.cos(radLat) * Math.PI);
+    wgsLat = gcjLat - deltaLat;
+    wgsLon = gcjLon - deltaLon;
+  }
+  return {
+    longitude: Number(wgsLon.toFixed(7)),
+    latitude: Number(wgsLat.toFixed(7)),
+  };
+}
+
+const amapPolicy = SourceDefinitionSchema.parse({
+  sourceId: "host-office-address-amap", name: "AMap Web Service geocoding lookup", adapterId: "office-address-amap", adapterVersion: "1",
+  capabilities: ["discover-sources"], runtime: ["local-service"], entityType: "company-directory", enabled: true, status: "active", entryUrl: "https://restapi.amap.com/v3/geocode/geo",
+  remoteFilters: [], endpointPolicy: { allowedHosts: ["restapi.amap.com"], allowedPathPrefixes: ["/v3/geocode/geo"], requireHttps: true, allowRedirects: false, maxRedirects: 0 },
+  attribution: { label: "© 高德开放平台 · 地理编码服务", homepageUrl: "https://lbs.amap.com/", usage: "link-only", requiresAttribution: true },
+  refreshPolicy: { mode: "manual", minIntervalSeconds: 0, maxRecords: 5, maxPages: 1, requestsPerMinute: 50 },
+});
+
+const amapGeocodeItem = z.object({
+  formatted_address: z.string().trim().min(1).max(2000),
+  country: z.union([z.string().max(200), z.array(z.unknown())]).optional(),
+  province: z.union([z.string().max(200), z.array(z.unknown())]).optional(),
+  city: z.union([z.string().max(200), z.array(z.unknown())]).optional(),
+  district: z.union([z.string().max(200), z.array(z.unknown())]).optional(),
+  street: z.union([z.string().max(1000), z.array(z.unknown())]).optional(),
+  number: z.union([z.string().max(200), z.array(z.unknown())]).optional(),
+  location: z.string().regex(/^-?\d+(?:\.\d+)?[,-]-?\d+(?:\.\d+)?$/),
+  level: z.string().max(200).optional(),
+}).passthrough();
+
+const amapPayloadSchema = z.object({
+  status: z.string(),
+  info: z.string(),
+  infocode: z.string().optional(),
+  count: z.union([z.string(), z.number()]).optional(),
+  geocodes: z.array(amapGeocodeItem).optional(),
+}).passthrough();
+
+const amapBuildingLevels = new Set(["门牌号", "楼宇", "商务住宅", "兴趣点", "单元号"]);
+
+export function parseAmapOfficeCandidates(value: unknown, countryCode?: string, options: OfficeAddressConstraints = {}): OfficeAddressCandidate[] {
+  const parsed = amapPayloadSchema.safeParse(value);
+  if (!parsed.success) throw new ToolError("source-changed");
+  if (parsed.data.status !== "1") {
+    const code = parsed.data.infocode ?? "";
+    if (code === "10001" || code === "10002") throw new ToolError("needs-auth");
+    if (code === "10003" || code === "10004" || code === "10044") throw new ToolError("rate-limited");
+    throw new ToolError("source-changed");
+  }
+  const constraints = constraintsSchema.safeParse(options);
+  if (!constraints.success) throw new ToolError("invalid-input");
+  const candidates: OfficeAddressCandidate[] = [];
+  const geocodes = parsed.data.geocodes ?? [];
+  for (const item of geocodes) {
+    if (!item.level || !amapBuildingLevels.has(item.level)) continue;
+    const country = typeof item.country === "string" ? item.country.trim() : "";
+    if (country && country !== "中国" && country !== "CN" && countryCode && countryCode !== "CN") continue;
+    if (countryCode && countryCode !== "CN") continue;
+
+    const city = typeof item.city === "string" ? item.city.trim() : "";
+    const district = typeof item.district === "string" ? item.district.trim() : "";
+    const province = typeof item.province === "string" ? item.province.trim() : "";
+
+    if (constraints.data.locality) {
+      const loc = constraints.data.locality.toLowerCase().trim();
+      const match = (city && city.toLowerCase().includes(loc)) ||
+                    (district && district.toLowerCase().includes(loc)) ||
+                    (province && province.toLowerCase().includes(loc)) ||
+                    item.formatted_address.toLowerCase().includes(loc);
+      if (!match) continue;
+    }
+
+    const street = typeof item.street === "string" ? item.street.trim() : "";
+    const num = typeof item.number === "string" ? item.number.trim() : "";
+    const streetAddress = street && num ? `${street} ${num}` : street || item.formatted_address;
+
+    const [lonStr, latStr] = item.location.split(",");
+    const gcjLon = Number(lonStr);
+    const gcjLat = Number(latStr);
+    if (!Number.isFinite(gcjLon) || !Number.isFinite(gcjLat)) continue;
+
+    const wgs = gcj02ToWgs84(gcjLon, gcjLat);
+    const evidenceUrl = "https://lbs.amap.com/api/webservice/guide/api/georegeo";
+    const coordinateMeaning = (item.level === "楼宇" || item.level === "商务住宅") ? "building" as const : "site" as const;
+
+    const proposal = {
+      basis: "manual-user-confirmation" as const,
+      countryCode: "CN",
+      formattedAddress: item.formatted_address,
+      streetAddress,
+      coordinates: { latitude: wgs.latitude, longitude: wgs.longitude, coordinateSystem: "WGS84" as const },
+      evidenceUrl,
+      coordinateMeaning,
+    };
+
+    const candidate = OfficeAddressCandidateSchema.safeParse({
+      id: `amap-office-${createHash("sha256").update(JSON.stringify({ evidenceUrl, proposal })).digest("hex")}`,
+      providerId: "amap",
+      proposal,
+      attribution: "© 高德开放平台 · 地理编码服务",
+      evidenceUrl,
+      estimated: true,
+      verification: "unverified",
+    });
+
+    if (candidate.success && !candidates.some(entry => entry.id === candidate.data.id)) {
+      candidates.push(candidate.data);
+    }
+  }
+  return candidates;
+}
+
+export function resolveAmapApiKey(explicitKey?: string, dataDirectory?: string): string | undefined {
+  if (explicitKey?.trim()) return explicitKey.trim();
+  const envKey = process.env.AMAP_KEY?.trim() || process.env.AMAP_WEB_KEY?.trim();
+  if (envKey) return envKey;
+  const candidates = [
+    dataDirectory ? join(dataDirectory, "amap.key") : undefined,
+    join(homedir(), "Library", "Application Support", "BetterMe", "job-atlas", "amap.key"),
+  ].filter(Boolean) as string[];
+  for (const path of candidates) {
+    try {
+      if (existsSync(path)) {
+        const content = readFileSync(path, "utf8").trim();
+        if (content && /^[A-Za-z0-9_-]{16,64}$/.test(content)) return content;
+      }
+    } catch { /* ignore read failure */ }
+  }
+  return undefined;
+}
+
+export function createAmapOfficeProvider(transport: SourceTransport, options: { key?: string; dataDirectory?: string; now?: () => number } = {}): OfficeAddressProvider {
+  const now = options.now ?? Date.now;
+  let nextRequestAt = -Infinity, pending = false;
+  const cache = new Map<string, { at: number; candidates: OfficeAddressCandidate[] }>();
+  const rateLimit = (seconds = 60) => { nextRequestAt = Math.max(nextRequestAt, now() + Math.max(1.1, Math.min(31_536_000, seconds)) * 1000); };
+
+  return Object.freeze({
+    providerId: "amap",
+    async search(input: { query: string; location: JobLocation; locality?: string; postalCode?: string }, context: ToolHandlerContext) {
+      context.throwIfCancelled();
+      const apiKey = resolveAmapApiKey(options.key, options.dataDirectory);
+      if (!apiKey) throw new ToolError("needs-auth");
+
+      const parsedInput = searchSchema.safeParse({
+        query: input.query,
+        ...(input.locality !== undefined ? { locality: input.locality } : {}),
+        ...(input.postalCode !== undefined ? { postalCode: input.postalCode } : {}),
+      });
+      if (!parsedInput.success || input.location.kind !== "office") throw new ToolError("invalid-input");
+      const { query, ...constraints } = parsedInput.data;
+      const key = JSON.stringify([query, input.location.countryCode ?? null, constraints.locality ?? null, constraints.postalCode ?? null]);
+      const cached = cache.get(key);
+      if (cached && now() - cached.at >= 0 && now() - cached.at < 900_000) return structuredClone(cached.candidates);
+      if (pending || now() < nextRequestAt) throw new ToolError("rate-limited");
+      pending = true; nextRequestAt = now() + 1100;
+
+      try {
+        const url = new URL("https://restapi.amap.com/v3/geocode/geo");
+        url.searchParams.set("key", apiKey);
+        url.searchParams.set("address", query);
+        if (constraints.locality) url.searchParams.set("city", constraints.locality);
+        url.searchParams.set("output", "JSON");
+
+        const response = await transport.request({
+          url: url.toString(),
+          source: amapPolicy,
+          context: { ...context, observedAt: new Date(now()).toISOString() },
+          headers: { accept: "application/json" },
+        });
+        context.throwIfCancelled();
+
+        if (response.status === 429) {
+          const retry = response.headers["retry-after"];
+          const seconds = retry && /^\d+$/.test(retry) ? Number(retry) : 60;
+          rateLimit(seconds);
+          throw new ToolError("rate-limited");
+        }
+        if ([401, 403].includes(response.status)) throw new ToolError("needs-auth");
+        if (response.status !== 200) throw new ToolError("source-changed");
+        if (new TextEncoder().encode(response.text).byteLength > 512 * 1024) throw new ToolError("budget-exceeded");
+
+        let value: unknown;
+        try { value = JSON.parse(response.text) as unknown; } catch { throw new ToolError("source-changed"); }
+        const candidates = parseAmapOfficeCandidates(value, input.location.countryCode, constraints);
+        context.throwIfCancelled();
+
+        if (cache.size >= 64) cache.delete(cache.keys().next().value!);
+        cache.set(key, { at: now(), candidates: structuredClone(candidates) });
+        return candidates;
+      } catch (error) {
+        if (error instanceof SourceTransportError && error.code === "rate-limited") rateLimit(error.retryAfterSeconds);
+        if (error instanceof SourceTransportError) {
+          throw new ToolError(
+            error.code === "rate-limited" ? "rate-limited" :
+            error.code === "timeout" ? "timeout" :
+            error.code === "cancelled" ? "cancelled" :
+            [401, 403].includes(error.status ?? 0) ? "needs-auth" :
+            error.code === "response-too-large" ? "budget-exceeded" : "source-changed"
+          );
+        }
+        throw error;
+      } finally {
+        pending = false;
+        nextRequestAt = Math.max(nextRequestAt, now() + 1100);
+      }
+    },
+  });
+}
+

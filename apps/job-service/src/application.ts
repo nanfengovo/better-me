@@ -26,6 +26,8 @@ import { createReconciliationTools } from "./reconciliation.js";
 import { createLocationMapReferencesTool } from "./location-map-references.js";
 import { createOfficeAddressTools, type OfficeAddressProvider } from "./office-address.js";
 import { createAddressEnrichmentTool } from "./address-enrichment.js";
+import { createCompanyControllerTools } from "./company-controllers.js";
+import { createCompensationAuditTools } from "./compensation-audit.js";
 
 const emptyInput = z.object({}).strict();
 // Name-only discovery has no permission to follow arbitrary URLs. This host policy is
@@ -140,6 +142,8 @@ export function createJobApplication(options: JobApplicationOptions) {
     ...createReviewedDetailLocationsTools({ repository, now }).map(definition => ({ ...definition,
       ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
       execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
+    ...createCompanyControllerTools(repository).map(definition => ({ ...definition, execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
+    ...createCompensationAuditTools(repository).map(definition => ({ ...definition, execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     defineTool({ ...searchTool, execute: (input, context) => guarded(async () => searchTool.execute(input, context)) }),
     defineTool({ ...mapReferenceTool, execute: (input, context) => guarded(async () => mapReferenceTool.execute(input, context)) }),
     defineTool({ ...geocodingTool, execute: (input, context) => guarded(async () => {

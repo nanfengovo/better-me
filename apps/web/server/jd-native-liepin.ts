@@ -149,9 +149,15 @@ export function createNativeLiepinSessions(options: NativeLiepinOptions = {}) {
   function gate(snapshot: BrowserSnapshot): "login_required" | "verification_required" | undefined {
     return snapshot.gate ?? (isBrowserVerificationUrl(snapshot.url, platform) || isObservedLiepinVerification(snapshot.html, snapshot.url, platform) ? "verification_required" : isObservedBrowserLogin(snapshot.html, snapshot.url, platform) ? "login_required" : undefined);
   }
-  function gated(snapshot: BrowserSnapshot) {
+  function gated(snapshot: BrowserSnapshot, session?: Session) {
     const reason = gate(snapshot);
-    if (reason) throw failure(reason, reason === "verification_required" ? `${platform}要求访问验证，请在专用岗位页自行完成后再读取。` : `${platform}要求登录，请在专用岗位页自行完成后再读取。`);
+    if (reason) {
+      if (reason === "verification_required" && session) {
+        session.expires = Math.max(session.expires, now() + 600_000);
+        armExpiry(session);
+      }
+      throw failure(reason, reason === "verification_required" ? `${platform}要求访问验证，请在专用岗位页自行完成后再读取。` : `${platform}要求登录，请在专用岗位页自行完成后再读取。`);
+    }
   }
   async function read(owner: string, id: string, signal?: AbortSignal): Promise<JdImportResult> {
     const session = owned(owner, id);
@@ -183,7 +189,7 @@ export function createNativeLiepinSessions(options: NativeLiepinOptions = {}) {
         const snapshot = capture.snapshot;
         const checked = validateBrowserSnapshot(snapshot, { url: snapshot.url, navigation: 0 }, { url: snapshot.url, navigation: 0 });
         if (checked.state !== "ready") { previous = ""; await sleep(200, operationSignal); continue; }
-        gated(snapshot);
+        gated(snapshot, session);
         if (snapshot.url === "about:blank") {
           previous = ""; invalidSince ??= now(); if (now() - invalidSince >= 2400) throw last;
           await sleep(200, operationSignal); continue;
@@ -245,7 +251,7 @@ export function createNativeLiepinSessions(options: NativeLiepinOptions = {}) {
         const checked = validateBrowserSnapshot(snapshot, { url: snapshot.url, navigation: 0 }, { url: snapshot.url, navigation: 0 });
         if (checked.state === "oversized") throw failure("unsupported_page", "搜索页面过大，请缩小搜索范围后重试。");
         if (checked.state !== "ready") { previous = ""; await sleep(200, operationSignal); continue; }
-        gated(snapshot);
+        gated(snapshot, session);
         if (snapshot.url === "about:blank") {
           previous = ""; invalidSince ??= now(); if (now() - invalidSince >= 2400) throw last;
           await sleep(200, operationSignal); continue;
@@ -277,6 +283,10 @@ export function createNativeLiepinSessions(options: NativeLiepinOptions = {}) {
       try {
         await page.verifyNetwork?.(operationSignal); abortNative(operationSignal); const capture = await page.capture(operationSignal, 1000, session.url, session.purpose === "search" ? { purpose: "search" } : undefined); abortNative(operationSignal);
         const snapshot = capture.snapshot; const reason = snapshot ? gate(snapshot) : undefined;
+        if (reason === "verification_required") {
+          session.expires = Math.max(session.expires, now() + 600_000);
+          armExpiry(session);
+        }
         let pageState: BrowserSessionInspection["pageState"] = snapshot?.url === "about:blank" ? "blank" : "unknown";
         if (snapshot && capture.state === "ready" && allowedBrowserResource(snapshot.url, platform)) {
           if (session.purpose === "search") {
@@ -347,6 +357,19 @@ export function createNativeLiepinSessions(options: NativeLiepinOptions = {}) {
   }
   return {
     start, startSearch, read, readSearch, inspect, focus, extend, close, closeAll, stopBrowser, recoverExited, retryEnded,
+    waitForVerification: async (owner: string, id: string, timeoutMs = 60_000, signal?: AbortSignal): Promise<boolean> => {
+      const session = owned(owner, id);
+      const deadline = now() + timeoutMs;
+      while (now() < deadline) {
+        abortNative(signal);
+        const inspection = await inspect(owner, id, signal);
+        if (inspection.gate !== "verification_required") {
+          return true;
+        }
+        await sleep(200, signal);
+      }
+      return false;
+    },
     owns: (id: string) => sessions.has(id),
     isActive: (owner: string, id: string): boolean => {
       const session = sessions.get(id);

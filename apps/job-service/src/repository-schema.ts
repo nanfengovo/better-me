@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { AtlasDatasetSchema, CanonicalJobSchema, CountryCodeSchema, EntityIdSchema, TimestampSchema, MergeDecisionSchema, JobAliasEventSchema, ReconciliationReceiptSchema, JobLocationSchema, LocationConfirmationDecisionSchema, LocationConfirmationReceiptSchema, OfficeAddressDecisionSchema, OfficeAddressReceiptSchema } from "@better-me/opportunities";
+import {
+  AtlasDatasetSchema, CanonicalJobSchema, CountryCodeSchema, EntityIdSchema, TimestampSchema,
+  MergeDecisionSchema, JobAliasEventSchema, ReconciliationReceiptSchema, JobLocationSchema,
+  LocationConfirmationDecisionSchema, LocationConfirmationReceiptSchema, OfficeAddressDecisionSchema, OfficeAddressReceiptSchema,
+  CompanyControllerOverrideReceiptSchema, CompensationAuditReceiptSchema,
+} from "@better-me/opportunities";
 import { SourceJobRecordSchema } from "@better-me/source-adapters";
 
 export const REPOSITORY_SCHEMA_VERSION = 4;
@@ -44,12 +49,25 @@ export type DiscoveryLead = z.infer<typeof DiscoveryLeadSchema>;
 export const DiscoveryLeadReceiptSchema = z.object({ ok: z.literal(true), revision: z.number().int().nonnegative(), leadIds: z.array(EntityIdSchema) }).strict();
 export type DiscoveryLeadReceipt = z.infer<typeof DiscoveryLeadReceiptSchema>;
 export const StoredReceiptSchema = z.object({
-  actorScope: ActorScopeSchema, tool: z.enum(["dataset.import", "dataset.restore", "runs.start", "leads.save", "sources.register", "jobs.merge", "jobs.reject-merge", "jobs.revoke-merge", "locations.confirm", "locations.revoke-confirmation", "locations.confirm-office-address", "locations.revoke-office-address"]),
+  actorScope: ActorScopeSchema, tool: z.enum([
+    "dataset.import", "dataset.restore", "runs.start", "leads.save", "sources.register",
+    "jobs.merge", "jobs.reject-merge", "jobs.revoke-merge",
+    "locations.confirm", "locations.revoke-confirmation",
+    "locations.confirm-office-address", "locations.revoke-office-address",
+    "companies.confirm-controller-override", "companies.revoke-controller-override",
+    "compensations.confirm-audit", "compensations.revoke-audit",
+  ]),
   idempotencyKey: IdempotencyKeySchema, signature: z.string().regex(/^[a-f0-9]{64}$/),
-  response: z.union([ImportReceiptSchema, SyncRunSchema, DiscoveryLeadReceiptSchema, ReconciliationReceiptSchema, LocationConfirmationReceiptSchema, OfficeAddressReceiptSchema]), createdAt: TimestampSchema,
+  response: z.union([
+    ImportReceiptSchema, SyncRunSchema, DiscoveryLeadReceiptSchema, ReconciliationReceiptSchema,
+    LocationConfirmationReceiptSchema, OfficeAddressReceiptSchema,
+    CompanyControllerOverrideReceiptSchema, CompensationAuditReceiptSchema,
+  ]), createdAt: TimestampSchema,
 }).strict().superRefine((receipt, context) => {
   if ((receipt.tool === "locations.confirm" || receipt.tool === "locations.revoke-confirmation") && !LocationConfirmationReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Location command receipts require a location response." });
   if ((receipt.tool === "locations.confirm-office-address" || receipt.tool === "locations.revoke-office-address") && !OfficeAddressReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Office command receipts require an office response." });
+  if ((receipt.tool === "companies.confirm-controller-override" || receipt.tool === "companies.revoke-controller-override") && !CompanyControllerOverrideReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Company controller command receipts require a company controller response." });
+  if ((receipt.tool === "compensations.confirm-audit" || receipt.tool === "compensations.revoke-audit") && !CompensationAuditReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Compensation audit command receipts require a compensation audit response." });
 });
 export type StoredReceipt = z.infer<typeof StoredReceiptSchema>;
 export const RepositoryBackupSchema = z.object({

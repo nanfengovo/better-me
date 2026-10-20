@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { mkdtemp, mkdir, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -15,8 +15,9 @@ async function temporary(run: (directory: string) => Promise<void>) {
 const code = (expected: string) => (error: unknown) => error instanceof LocalJobServiceError && error.code === expected;
 const config = (directory: string) => ({ dataDirectory: directory, allowedOrigins: ["http://localhost:5173"], port: 0 });
 async function staleLock(directory: string, changes: Record<string, unknown> = {}) {
+  await chmod(directory, 0o700).catch(() => {});
   const path = join(directory, ".job-service.lock");
-  await mkdir(path);
+  await mkdir(path, { recursive: true, mode: 0o700 });
   const owner = { schemaVersion: 1, pid: 1234567, owner: randomUUID(), hostname: hostname(), createdAt: "2026-10-18T00:00:00.000Z", ...changes };
   await writeFile(join(path, "owner.json"), JSON.stringify(owner));
   return { path, owner };
@@ -88,6 +89,7 @@ test("foreign host, malformed metadata, and abandoned reclaim guard remain block
   const foreign = join(directory, "foreign"); await mkdir(foreign); await staleLock(foreign, { hostname: "different-host" });
   await assert.rejects(acquireDataDirectoryLock(foreign, { processAlive: () => false }), code("data-directory-busy"));
   const malformed = join(directory, "malformed"); await mkdir(join(malformed, ".job-service.lock"), { recursive: true });
+  await chmod(malformed, 0o700).catch(() => {});
   await writeFile(join(malformed, ".job-service.lock", "owner.json"), "unfinished");
   await assert.rejects(acquireDataDirectoryLock(malformed), code("invalid-lock"));
   assert.equal(await readFile(join(malformed, ".job-service.lock", "owner.json"), "utf8"), "unfinished");
@@ -120,7 +122,7 @@ test("token and lock symbolic links or Windows junctions are refused without fol
   const credentials = join(directory, "credentials"); await mkdir(credentials);
   await symlink(process.platform === "win32" ? target : join(target, "token"), join(credentials, "service.token"), process.platform === "win32" ? "junction" : "file");
   await assert.rejects(loadOrCreateServiceToken(credentials), code("invalid-token"));
-  const locked = join(directory, "locked"); await mkdir(locked);
+  const locked = join(directory, "locked"); await mkdir(locked); await chmod(locked, 0o700).catch(() => {});
   await symlink(target, join(locked, ".job-service.lock"), process.platform === "win32" ? "junction" : "dir");
   await assert.rejects(acquireDataDirectoryLock(locked), code("invalid-lock"));
   assert.equal(await readFile(join(target, "token"), "utf8"), "A".repeat(43));
