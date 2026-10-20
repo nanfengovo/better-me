@@ -294,15 +294,152 @@ export function resolveAmapApiKey(explicitKey?: string, dataDirectory?: string):
   return undefined;
 }
 
+export const CITY_AREA_CODE_MAP: Record<string, string> = {
+  上海: "021", 上海市: "021",
+  北京: "010", 北京市: "010",
+  广州: "020", 广州市: "020",
+  深圳: "0755", 深圳市: "0755",
+  杭州: "0571", 杭州市: "0571",
+  成都: "028", 成都市: "028",
+  武汉: "027", 武汉市: "027",
+  南京: "025", 南京市: "025",
+  苏州: "0512", 苏州市: "0512",
+  西安: "029", 西安市: "029",
+  重庆: "023", 重庆市: "023",
+  天津: "022", 天津市: "022",
+  合肥: "0551", 合肥市: "0551",
+  长沙: "0731", 长沙市: "0731",
+  厦门: "0592", 厦门市: "0592",
+  青岛: "0532", 青岛市: "0532",
+  大连: "0411", 大连市: "0411",
+  宁波: "0574", 宁波市: "0574",
+  无锡: "0510", 无锡市: "0510",
+  郑州: "0371", 郑州市: "0371",
+  东莞: "0769", 东莞市: "0769",
+  佛山: "0757", 佛山市: "0757",
+  珠海: "0756", 珠海市: "0756",
+  济南: "0531", 济南市: "0531",
+  福州: "0591", 福州市: "0591",
+  沈阳: "024", 沈阳市: "024",
+  哈尔滨: "0451", 哈尔滨市: "0451",
+  长春: "0431", 长春市: "0431",
+  昆明: "0871", 昆明市: "0871",
+  贵阳: "0851", 贵阳市: "0851",
+  南宁: "0771", 南宁市: "0771",
+  海口: "0898", 海口市: "0898",
+  兰州: "0931", 兰州市: "0931",
+  银川: "0951", 银川市: "0951",
+  西宁: "0971", 西宁市: "0971",
+  乌鲁木齐: "0991", 乌鲁木齐市: "0991",
+  呼和浩特: "0471", 呼和浩特市: "0471",
+  南昌: "0791", 南昌市: "0791",
+  太原: "0351", 太原市: "0351",
+  石家庄: "0311", 石家庄市: "0311",
+  香港: "852",
+  澳门: "853",
+  台北: "886",
+};
+
+export function resolveCityCode(locality?: string, query?: string): string {
+  const loc = (locality ?? "").trim();
+  if (loc) {
+    if (CITY_AREA_CODE_MAP[loc]) return CITY_AREA_CODE_MAP[loc]!;
+    for (const [k, v] of Object.entries(CITY_AREA_CODE_MAP)) {
+      if (loc.includes(k) || k.includes(loc)) return v;
+    }
+  }
+  const q = (query ?? "").trim();
+  if (q) {
+    for (const [k, v] of Object.entries(CITY_AREA_CODE_MAP)) {
+      if (q.startsWith(k) || q.includes(k)) return v;
+    }
+  }
+  return loc.replace(/[^A-Za-z0-9]/g, "") || "000";
+}
+
+/** Fast 32-bit FNV-1a hash function for deterministic character n-gram projection. */
+function fnv1a(str: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
+/**
+ * Normalizes address text for semantic embedding by stripping common whitespace,
+ * punctuation, and standard administrative prefixes (province, city, district).
+ */
+export function cleanAddressText(text: string): string {
+  let t = text.toLowerCase().replace(/[\s,，.。;；/\\()（）\-—_]/g, "");
+  t = t.replace(/^[^\d]{2,6}(?:省|市)/, "");
+  t = t.replace(/^[^\d]{2,6}(?:市|区|县)/, "");
+  t = t.replace(/\s*\d+[-号]?[楼层室栋座]/g, "");
+  t = t.replace(/\s*[A-Za-z0-9]+[座栋单元]/g, "");
+  return t;
+}
+
+/**
+ * Extracts recognizable landmark text from an address by stripping administrative prefixes
+ * as well as road and door number patterns.
+ */
+export function extractLandmarkText(text: string): string {
+  let t = cleanAddressText(text);
+  t = t.replace(/[^\d\s,，]{2,15}[路街道巷弄道]\s*\d+[-至到]?\d*号?/g, "");
+  return t.trim();
+}
+
+/**
+ * Creates a normalized 256-dimensional semantic embedding vector using character
+ * uni-gram, bi-gram, and tri-gram feature projection with L2 normalization (pure TS, zero-dependency).
+ */
+export function createAddressEmbedding(text: string, dim: number = 256): Float32Array {
+  const clean = cleanAddressText(text);
+  const vec = new Float32Array(dim);
+  if (!clean) return vec;
+
+  for (let i = 0; i < clean.length; i++) {
+    vec[fnv1a(clean[i]!) % dim] += 1.0;
+  }
+  for (let i = 0; i < clean.length - 1; i++) {
+    vec[fnv1a(clean.slice(i, i + 2)) % dim] += 1.5;
+  }
+  for (let i = 0; i < clean.length - 2; i++) {
+    vec[fnv1a(clean.slice(i, i + 3)) % dim] += 2.0;
+  }
+
+  let sumSq = 0;
+  for (let i = 0; i < dim; i++) sumSq += vec[i]! * vec[i]!;
+  if (sumSq > 0) {
+    const inv = 1 / Math.sqrt(sumSq);
+    for (let i = 0; i < dim; i++) vec[i]! *= inv;
+  }
+  return vec;
+}
+
+/**
+ * Calculates the cosine similarity between two normalized vectors (dot product).
+ * Returns a value in [0.0, 1.0].
+ */
+export function cosineSimilarity(a: Float32Array | number[], b: Float32Array | number[]): number {
+  if (a.length !== b.length || a.length === 0) return 0;
+  let dot = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += (a[i] ?? 0) * (b[i] ?? 0);
+  }
+  return Math.max(0, Math.min(1, dot));
+}
+
 /**
  * Normalizes an address query by extracting administrative locality and road/number key,
  * stripping secondary decorations like industrial parks, building blocks, and room numbers.
- * Example: ("上海市", "浦东新区科苑路399号张江创新园A座301室") -> "上海市:科苑路_399号"
+ * Example: ("上海市", "浦东新区科苑路399号张江创新园A座301室") -> "021:科苑路_399号"
  */
 export function normalizeAddressKey(locality?: string, query?: string): string {
-  const loc = (locality ?? "").trim();
+  const cityCode = resolveCityCode(locality, query);
   let text = (query ?? "").trim();
-  if (!text) return loc ? `${loc}:` : "";
+  if (!text) return `${cityCode}:`;
 
   // Strip brackets and parentheses: (A座), （3号楼）
   text = text.replace(/[\(（][^\)）]*[\)）]/g, " ");
@@ -320,12 +457,22 @@ export function normalizeAddressKey(locality?: string, query?: string): string {
   if (roadMatch) {
     const road = roadMatch[1]!.trim();
     const num = roadMatch[2]!.trim().endsWith("号") ? roadMatch[2]!.trim() : `${roadMatch[2]!.trim()}号`;
-    return `${loc}:${road}_${num}`;
+    return `${cityCode}:${road}_${num}`;
   }
 
   // Fallback: strip whitespace and return clean string
   const clean = text.replace(/\s+/g, "").slice(0, 100);
-  return `${loc}:${clean}`;
+  return `${cityCode}:${clean}`;
+}
+
+export interface GeoAddressCacheEntry {
+  normKey: string;
+  cityCode: string;
+  rawQuery: string;
+  candidate: OfficeAddressCandidate;
+  embedding?: number[];
+  landmarkEmbedding?: number[];
+  cachedAt: string;
 }
 
 export function createAmapOfficeProvider(transport: SourceTransport, options: { key?: string; dataDirectory?: string; now?: () => number } = {}): OfficeAddressProvider {
@@ -335,7 +482,7 @@ export function createAmapOfficeProvider(transport: SourceTransport, options: { 
   const rateLimit = (seconds = 60) => { nextRequestAt = Math.max(nextRequestAt, now() + Math.max(1.1, Math.min(31_536_000, seconds)) * 1000); };
 
   const persistentCachePath = options.dataDirectory ? join(options.dataDirectory, "geo-address-cache.json") : undefined;
-  const persistentMap = new Map<string, { candidate: OfficeAddressCandidate; cachedAt: string }>();
+  const persistentMap = new Map<string, GeoAddressCacheEntry>();
 
   if (persistentCachePath && existsSync(persistentCachePath)) {
     try {
@@ -344,7 +491,17 @@ export function createAmapOfficeProvider(transport: SourceTransport, options: { 
       if (data && typeof data === "object") {
         for (const [k, v] of Object.entries(data)) {
           if (v && typeof v === "object" && (v as any).candidate) {
-            persistentMap.set(k, v as any);
+            const entry = v as GeoAddressCacheEntry;
+            if (!entry.embedding && entry.candidate?.proposal?.formattedAddress) {
+              entry.embedding = Array.from(createAddressEmbedding(entry.candidate.proposal.formattedAddress));
+            }
+            if (!entry.landmarkEmbedding) {
+              const landmark = extractLandmarkText(entry.rawQuery || entry.candidate?.proposal?.formattedAddress || "");
+              if (landmark) {
+                entry.landmarkEmbedding = Array.from(createAddressEmbedding(landmark));
+              }
+            }
+            persistentMap.set(k, entry);
           }
         }
       }
@@ -377,11 +534,53 @@ export function createAmapOfficeProvider(transport: SourceTransport, options: { 
       if (!parsedInput.success || input.location.kind !== "office") throw new ToolError("invalid-input");
       const { query, ...constraints } = parsedInput.data;
 
-      // 1. Check normalized persistent dictionary first (0 ms, 0 API consumption, Q5 option B)
+      // 1. Stage 1: Check normalized persistent dictionary first (0 ms, 0 API consumption, Q5 option B)
       const normKey = normalizeAddressKey(constraints.locality, query);
       const persistentHit = persistentMap.get(normKey);
       if (persistentHit) {
         return [structuredClone(persistentHit.candidate)];
+      }
+
+      // 2. Stage 2: Semantic vector embedding similarity search (Q5 option C)
+      const cityCode = resolveCityCode(constraints.locality, query);
+      const queryVec = createAddressEmbedding(query);
+      const landmark = extractLandmarkText(query);
+      const landmarkVec = landmark ? createAddressEmbedding(landmark) : undefined;
+      let bestEntry: GeoAddressCacheEntry | undefined;
+      let bestScore = -1;
+
+      for (const entry of persistentMap.values()) {
+        if (entry.cityCode && entry.cityCode !== cityCode && !entry.normKey.startsWith(`${cityCode}:`)) {
+          continue;
+        }
+        let score = 0;
+        if (entry.embedding && entry.embedding.length > 0) {
+          score = Math.max(score, cosineSimilarity(queryVec, entry.embedding));
+        }
+        if (entry.landmarkEmbedding && entry.landmarkEmbedding.length > 0) {
+          score = Math.max(score, cosineSimilarity(queryVec, entry.landmarkEmbedding));
+          if (landmarkVec) {
+            score = Math.max(score, cosineSimilarity(landmarkVec, entry.landmarkEmbedding));
+          }
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          bestEntry = entry;
+        }
+      }
+
+      if (bestEntry && bestScore >= 0.85) {
+        persistentMap.set(normKey, {
+          normKey,
+          cityCode,
+          rawQuery: query,
+          candidate: structuredClone(bestEntry.candidate),
+          embedding: Array.from(queryVec),
+          ...(landmarkVec ? { landmarkEmbedding: Array.from(landmarkVec) } : {}),
+          cachedAt: new Date(now()).toISOString(),
+        });
+        savePersistentCache();
+        return [structuredClone(bestEntry.candidate)];
       }
 
       const key = JSON.stringify([query, input.location.countryCode ?? null, constraints.locality ?? null, constraints.postalCode ?? null]);
@@ -422,7 +621,18 @@ export function createAmapOfficeProvider(transport: SourceTransport, options: { 
 
         if (candidates.length > 0) {
           const best = candidates[0]!;
-          persistentMap.set(normKey, { candidate: structuredClone(best), cachedAt: new Date(now()).toISOString() });
+          const embeddingVec = createAddressEmbedding(best.proposal.formattedAddress || query);
+          const lmark = extractLandmarkText(query || best.proposal.formattedAddress);
+          const lmarkVec = lmark ? createAddressEmbedding(lmark) : undefined;
+          persistentMap.set(normKey, {
+            normKey,
+            cityCode,
+            rawQuery: query,
+            candidate: structuredClone(best),
+            embedding: Array.from(embeddingVec),
+            ...(lmarkVec ? { landmarkEmbedding: Array.from(lmarkVec) } : {}),
+            cachedAt: new Date(now()).toISOString(),
+          });
           savePersistentCache();
         }
 

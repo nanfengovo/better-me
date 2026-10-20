@@ -18,7 +18,13 @@ import { z } from "zod";
 import { openJobRepository } from "../src/repository.js";
 import { createJobApplication } from "../src/application.js";
 import { projectSourcePage } from "../src/projection.js";
-import { normalizeAddressKey, createAmapOfficeProvider } from "../src/office-address-provider.js";
+import {
+  normalizeAddressKey,
+  createAmapOfficeProvider,
+  createAddressEmbedding,
+  cosineSimilarity,
+  resolveCityCode,
+} from "../src/office-address-provider.js";
 import type { SourceDefinition } from "@better-me/opportunities";
 import type { SourceJobRecord } from "@better-me/source-adapters";
 import type { OfficeAddressProvider } from "../src/office-address.js";
@@ -337,15 +343,15 @@ describe("LangChain & LangGraph Thin Adapter for Job Audit Agent", () => {
   it("normalizeAddressKey normalizes address strings and strips park/floor decorations", () => {
     assert.equal(
       normalizeAddressKey("上海市", "浦东新区科苑路399号张江创新园A座301室"),
-      "上海市:科苑路_399号"
+      "021:科苑路_399号"
     );
     assert.equal(
       normalizeAddressKey("北京市", "海淀区东北旺西路8号中关村软件园二期（9号楼）"),
-      "北京市:东北旺西路_8号"
+      "010:东北旺西路_8号"
     );
     assert.equal(
       normalizeAddressKey("杭州市", "余杭区文一西路969号阿里巴巴西溪园区"),
-      "杭州市:文一西路_969号"
+      "0571:文一西路_969号"
     );
     assert.equal(
       stripAddressDecorations("浦东新区科苑路399号张江创新园A座301室"),
@@ -423,6 +429,108 @@ describe("LangChain & LangGraph Thin Adapter for Job Audit Agent", () => {
       assert.equal(cand2.length, 1);
       assert.equal(transportCalls, 1, "Must hit persistent geo cache without invoking transport");
       assert.equal(cand2[0].proposal.coordinates.longitude, cand1[0].proposal.coordinates.longitude);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("semantic vector embedding and cosine similarity matches address variants without door numbers", async () => {
+    // 1. Direct unit verification of character n-gram embedding & cosine similarity
+    const v1 = createAddressEmbedding("阿里巴巴西溪园区");
+    const v2 = createAddressEmbedding("余杭区阿里巴巴西溪园区A区");
+    const v3 = createAddressEmbedding("杭州市滨江区网易大厦");
+
+    assert.equal(v1.length, 256);
+    assert.equal(v2.length, 256);
+
+    const simHigh = cosineSimilarity(v1, v2);
+    const simLow = cosineSimilarity(v1, v3);
+
+    assert.ok(simHigh >= 0.85, `Expected simHigh >= 0.85, got ${simHigh}`);
+    assert.ok(simLow < 0.3, `Expected simLow < 0.3, got ${simLow}`);
+
+    // 2. Integration verification in provider cache
+    const tempDir = mkdtempSync(join(tmpdir(), "geo-embed-test-"));
+    let transportCalls = 0;
+
+    const mockTransport = {
+      request: async (req: any) => {
+        transportCalls++;
+        return {
+          status: 200,
+          url: req.url,
+          headers: { "content-type": "application/json" },
+          text: JSON.stringify({
+            status: "1",
+            info: "OK",
+            count: "1",
+            geocodes: [{
+              formatted_address: "浙江省杭州市余杭区文一西路969号阿里巴巴西溪园区",
+              country: "中国",
+              province: "浙江省",
+              city: "杭州市",
+              district: "余杭区",
+              street: "文一西路",
+              number: "969号",
+              location: "120.024567,30.278912",
+              level: "兴趣点",
+            }],
+          }),
+        };
+      },
+    };
+
+    let fakeTime = 10000;
+    try {
+      const provider = createAmapOfficeProvider(mockTransport as any, {
+        key: "test-amap-key",
+        dataDirectory: tempDir,
+        now: () => fakeTime,
+      });
+
+      const dummyLocation = {
+        id: "loc-embed-1",
+        kind: "office" as const,
+        countryCode: "CN",
+        coordinates: undefined,
+      };
+
+      const dummyContext: any = { throwIfCancelled: () => {} };
+
+      // Query 1: standard road + number + landmark -> calls transport and persists
+      const res1 = await provider.search({
+        query: "文一西路969号阿里巴巴西溪园区",
+        locality: "杭州市",
+        location: dummyLocation as any,
+      }, dummyContext);
+
+      assert.equal(res1.length, 1);
+      assert.equal(transportCalls, 1);
+
+      // Query 2: landmark without road number ("余杭区阿里巴巴西溪园区A区")
+      // Stage 1 exact key will miss, but Stage 2 Semantic Vector Match hits! (0 transport calls)
+      const res2 = await provider.search({
+        query: "余杭区阿里巴巴西溪园区A区",
+        locality: "杭州市",
+        location: dummyLocation as any,
+      }, dummyContext);
+
+      assert.equal(res2.length, 1);
+      assert.equal(transportCalls, 1, "Semantic vector search should hit cached landmark with 0 transport calls");
+      assert.equal(res2[0].proposal.formattedAddress, "浙江省杭州市余杭区文一西路969号阿里巴巴西溪园区");
+
+      // Advance time beyond 1.1s rate gate
+      fakeTime += 2000;
+
+      // Query 3: completely different landmark in the same city ("滨江区网易大厦")
+      // Cosine similarity < 0.85 -> misses cache, calls transport
+      const res3 = await provider.search({
+        query: "滨江区网易大厦",
+        locality: "杭州市",
+        location: dummyLocation as any,
+      }, dummyContext);
+
+      assert.equal(transportCalls, 2, "Unrelated landmark in same city should not hit semantic cache");
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

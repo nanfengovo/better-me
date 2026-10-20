@@ -5,11 +5,11 @@
 ## 当前交付
 
 - [x] 2026-10-21 Agent OS 薄适配层与自省双轨架构升级（`agent-os`）：
-  - **高德地理编码与跨版本持久化地名字典**：落地 AMap provider、429 退避、1.1s 门禁与 WGS84 转换，实现地址候选/预览/审计确认/撤销回执流。引入 `normalizeAddressKey` 行政区与门牌规范化，在数据目录建立 `geo-address-cache.json` 持久化，同一门牌不同写法实现 0 API 消耗毫秒级命中。种子脚本覆盖全国 7 大城市 35 个真实 IT 地标，100% 确认入库。
+  - **高德地理编码与跨版本持久化地名字典（Q5 选项 B & C）**：落地 AMap provider、429 退避、1.1s 门禁与 WGS84 转换，实现地址候选/预览/审计确认/撤销回执流。引入 `normalizeAddressKey` 行政区与门牌规范化，升级为 `{CityCode}:{RoadName}_{HouseNumber}` 标准两段式主键（如 `021:科苑路_399号`）；引入纯 TS 原生 256 维字符 N-Gram 向量嵌入与余弦相似度检索（`createAddressEmbedding` + `cosineSimilarity`，$\ge 0.85$ 阈值），在数据目录建立 `geo-address-cache.json` 持久化，园区/地标变体实现 0 API 消耗毫秒级命中。种子脚本覆盖全国 7 大城市 35 个真实 IT 地标，100% 确认入库。
   - **受审薪资折算与企业控股证据链**：支持任意币种折算至 CNY 固定年现金与证据链溯源；支持穿透式企业实际控制人变更与色彩推导。
   - **国内来源人机策略与结构化 JD 扩充**：会话 TTL 延至 10 分钟与 `waitForVerification` 轮询人机校验；补齐 35 岗完整职责/任职要求/业务/福利结构化 JD。
-  - **Evaluator-Optimizer 自省回环与双轨自主型（Dual-Track Autonomy）**：基于 Anthropic 最佳实践落地自省回环，自动剥离楼层/园区后缀自省优化重试；落地双轨自主模式，高置信度（$\ge 0.95$）直通生成不可伪造的 Durable Receipt，模糊或只读模式生成 PreviewFingerprint 挂起人工审批。
-  - **质量指标**：全工作区 **489 项测试全量通过**（489 pass, 0 fail），TypeScript 零错误。
+  - **Evaluator-Optimizer 自省回环与双轨自主型（Dual-Track Autonomy，Q4 选项 B）**：基于 Anthropic 最佳实践落地自省回环（`MaxRetries=2`，梯度止损），自动剥离楼层/园区后缀自省优化重试；落地双轨自主模式，高置信度（$\ge 0.95$）直通生成不可伪造的 Durable Receipt，模糊或只读模式生成 PreviewFingerprint 挂起人工审批。
+  - **质量指标**：全工作区核心包 **489 项测试全量通过**（489 pass, 0 fail），TypeScript 零错误。
 
 - [x] 2026-10-20 岗位地图按出处精度落点并收束视野（`agent-os`）：已核办公点为办公楼，街道坐标为街道，无确认的地址坐标不称办公楼，城市中心与城市参考只标城市估算。无坐标街址不补点。相关测试 74 + workspace 56 已通过。合成演示国内搜「上海」约 20 km，详情写「城市估算 · 非办公地址」。真实办公坐标仍为 0，高德未接。
 
