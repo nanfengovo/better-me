@@ -6,6 +6,7 @@ import { Window, type HTMLButtonElement, type HTMLInputElement, type HTMLSelectE
 import { createAtlasDemo } from "../src/components/atlas/demo.ts";
 import { createOpportunity, OPPORTUNITY_STORAGE_KEY } from "../src/lib/opportunities.ts";
 import { ATLAS_CONNECTION_SESSION_KEY } from "../src/components/atlas/connection-session.ts";
+import { ATLAS_DEV_AUTOCONNECT_SUPPRESSED_KEY, type DevJobIndexBootstrap } from "../src/components/atlas/dev-index-bootstrap.ts";
 
 const dom = new Window({ url: "http://atlas-connection-fixture.invalid" });
 const React = await import("react");
@@ -25,6 +26,9 @@ const { createRoot } = await import("react-dom/client");
 const { UiPreferencesProvider } = await import("../src/lib/ui-preferences.tsx");
 const { default: AtlasWorkspace } = await import("../src/components/AtlasWorkspace.tsx");
 let root: ReturnType<typeof createRoot> | undefined;
+let mountedActive = true;
+let mountedStrict = false;
+let mountedDevJobIndex: ((signal: AbortSignal) => Promise<DevJobIndexBootstrap | undefined>) | undefined;
 const saved = { schemaVersion: 1, dataMode: "live", endpoint: "http://127.0.0.1:5178", token: "synthetic-tab-session-token" };
 const snapshot = createAtlasDemo(); snapshot.revision = 42;
 const response = () => new Response(JSON.stringify({ ok: true, requestId: "synthetic-connection-fixture", value: snapshot }));
@@ -32,12 +36,13 @@ async function waitFor(condition: () => boolean, label: string) {
   const deadline = performance.now() + 8000;
   while (!condition()) { assert.ok(performance.now() < deadline, `Timed out: ${label}: ${dom.document.body.textContent?.slice(0, 1800)}`); await act(async () => { await delay(15); }); }
 }
-async function mount(active = true, strict = false) {
+async function mount(active = true, strict = false, devJobIndex?: (signal: AbortSignal) => Promise<DevJobIndexBootstrap | undefined>) {
+  mountedActive = active; mountedStrict = strict; mountedDevJobIndex = devJobIndex;
   if (!root) { dom.document.body.innerHTML = "<main></main>"; root = createRoot(dom.document.querySelector("main")! as unknown as Element); }
-  const workspace = h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" }, children: h(AtlasWorkspace, { active, onSaveOpportunity() {}, onAnalyze() {} }) });
+  const workspace = h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" }, children: h(AtlasWorkspace, { active, ...(devJobIndex ? { devJobIndex } : {}), onSaveOpportunity() {}, onAnalyze() {} }) });
   await act(async () => root!.render(strict ? h(React.StrictMode, null, workspace) : workspace));
 }
-async function reload() { await act(async () => root!.unmount()); root = undefined; await mount(); }
+async function reload() { await act(async () => root!.unmount()); root = undefined; await mount(mountedActive, mountedStrict, mountedDevJobIndex); }
 function button(text: string) { const found = [...dom.document.querySelectorAll<HTMLButtonElement>("button")].find(node => node.textContent?.trim() === text); assert.ok(found, `Missing button ${text}`); return found; }
 const view = () => dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!;
 function input(label: string) { const found = [...dom.document.querySelectorAll("label")].find(node => node.textContent?.startsWith(label))?.querySelector<HTMLInputElement>("input"); assert.ok(found); return found; }
@@ -211,4 +216,74 @@ test("changing credentials while a filter query is pending clears the cancelled 
   assert.equal(dom.document.querySelector(".atlas-results-heading .animate-spin"), null);
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0);
   assert.equal(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY), null);
+});
+
+test("local dev bootstrap reads the index without a typed token, and disconnect keeps this tab from reconnecting", async () => {
+  let bootstraps = 0;
+  let release: ((value: DevJobIndexBootstrap) => void) | undefined;
+  const devJobIndex = (signal: AbortSignal) => new Promise<DevJobIndexBootstrap>((resolve, reject) => {
+    bootstraps += 1;
+    const fail = () => reject(new DOMException("The operation was aborted.", "AbortError"));
+    if (signal.aborted) { fail(); return; }
+    signal.addEventListener("abort", fail, { once: true });
+    release = resolve;
+  });
+  mock.method(globalThis, "fetch", async () => response());
+  await mount(true, false, devJobIndex);
+  await waitFor(() => bootstraps === 1 && !!dom.document.body.textContent?.includes("正在准备本机岗位索引"), "dev bootstrap started");
+  assert.equal(dom.document.querySelector('input[type="password"]'), null);
+  assert.equal(view().value, "live");
+  await act(async () => release!({ ok: true, endpoint: saved.endpoint, token: saved.token }));
+  await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "auto-connected index");
+  assert.match(dom.document.querySelector(".atlas-data-banner")!.textContent!, /索引版本 42/);
+  assert.equal(dom.localStorage.getItem(ATLAS_CONNECTION_SESSION_KEY), null);
+  assert.equal(JSON.parse(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY)!).token, saved.token);
+  assert.equal(dom.location.href.includes(saved.token), false);
+  await act(async () => button("连接本机服务").click());
+  await act(async () => button("断开并清除会话连接").click());
+  assert.equal(view().value, "local");
+  assert.equal(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY), null);
+  assert.equal(dom.sessionStorage.getItem(ATLAS_DEV_AUTOCONNECT_SUPPRESSED_KEY), "1");
+  await act(async () => { await delay(40); });
+  assert.equal(bootstraps, 1);
+  await reload();
+  await act(async () => { await delay(40); });
+  assert.equal(bootstraps, 1);
+  assert.equal(view().value, "local");
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0);
+});
+
+test("disconnect during dev bootstrap ignores credentials that arrive afterwards", async () => {
+  let release: ((value: DevJobIndexBootstrap) => void) | undefined;
+  mock.method(globalThis, "fetch", async () => response());
+  await mount(true, false, () => new Promise<DevJobIndexBootstrap>((resolve) => { release = resolve; }));
+  await waitFor(() => !!release, "bootstrap waiting");
+  await act(async () => button("连接本机服务").click());
+  await act(async () => button("断开并清除会话连接").click());
+  await act(async () => release!({ ok: true, endpoint: saved.endpoint, token: saved.token }));
+  await act(async () => { await delay(40); });
+  assert.equal(view().value, "local");
+  assert.equal(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY), null);
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0);
+  assert.equal(dom.localStorage.getItem(ATLAS_CONNECTION_SESSION_KEY), null);
+});
+
+test("a failed dev index preparation shows the real error and does not present a connected index", async () => {
+  mock.method(globalThis, "fetch", async () => { throw new Error("snapshot must not run"); });
+  await mount(true, false, async () => ({ ok: false, error: "synthetic job service refused to start: EADDRINUSE" }));
+  await waitFor(() => dom.document.querySelector('[role="alert"]')?.textContent?.includes("EADDRINUSE") === true, "startup error");
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0);
+  assert.equal(view().value, "live");
+  assert.equal(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY), null);
+  assert.equal(dom.localStorage.getItem(ATLAS_CONNECTION_SESSION_KEY), null);
+});
+
+test("a saved tab session restores the index without asking the dev broker", async () => {
+  dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify(saved));
+  let bootstraps = 0;
+  mock.method(globalThis, "fetch", async () => response());
+  await mount(true, false, async () => { bootstraps += 1; return { ok: true, endpoint: saved.endpoint, token: "other-synthetic-token" }; });
+  await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "restored session");
+  assert.equal(bootstraps, 0);
+  assert.equal(JSON.parse(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY)!).token, saved.token);
 });

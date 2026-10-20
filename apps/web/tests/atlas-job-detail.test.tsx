@@ -89,7 +89,7 @@ test("a city distribution reference is labelled separately, links its place sour
   const before = structuredClone(props.data), batch = await createMapReferenceFixture(props.data);
   props.item = (await queryJobs(props.data, { jobIds: [props.data.jobs[0]!.id] }, { now: "2026-10-19T00:00:00Z", mapReferences: batch })).items[0]!;
   let located: string | undefined; props.onLocate = id => { located = id; };
-  const pane = await render(props); assert.match(pane.textContent!, /城市分布参考.*城市级估算，非办公地址；不用于离家距离/);
+  const pane = await render(props); assert.match(pane.textContent!, /城市分布参考.*城市估算，非办公地址；不用于离家距离/);
   const link = [...pane.querySelectorAll<HTMLAnchorElement>("a")].find(entry => entry.textContent?.includes("地名数据出处")); assert.ok(link);
   assert.equal(link.getAttribute("href"), "https://places.example.invalid/0"); assert.equal(link.getAttribute("rel"), "noopener noreferrer");
   await act(async () => button("定位城市参考").click()); assert.equal(located, location.id);
@@ -118,7 +118,7 @@ test("manual office addresses retain source text, structured street/postal field
   props.item.locations = [structuredClone(officeConfirmed)];
   let chosen: typeof officeConfirmed | undefined; props.onConfirmOffice = location => { chosen = location; };
   const pane = await render(props), location = props.item.locations[0]!;
-  assert.match(pane.textContent!, /本人核对的办公位置.*待核实.*非来源认证/);
+  assert.match(pane.textContent!, /办公楼.*本人核对的办公位置.*待核实.*非来源认证/);
   assert.match(pane.textContent!, /本人核对的街道／门牌.*Synthetic Example Road 10/); assert.match(pane.textContent!, /本人核对的邮政编码.*200000/);
   assert.doesNotMatch(pane.textContent!, /来源披露的街道／门牌|来源披露的邮政编码/);
   assert.match(pane.textContent!, /本人核对的地址.*手工核对，仍待核实/);
@@ -180,7 +180,8 @@ test("locations use existing coordinates or original text and missing coordinate
   let pane = await render(props);
   let maps = pane.querySelector<HTMLAnchorElement>('.atlas-job-detail-location a')!;
   assert.equal(new URL(maps.href).searchParams.get("query"), "31.23,121.47");
-  assert.match(pane.querySelector(".atlas-job-detail-location small")!.textContent!, /城市级估算.*非办公地址/);
+  assert.match(pane.querySelector(".atlas-job-detail-location small")!.textContent!, /城市估算.*非办公地址/);
+  assert.doesNotMatch(pane.textContent!, /办公楼/);
   await act(async () => button("地图定位").click()); assert.deepEqual(calls, [props.item.locations[0]!.id]);
   delete props.item.locations[0]!.coordinates;
   pane = await render(props); maps = pane.querySelector<HTMLAnchorElement>('.atlas-job-detail-location a')!;

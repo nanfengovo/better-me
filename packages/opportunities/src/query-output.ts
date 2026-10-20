@@ -39,7 +39,13 @@ export const MapBucketSchema = z.object({
   jobIds: z.array(EntityIdSchema), locationIds: z.array(EntityIdSchema), jobCount: CountSchema, pinCount: CountSchema,
   categories: z.array(z.object({ ruleId: z.string().min(1), label: z.string().min(1), color: z.string().regex(/^#[a-fA-F0-9]{6}$/), jobCount: CountSchema }).strict()),
   positionBasis: z.literal("city-reference").optional(), precision: z.literal("city").optional(), estimated: z.literal(true).optional(),
-}).strict().refine(bucket => [bucket.positionBasis !== undefined, bucket.precision !== undefined, bucket.estimated !== undefined].every(value => value === (bucket.positionBasis !== undefined)), "City reference buckets require their complete precision labels.");
+  displayGrade: z.enum(["building", "street", "address", "city"]).optional(),
+}).strict().refine(bucket => {
+  const reference = bucket.positionBasis !== undefined;
+  if (bucket.precision !== undefined !== reference || bucket.estimated !== undefined !== reference) return false;
+  if (reference && bucket.displayGrade && bucket.displayGrade !== "city") return false;
+  return true;
+}, "City reference buckets require their complete precision labels.");
 
 /** The actual JSON response contract, including nested domain/value validation. */
 export const JobQueryResultSchema: z.ZodType<JobQueryResult, z.ZodTypeDef, unknown> = z.object({

@@ -85,10 +85,10 @@ export function createJobMapFocus(item: FocusJob, requestId: string, options: Fo
 
 export function mapFocusPrecisionLabel(target: AtlasMapFocus): string {
   const precision: Record<LocationPrecision, string> = {
-    country: "国家级概略位置", region: "地区级概略位置", city: "城市级估算 · 非办公地址",
-    street: "街道级估算 · 非精确办公地址", address: "地址级坐标", manual: "手动设置位置", unknown: "位置精度未说明",
+    country: "国家级概略位置", region: "地区级概略位置", city: "城市估算 · 非办公地址",
+    street: "街道 · 非精确办公地址", address: "地址级坐标", manual: "手动设置位置", unknown: "位置精度未说明",
   };
-  const label = `${target.positionBasis === "city-reference" ? "城市分布参考 · " : target.positionBasis === "office-confirmation" ? "本人核对的办公位置 · " : ""}${precision[target.precision ?? "unknown"]}`;
+  const label = `${target.positionBasis === "city-reference" ? "城市分布参考 · " : target.positionBasis === "office-confirmation" ? "办公楼 · 本人核对的办公位置 · " : ""}${precision[target.precision ?? "unknown"]}`;
   if (target.verification === "conflicting") return `${label} · 来源有冲突`;
   if (target.verification !== "verified") return `${label} · 待核实`;
   return label;

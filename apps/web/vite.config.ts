@@ -6,9 +6,10 @@ import { jdExtractorPlugin } from "./server/jd-extractor";
 import { opportunitySourcesPlugin } from "./server/opportunity-sources";
 import { networkProxyPlugin } from "./server/network-proxy";
 import { atlasAssetsPlugin } from "./server/atlas-assets";
+import { atlasDevIndexPlugin } from "./server/atlas-dev-index";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), atlasAssetsPlugin(), networkProxyPlugin(), jdExtractorPlugin({ useNativeLiepin: true, useNativeBoss: true, useNative51Job: true }), opportunitySourcesPlugin()],
+  plugins: [react(), tailwindcss(), atlasAssetsPlugin(), atlasDevIndexPlugin(), networkProxyPlugin(), jdExtractorPlugin({ useNativeLiepin: true, useNativeBoss: true, useNative51Job: true }), opportunitySourcesPlugin()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

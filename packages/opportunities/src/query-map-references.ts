@@ -71,7 +71,7 @@ export function buildCityReferenceBuckets(items: readonly JobSearchItem[], level
     }
     return { id, label: bucket.label, latitude: Math.atan2(z, Math.hypot(x, y)) * 180 / Math.PI,
       longitude: Math.atan2(y, x) * 180 / Math.PI, jobIds: [...bucket.jobs].sort(), locationIds: [...bucket.locations].sort(),
-      jobCount: bucket.jobs.size, pinCount: bucket.pins.size, positionBasis: "city-reference", precision: "city", estimated: true,
+      jobCount: bucket.jobs.size, pinCount: bucket.pins.size, positionBasis: "city-reference", precision: "city", estimated: true, displayGrade: "city",
       categories: [...bucket.categories.entries()].map(([ruleId, category]) => ({ ruleId, label: category.label, color: category.color, jobCount: category.jobs.size }))
         .sort((a, b) => a.ruleId < b.ruleId ? -1 : a.ruleId > b.ruleId ? 1 : 0),
     };

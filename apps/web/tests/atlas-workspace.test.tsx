@@ -977,7 +977,7 @@ test("live city distribution references share the real filters and bucket select
   assert.match(dom.document.querySelector('[aria-label="地图位置口径"]')!.textContent!, /城市分布参考 2 岗/);
   await flush(() => pointerDoubleClick(jobCard("C# 合成工程师 0")));
   assert.equal(mapProps!.focus!.positionBasis, "city-reference"); assert.equal(mapProps!.focus!.precision, "city"); assert.equal(mapProps!.focus!.zoom, 9);
-  assert.match(dom.document.querySelector('[aria-label="地图岗位详情"]')!.textContent!, /城市级估算，非办公地址；不用于离家距离.*地名数据出处/s);
+  assert.match(dom.document.querySelector('[aria-label="地图岗位详情"]')!.textContent!, /城市估算，非办公地址；不用于离家距离.*地名数据出处/s);
   assert.deepEqual(routes, ["/api/v1/dataset/export"]); assert.deepEqual(detailData, before);
   const city = mapProps!.buckets.find(bucket => bucket.label === "上海")!; assert.ok(city);
   await flush(() => mapProps!.onPick!(city)); assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 1);

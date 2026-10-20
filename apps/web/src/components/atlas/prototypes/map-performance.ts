@@ -1,7 +1,15 @@
 import type { MapBucket } from "@better-me/opportunities";
 import { bucketRadius, categories, validBuckets } from "./types";
 
-export type BucketGeoJSON = { type: "FeatureCollection"; features: Array<{ type: "Feature"; properties: { bucketId: string; kind: string; color: string; radius: number; label: string; labelVisible: boolean }; geometry: { type: "Point"; coordinates: [number, number] } }> };
+export type BucketGeoJSON = { type: "FeatureCollection"; features: Array<{ type: "Feature"; properties: { bucketId: string; kind: string; color: string; radius: number; label: string; labelVisible: boolean; grade: string }; geometry: { type: "Point"; coordinates: [number, number] } }> };
+
+function bucketPrecisionLabel(bucket: MapBucket): string {
+  if (bucket.displayGrade === "building") return "办公楼";
+  if (bucket.displayGrade === "street") return "街道";
+  if (bucket.displayGrade === "address") return "地址坐标 · 非已核办公楼";
+  if (bucket.displayGrade === "city" || bucket.positionBasis === "city-reference") return "城市估算";
+  return "";
+}
 
 /** Only source facts live in GeoJSON. Selection uses layer filters without re-indexing points in a worker. */
 export function atlasBucketData(input: readonly MapBucket[]): BucketGeoJSON {
@@ -10,9 +18,11 @@ export function atlasBucketData(input: readonly MapBucket[]): BucketGeoJSON {
   for (const bucket of buckets) {
     const colors = categories(bucket), base = bucketRadius(bucket);
     const point = { type: "Point" as const, coordinates: [bucket.longitude, bucket.latitude] as [number, number] };
-    const label = `${bucket.label} · ${bucket.jobCount}${bucket.positionBasis === "city-reference" ? " · 城市估算" : ""}`;
-    features.push({ type: "Feature", geometry: point, properties: { bucketId: bucket.id, kind: "core", color: colors.length === 1 ? colors[0]!.color : "#a5bbb6", radius: base * .46, label, labelVisible: labelIds.has(bucket.id) } });
-    colors.forEach((category, index) => features.push({ type: "Feature", geometry: point, properties: { bucketId: bucket.id, kind: "category", color: category.color, radius: base * .58 + index * 2.1, label, labelVisible: false } }));
+    const precision = bucketPrecisionLabel(bucket);
+    const label = `${bucket.label} · ${bucket.jobCount}${precision ? ` · ${precision}` : ""}`;
+    const grade = bucket.displayGrade ?? (bucket.positionBasis === "city-reference" ? "city" : "");
+    features.push({ type: "Feature", geometry: point, properties: { bucketId: bucket.id, kind: "core", color: colors.length === 1 ? colors[0]!.color : "#a5bbb6", radius: base * .46, label, labelVisible: labelIds.has(bucket.id), grade } });
+    colors.forEach((category, index) => features.push({ type: "Feature", geometry: point, properties: { bucketId: bucket.id, kind: "category", color: category.color, radius: base * .58 + index * 2.1, label, labelVisible: false, grade } }));
   }
   return { type: "FeatureCollection", features };
 }

@@ -13,6 +13,8 @@ export type AtlasPrototypeProps = {
   selectedJobId?: string;
   selectedRegionId?: string;
   bounds?: readonly [west: number, south: number, east: number, north: number];
+  /** Caps fitBounds so a city estimate cannot zoom to building scale. */
+  boundsMaxZoom?: number;
   /** Undefined uses the registered default. Null explicitly selects local overview geometry only. */
   basemap?: AtlasBasemapConfig | null;
   focus?: AtlasMapFocus;

@@ -96,11 +96,14 @@ export type JobSearchItem = {
   sources: Array<{ sourceId: string; label: string; url?: string; listingId: string }>;
   mapReferences?: ResolvedCityMapReference[];
 };
+export type MapDisplayGrade = "building" | "street" | "address" | "city";
 export type MapBucket = {
   id: string; label: string; latitude: number; longitude: number;
   jobIds: string[]; locationIds: string[]; jobCount: number; pinCount: number;
   categories: Array<{ ruleId: string; label: string; color: string; jobCount: number }>;
   positionBasis?: "city-reference"; precision?: "city"; estimated?: true;
+  /** How the plotted point may be described. A city centroid is never a confirmed office building. */
+  displayGrade?: MapDisplayGrade;
 };
 export type JobQueryResult = {
   queryId: string; snapshotVersion: number; asOf: string; normalizedQuery: JobQuery;
@@ -264,18 +267,33 @@ function filterSalary(salary: JobSearchItem["salary"], query: JobQuery): boolean
   return inside(interval.min) || inside(interval.max) || (interval.min !== undefined && interval.max !== undefined) || query.salary.includeUnknown;
 }
 
+const displayGradeRank: Record<MapDisplayGrade, number> = { city: 0, address: 1, street: 2, building: 3 };
+
+/** Confirmed office points and sourced street coordinates stay individual. Coarser points may still share a centroid. */
+export function locationDisplayGrade(location: Pick<JobLocation, "coordinates" | "precision" | "officeResolution">): MapDisplayGrade {
+  if (location.officeResolution && location.precision === "address" && location.coordinates) return "building";
+  if (location.precision === "street" && location.coordinates) return "street";
+  if ((location.precision === "address" || location.precision === "manual") && location.coordinates) return "address";
+  return "city";
+}
+
 function buildMapBuckets(items: JobSearchItem[], level: JobQuery["mapLevel"]): MapBucket[] {
-  type Accumulator = { label: string; points: Array<{ latitude: number; longitude: number }>; jobs: Set<string>; locations: Set<string>; pins: Set<string>; categories: Map<string, { label: string; color: string; jobs: Set<string> }> };
+  type Accumulator = { label: string; grade: MapDisplayGrade; points: Array<{ latitude: number; longitude: number }>; jobs: Set<string>; locations: Set<string>; pins: Set<string>; categories: Map<string, { label: string; color: string; jobs: Set<string> }> };
   const buckets = new Map<string, Accumulator>();
   for (const item of items) for (const location of item.locations) {
     if (!location.coordinates) continue;
-    const parts = level === "country" ? [location.countryCode ?? "unknown"] : level === "region" ? [location.countryCode, location.regionId ?? location.region ?? location.city ?? location.id] : level === "city" ? [location.countryCode, location.regionId ?? location.region, location.city ?? location.id] : [location.id];
+    const grade = locationDisplayGrade(location);
+    const separate = grade === "building" || grade === "street" || level === "location";
+    const parts = separate ? [grade, location.id] : level === "country" ? [location.countryCode ?? "unknown"] : level === "region" ? [location.countryCode, location.regionId ?? location.region ?? location.city ?? location.id] : [location.countryCode, location.regionId ?? location.region, location.city ?? location.id];
     const id = JSON.stringify(parts);
     let bucket = buckets.get(id);
     if (!bucket) {
-      bucket = { label: (level === "country" ? location.countryCode : level === "region" ? location.region : location.city) ?? location.raw, points: [], jobs: new Set(), locations: new Set(), pins: new Set(), categories: new Map() };
+      const area = (level === "country" ? location.countryCode : level === "region" ? location.region : location.city) ?? location.raw;
+      const label = grade === "building" ? location.officeResolution?.formattedAddress ?? location.streetAddress ?? location.raw
+        : grade === "street" ? location.streetAddress ?? location.raw : area;
+      bucket = { label, grade, points: [], jobs: new Set(), locations: new Set(), pins: new Set(), categories: new Map() };
       buckets.set(id, bucket);
-    }
+    } else if (displayGradeRank[grade] < displayGradeRank[bucket.grade]) bucket.grade = grade;
     const pin = JSON.stringify([item.job.id, location.id]);
     if (!bucket.pins.has(pin)) bucket.points.push(location.coordinates);
     bucket.jobs.add(item.job.id); bucket.locations.add(location.id); bucket.pins.add(pin);
@@ -288,7 +306,7 @@ function buildMapBuckets(items: JobSearchItem[], level: JobQuery["mapLevel"]): M
     for (const p of bucket.points) { const lat = p.latitude * Math.PI / 180, lon = p.longitude * Math.PI / 180; x += Math.cos(lat) * Math.cos(lon); y += Math.cos(lat) * Math.sin(lon); z += Math.sin(lat); }
     // This is the centroid of observed job positions, never an invented office address.
     return { id, label: bucket.label, latitude: Math.atan2(z, Math.hypot(x, y)) * 180 / Math.PI, longitude: Math.atan2(y, x) * 180 / Math.PI,
-      jobIds: [...bucket.jobs].sort(), locationIds: [...bucket.locations].sort(), jobCount: bucket.jobs.size, pinCount: bucket.pins.size,
+      jobIds: [...bucket.jobs].sort(), locationIds: [...bucket.locations].sort(), jobCount: bucket.jobs.size, pinCount: bucket.pins.size, displayGrade: bucket.grade,
       categories: [...bucket.categories.entries()].map(([ruleId, c]) => ({ ruleId, label: c.label, color: c.color, jobCount: c.jobs.size })).sort((a, b) => compareIds(a.ruleId, b.ruleId)),
     };
   }).sort((a, b) => compareIds(a.id, b.id));

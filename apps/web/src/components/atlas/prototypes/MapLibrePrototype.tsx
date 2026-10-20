@@ -84,7 +84,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
         { id: "bucket-glow", type: "circle", source: "buckets", filter: ["==", ["get", "kind"], "core"], paint: { "circle-radius": ["+", ["get", "radius"], 7], "circle-color": ["get", "color"], "circle-blur": .8, "circle-opacity": light ? .22 : .35 } },
         { id: "bucket-selection", type: "circle", source: "buckets", filter: ["all", ["==", ["get", "kind"], "core"], ["==", ["get", "bucketId"], ""]], paint: { "circle-radius": ["+", ["get", "radius"], 8], "circle-color": light ? "#215b55" : "#d3ffed", "circle-opacity": .10, "circle-stroke-color": light ? "#215b55" : "#d3ffed", "circle-stroke-width": 1.4 } },
         { id: "bucket-rings", type: "circle", source: "buckets", filter: ["==", ["get", "kind"], "category"], paint: { "circle-radius": ["get", "radius"], "circle-color": "#ffffff", "circle-opacity": 0, "circle-stroke-color": ["get", "color"], "circle-stroke-width": 1.6, "circle-stroke-opacity": .96, "circle-pitch-alignment": "viewport" } },
-        { id: "bucket-cores", type: "circle", source: "buckets", filter: ["==", ["get", "kind"], "core"], paint: { "circle-radius": ["get", "radius"], "circle-color": ["get", "color"], "circle-stroke-color": light ? "#ffffff" : "#d4f4ec", "circle-stroke-width": .65, "circle-opacity": .96 } },
+        { id: "bucket-cores", type: "circle", source: "buckets", filter: ["==", ["get", "kind"], "core"], paint: { "circle-radius": ["get", "radius"], "circle-color": ["get", "color"], "circle-stroke-color": ["match", ["get", "grade"], "city", light ? "#215b55" : "#d3ffed", "building", light ? "#123c36" : "#f4fff9", light ? "#ffffff" : "#d4f4ec"], "circle-stroke-width": ["match", ["get", "grade"], "city", 2.1, "building", 1.5, "street", 1.2, 0.65], "circle-opacity": ["match", ["get", "grade"], "city", 0.22, "street", 0.72, 0.96] } },
         ...(remote.glyphs ? [{ id: "bucket-labels", type: "symbol" as const, source: "buckets", filter: ["all", ["==", ["get", "kind"], "core"], ["==", ["get", "labelVisible"], true]], layout: { "text-field": ["get", "label"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.9], "text-anchor": "top", "text-padding": 6, "text-max-width": 16 }, paint: { "text-color": light ? "#263d42" : "#d9eaf0", "text-halo-color": background, "text-halo-width": 2 } } as LayerSpecification] : []),
       ];
       const savedView = latest.current.initialView;
@@ -105,7 +105,13 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
         ownedMap.setProjection({ type: mode === "global" ? "globe" : "mercator" });
         ownedMap.setSky({ "sky-color": background, "horizon-color": light ? "#d5deda" : "#2b526d", "fog-color": light ? "#eef0ee" : "#080f18", "atmosphere-blend": mode === "global" ? .90 : 0 });
         ownedMap.setLight({ anchor: "viewport", color: light ? "#ffffff" : "#b9e7f1", intensity: .62, position: [1.5, 190, 45] });
-        const fit = (bounds = latest.current.bounds) => { const target = bounds ?? (mode === "domestic" ? CHINA_BOUNDS : undefined); if (target) ownedMap.fitBounds([[target[0], target[1]], [target[2], target[3]]], { padding: { top: 62, bottom: 72, left: 42, right: 48 }, duration: motion.matches || !entrance ? 0 : 900, maxZoom: 16, pitch: mode === "domestic" ? 46 : 0, bearing: mode === "domestic" ? -12 : 0 }); };
+        const fit = (bounds = latest.current.bounds) => {
+          const target = bounds ?? (mode === "domestic" ? CHINA_BOUNDS : undefined);
+          const cap = bounds && Number.isFinite(latest.current.boundsMaxZoom) ? latest.current.boundsMaxZoom! : 16;
+          if (!target) return;
+          ownedMap.stop();
+          ownedMap.fitBounds([[target[0], target[1]], [target[2], target[3]]], { padding: { top: 62, bottom: 72, left: 42, right: 48 }, duration: motion.matches || !entrance ? 0 : 900, maxZoom: Math.min(16, Math.max(1, cap)), pitch: mode === "domestic" ? 46 : 0, bearing: mode === "domestic" ? -12 : 0 });
+        };
         const focus = (target: NonNullable<AtlasPrototypeProps["focus"]>) => { const options = mapFocusCameraOptions(target, provider?.maxZoom ?? 22, motion.matches); if (!options) return; stopRotation(); ownedMap.stop(); ownedMap.flyTo(options); };
         const highlight = (current: AtlasPrototypeProps) => {
           const target = activeMapFocus(current.focus, current.selectedJobId);
@@ -134,6 +140,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
         handle.current = { fit, update, focus, dispose: () => { focusMarker?.remove(); ownedMap.getCanvas().removeEventListener("webglcontextlost", lost); ownedMap.getCanvas().removeEventListener("webglcontextrestored", restored); } };
         update(latest.current);
         if (latest.current.focus && latest.current.focus !== openingFocus) focus(latest.current.focus);
+        else if (latest.current.bounds) fit();
         else if (savedView) ownedMap.jumpTo(savedView);
         else if (latest.current.focus) focus(latest.current.focus);
         else fit();
@@ -165,7 +172,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
     return () => { stopped = true; abort.abort(); stopRotation(); if (rotationResume) clearTimeout(rotationResume); cancelHover(); observer?.disconnect(); document.removeEventListener("visibilitychange", visibility); motion.removeEventListener("change", motionChange); handle.current?.dispose(); handle.current = null; map?.remove(); };
   }, [mode, background, maxDpr, entrance, basemapKey, light]);
   useEffect(() => { handle.current?.update(latest.current); }, [props.buckets, props.selectedBucketId, props.selectedRegionId, props.focus, props.selectedJobId, props.visual?.autoRotate]);
-  useEffect(() => { handle.current?.fit(props.bounds); }, [props.bounds]);
+  useEffect(() => { handle.current?.fit(props.bounds); }, [props.bounds, props.boundsMaxZoom]);
   useEffect(() => { if (props.focus) handle.current?.focus?.(props.focus); }, [props.focus]);
   const visibleFocus = activeMapFocus(props.focus, props.selectedJobId);
   return <div className={props.className} data-atlas-renderer="maplibre" data-atlas-mode={mode} data-atlas-basemap={basemap?.id ?? "offline"} style={{ ...prototypeFrameStyle, background, ...props.style }}>

@@ -33,7 +33,7 @@ test("job focus preserves source precision and never mutates the job or its loca
   assert.equal(target.locationId, input.locations[0]!.id);
   assert.equal(target.latitude, input.locations[0]!.coordinates!.latitude);
   assert.equal(target.precision, "city"); assert.equal(target.estimated, true);
-  assert.match(mapFocusPrecisionLabel(target), /城市级估算.*非办公地址.*待核实/);
+  assert.match(mapFocusPrecisionLabel(target), /城市估算.*非办公地址.*待核实/);
   assert.deepEqual(input, before);
 });
 
@@ -56,7 +56,7 @@ test("a reviewed office point takes priority over a city, retains its address an
   const target = createJobMapFocus(input, "reviewed-office-request")!;
   assert.equal(target.locationId, location.id); assert.equal(target.locationLabel, location.officeResolution.formattedAddress);
   assert.equal(target.zoom, 16.5); assert.equal(target.positionBasis, "office-confirmation"); assert.equal(target.estimated, true);
-  assert.match(mapFocusPrecisionLabel(target), /本人核对的办公位置.*地址级坐标.*待核实/);
+  assert.match(mapFocusPrecisionLabel(target), /办公楼.*本人核对的办公位置.*地址级坐标.*待核实/);
   assert.equal(mapFocusCameraOptions(target, 22, false)!.zoom, 16.5);
   const distance = evaluateLocationDistance({ latitude: 31, longitude: 121, coordinateSystem: "WGS84" }, location);
   assert.equal(distance.reason, "available"); assert.equal(distance.distance?.estimated, true);
@@ -71,7 +71,7 @@ test("snapshot-derived city references focus directly without office coordinates
   const input = result.items[0]!, original = structuredClone(input), target = createJobMapFocus(input, "reference")!;
   assert.equal(target.positionBasis, "city-reference"); assert.equal(target.precision, "city"); assert.equal(target.estimated, true);
   assert.equal(target.verification, "unverified"); assert.equal(target.zoom, 9); assert.equal(target.latitude, 31);
-  assert.match(mapFocusPrecisionLabel(target), /城市分布参考.*城市级估算.*非办公地址/);
+  assert.match(mapFocusPrecisionLabel(target), /城市分布参考.*城市估算.*非办公地址/);
   assert.equal(mapFocusCameraOptions({ ...target, zoom: 22 }, 22, false)!.zoom, 9);
   assert.equal(createJobMapFocus(input, "wrong-location", { locationId: "another-office" }), null);
   assert.deepEqual(input, original); assert.deepEqual(data, before);
