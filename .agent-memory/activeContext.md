@@ -2,15 +2,18 @@
 
 ## 当前焦点
 
-本地工作分支 `agent-os`。已全面完成四大核心里程碑开发并通过验证：
-1. **高德地理编码与办公楼坐标落图**：完整落地 AMap provider、429 指数退避、1.1s 门禁、WGS84 投影及预览/确认/撤销回执流；35 个真实 IT 地标 100% 成功确认生成地图 building 标记点。
+本地工作分支 `agent-os`。已全面完成四大核心里程碑开发，并根据前沿 Agent 研究落地第二阶段自省与架构优化：
+1. **高德地理编码与跨版本持久化地名字典**：落地 AMap provider、429 指数退避、1.1s 门禁、WGS84 投影及预览/确认/撤销回执流；实现 `normalizeAddressKey` 行政区划与道路门牌归一化；在数据目录中持久化 `geo-address-cache.json`，多变体地址同门牌实现 0 API 消耗毫秒级复用。
 2. **薪资受审折算与企业控股证据链**：实现任意币种/周期至 CNY 固定年现金的受审折算与证据溯源；实现穿透式企业实际控制人变更与色彩推导。
 3. **国内城市扩充与人机验证策略**：补齐全国 7 大 IT 枢纽（京沪深杭穗蓉汉）35 岗完整结构化 JD，优化 10 分钟会话 TTL 与轮询等待验证。
-4. **Agent OS 薄适配层与调度工作流**：零外部冗余依赖实现 LangChain Tool 与 LangGraph StateGraph 标准适配，落地完整 `JobAuditWorkflow` 深度岗位审计图，486/486 测试全绿，TypeScript 零警告零错误。
+4. **Agent OS 薄适配层与自省双轨架构**：
+   - 零外部冗余依赖实现 LangChain Tool 与 LangGraph StateGraph 标准适配。
+   - 实现 **Evaluator-Optimizer 自省回环**（Anthropic 模式）：动态评估候选置信度，自动剥离楼层/园区后缀自省优化重试，梯度早停。
+   - 实现 **双轨自主型（Dual-Track Autonomy）**：高置信度（$\ge 0.95$）直通受审入库出具 Durable Receipt；模糊/低置信度自动生成 PreviewFingerprint 挂起人工审核，杜绝幻觉写库。
 
 ## 关键交付指标
 
-- 单元与集成测试：486/486 通过（fail/cancel/skip/todo 均为 0）。
+- 单元与集成测试：**489/489 通过**（fail/cancel/skip/todo 均为 0）。
 - TypeScript 编译：`packages/opportunities`、`apps/job-service`、`apps/web` 全部 `tsc --noEmit` 0 错误。
 - 岗位地标覆盖：上海 18、北京 4、深圳 4、杭州 3、广州 2、成都 2、武汉 2 共 35 个真实国内办公楼 100% 高德门牌号坐标解析确认入库。
 

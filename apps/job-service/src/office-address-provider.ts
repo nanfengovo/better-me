@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
@@ -294,11 +294,73 @@ export function resolveAmapApiKey(explicitKey?: string, dataDirectory?: string):
   return undefined;
 }
 
+/**
+ * Normalizes an address query by extracting administrative locality and road/number key,
+ * stripping secondary decorations like industrial parks, building blocks, and room numbers.
+ * Example: ("上海市", "浦东新区科苑路399号张江创新园A座301室") -> "上海市:科苑路_399号"
+ */
+export function normalizeAddressKey(locality?: string, query?: string): string {
+  const loc = (locality ?? "").trim();
+  let text = (query ?? "").trim();
+  if (!text) return loc ? `${loc}:` : "";
+
+  // Strip brackets and parentheses: (A座), （3号楼）
+  text = text.replace(/[\(（][^\)）]*[\)）]/g, " ");
+
+  // Strip room/floor suffixes: 301室, 5层, 12楼, A座, 1号楼, etc.
+  text = text.replace(/\s*\d+[-号]?[楼层室栋座]/g, " ");
+  text = text.replace(/\s*[A-Za-z0-9]+[座栋单元]/g, " ");
+
+  // Strip leading province/city/district: e.g. "上海市", "浦东新区", "北京市", "海淀区"
+  text = text.replace(/^[^\d\s,，]{2,10}(?:省|市|特别行政区)/, " ").trim();
+  text = text.replace(/^[^\d\s,，]{2,10}(?:区|县|旗|盟)/, " ").trim();
+
+  // Match road and door number pattern: e.g. "科苑路399号", "东北旺西路8号", "文一西路969号"
+  const roadMatch = text.match(/([^\d\s,，]{2,15}[路街道巷弄道])\s*(\d+[-至到]?\d*号?)/);
+  if (roadMatch) {
+    const road = roadMatch[1]!.trim();
+    const num = roadMatch[2]!.trim().endsWith("号") ? roadMatch[2]!.trim() : `${roadMatch[2]!.trim()}号`;
+    return `${loc}:${road}_${num}`;
+  }
+
+  // Fallback: strip whitespace and return clean string
+  const clean = text.replace(/\s+/g, "").slice(0, 100);
+  return `${loc}:${clean}`;
+}
+
 export function createAmapOfficeProvider(transport: SourceTransport, options: { key?: string; dataDirectory?: string; now?: () => number } = {}): OfficeAddressProvider {
   const now = options.now ?? Date.now;
   let nextRequestAt = -Infinity, pending = false;
   const cache = new Map<string, { at: number; candidates: OfficeAddressCandidate[] }>();
   const rateLimit = (seconds = 60) => { nextRequestAt = Math.max(nextRequestAt, now() + Math.max(1.1, Math.min(31_536_000, seconds)) * 1000); };
+
+  const persistentCachePath = options.dataDirectory ? join(options.dataDirectory, "geo-address-cache.json") : undefined;
+  const persistentMap = new Map<string, { candidate: OfficeAddressCandidate; cachedAt: string }>();
+
+  if (persistentCachePath && existsSync(persistentCachePath)) {
+    try {
+      const content = readFileSync(persistentCachePath, "utf8");
+      const data = JSON.parse(content);
+      if (data && typeof data === "object") {
+        for (const [k, v] of Object.entries(data)) {
+          if (v && typeof v === "object" && (v as any).candidate) {
+            persistentMap.set(k, v as any);
+          }
+        }
+      }
+    } catch { /* ignore read failure */ }
+  }
+
+  const savePersistentCache = () => {
+    if (!persistentCachePath) return;
+    try {
+      const obj: Record<string, unknown> = {};
+      for (const [k, v] of persistentMap.entries()) {
+        obj[k] = v;
+      }
+      writeFileSync(persistentCachePath, JSON.stringify(obj, null, 2), "utf8");
+    } catch { /* ignore write failure */ }
+  };
 
   return Object.freeze({
     providerId: "amap",
@@ -314,6 +376,14 @@ export function createAmapOfficeProvider(transport: SourceTransport, options: { 
       });
       if (!parsedInput.success || input.location.kind !== "office") throw new ToolError("invalid-input");
       const { query, ...constraints } = parsedInput.data;
+
+      // 1. Check normalized persistent dictionary first (0 ms, 0 API consumption, Q5 option B)
+      const normKey = normalizeAddressKey(constraints.locality, query);
+      const persistentHit = persistentMap.get(normKey);
+      if (persistentHit) {
+        return [structuredClone(persistentHit.candidate)];
+      }
+
       const key = JSON.stringify([query, input.location.countryCode ?? null, constraints.locality ?? null, constraints.postalCode ?? null]);
       const cached = cache.get(key);
       if (cached && now() - cached.at >= 0 && now() - cached.at < 900_000) return structuredClone(cached.candidates);
@@ -349,6 +419,12 @@ export function createAmapOfficeProvider(transport: SourceTransport, options: { 
         try { value = JSON.parse(response.text) as unknown; } catch { throw new ToolError("source-changed"); }
         const candidates = parseAmapOfficeCandidates(value, input.location.countryCode, constraints);
         context.throwIfCancelled();
+
+        if (candidates.length > 0) {
+          const best = candidates[0]!;
+          persistentMap.set(normKey, { candidate: structuredClone(best), cachedAt: new Date(now()).toISOString() });
+          savePersistentCache();
+        }
 
         if (cache.size >= 64) cache.delete(cache.keys().next().value!);
         cache.set(key, { at: now(), candidates: structuredClone(candidates) });

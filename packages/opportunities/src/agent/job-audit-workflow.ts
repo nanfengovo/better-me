@@ -1,9 +1,41 @@
 import { StateGraph, START, END, type CompiledGraph } from "./state-graph.js";
 import type { LangChainStructuredTool } from "./langchain-tool.js";
 
+/**
+ * Evaluator-Optimizer helper: strips decorative suffixes (e.g. industrial parks, towers, rooms)
+ * while preserving the road and house number.
+ */
+export function stripAddressDecorations(raw: string): string {
+  let text = raw.trim();
+  // Strip brackets: (A座), （3号楼）
+  text = text.replace(/[\(（][^\)）]*[\)）]/g, " ").trim();
+  // Strip room/floor suffixes: 301室, 5层, 12楼, A座, 1号楼, etc.
+  text = text.replace(/\s*\d+[-号]?[楼层室栋座]/g, " ").trim();
+  text = text.replace(/\s*[A-Za-z0-9]+[座栋单元]/g, " ").trim();
+  // Strip park/building suffixes if road+number is present
+  const roadMatch = text.match(/([^\d\s,，]{2,15}[路街道巷弄道]\s*\d+[-至到]?\d*号?)/);
+  if (roadMatch) {
+    return roadMatch[1]!.trim();
+  }
+  return text;
+}
+
+/**
+ * Evaluator-Optimizer helper: strips duplicate locality / province from query
+ */
+export function stripDuplicateLocality(query: string, locality?: string): string {
+  if (!locality) return query;
+  const loc = locality.replace(/市|省|区/g, "").trim();
+  if (loc && query.startsWith(loc)) {
+    return query.replace(new RegExp(`^${loc}[市省区]?`), "").trim();
+  }
+  return query;
+}
+
 export interface JobAuditState {
   jobId: string;
   actorScope?: string;
+  autonomyMode?: "dual-track" | "read-only" | "full-auto";
   snapshotRevision?: number;
   job?: any;
   company?: any;
@@ -12,20 +44,27 @@ export interface JobAuditState {
   observations?: any[];
 
   officeAudit?: {
-    status: "skipped" | "confirmed" | "failed";
+    status: "skipped" | "confirmed" | "pending-review" | "failed";
     coordinates?: { longitude: number; latitude: number };
     formattedAddress?: string;
     displayGrade?: string;
     receiptId?: string;
+    previewFingerprint?: string;
+    requiresHumanReview?: boolean;
+    confidence?: number;
+    reflectionAttempts?: number;
     reason?: string;
   };
 
   compensationAudit?: {
-    status: "skipped" | "verified" | "incomparable" | "failed";
+    status: "skipped" | "verified" | "pending-review" | "incomparable" | "failed";
     annualMin?: number;
     annualMax?: number;
     currency?: string;
     receiptId?: string;
+    previewFingerprint?: string;
+    requiresHumanReview?: boolean;
+    confidence?: number;
     reason?: string;
   };
 
@@ -44,6 +83,8 @@ export interface JobAuditState {
     locationSummary: string;
     controllerSummary: string;
     overallGrade: "verified-complete" | "verified-partial" | "unverified";
+    requiresHumanReview?: boolean;
+    pendingReviewsCount?: number;
     auditedAt: string;
   };
 
@@ -132,23 +173,55 @@ export function createJobAuditWorkflow(tools: JobAuditToolSet): CompiledGraph<Jo
         throw new Error("Missing location audit tools in registry");
       }
 
-      // Query candidates
-      const candRes = await candTool.invoke({
-        jobId: state.job.id,
-        locationId: state.location.id,
-        expectedRevision: state.snapshotRevision,
-        query: streetAddress,
-        locality: state.location.city || "全国",
-      });
+      // --- Evaluator-Optimizer Self-Reflection Loop (Anthropic Pattern, Q4 Option B) ---
+      let bestCandidate: any = null;
+      let reflectionAttempts = 0;
+      let queryUsed = streetAddress;
+      const queriesToTry = [
+        streetAddress,
+        stripAddressDecorations(streetAddress),
+        stripDuplicateLocality(stripAddressDecorations(streetAddress), state.location.city),
+      ];
 
-      if (!candRes.candidates || candRes.candidates.length === 0) {
+      for (let i = 0; i < queriesToTry.length; i++) {
+        const q = queriesToTry[i]!;
+        if (i > 0 && q === queriesToTry[i - 1]) continue;
+
+        const candRes = await candTool.invoke({
+          jobId: state.job.id,
+          locationId: state.location.id,
+          expectedRevision: state.snapshotRevision,
+          query: q,
+          locality: state.location.city || "全国",
+        });
+
+        if (candRes.candidates && candRes.candidates.length > 0) {
+          const candidate = candRes.candidates[0];
+          // Evaluator: compute confidence based on door number presence and coordinateMeaning
+          const hasRoadNumber = /\d+号?/.test(candidate.proposal?.streetAddress || candidate.proposal?.formattedAddress || "");
+          const isBuildingLevel = candidate.proposal?.coordinateMeaning === "building" || candidate.proposal?.coordinateMeaning === "site";
+          const confidence = isBuildingLevel && hasRoadNumber ? 0.98 : isBuildingLevel ? 0.85 : 0.60;
+
+          candidate._confidence = confidence;
+          bestCandidate = candidate;
+          queryUsed = q;
+          reflectionAttempts = i;
+
+          // If high confidence reached (>= 0.95), stop search early (gradient stopping)
+          if (confidence >= 0.95) break;
+        }
+      }
+
+      if (!bestCandidate) {
         return {
-          officeAudit: { status: "failed", reason: `No building candidates found for "${streetAddress}"` },
-          trace: [...trace, { step: "audit_location", timestamp: new Date().toISOString(), note: "No candidate found" }],
+          officeAudit: { status: "failed", reason: `No building candidates found for "${streetAddress}" after ${reflectionAttempts + 1} optimization attempts` },
+          trace: [...trace, { step: "audit_location", timestamp: new Date().toISOString(), note: `No candidate found after ${reflectionAttempts + 1} attempts` }],
         };
       }
 
-      const bestCandidate = candRes.candidates[0];
+      const autonomyMode = state.autonomyMode ?? "dual-track";
+      const confidence = bestCandidate._confidence ?? 0.95;
+      const auditReason = `Agent audit (${autonomyMode}): ${bestCandidate.proposal.formattedAddress || streetAddress}`;
 
       // Preview
       const previewRes = await prevTool.invoke({
@@ -156,38 +229,65 @@ export function createJobAuditWorkflow(tools: JobAuditToolSet): CompiledGraph<Jo
         locationId: state.location.id,
         expectedRevision: state.snapshotRevision,
         proposal: bestCandidate.proposal,
-        reason: `Agent audit: ${bestCandidate.proposal.formattedAddress || streetAddress}`,
+        reason: auditReason,
       });
 
-      // Confirm
-      const confRes = await confTool.invoke({
-        jobId: state.job.id,
-        locationId: state.location.id,
-        expectedRevision: state.snapshotRevision,
-        proposal: bestCandidate.proposal,
-        previewFingerprint: previewRes.previewFingerprint,
-        reason: `Agent audit: ${bestCandidate.proposal.formattedAddress || streetAddress}`,
-        reviewed: true,
-      });
+      // --- Dual-Track Decision (Q1 Option B) ---
+      if (confidence >= 0.95 && autonomyMode !== "read-only") {
+        const confRes = await confTool.invoke({
+          jobId: state.job.id,
+          locationId: state.location.id,
+          expectedRevision: state.snapshotRevision,
+          proposal: bestCandidate.proposal,
+          previewFingerprint: previewRes.previewFingerprint,
+          reason: auditReason,
+          reviewed: true,
+        });
 
-      trace.push({
-        step: "audit_location",
-        timestamp: new Date().toISOString(),
-        note: `Confirmed building coordinates (${confRes.location.coordinates.longitude}, ${confRes.location.coordinates.latitude})`,
-      });
+        trace.push({
+          step: "audit_location",
+          timestamp: new Date().toISOString(),
+          note: `Confirmed building coordinates (${confRes.location.coordinates.longitude}, ${confRes.location.coordinates.latitude}) [confidence=${confidence}, attempts=${reflectionAttempts}]`,
+        });
 
-      return {
-        snapshotRevision: confRes.revision,
-        officeAudit: {
-          status: "confirmed",
-          coordinates: confRes.location.coordinates,
-          formattedAddress: bestCandidate.proposal.formattedAddress,
-          displayGrade: "building",
-          receiptId: confRes.decisionId,
-          reason: `Confirmed via ${confRes.location?.provider || "manual-user-confirmation"}`,
-        },
-        trace,
-      };
+        return {
+          snapshotRevision: confRes.revision,
+          officeAudit: {
+            status: "confirmed",
+            coordinates: confRes.location.coordinates,
+            formattedAddress: bestCandidate.proposal.formattedAddress,
+            displayGrade: "building",
+            receiptId: confRes.decisionId,
+            previewFingerprint: previewRes.previewFingerprint,
+            requiresHumanReview: false,
+            confidence,
+            reflectionAttempts,
+            reason: `Confirmed via ${confRes.location?.provider || "manual-user-confirmation"} (query: "${queryUsed}")`,
+          },
+          trace,
+        };
+      } else {
+        trace.push({
+          step: "audit_location",
+          timestamp: new Date().toISOString(),
+          note: `Generated preview for human review [confidence=${confidence}, mode=${autonomyMode}]`,
+        });
+
+        return {
+          officeAudit: {
+            status: "pending-review",
+            coordinates: bestCandidate.proposal.coordinates,
+            formattedAddress: bestCandidate.proposal.formattedAddress,
+            displayGrade: "building",
+            previewFingerprint: previewRes.previewFingerprint,
+            requiresHumanReview: true,
+            confidence,
+            reflectionAttempts,
+            reason: `Awaiting human review: confidence ${confidence} in mode ${autonomyMode}`,
+          },
+          trace,
+        };
+      }
     } catch (err: any) {
       errors.push(`audit_location: ${err?.message ?? String(err)}`);
       return {
@@ -249,35 +349,63 @@ export function createJobAuditWorkflow(tools: JobAuditToolSet): CompiledGraph<Jo
         proposal,
       });
 
-      // Confirm audit receipt
-      const confRes = await confAuditTool.invoke({
-        jobId: state.job.id,
-        compensationId: state.compensation.id,
-        expectedRevision: state.snapshotRevision,
-        proposal,
-        previewFingerprint: prevRes.previewFingerprint,
-        reviewed: true,
-      });
+      const autonomyMode = state.autonomyMode ?? "dual-track";
+      const hasClearBounds = (proposal.min !== undefined || proposal.max !== undefined);
 
-      const norm = confRes.normalized;
-      trace.push({
-        step: "audit_compensation",
-        timestamp: new Date().toISOString(),
-        note: `Audited salary: ${norm.cnyAnnual?.min ?? norm.annualMin} - ${norm.cnyAnnual?.max ?? norm.annualMax} CNY/yr`,
-      });
+      if (hasClearBounds && autonomyMode !== "read-only") {
+        // Confirm audit receipt
+        const confRes = await confAuditTool.invoke({
+          jobId: state.job.id,
+          compensationId: state.compensation.id,
+          expectedRevision: state.snapshotRevision,
+          proposal,
+          previewFingerprint: prevRes.previewFingerprint,
+          reviewed: true,
+        });
 
-      return {
-        snapshotRevision: confRes.revision,
-        compensationAudit: {
-          status: "verified",
-          annualMin: norm.cnyAnnual?.min ?? norm.annualMin,
-          annualMax: norm.cnyAnnual?.max ?? norm.annualMax,
-          currency: "CNY",
-          receiptId: confRes.decisionId,
-          reason: "Successfully verified and annualized gross fixed cash",
-        },
-        trace,
-      };
+        const norm = confRes.normalized;
+        trace.push({
+          step: "audit_compensation",
+          timestamp: new Date().toISOString(),
+          note: `Audited salary: ${norm.cnyAnnual?.min ?? norm.annualMin} - ${norm.cnyAnnual?.max ?? norm.annualMax} CNY/yr`,
+        });
+
+        return {
+          snapshotRevision: confRes.revision,
+          compensationAudit: {
+            status: "verified",
+            annualMin: norm.cnyAnnual?.min ?? norm.annualMin,
+            annualMax: norm.cnyAnnual?.max ?? norm.annualMax,
+            currency: "CNY",
+            receiptId: confRes.decisionId,
+            previewFingerprint: prevRes.previewFingerprint,
+            requiresHumanReview: false,
+            confidence: 1.0,
+            reason: "Successfully verified and annualized gross fixed cash",
+          },
+          trace,
+        };
+      } else {
+        trace.push({
+          step: "audit_compensation",
+          timestamp: new Date().toISOString(),
+          note: `Generated salary audit preview for human review [mode=${autonomyMode}]`,
+        });
+
+        return {
+          compensationAudit: {
+            status: "pending-review",
+            annualMin: prevRes.normalized?.cnyAnnual?.min ?? prevRes.normalized?.annualMin,
+            annualMax: prevRes.normalized?.cnyAnnual?.max ?? prevRes.normalized?.annualMax,
+            currency: "CNY",
+            previewFingerprint: prevRes.previewFingerprint,
+            requiresHumanReview: true,
+            confidence: 0.5,
+            reason: `Awaiting human review: ambiguous salary disclosure or read-only mode (${autonomyMode})`,
+          },
+          trace,
+        };
+      }
     } catch (err: any) {
       errors.push(`audit_compensation: ${err?.message ?? String(err)}`);
       return {
@@ -406,6 +534,13 @@ export function createJobAuditWorkflow(tools: JobAuditToolSet): CompiledGraph<Jo
       ? `企业控股属性：${controllerLabel}（证据链已闭环）`
       : "企业控制权待核查";
 
+    const pendingReviewsCount = [
+      state.officeAudit?.status === "pending-review",
+      state.compensationAudit?.status === "pending-review",
+    ].filter(Boolean).length;
+
+    const requiresHumanReview = pendingReviewsCount > 0;
+
     const finalReport = {
       jobId: state.jobId,
       title: state.job?.title?.value ?? "未知岗位",
@@ -414,6 +549,8 @@ export function createJobAuditWorkflow(tools: JobAuditToolSet): CompiledGraph<Jo
       locationSummary,
       controllerSummary,
       overallGrade,
+      requiresHumanReview,
+      pendingReviewsCount,
       auditedAt: new Date().toISOString(),
     };
 

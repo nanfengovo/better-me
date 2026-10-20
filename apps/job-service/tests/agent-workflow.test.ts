@@ -1,5 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   defineTool,
   toLangChainTool,
@@ -8,12 +11,14 @@ import {
   START,
   END,
   createJobAuditWorkflow,
+  stripAddressDecorations,
   type JobAuditState,
 } from "@better-me/opportunities";
 import { z } from "zod";
 import { openJobRepository } from "../src/repository.js";
 import { createJobApplication } from "../src/application.js";
 import { projectSourcePage } from "../src/projection.js";
+import { normalizeAddressKey, createAmapOfficeProvider } from "../src/office-address-provider.js";
 import type { SourceDefinition } from "@better-me/opportunities";
 import type { SourceJobRecord } from "@better-me/source-adapters";
 import type { OfficeAddressProvider } from "../src/office-address.js";
@@ -323,6 +328,213 @@ describe("LangChain & LangGraph Thin Adapter for Job Audit Agent", () => {
       assert.equal(finalState.errors.length, 0);
       assert.ok(finalState.finalReport?.salarySummary.includes("未核实薪资"));
       assert.ok(finalState.finalReport?.locationSummary.includes("未确认办公楼"));
+    } finally {
+      await app.shutdown();
+      repo.close();
+    }
+  });
+
+  it("normalizeAddressKey normalizes address strings and strips park/floor decorations", () => {
+    assert.equal(
+      normalizeAddressKey("上海市", "浦东新区科苑路399号张江创新园A座301室"),
+      "上海市:科苑路_399号"
+    );
+    assert.equal(
+      normalizeAddressKey("北京市", "海淀区东北旺西路8号中关村软件园二期（9号楼）"),
+      "北京市:东北旺西路_8号"
+    );
+    assert.equal(
+      normalizeAddressKey("杭州市", "余杭区文一西路969号阿里巴巴西溪园区"),
+      "杭州市:文一西路_969号"
+    );
+    assert.equal(
+      stripAddressDecorations("浦东新区科苑路399号张江创新园A座301室"),
+      "浦东新区科苑路399号"
+    );
+  });
+
+  it("persistent geo dictionary caches confirmed buildings and reuses them across address variants without transport calls", async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "geo-cache-test-"));
+    let transportCalls = 0;
+
+    const mockTransport = {
+      request: async (req: any) => {
+        transportCalls++;
+        return {
+          status: 200,
+          url: req.url,
+          headers: { "content-type": "application/json" },
+          text: JSON.stringify({
+            status: "1",
+            info: "OK",
+            count: "1",
+            geocodes: [{
+              formatted_address: "上海市浦东新区科苑路399号",
+              country: "中国",
+              province: "上海市",
+              city: "上海市",
+              district: "浦东新区",
+              street: "科苑路",
+              number: "399号",
+              location: "121.594567,31.206789",
+              level: "门牌号",
+            }],
+          }),
+        };
+      },
+    };
+
+    try {
+      const provider = createAmapOfficeProvider(mockTransport as any, {
+        key: "test-amap-key",
+        dataDirectory: tempDir,
+      });
+
+      const dummyLocation = {
+        id: "loc-test-1",
+        kind: "office" as const,
+        countryCode: "CN",
+        coordinates: undefined,
+      };
+
+      const dummyContext: any = {
+        throwIfCancelled: () => {},
+      };
+
+      // 1. First call: hits transport
+      const cand1 = await provider.search({
+        query: "科苑路399号",
+        locality: "上海市",
+        location: dummyLocation as any,
+      }, dummyContext);
+
+      assert.equal(cand1.length, 1);
+      assert.equal(transportCalls, 1);
+      assert.ok(existsSync(join(tempDir, "geo-address-cache.json")), "Cache file must be persisted");
+
+      // 2. Second call with variant address (including park & room number):
+      // Should normalize to same key and hit persistent cache with ZERO transport calls!
+      const cand2 = await provider.search({
+        query: "科苑路399号张江创新园A座301室",
+        locality: "上海市",
+        location: dummyLocation as any,
+      }, dummyContext);
+
+      assert.equal(cand2.length, 1);
+      assert.equal(transportCalls, 1, "Must hit persistent geo cache without invoking transport");
+      assert.equal(cand2[0].proposal.coordinates.longitude, cand1[0].proposal.coordinates.longitude);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("JobAuditWorkflow respects autonomyMode=read-only by leaving audit in pending-review and requiring human review", async () => {
+    const repo = openJobRepository(":memory:");
+    const mockOfficeProvider: OfficeAddressProvider = {
+      providerId: "amap",
+      search: async () => [
+        {
+          id: "cand-ro-1",
+          providerId: "amap",
+          proposal: {
+            basis: "manual-user-confirmation",
+            countryCode: "CN",
+            formattedAddress: "上海市浦东新区张江高科技园区博云路2号浦软大厦",
+            streetAddress: "博云路2号",
+            coordinates: { longitude: 121.6033, latitude: 31.2052, coordinateSystem: "WGS84" as const },
+            evidenceUrl: "https://lbs.amap.com/api",
+            coordinateMeaning: "building",
+          },
+          attribution: "高德",
+          evidenceUrl: "https://lbs.amap.com/api",
+          estimated: true,
+          verification: "unverified",
+        },
+      ],
+    };
+
+    const app = createJobApplication({ repository: repo, officeAddressProvider: mockOfficeProvider });
+
+    try {
+      const record: SourceJobRecord = {
+        entityType: "job-posting",
+        sourceRecordId: "job-ro-test",
+        url: "https://example.com/job/ro",
+        title: "C# 软件工程师（只读模式测试）",
+        companyName: "测试科技有限公司",
+        description: "测试只读模式",
+        locations: [{
+          raw: "上海市浦东新区博云路2号",
+          countryCode: "CN",
+          region: "上海市",
+          city: "上海市",
+          streetAddress: "博云路2号",
+        }],
+        compensations: [{
+          raw: "30k-45k · 15薪",
+          currency: "CNY",
+          period: "month",
+          min: 30000,
+          max: 45000,
+          monthsPerYear: 15,
+          kind: "base",
+          tax: "gross",
+        }],
+        workMode: "on-site",
+        employmentType: "unknown",
+        remoteEligibleRegions: [],
+        availability: "unknown",
+        completeness: "detail",
+        evidence: [],
+        warnings: [],
+      };
+
+      const before = await repo.readProjectionSnapshot();
+      const proj = await projectSourcePage(before, testSourceDef, {
+        records: [record],
+        observedAt: new Date().toISOString(),
+        coverage: { complete: true, partial: false, fetchedRecords: 1, appliedFilters: [], ignoredFilters: [] },
+        warnings: [],
+      }, "test-ro-run");
+
+      await repo.importSnapshot(proj.delta, {
+        actorScope: "owner",
+        idempotencyKey: "test-import-ro",
+        expectedRevision: before.revision,
+      });
+
+      const snapshotAfterImport = await repo.readSnapshot();
+      const importedJob = snapshotAfterImport.jobs.find((j) => j.id === "job-ro-test") || snapshotAfterImport.jobs[0]!;
+
+      const tools = toLangChainRegistryTools(app.registry);
+      const workflow = createJobAuditWorkflow(tools);
+
+      // Run in read-only autonomy mode
+      const finalState = await workflow.invoke({
+        jobId: importedJob.id,
+        autonomyMode: "read-only",
+        trace: [],
+        errors: [],
+      });
+
+      // Office audit should be pending-review, not confirmed
+      assert.equal(finalState.officeAudit?.status, "pending-review");
+      assert.equal(finalState.officeAudit?.requiresHumanReview, true);
+      assert.ok(finalState.officeAudit?.previewFingerprint);
+      assert.equal(finalState.officeAudit?.receiptId, undefined);
+
+      // Compensation audit should be pending-review
+      assert.equal(finalState.compensationAudit?.status, "pending-review");
+      assert.equal(finalState.compensationAudit?.requiresHumanReview, true);
+
+      // Final report should flag requiresHumanReview
+      assert.equal(finalState.finalReport?.requiresHumanReview, true);
+      assert.equal(finalState.finalReport?.pendingReviewsCount, 2);
+
+      // Repository must NOT have officeResolution or verified compensation in read-only mode
+      const finalSnapshot = await repo.readSnapshot();
+      const loc = finalSnapshot.locations.find((l) => l.id === importedJob.locationIds[0])!;
+      assert.equal(loc.officeResolution, undefined, "Office resolution must NOT be committed in read-only mode");
     } finally {
       await app.shutdown();
       repo.close();
