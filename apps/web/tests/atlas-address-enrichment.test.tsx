@@ -71,6 +71,19 @@ function item(jobId = JOB.id, overrides: Partial<AddressEnrichmentPlanItem> = {}
     exactPlatformTargets: [{ listingId: source.id, sourceId: source.sourceId, provider: "liepin", url: source.canonicalUrl, label: "Synthetic original listing" }],
     ownedOfficialTargets: [], companyLookup: { companyName, association: "unverified", strength: "weak" }, truncated: false, warnings: [], ...overrides };
 }
+function streetTarget(sourceLocation = location()) {
+  return { listingId: listing().id, sourceId: listing().sourceId, locationId: sourceLocation.id,
+    sourceUrl: listing().canonicalUrl, sourceLocation };
+}
+function streetResult(sourceLocation = location(), matched = false): OfficeAddressCandidatesResult {
+  return { revision: BASE.revision, jobId: JOB.id, locationId: sourceLocation.id, sourceLocation, configured: true,
+    status: matched ? "candidates" : "no-address-match", warnings: [], candidates: matched ? [{ id: `${sourceLocation.id}-candidate`,
+      providerId: "synthetic-provider", estimated: true, verification: "unverified", attribution: "Synthetic geocoder",
+      evidenceUrl: "https://maps.example.invalid/candidate", proposal: { basis: "manual-user-confirmation", countryCode: "CN",
+        formattedAddress: "Synthetic Batch Road 10, Shanghai", streetAddress: "Synthetic Batch Road 10", postalCode: "200000",
+        evidenceUrl: "https://maps.example.invalid/candidate", coordinateMeaning: "building",
+        coordinates: { latitude: 31.123456, longitude: 121.654321, coordinateSystem: "WGS84" } } }] : [] };
+}
 function plan(items = [item()], revision = BASE.revision): AddressEnrichmentPlan {
   return { schemaVersion: 1, snapshotRevision: revision, requestedJobs: items.length, processedJobs: items.length,
     truncated: items.some(value => value.truncated), items, warnings: [] };
@@ -175,6 +188,57 @@ test("street candidates receive only the explicit source street constraints and 
   assert.deepEqual(calls[1]!.body, { jobId: JOB.id, locationId: source.id, expectedRevision: BASE.revision, query: source.streetAddress, locality: source.city, postalCode: source.postalCode });
   assert.match(dom.document.body.textContent!, /办公地址候选 · 尚未采用/); assert.equal(checks().length, 0); assert.equal(snapshots.length, 0);
   await click("核对具体办公点"); assert.deepEqual(continued, [[JOB.id, source.id]]); assert.equal(calls.length, 2);
+});
+
+for (const outcome of ["no-match", "unconfigured", "failure"] as const) test(`unresolved source street continues to weak company discovery after ${outcome}`, async () => {
+  const source = location(), row = item(JOB.id, { status: "source-street", exactPlatformTargets: [], sourceStreetTargets: [streetTarget(source)] });
+  const snapshots: AtlasDataset[] = [], calls = installFetch(call => {
+    if (call.path === paths.plan) return response(plan([row]));
+    if (call.path === paths.company) return response(discovery());
+    assert.equal(call.path, paths.candidates);
+    if (outcome === "failure") throw new Error("Synthetic geocoder unavailable");
+    return response({ ...streetResult(source), ...(outcome === "unconfigured" ? { configured: false, status: "not-configured" } : {}) });
+  });
+  await prepared(props({ onSnapshot: snapshot => snapshots.push(snapshot) }));
+  assert.deepEqual(calls.map(call => call.path), [paths.plan, paths.candidates, paths.company]);
+  assert.match(dom.document.body.textContent!, /企业招聘入口 · 关联待核实/);
+  assert.match(dom.document.body.textContent!, /此处未确认同一岗位或办公地址/);
+  assert.equal(checks().length, 0); assert.equal(snapshots.length, 0); assert.equal(dom.localStorage.length, 0); assert.equal(dom.sessionStorage.length, 0);
+  assert.equal(dom.document.querySelector('[data-status="error"]') !== null, outcome === "failure");
+});
+
+test("a candidate for one workplace cannot suppress fallback for another unmatched or unsearched workplace", async () => {
+  const sources = [location(), { ...location(), id: "synthetic-second-street" }, { ...location(), id: "synthetic-third-street" }];
+  for (const mode of ["all-matched", "second-unmatched", "pending-city", "capped-third-street"] as const) {
+    const selected = sources.slice(0, mode === "capped-third-street" ? 3 : 2), pending = selected.map(source => source.id);
+    const row = item(JOB.id, { status: "source-street", exactPlatformTargets: [], sourceStreetTargets: selected.map(streetTarget),
+      pendingLocationIds: mode === "pending-city" ? [...pending, "synthetic-city-only-workplace"] : pending });
+    const calls = installFetch(call => {
+      if (call.path === paths.plan) return response(plan([row]));
+      if (call.path === paths.company) return response(discovery());
+      assert.equal(call.path, paths.candidates);
+      const source = selected.find(source => source.id === call.body.locationId); assert.ok(source);
+      return response(streetResult(source, mode !== "second-unmatched" || source.id !== selected[1]!.id));
+    });
+    await prepared(); assert.equal(calls.filter(call => call.path === paths.candidates).length, 2);
+    assert.equal(calls.filter(call => call.path === paths.company).length, mode === "all-matched" ? 0 : 1, mode);
+    assert.equal(checks().length, 0); assert.equal(calls.some(call => call.path === paths.write || call.path === paths.preview), false);
+    assert.match(dom.document.body.textContent!, /办公地址候选 · 尚未采用/);
+    if (mode === "capped-third-street") assert.match(dom.document.body.textContent!, /本轮每岗最多读取 2 个街址/);
+    await clean();
+  }
+});
+
+test("cancelling an unresolved street search never starts a late company fallback", async () => {
+  const waiting = deferred<Response>(), source = location();
+  const row = item(JOB.id, { status: "source-street", exactPlatformTargets: [], sourceStreetTargets: [streetTarget(source)] });
+  const calls = installFetch(call => call.path === paths.plan ? response(plan([row])) : waiting.promise);
+  await prepared(); await settled(() => calls.length === 2); await click(labels.cancel);
+  await act(async () => waiting.resolve(response(streetResult(source))));
+  await settled(() => dom.document.querySelector('section')?.getAttribute("aria-busy") === "false");
+  assert.deepEqual(calls.map(call => call.path), [paths.plan, paths.candidates]);
+  assert.equal(checks().length, 0); assert.equal(dom.document.querySelector('.atlas-enrichment-company'), null);
+  assert.equal(dom.document.querySelector('[data-status="cancelled"]')?.textContent, "已取消");
 });
 
 test("company lookups deduplicate per company and expose weak entry links without borrowing office addresses", async () => {
@@ -395,11 +459,12 @@ test("failed platform address reading falls back to name-only career discovery a
   assert.equal(calls.some(call => [paths.write, paths.candidates].includes(call.path)), false);
 });
 
-test("owned official preview displays only the unique same-record same-URL nonremote street as a read-only clue", async () => {
+test("an unmatched source street falls back to only the unique same-record same-URL nonremote official street as a read-only clue", async () => {
   const original = listing(), url = "https://careers.example.invalid/jobs/synthetic-one", sourceId = "synthetic-owned-official";
   const target = { listingId: original.id, sourceId, adapterId: "synthetic-jsonld", url, label: "Synthetic owned official" };
   const data = { ...BASE, listings: BASE.listings.map(value => value.id === original.id ? { ...value, sourceId, canonicalUrl: url } : value) };
-  const row = item(JOB.id, { status: "official-source", exactPlatformTargets: [], ownedOfficialTargets: [target] });
+  const sourceLocation = location();
+  const row = item(JOB.id, { status: "source-street", exactPlatformTargets: [], sourceStreetTargets: [streetTarget(sourceLocation)], ownedOfficialTargets: [target] });
   const record = { entityType: "job-posting", sourceRecordId: original.sourceRecordId, url, title: JOB.title.value, companyName,
     locations: [{ raw: "Synthetic official disclosed address", countryCode: "CN", city: "Shanghai", streetAddress: "Synthetic Official Road 25", postalCode: "200000" }],
     compensations: [], workMode: "on-site", employmentType: "unknown", remoteEligibleRegions: [], availability: "unknown", completeness: "excerpt",
@@ -408,23 +473,24 @@ test("owned official preview displays only the unique same-record same-URL nonre
   for (const [index, returned] of variants.entries()) {
     const calls = installFetch(call => {
       if (call.path === paths.plan) return response(plan([row]));
+      if (call.path === paths.candidates) return response(streetResult(sourceLocation));
       if (call.path === paths.company) return response(discovery());
       assert.equal(call.path, `/api/v1/sources/${sourceId}/preview`);
       return response({ page: { records: [returned], observedAt: DETAIL_AT, coverage: { complete: false, partial: true, fetchedRecords: 1, appliedFilters: [], ignoredFilters: [] }, warnings: [] },
         localMatchedRecords: 1, localFilters: { roles: [JOB.title.value], regions: [], companyNames: [companyName] } });
     });
     await prepared(props({ data }));
-    assert.deepEqual(calls[1]!.body, { scope: { roles: [JOB.title.value], regions: [], companyNames: [companyName] }, maxRecords: 50 });
+    assert.deepEqual(calls[2]!.body, { scope: { roles: [JOB.title.value], regions: [], companyNames: [companyName] }, maxRecords: 50 });
     assert.equal(checks().length, 0); assert.equal(dom.document.querySelector('.atlas-enrichment-save'), null);
     if (index === 0) {
       assert.match(dom.document.body.textContent!, /官网同岗位街址线索 · 待核对.*Synthetic Official Road 25/s);
-      assert.equal(calls.length, 2); assert.match(dom.document.body.textContent!, /读取时间：2026-10-19T12:01:00.000Z · 尚未保存或定位/);
-    } else { assert.doesNotMatch(dom.document.body.textContent!, /Synthetic Official Road 25/); assert.equal(calls.length, 3); }
+      assert.equal(calls.length, 3); assert.match(dom.document.body.textContent!, /读取时间：2026-10-19T12:01:00.000Z · 尚未保存或定位/);
+    } else { assert.doesNotMatch(dom.document.body.textContent!, /Synthetic Official Road 25/); assert.equal(calls.length, 4); }
     await clean();
   }
 });
 
-test("React reads an owned JSON-LD posting directly and recovers a committed location-only HTTP write without reading a list or replacing JD", async () => {
+test("React continues an unconfigured street geocoder to owned JSON-LD detail and recovers its location-only HTTP write without reading a list or replacing JD", async () => {
   const sourceUrl = "https://careers.synthetic-office.com/jobs/held-1051", listUrl = "https://careers.synthetic-office.com/reviewed.xml";
   const source = SourceDefinitionSchema.parse({ sourceId: "synthetic-direct-office", name: "Synthetic direct careers", adapterId: "jobposting-jsonld", adapterVersion: "1",
     capabilities: ["list-jobs"], runtime: ["local-service"], entityType: "job-posting", enabled: true, status: "active", remoteFilters: [], entryUrl: listUrl,
@@ -434,7 +500,7 @@ test("React reads an owned JSON-LD posting directly and recovers a committed loc
     refreshPolicy: { mode: "manual", minIntervalSeconds: 60, maxRecords: 1, maxPages: 1, requestsPerMinute: 10 } });
   const posting = { "@type": "JobPosting", url: sourceUrl, identifier: "held-1051", title: "Synthetic C# engineer",
     description: "<p>Original synthetic JD, saved before reading a more detailed location.</p>", hiringOrganization: { name: "Synthetic direct employer" },
-    datePosted: "2026-09-01", jobLocation: { address: { addressCountry: "CN", addressLocality: "Shanghai" } } };
+    datePosted: "2026-09-01", jobLocation: { address: { addressCountry: "CN", addressLocality: "Shanghai", streetAddress: "Synthetic Prior Road 1" } } };
   const html = (value: unknown) => `<script type="application/ld+json">${JSON.stringify(value)}</script>`;
   const initial = readJobPostingJsonLd(html(posting), sourceUrl).record; assert.ok(initial);
   const repository = openJobRepository(":memory:", { now: () => NOW });
@@ -467,6 +533,9 @@ test("React reads an owned JSON-LD posting directly and recovers a committed loc
       && checks().length === 1 && !!dom.document.querySelector(`article[data-job-id="${job.id}"]`));
     assert.deepEqual(reads, [sourceUrl], JSON.stringify({ requests, content: dom.document.body.textContent })); assert.deepEqual(await repository.readSnapshot(), before);
     assert.match(dom.document.body.textContent!, /官网同岗位直接读取.*Synthetic Direct Road 1051/s);
+    assert.match(dom.document.body.textContent!, /地址查询服务未配置/);
+    assert.equal(requests.filter(request => request.path === paths.candidates).length, 1);
+    assert.equal((requests.find(request => request.path === paths.candidates)!.body as { query: string }).query, "Synthetic Prior Road 1");
     assert.equal(requests.some(request => /\/sources\/.+\/preview$/.test(request.path)), false);
     assert.deepEqual(requests.find(request => request.path.endsWith("/owned-detail-locations/read"))!.body,
       { jobId: job.id, listingId: owned.id, expectedRevision: before.revision });

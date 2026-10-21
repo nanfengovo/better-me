@@ -145,7 +145,12 @@ function EnrichmentSession({ endpoint, token, data, jobIds, scope, loadedJobs, o
           messages.push(`${target.label} 已读取地址证据，等待本人选择保存；尚未生成坐标。`);
         } catch (problem) { alive(signal); failures++; messages.push(problem instanceof Error ? problem.message : "原岗位详情读取失败。"); }
       }
-      if (!item.sourceStreetTargets.length && !captures.length) for (const target of item.ownedOfficialTargets.slice(0, 2)) {
+      // A disclosed street, or a candidate for a different workplace, must not stop
+      // the same-job fallback for locations whose address search produced nothing.
+      const locationsWithCandidates = new Set(addresses.filter(result => result.candidates.length).map(result => result.locationId));
+      const needsAddressFallback = !item.sourceStreetTargets.length
+        || item.pendingLocationIds.some(locationId => !locationsWithCandidates.has(locationId));
+      if (needsAddressFallback && !captures.length) for (const target of item.ownedOfficialTargets.slice(0, 2)) {
         alive(signal);
         const listing = snapshotRef.current.listings.find(entry => entry.id === target.listingId && entry.canonicalJobId === item.jobId
           && entry.sourceId === target.sourceId && entry.canonicalUrl === target.url);
@@ -179,7 +184,7 @@ function EnrichmentSession({ endpoint, token, data, jobIds, scope, loadedJobs, o
           messages.push(...result.page.warnings.slice(0, 3));
         } catch (problem) { alive(signal); failures++; messages.push(problem instanceof Error ? problem.message : "原官网岗位读取失败。"); }
       }
-      if (!item.sourceStreetTargets.length && !captures.length && !official.length) {
+      if (needsAddressFallback && !captures.length && !official.length) {
         alive(signal);
         const companyKey = item.companyName.normalize("NFKC").trim().toLocaleLowerCase();
         let request = companies.get(companyKey);
