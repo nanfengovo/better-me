@@ -23,6 +23,11 @@ import {
   type Compensation, type CompensationReviewDecision, type CompensationReviewPreview, type CompensationReviewReceipt, type CompensationReviewReadResult,
   type CompensationReviewSourceBinding,
   type PreviewCompensationReviewInput, type ConfirmCompensationReviewInput, type RevokeCompensationReviewInput,
+  FxStateSchema, FxQueryContextSchema, FxMutationReceiptSchema,
+  ReadFxStateInputSchema, PreviewFxImportInputSchema, ConfirmFxImportInputSchema, ActivateFxSnapshotInputSchema,
+  buildFxImportPreview, validateFxReferenceSnapshot,
+  type FxState, type FxQueryContext, type FxImportPreview, type FxMutationReceipt, type FxReferenceSnapshot,
+  type ConfirmFxImportInput, type ActivateFxSnapshotInput,
 } from "@better-me/opportunities";
 import {
   ActorScopeSchema, IdempotencyKeySchema, SyncRunSchema, RunScopeSchema, PublicRunSummarySchema,
@@ -32,6 +37,7 @@ import {
   type RepositoryBackup, type StoredReceipt, DiscoveryLeadSchema, DiscoveryLeadReceiptSchema,
   type DiscoveryLead, type DiscoveryLeadReceipt,
   REPOSITORY_MIGRATION_V5, COMPENSATION_DECISION_TRIGGERS,
+  REPOSITORY_MIGRATION_V6, FX_TRIGGERS, FxActivationEventSchema, StoredFxSnapshotSchema, type FxActivationEvent, type StoredFxSnapshot,
 } from "./repository-schema.js";
 import { resolveLocationArea } from "./location-catalog.js";
 
@@ -107,6 +113,53 @@ function verifyContentHashes(dataset: AtlasDataset, errorCode: RepositoryErrorCo
     if (observation.snapshotId && observation.contentHash && snapshots.get(observation.snapshotId)?.contentHash !== observation.contentHash) throw new RepositoryError(errorCode);
     if (observation.rawText !== undefined && observation.contentHash && createHash("sha256").update(observation.rawText).digest("hex") !== observation.contentHash) throw new RepositoryError(errorCode);
   }
+}
+
+/** Rebuild rates and command signatures from retained source JSON, not from derived backup fields. */
+async function verifyFxBackup(backup: RepositoryBackup, targetNow: string) {
+  try {
+    const occupied = new Set([...backup.mergeDecisions, ...backup.locationDecisions, ...backup.officeDecisions, ...backup.compensationDecisions].map(value => value.revision));
+    const snapshots = new Map(backup.fxSnapshots.map(value => [value.snapshot.fx.id, value]));
+    for (const stored of backup.fxSnapshots) {
+      if (stored.revision > backup.dataset.revision) throw new Error("invalid-fx-revision");
+      const availableBy = Date.parse(targetNow) < Date.parse(backup.createdAt) ? targetNow : backup.createdAt;
+      await validateFxReferenceSnapshot(stored.snapshot, { now: availableBy });
+    }
+    let previousRevision = 0, active: string | null = null;
+    const fxReceipts = backup.receipts.filter(value => value.tool === "fx.confirm-import" || value.tool === "fx.activate");
+    const receiptsByRevision = new Map<number, typeof fxReceipts>();
+    for (const saved of fxReceipts) {
+      const response = checked(FxMutationReceiptSchema, saved.response, "invalid-backup");
+      receiptsByRevision.set(response.revision, [...receiptsByRevision.get(response.revision) ?? [], saved]);
+    }
+    const createdSnapshots = new Set<string>();
+    for (const event of backup.fxActivations) {
+      if (event.revision <= previousRevision || event.revision > backup.dataset.revision || occupied.has(event.revision) || Date.parse(event.at) > Date.parse(backup.createdAt) || Date.parse(event.at) > Date.parse(targetNow)) throw new Error("invalid-fx-event");
+      previousRevision = event.revision;
+      const stored = event.snapshotId === null ? undefined : snapshots.get(event.snapshotId);
+      if (event.snapshotId !== null && (!stored || stored.revision > event.revision || Date.parse(stored.snapshot.retrievedAt) > Date.parse(event.at))) throw new Error("invalid-fx-reference");
+      let input: ConfirmFxImportInput | ActivateFxSnapshotInput;
+      if (event.kind === "import") {
+        if (!stored) throw new Error("missing-fx-import");
+        const { sourceUrl, retrievedAt, raw, format, fx } = stored.snapshot;
+        const draft = { schemaVersion: 1 as const, provider: fx.provider, sourceUrl, retrievedAt, raw, format };
+        const preview = await buildFxImportPreview({ draft, expectedRevision: event.revision - 1 }, { now: event.at });
+        if (preview.previewFingerprint !== event.previewFingerprint || !same(preview.snapshot, stored.snapshot)) throw new Error("invalid-fx-preview");
+        input = { draft, expectedRevision: event.revision - 1, previewFingerprint: event.previewFingerprint!, reviewed: true, activate: event.activate! };
+        if (stored.revision === event.revision) createdSnapshots.add(stored.snapshot.fx.id);
+        if (event.activate) active = event.snapshotId;
+      } else {
+        input = { snapshotId: event.snapshotId, expectedRevision: event.revision - 1, reviewed: true };
+        active = event.snapshotId;
+      }
+      if (event.activeSnapshotId !== active) throw new Error("invalid-fx-selection");
+      const matching = receiptsByRevision.get(event.revision) ?? [];
+      if (matching.length !== 1) throw new Error("missing-fx-receipt");
+      const saved = matching[0]!, response = { ok: true, revision: event.revision, snapshotId: event.snapshotId, activeSnapshotId: active };
+      if (saved.actorScope !== event.actorScope || saved.tool !== (event.kind === "import" ? "fx.confirm-import" : "fx.activate") || saved.signature !== signature({ input }) || !same(saved.response, response)) throw new Error("invalid-fx-receipt");
+    }
+    if (fxReceipts.length !== backup.fxActivations.length || backup.fxSnapshots.some(value => !createdSnapshots.has(value.snapshot.fx.id))) throw new Error("orphan-fx-history");
+  } catch { throw new RepositoryError("invalid-backup"); }
 }
 
 function mergeCompany(current: Company, incoming: Company): Company {
@@ -194,6 +247,11 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       try { db.exec(REPOSITORY_MIGRATION_V5); db.exec(COMPENSATION_DECISION_TRIGGERS); db.exec("PRAGMA user_version=5; COMMIT;"); }
       catch (error) { db.exec("ROLLBACK"); throw error; }
     }
+    if (version < 6) {
+      db.exec("BEGIN IMMEDIATE");
+      try { db.exec(REPOSITORY_MIGRATION_V6); db.exec(FX_TRIGGERS); db.exec("PRAGMA user_version=6; COMMIT;"); }
+      catch (error) { db.exec("ROLLBACK"); throw error; }
+    }
     db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;");
     // Opening a file with a matching user_version is not sufficient proof of this schema.
     db.prepare("SELECT value FROM metadata WHERE key='revision'").get();
@@ -205,6 +263,8 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     db.prepare("SELECT id,revision,document FROM office_decisions LIMIT 0").all();
     db.prepare("SELECT id,document FROM base_compensations LIMIT 0").all();
     db.prepare("SELECT id,revision,document FROM compensation_decisions LIMIT 0").all();
+    db.prepare("SELECT id,revision,document FROM fx_snapshots LIMIT 0").all();
+    db.prepare("SELECT id,revision,document FROM fx_activations LIMIT 0").all();
     const check = db.prepare("PRAGMA quick_check").get() as Record<string, unknown>;
     if (Object.values(check)[0] !== "ok") throw new RepositoryError("storage-error");
   } catch (error) { db.close(); throw error instanceof RepositoryError ? error : new RepositoryError("storage-error"); }
@@ -231,7 +291,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     if (row.signature !== expectedSignature) throw new RepositoryError("idempotency-conflict");
     return JSON.parse(row.response) as T;
   }
-  function saveReceipt(actorScope: string, tool: string, idempotencyKey: string, requestSignature: string, result: ImportReceipt | SyncRun | DiscoveryLeadReceipt | ReconciliationReceipt | LocationConfirmationReceipt | OfficeAddressReceipt | CompensationReviewReceipt) {
+  function saveReceipt(actorScope: string, tool: string, idempotencyKey: string, requestSignature: string, result: ImportReceipt | SyncRun | DiscoveryLeadReceipt | ReconciliationReceipt | LocationConfirmationReceipt | OfficeAddressReceipt | CompensationReviewReceipt | FxMutationReceipt) {
     db.prepare("INSERT INTO receipts(actor_scope,tool,idempotency_key,signature,response,created_at) VALUES (?,?,?,?,?,?)").run(actorScope, tool, idempotencyKey, requestSignature, json(result), now());
   }
   function runById(runId: string): SyncRun | undefined {
@@ -262,6 +322,52 @@ export function openJobRepository(path: string, options: { now?: () => string } 
   }
   function compensationDecisions(): CompensationReviewDecision[] {
     return (db.prepare("SELECT document FROM compensation_decisions ORDER BY revision").all() as Array<{ document: string }>).map(row => checked(CompensationReviewDecisionSchema, JSON.parse(row.document)));
+  }
+  function fxSnapshots(): StoredFxSnapshot[] {
+    return (db.prepare("SELECT revision,document FROM fx_snapshots ORDER BY revision").all() as Array<{ revision: number; document: string }>).map(row => checked(StoredFxSnapshotSchema, { revision: row.revision, snapshot: JSON.parse(row.document) }));
+  }
+  function fxActivations(): FxActivationEvent[] {
+    return (db.prepare("SELECT document FROM fx_activations ORDER BY revision").all() as Array<{ document: string }>).map(row => checked(FxActivationEventSchema, JSON.parse(row.document)));
+  }
+  function activeFxSnapshotId(): string | null {
+    const row = db.prepare("SELECT document FROM fx_activations ORDER BY revision DESC LIMIT 1").get() as { document: string } | undefined;
+    return row ? checked(FxActivationEventSchema, JSON.parse(row.document)).activeSnapshotId : null;
+  }
+  function fxSnapshotById(id: string): StoredFxSnapshot | undefined {
+    const row = db.prepare("SELECT revision,document FROM fx_snapshots WHERE id=?").get(id) as { revision: number; document: string } | undefined;
+    return row ? checked(StoredFxSnapshotSchema, { revision: row.revision, snapshot: JSON.parse(row.document) }) : undefined;
+  }
+  function fxContext(): FxQueryContext {
+    const selected = activeFxSnapshotId();
+    const activeSnapshot = selected ? fxSnapshotById(selected)?.snapshot : undefined;
+    if (selected && !activeSnapshot) throw new RepositoryError("invalid-data");
+    const dayStart = `${now().slice(0, 10)}T00:00:00.000Z`;
+    const asOf = activeSnapshot && Date.parse(activeSnapshot.retrievedAt) > Date.parse(dayStart) ? activeSnapshot.retrievedAt : dayStart;
+    return checked(FxQueryContextSchema, { schemaVersion: 1, datasetRevision: revision(), asOf, ...(activeSnapshot ? { activeSnapshot } : {}) });
+  }
+  function fxReceipt(tool: "fx.confirm-import" | "fx.activate", input: unknown, options: ReconciliationWriteOptions) {
+    validateOptions(options);
+    const parsed = tool === "fx.confirm-import" ? checked(ConfirmFxImportInputSchema, input) : checked(ActivateFxSnapshotInputSchema, input);
+    if (parsed.expectedRevision !== options.expectedRevision) throw new RepositoryError("invalid-data");
+    const saved = receipt<FxMutationReceipt>(options.actorScope, tool, options.idempotencyKey, signature({ input: parsed }));
+    return saved ? checked(FxMutationReceiptSchema, saved) : undefined;
+  }
+  function commitFx(event: FxActivationEvent, input: ConfirmFxImportInput | ActivateFxSnapshotInput, options: ReconciliationWriteOptions, snapshot?: FxReferenceSnapshot): FxMutationReceipt {
+    options.throwIfCancelled?.();
+    if (snapshot) {
+      const existing = fxSnapshotById(snapshot.fx.id);
+      if (existing && !same(existing.snapshot, snapshot)) throw new RepositoryError("conflict");
+      if (!existing) {
+        if ((db.prepare("SELECT COUNT(*) AS count FROM fx_snapshots").get() as { count: number }).count >= 1000) throw new RepositoryError("conflict");
+        db.prepare("INSERT INTO fx_snapshots VALUES (?,?,?)").run(snapshot.fx.id, event.revision, json(snapshot));
+      }
+    }
+    db.prepare("INSERT INTO fx_activations VALUES (?,?,?)").run(event.id, event.revision, json(event));
+    db.prepare("UPDATE metadata SET value=? WHERE key='revision'").run(String(event.revision));
+    const result = checked(FxMutationReceiptSchema, { ok: true, revision: event.revision, snapshotId: event.snapshotId, activeSnapshotId: event.activeSnapshotId });
+    saveReceipt(options.actorScope, event.kind === "import" ? "fx.confirm-import" : "fx.activate", options.idempotencyKey, signature({ input }), result);
+    options.throwIfCancelled?.();
+    return result;
   }
   function baseSnapshot(current = read()): AtlasDataset {
     const jobs = (db.prepare("SELECT document FROM base_jobs ORDER BY id").all() as Array<{ document: string }>).map((row) => checked(CanonicalJobSchema, JSON.parse(row.document)));
@@ -589,6 +695,68 @@ export function openJobRepository(path: string, options: { now?: () => string } 
 
   return {
     async readSnapshot(): Promise<AtlasDataset> { return transaction(read); },
+    /** Capture the FX selection and public dataset in one SQLite transaction. */
+    async readFxQuerySnapshot(): Promise<{ dataset: AtlasDataset; context: FxQueryContext }> {
+      const captured = transaction(() => ({ dataset: read(), context: fxContext() }));
+      if (captured.context.activeSnapshot) {
+        try { await validateFxReferenceSnapshot(captured.context.activeSnapshot, { now: now() }); }
+        catch { throw new RepositoryError("invalid-data"); }
+        transaction(() => { if (revision() !== captured.dataset.revision) throw new RepositoryError("stale-version"); });
+      }
+      return captured;
+    },
+    async readFxState(input: unknown = {}): Promise<FxState> {
+      const parsed = checked(ReadFxStateInputSchema, input);
+      const state = transaction(() => {
+        if (parsed.expectedRevision !== undefined && revision() !== parsed.expectedRevision) throw new RepositoryError("stale-version");
+        return checked(FxStateSchema, { schemaVersion: 1, revision: revision(), context: fxContext(), snapshots: fxSnapshots().map(value => value.snapshot) });
+      });
+      try { for (const snapshot of state.snapshots) await validateFxReferenceSnapshot(snapshot, { now: now() }); }
+      catch { throw new RepositoryError("invalid-data"); }
+      // Validation is asynchronous: never return a state under a revision that changed during it.
+      transaction(() => { if (revision() !== state.revision) throw new RepositoryError("stale-version"); });
+      return state;
+    },
+    async previewFxImport(input: unknown): Promise<FxImportPreview> {
+      const parsed = checked(PreviewFxImportInputSchema, input);
+      transaction(() => { if (revision() !== parsed.expectedRevision) throw new RepositoryError("stale-version"); });
+      let preview: FxImportPreview;
+      try { preview = await buildFxImportPreview(parsed, { now: now() }); } catch { throw new RepositoryError("invalid-data"); }
+      transaction(() => { if (revision() !== parsed.expectedRevision) throw new RepositoryError("stale-version"); });
+      return preview;
+    },
+    async findFxReceipt(tool: "fx.confirm-import" | "fx.activate", input: unknown, options: ReconciliationWriteOptions): Promise<FxMutationReceipt | undefined> {
+      return transaction(() => fxReceipt(tool, input, options));
+    },
+    async confirmFxImport(input: unknown, options: ReconciliationWriteOptions): Promise<FxMutationReceipt> {
+      validateOptions(options); const parsed = checked(ConfirmFxImportInputSchema, input);
+      if (parsed.expectedRevision !== options.expectedRevision) throw new RepositoryError("invalid-data");
+      const cached = transaction(() => fxReceipt("fx.confirm-import", parsed, options));
+      if (cached) return cached;
+      let preview: FxImportPreview;
+      try { preview = await buildFxImportPreview({ draft: parsed.draft, expectedRevision: parsed.expectedRevision }, { now: now() }); }
+      catch { throw new RepositoryError("invalid-data"); }
+      return transaction(() => {
+        const saved = fxReceipt("fx.confirm-import", parsed, options); if (saved) return saved;
+        if (revision() !== parsed.expectedRevision || preview.previewFingerprint !== parsed.previewFingerprint) throw new RepositoryError("stale-version");
+        const event = checked(FxActivationEventSchema, { id: `fx-import_${randomUUID()}`, revision: revision() + 1, at: now(), actorScope: options.actorScope,
+          kind: "import", snapshotId: preview.snapshot.fx.id, activeSnapshotId: parsed.activate ? preview.snapshot.fx.id : activeFxSnapshotId(),
+          activate: parsed.activate, previewFingerprint: parsed.previewFingerprint });
+        return commitFx(event, parsed, options, preview.snapshot);
+      });
+    },
+    async activateFxSnapshot(input: unknown, options: ReconciliationWriteOptions): Promise<FxMutationReceipt> {
+      validateOptions(options); const parsed = checked(ActivateFxSnapshotInputSchema, input);
+      if (parsed.expectedRevision !== options.expectedRevision) throw new RepositoryError("invalid-data");
+      return transaction(() => {
+        const cached = fxReceipt("fx.activate", parsed, options); if (cached) return cached;
+        if (revision() !== parsed.expectedRevision) throw new RepositoryError("stale-version");
+        if (parsed.snapshotId !== null && !fxSnapshotById(parsed.snapshotId)) throw new RepositoryError("not-found");
+        const event = checked(FxActivationEventSchema, { id: `fx-activate_${randomUUID()}`, revision: revision() + 1, at: now(), actorScope: options.actorScope,
+          kind: "activate", snapshotId: parsed.snapshotId, activeSnapshotId: parsed.snapshotId });
+        return commitFx(event, parsed, options);
+      });
+    },
     /** Ingestion-only origins: never use this view for map totals or user-facing search. */
     async readProjectionSnapshot(): Promise<AtlasDataset> { return transaction(() => baseSnapshot()); },
     async readCompensationReview(input: unknown): Promise<CompensationReviewReadResult> {
@@ -1068,7 +1236,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const baseJobs = baseSnapshot(dataset).jobs;
         const aliasHistory = (db.prepare("SELECT document FROM job_alias_history ORDER BY sequence").all() as Array<{ document: string }>).map((row) => checked(JobAliasEventSchema, JSON.parse(row.document)));
         const jobVersions = (db.prepare("SELECT job_id,revision FROM job_versions ORDER BY job_id").all() as Array<{ job_id: string; revision: number }>).map((row) => ({ jobId: row.job_id, revision: row.revision }));
-        return checked(RepositoryBackupSchema, { format: "better-me/job-repository", schemaVersion: REPOSITORY_SCHEMA_VERSION, createdAt: now(), dataset, runs, receipts, leads, baseJobs, baseLocations: baseSnapshot(dataset).locations, locationDecisions: locationDecisions(), officeDecisions: officeDecisions(), baseCompensations: baseSnapshot(dataset).compensations, compensationDecisions: compensationDecisions(), mergeDecisions: decisions(), aliasHistory, jobVersions }, "invalid-backup");
+        return checked(RepositoryBackupSchema, { format: "better-me/job-repository", schemaVersion: REPOSITORY_SCHEMA_VERSION, createdAt: now(), dataset, runs, receipts, leads, baseJobs, baseLocations: baseSnapshot(dataset).locations, locationDecisions: locationDecisions(), officeDecisions: officeDecisions(), baseCompensations: baseSnapshot(dataset).compensations, compensationDecisions: compensationDecisions(), mergeDecisions: decisions(), aliasHistory, jobVersions, fxSnapshots: fxSnapshots(), fxActivations: fxActivations() }, "invalid-backup");
       });
     },
     async restore(input: unknown, restoreOptions: Omit<ImportOptions, "runId"> & { expectedRevision: number }): Promise<ImportReceipt> {
@@ -1076,6 +1244,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       const backup = checked(RepositoryBackupSchema, input, "invalid-backup");
       verifyContentHashes(backup.dataset, "invalid-backup");
       if (encoder.encode(json(backup)).byteLength > 128 * 1024 * 1024) throw new RepositoryError("invalid-backup");
+      await verifyFxBackup(backup, now());
       const baseJobs = backup.baseJobs ?? backup.dataset.jobs;
       const baseLocations = backup.baseLocations ?? backup.dataset.locations;
       const baseCompensations = backup.baseCompensations ?? backup.dataset.compensations;
@@ -1238,6 +1407,8 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         if (cached) return checked(ImportReceiptSchema, cached);
         const current = read();
         if (current.revision !== restoreOptions.expectedRevision) throw new RepositoryError("stale-version");
+        // Replacing selected rates must not orphan a durable command from the current file.
+        if (fxSnapshots().some(value => !backup.fxSnapshots.some(saved => same(value, saved))) || fxActivations().some(value => !backup.fxActivations.some(saved => same(value, saved)))) throw new RepositoryError("conflict");
         // A source run that was active in the saved file has no live executor after restoration.
         const restoredRuns = backup.runs.map((run): SyncRun => run.status === "running" ? { ...run, status: "cancelled", finishedAt: now() } : run);
         const dataset = { ...backup.dataset, revision: Math.max(current.revision, backup.dataset.revision) + 1 };
@@ -1254,6 +1425,10 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         db.exec("DROP TRIGGER compensation_decisions_no_update; DROP TRIGGER compensation_decisions_no_delete; DELETE FROM compensation_decisions;");
         for (const entry of backup.compensationDecisions) db.prepare("INSERT INTO compensation_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
         db.exec(COMPENSATION_DECISION_TRIGGERS);
+        db.exec("DROP TRIGGER fx_snapshots_no_update; DROP TRIGGER fx_snapshots_no_delete; DROP TRIGGER fx_activations_no_update; DROP TRIGGER fx_activations_no_delete; DELETE FROM fx_activations; DELETE FROM fx_snapshots;");
+        for (const stored of backup.fxSnapshots) db.prepare("INSERT INTO fx_snapshots VALUES (?,?,?)").run(stored.snapshot.fx.id, stored.revision, json(stored.snapshot));
+        for (const event of backup.fxActivations) db.prepare("INSERT INTO fx_activations VALUES (?,?,?)").run(event.id, event.revision, json(event));
+        db.exec(FX_TRIGGERS);
         db.exec("DROP TRIGGER merge_decisions_no_update; DROP TRIGGER merge_decisions_no_delete; DROP TRIGGER job_alias_history_no_update; DROP TRIGGER job_alias_history_no_delete; DELETE FROM merge_decisions; DELETE FROM job_alias_history; DELETE FROM job_aliases; DELETE FROM job_versions;");
         for (const entry of backup.mergeDecisions) db.prepare("INSERT INTO merge_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
         for (const event of backup.aliasHistory) db.prepare("INSERT INTO job_alias_history(job_id,revision,document) VALUES (?,?,?)").run(event.jobId, event.revision, json(event));

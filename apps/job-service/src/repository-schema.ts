@@ -1,11 +1,22 @@
 import { z } from "zod";
-import { AtlasDatasetSchema, CanonicalJobSchema, CountryCodeSchema, EntityIdSchema, TimestampSchema, MergeDecisionSchema, JobAliasEventSchema, ReconciliationReceiptSchema, JobLocationSchema, LocationConfirmationDecisionSchema, LocationConfirmationReceiptSchema, OfficeAddressDecisionSchema, OfficeAddressReceiptSchema, CompensationSchema, CompensationReviewDecisionSchema, CompensationReviewReceiptSchema } from "@better-me/opportunities";
+import { AtlasDatasetSchema, CanonicalJobSchema, CountryCodeSchema, EntityIdSchema, TimestampSchema, MergeDecisionSchema, JobAliasEventSchema, ReconciliationReceiptSchema, JobLocationSchema, LocationConfirmationDecisionSchema, LocationConfirmationReceiptSchema, OfficeAddressDecisionSchema, OfficeAddressReceiptSchema, CompensationSchema, CompensationReviewDecisionSchema, CompensationReviewReceiptSchema, FxReferenceSnapshotSchema, FxMutationReceiptSchema } from "@better-me/opportunities";
 import { SourceJobRecordSchema } from "@better-me/source-adapters";
 
-export const REPOSITORY_SCHEMA_VERSION = 5;
+export const REPOSITORY_SCHEMA_VERSION = 6;
 export const ActorScopeSchema = z.string().min(1).max(200).regex(/^[A-Za-z0-9._:/-]+$/);
 export const IdempotencyKeySchema = z.string().min(1).max(200).regex(/^[A-Za-z0-9._:-]+$/);
 export const RequestFingerprintSchema = z.string().regex(/^[a-f0-9]{64}$/);
+export const StoredFxSnapshotSchema = z.object({ revision: z.number().int().positive(), snapshot: FxReferenceSnapshotSchema }).strict();
+export const FxActivationEventSchema = z.object({
+  id: EntityIdSchema, revision: z.number().int().positive(), actorScope: ActorScopeSchema, at: TimestampSchema,
+  kind: z.enum(["import", "activate"]), snapshotId: z.string().min(1).max(200).nullable(), activeSnapshotId: z.string().min(1).max(200).nullable(),
+  activate: z.boolean().optional(), previewFingerprint: RequestFingerprintSchema.optional(),
+}).strict().superRefine((event, context) => {
+  if (event.kind === "import" && (event.snapshotId === null || event.activate === undefined || event.previewFingerprint === undefined)) context.addIssue({ code: "custom", message: "An FX import must bind its preview and activation choice." });
+  if (event.kind === "activate" && (event.activate !== undefined || event.previewFingerprint !== undefined || event.activeSnapshotId !== event.snapshotId)) context.addIssue({ code: "custom", message: "An FX activation must select exactly its requested snapshot." });
+});
+export type StoredFxSnapshot = z.infer<typeof StoredFxSnapshotSchema>;
+export type FxActivationEvent = z.infer<typeof FxActivationEventSchema>;
 export const PublicRunSummarySchema = z.object({
   added: z.number().int().nonnegative().optional(), changed: z.number().int().nonnegative().optional(),
   unchanged: z.number().int().nonnegative().optional(), closed: z.number().int().nonnegative().optional(),
@@ -44,17 +55,18 @@ export type DiscoveryLead = z.infer<typeof DiscoveryLeadSchema>;
 export const DiscoveryLeadReceiptSchema = z.object({ ok: z.literal(true), revision: z.number().int().nonnegative(), leadIds: z.array(EntityIdSchema) }).strict();
 export type DiscoveryLeadReceipt = z.infer<typeof DiscoveryLeadReceiptSchema>;
 export const StoredReceiptSchema = z.object({
-  actorScope: ActorScopeSchema, tool: z.enum(["dataset.import", "dataset.restore", "runs.start", "leads.save", "sources.register", "jobs.merge", "jobs.reject-merge", "jobs.revoke-merge", "locations.confirm", "locations.revoke-confirmation", "locations.confirm-office-address", "locations.revoke-office-address", "compensations.confirm-review", "compensations.revoke-review"]),
+  actorScope: ActorScopeSchema, tool: z.enum(["dataset.import", "dataset.restore", "runs.start", "leads.save", "sources.register", "jobs.merge", "jobs.reject-merge", "jobs.revoke-merge", "locations.confirm", "locations.revoke-confirmation", "locations.confirm-office-address", "locations.revoke-office-address", "compensations.confirm-review", "compensations.revoke-review", "fx.confirm-import", "fx.activate"]),
   idempotencyKey: IdempotencyKeySchema, signature: z.string().regex(/^[a-f0-9]{64}$/),
-  response: z.union([ImportReceiptSchema, SyncRunSchema, DiscoveryLeadReceiptSchema, ReconciliationReceiptSchema, LocationConfirmationReceiptSchema, OfficeAddressReceiptSchema, CompensationReviewReceiptSchema]), createdAt: TimestampSchema,
+  response: z.union([ImportReceiptSchema, SyncRunSchema, DiscoveryLeadReceiptSchema, ReconciliationReceiptSchema, LocationConfirmationReceiptSchema, OfficeAddressReceiptSchema, CompensationReviewReceiptSchema, FxMutationReceiptSchema]), createdAt: TimestampSchema,
 }).strict().superRefine((receipt, context) => {
   if ((receipt.tool === "locations.confirm" || receipt.tool === "locations.revoke-confirmation") && !LocationConfirmationReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Location command receipts require a location response." });
   if ((receipt.tool === "locations.confirm-office-address" || receipt.tool === "locations.revoke-office-address") && !OfficeAddressReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Office command receipts require an office response." });
   if ((receipt.tool === "compensations.confirm-review" || receipt.tool === "compensations.revoke-review") && !CompensationReviewReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Compensation commands require a compensation review response." });
+  if ((receipt.tool === "fx.confirm-import" || receipt.tool === "fx.activate") && !FxMutationReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "FX commands require an FX mutation receipt." });
 });
 export type StoredReceipt = z.infer<typeof StoredReceiptSchema>;
 export const RepositoryBackupSchema = z.object({
-  format: z.literal("better-me/job-repository"), schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
+  format: z.literal("better-me/job-repository"), schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6)]),
   createdAt: TimestampSchema, dataset: AtlasDatasetSchema,
   runs: z.array(SyncRunSchema).max(100_000), receipts: z.array(StoredReceiptSchema).max(1_000_000),
   leads: z.array(DiscoveryLeadSchema).max(300_000).default([]),
@@ -67,6 +79,8 @@ export const RepositoryBackupSchema = z.object({
   officeDecisions: z.array(OfficeAddressDecisionSchema).max(200_000).default([]),
   baseCompensations: z.array(CompensationSchema).max(200_000).optional(),
   compensationDecisions: z.array(CompensationReviewDecisionSchema).max(200_000).default([]),
+  fxSnapshots: z.array(StoredFxSnapshotSchema).max(1000).default([]),
+  fxActivations: z.array(FxActivationEventSchema).max(100_000).default([]),
 }).strict().superRefine((backup, context) => {
   if (new Set(backup.runs.map((run) => run.runId)).size !== backup.runs.length) context.addIssue({ code: "custom", message: "Duplicate run IDs." });
   const keys = backup.receipts.map((receipt) => JSON.stringify([receipt.actorScope, receipt.tool, receipt.idempotencyKey]));
@@ -76,6 +90,8 @@ export const RepositoryBackupSchema = z.object({
   if (backup.schemaVersion >= 2 && !backup.baseJobs) context.addIssue({ code: "custom", message: "Version 2 and later backups require origin jobs." });
   if (backup.schemaVersion >= 3 && !backup.baseLocations) context.addIssue({ code: "custom", message: "Version 3 and later backups require origin locations." });
   if (backup.schemaVersion >= 5 && !backup.baseCompensations) context.addIssue({ code: "custom", message: "Version 5 and later backups require origin compensations." });
+  if (backup.schemaVersion < 6 && (backup.fxSnapshots.length || backup.fxActivations.length || backup.receipts.some(value => value.tool === "fx.confirm-import" || value.tool === "fx.activate"))) context.addIssue({ code: "custom", message: "Old backups cannot contain FX state." });
+  if (new Set(backup.fxSnapshots.map(value => value.snapshot.fx.id)).size !== backup.fxSnapshots.length || new Set(backup.fxSnapshots.map(value => value.revision)).size !== backup.fxSnapshots.length || new Set(backup.fxActivations.map(value => value.id)).size !== backup.fxActivations.length) context.addIssue({ code: "custom", message: "Duplicate FX state identities." });
   if (backup.schemaVersion < 5 && (backup.baseCompensations !== undefined || backup.compensationDecisions.length || backup.receipts.some(value => value.tool === "compensations.confirm-review" || value.tool === "compensations.revoke-review"))) context.addIssue({ code: "custom", message: "Old backups cannot contain compensation decisions." });
   if (backup.baseCompensations && new Set(backup.baseCompensations.map(value => value.id)).size !== backup.baseCompensations.length) context.addIssue({ code: "custom", message: "Duplicate source compensation identities." });
   if (backup.schemaVersion < 4 && (backup.officeDecisions.length || backup.dataset.locations.some(value => value.officeResolution) || backup.receipts.some(value => value.tool === "locations.confirm-office-address" || value.tool === "locations.revoke-office-address"))) context.addIssue({ code: "custom", message: "Old backups cannot contain office decisions." });
@@ -157,6 +173,16 @@ CREATE TABLE compensation_decisions (id TEXT PRIMARY KEY,revision INTEGER NOT NU
 export const COMPENSATION_DECISION_TRIGGERS = `
 CREATE TRIGGER compensation_decisions_no_update BEFORE UPDATE ON compensation_decisions BEGIN SELECT RAISE(ABORT,'immutable-compensation-decision'); END;
 CREATE TRIGGER compensation_decisions_no_delete BEFORE DELETE ON compensation_decisions BEGIN SELECT RAISE(ABORT,'immutable-compensation-decision'); END;
+`;
+export const REPOSITORY_MIGRATION_V6 = `
+CREATE TABLE fx_snapshots (id TEXT PRIMARY KEY,revision INTEGER NOT NULL UNIQUE,document TEXT NOT NULL CHECK(json_valid(document))) STRICT;
+CREATE TABLE fx_activations (id TEXT PRIMARY KEY,revision INTEGER NOT NULL UNIQUE,document TEXT NOT NULL CHECK(json_valid(document))) STRICT;
+`;
+export const FX_TRIGGERS = `
+CREATE TRIGGER fx_snapshots_no_update BEFORE UPDATE ON fx_snapshots BEGIN SELECT RAISE(ABORT,'immutable-fx-snapshot'); END;
+CREATE TRIGGER fx_snapshots_no_delete BEFORE DELETE ON fx_snapshots BEGIN SELECT RAISE(ABORT,'immutable-fx-snapshot'); END;
+CREATE TRIGGER fx_activations_no_update BEFORE UPDATE ON fx_activations BEGIN SELECT RAISE(ABORT,'immutable-fx-activation'); END;
+CREATE TRIGGER fx_activations_no_delete BEFORE DELETE ON fx_activations BEGIN SELECT RAISE(ABORT,'immutable-fx-activation'); END;
 `;
 export const APPEND_ONLY_TRIGGERS = `
 CREATE TRIGGER observations_no_update BEFORE UPDATE ON observations BEGIN SELECT RAISE(ABORT,'immutable-observation'); END;

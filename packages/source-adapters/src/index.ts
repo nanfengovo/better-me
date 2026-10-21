@@ -25,3 +25,4 @@ export * from "./adapters/jobposting-jsonld.js";
 export * from "./platform-detail-locations.js";
 export * from "./reviewed-detail-locations.js";
 export * from "./owned-detail-locations.js";
+export * from "./fx-reference.js";

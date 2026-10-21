@@ -495,6 +495,8 @@ test("desktop workspace exchanges its third reading column for address review wh
   const { UiPreferencesProvider } = await import("../src/lib/ui-preferences.tsx");
   mock.method(dom.HTMLElement.prototype, "getBoundingClientRect", () => ({ x: 0, y: 0, top: 0, left: 0, right: 1220, bottom: 800, width: 1220, height: 800, toJSON() {} }));
   const calls = installFetch(call => {
+    // This held desktop-index fixture predates optional FX management.
+    if (call.path === "/api/v1/fx/state") return new Response("", { status: 404 });
     if (call.path === paths.snapshot) return response(BASE);
     if (call.path === "/api/v1/sources") return response(BASE.sources);
     return defaultResponse(call);

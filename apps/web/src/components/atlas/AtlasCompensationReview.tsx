@@ -5,7 +5,7 @@ import {
   HttpUrlSchema, PreviewCompensationReviewInputSchema, normalizeCompensation, sameCompensationReviewValue, applyCompensationReviewConfirmation,
   type AtlasDataset, type Compensation, type CompensationReviewProposal, type CompensationReviewPreview,
   type CompensationReviewReceipt, type CompensationReviewReadResult, type ConfirmCompensationReviewInput,
-  type PreviewCompensationReviewInput, type RevokeCompensationReviewInput, type EvidenceRef,
+  type PreviewCompensationReviewInput, type RevokeCompensationReviewInput, type EvidenceRef, type QueryOptions,
 } from "@better-me/opportunities";
 import { AtlasSourceServiceError, createAtlasSourceClient } from "./service-client";
 import "./AtlasCompensationReview.css";
@@ -13,6 +13,8 @@ import "./AtlasCompensationReview.css";
 export type AtlasCompensationReviewProps = {
   endpoint: string; token: string; data: AtlasDataset; jobId: string;
   onSnapshot: (data: AtlasDataset) => void; onClose: () => void;
+  queryOptions?: Pick<QueryOptions, "now" | "fx">;
+  queryReady?: boolean;
 };
 type Field = CompensationReviewProposal["supports"][number]["field"];
 type Draft = Record<Field, string> & { reason: string };
@@ -40,7 +42,7 @@ function scalar(compensation: Compensation, field: Field) {
   if (field === "kind") return kinds[compensation.kind];
   return value === undefined ? "未披露" : typeof value === "number" ? value.toLocaleString("zh-CN", { maximumFractionDigits: 6 }) : value;
 }
-function reasons(compensation: Compensation) {
+function reasons(compensation: Compensation, options?: Pick<QueryOptions, "now" | "fx">) {
   const result: string[] = [];
   if (compensation.verification === "conflicting") result.push("来源金额存在冲突，需要分别核对。");
   if (compensation.verification === "unknown") result.push("尚未形成可用于比较的薪资披露依据。");
@@ -54,13 +56,13 @@ function reasons(compensation: Compensation) {
   if (compensation.period === "hour" && compensation.hoursPerYear === undefined) result.push("缺少每年保证计薪小时，不默认全职工时。");
   if (compensation.period === "day" && compensation.daysPerYear === undefined) result.push("缺少每年保证计薪天数。");
   if (compensation.period === "week" && compensation.weeksPerYear === undefined) result.push("缺少每年保证计薪周数。");
-  const normalized = normalizeCompensation(compensation);
+  const normalized = normalizeCompensation(compensation, { now: options?.now, fx: options?.fx, allowMonthlyEstimate: false });
   if (!result.length && normalized.status !== "comparable") result.push(normalized.reason.startsWith("fx-")
     ? "已保留原币年薪；此面板没有可核对的有效汇率，人民币比较需另行提供同版汇率依据。" : "当前披露仍不满足固定税前年薪比较条件。");
   return result;
 }
-function SalaryStatus({ compensation }: { compensation: Compensation }) {
-  const issues = reasons(compensation), normalized = normalizeCompensation(compensation);
+function SalaryStatus({ compensation, options }: { compensation: Compensation; options?: Pick<QueryOptions, "now" | "fx"> }) {
+  const issues = reasons(compensation, options), normalized = normalizeCompensation(compensation, { now: options?.now, fx: options?.fx, allowMonthlyEstimate: false });
   const amount = normalized.cnyAnnual ?? normalized.originalAnnual;
   return <div className="atlas-compensation-status">
     {amount && <p><strong>{amount.currency} {amount.min?.toLocaleString("zh-CN") ?? "未披露下限"} – {amount.max?.toLocaleString("zh-CN") ?? "未披露上限"}／年</strong>{normalized.cnyAnnual ? " · 可按税前固定工资比较" : " · 仅原币年薪"}</p>}
@@ -122,7 +124,7 @@ function JobCompensationReview(props: AtlasCompensationReviewProps) {
     </>}
   </section>;
 }
-function CompensationSession({ endpoint, token, data, jobId, compensationId, onSnapshot }: AtlasCompensationReviewProps & { compensationId: string }) {
+function CompensationSession({ endpoint, token, data, jobId, compensationId, onSnapshot, queryOptions, queryReady = true }: AtlasCompensationReviewProps & { compensationId: string }) {
   const client = useMemo(() => createAtlasSourceClient(endpoint, token), [endpoint, token]);
   const helpId = useId();
   const [review, setReview] = useState<CompensationReviewReadResult>();
@@ -249,7 +251,7 @@ function CompensationSession({ endpoint, token, data, jobId, compensationId, onS
   });
   return <div aria-busy={busy} className="atlas-compensation-session">
     <p>来源薪资原文{review && `（读取自索引版本 ${review.revision}）`}：<strong className="atlas-compensation-raw">{source.raw}</strong></p>
-    <div className="atlas-compensation-current-status" aria-label="当前版本薪资比较状态"><p>当前索引版本 {data.revision} 的有效薪资</p><SalaryStatus compensation={currentCompensation} /></div>
+    <div className="atlas-compensation-current-status" aria-label="当前版本薪资比较状态"><p>当前索引版本 {data.revision} 的有效薪资</p>{queryReady ? <SalaryStatus compensation={currentCompensation} options={queryOptions} /> : <p role="status">当前汇率上下文尚未就绪，旧换算结果已隐藏。</p>}</div>
     <button type="button" disabled={busy || !!pending} onClick={() => void read()}><History size={13} />读取薪资依据与历史</button>
     {review && <>
       <p className="atlas-compensation-provenance">{sourceName} · 索引版本 {review.revision}{listing?.canonicalUrl && HttpUrlSchema.safeParse(listing.canonicalUrl).success && <a href={listing.canonicalUrl} target="_blank" rel="noopener noreferrer">打开原岗位<ArrowUpRight size={12} /></a>}</p>
@@ -272,7 +274,7 @@ function CompensationSession({ endpoint, token, data, jobId, compensationId, onS
       <label>核对／撤销说明<textarea aria-label="薪资核对说明" maxLength={500} disabled={locked} rows={3} value={draft.reason} onChange={event => edit("reason", event.target.value)} placeholder="说明本次逐字段核对的依据或撤销原因。" /></label>
       {!saved && <button type="button" disabled={locked || staleReview || !evidenceDocuments.length} onClick={() => void readPreview()}>预览薪资变更</button>}
       {preview && !saved && <div className="atlas-compensation-preview"><h4>拟保存的本人薪资核对</h4><table><thead><tr><th>字段</th><th>当前值</th><th>拟保存值</th></tr></thead><tbody>{fields.map(field => <tr key={field}><th scope="row">{labels[field]}</th><td>{scalar(preview.value.current, field)}</td><td>{scalar(preview.value.proposed, field)}</td></tr>)}</tbody></table>
-        <SalaryStatus compensation={preview.value.proposed} /><p>基于索引版本 {preview.input.expectedRevision}；原文、出处、岗位正文与适用地点保留。未填字段保存为未披露。</p>
+        {queryReady ? <SalaryStatus compensation={preview.value.proposed} options={queryOptions} /> : <p role="status">当前汇率上下文尚未就绪，旧换算结果已隐藏。</p>}<p>基于索引版本 {preview.input.expectedRevision}；原文、出处、岗位正文与适用地点保留。未填字段保存为未披露。</p>
         {preview.value.warnings.map(warning => <p key={warning}>{warning}</p>)}
         <details><summary>核对本次逐字段引用（{preview.input.proposal.supports.length} 项）</summary>{preview.input.proposal.supports.map(support => <blockquote key={support.field}><strong>{labels[support.field]}</strong><p>{support.reference.quote}</p><a href={support.reference.sourceUrl} target="_blank" rel="noopener noreferrer">查看出处<ArrowUpRight size={12} /></a></blockquote>)}</details>
         {stalePreview && <p role="status">索引已更新，本预览已失效，请重新读取后预览。</p>}

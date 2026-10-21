@@ -18,6 +18,12 @@ import {
 import { AtlasClientError, readAtlasSnapshot } from "./client";
 import { resolveAtlasServiceTarget } from "./backend-connection";
 import {
+  ReadFxStateInputSchema, FxStateSchema, FxImportDraftSchema, PreviewFxImportInputSchema, FxImportPreviewSchema,
+  ConfirmFxImportInputSchema, ActivateFxSnapshotInputSchema, FxMutationReceiptSchema,
+  buildFxImportPreview, validateFxQueryContext, validateFxReferenceSnapshot,
+  type ReadFxStateInput, type PreviewFxImportInput, type ConfirmFxImportInput, type ActivateFxSnapshotInput,
+} from "@better-me/opportunities";
+import {
   PreviewLocationConfirmationInputSchema, ConfirmLocationInputSchema, RevokeLocationConfirmationInputSchema,
   LocationConfirmationPreviewSchema, LocationConfirmationReceiptSchema,
   type PreviewLocationConfirmationInput, type ConfirmLocationInput, type RevokeLocationConfirmationInput,
@@ -229,6 +235,10 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
       void response.body?.cancel().catch(() => {});
       throw new AtlasSourceServiceError("http-error", "本机服务尚不支持城市分布参考，请更新岗位服务后重试。", 404);
     }
+    if (path.startsWith("fx/") && response.status === 404) {
+      void response.body?.cancel().catch(() => {});
+      throw new AtlasSourceServiceError("http-error", "当前岗位后端尚不支持汇率管理，请升级并重启岗位后端；人民币与原币披露仍可使用。", 404);
+    }
     const value = await bodyJson(response, options); options.signal?.throwIfAborted();
     const error = ErrorEnvelopeSchema.safeParse(value);
     if (error.success) throw new AtlasSourceServiceError(error.data.error.code, `来源工具返回 ${error.data.error.code}。请检查来源状态、版本、范围与服务日志。`, response.status);
@@ -241,6 +251,48 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
   }
   const sourcePath = (id: string) => `sources/${encodeURIComponent(input(EntityIdSchema, id))}`;
   return {
+    readFxState: async (value: ReadFxStateInput = {}, options: Options = {}) => {
+      const query = input(ReadFxStateInputSchema, value);
+      const result = await request("fx/state", FxStateSchema, options, query);
+      try {
+        if (result.revision !== result.context.datasetRevision || query.expectedRevision !== undefined && result.revision !== query.expectedRevision)
+          throw new Error("revision mismatch");
+        await validateFxQueryContext(result.context);
+        for (const snapshot of result.snapshots) await validateFxReferenceSnapshot(snapshot);
+        const active = result.context.activeSnapshot;
+        if (new Set(result.snapshots.map(snapshot => snapshot.fx.id)).size !== result.snapshots.length
+          || active && !result.snapshots.some(snapshot => sameCompensationReviewValue(snapshot, active))) throw new Error("snapshot mismatch");
+      } catch {
+        throw new AtlasSourceServiceError("invalid-response", "汇率上下文与当前索引版本、原文或快照身份不一致，请重新读取。");
+      }
+      options.signal?.throwIfAborted(); return result;
+    },
+    fetchFxReference: (options: Options = {}) => request("fx/reference", FxImportDraftSchema, options, {}),
+    previewFxImport: async (value: PreviewFxImportInput, options: Options = {}) => {
+      const query = input(PreviewFxImportInputSchema, value);
+      const result = await request("fx/preview", FxImportPreviewSchema, options, query);
+      const expected = await buildFxImportPreview(query);
+      options.signal?.throwIfAborted();
+      if (!sameCompensationReviewValue(result, expected)) throw new AtlasSourceServiceError("invalid-response", "汇率预览与本次原文、出处或索引版本不一致，请重新预览。");
+      return result;
+    },
+    importFxSnapshot: async (value: ConfirmFxImportInput, options: WriteOptions) => {
+      const query = input(ConfirmFxImportInputSchema, value);
+      const result = await request("fx/import", FxMutationReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
+      const expected = await buildFxImportPreview({ draft: query.draft, expectedRevision: query.expectedRevision });
+      options.signal?.throwIfAborted();
+      if (result.revision !== query.expectedRevision + 1 || result.snapshotId !== expected.snapshot.fx.id
+        || query.activate && result.activeSnapshotId !== result.snapshotId)
+        throw new AtlasSourceServiceError("invalid-response", "汇率保存回执与本次快照或版本不一致，请沿用原请求核对回执。");
+      return result;
+    },
+    activateFxSnapshot: async (value: ActivateFxSnapshotInput, options: WriteOptions) => {
+      const query = input(ActivateFxSnapshotInputSchema, value);
+      const result = await request("fx/activate", FxMutationReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
+      if (result.revision !== query.expectedRevision + 1 || result.snapshotId !== query.snapshotId || result.activeSnapshotId !== query.snapshotId)
+        throw new AtlasSourceServiceError("invalid-response", "汇率启用回执与本次快照或版本不一致，请沿用原请求核对回执。");
+      return result;
+    },
     readCompensationReview: async (value: ReadCompensationReviewInput, options: Options = {}) => {
       const query = input(ReadCompensationReviewInputSchema, value);
       const result = await request("compensations/review", CompensationReviewReadResultSchema, options, query);

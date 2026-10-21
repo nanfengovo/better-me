@@ -4,7 +4,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { randomBytes, randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
-import { createControlledSourceTransport, createGoogleDohResolver, CareerWebSearchConfigSchema, createCareerWebSearchProvider, type CareerWebSearchConfig } from "@better-me/source-adapters";
+import { createControlledSourceTransport, createGoogleDohResolver, CareerWebSearchConfigSchema, createCareerWebSearchProvider, createFxReferenceProvider, type CareerWebSearchConfig } from "@better-me/source-adapters";
 import { createJobApplication } from "./application.js";
 import { createJobHttpServer, type JobHttpOptions } from "./http.js";
 import { openJobRepository, type JobRepository } from "./repository.js";
@@ -234,6 +234,7 @@ export async function startLocalJobService(input: JobServiceConfig, dependencies
     const recovered = await repository.recoverInterruptedRuns();
     const transport = createControlledSourceTransport({ ...(config.dns === "google-doh" ? { resolve: createGoogleDohResolver() } : {}) });
     application = (dependencies.createApplication ?? createJobApplication)({ repository, transport,
+      fxReferenceProvider: createFxReferenceProvider(transport),
       ...(config.officeGeocoder ? { officeAddressProvider: createNominatimOfficeProvider(transport) } : {}),
       ...(config.careerSearch ? { careerWebSearchProvider: createCareerWebSearchProvider(config.careerSearch) } : {}) });
     http = (dependencies.createHttpServer ?? createJobHttpServer)({ registry: application.registry, token, allowedOrigins: config.allowedOrigins, host: config.host, port: config.port });

@@ -75,7 +75,7 @@ test("confirmation and revoke survive canonical merge and split without moving t
 
 test("v3 backup restores/replays sources, decisions and receipts; forged catalog/overlay/receipt backup is atomic rejection", async () => fixture(async repo => {
   const data = await repo.readSnapshot(); const confirm = await command(repo, input(data)); const saved = await repo.confirmLocation(confirm, options("confirm", data.revision)); const backup = await repo.backup();
-  assert.equal(backup.schemaVersion, 5); assert.deepEqual(backup.baseLocations, data.locations); assert.equal(backup.locationDecisions.length, 1);
+  assert.equal(backup.schemaVersion, 6); assert.deepEqual(backup.baseLocations, data.locations); assert.equal(backup.locationDecisions.length, 1);
   for (const mutate of [
     (value: typeof backup) => { value.dataset.locations[0]!.raw = "forged"; },
     (value: typeof backup) => { const event = value.locationDecisions[0]!; if (event.kind === "confirm") event.area.city = "Paris"; },
@@ -85,7 +85,7 @@ test("v3 backup restores/replays sources, decisions and receipts; forged catalog
 }));
 
 test("v2 migration initializes source location base without altering current rows or revision", async () => fixture(async (repo, path) => {
-  const before = await repo.readSnapshot(); repo.close(); const legacy = new DatabaseSync(path); try { legacy.exec("DROP TRIGGER compensation_decisions_no_update; DROP TRIGGER compensation_decisions_no_delete; DROP TABLE compensation_decisions; DROP TABLE base_compensations; DROP TRIGGER office_decisions_no_update; DROP TRIGGER office_decisions_no_delete; DROP TABLE office_decisions; DROP TRIGGER location_decisions_no_update; DROP TRIGGER location_decisions_no_delete; DROP TABLE location_decisions; DROP TABLE base_locations; PRAGMA user_version=2;"); } finally { legacy.close(); }
+  const before = await repo.readSnapshot(); repo.close(); const legacy = new DatabaseSync(path); try { legacy.exec("DROP TRIGGER fx_snapshots_no_update; DROP TRIGGER fx_snapshots_no_delete; DROP TRIGGER fx_activations_no_update; DROP TRIGGER fx_activations_no_delete; DROP TABLE fx_activations; DROP TABLE fx_snapshots; DROP TRIGGER compensation_decisions_no_update; DROP TRIGGER compensation_decisions_no_delete; DROP TABLE compensation_decisions; DROP TABLE base_compensations; DROP TRIGGER office_decisions_no_update; DROP TRIGGER office_decisions_no_delete; DROP TABLE office_decisions; DROP TRIGGER location_decisions_no_update; DROP TRIGGER location_decisions_no_delete; DROP TABLE location_decisions; DROP TABLE base_locations; PRAGMA user_version=2;"); } finally { legacy.close(); }
   const upgraded = openJobRepository(path, { now: () => AT }); try { assert.deepEqual(await upgraded.readSnapshot(), before); assert.deepEqual((await upgraded.backup()).baseLocations, before.locations); const value = input(before); await upgraded.confirmLocation(await command(upgraded, value), options("confirm-upgraded", before.revision)); } finally { upgraded.close(); }
 }));
 

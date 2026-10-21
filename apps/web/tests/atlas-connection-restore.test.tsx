@@ -28,6 +28,16 @@ let root: ReturnType<typeof createRoot> | undefined;
 const saved = { schemaVersion: 1, dataMode: "live", endpoint: "http://127.0.0.1:5178", token: "synthetic-tab-session-token" };
 const snapshot = createAtlasDemo(); snapshot.revision = 42;
 const response = () => new Response(JSON.stringify({ ok: true, requestId: "synthetic-connection-fixture", value: snapshot }));
+// Connection scenarios intentionally model a backend predating FX management.
+// Keep its optional capability probe separate from the asserted connection requests.
+function installLegacyBackendFetch(handler: typeof fetch) {
+  const requests = mock.fn(handler);
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, options?: RequestInit) => {
+    if (new URL(String(url)).pathname.endsWith("/api/v1/fx/state")) return new Response("", { status: 404 });
+    return requests(url, options);
+  });
+  return requests;
+}
 async function waitFor(condition: () => boolean, label: string) {
   const deadline = performance.now() + 8000;
   while (!condition()) { assert.ok(performance.now() < deadline, `Timed out: ${label}: ${dom.document.body.textContent?.slice(0, 1800)}`); await act(async () => { await delay(15); }); }
@@ -58,7 +68,7 @@ after(() => { hooks.deregister(); dom.happyDOM.abort(); for (const [key, descrip
 
 test("reconciliation is offered only for a connected live index, and changing data view cancels its pending read", async () => {
   seedLocal(); dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify({ schemaVersion: 1, dataMode: "local" })); let release: ((response: Response) => void) | undefined; let candidateSignal: AbortSignal | undefined;
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, options?: RequestInit) => {
+  installLegacyBackendFetch(async (url: RequestInfo | URL, options?: RequestInit) => {
     const path = new URL(String(url)).pathname;
     if (path.endsWith("/candidates")) { candidateSignal = options?.signal as AbortSignal; return new Promise<Response>(resolve => { release = resolve; }); }
     if (path.endsWith("/history")) return new Response(JSON.stringify({ ok: true, requestId: "synthetic-history", value: { snapshotRevision: 42, items: [], totalAvailable: 0, limit: 50, truncated: false, warnings: [] } }));
@@ -78,7 +88,7 @@ test("reconciliation is offered only for a connected live index, and changing da
 test("only an explicitly successful connection persists, and a same-tab reload restores the full live index rather than the one-job library", async () => {
   seedLocal(); dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify({ schemaVersion: 1, dataMode: "local" })); let release: ((value: Response) => void) | undefined;
   const requests: Array<{ url: string; authorization: string | null }> = [];
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, options?: RequestInit) => {
+  installLegacyBackendFetch(async (url: RequestInfo | URL, options?: RequestInit) => {
     requests.push({ url: String(url), authorization: new Headers(options?.headers).get("Authorization") });
     return requests.length === 1 ? new Promise<Response>(resolve => { release = resolve; }) : response();
   });
@@ -99,7 +109,7 @@ test("only an explicitly successful connection persists, and a same-tab reload r
 
 test("failed restoration stays in live view with an actionable visible error, and retry can recover without returning to the old library", async () => {
   seedLocal(); dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify(saved)); let fail = true;
-  const fetcher = mock.method(globalThis, "fetch", async () => { if (fail) throw new TypeError("Synthetic service offline"); return response(); });
+  const fetcher = installLegacyBackendFetch(async () => { if (fail) throw new TypeError("Synthetic service offline"); return response(); });
   await mount(); await waitFor(() => !!dom.document.querySelector('[role="alert"]'), "visible restore failure");
   assert.equal(view().value, "live"); assert.match(dom.document.querySelector('[role="alert"]')!.textContent!, /未能恢复本机索引连接.*仍保留本机索引视图.*Synthetic service offline/);
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0); assert.ok(!dom.document.body.textContent!.includes("Only local C# fixture"));
@@ -110,7 +120,7 @@ test("failed restoration stays in live view with an actionable visible error, an
 });
 
 test("a failed explicit connection never saves the attempted token", async () => {
-  mock.method(globalThis, "fetch", async () => new Response("denied", { status: 401 }));
+  installLegacyBackendFetch(async () => new Response("denied", { status: 401 }));
   dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify({ schemaVersion: 1, dataMode: "local" }));
   await mount(); await explicitConnect();
   await waitFor(() => !!dom.document.querySelector('[role="alert"]'), "rejected explicit connection");
@@ -118,7 +128,7 @@ test("a failed explicit connection never saves the attempted token", async () =>
 });
 
 test("blocked session storage keeps the successful connection usable and explains that refresh will require reconnecting", async () => {
-  mock.method(globalThis, "fetch", async () => response());
+  installLegacyBackendFetch(async () => response());
   dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify({ schemaVersion: 1, dataMode: "local" }));
   mock.method(dom.sessionStorage, "setItem", () => { throw new Error("synthetic storage quota exceeded"); });
   await mount(); await explicitConnect();
@@ -130,7 +140,7 @@ test("blocked session storage keeps the successful connection usable and explain
 
 for (const mode of ["local", "demo"] as const) test(`choosing ${mode} clears persisted credentials, survives reload and does not reconnect`, async () => {
   seedLocal(); dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify(saved));
-  const fetcher = mock.method(globalThis, "fetch", async () => response());
+  const fetcher = installLegacyBackendFetch(async () => response());
   await mount(); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "live index");
   await choose(mode); const stored = dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY)!;
   assert.deepEqual(JSON.parse(stored), { schemaVersion: 1, dataMode: mode }); assert.ok(!stored.includes(saved.token));
@@ -140,7 +150,7 @@ for (const mode of ["local", "demo"] as const) test(`choosing ${mode} clears per
 
 test("damaged, future and nonloopback records are discarded and only the default gateway is requested", async () => {
   const requests: Array<{ url: string; authorization: string | null }> = [];
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, options?: RequestInit) => { requests.push({ url: String(url), authorization: new Headers(options?.headers).get("Authorization") }); throw new Error("Synthetic gateway unavailable"); });
+  installLegacyBackendFetch(async (url: RequestInfo | URL, options?: RequestInit) => { requests.push({ url: String(url), authorization: new Headers(options?.headers).get("Authorization") }); throw new Error("Synthetic gateway unavailable"); });
   for (const raw of ["{", JSON.stringify({ ...saved, schemaVersion: 99 }), JSON.stringify({ ...saved, endpoint: "https://untrusted.example.invalid" }), JSON.stringify({ ...saved, endpoint: "http://localhost:5178/foreign/path" }), JSON.stringify({ ...saved, token: "" }), "x".repeat(5001)]) {
     dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, raw); await mount();
     await waitFor(() => !!dom.document.querySelector('[role="alert"]'), "default gateway failure");
@@ -154,7 +164,7 @@ test("damaged, future and nonloopback records are discarded and only the default
 for (const action of ["local", "demo", "endpoint", "token", "disconnect"] as const) test(`${action} cancels pending restoration and a late response cannot restore old credentials or change the view`, async () => {
   dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify(saved));
   let release: ((value: Response) => void) | undefined; let signal: AbortSignal | null | undefined;
-  mock.method(globalThis, "fetch", async (_url: RequestInfo | URL, options?: RequestInit) => { signal = options?.signal; return new Promise<Response>(resolve => { release = resolve; }); });
+  installLegacyBackendFetch(async (_url: RequestInfo | URL, options?: RequestInit) => { signal = options?.signal; return new Promise<Response>(resolve => { release = resolve; }); });
   await mount(); await waitFor(() => !!release, "pending restore");
   if (action === "local" || action === "demo") await choose(action);
   else {
@@ -171,7 +181,7 @@ for (const action of ["local", "demo", "endpoint", "token", "disconnect"] as con
 
 test("an inactive workspace defers restoration, and StrictMode cleanup does not suppress the active restore", async () => {
   dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify(saved));
-  const fetcher = mock.method(globalThis, "fetch", async () => response());
+  const fetcher = installLegacyBackendFetch(async () => response());
   await mount(false, true); assert.equal(fetcher.mock.callCount(), 0); assert.equal(view().value, "live");
   await mount(true, true); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "active StrictMode restore");
   assert.equal(view().value, "live"); assert.equal(fetcher.mock.callCount(), 1);
@@ -179,7 +189,7 @@ test("an inactive workspace defers restoration, and StrictMode cleanup does not 
 
 test("active StrictMode may cancel its first setup but the second setup still restores the live snapshot", async () => {
   dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify(saved));
-  mock.method(globalThis, "fetch", async () => response());
+  installLegacyBackendFetch(async () => response());
   await mount(true, true); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "StrictMode restore after effect replay");
   assert.equal(view().value, "live");
 });
@@ -187,7 +197,7 @@ test("active StrictMode may cancel its first setup but the second setup still re
 for (const mode of ["local", "demo"] as const) test(`choosing ${mode} closes source tools and prevents its late snapshot from replacing the chosen view`, async () => {
   dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify(saved));
   let exportReads = 0; let release: ((value: Response) => void) | undefined; let panelSignal: AbortSignal | null | undefined;
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, options?: RequestInit) => {
+  installLegacyBackendFetch(async (url: RequestInfo | URL, options?: RequestInit) => {
     const path = new URL(String(url)).pathname;
     if (path === "/api/v1/sources") return new Response(JSON.stringify({ ok: true, requestId: "synthetic-empty-catalog", value: { sources: [], adapters: [] } }));
     assert.equal(path, "/api/v1/dataset/export");
@@ -205,7 +215,7 @@ for (const mode of ["local", "demo"] as const) test(`choosing ${mode} closes sou
 
 test("changing credentials while a filter query is pending clears the cancelled query loading state", async (t) => {
   dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify(saved));
-  mock.method(globalThis, "fetch", async () => response());
+  installLegacyBackendFetch(async () => response());
   await mount(); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "live query before editing credentials");
   t.mock.timers.enable({ apis: ["setTimeout"] });
   await act(async () => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "synthetic-pending-filter"));
@@ -221,7 +231,7 @@ test("changing credentials while a filter query is pending clears the cancelled 
 
 test("first active visit reads only the default backend index without browser credentials or automatic acquisition", async () => {
   seedLocal(); const requests: Array<{ url: string; method?: string; authorization: string | null }> = [];
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, options?: RequestInit) => {
+  installLegacyBackendFetch(async (url: RequestInfo | URL, options?: RequestInit) => {
     requests.push({ url: String(url), method: options?.method, authorization: new Headers(options?.headers).get("Authorization") }); return response();
   });
   await mount(); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "default backend full index");
@@ -235,7 +245,7 @@ test("first active visit reads only the default backend index without browser cr
 
 test("default backend unavailable is not a zero-job market result and retry recovers", async () => {
   let offline = true; const requests: string[] = [];
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL) => { requests.push(String(url)); return offline ? new Response("static site has no gateway", { status: 404 }) : response(); });
+  installLegacyBackendFetch(async (url: RequestInfo | URL) => { requests.push(String(url)); return offline ? new Response("static site has no gateway", { status: 404 }) : response(); });
   await mount(); await waitFor(() => !!dom.document.querySelector('[role="alert"]'), "gateway unavailable");
   assert.equal(view().value, "live");
   assert.match(dom.document.querySelector(".atlas-data-banner")!.textContent!, /岗位数量未知/);
@@ -249,7 +259,7 @@ test("default backend unavailable is not a zero-job market result and retry reco
 
 test("inactive first visit waits for activation and default retry discards manual connection credentials", async () => {
   const requests: Array<{ url: string; authorization: string | null }> = [];
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, options?: RequestInit) => { requests.push({ url: String(url), authorization: new Headers(options?.headers).get("Authorization") }); return response(); });
+  installLegacyBackendFetch(async (url: RequestInfo | URL, options?: RequestInit) => { requests.push({ url: String(url), authorization: new Headers(options?.headers).get("Authorization") }); return response(); });
   await mount(false); assert.equal(view().value, "live"); assert.equal(requests.length, 0);
   await mount(true); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "activation default backend");
   await explicitConnect(); await waitFor(() => requests.some(request => request.authorization === `Bearer ${saved.token}`), "manual connection");
@@ -264,7 +274,7 @@ test("inactive first visit waits for activation and default retry discards manua
 
 test("switching to an unavailable default backend discards the previous manual credentials", async () => {
   dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify(saved));
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL) => String(url).includes("/api/atlas/") ? new Response("unavailable", { status: 503 }) : response());
+  installLegacyBackendFetch(async (url: RequestInfo | URL) => String(url).includes("/api/atlas/") ? new Response("unavailable", { status: 503 }) : response());
   await mount(); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "saved direct connection");
   await act(async () => button("连接本机服务").click()); await act(async () => button("恢复默认后端").click());
   await waitFor(() => !!dom.document.querySelector('[role="alert"]'), "default gateway rejection");

@@ -44,7 +44,7 @@ test("real SQLite migrations, normalized references, FTS5, RTree and immutable t
   assert.deepEqual(imported.counts, { newJobs: 1, updatedJobs: 0, unchangedJobs: 0, newListings: 1, newObservations: 1, newSnapshots: 1 });
   const inspector = new DatabaseSync(path);
   try {
-    assert.equal((inspector.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 5);
+    assert.equal((inspector.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 6);
     assert.equal((inspector.prepare("SELECT COUNT(*) AS n FROM job_listings").get() as { n: number }).n, 1);
     assert.equal((inspector.prepare("SELECT COUNT(*) AS n FROM location_rtree").get() as { n: number }).n, 1);
     assert.equal((inspector.prepare("SELECT COUNT(*) AS n FROM jobs_fts WHERE jobs_fts MATCH 'dotnet OR csharp OR cpp OR 后端'").get() as { n: number }).n, 1);

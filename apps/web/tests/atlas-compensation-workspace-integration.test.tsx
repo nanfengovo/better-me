@@ -177,7 +177,7 @@ test("source salary review and lost-receipt recovery update the real workspace, 
     assert.match(pane().querySelector(".atlas-compensation-history")!.textContent!, /当前有效的本人核对/);
     await fill("薪资核对说明", "Synthetic explicit revocation restores source disclosure.");
     await check("确认撤销当前薪资核对"); await click("撤销当前薪资核对", pane());
-    await settle(() => salarySort().disabled && !!pane().querySelector(".atlas-compensation-saved"), "revocation and coverage");
+    await settle(() => salarySort().disabled && !!pane().querySelector(".atlas-compensation-saved") && dom.document.querySelector('[aria-label="当前索引筛选覆盖"]')?.getAttribute("aria-busy") === "false", "revocation and coverage");
     assert.ok(pane().querySelector('.atlas-compensation-status [aria-label="薪资不可比较原因"]'), "revocation restores source blockers in the panel as well as the workspace");
     assert.doesNotMatch(pane().querySelector(".atlas-compensation-status")!.textContent!, /260,000|390,000|可按税前固定工资比较/);
     const revoked = await repository.readSnapshot();
@@ -215,7 +215,7 @@ test("reviewing monthly gross base pay without guaranteed months keeps panel, ca
     await click("预览薪资变更", pane()); await settle(() => !!pane().querySelector(".atlas-compensation-preview"), "monthly preview");
     assert.match(pane().querySelector(".atlas-compensation-preview")!.textContent!, /未披露每年保证发薪月数/);
     await check("确认本人已逐项核对薪资依据"); await click("确认保存薪资核对", pane());
-    await settle(() => dom.document.querySelector(".atlas-data-banner")!.textContent!.includes("索引版本 2") && !!pane().querySelector(".atlas-compensation-saved"), "monthly snapshot");
+    await settle(() => dom.document.querySelector(".atlas-data-banner")!.textContent!.includes("索引版本 2") && !!pane().querySelector(".atlas-compensation-saved") && dom.document.querySelector('[aria-label="当前索引筛选覆盖"]')?.getAttribute("aria-busy") === "false", "monthly snapshot and FX context");
     assert.equal(salarySort().disabled, true);
     assert.match(dom.document.querySelector('[aria-label="当前索引筛选覆盖"]')!.textContent!, /可比较年薪 0/);
     assert.ok([...dom.document.querySelectorAll(".atlas-job-salary")].every(value => value.textContent === "薪资待核实"));

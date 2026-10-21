@@ -129,6 +129,8 @@ function installWorkspaceFetch(handler: typeof fetch, mapReply?: (input: { expec
   let latest: AtlasDataset | undefined;
   return mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname;
+    // These existing fixtures represent a backend without the optional FX module.
+    if (path === "/api/v1/fx/state") return new Response("", { status: 404 });
     if (path === "/api/v1/locations/map-references") {
       const input = JSON.parse(String(init!.body));
       if (mapReply) return mapReply(input, init);

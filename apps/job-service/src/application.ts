@@ -2,7 +2,7 @@ import { z } from "zod";
 import { fileURLToPath } from "node:url";
 import {
   AtlasDatasetSchema, CanonicalJobSchema, CompanySchema, JobLocationSchema, CompensationSchema, RevisionSchema, SourceDefinitionSchema, SourceListingSchema, SourceObservationSchema, JdSnapshotSchema,
-  EntityIdSchema, createJobQueryService, createJobsSearchTool, createToolRegistry, defineTool, normalizeSearchText, ToolError,
+  EntityIdSchema, queryJobs, createJobsSearchTool, createToolRegistry, defineTool, normalizeSearchText, ToolError,
   type QueryOptions, type SourceDefinition, type ToolHandlerContext, type ToolDefinition,
 } from "@better-me/opportunities";
 import {
@@ -28,6 +28,7 @@ import { createLocationMapReferencesTool } from "./location-map-references.js";
 import { createOfficeAddressTools, type OfficeAddressProvider } from "./office-address.js";
 import { createAddressEnrichmentTool } from "./address-enrichment.js";
 import { createCompensationReviewTools } from "./compensation-review.js";
+import { createFxTools, type FxReferenceProvider } from "./fx.js";
 
 const emptyInput = z.object({}).strict();
 // Name-only discovery has no permission to follow arbitrary URLs. This host policy is
@@ -74,6 +75,8 @@ export type JobApplicationOptions = {
   mapReferenceProvider?: MapReferenceProvider;
   /** Host-only web search; requests cannot install providers or select their endpoints. */
   careerWebSearchProvider?: CareerWebSearchProvider;
+  /** Optional fixed public reference source; reading it never imports or activates it. */
+  fxReferenceProvider?: FxReferenceProvider;
 };
 
 /** One application service backs HTTP and future Agent tools. Private opportunity data stays outside. */
@@ -82,7 +85,12 @@ export function createJobApplication(options: JobApplicationOptions) {
   const now = options.now ?? (() => new Date().toISOString());
   const sources = createSourceRegistry(options.adapters ?? [greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter, jobPostingJsonLdAdapter]);
   const transport = options.transport ?? createControlledSourceTransport();
-  const query = createJobQueryService(repository);
+  const query = { search: async (input: Parameters<typeof queryJobs>[1], hostOptions: QueryOptions = {}) => {
+    const captured = await repository.readFxQuerySnapshot();
+    // Caller-provided anchors and colors are independent, while conversion always follows
+    // the repository selection captured atomically with these exact public job rows.
+    return queryJobs(captured.dataset, input, { ...hostOptions, fx: captured.context.activeSnapshot?.fx, now: captured.context.asOf });
+  } };
   const running = new Map<string, AbortController>();
   const pending = new Set<Promise<unknown>>();
   const stopSignal = new AbortController();
@@ -132,6 +140,9 @@ export function createJobApplication(options: JobApplicationOptions) {
     ...(input.mapCityReferences ? { mapReferences: await mapReferenceTool.execute({ expectedRevision: (await repository.readSnapshot()).revision, limit: 1000 }, context) } : {}),
   }));
   const definitions: ToolDefinition<any, any>[] = [
+    ...createFxTools(repository, options.fxReferenceProvider).map(definition => ({ ...definition,
+      ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
+      execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     ...createCompensationReviewTools(repository).map(definition => ({ ...definition,
       ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
       execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),

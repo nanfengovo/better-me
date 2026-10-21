@@ -13,6 +13,11 @@ export interface JobHttpOptions {
 }
 
 const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }> = [
+  { method: "POST", path: /^\/api\/v1\/fx\/reference$/, tool: "fx.fetch-reference" },
+  { method: "POST", path: /^\/api\/v1\/fx\/state$/, tool: "fx.read-state" },
+  { method: "POST", path: /^\/api\/v1\/fx\/preview$/, tool: "fx.preview-import" },
+  { method: "POST", path: /^\/api\/v1\/fx\/import$/, tool: "fx.confirm-import" },
+  { method: "POST", path: /^\/api\/v1\/fx\/activate$/, tool: "fx.activate" },
   { method: "POST", path: /^\/api\/v1\/compensations\/review$/, tool: "compensations.read-review" },
   { method: "POST", path: /^\/api\/v1\/compensations\/preview$/, tool: "compensations.preview-review" },
   { method: "POST", path: /^\/api\/v1\/compensations\/confirm$/, tool: "compensations.confirm-review" },
