@@ -28,6 +28,8 @@
 
 ![实际道路底图上的合成办公点](../images/atlas-map-local-first-street.webp)
 
+*地图截图数据与样式：[OpenFreeMap](https://openfreemap.org/) · [© OpenMapTiles](https://openmaptiles.org/) · [© OpenStreetMap contributors](https://www.openstreetmap.org/copyright)。本地概略轮廓来自公有领域 Natural Earth；岗位与办公点均为合成验收内容。*
+
 实际提供方曾报告缺少 `wood-pattern` 图像的非致命警告；不能据此声称所有纹理均已验收。截图是地图组件隔离验收界面，不是已有全市场真实岗位的证明。四张新增截图的来源范围与文件哈希见[清单](../images/atlas-map-scan-manifest.json)。
 
 ## 自动检查与真实数据边界
