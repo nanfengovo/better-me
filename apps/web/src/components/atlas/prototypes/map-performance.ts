@@ -1,5 +1,6 @@
 import type { MapBucket } from "@better-me/opportunities";
 import { bucketRadius, categories, validBuckets } from "./types";
+import { atlasSelectedBucketIds } from "./bucket-selection";
 
 export type BucketGeoJSON = { type: "FeatureCollection"; features: Array<{ type: "Feature"; properties: { bucketId: string; kind: string; color: string; radius: number; label: string; labelVisible: boolean }; geometry: { type: "Point"; coordinates: [number, number] } }> };
 
@@ -20,18 +21,18 @@ export function atlasBucketData(input: readonly MapBucket[]): BucketGeoJSON {
 /** Parent camera/UI renders do not resend unchanged geometry or selection style to MapLibre. */
 export function createAtlasMapUpdates(initialBuckets: readonly MapBucket[], initialData: BucketGeoJSON, write: {
   buckets: (data: BucketGeoJSON) => void;
-  bucketSelection: (id: string) => void;
+  bucketSelection: (id: string, ids: readonly string[]) => void;
   regionSelection: (id: string) => void;
 }) {
   let buckets = initialBuckets, signature = JSON.stringify(initialData), selectedBucket = "", selectedRegion = "";
-  return (next: { buckets: readonly MapBucket[]; selectedBucketId?: string; selectedRegionId?: string }) => {
+  return (next: { buckets: readonly MapBucket[]; selectedBucketId?: string; selectedBucketIds?: readonly string[]; selectedRegionId?: string }) => {
     if (buckets !== next.buckets) {
       const data = atlasBucketData(next.buckets), nextSignature = JSON.stringify(data);
       if (nextSignature !== signature) { write.buckets(data); signature = nextSignature; }
       buckets = next.buckets;
     }
-    const bucket = next.selectedBucketId ?? "", region = next.selectedRegionId ?? "";
-    if (bucket !== selectedBucket) { write.bucketSelection(bucket); selectedBucket = bucket; }
+    const ids = atlasSelectedBucketIds(next), bucket = ids.length ? JSON.stringify(ids) : "", region = next.selectedRegionId ?? "";
+    if (bucket !== selectedBucket) { write.bucketSelection(next.selectedBucketId ?? "", ids); selectedBucket = bucket; }
     if (region !== selectedRegion) { write.regionSelection(region); selectedRegion = region; }
   };
 }

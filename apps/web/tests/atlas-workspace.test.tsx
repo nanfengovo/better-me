@@ -314,6 +314,28 @@ test("city selection uses exact matching jobs while the map still holds the comp
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 22);
 });
 
+test("overlapping marker selection queries unique jobs across pages while retaining full map statistics and each selected marker", async () => {
+  const data = pagedOfficeFixture();
+  data.locations.forEach(location => { location.coordinates = { coordinateSystem: "WGS84", longitude: 121, latitude: 31 }; location.city = location.id.endsWith("-reference-office") ? "Synthetic B" : "Synthetic A"; delete location.regionId; delete location.region; });
+  installWorkspaceFetch(async () => sourceResponse(data)); await render(true, false); await connectFixture();
+  const members = mapProps!.buckets;
+  assert.equal(members.length, 2); assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30);
+  const expected = [...new Set(members.flatMap(bucket => bucket.jobIds))]; assert.equal(expected.length, 66);
+  assert.ok(members.reduce((sum, bucket) => sum + bucket.jobCount, 0) > expected.length, "multi-location jobs overlap across groups");
+  await flush(() => mapProps!.onPickMany!(members));
+  assert.deepEqual(mapProps!.selectedBucketIds, members.map(bucket => bucket.id).sort()); assert.equal(mapProps!.selectedBucketId, undefined);
+  assert.match(resultsHeading(), /重叠标记 · 2 组.*66/); assert.equal(mapProps!.buckets.length, 2);
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30); assert.equal(mapProps!.focus, undefined);
+  await flush(() => button("显示更多岗位").click()); await flush(() => button("显示更多岗位").click());
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 66); assert.equal(dom.document.querySelector(".atlas-load-more"), null);
+  assert.equal(dom.document.querySelector(".atlas-stat-grid strong")!.textContent, "66", "map summary counts unique base-query jobs");
+  await flush(() => mapProps!.onViewChange!({ zoom: 12, center: [121, 31], pitch: 0, bearing: 0, bounds: [120, 30, 122, 32] }));
+  assert.equal(mapProps!.bucketLevel, "location"); assert.ok(mapProps!.buckets.length > 2);
+  assert.deepEqual(mapProps!.selectedBucketIds, mapProps!.buckets.map(bucket => bucket.id).sort(), "highlight follows the current location buckets while selection stays a job-ID union");
+  await flush(() => button("降序").click()); assert.equal(mapProps!.selectedBucketIds!.length, mapProps!.buckets.length); assert.match(resultsHeading(), /66/);
+  await flush(() => button("国内").click()); assert.equal(mapProps!.selectedBucketIds, undefined); assert.equal(mapProps!.selectedBucketId, undefined);
+});
+
 test("domestic mode exposes only province-city-district controls and never invents a district for a city-only job", async () => {
   await render();
   await flush(() => button("国内").click());

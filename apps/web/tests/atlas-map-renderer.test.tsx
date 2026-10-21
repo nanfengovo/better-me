@@ -19,7 +19,7 @@ class SyntheticMap {
   hits: Array<{ properties: { bucketId: string } }> = [{ properties: { bucketId: "synthetic-0" } }];
   addedSources: Array<{ id: string; source: unknown }> = []; addedLayers: Array<{ id: string; before?: string }> = []; glyphs: unknown; sprite: unknown;
   throwOnLayer = "";
-  constructor(readonly options: Record<string, unknown>) { instances.push(this); }
+  constructor(readonly options: Record<string, unknown>) { instances.push(this); this.canvas.tabIndex = 0; (options.container as typeof this.canvas.parentElement)?.appendChild(this.canvas); }
   on(name: string, callback: (...args: unknown[]) => void) { this.handlers.set(name, [...(this.handlers.get(name) ?? []), callback]); return this; }
   once(name: string, callback: (...args: unknown[]) => void) { const once = (...args: unknown[]) => { this.handlers.set(name, this.handlers.get(name)!.filter(entry => entry !== once)); callback(...args); }; return this.on(name, once); }
   emit(name: string, event: unknown = {}) { for (const handler of [...(this.handlers.get(name) ?? [])]) handler(event); }
@@ -58,7 +58,7 @@ const hooks = registerHooks({
   },
   load(url, context, nextLoad) {
     if (url.endsWith(".css")) return { source: "export {};", format: "module", shortCircuit: true };
-    if (url.endsWith("/MapLibrePrototype.tsx")) return { source: ts.transpileModule(readFileSync(new URL(url), "utf8").replaceAll("import.meta.env.BASE_URL", "'/'"), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText, format: "module", shortCircuit: true };
+    if (url.endsWith("/MapLibrePrototype.tsx") || url.endsWith("/AtlasBucketChoices.tsx")) return { source: ts.transpileModule(readFileSync(new URL(url), "utf8").replaceAll("import.meta.env.BASE_URL", "'/'"), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText, format: "module", shortCircuit: true };
     return nextLoad(url, context);
   },
 });
@@ -87,6 +87,71 @@ test("bucket clicks retain the exact query bucket, navigate once to the next sca
     reduced = true; map.zoom = 1; map.emit("moveend"); await render({ bucketLevel: "country" }); map.emit("click", { point: { x: 10, y: 10 } });
     assert.equal((map.flights.at(-1) as { zoom: number }).zoom, 4.5); assert.equal((map.flights.at(-1) as { duration: number }).duration, 0);
   } finally { await act(async () => root.unmount()); host.remove(); reduced = false; }
+});
+
+test("overlapping hits expose each original bucket or all jobs without choosing the top point or inventing a camera target", async () => {
+  const host = dom.document.createElement("div"); dom.document.body.append(host); const root = createRoot(host as unknown as HTMLDivElement);
+  const make = (id: string, jobIds: string[]): AtlasPrototypeProps["buckets"][number] => ({ id, jobIds, label: `Synthetic ${id}`, longitude: 121, latitude: 31,
+    locationIds: [`office-${id}`], jobCount: jobIds.length, pinCount: jobIds.length, categories: [] });
+  const a = make("A", ["one", "shared"]), b = { ...make("B", ["shared", "two"]), positionBasis: "city-reference" as const, precision: "city" as const, estimated: true as const };
+  const picks: typeof a[] = [], all: Array<readonly typeof a[]> = [];
+  let props: AtlasPrototypeProps = { mode: "global", buckets: [a, b], bucketLevel: "location", basemap: null, onPick: bucket => picks.push(bucket), onPickMany: buckets => all.push(buckets) };
+  const render = async (next: Partial<AtlasPrototypeProps> = {}) => { props = { ...props, ...next }; await act(async () => { root.render(h(MapLibrePrototype, props)); for (let i = 0; i < 4; i++) await nextTurn(); }); };
+  const panel = () => host.querySelector('[aria-label="选择重叠地图标记"]');
+  const clickText = async (text: string) => { const button = [...panel()!.querySelectorAll("button")].find(node => node.textContent!.includes(text))!; assert.ok(button); await act(async () => button.click()); };
+  try {
+    await render(); const map = instances.at(-1)!; await act(async () => { map.emit("load"); map.emit("render"); }); map.zoom = 22;
+    map.hits = ["A", "B", "A", "retired"].map(bucketId => ({ properties: { bucketId } }));
+    const open = async () => { await act(async () => map.emit("click", { point: { x: 10, y: 10 } })); };
+    await open(); assert.ok(panel()); assert.equal(panel()!.querySelectorAll("button").length, 4); assert.match(panel()!.textContent!, /查看全部 3 个岗位/);
+    assert.match(panel()!.textContent!, /城市分布参考 · 估算/); assert.match(panel()!.textContent!, /不代表同一办公室/);
+    assert.equal(picks.length, 0); assert.equal(all.length, 0); assert.equal(map.flights.length, 0);
+    assert.equal(dom.document.activeElement, panel()!.querySelector("button"));
+    await clickText("Synthetic B"); assert.equal(picks[0], b); assert.equal(panel(), null); assert.equal(map.flights.length, 0); assert.equal(dom.document.activeElement, map.canvas);
+    await open(); await clickText("查看全部"); assert.deepEqual(all, [[a, b]]); assert.equal(picks.length, 1); assert.equal(map.flights.length, 0); assert.equal(map.uploads, 0);
+    await render({ selectedBucketIds: ["B", "A"] }); assert.match(JSON.stringify(map.filters.at(-1)), /A/); assert.match(JSON.stringify(map.filters.at(-1)), /B/);
+    const filters = map.filters.length; await render({ selectedBucketIds: ["A", "B", "A"] }); assert.equal(map.filters.length, filters); assert.equal(map.uploads, 0);
+    await open(); await act(async () => panel()!.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape", bubbles: true }))); assert.equal(panel(), null); assert.equal(dom.document.activeElement, map.canvas);
+    await open(); await act(async () => map.emit("movestart")); assert.equal(panel(), null);
+    await open(); await render({ buckets: [a, { ...b, jobIds: ["changed", "shared"] }] }); assert.equal(panel(), null, "job identity changes retire the overlay even when geometry is unchanged"); assert.equal(map.uploads, 0);
+    map.hits = [{ properties: { bucketId: "B" } }]; await open(); assert.equal(picks.at(-1), props.buckets[1], "later picks resolve current domain objects");
+    await render({ bucketLevel: "city" }); map.hits = ["A", "B"].map(bucketId => ({ properties: { bucketId } })); await open();
+    await render({ bucketLevel: "location" }); assert.equal(panel(), null, "aggregation changes retire the old overlay");
+    await render({ bucketLevel: "city" }); assert.equal(panel(), null, "returning to an earlier level cannot revive its old choices");
+    await open(); await render({ basemap: { id: "synthetic-rebuild", name: "Synthetic", type: "vector-style", maxZoom: 22, styleUrl: "http://127.0.0.1/style.json", attributions: [{ label: "Synthetic", url: "https://synthetic.invalid" }] } });
+    assert.equal(panel(), null, "a new map generation cannot leave choices bound to the retired renderer");
+  } finally { await act(async () => root.unmount()); host.remove(); }
+});
+
+test("opening overlapping markers cancels pending automatic rotation after every camera interaction", async t => {
+  const host = dom.document.createElement("div"); dom.document.body.append(host); const root = createRoot(host as unknown as HTMLDivElement);
+  const bucket: AtlasPrototypeProps["buckets"][number] = { id: "rotation-a", label: "Synthetic A", longitude: 121, latitude: 31,
+    jobIds: ["rotation-job-a"], locationIds: ["rotation-location-a"], jobCount: 1, pinCount: 1, categories: [] };
+  const buckets = [bucket, { ...bucket, id: "rotation-b", jobIds: ["rotation-job-b"], locationIds: ["rotation-location-b"] }];
+  const panel = () => host.querySelector('[aria-label="选择重叠地图标记"]');
+  try {
+    await act(async () => { root.render(h(MapLibrePrototype, { mode: "global", buckets, basemap: null, visual: { autoRotate: true } })); for (let i = 0; i < 4; i++) await nextTurn(); });
+    const map = instances.at(-1)!; await act(async () => { map.emit("load"); map.emit("render"); });
+    assert.equal(map.zoom, 1.65); assert.equal(frames.size, 1, "overview starts with automatic rotation enabled");
+    map.hits = buckets.map(value => ({ properties: { bucketId: value.id } }));
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    for (const interaction of ["drag", "zoom", "rotate", "pitch"]) {
+      map.stop = () => { map.moving = false; map.emit(`${interaction}end`); };
+      await act(async () => { map.emit(`${interaction}start`); map.emit(`${interaction}end`); });
+      assert.equal(frames.size, 0);
+      await act(async () => t.mock.timers.tick(300));
+      await act(async () => map.emit("click", { point: { x: 10, y: 10 } })); assert.ok(panel());
+      await act(async () => t.mock.timers.tick(701));
+      assert.equal(frames.size, 0, `${interaction} resume cannot restart rotation while the marker choices are open`);
+      assert.ok(panel(), `${interaction} resume keeps the marker choices available`);
+      assert.equal(map.flights.length, 0); assert.equal(map.uploads, 0);
+      await act(async () => { map.emit(`${interaction}start`); map.emit(`${interaction}end`); });
+      assert.equal(panel(), null, "a new deliberate camera interaction closes the choices");
+      await act(async () => t.mock.timers.tick(701));
+      assert.equal(frames.size, 1, "automatic rotation can resume after a subsequent deliberate interaction");
+    }
+  } finally { await act(async () => root.unmount()); host.remove(); t.mock.timers.reset(); }
+  assert.equal(frames.size, 0);
 });
 
 test("real map effects keep one renderer and unchanged worker data across camera/UI updates, while selection, point changes and office focus remain live", async () => {
@@ -128,8 +193,9 @@ test("a delayed street style cannot block local readiness, picking or point upda
   globalThis.fetch = async (input, init) => String(input) === basemap.styleUrl ? pending.promise : savedFetch(input, init);
   const host = dom.document.createElement("div"); dom.document.body.append(host); const root = createRoot(host as unknown as HTMLDivElement);
   const bucket: AtlasPrototypeProps["buckets"][number] = { id: "synthetic-delayed-bucket", label: "Synthetic city", longitude: 121, latitude: 31, jobIds: ["job"], locationIds: ["location"], jobCount: 1, pinCount: 1, categories: [] };
+  const second = { ...bucket, id: "synthetic-delayed-second", jobIds: ["second-job"], locationIds: ["second-location"] };
   let ready = 0; const picks: string[] = [], errors: Error[] = [];
-  let props: AtlasPrototypeProps = { mode: "global", buckets: [bucket], basemap, onReady: () => { ready++; }, onPick: value => picks.push(value.id), onError: error => errors.push(error) };
+  let props: AtlasPrototypeProps = { mode: "global", buckets: [bucket, second], basemap, onReady: () => { ready++; }, onPick: value => picks.push(value.id), onError: error => errors.push(error) };
   const settle = async () => { for (let i = 0; i < 4; i++) await nextTurn(); };
   const render = async (next: Partial<AtlasPrototypeProps> = {}) => { props = { ...props, ...next }; await act(async () => { root.render(h(MapLibrePrototype, props)); await settle(); }); };
   try {
@@ -137,8 +203,8 @@ test("a delayed street style cannot block local readiness, picking or point upda
     assert.ok(map, "local renderer exists before the optional style responds"); assert.equal(map.addedLayers.length, 0);
     await act(async () => { map.emit("load"); map.emit("render"); }); assert.equal(ready, 1);
     assert.match(host.textContent ?? "", /正在加载街道底图/); assert.equal(map.addedSources.length, 0);
-    map.hits = [{ properties: { bucketId: bucket.id } }]; map.emit("click", { point: { x: 1, y: 1 } }); assert.deepEqual(picks, [bucket.id]);
-    await render({ selectedBucketId: bucket.id, buckets: [{ ...bucket, longitude: 120 }] }); assert.equal(map.uploads, 1);
+    map.hits = [{ properties: { bucketId: bucket.id } }]; await act(async () => map.emit("click", { point: { x: 1, y: 1 } })); assert.deepEqual(picks, [bucket.id]);
+    await render({ selectedBucketId: bucket.id, selectedBucketIds: [second.id], buckets: [{ ...bucket, longitude: 120 }, second] }); assert.equal(map.uploads, 1);
     map.zoom = 12; map.emit("moveend"); const flights = map.flights.length, filters = map.filters.length;
     await act(async () => { pending.resolve(new Response(JSON.stringify({ version: 8, sources: { detail: { type: "geojson", data: { type: "FeatureCollection", features: [] } } },
       layers: [{ id: "detail-fill", type: "fill", source: "detail" }], glyphs: "https://synthetic.invalid/{fontstack}/{range}.pbf" }))); await settle(); });
@@ -147,6 +213,7 @@ test("a delayed street style cannot block local readiness, picking or point upda
     assert.deepEqual(map.addedLayers.map(layer => [layer.id, layer.before]), [["basemap:detail-fill", "land-dots"], ["bucket-labels", undefined]]);
     const label = (map.options.style as { layers: Array<{ id: string; filter?: unknown }> }).layers.find(layer => layer.id === "bucket-labels")!;
     assert.match(JSON.stringify(label.filter), /synthetic-delayed-bucket/, "late labels retain selection made while the provider was pending");
+    assert.match(JSON.stringify(label.filter), /synthetic-delayed-second/, "late labels include every selected overlap member");
     assert.equal(host.querySelector(".atlas-basemap-progress"), null); assert.equal(ready, 1); assert.deepEqual(errors, []);
   } finally { await act(async () => root.unmount()); host.remove(); globalThis.fetch = savedFetch; pending.resolve(new Response("{}")); }
 });

@@ -8,6 +8,8 @@ import { ATLAS_BASEMAPS, attributionHtml, DEFAULT_ATLAS_BASEMAP, parseAtlasBasem
 import { canvasHostStyle, CHINA_BOUNDS, creditStyle, errorStyle, loadBoundary, NATURAL_EARTH_CREDIT, prototypeFrameStyle, regionSelection, type AtlasPrototypeProps, type BoundaryFeature, type PrototypeHandle } from "./types";
 import { atlasBucketData, createAtlasHover, createAtlasMapUpdates } from "./map-performance";
 import { bucketNavigationCamera } from "./bucket-navigation";
+import { atlasBucketMatch, atlasHitBuckets, atlasSelectedBucketIds } from "./bucket-selection";
+import { AtlasBucketChoices } from "./AtlasBucketChoices";
 
 // Vite's optimized module URL does not preserve the upstream worker's sibling path.
 setWorkerUrl(maplibreWorkerUrl);
@@ -25,6 +27,8 @@ function featureBounds(feature: BoundaryFeature): [number, number, number, numbe
 export function MapLibrePrototype(props: AtlasPrototypeProps) {
   const host = useRef<HTMLDivElement>(null); const latest = useRef(props); latest.current = props;
   const handle = useRef<PrototypeHandle | null>(null);
+  const pickBucket = useRef<(bucket: AtlasPrototypeProps["buckets"][number]) => void>(() => {});
+  const [choice, setChoice] = useState<{ buckets: AtlasPrototypeProps["buckets"]; ids: string[]; mode: string; focus: AtlasPrototypeProps["focus"]; level: AtlasPrototypeProps["bucketLevel"] } | null>(null);
   const [failure, setFailure] = useState<string | null>(null); const [basemapWarning, setBasemapWarning] = useState("");
   const [basemapLoading, setBasemapLoading] = useState(false);
   const mode = props.mode; const light = props.visual?.theme === "light";
@@ -93,8 +97,8 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
           for (const [id, source] of Object.entries(remote.sources)) { ownedMap.addSource(id, source); addedSources.push(id); }
           for (const layer of remote.layers) { ownedMap.addLayer(layer, mode === "global" ? "land-dots" : "regions"); addedLayers.push(layer.id); }
           if (remote.glyphs) {
-            const selected = latest.current.selectedBucketId ?? "";
-            ownedMap.addLayer({ id: "bucket-labels", type: "symbol", source: "buckets", filter: ["all", ["==", ["get", "kind"], "core"], ["any", ["==", ["get", "labelVisible"], true], ["==", ["get", "bucketId"], selected]]], layout: { "text-field": ["get", "label"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.9], "text-anchor": "top", "text-padding": 6, "text-max-width": 16 }, paint: { "text-color": light ? "#263d42" : "#d9eaf0", "text-halo-color": background, "text-halo-width": 2 } });
+            const selected = atlasBucketMatch(atlasSelectedBucketIds(latest.current));
+            ownedMap.addLayer({ id: "bucket-labels", type: "symbol", source: "buckets", filter: ["all", ["==", ["get", "kind"], "core"], ["any", ["==", ["get", "labelVisible"], true], selected]], layout: { "text-field": ["get", "label"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.9], "text-anchor": "top", "text-padding": 6, "text-max-width": 16 }, paint: { "text-color": light ? "#263d42" : "#d9eaf0", "text-halo-color": background, "text-halo-width": 2 } });
             addedLayers.push("bucket-labels");
           }
         } catch {
@@ -135,6 +139,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
       ownedMap.on("error", (event) => { if (installingBasemap || (event as { sourceId?: string }).sourceId?.startsWith("basemap:") || /(?:tile|glyph|sprite|fetch|network|status|AJAX|HTTP|(?:layers|sources)\.basemap:)/i.test(event.error.message)) warnTiles(); else report(event.error); });
       const viewChanged = () => { pendingBucketNavigation = ""; if (rotationFrame && ownedMap.getZoom() < 3.5) return; const center = ownedMap.getCenter(); const bounds = ownedMap.getBounds(); latest.current.onViewChange?.({ zoom: ownedMap.getZoom(), center: [center.lng, center.lat], pitch: ownedMap.getPitch(), bearing: ownedMap.getBearing(), bounds: [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()] }); };
       ownedMap.on("moveend", viewChanged);
+      ownedMap.on("movestart", () => setChoice(null));
       ownedMap.on("load", () => {
         if (stopped) return;
         ownedMap.setProjection({ type: mode === "global" ? "globe" : "mercator" });
@@ -152,9 +157,9 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
         };
         const updateFacts = createAtlasMapUpdates(initialBuckets, initialBucketData, {
           buckets: data => (ownedMap.getSource("buckets") as GeoJSONSource).setData(data),
-          bucketSelection: id => {
-            ownedMap.setFilter("bucket-selection", ["all", ["==", ["get", "kind"], "core"], ["==", ["get", "bucketId"], id]]);
-            if (ownedMap.getLayer("bucket-labels")) ownedMap.setFilter("bucket-labels", ["all", ["==", ["get", "kind"], "core"], ["any", ["==", ["get", "labelVisible"], true], ["==", ["get", "bucketId"], id]]]);
+          bucketSelection: (_id, ids) => {
+            ownedMap.setFilter("bucket-selection", ["all", ["==", ["get", "kind"], "core"], atlasBucketMatch(ids)]);
+            if (ownedMap.getLayer("bucket-labels")) ownedMap.setFilter("bucket-labels", ["all", ["==", ["get", "kind"], "core"], ["any", ["==", ["get", "labelVisible"], true], atlasBucketMatch(ids)]]);
           },
           regionSelection: id => {
             const color: ["case", ["==", ["get", "id"], string], string, string] = ["case", ["==", ["get", "id"], id], light ? "#5d929b" : "#4d97ac", mode === "global" ? light ? "#769696" : "#6b9aad" : light ? "#829fa8" : "#153f57"];
@@ -175,19 +180,29 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
         observer = new ResizeObserver(() => { ownedMap.resize(); }); observer.observe(element);
         ownedMap.once("render", () => { if (!stopped) { localReady = true; latest.current.onReady?.(); viewChanged(); installBasemap(); } }); rotate();
       });
+      pickBucket.current = bucket => {
+        setChoice(null);
+        latest.current.onPick?.(bucket);
+        const navigation = bucketNavigationCamera(bucket, { level: latest.current.bucketLevel ?? "city", currentZoom: ownedMap.getZoom(), maxZoom: provider?.maxZoom ?? 22, reducedMotion: motion.matches });
+        const signature = navigation ? JSON.stringify([bucket.id, navigation.center, navigation.zoom]) : "";
+        if (navigation && signature !== pendingBucketNavigation) { stopRotation(); ownedMap.stop(); pendingBucketNavigation = signature; ownedMap.flyTo(navigation); }
+      };
       ownedMap.on("click", (event) => {
         if (!ownedMap.getLayer("bucket-cores")) return;
-        const points = ownedMap.queryRenderedFeatures(event.point, { layers: ["bucket-cores", "bucket-rings"] }); const identifier = points[0]?.properties.bucketId;
-        if (identifier) {
-          const bucket = latest.current.buckets.find((item) => item.id === identifier);
-          if (bucket) {
-            latest.current.onPick?.(bucket);
-            const navigation = bucketNavigationCamera(bucket, { level: latest.current.bucketLevel ?? "city", currentZoom: ownedMap.getZoom(), maxZoom: provider?.maxZoom ?? 22, reducedMotion: motion.matches });
-            const signature = navigation ? JSON.stringify([bucket.id, navigation.center, navigation.zoom]) : "";
-            if (navigation && signature !== pendingBucketNavigation) { stopRotation(); ownedMap.stop(); pendingBucketNavigation = signature; ownedMap.flyTo(navigation); }
+        const points = ownedMap.queryRenderedFeatures(event.point, { layers: ["bucket-cores", "bucket-rings"] });
+        const buckets = atlasHitBuckets(latest.current.buckets, points.map(point => point.properties.bucketId));
+        if (buckets.length) {
+          if (buckets.length === 1) pickBucket.current(buckets[0]!);
+          else {
+            stopRotation(); ownedMap.stop();
+            // Stopping a recent flight/gesture can emit an end event and leave a
+            // resume timer. Keep the chooser still until the next user gesture.
+            if (rotationResume) clearTimeout(rotationResume); rotationResume = undefined; interacting = false;
+            setChoice({ buckets: latest.current.buckets, ids: buckets.map(bucket => bucket.id), mode, focus: latest.current.focus, level: latest.current.bucketLevel });
           }
           return;
         }
+        setChoice(null);
         if (ownedMap.getZoom() > 6.5) return;
         const region = ownedMap.queryRenderedFeatures(event.point, { layers: ["regions", "overview-land"] })[0]; const feature = boundary.features.find((item) => item.id === String(region?.id ?? ""));
         if (feature) { latest.current.onCountry?.(regionSelection(feature)); const bounds = featureBounds(feature); stopRotation(); ownedMap.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 65, maxZoom: 9, duration: motion.matches ? 0 : 1200, pitch: mode === "domestic" ? 40 : 15 }); }
@@ -200,20 +215,24 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
       ownedMap.on("mousemove", event => hover.queue(event.point));
       const leave = () => { hover.cancel(); ownedMap.getCanvas().style.cursor = ""; };
       ownedMap.getCanvas().addEventListener("mouseleave", leave);
-      const pauseInteraction = () => { interacting = true; if (rotationResume) clearTimeout(rotationResume); rotationResume = undefined; stopRotation(); hover.cancel(); ownedMap.getCanvas().style.cursor = "grabbing"; };
+      const pauseInteraction = () => { setChoice(null); interacting = true; if (rotationResume) clearTimeout(rotationResume); rotationResume = undefined; stopRotation(); hover.cancel(); ownedMap.getCanvas().style.cursor = "grabbing"; };
       const resumeInteraction = () => { if (rotationResume) clearTimeout(rotationResume); ownedMap.getCanvas().style.cursor = "grab"; rotationResume = setTimeout(() => { rotationResume = undefined; interacting = false; rotate(); }, 700); };
       ownedMap.on("dragstart", pauseInteraction); ownedMap.on("dragend", resumeInteraction); ownedMap.on("zoomstart", pauseInteraction); ownedMap.on("zoomend", resumeInteraction);
       ownedMap.on("rotatestart", pauseInteraction); ownedMap.on("rotateend", resumeInteraction); ownedMap.on("pitchstart", pauseInteraction); ownedMap.on("pitchend", resumeInteraction);
       abort.signal.addEventListener("abort", () => ownedMap.getCanvas().removeEventListener("mouseleave", leave), { once: true });
     })().catch(report);
-    return () => { stopped = true; abort.abort(); stopRotation(); if (rotationResume) clearTimeout(rotationResume); cancelHover(); observer?.disconnect(); document.removeEventListener("visibilitychange", visibility); motion.removeEventListener("change", motionChange); handle.current?.dispose(); handle.current = null; map?.remove(); };
+    return () => { stopped = true; pickBucket.current = () => {}; abort.abort(); stopRotation(); if (rotationResume) clearTimeout(rotationResume); cancelHover(); observer?.disconnect(); document.removeEventListener("visibilitychange", visibility); motion.removeEventListener("change", motionChange); handle.current?.dispose(); handle.current = null; map?.remove(); };
   }, [mode, background, maxDpr, entrance, basemapKey, light]);
-  useEffect(() => { handle.current?.update(latest.current); }, [props.buckets, props.selectedBucketId, props.selectedRegionId, props.focus, props.selectedJobId, props.visual?.autoRotate]);
+  useEffect(() => { setChoice(null); }, [mode, background, maxDpr, entrance, basemapKey, light, props.buckets, props.bucketLevel, props.focus, props.selectedJobId]);
+  useEffect(() => { handle.current?.update(latest.current); }, [props.buckets, props.selectedBucketId, props.selectedBucketIds, props.selectedRegionId, props.focus, props.selectedJobId, props.visual?.autoRotate]);
   useEffect(() => { handle.current?.fit(props.bounds); }, [props.bounds]);
   useEffect(() => { if (props.focus) handle.current?.focus?.(props.focus); }, [props.focus]);
   const visibleFocus = activeMapFocus(props.focus, props.selectedJobId);
+  const choices = choice?.buckets === props.buckets && choice.mode === mode && choice.focus === props.focus && choice.level === props.bucketLevel ? atlasHitBuckets(props.buckets, choice.ids) : [];
   return <div className={props.className} data-atlas-renderer="maplibre" data-atlas-mode={mode} data-atlas-basemap={basemap?.id ?? "offline"} style={{ ...prototypeFrameStyle, background, ...props.style }}>
     <div ref={host} style={canvasHostStyle} aria-label={mode === "global" ? "全球岗位三维地球，可连续缩放到街道，拖拽与方向键移动" : "国内岗位三维省域地图，可连续缩放到街道，拖拽与方向键移动"} />
+    {choices.length > 1 && <AtlasBucketChoices buckets={choices} light={light} onClose={() => setChoice(null)} returnFocus={() => host.current?.querySelector("canvas")?.focus({ preventScroll: true })}
+      onPick={bucket => pickBucket.current(bucket)} onPickMany={props.onPickMany ? buckets => { setChoice(null); latest.current.onPickMany?.(buckets); } : undefined} />}
     <a href={`${import.meta.env.BASE_URL}legal/geography/`} target="_blank" rel="noopener noreferrer" style={{ ...creditStyle, bottom: 34, color: light ? "#52665f" : "#9ab1bb", pointerEvents: "auto", textDecoration: "none" }}>{NATURAL_EARTH_CREDIT}</a>
     {visibleFocus && <div className={`atlas-focus-status${light ? " light" : ""}`} role="status" aria-live="polite">已定位{visibleFocus.label ? `：${visibleFocus.label} · ` : " · "}{mapFocusPrecisionLabel(visibleFocus)}</div>}
     {basemapLoading && !basemapWarning && !failure && <div role="status" className={`atlas-basemap-progress${light ? " light" : ""}`}><span className="atlas-basemap-spinner" aria-hidden="true" />正在加载街道底图，本地轮廓与岗位优先显示…</div>}

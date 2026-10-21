@@ -12,6 +12,7 @@ export type AtlasPrototypeProps = {
   /** Query aggregation level; bucket IDs are opaque and do not encode camera precision. */
   bucketLevel?: "country" | "region" | "city" | "location";
   selectedBucketId?: string;
+  selectedBucketIds?: readonly string[];
   selectedJobId?: string;
   selectedRegionId?: string;
   bounds?: readonly [west: number, south: number, east: number, north: number];
@@ -22,6 +23,8 @@ export type AtlasPrototypeProps = {
   initialView?: AtlasCamera;
   onViewChange?: (view: AtlasCamera & { bounds: [west: number, south: number, east: number, north: number] }) => void;
   onPick?: (bucket: MapBucket) => void;
+  /** A display selection of original buckets, not a newly inferred location. */
+  onPickMany?: (buckets: readonly MapBucket[]) => void;
   onCountry?: (region: AtlasRegionSelection) => void;
   onError?: (error: Error) => void;
   onReady?: () => void;

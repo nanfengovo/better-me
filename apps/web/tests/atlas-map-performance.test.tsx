@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { MapBucket } from "@better-me/opportunities";
 import { atlasBucketData, createAtlasHover, createAtlasMapUpdates } from "../src/components/atlas/prototypes/map-performance.ts";
+import { selectAtlasBuckets } from "../src/components/atlas/prototypes/bucket-selection.ts";
 
 const bucket = (id: string, jobCount = 1): MapBucket => ({ id, label: `Synthetic ${id}`, latitude: 31, longitude: 121, jobCount,
   jobIds: [`job-${id}`], categories: [{ id: "synthetic", label: "Synthetic", color: "#123456", jobCount }], precision: "city", estimated: true } as MapBucket);
@@ -54,4 +55,14 @@ test("100 high-frequency mouse moves trigger one hit test using the latest point
   moving = false; hover.queue(101); moving = true; flush(); assert.deepEqual(hits, [99]);
   moving = false; hover.queue(102); hover.cancel(); flush(); assert.deepEqual(hits, [99]);
   hover.queue(103); flush(); assert.deepEqual(hits, [99, 103]);
+});
+
+test("overlapping list selection deduplicates jobs, retains all original members, and never combines their coordinates or category facts", () => {
+  const a = { ...bucket("a"), jobIds: ["same", "one"], jobCount: 2 }, b = { ...bucket("b"), jobIds: ["two", "same"], jobCount: 2, positionBasis: "city-reference" as const };
+  const saved = structuredClone([a, b]);
+  const selected = selectAtlasBuckets([b, a, b])!;
+  assert.deepEqual(selected.jobIds, ["one", "same", "two"]); assert.equal(selected.jobCount, 3); assert.deepEqual(selected.memberBucketIds, [a.id, b.id]);
+  assert.equal(selected.positionBasis, "city-reference", "any reference member makes the selection expire with reference refresh");
+  assert.equal("longitude" in selected, false); assert.equal("categories" in selected, false); assert.deepEqual([a, b], saved);
+  assert.equal(selectAtlasBuckets([a, a]), a); assert.equal(selectAtlasBuckets([]), null);
 });
