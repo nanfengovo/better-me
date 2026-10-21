@@ -11,6 +11,7 @@ import "./AtlasReviewedCardImport.css";
 export type AtlasReviewedCardImportProps = {
   endpoint: string; token: string; capture: ReviewedCardsCapture; revision: number;
   onClose: () => void; onSnapshot: (snapshot: AtlasDataset) => void;
+  onWritePendingChange?: (pending: boolean) => void;
 };
 type Write = { input: ImportReviewedCardsInput; key: string };
 type Saved = { revision: number; added: number; updated: number; jobIds: string[] };
@@ -18,10 +19,11 @@ type LocationReview = { jobId: string; locationId: string; revision: number };
 const AtlasLocationConfirmation = lazy(() => import("./AtlasLocationConfirmation").then(module => ({ default: module.AtlasLocationConfirmation })));
 
 /** Explicit human review. Submitted evidence is unverified; a card never claims to be a complete JD. */
-export function AtlasReviewedCardImport({ endpoint, token, capture, revision, onClose, onSnapshot }: AtlasReviewedCardImportProps) {
+export function AtlasReviewedCardImport({ endpoint, token, capture, revision, onClose, onSnapshot, onWritePendingChange }: AtlasReviewedCardImportProps) {
   const captureKey = JSON.stringify(capture);
   const binding = useMemo(() => ({ client: createAtlasSourceClient(endpoint, token), capture: JSON.parse(captureKey) as ReviewedCardsCapture }), [endpoint, token, captureKey]);
   const current = useRef<{ binding: typeof binding; controller: AbortController } | null>(null);
+  const pendingWrite = useRef<{ binding: typeof binding; write: Write } | undefined>(undefined);
   const section = useRef<HTMLElement>(null);
   const [preview, setPreview] = useState<{ binding: typeof binding; value: ReviewedCardsPreview }>();
   const [pending, setPending] = useState<{ binding: typeof binding; write: Write }>();
@@ -35,9 +37,9 @@ export function AtlasReviewedCardImport({ endpoint, token, capture, revision, on
   const confirmed = confirmation === binding;
   const busy = operation === binding;
   const error = failure?.binding === binding ? failure.message : "";
-  const latest = useRef({ binding, revision, closed: false, onSnapshot });
-  if (latest.current.binding !== binding) latest.current = { binding, revision, closed: false, onSnapshot };
-  latest.current.revision = revision; latest.current.onSnapshot = onSnapshot;
+  const latest = useRef({ binding, revision, closed: false, onSnapshot, onWritePendingChange });
+  if (latest.current.binding !== binding) latest.current = { binding, revision, closed: false, onSnapshot, onWritePendingChange };
+  latest.current.revision = revision; latest.current.onSnapshot = onSnapshot; latest.current.onWritePendingChange = onWritePendingChange;
   useEffect(() => {
     latest.current.closed = false;
     section.current?.scrollIntoView?.({ block: "center", behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
@@ -81,25 +83,29 @@ export function AtlasReviewedCardImport({ endpoint, token, capture, revision, on
   const commit = () => run(async signal => {
     if (!write && (!value || !confirmed)) return;
     const attempt = write ?? { input: { ...binding.capture, expectedRevision: value!.expectedRevision, previewFingerprint: value!.previewFingerprint, reviewed: true as const }, key: `review-${crypto.randomUUID()}` };
-    setPending({ binding, write: attempt });
+    pendingWrite.current = { binding, write: attempt }; setPending(pendingWrite.current); latest.current.onWritePendingChange?.(true);
     let receipt;
     try { receipt = await binding.client.importReviewedCards(attempt.input, { signal, idempotencyKey: attempt.key }); }
     catch (problem) {
       if (problem instanceof AtlasSourceServiceError && ["stale-version", "idempotency-conflict", "invalid-input", "not-authorized"].includes(problem.code)) {
-        alive(signal); setPending(undefined); setPreview(undefined); setConfirmation(undefined);
+        alive(signal); pendingWrite.current = undefined; setPending(undefined); latest.current.onWritePendingChange?.(false); setPreview(undefined); setConfirmation(undefined);
       }
       throw problem;
     }
-    alive(signal); setSaved({ binding, value: { revision: receipt.revision, added: receipt.counts.newJobs, updated: receipt.counts.updatedJobs, jobIds: receipt.jobIds } }); setPending(undefined); setIndex(undefined);
+    alive(signal); setSaved({ binding, value: { revision: receipt.revision, added: receipt.counts.newJobs, updated: receipt.counts.updatedJobs, jobIds: receipt.jobIds } }); pendingWrite.current = undefined; setPending(undefined); latest.current.onWritePendingChange?.(false); setIndex(undefined);
     try { const snapshot = await binding.client.snapshot({ signal }); alive(signal); publishSnapshot(snapshot); }
     catch (problem) { alive(signal); throw new Error(`岗位已写入索引版本 ${receipt.revision}，页面刷新未完成。请点击“重新读取索引”。${problem instanceof Error ? problem.message : ""}`, { cause: problem }); }
   });
-  function close() { latest.current.closed = true; current.current?.controller.abort(); current.current = null; closeLocationReview(); setIndex(undefined); setDismissed(binding); onClose(); }
+  function close() {
+    if (pendingWrite.current?.binding === binding) { setFailure({ binding, message: "这次写入的结果尚未确认，请先重试本次写入核对回执，再关闭或核对其他卡片。" }); return; }
+    latest.current.closed = true; current.current?.controller.abort(); current.current = null; closeLocationReview(); setIndex(undefined); setDismissed(binding); onClose();
+  }
   if (dismissed === binding) return null;
   return <section ref={section} className="atlas-source-review atlas-reviewed-import" aria-label="核对卡片并加入统一索引" aria-busy={busy}>
-    <header><div><p className="atlas-source-review-eyebrow">REVIEW & INDEX</p><h2><FileSearch size={18} />核对卡片 · 加入统一搜索</h2><p>来源卡片摘要 · {capture.cards.length} 个岗位</p></div><button type="button" aria-label="关闭卡片入库核对" onClick={close}><X size={18} /></button></header>
+    <header><div><p className="atlas-source-review-eyebrow">REVIEW & INDEX</p><h2><FileSearch size={18} />核对卡片 · 加入统一搜索</h2><p>来源卡片摘要 · {capture.cards.length} 个岗位</p></div><button type="button" aria-label="关闭卡片入库核对" disabled={!!write} onClick={close}><X size={18} /></button></header>
     <p>请核对原文的岗位名称、雇主与地点。加入后可在同一索引搜索并接续机会库；这次提交保留为待核实的卡片摘录，薪资、在招状态、企业性质和位置精度仍需各自证据。</p>
     <p className="atlas-small">卡片读取时间：<time dateTime={capture.capturedAt}>{capture.capturedAt}</time>；发布时间以卡片披露为准。</p>
+    {write && <p role="status">本次写入尚未确认，保留原批次与请求以核对回执。暂不能关闭、改换卡片批次或切换后端；请勿刷新或离开整个工作区，当前恢复凭据仅保存在本页内存。</p>}
     {capture.cards.map(card => <article className="atlas-source-review-card" key={card.url}><h3>{card.title}</h3><p>{card.company} · {card.locationText || "地点未披露"}</p><p>{card.salaryText || "薪资未披露"} · {card.publicationText || "发布时间未知"}</p><a href={card.url} target="_blank" rel="noopener noreferrer">在 {card.platform} 打开原岗位</a><details><summary>核对实际卡片原文</summary><pre className="atlas-reviewed-excerpt">{card.cardText}</pre></details></article>)}
     {value && <div role="status"><p>预览基于索引版本 {value.expectedRevision}：{value.cards.filter(card => !card.existing).length} 个新岗位，{value.cards.filter(card => card.existing).length} 个已有岗位。摘要不会替换已有的完整 JD。</p><ul>{value.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul></div>}
     {!committed && <div className="atlas-source-review-actions"><button type="button" disabled={busy || !!write || !hasAtlasServiceTarget(endpoint, token)} onClick={() => void readPreview()}>预览入库变化</button><button type="button" disabled={busy || !!write} onClick={() => void refresh()}>重新读取索引</button></div>}

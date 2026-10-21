@@ -15,6 +15,7 @@ export type PlatformSearchLinksProps = {
   onOpenSingleJob?: () => void;
   onReviewCard?: (card: PlatformSearchCard, capturedAt: string) => void;
   onIndexCard?: (card: PlatformSearchCard, receipt: PlatformSearchReceipt, provider: PlatformSearchRequest["provider"]) => void;
+  onIndexCards?: (cards: PlatformSearchCard[], receipt: PlatformSearchReceipt, provider: PlatformSearchRequest["provider"]) => void;
 };
 
 type RegionSelection = { region?: PlatformSearchRegion; error?: string };
@@ -58,7 +59,7 @@ function platformNote(request: PlatformSearchRequest, t: UiTranslator): string |
 }
 
 /** External launch links only; rendering never fetches, imports or updates map results. */
-export function PlatformSearchLinks({ keyword, regionText, countryCode, onOpenSingleJob, onReviewCard, onIndexCard }: PlatformSearchLinksProps) {
+export function PlatformSearchLinks({ keyword, regionText, countryCode, onOpenSingleJob, onReviewCard, onIndexCard, onIndexCards }: PlatformSearchLinksProps) {
   const { t } = useUiPreferences();
   const selection = selectedRegion(regionText, countryCode, t);
   const inputError = selection.error;
@@ -92,7 +93,7 @@ export function PlatformSearchLinks({ keyword, regionText, countryCode, onOpenSi
         {!inputError && error && <small className="atlas-platform-search-error">{error}</small>}
       </li>)}
     </ul>
-    <PlatformSearchSessionPanel requests={searches.flatMap((search) => search.request ? [search.request] : [])} onReviewCard={onReviewCard} onIndexCard={onIndexCard} />
+    <PlatformSearchSessionPanel requests={searches.flatMap((search) => search.request ? [search.request] : [])} onReviewCard={onReviewCard} onIndexCard={onIndexCard} onIndexCards={onIndexCards} />
     <div className="atlas-platform-search-followup"><p>{t(
       "在原站选择具体岗位后，可通过单岗读取核对来源并收藏。打开搜索页不会自动导入岗位。",
       "After selecting a specific job on the platform, use the single-job reader to review its source and save it. Opening a search page does not import jobs.",

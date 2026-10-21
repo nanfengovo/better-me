@@ -12,7 +12,8 @@ import type { AtlasOfficeAddressConfirmationProps } from "../src/components/atla
 import { queryAtlasPage } from "../src/components/atlas/client.ts";
 import { officeProposal, officeAt } from "./fixtures/atlas-office-address.ts";
 import { createMapReferenceFixture } from "./fixtures/atlas-map-references.ts";
-import { SourceScopeSchema } from "@better-me/source-adapters/browser-contracts";
+import { SourceScopeSchema, buildPlatformSearchRequest, type ReviewedCardsCapture } from "@better-me/source-adapters/browser-contracts";
+import { extractJobSearchCards } from "../server/jd-search-capture.ts";
 import { atlasAggregateRecoveryScope, readAtlasAggregateRecovery, saveAtlasAggregateReceipt, settleAtlasAggregateReceipt } from "../src/components/atlas/aggregate-recovery.ts";
 
 // Exercise the real React workspace and shared queries. The map probe only replaces WebGL/network rendering.
@@ -217,6 +218,88 @@ afterEach(async () => {
 after(() => {
   hooks.deregister(); dom.happyDOM.abort();
   for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); }
+});
+
+test("selected platform cards open the shared review without writing; changing the batch discards its earlier preview and confirmation", async () => {
+  const data = createAtlasDemo(), updated = { ...data, revision: data.revision + 1 };
+  const paths: string[] = [], previews: ReviewedCardsCapture[] = [], imports: ReviewedCardsCapture[] = [], keys: (string | null)[] = [];
+  let pageUrl = "";
+  const readReceipt = () => ({ ...extractJobSearchCards({ url: pageUrl, title: "Synthetic batch", html: `<main>${[0, 1].map(index => `
+    <article class="job-card-pc-container"><a class="job-title" href="https://www.liepin.com/job/${1234567890 + index}.shtml">Synthetic reviewed role ${index}</a>
+    <span class="company-name">Synthetic Employer ${index}</span><p>真实读取流程的合成卡片摘要 ${index}</p></article>`).join("")}</main>` }, "猎聘"), capturedAt: "2026-10-22T00:00:00.000Z" });
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(url), dom.location.href).pathname;
+    const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+    paths.push(path);
+    if (path === "/api/jd/search-session") {
+      if (body.action === "start") {
+        pageUrl = buildPlatformSearchRequest(body.input).url;
+        return new Response(JSON.stringify({ sessionId: "synthetic-batch-session-12345", platform: "猎聘", url: pageUrl, expiresAt: new Date(Date.now() + 600_000).toISOString() }));
+      }
+      return new Response(JSON.stringify(body.action === "read" ? readReceipt() : { cancelled: true, closed: true }));
+    }
+    if (path === "/api/v1/fx/state") return new Response("", { status: 404 });
+    if (path === "/api/v1/dataset/export") return sourceResponse(imports.length ? updated : data);
+    if (path === "/api/v1/locations/map-references") return sourceResponse({ schemaVersion: 1, snapshotRevision: body.expectedRevision,
+      providerId: "synthetic-unresolved-map", places: [], references: [], unresolved: data.locations.map(location => ({ locationId: location.id, reason: location.coordinates ? "existing-coordinate" : "no-exact-match" })),
+      totalLocations: data.locations.length, processedLocations: data.locations.length, truncated: false, warnings: [] });
+    if (path === "/api/v1/jobs/reviewed-cards/preview") {
+      previews.push(body);
+      return sourceResponse({ expectedRevision: data.revision, previewFingerprint: "a".repeat(64), sourceId: "synthetic-platform-batch-source", completeness: "excerpt", availability: "unknown",
+        cards: body.cards.map((card: ReviewedCardsCapture["cards"][number], index: number) => ({ jobId: data.jobs[index]!.id, listingId: data.listings[index]!.id, url: card.url, title: card.title, company: card.company, existing: true })), warnings: ["Synthetic excerpts remain unverified."] });
+    }
+    assert.equal(path, "/api/v1/jobs/reviewed-cards/import"); imports.push(body); keys.push(new Headers(init?.headers).get("Idempotency-Key"));
+    if (imports.length === 1) throw new TypeError("Synthetic lost platform-card import receipt");
+    return sourceResponse({ ok: true, revision: updated.revision, jobIds: data.jobs.slice(0, body.cards.length).map(job => job.id), snapshotIds: data.snapshots.slice(0, body.cards.length).map(snapshot => snapshot.id),
+      counts: { newJobs: 0, updatedJobs: body.cards.length, unchangedJobs: 0, newListings: 0, newObservations: body.cards.length, newSnapshots: body.cards.length } });
+  });
+  await render(true, false); await connectFixture();
+  await flush(() => button("搜索并读取当前页").click());
+  await waitFor(() => dom.document.querySelectorAll('.atlas-platform-card-list input[type="checkbox"]').length === 2, "two parsed platform cards");
+  await flush(() => dom.document.querySelector<HTMLInputElement>('.atlas-platform-batch input')!.click());
+  await flush(() => button("核对并加入所选 2 个岗位").click());
+  const review = () => dom.document.querySelector('[aria-label="核对卡片并加入统一索引"]')!;
+  await waitFor(() => Boolean(review()), "shared batch review");
+  assert.match(review().textContent!, /来源卡片摘要 · 2 个岗位/);
+  assert.equal(previews.length, 0); assert.equal(imports.length, 0);
+  await flush(() => button("预览入库变化").click());
+  assert.equal(button("确认加入统一索引").disabled, true);
+  await flush(() => review().querySelector<HTMLInputElement>('.atlas-reviewed-confirm input')!.click());
+  assert.equal(button("确认加入统一索引").disabled, false);
+  await flush(() => dom.document.querySelectorAll<HTMLInputElement>('.atlas-platform-card-list input')[1]!.click());
+  await flush(() => button("核对并加入所选 1 个岗位").click());
+  assert.match(review().textContent!, /来源卡片摘要 · 1 个岗位/);
+  assert.equal(review().querySelector('.atlas-reviewed-confirm'), null, "new batch cannot inherit old preview or confirmation");
+  assert.equal(imports.length, 0); assert.equal(previews.length, 1);
+  await flush(() => button("预览入库变化").click());
+  assert.equal(button("确认加入统一索引").disabled, true);
+  await flush(() => review().querySelector<HTMLInputElement>('.atlas-reviewed-confirm input')!.click());
+  await flush(() => button("确认加入统一索引").click());
+  assert.equal(imports.length, 1); assert.match(review().textContent!, /本次写入尚未确认/);
+  await flush(() => dom.document.querySelector<HTMLInputElement>('.atlas-platform-batch input')!.click());
+  await flush(() => button("核对并加入所选 2 个岗位").click());
+  await flush(() => [...dom.document.querySelectorAll<HTMLButtonElement>('button')].filter(node => node.textContent === "核对并加入统一索引")[1]!.click());
+  await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="关闭卡片入库核对"]')!.click());
+  await flush(() => { const select = dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!; select.value = "demo"; select.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  await flush(() => button("连接本机服务").click());
+  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('input[type="password"]')!, "synthetic-unwanted-token"));
+  assert.equal(dom.document.querySelector<HTMLInputElement>('input[type="password"]')!.value, "synthetic-fixture-token");
+  await flush(() => button("重试后端连接").click());
+  await flush(() => button("断开并清除会话连接").click());
+  await flush(() => button("恢复默认后端").click());
+  assert.match(review().textContent!, /来源卡片摘要 · 1 个岗位/);
+  assert.equal(imports.length, 1); assert.equal(previews.length, 2);
+  assert.equal(dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!.value, "live");
+  await flush(() => button("重试本次写入 · 核对回执").click());
+  await waitFor(() => Boolean(review().querySelector('.atlas-reviewed-success')), "confirmed batch receipt and refreshed index");
+  assert.deepEqual(previews.map(value => value.cards.length), [2, 1]); assert.equal(imports.length, 2);
+  assert.deepEqual(imports[1], imports[0]); assert.equal(keys[1], keys[0]);
+  assert.deepEqual(imports[0]!.cards, readReceipt().cards.slice(0, 1));
+  assert.equal(paths.filter(path => path === "/api/v1/jobs/reviewed-cards/import").length, 2);
+  assert.match(dom.document.querySelector('.atlas-data-banner')!.textContent!, new RegExp(`索引版本 ${updated.revision}`));
+  await flush(() => button("核对并加入所选 2 个岗位").click());
+  assert.match(review().textContent!, /来源卡片摘要 · 2 个岗位/, "confirmed original receipt releases the replacement barrier");
+  assert.equal(review().querySelector('.atlas-reviewed-confirm'), null);
 });
 
 test("city selection uses exact matching jobs while the map still holds the complete search", async () => {

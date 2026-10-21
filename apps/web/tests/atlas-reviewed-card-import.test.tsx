@@ -177,37 +177,44 @@ test("only an explicit preview and checkbox allow import; success refreshes the 
 });
 
 test("a lost import response preserves the exact body, preview revision and idempotency key across retry and unrelated revision changes", async () => {
-  let imports = 0; const snapshots: AtlasDataset[] = [];
+  let imports = 0, closes = 0; const snapshots: AtlasDataset[] = [], pending: boolean[] = [];
   const calls = installFetch(call => {
     if (call.path === previewPath) return response(preview());
     if (call.path === importPath) { if (++imports === 1) throw new TypeError("Synthetic response lost"); return response(receipt); }
     assert.equal(call.path, snapshotPath); return response(snapshot);
   });
-  const props = fixture(); props.onSnapshot = value => { snapshots.push(value); };
+  const props = fixture(); props.onSnapshot = value => { snapshots.push(value); }; props.onClose = () => { closes++; }; props.onWritePendingChange = value => pending.push(value);
   await render(props); await click(previewLabel); await confirm(); await click(importLabel);
   assert.equal(imports, 1); assert.equal(snapshots.length, 0); assert.ok(dom.document.querySelector('[role="alert"]'));
   assert.equal([...dom.document.querySelectorAll("button")].some(node => node.textContent === locationLabel), false, "an unknown receipt must not open administrative confirmation");
   assert.equal(button(previewLabel).disabled, true); assert.equal(dom.document.querySelector<HTMLInputElement>('input[type="checkbox"]')!.disabled, true);
+  assert.deepEqual(pending, [true]);
+  assert.equal(dom.document.querySelector<HTMLButtonElement>('[aria-label="关闭卡片入库核对"]')!.disabled, true);
+  await close(); assert.equal(closes, 0); assert.equal(calls.filter(call => call.path === importPath).length, 1);
   await render({ ...props, revision: 99 }); await click(retryLabel);
   const writes = calls.filter(call => call.path === importPath);
   assert.equal(writes.length, 2); assert.equal(writes[1]!.init!.body, writes[0]!.init!.body); assert.equal(writes[1]!.key, writes[0]!.key);
   assert.equal(writes[1]!.body!.expectedRevision, 11); assert.deepEqual(snapshots, [snapshot]);
   assert.equal(calls.filter(call => call.path === previewPath).length, 1);
+  assert.deepEqual(pending, [true, true, false]);
+  assert.equal(dom.document.querySelector<HTMLButtonElement>('[aria-label="关闭卡片入库核对"]')!.disabled, false);
+  await close(); assert.equal(closes, 1);
 });
 
 test("an authoritative stale-version rejection clears confirmation and requires a fresh preview before another write", async () => {
-  let previews = 0, writes = 0;
+  let previews = 0, writes = 0; const pending: boolean[] = [];
   const calls = installFetch(call => {
     if (call.path === previewPath) return response(preview(capture(), ++previews === 1 ? 11 : 12));
     assert.equal(call.path, importPath); writes++;
     return new Response(JSON.stringify({ ok: false, requestId: "synthetic-stale-receipt", error: { code: "stale-version", message: "Private server text must not surface" } }), { status: 409 });
   });
-  const props = fixture(); await render(props); await click(previewLabel); await confirm(); await click(importLabel);
+  const props = fixture(); props.onWritePendingChange = value => pending.push(value); await render(props); await click(previewLabel); await confirm(); await click(importLabel);
   assert.equal(writes, 1); assert.equal(button(previewLabel).disabled, false); assert.equal(dom.document.querySelector('input[type="checkbox"]'), null);
   assert.doesNotMatch(dom.document.body.textContent!, /Private server text/);
   await render({ ...props, revision: 12 }); await click(previewLabel);
   assert.equal(button(importLabel).disabled, true); assert.equal(writes, 1);
   assert.equal(calls.filter(call => call.path === previewPath).length, 2);
+  assert.deepEqual(pending, [true, false]);
 });
 
 test("a failed snapshot after a successful receipt exposes committed status and retries only the index read", async () => {
@@ -356,14 +363,16 @@ test("closing, identity changes, or parent refresh abort a location snapshot and
   }
 });
 
-test("closing or unmounting aborts in-flight preview and import; ignored late responses cannot publish success or a snapshot", async () => {
+test("closing previews or unmounting aborts in-flight requests; ignored late responses cannot publish success, snapshots or pending release", async () => {
   for (const phase of ["preview", "import"] as const) for (const action of ["close", "unmount"] as const) {
+    if (phase === "import" && action === "close") continue;
     const old = deferred<Response>(); let signal: AbortSignal | undefined, snapshots = 0, closes = 0;
+    const pending: boolean[] = [];
     const calls = installFetch(call => {
       if (phase === "import" && call.path === previewPath) return response(preview());
       assert.equal(call.path, phase === "preview" ? previewPath : importPath); signal = call.init?.signal as AbortSignal; return old.promise;
     });
-    const props = fixture(); props.onSnapshot = () => { snapshots++; }; props.onClose = () => { closes++; };
+    const props = fixture(); props.onSnapshot = () => { snapshots++; }; props.onClose = () => { closes++; }; props.onWritePendingChange = value => pending.push(value);
     await render(props); await click(previewLabel);
     if (phase === "import") { await confirm(); await click(importLabel); }
     assert.equal(signal?.aborted, false);
@@ -372,6 +381,7 @@ test("closing or unmounting aborts in-flight preview and import; ignored late re
     await act(async () => old.resolve(response(phase === "preview" ? preview() : receipt)));
     assert.equal(snapshots, 0); assert.equal(dom.document.querySelector(".atlas-reviewed-success"), null);
     assert.equal(calls.filter(call => call.path === snapshotPath).length, 0);
+    assert.deepEqual(pending, phase === "import" ? [true] : []);
     if (root) await act(async () => root!.unmount()); root = undefined; mock.restoreAll(); dom.document.body.replaceChildren();
   }
 });

@@ -38,6 +38,9 @@ const ready = (request = original) => ({ ...extractJobSearchCards({ url: request
   <p>仅标题和摘要，没有薪资、地点、企业与发布时间。</p></article>
   </main>` }, "猎聘"), capturedAt: at });
 const gate = (status: "login_required" | "verification_required") => ({ ...extractJobSearchCards({ url: original.url, title: "Synthetic gate", html: "", gate: status }, "猎聘"), capturedAt: at });
+const batchReady = (request = original, count = 4, missingLast = true) => ({ ...extractJobSearchCards({ url: request.url, title: "Synthetic batch", html: `<main>${Array.from({ length: count }, (_, index) => `
+  <article class="job-card-pc-container"><a class="job-title" href="https://www.liepin.com/job/${1234567890 + index}.shtml">Synthetic batch job ${index}</a>
+  ${!missingLast || index < count - 1 ? `<span class="company-name">Synthetic Employer ${index}</span>` : ""}<p>本页岗位卡片摘要 ${index}</p></article>`).join("")}</main>` }, "猎聘"), capturedAt: at });
 const inspection = (overrides: Partial<JdBrowserSessionInspection> = {}): JdBrowserSessionInspection => ({
   snapshotState: "ready", pageState: "unknown", pageLoad: { readyState: "complete", content: "visible_text", visibleFrames: 0 },
   scriptErrors: 0, mainDocument: { state: "response", status: 200 }, resources: [], truncated: false, blockedPopups: 0, blockedSockets: 0,
@@ -53,9 +56,9 @@ async function waitFor(condition: () => boolean, description: string) {
     await act(async () => { await delay(10); });
   }
 }
-async function render(requests: PlatformSearchRequest[] = [original], onReviewCard?: PanelProps["onReviewCard"]) {
+async function render(requests: PlatformSearchRequest[] = [original], onReviewCard?: PanelProps["onReviewCard"], indexProps: Pick<PanelProps, "onIndexCard" | "onIndexCards"> = {}) {
   if (!root) { dom.document.body.innerHTML = "<main></main>"; root = createRoot(dom.document.querySelector("main")! as unknown as Element); }
-  lastProps = { requests, onReviewCard };
+  lastProps = { requests, onReviewCard, ...indexProps };
   await act(async () => root!.render(h(PlatformSearchSessionPanel, lastProps)));
 }
 function button(label: string | RegExp) {
@@ -382,6 +385,119 @@ test("review forwards only the selected card, original evidence and capture time
   assert.equal((reviews[0]![0] as Record<string, unknown>).coordinates, undefined);
   assert.equal(dom.localStorage.getItem(OPPORTUNITY_STORAGE_KEY), sentinel); assert.equal(writes.mock.callCount(), 0);
   assert.deepEqual(calls.map((entry) => entry.body.action), ["start", "read"]);
+});
+
+test("batch selection uses native labelled checkboxes, selects only eligible current cards and preserves individual actions without writing", async () => {
+  const batches: unknown[][] = [], singles: unknown[][] = [], reviews: unknown[][] = [];
+  const calls = installFetch(call => call.body.action === "start" ? response(session()) : call.body.action === "read" ? response(batchReady()) : response({ cancelled: true, closed: true }));
+  await render([original], (...args) => reviews.push(args), { onIndexCard: (...args) => singles.push(args), onIndexCards: (...args) => batches.push(args) });
+  assert.equal(dom.document.querySelector('input[type="checkbox"]'), null);
+  await startReady();
+  const all = dom.document.querySelector<HTMLInputElement>('.atlas-platform-batch input[type="checkbox"]')!;
+  const choices = [...dom.document.querySelectorAll<HTMLInputElement>('.atlas-platform-card-list input[type="checkbox"]')];
+  assert.equal(choices.length, 4); assert.equal(choices[3]!.disabled, true);
+  assert.match(choices[0]!.getAttribute("aria-label")!, /Synthetic batch job 0.*Synthetic Employer 0/);
+  assert.equal(choices[0]!.type, "checkbox"); assert.ok(choices[0]!.tabIndex >= 0);
+  assert.match(dom.document.querySelector('.atlas-platform-batch')!.textContent!, /已选 0 \/ 3 个可入库岗位.*1 个岗位缺少雇主/s);
+  assert.equal(button("核对并加入所选 0 个岗位").disabled, true);
+  await act(async () => choices[1]!.click());
+  assert.equal(all.indeterminate, true); assert.equal(all.checked, false);
+  await act(async () => all.click());
+  assert.equal(all.indeterminate, false); assert.equal(all.checked, true);
+  assert.deepEqual(choices.map(choice => choice.checked), [true, true, true, false]);
+  await click("核对并加入所选 3 个岗位");
+  assert.deepEqual(batches, [[batchReady().cards.slice(0, 3), batchReady(), "liepin"]]);
+  await act(async () => choices[1]!.click());
+  await click("核对并加入所选 2 个岗位");
+  assert.deepEqual((batches[1]![0] as unknown[]), [batchReady().cards[0], batchReady().cards[2]]);
+  const individual = [...dom.document.querySelectorAll<HTMLButtonElement>("button")].filter(node => node.textContent === "核对并加入统一索引");
+  assert.equal(individual[3]!.disabled, true);
+  await act(async () => individual[0]!.click());
+  assert.deepEqual(singles, [[batchReady().cards[0], batchReady(), "liepin"]]);
+  await act(async () => [...dom.document.querySelectorAll<HTMLButtonElement>("button")].find(node => node.textContent === "核对并收藏此岗位")!.click());
+  assert.deepEqual(reviews, [[batchReady().cards[0], at]]);
+  assert.deepEqual(calls.map(call => call.body.action), ["start", "read"]);
+});
+
+test("rereading clears selections immediately; failures and identical recaptures cannot restore old selected cards", async () => {
+  let reads = 0, deliver!: (response: Response) => void;
+  const batches: unknown[][] = [];
+  installFetch(call => {
+    if (call.body.action === "start") return response(session());
+    if (call.body.action === "read") return ++reads === 2 ? new Promise<Response>(resolve => { deliver = resolve; }) : response(batchReady());
+    return response({ cancelled: true, closed: true });
+  });
+  const props = { onIndexCards: (...args: Parameters<NonNullable<PanelProps["onIndexCards"]>>) => batches.push(args) };
+  await render([original], undefined, props); await startReady();
+  await act(async () => dom.document.querySelector<HTMLInputElement>('.atlas-platform-batch input')!.click());
+  await click("再次读取当前页");
+  assert.equal(dom.document.querySelector('input[type="checkbox"]'), null);
+  await act(async () => deliver(response(gate("verification_required"))));
+  await waitFor(() => Boolean(dom.document.querySelector(".atlas-platform-reader-result")), "failed capture");
+  assert.equal(dom.document.querySelector('input[type="checkbox"]'), null); assert.equal(batches.length, 0);
+  await click("再次读取当前页"); await waitFor(() => Boolean(dom.document.querySelector('.atlas-platform-batch')), "same timestamp and URLs recaptured");
+  assert.match(dom.document.querySelector('.atlas-platform-batch')!.textContent!, /已选 0 \/ 3/);
+  await act(async () => dom.document.querySelector<HTMLInputElement>('.atlas-platform-batch input')!.click());
+  await click("结束搜索会话"); await waitFor(() => !button("搜索并读取当前页").disabled, "session closed");
+  assert.equal(dom.document.querySelector('input[type="checkbox"]'), null);
+  await startReady();
+  assert.match(dom.document.querySelector('.atlas-platform-batch')!.textContent!, /已选 0 \/ 3/);
+});
+
+test("select all forwards the full 50-card supported page without truncation or automatic index writes", async () => {
+  const batches: unknown[][] = [], receipt = batchReady(original, 50, false);
+  const calls = installFetch(call => call.body.action === "start" ? response(session()) : call.body.action === "read" ? response(receipt) : response({ cancelled: true, closed: true }));
+  await render([original], undefined, { onIndexCards: (...args) => batches.push(args) }); await startReady();
+  await act(async () => dom.document.querySelector<HTMLInputElement>('.atlas-platform-batch input')!.click());
+  await click("核对并加入所选 50 个岗位");
+  assert.deepEqual(batches, [[receipt.cards, receipt, "liepin"]]);
+  assert.equal(calls.length, 2);
+});
+
+test("closing and changing platform cannot carry a previous platform's selection into the new session", async () => {
+  const linkedin = buildPlatformSearchRequest({ provider: "linkedin", keyword: "C#", regionId: "cn-shanghai" });
+  const linkedinReceipt = { ...extractJobSearchCards({ url: linkedin.url, title: "Synthetic LinkedIn", html: `<article class="base-search-card"><a class="base-search-card__full-link" href="https://www.linkedin.com/jobs/view/1234567890/"><h3 class="base-search-card__title">Synthetic LinkedIn role</h3></a><span class="base-search-card__subtitle">Synthetic LinkedIn employer</span></article>` }, "LinkedIn"), capturedAt: at };
+  let active = original;
+  const batches: unknown[][] = [];
+  installFetch(call => {
+    if (call.body.action === "start") { active = buildPlatformSearchRequest(call.body.input); return response(session(active)); }
+    if (call.body.action === "read") return response(active.provider === "linkedin" ? linkedinReceipt : batchReady());
+    return response({ cancelled: true, closed: true });
+  });
+  await render([original, linkedin], undefined, { onIndexCards: (...args) => batches.push(args) }); await startReady();
+  await act(async () => dom.document.querySelector<HTMLInputElement>('.atlas-platform-batch input')!.click());
+  await click("结束搜索会话"); await waitFor(() => !button("搜索并读取当前页").disabled, "close before platform change");
+  await act(async () => { const select = dom.document.querySelector<HTMLSelectElement>('[aria-label="读取岗位平台"]')!; select.value = "linkedin"; select.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  await startReady();
+  assert.match(dom.document.querySelector('.atlas-platform-batch')!.textContent!, /已选 0 \/ 1/);
+  await act(async () => dom.document.querySelector<HTMLInputElement>('.atlas-platform-batch input')!.click());
+  await click("核对并加入所选 1 个岗位");
+  assert.deepEqual(batches, [[linkedinReceipt.cards, linkedinReceipt, "linkedin"]]);
+});
+
+test("page inspection suspends batch and individual actions, while live filter changes keep selection on its original capture", async () => {
+  let deliver!: (response: Response) => void;
+  const batches: unknown[][] = [];
+  const calls = installFetch(call => {
+    if (call.body.action === "start") return response(session());
+    if (call.body.action === "read") return response(batchReady());
+    if (call.body.action === "inspect") return new Promise<Response>(resolve => { deliver = resolve; });
+    return response({ cancelled: true, closed: true });
+  });
+  const props = { onIndexCards: (...args: Parameters<NonNullable<PanelProps["onIndexCards"]>>) => batches.push(args), onIndexCard: () => {} };
+  await render([original], undefined, props); await startReady();
+  await act(async () => dom.document.querySelector<HTMLInputElement>('.atlas-platform-batch input')!.click());
+  await render([plan("Python", "cn-beijing")], undefined, props);
+  await click("检查页面状态");
+  assert.equal(button("核对并加入所选 3 个岗位").disabled, true);
+  assert.equal([...dom.document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].every(input => input.disabled), true);
+  assert.equal([...dom.document.querySelectorAll<HTMLButtonElement>("button")].filter(node => node.textContent === "核对并加入统一索引").every(node => node.disabled), true);
+  await act(async () => deliver(response(inspection())));
+  await waitFor(() => !button("核对并加入所选 3 个岗位").disabled, "inspection complete");
+  await click("核对并加入所选 3 个岗位");
+  assert.deepEqual(batches, [[batchReady().cards.slice(0, 3), batchReady(), "liepin"]]);
+  assert.equal(calls.filter(call => call.body.action === "read").length, 1);
+  assert.match(dom.document.body.textContent!, /本次搜索：猎聘 · C# · 上海/);
 });
 
 test("a read from another query is rejected before any card or review control appears", async () => {

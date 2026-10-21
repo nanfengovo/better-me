@@ -27,7 +27,7 @@ import { buildAtlasCityCandidateQuery } from "./atlas/city-candidate-query";
 import { getAtlasDataCoverage } from "./atlas/coverage";
 import { createAtlasListingPresenter } from "./atlas/presentation";
 import { AtlasListingBadges } from "./atlas/JobSourceBadges";
-import { PlatformSearchLinks } from "./atlas/PlatformSearchLinks";
+import { PlatformSearchLinks, type PlatformSearchLinksProps } from "./atlas/PlatformSearchLinks";
 import { buildChinaRegionFilter, findChinaProvinceByMapId, getChinaProvinces, getChinaCities, getChinaDistricts, type ChinaRegionSelection } from "./atlas/china-regions";
 import countryCatalog from "../../../../config/geography/countries.json";
 import { useUiPreferences } from "../lib/ui-preferences";
@@ -78,6 +78,13 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
   const [searchProgress, setSearchProgress] = useState<AtlasAggregateProgress | null>(null);
   const [sourceReview, setSourceReview] = useState<AtlasAggregateSource>();
   const [cardReview, setCardReview] = useState<ReviewedCardsCapture>();
+  const activeCardReview = useRef(cardReview); activeCardReview.current = cardReview;
+  const cardWritePending = useRef<ReviewedCardsCapture | undefined>(undefined);
+  function retainPendingCardWrite() {
+    if (!cardWritePending.current) return false;
+    setSourceSearchMessage("卡片写入结果尚未确认，请先在原卡片核对面板重试本次写入、核对回执，再关闭、切换后端或核对其他批次。");
+    return true;
+  }
   const [locationReview, setLocationReview] = useState<{ jobId: string; location: JobLocation }>();
   const [officeReview, setOfficeReview] = useState<{ jobId: string; location: JobLocation }>();
   const [detailReviewJobId, setDetailReviewJobId] = useState("");
@@ -252,6 +259,7 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
   useEffect(() => () => { cancelCardClick(); connectionAbort.current?.abort(); searchAbort.current?.abort(); locationAbort.current?.abort(); officeFocusAbort.current?.abort(); }, []);
 
   const connect = useCallback(async (identity: AtlasConnectionIdentity, remember: boolean) => {
+    if (cardWritePending.current) { setConnectionNotice("卡片写入结果尚未确认，请先在原核对面板核对回执，再重连或切换后端。"); return; }
     searchAbort.current?.abort();
     locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined);
     connectionAbort.current?.abort();
@@ -280,29 +288,35 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
     return () => { if (connectionAbort.current === abort) { connectionAbort.current = null; abort?.abort(); setConnecting(false); } };
   }, [active, initialConnection, connect]);
   function cancelConnection() {
+    if (retainPendingCardWrite()) return false;
     restoreConnection.current = false;
     const abort = connectionAbort.current; connectionAbort.current = null; abort?.abort();
     searchAbort.current?.abort(); setConnecting(false);
     locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined);
     setSourcesOpen(false); setReconciliationOpen(false); setSourceReview(undefined); setCardReview(undefined); setLocationReview(undefined); setCompensationReviewJobId(""); setCompanyReview(undefined);
+    return true;
   }
   function changeConnection(field: "endpoint" | "token", value: string) {
-    cancelConnection(); clearAtlasConnectionSession(); connectedIdentity.current = null;
+    if (!cancelConnection()) return;
+    clearAtlasConnectionSession(); connectedIdentity.current = null;
     setLiveData(null); setConnectionError(""); setConnectionNotice("连接资料已更改，请重新连接并读取索引。");
     if (field === "endpoint") setEndpoint(value); else setToken(value);
   }
   function chooseDataMode(next: AtlasDataMode) {
-    cancelConnection(); setDataMode(next); setConnectionError(""); setConnectionNotice(""); resetFilters();
+    if (!cancelConnection()) return;
+    setDataMode(next); setConnectionError(""); setConnectionNotice(""); resetFilters();
     if (next === "live" && connectedIdentity.current) writeAtlasConnectionSession({ schemaVersion: 1, dataMode: next, ...connectedIdentity.current });
     else if (next !== "live") writeAtlasConnectionSession({ schemaVersion: 1, dataMode: next });
     else { clearAtlasConnectionSession(); void connect({ endpoint, token }, true); }
   }
   function disconnect() {
-    cancelConnection(); writeAtlasConnectionSession({ schemaVersion: 1, dataMode: "local" }); connectedIdentity.current = null;
+    if (!cancelConnection()) return;
+    writeAtlasConnectionSession({ schemaVersion: 1, dataMode: "local" }); connectedIdentity.current = null;
     setEndpoint(DEFAULT_ATLAS_BACKEND_ENDPOINT); setToken(""); setLiveData(null); setDataMode("local"); setConnectionError(""); setConnectionNotice("已断开本机索引，并清除当前标签页的会话连接。");
   }
   function useDefaultBackend() {
-    cancelConnection(); clearAtlasConnectionSession(); connectedIdentity.current = null; setLiveData(null);
+    if (!cancelConnection()) return;
+    clearAtlasConnectionSession(); connectedIdentity.current = null; setLiveData(null);
     setEndpoint(DEFAULT_ATLAS_BACKEND_ENDPOINT); setToken("");
     void connect({ endpoint: DEFAULT_ATLAS_BACKEND_ENDPOINT, token: "" }, true);
   }
@@ -490,6 +504,13 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
     cancelOfficeFocus(); setEnrichmentScope(null); setDetailReviewJobId(""); setCompensationReviewJobId("");
     setLocationReview(undefined); setOfficeReview(undefined); setCompanyReview({ jobId: identity.jobId, companyId: identity.companyId });
   }
+  const reviewPlatformCards: NonNullable<PlatformSearchLinksProps["onIndexCards"]> = (cards, receipt, provider) => {
+    if (retainPendingCardWrite()) return;
+    if (!connected) { setSettings("connection"); setSourceSearchMessage("本机岗位后端当前不可用，恢复默认后端后再核对卡片入库。"); return; }
+    const parsed = receipt.status === "ready" && ReviewedCardsCaptureSchema.safeParse({ provider, pageUrl: receipt.url, capturedAt: receipt.capturedAt, cards });
+    if (!parsed || !parsed.success) { setSourceSearchError("所选卡片的来源或字段证据不足，未加入索引；请打开原岗位核对。"); return; }
+    setSourceSearchError(""); setCardReview(parsed.data);
+  };
 
   return <section ref={workspace} className="atlas-workspace" data-pane-layout={layout} aria-label={t("岗位地图", "Opportunity atlas")}>
     <div className="atlas-heading"><div><span className="atlas-eyebrow">BETTERME / OPPORTUNITY ATLAS</span><h1>{t("让下一个机会，有迹可循。", "Find where your next chapter begins.")}</h1><p>{t("从全球视野，找到与你更近的工作。", "Explore opportunities across the world, and closer to home.")}</p></div><div className="atlas-top-actions"><button onClick={() => setSettings(settings === "maps" ? null : "maps")}><Globe2 size={15} />地图服务</button><button onClick={() => setSettings(settings === "home" ? null : "home")}><Home size={15} />{anchor ? t("已设置家庭参照点", "Home set") : t("设置离家距离", "Set home distance")}</button><button aria-label="岗位后端设置" title="查看本机岗位后端状态与设置" onClick={() => setSettings(settings === "connection" ? null : "connection")}><Database size={15} />{connecting ? "后端读取中…" : connected ? "后端已连接" : "后端状态"}</button></div></div>
@@ -518,13 +539,12 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
     <p className="atlas-small atlas-search-scope">输入会实时筛选{data ? `已收录的 ${data.jobs.length} 个岗位` : "本机后端索引"}；{connected ? `点击获取后，查询 ${selectedSearchSources.length} 个已配置岗位来源，先返回的结果先展示；不包含下方四平台浏览器搜索。` : "后端不可用时，请从右上角查看状态并重试；这里不会自动读取外部来源。"}读取不超过来源配置额度；详情完整度见逐源状态。</p>
     {mode === "domestic" && <p className="atlas-small">按省 → 市 → 区县逐级选择，修改上级会清除下级。大陆三级目录采用 2023 统计区划快照，部分末级为镇街/功能区；港澳台保留地区筛选，下级目录待补充。岗位只披露城市时，选择区县会排除位置不明确的岗位。</p>}
     {connected && selectedSearchSources.length > 0 && <details className="atlas-source-limits"><summary>本次实际读取范围 · {selectedSearchSources.length} 个已配置岗位来源</summary><ul>{selectedSearchSources.map((entry) => <li key={entry.sourceId}>{entry.attribution.label}：最多 {Math.min(searchDepth === "quick" ? 50 : 500, entry.refreshPolicy.maxRecords)} 条 / {Math.min(searchDepth === "quick" ? 2 : 20, entry.refreshPolicy.maxPages)} 页{entry.options?.fetchDetails === true && typeof entry.options.maxDetailRequestsPerPage === "number" ? `，每页最多 ${entry.options.maxDetailRequestsPerPage} 个详情` : ""}</li>)}</ul><p>这里只查询已配置的岗位来源（企业官网或公开聚合源）。下方原站浏览器搜索独立执行，不计入官网来源回执。</p><button type="button" onClick={() => setSourcesOpen(true)}>管理与扩展来源</button></details>}
-    <PlatformSearchLinks keyword={text} regionText={mode === "domestic" ? (chinaFilter.selectedCity?.isGrouping && ["11", "12", "31", "50"].includes(chinaFilter.selectedProvince?.code ?? "") ? chinaFilter.selectedProvince?.name : chinaFilter.selectedCity?.name) ?? chinaFilter.selectedProvince?.name ?? "" : regionText || (region ? regions.find((entry) => entry.id === region)?.label ?? region : "")} countryCode={mode === "domestic" ? chinaFilter.workCountryCodes[0] ?? "CN" : country} onOpenSingleJob={onOpenOpportunitySources} onReviewCard={(card, capturedAt) => onSaveOpportunity({ token: crypto.randomUUID(), title: card.title, description: `[原站搜索列表卡片摘要，非完整 JD；请打开岗位原文核对]\n${card.cardText}`, sourceUrl: card.url, sourcePlatform: card.platform, collectedAt: capturedAt, sourcePublishedText: card.publicationText })} onIndexCard={(card, receipt, provider) => {
-      if (!connected) { setSettings("connection"); setSourceSearchMessage("本机岗位后端当前不可用，恢复默认后端后再核对卡片入库。"); return; }
-      const parsed = ReviewedCardsCaptureSchema.safeParse({ provider, pageUrl: receipt.url, capturedAt: receipt.capturedAt, cards: [card] });
-      if (!parsed.success) { setSourceSearchError("这张卡片的来源或字段证据不足，未加入索引；请打开原岗位核对。"); return; }
-      setCardReview(parsed.data);
-    }} />
-    {cardReview && connected && liveData && <Suspense fallback={<p role="status">正在打开卡片核对…</p>}><AtlasReviewedCardImport key={`${cardReview.capturedAt}:${cardReview.cards[0]!.url}`} endpoint={endpoint} token={token} capture={cardReview} revision={liveData.revision} onClose={() => setCardReview(undefined)} onSnapshot={snapshot => {
+    <PlatformSearchLinks keyword={text} regionText={mode === "domestic" ? (chinaFilter.selectedCity?.isGrouping && ["11", "12", "31", "50"].includes(chinaFilter.selectedProvince?.code ?? "") ? chinaFilter.selectedProvince?.name : chinaFilter.selectedCity?.name) ?? chinaFilter.selectedProvince?.name ?? "" : regionText || (region ? regions.find((entry) => entry.id === region)?.label ?? region : "")} countryCode={mode === "domestic" ? chinaFilter.workCountryCodes[0] ?? "CN" : country} onOpenSingleJob={onOpenOpportunitySources} onReviewCard={(card, capturedAt) => onSaveOpportunity({ token: crypto.randomUUID(), title: card.title, description: `[原站搜索列表卡片摘要，非完整 JD；请打开岗位原文核对]\n${card.cardText}`, sourceUrl: card.url, sourcePlatform: card.platform, collectedAt: capturedAt, sourcePublishedText: card.publicationText })} onIndexCard={(card, receipt, provider) => reviewPlatformCards([card], receipt, provider)} onIndexCards={reviewPlatformCards} />
+    {cardReview && connected && liveData && <Suspense fallback={<p role="status">正在打开卡片核对…</p>}><AtlasReviewedCardImport key={JSON.stringify(cardReview)} endpoint={endpoint} token={token} capture={cardReview} revision={liveData.revision} onClose={() => { if (activeCardReview.current === cardReview && !retainPendingCardWrite()) setCardReview(undefined); }} onWritePendingChange={pending => {
+      if (activeCardReview.current !== cardReview) return;
+      if (pending) cardWritePending.current = cardReview; else if (cardWritePending.current === cardReview) cardWritePending.current = undefined;
+    }} onSnapshot={snapshot => {
+      if (activeCardReview.current !== cardReview) return;
       searchAbort.current?.abort();
       setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live");
     }} /></Suspense>}

@@ -11,7 +11,8 @@ import { SourcePublicationBadges } from "./JobSourceBadges";
 import "./PlatformSearchSessionPanel.css";
 
 type Props = { requests: PlatformSearchRequest[]; onReviewCard?: (card: PlatformSearchCard, capturedAt: string) => void;
-  onIndexCard?: (card: PlatformSearchCard, receipt: PlatformSearchReceipt, provider: PlatformSearchRequest["provider"]) => void };
+  onIndexCard?: (card: PlatformSearchCard, receipt: PlatformSearchReceipt, provider: PlatformSearchRequest["provider"]) => void;
+  onIndexCards?: (cards: PlatformSearchCard[], receipt: PlatformSearchReceipt, provider: PlatformSearchRequest["provider"]) => void };
 const labels: Record<PlatformSearchReceipt["status"], string> = {
   ready: "已读取当前页岗位卡片", empty: "原站当前页明确显示暂无结果", login_required: "原站需要登录，请在专用窗口完成后再次读取",
   verification_required: "原站需要人工验证，完成后可再次读取", unknown_layout: "尚未识别到可靠的岗位卡片，请核对页面是否加载完成",
@@ -49,7 +50,7 @@ const resourceDetails: Record<JdBrowserSessionInspection["resources"][number]["d
 };
 
 /** One visible browser session, explicit read/close, no automatic applications or account actions. */
-export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard }: Props) {
+export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard, onIndexCards }: Props) {
   const [provider, setProvider] = useState("liepin");
   const [session, setSession] = useState<JdBrowserSession>();
   const [scope, setScope] = useState<PlatformSearchRequest>();
@@ -58,6 +59,8 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [pending, setPending] = useState<{ input: PlatformSearchInput; requestId: string }>();
+  const [selection, setSelection] = useState<{ receipt: PlatformSearchReceipt; sessionId: string; provider: PlatformSearchRequest["provider"]; urls: string[] }>();
+  const selectAll = useRef<HTMLInputElement>(null);
   const inFlight = useRef(false);
   const mounted = useRef(true);
   const operationAbort = useRef<AbortController | undefined>(undefined);
@@ -70,6 +73,15 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
     };
   }, []);
   const plan = requests.find((entry) => entry.provider === provider) ?? requests[0];
+  const readable = receipt?.status === "ready" && !!session && !!scope;
+  const eligible = readable ? receipt.cards.filter(card => Boolean(card.company?.trim())) : [];
+  const selected = selection && selection.receipt === receipt && selection.sessionId === session?.sessionId && selection.provider === scope?.provider
+    ? eligible.filter(card => selection.urls.includes(card.url)) : [];
+  useEffect(() => { if (selectAll.current) selectAll.current.indeterminate = selected.length > 0 && selected.length < eligible.length; }, [selected.length, eligible.length]);
+  function choose(cards: PlatformSearchCard[]) {
+    if (inFlight.current || !readable) return;
+    setSelection({ receipt, sessionId: session.sessionId, provider: scope.provider, urls: cards.map(card => card.url) });
+  }
   async function run(operation: (signal: AbortSignal) => Promise<void>, preserveSessionOnFailure = false) {
     if (inFlight.current) return;
     inFlight.current = true; setBusy(true); setError("");
@@ -82,7 +94,7 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
       }
     } finally { clearTimeout(timer); inFlight.current = false; if (mounted.current) setBusy(false); }
   }
-  const read = (current: JdBrowserSession) => run(async (signal) => { setReceipt(undefined); const next = await readPlatformSearch(current, signal); if (mounted.current) setReceipt(next); });
+  const read = (current: JdBrowserSession) => run(async (signal) => { setSelection(undefined); setReceipt(undefined); const next = await readPlatformSearch(current, signal); if (mounted.current) setReceipt(next); });
   const inspect = (current: JdBrowserSession) => run(async signal => {
     setInspection(undefined);
     const next = await inspectJdBrowserSession(current, signal);
@@ -93,7 +105,7 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
     void run(async (signal) => {
       const launch = pending ?? { input: { provider: plan!.provider, keyword: plan!.keyword, ...(plan!.region ? { regionId: plan!.region.id } : {}) }, requestId: createJdStartRequestId() };
       binding.current = launch; setPending(launch);
-      setReceipt(undefined); setInspection(undefined); if (!pending) setScope(plan);
+      setSelection(undefined); setReceipt(undefined); setInspection(undefined); if (!pending) setScope(plan);
       const current = await startPlatformSearch(launch.input, signal, launch.requestId);
       if (!mounted.current) return;
       setSession(current);
@@ -101,6 +113,7 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
     });
   }
   const end = () => run(async () => {
+    setSelection(undefined);
     if (binding.current) await cancelPlatformSearch(binding.current.input, binding.current.requestId);
     else if (session) await closeJdBrowserSession(session.sessionId);
     binding.current = undefined;
@@ -110,7 +123,7 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
     <strong>读取原站搜索结果</strong>
     <p>使用本机专用浏览器读取当前页，最多 50 张可见岗位卡片。需要登录或验证时，在窗口中完成后继续；可在原站翻页后再次读取。卡片摘要与完整 JD 分开，缺失薪资、地址坐标和发布时间保持未知。</p>
     <div className="atlas-platform-reader-actions">
-      <select aria-label="读取岗位平台" disabled={busy || Boolean(pending)} value={scope?.provider ?? plan?.provider ?? ""} onChange={(event) => setProvider(event.target.value)}>
+      <select aria-label="读取岗位平台" disabled={busy || Boolean(pending)} value={scope?.provider ?? plan?.provider ?? ""} onChange={(event) => { setSelection(undefined); setProvider(event.target.value); }}>
         {scope && !requests.some((request) => request.provider === scope.provider) && <option value={scope.provider}>{scope.platform} · 本次会话</option>}
         {!requests.length && <option value="">请先选择支持的地区</option>}
         {requests.map((entry) => <option key={entry.provider} value={entry.provider}>{entry.platform}</option>)}
@@ -156,18 +169,27 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
         {inspection.blockedSockets > 0 && <p>本工具已阻止 {inspection.blockedSockets} 个实时连接。</p>}
       </details>
     </div>}
-    {receipt && <div className="atlas-platform-reader-result" role="status">
-      <strong>{labels[receipt.status]}{receipt.status === "ready" || receipt.status === "empty" ? ` · ${receipt.cards.length} 岗` : " · 岗位数量尚未确认"}</strong>
+    {receipt && <div className="atlas-platform-reader-result">
+      <strong role="status">{labels[receipt.status]}{receipt.status === "ready" || receipt.status === "empty" ? ` · ${receipt.cards.length} 岗` : " · 岗位数量尚未确认"}</strong>
       <p>仅本次单页读取，未自动遍历全站。核对后可加入统一索引继续搜索，或预填机会库；缺少坐标的岗位仍列为待定位。</p>
       {receipt.warnings.map((warning, index) => <p className="atlas-small" key={index}>{warning}</p>)}
-      <ul className="atlas-platform-card-list">{receipt.cards.map((card) => <li key={card.url}>
+      {onIndexCards && readable && <div className="atlas-platform-batch" aria-label="当前页岗位批量选择">
+        <div className="atlas-platform-batch-actions">
+          <label className="atlas-platform-card-choice"><input ref={selectAll} type="checkbox" checked={eligible.length > 0 && selected.length === eligible.length} disabled={busy || !eligible.length} onChange={event => choose(event.target.checked ? eligible : [])} />全选本页可入库岗位</label>
+          <span aria-live="polite" aria-atomic="true">已选 {selected.length} / {eligible.length} 个可入库岗位</span>
+          <button type="button" disabled={busy || !selected.length} onClick={() => { if (!inFlight.current && selected.length) onIndexCards(selected, receipt, scope.provider); }}>核对并加入所选 {selected.length} 个岗位</button>
+        </div>
+        <p className="atlas-small">仅选择本次成功读取的卡片，重新读取或结束会话会清空选择。打开后仍需预览变化并确认保存。{receipt.cards.length > eligible.length && ` 本页 ${receipt.cards.length - eligible.length} 个岗位缺少雇主，暂不能入库，请打开原文核对。`}</p>
+      </div>}
+      <ul className="atlas-platform-card-list">{receipt.status === "ready" && receipt.cards.map((card) => <li key={card.url}>
+        {onIndexCards && readable && <label className="atlas-platform-card-choice"><input type="checkbox" aria-label={`选择岗位：${card.title} · ${card.company || "雇主待核对"}`} checked={selected.some(entry => entry.url === card.url)} disabled={busy || !card.company?.trim()} onChange={event => choose(event.target.checked ? [...selected, card] : selected.filter(entry => entry.url !== card.url))} />{card.company?.trim() ? "选择此岗位" : "雇主待核对，暂不能入库"}</label>}
         <SourcePublicationBadges sourceLabel={card.platform} platform={card.platform} publishedRaw={card.publicationText} sourceUrl={card.url} link />
         <a href={card.url} target="_blank" rel="noopener noreferrer"><strong>{card.title}</strong></a>
         <span>{card.company || "雇主待核对"} · {card.locationText || "工作地点未披露"}</span>
         <span>{card.salaryText || "薪资未披露"}</span>
         <details><summary>查看实际读取的卡片原文</summary><pre>{card.cardText}</pre></details>
-        {onReviewCard && <button type="button" onClick={() => onReviewCard(card, receipt.capturedAt)}>核对并收藏此岗位</button>}
-        {onIndexCard && scope && <button type="button" disabled={!card.company?.trim()} title={!card.company?.trim() ? "雇主未披露，请先打开原文核对" : undefined} onClick={() => onIndexCard(card, receipt, scope.provider)}>核对并加入统一索引</button>}
+        {onReviewCard && <button type="button" disabled={busy || !readable} onClick={() => { if (!inFlight.current && readable) onReviewCard(card, receipt.capturedAt); }}>核对并收藏此岗位</button>}
+        {onIndexCard && scope && <button type="button" disabled={busy || !readable || !card.company?.trim()} title={!card.company?.trim() ? "雇主未披露，请先打开原文核对" : undefined} onClick={() => { if (!inFlight.current && readable && card.company?.trim()) onIndexCard(card, receipt, scope.provider); }}>核对并加入统一索引</button>}
       </li>)}</ul>
     </div>}
   </section>;
