@@ -553,10 +553,10 @@ test("main search without a connection opens connection settings and never sends
   const fetcher = installWorkspaceFetch(async () => { throw new Error("An unconnected search must never request a service"); });
   await render(true, false);
   await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "C#"));
-  await flush(() => button("连接真实来源搜索").click());
+  await flush(() => button("查看后端状态").click());
   assert.equal(fetcher.mock.callCount(), 0);
-  assert.equal(dom.document.querySelector(".atlas-settings h2")!.textContent, "岗位后端连接");
-  assert.match(dom.document.querySelector(".atlas-search-notice")!.textContent!, /先连接本机来源服务/);
+  assert.equal(dom.document.querySelector(".atlas-settings h2")!.textContent, "岗位后端状态");
+  assert.match(dom.document.querySelector(".atlas-search-notice")!.textContent!, /本机岗位后端当前不可用/);
   assert.equal(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!.value, "C#");
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0);
 });
@@ -1065,9 +1065,9 @@ test("an empty real opportunity library offers acquisition instead of a vacant r
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0);
   assert.equal(dom.document.querySelector(".atlas-detail-placeholder"), null);
   assert.match(dom.document.querySelector(".atlas-empty")!.textContent!, /先把真实岗位接入地图/);
-  assert.ok(button("连接真实来源搜索"));
+  assert.ok(button("查看后端状态"));
   assert.equal([...dom.document.querySelectorAll(".atlas-empty button")].some(node => node.textContent === "清除筛选"), false);
-  await flush(() => button("连接真实来源搜索").click());
+  await flush(() => button("查看后端状态").click());
   assert.ok(dom.document.querySelector(".atlas-settings input[type=password]"));
   assert.equal(external.mock.callCount(), 0, "opening connection never collects or fabricates jobs");
   assert.equal(dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!.value, "local");

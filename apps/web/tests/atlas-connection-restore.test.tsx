@@ -255,7 +255,7 @@ test("inactive first visit waits for activation and default retry discards manua
   await explicitConnect(); await waitFor(() => requests.some(request => request.authorization === `Bearer ${saved.token}`), "manual connection");
   await act(async () => button("连接本机服务").click());
   assert.equal(dom.document.querySelector("details")?.open, false, "advanced credentials start collapsed");
-  await act(async () => button("使用默认后端").click());
+  await act(async () => button("恢复默认后端").click());
   await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22 && requests.length === 3, "default backend reset");
   assert.equal(requests[2]!.authorization, null);
   assert.deepEqual(JSON.parse(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY)!), { schemaVersion: 1, dataMode: "live", endpoint: "/api/atlas", token: "" });
@@ -266,7 +266,7 @@ test("switching to an unavailable default backend discards the previous manual c
   dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify(saved));
   mock.method(globalThis, "fetch", async (url: RequestInfo | URL) => String(url).includes("/api/atlas/") ? new Response("unavailable", { status: 503 }) : response());
   await mount(); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "saved direct connection");
-  await act(async () => button("连接本机服务").click()); await act(async () => button("使用默认后端").click());
+  await act(async () => button("连接本机服务").click()); await act(async () => button("恢复默认后端").click());
   await waitFor(() => !!dom.document.querySelector('[role="alert"]'), "default gateway rejection");
   assert.equal(view().value, "live"); assert.equal(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY), null);
   assert.equal(input("访问令牌").value, ""); assert.equal(input("服务地址").value, "/api/atlas");

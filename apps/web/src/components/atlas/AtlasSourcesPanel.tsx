@@ -162,8 +162,8 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose }: Atla
   return <section className="atlas-sources-panel" aria-label={t("岗位来源工具", "Job source tools")} aria-busy={Boolean(busy)}>
     <header><div><span className="atlas-eyebrow">SOURCE TOOLS</span><h2><Database size={19} />{t("岗位来源工具", "Job source tools")}</h2></div>
       <button type="button" onClick={() => { active.current?.abort(); onClose(); }} aria-label={t("关闭来源工具", "Close source tools")}><X size={17} /></button></header>
-    <p>{t("连接本机服务，管理来源、有限预览与手动刷新。岗位、招聘活动和公司线索分别保存；原始来源与覆盖范围会保留。", "Manage real sources, bounded previews and manual refreshes through your local service. Jobs, campaigns and company leads retain their separate identity and provenance.")}</p>
-    {!usable && <p role="status" className="atlas-sources-callout">{t("请先连接岗位后端；默认后端无需填写令牌，高级直连需有效服务地址与令牌。", "Enter the local service address and access token in Connection first.")}</p>}
+    <p>{t("通过岗位后端管理来源、有限预览与手动刷新。岗位、招聘活动和公司线索分别保存；原始来源与覆盖范围会保留。", "Manage real sources, bounded previews and manual refreshes through the job backend. Jobs, campaigns and company leads retain their separate identity and provenance.")}</p>
+    {!usable && <p role="status" className="atlas-sources-callout">{t("请先连接岗位后端；默认后端无需填写令牌，高级直连需有效服务地址与令牌。", "The default backend needs no token entry; advanced direct connections require a valid service address and token.")}</p>}
     <CompanyCareersPanel endpoint={endpoint} token={token} sources={catalog.sources} onProposal={editJson} onSelectSource={(id, companyName) => { setSourceId(id); const configuredName = catalog.sources.find((entry) => entry.sourceId === id)?.options?.companyName; setCompanies(typeof configuredName === "string" ? configuredName : companyName); setPreview(undefined); setSync(undefined); setNotice("已选择企业招聘来源。可继续填写岗位关键词与地区，预览后手动获取真实岗位。"); }} />
     {busy && <div role="status" className="atlas-sources-actions"><Loader2 size={15} className="animate-spin" /><span>{busy}</span><button type="button" onClick={() => active.current?.abort()}>{t("取消操作", "Cancel operation")}</button></div>}
     {error && <p role="alert" className="atlas-sources-error">{error}</p>}
