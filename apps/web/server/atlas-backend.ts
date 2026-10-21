@@ -4,7 +4,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { homedir } from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import type { Plugin } from "vite";
+import { loadEnv, type Plugin } from "vite";
 import type { ToolErrorCode } from "@better-me/opportunities";
 
 const PREFIX = "/api/atlas";
@@ -238,9 +238,16 @@ export function createAtlasBackendMiddleware(options: AtlasBackendOptions = {}) 
   };
 }
 export function atlasBackendPlugin(): Plugin {
-  const middleware = createAtlasBackendMiddleware();
+  let middleware = createAtlasBackendMiddleware();
   return {
     name: "betterme-atlas-backend",
+    configResolved(config) {
+      // Host-only project settings support a service launched outside this
+      // terminal (including Windows app data redirection). Never use VITE_*.
+      middleware = createAtlasBackendMiddleware({ env: {
+        ...loadEnv(config.mode, config.envDir, "BETTERME_JOB_SERVICE_"), ...process.env,
+      } });
+    },
     configureServer(server) { server.middlewares.use((request, response, next) => { void middleware(request, response, next); }); },
     configurePreviewServer(server) { server.middlewares.use((request, response, next) => { void middleware(request, response, next); }); },
   };

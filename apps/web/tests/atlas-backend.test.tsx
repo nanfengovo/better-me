@@ -229,3 +229,47 @@ test("Vite plugin attaches the same middleware to dev and preview servers", () =
   (plugin.configureServer as (server: unknown) => void)(server); (plugin.configurePreviewServer as (server: unknown) => void)(server);
   assert.equal(installed.length, 2); assert.ok(installed.every(value => typeof value === "function"));
 });
+
+test("Vite loads private host settings from the project env directory and terminal settings take precedence", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "atlas-host-settings-"));
+  const keys = ["BETTERME_JOB_SERVICE_URL", "BETTERME_JOB_SERVICE_TOKEN_FILE"] as const;
+  const original = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+  const tokenPath = path.join(directory, "service.token");
+  await writeFile(tokenPath, `${TOKEN}\n`);
+  const calls = [0, 0];
+  const backends = [0, 1].map(index => createServer((request, response) => {
+    assert.equal(request.url, "/healthz"); assert.equal(request.headers.authorization, `Bearer ${TOKEN}`);
+    calls[index]!++; response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify(HEALTH));
+  }));
+  const gateways: ReturnType<typeof createServer>[] = [];
+  try {
+    for (const backend of backends) await new Promise<void>(resolve => backend.listen(0, "127.0.0.1", resolve));
+    const urls = backends.map(backend => `http://127.0.0.1:${(backend.address() as AddressInfo).port}`);
+    await writeFile(path.join(directory, ".env.local"), [
+      `BETTERME_JOB_SERVICE_URL=${urls[0]}`,
+      `BETTERME_JOB_SERVICE_TOKEN_FILE=${tokenPath.replaceAll("\\", "/")}`,
+      "VITE_UNRELATED_SETTING=synthetic-public-setting", "UNRELATED_PRIVATE_SETTING=synthetic-private-setting",
+    ].join("\n"));
+    for (const key of keys) delete process.env[key];
+    for (let index = 0; index < 2; index++) {
+      if (index === 1) process.env.BETTERME_JOB_SERVICE_URL = urls[1];
+      const plugin = atlasBackendPlugin();
+      (plugin.configResolved as (config: unknown) => void)({ mode: "development", envDir: directory });
+      let middleware: ReturnType<typeof createAtlasBackendMiddleware> | undefined;
+      (plugin.configureServer as (server: unknown) => void)({ middlewares: { use(value: typeof middleware) { middleware = value; } } });
+      assert.ok(middleware);
+      const gateway = createServer((request, response) => { void middleware!(request, response, () => response.end("next")); });
+      gateways.push(gateway); await new Promise<void>(resolve => gateway.listen(0, "127.0.0.1", resolve));
+      const origin = `http://127.0.0.1:${(gateway.address() as AddressInfo).port}`;
+      const response = await fetch(`${origin}/api/atlas/status`, { headers: { Origin: origin } });
+      const body = await response.text();
+      assert.equal(JSON.parse(body).status, "ready");
+      for (const value of [TOKEN, tokenPath, directory, "synthetic-private-setting", "synthetic-public-setting"]) assert.equal(body.includes(value), false);
+    }
+    assert.deepEqual(calls, [1, 1]);
+  } finally {
+    for (const server of [...gateways, ...backends]) { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
+    for (const key of keys) { if (original[key] === undefined) delete process.env[key]; else process.env[key] = original[key]; }
+    await rm(directory, { recursive: true, force: true });
+  }
+});
