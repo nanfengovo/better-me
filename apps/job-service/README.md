@@ -79,6 +79,10 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/jobs/search" -Headers $jobHe
 | HTTP | 路径 | 应用工具 / 输入 |
 | --- | --- | --- |
 | GET | `/healthz` | 认证后的进程存活检查。 |
+| POST | `/api/v1/compensations/review` | `compensations.read-review`；单条薪资来源、当前值及核对历史，只读。 |
+| POST | `/api/v1/compensations/preview` | `compensations.preview-review`；逐字段原文依据、版本及预览指纹，不写库。 |
+| POST | `/api/v1/compensations/confirm` | `compensations.confirm-review`；明确reviewed及幂等键，追加本人核对。 |
+| POST | `/api/v1/compensations/revoke` | `compensations.revoke-review`；明确撤销本人核对，保留历史及回执。 |
 | POST | `/api/v1/jobs/search` | `jobs.search`；直接传共享 `JobQuery`。 |
 | GET | `/api/v1/jobs/:jobId` | `jobs.read-detail`；旧 ID 按本次快照解析到规范岗位，返回公司、全部来源、观察与 JD 快照。 |
 | POST | `/api/v1/jobs/reviewed-cards/preview` | `jobs.preview-reviewed-cards`；校验本人核对的四平台卡片、索引版本和字段证据，返回预览指纹，不联网、不写库。 |
@@ -228,13 +232,19 @@ SQLite 持久保存来源、公司、岗位、位置、薪资、来源 listing�
 
 现有 application 已接通归并兼容：**来源刷新从 `readProjectionSnapshot()` 调用 `projectSourcePage()`**，查询与公共导出继续使用 `readSnapshot()`。详情先捕获公共快照，再以其 revision 调用 `resolveJobId()`，避免合并 / 撤销发生在异步读取间时混用不同版本。归并操作已通过受审工具、认证HTTP及Web显式预览确认接入，repository继续保持一致投影。候选发现与投影尚未做规模优化，测试通过不代表大量来源下的吞吐结论。
 
+## 来源薪资核对
+
+四项 `compensations.*-review` 工具共用严格Schema和认证HTTP，网页同源网关仅代理固定端点。逐字段引用同一原岗位已存观察／正文，不以平台惯例代替原文依据；确认需明确审核及原版本／指纹，撤销保留历史。SQLite V5以来源底账和仅追加决议生成有效薪资，先于跨源归并应用；相关岗位版本随变化更新。来源变化永久失效旧核对，A→B→A不复活。
+
+本人核对保持待核实，不改JD／来源原文／地点适用范围，不自动取得雇主认证。耐久回执支持原body／key恢复；保存成功后的读取失败只重读。外币保留原币，正式FX快照仍待实现；网页默认不估算缺失保证月份。详见 [薪资核对报告](../../docs/reports/job-atlas-compensation-review-2026-10-21.md)。
+
 ## 一致性、备份与部署
 
 写入、版本号和耐久幂等回执在同一个 SQLite 事务内提交。取消、同源新任务和来源配置变更使用代次校验，迟到结果不能覆盖新任务。进程内工具结果缓存不等于这些耐久回执；涉及外部网络的读取本身也不具备事务回滚。
 
 `GET /api/v1/dataset/export` 是公共领域交换格式，包含当前有效地区及其本人确认标记，但不包含任务、回执、leads、归并 / 地点原始投影或完整决策历史，不能当作完整仓库备份。已合并的公共投影不能重新覆盖原始岗位，普通公共导入也不能伪造 `userResolution`；必须使用完整备份保留拆分和地区撤销能力。
 
-仓库层提供 `repository.backup()` / `repository.restore(backup, { expectedRevision, actorScope, idempotencyKey })`：当前 schema v3 完整备份包含公共数据、任务、回执、线索、原始岗位、归并决策、别名历史、岗位版本计数，以及 `baseLocations` 与 `locationDecisions`。仍接受符合各自规则的 v1 / v2 仓库备份；已有 SQLite v1 / v2 文件在事务中升级，V2 地点初始化来源基线，不改变现有行或全局 revision。
+仓库层提供 `repository.backup()` / `repository.restore(backup, { expectedRevision, actorScope, idempotencyKey })`：当前 schema v5 完整备份包含公共数据、任务、回执、线索、原始岗位、归并决策、别名历史、岗位版本计数，以及 `baseLocations`、`locationDecisions`、办公确认历史、`baseCompensations` 与 `compensationDecisions`。仍接受符合各自规则的 v1–v4 仓库备份；已有 SQLite 在事务中升级，薪资来源底账初始化不改变现有有效数据或全局 revision。
 
 恢复先校验内容哈希、领域引用、决策引用 / 身份 / 先后关系、可信目录解析、当前别名及有效投影，再重放地区与归并历史；地点回执还需与其当时版本和岗位归属一致。伪造来源地点、目录名称、投影或回执会被拒绝，现库保留。通过后原子替换，运行中任务恢复为已取消。当前没有 HTTP 恢复路由或 CLI 备份 / 恢复命令；集成方应通过可信应用代码调用，不应在服务运行时只复制主 SQLite 文件而遗漏 WAL。
 

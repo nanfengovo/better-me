@@ -2,6 +2,8 @@
 
 状态基线：2026-10-19。本文区分已实现、本轮建设与后续提案，作为 GitHub 首页的实施导航；不承诺日期。更早的完整愿景见 [产品规划草案](planning/betterme-product-roadmap-2026-10-16.md)，若其中旧顺序与本文不同，以当前“非 Agent 工作台优先”为准。
 
+2026-10-21 来源薪资核对切片：四项共享工具、认证HTTP、SQLite V5与网页逐字段依据／预览／确认／历史／撤销已实现；默认不估算未披露的保证计薪数量。保存和撤销后的详情、列表、筛选、排序、统计与地图采用同版有效薪资，原文与JD保留。合成验证、发布及真实服务范围见 [本批报告](reports/job-atlas-compensation-review-2026-10-21.md)。带出处FX快照管理和最终控股证据核对仍待实现。
+
 [返回首页](../README.md) · [部署与 CI/CD](deployment.md) · [模板目录](../templates/CATALOG.md) · [主题系统](reports/theme-system-2026-10-18.md)
 
 ## 实施原则
