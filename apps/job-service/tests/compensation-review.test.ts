@@ -185,13 +185,13 @@ test("salary confirmation survives canonical merge/split and source alias refres
 
 test("v4 databases and v1-v4 backups upgrade source salary without changing content or revision", async () => fixture(async (repo, path) => {
   const before = await repo.readSnapshot(); repo.close();
-  const db = new DatabaseSync(path); try { db.exec("DROP TRIGGER fx_snapshots_no_update; DROP TRIGGER fx_snapshots_no_delete; DROP TRIGGER fx_activations_no_update; DROP TRIGGER fx_activations_no_delete; DROP TABLE fx_activations; DROP TABLE fx_snapshots; DROP TRIGGER compensation_decisions_no_update; DROP TRIGGER compensation_decisions_no_delete; DROP TABLE compensation_decisions; DROP TABLE base_compensations; PRAGMA user_version=4;"); } finally { db.close(); }
+  const db = new DatabaseSync(path); try { db.exec("DROP TRIGGER company_control_decisions_no_update; DROP TRIGGER company_control_decisions_no_delete; DROP TABLE company_control_decisions; DROP TABLE base_companies; DROP TRIGGER fx_snapshots_no_update; DROP TRIGGER fx_snapshots_no_delete; DROP TRIGGER fx_activations_no_update; DROP TRIGGER fx_activations_no_delete; DROP TABLE fx_activations; DROP TABLE fx_snapshots; DROP TRIGGER compensation_decisions_no_update; DROP TRIGGER compensation_decisions_no_delete; DROP TABLE compensation_decisions; DROP TABLE base_compensations; PRAGMA user_version=4;"); } finally { db.close(); }
   const upgraded = openJobRepository(path, { now: () => LATER });
   try {
-    assert.deepEqual(await upgraded.readSnapshot(), before); const backup = await upgraded.backup(); assert.equal(backup.schemaVersion, 6); assert.deepEqual(backup.baseCompensations, before.compensations);
+    assert.deepEqual(await upgraded.readSnapshot(), before); const backup = await upgraded.backup(); assert.equal(backup.schemaVersion, 7); assert.deepEqual(backup.baseCompensations, before.compensations);
     for (const version of [1, 2, 3, 4] as const) {
       const { baseCompensations: _baseCompensations, compensationDecisions: _compensationDecisions, ...legacy } = structuredClone(backup);
-      const old: Record<string, unknown> = { ...legacy, schemaVersion: version };
+      const old: Record<string, unknown> = { ...legacy, schemaVersion: version }; delete old.baseCompanies; delete old.companyControlDecisions;
       if (version < 2) for (const field of ["baseJobs", "mergeDecisions", "aliasHistory", "jobVersions"]) delete old[field];
       if (version < 3) for (const field of ["baseLocations", "locationDecisions"]) delete old[field];
       if (version < 4) delete old.officeDecisions;

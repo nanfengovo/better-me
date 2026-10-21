@@ -24,6 +24,13 @@ import {
   type ReadFxStateInput, type PreviewFxImportInput, type ConfirmFxImportInput, type ActivateFxSnapshotInput,
 } from "@better-me/opportunities";
 import {
+  ReadCompanyControlReviewInputSchema, CompanyControlReviewReadResultSchema, PreviewCompanyControlReviewInputSchema,
+  CompanyControlReviewPreviewSchema, ConfirmCompanyControlReviewInputSchema, RevokeCompanyControlReviewInputSchema,
+  CompanyControlReviewReceiptSchema, applyCompanyControlReviewConfirmation, sameCompanyControlReviewValue, buildCompanyControlReviewMaterials,
+  type ReadCompanyControlReviewInput, type PreviewCompanyControlReviewInput, type ConfirmCompanyControlReviewInput,
+  type RevokeCompanyControlReviewInput, type CompanyControlReviewReadResult, type CompanyControlReviewProposal, type Company,
+} from "@better-me/opportunities";
+import {
   PreviewLocationConfirmationInputSchema, ConfirmLocationInputSchema, RevokeLocationConfirmationInputSchema,
   LocationConfirmationPreviewSchema, LocationConfirmationReceiptSchema,
   type PreviewLocationConfirmationInput, type ConfirmLocationInput, type RevokeLocationConfirmationInput,
@@ -176,6 +183,66 @@ function matchingCompensationHistory(result: CompensationReviewReadResult) {
   } catch { return false; }
 }
 
+function companyTimesBefore(company: Company, now: number) {
+  const notFuture = (value: string | undefined) => value === undefined || Date.parse(value) <= now;
+  const references = [...(company.legalEntity?.evidence ?? []), ...company.ultimateControllers.evidence,
+    ...company.manualOverrides.flatMap(override => override.field === "legalEntity" || override.field === "ultimateControllers" ? override.value.evidence : [])];
+  return notFuture(company.controlReview?.at) && references.every(reference => notFuture(reference.observedAt))
+    && company.manualOverrides.every(override => notFuture(override.at));
+}
+function matchingCompanyProposal(company: Company, proposal: CompanyControlReviewProposal) {
+  const marker = company.controlReview;
+  return marker?.method === "manual-evidence-review" && marker.status === proposal.status && marker.controlMode === proposal.controlMode
+    && Date.parse(marker.at) >= Math.max(...proposal.documents.map(document => Date.parse(document.retrievedAt)))
+    && marker.parentCompanyName === proposal.parentCompanyName && company.legalEntity?.value === proposal.legalEntityName
+    && company.legalEntity.method === "manual" && company.legalEntity.verification === "verified"
+    && company.ultimateControllers.method === "manual"
+    && company.ultimateControllers.verification === (proposal.status === "resolved" ? "verified" : proposal.status)
+    && sameCompanyControlReviewValue(company.ultimateControllers.value, proposal.controllers)
+    && proposal.supports.every(support => {
+      if (support.field === "parentCompanyName") return true;
+      const document = proposal.documents[support.documentIndex];
+      if (!document) return false;
+      return (support.field === "legalEntityName" ? company.legalEntity?.evidence : company.ultimateControllers.evidence)?.some(reference =>
+        reference.sourceUrl === document.sourceUrl && reference.observedAt === document.retrievedAt && reference.quote === support.quote);
+    });
+}
+async function matchingCompanyHistory(result: CompanyControlReviewReadResult) {
+  const seen = new Map<string, CompanyControlReviewReadResult["history"][number]>(), disabled = new Set<string>(), revoked = new Set<string>();
+  let revision = -1, at = -Infinity; const now = Date.now();
+  if (!companyTimesBefore(result.current, now) || !companyTimesBefore(result.sourceCompany, now)) return false;
+  for (const decision of result.history) {
+    if (seen.has(decision.id) || decision.revision <= revision || decision.revision > result.revision || Date.parse(decision.at) < at || Date.parse(decision.at) > now) return false;
+    revision = decision.revision; at = Date.parse(decision.at);
+    if (decision.kind === "invalidate") {
+      for (const id of decision.targetDecisionIds) { if (seen.get(id)?.kind !== "confirm" || disabled.has(id)) return false; disabled.add(id); }
+    } else {
+      if (decision.companyId !== result.companyId || decision.sourceCompany.id !== result.companyId
+        || decision.sourceBinding.job.id !== decision.jobId || decision.sourceBinding.job.companyId !== result.companyId
+        || !companyTimesBefore(decision.sourceCompany, Date.parse(decision.at))
+        || decision.sourceBinding.observations.some(observation => [observation.fetchedAt, observation.feedFetchedAt, observation.detailFetchedAt, observation.availabilityVerifiedAt].some(value => value && Date.parse(value) > Date.parse(decision.at)))
+        || decision.sourceBinding.snapshots.some(snapshot => Date.parse(snapshot.createdAt) > Date.parse(decision.at))) return false;
+      const references = [...(decision.sourceCompany.legalEntity?.evidence ?? []), ...decision.sourceCompany.ultimateControllers.evidence,
+        ...decision.sourceCompany.manualOverrides.flatMap(override => override.field === "legalEntity" || override.field === "ultimateControllers" ? override.value.evidence : [])];
+      if (references.some(reference => !decision.sourceBinding.observations.some(observation => observation.id === reference.observationId))) return false;
+      if (decision.kind === "confirm") {
+        const materials = await buildCompanyControlReviewMaterials(decision.proposal, { now: decision.at });
+        if (!sameCompanyControlReviewValue(materials, decision.materials)) return false;
+        applyCompanyControlReviewConfirmation(decision.sourceCompany, decision);
+      } else {
+        const target = seen.get(decision.targetDecisionId);
+        if (target?.kind !== "confirm" || target.actorScope !== decision.actorScope || revoked.has(target.id)) return false;
+        revoked.add(target.id); disabled.add(target.id);
+      }
+    }
+    seen.set(decision.id, decision);
+  }
+  const active = result.activeDecisionId ? seen.get(result.activeDecisionId) : undefined;
+  if (result.activeDecisionId && (active?.kind !== "confirm" || disabled.has(result.activeDecisionId))) return false;
+  return sameCompanyControlReviewValue(result.current, active?.kind === "confirm"
+    ? applyCompanyControlReviewConfirmation(result.sourceCompany, active) : result.sourceCompany);
+}
+
 export class AtlasSourceServiceError extends Error {
   constructor(readonly code: "invalid-input" | "invalid-response" | "too-large" | "http-error" | "transport-error" | typeof TOOL_ERROR_CODES[number], message: string, readonly status?: number) {
     super(message); this.name = "AtlasSourceServiceError";
@@ -251,6 +318,59 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
   }
   const sourcePath = (id: string) => `sources/${encodeURIComponent(input(EntityIdSchema, id))}`;
   return {
+    readCompanyControlReview: async (value: ReadCompanyControlReviewInput, options: Options = {}) => {
+      const query = input(ReadCompanyControlReviewInputSchema, value);
+      const result = await request("companies/control-review/read", CompanyControlReviewReadResultSchema, options, query);
+      let matches = false;
+      try { matches = await matchingCompanyHistory(result); } catch { /* Invalid archived evidence must not become a trusted current classification. */ }
+      options.signal?.throwIfAborted();
+      if (result.revision !== query.expectedRevision || result.jobId !== query.jobId || result.companyId !== query.companyId
+        || result.sourceCompany.id !== query.companyId || result.current.id !== query.companyId
+        || !result.affectedJobIds.includes(query.jobId) || result.current.controlReview?.decisionId !== result.activeDecisionId || !matches)
+        throw new AtlasSourceServiceError("invalid-response", "企业依据与本次岗位、企业、核对历史或版本不一致，请重新读取。");
+      return result;
+    },
+    previewCompanyControlReview: async (value: PreviewCompanyControlReviewInput, options: Options = {}) => {
+      const query = input(PreviewCompanyControlReviewInputSchema, value);
+      const result = await request("companies/control-review/preview", CompanyControlReviewPreviewSchema, options, query);
+      let matches = false;
+      try { await buildCompanyControlReviewMaterials(query.proposal); matches = sameCompanyControlReviewValue(result.proposed, applyCompanyControlReviewConfirmation(result.sourceCompany, {
+        id: "company-control-review-preview", companyId: query.companyId, sourceCompany: result.sourceCompany, proposal: query.proposal,
+        revision: query.expectedRevision, at: [...query.proposal.documents].sort((left, right) => Date.parse(right.retrievedAt) - Date.parse(left.retrievedAt))[0]!.retrievedAt,
+      })); } catch { /* Reject mismatched names, ownership, origins or source projections. */ }
+      options.signal?.throwIfAborted(); const now = Date.now();
+      if (result.expectedRevision !== query.expectedRevision || result.jobId !== query.jobId || result.companyId !== query.companyId
+        || [result.sourceCompany.id, result.current.id, result.proposed.id].some(id => id !== query.companyId)
+        || !result.affectedJobIds.includes(query.jobId) || result.current.controlReview?.decisionId !== result.activeDecisionId
+        || ![result.sourceCompany, result.current, result.proposed].every(company => companyTimesBefore(company, now))
+        || !matchingCompanyProposal(result.proposed, query.proposal) || !matches)
+        throw new AtlasSourceServiceError("invalid-response", "企业预览与本次原文、字段、企业或版本不一致，请重新预览。");
+      return result;
+    },
+    confirmCompanyControlReview: async (value: ConfirmCompanyControlReviewInput, options: WriteOptions) => {
+      const query = input(ConfirmCompanyControlReviewInputSchema, value);
+      const result = await request("companies/control-review/confirm", CompanyControlReviewReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
+      let materialsCurrent = true;
+      try { await buildCompanyControlReviewMaterials(query.proposal); } catch { materialsCurrent = false; }
+      options.signal?.throwIfAborted();
+      if (result.jobId !== query.jobId || result.companyId !== query.companyId || result.company.id !== query.companyId
+        || result.revision !== query.expectedRevision + 1 || result.activeDecisionId !== result.decisionId
+        || result.company.controlReview?.decisionId !== result.decisionId || !result.affectedJobIds.includes(query.jobId)
+        || result.company.ultimateControllers.revision !== result.revision || result.company.legalEntity?.revision !== result.revision
+        || !companyTimesBefore(result.company, Date.now()) || !materialsCurrent || !matchingCompanyProposal(result.company, query.proposal))
+        throw new AtlasSourceServiceError("invalid-response", "企业保存回执与本次逐字段核对不一致，请沿用原请求核对回执。");
+      return result;
+    },
+    revokeCompanyControlReview: async (value: RevokeCompanyControlReviewInput, options: WriteOptions) => {
+      const query = input(RevokeCompanyControlReviewInputSchema, value);
+      const result = await request("companies/control-review/revoke", CompanyControlReviewReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
+      if (result.jobId !== query.jobId || result.companyId !== query.companyId || result.company.id !== query.companyId
+        || result.revision !== query.expectedRevision + 1 || result.decisionId === query.decisionId
+        || result.activeDecisionId === query.decisionId || result.activeDecisionId !== result.company.controlReview?.decisionId
+        || !result.affectedJobIds.includes(query.jobId) || !companyTimesBefore(result.company, Date.now()))
+        throw new AtlasSourceServiceError("invalid-response", "企业撤销回执与本次决议或版本不一致，请沿用原请求核对回执。");
+      return result;
+    },
     readFxState: async (value: ReadFxStateInput = {}, options: Options = {}) => {
       const query = input(ReadFxStateInputSchema, value);
       const result = await request("fx/state", FxStateSchema, options, query);

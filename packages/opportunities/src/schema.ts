@@ -95,6 +95,14 @@ export const CompanyManualOverrideSchema = z.discriminatedUnion("field", [
   z.object({ ...OverrideMetadata, field: z.literal("parentCompanyIds"), value: uniqueArray(EntityIdSchema, 100) }).strict(),
 ]);
 export type CompanyManualOverride = z.infer<typeof CompanyManualOverrideSchema>;
+/** The user reviewed cited material; this is not certification by a publisher or regulator. */
+export const CompanyControlReviewMarkerSchema = z.object({
+  decisionId: EntityIdSchema, method: z.literal("manual-evidence-review"), at: TimestampSchema,
+  status: z.enum(["resolved", "unknown", "conflicting"]),
+  controlMode: z.enum(["single", "joint", "dispersed", "unknown"]),
+  parentCompanyName: z.string().trim().min(1).max(500).optional(),
+}).strict();
+export type CompanyControlReviewMarker = z.infer<typeof CompanyControlReviewMarkerSchema>;
 export const CompanySchema = z.object({
   id: EntityIdSchema,
   names: uniqueArray(z.string().trim().min(1).max(500), 100).refine((names) => names.length > 0, "A company requires at least one name."),
@@ -103,9 +111,25 @@ export const CompanySchema = z.object({
   parentCompanyIds: uniqueArray(EntityIdSchema, 100),
   ultimateControllers: CompanyControllersSchema,
   manualOverrides: z.array(CompanyManualOverrideSchema).max(1000),
+  controlReview: CompanyControlReviewMarkerSchema.optional(),
 }).strict().superRefine((company, context) => {
   if (company.parentCompanyIds.includes(company.id)) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["parentCompanyIds"], message: "A company cannot be its own parent." });
+  }
+  if (company.controlReview) {
+    const review = company.controlReview;
+    const controllers = company.ultimateControllers;
+    const verification = review.status === "resolved" ? "verified" : review.status;
+    if (controllers.method !== "manual" || controllers.verification !== verification || !controllers.evidence.length
+      || company.legalEntity?.method !== "manual" || company.legalEntity.verification !== "verified"
+      || review.status !== "resolved" && (review.controlMode !== "unknown" || controllers.value.length !== 0)
+      || review.status === "resolved" && (review.controlMode === "unknown"
+        || review.controlMode === "single" && controllers.value.length !== 1
+        || review.controlMode === "joint" && controllers.value.length < 2
+        || review.controlMode === "dispersed" && controllers.value.length !== 0)
+      || controllers.value.some(value => value.kind !== "state" && value.kind !== "private")) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["controlReview"], message: "A personal review must retain its evidence and explicit control mode; no-controller disclosures must not invent a controller." });
+    }
   }
 });
 export type Company = z.infer<typeof CompanySchema>;

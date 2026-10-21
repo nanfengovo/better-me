@@ -28,6 +28,7 @@ import { createLocationMapReferencesTool } from "./location-map-references.js";
 import { createOfficeAddressTools, type OfficeAddressProvider } from "./office-address.js";
 import { createAddressEnrichmentTool } from "./address-enrichment.js";
 import { createCompensationReviewTools } from "./compensation-review.js";
+import { createCompanyControlReviewTools } from "./company-control-review.js";
 import { createFxTools, type FxReferenceProvider } from "./fx.js";
 
 const emptyInput = z.object({}).strict();
@@ -140,6 +141,9 @@ export function createJobApplication(options: JobApplicationOptions) {
     ...(input.mapCityReferences ? { mapReferences: await mapReferenceTool.execute({ expectedRevision: (await repository.readSnapshot()).revision, limit: 1000 }, context) } : {}),
   }));
   const definitions: ToolDefinition<any, any>[] = [
+    ...createCompanyControlReviewTools(repository).map(definition => ({ ...definition,
+      ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
+      execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     ...createFxTools(repository, options.fxReferenceProvider).map(definition => ({ ...definition,
       ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
       execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),

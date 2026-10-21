@@ -28,6 +28,14 @@ import {
   buildFxImportPreview, validateFxReferenceSnapshot,
   type FxState, type FxQueryContext, type FxImportPreview, type FxMutationReceipt, type FxReferenceSnapshot,
   type ConfirmFxImportInput, type ActivateFxSnapshotInput,
+  CompanySchema, CompanyControlReviewDecisionSchema, CompanyControlReviewReadResultSchema, CompanyControlReviewPreviewSchema, CompanyControlReviewReceiptSchema,
+  ReadCompanyControlReviewInputSchema, PreviewCompanyControlReviewInputSchema, ConfirmCompanyControlReviewInputSchema, RevokeCompanyControlReviewInputSchema,
+  validateCompanyControlReviewProposal, captureCompanyControlReviewSourceBinding, projectCompanyControlReviews, getInvalidatedCompanyControlReviewIds,
+  stripCompanyControlReviewProjection, isCompanyControlReviewEntityId, buildCompanyControlReviewMaterials, validateCompanyControlReviewHistory,
+  applyCompanyControlReviewConfirmation, activeCompanyControlReviewDecision,
+  type CompanyControlReviewDecision, type CompanyControlReviewReadResult, type CompanyControlReviewPreview, type CompanyControlReviewReceipt,
+  type PreviewCompanyControlReviewInput,
+  type CompanyControlReviewSourceBinding,
 } from "@better-me/opportunities";
 import {
   ActorScopeSchema, IdempotencyKeySchema, SyncRunSchema, RunScopeSchema, PublicRunSummarySchema,
@@ -38,6 +46,7 @@ import {
   type DiscoveryLead, type DiscoveryLeadReceipt,
   REPOSITORY_MIGRATION_V5, COMPENSATION_DECISION_TRIGGERS,
   REPOSITORY_MIGRATION_V6, FX_TRIGGERS, FxActivationEventSchema, StoredFxSnapshotSchema, type FxActivationEvent, type StoredFxSnapshot,
+  REPOSITORY_MIGRATION_V7, COMPANY_CONTROL_DECISION_TRIGGERS,
 } from "./repository-schema.js";
 import { resolveLocationArea } from "./location-catalog.js";
 
@@ -115,10 +124,22 @@ function verifyContentHashes(dataset: AtlasDataset, errorCode: RepositoryErrorCo
   }
 }
 
+/** A review cannot archive source reads, citations or snapshots that have not happened yet. */
+function validateCompanyControlSourceTimes(company: Company, binding: CompanyControlReviewSourceBinding, at: string) {
+  const cutoff = Date.parse(at);
+  const overrides = company.manualOverrides.filter(value => value.field === "legalEntity" || value.field === "ultimateControllers");
+  const refs = [...company.legalEntity?.evidence ?? [], ...company.ultimateControllers.evidence,
+    ...overrides.flatMap(value => value.field === "legalEntity" || value.field === "ultimateControllers" ? value.value.evidence : [])];
+  const timestamps = [...refs.map(value => value.observedAt), ...overrides.map(value => value.at),
+    ...binding.observations.flatMap(value => [value.fetchedAt, value.feedFetchedAt, value.detailFetchedAt, value.availabilityVerifiedAt].filter((time): time is string => time !== undefined)),
+    ...binding.snapshots.map(value => value.createdAt)];
+  if (timestamps.some(value => Date.parse(value) > cutoff)) throw new Error("future-company-control-source-evidence");
+}
+
 /** Rebuild rates and command signatures from retained source JSON, not from derived backup fields. */
 async function verifyFxBackup(backup: RepositoryBackup, targetNow: string) {
   try {
-    const occupied = new Set([...backup.mergeDecisions, ...backup.locationDecisions, ...backup.officeDecisions, ...backup.compensationDecisions].map(value => value.revision));
+    const occupied = new Set([...backup.mergeDecisions, ...backup.locationDecisions, ...backup.officeDecisions, ...backup.compensationDecisions, ...backup.companyControlDecisions].map(value => value.revision));
     const snapshots = new Map(backup.fxSnapshots.map(value => [value.snapshot.fx.id, value]));
     for (const stored of backup.fxSnapshots) {
       if (stored.revision > backup.dataset.revision) throw new Error("invalid-fx-revision");
@@ -159,6 +180,62 @@ async function verifyFxBackup(backup: RepositoryBackup, targetNow: string) {
       if (saved.actorScope !== event.actorScope || saved.tool !== (event.kind === "import" ? "fx.confirm-import" : "fx.activate") || saved.signature !== signature({ input }) || !same(saved.response, response)) throw new Error("invalid-fx-receipt");
     }
     if (fxReceipts.length !== backup.fxActivations.length || backup.fxSnapshots.some(value => !createdSnapshots.has(value.snapshot.fx.id))) throw new Error("orphan-fx-history");
+  } catch { throw new RepositoryError("invalid-backup"); }
+}
+
+/** Rebuild review material and durable command results before opening a write transaction. */
+async function verifyCompanyControlBackup(backup: RepositoryBackup, base: AtlasDataset, targetNow: string) {
+  try {
+    const entries = backup.companyControlDecisions, cutoff = Date.parse(targetNow) < Date.parse(backup.createdAt) ? targetNow : backup.createdAt;
+    await validateCompanyControlReviewHistory(base, entries, { now: cutoff });
+    const other = [...backup.mergeDecisions, ...backup.locationDecisions, ...backup.officeDecisions, ...backup.compensationDecisions];
+    const savedReceipts = backup.receipts.filter(value => value.tool === "companies.confirm-control-review" || value.tool === "companies.revoke-control-review");
+    const historicalBase = (entry: Exclude<CompanyControlReviewDecision, { kind: "invalidate" }>): AtlasDataset => checked(AtlasDatasetSchema, {
+      ...base, companies: base.companies.map(company => company.id === entry.companyId ? entry.sourceCompany : company),
+      jobs: base.jobs.map(job => job.id === entry.jobId ? { ...job, companyId: entry.companyId } : job),
+      listings: base.listings.map(listing => { const saved = entry.sourceBinding.listings.find(value => value.id === listing.id); if (!saved) return listing;
+        const { sourceRecordId: _record, canonicalUrl: _canonical, applicationUrl: _application, ...retained } = listing;
+        return { ...retained, ...saved, observationIds: union(listing.observationIds, entry.sourceBinding.observations.filter(value => value.listingId === listing.id).map(value => value.id)) };
+      }),
+      observations: [...base.observations.filter(value => !entry.sourceBinding.observations.some(archived => archived.id === value.id)), ...entry.sourceBinding.observations],
+      snapshots: [...base.snapshots.filter(value => !entry.sourceBinding.snapshots.some(archived => archived.id === value.id)), ...entry.sourceBinding.snapshots],
+    }, "invalid-backup");
+    for (const entry of entries) {
+      if (entry.revision < 1 || other.some(value => value.id === entry.id || value.revision === entry.revision && !(value.kind === "invalidate" && entry.kind === "invalidate"))) throw new Error("invalid-company-control-revision");
+      if (entry.kind === "invalidate") continue;
+      if (!base.companies.some(company => company.id === entry.companyId) || !base.jobs.some(job => job.id === entry.jobId && job.companyId === entry.companyId)
+        || entry.affectedJobIds.some(id => !base.jobs.some(job => job.id === id && job.companyId === entry.companyId))) throw new Error("invalid-company-control-scope");
+      validateCompanyControlSourceTimes(entry.sourceCompany, entry.sourceBinding, entry.at);
+      for (const observation of entry.sourceBinding.observations) {
+        const retained = base.observations.find(value => value.id === observation.id);
+        if (!retained || !same(retained, observation) || Date.parse(observation.fetchedAt) > Date.parse(entry.at)) throw new Error("invalid-company-control-archived-observation");
+      }
+      for (const snapshot of entry.sourceBinding.snapshots) {
+        if (!same(base.snapshots.find(value => value.id === snapshot.id), snapshot)) throw new Error("invalid-company-control-archived-snapshot");
+      }
+      verifyContentHashes({ ...base, observations: entry.sourceBinding.observations, snapshots: entry.sourceBinding.snapshots }, "invalid-backup");
+      const thenBase = historicalBase(entry);
+      if (!same(captureCompanyControlReviewSourceBinding(thenBase, { jobId: entry.jobId, companyId: entry.companyId, sourceCompany: entry.sourceCompany }), entry.sourceBinding)) throw new Error("invalid-company-control-source-binding");
+      const matches = savedReceipts.filter(saved => CompanyControlReviewReceiptSchema.parse(saved.response).decisionId === entry.id);
+      if (matches.length !== 1) throw new Error("missing-company-control-receipt");
+      const saved = matches[0]!, response = CompanyControlReviewReceiptSchema.parse(saved.response), tool = entry.kind === "confirm" ? "companies.confirm-control-review" : "companies.revoke-control-review";
+      const common = { jobId: entry.jobId, companyId: entry.companyId, expectedRevision: entry.revision - 1, reason: entry.reason };
+      const previewInput = entry.kind === "confirm" ? { ...common, proposal: entry.proposal } : undefined;
+      const input = entry.kind === "confirm" ? { ...previewInput, reviewed: true, previewFingerprint: signature({ input: previewInput, sourceCompany: entry.sourceCompany, sourceBinding: entry.sourceBinding }) }
+        : { ...common, decisionId: entry.targetDecisionId, reviewed: true };
+      const prefix = entries.filter(value => value.revision <= entry.revision);
+      const company = entry.kind === "confirm" ? applyCompanyControlReviewConfirmation(entry.sourceCompany, entry) : projectCompanyControlReviews(thenBase, prefix).companies.find(value => value.id === entry.companyId)!;
+      const active = entry.kind === "confirm" ? entry : activeCompanyControlReviewDecision(thenBase, prefix, entry.companyId);
+      const expected = { ok: true, revision: entry.revision, jobId: entry.jobId, companyId: entry.companyId, decisionId: entry.id, ...(active ? { activeDecisionId: active.id } : {}), company, affectedJobIds: entry.affectedJobIds };
+      if (saved.actorScope !== entry.actorScope || saved.tool !== tool || saved.signature !== signature({ input }) || !same(response, expected)
+        || Date.parse(saved.createdAt) < Date.parse(entry.at) || Date.parse(saved.createdAt) > Date.parse(cutoff)) throw new Error("invalid-company-control-receipt");
+    }
+    if (savedReceipts.length !== entries.filter(value => value.kind !== "invalidate").length) throw new Error("orphan-company-control-receipt");
+    const projected = projectCompanyControlReviews(base, entries);
+    for (const table of ["companies", "sources", "listings", "observations"] as const) {
+      const sorted = (values: readonly unknown[]) => [...values].filter(value => table === "companies" || isCompanyControlReviewEntityId(sourceIdOrId(table, value))).sort((left, right) => compareIds(sourceIdOrId(table, left), sourceIdOrId(table, right)));
+      if (!same(sorted(projected[table]), sorted(backup.dataset[table]))) throw new Error("invalid-company-control-projection");
+    }
   } catch { throw new RepositoryError("invalid-backup"); }
 }
 
@@ -252,6 +329,11 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       try { db.exec(REPOSITORY_MIGRATION_V6); db.exec(FX_TRIGGERS); db.exec("PRAGMA user_version=6; COMMIT;"); }
       catch (error) { db.exec("ROLLBACK"); throw error; }
     }
+    if (version < 7) {
+      db.exec("BEGIN IMMEDIATE");
+      try { db.exec(REPOSITORY_MIGRATION_V7); db.exec(COMPANY_CONTROL_DECISION_TRIGGERS); db.exec("PRAGMA user_version=7; COMMIT;"); }
+      catch (error) { db.exec("ROLLBACK"); throw error; }
+    }
     db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;");
     // Opening a file with a matching user_version is not sufficient proof of this schema.
     db.prepare("SELECT value FROM metadata WHERE key='revision'").get();
@@ -265,6 +347,8 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     db.prepare("SELECT id,revision,document FROM compensation_decisions LIMIT 0").all();
     db.prepare("SELECT id,revision,document FROM fx_snapshots LIMIT 0").all();
     db.prepare("SELECT id,revision,document FROM fx_activations LIMIT 0").all();
+    db.prepare("SELECT id,document FROM base_companies LIMIT 0").all();
+    db.prepare("SELECT id,revision,document FROM company_control_decisions LIMIT 0").all();
     const check = db.prepare("PRAGMA quick_check").get() as Record<string, unknown>;
     if (Object.values(check)[0] !== "ok") throw new RepositoryError("storage-error");
   } catch (error) { db.close(); throw error instanceof RepositoryError ? error : new RepositoryError("storage-error"); }
@@ -291,7 +375,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     if (row.signature !== expectedSignature) throw new RepositoryError("idempotency-conflict");
     return JSON.parse(row.response) as T;
   }
-  function saveReceipt(actorScope: string, tool: string, idempotencyKey: string, requestSignature: string, result: ImportReceipt | SyncRun | DiscoveryLeadReceipt | ReconciliationReceipt | LocationConfirmationReceipt | OfficeAddressReceipt | CompensationReviewReceipt | FxMutationReceipt) {
+  function saveReceipt(actorScope: string, tool: string, idempotencyKey: string, requestSignature: string, result: ImportReceipt | SyncRun | DiscoveryLeadReceipt | ReconciliationReceipt | LocationConfirmationReceipt | OfficeAddressReceipt | CompensationReviewReceipt | FxMutationReceipt | CompanyControlReviewReceipt) {
     db.prepare("INSERT INTO receipts(actor_scope,tool,idempotency_key,signature,response,created_at) VALUES (?,?,?,?,?,?)").run(actorScope, tool, idempotencyKey, requestSignature, json(result), now());
   }
   function runById(runId: string): SyncRun | undefined {
@@ -322,6 +406,9 @@ export function openJobRepository(path: string, options: { now?: () => string } 
   }
   function compensationDecisions(): CompensationReviewDecision[] {
     return (db.prepare("SELECT document FROM compensation_decisions ORDER BY revision").all() as Array<{ document: string }>).map(row => checked(CompensationReviewDecisionSchema, JSON.parse(row.document)));
+  }
+  function companyControlDecisions(): CompanyControlReviewDecision[] {
+    return (db.prepare("SELECT document FROM company_control_decisions ORDER BY revision").all() as Array<{ document: string }>).map(row => checked(CompanyControlReviewDecisionSchema, JSON.parse(row.document)));
   }
   function fxSnapshots(): StoredFxSnapshot[] {
     return (db.prepare("SELECT revision,document FROM fx_snapshots ORDER BY revision").all() as Array<{ revision: number; document: string }>).map(row => checked(StoredFxSnapshotSchema, { revision: row.revision, snapshot: JSON.parse(row.document) }));
@@ -374,7 +461,8 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     const owner = new Map(jobs.flatMap((job) => job.listingIds.map((id) => [id, job.id] as const)));
     const locations = (db.prepare("SELECT document FROM base_locations ORDER BY id").all() as Array<{ document: string }>).map(row => checked(JobLocationSchema, JSON.parse(row.document)));
     const compensations = (db.prepare("SELECT document FROM base_compensations ORDER BY id").all() as Array<{ document: string }>).map(row => checked(CompensationSchema, JSON.parse(row.document)));
-    return checked(AtlasDatasetSchema, { ...current, jobs, locations, compensations, listings: current.listings.map((listing) => ({ ...listing, ...(owner.has(listing.id) ? { canonicalJobId: owner.get(listing.id) } : {}) })) });
+    const companies = (db.prepare("SELECT document FROM base_companies ORDER BY id").all() as Array<{ document: string }>).map(row => checked(CompanySchema, JSON.parse(row.document)));
+    return checked(AtlasDatasetSchema, stripCompanyControlReviewProjection({ ...current, companies, jobs, locations, compensations, listings: current.listings.map((listing) => ({ ...listing, ...(owner.has(listing.id) ? { canonicalJobId: owner.get(listing.id) } : {}) })) }, companyControlDecisions()));
   }
   function writeBaseJobs(jobs: readonly CanonicalJob[], replace = false) {
     if (replace) db.exec("DELETE FROM base_jobs");
@@ -391,10 +479,17 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     if (replace) db.exec("DELETE FROM base_compensations");
     for (const compensation of compensations) db.prepare("INSERT INTO base_compensations(id,document) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document").run(compensation.id, json(compensation));
   }
-  function canonicalProjection(base: AtlasDataset, current: AtlasDataset, entries: readonly MergeDecision[], changedAt: string, locationEntries = locationDecisions(), officeEntries = officeDecisions(), compensationEntries = compensationDecisions()) {
-    const projection = projectReconciliation(projectCompensationReviews(projectOfficeAddressConfirmations(projectLocationConfirmations(base, locationEntries), officeEntries), compensationEntries), entries);
+  function writeBaseCompanies(companies: readonly Company[], replace = false) {
+    if (replace) db.exec("DELETE FROM base_companies");
+    for (const company of companies) {
+      if (company.controlReview) throw new RepositoryError("conflict");
+      db.prepare("INSERT INTO base_companies(id,document) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document").run(company.id, json(company));
+    }
+  }
+  function canonicalProjection(base: AtlasDataset, current: AtlasDataset, entries: readonly MergeDecision[], changedAt: string, locationEntries = locationDecisions(), officeEntries = officeDecisions(), compensationEntries = compensationDecisions(), companyEntries = companyControlDecisions()) {
+    const projection = projectReconciliation(projectCompanyControlReviews(projectCompensationReviews(projectOfficeAddressConfirmations(projectLocationConfirmations(base, locationEntries), officeEntries), compensationEntries), companyEntries), entries);
     const old = new Map(current.jobs.map((job) => [job.id, job]));
-    const body = (job: CanonicalJob, dataset: AtlasDataset) => { const { revision: _revision, updatedAt: _updatedAt, ...value } = job; return { job: value, locations: job.locationIds.map(id => dataset.locations.find(location => location.id === id)), compensations: job.compensationIds.map(id => dataset.compensations.find(compensation => compensation.id === id)) }; };
+    const body = (job: CanonicalJob, dataset: AtlasDataset) => { const { revision: _revision, updatedAt: _updatedAt, ...value } = job; return { job: value, company: dataset.companies.find(company => company.id === job.companyId), locations: job.locationIds.map(id => dataset.locations.find(location => location.id === id)), compensations: job.compensationIds.map(id => dataset.compensations.find(compensation => compensation.id === id)) }; };
     projection.dataset.jobs = projection.dataset.jobs.map((job) => {
       const previous = old.get(job.id);
       if (!previous && !db.prepare("SELECT job_id FROM job_versions WHERE job_id=?").get(job.id)) return job;
@@ -428,6 +523,19 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     }
   }
   function write(dataset: AtlasDataset, replace = false) {
+    const obsoleteMaterials = { sources: [] as string[], listings: [] as string[], observations: [] as string[] };
+    if (!replace) {
+      for (const table of ["sources", "listings", "observations"] as const) {
+        const retained = new Set(dataset[table].map(value => sourceIdOrId(table, value)));
+        obsoleteMaterials[table] = (db.prepare(`SELECT id FROM ${table} WHERE id GLOB 'company-control-review-*'`).all() as Array<{ id: string }>).map(row => row.id).filter(id => isCompanyControlReviewEntityId(id) && !retained.has(id));
+      }
+      if (Object.values(obsoleteMaterials).some(ids => ids.length)) {
+        const previous = read();
+        // Only exact, reproducible review projections can leave the public index. Their
+        // complete raw documents remain immutable in company_control_decisions.
+        stripCompanyControlReviewProjection(previous, companyControlDecisions().filter(entry => entry.revision <= previous.revision));
+      }
+    }
     if (replace) {
       db.exec("DROP TRIGGER observations_no_update; DROP TRIGGER observations_no_delete; DROP TRIGGER snapshots_no_update; DROP TRIGGER snapshots_no_delete;");
       db.exec("DELETE FROM job_locations; DELETE FROM job_compensations; DELETE FROM job_listings; DELETE FROM listing_observations; DELETE FROM location_rtree; DELETE FROM location_rtree_ids; DELETE FROM jobs_fts; DELETE FROM discovery_leads;");
@@ -456,6 +564,9 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       } else db.prepare(`INSERT INTO ${table}(id,document) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document`).run(id, document);
     }
     db.exec("DELETE FROM job_locations; DELETE FROM job_compensations; DELETE FROM job_listings; DELETE FROM listing_observations; DELETE FROM location_rtree; DELETE FROM location_rtree_ids; DELETE FROM jobs_fts;");
+    if (obsoleteMaterials.observations.length) db.exec("DROP TRIGGER observations_no_delete;");
+    for (const table of ["observations", "listings", "sources"] as const) for (const id of obsoleteMaterials[table]) db.prepare(`DELETE FROM ${table} WHERE id=?`).run(id);
+    if (obsoleteMaterials.observations.length) db.exec("CREATE TRIGGER observations_no_delete BEFORE DELETE ON observations BEGIN SELECT RAISE(ABORT,'immutable-observation'); END;");
     const activeJobIds = new Set(dataset.jobs.map((job) => job.id));
     for (const row of db.prepare("SELECT id FROM jobs").all() as Array<{ id: string }>) if (!activeJobIds.has(row.id)) db.prepare("DELETE FROM jobs WHERE id=?").run(row.id);
     for (const job of dataset.jobs) db.prepare("INSERT INTO job_versions VALUES (?,?) ON CONFLICT(job_id) DO UPDATE SET revision=MAX(revision,excluded.revision)").run(job.id, job.revision);
@@ -692,6 +803,60 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     saveReceipt(options.actorScope, tool, options.idempotencyKey, requestSignature, result);
     return result;
   }
+  function companyControlTarget(current: AtlasDataset, jobId: string, companyId: string) {
+    const base = baseSnapshot(current), sourceCompany = base.companies.find(value => value.id === companyId);
+    const owner = base.jobs.find(value => value.id === jobId), job = current.jobs.find(value => value.id === aliasId(jobId));
+    if (!sourceCompany || !owner || owner.companyId !== companyId || !job || !owner.listingIds.every(id => job.listingIds.includes(id))) throw new RepositoryError("not-found");
+    return { base, sourceCompany, owner, job };
+  }
+  function activeCompanyControlDecision(base: AtlasDataset, entries: readonly CompanyControlReviewDecision[], companyId: string) {
+    const inactive = new Set(entries.flatMap(entry => entry.kind === "revoke" ? [entry.targetDecisionId] : entry.kind === "invalidate" ? entry.targetDecisionIds : []));
+    for (const id of getInvalidatedCompanyControlReviewIds(base, entries)) inactive.add(id);
+    return [...entries].reverse().find((entry): entry is Extract<CompanyControlReviewDecision, { kind: "confirm" }> => entry.kind === "confirm" && entry.companyId === companyId && !inactive.has(entry.id));
+  }
+  function affectedCompanyJobs(dataset: AtlasDataset, companyId: string) { return dataset.jobs.filter(value => value.companyId === companyId).map(value => value.id).sort(compareIds); }
+  function prepareCompanyControl(input: PreviewCompanyControlReviewInput, current: AtlasDataset) {
+    if (current.revision !== input.expectedRevision) throw new RepositoryError("stale-version");
+    const target = companyControlTarget(current, input.jobId, input.companyId);
+    let proposed: Company;
+    try {
+      if (input.proposal.documents.some(value => Date.parse(value.retrievedAt) > Date.parse(now()))) throw new Error("future-evidence");
+      proposed = validateCompanyControlReviewProposal(target.base, { jobId: target.owner.id, companyId: input.companyId, sourceCompany: target.sourceCompany, proposal: input.proposal });
+    } catch { throw new RepositoryError("invalid-data"); }
+    const active = activeCompanyControlDecision(target.base, companyControlDecisions(), input.companyId);
+    const sourceBinding = captureCompanyControlReviewSourceBinding(target.base, { jobId: target.owner.id, companyId: input.companyId, sourceCompany: target.sourceCompany });
+    try { validateCompanyControlSourceTimes(target.sourceCompany, sourceBinding, now()); } catch { throw new RepositoryError("invalid-data"); }
+    const preview = checked(CompanyControlReviewPreviewSchema, { expectedRevision: current.revision, previewFingerprint: signature({ input, sourceCompany: target.sourceCompany, sourceBinding }),
+      jobId: input.jobId, companyId: input.companyId, sourceCompany: target.sourceCompany, current: current.companies.find(value => value.id === input.companyId)!, proposed,
+      affectedJobIds: affectedCompanyJobs(target.base, input.companyId), ...(active ? { activeDecisionId: active.id } : {}), warnings: [
+        "这是本人对所引用原文的核对，不表示发布机构或官方认证；办公地点和品牌印象不证明最终控股来源。",
+        "核对仅应用于同一公司标识的岗位，来源身份或相关证据变化会永久停用；新增同公司岗位不导致失效。",
+        "原始公司资料和旧手工覆盖保留，撤销仅恢复仍适用的前次核对或来源分类。",
+      ] });
+    return { preview, target, sourceBinding };
+  }
+  function companyControlReceipt(tool: "companies.confirm-control-review" | "companies.revoke-control-review", input: unknown, options: ReconciliationWriteOptions) {
+    validateOptions(options);
+    const parsed = tool === "companies.confirm-control-review" ? checked(ConfirmCompanyControlReviewInputSchema, input) : checked(RevokeCompanyControlReviewInputSchema, input);
+    if (parsed.expectedRevision !== options.expectedRevision) throw new RepositoryError("invalid-data");
+    const saved = receipt<CompanyControlReviewReceipt>(options.actorScope, tool, options.idempotencyKey, signature({ input: parsed }));
+    return saved ? checked(CompanyControlReviewReceiptSchema, saved) : undefined;
+  }
+  function commitCompanyControl(current: AtlasDataset, entry: Exclude<CompanyControlReviewDecision, { kind: "invalidate" }>, options: ReconciliationWriteOptions, tool: string, requestSignature: string, requestedJobId: string): CompanyControlReviewReceipt {
+    options.throwIfCancelled?.();
+    try { validateCompanyControlSourceTimes(entry.sourceCompany, entry.sourceBinding, entry.at); } catch { throw new RepositoryError("invalid-data"); }
+    const entries = [...companyControlDecisions(), entry], base = { ...baseSnapshot(current), revision: entry.revision };
+    const projection = canonicalProjection(base, current, decisions(), entry.at, locationDecisions(), officeDecisions(), compensationDecisions(), entries);
+    projection.dataset.revision = entry.revision;
+    db.prepare("INSERT INTO company_control_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
+    write(projection.dataset);
+    const active = activeCompanyControlDecision(base, entries, entry.companyId);
+    const result = checked(CompanyControlReviewReceiptSchema, { ok: true, revision: entry.revision, jobId: requestedJobId, companyId: entry.companyId, decisionId: entry.id,
+      ...(active ? { activeDecisionId: active.id } : {}), company: projection.dataset.companies.find(value => value.id === entry.companyId)!, affectedJobIds: entry.affectedJobIds });
+    saveReceipt(options.actorScope, tool, options.idempotencyKey, requestSignature, result);
+    options.throwIfCancelled?.();
+    return result;
+  }
 
   return {
     async readSnapshot(): Promise<AtlasDataset> { return transaction(read); },
@@ -759,6 +924,61 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     },
     /** Ingestion-only origins: never use this view for map totals or user-facing search. */
     async readProjectionSnapshot(): Promise<AtlasDataset> { return transaction(() => baseSnapshot()); },
+    async readCompanyControlReview(input: unknown): Promise<CompanyControlReviewReadResult> {
+      const parsed = checked(ReadCompanyControlReviewInputSchema, input);
+      return transaction(() => {
+        const current = read(); if (current.revision !== parsed.expectedRevision) throw new RepositoryError("stale-version");
+        const target = companyControlTarget(current, parsed.jobId, parsed.companyId), entries = companyControlDecisions(), active = activeCompanyControlDecision(target.base, entries, parsed.companyId);
+        const ids = new Set(entries.filter(entry => entry.kind !== "invalidate" && entry.companyId === parsed.companyId).map(entry => entry.id));
+        return checked(CompanyControlReviewReadResultSchema, { schemaVersion: 1, revision: current.revision, jobId: parsed.jobId, companyId: parsed.companyId, sourceCompany: target.sourceCompany,
+          current: current.companies.find(value => value.id === parsed.companyId)!, affectedJobIds: affectedCompanyJobs(target.base, parsed.companyId), ...(active ? { activeDecisionId: active.id } : {}),
+          history: entries.filter(entry => entry.kind === "invalidate" ? entry.targetDecisionIds.some(id => ids.has(id)) : entry.companyId === parsed.companyId)
+            .map(entry => entry.kind === "invalidate" ? { ...entry, targetDecisionIds: entry.targetDecisionIds.filter(id => ids.has(id)) } : entry) });
+      });
+    },
+    async previewCompanyControlReview(input: unknown): Promise<CompanyControlReviewPreview> {
+      const parsed = checked(PreviewCompanyControlReviewInputSchema, input);
+      return transaction(() => prepareCompanyControl(parsed, read()).preview);
+    },
+    async findCompanyControlReviewReceipt(tool: "companies.confirm-control-review" | "companies.revoke-control-review", input: unknown, options: ReconciliationWriteOptions): Promise<CompanyControlReviewReceipt | undefined> {
+      return transaction(() => companyControlReceipt(tool, input, options));
+    },
+    async confirmCompanyControlReview(input: unknown, options: ReconciliationWriteOptions): Promise<CompanyControlReviewReceipt> {
+      validateOptions(options); const parsed = checked(ConfirmCompanyControlReviewInputSchema, input);
+      if (options.expectedRevision !== parsed.expectedRevision) throw new RepositoryError("invalid-data");
+      const cached = transaction(() => companyControlReceipt("companies.confirm-control-review", parsed, options)); if (cached) return cached;
+      options.throwIfCancelled?.();
+      let materials: Awaited<ReturnType<typeof buildCompanyControlReviewMaterials>>;
+      try { materials = await buildCompanyControlReviewMaterials(parsed.proposal, { now: now() }); } catch { throw new RepositoryError("invalid-data"); }
+      return transaction(() => {
+        const saved = companyControlReceipt("companies.confirm-control-review", parsed, options); if (saved) return saved;
+        const current = read(); assertWriteVersion(options, current);
+        const { reviewed: _reviewed, previewFingerprint, ...previewInput } = parsed, { preview, target, sourceBinding } = prepareCompanyControl(previewInput, current);
+        if (preview.previewFingerprint !== previewFingerprint) throw new RepositoryError("stale-version");
+        const entry = checked(CompanyControlReviewDecisionSchema, { id: `company-control-confirm_${randomUUID()}`, kind: "confirm", jobId: target.owner.id, companyId: parsed.companyId,
+          sourceCompany: target.sourceCompany, sourceBinding, proposal: parsed.proposal, materials, affectedJobIds: affectedCompanyJobs(target.base, parsed.companyId), actorScope: options.actorScope, at: now(), revision: current.revision + 1, reason: parsed.reason });
+        if (entry.kind === "invalidate") throw new RepositoryError("invalid-data");
+        return commitCompanyControl(current, entry, options, "companies.confirm-control-review", signature({ input: parsed }), parsed.jobId);
+      });
+    },
+    async revokeCompanyControlReview(input: unknown, options: ReconciliationWriteOptions): Promise<CompanyControlReviewReceipt> {
+      validateOptions(options); const parsed = checked(RevokeCompanyControlReviewInputSchema, input);
+      if (options.expectedRevision !== parsed.expectedRevision) throw new RepositoryError("invalid-data");
+      return transaction(() => {
+        const cached = companyControlReceipt("companies.revoke-control-review", parsed, options); if (cached) return cached;
+        const current = read(); assertWriteVersion(options, current);
+        const entries = companyControlDecisions(), prior = entries.find(value => value.id === parsed.decisionId);
+        if (!prior || prior.kind !== "confirm" || prior.companyId !== parsed.companyId) throw new RepositoryError("not-found");
+        if (prior.actorScope !== options.actorScope) throw new RepositoryError("not-authorized");
+        if (entries.some(value => value.kind === "revoke" && value.targetDecisionId === prior.id)) throw new RepositoryError("conflict");
+        const target = companyControlTarget(current, parsed.jobId, parsed.companyId);
+        const entry = checked(CompanyControlReviewDecisionSchema, { id: `company-control-revoke_${randomUUID()}`, kind: "revoke", jobId: target.owner.id, companyId: parsed.companyId,
+          sourceCompany: target.sourceCompany, sourceBinding: captureCompanyControlReviewSourceBinding(target.base, { jobId: target.owner.id, companyId: parsed.companyId, sourceCompany: target.sourceCompany }),
+          affectedJobIds: affectedCompanyJobs(target.base, parsed.companyId), actorScope: options.actorScope, at: now(), revision: current.revision + 1, reason: parsed.reason, targetDecisionId: prior.id });
+        if (entry.kind === "invalidate") throw new RepositoryError("invalid-data");
+        return commitCompanyControl(current, entry, options, "companies.revoke-control-review", signature({ input: parsed }), parsed.jobId);
+      });
+    },
     async readCompensationReview(input: unknown): Promise<CompensationReviewReadResult> {
       const parsed = checked(ReadCompensationReviewInputSchema, input);
       return transaction(() => {
@@ -928,6 +1148,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       validateOptions(importOptions);
       const incoming = checked(AtlasDatasetObjectSchema, input);
       if (incoming.locations.some(location => location.userResolution || location.officeResolution)) throw new RepositoryError("conflict");
+      if (incoming.companies.some(company => company.controlReview) || TABLES.some(table => incoming[table].some(value => isCompanyControlReviewEntityId(sourceIdOrId(table, value))))) throw new RepositoryError("conflict");
       const requestSignature = signature({ ...(importOptions.requestFingerprint === undefined ? { input: incoming } : { requestFingerprint: importOptions.requestFingerprint }), expectedRevision: importOptions.expectedRevision, runId: importOptions.runId });
       return transaction(() => {
         const cached = receipt<ImportReceipt>(importOptions.actorScope, "dataset.import", importOptions.idempotencyKey, requestSignature);
@@ -955,8 +1176,11 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const invalidatedCompensationIds = getInvalidatedCompensationReviewIds(nextBase, priorCompensation);
         const compensationInvalidation: CompensationReviewDecision | undefined = invalidatedCompensationIds.length ? { id: `compensation-invalidate_${randomUUID()}`, kind: "invalidate", actorScope: importOptions.actorScope,
           at: now(), revision: current.revision + 1, reason: "source-changed", targetDecisionIds: invalidatedCompensationIds } : undefined;
-        if (invalidation || compensationInvalidation) nextBase.revision = current.revision + 1;
-        const projection = canonicalProjection(nextBase, current, decisions(), now(), locationDecisions(), [...priorOffice, ...(invalidation ? [invalidation] : [])], [...priorCompensation, ...(compensationInvalidation ? [compensationInvalidation] : [])]);
+        const priorCompany = companyControlDecisions(), invalidatedCompanyIds = getInvalidatedCompanyControlReviewIds(nextBase, priorCompany);
+        const companyInvalidation: CompanyControlReviewDecision | undefined = invalidatedCompanyIds.length ? { id: `company-control-invalidate_${randomUUID()}`, kind: "invalidate", actorScope: importOptions.actorScope,
+          at: now(), revision: current.revision + 1, reason: "source-changed", targetDecisionIds: invalidatedCompanyIds } : undefined;
+        if (invalidation || compensationInvalidation || companyInvalidation) nextBase.revision = current.revision + 1;
+        const projection = canonicalProjection(nextBase, current, decisions(), now(), locationDecisions(), [...priorOffice, ...(invalidation ? [invalidation] : [])], [...priorCompensation, ...(compensationInvalidation ? [compensationInvalidation] : [])], [...priorCompany, ...(companyInvalidation ? [companyInvalidation] : [])]);
         const next = projection.dataset;
         const changed = TABLES.some((table) => !same(base[table], nextBase[table])) || TABLES.some((table) => !same(current[table], next[table]));
         next.revision = current.revision + Number(changed);
@@ -966,7 +1190,8 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         if (changed) {
           if (invalidation) db.prepare("INSERT INTO office_decisions VALUES (?,?,?)").run(invalidation.id, invalidation.revision, json(invalidation));
           if (compensationInvalidation) db.prepare("INSERT INTO compensation_decisions VALUES (?,?,?)").run(compensationInvalidation.id, compensationInvalidation.revision, json(compensationInvalidation));
-          writeBaseJobs(nextBase.jobs); writeBaseLocations(nextBase.locations); writeBaseCompensations(nextBase.compensations); write(next); saveAliases(projection.aliases, next.revision, now());
+          if (companyInvalidation) db.prepare("INSERT INTO company_control_decisions VALUES (?,?,?)").run(companyInvalidation.id, companyInvalidation.revision, json(companyInvalidation));
+          writeBaseJobs(nextBase.jobs); writeBaseLocations(nextBase.locations); writeBaseCompensations(nextBase.compensations); writeBaseCompanies(nextBase.companies); write(next); saveAliases(projection.aliases, next.revision, now());
         }
         saveReceipt(importOptions.actorScope, "dataset.import", importOptions.idempotencyKey, requestSignature, result);
         return result;
@@ -983,7 +1208,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     async readReconciliationState() {
       return transaction(() => {
         const dataset = read();
-        return { dataset, originDataset: projectCompensationReviews(projectOfficeAddressConfirmations(projectLocationConfirmations(baseSnapshot(dataset), locationDecisions()), officeDecisions()), compensationDecisions()), decisions: decisions(), aliases: (db.prepare("SELECT job_id,canonical_job_id FROM job_aliases ORDER BY job_id").all() as Array<{ job_id: string; canonical_job_id: string }>).map(row => ({ jobId: row.job_id, canonicalJobId: row.canonical_job_id })) };
+        return { dataset, originDataset: projectCompanyControlReviews(projectCompensationReviews(projectOfficeAddressConfirmations(projectLocationConfirmations(baseSnapshot(dataset), locationDecisions()), officeDecisions()), compensationDecisions()), companyControlDecisions()), decisions: decisions(), aliases: (db.prepare("SELECT job_id,canonical_job_id FROM job_aliases ORDER BY job_id").all() as Array<{ job_id: string; canonical_job_id: string }>).map(row => ({ jobId: row.job_id, canonicalJobId: row.canonical_job_id })) };
       });
     },
     /** Recover a lost reviewed-command receipt before checking its now-stale preview revision. */
@@ -1081,6 +1306,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     async registerSource(input: unknown, registerOptions: Omit<ImportOptions, "runId">): Promise<ImportReceipt> {
       validateOptions(registerOptions);
       const source = checked(SourceDefinitionSchema, input);
+      if (isCompanyControlReviewEntityId(source.sourceId)) throw new RepositoryError("conflict");
       const requestSignature = signature({ source, expectedRevision: registerOptions.expectedRevision });
       return transaction(() => {
         const cached = receipt<ImportReceipt>(registerOptions.actorScope, "sources.register", registerOptions.idempotencyKey, requestSignature);
@@ -1236,7 +1462,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const baseJobs = baseSnapshot(dataset).jobs;
         const aliasHistory = (db.prepare("SELECT document FROM job_alias_history ORDER BY sequence").all() as Array<{ document: string }>).map((row) => checked(JobAliasEventSchema, JSON.parse(row.document)));
         const jobVersions = (db.prepare("SELECT job_id,revision FROM job_versions ORDER BY job_id").all() as Array<{ job_id: string; revision: number }>).map((row) => ({ jobId: row.job_id, revision: row.revision }));
-        return checked(RepositoryBackupSchema, { format: "better-me/job-repository", schemaVersion: REPOSITORY_SCHEMA_VERSION, createdAt: now(), dataset, runs, receipts, leads, baseJobs, baseLocations: baseSnapshot(dataset).locations, locationDecisions: locationDecisions(), officeDecisions: officeDecisions(), baseCompensations: baseSnapshot(dataset).compensations, compensationDecisions: compensationDecisions(), mergeDecisions: decisions(), aliasHistory, jobVersions, fxSnapshots: fxSnapshots(), fxActivations: fxActivations() }, "invalid-backup");
+        return checked(RepositoryBackupSchema, { format: "better-me/job-repository", schemaVersion: REPOSITORY_SCHEMA_VERSION, createdAt: now(), dataset, runs, receipts, leads, baseJobs, baseLocations: baseSnapshot(dataset).locations, locationDecisions: locationDecisions(), officeDecisions: officeDecisions(), baseCompensations: baseSnapshot(dataset).compensations, compensationDecisions: compensationDecisions(), mergeDecisions: decisions(), aliasHistory, jobVersions, fxSnapshots: fxSnapshots(), fxActivations: fxActivations(), baseCompanies: baseSnapshot(dataset).companies, companyControlDecisions: companyControlDecisions() }, "invalid-backup");
       });
     },
     async restore(input: unknown, restoreOptions: Omit<ImportOptions, "runId"> & { expectedRevision: number }): Promise<ImportReceipt> {
@@ -1248,8 +1474,12 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       const baseJobs = backup.baseJobs ?? backup.dataset.jobs;
       const baseLocations = backup.baseLocations ?? backup.dataset.locations;
       const baseCompensations = backup.baseCompensations ?? backup.dataset.compensations;
+      const baseCompanies = backup.baseCompanies ?? backup.dataset.companies;
       const owners = new Map(baseJobs.flatMap((job) => job.listingIds.map((id) => [id, job.id] as const)));
-      const restoredBase = checked(AtlasDatasetSchema, { ...backup.dataset, jobs: baseJobs, locations: baseLocations, compensations: baseCompensations, listings: backup.dataset.listings.map((listing) => ({ ...listing, ...(owners.has(listing.id) ? { canonicalJobId: owners.get(listing.id) } : {}) })) }, "invalid-backup");
+      let restoredBase: AtlasDataset;
+      try { restoredBase = checked(AtlasDatasetSchema, stripCompanyControlReviewProjection({ ...backup.dataset, jobs: baseJobs, companies: baseCompanies, locations: baseLocations, compensations: baseCompensations, listings: backup.dataset.listings.map((listing) => ({ ...listing, ...(owners.has(listing.id) ? { canonicalJobId: owners.get(listing.id) } : {}) })) }, backup.companyControlDecisions), "invalid-backup"); }
+      catch { throw new RepositoryError("invalid-backup"); }
+      await verifyCompanyControlBackup(backup, restoredBase, now());
       const historicalLocationBasis = (event: { jobId: string; listingId: string; locationId: string }, sourceLocation: JobLocation): AtlasDataset => checked(AtlasDatasetSchema, {
         ...restoredBase, locations: restoredBase.locations.map(location => location.id === event.locationId ? sourceLocation : location),
         jobs: restoredBase.jobs.map(job => job.id === event.jobId ? { ...job, locationIds: union(job.locationIds, [event.locationId]) } : job),
@@ -1332,7 +1562,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
             });
           }
         }
-        const resolvedBase = projectCompensationReviews(projectOfficeAddressConfirmations(projectLocationConfirmations(restoredBase, backup.locationDecisions), backup.officeDecisions), backup.compensationDecisions);
+        const resolvedBase = projectCompanyControlReviews(projectCompensationReviews(projectOfficeAddressConfirmations(projectLocationConfirmations(restoredBase, backup.locationDecisions), backup.officeDecisions), backup.compensationDecisions), backup.companyControlDecisions);
         restoredProjection = projectReconciliation(resolvedBase, backup.mergeDecisions);
         if (!same(restoredProjection.dataset.locations, backup.dataset.locations)) throw new Error("invalid-location-projection");
         if (!same(restoredProjection.dataset.compensations, backup.dataset.compensations)) throw new Error("invalid-compensation-projection");
@@ -1409,6 +1639,10 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         if (current.revision !== restoreOptions.expectedRevision) throw new RepositoryError("stale-version");
         // Replacing selected rates must not orphan a durable command from the current file.
         if (fxSnapshots().some(value => !backup.fxSnapshots.some(saved => same(value, saved))) || fxActivations().some(value => !backup.fxActivations.some(saved => same(value, saved)))) throw new RepositoryError("conflict");
+        if (companyControlDecisions().some(value => !backup.companyControlDecisions.some(saved => same(value, saved)))) throw new RepositoryError("conflict");
+        const currentCompanyReceipts = (db.prepare("SELECT * FROM receipts WHERE tool IN ('companies.confirm-control-review','companies.revoke-control-review')").all() as Array<{ actor_scope: string; tool: StoredReceipt["tool"]; idempotency_key: string; signature: string; response: string; created_at: string }>)
+          .map(row => ({ actorScope: row.actor_scope, tool: row.tool, idempotencyKey: row.idempotency_key, signature: row.signature, response: JSON.parse(row.response) as unknown, createdAt: row.created_at }));
+        if (currentCompanyReceipts.some(value => !backup.receipts.some(saved => same(value, saved)))) throw new RepositoryError("conflict");
         // A source run that was active in the saved file has no live executor after restoration.
         const restoredRuns = backup.runs.map((run): SyncRun => run.status === "running" ? { ...run, status: "cancelled", finishedAt: now() } : run);
         const dataset = { ...backup.dataset, revision: Math.max(current.revision, backup.dataset.revision) + 1 };
@@ -1416,6 +1650,10 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         writeBaseJobs(baseJobs, true);
         writeBaseLocations(baseLocations, true);
         writeBaseCompensations(baseCompensations, true);
+        writeBaseCompanies(baseCompanies, true);
+        db.exec("DROP TRIGGER company_control_decisions_no_update; DROP TRIGGER company_control_decisions_no_delete; DELETE FROM company_control_decisions;");
+        for (const entry of backup.companyControlDecisions) db.prepare("INSERT INTO company_control_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
+        db.exec(COMPANY_CONTROL_DECISION_TRIGGERS);
         db.exec("DROP TRIGGER location_decisions_no_update; DROP TRIGGER location_decisions_no_delete; DELETE FROM location_decisions;");
         for (const entry of backup.locationDecisions) db.prepare("INSERT INTO location_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
         db.exec(LOCATION_DECISION_TRIGGERS);

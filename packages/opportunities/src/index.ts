@@ -3,6 +3,7 @@ export * from "./identity.js";
 export * from "./compensation.js";
 export * from "./fx-context.js";
 export * from "./compensation-review.js";
+export * from "./company-control-review.js";
 export * from "./geo.js";
 export * from "./geocoding.js";
 export * from "./query-map-references.js";

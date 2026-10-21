@@ -1,7 +1,7 @@
 /** @jsxRuntime automatic */
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { ArrowUpRight, BookmarkPlus, Building2, FileSearch, MapPin, Navigation, X } from "lucide-react";
-import { HttpUrlSchema, type AtlasDataset, type JobLocation, type JobSearchItem } from "@better-me/opportunities";
+import { HttpUrlSchema, effectiveCompanyControllers, type AtlasDataset, type JobLocation, type JobSearchItem } from "@better-me/opportunities";
 import { useUiPreferences, type UiTranslator } from "../../lib/ui-preferences";
 import { AtlasListingBadges } from "./JobSourceBadges";
 import type { AtlasListingPresentation } from "./presentation";
@@ -22,6 +22,7 @@ export type AtlasJobDetailProps = {
   onConfirmOffice?: (location: JobLocation) => void;
   onReadLocations?: () => void;
   onReviewCompensation?: () => void;
+  onReviewCompany?: () => void;
   /** Root owns city-candidate requests, their selection and their status. */
   children?: ReactNode;
 };
@@ -67,7 +68,7 @@ function sourcesForDetail(item: JobSearchItem, data: AtlasDataset, presentations
 }
 
 /** A non-modal reading pane. It never moves focus, locks the page or intercepts card clicks. */
-export function AtlasJobDetail({ item, data, demo, originalCurrency, presentations, onClose, onLocate, onSave, onAnalyze, onConfirmLocation, onConfirmOffice, onReadLocations, onReviewCompensation, children }: AtlasJobDetailProps) {
+export function AtlasJobDetail({ item, data, demo, originalCurrency, presentations, onClose, onLocate, onSave, onAnalyze, onConfirmLocation, onConfirmOffice, onReadLocations, onReviewCompensation, onReviewCompany, children }: AtlasJobDetailProps) {
   const { t, locale } = useUiPreferences();
   const titleId = useId();
   const body = useRef<HTMLDivElement>(null);
@@ -96,6 +97,8 @@ export function AtlasJobDetail({ item, data, demo, originalCurrency, presentatio
   const updated = Date.parse(item.job.updatedAt);
   const updatedLabel = Number.isFinite(updated) ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(updated) : t("未披露", "Unknown");
   const status = item.job.status === "open" ? t("在招", "Open") : item.job.status === "closed" ? t("已关闭", "Closed") : t("待核验", "Unverified");
+  const controllers = effectiveCompanyControllers(item.company);
+  const parentName = item.company.controlReview?.parentCompanyName ?? item.company.parentCompanyIds.map(id => data.companies.find(company => company.id === id)?.names[0]).filter(Boolean).join(" / ");
 
   return <aside id="atlas-job-detail" className="atlas-job-detail" aria-label={t("地图岗位详情", "Map job details")} aria-describedby={titleId} data-job-id={item.job.id}>
     <header className="atlas-job-detail-header">
@@ -125,6 +128,18 @@ export function AtlasJobDetail({ item, data, demo, originalCurrency, presentatio
           <div><dt>{t("工作方式", "Work mode")}</dt><dd>{{ "on-site": t("现场办公", "On-site"), hybrid: t("混合办公", "Hybrid"), remote: t("远程", "Remote"), unknown: t("未披露", "Not disclosed") }[item.job.workMode]}</dd></div>
           <div><dt title={t("记录更新不等于岗位发布时间", "Record update is not the publication date")}>{t("记录更新", "Record updated")}</dt><dd>{updatedLabel}</dd></div>
         </dl>
+      </section>
+
+      <section className="atlas-job-detail-section atlas-job-detail-control" aria-label={t("企业控制来源", "Company control provenance")}>
+        <h3><Building2 size={15} />{t("企业控制来源", "Company control provenance")}</h3>
+        <dl className="atlas-job-detail-facts"><div><dt>{t("实际雇主", "Employer")}</dt><dd>{item.company.legalEntity?.value ?? t("法定名称未核对", "Legal name unreviewed")}</dd></div>
+          <div><dt>{t("母公司", "Parent")}</dt><dd>{parentName || t("未确认", "Unconfirmed")}</dd></div>
+          <div><dt>{t("最终控制", "Ultimate control")}</dt><dd>{item.company.controlReview?.controlMode === "dispersed" ? t("股权分散／无实际控制人", "Dispersed ownership / no actual controller")
+            : controllers.verification === "verified" && controllers.value.length ? controllers.value.map(controller => `${controller.name}${controller.jurisdictionCode ? ` (${controller.jurisdictionCode})` : ""}`).join(" / ")
+              : controllers.verification === "conflicting" ? t("证据冲突", "Conflicting evidence") : t("尚待核实", "Unverified")}</dd></div></dl>
+        {item.company.controlReview && <p className="atlas-job-detail-caption">{t("本人核对，非发布机构认证", "Personally reviewed; not certified by the publisher")} · {item.company.controlReview.at}</p>}
+        {!!controllers.evidence.length && <details><summary>{t("查看控制来源引用", "View control evidence citations")}</summary>{controllers.evidence.map((reference, index) => <div key={index}>{HttpUrlSchema.safeParse(reference.sourceUrl).success && <a href={reference.sourceUrl} target="_blank" rel="noopener noreferrer">{t("证据出处", "Evidence source")}<ArrowUpRight size={12} /></a>}<small>{reference.observedAt}</small>{reference.quote && <blockquote>{reference.quote}</blockquote>}</div>)}</details>}
+        {!demo && onReviewCompany && <button type="button" onClick={onReviewCompany}><FileSearch size={13} />{t("核对企业控制来源", "Review company control provenance")}</button>}
       </section>
 
       <section className="atlas-job-detail-section atlas-job-detail-locations" aria-label={t("工作地点", "Work locations")}>
