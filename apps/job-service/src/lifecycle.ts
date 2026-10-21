@@ -1,5 +1,6 @@
 import { constants } from "node:fs";
 import { chmod, lstat, mkdir, open, readdir, realpath, rename, rmdir, unlink } from "node:fs/promises";
+import { setTimeout as delay } from "node:timers/promises";
 import { randomBytes, randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
@@ -105,17 +106,42 @@ export async function acquireDataDirectoryLock(dataDirectory: string, options: {
     const claim = join(lockPath, ".reclaim");
     try { await mkdir(claim, { mode: 0o700 }); }
     catch { throw busy(); }
+    const claimIdentity = await lstat(claim);
+    if (!claimIdentity.isDirectory() || claimIdentity.isSymbolicLink()) throw busy();
+    // A guard left at the same pathname is not necessarily ours after a replacement.
+    // Its directory identity and unique owner both have to survive every retry/cleanup.
+    await writeOwner(claim, owner);
+    const ownsClaim = async () => {
+      const identity = await lstat(claim);
+      return identity.isDirectory() && !identity.isSymbolicLink() && identity.dev === claimIdentity.dev && identity.ino === claimIdentity.ino
+        && sameOwner(await readOwner(claim), owner);
+    };
     try {
-      const current = await readOwner(lockPath);
-      if (!sameOwner(current, previous) || current.hostname !== machine || probe(current.pid)) throw busy();
-      // Keep the old owner metadata instead of recursively deleting an uncertain directory.
-      await rename(lockPath, join(directory, `.job-service-stale-${previous.owner}-${randomUUID()}`));
+      const quarantine = join(directory, `.job-service-stale-${previous.owner}-${randomUUID()}`);
+      for (let attempt = 0; ; attempt++) {
+        const current = await readOwner(lockPath);
+        if (!sameOwner(current, previous) || current.hostname !== machine || probe(current.pid) || !await ownsClaim()) throw busy();
+        try {
+          // Windows may briefly refuse a directory rename while losing contenders
+          // finish reading the old owner. Keep the guard and revalidate before retrying.
+          await rename(lockPath, quarantine);
+          break;
+        } catch (error) {
+          if (!["EPERM", "EACCES", "EBUSY"].includes(filesystemCode(error) ?? "") || attempt >= 5) throw busy();
+          await delay(10 * 2 ** attempt);
+        }
+      }
       try { await mkdir(lockPath, { mode: 0o700 }); }
       catch { throw busy(); }
     } catch (error) {
       // A competing owner may now hold lockPath. Never remove its files or its reclaim guard.
       const current = await readOwner(lockPath).catch(() => undefined);
-      if (current && sameOwner(current, previous)) await rmdir(claim).catch(() => undefined);
+      if (current && sameOwner(current, previous) && await ownsClaim().catch(() => false)) {
+        const files = await readdir(claim).catch(() => []);
+        if (files.length === 1 && files[0] === "owner.json") {
+          await unlink(join(claim, "owner.json")).then(() => rmdir(claim)).catch(() => undefined);
+        }
+      }
       throw error;
     }
   }

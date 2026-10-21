@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import filesystem from "node:fs/promises";
 import { mkdtemp, mkdir, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -83,6 +85,94 @@ test("concurrent stale recovery has one owner and never removes its replacement"
   const metadata = JSON.parse(await readFile(join(owners[0]!.lockPath, "owner.json"), "utf8"));
   assert.equal(metadata.pid, process.pid);
   await owners[0]!.release();
+}));
+
+/** Keep syscall injection local to this sequential test file; production has no test-only hooks. */
+async function withRename(override: (original: typeof filesystem.rename) => typeof filesystem.rename, run: () => Promise<void>) {
+  const original = filesystem.rename;
+  filesystem.rename = override(original); syncBuiltinESMExports();
+  try { await run(); } finally { filesystem.rename = original; syncBuiltinESMExports(); }
+}
+
+test("stale recovery retains its claim while transient Windows rename conflicts settle", async () => {
+  for (const transient of ["EPERM", "EACCES", "EBUSY"]) await temporary(async directory => {
+    const stale = await staleLock(directory); let calls = 0;
+    await withRename(original => async (...args) => {
+      if (++calls <= 2) throw Object.assign(new Error("Synthetic competing metadata handle"), { code: transient });
+      await original(...args);
+    }, async () => {
+      const attempts = await Promise.allSettled(Array.from({ length: 8 }, () => acquireDataDirectoryLock(directory, { processAlive: pid => pid === process.pid })));
+      const owners = attempts.flatMap(value => value.status === "fulfilled" ? [value.value] : []);
+      assert.equal(owners.length, 1); assert.equal(calls, 3);
+      const quarantines = (await readdir(directory)).filter(value => value.startsWith(".job-service-stale-"));
+      assert.equal(quarantines.length, 1);
+      assert.deepEqual(JSON.parse(await readFile(join(directory, quarantines[0]!, "owner.json"), "utf8")), stale.owner);
+      assert.equal(JSON.parse(await readFile(join(owners[0]!.lockPath, "owner.json"), "utf8")).pid, process.pid);
+      await owners[0]!.release();
+    });
+  });
+});
+
+test("persistent rename conflicts stop after a fixed budget and preserve the stale lock and unrelated files", async () => temporary(async directory => {
+  const stale = await staleLock(directory); let calls = 0;
+  await writeFile(join(stale.path, "unrecognized"), "preserve");
+  await withRename(() => async () => { calls++; throw Object.assign(new Error("Synthetic persistent denied rename"), { code: "EPERM" }); }, async () => {
+    await assert.rejects(acquireDataDirectoryLock(directory, { processAlive: () => false }), code("data-directory-busy"));
+  });
+  assert.equal(calls, 6);
+  assert.deepEqual(JSON.parse(await readFile(join(stale.path, "owner.json"), "utf8")), stale.owner);
+  assert.equal(await readFile(join(stale.path, "unrecognized"), "utf8"), "preserve");
+  assert.deepEqual((await readdir(stale.path)).sort(), ["owner.json", "unrecognized"]);
+  assert.deepEqual(await readdir(directory), [".job-service.lock"]);
+}));
+
+test("a stale PID becoming live between rename attempts immediately prevents takeover", async () => temporary(async directory => {
+  const stale = await staleLock(directory); let calls = 0, live = false;
+  await withRename(() => async () => { calls++; live = true; throw Object.assign(new Error("Synthetic handle conflict"), { code: "EPERM" }); }, async () => {
+    await assert.rejects(acquireDataDirectoryLock(directory, { processAlive: () => live }), code("data-directory-busy"));
+  });
+  assert.equal(calls, 1);
+  assert.deepEqual(JSON.parse(await readFile(join(stale.path, "owner.json"), "utf8")), stale.owner);
+  assert.deepEqual(await readdir(stale.path), ["owner.json"]);
+}));
+
+test("ownership replacement during a retry preserves the replacement lock and its guard", async () => temporary(async directory => {
+  const stale = await staleLock(directory); let calls = 0;
+  const replacement = { ...stale.owner, pid: process.pid, owner: randomUUID() };
+  await withRename(() => async () => {
+    calls++; await writeFile(join(stale.path, "owner.json"), JSON.stringify(replacement));
+    await writeFile(join(stale.path, "replacement-marker"), "preserve replacement");
+    throw Object.assign(new Error("Synthetic handle conflict"), { code: "EACCES" });
+  }, async () => { await assert.rejects(acquireDataDirectoryLock(directory, { processAlive: pid => pid === process.pid }), code("data-directory-busy")); });
+  assert.equal(calls, 1);
+  assert.deepEqual(JSON.parse(await readFile(join(stale.path, "owner.json"), "utf8")), replacement);
+  assert.equal(await readFile(join(stale.path, "replacement-marker"), "utf8"), "preserve replacement");
+  assert.ok((await readdir(stale.path)).includes(".reclaim"));
+}));
+
+test("a changed reclaim owner is never treated as this process's removable guard", async () => temporary(async directory => {
+  const stale = await staleLock(directory); let calls = 0;
+  const replacement = { ...stale.owner, pid: process.pid, owner: randomUUID() };
+  await withRename(() => async () => {
+    calls++; await writeFile(join(stale.path, ".reclaim", "owner.json"), JSON.stringify(replacement));
+    throw Object.assign(new Error("Synthetic handle conflict"), { code: "EBUSY" });
+  }, async () => { await assert.rejects(acquireDataDirectoryLock(directory, { processAlive: () => false }), code("data-directory-busy")); });
+  assert.equal(calls, 1);
+  assert.deepEqual(JSON.parse(await readFile(join(stale.path, ".reclaim", "owner.json"), "utf8")), replacement);
+  assert.deepEqual(JSON.parse(await readFile(join(stale.path, "owner.json"), "utf8")), stale.owner);
+}));
+
+test("a replacement reclaim directory cannot acquire ownership by copying the prior guard metadata", async () => temporary(async directory => {
+  const stale = await staleLock(directory); let calls = 0;
+  await withRename(original => async () => {
+    calls++; const claim = join(stale.path, ".reclaim");
+    const metadata = await readFile(join(claim, "owner.json"), "utf8");
+    await original(claim, join(stale.path, ".reclaim-preserved"));
+    await mkdir(claim); await writeFile(join(claim, "owner.json"), metadata);
+    throw Object.assign(new Error("Synthetic handle conflict"), { code: "EPERM" });
+  }, async () => { await assert.rejects(acquireDataDirectoryLock(directory, { processAlive: () => false }), code("data-directory-busy")); });
+  assert.equal(calls, 1);
+  assert.deepEqual((await readdir(stale.path)).sort(), [".reclaim", ".reclaim-preserved", "owner.json"]);
 }));
 test("foreign host, malformed metadata, and abandoned reclaim guard remain blocked", async () => temporary(async (directory) => {
   const foreign = join(directory, "foreign"); await mkdir(foreign); await staleLock(foreign, { hostname: "different-host" });
