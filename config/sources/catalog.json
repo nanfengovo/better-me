@@ -26,7 +26,9 @@
           "companyPath": "company_name",
           "descriptionPath": "description",
           "descriptionCompleteness": "excerpt",
-          "enumerationComplete": false,
+          "enumerationComplete": true,
+          "nextPageUrlPath": "links.next",
+          "pageParameter": "page",
           "locationsPath": "location",
           "publishedPath": "created_at",
           "publishedFormat": "unix-seconds",
@@ -49,13 +51,13 @@
           "homepageUrl": "https://www.arbeitnow.com/blog/job-board-api",
           "usage": "unknown",
           "requiresAttribution": true,
-          "notes": "官方免费免 Key 多公司 API；遵守其 TOS 并回链 Arbeitnow 原职位。官方说明每小时更新，created_at 明确为 Unix 秒。此配置只读当前第一页，响应 links.next 仍有后页，不代表全站完整列举。来源正文保守标摘录；不推断国家、办公坐标、控股、薪资或独立在招。"
+          "notes": "官方免费免 Key 多公司 API；遵守其 TOS 并回链 Arbeitnow 原职位。官方说明每小时更新，created_at 明确为 Unix 秒；按 links.next 的 page 页码有限分页，末页仅表示当次 API 清单末尾，非全市场覆盖。每批仍受记录／页数／请求预算约束，可显式继续；页内续读遇到内容变化会失效。来源正文保守标摘录；不推断国家、办公坐标、控股、薪资或独立在招。"
         },
         "refreshPolicy": {
           "mode": "manual",
           "minIntervalSeconds": 3600,
           "maxRecords": 300,
-          "maxPages": 1,
+          "maxPages": 3,
           "requestsPerMinute": 5
         }
       },
@@ -66,8 +68,8 @@
         ".NET",
         "软件开发"
       ],
-      "coverage": "多家公司发布的欧洲岗位；只读取当前第一页，支持在实际返回文本中筛选。地点保留原文，不自动识别国家、办公地址或远程资格。",
-      "checkedAt": "2026-10-18T17:50:53.137155Z",
+      "coverage": "多家公司发布的欧洲岗位；按来源 links.next 做有界分页并支持手动续读，不代表全市场覆盖。实时清单翻页可能重复或移位，索引按来源身份去重，不保证跨页快照完整。地点保留原文，不自动识别国家、办公地址或远程资格。",
+      "checkedAt": "2026-10-21T18:27:36.670Z",
       "evidenceUrls": [
         "https://www.arbeitnow.com/blog/job-board-api",
         "https://www.arbeitnow.com/api/job-board-api"

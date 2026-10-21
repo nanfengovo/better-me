@@ -7,6 +7,14 @@ import { assessSourceScopeMatch } from '../local-match.js';
 export function allocateDownloadedRecordQuota(records: readonly SourceJobRecord[], request: SourceAdapterRequest, limit: number): {
   records: SourceJobRecord[]; invalidRecords: number;
 } {
+  const result = allocateDownloadedRecordWindow(records, request, limit, 0);
+  return { records: result.records, invalidRecords: result.invalidRecords };
+}
+
+/** The offset counts valid ranked candidates; callers must bind it to an unchanged downloaded page and scope. */
+export function allocateDownloadedRecordWindow(records: readonly SourceJobRecord[], request: SourceAdapterRequest, limit: number, offset: number): {
+  records: SourceJobRecord[]; invalidRecords: number; totalRecords: number; nextOffset: number;
+} {
   let invalidRecords = 0;
   const candidates: Array<{ record: SourceJobRecord; index: number; priority: number }> = [];
   for (const [index, input] of records.entries()) {
@@ -19,7 +27,9 @@ export function allocateDownloadedRecordQuota(records: readonly SourceJobRecord[
   request.context.throwIfCancelled();
   return {
     records: candidates.sort((left, right) => left.priority - right.priority || left.index - right.index)
-      .slice(0, limit).sort((left, right) => left.index - right.index).map(({ record }) => record),
+      .slice(offset, offset + limit).sort((left, right) => left.index - right.index).map(({ record }) => record),
     invalidRecords,
+    totalRecords: candidates.length,
+    nextOffset: Math.min(offset + limit, candidates.length),
   };
 }

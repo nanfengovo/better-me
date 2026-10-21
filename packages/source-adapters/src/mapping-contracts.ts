@@ -14,6 +14,10 @@ export const JsonFieldMappingSchema = z.object({
   enumerationComplete: z.boolean().default(true),
   /** Numeric timestamps are only interpreted when their units are explicitly configured. */
   publishedFormat: z.enum(['iso', 'unix-seconds', 'unix-milliseconds']).default('iso'),
+  /** Opt-in pagination: follow only an explicitly returned increasing numeric page on this same endpoint. */
+  nextPageUrlPath: JsonMappingPathSchema.refine(path => path.length > 0, 'A next-page field is required.').optional(),
+  pageParameter: z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,79}$/)
+    .refine(value => !['__proto__', 'prototype', 'constructor'].includes(value)).default('page'),
   discoveryOnly: z.boolean().default(true),
 }).strict();
 export type JsonFieldMapping = z.infer<typeof JsonFieldMappingSchema>;
