@@ -3,7 +3,8 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Check, FileSearch, Loader2, MapPin, X } from "lucide-react";
 import type { AddressEnrichmentPlan, AddressEnrichmentPlanItem, AtlasDataset, JobLocation, OfficeAddressCandidatesResult } from "@better-me/opportunities";
 import { PlatformDetailLocationsSchema, reviewedCardIdentity, type ImportDetailLocationsInput, type PlatformDetailLocations,
-  type CompanyCareerDiscoveryResult, type SourceFieldEvidence, type SourceRecordLocation } from "@better-me/source-adapters/browser-contracts";
+  type CompanyCareerDiscoveryResult, type SourceFieldEvidence, type SourceRecordLocation,
+  type OwnedDetailLocationsCapture, type ImportOwnedDetailLocationsInput } from "@better-me/source-adapters/browser-contracts";
 import { extractJdLink } from "../../lib/jd-import";
 import { AtlasSourceServiceError, createAtlasSourceClient } from "./service-client";
 import "./AtlasAddressEnrichment.css";
@@ -16,18 +17,24 @@ export type AtlasAddressEnrichmentProps = {
   onOfficeSnapshot?(snapshot: AtlasDataset, location: JobLocation, jobId: string): void;
   onReviewJob(jobId: string): void; onReviewOffice(jobId: string, locationId: string): void;
 };
-type Capture = { jobId: string; listingId: string; value: PlatformDetailLocations };
+type Capture = { kind: "platform"; jobId: string; listingId: string; value: PlatformDetailLocations }
+  | { kind: "official"; jobId: string; listingId: string; value: OwnedDetailLocationsCapture };
 type OfficialEvidence = { listingId: string; url: string; observedAt: string; locations: SourceRecordLocation[]; evidence: SourceFieldEvidence[] };
 type Row = { item: AddressEnrichmentPlanItem; status: "waiting" | "reading" | "done" | "skipped" | "error" | "cancelled";
   messages: string[]; captures: Capture[]; addresses: OfficeAddressCandidatesResult[]; company?: CompanyCareerDiscoveryResult;
   official?: OfficialEvidence[]; savedCaptureKeys?: string[]; savedLocationIds?: string[] };
-type Checkpoint = { rows: Row[]; capture: Capture; request: { input: ImportDetailLocationsInput; key: string };
+type Checkpoint = { rows: Row[]; capture: Capture; request: { kind: "platform"; input: ImportDetailLocationsInput; key: string }
+  | { kind: "official"; input: ImportOwnedDetailLocationsInput; key: string };
   locationIds: string[]; receipt?: { revision: number } };
 // Uncertain writes remain recoverable for the exact connection and result scope in this page.
 // Credentials, source addresses and command bodies are never written to browser storage.
 const recovery = new Map<string, Checkpoint>();
 const TERMINAL = new Set(["stale-version", "invalid-input", "source-changed", "idempotency-conflict", "not-authorized", "not-found"]);
 const keyFor = (value: Capture) => `${value.jobId}:${value.listingId}`;
+const captureAddresses = (capture: Capture) => capture.kind === "platform" ? capture.value.locations : capture.value.record.locations;
+const captureQuotes = (capture: Capture) => capture.kind === "platform" ? capture.value.locations.map(location => location.evidence.quote)
+  : capture.value.record.evidence.filter(evidence => /^locations(?:\.|$)/.test(evidence.field))
+    .map(evidence => `${evidence.field} · ${evidence.selector ?? ""}\n${evidence.quote ?? ""}`);
 const rowStatus = { waiting: "等待", reading: "正在读取", done: "已读取", skipped: "已跳过", error: "部分失败", cancelled: "已取消" };
 
 export function AtlasAddressEnrichment(props: AtlasAddressEnrichmentProps) {
@@ -134,7 +141,7 @@ function EnrichmentSession({ endpoint, token, data, jobIds, scope, loadedJobs, o
             || !expected || !actual || expected.id !== actual.id || !parsed.data.locations.some(location => location.streetAddress)) {
             messages.push(`${target.label} 未披露可用的同岗位街道地址，可逐岗打开原文核对。`); continue;
           }
-          captures.push({ jobId: item.jobId, listingId: target.listingId, value: parsed.data });
+          captures.push({ kind: "platform", jobId: item.jobId, listingId: target.listingId, value: parsed.data });
           messages.push(`${target.label} 已读取地址证据，等待本人选择保存；尚未生成坐标。`);
         } catch (problem) { alive(signal); failures++; messages.push(problem instanceof Error ? problem.message : "原岗位详情读取失败。"); }
       }
@@ -144,6 +151,20 @@ function EnrichmentSession({ endpoint, token, data, jobIds, scope, loadedJobs, o
           && entry.sourceId === target.sourceId && entry.canonicalUrl === target.url);
         if (!listing?.sourceRecordId) { messages.push("官网来源缺少同岗位原始编号，未将同名岗位地址合入。"); continue; }
         try {
+          if (target.exactDetail) {
+            const capture = await client.readOwnedDetailLocations({ jobId: item.jobId, listingId: target.listingId,
+              expectedRevision: knownRevision.current }, { signal }); alive(signal);
+            if (capture.sourceId !== target.sourceId || capture.sourceRecordId !== listing.sourceRecordId || capture.url !== listing.canonicalUrl)
+              throw new Error("官网详情与原来源编号或链接不一致，未采用地址。");
+            if (capture.record.workMode === "remote" || !capture.record.locations.some(location => location.streetAddress)) {
+              messages.push("官网同岗位未披露可保存的非远程街道地址，保留原精度。");
+            } else {
+              captures.push({ kind: "official", jobId: item.jobId, listingId: target.listingId, value: capture });
+              messages.push("已按官网原岗位编号和链接直接读取地址，等待本人选择保存；尚未生成坐标。");
+            }
+            messages.push(...capture.record.warnings.slice(0, 3));
+            continue;
+          }
           const result = await client.preview(target.sourceId, { scope: { roles: item.title.length <= 300 ? [item.title] : [],
             regions: [], companyNames: item.companyName.length <= 300 ? [item.companyName] : [] }, maxRecords: 50 }, { signal }); alive(signal);
           const matches = result.page.records.filter(record => record.entityType === "job-posting" && record.sourceRecordId === listing.sourceRecordId);
@@ -186,7 +207,9 @@ function EnrichmentSession({ endpoint, token, data, jobIds, scope, loadedJobs, o
     let current = checkpoint;
     if (!current.receipt) {
       let receipt;
-      try { receipt = await client.importDetailLocations(current.request.input, { signal, idempotencyKey: current.request.key }); }
+      try { receipt = current.request.kind === "official"
+        ? await client.importOwnedDetailLocations(current.request.input, { signal, idempotencyKey: current.request.key })
+        : await client.importDetailLocations(current.request.input, { signal, idempotencyKey: current.request.key }); }
       catch (problem) {
         if (problem instanceof AtlasSourceServiceError && TERMINAL.has(problem.code)) {
           recovery.delete(scope);
@@ -218,9 +241,15 @@ function EnrichmentSession({ endpoint, token, data, jobIds, scope, loadedJobs, o
         setStale(true); setSelected([]);
         throw new Error("索引版本已改变，原地址选择已清除；请重新读取本批岗位。");
       }
-      const preview = await client.previewDetailLocations({ jobId: capture.jobId, listingId: capture.listingId, capture: capture.value, expectedRevision: snapshot.revision }, { signal }); alive(signal);
-      const checkpoint: Checkpoint = { rows: rowsRef.current, capture, locationIds: preview.newLocations.map(location => location.id), request: { input: { jobId: capture.jobId, listingId: capture.listingId, capture: capture.value,
-        expectedRevision: preview.expectedRevision, previewFingerprint: preview.previewFingerprint, reviewed: true }, key: `address-batch-${crypto.randomUUID()}` } };
+      const previewInput = { jobId: capture.jobId, listingId: capture.listingId, expectedRevision: snapshot.revision };
+      const preview = capture.kind === "official"
+        ? await client.previewOwnedDetailLocations({ ...previewInput, capture: capture.value }, { signal })
+        : await client.previewDetailLocations({ ...previewInput, capture: capture.value }, { signal }); alive(signal);
+      const approval = { ...previewInput, expectedRevision: preview.expectedRevision, previewFingerprint: preview.previewFingerprint, reviewed: true as const };
+      const key = `address-batch-${crypto.randomUUID()}`;
+      const checkpoint: Checkpoint = { rows: rowsRef.current, capture, locationIds: preview.newLocations.map(location => location.id), request: capture.kind === "official"
+        ? { kind: "official", input: { ...approval, capture: capture.value }, key }
+        : { kind: "platform", input: { ...approval, capture: capture.value }, key } };
       recovery.set(scope, checkpoint); setPending(checkpoint);
       await executeCheckpoint(checkpoint, signal);
     }
@@ -256,7 +285,7 @@ function EnrichmentSession({ endpoint, token, data, jobIds, scope, loadedJobs, o
   return <section className="atlas-address-enrichment" aria-label="批量核对岗位办公地点" aria-busy={!!busy}>
     <header><div><span>OFFICE ADDRESS REVIEW</span><h2>补全岗位办公地点</h2></div><button type="button" aria-label="关闭批量地址核对" onClick={() => { closed.current = true; active.current?.controller.abort(); onClose(); }}><X size={17} /></button></header>
     <p>本次范围：当前已加载 {loadedJobs} 岗，选择前 {jobIds.length} 岗，单批最多 50 岗。{loadedJobs > 50 && "其余岗位未加入本批。"}以索引版本 {plan?.snapshotRevision ?? initialRevision.current} 的原岗位及地点为依据。</p>
-    <p className="atlas-enrichment-boundary">点击读取后，来源披露的街道、城市和邮编会发送给已配置的地址服务；同时读取同岗位公开详情。缺少街址时，使用岗位标题和企业名称查询原官网来源，再按公司去重查询招聘入口。并发最多 2 岗。地址候选、官网入口均需核对，不自动保存或生成办公坐标。</p>
+    <p className="atlas-enrichment-boundary">点击读取后，来源披露的街道、城市和邮编会发送给已配置的地址服务；同时读取同岗位公开详情。支持直接读取的官网按原岗位编号和链接读取，其余官网按标题和企业名称取得有限线索，再按公司去重查询招聘入口。并发最多 2 岗。地址证据、候选及官网入口均需核对，不自动保存或生成办公坐标。</p>
     <div className="atlas-enrichment-actions"><button type="button" disabled={!!busy || !!pending || !jobIds.length} onClick={() => void read()}><FileSearch size={15} />读取所选岗位的办公地点</button>{busy && <button type="button" onClick={() => active.current?.controller.abort()}>{busy === "read" ? "取消本轮读取" : "停止等待保存"}</button>}</div>
     {!!rows.length && <p role="status">已处理 {completed} / {rows.length} 岗{busy === "read" && <Loader2 size={14} className="animate-spin" />}{stale && " · 原计划已过期"}</p>}
     {plan?.warnings.map(warning => <p className="atlas-enrichment-warning" key={warning}>{warning}</p>)}
@@ -264,7 +293,7 @@ function EnrichmentSession({ endpoint, token, data, jobIds, scope, loadedJobs, o
       <div className="atlas-enrichment-row-heading"><strong>{row.item.title}</strong><span data-status={row.status}>{row.status === "reading" && <Loader2 size={12} className="animate-spin" />}{rowStatus[row.status]}</span></div><small>{row.item.companyName}</small>
       {row.messages.map((message, index) => <p key={index}>{message}</p>)}
       {row.item.warnings.map(warning => <p key={warning} className="atlas-enrichment-warning">{warning}</p>)}
-      {row.captures.map(capture => <label className="atlas-enrichment-capture" key={capture.listingId}><input type="checkbox" disabled={!!busy || !!pending || stale || !!row.savedCaptureKeys?.includes(keyFor(capture))} checked={selected.includes(keyFor(capture))} onChange={event => setSelected(prior => event.target.checked ? [...prior, keyFor(capture)] : prior.filter(key => key !== keyFor(capture)))} /><span>{row.savedCaptureKeys?.includes(keyFor(capture)) ? "来源地点已保存" : "我已核对该岗位及地址出处，选择保存来源地点"}<small>{capture.value.locations.map(location => location.streetAddress ?? location.raw).join(" / ")}</small><a href={capture.value.url} target="_blank" rel="noopener noreferrer">核对原岗位</a><details><summary>地址原文证据</summary>{capture.value.locations.map((location, index) => <pre key={index}>{location.evidence.quote}</pre>)}</details></span></label>)}
+      {row.captures.map(capture => <label className="atlas-enrichment-capture" key={capture.listingId}><input type="checkbox" disabled={!!busy || !!pending || stale || !!row.savedCaptureKeys?.includes(keyFor(capture))} checked={selected.includes(keyFor(capture))} onChange={event => setSelected(prior => event.target.checked ? [...prior, keyFor(capture)] : prior.filter(key => key !== keyFor(capture)))} /><span>{row.savedCaptureKeys?.includes(keyFor(capture)) ? "来源地点已保存" : "我已核对该岗位及地址出处，选择保存来源地点"}<small>{capture.kind === "official" && "官网同岗位直接读取 · "}{captureAddresses(capture).map(location => location.streetAddress ?? location.raw).join(" / ")}</small><a href={capture.value.url} target="_blank" rel="noopener noreferrer">核对原岗位</a><details><summary>地址原文证据</summary>{captureQuotes(capture).map((quote, index) => <pre key={index}>{quote}</pre>)}</details></span></label>)}
       {row.addresses.map(result => <div key={result.locationId} className="atlas-enrichment-candidates"><strong>办公地址候选 · 尚未采用</strong>{result.candidates.map(candidate => <p key={candidate.id}>{candidate.proposal.formattedAddress}<small>{candidate.attribution} · 待核实</small><a href={candidate.evidenceUrl} target="_blank" rel="noopener noreferrer">核对候选出处</a></p>)}{result.warnings.map(warning => <p key={warning}>{warning}</p>)}<button type="button" disabled={!!busy || !!pending || stale} onClick={() => reviewOffice(row.item.jobId, result.locationId)}><MapPin size={13} />核对具体办公点</button></div>)}
       {(row.savedLocationIds ?? row.item.currentOffice.map(location => location.id)).map(id => <button key={id} type="button" disabled={!!busy || !!pending || stale} onClick={() => reviewOffice(row.item.jobId, id)}><MapPin size={13} />核对具体办公点</button>)}
       {row.official?.map(result => <div key={result.listingId} className="atlas-enrichment-company"><strong>官网同岗位街址线索 · 待核对</strong>
@@ -276,7 +305,7 @@ function EnrichmentSession({ endpoint, token, data, jobIds, scope, loadedJobs, o
       {row.item.ownedOfficialTargets.map(target => <a key={target.listingId} href={target.url} target="_blank" rel="noopener noreferrer">{target.label} · 原官网岗位</a>)}
       <button type="button" disabled={!!busy} onClick={() => onReviewJob(row.item.jobId)}>打开原岗位继续核对</button>
     </article>)}</div>
-    {(selected.length > 0 || pending) && <div className="atlas-enrichment-save"><p>{pending ? pending.receipt ? "地点已保存，需重新读取索引确认。" : "本次保存结果待确认；关闭后重新打开相同范围，可用原请求核对回执。页面刷新前请完成核对。" : `已选择 ${selected.length} 份同岗位地址证据。仅保存来源地址，不采用候选坐标或官网线索。`}</p><button type="button" disabled={!!busy} onClick={() => void save()}><Check size={14} />{pending ? pending.receipt ? "重新读取已保存索引" : "核对本次保存回执" : "确认保存选中来源地址"}</button></div>}
+    {(selected.length > 0 || pending) && <div className="atlas-enrichment-save"><p>{pending ? pending.receipt ? "地点已保存，需重新读取索引确认。" : "本次保存结果待确认；关闭后重新打开相同范围，可用原请求核对回执。页面刷新前请完成核对。" : `已选择 ${selected.length} 份同岗位地址证据。仅保存来源地址，不采用候选坐标或弱官网线索。`}</p><button type="button" disabled={!!busy} onClick={() => void save()}><Check size={14} />{pending ? pending.receipt ? "重新读取已保存索引" : "核对本次保存回执" : "确认保存选中来源地址"}</button></div>}
     {error && <p role="alert">{error}</p>}
   </section>;
 }

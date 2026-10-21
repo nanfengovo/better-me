@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { ToolError } from "@better-me/opportunities";
-import { SourceJobRecordSchema, SourcePageSchema, type SourceAdapter, type SourceAdapterRequest, type SourceJobRecord } from "../contracts.js";
+import { SourceJobRecordSchema, SourcePageSchema, type SourceAdapter, type SourceAdapterDetailRequest, type SourceAdapterRequest, type SourceJobRecord } from "../contracts.js";
 import { validateJobPostingJsonLdSource } from "../jobposting-jsonld-contracts.js";
 import { enumerateJobPostingUrls } from "../jobposting-enumeration.js";
 import { readJobPostingJsonLd } from "../jobposting-jsonld-reader.js";
@@ -20,7 +20,7 @@ function stableJson(value: unknown): string {
 }
 function hash(value: unknown): string { return createHash("sha256").update(stableJson(value)).digest("hex"); }
 
-async function readText(request: SourceAdapterRequest, url: string, accept: string): Promise<string> {
+async function readText(request: Pick<SourceAdapterRequest, "source" | "context" | "transport">, url: string, accept: string): Promise<string> {
   request.context.throwIfCancelled();
   const expected = new URL(url).toString();
   const response = await request.transport.request({ url: expected, source: request.source, context: request.context, headers: { accept } });
@@ -29,6 +29,22 @@ async function readText(request: SourceAdapterRequest, url: string, accept: stri
   // Redirects and another posting's structured data cannot silently replace the reviewed identity.
   if (response.url !== expected) throw new ToolError("source-changed");
   return response.text;
+}
+
+function validateHeldPosting(request: SourceAdapterDetailRequest): void {
+  const options = validateJobPostingJsonLdSource(request.source);
+  // Use the same reviewed URL syntax/path constraints as manifest candidates, but
+  // never enumerate a manifest to rediscover an already-held posting.
+  const value = request.url;
+  if (value.length > 4096 || value !== value.trim() || /[\\#\s\p{Cc}\p{Cs}]/u.test(value)
+    || /%(?:2f|5c|2e)/i.test(value.split(/[?#]/, 1)[0]!)) throw new ToolError("invalid-input");
+  let url: URL, path: string;
+  try { url = new URL(value); path = decodeURIComponent(url.pathname); } catch { throw new ToolError("invalid-input"); }
+  if (url.toString() !== value || url.protocol !== "https:" || url.origin !== new URL(options.enumerationUrls[0]!).origin
+    || url.username || url.password || url.port || url.hash || /[\\%\p{Cc}\p{Cs}]/u.test(path)
+    || !options.postingPathPrefixes.some(prefix => path === prefix || path.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`))) {
+    throw new ToolError("invalid-input");
+  }
 }
 
 function recoverableDetailError(error: unknown): boolean {
@@ -41,6 +57,17 @@ function recoverableDetailError(error: unknown): boolean {
  * No crawler, sitemap-index traversal, endpoint guessing or automatic pagination is performed. */
 export const jobPostingJsonLdAdapter: SourceAdapter = {
   adapterId: "jobposting-jsonld", version: "1", capabilities: ["list-jobs"], remoteFilters: [], entityTypes: ["job-posting"],
+  async readDetail(request) {
+    request.context.throwIfCancelled();
+    validateHeldPosting(request);
+    const text = await readText(request, request.url, "text/html, application/xhtml+xml;q=0.9");
+    const result = readJobPostingJsonLd(text, request.url);
+    request.context.throwIfCancelled();
+    const parsed = SourceJobRecordSchema.safeParse(result.record);
+    if (!parsed.success || parsed.data.entityType !== "job-posting" || parsed.data.url !== request.url
+      || parsed.data.sourceRecordId !== request.sourceRecordId) throw new ToolError("source-changed");
+    return parsed.data;
+  },
   async list(request) {
     request.context.throwIfCancelled();
     const options = validateJobPostingJsonLdSource(request.source);

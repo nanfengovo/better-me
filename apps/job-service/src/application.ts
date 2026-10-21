@@ -21,6 +21,7 @@ import { DiscoveryLeadSchema, ImportReceiptSchema, SyncRunSchema, type PublicRun
 import { projectSourcePage } from "./projection.js";
 import { createReviewedCardsTools } from "./reviewed-cards.js";
 import { createReviewedDetailLocationsTools } from "./reviewed-detail-locations.js";
+import { createOwnedDetailLocationsTools } from "./owned-detail-locations.js";
 import { createLocationConfirmationTools } from "./location-confirmation.js";
 import { createReconciliationTools } from "./reconciliation.js";
 import { createLocationMapReferencesTool } from "./location-map-references.js";
@@ -122,6 +123,8 @@ export function createJobApplication(options: JobApplicationOptions) {
   const mapReferenceTool = createLocationMapReferencesTool(repository, options.mapReferenceProvider ?? localGazetteer);
   const addressEnrichmentTool = createAddressEnrichmentTool(repository, { canReadOfficialSource: source => {
     try { sources.resolve(source, "list-jobs", "local-service"); return true; } catch { return false; }
+  }, canReadOfficialDetailSource: source => {
+    try { return typeof sources.resolve(source, "list-jobs", "local-service").adapter.readDetail === "function"; } catch { return false; }
   } });
   const searchTool = createJobsSearchTool(query, async (input, context) => ({ now: now(),
     ...(options.resolveQueryOptions ? await options.resolveQueryOptions(context) : {}),
@@ -138,6 +141,9 @@ export function createJobApplication(options: JobApplicationOptions) {
       execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     ...createReviewedCardsTools({ repository, now }).map(definition => ({ ...definition, execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     ...createReviewedDetailLocationsTools({ repository, now }).map(definition => ({ ...definition,
+      ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
+      execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
+    ...createOwnedDetailLocationsTools({ repository, sources, transport, now }).map(definition => ({ ...definition,
       ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
       execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     defineTool({ ...searchTool, execute: (input, context) => guarded(async () => searchTool.execute(input, context)) }),

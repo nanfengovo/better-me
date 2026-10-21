@@ -11,6 +11,9 @@ import {
   type PreviewReviewedCardsInput, type ImportReviewedCardsInput,
   PreviewDetailLocationsInputSchema, ImportDetailLocationsInputSchema, DetailLocationsPreviewSchema,
   type PreviewDetailLocationsInput, type ImportDetailLocationsInput,
+  ReadOwnedDetailLocationsInputSchema, OwnedDetailLocationsCaptureSchema,
+  PreviewOwnedDetailLocationsInputSchema, ImportOwnedDetailLocationsInputSchema,
+  type ReadOwnedDetailLocationsInput, type PreviewOwnedDetailLocationsInput, type ImportOwnedDetailLocationsInput,
 } from "@better-me/source-adapters/browser-contracts";
 import { AtlasClientError, readAtlasSnapshot } from "./client";
 import { resolveAtlasServiceTarget } from "./backend-connection";
@@ -351,6 +354,39 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
       return result;
     },
     snapshot: (options: Options = {}) => readAtlasSnapshot(endpoint, token, options),
+    readOwnedDetailLocations: async (value: ReadOwnedDetailLocationsInput, options: Options = {}) => {
+      const query = input(ReadOwnedDetailLocationsInputSchema, value);
+      const result = await request("jobs/owned-detail-locations/read", OwnedDetailLocationsCaptureSchema, options, query);
+      if (result.jobId !== query.jobId || result.listingId !== query.listingId)
+        throw new AtlasSourceServiceError("invalid-response", "官网详情与本次岗位或来源记录不一致，请重新读取。");
+      return result;
+    },
+    previewOwnedDetailLocations: async (value: PreviewOwnedDetailLocationsInput, options: Options = {}) => {
+      const query = input(PreviewOwnedDetailLocationsInputSchema, value);
+      const result = await request("jobs/owned-detail-locations/preview", DetailLocationsPreviewSchema, options, query);
+      const sameAddress = (location: JobLocation, address: typeof query.capture.record.locations[number]) =>
+        (["raw", "countryCode", "region", "city", "streetAddress", "postalCode"] as const).every(field => location[field] === address[field])
+        && location.evidence.some(ref => ref.observedAt === query.capture.observedAt
+          && query.capture.record.evidence.some(evidence => /^locations(?:\.|$)/.test(evidence.field)
+            && ref.sourceUrl === evidence.sourceUrl && ref.selector === evidence.selector && ref.quote === evidence.quote));
+      if (result.jobId !== query.jobId || result.listingId !== query.listingId || result.sourceId !== query.capture.sourceId
+        || result.expectedRevision !== query.expectedRevision
+        || result.newLocations.some(location => location.kind !== (query.capture.record.workMode === "remote" ? "remote-region" : "office")
+          || !query.capture.record.locations.some(address => sameAddress(location, address)))
+        || query.capture.record.locations.some(address => !result.newLocations.some(location => sameAddress(location, address))))
+        throw new AtlasSourceServiceError("invalid-response", "官网地点预览与原始地址、出处或当前版本不一致，请重新核对。");
+      return result;
+    },
+    importOwnedDetailLocations: async (value: ImportOwnedDetailLocationsInput, options: WriteOptions) => {
+      const query = input(ImportOwnedDetailLocationsInputSchema, value);
+      const result = await request("jobs/owned-detail-locations/import", ReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
+      if (result.jobIds.length !== 1 || result.jobIds[0] !== query.jobId || ![query.expectedRevision, query.expectedRevision + 1].includes(result.revision)
+        || result.counts.newJobs !== 0 || result.counts.newListings !== 0 || result.counts.newSnapshots !== 0 || result.snapshotIds.length !== 0
+        || result.counts.updatedJobs + result.counts.unchangedJobs !== 1 || result.counts.updatedJobs > 1 || result.counts.newObservations > 1
+        || (result.revision === query.expectedRevision && (result.counts.updatedJobs !== 0 || result.counts.newObservations !== 0)))
+        throw new AtlasSourceServiceError("invalid-response", "官网地点保存回执与原岗位不一致，请使用原请求核对回执。");
+      return result;
+    },
     previewDetailLocations: async (value: PreviewDetailLocationsInput, options: Options = {}) => {
       const query = input(PreviewDetailLocationsInputSchema, value);
       const result = await request("jobs/detail-locations/preview", DetailLocationsPreviewSchema, options, query);

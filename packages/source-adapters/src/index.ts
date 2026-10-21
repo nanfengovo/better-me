@@ -24,3 +24,4 @@ export * from "./jobposting-enumeration.js";
 export * from "./adapters/jobposting-jsonld.js";
 export * from "./platform-detail-locations.js";
 export * from "./reviewed-detail-locations.js";
+export * from "./owned-detail-locations.js";

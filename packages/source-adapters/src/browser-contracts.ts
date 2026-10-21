@@ -11,3 +11,4 @@ export * from "./reviewed-cards.js";
 export * from "./jobposting-jsonld-contracts.js";
 export * from "./platform-detail-locations.js";
 export * from "./reviewed-detail-locations.js";
+export * from "./owned-detail-locations.js";

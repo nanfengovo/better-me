@@ -1,8 +1,8 @@
-import { SourceDefinitionSchema, TimestampSchema, type SourceCapability, type SourceDefinition, type SourceRuntime } from "@better-me/opportunities";
+import { HttpUrlSchema, SourceDefinitionSchema, TimestampSchema, type SourceCapability, type SourceDefinition, type SourceRuntime } from "@better-me/opportunities";
 import {
-  SourceAdapterMetadataSchema, SourcePageSchema, SourceRegistryError, SourceScopeSchema,
-  type SourceAdapter, type SourceAdapterMetadata, type SourceAdapterRequest, type SourceAdapterResolution,
-  type SourceFilter, type SourcePage,
+  SourceAdapterMetadataSchema, SourceJobRecordSchema, SourcePageSchema, SourceRegistryError, SourceScopeSchema,
+  type SourceAdapter, type SourceAdapterDetailRequest, type SourceAdapterMetadata, type SourceAdapterRequest, type SourceAdapterResolution,
+  type SourceFilter, type SourceJobRecord, type SourcePage,
 } from "./contracts.js";
 
 function adapterKey(id: string, version: string): string { return JSON.stringify([id, version]); }
@@ -14,17 +14,45 @@ export class SourceRegistry {
   constructor(adapters: readonly SourceAdapter[] = []) { for (const adapter of adapters) this.register(adapter); }
 
   register(adapter: SourceAdapter): void {
-    if (!adapter || typeof adapter.list !== "function") throw new SourceRegistryError("invalid-source");
+    if (!adapter || typeof adapter.list !== "function" || (adapter.readDetail !== undefined && typeof adapter.readDetail !== "function")) throw new SourceRegistryError("invalid-source");
     const parsed = SourceAdapterMetadataSchema.safeParse({ adapterId: adapter.adapterId, version: adapter.version, capabilities: adapter.capabilities, remoteFilters: adapter.remoteFilters, entityTypes: adapter.entityTypes });
     if (!parsed.success) throw new SourceRegistryError("invalid-source");
     const key = adapterKey(parsed.data.adapterId, parsed.data.version);
     if (this.adapters.has(key)) throw new SourceRegistryError("duplicate-adapter");
-    this.adapters.set(key, Object.freeze({ ...parsed.data, list: adapter.list.bind(adapter) }));
+    this.adapters.set(key, Object.freeze({ ...parsed.data, list: adapter.list.bind(adapter),
+      ...(adapter.readDetail ? { readDetail: adapter.readDetail.bind(adapter) } : {}) }));
   }
 
   describe(): SourceAdapterMetadata[] {
-    return [...this.adapters.values()].map(({ list: _list, ...metadata }) => structuredClone(metadata))
+    return [...this.adapters.values()].map((adapter) => SourceAdapterMetadataSchema.parse({
+      adapterId: adapter.adapterId, version: adapter.version, capabilities: [...adapter.capabilities],
+      remoteFilters: [...adapter.remoteFilters], entityTypes: [...adapter.entityTypes],
+    }))
       .sort((a, b) => a.adapterId.localeCompare(b.adapterId) || a.version.localeCompare(b.version));
+  }
+
+  async readDetail(request: SourceAdapterDetailRequest): Promise<SourceJobRecord> {
+    const source = SourceDefinitionSchema.safeParse(request?.source);
+    const observedAt = request?.context?.observedAt;
+    if (!source.success || typeof request.sourceRecordId !== "string" || !request.sourceRecordId.trim()
+      || request.sourceRecordId.length > 1000 || /[\p{Cc}\p{Cs}]/u.test(request.sourceRecordId)
+      || !HttpUrlSchema.safeParse(request.url).success || !TimestampSchema.safeParse(observedAt).success
+      || typeof request.context?.throwIfCancelled !== "function" || typeof request.transport?.request !== "function"
+      || Object.keys(request).some(key => !["source", "sourceRecordId", "url", "context", "transport"].includes(key))) {
+      throw new SourceRegistryError("invalid-source");
+    }
+    const resolution = this.resolve(source.data, "list-jobs", "local-service");
+    if (source.data.entityType !== "job-posting" || !resolution.adapter.readDetail) throw new SourceRegistryError("unsupported-capability");
+    const sourceRecordId = request.sourceRecordId, url = request.url;
+    request.context.throwIfCancelled();
+    const result = SourceJobRecordSchema.safeParse(await resolution.adapter.readDetail({
+      source: source.data, sourceRecordId, url,
+      context: request.context, transport: request.transport,
+    }));
+    request.context.throwIfCancelled();
+    if (!result.success || result.data.entityType !== "job-posting" || result.data.sourceRecordId !== sourceRecordId
+      || result.data.url !== url || request.context.observedAt !== observedAt) throw new SourceRegistryError("invalid-output");
+    return result.data;
   }
 
   resolve(sourceInput: SourceDefinition, capability: SourceCapability = "list-jobs", runtime?: SourceRuntime): SourceAdapterResolution {

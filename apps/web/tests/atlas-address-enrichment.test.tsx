@@ -3,15 +3,19 @@ import { registerHooks } from "node:module";
 import test, { after, afterEach, mock } from "node:test";
 import { Window, type HTMLButtonElement, type HTMLInputElement, type HTMLTextAreaElement } from "happy-dom";
 import { applyOfficeAddressConfirmation, type AddressEnrichmentPlan, type AddressEnrichmentPlanItem, type AtlasDataset,
-  type JobLocation, type OfficeAddressCandidatesResult, type OfficeAddressProposal } from "@better-me/opportunities";
+  SourceDefinitionSchema, queryJobs, type JobLocation, type OfficeAddressCandidatesResult, type OfficeAddressProposal } from "@better-me/opportunities";
 import { PlatformDetailLocationsSchema, ReviewedCardsCaptureSchema, parsePlatformJobLocations,
   type CompanyCareerDiscoveryResult, type PlatformDetailLocations } from "@better-me/source-adapters/browser-contracts";
 import { openJobRepository } from "../../job-service/src/repository.ts";
 import { projectSourcePage } from "../../job-service/src/projection.ts";
 import { reviewedCardsPage, reviewedCardsSource } from "../../job-service/src/reviewed-cards.ts";
+import { createJobApplication } from "../../job-service/src/application.ts";
+import { createJobHttpServer } from "../../job-service/src/http.ts";
+import { readJobPostingJsonLd } from "@better-me/source-adapters";
 import type { AtlasAddressEnrichmentProps } from "../src/components/atlas/AtlasAddressEnrichment.tsx";
 
 const dom = new Window({ url: "http://synthetic-address-batch.invalid" });
+const nativeHttpFetch = globalThis.fetch;
 const React = await import("react");
 const { act, createElement: h } = React;
 const globals = { window: dom, document: dom.document, navigator: dom.navigator, HTMLElement: dom.HTMLElement,
@@ -418,6 +422,72 @@ test("owned official preview displays only the unique same-record same-URL nonre
     } else { assert.doesNotMatch(dom.document.body.textContent!, /Synthetic Official Road 25/); assert.equal(calls.length, 3); }
     await clean();
   }
+});
+
+test("React reads an owned JSON-LD posting directly and recovers a committed location-only HTTP write without reading a list or replacing JD", async () => {
+  const sourceUrl = "https://careers.synthetic-office.com/jobs/held-1051", listUrl = "https://careers.synthetic-office.com/reviewed.xml";
+  const source = SourceDefinitionSchema.parse({ sourceId: "synthetic-direct-office", name: "Synthetic direct careers", adapterId: "jobposting-jsonld", adapterVersion: "1",
+    capabilities: ["list-jobs"], runtime: ["local-service"], entityType: "job-posting", enabled: true, status: "active", remoteFilters: [], entryUrl: listUrl,
+    options: { enumerationKind: "sitemap-urlset", enumerationUrls: [listUrl], postingPathPrefixes: ["/jobs/"], pageSize: 1 },
+    endpointPolicy: { allowedHosts: ["careers.synthetic-office.com"], allowedPathPrefixes: ["/reviewed.xml", "/jobs/"], requireHttps: true, allowRedirects: false, maxRedirects: 0 },
+    attribution: { label: "Synthetic direct careers", usage: "metadata", requiresAttribution: true },
+    refreshPolicy: { mode: "manual", minIntervalSeconds: 60, maxRecords: 1, maxPages: 1, requestsPerMinute: 10 } });
+  const posting = { "@type": "JobPosting", url: sourceUrl, identifier: "held-1051", title: "Synthetic C# engineer",
+    description: "<p>Original synthetic JD, saved before reading a more detailed location.</p>", hiringOrganization: { name: "Synthetic direct employer" },
+    datePosted: "2026-09-01", jobLocation: { address: { addressCountry: "CN", addressLocality: "Shanghai" } } };
+  const html = (value: unknown) => `<script type="application/ld+json">${JSON.stringify(value)}</script>`;
+  const initial = readJobPostingJsonLd(html(posting), sourceUrl).record; assert.ok(initial);
+  const repository = openJobRepository(":memory:", { now: () => NOW });
+  const projected = await projectSourcePage(await repository.readProjectionSnapshot(), source,
+    { records: [initial], observedAt: AT, coverage: { complete: false, partial: true, fetchedRecords: 1, appliedFilters: [], ignoredFilters: [] }, warnings: [] }, "synthetic-direct-seed");
+  await repository.importSnapshot(projected.delta, { actorScope: "synthetic-seed", idempotencyKey: "synthetic-direct-seed", expectedRevision: 0 });
+  const before = await repository.readSnapshot(), job = before.jobs[0]!, owned = before.listings[0]!;
+  const reads: string[] = [], snapshots: AtlasDataset[] = [], focuses: unknown[] = [];
+  const application = createJobApplication({ repository, now: () => NOW, transport: { async request(input) {
+    reads.push(input.url); assert.equal(input.url, sourceUrl, "an owned posting beyond a list quota is read without enumerating the list");
+    return { url: input.url, status: 200, headers: {}, text: html({ ...posting, description: "<p>A different remote response must not replace the original JD.</p>",
+      jobLocation: { address: { addressCountry: "CN", addressLocality: "Shanghai", streetAddress: "Synthetic Direct Road 1051", postalCode: "201051" } } }) };
+  } } });
+  const token = "synthetic-direct-office-token-1234567890";
+  const server = createJobHttpServer({ registry: application.registry, token, allowedOrigins: [dom.location.origin], port: 0 });
+  const { url } = await server.listen();
+  const requests: Array<{ path: string; body: unknown; key: string | null }> = [];
+  let loseReceipt = true;
+  mock.method(globalThis, "fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(input), dom.location.href).pathname;
+    requests.push({ path, body: init?.body ? JSON.parse(String(init.body)) : undefined, key: new Headers(init?.headers).get("Idempotency-Key") });
+    const result = await nativeHttpFetch(input, init);
+    if (path === "/api/v1/jobs/owned-detail-locations/import" && loseReceipt) { loseReceipt = false; await result.text(); throw new Error("Synthetic response lost after database commit"); }
+    return result;
+  });
+  try {
+    await prepared(props({ endpoint: url, token, data: before, jobIds: [job.id], onSnapshot: snapshot => snapshots.push(snapshot),
+      onOfficeSnapshot: (...args) => focuses.push(args) }));
+    await settled(() => dom.document.querySelector('section')?.getAttribute("aria-busy") === "false"
+      && checks().length === 1 && !!dom.document.querySelector(`article[data-job-id="${job.id}"]`));
+    assert.deepEqual(reads, [sourceUrl], JSON.stringify({ requests, content: dom.document.body.textContent })); assert.deepEqual(await repository.readSnapshot(), before);
+    assert.match(dom.document.body.textContent!, /官网同岗位直接读取.*Synthetic Direct Road 1051/s);
+    assert.equal(requests.some(request => /\/sources\/.+\/preview$/.test(request.path)), false);
+    assert.deepEqual(requests.find(request => request.path.endsWith("/owned-detail-locations/read"))!.body,
+      { jobId: job.id, listingId: owned.id, expectedRevision: before.revision });
+    await check(); await click(labels.save);
+    await settled(() => [...dom.document.querySelectorAll<HTMLButtonElement>("button")].some(button => button.textContent?.trim() === labels.retry && !button.disabled));
+    assert.equal(snapshots.length, 0); assert.equal((await repository.readSnapshot()).revision, before.revision + 1);
+    await click(labels.retry); await settled(() => snapshots.length === 1);
+    const after = snapshots[0]!, location = after.locations.find(location => after.jobs[0]!.locationIds.includes(location.id))!;
+    assert.equal(after.jobs.length, 1); assert.equal(after.revision, before.revision + 1);
+    assert.equal(location.streetAddress, "Synthetic Direct Road 1051"); assert.equal(location.postalCode, "201051");
+    assert.equal(location.coordinates, undefined); assert.equal(location.verification, "unverified");
+    assert.deepEqual(after.snapshots, before.snapshots); assert.deepEqual(after.compensations, before.compensations); assert.deepEqual(after.companies, before.companies);
+    assert.equal(after.listings[0]!.recordLastSeenAt, owned.recordLastSeenAt); assert.equal(after.jobs[0]!.selectedSnapshotId, job.selectedSnapshotId);
+    assert.equal(focuses.length, 0); assert.deepEqual(reads, [sourceUrl], "receipt recovery must neither refetch the job nor geocode the office");
+    const writes = requests.filter(request => request.path.endsWith("/owned-detail-locations/import"));
+    assert.equal(writes.length, 2); assert.deepEqual(writes[0], writes[1]);
+    assert.equal(requests.filter(request => request.path.endsWith("/owned-detail-locations/preview")).length, 1);
+    assert.equal(checks()[0]!.disabled, true); assert.ok(button("核对具体办公点"));
+    const result = await queryJobs(after, { search: { text: "C#" }, workCountryCodes: ["CN"] });
+    assert.equal(result.items.length, 1); assert.equal(result.mappedJobs, 0);
+  } finally { await clean(); await server.close(); await application.shutdown(); repository.close(); }
 });
 
 test("stopping an in-flight save retains the original request and rejects its late successful receipt", async () => {

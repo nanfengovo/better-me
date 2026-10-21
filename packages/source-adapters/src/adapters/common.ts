@@ -62,7 +62,7 @@ export function baseRecord(title: string, sourceUrl: string, selector: string): 
     warnings: ['Listing presence does not verify current availability or final controlling ownership.'],
   };
 }
-export async function jsonResponse(request: SourceAdapterRequest, url: string): Promise<{ data: unknown; url: string }> {
+export async function jsonResponse(request: Pick<SourceAdapterRequest, 'source' | 'context' | 'transport'>, url: string): Promise<{ data: unknown; url: string }> {
   request.context.throwIfCancelled();
   const response = await request.transport.request({ url, source: request.source, context: request.context });
   if (response.status < 200 || response.status >= 300) throw new SourceTransportError(response.status === 429 ? 'rate-limited' : 'http-error', response.status);

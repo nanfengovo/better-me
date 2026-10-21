@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { CountryCodeSchema, ToolError } from "@better-me/opportunities";
-import { SourceJobRecordSchema, SourcePageSchema, type SourceAdapter, type SourceAdapterRequest, type SourceJobRecord } from "../contracts.js";
+import { SourceJobRecordSchema, SourcePageSchema, type SourceAdapter, type SourceAdapterDetailRequest, type SourceAdapterRequest, type SourceJobRecord } from "../contracts.js";
 import { SmartRecruitersSourceOptionsSchema } from "../smartrecruiters-contracts.js";
 import { SourceTransportError } from "../transport.js";
 import { assessSourceScopeMatch, countSourceScopeMatches } from "../local-match.js";
@@ -31,7 +31,7 @@ function postingUrl(value: unknown, tenant: string, id: string): string | undefi
   return url.pathname.slice(prefix.length).includes("/") ? undefined : candidate;
 }
 
-async function readJson(request: SourceAdapterRequest, url: string) {
+async function readJson(request: Pick<SourceAdapterRequest, "source" | "context" | "transport">, url: string) {
   const response = await jsonResponse(request, url);
   request.context.throwIfCancelled();
   if (response.url !== url) throw new ToolError("source-changed");
@@ -95,9 +95,77 @@ function statusEvidence(job: SourceJobRecord, value: Record<string, unknown>, pr
   }
 }
 
+/** Shares the exact detail parser with bounded list enrichment. An exact read has
+ * no listing fields to inherit and must repeat the original public URL. */
+function applyDetail(job: SourceJobRecord, detailResponse: { data: unknown; url: string }, tenant: string, endpoint: string, expectedUrl?: string): boolean {
+  const detail = record(detailResponse.data), company = record(detail.company);
+  const detailUrl = detail.postingUrl === undefined || detail.postingUrl === "" ? undefined : postingUrl(detail.postingUrl, tenant, job.sourceRecordId!);
+  if (detail.id !== job.sourceRecordId || company.identifier !== tenant || !isApiIdentity(detail.ref, `${endpoint}/${job.sourceRecordId}`)
+    || (detail.postingUrl !== undefined && detail.postingUrl !== "" && !detailUrl)
+    || (expectedUrl !== undefined && detailUrl !== expectedUrl)) throw new ToolError("source-changed");
+  const sections = record(record(detail.jobAd).sections);
+  const order = ["companyDescription", "jobDescription", "qualifications", "additionalInformation"];
+  const parts: string[] = [], evidence: SourceJobRecord["evidence"] = [];
+  for (const key of order) {
+    const section = record(sections[key]), text = plainText(section.text);
+    if (!text) continue;
+    parts.push(`${plainText(section.title) || key}\n${text}`);
+    evidence.push({ field: key === "qualifications" ? "requirements" : "description", selector: `jobAd.sections.${key}.text`, sourceUrl: detailResponse.url });
+  }
+  const description = parts.join("\n\n");
+  if (!description || description.length > 2_000_000) throw new ToolError("source-changed");
+  const full = Boolean(plainText(record(sections.jobDescription).text) && plainText(record(sections.qualifications).text))
+    && !Object.keys(sections).some((key) => !order.includes(key) && plainText(record(sections[key]).text));
+  if (Object.hasOwn(detail, "location")) {
+    const located = structuredClone(job);
+    locationFor(located, detail.location, "location", detailResponse.url);
+    if (expectedUrl === undefined) retainListingOfficeFields(job.locations, located.locations);
+    if (!SourceJobRecordSchema.safeParse(located).success) throw new ToolError("source-changed");
+    job.locations = located.locations; job.workMode = located.workMode; job.evidence = located.evidence; job.warnings = located.warnings;
+  }
+  job.description = description;
+  job.evidence.push(...evidence, { field: "sourceRecordId", selector: "id", quote: job.sourceRecordId, sourceUrl: detailResponse.url });
+  // The same-ID detail URL is authoritative; never manufacture an application route or follow it.
+  if (detailUrl) { job.url = detailUrl; job.applicationUrl = detailUrl; }
+  statusEvidence(job, detail, "", detailResponse.url);
+  if (full) {
+    job.completeness = "detail";
+    job.warnings = job.warnings.filter(warning => !warning.startsWith("Public listing metadata only;"));
+    job.warnings.push("Same-tenant, same-ID official responsibilities and qualifications were read without truncation. Apply controls and source active flags are not independent verification of current availability.");
+  } else job.warnings.push("Official detail sections are missing or contain unsupported additional sections; the captured text remains an excerpt.");
+  return full;
+}
+
+function validateExactRequest(request: SourceAdapterDetailRequest) {
+  const parsed = SmartRecruitersSourceOptionsSchema.safeParse(request.source.options ?? {});
+  if (!parsed.success || !/^\d{1,30}$/.test(request.sourceRecordId)) throw new ToolError("invalid-input");
+  const options = parsed.data, tenant = options.companyIdentifier;
+  const endpoint = `${API_ORIGIN}/v1/companies/${tenant}/postings`;
+  if (request.source.entryUrl && request.source.entryUrl !== endpoint
+    || postingUrl(request.url, tenant, request.sourceRecordId) !== request.url) throw new ToolError("invalid-input");
+  return { options, tenant, endpoint };
+}
+
 /** Public GET Posting API. Upstream q returns candidates; only local evidence establishes a keyword match. */
 export const smartRecruitersAdapter: SourceAdapter = {
   adapterId: "smartrecruiters", version: "1", capabilities: ["list-jobs"], remoteFilters: ["roles"], entityTypes: ["job-posting"],
+  async readDetail(request) {
+    request.context.throwIfCancelled();
+    const { options, tenant, endpoint } = validateExactRequest(request);
+    const response = await readJson(request, `${endpoint}/${request.sourceRecordId}`);
+    const detail = record(response.data), company = record(detail.company), title = plainText(detail.name);
+    if (!title) throw new ToolError("source-changed");
+    const job = baseRecord(title, response.url, "name");
+    job.sourceRecordId = request.sourceRecordId;
+    job.companyName = plainText(company.name) || options.companyName;
+    job.evidence.push({ field: "companyName", selector: "company", sourceUrl: response.url });
+    publicationFor(job, detail.releasedDate, "releasedDate", response.url);
+    applyDetail(job, response, tenant, endpoint, request.url);
+    request.context.throwIfCancelled();
+    const parsed = SourceJobRecordSchema.safeParse(job);
+    if (!parsed.success || parsed.data.url !== request.url || parsed.data.sourceRecordId !== request.sourceRecordId) throw new ToolError("source-changed");
+    return parsed.data;
+  },
   async list(request) {
     request.context.throwIfCancelled();
     const parsedOptions = SmartRecruitersSourceOptionsSchema.safeParse(request.source.options ?? {});
@@ -164,43 +232,7 @@ export const smartRecruitersAdapter: SourceAdapter = {
         request.context.throwIfCancelled();
         try {
           const detailResponse = await readJson(request, `${endpoint}/${job.sourceRecordId}`);
-          const detail = record(detailResponse.data), company = record(detail.company);
-          const detailUrl = detail.postingUrl === undefined || detail.postingUrl === "" ? undefined : postingUrl(detail.postingUrl, tenant, job.sourceRecordId!);
-          if (detail.id !== job.sourceRecordId || company.identifier !== tenant || !isApiIdentity(detail.ref, `${endpoint}/${job.sourceRecordId}`)
-            || (detail.postingUrl !== undefined && detail.postingUrl !== "" && !detailUrl)) throw new ToolError("source-changed");
-          const sections = record(record(detail.jobAd).sections);
-          const order = ["companyDescription", "jobDescription", "qualifications", "additionalInformation"];
-          const parts: string[] = [], evidence: SourceJobRecord["evidence"] = [];
-          for (const key of order) {
-            const section = record(sections[key]), text = plainText(section.text);
-            if (!text) continue;
-            parts.push(`${plainText(section.title) || key}\n${text}`);
-            evidence.push({ field: key === "qualifications" ? "requirements" : "description", selector: `jobAd.sections.${key}.text`, sourceUrl: detailResponse.url });
-          }
-          const description = parts.join("\n\n");
-          if (!description || description.length > 2_000_000) throw new ToolError("source-changed");
-          const full = Boolean(plainText(record(sections.jobDescription).text) && plainText(record(sections.qualifications).text))
-            && !Object.keys(sections).some((key) => !order.includes(key) && plainText(record(sections[key]).text));
-          if (Object.hasOwn(detail, "location")) {
-            const located = structuredClone(job);
-            locationFor(located, detail.location, "location", detailResponse.url);
-            retainListingOfficeFields(job.locations, located.locations);
-            if (!SourceJobRecordSchema.safeParse(located).success) throw new ToolError("source-changed");
-            job.locations = located.locations; job.workMode = located.workMode; job.evidence = located.evidence; job.warnings = located.warnings;
-          }
-          job.description = description;
-          job.evidence.push(...evidence, { field: "sourceRecordId", selector: "id", quote: job.sourceRecordId, sourceUrl: detailResponse.url });
-          // The same-ID detail URL is authoritative; never manufacture an application route or follow it.
-          if (detailUrl) { job.url = detailUrl; job.applicationUrl = detailUrl; }
-          statusEvidence(job, detail, "", detailResponse.url);
-          if (full) {
-            job.completeness = "detail"; detailed++;
-            job.warnings = job.warnings.filter((warning) => !warning.startsWith("Public listing metadata only;"));
-            job.warnings.push("Same-tenant, same-ID official responsibilities and qualifications were read without truncation. Apply controls and source active flags are not independent verification of current availability.");
-          } else {
-            detailFailures++;
-            job.warnings.push("Official detail sections are missing or contain unsupported additional sections; the captured text remains an excerpt.");
-          }
+          if (applyDetail(job, detailResponse, tenant, endpoint)) detailed++; else detailFailures++;
         } catch (error) {
           request.context.throwIfCancelled();
           if (error instanceof SourceTransportError && error.code === "timeout") {

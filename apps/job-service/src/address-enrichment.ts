@@ -24,10 +24,12 @@ function exactHttpsUrl(value: string | undefined): value is string {
 
 /** A bounded read-only next-step plan. It never invokes a transport or any write tool. */
 export function createAddressEnrichmentTool(repository: Pick<JobRepository, "readSnapshot" | "readProjectionSnapshot">,
-  options: { canReadOfficialSource?: (source: SourceDefinition) => boolean } = {}) {
+  options: { canReadOfficialSource?: (source: SourceDefinition) => boolean;
+    canReadOfficialDetailSource?: (source: SourceDefinition) => boolean } = {}) {
   // A source's declared adapter/version never proves that executable code is
   // installed. Hosts must supply their current registry resolver explicitly.
   const canReadOfficialSource = options.canReadOfficialSource ?? (() => false);
+  const canReadOfficialDetailSource = options.canReadOfficialDetailSource ?? (() => false);
   return defineTool({
     name: "jobs.plan-address-enrichment", version: 1, effect: "read-index",
     description: "按当前搜索结果的明确岗位ID和版本规划逐岗办公地址补全；区分已有有效点、原来源街址、同平台原岗、已持有官网来源及弱企业发现，不联网、不查地址、不写入。",
@@ -90,7 +92,8 @@ export function createAddressEnrichmentTool(repository: Pick<JobRepository, "rea
           if (officialAdapters.has(source.adapterId) && source.enabled && source.status === "active"
             && source.entityType === "job-posting" && source.capabilities.includes("list-jobs") && source.runtime.includes("local-service")
             && exactHttpsUrl(source.entryUrl) && exactHttpsUrl(listing.canonicalUrl) && canReadOfficialSource(source)) ownedOfficialTargets.push({ listingId: listing.id, sourceId: source.sourceId,
-            adapterId: source.adapterId, url: listing.canonicalUrl, label: source.attribution.label });
+            adapterId: source.adapterId, url: listing.canonicalUrl, label: source.attribution.label,
+            ...(listing.sourceRecordId && canReadOfficialDetailSource(source) ? { exactDetail: true } : {}) });
         }
         const truncated = [currentOffice, sourceStreetTargets, exactPlatformTargets, ownedOfficialTargets].some(values => values.length > TARGET_LIMIT);
         const status = remoteOnly ? "remote-only" : currentOffice.length && !pendingLocationIds.length ? "office-ready" : sourceStreetTargets.length ? "source-street"
