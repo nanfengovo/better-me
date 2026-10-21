@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { AtlasDatasetSchema, CanonicalJobSchema, CountryCodeSchema, EntityIdSchema, TimestampSchema, MergeDecisionSchema, JobAliasEventSchema, ReconciliationReceiptSchema, JobLocationSchema, LocationConfirmationDecisionSchema, LocationConfirmationReceiptSchema, OfficeAddressDecisionSchema, OfficeAddressReceiptSchema, CompensationSchema, CompensationReviewDecisionSchema, CompensationReviewReceiptSchema, FxReferenceSnapshotSchema, FxMutationReceiptSchema, CompanySchema, CompanyControlReviewDecisionSchema, CompanyControlReviewReceiptSchema, isCompanyControlReviewEntityId } from "@better-me/opportunities";
-import { SourceJobRecordSchema } from "@better-me/source-adapters";
+import { SourceJobRecordSchema, SourceSyncRunSchema } from "@better-me/source-adapters";
+import { SourceScanCheckpointSchema } from "./source-scan-state.js";
 
-export const REPOSITORY_SCHEMA_VERSION = 7;
+export const REPOSITORY_SCHEMA_VERSION = 8;
 export const ActorScopeSchema = z.string().min(1).max(200).regex(/^[A-Za-z0-9._:/-]+$/);
 export const IdempotencyKeySchema = z.string().min(1).max(200).regex(/^[A-Za-z0-9._:-]+$/);
 export const RequestFingerprintSchema = z.string().regex(/^[a-f0-9]{64}$/);
@@ -34,13 +35,7 @@ export const RunScopeSchema = z.object({
   maxPages: z.number().int().min(1).max(10_000).optional(),
 }).strict();
 export type RunScope = z.infer<typeof RunScopeSchema>;
-export const SyncRunSchema = z.object({
-  runId: EntityIdSchema, sourceId: EntityIdSchema, actorScope: ActorScopeSchema,
-  generation: z.number().int().positive(), scope: RunScopeSchema,
-  requestFingerprint: RequestFingerprintSchema.optional(),
-  status: z.enum(["running", "completed", "partial", "failed", "cancelled", "superseded"]),
-  startedAt: TimestampSchema, finishedAt: TimestampSchema.optional(), summary: PublicRunSummarySchema.optional(),
-}).strict();
+export const SyncRunSchema = SourceSyncRunSchema;
 export type SyncRun = z.infer<typeof SyncRunSchema>;
 
 export const ImportReceiptSchema = z.object({
@@ -54,11 +49,15 @@ export const DiscoveryLeadSchema = z.object({
 export type DiscoveryLead = z.infer<typeof DiscoveryLeadSchema>;
 export const DiscoveryLeadReceiptSchema = z.object({ ok: z.literal(true), revision: z.number().int().nonnegative(), leadIds: z.array(EntityIdSchema) }).strict();
 export type DiscoveryLeadReceipt = z.infer<typeof DiscoveryLeadReceiptSchema>;
+export const SourceScanPageReceiptSchema = z.object({ ok: z.literal(true), runId: EntityIdSchema, scanId: EntityIdSchema,
+  progressVersion: z.number().int().positive(), receipt: ImportReceiptSchema, leadIds: z.array(EntityIdSchema), revision: z.number().int().nonnegative() }).strict();
+export type SourceScanPageReceipt = z.infer<typeof SourceScanPageReceiptSchema>;
 export const StoredReceiptSchema = z.object({
-  actorScope: ActorScopeSchema, tool: z.enum(["dataset.import", "dataset.restore", "runs.start", "leads.save", "sources.register", "jobs.merge", "jobs.reject-merge", "jobs.revoke-merge", "locations.confirm", "locations.revoke-confirmation", "locations.confirm-office-address", "locations.revoke-office-address", "compensations.confirm-review", "compensations.revoke-review", "fx.confirm-import", "fx.activate", "companies.confirm-control-review", "companies.revoke-control-review"]),
+  actorScope: ActorScopeSchema, tool: z.enum(["dataset.import", "dataset.restore", "runs.start", "leads.save", "sources.register", "sources.commit-page", "jobs.merge", "jobs.reject-merge", "jobs.revoke-merge", "locations.confirm", "locations.revoke-confirmation", "locations.confirm-office-address", "locations.revoke-office-address", "compensations.confirm-review", "compensations.revoke-review", "fx.confirm-import", "fx.activate", "companies.confirm-control-review", "companies.revoke-control-review"]),
   idempotencyKey: IdempotencyKeySchema, signature: z.string().regex(/^[a-f0-9]{64}$/),
-  response: z.union([ImportReceiptSchema, SyncRunSchema, DiscoveryLeadReceiptSchema, ReconciliationReceiptSchema, LocationConfirmationReceiptSchema, OfficeAddressReceiptSchema, CompensationReviewReceiptSchema, FxMutationReceiptSchema, CompanyControlReviewReceiptSchema]), createdAt: TimestampSchema,
+  response: z.union([ImportReceiptSchema, SyncRunSchema, DiscoveryLeadReceiptSchema, SourceScanPageReceiptSchema, ReconciliationReceiptSchema, LocationConfirmationReceiptSchema, OfficeAddressReceiptSchema, CompensationReviewReceiptSchema, FxMutationReceiptSchema, CompanyControlReviewReceiptSchema]), createdAt: TimestampSchema,
 }).strict().superRefine((receipt, context) => {
+  if (receipt.tool === "sources.commit-page" && !SourceScanPageReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Source page commands require an atomic page receipt." });
   if ((receipt.tool === "locations.confirm" || receipt.tool === "locations.revoke-confirmation") && !LocationConfirmationReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Location command receipts require a location response." });
   if ((receipt.tool === "locations.confirm-office-address" || receipt.tool === "locations.revoke-office-address") && !OfficeAddressReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Office command receipts require an office response." });
   if ((receipt.tool === "compensations.confirm-review" || receipt.tool === "compensations.revoke-review") && !CompensationReviewReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Compensation commands require a compensation review response." });
@@ -67,7 +66,7 @@ export const StoredReceiptSchema = z.object({
 });
 export type StoredReceipt = z.infer<typeof StoredReceiptSchema>;
 export const RepositoryBackupSchema = z.object({
-  format: z.literal("better-me/job-repository"), schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6), z.literal(7)]),
+  format: z.literal("better-me/job-repository"), schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6), z.literal(7), z.literal(8)]),
   createdAt: TimestampSchema, dataset: AtlasDatasetSchema,
   runs: z.array(SyncRunSchema).max(100_000), receipts: z.array(StoredReceiptSchema).max(1_000_000),
   leads: z.array(DiscoveryLeadSchema).max(300_000).default([]),
@@ -84,7 +83,10 @@ export const RepositoryBackupSchema = z.object({
   fxActivations: z.array(FxActivationEventSchema).max(100_000).default([]),
   baseCompanies: z.array(CompanySchema.refine(value => !value.controlReview, "Source companies cannot contain local reviews.")).max(100_000).optional(),
   companyControlDecisions: z.array(CompanyControlReviewDecisionSchema).max(100_000).default([]),
+  sourceScans: z.array(SourceScanCheckpointSchema).max(1_000_000).default([]),
 }).strict().superRefine((backup, context) => {
+  if (backup.schemaVersion < 8 && (backup.sourceScans.length || backup.runs.some(run => run.scanId || run.continuedFromRunId) || backup.receipts.some(receipt => receipt.tool === "sources.commit-page"))) context.addIssue({ code: "custom", message: "Old backups cannot contain durable source scans." });
+  if (new Set(backup.sourceScans.map(value => value.id)).size !== backup.sourceScans.length) context.addIssue({ code: "custom", message: "Duplicate source scan events." });
   if (new Set(backup.runs.map((run) => run.runId)).size !== backup.runs.length) context.addIssue({ code: "custom", message: "Duplicate run IDs." });
   const keys = backup.receipts.map((receipt) => JSON.stringify([receipt.actorScope, receipt.tool, receipt.idempotencyKey]));
   if (new Set(keys).size !== keys.length) context.addIssue({ code: "custom", message: "Duplicate receipt keys." });
@@ -208,4 +210,12 @@ CREATE TRIGGER observations_no_update BEFORE UPDATE ON observations BEGIN SELECT
 CREATE TRIGGER observations_no_delete BEFORE DELETE ON observations BEGIN SELECT RAISE(ABORT,'immutable-observation'); END;
 CREATE TRIGGER snapshots_no_update BEFORE UPDATE ON snapshots BEGIN SELECT RAISE(ABORT,'immutable-snapshot'); END;
 CREATE TRIGGER snapshots_no_delete BEFORE DELETE ON snapshots BEGIN SELECT RAISE(ABORT,'immutable-snapshot'); END;
+`;
+export const REPOSITORY_MIGRATION_V8 = `
+CREATE TABLE source_scan_events (id TEXT PRIMARY KEY, scan_id TEXT NOT NULL, version INTEGER NOT NULL, source_id TEXT NOT NULL, actor_scope TEXT NOT NULL, document TEXT NOT NULL CHECK(json_valid(document)), UNIQUE(scan_id,version)) STRICT;
+CREATE INDEX source_scan_sources ON source_scan_events(source_id,actor_scope);
+`;
+export const SOURCE_SCAN_TRIGGERS = `
+CREATE TRIGGER source_scan_events_no_update BEFORE UPDATE ON source_scan_events BEGIN SELECT RAISE(ABORT,'immutable-source-scan'); END;
+CREATE TRIGGER source_scan_events_no_delete BEFORE DELETE ON source_scan_events BEGIN SELECT RAISE(ABORT,'immutable-source-scan'); END;
 `;

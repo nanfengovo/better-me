@@ -12,6 +12,8 @@ import type { AtlasOfficeAddressConfirmationProps } from "../src/components/atla
 import { queryAtlasPage } from "../src/components/atlas/client.ts";
 import { officeProposal, officeAt } from "./fixtures/atlas-office-address.ts";
 import { createMapReferenceFixture } from "./fixtures/atlas-map-references.ts";
+import { SourceScopeSchema } from "@better-me/source-adapters/browser-contracts";
+import { atlasAggregateRecoveryScope, readAtlasAggregateRecovery, saveAtlasAggregateReceipt, settleAtlasAggregateReceipt } from "../src/components/atlas/aggregate-recovery.ts";
 
 // Exercise the real React workspace and shared queries. The map probe only replaces WebGL/network rendering.
 const dom = new Window({ url: "http://atlas-workspace-fixture.invalid" });
@@ -146,8 +148,12 @@ function installWorkspaceFetch(handler: typeof fetch, mapReply?: (input: { expec
     return response;
   });
 }
-const sourceReceipt = (scope: unknown) => ({ run: { runId: "synthetic-main-search-run", sourceId: "atlas-demo", actorScope: "local-owner", generation: 1,
-  scope: {}, status: "partial", startedAt: "2026-10-18T12:00:00.000Z", summary: { records: 9, pages: 1, partial: true } }, localFilters: scope, warnings: ["Synthetic bounded fixture, not real recruitment coverage"] });
+const sourceReceipt = (value: unknown) => {
+  const scope = SourceScopeSchema.parse(value);
+  return { run: { runId: "synthetic-main-search-run", sourceId: "atlas-demo", actorScope: "local-owner", generation: 1,
+    scope: { keywords: scope.roles, regions: scope.regions, companies: scope.companyNames, ...(scope.countryCodes ? { countryCodes: scope.countryCodes } : {}) },
+    status: "partial", startedAt: "2026-10-18T12:00:00.000Z", summary: { records: 9, pages: 1, partial: true } }, localFilters: scope, warnings: ["Synthetic bounded fixture, not real recruitment coverage"] };
+};
 function pointerClick(card: HTMLButtonElement, detail: number) {
   card.dispatchEvent(new dom.MouseEvent("click", { bubbles: true, detail, button: 0 }));
 }
@@ -199,7 +205,15 @@ function unresolvedOfficeFixture() {
   data.locations.forEach((location) => { location.kind = "office"; });
   return AtlasDatasetSchema.parse(data);
 }
-afterEach(async () => { if (root) await act(async () => root!.unmount()); root = undefined; mapProps = undefined; detailData = undefined; officeProps = undefined; pauseRecovery = undefined; dom.localStorage.clear(); dom.sessionStorage.clear(); mock.restoreAll(); });
+afterEach(async () => {
+  if (root) await act(async () => root!.unmount()); root = undefined; mapProps = undefined; detailData = undefined; officeProps = undefined; pauseRecovery = undefined;
+  const scope = atlasAggregateRecoveryScope("http://127.0.0.1:5178", "synthetic-fixture-token");
+  for (const entry of readAtlasAggregateRecovery(scope).entries) {
+    const receipt = sourceReceipt(entry.input.scope); receipt.run.sourceId = entry.sourceId;
+    saveAtlasAggregateReceipt(scope, entry.key, receipt); settleAtlasAggregateReceipt(scope, entry.key, entry.receipt?.run.runId ?? receipt.run.runId);
+  }
+  dom.localStorage.clear(); dom.sessionStorage.clear(); mock.restoreAll();
+});
 after(() => {
   hooks.deregister(); dom.happyDOM.abort();
   for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); }
@@ -647,7 +661,7 @@ test("source review opens without rereading and a new search closes candidates b
   assert.equal(previews, 0);
 });
 
-test("an unknown main-search response retries the same write key and a completed refresh starts a fresh bounded request", async () => {
+test("an unknown main-search response retains its exact request across remount and changed filters, and a completed recovery permits a new bounded request", async () => {
   const initial = searchFixture(true), updated = searchFixture();
   for (const data of [initial, updated]) { data.sources[0]!.refreshPolicy.maxRecords = 100; data.sources[0]!.refreshPolicy.maxPages = 10; }
   const writes: Array<{ body: any; key: string | null }> = []; let snapshots = 0;
@@ -666,11 +680,18 @@ test("an unknown main-search response retries the same write key and a completed
   assert.match(dom.document.querySelector('[role="alert"]')!.textContent!, /未收到本机服务回执/);
   assert.deepEqual(writes[0]!.body, { scope: { roles: ["C#"], regions: [], companyNames: [] }, maxRecords: 100, maxPages: 10 });
   assert.ok(writes[0]!.key);
-  await flush(() => button("从来源获取岗位").click());
-  assert.equal(writes.length, 2); assert.deepEqual(writes[1], writes[0]); assert.equal(snapshots, 2);
+  assert.equal(button("从来源获取岗位").disabled, true);
+  await act(async () => root!.unmount()); root = undefined;
+  await render(true, false);
+  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "Java"));
+  assert.equal(button("从来源获取岗位").disabled, true, "a remount and changed interests cannot mint a fresh source write");
+  assert.equal(writes.length, 1);
+  await flush(() => button("核对原聚合搜索回执").click());
+  assert.equal(writes.length, 2); assert.deepEqual(writes[1], writes[0]); assert.equal(snapshots, 3);
+  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "C#"));
   await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 3, "the successful retry snapshot query");
   await flush(() => button("从来源获取岗位").click());
-  assert.equal(writes.length, 3); assert.equal(snapshots, 3);
+  assert.equal(writes.length, 3); assert.equal(snapshots, 4);
   assert.deepEqual(writes[2]!.body, writes[1]!.body); assert.notEqual(writes[2]!.key, writes[1]!.key);
   assert.equal(dom.document.querySelector('[role="alert"]'), null);
 });
@@ -698,6 +719,37 @@ test("searching the configured employer enumerates that company and sends the se
   assert.equal(writes.length, 1);
   assert.deepEqual(writes[0]!.scope, { roles: [], regions: ["US"], companyNames: ["UniqueEmployerOnly"] });
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 1);
+});
+
+test("an unresolved main search blocks new source-panel writes while indexed reads remain available, then exact recovery unlocks both surfaces", async () => {
+  const data = searchFixture(), writes: Array<{ body: any; key: string | null }> = [];
+  let snapshots = 0;
+  installWorkspaceFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(url)).pathname;
+    if (path === "/api/v1/dataset/export") { snapshots++; return sourceResponse(data); }
+    if (path === "/api/v1/sources") return sourceResponse({ sources: data.sources, adapters: [{ adapterId: data.sources[0]!.adapterId, version: data.sources[0]!.adapterVersion, capabilities: ["list-jobs"], remoteFilters: ["roles"], entityTypes: ["job-posting"] }] });
+    if (path.endsWith("/scan-progress")) return sourceResponse({ sourceId: "atlas-demo", progress: null });
+    assert.equal(path, "/api/v1/sources/atlas-demo/sync");
+    const body = JSON.parse(String(init!.body)); writes.push({ body, key: new Headers(init!.headers).get("Idempotency-Key") });
+    if (writes.length === 1) throw new TypeError("Synthetic reply lost after dispatch");
+    return sourceResponse(sourceReceipt(body.scope));
+  });
+  await render(true, false); await connectFixture();
+  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "C#"));
+  await flush(() => button("从来源获取岗位").click());
+  assert.equal(button("从来源获取岗位").disabled, true); const beforeRead = snapshots;
+  await flush(() => button("重新读取索引").click()); assert.equal(snapshots, beforeRead + 1); assert.equal(writes.length, 1);
+  await flush(() => button("来源工具").click());
+  await waitFor(() => Boolean(dom.document.querySelector(".atlas-sources-panel")) && !dom.document.querySelector(".atlas-sources-panel .animate-spin"), "source tools with retained main request");
+  const panel = dom.document.querySelector(".atlas-sources-panel")!;
+  const panelButton = (label: string) => { const found = [...panel.querySelectorAll<HTMLButtonElement>("button")].find(value => value.textContent?.trim() === label); assert.ok(found, label); return found; };
+  assert.equal(panelButton("手动刷新并更新地图").disabled, true); assert.equal(panelButton("继续上次扫描").disabled, true);
+  assert.equal(panelButton("载入配置供编辑").disabled, true);
+  await flush(() => panelButton("手动刷新并更新地图").click()); assert.equal(writes.length, 1);
+  await flush(() => panelButton("核对原聚合搜索回执").click());
+  assert.equal(writes.length, 2); assert.deepEqual(writes[1], writes[0]);
+  assert.equal(panelButton("手动刷新并更新地图").disabled, false); assert.equal(panelButton("载入配置供编辑").disabled, false);
+  assert.equal(button("从来源获取岗位").disabled, false);
 });
 
 test("empty index allows country and city preselection and preserves the same-location scope through fetch", async () => {

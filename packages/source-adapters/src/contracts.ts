@@ -93,6 +93,8 @@ export const SourcePageSchema = z.object({
   records: z.array(SourceJobRecordSchema).max(100_000),
   observedAt: TimestampSchema,
   nextCursor: z.string().min(1).max(2000).optional(),
+  /** A partial page stopped during a detail request. Retain its starting cursor for an explicit manual retry. */
+  retryCurrentPage: z.literal(true).optional(),
   coverage: z.object({
     complete: z.boolean(),
     partial: z.boolean(),
@@ -104,6 +106,7 @@ export const SourcePageSchema = z.object({
   stopReason: SourceStopReasonSchema.optional(),
   warnings: z.array(z.string().min(1).max(2000)).max(100),
 }).strict().superRefine((page, context) => {
+  if (page.retryCurrentPage && (!page.coverage.partial || page.nextCursor)) context.addIssue({ code: "custom", message: "A retryable partial page cannot advance its cursor." });
   if (page.coverage.complete && (page.coverage.partial || page.nextCursor || page.stopReason)) context.addIssue({ code: z.ZodIssueCode.custom, path: ["coverage", "complete"], message: "Complete enumeration cannot also be partial, stopped, or have another cursor." });
   if (page.stopReason && !page.coverage.partial) context.addIssue({ code: z.ZodIssueCode.custom, path: ["coverage", "partial"], message: "A stopped enumeration must report partial coverage." });
   if (!page.coverage.complete && !page.coverage.partial && !page.nextCursor) context.addIssue({ code: z.ZodIssueCode.custom, path: ["coverage"], message: "Incomplete coverage requires a continuation cursor or a partial result." });

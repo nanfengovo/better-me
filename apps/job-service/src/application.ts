@@ -15,7 +15,10 @@ import {
   createLocalGazetteerProvider, createGeocodingTool, type GeocodingProvider, type MapReferenceProvider,
   locallyMatchesSourceScope as locallyMatches, countSourceScopeMatches,
   type SourceAdapter, type SourceTransport, type CareerWebSearchProvider,
+  ReadSourceScanProgressInputSchema, SourceScanProgressResultSchema, ContinueSourceScanInputSchema, SourceSyncResultSchema,
+  type SourceScope, type SourceSyncRun, type SourceSyncResult, type ContinueSourceScanInput,
 } from "@better-me/source-adapters";
+import { sourceConfigurationFingerprint } from "./source-scan-state.js";
 import { RepositoryError, type JobRepository } from "./repository.js";
 import { DiscoveryLeadSchema, ImportReceiptSchema, SyncRunSchema, type PublicRunSummary } from "./repository-schema.js";
 import { projectSourcePage } from "./projection.js";
@@ -140,6 +143,129 @@ export function createJobApplication(options: JobApplicationOptions) {
     ...(options.resolveQueryOptions ? await options.resolveQueryOptions(context) : {}),
     ...(input.mapCityReferences ? { mapReferences: await mapReferenceTool.execute({ expectedRevision: (await repository.readSnapshot()).revision, limit: 1000 }, context) } : {}),
   }));
+
+  const scopeOfRun = (run: SourceSyncRun): SourceScope => ({ roles: run.scope.keywords ?? [], regions: run.scope.regions ?? [], companyNames: run.scope.companies ?? [], ...(run.scope.countryCodes ? { countryCodes: run.scope.countryCodes } : {}) });
+  async function syncResult(run: SourceSyncRun, localFilters: SourceScope, warnings: string[], sourceError?: { code: string; retryAfterSeconds?: number }): Promise<SourceSyncResult> {
+    const progress = run.scanId ? (await repository.readScanProgress({ sourceId: run.sourceId, runId: run.runId, actorScope: run.actorScope })).progress : undefined;
+    return { run, localFilters, warnings, ...(sourceError ? { sourceError } : {}), ...(progress?.runId === run.runId ? { scanProgress: progress } : {}) };
+  }
+  async function recoverSync(input: unknown, context: ToolHandlerContext, continuation: boolean) {
+    const requestFingerprint = createHash("sha256").update(JSON.stringify(continuation ? { tool: "sources.continue-sync", input } : input)).digest("hex");
+    const existing = await repository.findRunByRequest({ actorScope: context.actorScope, idempotencyKey: key(context), requestFingerprint });
+    return existing ? syncResult(existing, scopeOfRun(existing), ["Recovered the original durable run without new source requests."]) : undefined;
+  }
+  async function executeSync(input: z.infer<typeof scopeInput>, context: ToolHandlerContext, continuation?: ContinueSourceScanInput): Promise<SourceSyncResult> {
+        const sameKey = key(context);
+        const requestFingerprint = createHash("sha256").update(JSON.stringify(continuation ? { tool: "sources.continue-sync", input: continuation } : input)).digest("hex");
+        const existing = await repository.findRunByRequest({ actorScope: context.actorScope, idempotencyKey: sameKey, requestFingerprint });
+        if (existing) return syncResult(existing, scopeOfRun(existing), ["This request already has a persistent run. Read its state; a new refresh requires a new key."]);
+        if (continuation) {
+          const retained = await repository.readScanCheckpoint(continuation.fromRunId, context.actorScope);
+          if (retained.sourceId !== continuation.sourceId || retained.runId !== continuation.fromRunId || retained.version !== continuation.expectedProgressVersion) throw new ToolError("stale-version");
+          input = { sourceId: continuation.sourceId, scope: retained.scope, ...(continuation.maxRecords === undefined ? {} : { maxRecords: continuation.maxRecords }), ...(continuation.maxPages === undefined ? {} : { maxPages: continuation.maxPages }) };
+        }
+        const source = await getSource(input.sourceId);
+        sources.resolve(source, "list-jobs", "local-service");
+        if (source.secretRef) throw new ToolError("needs-auth");
+        const maxRecords = Math.min(input.maxRecords ?? source.refreshPolicy.maxRecords, source.refreshPolicy.maxRecords);
+        const maxPages = Math.min(input.maxPages ?? source.refreshPolicy.maxPages, source.refreshPolicy.maxPages);
+        const run = await repository.startRun({ sourceId: source.sourceId, scope: { keywords: input.scope.roles, regions: input.scope.regions, companies: input.scope.companyNames,
+          ...(input.scope.countryCodes ? { countryCodes: input.scope.countryCodes } : {}), maxRecords, maxPages }, actorScope: context.actorScope, idempotencyKey: sameKey, requestFingerprint,
+          scan: { sourceFingerprint: sourceConfigurationFingerprint(source), scope: input.scope, ...(continuation ? { continue: continuation } : {}) } });
+        if (run.status !== "running") return syncResult(run, input.scope, ["This idempotent request already has a terminal run; use a new key for a new refresh."]);
+        const controller = new AbortController();
+        const forwardAbort = () => controller.abort();
+        context.signal.addEventListener("abort", forwardAbort, { once: true });
+        if (context.signal.aborted) controller.abort();
+        running.set(run.runId, controller);
+        const syncContext: ToolHandlerContext = { ...context, signal: controller.signal, throwIfCancelled: () => { context.throwIfCancelled(); if (controller.signal.aborted) throw new ToolError("cancelled"); } };
+        const summary: PublicRunSummary = { added: 0, changed: 0, unchanged: 0, records: 0, pages: 0, leads: 0, partial: false };
+        const warnings: string[] = [];
+        let checkpoint = await repository.readScanCheckpoint(run.runId, context.actorScope);
+        summary.partial = checkpoint.hadErrors;
+        const cursors = new Set<string>();
+        let cursor = checkpoint.cursor;
+        if (cursor) cursors.add(cursor);
+        try {
+          for (let pageNumber = 0; pageNumber < maxPages; pageNumber++) {
+            syncContext.throwIfCancelled();
+            await repository.assertRunCurrent(run.runId, context.actorScope);
+            await assertSourceConfiguration(source);
+            const remaining = maxRecords - summary.records!;
+            if (remaining <= 0) { summary.partial = true; warnings.push("record-limit"); break; }
+            const page = await sources.list({ source: { ...source, refreshPolicy: { ...source.refreshPolicy, maxRecords: remaining } }, scope: input.scope, ...(cursor ? { cursor } : {}), context: { ...syncContext, observedAt: now() }, transport });
+            syncContext.throwIfCancelled();
+            await repository.assertRunCurrent(run.runId, context.actorScope);
+            await assertSourceConfiguration(source);
+            summary.pages!++; summary.records! += page.coverage.fetchedRecords;
+            summary.partial ||= page.coverage.partial;
+            warnings.push(...page.warnings);
+            const unresolvedScope = countSourceScopeMatches(page.records, input.scope).unknown;
+            if (unresolvedScope) summary.needsHuman = (summary.needsHuman ?? 0) + unresolvedScope;
+            const matchedPage = { ...page, records: page.records.filter((record) => locallyMatches(record, input.scope)) };
+            // Network reads remain concurrent. Only each local read/project/write
+            // sequence is serialized, so independent sources use the latest base.
+            const leads = await serializePageMutation(async () => {
+              syncContext.throwIfCancelled();
+              let snapshot = await repository.readProjectionSnapshot();
+              for (let attempt = 0; ; attempt++) {
+                syncContext.throwIfCancelled();
+                await repository.assertRunCurrent(run.runId, context.actorScope);
+                await assertSourceConfiguration(source);
+                // Refresh source origins rather than a merged canonical summary.
+                const projection = await projectSourcePage(snapshot, source, matchedPage, run.runId);
+                // Observations cannot restore an old endpoint/policy configuration.
+                projection.delta.sources = [];
+                syncContext.throwIfCancelled();
+                await repository.assertRunCurrent(run.runId, context.actorScope);
+                await assertSourceConfiguration(source);
+                let receipt;
+                try {
+                  const committed = await repository.commitScanPage({ delta: projection.delta, leads: projection.leads, page, expectedProgressVersion: checkpoint.version, summary }, { actorScope: context.actorScope, idempotencyKey: `${run.runId}.page-${pageNumber}`, expectedRevision: snapshot.revision, runId: run.runId, throwIfCancelled: syncContext.throwIfCancelled });
+                  receipt = committed.receipt;
+                  checkpoint = await repository.readScanCheckpoint(run.runId, context.actorScope);
+                } catch (error) {
+                  if (!(error instanceof RepositoryError) || error.code !== "stale-version") throw error;
+                  syncContext.throwIfCancelled();
+                  await repository.assertRunCurrent(run.runId, context.actorScope);
+                  await assertSourceConfiguration(source);
+                  const latest = await repository.readProjectionSnapshot();
+                  // An external registration/import can advance the index while
+                  // this page is projected. Retry only a real CAS race, never a
+                  // replaced source/run or an unchanged-version semantic failure.
+                  if (attempt >= 2 || latest.revision <= snapshot.revision) throw error;
+                  snapshot = latest;
+                  continue;
+                }
+                summary.added! += receipt.counts.newJobs; summary.changed! += receipt.counts.updatedJobs; summary.unchanged! += receipt.counts.unchangedJobs;
+                return projection.leads.length;
+              }
+            });
+            summary.leads! += leads;
+            if (!page.nextCursor) { summary.partial ||= !page.coverage.complete; break; }
+            if (cursors.has(page.nextCursor)) { summary.partial = true; warnings.push("repeated-source-cursor"); await repository.markScanFailure(run.runId, context.actorScope, true); break; }
+            cursors.add(page.nextCursor); cursor = page.nextCursor;
+            if (pageNumber + 1 === maxPages) { summary.partial = true; warnings.push("page-limit"); }
+          }
+          syncContext.throwIfCancelled();
+          const finished = await repository.finishRun(run.runId, { actorScope: context.actorScope, status: summary.partial ? "partial" : "completed", summary });
+          return syncResult(finished, input.scope, [...new Set(warnings)].slice(0, 100));
+        } catch (error) {
+          const failure = mappedError(error);
+          const current = await repository.getRun(run.runId);
+          if (!current) throw failure;
+          if (["cancelled", "superseded"].includes(current.status)) return syncResult(current, input.scope, [failure.code], { code: failure.code });
+          await repository.markScanFailure(run.runId, context.actorScope, failure.code === "source-changed");
+          const finished = controller.signal.aborted
+            ? await repository.cancelRun(run.runId, { actorScope: context.actorScope })
+            : await repository.finishRun(run.runId, { actorScope: context.actorScope, status: summary.pages ? "partial" : "failed", summary: { ...summary, partial: Boolean(summary.pages), errorCode: failure.code } });
+          return syncResult(finished, input.scope, [...new Set([...warnings, failure.code])].slice(0, 100), { code: failure.code, ...(error instanceof SourceTransportError && error.retryAfterSeconds !== undefined ? { retryAfterSeconds: error.retryAfterSeconds } : {}) });
+        } finally {
+          context.signal.removeEventListener("abort", forwardAbort);
+          if (running.get(run.runId) === controller) running.delete(run.runId);
+        }
+
+  }
   const definitions: ToolDefinition<any, any>[] = [
     ...createCompanyControlReviewTools(repository).map(definition => ({ ...definition,
       ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
@@ -204,111 +330,19 @@ export function createJobApplication(options: JobApplicationOptions) {
         return { page, localMatchedRecords: page.records.filter((record) => locallyMatches(record, input.scope)).length, localFilters: input.scope };
       }),
     }),
-    defineTool({ name: "sources.sync", version: 1, description: "在关注范围内手动刷新索引，保留来源观察、部分失败和持久任务回执，不关闭缺席旧岗位。", effect: "local-write", inputSchema: scopeInput,
-      outputSchema: z.object({ run: SyncRunSchema, localFilters: SourceScopeSchema, warnings: z.array(z.string()), sourceError: z.object({ code: z.string(), retryAfterSeconds: z.number().nonnegative().optional() }).strict().optional() }).strict(),
-      execute: (input, context) => guarded(async () => {
-        const sameKey = key(context);
-        const requestFingerprint = createHash("sha256").update(JSON.stringify(input)).digest("hex");
-        const existing = await repository.findRunByRequest({ actorScope: context.actorScope, idempotencyKey: sameKey, requestFingerprint });
-        if (existing) return { run: existing, localFilters: input.scope, warnings: ["This request already has a persistent run. Read its state; a new refresh requires a new key."] };
-        const source = await getSource(input.sourceId);
-        sources.resolve(source, "list-jobs", "local-service");
-        if (source.secretRef) throw new ToolError("needs-auth");
-        const maxRecords = Math.min(input.maxRecords ?? source.refreshPolicy.maxRecords, source.refreshPolicy.maxRecords);
-        const maxPages = Math.min(input.maxPages ?? source.refreshPolicy.maxPages, source.refreshPolicy.maxPages);
-        const run = await repository.startRun({ sourceId: source.sourceId, scope: { keywords: input.scope.roles, regions: input.scope.regions, companies: input.scope.companyNames,
-          ...(input.scope.countryCodes ? { countryCodes: input.scope.countryCodes } : {}), maxRecords, maxPages }, actorScope: context.actorScope, idempotencyKey: sameKey, requestFingerprint });
-        if (run.status !== "running") return { run, localFilters: input.scope, warnings: ["This idempotent request already has a terminal run; use a new key for a new refresh."] };
-        const controller = new AbortController();
-        const forwardAbort = () => controller.abort();
-        context.signal.addEventListener("abort", forwardAbort, { once: true });
-        if (context.signal.aborted) controller.abort();
-        running.set(run.runId, controller);
-        const syncContext: ToolHandlerContext = { ...context, signal: controller.signal, throwIfCancelled: () => { context.throwIfCancelled(); if (controller.signal.aborted) throw new ToolError("cancelled"); } };
-        const summary: PublicRunSummary = { added: 0, changed: 0, unchanged: 0, records: 0, pages: 0, leads: 0, partial: false };
-        const warnings: string[] = [];
-        const cursors = new Set<string>();
-        let cursor: string | undefined;
-        try {
-          for (let pageNumber = 0; pageNumber < maxPages; pageNumber++) {
-            syncContext.throwIfCancelled();
-            await repository.assertRunCurrent(run.runId, context.actorScope);
-            await assertSourceConfiguration(source);
-            const remaining = maxRecords - summary.records!;
-            if (remaining <= 0) { summary.partial = true; warnings.push("record-limit"); break; }
-            const page = await sources.list({ source: { ...source, refreshPolicy: { ...source.refreshPolicy, maxRecords: remaining } }, scope: input.scope, ...(cursor ? { cursor } : {}), context: { ...syncContext, observedAt: now() }, transport });
-            syncContext.throwIfCancelled();
-            await repository.assertRunCurrent(run.runId, context.actorScope);
-            await assertSourceConfiguration(source);
-            summary.pages!++; summary.records! += page.coverage.fetchedRecords;
-            summary.partial ||= page.coverage.partial;
-            warnings.push(...page.warnings);
-            const unresolvedScope = countSourceScopeMatches(page.records, input.scope).unknown;
-            if (unresolvedScope) summary.needsHuman = (summary.needsHuman ?? 0) + unresolvedScope;
-            const matchedPage = { ...page, records: page.records.filter((record) => locallyMatches(record, input.scope)) };
-            // Network reads remain concurrent. Only each local read/project/write
-            // sequence is serialized, so independent sources use the latest base.
-            const leads = await serializePageMutation(async () => {
-              syncContext.throwIfCancelled();
-              let snapshot = await repository.readProjectionSnapshot();
-              for (let attempt = 0; ; attempt++) {
-                syncContext.throwIfCancelled();
-                await repository.assertRunCurrent(run.runId, context.actorScope);
-                await assertSourceConfiguration(source);
-                // Refresh source origins rather than a merged canonical summary.
-                const projection = await projectSourcePage(snapshot, source, matchedPage, run.runId);
-                // Observations cannot restore an old endpoint/policy configuration.
-                projection.delta.sources = [];
-                syncContext.throwIfCancelled();
-                await repository.assertRunCurrent(run.runId, context.actorScope);
-                await assertSourceConfiguration(source);
-                let receipt;
-                try {
-                  receipt = await repository.importSnapshot(projection.delta, { actorScope: context.actorScope, idempotencyKey: `${run.runId}.page-${pageNumber}`, expectedRevision: snapshot.revision, runId: run.runId });
-                } catch (error) {
-                  if (!(error instanceof RepositoryError) || error.code !== "stale-version") throw error;
-                  syncContext.throwIfCancelled();
-                  await repository.assertRunCurrent(run.runId, context.actorScope);
-                  await assertSourceConfiguration(source);
-                  const latest = await repository.readProjectionSnapshot();
-                  // An external registration/import can advance the index while
-                  // this page is projected. Retry only a real CAS race, never a
-                  // replaced source/run or an unchanged-version semantic failure.
-                  if (attempt >= 2 || latest.revision <= snapshot.revision) throw error;
-                  snapshot = latest;
-                  continue;
-                }
-                summary.added! += receipt.counts.newJobs; summary.changed! += receipt.counts.updatedJobs; summary.unchanged! += receipt.counts.unchangedJobs;
-                if (projection.leads.length) {
-                  syncContext.throwIfCancelled();
-                  await repository.saveDiscoveryLeads(projection.leads, { actorScope: context.actorScope, idempotencyKey: `${run.runId}.leads-${pageNumber}`, runId: run.runId });
-                }
-                return projection.leads.length;
-              }
-            });
-            summary.leads! += leads;
-            if (!page.nextCursor) { summary.partial ||= !page.coverage.complete; break; }
-            if (cursors.has(page.nextCursor)) { summary.partial = true; warnings.push("repeated-source-cursor"); break; }
-            cursors.add(page.nextCursor); cursor = page.nextCursor;
-            if (pageNumber + 1 === maxPages) { summary.partial = true; warnings.push("page-limit"); }
-          }
-          syncContext.throwIfCancelled();
-          const finished = await repository.finishRun(run.runId, { actorScope: context.actorScope, status: summary.partial ? "partial" : "completed", summary });
-          return { run: finished, localFilters: input.scope, warnings: [...new Set(warnings)].slice(0, 100) };
-        } catch (error) {
-          const failure = mappedError(error);
-          const current = await repository.getRun(run.runId);
-          if (!current) throw failure;
-          if (["cancelled", "superseded"].includes(current.status)) return { run: current, localFilters: input.scope, warnings: [failure.code], sourceError: { code: failure.code } };
-          const finished = controller.signal.aborted
-            ? await repository.cancelRun(run.runId, { actorScope: context.actorScope })
-            : await repository.finishRun(run.runId, { actorScope: context.actorScope, status: summary.pages ? "partial" : "failed", summary: { ...summary, partial: Boolean(summary.pages), errorCode: failure.code } });
-          return { run: finished, localFilters: input.scope, warnings: [...new Set([...warnings, failure.code])].slice(0, 100), sourceError: { code: failure.code, ...(error instanceof SourceTransportError && error.retryAfterSeconds !== undefined ? { retryAfterSeconds: error.retryAfterSeconds } : {}) } };
-        } finally {
-          context.signal.removeEventListener("abort", forwardAbort);
-          if (running.get(run.runId) === controller) running.delete(run.runId);
-        }
-      }),
+    defineTool({ name: "sources.sync", version: 1, description: "在关注范围内从头手动刷新索引，保留来源观察、部分失败和持久任务回执。", effect: "local-write", inputSchema: scopeInput,
+      outputSchema: SourceSyncResultSchema,
+      recoverInterrupted: (input, context) => guarded(() => recoverSync(input, context, false)),
+      execute: (input, context) => guarded(() => executeSync(input, context)),
+    }),
+    defineTool({ name: "sources.read-scan-progress", version: 1, description: "只读当前身份的来源扫描进度与保存的关注条件，不联网、不暴露上游游标。", effect: "read-index",
+      inputSchema: ReadSourceScanProgressInputSchema, outputSchema: SourceScanProgressResultSchema,
+      execute: (input, context) => guarded(() => repository.readScanProgress({ ...input, actorScope: context.actorScope })),
+    }),
+    defineTool({ name: "sources.continue-sync", version: 1, description: "显式继续上一批已提交的来源扫描，继承原条件并遵守本批预算及原来源间隔，不接受新条件或外部游标。", effect: "local-write",
+      inputSchema: ContinueSourceScanInputSchema, outputSchema: SourceSyncResultSchema,
+      recoverInterrupted: (input, context) => guarded(() => recoverSync(input, context, true)),
+      execute: (input, context) => guarded(() => executeSync({ sourceId: input.sourceId, scope: { roles: [], regions: [], companyNames: [] } }, context, input)),
     }),
     defineTool({ name: "sources.discover", version: 1, description: "按已启用的发现端点策略搜索来源候选；候选不自动启用或变成岗位。", effect: "external-read",
       inputSchema: z.object({ sourceId: EntityIdSchema, request: DiscoverSourceCandidatesInputSchema }).strict(), outputSchema: SourceDiscoveryPageSchema,

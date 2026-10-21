@@ -1,5 +1,6 @@
 /** Browser-safe schemas and pure matching helpers. No transports, Node builtins or network actions. */
 export * from "./contracts.js";
+export * from "./source-scan-contracts.js";
 export * from "./mapping-contracts.js";
 export * from "./discovery-contracts.js";
 export * from "./tencent-contracts.js";

@@ -157,6 +157,7 @@ test("recoverable transport detail failures keep earlier records and preserve a 
     const result = await jobPostingJsonLdAdapter.list(input);
     assert.deepEqual(result.records.map((record) => record.url), [posting(1)]); assert.equal(result.coverage.fetchedRecords, 2);
     assert.equal(result.coverage.partial, true); assert.ok(result.nextCursor);
+    assert.equal(result.retryCurrentPage, undefined);
     input.cursor = result.nextCursor;
     const next = await jobPostingJsonLdAdapter.list(input);
     assert.deepEqual(next.records.map((record) => record.url), [posting(3)]); assert.equal(next.coverage.complete, true);
@@ -169,6 +170,7 @@ test("detail timeout stops further requests and pagination while retaining downl
   const result = await jobPostingJsonLdAdapter.list(input);
   assert.deepEqual(result.records.map((record) => record.url), [posting(1)]); assert.equal(result.coverage.fetchedRecords, 2);
   assert.equal(result.nextCursor, undefined); assert.equal(result.coverage.partial, true); assert.equal(result.stopReason, "source-error");
+  assert.equal(result.retryCurrentPage, true);
   assert.deepEqual(calls.map((call) => call.url), [LIST, posting(1), posting(2)]);
   assert.ok(result.warnings.some((warning) => warning.includes("timed out")));
 });

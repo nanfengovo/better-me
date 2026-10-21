@@ -142,6 +142,29 @@ test("only explicit method and API routes are proxied, with no query, target URL
   } finally { await app.close(); }
 });
 
+test("scan progress and continuation expose only exact source-scoped POST routes and preserve the original continuation body and key", async () => {
+  const calls: Array<{ route: string; body: unknown; key: string | null }> = [];
+  const app = await fixture(baseOptions({ fetcher: async (input, init) => {
+    calls.push({ route: new URL(String(input)).pathname, body: JSON.parse(new TextDecoder().decode(init!.body as Uint8Array)), key: new Headers(init?.headers).get("Idempotency-Key") });
+    assert.equal(new Headers(init?.headers).get("Authorization"), `Bearer ${TOKEN}`); return Response.json(ENVELOPE);
+  } }));
+  try {
+    for (const route of ["scan-progress", "continue-sync"]) {
+      const payload = route === "scan-progress" ? { runId: "prior-run" } : { fromRunId: "prior-run", expectedProgressVersion: 3, maxPages: 2 };
+      const response = await app.call(`/api/atlas/api/v1/sources/source%3Asynthetic/${route}`, { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": "original-key" }, body: JSON.stringify(payload) });
+      assert.equal(response.status, 200); assert.deepEqual(calls.at(-1), { route: `/api/v1/sources/source%3Asynthetic/${route}`, body: payload, key: "original-key" });
+    }
+    for (const route of ["sources/source%3Asynthetic/scan-progress", "sources/source%3Asynthetic/continue-sync"]) {
+      await errorCode(await app.call(`/api/atlas/api/v1/${route}`), 404, "unsupported-capability");
+      await errorCode(await app.call(`/api/atlas/api/v1/${route}/extra`, { method: "POST" }), 404, "unsupported-capability");
+    }
+    for (const route of ["sources/a%2Fb/scan-progress", "sources/a%2Fb/continue-sync", "sources/continue-sync", "sources/source/scan-progress?cursor=foreign"]) {
+      await errorCode(await app.call(`/api/atlas/api/v1/${route}`, { method: "POST" }), 404, "unsupported-capability");
+    }
+    assert.equal(calls.length, 2);
+  } finally { await app.close(); }
+});
+
 test("gateway reads the existing private token from the default local data path without returning it", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "betterme-gateway-"));
   const tokenFile = path.join(directory, "BetterMe", "job-atlas", "service.token");

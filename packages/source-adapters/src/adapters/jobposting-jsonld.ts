@@ -147,6 +147,7 @@ export const jobPostingJsonLdAdapter: SourceAdapter = {
       partial: truncated || emptyManifest || queue.length === 0 || failed > 0 || timedOut,
       stopReason: truncated ? "record-limit" : "source-error",
     });
+    if (timedOut) result.retryCurrentPage = true;
     result.warnings = [...new Set([
       "This reads only reviewed static manifests and their same-origin JobPosting pages; it does not search all employers or the whole market.",
       "Manifest links are candidate page URLs, not verified vacancies or a total job count. Source availability, office coordinates and controlling ownership are not independently verified.",

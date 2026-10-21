@@ -251,10 +251,10 @@ test("interrupted company tools recover committed receipts without reissuing wri
 
 test("actual V6 databases and V1-V6 source backups migrate without changing facts, revision, or existing decisions", async () => fixture(async (repo, path) => {
   const before = await repo.backup(); repo.close();
-  const inspector = new DatabaseSync(path); try { inspector.exec("DROP TRIGGER company_control_decisions_no_update; DROP TRIGGER company_control_decisions_no_delete; DROP TABLE company_control_decisions; DROP TABLE base_companies; PRAGMA user_version=6;"); } finally { inspector.close(); }
+  const inspector = new DatabaseSync(path); try { inspector.exec("DROP TRIGGER source_scan_events_no_update; DROP TRIGGER source_scan_events_no_delete; DROP TABLE source_scan_events; DROP TRIGGER company_control_decisions_no_update; DROP TRIGGER company_control_decisions_no_delete; DROP TABLE company_control_decisions; DROP TABLE base_companies; PRAGMA user_version=6;"); } finally { inspector.close(); }
   const migrated = openJobRepository(path, { now: () => LATER });
   try {
-    assert.deepEqual(await migrated.readSnapshot(), before.dataset); const current = await migrated.backup(); assert.equal(current.schemaVersion, 7); assert.deepEqual(current.baseCompanies, before.dataset.companies);
+    assert.deepEqual(await migrated.readSnapshot(), before.dataset); const current = await migrated.backup(); assert.equal(current.schemaVersion, 8); assert.deepEqual(current.baseCompanies, before.dataset.companies);
     for (const version of [1, 2, 3, 4, 5, 6]) {
       const legacy: Record<string, unknown> = structuredClone(current); legacy.schemaVersion = version; delete legacy.baseCompanies; delete legacy.companyControlDecisions;
       if (version < 6) { delete legacy.fxSnapshots; delete legacy.fxActivations; }

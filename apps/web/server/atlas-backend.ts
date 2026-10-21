@@ -118,7 +118,7 @@ function allowedRoute(method: string | undefined, suffix: string): boolean {
   if (method === "GET") return GET_ROUTES.has(route) || /^(?:jobs|runs)\/([^/]+)$/.test(route) && identifier(route.split("/")[1]!);
   if (method !== "POST") return false;
   if (POST_ROUTES.has(route)) return true;
-  const dynamic = /^(?:sources\/([^/]+)\/(?:preview|sync)|runs\/([^/]+)\/cancel)$/.exec(route);
+  const dynamic = /^(?:sources\/([^/]+)\/(?:preview|sync|scan-progress|continue-sync)|runs\/([^/]+)\/cancel)$/.exec(route);
   return !!dynamic && identifier(dynamic[1] ?? dynamic[2]!);
 }
 function readBody(request: IncomingMessage, limit: number, signal: AbortSignal): Promise<Buffer> {

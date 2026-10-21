@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { PlanAddressEnrichmentInputSchema, AddressEnrichmentPlanSchema, type PlanAddressEnrichmentInput } from "@better-me/opportunities";
-import { EntityIdSchema, SourceDefinitionSchema, TimestampSchema, TOOL_ERROR_CODES, GeocodingRequestSchema, GeocodingResultSchema, MapReferencesInputSchema, MapReferencesResultSchema, type GeocodingInput, type MapReferencesInput } from "@better-me/opportunities";
+import { EntityIdSchema, SourceDefinitionSchema, TOOL_ERROR_CODES, GeocodingRequestSchema, GeocodingResultSchema, MapReferencesInputSchema, MapReferencesResultSchema, type GeocodingInput, type MapReferencesInput } from "@better-me/opportunities";
 import {
   DiscoverSourceCandidatesInputSchema, InspectSourceCandidateInputSchema, ProposeSourceRegistrationInputSchema,
   SourceAdapterMetadataSchema, SourceCandidateInspectionSchema, SourceDiscoveryPageSchema,
@@ -14,6 +14,8 @@ import {
   ReadOwnedDetailLocationsInputSchema, OwnedDetailLocationsCaptureSchema,
   PreviewOwnedDetailLocationsInputSchema, ImportOwnedDetailLocationsInputSchema,
   type ReadOwnedDetailLocationsInput, type PreviewOwnedDetailLocationsInput, type ImportOwnedDetailLocationsInput,
+  SourceSyncRunSchema, SourceSyncResultSchema, SourceScanProgressResultSchema,
+  ReadSourceScanProgressInputSchema, ContinueSourceScanInputSchema, type ContinueSourceScanInput,
 } from "@better-me/source-adapters/browser-contracts";
 import { AtlasClientError, readAtlasSnapshot } from "./client";
 import { resolveAtlasServiceTarget } from "./backend-connection";
@@ -66,26 +68,29 @@ const count = () => z.number().int().nonnegative();
 const ReceiptSchema = z.object({ ok: z.literal(true), revision: count(), jobIds: z.array(EntityIdSchema), snapshotIds: z.array(EntityIdSchema),
   counts: z.object({ newJobs: count(), updatedJobs: count(), unchangedJobs: count(), newListings: count(), newObservations: count(), newSnapshots: count() }).strict(),
 }).strict();
-const RunSchema = z.object({
-  runId: EntityIdSchema, sourceId: EntityIdSchema, actorScope: z.string().min(1).max(200).regex(/^[A-Za-z0-9._:/-]+$/), generation: z.number().int().positive(),
-  scope: z.object({ keywords: z.array(z.string().trim().min(1).max(300)).max(100).optional(), regions: z.array(z.string().trim().min(1).max(300)).max(100).optional(),
-    companies: z.array(z.string().trim().min(1).max(300)).max(100).optional(), countryCodes: z.array(z.string().regex(/^[A-Z]{2}$/)).max(100).optional(), maxRecords: z.number().int().min(1).max(100_000).optional(), maxPages: z.number().int().min(1).max(10_000).optional() }).strict(),
-  requestFingerprint: z.string().regex(/^[a-f0-9]{64}$/).optional(), status: z.enum(["running", "completed", "partial", "failed", "cancelled", "superseded"]),
-  startedAt: TimestampSchema, finishedAt: TimestampSchema.optional(), summary: z.object({
-    added: count().optional(), changed: count().optional(), unchanged: count().optional(), closed: count().optional(), failed: count().optional(),
-    needsHuman: count().optional(), records: count().optional(), pages: count().optional(), leads: count().optional(), partial: z.boolean().optional(),
-    errorCode: z.string().regex(/^[A-Za-z0-9._:-]{1,100}$/).optional(),
-  }).strict().optional(),
-}).strict();
-export const AtlasSourceSyncSchema = z.object({ run: RunSchema, localFilters: SourceScopeSchema, warnings: z.array(z.string()),
-  sourceError: z.object({ code: z.string(), retryAfterSeconds: z.number().nonnegative().optional() }).strict().optional(),
-}).strict();
+export { SourceSyncRunSchema as AtlasSourceRunSchema };
+export const AtlasSourceSyncSchema = SourceSyncResultSchema;
 export type AtlasSourceSync = z.infer<typeof AtlasSourceSyncSchema>;
 const requestId = z.string().min(1).max(150);
 const ErrorEnvelopeSchema = z.object({ ok: z.literal(false), requestId, error: z.object({ code: z.enum(TOOL_ERROR_CODES), message: z.string().max(4000) }).strict() }).strict();
 const KeySchema = z.string().min(1).max(200).regex(/^[A-Za-z0-9._:-]+$/);
 type Options = { signal?: AbortSignal; maxBytes?: number };
 type WriteOptions = Options & { idempotencyKey: string };
+
+function matchingSourceSync(result: AtlasSourceSync, sourceId: string) {
+  const { run, scanProgress: progress, localFilters } = result;
+  const scope = { roles: run.scope.keywords ?? [], regions: run.scope.regions ?? [], companyNames: run.scope.companies ?? [],
+    ...(run.scope.countryCodes ? { countryCodes: run.scope.countryCodes } : {}) };
+  return run.sourceId === sourceId && JSON.stringify(scope) === JSON.stringify(localFilters)
+    && (!progress || progress.sourceId === sourceId && progress.runId === run.runId && progress.scanId === run.scanId
+      && progress.running === (run.status === "running") && JSON.stringify(progress.scope) === JSON.stringify(localFilters));
+}
+async function sourceRequestFingerprint(value: unknown): Promise<string> {
+  try {
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(value)));
+    return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
+  } catch { throw new AtlasSourceServiceError("invalid-input", "当前浏览器无法校验来源请求指纹，请使用安全上下文后重试；本次请求尚未发送。"); }
+}
 
 const samePair = (left: readonly string[], right: readonly string[]) => left.length === 2 && right.length === 2
   && left[0] !== left[1] && right[0] !== right[1] && left.every(id => right.includes(id));
@@ -306,9 +311,17 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
       void response.body?.cancel().catch(() => {});
       throw new AtlasSourceServiceError("http-error", "当前岗位后端尚不支持汇率管理，请升级并重启岗位后端；人民币与原币披露仍可使用。", 404);
     }
-    const value = await bodyJson(response, options); options.signal?.throwIfAborted();
+    const unsupportedScan = /^sources\/[^/]+\/(?:scan-progress|continue-sync)$/.test(path) && response.status === 404;
+    const scanUpgradeError = () => new AtlasSourceServiceError("http-error", "当前岗位后端尚不支持来源续读，请升级并重启岗位后端。续读重试须保留原请求与原幂等键。", 404);
+    let value: unknown;
+    try { value = await bodyJson(response, options); } catch (error) {
+      if (unsupportedScan && error instanceof AtlasSourceServiceError && error.code === "invalid-response") throw scanUpgradeError();
+      throw error;
+    }
+    options.signal?.throwIfAborted();
     const error = ErrorEnvelopeSchema.safeParse(value);
     if (error.success) throw new AtlasSourceServiceError(error.data.error.code, `来源工具返回 ${error.data.error.code}。请检查来源状态、版本、范围与服务日志。`, response.status);
+    if (unsupportedScan) throw scanUpgradeError();
     if (!response.ok) throw new AtlasSourceServiceError("http-error", `服务返回 ${response.status}。请核对令牌、允许 Origin 及服务状态。`, response.status);
     const parsed = z.object({ ok: z.literal(true), requestId, value: z.unknown() }).strict().safeParse(value);
     if (!parsed.success) throw new AtlasSourceServiceError("invalid-response", "服务返回内容不符合来源工具契约。");
@@ -602,7 +615,36 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
     list: (options: Options = {}) => request("sources", AtlasSourceListSchema, options),
     register: async (value: AtlasRegisterSource, options: WriteOptions) => request("sources", ReceiptSchema, options, input(AtlasRegisterSourceSchema, value), input(KeySchema, options.idempotencyKey)),
     preview: async (sourceId: string, value: Omit<AtlasSourceScopeInput, "maxPages">, options: Options = {}) => request(`${sourcePath(sourceId)}/preview`, AtlasSourcePreviewSchema, options, input(PreviewInputSchema, value)),
-    sync: async (sourceId: string, value: AtlasSourceScopeInput, options: WriteOptions) => request(`${sourcePath(sourceId)}/sync`, AtlasSourceSyncSchema, options, input(SyncInputSchema, value), input(KeySchema, options.idempotencyKey)),
+    sync: async (sourceId: string, value: AtlasSourceScopeInput, options: WriteOptions) => {
+      const id = input(EntityIdSchema, sourceId), query = input(SyncInputSchema, value), key = input(KeySchema, options.idempotencyKey);
+      const scope = query.scope ?? { roles: [], regions: [], companyNames: [] }; options.signal?.throwIfAborted();
+      const fingerprint = await sourceRequestFingerprint({ sourceId: id, scope, ...(query.maxRecords === undefined ? {} : { maxRecords: query.maxRecords }), ...(query.maxPages === undefined ? {} : { maxPages: query.maxPages }) });
+      const result = await request(`${sourcePath(id)}/sync`, AtlasSourceSyncSchema, options, query, key);
+      if (!matchingSourceSync(result, id) || JSON.stringify(result.localFilters) !== JSON.stringify(scope)
+        || (result.run.requestFingerprint !== undefined || result.run.scanId !== undefined) && result.run.requestFingerprint !== fingerprint)
+        throw new AtlasSourceServiceError("invalid-response", "来源刷新回执与本次来源、扫描条件或请求指纹不一致，请沿用原请求与原幂等键核对回执。");
+      return result;
+    },
+    readScanProgress: async (value: z.input<typeof ReadSourceScanProgressInputSchema>, options: Options = {}) => {
+      const query = input(ReadSourceScanProgressInputSchema, value), { sourceId, ...payload } = query;
+      const result = await request(`${sourcePath(sourceId)}/scan-progress`, SourceScanProgressResultSchema, options, payload);
+      if (result.sourceId !== sourceId || result.progress && (result.progress.sourceId !== sourceId || query.runId && result.progress.runId !== query.runId))
+        throw new AtlasSourceServiceError("invalid-response", "来源扫描进度与本次来源或批次不一致，请重新读取当前进度；保留未定续读请求与原幂等键。");
+      return result;
+    },
+    continueSync: async (value: ContinueSourceScanInput, options: WriteOptions) => {
+      const query = input(ContinueSourceScanInputSchema, value), { sourceId, ...payload } = query;
+      // Compute before sending a write: unavailable Web Crypto must not leave an
+      // unsubmitted command looking like an unknown server-side result.
+      const key = input(KeySchema, options.idempotencyKey); options.signal?.throwIfAborted();
+      const fingerprint = await sourceRequestFingerprint({ tool: "sources.continue-sync", input: query }); options.signal?.throwIfAborted();
+      const result = await request(`${sourcePath(sourceId)}/continue-sync`, SourceSyncResultSchema, options, payload, key);
+      if (!matchingSourceSync(result, sourceId) || !result.run.scanId || result.run.runId === query.fromRunId
+        || result.run.continuedFromRunId !== query.fromRunId || result.run.requestFingerprint !== fingerprint
+        || result.scanProgress && result.scanProgress.version <= query.expectedProgressVersion)
+        throw new AtlasSourceServiceError("invalid-response", "来源续读回执与原批次、进度版本或请求指纹不一致，请沿用原请求与原幂等键核对回执。");
+      return result;
+    },
     discover: async (sourceId: string, value: DiscoverSourceCandidatesInput, options: Options = {}) => request("sources/discover", SourceDiscoveryPageSchema, options, { sourceId: input(EntityIdSchema, sourceId), request: input(DiscoverSourceCandidatesInputSchema, value) }),
     companyDiscoveryCapabilities: (options: Options = {}) => request("companies/discovery-capabilities", CompanyCareerDiscoveryCapabilitiesSchema, options),
     discoverCompany: async (sourceId: string | undefined, value: DiscoverCompanyCareersInput, options: Options = {}) => {

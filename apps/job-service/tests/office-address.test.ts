@@ -203,7 +203,7 @@ test("stale versions, tampered preview, wrong actor and cancelled transactions n
 }));
 
 test("v4 backups retain office decisions and receipts; forged overlay, event or receipt rejects atomically", async () => fixture(async repo => {
-  await confirm(repo); const backup = await repo.backup(); assert.equal(backup.schemaVersion, 7); assert.equal(backup.officeDecisions.length, 1);
+  await confirm(repo); const backup = await repo.backup(); assert.equal(backup.schemaVersion, 8); assert.equal(backup.officeDecisions.length, 1);
   for (const mutate of [
     (bad: typeof backup) => { bad.dataset.locations[0]!.coordinates!.longitude = 100; },
     (bad: typeof backup) => { const event = bad.officeDecisions[0]!; if (event.kind === "confirm") event.proposal.coordinates.longitude = 100; },
@@ -223,8 +223,8 @@ test("source enhancement cannot change a country, raw text, existing address or 
 
 test("v3 file migration and v3 backup compatibility do not alter existing source data", async () => fixture(async (repo, path) => {
   const before = await repo.readSnapshot(), legacyBackup = await repo.backup(); legacyBackup.schemaVersion = 3; delete legacyBackup.baseCompanies; legacyBackup.companyControlDecisions = []; legacyBackup.officeDecisions = []; delete legacyBackup.baseCompensations; legacyBackup.compensationDecisions = [];
-  repo.close(); const db = new DatabaseSync(path); try { db.exec("DROP TRIGGER company_control_decisions_no_update; DROP TRIGGER company_control_decisions_no_delete; DROP TABLE company_control_decisions; DROP TABLE base_companies; DROP TRIGGER fx_snapshots_no_update; DROP TRIGGER fx_snapshots_no_delete; DROP TRIGGER fx_activations_no_update; DROP TRIGGER fx_activations_no_delete; DROP TABLE fx_activations; DROP TABLE fx_snapshots; DROP TRIGGER compensation_decisions_no_update; DROP TRIGGER compensation_decisions_no_delete; DROP TABLE compensation_decisions; DROP TABLE base_compensations; DROP TRIGGER office_decisions_no_update; DROP TRIGGER office_decisions_no_delete; DROP TABLE office_decisions; PRAGMA user_version=3;"); } finally { db.close(); }
-  const reopened = openJobRepository(path, { now: () => AT }); try { assert.deepEqual(await reopened.readSnapshot(), before); assert.equal((await reopened.backup()).schemaVersion, 7); await confirm(reopened); } finally { reopened.close(); }
+  repo.close(); const db = new DatabaseSync(path); try { db.exec("DROP TRIGGER source_scan_events_no_update; DROP TRIGGER source_scan_events_no_delete; DROP TABLE source_scan_events; DROP TRIGGER company_control_decisions_no_update; DROP TRIGGER company_control_decisions_no_delete; DROP TABLE company_control_decisions; DROP TABLE base_companies; DROP TRIGGER fx_snapshots_no_update; DROP TRIGGER fx_snapshots_no_delete; DROP TRIGGER fx_activations_no_update; DROP TRIGGER fx_activations_no_delete; DROP TABLE fx_activations; DROP TABLE fx_snapshots; DROP TRIGGER compensation_decisions_no_update; DROP TRIGGER compensation_decisions_no_delete; DROP TABLE compensation_decisions; DROP TABLE base_compensations; DROP TRIGGER office_decisions_no_update; DROP TRIGGER office_decisions_no_delete; DROP TABLE office_decisions; PRAGMA user_version=3;"); } finally { db.close(); }
+  const reopened = openJobRepository(path, { now: () => AT }); try { assert.deepEqual(await reopened.readSnapshot(), before); assert.equal((await reopened.backup()).schemaVersion, 8); await confirm(reopened); } finally { reopened.close(); }
   const target = openJobRepository(":memory:", { now: () => AT }); try { await target.restore(legacyBackup, opts("restore-v3", 0)); assert.deepEqual((await target.readSnapshot()).locations, before.locations); } finally { target.close(); }
 }));
 

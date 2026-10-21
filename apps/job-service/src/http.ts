@@ -61,6 +61,8 @@ const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }
   { method: "POST", path: /^\/api\/v1\/sources\/propose$/, tool: "sources.propose" },
   { method: "POST", path: /^\/api\/v1\/sources\/([^/]+)\/preview$/, tool: "sources.preview", key: "sourceId" },
   { method: "POST", path: /^\/api\/v1\/sources\/([^/]+)\/sync$/, tool: "sources.sync", key: "sourceId" },
+  { method: "POST", path: /^\/api\/v1\/sources\/([^/]+)\/scan-progress$/, tool: "sources.read-scan-progress", key: "sourceId" },
+  { method: "POST", path: /^\/api\/v1\/sources\/([^/]+)\/continue-sync$/, tool: "sources.continue-sync", key: "sourceId" },
   { method: "GET", path: /^\/api\/v1\/runs$/, tool: "runs.list" },
   { method: "GET", path: /^\/api\/v1\/runs\/([^/]+)$/, tool: "runs.read", key: "runId" },
   { method: "POST", path: /^\/api\/v1\/runs\/([^/]+)\/cancel$/, tool: "runs.cancel", key: "runId" },

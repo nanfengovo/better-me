@@ -49,6 +49,9 @@ import {
   REPOSITORY_MIGRATION_V7, COMPANY_CONTROL_DECISION_TRIGGERS,
 } from "./repository-schema.js";
 import { resolveLocationArea } from "./location-catalog.js";
+import { SourceScopeSchema, SourcePageSchema, SourceScanProgressSchema, type SourceScope, type SourcePage, type SourceScanProgress, type ContinueSourceScanInput } from "@better-me/source-adapters";
+import { SourceScanCheckpointSchema, sourceScanFingerprint, sourceConfigurationFingerprint, type SourceScanCheckpoint } from "./source-scan-state.js";
+import { REPOSITORY_MIGRATION_V8, SOURCE_SCAN_TRIGGERS, SourceScanPageReceiptSchema, type SourceScanPageReceipt } from "./repository-schema.js";
 
 export type RepositoryErrorCode = "invalid-data" | "conflict" | "stale-version" | "idempotency-conflict" | "cancelled" | "not-authorized" | "not-found" | "closed" | "unsupported-schema" | "invalid-backup" | "storage-error" | "rate-limited";
 const PUBLIC_ERRORS: Record<RepositoryErrorCode, string> = {
@@ -65,7 +68,9 @@ export class RepositoryError extends Error {
 export type ImportOptions = { expectedRevision?: number; actorScope: string; idempotencyKey: string; runId?: string;
   /** Host-computed identity of a fully validated command, independent of its projected delta. */
   requestFingerprint?: string };
-export type StartRunOptions = { sourceId: string; scope: RunScope; actorScope: string; idempotencyKey: string; requestFingerprint?: string };
+export type StartRunOptions = { sourceId: string; scope: RunScope; actorScope: string; idempotencyKey: string; requestFingerprint?: string;
+  /** Supplied only by the application for a real manual source scan. Legacy repository runs remain valid. */
+  scan?: { sourceFingerprint: string; scope: SourceScope; continue?: ContinueSourceScanInput } };
 export type FindRunByRequestOptions = { actorScope: string; idempotencyKey: string; requestFingerprint: string };
 export type ReconciliationWriteOptions = Omit<ImportOptions, "runId"> & { expectedRevision: number; throwIfCancelled?: () => void };
 export type CandidateQuery = { search?: string; mode?: "exact" | "fuzzy"; viewport?: [number, number, number, number] };
@@ -95,6 +100,59 @@ function reconciliationSignature(input: unknown, options: ReconciliationWriteOpt
   return signature({ input, expectedRevision: options.expectedRevision, ...(options.requestFingerprint === undefined ? {} : { requestFingerprint: options.requestFingerprint }) });
 }
 function same(a: unknown, b: unknown) { return json(a) === json(b); }
+function validateSourceScanBackup(backup: RepositoryBackup, currentTime: string) {
+  const cutoff = Math.min(Date.parse(backup.createdAt), Date.parse(currentTime));
+  const previous = new Map<string, SourceScanCheckpoint>(), runs = new Map(backup.runs.map(run => [run.runId, run]));
+  const fail = (): never => { throw new RepositoryError("invalid-backup"); };
+  const sourceScope = (run: SyncRun): SourceScope => ({ roles: run.scope.keywords ?? [], regions: run.scope.regions ?? [], companyNames: run.scope.companies ?? [], ...(run.scope.countryCodes ? { countryCodes: run.scope.countryCodes } : {}) });
+  const immutableRun = ({ status: _status, finishedAt: _finishedAt, summary: _summary, ...run }: SyncRun) => run;
+  const pageReceipts = backup.receipts.filter(value => value.tool === "sources.commit-page");
+  for (const event of backup.sourceScans) {
+    const run = runs.get(event.runId), prior = previous.get(event.scanId);
+    if (!run || run.scanId !== event.scanId || run.sourceId !== event.sourceId || run.actorScope !== event.actorScope || run.generation !== event.generation
+      || Date.parse(event.at) > cutoff || Date.parse(event.at) < Date.parse(run.startedAt) || !same(sourceScope(run), event.scope)) fail();
+    if (!prior) {
+      if (event.version !== 1 || event.pages || event.attemptedRecords || event.cursor || event.hadErrors || event.state !== "retry-page" || run!.continuedFromRunId) fail();
+    } else {
+      if (event.version !== prior.version + 1 || Date.parse(event.at) < Date.parse(prior.at) || prior.state === "invalidated"
+        || event.sourceId !== prior.sourceId || event.actorScope !== prior.actorScope || event.sourceFingerprint !== prior.sourceFingerprint
+        || event.scopeFingerprint !== prior.scopeFingerprint || event.adapterId !== prior.adapterId || event.adapterVersion !== prior.adapterVersion
+        || !same(event.scope, prior.scope) || event.hadErrors < prior.hadErrors) fail();
+      if (event.runId !== prior.runId) {
+        if (run!.continuedFromRunId !== prior.runId || event.generation <= prior.generation || event.state !== prior.state || event.cursor !== prior.cursor
+          || event.pages !== prior.pages || event.attemptedRecords !== prior.attemptedRecords || event.hadErrors !== prior.hadErrors) fail();
+      } else if (event.pages === prior.pages + 1) {
+        if (event.attemptedRecords < prior.attemptedRecords || event.generation !== prior.generation || event.state === "invalidated") fail();
+        const matching = pageReceipts.filter(value => { const response = checked(SourceScanPageReceiptSchema, value.response, "invalid-backup"); return response.scanId === event.scanId && response.progressVersion === event.version; });
+        if (matching.length !== 1 || matching[0]!.actorScope !== event.actorScope || checked(SourceScanPageReceiptSchema, matching[0]!.response, "invalid-backup").runId !== event.runId) fail();
+        if (event.state === "retry-page" && event.cursor !== prior.cursor) fail();
+      } else if (event.pages !== prior.pages || event.attemptedRecords !== prior.attemptedRecords || event.cursor !== prior.cursor
+        || event.state !== "invalidated" && event.state !== "retry-page" && event.state !== prior.state) fail();
+    }
+    previous.set(event.scanId, event);
+  }
+  for (const event of previous.values()) {
+    const source = backup.dataset.sources.find(value => value.sourceId === event.sourceId);
+    if (!source || event.state !== "invalidated" && (event.sourceFingerprint !== sourceConfigurationFingerprint(source) || event.adapterId !== source.adapterId || event.adapterVersion !== source.adapterVersion)) fail();
+  }
+  for (const run of backup.runs.filter(value => value.scanId)) {
+    if (!backup.sourceScans.some(event => event.runId === run.runId) || !run.requestFingerprint) fail();
+    const starts = backup.receipts.filter(receipt => receipt.tool === "runs.start" && SyncRunSchema.safeParse(receipt.response).success && (receipt.response as SyncRun).runId === run.runId);
+    if (starts.length !== 1 || starts[0]!.actorScope !== run.actorScope || starts[0]!.signature !== signature({ sourceId: run.sourceId, requestFingerprint: run.requestFingerprint })
+      || !same(immutableRun(checked(SyncRunSchema, starts[0]!.response, "invalid-backup")), immutableRun(run))) fail();
+  }
+  for (const stored of pageReceipts) {
+    const response = checked(SourceScanPageReceiptSchema, stored.response, "invalid-backup"), run = runs.get(response.runId);
+    const event = backup.sourceScans.find(value => value.scanId === response.scanId && value.version === response.progressVersion);
+    if (!run || !event || event.runId !== run.runId || run.actorScope !== stored.actorScope || response.revision > backup.dataset.revision || response.receipt.revision > response.revision
+      || Date.parse(stored.createdAt) > cutoff || Date.parse(stored.createdAt) < Date.parse(run.startedAt)) fail();
+    const imported = backup.receipts.find(value => value.tool === "dataset.import" && value.actorScope === stored.actorScope && value.idempotencyKey === stored.idempotencyKey);
+    const leads = backup.receipts.find(value => value.tool === "leads.save" && value.actorScope === stored.actorScope && value.idempotencyKey === stored.idempotencyKey);
+    if (!imported || !leads || !same(imported.response, response.receipt)) fail();
+    const leadResult = checked(DiscoveryLeadReceiptSchema, leads!.response, "invalid-backup");
+    if (leadResult.revision !== response.revision || !same(leadResult.leadIds, response.leadIds)) fail();
+  }
+}
 function compareIds(a: string, b: string) { return a < b ? -1 : a > b ? 1 : 0; }
 function union<T>(left: readonly T[], right: readonly T[]) { return [...new Set([...left, ...right])]; }
 function sourceIdOrId(table: Table, value: unknown): string {
@@ -334,6 +392,11 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       try { db.exec(REPOSITORY_MIGRATION_V7); db.exec(COMPANY_CONTROL_DECISION_TRIGGERS); db.exec("PRAGMA user_version=7; COMMIT;"); }
       catch (error) { db.exec("ROLLBACK"); throw error; }
     }
+    if (version < 8) {
+      db.exec("BEGIN IMMEDIATE");
+      try { db.exec(REPOSITORY_MIGRATION_V8); db.exec(SOURCE_SCAN_TRIGGERS); db.exec("PRAGMA user_version=8; COMMIT;"); }
+      catch (error) { db.exec("ROLLBACK"); throw error; }
+    }
     db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;");
     // Opening a file with a matching user_version is not sufficient proof of this schema.
     db.prepare("SELECT value FROM metadata WHERE key='revision'").get();
@@ -349,6 +412,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     db.prepare("SELECT id,revision,document FROM fx_activations LIMIT 0").all();
     db.prepare("SELECT id,document FROM base_companies LIMIT 0").all();
     db.prepare("SELECT id,revision,document FROM company_control_decisions LIMIT 0").all();
+    db.prepare("SELECT id,scan_id,version,source_id,actor_scope,document FROM source_scan_events LIMIT 0").all();
     const check = db.prepare("PRAGMA quick_check").get() as Record<string, unknown>;
     if (Object.values(check)[0] !== "ok") throw new RepositoryError("storage-error");
   } catch (error) { db.close(); throw error instanceof RepositoryError ? error : new RepositoryError("storage-error"); }
@@ -375,7 +439,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     if (row.signature !== expectedSignature) throw new RepositoryError("idempotency-conflict");
     return JSON.parse(row.response) as T;
   }
-  function saveReceipt(actorScope: string, tool: string, idempotencyKey: string, requestSignature: string, result: ImportReceipt | SyncRun | DiscoveryLeadReceipt | ReconciliationReceipt | LocationConfirmationReceipt | OfficeAddressReceipt | CompensationReviewReceipt | FxMutationReceipt | CompanyControlReviewReceipt) {
+  function saveReceipt(actorScope: string, tool: string, idempotencyKey: string, requestSignature: string, result: ImportReceipt | SyncRun | DiscoveryLeadReceipt | SourceScanPageReceipt | ReconciliationReceipt | LocationConfirmationReceipt | OfficeAddressReceipt | CompensationReviewReceipt | FxMutationReceipt | CompanyControlReviewReceipt) {
     db.prepare("INSERT INTO receipts(actor_scope,tool,idempotency_key,signature,response,created_at) VALUES (?,?,?,?,?,?)").run(actorScope, tool, idempotencyKey, requestSignature, json(result), now());
   }
   function runById(runId: string): SyncRun | undefined {
@@ -394,6 +458,41 @@ export function openJobRepository(path: string, options: { now?: () => string } 
   function saveRun(run: SyncRun) {
     const clean = checked(SyncRunSchema, run);
     db.prepare("INSERT INTO runs(id,source_id,generation,status,document) VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,document=excluded.document").run(clean.runId, clean.sourceId, clean.generation, clean.status, json(clean));
+  }
+  function scanHistory(): SourceScanCheckpoint[] {
+    return (db.prepare("SELECT document FROM source_scan_events ORDER BY rowid").all() as Array<{ document: string }>).map(row => checked(SourceScanCheckpointSchema, JSON.parse(row.document)));
+  }
+  function latestScans(sourceId?: string): SourceScanCheckpoint[] {
+    const query = `SELECT event.document FROM source_scan_events event WHERE ${sourceId ? "event.source_id=? AND " : ""}event.version=(SELECT MAX(latest.version) FROM source_scan_events latest WHERE latest.scan_id=event.scan_id) ORDER BY event.rowid`;
+    const rows = sourceId ? db.prepare(query).all(sourceId) : db.prepare(query).all();
+    return (rows as Array<{ document: string }>).map(row => checked(SourceScanCheckpointSchema, JSON.parse(row.document)));
+  }
+  function scanForRun(runId: string, actorScope: string): SourceScanCheckpoint | undefined {
+    const run = runById(runId);
+    if (!run) throw new RepositoryError("not-found");
+    if (run.actorScope !== actorScope) throw new RepositoryError("not-authorized");
+    const row = run.scanId ? db.prepare("SELECT document FROM source_scan_events WHERE scan_id=? ORDER BY version DESC LIMIT 1").get(run.scanId) as { document: string } | undefined : undefined;
+    return row ? checked(SourceScanCheckpointSchema, JSON.parse(row.document)) : undefined;
+  }
+  function saveScan(value: SourceScanCheckpoint) {
+    const event = checked(SourceScanCheckpointSchema, value);
+    db.prepare("INSERT INTO source_scan_events VALUES (?,?,?,?,?,?)").run(event.id, event.scanId, event.version, event.sourceId, event.actorScope, json(event));
+    return event;
+  }
+  function evolveScan(prior: SourceScanCheckpoint, updates: Partial<SourceScanCheckpoint>): SourceScanCheckpoint {
+    return saveScan({ ...prior, ...updates, id: `scan-event_${randomUUID()}`, version: prior.version + 1, at: now() });
+  }
+  function publicScan(value: SourceScanCheckpoint): SourceScanProgress {
+    const run = runById(value.runId);
+    if (!run) throw new RepositoryError("invalid-data");
+    const running = run.status === "running";
+    return checked(SourceScanProgressSchema, { scanId: value.scanId, sourceId: value.sourceId, runId: value.runId, version: value.version,
+      scope: value.scope, state: value.state, running, canContinue: !running && (value.state === "ready" || value.state === "retry-page"),
+      attemptedRecords: value.attemptedRecords, pages: value.pages, hadErrors: value.hadErrors, updatedAt: value.at,
+      ...(value.invalidatedReason ? { invalidatedReason: value.invalidatedReason } : {}) });
+  }
+  function invalidateScans(sourceId: string, reason: NonNullable<SourceScanCheckpoint["invalidatedReason"]>) {
+    for (const event of latestScans(sourceId).filter(value => value.state !== "invalidated")) evolveScan(event, { state: "invalidated", invalidatedReason: reason });
   }
   function decisions(): MergeDecision[] {
     return (db.prepare("SELECT document FROM merge_decisions ORDER BY revision").all() as Array<{ document: string }>).map((row) => checked(MergeDecisionSchema, JSON.parse(row.document)));
@@ -523,6 +622,12 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     }
   }
   function write(dataset: AtlasDataset, replace = false) {
+    // Invalidation is recorded in the same transaction as every source mutation,
+    // including public imports. An A -> B -> A edit cannot revive old cursors.
+    if (!replace) for (const row of db.prepare("SELECT id,document FROM sources").all() as Array<{ id: string; document: string }>) {
+      const next = dataset.sources.find(source => source.sourceId === row.id);
+      if (!next || !same(JSON.parse(row.document), next)) invalidateScans(row.id, "source-config-changed");
+    }
     const obsoleteMaterials = { sources: [] as string[], listings: [] as string[], observations: [] as string[] };
     if (!replace) {
       for (const table of ["sources", "listings", "observations"] as const) {
@@ -858,6 +963,82 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     return result;
   }
 
+  function importSnapshotNow(input: unknown, importOptions: ImportOptions): ImportReceipt {
+      validateOptions(importOptions);
+      const incoming = checked(AtlasDatasetObjectSchema, input);
+      if (incoming.locations.some(location => location.userResolution || location.officeResolution)) throw new RepositoryError("conflict");
+      if (incoming.companies.some(company => company.controlReview) || TABLES.some(table => incoming[table].some(value => isCompanyControlReviewEntityId(sourceIdOrId(table, value))))) throw new RepositoryError("conflict");
+      const requestSignature = signature({ ...(importOptions.requestFingerprint === undefined ? { input: incoming } : { requestFingerprint: importOptions.requestFingerprint }), expectedRevision: importOptions.expectedRevision, runId: importOptions.runId });
+        const cached = receipt<ImportReceipt>(importOptions.actorScope, "dataset.import", importOptions.idempotencyKey, requestSignature);
+        if (cached) return checked(ImportReceiptSchema, cached);
+        const current = read();
+        if (importOptions.expectedRevision !== undefined && current.revision !== importOptions.expectedRevision) throw new RepositoryError("stale-version");
+        const run = importOptions.runId ? currentRun(importOptions.runId, importOptions.actorScope) : undefined;
+        const base = baseSnapshot(current);
+        const nextBase = merged(base, incoming);
+        if (run) validateRunDelta(incoming, nextBase, base, run);
+        verifyContentHashes(nextBase);
+        const priorOffice = officeDecisions();
+        const inactiveOffice = new Set(priorOffice.flatMap(entry => entry.kind === "revoke" ? [entry.targetDecisionId] : entry.kind === "invalidate" ? entry.targetDecisionIds : []));
+        const sourceBasis = (dataset: AtlasDataset, decision: Extract<OfficeAddressDecision, { kind: "confirm" }>) => ({
+          location: dataset.locations.find(value => value.id === decision.locationId),
+          listingStillUsesLocation: Boolean(dataset.listings.find(value => value.id === decision.listingId)?.locationIds?.includes(decision.locationId)),
+          jobStillUsesLocation: Boolean(dataset.jobs.find(value => value.id === decision.jobId)?.locationIds.includes(decision.locationId)),
+          workMode: dataset.jobs.find(value => value.id === decision.jobId)?.workMode,
+        });
+        const invalidatedIds = priorOffice.filter((entry): entry is Extract<OfficeAddressDecision, { kind: "confirm" }> => entry.kind === "confirm" && !inactiveOffice.has(entry.id))
+          .filter(entry => !same(sourceBasis(base, entry), sourceBasis(nextBase, entry))).map(entry => entry.id);
+        const invalidation: OfficeAddressDecision | undefined = invalidatedIds.length ? { id: `office-invalidate_${randomUUID()}`, kind: "invalidate", actorScope: importOptions.actorScope,
+          at: now(), revision: current.revision + 1, reason: "source-changed", targetDecisionIds: invalidatedIds } : undefined;
+        const priorCompensation = compensationDecisions();
+        const invalidatedCompensationIds = getInvalidatedCompensationReviewIds(nextBase, priorCompensation);
+        const compensationInvalidation: CompensationReviewDecision | undefined = invalidatedCompensationIds.length ? { id: `compensation-invalidate_${randomUUID()}`, kind: "invalidate", actorScope: importOptions.actorScope,
+          at: now(), revision: current.revision + 1, reason: "source-changed", targetDecisionIds: invalidatedCompensationIds } : undefined;
+        const priorCompany = companyControlDecisions(), invalidatedCompanyIds = getInvalidatedCompanyControlReviewIds(nextBase, priorCompany);
+        const companyInvalidation: CompanyControlReviewDecision | undefined = invalidatedCompanyIds.length ? { id: `company-control-invalidate_${randomUUID()}`, kind: "invalidate", actorScope: importOptions.actorScope,
+          at: now(), revision: current.revision + 1, reason: "source-changed", targetDecisionIds: invalidatedCompanyIds } : undefined;
+        if (invalidation || compensationInvalidation || companyInvalidation) nextBase.revision = current.revision + 1;
+        const projection = canonicalProjection(nextBase, current, decisions(), now(), locationDecisions(), [...priorOffice, ...(invalidation ? [invalidation] : [])], [...priorCompensation, ...(compensationInvalidation ? [compensationInvalidation] : [])], [...priorCompany, ...(companyInvalidation ? [companyInvalidation] : [])]);
+        const next = projection.dataset;
+        const changed = TABLES.some((table) => !same(base[table], nextBase[table])) || TABLES.some((table) => !same(current[table], next[table]));
+        next.revision = current.revision + Number(changed);
+        const targets = new Set(incoming.jobs.map((job) => projection.aliases.find((alias) => alias.jobId === job.id)!.canonicalJobId));
+        const effectiveIncoming = { ...incoming, jobs: next.jobs.filter((job) => targets.has(job.id)) };
+        const result: ImportReceipt = { ok: true, revision: next.revision, jobIds: effectiveIncoming.jobs.map((job) => job.id), snapshotIds: incoming.snapshots.map((snapshot) => snapshot.id), counts: counts(current, next, effectiveIncoming) };
+        if (changed) {
+          if (invalidation) db.prepare("INSERT INTO office_decisions VALUES (?,?,?)").run(invalidation.id, invalidation.revision, json(invalidation));
+          if (compensationInvalidation) db.prepare("INSERT INTO compensation_decisions VALUES (?,?,?)").run(compensationInvalidation.id, compensationInvalidation.revision, json(compensationInvalidation));
+          if (companyInvalidation) db.prepare("INSERT INTO company_control_decisions VALUES (?,?,?)").run(companyInvalidation.id, companyInvalidation.revision, json(companyInvalidation));
+          writeBaseJobs(nextBase.jobs); writeBaseLocations(nextBase.locations); writeBaseCompensations(nextBase.compensations); writeBaseCompanies(nextBase.companies); write(next); saveAliases(projection.aliases, next.revision, now());
+        }
+        saveReceipt(importOptions.actorScope, "dataset.import", importOptions.idempotencyKey, requestSignature, result);
+        return result;
+  }
+  function saveDiscoveryLeadsNow(input: readonly DiscoveryLead[], importOptions: Omit<ImportOptions, "expectedRevision">): DiscoveryLeadReceipt {
+      validateOptions(importOptions);
+      if (!Array.isArray(input) || input.length > 100_000) throw new RepositoryError("invalid-data");
+      const leads = input.map((lead) => checked(DiscoveryLeadSchema, lead));
+      if (new Set(leads.map((lead) => lead.id)).size !== leads.length) throw new RepositoryError("conflict");
+      const requestSignature = signature({ leads, runId: importOptions.runId });
+        const cached = receipt<DiscoveryLeadReceipt>(importOptions.actorScope, "leads.save", importOptions.idempotencyKey, requestSignature);
+        if (cached) return checked(DiscoveryLeadReceiptSchema, cached);
+        const run = importOptions.runId ? currentRun(importOptions.runId, importOptions.actorScope) : undefined;
+        let changed = false;
+        for (const lead of leads) {
+          if (run && lead.sourceId !== run.sourceId) throw new RepositoryError("conflict");
+          if (!db.prepare("SELECT id FROM sources WHERE id=?").get(lead.sourceId)) throw new RepositoryError("invalid-data");
+          const row = db.prepare("SELECT source_id,document FROM discovery_leads WHERE id=?").get(lead.id) as { source_id: string; document: string } | undefined;
+          if (row && (row.source_id !== lead.sourceId || Date.parse((JSON.parse(row.document) as DiscoveryLead).observedAt) > Date.parse(lead.observedAt))) throw new RepositoryError("conflict");
+          if (row && same(JSON.parse(row.document), lead)) continue;
+          changed = true;
+          db.prepare("INSERT INTO discovery_leads VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document").run(lead.id, lead.sourceId, json(lead));
+        }
+        const nextRevision = revision() + Number(changed);
+        if (changed) db.prepare("UPDATE metadata SET value=? WHERE key='revision'").run(String(nextRevision));
+        const result: DiscoveryLeadReceipt = { ok: true, revision: nextRevision, leadIds: leads.map((lead) => lead.id) };
+        saveReceipt(importOptions.actorScope, "leads.save", importOptions.idempotencyKey, requestSignature, result); return result;
+  }
+
   return {
     async readSnapshot(): Promise<AtlasDataset> { return transaction(read); },
     /** Capture the FX selection and public dataset in one SQLite transaction. */
@@ -1145,57 +1326,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       });
     },
     async importSnapshot(input: unknown, importOptions: ImportOptions): Promise<ImportReceipt> {
-      validateOptions(importOptions);
-      const incoming = checked(AtlasDatasetObjectSchema, input);
-      if (incoming.locations.some(location => location.userResolution || location.officeResolution)) throw new RepositoryError("conflict");
-      if (incoming.companies.some(company => company.controlReview) || TABLES.some(table => incoming[table].some(value => isCompanyControlReviewEntityId(sourceIdOrId(table, value))))) throw new RepositoryError("conflict");
-      const requestSignature = signature({ ...(importOptions.requestFingerprint === undefined ? { input: incoming } : { requestFingerprint: importOptions.requestFingerprint }), expectedRevision: importOptions.expectedRevision, runId: importOptions.runId });
-      return transaction(() => {
-        const cached = receipt<ImportReceipt>(importOptions.actorScope, "dataset.import", importOptions.idempotencyKey, requestSignature);
-        if (cached) return checked(ImportReceiptSchema, cached);
-        const current = read();
-        if (importOptions.expectedRevision !== undefined && current.revision !== importOptions.expectedRevision) throw new RepositoryError("stale-version");
-        const run = importOptions.runId ? currentRun(importOptions.runId, importOptions.actorScope) : undefined;
-        const base = baseSnapshot(current);
-        const nextBase = merged(base, incoming);
-        if (run) validateRunDelta(incoming, nextBase, base, run);
-        verifyContentHashes(nextBase);
-        const priorOffice = officeDecisions();
-        const inactiveOffice = new Set(priorOffice.flatMap(entry => entry.kind === "revoke" ? [entry.targetDecisionId] : entry.kind === "invalidate" ? entry.targetDecisionIds : []));
-        const sourceBasis = (dataset: AtlasDataset, decision: Extract<OfficeAddressDecision, { kind: "confirm" }>) => ({
-          location: dataset.locations.find(value => value.id === decision.locationId),
-          listingStillUsesLocation: Boolean(dataset.listings.find(value => value.id === decision.listingId)?.locationIds?.includes(decision.locationId)),
-          jobStillUsesLocation: Boolean(dataset.jobs.find(value => value.id === decision.jobId)?.locationIds.includes(decision.locationId)),
-          workMode: dataset.jobs.find(value => value.id === decision.jobId)?.workMode,
-        });
-        const invalidatedIds = priorOffice.filter((entry): entry is Extract<OfficeAddressDecision, { kind: "confirm" }> => entry.kind === "confirm" && !inactiveOffice.has(entry.id))
-          .filter(entry => !same(sourceBasis(base, entry), sourceBasis(nextBase, entry))).map(entry => entry.id);
-        const invalidation: OfficeAddressDecision | undefined = invalidatedIds.length ? { id: `office-invalidate_${randomUUID()}`, kind: "invalidate", actorScope: importOptions.actorScope,
-          at: now(), revision: current.revision + 1, reason: "source-changed", targetDecisionIds: invalidatedIds } : undefined;
-        const priorCompensation = compensationDecisions();
-        const invalidatedCompensationIds = getInvalidatedCompensationReviewIds(nextBase, priorCompensation);
-        const compensationInvalidation: CompensationReviewDecision | undefined = invalidatedCompensationIds.length ? { id: `compensation-invalidate_${randomUUID()}`, kind: "invalidate", actorScope: importOptions.actorScope,
-          at: now(), revision: current.revision + 1, reason: "source-changed", targetDecisionIds: invalidatedCompensationIds } : undefined;
-        const priorCompany = companyControlDecisions(), invalidatedCompanyIds = getInvalidatedCompanyControlReviewIds(nextBase, priorCompany);
-        const companyInvalidation: CompanyControlReviewDecision | undefined = invalidatedCompanyIds.length ? { id: `company-control-invalidate_${randomUUID()}`, kind: "invalidate", actorScope: importOptions.actorScope,
-          at: now(), revision: current.revision + 1, reason: "source-changed", targetDecisionIds: invalidatedCompanyIds } : undefined;
-        if (invalidation || compensationInvalidation || companyInvalidation) nextBase.revision = current.revision + 1;
-        const projection = canonicalProjection(nextBase, current, decisions(), now(), locationDecisions(), [...priorOffice, ...(invalidation ? [invalidation] : [])], [...priorCompensation, ...(compensationInvalidation ? [compensationInvalidation] : [])], [...priorCompany, ...(companyInvalidation ? [companyInvalidation] : [])]);
-        const next = projection.dataset;
-        const changed = TABLES.some((table) => !same(base[table], nextBase[table])) || TABLES.some((table) => !same(current[table], next[table]));
-        next.revision = current.revision + Number(changed);
-        const targets = new Set(incoming.jobs.map((job) => projection.aliases.find((alias) => alias.jobId === job.id)!.canonicalJobId));
-        const effectiveIncoming = { ...incoming, jobs: next.jobs.filter((job) => targets.has(job.id)) };
-        const result: ImportReceipt = { ok: true, revision: next.revision, jobIds: effectiveIncoming.jobs.map((job) => job.id), snapshotIds: incoming.snapshots.map((snapshot) => snapshot.id), counts: counts(current, next, effectiveIncoming) };
-        if (changed) {
-          if (invalidation) db.prepare("INSERT INTO office_decisions VALUES (?,?,?)").run(invalidation.id, invalidation.revision, json(invalidation));
-          if (compensationInvalidation) db.prepare("INSERT INTO compensation_decisions VALUES (?,?,?)").run(compensationInvalidation.id, compensationInvalidation.revision, json(compensationInvalidation));
-          if (companyInvalidation) db.prepare("INSERT INTO company_control_decisions VALUES (?,?,?)").run(companyInvalidation.id, companyInvalidation.revision, json(companyInvalidation));
-          writeBaseJobs(nextBase.jobs); writeBaseLocations(nextBase.locations); writeBaseCompensations(nextBase.compensations); writeBaseCompanies(nextBase.companies); write(next); saveAliases(projection.aliases, next.revision, now());
-        }
-        saveReceipt(importOptions.actorScope, "dataset.import", importOptions.idempotencyKey, requestSignature, result);
-        return result;
-      });
+      return transaction(() => importSnapshotNow(input, importOptions));
     },
     async listMergeCandidates(options: { limit?: number; requisitionLinks?: readonly OfficialRequisitionLink[] } = {}) {
       const state = transaction(() => ({ dataset: read(), decisions: decisions() }));
@@ -1345,15 +1476,40 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const sourceRow = db.prepare("SELECT document FROM sources WHERE id=?").get(input.sourceId) as { document: string } | undefined;
         if (!sourceRow) throw new RepositoryError("not-found");
         const source = checked(SourceDefinitionSchema, JSON.parse(sourceRow.document));
+        const scanScope = input.scan ? checked(SourceScopeSchema, input.scan.scope) : undefined;
+        let continued: SourceScanCheckpoint | undefined;
+        if (input.scan) {
+          if (sourceConfigurationFingerprint(source) !== input.scan.sourceFingerprint || !same(scanScope, { roles: scope.keywords ?? [], regions: scope.regions ?? [], companyNames: scope.companies ?? [], ...(scope.countryCodes ? { countryCodes: scope.countryCodes } : {}) })) throw new RepositoryError("stale-version");
+          if (input.scan.continue) {
+            const command = input.scan.continue;
+            continued = scanForRun(command.fromRunId, input.actorScope);
+            if (!continued || command.sourceId !== source.sourceId || continued.sourceId !== source.sourceId || continued.runId !== command.fromRunId
+              || continued.version !== command.expectedProgressVersion || continued.sourceFingerprint !== input.scan.sourceFingerprint
+              || continued.scopeFingerprint !== sourceScanFingerprint(scanScope) || !publicScan(continued).canContinue) throw new RepositoryError("stale-version");
+          }
+        }
         const latestRow = db.prepare("SELECT document FROM runs WHERE source_id=? ORDER BY generation DESC LIMIT 1").get(input.sourceId) as { document: string } | undefined;
         const startedAt = now();
         if (latestRow && Date.parse(startedAt) - Date.parse(checked(SyncRunSchema, JSON.parse(latestRow.document)).startedAt) < source.refreshPolicy.minIntervalSeconds * 1000) throw new RepositoryError("rate-limited");
+        if (!input.scan) invalidateScans(source.sourceId, "new-scan");
         const previous = db.prepare("SELECT document FROM runs WHERE source_id=? AND status='running'").all(input.sourceId) as Array<{ document: string }>;
         for (const row of previous) saveRun({ ...checked(SyncRunSchema, JSON.parse(row.document)), status: "superseded", finishedAt: now() });
         const oldGeneration = db.prepare("SELECT generation FROM source_generations WHERE source_id=?").get(input.sourceId) as { generation: number } | undefined;
         const generation = (oldGeneration?.generation ?? 0) + 1;
         db.prepare("INSERT INTO source_generations VALUES (?,?) ON CONFLICT(source_id) DO UPDATE SET generation=excluded.generation").run(input.sourceId, generation);
-        const run: SyncRun = { runId: `run_${randomUUID()}`, sourceId: input.sourceId, actorScope: input.actorScope, generation, scope, ...(requestFingerprint === undefined ? {} : { requestFingerprint }), status: "running", startedAt };
+        const runId = `run_${randomUUID()}`;
+        const scanId = input.scan ? continued?.scanId ?? `scan_${randomUUID()}` : undefined;
+        const run: SyncRun = { runId, sourceId: input.sourceId, actorScope: input.actorScope, generation, scope, ...(requestFingerprint === undefined ? {} : { requestFingerprint }),
+          ...(scanId ? { scanId, ...(continued ? { continuedFromRunId: continued.runId } : {}) } : {}), status: "running", startedAt };
+        if (input.scan && scanScope && scanId) {
+          if (continued) evolveScan(continued, { runId, generation });
+          else {
+            invalidateScans(source.sourceId, "new-scan");
+            saveScan({ id: `scan-event_${randomUUID()}`, scanId, version: 1, sourceId: source.sourceId, actorScope: input.actorScope, runId, generation,
+              sourceFingerprint: input.scan.sourceFingerprint, scopeFingerprint: sourceScanFingerprint(scanScope), scope: scanScope,
+              adapterId: source.adapterId, adapterVersion: source.adapterVersion, state: "retry-page", attemptedRecords: 0, pages: 0, hadErrors: false, at: startedAt });
+          }
+        }
         saveRun(run); saveReceipt(input.actorScope, "runs.start", input.idempotencyKey, requestSignature, run); return run;
       });
     },
@@ -1374,13 +1530,71 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       });
     },
     async getRun(runId: string) { return runById(runId); },
+    async readScanProgress(input: { sourceId: string; runId?: string; actorScope: string }) {
+      checked(EntityIdSchema, input.sourceId); checked(ActorScopeSchema, input.actorScope);
+      return transaction(() => {
+        const event = input.runId ? scanForRun(input.runId, input.actorScope) : latestScans(input.sourceId).filter(value => value.actorScope === input.actorScope).at(-1);
+        if (event && event.sourceId !== input.sourceId) throw new RepositoryError("not-found");
+        return { sourceId: input.sourceId, progress: event && (!input.runId || event.runId === input.runId) ? publicScan(event) : null };
+      });
+    },
+    async readScanCheckpoint(runId: string, actorScope: string): Promise<SourceScanCheckpoint> {
+      return transaction(() => {
+        const event = scanForRun(runId, actorScope);
+        if (!event || event.runId !== runId) throw new RepositoryError("stale-version");
+        return event;
+      });
+    },
+    /** Projection, leads, checkpoint and their durable receipt have one SQLite commit. */
+    async commitScanPage(input: { delta: unknown; leads: readonly DiscoveryLead[]; page: SourcePage; expectedProgressVersion: number; summary: PublicRunSummary }, pageOptions: ImportOptions & { runId: string; throwIfCancelled?: () => void }): Promise<SourceScanPageReceipt> {
+      validateOptions(pageOptions);
+      const page = checked(SourcePageSchema, input.page), summary = checked(PublicRunSummarySchema, input.summary);
+      const requestSignature = signature({ input: { ...input, page, summary }, expectedRevision: pageOptions.expectedRevision, runId: pageOptions.runId });
+      return transaction(() => {
+        const cached = receipt<SourceScanPageReceipt>(pageOptions.actorScope, "sources.commit-page", pageOptions.idempotencyKey, requestSignature);
+        if (cached) return checked(SourceScanPageReceiptSchema, cached);
+        pageOptions.throwIfCancelled?.();
+        const run = currentRun(pageOptions.runId, pageOptions.actorScope), event = scanForRun(run.runId, pageOptions.actorScope);
+        if (!event || event.runId !== run.runId || event.version !== input.expectedProgressVersion || !["ready", "retry-page"].includes(event.state)) throw new RepositoryError("stale-version");
+        const source = read().sources.find(value => value.sourceId === run.sourceId);
+        if (!source || sourceConfigurationFingerprint(source) !== event.sourceFingerprint) throw new RepositoryError("stale-version");
+        const imported = importSnapshotNow(input.delta, pageOptions);
+        pageOptions.throwIfCancelled?.();
+        const leadReceipt = saveDiscoveryLeadsNow(input.leads, pageOptions);
+        pageOptions.throwIfCancelled?.();
+        const state = page.retryCurrentPage ? "retry-page" : page.nextCursor ? "ready" : page.coverage.complete ? "exhausted" : "truncated";
+        const checkpoint = evolveScan(event, { state, cursor: page.retryCurrentPage ? event.cursor : page.nextCursor,
+          attemptedRecords: event.attemptedRecords + page.coverage.fetchedRecords, pages: event.pages + 1,
+          hadErrors: event.hadErrors || page.coverage.partial });
+        const nextSummary = { ...summary, added: (run.summary?.added ?? 0) + imported.counts.newJobs,
+          changed: (run.summary?.changed ?? 0) + imported.counts.updatedJobs, unchanged: (run.summary?.unchanged ?? 0) + imported.counts.unchangedJobs,
+          leads: (run.summary?.leads ?? 0) + input.leads.length };
+        saveRun({ ...run, summary: checked(PublicRunSummarySchema, nextSummary) });
+        const result = checked(SourceScanPageReceiptSchema, { ok: true, runId: run.runId, scanId: event.scanId, progressVersion: checkpoint.version,
+          receipt: imported, leadIds: leadReceipt.leadIds, revision: leadReceipt.revision });
+        saveReceipt(pageOptions.actorScope, "sources.commit-page", pageOptions.idempotencyKey, requestSignature, result);
+        pageOptions.throwIfCancelled?.();
+        return result;
+      });
+    },
+    async markScanFailure(runId: string, actorScope: string, sourceChanged: boolean) {
+      return transaction(() => {
+        const run = currentRun(runId, actorScope), event = scanForRun(run.runId, actorScope);
+        if (!event || event.runId !== runId || event.state === "invalidated") return;
+        evolveScan(event, sourceChanged ? { state: "invalidated", invalidatedReason: "source-changed", hadErrors: true }
+          : ["ready", "retry-page"].includes(event.state) ? { state: "retry-page", hadErrors: true } : { hadErrors: true });
+      });
+    },
     async listRuns(): Promise<SyncRun[]> { ensureOpen(); return (db.prepare("SELECT document FROM runs ORDER BY rowid DESC").all() as Array<{ document: string }>).map((row) => checked(SyncRunSchema, JSON.parse(row.document))); },
     async assertRunCurrent(runId: string, actorScope?: string) { return currentRun(runId, actorScope); },
     /** Invoke once after the service acquires exclusive process ownership, never on each DB open. */
     async recoverInterruptedRuns(): Promise<{ recovered: number }> {
       return transaction(() => {
         const interrupted = db.prepare("SELECT document FROM runs WHERE status='running'").all() as Array<{ document: string }>;
-        for (const row of interrupted) saveRun({ ...checked(SyncRunSchema, JSON.parse(row.document)), status: "failed", finishedAt: now(), summary: { errorCode: "service-restarted", partial: true } });
+        for (const row of interrupted) {
+          const run = checked(SyncRunSchema, JSON.parse(row.document));
+          saveRun({ ...run, status: "failed", finishedAt: now(), summary: { ...run.summary, errorCode: "service-restarted", partial: true } });
+        }
         return { recovered: interrupted.length };
       });
     },
@@ -1405,30 +1619,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       });
     },
     async saveDiscoveryLeads(input: readonly DiscoveryLead[], importOptions: Omit<ImportOptions, "expectedRevision">): Promise<DiscoveryLeadReceipt> {
-      validateOptions(importOptions);
-      if (!Array.isArray(input) || input.length > 100_000) throw new RepositoryError("invalid-data");
-      const leads = input.map((lead) => checked(DiscoveryLeadSchema, lead));
-      if (new Set(leads.map((lead) => lead.id)).size !== leads.length) throw new RepositoryError("conflict");
-      const requestSignature = signature({ leads, runId: importOptions.runId });
-      return transaction(() => {
-        const cached = receipt<DiscoveryLeadReceipt>(importOptions.actorScope, "leads.save", importOptions.idempotencyKey, requestSignature);
-        if (cached) return checked(DiscoveryLeadReceiptSchema, cached);
-        const run = importOptions.runId ? currentRun(importOptions.runId, importOptions.actorScope) : undefined;
-        let changed = false;
-        for (const lead of leads) {
-          if (run && lead.sourceId !== run.sourceId) throw new RepositoryError("conflict");
-          if (!db.prepare("SELECT id FROM sources WHERE id=?").get(lead.sourceId)) throw new RepositoryError("invalid-data");
-          const row = db.prepare("SELECT source_id,document FROM discovery_leads WHERE id=?").get(lead.id) as { source_id: string; document: string } | undefined;
-          if (row && (row.source_id !== lead.sourceId || Date.parse((JSON.parse(row.document) as DiscoveryLead).observedAt) > Date.parse(lead.observedAt))) throw new RepositoryError("conflict");
-          if (row && same(JSON.parse(row.document), lead)) continue;
-          changed = true;
-          db.prepare("INSERT INTO discovery_leads VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document").run(lead.id, lead.sourceId, json(lead));
-        }
-        const nextRevision = revision() + Number(changed);
-        if (changed) db.prepare("UPDATE metadata SET value=? WHERE key='revision'").run(String(nextRevision));
-        const result: DiscoveryLeadReceipt = { ok: true, revision: nextRevision, leadIds: leads.map((lead) => lead.id) };
-        saveReceipt(importOptions.actorScope, "leads.save", importOptions.idempotencyKey, requestSignature, result); return result;
-      });
+      return transaction(() => saveDiscoveryLeadsNow(input, importOptions));
     },
     async listDiscoveryLeads(): Promise<DiscoveryLead[]> {
       ensureOpen(); return (db.prepare("SELECT document FROM discovery_leads ORDER BY id").all() as Array<{ document: string }>).map((row) => checked(DiscoveryLeadSchema, JSON.parse(row.document)));
@@ -1462,12 +1653,15 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const baseJobs = baseSnapshot(dataset).jobs;
         const aliasHistory = (db.prepare("SELECT document FROM job_alias_history ORDER BY sequence").all() as Array<{ document: string }>).map((row) => checked(JobAliasEventSchema, JSON.parse(row.document)));
         const jobVersions = (db.prepare("SELECT job_id,revision FROM job_versions ORDER BY job_id").all() as Array<{ job_id: string; revision: number }>).map((row) => ({ jobId: row.job_id, revision: row.revision }));
-        return checked(RepositoryBackupSchema, { format: "better-me/job-repository", schemaVersion: REPOSITORY_SCHEMA_VERSION, createdAt: now(), dataset, runs, receipts, leads, baseJobs, baseLocations: baseSnapshot(dataset).locations, locationDecisions: locationDecisions(), officeDecisions: officeDecisions(), baseCompensations: baseSnapshot(dataset).compensations, compensationDecisions: compensationDecisions(), mergeDecisions: decisions(), aliasHistory, jobVersions, fxSnapshots: fxSnapshots(), fxActivations: fxActivations(), baseCompanies: baseSnapshot(dataset).companies, companyControlDecisions: companyControlDecisions() }, "invalid-backup");
+        const result = checked(RepositoryBackupSchema, { format: "better-me/job-repository", schemaVersion: REPOSITORY_SCHEMA_VERSION, createdAt: now(), dataset, runs, receipts, leads, baseJobs, baseLocations: baseSnapshot(dataset).locations, locationDecisions: locationDecisions(), officeDecisions: officeDecisions(), baseCompensations: baseSnapshot(dataset).compensations, compensationDecisions: compensationDecisions(), mergeDecisions: decisions(), aliasHistory, jobVersions, fxSnapshots: fxSnapshots(), fxActivations: fxActivations(), baseCompanies: baseSnapshot(dataset).companies, companyControlDecisions: companyControlDecisions(), sourceScans: scanHistory() }, "invalid-backup");
+        validateSourceScanBackup(result, now());
+        return result;
       });
     },
     async restore(input: unknown, restoreOptions: Omit<ImportOptions, "runId"> & { expectedRevision: number }): Promise<ImportReceipt> {
       validateOptions(restoreOptions);
       const backup = checked(RepositoryBackupSchema, input, "invalid-backup");
+      validateSourceScanBackup(backup, now());
       verifyContentHashes(backup.dataset, "invalid-backup");
       if (encoder.encode(json(backup)).byteLength > 128 * 1024 * 1024) throw new RepositoryError("invalid-backup");
       await verifyFxBackup(backup, now());
@@ -1640,11 +1834,23 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         // Replacing selected rates must not orphan a durable command from the current file.
         if (fxSnapshots().some(value => !backup.fxSnapshots.some(saved => same(value, saved))) || fxActivations().some(value => !backup.fxActivations.some(saved => same(value, saved)))) throw new RepositoryError("conflict");
         if (companyControlDecisions().some(value => !backup.companyControlDecisions.some(saved => same(value, saved)))) throw new RepositoryError("conflict");
+        // Existing checkpoints and all commands that can move them remain durable.
+        // Restoring an older file must never erase an invalidation or resurrect a consumed cursor.
+        if (scanHistory().some(value => !backup.sourceScans.some(saved => same(value, saved)))) throw new RepositoryError("conflict");
+        const currentScanRunIds = new Set(scanHistory().map(value => value.runId));
+        for (const runId of currentScanRunIds) {
+          const currentRunValue = runById(runId);
+          const retained = backup.runs.find(value => value.runId === runId);
+          if (!currentRunValue || !retained || !same(currentRunValue, retained)) throw new RepositoryError("conflict");
+        }
+        const durableScanReceipts = (db.prepare("SELECT * FROM receipts WHERE tool IN ('runs.start','sources.commit-page','dataset.import','leads.save')").all() as Array<{ actor_scope: string; tool: StoredReceipt["tool"]; idempotency_key: string; signature: string; response: string; created_at: string }>).filter(row => row.tool === "sources.commit-page" || row.tool === "runs.start" && currentScanRunIds.has((JSON.parse(row.response) as SyncRun).runId) || [...currentScanRunIds].some(runId => row.idempotency_key.startsWith(`${runId}.page-`)))
+          .map(row => ({ actorScope: row.actor_scope, tool: row.tool, idempotencyKey: row.idempotency_key, signature: row.signature, response: JSON.parse(row.response) as unknown, createdAt: row.created_at }));
+        if (durableScanReceipts.some(value => !backup.receipts.some(saved => same(value, saved)))) throw new RepositoryError("conflict");
         const currentCompanyReceipts = (db.prepare("SELECT * FROM receipts WHERE tool IN ('companies.confirm-control-review','companies.revoke-control-review')").all() as Array<{ actor_scope: string; tool: StoredReceipt["tool"]; idempotency_key: string; signature: string; response: string; created_at: string }>)
           .map(row => ({ actorScope: row.actor_scope, tool: row.tool, idempotencyKey: row.idempotency_key, signature: row.signature, response: JSON.parse(row.response) as unknown, createdAt: row.created_at }));
         if (currentCompanyReceipts.some(value => !backup.receipts.some(saved => same(value, saved)))) throw new RepositoryError("conflict");
         // A source run that was active in the saved file has no live executor after restoration.
-        const restoredRuns = backup.runs.map((run): SyncRun => run.status === "running" ? { ...run, status: "cancelled", finishedAt: now() } : run);
+        const restoredRuns = backup.runs.map((run): SyncRun => run.status === "running" ? { ...run, status: "cancelled", finishedAt: now(), summary: { ...run.summary, partial: true, errorCode: "backup-restored" } } : run);
         const dataset = { ...backup.dataset, revision: Math.max(current.revision, backup.dataset.revision) + 1 };
         write(dataset, true);
         writeBaseJobs(baseJobs, true);
@@ -1679,6 +1885,10 @@ export function openJobRepository(path: string, options: { now?: () => string } 
           saveRun(run);
           db.prepare("INSERT INTO source_generations VALUES (?,?) ON CONFLICT(source_id) DO UPDATE SET generation=MAX(generation,excluded.generation)").run(run.sourceId, run.generation);
         }
+        // Existing events were checked for exact preservation above; importing a
+        // superset only appends new events and never disables immutability triggers.
+        const existingScanEventIds = new Set(scanHistory().map(value => value.id));
+        for (const event of backup.sourceScans) if (!existingScanEventIds.has(event.id)) saveScan(event);
         for (const lead of backup.leads) db.prepare("INSERT INTO discovery_leads VALUES (?,?,?)").run(lead.id, lead.sourceId, json(lead));
         for (const stored of backup.receipts) {
           const old = db.prepare("SELECT signature,response FROM receipts WHERE actor_scope=? AND tool=? AND idempotency_key=?").get(stored.actorScope, stored.tool, stored.idempotencyKey) as { signature: string; response: string } | undefined;

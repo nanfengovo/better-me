@@ -34,10 +34,10 @@ async function fixture(list: SourceAdapter["list"], beforeImport?: (options: Imp
   const repository = openJobRepository(join(directory, "jobs.sqlite"));
   for (const item of [sourceA, sourceB]) await repository.registerSource(item, { actorScope, idempotencyKey: `seed-${item.sourceId}` });
   let imports = 0; const revisions: number[] = [];
-  const candidate: JobRepository = { ...repository, importSnapshot: async (input, options) => {
+  const candidate: JobRepository = { ...repository, commitScanPage: async (input, options) => {
     imports++; revisions.push(options.expectedRevision!);
     await beforeImport?.(options, repository, application);
-    return repository.importSnapshot(input, options);
+    return repository.commitScanPage(input, options);
   } };
   const adapter: SourceAdapter = { adapterId: sourceA.adapterId, version: "1", capabilities: ["list-jobs"], remoteFilters: [], entityTypes: ["job-posting"], list };
   const application = createJobApplication({ repository: candidate, adapters: [adapter] });

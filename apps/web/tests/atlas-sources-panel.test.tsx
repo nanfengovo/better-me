@@ -6,6 +6,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { Window } from "happy-dom";
 import { SourceDefinitionSchema, type AtlasDataset } from "@better-me/opportunities";
 import { createAtlasDemo } from "../src/components/atlas/demo.ts";
+import { atlasSourceScanRecoveryScope, writeAtlasSourceScanRecovery } from "../src/components/atlas/source-scan-recovery.ts";
 
 const dom = new Window({ url: "http://atlas-source-fixture.invalid" });
 const React = await import("react");
@@ -45,7 +46,9 @@ async function change(label: string, value: string) {
   });
 }
 async function click(text: string) { await act(async () => button(text).click()); await waitFor(() => dom.document.querySelector("section")?.getAttribute("aria-busy") === "false", text); }
-afterEach(async () => { if (root) await act(async () => root!.unmount()); root = undefined; mock.restoreAll(); });
+afterEach(async () => { if (root) await act(async () => root!.unmount()); root = undefined;
+  for (const token of ["synthetic", "synthetic-panel-token", ""]) for (const endpoint of ["http://127.0.0.1:5178", "/api/atlas"]) writeAtlasSourceScanRecovery(atlasSourceScanRecoveryScope(endpoint, token), {});
+  mock.restoreAll(); });
 after(() => { hooks.deregister(); dom.happyDOM.abort(); for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } });
 
 test("missing token leaves real tools inactive and does not request localhost", async () => {
@@ -60,6 +63,7 @@ test("catalog addition is explicit, preserves unknown-write identity and never f
   const paths: string[] = []; let updates = 0;
   mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname; paths.push(path);
+    if (path.endsWith("/scan-progress")) return response({ sourceId: source.sourceId, progress: null });
     if (path === "/api/v1/sources" && !init?.body) return response({ sources: installed, adapters });
     if (path === "/api/v1/dataset/export") return response({ ...snapshot, sources: [...snapshot.sources, ...installed] });
     assert.equal(path, "/api/v1/sources");
@@ -80,7 +84,7 @@ test("catalog addition is explicit, preserves unknown-write identity and never f
   assert.equal(writes[0]!.body.source.enabled, true); assert.equal(writes[0]!.body.source.status, "active");
   assert.equal(writes[0]!.body.source.sourceId, preset.source.sourceId);
   assert.equal(installed[0], source); assert.equal(updates, 1);
-  assert.ok(paths.every((path) => ["/api/v1/sources", "/api/v1/dataset/export"].includes(path)));
+  assert.ok(paths.every((path) => ["/api/v1/sources", "/api/v1/dataset/export"].includes(path) || path.endsWith("/scan-progress")));
   assert.ok(!dom.document.querySelector(".atlas-catalog-list")!.textContent!.includes(preset.source.attribution.label), "registered preset no longer offered for overwrite");
 });
 
@@ -118,7 +122,8 @@ test("scope preview and finite sync use real routes and update the map only with
   mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname; const body = init?.body ? JSON.parse(String(init.body)) : undefined; requests.push({ path, body, init });
     if (path.endsWith("/preview")) return response({ page: { records: [], observedAt: at, coverage: { complete: true, partial: false, fetchedRecords: 0, appliedFilters: [], ignoredFilters: ["roles", "regions", "companyNames"] }, warnings: [] }, localMatchedRecords: 0, localFilters: body.scope });
-    if (path.endsWith("/sync")) return response({ run: { runId: "synthetic-run", sourceId: source.sourceId, actorScope: "local-owner", generation: 1, scope: {}, status: "partial", startedAt: at, summary: { records: 4, pages: 2, leads: 1, partial: true } }, localFilters: body.scope, warnings: ["Synthetic page limit reached"] });
+    if (path.endsWith("/sync")) return response({ run: { runId: "synthetic-run", sourceId: source.sourceId, actorScope: "local-owner", generation: 1, scope: { keywords: body.scope.roles, regions: body.scope.regions, companies: body.scope.companyNames }, status: "partial", startedAt: at, summary: { records: 4, pages: 2, leads: 1, partial: true } }, localFilters: body.scope, warnings: ["Synthetic page limit reached"] });
+    if (path.endsWith("/scan-progress")) return response({ sourceId: source.sourceId, progress: null });
     if (path.endsWith("/dataset/export")) return response(snapshot);
     return response({ sources: [source], adapters });
   });
@@ -139,6 +144,7 @@ test("JSON array requires per-source review and ambiguous registration retries r
   const writes: Array<{ body: any; key: string | null }> = []; let snapshots = 0;
   mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname;
+    if (path.endsWith("/scan-progress")) return response({ sourceId: source.sourceId, progress: null });
     if (path.endsWith("/dataset/export")) { snapshots++; return response(snapshot); }
     if (init?.method === "POST") { writes.push({ body: JSON.parse(String(init.body)), key: new Headers(init.headers).get("Idempotency-Key") }); if (writes.length === 1) throw new TypeError("synthetic response lost after submit"); return response(receipt); }
     return response({ sources: [source], adapters });
@@ -186,10 +192,12 @@ test("unmount cancels an in-flight tool and prevents late snapshot delivery", as
 });
 
 
-test("default gateway enables source tools with an empty browser token and only reads the local catalog", async () => {
+test("default gateway enables source tools with an empty browser token and reads catalog plus saved progress without collecting jobs", async () => {
   const requests: Array<{ url: string; auth: string | null }> = [];
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => { requests.push({ url: String(url), auth: new Headers(init?.headers).get("Authorization") }); return response({ sources: [source], adapters }); });
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => { requests.push({ url: String(url), auth: new Headers(init?.headers).get("Authorization") });
+    return response(String(url).endsWith("/scan-progress") ? { sourceId: source.sourceId, progress: null } : { sources: [source], adapters }); });
   await render("", () => {}, "/api/atlas");
   assert.equal(button("更新地图快照").disabled, false); assert.equal(button("预览一页 · 不写入").disabled, false);
-  assert.equal(requests.length, 1); assert.equal(requests[0]!.url, `${dom.location.origin}/api/atlas/api/v1/sources`); assert.equal(requests[0]!.auth, null);
+  assert.equal(requests.length, 2); assert.equal(requests[0]!.url, `${dom.location.origin}/api/atlas/api/v1/sources`); assert.equal(requests[0]!.auth, null);
+  assert.equal(requests[1]!.url, `${dom.location.origin}/api/atlas/api/v1/sources/${source.sourceId}/scan-progress`); assert.equal(requests[1]!.auth, null);
 });

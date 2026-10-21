@@ -1,4 +1,5 @@
 export * from "./contracts.js";
+export * from "./source-scan-contracts.js";
 export * from "./registry.js";
 export * from "./discovery.js";
 export * from "./transport.js";

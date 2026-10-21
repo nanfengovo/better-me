@@ -91,7 +91,7 @@ test("FX durable import/selection receipts survive reopen and recover identical 
     const current = await reopened.readFxState({ expectedRevision: stopped.revision }); assert.equal(current.context.activeSnapshot, undefined); assert.equal(current.snapshots.length, 1);
     const inspector = new DatabaseSync(path);
     try {
-      assert.equal((inspector.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 7);
+      assert.equal((inspector.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 8);
       for (const table of ["fx_snapshots", "fx_activations"]) { assert.throws(() => inspector.exec(`UPDATE ${table} SET document=document`), /immutable-fx-/); assert.throws(() => inspector.exec(`DELETE FROM ${table}`), /immutable-fx-/); }
     } finally { inspector.close(); }
   } finally { reopened.close(); }
@@ -149,10 +149,10 @@ test("old V1-V5 backups have no implicit FX and schema V5 files migrate without 
     finally { target.close(); }
   }
   repo.close(); const inspector = new DatabaseSync(path);
-  try { inspector.exec("DROP TRIGGER company_control_decisions_no_update; DROP TRIGGER company_control_decisions_no_delete; DROP TABLE company_control_decisions; DROP TABLE base_companies; DROP TRIGGER fx_snapshots_no_update; DROP TRIGGER fx_snapshots_no_delete; DROP TRIGGER fx_activations_no_update; DROP TRIGGER fx_activations_no_delete; DROP TABLE fx_activations; DROP TABLE fx_snapshots; PRAGMA user_version=5;"); }
+  try { inspector.exec("DROP TRIGGER source_scan_events_no_update; DROP TRIGGER source_scan_events_no_delete; DROP TABLE source_scan_events; DROP TRIGGER company_control_decisions_no_update; DROP TRIGGER company_control_decisions_no_delete; DROP TABLE company_control_decisions; DROP TABLE base_companies; DROP TRIGGER fx_snapshots_no_update; DROP TRIGGER fx_snapshots_no_delete; DROP TRIGGER fx_activations_no_update; DROP TRIGGER fx_activations_no_delete; DROP TABLE fx_activations; DROP TABLE fx_snapshots; PRAGMA user_version=5;"); }
   finally { inspector.close(); }
   const migrated = openJobRepository(path, { now: () => AT });
-  try { assert.deepEqual(await migrated.readSnapshot(), before); assert.deepEqual((await migrated.readFxState()).snapshots, []); assert.equal((await migrated.backup()).schemaVersion, 7); }
+  try { assert.deepEqual(await migrated.readSnapshot(), before); assert.deepEqual((await migrated.readFxState()).snapshots, []); assert.equal((await migrated.backup()).schemaVersion, 8); }
   finally { migrated.close(); }
 }));
 

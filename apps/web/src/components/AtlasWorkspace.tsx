@@ -13,6 +13,9 @@ import { useAtlasMapReferences } from "./atlas/use-atlas-map-references";
 import { useAtlasFxContext } from "./atlas/useAtlasFxContext";
 import { useAtlasFxRecovery } from "./atlas/fx-recovery";
 import { useAtlasCompanyControlRecovery } from "./atlas/company-control-recovery";
+import { atlasSourceScanRecoveryScope, readAtlasSourceScanRecovery, useAtlasSourceScanRecovery } from "./atlas/source-scan-recovery";
+import { atlasAggregateRecoveryScope, beginAtlasAggregateRecovery, endAtlasAggregateRecovery, readAtlasAggregateRecovery, rejectAtlasAggregateRequest, retainAtlasAggregateRequest, saveAtlasAggregateReceipt, settleAtlasAggregateReceipt, useAtlasAggregateRecovery } from "./atlas/aggregate-recovery";
+import { AtlasAggregateRecoveryControls } from "./atlas/AtlasAggregateRecoveryControls";
 import { clearAtlasConnectionSession, DEFAULT_ATLAS_BACKEND_ENDPOINT, DEFAULT_ATLAS_ENDPOINT, readAtlasConnectionSession, writeAtlasConnectionSession, type AtlasConnectionIdentity, type AtlasDataMode } from "./atlas/connection-session";
 import { isDefaultAtlasEndpoint } from "./atlas/backend-connection";
 import { runAtlasSourceSearch, type AtlasAggregateProgress, type AtlasAggregateSource } from "./atlas/aggregate-search";
@@ -91,7 +94,6 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
   const [sourceSearchMessage, setSourceSearchMessage] = useState("");
   const [sourceSearchError, setSourceSearchError] = useState("");
   const searchAbort = useRef<AbortController | null>(null);
-  const searchKeys = useRef(new Map<string, string>());
   const [mode, setMode] = useState<"global" | "domestic">("global");
   const [text, setText] = useState("");
   const [country, setCountry] = useState("");
@@ -117,7 +119,11 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
   const fxWritePending = dataMode === "live" && Boolean(fxRecovery.pending || fxRecovery.saved);
   const companyRecovery = useAtlasCompanyControlRecovery(endpoint, token);
   const companyWritePending = dataMode === "live" && Boolean(companyRecovery.pending || companyRecovery.saved);
-  const queryWritePending = fxWritePending || companyWritePending;
+  const scanRecovery = useAtlasSourceScanRecovery(endpoint, token);
+  const scanWritePending = dataMode === "live" && Boolean(scanRecovery.pending || scanRecovery.saved || scanRecovery.refreshOnly);
+  const aggregateRecovery = useAtlasAggregateRecovery(endpoint, token);
+  const aggregateWritePending = aggregateRecovery.active || aggregateRecovery.entries.length > 0;
+  const queryWritePending = fxWritePending || companyWritePending || scanWritePending;
   const [connecting, setConnecting] = useState(false);
   const connectionAbort = useRef<AbortController | null>(null);
   const connectedIdentity = useRef<{ endpoint: string; token: string } | null>(null);
@@ -301,13 +307,18 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
     void connect({ endpoint: DEFAULT_ATLAS_BACKEND_ENDPOINT, token: "" }, true);
   }
   async function searchSourceJobs() {
+    const savedScan = readAtlasSourceScanRecovery(atlasSourceScanRecoveryScope(endpoint, token));
+    if (savedScan.pending || savedScan.saved || savedScan.refreshOnly) { setSourcesOpen(true); setSourceSearchMessage("请先在来源工具中核对原扫描回执，再启动下一次来源搜索。"); return; }
+    const recoveryScope = atlasAggregateRecoveryScope(endpoint, token), unresolved = readAtlasAggregateRecovery(recoveryScope);
+    if (unresolved.active || unresolved.entries.length) { setSourcesOpen(true); setSourceSearchMessage("请先核对原聚合搜索回执，再启动下一次来源搜索。"); return; }
     if (!connected) { setSettings("connection"); setSourceSearchMessage("本机岗位后端当前不可用；默认连接无需手动填写，查看状态并重试即可。"); return; }
     if (!selectedSearchSources.length) { setSourcesOpen(true); setSourceSearchMessage("尚无启用的岗位来源，请先添加或启用真实来源配置。"); return; }
     if (text.trim().length > 300) { setSourceSearchError("来源搜索关键词最多 300 个字符。"); return; }
+    const owner = beginAtlasAggregateRecovery(recoveryScope); if (!owner) return;
     searchAbort.current?.abort(); const abort = new AbortController(); searchAbort.current = abort;
     setSourceSearching(true); setSourceSearchError(""); setSourceSearchMessage(""); setSourceReview(undefined); setBucket(null);
     const client = createAtlasSourceClient(endpoint, token);
-    const requestIdentities = new Map<string, string>();
+    const requestKeys = new Map<string, string>();
     const scopeCountry = mode === "global" ? country : "";
     const requestedRegion = regionText.trim() || (region ? regions.find((entry) => entry.id === region)?.label ?? region : "");
     const scopeRegions = mode === "domestic" ? chinaFilter.sourceRegions : requestedRegion ? [requestedRegion] : [];
@@ -322,29 +333,30 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
           const companySearch = Boolean(text.trim() && companyName && normalizeSearchText(text) === normalizeSearchText(companyName));
           const scope = { roles: text.trim() && !companySearch ? [text.trim()] : [], regions: scopeRegions.length ? scopeRegions : scopeCountry ? [scopeCountry] : [], ...(acquisitionCountries.length ? { countryCodes: acquisitionCountries } : {}), companyNames: companySearch ? [companyName] : [] };
           const request = { scope, maxRecords: Math.min(searchDepth === "quick" ? 50 : 500, entry.refreshPolicy.maxRecords), maxPages: Math.min(searchDepth === "quick" ? 2 : 20, entry.refreshPolicy.maxPages) };
-          const identity = JSON.stringify([endpoint, entry.sourceId, request]);
-          requestIdentities.set(entry.sourceId, identity);
-          let idempotencyKey = searchKeys.current.get(identity);
-          if (!idempotencyKey) { idempotencyKey = crypto.randomUUID(); searchKeys.current.set(identity, idempotencyKey); }
+          const idempotencyKey = crypto.randomUUID(); requestKeys.set(entry.sourceId, idempotencyKey);
           return { request, idempotencyKey };
         },
         sync: async (id, request, options) => {
+          retainAtlasAggregateRequest(recoveryScope, { sourceId: id, label: selectedSearchSources.find(entry => entry.sourceId === id)!.attribution.label, input: request, key: options.idempotencyKey });
           const timeout = new AbortController();
           const timer = setTimeout(() => timeout.abort(new Error("该来源等待超过 60 秒，已停止本次等待；可保留回执继续核对。")), 60000);
-          try { return await client.sync(id, request, { ...options, signal: AbortSignal.any([abort.signal, timeout.signal]) }); }
+          try {
+            const receipt = await client.sync(id, request, { ...options, signal: AbortSignal.any([abort.signal, timeout.signal]) });
+            saveAtlasAggregateReceipt(recoveryScope, options.idempotencyKey, receipt); return receipt;
+          }
+          catch (failure) { rejectAtlasAggregateRequest(recoveryScope, options.idempotencyKey, failure); throw failure; }
           finally { clearTimeout(timer); }
         },
         onProgress: (progress) => { if (searchAbort.current === abort) setSearchProgress(progress); },
         onReceipt: async (receipt, entry) => {
-          // Keep the key while the server is still running or the outcome is not confirmed.
-          if (receipt.run.status !== "running") { const identity = requestIdentities.get(entry.sourceId); if (identity) searchKeys.current.delete(identity); }
           refresh = refresh.catch(() => {}).then(async () => {
             const timeout = new AbortController();
             const timer = setTimeout(() => timeout.abort(), 20000);
             try {
               const snapshot = await client.snapshot({ signal: AbortSignal.any([abort.signal, timeout.signal]) });
               if (abort.signal.aborted || searchAbort.current !== abort) return;
-              setLiveData(snapshot); setDataMode("live");
+              setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live");
+              const key = requestKeys.get(entry.sourceId); if (key) settleAtlasAggregateReceipt(recoveryScope, key, receipt.run.runId);
             } finally { clearTimeout(timer); }
           });
           await refresh;
@@ -361,7 +373,7 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
       if (aggregate.notificationErrors.length) setSourceSearchError("部分来源已返回，但索引展示刷新未完成，请点击“重新读取索引”核对。来源回执已保留。");
     } catch (error) {
       if (searchAbort.current === abort) setSourceSearchError(error instanceof Error ? error.message : "聚合来源搜索失败。");
-    } finally { if (searchAbort.current === abort) setSourceSearching(false); }
+    } finally { endAtlasAggregateRecovery(recoveryScope, owner); if (searchAbort.current === abort) setSourceSearching(false); }
   }
   const visibleItems = resultCurrent ? listItems : [];
   const selected = visibleItems.find((item) => item.job.id === selectedId)
@@ -485,6 +497,7 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
     {connectionError && <p role="alert" className="atlas-error">{connectionError}</p>}
     {connectionNotice && <p role="status" className="atlas-small">{connectionNotice}</p>}
     {dataMode === "live" && connected && <div className="atlas-fx-status" role="status"><button type="button" aria-expanded={fxOpen} onClick={() => setFxOpen(!fxOpen)}>{t("参考汇率", "Reference FX")}</button><span>{fxWritePending ? t("汇率写入结果待核对，旧查询已隐藏。", "FX write pending; old query results hidden.") : fxContext.loading ? t("正在读取与当前索引同版的汇率…", "Loading FX for the current index…") : fxContext.context?.activeSnapshot ? `${fxContext.context.activeSnapshot.fx.provider} · ${fxContext.context.activeSnapshot.fx.date}` : fxContext.context ? t("未启用外币换算 · 保留人民币与原币", "FX disabled · CNY and original currencies retained") : ""}</span>{fxContext.loading && <button type="button" onClick={fxContext.cancel}>{t("停止等待汇率", "Stop waiting for FX")}</button>}</div>}
+    {scanWritePending && connected && <div className="atlas-company-recovery-status" role="status"><span>{t("来源扫描尚未同步，旧列表、地图与统计已暂停。", "Source scan not synchronized; old results, map and counts are paused.")}</span><button type="button" onClick={() => setSourcesOpen(true)}>{t("核对来源扫描", "Recover source scan")}</button></div>}
     {companyWritePending && connected && <div className="atlas-company-recovery-status" role="status"><span>{t("企业写入结果尚未同步，旧分类、列表、地图与统计已暂停。", "Company write not synchronized; old classification, results, map and counts are paused.")}</span><button type="button" onClick={recoverCompanyReview}>{t("恢复企业核对", "Resume company review")}</button></div>}
     {dataMode === "live" && fxContext.error && <p role={fxContext.unsupported ? "status" : "alert"} className="atlas-error">{fxContext.error}<button type="button" onClick={fxContext.retry}>{t("重试汇率上下文", "Retry FX context")}</button></p>}
     {active && fxOpen && connected && dataMode === "live" && liveData && <Suspense fallback={<p role="status">{t("正在打开汇率管理…", "Opening FX management…")}</p>}><AtlasFxPanel endpoint={endpoint} token={token} data={liveData} state={fxContext.state} loading={fxContext.loading} unsupported={fxContext.unsupported} onRetry={fxContext.retry} onClose={() => setFxOpen(false)} onSnapshot={snapshot => { searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); }} /></Suspense>}
@@ -494,14 +507,14 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
       searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot);
       setSourceSearchMessage(`已读取岗位处理记录，索引版本 ${snapshot.revision}。列表与地图会按当前来源组合重新计算。`);
     }} /></Suspense>}
-    {sourcesOpen && <Suspense fallback={<p role="status">正在加载来源工具…</p>}><AtlasSourcesPanel endpoint={endpoint} token={token} onSnapshot={(snapshot) => { searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live"); }} onClose={() => setSourcesOpen(false)} /></Suspense>}
+    {sourcesOpen && <Suspense fallback={<p role="status">正在加载来源工具…</p>}><AtlasSourcesPanel disabled={sourceSearching} endpoint={endpoint} token={token} onSnapshot={(snapshot) => { searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live"); }} onClose={() => setSourcesOpen(false)} /></Suspense>}
     {settings && <div className="atlas-settings"><button className="atlas-panel-close" aria-label="关闭地图设置" onClick={() => setSettings(null)}><X size={17} /></button>
       {settings === "maps" && <div><h2>地图与街道底图</h2><p>全球与国内均使用同一经纬度视图，可连续缩放至街道。开放底图无需 API Key；联网底图会向所选服务请求当前视野的瓦片，离线轮廓不请求外部地图服务。</p><label className="atlas-basemap-select">底图来源<select value={basemapId} onChange={(e) => { setBasemapId(e.target.value); setMapError(""); }}><option value="auto">OpenFreeMap · 跟随浅深主题</option>{ATLAS_BASEMAPS.map((provider) => <option value={provider.id} key={provider.id}>{provider.name}</option>)}<option value="offline">本地概览 · 离线边界</option></select></label><p className="atlas-small">道路、建筑、门牌和地名是否显示取决于底图覆盖。城市级岗位不会显示成精确办公地址。Google 地图可从岗位详情的“Google 地图”入口打开；内嵌 Google Maps 尚未启用，需要个人 Key、服务权限及对应计费配置。</p></div>}
       {settings === "connection" && <form onSubmit={(e) => { e.preventDefault(); restoreConnection.current = false; void connect({ endpoint, token }, true); }}><h2>{t("岗位后端状态", "Job backend status")}</h2><p>进入岗位地图会自动读取本机岗位索引，无需手动连接或填写令牌。请同时运行网页工作台和岗位后端；从外部来源获取岗位仍由你点击执行。</p><div className="atlas-form-row"><button type="button" disabled={connecting} onClick={useDefaultBackend}>恢复默认后端</button><button type="button" disabled={connecting} onClick={() => { restoreConnection.current = false; void connect({ endpoint, token }, true); }}>{connecting ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}{connecting ? "正在连接" : "重试后端连接"}</button><button type="button" onClick={disconnect}>断开并清除会话连接</button></div><details><summary>高级连接 · 手动服务地址与令牌</summary><p>GitHub Pages 只提供静态网页，尚未部署岗位后端。需要直连时，先按 <code>apps/job-service/README.md</code> 启动本机服务并允许当前 Origin：<code>{window.location.origin}</code>。手动令牌仅在连接成功后保留于当前标签页会话，默认后端不会向网页提供宿主令牌。</p><div className="atlas-form-row"><label>服务地址<input value={endpoint} onChange={(e) => changeConnection("endpoint", e.target.value)} placeholder={DEFAULT_ATLAS_ENDPOINT} /></label><label>访问令牌<input type="password" autoComplete="off" value={token} onChange={(e) => changeConnection("token", e.target.value)} /></label><button type="submit" disabled={connecting}>连接并读取索引</button></div></details><p className="atlas-small">家庭参照坐标不发送给服务。公网 HTTPS 页面直连本机可能需要浏览器本地网络授权；完整体验建议使用本机网页。</p></form>}
       {settings === "home" && <form onSubmit={(e) => { e.preventDefault(); const lat = Number(latitude), lon = Number(longitude); if (!latitude.trim() || !longitude.trim() || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) { setHomeError("请输入有效的 WGS84 纬度（-90～90）和经度（-180～180）。"); return; } setAnchor({ ref: crypto.randomUUID(), latitude: lat, longitude: lon, coordinateSystem: "WGS84" }); setHomeError(""); setSettings(null); }}><h2>离家距离 · 私人参照点</h2><p>使用 WGS84 坐标计算直线距离，仅保留在本页内存。城市中心距离会标为估算；不会请求你的设备定位或将家庭坐标发送到外部。</p><div className="atlas-form-row"><label>纬度<input inputMode="decimal" value={latitude} onChange={(e) => setLatitude(e.target.value)} placeholder="例如 31.2304" /></label><label>经度<input inputMode="decimal" value={longitude} onChange={(e) => setLongitude(e.target.value)} placeholder="例如 121.4737" /></label><button type="submit">应用参照点</button>{anchor && <button type="button" onClick={() => { setAnchor(undefined); setLatitude(""); setLongitude(""); setMaxKm(""); if (sort === "distance") setSort("relevance"); }}>清除</button>}</div>{homeError && <p role="alert" className="atlas-error">{homeError}</p>}</form>}
       {settings === "colors" && <div><h2>企业控股来源配色</h2><p>配色依据已核实的最终控股方来源。工作地点不代表企业来源；待核实与证据冲突单列。颜色只影响岗位地图。</p><div className="atlas-color-grid">{colors.rules.map((rule, index) => <label key={rule.id}><input type="color" aria-label={`${rule.label}颜色`} value={rule.color} onChange={(e) => setColors((current) => ({ ...current, rules: current.rules.map((r, n) => n === index ? { ...r, color: e.target.value } : r) }))} /><span>{rule.label}</span></label>)}</div><div className="atlas-form-row"><button onClick={() => { try { localStorage.setItem(COLOR_KEY, JSON.stringify(CompanyColorConfigSchema.parse(colors))); setColorsMessage("配色已保存到当前浏览器。"); } catch { setColorsMessage("浏览器未允许保存，当前页面仍应用此配色。"); } }}>保存配色</button><button onClick={() => { setColors(getDefaultCompanyColorConfig()); setColorsMessage("已恢复默认配色；点击保存可保留。"); }}>恢复默认</button><span role="status">{colorsMessage}</span></div></div>}
     </div>}
-    <form className="atlas-searchbar" onSubmit={(e) => { e.preventDefault(); void searchSourceJobs(); }}><label className="atlas-search"><Search size={18} /><input aria-label="搜索地图岗位" value={text} onChange={(e) => setText(e.target.value)} placeholder={t("关键词、技能、公司… 可筛选已收录或从来源获取", "Filter indexed jobs or fetch from a source…")} /></label>{mode === "domestic" ? <div className="atlas-domestic-region" role="group" aria-label="国内省市区筛选"><span>中国</span><select aria-label="工作省份" value={chinaSelection.provinceCode ?? ""} onChange={(e) => setChinaSelection({ provinceCode: e.target.value || undefined })}><option value="">全部省份</option>{getChinaProvinces().map((entry) => <option key={entry.code} value={entry.code}>{entry.label}</option>)}</select><select aria-label="工作城市" disabled={!chinaCities.length} value={chinaSelection.cityCode ?? ""} onChange={(e) => setChinaSelection({ provinceCode: chinaSelection.provinceCode, cityCode: e.target.value || undefined })}><option value="">全部城市</option>{chinaCities.map((entry) => <option key={entry.code} value={entry.code}>{entry.label}</option>)}</select><select aria-label="工作区县" disabled={!chinaDistricts.length} value={chinaSelection.districtCode ?? ""} onChange={(e) => setChinaSelection({ ...chinaSelection, districtCode: e.target.value || undefined })}><option value="">全部区 / 县</option>{chinaDistricts.map((entry) => <option key={entry.code} value={entry.code}>{entry.label}</option>)}</select></div> : <><select aria-label="工作国家或地区" value={country} onChange={(e) => { setCountry(e.target.value); setRegion(""); setRegionText(""); }}><option value="">{t("所有国家 / 地区", "All countries / regions")}</option>{countries.map((c) => <option key={c} value={c}>{countryName(c)}</option>)}</select><label className="atlas-region-search"><MapPin size={15} /><input aria-label="工作城市或地区关键词" value={regionText} onChange={(e) => { setRegionText(e.target.value); setRegion(""); }} placeholder="城市 / 地区，如北京、Berlin" maxLength={300} /></label></>}{searchableSources.length > 0 && <select aria-label="搜索原始来源" value={searchSourceId} onChange={(e) => { searchAbort.current?.abort(); setSearchSourceId(e.target.value); }}><option value="">已配置岗位来源（{searchableSources.length}）</option>{searchableSources.map((entry) => <option key={entry.sourceId} value={entry.sourceId}>{entry.attribution.label}{entry.remoteFilters.includes("roles") ? " · 实时关键词" : " · 来源岗位"}</option>)}</select>}<select aria-label="来源读取范围" value={searchDepth} onChange={(e) => setSearchDepth(e.target.value)}><option value="standard">按来源配置读取</option><option value="quick">快速 · 每源最多 50 条 / 2 页</option></select><button className="atlas-source-search" type="submit" disabled={sourceSearching || connecting}>{sourceSearching ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}{connected ? "从来源获取岗位" : "查看后端状态"}</button><button type="button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(!filtersOpen)}><SlidersHorizontal size={16} />{t("筛选", "Filters")}</button></form>
+    <form className="atlas-searchbar" onSubmit={(e) => { e.preventDefault(); void searchSourceJobs(); }}><label className="atlas-search"><Search size={18} /><input aria-label="搜索地图岗位" value={text} onChange={(e) => setText(e.target.value)} placeholder={t("关键词、技能、公司… 可筛选已收录或从来源获取", "Filter indexed jobs or fetch from a source…")} /></label>{mode === "domestic" ? <div className="atlas-domestic-region" role="group" aria-label="国内省市区筛选"><span>中国</span><select aria-label="工作省份" value={chinaSelection.provinceCode ?? ""} onChange={(e) => setChinaSelection({ provinceCode: e.target.value || undefined })}><option value="">全部省份</option>{getChinaProvinces().map((entry) => <option key={entry.code} value={entry.code}>{entry.label}</option>)}</select><select aria-label="工作城市" disabled={!chinaCities.length} value={chinaSelection.cityCode ?? ""} onChange={(e) => setChinaSelection({ provinceCode: chinaSelection.provinceCode, cityCode: e.target.value || undefined })}><option value="">全部城市</option>{chinaCities.map((entry) => <option key={entry.code} value={entry.code}>{entry.label}</option>)}</select><select aria-label="工作区县" disabled={!chinaDistricts.length} value={chinaSelection.districtCode ?? ""} onChange={(e) => setChinaSelection({ ...chinaSelection, districtCode: e.target.value || undefined })}><option value="">全部区 / 县</option>{chinaDistricts.map((entry) => <option key={entry.code} value={entry.code}>{entry.label}</option>)}</select></div> : <><select aria-label="工作国家或地区" value={country} onChange={(e) => { setCountry(e.target.value); setRegion(""); setRegionText(""); }}><option value="">{t("所有国家 / 地区", "All countries / regions")}</option>{countries.map((c) => <option key={c} value={c}>{countryName(c)}</option>)}</select><label className="atlas-region-search"><MapPin size={15} /><input aria-label="工作城市或地区关键词" value={regionText} onChange={(e) => { setRegionText(e.target.value); setRegion(""); }} placeholder="城市 / 地区，如北京、Berlin" maxLength={300} /></label></>}{searchableSources.length > 0 && <select aria-label="搜索原始来源" value={searchSourceId} onChange={(e) => { searchAbort.current?.abort(); setSearchSourceId(e.target.value); }}><option value="">已配置岗位来源（{searchableSources.length}）</option>{searchableSources.map((entry) => <option key={entry.sourceId} value={entry.sourceId}>{entry.attribution.label}{entry.remoteFilters.includes("roles") ? " · 实时关键词" : " · 来源岗位"}</option>)}</select>}<select aria-label="来源读取范围" value={searchDepth} onChange={(e) => setSearchDepth(e.target.value)}><option value="standard">按来源配置读取</option><option value="quick">快速 · 每源最多 50 条 / 2 页</option></select><button className="atlas-source-search" type="submit" disabled={sourceSearching || connecting || scanWritePending || aggregateWritePending}>{sourceSearching ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}{connected ? "从来源获取岗位" : "查看后端状态"}</button><button type="button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(!filtersOpen)}><SlidersHorizontal size={16} />{t("筛选", "Filters")}</button></form>
     <p className="atlas-small atlas-search-scope">输入会实时筛选{data ? `已收录的 ${data.jobs.length} 个岗位` : "本机后端索引"}；{connected ? `点击获取后，查询 ${selectedSearchSources.length} 个已配置岗位来源，先返回的结果先展示；不包含下方四平台浏览器搜索。` : "后端不可用时，请从右上角查看状态并重试；这里不会自动读取外部来源。"}读取不超过来源配置额度；详情完整度见逐源状态。</p>
     {mode === "domestic" && <p className="atlas-small">按省 → 市 → 区县逐级选择，修改上级会清除下级。大陆三级目录采用 2023 统计区划快照，部分末级为镇街/功能区；港澳台保留地区筛选，下级目录待补充。岗位只披露城市时，选择区县会排除位置不明确的岗位。</p>}
     {connected && selectedSearchSources.length > 0 && <details className="atlas-source-limits"><summary>本次实际读取范围 · {selectedSearchSources.length} 个已配置岗位来源</summary><ul>{selectedSearchSources.map((entry) => <li key={entry.sourceId}>{entry.attribution.label}：最多 {Math.min(searchDepth === "quick" ? 50 : 500, entry.refreshPolicy.maxRecords)} 条 / {Math.min(searchDepth === "quick" ? 2 : 20, entry.refreshPolicy.maxPages)} 页{entry.options?.fetchDetails === true && typeof entry.options.maxDetailRequestsPerPage === "number" ? `，每页最多 ${entry.options.maxDetailRequestsPerPage} 个详情` : ""}</li>)}</ul><p>这里只查询已配置的岗位来源（企业官网或公开聚合源）。下方原站浏览器搜索独立执行，不计入官网来源回执。</p><button type="button" onClick={() => setSourcesOpen(true)}>管理与扩展来源</button></details>}
@@ -517,6 +530,7 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
     }} /></Suspense>}
     {mode === "domestic" && chinaFilter.selectedDistrict && <p className="atlas-small">原站搜索链接只应用城市范围；区县条件在已收录岗位的位置原文中复核。尚未披露区县不算命中。</p>}
     <AtlasSearchProgress progress={searchProgress} busy={sourceSearching} onCancel={() => searchAbort.current?.abort()} onReviewSource={setSourceReview} />
+    {connected && <AtlasAggregateRecoveryControls endpoint={endpoint} token={token} disabled={scanWritePending} onSnapshot={snapshot => { setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live"); setSourceSearchError(""); }} />}
     {sourceReview?.receipt && reviewSource && <Suspense fallback={<p role="status">正在加载来源候选核对…</p>}><AtlasSourceCandidateReview key={`${sourceReview.receipt.run.runId}:${endpoint}`} endpoint={endpoint} token={token} source={reviewSource} request={{ scope: sourceReview.receipt.localFilters, maxRecords: sourceReview.receipt.run.scope.maxRecords }} onClose={() => setSourceReview(undefined)} onReview={onSaveOpportunity} /></Suspense>}
     {sourceSearchMessage && <p role="status" className="atlas-search-notice">{sourceSearchMessage}</p>}
     {sourceSearchError && <p role="alert" className="atlas-error">{sourceSearchError}</p>}
