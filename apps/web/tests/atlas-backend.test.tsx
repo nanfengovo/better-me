@@ -131,11 +131,14 @@ test("only explicit method and API routes are proxied, with no query, target URL
     }); assert.equal(raw, 404);
     assert.equal(await (await app.call("/api/atlas-other")).text(), "next");
     for (const [route, method] of [["jobs/job%3Asynthetic", "GET"], ["sources/source%3Asynthetic/preview", "POST"], ["runs/run-synthetic/cancel", "POST"],
-      ["jobs/owned-detail-locations/read", "POST"], ["locations/office-address/confirmations", "POST"], ["dataset/export", "GET"]]) {
+      ["jobs/owned-detail-locations/read", "POST"], ["locations/office-address/confirmations", "POST"], ["dataset/export", "GET"],
+      ["compensations/review", "POST"], ["compensations/preview", "POST"], ["compensations/confirm", "POST"], ["compensations/revoke", "POST"]]) {
       const response = await app.call(`/api/atlas/api/v1/${route}`, { method, ...(method === "POST" ? { headers: { "Content-Type": "application/json" }, body: "{}" } : {}) });
       assert.equal(response.status, 200, route);
     }
-    assert.equal(calls, 6);
+    assert.equal(calls, 10);
+    for (const route of ["review", "preview", "confirm", "revoke"]) await errorCode(await app.call(`/api/atlas/api/v1/compensations/${route}`), 404, "unsupported-capability");
+    assert.equal(calls, 10, "compensation routes accept POST only");
   } finally { await app.close(); }
 });
 

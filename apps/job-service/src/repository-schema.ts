@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { AtlasDatasetSchema, CanonicalJobSchema, CountryCodeSchema, EntityIdSchema, TimestampSchema, MergeDecisionSchema, JobAliasEventSchema, ReconciliationReceiptSchema, JobLocationSchema, LocationConfirmationDecisionSchema, LocationConfirmationReceiptSchema, OfficeAddressDecisionSchema, OfficeAddressReceiptSchema } from "@better-me/opportunities";
+import { AtlasDatasetSchema, CanonicalJobSchema, CountryCodeSchema, EntityIdSchema, TimestampSchema, MergeDecisionSchema, JobAliasEventSchema, ReconciliationReceiptSchema, JobLocationSchema, LocationConfirmationDecisionSchema, LocationConfirmationReceiptSchema, OfficeAddressDecisionSchema, OfficeAddressReceiptSchema, CompensationSchema, CompensationReviewDecisionSchema, CompensationReviewReceiptSchema } from "@better-me/opportunities";
 import { SourceJobRecordSchema } from "@better-me/source-adapters";
 
-export const REPOSITORY_SCHEMA_VERSION = 4;
+export const REPOSITORY_SCHEMA_VERSION = 5;
 export const ActorScopeSchema = z.string().min(1).max(200).regex(/^[A-Za-z0-9._:/-]+$/);
 export const IdempotencyKeySchema = z.string().min(1).max(200).regex(/^[A-Za-z0-9._:-]+$/);
 export const RequestFingerprintSchema = z.string().regex(/^[a-f0-9]{64}$/);
@@ -44,16 +44,17 @@ export type DiscoveryLead = z.infer<typeof DiscoveryLeadSchema>;
 export const DiscoveryLeadReceiptSchema = z.object({ ok: z.literal(true), revision: z.number().int().nonnegative(), leadIds: z.array(EntityIdSchema) }).strict();
 export type DiscoveryLeadReceipt = z.infer<typeof DiscoveryLeadReceiptSchema>;
 export const StoredReceiptSchema = z.object({
-  actorScope: ActorScopeSchema, tool: z.enum(["dataset.import", "dataset.restore", "runs.start", "leads.save", "sources.register", "jobs.merge", "jobs.reject-merge", "jobs.revoke-merge", "locations.confirm", "locations.revoke-confirmation", "locations.confirm-office-address", "locations.revoke-office-address"]),
+  actorScope: ActorScopeSchema, tool: z.enum(["dataset.import", "dataset.restore", "runs.start", "leads.save", "sources.register", "jobs.merge", "jobs.reject-merge", "jobs.revoke-merge", "locations.confirm", "locations.revoke-confirmation", "locations.confirm-office-address", "locations.revoke-office-address", "compensations.confirm-review", "compensations.revoke-review"]),
   idempotencyKey: IdempotencyKeySchema, signature: z.string().regex(/^[a-f0-9]{64}$/),
-  response: z.union([ImportReceiptSchema, SyncRunSchema, DiscoveryLeadReceiptSchema, ReconciliationReceiptSchema, LocationConfirmationReceiptSchema, OfficeAddressReceiptSchema]), createdAt: TimestampSchema,
+  response: z.union([ImportReceiptSchema, SyncRunSchema, DiscoveryLeadReceiptSchema, ReconciliationReceiptSchema, LocationConfirmationReceiptSchema, OfficeAddressReceiptSchema, CompensationReviewReceiptSchema]), createdAt: TimestampSchema,
 }).strict().superRefine((receipt, context) => {
   if ((receipt.tool === "locations.confirm" || receipt.tool === "locations.revoke-confirmation") && !LocationConfirmationReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Location command receipts require a location response." });
   if ((receipt.tool === "locations.confirm-office-address" || receipt.tool === "locations.revoke-office-address") && !OfficeAddressReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Office command receipts require an office response." });
+  if ((receipt.tool === "compensations.confirm-review" || receipt.tool === "compensations.revoke-review") && !CompensationReviewReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Compensation commands require a compensation review response." });
 });
 export type StoredReceipt = z.infer<typeof StoredReceiptSchema>;
 export const RepositoryBackupSchema = z.object({
-  format: z.literal("better-me/job-repository"), schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+  format: z.literal("better-me/job-repository"), schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
   createdAt: TimestampSchema, dataset: AtlasDatasetSchema,
   runs: z.array(SyncRunSchema).max(100_000), receipts: z.array(StoredReceiptSchema).max(1_000_000),
   leads: z.array(DiscoveryLeadSchema).max(300_000).default([]),
@@ -64,6 +65,8 @@ export const RepositoryBackupSchema = z.object({
   baseLocations: z.array(JobLocationSchema.refine(value => !value.userResolution && !value.officeResolution, "Source locations cannot contain local decisions.")).max(200_000).optional(),
   locationDecisions: z.array(LocationConfirmationDecisionSchema).max(200_000).default([]),
   officeDecisions: z.array(OfficeAddressDecisionSchema).max(200_000).default([]),
+  baseCompensations: z.array(CompensationSchema).max(200_000).optional(),
+  compensationDecisions: z.array(CompensationReviewDecisionSchema).max(200_000).default([]),
 }).strict().superRefine((backup, context) => {
   if (new Set(backup.runs.map((run) => run.runId)).size !== backup.runs.length) context.addIssue({ code: "custom", message: "Duplicate run IDs." });
   const keys = backup.receipts.map((receipt) => JSON.stringify([receipt.actorScope, receipt.tool, receipt.idempotencyKey]));
@@ -72,6 +75,9 @@ export const RepositoryBackupSchema = z.object({
   if (new Set(backup.leads.map((lead) => lead.id)).size !== backup.leads.length || backup.leads.some((lead) => !sources.has(lead.sourceId))) context.addIssue({ code: "custom", message: "Invalid lead source references." });
   if (backup.schemaVersion >= 2 && !backup.baseJobs) context.addIssue({ code: "custom", message: "Version 2 and later backups require origin jobs." });
   if (backup.schemaVersion >= 3 && !backup.baseLocations) context.addIssue({ code: "custom", message: "Version 3 and later backups require origin locations." });
+  if (backup.schemaVersion >= 5 && !backup.baseCompensations) context.addIssue({ code: "custom", message: "Version 5 and later backups require origin compensations." });
+  if (backup.schemaVersion < 5 && (backup.baseCompensations !== undefined || backup.compensationDecisions.length || backup.receipts.some(value => value.tool === "compensations.confirm-review" || value.tool === "compensations.revoke-review"))) context.addIssue({ code: "custom", message: "Old backups cannot contain compensation decisions." });
+  if (backup.baseCompensations && new Set(backup.baseCompensations.map(value => value.id)).size !== backup.baseCompensations.length) context.addIssue({ code: "custom", message: "Duplicate source compensation identities." });
   if (backup.schemaVersion < 4 && (backup.officeDecisions.length || backup.dataset.locations.some(value => value.officeResolution) || backup.receipts.some(value => value.tool === "locations.confirm-office-address" || value.tool === "locations.revoke-office-address"))) context.addIssue({ code: "custom", message: "Old backups cannot contain office decisions." });
   if (backup.schemaVersion < 3 && (backup.baseLocations !== undefined || backup.locationDecisions.length || backup.dataset.locations.some(value => value.userResolution))) context.addIssue({ code: "custom", message: "Old backups cannot contain local location decisions." });
   if (backup.baseLocations && new Set(backup.baseLocations.map(value => value.id)).size !== backup.baseLocations.length) context.addIssue({ code: "custom", message: "Duplicate source location identities." });
@@ -142,6 +148,15 @@ CREATE TABLE office_decisions (id TEXT PRIMARY KEY,revision INTEGER NOT NULL UNI
 export const OFFICE_DECISION_TRIGGERS = `
 CREATE TRIGGER office_decisions_no_update BEFORE UPDATE ON office_decisions BEGIN SELECT RAISE(ABORT,'immutable-office-decision'); END;
 CREATE TRIGGER office_decisions_no_delete BEFORE DELETE ON office_decisions BEGIN SELECT RAISE(ABORT,'immutable-office-decision'); END;
+`;
+export const REPOSITORY_MIGRATION_V5 = `
+CREATE TABLE base_compensations (id TEXT PRIMARY KEY,document TEXT NOT NULL CHECK(json_valid(document))) STRICT;
+INSERT INTO base_compensations(id,document) SELECT id,document FROM compensations;
+CREATE TABLE compensation_decisions (id TEXT PRIMARY KEY,revision INTEGER NOT NULL UNIQUE,document TEXT NOT NULL CHECK(json_valid(document))) STRICT;
+`;
+export const COMPENSATION_DECISION_TRIGGERS = `
+CREATE TRIGGER compensation_decisions_no_update BEFORE UPDATE ON compensation_decisions BEGIN SELECT RAISE(ABORT,'immutable-compensation-decision'); END;
+CREATE TRIGGER compensation_decisions_no_delete BEFORE DELETE ON compensation_decisions BEGIN SELECT RAISE(ABORT,'immutable-compensation-decision'); END;
 `;
 export const APPEND_ONLY_TRIGGERS = `
 CREATE TRIGGER observations_no_update BEFORE UPDATE ON observations BEGIN SELECT RAISE(ABORT,'immutable-observation'); END;

@@ -67,7 +67,7 @@ async function fixture() {
       await application.shutdown(); repository.close();
       if (asV1) {
         const legacy = new DatabaseSync(path);
-        try { legacy.exec("DROP TRIGGER office_decisions_no_update; DROP TRIGGER office_decisions_no_delete; DROP TABLE office_decisions; DROP TRIGGER location_decisions_no_update; DROP TRIGGER location_decisions_no_delete; DROP TABLE location_decisions; DROP TABLE base_locations; DROP TRIGGER merge_decisions_no_update; DROP TRIGGER merge_decisions_no_delete; DROP TRIGGER job_alias_history_no_update; DROP TRIGGER job_alias_history_no_delete; DROP TABLE merge_decisions; DROP TABLE job_aliases; DROP TABLE job_alias_history; DROP TABLE base_jobs; DROP TABLE job_versions; PRAGMA user_version=1;"); }
+        try { legacy.exec("DROP TRIGGER compensation_decisions_no_update; DROP TRIGGER compensation_decisions_no_delete; DROP TABLE compensation_decisions; DROP TABLE base_compensations; DROP TRIGGER office_decisions_no_update; DROP TRIGGER office_decisions_no_delete; DROP TABLE office_decisions; DROP TRIGGER location_decisions_no_update; DROP TRIGGER location_decisions_no_delete; DROP TABLE location_decisions; DROP TABLE base_locations; DROP TRIGGER merge_decisions_no_update; DROP TRIGGER merge_decisions_no_delete; DROP TRIGGER job_alias_history_no_update; DROP TRIGGER job_alias_history_no_delete; DROP TABLE merge_decisions; DROP TABLE job_aliases; DROP TABLE job_alias_history; DROP TABLE base_jobs; DROP TABLE job_versions; PRAGMA user_version=1;"); }
         finally { legacy.close(); }
       }
       repository = openJobRepository(path, { now: () => now }); application = createApplication();
@@ -127,7 +127,7 @@ test("existing application sync and detail continue after a persisted v1 SQLite 
     const before = await f.repository.readSnapshot(); await f.reopen(true);
     assert.deepEqual(await f.repository.readSnapshot(), before);
     const check = new DatabaseSync(f.path);
-    try { assert.equal((check.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 4); } finally { check.close(); }
+    try { assert.equal((check.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 5); } finally { check.close(); }
     for (const jobId of f.ids) assert.equal(value<Detail>(await f.application.registry.execute("jobs.read-detail", { jobId }, context())).job.id, jobId);
     f.setNow(LATER); f.records.set(sourceB.sourceId, record("b", { description: "Synthetic source B refreshed after schema-v1 upgrade." }));
     assert.equal((await f.sync(sourceB.sourceId, "refresh-upgraded-v1")).run.status, "completed");

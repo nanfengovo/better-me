@@ -32,6 +32,11 @@ import {
   ConfirmOfficeAddressInputSchema, RevokeOfficeAddressInputSchema, OfficeAddressPreviewSchema, OfficeAddressReceiptSchema,
   sameLocationValue, type OfficeAddressCandidatesInput, type PreviewOfficeConfirmationInput,
   type ConfirmOfficeAddressInput, type RevokeOfficeAddressInput, type OfficeAddressProposal, type JobLocation,
+  ReadCompensationReviewInputSchema, CompensationReviewReadResultSchema, PreviewCompensationReviewInputSchema,
+  CompensationReviewPreviewSchema, ConfirmCompensationReviewInputSchema, RevokeCompensationReviewInputSchema,
+  CompensationReviewReceiptSchema, applyCompensationReviewConfirmation, sameCompensationReviewValue,
+  type ReadCompensationReviewInput, type PreviewCompensationReviewInput, type ConfirmCompensationReviewInput,
+  type RevokeCompensationReviewInput, type CompensationReviewProposal, type CompensationReviewReadResult, type Compensation,
 } from "@better-me/opportunities";
 
 export const AtlasSourceListSchema = z.object({ sources: z.array(SourceDefinitionSchema), adapters: z.array(SourceAdapterMetadataSchema) }).strict();
@@ -112,6 +117,59 @@ function matchingOfficeProposal(location: JobLocation, proposal: OfficeAddressPr
     && resolution.evidenceUrl === proposal.evidenceUrl && location.resolvedAt === resolution.at;
 }
 
+const compensationReviewFields = ["min", "max", "currency", "period", "tax", "kind", "monthsPerYear", "hoursPerYear", "daysPerYear", "weeksPerYear"] as const;
+function matchingCompensationProposal(compensation: Compensation, proposal: CompensationReviewProposal) {
+  return compensation.verification === "unverified" && compensationReviewFields.every(field => compensation[field] === proposal[field])
+    && proposal.supports.every(support => compensation.evidence.some(reference => sameCompensationReviewValue(reference, support.reference)));
+}
+function matchingCompensationHistory(result: CompensationReviewReadResult) {
+  const seen = new Map<string, CompensationReviewReadResult["history"][number]>(), disabled = new Set<string>(), revoked = new Set<string>();
+  let previousRevision = -1, historicalJobId: string | undefined;
+  for (const decision of result.history) {
+    if (seen.has(decision.id) || decision.revision <= previousRevision || decision.revision > result.revision) return false;
+    previousRevision = decision.revision;
+    if (decision.kind === "invalidate") {
+      for (const id of decision.targetDecisionIds) {
+        if (seen.get(id)?.kind !== "confirm" || disabled.has(id)) return false;
+        disabled.add(id);
+      }
+    } else {
+      // Historical source ownership survives canonical-job merges and alias redirects.
+      if (historicalJobId !== undefined && decision.jobId !== historicalJobId || decision.compensationId !== result.compensationId || decision.listingId !== result.listingId
+        || decision.sourceCompensation.id !== result.compensationId) return false;
+      historicalJobId = decision.jobId;
+      if (decision.sourceBinding.listing.id !== decision.listingId
+        || decision.sourceCompensation.evidence.some(reference => !decision.sourceBinding.observations.some(observation => observation.id === reference.observationId))) return false;
+      if (decision.kind === "confirm") {
+        const binding = decision.sourceBinding;
+        for (const support of decision.proposal.supports) {
+          const reference = support.reference, observation = binding.observations.find(value => value.id === reference.observationId);
+          const snapshot = support.snapshotId ? binding.snapshots.find(value => value.id === support.snapshotId) : undefined;
+          if (!observation || observation.result === "failed" || observation.result === "needs-human"
+            || ![observation.fetchedAt, observation.detailFetchedAt].includes(reference.observedAt)
+            || support.snapshotId && (!snapshot || snapshot.observationId !== observation.id)
+            || !(support.snapshotId ? snapshot?.text : observation.rawText)?.includes(reference.quote)
+            || ![binding.listing.canonicalUrl, binding.listing.applicationUrl, snapshot?.sourceUrl,
+              ...decision.sourceCompensation.evidence.filter(value => value.observationId === observation.id).map(value => value.sourceUrl)].includes(reference.sourceUrl)) return false;
+        }
+        try { applyCompensationReviewConfirmation(decision.sourceCompensation, decision); } catch { return false; }
+      } else {
+        const target = seen.get(decision.targetDecisionId);
+        if (target?.kind !== "confirm" || target.actorScope !== decision.actorScope || revoked.has(target.id)) return false;
+        revoked.add(target.id); disabled.add(target.id);
+      }
+    }
+    seen.set(decision.id, decision);
+  }
+  const active = result.history.filter(decision => decision.kind === "confirm" && !disabled.has(decision.id)
+    && sameCompensationReviewValue(decision.sourceCompensation, result.sourceCompensation)).at(-1);
+  if (active?.id !== result.activeDecisionId) return false;
+  try {
+    return sameCompensationReviewValue(result.current, active?.kind === "confirm"
+      ? applyCompensationReviewConfirmation(result.sourceCompensation, active) : result.sourceCompensation);
+  } catch { return false; }
+}
+
 export class AtlasSourceServiceError extends Error {
   constructor(readonly code: "invalid-input" | "invalid-response" | "too-large" | "http-error" | "transport-error" | typeof TOOL_ERROR_CODES[number], message: string, readonly status?: number) {
     super(message); this.name = "AtlasSourceServiceError";
@@ -183,6 +241,45 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
   }
   const sourcePath = (id: string) => `sources/${encodeURIComponent(input(EntityIdSchema, id))}`;
   return {
+    readCompensationReview: async (value: ReadCompensationReviewInput, options: Options = {}) => {
+      const query = input(ReadCompensationReviewInputSchema, value);
+      const result = await request("compensations/review", CompensationReviewReadResultSchema, options, query);
+      if (result.revision !== query.expectedRevision || result.jobId !== query.jobId || result.compensationId !== query.compensationId
+        || result.sourceCompensation.id !== query.compensationId || result.current.id !== query.compensationId || !matchingCompensationHistory(result))
+        throw new AtlasSourceServiceError("invalid-response", "薪资依据与本次岗位、披露、历史或索引版本不一致，请重新读取。");
+      return result;
+    },
+    previewCompensationReview: async (value: PreviewCompensationReviewInput, options: Options = {}) => {
+      const query = input(PreviewCompensationReviewInputSchema, value);
+      const result = await request("compensations/preview", CompensationReviewPreviewSchema, options, query);
+      let matches = false;
+      try { matches = sameCompensationReviewValue(result.proposed, applyCompensationReviewConfirmation(result.sourceCompensation,
+        { compensationId: query.compensationId, sourceCompensation: result.sourceCompensation, proposal: query.proposal })); } catch { /* Reject unsupported or mismatched proposals. */ }
+      if (result.expectedRevision !== query.expectedRevision || result.jobId !== query.jobId || result.compensationId !== query.compensationId
+        || [result.current.id, result.sourceCompensation.id, result.proposed.id].some(id => id !== query.compensationId)
+        || result.current.raw !== result.sourceCompensation.raw || !sameCompensationReviewValue(result.current.locationIds, result.sourceCompensation.locationIds)
+        || !result.sourceCompensation.evidence.every(reference => result.current.evidence.some(current => sameCompensationReviewValue(current, reference)))
+        || !matches || !matchingCompensationProposal(result.proposed, query.proposal))
+        throw new AtlasSourceServiceError("invalid-response", "薪资预览与本次输入、来源原文或索引版本不一致，请重新核对。");
+      return result;
+    },
+    confirmCompensationReview: async (value: ConfirmCompensationReviewInput, options: WriteOptions) => {
+      const query = input(ConfirmCompensationReviewInputSchema, value);
+      const result = await request("compensations/confirm", CompensationReviewReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
+      if (result.jobId !== query.jobId || result.compensationId !== query.compensationId || result.compensation.id !== query.compensationId
+        || result.revision !== query.expectedRevision + 1 || result.activeDecisionId !== result.decisionId
+        || !matchingCompensationProposal(result.compensation, query.proposal))
+        throw new AtlasSourceServiceError("invalid-response", "薪资保存回执与本次逐字段输入不一致，请沿用原请求核对回执。");
+      return result;
+    },
+    revokeCompensationReview: async (value: RevokeCompensationReviewInput, options: WriteOptions) => {
+      const query = input(RevokeCompensationReviewInputSchema, value);
+      const result = await request("compensations/revoke", CompensationReviewReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
+      if (result.jobId !== query.jobId || result.compensationId !== query.compensationId || result.compensation.id !== query.compensationId
+        || result.revision !== query.expectedRevision + 1 || result.decisionId === query.decisionId || result.activeDecisionId === query.decisionId)
+        throw new AtlasSourceServiceError("invalid-response", "薪资撤销回执与本次核对或版本不一致，请沿用原请求核对回执。");
+      return result;
+    },
     mapReferences: async (value: MapReferencesInput, options: Options = {}) => {
       const query = input(MapReferencesInputSchema, value);
       const result = await request("locations/map-references", MapReferencesResultSchema, options, query);

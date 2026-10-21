@@ -17,6 +17,12 @@ import {
   type PreviewLocationConfirmationInput, type ConfirmLocationInput, type RevokeLocationConfirmationInput,
   type LocationConfirmationDecision, type LocationConfirmationPreview, type LocationConfirmationReceipt, type JobLocation,
   type MergeDecision, type ReconciliationReceipt, type JobAliasEvent, type ConfirmMergeInput, type OfficialRequisitionLink,
+  CompensationSchema, CompensationReviewDecisionSchema, CompensationReviewPreviewSchema, CompensationReviewReceiptSchema, CompensationReviewReadResultSchema,
+  PreviewCompensationReviewInputSchema, ConfirmCompensationReviewInputSchema, RevokeCompensationReviewInputSchema, ReadCompensationReviewInputSchema,
+  validateCompensationReviewProposal, captureCompensationReviewSourceBinding, applyCompensationReviewConfirmation, projectCompensationReviews, getInvalidatedCompensationReviewIds,
+  type Compensation, type CompensationReviewDecision, type CompensationReviewPreview, type CompensationReviewReceipt, type CompensationReviewReadResult,
+  type CompensationReviewSourceBinding,
+  type PreviewCompensationReviewInput, type ConfirmCompensationReviewInput, type RevokeCompensationReviewInput,
 } from "@better-me/opportunities";
 import {
   ActorScopeSchema, IdempotencyKeySchema, SyncRunSchema, RunScopeSchema, PublicRunSummarySchema,
@@ -25,6 +31,7 @@ import {
   APPEND_ONLY_TRIGGERS, RECONCILIATION_TRIGGERS, type ImportReceipt, type SyncRun, type RunScope, type PublicRunSummary,
   type RepositoryBackup, type StoredReceipt, DiscoveryLeadSchema, DiscoveryLeadReceiptSchema,
   type DiscoveryLead, type DiscoveryLeadReceipt,
+  REPOSITORY_MIGRATION_V5, COMPENSATION_DECISION_TRIGGERS,
 } from "./repository-schema.js";
 import { resolveLocationArea } from "./location-catalog.js";
 
@@ -182,6 +189,11 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       try { db.exec(REPOSITORY_MIGRATION_V4); db.exec(OFFICE_DECISION_TRIGGERS); db.exec("PRAGMA user_version=4; COMMIT;"); }
       catch (error) { db.exec("ROLLBACK"); throw error; }
     }
+    if (version < 5) {
+      db.exec("BEGIN IMMEDIATE");
+      try { db.exec(REPOSITORY_MIGRATION_V5); db.exec(COMPENSATION_DECISION_TRIGGERS); db.exec("PRAGMA user_version=5; COMMIT;"); }
+      catch (error) { db.exec("ROLLBACK"); throw error; }
+    }
     db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;");
     // Opening a file with a matching user_version is not sufficient proof of this schema.
     db.prepare("SELECT value FROM metadata WHERE key='revision'").get();
@@ -191,6 +203,8 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     db.prepare("SELECT id,document FROM base_locations LIMIT 0").all();
     db.prepare("SELECT id,revision,document FROM location_decisions LIMIT 0").all();
     db.prepare("SELECT id,revision,document FROM office_decisions LIMIT 0").all();
+    db.prepare("SELECT id,document FROM base_compensations LIMIT 0").all();
+    db.prepare("SELECT id,revision,document FROM compensation_decisions LIMIT 0").all();
     const check = db.prepare("PRAGMA quick_check").get() as Record<string, unknown>;
     if (Object.values(check)[0] !== "ok") throw new RepositoryError("storage-error");
   } catch (error) { db.close(); throw error instanceof RepositoryError ? error : new RepositoryError("storage-error"); }
@@ -217,7 +231,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     if (row.signature !== expectedSignature) throw new RepositoryError("idempotency-conflict");
     return JSON.parse(row.response) as T;
   }
-  function saveReceipt(actorScope: string, tool: string, idempotencyKey: string, requestSignature: string, result: ImportReceipt | SyncRun | DiscoveryLeadReceipt | ReconciliationReceipt | LocationConfirmationReceipt | OfficeAddressReceipt) {
+  function saveReceipt(actorScope: string, tool: string, idempotencyKey: string, requestSignature: string, result: ImportReceipt | SyncRun | DiscoveryLeadReceipt | ReconciliationReceipt | LocationConfirmationReceipt | OfficeAddressReceipt | CompensationReviewReceipt) {
     db.prepare("INSERT INTO receipts(actor_scope,tool,idempotency_key,signature,response,created_at) VALUES (?,?,?,?,?,?)").run(actorScope, tool, idempotencyKey, requestSignature, json(result), now());
   }
   function runById(runId: string): SyncRun | undefined {
@@ -246,11 +260,15 @@ export function openJobRepository(path: string, options: { now?: () => string } 
   function officeDecisions(): OfficeAddressDecision[] {
     return (db.prepare("SELECT document FROM office_decisions ORDER BY revision").all() as Array<{ document: string }>).map(row => checked(OfficeAddressDecisionSchema, JSON.parse(row.document)));
   }
+  function compensationDecisions(): CompensationReviewDecision[] {
+    return (db.prepare("SELECT document FROM compensation_decisions ORDER BY revision").all() as Array<{ document: string }>).map(row => checked(CompensationReviewDecisionSchema, JSON.parse(row.document)));
+  }
   function baseSnapshot(current = read()): AtlasDataset {
     const jobs = (db.prepare("SELECT document FROM base_jobs ORDER BY id").all() as Array<{ document: string }>).map((row) => checked(CanonicalJobSchema, JSON.parse(row.document)));
     const owner = new Map(jobs.flatMap((job) => job.listingIds.map((id) => [id, job.id] as const)));
     const locations = (db.prepare("SELECT document FROM base_locations ORDER BY id").all() as Array<{ document: string }>).map(row => checked(JobLocationSchema, JSON.parse(row.document)));
-    return checked(AtlasDatasetSchema, { ...current, jobs, locations, listings: current.listings.map((listing) => ({ ...listing, ...(owner.has(listing.id) ? { canonicalJobId: owner.get(listing.id) } : {}) })) });
+    const compensations = (db.prepare("SELECT document FROM base_compensations ORDER BY id").all() as Array<{ document: string }>).map(row => checked(CompensationSchema, JSON.parse(row.document)));
+    return checked(AtlasDatasetSchema, { ...current, jobs, locations, compensations, listings: current.listings.map((listing) => ({ ...listing, ...(owner.has(listing.id) ? { canonicalJobId: owner.get(listing.id) } : {}) })) });
   }
   function writeBaseJobs(jobs: readonly CanonicalJob[], replace = false) {
     if (replace) db.exec("DELETE FROM base_jobs");
@@ -263,10 +281,14 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       db.prepare("INSERT INTO base_locations(id,document) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document").run(location.id, json(location));
     }
   }
-  function canonicalProjection(base: AtlasDataset, current: AtlasDataset, entries: readonly MergeDecision[], changedAt: string, locationEntries = locationDecisions(), officeEntries = officeDecisions()) {
-    const projection = projectReconciliation(projectOfficeAddressConfirmations(projectLocationConfirmations(base, locationEntries), officeEntries), entries);
+  function writeBaseCompensations(compensations: readonly Compensation[], replace = false) {
+    if (replace) db.exec("DELETE FROM base_compensations");
+    for (const compensation of compensations) db.prepare("INSERT INTO base_compensations(id,document) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document").run(compensation.id, json(compensation));
+  }
+  function canonicalProjection(base: AtlasDataset, current: AtlasDataset, entries: readonly MergeDecision[], changedAt: string, locationEntries = locationDecisions(), officeEntries = officeDecisions(), compensationEntries = compensationDecisions()) {
+    const projection = projectReconciliation(projectCompensationReviews(projectOfficeAddressConfirmations(projectLocationConfirmations(base, locationEntries), officeEntries), compensationEntries), entries);
     const old = new Map(current.jobs.map((job) => [job.id, job]));
-    const body = (job: CanonicalJob, dataset: AtlasDataset) => { const { revision: _revision, updatedAt: _updatedAt, ...value } = job; return { job: value, locations: job.locationIds.map(id => dataset.locations.find(location => location.id === id)) }; };
+    const body = (job: CanonicalJob, dataset: AtlasDataset) => { const { revision: _revision, updatedAt: _updatedAt, ...value } = job; return { job: value, locations: job.locationIds.map(id => dataset.locations.find(location => location.id === id)), compensations: job.compensationIds.map(id => dataset.compensations.find(compensation => compensation.id === id)) }; };
     projection.dataset.jobs = projection.dataset.jobs.map((job) => {
       const previous = old.get(job.id);
       if (!previous && !db.prepare("SELECT job_id FROM job_versions WHERE job_id=?").get(job.id)) return job;
@@ -512,11 +534,126 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     saveReceipt(options.actorScope, tool, options.idempotencyKey, requestSignature, result);
     return result;
   }
+  function compensationTarget(current: AtlasDataset, jobId: string, compensationId: string) {
+    const job = current.jobs.find(value => value.id === aliasId(jobId));
+    const base = baseSnapshot(current), original = base.compensations.find(value => value.id === compensationId);
+    if (!job || !original || !job.compensationIds.includes(compensationId)) throw new RepositoryError("not-found");
+    const owners = base.jobs.filter(value => value.compensationIds.includes(compensationId));
+    const explicitListings = base.listings.filter(value => value.compensationIds?.includes(compensationId));
+    // Older source rows predate per-listing salary contributions. Exact retained observation
+    // ownership can bind those rows; array order and a job's employer name cannot.
+    const evidenceListings = new Set(original.evidence.map(ref => base.observations.find(value => value.id === ref.observationId)?.listingId));
+    const listings = explicitListings.length ? explicitListings : evidenceListings.size === 1 ? base.listings.filter(value => evidenceListings.has(value.id)) : [];
+    if (owners.length !== 1 || listings.length !== 1 || !owners[0]!.listingIds.includes(listings[0]!.id) || !job.listingIds.includes(listings[0]!.id)) throw new RepositoryError("conflict");
+    if (original.evidence.some(ref => base.observations.find(value => value.id === ref.observationId)?.listingId !== listings[0]!.id)) throw new RepositoryError("conflict");
+    return { base, original, owner: owners[0]!, listing: listings[0]!, job };
+  }
+  function activeCompensationDecision(base: AtlasDataset, entries: readonly CompensationReviewDecision[], compensationId: string) {
+    const inactive = new Set(entries.flatMap(entry => entry.kind === "revoke" ? [entry.targetDecisionId] : entry.kind === "invalidate" ? entry.targetDecisionIds : []));
+    for (const id of getInvalidatedCompensationReviewIds(base, entries)) inactive.add(id);
+    return [...entries].reverse().find((entry): entry is Extract<CompensationReviewDecision, { kind: "confirm" }> => entry.kind === "confirm" && entry.compensationId === compensationId && !inactive.has(entry.id));
+  }
+  function prepareCompensation(input: PreviewCompensationReviewInput, current: AtlasDataset) {
+    if (current.revision !== input.expectedRevision) throw new RepositoryError("stale-version");
+    const target = compensationTarget(current, input.jobId, input.compensationId);
+    let proposed: Compensation;
+    try { proposed = validateCompensationReviewProposal(target.base, { jobId: target.owner.id, compensationId: input.compensationId, listingId: target.listing.id, sourceCompensation: target.original, proposal: input.proposal }); }
+    catch { throw new RepositoryError("invalid-data"); }
+    const active = activeCompensationDecision(target.base, compensationDecisions(), input.compensationId);
+    const preview = checked(CompensationReviewPreviewSchema, { expectedRevision: current.revision,
+      previewFingerprint: signature({ input, sourceCompensation: target.original, ownerJobId: target.owner.id, listingId: target.listing.id,
+        sourceBinding: captureCompensationReviewSourceBinding(target.base, { jobId: target.owner.id, listingId: target.listing.id, compensationId: input.compensationId, sourceCompensation: target.original, proposal: input.proposal }) }),
+      jobId: input.jobId, compensationId: input.compensationId, listingId: target.listing.id, sourceCompensation: target.original,
+      current: current.compensations.find(value => value.id === input.compensationId)!, proposed,
+      ...(active ? { activeDecisionId: active.id } : {}), warnings: [
+        "这是本人依据已保存来源证据核对的薪资口径，仍为待核实；原始薪资文本、地点范围和来源证据保留。",
+        "税前、固定薪资、发薪月数与工作时数需要各自的明确依据；不把奖金、股票或税后金额当固定税前年薪。",
+        "来源薪资或岗位绑定变化会永久停用已有核对；撤销保留历史，仅恢复仍适配当前来源的前次核对。",
+      ] });
+    return { preview, target };
+  }
+  function commitCompensation(current: AtlasDataset, entry: Exclude<CompensationReviewDecision, { kind: "invalidate" }>, options: ReconciliationWriteOptions, tool: string, requestSignature: string, requestedJobId: string): CompensationReviewReceipt {
+    options.throwIfCancelled?.();
+    const entries = [...compensationDecisions(), entry], base = { ...baseSnapshot(current), revision: entry.revision };
+    const projection = canonicalProjection(base, current, decisions(), entry.at, locationDecisions(), officeDecisions(), entries);
+    projection.dataset.revision = entry.revision;
+    db.prepare("INSERT INTO compensation_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
+    write(projection.dataset);
+    const compensation = projection.dataset.compensations.find(value => value.id === entry.compensationId)!;
+    const active = activeCompensationDecision(base, entries, entry.compensationId);
+    const result = checked(CompensationReviewReceiptSchema, { ok: true, revision: entry.revision, jobId: requestedJobId, compensationId: entry.compensationId,
+      decisionId: entry.id, ...(active ? { activeDecisionId: active.id } : {}), compensation });
+    saveReceipt(options.actorScope, tool, options.idempotencyKey, requestSignature, result);
+    return result;
+  }
 
   return {
     async readSnapshot(): Promise<AtlasDataset> { return transaction(read); },
     /** Ingestion-only origins: never use this view for map totals or user-facing search. */
     async readProjectionSnapshot(): Promise<AtlasDataset> { return transaction(() => baseSnapshot()); },
+    async readCompensationReview(input: unknown): Promise<CompensationReviewReadResult> {
+      const parsed = checked(ReadCompensationReviewInputSchema, input);
+      return transaction(() => {
+        const current = read(); if (current.revision !== parsed.expectedRevision) throw new RepositoryError("stale-version");
+        const target = compensationTarget(current, parsed.jobId, parsed.compensationId), entries = compensationDecisions();
+        const active = activeCompensationDecision(target.base, entries, parsed.compensationId);
+        const ids = new Set(entries.filter(entry => entry.kind !== "invalidate" && entry.compensationId === parsed.compensationId).map(entry => entry.id));
+        return checked(CompensationReviewReadResultSchema, { schemaVersion: 1, revision: current.revision, jobId: parsed.jobId, compensationId: parsed.compensationId,
+          listingId: target.listing.id, sourceCompensation: target.original, current: current.compensations.find(value => value.id === parsed.compensationId)!,
+          ...(active ? { activeDecisionId: active.id } : {}), history: entries.filter(entry => entry.kind === "invalidate" ? entry.targetDecisionIds.some(id => ids.has(id)) : entry.compensationId === parsed.compensationId)
+            .map(entry => entry.kind === "invalidate" ? { ...entry, targetDecisionIds: entry.targetDecisionIds.filter(id => ids.has(id)) } : entry) });
+      });
+    },
+    async previewCompensationReview(input: unknown): Promise<CompensationReviewPreview> {
+      const parsed = checked(PreviewCompensationReviewInputSchema, input);
+      return transaction(() => prepareCompensation(parsed, read()).preview);
+    },
+    async findCompensationReviewReceipt(tool: "compensations.confirm-review" | "compensations.revoke-review", input: unknown, options: ReconciliationWriteOptions): Promise<CompensationReviewReceipt | undefined> {
+      validateOptions(options);
+      const parsed = tool === "compensations.confirm-review" ? checked(ConfirmCompensationReviewInputSchema, input) : checked(RevokeCompensationReviewInputSchema, input);
+      if (parsed.expectedRevision !== options.expectedRevision) throw new RepositoryError("invalid-data");
+      const requestSignature = signature({ input: parsed });
+      return transaction(() => { const saved = receipt<CompensationReviewReceipt>(options.actorScope, tool, options.idempotencyKey, requestSignature); return saved ? checked(CompensationReviewReceiptSchema, saved) : undefined; });
+    },
+    async confirmCompensationReview(input: ConfirmCompensationReviewInput, options: ReconciliationWriteOptions): Promise<CompensationReviewReceipt> {
+      validateOptions(options); const parsed = checked(ConfirmCompensationReviewInputSchema, input);
+      if (options.expectedRevision !== parsed.expectedRevision) throw new RepositoryError("invalid-data");
+      const requestSignature = signature({ input: parsed });
+      return transaction(() => {
+        const cached = receipt<CompensationReviewReceipt>(options.actorScope, "compensations.confirm-review", options.idempotencyKey, requestSignature);
+        if (cached) return checked(CompensationReviewReceiptSchema, cached);
+        const current = read(); assertWriteVersion(options, current);
+        const { reviewed: _reviewed, previewFingerprint, ...previewInput } = parsed;
+        const { preview, target } = prepareCompensation(previewInput, current);
+        if (preview.previewFingerprint !== previewFingerprint) throw new RepositoryError("stale-version");
+        const entry: CompensationReviewDecision = { id: `compensation-confirm_${randomUUID()}`, kind: "confirm", jobId: target.owner.id, listingId: target.listing.id, compensationId: parsed.compensationId,
+          sourceCompensation: target.original, sourceBinding: captureCompensationReviewSourceBinding(target.base, { jobId: target.owner.id, listingId: target.listing.id, compensationId: parsed.compensationId, sourceCompensation: target.original, proposal: parsed.proposal }),
+          proposal: parsed.proposal, actorScope: options.actorScope, at: now(), revision: current.revision + 1, reason: parsed.reason };
+        return commitCompensation(current, entry, options, "compensations.confirm-review", requestSignature, parsed.jobId);
+      });
+    },
+    async revokeCompensationReview(input: RevokeCompensationReviewInput, options: ReconciliationWriteOptions): Promise<CompensationReviewReceipt> {
+      validateOptions(options); const parsed = checked(RevokeCompensationReviewInputSchema, input);
+      if (options.expectedRevision !== parsed.expectedRevision) throw new RepositoryError("invalid-data");
+      const requestSignature = signature({ input: parsed });
+      return transaction(() => {
+        const cached = receipt<CompensationReviewReceipt>(options.actorScope, "compensations.revoke-review", options.idempotencyKey, requestSignature);
+        if (cached) return checked(CompensationReviewReceiptSchema, cached);
+        const current = read(); assertWriteVersion(options, current);
+        const entries = compensationDecisions(), target = entries.find(value => value.id === parsed.decisionId);
+        if (!target || target.kind !== "confirm" || target.compensationId !== parsed.compensationId) throw new RepositoryError("not-found");
+        if (target.actorScope !== options.actorScope) throw new RepositoryError("not-authorized");
+        const job = current.jobs.find(value => value.id === aliasId(parsed.jobId));
+        if (!job?.listingIds.includes(target.listingId)) throw new RepositoryError("not-found");
+        if (entries.some(value => value.kind === "revoke" && value.targetDecisionId === target.id)) throw new RepositoryError("conflict");
+        const base = baseSnapshot(current), sourceCompensation = base.compensations.find(value => value.id === target.compensationId);
+        if (!sourceCompensation) throw new RepositoryError("not-found");
+        const entry: CompensationReviewDecision = { id: `compensation-revoke_${randomUUID()}`, kind: "revoke", jobId: target.jobId, listingId: target.listingId, compensationId: target.compensationId,
+          actorScope: options.actorScope, at: now(), revision: current.revision + 1, reason: parsed.reason, targetDecisionId: target.id, sourceCompensation,
+          sourceBinding: captureCompensationReviewSourceBinding(base, { listingId: target.listingId, sourceCompensation }) };
+        return commitCompensation(current, entry, options, "compensations.revoke-review", requestSignature, parsed.jobId);
+      });
+    },
     async readOfficeAddressTarget(input: OfficeAddressCandidatesInput) {
       const parsed = checked(OfficeAddressCandidatesInputSchema, input);
       return transaction(() => {
@@ -646,8 +783,12 @@ export function openJobRepository(path: string, options: { now?: () => string } 
           .filter(entry => !same(sourceBasis(base, entry), sourceBasis(nextBase, entry))).map(entry => entry.id);
         const invalidation: OfficeAddressDecision | undefined = invalidatedIds.length ? { id: `office-invalidate_${randomUUID()}`, kind: "invalidate", actorScope: importOptions.actorScope,
           at: now(), revision: current.revision + 1, reason: "source-changed", targetDecisionIds: invalidatedIds } : undefined;
-        if (invalidation) nextBase.revision = invalidation.revision;
-        const projection = canonicalProjection(nextBase, current, decisions(), now(), locationDecisions(), [...priorOffice, ...(invalidation ? [invalidation] : [])]);
+        const priorCompensation = compensationDecisions();
+        const invalidatedCompensationIds = getInvalidatedCompensationReviewIds(nextBase, priorCompensation);
+        const compensationInvalidation: CompensationReviewDecision | undefined = invalidatedCompensationIds.length ? { id: `compensation-invalidate_${randomUUID()}`, kind: "invalidate", actorScope: importOptions.actorScope,
+          at: now(), revision: current.revision + 1, reason: "source-changed", targetDecisionIds: invalidatedCompensationIds } : undefined;
+        if (invalidation || compensationInvalidation) nextBase.revision = current.revision + 1;
+        const projection = canonicalProjection(nextBase, current, decisions(), now(), locationDecisions(), [...priorOffice, ...(invalidation ? [invalidation] : [])], [...priorCompensation, ...(compensationInvalidation ? [compensationInvalidation] : [])]);
         const next = projection.dataset;
         const changed = TABLES.some((table) => !same(base[table], nextBase[table])) || TABLES.some((table) => !same(current[table], next[table]));
         next.revision = current.revision + Number(changed);
@@ -656,7 +797,8 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const result: ImportReceipt = { ok: true, revision: next.revision, jobIds: effectiveIncoming.jobs.map((job) => job.id), snapshotIds: incoming.snapshots.map((snapshot) => snapshot.id), counts: counts(current, next, effectiveIncoming) };
         if (changed) {
           if (invalidation) db.prepare("INSERT INTO office_decisions VALUES (?,?,?)").run(invalidation.id, invalidation.revision, json(invalidation));
-          writeBaseJobs(nextBase.jobs); writeBaseLocations(nextBase.locations); write(next); saveAliases(projection.aliases, next.revision, now());
+          if (compensationInvalidation) db.prepare("INSERT INTO compensation_decisions VALUES (?,?,?)").run(compensationInvalidation.id, compensationInvalidation.revision, json(compensationInvalidation));
+          writeBaseJobs(nextBase.jobs); writeBaseLocations(nextBase.locations); writeBaseCompensations(nextBase.compensations); write(next); saveAliases(projection.aliases, next.revision, now());
         }
         saveReceipt(importOptions.actorScope, "dataset.import", importOptions.idempotencyKey, requestSignature, result);
         return result;
@@ -673,7 +815,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     async readReconciliationState() {
       return transaction(() => {
         const dataset = read();
-        return { dataset, originDataset: projectOfficeAddressConfirmations(projectLocationConfirmations(baseSnapshot(dataset), locationDecisions()), officeDecisions()), decisions: decisions(), aliases: (db.prepare("SELECT job_id,canonical_job_id FROM job_aliases ORDER BY job_id").all() as Array<{ job_id: string; canonical_job_id: string }>).map(row => ({ jobId: row.job_id, canonicalJobId: row.canonical_job_id })) };
+        return { dataset, originDataset: projectCompensationReviews(projectOfficeAddressConfirmations(projectLocationConfirmations(baseSnapshot(dataset), locationDecisions()), officeDecisions()), compensationDecisions()), decisions: decisions(), aliases: (db.prepare("SELECT job_id,canonical_job_id FROM job_aliases ORDER BY job_id").all() as Array<{ job_id: string; canonical_job_id: string }>).map(row => ({ jobId: row.job_id, canonicalJobId: row.canonical_job_id })) };
       });
     },
     /** Recover a lost reviewed-command receipt before checking its now-stale preview revision. */
@@ -926,7 +1068,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const baseJobs = baseSnapshot(dataset).jobs;
         const aliasHistory = (db.prepare("SELECT document FROM job_alias_history ORDER BY sequence").all() as Array<{ document: string }>).map((row) => checked(JobAliasEventSchema, JSON.parse(row.document)));
         const jobVersions = (db.prepare("SELECT job_id,revision FROM job_versions ORDER BY job_id").all() as Array<{ job_id: string; revision: number }>).map((row) => ({ jobId: row.job_id, revision: row.revision }));
-        return checked(RepositoryBackupSchema, { format: "better-me/job-repository", schemaVersion: REPOSITORY_SCHEMA_VERSION, createdAt: now(), dataset, runs, receipts, leads, baseJobs, baseLocations: baseSnapshot(dataset).locations, locationDecisions: locationDecisions(), officeDecisions: officeDecisions(), mergeDecisions: decisions(), aliasHistory, jobVersions }, "invalid-backup");
+        return checked(RepositoryBackupSchema, { format: "better-me/job-repository", schemaVersion: REPOSITORY_SCHEMA_VERSION, createdAt: now(), dataset, runs, receipts, leads, baseJobs, baseLocations: baseSnapshot(dataset).locations, locationDecisions: locationDecisions(), officeDecisions: officeDecisions(), baseCompensations: baseSnapshot(dataset).compensations, compensationDecisions: compensationDecisions(), mergeDecisions: decisions(), aliasHistory, jobVersions }, "invalid-backup");
       });
     },
     async restore(input: unknown, restoreOptions: Omit<ImportOptions, "runId"> & { expectedRevision: number }): Promise<ImportReceipt> {
@@ -936,12 +1078,21 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       if (encoder.encode(json(backup)).byteLength > 128 * 1024 * 1024) throw new RepositoryError("invalid-backup");
       const baseJobs = backup.baseJobs ?? backup.dataset.jobs;
       const baseLocations = backup.baseLocations ?? backup.dataset.locations;
+      const baseCompensations = backup.baseCompensations ?? backup.dataset.compensations;
       const owners = new Map(baseJobs.flatMap((job) => job.listingIds.map((id) => [id, job.id] as const)));
-      const restoredBase = checked(AtlasDatasetSchema, { ...backup.dataset, jobs: baseJobs, locations: baseLocations, listings: backup.dataset.listings.map((listing) => ({ ...listing, ...(owners.has(listing.id) ? { canonicalJobId: owners.get(listing.id) } : {}) })) }, "invalid-backup");
+      const restoredBase = checked(AtlasDatasetSchema, { ...backup.dataset, jobs: baseJobs, locations: baseLocations, compensations: baseCompensations, listings: backup.dataset.listings.map((listing) => ({ ...listing, ...(owners.has(listing.id) ? { canonicalJobId: owners.get(listing.id) } : {}) })) }, "invalid-backup");
       const historicalLocationBasis = (event: { jobId: string; listingId: string; locationId: string }, sourceLocation: JobLocation): AtlasDataset => checked(AtlasDatasetSchema, {
         ...restoredBase, locations: restoredBase.locations.map(location => location.id === event.locationId ? sourceLocation : location),
         jobs: restoredBase.jobs.map(job => job.id === event.jobId ? { ...job, locationIds: union(job.locationIds, [event.locationId]) } : job),
         listings: restoredBase.listings.map(listing => listing.id === event.listingId ? { ...listing, locationIds: union(listing.locationIds ?? [], [event.locationId]) } : listing),
+      }, "invalid-backup");
+      const historicalCompensationBasis = (event: { jobId: string; listingId: string; compensationId: string; sourceBinding: CompensationReviewSourceBinding }, sourceCompensation: Compensation): AtlasDataset => checked(AtlasDatasetSchema, {
+        ...restoredBase, compensations: restoredBase.compensations.map(compensation => compensation.id === event.compensationId ? sourceCompensation : compensation),
+        jobs: restoredBase.jobs.map(job => job.id === event.jobId ? { ...job, compensationIds: union(job.compensationIds, [event.compensationId]), locationIds: union(job.locationIds, sourceCompensation.locationIds ?? []) } : { ...job, compensationIds: job.compensationIds.filter(id => id !== event.compensationId) }),
+        listings: restoredBase.listings.map(listing => listing.id === event.listingId ? { ...listing, ...event.sourceBinding.listing, canonicalJobId: event.jobId, compensationIds: union(listing.compensationIds ?? [], [event.compensationId]), locationIds: union(listing.locationIds ?? [], sourceCompensation.locationIds ?? []),
+          observationIds: union(listing.observationIds, event.sourceBinding.observations.map(value => value.id)) } : { ...listing, compensationIds: listing.compensationIds?.filter(id => id !== event.compensationId) }),
+        observations: [...restoredBase.observations.filter(value => !event.sourceBinding.observations.some(archived => archived.id === value.id)), ...event.sourceBinding.observations],
+        snapshots: [...restoredBase.snapshots.filter(value => !event.sourceBinding.snapshots.some(archived => archived.id === value.id)), ...event.sourceBinding.snapshots],
       }, "invalid-backup");
       const originIds = new Set(baseJobs.map((job) => job.id)); const decisionIds = new Set<string>(); const decisionRevisions = new Set<number>();
       const priorDecisions = new Map<string, MergeDecision>(); const revokedDecisions = new Set<string>(); let previousRevision = 0;
@@ -988,9 +1139,34 @@ export function openJobRepository(path: string, options: { now?: () => string } 
           decisionRevisions.add(entry.revision);
           if (entry.kind === "confirm") resolveLocationArea({ countryCode: entry.proposal.countryCode, locationKind: "office", area: { kind: "manual-area" } });
         }
-        const resolvedBase = projectOfficeAddressConfirmations(projectLocationConfirmations(restoredBase, backup.locationDecisions), backup.officeDecisions);
+        let compensationRevision = 0;
+        for (const entry of backup.compensationDecisions) {
+          const sharedInvalidation = entry.kind === "invalidate" && backup.officeDecisions.some(office => office.revision === entry.revision && office.kind === "invalidate");
+          if (entry.revision > backup.dataset.revision || entry.revision < 1 || entry.revision <= compensationRevision || decisionRevisions.has(entry.revision) && !sharedInvalidation) throw new Error("invalid-compensation-revision");
+          compensationRevision = entry.revision; decisionRevisions.add(entry.revision);
+          if (entry.kind !== "invalidate") {
+            // Historical listing URLs may have changed, but an immutable source material
+            // cannot have two different bodies under the same observation or snapshot ID.
+            for (const observation of entry.sourceBinding.observations) {
+              const retained = restoredBase.observations.find(value => value.id === observation.id);
+              if (retained && !same(retained, observation)) throw new Error("invalid-compensation-archived-observation");
+            }
+            for (const snapshot of entry.sourceBinding.snapshots) {
+              const retained = restoredBase.snapshots.find(value => value.id === snapshot.id);
+              if (retained && !same(retained, snapshot)) throw new Error("invalid-compensation-archived-snapshot");
+            }
+            verifyContentHashes({ ...restoredBase, observations: entry.sourceBinding.observations, snapshots: entry.sourceBinding.snapshots }, "invalid-backup");
+            if (!same(restoredBase.compensations.find(value => value.id === entry.compensationId), entry.sourceCompensation)
+              || !restoredBase.jobs.find(job => job.id === entry.jobId)?.listingIds.includes(entry.listingId)) throw new Error("invalid-compensation-source");
+            if (entry.kind === "confirm") validateCompensationReviewProposal(historicalCompensationBasis(entry, entry.sourceCompensation), {
+              jobId: entry.jobId, compensationId: entry.compensationId, listingId: entry.listingId, sourceCompensation: entry.sourceCompensation, proposal: entry.proposal,
+            });
+          }
+        }
+        const resolvedBase = projectCompensationReviews(projectOfficeAddressConfirmations(projectLocationConfirmations(restoredBase, backup.locationDecisions), backup.officeDecisions), backup.compensationDecisions);
         restoredProjection = projectReconciliation(resolvedBase, backup.mergeDecisions);
         if (!same(restoredProjection.dataset.locations, backup.dataset.locations)) throw new Error("invalid-location-projection");
+        if (!same(restoredProjection.dataset.compensations, backup.dataset.compensations)) throw new Error("invalid-compensation-projection");
         for (const stored of backup.receipts) if (stored.tool === "locations.confirm" || stored.tool === "locations.revoke-confirmation") {
           const response = checked(LocationConfirmationReceiptSchema, stored.response, "invalid-backup");
           const event = backup.locationDecisions.find(entry => entry.id === response.decisionId);
@@ -1030,6 +1206,24 @@ export function openJobRepository(path: string, options: { now?: () => string } 
             if (!expected || !same(response.location, expected) || response.activeDecisionId !== expected.officeResolution?.decisionId) throw new Error("invalid-office-receipt-body");
           }
         }
+        for (const stored of backup.receipts) if (stored.tool === "compensations.confirm-review" || stored.tool === "compensations.revoke-review") {
+          const response = checked(CompensationReviewReceiptSchema, stored.response, "invalid-backup");
+          const event = backup.compensationDecisions.find(entry => entry.id === response.decisionId);
+          if (!event || event.kind === "invalidate" || event.actorScope !== stored.actorScope || event.revision !== response.revision || event.compensationId !== response.compensationId
+            || event.kind !== (stored.tool === "compensations.confirm-review" ? "confirm" : "revoke") || !originIds.has(response.jobId)) throw new Error("invalid-compensation-receipt");
+          const thenProjection = projectReconciliation(restoredBase, backup.mergeDecisions.filter(entry => entry.revision < event.revision));
+          const thenAlias = thenProjection.aliases.find(alias => alias.jobId === response.jobId)?.canonicalJobId;
+          if (!thenProjection.dataset.jobs.find(job => job.id === thenAlias)?.listingIds.includes(event.listingId)) throw new Error("invalid-compensation-receipt-job");
+          if (event.kind === "confirm") {
+            const expected = applyCompensationReviewConfirmation(event.sourceCompensation, event);
+            if (!same(expected, response.compensation) || response.activeDecisionId !== event.id) throw new Error("invalid-compensation-receipt-body");
+          } else {
+            const receiptBase = historicalCompensationBasis(event, event.sourceCompensation), thenEntries = backup.compensationDecisions.filter(entry => entry.revision <= event.revision);
+            const expected = projectCompensationReviews(receiptBase, thenEntries).compensations.find(value => value.id === response.compensationId);
+            const active = activeCompensationDecision(receiptBase, thenEntries, event.compensationId);
+            if (!expected || !same(expected, response.compensation) || active?.id !== response.activeDecisionId) throw new Error("invalid-compensation-receipt-body");
+          }
+        }
       } catch { throw new RepositoryError("invalid-backup"); }
       const jobBodies = (jobs: readonly CanonicalJob[]) => jobs.map(({ revision: _revision, updatedAt: _updatedAt, ...job }) => job).sort((a, b) => compareIds(a.id, b.id));
       const listingOwners = (dataset: AtlasDataset) => dataset.listings.map((listing) => ({ id: listing.id, canonicalJobId: listing.canonicalJobId })).sort((a, b) => compareIds(a.id, b.id));
@@ -1050,12 +1244,16 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         write(dataset, true);
         writeBaseJobs(baseJobs, true);
         writeBaseLocations(baseLocations, true);
+        writeBaseCompensations(baseCompensations, true);
         db.exec("DROP TRIGGER location_decisions_no_update; DROP TRIGGER location_decisions_no_delete; DELETE FROM location_decisions;");
         for (const entry of backup.locationDecisions) db.prepare("INSERT INTO location_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
         db.exec(LOCATION_DECISION_TRIGGERS);
         db.exec("DROP TRIGGER office_decisions_no_update; DROP TRIGGER office_decisions_no_delete; DELETE FROM office_decisions;");
         for (const entry of backup.officeDecisions) db.prepare("INSERT INTO office_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
         db.exec(OFFICE_DECISION_TRIGGERS);
+        db.exec("DROP TRIGGER compensation_decisions_no_update; DROP TRIGGER compensation_decisions_no_delete; DELETE FROM compensation_decisions;");
+        for (const entry of backup.compensationDecisions) db.prepare("INSERT INTO compensation_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
+        db.exec(COMPENSATION_DECISION_TRIGGERS);
         db.exec("DROP TRIGGER merge_decisions_no_update; DROP TRIGGER merge_decisions_no_delete; DROP TRIGGER job_alias_history_no_update; DROP TRIGGER job_alias_history_no_delete; DELETE FROM merge_decisions; DELETE FROM job_alias_history; DELETE FROM job_aliases; DELETE FROM job_versions;");
         for (const entry of backup.mergeDecisions) db.prepare("INSERT INTO merge_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
         for (const event of backup.aliasHistory) db.prepare("INSERT INTO job_alias_history(job_id,revision,document) VALUES (?,?,?)").run(event.jobId, event.revision, json(event));

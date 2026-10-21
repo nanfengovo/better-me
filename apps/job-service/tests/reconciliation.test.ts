@@ -186,7 +186,7 @@ test("versioned backups preserve merge decisions and split origins while v1 publ
   const [a, b] = data.ids; const old = await repo.backup();
   const legacy = { format: old.format, schemaVersion: 1, createdAt: old.createdAt, dataset: old.dataset, runs: old.runs, receipts: old.receipts, leads: old.leads };
   const merge = await repo.mergeJobs({ targetJobId: a!.jobId, sourceJobId: b!.jobId, reason: "备份前确认同岗", companyIdentityConfirmed: true }, options("merge-before-backup", 1));
-  const backup = await repo.backup(); assert.equal(backup.schemaVersion, 4); assert.equal(backup.baseJobs!.length, 2);
+  const backup = await repo.backup(); assert.equal(backup.schemaVersion, 5); assert.equal(backup.baseJobs!.length, 2);
   const restored = openJobRepository(":memory:", { now: () => AT });
   try {
     const invalid = structuredClone(backup); invalid.mergeDecisions[0]!.id = "unrelated-replacement";
@@ -215,14 +215,14 @@ test("versioned backups preserve merge decisions and split origins while v1 publ
 test("an actual persisted schema-v1 database migrates to v3 without changing original evidence or identities", async () => withRepository(async (repo, path, data) => {
   const original = await repo.readSnapshot(); repo.close(); const legacy = new DatabaseSync(path);
   try {
-    legacy.exec("DROP TRIGGER office_decisions_no_update; DROP TRIGGER office_decisions_no_delete; DROP TABLE office_decisions; DROP TRIGGER location_decisions_no_update; DROP TRIGGER location_decisions_no_delete; DROP TABLE location_decisions; DROP TABLE base_locations; DROP TRIGGER merge_decisions_no_update; DROP TRIGGER merge_decisions_no_delete; DROP TRIGGER job_alias_history_no_update; DROP TRIGGER job_alias_history_no_delete; DROP TABLE merge_decisions; DROP TABLE job_aliases; DROP TABLE job_alias_history; DROP TABLE base_jobs; DROP TABLE job_versions; PRAGMA user_version=1;");
+    legacy.exec("DROP TRIGGER compensation_decisions_no_update; DROP TRIGGER compensation_decisions_no_delete; DROP TABLE compensation_decisions; DROP TABLE base_compensations; DROP TRIGGER office_decisions_no_update; DROP TRIGGER office_decisions_no_delete; DROP TABLE office_decisions; DROP TRIGGER location_decisions_no_update; DROP TRIGGER location_decisions_no_delete; DROP TABLE location_decisions; DROP TABLE base_locations; DROP TRIGGER merge_decisions_no_update; DROP TRIGGER merge_decisions_no_delete; DROP TRIGGER job_alias_history_no_update; DROP TRIGGER job_alias_history_no_delete; DROP TABLE merge_decisions; DROP TABLE job_aliases; DROP TABLE job_alias_history; DROP TABLE base_jobs; DROP TABLE job_versions; PRAGMA user_version=1;");
     assert.equal((legacy.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 1);
   } finally { legacy.close(); }
   const upgraded = openJobRepository(path, { now: () => AT });
   try {
     assert.deepEqual(await upgraded.readSnapshot(), original); assert.deepEqual(await upgraded.readProjectionSnapshot(), original);
     const check = new DatabaseSync(path);
-    try { assert.equal((check.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 4); } finally { check.close(); }
+    try { assert.equal((check.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 5); } finally { check.close(); }
     for (const id of data.ids) assert.equal((await upgraded.resolveJobId(id.jobId))!.canonicalJobId, id.jobId);
     await upgraded.mergeJobs({ targetJobId: data.ids[0]!.jobId, sourceJobId: data.ids[1]!.jobId, reason: "升级后继续人工确认", companyIdentityConfirmed: true }, options("after-upgrade", original.revision));
     assert.equal((await upgraded.readSnapshot()).jobs.length, 1);

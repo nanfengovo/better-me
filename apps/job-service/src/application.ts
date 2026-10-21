@@ -27,6 +27,7 @@ import { createReconciliationTools } from "./reconciliation.js";
 import { createLocationMapReferencesTool } from "./location-map-references.js";
 import { createOfficeAddressTools, type OfficeAddressProvider } from "./office-address.js";
 import { createAddressEnrichmentTool } from "./address-enrichment.js";
+import { createCompensationReviewTools } from "./compensation-review.js";
 
 const emptyInput = z.object({}).strict();
 // Name-only discovery has no permission to follow arbitrary URLs. This host policy is
@@ -131,6 +132,9 @@ export function createJobApplication(options: JobApplicationOptions) {
     ...(input.mapCityReferences ? { mapReferences: await mapReferenceTool.execute({ expectedRevision: (await repository.readSnapshot()).revision, limit: 1000 }, context) } : {}),
   }));
   const definitions: ToolDefinition<any, any>[] = [
+    ...createCompensationReviewTools(repository).map(definition => ({ ...definition,
+      ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
+      execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     defineTool({ ...addressEnrichmentTool, execute: (input, context) => guarded(async () => addressEnrichmentTool.execute(input, context)) }),
     ...createReconciliationTools(repository).map(definition => ({ ...definition,
       ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),

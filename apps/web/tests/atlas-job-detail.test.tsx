@@ -67,6 +67,18 @@ after(() => {
   }
 });
 
+test("source compensation review is explicit and limited to real jobs with a disclosure and a backend action", async () => {
+  const props = await fixture(); let reviews = 0; props.onReviewCompensation = () => { reviews++; };
+  await render(props); await act(async () => button("核对来源薪资").click()); assert.equal(reviews, 1);
+  await render({ ...props, demo: true });
+  assert.ok(!dom.document.body.textContent!.includes("核对来源薪资"));
+  await render({ ...props, item: { ...props.item, job: { ...props.item.job, compensationIds: [] } } });
+  assert.ok(!dom.document.body.textContent!.includes("核对来源薪资"));
+  await render({ ...props, onReviewCompensation: undefined });
+  assert.ok(!dom.document.body.textContent!.includes("核对来源薪资"));
+  assert.equal(reviews, 1, "rendering, demo and disconnected states do not start review");
+});
+
 test("the non-modal pane leaves card focus intact and closes by its visible button or Escape", async () => {
   const props = await fixture(); let closes = 0; props.onClose = () => { closes++; };
   const pane = await render(props);

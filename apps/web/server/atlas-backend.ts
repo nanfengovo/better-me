@@ -16,6 +16,7 @@ const POST_ROUTES = new Set([
   "jobs/reconciliation/merge", "jobs/reconciliation/reject", "jobs/reconciliation/history", "jobs/reconciliation/revoke", "jobs/search",
   "jobs/reviewed-cards/preview", "jobs/reviewed-cards/import", "jobs/detail-locations/preview", "jobs/detail-locations/import",
   "jobs/owned-detail-locations/read", "jobs/owned-detail-locations/preview", "jobs/owned-detail-locations/import",
+  "compensations/review", "compensations/preview", "compensations/confirm", "compensations/revoke",
   "locations/geocode-candidates", "locations/office-address/candidates", "locations/office-address/preview", "locations/office-address/confirmations",
   "locations/office-address/revoke", "locations/map-references", "locations/confirmations/preview", "locations/confirmations", "locations/confirmations/revoke",
   "sources", "sources/discover", "companies/discover-careers", "sources/inspect", "sources/propose", "dataset/import",

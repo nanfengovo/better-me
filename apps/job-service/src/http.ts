@@ -13,6 +13,10 @@ export interface JobHttpOptions {
 }
 
 const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }> = [
+  { method: "POST", path: /^\/api\/v1\/compensations\/review$/, tool: "compensations.read-review" },
+  { method: "POST", path: /^\/api\/v1\/compensations\/preview$/, tool: "compensations.preview-review" },
+  { method: "POST", path: /^\/api\/v1\/compensations\/confirm$/, tool: "compensations.confirm-review" },
+  { method: "POST", path: /^\/api\/v1\/compensations\/revoke$/, tool: "compensations.revoke-review" },
   { method: "POST", path: /^\/api\/v1\/jobs\/address-enrichment\/plan$/, tool: "jobs.plan-address-enrichment" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/candidates$/, tool: "jobs.list-merge-candidates" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/preview$/, tool: "jobs.preview-merge" },

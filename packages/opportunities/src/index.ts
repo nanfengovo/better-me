@@ -1,6 +1,7 @@
 export * from "./schema.js";
 export * from "./identity.js";
 export * from "./compensation.js";
+export * from "./compensation-review.js";
 export * from "./geo.js";
 export * from "./geocoding.js";
 export * from "./query-map-references.js";

@@ -21,6 +21,7 @@ export type AtlasJobDetailProps = {
   onConfirmLocation?: (location: JobLocation) => void;
   onConfirmOffice?: (location: JobLocation) => void;
   onReadLocations?: () => void;
+  onReviewCompensation?: () => void;
   /** Root owns city-candidate requests, their selection and their status. */
   children?: ReactNode;
 };
@@ -66,7 +67,7 @@ function sourcesForDetail(item: JobSearchItem, data: AtlasDataset, presentations
 }
 
 /** A non-modal reading pane. It never moves focus, locks the page or intercepts card clicks. */
-export function AtlasJobDetail({ item, data, demo, originalCurrency, presentations, onClose, onLocate, onSave, onAnalyze, onConfirmLocation, onConfirmOffice, onReadLocations, children }: AtlasJobDetailProps) {
+export function AtlasJobDetail({ item, data, demo, originalCurrency, presentations, onClose, onLocate, onSave, onAnalyze, onConfirmLocation, onConfirmOffice, onReadLocations, onReviewCompensation, children }: AtlasJobDetailProps) {
   const { t, locale } = useUiPreferences();
   const titleId = useId();
   const body = useRef<HTMLDivElement>(null);
@@ -111,6 +112,7 @@ export function AtlasJobDetail({ item, data, demo, originalCurrency, presentatio
         {rawPay.length > 0 && <div className="atlas-job-detail-raw-pay">{rawPay.map((raw, index) => <p key={`${index}:${raw}`}>{raw}</p>)}</div>}
         {item.salarySelection === "ambiguous" && <p className="atlas-job-detail-caption">{t("多地或多种薪资披露，当前没有单一可比较金额。", "Multiple pay disclosures have no single comparable amount.")}</p>}
         {item.salary?.fx && <p className="atlas-job-detail-caption">{t("汇率", "Exchange rate")}：{item.salary.fx.provider} / {item.salary.fx.date}</p>}
+        {!demo && onReviewCompensation && item.job.compensationIds.length > 0 && <button type="button" onClick={onReviewCompensation}><FileSearch size={13} />{t("核对来源薪资", "Review source compensation")}</button>}
         {!demo && primary?.url ? <a className="atlas-job-detail-original" href={primary.url} target="_blank" rel="noopener noreferrer">{t("打开岗位原文", "Open original job posting")}<ArrowUpRight size={17} /><small>{primary.label} · {new URL(primary.url).hostname}</small></a>
           : <p className="atlas-job-detail-source-missing">{demo ? t("演示内容没有真实招聘原文。", "Synthetic demo has no real job posting.") : t("当前来源尚未提供可核对的岗位原文链接。", "No verifiable original job link is available.")}</p>}
         <div className="atlas-job-detail-sources"><AtlasListingBadges presentations={sources} link={!demo} /></div>
