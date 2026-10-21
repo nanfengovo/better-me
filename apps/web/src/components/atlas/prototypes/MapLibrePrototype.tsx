@@ -7,6 +7,7 @@ import { activeMapFocus, createMapFocusMarker, mapFocusCameraOptions, mapFocusPr
 import { ATLAS_BASEMAPS, attributionHtml, DEFAULT_ATLAS_BASEMAP, parseAtlasBasemap } from "./basemaps";
 import { canvasHostStyle, CHINA_BOUNDS, creditStyle, errorStyle, loadBoundary, NATURAL_EARTH_CREDIT, prototypeFrameStyle, regionSelection, type AtlasPrototypeProps, type BoundaryFeature, type PrototypeHandle } from "./types";
 import { atlasBucketData, createAtlasHover, createAtlasMapUpdates } from "./map-performance";
+import { bucketNavigationCamera } from "./bucket-navigation";
 
 // Vite's optimized module URL does not preserve the upstream worker's sibling path.
 setWorkerUrl(maplibreWorkerUrl);
@@ -25,6 +26,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
   const host = useRef<HTMLDivElement>(null); const latest = useRef(props); latest.current = props;
   const handle = useRef<PrototypeHandle | null>(null);
   const [failure, setFailure] = useState<string | null>(null); const [basemapWarning, setBasemapWarning] = useState("");
+  const [basemapLoading, setBasemapLoading] = useState(false);
   const mode = props.mode; const light = props.visual?.theme === "light";
   const background = props.visual?.background ?? (light ? "#f5f6f4" : "#080f18");
   const maxDpr = Math.min(1.7, Math.max(1, props.visual?.maxDpr ?? 1.7));
@@ -38,6 +40,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
     let stopped = false; let map: Map | undefined; let observer: ResizeObserver | undefined; let rotationFrame = 0;
     let rotationResume: ReturnType<typeof setTimeout> | undefined, interacting = false; let cancelHover = () => {};
     let focusMarker: Marker | undefined; let markerSignature = "";
+    let pendingBucketNavigation = "";
     const abort = new AbortController(); const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const report = (error: unknown) => { if (stopped || abort.signal.aborted) return; setFailure("三维地图暂不可用，仍可通过岗位列表浏览与选择。"); latest.current.onError?.(error instanceof Error ? error : new Error("Map renderer unavailable.")); };
     const warnTiles = () => { if (!stopped) setBasemapWarning("在线底图未完整加载，概略轮廓和岗位列表仍可使用。可切换底图或稍后重试。"); };
@@ -50,32 +53,16 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
     };
     const visibility = () => { if (document.hidden) { stopRotation(); map?.stop(); } else rotate(); };
     const motionChange = () => { if (motion.matches) map?.stop(); rotate(); };
-    document.addEventListener("visibilitychange", visibility); motion.addEventListener("change", motionChange); setFailure(null); setBasemapWarning("");
+    document.addEventListener("visibilitychange", visibility); motion.addEventListener("change", motionChange); setFailure(null); setBasemapWarning(""); setBasemapLoading(provider !== null);
     void (async () => {
       const boundary = await loadBoundary(mode, abort.signal);
       const initialBuckets = latest.current.buckets, initialBucketData = atlasBucketData(initialBuckets);
       const sources: Record<string, SourceSpecification> = { boundaries: { type: "geojson", data: boundary }, buckets: { type: "geojson", data: initialBucketData } };
-      const remoteLayers: LayerSpecification[] = []; let remote: Partial<StyleSpecification> = {};
-      if (provider?.type === "vector-style") {
-        try {
-          const response = await fetch(provider.styleUrl, { signal: AbortSignal.any([abort.signal, AbortSignal.timeout(8000)]), credentials: "omit" });
-          if (!response.ok) throw new Error("Basemap style unavailable.");
-          const style = await response.json() as StyleSpecification;
-          if (style.version !== 8 || !style.sources || !Array.isArray(style.layers)) throw new Error("Invalid vector style.");
-          remote = { ...(style.glyphs ? { glyphs: style.glyphs } : {}), ...(style.sprite ? { sprite: style.sprite } : {}) };
-          Object.entries(style.sources).forEach(([id, source]) => { sources[`basemap:${id}`] = source; });
-          style.layers.forEach((layer) => { if (layer.type !== "background") remoteLayers.push({ ...layer, id: `basemap:${layer.id}`, minzoom: Math.max(layer.minzoom ?? 0, mode === "global" ? 2.4 : 0), ...("source" in layer ? { source: `basemap:${layer.source}` } : {}) } as LayerSpecification); });
-        } catch (error) { if (abort.signal.aborted) throw error; warnTiles(); }
-      } else if (provider?.type === "raster") {
-        sources["basemap:raster"] = { type: "raster", tiles: provider.tiles, tileSize: provider.tileSize, maxzoom: provider.maxNativeZoom, attribution: attributionHtml(provider) };
-        remoteLayers.push({ id: "basemap:raster", type: "raster", source: "basemap:raster", minzoom: mode === "global" ? 2.4 : 0, paint: { "raster-fade-duration": 180 } });
-      }
       if (mode === "global") { const dots = await import("../geo/world-land-dots.geojson?url"); sources["land-dots"] = { type: "geojson", data: dots.default }; }
       if (stopped) return;
       const layers: LayerSpecification[] = [
         { id: "ocean", type: "background", paint: { "background-color": background } },
-        { id: "overview-land", type: "fill", source: "boundaries", ...(remoteLayers.length ? { maxzoom: 7 } : {}), paint: { "fill-color": mode === "global" ? light ? "#b7c1c0" : "#527184" : light ? "#b8cace" : "#173a50", "fill-opacity": mode === "global" ? .15 : .85 } },
-        ...remoteLayers,
+        { id: "overview-land", type: "fill", source: "boundaries", paint: { "fill-color": mode === "global" ? light ? "#b7c1c0" : "#527184" : light ? "#b8cace" : "#173a50", "fill-opacity": mode === "global" ? .15 : .85 } },
         ...(mode === "global" ? [{ id: "land-dots", type: "circle" as const, source: "land-dots", maxzoom: 3.7, paint: { "circle-color": light ? "#455459" : "#bed6e0", "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, .65, 3, 1.15], "circle-opacity": ["interpolate", ["linear"], ["zoom"], 0, .8, 2.7, .8, 3.6, 0], "circle-pitch-alignment": "map" } } as LayerSpecification] : []),
         ...(mode === "global" ? [{ id: "regions", type: "fill" as const, source: "boundaries", paint: { "fill-color": light ? "#769696" : "#6b9aad", "fill-opacity": ["interpolate", ["linear"], ["zoom"], 0, .03, 3, .06, 6, 0] } } as LayerSpecification] : [
           { id: "regions", type: "fill-extrusion" as const, source: "boundaries", maxzoom: 6.6, paint: { "fill-extrusion-color": light ? "#829fa8" : "#153f57", "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 3, 24_000, 4.5, 24_000, 6.5, 0], "fill-extrusion-base": 0, "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 3, .9, 4.5, .85, 6.5, 0], "fill-extrusion-vertical-gradient": true } } as LayerSpecification,
@@ -85,20 +72,68 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
         { id: "bucket-selection", type: "circle", source: "buckets", filter: ["all", ["==", ["get", "kind"], "core"], ["==", ["get", "bucketId"], ""]], paint: { "circle-radius": ["+", ["get", "radius"], 8], "circle-color": light ? "#215b55" : "#d3ffed", "circle-opacity": .10, "circle-stroke-color": light ? "#215b55" : "#d3ffed", "circle-stroke-width": 1.4 } },
         { id: "bucket-rings", type: "circle", source: "buckets", filter: ["==", ["get", "kind"], "category"], paint: { "circle-radius": ["get", "radius"], "circle-color": "#ffffff", "circle-opacity": 0, "circle-stroke-color": ["get", "color"], "circle-stroke-width": 1.6, "circle-stroke-opacity": .96, "circle-pitch-alignment": "viewport" } },
         { id: "bucket-cores", type: "circle", source: "buckets", filter: ["==", ["get", "kind"], "core"], paint: { "circle-radius": ["get", "radius"], "circle-color": ["get", "color"], "circle-stroke-color": light ? "#ffffff" : "#d4f4ec", "circle-stroke-width": .65, "circle-opacity": .96 } },
-        ...(remote.glyphs ? [{ id: "bucket-labels", type: "symbol" as const, source: "buckets", filter: ["all", ["==", ["get", "kind"], "core"], ["==", ["get", "labelVisible"], true]], layout: { "text-field": ["get", "label"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.9], "text-anchor": "top", "text-padding": 6, "text-max-width": 16 }, paint: { "text-color": light ? "#263d42" : "#d9eaf0", "text-halo-color": background, "text-halo-width": 2 } } as LayerSpecification] : []),
       ];
       const savedView = latest.current.initialView;
       map = new Map({ container: element, center: mode === "global" ? [104, 26] : [104, 35], zoom: mode === "global" ? 1.65 : 3.1, pitch: mode === "domestic" ? 46 : 0, bearing: mode === "domestic" ? -12 : 0, ...savedView,
         maxZoom: provider?.maxZoom ?? 22, minZoom: .1, maxPitch: 75, pixelRatio: Math.min(window.devicePixelRatio || 1, maxDpr), attributionControl: false, cancelPendingTileRequestsWhileZooming: true,
-        style: { version: 8, ...remote, sources, layers } });
+        style: { version: 8, sources, layers } });
       const ownedMap = map;
+      // First render the packaged scene. Optional street services must not hold the
+      // local globe, job markers, controls or onReady behind an eight-second fetch.
+      let localReady = false, basemapInstalled = false, installingBasemap = false;
+      let pendingBasemap: { sources: Record<string, SourceSpecification>; layers: LayerSpecification[]; glyphs?: StyleSpecification["glyphs"]; sprite?: StyleSpecification["sprite"] } | undefined;
+      const installBasemap = () => {
+        if (stopped || abort.signal.aborted || !localReady || basemapInstalled || !pendingBasemap) return;
+        const remote = pendingBasemap; basemapInstalled = true; installingBasemap = true;
+        const addedSources: string[] = [], addedLayers: string[] = [];
+        try {
+          if (remote.glyphs) ownedMap.setGlyphs(remote.glyphs);
+          if (Array.isArray(remote.sprite)) remote.sprite.forEach(sprite => ownedMap.addSprite(sprite.id, sprite.url));
+          else if (remote.sprite) ownedMap.setSprite(remote.sprite);
+          for (const [id, source] of Object.entries(remote.sources)) { ownedMap.addSource(id, source); addedSources.push(id); }
+          for (const layer of remote.layers) { ownedMap.addLayer(layer, mode === "global" ? "land-dots" : "regions"); addedLayers.push(layer.id); }
+          if (remote.glyphs) {
+            const selected = latest.current.selectedBucketId ?? "";
+            ownedMap.addLayer({ id: "bucket-labels", type: "symbol", source: "buckets", filter: ["all", ["==", ["get", "kind"], "core"], ["any", ["==", ["get", "labelVisible"], true], ["==", ["get", "bucketId"], selected]]], layout: { "text-field": ["get", "label"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.9], "text-anchor": "top", "text-padding": 6, "text-max-width": 16 }, paint: { "text-color": light ? "#263d42" : "#d9eaf0", "text-halo-color": background, "text-halo-width": 2 } });
+            addedLayers.push("bucket-labels");
+          }
+        } catch {
+          // A malformed provider cannot remove the local layers or current camera.
+          for (const id of addedLayers.reverse()) if (ownedMap.getLayer(id)) ownedMap.removeLayer(id);
+          for (const id of addedSources.reverse()) if (ownedMap.getSource(id)) ownedMap.removeSource(id);
+          warnTiles();
+        } finally { installingBasemap = false; }
+        setBasemapLoading(false);
+      };
+      if (provider) void (async () => {
+        if (provider.type === "vector-style") {
+          const response = await fetch(provider.styleUrl, { signal: AbortSignal.any([abort.signal, AbortSignal.timeout(8000)]), credentials: "omit" });
+          if (!response.ok) throw new Error("Basemap style unavailable.");
+          const style = await response.json() as StyleSpecification;
+          if (style.version !== 8 || !style.sources || !Array.isArray(style.layers)) throw new Error("Invalid vector style.");
+          const detailSources: Record<string, SourceSpecification> = {}, detailLayers: LayerSpecification[] = [];
+          Object.entries(style.sources).forEach(([id, source]) => { detailSources[`basemap:${id}`] = source; });
+          style.layers.forEach(layer => { if (layer.type !== "background") detailLayers.push({ ...layer, id: `basemap:${layer.id}`, minzoom: Math.max(layer.minzoom ?? 0, mode === "global" ? 2.4 : 0), ...("source" in layer ? { source: `basemap:${layer.source}` } : {}) } as LayerSpecification); });
+          if (stopped || abort.signal.aborted) return;
+          pendingBasemap = { sources: detailSources, layers: detailLayers, glyphs: style.glyphs, sprite: style.sprite };
+        } else pendingBasemap = { sources: { "basemap:raster": { type: "raster", tiles: provider.tiles, tileSize: provider.tileSize, maxzoom: provider.maxNativeZoom, attribution: attributionHtml(provider) } }, layers: [{ id: "basemap:raster", type: "raster", source: "basemap:raster", minzoom: mode === "global" ? 2.4 : 0, paint: { "raster-fade-duration": 180 } }] };
+        installBasemap();
+      })().catch(() => { if (!stopped && !abort.signal.aborted) { setBasemapLoading(false); warnTiles(); } });
       ownedMap.addControl(new NavigationControl({ visualizePitch: true }), "top-right"); ownedMap.addControl(new ScaleControl({ maxWidth: 100, unit: "metric" }), "bottom-left");
       if (provider) ownedMap.addControl(new AttributionControl({ compact: false, customAttribution: attributionHtml(provider) }), "bottom-right");
-      const lost = (event: Event) => { event.preventDefault(); stopRotation(); report(new Error("MapLibre WebGL context lost.")); };
-      const restored = () => { if (!stopped) { setFailure(null); ownedMap.triggerRepaint(); rotate(); } };
+      let contextGeneration = 0;
+      const lost = (event: Event) => { event.preventDefault(); contextGeneration++; stopRotation(); report(new Error("MapLibre WebGL context lost.")); };
+      const restored = () => {
+        if (stopped) return;
+        const generation = ++contextGeneration;
+        ownedMap.once("render", () => {
+          if (!stopped && generation === contextGeneration && localReady) { setFailure(null); latest.current.onReady?.(); }
+        });
+        ownedMap.triggerRepaint(); rotate();
+      };
       ownedMap.getCanvas().addEventListener("webglcontextlost", lost); ownedMap.getCanvas().addEventListener("webglcontextrestored", restored);
-      ownedMap.on("error", (event) => { if ((event as { sourceId?: string }).sourceId?.startsWith("basemap:") || /(?:tile|glyph|sprite|fetch|network|status|AJAX|HTTP)/i.test(event.error.message)) warnTiles(); else report(event.error); });
-      const viewChanged = () => { if (rotationFrame && ownedMap.getZoom() < 3.5) return; const center = ownedMap.getCenter(); const bounds = ownedMap.getBounds(); latest.current.onViewChange?.({ zoom: ownedMap.getZoom(), center: [center.lng, center.lat], pitch: ownedMap.getPitch(), bearing: ownedMap.getBearing(), bounds: [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()] }); };
+      ownedMap.on("error", (event) => { if (installingBasemap || (event as { sourceId?: string }).sourceId?.startsWith("basemap:") || /(?:tile|glyph|sprite|fetch|network|status|AJAX|HTTP|(?:layers|sources)\.basemap:)/i.test(event.error.message)) warnTiles(); else report(event.error); });
+      const viewChanged = () => { pendingBucketNavigation = ""; if (rotationFrame && ownedMap.getZoom() < 3.5) return; const center = ownedMap.getCenter(); const bounds = ownedMap.getBounds(); latest.current.onViewChange?.({ zoom: ownedMap.getZoom(), center: [center.lng, center.lat], pitch: ownedMap.getPitch(), bearing: ownedMap.getBearing(), bounds: [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()] }); };
       ownedMap.on("moveend", viewChanged);
       ownedMap.on("load", () => {
         if (stopped) return;
@@ -138,12 +173,21 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
         else if (latest.current.focus) focus(latest.current.focus);
         else fit();
         observer = new ResizeObserver(() => { ownedMap.resize(); }); observer.observe(element);
-        ownedMap.once("render", () => { if (!stopped) { latest.current.onReady?.(); viewChanged(); } }); rotate();
+        ownedMap.once("render", () => { if (!stopped) { localReady = true; latest.current.onReady?.(); viewChanged(); installBasemap(); } }); rotate();
       });
       ownedMap.on("click", (event) => {
         if (!ownedMap.getLayer("bucket-cores")) return;
         const points = ownedMap.queryRenderedFeatures(event.point, { layers: ["bucket-cores", "bucket-rings"] }); const identifier = points[0]?.properties.bucketId;
-        if (identifier) { const bucket = latest.current.buckets.find((item) => item.id === identifier); if (bucket) latest.current.onPick?.(bucket); return; }
+        if (identifier) {
+          const bucket = latest.current.buckets.find((item) => item.id === identifier);
+          if (bucket) {
+            latest.current.onPick?.(bucket);
+            const navigation = bucketNavigationCamera(bucket, { level: latest.current.bucketLevel ?? "city", currentZoom: ownedMap.getZoom(), maxZoom: provider?.maxZoom ?? 22, reducedMotion: motion.matches });
+            const signature = navigation ? JSON.stringify([bucket.id, navigation.center, navigation.zoom]) : "";
+            if (navigation && signature !== pendingBucketNavigation) { stopRotation(); ownedMap.stop(); pendingBucketNavigation = signature; ownedMap.flyTo(navigation); }
+          }
+          return;
+        }
         if (ownedMap.getZoom() > 6.5) return;
         const region = ownedMap.queryRenderedFeatures(event.point, { layers: ["regions", "overview-land"] })[0]; const feature = boundary.features.find((item) => item.id === String(region?.id ?? ""));
         if (feature) { latest.current.onCountry?.(regionSelection(feature)); const bounds = featureBounds(feature); stopRotation(); ownedMap.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 65, maxZoom: 9, duration: motion.matches ? 0 : 1200, pitch: mode === "domestic" ? 40 : 15 }); }
@@ -172,6 +216,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
     <div ref={host} style={canvasHostStyle} aria-label={mode === "global" ? "全球岗位三维地球，可连续缩放到街道，拖拽与方向键移动" : "国内岗位三维省域地图，可连续缩放到街道，拖拽与方向键移动"} />
     <a href={`${import.meta.env.BASE_URL}legal/geography/`} target="_blank" rel="noopener noreferrer" style={{ ...creditStyle, bottom: 34, color: light ? "#52665f" : "#9ab1bb", pointerEvents: "auto", textDecoration: "none" }}>{NATURAL_EARTH_CREDIT}</a>
     {visibleFocus && <div className={`atlas-focus-status${light ? " light" : ""}`} role="status" aria-live="polite">已定位{visibleFocus.label ? `：${visibleFocus.label} · ` : " · "}{mapFocusPrecisionLabel(visibleFocus)}</div>}
+    {basemapLoading && !basemapWarning && !failure && <div role="status" className={`atlas-basemap-progress${light ? " light" : ""}`}><span className="atlas-basemap-spinner" aria-hidden="true" />正在加载街道底图，本地轮廓与岗位优先显示…</div>}
     {basemapWarning && <div role="status" style={{ position: "absolute", left: 14, top: 14, right: 58, zIndex: 3, color: light ? "#725719" : "#ddcf9d", background: light ? "#fff9e9eb" : "#14232ae8", border: "1px solid #8b80504d", borderRadius: 8, padding: "9px 12px", font: "11px/1.6 system-ui" }}>{basemapWarning}</div>}
     {failure && <div role="alert" style={errorStyle}>{failure}</div>}
   </div>;

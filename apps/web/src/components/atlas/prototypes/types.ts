@@ -9,6 +9,8 @@ export type AtlasCamera = { zoom: number; center: [longitude: number, latitude: 
 export type AtlasPrototypeProps = {
   mode: AtlasMode;
   buckets: readonly MapBucket[];
+  /** Query aggregation level; bucket IDs are opaque and do not encode camera precision. */
+  bucketLevel?: "country" | "region" | "city" | "location";
   selectedBucketId?: string;
   selectedJobId?: string;
   selectedRegionId?: string;
