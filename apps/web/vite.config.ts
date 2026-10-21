@@ -6,9 +6,11 @@ import { jdExtractorPlugin } from "./server/jd-extractor";
 import { opportunitySourcesPlugin } from "./server/opportunity-sources";
 import { networkProxyPlugin } from "./server/network-proxy";
 import { atlasAssetsPlugin } from "./server/atlas-assets";
+import { atlasBackendPlugin } from "./server/atlas-backend";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), atlasAssetsPlugin(), networkProxyPlugin(), jdExtractorPlugin({ useNativeLiepin: true, useNativeBoss: true, useNative51Job: true }), opportunitySourcesPlugin()],
+  // The local workspace reaches its job backend through the same origin.
+  plugins: [react(), tailwindcss(), atlasAssetsPlugin(), atlasBackendPlugin(), networkProxyPlugin(), jdExtractorPlugin({ useNativeLiepin: true, useNativeBoss: true, useNative51Job: true }), opportunitySourcesPlugin()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

@@ -195,3 +195,12 @@ test("a timed-out discovery reports a failure rather than zero candidates or reg
   await act(async () => mock.timers.tick(60000)); assert.equal(calls[1]!.init.signal?.aborted, true);
   await act(async () => resolve(response({ ...baseResult(), status: "no-candidates" }))); assert.equal(result(), null); assert.match(text(), /发现已取消或超时/);
 });
+
+
+test("default gateway reads company capabilities and permits explicit discovery without a browser token", async () => {
+  const calls = installFetch(); await render(fixture({ endpoint: "/api/atlas", token: "" }));
+  await toggle(); assert.equal(calls[0]!.path, "discovery-capabilities"); assert.match(text(), /网页搜索未配置/);
+  await change("发现企业名称", companyName); assert.equal(button("查找企业招聘来源").disabled, false);
+  await click("查找企业招聘来源"); assert.equal(calls[1]!.path, "discover-careers");
+  assert.ok(calls.every(call => new Headers(call.init.headers).get("Authorization") === null));
+});

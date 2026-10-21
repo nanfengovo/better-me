@@ -38,12 +38,13 @@ async function mount(active = true, strict = false) {
   await act(async () => root!.render(strict ? h(React.StrictMode, null, workspace) : workspace));
 }
 async function reload() { await act(async () => root!.unmount()); root = undefined; await mount(); }
-function button(text: string) { const found = [...dom.document.querySelectorAll<HTMLButtonElement>("button")].find(node => node.textContent?.trim() === text); assert.ok(found, `Missing button ${text}`); return found; }
+function button(text: string) { const found = text === "连接本机服务" ? dom.document.querySelector<HTMLButtonElement>('[aria-label="岗位后端设置"]') : [...dom.document.querySelectorAll<HTMLButtonElement>("button")].find(node => node.textContent?.trim() === text); assert.ok(found, `Missing button ${text}`); return found; }
 const view = () => dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!;
 function input(label: string) { const found = [...dom.document.querySelectorAll("label")].find(node => node.textContent?.startsWith(label))?.querySelector<HTMLInputElement>("input"); assert.ok(found); return found; }
 function changeInput(element: HTMLInputElement, value: string) { Object.getOwnPropertyDescriptor(dom.HTMLInputElement.prototype, "value")!.set!.call(element, value); element.dispatchEvent(new dom.Event("input", { bubbles: true })); }
 async function explicitConnect() {
   await act(async () => button("连接本机服务").click());
+  await act(async () => changeInput(input("服务地址"), saved.endpoint));
   await act(async () => changeInput(input("访问令牌"), saved.token));
   await act(async () => button("连接并读取索引").click());
 }
@@ -56,7 +57,7 @@ afterEach(async () => { if (root) await act(async () => root!.unmount()); root =
 after(() => { hooks.deregister(); dom.happyDOM.abort(); for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } });
 
 test("reconciliation is offered only for a connected live index, and changing data view cancels its pending read", async () => {
-  seedLocal(); let release: ((response: Response) => void) | undefined; let candidateSignal: AbortSignal | undefined;
+  seedLocal(); dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify({ schemaVersion: 1, dataMode: "local" })); let release: ((response: Response) => void) | undefined; let candidateSignal: AbortSignal | undefined;
   mock.method(globalThis, "fetch", async (url: RequestInfo | URL, options?: RequestInit) => {
     const path = new URL(String(url)).pathname;
     if (path.endsWith("/candidates")) { candidateSignal = options?.signal as AbortSignal; return new Promise<Response>(resolve => { release = resolve; }); }
@@ -75,7 +76,7 @@ test("reconciliation is offered only for a connected live index, and changing da
 });
 
 test("only an explicitly successful connection persists, and a same-tab reload restores the full live index rather than the one-job library", async () => {
-  seedLocal(); let release: ((value: Response) => void) | undefined;
+  seedLocal(); dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify({ schemaVersion: 1, dataMode: "local" })); let release: ((value: Response) => void) | undefined;
   const requests: Array<{ url: string; authorization: string | null }> = [];
   mock.method(globalThis, "fetch", async (url: RequestInfo | URL, options?: RequestInit) => {
     requests.push({ url: String(url), authorization: new Headers(options?.headers).get("Authorization") });
@@ -110,6 +111,7 @@ test("failed restoration stays in live view with an actionable visible error, an
 
 test("a failed explicit connection never saves the attempted token", async () => {
   mock.method(globalThis, "fetch", async () => new Response("denied", { status: 401 }));
+  dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify({ schemaVersion: 1, dataMode: "local" }));
   await mount(); await explicitConnect();
   await waitFor(() => !!dom.document.querySelector('[role="alert"]'), "rejected explicit connection");
   assert.equal(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY), null); assert.match(dom.document.body.textContent!, /401/);
@@ -117,12 +119,13 @@ test("a failed explicit connection never saves the attempted token", async () =>
 
 test("blocked session storage keeps the successful connection usable and explains that refresh will require reconnecting", async () => {
   mock.method(globalThis, "fetch", async () => response());
+  dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify({ schemaVersion: 1, dataMode: "local" }));
   mock.method(dom.sessionStorage, "setItem", () => { throw new Error("synthetic storage quota exceeded"); });
   await mount(); await explicitConnect();
   await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "live query despite blocked persistence");
   assert.equal(view().value, "live"); assert.match(dom.document.body.textContent!, /本次已连接；浏览器未允许保存标签页会话，刷新后需要重新连接/);
   assert.equal(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY), null);
-  await reload(); assert.equal(view().value, "local");
+  await reload(); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "default backend retry after unavailable session storage"); assert.equal(view().value, "live");
 });
 
 for (const mode of ["local", "demo"] as const) test(`choosing ${mode} clears persisted credentials, survives reload and does not reconnect`, async () => {
@@ -135,15 +138,17 @@ for (const mode of ["local", "demo"] as const) test(`choosing ${mode} clears per
   assert.equal(view().value, mode); assert.equal(fetcher.mock.callCount(), 1);
 });
 
-test("damaged, future and nonloopback records cannot trigger automatic network requests", async () => {
-  const fetcher = mock.method(globalThis, "fetch", async () => { throw new Error("invalid saved records must never access the network"); });
+test("damaged, future and nonloopback records are discarded and only the default gateway is requested", async () => {
+  const requests: Array<{ url: string; authorization: string | null }> = [];
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, options?: RequestInit) => { requests.push({ url: String(url), authorization: new Headers(options?.headers).get("Authorization") }); throw new Error("Synthetic gateway unavailable"); });
   for (const raw of ["{", JSON.stringify({ ...saved, schemaVersion: 99 }), JSON.stringify({ ...saved, endpoint: "https://untrusted.example.invalid" }), JSON.stringify({ ...saved, endpoint: "http://localhost:5178/foreign/path" }), JSON.stringify({ ...saved, token: "" }), "x".repeat(5001)]) {
     dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, raw); await mount();
-    assert.equal(view().value, "local"); assert.equal(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY), null);
-    await act(async () => { await delay(20); });
+    await waitFor(() => !!dom.document.querySelector('[role="alert"]'), "default gateway failure");
+    assert.equal(view().value, "live"); assert.equal(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY), null);
     await act(async () => root!.unmount()); root = undefined;
   }
-  assert.equal(fetcher.mock.callCount(), 0);
+  assert.equal(requests.length, 6);
+  assert.ok(requests.every(request => request.url === `${dom.location.origin}/api/atlas/api/v1/dataset/export` && request.authorization === null));
 });
 
 for (const action of ["local", "demo", "endpoint", "token", "disconnect"] as const) test(`${action} cancels pending restoration and a late response cannot restore old credentials or change the view`, async () => {
@@ -211,4 +216,58 @@ test("changing credentials while a filter query is pending clears the cancelled 
   assert.equal(dom.document.querySelector(".atlas-results-heading .animate-spin"), null);
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0);
   assert.equal(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY), null);
+});
+
+
+test("first active visit reads only the default backend index without browser credentials or automatic acquisition", async () => {
+  seedLocal(); const requests: Array<{ url: string; method?: string; authorization: string | null }> = [];
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, options?: RequestInit) => {
+    requests.push({ url: String(url), method: options?.method, authorization: new Headers(options?.headers).get("Authorization") }); return response();
+  });
+  await mount(); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "default backend full index");
+  assert.equal(view().value, "live");
+  assert.equal(requests.length, 1); assert.equal(requests[0]!.url, `${dom.location.origin}/api/atlas/api/v1/dataset/export`);
+  assert.equal(requests[0]!.authorization, null); assert.equal(requests[0]!.method, undefined);
+  assert.deepEqual(JSON.parse(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY)!), { schemaVersion: 1, dataMode: "live", endpoint: "/api/atlas", token: "" });
+  assert.equal(dom.document.querySelector('input[type="password"]'), null);
+  assert.ok(!dom.document.body.textContent!.includes("Only local C# fixture"));
+});
+
+test("default backend unavailable is not a zero-job market result and retry recovers", async () => {
+  let offline = true; const requests: string[] = [];
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL) => { requests.push(String(url)); return offline ? new Response("static site has no gateway", { status: 404 }) : response(); });
+  await mount(); await waitFor(() => !!dom.document.querySelector('[role="alert"]'), "gateway unavailable");
+  assert.equal(view().value, "live");
+  assert.match(dom.document.querySelector(".atlas-data-banner")!.textContent!, /岗位数量未知/);
+  assert.match(dom.document.querySelector(".atlas-empty")!.textContent!, /不能据此判断市场没有岗位/);
+  assert.match(dom.document.querySelector('[role="alert"]')!.textContent!, /GitHub 静态网页.*高级连接/);
+  assert.doesNotMatch(dom.document.querySelector(".atlas-data-banner")!.textContent!, /0 个来源岗位/);
+  offline = false; await act(async () => button("重新读取索引").click());
+  await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "gateway retry");
+  assert.equal(requests.length, 2); assert.equal(dom.document.querySelector('[role="alert"]'), null);
+});
+
+test("inactive first visit waits for activation and default retry discards manual connection credentials", async () => {
+  const requests: Array<{ url: string; authorization: string | null }> = [];
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, options?: RequestInit) => { requests.push({ url: String(url), authorization: new Headers(options?.headers).get("Authorization") }); return response(); });
+  await mount(false); assert.equal(view().value, "live"); assert.equal(requests.length, 0);
+  await mount(true); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "activation default backend");
+  await explicitConnect(); await waitFor(() => requests.some(request => request.authorization === `Bearer ${saved.token}`), "manual connection");
+  await act(async () => button("连接本机服务").click());
+  assert.equal(dom.document.querySelector("details")?.open, false, "advanced credentials start collapsed");
+  await act(async () => button("使用默认后端").click());
+  await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22 && requests.length === 3, "default backend reset");
+  assert.equal(requests[2]!.authorization, null);
+  assert.deepEqual(JSON.parse(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY)!), { schemaVersion: 1, dataMode: "live", endpoint: "/api/atlas", token: "" });
+});
+
+
+test("switching to an unavailable default backend discards the previous manual credentials", async () => {
+  dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify(saved));
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL) => String(url).includes("/api/atlas/") ? new Response("unavailable", { status: 503 }) : response());
+  await mount(); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "saved direct connection");
+  await act(async () => button("连接本机服务").click()); await act(async () => button("使用默认后端").click());
+  await waitFor(() => !!dom.document.querySelector('[role="alert"]'), "default gateway rejection");
+  assert.equal(view().value, "live"); assert.equal(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY), null);
+  assert.equal(input("访问令牌").value, ""); assert.equal(input("服务地址").value, "/api/atlas");
 });

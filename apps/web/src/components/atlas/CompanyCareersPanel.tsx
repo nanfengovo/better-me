@@ -1,3 +1,4 @@
+import { hasAtlasServiceTarget } from "./backend-connection";
 import { useEffect, useRef, useState } from "react";
 import type { SourceDefinition } from "@better-me/opportunities";
 import type { CompanyCareerDiscoveryCapabilities, CompanyCareerDiscoveryResult } from "@better-me/source-adapters/browser-contracts";
@@ -11,6 +12,7 @@ export function CompanyCareersPanel(props: Props) {
 
 /** Discovery only prepares evidence and disabled proposals; the existing review flow owns registration. */
 function CompanyCareersSession({ endpoint, token, sources, onProposal, onSelectSource }: Props) {
+  const usable = hasAtlasServiceTarget(endpoint, token);
   const [company, setCompany] = useState("");
   const [website, setWebsite] = useState("");
   const [policyId, setPolicyId] = useState("");
@@ -47,7 +49,7 @@ function CompanyCareersSession({ endpoint, token, sources, onProposal, onSelectS
     setCapabilitiesBusy(false); setCapabilitiesError("搜索配置读取已取消，当前配置状态未知。");
   }
   async function readCapabilities() {
-    if (!token.trim() || capabilitiesAbort.current) return;
+    if (!usable || capabilitiesAbort.current) return;
     invalidate(); setCapabilities(undefined); setCapabilitiesError(""); setCapabilitiesBusy(true);
     const controller = new AbortController(); capabilitiesAbort.current = controller;
     const timer = setTimeout(() => controller.abort(), 15000);
@@ -64,7 +66,7 @@ function CompanyCareersSession({ endpoint, token, sources, onProposal, onSelectS
   }
   async function discover() {
     const hasWebsite = Boolean(website.trim());
-    if (abort.current || capabilitiesAbort.current || !token.trim() || !company.trim() || (hasWebsite && !policy)) return;
+    if (abort.current || capabilitiesAbort.current || !usable || !company.trim() || (hasWebsite && !policy)) return;
     const controller = new AbortController(); abort.current = controller; setBusy(true); setResult(undefined); setError("");
     const timer = setTimeout(() => controller.abort(), 60000);
     try {
@@ -89,13 +91,13 @@ function CompanyCareersSession({ endpoint, token, sources, onProposal, onSelectS
         : <p role="status">网页搜索未配置。仅输入企业名仍可匹配已登记来源；陌生企业需补充官网或配置搜索提供方。</p>
         : <p role="status">网页搜索配置状态未知。</p>}
       {capabilitiesError && <p role="alert" className="atlas-sources-error">网页搜索配置读取失败；当前配置状态未知。{capabilitiesError}</p>}
-      <button type="button" aria-label="重新读取网页搜索配置" disabled={capabilitiesBusy || !token.trim()} onClick={() => void readCapabilities()}>{capabilitiesBusy ? "正在读取搜索配置…" : capabilities || capabilitiesError ? "重新读取搜索配置" : "读取搜索配置"}</button>
+      <button type="button" aria-label="重新读取网页搜索配置" disabled={capabilitiesBusy || !usable} onClick={() => void readCapabilities()}>{capabilitiesBusy ? "正在读取搜索配置…" : capabilities || capabilitiesError ? "重新读取搜索配置" : "读取搜索配置"}</button>
     </div>
     <form onSubmit={(event) => { event.preventDefault(); void discover(); }} className="atlas-sources-grid">
       <label>企业名称<input aria-label="发现企业名称" value={company} onChange={(event) => { invalidate(); setCompany(event.target.value); }} maxLength={240} required /></label>
       <label>企业官网（可选）<input aria-label="企业官网地址" type="url" value={website} onChange={(event) => { invalidate(); setWebsite(event.target.value); }} placeholder="https://企业官网域名" /></label>
       <label>发现访问范围<select aria-label="官网发现端点策略" disabled={!website.trim() || !policies.length} value={policy?.sourceId ?? ""} onChange={(event) => { invalidate(); setPolicyId(event.target.value); }}><option value="" disabled>选择已启用的官网访问范围</option>{policies.map(entry => <option key={entry.sourceId} value={entry.sourceId}>{entry.name}</option>)}</select></label>
-      <button type="submit" disabled={busy || capabilitiesBusy || !token.trim() || !company.trim() || (Boolean(website.trim()) && !policy)}>{busy ? "正在核对招聘入口…" : "查找企业招聘来源"}</button>
+      <button type="submit" disabled={busy || capabilitiesBusy || !usable || !company.trim() || (Boolean(website.trim()) && !policy)}>{busy ? "正在核对招聘入口…" : "查找企业招聘来源"}</button>
       {busy && <button type="button" onClick={cancelDiscovery}>取消官网发现</button>}
     </form>
     {!policies.length && <p>仅输入企业名可直接匹配已登记来源。填写官网时，请先注册并启用本机可用的发现策略，允许对应官网的精确主机与路径。</p>}

@@ -1,3 +1,4 @@
+import { hasAtlasServiceTarget } from "./backend-connection";
 /** @jsxRuntime automatic */
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Check, FileSearch, Loader2, X } from "lucide-react";
@@ -101,7 +102,7 @@ export function AtlasReviewedCardImport({ endpoint, token, capture, revision, on
     <p className="atlas-small">卡片读取时间：<time dateTime={capture.capturedAt}>{capture.capturedAt}</time>；发布时间以卡片披露为准。</p>
     {capture.cards.map(card => <article className="atlas-source-review-card" key={card.url}><h3>{card.title}</h3><p>{card.company} · {card.locationText || "地点未披露"}</p><p>{card.salaryText || "薪资未披露"} · {card.publicationText || "发布时间未知"}</p><a href={card.url} target="_blank" rel="noopener noreferrer">在 {card.platform} 打开原岗位</a><details><summary>核对实际卡片原文</summary><pre className="atlas-reviewed-excerpt">{card.cardText}</pre></details></article>)}
     {value && <div role="status"><p>预览基于索引版本 {value.expectedRevision}：{value.cards.filter(card => !card.existing).length} 个新岗位，{value.cards.filter(card => card.existing).length} 个已有岗位。摘要不会替换已有的完整 JD。</p><ul>{value.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul></div>}
-    {!committed && <div className="atlas-source-review-actions"><button type="button" disabled={busy || !!write || !token.trim()} onClick={() => void readPreview()}>预览入库变化</button><button type="button" disabled={busy || !!write} onClick={() => void refresh()}>重新读取索引</button></div>}
+    {!committed && <div className="atlas-source-review-actions"><button type="button" disabled={busy || !!write || !hasAtlasServiceTarget(endpoint, token)} onClick={() => void readPreview()}>预览入库变化</button><button type="button" disabled={busy || !!write} onClick={() => void refresh()}>重新读取索引</button></div>}
     {value && !committed && <><label className="atlas-reviewed-confirm"><input type="checkbox" checked={confirmed} disabled={busy || !!write} onChange={event => setConfirmation(event.target.checked ? binding : undefined)} />我已核对来源和卡片字段，确认以待核实摘要加入索引</label><button type="button" disabled={busy || (!write && !confirmed)} onClick={() => void commit()}>{busy && <Loader2 size={15} className="animate-spin" />}{write ? "重试本次写入 · 核对回执" : "确认加入统一索引"}</button></>}
     {busy && <p role="status"><Loader2 size={15} className="animate-spin" />正在处理本次请求…</p>}
     {committed && <><div className="atlas-reviewed-success" role="status"><Check size={16} /><p>已加入索引版本 {committed.revision}，新增 {committed.added}、更新 {committed.updated}。行政归属未核实的岗位可能被国内或地区筛选排除；符合筛选但缺少坐标的岗位仍待定位。核对地区不会生成办公坐标。</p><button type="button" disabled={busy} onClick={() => void refresh()}>重新读取索引</button></div>

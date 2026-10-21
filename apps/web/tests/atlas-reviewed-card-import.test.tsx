@@ -420,3 +420,12 @@ test("the write deadline preserves its ambiguous request for explicit retry and 
   assert.equal(snapshots, 0); assert.equal(dom.document.querySelector(".atlas-reviewed-success"), null);
   assert.equal(calls.filter(call => call.path === snapshotPath).length, 0);
 });
+
+
+test("default backend permits explicit reviewed-card preview without a browser token", async () => {
+  const calls = installFetch(call => { assert.equal(call.path, `/api/atlas${previewPath}`); return response(preview()); });
+  await render({ ...fixture(), endpoint: "/api/atlas", token: "" }); assert.equal(calls.length, 0);
+  assert.equal(button(previewLabel).disabled, false); await click(previewLabel);
+  assert.equal(calls.length, 1); assert.equal(new Headers(calls[0]!.init?.headers).has("Authorization"), false);
+  assert.equal(button(importLabel).disabled, true, "manual review checkbox remains required");
+});

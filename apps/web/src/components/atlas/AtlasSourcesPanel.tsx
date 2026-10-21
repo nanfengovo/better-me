@@ -1,3 +1,4 @@
+import { hasAtlasServiceTarget } from "./backend-connection";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Database, Loader2, RefreshCw, Search, X } from "lucide-react";
 import type { AtlasDataset, SourceDefinition } from "@better-me/opportunities";
@@ -55,7 +56,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose }: Atla
     && catalog.adapters.some((adapter) => adapter.adapterId === source.adapterId && adapter.version === source.adapterVersion && adapter.capabilities.includes("list-jobs"));
   const config = configs[configIndex];
   const discoverySources = catalog.sources.filter((entry) => entry.capabilities.includes("discover-sources") && runnable(entry));
-  const usable = token.trim().length > 0;
+  const usable = hasAtlasServiceTarget(endpoint, token);
 
   async function operation(label: string, action: (signal: AbortSignal) => Promise<void>) {
     if (active.current) return;
@@ -79,7 +80,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose }: Atla
     const controller = new AbortController(); active.current?.abort(); active.current = controller; pending.current.clear();
     setCatalog({ sources: [], adapters: [] }); setSourceId(""); setDiscoverySourceId(""); setPreview(undefined); setSync(undefined);
     setDiscovery(undefined); setInspection(undefined); setProposal(undefined); setError(""); setNotice("");
-    if (!token.trim()) { active.current = null; setBusy(""); return () => controller.abort(); }
+    if (!usable) { active.current = null; setBusy(""); return () => controller.abort(); }
     setBusy("读取来源");
     void client.list({ signal: controller.signal }).then((next) => {
       controller.signal.throwIfAborted(); setCatalog(next);
@@ -88,7 +89,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose }: Atla
     }).catch((failure: unknown) => { if (!controller.signal.aborted) setError(errorText(failure)); })
       .finally(() => { if (active.current === controller) { active.current = null; setBusy(""); } });
     return () => { controller.abort(); active.current?.abort(); active.current = null; };
-  }, [client, token]);
+  }, [client, usable]);
 
   function scopeInput() {
     const records = Number(maxRecords); const pages = Number(maxPages);
@@ -162,7 +163,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose }: Atla
     <header><div><span className="atlas-eyebrow">SOURCE TOOLS</span><h2><Database size={19} />{t("岗位来源工具", "Job source tools")}</h2></div>
       <button type="button" onClick={() => { active.current?.abort(); onClose(); }} aria-label={t("关闭来源工具", "Close source tools")}><X size={17} /></button></header>
     <p>{t("连接本机服务，管理来源、有限预览与手动刷新。岗位、招聘活动和公司线索分别保存；原始来源与覆盖范围会保留。", "Manage real sources, bounded previews and manual refreshes through your local service. Jobs, campaigns and company leads retain their separate identity and provenance.")}</p>
-    {!usable && <p role="status" className="atlas-sources-callout">{t("请先在“本机服务”中填写地址和访问令牌，再使用来源工具。", "Enter the local service address and access token in Connection first.")}</p>}
+    {!usable && <p role="status" className="atlas-sources-callout">{t("请先连接岗位后端；默认后端无需填写令牌，高级直连需有效服务地址与令牌。", "Enter the local service address and access token in Connection first.")}</p>}
     <CompanyCareersPanel endpoint={endpoint} token={token} sources={catalog.sources} onProposal={editJson} onSelectSource={(id, companyName) => { setSourceId(id); const configuredName = catalog.sources.find((entry) => entry.sourceId === id)?.options?.companyName; setCompanies(typeof configuredName === "string" ? configuredName : companyName); setPreview(undefined); setSync(undefined); setNotice("已选择企业招聘来源。可继续填写岗位关键词与地区，预览后手动获取真实岗位。"); }} />
     {busy && <div role="status" className="atlas-sources-actions"><Loader2 size={15} className="animate-spin" /><span>{busy}</span><button type="button" onClick={() => active.current?.abort()}>{t("取消操作", "Cancel operation")}</button></div>}
     {error && <p role="alert" className="atlas-sources-error">{error}</p>}

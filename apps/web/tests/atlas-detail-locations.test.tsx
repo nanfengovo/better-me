@@ -13,6 +13,7 @@ import { reviewedCardsPage, reviewedCardsSource } from "../../job-service/src/re
 import { extractPublicJobHtml } from "../server/jd-extractor.ts";
 import type { AtlasDetailLocationsProps } from "../src/components/atlas/AtlasDetailLocations.tsx";
 import { createAtlasSourceClient } from "../src/components/atlas/service-client.ts";
+import { ATLAS_CONNECTION_SESSION_KEY, DEFAULT_ATLAS_ENDPOINT } from "../src/components/atlas/connection-session.ts";
 import { createJobMapFocus } from "../src/components/atlas/map-focus.ts";
 import { jdBrowserCleanupTracker } from "../src/lib/jd-browser-cleanup.ts";
 import type { AtlasPrototypeProps } from "../src/components/atlas/prototypes/types.ts";
@@ -498,15 +499,13 @@ test("desktop workspace exchanges its third reading column for address review wh
     if (call.path === "/api/v1/sources") return response(BASE.sources);
     return defaultResponse(call);
   });
+  // This scenario verifies the desktop reading column with its own held index,
+  // independently of the first-visit default backend connection workflow.
+  dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify({ schemaVersion: 1, dataMode: "live",
+    endpoint: DEFAULT_ATLAS_ENDPOINT, token: "synthetic-desktop-address-token" }));
   dom.document.body.innerHTML = "<main></main>"; root = createRoot(dom.document.querySelector("main")! as unknown as Element);
   await act(async () => root!.render(h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" }, children: h(AtlasWorkspace, { onAnalyze() {}, onSaveOpportunity() {} }) })));
-  await settled(() => hasButton("连接本机服务")); await click("连接本机服务");
-  const token = dom.document.querySelector<HTMLInputElement>('input[type="password"]'); assert.ok(token);
-  await act(async () => {
-    Object.getOwnPropertyDescriptor(dom.HTMLInputElement.prototype, "value")!.set!.call(token, "synthetic-desktop-address-token");
-    token.dispatchEvent(new dom.Event("input", { bubbles: true }));
-  });
-  await click("连接并读取索引"); await settled(() => dom.document.querySelectorAll(".atlas-job-card").length === 1 && !!dom.document.querySelector('[data-detail-address-map-probe]'));
+  await settled(() => dom.document.querySelectorAll(".atlas-job-card").length === 1 && !!dom.document.querySelector('[data-detail-address-map-probe]'));
   assert.equal(dom.document.querySelector(".atlas-workspace")!.getAttribute("data-pane-layout"), "wide");
   const card = dom.document.querySelector<HTMLButtonElement>(".atlas-job-card")!, list = dom.document.querySelector<HTMLDivElement>(".atlas-job-list")!, map = dom.document.querySelector('[data-detail-address-map-probe]')!;
   const mounts = mapMounts; list.scrollTop = 137;

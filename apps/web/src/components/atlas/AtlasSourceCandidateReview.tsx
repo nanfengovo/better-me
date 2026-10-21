@@ -1,3 +1,4 @@
+import { hasAtlasServiceTarget } from "./backend-connection";
 /** @jsxRuntime automatic */
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ArrowUpRight, FileSearch, Loader2, X } from "lucide-react";
@@ -52,7 +53,7 @@ export function AtlasSourceCandidateReview({ endpoint, token, source, request, o
   const busy = operation?.binding === binding;
   const value = result?.binding === binding ? result.value : undefined;
   const error = failure?.binding === binding ? failure.message : undefined;
-  const eligible = Boolean(token.trim()) && source.enabled && source.status === "active"
+  const eligible = hasAtlasServiceTarget(endpoint, token) && source.enabled && source.status === "active"
     && source.runtime.includes("local-service") && source.capabilities.includes("list-jobs");
   const classified = value?.page.records.map((record, index) => ({ record, index,
     status: assessSourceScopeMatch(record, value.localFilters).status,

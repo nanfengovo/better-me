@@ -79,19 +79,20 @@ async function flush(action: () => void = () => {}) {
 }
 async function render(active = true, demo = true) {
   const firstRender = !root;
+  if (!root && !dom.sessionStorage.getItem("better-me:atlas-connection-session:v1")) dom.sessionStorage.setItem("better-me:atlas-connection-session:v1", JSON.stringify({ schemaVersion: 1, dataMode: "local" }));
   if (!root) { dom.document.body.innerHTML = "<main></main>"; root = createRoot(dom.document.querySelector("main")! as unknown as Element); }
   await flush(() => root!.render(h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" },
     children: h(AtlasWorkspace, { active, onSaveOpportunity: noAction, onAnalyze: noAction }) })));
   if (firstRender && demo) await flush(() => {
     const dataView = dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!;
-    assert.equal(dataView.value, "local", "real local data must be the default");
+    assert.equal(dataView.value, "local", "this scenario explicitly starts in the local view");
     dataView.value = "demo"; dataView.dispatchEvent(new dom.Event("change", { bubbles: true }));
   });
   if (firstRender && demo) await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22,
     "the initial synthetic query's 22 job cards");
 }
 function button(text: string) {
-  const found = [...dom.document.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent?.trim() === text);
+  const found = text === "连接本机服务" ? dom.document.querySelector<HTMLButtonElement>('[aria-label="岗位后端设置"]') : [...dom.document.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent?.trim() === text);
   assert.ok(found, `Missing button ${text}`); return found;
 }
 function resultsHeading() { return dom.document.querySelector(".atlas-results-heading h2")!.textContent!; }
@@ -101,6 +102,7 @@ function changeInput(element: HTMLInputElement, value: string) {
 }
 async function connectFixture() {
   await flush(() => button("连接本机服务").click());
+  await flush(() => changeInput([...dom.document.querySelectorAll("label")].find(node => node.textContent?.startsWith("服务地址"))!.querySelector<HTMLInputElement>("input")!, "http://127.0.0.1:5178"));
   await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('input[type="password"]')!, "synthetic-fixture-token"));
   await flush(() => button("连接并读取索引").click());
 }
@@ -313,6 +315,7 @@ test("live snapshot list loads beyond the first page and keeps loaded jobs after
   installWorkspaceFetch(async () => new Response(JSON.stringify({ ok: true, requestId: "workspace-live-fixture", value: AtlasDatasetSchema.parse(data) })));
   await render();
   await flush(() => button("连接本机服务").click());
+  await flush(() => changeInput([...dom.document.querySelectorAll("label")].find(node => node.textContent?.startsWith("服务地址"))!.querySelector<HTMLInputElement>("input")!, "http://127.0.0.1:5178"));
   const token = dom.document.querySelector('input[type="password"]')!;
   await flush(() => { Object.getOwnPropertyDescriptor(dom.HTMLInputElement.prototype, "value")!.set!.call(token, "synthetic-fixture-token"); token.dispatchEvent(new dom.Event("input", { bubbles: true })); });
   await flush(() => button("连接并读取索引").click());
@@ -436,7 +439,7 @@ for (const kind of ["remote", "unknown"] as const) test(`${kind} location facts 
 });
 
 
-test("default view shows only saved real-source records with separate source/publication badges and never changes the private library", async () => {
+test("explicit local view shows only saved real-source records with separate source/publication badges and never changes the private library", async () => {
   const published = createOpportunity({ company: "合成测试雇主", title: "本地来源测试岗", description: "合成测试正文", sourcePlatform: "51JOB", sourceUrl: "https://jobs.51job.com/shanghai/123456789.html", sourcePublishedAt: "2025-01-01T10:00:00+08:00", collectedAt: "2026-10-18T00:00:00Z" });
   const unknown = createOpportunity({ company: "合成测试雇主", title: "未知发布时间测试岗", description: "合成测试正文", sourcePlatform: "BOSS直聘", sourceUrl: "https://www.zhipin.com/job_detail/synthetic.html", collectedAt: "2026-10-18T00:00:00Z" });
   published.application.notes = "private fixture must stay in old library";
@@ -552,7 +555,7 @@ test("main search without a connection opens connection settings and never sends
   await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "C#"));
   await flush(() => button("连接真实来源搜索").click());
   assert.equal(fetcher.mock.callCount(), 0);
-  assert.equal(dom.document.querySelector(".atlas-settings h2")!.textContent, "连接你的本机岗位索引");
+  assert.equal(dom.document.querySelector(".atlas-settings h2")!.textContent, "岗位后端连接");
   assert.match(dom.document.querySelector(".atlas-search-notice")!.textContent!, /先连接本机来源服务/);
   assert.equal(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!.value, "C#");
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0);
@@ -1070,15 +1073,16 @@ test("an empty real opportunity library offers acquisition instead of a vacant r
   assert.equal(dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!.value, "local");
 });
 
-test("the live index is selectable before connecting and opens connection settings without network requests", async () => {
+test("selecting the live view requests the default backend and keeps connection failure actionable", async () => {
   const external = mock.method(globalThis, "fetch", async () => { throw new Error("Unexpected external request"); });
   await render(true, false);
   const view = dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!;
   assert.ok([...view.options].some(option => option.value === "live"));
   await flush(() => { view.value = "live"; view.dispatchEvent(new dom.Event("change", { bubbles: true })); });
-  assert.ok(dom.document.querySelector(".atlas-settings input[type=password]"));
-  assert.equal(external.mock.callCount(), 0);
-  assert.match(dom.document.querySelector(".atlas-empty")!.textContent!, /连接本机索引/);
+  assert.equal(external.mock.callCount(), 1);
+  assert.equal(view.value, "live");
+  assert.match(dom.document.querySelector(".atlas-empty")!.textContent!, /岗位数量未知/);
+  assert.match(dom.document.querySelector('[role="alert"]')!.textContent!, /默认后端不可用/);
 });
 
 test("desktop batches occupy only the reading column and leave the card's native single and double click targets stable", async () => {

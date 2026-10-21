@@ -29,9 +29,9 @@ async function waitFor(condition: () => boolean, description: string) {
   const deadline = performance.now() + 5000;
   while (!condition()) { assert.ok(performance.now() < deadline, `Timed out: ${description}: ${dom.document.body.textContent?.slice(-1500)}`); await act(async () => { await delay(10); }); }
 }
-async function render(token = "synthetic-panel-token", onSnapshot = (_data: AtlasDataset) => {}) {
+async function render(token = "synthetic-panel-token", onSnapshot = (_data: AtlasDataset) => {}, endpoint = "http://127.0.0.1:5178") {
   dom.document.body.innerHTML = "<main></main>"; root = createRoot(dom.document.querySelector("main")! as unknown as Element);
-  await act(async () => root!.render(h(AtlasSourcesPanel, { endpoint: "http://127.0.0.1:5178", token, onSnapshot, onClose: () => {} })));
+  await act(async () => root!.render(h(AtlasSourcesPanel, { endpoint, token, onSnapshot, onClose: () => {} })));
   await waitFor(() => dom.document.querySelector("section")?.getAttribute("aria-busy") === "false", "initial source read");
 }
 function button(text: string) { const element = [...dom.document.querySelectorAll("button")].find((node) => node.textContent?.trim() === text); assert.ok(element, `Missing button: ${text}`); return element; }
@@ -50,7 +50,7 @@ after(() => { hooks.deregister(); dom.happyDOM.abort(); for (const [key, descrip
 
 test("missing token leaves real tools inactive and does not request localhost", async () => {
   const fetcher = mock.method(globalThis, "fetch", async () => { throw new Error("must not fetch"); });
-  await render(""); assert.match(dom.document.body.textContent!, /请先在“本机服务”/); assert.equal(fetcher.mock.callCount(), 0);
+  await render(""); assert.match(dom.document.body.textContent!, /请先连接岗位后端/); assert.equal(fetcher.mock.callCount(), 0);
   assert.equal(button("更新地图快照").disabled, true);
 });
 
@@ -183,4 +183,13 @@ test("unmount cancels an in-flight tool and prevents late snapshot delivery", as
   await act(async () => button("更新地图快照").click()); assert.ok(pendingSignal); assert.equal(pendingSignal.aborted, false);
   await act(async () => root!.unmount()); root = undefined;
   assert.equal(pendingSignal.aborted, true); assert.equal(callbackCount, 0);
+});
+
+
+test("default gateway enables source tools with an empty browser token and only reads the local catalog", async () => {
+  const requests: Array<{ url: string; auth: string | null }> = [];
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => { requests.push({ url: String(url), auth: new Headers(init?.headers).get("Authorization") }); return response({ sources: [source], adapters }); });
+  await render("", () => {}, "/api/atlas");
+  assert.equal(button("更新地图快照").disabled, false); assert.equal(button("预览一页 · 不写入").disabled, false);
+  assert.equal(requests.length, 1); assert.equal(requests[0]!.url, `${dom.location.origin}/api/atlas/api/v1/sources`); assert.equal(requests[0]!.auth, null);
 });

@@ -1,3 +1,6 @@
+import { DEFAULT_ATLAS_BACKEND_ENDPOINT } from "./backend-connection";
+export { DEFAULT_ATLAS_BACKEND_ENDPOINT } from "./backend-connection";
+
 export const ATLAS_CONNECTION_SESSION_KEY = "better-me:atlas-connection-session:v1";
 export const DEFAULT_ATLAS_ENDPOINT = "http://127.0.0.1:5178";
 
@@ -13,8 +16,9 @@ function sessionStore(): SessionStore | undefined {
   try { return window.sessionStorage; } catch { return undefined; }
 }
 
-/** Automatic reconnection is limited to the same loopback root explicitly connected before. */
+/** The gateway stores only a marker; direct loopback credentials require a successful manual connection. */
 function validIdentity(value: Record<string, unknown>): value is Record<string, unknown> & AtlasConnectionIdentity {
+  if (value.endpoint === DEFAULT_ATLAS_BACKEND_ENDPOINT) return value.token === "";
   if (typeof value.endpoint !== "string" || value.endpoint.length > 200
       || typeof value.token !== "string" || !value.token.trim() || value.token.length > 4096 || /[\r\n\0]/.test(value.token)) return false;
   try {
@@ -47,7 +51,7 @@ export function readAtlasConnectionSession(storage = sessionStore()): AtlasConne
     if (raw === null || raw === undefined) return undefined;
     const session = raw.length <= 5000 ? parseAtlasConnectionSession(JSON.parse(raw)) : undefined;
     if (session) return session;
-  } catch { /* Damaged, unavailable and future-version records never initiate a request. */ }
+  } catch { /* Damaged and future-version identities are discarded; the workspace may use its fixed default backend. */ }
   clearAtlasConnectionSession(storage);
   return undefined;
 }

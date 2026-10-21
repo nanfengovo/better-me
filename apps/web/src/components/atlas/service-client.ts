@@ -13,6 +13,7 @@ import {
   type PreviewDetailLocationsInput, type ImportDetailLocationsInput,
 } from "@better-me/source-adapters/browser-contracts";
 import { AtlasClientError, readAtlasSnapshot } from "./client";
+import { resolveAtlasServiceTarget } from "./backend-connection";
 import {
   PreviewLocationConfirmationInputSchema, ConfirmLocationInputSchema, RevokeLocationConfirmationInputSchema,
   LocationConfirmationPreviewSchema, LocationConfirmationReceiptSchema,
@@ -118,16 +119,6 @@ function input<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, value: unknown): 
   if (!parsed.success) throw new AtlasSourceServiceError("invalid-input", "输入不符合来源工具契约，请检查 JSON、范围或限制。");
   return parsed.data;
 }
-function baseUrl(endpoint: string, token: string): URL {
-  let url: URL;
-  try { url = new URL(endpoint); } catch { throw new AtlasClientError("invalid-endpoint", "请输入有效的本机服务地址。"); }
-  if (!["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || !["http:", "https:"].includes(url.protocol)
-    || url.username || url.password || url.search || url.hash || url.pathname !== "/") {
-    throw new AtlasClientError("invalid-endpoint", "来源工具仅连接本机 loopback 服务根地址。");
-  }
-  if (!token.trim()) throw new AtlasClientError("missing-token", "请先填写本机服务访问令牌。");
-  return url;
-}
 async function bodyJson(response: Response, { signal, maxBytes = 32 * 1024 * 1024 }: Options): Promise<unknown> {
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) throw new RangeError("maxBytes must be positive.");
   const over = () => new AtlasSourceServiceError("too-large", "服务结果超过浏览器字节上限，请缩小记录数或查询范围。");
@@ -158,13 +149,13 @@ async function bodyJson(response: Response, { signal, maxBytes = 32 * 1024 * 102
 /** Browser access to the real authenticated tool routes. Source configs remain inert data. */
 export function createAtlasSourceClient(endpoint: string, token: string) {
   async function request<T>(path: string, schema: z.ZodType<T, z.ZodTypeDef, unknown>, options: Options = {}, payload?: unknown, key?: string): Promise<T> {
-    options.signal?.throwIfAborted(); const base = baseUrl(endpoint, token);
+    options.signal?.throwIfAborted(); const target = resolveAtlasServiceTarget(endpoint, token);
     if (key !== undefined) input(KeySchema, key);
     let response: Response;
     try {
-      response = await fetch(new URL(`/api/v1/${path}`, base), { method: payload === undefined ? "GET" : "POST", signal: options.signal,
+      response = await fetch(new URL(path, target.apiRoot), { method: payload === undefined ? "GET" : "POST", signal: options.signal,
         credentials: "omit", redirect: "error", cache: "no-store",
-        headers: { Authorization: `Bearer ${token.trim()}`, ...(payload === undefined ? {} : { "Content-Type": "application/json" }), ...(key === undefined ? {} : { "Idempotency-Key": key }) },
+        headers: { ...target.headers, ...(payload === undefined ? {} : { "Content-Type": "application/json" }), ...(key === undefined ? {} : { "Idempotency-Key": key }) },
         ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
       });
     } catch (error) {

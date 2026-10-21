@@ -3,12 +3,8 @@ import {
   type AtlasDataset, type JobQueryInput, type JobQueryResult, type JobSearchItem, type QueryOptions,
 } from "@better-me/opportunities";
 
-export class AtlasClientError extends Error {
-  constructor(public readonly code: "invalid-endpoint" | "missing-token" | "http-error" | "too-large" | "invalid-response", message: string) {
-    super(message);
-    this.name = "AtlasClientError";
-  }
-}
+import { AtlasClientError, isDefaultAtlasEndpoint, resolveAtlasServiceTarget } from "./backend-connection";
+export { AtlasClientError } from "./backend-connection";
 
 type SnapshotOptions = { signal?: AbortSignal; maxBytes?: number };
 const DEFAULT_MAX_BYTES = 32 * 1024 * 1024;
@@ -19,24 +15,19 @@ function tooLarge(): AtlasClientError {
 /** Read only the public loopback export. The byte limit applies before decoding or parsing. */
 export async function readAtlasSnapshot(endpoint: string, token: string, { signal, maxBytes = DEFAULT_MAX_BYTES }: SnapshotOptions = {}): Promise<AtlasDataset> {
   signal?.throwIfAborted();
-  let url: URL;
-  try { url = new URL(endpoint); } catch { throw new AtlasClientError("invalid-endpoint", "请输入有效的本机服务地址。"); }
-  if (!["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)
-      || !["http:", "https:"].includes(url.protocol) || url.username || url.password
-      || url.search || url.hash || url.pathname !== "/") {
-    throw new AtlasClientError("invalid-endpoint", "请输入本机 loopback 服务地址，例如 http://127.0.0.1:5178。");
-  }
-  if (!token.trim()) throw new AtlasClientError("missing-token", "请填写本机服务的访问令牌。");
+  const target = resolveAtlasServiceTarget(endpoint, token);
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) throw new RangeError("maxBytes must be a positive safe integer.");
-  const response = await fetch(new URL("/api/v1/dataset/export", url), {
-    signal, headers: { Authorization: `Bearer ${token.trim()}` },
+  const response = await fetch(new URL("dataset/export", target.apiRoot), {
+    signal, headers: target.headers,
     credentials: "omit", redirect: "error", cache: "no-store",
   });
   if (signal?.aborted) void response.body?.cancel(signal.reason).catch(() => {});
   signal?.throwIfAborted();
   if (!response.ok || response.redirected) {
     void response.body?.cancel().catch(() => {});
-    throw new AtlasClientError("http-error", `服务返回 ${response.status}。请核对令牌和当前网页的允许 Origin。`);
+    throw new AtlasClientError("http-error", isDefaultAtlasEndpoint(endpoint)
+      ? `默认后端不可用（HTTP ${response.status}）。请启动本机网页与岗位后台后重试；GitHub 静态网页可在高级连接中直连本机服务。`
+      : `服务返回 ${response.status}。请核对令牌和当前网页的允许 Origin。`);
   }
   const declaredLength = response.headers.get("Content-Length");
   if (declaredLength !== null && /^\d+$/.test(declaredLength) && Number(declaredLength) > maxBytes) {
