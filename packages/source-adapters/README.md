@@ -12,7 +12,7 @@
 | `lever` / `1` | 具体公司的 Postings API board；支持 board 内 offset 分页。 | 保留原始地点、工作方式、正文和可用的薪资声明；未披露税制、固定工资组成时不自行补全。演示 board 不是市场数据。 |
 | `ashby` / `1` | 具体公司的公开 job-board API。 | 远程资格区域单独保存，不制造办公室坐标；保留薪资原文与源时间。 |
 | `tencent` / `1` | 腾讯招聘官网固定 HTTPS Query 端点；`roles` 逐词远程查询、按 OR 分页。 | 默认职责摘录，可显式启用受限 ByPostId 详情补全；保留 `PostId`、原始国家/地点和更新时间，上游关键词仍需本地筛选。 |
-| `mapped-json` / `1` | `entryUrl` 指定的 JSON 列表及有限字段路径映射。 | 默认 `discoveryOnly: true`；人工审核后才可配置为岗位记录。不能运行源仓库代码或自定义 JS。 |
+| `mapped-json` / `1` | `entryUrl` 指定的 JSON 列表及有限字段路径映射；可显式配置来源返回的数字页码续读。 | 默认 `discoveryOnly: true`；人工审核后才可配置为岗位记录。不能运行源仓库代码或自定义 JS。 |
 | `github-json` / `1` | `raw.githubusercontent.com` 的具体 JSON 文件，使用相同有限映射。 | 强制 `discovery-lead`；不能用配置将目录、多个方向或招聘批次变成已核实单岗。 |
 
 腾讯适配器声明 `remoteFilters: ["roles"]`，将关注关键词分别传给官网；多个词各自分页，保留 OR，不合计可能重叠的上游总数。`regions` 和 `companyNames` 不发给该端点，明确报告为上游未执行，再由应用层匹配。其余现有适配器的 `remoteFilters` 均为空，按具体 board / feed 列举。51job、Boss、猎聘和 LinkedIn 仍使用既有单岗读取；没有把它们标为已实现的平台级搜索。
@@ -48,6 +48,24 @@
 ```
 
 这些字段放在来源的 `options` 内，`entryUrl` 放在来源顶层。路径只允许有限的自有属性访问，例如 `data.jobs`；不支持通配符、表达式、括号脚本、原型遍历或 getter。`recordsPath: ""` 表示根数组。记录必须具备稳定 ID 或原始 URL，不能把数组下标当岗位身份；位置与工资文字保持原文，不自动猜坐标或工资数值。
+
+### JSON 来源分页
+
+对明确返回下一页链接的 API，可在同一个 `options` 对象增加以下**平铺字段**，不需要新适配器或自定义代码：
+
+```json
+{
+  "nextPageUrlPath": "links.next",
+  "pageParameter": "page",
+  "enumerationComplete": true
+}
+```
+
+只有来源实际返回的下一页会被跟随，且仅允许受审 `entryUrl` 的同源、同路径和相同固定查询参数，改变配置指定的递增数字页码。显式 `null` 表示该 API 当次清单末尾；缺失、循环、跨站或额外参数不会被跟随，已读取的有效记录仍保留并标为部分覆盖。旧配置没有 `nextPageUrlPath` 时保持原有限单页语义，不能靠猜页码扩大读取。
+
+每次调用先下载完整一页，再按现有范围匹配分配输出额度。输出不足以容纳当前页时，私有游标绑定来源、配置、原条件和整页指纹；继续读取仍下载该页，内容变化就拒绝旧偏移。`fetchedRecords`／累计尝试计入实际下载的记录数，重读会重复计数，不能当作唯一岗位数或仅选中记录的网络预算。实时接口的不同页之间可能重复或移动，索引按来源身份处理重复；分页不是跨页快照，也不保证市场全量。`enumerationComplete: false` 的窗口即使没有下一页仍保持部分覆盖。
+
+来源刷新仍受请求、字节、时间、记录、页数和间隔预算约束，下一批由现有 `sources.continue` 工具显式发起。具体工具和持久进度见[服务说明](../../apps/job-service/README.md#分批扫描与显式续读)。内置 Arbeitnow 配置仅为待审默认，已安装来源不会被目录静默覆盖；更新既有来源须在来源工具中读取当前配置、核对这两个分页字段及额度，并按当前版本明确保存。真实两页能力探测和合成持久续读的区别见[验收报告](../../docs/reports/job-atlas-json-pagination-batch-2026-10-22.md)。
 
 代码注册器示意：
 
