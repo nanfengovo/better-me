@@ -1,0 +1,19 @@
+{
+  "capturedAt": "2026-10-22",
+  "file": "atlas-company-control-review.webp",
+  "width": 940,
+  "height": 749,
+  "sha256": "32edb6d3f014629db25fe73573720c4fc082dd280d8d973bc5e01c70f71379b7",
+  "encoding": "WebP quality 90, original dimensions",
+  "source": "CUA screenshot of actual local React company evidence panel; no injected layout CSS or compositing",
+  "origin": "http://127.0.0.1:5301",
+  "data": "Explicitly synthetic employer, controller, evidence report and linked job records. No actual company control claim or private data.",
+  "checks": [
+    "read original source company and two linked jobs",
+    "verbatim field citations and explicit preview",
+    "explicit confirmation revision1 to2",
+    "history read and explicit revocation revision2 to3",
+    "Chinese light desktop and English dark 390px view; viewport reset"
+  ],
+  "codeTree": "3125e9c400c3341ce364640d268d9a0140c4f050"
+}

@@ -83,6 +83,10 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/jobs/search" -Headers $jobHe
 | POST | `/api/v1/compensations/preview` | `compensations.preview-review`；逐字段原文依据、版本及预览指纹，不写库。 |
 | POST | `/api/v1/compensations/confirm` | `compensations.confirm-review`；明确reviewed及幂等键，追加本人核对。 |
 | POST | `/api/v1/compensations/revoke` | `compensations.revoke-review`；明确撤销本人核对，保留历史及回执。 |
+| POST | `/api/v1/companies/control-review/read` | `companies.read-control-review`；读取指定岗位／公司的来源、当前值与核对历史。 |
+| POST | `/api/v1/companies/control-review/preview` | `companies.preview-control-review`；逐字段原文引用与版本预览，不联网、不写库。 |
+| POST | `/api/v1/companies/control-review/confirm` | `companies.confirm-control-review`；明确本人审核、预览指纹及幂等键，追加控股核对。 |
+| POST | `/api/v1/companies/control-review/revoke` | `companies.revoke-control-review`；明确撤销本人的指定核对，保留历史和回执。 |
 | POST | `/api/v1/jobs/search` | `jobs.search`；直接传共享 `JobQuery`。 |
 | GET | `/api/v1/jobs/:jobId` | `jobs.read-detail`；旧 ID 按本次快照解析到规范岗位，返回公司、全部来源、观察与 JD 快照。 |
 | POST | `/api/v1/jobs/reviewed-cards/preview` | `jobs.preview-reviewed-cards`；校验本人核对的四平台卡片、索引版本和字段证据，返回预览指纹，不联网、不写库。 |
@@ -242,9 +246,9 @@ SQLite 持久保存来源、公司、岗位、位置、薪资、来源 listing�
 
 写入、版本号和耐久幂等回执在同一个 SQLite 事务内提交。取消、同源新任务和来源配置变更使用代次校验，迟到结果不能覆盖新任务。进程内工具结果缓存不等于这些耐久回执；涉及外部网络的读取本身也不具备事务回滚。
 
-`GET /api/v1/dataset/export` 是公共领域交换格式，包含当前有效地区及其本人确认标记，但不包含任务、回执、leads、归并 / 地点原始投影或完整决策历史，不能当作完整仓库备份。已合并的公共投影不能重新覆盖原始岗位，普通公共导入也不能伪造 `userResolution`；必须使用完整备份保留拆分和地区撤销能力。
+`GET /api/v1/dataset/export` 是公共领域交换格式，包含当前有效地区及其本人确认标记，以及当前有效企业核对实际引用的独立企业目录材料；不包含任务、回执、leads、归并／地点／公司原始投影或完整决策历史，不能当作完整仓库备份。已合并的公共投影不能重新覆盖原始岗位，普通公共导入也不能伪造 `userResolution`、企业 `controlReview` 或专用补证记录；必须使用完整备份保留拆分、地区及企业核对的撤销能力。
 
-仓库层提供 `repository.backup()` / `repository.restore(backup, { expectedRevision, actorScope, idempotencyKey })`：当前 schema v6 完整备份包含公共数据、任务、回执、线索、原始岗位、归并决策、别名历史、岗位版本计数，以及 `baseLocations`、`locationDecisions`、办公确认历史、`baseCompensations` 与 `compensationDecisions`，以及 `fxSnapshots` 原文与 `fxActivations` 选择历史。仍接受符合各自规则的 v1–v5 仓库备份；已有 SQLite 在事务中升级，V5→V6只增加FX表及不可变触发器，不改变原有数据或全局 revision。
+仓库层提供 `repository.backup()` / `repository.restore(backup, { expectedRevision, actorScope, idempotencyKey })`：当前源码 schema V7 的完整备份包含公共数据、任务、回执、线索、原始岗位、归并决策、别名历史、岗位版本计数，以及 `baseLocations`、`locationDecisions`、办公确认历史、`baseCompensations` 与 `compensationDecisions`、`fxSnapshots` 原文与 `fxActivations` 选择历史，新增 `baseCompanies` 和全部 `companyControlDecisions` 原文／决议。仍接受符合各自规则的 V1–V6 备份；V6→V7 增加公司底账、追加企业控股决议表及不可变触发器，升级本身不应改变原有数据或全局 revision。实际服务须完成备份与受控迁移后才能使用新版接口，不能只刷新页面或用旧代码直接打开 V7 库。
 
 恢复先校验内容哈希、领域引用、决策引用 / 身份 / 先后关系、可信目录解析、当前别名及有效投影，再重放地区与归并历史；地点回执还需与其当时版本和岗位归属一致。伪造来源地点、目录名称、投影或回执会被拒绝，现库保留。通过后原子替换，运行中任务恢复为已取消。当前没有 HTTP 恢复路由或 CLI 备份 / 恢复命令；集成方应通过可信应用代码调用，不应在服务运行时只复制主 SQLite 文件而遗漏 WAL。
 
@@ -367,3 +371,21 @@ Web逐岗外读、官网发现、地址候选、来源保存与办公坐标确�
 ## 参考汇率与查询上下文
 
 参考汇率管理使用 `fx.fetch-reference`／`fx.read-state`／`fx.preview-import`／`fx.confirm-import`／`fx.activate` 五项共享工具，分别对应 `/api/v1/fx/reference`、`state`、`preview`、`import`、`activate` 的认证 POST。默认公开参考源由宿主安装，只有明确点击读取才请求网络；保存与启用仍须另外核对。SQLite V6 完整备份保留原文快照、选择历史及回执，旧版本代码不能直接打开 V6 数据库。使用与换算边界见[汇率说明](../../docs/reports/job-atlas-fx-context-2026-10-21.md)。
+
+## 企业最终控股证据核对
+
+四项 `companies.*-control-review` 工具使用上表的认证 POST 路径；网页同源网关只开放固定路由，由宿主管理令牌。读取／预览是 `read-index`，确认／撤销是 `local-write`；均不联网，不自动访问填写的出处 URL 或抓取企业信息。
+
+读取输入为 `{ jobId, companyId, expectedRevision }`。预览增加 `proposal`、`reason`；确认重交相同输入并增加 `previewFingerprint`、`reviewed: true` 和 `Idempotency-Key`。撤销输入为 `{ jobId, companyId, decisionId, expectedRevision, reason, reviewed: true }`，同样需要幂等键。执行身份与预算来自可信宿主，不能在请求中自封。
+
+`proposal.basis` 固定为 `manual-evidence-review`；`documents` 保留实际 `sourceUrl`、`retrievedAt` 和 `rawText`。`supports` 以 `field`、`documentIndex`、`quote` 及可选 `controllerIndex` 引用原句。实际雇主法定名称、可选母公司关系、状态与控制模式均有字段引用；每个控制方另需名称、性质、`controllerControl` 实际最终控制关系，以及填写时的来源国别引用。最多10份材料、20个控制方，原文单份256 KiB／合计1 MiB UTF-8字节；确认和恢复从原文计算SHA-256并拒绝未来读取／决议。
+
+`resolved` 配合 `single`／`joint`／`dispersed` 区分单一、共同及无实际控制人；后者不创建控制方名称或控股来源国家。`unknown`／`conflicting` 可以保存核对历史，但保持未分类。有效公司附 `controlReview` 本人核对标记，手工 `verified` 不代表发布机构认证；原句存在也不表示系统自动验证了法律含义。不能用品牌、注册地或母公司名称猜控制国别。
+
+核对绑定现有岗位与确切公司，作用同 `companyId` 岗位，不按同名合并企业；决议归档当时的 `affectedJobIds`，新岗位不会改变旧回执。普通标题／JD／薪资更新、新增别名或同公司岗位保留有效核对；实际雇主身份、原控制字段、相关覆盖及绑定证据变化追加永久失效事件，A→B→A不复活。有效核对优先于旧控制方覆盖，原覆盖正文保留。
+
+V7的确认／撤销／失效决议与有效公司投影、相关岗位版本及回执原子提交。完整备份保留全部原文；公开数据集仅追加每公司最新有效核对实际引用的禁用 `company-directory` 来源／listing／observation，不挂入任何岗位的 `listingIds`、不创建JD或增加岗位数。撤销或失效的材料继续由历史读取／完整备份保留，避免每次地图查询复制全部旧原文。专用命名空间、来源证据、历史回执和有效投影须能严格重建；恢复不得丢弃目标库已有企业核对历史。
+
+提交后响应未知时使用原body／幂等键恢复耐久回执；可信回执已收到而索引读取失败时只重读。网页内存恢复屏障覆盖关闭面板、切换视图与工作区重挂，整页刷新／浏览器关闭不保证保留前端请求。后端回执持续保存，但恢复原命令仍需原输入和键。
+
+2026-10-22 本切片仍在最终独立树验证：合成浏览器940px中文浅色保存1→2、390px英文深色撤销2→3及认证HTTP已通过，真实服务仍V6／89岗rev85／0控股核对；真实V7迁移、提交、CI和部署待验。原5173进程保留，宿主重启沿用上方“网页默认后端”的严格端口命令。完整范围与后续结果见[企业控股核对报告](../../docs/reports/job-atlas-company-control-review-2026-10-22.md)。
