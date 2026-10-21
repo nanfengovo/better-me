@@ -28,10 +28,11 @@ jurisdiction or the existence of a job from a boundary or a map label.
   auto-rotation frames are suppressed. The consumer can query city buckets at
   overview scale and location buckets at close range through the same domain
   query. Camera movement does not write or upgrade location evidence.
-- A country/province click fits its retained geometry. Bucket picking returns
-  the original bucket. It does not silently promote a city estimate to a
-  verified street address. The consumer can deliberately focus the selected
-  location with its recorded precision.
+- A country/province click fits its retained geometry. A single bucket hit
+  returns the original bucket through `onPick`. Multiple overlapping hits open
+  an explicit chooser before any selection or navigation. Picking does not
+  promote a city estimate to a verified street address. The consumer can
+  deliberately focus the selected location with its recorded precision.
 
 Navigation/scale controls and keyboard movement come from MapLibre. Scene
 rotation is optional, restricted to the distant globe and respects reduced
@@ -39,6 +40,40 @@ motion and hidden tabs. Context-loss errors retain the accompanying job list.
 Online tile, glyph, sprite or style errors use a status message and preserve the
 packaged overview. Detailed labels and geographic coverage remain properties of
 the chosen map provider.
+
+## Overlapping markers and list selection
+
+Hit testing resolves every returned bucket ID against the current original
+`buckets`, deduplicates core/ring hits and ignores retired feature IDs. The
+chooser retains each group's label, job count, WGS84 position and source or
+city-reference basis. Screen overlap makes no assertion that the groups share
+an office. Selecting one calls `onPick` with that original object. When the
+consumer supplies `onPickMany`, “view all” returns the original groups through
+that separate callback.
+
+`bucket-selection.ts` converts the chosen groups into a presentation/list
+selection with stable member IDs and a unique union of job IDs. It never
+constructs a combined coordinate, employer classification or location
+precision. `AtlasWorkspace` intersects this union with the existing query for
+list filtering, sorting and pagination; the map and summary retain the full
+base query. If any member is a city reference, reference invalidation also
+invalidates the retained list selection.
+
+`selectedBucketIds?: readonly string[]` complements the existing single
+`selectedBucketId` contract. The renderer highlights all selected groups,
+including labels installed after an online style finishes loading. Equivalent
+ID sets do not repeat selection filter writes, and changing selection alone
+does not upload bucket GeoJSON. The workspace derives current highlight IDs
+from the selected job-ID union, so city-to-location query-level changes do not
+leave the highlight bound to retired bucket IDs.
+
+The nonmodal chooser uses native buttons, initially focuses its close button
+and returns focus to the map canvas on Escape/close while focus remains inside
+it. Opening stops the current flight and clears the pending rotation-resume
+timer. Map movement, new bucket data, query level, focus/job, mode or renderer
+configuration clears it; an old chooser cannot reappear when a prior view
+returns. Reduced-motion handling remains shared with camera navigation. These
+selection changes do not establish a new large-dataset GPU performance claim.
 
 ## Online sources and geographic detail
 

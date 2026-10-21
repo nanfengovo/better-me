@@ -507,3 +507,12 @@ pnpm --filter @better-me/job-service start `
 
 
 桌面操作与地址精度补充：有来源街址但没有精确点时，双击先进入地址核对；可按城市、邮编限定候选，错误城市／邮编不会成为办公点。最终156项相关回归、实际合成页面几何与50米尺度验证见[本批报告](docs/reports/job-atlas-desktop-precision-2026-10-19.md)。当前真实索引89岗仍无已确认办公坐标，来源未披露的地址需要继续补证。
+
+
+### 重叠地图点与地址补全接续
+
+同一屏幕位置的多个地点组可以逐组选择，也能查看这些标记下全部去重岗位；缩放后继续对应当前地图标记。屏幕重叠不表示同一办公室，地图统计保留原搜索范围。已有来源街址却没有地址候选时，继续同岗详情／官网链，所有地址仍经过预览确认。
+
+![重叠地图标记与全部岗位联动（合成演示）](docs/images/atlas-overlap-choices.webp)
+
+桌面和390px窄屏交互、105项相关测试、功能提交与真实覆盖边界见[本批报告](docs/reports/job-atlas-overlap-address-fallback-2026-10-22.md)；[窄屏截图](docs/images/atlas-overlap-narrow.webp)及[截图来源](docs/images/atlas-overlap-manifest.json)可核对。截图为22个合成岗位，街道底图不代表已核实办公点；真实市场来源和具体办公地点覆盖仍在建设。
