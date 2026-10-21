@@ -35,6 +35,22 @@ pnpm --filter @better-me/job-service start --data-dir $jobDataDirectory --origin
 
 按 `Ctrl+C` 停止服务：停止接受新请求、取消进行中的读取、等候应用任务结束，再关闭 SQLite 和释放本进程的锁。清理未成功完成时会保留数据库与锁，便于核对。
 
+## 网页默认后端
+
+先按上方命令启动服务，再运行 `pnpm --filter @better-me/web dev`。本机网页首次进入岗位地图自动经同源 `/api/atlas` 读取索引，宿主读取默认数据目录的 `service.token`，无需网页输入令牌。顶端显示后端状态，手动直连在高级设置；失败保留真实索引视图并提供重试。读取快照不会自动采集。
+
+网关默认连接 `http://127.0.0.1:5178`，固定以 `http://localhost:5173` 为上游 Origin，所以服务启动参数应包含该 Origin。其他端口或私有数据目录可在**启动 Vite 的终端**设置 `BETTERME_JOB_SERVICE_URL` 与 `BETTERME_JOB_SERVICE_TOKEN_FILE`（绝对路径），再重启 Vite。也可在 Git 忽略的 `apps/web/.env.local` 保存这两项宿主设置，终端变量优先，修改后重启 Vite；不能改用前端 `VITE_*` 或存令牌正文。默认路径不需要配置，Windows 应用隔离路径与普通终端不同时，请采用岗位服务日志中的真实数据目录。
+
+需要重启网页以加载宿主配置时，在管理该网页的终端按 `Ctrl+C`，确认它已退出，再在仓库根目录执行：
+
+```powershell
+pnpm --filter @better-me/web dev --host localhost --port 5173 --strictPort
+```
+
+`--strictPort` 会在端口仍被占用时直接报错，不会悄悄改到另一个端口。已在运行的岗位服务可继续保留；不要另起同一数据目录或改用空数据目录。私有的 `apps/web/.env.local` 会由网关读取，无需把令牌填进网页。
+
+GitHub Pages／现有 Nginx Docker 镜像是静态版，没有该网关；可显式高级直连本机服务，远程常驻后端仍待部署。`vite preview` 可提供此索引网关，但不提供四平台招聘浏览器 API。详见[默认后端报告](../../docs/reports/job-atlas-default-backend-2026-10-21.md)。
+
 ## 使用 HTTP API
 
 默认 API 地址为 `http://127.0.0.1:5178`。实际地址以启动日志为准；`localhost` 不属于 API 的 Host 允许项。除合法 CORS 预检外，**包括 `/healthz` 在内的请求都需要 Bearer token**。
@@ -332,3 +348,8 @@ Web逐岗外读、官网发现、地址候选、来源保存与办公坐标确�
 原JSON-LD `PlatformDetailLocations.version:1`保持兼容，新增`version:2` Liepin可见地址证据。`selector:liepin-work-address[n]`与quote中的`{selector:"liepin-work-address",label:"工作地址"|"工作地点",text}`必须逐项规范重放；V1拒绝此分支，V2不混合JSON-LD与可见数组，坐标字段禁止。native projector/caller才开启可见sidecar，不把普通`requireVisibleDescription`视为证明；URL/provider/同岗/时间/预览版本检查保持。
 
 工具层只将selector/quote映射到领域evidence，完整capture保存在观察rawText，避免wire-only kind污染严格domain。来源原文无行政字段时不会自动继承，地点精度保持unknown。只补来源的street字段不代表已取得办公坐标；明确远程或非本岗位地址的可见披露拒绝。源刷新在同label明确街道/邮编冲突时换新location身份，搬迁后稀疏刷新跟随当前贡献，不拼旧值；V4在同revision持久失效旧office。验证及限制见[可见地址与换址报告](../../docs/reports/job-atlas-visible-office-evidence-2026-10-19.md)。
+
+
+## 官网原岗地点工具
+
+`jobs.read-owned-detail-locations`、`jobs.preview-owned-detail-locations`、`jobs.import-owned-detail-locations` 对应认证 POST `/api/v1/jobs/owned-detail-locations/read|preview|import`。按索引原岗位／listing／版本定位目标；JSON-LD 与 SmartRecruiters 具备实际精确 reader，其他协议保持线索能力。保存必须审核并提供幂等键，只替换原 listing 地点贡献，不改变 JD／薪资／企业或生成坐标。签名 capture、版本和来源指纹、读取顺序及耐久回执防止陈旧覆盖，详见[精确读取报告](../../docs/reports/job-atlas-owned-detail-locations-2026-10-21.md)。

@@ -2,42 +2,23 @@
 
 ## 当前焦点
 
-2026-10-19：来源换址28840e5、native可见地址V2 a21fc4a及文档321a110已按功能推送；产品Actions39214993602四任务success。18文件冻结caf30cd10b离线安装/memory/types10/lint/build6、2504/2504通过。真实猎聘19目标全部静态同岗读取，18份source地址经预览保存到89岗/rev85（9含道路编号），1份仅上海市未采用；JD/薪资与五组查询保持，office0，2次真实地址匹配0候选。原5178已更新PID68700/session22212，V4/快检/外键/token通过。用户无高德Key、要步骤，已写docs/amap-setup.md；现仅Nominatim，高德未接，坐标/展示存储许可需先适配。地图差量更新/空库两栏已发布；新GPU/布局未目视（URL拒绝未绕过）。Career dirty保留、整体Goal active。
+2026-10-21：默认后端13aeef8、官网原岗地址e873168、宿主配置4924ee7已推送，三笔产品Actions四任务均success；最终独立树cd57bf4336完成2567/2567及types10/lint/build6/隐私检查。本轮b27697b进一步把入口/提示统一为后端状态与恢复默认，87/87相关回归和文件Lint通过，远端CI待核。用户确认5173由并行需求管理，已保留PID117364与5178 PID111992；同源实测ready、89岗/rev85、无浏览器Bearer，重启配置见job-service README。官网原岗两次实际read均timeout未保存，street18/office0保持。九项Atlas文档待本批推送；Career dirty保留，完整Goal active。
 
 ## 卡点
 
-- 网页搜索默认关闭；DDG真实遇挑战，SearXNG仍需可用自管HTTPS JSON实例，尚无实时陌生企业闭环。大型meta截断已修，官网hidden／CSS可见性判断仍不全面；线索不能当岗位。
-- 51JOB安全投影空，BOSS曾遇验证；猎聘／LinkedIn仅有限当前页卡片摘录，更多国内地区／官网及完整JD继续，48文本命中不当个人适岗或全网覆盖。
-- 真实89岗rev85，18份来源street字段（9道路编号），office仍0；2真实地址查询均0匹配。受审薪资字段、FX持久与Web同版接线、控股证据操作缺口已审查，未实现；规模性能继续。归并及行政确认保留；Temporal旧字段按原刷新间隔补，不自动重抓。
-- 原错误标签页的自动浏览器观察被URL策略拒绝，未换方式绕过；本轮最新采集／筛选／详情通过HTTP，不称新UI目视已验。原5173／8080和并行Career Agent保留，私人库／备份／profile／实证不入Git。
+- 真实89岗rev85，18份来源街址、9份道路编号、已确认office0；2次Nominatim0匹配，高德未接。用户无Key，申请步骤见amap-setup，不能写假启动参数。
+- DDG真实挑战、网页搜索默认关闭；51安全投影空/BOSS验证，猎聘与LinkedIn有限卡片和正文，不称全网覆盖；JSONLD/SR新精确reader本轮实际读取超时，无新增地址。
+- 受审薪资/FX同版Web/最终控股证据链仍未实现；3D/GPU/更多设备和来源覆盖继续。私人UI曾被URL策略拒绝，未绕过、未新目视。
 
 ## 下一步
 
-1. 本批产品CI四任务success，完成最新文档/公网资源核对；接下来用户按docs/amap-setup.md准备Web服务Key，正式provider仍待坐标/展示使用方式适配。当前89岗rev85、source street18、office0，逐岗精确坐标仍是核心缺口。
-2. 扩更多国内来源／地区、官网实际岗位协议与完整JD；保留平台人工验证与来源刷新间隔，不绕既有私人页面URL策略。
-3. 依据薪资／FX／控股缺口报告先落受审薪资CNY闭环，再接带出处的同版FX和企业证据；原文、版本失效、幂等回执、撤销与地图列表统一投影必须保持。
+1. 核b27697b界面与本批文档Actions/Pages，三笔既有产品CI已success；保留当前5173进程与Career并行成果。重启仅由管理该进程的终端执行，配置见apps/job-service/README.md。旧Key文档失败保留历史，不冒充最新结果。
+2. 推进真实官网原岗详情与准确办公点，保留来源超时/预算与人工核对；不得用城市或总部代替岗位办公室。
+3. 按薪资/控股缺口报告落实受审CNY薪资→带出处FX同版上下文→企业证据；完成地图/列表/统计/恢复同版闭环。
 
 ## 必读附加
 
-- docs/amap-setup.md（用户无Key需步骤；当前尚未接高德，不能写假参数）
-
-- docs/reports/job-atlas-visible-office-evidence-2026-10-19.md（最新V2/换址、2504项、真实6地址/rev73/office0；其余旧报告数字为历史）
-- .agent-memory/.tmp/atlas-visible-office-final-verified.json、.agent-memory/.tmp/visible-office-final-postcheck.json（本机最终验证）
-
-- docs/reports/job-atlas-detail-address-review-2026-10-19.md（当前来源地址/批量计划/性能/真实覆盖缺口与发布）
-
-- docs/reports/job-atlas-desktop-precision-2026-10-19.md（当前桌面稳定轨道、地址约束、156回归、实际合成UI和原服务更新）
-- docs/reports/job-atlas-office-provider-real-2026-10-19.md（本轮真实HTTP、门牌格式修复、39隔离相关测试、原服务及邮编增强）
-- docs/reports/job-atlas-salary-control-gap-2026-10-19.md（下一步薪资／FX／控股源码缺口及未实现范围）
-- docs/reports/job-atlas-desktop-office-address-2026-10-19.md（本轮桌面三栏、V4办公地址、2332隔离回归、合成浏览器及原服务升级）
-- docs/reports/job-atlas-jsonld-sources-2026-10-19.md（通用JSON-LD、2234隔离回归、实时timeout与原响应导入分开、Docker许可）
-- docs/reports/job-atlas-city-references-2026-10-19.md（独立城市分布、2155隔离回归、87岗真实HTTP与发布范围）
-- docs/reports/job-atlas-import-location-2026-10-19.md（入库成功后接续地区核对、96相关回归与合成真实应用联动）
-- docs/reports/job-atlas-career-web-search-2026-10-19.md（provider／独立访问策略、2099／2109与meta修复223检查、真实挑战与未完成闭环）
-- docs/reports/job-atlas-reconciliation-2026-10-19.md（七工具／受审UI／持久回执恢复、2053隔离验证与5对真实弱候选）
-- docs/reports/job-atlas-domestic-source-expansion-2026-10-19.md（最新85岗／26国内C#／48全球文本、完整详情、服务恢复及135隔离回归）
-- docs/reports/job-atlas-ashby-fields-2026-10-19.md（新字段、1975隔离回归／真实7条与原服务更新阻断）
-- docs/reports/job-atlas-smartrecruiters-2026-10-19.md
-- docs/reports/github-atlas-feature-batches-2026-10-19.md
-- docs/reports/job-atlas-location-confirmation-2026-10-19.md
-- docs/job-atlas.md、apps/job-service/README.md、docs/ROADMAP.md
+- docs/reports/job-atlas-default-backend-2026-10-21.md、docs/reports/job-atlas-owned-detail-locations-2026-10-21.md（本批与运行边界）
+- .agent-memory/.tmp/atlas-backend-host-settings-final-verified.json、.agent-memory/.tmp/atlas-default-backend-real.json、.agent-memory/.tmp/owned-detail-runtime-postcheck.json、.agent-memory/.tmp/owned-detail-runtime-smartrecruiters.json（本机最终证据，均不入Git）
+- docs/amap-setup.md、docs/reports/job-atlas-salary-control-gap-2026-10-19.md
+- docs/job-atlas.md、apps/job-service/README.md、docs/ROADMAP.md、docs/planning/job-atlas-architecture-2026-10-18.md

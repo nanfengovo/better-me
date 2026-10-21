@@ -858,3 +858,16 @@
 - 决策：用户没有Key并要求步骤，提供官方应用/添加Key/Web服务/配额管理导航。当前Nominatim继续，申请不等于现有代码已接高德；Key不进入聊天、Git或前端bundle。
 - 依据：官方Web地理编码返回高德坐标，当前内部/MapLibre为WGS84；公开坐标API只转入高德，服务协议对缓存/存储与脱离服务使用有条件，具体底图/长期保存组合没有足够明确依据。后续需落实合适provider/展示方式与坐标证据，不能假设随意反算即兼容。
 - 不选的方案：给出不存在的--office-geocoder amap或VITE_AMAP_KEY入口、将账户Key申请称为地图已准确、承诺永久免费固定配额、以企业/楼宇字段或城市中心代真实办公室、暗改现有地图坐标系、将Key加入README或并行Career改动。
+
+
+## 2026-10-21 | 本机网页默认同源后端，宿主保管服务身份
+
+- **决策**：用户要求把连接当普通后端。首次激活Atlas自动读固定同源索引，状态/重试替代主流程手填；高级保留loopback直连和旧session。失败保持live和未知数量，不退演示/机会库。网关白名单、同源/peer/Host、限额/取消与回显防护保持，浏览器不拿host token。
+- **宿主配置**：Windows MSIX真实数据路径与普通终端可能不同；私有.env.local仅保存URL与token文件真实路径，Vite限定BETTERME_JOB_SERVICE_、终端优先，文件忽略Git且不写令牌正文。静态Pages/Nginx没有此网关或公网岗位后台。
+- **不选的方案**：每次开页手填、前端VITE_*注入令牌、写死本机MSIX路径、自动发现/搜全盘私有凭据、任意目标代理、静态页冒充已部署后台、连接即外部采集。
+
+## 2026-10-21 | 已持有官网原岗精确读取，地点审核与JD刷新分开
+
+- **决策**：JSONLD/SmartRecruiters安装实际readDetail，按后台已有canonical job/listing/source/原编号/URL读取，不依赖前50列表命中。三共享工具分开read/preview/reviewed import；capture绑定source指纹、session/sequence/HMAC，较旧读取不能盖较新已保存结果，原key耐久回执可恢复提交后丢失响应。
+- **边界**：只替换该listing地点贡献及摘录观察，JD/快照/薪资/公司/workMode/recordLastSeen保持；空地址拒删、远程不成office、地点关联工资防孤立、A→B→A不复活旧确认。真实2次read超时不当成功；完整2567及实际运行检查各记范围。
+- **不选的方案**：无限扩大列表找原岗、输入任意URL绕来源策略、给未实现适配器标精确能力、拼旧行政字段、保存地址等于已核办公室/坐标、超时换新key重写、混入Career未提交成果。
