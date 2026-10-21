@@ -40,7 +40,7 @@ SQLite 从 V4 升为 **V5**：`base_compensations` 保留来源底账，`compens
 
 ## 验证状态
 
-产品提交按功能拆为 `46c2a56`（Windows旧锁回收）与 `12f486a`（来源薪资核对），已正常推送main；产品源码树为 `9c950e48ddd7452cc14031816a356a8720c552e5`，与独立验证树完全一致。远端质量、Linux构建、Docker和Pages的状态见 [本批Actions](https://github.com/nanfengovo/better-me/actions/runs/39616602053)。文档发布后的运行另由同一工作流记录。
+产品提交按功能拆为 `46c2a56`（Windows旧锁回收）与 `12f486a`（来源薪资核对），已正常推送main；产品源码树为 `9c950e48ddd7452cc14031816a356a8720c552e5`，与独立验证树完全一致。产品 [首次Actions](https://github.com/nanfengovo/better-me/actions/runs/39616602053) 的Linux构建和Docker成功，Windows旧application-reconciliation文件级无诊断失败，Pages正确阻断；保留历史结果。同产品树的 [文档批Actions](https://github.com/nanfengovo/better-me/actions/runs/39617169751) 已通过Windows质量／Linux构建／Docker，Pages随后执行。后续诊断改进及文档发布的最终状态见 [main工作流](https://github.com/nanfengovo/better-me/actions/workflows/ci-pages.yml?query=branch%3Amain)。
 
 | 检查 | 实际结果与范围 |
 | --- | --- |
@@ -52,7 +52,7 @@ SQLite 从 V4 升为 **V5**：`base_compensations` 保留来源底账，`compens
 | 真实迁移 | 完整SQLite在线备份及隔离V4→V5克隆后，重新核对原owner、0运行任务和数据hash，再仅更新已持有的5178。真实89岗／revision85、原26表、dataset与token保持，schema V5 |
 | 实际API | 原后台与未重启的5173同源网关均真实只读调用薪资review成功；current与source一致、history空，**0真实薪资决议**。同源ready，无浏览器Bearer令牌 |
 
-验证过程保留两个失败边界。第一版全量稳定复现Windows旧锁隔离rename EPERM，按上表修复并补确定性回归。更新后的spec报告器全量曾出现atlas-backend测试文件级失败，未给出任何子测试或异常；冻结树单文件15进程共255子测与同树TAP全量均通过，根因仍未确认，没有将其写成已修复或削弱断言。该风险继续由远端质量检查核对。
+验证过程保留两个失败边界。第一版全量稳定复现Windows旧锁隔离rename EPERM，按上表修复并补确定性回归。更新后的spec报告器全量曾出现atlas-backend测试文件级失败，未给出任何子测试或异常；冻结树单文件15进程共255子测与同树TAP全量均通过，根因仍未确认，没有将其写成已修复或削弱断言。远端首次也在另一个旧文件出现相同的无诊断退出，随后同产品树的文档批Windows质量成功。Node 24.15.0内置runner会记录exitCode／signal／failureType，默认spec却只展示ERR_TEST_FAILURE的cause；TAP会保留错误自身属性。因此本仓库测试脚本另行固定使用 `--test-reporter=tap`，不改变测试glob、并发、超时或断言。这是诊断改进，不能据此宣称随机退出已被修复。
 
 本批没有向真实岗位保存合成核对、刷新来源或新增岗位，没有重新验收WebGL／物理打印／真实模型。合成验收不代表真实市场岗位已补齐税前依据或保证月数，不据此声称全网覆盖。
 

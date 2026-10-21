@@ -121,7 +121,7 @@ pnpm --filter @better-me/job-service start --data-dir $atlasDataDirectory --orig
 
 选择仓库外的私有目录，并按[服务说明](../apps/job-service/README.md)限制 Windows NTFS 权限。已有数据库或目录锁应保留并核实归属；端口被占用时先检查监听进程，不通过删除锁或停止其他程序来强行启动。
 
-服务日志会显示实际地址、数据库与**令牌文件路径**。从该本机文件读取令牌，粘贴到地图“访问令牌”输入框。默认服务地址为 `http://127.0.0.1:5178`，以实际日志为准；API 的 Host 校验不接受 `localhost`。
+本机网页默认由同源网关读取服务端令牌文件，无需在地图填写令牌。服务日志会显示实际地址、数据库与**令牌文件路径**；只有选择高级直连时，才从本机文件读取令牌并填入高级设置。默认服务地址为 `http://127.0.0.1:5178`，以实际日志为准；API 的 Host 校验不接受 `localhost`。
 
 允许 Origin 必须与浏览器地址栏一致。例如 `http://localhost:5173`、`http://127.0.0.1:5173` 是两个不同 Origin。需要多个时重复 `--origin`；不能加路径、末尾 `/` 或通配符。Pages 的 Origin 是 `https://nanfengovo.github.io`，不含 `/better-me/`。公网 HTTPS 页面访问本机可能受到浏览器本地网络授权限制，本机网页优先。
 
