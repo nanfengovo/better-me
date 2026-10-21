@@ -41,7 +41,7 @@ pnpm --filter @better-me/job-service start --data-dir $jobDataDirectory --origin
 
 网关默认连接 `http://127.0.0.1:5178`，固定以 `http://localhost:5173` 为上游 Origin，所以服务启动参数应包含该 Origin。其他端口或私有数据目录可在**启动 Vite 的终端**设置 `BETTERME_JOB_SERVICE_URL` 与 `BETTERME_JOB_SERVICE_TOKEN_FILE`（绝对路径），再重启 Vite。也可在 Git 忽略的 `apps/web/.env.local` 保存这两项宿主设置，终端变量优先，修改后重启 Vite；不能改用前端 `VITE_*` 或存令牌正文。默认路径不需要配置，Windows 应用隔离路径与普通终端不同时，请采用岗位服务日志中的真实数据目录。
 
-需要重启网页以加载宿主配置时，在管理该网页的终端按 `Ctrl+C`，确认它已退出，再在仓库根目录执行：
+当前 5173 可能由另一个需求的开发终端管理，继续保留该进程。需要重启网页以加载宿主配置时，由原管理终端按 `Ctrl+C`，确认它已退出，再在仓库根目录执行：
 
 ```powershell
 pnpm --filter @better-me/web dev --host localhost --port 5173 --strictPort
@@ -100,6 +100,8 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/jobs/search" -Headers $jobHe
 | POST | `/api/v1/sources` | `sources.register`；`{ source, expectedRevision? }`，修改既有配置需版本号。 |
 | POST | `/api/v1/sources/:sourceId/preview` | `sources.preview`；`{ scope?, maxRecords? }`，读取一页，不写岗位索引。 |
 | POST | `/api/v1/sources/:sourceId/sync` | `sources.sync`；`{ scope?, maxRecords?, maxPages? }`，受限手动刷新。 |
+| POST | `/api/v1/sources/:sourceId/scan-progress` | `sources.read-scan-progress`；`{ runId? }`，只读当前身份保存的扫描进度，不联网，不需幂等键。 |
+| POST | `/api/v1/sources/:sourceId/continue-sync` | `sources.continue-sync`；`{ fromRunId, expectedProgressVersion, maxRecords?, maxPages? }`，显式继续原范围，需要幂等键。 |
 | GET | `/api/v1/companies/discovery-capabilities` | `companies.discovery-capabilities`；仅读取配置投影，不联网探测或返回端点。 |
 | POST | `/api/v1/companies/discover-careers` | `companies.discover-careers`；`{ sourceId?, request }`，仅企业名可省略 sourceId，明确官网／seed 必须指定已审核策略。 |
 | POST | `/api/v1/sources/discover` | `sources.discover`；`{ sourceId, request }`，发现待审核来源候选。 |
@@ -112,7 +114,7 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/jobs/search" -Headers $jobHe
 | GET | `/api/v1/dataset/export` | `jobs.export-public`；仅公共领域快照。 |
 | GET | `/api/v1/leads` | `leads.list`；线索与招聘批次，独立于正式岗位计数。 |
 
-`scope` 为 `{ "roles": [], "regions": [], "companyNames": [] }`；省略时使用空数组。上游是否支持这些过滤条件由适配器能力和返回的 `coverage.appliedFilters` / `ignoredFilters` 说明。应用另做本地包含匹配，因此“关注范围内刷新”不代表上游已经提供全站搜索或只下载匹配记录。
+`scope` 为 `{ "roles": [], "regions": [], "companyNames": [], "countryCodes": ["CN"] }`；`countryCodes` 可省略；整个 `scope` 省略时，roles／regions／companyNames 均为空数组。上游是否支持这些过滤条件由适配器能力和返回的 `coverage.appliedFilters` / `ignoredFilters` 说明。应用另做本地包含匹配，因此“关注范围内刷新”不代表上游已经提供全站搜索或只下载匹配记录。
 
 例如，审核并注册某个来源后可调用：
 
@@ -127,6 +129,42 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/sources/my-reviewed-source/s
 ```
 
 `my-reviewed-source` 是用户自己保存的来源 ID，示例不会自动创建它。[来源配置示例](../../config/sources/examples.json)全部默认禁用、待审核；必须先核对原站、许可、稳定身份、字段映射和请求范围，再显式注册 / 启用。配置修改使同源正在进行的旧任务失效。
+
+## 分批扫描与显式续读
+
+`sources.sync` 保持从头刷新的语义，每个新请求建立新的扫描并永久失效该来源之前的扫描位置。有限预算用完后，要读取清单后面的候选，使用 `sources.continue-sync`；反复执行新 sync 仍会从清单前部开始。继续扫描继承原扫描的关键词、地区、企业与明确国家条件，仅可调整本批 `maxRecords`／`maxPages`，不能提供新的 `scope`、上游 cursor、执行身份或访问端点。
+
+工具输入包含 `sourceId`；HTTP 已由路径提供，因此 body 中不重复此字段。`sources.read-scan-progress` 返回 `{ sourceId, progress }`，没有当前进度时 `progress` 为 null。进度包含 `scanId`、当前拥有位置的 `runId`、版本 `version`、原 `scope`、`state`、`running`、`canContinue`、累计 `attemptedRecords`／`pages`、`hadErrors` 和更新时间，不暴露私有 cursor。累计尝试包含失败及明确重读，不等于唯一岗位数或关键词命中数。可选 `runId` 是精确查询：位置已由后续 run 接管时返回 null，不返回另一个 run 的进度。
+
+| 进度状态 | 含义与后续操作 |
+| --- | --- |
+| `ready` | 保存了下一页位置；任务结束后可显式继续。 |
+| `retry-page` | 上一页未完整读取，保存该页起点；任务结束后可显式重读并按既有身份去重。 |
+| `exhausted` | 适配器明确报告该次受审清单完整且无下一页，不表示覆盖全市场。 |
+| `truncated` | 部分覆盖且没有可继续的位置；不能当作已读完，需核对来源／适配器后另行从头刷新。 |
+| `invalidated` | 原位置已永久失效，需另行从头刷新；原因包括配置变化、新扫描或来源清单变化。 |
+
+`canContinue` 仅在任务已结束且状态为 `ready`／`retry-page` 时为 true。继续请求对来源、原 run、身份、进度版本及配置执行原子核对，陈旧版本或并发重复认领被拒绝。每批仍受来源最小刷新间隔、记录／页数上限、每分钟请求数、可信宿主请求／字节／时间预算及取消控制；不会因继续而自动放宽或循环读取全部页面。
+
+以下沿用前面示例的本机 API 与已审核来源。先只读进度，再明确提交一批；同一批重试保留相同 body 和 `Idempotency-Key`，新的批次另用新键：
+
+```powershell
+$progressResponse = Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/sources/my-reviewed-source/scan-progress" -Headers $jobHeaders -ContentType "application/json" -Body '{}'
+$scan = $progressResponse.value.progress
+if ($null -eq $scan -or -not $scan.canContinue) { throw "当前没有可以继续的扫描，请先核对进度。" }
+$continueBody = @{
+  fromRunId = $scan.runId
+  expectedProgressVersion = $scan.version
+  maxRecords = 6
+  maxPages = 1
+} | ConvertTo-Json -Depth 20
+$continueHeaders = @{ Authorization = "Bearer $jobServiceToken"; "Idempotency-Key" = "my-reviewed-source-continue-001" }
+Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/sources/my-reviewed-source/continue-sync" -Headers $continueHeaders -ContentType "application/json" -Body $continueBody
+```
+
+JSON-LD 详情超时会保留已读取记录，并明确标记 `retryCurrentPage: true`，不推进到下一页；从第一页超时也保留该页起点。显式继续会重读原页，重复观察沿用既有去重规则。其他适配器返回 partial 且无下一页、又没有明确重读标记时，进度为 `truncated`，不能假定可恢复或已扫描完。JSON-LD 后续读取会重新核对清单队列指纹；次序或内容变化使旧位置永久失效，不能把旧偏移应用到新队列。来源配置 A→B→A 也不会复活旧扫描。
+
+每页的岗位投影、发现线索、扫描 checkpoint、任务统计和耐久页面回执在同一 SQLite 事务提交。取消等待不撤回已提交页面。响应未知时使用原请求／幂等键核对原 run，不换键自动重写；同键恢复不再次请求来源，运行中的原任务仍报告 running。可信终态回执已收到后，索引或进度读取失败只重读。工具缓存的旧成功回执可包含当时进度，当前位置应另读 `scan-progress`。实现及有限验证见[来源续读报告](../../docs/reports/job-atlas-scan-continuation-2026-10-22.md)。
 
 ## SmartRecruiters 企业官网来源
 
@@ -248,9 +286,11 @@ SQLite 持久保存来源、公司、岗位、位置、薪资、来源 listing�
 
 `GET /api/v1/dataset/export` 是公共领域交换格式，包含当前有效地区及其本人确认标记，以及当前有效企业核对实际引用的独立企业目录材料；不包含任务、回执、leads、归并／地点／公司原始投影或完整决策历史，不能当作完整仓库备份。已合并的公共投影不能重新覆盖原始岗位，普通公共导入也不能伪造 `userResolution`、企业 `controlReview` 或专用补证记录；必须使用完整备份保留拆分、地区及企业核对的撤销能力。
 
-仓库层提供 `repository.backup()` / `repository.restore(backup, { expectedRevision, actorScope, idempotencyKey })`：当前源码 schema V7 的完整备份包含公共数据、任务、回执、线索、原始岗位、归并决策、别名历史、岗位版本计数，以及 `baseLocations`、`locationDecisions`、办公确认历史、`baseCompensations` 与 `compensationDecisions`、`fxSnapshots` 原文与 `fxActivations` 选择历史，新增 `baseCompanies` 和全部 `companyControlDecisions` 原文／决议。仍接受符合各自规则的 V1–V6 备份；V6→V7 增加公司底账、追加企业控股决议表及不可变触发器，升级本身不应改变原有数据或全局 revision。实际服务须完成备份与受控迁移后才能使用新版接口，不能只刷新页面或用旧代码直接打开 V7 库。
+仓库层提供 `repository.backup()` / `repository.restore(backup, { expectedRevision, actorScope, idempotencyKey })`：当前源码 schema V8 的完整备份包含公共数据、任务、回执、线索、原始岗位、归并决策、别名历史、岗位版本计数，以及 `baseLocations`、`locationDecisions`、办公确认历史、`baseCompensations` 与 `compensationDecisions`、`fxSnapshots` 原文与 `fxActivations` 选择历史、`baseCompanies` 和全部 `companyControlDecisions` 原文／决议，新增私有 `sourceScans` 扫描事件及关联页面回执。仍接受符合各自规则且不删除目标已有历史的 V1–V7 备份；V7→V8 增加 `source_scan_events`、索引及不可变触发器，空扫描历史的升级本身不应改变原有数据或全局 revision。实际服务须完成完整备份与隔离迁移验证后才能使用新版接口，不能只刷新页面。
 
-恢复先校验内容哈希、领域引用、决策引用 / 身份 / 先后关系、可信目录解析、当前别名及有效投影，再重放地区与归并历史；地点回执还需与其当时版本和岗位归属一致。伪造来源地点、目录名称、投影或回执会被拒绝，现库保留。通过后原子替换，运行中任务恢复为已取消。当前没有 HTTP 恢复路由或 CLI 备份 / 恢复命令；集成方应通过可信应用代码调用，不应在服务运行时只复制主 SQLite 文件而遗漏 WAL。
+`/healthz` 仅报告进程状态与 `apiVersion: 1`；公共 dataset 的 `schemaVersion: 1` 也不是 SQLite 版本。只读检查数据库版本应使用 Node `DatabaseSync` 的 `{ readOnly: true }` 打开明确选定文件，查询 `PRAGMA user_version` 后关闭；不能使用 `openJobRepository()` 做只读健康检查，它会自动执行 schema 迁移。已经升级的 V8 数据库拒绝由 V7 及以前代码打开；需要回滚时先保留新库及完整历史，再在原管理终端安排恢复升级前完整备份，不能直接覆盖正在运行的数据库或丢弃升级后的写入。
+
+恢复先校验内容哈希、领域引用、决策引用 / 身份 / 先后关系、可信目录解析、当前别名及有效投影，再重放地区与归并历史；地点回执还需与其当时版本和岗位归属一致。V8 另核对扫描事件版本链、原范围／来源指纹、run／身份绑定、累计统计与原子页面回执；不能通过旧备份删除目标已有扫描事件、相关 run 和精确命令回执，或消除失效记录、复活已消费的位置。伪造或冲突会被拒绝，现库保留。通过后原子替换，运行中任务恢复为已取消并保留已提交统计。完整备份含私有 cursor，应保存在专用私有目录。当前没有 HTTP 恢复路由或 CLI 备份 / 恢复命令；集成方应通过可信应用代码调用，不应在服务运行时只复制主 SQLite 文件而遗漏 WAL。
 
 GitHub Pages 与现有 nginx Docker 镜像仍然只发布静态网页。本包参与工作区检查 / 编译，不会自动运行在静态容器或 Pages 上。当前 HTTP 只允许本机回环并使用单一 `local-owner` 身份；服务器部署需另行实现服务器身份认证、授权与部署运行配置，不能直接把监听地址改为公网使用。
 
@@ -326,7 +366,7 @@ Web 展开“来源工具 → 企业官网招聘”后才读配置，点击发�
 
 静态HTML以 parse5 的WHATWG解析读取真实锚点，XML以saxes拒绝DTD／实体／畸形结构；每页2MiB、最多10,000候选URL，节点／深度／JSON脚本另有限额。候选URL数、实际详情请求数、返回记录数和本地匹配数分别计量。游标绑定来源配置、完整关注范围及本次队列；队列变化拒绝旧游标。404或不可用结构标partial，timeout保留成功结果并停止后续详情／续页，401／403／429及安全／预算错误不当空岗位。
 
-角色／地区／国家／企业条件按已读字段本地筛选，无上游搜索承诺。每次新sync从有限队首开始，不提供跨次采集进度；ABB示例每页3详情、最多2页6个尝试，两个优先样本不等于搜遍ABB。缺雇主只保留线索，FULL_TIME不推定社招；date-only保留raw而不补午夜，薪资仅原文不进入可比税前年薪，城市geo不成为办公室或距离。国家只从明确country字段匹配共享249项ISO白名单及Node/ICU英中名称、有限既有别名，未知保留原文。
+角色／地区／国家／企业条件按已读字段本地筛选，无上游搜索承诺。每次新 sync 从有限队首开始；V8 可通过上文的显式续读工具继续保存的位置，不能反复新建 sync 期待自动翻到后部。ABB示例每页3详情、最多2页6个尝试，两个优先样本不等于搜遍ABB。缺雇主只保留线索，FULL_TIME不推定社招；date-only保留raw而不补午夜，薪资仅原文不进入可比税前年薪，城市geo不成为办公室或距离。国家只从明确country字段匹配共享249项ISO白名单及Node/ICU英中名称、有限既有别名，未知保留原文。
 
 企业搜索可关联已登记同名源；陌生企业仍需官网线索／已配置宿主搜索与另行审核，不能据零命中认定官网无岗位。源码编译后仍需保留根目录 `config/geography/countries.json`；现有仓库与Docker构建布局已包含它。静态Pages／Docker网页需连接独立本机服务，并不内置这个采集后台。实测与限制见[官网结构化来源报告](../../docs/reports/job-atlas-jsonld-sources-2026-10-19.md)。
 
