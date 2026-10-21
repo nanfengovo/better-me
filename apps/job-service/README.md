@@ -202,7 +202,7 @@ Web 使用步骤见[本机岗位地图说明](../../docs/job-atlas.md#核对卡�
 
 国内省市筛选的英文文本别名由共用 [text-aliases.json](../../config/geography/china-administrative/text-aliases.json)配置：现有31个大陆省级节点与有限10个城市，绑定固定行政目录及父省。它只扩展文本核对，保留原地点且不生成坐标；`Suzhou`须结合江苏／安徽等父省证据消歧，单独同名英文不归到苏州或宿州。国家和各级地区仍须匹配同一地点，不把有限别名表描述为完整地名解析服务。
 
-家庭坐标、汇率快照、配色与别名覆盖是可信 host 注入的 `QueryOptions`。当前 CLI 不提供保存家庭住址、自动获取汇率或用户配色面板；未注入坐标时不能完成距离查询，未具备薪资比较证据时保留原文 / 原币和未知状态，不自行补工资、汇率、税制、奖金或控股国别。
+家庭坐标、配色与别名覆盖可由可信 host 注入 `QueryOptions`；生产 `jobs.search` 的汇率和计算日期固定使用仓库同事务捕获的选择，宿主提供的其他FX／日期会被覆盖。参考汇率可经工具显式读取并核对后保存，默认不自动启用。CLI不保存家庭住址；未注入坐标时不能完成距离查询，未具备薪资比较证据时保留原文／原币和未知状态，不补造工资、税制、奖金或控股国别。
 
 SQLite 持久保存来源、公司、岗位、位置、薪资、来源 listing、观察、JD 快照、线索、任务与事务回执。刷新使用增量合并，不清空既有库；同源稳定记录保持 ID，内容变化追加不可变观察与按内容去重的快照；缺失字段不会无依据删除旧信息，未在列表出现也不会被当成已关闭。相同 listing 突然更换雇主会拒绝写入，等待人工核对。当前不会自动把不同来源的同名岗位合并。
 
@@ -236,7 +236,7 @@ SQLite 持久保存来源、公司、岗位、位置、薪资、来源 listing�
 
 四项 `compensations.*-review` 工具共用严格Schema和认证HTTP，网页同源网关仅代理固定端点。逐字段引用同一原岗位已存观察／正文，不以平台惯例代替原文依据；确认需明确审核及原版本／指纹，撤销保留历史。SQLite V5以来源底账和仅追加决议生成有效薪资，先于跨源归并应用；相关岗位版本随变化更新。来源变化永久失效旧核对，A→B→A不复活。
 
-本人核对保持待核实，不改JD／来源原文／地点适用范围，不自动取得雇主认证。耐久回执支持原body／key恢复；保存成功后的读取失败只重读。外币保留原币，正式FX快照仍待实现；网页默认不估算缺失保证月份。详见 [薪资核对报告](../../docs/reports/job-atlas-compensation-review-2026-10-21.md)。
+本人核对保持待核实，不改JD／来源原文／地点适用范围，不自动取得雇主认证。耐久回执支持原body／key恢复；保存成功后的读取失败只重读。外币保留原币，带出处的FX快照可独立管理，详见下节；网页默认不估算缺失保证月份。详见 [薪资核对报告](../../docs/reports/job-atlas-compensation-review-2026-10-21.md)。
 
 ## 一致性、备份与部署
 
@@ -244,7 +244,7 @@ SQLite 持久保存来源、公司、岗位、位置、薪资、来源 listing�
 
 `GET /api/v1/dataset/export` 是公共领域交换格式，包含当前有效地区及其本人确认标记，但不包含任务、回执、leads、归并 / 地点原始投影或完整决策历史，不能当作完整仓库备份。已合并的公共投影不能重新覆盖原始岗位，普通公共导入也不能伪造 `userResolution`；必须使用完整备份保留拆分和地区撤销能力。
 
-仓库层提供 `repository.backup()` / `repository.restore(backup, { expectedRevision, actorScope, idempotencyKey })`：当前 schema v5 完整备份包含公共数据、任务、回执、线索、原始岗位、归并决策、别名历史、岗位版本计数，以及 `baseLocations`、`locationDecisions`、办公确认历史、`baseCompensations` 与 `compensationDecisions`。仍接受符合各自规则的 v1–v4 仓库备份；已有 SQLite 在事务中升级，薪资来源底账初始化不改变现有有效数据或全局 revision。
+仓库层提供 `repository.backup()` / `repository.restore(backup, { expectedRevision, actorScope, idempotencyKey })`：当前 schema v6 完整备份包含公共数据、任务、回执、线索、原始岗位、归并决策、别名历史、岗位版本计数，以及 `baseLocations`、`locationDecisions`、办公确认历史、`baseCompensations` 与 `compensationDecisions`，以及 `fxSnapshots` 原文与 `fxActivations` 选择历史。仍接受符合各自规则的 v1–v5 仓库备份；已有 SQLite 在事务中升级，V5→V6只增加FX表及不可变触发器，不改变原有数据或全局 revision。
 
 恢复先校验内容哈希、领域引用、决策引用 / 身份 / 先后关系、可信目录解析、当前别名及有效投影，再重放地区与归并历史；地点回执还需与其当时版本和岗位归属一致。伪造来源地点、目录名称、投影或回执会被拒绝，现库保留。通过后原子替换，运行中任务恢复为已取消。当前没有 HTTP 恢复路由或 CLI 备份 / 恢复命令；集成方应通过可信应用代码调用，不应在服务运行时只复制主 SQLite 文件而遗漏 WAL。
 
@@ -363,3 +363,7 @@ Web逐岗外读、官网发现、地址候选、来源保存与办公坐标确�
 ## 官网原岗地点工具
 
 `jobs.read-owned-detail-locations`、`jobs.preview-owned-detail-locations`、`jobs.import-owned-detail-locations` 对应认证 POST `/api/v1/jobs/owned-detail-locations/read|preview|import`。按索引原岗位／listing／版本定位目标；JSON-LD 与 SmartRecruiters 具备实际精确 reader，其他协议保持线索能力。保存必须审核并提供幂等键，只替换原 listing 地点贡献，不改变 JD／薪资／企业或生成坐标。签名 capture、版本和来源指纹、读取顺序及耐久回执防止陈旧覆盖，详见[精确读取报告](../../docs/reports/job-atlas-owned-detail-locations-2026-10-21.md)。
+
+## 参考汇率与查询上下文
+
+参考汇率管理使用 `fx.fetch-reference`／`fx.read-state`／`fx.preview-import`／`fx.confirm-import`／`fx.activate` 五项共享工具，分别对应 `/api/v1/fx/reference`、`state`、`preview`、`import`、`activate` 的认证 POST。默认公开参考源由宿主安装，只有明确点击读取才请求网络；保存与启用仍须另外核对。SQLite V6 完整备份保留原文快照、选择历史及回执，旧版本代码不能直接打开 V6 数据库。使用与换算边界见[汇率说明](../../docs/reports/job-atlas-fx-context-2026-10-21.md)。
