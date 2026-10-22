@@ -56,7 +56,7 @@ test("a company name alone requires an explicit website and never guesses a doma
   assert.equal(CompanyCareerDiscoveryResultSchema.safeParse(result).success, true);
 });
 
-test("installed company names and trusted aliases match first without network or enabling sources", async () => {
+test("inactive installed company names and trusted aliases remain visible without guessing or enabling sources", async () => {
   const run = execution();
   const installed = { ...source(), sourceId: "installed-board", name: "Installed board", adapterId: "lever", enabled: false, status: "needs-review" as const,
     options: { companyName, boardToken: "synthetic" }, entryUrl: "https://api.lever.co/v0/postings/synthetic?mode=json" };
@@ -64,7 +64,7 @@ test("installed company names and trusted aliases match first without network or
   run.companyAliases = { "installed-board": ["合成工业"] };
   const before = JSON.stringify(installed);
   const byName = await discoverCompanyCareers({ companyName: "  SYNTHETIC   Industries " }, run);
-  assert.equal(byName.status, "matched-existing");
+  assert.equal(byName.status, "requires-company-website");
   assert.equal(byName.matchedSources[0]!.matchedBy, "company-name");
   assert.equal(byName.matchedSources[0]!.enabled, false);
   const byAlias = await discoverCompanyCareers({ companyName: "合成工业" }, run);
@@ -72,6 +72,62 @@ test("installed company names and trusted aliases match first without network or
   assert.equal(run.requests.length, 0);
   assert.equal(JSON.stringify(installed), before);
   assert.deepEqual(byAlias.candidates, []);
+  assert.ok(byAlias.warnings.some((warning) => warning.includes("disabled")));
+});
+
+test("inactive installed matches do not authorize their stored URL, but an explicit website can continue bounded discovery", async () => {
+  const run = execution(() => '<html><body><a href="/careers">Careers</a></body></html>');
+  const installed = { ...source(), sourceId: "inactive-board", name: "Installed board", adapterId: "lever", enabled: false, status: "needs-review" as const,
+    options: { companyName }, entryUrl: "https://api.lever.co/v0/postings/synthetic?mode=json" };
+  run.registeredSources = [installed];
+  const result = await discoverCompanyCareers({ companyName, companyWebsite }, run);
+  assert.equal(result.status, "needs-review");
+  assert.equal(result.matchedSources[0]!.sourceId, installed.sourceId);
+  assert.deepEqual(run.requests, [companyWebsite, `${companyWebsite}careers`]);
+  assert.equal(result.candidates[0]!.candidate.homeUrl, companyWebsite + "careers");
+  assert.equal(result.proposals[0]!.source.enabled, false);
+});
+
+test("only enabled active existing matches retain the no-network priority, including mixed match lists", async () => {
+  const active = { ...source(), sourceId: "active-board", name: "Active board", adapterId: "lever", enabled: true, status: "active" as const,
+    options: { companyName }, entryUrl: "https://api.lever.co/v0/postings/active?mode=json" };
+  const inactive = { ...active, sourceId: "inactive-board", name: "Inactive board", enabled: false, status: "unavailable" as const };
+  const run = execution(); run.registeredSources = [inactive, active];
+  const result = await discoverCompanyCareers({ companyName }, run);
+  assert.equal(result.status, "matched-existing");
+  assert.deepEqual(result.matchedSources.map(match => match.sourceId), [inactive.sourceId, active.sourceId]);
+  assert.equal(run.requests.length, 0);
+  assert.equal(result.proposals.length, 0);
+});
+
+test("each disabled or non-active match status continues only the explicit website policy", async () => {
+  for (const [enabled, status] of [[false, "active"], [true, "disabled"], [true, "needs-review"], [true, "unavailable"]] as const) {
+    const run = execution();
+    const installed = { ...source(), sourceId: `inactive-${enabled}-${status}`, name: "Installed board", adapterId: "lever", enabled, status,
+      options: { companyName }, entryUrl: "https://api.lever.co/v0/postings/synthetic?mode=json" };
+    run.registeredSources = [installed]; const before = structuredClone(installed);
+    const result = await discoverCompanyCareers({ companyName, companyWebsite }, run);
+    assert.equal(result.matchedSources[0]!.enabled, enabled); assert.equal(result.matchedSources[0]!.status, status);
+    assert.equal(result.status, "no-candidates"); assert.deepEqual(run.requests, [companyWebsite]);
+    assert.deepEqual(installed, before); assert.equal(result.proposals.length, 0);
+  }
+});
+
+test("inactive name-only matches continue through the trusted provider without authorizing stored endpoints", async () => {
+  const run = execution();
+  run.registeredSources = [{ ...source(), sourceId: "inactive-board", name: "Installed board", adapterId: "lever", enabled: false, status: "disabled",
+    options: { companyName }, entryUrl: "https://api.lever.co/v0/postings/synthetic?mode=json" }];
+  let calls = 0;
+  run.searchProvider = { metadata: { providerId: "host-installed", label: "Synthetic search" }, async search(input) {
+    calls++; assert.equal(input.companyName, companyName); assert.equal(input.source.sourceId, run.source.sourceId);
+    assert.deepEqual(input.source.endpointPolicy.allowedHosts, run.source.endpointPolicy.allowedHosts); assert.equal(input.source.entryUrl, undefined); assert.equal(input.transport, run.transport);
+    assert.equal(input.source.endpointPolicy.allowedHosts.includes("api.lever.co"), false);
+    return { results: [{ url: "https://jobs.lever.co/synthetic", title: "Careers" }], partial: false };
+  } };
+  const result = await discoverCompanyCareers({ companyName }, run);
+  assert.equal(calls, 1); assert.equal(run.requests.length, 0); assert.equal(result.status, "needs-review");
+  assert.equal(result.matchedSources[0]!.sourceId, "inactive-board"); assert.equal(result.candidates[0]!.companyAssociation, "unverified");
+  assert.equal(result.proposals[0]!.source.enabled, false); assert.equal(result.proposals[0]!.source.status, "needs-review");
 });
 
 test("shared ATS hosts never match a different installed company's board by hostname", async () => {
@@ -221,9 +277,9 @@ test("SmartRecruiters existing-source matching uses the exact companyIdentifier 
   run.registeredSources = [installed]; const before = structuredClone(installed);
   for (const seed of [`https://careers.smartrecruiters.com/${tenant}`, `https://JOBS.SMARTRECRUITERS.COM/${tenant}/123456-role`]) {
     const result = await discoverCompanyCareers({ companyName, seedUrls: [seed] }, run);
-    assert.equal(result.status, "matched-existing"); assert.equal(result.matchedSources[0]!.sourceId, installed.sourceId);
+    assert.equal(result.status, "needs-review"); assert.equal(result.matchedSources[0]!.sourceId, installed.sourceId);
     assert.equal(result.matchedSources[0]!.matchedBy, "entry-url"); assert.equal(result.matchedSources[0]!.enabled, false);
-    assert.deepEqual(result.proposals, []); assert.equal(run.requests.length, 0);
+    assert.equal(result.candidates[0]!.entryKind, "smartrecruiters"); assert.equal(result.proposals.length, 1); assert.equal(result.proposals[0]!.source.enabled, false); assert.equal(run.requests.length, 0);
   }
   const differentCase = await discoverCompanyCareers({ companyName, seedUrls: [`https://careers.smartrecruiters.com/${tenant.toLowerCase()}`] }, run);
   assert.equal(differentCase.matchedSources.length, 0); assert.equal(differentCase.proposals[0]!.source.options!.companyIdentifier, tenant.toLowerCase());

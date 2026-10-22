@@ -124,6 +124,24 @@ test("search candidates retain original links and plain-text evidence; proposals
   assert.equal(JSON.parse(proposals[0]!).enabled, false); assert.equal(JSON.parse(proposals[0]!).status, "needs-review"); assert.equal(calls.length, 2);
 });
 
+test("inactive existing matches and new review candidates remain visible together without an enable action", async () => {
+  const proposalSource: SourceDefinition = { ...source, name: "New candidate", enabled: false, status: "needs-review" };
+  const discovered: CompanyCareerDiscoveryResult = { ...baseResult(), status: "needs-review",
+    matchedSources: [{ sourceId: "inactive-source", name: "Saved but disabled", matchedBy: "company-name", enabled: false, status: "needs-review", entryUrl: "https://saved.example/careers" }],
+    candidates: [{ candidate: { candidateId: "new-candidate", provider: "seed-links", homeUrl: "https://new.example/careers", discoveredAt: at, status: "needs-review", entryHints: [], evidenceUrls: ["https://new.example/careers"], warnings: [] },
+      entryKind: "html", matchedBy: "search-result", companyAssociation: "unverified", evidence: [{ kind: "search-result", sourceUrl: "https://search.example/result", targetUrl: "https://new.example/careers" }] }],
+    proposals: [{ schemaVersion: 1, candidateId: "new-candidate", source: proposalSource, reviewRequired: ["Review company affiliation."] }],
+    search, warnings: ["The saved source remains disabled."] };
+  const calls = installFetch(call => call.path === "discover-careers" ? response(discovered) : undefined);
+  await render(); await toggle(); await change("发现企业名称", companyName); await click("查找企业招聘来源");
+  assert.match(result()!.textContent!, /发现招聘入口，等待核对/);
+  assert.match(result()!.textContent!, /Saved but disabled · 尚未启用/);
+  assert.match(result()!.textContent!, /new\.example\/careers/);
+  assert.match(result()!.textContent!, /候选的企业归属仍待核实/);
+  assert.equal([...result()!.querySelectorAll("button")].some(button => button.textContent?.includes("使用此企业来源")), false);
+  assert.equal(calls.length, 2);
+});
+
 test("using an existing source only selects it for later explicit job retrieval", async () => {
   const matched: CompanyCareerDiscoveryResult = { ...baseResult(), status: "matched-existing", matchedSources: [{ sourceId: source.sourceId, name: source.name, matchedBy: "company-name", enabled: true, status: "active", entryUrl: "https://company.example/careers" }] };
   const calls = installFetch(call => call.path === "discover-careers" ? response(matched) : undefined); const selected: string[][] = [];

@@ -312,6 +312,29 @@ test("company career discovery reuses registered company metadata without fetchi
   } finally { await f.close(); }
 });
 
+test("inactive registered company matches remain visible while an explicit website uses the active policy", async () => {
+  let requests = 0;
+  const f = await fixture(async (request) => page(request, []), { async request(input) {
+    requests++;
+    return { url: input.url, status: 200, headers: { "content-type": "text/html" }, text: '<html><body><a href="/careers">Careers</a></body></html>' };
+  } });
+  try {
+    const inactive: SourceDefinition = { ...source, sourceId: "inactive-company-source", name: "Inactive Registered Company", enabled: false, status: "needs-review",
+      options: { companyName: "Inactive Registered Company" }, entryUrl: "https://careers.example.test/old-postings" };
+    await f.repository.registerSource(inactive, { expectedRevision: (await f.repository.readSnapshot()).revision, actorScope: "local-owner", idempotencyKey: "inactive-company" });
+    const before = await f.repository.backup();
+    const found = value(await f.application.registry.execute("companies.discover-careers", {
+      sourceId: source.sourceId, request: { companyName: "Inactive Registered Company", companyWebsite: "https://careers.example.test/" },
+    }, context()));
+    assert.equal(found.status, "needs-review");
+    assert.deepEqual(found.matchedSources, [{ sourceId: inactive.sourceId, name: inactive.name, matchedBy: "company-name", enabled: false, status: "needs-review", entryUrl: inactive.entryUrl }]);
+    assert.deepEqual(found.visitedUrls, ["https://careers.example.test/", "https://careers.example.test/careers"]);
+    assert.equal(found.candidates.length, 1); assert.equal(found.proposals.length, 1);
+    assert.equal(requests, 2);
+    assert.deepEqual(await f.repository.backup(), before); assert.deepEqual(await f.repository.listRuns(), []);
+  } finally { await f.close(); }
+});
+
 test("unknown company discovery requires a website without guessing a domain or writing an empty search into the index", async () => {
   let lists = 0; let requests = 0;
   const f = await fixture(async (request) => { lists++; return page(request, []); }, { async request() { requests++; throw new Error("Unexpected company discovery request"); } });

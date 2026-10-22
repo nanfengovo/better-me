@@ -141,12 +141,14 @@ CSV / Markdown 当前用于抽样识别与提案。没有对应生产列表解�
 
 | `status` | 含义与后续动作 |
 | --- | --- |
-| `matched-existing` | 找到已有来源，`matchedSources[].matchedBy` 说明匹配方式；不读取网页，也不自动启用已禁用来源。配置匹配不等于企业归属已核实。 |
-| `requires-company-website` | 没有已有来源、官网 / 种子或受信搜索 provider。需要明确官网或配置 provider，不根据公司名猜域名。 |
-| `needs-review` | 获得带原链接与证据的入口候选，等待核对企业归属、使用范围和解析能力。 |
+| `matched-existing` | 至少命中一个 `enabled: true` 且 `status: active` 的已有来源，`matchedSources[].matchedBy` 说明匹配方式；优先返回且不读取网页。配置匹配不等于企业归属或岗位可用性已核实。 |
+| `requires-company-website` | 没有可用的active匹配、明确官网 / 种子或受信搜索 provider。需要明确官网或配置 provider，不根据公司名猜域名；禁用或待核实的命中仍会列在 `matchedSources`。 |
+| `needs-review` | 获得带原链接与证据的入口候选，等待核对企业归属、使用范围和解析能力；可以同时保留禁用、待核实或不可用的已有匹配。 |
 | `no-candidates` | 本次有限静态读取未发现可返回入口；不能解读为该公司没有招聘岗位。 |
 
 结果包含 `companyName`、`observedAt`、`matchedSources`、`candidates`、`proposals`、`visitedUrls`、`partial` 和 `warnings`。每个候选包装现有 `SourceCandidate`，另带 `entryKind`、`matchedBy`、`companyAssociation: "unverified"` 和原页 / 目标链接、可选锚文本等证据。发现时间不写成岗位发布时间。
+
+只有 `enabled: true` 且 `status: active` 的已有匹配才保留“匹配后零网络请求”的优先路径。禁用、待核实或不可用匹配仍展示原状态，但不会遮蔽本次明确官网和有效独立发现策略，或宿主已经配置的受信搜索。它们的 `entryUrl`、首页、secret 引用和访问策略不会被拿来授权 fallback；发现结果仍只含待审线索，不会登记来源或写入岗位。
 
 官网 HTML 只有限跟随同 origin 且在原策略内的招聘链接；脚本、表单、嵌入页面与任意用户解析代码不执行。跨域招聘链接只记录待审证据，不跟随。识别 Greenhouse、Lever、Ashby、腾讯的已知入口形式时生成相应适配器提案，**不访问其 API、不登记或启用**；提案 `enabled: false`、`status: "needs-review"`。未知 HTML 使用 `review-required-html`，`capabilities: []`，没有可运行的通用 HTML 岗位解析器，不能直接启用采集。
 
