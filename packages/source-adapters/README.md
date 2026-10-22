@@ -152,7 +152,7 @@ CSV / Markdown 当前用于抽样识别与提案。没有对应生产列表解�
 
 官网 HTML 只有限跟随同 origin 且在原策略内的招聘链接；脚本、表单、嵌入页面与任意用户解析代码不执行。跨域招聘链接只记录待审证据，不跟随。识别 Greenhouse、Lever、Ashby、腾讯的已知入口形式时生成相应适配器提案，**不访问其 API、不登记或启用**；提案 `enabled: false`、`status: "needs-review"`。未知 HTML 使用 `review-required-html`，`capabilities: []`，没有可运行的通用 HTML 岗位解析器，不能直接启用采集。
 
-底层支持主机注入 `registeredSources`、`companyAliases` 和 `CareerWebSearchProvider`。这些不是普通 HTTP / Agent 参数。**当前 job-service 注入已有来源列表，尚未配置通用 Web 搜索 provider，也未注入公司别名表**；公司名搜索不能因此宣称自动发现互联网上任意企业。受信 provider 将来必须使用主机提供的策略、transport 和预算，其结果仍校验并标待审，不能自行成为已核实官网。
+底层支持宿主注入 `registeredSources`、`companyAliases` 和 `CareerWebSearchProvider`。这些不是普通 HTTP / Agent 参数。当前 job-service 注入已有来源列表，支持由宿主通过 `--career-search duckduckgo-html|searxng` 显式配置搜索 provider，**默认禁用**，尚未注入公司别名表。受信 provider 使用宿主提供的策略、transport 和预算，其结果仍校验并标待审，不能自行成为已核实官网，也不保证任意企业的全网岗位覆盖。具体配置和限制见 [job-service 说明](../../apps/job-service/README.md)。
 
 编排顺序为 `companies.discover-careers → 审核来源 → sources.register → sources.preview / sources.sync → jobs.search`。已有来源可直接进入显式预览 / 同步；待审入口和缺 provider 状态有不同后续动作。HTTP 输入、幂等写入、未来 LangChain / LangGraph 薄适配与四平台搜索缺口，见[公司招聘发现与搜索工具方案](../../docs/planning/company-career-search-tools-2026-10-18.md)。
 
