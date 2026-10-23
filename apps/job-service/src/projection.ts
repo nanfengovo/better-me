@@ -68,7 +68,11 @@ export async function projectSourcePage(snapshot: AtlasDataset, source: SourceDe
       delta.companies.push({ id: companyId, names: [record.companyName], domains: [], parentCompanyIds: [], manualOverrides: [], ultimateControllers: { value: [], evidence: [], method: "source-structured", verification: "unknown", revision: 0 } });
     }
     const locationIds: string[] = [];
-    for (const location of record.locations) {
+    const indexedLocationEvidence = record.evidence.some(entry => /^locations\.\d+(?:\.|$)/.test(entry.field));
+    for (const [locationIndex, location] of record.locations.entries()) {
+      // New structured feeds bind evidence to the output location index. Legacy
+      // adapters retain their record-wide references without borrowing other entries.
+      const sourceLocationEvidence = evidence(indexedLocationEvidence ? `locations.${locationIndex}` : "locations", location.raw);
       const kind = (record.workMode === "unknown" ? oldJob?.workMode : record.workMode) === "remote" ? "remote-region" : "office";
       // The pre-address identity stays compatible. Explicit address changes instead
       // identify a new source place; omitted fields cannot be spliced from the old office.
@@ -91,7 +95,7 @@ export async function projectSourcePage(snapshot: AtlasDataset, source: SourceDe
         continue;
       }
       let existing = compatible.length === 1 ? compatible[0] : undefined;
-      let id = existing?.id ?? legacyId, supplied = location, locationEvidence = evidence("locations", location.raw);
+      let id = existing?.id ?? legacyId, supplied = location, locationEvidence = sourceLocationEvidence;
       const legacy = findLocation(legacyId);
       const previous = existing;
       const additions = previous && (["streetAddress", "postalCode"] as const).some(field => location[field] && !previous[field]);
@@ -126,7 +130,7 @@ export async function projectSourcePage(snapshot: AtlasDataset, source: SourceDe
           // Source projection is fed the repository's base snapshot. Do not import
           // a user overlay if a caller accidentally supplies the visible snapshot.
           if (existing.userResolution || existing.officeResolution) throw new ToolError("source-changed");
-          const refs = [...new Map([...existing.evidence, ...evidence("locations", location.raw)].map(ref => [digest(ref), ref])).values()].slice(0, 200);
+          const refs = [...new Map([...existing.evidence, ...sourceLocationEvidence].map(ref => [digest(ref), ref])).values()].slice(0, 200);
           const enhanced = { ...existing, ...additions, evidence: refs };
           if (queued >= 0) delta.locations[queued] = enhanced; else delta.locations.push(enhanced);
         }

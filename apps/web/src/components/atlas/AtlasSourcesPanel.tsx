@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Database, Loader2, RefreshCw, Search, X } from "lucide-react";
 import type { AtlasDataset, SourceDefinition } from "@better-me/opportunities";
 import type { SourceCandidate, SourceCandidateInspection, SourceDiscoveryPage, SourceRegistrationProposal } from "@better-me/source-adapters/browser-contracts";
-import { JsonFieldMappingSchema } from "@better-me/source-adapters/browser-contracts";
+import { JsonFieldMappingOptionsSchema } from "@better-me/source-adapters/browser-contracts";
 import { useUiPreferences } from "../../lib/ui-preferences";
 import { AtlasSourceServiceError, createAtlasSourceClient, parseAtlasSourceJson, type AtlasRegisterSource, type AtlasSourceList, type AtlasSourcePreview } from "./service-client";
 import "./sources-panel.css";
@@ -62,7 +62,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
   const pending = useRef(new Map<string, PendingWrite>());
   const source = catalog.sources.find((entry) => entry.sourceId === sourceId);
   const canEnumerate = source && runnable(source) && source.capabilities.includes("list-jobs") && Boolean(source.entryUrl)
-    && (!["mapped-json", "github-json"].includes(source.adapterId) || JsonFieldMappingSchema.strip().safeParse(source.options ?? {}).success)
+    && (!["mapped-json", "github-json"].includes(source.adapterId) || JsonFieldMappingOptionsSchema.safeParse(source.options ?? {}).success)
     && catalog.adapters.some((adapter) => adapter.adapterId === source.adapterId && adapter.version === source.adapterVersion && adapter.capabilities.includes("list-jobs"));
   const config = configs[configIndex];
   const discoverySources = catalog.sources.filter((entry) => entry.capabilities.includes("discover-sources") && runnable(entry));

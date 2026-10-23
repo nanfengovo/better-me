@@ -5,6 +5,7 @@ import type { SourceAdapter } from '../contracts.js';
 import { baseRecord, idValue, jsonResponse, page, plainText, publicUrl, timeValue } from './common.js';
 import { allocateDownloadedRecordQuota, allocateDownloadedRecordWindow } from './bounded-records.js';
 import { resolveJsonPage, readJsonNextPage, jsonContinuation, jsonPageFingerprint } from './mapped-json-pagination.js';
+import { applyMappedJsonLocations } from './mapped-json-locations.js';
 
 /** No eval, bracket expressions, wildcards, getters, prototype traversal or JavaScript mapping code. */
 export function readJsonField(value: unknown, path: string): unknown {
@@ -38,7 +39,9 @@ export const mappedJsonAdapter: SourceAdapter = {
   async list(request) {
     if (!request.source.entryUrl) throw new ToolError('invalid-input');
     const options = request.source.options ?? {};
-    const mappingKeys = ['recordsPath', 'idPath', 'titlePath', 'urlPath', 'applicationUrlPath', 'companyPath', 'descriptionPath', 'locationsPath', 'salaryTextPath', 'publishedPath', 'updatedPath', 'descriptionCompleteness', 'enumerationComplete', 'publishedFormat', 'nextPageUrlPath', 'pageParameter', 'discoveryOnly'];
+    const mappingKeys = ['recordsPath', 'idPath', 'titlePath', 'urlPath', 'applicationUrlPath', 'companyPath', 'descriptionPath', 'locationsPath',
+      'locationTextPath', 'locationCountryPath', 'locationCountryFormat', 'locationRegionPath', 'locationCityPath', 'locationStreetAddressPath', 'locationPostalCodePath',
+      'salaryTextPath', 'publishedPath', 'updatedPath', 'descriptionCompleteness', 'enumerationComplete', 'publishedFormat', 'nextPageUrlPath', 'pageParameter', 'discoveryOnly'];
     const input = Object.fromEntries(mappingKeys.filter((key) => Object.hasOwn(options, key)).map((key) => [key, options[key]]));
     const parsed = JsonFieldMappingSchema.safeParse(input);
     if (!parsed.success) throw new ToolError('invalid-input');
@@ -73,9 +76,9 @@ export const mappedJsonAdapter: SourceAdapter = {
         result.evidence.push({ field: 'description', selector: `${mapping.recordsPath}[${index}].${mapping.descriptionPath}`, sourceUrl: response.url });
       }
       const places = get(mapping.locationsPath);
-      const locations = Array.isArray(places) ? places.map(plainText).filter(Boolean) : plainText(places) ? [plainText(places)] : [];
-      result.locations = [...new Set(locations)].map((raw) => ({ raw }));
-      if (locations.length) result.evidence.push({ field: 'locations', selector: `${mapping.recordsPath}[${index}].${mapping.locationsPath}`, sourceUrl: response.url });
+      const rowSelector = `${mapping.recordsPath}[${index}]`;
+      applyMappedJsonLocations(result, places, mapping,
+        mapping.locationsPath === '' ? rowSelector : `${rowSelector}.${mapping.locationsPath}`, response.url, readJsonField);
       const salary = plainText(get(mapping.salaryTextPath));
       if (salary) {
         result.compensations = [{ raw: salary, period: 'unknown', tax: 'unknown', kind: 'unknown' }];

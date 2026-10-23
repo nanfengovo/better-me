@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { HttpUrlSchema, SourceDefinitionSchema, TimestampSchema, type SourceDefinition } from "@better-me/opportunities";
-import { JsonFieldMappingSchema, SmartRecruitersSourceOptionsSchema, validateJobPostingJsonLdSource } from "@better-me/source-adapters/browser-contracts";
+import { JsonFieldMappingOptionsSchema, SmartRecruitersSourceOptionsSchema, validateJobPostingJsonLdSource } from "@better-me/source-adapters/browser-contracts";
 import catalogJson from "../../../../../config/sources/catalog.json";
 
 export const SourceCatalogSchema = z.object({
@@ -21,7 +21,7 @@ export const SourceCatalogSchema = z.object({
           }
         }
         if (source.adapterId !== "mapped-json") return;
-        const mapping = JsonFieldMappingSchema.strip().safeParse(source.options ?? {});
+        const mapping = JsonFieldMappingOptionsSchema.safeParse(source.options ?? {});
         if (!mapping.success || mapping.data.discoveryOnly) context.addIssue({ code: "custom", path: ["options"], message: "Catalog JSON job feeds require a valid mapping with discoveryOnly disabled" });
       }),
     tags: z.array(z.string().trim().min(1).max(80)).max(20),
