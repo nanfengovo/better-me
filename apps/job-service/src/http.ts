@@ -13,6 +13,11 @@ export interface JobHttpOptions {
 }
 
 const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }> = [
+  { method: "POST", path: /^\/api\/v1\/leads\/query$/, tool: "leads.query" },
+  { method: "POST", path: /^\/api\/v1\/leads\/read$/, tool: "leads.read" },
+  { method: "POST", path: /^\/api\/v1\/leads\/original\/read$/, tool: "leads.read-original" },
+  { method: "POST", path: /^\/api\/v1\/leads\/original\/preview$/, tool: "leads.preview-original" },
+  { method: "POST", path: /^\/api\/v1\/leads\/original\/import$/, tool: "leads.import-original" },
   { method: "POST", path: /^\/api\/v1\/companies\/control-review\/read$/, tool: "companies.read-control-review" },
   { method: "POST", path: /^\/api\/v1\/companies\/control-review\/preview$/, tool: "companies.preview-control-review" },
   { method: "POST", path: /^\/api\/v1\/companies\/control-review\/confirm$/, tool: "companies.confirm-control-review" },

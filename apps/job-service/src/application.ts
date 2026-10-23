@@ -25,6 +25,7 @@ import { projectSourcePage } from "./projection.js";
 import { createReviewedCardsTools } from "./reviewed-cards.js";
 import { createReviewedDetailLocationsTools } from "./reviewed-detail-locations.js";
 import { createOwnedDetailLocationsTools } from "./owned-detail-locations.js";
+import { createLeadResolutionTools } from "./lead-resolution.js";
 import { createLocationConfirmationTools } from "./location-confirmation.js";
 import { createReconciliationTools } from "./reconciliation.js";
 import { createLocationMapReferencesTool } from "./location-map-references.js";
@@ -289,6 +290,9 @@ export function createJobApplication(options: JobApplicationOptions) {
       ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
       execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     ...createOwnedDetailLocationsTools({ repository, sources, transport, now }).map(definition => ({ ...definition,
+      ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
+      execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
+    ...createLeadResolutionTools({ repository, sources, transport, now }).map(definition => ({ ...definition,
       ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
       execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     defineTool({ ...searchTool, execute: (input, context) => guarded(async () => searchTool.execute(input, context)) }),

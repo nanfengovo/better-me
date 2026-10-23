@@ -113,6 +113,11 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/jobs/search" -Headers $jobHe
 | POST | `/api/v1/dataset/import` | `jobs.import-public`；`{ dataset, expectedRevision? }`，严格公共快照。 |
 | GET | `/api/v1/dataset/export` | `jobs.export-public`；仅公共领域快照。 |
 | GET | `/api/v1/leads` | `leads.list`；线索与招聘批次，独立于正式岗位计数。 |
+| POST | `/api/v1/leads/query` | `leads.query`；按关键词、来源、类型分页查看持久线索，默认 50、最多 100 条，游标绑定查询与索引版本。 |
+| POST | `/api/v1/leads/read` | `leads.read`；重新打开一条线索、历史接续及当前可用的原页来源，零外部读取。 |
+| POST | `/api/v1/leads/original/read` | `leads.read-original`；仅从持久线索的 `record.url` 和独立启用的原来源读取唯一岗位，不接受调用方 URL。 |
+| POST | `/api/v1/leads/original/preview` | `leads.preview-original`；校验宿主读取、线索摘要与来源指纹，预览原来源字段及当前规范目标，不写入。 |
+| POST | `/api/v1/leads/original/import` | `leads.import-original`；`reviewed:true`、原预览指纹及幂等键明确保存，回执可跨服务重建与完整备份恢复。 |
 
 `scope` 为 `{ "roles": [], "regions": [], "companyNames": [], "countryCodes": ["CN"] }`；`countryCodes` 可省略；整个 `scope` 省略时，roles／regions／companyNames 均为空数组。上游是否支持这些过滤条件由适配器能力和返回的 `coverage.appliedFilters` / `ignoredFilters` 说明。应用另做本地包含匹配，因此“关注范围内刷新”不代表上游已经提供全站搜索或只下载匹配记录。
 
@@ -131,6 +136,12 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/sources/my-reviewed-source/s
 `my-reviewed-source` 是用户自己保存的来源 ID，示例不会自动创建它。[来源配置示例](../../config/sources/examples.json)全部默认禁用、待审核；必须先核对原站、许可、稳定身份、字段映射和请求范围，再显式注册 / 启用。配置修改使同源正在进行的旧任务失效。
 
 ## 分批扫描与显式续读
+
+持久线索接续与扫描是独立链路。`leads.query/read` 从一个 SQLite 事务取得有效岗位、原投影与线索文档；线索本身不能升级成规范岗位；必须另读到唯一 JobPosting、实际雇主、原编号与可读正文，不能仅凭首页或招聘批次条目入库。本版已安装 JSON-LD 与 SmartRecruiters 原页读取，来源代码的 `matchesOriginalUrl` 无网络检查决定可选范围，实际读取仍执行各自的 URL、同源、路径、租户及受控传输检查。不能用 GitHub 的端点策略授权雇主域名；不改用 `applicationUrl`、不猜原始 ID、不自动扫描整源。其他适配器与四平台浏览器仍使用既有独立流程。
+
+预览中的 `job` 是本次原来源字段，`canonicalJobId` 是当前有效归并目标；保存按原来源 ID 去重，经两条线索接续同一原岗只产生一个原来源岗位。发现来源 ID、保留链接和每条 lead 的摘要、原编号、读取序号以不可变独立观察保留，不覆盖 JD 快照的内容哈希，正常来源刷新仍保留发现链。`resolvedJobs` 是包括历史在内的接续记录，不认证当前线索链接仍指向该岗位。保存后统一读取有效索引，最终详情、统计与地图继续使用同版数据；不创建办公室坐标。
+
+未提交 capture 的宿主证明仅在当前服务进程有效，重启后须重新读取。已提交命令先查询耐久回执，再检查临时 capture 或旧 revision；原 body 和幂等键重放不重复写入，同 key 不同 body 冲突。Web 在面板关闭、切视图与组件重挂之间保留内存恢复屏障；整页刷新前应完成恢复。已拿到成功回执但索引读取失败时，仅重读不低于回执版本的快照；不再提交原保存。实现与验收范围见[持久线索接续报告](../../docs/reports/job-atlas-persistent-leads-2026-10-23.md)。
 
 `sources.sync` 保持从头刷新的语义，每个新请求建立新的扫描并永久失效该来源之前的扫描位置。有限预算用完后，要读取清单后面的候选，使用 `sources.continue-sync`；反复执行新 sync 仍会从清单前部开始。继续扫描继承原扫描的关键词、地区、企业与明确国家条件，仅可调整本批 `maxRecords`／`maxPages`，不能提供新的 `scope`、上游 cursor、执行身份或访问端点。
 

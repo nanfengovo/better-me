@@ -13,3 +13,4 @@ export * from "./jobposting-jsonld-contracts.js";
 export * from "./platform-detail-locations.js";
 export * from "./reviewed-detail-locations.js";
 export * from "./owned-detail-locations.js";
+export * from "./lead-resolution-contracts.js";

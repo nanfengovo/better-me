@@ -170,6 +170,8 @@ DOCX 已有 OOXML 结构与正文回读验证，尚未完成所有中文字体�
 
 **通用 JSON 地点字段。** 通过显式配置保留每个地点的国家、城市、地区、来源地址和字符串邮编，供来源范围、网页地区筛选和既有地址核对共用。旧文本映射保持兼容，多地点不互借国家或证据；来源 `address` 可能只写城市，不会自动变成精确办公室。Bosch公开接口10条的有限只读探测未入库、未拼造原链，完整边界与配置见[地点映射报告](docs/reports/job-atlas-json-locations-2026-10-22.md)。
 
+**已保存线索接续原岗位。** 来源工具可分页检索 GitHub 条目、目录和招聘批次，再通过独立启用的 JSON-LD／SmartRecruiters 来源读取唯一原岗，核对原编号、雇主与正文，预览并明确确认后进入统一岗位索引。原岗位身份去重，发现链与历史接续保留；丢回执可用原请求恢复，成功后统一刷新列表、详情和地图。该能力处理已经保存的线索，不代表全网覆盖或精确办公室已核实，使用与验收见[持久线索接续报告](docs/reports/job-atlas-persistent-leads-2026-10-23.md)。<br>![合成发现线索与独立原岗位核对的桌面预览](docs/images/atlas-persistent-lead-preview.jpg)<br>*独立临时数据库的实际组件截图，岗位与雇主均为合成，不代表真实市场覆盖。* [390px 英文深色历史](docs/images/atlas-persistent-lead-history-narrow.jpg) · [截图来源与哈希](docs/images/atlas-persistent-leads-manifest.json)。
+
 ![合成岗位的实际批量审核界面](docs/images/atlas-platform-batch-selection.webp)
 
 *实际组件连接合成卡片和内存SQLite，不是已采集全网岗位的展示；来源与回执范围见上述报告。*

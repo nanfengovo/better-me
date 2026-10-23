@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { AtlasDatasetSchema, CanonicalJobSchema, CountryCodeSchema, EntityIdSchema, TimestampSchema, MergeDecisionSchema, JobAliasEventSchema, ReconciliationReceiptSchema, JobLocationSchema, LocationConfirmationDecisionSchema, LocationConfirmationReceiptSchema, OfficeAddressDecisionSchema, OfficeAddressReceiptSchema, CompensationSchema, CompensationReviewDecisionSchema, CompensationReviewReceiptSchema, FxReferenceSnapshotSchema, FxMutationReceiptSchema, CompanySchema, CompanyControlReviewDecisionSchema, CompanyControlReviewReceiptSchema, isCompanyControlReviewEntityId } from "@better-me/opportunities";
-import { SourceJobRecordSchema, SourceSyncRunSchema } from "@better-me/source-adapters";
+import { DiscoveryLeadSchema, SourceSyncRunSchema } from "@better-me/source-adapters";
+export { DiscoveryLeadSchema, type DiscoveryLead } from "@better-me/source-adapters";
 import { SourceScanCheckpointSchema } from "./source-scan-state.js";
 
 export const REPOSITORY_SCHEMA_VERSION = 8;
@@ -43,10 +44,6 @@ export const ImportReceiptSchema = z.object({
   counts: z.object({ newJobs: z.number().int().nonnegative(), updatedJobs: z.number().int().nonnegative(), unchangedJobs: z.number().int().nonnegative(), newListings: z.number().int().nonnegative(), newObservations: z.number().int().nonnegative(), newSnapshots: z.number().int().nonnegative() }).strict(),
 }).strict();
 export type ImportReceipt = z.infer<typeof ImportReceiptSchema>;
-export const DiscoveryLeadSchema = z.object({
-  id: EntityIdSchema, sourceId: EntityIdSchema, observedAt: TimestampSchema, record: SourceJobRecordSchema,
-}).strict().refine((lead) => lead.record.entityType !== "job-posting", "A discovery lead cannot enter the canonical jobs table.");
-export type DiscoveryLead = z.infer<typeof DiscoveryLeadSchema>;
 export const DiscoveryLeadReceiptSchema = z.object({ ok: z.literal(true), revision: z.number().int().nonnegative(), leadIds: z.array(EntityIdSchema) }).strict();
 export type DiscoveryLeadReceipt = z.infer<typeof DiscoveryLeadReceiptSchema>;
 export const SourceScanPageReceiptSchema = z.object({ ok: z.literal(true), runId: EntityIdSchema, scanId: EntityIdSchema,

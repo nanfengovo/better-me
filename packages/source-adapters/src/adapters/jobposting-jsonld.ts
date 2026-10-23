@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { ToolError } from "@better-me/opportunities";
-import { SourceJobRecordSchema, SourcePageSchema, type SourceAdapter, type SourceAdapterDetailRequest, type SourceAdapterRequest, type SourceJobRecord } from "../contracts.js";
+import { SourceJobRecordSchema, SourcePageSchema, type SourceAdapter, type SourceAdapterOriginalRequest, type SourceAdapterRequest, type SourceJobRecord } from "../contracts.js";
 import { validateJobPostingJsonLdSource } from "../jobposting-jsonld-contracts.js";
 import { enumerateJobPostingUrls } from "../jobposting-enumeration.js";
 import { readJobPostingJsonLd } from "../jobposting-jsonld-reader.js";
@@ -31,7 +31,7 @@ async function readText(request: Pick<SourceAdapterRequest, "source" | "context"
   return response.text;
 }
 
-function validateHeldPosting(request: SourceAdapterDetailRequest): void {
+function validateHeldPosting(request: Pick<SourceAdapterOriginalRequest, "source" | "url">): void {
   const options = validateJobPostingJsonLdSource(request.source);
   // Use the same reviewed URL syntax/path constraints as manifest candidates, but
   // never enumerate a manifest to rediscover an already-held posting.
@@ -47,6 +47,18 @@ function validateHeldPosting(request: SourceAdapterDetailRequest): void {
   }
 }
 
+async function readOriginalPosting(request: SourceAdapterOriginalRequest): Promise<SourceJobRecord> {
+  request.context.throwIfCancelled();
+  validateHeldPosting(request);
+  const text = await readText(request, request.url, "text/html, application/xhtml+xml;q=0.9");
+  const result = readJobPostingJsonLd(text, request.url);
+  request.context.throwIfCancelled();
+  const parsed = SourceJobRecordSchema.safeParse(result.record);
+  if (!parsed.success || parsed.data.entityType !== "job-posting" || parsed.data.url !== request.url
+    || !parsed.data.sourceRecordId?.trim()) throw new ToolError("source-changed");
+  return parsed.data;
+}
+
 function recoverableDetailError(error: unknown): boolean {
   return error instanceof ToolError && error.code === "source-changed"
     || error instanceof SourceTransportError && ["http-error", "response-too-large", "invalid-response"].includes(error.code)
@@ -57,16 +69,14 @@ function recoverableDetailError(error: unknown): boolean {
  * No crawler, sitemap-index traversal, endpoint guessing or automatic pagination is performed. */
 export const jobPostingJsonLdAdapter: SourceAdapter = {
   adapterId: "jobposting-jsonld", version: "1", capabilities: ["list-jobs"], remoteFilters: [], entityTypes: ["job-posting"],
+  readOriginal: readOriginalPosting,
+  matchesOriginalUrl(request) {
+    try { validateHeldPosting(request); return true; } catch { return false; }
+  },
   async readDetail(request) {
-    request.context.throwIfCancelled();
-    validateHeldPosting(request);
-    const text = await readText(request, request.url, "text/html, application/xhtml+xml;q=0.9");
-    const result = readJobPostingJsonLd(text, request.url);
-    request.context.throwIfCancelled();
-    const parsed = SourceJobRecordSchema.safeParse(result.record);
-    if (!parsed.success || parsed.data.entityType !== "job-posting" || parsed.data.url !== request.url
-      || parsed.data.sourceRecordId !== request.sourceRecordId) throw new ToolError("source-changed");
-    return parsed.data;
+    const record = await readOriginalPosting(request);
+    if (record.sourceRecordId !== request.sourceRecordId) throw new ToolError("source-changed");
+    return record;
   },
   async list(request) {
     request.context.throwIfCancelled();

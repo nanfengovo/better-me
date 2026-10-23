@@ -142,6 +142,29 @@ test("only explicit method and API routes are proxied, with no query, target URL
   } finally { await app.close(); }
 });
 
+test("persisted lead tools use five fixed POST routes and retain original import body and key", async () => {
+  const calls: Array<{ route: string; body: unknown; key: string | null }> = [];
+  const app = await fixture(baseOptions({ fetcher: async (input, init) => {
+    calls.push({ route: new URL(String(input)).pathname, body: JSON.parse(new TextDecoder().decode(init!.body as Uint8Array)),
+      key: new Headers(init?.headers).get("Idempotency-Key") });
+    return Response.json(ENVELOPE);
+  } }));
+  try {
+    for (const route of ["query", "read", "original/read", "original/preview", "original/import"]) {
+      const body = { leadId: "lead-synthetic", expectedRevision: 3 };
+      assert.equal((await app.call(`/api/atlas/api/v1/leads/${route}`, { method: "POST",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": "original-lead-key" }, body: JSON.stringify(body) })).status, 200);
+      assert.deepEqual(calls.at(-1), { route: `/api/v1/leads/${route}`, body, key: "original-lead-key" });
+      await errorCode(await app.call(`/api/atlas/api/v1/leads/${route}`), 404, "unsupported-capability");
+      await errorCode(await app.call(`/api/atlas/api/v1/leads/${route}/extra`, { method: "POST" }), 404, "unsupported-capability");
+    }
+    for (const route of ["original/read?url=https://arbitrary.example/", "original/fetch", "read-original", "job-id"]) {
+      await errorCode(await app.call(`/api/atlas/api/v1/leads/${route}`, { method: "POST" }), 404, "unsupported-capability");
+    }
+    assert.equal(calls.length, 5);
+  } finally { await app.close(); }
+});
+
 test("scan progress and continuation expose only exact source-scoped POST routes and preserve the original continuation body and key", async () => {
   const calls: Array<{ route: string; body: unknown; key: string | null }> = [];
   const app = await fixture(baseOptions({ fetcher: async (input, init) => {

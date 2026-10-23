@@ -1041,6 +1041,15 @@ export function openJobRepository(path: string, options: { now?: () => string } 
 
   return {
     async readSnapshot(): Promise<AtlasDataset> { return transaction(read); },
+    /** Lead documents, effective owners and the original projection basis share one revision. */
+    async readLeadSnapshot(): Promise<{ dataset: AtlasDataset; projection: AtlasDataset; leads: DiscoveryLead[] }> {
+      return transaction(() => {
+        const dataset = read();
+        const leads = (db.prepare("SELECT document FROM discovery_leads ORDER BY id").all() as Array<{ document: string }>)
+          .map(row => checked(DiscoveryLeadSchema, JSON.parse(row.document)));
+        return { dataset, projection: baseSnapshot(dataset), leads };
+      });
+    },
     /** Capture the FX selection and public dataset in one SQLite transaction. */
     async readFxQuerySnapshot(): Promise<{ dataset: AtlasDataset; context: FxQueryContext }> {
       const captured = transaction(() => ({ dataset: read(), context: fxContext() }));

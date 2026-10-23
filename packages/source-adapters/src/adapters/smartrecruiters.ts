@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { CountryCodeSchema, ToolError } from "@better-me/opportunities";
-import { SourceJobRecordSchema, SourcePageSchema, type SourceAdapter, type SourceAdapterDetailRequest, type SourceAdapterRequest, type SourceJobRecord } from "../contracts.js";
+import { SourceJobRecordSchema, SourcePageSchema, type SourceAdapter, type SourceAdapterDetailRequest, type SourceAdapterOriginalRequest, type SourceAdapterRequest, type SourceJobRecord } from "../contracts.js";
 import { SmartRecruitersSourceOptionsSchema } from "../smartrecruiters-contracts.js";
 import { SourceTransportError } from "../transport.js";
 import { assessSourceScopeMatch, countSourceScopeMatches } from "../local-match.js";
@@ -136,7 +136,7 @@ function applyDetail(job: SourceJobRecord, detailResponse: { data: unknown; url:
   return full;
 }
 
-function validateExactRequest(request: SourceAdapterDetailRequest) {
+function validateExactRequest(request: Pick<SourceAdapterDetailRequest, "source" | "url" | "sourceRecordId">) {
   const parsed = SmartRecruitersSourceOptionsSchema.safeParse(request.source.options ?? {});
   if (!parsed.success || !/^\d{1,30}$/.test(request.sourceRecordId)) throw new ToolError("invalid-input");
   const options = parsed.data, tenant = options.companyIdentifier;
@@ -146,26 +146,50 @@ function validateExactRequest(request: SourceAdapterDetailRequest) {
   return { options, tenant, endpoint };
 }
 
+async function readExactPosting(request: SourceAdapterDetailRequest, allowConfiguredCompany = true): Promise<SourceJobRecord> {
+  request.context.throwIfCancelled();
+  const { options, tenant, endpoint } = validateExactRequest(request);
+  const response = await readJson(request, `${endpoint}/${request.sourceRecordId}`);
+  const detail = record(response.data), company = record(detail.company), title = plainText(detail.name);
+  if (!title) throw new ToolError("source-changed");
+  const job = baseRecord(title, response.url, "name");
+  job.sourceRecordId = request.sourceRecordId;
+  job.companyName = plainText(company.name) || (allowConfiguredCompany ? options.companyName : undefined);
+  job.evidence.push({ field: "companyName", selector: "company", sourceUrl: response.url });
+  publicationFor(job, detail.releasedDate, "releasedDate", response.url);
+  applyDetail(job, response, tenant, endpoint, request.url);
+  request.context.throwIfCancelled();
+  const parsed = SourceJobRecordSchema.safeParse(job);
+  if (!parsed.success || parsed.data.url !== request.url || parsed.data.sourceRecordId !== request.sourceRecordId) throw new ToolError("source-changed");
+  return parsed.data;
+}
+
+/** The ID must be literal in this tenant's reviewed public posting route. No list, slug or endpoint guessing. */
+function originalPostingId(request: Pick<SourceAdapterOriginalRequest, "source" | "url">): string {
+  const options = SmartRecruitersSourceOptionsSchema.safeParse(request.source.options ?? {});
+  const value = request.url;
+  if (!options.success || !value || value !== value.trim() || /[\\%\s\p{Cc}\p{Cs}]/u.test(value)) throw new ToolError("invalid-input");
+  let url: URL;
+  try { url = new URL(value); } catch { throw new ToolError("invalid-input"); }
+  const prefix = `/${options.data.companyIdentifier}/`;
+  if (url.toString() !== value || url.origin !== PUBLIC_ORIGIN || url.search || url.hash || !url.pathname.startsWith(prefix)) throw new ToolError("invalid-input");
+  const match = /^(\d{1,30})(?:-[^/]+)?$/.exec(url.pathname.slice(prefix.length));
+  const id = match?.[1];
+  if (!id || postingUrl(value, options.data.companyIdentifier, id) !== value) throw new ToolError("invalid-input");
+  return id;
+}
+
 /** Public GET Posting API. Upstream q returns candidates; only local evidence establishes a keyword match. */
 export const smartRecruitersAdapter: SourceAdapter = {
   adapterId: "smartrecruiters", version: "1", capabilities: ["list-jobs"], remoteFilters: ["roles"], entityTypes: ["job-posting"],
-  async readDetail(request) {
-    request.context.throwIfCancelled();
-    const { options, tenant, endpoint } = validateExactRequest(request);
-    const response = await readJson(request, `${endpoint}/${request.sourceRecordId}`);
-    const detail = record(response.data), company = record(detail.company), title = plainText(detail.name);
-    if (!title) throw new ToolError("source-changed");
-    const job = baseRecord(title, response.url, "name");
-    job.sourceRecordId = request.sourceRecordId;
-    job.companyName = plainText(company.name) || options.companyName;
-    job.evidence.push({ field: "companyName", selector: "company", sourceUrl: response.url });
-    publicationFor(job, detail.releasedDate, "releasedDate", response.url);
-    applyDetail(job, response, tenant, endpoint, request.url);
-    request.context.throwIfCancelled();
-    const parsed = SourceJobRecordSchema.safeParse(job);
-    if (!parsed.success || parsed.data.url !== request.url || parsed.data.sourceRecordId !== request.sourceRecordId) throw new ToolError("source-changed");
-    return parsed.data;
+  matchesOriginalUrl(request) {
+    try { validateExactRequest({ ...request, sourceRecordId: originalPostingId(request) }); return true; } catch { return false; }
   },
+  async readOriginal(request) {
+    request.context.throwIfCancelled();
+    return readExactPosting({ ...request, sourceRecordId: originalPostingId(request) }, false);
+  },
+  readDetail: readExactPosting,
   async list(request) {
     request.context.throwIfCancelled();
     const parsedOptions = SmartRecruitersSourceOptionsSchema.safeParse(request.source.options ?? {});

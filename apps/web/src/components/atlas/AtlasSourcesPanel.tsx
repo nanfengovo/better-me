@@ -14,6 +14,8 @@ import { AtlasSourceScanControls } from "./AtlasSourceScanControls";
 import { useAtlasSourceScanRecovery } from "./source-scan-recovery";
 import { useAtlasAggregateRecovery } from "./aggregate-recovery";
 import { AtlasAggregateRecoveryControls } from "./AtlasAggregateRecoveryControls";
+import { AtlasDiscoveryLeads } from "./AtlasDiscoveryLeads";
+import { useAtlasLeadRecovery } from "./lead-recovery";
 
 export type AtlasSourcesPanelProps = {
   endpoint: string;
@@ -21,13 +23,15 @@ export type AtlasSourcesPanelProps = {
   onSnapshot: (data: AtlasDataset) => void;
   onClose: () => void;
   disabled?: boolean;
+  revision?: number;
+  onOpenJob?: (jobId: string, snapshot: AtlasDataset) => void;
 };
 type PendingWrite = { identity: string; key: string; registration?: AtlasRegisterSource };
 const terms = (value: string) => [...new Set(value.split(/[,，;；\n]/).map((term) => term.trim()).filter(Boolean))];
 const errorText = (error: unknown) => error instanceof Error ? error.message : "来源操作失败。请检查本机服务。";
 const runnable = (source: SourceDefinition) => source.enabled && source.status === "active" && source.runtime.includes("local-service");
 
-export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabled = false }: AtlasSourcesPanelProps) {
+export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabled = false, revision, onOpenJob }: AtlasSourcesPanelProps) {
   const { t } = useUiPreferences();
   const client = useMemo(() => createAtlasSourceClient(endpoint, token), [endpoint, token]);
   const [catalog, setCatalog] = useState<AtlasSourceList>({ sources: [], adapters: [] });
@@ -38,7 +42,12 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
   const aggregateRecovery = useAtlasAggregateRecovery(endpoint, token);
   const aggregateLocked = aggregateRecovery.active || aggregateRecovery.entries.length > 0;
   const scanRecovery = useAtlasSourceScanRecovery(endpoint, token);
-  const scanLocked = Boolean(disabled || scanBusy || aggregateBusy || aggregateLocked || scanRecovery.pending || scanRecovery.saved || scanRecovery.refreshOnly);
+  const sourceActivityLocked = Boolean(disabled || scanBusy || aggregateBusy || aggregateLocked || scanRecovery.pending || scanRecovery.saved || scanRecovery.refreshOnly);
+  const leadRecovery = useAtlasLeadRecovery(endpoint, token);
+  const leadLocked = Boolean(leadRecovery.pending || leadRecovery.saved || leadRecovery.active);
+  const scanLocked = sourceActivityLocked || leadLocked;
+  const [leadsOpen, setLeadsOpen] = useState(false);
+  useEffect(() => { if (leadLocked) setLeadsOpen(true); }, [leadLocked]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [roles, setRoles] = useState("");
@@ -174,7 +183,9 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
       <button type="button" onClick={() => { active.current?.abort(); onClose(); }} aria-label={t("关闭来源工具", "Close source tools")}><X size={17} /></button></header>
     <p>{t("通过岗位后端管理来源、有限预览与手动刷新。岗位、招聘活动和公司线索分别保存；原始来源与覆盖范围会保留。", "Manage real sources, bounded previews and manual refreshes through the job backend. Jobs, campaigns and company leads retain their separate identity and provenance.")}</p>
     {!usable && <p role="status" className="atlas-sources-callout">{t("请先连接岗位后端；默认后端无需填写令牌，高级直连需有效服务地址与令牌。", "The default backend needs no token entry; advanced direct connections require a valid service address and token.")}</p>}
-    <CompanyCareersPanel endpoint={endpoint} token={token} sources={catalog.sources} onProposal={editJson} onSelectSource={(id, companyName) => { setSourceId(id); const configuredName = catalog.sources.find((entry) => entry.sourceId === id)?.options?.companyName; setCompanies(typeof configuredName === "string" ? configuredName : companyName); setPreview(undefined); setNotice("已选择企业招聘来源。可继续填写岗位关键词与地区，预览后手动获取真实岗位。"); }} />
+    <fieldset disabled={leadLocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}><CompanyCareersPanel endpoint={endpoint} token={token} sources={catalog.sources} onProposal={editJson} onSelectSource={(id, companyName) => { setSourceId(id); const configuredName = catalog.sources.find((entry) => entry.sourceId === id)?.options?.companyName; setCompanies(typeof configuredName === "string" ? configuredName : companyName); setPreview(undefined); setNotice("已选择企业招聘来源。可继续填写岗位关键词与地区，预览后手动获取真实岗位。"); }} /></fieldset>
+    <div className="atlas-sources-actions"><button type="button" disabled={!usable || Boolean(busy || sourceActivityLocked)} aria-expanded={leadsOpen || leadLocked} onClick={() => setLeadsOpen(value => !value)}><Database size={14} />{t("已保存发现线索", "Saved discovery leads")}{leadLocked && t(" · 待核对回执", " · receipt pending")}</button><span className="atlas-sources-muted">{t("GitHub / 招聘批次单独审核，再接续原岗位。", "Review GitHub leads and campaigns before adopting original jobs.")}</span></div>
+    {(leadsOpen || leadLocked) && <AtlasDiscoveryLeads key={`${endpoint}:${token}`} endpoint={endpoint} token={token} revision={revision} sources={catalog.sources} disabled={Boolean(busy || sourceActivityLocked)} onSnapshot={onSnapshot} onOpenJob={onOpenJob} onClose={() => setLeadsOpen(false)} />}
     {busy && <div role="status" className="atlas-sources-actions"><Loader2 size={15} className="animate-spin" /><span>{busy}</span><button type="button" onClick={() => active.current?.abort()}>{t("取消操作", "Cancel operation")}</button></div>}
     {error && <p role="alert" className="atlas-sources-error">{error}</p>}
     {notice && <p role="status" className="atlas-sources-callout">{notice}</p>}

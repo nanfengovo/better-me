@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-10-23",
+  "purpose": "Persisted discovery lead to independently reviewed original posting, desktop preview and narrow English dark history",
+  "syntheticOnly": true,
+  "privateDataUsed": false,
+  "officePrecisionVerified": false,
+  "codeTree": "e03821ea4a5c0b799b284672cf9e0c4c94b61ff0",
+  "files": [
+    {
+      "file": "atlas-persistent-lead-preview.jpg",
+      "width": 1506,
+      "height": 1096,
+      "viewport": [
+        1512,
+        1100
+      ],
+      "bytes": 127400,
+      "sha256": "bc849d4eac3ea6a7589d794712c8c10a00eaecb8e19cc8a030736e2683537a16",
+      "capture": "Actual Chrome viewport screenshot of the frozen React component and independent temporary SQLite/HTTP fixture. Explicitly synthetic discovery leads and employer page; no private data or real recruitment source. No crop, compositing, or visual alteration."
+    },
+    {
+      "file": "atlas-persistent-lead-history-narrow.jpg",
+      "width": 375,
+      "height": 812,
+      "viewport": [
+        390,
+        844
+      ],
+      "bytes": 42003,
+      "sha256": "b8b417831c58b340286ed66d694032c3230c8c2d3777691aaec7d2f6f8abf4be",
+      "capture": "Actual Chrome viewport screenshot of the frozen React component and independent temporary SQLite/HTTP fixture. Explicitly synthetic discovery leads and employer page; no private data or real recruitment source. No crop, compositing, or visual alteration."
+    }
+  ]
+}

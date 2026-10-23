@@ -26,4 +26,5 @@ export * from "./adapters/jobposting-jsonld.js";
 export * from "./platform-detail-locations.js";
 export * from "./reviewed-detail-locations.js";
 export * from "./owned-detail-locations.js";
+export * from "./lead-resolution-contracts.js";
 export * from "./fx-reference.js";

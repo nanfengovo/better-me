@@ -185,6 +185,12 @@ CSV / Markdown 当前用于抽样识别与提案。没有对应生产列表解�
 
 ## 受控传输
 
+持久发现线索的共享契约位于 [`lead-resolution-contracts.ts`](src/lead-resolution-contracts.ts)，由 Node 主入口和浏览器纯契约入口共同导出。`DiscoveryLeadSchema` 保留原来的非 `job-posting` 约束；线索查询与单条读取绑定摘要和 revision，原页读取输入只有持久身份，不接受任意 URL。工具／HTTP 与使用步骤见[本机服务说明](../../apps/job-service/README.md)和[接续报告](../../docs/reports/job-atlas-persistent-leads-2026-10-23.md)。
+
+安装的来源代码可提供 `matchesOriginalUrl({source,url})` 和 `readOriginal({source,url,context,transport})`。前者同步检查链接适用范围、无网络请求；没有 hook 的适配器不会列为原页候选。后者读取当前唯一原页，原编号必须由该页面／原 API 返回；Registry 要求启用的 `job-posting` 来源、`list-jobs`／`local-service`、同返回 URL、非空实际 ID、读取前后取消检查与不变的读取时间。JSON 配置不能添加执行代码或取得新端点权限。
+
+JSON-LD 复用已审 URL／路径和唯一 JobPosting reader，只 GET 该页，不枚举 manifest。SmartRecruiters 仅从配置租户的规范 public posting 路径取实际数字 ID，再走精确 API 校验；原页缺雇主时不以配置中的公司名补齐。此能力未推广至其他 ATS 或四平台浏览器；它不证明全市场覆盖、在招状态或办公精度，也不默认访问 `applicationUrl`。
+
 `createControlledSourceTransport()` 提供 GET-only HTTPS 读取。它对主机 / 路径允许项、重定向每一步、DNS 结果、实际连接地址、响应流大小、总字节预算、请求预算、超时、取消与来源速率做检查。DNS 地址会固定到实际连接；私网、回环、云元数据、保留 / 文档 / Fake-IP 范围会拒绝，不能用公开域名跳入本地地址。
 
 适配器不能透传 Cookie、Authorization 或任意请求头；当前只允许有限的内容协商 / 缓存条件请求头。来源 `secretRef` 仅是引用名，现有 job-service 发现它时返回需要认证，不会从 JSON 读取实际密钥。登录 / 验证码接续仍属于原有本机浏览器流程。

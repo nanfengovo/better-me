@@ -12,6 +12,7 @@ const UPSTREAM_ORIGIN = "http://localhost:5173";
 const MAX_REQUEST_BYTES = 8 * 1024 * 1024;
 const MAX_RESPONSE_BYTES = 32 * 1024 * 1024;
 const POST_ROUTES = new Set([
+  "leads/query", "leads/read", "leads/original/read", "leads/original/preview", "leads/original/import",
   "jobs/address-enrichment/plan", "jobs/reconciliation/candidates", "jobs/reconciliation/preview", "jobs/reconciliation/preview-revoke",
   "jobs/reconciliation/merge", "jobs/reconciliation/reject", "jobs/reconciliation/history", "jobs/reconciliation/revoke", "jobs/search",
   "jobs/reviewed-cards/preview", "jobs/reviewed-cards/import", "jobs/detail-locations/preview", "jobs/detail-locations/import",

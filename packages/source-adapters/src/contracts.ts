@@ -147,6 +147,14 @@ export type SourceAdapterDetailRequest = {
   context: SourceAdapterContext;
   transport: SourceTransport;
 };
+/** Read one explicit original page using an already reviewed posting source.
+ * Its stable record identity comes from that page, never a discovery lead ID. */
+export type SourceAdapterOriginalRequest = {
+  source: SourceDefinition;
+  url: string;
+  context: SourceAdapterContext;
+  transport: SourceTransport;
+};
 export const SourceAdapterMetadataSchema = z.object({
   adapterId: EntityIdSchema,
   version: z.string().min(1).max(80),
@@ -158,6 +166,9 @@ export type SourceAdapterMetadata = z.infer<typeof SourceAdapterMetadataSchema>;
 export type SourceAdapter = SourceAdapterMetadata & {
   readonly list: (request: SourceAdapterRequest) => Promise<SourcePage>;
   readonly readDetail?: (request: SourceAdapterDetailRequest) => Promise<SourceJobRecord>;
+  readonly readOriginal?: (request: SourceAdapterOriginalRequest) => Promise<SourceJobRecord>;
+  /** Pure installed-code eligibility check; it grants no endpoint access or network read. */
+  readonly matchesOriginalUrl?: (request: Pick<SourceAdapterOriginalRequest, "source" | "url">) => boolean;
 };
 
 export const SOURCE_REGISTRY_ERROR_CODES = ["invalid-source", "adapter-not-found", "unsupported-version", "unsupported-capability", "source-disabled", "invalid-output", "duplicate-adapter"] as const;

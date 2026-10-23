@@ -17,6 +17,7 @@ import { useAtlasCompanyControlRecovery } from "./atlas/company-control-recovery
 import { atlasSourceScanRecoveryScope, readAtlasSourceScanRecovery, useAtlasSourceScanRecovery } from "./atlas/source-scan-recovery";
 import { atlasAggregateRecoveryScope, beginAtlasAggregateRecovery, endAtlasAggregateRecovery, readAtlasAggregateRecovery, rejectAtlasAggregateRequest, retainAtlasAggregateRequest, saveAtlasAggregateReceipt, settleAtlasAggregateReceipt, useAtlasAggregateRecovery } from "./atlas/aggregate-recovery";
 import { AtlasAggregateRecoveryControls } from "./atlas/AtlasAggregateRecoveryControls";
+import { atlasLeadRecoveryScope, readAtlasLeadRecovery, useAtlasLeadRecovery } from "./atlas/lead-recovery";
 import { clearAtlasConnectionSession, DEFAULT_ATLAS_BACKEND_ENDPOINT, DEFAULT_ATLAS_ENDPOINT, readAtlasConnectionSession, writeAtlasConnectionSession, type AtlasConnectionIdentity, type AtlasDataMode } from "./atlas/connection-session";
 import { isDefaultAtlasEndpoint } from "./atlas/backend-connection";
 import { runAtlasSourceSearch, type AtlasAggregateProgress, type AtlasAggregateSource } from "./atlas/aggregate-search";
@@ -94,6 +95,7 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
   const [enrichmentScope, setEnrichmentScope] = useState<string[] | null>(null);
   const [locationChoices, setLocationChoices] = useState<string>();
   const [officeFocusRequest, setOfficeFocusRequest] = useState<{ id: string; jobId: string; locationId: string; snapshot: AtlasDataset; selectionKey: string; endpoint: string; token: string }>();
+  const [leadJobRequest, setLeadJobRequest] = useState<{ jobId: string; snapshot: AtlasDataset; endpoint: string; token: string }>();
   const officeFocusAbort = useRef<AbortController | null>(null);
   const officeFocusApplied = useRef<string | undefined>(undefined);
   const recoveredOfficeSelection = useRef<{ data: AtlasDataset; selectionKey: string; jobId: string } | undefined>(undefined);
@@ -122,6 +124,7 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
   const [settings, setSettings] = useState<"connection" | "home" | "colors" | "maps" | null>(null);
   const [endpoint, setEndpoint] = useState(initialConnection.dataMode === "live" ? initialConnection.endpoint : DEFAULT_ATLAS_BACKEND_ENDPOINT);
   const [token, setToken] = useState(initialConnection?.dataMode === "live" ? initialConnection.token : "");
+  const leadConnection = useRef({ endpoint, token }); leadConnection.current = { endpoint, token };
   useEffect(() => { setDetailReviewJobId(""); setCompensationReviewJobId(""); setCompanyReview(undefined); setEnrichmentScope(null); setFxOpen(false); }, [endpoint, token, dataMode, active]);
   const fxRecovery = useAtlasFxRecovery(endpoint, token);
   const fxWritePending = dataMode === "live" && Boolean(fxRecovery.pending || fxRecovery.saved);
@@ -131,7 +134,15 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
   const scanWritePending = dataMode === "live" && Boolean(scanRecovery.pending || scanRecovery.saved || scanRecovery.refreshOnly);
   const aggregateRecovery = useAtlasAggregateRecovery(endpoint, token);
   const aggregateWritePending = aggregateRecovery.active || aggregateRecovery.entries.length > 0;
-  const queryWritePending = fxWritePending || companyWritePending || scanWritePending;
+  const leadRecovery = useAtlasLeadRecovery(endpoint, token);
+  const leadWritePending = Boolean(leadRecovery.pending || leadRecovery.saved || leadRecovery.active);
+  useEffect(() => {
+    if (!leadWritePending) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [leadWritePending]);
+  const queryWritePending = fxWritePending || companyWritePending || scanWritePending || leadWritePending;
   const [connecting, setConnecting] = useState(false);
   const connectionAbort = useRef<AbortController | null>(null);
   const connectedIdentity = useRef<{ endpoint: string; token: string } | null>(null);
@@ -266,6 +277,9 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
 
   const connect = useCallback(async (identity: AtlasConnectionIdentity, remember: boolean) => {
     if (cardWritePending.current) { setConnectionNotice("卡片写入结果尚未确认，请先在原核对面板核对回执，再重连或切换后端。"); return; }
+    const currentLeadConnection = leadConnection.current;
+    const leadWrite = readAtlasLeadRecovery(atlasLeadRecoveryScope(currentLeadConnection.endpoint, currentLeadConnection.token));
+    if (leadWrite.pending || leadWrite.saved || leadWrite.active) { setSourcesOpen(true); setConnectionNotice("原岗位接续尚未同步，请先在发现线索中恢复原回执及索引，再更改后端。"); return; }
     searchAbort.current?.abort();
     locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined);
     connectionAbort.current?.abort();
@@ -295,6 +309,8 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
   }, [active, initialConnection, connect]);
   function cancelConnection() {
     if (retainPendingCardWrite()) return false;
+    const leadWrite = readAtlasLeadRecovery(atlasLeadRecoveryScope(endpoint, token));
+    if (leadWrite.pending || leadWrite.saved || leadWrite.active) { setSourcesOpen(true); setSourceSearchMessage("原岗位接续结果尚未同步，请先在已保存发现线索中核对原回执及索引。"); return false; }
     restoreConnection.current = false;
     const abort = connectionAbort.current; connectionAbort.current = null; abort?.abort();
     searchAbort.current?.abort(); setConnecting(false);
@@ -327,6 +343,8 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
     void connect({ endpoint: DEFAULT_ATLAS_BACKEND_ENDPOINT, token: "" }, true);
   }
   async function searchSourceJobs() {
+    const leadWrite = readAtlasLeadRecovery(atlasLeadRecoveryScope(endpoint, token));
+    if (leadWrite.pending || leadWrite.saved || leadWrite.active) { setSourcesOpen(true); setSourceSearchMessage("请先在已保存发现线索中核对原岗位保存回执，再启动新的来源搜索。"); return; }
     const savedScan = readAtlasSourceScanRecovery(atlasSourceScanRecoveryScope(endpoint, token));
     if (savedScan.pending || savedScan.saved || savedScan.refreshOnly) { setSourcesOpen(true); setSourceSearchMessage("请先在来源工具中核对原扫描回执，再启动下一次来源搜索。"); return; }
     const recoveryScope = atlasAggregateRecoveryScope(endpoint, token), unresolved = readAtlasAggregateRecovery(recoveryScope);
@@ -423,6 +441,25 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
     });
     return () => abort.abort();
   }, [officeFocusRequest, active, connected, dataMode, data, selectionKey, endpoint, token, query, queryOptions, fxReady]);
+  useEffect(() => {
+    const request = leadJobRequest;
+    if (!request) return;
+    if (endpoint !== request.endpoint || token !== request.token) { setLeadJobRequest(undefined); return; }
+    if (!active || !connected || dataMode !== "live" || data !== request.snapshot || !fxReady) return;
+    const controller = new AbortController();
+    void queryAtlasPage(data, { ...query, page: { limit: 1 } }, queryOptions, { signal: controller.signal, selectedJobIds: [request.jobId] }).then(next => {
+      if (controller.signal.aborted) return;
+      const item = next.page.items.find(value => value.job.id === request.jobId);
+      if (!item) { setSourceSearchMessage("原岗位已保存，但当前筛选未显示它。请清除筛选后重新查看。"); setLeadJobRequest(undefined); return; }
+      recoveredOfficeSelection.current = { data, selectionKey, jobId: item.job.id };
+      selectedCard.current = item; setSelectedId(item.job.id);
+      const target = createJobMapFocus(item, crypto.randomUUID());
+      if (target) { setFocus({ ...target, viewportOffset: [0, 0] }); setRotating(false); }
+      else setSourceSearchMessage("已打开原岗位详情。来源尚未披露可定位的办公点，可继续核对工作地点；本次未生成坐标。");
+      setLeadJobRequest(undefined);
+    }, (problem: unknown) => { if (!controller.signal.aborted) { setSourceSearchError(problem instanceof Error ? problem.message : "无法打开已保存的原岗位。"); setLeadJobRequest(undefined); } });
+    return () => controller.abort();
+  }, [leadJobRequest, active, connected, dataMode, data, endpoint, token, fxReady, query, queryOptions, selectionKey]);
   useEffect(() => {
     if (resultData !== data || !rawResult || !selectedId || listItems.some(item => item.job.id === selectedId)) return;
     const recovered = recoveredOfficeSelection.current;
@@ -525,6 +562,7 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
     {connectionNotice && <p role="status" className="atlas-small">{connectionNotice}</p>}
     {dataMode === "live" && connected && <div className="atlas-fx-status" role="status"><button type="button" aria-expanded={fxOpen} onClick={() => setFxOpen(!fxOpen)}>{t("参考汇率", "Reference FX")}</button><span>{fxWritePending ? t("汇率写入结果待核对，旧查询已隐藏。", "FX write pending; old query results hidden.") : fxContext.loading ? t("正在读取与当前索引同版的汇率…", "Loading FX for the current index…") : fxContext.context?.activeSnapshot ? `${fxContext.context.activeSnapshot.fx.provider} · ${fxContext.context.activeSnapshot.fx.date}` : fxContext.context ? t("未启用外币换算 · 保留人民币与原币", "FX disabled · CNY and original currencies retained") : ""}</span>{fxContext.loading && <button type="button" onClick={fxContext.cancel}>{t("停止等待汇率", "Stop waiting for FX")}</button>}</div>}
     {scanWritePending && connected && <div className="atlas-company-recovery-status" role="status"><span>{t("来源扫描尚未同步，旧列表、地图与统计已暂停。", "Source scan not synchronized; old results, map and counts are paused.")}</span><button type="button" onClick={() => setSourcesOpen(true)}>{t("核对来源扫描", "Recover source scan")}</button></div>}
+    {leadWritePending && <div className="atlas-company-recovery-status" role="status"><span>{t("原岗位接续尚未同步，列表、地图与统计已暂停。关闭面板仍保留原请求。", "Original posting adoption awaits synchronization. Results, map and counts are paused; closing the pane preserves the command.")}</span><button type="button" onClick={() => setSourcesOpen(true)}>{t("恢复发现线索核对", "Recover discovery adoption")}</button></div>}
     {companyWritePending && connected && <div className="atlas-company-recovery-status" role="status"><span>{t("企业写入结果尚未同步，旧分类、列表、地图与统计已暂停。", "Company write not synchronized; old classification, results, map and counts are paused.")}</span><button type="button" onClick={recoverCompanyReview}>{t("恢复企业核对", "Resume company review")}</button></div>}
     {dataMode === "live" && fxContext.error && <p role={fxContext.unsupported ? "status" : "alert"} className="atlas-error">{fxContext.error}<button type="button" onClick={fxContext.retry}>{t("重试汇率上下文", "Retry FX context")}</button></p>}
     {active && fxOpen && connected && dataMode === "live" && liveData && <Suspense fallback={<p role="status">{t("正在打开汇率管理…", "Opening FX management…")}</p>}><AtlasFxPanel endpoint={endpoint} token={token} data={liveData} state={fxContext.state} loading={fxContext.loading} unsupported={fxContext.unsupported} onRetry={fxContext.retry} onClose={() => setFxOpen(false)} onSnapshot={snapshot => { searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); }} /></Suspense>}
@@ -534,7 +572,18 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
       searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot);
       setSourceSearchMessage(`已读取岗位处理记录，索引版本 ${snapshot.revision}。列表与地图会按当前来源组合重新计算。`);
     }} /></Suspense>}
-    {sourcesOpen && <Suspense fallback={<p role="status">正在加载来源工具…</p>}><AtlasSourcesPanel disabled={sourceSearching} endpoint={endpoint} token={token} onSnapshot={(snapshot) => { searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live"); }} onClose={() => setSourcesOpen(false)} /></Suspense>}
+    {sourcesOpen && <Suspense fallback={<p role="status">正在加载来源工具…</p>}><AtlasSourcesPanel disabled={sourceSearching} endpoint={endpoint} token={token} revision={liveData?.revision} onSnapshot={(snapshot) => {
+      if (leadConnection.current.endpoint !== endpoint || leadConnection.current.token !== token) return;
+      // A recovered authenticated snapshot also restores this root's connection identity after remount.
+      connectedIdentity.current = { endpoint, token }; restoreConnection.current = false;
+      connectionAbort.current?.abort(); connectionAbort.current = null;
+      setConnecting(false); setConnectionError(""); setConnectionNotice("");
+      searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live");
+    }} onOpenJob={(jobId, snapshot) => {
+      if (liveData && liveData.revision > snapshot.revision) { setSourceSearchMessage("索引版本已改变，请重新读取线索及岗位后再查看。"); return; }
+      cancelOfficeFocus(); resetFilters(); setMode("global"); setLiveData(snapshot); setDataMode("live"); setSourcesOpen(false);
+      setLeadJobRequest({ jobId, snapshot, endpoint, token });
+    }} onClose={() => setSourcesOpen(false)} /></Suspense>}
     {settings && <div className="atlas-settings"><button className="atlas-panel-close" aria-label="关闭地图设置" onClick={() => setSettings(null)}><X size={17} /></button>
       {settings === "maps" && <div><h2>地图与街道底图</h2><p>全球与国内均使用同一经纬度视图，可连续缩放至街道。开放底图无需 API Key；联网底图会向所选服务请求当前视野的瓦片，离线轮廓不请求外部地图服务。</p><label className="atlas-basemap-select">底图来源<select value={basemapId} onChange={(e) => { setBasemapId(e.target.value); setMapError(""); }}><option value="auto">OpenFreeMap · 跟随浅深主题</option>{ATLAS_BASEMAPS.map((provider) => <option value={provider.id} key={provider.id}>{provider.name}</option>)}<option value="offline">本地概览 · 离线边界</option></select></label><p className="atlas-small">道路、建筑、门牌和地名是否显示取决于底图覆盖。城市级岗位不会显示成精确办公地址。Google 地图可从岗位详情的“Google 地图”入口打开；内嵌 Google Maps 尚未启用，需要个人 Key、服务权限及对应计费配置。</p></div>}
       {settings === "connection" && <form onSubmit={(e) => { e.preventDefault(); restoreConnection.current = false; void connect({ endpoint, token }, true); }}><h2>{t("岗位后端状态", "Job backend status")}</h2><p>进入岗位地图会自动读取本机岗位索引，无需手动连接或填写令牌。请同时运行网页工作台和岗位后端；从外部来源获取岗位仍由你点击执行。</p><div className="atlas-form-row"><button type="button" disabled={connecting} onClick={useDefaultBackend}>恢复默认后端</button><button type="button" disabled={connecting} onClick={() => { restoreConnection.current = false; void connect({ endpoint, token }, true); }}>{connecting ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}{connecting ? "正在连接" : "重试后端连接"}</button><button type="button" onClick={disconnect}>断开并清除会话连接</button></div><details><summary>高级连接 · 手动服务地址与令牌</summary><p>GitHub Pages 只提供静态网页，尚未部署岗位后端。需要直连时，先按 <code>apps/job-service/README.md</code> 启动本机服务并允许当前 Origin：<code>{window.location.origin}</code>。手动令牌仅在连接成功后保留于当前标签页会话，默认后端不会向网页提供宿主令牌。</p><div className="atlas-form-row"><label>服务地址<input value={endpoint} onChange={(e) => changeConnection("endpoint", e.target.value)} placeholder={DEFAULT_ATLAS_ENDPOINT} /></label><label>访问令牌<input type="password" autoComplete="off" value={token} onChange={(e) => changeConnection("token", e.target.value)} /></label><button type="submit" disabled={connecting}>连接并读取索引</button></div></details><p className="atlas-small">家庭参照坐标不发送给服务。公网 HTTPS 页面直连本机可能需要浏览器本地网络授权；完整体验建议使用本机网页。</p></form>}
