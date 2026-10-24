@@ -123,12 +123,15 @@ export type SourceTransportResponse = {
   readonly text: string;
 };
 export type SourceTransport = {
-  /** GET-only; trusted implementation enforces endpoint, DNS, redirect and response budgets. */
+  /** Bounded GET, or explicitly selected JSON POST for installed source adapters; host enforces endpoint and all budgets. */
   request(input: {
     url: string;
     source: SourceDefinition;
     context: SourceAdapterContext;
     headers?: Readonly<Record<string, string>>;
+    /** Only explicitly installed adapters can select JSON POST; transport keeps the same host and budgets. */
+    method?: "GET" | "POST";
+    jsonBody?: string;
   }): Promise<SourceTransportResponse>;
 };
 export type SourceAdapterRequest = {

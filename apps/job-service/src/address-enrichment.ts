@@ -11,7 +11,7 @@ import type { JobRepository } from "./repository.js";
 
 // Installed recruiting protocols, not company-name heuristics. A source match only
 // identifies an already owned disclosure; it does not authenticate the employer.
-const officialAdapters = new Set(["greenhouse", "lever", "ashby", "tencent", "smartrecruiters", "jobposting-jsonld"]);
+const officialAdapters = new Set(["greenhouse", "lever", "ashby", "tencent", "smartrecruiters", "jobposting-jsonld", "workday-cxs"]);
 const TARGET_LIMIT = 20;
 function exactHttpsUrl(value: string | undefined): value is string {
   if (!value || value !== value.trim() || /[\\\s#]/u.test(value)) return false;

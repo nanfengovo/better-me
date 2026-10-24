@@ -585,6 +585,44 @@
         "https://careers.abb/global/en/job/JR00044541/C-NET-Software-Developer",
         "https://schema.org/JobPosting"
       ]
+    },
+    {
+      "source": {
+        "sourceId": "jll-china-workday-careers",
+        "name": "JLL 中国官网招聘 · Workday",
+        "adapterId": "workday-cxs",
+        "adapterVersion": "1",
+        "capabilities": ["list-jobs"],
+        "runtime": ["local-service", "server"],
+        "entityType": "job-posting",
+        "enabled": false,
+        "status": "needs-review",
+        "entryUrl": "https://jll.wd1.myworkdayjobs.com/jllcareerschina",
+        "options": {"tenant": "jll", "site": "jllcareerschina", "pageSize": 20, "maxDetailRequestsPerPage": 2},
+        "remoteFilters": ["roles"],
+        "endpointPolicy": {
+          "allowedHosts": ["jll.wd1.myworkdayjobs.com"],
+          "allowedPathPrefixes": ["/wday/cxs/jll/jllcareerschina"],
+          "requireHttps": true, "allowRedirects": false, "maxRedirects": 0
+        },
+        "attribution": {
+          "label": "JLL China careers · Workday",
+          "homepageUrl": "https://jll.wd1.myworkdayjobs.com/zh-CN/jllcareerschina",
+          "usage": "unknown", "requiresAttribution": true,
+          "notes": "公开岗位页及 CXS JSON 响应已作有限只读核验。公开可读不等于授权再分发；使用范围仍待核对，来源默认关闭／待审核，仅限本机个人试用，不向其他招聘站转发。保留 JLL 原职位回链、来源 ID 和披露原文；不声称全市场。"
+        },
+        "refreshPolicy": {
+          "mode": "manual", "minIntervalSeconds": 3600, "maxRecords": 100, "maxPages": 3, "requestsPerMinute": 5
+        }
+      },
+      "tags": ["官网", "Workday", "中国", "人工核对"],
+      "coverage": "JLL 中国 Workday 租户的有限列表与详情读取；每请求受限分页、最多少量详情补充。城市、薪资与发布时间只按来源原文保留；没有具体办公室地址或坐标。使用范围未知，启用前需人工核对条款；不是国内或全网岗位覆盖。",
+      "checkedAt": "2026-10-24T00:00:00Z",
+      "evidenceUrls": [
+        "https://jll.wd1.myworkdayjobs.com/zh-CN/jllcareerschina",
+        "https://jll.wd1.myworkdayjobs.com/wday/cxs/jll/jllcareerschina/jobs",
+        "https://www.joneslanglasalle.com.cn/en/careers/candidate-privacy-statement"
+      ]
     }
   ]
 }

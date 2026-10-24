@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { HttpUrlSchema, SourceDefinitionSchema, TimestampSchema, type SourceDefinition } from "@better-me/opportunities";
-import { JsonFieldMappingOptionsSchema, SmartRecruitersSourceOptionsSchema, validateJobPostingJsonLdSource } from "@better-me/source-adapters/browser-contracts";
+import { JsonFieldMappingOptionsSchema, SmartRecruitersSourceOptionsSchema, WorkdaySourceOptionsSchema, validateJobPostingJsonLdSource } from "@better-me/source-adapters/browser-contracts";
 import catalogJson from "../../../../../config/sources/catalog.json";
 
 export const SourceCatalogSchema = z.object({
@@ -18,6 +18,17 @@ export const SourceCatalogSchema = z.object({
           const endpoint = options.success ? `https://api.smartrecruiters.com/v1/companies/${options.data.companyIdentifier}/postings` : undefined;
           if (!options.success || source.entryUrl !== endpoint || !source.remoteFilters.includes("roles")) {
             context.addIssue({ code: "custom", path: ["options"], message: "SmartRecruiters requires a valid tenant, exact posting endpoint and declared keyword candidate query" });
+          }
+        }
+        if (source.adapterId === "workday-cxs") {
+          const options = WorkdaySourceOptionsSchema.safeParse(source.options ?? {});
+          let entry: URL | undefined;
+          try { if (source.entryUrl) entry = new URL(source.entryUrl); } catch { /* schema issue below */ }
+          if (!options.success || !entry || entry.protocol !== "https:" || entry.username || entry.password || entry.port || entry.search || entry.hash || entry.pathname !== `/${options.data.site}`
+            || source.endpointPolicy.allowedHosts.length !== 1 || source.endpointPolicy.allowedHosts[0] !== entry.hostname
+            || !source.endpointPolicy.requireHttps || source.endpointPolicy.allowedPathPrefixes.length !== 1 || source.endpointPolicy.allowedPathPrefixes[0] !== `/wday/cxs/${options.data.tenant}/${options.data.site}`
+            || source.endpointPolicy.allowRedirects || source.endpointPolicy.maxRedirects !== 0 || !source.remoteFilters.includes("roles")) {
+            context.addIssue({ code: "custom", path: ["options"], message: "Workday source requires a fixed HTTPS tenant, site, CXS path and declared search-text query" });
           }
         }
         if (source.adapterId !== "mapped-json") return;

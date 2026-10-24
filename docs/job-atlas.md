@@ -190,7 +190,7 @@ V8 后端为来源保存分批扫描位置，解决有限读取反复只覆盖�
 
 本机网页会自动通过同源后端读取服务，打开“来源工具 → 扩展可搜索来源”即可使用；静态托管页面需先在高级直连中配置服务。按名称、C#、.NET、远程等筛选目录并明确选择，然后点击“添加并启用所选来源”。此操作只保存配置，获取岗位仍由主搜索明确发起；已有相同来源 ID 或规范化端点的配置不会被覆盖，包括已有禁用配置。
 
-目录由 [config/sources/catalog.json](../config/sources/catalog.json) 管理，含 Remotive、Arbeitnow、Remote OK 三个多公司公开 feed，以及 Hudl、LaunchDarkly、Sentry、Temporal 四家官网 ATS。配置保留实际核对时间、官方证据链接、每轮额度和刷新间隔。新增同类来源主要增加配置；自定义 JSON 和企业官网发现继续可用。目录技术标签代表曾在文本中观察到关键词，公司介绍提及不等于任职要求匹配。
+目录由 [config/sources/catalog.json](../config/sources/catalog.json) 管理，含 Remotive、Arbeitnow、Remote OK 三个多公司公开 feed，Hudl、LaunchDarkly、Sentry、Temporal 四家官网 ATS，以及默认关闭待审核的 JLL China Workday CXS 来源。Workday 使用受限同租户 JSON 接口；只有用户明确添加并启用后才按关注条件手动读取。配置保留实际核对时间、官方证据链接、每轮额度和刷新间隔。新增同类来源主要增加配置；自定义 JSON 和企业官网发现继续可用。目录技术标签代表曾在文本中观察到关键词，公司介绍提及不等于任职要求匹配。
 
 公开 feed 只读取当前窗口，并标记部分覆盖；Arbeitnow 显式以 Unix 秒解析发布时间，Remote OK 首项条款不当成岗位。Remotive 仅提供延迟的有限远程岗位窗口，官方建议每天最多读取4次、每分钟不超过2次；本地强制 UTC 日切的每日4次、6小时间隔与每分钟2次限制，失败或取消的已启动读取也占额度，同一幂等任务回放不重复计数。Remotive 要求突出标注来源并保留原岗位链接，禁止转交第三方招聘站或在岗位站收集注册／邮箱线索。`candidate_required_location` 是候选人申请资格范围，不是办公室或地图坐标；工资、未带时区的发布时间保留原文。来源默认关闭待审核，启用后只按明确刷新请求读取。原始职位链接与来源标识保留；Remote OK 原链接遵守其 follow 回链说明，不使用其 Logo。
 

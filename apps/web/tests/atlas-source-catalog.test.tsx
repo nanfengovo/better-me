@@ -35,6 +35,26 @@ test("SmartRecruiters catalog entries bind one tenant and remain explicit review
   assert.equal(availableCatalogEntries([preset], [preset.source]).length, 0);
 });
 
+test("JLL Workday catalog binds a public site, tenant API path and non-redirecting HTTPS transport", () => {
+  const preset = sourceCatalog.find(item => item.source.adapterId === "workday-cxs");
+  assert.ok(preset);
+  assert.equal(preset.source.sourceId, "jll-china-workday-careers");
+  assert.equal(preset.source.enabled, false); assert.equal(preset.source.status, "needs-review");
+  assert.equal(preset.source.entryUrl, "https://jll.wd1.myworkdayjobs.com/jllcareerschina");
+  assert.deepEqual(preset.source.options, { tenant: "jll", site: "jllcareerschina", pageSize: 20, maxDetailRequestsPerPage: 2 });
+  assert.deepEqual(preset.source.endpointPolicy.allowedHosts, ["jll.wd1.myworkdayjobs.com"]);
+  assert.deepEqual(preset.source.endpointPolicy.allowedPathPrefixes, ["/wday/cxs/jll/jllcareerschina"]);
+  assert.equal(preset.source.endpointPolicy.allowRedirects, false); assert.equal(preset.source.endpointPolicy.maxRedirects, 0);
+  assert.ok(preset.evidenceUrls.includes("https://jll.wd1.myworkdayjobs.com/wday/cxs/jll/jllcareerschina/jobs"));
+  for (const change of [
+    { entryUrl: "https://jll.wd1.myworkdayjobs.com/jll/other" },
+    { entryUrl: "https://user@jll.wd1.myworkdayjobs.com/jllcareerschina" },
+    { endpointPolicy: { ...preset.source.endpointPolicy, allowRedirects: true, maxRedirects: 1 } },
+    { endpointPolicy: { ...preset.source.endpointPolicy, allowedHosts: ["evil.example"] } },
+  ]) assert.equal(SourceCatalogSchema.safeParse({ schemaVersion: 1, entries: [{ ...preset, source: { ...preset.source, ...change } }] }).success, false);
+  assert.equal(availableCatalogEntries([preset], [preset.source]).length, 0);
+});
+
 test("catalog rejects unusable mapped job feeds while preserving valid options and native adapters", () => {
   for (const options of [undefined, {}, { titlePath: "title" }, { titlePath: "title", discoveryOnly: true },
     { titlePath: "__proto__.title", discoveryOnly: false }, { titlePath: "title", discoveryOnly: false, publishedFormat: "guess" }]) {

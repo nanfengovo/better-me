@@ -25,6 +25,8 @@ export * from "./jobposting-jsonld-contracts.js";
 export * from "./jobposting-jsonld-reader.js";
 export * from "./jobposting-enumeration.js";
 export * from "./adapters/jobposting-jsonld.js";
+export * from "./workday-contracts.js";
+export * from "./adapters/workday.js";
 export * from "./platform-detail-locations.js";
 export * from "./reviewed-detail-locations.js";
 export * from "./owned-detail-locations.js";

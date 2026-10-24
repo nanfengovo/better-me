@@ -19,6 +19,8 @@ export class SourceTransportError extends Error {
 export type PinnedSendRequest = {
   url: URL;
   address: DnsAddress;
+  method?: "GET" | "POST";
+  body?: string;
   headers: Readonly<Record<string, string>>;
   signal: AbortSignal;
 };
@@ -102,9 +104,9 @@ function checkedUrl(value: string, source: SourceDefinition): URL {
   return url;
 }
 
-const nodeSender: PinnedSender = ({ url, address, headers, signal }) => new Promise((resolve, reject) => {
+const nodeSender: PinnedSender = ({ url, address, method = "GET", body, headers, signal }) => new Promise((resolve, reject) => {
   const request = httpsRequest(url, {
-    method: 'GET', headers, signal, agent: false, family: address.family,
+    method, headers, signal, agent: false, family: address.family,
     lookup: (_host, _options, callback) => callback(null, address.address, address.family),
   }, (response) => {
     const responseHeaders: Record<string, string> = {};
@@ -114,7 +116,7 @@ const nodeSender: PinnedSender = ({ url, address, headers, signal }) => new Prom
     resolve({ status: response.statusCode ?? 0, headers: responseHeaders, body: response, close: () => response.destroy() });
   });
   request.once('error', reject);
-  request.end();
+  request.end(body);
 });
 
 function retryAfter(value: string | undefined, now: number): number | undefined {
@@ -141,8 +143,19 @@ export function createControlledSourceTransport(options: ControlledTransportOpti
   if (!Number.isSafeInteger(maxResponseBytes) || maxResponseBytes < 1 || maxResponseBytes > 64 * 1024 * 1024
     || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 300_000) throw new SourceTransportError('invalid-response');
   return {
-    async request({ url: initialUrl, source, context, headers: suppliedHeaders }) {
+    async request({ url: initialUrl, source, context, headers: suppliedHeaders, method: requestedMethod, jsonBody }) {
       context.throwIfCancelled();
+      const method = requestedMethod ?? "GET";
+      if (method !== "GET" && method !== "POST") throw new SourceTransportError('unsafe-endpoint');
+      if (method === "POST" && (source.adapterId !== "workday-cxs" || source.adapterVersion !== "1")) throw new SourceTransportError('unsafe-endpoint');
+      if (method === "GET" && jsonBody !== undefined || method === "POST" && (typeof jsonBody !== "string" || Buffer.byteLength(jsonBody, "utf8") > 32_768)) {
+        throw new SourceTransportError('unsafe-endpoint');
+      }
+      if (method === "POST") {
+        let body: unknown;
+        try { body = JSON.parse(jsonBody!); } catch { throw new SourceTransportError('invalid-response'); }
+        if (body === null || typeof body !== "object" || Array.isArray(body)) throw new SourceTransportError('unsafe-endpoint');
+      }
       const controller = new AbortController();
       let timedOut = false;
       const onAbort = () => controller.abort();
@@ -177,7 +190,8 @@ export function createControlledSourceTransport(options: ControlledTransportOpti
         }
       };
       try {
-        const headers: Record<string, string> = { accept: 'application/json, text/plain;q=0.9', 'accept-encoding': 'identity', 'user-agent': 'BetterMe-JobSources/0.1 (local personal career workstation)' };
+        const headers: Record<string, string> = { accept: 'application/json, text/plain;q=0.9', 'accept-encoding': 'identity', 'user-agent': 'BetterMe-JobSources/0.1 (local personal career workstation)',
+          ...(method === "POST" ? { "content-type": "application/json", "content-length": String(Buffer.byteLength(jsonBody!, "utf8")) } : {}) };
         for (const [key, value] of Object.entries(suppliedHeaders ?? {})) {
           const name = key.toLowerCase();
           if (!['accept', 'if-none-match', 'if-modified-since'].includes(name) || typeof value !== 'string' || value.length > 1000 || Array.from(value).some((character) => [0, 10, 13].includes(character.charCodeAt(0)))) {
@@ -185,6 +199,7 @@ export function createControlledSourceTransport(options: ControlledTransportOpti
           }
           headers[name] = value;
         }
+        if (suppliedHeaders && Object.keys(suppliedHeaders).some(key => ["content-type", "content-length"].includes(key.toLowerCase()))) throw new SourceTransportError("unsafe-endpoint");
         let currentUrl = initialUrl;
         for (let redirects = 0; ; redirects++) {
           context.throwIfCancelled();
@@ -196,7 +211,7 @@ export function createControlledSourceTransport(options: ControlledTransportOpti
           context.throwIfCancelled();
           await waitForRateSlot(parsedUrl.hostname);
           context.consumeRequests(1);
-          const pendingResponse = send({ url: parsedUrl, address: addresses[0]!, headers, signal: controller.signal }).then((response) => {
+          const pendingResponse = send({ url: parsedUrl, address: addresses[0]!, ...(method === "POST" ? { method, body: jsonBody } : {}), headers, signal: controller.signal }).then((response) => {
             if (controller.signal.aborted) { response.close(); throw new SourceTransportError(timedOut ? 'timeout' : 'cancelled'); }
             return response;
           });
@@ -204,7 +219,7 @@ export function createControlledSourceTransport(options: ControlledTransportOpti
           const response = activeResponse;
           const responseHeaders = Object.fromEntries(Object.entries(response.headers).map(([key, value]) => [key.toLowerCase(), value]));
           if ([301, 302, 303, 307, 308].includes(response.status)) {
-            if (!source.endpointPolicy.allowRedirects || redirects >= source.endpointPolicy.maxRedirects || !responseHeaders.location) {
+            if (method !== "GET" || !source.endpointPolicy.allowRedirects || redirects >= source.endpointPolicy.maxRedirects || !responseHeaders.location) {
               throw new SourceTransportError('unsafe-endpoint', response.status);
             }
             currentUrl = new URL(responseHeaders.location, parsedUrl).toString();

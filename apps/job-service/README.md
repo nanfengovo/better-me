@@ -204,6 +204,14 @@ GET https://api.smartrecruiters.com/v1/companies/{companyIdentifier}/postings/{p
 
 有限实站、隔离检查和发布状态见[本批报告](../../docs/reports/job-atlas-smartrecruiters-2026-10-19.md)。这次成功不保证每次网络读取或所有租户均可用。该协议不提供全市场搜索，也不增加51JOB／BOSS／猎聘／LinkedIn的访问权限；静态Pages和Docker仍需连接独立运行的本机服务。
 
+## Workday 企业招聘站来源
+
+已实测的 JLL 中国预设使用受控的 Workday CXS JSON POST 列表接口和同租户详情接口。Workday 页面入口是 `https://{host}/{site}`；接口路径是 `https://{host}/wday/cxs/{tenant}/{site}/jobs`，不要把租户重复拼进页面入口。来源 JSON 只能设置安全字符集内的固定 `tenant`／`site`、`pageSize`（1–100）及 `maxDetailRequestsPerPage`（0–10）；不能设置任意 URL、header、方法或公司名覆盖。实现和字段限制见 [`workday.ts`](../../packages/source-adapters/src/adapters/workday.ts)、[Workday 契约](../../packages/source-adapters/src/workday-contracts.ts) 与 [适配器说明](../../packages/source-adapters/README.md)。
+
+列表搜索将关注词逐条作为 `searchText` 发给固定 CXS 接口，地区和企业条件在本地校验；总数只代表这一 Workday 租户站点。分页游标绑定来源配置和完整搜索范围，但忽略服务逐页递减的临时记录额度；配置或搜索范围改变会拒绝旧游标。来源短页却报告仍有结果、响应记录超过请求额度、岗位 ID／回链错误，都会阻止不可靠续页并明确部分覆盖。详情只接受同租户、同 ID、同站点和完全相同的原始岗位 URL；缺少雇主／地区的记录可以在本页详情预算内先尝试读取，再由共享严格匹配器判断。详情超时、服务限额或认证失败会停止当前来源读取；认证错误向上报告，不当作普通详情缺失。其他详情失败保留列表摘录并标注 partial。Workday 给出的国家仅在明确披露有效 ISO alpha-2 时保留；城市、薪资与时间不会被推算成办公地址、薪资或精确发布时间。
+
+来源目录包含 JLL China Workday 预设，但默认关闭且待审核。公开可读取不等于允许再分发；使用前请核对 JLL 当前招聘站条款和允许用途，并只在 `岗位地图 → 来源工具 → 扩展可搜索来源` 中明确加入及启用。当前已观察到该租户有限列表和可读详情，不能据此称为 JLL 全量、国内全市场或全网岗位。
+
 ## 用户核对的四平台卡片
 
 `jobs.preview-reviewed-cards` 和 `jobs.import-reviewed-cards` 为 51JOB、BOSS 直聘、猎聘、LinkedIn 共用的独立应用工具，Web 审核面板和 HTTP 复用同一实现。它们接受用户提供并明确核对的证据，不认证受管浏览器捕获，不访问原站，也不证明岗位仍在招；四个平台的契约支持不等于四站真实列表均已通过验收。

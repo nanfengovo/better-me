@@ -7,7 +7,7 @@ import {
 } from "@better-me/opportunities";
 import {
   SourceScopeSchema, SourcePageSchema, SourceAdapterMetadataSchema, SourceRegistryError, SourceTransportError,
-  createSourceRegistry, createControlledSourceTransport, greenhouseAdapter, leverAdapter, ashbyAdapter, remotiveAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter, jobPostingJsonLdAdapter,
+  createSourceRegistry, createControlledSourceTransport, greenhouseAdapter, leverAdapter, ashbyAdapter, remotiveAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter, jobPostingJsonLdAdapter, workdayAdapter,
   discoverSourceCandidates, inspectSourceCandidate, proposeSourceRegistration,
   DiscoverSourceCandidatesInputSchema, SourceDiscoveryPageSchema, InspectSourceCandidateInputSchema, SourceCandidateInspectionSchema,
   ProposeSourceRegistrationInputSchema, SourceRegistrationProposalSchema,
@@ -88,7 +88,7 @@ export type JobApplicationOptions = {
 export function createJobApplication(options: JobApplicationOptions) {
   const repository = options.repository;
   const now = options.now ?? (() => new Date().toISOString());
-  const sources = createSourceRegistry(options.adapters ?? [greenhouseAdapter, leverAdapter, ashbyAdapter, remotiveAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter, jobPostingJsonLdAdapter]);
+  const sources = createSourceRegistry(options.adapters ?? [greenhouseAdapter, leverAdapter, ashbyAdapter, remotiveAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter, jobPostingJsonLdAdapter, workdayAdapter]);
   const transport = options.transport ?? createControlledSourceTransport();
   const query = { search: async (input: Parameters<typeof queryJobs>[1], hostOptions: QueryOptions = {}) => {
     const captured = await repository.readFxQuerySnapshot();
