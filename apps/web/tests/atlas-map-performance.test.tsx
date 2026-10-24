@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { MapBucket } from "@better-me/opportunities";
-import { atlasBucketData, createAtlasHover, createAtlasMapUpdates } from "../src/components/atlas/prototypes/map-performance.ts";
+import { atlasBucketData, atlasBucketFactSignature, createAtlasHover, createAtlasMapUpdates } from "../src/components/atlas/prototypes/map-performance.ts";
 import { selectAtlasBuckets } from "../src/components/atlas/prototypes/bucket-selection.ts";
 
 const bucket = (id: string, jobCount = 1): MapBucket => ({ id, label: `Synthetic ${id}`, latitude: 31, longitude: 121, jobCount,
@@ -32,6 +32,18 @@ test("equal query projections do not re-index points, while changed salary color
   assert.equal(uploads.length, 1); assert.deepEqual(uploads[0]!.features[0]!.geometry.coordinates, [120.123456, 31]);
   assert.equal(uploads[0]!.features[0]!.properties.color, "#abcdef"); assert.match(uploads[0]!.features[0]!.properties.label, /Synthetic specific office · 2/);
   update({ buckets: [] }); assert.equal(uploads.length, 2); assert.deepEqual(uploads[1]!.features, []);
+});
+
+test("bucket source signatures ignore query object recreation and ordering while retaining coordinate facts", () => {
+  const first = [bucket("a", 2), bucket("b", 1)], reordered = [structuredClone(first[1]!), structuredClone(first[0]!)];
+  assert.equal(atlasBucketFactSignature(first), atlasBucketFactSignature(reordered));
+  const uploads: ReturnType<typeof atlasBucketData>[] = [];
+  const update = createAtlasMapUpdates(first, atlasBucketData(first), { buckets: data => uploads.push(data), bucketSelection: () => {}, regionSelection: () => {} });
+  update({ buckets: reordered });
+  assert.equal(uploads.length, 0, "recreated/reordered query buckets do not upload identical map geometry");
+  const moved = structuredClone(reordered); moved[0]!.longitude = 121.0001;
+  update({ buckets: moved });
+  assert.equal(uploads.length, 1, "a real coordinate change still reaches the map source");
 });
 
 test("GeoJSON keeps city-reference precision labels, excludes invalid coordinates, and supports all selected labels through a separate filter", () => {

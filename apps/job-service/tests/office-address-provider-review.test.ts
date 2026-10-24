@@ -73,6 +73,8 @@ test("review: office geocoding is disabled by default and explicit opt-in cannot
   assert.ok(!parsed.help); assert.equal(parsed.config.officeGeocoder, undefined);
   assert.throws(() => validateJobServiceConfig({ ...base, officeGeocoder: { provider: "nominatim", endpoint: "https://untrusted.example.test" } as never }));
   assert.throws(() => parseJobServiceArgs(["--data-dir", process.cwd(), "--origin", "http://localhost:5173", "--office-geocoder", "untrusted"]));
+  const photon = parseJobServiceArgs(["--data-dir", process.cwd(), "--origin", "http://localhost:5173", "--office-geocoder", "photon"]);
+  assert.ok(!photon.help); if (!photon.help) assert.deepEqual(photon.config.officeGeocoder, { provider: "photon" });
 });
 
 test("review: controlled-transport auth failures preserve needs-auth semantics", async () => {

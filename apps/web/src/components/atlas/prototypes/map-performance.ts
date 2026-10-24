@@ -4,6 +4,19 @@ import { atlasSelectedBucketIds } from "./bucket-selection";
 
 export type BucketGeoJSON = { type: "FeatureCollection"; features: Array<{ type: "Feature"; properties: { bucketId: string; kind: string; color: string; radius: number; label: string; labelVisible: boolean }; geometry: { type: "Point"; coordinates: [number, number] } }> };
 
+/**
+ * Compare only facts that affect the uploaded point source. Query pages can
+ * recreate or reorder bucket objects while preserving the same geometry and
+ * display facts; those updates must not rebuild the GeoJSON source.
+ */
+export function atlasBucketFactSignature(input: readonly MapBucket[]): string {
+  return JSON.stringify(validBuckets(input).map(bucket => [
+    bucket.id, bucket.label, bucket.latitude, bucket.longitude, bucket.jobCount, bucket.pinCount,
+    bucket.positionBasis ?? null, bucket.precision ?? null, bucket.estimated ?? false,
+    bucket.categories.map(category => [category.ruleId, category.label, category.color, category.jobCount]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+  ]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))));
+}
+
 /** Only source facts live in GeoJSON. Selection uses layer filters without re-indexing points in a worker. */
 export function atlasBucketData(input: readonly MapBucket[]): BucketGeoJSON {
   const features: BucketGeoJSON["features"] = [], buckets = validBuckets(input);
@@ -19,16 +32,16 @@ export function atlasBucketData(input: readonly MapBucket[]): BucketGeoJSON {
 }
 
 /** Parent camera/UI renders do not resend unchanged geometry or selection style to MapLibre. */
-export function createAtlasMapUpdates(initialBuckets: readonly MapBucket[], initialData: BucketGeoJSON, write: {
+export function createAtlasMapUpdates(initialBuckets: readonly MapBucket[], _initialData: BucketGeoJSON, write: {
   buckets: (data: BucketGeoJSON) => void;
   bucketSelection: (id: string, ids: readonly string[]) => void;
   regionSelection: (id: string) => void;
 }) {
-  let buckets = initialBuckets, signature = JSON.stringify(initialData), selectedBucket = "", selectedRegion = "";
+  let buckets = initialBuckets, signature = atlasBucketFactSignature(initialBuckets), selectedBucket = "", selectedRegion = "";
   return (next: { buckets: readonly MapBucket[]; selectedBucketId?: string; selectedBucketIds?: readonly string[]; selectedRegionId?: string }) => {
     if (buckets !== next.buckets) {
-      const data = atlasBucketData(next.buckets), nextSignature = JSON.stringify(data);
-      if (nextSignature !== signature) { write.buckets(data); signature = nextSignature; }
+      const nextSignature = atlasBucketFactSignature(next.buckets);
+      if (nextSignature !== signature) { write.buckets(atlasBucketData(next.buckets)); signature = nextSignature; }
       buckets = next.buckets;
     }
     const ids = atlasSelectedBucketIds(next), bucket = ids.length ? JSON.stringify(ids) : "", region = next.selectedRegionId ?? "";

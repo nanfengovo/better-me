@@ -383,7 +383,7 @@ Web 展开“来源工具 → 企业官网招聘”后才读配置，点击发�
 
 ## 办公地址核对与可选地址提供方
 
-默认关闭外部地址查询；需要时在原启动命令末尾增加`--office-geocoder nominatim`，保留原data-dir／port／Origin／DNS配置。它只安装提供方，不启动批量请求；网页必须输入具体query并点击查询。固定Nominatim HTTPS、最多5候选、至少1.1秒门控、15分钟有限进程缓存，尊重Retry-After，不自动重试、自动补全或扫描索引。署名／OSM记录随候选返回。国内覆盖由地图数据决定。后续按宿主已配置Google DoH完成一次公开地标请求，Nominatim HTTP200；真实响应的place/house门牌漏召回已修。但3个候选属于其他城镇，未准确命中目标地标，也没有证明岗位办公关联；必须核对完整地址后再明确保存。旧system探针失败原因仍未知。实证与验证见[本批报告](../../docs/reports/job-atlas-office-provider-real-2026-10-19.md)。
+默认关闭外部地址查询；需要时在原启动命令末尾增加`--office-geocoder nominatim`或`--office-geocoder photon`，保留原data-dir／port／Origin／DNS配置。没有高德 Key 时可使用 Photon：`pnpm --filter @better-me/job-service start --data-dir <绝对私有目录> --origin http://localhost:5173 --office-geocoder photon`。它只安装提供方，不启动批量请求；网页必须输入具体query并点击查询。两种提供方均固定 HTTPS、最多5候选、至少1.1秒门控、15分钟有限进程缓存，尊重Retry-After，不自动重试、自动补全或扫描索引。署名／OSM记录随候选返回。候选始终是待核对建议，不会自动成为办公确认；国内覆盖由地图数据决定。后续按宿主已配置Google DoH完成一次公开地标请求，Nominatim HTTP200；真实响应的place/house门牌漏召回已修。但3个候选属于其他城镇，未准确命中目标地标，也没有证明岗位办公关联；必须核对完整地址后再明确保存。旧system探针失败原因仍未知。实证与验证见[本批报告](../../docs/reports/job-atlas-office-provider-real-2026-10-19.md)。
 
 四项共享工具与认证POST路径如下，执行身份由宿主提供；客户端不能传provider端点、actorScope或任意代码。
 
@@ -398,7 +398,7 @@ Web 展开“来源工具 → 企业官网招聘”后才读配置，点击发�
 
 SQLite V4保留base地点、行政决议、办公确认／撤销／source失效事件和耐久回执。来源地点或证据一度变化后旧办公点不会在A→B→A时自动激活。公共快照导入拒绝本地overlay；完整备份恢复包含历史。保存仍待核实，不把GCJ02当WGS84、城市／道路候选当门牌、地图候选当雇主认证。超时使用原body／key核对回执，已保存后读快照失败只重读。详见[本批报告](../../docs/reports/job-atlas-desktop-office-address-2026-10-19.md)。
 
-`locations.office-address-candidates`可显式传`locality`（≤200字符）和`postalCode`（≤100字符），二者必须与`query`同传；无query仍只读配置。宿主不会隐式发送来源城市或邮编。有约束时Nominatim使用structured查询并严格核对实际市级字段及邮编；州县不当市、未知或不符拒绝，缓存按全部约束隔离。不猜翻译、门牌或办公关联。详见[桌面与精度报告](../../docs/reports/job-atlas-desktop-precision-2026-10-19.md)。
+`locations.office-address-candidates`可显式传`locality`（≤200字符）和`postalCode`（≤100字符），二者必须与`query`同传；无query仍只读配置。宿主不会隐式发送来源城市或邮编。有约束时Nominatim使用structured查询并严格核对实际市级字段及邮编；Photon将约束附加到明确查询并同样严格核对返回的市级字段和邮编；州县不当市、未知或不符拒绝，缓存按全部约束隔离。不猜翻译、门牌或办公关联。详见[桌面与精度报告](../../docs/reports/job-atlas-desktop-precision-2026-10-19.md)。
 
 ## 逐岗地址规划与来源地点补充
 

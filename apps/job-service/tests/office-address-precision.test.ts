@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { OfficeAddressCandidatesInputSchema, ToolError, type JobLocation, type ToolHandlerContext } from "@better-me/opportunities";
 import type { SourceTransport } from "@better-me/source-adapters";
-import { createNominatimOfficeProvider, parseNominatimOfficeCandidates } from "../src/office-address-provider.js";
+import { createNominatimOfficeProvider, createPhotonOfficeProvider, parseNominatimOfficeCandidates, parsePhotonOfficeCandidates } from "../src/office-address-provider.js";
 
 const location: JobLocation = { id: "synthetic-precision-location", kind: "office", raw: "PRIVATE_SOURCE_LOCATION", countryCode: "US",
   city: "PRIVATE_SOURCE_CITY", postalCode: "PRIVATE_SOURCE_POSTAL", precision: "unknown", verification: "unverified", evidence: [] };
@@ -19,6 +19,14 @@ function context(controller = new AbortController()): ToolHandlerContext {
 function transport() {
   const calls: Parameters<SourceTransport["request"]>[0][] = [];
   const value: SourceTransport = { async request(input) { calls.push(input); return { url: input.url, status: 200, headers: { "content-type": "application/json" }, text: JSON.stringify([row()]) }; } };
+  return { calls, value };
+}
+const photonFeature = (properties: Record<string, unknown> = { osm_type: "W", osm_id: 1234, countrycode: "us", street: "Synthetic Road", housenumber: "10", city: "Synthetic City", postcode: "00123", type: "house" }) => ({
+  type: "Feature", geometry: { type: "Point", coordinates: [-71.1, 42.1] }, properties,
+});
+function photonTransport() {
+  const calls: Parameters<SourceTransport["request"]>[0][] = [];
+  const value: SourceTransport = { async request(input) { calls.push(input); return { url: input.url, status: 200, headers: { "content-type": "application/geo+json" }, text: JSON.stringify({ type: "FeatureCollection", features: [photonFeature()] }) }; } };
   return { calls, value };
 }
 
@@ -97,6 +105,25 @@ test("unconstrained legacy queries retain q and never infer source locality or p
   assert.equal(url.searchParams.get("q"), "10 Synthetic Road");
   for (const field of ["street", "city", "postalcode"]) assert.equal(url.searchParams.has(field), false);
   assert.doesNotMatch(url.toString(), /PRIVATE_/);
+});
+
+test("Photon retains only an OSM-identified house-level result and filters disclosed locality/country", () => {
+  const good = parsePhotonOfficeCandidates({ type: "FeatureCollection", features: [photonFeature()] }, "US", { locality: "Synthetic City", postalCode: "00123" });
+  assert.equal(good.length, 1); assert.equal(good[0]!.providerId, "photon"); assert.equal(good[0]!.proposal.streetAddress, "Synthetic Road 10");
+  assert.deepEqual(parsePhotonOfficeCandidates({ type: "FeatureCollection", features: [photonFeature({ ...({} as Record<string, unknown>), osm_type: "W", osm_id: 1234, countrycode: "us", street: "Synthetic Road", city: "Synthetic City", type: "house" })] }, "US"), []);
+  assert.deepEqual(parsePhotonOfficeCandidates({ type: "FeatureCollection", features: [photonFeature({ osm_type: "W", osm_id: 1234, countrycode: "us", street: "Synthetic Road", housenumber: "10", city: "Synthetic City" })] }, "US"), []);
+  assert.deepEqual(parsePhotonOfficeCandidates({ type: "FeatureCollection", features: [photonFeature({ osm_type: "W", osm_id: 1234, countrycode: "ca", street: "Synthetic Road", housenumber: "10", city: "Synthetic City", type: "house" })] }, "US"), []);
+  assert.deepEqual(parsePhotonOfficeCandidates({ type: "FeatureCollection", features: [photonFeature({ osm_type: "W", osm_id: 1234, countrycode: "us", street: "Synthetic Road", housenumber: "10", city: "Synthetic City", type: "city" })] }, "US"), []);
+});
+
+test("Photon uses a fixed HTTPS endpoint, sends only the explicit query, and preserves policy attribution", async () => {
+  const fake = photonTransport(), provider = createPhotonOfficeProvider(fake.value, { now: () => 0 });
+  const result = await provider.search({ query: "10 Synthetic Road &url=https://untrusted.example.test/", location, locality: "Synthetic City", postalCode: "00123" }, context());
+  const request = fake.calls[0]!, url = new URL(request.url);
+  assert.equal(result.length, 1); assert.equal(url.origin, "https://photon.komoot.io"); assert.equal(url.pathname, "/api/");
+  assert.equal(url.searchParams.get("q"), "10 Synthetic Road &url=https://untrusted.example.test/, Synthetic City, 00123"); assert.equal(url.searchParams.get("limit"), "5");
+  assert.deepEqual(request.source.endpointPolicy.allowedHosts, ["photon.komoot.io"]); assert.equal(request.source.endpointPolicy.allowRedirects, false);
+  assert.match(result[0]!.attribution, /Photon/); assert.doesNotMatch(request.url, /PRIVATE_/);
 });
 
 test("same query with different explicit constraints never shares cached candidates or empty results", async () => {
