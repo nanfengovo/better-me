@@ -5,7 +5,8 @@ BetterMe 当前地址查询适配器为可选 Nominatim 或 Photon；高德尚�
 没有高德 Key 时，可以先使用 Photon 做少量、明确触发的地址候选查询。它不提供批量岗位采集，也不会自动把候选保存为办公地点：
 
 ```powershell
-pnpm --filter @better-me/job-service start --data-dir <绝对私有目录> --origin http://localhost:5173 --office-geocoder photon
+$jobDataDirectory = Join-Path $env:LOCALAPPDATA "BetterMe/job-atlas"
+pnpm --filter @better-me/job-service start --data-dir $jobDataDirectory --origin http://localhost:5173 --office-geocoder photon
 ```
 
 Photon 和 Nominatim 都只在用户对具体岗位地址点击查询后发出单次请求；候选会保留 OSM/Photon 署名，必须核对岗位与完整办公地址后再确认保存。

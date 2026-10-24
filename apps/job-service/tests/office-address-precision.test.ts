@@ -126,6 +126,15 @@ test("Photon uses a fixed HTTPS endpoint, sends only the explicit query, and pre
   assert.match(result[0]!.attribution, /Photon/); assert.doesNotMatch(request.url, /PRIVATE_/);
 });
 
+test("Photon keeps its registered 30-per-minute request ceiling", async () => {
+  let now = 0; const fake = photonTransport(), provider = createPhotonOfficeProvider(fake.value, { now: () => now });
+  const query = (text: string) => provider.search({ query: text, location }, context());
+  assert.equal((await query("10 Synthetic Road")).length, 1);
+  now = 1999; await assert.rejects(query("20 Synthetic Road"), error("rate-limited"));
+  now = 2000; assert.equal((await query("20 Synthetic Road")).length, 1);
+  assert.equal(fake.calls.length, 2);
+});
+
 test("same query with different explicit constraints never shares cached candidates or empty results", async () => {
   let now = 0; const fake = transport(), provider = createNominatimOfficeProvider(fake.value, { now: () => now });
   const input = { query: "10 Synthetic Road", location };

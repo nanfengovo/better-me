@@ -185,12 +185,13 @@ export function createNominatimOfficeProvider(transport: SourceTransport, option
   } });
 }
 
-/** One bounded GET per explicit query, with the same cache and cancellation semantics as Nominatim. */
+/** One bounded GET per explicit query, with a 2 s gate matching Photon policy and bounded cache/cancellation. */
 export function createPhotonOfficeProvider(transport: SourceTransport, options: { now?: () => number } = {}): OfficeAddressProvider {
   const now = options.now ?? Date.now;
   let nextRequestAt = -Infinity, pending = false;
   const cache = new Map<string, { at: number; candidates: OfficeAddressCandidate[] }>();
-  const rateLimit = (seconds = 60) => { nextRequestAt = Math.max(nextRequestAt, now() + Math.max(1.1, Math.min(31_536_000, seconds)) * 1000); };
+  const minIntervalMs = 2_000; // Matches the registered Photon ceiling of 30 requests per minute.
+  const rateLimit = (seconds = 60) => { nextRequestAt = Math.max(nextRequestAt, now() + Math.max(minIntervalMs / 1000, Math.min(31_536_000, seconds)) * 1000); };
   return Object.freeze({ providerId: "photon", async search(input: { query: string; location: JobLocation; locality?: string; postalCode?: string }, context: ToolHandlerContext) {
     context.throwIfCancelled();
     const parsedInput = searchSchema.safeParse({ query: input.query,
@@ -202,7 +203,7 @@ export function createPhotonOfficeProvider(transport: SourceTransport, options: 
     const cached = cache.get(key);
     if (cached && now() - cached.at >= 0 && now() - cached.at < 900_000) return structuredClone(cached.candidates);
     if (pending || now() < nextRequestAt) throw new ToolError("rate-limited");
-    pending = true; nextRequestAt = now() + 1100;
+    pending = true; nextRequestAt = now() + minIntervalMs;
     try {
       const url = new URL(photonEndpoint);
       url.searchParams.set("q", [query, constraints.locality, constraints.postalCode].filter(Boolean).join(", "));
@@ -228,6 +229,6 @@ export function createPhotonOfficeProvider(transport: SourceTransport, options: 
       if (error instanceof SourceTransportError && error.code === "rate-limited") rateLimit(error.retryAfterSeconds);
       if (error instanceof SourceTransportError) throw new ToolError(error.code === "rate-limited" ? "rate-limited" : error.code === "timeout" ? "timeout" : error.code === "cancelled" ? "cancelled" : [401, 403].includes(error.status ?? 0) ? "needs-auth" : error.code === "response-too-large" ? "budget-exceeded" : "source-changed");
       throw error;
-    } finally { pending = false; nextRequestAt = Math.max(nextRequestAt, now() + 1100); }
+    } finally { pending = false; nextRequestAt = Math.max(nextRequestAt, now() + minIntervalMs); }
   } });
 }
