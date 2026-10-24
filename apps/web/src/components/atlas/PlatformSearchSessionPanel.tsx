@@ -1,7 +1,10 @@
 /** @jsxRuntime automatic */
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import type { PlatformSearchRequest, PlatformSearchInput } from "@better-me/source-adapters/browser-contracts";
+import {
+  appendPlatformSearchBatch, createPlatformSearchBatch, flattenPlatformSearchBatch,
+  type PlatformSearchBatch, type PlatformSearchBatchPageInput, type PlatformSearchRequest, type PlatformSearchInput,
+} from "@better-me/source-adapters/browser-contracts";
 import { closeJdBrowserSession, focusJdBrowserSession, inspectJdBrowserSession, type JdBrowserSession, type JdBrowserSessionInspection } from "../../lib/jd-import";
 import { startPlatformSearch, readPlatformSearch, cancelPlatformSearch, type PlatformSearchReceipt, type PlatformSearchCard } from "../../lib/platform-search-client";
 import { createJdStartRequestId } from "../../lib/jd-start-request";
@@ -55,6 +58,9 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
   const [session, setSession] = useState<JdBrowserSession>();
   const [scope, setScope] = useState<PlatformSearchRequest>();
   const [receipt, setReceipt] = useState<PlatformSearchReceipt>();
+  const [batch, setBatch] = useState<PlatformSearchBatch>();
+  const [pageReceipts, setPageReceipts] = useState<Record<number, PlatformSearchReceipt>>({});
+  const [selectedPageIndex, setSelectedPageIndex] = useState<number>();
   const [inspection, setInspection] = useState<JdBrowserSessionInspection>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -78,6 +84,47 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
   const selected = selection && selection.receipt === receipt && selection.sessionId === session?.sessionId && selection.provider === scope?.provider
     ? eligible.filter(card => selection.urls.includes(card.url)) : [];
   useEffect(() => { if (selectAll.current) selectAll.current.indeterminate = selected.length > 0 && selected.length < eligible.length; }, [selected.length, eligible.length]);
+  function requestInput(request: PlatformSearchRequest): PlatformSearchInput {
+    return { provider: request.provider, keyword: request.keyword, ...(request.region ? { regionId: request.region.id } : {}) };
+  }
+  function pageInput(next: PlatformSearchReceipt, request: PlatformSearchRequest, pageIndex: number): PlatformSearchBatchPageInput {
+    return { provider: request.provider, pageUrl: next.url, capturedAt: next.capturedAt, pageIndex, status: next.status,
+      cards: next.cards, partial: next.partial, warnings: next.warnings };
+  }
+  function saveBatchPage(next: PlatformSearchReceipt, request: PlatformSearchRequest, sessionId: string, existing: PlatformSearchBatch | undefined, append: boolean) {
+    setReceipt(next);
+    setSelectedPageIndex(undefined);
+    if (next.status !== "ready" && next.status !== "empty") return;
+    // A reread is deliberately transient. Only the explicit "append" action
+    // extends the ledger, so a second read cannot silently create a new page.
+    if (!append && existing) return;
+    try {
+      const pageIndex = append ? (existing?.pages.at(-1)?.pageIndex ?? -1) + 1 : 0;
+      const page = pageInput(next, request, pageIndex);
+      const updated = append && existing
+        ? appendPlatformSearchBatch(existing, page)
+        : existing ?? createPlatformSearchBatch(requestInput(request), sessionId, page);
+      setBatch(updated);
+      setPageReceipts((current) => ({ ...current, [pageIndex]: next }));
+      setSelectedPageIndex(pageIndex);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "当前页面不能加入搜索批次，请结束会话后重试。");
+    }
+  }
+  function selectBatchPage(value: string) {
+    if (!value) {
+      setSelection(undefined);
+      setSelectedPageIndex(undefined);
+      return;
+    }
+    const pageIndex = Number(value);
+    const next = pageReceipts[pageIndex];
+    if (!next) return;
+    setSelection(undefined);
+    setError("");
+    setReceipt(next);
+    setSelectedPageIndex(pageIndex);
+  }
   function choose(cards: PlatformSearchCard[]) {
     if (inFlight.current || !readable) return;
     setSelection({ receipt, sessionId: session.sessionId, provider: scope.provider, urls: cards.map(card => card.url) });
@@ -94,7 +141,13 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
       }
     } finally { clearTimeout(timer); inFlight.current = false; if (mounted.current) setBusy(false); }
   }
-  const read = (current: JdBrowserSession) => run(async (signal) => { setSelection(undefined); setReceipt(undefined); const next = await readPlatformSearch(current, signal); if (mounted.current) setReceipt(next); });
+  const read = (current: JdBrowserSession) => run(async (signal) => { setSelection(undefined); setReceipt(undefined); const next = await readPlatformSearch(current, signal); if (mounted.current) saveBatchPage(next, scope!, current.sessionId, batch, false); });
+  const appendPage = (current: JdBrowserSession) => run(async (signal) => {
+    if (!scope || !batch) return;
+    setSelection(undefined); setReceipt(undefined);
+    const next = await readPlatformSearch(current, signal);
+    if (mounted.current) saveBatchPage(next, scope, current.sessionId, batch, true);
+  });
   const inspect = (current: JdBrowserSession) => run(async signal => {
     setInspection(undefined);
     const next = await inspectJdBrowserSession(current, signal);
@@ -105,11 +158,12 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
     void run(async (signal) => {
       const launch = pending ?? { input: { provider: plan!.provider, keyword: plan!.keyword, ...(plan!.region ? { regionId: plan!.region.id } : {}) }, requestId: createJdStartRequestId() };
       binding.current = launch; setPending(launch);
-      setSelection(undefined); setReceipt(undefined); setInspection(undefined); if (!pending) setScope(plan);
+      setSelection(undefined); setReceipt(undefined); setInspection(undefined);
+      if (!pending) { setScope(plan); setBatch(undefined); setPageReceipts({}); setSelectedPageIndex(undefined); }
       const current = await startPlatformSearch(launch.input, signal, launch.requestId);
       if (!mounted.current) return;
       setSession(current);
-      const next = await readPlatformSearch(current, signal); if (mounted.current) setReceipt(next);
+      const next = await readPlatformSearch(current, signal); if (mounted.current) saveBatchPage(next, plan!, current.sessionId, undefined, false);
     });
   }
   const end = () => run(async () => {
@@ -117,7 +171,10 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
     if (binding.current) await cancelPlatformSearch(binding.current.input, binding.current.requestId);
     else if (session) await closeJdBrowserSession(session.sessionId);
     binding.current = undefined;
-    if (mounted.current) { setSession(undefined); setPending(undefined); setReceipt(undefined); setInspection(undefined); setScope(undefined); }
+    if (mounted.current) {
+      setSession(undefined); setPending(undefined); setReceipt(undefined); setBatch(undefined);
+      setPageReceipts({}); setSelectedPageIndex(undefined); setInspection(undefined); setScope(undefined);
+    }
   });
   return <section className="atlas-platform-reader" aria-label="平台真实搜索列表工具">
     <strong>读取原站搜索结果</strong>
@@ -132,6 +189,7 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
       {busy && <button type="button" onClick={() => operationAbort.current?.abort(new Error("已中止等待；启动结果未知时，请恢复或结束本次请求。"))}>取消本次等待</button>}
       {session && <>
         <button type="button" disabled={busy} onClick={() => void read(session)}>{busy ? "正在读取…" : "再次读取当前页"}</button>
+        {batch && <button type="button" disabled={busy || !receipt || (receipt.status !== "ready" && receipt.status !== "empty")} onClick={() => void appendPage(session)}>追加当前页</button>}
         <button type="button" disabled={busy} onClick={() => void inspect(session)}>检查页面状态</button>
         <button type="button" disabled={busy} onClick={() => void run(async (signal) => { await focusJdBrowserSession(session, signal); })}>显示专用窗口</button>
       </>}
@@ -139,6 +197,18 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
     </div>
     {busy && <p className="atlas-platform-reader-loading" role="status"><Loader2 size={16} className="animate-spin" aria-hidden="true" />正在等待原站页面并核对可见卡片… 页面加载、身份与字段检查完成后会显示结果。</p>}
     {scope && <p className="atlas-small">本次搜索：{scope.platform} · {scope.keyword || "不限关键词"} · {scope.region?.name ?? "原站默认地区"}。上方筛选改变后，结束本次会话再发起新的搜索。</p>}
+    {batch && <div className="atlas-platform-batch-status" role="status">
+      <div className="atlas-platform-batch-page-picker">
+        <label htmlFor="atlas-platform-batch-page">已读取页面</label>
+        <select id="atlas-platform-batch-page" aria-label="切换已读取页面" value={selectedPageIndex === undefined ? "" : String(selectedPageIndex)} onChange={(event) => selectBatchPage(event.target.value)}>
+          {selectedPageIndex === undefined && <option value="">当前页（尚未追加）</option>}
+          {batch.pages.map((page) => <option key={page.pageIndex} value={String(page.pageIndex)}>
+            第 {page.pageIndex + 1} 次读取 · {page.status === "empty" ? "空结果" : `${page.cards.length} 岗`}
+          </option>)}
+        </select>
+      </div>
+      <strong>当前搜索批次：已读取 {batch.pages.length} 页</strong><span>已去重 {flattenPlatformSearchBatch(batch).length} 个岗位 · 部分覆盖</span><small>翻页后点击“追加当前页”；切换上方页面可逐页核对；不会自动翻页，也不会把批次视为平台全量。</small>
+    </div>}
     {error && <p role="alert" className="atlas-platform-search-error">{error}</p>}
     {inspection && <div className="atlas-small atlas-search-inspection" role="status" aria-label="搜索页面状态检查结果">
       <strong>上次页面状态检查</strong>

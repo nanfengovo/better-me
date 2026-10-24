@@ -7,6 +7,7 @@ export * from "./tencent-contracts.js";
 export * from "./smartrecruiters-contracts.js";
 export * from "./career-discovery-contracts.js";
 export * from "./platform-search.js";
+export * from "./platform-search-batch.js";
 export * from "./local-match.js";
 export * from "./reviewed-cards.js";
 export * from "./jobposting-jsonld-contracts.js";

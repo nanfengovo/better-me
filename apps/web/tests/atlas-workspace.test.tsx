@@ -95,7 +95,7 @@ async function render(active = true, demo = true) {
     "the initial synthetic query's 22 job cards");
 }
 function button(text: string) {
-  const found = text === "连接本机服务" ? dom.document.querySelector<HTMLButtonElement>('[aria-label="岗位后端设置"]') : [...dom.document.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent?.trim() === text);
+  const found = text === "连接本机服务" ? dom.document.querySelector<HTMLButtonElement>('[aria-label="本机后端状态与高级设置"]') : [...dom.document.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent?.trim() === text);
   assert.ok(found, `Missing button ${text}`); return found;
 }
 function resultsHeading() { return dom.document.querySelector(".atlas-results-heading h2")!.textContent!; }
@@ -284,9 +284,9 @@ test("selected platform cards open the shared review without writing; changing t
   await flush(() => button("连接本机服务").click());
   await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('input[type="password"]')!, "synthetic-unwanted-token"));
   assert.equal(dom.document.querySelector<HTMLInputElement>('input[type="password"]')!.value, "synthetic-fixture-token");
-  await flush(() => button("重试后端连接").click());
-  await flush(() => button("断开并清除会话连接").click());
-  await flush(() => button("恢复默认后端").click());
+  await flush(() => button("重试自动后端").click());
+  await flush(() => button("暂停自动读取").click());
+  await flush(() => button("使用自动后端").click());
   assert.match(review().textContent!, /来源卡片摘要 · 1 个岗位/);
   assert.equal(imports.length, 1); assert.equal(previews.length, 2);
   assert.equal(dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!.value, "live");
@@ -312,6 +312,34 @@ test("city selection uses exact matching jobs while the map still holds the comp
   assert.equal(mapProps!.buckets.length, 22);
   await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="取消城市选择"]')!.click());
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 22);
+});
+
+test("job selection highlights its coordinate buckets, follows another job, and leaves coordinate-less jobs without markers", async () => {
+  const data = createAtlasDemo();
+  const coordinateLess = data.jobs.at(-1)!;
+  for (const locationId of coordinateLess.locationIds) {
+    const location = data.locations.find(value => value.id === locationId)!;
+    delete location.coordinates;
+    location.precision = "unknown";
+    location.verification = "unknown";
+  }
+  installWorkspaceFetch(async () => sourceResponse(AtlasDatasetSchema.parse(data)));
+  await render(true, false); await connectFixture();
+
+  const first = data.jobs[0]!;
+  const second = data.jobs[1]!;
+  const expectedFirst = mapProps!.buckets.filter(bucket => bucket.jobIds.includes(first.id)).map(bucket => bucket.id).sort();
+  const expectedSecond = mapProps!.buckets.filter(bucket => bucket.jobIds.includes(second.id)).map(bucket => bucket.id).sort();
+  assert.ok(expectedFirst.length > 0); assert.ok(expectedSecond.length > 0);
+
+  await flush(() => pointerClick(jobCard(first.title.value), 0));
+  assert.deepEqual(mapProps!.selectedBucketIds, expectedFirst);
+  await flush(() => pointerClick(jobCard(second.title.value), 0));
+  assert.deepEqual(mapProps!.selectedBucketIds, expectedSecond);
+
+  await flush(() => pointerClick(jobCard(coordinateLess.title.value), 0));
+  assert.equal(mapProps!.selectedBucketIds, undefined, "a job without coordinate-backed buckets cannot create a marker highlight");
+  assert.equal(mapProps!.buckets.some(bucket => bucket.jobIds.includes(coordinateLess.id)), false, "coordinate-less jobs remain absent from map buckets");
 });
 
 test("overlapping marker selection queries unique jobs across pages while retaining full map statistics and each selected marker", async () => {
@@ -674,10 +702,12 @@ test("main search without a connection opens connection settings and never sends
   const fetcher = installWorkspaceFetch(async () => { throw new Error("An unconnected search must never request a service"); });
   await render(true, false);
   await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "C#"));
-  await flush(() => button("查看后端状态").click());
+  assert.ok(button("本机后端 · 未就绪"));
+  await flush(() => button("打开后端状态").click());
   assert.equal(fetcher.mock.callCount(), 0);
-  assert.equal(dom.document.querySelector(".atlas-settings h2")!.textContent, "岗位后端状态");
-  assert.match(dom.document.querySelector(".atlas-search-notice")!.textContent!, /本机岗位后端当前不可用/);
+  assert.equal(dom.document.querySelector(".atlas-settings h2")!.textContent, "本机后端状态");
+  assert.match(dom.document.querySelector(".atlas-settings")!.textContent!, /本机网页默认使用同源岗位后端/);
+  assert.match(dom.document.querySelector(".atlas-settings")!.textContent!, /不需要手动连接或填写令牌/);
   assert.equal(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!.value, "C#");
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0);
 });
@@ -1224,9 +1254,9 @@ test("an empty real opportunity library offers acquisition instead of a vacant r
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0);
   assert.equal(dom.document.querySelector(".atlas-detail-placeholder"), null);
   assert.match(dom.document.querySelector(".atlas-empty")!.textContent!, /先把真实岗位接入地图/);
-  assert.ok(button("查看后端状态"));
+  assert.ok(button("本机后端 · 未就绪"));
   assert.equal([...dom.document.querySelectorAll(".atlas-empty button")].some(node => node.textContent === "清除筛选"), false);
-  await flush(() => button("查看后端状态").click());
+  await flush(() => button("本机后端 · 未就绪").click());
   assert.ok(dom.document.querySelector(".atlas-settings input[type=password]"));
   assert.equal(external.mock.callCount(), 0, "opening connection never collects or fabricates jobs");
   assert.equal(dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!.value, "local");

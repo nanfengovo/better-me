@@ -4,8 +4,13 @@
 .atlas-platform-batch-actions>span{color:var(--color-ink);font-variant-numeric:tabular-nums}
 .atlas-platform-batch-actions>button{margin-left:auto}
 .atlas-platform-batch>p{margin:10px 0 0}
+.atlas-platform-batch-status{display:grid;grid-template-columns:minmax(180px,auto) 1fr;align-items:center;gap:6px 16px;margin:12px 0;padding:12px;border:1px solid var(--color-line);border-radius:8px;background:var(--color-paper)}
+.atlas-platform-batch-page-picker{display:flex;align-items:center;gap:8px;grid-row:span 2}
+.atlas-platform-batch-page-picker label{color:var(--color-ink-muted);white-space:nowrap}
+.atlas-platform-batch-page-picker select{max-width:260px;min-width:160px}
+.atlas-platform-batch-status>small{grid-column:2;color:var(--color-ink-muted)}
 .atlas-platform-card-choice{display:inline-flex;align-items:center;gap:8px;min-height:32px;cursor:pointer;color:var(--color-ink)}
 .atlas-platform-card-choice:has(input:disabled){cursor:default;color:var(--color-ink-muted)}
 .atlas-platform-card-choice input[type=checkbox]{width:17px;height:17px;flex:none;margin:0;accent-color:var(--color-accent)}
 .atlas-platform-card-choice input:focus-visible{outline:2px solid var(--color-accent);outline-offset:3px}
-@media(max-width:600px){.atlas-platform-batch-actions>button{margin-left:0;width:100%}}
+@media(max-width:600px){.atlas-platform-batch-actions>button{margin-left:0;width:100%}.atlas-platform-batch-status{grid-template-columns:minmax(0,1fr)}.atlas-platform-batch-page-picker{grid-row:auto;flex-wrap:wrap}.atlas-platform-batch-page-picker select{max-width:100%;flex:1}.atlas-platform-batch-status>small{grid-column:auto}}

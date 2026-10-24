@@ -82,7 +82,7 @@ test("unknown lead writes mask the workspace, survive its root remount and resto
   const snapshot = leadData(), calls = install(snapshot);
   dom.sessionStorage.setItem("better-me:atlas-connection-session:v1", JSON.stringify({ schemaVersion: 1, dataMode: "live", endpoint, token }));
   await render(); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === snapshot.jobs.length, "initial canonical query");
-  assert.equal(dom.document.querySelector('[aria-label="岗位后端设置"]')?.textContent, "后端已连接");
+  assert.equal(dom.document.querySelector('[aria-label="本机后端状态与高级设置"]')?.textContent, "本机后端 · 手动直连");
   const search = dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!;
   await act(async () => {
     Object.getOwnPropertyDescriptor(dom.HTMLInputElement.prototype, "value")!.set!.call(search, "does-not-match-any-job");
@@ -103,7 +103,7 @@ test("unknown lead writes mask the workspace, survive its root remount and resto
   assert.equal(calls.filter(call => call.path.endsWith("/export")).length, exportCount, "root remount does not replace the uncertain write with a new connection read");
   await click("核对原保存回执");
   await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === snapshot.jobs.length, "restored connection FX context and canonical query");
-  assert.equal(dom.document.querySelector('[aria-label="岗位后端设置"]')?.textContent, "后端已连接");
+  assert.equal(dom.document.querySelector('[aria-label="本机后端状态与高级设置"]')?.textContent, "本机后端 · 手动直连");
   assert.ok(calls.filter(call => call.path.endsWith("/fx/state")).length >= 2, "FX is read again for the recovered root");
   const writes = calls.filter(call => call.path.endsWith("/original/import"));
   assert.equal(writes.length, 1); assert.deepEqual(writes[0]!.body, leadImport); assert.equal(writes[0]!.key, "synthetic-exact-lead-recovery-key");

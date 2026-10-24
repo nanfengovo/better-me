@@ -48,7 +48,7 @@ async function mount(active = true, strict = false) {
   await act(async () => root!.render(strict ? h(React.StrictMode, null, workspace) : workspace));
 }
 async function reload() { await act(async () => root!.unmount()); root = undefined; await mount(); }
-function button(text: string) { const found = text === "连接本机服务" ? dom.document.querySelector<HTMLButtonElement>('[aria-label="岗位后端设置"]') : [...dom.document.querySelectorAll<HTMLButtonElement>("button")].find(node => node.textContent?.trim() === text); assert.ok(found, `Missing button ${text}`); return found; }
+function button(text: string) { const found = text === "连接本机服务" ? dom.document.querySelector<HTMLButtonElement>('[aria-label="本机后端状态与高级设置"]') : [...dom.document.querySelectorAll<HTMLButtonElement>("button")].find(node => node.textContent?.trim() === text); assert.ok(found, `Missing button ${text}`); return found; }
 const view = () => dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!;
 function input(label: string) { const found = [...dom.document.querySelectorAll("label")].find(node => node.textContent?.startsWith(label))?.querySelector<HTMLInputElement>("input"); assert.ok(found); return found; }
 function changeInput(element: HTMLInputElement, value: string) { Object.getOwnPropertyDescriptor(dom.HTMLInputElement.prototype, "value")!.set!.call(element, value); element.dispatchEvent(new dom.Event("input", { bubbles: true })); }
@@ -169,7 +169,7 @@ for (const action of ["local", "demo", "endpoint", "token", "disconnect"] as con
   if (action === "local" || action === "demo") await choose(action);
   else {
     await act(async () => button("连接本机服务").click());
-    await act(async () => { if (action === "disconnect") button("断开并清除会话连接").click(); else changeInput(input(action === "endpoint" ? "服务地址" : "访问令牌"), action === "endpoint" ? "http://127.0.0.1:5999" : "new-synthetic-token"); });
+  await act(async () => { if (action === "disconnect") button("暂停自动读取").click(); else changeInput(input(action === "endpoint" ? "服务地址" : "访问令牌"), action === "endpoint" ? "http://127.0.0.1:5999" : "new-synthetic-token"); });
   }
   assert.equal(signal?.aborted, true);
   await act(async () => release!(response())); await act(async () => { await delay(30); });
@@ -236,6 +236,7 @@ test("first active visit reads only the default backend index without browser cr
   });
   await mount(); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "default backend full index");
   assert.equal(view().value, "live");
+  assert.equal(dom.document.querySelector('[aria-label="本机后端状态与高级设置"]')?.textContent, "本机后端 · 自动");
   assert.equal(requests.length, 1); assert.equal(requests[0]!.url, `${dom.location.origin}/api/atlas/api/v1/dataset/export`);
   assert.equal(requests[0]!.authorization, null); assert.equal(requests[0]!.method, undefined);
   assert.deepEqual(JSON.parse(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY)!), { schemaVersion: 1, dataMode: "live", endpoint: "/api/atlas", token: "" });
@@ -265,7 +266,7 @@ test("inactive first visit waits for activation and default retry discards manua
   await explicitConnect(); await waitFor(() => requests.some(request => request.authorization === `Bearer ${saved.token}`), "manual connection");
   await act(async () => button("连接本机服务").click());
   assert.equal(dom.document.querySelector("details")?.open, false, "advanced credentials start collapsed");
-  await act(async () => button("恢复默认后端").click());
+  await act(async () => button("使用自动后端").click());
   await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22 && requests.length === 3, "default backend reset");
   assert.equal(requests[2]!.authorization, null);
   assert.deepEqual(JSON.parse(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY)!), { schemaVersion: 1, dataMode: "live", endpoint: "/api/atlas", token: "" });
@@ -276,7 +277,7 @@ test("switching to an unavailable default backend discards the previous manual c
   dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify(saved));
   installLegacyBackendFetch(async (url: RequestInfo | URL) => String(url).includes("/api/atlas/") ? new Response("unavailable", { status: 503 }) : response());
   await mount(); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "saved direct connection");
-  await act(async () => button("连接本机服务").click()); await act(async () => button("恢复默认后端").click());
+  await act(async () => button("连接本机服务").click()); await act(async () => button("使用自动后端").click());
   await waitFor(() => !!dom.document.querySelector('[role="alert"]'), "default gateway rejection");
   assert.equal(view().value, "live"); assert.equal(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY), null);
   assert.equal(input("访问令牌").value, ""); assert.equal(input("服务地址").value, "/api/atlas");

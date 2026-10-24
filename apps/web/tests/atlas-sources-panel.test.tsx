@@ -53,7 +53,7 @@ after(() => { hooks.deregister(); dom.happyDOM.abort(); for (const [key, descrip
 
 test("missing token leaves real tools inactive and does not request localhost", async () => {
   const fetcher = mock.method(globalThis, "fetch", async () => { throw new Error("must not fetch"); });
-  await render(""); assert.match(dom.document.body.textContent!, /请先连接岗位后端/); assert.equal(fetcher.mock.callCount(), 0);
+  await render(""); assert.match(dom.document.body.textContent!, /当前手动直连配置缺少有效服务地址或令牌/); assert.equal(fetcher.mock.callCount(), 0);
   assert.equal(button("更新地图快照").disabled, true);
 });
 

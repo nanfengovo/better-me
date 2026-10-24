@@ -1,4 +1,4 @@
-import { hasAtlasServiceTarget } from "./backend-connection";
+import { DEFAULT_ATLAS_BACKEND_ENDPOINT, hasAtlasServiceTarget } from "./backend-connection";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Database, Loader2, RefreshCw, Search, X } from "lucide-react";
 import type { AtlasDataset, SourceDefinition } from "@better-me/opportunities";
@@ -182,7 +182,9 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
     <header><div><span className="atlas-eyebrow">SOURCE TOOLS</span><h2><Database size={19} />{t("岗位来源工具", "Job source tools")}</h2></div>
       <button type="button" onClick={() => { active.current?.abort(); onClose(); }} aria-label={t("关闭来源工具", "Close source tools")}><X size={17} /></button></header>
     <p>{t("通过岗位后端管理来源、有限预览与手动刷新。岗位、招聘活动和公司线索分别保存；原始来源与覆盖范围会保留。", "Manage real sources, bounded previews and manual refreshes through the job backend. Jobs, campaigns and company leads retain their separate identity and provenance.")}</p>
-    {!usable && <p role="status" className="atlas-sources-callout">{t("请先连接岗位后端；默认后端无需填写令牌，高级直连需有效服务地址与令牌。", "The default backend needs no token entry; advanced direct connections require a valid service address and token.")}</p>}
+    {!usable && <p role="status" className="atlas-sources-callout">{endpoint === DEFAULT_ATLAS_BACKEND_ENDPOINT
+      ? t("本机网页默认自动使用岗位后端；当前不可用时请在后端状态中重试。", "The local web app uses its job backend automatically; retry it from backend status when unavailable.")
+      : t("当前手动直连配置缺少有效服务地址或令牌。本机网页默认会自动使用岗位后端。", "This manual connection needs a valid service endpoint and token. The local web app uses its job backend automatically by default.")}</p>}
     <fieldset disabled={leadLocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}><CompanyCareersPanel endpoint={endpoint} token={token} sources={catalog.sources} onProposal={editJson} onSelectSource={(id, companyName) => { setSourceId(id); const configuredName = catalog.sources.find((entry) => entry.sourceId === id)?.options?.companyName; setCompanies(typeof configuredName === "string" ? configuredName : companyName); setPreview(undefined); setNotice("已选择企业招聘来源。可继续填写岗位关键词与地区，预览后手动获取真实岗位。"); }} /></fieldset>
     <div className="atlas-sources-actions"><button type="button" disabled={!usable || Boolean(busy || sourceActivityLocked)} aria-expanded={leadsOpen || leadLocked} onClick={() => setLeadsOpen(value => !value)}><Database size={14} />{t("已保存发现线索", "Saved discovery leads")}{leadLocked && t(" · 待核对回执", " · receipt pending")}</button><span className="atlas-sources-muted">{t("GitHub / 招聘批次单独审核，再接续原岗位。", "Review GitHub leads and campaigns before adopting original jobs.")}</span></div>
     {(leadsOpen || leadLocked) && <AtlasDiscoveryLeads key={`${endpoint}:${token}`} endpoint={endpoint} token={token} revision={revision} sources={catalog.sources} disabled={Boolean(busy || sourceActivityLocked)} onSnapshot={onSnapshot} onOpenJob={onOpenJob} onClose={() => setLeadsOpen(false)} />}

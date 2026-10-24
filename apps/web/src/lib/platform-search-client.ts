@@ -25,6 +25,20 @@ const result = z.object({
 export type PlatformSearchCard = z.infer<typeof card>;
 export type PlatformSearchReceipt = z.infer<typeof result>;
 
+// A user may advance the already-open official list to another page. These
+// parameters are ignored for scope matching; keyword, region and path remain exact.
+const paginationParameters = new Set(["page", "pageno", "page_no", "pagenum", "page_num", "currentpage", "current_page", "start", "offset", "pn"]);
+function searchScope(value: string): string | undefined {
+  try {
+    const parsed = new URL(value);
+    parsed.hash = "";
+    for (const key of [...parsed.searchParams.keys()]) {
+      if (paginationParameters.has(key.toLowerCase()) || parsed.searchParams.getAll(key).every((entry) => entry === "")) parsed.searchParams.delete(key);
+    }
+    return JSON.stringify({ origin: parsed.origin, pathname: parsed.pathname.replace(/\/$/, ""), query: [...parsed.searchParams.entries()].sort() });
+  } catch { return undefined; }
+}
+
 const error = (message: string) => new JdExtractionError({ code: "service_unavailable", stage: "service", message });
 async function request(body: unknown, signal?: AbortSignal, keepalive = false) {
   let response: Response;
@@ -62,11 +76,7 @@ export async function readPlatformSearch(session: JdBrowserSession, signal?: Abo
   const parsed = result.safeParse(await request({ action: "read", sessionId: session.sessionId }, signal));
   if (!parsed.success || parsed.data.platform !== session.platform) throw error("搜索服务返回的列表格式或平台不一致。");
   const receipt = parsed.data, initial = new URL(session.url), actual = new URL(receipt.url);
-  if (actual.origin !== initial.origin || actual.pathname.replace(/\/$/, "") !== initial.pathname.replace(/\/$/, "")
-    || [...new Set(initial.searchParams.keys())].some((key) => {
-      const before = initial.searchParams.getAll(key), after = actual.searchParams.getAll(key);
-      return !(before.length === 1 && before[0] === "" && after.length === 0) && JSON.stringify(after) !== JSON.stringify(before);
-    })) throw error("搜索页的关键词或地区已改变，请结束会话后重新搜索。");
+  if (actual.origin !== initial.origin || searchScope(receipt.url) === undefined || searchScope(receipt.url) !== searchScope(session.url)) throw error("搜索页的关键词或地区已改变，请结束会话后重新搜索。");
   const seen = new Set<string>();
   for (const item of receipt.cards) {
     let source: ReturnType<typeof allowedJobUrl>;

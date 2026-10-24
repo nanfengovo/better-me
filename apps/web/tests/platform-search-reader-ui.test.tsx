@@ -38,9 +38,9 @@ const ready = (request = original) => ({ ...extractJobSearchCards({ url: request
   <p>仅标题和摘要，没有薪资、地点、企业与发布时间。</p></article>
   </main>` }, "猎聘"), capturedAt: at });
 const gate = (status: "login_required" | "verification_required") => ({ ...extractJobSearchCards({ url: original.url, title: "Synthetic gate", html: "", gate: status }, "猎聘"), capturedAt: at });
-const batchReady = (request = original, count = 4, missingLast = true) => ({ ...extractJobSearchCards({ url: request.url, title: "Synthetic batch", html: `<main>${Array.from({ length: count }, (_, index) => `
-  <article class="job-card-pc-container"><a class="job-title" href="https://www.liepin.com/job/${1234567890 + index}.shtml">Synthetic batch job ${index}</a>
-  ${!missingLast || index < count - 1 ? `<span class="company-name">Synthetic Employer ${index}</span>` : ""}<p>本页岗位卡片摘要 ${index}</p></article>`).join("")}</main>` }, "猎聘"), capturedAt: at });
+const batchReady = (request = original, count = 4, missingLast = true, idStart = 1234567890) => ({ ...extractJobSearchCards({ url: request.url, title: "Synthetic batch", html: `<main>${Array.from({ length: count }, (_, index) => `
+  <article class="job-card-pc-container"><a class="job-title" href="https://www.liepin.com/job/${idStart + index}.shtml">Synthetic batch job ${index}</a>
+  ${!missingLast || index < count - 1 ? `<span class="company-name">Synthetic Employer ${index}</span>` : ""}<span class="job-dq-box">上海·浦东</span><p>本页岗位卡片摘要 ${index}</p></article>`).join("")}</main>` }, "猎聘"), capturedAt: at });
 const inspection = (overrides: Partial<JdBrowserSessionInspection> = {}): JdBrowserSessionInspection => ({
   snapshotState: "ready", pageState: "unknown", pageLoad: { readyState: "complete", content: "visible_text", visibleFrames: 0 },
   scriptErrors: 0, mainDocument: { state: "response", status: 200 }, resources: [], truncated: false, blockedPopups: 0, blockedSockets: 0,
@@ -452,6 +452,46 @@ test("select all forwards the full 50-card supported page without truncation or 
   await click("核对并加入所选 50 个岗位");
   assert.deepEqual(batches, [[receipt.cards, receipt, "liepin"]]);
   assert.equal(calls.length, 2);
+});
+
+test("an appended page can be revisited and its own receipt is used for reviewed-card import", async () => {
+  const secondUrl = new URL(original.url); secondUrl.searchParams.set("page", "2");
+  const firstPage = batchReady(original, 4, true);
+  const secondPage = batchReady({ ...original, url: secondUrl.toString() }, 3, false, 1234567990);
+  let reads = 0;
+  const batches: unknown[][] = [];
+  installFetch(call => {
+    if (call.body.action === "start") return response(session());
+    if (call.body.action === "read") return response(++reads === 1 ? firstPage : secondPage);
+    return response({ cancelled: true, closed: true });
+  });
+  await render([original], undefined, { onIndexCards: (...args) => batches.push(args) });
+  await startReady();
+  await waitFor(() => Boolean(dom.document.querySelector(".atlas-platform-batch-status") || dom.document.querySelector('[role="alert"]')), "first batch state");
+  assert.ok(dom.document.querySelector(".atlas-platform-batch-status"), dom.document.querySelector('[role="alert"]')?.textContent);
+  await click("追加当前页");
+  await waitFor(() => dom.document.querySelector(".atlas-platform-batch-status")?.textContent?.includes("已读取 2 页"), "second page appended");
+  assert.match(dom.document.querySelector(".atlas-platform-batch-status")!.textContent!, /已去重 7 个岗位/);
+
+  await act(async () => {
+    const picker = dom.document.querySelector<HTMLSelectElement>('[aria-label="切换已读取页面"]')!;
+    picker.value = "0"; picker.dispatchEvent(new dom.Event("change", { bubbles: true }));
+  });
+  assert.match(dom.document.querySelector(".atlas-platform-card-list")!.textContent!, /Synthetic batch job 0/);
+  const firstChoice = dom.document.querySelector<HTMLInputElement>('.atlas-platform-card-list input[type="checkbox"]')!;
+  await act(async () => firstChoice.click());
+  await click("核对并加入所选 1 个岗位");
+  assert.deepEqual(batches, [[[firstPage.cards[0]], firstPage, "liepin"]]);
+});
+
+test("reappending the same page reports a duplicate and leaves the batch page count unchanged", async () => {
+  const calls = installFetch(call => call.body.action === "start" ? response(session()) : call.body.action === "read" ? response(batchReady(original, 2, false)) : response({ cancelled: true, closed: true }));
+  await render([original]); await startReady();
+  await click("追加当前页");
+  await waitFor(() => Boolean(dom.document.querySelector('[role="alert"]')), "duplicate page rejection");
+  assert.match(dom.document.querySelector('[role="alert"]')!.textContent!, /已经加入批次/);
+  assert.match(dom.document.querySelector(".atlas-platform-batch-status")!.textContent!, /已读取 1 页/);
+  assert.equal(calls.filter(call => call.body.action === "read").length, 2);
 });
 
 test("closing and changing platform cannot carry a previous platform's selection into the new session", async () => {
