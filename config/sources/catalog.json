@@ -3,6 +3,47 @@
   "entries": [
     {
       "source": {
+        "sourceId": "remotive-public-feed",
+        "name": "Remotive · 远程公开岗位",
+        "adapterId": "remotive",
+        "adapterVersion": "1",
+        "capabilities": ["list-jobs"],
+        "runtime": ["local-service", "server"],
+        "entityType": "job-posting",
+        "enabled": false,
+        "status": "needs-review",
+        "entryUrl": "https://remotive.com/api/remote-jobs",
+        "options": {},
+        "remoteFilters": ["roles", "companyNames"],
+        "endpointPolicy": {
+          "allowedHosts": ["remotive.com"],
+          "allowedPathPrefixes": ["/api/remote-jobs"],
+          "requireHttps": true,
+          "allowRedirects": false,
+          "maxRedirects": 0
+        },
+        "attribution": {
+          "label": "Remotive · 原始职位回链",
+          "homepageUrl": "https://github.com/remotive-com/remote-jobs-api",
+          "usage": "unknown",
+          "requiresAttribution": true,
+          "notes": "仅首发本机工作台 / 不转交其他招聘网站，并保留Remotive归属与原职位回链；不用于收集signup或email线索。官方说明feed延迟24小时、建议每日最多4次且每分钟不超过2次。该来源待人工复核后启用；应用minInterval 6小时与2次/分钟保护，跨自然日的4次总量并非强制计数器。仅有限active-feed窗口，不代表全市场。"
+        },
+        "refreshPolicy": {
+          "mode": "manual",
+          "minIntervalSeconds": 21600,
+          "maxRecords": 100,
+          "maxPages": 1,
+          "requestsPerMinute": 2
+        }
+      },
+      "tags": ["多公司", "远程", "公开API"],
+      "coverage": "Remotive当前有限的延迟远程岗位feed；candidate_required_location是候选人资格范围，不是工作办公室；薪资原文保留且不推断币种/发薪周期/税前税后。官方API无此响应页之后的完整历史分页接口。",
+      "checkedAt": "2026-10-24T10:00:00Z",
+      "evidenceUrls": ["https://github.com/remotive-com/remote-jobs-api", "https://remotive.com/api/remote-jobs"]
+    },
+    {
+      "source": {
         "sourceId": "arbeitnow-public-feed",
         "name": "Arbeitnow · 欧洲多公司公开岗位",
         "adapterId": "mapped-json",

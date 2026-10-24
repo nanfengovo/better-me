@@ -51,6 +51,8 @@ pnpm --filter @better-me/web dev --host localhost --port 5173 --strictPort
 
 GitHub Pages／现有 Nginx Docker 镜像是静态版，没有该网关；可显式高级直连本机服务，远程常驻后端仍待部署。`vite preview` 可提供此索引网关，但不提供四平台招聘浏览器 API。详见[默认后端报告](../../docs/reports/job-atlas-default-backend-2026-10-21.md)。
 
+Remotive 公共远程 feed 已安装为 `remotive@1`，仍按 catalog 项明确审核、添加并启用后才能读取。每次刷新只请求一个有限结果窗口、至多100条，不支持历史游标；源数据延迟约24小时。其官方条款要求标注来源和原职位链接，禁止向其他招聘网站转交列表或在列表站收集注册/邮箱线索。应用的来源刷新间隔最少6小时、每分钟最多2次；“每日不超过4次”目前记为政策说明，尚无持久跨日计数器。字段局限和官方依据见岗位地图与 source-adapters 文档。
+
 ## 使用 HTTP API
 
 默认 API 地址为 `http://127.0.0.1:5178`。实际地址以启动日志为准；`localhost` 不属于 API 的 Host 允许项。除合法 CORS 预检外，**包括 `/healthz` 在内的请求都需要 Bearer token**。

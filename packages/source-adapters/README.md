@@ -11,11 +11,14 @@
 | `greenhouse` / `1` | 具体公司的官方公开 board；`options.boardToken`，可配 `companyName`。 | 保留岗位 ID、原链接、正文、地点原文和源时间；受数量限制，不提供 Greenhouse 全站搜索。 |
 | `lever` / `1` | 具体公司的 Postings API board；支持 board 内 offset 分页。 | 保留原始地点、工作方式、正文和可用的薪资声明；未披露税制、固定工资组成时不自行补全。演示 board 不是市场数据。 |
 | `ashby` / `1` | 具体公司的公开 job-board API。 | 远程资格区域单独保存，不制造办公室坐标；保留薪资原文与源时间。 |
+| `remotive` / `1` | Remotive 公共远程岗位 API；最多一次有限 feed 读取，无历史分页。支持单个关键词、单个公司和类别上游过滤，其余本地匹配。 | 要显著标 Remotive 并链接原岗位；feed 延迟 24 小时；禁止转交第三方招聘站或用于收集注册/邮箱线索。保留候选人资格范围，不制造办公室；薪资只留原文。配置建议每 6 小时最多一次、每分钟 2 次；官方建议每日不超过 4 次，本地策略尚未做跨日硬计数。默认待审核、关闭。 |
 | `tencent` / `1` | 腾讯招聘官网固定 HTTPS Query 端点；`roles` 逐词远程查询、按 OR 分页。 | 默认职责摘录，可显式启用受限 ByPostId 详情补全；保留 `PostId`、原始国家/地点和更新时间，上游关键词仍需本地筛选。 |
 | `mapped-json` / `1` | `entryUrl` 指定的 JSON 列表及有限字段路径映射；可显式配置来源返回的数字页码续读。 | 默认 `discoveryOnly: true`；人工审核后才可配置为岗位记录。不能运行源仓库代码或自定义 JS。 |
 | `github-json` / `1` | `raw.githubusercontent.com` 的具体 JSON 文件，使用相同有限映射。 | 强制 `discovery-lead`；不能用配置将目录、多个方向或招聘批次变成已核实单岗。 |
 
-腾讯适配器声明 `remoteFilters: ["roles"]`，将关注关键词分别传给官网；多个词各自分页，保留 OR，不合计可能重叠的上游总数。`regions` 和 `companyNames` 不发给该端点，明确报告为上游未执行，再由应用层匹配。其余现有适配器的 `remoteFilters` 均为空，按具体 board / feed 列举。51job、Boss、猎聘和 LinkedIn 仍使用既有单岗读取；没有把它们标为已实现的平台级搜索。
+腾讯适配器声明 `remoteFilters: ["roles"]`，将关注关键词分别传给官网；多个词各自分页，保留 OR，不合计可能重叠的上游总数。`regions` 和 `companyNames` 不发给该端点，明确报告为上游未执行，再由应用层匹配。Remotive 对单个岗位关键词与单个公司名使用官方查询参数；多个兴趣不会被拼接成改变 OR 语义的单个字符串，改由本地匹配。其余来源按具体 board / feed 列举。51job、Boss、猎聘和 LinkedIn 仍使用既有单岗读取；没有把它们标为已实现的平台级搜索。
+
+Remotive 仅提供有限、延迟的 active remote feed，没有可承诺全市场或完整历史覆盖的分页。官方要求醒目标注 Remotive 并保留原岗位链接，禁止转交第三方招聘网站或利用岗位列表收集 signup / email 线索；catalog 配置默认关闭待审核。候选资格字段 `candidate_required_location` 单独保存，绝不成为工作地址、办公室坐标或距离筛选依据。薪资与无时区的发布时间保留原文，不推断币种、周期、税前税后或 UTC 时刻。官方建议每日最多读取4次、每分钟不超过2次；来源配置使用6小时最短间隔和每分钟2次，但当前还没有跨日硬计数器。
 
 腾讯配置只允许固定 `careers.tencent.com` 主机、语言枚举和受限 `pageSize`，不能指定任意请求 URL。搜索参数通过 `URLSearchParams` 编码，例如 `C#` 为 `keyword=C%23`；游标绑定来源、配置与查询词，跨页保持相同 pageSize，并受 host 的请求/字节/时间/页数/记录预算约束。官网可能将带符号的技术关键词作宽泛匹配；`Count` 只表示该端点返回的总数，不能直接作为准确的 C# 等技术岗位数量。
 
