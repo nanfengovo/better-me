@@ -75,6 +75,16 @@ test("catalog UI explains that technical text mentions do not establish job requ
     assert.match(html, /\.NET/);
   } finally { hooks.deregister(); }
 });
+test("Remotive catalog card shows its enforced UTC daily request limit", async () => {
+  const hooks = registerHooks({ load(url, context, nextLoad) { return url.endsWith(".css") ? { source: "export {};", format: "module", shortCircuit: true } : nextLoad(url, context); } });
+  try {
+    const { SourceCatalogPanel } = await import("../src/components/atlas/SourceCatalogPanel.tsx");
+    const remotive = sourceCatalog.find((item) => item.source.adapterId === "remotive");
+    assert.ok(remotive);
+    const html = renderToStaticMarkup(createElement(SourceCatalogPanel, { installed: [], busy: false, connected: false, entries: [remotive], onInstall: () => assert.fail("rendering must not install sources") }));
+    assert.match(html, /每日最多 4 次（UTC）/);
+  } finally { hooks.deregister(); }
+});
 test("catalog endpoint identity ignores query order and labels without overwriting any existing source", () => {
   const installed = { ...source, sourceId: "existing-personal-config", name: "Existing name", entryUrl: "https://example.invalid/jobs?a=1&b=2" };
   const before = JSON.stringify(installed);

@@ -27,11 +27,12 @@
           "homepageUrl": "https://github.com/remotive-com/remote-jobs-api",
           "usage": "unknown",
           "requiresAttribution": true,
-          "notes": "仅首发本机工作台 / 不转交其他招聘网站，并保留Remotive归属与原职位回链；不用于收集signup或email线索。官方说明feed延迟24小时、建议每日最多4次且每分钟不超过2次。该来源待人工复核后启用；应用minInterval 6小时与2次/分钟保护，跨自然日的4次总量并非强制计数器。仅有限active-feed窗口，不代表全市场。"
+          "notes": "仅首发本机工作台 / 不转交其他招聘网站，并保留Remotive归属与原职位回链；不用于收集signup或email线索。官方说明feed延迟24小时、建议每日最多4次且每分钟不超过2次。该来源待人工复核后启用；应用强制UTC日最多4次、最短间隔6小时与每分钟2次保护。仅有限active-feed窗口，不代表全市场。"
         },
         "refreshPolicy": {
           "mode": "manual",
           "minIntervalSeconds": 21600,
+          "maxRequestsPerUtcDay": 4,
           "maxRecords": 100,
           "maxPages": 1,
           "requestsPerMinute": 2

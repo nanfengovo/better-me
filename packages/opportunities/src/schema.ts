@@ -307,6 +307,8 @@ export type AttributionPolicy = z.infer<typeof AttributionPolicySchema>;
 export const RefreshPolicySchema = z.object({
   mode: z.enum(["manual", "scheduled"]),
   minIntervalSeconds: z.number().int().min(0).max(31_536_000),
+  /** Optional hard cap for source reads started in one UTC calendar day. */
+  maxRequestsPerUtcDay: z.number().int().min(1).max(100_000).optional(),
   maxRecords: z.number().int().min(1).max(100_000),
   maxPages: z.number().int().min(1).max(10_000),
   requestsPerMinute: z.number().int().min(1).max(6000),

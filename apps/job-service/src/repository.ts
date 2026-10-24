@@ -60,7 +60,7 @@ const PUBLIC_ERRORS: Record<RepositoryErrorCode, string> = {
   "cancelled": "刷新任务已取消。", "not-authorized": "当前执行身份不拥有该刷新任务。",
   "not-found": "指定记录不存在。", "closed": "岗位仓库已关闭。", "unsupported-schema": "岗位数据库版本不受当前程序支持。",
   "invalid-backup": "备份版本或内容无效，现有数据未被替换。", "storage-error": "岗位仓库操作失败，事务未提交。",
-  "rate-limited": "来源刷新间隔尚未到期，现有任务保持原状态。",
+  "rate-limited": "来源刷新间隔或每日读取额度尚未允许新的任务，现有任务保持原状态。",
 };
 export class RepositoryError extends Error {
   constructor(public readonly code: RepositoryErrorCode) { super(PUBLIC_ERRORS[code]); this.name = "RepositoryError"; }
@@ -1500,6 +1500,11 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const latestRow = db.prepare("SELECT document FROM runs WHERE source_id=? ORDER BY generation DESC LIMIT 1").get(input.sourceId) as { document: string } | undefined;
         const startedAt = now();
         if (latestRow && Date.parse(startedAt) - Date.parse(checked(SyncRunSchema, JSON.parse(latestRow.document)).startedAt) < source.refreshPolicy.minIntervalSeconds * 1000) throw new RepositoryError("rate-limited");
+        if (source.refreshPolicy.maxRequestsPerUtcDay !== undefined) {
+          const utcDay = startedAt.slice(0, 10);
+          const daily = db.prepare("SELECT COUNT(*) AS count FROM runs WHERE source_id=? AND substr(json_extract(document,'$.startedAt'),1,10)=?").get(input.sourceId, utcDay) as { count: number };
+          if (daily.count >= source.refreshPolicy.maxRequestsPerUtcDay) throw new RepositoryError("rate-limited");
+        }
         if (!input.scan) invalidateScans(source.sourceId, "new-scan");
         const previous = db.prepare("SELECT document FROM runs WHERE source_id=? AND status='running'").all(input.sourceId) as Array<{ document: string }>;
         for (const row of previous) saveRun({ ...checked(SyncRunSchema, JSON.parse(row.document)), status: "superseded", finishedAt: now() });

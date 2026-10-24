@@ -253,6 +253,52 @@ test("source minimum refresh interval is atomic and rejected starts do not super
   } finally { repo.close(); await rm(dir, { recursive: true, force: true }); }
 });
 
+test("optional UTC-day source request caps are atomic, durable and count failed or cancelled attempts without double-counting idempotent replays", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "better-me-daily-rate-repository-test-")), path = join(dir, "jobs.sqlite"); let currentTime = "2026-10-18T20:00:00.000Z";
+  let repo = openJobRepository(path, { now: () => currentTime });
+  try {
+    const source = fixture().sources[0]!;
+    source.refreshPolicy = { ...source.refreshPolicy, maxRequestsPerUtcDay: 4 };
+    await repo.registerSource(source, options("daily-source"));
+    const start = (key: string) => repo.startRun({ sourceId: source.sourceId, scope: {}, actorScope, idempotencyKey: key });
+
+    const first = await start("daily-1");
+    assert.deepEqual(await start("daily-1"), first, "idempotent replay is the same attempt");
+    await repo.finishRun(first.runId, { actorScope, status: "failed" });
+    currentTime = "2026-10-18T21:00:00.000Z";
+    const second = await start("daily-2"); await repo.cancelRun(second.runId, { actorScope });
+    currentTime = "2026-10-18T22:00:00.000Z";
+    const third = await start("daily-3"); await repo.finishRun(third.runId, { actorScope, status: "completed" });
+    currentTime = "2026-10-18T23:00:00.000Z";
+    const fourth = await start("daily-4");
+    repo.close(); repo = openJobRepository(path, { now: () => currentTime });
+    assert.equal((await repo.listRuns()).length, 4, "started attempts survive process reopening");
+    await assert.rejects(start("daily-5"), code("rate-limited"));
+    assert.equal((await repo.getRun(fourth.runId))!.status, "running", "rejected start must not supersede an existing run");
+    assert.equal((await repo.listRuns()).length, 4);
+
+    currentTime = "2026-10-19T00:00:00.000Z";
+    const nextUtcDay = await start("daily-next-day");
+    assert.equal(nextUtcDay.generation, 5);
+    assert.equal((await repo.getRun(fourth.runId))!.status, "superseded");
+  } finally { repo.close(); await rm(dir, { recursive: true, force: true }); }
+});
+
+test("concurrent source starts cannot exceed a declared UTC-day request cap", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "better-me-daily-race-repository-test-"));
+  const repo = openJobRepository(join(dir, "jobs.sqlite"), { now: () => AT });
+  try {
+    const source = fixture().sources[0]!;
+    source.refreshPolicy = { ...source.refreshPolicy, maxRequestsPerUtcDay: 4 };
+    await repo.registerSource(source, options("daily-race-source"));
+    const attempts = await Promise.all(Array.from({ length: 8 }, (_, index) => repo.startRun({
+      sourceId: source.sourceId, scope: {}, actorScope, idempotencyKey: `daily-race-${index}`,
+    }).then(() => true, error => { assert.ok(code("rate-limited")(error)); return false; })));
+    assert.equal(attempts.filter(Boolean).length, 4);
+    assert.equal((await repo.listRuns()).length, 4);
+  } finally { repo.close(); await rm(dir, { recursive: true, force: true }); }
+});
+
 test("binary ID ordering across SQLite and merge does not invent a new revision on identical imports", async () => tempRepo(async (repo) => {
   for (const id of ["z", "A", "a", "_", "-"]) {
     // Entity IDs remain valid because the fixture prefix starts with a letter.

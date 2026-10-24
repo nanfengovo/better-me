@@ -269,6 +269,21 @@ test("source refresh interval is checked before superseding a running task", asy
   } finally { release.resolve(); await f.close(); }
 });
 
+test("a catalog source daily budget stops extra upstream reads while identical retries keep their original durable request", async () => {
+  let reads = 0; const dailySource = { ...source, refreshPolicy: { ...source.refreshPolicy, maxRequestsPerUtcDay: 1 } };
+  const f = await fixture(async (request) => { reads++; return page(request, []); });
+  try {
+    await f.repository.registerSource(dailySource, { expectedRevision: (await f.repository.readSnapshot()).revision, actorScope: "local-owner", idempotencyKey: "daily-budget-policy" });
+    const first = value(await f.application.registry.execute("sources.sync", { sourceId: source.sourceId, scope }, context("daily-budget-first")));
+    assert.equal(first.run.status, "completed"); assert.equal(reads, 1);
+    const repeated = value(await f.application.registry.execute("sources.sync", { sourceId: source.sourceId, scope }, context("daily-budget-first")));
+    assert.equal(repeated.run.runId, first.run.runId); assert.equal(reads, 1);
+    const denied = await f.application.registry.execute("sources.sync", { sourceId: source.sourceId, scope }, context("daily-budget-second"));
+    assert.equal(denied.ok, false); if (!denied.ok) assert.equal(denied.error.code, "rate-limited");
+    assert.equal(reads, 1, "daily cap is enforced before the adapter can contact the source");
+  } finally { await f.close(); }
+});
+
 test("shutdown aborts and drains sync work before the caller can close SQLite", async () => {
   const entered = deferred<void>();
   const f = await fixture(async (request) => { entered.resolve(); await new Promise<void>((resolve) => request.context.signal.addEventListener("abort", () => resolve(), { once: true })); request.context.throwIfCancelled(); return page(request, []); });

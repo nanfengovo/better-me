@@ -38,7 +38,7 @@ test("Remotive reviewed catalog entry uses the installed adapter, honors source 
   assert.deepEqual(source.endpointPolicy.allowedHosts, ["remotive.com"]);
   assert.deepEqual(source.endpointPolicy.allowedPathPrefixes, ["/api/remote-jobs"]);
   assert.equal(source.refreshPolicy.minIntervalSeconds, 6 * 60 * 60);
-  assert.equal(source.refreshPolicy.requestsPerMinute, 2); assert.equal(source.refreshPolicy.maxRecords, 100);
+  assert.equal(source.refreshPolicy.requestsPerMinute, 2); assert.equal(source.refreshPolicy.maxRequestsPerUtcDay, 4); assert.equal(source.refreshPolicy.maxRecords, 100);
   assert.match(source.attribution.notes ?? "", /不转交其他招聘网站/);
   assert.match(entry.coverage, /不是工作办公室/);
   assert.ok(entry.evidenceUrls.includes("https://github.com/remotive-com/remote-jobs-api"));
