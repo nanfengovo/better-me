@@ -387,6 +387,8 @@ Web 展开“来源工具 → 企业官网招聘”后才读配置，点击发�
 
 `enumerationKind` 支持 `sitemap-urlset`、`sitemap-index` 或 `html-list`；`enumerationUrls` 为同源1–20个受审地址，`entryUrl` 必须等于第一项。`sitemap-index` 必须只有一个根索引，可用 `maxChildSitemaps` 限制读取1–100个同源叶子清单（默认20）；所有实际根、子清单和岗位路径都必须列入 `endpointPolicy`。跨源／非HTTPS条目会被拒绝，子清单必须是 `urlset`，嵌套索引不会递归读取；不可读、被拒或达到预算都会明确标 partial。只有叶子清单中的链接经岗位页有效 JobPosting JSON-LD 验证后才成为岗位候选。`postingPathPrefixes` 限定岗位路径，`pageSize` 为1–20。可选 `priorityPostingUrls` 仅调整本次真实叶子清单中已有地址的队列次序，不直接造岗位。所有请求仍经过已登记 endpointPolicy、公开DNS、HTTPS、禁止跳转及请求／字节／超时预算；不会猜分页、执行网站脚本或访问远程 JSON-LD context。
 
+ABB 全球英文 sitemap-index 已做一次有界只读探测：根索引列出5个叶子清单，读取3个详情返回3条真实 JobPosting JSON-LD；这只是首批验证，不是全量或授权声明，完整请求数、样本字段和未写入索引边界见[ABB探测报告](../../docs/reports/job-atlas-abb-sitemap-index-2026-10-25.md)。
+
 静态HTML以 parse5 的WHATWG解析读取真实锚点，XML以saxes拒绝DTD／实体／畸形结构；每页2MiB、最多10,000候选URL，节点／深度／JSON脚本另有限额。候选URL数、实际详情请求数、返回记录数和本地匹配数分别计量。游标绑定来源配置、完整关注范围及本次队列；队列变化拒绝旧游标。404或不可用结构标partial，timeout保留成功结果并停止后续详情／续页，401／403／429及安全／预算错误不当空岗位。
 
 角色／地区／国家／企业条件按已读字段本地筛选，无上游搜索承诺。每次新 sync 从有限队首开始；V8 可通过上文的显式续读工具继续保存的位置，不能反复新建 sync 期待自动翻到后部。ABB示例以 `robots.txt` 声明的全球英文 sitemap index 为根，当前观察到5个叶子清单；每页3详情、最多2页6个详情尝试，两个优先样本不等于搜遍ABB。来源条款仍需使用者复核。缺雇主只保留线索，FULL_TIME不推定社招；date-only保留raw而不补午夜，薪资仅原文不进入可比税前年薪，城市geo不成为办公室或距离。国家只从明确country字段匹配共享249项ISO白名单及Node/ICU英中名称、有限既有别名，未知保留原文。
