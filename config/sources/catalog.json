@@ -190,6 +190,55 @@
     },
     {
       "source": {
+        "sourceId": "reviewed-duolingo-official",
+        "name": "Duolingo · 官网岗位",
+        "adapterId": "greenhouse",
+        "adapterVersion": "1",
+        "capabilities": ["list-jobs"],
+        "runtime": ["local-service", "server"],
+        "entityType": "job-posting",
+        "enabled": false,
+        "status": "needs-review",
+        "entryUrl": "https://boards-api.greenhouse.io/v1/boards/duolingo/jobs?content=true",
+        "options": {
+          "boardToken": "duolingo",
+          "companyName": "Duolingo"
+        },
+        "remoteFilters": [],
+        "endpointPolicy": {
+          "allowedHosts": ["boards-api.greenhouse.io"],
+          "allowedPathPrefixes": ["/v1/boards/duolingo/jobs"],
+          "requireHttps": true,
+          "allowRedirects": false,
+          "maxRedirects": 0
+        },
+        "attribution": {
+          "label": "Duolingo careers · Greenhouse",
+          "homepageUrl": "https://careers.duolingo.com/",
+          "usage": "unknown",
+          "requiresAttribution": true,
+          "notes": "官方 careers 页面公开预加载 Greenhouse departments 端点；本次只读核对匿名 Greenhouse board GET。公开可读不等于授权再分发，仍需人工核对条款后启用。列表岗位仅表示来源清单记录，不独立核验在招；保留原岗位回链、地点和来源时间，薪资、办公室坐标及控股来源未知。"
+        },
+        "refreshPolicy": {
+          "mode": "manual",
+          "minIntervalSeconds": 3600,
+          "maxRecords": 100,
+          "maxPages": 1,
+          "requestsPerMinute": 10
+        }
+      },
+      "tags": ["官网", "Greenhouse", "全球", "C#", ".NET", "软件开发"],
+      "coverage": "Duolingo 官方 Greenhouse 岗位清单的有限窗口；当前只读探测返回 60 条岗位记录，最多按本地预算读取 100 条且不自动分页。地点和来源时间按原文保留，不把清单数量当作全市场覆盖或在招认证。",
+      "checkedAt": "2026-10-25T07:48:41Z",
+      "evidenceUrls": [
+        "https://careers.duolingo.com/",
+        "https://boards-api.greenhouse.io/v1/boards/duolingo/departments",
+        "https://boards-api.greenhouse.io/v1/boards/duolingo/jobs?content=true",
+        "https://developers.greenhouse.io/job-board.html"
+      ]
+    },
+    {
+      "source": {
         "sourceId": "reviewed-hudl-official",
         "name": "Hudl · 官网岗位",
         "adapterId": "greenhouse",
