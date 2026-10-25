@@ -8,11 +8,11 @@ import { atlasSourceScanRecoveryScope, readAtlasSourceScanRecovery, useAtlasSour
 import { atlasAggregateRecoveryScope, readAtlasAggregateRecovery } from "./aggregate-recovery";
 
 type Props = { endpoint: string; token: string; sourceId: string; canEnumerate: boolean; disabled: boolean;
-  scopeInput: () => AtlasSourceScopeInput; onSnapshot: (data: AtlasDataset) => void; onBusy: (busy: boolean) => void };
+  scopeInput: () => AtlasSourceScopeInput; onSnapshot: (data: AtlasDataset) => void; onRefreshHealth: (signal: AbortSignal) => Promise<void>; onBusy: (busy: boolean) => void };
 export function AtlasSourceScanControls(props: Props) {
   return <ScanSession key={JSON.stringify([props.endpoint, props.token])} {...props} />;
 }
-function ScanSession({ endpoint, token, sourceId, canEnumerate, disabled, scopeInput, onSnapshot, onBusy }: Props) {
+function ScanSession({ endpoint, token, sourceId, canEnumerate, disabled, scopeInput, onSnapshot, onRefreshHealth, onBusy }: Props) {
   const { t } = useUiPreferences(), scope = atlasSourceScanRecoveryScope(endpoint, token);
   const client = useMemo(() => createAtlasSourceClient(endpoint, token), [endpoint, token]);
   const recovery = useAtlasSourceScanRecovery(endpoint, token);
@@ -21,7 +21,7 @@ function ScanSession({ endpoint, token, sourceId, canEnumerate, disabled, scopeI
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const current = useRef<AbortController | null>(null), closed = useRef(false);
   const progressGeneration = useRef(0);
-  const latest = useRef({ sourceId, onSnapshot, onBusy }); latest.current = { sourceId, onSnapshot, onBusy };
+  const latest = useRef({ sourceId, onSnapshot, onRefreshHealth, onBusy }); latest.current = { sourceId, onSnapshot, onRefreshHealth, onBusy };
   const scan = progress?.sourceId === sourceId ? progress.value : undefined;
   const locked = Boolean(recovery.pending || recovery.saved || recovery.refreshOnly);
   useEffect(() => { closed.current = false; return () => { closed.current = true; current.current?.abort(); current.current = null; latest.current.onBusy(false); }; }, []);
@@ -61,6 +61,7 @@ function ScanSession({ endpoint, token, sourceId, canEnumerate, disabled, scopeI
       if (!(failure instanceof AtlasSourceServiceError && failure.status === 404)) throw failure;
       alive(signal); progressUnavailable = true; setProgress({ sourceId: target, value: null });
     }
+    await latest.current.onRefreshHealth(signal); alive(signal);
     writeAtlasSourceScanRecovery(scope, {});
     setNotice(progressUnavailable ? t(`回执和索引已同步（版本 ${snapshot.revision}），扫描进度接口暂不可用。`, `Receipt and index synchronized (revision ${snapshot.revision}); scan progress is unavailable.`)
       : t(`扫描回执与索引已同步（版本 ${snapshot.revision}）。`, `Scan receipt and index synchronized (revision ${snapshot.revision}).`));

@@ -9,7 +9,7 @@ import { AtlasSourceServiceError, createAtlasSourceClient, parseAtlasSourceJson,
 import "./sources-panel.css";
 import { CompanyCareersPanel } from "./CompanyCareersPanel";
 import { SourceCatalogPanel } from "./SourceCatalogPanel";
-import { sourceCatalogIdentity } from "./source-catalog";
+import { sourceCatalog, sourceCatalogIdentity } from "./source-catalog";
 import { AtlasSourceScanControls } from "./AtlasSourceScanControls";
 import { useAtlasSourceScanRecovery } from "./source-scan-recovery";
 import { useAtlasAggregateRecovery } from "./aggregate-recovery";
@@ -30,11 +30,29 @@ type PendingWrite = { identity: string; key: string; registration?: AtlasRegiste
 const terms = (value: string) => [...new Set(value.split(/[,，;；\n]/).map((term) => term.trim()).filter(Boolean))];
 const errorText = (error: unknown) => error instanceof Error ? error.message : "来源操作失败。请检查本机服务。";
 const runnable = (source: SourceDefinition) => source.enabled && source.status === "active" && source.runtime.includes("local-service");
+const runtimeLabel = (source: SourceDefinition, t: (zh: string, en: string) => string) => source.runtime.includes("browser-companion")
+  ? t("浏览器伴侣", "Browser companion") : source.runtime.includes("server")
+    ? t("服务器适配器", "Server adapter") : source.runtime.includes("local-service")
+      ? t("本机服务", "Local service") : t("未声明", "Undeclared");
+const runStatusLabel = (status: string, t: (zh: string, en: string) => string) => ({
+  running: t("运行中", "Running"), completed: t("已完成", "Completed"), partial: t("部分完成", "Partial"),
+  failed: t("失败", "Failed"), cancelled: t("已取消", "Cancelled"), superseded: t("已被新任务替代", "Superseded"),
+}[status] ?? status);
+const healthScopeLabel = (scope: { roles?: string[]; regions?: string[]; countryCodes?: string[]; companyNames?: string[] } | undefined, t: (zh: string, en: string) => string) => {
+  scope ??= {};
+  const values = [
+    ...(scope.roles ?? []).map(value => `${t("岗位", "Roles")}: ${value}`),
+    ...(scope.regions ?? []).map(value => `${t("地区", "Regions")}: ${value}`),
+    ...(scope.countryCodes ?? []).map(value => `${t("国家", "Countries")}: ${value}`),
+    ...(scope.companyNames ?? []).map(value => `${t("公司", "Companies")}: ${value}`),
+  ];
+  return values.join(" · ") || t("未设置关注条件", "No interest filters");
+};
 
 export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabled = false, revision, onOpenJob }: AtlasSourcesPanelProps) {
   const { t } = useUiPreferences();
   const client = useMemo(() => createAtlasSourceClient(endpoint, token), [endpoint, token]);
-  const [catalog, setCatalog] = useState<AtlasSourceList>({ sources: [], adapters: [] });
+  const [catalog, setCatalog] = useState<AtlasSourceList>({ sources: [], adapters: [], health: { entries: [] } });
   const [sourceId, setSourceId] = useState("");
   const [busy, setBusy] = useState("");
   const [scanBusy, setScanBusy] = useState(false);
@@ -70,6 +88,8 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
   const active = useRef<AbortController | null>(null);
   const pending = useRef(new Map<string, PendingWrite>());
   const source = catalog.sources.find((entry) => entry.sourceId === sourceId);
+  const sourceHealth = source ? catalog.health.entries.find((entry) => entry.sourceId === source.sourceId) : undefined;
+  const sourceCatalogEntry = source ? sourceCatalog.find((entry) => sourceCatalogIdentity(entry.source) === sourceCatalogIdentity(source)) : undefined;
   const canEnumerate = source && runnable(source) && source.capabilities.includes("list-jobs") && Boolean(source.entryUrl)
     && (!["mapped-json", "github-json"].includes(source.adapterId) || JsonFieldMappingOptionsSchema.safeParse(source.options ?? {}).success)
     && catalog.adapters.some((adapter) => adapter.adapterId === source.adapterId && adapter.version === source.adapterVersion && adapter.capabilities.includes("list-jobs"));
@@ -97,7 +117,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
   };
   useEffect(() => {
     const controller = new AbortController(); active.current?.abort(); active.current = controller; pending.current.clear();
-    setCatalog({ sources: [], adapters: [] }); setSourceId(""); setDiscoverySourceId(""); setPreview(undefined);
+    setCatalog({ sources: [], adapters: [], health: { entries: [] } }); setSourceId(""); setDiscoverySourceId(""); setPreview(undefined);
     setDiscovery(undefined); setInspection(undefined); setProposal(undefined); setError(""); setNotice("");
     if (!usable) { active.current = null; setBusy(""); return () => controller.abort(); }
     setBusy("读取来源");
@@ -201,6 +221,20 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
 
     <details open><summary>{t("已保存来源与关注范围", "Saved sources and interests")} <span>{catalog.sources.length}</span></summary>
       <p className="atlas-sources-muted">{t("每个来源有自己的能力和抓取上限。关注条件只在已读取的记录内过滤，远程支持范围按实际返回显示。这里不代表 51、Boss、猎聘或 LinkedIn 全站搜索。", "Each source has its own capabilities and limits. Interests filter the fetched records; actual remote filter coverage is reported separately. These tools do not provide a whole-platform search of 51job, Boss, Liepin or LinkedIn.")}</p>
+      {!!catalog.sources.length && <div className="atlas-source-health-list" aria-label={t("已保存来源状态", "Saved source status")}>
+        {catalog.sources.map((entry) => {
+          const health = catalog.health.entries.find((value) => value.sourceId === entry.sourceId);
+          const declared = sourceCatalog.find(value => sourceCatalogIdentity(value.source) === sourceCatalogIdentity(entry));
+          return <button key={entry.sourceId} type="button" className={entry.sourceId === sourceId ? "selected" : ""} aria-pressed={entry.sourceId === sourceId}
+            onClick={() => { setSourceId(entry.sourceId); setPreview(undefined); }}>
+            <strong>{entry.attribution.label}</strong>
+            <span>{runtimeLabel(entry, t)} · {entry.adapterId}@{entry.adapterVersion} · {entry.enabled && entry.status === "active" ? t("已启用", "enabled") : entry.status}</span>
+            {declared && <span>{t("声明覆盖", "Declared coverage")}: {declared.coverage}</span>}
+            <span>{health?.latestRun ? `${runStatusLabel(health.latestRun.status, t)} · ${health.latestRun.at} · ${health.latestRun.records ?? "—"} ${t("条", "records")} / ${health.latestRun.pages ?? "—"} ${t("页", "pages")}` : t("尚无持久刷新记录", "No persistent refresh history")}</span>
+            {health?.latestError && <span className="atlas-source-health-error">{t("最近异常", "Latest interruption")}: {runStatusLabel(health.latestError.status, t)} · {health.latestError.code ?? t("错误码未知", "unknown error")}</span>}
+          </button>;
+        })}
+      </div>}
       <div className="atlas-sources-grid"><label>{t("岗位来源", "Job source")}<select value={sourceId} disabled={Boolean(busy || scanLocked)} onChange={(event) => { setSourceId(event.target.value); setPreview(undefined); }}>
         <option value="">{t("选择来源", "Select source")}</option>{catalog.sources.map((entry) => <option key={entry.sourceId} value={entry.sourceId}>{entry.name} · {entry.enabled && entry.status === "active" ? t("已启用", "enabled") : entry.status}</option>)}</select></label>
         <label>{t("记录上限", "Record limit")}<input type="number" min="1" max="100000" value={maxRecords} disabled={Boolean(busy || scanLocked)} onChange={(event) => setMaxRecords(event.target.value)} /></label>
@@ -210,9 +244,21 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
         <label>{t("公司 · 逗号分隔", "Companies · comma separated")}<input value={companies} disabled={Boolean(busy || scanLocked)} onChange={(event) => setCompanies(event.target.value)} /></label>
       </div>
       {source && <div className="atlas-sources-source-info"><strong>{source.attribution.label}</strong><span>{source.sourceId} · {source.adapterId}@{source.adapterVersion} · {source.entityType}</span>
+        <span>{t("接入方式", "Access mode")}: {runtimeLabel(source, t)} · {t("能力", "Capabilities")}: {source.capabilities.join(", ") || t("未声明", "none")}</span>
+        <span>{t("来源声明覆盖", "Declared source coverage")}: {sourceCatalogEntry?.coverage ?? t("自定义来源未在内置目录声明", "Custom source; no built-in coverage declaration")}</span>
         {source.entryUrl && <a href={source.entryUrl} target="_blank" rel="noreferrer">{source.entryUrl}</a>}
         <span>{t("许可", "License")}: {source.attribution.license ?? t("待核实", "unknown")} · {t("使用范围", "Usage")}: {source.attribution.usage}</span>
         <span>{t("来源策略上限", "Source policy limits")}: {source.refreshPolicy.maxRecords} {t("条", "records")} / {source.refreshPolicy.maxPages} {t("页", "pages")} · {source.refreshPolicy.mode}</span>
+        {sourceHealth && <div className="atlas-sources-health" aria-label={t("来源运行健康", "Source run health")}>
+          <strong>{t("本机持久运行记录", "Persistent local run history")}</strong>
+          {sourceHealth.latestRun && <span>{t("最近尝试", "Latest attempt")}: {runStatusLabel(sourceHealth.latestRun.status, t)} · {sourceHealth.latestRun.at} · {sourceHealth.latestRun.records ?? "—"} {t("条", "records")} / {sourceHealth.latestRun.pages ?? "—"} {t("页", "pages")}{sourceHealth.latestRun.partial ? ` · ${t("部分覆盖", "partial coverage")}` : ""}</span>}
+          {sourceHealth.latestRun && <span>{t("本轮关注条件", "Current run interests")}: {healthScopeLabel(sourceHealth.latestRun.scope, t)}</span>}
+          {sourceHealth.lastCompleted && <span>{t("最近完成的本轮", "Most recent completed run")}: {sourceHealth.lastCompleted.at} · {sourceHealth.lastCompleted.records ?? "—"} {t("条", "records")} / {sourceHealth.lastCompleted.pages ?? "—"} {t("页", "pages")} · {healthScopeLabel(sourceHealth.lastCompleted.scope, t)}</span>}
+          {sourceHealth.lastPartial && <span>{t("最近部分完成", "Most recent partial run")}: {sourceHealth.lastPartial.at} · {sourceHealth.lastPartial.records ?? "—"} {t("条", "records")} / {sourceHealth.lastPartial.pages ?? "—"} {t("页", "pages")} · {healthScopeLabel(sourceHealth.lastPartial.scope, t)}{sourceHealth.lastPartial.errorCode ? ` · ${sourceHealth.lastPartial.errorCode}` : ""}</span>}
+          {sourceHealth.latestError && <span role="status">{t("最近异常", "Latest interruption")}: {runStatusLabel(sourceHealth.latestError.status, t)} · {sourceHealth.latestError.at} · {sourceHealth.latestError.code ?? t("错误码未知", "unknown error")}</span>}
+          {!sourceHealth.latestRun && <span>{t("尚无已保存的刷新回执", "No saved refresh receipt yet")}</span>}
+          <small>{t("实际本轮覆盖不等于来源声明范围或全网覆盖。", "Observed run coverage is not the source's declared scope or whole-web coverage.")}</small>
+        </div>}
         {source.attribution.notes && <p>{source.attribution.notes}</p>}
         {!runnable(source) && <p>{t("该来源未启用。可先在下方载入配置，核对后显式保存状态；不会自动启用。", "This source is not active. Load its configuration below, review it and explicitly save its state.")}</p>}
         {runnable(source) && !canEnumerate && <p>{t("当前配置未提供可列举岗位的端点或字段映射，可使用其已配置的来源发现能力。", "This configuration has no usable job-listing endpoint or mapping. Its configured source-discovery tools remain available.")}</p>}
@@ -224,8 +270,8 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
         const value = await client.preview(sourceId, options, { signal }); signal.throwIfAborted(); setPreview({ sourceId, value });
       })}>{t("预览一页 · 不写入", "Preview one page · no write")}</button>
       </div>
-      <AtlasSourceScanControls endpoint={endpoint} token={token} sourceId={sourceId} canEnumerate={Boolean(usable && canEnumerate)} disabled={Boolean(busy) || disabled || aggregateLocked} scopeInput={scopeInput} onSnapshot={onSnapshot} onBusy={setScanBusy} />
-      <AtlasAggregateRecoveryControls endpoint={endpoint} token={token} onSnapshot={onSnapshot} onBusy={setAggregateBusy} disabled={Boolean(busy || scanBusy || scanRecovery.pending || scanRecovery.saved || scanRecovery.refreshOnly)} />
+      <AtlasSourceScanControls endpoint={endpoint} token={token} sourceId={sourceId} canEnumerate={Boolean(usable && canEnumerate)} disabled={Boolean(busy) || disabled || aggregateLocked} scopeInput={scopeInput} onSnapshot={onSnapshot} onRefreshHealth={loadCatalog} onBusy={setScanBusy} />
+      <AtlasAggregateRecoveryControls endpoint={endpoint} token={token} onSnapshot={onSnapshot} onRefreshHealth={loadCatalog} onBusy={setAggregateBusy} disabled={Boolean(busy || scanBusy || scanRecovery.pending || scanRecovery.saved || scanRecovery.refreshOnly)} />
       {preview && <div className="atlas-sources-result"><strong>{t("预览结果", "Preview result")} · {preview.sourceId}</strong>
         <p>{t("上游读取", "Upstream fetched")}: {preview.value.page.coverage.fetchedRecords} · {t("返回", "Returned")}: {preview.value.page.records.length} · {t("本地条件匹配", "Local matches")}: {preview.value.localMatchedRecords}</p>
         <p>{t("上游已应用条件", "Remote filters applied")}: {preview.value.page.coverage.appliedFilters.join(", ") || "—"} · {t("上游未应用条件", "Remote filters not applied")}: {preview.value.page.coverage.ignoredFilters.join(", ") || "—"}</p>

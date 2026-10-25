@@ -15,6 +15,7 @@ import {
   PreviewOwnedDetailLocationsInputSchema, ImportOwnedDetailLocationsInputSchema,
   type ReadOwnedDetailLocationsInput, type PreviewOwnedDetailLocationsInput, type ImportOwnedDetailLocationsInput,
   SourceSyncRunSchema, SourceSyncResultSchema, SourceScanProgressResultSchema,
+  SourceHealthResultSchema,
   ReadSourceScanProgressInputSchema, ContinueSourceScanInputSchema, type ContinueSourceScanInput,
 } from "@better-me/source-adapters/browser-contracts";
 import { AtlasClientError, readAtlasSnapshot } from "./client";
@@ -54,7 +55,10 @@ import {
   type RevokeCompensationReviewInput, type CompensationReviewProposal, type CompensationReviewReadResult, type Compensation,
 } from "@better-me/opportunities";
 
-export const AtlasSourceListSchema = z.object({ sources: z.array(SourceDefinitionSchema), adapters: z.array(SourceAdapterMetadataSchema) }).strict();
+// Older local services may not expose the optional health projection yet. The
+// empty default keeps source configuration readable while newer services add
+// durable per-source status.
+export const AtlasSourceListSchema = z.object({ sources: z.array(SourceDefinitionSchema), adapters: z.array(SourceAdapterMetadataSchema), health: SourceHealthResultSchema.default({ entries: [] }) }).strict();
 export type AtlasSourceList = z.infer<typeof AtlasSourceListSchema>;
 export const AtlasRegisterSourceSchema = z.object({ source: SourceDefinitionSchema, expectedRevision: z.number().int().nonnegative().optional() }).strict();
 export type AtlasRegisterSource = z.infer<typeof AtlasRegisterSourceSchema>;

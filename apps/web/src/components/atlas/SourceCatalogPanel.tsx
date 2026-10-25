@@ -5,6 +5,9 @@ import { useUiPreferences } from "../../lib/ui-preferences";
 import { availableCatalogEntries, sourceCatalog, type SourceCatalogEntry } from "./source-catalog";
 import "./source-catalog.css";
 
+const runtimeText = (source: SourceDefinition, t: (zh: string, en: string) => string) => source.runtime.map(runtime => runtime === "browser-companion"
+  ? t("浏览器伴侣", "Browser companion") : runtime === "server" ? t("服务器", "Server") : t("本机服务", "Local service")).join(" · ");
+
 export function SourceCatalogPanel({ installed, busy, connected, onInstall, entries = sourceCatalog }: {
   installed: readonly SourceDefinition[];
   busy: boolean;
@@ -25,7 +28,8 @@ export function SourceCatalogPanel({ installed, busy, connected, onInstall, entr
     <label>{t("筛选来源目录", "Filter source catalog")}<input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder={t("例如 C#、.NET、远程、官网…", "For example C#, .NET, remote, official…")} /></label>
     <div className="atlas-catalog-list">{shown.map((entry) => <article key={entry.source.sourceId}>
       <label className="atlas-catalog-select"><input type="checkbox" checked={selected.includes(entry.source.sourceId)} disabled={busy} onChange={(event) => setSelected((current) => event.target.checked ? [...new Set([...current, entry.source.sourceId])] : current.filter((id) => id !== entry.source.sourceId))} /><strong>{entry.source.attribution.label}</strong></label>
-      <div className="atlas-catalog-tags">{entry.tags.map((tag) => <span key={tag}>{tag}</span>)}</div><p>{entry.coverage}</p>
+      <div className="atlas-catalog-tags">{entry.tags.map((tag) => <span key={tag}>{tag}</span>)}</div><p><strong>{t("声明覆盖", "Declared coverage")}: </strong>{entry.coverage}</p>
+      <p>{t("接入方式", "Access mode")}: {runtimeText(entry.source, t)} · {t("能力", "Capabilities")}: {entry.source.capabilities.join(", ") || t("未声明", "none")}</p>
       <p className="atlas-catalog-limits">{t("每次上限", "Per-run limit")} {entry.source.refreshPolicy.maxRecords} {t("条", "records")} / {entry.source.refreshPolicy.maxPages} {t("页", "pages")} · {t("端点核对", "Endpoint checked")} {entry.checkedAt.slice(0, 10)} · {t("最短刷新间隔", "Minimum refresh interval")} {entry.source.refreshPolicy.minIntervalSeconds} {t("秒", "seconds")} {entry.source.refreshPolicy.maxRequestsPerUtcDay !== undefined && `· ${t("每日最多", "Daily maximum")} ${entry.source.refreshPolicy.maxRequestsPerUtcDay} ${t("次（UTC）", "reads (UTC)")}`}</p>
       <a href={entry.evidenceUrls[0]} target="_blank" rel="noopener noreferrer">{t("查看来源说明", "Source evidence")}</a>
     </article>)}</div>

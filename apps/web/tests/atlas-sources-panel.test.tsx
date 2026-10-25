@@ -47,7 +47,7 @@ async function change(label: string, value: string) {
 }
 async function click(text: string) { await act(async () => button(text).click()); await waitFor(() => dom.document.querySelector("section")?.getAttribute("aria-busy") === "false", text); }
 afterEach(async () => { if (root) await act(async () => root!.unmount()); root = undefined;
-  for (const token of ["synthetic", "synthetic-panel-token", ""]) for (const endpoint of ["http://127.0.0.1:5178", "/api/atlas"]) writeAtlasSourceScanRecovery(atlasSourceScanRecoveryScope(endpoint, token), {});
+  for (const token of ["synthetic", "synthetic-panel-token", "health-refresh-token", ""]) for (const endpoint of ["http://127.0.0.1:5178", "/api/atlas"]) writeAtlasSourceScanRecovery(atlasSourceScanRecoveryScope(endpoint, token), {});
   mock.restoreAll(); });
 after(() => { hooks.deregister(); dom.happyDOM.abort(); for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } });
 
@@ -55,6 +55,27 @@ test("missing token leaves real tools inactive and does not request localhost", 
   const fetcher = mock.method(globalThis, "fetch", async () => { throw new Error("must not fetch"); });
   await render(""); assert.match(dom.document.body.textContent!, /当前手动直连配置缺少有效服务地址或令牌/); assert.equal(fetcher.mock.callCount(), 0);
   assert.equal(button("更新地图快照").disabled, true);
+});
+
+test("source cards retain safe run health and the actual query scope after reload", async () => {
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL) => {
+    const path = new URL(String(url)).pathname;
+    if (path === "/api/v1/sources") return response({ sources: [source], adapters, health: { entries: [{ sourceId: source.sourceId,
+      latestRun: { status: "partial", at, scope: { roles: ["TypeScript"], regions: ["上海"] }, partial: true, errorCode: "page-limit", records: 7, pages: 1 },
+      lastCompleted: { at: "2026-10-17T12:00:00.000Z", scope: { roles: ["C#"] }, records: 4, pages: 1 },
+      lastPartial: { at, scope: { roles: ["TypeScript"], regions: ["上海"] }, partial: true, errorCode: "page-limit", records: 7, pages: 1 },
+      latestError: { at, status: "partial", code: "page-limit" } }] } });
+    return response(snapshot);
+  });
+  await render("synthetic-panel-token");
+  const text = dom.document.body.textContent!;
+  assert.match(text, /本机持久运行记录/);
+  assert.match(text, /最近尝试: 部分完成/);
+  assert.match(text, /岗位: TypeScript/);
+  assert.match(text, /地区: 上海/);
+  assert.match(text, /最近异常: 部分完成/);
+  assert.match(text, /page-limit/);
+  assert.match(text, /实际本轮覆盖不等于来源声明范围或全网覆盖/);
 });
 
 test("catalog addition is explicit, preserves unknown-write identity and never fetches jobs or overwrites an existing source", async () => {
@@ -138,6 +159,33 @@ test("scope preview and finite sync use real routes and update the map only with
   const sync = requests.find((entry) => entry.path.endsWith("/sync"))!;
   assert.deepEqual(sync.body, { ...preview.body, maxPages: 2 }); assert.ok(new Headers(sync.init?.headers).get("Idempotency-Key"));
   assert.equal(received?.jobs.length, 22); assert.match(dom.document.body.textContent!, /刷新回执: partial/); assert.match(dom.document.body.textContent!, /Synthetic page limit reached/);
+});
+
+test("completed source refresh immediately reloads the visible health summary", async () => {
+  const oldAt = "2026-10-18T12:00:00.000Z", newAt = "2026-10-18T12:05:00.000Z";
+  let sourceReads = 0;
+  const health = (at: string) => ({ entries: [{ sourceId: source.sourceId, latestRun: {
+    status: "completed", at, records: 2, pages: 1, partial: false,
+  } }] });
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(url)).pathname;
+    if (path === "/api/v1/sources" && !init?.body) {
+      sourceReads++;
+      return response({ sources: [source], adapters, health: health(sourceReads > 1 ? newAt : oldAt) });
+    }
+    if (path.endsWith("/sync")) return response({ run: { runId: "health-refresh-run", sourceId: source.sourceId, actorScope: "local-owner", generation: 1,
+      scope: { keywords: [], regions: [], companies: [] }, status: "completed", startedAt: newAt, finishedAt: newAt,
+      summary: { records: 2, pages: 1, added: 1, partial: false } }, localFilters: { roles: [], regions: [], companyNames: [] }, warnings: [] });
+    if (path.endsWith("/scan-progress")) return response({ sourceId: source.sourceId, progress: null });
+    if (path.endsWith("/dataset/export")) return response(snapshot);
+    return response({ sources: [source], adapters, health: health(oldAt) });
+  });
+  await render("health-refresh-token");
+  assert.match(dom.document.body.textContent!, new RegExp(oldAt));
+  await click("手动刷新并更新地图");
+  await waitFor(() => dom.document.body.textContent?.includes(newAt) === true, "updated source health");
+  assert.equal(sourceReads, 2);
+  assert.match(dom.document.body.textContent!, new RegExp(newAt));
 });
 
 test("JSON array requires per-source review and ambiguous registration retries reuse the exact body and key", async () => {

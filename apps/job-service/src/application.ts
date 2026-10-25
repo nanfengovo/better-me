@@ -15,7 +15,7 @@ import {
   createLocalGazetteerProvider, createGeocodingTool, type GeocodingProvider, type MapReferenceProvider,
   locallyMatchesSourceScope as locallyMatches, countSourceScopeMatches,
   type SourceAdapter, type SourceTransport, type CareerWebSearchProvider,
-  ReadSourceScanProgressInputSchema, SourceScanProgressResultSchema, ContinueSourceScanInputSchema, SourceSyncResultSchema,
+  ReadSourceScanProgressInputSchema, SourceScanProgressResultSchema, ContinueSourceScanInputSchema, SourceSyncResultSchema, SourceHealthResultSchema,
   type SourceScope, type SourceSyncRun, type SourceSyncResult, type ContinueSourceScanInput,
 } from "@better-me/source-adapters";
 import { sourceConfigurationFingerprint } from "./source-scan-state.js";
@@ -303,9 +303,9 @@ export function createJobApplication(options: JobApplicationOptions) {
       context.throwIfCancelled();
       return result;
     }) }),
-    defineTool({ name: "sources.list", version: 1, description: "列出来源配置和已安装适配器的实际能力。", effect: "read-index", inputSchema: emptyInput,
-      outputSchema: z.object({ sources: z.array(SourceDefinitionSchema), adapters: z.array(SourceAdapterMetadataSchema) }).strict(),
-      execute: () => guarded(async () => ({ sources: (await repository.readSnapshot()).sources, adapters: sources.describe() })),
+    defineTool({ name: "sources.list", version: 1, description: "列出来源配置、已安装适配器能力及当前执行身份的来源健康摘要。", effect: "read-index", inputSchema: emptyInput,
+      outputSchema: z.object({ sources: z.array(SourceDefinitionSchema), adapters: z.array(SourceAdapterMetadataSchema), health: SourceHealthResultSchema }).strict(),
+      execute: (_input, context) => guarded(async () => ({ sources: (await repository.readSnapshot()).sources, adapters: sources.describe(), health: await repository.listSourceHealth(context.actorScope) })),
     }),
     defineTool({ name: "sources.register", version: 1, description: "保存显式来源配置；来源JSON不能导入执行代码或实际密钥。", effect: "local-write",
       inputSchema: z.object({ source: SourceDefinitionSchema, expectedRevision: z.number().int().nonnegative().optional() }).strict(), outputSchema: ImportReceiptSchema,

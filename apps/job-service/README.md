@@ -98,7 +98,7 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/jobs/search" -Headers $jobHe
 | POST | `/api/v1/locations/confirmations/preview` | `locations.preview-confirmation`；本人结构化地区选择的只读预览，返回原始 / 当前 / 拟保存地点及指纹。 |
 | POST | `/api/v1/locations/confirmations` | `locations.confirm`；完整预览输入加 `previewFingerprint`、`reviewed: true` 和 `Idempotency-Key`，追加地区确认并保存有效投影。 |
 | POST | `/api/v1/locations/confirmations/revoke` | `locations.revoke-confirmation`；`{ jobId, locationId, decisionId, expectedRevision, reason, reviewed: true }`，追加撤销并恢复上一有效选择或来源地点。 |
-| GET | `/api/v1/sources` | `sources.list`；已保存来源及当前安装的适配器能力。 |
+| GET | `/api/v1/sources` | `sources.list`；已保存来源、当前安装的适配器能力，以及按当前执行身份聚合的安全健康摘要。 |
 | POST | `/api/v1/sources` | `sources.register`；`{ source, expectedRevision? }`，修改既有配置需版本号。 |
 | POST | `/api/v1/sources/:sourceId/preview` | `sources.preview`；`{ scope?, maxRecords? }`，读取一页，不写岗位索引。 |
 | POST | `/api/v1/sources/:sourceId/sync` | `sources.sync`；`{ scope?, maxRecords?, maxPages? }`，受限手动刷新。 |
@@ -109,6 +109,8 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/jobs/search" -Headers $jobHe
 | POST | `/api/v1/sources/discover` | `sources.discover`；`{ sourceId, request }`，发现待审核来源候选。 |
 | POST | `/api/v1/sources/inspect` | `sources.inspect`；`{ sourceId, request }`，有限抽样检查。 |
 | POST | `/api/v1/sources/propose` | `sources.propose`；直接传提案输入，只生成禁用配置。 |
+
+`sources.list` 的 `health.entries` 每项按 `sourceId` 返回 `latestRun`、`lastCompleted`、`lastPartial` 和 `latestError`（如果存在）。摘要只保留状态、完成／开始时间、记录数、页数、有限岗位／地区／国家／公司关注条件、部分标记和安全错误码；不返回 `actorScope`、`runId`、请求指纹、上游游标、端点凭据或原始错误文本。`lastCompleted` 仅表示该来源在本轮配置范围内完成，`lastPartial` 和 `latestError` 分开保留；这些数字不代表来源全量或全网覆盖。旧客户端可以忽略缺少 `health` 的旧服务响应。
 | GET | `/api/v1/runs` | `runs.list`；持久刷新任务。 |
 | GET | `/api/v1/runs/:runId` | `runs.read`；任务状态与数字摘要。 |
 | POST | `/api/v1/runs/:runId/cancel` | `runs.cancel`；JSON `{}`，取消当前身份的任务。 |

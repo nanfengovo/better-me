@@ -49,7 +49,7 @@ import {
   REPOSITORY_MIGRATION_V7, COMPANY_CONTROL_DECISION_TRIGGERS,
 } from "./repository-schema.js";
 import { resolveLocationArea } from "./location-catalog.js";
-import { SourceScopeSchema, SourcePageSchema, SourceScanProgressSchema, type SourceScope, type SourcePage, type SourceScanProgress, type ContinueSourceScanInput } from "@better-me/source-adapters";
+import { SourceScopeSchema, SourcePageSchema, SourceScanProgressSchema, SourceHealthResultSchema, type SourceScope, type SourcePage, type SourceScanProgress, type ContinueSourceScanInput, type SourceHealthEntry } from "@better-me/source-adapters";
 import { SourceScanCheckpointSchema, sourceScanFingerprint, sourceConfigurationFingerprint, type SourceScanCheckpoint } from "./source-scan-state.js";
 import { REPOSITORY_MIGRATION_V8, SOURCE_SCAN_TRIGGERS, SourceScanPageReceiptSchema, type SourceScanPageReceipt } from "./repository-schema.js";
 
@@ -1597,6 +1597,65 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         if (!event || event.runId !== runId || event.state === "invalidated") return;
         evolveScan(event, sourceChanged ? { state: "invalidated", invalidatedReason: "source-changed", hadErrors: true }
           : ["ready", "retry-page"].includes(event.state) ? { state: "retry-page", hadErrors: true } : { hadErrors: true });
+      });
+    },
+    async listSourceHealth(actorScope: string) {
+      checked(ActorScopeSchema, actorScope);
+      return transaction(() => {
+        const sourceIds = (db.prepare("SELECT id FROM sources ORDER BY id").all() as Array<{ id: string }>).map(row => row.id);
+        const entries = new Map<string, SourceHealthEntry>(sourceIds.map(sourceId => [sourceId, { sourceId }]));
+        if (sourceIds.length === 0) return SourceHealthResultSchema.parse({ entries: [] });
+        const placeholders = sourceIds.map(() => "?").join(",");
+        const rows = db.prepare(`WITH scoped AS (
+            SELECT rowid AS seq, source_id, status, document,
+              julianday(COALESCE(json_extract(document, '$.finishedAt'), json_extract(document, '$.startedAt'))) AS observed_at,
+              json_extract(document, '$.summary.errorCode') AS error_code
+            FROM runs
+            WHERE source_id IN (${placeholders}) AND json_extract(document, '$.actorScope')=?
+          ), candidates AS (
+            SELECT seq, source_id, 'latest' AS category, document, observed_at FROM scoped
+            UNION ALL SELECT seq, source_id, 'completed' AS category, document, observed_at FROM scoped WHERE status='completed'
+            UNION ALL SELECT seq, source_id, 'partial' AS category, document, observed_at FROM scoped WHERE status='partial'
+            UNION ALL SELECT seq, source_id, 'error' AS category, document, observed_at FROM scoped
+              WHERE status IN ('failed', 'partial', 'cancelled', 'superseded')
+          ), ranked AS (
+            SELECT source_id, category, document,
+              ROW_NUMBER() OVER (PARTITION BY source_id, category ORDER BY observed_at DESC, seq DESC) AS position
+            FROM candidates
+          )
+          SELECT source_id, category, document FROM ranked WHERE position=1`)
+          .all(...sourceIds, actorScope) as Array<{ source_id: string; category: "latest" | "completed" | "partial" | "error"; document: string }>;
+        for (const row of rows) {
+          const run = checked(SyncRunSchema, JSON.parse(row.document));
+          const entry = entries.get(run.sourceId);
+          if (!entry || run.sourceId !== row.source_id || run.actorScope !== actorScope) continue;
+          const at = run.finishedAt ?? run.startedAt;
+          const summary = run.summary;
+          const scope = {
+            ...(run.scope.keywords ? { roles: run.scope.keywords } : {}),
+            ...(run.scope.regions ? { regions: run.scope.regions } : {}),
+            ...(run.scope.countryCodes ? { countryCodes: run.scope.countryCodes } : {}),
+            ...(run.scope.companies ? { companyNames: run.scope.companies } : {}),
+          };
+          const compact = {
+            at,
+            scope,
+            partial: Boolean(summary?.partial ?? ["partial", "failed", "cancelled", "superseded"].includes(run.status)),
+            ...(summary?.errorCode ? { errorCode: summary.errorCode } : {}),
+            ...(summary?.records === undefined ? {} : { records: summary.records }),
+            ...(summary?.pages === undefined ? {} : { pages: summary.pages }),
+            ...(summary?.added === undefined ? {} : { added: summary.added }),
+            ...(summary?.changed === undefined ? {} : { changed: summary.changed }),
+            ...(summary?.unchanged === undefined ? {} : { unchanged: summary.unchanged }),
+          };
+          if (row.category === "latest") entry.latestRun = { ...compact, status: run.status };
+          if (row.category === "completed" && run.status === "completed") entry.lastCompleted = compact;
+          if (row.category === "partial" && run.status === "partial") entry.lastPartial = compact;
+          if (row.category === "error" && (run.status === "failed" || run.status === "partial" || run.status === "cancelled" || run.status === "superseded")) {
+            entry.latestError = { at, status: run.status, ...(summary?.errorCode ? { code: summary.errorCode } : {}) };
+          }
+        }
+        return SourceHealthResultSchema.parse({ entries: [...entries.values()] });
       });
     },
     async listRuns(): Promise<SyncRun[]> { ensureOpen(); return (db.prepare("SELECT document FROM runs ORDER BY rowid DESC").all() as Array<{ document: string }>).map((row) => checked(SyncRunSchema, JSON.parse(row.document))); },

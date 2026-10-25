@@ -4,7 +4,7 @@ import { useUiPreferences } from "../../lib/ui-preferences";
 import { createAtlasSourceClient } from "./service-client";
 import { atlasAggregateRecoveryScope, beginAtlasAggregateRecovery, endAtlasAggregateRecovery, readAtlasAggregateRecovery, rejectAtlasAggregateRequest, saveAtlasAggregateReceipt, settleAtlasAggregateReceipt, settleAtlasAggregateRejection, useAtlasAggregateRecovery } from "./aggregate-recovery";
 
-type Props = { endpoint: string; token: string; onSnapshot: (data: AtlasDataset) => void; onBusy?: (busy: boolean) => void; disabled?: boolean };
+type Props = { endpoint: string; token: string; onSnapshot: (data: AtlasDataset) => void; onRefreshHealth?: (signal: AbortSignal) => Promise<void>; onBusy?: (busy: boolean) => void; disabled?: boolean };
 function untilAborted<T>(pending: Promise<T>, signal: AbortSignal): Promise<T> {
   if (signal.aborted) { void pending.catch(() => {}); return Promise.reject(signal.reason); }
   return new Promise<T>((resolve, reject) => {
@@ -16,12 +16,12 @@ function untilAborted<T>(pending: Promise<T>, signal: AbortSignal): Promise<T> {
 export function AtlasAggregateRecoveryControls(props: Props) {
   return <RecoverySession key={JSON.stringify([props.endpoint, props.token])} {...props} />;
 }
-function RecoverySession({ endpoint, token, onSnapshot, onBusy, disabled = false }: Props) {
+function RecoverySession({ endpoint, token, onSnapshot, onRefreshHealth, onBusy, disabled = false }: Props) {
   const { t } = useUiPreferences(), scope = atlasAggregateRecoveryScope(endpoint, token);
   const state = useAtlasAggregateRecovery(endpoint, token), client = useMemo(() => createAtlasSourceClient(endpoint, token), [endpoint, token]);
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const current = useRef<AbortController | null>(null), closed = useRef(false);
-  const latest = useRef({ onSnapshot, onBusy }); latest.current = { onSnapshot, onBusy };
+  const latest = useRef({ onSnapshot, onRefreshHealth, onBusy }); latest.current = { onSnapshot, onRefreshHealth, onBusy };
   useEffect(() => { closed.current = false; return () => { closed.current = true; current.current?.abort(); latest.current.onBusy?.(false); }; }, []);
   async function recover() {
     if (disabled || closed.current || current.current) return;
@@ -49,6 +49,7 @@ function RecoverySession({ endpoint, token, onSnapshot, onBusy, disabled = false
         const snapshot = await untilAborted(client.snapshot({ signal: controller.signal }), controller.signal); controller.signal.throwIfAborted();
         if (closed.current) return;
         latest.current.onSnapshot(snapshot);
+        await latest.current.onRefreshHealth?.(controller.signal); controller.signal.throwIfAborted();
         for (const entry of confirmed) if (entry.rejected) settleAtlasAggregateRejection(scope, entry.key); else settleAtlasAggregateReceipt(scope, entry.key, entry.receipt!.run.runId);
       }
       if (failures.length) throw new Error(failures.join("；"));
