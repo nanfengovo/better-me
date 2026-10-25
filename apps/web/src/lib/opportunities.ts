@@ -31,6 +31,47 @@ export type OpportunityMaterial = {
   markdown: string;
   createdAt: string;
 };
+/** A source listing and the source timestamps actually observed for that listing. */
+export type OpportunitySourceReference = {
+  sourceId: string;
+  listingId: string;
+  sourcePlatform: string;
+  sourceUrl?: string;
+  sourceJobId?: string;
+  observedAt?: string;
+  sourcePublishedAt?: string;
+  sourcePublishedText?: string;
+  sourceUpdatedAt?: string;
+  salaryTexts?: string[];
+};
+export type OpportunityLocationEvidence = {
+  sourceId: string;
+  listingId: string;
+  observationId: string;
+  sourceUrl?: string;
+  observedAt?: string;
+  quote?: string;
+};
+/** Location facts copied from a source index; raw wording and precision remain explicit. */
+export type OpportunityWorkLocation = {
+  id: string;
+  raw: string;
+  kind: "office" | "remote-region" | "unknown";
+  countryCode?: string;
+  regionId?: string;
+  region?: string;
+  city?: string;
+  district?: string;
+  streetAddress?: string;
+  postalCode?: string;
+  coordinates?: { latitude: number; longitude: number; coordinateSystem: "WGS84" };
+  originalCoordinates?: { latitude: number; longitude: number; coordinateSystem: "WGS84" | "GCJ02" | "BD09" };
+  precision: "country" | "region" | "city" | "street" | "address" | "manual" | "unknown";
+  provider?: string;
+  resolvedAt?: string;
+  verification: "verified" | "unverified" | "conflicting" | "unknown";
+  evidence: OpportunityLocationEvidence[];
+};
 export type OpportunityApplication = {
   stage: ApplicationStage;
   notes: string;
@@ -60,6 +101,8 @@ export type Opportunity = {
   salaryText: string;
   employmentType: EmploymentType;
   sourceJobId?: string;
+  sourceReferences: OpportunitySourceReference[];
+  workLocations: OpportunityWorkLocation[];
   sourcePublishedText?: string;
   sourcePublishedAt?: string;
   sourceUpdatedAt?: string;
@@ -190,6 +233,79 @@ function url(value: unknown, label: string): string {
   return normalizeOpportunityUrl(text(value, label, 8_000));
 }
 
+function parseSourceReferences(value: unknown): OpportunitySourceReference[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 100) throw new Error("岗位来源引用格式不正确或超过 100 条上限。");
+  const references = value.map((entry): OpportunitySourceReference => {
+    const item = record(entry, "岗位来源引用");
+    return {
+      sourceId: text(item.sourceId, "来源编号", 240, true),
+      listingId: text(item.listingId, "来源岗位记录编号", 240, true),
+      sourcePlatform: text(item.sourcePlatform, "来源平台", 200, true),
+      ...(item.sourceUrl === undefined ? {} : { sourceUrl: url(item.sourceUrl, "来源岗位链接") }),
+      ...(item.sourceJobId === undefined ? {} : { sourceJobId: text(item.sourceJobId, "来源岗位编号", 1000) }),
+      ...(item.observedAt === undefined ? {} : { observedAt: date(item.observedAt, "来源观察时间")! }),
+      ...(item.sourcePublishedAt === undefined ? {} : { sourcePublishedAt: date(item.sourcePublishedAt, "来源发布时间")! }),
+      ...(item.sourcePublishedText === undefined ? {} : { sourcePublishedText: text(item.sourcePublishedText, "来源发布时间原文", 1000) }),
+      ...(item.sourceUpdatedAt === undefined ? {} : { sourceUpdatedAt: date(item.sourceUpdatedAt, "来源更新时间")! }),
+      ...(item.salaryTexts === undefined ? {} : Array.isArray(item.salaryTexts) && item.salaryTexts.length <= 20
+        ? { salaryTexts: item.salaryTexts.map((salary) => text(salary, "来源薪资原文", 2_000, true)) }
+        : (() => { throw new Error("来源薪资原文格式不正确或超过 20 条上限。"); })()),
+    };
+  });
+  if (new Set(references.map(item => `${item.sourceId}\u0000${item.listingId}`)).size !== references.length) throw new Error("岗位来源引用重复。");
+  return references;
+}
+
+function parseWorkLocations(value: unknown): OpportunityWorkLocation[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 1000) throw new Error("工作地点格式不正确或超过 1000 条上限。");
+  const locations = value.map((entry): OpportunityWorkLocation => {
+    const item = record(entry, "工作地点");
+    const coordinates = item.coordinates === undefined ? undefined : record(item.coordinates, "工作地点坐标");
+    const originalCoordinates = item.originalCoordinates === undefined ? undefined : record(item.originalCoordinates, "来源坐标");
+    const point = (source: Record<string, unknown>, label: string, systems: readonly string[]) => {
+      if (typeof source.latitude !== "number" || !Number.isFinite(source.latitude) || source.latitude < -90 || source.latitude > 90
+          || typeof source.longitude !== "number" || !Number.isFinite(source.longitude) || source.longitude < -180 || source.longitude > 180
+          || typeof source.coordinateSystem !== "string" || !systems.includes(source.coordinateSystem)) throw new Error(`${label}格式不正确。`);
+      return { latitude: source.latitude, longitude: source.longitude, coordinateSystem: source.coordinateSystem };
+    };
+    if (!Array.isArray(item.evidence) || item.evidence.length > 200) throw new Error("工作地点来源证据格式不正确或超过 200 条上限。");
+    const evidence = item.evidence.map((raw): OpportunityLocationEvidence => {
+      const ref = record(raw, "工作地点来源证据");
+      return {
+        sourceId: text(ref.sourceId, "地点来源编号", 240, true),
+        listingId: text(ref.listingId, "地点来源岗位编号", 240, true),
+        observationId: text(ref.observationId, "地点观察编号", 240, true),
+        ...(ref.sourceUrl === undefined ? {} : { sourceUrl: url(ref.sourceUrl, "地点来源链接") }),
+        ...(ref.observedAt === undefined ? {} : { observedAt: date(ref.observedAt, "地点观察时间")! }),
+        ...(ref.quote === undefined ? {} : { quote: text(ref.quote, "地点原文证据", 20_000, true) }),
+      };
+    });
+    if (new Set(evidence.map(ref => ref.observationId)).size !== evidence.length) throw new Error("工作地点来源观察编号重复。");
+    return {
+      id: text(item.id, "工作地点编号", 240, true), raw: text(item.raw, "工作地点原文", 5000, true),
+      kind: choice(item.kind, ["office", "remote-region", "unknown"], "工作地点性质"),
+      ...(item.countryCode === undefined ? {} : { countryCode: text(item.countryCode, "国家代码", 2) }),
+      ...(item.regionId === undefined ? {} : { regionId: text(item.regionId, "地区编号", 240) }),
+      ...(item.region === undefined ? {} : { region: text(item.region, "省/州", 500) }),
+      ...(item.city === undefined ? {} : { city: text(item.city, "城市", 500) }),
+      ...(item.district === undefined ? {} : { district: text(item.district, "区县", 500) }),
+      ...(item.streetAddress === undefined ? {} : { streetAddress: text(item.streetAddress, "街道地址", 1000) }),
+      ...(item.postalCode === undefined ? {} : { postalCode: text(item.postalCode, "邮政编码", 100) }),
+      ...(coordinates === undefined ? {} : { coordinates: point(coordinates, "工作地点坐标", ["WGS84"]) as OpportunityWorkLocation["coordinates"] }),
+      ...(originalCoordinates === undefined ? {} : { originalCoordinates: point(originalCoordinates, "来源坐标", ["WGS84", "GCJ02", "BD09"]) as OpportunityWorkLocation["originalCoordinates"] }),
+      precision: choice(item.precision, ["country", "region", "city", "street", "address", "manual", "unknown"], "地点精度"),
+      ...(item.provider === undefined ? {} : { provider: text(item.provider, "地点坐标来源", 240) }),
+      ...(item.resolvedAt === undefined ? {} : { resolvedAt: date(item.resolvedAt, "地点坐标时间")! }),
+      verification: choice(item.verification, ["verified", "unverified", "conflicting", "unknown"], "地点核验状态"),
+      evidence,
+    };
+  });
+  if (new Set(locations.map(item => item.id)).size !== locations.length) throw new Error("工作地点编号重复。");
+  return locations;
+}
+
 function parseApplication(value: unknown): OpportunityApplication {
   const app = record(value, "投递记录");
   if (!Array.isArray(app.history) || app.history.length > 1_000) throw new Error("投递历史格式不正确或超过上限。");
@@ -261,6 +377,8 @@ function parseOpportunity(value: unknown): Opportunity {
     salaryText: text(job.salaryText, "薪资原文", 2_000),
     employmentType: choice(job.employmentType, ["social", "campus", "internship", "unknown"], "招聘类型"),
     sourceJobId: job.sourceJobId === undefined ? undefined : text(job.sourceJobId, "来源岗位编号", 300),
+    sourceReferences: parseSourceReferences(job.sourceReferences),
+    workLocations: parseWorkLocations(job.workLocations),
     sourcePublishedText: job.sourcePublishedText === undefined ? undefined : text(job.sourcePublishedText, "来源发布时间原文", 1_000),
     sourcePublishedAt: date(job.sourcePublishedAt, "来源发布时间", true),
     sourceUpdatedAt: date(job.sourceUpdatedAt, "平台更新时间", true),
@@ -341,7 +459,7 @@ export function createOpportunity(input: OpportunityInput, now?: string): Opport
     description: "",
     sourceUrl: "", applicationUrl: "", discoveryUrl: "", sourcePlatform: "手动录入", publisherType: "unknown",
     market: "unknown", workMode: "unknown", location: { country: "", region: "", city: "" }, remoteEligibleRegions: [],
-    salaryText: "", employmentType: "unknown", status: "unknown", firstDiscoveredAt: at, collectedAt: at, lastVerificationMethod: "unknown",
+    salaryText: "", employmentType: "unknown", status: "unknown", sourceReferences: [], workLocations: [], firstDiscoveredAt: at, collectedAt: at, lastVerificationMethod: "unknown",
     ...input, id: crypto.randomUUID(), company: input.company.trim(), title: input.title.trim(),
     application: { stage: "saved", notes: "", nextAction: "", history: [{ id: crypto.randomUUID(), stage: "saved", changedAt: at, notes: "收藏岗位" }] },
     materials: [],

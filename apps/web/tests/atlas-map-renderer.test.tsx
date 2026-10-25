@@ -234,7 +234,7 @@ test("OpenFreeMap close-range buildings and house numbers are capability-gated b
   const tileJson = { vector_layers: [
     { id: "building", minzoom: 13, maxzoom: 14, fields: { render_height: "Number", render_min_height: "Number" } },
     { id: "housenumber", minzoom: 14, maxzoom: 14, fields: { housenumber: "String" } },
-  ] };
+  ], maxzoom: 14 };
   const fetches: string[] = [];
   globalThis.fetch = async (input, init) => {
     const url = String(input); fetches.push(url);
@@ -259,6 +259,12 @@ test("OpenFreeMap close-range buildings and house numbers are capability-gated b
     assert.deepEqual(building.paint["fill-extrusion-height"], ["coalesce", ["get", "render_height"], 0]);
     assert.deepEqual(labels.layout["text-field"], ["get", "housenumber"]);
     assert.match(host.textContent ?? "", /地址级坐标/);
+    assert.doesNotMatch(host.textContent ?? "", /不会增加门牌、建筑或岗位地址精度/);
+    await act(async () => { map.zoom = 16.5; map.emit("moveend"); });
+    assert.match(host.textContent ?? "", /当前缩放 16\.5 超过底图原生数据级别 14/);
+    assert.match(host.textContent ?? "", /不会增加门牌、建筑或岗位地址精度/);
+    await act(async () => { map.zoom = 14; map.emit("moveend"); });
+    assert.doesNotMatch(host.textContent ?? "", /不会增加门牌、建筑或岗位地址精度/);
     assert.equal(map.getLayer("bucket-cores"), true, "job markers remain in the map style above provider detail");
   } finally { await act(async () => root.unmount()); host.remove(); globalThis.fetch = savedFetch; }
 });

@@ -13,6 +13,7 @@ const style = {
   ],
 };
 const tileJson = {
+  maxzoom: 14,
   vector_layers: [
     { id: "building", minzoom: 13, maxzoom: 14, fields: { render_height: "Number", render_min_height: "Number", colour: "String" } },
     { id: "housenumber", minzoom: 14, maxzoom: 14, fields: { housenumber: "String" } },
@@ -22,6 +23,7 @@ const tileJson = {
 test("OpenFreeMap capabilities require matching vector source and advertised building and housenumber fields", () => {
   assert.deepEqual(openFreeMapTileJsonUrls(style, styleUrl), [tileJsonUrl]);
   assert.deepEqual(readAtlasVectorCapabilities(style, tileJson, tileJsonUrl), {
+    nativeMaxZoom: 14,
     building: { sourceId: "openmaptiles", sourceLayer: "building", heightField: "render_height", baseField: "render_min_height", minZoom: 13 },
     houseNumbers: { sourceId: "openmaptiles", sourceLayer: "housenumber", numberField: "housenumber", minZoom: 14 },
   });
@@ -34,6 +36,7 @@ test("untrusted, mismatched or incomplete style metadata does not enable optiona
   assert.deepEqual(openFreeMapTileJsonUrls({ ...style, sources: { openmaptiles: { type: "vector", url: `${tileJsonUrl}?token=unreviewed` } } }, styleUrl), []);
   assert.deepEqual(readAtlasVectorCapabilities(style, tileJson, "https://tiles.openfreemap.org/other"), null);
   assert.deepEqual(readAtlasVectorCapabilities({ ...style, layers: [] }, tileJson, tileJsonUrl), {
+    nativeMaxZoom: 14,
     building: { sourceId: "openmaptiles", sourceLayer: "building", heightField: "render_height", baseField: "render_min_height", minZoom: 13 },
     houseNumbers: { sourceId: "openmaptiles", sourceLayer: "housenumber", numberField: "housenumber", minZoom: 14 },
   }, "validated TileJSON fields remain sufficient even when the style omits enhancement layers");
@@ -42,6 +45,15 @@ test("untrusted, mismatched or incomplete style metadata does not enable optiona
     building: { sourceId: "openmaptiles", sourceLayer: "building", heightField: "render_height", minZoom: 13 },
   }, "a valid building capability can remain enabled when only the house-number field is malformed");
   assert.deepEqual(readAtlasVectorCapabilities(style, { vector_layers: "invalid" }, tileJsonUrl), null);
+  assert.deepEqual(readAtlasVectorCapabilities(style, { vector_layers: [{ id: "building", maxzoom: 15, fields: { render_height: "Number" } }] }, tileJsonUrl), {
+    nativeMaxZoom: 15, building: { sourceId: "openmaptiles", sourceLayer: "building", heightField: "render_height", minZoom: 13 },
+  }, "source-layer maxzoom is used when TileJSON has no overall maxzoom");
+  for (const maxzoom of [-1, 23, Infinity, "14"] as const) {
+    const malformed = { vector_layers: [{ id: "building", maxzoom, fields: { render_height: "Number" } }] };
+    const capabilities = readAtlasVectorCapabilities(style, malformed, tileJsonUrl);
+    assert.ok(capabilities?.building, `malformed maxzoom ${String(maxzoom)} cannot disable a valid feature layer`);
+    assert.equal(capabilities.nativeMaxZoom, undefined, `malformed maxzoom ${String(maxzoom)} is not reported as native coverage`);
+  }
   for (const minzoom of [-1, 23, Infinity, "14"] as const) {
     const malformed = { vector_layers: [{ id: "building", minzoom, fields: { render_height: "Number" } }, { id: "housenumber", minzoom, fields: { housenumber: "String" } }] };
     assert.equal(readAtlasVectorCapabilities(style, malformed, tileJsonUrl), null, `invalid minzoom ${String(minzoom)} must not install detail layers`);

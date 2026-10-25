@@ -2,6 +2,7 @@ import {
   AtlasDatasetSchema, JobQueryError, JobQuerySchema, queryJobs,
   type AtlasDataset, type JobQueryInput, type JobQueryResult, type JobSearchItem, type QueryOptions,
 } from "@better-me/opportunities";
+import type { OpportunityLocationEvidence, OpportunitySourceReference, OpportunityWorkLocation } from "../../lib/opportunities";
 
 import { AtlasClientError, isDefaultAtlasEndpoint, resolveAtlasServiceTarget } from "./backend-connection";
 export { AtlasClientError } from "./backend-connection";
@@ -100,7 +101,13 @@ export async function queryAtlasPage(data: AtlasDataset, query: JobQueryInput, o
   return { summary, page };
 }
 
-export type AtlasJobAction = { title: string; text: string; url?: string; platform: string; observedAt?: string; sourcePublishedAt?: string; sourcePublishedText?: string };
+export type AtlasJobAction = {
+  title: string; company: string; jobTitle: string; text: string; url?: string; platform: string;
+  observedAt?: string; sourcePublishedAt?: string; sourcePublishedText?: string;
+  sourceReferences: OpportunitySourceReference[]; workLocations: OpportunityWorkLocation[];
+  market: "domestic" | "overseas" | "unknown"; employmentType: "social" | "campus" | "internship" | "unknown";
+  salaryText: string; location: { country: string; region: string; city: string };
+};
 
 /** A record update or a failed read never becomes a source capture timestamp. */
 export function buildAtlasJobAction(data: AtlasDataset, item: JobSearchItem): AtlasJobAction {
@@ -117,11 +124,65 @@ export function buildAtlasJobAction(data: AtlasDataset, item: JobSearchItem): At
       && (!entry.snapshotId || entry.snapshotId === snapshot.id))))
     .sort((a, b) => Date.parse(b.fetchedAt) - Date.parse(a.fetchedAt) || a.id.localeCompare(b.id))[0] : undefined;
   const url = primary ? snapshot?.sourceUrl ?? primary.listing?.canonicalUrl : undefined;
+  const sourceReferences: OpportunitySourceReference[] = candidates.map(({ source, listing }) => {
+    const isSelectedSnapshotSource = Boolean(snapshot && primary?.listing?.id === listing!.id);
+    const listingObservationIds = new Set(listing!.observationIds);
+    const matchingObservation = data.observations.filter((entry) => listingObservationIds.has(entry.id) && entry.listingId === listing!.id
+      && (entry.result === "read" || entry.result === "partial")
+      && (!isSelectedSnapshotSource || (snapshot!.text === item.job.description && entry.id === snapshot!.observationId
+        && (!entry.snapshotId || entry.snapshotId === snapshot!.id))))
+      .sort((a, b) => Date.parse(b.fetchedAt) - Date.parse(a.fetchedAt) || a.id.localeCompare(b.id))[0];
+    const salaryTexts = [...new Set((listing!.compensationIds ?? []).flatMap(id => data.compensations.filter(value => value.id === id).map(value => value.raw)))];
+    return {
+      sourceId: source.sourceId, listingId: listing!.id, sourcePlatform: source.label,
+      ...(listing!.id === primary?.listing?.id && snapshot?.sourceUrl ? { sourceUrl: snapshot.sourceUrl } : listing!.canonicalUrl ? { sourceUrl: listing!.canonicalUrl } : {}),
+      ...(listing!.sourceRecordId ? { sourceJobId: listing!.sourceRecordId } : {}),
+      ...(matchingObservation ? { observedAt: matchingObservation.fetchedAt } : {}),
+      ...(matchingObservation?.sourcePublishedAt ? { sourcePublishedAt: matchingObservation.sourcePublishedAt } : {}),
+      ...(matchingObservation?.sourcePublishedRaw ? { sourcePublishedText: matchingObservation.sourcePublishedRaw } : {}),
+      ...(matchingObservation?.sourceUpdatedAt ? { sourceUpdatedAt: matchingObservation.sourceUpdatedAt } : {}),
+      ...(salaryTexts.length ? { salaryTexts } : {}),
+    };
+  });
+  const workLocations: OpportunityWorkLocation[] = item.locations.map(location => {
+    const evidence: OpportunityLocationEvidence[] = location.evidence.flatMap(reference => {
+      const observationRef = data.observations.find(value => value.id === reference.observationId && value.listingId
+        && item.job.listingIds.includes(value.listingId));
+      const listing = observationRef && data.listings.find(value => value.id === observationRef.listingId && item.job.listingIds.includes(value.id));
+      const source = listing && data.sources.find(value => value.sourceId === listing.sourceId);
+      return observationRef && listing && source ? [{
+        sourceId: source.sourceId, listingId: listing.id, observationId: observationRef.id,
+        ...(reference.sourceUrl ? { sourceUrl: reference.sourceUrl } : listing.canonicalUrl ? { sourceUrl: listing.canonicalUrl } : {}),
+        ...(reference.observedAt ? { observedAt: reference.observedAt } : { observedAt: observationRef.fetchedAt }),
+        ...(reference.quote ? { quote: reference.quote } : {}),
+      }] : [];
+    });
+    return {
+      id: location.id, raw: location.raw, kind: location.kind ?? "unknown",
+      ...(location.countryCode ? { countryCode: location.countryCode } : {}), ...(location.regionId ? { regionId: location.regionId } : {}),
+      ...(location.region ? { region: location.region } : {}), ...(location.city ? { city: location.city } : {}),
+      ...(location.district ? { district: location.district } : {}), ...(location.streetAddress ? { streetAddress: location.streetAddress } : {}),
+      ...(location.postalCode ? { postalCode: location.postalCode } : {}), ...(location.coordinates ? { coordinates: location.coordinates } : {}),
+      ...(location.originalCoordinates ? { originalCoordinates: location.originalCoordinates } : {}), precision: location.precision,
+      ...(location.provider ? { provider: location.provider } : {}), ...(location.resolvedAt ? { resolvedAt: location.resolvedAt } : {}),
+      verification: location.verification, evidence,
+    };
+  });
+  const countries = [...new Set(workLocations.filter(location => location.kind === "office").map(location => location.countryCode).filter((value): value is string => Boolean(value)))];
+  const officeLocations = workLocations.filter(location => location.kind === "office");
+  const market = officeLocations.length > 0 && officeLocations.every(location => location.countryCode === "CN")
+    ? "domestic" : officeLocations.length > 0 && countries.length > 0
+      && workLocations.filter(location => location.kind === "office").every(location => Boolean(location.countryCode) && location.countryCode !== "CN") ? "overseas" : "unknown";
+  const salaryValues = [...new Set(data.compensations.filter(compensation => item.job.compensationIds.includes(compensation.id)).map(compensation => compensation.raw))];
+  const onlyLocation = workLocations.length === 1 && workLocations[0]!.kind === "office" ? workLocations[0] : undefined;
   return {
-    title: `${item.company.names[0]} · ${item.job.title.value}`, text: item.job.description,
+    title: `${item.company.names[0]} · ${item.job.title.value}`, company: item.company.names[0]!, jobTitle: item.job.title.value, text: item.job.description,
     ...(url ? { url } : {}), platform: primary?.source.label ?? "来源待核实",
     ...(observation ? { observedAt: observation.fetchedAt } : {}),
     ...(observation?.sourcePublishedAt ? { sourcePublishedAt: observation.sourcePublishedAt } : {}),
     ...(observation?.sourcePublishedRaw ? { sourcePublishedText: observation.sourcePublishedRaw } : {}),
+    sourceReferences, workLocations, market, employmentType: item.job.employmentType,
+    salaryText: salaryValues.length === 1 ? salaryValues[0]! : "",
+    location: onlyLocation ? { country: onlyLocation.countryCode ?? "", region: onlyLocation.region ?? "", city: onlyLocation.city ?? "" } : { country: "", region: "", city: "" },
   };
 }

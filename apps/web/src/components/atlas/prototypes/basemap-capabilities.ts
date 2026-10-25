@@ -20,6 +20,8 @@ export type AtlasHouseNumberCapability = {
 export type AtlasVectorCapabilities = {
   building?: AtlasBuildingCapability;
   houseNumbers?: AtlasHouseNumberCapability;
+  /** Highest native vector-tile zoom advertised by the source metadata. */
+  nativeMaxZoom?: number;
 };
 
 function record(value: unknown): JsonRecord | undefined {
@@ -39,7 +41,7 @@ function textField(fields: JsonRecord | undefined, names: readonly string[]): st
   return names.find((name) => typeof fields[name] === "string" && /^(?:string|text)\b/i.test(fields[name] as string));
 }
 
-type TileLayer = { id: string; fields?: JsonRecord; minzoom?: number; invalidMinzoom?: true };
+type TileLayer = { id: string; fields?: JsonRecord; minzoom?: number; maxzoom?: number; invalidMinzoom?: true; invalidMaxzoom?: true };
 
 function tileLayers(value: unknown): TileLayer[] {
   const root = record(value);
@@ -47,9 +49,10 @@ function tileLayers(value: unknown): TileLayer[] {
   return root.vector_layers.flatMap((entry) => {
     const item = record(entry);
     if (typeof item?.id !== "string") return [];
-    const minzoom = item.minzoom;
+    const minzoom = item.minzoom, maxzoom = item.maxzoom;
     return [{ id: item.id, fields: record(item.fields),
-      ...(minzoom === undefined ? {} : typeof minzoom === "number" && Number.isFinite(minzoom) && minzoom >= 0 && minzoom <= 22 ? { minzoom } : { invalidMinzoom: true as const }) }];
+      ...(minzoom === undefined ? {} : typeof minzoom === "number" && Number.isFinite(minzoom) && minzoom >= 0 && minzoom <= 22 ? { minzoom } : { invalidMinzoom: true as const }),
+      ...(maxzoom === undefined ? {} : typeof maxzoom === "number" && Number.isFinite(maxzoom) && maxzoom >= 0 && maxzoom <= 22 ? { maxzoom } : { invalidMaxzoom: true as const }) }];
   });
 }
 
@@ -72,6 +75,11 @@ function sourceEntries(value: unknown): Array<[string, JsonRecord]> {
 export function readAtlasVectorCapabilities(style: unknown, tileJson: unknown, tileJsonUrl: string): AtlasVectorCapabilities | null {
   const metadata = new Map(tileLayers(tileJson).map((layer) => [layer.id, layer]));
   const capabilities: AtlasVectorCapabilities = {};
+  const root = record(tileJson);
+  const sourceMaxZoom = root?.maxzoom;
+  if (typeof sourceMaxZoom === "number" && Number.isFinite(sourceMaxZoom) && sourceMaxZoom >= 0 && sourceMaxZoom <= 22) {
+    capabilities.nativeMaxZoom = sourceMaxZoom;
+  }
   const normalizedTileJsonUrl = normalizeUrl(tileJsonUrl);
 
   for (const [sourceId, source] of sourceEntries(style)) {
@@ -81,6 +89,7 @@ export function readAtlasVectorCapabilities(style: unknown, tileJson: unknown, t
       const heightField = numericField(building.fields, ["render_height", "height"]);
       if (heightField && !building.invalidMinzoom) {
         const baseField = numericField(building.fields, ["render_min_height", "min_height"]);
+        if (capabilities.nativeMaxZoom === undefined && !building.invalidMaxzoom && typeof building.maxzoom === "number") capabilities.nativeMaxZoom = building.maxzoom;
         capabilities.building = { sourceId, sourceLayer: building.id, heightField, minZoom: Math.max(building.minzoom ?? 13, 0), ...(baseField ? { baseField } : {}) };
       }
     }
@@ -89,6 +98,7 @@ export function readAtlasVectorCapabilities(style: unknown, tileJson: unknown, t
     if (!capabilities.houseNumbers && houseLayer && numberField && !houseLayer.invalidMinzoom) capabilities.houseNumbers = {
       sourceId, sourceLayer: houseLayer.id, numberField, minZoom: Math.max(14, houseLayer.minzoom ?? 0),
     };
+    if (capabilities.nativeMaxZoom === undefined && !houseLayer?.invalidMaxzoom && typeof houseLayer?.maxzoom === "number") capabilities.nativeMaxZoom = houseLayer.maxzoom;
   }
   return capabilities.building || capabilities.houseNumbers ? capabilities : null;
 }

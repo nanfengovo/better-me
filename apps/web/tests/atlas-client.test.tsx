@@ -236,3 +236,66 @@ test("a selected immutable JD snapshot determines its own source and exact captu
   assert.equal(buildAtlasJobAction(data, item).observedAt, undefined);
   assert.equal(buildAtlasJobAction(data, item).sourcePublishedAt, undefined);
 });
+
+test("job actions retain per-listing source dates and pay evidence plus every office, without inventing single-value legacy fields", async () => {
+  const data = createAtlasDemo();
+  const job = data.jobs[0]!;
+  const primary = data.listings.find(value => value.id === job.listingIds[0])!;
+  const primaryObservation = data.observations.find(value => value.id === primary.observationIds[0])!;
+  primaryObservation.sourcePublishedAt = "2026-10-10T08:00:00.000Z";
+  primaryObservation.sourcePublishedRaw = "10月10日发布";
+  primaryObservation.sourceUpdatedAt = "2026-10-12T08:00:00.000Z";
+  primary.compensationIds = [job.compensationIds[0]!];
+  data.compensations.find(value => value.id === job.compensationIds[0])!.raw = "CNY 320k–480k/year";
+  const secondSource = { ...data.sources[0]!, sourceId: "second-source", name: "第二合成来源", attribution: { ...data.sources[0]!.attribution, label: "第二合成来源" } };
+  data.sources.push(secondSource);
+  const secondListingId = "secondary-listing";
+  const secondObservationId = "secondary-observation";
+  const secondCompensationId = "secondary-compensation";
+  const secondListing = { ...primary, id: secondListingId, sourceId: secondSource.sourceId, sourceRecordId: "ROLE-2",
+    canonicalUrl: "https://example.invalid/secondary-role", observationIds: [secondObservationId], compensationIds: [secondCompensationId] };
+  const secondObservation = { ...primaryObservation, id: secondObservationId, listingId: secondListingId,
+    fetchedAt: "2026-10-18T10:00:00.000Z", sourcePublishedAt: "2026-10-11T08:00:00.000Z", sourcePublishedRaw: "3 days ago",
+    sourceUpdatedAt: "2026-10-17T08:00:00.000Z" };
+  const secondCompensation = { ...data.compensations[0]!, id: secondCompensationId, raw: "Negotiable" };
+  data.listings.push(secondListing);
+  data.observations.push(secondObservation);
+  data.compensations.push(secondCompensation);
+  job.listingIds.push(secondListingId);
+  job.compensationIds.push(secondCompensationId);
+  const firstLocation = data.locations.find(value => value.id === job.locationIds[0])!;
+  firstLocation.streetAddress = "Synthetic Office Road 10";
+  const secondLocationId = "secondary-office";
+  data.locations.push({ id: secondLocationId, raw: "United States · Washington · Seattle", kind: "office", countryCode: "US", region: "Washington", city: "Seattle",
+    precision: "city", verification: "unverified", evidence: [{ observationId: secondObservationId, sourceUrl: secondListing.canonicalUrl, observedAt: secondObservation.fetchedAt, quote: "Synthetic office location disclosure." }] });
+  job.locationIds.push(secondLocationId);
+
+  const valid = AtlasDatasetSchema.parse(data);
+  const item = (await queryJobs(valid, { jobIds: [job.id] }, NOW)).items[0]!;
+  const action = buildAtlasJobAction(valid, item);
+
+  assert.deepEqual(action.sourceReferences.map(value => [value.sourceId, value.listingId, value.sourcePublishedAt, value.sourcePublishedText, value.sourceUpdatedAt]), [
+    ["atlas-demo", primary.id, "2026-10-10T08:00:00.000Z", "10月10日发布", "2026-10-12T08:00:00.000Z"],
+    ["second-source", secondListingId, "2026-10-11T08:00:00.000Z", "3 days ago", "2026-10-17T08:00:00.000Z"],
+  ]);
+  assert.deepEqual(action.sourceReferences.map(value => value.salaryTexts), [["CNY 320k–480k/year"], ["Negotiable"]]);
+  assert.deepEqual(action.workLocations.map(value => [value.id, value.raw, value.streetAddress, value.evidence[0]?.listingId, value.evidence[0]?.quote]), [
+    [firstLocation.id, firstLocation.raw, "Synthetic Office Road 10", primary.id, firstLocation.evidence[0]?.quote],
+    [secondLocationId, "United States · Washington · Seattle", undefined, secondListingId, "Synthetic office location disclosure."],
+  ]);
+  assert.equal(action.market, "unknown", "mixed office countries do not collapse into a domestic/overseas guess");
+  assert.deepEqual(action.location, { country: "", region: "", city: "" }, "multiple offices cannot be represented by one legacy location");
+  assert.equal(action.salaryText, "", "different salary disclosures remain per-source rather than being flattened");
+});
+
+test("a remote eligibility region is preserved as such and never copied into the legacy office location", async () => {
+  const data = createAtlasDemo();
+  const job = data.jobs[0]!; job.workMode = "remote";
+  const location = data.locations.find(value => value.id === job.locationIds[0])!; location.kind = "remote-region"; delete location.coordinates;
+  const valid = AtlasDatasetSchema.parse(data);
+  const item = (await queryJobs(valid, { jobIds: [job.id] }, NOW)).items[0]!;
+  const action = buildAtlasJobAction(valid, item);
+  assert.equal(action.market, "unknown");
+  assert.deepEqual(action.location, { country: "", region: "", city: "" });
+  assert.equal(action.workLocations[0]!.kind, "remote-region");
+});

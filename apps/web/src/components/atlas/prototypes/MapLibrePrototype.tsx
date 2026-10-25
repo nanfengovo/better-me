@@ -35,6 +35,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
   const [choice, setChoice] = useState<{ buckets: AtlasPrototypeProps["buckets"]; ids: string[]; mode: string; focus: AtlasPrototypeProps["focus"]; level: AtlasPrototypeProps["bucketLevel"] } | null>(null);
   const [failure, setFailure] = useState<string | null>(null); const [basemapWarning, setBasemapWarning] = useState("");
   const [basemapLoading, setBasemapLoading] = useState(false);
+  const [nativeDetailMaxZoom, setNativeDetailMaxZoom] = useState<number | null>(null); const [detailViewZoom, setDetailViewZoom] = useState<number | null>(null);
   const mode = props.mode; const light = props.visual?.theme === "light";
   const background = props.visual?.background ?? (light ? "#f5f6f4" : "#080f18");
   const maxDpr = Math.min(1.7, Math.max(1, props.visual?.maxDpr ?? 1.7));
@@ -68,6 +69,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
     const visibility = () => { if (document.hidden) { stopRotation(); map?.stop(); } else rotate(); };
     const motionChange = () => { if (motion.matches) map?.stop(); rotate(); };
     document.addEventListener("visibilitychange", visibility); motion.addEventListener("change", motionChange); setFailure(null); setBasemapWarning(""); setBasemapLoading(provider !== null);
+    setNativeDetailMaxZoom(null); setDetailViewZoom(null);
     void (async () => {
       const boundary = await loadBoundary(mode, abort.signal);
       const initialBuckets = latest.current.buckets, initialBucketData = atlasBucketData(initialBuckets);
@@ -190,6 +192,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
               if (!metadataResponse.ok) continue;
               const capabilities: AtlasVectorCapabilities | null = readAtlasVectorCapabilities(style, await metadataResponse.json(), tileJsonUrl);
               if (stopped || abort.signal.aborted || !capabilities) continue;
+              if (capabilities.nativeMaxZoom !== undefined) setNativeDetailMaxZoom(capabilities.nativeMaxZoom);
               optionalDetailLayers = createAtlasDetailLayers(capabilities, light);
               optionalDetailBefore = firstLabel ?? "bucket-glow";
               installOptionalDetailLayers();
@@ -217,7 +220,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
         if (sourceId === terrainSourceId) { failTerrain(); return; }
         if (installingBasemap || sourceId?.startsWith("basemap:") || /(?:tile|glyph|sprite|fetch|network|status|AJAX|HTTP|(?:layers|sources)\.basemap:)/i.test(event.error.message)) warnTiles(); else report(event.error);
       });
-      const viewChanged = () => { pendingBucketNavigation = ""; if (rotationFrame && ownedMap.getZoom() < 3.5) return; const center = ownedMap.getCenter(); const bounds = ownedMap.getBounds(); latest.current.onViewChange?.({ zoom: ownedMap.getZoom(), center: [center.lng, center.lat], pitch: ownedMap.getPitch(), bearing: ownedMap.getBearing(), bounds: [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()] }); };
+      const viewChanged = () => { pendingBucketNavigation = ""; const zoom = ownedMap.getZoom(); setDetailViewZoom(Math.round(zoom * 10) / 10); if (rotationFrame && zoom < 3.5) return; const center = ownedMap.getCenter(); const bounds = ownedMap.getBounds(); latest.current.onViewChange?.({ zoom, center: [center.lng, center.lat], pitch: ownedMap.getPitch(), bearing: ownedMap.getBearing(), bounds: [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()] }); };
       ownedMap.on("moveend", viewChanged);
       ownedMap.on("movestart", () => setChoice(null));
       ownedMap.on("load", () => {
@@ -310,13 +313,16 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
   const visibleFocus = activeMapFocus(props.focus, props.selectedJobId);
   const choices = choice?.buckets === props.buckets && choice.mode === mode && choice.focus === props.focus && choice.level === props.bucketLevel ? atlasHitBuckets(props.buckets, choice.ids) : [];
   return <div className={props.className} data-atlas-renderer="maplibre" data-atlas-mode={mode} data-atlas-basemap={basemap?.id ?? "offline"} style={{ ...prototypeFrameStyle, background, ...props.style }}>
-    <div ref={host} style={canvasHostStyle} aria-label={mode === "global" ? "全球岗位三维地球，可连续缩放到街道，拖拽与方向键移动" : "国内岗位三维省域地图，可连续缩放到街道，拖拽与方向键移动"} />
+    <div ref={host} style={canvasHostStyle} aria-label={mode === "global" ? "全球岗位三维地球，可放大查看底图已有细节，拖拽与方向键移动" : "国内岗位三维省域地图，可放大查看底图已有细节，拖拽与方向键移动"} />
     {mode === "domestic" && <button type="button" aria-pressed={terrainEnabled} onClick={toggleTerrain} title="按需加载全球 Terrarium 高程瓦片，显示真实地形起伏" style={{ position: "absolute", bottom: 104, left: 14, zIndex: 3, minHeight: 36, padding: "0 12px", border: `1px solid ${terrainEnabled ? "#5da08e" : light ? "#9baaa8" : "#557080"}`, borderRadius: 6, color: light ? "#263d42" : "#d9eaf0", background: light ? "#f5f8f4eF" : "#10212ceF", font: "12px/1 system-ui,sans-serif", cursor: "pointer" }}>{terrainEnabled ? "关闭地形" : "开启真实地形"}</button>}
     {choices.length > 1 && <AtlasBucketChoices buckets={choices} light={light} onClose={() => setChoice(null)} returnFocus={() => host.current?.querySelector("canvas")?.focus({ preventScroll: true })}
       onPick={bucket => pickBucket.current(bucket)} onPickMany={props.onPickMany ? buckets => { setChoice(null); latest.current.onPickMany?.(buckets); } : undefined} />}
     <a href={`${import.meta.env.BASE_URL}legal/geography/`} target="_blank" rel="noopener noreferrer" style={{ ...creditStyle, bottom: 34, color: light ? "#52665f" : "#9ab1bb", pointerEvents: "auto", textDecoration: "none" }}>{NATURAL_EARTH_CREDIT}</a>
     {terrainEnabled && <a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noopener noreferrer" aria-label="Mapzen Terrain Tiles on AWS Open Data and source elevation credits" style={{ ...creditStyle, bottom: 12, color: light ? "#52665f" : "#9ab1bb", pointerEvents: "auto", textDecoration: "none" }}>地形：Mapzen Terrain Tiles · 高程数据来源</a>}
     {visibleFocus && <div className={`atlas-focus-status${light ? " light" : ""}`} role="status" aria-live="polite">已定位{visibleFocus.label ? `：${visibleFocus.label} · ` : " · "}{mapFocusPrecisionLabel(visibleFocus)}</div>}
+    {nativeDetailMaxZoom !== null && detailViewZoom !== null && detailViewZoom > nativeDetailMaxZoom + 0.01 && <div role="status" aria-live="polite" style={{ position: "absolute", left: 14, bottom: 76, zIndex: 3, maxWidth: "min(460px, calc(100% - 28px))", color: light ? "#52606a" : "#d6e0e5", background: light ? "#ffffffed" : "#10212ced", border: `1px solid ${light ? "#64747a55" : "#9fb5c055"}`, borderRadius: 7, padding: "7px 10px", font: "11px/1.5 system-ui,sans-serif", pointerEvents: "none" }}>
+      当前缩放 {detailViewZoom} 超过底图原生数据级别 {nativeDetailMaxZoom}；更高倍率只是放大现有数据，不会增加门牌、建筑或岗位地址精度。
+    </div>}
     {basemapLoading && !basemapWarning && !failure && <div role="status" className={`atlas-basemap-progress${light ? " light" : ""}`}><span className="atlas-basemap-spinner" aria-hidden="true" />正在加载街道底图，本地轮廓与岗位优先显示…</div>}
     {basemapWarning && <div role="status" style={{ position: "absolute", left: 14, top: 14, right: 58, zIndex: 3, color: light ? "#725719" : "#ddcf9d", background: light ? "#fff9e9eb" : "#14232ae8", border: "1px solid #8b80504d", borderRadius: 8, padding: "9px 12px", font: "11px/1.6 system-ui" }}>{basemapWarning}</div>}
     {terrainWarning && <div role="status" style={{ position: "absolute", left: 14, top: 58, zIndex: 3, maxWidth: "min(440px, calc(100% - 28px))", color: light ? "#725719" : "#ddcf9d", background: light ? "#fff9e9eb" : "#14232ae8", border: "1px solid #8b80504d", borderRadius: 6, padding: "8px 10px", font: "11px/1.55 system-ui" }}>{terrainWarning}</div>}
