@@ -52,7 +52,21 @@ test("GeoJSON keeps city-reference precision labels, excludes invalid coordinate
   const data = atlasBucketData([reference, invalid]);
   assert.equal(data.features.filter(feature => feature.properties.kind === "core").length, 1);
   assert.match(data.features[0]!.properties.label, /城市估算/);
+  assert.equal(data.features[0]!.properties.precision, "city");
+  assert.equal(data.features[0]!.properties.estimated, true);
+  assert.equal(data.features[0]!.properties.positionBasis, "city-reference");
+  assert.equal(data.features[0]!.properties.precisionColor, "#f2b84b");
   assert.deepEqual(data.features[0]!.geometry.coordinates, [121, 31]);
+});
+
+test("GeoJSON preserves source precision and gives exact, street and city points distinct visual status", () => {
+  const exact = { ...bucket("exact"), precision: "address" as const, estimated: undefined } as MapBucket;
+  const street = { ...bucket("street"), precision: "street" as const, estimated: undefined } as MapBucket;
+  const city = { ...bucket("city"), precision: "city" as const, estimated: true } as MapBucket;
+  const cores = atlasBucketData([exact, street, city]).features.filter(feature => feature.properties.kind === "core");
+  assert.deepEqual(cores.map(feature => [feature.properties.precision, feature.properties.estimated, feature.properties.precisionColor]), [
+    ["address", false, "#32d6a4"], ["street", false, "#55c8e8"], ["city", true, "#f2b84b"],
+  ]);
 });
 
 test("100 high-frequency mouse moves trigger one hit test using the latest pointer and none during zoom/drag or disposal", () => {

@@ -164,6 +164,10 @@ test("real map effects keep one renderer and unchanged worker data across camera
   try {
     await render(); const map = instances.at(-1)!; assert.ok(map); await act(async () => { map.emit("load"); map.emit("render"); });
     assert.deepEqual(map.projection, { type: "globe" }); assert.equal(map.options.maxZoom, 22); assert.equal(map.uploads, 0);
+    assert.equal(map.getLayer("bucket-precision-ring"), true, "markers expose source precision with a visible status ring");
+    assert.equal(map.getLayer("bucket-estimate-ring"), true, "estimated city points receive an outer status ring");
+    const precisionLayer = (map.options.style as { layers: Array<{ id: string; paint?: Record<string, unknown> }> }).layers.find(layer => layer.id === "bucket-precision-ring");
+    assert.deepEqual(precisionLayer?.paint?.["circle-stroke-color"], ["get", "precisionColor"]);
     const mounted = instances.length;
     for (let i = 0; i < 30; i++) await render({ initialView: { zoom: 2 + i / 10, center: [104, 26], pitch: 0, bearing: 0 }, visual: { autoRotate: false }, onViewChange: () => { views++; } });
     assert.equal(instances.length, mounted); assert.equal(map.uploads, 0); assert.equal(map.paints, 0); assert.equal(map.filters.length, 0);

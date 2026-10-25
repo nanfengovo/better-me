@@ -2,7 +2,24 @@ import type { MapBucket } from "@better-me/opportunities";
 import { bucketRadius, categories, validBuckets } from "./types";
 import { atlasSelectedBucketIds } from "./bucket-selection";
 
-export type BucketGeoJSON = { type: "FeatureCollection"; features: Array<{ type: "Feature"; properties: { bucketId: string; kind: string; color: string; radius: number; label: string; labelVisible: boolean }; geometry: { type: "Point"; coordinates: [number, number] } }> };
+export type BucketGeoJSON = { type: "FeatureCollection"; features: Array<{ type: "Feature"; properties: {
+  bucketId: string; kind: string; color: string; radius: number; label: string; labelVisible: boolean;
+  /** Kept on the point so the renderer can distinguish an office point from a city estimate. */
+  precision: string; estimated: boolean; positionBasis: string; precisionColor: string;
+}; geometry: { type: "Point"; coordinates: [number, number] } }> };
+
+function precisionColor(bucket: MapBucket): string {
+  if (bucket.positionBasis === "city-reference") return "#f2b84b";
+  switch (bucket.precision) {
+    case "address":
+    case "manual": return "#32d6a4";
+    case "street": return "#55c8e8";
+    case "city": return "#f2b84b";
+    case "region":
+    case "country": return "#e68f72";
+    default: return "#c4d0d2";
+  }
+}
 
 /**
  * Compare only facts that affect the uploaded point source. Query pages can
@@ -25,8 +42,10 @@ export function atlasBucketData(input: readonly MapBucket[]): BucketGeoJSON {
     const colors = categories(bucket), base = bucketRadius(bucket);
     const point = { type: "Point" as const, coordinates: [bucket.longitude, bucket.latitude] as [number, number] };
     const label = `${bucket.label} · ${bucket.jobCount}${bucket.positionBasis === "city-reference" ? " · 城市估算" : ""}`;
-    features.push({ type: "Feature", geometry: point, properties: { bucketId: bucket.id, kind: "core", color: colors.length === 1 ? colors[0]!.color : "#a5bbb6", radius: base * .46, label, labelVisible: labelIds.has(bucket.id) } });
-    colors.forEach((category, index) => features.push({ type: "Feature", geometry: point, properties: { bucketId: bucket.id, kind: "category", color: category.color, radius: base * .58 + index * 2.1, label, labelVisible: false } }));
+    const precision = bucket.precision ?? "unknown", estimated = bucket.estimated === true, positionBasis = bucket.positionBasis ?? "source", markerPrecisionColor = precisionColor(bucket);
+    const shared = { precision, estimated, positionBasis, precisionColor: markerPrecisionColor };
+    features.push({ type: "Feature", geometry: point, properties: { bucketId: bucket.id, kind: "core", color: colors.length === 1 ? colors[0]!.color : "#a5bbb6", radius: base * .46, label, labelVisible: labelIds.has(bucket.id), ...shared } });
+    colors.forEach((category, index) => features.push({ type: "Feature", geometry: point, properties: { bucketId: bucket.id, kind: "category", color: category.color, radius: base * .58 + index * 2.1, label, labelVisible: false, ...shared } }));
   }
   return { type: "FeatureCollection", features };
 }
