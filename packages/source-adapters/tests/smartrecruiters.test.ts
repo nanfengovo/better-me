@@ -98,6 +98,7 @@ test("SmartRecruiters retains explicit listing address and postalCode with exact
 
 test("SmartRecruiters does not promote repeated city, region, country or sole fullLocation labels to streetAddress", async () => {
   const cases = [
+    { city: "Changsha", country: "China", address: "Changsha", fullLocation: "Changsha, , China" },
     { city: "Boston", region: "Massachusetts", country: "US", address: " Boston ", fullLocation: "Boston, USA" },
     { region: "Massachusetts", country: "US", address: "massachusetts", fullLocation: "Boston, Massachusetts, USA" },
     { city: "Boston", country: "United States", address: "united states", fullLocation: "Boston, United States" },
