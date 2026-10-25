@@ -9,7 +9,7 @@ import { AtlasSourceServiceError, createAtlasSourceClient, parseAtlasSourceJson,
 import "./sources-panel.css";
 import { CompanyCareersPanel } from "./CompanyCareersPanel";
 import { SourceCatalogPanel } from "./SourceCatalogPanel";
-import { sourceCatalog, sourceCatalogIdentity } from "./source-catalog";
+import { sourceCatalog, sourceCatalogIdentity, sourceCatalogRegistration } from "./source-catalog";
 import { AtlasSourceScanControls } from "./AtlasSourceScanControls";
 import { useAtlasSourceScanRecovery } from "./source-scan-recovery";
 import { useAtlasAggregateRecovery } from "./aggregate-recovery";
@@ -57,6 +57,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
   const [busy, setBusy] = useState("");
   const [scanBusy, setScanBusy] = useState(false);
   const [aggregateBusy, setAggregateBusy] = useState(false);
+  const [leadRefreshSignal, setLeadRefreshSignal] = useState(0);
   const aggregateRecovery = useAtlasAggregateRecovery(endpoint, token);
   const aggregateLocked = aggregateRecovery.active || aggregateRecovery.entries.length > 0;
   const scanRecovery = useAtlasSourceScanRecovery(endpoint, token);
@@ -64,6 +65,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
   const leadRecovery = useAtlasLeadRecovery(endpoint, token);
   const leadLocked = Boolean(leadRecovery.pending || leadRecovery.saved || leadRecovery.active);
   const scanLocked = sourceActivityLocked || leadLocked;
+  const scanRecoverySourceId = scanRecovery.pending?.sourceId ?? scanRecovery.saved?.run.sourceId ?? scanRecovery.refreshOnly;
   const [leadsOpen, setLeadsOpen] = useState(false);
   useEffect(() => { if (leadLocked) setLeadsOpen(true); }, [leadLocked]);
   const [error, setError] = useState("");
@@ -90,9 +92,13 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
   const source = catalog.sources.find((entry) => entry.sourceId === sourceId);
   const sourceHealth = source ? catalog.health.entries.find((entry) => entry.sourceId === source.sourceId) : undefined;
   const sourceCatalogEntry = source ? sourceCatalog.find((entry) => sourceCatalogIdentity(entry.source) === sourceCatalogIdentity(source)) : undefined;
-  const canEnumerate = source && runnable(source) && source.capabilities.includes("list-jobs") && Boolean(source.entryUrl)
+  const canEnumerate = source && source.entityType === "job-posting" && runnable(source) && source.capabilities.includes("list-jobs") && Boolean(source.entryUrl)
     && (!["mapped-json", "github-json"].includes(source.adapterId) || JsonFieldMappingOptionsSchema.safeParse(source.options ?? {}).success)
     && catalog.adapters.some((adapter) => adapter.adapterId === source.adapterId && adapter.version === source.adapterVersion && adapter.capabilities.includes("list-jobs"));
+  const canCollectDiscoveryLeads = source?.entityType === "company-directory"
+    && runnable(source) && source.capabilities.includes("list-jobs") && Boolean(source.entryUrl)
+    && catalog.adapters.some((adapter) => adapter.adapterId === source.adapterId && adapter.version === source.adapterVersion
+      && adapter.capabilities.includes("list-jobs") && adapter.entityTypes.includes("discovery-lead"));
   const config = configs[configIndex];
   const discoverySources = catalog.sources.filter((entry) => entry.capabilities.includes("discover-sources") && runnable(entry));
   const usable = hasAtlasServiceTarget(endpoint, token);
@@ -129,6 +135,9 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
       .finally(() => { if (active.current === controller) { active.current = null; setBusy(""); } });
     return () => { controller.abort(); active.current?.abort(); active.current = null; };
   }, [client, usable]);
+  useEffect(() => {
+    if (scanRecoverySourceId && catalog.sources.some((entry) => entry.sourceId === scanRecoverySourceId)) setSourceId(scanRecoverySourceId);
+  }, [catalog.sources, scanRecoverySourceId]);
 
   function scopeInput() {
     const records = Number(maxRecords); const pages = Number(maxPages);
@@ -161,7 +170,9 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
     let added = 0;
     for (const preset of sources) {
       signal.throwIfAborted();
-      const source: SourceDefinition = { ...preset, enabled: true, status: "active" };
+      // Company directories produce discovery leads. Keep them staged for review;
+      // only verified job-posting presets can be activated by this shortcut.
+      const source: SourceDefinition = sourceCatalogRegistration(preset);
       const identity = JSON.stringify(["catalog-register", source]);
       if (!pending.current.has(identity)) {
         const snapshot = await client.snapshot({ signal }); signal.throwIfAborted();
@@ -178,9 +189,11 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
       signal.throwIfAborted(); pending.current.delete(identity); added++;
       await loadCatalog(signal);
       const snapshot = await client.snapshot({ signal }); signal.throwIfAborted(); onSnapshot(snapshot);
-      setNotice(`已添加 ${added}/${sources.length} 个来源；尚未采集岗位。`);
+      setNotice(source.entityType === "company-directory"
+        ? `已保存待审核发现来源 ${added}/${sources.length} 个；它不会进入岗位地图。`
+        : `已添加岗位来源 ${added}/${sources.length} 个；尚未采集岗位。`);
     }
-    setNotice(`已添加 ${added} 个来源，已有配置未覆盖。关闭来源工具后，主搜索可同时查询已启用来源。`);
+    setNotice(`已保存 ${added} 个新来源；已有配置未覆盖。公司目录保持禁用待审核状态。`);
   }
   function editJson(value: string) { setJsonText(value); setConfigs([]); setConfigIndex(0); setReviewed(false); }
   function checkJson() {
@@ -207,7 +220,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
       : t("当前手动直连配置缺少有效服务地址或令牌。本机网页默认会自动使用岗位后端。", "This manual connection needs a valid service endpoint and token. The local web app uses its job backend automatically by default.")}</p>}
     <fieldset disabled={leadLocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}><CompanyCareersPanel endpoint={endpoint} token={token} sources={catalog.sources} onProposal={editJson} onSelectSource={(id, companyName) => { setSourceId(id); const configuredName = catalog.sources.find((entry) => entry.sourceId === id)?.options?.companyName; setCompanies(typeof configuredName === "string" ? configuredName : companyName); setPreview(undefined); setNotice("已选择企业招聘来源。可继续填写岗位关键词与地区，预览后手动获取真实岗位。"); }} /></fieldset>
     <div className="atlas-sources-actions"><button type="button" disabled={!usable || Boolean(busy || sourceActivityLocked)} aria-expanded={leadsOpen || leadLocked} onClick={() => setLeadsOpen(value => !value)}><Database size={14} />{t("已保存发现线索", "Saved discovery leads")}{leadLocked && t(" · 待核对回执", " · receipt pending")}</button><span className="atlas-sources-muted">{t("GitHub / 招聘批次单独审核，再接续原岗位。", "Review GitHub leads and campaigns before adopting original jobs.")}</span></div>
-    {(leadsOpen || leadLocked) && <AtlasDiscoveryLeads key={`${endpoint}:${token}`} endpoint={endpoint} token={token} revision={revision} sources={catalog.sources} disabled={Boolean(busy || sourceActivityLocked)} onSnapshot={onSnapshot} onOpenJob={onOpenJob} onClose={() => setLeadsOpen(false)} />}
+    {(leadsOpen || leadLocked) && <AtlasDiscoveryLeads key={`${endpoint}:${token}`} endpoint={endpoint} token={token} revision={revision} refreshSignal={leadRefreshSignal} sources={catalog.sources} disabled={Boolean(busy || sourceActivityLocked)} onSnapshot={onSnapshot} onOpenJob={onOpenJob} onClose={() => setLeadsOpen(false)} />}
     {busy && <div role="status" className="atlas-sources-actions"><Loader2 size={15} className="animate-spin" /><span>{busy}</span><button type="button" onClick={() => active.current?.abort()}>{t("取消操作", "Cancel operation")}</button></div>}
     {error && <p role="alert" className="atlas-sources-error">{error}</p>}
     {notice && <p role="status" className="atlas-sources-callout">{notice}</p>}
@@ -235,7 +248,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
           </button>;
         })}
       </div>}
-      <div className="atlas-sources-grid"><label>{t("岗位来源", "Job source")}<select value={sourceId} disabled={Boolean(busy || scanLocked)} onChange={(event) => { setSourceId(event.target.value); setPreview(undefined); }}>
+      <div className="atlas-sources-grid"><label>{t("岗位 / 线索来源", "Job / lead source")}<select value={sourceId} disabled={Boolean(busy || scanLocked)} onChange={(event) => { setSourceId(event.target.value); setPreview(undefined); }}>
         <option value="">{t("选择来源", "Select source")}</option>{catalog.sources.map((entry) => <option key={entry.sourceId} value={entry.sourceId}>{entry.name} · {entry.enabled && entry.status === "active" ? t("已启用", "enabled") : entry.status}</option>)}</select></label>
         <label>{t("记录上限", "Record limit")}<input type="number" min="1" max="100000" value={maxRecords} disabled={Boolean(busy || scanLocked)} onChange={(event) => setMaxRecords(event.target.value)} /></label>
         <label>{t("刷新页数上限", "Refresh page limit")}<input type="number" min="1" max="1000" value={maxPages} disabled={Boolean(busy || scanLocked)} onChange={(event) => setMaxPages(event.target.value)} /></label>
@@ -261,7 +274,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
         </div>}
         {source.attribution.notes && <p>{source.attribution.notes}</p>}
         {!runnable(source) && <p>{t("该来源未启用。可先在下方载入配置，核对后显式保存状态；不会自动启用。", "This source is not active. Load its configuration below, review it and explicitly save its state.")}</p>}
-        {runnable(source) && !canEnumerate && <p>{t("当前配置未提供可列举岗位的端点或字段映射，可使用其已配置的来源发现能力。", "This configuration has no usable job-listing endpoint or mapping. Its configured source-discovery tools remain available.")}</p>}
+        {runnable(source) && !canEnumerate && !canCollectDiscoveryLeads && <p>{t("当前配置未提供可列举岗位的端点或字段映射，可使用其已配置的来源发现能力。", "This configuration has no usable job-listing endpoint or mapping. Its configured source-discovery tools remain available.")}</p>}
         <button type="button" disabled={Boolean(busy || scanLocked)} onClick={() => editJson(JSON.stringify(source, null, 2))}>{t("载入配置供编辑", "Load configuration for editing")}</button>
       </div>}
       {!catalog.sources.length && !busy && <p>{t("本机索引中暂无来源。可在下方导入 config/sources 中的完整 JSON，或自行配置已安装适配器。", "No sources are registered. Import complete JSON from config/sources below, or configure an installed adapter.")}</p>}
@@ -270,7 +283,8 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
         const value = await client.preview(sourceId, options, { signal }); signal.throwIfAborted(); setPreview({ sourceId, value });
       })}>{t("预览一页 · 不写入", "Preview one page · no write")}</button>
       </div>
-      <AtlasSourceScanControls endpoint={endpoint} token={token} sourceId={sourceId} canEnumerate={Boolean(usable && canEnumerate)} disabled={Boolean(busy) || disabled || aggregateLocked} scopeInput={scopeInput} onSnapshot={onSnapshot} onRefreshHealth={loadCatalog} onBusy={setScanBusy} />
+      {canEnumerate && <AtlasSourceScanControls endpoint={endpoint} token={token} sourceId={sourceId} canEnumerate={Boolean(usable && canEnumerate)} disabled={Boolean(busy) || disabled || aggregateLocked} mode="jobs" scopeInput={scopeInput} onSnapshot={onSnapshot} onRefreshHealth={loadCatalog} onBusy={setScanBusy} />}
+      {canCollectDiscoveryLeads && <AtlasSourceScanControls endpoint={endpoint} token={token} sourceId={sourceId} canEnumerate={Boolean(usable && canCollectDiscoveryLeads)} disabled={Boolean(busy) || disabled || aggregateLocked} mode="discovery-leads" label={t("公司目录线索采集进度", "Company-directory lead collection progress")} scopeInput={scopeInput} onSnapshot={onSnapshot} onRefreshHealth={loadCatalog} onLeadsChanged={() => { setLeadsOpen(true); setLeadRefreshSignal(value => value + 1); }} onBusy={setScanBusy} />}
       <AtlasAggregateRecoveryControls endpoint={endpoint} token={token} onSnapshot={onSnapshot} onRefreshHealth={loadCatalog} onBusy={setAggregateBusy} disabled={Boolean(busy || scanBusy || scanRecovery.pending || scanRecovery.saved || scanRecovery.refreshOnly)} />
       {preview && <div className="atlas-sources-result"><strong>{t("预览结果", "Preview result")} · {preview.sourceId}</strong>
         <p>{t("上游读取", "Upstream fetched")}: {preview.value.page.coverage.fetchedRecords} · {t("返回", "Returned")}: {preview.value.page.records.length} · {t("本地条件匹配", "Local matches")}: {preview.value.localMatchedRecords}</p>

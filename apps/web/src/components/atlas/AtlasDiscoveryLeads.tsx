@@ -11,7 +11,7 @@ import { SourcePublicationBadges } from "./JobSourceBadges";
 import "./AtlasDiscoveryLeads.css";
 
 type Props = {
-  endpoint: string; token: string; revision?: number; sources?: SourceDefinition[]; disabled?: boolean;
+  endpoint: string; token: string; revision?: number; refreshSignal?: number; sources?: SourceDefinition[]; disabled?: boolean;
   onSnapshot: (snapshot: AtlasDataset) => void; onOpenJob?: (jobId: string, snapshot: AtlasDataset) => void; onClose: () => void;
 };
 type Selection = LeadReadResult;
@@ -20,7 +20,7 @@ const authoritative = (problem: unknown) => problem instanceof AtlasSourceServic
   && ["stale-version", "invalid-input", "source-changed", "idempotency-conflict"].includes(problem.code);
 
 /** Persisted leads are separate from the job index. Reading an original and adopting it are explicit steps. */
-export function AtlasDiscoveryLeads({ endpoint, token, revision, sources = [], disabled = false, onSnapshot, onOpenJob, onClose }: Props) {
+export function AtlasDiscoveryLeads({ endpoint, token, revision, refreshSignal = 0, sources = [], disabled = false, onSnapshot, onOpenJob, onClose }: Props) {
   const { t } = useUiPreferences();
   const client = useMemo(() => createAtlasLeadClient(endpoint, token), [endpoint, token]);
   const snapshots = useMemo(() => createAtlasSourceClient(endpoint, token), [endpoint, token]);
@@ -40,6 +40,7 @@ export function AtlasDiscoveryLeads({ endpoint, token, revision, sources = [], d
   const [completed, setCompleted] = useState<{ snapshot: AtlasDataset; jobIds: string[] }>();
   const [busy, setBusy] = useState(""), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const active = useRef<AbortController | null>(null);
+  const submittedRef = useRef<LeadQueryInput>({ limit: 50 });
   const latest = useRef({ onSnapshot, onOpenJob, disabled }); latest.current = { onSnapshot, onOpenJob, disabled };
   const usable = hasAtlasServiceTarget(endpoint, token);
   const stale = selected && revision !== undefined && revision > selected.snapshotRevision;
@@ -62,20 +63,21 @@ export function AtlasDiscoveryLeads({ endpoint, token, revision, sources = [], d
   async function load(query: LeadQueryInput, cursor?: string, pageIndex = 0, signal?: AbortSignal) {
     const next = await client.query({ ...query, ...(cursor ? { cursor } : {}) }, { signal }); signal?.throwIfAborted();
     setResult(next); setPage(pageIndex); setSelected(undefined); setOriginalSourceId(""); resetRead();
-    setSubmitted(query); setCursors(current => pageIndex === 0 ? [undefined] : [...current.slice(0, pageIndex), cursor]);
+    submittedRef.current = query; setSubmitted(query); setCursors(current => pageIndex === 0 ? [undefined] : [...current.slice(0, pageIndex), cursor]);
   }
   useEffect(() => {
     const held = readAtlasLeadRecovery(scope);
     if (!usable || held.pending || held.saved || held.active) return;
+    const query = refreshSignal > 0 ? submittedRef.current : { limit: 50 };
     const controller = new AbortController(); active.current = controller; setBusy(t("读取已保存线索", "Reading saved leads"));
     const timer = setTimeout(() => controller.abort(), 60_000);
-    void client.query({ limit: 50 }, { signal: controller.signal }).then(next => {
-      controller.signal.throwIfAborted(); setResult(next);
+    void client.query(query, { signal: controller.signal }).then(next => {
+      controller.signal.throwIfAborted(); setResult(next); setPage(0); setSelected(undefined); setOriginalSourceId(""); resetRead(); setSubmitted(query);
     }).catch((problem: unknown) => { if (active.current === controller) setError(controller.signal.aborted
       ? t("读取已保存线索已超时，请重新查询。", "Reading saved leads timed out. Please retry the query.") : errorText(problem)); })
       .finally(() => { clearTimeout(timer); if (active.current === controller) { active.current = null; setBusy(""); } });
     return () => { clearTimeout(timer); controller.abort(); active.current?.abort(); active.current = null; };
-  }, [client, scope, usable, t]);
+  }, [client, scope, usable, t, refreshSignal]);
   useEffect(() => () => { active.current?.abort(); active.current = null; }, []);
   useEffect(() => {
     if (!locked) return;

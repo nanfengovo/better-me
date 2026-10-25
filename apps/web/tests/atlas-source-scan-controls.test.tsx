@@ -148,3 +148,23 @@ test("connection changes isolate late write responses while retaining the origin
   await render(props); assert.equal(button("手动刷新并更新地图").disabled, true); assert.ok(button("核对原扫描回执"));
   assert.equal(calls.filter(call => call.path.endsWith("/sync")).length, 1);
 });
+
+test("recovery preserves the original discovery-leads mode across a remount", async () => {
+  let writes = 0, snapshots = 0, leads = 0;
+  const calls = install(call => {
+    if (call.path.endsWith("/sync") && ++writes === 1) throw new TypeError("Synthetic lost lead reply");
+    if (call.path.endsWith("/export")) return response(snapshot());
+    return response(call.path.endsWith("/scan-progress") ? { sourceId, progress: progress() } : receipt(call));
+  });
+  const props: Props = { ...fixture(), mode: "discovery-leads", onSnapshot: () => { snapshots++; }, onLeadsChanged: () => { leads++; } };
+  await render(props); await click("采集线索 / 更新已保存线索");
+  assert.equal(readAtlasSourceScanRecovery(scopes[0]!).mode, "discovery-leads");
+  assert.ok(readAtlasSourceScanRecovery(scopes[0]!).pending);
+  await unmount();
+  await render({ ...props, mode: "jobs" });
+  await click("核对原扫描回执");
+  assert.equal(calls.filter(call => call.path.endsWith("/sync")).length, 2);
+  assert.equal(snapshots, 0);
+  assert.equal(leads, 1);
+  assert.deepEqual(readAtlasSourceScanRecovery(scopes[0]!), {});
+});

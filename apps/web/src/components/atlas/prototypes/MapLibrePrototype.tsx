@@ -28,6 +28,9 @@ function featureBounds(feature: BoundaryFeature): [number, number, number, numbe
 export function MapLibrePrototype(props: AtlasPrototypeProps) {
   const host = useRef<HTMLDivElement>(null); const latest = useRef(props); latest.current = props;
   const handle = useRef<PrototypeHandle | null>(null);
+  const terrainController = useRef<((enabled: boolean) => void) | null>(null);
+  const terrainWanted = useRef(false);
+  const [terrainEnabled, setTerrainEnabled] = useState(false); const [terrainWarning, setTerrainWarning] = useState("");
   const pickBucket = useRef<(bucket: AtlasPrototypeProps["buckets"][number]) => void>(() => {});
   const [choice, setChoice] = useState<{ buckets: AtlasPrototypeProps["buckets"]; ids: string[]; mode: string; focus: AtlasPrototypeProps["focus"]; level: AtlasPrototypeProps["bucketLevel"] } | null>(null);
   const [failure, setFailure] = useState<string | null>(null); const [basemapWarning, setBasemapWarning] = useState("");
@@ -38,6 +41,12 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
   const entrance = props.visual?.entrance !== false;
   const basemap = props.basemap === null ? null : parseAtlasBasemap(props.basemap ?? (light ? ATLAS_BASEMAPS.find((item) => item.id === "openfreemap-positron") : DEFAULT_ATLAS_BASEMAP));
   const basemapKey = JSON.stringify(basemap);
+  useEffect(() => {
+    terrainWanted.current = false; setTerrainEnabled(false); setTerrainWarning(""); terrainController.current?.(false);
+  }, [mode]);
+  const toggleTerrain = () => {
+    const enabled = !terrainWanted.current; terrainWanted.current = enabled; setTerrainEnabled(enabled); setTerrainWarning(""); terrainController.current?.(enabled);
+  };
   useEffect(() => {
     const element = host.current; if (!element) return;
     const openingFocus = latest.current.focus;
@@ -88,6 +97,41 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
       // First render the packaged scene. Optional street services must not hold the
       // local globe, job markers, controls or onReady behind an eight-second fetch.
       let localReady = false, basemapInstalled = false, installingBasemap = false;
+      let terrainInstalled = false, terrainFailed = false;
+      const terrainSourceId = "atlas-terrain-dem";
+      const terrainAttribution = '<a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noopener noreferrer">Mapzen Terrain Tiles on AWS Open Data</a> · <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noopener noreferrer">underlying elevation data credits</a>';
+      const removeTerrain = () => {
+        if (!terrainInstalled) return;
+        try { ownedMap.setTerrain(null); } catch { /* Style teardown can race an error event. */ }
+        if (ownedMap.getSource(terrainSourceId)) ownedMap.removeSource(terrainSourceId);
+        terrainInstalled = false;
+      };
+      const failTerrain = () => {
+        if (terrainFailed || stopped || abort.signal.aborted) return;
+        terrainFailed = true; terrainWanted.current = false; removeTerrain(); setTerrainEnabled(false);
+        setTerrainWarning("真实地形瓦片暂不可用，已保留平面地图和岗位标记；可稍后重新开启。地形使用 Mapzen Terrarium 全球高程数据。");
+      };
+      const applyTerrain = (enabled: boolean) => {
+        const requested = mode === "domestic" && enabled;
+        terrainWanted.current = requested;
+        if (requested && terrainFailed) terrainFailed = false;
+        if (!localReady || !requested || terrainFailed) {
+          if (!requested) removeTerrain();
+          return;
+        }
+        if (terrainInstalled) return;
+        try {
+          ownedMap.addSource(terrainSourceId, {
+            type: "raster-dem", tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+            tileSize: 256, maxzoom: 15, bounds: [...CHINA_BOUNDS], encoding: "terrarium", attribution: terrainAttribution,
+          });
+          terrainInstalled = true;
+          ownedMap.setTerrain({ source: terrainSourceId, exaggeration: 1.25 });
+        } catch {
+          failTerrain();
+        }
+      };
+      terrainController.current = applyTerrain;
       let pendingBasemap: { sources: Record<string, SourceSpecification>; layers: LayerSpecification[]; glyphs?: StyleSpecification["glyphs"]; sprite?: StyleSpecification["sprite"] } | undefined;
       let optionalDetailLayers: LayerSpecification[] = [], optionalDetailBefore = "bucket-glow", detailLayersInstalled = false;
       const installOptionalDetailLayers = () => {
@@ -156,7 +200,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
         installBasemap();
       })().catch(() => { if (!stopped && !abort.signal.aborted) { setBasemapLoading(false); warnTiles(); } });
       ownedMap.addControl(new NavigationControl({ visualizePitch: true }), "top-right"); ownedMap.addControl(new ScaleControl({ maxWidth: 100, unit: "metric" }), "bottom-left");
-      if (provider) ownedMap.addControl(new AttributionControl({ compact: false, customAttribution: attributionHtml(provider) }), "bottom-right");
+      ownedMap.addControl(new AttributionControl({ compact: false, ...(provider ? { customAttribution: attributionHtml(provider) } : {}) }), "bottom-right");
       let contextGeneration = 0;
       const lost = (event: Event) => { event.preventDefault(); contextGeneration++; stopRotation(); report(new Error("MapLibre WebGL context lost.")); };
       const restored = () => {
@@ -168,7 +212,11 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
         ownedMap.triggerRepaint(); rotate();
       };
       ownedMap.getCanvas().addEventListener("webglcontextlost", lost); ownedMap.getCanvas().addEventListener("webglcontextrestored", restored);
-      ownedMap.on("error", (event) => { if (installingBasemap || (event as { sourceId?: string }).sourceId?.startsWith("basemap:") || /(?:tile|glyph|sprite|fetch|network|status|AJAX|HTTP|(?:layers|sources)\.basemap:)/i.test(event.error.message)) warnTiles(); else report(event.error); });
+      ownedMap.on("error", (event) => {
+        const sourceId = (event as { sourceId?: string }).sourceId;
+        if (sourceId === terrainSourceId) { failTerrain(); return; }
+        if (installingBasemap || sourceId?.startsWith("basemap:") || /(?:tile|glyph|sprite|fetch|network|status|AJAX|HTTP|(?:layers|sources)\.basemap:)/i.test(event.error.message)) warnTiles(); else report(event.error);
+      });
       const viewChanged = () => { pendingBucketNavigation = ""; if (rotationFrame && ownedMap.getZoom() < 3.5) return; const center = ownedMap.getCenter(); const bounds = ownedMap.getBounds(); latest.current.onViewChange?.({ zoom: ownedMap.getZoom(), center: [center.lng, center.lat], pitch: ownedMap.getPitch(), bearing: ownedMap.getBearing(), bounds: [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()] }); };
       ownedMap.on("moveend", viewChanged);
       ownedMap.on("movestart", () => setChoice(null));
@@ -210,7 +258,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
         else if (latest.current.focus) focus(latest.current.focus);
         else fit();
         observer = new ResizeObserver(() => { ownedMap.resize(); }); observer.observe(element);
-        ownedMap.once("render", () => { if (!stopped) { localReady = true; latest.current.onReady?.(); viewChanged(); installBasemap(); } }); rotate();
+        ownedMap.once("render", () => { if (!stopped) { localReady = true; latest.current.onReady?.(); viewChanged(); installBasemap(); applyTerrain(terrainWanted.current); } }); rotate();
       });
       pickBucket.current = bucket => {
         setChoice(null);
@@ -253,7 +301,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
       ownedMap.on("rotatestart", pauseInteraction); ownedMap.on("rotateend", resumeInteraction); ownedMap.on("pitchstart", pauseInteraction); ownedMap.on("pitchend", resumeInteraction);
       abort.signal.addEventListener("abort", () => ownedMap.getCanvas().removeEventListener("mouseleave", leave), { once: true });
     })().catch(report);
-    return () => { stopped = true; pickBucket.current = () => {}; abort.abort(); stopRotation(); if (rotationResume) clearTimeout(rotationResume); cancelHover(); observer?.disconnect(); document.removeEventListener("visibilitychange", visibility); motion.removeEventListener("change", motionChange); handle.current?.dispose(); handle.current = null; map?.remove(); };
+    return () => { stopped = true; terrainController.current = null; pickBucket.current = () => {}; abort.abort(); stopRotation(); if (rotationResume) clearTimeout(rotationResume); cancelHover(); observer?.disconnect(); document.removeEventListener("visibilitychange", visibility); motion.removeEventListener("change", motionChange); handle.current?.dispose(); handle.current = null; map?.remove(); };
   }, [mode, background, maxDpr, entrance, basemapKey, light]);
   useEffect(() => { setChoice(null); }, [mode, background, maxDpr, entrance, basemapKey, light, props.buckets, props.bucketLevel, props.focus, props.selectedJobId]);
   useEffect(() => { handle.current?.update(latest.current); }, [props.buckets, props.selectedBucketId, props.selectedBucketIds, props.selectedRegionId, props.focus, props.selectedJobId, props.visual?.autoRotate]);
@@ -263,12 +311,15 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
   const choices = choice?.buckets === props.buckets && choice.mode === mode && choice.focus === props.focus && choice.level === props.bucketLevel ? atlasHitBuckets(props.buckets, choice.ids) : [];
   return <div className={props.className} data-atlas-renderer="maplibre" data-atlas-mode={mode} data-atlas-basemap={basemap?.id ?? "offline"} style={{ ...prototypeFrameStyle, background, ...props.style }}>
     <div ref={host} style={canvasHostStyle} aria-label={mode === "global" ? "全球岗位三维地球，可连续缩放到街道，拖拽与方向键移动" : "国内岗位三维省域地图，可连续缩放到街道，拖拽与方向键移动"} />
+    {mode === "domestic" && <button type="button" aria-pressed={terrainEnabled} onClick={toggleTerrain} title="按需加载全球 Terrarium 高程瓦片，显示真实地形起伏" style={{ position: "absolute", bottom: 104, left: 14, zIndex: 3, minHeight: 36, padding: "0 12px", border: `1px solid ${terrainEnabled ? "#5da08e" : light ? "#9baaa8" : "#557080"}`, borderRadius: 6, color: light ? "#263d42" : "#d9eaf0", background: light ? "#f5f8f4eF" : "#10212ceF", font: "12px/1 system-ui,sans-serif", cursor: "pointer" }}>{terrainEnabled ? "关闭地形" : "开启真实地形"}</button>}
     {choices.length > 1 && <AtlasBucketChoices buckets={choices} light={light} onClose={() => setChoice(null)} returnFocus={() => host.current?.querySelector("canvas")?.focus({ preventScroll: true })}
       onPick={bucket => pickBucket.current(bucket)} onPickMany={props.onPickMany ? buckets => { setChoice(null); latest.current.onPickMany?.(buckets); } : undefined} />}
     <a href={`${import.meta.env.BASE_URL}legal/geography/`} target="_blank" rel="noopener noreferrer" style={{ ...creditStyle, bottom: 34, color: light ? "#52665f" : "#9ab1bb", pointerEvents: "auto", textDecoration: "none" }}>{NATURAL_EARTH_CREDIT}</a>
+    {terrainEnabled && <a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noopener noreferrer" aria-label="Mapzen Terrain Tiles on AWS Open Data and source elevation credits" style={{ ...creditStyle, bottom: 12, color: light ? "#52665f" : "#9ab1bb", pointerEvents: "auto", textDecoration: "none" }}>地形：Mapzen Terrain Tiles · 高程数据来源</a>}
     {visibleFocus && <div className={`atlas-focus-status${light ? " light" : ""}`} role="status" aria-live="polite">已定位{visibleFocus.label ? `：${visibleFocus.label} · ` : " · "}{mapFocusPrecisionLabel(visibleFocus)}</div>}
     {basemapLoading && !basemapWarning && !failure && <div role="status" className={`atlas-basemap-progress${light ? " light" : ""}`}><span className="atlas-basemap-spinner" aria-hidden="true" />正在加载街道底图，本地轮廓与岗位优先显示…</div>}
     {basemapWarning && <div role="status" style={{ position: "absolute", left: 14, top: 14, right: 58, zIndex: 3, color: light ? "#725719" : "#ddcf9d", background: light ? "#fff9e9eb" : "#14232ae8", border: "1px solid #8b80504d", borderRadius: 8, padding: "9px 12px", font: "11px/1.6 system-ui" }}>{basemapWarning}</div>}
+    {terrainWarning && <div role="status" style={{ position: "absolute", left: 14, top: 58, zIndex: 3, maxWidth: "min(440px, calc(100% - 28px))", color: light ? "#725719" : "#ddcf9d", background: light ? "#fff9e9eb" : "#14232ae8", border: "1px solid #8b80504d", borderRadius: 6, padding: "8px 10px", font: "11px/1.55 system-ui" }}>{terrainWarning}</div>}
     {failure && <div role="alert" style={errorStyle}>{failure}</div>}
   </div>;
 }

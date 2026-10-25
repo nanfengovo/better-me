@@ -15,10 +15,10 @@ const instances: SyntheticMap[] = [], markerEvents: string[] = [];
 class SyntheticMap {
   handlers = new Map<string, Array<(...args: unknown[]) => void>>();
   canvas = dom.document.createElement("canvas"); moving = false; removed = false; zoom = 1.65;
-  uploads = 0; queries = 0; paints = 0; filters: Array<{ id: string; filter: unknown }> = []; flights: unknown[] = []; projection: unknown;
+  uploads = 0; queries = 0; paints = 0; filters: Array<{ id: string; filter: unknown }> = []; flights: unknown[] = []; projection: unknown; terrain: unknown[] = [];
   hits: Array<{ properties: { bucketId: string } }> = [{ properties: { bucketId: "synthetic-0" } }];
   addedSources: Array<{ id: string; source: unknown }> = []; addedLayers: Array<{ id: string; before?: string }> = []; layerSpecs: Array<{ id: string; [key: string]: unknown }> = []; glyphs: unknown; sprite: unknown;
-  throwOnLayer = "";
+  throwOnLayer = ""; throwOnSource = "";
   constructor(readonly options: Record<string, unknown>) { instances.push(this); this.canvas.tabIndex = 0; (options.container as typeof this.canvas.parentElement)?.appendChild(this.canvas); }
   on(name: string, callback: (...args: unknown[]) => void) { this.handlers.set(name, [...(this.handlers.get(name) ?? []), callback]); return this; }
   once(name: string, callback: (...args: unknown[]) => void) { const once = (...args: unknown[]) => { this.handlers.set(name, this.handlers.get(name)!.filter(entry => entry !== once)); callback(...args); }; return this.on(name, once); }
@@ -27,11 +27,12 @@ class SyntheticMap {
   getCenter() { return { lng: 104, lat: 26 }; } getBounds() { return { getWest: () => 100, getEast: () => 110, getSouth: () => 20, getNorth: () => 30 }; }
   isMoving() { return this.moving; } stop() { this.moving = false; } setCenter() {} resize() {} triggerRepaint() {}
   getLayer(id: string) { return ((this.options.style as { layers: Array<{ id: string }> }).layers).some(layer => layer.id === id); }
-  getSource() { return { setData: () => { this.uploads++; } }; }
-  addSource(id: string, source: unknown) { this.addedSources.push({ id, source }); }
+  getSource(id: string) { return id === "buckets" || id === "boundaries" || this.addedSources.some(source => source.id === id) ? { setData: () => { this.uploads++; } } : undefined; }
+  addSource(id: string, source: unknown) { if (this.throwOnSource === id) throw new Error("Synthetic source rejected"); this.addedSources.push({ id, source }); }
   addLayer(layer: { id: string; [key: string]: unknown }, before?: string) { if (this.throwOnLayer === layer.id) throw new Error("Synthetic provider layer rejected"); this.addedLayers.push({ id: layer.id, before }); this.layerSpecs.push(layer); ((this.options.style as { layers: Array<{ id: string }> }).layers).push(layer); }
   removeLayer(id: string) { const style = this.options.style as { layers: Array<{ id: string }> }; style.layers = style.layers.filter(layer => layer.id !== id); }
   removeSource(id: string) { this.addedSources = this.addedSources.filter(source => source.id !== id); }
+  setTerrain(value: unknown) { this.terrain.push(value); return this; }
   setGlyphs(value: unknown) { this.glyphs = value; } setSprite(value: unknown) { this.sprite = value; }
   addSprite(id: string, url: string) { this.sprite = [...(Array.isArray(this.sprite) ? this.sprite : []), { id, url }]; }
   setProjection(value: unknown) { this.projection = value; } setSky() {} setLight() {}
@@ -341,6 +342,71 @@ test("raster detail is attached only after the packaged scene's first ready rend
     const map = instances.at(-1)!; assert.equal(map.addedSources.length, 0);
     await act(async () => { map.emit("load"); map.emit("render"); });
     assert.equal(sourcesAtReady, 0); assert.deepEqual(map.addedSources.map(source => source.id), ["basemap:raster"]); assert.deepEqual(map.addedLayers, [{ id: "basemap:raster", before: "regions" }]);
+  } finally { await act(async () => root.unmount()); host.remove(); }
+});
+
+test("domestic local readiness does not wait for or request DEM terrain unless the user opts in", async () => {
+  const host = dom.document.createElement("div"); dom.document.body.append(host); const root = createRoot(host as unknown as HTMLDivElement);
+  let ready = 0, sourcesAtReady = -1;
+  try {
+    await act(async () => { root.render(h(MapLibrePrototype, { mode: "domestic", buckets: [], basemap: null, onReady: () => { ready++; sourcesAtReady = instances.at(-1)!.addedSources.length; } })); for (let i = 0; i < 4; i++) await nextTurn(); });
+    const map = instances.at(-1)!, button = host.querySelector("button");
+    assert.ok(button); assert.equal(button.textContent, "开启真实地形"); assert.equal(map.addedSources.length, 0);
+    await act(async () => { map.emit("load"); map.emit("render"); });
+    assert.equal(ready, 1); assert.equal(sourcesAtReady, 0, "the packaged scene reports ready before any remote DEM source exists");
+    assert.equal(map.addedSources.length, 0); assert.deepEqual(map.terrain, []);
+    assert.equal(map.getLayer("overview-land"), true); assert.equal(map.getLayer("bucket-cores"), true);
+  } finally { await act(async () => root.unmount()); host.remove(); }
+});
+
+test("domestic DEM opt-in uses Terrarium settings and toggles terrain in the same map instance", async () => {
+  const host = dom.document.createElement("div"); dom.document.body.append(host); const root = createRoot(host as unknown as HTMLDivElement);
+  const render = async () => { await act(async () => { root.render(h(MapLibrePrototype, { mode: "domestic", buckets: [], basemap: null })); for (let i = 0; i < 4; i++) await nextTurn(); }); };
+  try {
+    await render(); const map = instances.at(-1)!, count = instances.length;
+    await act(async () => { map.emit("load"); map.emit("render"); });
+    const button = host.querySelector("button")!;
+    await act(async () => button.click());
+    assert.equal(button.textContent, "关闭地形"); assert.equal(button.getAttribute("aria-pressed"), "true");
+    assert.ok(host.querySelector('a[href="https://registry.opendata.aws/terrain-tiles/"]'), "the active terrain shows a visible linked dataset credit");
+    assert.equal(instances.length, count); assert.equal(map.addedSources.length, 1);
+    const source = map.addedSources[0]!;
+    assert.equal(source.id, "atlas-terrain-dem");
+    assert.deepEqual(source.source, {
+      type: "raster-dem", tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"], tileSize: 256, maxzoom: 15,
+      bounds: [73.602256, 15.775377, 134.772579, 53.569444], encoding: "terrarium",
+      attribution: '<a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noopener noreferrer">Mapzen Terrain Tiles on AWS Open Data</a> · <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noopener noreferrer">underlying elevation data credits</a>',
+    });
+    assert.deepEqual(map.terrain, [{ source: "atlas-terrain-dem", exaggeration: 1.25 }]);
+    map.zoom = 11; await act(async () => button.click());
+    assert.equal(button.textContent, "开启真实地形"); assert.equal(map.terrain.at(-1), null); assert.equal(map.getSource("atlas-terrain-dem"), undefined);
+    assert.equal(host.querySelector('a[href="https://registry.opendata.aws/terrain-tiles/"]'), null);
+    await act(async () => button.click());
+    assert.equal(instances.length, count); assert.equal(map.zoom, 11, "terrain toggling preserves the camera and renderer");
+    assert.equal(map.addedSources.length, 1); assert.equal(map.terrain.length, 3); assert.equal((map.terrain.at(-1) as { source: string }).source, "atlas-terrain-dem");
+  } finally { await act(async () => root.unmount()); host.remove(); }
+});
+
+test("a DEM tile failure rolls terrain back while preserving the domestic scene, focus marker and retry control", async () => {
+  const host = dom.document.createElement("div"); dom.document.body.append(host); const root = createRoot(host as unknown as HTMLDivElement);
+  const focus: AtlasMapFocus = { jobId: "dem-job", locationId: "dem-office", longitude: 121.1, latitude: 31.2, precision: "address", zoom: 16, requestId: "dem-focus" };
+  const render = async () => { await act(async () => { root.render(h(MapLibrePrototype, { mode: "domestic", buckets: [], basemap: null, focus, selectedJobId: focus.jobId })); for (let i = 0; i < 4; i++) await nextTurn(); }); };
+  try {
+    const markerEventStart = markerEvents.length;
+    await render(); const map = instances.at(-1)!, count = instances.length;
+    await act(async () => { map.emit("load"); map.emit("render"); });
+    assert.ok(markerEvents.slice(markerEventStart).includes("create"), "the selected office marker is present before enabling terrain");
+    const button = host.querySelector("button")!; await act(async () => button.click());
+    await act(async () => map.emit("error", { sourceId: "atlas-terrain-dem", error: new Error("DEM tile HTTP 503") }));
+    assert.equal(button.textContent, "开启真实地形"); assert.equal(button.getAttribute("aria-pressed"), "false");
+    assert.equal(map.terrain.at(-1), null); assert.equal(map.getSource("atlas-terrain-dem"), undefined);
+    assert.equal(instances.length, count); assert.equal(map.removed, false);
+    assert.equal(map.getLayer("overview-land"), true); assert.equal(map.getLayer("bucket-cores"), true);
+    assert.ok(markerEvents.slice(markerEventStart).includes("create")); assert.equal(markerEvents.slice(markerEventStart).includes("remove"), false);
+    assert.match(host.textContent ?? "", /真实地形瓦片暂不可用/); assert.equal(host.querySelector('[role="alert"]'), null);
+    await act(async () => button.click());
+    assert.equal(map.addedSources.length, 1, "the user can explicitly retry after the failed source was rolled back");
+    assert.equal(host.textContent?.includes("真实地形瓦片暂不可用"), false);
   } finally { await act(async () => root.unmount()); host.remove(); }
 });
 

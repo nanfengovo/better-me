@@ -6,7 +6,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { Window } from "happy-dom";
 import { SourceDefinitionSchema, type AtlasDataset } from "@better-me/opportunities";
 import { createAtlasDemo } from "../src/components/atlas/demo.ts";
-import { atlasSourceScanRecoveryScope, writeAtlasSourceScanRecovery } from "../src/components/atlas/source-scan-recovery.ts";
+import { atlasSourceScanRecoveryScope, readAtlasSourceScanRecovery, writeAtlasSourceScanRecovery } from "../src/components/atlas/source-scan-recovery.ts";
 
 const dom = new Window({ url: "http://atlas-source-fixture.invalid" });
 const React = await import("react");
@@ -21,8 +21,9 @@ const { sourceCatalog } = await import("../src/components/atlas/source-catalog.t
 let root: ReturnType<typeof createRoot> | undefined;
 const at = "2026-10-18T12:00:00.000Z";
 const source = { ...SourceDefinitionSchema.parse(JSON.parse(readFileSync(new URL("../../../config/sources/examples.json", import.meta.url), "utf8"))[0]), enabled: true, status: "active" as const };
+const githubLeadSource = SourceDefinitionSchema.parse({ ...source, sourceId: "synthetic-github-markdown-leads", name: "Synthetic GitHub list", adapterId: "github-markdown", adapterVersion: "1", entityType: "company-directory", enabled: true, status: "active", entryUrl: "https://raw.githubusercontent.com/example/jobs/main/README.md", options: { tableIndex: 0, enumerationComplete: false }, remoteFilters: [], endpointPolicy: { allowedHosts: ["raw.githubusercontent.com"], allowedPathPrefixes: ["/example/jobs/main/README.md"], requireHttps: true, allowRedirects: false, maxRedirects: 0 }, attribution: { label: "Synthetic GitHub list", homepageUrl: "https://github.com/example/jobs", usage: "link-only", requiresAttribution: true } });
 const discoverySource = { ...source, sourceId: "synthetic-discovery", name: "Synthetic discovery policy", adapterId: "mapped-json", capabilities: ["list-jobs", "discover-sources"] as const, entryUrl: undefined, options: undefined };
-const adapters = [{ adapterId: source.adapterId, version: "1", capabilities: ["list-jobs"], remoteFilters: [], entityTypes: ["job-posting"] }, { adapterId: "mapped-json", version: "1", capabilities: ["list-jobs"], remoteFilters: [], entityTypes: ["discovery-lead", "job-posting"] }];
+const adapters = [{ adapterId: source.adapterId, version: "1", capabilities: ["list-jobs"], remoteFilters: [], entityTypes: ["job-posting"] }, { adapterId: "mapped-json", version: "1", capabilities: ["list-jobs"], remoteFilters: [], entityTypes: ["discovery-lead", "job-posting"] }, { adapterId: "github-markdown", version: "1", capabilities: ["list-jobs"], remoteFilters: [], entityTypes: ["discovery-lead"] }];
 const response = (value: unknown) => new Response(JSON.stringify({ ok: true, requestId: "synthetic-panel-request", value }));
 const receipt = { ok: true, revision: 2, jobIds: [], snapshotIds: [], counts: { newJobs: 0, updatedJobs: 0, unchangedJobs: 0, newListings: 0, newObservations: 0, newSnapshots: 0 } };
 const snapshot = createAtlasDemo();
@@ -55,6 +56,125 @@ test("missing token leaves real tools inactive and does not request localhost", 
   const fetcher = mock.method(globalThis, "fetch", async () => { throw new Error("must not fetch"); });
   await render(""); assert.match(dom.document.body.textContent!, /当前手动直连配置缺少有效服务地址或令牌/); assert.equal(fetcher.mock.callCount(), 0);
   assert.equal(button("更新地图快照").disabled, true);
+});
+
+test("active GitHub company directories expose only the saved-lead collection controls", async () => {
+  const paths: string[] = [];
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL) => {
+    const path = new URL(String(url)).pathname; paths.push(path);
+    return path.endsWith("/scan-progress")
+      ? response({ sourceId: githubLeadSource.sourceId, progress: null })
+      : response({ sources: [githubLeadSource], adapters });
+  });
+  await render("synthetic-panel-token");
+  assert.equal(button("预览一页 · 不写入").disabled, true);
+  assert.equal([...dom.document.querySelectorAll("button")].some(node => node.textContent?.trim() === "手动刷新并更新地图"), false);
+  assert.equal([...dom.document.querySelectorAll("button")].some(node => node.textContent?.trim() === "采集线索 / 更新已保存线索"), true);
+  assert.equal(button("采集线索 / 更新已保存线索").disabled, false);
+  assert.equal([...dom.document.querySelectorAll("button")].some(node => node.textContent?.trim() === "继续采集线索"), true);
+  assert.match(dom.document.body.textContent!, /company-directory/);
+  assert.deepEqual(paths, ["/api/v1/sources", `/api/v1/sources/${githubLeadSource.sourceId}/scan-progress`]);
+});
+
+test("company-directory collection follows adapter entityTypes rather than a provider name", async () => {
+  const genericLeadSource = SourceDefinitionSchema.parse({ ...githubLeadSource, sourceId: "synthetic-generic-leads", name: "Synthetic generic lead source", adapterId: "mapped-json" });
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL) => {
+    const path = new URL(String(url)).pathname;
+    return path.endsWith("/scan-progress")
+      ? response({ sourceId: genericLeadSource.sourceId, progress: null })
+      : response({ sources: [genericLeadSource], adapters });
+  });
+  await render("synthetic-panel-token");
+  assert.equal(button("采集线索 / 更新已保存线索").disabled, false);
+  assert.equal([...dom.document.querySelectorAll("button")].some(node => node.textContent?.trim() === "手动刷新并更新地图"), false);
+});
+
+test("reopening source tools restores the source and recovery UI for the original lead scan", async () => {
+  const token = "synthetic-panel-token", endpoint = "http://127.0.0.1:5178", scope = atlasSourceScanRecoveryScope(endpoint, token);
+  writeAtlasSourceScanRecovery(scope, { mode: "discovery-leads", pending: {
+    kind: "refresh", sourceId: githubLeadSource.sourceId, input: { scope: { roles: [], regions: [], companyNames: [] }, maxRecords: 10, maxPages: 1 }, key: "synthetic-original-lead-key",
+  } });
+  const paths: string[] = []; let snapshots = 0;
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(url)).pathname; paths.push(path);
+    if (path === "/api/v1/sources" && !init?.body) return response({ sources: [source, githubLeadSource], adapters });
+    if (path.endsWith("/scan-progress")) return response({ sourceId: githubLeadSource.sourceId, progress: null });
+    if (path.endsWith("/sync")) return response({ run: { runId: "synthetic-lead-recovery", sourceId: githubLeadSource.sourceId, actorScope: "local-owner", generation: 1,
+      scope: { keywords: [], regions: [], companies: [], maxRecords: 10, maxPages: 1 }, status: "completed", startedAt: at, finishedAt: at,
+      summary: { records: 4, pages: 1, leads: 3, added: 0, partial: false } }, localFilters: { roles: [], regions: [], companyNames: [] }, warnings: [] });
+    if (path.endsWith("/dataset/export")) return response(snapshot);
+    if (path === "/api/v1/leads/query") return response({ snapshotRevision: 2, items: [], totalLeads: 3 });
+    assert.fail(`Unexpected request: ${path}`);
+  });
+  await render(token, () => { snapshots++; }, endpoint);
+  assert.ok(dom.document.querySelector('[aria-label="公司目录线索采集进度"]'));
+  assert.ok(button("核对原线索采集回执"));
+  assert.equal([...dom.document.querySelectorAll("button")].some(node => node.textContent?.trim() === "核对原扫描回执"), false);
+  await click("核对原线索采集回执");
+  await waitFor(() => paths.includes("/api/v1/leads/query"), "saved leads refreshed after recovering original lead receipt");
+  assert.equal(snapshots, 0);
+  assert.equal(readAtlasSourceScanRecovery(scope).pending, undefined);
+});
+
+test("company-directory collection requires an active source and installed discovery-lead support", async () => {
+  const paths: string[] = [];
+  let sources = [SourceDefinitionSchema.parse({ ...githubLeadSource, enabled: false, status: "needs-review" })];
+  let registry = adapters;
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL) => {
+    const path = new URL(String(url)).pathname; paths.push(path);
+    return response({ sources, adapters: registry });
+  });
+  await render("synthetic-panel-token");
+  const hasLeadCollection = () => [...dom.document.querySelectorAll("button")].some(node => node.textContent?.trim() === "采集线索 / 更新已保存线索");
+  assert.equal(hasLeadCollection(), false);
+  assert.deepEqual(paths, ["/api/v1/sources"]);
+
+  await act(async () => root!.unmount()); root = undefined;
+  paths.length = 0;
+  sources = [githubLeadSource];
+  registry = adapters.map(adapter => adapter.adapterId === "github-markdown" ? { ...adapter, entityTypes: ["job-posting"] } : adapter);
+  await render("synthetic-panel-token");
+  assert.equal(hasLeadCollection(), false);
+  assert.deepEqual(paths, ["/api/v1/sources"]);
+});
+
+test("GitHub company-directory sync refreshes saved leads without publishing a map snapshot", async () => {
+  const paths: string[] = [], syncBodies: any[] = [];
+  let leadQueries = 0, sourceReads = 0, snapshotReads = 0, snapshotCallbacks = 0;
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(url)).pathname; paths.push(path);
+    if (path === "/api/v1/sources" && !init?.body) { sourceReads++; return response({ sources: [githubLeadSource], adapters }); }
+    if (path.endsWith("/scan-progress")) return response({ sourceId: githubLeadSource.sourceId, progress: null });
+    if (path.endsWith("/sync")) {
+      const body = JSON.parse(String(init!.body)); syncBodies.push(body);
+      return response({ run: { runId: "synthetic-lead-sync", sourceId: githubLeadSource.sourceId, actorScope: "local-owner", generation: 1,
+        scope: { keywords: body.scope.roles, regions: body.scope.regions, companies: body.scope.companyNames }, status: "completed", startedAt: at, finishedAt: at,
+        summary: { records: 4, pages: 2, leads: 3, added: 0, partial: false } }, localFilters: body.scope, warnings: [] });
+    }
+    if (path.endsWith("/dataset/export")) { snapshotReads++; return response(snapshot); }
+    if (path === "/api/v1/leads/query") {
+      leadQueries++;
+      return response({ snapshotRevision: leadQueries + 1, items: [], totalLeads: leadQueries === 1 ? 0 : 3 });
+    }
+    assert.fail(`Unexpected request: ${path}`);
+  });
+
+  await render("synthetic-panel-token", () => { snapshotCallbacks++; });
+  await act(async () => button("已保存发现线索").click());
+  await waitFor(() => dom.document.querySelector('[aria-label="已保存发现线索"]')?.getAttribute("aria-busy") === "false", "initial saved-lead query");
+  assert.equal(leadQueries, 1);
+
+  await click("采集线索 / 更新已保存线索");
+  await waitFor(() => leadQueries === 2, "saved leads refresh signal");
+  assert.deepEqual(syncBodies, [{ scope: { roles: [], regions: [], companyNames: [] }, maxRecords: 100, maxPages: 1 }]);
+  assert.equal(sourceReads, 2, "source health/configuration is re-read after the durable scan");
+  assert.equal(snapshotCallbacks, 0, "lead collection must not publish a job/map snapshot");
+  assert.equal(snapshotReads, 1, "lead receipt synchronization may read the public revision without publishing it");
+  assert.equal(paths.filter(path => path === "/api/v1/leads/query").length, 2);
+  assert.match(dom.document.body.textContent!, /3 条已保存线索/);
+  assert.match(dom.document.body.textContent!, /线索采集回执: completed/);
+  assert.match(dom.document.body.textContent!, /本批读取线索: 3/);
+  assert.doesNotMatch(dom.document.body.textContent!, /新增岗位/);
 });
 
 test("source cards retain safe run health and the actual query scope after reload", async () => {
@@ -133,7 +253,8 @@ test("company website discovery displays incomplete coverage without treating an
 test("discovery-only policy cannot trigger job preview or sync despite its compatibility list-jobs flag", async () => {
   const fetcher = mock.method(globalThis, "fetch", async () => response({ sources: [discoverySource], adapters }));
   await render();
-  assert.equal(button("预览一页 · 不写入").disabled, true); assert.equal(button("手动刷新并更新地图").disabled, true);
+  assert.equal(button("预览一页 · 不写入").disabled, true);
+  assert.equal([...dom.document.querySelectorAll("button")].some(node => node.textContent?.trim() === "手动刷新并更新地图"), false);
   assert.match(dom.document.body.textContent!, /未提供可列举岗位的端点或字段映射/);
   assert.equal(fetcher.mock.callCount(), 1);
 });
