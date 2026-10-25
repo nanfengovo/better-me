@@ -4,7 +4,7 @@ import { ArrowUpRight, Check, Loader2, MapPin, Search, X } from "lucide-react";
 import { HttpUrlSchema, OfficeAddressCandidatesInputSchema, PreviewOfficeConfirmationInputSchema,
   type AtlasDataset, type JobLocation, type OfficeAddressCandidatesResult, type OfficeAddressProposal,
   type OfficeAddressPreview, type OfficeAddressReceipt, type PreviewOfficeConfirmationInput,
-  type ConfirmOfficeAddressInput, type RevokeOfficeAddressInput } from "@better-me/opportunities";
+  type ConfirmOfficeAddressInput, type RevokeOfficeAddressInput, type OfficeAddressCandidate } from "@better-me/opportunities";
 import countries from "../../../../../config/geography/countries.json";
 import { AtlasSourceServiceError, createAtlasSourceClient } from "./service-client";
 import "./AtlasOfficeAddressConfirmation.css";
@@ -12,6 +12,7 @@ import "./AtlasOfficeAddressConfirmation.css";
 export type AtlasOfficeAddressConfirmationProps = {
   endpoint: string; token: string; jobId: string; location: JobLocation; revision: number;
   onClose: () => void; onSnapshot: (data: AtlasDataset) => void;
+  onCandidateFocus?: (candidate: OfficeAddressCandidate) => void;
 };
 type Draft = { country: string; formattedAddress: string; streetAddress: string; postalCode: string;
   latitude: string; longitude: string; coordinateMeaning: OfficeAddressProposal["coordinateMeaning"]; evidenceUrl: string; reason: string };
@@ -38,7 +39,7 @@ export function AtlasOfficeAddressConfirmation(props: AtlasOfficeAddressConfirma
   return <OfficeAddressSession key={JSON.stringify([props.endpoint, props.token, props.jobId, props.location])} {...props} />;
 }
 
-function OfficeAddressSession({ endpoint, token, jobId, location, revision, onClose, onSnapshot }: AtlasOfficeAddressConfirmationProps) {
+function OfficeAddressSession({ endpoint, token, jobId, location, revision, onClose, onSnapshot, onCandidateFocus }: AtlasOfficeAddressConfirmationProps) {
   const client = useMemo(() => createAtlasSourceClient(endpoint, token), [endpoint, token]);
   const queryHelpId = useId();
   const [draft, setDraft] = useState(() => initial(location));
@@ -159,6 +160,7 @@ function OfficeAddressSession({ endpoint, token, jobId, location, revision, onCl
         {candidates.candidates.map(candidate => <article key={candidate.id}><strong>{candidate.proposal.formattedAddress}</strong><small>{candidate.attribution} · 估算候选 · 待核实</small>
           <p>{meaning[candidate.proposal.coordinateMeaning]} · WGS84 {candidate.proposal.coordinates.latitude}, {candidate.proposal.coordinates.longitude}</p>
           <a href={candidate.evidenceUrl} target="_blank" rel="noopener noreferrer">查看候选出处<ArrowUpRight size={12} /></a>
+          {onCandidateFocus && <button type="button" disabled={locked || staleCandidates} onClick={() => onCandidateFocus(candidate)}><MapPin size={13} />定位候选到地图</button>}
           <button type="button" disabled={locked || staleCandidates} onClick={() => edit(candidateDraft(candidate.proposal, draft.reason))}>填入表单，继续人工核对</button></article>)}
         {candidates.warnings.map(warning => <p className="atlas-small" key={warning}>{warning}</p>)}
       </div>}

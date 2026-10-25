@@ -7,10 +7,11 @@ import { AtlasDatasetSchema, GeocodingRequestSchema, GeocodingResultSchema, appl
 import { createOpportunity, OPPORTUNITY_STORAGE_KEY } from "../src/lib/opportunities.ts";
 import { createAtlasDemo } from "../src/components/atlas/demo.ts";
 import type { AtlasPrototypeProps } from "../src/components/atlas/prototypes/types.ts";
+import type { AtlasMapFocus } from "../src/components/atlas/map-focus.ts";
 import type { AtlasJobDetailProps } from "../src/components/atlas/AtlasJobDetail.tsx";
 import type { AtlasOfficeAddressConfirmationProps } from "../src/components/atlas/AtlasOfficeAddressConfirmation.tsx";
 import { queryAtlasPage } from "../src/components/atlas/client.ts";
-import { officeProposal, officeAt } from "./fixtures/atlas-office-address.ts";
+import { officeProposal, officeAt, officeCandidate } from "./fixtures/atlas-office-address.ts";
 import { createMapReferenceFixture } from "./fixtures/atlas-map-references.ts";
 import { SourceScopeSchema, buildPlatformSearchRequest, type ReviewedCardsCapture } from "@better-me/source-adapters/browser-contracts";
 import { extractJobSearchCards } from "../server/jd-search-capture.ts";
@@ -524,13 +525,15 @@ function pagedOfficeFixture() {
   }
   return AtlasDatasetSchema.parse(data);
 }
-async function saveSecondPageOffice(data: AtlasDataset, mutate?: (saved: AtlasDataset) => void) {
+async function saveSecondPageOffice(data: AtlasDataset, mutate?: (saved: AtlasDataset) => void,
+  beforeSave?: (props: AtlasOfficeAddressConfirmationProps) => Promise<void>) {
   await render(true, false); await connectFixture();
   await flush(() => button("显示更多岗位").click());
   const card = dom.document.querySelectorAll<HTMLButtonElement>(".atlas-job-card")[40]!;
   await flush(() => pointerClick(card, 0)); await flush(() => button("核对办公地址").click());
   await waitFor(() => Boolean(officeProps), "synthetic office panel callback");
   const props = officeProps!, saved = structuredClone(data); saved.revision++;
+  await beforeSave?.(props);
   const job = saved.jobs.find(value => value.id === props.jobId)!, source = saved.locations.find(value => value.id === props.location.id)!;
   const confirmed = applyOfficeAddressConfirmation(source, { id: "synthetic-page2-office", kind: "confirm", jobId: job.id, listingId: job.listingIds[0]!,
     locationId: source.id, actorScope: "synthetic-owner", at: officeAt, revision: saved.revision, reason: "Synthetic explicit office review", sourceLocation: source, proposal: officeProposal });
@@ -543,7 +546,19 @@ test("saved second-page office is rechecked outside pagination, remains selected
   const data = pagedOfficeFixture();
   const pending: Array<{ revision: number; resolve: (response: Response) => void }> = [];
   installWorkspaceFetch(async () => sourceResponse(data), async input => input.expectedRevision === data.revision ? sourceResponse(await createMapReferenceFixture(data)) : new Promise(resolve => pending.push({ revision: input.expectedRevision, resolve })));
-  const saved = await saveSecondPageOffice(data);
+  let candidateFocus: AtlasMapFocus | undefined;
+  const saved = await saveSecondPageOffice(data, undefined, async props => {
+    const revision = data.revision;
+    assert.equal(typeof props.onCandidateFocus, "function");
+    await act(async () => props.onCandidateFocus!(officeCandidate));
+    candidateFocus = mapProps!.focus;
+    assert.equal(data.revision, revision, "candidate preview must not mutate the dataset");
+    assert.equal(candidateFocus!.jobId, props.jobId); assert.equal(candidateFocus!.locationId, props.location.id);
+    assert.equal(candidateFocus!.positionBasis, "geocoder-candidate"); assert.equal(candidateFocus!.estimated, true);
+    assert.equal(candidateFocus!.verification, "unverified");
+    assert.equal(candidateFocus!.latitude, officeCandidate.proposal.coordinates.latitude);
+    assert.equal(candidateFocus!.longitude, officeCandidate.proposal.coordinates.longitude);
+  });
   await waitFor(() => mapProps?.focus?.locationId === saved.locationId, "the saved second-page office focus");
   await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 30, "the new snapshot's first page");
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30, "the list resets to its first page");

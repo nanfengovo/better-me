@@ -150,9 +150,13 @@ test("editing any candidate-query field clears old candidates and blank constrai
 });
 
 test("candidate choice only fills a manual unverified proposal; it never previews or saves automatically", async () => {
-  const calls = installFetch(); await render(fixture()); await change("办公地址查询", "Synthetic Example Road 10"); await click("查询地址候选");
+  const calls = installFetch(), focused: string[] = [], props = fixture(); props.onCandidateFocus = candidate => focused.push(candidate.id);
+  await render(props); await change("办公地址查询", "Synthetic Example Road 10"); await click("查询地址候选");
   assert.match(dom.document.querySelector(".atlas-office-candidates")!.textContent!, /估算候选.*待核实/);
-  assert.equal(field("办公地址纬度").value, ""); await click("填入表单，继续人工核对");
+  assert.equal(field("办公地址纬度").value, ""); await click("定位候选到地图");
+  assert.deepEqual(focused, [officeCandidates.candidates[0]!.id]); assert.equal(calls.length, 1);
+  assert.equal(field("办公地址纬度").value, ""); assert.equal(dom.document.querySelector(".atlas-office-preview"), null);
+  await click("填入表单，继续人工核对");
   assert.equal(field("完整办公地址").value, officeProposal.formattedAddress); assert.equal(field("办公地址纬度").value, String(officeProposal.coordinates.latitude));
   assert.equal(calls.length, 1); assert.equal(dom.document.querySelector(".atlas-office-preview"), null);
   await change("办公地址核对说明", officeReason); await click(previewLabel);

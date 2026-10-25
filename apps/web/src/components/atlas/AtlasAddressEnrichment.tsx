@@ -1,7 +1,7 @@
 /** @jsxRuntime automatic */
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Check, FileSearch, Loader2, MapPin, X } from "lucide-react";
-import type { AddressEnrichmentPlan, AddressEnrichmentPlanItem, AtlasDataset, JobLocation, OfficeAddressCandidatesResult } from "@better-me/opportunities";
+import type { AddressEnrichmentPlan, AddressEnrichmentPlanItem, AtlasDataset, JobLocation, OfficeAddressCandidate, OfficeAddressCandidatesResult } from "@better-me/opportunities";
 import { PlatformDetailLocationsSchema, reviewedCardIdentity, type ImportDetailLocationsInput, type PlatformDetailLocations,
   type CompanyCareerDiscoveryResult, type SourceFieldEvidence, type SourceRecordLocation,
   type OwnedDetailLocationsCapture, type ImportOwnedDetailLocationsInput } from "@better-me/source-adapters/browser-contracts";
@@ -15,6 +15,7 @@ export type AtlasAddressEnrichmentProps = {
   endpoint: string; token: string; data: AtlasDataset; jobIds: string[];
   onSnapshot(snapshot: AtlasDataset): void; onClose(): void;
   onOfficeSnapshot?(snapshot: AtlasDataset, location: JobLocation, jobId: string): void;
+  onOfficeCandidateFocus?(jobId: string, location: JobLocation, candidate: OfficeAddressCandidate): void;
   onReviewJob(jobId: string): void; onReviewOffice(jobId: string, locationId: string): void;
 };
 type Capture = { kind: "platform"; jobId: string; listingId: string; value: PlatformDetailLocations }
@@ -43,7 +44,7 @@ export function AtlasAddressEnrichment(props: AtlasAddressEnrichmentProps) {
   return <EnrichmentSession key={scope} {...props} jobIds={jobIds} scope={scope} loadedJobs={new Set(props.jobIds).size} />;
 }
 
-function EnrichmentSession({ endpoint, token, data, jobIds, scope, loadedJobs, onSnapshot, onClose, onOfficeSnapshot, onReviewJob, onReviewOffice }: AtlasAddressEnrichmentProps & { scope: string; loadedJobs: number }) {
+function EnrichmentSession({ endpoint, token, data, jobIds, scope, loadedJobs, onSnapshot, onClose, onOfficeSnapshot, onOfficeCandidateFocus, onReviewJob, onReviewOffice }: AtlasAddressEnrichmentProps & { scope: string; loadedJobs: number }) {
   const client = useMemo(() => createAtlasSourceClient(endpoint, token), [endpoint, token]);
   const [restored] = useState(() => recovery.get(scope));
   const [rows, setRows] = useState<Row[]>(restored?.rows ?? []);
@@ -271,6 +272,7 @@ function EnrichmentSession({ endpoint, token, data, jobIds, scope, loadedJobs, o
     <button type="button" onClick={() => setOfficeReview(undefined)}>返回批量结果</button>
     <Suspense fallback={<p role="status"><Loader2 size={14} className="animate-spin" />正在打开办公地址核对</p>}><OfficeConfirmation
       endpoint={endpoint} token={token} jobId={officeReview.jobId} location={officeLocation} revision={officeReview.snapshot.revision}
+      onCandidateFocus={candidate => onOfficeCandidateFocus?.(officeReview.jobId, officeLocation, candidate)}
       onClose={() => setOfficeReview(undefined)} onSnapshot={snapshot => {
         if (closed.current || snapshot.revision < Math.max(latest.current.revision, officeReview.snapshot.revision)) return;
         const location = snapshot.locations.find(value => value.id === officeReview.locationId);

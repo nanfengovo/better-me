@@ -1,4 +1,4 @@
-import type { GeocodingCandidate, JobLocation, JobSearchItem, LocationPrecision } from "@better-me/opportunities";
+import type { GeocodingCandidate, JobLocation, JobSearchItem, LocationPrecision, OfficeAddressCandidate } from "@better-me/opportunities";
 
 /** A camera request and its transient highlight, never a persisted geocoding result. */
 export type AtlasMapFocus = {
@@ -13,7 +13,7 @@ export type AtlasMapFocus = {
   precision?: LocationPrecision;
   verification?: JobLocation["verification"];
   estimated?: boolean;
-  positionBasis?: "city-reference" | "office-confirmation";
+  positionBasis?: "city-reference" | "office-confirmation" | "geocoder-candidate";
   color?: string;
   /** Temporary screen offset supplied by the workspace to keep the pin beside its detail panel. */
   viewportOffset?: [number, number];
@@ -83,12 +83,24 @@ export function createJobMapFocus(item: FocusJob, requestId: string, options: Fo
   };
 }
 
+/** A geocoder proposal is a transient map preview until the person reviews and saves it. */
+export function createOfficeCandidateMapFocus(jobId: string, jobLabel: string, location: JobLocation,
+  candidate: OfficeAddressCandidate, requestId: string): AtlasMapFocus | null {
+  const { proposal } = candidate;
+  if (!jobId || location.kind !== "office" || location.evidence.length === 0 || candidate.estimated !== true
+    || candidate.verification !== "unverified" || proposal.coordinates.coordinateSystem !== "WGS84"
+    || (location.countryCode && location.countryCode !== proposal.countryCode) || !validMapFocus(proposal.coordinates)) return null;
+  return { requestId, jobId, locationId: location.id, longitude: proposal.coordinates.longitude, latitude: proposal.coordinates.latitude,
+    label: jobLabel || "办公地址候选", locationLabel: proposal.formattedAddress, precision: "address", verification: "unverified",
+    estimated: true, positionBasis: "geocoder-candidate", zoom: precisionZoom.address };
+}
+
 export function mapFocusPrecisionLabel(target: AtlasMapFocus): string {
   const precision: Record<LocationPrecision, string> = {
     country: "国家级概略位置", region: "地区级概略位置", city: "城市级估算 · 非办公地址",
     street: "街道级估算 · 非精确办公地址", address: "地址级坐标", manual: "手动设置位置", unknown: "位置精度未说明",
   };
-  const label = `${target.positionBasis === "city-reference" ? "城市分布参考 · " : target.positionBasis === "office-confirmation" ? "本人核对的办公位置 · " : ""}${precision[target.precision ?? "unknown"]}`;
+  const label = `${target.positionBasis === "city-reference" ? "城市分布参考 · " : target.positionBasis === "office-confirmation" ? "本人核对的办公位置 · " : target.positionBasis === "geocoder-candidate" ? "地址查询候选 · 估算位置 · 尚未保存 · " : ""}${precision[target.precision ?? "unknown"]}`;
   if (target.verification === "conflicting") return `${label} · 来源有冲突`;
   if (target.verification !== "verified") return `${label} · 待核实`;
   return label;

@@ -4,7 +4,8 @@ import { Window } from "happy-dom";
 import { GeocodingCandidateSchema, LocationDistanceSchema, evaluateLocationDistance, queryJobs, type JobSearchItem } from "@better-me/opportunities";
 import { createAtlasDemo } from "../src/components/atlas/demo.ts";
 import { createMapReferenceFixture } from "./fixtures/atlas-map-references.ts";
-import { activeMapFocus, createJobMapFocus, createMapFocusMarker, mapFocusCameraOptions, mapFocusPrecisionLabel, validMapFocus } from "../src/components/atlas/map-focus.ts";
+import { activeMapFocus, createJobMapFocus, createMapFocusMarker, createOfficeCandidateMapFocus, mapFocusCameraOptions, mapFocusPrecisionLabel, validMapFocus } from "../src/components/atlas/map-focus.ts";
+import { officeCandidate, officeJobId, officeSource } from "./fixtures/atlas-office-address.ts";
 
 async function item(): Promise<JobSearchItem> {
   const data = createAtlasDemo();
@@ -62,6 +63,17 @@ test("a reviewed office point takes priority over a city, retains its address an
   assert.equal(distance.reason, "available"); assert.equal(distance.distance?.estimated, true);
   assert.equal(LocationDistanceSchema.safeParse(distance.distance).success, true);
   assert.equal(createJobMapFocus(input, "city-only", { locationId: input.locations[0]!.id })!.precision, "city");
+});
+
+test("an office geocoder candidate focuses transiently at address zoom and stays explicitly unverified", () => {
+  const target = createOfficeCandidateMapFocus(officeJobId, "Synthetic role", officeSource, officeCandidate, "candidate-office")!;
+  assert.equal(target.jobId, officeJobId); assert.equal(target.locationId, officeSource.id);
+  assert.equal(target.latitude, officeCandidate.proposal.coordinates.latitude); assert.equal(target.longitude, officeCandidate.proposal.coordinates.longitude);
+  assert.equal(target.precision, "address"); assert.equal(target.zoom, 16.5); assert.equal(target.estimated, true);
+  assert.equal(target.verification, "unverified"); assert.equal(target.positionBasis, "geocoder-candidate");
+  assert.match(mapFocusPrecisionLabel(target), /地址查询候选.*估算位置.*尚未保存.*地址级坐标.*待核实/);
+  const invalid = createOfficeCandidateMapFocus(officeJobId, "Synthetic role", { ...officeSource, countryCode: "US" }, officeCandidate, "invalid-country");
+  assert.equal(invalid, null);
 });
 
 test("snapshot-derived city references focus directly without office coordinates or building zoom, while source coordinates win", async () => {
