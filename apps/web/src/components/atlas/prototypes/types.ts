@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import type { MapBucket } from "@better-me/opportunities";
 import type { AtlasBasemapConfig } from "./basemaps";
 import type { AtlasMapFocus } from "../map-focus";
+import type { AdminBoundaryHighlight } from "../admin-boundary-service";
 
 export type AtlasMode = "global" | "domestic";
 export type AtlasRegionSelection = { id: string; name: string; countryCode?: string };
@@ -12,6 +13,7 @@ export type AtlasPrototypeProps = {
   selectedBucketId?: string;
   selectedJobId?: string;
   selectedRegionId?: string;
+  adminBoundary?: AdminBoundaryHighlight | null;
   bounds?: readonly [west: number, south: number, east: number, north: number];
   /** Caps fitBounds so a city estimate cannot zoom to building scale. */
   boundsMaxZoom?: number;
@@ -73,7 +75,7 @@ export async function loadBoundary(mode: AtlasMode, signal: AbortSignal): Promis
   if (!value || typeof value !== "object" || !("type" in value) || value.type !== "FeatureCollection" || !("features" in value) || !Array.isArray(value.features)) throw new Error("Invalid local atlas boundary asset.");
   return value as BoundaryCollection;
 }
-export const prototypeFrameStyle: CSSProperties = { position: "relative", width: "100%", height: "100%", minHeight: 380, overflow: "hidden", isolation: "isolate", borderRadius: 20, background: PROTOTYPE_BACKGROUND };
+export const prototypeFrameStyle: CSSProperties = { position: "relative", width: "100%", height: "100%", minHeight: 0, overflow: "hidden", isolation: "isolate", borderRadius: 20, background: PROTOTYPE_BACKGROUND };
 export const canvasHostStyle: CSSProperties = { position: "absolute", inset: 0 };
 export const creditStyle: CSSProperties = { position: "absolute", left: 18, bottom: 12, zIndex: 2, font: "10px/1.4 system-ui,sans-serif", color: "#9ab1bb", letterSpacing: ".04em", pointerEvents: "none" };
 export const errorStyle: CSSProperties = { position: "absolute", inset: 0, display: "grid", placeItems: "center", padding: 32, color: "#d5e6e9", textAlign: "center", font: "13px/1.7 system-ui,sans-serif", background: "#091925e8" };

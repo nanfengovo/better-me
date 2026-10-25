@@ -1,5 +1,5 @@
 import {
-  AtlasDatasetSchema, JobQueryError, JobQuerySchema, queryJobs,
+  AtlasDatasetSchema, DEFAULT_TECHNICAL_ALIASES, JobQueryError, JobQuerySchema, queryJobs,
   type AtlasDataset, type JobQueryInput, type JobQueryResult, type JobSearchItem, type QueryOptions,
 } from "@better-me/opportunities";
 
@@ -11,7 +11,7 @@ export class AtlasClientError extends Error {
 }
 
 type SnapshotOptions = { signal?: AbortSignal; maxBytes?: number };
-const DEFAULT_MAX_BYTES = 32 * 1024 * 1024;
+const DEFAULT_MAX_BYTES = 64 * 1024 * 1024;
 function tooLarge(): AtlasClientError {
   return new AtlasClientError("too-large", "索引超过当前浏览器快照模式的字节上限，请缩小采集范围。");
 }
@@ -92,19 +92,23 @@ export type AtlasPageResult = { summary: JobQueryResult; page: JobQueryResult };
 /** Keep map/statistics on the base query; the list has its own genuine shared-query cursor. */
 export async function queryAtlasPage(data: AtlasDataset, query: JobQueryInput, options: QueryOptions = {}, { cursor, selectedJobIds, signal }: AtlasPageOptions = {}): Promise<AtlasPageResult> {
   signal?.throwIfAborted();
+  const effectiveOptions: QueryOptions = {
+    ...options,
+    aliases: options.aliases ?? DEFAULT_TECHNICAL_ALIASES,
+  };
   const baseQuery: JobQueryInput = { ...query, page: { limit: query.page?.limit } };
   if (selectedJobIds === undefined) {
-    const result = await queryJobs(data, { ...baseQuery, page: { ...baseQuery.page, ...(cursor ? { cursor } : {}) } }, options);
+    const result = await queryJobs(data, { ...baseQuery, page: { ...baseQuery.page, ...(cursor ? { cursor } : {}) } }, effectiveOptions);
     signal?.throwIfAborted();
     return { summary: result, page: result };
   }
   const selection = JobQuerySchema.shape.jobIds.safeParse(selectedJobIds);
   if (!selection.success) throw new JobQueryError("invalid-query", "所选岗位 ID 不符合岗位查询契约。");
-  const summary = await queryJobs(data, baseQuery, options);
+  const summary = await queryJobs(data, baseQuery, effectiveOptions);
   signal?.throwIfAborted();
   const baseIds = query.jobIds === undefined ? undefined : new Set(query.jobIds);
   const jobIds = [...new Set(selection.data)].filter((id) => !baseIds || baseIds.has(id)).sort();
-  const page = await queryJobs(data, { ...baseQuery, jobIds, page: { ...baseQuery.page, ...(cursor ? { cursor } : {}) } }, options);
+  const page = await queryJobs(data, { ...baseQuery, jobIds, page: { ...baseQuery.page, ...(cursor ? { cursor } : {}) } }, effectiveOptions);
   signal?.throwIfAborted();
   return { summary, page };
 }

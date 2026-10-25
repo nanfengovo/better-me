@@ -19,7 +19,8 @@ export function atlasBucketData(input: readonly MapBucket[]): BucketGeoJSON {
     const colors = categories(bucket), base = bucketRadius(bucket);
     const point = { type: "Point" as const, coordinates: [bucket.longitude, bucket.latitude] as [number, number] };
     const precision = bucketPrecisionLabel(bucket);
-    const label = `${bucket.label} · ${bucket.jobCount}${precision ? ` · ${precision}` : ""}`;
+    const place = bucket.label.length > 28 ? `${bucket.label.slice(0, 26)}…` : bucket.label;
+    const label = `${place} · ${bucket.jobCount}${precision ? ` · ${precision}` : ""}`;
     const grade = bucket.displayGrade ?? (bucket.positionBasis === "city-reference" ? "city" : "");
     features.push({ type: "Feature", geometry: point, properties: { bucketId: bucket.id, kind: "core", color: colors.length === 1 ? colors[0]!.color : "#a5bbb6", radius: base * .46, label, labelVisible: labelIds.has(bucket.id), grade } });
     colors.forEach((category, index) => features.push({ type: "Feature", geometry: point, properties: { bucketId: bucket.id, kind: "category", color: category.color, radius: base * .58 + index * 2.1, label, labelVisible: false, grade } }));

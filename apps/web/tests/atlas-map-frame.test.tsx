@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { MapBucket } from "@better-me/opportunities";
-import { frameSearchMap } from "../src/components/atlas/map-frame.ts";
+import { frameAdminRegion, frameSearchMap } from "../src/components/atlas/map-frame.ts";
 import { atlasBucketData } from "../src/components/atlas/prototypes/map-performance.ts";
 
 const bucket = (id: string, latitude: number, longitude: number, grade: MapBucket["displayGrade"], positionBasis?: MapBucket["positionBasis"]): MapBucket => ({
@@ -28,6 +28,16 @@ test("search framing follows plotted points and refuses to treat a city estimate
   assert.ok(offices.bounds[1] < 31.03 && offices.bounds[3] > 31.23);
   const worldwide = frameSearchMap([bucket("west", 47, -122, "city"), bucket("east", -33, 151, "city")]);
   assert.equal(worldwide, null);
+});
+
+test("empty domestic results frame the selected province outline, not a continent", () => {
+  assert.equal(frameAdminRegion(undefined), null);
+  assert.equal(frameAdminRegion("NOPE"), null);
+  const shanghai = frameAdminRegion("CN-SH");
+  assert.ok(shanghai);
+  assert.deepEqual(shanghai.bounds, [120.865, 30.691, 121.987, 31.841]);
+  assert.equal(shanghai.maxZoom, 8);
+  assert.ok(shanghai.bounds[2] - shanghai.bounds[0] < 2);
 });
 
 test("map labels name office, street and city grades without drawing a city reference as an office building", () => {

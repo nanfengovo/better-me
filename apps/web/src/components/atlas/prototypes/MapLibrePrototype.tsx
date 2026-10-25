@@ -5,7 +5,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "../map-focus.css";
 import { activeMapFocus, createMapFocusMarker, mapFocusCameraOptions, mapFocusPrecisionLabel } from "../map-focus";
 import { ATLAS_BASEMAPS, attributionHtml, DEFAULT_ATLAS_BASEMAP, parseAtlasBasemap } from "./basemaps";
-import { canvasHostStyle, CHINA_BOUNDS, creditStyle, errorStyle, loadBoundary, NATURAL_EARTH_CREDIT, prototypeFrameStyle, regionSelection, type AtlasPrototypeProps, type BoundaryFeature, type PrototypeHandle } from "./types";
+import { canvasHostStyle, creditStyle, errorStyle, loadBoundary, NATURAL_EARTH_CREDIT, prototypeFrameStyle, regionSelection, type AtlasPrototypeProps, type BoundaryFeature, type PrototypeHandle } from "./types";
 import { atlasBucketData, createAtlasHover, createAtlasMapUpdates } from "./map-performance";
 
 // Vite's optimized module URL does not preserve the upstream worker's sibling path.
@@ -18,6 +18,19 @@ function featureBounds(feature: BoundaryFeature): [number, number, number, numbe
   longitudes.forEach((longitude, index) => { const gap = (longitudes[(index + 1) % longitudes.length]! + (index === longitudes.length - 1 ? 360 : 0)) - longitude; if (gap > largestGap) { largestGap = gap; start = (index + 1) % longitudes.length; } });
   const west = longitudes[start]!; const east = west + 360 - largestGap;
   return [west > 180 ? west - 360 : west, Math.min(...positions.map((point) => point[1])), east > 180 && west > 180 ? east - 360 : east, Math.max(...positions.map((point) => point[1]))];
+}
+
+/** Globe diameter at zoom z is 512·2^z / π. Fit the disk to the stage so the overview is a globe, not an empty ocean crop. */
+function globeFillZoom(width: number, height: number) {
+  const safeW = width > 40 ? width : 480;
+  const safeH = height > 40 ? height : 420;
+  const diameter = Math.min(safeW, safeH) * 0.98;
+  const zoom = Math.log2((diameter * Math.PI) / 512);
+  return Math.max(1.2, Math.min(1.9, zoom));
+}
+
+function wideGlobeBounds(target: [number, number, number, number]) {
+  return Math.abs(target[2] - target[0]) > 50 || Math.abs(target[3] - target[1]) > 35;
 }
 
 /** One continuous WGS84 camera: dotted globe → countries → vector streets/buildings. */
@@ -36,7 +49,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
     const openingFocus = latest.current.focus;
     const provider = basemapKey === "null" ? null : parseAtlasBasemap(JSON.parse(basemapKey));
     let stopped = false; let map: Map | undefined; let observer: ResizeObserver | undefined; let rotationFrame = 0;
-    let rotationResume: ReturnType<typeof setTimeout> | undefined, interacting = false; let cancelHover = () => {};
+    let rotationResume: ReturnType<typeof setTimeout> | undefined, interacting = false, userMoved = false; let cancelHover = () => {};
     let focusMarker: Marker | undefined; let markerSignature = "";
     const abort = new AbortController(); const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const report = (error: unknown) => { if (stopped || abort.signal.aborted) return; setFailure("三维地图暂不可用，仍可通过岗位列表浏览与选择。"); latest.current.onError?.(error instanceof Error ? error : new Error("Map renderer unavailable.")); };
@@ -54,7 +67,12 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
     void (async () => {
       const boundary = await loadBoundary(mode, abort.signal);
       const initialBuckets = latest.current.buckets, initialBucketData = atlasBucketData(initialBuckets);
-      const sources: Record<string, SourceSpecification> = { boundaries: { type: "geojson", data: boundary }, buckets: { type: "geojson", data: initialBucketData } };
+      const initialAdminBoundary = latest.current.adminBoundary?.geoJson ?? { type: "FeatureCollection", features: [] };
+      const sources: Record<string, SourceSpecification> = {
+        boundaries: { type: "geojson", data: boundary },
+        buckets: { type: "geojson", data: initialBucketData },
+        "admin-highlight": { type: "geojson", data: initialAdminBoundary as any },
+      };
       const remoteLayers: LayerSpecification[] = []; let remote: Partial<StyleSpecification> = {};
       if (provider?.type === "vector-style") {
         try {
@@ -81,16 +99,54 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
           { id: "regions", type: "fill-extrusion" as const, source: "boundaries", maxzoom: 6.6, paint: { "fill-extrusion-color": light ? "#829fa8" : "#153f57", "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 3, 24_000, 4.5, 24_000, 6.5, 0], "fill-extrusion-base": 0, "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 3, .9, 4.5, .85, 6.5, 0], "fill-extrusion-vertical-gradient": true } } as LayerSpecification,
         ]),
         { id: "boundaries", type: "line", source: "boundaries", maxzoom: 7, paint: { "line-color": light ? "#497885" : "#7ec2d0", "line-width": mode === "global" ? .45 : .85, "line-opacity": ["interpolate", ["linear"], ["zoom"], 0, mode === "global" ? .15 : .8, 4.5, mode === "global" ? .25 : .65, 6.5, 0] } },
+        {
+          id: "admin-highlight-fill",
+          type: "fill",
+          source: "admin-highlight",
+          paint: {
+            "fill-color": ["coalesce", ["get", "fillColor"], light ? "rgba(2,132,199,0.06)" : "rgba(0,240,255,0.08)"],
+            "fill-opacity": 0.75,
+          },
+        },
+        {
+          id: "admin-highlight-glow",
+          type: "line",
+          source: "admin-highlight",
+          layout: {
+            "line-join": "round",
+            "line-cap": "round",
+          },
+          paint: {
+            "line-color": ["coalesce", ["get", "glowColor"], light ? "#38bdf8" : "#38bdf8"],
+            "line-width": ["interpolate", ["linear"], ["zoom"], 4, 3, 8, 5, 12, 7],
+            "line-blur": ["interpolate", ["linear"], ["zoom"], 4, 1.5, 8, 2.5, 12, 3.5],
+            "line-opacity": 0.65,
+          },
+        },
+        {
+          id: "admin-highlight-stroke",
+          type: "line",
+          source: "admin-highlight",
+          layout: {
+            "line-join": "round",
+            "line-cap": "round",
+          },
+          paint: {
+            "line-color": ["coalesce", ["get", "color"], light ? "#0284c7" : "#00f0ff"],
+            "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.6, 8, 2.2, 12, 2.8],
+            "line-opacity": 0.96,
+          },
+        },
         { id: "bucket-glow", type: "circle", source: "buckets", filter: ["==", ["get", "kind"], "core"], paint: { "circle-radius": ["+", ["get", "radius"], 7], "circle-color": ["get", "color"], "circle-blur": .8, "circle-opacity": light ? .22 : .35 } },
         { id: "bucket-selection", type: "circle", source: "buckets", filter: ["all", ["==", ["get", "kind"], "core"], ["==", ["get", "bucketId"], ""]], paint: { "circle-radius": ["+", ["get", "radius"], 8], "circle-color": light ? "#215b55" : "#d3ffed", "circle-opacity": .10, "circle-stroke-color": light ? "#215b55" : "#d3ffed", "circle-stroke-width": 1.4 } },
         { id: "bucket-rings", type: "circle", source: "buckets", filter: ["==", ["get", "kind"], "category"], paint: { "circle-radius": ["get", "radius"], "circle-color": "#ffffff", "circle-opacity": 0, "circle-stroke-color": ["get", "color"], "circle-stroke-width": 1.6, "circle-stroke-opacity": .96, "circle-pitch-alignment": "viewport" } },
         { id: "bucket-cores", type: "circle", source: "buckets", filter: ["==", ["get", "kind"], "core"], paint: { "circle-radius": ["get", "radius"], "circle-color": ["get", "color"], "circle-stroke-color": ["match", ["get", "grade"], "city", light ? "#215b55" : "#d3ffed", "building", light ? "#123c36" : "#f4fff9", light ? "#ffffff" : "#d4f4ec"], "circle-stroke-width": ["match", ["get", "grade"], "city", 2.1, "building", 1.5, "street", 1.2, 0.65], "circle-opacity": ["match", ["get", "grade"], "city", 0.22, "street", 0.72, 0.96] } },
-        ...(remote.glyphs ? [{ id: "bucket-labels", type: "symbol" as const, source: "buckets", filter: ["all", ["==", ["get", "kind"], "core"], ["==", ["get", "labelVisible"], true]], layout: { "text-field": ["get", "label"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.9], "text-anchor": "top", "text-padding": 6, "text-max-width": 16 }, paint: { "text-color": light ? "#263d42" : "#d9eaf0", "text-halo-color": background, "text-halo-width": 2 } } as LayerSpecification] : []),
+        ...(remote.glyphs ? [{ id: "bucket-labels", type: "symbol" as const, source: "buckets", filter: ["all", ["==", ["get", "kind"], "core"], ["==", ["get", "labelVisible"], true]], layout: { "text-field": ["get", "label"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.6], "text-anchor": "top", "text-padding": 8, "text-max-width": 10 }, paint: { "text-color": light ? "#263d42" : "#d9eaf0", "text-halo-color": background, "text-halo-width": 2 } } as LayerSpecification] : []),
       ];
       const savedView = latest.current.initialView;
       map = new Map({ container: element, center: mode === "global" ? [104, 26] : [104, 35], zoom: mode === "global" ? 1.65 : 3.1, pitch: mode === "domestic" ? 46 : 0, bearing: mode === "domestic" ? -12 : 0, ...savedView,
         maxZoom: provider?.maxZoom ?? 22, minZoom: .1, maxPitch: 75, pixelRatio: Math.min(window.devicePixelRatio || 1, maxDpr), attributionControl: false, cancelPendingTileRequestsWhileZooming: true,
-        style: { version: 8, ...remote, sources, layers } });
+        style: { version: 8, ...remote, projection: { type: mode === "global" ? "globe" : "mercator" }, sources, layers } });
       const ownedMap = map;
       ownedMap.addControl(new NavigationControl({ visualizePitch: true }), "top-right"); ownedMap.addControl(new ScaleControl({ maxWidth: 100, unit: "metric" }), "bottom-left");
       if (provider) ownedMap.addControl(new AttributionControl({ compact: false, customAttribution: attributionHtml(provider) }), "bottom-right");
@@ -103,14 +159,29 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
       ownedMap.on("load", () => {
         if (stopped) return;
         ownedMap.setProjection({ type: mode === "global" ? "globe" : "mercator" });
+        ownedMap.resize();
         ownedMap.setSky({ "sky-color": background, "horizon-color": light ? "#d5deda" : "#2b526d", "fog-color": light ? "#eef0ee" : "#080f18", "atmosphere-blend": mode === "global" ? .90 : 0 });
         ownedMap.setLight({ anchor: "viewport", color: light ? "#ffffff" : "#b9e7f1", intensity: .62, position: [1.5, 190, 45] });
-        const fit = (bounds = latest.current.bounds) => {
-          const target = bounds ?? (mode === "domestic" ? CHINA_BOUNDS : undefined);
-          const cap = bounds && Number.isFinite(latest.current.boundsMaxZoom) ? latest.current.boundsMaxZoom! : 16;
-          if (!target) return;
+        const frameWideGlobe = (target?: [number, number, number, number]) => {
+          const zoom = globeFillZoom(element.clientWidth, element.clientHeight);
+          const center: [number, number] = target
+            ? [(target[0] + target[2]) / 2, Math.max(-46, Math.min(52, (target[1] + target[3]) / 2))]
+            : [105, 28];
           ownedMap.stop();
-          ownedMap.fitBounds([[target[0], target[1]], [target[2], target[3]]], { padding: { top: 62, bottom: 72, left: 42, right: 48 }, duration: motion.matches || !entrance ? 0 : 900, maxZoom: Math.min(16, Math.max(1, cap)), pitch: mode === "domestic" ? 46 : 0, bearing: mode === "domestic" ? -12 : 0 });
+          ownedMap.jumpTo({ center, zoom, pitch: 0, bearing: 0 });
+        };
+        const fit = (bounds = latest.current.bounds) => {
+          if (!bounds) {
+            ownedMap.stop();
+            if (mode === "domestic") ownedMap.jumpTo({ center: [104, 35], zoom: 3.1, pitch: 46, bearing: -12 });
+            else frameWideGlobe();
+            return;
+          }
+          const cap = Number.isFinite(latest.current.boundsMaxZoom) ? latest.current.boundsMaxZoom! : 16;
+          const mutableBounds: [number, number, number, number] = [bounds[0], bounds[1], bounds[2], bounds[3]];
+          if (mode === "global" && wideGlobeBounds(mutableBounds)) { frameWideGlobe(mutableBounds); return; }
+          ownedMap.stop();
+          ownedMap.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: { top: 62, bottom: 72, left: 42, right: 48 }, duration: motion.matches || !entrance ? 0 : 900, maxZoom: Math.min(16, Math.max(1, cap)), pitch: mode === "domestic" ? 46 : 0, bearing: mode === "domestic" ? -12 : 0 });
         };
         const focus = (target: NonNullable<AtlasPrototypeProps["focus"]>) => { const options = mapFocusCameraOptions(target, provider?.maxZoom ?? 22, motion.matches); if (!options) return; stopRotation(); ownedMap.stop(); ownedMap.flyTo(options); };
         const highlight = (current: AtlasPrototypeProps) => {
@@ -135,6 +206,26 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
         let rotating = latest.current.visual?.autoRotate === true;
         const update = (current: AtlasPrototypeProps) => {
           updateFacts(current); highlight(current);
+          const highlightSource = ownedMap.getSource("admin-highlight") as GeoJSONSource | undefined;
+          if (highlightSource) {
+            highlightSource.setData((current.adminBoundary?.geoJson ?? { type: "FeatureCollection", features: [] }) as any);
+          }
+          // When an official administrative boundary is active, suppress the coarse Natural Earth boundary and 3D extrusion
+          // for the selected province so they do not overlap or cut across coastlines.
+          if (ownedMap.getLayer("boundaries")) {
+            if (current.adminBoundary && current.selectedRegionId) {
+              ownedMap.setFilter("boundaries", ["!=", ["get", "id"], current.selectedRegionId]);
+            } else {
+              ownedMap.setFilter("boundaries", null);
+            }
+          }
+          if (ownedMap.getLayer("regions")) {
+            if (current.adminBoundary && current.selectedRegionId) {
+              ownedMap.setFilter("regions", ["!=", ["get", "id"], current.selectedRegionId]);
+            } else {
+              ownedMap.setFilter("regions", null);
+            }
+          }
           if (rotating !== (current.visual?.autoRotate === true)) { rotating = current.visual?.autoRotate === true; rotate(); }
         };
         handle.current = { fit, update, focus, dispose: () => { focusMarker?.remove(); ownedMap.getCanvas().removeEventListener("webglcontextlost", lost); ownedMap.getCanvas().removeEventListener("webglcontextrestored", restored); } };
@@ -144,7 +235,14 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
         else if (savedView) ownedMap.jumpTo(savedView);
         else if (latest.current.focus) focus(latest.current.focus);
         else fit();
-        observer = new ResizeObserver(() => { ownedMap.resize(); }); observer.observe(element);
+        observer = new ResizeObserver(() => {
+          ownedMap.resize();
+          if (userMoved || mode !== "global") return;
+          const target = latest.current.bounds;
+          if (target && !wideGlobeBounds([target[0], target[1], target[2], target[3]])) return;
+          const zoom = globeFillZoom(element.clientWidth, element.clientHeight);
+          if (Math.abs(ownedMap.getZoom() - zoom) > 0.08) ownedMap.jumpTo({ center: ownedMap.getCenter().toArray() as [number, number], zoom });
+        }); observer.observe(element);
         ownedMap.once("render", () => { if (!stopped) { latest.current.onReady?.(); viewChanged(); } }); rotate();
       });
       ownedMap.on("click", (event) => {
@@ -165,19 +263,58 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
       ownedMap.getCanvas().addEventListener("mouseleave", leave);
       const pauseInteraction = () => { interacting = true; if (rotationResume) clearTimeout(rotationResume); rotationResume = undefined; stopRotation(); hover.cancel(); ownedMap.getCanvas().style.cursor = "grabbing"; };
       const resumeInteraction = () => { if (rotationResume) clearTimeout(rotationResume); ownedMap.getCanvas().style.cursor = "grab"; rotationResume = setTimeout(() => { rotationResume = undefined; interacting = false; rotate(); }, 700); };
-      ownedMap.on("dragstart", pauseInteraction); ownedMap.on("dragend", resumeInteraction); ownedMap.on("zoomstart", pauseInteraction); ownedMap.on("zoomend", resumeInteraction);
+      ownedMap.on("dragstart", () => { userMoved = true; pauseInteraction(); }); ownedMap.on("wheel", () => { userMoved = true; }); ownedMap.on("dragend", resumeInteraction); ownedMap.on("zoomstart", pauseInteraction); ownedMap.on("zoomend", resumeInteraction);
       ownedMap.on("rotatestart", pauseInteraction); ownedMap.on("rotateend", resumeInteraction); ownedMap.on("pitchstart", pauseInteraction); ownedMap.on("pitchend", resumeInteraction);
       abort.signal.addEventListener("abort", () => ownedMap.getCanvas().removeEventListener("mouseleave", leave), { once: true });
     })().catch(report);
     return () => { stopped = true; abort.abort(); stopRotation(); if (rotationResume) clearTimeout(rotationResume); cancelHover(); observer?.disconnect(); document.removeEventListener("visibilitychange", visibility); motion.removeEventListener("change", motionChange); handle.current?.dispose(); handle.current = null; map?.remove(); };
   }, [mode, background, maxDpr, entrance, basemapKey, light]);
-  useEffect(() => { handle.current?.update(latest.current); }, [props.buckets, props.selectedBucketId, props.selectedRegionId, props.focus, props.selectedJobId, props.visual?.autoRotate]);
+  useEffect(() => { handle.current?.update(latest.current); }, [props.buckets, props.selectedBucketId, props.selectedRegionId, props.focus, props.selectedJobId, props.visual?.autoRotate, props.adminBoundary]);
   useEffect(() => { handle.current?.fit(props.bounds); }, [props.bounds, props.boundsMaxZoom]);
   useEffect(() => { if (props.focus) handle.current?.focus?.(props.focus); }, [props.focus]);
   const visibleFocus = activeMapFocus(props.focus, props.selectedJobId);
   return <div className={props.className} data-atlas-renderer="maplibre" data-atlas-mode={mode} data-atlas-basemap={basemap?.id ?? "offline"} style={{ ...prototypeFrameStyle, background, ...props.style }}>
     <div ref={host} style={canvasHostStyle} aria-label={mode === "global" ? "全球岗位三维地球，可连续缩放到街道，拖拽与方向键移动" : "国内岗位三维省域地图，可连续缩放到街道，拖拽与方向键移动"} />
     <a href={`${import.meta.env.BASE_URL}legal/geography/`} target="_blank" rel="noopener noreferrer" style={{ ...creditStyle, bottom: 34, color: light ? "#52665f" : "#9ab1bb", pointerEvents: "auto", textDecoration: "none" }}>{NATURAL_EARTH_CREDIT}</a>
+    {props.adminBoundary && (
+      <div
+        className={`atlas-admin-boundary-badge${light ? " light" : ""}`}
+        role="status"
+        aria-live="polite"
+        style={{
+          position: "absolute",
+          top: 14,
+          left: 14,
+          zIndex: 3,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 7,
+          padding: "5px 12px",
+          borderRadius: 9999,
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: "0.02em",
+          background: light ? "rgba(255, 255, 255, 0.94)" : "rgba(10, 20, 30, 0.90)",
+          color: props.adminBoundary.color,
+          border: `1.5px solid ${props.adminBoundary.color}`,
+          boxShadow: `0 0 14px ${props.adminBoundary.glowColor}55`,
+          backdropFilter: "blur(10px)",
+          pointerEvents: "none",
+        }}
+      >
+        <span
+          style={{
+            display: "inline-block",
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: props.adminBoundary.color,
+            boxShadow: `0 0 8px ${props.adminBoundary.glowColor}`,
+          }}
+        />
+        <span>{props.adminBoundary.levelLabel}：{props.adminBoundary.name}</span>
+      </div>
+    )}
     {visibleFocus && <div className={`atlas-focus-status${light ? " light" : ""}`} role="status" aria-live="polite">已定位{visibleFocus.label ? `：${visibleFocus.label} · ` : " · "}{mapFocusPrecisionLabel(visibleFocus)}</div>}
     {basemapWarning && <div role="status" style={{ position: "absolute", left: 14, top: 14, right: 58, zIndex: 3, color: light ? "#725719" : "#ddcf9d", background: light ? "#fff9e9eb" : "#14232ae8", border: "1px solid #8b80504d", borderRadius: 8, padding: "9px 12px", font: "11px/1.6 system-ui" }}>{basemapWarning}</div>}
     {failure && <div role="alert" style={errorStyle}>{failure}</div>}

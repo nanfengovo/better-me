@@ -28,6 +28,10 @@ import {
   ConfirmOfficeAddressInputSchema, RevokeOfficeAddressInputSchema, OfficeAddressPreviewSchema, OfficeAddressReceiptSchema,
   sameLocationValue, type OfficeAddressCandidatesInput, type PreviewOfficeConfirmationInput,
   type ConfirmOfficeAddressInput, type RevokeOfficeAddressInput, type OfficeAddressProposal, type JobLocation,
+  PreviewCompanyControllerOverrideInputSchema, CompanyControllerOverridePreviewSchema,
+  ConfirmCompanyControllerOverrideInputSchema, CompanyControllerOverrideReceiptSchema,
+  RevokeCompanyControllerOverrideInputSchema,
+  type PreviewCompanyControllerOverrideInput, type ConfirmCompanyControllerOverrideInput, type RevokeCompanyControllerOverrideInput,
 } from "@better-me/opportunities";
 
 export const AtlasSourceListSchema = z.object({ sources: z.array(SourceDefinitionSchema), adapters: z.array(SourceAdapterMetadataSchema) }).strict();
@@ -386,6 +390,9 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
     },
     previewReviewedCards: (value: PreviewReviewedCardsInput, options: Options = {}) => request("jobs/reviewed-cards/preview", ReviewedCardsPreviewSchema, options, input(PreviewReviewedCardsInputSchema, value)),
     importReviewedCards: (value: ImportReviewedCardsInput, options: WriteOptions) => request("jobs/reviewed-cards/import", ReceiptSchema, options, input(ImportReviewedCardsInputSchema, value), input(KeySchema, options.idempotencyKey)),
+    previewCompanyControllerOverride: (value: PreviewCompanyControllerOverrideInput, options: Options = {}) => request("companies/controllers/preview", CompanyControllerOverridePreviewSchema, options, input(PreviewCompanyControllerOverrideInputSchema, value)),
+    confirmCompanyControllerOverride: (value: ConfirmCompanyControllerOverrideInput, options: WriteOptions) => request("companies/controllers/confirm", CompanyControllerOverrideReceiptSchema, options, input(ConfirmCompanyControllerOverrideInputSchema, value), input(KeySchema, options.idempotencyKey)),
+    revokeCompanyControllerOverride: (value: RevokeCompanyControllerOverrideInput, options: WriteOptions) => request("companies/controllers/revoke", CompanyControllerOverrideReceiptSchema, options, input(RevokeCompanyControllerOverrideInputSchema, value), input(KeySchema, options.idempotencyKey)),
   };
 }
 
