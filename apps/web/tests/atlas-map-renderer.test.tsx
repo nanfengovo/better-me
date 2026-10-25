@@ -17,7 +17,7 @@ class SyntheticMap {
   canvas = dom.document.createElement("canvas"); moving = false; removed = false; zoom = 1.65;
   uploads = 0; queries = 0; paints = 0; filters: Array<{ id: string; filter: unknown }> = []; flights: unknown[] = []; projection: unknown;
   hits: Array<{ properties: { bucketId: string } }> = [{ properties: { bucketId: "synthetic-0" } }];
-  addedSources: Array<{ id: string; source: unknown }> = []; addedLayers: Array<{ id: string; before?: string }> = []; glyphs: unknown; sprite: unknown;
+  addedSources: Array<{ id: string; source: unknown }> = []; addedLayers: Array<{ id: string; before?: string }> = []; layerSpecs: Array<{ id: string; [key: string]: unknown }> = []; glyphs: unknown; sprite: unknown;
   throwOnLayer = "";
   constructor(readonly options: Record<string, unknown>) { instances.push(this); this.canvas.tabIndex = 0; (options.container as typeof this.canvas.parentElement)?.appendChild(this.canvas); }
   on(name: string, callback: (...args: unknown[]) => void) { this.handlers.set(name, [...(this.handlers.get(name) ?? []), callback]); return this; }
@@ -29,7 +29,7 @@ class SyntheticMap {
   getLayer(id: string) { return ((this.options.style as { layers: Array<{ id: string }> }).layers).some(layer => layer.id === id); }
   getSource() { return { setData: () => { this.uploads++; } }; }
   addSource(id: string, source: unknown) { this.addedSources.push({ id, source }); }
-  addLayer(layer: { id: string }, before?: string) { if (this.throwOnLayer === layer.id) throw new Error("Synthetic provider layer rejected"); this.addedLayers.push({ id: layer.id, before }); ((this.options.style as { layers: Array<{ id: string }> }).layers).push(layer); }
+  addLayer(layer: { id: string; [key: string]: unknown }, before?: string) { if (this.throwOnLayer === layer.id) throw new Error("Synthetic provider layer rejected"); this.addedLayers.push({ id: layer.id, before }); this.layerSpecs.push(layer); ((this.options.style as { layers: Array<{ id: string }> }).layers).push(layer); }
   removeLayer(id: string) { const style = this.options.style as { layers: Array<{ id: string }> }; style.layers = style.layers.filter(layer => layer.id !== id); }
   removeSource(id: string) { this.addedSources = this.addedSources.filter(source => source.id !== id); }
   setGlyphs(value: unknown) { this.glyphs = value; } setSprite(value: unknown) { this.sprite = value; }
@@ -216,6 +216,66 @@ test("a delayed street style cannot block local readiness, picking or point upda
     assert.match(JSON.stringify(label.filter), /synthetic-delayed-second/, "late labels include every selected overlap member");
     assert.equal(host.querySelector(".atlas-basemap-progress"), null); assert.equal(ready, 1); assert.deepEqual(errors, []);
   } finally { await act(async () => root.unmount()); host.remove(); globalThis.fetch = savedFetch; pending.resolve(new Response("{}")); }
+});
+
+test("OpenFreeMap close-range buildings and house numbers are capability-gated below job markers and retain source precision", async () => {
+  const savedFetch = globalThis.fetch;
+  const styleUrl = "https://tiles.openfreemap.org/styles/dark", tileJsonUrl = "https://tiles.openfreemap.org/planet";
+  const basemap = { id: "openfreemap-dark", name: "OpenFreeMap", maxZoom: 22, type: "vector-style" as const, styleUrl, attributions: [{ label: "OpenFreeMap", url: "https://openfreemap.org/" }] };
+  const style = { version: 8, sources: { openmaptiles: { type: "vector", url: tileJsonUrl } }, layers: [
+    { id: "building", type: "fill", source: "openmaptiles", "source-layer": "building", minzoom: 12 },
+    { id: "place-labels", type: "symbol", source: "openmaptiles", "source-layer": "place", minzoom: 4 },
+  ], glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf" };
+  const tileJson = { vector_layers: [
+    { id: "building", minzoom: 13, maxzoom: 14, fields: { render_height: "Number", render_min_height: "Number" } },
+    { id: "housenumber", minzoom: 14, maxzoom: 14, fields: { housenumber: "String" } },
+  ] };
+  const fetches: string[] = [];
+  globalThis.fetch = async (input, init) => {
+    const url = String(input); fetches.push(url);
+    if (url === styleUrl) return new Response(JSON.stringify(style));
+    if (url === tileJsonUrl) return new Response(JSON.stringify(tileJson));
+    return savedFetch(input, init);
+  };
+  const host = dom.document.createElement("div"); dom.document.body.append(host); const root = createRoot(host as unknown as HTMLDivElement);
+  const focus: AtlasMapFocus = { jobId: "exact-job", locationId: "verified-office", longitude: 121.1234, latitude: 31.2345, precision: "address", verification: "verified", zoom: 16.5, requestId: "exact-focus" };
+  try {
+    await act(async () => { root.render(h(MapLibrePrototype, { mode: "domestic", buckets: [], focus, selectedJobId: "exact-job", basemap })); for (let i = 0; i < 6; i++) await nextTurn(); });
+    const map = instances.at(-1)!;
+    await act(async () => { map.emit("load"); map.emit("render"); for (let i = 0; i < 6; i++) await nextTurn(); });
+    assert.deepEqual(fetches.filter(url => url === styleUrl || url === tileJsonUrl), [styleUrl, tileJsonUrl]);
+    assert.deepEqual(map.addedLayers.filter(layer => layer.id.startsWith("atlas-" )).map(layer => [layer.id, layer.before]), [
+      ["atlas-buildings-3d", "basemap:place-labels"], ["atlas-house-numbers", "basemap:place-labels"],
+    ]);
+    assert.deepEqual(map.flights.map(value => (value as { zoom: number }).zoom), [16.5]);
+    const building = map.layerSpecs.find(layer => layer.id === "atlas-buildings-3d") as { paint: Record<string, unknown> };
+    const labels = map.layerSpecs.find(layer => layer.id === "atlas-house-numbers") as { layout: Record<string, unknown> };
+    assert.equal(building.paint["fill-extrusion-color"], "#23566a");
+    assert.deepEqual(building.paint["fill-extrusion-height"], ["coalesce", ["get", "render_height"], 0]);
+    assert.deepEqual(labels.layout["text-field"], ["get", "housenumber"]);
+    assert.match(host.textContent ?? "", /地址级坐标/);
+    assert.equal(map.getLayer("bucket-cores"), true, "job markers remain in the map style above provider detail");
+  } finally { await act(async () => root.unmount()); host.remove(); globalThis.fetch = savedFetch; }
+});
+
+test("missing OpenFreeMap TileJSON fields leaves the provider's original street layers unchanged", async () => {
+  const savedFetch = globalThis.fetch;
+  const styleUrl = "https://tiles.openfreemap.org/styles/positron", tileJsonUrl = "https://tiles.openfreemap.org/planet";
+  const basemap = { id: "openfreemap-positron", name: "OpenFreeMap", maxZoom: 22, type: "vector-style" as const, styleUrl, attributions: [{ label: "OpenFreeMap", url: "https://openfreemap.org/" }] };
+  const style = { version: 8, sources: { openmaptiles: { type: "vector", url: tileJsonUrl } }, layers: [
+    { id: "building", type: "fill", source: "openmaptiles", "source-layer": "building", minzoom: 12 },
+  ] };
+  globalThis.fetch = async (input, init) => String(input) === styleUrl ? new Response(JSON.stringify(style))
+    : String(input) === tileJsonUrl ? new Response(JSON.stringify({ vector_layers: [{ id: "building", fields: { render_height: "String" } }, { id: "housenumber", fields: { housenumber: "Number" } }] }))
+      : savedFetch(input, init);
+  const host = dom.document.createElement("div"); dom.document.body.append(host); const root = createRoot(host as unknown as HTMLDivElement);
+  try {
+    await act(async () => { root.render(h(MapLibrePrototype, { mode: "global", buckets: [], basemap })); for (let i = 0; i < 6; i++) await nextTurn(); });
+    const map = instances.at(-1)!;
+    await act(async () => { map.emit("load"); map.emit("render"); for (let i = 0; i < 6; i++) await nextTurn(); });
+    assert.deepEqual(map.addedLayers.map(layer => layer.id), ["basemap:building"]);
+    assert.equal(map.getLayer("bucket-cores"), true); assert.equal(host.querySelector('[role="alert"]'), null);
+  } finally { await act(async () => root.unmount()); host.remove(); globalThis.fetch = savedFetch; }
 });
 
 test("failed or invalid optional street styles leave the local scene and query buckets usable without a fatal renderer error", async () => {

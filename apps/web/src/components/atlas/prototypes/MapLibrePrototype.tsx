@@ -7,6 +7,7 @@ import { activeMapFocus, createMapFocusMarker, mapFocusCameraOptions, mapFocusPr
 import { ATLAS_BASEMAPS, attributionHtml, DEFAULT_ATLAS_BASEMAP, parseAtlasBasemap } from "./basemaps";
 import { canvasHostStyle, CHINA_BOUNDS, creditStyle, errorStyle, loadBoundary, NATURAL_EARTH_CREDIT, prototypeFrameStyle, regionSelection, type AtlasPrototypeProps, type BoundaryFeature, type PrototypeHandle } from "./types";
 import { atlasBucketData, createAtlasHover, createAtlasMapUpdates } from "./map-performance";
+import { createAtlasDetailLayers, openFreeMapTileJsonUrls, readAtlasVectorCapabilities, type AtlasVectorCapabilities } from "./basemap-capabilities";
 import { bucketNavigationCamera } from "./bucket-navigation";
 import { atlasBucketMatch, atlasHitBuckets, atlasSelectedBucketIds } from "./bucket-selection";
 import { AtlasBucketChoices } from "./AtlasBucketChoices";
@@ -86,6 +87,20 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
       // local globe, job markers, controls or onReady behind an eight-second fetch.
       let localReady = false, basemapInstalled = false, installingBasemap = false;
       let pendingBasemap: { sources: Record<string, SourceSpecification>; layers: LayerSpecification[]; glyphs?: StyleSpecification["glyphs"]; sprite?: StyleSpecification["sprite"] } | undefined;
+      let optionalDetailLayers: LayerSpecification[] = [], optionalDetailBefore = "bucket-glow", detailLayersInstalled = false;
+      const installOptionalDetailLayers = () => {
+        if (stopped || abort.signal.aborted || !localReady || !basemapInstalled || detailLayersInstalled || !optionalDetailLayers.length) return;
+        const before = ownedMap.getLayer(optionalDetailBefore) ? optionalDetailBefore : ownedMap.getLayer("bucket-glow") ? "bucket-glow" : undefined;
+        if (!before) return;
+        const added: string[] = [];
+        try {
+          for (const layer of optionalDetailLayers) { ownedMap.addLayer(layer, before); added.push(layer.id); }
+          detailLayersInstalled = true;
+        } catch {
+          for (const id of added.reverse()) if (ownedMap.getLayer(id)) ownedMap.removeLayer(id);
+          detailLayersInstalled = true;
+        }
+      };
       const installBasemap = () => {
         if (stopped || abort.signal.aborted || !localReady || basemapInstalled || !pendingBasemap) return;
         const remote = pendingBasemap; basemapInstalled = true; installingBasemap = true;
@@ -108,6 +123,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
           warnTiles();
         } finally { installingBasemap = false; }
         setBasemapLoading(false);
+        installOptionalDetailLayers();
       };
       if (provider) void (async () => {
         if (provider.type === "vector-style") {
@@ -119,7 +135,21 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
           Object.entries(style.sources).forEach(([id, source]) => { detailSources[`basemap:${id}`] = source; });
           style.layers.forEach(layer => { if (layer.type !== "background") detailLayers.push({ ...layer, id: `basemap:${layer.id}`, minzoom: Math.max(layer.minzoom ?? 0, mode === "global" ? 2.4 : 0), ...("source" in layer ? { source: `basemap:${layer.source}` } : {}) } as LayerSpecification); });
           if (stopped || abort.signal.aborted) return;
+          const firstLabel = detailLayers.find(layer => layer.type === "symbol")?.id;
           pendingBasemap = { sources: detailSources, layers: detailLayers, glyphs: style.glyphs, sprite: style.sprite };
+          installBasemap();
+          for (const tileJsonUrl of openFreeMapTileJsonUrls(style, provider.styleUrl)) {
+            try {
+              const metadataResponse = await fetch(tileJsonUrl, { signal: AbortSignal.any([abort.signal, AbortSignal.timeout(3000)]), credentials: "omit" });
+              if (!metadataResponse.ok) continue;
+              const capabilities: AtlasVectorCapabilities | null = readAtlasVectorCapabilities(style, await metadataResponse.json(), tileJsonUrl);
+              if (stopped || abort.signal.aborted || !capabilities) continue;
+              optionalDetailLayers = createAtlasDetailLayers(capabilities, light);
+              optionalDetailBefore = firstLabel ?? "bucket-glow";
+              installOptionalDetailLayers();
+              if (detailLayersInstalled) break;
+            } catch { /* Optional 3D detail falls back to the provider's original style. */ }
+          }
         } else pendingBasemap = { sources: { "basemap:raster": { type: "raster", tiles: provider.tiles, tileSize: provider.tileSize, maxzoom: provider.maxNativeZoom, attribution: attributionHtml(provider) } }, layers: [{ id: "basemap:raster", type: "raster", source: "basemap:raster", minzoom: mode === "global" ? 2.4 : 0, paint: { "raster-fade-duration": 180 } }] };
         installBasemap();
       })().catch(() => { if (!stopped && !abort.signal.aborted) { setBasemapLoading(false); warnTiles(); } });
