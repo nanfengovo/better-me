@@ -575,7 +575,7 @@
         "全球"
       ],
       "coverage": "ABB robots.txt列出的全球英文根索引当前声明5个叶子sitemap；每次最多读取5个叶子清单、每页最多3个详情、默认两页共6个详情尝试，按已读字段本地筛选。清单含多国及非岗位页面，不按语言猜工作国家；候选URL数量不等于岗位数量。协议通用，新增公司需另行配置与审核。",
-      "checkedAt": "2026-10-19T01:29:47.078Z",
+      "checkedAt": "2026-10-25T07:16:23.158Z",
       "evidenceUrls": [
         "https://global.abb/group/en/careers",
         "https://careers.abb/robots.txt",
