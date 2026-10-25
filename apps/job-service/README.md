@@ -397,14 +397,14 @@ ABB 全球英文 sitemap-index 已做一次有界只读探测：根索引列出5
 
 ## 办公地址核对与可选地址提供方
 
-默认关闭外部地址查询；需要时在原启动命令末尾增加`--office-geocoder nominatim`或`--office-geocoder photon`，保留原data-dir／port／Origin／DNS配置。没有高德 Key 时，可从仓库根目录运行以下示例；如果已有服务占用同一数据目录，先在原服务终端停止它，再沿用原有目录和其他参数重启：
+默认关闭外部地址查询；需要时在原启动命令末尾增加`--office-geocoder nominatim`、`--office-geocoder photon`或`--office-geocoder amap`，保留原data-dir／port／Origin／DNS配置。高德 provider 只从宿主环境变量`BETTERME_AMAP_WEB_SERVICE_KEY`读取 Key；没有 Key 时请使用 Photon/Nominatim，或让 Amap 查询明确返回 `needs-auth`。如果已有服务占用同一数据目录，先在原服务终端停止它，再沿用原有目录和其他参数重启：
 
 ```powershell
 $jobDataDirectory = Join-Path $env:LOCALAPPDATA "BetterMe/job-atlas"
 pnpm --filter @better-me/job-service start --data-dir $jobDataDirectory --origin http://localhost:5173 --office-geocoder photon
 ```
 
-它只安装提供方，不启动批量请求；网页必须输入具体query并点击查询。两种提供方均固定 HTTPS、最多5候选、15分钟有限进程缓存并尊重Retry-After；Nominatim至少1.1秒门控，Photon至少2秒门控（最多30次／分钟）。不自动重试、自动补全或扫描索引。署名／OSM记录随候选返回。候选始终是待核对建议，不会自动成为办公确认；国内覆盖由地图数据决定。后续按宿主已配置Google DoH完成一次公开地标请求，Nominatim HTTP200；真实响应的place/house门牌漏召回已修。但3个候选属于其他城镇，未准确命中目标地标，也没有证明岗位办公关联；必须核对完整地址后再明确保存。旧system探针失败原因仍未知。实证与验证见[本批报告](../../docs/reports/job-atlas-office-provider-real-2026-10-19.md)。
+它只安装提供方，不启动批量请求；网页必须输入具体query并点击查询。三个提供方均固定 HTTPS、最多5候选、15分钟有限进程缓存并尊重Retry-After；Nominatim至少1.1秒门控，Photon和Amap至少2秒门控。Amap只接受中国门牌号／楼栋级结果，保留原始GCJ-02并转换为WGS84候选；不支持把邮编约束伪装成命中。所有 provider 都不自动重试、自动补全或扫描索引。署名记录随候选返回；候选始终是待核对建议，不会自动成为办公确认。实证与验证见[本批报告](../../docs/reports/job-atlas-office-provider-real-2026-10-19.md)。
 
 四项共享工具与认证POST路径如下，执行身份由宿主提供；客户端不能传provider端点、actorScope或任意代码。
 
@@ -415,11 +415,11 @@ pnpm --filter @better-me/job-service start --data-dir $jobDataDirectory --origin
 | locations.confirm-office-address | confirmations |
 | locations.revoke-office-address | revoke |
 
-候选输入为`{jobId,locationId,expectedRevision,query?}`；没有query只返回来源／配置、不外发请求。query只发送明确文本和已知国家过滤，不附带来源正文、家庭位置或owner。`proposal`固定为`basis:manual-user-confirmation`、countryCode、formattedAddress、streetAddress、可选postalCode、WGS84 coordinates、evidenceUrl和`coordinateMeaning:building|entrance|site`。预览与确认共用job／location／版本／proposal／reason；确认还需previewFingerprint、reviewed:true及Idempotency-Key。撤销提交原decisionId、expectedRevision、reason、reviewed:true及Idempotency-Key。
+候选输入为`{jobId,locationId,expectedRevision,query?}`；没有query只返回来源／配置、不外发请求。query只发送明确文本和已知国家过滤，不附带来源正文、家庭位置或owner。`proposal`固定为`basis:manual-user-confirmation`、countryCode、formattedAddress、streetAddress、可选postalCode、WGS84 `coordinates`、可选 provider 原始 `originalCoordinates`、evidenceUrl 和`coordinateMeaning:building|entrance|site`。预览与确认共用job／location／版本／proposal／reason；确认还需previewFingerprint、reviewed:true及Idempotency-Key。撤销提交原decisionId、expectedRevision、reason、reviewed:true及Idempotency-Key。
 
 SQLite V4保留base地点、行政决议、办公确认／撤销／source失效事件和耐久回执。来源地点或证据一度变化后旧办公点不会在A→B→A时自动激活。公共快照导入拒绝本地overlay；完整备份恢复包含历史。保存仍待核实，不把GCJ02当WGS84、城市／道路候选当门牌、地图候选当雇主认证。超时使用原body／key核对回执，已保存后读快照失败只重读。详见[本批报告](../../docs/reports/job-atlas-desktop-office-address-2026-10-19.md)。
 
-`locations.office-address-candidates`可显式传`locality`（≤200字符）和`postalCode`（≤100字符），二者必须与`query`同传；无query仍只读配置。宿主不会隐式发送来源城市或邮编。有约束时Nominatim使用structured查询并严格核对实际市级字段及邮编；Photon将约束附加到明确查询并同样严格核对返回的市级字段和邮编；州县不当市、未知或不符拒绝，缓存按全部约束隔离。不猜翻译、门牌或办公关联。详见[桌面与精度报告](../../docs/reports/job-atlas-desktop-precision-2026-10-19.md)。
+`locations.office-address-candidates`可显式传`locality`（≤200字符）和`postalCode`（≤100字符），二者必须与`query`同传；无query仍只读配置。宿主不会隐式发送来源城市或邮编。有约束时 Nominatim/Photon 严格核对 provider 披露的市级字段和邮编；Amap 当前只核对市级字段，provider 未披露邮编时邮编约束返回无候选。州县不当市、未知或不符拒绝，不猜翻译、门牌或办公关联。
 
 ## 逐岗地址规划与来源地点补充
 

@@ -1,6 +1,6 @@
-# 高德 Web 服务 Key 准备
+# 高德 Web 服务 Key 与本机地址 provider
 
-BetterMe 当前地址查询适配器为可选 Nominatim 或 Photon；高德尚未接入。本页帮助准备账号和 Key，申请成功不表示现有程序已经使用高德，也没有 `--office-geocoder amap` 这样的可用启动参数。现有地图与私人岗位库继续保留。
+BetterMe 现在提供可选的高德 Web 服务地理编码 provider。它默认关闭，只能由本机服务在用户明确查询一条岗位办公地址时调用；没有 `BETTERME_AMAP_WEB_SERVICE_KEY` 时不会发出高德请求。Nominatim 和 Photon 仍可作为无 Key 的候选 provider，现有地图与私人岗位库继续保留。
 
 没有高德 Key 时，可以先使用 Photon 做少量、明确触发的地址候选查询。它不提供批量岗位采集，也不会自动把候选保存为办公地点：
 
@@ -10,6 +10,16 @@ pnpm --filter @better-me/job-service start --data-dir $jobDataDirectory --origin
 ```
 
 Photon 和 Nominatim 都只在用户对具体岗位地址点击查询后发出单次请求；候选会保留 OSM/Photon 署名，必须核对岗位与完整办公地址后再确认保存。
+
+准备好高德 Web 服务 Key 后，只在启动该本机服务的进程环境中设置它，再显式选择 provider：
+
+```powershell
+$env:BETTERME_AMAP_WEB_SERVICE_KEY = (Get-Content "C:\private\betterme-amap-key.txt" -Raw).Trim()
+$jobDataDirectory = Join-Path $env:LOCALAPPDATA "BetterMe/job-atlas"
+pnpm --filter @better-me/job-service start --data-dir $jobDataDirectory --origin http://localhost:5173 --office-geocoder amap
+```
+
+Key 只从宿主环境读取，不进入网页请求、岗位索引、候选出处、日志、README 或 Git。启动参数只安装 provider；网页仍必须输入具体地址并点击查询。高德返回的国内坐标原始为 GCJ-02，服务会在候选中保留 `originalCoordinates`，并生成用于现有 WGS84 地图的转换坐标；转换不代表高德或雇主确认了办公室位置。
 
 ## 申请步骤
 
@@ -23,8 +33,8 @@ Photon 和 Nominatim 都只在用户对具体岗位地址点击查询后发出�
 
 ## 接入前还需完成的部分
 
-[高德地理编码文档](https://lbs.amap.com/api/webservice/guide/api/georegeo)说明请求、返回位置与地址级别。高德使用的坐标与现有 WGS84 地图不能直接混用；后续应明确保留原始坐标系、转换精度、出处及结果含义，城市／道路级返回不能变成楼宇门牌点，坐标候选也不能自行认证雇主办公关系。
+[高德地理编码文档](https://lbs.amap.com/api/webservice/guide/api/georegeo)说明请求、返回位置与地址级别。当前实现只接受高德声明为“门牌号”或“楼栋”、且有道路和门牌／楼栋字段的结果；城市、道路、兴趣点和行政区结果会被丢弃。坐标转换只满足地图显示契约，候选仍标记为未核实，必须先核对岗位原文与办公地点关联，再使用办公地址预览和明确确认流程。
 
-[高德服务协议](https://lbs.amap.com/pages/terms/)对数据展示、缓存、存储及脱离本服务使用有约束。现有 MapLibre 地图与长期本机索引的组合，需要在正式接入前确认适用方式；当前没有把高德结果自行逆算、落库并画到其他底图，也不会以申请 Key 替代这项适配。官方坐标转换接口不等于提供反向转换和其他用途许可。
+[高德服务协议](https://lbs.amap.com/pages/terms/)对数据展示、缓存、存储及脱离本服务使用有约束。高德候选的缓存、展示和长期保存仍需按你的账号和当前条款核对；本实现不批量扫描岗位、不自动保存候选，也不把高德结果当作全市场地址覆盖。申请 Key 不等于获得招聘数据再分发或雇主办公关系证明。
 
 当前仍可以使用原有“读取原岗位办公地点”保存有出处的来源地址；缺可靠办公点的岗位继续标为待核对。本次已完成的代码、真实地址范围及限制见[同岗可见地址与来源搬迁](reports/job-atlas-visible-office-evidence-2026-10-19.md)。

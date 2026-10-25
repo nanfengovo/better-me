@@ -37,7 +37,8 @@ function dataset(): AtlasDataset {
   base.locations[0] = applyOfficeAddressConfirmation(source, { id: "synthetic-office-decision", kind: "confirm", jobId: "synthetic-job", listingId: "synthetic-listing", locationId: source.id,
     actorScope: "synthetic-owner", at: AT, revision: 2, reason: "Synthetic explicit address and WGS84 confirmation", sourceLocation: source,
     proposal: { basis: "manual-user-confirmation", countryCode: "CN", streetAddress: "Synthetic Road 10", formattedAddress: "Synthetic Road 10, Synthetic city",
-      coordinates: point(0.01), coordinateMeaning: "building", evidenceUrl: URL } });
+      coordinates: point(0.01), originalCoordinates: { latitude: 0.0102, longitude: 0.0103, coordinateSystem: "GCJ02" }, coordinateMeaning: "building", evidenceUrl: URL } });
+  assert.deepEqual(base.locations[0]!.originalCoordinates, { latitude: 0.0102, longitude: 0.0103, coordinateSystem: "GCJ02" });
   return AtlasDatasetSchema.parse(base);
 }
 

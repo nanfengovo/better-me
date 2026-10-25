@@ -8,7 +8,7 @@ import { createControlledSourceTransport, createGoogleDohResolver, CareerWebSear
 import { createJobApplication } from "./application.js";
 import { createJobHttpServer, type JobHttpOptions } from "./http.js";
 import { openJobRepository, type JobRepository } from "./repository.js";
-import { createNominatimOfficeProvider, createPhotonOfficeProvider, OfficeGeocoderConfigSchema, type OfficeGeocoderConfig } from "./office-address-provider.js";
+import { createAmapOfficeProvider, createNominatimOfficeProvider, createPhotonOfficeProvider, OfficeGeocoderConfigSchema, type OfficeGeocoderConfig } from "./office-address-provider.js";
 
 export class LocalJobServiceError extends Error {
   constructor(public readonly code: "invalid-config" | "data-directory-unavailable" | "data-directory-busy" | "invalid-lock" | "lock-ownership-changed" | "invalid-token" | "startup-failed" | "shutdown-failed", message: string) {
@@ -34,7 +34,7 @@ export function validateJobServiceConfig(config: JobServiceConfig): ValidatedJob
   const careerSearch = config.careerSearch === undefined ? undefined : CareerWebSearchConfigSchema.safeParse(config.careerSearch);
   if (careerSearch && !careerSearch.success) throw new LocalJobServiceError("invalid-config", "Invalid career search configuration. Choose a supported provider and its permitted endpoint options.");
   const officeGeocoder = config.officeGeocoder === undefined ? undefined : OfficeGeocoderConfigSchema.safeParse(config.officeGeocoder);
-  if (officeGeocoder && !officeGeocoder.success) throw new LocalJobServiceError("invalid-config", "Office geocoding supports only the explicitly enabled nominatim or photon provider.");
+  if (officeGeocoder && !officeGeocoder.success) throw new LocalJobServiceError("invalid-config", "Office geocoding supports only the explicitly enabled nominatim, photon or amap provider.");
   if (!["127.0.0.1", "::1"].includes(host) || !Number.isInteger(port) || port < 0 || port > 65535 || !["system", "google-doh"].includes(dns)) throw new LocalJobServiceError("invalid-config", "Invalid loopback listener or DNS configuration.");
   if (!Array.isArray(config.allowedOrigins) || config.allowedOrigins.length === 0) throw new LocalJobServiceError("invalid-config", "Configure at least one exact UI origin.");
   for (const origin of config.allowedOrigins) {
@@ -235,7 +235,9 @@ export async function startLocalJobService(input: JobServiceConfig, dependencies
     const transport = createControlledSourceTransport({ ...(config.dns === "google-doh" ? { resolve: createGoogleDohResolver() } : {}) });
     application = (dependencies.createApplication ?? createJobApplication)({ repository, transport,
       fxReferenceProvider: createFxReferenceProvider(transport),
-      ...(config.officeGeocoder ? { officeAddressProvider: config.officeGeocoder.provider === "photon" ? createPhotonOfficeProvider(transport) : createNominatimOfficeProvider(transport) } : {}),
+      ...(config.officeGeocoder ? { officeAddressProvider: config.officeGeocoder.provider === "amap"
+        ? createAmapOfficeProvider(transport, { key: process.env.BETTERME_AMAP_WEB_SERVICE_KEY })
+        : config.officeGeocoder.provider === "photon" ? createPhotonOfficeProvider(transport) : createNominatimOfficeProvider(transport) } : {}),
       ...(config.careerSearch ? { careerWebSearchProvider: createCareerWebSearchProvider(config.careerSearch) } : {}) });
     http = (dependencies.createHttpServer ?? createJobHttpServer)({ registry: application.registry, token, allowedOrigins: config.allowedOrigins, host: config.host, port: config.port });
     const address = await http.listen();

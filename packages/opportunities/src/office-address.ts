@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AtlasDatasetSchema, CoordinatesSchema, CountryCodeSchema, EntityIdSchema, HttpUrlSchema, JobLocationSchema, RevisionSchema, TimestampSchema, type AtlasDataset, type JobLocation } from "./schema.js";
+import { AtlasDatasetSchema, CoordinatesSchema, CountryCodeSchema, EntityIdSchema, HttpUrlSchema, JobLocationSchema, OriginalCoordinatesSchema, RevisionSchema, TimestampSchema, type AtlasDataset, type JobLocation } from "./schema.js";
 import { sameLocationValue } from "./location-confirmation.js";
 
 const text = (max: number) => z.string().trim().min(1).max(max).refine(value => !/[\p{Cc}\p{Cs}]/u.test(value), "Use plain address text.");
@@ -8,7 +8,7 @@ const lookupConstraintText = (max: number) => z.string().refine(value => !/[\p{C
 export const OfficeAddressProposalSchema = z.object({
   basis: z.literal("manual-user-confirmation"), countryCode: CountryCodeSchema,
   formattedAddress: text(2000), streetAddress: text(1000), postalCode: text(100).optional(),
-  coordinates: CoordinatesSchema, evidenceUrl: HttpUrlSchema,
+  coordinates: CoordinatesSchema, originalCoordinates: OriginalCoordinatesSchema.optional(), evidenceUrl: HttpUrlSchema,
   coordinateMeaning: z.enum(["building", "entrance", "site"]),
 }).strict();
 export type OfficeAddressProposal = z.infer<typeof OfficeAddressProposalSchema>;
@@ -96,7 +96,8 @@ export function applyOfficeAddressConfirmation(source: JobLocation, decision: Ex
   if (source.kind !== "office" || !source.evidence.length || source.officeResolution || source.countryCode && source.countryCode !== proposal.countryCode) throw new Error("invalid-office-source");
   const { originalCoordinates: _originalCoordinates, postalCode: _postalCode, ...retained } = source;
   return JobLocationSchema.parse({ ...retained, countryCode: proposal.countryCode, streetAddress: proposal.streetAddress,
-    ...(proposal.postalCode ? { postalCode: proposal.postalCode } : {}), coordinates: proposal.coordinates, precision: "address", verification: "unverified",
+    ...(proposal.postalCode ? { postalCode: proposal.postalCode } : {}), coordinates: proposal.coordinates,
+    ...(proposal.originalCoordinates ? { originalCoordinates: proposal.originalCoordinates } : {}), precision: "address", verification: "unverified",
     provider: "manual-user-confirmation", resolvedAt: decision.at,
     officeResolution: { decisionId: decision.id, method: "manual-user-confirmation", at: decision.at, originalLocationId: source.id,
       formattedAddress: proposal.formattedAddress, streetAddress: proposal.streetAddress, ...(proposal.postalCode ? { postalCode: proposal.postalCode } : {}),

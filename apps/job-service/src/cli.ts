@@ -17,7 +17,7 @@ Options:
   --dns <provider>       system (default) or google-doh; applies only inside this service.
   --career-search <id>   Optional duckduckgo-html or searxng; disabled by default.
   --career-search-endpoint <https-url>  Required only for searxng; no API keys are supported.
-  --office-geocoder <id> Optional nominatim or photon address lookup; disabled by default, explicit per-address queries only.
+  --office-geocoder <id> Optional nominatim, photon or amap address lookup; disabled by default, explicit per-address queries only. Amap reads BETTERME_AMAP_WEB_SERVICE_KEY from the host environment.
   --help, -h            Show help without creating files or starting a listener.
 
 The service stores jobs.sqlite, service.token and an exclusive owner lock in the data directory.
@@ -49,7 +49,7 @@ export function parseJobServiceArgs(args: readonly string[]): { help: true } | {
   const careerSearch: JobServiceConfig["careerSearch"] = careerProvider === "duckduckgo-html" ? { provider: "duckduckgo-html" }
     : careerProvider === "searxng" ? { provider: "searxng", endpoint: careerEndpoint ?? "" } : undefined;
   const officeProvider = values.get("--office-geocoder");
-  if (officeProvider !== undefined && !["nominatim", "photon"].includes(officeProvider)) throw new LocalJobServiceError("invalid-config", "Office geocoding supports nominatim or photon only; omit the option to disable external address queries.");
+  if (officeProvider !== undefined && !["nominatim", "photon", "amap"].includes(officeProvider)) throw new LocalJobServiceError("invalid-config", "Office geocoding supports nominatim, photon or amap only; omit the option to disable external address queries.");
   const config = validateJobServiceConfig({
     dataDirectory: values.get("--data-dir") ?? "",
     host: (values.get("--host") ?? "127.0.0.1") as JobServiceConfig["host"],
@@ -57,7 +57,7 @@ export function parseJobServiceArgs(args: readonly string[]): { help: true } | {
     allowedOrigins: origins,
     dns: (values.get("--dns") ?? "system") as JobServiceConfig["dns"],
     ...(careerSearch ? { careerSearch } : {}),
-    ...(officeProvider === "nominatim" || officeProvider === "photon" ? { officeGeocoder: { provider: officeProvider } } : {}),
+    ...(officeProvider === "nominatim" || officeProvider === "photon" || officeProvider === "amap" ? { officeGeocoder: { provider: officeProvider } } : {}),
   });
   return { help: false, config };
 }
