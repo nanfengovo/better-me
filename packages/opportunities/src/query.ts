@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AtlasDatasetSchema, CountryCodeSchema, EntityIdSchema, type AtlasDataset, type CanonicalJob, type Company, type JobLocation } from "./schema.js";
+import { AtlasDatasetSchema, CountryCodeSchema, EntityIdSchema, type AtlasDataset, type CanonicalJob, type Company, type JobLocation, type LocationPrecision } from "./schema.js";
 import { deriveEntityId } from "./identity.js";
 import { normalizeCompensation, salaryMetric, FxSnapshotSchema, type FxSnapshot } from "./compensation.js";
 import { distanceToLocations, evaluateLocationDistance, Wgs84CoordinateSchema } from "./geo.js";
@@ -100,7 +100,9 @@ export type MapBucket = {
   id: string; label: string; latitude: number; longitude: number;
   jobIds: string[]; locationIds: string[]; jobCount: number; pinCount: number;
   categories: Array<{ ruleId: string; label: string; color: string; jobCount: number }>;
-  positionBasis?: "city-reference"; precision?: "city"; estimated?: true;
+  /** At location level this is the source location's declared precision. It is omitted for broader aggregates. */
+  precision?: LocationPrecision;
+  positionBasis?: "city-reference"; estimated?: true;
 };
 export type JobQueryResult = {
   queryId: string; snapshotVersion: number; asOf: string; normalizedQuery: JobQuery;
@@ -265,7 +267,7 @@ function filterSalary(salary: JobSearchItem["salary"], query: JobQuery): boolean
 }
 
 function buildMapBuckets(items: JobSearchItem[], level: JobQuery["mapLevel"]): MapBucket[] {
-  type Accumulator = { label: string; points: Array<{ latitude: number; longitude: number }>; jobs: Set<string>; locations: Set<string>; pins: Set<string>; categories: Map<string, { label: string; color: string; jobs: Set<string> }> };
+  type Accumulator = { label: string; points: Array<{ latitude: number; longitude: number }>; jobs: Set<string>; locations: Set<string>; pins: Set<string>; precisions: Set<LocationPrecision>; categories: Map<string, { label: string; color: string; jobs: Set<string> }> };
   const buckets = new Map<string, Accumulator>();
   for (const item of items) for (const location of item.locations) {
     if (!location.coordinates) continue;
@@ -273,12 +275,13 @@ function buildMapBuckets(items: JobSearchItem[], level: JobQuery["mapLevel"]): M
     const id = JSON.stringify(parts);
     let bucket = buckets.get(id);
     if (!bucket) {
-      bucket = { label: (level === "country" ? location.countryCode : level === "region" ? location.region : location.city) ?? location.raw, points: [], jobs: new Set(), locations: new Set(), pins: new Set(), categories: new Map() };
+      bucket = { label: (level === "country" ? location.countryCode : level === "region" ? location.region : location.city) ?? location.raw, points: [], jobs: new Set(), locations: new Set(), pins: new Set(), precisions: new Set(), categories: new Map() };
       buckets.set(id, bucket);
     }
     const pin = JSON.stringify([item.job.id, location.id]);
     if (!bucket.pins.has(pin)) bucket.points.push(location.coordinates);
     bucket.jobs.add(item.job.id); bucket.locations.add(location.id); bucket.pins.add(pin);
+    bucket.precisions.add(location.precision);
     let category = bucket.categories.get(item.color.ruleId);
     if (!category) { category = { label: item.color.label, color: item.color.color, jobs: new Set() }; bucket.categories.set(item.color.ruleId, category); }
     category.jobs.add(item.job.id);
@@ -287,8 +290,10 @@ function buildMapBuckets(items: JobSearchItem[], level: JobQuery["mapLevel"]): M
     let x = 0, y = 0, z = 0;
     for (const p of bucket.points) { const lat = p.latitude * Math.PI / 180, lon = p.longitude * Math.PI / 180; x += Math.cos(lat) * Math.cos(lon); y += Math.cos(lat) * Math.sin(lon); z += Math.sin(lat); }
     // This is the centroid of observed job positions, never an invented office address.
+    const precision = level === "location" && bucket.precisions.size === 1 ? [...bucket.precisions][0] : undefined;
     return { id, label: bucket.label, latitude: Math.atan2(z, Math.hypot(x, y)) * 180 / Math.PI, longitude: Math.atan2(y, x) * 180 / Math.PI,
       jobIds: [...bucket.jobs].sort(), locationIds: [...bucket.locations].sort(), jobCount: bucket.jobs.size, pinCount: bucket.pins.size,
+      ...(precision ? { precision } : {}),
       categories: [...bucket.categories.entries()].map(([ruleId, c]) => ({ ruleId, label: c.label, color: c.color, jobCount: c.jobs.size })).sort((a, b) => compareIds(a.ruleId, b.ruleId)),
     };
   }).sort((a, b) => compareIds(a.id, b.id));

@@ -9,6 +9,8 @@ export * from "./adapters/greenhouse.js";
 export * from "./adapters/lever.js";
 export * from "./adapters/ashby.js";
 export * from "./adapters/remotive.js";
+export * from "./rss-atom-contracts.js";
+export * from "./adapters/rss-atom.js";
 export * from "./adapters/mapped-json.js";
 export * from "./tencent-contracts.js";
 export * from "./adapters/tencent.js";

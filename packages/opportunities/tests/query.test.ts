@@ -136,6 +136,20 @@ test("list pagination does not page the full query map, facets or coverage count
   assert.equal(result.asOf, EVALUATION_DAY);
 });
 
+test("location map buckets preserve the single source location precision", async () => {
+  const dataset = datasetFor([
+    { id: "address", locations: [{ id: "address-location", city: "Shanghai", precision: "address", coordinates: point(31.2, 121.5) }] },
+    { id: "city", locations: [{ id: "city-location", city: "Shanghai", precision: "city", coordinates: point(31.3, 121.6) }] },
+  ]);
+  const result = await queryJobs(dataset, { mapLevel: "location", page: { limit: 10 } }, OPTIONS);
+  const address = result.mapBuckets.find(bucket => bucket.locationIds.includes("address-location"))!;
+  const city = result.mapBuckets.find(bucket => bucket.locationIds.includes("city-location"))!;
+  assert.equal(address.precision, "address");
+  assert.equal(city.precision, "city");
+  assert.equal(address.positionBasis, undefined);
+  assert.equal(address.estimated, undefined);
+});
+
 test("ten jobs with two locations each remain ten canonical jobs and twenty pins", async () => {
   const dataset = datasetFor(Array.from({ length: 10 }, (_, index) => ({ id: `multi-${index}`, locations: [
     { countryCode: "CN", city: "Shanghai", coordinates: point(31 + index / 100, 121) },

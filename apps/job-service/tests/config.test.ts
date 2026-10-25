@@ -3,14 +3,14 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { SourceDefinitionSchema } from "@better-me/opportunities";
-import { createSourceRegistry, greenhouseAdapter, leverAdapter, ashbyAdapter, remotiveAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, jobPostingJsonLdAdapter, discoveryPolicyAdapter, workdayAdapter } from "@better-me/source-adapters";
+import { createSourceRegistry, greenhouseAdapter, leverAdapter, ashbyAdapter, remotiveAdapter, rssAtomAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, jobPostingJsonLdAdapter, discoveryPolicyAdapter, workdayAdapter } from "@better-me/source-adapters";
 import { sourceCatalog } from "../../web/src/components/atlas/source-catalog.js";
 
 test("shipped source examples remain disabled and resolve to installed adapters after an explicit reviewed enable", async () => {
   const rows: unknown = JSON.parse(await readFile(new URL("../../../config/sources/examples.json", import.meta.url), "utf8"));
   assert.ok(Array.isArray(rows));
   assert.ok(rows.length > 0);
-  const registry = createSourceRegistry([greenhouseAdapter, leverAdapter, ashbyAdapter, remotiveAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, jobPostingJsonLdAdapter, discoveryPolicyAdapter, workdayAdapter]);
+  const registry = createSourceRegistry([greenhouseAdapter, leverAdapter, ashbyAdapter, remotiveAdapter, rssAtomAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, jobPostingJsonLdAdapter, discoveryPolicyAdapter, workdayAdapter]);
   const ids = new Set<string>();
   for (const row of rows) {
     const source = SourceDefinitionSchema.parse(row);

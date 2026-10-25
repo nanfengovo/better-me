@@ -26,6 +26,13 @@ test("city references remain at city scale, provider limits win, and reduced mot
   assert.equal(bucketNavigationCamera(bucket, { ...options, level: "city", reducedMotion: true })!.duration, 0);
 });
 
+test("location buckets honour source precision without promoting city estimates", () => {
+  assert.equal(bucketNavigationCamera({ ...bucket, precision: "address" }, { ...options, level: "location" })!.zoom, 16.5);
+  assert.equal(bucketNavigationCamera({ ...bucket, precision: "street" }, { ...options, level: "location" })!.zoom, 14);
+  assert.equal(bucketNavigationCamera({ ...bucket, precision: "city" }, { ...options, level: "location" })!.zoom, 10.5);
+  assert.equal(bucketNavigationCamera({ ...bucket, precision: "address", positionBasis: "city-reference", estimated: true }, { ...options, level: "location" })!.zoom, 9);
+});
+
 test("a centered bucket can zoom in, but completed or higher zooms never loop or zoom back out", () => {
   assert.ok(bucketNavigationCamera(bucket, { ...options, level: "city", currentZoom: 2 }));
   for (const currentZoom of [10.46, 10.5, 16, 22]) assert.equal(bucketNavigationCamera(bucket, { ...options, level: "city", currentZoom }), null);
