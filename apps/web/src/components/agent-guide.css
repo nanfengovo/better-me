@@ -1,0 +1,459 @@
+/* Agent Guided Interaction & Visual Tour Animations */
+
+:root {
+  --agent-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --agent-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --agent-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.agent-guided-active {
+  position: relative !important;
+  outline: 2px solid rgba(16, 185, 129, 0.9) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.25), 0 0 30px rgba(16, 185, 129, 0.28) !important;
+  animation: agent-guided-glow 1.8s ease-in-out infinite alternate !important;
+  border-radius: 12px !important;
+  transition: all 0.3s var(--agent-ease-out) !important;
+  z-index: 20 !important;
+}
+
+@keyframes agent-guided-glow {
+  0% {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2), 0 0 16px rgba(16, 185, 129, 0.2);
+  }
+  100% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.38), 0 0 36px rgba(16, 185, 129, 0.38);
+  }
+}
+
+.agent-guide-beacon {
+  position: absolute !important;
+  top: -13px !important;
+  right: 16px !important;
+  z-index: 45 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 4px 12px !important;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  color: #ffffff !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.01em !important;
+  border-radius: 9999px !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.4), 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  pointer-events: none !important;
+  white-space: nowrap !important;
+  user-select: none !important;
+  animation: agent-beacon-enter 0.35s var(--agent-ease-out) forwards,
+    agent-beacon-pulse 2s ease-in-out 0.35s infinite alternate !important;
+}
+
+@keyframes agent-beacon-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes agent-beacon-pulse {
+  0% {
+    transform: translateY(0);
+    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.4);
+  }
+  100% {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(5, 150, 105, 0.6);
+  }
+}
+
+/* ── Radar Scanner for JD Deep Analysis ────────────────────────── */
+.agent-radar-container {
+  position: relative;
+}
+
+.agent-radar-scanline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 48px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(16, 185, 129, 0.08) 50%,
+    rgba(16, 185, 129, 0.28) 95%,
+    rgba(16, 185, 129, 0.9) 100%
+  );
+  box-shadow: 0 2px 14px rgba(16, 185, 129, 0.4);
+  pointer-events: none;
+  z-index: 10;
+  animation: agent-radar-sweep 2.4s ease-in-out infinite;
+}
+
+@keyframes agent-radar-sweep {
+  0% {
+    top: -50px;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    top: calc(100% + 10px);
+    opacity: 0;
+  }
+}
+
+/* ── Proposal Cards Stagger Cascade (Weightless & Fluid) ──────── */
+@keyframes agent-card-stagger-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.agent-stagger-item {
+  animation: agent-card-stagger-in 320ms var(--agent-ease-out) both;
+}
+
+.agent-pane-enter {
+  animation: agent-pane-enter 280ms var(--agent-ease-out) both;
+}
+
+.agent-page-forward {
+  animation: agent-page-forward 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.agent-page-back {
+  animation: agent-page-back 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes agent-page-forward {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes agent-page-back {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes agent-pane-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.fit-ring-value {
+  transition: stroke-dashoffset 720ms var(--agent-ease-out);
+}
+
+.fit-mix-seg {
+  transition: flex-grow 640ms var(--agent-ease-out);
+}
+
+.fit-ring-pending {
+  transform-origin: 28px 28px;
+  animation: fit-ring-spin 0.85s linear infinite;
+}
+
+@keyframes fit-ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes agent-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.agent-fade-in {
+  animation: agent-fade-in 240ms var(--agent-ease-out) both;
+}
+
+/* ── Active Press Micro-interaction (Emil Kowalski Craft) ─────── */
+.agent-btn-press {
+  transition: transform 120ms var(--agent-ease-out), background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease !important;
+}
+
+.agent-btn-press:active {
+  transform: scale(0.98) !important;
+}
+
+/* ── Guided Stepper Checkpoint Animation ───────────────────────── */
+@keyframes agent-step-pop {
+  0% {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.agent-step-active {
+  animation: agent-step-pop 320ms var(--agent-ease-spring) both;
+}
+
+/* ── Diff Popover Tooltip ──────────────────────────────────────── */
+@keyframes agent-diff-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.agent-diff-popover {
+  animation: agent-diff-enter 220ms var(--agent-ease-out) both;
+  transform-origin: top center;
+}
+
+/* ── Slender Modern Scrollbar ──────────────────────────────────── */
+.agent-custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.agent-custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.agent-custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+}
+.agent-custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+}
+
+/* ── Shimmer & Pulsing Badges ──────────────────────────────────── */
+@keyframes agent-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.agent-shimmer-bg {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: agent-shimmer 2s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-guided-active {
+    animation: none !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.5) !important;
+  }
+  .agent-guide-beacon,
+  .agent-radar-scanline,
+  .agent-stagger-item,
+  .agent-pane-enter,
+  .agent-page-forward,
+  .agent-page-back,
+  .fit-ring-pending,
+  .agent-diff-popover,
+  .agent-step-active,
+  .agent-shimmer-bg,
+  .cyber-typing-active,
+  .cyber-cursor,
+  .cyber-glitch-dot {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+/* ── High-Tech Cyberpunk Stream / Handwriting Fill Animation ── */
+
+@keyframes cyber-cursor-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+@keyframes cyber-field-glow {
+  0% {
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.4), 0 0 16px rgba(16, 185, 129, 0.25);
+  }
+  100% {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.7), 0 0 24px rgba(16, 185, 129, 0.45);
+  }
+}
+
+.cyber-typing-active {
+  border-color: #10b981 !important;
+  animation: cyber-field-glow 1.2s ease-in-out infinite alternate !important;
+  font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace !important;
+  letter-spacing: 0.015em !important;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.06), rgba(6, 182, 212, 0.06)) !important;
+}
+
+.cyber-stream-badge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(6, 182, 212, 0.1) 100%);
+  color: #34d399;
+  font-size: 11px;
+  backdrop-filter: blur(8px);
+  margin-bottom: 12px;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.15);
+  animation: agent-card-stagger-in 240ms var(--agent-ease-out) both;
+}
+
+.cyber-stream-badge .cyber-skip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #a7f3d0;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.cyber-stream-badge .cyber-skip-btn:hover {
+  background: rgba(16, 185, 129, 0.35);
+  color: #ffffff;
+  transform: scale(1.02);
+}
+
+.cyber-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 1.1em;
+  background: #10b981;
+  vertical-align: -2px;
+  margin-left: 2px;
+  animation: cyber-cursor-blink 0.5s infinite;
+  box-shadow: 0 0 6px #10b981;
+}
+
+.cyber-glitch-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: agent-beacon-pulse 1.4s ease-in-out infinite alternate;
+}
+
+/* ── Unified Design System Utility Tokens ── */
+
+.bm-btn-press {
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease !important;
+}
+
+.bm-btn-press:active {
+  transform: scale(0.97) !important;
+}
+
+/* ── Modern AI Chat Composer Deck ── */
+.agent-composer-deck {
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.agent-composer-deck:focus-within {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18), 0 8px 24px -4px rgba(16, 185, 129, 0.12) !important;
+  transform: translateY(-1px);
+}
+
+.agent-chat-textarea {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  resize: none !important;
+  background: transparent !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  line-height: 1.55 !important;
+}
+
+.agent-chat-textarea:focus,
+.agent-chat-textarea:focus-visible,
+.agent-chat-textarea:active {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* ── Premium Inline Tag Editor ── */
+.bm-tag-input {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.bm-tag-input:focus,
+.bm-tag-input:focus-visible,
+.bm-tag-input:active {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+

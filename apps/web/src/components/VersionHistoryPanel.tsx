@@ -47,10 +47,13 @@ export function VersionHistoryPanel({ history, currentDocument, persistenceStatu
   const operation = useRef(0);
   const closeRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (forceReset = false) => {
     const request = ++operation.current;
     setLoading(true);
     try {
+      if (forceReset) {
+        history.reset?.();
+      }
       const next = await history.list();
       if (request !== operation.current) return;
       setVersions(next);
@@ -169,7 +172,7 @@ export function VersionHistoryPanel({ history, currentDocument, persistenceStatu
           <button type="button" onClick={() => void createCheckpoint()} disabled={busy || loading} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40"><Save size={14} />{busy ? t("正在处理…", "Processing…") : t("命名并保存", "Name and save")}</button>
           <p className="w-full text-[11px] leading-5 text-slate-500">{t(`此浏览器保留最近 ${HISTORY_LIMIT} 个完整版本（含命名检查点）。自动版本按「保存设置」中的间隔合并，草稿保护不生成历史；命名检查点独立保留。恢复后的保存结果会在面板内显示；仍有未完成字段时先保护为本地草稿，补齐并保存后再生成完整版本。长期留存请下载 JSON 备份。`, `This browser keeps the latest ${HISTORY_LIMIT} complete versions, including named checkpoints. Automatic versions merge according to Save settings; drafts do not create history. Named checkpoints stay separate. Restore results appear here; incomplete content is protected as a local draft until it is completed and saved. Download a JSON backup for long-term retention.`)}</p>
         </div>
-        {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-6 py-3 text-xs text-amber-800"><span>{error}</span><button type="button" disabled={busy} onClick={() => void refresh()} className="rounded border border-amber-300 px-3 py-1">{t("重新读取", "Reload")}</button></div>}
+        {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-6 py-3 text-xs text-amber-800"><span>{error}</span><button type="button" disabled={busy} onClick={() => void refresh(true)} className="rounded border border-amber-300 px-3 py-1 cursor-pointer hover:bg-amber-100">{t("重新读取", "Reload")}</button></div>}
         {notice && <div className="space-y-1 border-b border-emerald-200 bg-emerald-50 px-6 py-3 text-xs text-emerald-800">
           <p role="status" aria-label={t("单项恢复状态", "Field restore status")}>{notice}</p>
           {persistenceStatus && <p aria-label={t("恢复保存状态", "Restore save status")}>{persistenceStatus.message}</p>}

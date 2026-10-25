@@ -5,10 +5,13 @@ import type {
   FactBase,
   Experience,
   FactClaim,
+  FactClaimKind,
   Profile,
   TextStyleRange,
 } from "@better-me/core";
 import { TextFormattingField } from "./TextFormattingField";
+import { TagListEditor } from "./TagListEditor";
+import { ClaimKindSelector } from "./ClaimKindSelector";
 import { useConfirm } from "./ConfirmationDialog";
 import { selectEditorFollowTarget } from "../lib/editor-follow";
 import type { PreviewFollowTarget } from "../lib/preview-follow";
@@ -59,6 +62,8 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
   const scrollerRef = useRef<HTMLDivElement>(null);
   const followCallbackRef = useRef(onPreviewTargetChange);
   const pendingFollowFrameRef = useRef<number | undefined>(undefined);
+  const pendingHoverFrameRef = useRef<number | undefined>(undefined);
+  const lastHoverAnchorRef = useRef<string | undefined>(undefined);
   const focusedIssueRequestRef = useRef<IssueNavigationRequest | null>(null);
 
   const issueExperience = issueNavigation && factBase.experiences.find((item) => item.id === issueNavigation.issue.experienceId);
@@ -117,12 +122,28 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
     if (!(event.target instanceof Element)) return;
     const target = targetForElement(event.target);
     if (!target) return;
+    lastHoverAnchorRef.current = target.anchor;
     // Typing takes over from scroll even when the browser kept the same input focused.
     if (pendingFollowFrameRef.current !== undefined) {
       cancelAnimationFrame(pendingFollowFrameRef.current);
       pendingFollowFrameRef.current = undefined;
     }
     emitPreviewTarget({ ...target, source: "focus" });
+  }, [emitPreviewTarget, targetForElement]);
+
+  const followHoverTarget = useCallback((event: React.PointerEvent) => {
+    if (!(event.target instanceof Element)) return;
+    const target = targetForElement(event.target);
+    if (!target) return;
+    if (target.anchor === lastHoverAnchorRef.current) return;
+    if (pendingHoverFrameRef.current !== undefined) {
+      cancelAnimationFrame(pendingHoverFrameRef.current);
+    }
+    pendingHoverFrameRef.current = requestAnimationFrame(() => {
+      pendingHoverFrameRef.current = undefined;
+      lastHoverAnchorRef.current = target.anchor;
+      emitPreviewTarget({ ...target, source: "focus" });
+    });
   }, [emitPreviewTarget, targetForElement]);
 
   const followEditorScroll = useCallback(() => {
@@ -170,7 +191,12 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
     emitPreviewTarget({ anchor: `claim:${issueNavigation.issue.claimId}`, fallbackAnchors: [`experience:${issueNavigation.issue.experienceId}`], source: "focus" });
   }, [issueNavigation, activeTab, collapsedExps, viewMode, factBase, emitPreviewTarget]);
 
-  useEffect(() => () => { avatarReadIdRef.current += 1; }, []);
+  useEffect(() => () => {
+    avatarReadIdRef.current += 1;
+    if (pendingHoverFrameRef.current !== undefined) {
+      cancelAnimationFrame(pendingHoverFrameRef.current);
+    }
+  }, []);
 
   const toggleExpCollapse = (id: string) => {
     setCollapsedExps((prev) => ({
@@ -318,7 +344,12 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
   };
 
   return (
-    <section onPointerDownCapture={followEditingTarget} onFocusCapture={followEditingTarget} onInputCapture={followEditingTarget} onChangeCapture={followEditingTarget} className="fact-editor flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] shadow-sm">
+    <section
+      onPointerDownCapture={followEditingTarget}
+      onFocusCapture={followEditingTarget}
+      onPointerOverCapture={followHoverTarget}
+      className="fact-editor flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] shadow-sm"
+    >
       {/* Editor Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-line)] px-5 py-3.5 bg-slate-50/50">
         <div className="flex items-center gap-2">
@@ -737,45 +768,21 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
               </div>
 
               {/* Constraints */}
-              <div>
+              <div data-editor-anchor="profile:constraints">
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   {t("求职红线约束（绝不妥协的原则）", "Firm job constraints")}</label>
-                <div className="flex flex-wrap gap-2">
-                  {factBase.profile.constraints.map((c, i) => (
-                    <span
-                      key={i}
-                      className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200/80 px-2.5 py-1 text-xs font-medium text-amber-900"
-                    >
-                      {c}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateProfile((p) => ({
-                            ...p,
-                            constraints: p.constraints.filter((_, idx) => idx !== i),
-                          }))
-                        }
-                        className="text-amber-500 hover:text-amber-800"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const val = prompt(t("输入新的约束规则（例如：0出差、0Oncall）", "Enter a new constraint (for example: no travel, no on-call)"));
-                      if (val?.trim()) {
-                        updateProfile((p) => ({
-                          ...p,
-                          constraints: [...p.constraints, val.trim()],
-                        }));
-                      }
-                    }}
-                    className="rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-xs text-slate-600 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
-                  >
-                    {t("+ 添加约束", "+ Add constraint")}</button>
-                </div>
+                <TagListEditor
+                  tags={factBase.profile.constraints}
+                  onChange={(nextConstraints) =>
+                    updateProfile((p) => ({ ...p, constraints: nextConstraints }))
+                  }
+                  variant="warning"
+                  pillShape="pill"
+                  addLabel={t("添加约束", "Add constraint")}
+                  placeholder={t("输入约束规则 (例如：0出差、0Oncall)", "Enter constraint (e.g. no travel, no on-call)")}
+                  ariaLabel={t("求职红线约束", "Job constraints")}
+                  inputAriaLabel={t("约束规则名称", "Constraint rule name")}
+                />
               </div>
             </div>
           </div>
@@ -1011,56 +1018,24 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                       <div>
                         <label className="block text-[11px] font-semibold text-slate-600 mb-1.5">
                           {t("技术栈标签 (Tech Stack)", "Technology tags")}</label>
-                        <div className="flex flex-wrap gap-1.5 items-center">
-                          {exp.techStack.map((tech, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-700"
-                            >
-                              {tech}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  updateExperiences((exps) =>
-                                    exps.map((it) =>
-                                      it.id === exp.id
-                                        ? {
-                                            ...it,
-                                            techStack: it.techStack.filter(
-                                              (_, i) => i !== idx,
-                                            ),
-                                          }
-                                        : it,
-                                    ),
-                                  )
-                                }
-                                className="text-slate-400 hover:text-rose-600"
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const technology = prompt(t("输入技术栈名称 (例如：C#, React, Redis)", "Enter a technology (for example: C#, React, Redis)"));
-                              if (technology?.trim()) {
-                                updateExperiences((exps) =>
-                                  exps.map((it) =>
-                                    it.id === exp.id
-                                      ? {
-                                          ...it,
-                                          techStack: [...it.techStack, technology.trim()],
-                                        }
-                                      : it,
-                                  ),
-                                );
-                              }
-                            }}
-                            className="rounded border border-dashed border-slate-300 px-2 py-0.5 text-xs text-slate-500 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
-                          >
-                            {t("+ 标签", "+ Tag")}</button>
-                        </div>
+                        <TagListEditor
+                          tags={exp.techStack}
+                          onChange={(nextTechStack) =>
+                            updateExperiences((exps) =>
+                              exps.map((it) =>
+                                it.id === exp.id
+                                  ? { ...it, techStack: nextTechStack }
+                                  : it,
+                              ),
+                            )
+                          }
+                          variant="dopamine"
+                          pillShape="rounded"
+                          addLabel={t("标签", "Tag")}
+                          placeholder={t("输入技术栈名称 (例如：C#, React, Redis)", "Enter a technology (for example: C#, React, Redis)")}
+                          ariaLabel={t("技术栈标签", "Technology tags")}
+                          inputAriaLabel={t("技术栈名称", "Technology name")}
+                        />
                       </div>
 
                       {/* Claims / Bullets Section */}
@@ -1089,15 +1064,15 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                               <div className="flex flex-wrap items-center justify-between gap-2">
                                 <div className="flex items-center gap-1.5">
                                   {/* Kind Selector */}
-                                  <select
+                                  <ClaimKindSelector
                                     value={claim.kind}
-                                    onChange={(e) =>
+                                    onChange={(nextKind) =>
                                       updateClaim(exp.id, claim.id, (c) => ({
                                         ...c,
-                                        kind: e.target.value as FactClaim["kind"],
+                                        kind: nextKind as FactClaimKind,
                                         // Missing values stay invalid in the page draft until supplied.
                                         metric:
-                                          e.target.value === "metric" && !c.metric
+                                          nextKind === "metric" && !c.metric
                                             ? {
                                                 value: Number.NaN,
                                                 unit: "",
@@ -1108,14 +1083,11 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
                                               : undefined,
                                       }))
                                     }
-                                    className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 outline-none"
-                                  >
-                                    <option value="action">{t("行动 (Action)", "Action")}</option>
-                                    <option value="metric">{t("量化指标 (Metric)", "Metric")}</option>
-                                    <option value="note">{t("备忘 (Note)", "Note")}</option>
-                                    <option value="pitfall">{t("防坑/避雷 (Pitfall)", "Pitfall")}</option>
-                                    <option value="interview">{t("答辩考点 (Interview)", "Interview notes")}</option>
-                                  </select>
+                                    ariaLabel={t(
+                                      `${exp.org.zh || exp.org.en || t("新经历", "New experience")} · 要点 ${claimIndex + 1} · 类型`,
+                                      `${exp.org.zh || exp.org.en || t("新经历", "New experience")} · Entry ${claimIndex + 1} · Kind`
+                                    )}
+                                  />
 
                                   {/* Metric Confirmed Switch */}
                                   {claim.kind === "metric" || claim.metric ? (

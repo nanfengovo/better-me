@@ -119,7 +119,7 @@
   /* Consistent fields, including utility-built AI/JD/import/history dialogs. */
   html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"])),textarea,select):not(:where(.a4-sheet *,.resume-document *,.template-mini *)) { color:var(--ui-text); background-color:var(--ui-input); border-color:var(--ui-border); }
   html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .document-title-row input { background:transparent; border-color:transparent; }
-  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .opportunity-search input { background:transparent; }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.opportunity-search,.atlas-search,.atlas-region-search) input { background:transparent; border-color:transparent; }
   html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) .formatted-field textarea { background:var(--ui-input); }
   html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(input,textarea)::placeholder { color:var(--ui-text-muted); opacity:1; }
   html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(input[type="checkbox"],input[type="radio"],input[type="range"]) { accent-color:var(--ui-accent); }

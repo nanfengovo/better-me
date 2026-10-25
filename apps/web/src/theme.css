@@ -129,7 +129,7 @@
   /* Consistent fields, including utility-built AI/JD/import/history dialogs. */
   html[data-theme="dark"] :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"])),textarea,select):not(:where(.a4-sheet *,.resume-document *,.template-mini *)) { color:var(--ui-text); background-color:var(--ui-input); border-color:var(--ui-border); }
   html[data-theme="dark"] .document-title-row input { background:transparent; border-color:transparent; }
-  html[data-theme="dark"] .opportunity-search input { background:transparent; }
+  html[data-theme="dark"] :is(.opportunity-search,.atlas-search,.atlas-region-search) input { background:transparent; border-color:transparent; }
   html[data-theme="dark"] .formatted-field textarea { background:var(--ui-input); }
   html[data-theme="dark"] :is(input,textarea)::placeholder { color:#90a38e; opacity:1; }
   html[data-theme="dark"] :is(input[type="checkbox"],input[type="radio"],input[type="range"]) { accent-color:#83c29b; }

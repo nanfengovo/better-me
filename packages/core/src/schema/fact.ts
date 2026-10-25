@@ -14,9 +14,12 @@ export const MetricSchema = z.object({
 
 export type Metric = z.infer<typeof MetricSchema>;
 
+export const StandardFactClaimKinds = ["action", "metric", "note", "pitfall", "interview"] as const;
+export type StandardFactClaimKind = typeof StandardFactClaimKinds[number];
+
 export const FactClaimSchema = z.object({
   id: z.string().min(1),
-  kind: z.enum(["action", "metric", "note", "pitfall", "interview"]),
+  kind: z.string().min(1),
   text: LocalizedStringSchema,
   metric: MetricSchema.optional(),
   /** Capability tags for future skill-gap matrix. */
@@ -25,7 +28,10 @@ export const FactClaimSchema = z.object({
   updatedAt: z.string().datetime().optional(),
 });
 
-export type FactClaim = z.infer<typeof FactClaimSchema>;
+export type FactClaimKind = StandardFactClaimKind | (string & {});
+export type FactClaim = Omit<z.infer<typeof FactClaimSchema>, "kind"> & {
+  kind: FactClaimKind;
+};
 
 export const ExperienceSchema = z.object({
   id: z.string().min(1),

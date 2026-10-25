@@ -19,7 +19,7 @@ const SECTION_LABELS: Record<ResumeSectionId, string> = { summary: "个人优势
 const PROFILE_LABELS: Record<ResumeProfileField, string> = { photo: "照片", headline: "职位", education: "抬头学历", location: "所在地", email: "邮箱", phone: "电话", links: "个人链接", targetRoles: "目标岗位", traits: "个人优势" };
 const TEMPLATE_LABELS: Record<string, string> = { "zh-classic": "经典正式", "en-ats": "极简单栏", "clean-modern": "现代专业", editorial: "编辑部", sidebar: "左岸", compact: "精练履历" };
 const EXPERIENCE_LABELS = { work: "工作经历", opensource: "开源 / 项目经历", education: "教育经历", other: "其他经历" };
-const CLAIM_LABELS = { action: "行动", metric: "量化成果", note: "补充说明", pitfall: "问题复盘", interview: "面试素材" };
+const CLAIM_LABELS: Record<string, string> = { action: "行动", metric: "量化成果", note: "补充说明", pitfall: "问题复盘", interview: "面试素材" };
 const EMPTY = "未设置";
 const FONT_NAMES = { sans: "无衬线字体", serif: "衬线字体", mono: "等宽字体" };
 const DECORATION_NAMES: Record<string, string> = { "accent-rule": "主题色细线", underline: "下划线", plain: "简洁", "soft-band": "浅色底带", "side-rule": "侧边线", "soft-tag": "浅色标签", outlined: "描边标签", solid: "实线", dashed: "虚线", none: "无分隔线" };
@@ -40,7 +40,7 @@ function metricSummary(item?: FactClaim): string {
 function experienceSummary(item: Experience): string {
   return `${EXPERIENCE_LABELS[item.type]}\n${experienceName(item)}\n${item.start || "未填开始月份"} — ${item.end === null ? "至今" : item.end || "未填结束月份"}${item.projectName ? `\n项目：${localized(item.projectName)}` : ""}${item.url ? `\n${item.url}` : ""}${item.techStack.length ? `\n技术栈：${item.techStack.join("、")}` : ""}`;
 }
-function claimSummary(item: FactClaim): string { return `${CLAIM_LABELS[item.kind]}\n${localized(item.text)}\n${metricSummary(item)}${item.tags.length ? `\n标签：${item.tags.join("、")}` : ""}`; }
+function claimSummary(item: FactClaim): string { return `${CLAIM_LABELS[item.kind] ?? item.kind}\n${localized(item.text)}\n${metricSummary(item)}${item.tags.length ? `\n标签：${item.tags.join("、")}` : ""}`; }
 function activeViewName(document: BetterMeDocument): string { return document.resumeViews.find((item) => item.id === document.activeResumeId)?.name || "未命名简历"; }
 function selectedExperiences(document: BetterMeDocument, view: ResumeView): string {
   const all = view.experienceSelection === "all" || (!view.experienceSelection && view.includedExperienceIds.length === 0);
@@ -145,7 +145,7 @@ export function getDocumentFieldChanges(before: BetterMeDocument, after: BetterM
       else if (oldClaim && !newClaim) add({ scope: "claim-item", experienceId: id, claimId }, `删除要点 · ${prefix}`, claimSummary(oldClaim), "不存在", "removed");
       else if (oldClaim && newClaim) {
         localizedFields({ scope: "claim", experienceId: id, claimId, field: "text" }, `${prefix} · 正文`, oldClaim.text, newClaim.text);
-        add({ scope: "claim", experienceId: id, claimId, field: "kind" }, `${prefix} · 类型`, CLAIM_LABELS[oldClaim.kind], CLAIM_LABELS[newClaim.kind]);
+        add({ scope: "claim", experienceId: id, claimId, field: "kind" }, `${prefix} · 类型`, CLAIM_LABELS[oldClaim.kind] ?? oldClaim.kind, CLAIM_LABELS[newClaim.kind] ?? newClaim.kind);
         add({ scope: "claim", experienceId: id, claimId, field: "tags" }, `${prefix} · 标签`, list(oldClaim.tags), list(newClaim.tags), "changed", rawDiffers(oldClaim.tags, newClaim.tags));
         add({ scope: "claim", experienceId: id, claimId, field: "metric" }, `${prefix} · 量化指标`, metricSummary(oldClaim), metricSummary(newClaim), "changed", rawDiffers(oldClaim.metric, newClaim.metric));
       }

@@ -14,6 +14,11 @@ import { IssuesPanel } from "./components/IssuesPanel";
 import { ImportSourceReview } from "./components/ImportSourceReview";
 import { AiConfigModal, DEFAULT_LLM_CONFIG } from "./components/AiConfigModal";
 import { JdMatchModal } from "./components/JdMatchModal";
+import { JdMatchDrawer, type DrawerJobContext } from "./components/JdMatchDrawer";
+import { AgentWorkspace } from "./components/AgentWorkspace";
+import type { MatchProposal } from "./services/agent-client";
+import { triggerAgentGuide } from "./lib/agent-guide";
+import "./components/agent-guide.css";
 import { NetworkSettingsModal } from "./components/NetworkSettingsModal";
 import { LazyResumeImportModal } from "./components/LazyResumeImportModal";
 import { useConfirm } from "./components/ConfirmationDialog";
@@ -27,7 +32,8 @@ import { WorkspacePreferences } from "./components/WorkspacePreferences";
 import { rebaseViewTextStyles } from "./lib/text-formatting";
 import type { PreviewFollowTarget } from "./lib/preview-follow";
 import { createIssueNavigation, type IssueNavigationRequest } from "./lib/issue-navigation";
-import { ArrowUpRight, BookOpen, Bot, BriefcaseBusiness, Check, ChevronRight, CloudOff, Download, FileText, GitBranch, Globe, History, Languages, Loader2, MoreHorizontal, Palette, RotateCcw, Settings2, ShieldCheck, Target, Upload } from "lucide-react";
+import { ArrowUpRight, BookOpen, Bot, BriefcaseBusiness, Check, ChevronRight, CloudOff, Download, FileText, GitBranch, Globe, History, Languages, Loader2, MoreHorizontal, Palette, RotateCcw, Settings2, ShieldCheck, Sparkles, Upload } from "lucide-react";
+import { AgentTopBarStatus } from "./components/AgentTopBarStatus";
 
 const AtlasWorkspace = lazy(() => import("./components/AtlasWorkspace"));
 const LLM_CONFIG_KEY = "better-me:llm-config";
@@ -43,7 +49,10 @@ export function App() {
   const confirm = useConfirm();
   const { doc, ready, loadError, status, update, replace, restoreField, checkpoint, flush, history, autoSaveSettings, setAutoSaveSettings, autoSavePreferenceError } = useDocumentPersistence();
   const [workspaceTab, setWorkspaceTab] = useState<"content" | "design">("content");
-  const [page, setPage] = useState<"resume" | "opportunities" | "resources" | "atlas">(() => new URLSearchParams(window.location.search).get("workspace") === "atlas" ? "atlas" : "resume");
+  const [page, setPage] = useState<"resume" | "opportunities" | "resources" | "atlas" | "agent">(() => {
+    const ws = new URLSearchParams(window.location.search).get("workspace");
+    return ws === "atlas" ? "atlas" : ws === "agent" ? "agent" : "resume";
+  });
   const [atlasInitialized, setAtlasInitialized] = useState(page === "atlas");
   const [opportunitySeed, setOpportunitySeed] = useState<OpportunitySeed | null>(null);
   const [jdSelection, setJdSelection] = useState<{ token: string; text: string; source: { title: string; url?: string; platform: string; observedAt?: string; sourcePublishedAt?: string; sourcePublishedText?: string } } | null>(null);
@@ -54,6 +63,8 @@ export function App() {
   const [isAiConfigOpen, setIsAiConfigOpen] = useState(false);
   const [isNetworkSettingsOpen, setIsNetworkSettingsOpen] = useState(false);
   const [isJdMatchOpen, setIsJdMatchOpen] = useState(false);
+  const [isAgentDrawerOpen, setIsAgentDrawerOpen] = useState(false);
+  const [agentDrawerJob, setAgentDrawerJob] = useState<DrawerJobContext | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -74,12 +85,12 @@ export function App() {
   useEffect(() => {
     const save = (event: KeyboardEvent) => {
       if (event.target instanceof Element && event.target.closest(".confirmation-dialog")) return;
-      if (page === "resume" && !isJdMatchOpen && !isImportModalOpen && !isAiConfigOpen && !isNetworkSettingsOpen && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+      if (page === "resume" && !isJdMatchOpen && !isAgentDrawerOpen && !isImportModalOpen && !isAiConfigOpen && !isNetworkSettingsOpen && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault(); if (event.shiftKey) setIsHistoryOpen(true); else void flush();
       }
     };
     window.addEventListener("keydown", save); return () => window.removeEventListener("keydown", save);
-  }, [flush, page, isJdMatchOpen, isImportModalOpen, isAiConfigOpen, isNetworkSettingsOpen]);
+  }, [flush, page, isJdMatchOpen, isAgentDrawerOpen, isImportModalOpen, isAiConfigOpen, isNetworkSettingsOpen]);
   useEffect(() => {
     if (!isMenuOpen) return;
     const close = (event: PointerEvent) => { if (!menuRef.current?.contains(event.target as Node)) setIsMenuOpen(false); };
@@ -196,6 +207,80 @@ export function App() {
     if (!current || !view || !DocumentSchema.safeParse(current).success) throw new Error(t("请先补齐并核对简历必填字段，再记录材料快照。", "Complete and review the required resume fields before saving a material snapshot."));
     return { resumeViewId: view.id, resumeName: view.name, resumeUpdatedAt: current.factBase.updatedAt > view.updatedAt ? current.factBase.updatedAt : view.updatedAt, locale: view.locale, markdown: projectedResumeToMarkdown(projectResume(current.factBase, view)) };
   }
+  function openAgentWorkspace(job?: DrawerJobContext) {
+    if (job) {
+      setAgentDrawerJob(job);
+    }
+    setPage("agent");
+  }
+  function handleApplyCustomResume(payload: {
+    acceptedProposals: MatchProposal[];
+    customResumeName: string;
+    targetJobTitle: string;
+    targetCompany: string;
+  }) {
+    const current = docRef.current;
+    if (!current) return;
+
+    const duplicatedDoc = duplicateResumeView(current, current.activeResumeId, {
+      name: payload.customResumeName || `${payload.targetCompany} · ${payload.targetJobTitle} 定制版`,
+    });
+
+    let updatedFactBase = duplicatedDoc.factBase;
+    if (payload.acceptedProposals.length > 0 && updatedFactBase.experiences.length > 0) {
+      const newClaims = payload.acceptedProposals.map((p) => ({
+        id: `claim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        kind: "action" as const,
+        text: {
+          zh: p.suggestion,
+          en: p.suggestion,
+        },
+        tags: [t("AI定制", "AI tailored"), payload.targetCompany, payload.targetJobTitle].filter(Boolean),
+      }));
+
+      const updatedExperiences = updatedFactBase.experiences.map((exp, idx) => {
+        if (idx === 0) {
+          return {
+            ...exp,
+            claims: [...exp.claims, ...newClaims],
+          };
+        }
+        return exp;
+      });
+
+      updatedFactBase = {
+        ...updatedFactBase,
+        experiences: updatedExperiences,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    const synced = syncResumeViewsWithFactBase(
+      duplicatedDoc.factBase,
+      updatedFactBase,
+      duplicatedDoc.resumeViews,
+      duplicatedDoc.activeResumeId
+    );
+
+    edit({
+      ...duplicatedDoc,
+      factBase: updatedFactBase,
+      resumeViews: rebaseViewTextStyles(duplicatedDoc.factBase, updatedFactBase, synced),
+    });
+
+    setPage("resume");
+    setWorkspaceTab("content");
+
+    if (payload.acceptedProposals.length > 0) {
+      setTimeout(() => {
+        triggerAgentGuide({
+          section: "experience",
+          label: t(`✨ 已同步采纳 ${payload.acceptedProposals.length} 条定制建议至此经历`, `✨ Applied ${payload.acceptedProposals.length} tailored proposals here`),
+          actionType: "applied",
+        });
+      }, 300);
+    }
+  }
   if (ready && loadError && !doc) return <div className="recovery-screen"><WorkspacePreferences /><div className="recovery-card"><ShieldCheck size={28} /><h1>{t("先保护好你的简历", "Protect your resume first")}</h1><p role="alert">{loadError}</p><p>{t("原始数据已保留。可以下载原文，或从有效备份恢复。", "The original data is preserved. Download it or restore a valid backup.")}</p><input type="file" ref={fileInputRef} accept=".json" onChange={handleFileSelected} className="hidden" /><div className="flex flex-wrap gap-3"><button className="studio-button" onClick={() => { try { downloadJson(localStorage.getItem(STORAGE_KEY) ?? "", "better-me-backup-recovery.json"); } catch { setActionError(t("浏览器拒绝读取存储。", "The browser blocked access to local storage.")); } }}>{t("下载原始数据", "Download original data")}</button><button className="studio-button primary" onClick={() => fileInputRef.current?.click()}>{t("恢复 JSON 备份", "Restore a JSON backup")}</button><button className="studio-button" onClick={() => void resetDemo()}>{t("恢复演示", "Reset demo")}</button></div>{actionError && <p role="alert">{actionError}</p>}</div></div>;
   if (!ready || !doc || !activeResume || !projected) return <div className="studio-loading"><Loader2 size={24} className="animate-spin" /><span>{t("正在打开你的简历工作室…", "Opening your resume studio…")}</span></div>;
   const statusIcon = status.kind === "pending" ? <Loader2 size={12} className="animate-spin" /> : status.kind === "error" ? <CloudOff size={12} /> : <Check size={12} />;
@@ -209,13 +294,14 @@ export function App() {
       <button aria-label={t("内容编辑", "Content editor")} aria-pressed={page === "resume" && workspaceTab === "content"} className={page === "resume" && workspaceTab === "content" ? "active" : ""} onClick={() => { setPage("resume"); setWorkspaceTab("content"); }}><FileText size={20} /><span>{t("内容", "Content")}</span></button>
       <button aria-label={t("排版设计", "Resume design")} aria-pressed={page === "resume" && workspaceTab === "design"} className={page === "resume" && workspaceTab === "design" ? "active" : ""} onClick={() => { setPage("resume"); setWorkspaceTab("design"); }}><Palette size={20} /><span>{t("设计", "Design")}</span></button>
       <button aria-label={t("查看历史版本", "View version history")} onClick={() => setIsHistoryOpen(true)}><History size={20} /><span>{t("版本", "History")}</span></button>
+      <button aria-label={t("AI 顾问工作台", "AI Agent Workspace")} aria-pressed={page === "agent"} className={page === "agent" ? "active" : ""} onClick={() => setPage("agent")}><Bot size={20} /><span>{t("顾问", "Agent")}</span></button>
       <button aria-label={t("机会与投递", "Opportunities & applications")} aria-pressed={page === "opportunities"} className={page === "opportunities" ? "active" : ""} onClick={() => setPage("opportunities")}><BriefcaseBusiness size={20} /><span>{t("机会", "Jobs")}</span></button>
       <button aria-label={t("岗位地图", "Opportunity atlas")} aria-pressed={page === "atlas"} className={page === "atlas" ? "active" : ""} onClick={() => { setAtlasInitialized(true); setPage("atlas"); }}><Globe size={20} /><span>{t("地图", "Atlas")}</span></button>
       <button aria-label={t("求职资料库", "Career resources")} aria-pressed={page === "resources"} className={page === "resources" ? "active" : ""} onClick={() => setPage("resources")}><BookOpen size={20} /><span>{t("资料", "Resources")}</span></button>
       <div className="rail-bottom"><button aria-label={t("网络与代理设置", "Network & proxy settings")} onClick={() => setIsNetworkSettingsOpen(true)}><Globe size={19} /><span>{t("网络", "Network")}</span></button><span className="rail-local" title={t("简历与历史版本保存在当前浏览器", "Your resume and version history are stored in this browser")}><ShieldCheck size={19} /></span><button aria-label={t("打开 AI 配置", "Open AI configuration")} onClick={() => setIsAiConfigOpen(true)}><Settings2 size={19} /><span>{t("设置", "Settings")}</span></button></div>
     </aside>
     <div className="studio-workspace">
-      <header className="studio-header no-print"><div className="studio-brand"><strong>BetterMe<span> / </span></strong><span>{t("迈向更好", "Your next chapter")}</span><ChevronRight size={13} /><span className="header-location">{page === "resume" ? t("简历工作室", "Resume studio") : page === "opportunities" ? t("机会与投递", "Opportunities & applications") : page === "atlas" ? t("岗位地图", "Opportunity atlas") : t("求职资料库", "Career resources")}</span></div><div className="header-actions"><WorkspacePreferences /><span className={`save-indicator ${status.kind}`} title={status.message} role="status" aria-live="polite">{statusIcon}<span>{page === "resume" ? saveLabel : t("简历：", "Resume: ") + saveLabel}</span></span><button className="studio-button subtle" onClick={() => setIsAiConfigOpen(true)}><Bot size={15} />{t("AI 配置", "AI settings")}</button><div className="studio-user" title={t("个人本地工作空间", "Personal local workspace")}>{doc.factBase.profile.displayName.zh.slice(0, 1) || "我"}</div></div></header>
+      <header className="studio-header no-print"><div className="studio-brand"><strong>BetterMe<span> / </span></strong><span>{t("迈向更好", "Your next chapter")}</span><ChevronRight size={13} /><span className="header-location">{page === "resume" ? t("简历工作室", "Resume studio") : page === "opportunities" ? t("机会与投递", "Opportunities & applications") : page === "atlas" ? t("岗位地图", "Opportunity atlas") : page === "agent" ? t("AI 顾问工作台", "AI Agent Workspace") : t("求职资料库", "Career resources")}</span></div><div className="header-actions"><WorkspacePreferences /><span className={`save-indicator ${status.kind}`} title={status.message} role="status" aria-live="polite">{statusIcon}<span>{page === "resume" ? saveLabel : t("简历：", "Resume: ") + saveLabel}</span></span><AgentTopBarStatus config={llmConfig} active={page === "agent"} onNavigateToAgent={() => setPage("agent")} onOpenAiConfig={() => setIsAiConfigOpen(true)} /><button className="studio-button subtle" onClick={() => setIsAiConfigOpen(true)}><Settings2 size={14} />{t("AI 配置", "AI settings")}</button><div className="studio-user" title={t("个人本地工作空间", "Personal local workspace")}>{doc.factBase.profile.displayName.zh.slice(0, 1) || "我"}</div></div></header>
       <div className="resume-workspace-body" hidden={page !== "resume"}>
       <div className="studio-document-bar no-print">
         <div className="document-heading">
@@ -252,15 +338,16 @@ export function App() {
         <div id="resume-editor-panel" className="studio-editor-pane no-print">
           <div id="content-panel" role="tabpanel" className="studio-panel-slot" hidden={workspaceTab !== "content"}><FactEditor factBase={doc.factBase} onChange={updateFactBase} textStyles={activeResume.textStyles} onTextStylesChange={updateStyles} onPreviewTargetChange={setPreviewTarget} issueNavigation={issueNavigation} onDismissIssue={() => setIssueNavigation(null)} /></div>
           <div id="design-panel" role="tabpanel" className="studio-panel-slot" hidden={workspaceTab !== "design"}><ResumeDesignPanel view={activeResume} factBase={doc.factBase} onChange={updateResume} /></div>
-          <button className="jd-workspace-invite" onClick={() => setIsJdMatchOpen(true)}><span className="jd-invite-icon"><Target size={17} /></span><span><strong>{t("为下一个机会，调整这份简历", "Tailor this resume for your next opportunity")}</strong><small>{t("招聘分享链接 · 截图识别 · JD 匹配", "Job links · Screenshot import · Job matching")}</small></span><ArrowUpRight size={17} /></button>
+          <button className="jd-workspace-invite" onClick={() => setPage("agent")}><span className="jd-invite-icon"><Sparkles size={17} /></span><span><strong>{t("AI Agent 岗位匹配与定制", "AI Agent Job Matching & Customization")}</strong><small>{t("多 Agent 协同 · 查企业 · 优化履历 · 答辩建议", "Multi-Agent · Employer research · Polish resume · Interview defense")}</small></span><ArrowUpRight size={17} /></button>
         </div>
         <div id="resume-preview-panel" className="studio-preview-pane"><ResumePreview resume={projected} view={activeResume} onViewChange={updateResume} onTemplateChange={setTemplate} followTarget={workspaceTab === "content" ? previewTarget : null} /></div>
       </ResizableWorkspace>
       </div>
-      <div className="secondary-workspace no-print" hidden={page !== "opportunities"}><OpportunityWorkspace seed={opportunitySeed} onSeedConsumed={() => setOpportunitySeed(null)} linkedResumeNames={linkedResumeNames} getCurrentResumeMaterial={currentResumeMaterial} onOpenJd={() => setIsJdMatchOpen(true)} onOpenNetworkSettings={() => setIsNetworkSettingsOpen(true)} onCreateResume={createJobResume} onAnalyze={(job) => { setJdSelection({ token: crypto.randomUUID(), text: job.description, source: { title: `${job.company} · ${job.title}`, url: job.sourceUrl || undefined, platform: job.sourcePlatform, observedAt: job.collectedAt, sourcePublishedAt: job.sourcePublishedAt, sourcePublishedText: job.sourcePublishedText } }); setIsJdMatchOpen(true); }} /></div>
-      {atlasInitialized && <div className="secondary-workspace no-print" hidden={page !== "atlas"}><Suspense fallback={<div className="studio-loading"><Loader2 className="animate-spin" />{t("正在加载岗位地图…", "Loading opportunity atlas…")}</div>}><AtlasWorkspace onOpenOpportunitySources={() => setPage("opportunities")} active={page === "atlas"} onSaveOpportunity={(seed) => { setOpportunitySeed(seed); setPage("opportunities"); }} onAnalyze={(item) => { setJdSelection({ token: crypto.randomUUID(), text: item.text, source: { title: item.title, url: item.url, platform: item.platform, observedAt: item.observedAt, sourcePublishedAt: item.sourcePublishedAt, sourcePublishedText: item.sourcePublishedText } }); setIsJdMatchOpen(true); }} /></Suspense></div>}
+      <div className="secondary-workspace no-print" hidden={page !== "opportunities"}><OpportunityWorkspace seed={opportunitySeed} onSeedConsumed={() => setOpportunitySeed(null)} linkedResumeNames={linkedResumeNames} getCurrentResumeMaterial={currentResumeMaterial} onOpenJd={() => setIsJdMatchOpen(true)} onOpenNetworkSettings={() => setIsNetworkSettingsOpen(true)} onCreateResume={createJobResume} onAnalyze={(job) => { openAgentWorkspace({ id: job.id, title: job.title, company: job.company, location: [job.location.city, job.location.region].filter(Boolean).join(" · ") || undefined, salary: job.salaryText || undefined, description: job.description, sourceUrl: job.sourceUrl || undefined, sourcePlatform: job.sourcePlatform }); }} /></div>
+      {atlasInitialized && <div className="secondary-workspace no-print" hidden={page !== "atlas"}><Suspense fallback={<div className="studio-loading"><Loader2 className="animate-spin" />{t("正在加载岗位地图…", "Loading opportunity atlas…")}</div>}><AtlasWorkspace resume={projected} factBase={doc.factBase} onOpenOpportunitySources={() => setPage("opportunities")} active={page === "atlas"} onSaveOpportunity={(seed) => { setOpportunitySeed(seed); setPage("opportunities"); }} onAnalyze={(item) => { const parts = item.title.split(" · "); const company = (parts.length > 1 && parts[0]) ? parts[0] : ""; const title = parts.length > 1 ? parts.slice(1).join(" · ") : item.title; openAgentWorkspace({ title: title || "目标岗位", company: company || "目标企业", description: item.text ?? "", sourceUrl: item.url, sourcePlatform: item.platform }); }} /></Suspense></div>}
       <div className="secondary-workspace no-print" hidden={page !== "resources"}><ResourceLibrary /></div>
-      <footer className="studio-footer no-print"><span><ShieldCheck size={12} />{t("本地保存 · 真实经历由你核实", "Saved locally · You verify your experience")}</span><span>{page === "resume" ? t(`${autoSaveDescription} · Ctrl + S 立即保存`, `${autoSaveDescription} · Ctrl + S to save now`) : page === "opportunities" ? t("岗位信息与跟进需点击保存", "Click Save to keep job details and follow-ups") : page === "atlas" ? t("地图、列表与统计使用同一查询 · 来源与事实需核实", "Map, list and statistics share one query · Verify source facts") : t("查看原始出处，按需使用资料", "Visit original sources and use resources as needed")}</span></footer>
+      <div className="secondary-workspace no-print" hidden={page !== "agent"}><AgentWorkspace job={agentDrawerJob} resume={projected} llmConfig={llmConfig} onOpenConfig={() => setIsAiConfigOpen(true)} onNavigateToResume={() => { setPage("resume"); setWorkspaceTab("content"); }} onApplyToResume={handleApplyCustomResume} onSaveOpportunity={(job) => { setOpportunitySeed({ token: crypto.randomUUID(), title: job.title, description: job.description, sourceUrl: job.sourceUrl, sourcePlatform: job.sourcePlatform }); setPage("opportunities"); }} /></div>
+      <footer className="studio-footer no-print"><span><ShieldCheck size={12} />{t("本地保存 · 真实经历由你核实", "Saved locally · You verify your experience")}</span><span>{page === "resume" ? t(`${autoSaveDescription} · Ctrl + S 立即保存`, `${autoSaveDescription} · Ctrl + S to save now`) : page === "opportunities" ? t("岗位信息与跟进需点击保存", "Click Save to keep job details and follow-ups") : page === "atlas" ? t("地图、列表与统计使用同一查询 · 来源与事实需核实", "Map, list and statistics share one query · Verify source facts") : page === "agent" ? t("本地 Agent 编排 · 逐条核实履历 · 真实推理由你掌控", "Local Agent orchestration · Verify claims item-by-item · Full user control") : t("查看原始出处，按需使用资料", "Visit original sources and use resources as needed")}</span></footer>
     </div>
     <div className="no-print">
       <NetworkSettingsModal isOpen={isNetworkSettingsOpen} onClose={() => setIsNetworkSettingsOpen(false)} />
@@ -269,6 +356,29 @@ export function App() {
       {jdSelection && <JdMatchModal onImportResume={() => setIsImportModalOpen(true)} onEditResume={editResumeForMatching} key={jdSelection.token} initialText={jdSelection.text} initialSource={jdSelection.source} isOpen={isJdMatchOpen} onClose={() => { setIsJdMatchOpen(false); setJdSelection(null); }} resume={projected} llmConfig={llmConfig} onOpenNetworkSettings={() => setIsNetworkSettingsOpen(true)} onOpenConfig={() => { setIsJdMatchOpen(false); setJdSelection(null); setIsAiConfigOpen(true); }} />}
       <LazyResumeImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} llmConfig={llmConfig} onImportSuccess={handleImportResumeSuccess} onOpenAiConfig={() => { setIsImportModalOpen(false); setIsAiConfigOpen(true); }} />
       {isHistoryOpen && <VersionHistoryPanel history={history} currentDocument={doc} persistenceStatus={status} onCheckpoint={checkpoint} onRestore={restoreVersion} onRestoreField={restoreVersionField} onClose={() => setIsHistoryOpen(false)} />}
+      <JdMatchDrawer
+        isOpen={isAgentDrawerOpen}
+        onClose={() => setIsAgentDrawerOpen(false)}
+        job={agentDrawerJob}
+        resume={projected}
+        llmConfig={llmConfig}
+        onOpenConfig={() => {
+          setIsAgentDrawerOpen(false);
+          setIsAiConfigOpen(true);
+        }}
+        onApplyToResume={handleApplyCustomResume}
+        onSaveOpportunity={(job) => {
+          setOpportunitySeed({
+            token: crypto.randomUUID(),
+            title: job.title,
+            description: job.description,
+            sourceUrl: job.sourceUrl,
+            sourcePlatform: job.sourcePlatform,
+          });
+          setIsAgentDrawerOpen(false);
+          setPage("opportunities");
+        }}
+      />
     </div>
   </div>;
 }

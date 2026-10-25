@@ -22,6 +22,7 @@ export interface VersionRepository {
   list(): Promise<DocumentVersion[]>;
   putAndPrune(version: DocumentVersion, limit: number): Promise<void>;
   delete(id: string): Promise<void>;
+  reset?(): void;
 }
 
 /** Only input constraints are relaxed. Object/array/enum shapes remain guarded. */
@@ -67,58 +68,180 @@ export function documentFingerprint(document: BetterMeDocument): string {
   return JSON.stringify(document, (key, value) => key === "updatedAt" || key === "createdAt" ? undefined : value);
 }
 
+function isConnectionClosingError(error: unknown): boolean {
+  if (!error) return false;
+  if (error instanceof Error || (typeof error === "object" && error !== null && "name" in error)) {
+    const name = String((error as { name?: string }).name || "");
+    const msg = String((error as { message?: string }).message || "").toLowerCase();
+    return (
+      name === "InvalidStateError" ||
+      msg.includes("closing") ||
+      msg.includes("closed") ||
+      msg.includes("connection is closing")
+    );
+  }
+  return false;
+}
+
 /** IndexedDB avoids duplicating large portrait snapshots in localStorage's small quota. */
 export class IndexedDbVersionRepository implements VersionRepository {
   private database: Promise<IDBDatabase> | null = null;
+
+  reset(): void {
+    if (this.database) {
+      const pending = this.database;
+      this.database = null;
+      void pending.then(
+        (db) => {
+          try {
+            db.close();
+          } catch {}
+        },
+        () => {}
+      );
+    }
+  }
+
   private open(): Promise<IDBDatabase> {
-    if (!this.database) this.database = new Promise((resolve, reject) => {
-      if (typeof indexedDB === "undefined") { reject(new Error("浏览器未提供 IndexedDB，当前草稿仍会独立保存。")); return; }
-      const request = indexedDB.open("better-me:document-history:v1", 1);
-      request.onupgradeneeded = () => { request.result.createObjectStore("versions", { keyPath: "id" }); };
-      request.onsuccess = () => {
-        const database = request.result;
-        database.onversionchange = () => { database.close(); this.database = null; };
-        resolve(database);
-      };
-      request.onerror = () => { this.database = null; reject(request.error ?? new Error("版本库打开失败。")); };
-      request.onblocked = () => { this.database = null; reject(new Error("版本库被另一标签页占用，请关闭旧页面后重试。")); };
-    });
+    if (!this.database) {
+      this.database = new Promise((resolve, reject) => {
+        if (typeof indexedDB === "undefined") {
+          reject(new Error("浏览器未提供 IndexedDB，当前草稿仍会独立保存。"));
+          return;
+        }
+        const request = indexedDB.open("better-me:document-history:v1", 1);
+        request.onupgradeneeded = () => {
+          request.result.createObjectStore("versions", { keyPath: "id" });
+        };
+        request.onsuccess = () => {
+          const database = request.result;
+          database.onversionchange = () => {
+            this.reset();
+          };
+          database.onclose = () => {
+            this.database = null;
+          };
+          database.onerror = () => {
+            this.database = null;
+          };
+          resolve(database);
+        };
+        request.onerror = () => {
+          this.database = null;
+          reject(request.error ?? new Error("版本库打开失败。"));
+        };
+        request.onblocked = () => {
+          this.database = null;
+          reject(new Error("版本库被另一标签页占用，请关闭旧页面后重试。"));
+        };
+      });
+    }
     return this.database;
   }
+
+  private async withStore<T>(
+    mode: IDBTransactionMode,
+    operation: (store: IDBObjectStore, transaction: IDBTransaction) => Promise<T>
+  ): Promise<T> {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let database: IDBDatabase;
+      try {
+        database = await this.open();
+      } catch (err) {
+        this.reset();
+        throw err;
+      }
+
+      let transaction: IDBTransaction;
+      try {
+        transaction = database.transaction("versions", mode);
+      } catch (err) {
+        this.reset();
+        if (attempt === 0 && isConnectionClosingError(err)) {
+          continue;
+        }
+        throw err;
+      }
+
+      try {
+        return await new Promise<T>((resolve, reject) => {
+          const onError = () => {
+            if (isConnectionClosingError(transaction.error)) {
+              this.reset();
+            }
+            reject(transaction.error ?? new Error(mode === "readonly" ? "版本列表读取失败。" : "版本保存失败。"));
+          };
+          const onAbort = () => {
+            if (isConnectionClosingError(transaction.error)) {
+              this.reset();
+            }
+            reject(transaction.error ?? new Error(mode === "readonly" ? "版本读取被中断。" : "版本保存被中断。"));
+          };
+
+          transaction.addEventListener?.("error", onError, { once: true });
+          transaction.onerror = onError;
+          transaction.addEventListener?.("abort", onAbort, { once: true });
+          transaction.onabort = onAbort;
+
+          const store = transaction.objectStore("versions");
+          operation(store, transaction)
+            .then(resolve)
+            .catch((err) => {
+              try {
+                transaction.abort();
+              } catch {}
+              reject(err);
+            });
+        });
+      } catch (err) {
+        if (attempt === 0 && isConnectionClosingError(err)) {
+          this.reset();
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new Error("版本库操作失败，请重试。");
+  }
+
   async list(): Promise<DocumentVersion[]> {
-    const database = await this.open();
-    return new Promise((resolve, reject) => {
-      const transaction = database.transaction("versions", "readonly");
-      const request = transaction.objectStore("versions").getAll();
-      transaction.oncomplete = () => resolve(request.result as DocumentVersion[]);
-      transaction.onerror = () => reject(transaction.error ?? new Error("版本列表读取失败。"));
-      transaction.onabort = () => reject(transaction.error ?? new Error("版本读取被中断。"));
+    return this.withStore("readonly", (store) => {
+      return new Promise<DocumentVersion[]>((resolve, reject) => {
+        const request = store.getAll();
+        request.onsuccess = () => resolve((request.result as DocumentVersion[]) || []);
+        request.onerror = () => reject(request.error ?? new Error("版本列表读取失败。"));
+      });
     });
   }
+
   async putAndPrune(version: DocumentVersion, limit: number): Promise<void> {
-    const database = await this.open();
-    return new Promise((resolve, reject) => {
-      const transaction = database.transaction("versions", "readwrite");
-      const store = transaction.objectStore("versions");
-      store.put(clone(version));
-      const request = store.getAll();
-      request.onsuccess = () => {
-        const versions = (request.result as DocumentVersion[]).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-        for (const old of versions.slice(limit)) store.delete(old.id);
-      };
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error ?? new Error("版本保存失败。"));
-      transaction.onabort = () => reject(transaction.error ?? new Error("版本保存被中断。"));
+    return this.withStore("readwrite", (store, transaction) => {
+      return new Promise<void>((resolve, reject) => {
+        store.put(clone(version));
+        const request = store.getAll();
+        request.onsuccess = () => {
+          const versions = ((request.result as DocumentVersion[]) || []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+          for (const old of versions.slice(limit)) {
+            store.delete(old.id);
+          }
+        };
+        request.onerror = () => reject(request.error ?? new Error("版本保存失败。"));
+        const onComplete = () => resolve();
+        transaction.addEventListener?.("complete", onComplete, { once: true });
+        transaction.oncomplete = onComplete;
+      });
     });
   }
+
   async delete(id: string): Promise<void> {
-    const database = await this.open();
-    return new Promise((resolve, reject) => {
-      const transaction = database.transaction("versions", "readwrite");
-      transaction.objectStore("versions").delete(id);
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error ?? new Error("删除版本失败。"));
-      transaction.onabort = () => reject(transaction.error ?? new Error("删除版本被中断。"));
+    return this.withStore("readwrite", (store, transaction) => {
+      return new Promise<void>((resolve, reject) => {
+        const request = store.delete(id);
+        request.onerror = () => reject(request.error ?? new Error("删除版本失败。"));
+        const onComplete = () => resolve();
+        transaction.addEventListener?.("complete", onComplete, { once: true });
+        transaction.oncomplete = onComplete;
+      });
     });
   }
 }
@@ -141,6 +264,10 @@ export type PersistenceState = { doc: BetterMeDocument | null; ready: boolean; l
 export class LocalDocumentHistory {
   private queue: Promise<unknown> = Promise.resolve();
   constructor(private readonly repository: VersionRepository = new IndexedDbVersionRepository()) {}
+
+  reset(): void {
+    this.repository.reset?.();
+  }
 
   async list(): Promise<DocumentVersion[]> {
     await this.queue;

@@ -1,0 +1,27 @@
+{
+  "name": "@better-me/agent-host",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "^24.15.0 || >=26" },
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "dev": "tsx watch src/cli.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@better-me/opportunities": "workspace:*",
+    "@langchain/core": "^1.2.20",
+    "@langchain/langgraph": "^1.5.1",
+    "@langchain/langgraph-checkpoint-sqlite": "^1.1.0",
+    "@langchain/openai": "^1.6.3",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.8.3"
+  }
+}
