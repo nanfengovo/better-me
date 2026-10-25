@@ -1,6 +1,7 @@
 import type { BrowserSnapshot, SearchProjectionDiagnostics } from "./jd-browser-snapshot";
 import { JOB_SEARCH_CAPTURE_CONFIGS } from "./jd-search-capture";
 import { allowedJobUrl } from "../src/lib/jd-source";
+import { REVIEWED_PLATFORM_NAMES, reviewedCardIdentity, type PlatformSearchProvider } from "@better-me/source-adapters/platform-job-identity";
 import type { SnapshotVisibilityDetail, SnapshotFailureDetail } from "../src/lib/jd-capture-diagnostics";
 import { isLiepinDescriptionHeading, isLiepinRequirementsHeading } from "./jd-liepin-description";
 
@@ -571,6 +572,21 @@ export function projectNativeDomSnapshot(
       const parts = selector.split(/\s*>\s*/);
       return parts.length === 1 ? simpleMatch(index, parts[0]) : parts.length === 2 && simpleMatch(index, parts[1]) && simpleMatch(nodes[index].parent, parts[0]);
     })) diagnosticRoots.add(index);
+    const searchProvider: PlatformSearchProvider | undefined = searchPlatform
+      ? (Object.entries(REVIEWED_PLATFORM_NAMES).find(([, value]) => value === searchPlatform)?.[0] as PlatformSearchProvider | undefined)
+      : undefined;
+    const visibleSingleJobIds = new Set<string>();
+    if (searchProvider) for (let index = 0; index < count; index++) {
+      const node = nodes[index];
+      if (node.type !== 1 || node.name !== "A" || hidden(index) || excluded(index) || incomplete.has(index) || !hasContent(index)) continue;
+      const href = node.attrs.get("href");
+      if (!href) continue;
+      try {
+        const identity = reviewedCardIdentity(new URL(href, frame.url).toString(), searchProvider);
+        if (identity) visibleSingleJobIds.add(identity.id);
+      } catch { /* A page-relative or malformed link is not diagnostic evidence. */ }
+      if (visibleSingleJobIds.size >= 25_000) break;
+    }
     const projectedRoots = new Set<number>();
     const renderSearch = (index: number): string => {
       const node = nodes[index];
@@ -592,7 +608,8 @@ export function projectNativeDomSnapshot(
     if (searchPlatform) {
       searchDiagnostics = { schemaVersion: 1, platform: searchPlatform, rawRoots: diagnosticRoots.size,
         hiddenRoots: 0, excludedRoots: 0, incompleteRoots: 0, otherRemovedRoots: 0,
-        projectedRoots: projectedRoots.size, projectedRootsWithText: [...projectedRoots].filter(hasContent).length };
+        projectedRoots: projectedRoots.size, projectedRootsWithText: [...projectedRoots].filter(hasContent).length,
+        visibleSingleJobLinks: visibleSingleJobIds.size };
       for (const index of diagnosticRoots) {
         if (projectedRoots.has(index)) continue;
         if (hidden(index)) searchDiagnostics.hiddenRoots++;

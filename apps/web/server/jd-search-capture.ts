@@ -142,7 +142,8 @@ function searchDiagnosticWarning(snapshot: JobSearchSnapshot, platform: JobPlatf
   const load = snapshot.pageLoad;
   const ready = load && ["loading", "interactive", "complete", "unknown"].includes(load.readyState) ? load.readyState : "unknown";
   const frames = load && Number.isInteger(load.visibleFrames) && load.visibleFrames >= 0 && load.visibleFrames <= 1000 ? String(load.visibleFrames) : "未知";
-  const native = projection ? `投影前已知根=${projection.rawRoots}，隐藏移除=${projection.hiddenRoots}，排除区域移除=${projection.excludedRoots}，不完整字段祖先移除=${projection.incompleteRoots}，其他移除=${projection.otherRemovedRoots}，投影保留=${projection.projectedRoots}，有安全文字=${projection.projectedRootsWithText}；` : "投影计数=未提供；";
+  const visibleLinks = projection?.visibleSingleJobLinks === undefined ? "未计数" : String(projection.visibleSingleJobLinks);
+  const native = projection ? `投影前已知根=${projection.rawRoots}，隐藏移除=${projection.hiddenRoots}，排除区域移除=${projection.excludedRoots}，不完整字段祖先移除=${projection.incompleteRoots}，其他移除=${projection.otherRemovedRoots}，投影保留=${projection.projectedRoots}，有安全文字=${projection.projectedRootsWithText}，可见官方单岗链接线索=${visibleLinks}（非岗位数）；` : "投影计数=未提供；";
   return `结构诊断（非岗位数，计数上限25000）：${native}解析输入根=${count(counts.beforeSanitize)}，去隐藏后=${count(counts.afterSanitize)}，去排除区域后=${count(counts.afterExclusion)}，采用选择器候选=${count(counts.selected)}，单岗链接拒绝=${count(counts.rejectedLink)}，标题缺失=${count(counts.rejectedTitle)}，字段选择器拒绝=${count(counts.rejectedSelector)}；加载=${ready}，可见框架=${frames}。`;
 }
 

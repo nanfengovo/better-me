@@ -244,15 +244,24 @@ test("unknown roots and lost native roots remain distinguishable without promoti
   const result = extractJobSearchCards(snapshot("猎聘", '<section class="unrecognized">PRIVATE_OTHER_LAYOUT</section>', { searchDiagnostics: diagnostic }), "猎聘");
   assert.equal(result.status, "unknown_layout"); assert.equal(result.partial, true);
   assert.match(result.warnings[1], /投影前已知根=3，隐藏移除=1，排除区域移除=1，不完整字段祖先移除=1/);
-  assert.match(result.warnings[1], /投影保留=0，有安全文字=0；解析输入根=0/);
+  assert.match(result.warnings[1], /投影保留=0，有安全文字=0，可见官方单岗链接线索=未计数（非岗位数）；解析输入根=0/);
   assert.doesNotMatch(result.warnings.join(" "), /PRIVATE_/);
   const noKnownRoots = extractJobSearchCards(snapshot("猎聘", "", { searchDiagnostics: { ...diagnostic, rawRoots: 0, hiddenRoots: 0, excludedRoots: 0, incompleteRoots: 0 } }), "猎聘");
   assert.match(noKnownRoots.warnings[1], /投影前已知根=0/);
 });
 
+test("visible single-job link diagnostics distinguish an older snapshot from a measured zero", () => {
+  const diagnostic = { schemaVersion: 1 as const, platform: "51JOB" as const, rawRoots: 0,
+    hiddenRoots: 0, excludedRoots: 0, incompleteRoots: 0, otherRemovedRoots: 0, projectedRoots: 0, projectedRootsWithText: 0 };
+  const older = extractJobSearchCards(snapshot("51JOB", "", { searchDiagnostics: diagnostic }), "51JOB");
+  const measured = extractJobSearchCards(snapshot("51JOB", "", { searchDiagnostics: { ...diagnostic, visibleSingleJobLinks: 0 } }), "51JOB");
+  assert.match(older.warnings[1]!, /可见官方单岗链接线索=未计数（非岗位数）/);
+  assert.match(measured.warnings[1]!, /可见官方单岗链接线索=0（非岗位数）/);
+});
+
 test("malformed or cross-platform diagnostic metadata contributes no text or claimed root counts", () => {
   const diagnostic = { schemaVersion: 1, platform: "LinkedIn", rawRoots: 99,
-    hiddenRoots: 99, excludedRoots: 0, incompleteRoots: 0, otherRemovedRoots: 0, projectedRoots: 0, projectedRootsWithText: 0 };
+    hiddenRoots: 99, excludedRoots: 0, incompleteRoots: 0, otherRemovedRoots: 0, projectedRoots: 0, projectedRootsWithText: 0, visibleSingleJobLinks: 0 };
   for (const value of [diagnostic, { ...diagnostic, platform: "猎聘", rawTitle: "PRIVATE_DIAGNOSTIC_TITLE" }]) {
     const result = extractJobSearchCards(snapshot("猎聘", "", { searchDiagnostics: value as JobSearchSnapshot["searchDiagnostics"] }), "猎聘");
     assert.equal(result.status, "unknown_layout");
