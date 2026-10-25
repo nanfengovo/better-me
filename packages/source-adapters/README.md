@@ -18,6 +18,7 @@
 | `jobposting-jsonld` / `1` | 经审核的静态岗位清单：叶子 sitemap、有限 sitemap index 或静态 HTML 链接；只读取同源岗位页面中的 JobPosting JSON-LD。 | sitemap index 只读取一个审核过的根索引，最多读取配置上限的同源 HTTPS 叶子 sitemap；跨源链接、嵌套 sitemap index、动态脚本和缺少 JSON-LD 的页面会被跳过并保持 partial。sitemap `loc` 只是候选页面，不是已核实岗位或市场总数。 |
 | `mapped-json` / `1` | `entryUrl` 指定的 JSON 列表及有限字段路径映射；可显式配置来源返回的数字页码续读。 | 默认 `discoveryOnly: true`；人工审核后才可配置为岗位记录。不能运行源仓库代码或自定义 JS。 |
 | `github-json` / `1` | `raw.githubusercontent.com` 的具体 JSON 文件，使用相同有限映射。 | 强制 `discovery-lead`；不能用配置将目录、多个方向或招聘批次变成已核实单岗。 |
+| `github-markdown` / `1` | 一个经过人工审核的 `raw.githubusercontent.com` Markdown/HTML 文件；只解析有限的表格列（公司、岗位、地点、原岗位链接、源日期）。 | 强制 `discovery-lead`；保留 Raw 文件字段证据和稳定原岗位链接，跳过无链接行并合并重复链接。不能把清单当作当前在招、精确办公室、薪资、控股方或全网覆盖；不会读取仓库代码、执行 HTML/JavaScript 或跟随表格中的岗位链接。默认应关闭并保持 `needs-review`。 |
 
 腾讯适配器声明 `remoteFilters: ["roles"]`，将关注关键词分别传给官网；多个词各自分页，保留 OR，不合计可能重叠的上游总数。`regions` 和 `companyNames` 不发给该端点，明确报告为上游未执行，再由应用层匹配。Remotive 对单个岗位关键词与单个公司名使用官方查询参数；多个兴趣不会被拼接成改变 OR 语义的单个字符串，改由本地匹配。`rss-atom` 也不声明上游筛选，feed 中没有明确字段的条件继续由本地匹配。其余来源按具体 board / feed 列举。51JOB、BOSS、猎聘和 LinkedIn 仍保留既有单岗读取，同时 Web 本机宿主已提供受控的当前搜索页卡片读取；平台列表捕获不属于这些来源适配器本身，也不等于平台全量覆盖。
 
@@ -56,6 +57,39 @@ Workday 的公开岗位 URL 使用 `/{site}`，而 API 路由使用 `/wday/cxs/{
   "discoveryOnly": true
 }
 ```
+
+GitHub Markdown 清单使用独立的固定列适配器，不接受 CSS selector、正则或执行代码。一个待审核的配置形状如下：
+
+```json
+{
+  "sourceId": "reviewed-github-job-list",
+  "name": "Reviewed GitHub job list",
+  "adapterId": "github-markdown",
+  "adapterVersion": "1",
+  "capabilities": ["list-jobs"],
+  "runtime": ["local-service"],
+  "entityType": "company-directory",
+  "enabled": false,
+  "status": "needs-review",
+  "entryUrl": "https://raw.githubusercontent.com/OWNER/REPOSITORY/REF/README.md",
+  "options": {
+    "tableIndex": 0,
+    "titleHeader": "Title",
+    "urlHeader": "Application",
+    "enumerationComplete": false
+  },
+  "remoteFilters": [],
+  "endpointPolicy": {
+    "allowedHosts": ["raw.githubusercontent.com"],
+    "allowedPathPrefixes": ["/OWNER/REPOSITORY/REF/README.md"],
+    "requireHttps": true,
+    "allowRedirects": false,
+    "maxRedirects": 0
+  }
+}
+```
+
+该适配器只读取一个人工审核的 Raw 文件，输出 `discovery-lead`，并保留 Raw 文件作为字段证据。它不会克隆仓库、执行 README 中的 HTML/JavaScript、自动访问表格里的岗位链接或把清单条目提升为当前在招岗位。没有稳定 HTTPS 原岗位链接的行会被跳过并报告 partial；重复链接会合并。仓库许可证、清单完整性、岗位当前状态、办公室地址、薪资和控股方都必须在后续人工审核或独立官方来源中确认。
 
 这些字段放在来源的 `options` 内，`entryUrl` 放在来源顶层。路径只允许有限的自有属性访问，例如 `data.jobs`；不支持通配符、表达式、括号脚本、原型遍历或 getter。`recordsPath: ""` 表示根数组。记录必须具备稳定 ID 或原始 URL，不能把数组下标当岗位身份；位置与工资文字保持原文，不自动猜坐标或工资数值。
 

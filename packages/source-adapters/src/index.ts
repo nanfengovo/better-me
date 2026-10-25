@@ -11,6 +11,8 @@ export * from "./adapters/ashby.js";
 export * from "./adapters/remotive.js";
 export * from "./rss-atom-contracts.js";
 export * from "./adapters/rss-atom.js";
+export * from "./github-markdown-contracts.js";
+export * from "./adapters/github-markdown.js";
 export * from "./adapters/mapped-json.js";
 export * from "./tencent-contracts.js";
 export * from "./adapters/tencent.js";
