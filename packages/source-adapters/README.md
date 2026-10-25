@@ -17,7 +17,7 @@
 | `mapped-json` / `1` | `entryUrl` 指定的 JSON 列表及有限字段路径映射；可显式配置来源返回的数字页码续读。 | 默认 `discoveryOnly: true`；人工审核后才可配置为岗位记录。不能运行源仓库代码或自定义 JS。 |
 | `github-json` / `1` | `raw.githubusercontent.com` 的具体 JSON 文件，使用相同有限映射。 | 强制 `discovery-lead`；不能用配置将目录、多个方向或招聘批次变成已核实单岗。 |
 
-腾讯适配器声明 `remoteFilters: ["roles"]`，将关注关键词分别传给官网；多个词各自分页，保留 OR，不合计可能重叠的上游总数。`regions` 和 `companyNames` 不发给该端点，明确报告为上游未执行，再由应用层匹配。Remotive 对单个岗位关键词与单个公司名使用官方查询参数；多个兴趣不会被拼接成改变 OR 语义的单个字符串，改由本地匹配。其余来源按具体 board / feed 列举。51job、Boss、猎聘和 LinkedIn 仍使用既有单岗读取；没有把它们标为已实现的平台级搜索。
+腾讯适配器声明 `remoteFilters: ["roles"]`，将关注关键词分别传给官网；多个词各自分页，保留 OR，不合计可能重叠的上游总数。`regions` 和 `companyNames` 不发给该端点，明确报告为上游未执行，再由应用层匹配。Remotive 对单个岗位关键词与单个公司名使用官方查询参数；多个兴趣不会被拼接成改变 OR 语义的单个字符串，改由本地匹配。其余来源按具体 board / feed 列举。51JOB、BOSS、猎聘和 LinkedIn 仍保留既有单岗读取，同时 Web 本机宿主已提供受控的当前搜索页卡片读取；平台列表捕获不属于这些来源适配器本身，也不等于平台全量覆盖。
 
 Remotive 仅提供有限、延迟的 active remote feed，没有可承诺全市场或完整历史覆盖的分页。官方要求醒目标注 Remotive 并保留原岗位链接，禁止转交第三方招聘网站或利用岗位列表收集 signup / email 线索；catalog 配置默认关闭待审核。候选资格字段 `candidate_required_location` 单独保存，绝不成为工作地址、办公室坐标或距离筛选依据。薪资与无时区的发布时间保留原文，不推断币种、周期、税前税后或 UTC 时刻。官方建议每日最多读取4次、每分钟不超过2次；来源配置分别硬限制 UTC 日4次、6小时最短间隔和每分钟2次。SQLite 任务启动事务负责原子计数，同一任务幂等回放不重复计数，已经启动的失败／取消请求仍占一次额度。
 
@@ -187,9 +187,13 @@ CSV / Markdown 当前用于抽样识别与提案。没有对应生产列表解�
 
 底层支持宿主注入 `registeredSources`、`companyAliases` 和 `CareerWebSearchProvider`。这些不是普通 HTTP / Agent 参数。当前 job-service 注入已有来源列表，支持由宿主通过 `--career-search duckduckgo-html|searxng` 显式配置搜索 provider，**默认禁用**，尚未注入公司别名表。受信 provider 使用宿主提供的策略、transport 和预算，其结果仍校验并标待审，不能自行成为已核实官网，也不保证任意企业的全网岗位覆盖。具体配置和限制见 [job-service 说明](../../apps/job-service/README.md)。
 
-编排顺序为 `companies.discover-careers → 审核来源 → sources.register → sources.preview / sources.sync → jobs.search`。已有来源可直接进入显式预览 / 同步；待审入口和缺 provider 状态有不同后续动作。HTTP 输入、幂等写入、未来 LangChain / LangGraph 薄适配与四平台搜索缺口，见[公司招聘发现与搜索工具方案](../../docs/planning/company-career-search-tools-2026-10-18.md)。
+编排顺序为 `companies.discover-careers → 审核来源 → sources.register → sources.preview / sources.sync → jobs.search`。已有来源可直接进入显式预览 / 同步；待审入口和缺 provider 状态有不同后续动作。HTTP 输入、幂等写入、未来 LangChain / LangGraph 薄适配与四平台真实站点验收边界，见[公司招聘发现与搜索工具方案](../../docs/planning/company-career-search-tools-2026-10-18.md)。
 
-四平台另有纯函数 `buildPlatformSearchRequest()` 和可审查地区目录，将关键词与平台特有地区参数构造成官方搜索链接。它没有打开浏览器、捕获列表或索引岗位；结果模式明确为外部搜索。既有单岗正文读取也不会把搜索列表当作 JD。真实平台搜索 session、列表链接证据、分页 / 滚动、人工登录后续采集及独立 companion 桥仍未完成。
+四平台另有纯函数 `buildPlatformSearchRequest()` 和可审查地区目录，将关键词与平台特有地区参数构造成官方搜索链接。source-adapters 包本身不打开浏览器，也不管理账号；实际浏览器读取由 Web 本机宿主的 `/api/jd/search-session` 与 `/api/jd/search-capture` 承担。宿主只读取用户明确打开并授权的官方搜索页可见 DOM，单页最多 50 张卡片，保留页面 URL、读取时间、门禁／登录／验证／未知布局状态以及逐字段可见证据，不读取 cookies、storage、私有 profile 或隐藏接口。
+
+共享的 `PlatformSearchBatch` 契约支持把一次明确读取保存为批次；用户在原站手动翻页后点击“追加当前页”才会增加页序。它保留逐页回执和历史页面，校验平台／关键词／地区／官方路径范围、页序与重复页，并按稳定岗位链接去重；“再次读取当前页”不会静默增加页数。批次仍只代表用户明确读取的部分页面，不自动翻页、滚动、绕过登录或验证码，也不声称全站或市场全量。每页结果继续走 `reviewed-cards` 的预览、逐卡核对和明确确认后才可进入统一索引；单岗正文读取不会把搜索列表冒充完整 JD。
+
+当前真实站点验收仍需逐站进行：LinkedIn 与猎聘已有有限样本证据，51JOB / BOSS 的真实列表读取仍可能受登录、验证、专用浏览器路线或页面布局影响，尚不能据此把空结果解释为没有岗位。原生浏览器未启动、访问门禁或未知布局会单独返回诊断状态；这些限制不会通过普通代理、接口猜测或自动化绕过。
 
 ## 受控传输
 
