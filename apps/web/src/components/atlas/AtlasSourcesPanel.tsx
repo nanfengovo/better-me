@@ -49,6 +49,70 @@ const healthScopeLabel = (scope: { roles?: string[]; regions?: string[]; country
   return values.join(" · ") || t("未设置关注条件", "No interest filters");
 };
 
+type SourceCoverageMatrixRow = {
+  key: string;
+  catalogEntry?: (typeof sourceCatalog)[number];
+  source?: SourceDefinition;
+  adapter?: AtlasSourceList["adapters"][number];
+  health?: AtlasSourceList["health"]["entries"][number];
+};
+
+/** Joins static catalog candidates with the saved service projection without writing or fetching anything. */
+export function buildSourceCoverageMatrix(
+  savedSources: readonly SourceDefinition[],
+  adapters: AtlasSourceList["adapters"],
+  healthEntries: AtlasSourceList["health"]["entries"],
+): SourceCoverageMatrixRow[] {
+  const matched = new Set<string>();
+  const rows: SourceCoverageMatrixRow[] = sourceCatalog.map((catalogEntry) => {
+    const source = savedSources.find((candidate) => candidate.sourceId === catalogEntry.source.sourceId
+      || sourceCatalogIdentity(candidate) === sourceCatalogIdentity(catalogEntry.source));
+    if (source) matched.add(source.sourceId);
+    const effective = source ?? catalogEntry.source;
+    return {
+      key: `catalog:${catalogEntry.source.sourceId}`,
+      catalogEntry,
+      ...(source ? { source } : {}),
+      adapter: adapters.find((candidate) => candidate.adapterId === effective.adapterId && candidate.version === effective.adapterVersion),
+      health: source ? healthEntries.find((entry) => entry.sourceId === source.sourceId) : undefined,
+    };
+  });
+  for (const source of savedSources) {
+    if (matched.has(source.sourceId)) continue;
+    rows.push({
+      key: `saved:${source.sourceId}`,
+      source,
+      adapter: adapters.find((candidate) => candidate.adapterId === source.adapterId && candidate.version === source.adapterVersion),
+      health: healthEntries.find((entry) => entry.sourceId === source.sourceId),
+    });
+  }
+  return rows;
+}
+
+function sourceCoverageState(source: SourceDefinition | undefined, t: (zh: string, en: string) => string): string {
+  if (!source) return t("目录候选 · 尚未保存", "Catalog candidate · not saved");
+  if (source.enabled && source.status === "active" && source.runtime.includes("local-service") && source.capabilities.includes("list-jobs")) {
+    return t("已保存 · active + 本机服务，可刷新", "Saved · active + local service, refreshable");
+  }
+  if (source.runtime.includes("browser-companion")) return t("已保存 · 浏览器人工读取/导入", "Saved · browser review/import");
+  return `${t("已保存", "Saved")} · ${source.status}`;
+}
+
+function sourceAdapterState(source: SourceDefinition | undefined, adapter: AtlasSourceList["adapters"][number] | undefined, t: (zh: string, en: string) => string): string {
+  if (!source) return t("按目录配置待核对", "Declared by catalog; verify before saving");
+  if (!adapter) return t("未安装匹配适配器", "Matching adapter not installed");
+  const capabilities = adapter.capabilities.join(", ") || t("未声明能力", "no declared capability");
+  return `${adapter.adapterId}@${adapter.version} · ${capabilities}`;
+}
+
+function sourceRunState(health: SourceCoverageMatrixRow["health"], t: (zh: string, en: string) => string): string {
+  const run = health?.latestRun;
+  if (!run) return t("尚无运行记录", "No run history");
+  const partial = run.partial ? ` · ${t("部分覆盖", "partial coverage")}` : "";
+  const reason = run.errorCode ? ` · ${run.errorCode}` : "";
+  return `${runStatusLabel(run.status, t)}${partial}${reason} · ${run.records ?? "—"} ${t("条", "records")} / ${run.pages ?? "—"} ${t("页", "pages")}`;
+}
+
 export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabled = false, revision, onOpenJob }: AtlasSourcesPanelProps) {
   const { t } = useUiPreferences();
   const client = useMemo(() => createAtlasSourceClient(endpoint, token), [endpoint, token]);
@@ -92,6 +156,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
   const source = catalog.sources.find((entry) => entry.sourceId === sourceId);
   const sourceHealth = source ? catalog.health.entries.find((entry) => entry.sourceId === source.sourceId) : undefined;
   const sourceCatalogEntry = source ? sourceCatalog.find((entry) => sourceCatalogIdentity(entry.source) === sourceCatalogIdentity(source)) : undefined;
+  const sourceCoverageMatrix = useMemo(() => buildSourceCoverageMatrix(catalog.sources, catalog.adapters, catalog.health.entries), [catalog.sources, catalog.adapters, catalog.health.entries]);
   const canEnumerate = source && source.entityType === "job-posting" && runnable(source) && source.capabilities.includes("list-jobs") && Boolean(source.entryUrl)
     && (!["mapped-json", "github-json"].includes(source.adapterId) || JsonFieldMappingOptionsSchema.safeParse(source.options ?? {}).success)
     && catalog.adapters.some((adapter) => adapter.adapterId === source.adapterId && adapter.version === source.adapterVersion && adapter.capabilities.includes("list-jobs"));
@@ -225,6 +290,37 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose, disabl
     {error && <p role="alert" className="atlas-sources-error">{error}</p>}
     {notice && <p role="status" className="atlas-sources-callout">{notice}</p>}
     <SourceCatalogPanel installed={catalog.sources} busy={Boolean(busy || scanLocked)} connected={usable} onInstall={(sources) => void operation(t("添加来源", "Add sources"), (signal) => installCatalogSources(sources, signal))} />
+    <details open className="atlas-source-coverage-matrix">
+      <summary>{t("来源覆盖矩阵", "Source coverage matrix")} <span>{sourceCoverageMatrix.length}</span></summary>
+      <p className="atlas-sources-callout" data-testid="atlas-source-search-scope">{t(
+        "来源刷新覆盖仅包括已保存、active、local-service 且声明 list-jobs 的岗位来源；地图搜索不会实时访问外站，只读取已持久化索引。明确导入的浏览器卡片可以保留在索引中，但不会因此变成可刷新的来源。",
+        "Source refresh covers only saved active local-service job sources that declare list-jobs; map search does not query external sites live and reads the persisted index. Explicitly imported browser cards may remain in the index without becoming refreshable sources.",
+      )}</p>
+      <div className="atlas-source-coverage-scroll">
+        <table className="atlas-source-coverage-table">
+          <caption>{t("目录候选、已保存来源、适配器和最近运行的只读投影", "Read-only projection of catalog candidates, saved sources, adapters and latest runs")}</caption>
+          <thead><tr>
+            <th scope="col">{t("来源", "Source")}</th>
+            <th scope="col">{t("目录状态", "Catalog")}</th>
+            <th scope="col">{t("已保存状态", "Saved state")}</th>
+            <th scope="col">{t("适配器能力", "Adapter capability")}</th>
+            <th scope="col">{t("最近运行", "Latest run")}</th>
+          </tr></thead>
+          <tbody>{sourceCoverageMatrix.map((row) => {
+            const effective = row.source ?? row.catalogEntry?.source;
+            if (!effective) return null;
+            return <tr key={row.key} data-source-id={effective.sourceId}>
+              <th scope="row"><strong>{effective.name}</strong><small>{effective.sourceId}</small></th>
+              <td>{row.catalogEntry ? <><span className="atlas-source-matrix-badge">{t("候选", "Candidate")}</span><small>{row.catalogEntry.source.status}</small></> : <span>{t("目录外已保存", "Saved outside catalog")}</span>}</td>
+              <td>{sourceCoverageState(row.source, t)}{row.source && <small>{runtimeLabel(row.source, t)} · {row.source.entityType}</small>}</td>
+              <td>{sourceAdapterState(effective, row.adapter, t)}</td>
+              <td>{sourceRunState(row.health, t)}{row.catalogEntry && <small>{row.catalogEntry.coverage}</small>}</td>
+            </tr>;
+          })}</tbody>
+        </table>
+      </div>
+      <p className="atlas-sources-muted">{t("目录候选不会自动注册或启用；适配器已安装也不代表来源已采集。最近运行只反映当前关注条件和本轮有限覆盖。", "Catalog candidates are not registered or enabled automatically; an installed adapter does not mean a source has been collected. Latest runs reflect only the current interest scope and bounded coverage.")}</p>
+    </details>
     <div className="atlas-sources-actions">
       <button type="button" disabled={!usable || Boolean(busy || scanLocked)} onClick={() => void operation(t("读取来源", "Read sources"), loadCatalog)}><RefreshCw size={14} />{t("重新读取来源", "Reload sources")}</button>
       <button type="button" disabled={!usable || Boolean(busy || scanLocked)} onClick={() => void operation(t("读取公开快照", "Read public snapshot"), async (signal) => {

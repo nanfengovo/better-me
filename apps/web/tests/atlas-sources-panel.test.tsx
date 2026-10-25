@@ -198,6 +198,37 @@ test("source cards retain safe run health and the actual query scope after reloa
   assert.match(text, /实际本轮覆盖不等于来源声明范围或全网覆盖/);
 });
 
+test("coverage matrix separates catalog candidates, saved sources, adapter capability and partial runs", async () => {
+  const candidate = sourceCatalog.find((entry) => entry.source.adapterId === "remotive");
+  assert.ok(candidate, "the built-in catalog must include a public feed candidate");
+  const browserSource = SourceDefinitionSchema.parse({ ...source, sourceId: "synthetic-browser-companion", name: "Synthetic browser capture", capabilities: [], runtime: ["browser-companion"], enabled: false, status: "disabled" });
+  const paths: string[] = [];
+  const adapterList = [...adapters, { adapterId: "remotive", version: "1", capabilities: ["list-jobs"], remoteFilters: ["roles", "companyNames"], entityTypes: ["job-posting"] }];
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(url)).pathname; paths.push(`${init?.method ?? "GET"} ${path}`);
+    if (path === "/api/v1/sources") return response({ sources: [source, browserSource], adapters: adapterList, health: { entries: [{ sourceId: source.sourceId,
+      latestRun: { status: "partial", at, scope: { roles: ["TypeScript"] }, partial: true, errorCode: "page-limit", records: 7, pages: 1 },
+    }] } });
+    if (path.endsWith("/scan-progress")) return response({ sourceId: source.sourceId, progress: null });
+    assert.fail(`Unexpected request: ${path}`);
+  });
+  await render("coverage-matrix-token");
+  const text = dom.document.body.textContent!;
+  assert.match(text, /来源覆盖矩阵/);
+  assert.match(text, /来源刷新覆盖仅包括已保存、active、local-service/);
+  assert.match(text, /目录候选 · 尚未保存/);
+  assert.match(text, /目录外已保存/);
+  assert.match(text, /active \+ 本机服务，可刷新/);
+  assert.match(text, /浏览器人工读取\/导入/);
+  assert.match(text, /remotive@1/);
+  assert.match(text, /部分覆盖/);
+  assert.match(text, /page-limit/);
+  assert.equal(paths.some((path) => path.includes("/preview") || path.includes("/sync")), false);
+  assert.ok(dom.document.querySelector(`[data-source-id="${candidate.source.sourceId}"]`));
+  assert.ok(dom.document.querySelector(`[data-source-id="${source.sourceId}"]`));
+  assert.ok(dom.document.querySelector(`[data-source-id="${browserSource.sourceId}"]`));
+});
+
 test("catalog addition is explicit, preserves unknown-write identity and never fetches jobs or overwrites an existing source", async () => {
   const preset = sourceCatalog[0]; assert.ok(preset, "a verified real catalog preset must be present");
   const installed = [source]; const writes: Array<{ body: any; key: string | null }> = [];
