@@ -48,6 +48,37 @@ test('Greenhouse keeps field provenance and source dates, strips active HTML and
   assert.equal(result.coverage.complete, true);
 });
 
+test('Greenhouse associates a single explicit US office only when city, state and country match the listing', async () => {
+  const result = await greenhouseAdapter.list(request(greenhouseAdapter, {
+    jobs: [
+      { id: 124, title: 'Hudl office role', absolute_url: 'https://careers.example.com/jobs/124', location: { name: 'Lincoln, NE, United States' }, offices: [{ name: 'USA - Nebraska - Lincoln Office', location: '600 P Street, Lincoln, NE, United States' }] },
+      { id: 125, title: 'City-only role', absolute_url: 'https://careers.example.com/jobs/125', location: { name: 'New York, NY' }, offices: [{ name: 'New York Office', location: 'New York, NY, United States' }] },
+      { id: 126, title: 'Different-city role', location: { name: 'Boston, MA, United States' }, offices: [{ name: 'Lincoln Office', location: '600 P Street, Lincoln, NE, United States' }] },
+      { id: 127, title: 'Nationwide role', location: { name: 'United States' }, offices: [{ name: 'Lincoln Office', location: '600 P Street, Lincoln, NE, United States' }] },
+      { id: 128, title: 'Missing-location role', offices: [{ name: 'Lincoln Office', location: '600 P Street, Lincoln, NE, United States' }] },
+      { id: 129, title: 'International address grammar', location: { name: 'London, United Kingdom' }, offices: [{ name: 'London Office', location: '10 Example Road, London, United Kingdom' }] },
+      { id: 130, title: 'US suite and ZIP', location: { name: 'Lincoln, Nebraska, United States' }, offices: [{ name: 'Lincoln Office', location: '600 P Street, Suite 4, Lincoln, NE 68508, United States' }] },
+      { id: 131, title: 'Multi-office role', location: { name: 'Lincoln, NE, United States' }, offices: [{ name: 'West', location: '600 P Street, Lincoln, NE, United States' }, { name: 'East', location: '100 Main Street, Boston, MA, United States' }] },
+      { id: 132, title: 'Remote role', location: { name: 'Remote - United States' }, offices: [{ name: 'Lincoln Office', location: '600 P Street, Lincoln, NE, United States' }] },
+      { id: 133, title: 'Conflicting country', location: { name: 'Lincoln, NE, Canada' }, offices: [{ name: 'Lincoln Office', location: '600 P Street, Lincoln, NE, United States' }] },
+    ], meta: { total: 10 },
+  }));
+  assert.equal(result.records.length, 10);
+  const office = result.records[0]!.locations[0]!;
+  assert.equal(office.streetAddress, '600 P Street'); assert.equal(office.city, 'Lincoln'); assert.equal(office.countryCode, 'US');
+  assert.equal(result.records[0]!.evidence.some((entry) => entry.selector === 'jobs[0].offices[0].location'), true);
+  assert.equal(result.records[1]!.locations[0]!.streetAddress, undefined);
+  for (const index of [2, 3, 4, 5, 7, 8, 9]) {
+    assert.equal(result.records[index]!.locations[0]?.streetAddress, undefined, `record ${index} must not inherit an unassociated office`);
+  }
+  assert.equal(result.records[2]!.evidence.some((entry) => entry.field === 'unassociatedOfficeEvidence'), true);
+  assert.equal(result.records[4]!.locations.length, 0);
+  assert.equal(result.records[5]!.evidence.some((entry) => entry.field === 'unassociatedOfficeEvidence'), true);
+  const suite = result.records[6]!.locations[0]!;
+  assert.equal(suite.city, 'Lincoln'); assert.equal(suite.region, 'NE'); assert.equal(suite.postalCode, '68508');
+  assert.equal(suite.streetAddress, '600 P Street, Suite 4');
+});
+
 test('invalid source rows produce partial coverage and truncation is not complete enumeration', async () => {
   const input = request(greenhouseAdapter, { jobs: [
     { id: 1, title: 'Valid synthetic role' }, { id: 2, title: '' }, { id: 3, title: 'Beyond budget' },
