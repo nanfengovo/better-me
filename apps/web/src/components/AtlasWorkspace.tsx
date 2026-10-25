@@ -88,7 +88,7 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
     return true;
   }
   const [locationReview, setLocationReview] = useState<{ jobId: string; location: JobLocation }>();
-  const [officeReview, setOfficeReview] = useState<{ jobId: string; location: JobLocation }>();
+  const [officeReview, setOfficeReview] = useState<{ jobId: string; location: JobLocation; prefillFromSourceAddress?: boolean }>();
   const [detailReviewJobId, setDetailReviewJobId] = useState("");
   const [compensationReviewJobId, setCompensationReviewJobId] = useState("");
   const [companyReview, setCompanyReview] = useState<{ jobId: string; companyId: string }>();
@@ -528,7 +528,7 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
       locationAbort.current?.abort(); setLocationSearch(undefined); flyToJob(direct); return;
     }
     if (connected && dataMode === "live" && location?.streetAddress) {
-      locationAbort.current?.abort(); setLocationSearch(undefined); setFocus(undefined); setOfficeReview({ jobId: item.job.id, location }); return;
+      locationAbort.current?.abort(); setLocationSearch(undefined); setFocus(undefined); setOfficeReview({ jobId: item.job.id, location, prefillFromSourceAddress: true }); return;
     }
     if (direct) { locationAbort.current?.abort(); setLocationSearch(undefined); flyToJob(direct); return; }
     if (!location) { locationAbort.current?.abort(); setFocus(undefined); setLocationSearch({ jobId: item.job.id, locationId: locationId ?? "", loading: false, error: "该岗位未披露可确认的办公地点，不能将远程资格或未知地点标成办公地址。" }); return; }
@@ -686,7 +686,7 @@ export default function AtlasWorkspace({ active = true, onSaveOpportunity, onAna
         searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live");
         setSourceSearchMessage(`已读取地区记录，索引版本 ${snapshot.revision}。当前筛选会按最新确认结果重新计算；不再符合条件的岗位会退出列表。`);
       }} /></Suspense>}
-      {officeReview?.jobId === selected.job.id && active && connected && liveData && <Suspense fallback={<p role="status">正在打开办公地址核对…</p>}><AtlasOfficeAddressConfirmation key={`${officeReview.jobId}:${officeReview.location.id}:${endpoint}:${token}`} endpoint={endpoint} token={token} jobId={officeReview.jobId} location={officeReview.location} revision={liveData.revision} onCandidateFocus={candidate => focusOfficeCandidate(officeReview.jobId, officeReview.location, candidate)} onClose={() => setOfficeReview(undefined)} onSnapshot={snapshot => {
+      {officeReview?.jobId === selected.job.id && active && connected && liveData && <Suspense fallback={<p role="status">正在打开办公地址核对…</p>}><AtlasOfficeAddressConfirmation key={`${officeReview.jobId}:${officeReview.location.id}:${endpoint}:${token}:${officeReview.prefillFromSourceAddress ? "source-prefill" : "manual"}`} endpoint={endpoint} token={token} jobId={officeReview.jobId} location={officeReview.location} revision={liveData.revision} prefillFromSourceAddress={officeReview.prefillFromSourceAddress} onCandidateFocus={candidate => focusOfficeCandidate(officeReview.jobId, officeReview.location, candidate)} onClose={() => setOfficeReview(undefined)} onSnapshot={snapshot => {
         if (liveData.revision > snapshot.revision) return;
         setOfficeFocusRequest({ id: crypto.randomUUID(), jobId: officeReview.jobId, locationId: officeReview.location.id, snapshot, selectionKey, endpoint, token });
         searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live");

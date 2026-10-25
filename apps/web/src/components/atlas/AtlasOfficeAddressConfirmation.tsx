@@ -14,6 +14,8 @@ export type AtlasOfficeAddressConfirmationProps = {
   endpoint: string; token: string; jobId: string; location: JobLocation; revision: number;
   onClose: () => void; onSnapshot: (data: AtlasDataset) => void;
   onCandidateFocus?: (candidate: OfficeAddressCandidate) => void;
+  /** Prefills the query from a source address; sending it to a provider remains an explicit action. */
+  prefillFromSourceAddress?: boolean;
 };
 type Draft = { country: string; formattedAddress: string; streetAddress: string; postalCode: string;
   latitude: string; longitude: string; coordinateMeaning: OfficeAddressProposal["coordinateMeaning"]; evidenceUrl: string; reason: string };
@@ -42,12 +44,12 @@ export function AtlasOfficeAddressConfirmation(props: AtlasOfficeAddressConfirma
   return <OfficeAddressSession key={JSON.stringify([props.endpoint, props.token, props.jobId, props.location])} {...props} />;
 }
 
-function OfficeAddressSession({ endpoint, token, jobId, location, revision, onClose, onSnapshot, onCandidateFocus }: AtlasOfficeAddressConfirmationProps) {
+function OfficeAddressSession({ endpoint, token, jobId, location, revision, onClose, onSnapshot, onCandidateFocus, prefillFromSourceAddress = false }: AtlasOfficeAddressConfirmationProps) {
   const client = useMemo(() => createAtlasSourceClient(endpoint, token), [endpoint, token]);
   const queryHelpId = useId();
   const [draft, setDraft] = useState(() => initial(location));
-  const [query, setQuery] = useState("");
-  const [queryLocality, setQueryLocality] = useState(""), [queryPostalCode, setQueryPostalCode] = useState("");
+  const [query, setQuery] = useState(() => prefillFromSourceAddress ? location.streetAddress ?? "" : "");
+  const [queryLocality, setQueryLocality] = useState(() => prefillFromSourceAddress ? location.city ?? "" : ""), [queryPostalCode, setQueryPostalCode] = useState(() => prefillFromSourceAddress ? location.postalCode ?? "" : "");
   const [candidates, setCandidates] = useState<OfficeAddressCandidatesResult>();
   const [preview, setPreview] = useState<{ input: PreviewOfficeConfirmationInput; value: OfficeAddressPreview }>();
   const [reviewed, setReviewed] = useState(false), [revokeReviewed, setRevokeReviewed] = useState(false);
@@ -152,6 +154,7 @@ function OfficeAddressSession({ endpoint, token, jobId, location, revision, onCl
           <label>限定邮编（可选）<input aria-label="办公地址限定邮编" maxLength={100} disabled={locked} value={queryPostalCode} placeholder="保留原文和前导零" onChange={event => editQuery(event.target.value, "postalCode")} /></label>
         </div>
         <p id={queryHelpId} className="atlas-small">城市填写地图使用的名称，邮编按原文填写。点击查询时，所填地址及限定条件会发送给地址服务核对；未匹配的结果不会成为办公地址候选。</p>
+        {prefillFromSourceAddress && <p role="note">已预填岗位来源披露的地址。点击“查询地址候选”后才会发送给地址服务；候选只用于临时定位，仍需本人核对和确认。</p>}
         <div className="atlas-office-query-actions"><button type="button" disabled={locked} onClick={() => void readCandidates(false)}>读取地址来源与查询配置</button>
           <button type="button" disabled={locked || !query.trim()} aria-describedby={queryHelpId} onClick={() => void readCandidates(true)}><Search size={13} />查询地址候选</button></div>
       </div>

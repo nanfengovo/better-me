@@ -1091,6 +1091,7 @@ for (const position of ["city-reference", "city-coordinate", "address"] as const
   } else {
     await waitFor(() => Boolean(officeProps), "the published street to open office review instead of a coarse focus");
     assert.equal(officeProps!.location.streetAddress, location.streetAddress); assert.equal(mapProps!.focus, undefined);
+    assert.equal(officeProps!.prefillFromSourceAddress, true, "double-click review should prefill the disclosed address for an explicit query");
   }
   assert.deepEqual(routes, ["/api/v1/dataset/export"]); assert.deepEqual(data, before);
 });

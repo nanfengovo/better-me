@@ -97,6 +97,26 @@ test("opening is inert, source text stays text, and a city point never prefills 
   assert.equal(link.target, "_blank"); assert.match(link.rel, /noopener/); assert.equal(new URL(link.href).searchParams.get("query"), props.location.raw);
 });
 
+test("the double-click review path prefills the source address and waits for an explicit candidate query", async () => {
+  const sourceLocation = { ...officeSource, streetAddress: officeProposal.streetAddress, postalCode: officeProposal.postalCode };
+  const calls = installFetch(), props = { ...fixture(), location: sourceLocation, prefillFromSourceAddress: true };
+  await render(props);
+  assert.equal(field("办公地址查询").value, sourceLocation.streetAddress);
+  assert.equal(field("办公地址限定城市").value, sourceLocation.city);
+  assert.equal(field("办公地址限定邮编").value, sourceLocation.postalCode);
+  assert.match(dom.document.body.textContent!, /点击“查询地址候选”后才会发送给地址服务/);
+  assert.equal(button("查询地址候选").disabled, false);
+  assert.equal(calls.length, 0);
+  assert.equal(dom.document.querySelector(".atlas-office-candidates"), null);
+  await click("查询地址候选");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]!.path, officeRoutes.candidates);
+  assert.deepEqual(calls[0]!.body, { jobId: officeJobId, locationId: officeSource.id, expectedRevision: 11,
+    query: sourceLocation.streetAddress, locality: sourceLocation.city, postalCode: sourceLocation.postalCode });
+  assert.equal(calls.some(call => call.path === officeRoutes.preview || call.path === officeRoutes.confirm), false);
+  assert.equal(field("办公地址纬度").value, "");
+});
+
 test("remote or evidence-free locations cannot open an office write workflow", async () => {
   const calls = installFetch();
   for (const location of [{ ...officeSource, kind: "remote-region" as const }, { ...officeSource, evidence: [] }]) {
