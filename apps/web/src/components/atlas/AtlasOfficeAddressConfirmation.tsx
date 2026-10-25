@@ -2,6 +2,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ArrowUpRight, Check, Loader2, MapPin, Search, X } from "lucide-react";
 import { HttpUrlSchema, OfficeAddressCandidatesInputSchema, PreviewOfficeConfirmationInputSchema,
+  evaluateOfficeAddressCandidate,
   type AtlasDataset, type JobLocation, type OfficeAddressCandidatesResult, type OfficeAddressProposal,
   type OfficeAddressPreview, type OfficeAddressReceipt, type PreviewOfficeConfirmationInput,
   type ConfirmOfficeAddressInput, type RevokeOfficeAddressInput, type OfficeAddressCandidate } from "@better-me/opportunities";
@@ -19,6 +20,8 @@ type Draft = { country: string; formattedAddress: string; streetAddress: string;
 type Write = { kind: "confirm"; input: ConfirmOfficeAddressInput; key: string } | { kind: "revoke"; input: RevokeOfficeAddressInput; key: string };
 const regionNames = new Intl.DisplayNames(["zh"], { type: "region" });
 const meaning = { building: "楼宇", entrance: "入口", site: "园区／场地" };
+const matchFieldLabels = { countryCode: "国家／地区", region: "省／州／地区", city: "城市", district: "区县", streetAddress: "街道与门牌", postalCode: "邮政编码" };
+const matchStatusLabels = { match: "匹配", conflict: "冲突", unknown: "未知" };
 function initial(location: JobLocation): Draft {
   const resolution = location.officeResolution;
   // City/region reference coordinates must never become the initial office point.
@@ -157,11 +160,23 @@ function OfficeAddressSession({ endpoint, token, jobId, location, revision, onCl
         {candidates.status === "manual-available" && <p>已读取来源地址。外部查询仅在填写具体地址并点击查询后执行。</p>}
         {candidates.status === "no-address-match" && <p>本次没有找到地址候选；不能据此判断岗位没有办公地址。</p>}
         {staleCandidates && <p role="status">索引已更新，请重新读取地址候选。</p>}
-        {candidates.candidates.map(candidate => <article key={candidate.id}><strong>{candidate.proposal.formattedAddress}</strong><small>{candidate.attribution} · 估算候选 · 待核实</small>
+        {candidates.candidates.map(candidate => {
+          const comparison = evaluateOfficeAddressCandidate(candidates.sourceLocation, candidate);
+          return <article key={candidate.id}><strong>{candidate.proposal.formattedAddress}</strong><small>{candidate.attribution} · 估算候选 · 待核实</small>
+          <section className="atlas-office-field-check" aria-label="地址字段核对">
+            <header><strong>来源字段核对</strong><span>{comparison.matches} 项匹配 · {comparison.conflicts} 项冲突 · {comparison.unknowns} 项未知</span></header>
+            <p>仅比较结构化字段；完整地址、原文和坐标不作为匹配证据。字段对照不代表办公地址已核实。</p>
+            <dl><div className="atlas-office-field-check-head" aria-hidden="true"><dt>字段</dt><dd><span>来源岗位</span><span></span><span>地址候选</span><span>状态</span></dd></div>
+              {comparison.fields.map(field => <div key={field.field} data-status={field.status}>
+              <dt>{matchFieldLabels[field.field]}</dt>
+              <dd><span>{field.sourceValue ?? "未知"}</span><span aria-hidden="true">→</span><span>{field.candidateValue ?? "未知"}</span><b>{matchStatusLabels[field.status]}</b></dd>
+            </div>)}</dl>
+          </section>
           <p>{meaning[candidate.proposal.coordinateMeaning]} · WGS84 {candidate.proposal.coordinates.latitude}, {candidate.proposal.coordinates.longitude}</p>
           <a href={candidate.evidenceUrl} target="_blank" rel="noopener noreferrer">查看候选出处<ArrowUpRight size={12} /></a>
           {onCandidateFocus && <button type="button" disabled={locked || staleCandidates} onClick={() => onCandidateFocus(candidate)}><MapPin size={13} />定位候选到地图</button>}
-          <button type="button" disabled={locked || staleCandidates} onClick={() => edit(candidateDraft(candidate.proposal, draft.reason))}>填入表单，继续人工核对</button></article>)}
+          <button type="button" disabled={locked || staleCandidates} onClick={() => edit(candidateDraft(candidate.proposal, draft.reason))}>填入表单，继续人工核对</button></article>;
+        })}
         {candidates.warnings.map(warning => <p className="atlas-small" key={warning}>{warning}</p>)}
       </div>}
       <fieldset disabled={locked}><legend>本人核对的地址与坐标</legend>

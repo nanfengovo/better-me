@@ -164,6 +164,19 @@ test("candidate choice only fills a manual unverified proposal; it never preview
   assert.equal(button(saveLabel).disabled, true);
 });
 
+test("candidate field comparison is explicit, conservative and has no workflow side effects", async () => {
+  const calls = installFetch(), focused: string[] = [], props = fixture(); props.onCandidateFocus = candidate => focused.push(candidate.id);
+  await render(props); await change("办公地址查询", "Synthetic Example Road 10"); await click("查询地址候选");
+  const panel = dom.document.querySelector('[aria-label="地址字段核对"]'); assert.ok(panel);
+  assert.match(panel.textContent!, /来源字段核对/); assert.match(panel.textContent!, /1 项匹配 · 0 项冲突 · 5 项未知/);
+  assert.match(panel.textContent!, /城市Shanghai→未知未知/); assert.match(panel.textContent!, /区县未知→未知未知/);
+  assert.equal(panel.querySelector('[data-status="match"] dt')?.textContent, "国家／地区");
+  assert.equal(panel.querySelector('[data-status="unknown"] dt')?.textContent, "省／州／地区");
+  assert.match(dom.document.querySelector(".atlas-office-candidates")!.textContent!, /估算候选 · 待核实/);
+  assert.equal(field("办公地址纬度").value, ""); assert.equal(dom.document.querySelector(".atlas-office-preview"), null);
+  assert.deepEqual(focused, []); assert.equal(calls.length, 1);
+});
+
 test("blank or invalid coordinates and unsafe evidence never reach preview; edits invalidate review", async () => {
   const calls = installFetch(); await render(fixture()); await click(previewLabel); assert.equal(calls.length, 0);
   await fillDraft(); await change("办公地址纬度", "91"); await click(previewLabel); assert.equal(calls.length, 0);
