@@ -516,17 +516,14 @@
         "entityType": "job-posting",
         "enabled": false,
         "status": "needs-review",
-        "entryUrl": "https://careers.abb/global/en/sitemap1.xml",
+        "entryUrl": "https://careers.abb/global/en/sitemap_index.xml",
         "options": {
           "companyName": "ABB",
-          "enumerationKind": "sitemap-urlset",
+          "enumerationKind": "sitemap-index",
           "enumerationUrls": [
-            "https://careers.abb/global/en/sitemap1.xml",
-            "https://careers.abb/global/en/sitemap2.xml",
-            "https://careers.abb/global/en/sitemap3.xml",
-            "https://careers.abb/global/en/sitemap4.xml",
-            "https://careers.abb/global/en/sitemap5.xml"
+            "https://careers.abb/global/en/sitemap_index.xml"
           ],
+          "maxChildSitemaps": 5,
           "postingPathPrefixes": [
             "/global/en/job/"
           ],
@@ -542,6 +539,7 @@
             "careers.abb"
           ],
           "allowedPathPrefixes": [
+            "/global/en/sitemap_index.xml",
             "/global/en/sitemap1.xml",
             "/global/en/sitemap2.xml",
             "/global/en/sitemap3.xml",
@@ -576,14 +574,14 @@
         "工程",
         "全球"
       ],
-      "coverage": "已审ABB官网五个叶子sitemap；每页最多3个详情、默认两页共6个候选，按已读字段本地筛选。清单含多国及非岗位页面，不按语言猜工作国家；候选URL数量不等于岗位数量。协议通用，新增公司需另行配置与审核。",
+      "coverage": "ABB robots.txt列出的全球英文根索引当前声明5个叶子sitemap；每次最多读取5个叶子清单、每页最多3个详情、默认两页共6个详情尝试，按已读字段本地筛选。清单含多国及非岗位页面，不按语言猜工作国家；候选URL数量不等于岗位数量。协议通用，新增公司需另行配置与审核。",
       "checkedAt": "2026-10-19T01:29:47.078Z",
       "evidenceUrls": [
         "https://global.abb/group/en/careers",
         "https://careers.abb/robots.txt",
         "https://careers.abb/global/en/sitemap_index.xml",
-        "https://careers.abb/global/en/job/JR00044541/C-NET-Software-Developer",
-        "https://schema.org/JobPosting"
+        "https://careers.abb/global/en/sitemap1.xml",
+        "https://careers.abb/global/en/job/JR00044541/C-NET-Software-Developer"
       ]
     },
     {
