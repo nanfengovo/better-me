@@ -73,7 +73,7 @@ GitHub Markdown 清单使用独立的固定列适配器，不接受 CSS selector
   "status": "needs-review",
   "entryUrl": "https://raw.githubusercontent.com/OWNER/REPOSITORY/REF/README.md",
   "options": {
-    "tableIndex": 0,
+    "tableIndexes": [0, 1, 2],
     "titleHeader": "Title",
     "urlHeader": "Application",
     "enumerationComplete": false
@@ -88,6 +88,8 @@ GitHub Markdown 清单使用独立的固定列适配器，不接受 CSS selector
   }
 }
 ```
+
+`tableIndex` 适合单个表；`tableIndexes` 可以在同一次有界读取中选择多个已审核表，两者不能同时设置。适配器不会因为文件里存在更多表就自动扩展范围。
 
 该适配器只读取一个人工审核的 Raw 文件，输出 `discovery-lead`，并保留 Raw 文件作为字段证据。它不会克隆仓库、执行 README 中的 HTML/JavaScript、自动访问表格里的岗位链接或把清单条目提升为当前在招岗位。没有稳定 HTTPS 原岗位链接的行会被跳过并报告 partial；重复链接会合并。仓库许可证、清单完整性、岗位当前状态、办公室地址、薪资和控股方都必须在后续人工审核或独立官方来源中确认。
 

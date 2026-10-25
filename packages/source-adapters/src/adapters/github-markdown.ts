@@ -201,17 +201,20 @@ export const githubMarkdownAdapter: SourceAdapter = {
     request.context.throwIfCancelled();
     if (response.status < 200 || response.status >= 300 || response.url !== entryUrl.toString()) throw new ToolError(response.status === 429 ? "rate-limited" : "source-changed");
     const available = tables(response.text);
-    const table = available[options.data.tableIndex];
-    if (!table) throw new ToolError("source-changed");
-    const columns = {
-      company: findColumn(table.headers, "company", options.data.companyHeader),
-      title: findColumn(table.headers, "title", options.data.titleHeader),
-      location: findColumn(table.headers, "location", options.data.locationHeader),
-      url: findColumn(table.headers, "url", options.data.urlHeader),
-      published: findColumn(table.headers, "published", options.data.publishedHeader),
-    } satisfies Record<Field, number | undefined>;
-    if (columns.title === undefined || columns.url === undefined) throw new ToolError("source-changed");
-    const mapped = table.rows.map((row, index) => mapRow(table, row, index, response.url, columns));
+    const selectedIndexes = options.data.tableIndexes ?? [options.data.tableIndex ?? 0];
+    const selectedTables = selectedIndexes.map((index) => available[index]).filter((table): table is Table => table !== undefined);
+    if (selectedTables.length !== selectedIndexes.length || selectedTables.length === 0) throw new ToolError("source-changed");
+    const mapped = selectedTables.flatMap((table) => {
+      const columns = {
+        company: findColumn(table.headers, "company", options.data.companyHeader),
+        title: findColumn(table.headers, "title", options.data.titleHeader),
+        location: findColumn(table.headers, "location", options.data.locationHeader),
+        url: findColumn(table.headers, "url", options.data.urlHeader),
+        published: findColumn(table.headers, "published", options.data.publishedHeader),
+      } satisfies Record<Field, number | undefined>;
+      if (columns.title === undefined || columns.url === undefined) throw new ToolError("source-changed");
+      return table.rows.map((row, index) => mapRow(table, row, index, response.url, columns));
+    });
     const seen = new Set<string>();
     const unique = mapped.filter((value): value is SourceJobRecord => {
       if (!value?.url || seen.has(value.url)) return false;
@@ -223,8 +226,8 @@ export const githubMarkdownAdapter: SourceAdapter = {
     const skipped = mapped.length - selected.records.length - selected.invalidRecords;
     const partial = !options.data.enumerationComplete || skipped > 0 || selected.invalidRecords > 0 || mapped.length > selected.records.length;
     return page(request, selected.records, {
-      fetchedRecords: table.rows.length,
-      totalAvailable: table.rows.length,
+      fetchedRecords: selectedTables.reduce((total, table) => total + table.rows.length, 0),
+      totalAvailable: selectedTables.reduce((total, table) => total + table.rows.length, 0),
       partial,
       stopReason: partial ? (mapped.length > selected.records.length ? "record-limit" : "page-limit") : undefined,
       warning: [

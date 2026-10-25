@@ -51,6 +51,12 @@ test("parses Markdown links, collapses duplicate links, and skips rows without o
   assert.equal(result.coverage.partial, true);
 });
 
+test("can explicitly combine multiple reviewed tables without widening to every table", async () => {
+  const request = input(`| Company | Role | Location | Application |\n| --- | --- | --- | --- |\n| A | Engineer | Shanghai | https://careers.example.com/a |\n\n| Company | Role | Location | Application |\n| --- | --- | --- | --- |\n| B | Analyst | London | https://careers.example.com/b |`, { tableIndexes: [0, 1] });
+  const result = await githubMarkdownAdapter.list(request);
+  assert.deepEqual(result.records.map((record) => record.companyName), ["A", "B"]);
+});
+
 test("respects output limits, cancellation, and Raw GitHub URL policy", async () => {
   const request = input(`| Company | Title | URL |\n| --- | --- | --- |\n| A | One | https://careers.example.com/1 |\n| B | Two | https://careers.example.com/2 |`, { enumerationComplete: true });
   request.source.refreshPolicy.maxRecords = 1;
