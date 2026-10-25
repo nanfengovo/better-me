@@ -4,6 +4,7 @@ import test, { after, afterEach, mock } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { Window, type HTMLButtonElement, type HTMLInputElement, type HTMLSelectElement } from "happy-dom";
 import { AtlasDatasetSchema, GeocodingRequestSchema, GeocodingResultSchema, applyOfficeAddressConfirmation, type AddressEnrichmentPlan, type AtlasDataset, type GeocodingRequest } from "@better-me/opportunities";
+import type { ProjectedResume, FactBase } from "@better-me/core";
 import { createOpportunity, OPPORTUNITY_STORAGE_KEY } from "../src/lib/opportunities.ts";
 import { createAtlasDemo } from "../src/components/atlas/demo.ts";
 import type { AtlasPrototypeProps } from "../src/components/atlas/prototypes/types.ts";
@@ -77,11 +78,11 @@ async function flush(action: () => void = () => {}) {
     && !dom.document.querySelector<HTMLButtonElement>(".atlas-load-more")?.disabled,
   "the current query, connection or next-page request to finish");
 }
-async function render(active = true, demo = true) {
+async function render(active = true, demo = true, resume?: ProjectedResume | null, factBase?: FactBase | null) {
   const firstRender = !root;
   if (!root) { dom.document.body.innerHTML = "<main></main>"; root = createRoot(dom.document.querySelector("main")! as unknown as Element); }
   await flush(() => root!.render(h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" },
-    children: h(AtlasWorkspace, { active, onSaveOpportunity: noAction, onAnalyze: noAction }) })));
+    children: h(AtlasWorkspace, { active, onSaveOpportunity: noAction, onAnalyze: noAction, resume, factBase }) })));
   if (firstRender && demo) await flush(() => {
     const dataView = dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!;
     assert.equal(dataView.value, "local", "real local data must be the default");
@@ -325,13 +326,13 @@ test("live snapshot list loads beyond the first page and keeps loaded jobs after
   assert.ok(dom.document.querySelector(".atlas-job-classification")!.textContent!.includes("瑞士"));
   await flush(() => { origin.value = ""; origin.dispatchEvent(new dom.Event("change", { bubbles: true })); });
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30);
-  await flush(() => button("显示更多岗位").click());
-  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 60);
+  await flush(() => button("下一页").click());
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30, "page 2 replaces page 1");
   await render(false); await render(true);
-  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 60);
-  await flush(() => button("显示更多岗位").click());
-  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 66);
-  assert.equal(dom.document.querySelector(".atlas-load-more"), null);
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30, "the current page stays after leaving");
+  await flush(() => button("下一页").click());
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 6);
+  assert.equal(dom.document.querySelector<HTMLButtonElement>(".atlas-pager button:last-child")!.disabled, true);
 });
 
 function pagedOfficeFixture() {
@@ -354,8 +355,8 @@ function pagedOfficeFixture() {
 }
 async function saveSecondPageOffice(data: AtlasDataset, mutate?: (saved: AtlasDataset) => void) {
   await render(true, false); await connectFixture();
-  await flush(() => button("显示更多岗位").click());
-  const card = dom.document.querySelectorAll<HTMLButtonElement>(".atlas-job-card")[40]!;
+  await flush(() => button("下一页").click());
+  const card = dom.document.querySelectorAll<HTMLButtonElement>(".atlas-job-card")[10]!;
   await flush(() => pointerClick(card, 0)); await flush(() => button("核对办公地址").click());
   await waitFor(() => Boolean(officeProps), "synthetic office panel callback");
   const props = officeProps!, saved = structuredClone(data); saved.revision++;
@@ -380,11 +381,12 @@ test("saved second-page office is rechecked outside pagination, remains selected
   await waitFor(() => pending.some(value => value.revision === saved.saved.revision), "the new snapshot's city projection");
   const batch = await createMapReferenceFixture(saved.saved);
   await act(async () => pending.find(value => value.revision === saved.saved.revision)!.resolve(sourceResponse(batch)));
-  await waitFor(() => Boolean(mapProps!.buckets.some(bucket => bucket.positionBasis === "city-reference")), "late city references");
+  await flush();
+  assert.equal(mapProps!.buckets.some(bucket => bucket.positionBasis === "city-reference"), false, "city estimates are not plotted as job locations");
   await flush(); assert.equal(mapProps!.selectedJobId, saved.jobId); assert.equal(mapProps!.focus!.requestId, firstRequest);
   assert.ok(dom.document.querySelector('[aria-label="地图岗位详情"]'));
-  await flush(() => button("显示更多岗位").click());
-  const recoveredCard = dom.document.querySelectorAll<HTMLButtonElement>(".atlas-job-card")[40]!;
+  await flush(() => button("下一页").click());
+  const recoveredCard = dom.document.querySelectorAll<HTMLButtonElement>(".atlas-job-card")[10]!;
   assert.match(recoveredCard.querySelector(".atlas-job-meta")!.textContent!, /Synthetic Example Road 10, Shanghai/);
 });
 
@@ -591,7 +593,7 @@ test("connected main search calls the selected source with exact C# and bounded 
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 3, "C++ jobs must not match C#");
   assert.ok([...dom.document.querySelectorAll(".atlas-job-card strong")].every((title) => title.textContent!.startsWith("C#")));
   assert.match(dom.document.querySelector('[aria-label="当前索引筛选覆盖"]')!.textContent!, /当前视图 22 岗/);
-  assert.match(dom.document.querySelector('[aria-label="当前索引筛选覆盖"]')!.textContent!, /可比较年薪 0可计算距离 0已核实企业性质 0已定位 0/);
+  assert.match(dom.document.querySelector('[aria-label="当前索引筛选覆盖"]')!.textContent!, /可比较年薪 0 岗可计算距离 0 岗已核实企业性质 0 岗已定位 0 岗/);
   assert.equal(mapProps!.buckets.length, 0);
   const sort = dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位排序"]')!;
   assert.equal([...sort.options].find((option) => option.value === "salary")!.disabled, true);
@@ -968,20 +970,19 @@ test("live city distribution references share the real filters and bucket select
     const path = new URL(String(url)).pathname; routes.push(path); assert.equal(path, "/api/v1/dataset/export"); return sourceResponse(data);
   }, input => { mapReads++; assert.equal(input.expectedRevision, data.revision); return sourceResponse(batch); });
   await render(true, false); await connectFixture();
-  assert.equal(mapReads, 1); assert.ok(mapProps!.buckets.length > 0); assert.equal(mapProps!.buckets.every(bucket => bucket.positionBasis === "city-reference"), true);
-  assert.match(dom.document.querySelector('[aria-label="地图位置口径"]')!.textContent!, /有效岗位坐标 0 岗.*城市分布参考 21 岗.*不参与离家距离/);
+  assert.equal(mapReads, 1); assert.equal(mapProps!.buckets.some(bucket => bucket.positionBasis === "city-reference"), false);
+  assert.match(dom.document.querySelector('[aria-label="地图位置口径"]')!.textContent!, /有来源坐标 0 岗.*待定位.*不使用城市估算补点/);
   const keyword = dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]'); assert.ok(keyword);
   await flush(() => changeInput(keyword, "C#"));
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 3); assert.equal(mapReads, 1, "filters reuse this snapshot's projection");
-  assert.equal(mapProps!.buckets.reduce((count, bucket) => count + bucket.jobCount, 0), 2);
-  assert.match(dom.document.querySelector('[aria-label="地图位置口径"]')!.textContent!, /城市分布参考 2 岗/);
+  assert.equal(mapProps!.buckets.reduce((count, bucket) => count + bucket.jobCount, 0), 0);
+  assert.match(dom.document.querySelector('[aria-label="地图位置口径"]')!.textContent!, /有来源坐标 0 岗/);
   await flush(() => pointerDoubleClick(jobCard("C# 合成工程师 0")));
   assert.equal(mapProps!.focus!.positionBasis, "city-reference"); assert.equal(mapProps!.focus!.precision, "city"); assert.equal(mapProps!.focus!.zoom, 9);
   assert.match(dom.document.querySelector('[aria-label="地图岗位详情"]')!.textContent!, /城市估算，非办公地址；不用于离家距离.*地名数据出处/s);
   assert.deepEqual(routes, ["/api/v1/dataset/export"]); assert.deepEqual(detailData, before);
-  const city = mapProps!.buckets.find(bucket => bucket.label === "上海")!; assert.ok(city);
-  await flush(() => mapProps!.onPick!(city)); assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 1);
-  assert.ok(resultsHeading().startsWith("上海")); assert.equal(mapProps!.buckets.length, 2, "selected list remains a subset of the base map query");
+  assert.equal(mapProps!.buckets.find(bucket => bucket.positionBasis === "city-reference"), undefined);
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 3);
   assert.equal(mapReads, 1); assert.deepEqual(data, before);
   await render(false, false); await render(true, false);
   assert.equal(mapReads, 1, "completed references reuse the same snapshot cache after activation");
@@ -998,7 +999,7 @@ test("city-reference errors preserve the live list and explicit retry adds estim
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 22); assert.equal(mapProps!.buckets.length, 0);
   assert.match(dom.document.body.textContent!, /尚不支持城市分布参考.*更新并重启/); assert.doesNotMatch(dom.document.body.textContent!, /Private service text/);
   await flush(() => button("重新读取城市参考").click()); assert.equal(reads, 2); assert.equal(snapshots, 1);
-  assert.ok(mapProps!.buckets.some(bucket => bucket.positionBasis === "city-reference"));
+  assert.equal(mapProps!.buckets.some(bucket => bucket.positionBasis === "city-reference"), false);
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 22);
 });
 
@@ -1188,3 +1189,46 @@ test("a batch's exact saved office is rechecked and highlighted while its readin
   assert.ok(dom.document.querySelector('[aria-label="岗位办公地点批量核对面板"]'));
   assert.equal(grid.querySelector("[data-map-probe]"), map); assert.equal(mapMounts, mounts); assert.equal(grid.children.length, 3);
 });
+
+test("resume prefill bar displays smart keywords from active resume and pre-fills search criteria", async () => {
+  const mockResume: ProjectedResume = {
+    header: {
+      fullName: "测试候选人",
+      targetRole: "全栈技术专家",
+      location: "北京市海淀区",
+      email: "test@example.com",
+      phone: "13800000000",
+    },
+    summary: "精通 React 与 Node.js 构建高可用分布式架构",
+    skills: [
+      { name: "React", level: "master", keywords: ["Next.js"] },
+      { name: "TypeScript", level: "expert", keywords: [] },
+    ],
+    experiences: [],
+    educations: [],
+    projects: [],
+  };
+
+  await render(true, true, mockResume);
+  const prefillBar = dom.document.querySelector(".atlas-resume-prefill-bar");
+  assert.ok(prefillBar, "Resume prefill bar should be rendered");
+
+  const prefillBtn = dom.document.querySelector<HTMLButtonElement>(".atlas-prefill-btn");
+  assert.ok(prefillBtn, "Prefill button exists");
+  await flush(() => prefillBtn!.click());
+
+  const searchInput = dom.document.querySelector<HTMLInputElement>('input[aria-label="搜索地图岗位"]')!;
+  assert.equal(searchInput.value, "全栈技术专家");
+
+  const provinceSelect = dom.document.querySelector<HTMLSelectElement>('[aria-label="工作省份"]')!;
+  assert.equal(provinceSelect.value, "11");
+
+  const chipButtons = [...dom.document.querySelectorAll<HTMLButtonElement>(".atlas-chip-btn")];
+  assert.ok(chipButtons.length >= 2, "Expected at least 2 recommendation chips");
+
+  const reactChip = chipButtons.find(btn => btn.textContent?.includes("React"));
+  assert.ok(reactChip, "React chip found");
+  await flush(() => reactChip!.click());
+  assert.equal(searchInput.value, "React");
+});
+

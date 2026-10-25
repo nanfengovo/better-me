@@ -74,7 +74,7 @@ function untilAborted<T>(pending: Promise<T>, signal: AbortSignal): Promise<T> {
  */
 export async function runAtlasSourceSearch(options: AtlasAggregateOptions): Promise<AtlasAggregateResult> {
   const concurrency = options.concurrency ?? 2;
-  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 8) throw new RangeError("concurrency must be an integer from 1 to 8.");
+  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 16) throw new RangeError("concurrency must be an integer from 1 to 16.");
   const ids = options.sources.map((source) => source.sourceId);
   if (new Set(ids).size !== ids.length) throw new TypeError("Each aggregate sourceId must be unique.");
   // Copy the source list so callers cannot add new work after the batch starts.

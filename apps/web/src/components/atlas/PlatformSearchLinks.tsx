@@ -6,15 +6,21 @@ import {
 import { useUiPreferences, type UiTranslator } from "../../lib/ui-preferences";
 import "./platform-search-links.css";
 import { PlatformSearchSessionPanel } from "./PlatformSearchSessionPanel";
+import { RealChromeLaunchBar } from "./RealChromeLaunchBar";
+import { openUrlInRealChrome, openUrlsInRealChrome } from "../../lib/real-chrome-client";
 import type { PlatformSearchCard, PlatformSearchReceipt } from "../../lib/platform-search-client";
 
 export type PlatformSearchLinksProps = {
   keyword: string;
   regionText: string;
   countryCode: string;
+  districtCode?: string;
+  open?: boolean;
+  onToggleOpen?: (open: boolean) => void;
   onOpenSingleJob?: () => void;
   onReviewCard?: (card: PlatformSearchCard, capturedAt: string) => void;
   onIndexCard?: (card: PlatformSearchCard, receipt: PlatformSearchReceipt, provider: PlatformSearchRequest["provider"]) => void;
+  onIndexCards?: (cards: PlatformSearchCard[], receipt: PlatformSearchReceipt, provider: PlatformSearchRequest["provider"]) => void;
 };
 
 type RegionSelection = { region?: PlatformSearchRegion; error?: string };
@@ -54,24 +60,39 @@ function platformNote(request: PlatformSearchRequest, t: UiTranslator): string |
     "地区以文本提交，请确认 LinkedIn 解析后的地点范围。",
     "Location is submitted as text. Check the location resolved by LinkedIn.",
   );
+  if ((request.provider === "seek" || request.provider === "indeed" || request.provider === "gradconnection") && request.region) return t(
+    "地区以文本参数提交，原站将自动匹配附近职位。",
+    "Location is submitted as a parameter; the platform will match nearby jobs.",
+  );
   return undefined;
 }
 
 /** External launch links only; rendering never fetches, imports or updates map results. */
-export function PlatformSearchLinks({ keyword, regionText, countryCode, onOpenSingleJob, onReviewCard, onIndexCard }: PlatformSearchLinksProps) {
+export function PlatformSearchLinks({ keyword, regionText, countryCode, districtCode, open, onToggleOpen, onOpenSingleJob, onReviewCard, onIndexCard, onIndexCards }: PlatformSearchLinksProps) {
   const { t } = useUiPreferences();
   const selection = selectedRegion(regionText, countryCode, t);
   const inputError = selection.error;
   const searches = PLATFORM_SEARCH_PROVIDERS.map((provider) => {
     if (inputError) return { provider, error: inputError, request: undefined };
     try { return { provider, request: buildPlatformSearchRequest({ provider: provider.id, keyword,
-      ...(selection.region ? { regionId: selection.region.id } : {}), }), error: undefined }; }
+      ...(selection.region ? { regionId: selection.region.id } : {}),
+      ...(districtCode ? { districtCode } : {}), }), error: undefined }; }
     catch (error) { return { provider, request: undefined, error: buildError(error, t) }; }
   });
-  return <details className="atlas-platform-search" aria-label={t("四平台原站搜索", "Search four original platforms")}>
-    <summary>{t("51JOB · BOSS · 猎聘 · LinkedIn 原站搜索", "Search on 51JOB · BOSS · Liepin · LinkedIn")}
-      <span>{t("外部搜索", "External search")}</span>
+  const availableSearches = searches.filter((s): s is typeof s & { request: PlatformSearchRequest } => Boolean(s.request));
+  const openAllSearches = () => {
+    for (const item of availableSearches) {
+      if (typeof window !== "undefined") {
+        window.open(item.request.url, "_blank", "noopener,noreferrer");
+      }
+    }
+  };
+
+  return <details className="atlas-platform-search" aria-label={t("全网商业平台与官网搜索", "Search commercial platforms and company careers")} {...(typeof open === "boolean" ? { open } : {})} onToggle={(e) => onToggleOpen?.(e.currentTarget.open)}>
+    <summary>{t("51JOB · BOSS · 猎聘 · LinkedIn · Seek · Indeed · GradConnection · 官网 全网聚合搜索", "Search on 51JOB · BOSS · Liepin · LinkedIn · Seek · Indeed · GradConnection · Company Careers")}
+      <span>{t("全网聚合", "Aggregated search")}</span>
     </summary>
+    <RealChromeLaunchBar />
     <p className="atlas-platform-search-disclosure">{t("打开原站搜索；尚未采集到地图。", "Open the original platform search; no jobs have been collected into the map.")}</p>
     <p className="atlas-platform-search-scope">{t("关键词", "Keyword")}：<strong>{keyword.trim() || "—"}</strong> · {t("地区", "Region")}：{selection.region
       ? `${selection.region.name} (${selection.region.countryCode})`
@@ -82,17 +103,65 @@ export function PlatformSearchLinks({ keyword, regionText, countryCode, onOpenSi
       "未指定地区，原站可能使用默认或上次选择的地区，请打开后确认；这不代表全国或全球搜索。",
       "No location is specified. The platform may use its default or last selected location; confirm it on the opened page. This is not a nationwide or worldwide search.",
     )}</p>}
+    {availableSearches.length > 1 && (
+      <div className="atlas-platform-quick-actions">
+        <button
+          type="button"
+          className="atlas-platform-open-chrome-all-btn"
+          onClick={async () => {
+            const urls = availableSearches.map((s) => s.request.url);
+            const ok = await openUrlsInRealChrome(urls);
+            if (!ok) openAllSearches();
+          }}
+          title={t("在已接管的真实 Chrome 中批量打开全部平台搜索（自动规避滑块验证码与 IP 拦截）", "Batch open in Real Chrome CDP (bypasses bot detection)")}
+        >
+          🛡️ 一键在真实 Chrome 中开启全部搜索（防反爬免验证）
+        </button>
+        <button
+          type="button"
+          className="atlas-platform-open-all-btn"
+          onClick={openAllSearches}
+          title={t("在新标签页中批量打开所有支持平台的原站搜索", "Open all supported platform searches in new tabs")}
+        >
+          {t(`普通浏览器打开全部（${availableSearches.length} 个）`, `Open All (${availableSearches.length})`)} ↗
+        </button>
+      </div>
+    )}
     <ul className="atlas-platform-search-grid">
       {searches.map(({ provider, request, error }) => <li key={provider.id} data-platform-search={provider.id}>
         <strong>{provider.name}</strong>
-        {request ? <a href={request.url} target="_blank" rel="noopener noreferrer" aria-label={t(`打开 ${provider.name} 原站搜索`, `Open ${provider.name} search on the original site`)}>
-          {t("打开原站搜索", "Open platform search")} <span aria-hidden="true">↗</span>
-        </a> : <span className="atlas-platform-search-unavailable" aria-disabled="true">{t("暂不可搜索", "Search unavailable")}</span>}
+        {request ? (
+          <div className="atlas-platform-link-actions">
+            <button
+              type="button"
+              className="atlas-platform-btn-real-chrome"
+              onClick={async () => {
+                const ok = await openUrlInRealChrome(request.url);
+                if (!ok && typeof window !== "undefined") {
+                  window.open(request.url, "_blank", "noopener,noreferrer");
+                }
+              }}
+              title={t("在独立真实 Chrome 中打开，享有真实 TLS、Canvas 指纹和保存的登录态，避免滑块验证码拦截", "Open in Real Chrome CDP")}
+            >
+              🛡️ 真实 Chrome 检索
+            </button>
+            <a href={request.url} target="_blank" rel="noopener noreferrer" aria-label={t(`打开 ${provider.name} 原站搜索`, `Open ${provider.name} search on the original site`)}>
+              {t("原站直达", "Direct link")} <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+        ) : <span className="atlas-platform-search-unavailable" aria-disabled="true">{t("暂不可搜索", "Search unavailable")}</span>}
         {request && platformNote(request, t) && <small>{platformNote(request, t)}</small>}
         {!inputError && error && <small className="atlas-platform-search-error">{error}</small>}
       </li>)}
+      <li key="company-careers" data-platform-search="company-careers" className="atlas-platform-search-official">
+        <strong>{t("企业官网直聘", "Company Careers")}</strong>
+        <button type="button" onClick={onOpenSingleJob} className="atlas-platform-careers-btn">
+          {t("官网直聘与单岗录入", "Company Careers & Job Reader")} ↗
+        </button>
+        <small>{t("各大企业官网与招聘系统（Workday、Greenhouse 等）直接解析与入库", "Direct parsing and indexing from company career sites and ATS portals.")}</small>
+      </li>
     </ul>
-    <PlatformSearchSessionPanel requests={searches.flatMap((search) => search.request ? [search.request] : [])} onReviewCard={onReviewCard} onIndexCard={onIndexCard} />
+    <PlatformSearchSessionPanel requests={searches.flatMap((search) => search.request ? [search.request] : [])} onReviewCard={onReviewCard} onIndexCard={onIndexCard} onIndexCards={onIndexCards} />
     <div className="atlas-platform-search-followup"><p>{t(
       "在原站选择具体岗位后，可通过单岗读取核对来源并收藏。打开搜索页不会自动导入岗位。",
       "After selecting a specific job on the platform, use the single-job reader to review its source and save it. Opening a search page does not import jobs.",

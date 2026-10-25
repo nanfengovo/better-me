@@ -165,7 +165,7 @@ test("concurrency can be explicitly serial, duplicate sources and invalid parall
   await runAtlasSourceSearch({ sources, buildRequest, concurrency: 1, sync }); assert.equal(maxActive, 1);
   const before = calls;
   await assert.rejects(runAtlasSourceSearch({ sources: [sources[0]!, sources[0]!], buildRequest, sync }), /unique/);
-  for (const concurrency of [0, 9, 1.5, NaN]) await assert.rejects(runAtlasSourceSearch({ sources, buildRequest, sync, concurrency }), RangeError);
+  for (const concurrency of [0, 17, 1.5, NaN]) await assert.rejects(runAtlasSourceSearch({ sources, buildRequest, sync, concurrency }), RangeError);
   assert.equal(calls, before);
   const empty = await runAtlasSourceSearch({ sources: [], buildRequest, sync });
   assert.equal(empty.total, 0); assert.equal(empty.settled, 0); assert.equal(calls, before);

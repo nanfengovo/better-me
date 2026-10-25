@@ -1,11 +1,12 @@
 /** @jsxRuntime automatic */
 import { useEffect, useId, useRef, type ReactNode } from "react";
-import { ArrowUpRight, BookmarkPlus, Building2, FileSearch, MapPin, Navigation, X } from "lucide-react";
+import { ArrowUpRight, BookmarkPlus, Building2, FileSearch, MapPin, Navigation, Sparkles, X } from "lucide-react";
 import { HttpUrlSchema, type AtlasDataset, type JobLocation, type JobSearchItem } from "@better-me/opportunities";
 import { useUiPreferences, type UiTranslator } from "../../lib/ui-preferences";
 import { AtlasListingBadges } from "./JobSourceBadges";
 import type { AtlasListingPresentation } from "./presentation";
 import { validMapFocus } from "./map-focus";
+import { analyzeAiJobRelevance } from "./ai-job-relevance";
 import "./AtlasJobDetail.css";
 
 export type AtlasJobDetailProps = {
@@ -14,6 +15,7 @@ export type AtlasJobDetailProps = {
   demo: boolean;
   originalCurrency: boolean;
   presentations: readonly AtlasListingPresentation[];
+  searchQuery?: string;
   onClose: () => void;
   onLocate: (locationId?: string) => void;
   onSave: () => void;
@@ -68,7 +70,7 @@ function sourcesForDetail(item: JobSearchItem, data: AtlasDataset, presentations
 }
 
 /** A non-modal reading pane. It never moves focus, locks the page or intercepts card clicks. */
-export function AtlasJobDetail({ item, data, demo, originalCurrency, presentations, onClose, onLocate, onSave, onAnalyze, onConfirmLocation, onConfirmOffice, onReadLocations, children }: AtlasJobDetailProps) {
+export function AtlasJobDetail({ item, data, demo, originalCurrency, presentations, searchQuery, onClose, onLocate, onSave, onAnalyze, onConfirmLocation, onConfirmOffice, onReadLocations, children }: AtlasJobDetailProps) {
   const { t, locale } = useUiPreferences();
   const titleId = useId();
   const body = useRef<HTMLDivElement>(null);
@@ -97,6 +99,7 @@ export function AtlasJobDetail({ item, data, demo, originalCurrency, presentatio
   const updated = Date.parse(item.job.updatedAt);
   const updatedLabel = Number.isFinite(updated) ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(updated) : t("未披露", "Unknown");
   const status = item.job.status === "open" ? t("在招", "Open") : item.job.status === "closed" ? t("已关闭", "Closed") : t("待核验", "Unverified");
+  const aiRelevance = analyzeAiJobRelevance(item.job, searchQuery, item.company.names[0]);
 
   return <aside id="atlas-job-detail" className="atlas-job-detail" aria-label={t("地图岗位详情", "Map job details")} aria-describedby={titleId} data-job-id={item.job.id}>
     <header className="atlas-job-detail-header">
@@ -107,6 +110,37 @@ export function AtlasJobDetail({ item, data, demo, originalCurrency, presentatio
     </header>
 
     <div ref={body} className="atlas-job-detail-body">
+      {aiRelevance.isPenetrated && (
+        <section className="atlas-job-detail-section atlas-job-detail-ai-penetration" aria-label="AI 智能技术栈穿透解析">
+          <div className="atlas-ai-deep-insight-box">
+            <div className="atlas-ai-insight-header">
+              <span className="atlas-ai-sparkle-pill">
+                <Sparkles size={14} className="atlas-ai-sparkle-icon" />
+                AI 智能技术栈穿透解析
+              </span>
+              <span className="atlas-ai-confidence">匹配置信度 {aiRelevance.confidence}%</span>
+            </div>
+            <p className="atlas-ai-insight-reason">{aiRelevance.reason}</p>
+            {aiRelevance.highlightSnippet && (
+              <div className="atlas-ai-insight-evidence">
+                <div className="atlas-ai-evidence-label">🎯 任职要求深度定位：</div>
+                <blockquote>{aiRelevance.highlightSnippet}</blockquote>
+              </div>
+            )}
+            {aiRelevance.extractedTechStack.length > 0 && (
+              <div className="atlas-ai-extracted-skills">
+                <span className="skills-label">提取核心技能栈：</span>
+                <div className="skills-pill-group">
+                  {aiRelevance.extractedTechStack.map((skill) => (
+                    <span key={skill} className="skill-pill">{skill}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       <section className="atlas-job-detail-section atlas-job-detail-opening" aria-label={t("薪资与岗位原文", "Salary and original posting")}>
         <div className="atlas-job-detail-salary">{!salary && rawPay.length ? t("来源薪资已披露 · 年薪口径待核实", "Source pay disclosed · annual comparison unverified") : annual(salary, t, locale)}</div>
         {salary && <p className="atlas-job-detail-caption">{originalCurrency ? t("原币 · 税前固定年薪", "Original currency · annual gross base pay") : t("统一口径 · 人民币税前固定年薪", "Comparable annual gross base pay in CNY")}{item.salary?.estimated && t(" · 含估算", " · estimated")}</p>}

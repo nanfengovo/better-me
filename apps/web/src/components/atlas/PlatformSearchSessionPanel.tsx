@@ -11,7 +11,8 @@ import { SourcePublicationBadges } from "./JobSourceBadges";
 import "./PlatformSearchSessionPanel.css";
 
 type Props = { requests: PlatformSearchRequest[]; onReviewCard?: (card: PlatformSearchCard, capturedAt: string) => void;
-  onIndexCard?: (card: PlatformSearchCard, receipt: PlatformSearchReceipt, provider: PlatformSearchRequest["provider"]) => void };
+  onIndexCard?: (card: PlatformSearchCard, receipt: PlatformSearchReceipt, provider: PlatformSearchRequest["provider"]) => void;
+  onIndexCards?: (cards: PlatformSearchCard[], receipt: PlatformSearchReceipt, provider: PlatformSearchRequest["provider"]) => void };
 const labels: Record<PlatformSearchReceipt["status"], string> = {
   ready: "已读取当前页岗位卡片", empty: "原站当前页明确显示暂无结果", login_required: "原站需要登录，请在专用窗口完成后再次读取",
   verification_required: "原站需要人工验证，完成后可再次读取", unknown_layout: "尚未识别到可靠的岗位卡片，请核对页面是否加载完成",
@@ -49,7 +50,7 @@ const resourceDetails: Record<JdBrowserSessionInspection["resources"][number]["d
 };
 
 /** One visible browser session, explicit read/close, no automatic applications or account actions. */
-export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard }: Props) {
+export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard, onIndexCards }: Props) {
   const [provider, setProvider] = useState("liepin");
   const [session, setSession] = useState<JdBrowserSession>();
   const [scope, setScope] = useState<PlatformSearchRequest>();
@@ -110,6 +111,21 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
     <strong>读取原站搜索结果</strong>
     <p>使用本机专用浏览器读取当前页，最多 50 张可见岗位卡片。需要登录或验证时，在窗口中完成后继续；可在原站翻页后再次读取。卡片摘要与完整 JD 分开，缺失薪资、地址坐标和发布时间保持未知。</p>
     <div className="atlas-platform-reader-actions">
+      {requests.length > 0 && (
+        <div className="atlas-platform-tab-group" role="tablist" aria-label="选择平台">
+          {requests.map((entry) => (
+            <button
+              key={entry.provider}
+              type="button"
+              className={`atlas-platform-tab-btn ${(scope?.provider ?? plan?.provider) === entry.provider ? "active" : ""}`}
+              disabled={busy || Boolean(pending)}
+              onClick={() => setProvider(entry.provider)}
+            >
+              {entry.platform}
+            </button>
+          ))}
+        </div>
+      )}
       <select aria-label="读取岗位平台" disabled={busy || Boolean(pending)} value={scope?.provider ?? plan?.provider ?? ""} onChange={(event) => setProvider(event.target.value)}>
         {scope && !requests.some((request) => request.provider === scope.provider) && <option value={scope.provider}>{scope.platform} · 本次会话</option>}
         {!requests.length && <option value="">请先选择支持的地区</option>}
@@ -127,6 +143,58 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
     {busy && <p className="atlas-platform-reader-loading" role="status"><Loader2 size={16} className="animate-spin" aria-hidden="true" />正在等待原站页面并核对可见卡片… 页面加载、身份与字段检查完成后会显示结果。</p>}
     {scope && <p className="atlas-small">本次搜索：{scope.platform} · {scope.keyword || "不限关键词"} · {scope.region?.name ?? "原站默认地区"}。上方筛选改变后，结束本次会话再发起新的搜索。</p>}
     {error && <p role="alert" className="atlas-platform-search-error">{error}</p>}
+    {(receipt?.status === "verification_required" || error.includes("验证") || error.includes("verification")) && session && (
+      <div className="atlas-platform-verification-box" role="alert">
+        <div className="atlas-platform-verification-header">
+          <strong>⚠️ 触发平台安全人机验证 / 滑块验证码</strong>
+          <span>已自动熔断暂停采集以保护您的账号与 IP 信誉</span>
+        </div>
+        <p>真实浏览器窗口已置顶。请在浏览器中手动滑过验证码或点击通过后，点击下方按钮立即恢复采集。</p>
+        <div className="atlas-platform-verification-actions">
+          <button
+            type="button"
+            className="atlas-platform-verification-btn"
+            disabled={busy}
+            onClick={() => void read(session)}
+          >
+            {busy ? "正在读取…" : "已完成验证，立即恢复读取"}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void run(async (signal) => { await focusJdBrowserSession(session, signal); })}
+          >
+            再次置顶浏览器窗口
+          </button>
+        </div>
+      </div>
+    )}
+    {(receipt?.status === "login_required" || error.includes("登录")) && session && (
+      <div className="atlas-platform-verification-box login" role="alert">
+        <div className="atlas-platform-verification-header">
+          <strong>🔒 原站需要账号登录</strong>
+          <span>独立用户目录已启用，登录态与 Cookie 将自动持久化保存</span>
+        </div>
+        <p>请在已置顶的专用浏览器窗口中登录一次（后续采集无需重复登录），完成后点击下方按钮继续。</p>
+        <div className="atlas-platform-verification-actions">
+          <button
+            type="button"
+            className="atlas-platform-verification-btn"
+            disabled={busy}
+            onClick={() => void read(session)}
+          >
+            {busy ? "正在读取…" : "已完成登录，立即继续读取"}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void run(async (signal) => { await focusJdBrowserSession(session, signal); })}
+          >
+            再次置顶浏览器窗口
+          </button>
+        </div>
+      </div>
+    )}
     {inspection && <div className="atlas-small atlas-search-inspection" role="status" aria-label="搜索页面状态检查结果">
       <strong>上次页面状态检查</strong>
       <p>{snapshotLabels[inspection.snapshotState]}</p>
@@ -160,6 +228,19 @@ export function PlatformSearchSessionPanel({ requests, onReviewCard, onIndexCard
       <strong>{labels[receipt.status]}{receipt.status === "ready" || receipt.status === "empty" ? ` · ${receipt.cards.length} 岗` : " · 岗位数量尚未确认"}</strong>
       <p>仅本次单页读取，未自动遍历全站。核对后可加入统一索引继续搜索，或预填机会库；缺少坐标的岗位仍列为待定位。</p>
       {receipt.warnings.map((warning, index) => <p className="atlas-small" key={index}>{warning}</p>)}
+      {scope && receipt.cards.length > 0 && onIndexCards && (
+        <div className="atlas-platform-batch-actions">
+          <span>当前页读取到 {receipt.cards.length} 岗（{receipt.cards.filter((card) => card.company?.trim()).length} 岗具备雇主信息可入库）</span>
+          <button
+            type="button"
+            className="atlas-platform-batch-btn"
+            disabled={!receipt.cards.some((card) => card.company?.trim())}
+            onClick={() => onIndexCards(receipt.cards.filter((card) => card.company?.trim()), receipt, scope.provider)}
+          >
+            一键全选并加入统一地图索引（{receipt.cards.filter((card) => card.company?.trim()).length} 岗）
+          </button>
+        </div>
+      )}
       <ul className="atlas-platform-card-list">{receipt.cards.map((card) => <li key={card.url}>
         <SourcePublicationBadges sourceLabel={card.platform} platform={card.platform} publishedRaw={card.publicationText} sourceUrl={card.url} link />
         <a href={card.url} target="_blank" rel="noopener noreferrer"><strong>{card.title}</strong></a>
