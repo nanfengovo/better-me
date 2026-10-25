@@ -96,6 +96,30 @@ test("SmartRecruiters retains explicit listing address and postalCode with exact
   assert.doesNotMatch(JSON.stringify(job.locations), /coordinates|latitude|longitude/);
 });
 
+test("SmartRecruiters does not promote repeated city, region, country or sole fullLocation labels to streetAddress", async () => {
+  const cases = [
+    { city: "Boston", region: "Massachusetts", country: "US", address: " Boston ", fullLocation: "Boston, USA" },
+    { region: "Massachusetts", country: "US", address: "massachusetts", fullLocation: "Boston, Massachusetts, USA" },
+    { city: "Boston", country: "United States", address: "united states", fullLocation: "Boston, United States" },
+    { country: "US", address: "Boston", fullLocation: "Boston" },
+  ];
+  for (const location of cases) {
+    const { input } = fixture([post("1", { location })]);
+    const job = (await smartRecruitersAdapter.list(input)).records[0]!;
+    assert.equal(job.locations[0]!.streetAddress, undefined, JSON.stringify(location));
+    assert.equal(job.evidence.some(item => item.field === "locations.streetAddress"), false);
+  }
+});
+
+test("SmartRecruiters preserves distinct address fragments instead of treating them as fullLocation duplicates", async () => {
+  for (const [address, fullLocation] of [["100 Main Street", "Shanghai, China"], ["Source street 10", "Shanghai, China"], ["复兴路100号", "Shanghai, China"], ["上海中心大厦B座1201室", "Shanghai, China"], ["Shanghai Center Tower", "Shanghai Center Tower, Shanghai, China"]] as const) {
+    const { input } = fixture([post("1", { location: { city: "Shanghai", country: "cn", fullLocation, address } })]);
+    const job = (await smartRecruitersAdapter.list(input)).records[0]!;
+    assert.equal(job.locations[0]!.streetAddress, address, address);
+    assert.ok(job.evidence.some(item => item.field === "locations.streetAddress" && item.quote === address));
+  }
+});
+
 test("SmartRecruiters same-ID detail can disclose an office address; absent detail location preserves listing fields", async () => {
   const { input } = fixture([post()], { fetchDetails: true });
   changeDetails(input, detail("123", { location: { city: "Boston", country: "us", fullLocation: "Boston, USA", address: "Source street 20", postalCode: "00234" } }));

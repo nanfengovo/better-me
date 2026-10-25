@@ -38,19 +38,33 @@ async function readJson(request: Pick<SourceAdapterRequest, "source" | "context"
   return response;
 }
 
-function locationFor(job: SourceJobRecord, value: unknown, selector: string, sourceUrl: string): void {
+function normalizedLocation(value: string): string {
+  return value.normalize("NFKC").toLocaleLowerCase().replace(/[\s,，、/;；.。:_-]+/gu, "");
+}
+
+function isRepeatedLocationLabel(address: string, full: string, city: string, region: string, country: string): boolean {
+  const candidate = normalizedLocation(address);
+  if ([city, region, country].some(value => value && candidate === normalizedLocation(value))) return true;
+  // Only an exact full-location duplicate is suppressed. A component such as
+  // a building or campus name must remain available as source address text.
+  return Boolean(full && candidate === normalizedLocation(full));
+}
+
+function locationFor(job: SourceJobRecord, value: unknown, selector: string, sourceUrl: string): boolean {
   const location = record(value);
   const full = plainText(location.fullLocation), address = plainText(location.address), postalCode = plainText(location.postalCode);
   const city = plainText(location.city), region = plainText(location.region), country = plainText(location.country);
+  if (address && (address.length > 1000 || /[\p{Cc}\p{Cs}]/u.test(address))) return false;
+  const streetAddress = address && !isRepeatedLocationLabel(address, full, city, region, country) ? address : undefined;
   const original = full || [city, region, country].filter(Boolean).join(", ");
   const raw = [original, address && address !== original ? address : ""].filter(Boolean).join(" · ");
   if (raw) {
     const code = CountryCodeSchema.safeParse(country.toUpperCase());
     job.locations = [{ raw, ...(code.success ? { countryCode: code.data } : {}),
       ...(region ? { region } : {}), ...(city && !/[,，、/;；\n]/.test(city) ? { city } : {}),
-      ...(address ? { streetAddress: address } : {}), ...(postalCode ? { postalCode } : {}) }];
+      ...(streetAddress ? { streetAddress } : {}), ...(postalCode ? { postalCode } : {}) }];
     job.evidence.push({ field: "locations", selector, quote: raw.slice(0, 20_000), sourceUrl });
-    if (address) job.evidence.push({ field: "locations.streetAddress", selector: `${selector}.address`, quote: address.slice(0, 20_000), sourceUrl });
+    if (streetAddress) job.evidence.push({ field: "locations.streetAddress", selector: `${selector}.address`, quote: streetAddress.slice(0, 20_000), sourceUrl });
     if (postalCode) job.evidence.push({ field: "locations.postalCode", selector: `${selector}.postalCode`, quote: postalCode.slice(0, 20_000), sourceUrl });
   }
   if (location.remote === true && location.hybrid !== true) job.workMode = "remote";
@@ -60,6 +74,7 @@ function locationFor(job: SourceJobRecord, value: unknown, selector: string, sou
   }
   if (location.remote === true && location.hybrid === true) job.warnings.push("Conflicting remote/hybrid flags were retained as evidence; work mode remains unknown.");
   // Provider coordinates are often city centroids. They never establish an office or remote eligibility.
+  return true;
 }
 
 function retainListingOfficeFields(listing: SourceJobRecord["locations"], detailed: SourceJobRecord["locations"]): void {
@@ -118,7 +133,7 @@ function applyDetail(job: SourceJobRecord, detailResponse: { data: unknown; url:
     && !Object.keys(sections).some((key) => !order.includes(key) && plainText(record(sections[key]).text));
   if (Object.hasOwn(detail, "location")) {
     const located = structuredClone(job);
-    locationFor(located, detail.location, "location", detailResponse.url);
+    if (!locationFor(located, detail.location, "location", detailResponse.url)) throw new ToolError("source-changed");
     if (expectedUrl === undefined) retainListingOfficeFields(job.locations, located.locations);
     if (!SourceJobRecordSchema.safeParse(located).success) throw new ToolError("source-changed");
     job.locations = located.locations; job.workMode = located.workMode; job.evidence = located.evidence; job.warnings = located.warnings;
