@@ -432,6 +432,26 @@ test("changing from an overseas location to domestic mode clears the foreign foc
   assert.equal(mapProps!.focus, undefined);
 });
 
+test("a late global camera callback cannot override domestic defaults, while domestic camera survives deactivation", async () => {
+  await render();
+  const lateGlobalCallback = mapProps!.onViewChange!;
+  await flush(() => button("国内").click());
+  assert.equal(mapProps!.mode, "domestic");
+  assert.equal(mapProps!.initialView, undefined);
+
+  await act(async () => lateGlobalCallback({ center: [0, 0], zoom: 1.2, bearing: 0, pitch: 0 }));
+  await flush(() => button("自动旋转").click());
+  assert.equal(mapProps!.initialView, undefined, "a delayed callback from the global map must not seed the domestic camera");
+
+  const domesticView = { center: [104, 35] as [number, number], zoom: 12.6, bearing: 18, pitch: 38, bounds: [103.9, 34.9, 104.1, 35.1] as [number, number, number, number] };
+  await flush(() => mapProps!.onViewChange!(domesticView));
+  const before = mapMounts;
+  await render(false); await render(true);
+  assert.ok(mapMounts > before);
+  assert.equal(mapProps!.mode, "domestic");
+  assert.deepEqual(mapProps!.initialView, domesticView, "the active domestic map camera should be restored after workspace reactivation");
+});
+
 test("the last street camera is passed back after workspace deactivation and does not discard city selection", async () => {
   await render();
   const city = mapProps!.buckets.find((bucket) => bucket.label === "上海")!;
