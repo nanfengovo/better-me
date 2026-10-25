@@ -33,3 +33,5 @@ Agent **无法检测**你何时关闭聊天窗口。及时保存靠：
 
 - 用户数据与 API Key 不进 Git
 - 模板带 `LICENSE` / `NOTICE`（若移植开源主题）
+- UI 与排版：Avoid unnecessary secondary labels and descriptions. Let the layout do the explaining.
+- 开源借鉴：遇到不熟悉的功能别直接从零开发，先检索GitHub上维护活跃、许可证明确的同类开源项目，对比后优先借鉴成熟方案，避免用来源不明、兼容性差的代码，能有效减少项目返工~

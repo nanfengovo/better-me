@@ -8,8 +8,10 @@ import { networkProxyPlugin } from "./server/network-proxy";
 import { atlasAssetsPlugin } from "./server/atlas-assets";
 import { atlasDevIndexPlugin } from "./server/atlas-dev-index";
 
+const isWin = process.platform === "win32";
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), atlasAssetsPlugin(), atlasDevIndexPlugin(), networkProxyPlugin(), jdExtractorPlugin({ useNativeLiepin: true, useNativeBoss: true, useNative51Job: true }), opportunitySourcesPlugin()],
+  plugins: [react(), tailwindcss(), atlasAssetsPlugin(), atlasDevIndexPlugin(), networkProxyPlugin(), jdExtractorPlugin({ useNativeLiepin: isWin, useNativeBoss: isWin, useNative51Job: isWin }), opportunitySourcesPlugin()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

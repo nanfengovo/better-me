@@ -53,7 +53,7 @@
         },
         "refreshPolicy": {
           "mode": "manual",
-          "minIntervalSeconds": 3600,
+          "minIntervalSeconds": 0,
           "maxRecords": 300,
           "maxPages": 1,
           "requestsPerMinute": 5
@@ -125,7 +125,7 @@
         },
         "refreshPolicy": {
           "mode": "manual",
-          "minIntervalSeconds": 3600,
+          "minIntervalSeconds": 0,
           "maxRecords": 100,
           "maxPages": 1,
           "requestsPerMinute": 5
@@ -186,7 +186,7 @@
         },
         "refreshPolicy": {
           "mode": "manual",
-          "minIntervalSeconds": 3600,
+          "minIntervalSeconds": 0,
           "maxRecords": 100,
           "maxPages": 1,
           "requestsPerMinute": 10
@@ -246,7 +246,7 @@
         },
         "refreshPolicy": {
           "mode": "manual",
-          "minIntervalSeconds": 3600,
+          "minIntervalSeconds": 0,
           "maxRecords": 100,
           "maxPages": 1,
           "requestsPerMinute": 10
@@ -306,7 +306,7 @@
         },
         "refreshPolicy": {
           "mode": "manual",
-          "minIntervalSeconds": 3600,
+          "minIntervalSeconds": 0,
           "maxRecords": 100,
           "maxPages": 1,
           "requestsPerMinute": 10
@@ -366,7 +366,7 @@
         },
         "refreshPolicy": {
           "mode": "manual",
-          "minIntervalSeconds": 3600,
+          "minIntervalSeconds": 0,
           "maxRecords": 100,
           "maxPages": 1,
           "requestsPerMinute": 10
@@ -432,7 +432,7 @@
         },
         "refreshPolicy": {
           "mode": "manual",
-          "minIntervalSeconds": 3600,
+          "minIntervalSeconds": 0,
           "maxRecords": 100,
           "maxPages": 5,
           "requestsPerMinute": 30
@@ -518,7 +518,7 @@
         },
         "refreshPolicy": {
           "mode": "manual",
-          "minIntervalSeconds": 3600,
+          "minIntervalSeconds": 0,
           "maxRecords": 6,
           "maxPages": 2,
           "requestsPerMinute": 30
