@@ -33,13 +33,23 @@ const urlsSchema = z.array(urlSchema).min(1).max(20);
 export const JobPostingJsonLdOptionsSchema = z.object({
   /** Discovery association only; never fills or overrides a posting's actual hiring organization. */
   companyName: z.string().trim().min(1).max(500).optional(),
-  enumerationKind: z.enum(["sitemap-urlset", "html-list"]),
+  /** A reviewed root sitemap index may expose only same-origin leaf sitemaps.
+   * Child indexes are intentionally not followed. */
+  enumerationKind: z.enum(["sitemap-urlset", "sitemap-index", "html-list"]),
   enumerationUrls: urlsSchema,
   postingPathPrefixes: prefixesSchema,
   pageSize: z.number().int().min(1).max(20).default(5),
+  /** Applies only to sitemap-index roots; the bound counts child entries before deduplication. */
+  maxChildSitemaps: z.number().int().min(1).max(100).optional(),
   /** Queue priority only. The adapter must first find each URL in the actual enumeration. */
   priorityPostingUrls: z.array(urlSchema).max(20).optional(),
 }).strict().superRefine((options, context) => {
+  if (options.enumerationKind === "sitemap-index" && options.enumerationUrls.length !== 1) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["enumerationUrls"], message: "A sitemap index requires exactly one reviewed root URL." });
+  }
+  if (options.enumerationKind !== "sitemap-index" && options.maxChildSitemaps !== undefined) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["maxChildSitemaps"], message: "A child sitemap bound applies only to sitemap-index roots." });
+  }
   const first = options.enumerationUrls[0];
   if (!first || !reviewedHttpsUrl(first)) return;
   const origin = new URL(first).origin;

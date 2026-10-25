@@ -15,6 +15,7 @@
 | `rss-atom` / `1` | 用户审核过的 HTTPS RSS 2.0、RSS 1.0 或 Atom feed；只读取当前有限窗口，不跟随岗位链接。可选 `options.companyName` 和人工核对后的 `options.enumerationComplete: true`。 | 保留 feed 中的稳定 ID、原岗位链接、标题、正文和带明确时区的源时间；不从描述猜地点、坐标、在招状态或控股方。默认按部分覆盖显示，适合接入明确提供公开岗位 feed 的官网。 |
 | `tencent` / `1` | 腾讯招聘官网固定 HTTPS Query 端点；`roles` 逐词远程查询、按 OR 分页。 | 默认职责摘录，可显式启用受限 ByPostId 详情补全；保留 `PostId`、原始国家/地点和更新时间，上游关键词仍需本地筛选。 |
 | `workday-cxs` / `1` | 已安装 Workday CXS JSON POST 协议；来源配置固定一个经审核的租户和站点，`roles` 逐词检索并按偏移分页。 | 搜索只发匿名 JSON 到租户固定的 CXS 列表端点；最多尝试每页 10 条同 ID 详情。保留原招聘 URL、地点/日期原文和详情字段证据；无薪资、街址或坐标时不推算。列表截短、详情失败、服务限额或不一致分页会明确标 partial 并保留已有岗位；超时停止续页。JLL China 目录默认禁用／待审核，使用许可需人工核对。 |
+| `jobposting-jsonld` / `1` | 经审核的静态岗位清单：叶子 sitemap、有限 sitemap index 或静态 HTML 链接；只读取同源岗位页面中的 JobPosting JSON-LD。 | sitemap index 只读取一个审核过的根索引，最多读取配置上限的同源 HTTPS 叶子 sitemap；跨源链接、嵌套 sitemap index、动态脚本和缺少 JSON-LD 的页面会被跳过并保持 partial。sitemap `loc` 只是候选页面，不是已核实岗位或市场总数。 |
 | `mapped-json` / `1` | `entryUrl` 指定的 JSON 列表及有限字段路径映射；可显式配置来源返回的数字页码续读。 | 默认 `discoveryOnly: true`；人工审核后才可配置为岗位记录。不能运行源仓库代码或自定义 JS。 |
 | `github-json` / `1` | `raw.githubusercontent.com` 的具体 JSON 文件，使用相同有限映射。 | 强制 `discovery-lead`；不能用配置将目录、多个方向或招聘批次变成已核实单岗。 |
 
@@ -185,6 +186,8 @@ CSV / Markdown 当前用于抽样识别与提案。没有对应生产列表解�
 只有 `enabled: true` 且 `status: active` 的已有匹配才保留“匹配后零网络请求”的优先路径。禁用、待核实或不可用匹配仍展示原状态，但不会遮蔽本次明确官网和有效独立发现策略，或宿主已经配置的受信搜索。它们的 `entryUrl`、首页、secret 引用和访问策略不会被拿来授权 fallback；发现结果仍只含待审线索，不会登记来源或写入岗位。
 
 官网 HTML 只有限跟随同 origin 且在原策略内的招聘链接；脚本、表单、嵌入页面与任意用户解析代码不执行。跨域招聘链接只记录待审证据，不跟随。识别 Greenhouse、Lever、Ashby、腾讯的已知入口形式时生成相应适配器提案，**不访问其 API、不登记或启用**；提案 `enabled: false`、`status: "needs-review"`。未知 HTML 使用 `review-required-html`，`capabilities: []`，没有可运行的通用 HTML 岗位解析器，不能直接启用采集。
+
+`jobposting-jsonld@1` 的 `options.enumerationKind: "sitemap-index"` 只接受一个审核过的根 URL，并可设置 `maxChildSitemaps`（1–100，默认 20）。根索引中的 `<sitemap><loc>` 必须是同源、HTTPS、无凭据／片段／歧义路径的 URL；受控 transport 还会按来源 `endpointPolicy` 校验主机、路径、DNS、请求、字节和取消预算。每个子响应的 XML 解析上限为 2 MiB，岗位候选总数仍受 10,000 条清单边界和当前 `refreshPolicy.maxRecords` 限制。子响应必须是叶子 `<urlset>`；若它是另一个 `<sitemapindex>`、跨源或不可读，只记录有限警告并继续其他已读叶子，不递归、不猜测新的索引地址。达到子清单、解析、响应或请求预算会返回 partial / 固定 stop reason，已有岗位候选和详情会保留。根索引及其 `loc` 不会直接成为岗位，只有同源叶子中的链接在岗位页面读取到有效 JobPosting JSON-LD 后才进入候选记录。
 
 底层支持宿主注入 `registeredSources`、`companyAliases` 和 `CareerWebSearchProvider`。这些不是普通 HTTP / Agent 参数。当前 job-service 注入已有来源列表，支持由宿主通过 `--career-search duckduckgo-html|searxng` 显式配置搜索 provider，**默认禁用**，尚未注入公司别名表。受信 provider 使用宿主提供的策略、transport 和预算，其结果仍校验并标待审，不能自行成为已核实官网，也不保证任意企业的全网岗位覆盖。具体配置和限制见 [job-service 说明](../../apps/job-service/README.md)。
 
