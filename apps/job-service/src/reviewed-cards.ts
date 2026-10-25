@@ -29,6 +29,8 @@ const WARNINGS = [
 const entryUrls = {
   "51job": "https://we.51job.com/pc/search", boss: "https://www.zhipin.com/web/geek/job",
   liepin: "https://www.liepin.com/zhaopin/", linkedin: "https://www.linkedin.com/jobs/search",
+  seek: "https://www.seek.com.au/jobs", indeed: "https://www.indeed.com/jobs",
+  gradconnection: "https://au.gradconnection.com/jobs/",
 } as const;
 
 /** A metadata-only reserved source: no sync adapter or network permission is installed by import. */

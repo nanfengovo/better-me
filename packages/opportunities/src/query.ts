@@ -120,6 +120,48 @@ const technicalAliases: Record<string, string> = { "dotnet": "dotnet", "csharp":
 const exactTechnicalTerms = new Set(["cpp", "csharp", "dotnet"]);
 const asciiWord = (value: string | undefined) => value !== undefined && /^[a-z0-9_]$/.test(value);
 const compareIds = (left: string, right: string) => left < right ? -1 : left > right ? 1 : 0;
+
+export const DEFAULT_TECHNICAL_ALIASES: Record<string, string[]> = {
+  csharp: [
+    "csharp", "c#", ".net", "dotnet", "asp.net", "asp.net core", ".net core", "wpf", "winform", "winforms",
+    "上位机", "工控上位机", "上位机开发", "上位机软件", "avalonia", "prism", "mvvm", "xaml", "unity", "unity3d"
+  ],
+  dotnet: [
+    "csharp", "c#", ".net", "dotnet", "asp.net", "asp.net core", ".net core", "wpf", "winform", "winforms",
+    "上位机", "工控上位机", "上位机开发", "上位机软件", "avalonia"
+  ],
+  上位机: [
+    "上位机", "csharp", "c#", ".net", "dotnet", "wpf", "winform", "winforms",
+    "工控上位机", "上位机开发", "上位机软件", "工控软件", "自动化软件", "plc", "scada"
+  ],
+  wpf: [
+    "wpf", "csharp", "c#", ".net", "dotnet", "上位机", "xaml", "mvvm", "prism", "avalonia"
+  ],
+  winform: [
+    "winform", "winforms", "csharp", "c#", ".net", "dotnet", "上位机"
+  ],
+  winforms: [
+    "winform", "winforms", "csharp", "c#", ".net", "dotnet", "上位机"
+  ],
+  java: [
+    "java", "spring", "springboot", "spring boot", "springcloud", "spring cloud", "mybatis", "jvm", "后端开发", "微服务"
+  ],
+  python: [
+    "python", "django", "flask", "fastapi", "pytorch", "tensorflow", "数据分析", "爬虫", "ai算法", "大模型"
+  ],
+  cpp: [
+    "cpp", "c++", "qt", "嵌入式", "底层开发", "系统软件", "音视频", "音视频开发"
+  ],
+  前端: [
+    "前端", "vue", "vuejs", "vue.js", "react", "reactjs", "typescript", "javascript", "web前端", "h5", "uniapp"
+  ],
+  golang: [
+    "golang", "go", "go语言", "gin", "gorm"
+  ],
+  rust: [
+    "rust", "cargo", "系统编程", "底层开发"
+  ],
+};
 export function normalizeSearchText(value: string): string {
   return value.normalize("NFKC").toLowerCase()
     .replace(/(?<![a-z0-9_])\.net(?=$|[^a-z_])|(?<=\basp)\.net(?=$|[^a-z_])|(?<=\bvb)\.net(?=$|[^a-z_])/g, " dotnet ")
@@ -131,12 +173,12 @@ export function normalizeSearchText(value: string): string {
 function containsNormalizedPhrase(haystack: string, term: string): boolean {
   if (!term) return false;
   const words = term.split(" ");
-  const protectedStart = exactTechnicalTerms.has(words[0]!);
-  const protectedEnd = exactTechnicalTerms.has(words.at(-1)!);
+  const asciiStart = asciiWord(words[0]![0]);
+  const asciiEnd = asciiWord(words.at(-1)!.slice(-1));
   let offset = haystack.indexOf(term);
   while (offset !== -1) {
     const end = offset + term.length;
-    if ((!protectedStart || !asciiWord(haystack[offset - 1])) && (!protectedEnd || !asciiWord(haystack[end]))) {
+    if ((!asciiStart || !asciiWord(haystack[offset - 1])) && (!asciiEnd || !asciiWord(haystack[end]))) {
       let firstStart = offset, firstEnd = offset, lastStart = end, lastEnd = end;
       while (asciiWord(haystack[firstStart - 1])) firstStart--;
       while (asciiWord(haystack[firstEnd])) firstEnd++;
@@ -188,6 +230,14 @@ export function getSearchTermMatchQuality(haystack: string, term: string, fuzzy:
   return haystack.split(" ").some((word) => !exactTechnicalTerms.has(word) && closeWord(term, word)) ? 0.6 : 0;
 }
 
+function lookupAliases(term: string, aliases?: Record<string, string[]>): string[] {
+  if (!aliases) return [];
+  if (Object.hasOwn(aliases, term)) return aliases[term]!;
+  const normalized = normalizeSearchText(term);
+  if (Object.hasOwn(aliases, normalized)) return aliases[normalized]!;
+  return [];
+}
+
 function searchScore(job: CanonicalJob, company: Company, locations: JobLocation[], query: JobQuery, aliases?: Record<string, string[]>): { score: number; fields: string[] } | undefined {
   if (!query.search?.text) return { score: 0, fields: [] };
   const fields: Array<[string, number, string]> = [
@@ -202,7 +252,8 @@ function searchScore(job: CanonicalJob, company: Company, locations: JobLocation
   let score = 0;
   const matched = new Set<string>();
   for (const term of terms) {
-    const alternatives = [term, ...(aliases && Object.hasOwn(aliases, term) ? aliases[term]! : []).map(normalizeSearchText).filter(Boolean)];
+    const rawAliases = lookupAliases(term, aliases);
+    const alternatives = [term, ...rawAliases.map(normalizeSearchText).filter(Boolean)];
     let best = 0;
     for (const field of normalized) {
       const quality = Math.max(...alternatives.map((candidate) => getSearchTermMatchQuality(field.value, candidate, query.search!.mode === "fuzzy")));

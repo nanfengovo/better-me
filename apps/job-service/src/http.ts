@@ -41,6 +41,9 @@ const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }
   { method: "POST", path: /^\/api\/v1\/sources\/discover$/, tool: "sources.discover" },
   { method: "POST", path: /^\/api\/v1\/companies\/discover-careers$/, tool: "companies.discover-careers" },
   { method: "GET", path: /^\/api\/v1\/companies\/discovery-capabilities$/, tool: "companies.discovery-capabilities" },
+  { method: "POST", path: /^\/api\/v1\/companies\/controllers\/preview$/, tool: "companies.preview-controller-override" },
+  { method: "POST", path: /^\/api\/v1\/companies\/controllers\/confirm$/, tool: "companies.confirm-controller-override" },
+  { method: "POST", path: /^\/api\/v1\/companies\/controllers\/revoke$/, tool: "companies.revoke-controller-override" },
   { method: "POST", path: /^\/api\/v1\/sources\/inspect$/, tool: "sources.inspect" },
   { method: "POST", path: /^\/api\/v1\/sources\/propose$/, tool: "sources.propose" },
   { method: "POST", path: /^\/api\/v1\/sources\/([^/]+)\/preview$/, tool: "sources.preview", key: "sourceId" },
@@ -91,7 +94,7 @@ export function createJobHttpServer(options: JobHttpOptions) {
     return origin;
   }));
   const token = options.token;
-  const maxBytes = options.maxRequestBytes ?? 8 * 1024 * 1024;
+  const maxBytes = options.maxRequestBytes ?? 64 * 1024 * 1024;
   const server = createServer(async (request, response) => {
     // Host and peer checks protect the local API against DNS rebinding as well as CORS bypass.
     const listening = server.address();
@@ -141,7 +144,7 @@ export function createJobHttpServer(options: JobHttpOptions) {
       const context: TrustedToolContext = {
         requestId, signal: cancellation.signal, actorScope: "local-owner",
         allowedEffects: ["read-index", "external-read", "local-write"],
-        budget: { requests: 80, bytes: 32 * 1024 * 1024, timeoutMs: 120_000 },
+        budget: { requests: 80, bytes: 64 * 1024 * 1024, timeoutMs: 120_000 },
         ...(typeof key === "string" ? { idempotencyKey: key } : {}),
       };
       const result = await options.registry.execute(route.tool, input, context);

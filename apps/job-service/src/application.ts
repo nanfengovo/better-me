@@ -81,7 +81,7 @@ export function createJobApplication(options: JobApplicationOptions) {
   const repository = options.repository;
   const now = options.now ?? (() => new Date().toISOString());
   const sources = createSourceRegistry(options.adapters ?? [greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter, jobPostingJsonLdAdapter]);
-  const transport = options.transport ?? createControlledSourceTransport();
+  const transport = options.transport ?? createControlledSourceTransport({ timeoutMs: 35_000 });
   const query = createJobQueryService(repository);
   const running = new Map<string, AbortController>();
   const pending = new Set<Promise<unknown>>();

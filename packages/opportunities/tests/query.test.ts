@@ -10,7 +10,7 @@ import {
   type SourceDefinition,
   type SourceObservation,
 } from "../src/schema.js";
-import { JobQueryError, createJobQueryService, includesSearchText, normalizeSearchText, queryJobs } from "../src/query.js";
+import { JobQueryError, createJobQueryService, includesSearchText, normalizeSearchText, queryJobs, DEFAULT_TECHNICAL_ALIASES } from "../src/query.js";
 
 const AS_OF = "2026-10-18T12:00:00.000Z";
 const EVALUATION_DAY = "2026-10-18T00:00:00.000Z";
@@ -441,6 +441,26 @@ test("query aliases can find a role without changing its original text", async (
   assert.deepEqual(ids(result), ["job-automation"]);
   assert.equal(result.items[0]!.job.title.value, "Industrial automation engineer");
   assert.ok(result.items[0]!.matchedFields.includes("title"));
+});
+
+test("default technical aliases allow searching C# to recall .NET, WPF and 上位机 while excluding unrelated manual labor", async () => {
+  const dataset = datasetFor([
+    { id: "csharp-pure", title: "C#后端工程师", description: "开发微服务" },
+    { id: "shangweiji", title: "上位机软件工程师", description: "基于.NET Core和WPF开发工业产线控制系统" },
+    { id: "dotnet-dev", title: "软件开发工程师", description: "负责ASP.NET Core与Winform客户端研发" },
+    { id: "technician", title: "车身设备维修技师 (MJ000075)", description: "负责上海超级工厂车身车间生产线机械与电气设备日常点检、保养及故障排查" },
+    { id: "cleaner", title: "保洁员", description: "负责工厂园区保洁与环境卫生" },
+  ]);
+
+  // Searching "C#" with DEFAULT_TECHNICAL_ALIASES matches C#, 上位机, and .NET/Winform jobs, but NOT manual technicians or cleaners
+  const result = await queryJobs(dataset, { search: { text: "C#", mode: "fuzzy" } }, { ...OPTIONS, aliases: DEFAULT_TECHNICAL_ALIASES });
+  const matchedIds = ids(result);
+
+  assert.ok(matchedIds.includes("job-csharp-pure"));
+  assert.ok(matchedIds.includes("job-shangweiji"));
+  assert.ok(matchedIds.includes("job-dotnet-dev"));
+  assert.equal(matchedIds.includes("job-technician"), false, "车身设备维修技师 must NOT match C# search");
+  assert.equal(matchedIds.includes("job-cleaner"), false, "保洁员 must NOT match C# search");
 });
 
 test("salary ascending and descending use CNY annual fixed cash and leave unknowns last", async () => {

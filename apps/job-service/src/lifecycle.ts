@@ -206,7 +206,7 @@ export async function startLocalJobService(input: JobServiceConfig, dependencies
     repository = (dependencies.openRepository ?? openJobRepository)(databasePath);
     // Recovery cannot classify a still-running owner's work as interrupted: the lock is already exclusive.
     const recovered = await repository.recoverInterruptedRuns();
-    const transport = createControlledSourceTransport({ ...(config.dns === "google-doh" ? { resolve: createGoogleDohResolver() } : {}) });
+    const transport = createControlledSourceTransport({ ...(config.dns === "google-doh" ? { resolve: createGoogleDohResolver() } : {}), timeoutMs: 35_000 });
     application = (dependencies.createApplication ?? createJobApplication)({ repository, transport,
       ...(config.officeGeocoder?.provider === "nominatim" ? { officeAddressProvider: createNominatimOfficeProvider(transport) } : {}),
       ...(config.officeGeocoder?.provider === "amap" ? { officeAddressProvider: createAmapOfficeProvider(transport, { key: config.officeGeocoder.key, dataDirectory: lock.dataDirectory }) } : {}),

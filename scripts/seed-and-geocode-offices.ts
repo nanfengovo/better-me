@@ -1365,10 +1365,9 @@ export async function seedAndGeocodeOffices(options: { dataDirectory?: string; a
   }
 }
 
-// Direct execution from CLI
+// Deprecated: Do NOT run this mock seed script. Use clean-and-sync-real-atlas.ts for 100% real career data.
 if (process.argv[1] && process.argv[1].endsWith("seed-and-geocode-offices.ts")) {
-  seedAndGeocodeOffices().catch((err) => {
-    console.error("Failed to seed and geocode offices:", err);
-    process.exit(1);
-  });
+  console.error("Deprecated: seed-and-geocode-offices.ts contains mock data and invalid custom adapter sources.");
+  console.error("Please run scripts/clean-and-sync-real-atlas.ts instead for 100% real live positions.");
+  process.exit(1);
 }

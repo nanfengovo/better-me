@@ -19,7 +19,7 @@ export const AddressEnrichmentStreetTargetSchema = z.object({
 }).strict().refine(value => value.locationId === value.sourceLocation.id, "Location identity must agree.");
 export type AddressEnrichmentStreetTarget = z.infer<typeof AddressEnrichmentStreetTargetSchema>;
 export const AddressEnrichmentPlatformTargetSchema = z.object({
-  listingId: EntityIdSchema, sourceId: EntityIdSchema, provider: z.enum(["51job", "boss", "liepin", "linkedin"]),
+  listingId: EntityIdSchema, sourceId: EntityIdSchema, provider: z.enum(["51job", "boss", "liepin", "linkedin", "seek", "indeed", "gradconnection"]),
   url: HttpUrlSchema, label: text(240),
 }).strict();
 export type AddressEnrichmentPlatformTarget = z.infer<typeof AddressEnrichmentPlatformTargetSchema>;

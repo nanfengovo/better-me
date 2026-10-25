@@ -276,7 +276,10 @@ export function parseAmapOfficeCandidates(value: unknown, countryCode?: string, 
 }
 
 export function resolveAmapApiKey(explicitKey?: string, dataDirectory?: string): string | undefined {
-  if (explicitKey?.trim()) return explicitKey.trim();
+  if (explicitKey !== undefined) {
+    const trimmed = explicitKey.trim();
+    return trimmed || undefined;
+  }
   const envKey = process.env.AMAP_KEY?.trim() || process.env.AMAP_WEB_KEY?.trim();
   if (envKey) return envKey;
   const candidates = [
@@ -400,20 +403,28 @@ export function createAddressEmbedding(text: string, dim: number = 256): Float32
   if (!clean) return vec;
 
   for (let i = 0; i < clean.length; i++) {
-    vec[fnv1a(clean[i]!) % dim] += 1.0;
+    const slot = fnv1a(clean[i]!) % dim;
+    vec[slot] = (vec[slot] ?? 0) + 1.0;
   }
   for (let i = 0; i < clean.length - 1; i++) {
-    vec[fnv1a(clean.slice(i, i + 2)) % dim] += 1.5;
+    const slot = fnv1a(clean.slice(i, i + 2)) % dim;
+    vec[slot] = (vec[slot] ?? 0) + 1.5;
   }
   for (let i = 0; i < clean.length - 2; i++) {
-    vec[fnv1a(clean.slice(i, i + 3)) % dim] += 2.0;
+    const slot = fnv1a(clean.slice(i, i + 3)) % dim;
+    vec[slot] = (vec[slot] ?? 0) + 2.0;
   }
 
   let sumSq = 0;
-  for (let i = 0; i < dim; i++) sumSq += vec[i]! * vec[i]!;
+  for (let i = 0; i < dim; i++) {
+    const val = vec[i] ?? 0;
+    sumSq += val * val;
+  }
   if (sumSq > 0) {
     const inv = 1 / Math.sqrt(sumSq);
-    for (let i = 0; i < dim; i++) vec[i]! *= inv;
+    for (let i = 0; i < dim; i++) {
+      vec[i] = (vec[i] ?? 0) * inv;
+    }
   }
   return vec;
 }
