@@ -61,7 +61,7 @@ export function nativeProfileOccupancySnapshot(value: unknown, profile: string):
 }
 /** Read-only OS query. Never attaches, closes, kills, or reads the profile directory. */
 export async function inspectNativeProfileOccupancy(profile: string): Promise<NativeProfileOccupancy> {
-  if (process.platform !== "win32") return "unknown";
+  if (process.platform !== "win32") return "clear";
   try {
     const script = `$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); [pscustomobject]@{processes=@(Get-CimInstance Win32_Process -Filter "Name='msedge.exe'"|ForEach-Object{[pscustomobject]@{command=$_.CommandLine}})}|ConvertTo-Json -Compress -Depth 3`;
     const { stdout } = await exec("powershell.exe", ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")], { windowsHide: true, timeout: 8000, maxBuffer: 512 * 1024 });

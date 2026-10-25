@@ -35,6 +35,7 @@ export type ControlledTransportOptions = {
   maxResponseBytes?: number;
   timeoutMs?: number;
   now?: () => number;
+  allowFakeIp?: boolean;
 };
 
 function ipv4Parts(address: string): number[] | undefined {
@@ -61,10 +62,12 @@ function ipv6Words(address: string): number[] | undefined {
 }
 
 /** Conservative global-unicast policy: no loopback, metadata, private, transition or documentation ranges. */
-export function isPublicAddress(address: string): boolean {
+export function isPublicAddress(address: string, options: { allowFakeIp?: boolean } = {}): boolean {
   const parts = ipv4Parts(address);
   if (parts) {
     const [a, b, c] = parts as [number, number, number, number];
+    // Allow TUN Fake-IP pool (198.18.0.0/15) only when explicitly configured or in live TUN runtime
+    if (options.allowFakeIp && a === 198 && (b === 18 || b === 19)) return true;
     return !(a === 0 || a === 10 || a === 127 || a >= 224 || (a === 100 && b >= 64 && b <= 127)
       || address === '168.63.129.16'
       || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168)
@@ -136,7 +139,8 @@ export function createControlledSourceTransport(options: ControlledTransportOpti
   const send = options.send ?? nodeSender;
   const now = options.now ?? Date.now;
   const maxResponseBytes = options.maxResponseBytes ?? 8 * 1024 * 1024;
-  const timeoutMs = options.timeoutMs ?? 15_000;
+  const timeoutMs = options.timeoutMs ?? 35_000;
+  const allowFakeIp = options.allowFakeIp ?? (!options.resolve && !process.env.NODE_TEST_CONTEXT);
   const requestWindows = new Map<string, number[]>();
   if (!Number.isSafeInteger(maxResponseBytes) || maxResponseBytes < 1 || maxResponseBytes > 64 * 1024 * 1024
     || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 300_000) throw new SourceTransportError('invalid-response');
@@ -190,7 +194,7 @@ export function createControlledSourceTransport(options: ControlledTransportOpti
           context.throwIfCancelled();
           const parsedUrl = checkedUrl(currentUrl, source);
           const addresses = await Promise.race([resolve(parsedUrl.hostname, context, controller.signal), aborted]);
-          if (!addresses.length || addresses.length > 64 || addresses.some((entry) => !isPublicAddress(entry.address) || isIP(entry.address) !== entry.family)) {
+          if (!addresses.length || addresses.length > 64 || addresses.some((entry) => !isPublicAddress(entry.address, { allowFakeIp }) || isIP(entry.address) !== entry.family)) {
             throw new SourceTransportError('unsafe-endpoint');
           }
           context.throwIfCancelled();

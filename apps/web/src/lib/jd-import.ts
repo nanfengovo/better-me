@@ -83,6 +83,53 @@ export async function extractJdLink(input: string, signal: AbortSignal, mode: Jd
   return readJdImportPayload(payload, response.ok);
 }
 
+const AUTO_BROWSER_RECONNECT_ATTEMPTS = 3;
+
+function abortableDelay(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) { reject(signal.reason); return; }
+    const timer = setTimeout(() => { signal.removeEventListener("abort", onAbort); resolve(); }, ms);
+    const onAbort = () => { clearTimeout(timer); reject(signal.reason); };
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+/**
+ * A local dev-service restart drops this long request mid-flight; the server closes its
+ * browser on disconnect, so reconnecting and starting over is safe.
+ */
+export async function extractJdLinkWithAutoBrowser(input: string, signal: AbortSignal, retryDelayMs = 1_500): Promise<JdImportResult> {
+  let response: Response | undefined;
+  for (let attempt = 1; !response; attempt += 1) {
+    try {
+      response = await fetch("/api/jd/auto-browser-extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input }),
+        signal,
+      });
+    } catch (cause) {
+      if (signal.aborted) throw cause;
+      if (attempt >= AUTO_BROWSER_RECONNECT_ATTEMPTS) {
+        throw new JdExtractionError({ code: "service_unavailable", stage: "service", message: "与本地自动化浏览器服务的连接中断，已自动重试仍未恢复。请确认本地服务正在运行后重新读取，或改用截图识别和粘贴文字。" }, { cause });
+      }
+      await abortableDelay(retryDelayMs, signal);
+    }
+  }
+  signal.throwIfAborted();
+  let payload: Record<string, unknown>;
+  try {
+    const body: unknown = await response.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Invalid response");
+    payload = body as Record<string, unknown>;
+  } catch (cause) {
+    if (signal.aborted) throw cause;
+    throw new JdExtractionError({ code: "service_unavailable", stage: "service", message: "自动化浏览器未返回有效数据。", status: response.status }, { cause });
+  }
+  signal.throwIfAborted();
+  return readJdImportPayload(payload, response.ok);
+}
+
 function readJdImportPayload(payload: Record<string, unknown>, ok: boolean): JdImportResult {
   const failure = readJdFailure(payload.failure);
   if (failure) throw new JdExtractionError(failure);

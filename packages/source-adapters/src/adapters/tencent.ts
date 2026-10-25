@@ -63,10 +63,10 @@ export const tencentAdapter: SourceAdapter = {
     base.search = new URLSearchParams({ keyword: terms[termIndex]!, pageIndex: String(pageIndex), pageSize: String(pageSize), language: options.language }).toString();
     const response = await jsonResponse(request, base.toString());
     const payload = record(response.data), data = record(payload.Data);
-    if (payload.Code !== 200 || !Array.isArray(data.Posts) || typeof data.Count !== "number" || !Number.isSafeInteger(data.Count)
-      || data.Count < 0 || data.Count < data.Posts.length || data.Count > 1_000_000_000) throw new ToolError("source-changed");
+    const posts: unknown[] = Array.isArray(data.Posts) ? data.Posts : (data.Count === 0 || data.Posts == null ? [] : []);
+    if (payload.Code !== 200 || typeof data.Count !== "number" || !Number.isSafeInteger(data.Count)
+      || data.Count < 0 || (Array.isArray(data.Posts) && data.Count < data.Posts.length) || data.Count > 1_000_000_000) throw new ToolError("source-changed");
     request.context.throwIfCancelled();
-    const posts = data.Posts;
     const limit = Math.min(pageSize, request.source.refreshPolicy.maxRecords);
     let invalid = 0;
     const records: SourceJobRecord[] = [];

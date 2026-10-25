@@ -621,10 +621,22 @@ export function createBrowserSessionManager(options: BrowserSessionOptions = {})
           }
           blankSince = undefined;
           if (!allowedBrowserResource(snapshot.url, session.platform)) throw failure("job_mismatch", "窗口中的页面无法确认属于原岗位，请返回原链接核对。", "page");
-          if (snapshot.gate) throw failure(snapshot.gate, snapshot.gate === "login_required" ? "接续窗口仍显示登录提示，请自行完成后再读取。" : "接续窗口仍显示访问验证，请自行完成后再读取。", "page");
-          if (isBrowserVerificationUrl(snapshot.url, session.platform)) throw failure("verification_required", "接续窗口仍停留在网站访问验证页，请自行处理后再读取。", "page");
-          if (isObservedLiepinVerification(snapshot.html, snapshot.url, session.platform)) throw failure("verification_required", "猎聘安全中心要求安全验证，请在接续窗口自行处理后再读取。", "page");
-          if (isObservedBrowserLogin(snapshot.html, snapshot.url, session.platform)) throw failure("login_required", "接续窗口仍显示平台登录或注册页面，请自行完成后再读取。", "page");
+          if (snapshot.gate) {
+            if (snapshot.gate === "verification_required" && !page.isClosed()) void page.bringToFront().catch(() => {});
+            throw failure(snapshot.gate, snapshot.gate === "login_required" ? "接续窗口仍显示登录提示，请自行完成后再读取。" : "接续窗口仍显示访问验证，请自行完成后再读取。", "page");
+          }
+          if (isBrowserVerificationUrl(snapshot.url, session.platform)) {
+            if (!page.isClosed()) void page.bringToFront().catch(() => {});
+            throw failure("verification_required", "接续窗口仍停留在网站访问验证页，请自行处理后再读取。", "page");
+          }
+          if (isObservedLiepinVerification(snapshot.html, snapshot.url, session.platform)) {
+            if (!page.isClosed()) void page.bringToFront().catch(() => {});
+            throw failure("verification_required", "猎聘安全中心要求安全验证，请在接续窗口自行处理后再读取。", "page");
+          }
+          if (isObservedBrowserLogin(snapshot.html, snapshot.url, session.platform)) {
+            if (!page.isClosed()) void page.bringToFront().catch(() => {});
+            throw failure("login_required", "接续窗口仍显示平台登录或注册页面，请自行完成后再读取。", "page");
+          }
           try { extractPublicJobHtml(snapshot.html, session.platform); }
           catch (error) { if (error instanceof JdExtractionError && ["login_required", "verification_required", "unavailable"].includes(error.failure.code)) throw error; }
           let final: ReturnType<typeof allowedJobUrl> | undefined;
@@ -690,6 +702,15 @@ export function createBrowserSessionManager(options: BrowserSessionOptions = {})
         if (documentSnapshotState(session) === "failed") throw last;
         const before = { url: page.url(), navigation: session.snapshotNavigation };
         const requestGeneration = session.navigationGeneration;
+        try {
+          await page.evaluate(`(() => {
+            try {
+              if (typeof window !== "undefined" && window.scrollY < 100) {
+                window.scrollBy({ top: 350 + Math.floor(Math.random() * 200), behavior: "smooth" });
+              }
+            } catch (_) {}
+          })()`);
+        } catch {}
         let candidate: unknown;
         try { candidate = await track(page.evaluate(VISIBLE_JOB_SEARCH_SNAPSHOT)); }
         catch {
@@ -713,9 +734,18 @@ export function createBrowserSessionManager(options: BrowserSessionOptions = {})
           await (options.sleep ?? pause)(400, operationSignal); continue;
         }
         if (!allowedBrowserResource(snapshot.url, session.platform)) throw failure("job_mismatch", "搜索页面已离开本次平台来源，未采用其他页面。", "page");
-        if (snapshot.gate) throw failure(snapshot.gate, snapshot.gate === "login_required" ? "搜索页仍显示登录提示，请自行完成后再读取。" : "搜索页仍显示访问验证，请自行完成后再读取。", "page");
-        if (isBrowserVerificationUrl(snapshot.url, session.platform) || isObservedLiepinVerification(snapshot.html, snapshot.url, session.platform)) throw failure("verification_required", "搜索页要求访问验证，请在专用页面自行处理后再读取。", "page");
-        if (isObservedBrowserLogin(snapshot.html, snapshot.url, session.platform)) throw failure("login_required", "搜索页要求登录，请在专用页面自行完成后再读取。", "page");
+        if (snapshot.gate) {
+          if (snapshot.gate === "verification_required" && !page.isClosed()) void page.bringToFront().catch(() => {});
+          throw failure(snapshot.gate, snapshot.gate === "login_required" ? "搜索页仍显示登录提示，请自行完成后再读取。" : "搜索页仍显示访问验证，请自行完成后再读取。", "page");
+        }
+        if (isBrowserVerificationUrl(snapshot.url, session.platform) || isObservedLiepinVerification(snapshot.html, snapshot.url, session.platform)) {
+          if (!page.isClosed()) void page.bringToFront().catch(() => {});
+          throw failure("verification_required", "搜索页要求访问验证，请在专用页面自行处理后再读取。", "page");
+        }
+        if (isObservedBrowserLogin(snapshot.html, snapshot.url, session.platform)) {
+          if (!page.isClosed()) void page.bringToFront().catch(() => {});
+          throw failure("login_required", "搜索页要求登录，请在专用页面自行完成后再读取。", "page");
+        }
         if (!matchesPlannedJobSearchUrl(snapshot.url, session.url)) throw failure("job_mismatch", "搜索页面的来源、关键词或地区已变化，请返回本次搜索条件后再读取。", "page");
         invalidSince = undefined;
         const captureTruncated = typeof candidate === "object" && candidate !== null
@@ -910,4 +940,9 @@ function nativeBackend(platform: "猎聘" | "BOSS直聘" | "51JOB"): JobSessionB
     hasSession: () => sessions?.hasSession() ?? false,
   };
 }
-export const browserSessionManager = createJobSessionRouter(createBrowserSessionManager(), nativeBackend("猎聘"), { nativeBoss: nativeBackend("BOSS直聘"), native51Job: nativeBackend("51JOB") });
+const standardSessionManager = createBrowserSessionManager();
+export const browserSessionManager = createJobSessionRouter(
+  standardSessionManager,
+  process.platform === "win32" ? nativeBackend("猎聘") : standardSessionManager,
+  process.platform === "win32" ? { nativeBoss: nativeBackend("BOSS直聘"), native51Job: nativeBackend("51JOB") } : {}
+);

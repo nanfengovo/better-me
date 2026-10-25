@@ -189,6 +189,9 @@ test("blank keywords browse a region while overlong, control and invalid Unicode
   }
   assert.equal(buildPlatformSearchRequest(input("boss", "  C#  ")).keyword, "C#");
   assert.throws(() => buildPlatformSearchRequest({ ...input("boss"), regionId: "" }), hasCode("invalid-input"));
+  const bossWithDistrict = buildPlatformSearchRequest({ provider: "boss", keyword: "c#", regionId: "cn-shanghai", districtCode: "310115" });
+  assert.equal(new URL(bossWithDistrict.url).searchParams.get("multiBusinessDistrict"), "310115");
+  assert.equal(new URL(bossWithDistrict.url).searchParams.get("city"), "101020100");
 });
 
 test("catalogue and request values cannot be changed through public helpers or returned references", () => {

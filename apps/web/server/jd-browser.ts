@@ -24,7 +24,10 @@ export function allowedBrowserResource(input: string, platform: JobPlatform): bo
   let url: URL;
   try { url = new URL(input); } catch { return false; }
   if (url.protocol !== "https:" || url.username || url.password || (url.port && url.port !== "443")) return false;
-  const domain = { "51JOB": "51job.com", BOSS直聘: "zhipin.com", 猎聘: "liepin.com", LinkedIn: "linkedin.com" }[platform];
+  const domain = {
+    "51JOB": "51job.com", BOSS直聘: "zhipin.com", 猎聘: "liepin.com", LinkedIn: "linkedin.com",
+    Seek: "seek.com.au", Indeed: "indeed.com", GradConnection: "gradconnection.com",
+  }[platform];
   const observedCdnHosts: Record<JobPlatform, string[]> = {
     "51JOB": [
       "js.51jobcdn.com", "img01.51jobcdn.com", "img04.51jobcdn.com", "o.alicdn.com", "img.alicdn.com",
@@ -36,10 +39,16 @@ export function allowedBrowserResource(input: string, platform: JobPlatform): bo
     BOSS直聘: ["img.bosszhipin.com", "api.geetest.com", "api.geevisit.com", "static.geetest.com", "monitor.geetest.com", "static.geevisit.com"],
     猎聘: ["concat.lietou-static.com", "image0.lietou-static.com", "turing.captcha.qcloud.com", "turing.captcha.gtimg.com"],
     LinkedIn: [],
+    Seek: ["seek.com", "seek.co.nz", "seeklearning.com.au", "seekbusiness.com.au", "seek.com.au"],
+    Indeed: ["indeed.com", "indeed.net", "indeedstatic.com", "indeed.ca", "indeed.co.uk", "indeed.com.au"],
+    GradConnection: ["gradconnection.com", "gradconnection.co.nz", "gradconnection.co.uk"],
   };
   return url.hostname === domain || url.hostname.endsWith(`.${domain}`)
     || observedCdnHosts[platform].includes(url.hostname)
-    || (platform === "LinkedIn" && (url.hostname === "licdn.com" || url.hostname.endsWith(".licdn.com")));
+    || (platform === "LinkedIn" && (url.hostname === "licdn.com" || url.hostname.endsWith(".licdn.com")))
+    || (platform === "Seek" && (url.hostname.includes("seek") || url.hostname.includes("jora")))
+    || (platform === "Indeed" && (url.hostname.includes("indeed") || url.hostname.includes("indeedstatic")))
+    || (platform === "GradConnection" && url.hostname.includes("gradconnection"));
 }
 
 /** Known BOSS security destinations, restricted to its official browser hosts. */
@@ -157,7 +166,7 @@ export const VISIBLE_JOB_SNAPSHOT = `(() => {
     if (['iframe','template','noscript','input','textarea','select','button'].includes(tag)) remove.push(copy);
   }
   remove.forEach(element=>element.remove());
-  clone.querySelectorAll('nav,aside,footer,.recommend,.recommendation,.recommendations,.job-recommend,.job-recommend-list,.related-jobs').forEach(element=>element.remove());
+  clone.querySelectorAll('nav,aside,footer,.recommend,.recommendation,.recommendations,.job-recommend,.job-recommend-list,.related-jobs,.company-info-box').forEach(element=>element.remove());
   const html=clone.outerHTML;
   return {html:html.length<=2097152?html:'',url:location.href,title:document.title,oversized:html.length>2097152,pageLoad};
 })()`;

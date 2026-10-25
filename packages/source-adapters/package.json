@@ -7,28 +7,28 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./browser-contracts": {
-      "types": "./src/browser-contracts.ts",
-      "import": "./src/browser-contracts.ts",
+      "types": "./dist/browser-contracts.d.ts",
+      "import": "./dist/browser-contracts.js",
       "default": "./dist/browser-contracts.js"
     },
     "./platform-search": {
-      "types": "./src/platform-search.ts",
-      "import": "./src/platform-search.ts",
+      "types": "./dist/platform-search.d.ts",
+      "import": "./dist/platform-search.js",
       "default": "./dist/platform-search.js"
     },
     "./platform-job-identity": {
-      "types": "./src/platform-job-identity.ts",
-      "import": "./src/platform-job-identity.ts",
+      "types": "./dist/platform-job-identity.d.ts",
+      "import": "./dist/platform-job-identity.js",
       "default": "./dist/platform-job-identity.js"
     },
     "./platform-detail-locations": {
-      "types": "./src/platform-detail-locations.ts",
-      "import": "./src/platform-detail-locations.ts",
+      "types": "./dist/platform-detail-locations.d.ts",
+      "import": "./dist/platform-detail-locations.js",
       "default": "./dist/platform-detail-locations.js"
     }
   },

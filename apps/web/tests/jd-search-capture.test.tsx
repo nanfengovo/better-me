@@ -29,15 +29,34 @@ const fixtures = {
     detail: "https://www.linkedin.com/jobs/view/csharp-engineer-at-example-4012345678?trackingId=fixture",
     card: "base-search-card", title: "base-search-card__title", company: "base-search-card__subtitle", location: "job-search-card__location", salary: "job-search-card__salary-info", publication: "job-search-card__listdate",
   },
+  Seek: {
+    search: "https://www.seek.com.au/jobs?keywords=C%23&where=Sydney",
+    detail: "https://www.seek.com.au/job/78901234?type=promoted",
+    card: "job-card", title: "jobTitle", company: "jobCompany", location: "jobLocation", salary: "jobSalary", publication: "jobListingDate",
+  },
+  Indeed: {
+    search: "https://www.indeed.com/jobs?q=C%23&l=Austin",
+    detail: "https://www.indeed.com/viewjob?jk=1234567890abcdef",
+    card: "job_seen_beacon", title: "jcs-JobTitle", company: "companyName", location: "companyLocation", salary: "salary-snippet-container", publication: "date",
+  },
+  GradConnection: {
+    search: "https://gradconnection.com/jobs/?q=C%23&location=Sydney",
+    detail: "https://gradconnection.com/jobs/acme-corp-software-engineer-graduate/?from=search",
+    card: "job-search-result", title: "job-title", company: "employer-name", location: "location-name", salary: "salary", publication: "closing-date",
+  },
 } satisfies Record<JobPlatform, Record<string, string>>;
 const platforms = Object.keys(fixtures) as JobPlatform[];
 function escape(value: string) { return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"); }
 function card(platform: JobPlatform, options: { href?: string | null; title?: string | null; extra?: string; fields?: boolean } = {}) {
   const spec = fixtures[platform];
-  const title = options.title === null ? "" : `<span class="${spec.title}">${escape(options.title ?? "C# / .NET 工程师")}</span>`;
+  const title = options.title === null ? "" : platform === "Seek"
+    ? `<span data-automation="${spec.title}">${escape(options.title ?? "C# / .NET 工程师")}</span>`
+    : `<span class="${spec.title}">${escape(options.title ?? "C# / .NET 工程师")}</span>`;
   const link = options.href === null ? title : `<a href="${escape(options.href ?? spec.detail)}">${title}</a>`;
-  const fields = options.fields === false ? "" : `<span class="${spec.company}">示例 &amp; Company</span><span class="${spec.location}">上海 · 浦东</span><span class="${spec.salary}">25–40K · 14薪</span><time class="${spec.publication}" datetime="2026-10-17">1 day ago</time>`;
-  return `<article class="${spec.card}">${link}${fields}${options.extra ?? ""}</article>`;
+  const fields = options.fields === false ? "" : platform === "Seek"
+    ? `<span data-automation="${spec.company}">示例 &amp; Company</span><span data-automation="${spec.location}">上海 · 浦东</span><span data-automation="${spec.salary}">25–40K · 14薪</span><time data-automation="${spec.publication}" datetime="2026-10-17">1 day ago</time>`
+    : `<span class="${spec.company}">示例 &amp; Company</span><span class="${spec.location}">上海 · 浦东</span><span class="${spec.salary}">25–40K · 14薪</span><time class="${spec.publication}" datetime="2026-10-17">1 day ago</time>`;
+  return `<article class="${spec.card}" ${platform === "Seek" ? 'data-card-type="JobCard"' : ""}>${link}${fields}${options.extra ?? ""}</article>`;
 }
 function snapshot(platform: JobPlatform, html: string, patch: Partial<JobSearchSnapshot> = {}): JobSearchSnapshot {
   return { url: fixtures[platform].search, title: "合成搜索结果", html: `<html><body>${html}</body></html>`, ...patch };

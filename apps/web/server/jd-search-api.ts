@@ -4,6 +4,17 @@ import type { JobSessionBackend } from "./jd-session-router";
 import { isTrustedLocalRequest } from "./network-proxy";
 import { JdExtractionError } from "../src/lib/jd-errors";
 import { isJdStartRequestId } from "../src/lib/jd-start-request";
+import { LiveBatchSearchInputSchema, runLiveBatchSearch } from "./jd-live-batch-search";
+import {
+  CompanyIntelligenceBatchInputSchema,
+  CompanyIntelligenceLookupInputSchema,
+  lookupCompanyIntelligence,
+  lookupCompanyIntelligenceBatch,
+} from "./company-intelligence";
+import {
+  HarvestPipelineInputSchema,
+  OpportunityHarvestPipeline,
+} from "./harvest-pipeline";
 
 const send = (response: ServerResponse, status: number, value: unknown) => {
   if (response.destroyed || response.writableEnded) return;
@@ -54,6 +65,27 @@ export async function jobSearchMiddleware(request: IncomingMessage, response: Se
       if (!sessions.readSearch) throw new JdExtractionError({ code: "service_unavailable", stage: "service", message: "本机服务尚未加载搜索列表读取工具。" });
       const result = await sessions.readSearch(owner, body.sessionId, operation.signal);
       send(response, 200, { ...result, capturedAt: new Date().toISOString() });
+    } else if (body.action === "live-batch-search") {
+      const input = LiveBatchSearchInputSchema.safeParse(body.input);
+      if (!input.success) { send(response, 400, { error: "多平台实时搜索关键词或地区参数无效。" }); return; }
+      const result = await runLiveBatchSearch(input.data, operation.signal);
+      send(response, 200, result);
+    } else if (body.action === "company-intelligence") {
+      const input = CompanyIntelligenceLookupInputSchema.safeParse(body.input);
+      if (!input.success) { send(response, 400, { error: "企业性质与办公地址查询参数无效。" }); return; }
+      const result = await lookupCompanyIntelligence(input.data, operation.signal);
+      send(response, 200, result);
+    } else if (body.action === "harvest-pipeline") {
+      const input = HarvestPipelineInputSchema.safeParse(body.input);
+      if (!input.success) { send(response, 400, { error: "全链路流水线搜索参数无效。" }); return; }
+      const pipeline = new OpportunityHarvestPipeline(input.data);
+      const result = await pipeline.execute(operation.signal);
+      send(response, 200, result);
+    } else if (body.action === "company-intelligence-batch") {
+      const input = CompanyIntelligenceBatchInputSchema.safeParse(body.input);
+      if (!input.success) { send(response, 400, { error: "批量企业性质与办公地址查询参数无效。" }); return; }
+      const result = await lookupCompanyIntelligenceBatch(input.data, operation.signal);
+      send(response, 200, result);
     } else send(response, 400, { error: "请选择搜索启动或读取操作，并提供有效参数。" });
   } catch (error) {
     const failure = error instanceof JdExtractionError ? error.failure : { code: "browser_unavailable", stage: "service", message: "平台搜索读取未完成，请检查专用浏览器页面后重试。" };

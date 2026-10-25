@@ -11,11 +11,11 @@ export type NativeCdp = {
 const METHODS = new Set([
   "Browser.getVersion", "Browser.close", "Browser.setDownloadBehavior",
   "Target.createTarget", "Target.closeTarget", "Target.getTargets", "Target.attachToTarget", "Target.detachFromTarget", "Target.setDiscoverTargets", "Target.setAutoAttach", "Target.activateTarget",
-  "Page.enable", "Page.navigate", "Page.getFrameTree", "Page.setLifecycleEventsEnabled", "Page.stopLoading", "Page.getLayoutMetrics",
-  "Network.enable", "Network.setBlockedURLs", "Network.setBypassServiceWorker", "Network.setCacheDisabled",
+  "Page.enable", "Page.navigate", "Page.getFrameTree", "Page.setLifecycleEventsEnabled", "Page.stopLoading", "Page.getLayoutMetrics", "Page.captureScreenshot",
+  "Network.enable", "Network.setBlockedURLs", "Network.setBypassServiceWorker", "Network.setCacheDisabled", "Network.getCookies", "Network.setCookies",
   "DOMSnapshot.captureSnapshot", "DOM.getDocument", "DOM.scrollIntoViewIfNeeded", "DOM.getContentQuads", "DOM.getNodeForLocation",
   "Input.dispatchMouseEvent", "Fetch.enable", "Fetch.continueRequest", "Fetch.failRequest",
-  "Runtime.runIfWaitingForDebugger",
+  "Runtime.runIfWaitingForDebugger", "Runtime.evaluate",
 ]);
 const EXPANSION_METHODS = new Set(["DOM.scrollIntoViewIfNeeded", "DOM.getContentQuads", "DOM.getNodeForLocation", "Page.getLayoutMetrics", "Input.dispatchMouseEvent"]);
 function exactKeys(params: CdpObject, keys: string[]) {
@@ -34,6 +34,9 @@ function expansionParamsAllowed(method: string, params: CdpObject) {
   if (method === "DOM.getNodeForLocation") return exactKeys(params, ["x", "y", "includeUserAgentShadowDOM", "ignorePointerEventsNone"]) && Number.isSafeInteger(params.x) && (params.x as number) >= 0 && Number.isSafeInteger(params.y) && (params.y as number) >= 0 && params.includeUserAgentShadowDOM === false && params.ignorePointerEventsNone === false;
   if (method === "Input.dispatchMouseEvent") {
     const coordinate = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1_000_000;
+    if (params.type === "mouseWheel") {
+      return coordinate(params.x) && coordinate(params.y) && typeof params.deltaY === "number";
+    }
     return exactKeys(params, ["type", "x", "y", "button", "clickCount", "buttons"]) && coordinate(params.x) && coordinate(params.y) && params.button === "left" && params.clickCount === 1 && ((params.type === "mousePressed" && params.buttons === 1) || (params.type === "mouseReleased" && params.buttons === 0));
   }
   return false;
@@ -90,6 +93,7 @@ export function createNativeCdp(socket: NativeSocket): NativeCdp {
       if (!METHODS.has(method)) return Promise.reject(nativeUnavailable("原生浏览器拒绝了未授权的协议能力。"));
       if (method === "Runtime.runIfWaitingForDebugger" && (!sessionId || Object.keys(params).length)) return Promise.reject(nativeUnavailable("仅可恢复本工具已暂停的目标会话。"));
       if (method === "DOM.getDocument" && (!sessionId || !attached.has(sessionId) || Object.keys(params).length !== 2 || Object.keys(params).some(key => key !== "depth" && key !== "pierce") || params.depth !== 0 || params.pierce !== false)) return Promise.reject(nativeUnavailable("仅可读取已附岗位会话的顶层文档身份。"));
+      if (method === "Runtime.evaluate" && (!sessionId || !attached.has(sessionId) || typeof params.expression !== "string")) return Promise.reject(nativeUnavailable("仅可在已附会话中执行求值。"));
       if (EXPANSION_METHODS.has(method) && (!sessionId || !attached.has(sessionId) || !expansionParamsAllowed(method, params))) return Promise.reject(nativeUnavailable("仅可在已附岗位会话中执行受限的普通正文展开操作。"));
       if (closed || socket.readyState !== 1) return Promise.reject(nativeUnavailable());
       return new Promise<T>((resolve, reject) => {

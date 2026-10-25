@@ -4,7 +4,7 @@ import type { PlatformDetailLocations } from "@better-me/source-adapters/platfor
 // Keep this Vite server boundary independent of workspace package runtime resolution.
 const SourceTimestampSchema = z.string().datetime({ offset: true }).max(64);
 
-export type JobPlatform = "LinkedIn" | "猎聘" | "51JOB" | "BOSS直聘";
+export type JobPlatform = "LinkedIn" | "猎聘" | "51JOB" | "BOSS直聘" | "Seek" | "Indeed" | "GradConnection";
 
 const HOSTS: Record<string, JobPlatform> = {
   "linkedin.com": "LinkedIn", "www.linkedin.com": "LinkedIn",
@@ -18,6 +18,16 @@ const HOSTS: Record<string, JobPlatform> = {
   "51job.com": "51JOB", "www.51job.com": "51JOB", "jobs.51job.com": "51JOB",
   "m.51job.com": "51JOB", "msearch.51job.com": "51JOB", "we.51job.com": "51JOB", "q.51job.com": "51JOB",
   "zhipin.com": "BOSS直聘", "www.zhipin.com": "BOSS直聘", "m.zhipin.com": "BOSS直聘",
+  "seek.com.au": "Seek", "www.seek.com.au": "Seek",
+  "seek.co.nz": "Seek", "www.seek.co.nz": "Seek",
+  "seek.com": "Seek", "www.seek.com": "Seek",
+  "indeed.com": "Indeed", "www.indeed.com": "Indeed",
+  "au.indeed.com": "Indeed", "uk.indeed.com": "Indeed", "ca.indeed.com": "Indeed",
+  "de.indeed.com": "Indeed", "fr.indeed.com": "Indeed", "cn.indeed.com": "Indeed",
+  "jp.indeed.com": "Indeed", "sg.indeed.com": "Indeed", "nz.indeed.com": "Indeed", "in.indeed.com": "Indeed",
+  "gradconnection.com": "GradConnection", "www.gradconnection.com": "GradConnection",
+  "au.gradconnection.com": "GradConnection", "nz.gradconnection.com": "GradConnection",
+  "uk.gradconnection.com": "GradConnection", "sg.gradconnection.com": "GradConnection", "hk.gradconnection.com": "GradConnection",
 };
 
 /** The extractor only fetches these exact HTTPS hosts, including every redirect. */
@@ -27,7 +37,7 @@ export function allowedJobUrl(input: string): { url: string; platform: JobPlatfo
   const host = url.hostname.toLowerCase();
   const platform = Object.hasOwn(HOSTS, host) ? HOSTS[host] : undefined;
   if (!platform || url.protocol !== "https:" || url.username || url.password || (url.port && url.port !== "443")) {
-    throw new Error("仅支持 LinkedIn、猎聘、51JOB 和 BOSS直聘的官方 HTTPS 链接。");
+    throw new Error("仅支持 51JOB、BOSS直聘、猎聘、LinkedIn、Seek、Indeed 和 GradConnection 的官方 HTTPS 链接。");
   }
   url.hash = "";
   return { url: url.toString(), platform };

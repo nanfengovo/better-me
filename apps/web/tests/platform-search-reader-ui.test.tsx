@@ -465,3 +465,20 @@ test("unmount aborts a pending read and sends only an exact keepalive cancellati
   assert.equal(cancellations[0]!.init?.keepalive, true);
   assert.equal(calls.some((entry) => entry.body.action === "stop-browser"), false);
 });
+
+test("onIndexCards batch button passes all eligible cards with employer to callback", async () => {
+  installFetch();
+  let indexedBatch: any[] = [];
+  if (!root) { dom.document.body.innerHTML = "<main></main>"; root = createRoot(dom.document.querySelector("main")! as unknown as Element); }
+  await act(async () => root!.render(h(PlatformSearchSessionPanel, {
+    requests: [original],
+    onIndexCards: (cards) => { indexedBatch = cards; },
+  })));
+  await startReady();
+  const batchBtn = [...dom.document.querySelectorAll("button")].find((b) => b.textContent?.includes("一键全选并加入统一地图索引"));
+  assert.ok(batchBtn, "Batch index button should be rendered");
+  await act(async () => batchBtn!.click());
+  assert.equal(indexedBatch.length, 1);
+  assert.equal(indexedBatch[0].title, "Synthetic C# Engineer");
+});
+

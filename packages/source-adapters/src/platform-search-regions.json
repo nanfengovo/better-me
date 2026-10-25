@@ -28,69 +28,92 @@
       "basis": "official-form",
       "checkedAt": "2026-10-18",
       "note": "Official public search form has action /jobs/search and inputs keywords/location. Location is a text request, not a confirmed geoId or an imported job result."
+    },
+    {
+      "provider": "seek",
+      "url": "https://www.seek.com.au/jobs?keywords=software&where=Sydney",
+      "basis": "official-form",
+      "checkedAt": "2026-10-21",
+      "note": "Official public search form uses keywords and where parameters."
+    },
+    {
+      "provider": "indeed",
+      "url": "https://www.indeed.com/jobs?q=software&l=Sydney",
+      "basis": "official-form",
+      "checkedAt": "2026-10-21",
+      "note": "Official public search form uses q and l parameters."
+    },
+    {
+      "provider": "gradconnection",
+      "url": "https://gradconnection.com/jobs/?q=software",
+      "basis": "official-form",
+      "checkedAt": "2026-10-21",
+      "note": "Official public graduate search uses q and location parameters."
     }
   ],
   "regions": [
     {
       "id": "cn", "name": "中国", "countryCode": "CN",
       "aliases": ["CN", "中国", "中国大陆", "China", "全国"],
-      "platforms": { "51job": "000000", "boss": "100010000", "liepin": "410", "linkedin": "China" }
+      "platforms": { "51job": "000000", "boss": "100010000", "liepin": "410", "linkedin": "China", "seek": "China", "indeed": "China", "gradconnection": "China" }
     },
     {
       "id": "cn-beijing", "name": "北京", "countryCode": "CN",
-      "aliases": ["北京", "北京市", "Beijing"],
-      "platforms": { "51job": "010000", "boss": "101010100", "liepin": "010", "linkedin": "Beijing, China" }
+      "aliases": ["北京", "北京市", "Beijing", "CN-BJ", "cn-beijing"],
+      "platforms": { "51job": "010000", "boss": "101010100", "liepin": "010", "linkedin": "Beijing, China", "seek": "Beijing", "indeed": "Beijing", "gradconnection": "Beijing" }
     },
     {
       "id": "cn-shanghai", "name": "上海", "countryCode": "CN",
-      "aliases": ["上海", "上海市", "Shanghai"],
-      "platforms": { "51job": "020000", "boss": "101020100", "liepin": "020", "linkedin": "Shanghai, China" }
+      "aliases": ["上海", "上海市", "Shanghai", "CN-SH", "cn-shanghai"],
+      "platforms": { "51job": "020000", "boss": "101020100", "liepin": "020", "linkedin": "Shanghai, China", "seek": "Shanghai", "indeed": "Shanghai", "gradconnection": "Shanghai" }
     },
     {
       "id": "cn-guangzhou", "name": "广州", "countryCode": "CN",
       "aliases": ["广州", "广州市", "Guangzhou"],
-      "platforms": { "51job": "030200", "boss": "101280100", "liepin": "050020", "linkedin": "Guangzhou, Guangdong, China" }
+      "platforms": { "51job": "030200", "boss": "101280100", "liepin": "050020", "linkedin": "Guangzhou, Guangdong, China", "seek": "Guangzhou", "indeed": "Guangzhou", "gradconnection": "Guangzhou" }
     },
     {
       "id": "cn-shenzhen", "name": "深圳", "countryCode": "CN",
       "aliases": ["深圳", "深圳市", "Shenzhen"],
-      "platforms": { "51job": "040000", "boss": "101280600", "liepin": "050090", "linkedin": "Shenzhen, Guangdong, China" }
+      "platforms": { "51job": "040000", "boss": "101280600", "liepin": "050090", "linkedin": "Shenzhen, Guangdong, China", "seek": "Shenzhen", "indeed": "Shenzhen", "gradconnection": "Shenzhen" }
     },
     {
       "id": "cn-hangzhou", "name": "杭州", "countryCode": "CN",
       "aliases": ["杭州", "杭州市", "Hangzhou"],
-      "platforms": { "51job": "080200", "boss": "101210100", "liepin": "070020", "linkedin": "Hangzhou, Zhejiang, China" }
+      "platforms": { "51job": "080200", "boss": "101210100", "liepin": "070020", "linkedin": "Hangzhou, Zhejiang, China", "seek": "Hangzhou", "indeed": "Hangzhou", "gradconnection": "Hangzhou" }
     },
     {
       "id": "cn-nanjing", "name": "南京", "countryCode": "CN",
       "aliases": ["南京", "南京市", "Nanjing"],
-      "platforms": { "51job": "070200", "boss": "101190100", "liepin": "060020", "linkedin": "Nanjing, Jiangsu, China" }
+      "platforms": { "51job": "070200", "boss": "101190100", "liepin": "060020", "linkedin": "Nanjing, Jiangsu, China", "seek": "Nanjing", "indeed": "Nanjing", "gradconnection": "Nanjing" }
     },
     {
       "id": "cn-suzhou", "name": "苏州", "countryCode": "CN",
       "aliases": ["苏州", "苏州市", "Suzhou"],
-      "platforms": { "51job": "070300", "boss": "101190400", "liepin": "060080", "linkedin": "Suzhou, Jiangsu, China" }
+      "platforms": { "51job": "070300", "boss": "101190400", "liepin": "060080", "linkedin": "Suzhou, Jiangsu, China", "seek": "Suzhou", "indeed": "Suzhou", "gradconnection": "Suzhou" }
     },
     {
       "id": "cn-wuhan", "name": "武汉", "countryCode": "CN",
       "aliases": ["武汉", "武汉市", "Wuhan"],
-      "platforms": { "51job": "180200", "boss": "101200100", "liepin": "170020", "linkedin": "Wuhan, Hubei, China" }
+      "platforms": { "51job": "180200", "boss": "101200100", "liepin": "170020", "linkedin": "Wuhan, Hubei, China", "seek": "Wuhan", "indeed": "Wuhan", "gradconnection": "Wuhan" }
     },
     {
       "id": "cn-chengdu", "name": "成都", "countryCode": "CN",
       "aliases": ["成都", "成都市", "Chengdu"],
-      "platforms": { "51job": "090200", "boss": "101270100", "liepin": "280020", "linkedin": "Chengdu, Sichuan, China" }
+      "platforms": { "51job": "090200", "boss": "101270100", "liepin": "280020", "linkedin": "Chengdu, Sichuan, China", "seek": "Chengdu", "indeed": "Chengdu", "gradconnection": "Chengdu" }
     },
     {
       "id": "cn-xian", "name": "西安", "countryCode": "CN",
       "aliases": ["西安", "西安市", "Xian", "Xi'an", "Xi’an"],
-      "platforms": { "51job": "200200", "boss": "101110100", "liepin": "270020", "linkedin": "Xi'an, Shaanxi, China" }
+      "platforms": { "51job": "200200", "boss": "101110100", "liepin": "270020", "linkedin": "Xi'an, Shaanxi, China", "seek": "Xi'an", "indeed": "Xi'an", "gradconnection": "Xi'an" }
     },
-    { "id": "us", "name": "美国", "countryCode": "US", "aliases": ["US", "USA", "美国", "United States"], "platforms": { "linkedin": "United States" } },
-    { "id": "gb", "name": "英国", "countryCode": "GB", "aliases": ["GB", "UK", "英国", "United Kingdom"], "platforms": { "linkedin": "United Kingdom" } },
-    { "id": "de", "name": "德国", "countryCode": "DE", "aliases": ["DE", "德国", "Germany"], "platforms": { "linkedin": "Germany" } },
-    { "id": "fr", "name": "法国", "countryCode": "FR", "aliases": ["FR", "法国", "France"], "platforms": { "linkedin": "France" } },
-    { "id": "sg", "name": "新加坡", "countryCode": "SG", "aliases": ["SG", "新加坡", "Singapore"], "platforms": { "linkedin": "Singapore" } },
-    { "id": "hk", "name": "中国香港", "countryCode": "HK", "aliases": ["HK", "香港", "中国香港", "Hong Kong"], "platforms": { "linkedin": "Hong Kong SAR" } }
+    { "id": "us", "name": "美国", "countryCode": "US", "aliases": ["US", "USA", "美国", "United States"], "platforms": { "linkedin": "United States", "indeed": "United States" } },
+    { "id": "gb", "name": "英国", "countryCode": "GB", "aliases": ["GB", "UK", "英国", "United Kingdom"], "platforms": { "linkedin": "United Kingdom", "indeed": "United Kingdom", "gradconnection": "United Kingdom" } },
+    { "id": "de", "name": "德国", "countryCode": "DE", "aliases": ["DE", "德国", "Germany"], "platforms": { "linkedin": "Germany", "indeed": "Germany" } },
+    { "id": "fr", "name": "法国", "countryCode": "FR", "aliases": ["FR", "法国", "France"], "platforms": { "linkedin": "France", "indeed": "France" } },
+    { "id": "sg", "name": "新加坡", "countryCode": "SG", "aliases": ["SG", "新加坡", "Singapore"], "platforms": { "linkedin": "Singapore", "seek": "Singapore", "indeed": "Singapore", "gradconnection": "Singapore" } },
+    { "id": "hk", "name": "中国香港", "countryCode": "HK", "aliases": ["HK", "香港", "中国香港", "Hong Kong"], "platforms": { "linkedin": "Hong Kong SAR", "seek": "Hong Kong", "indeed": "Hong Kong", "gradconnection": "Hong Kong" } },
+    { "id": "au", "name": "澳大利亚", "countryCode": "AU", "aliases": ["AU", "澳大利亚", "澳洲", "Australia"], "platforms": { "linkedin": "Australia", "seek": "Australia", "indeed": "Australia", "gradconnection": "Australia" } },
+    { "id": "nz", "name": "新西兰", "countryCode": "NZ", "aliases": ["NZ", "新西兰", "New Zealand"], "platforms": { "linkedin": "New Zealand", "seek": "New Zealand", "indeed": "New Zealand", "gradconnection": "New Zealand" } }
   ]
 }

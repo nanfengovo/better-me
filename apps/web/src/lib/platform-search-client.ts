@@ -5,7 +5,7 @@ import { readJdFailure, JdExtractionError } from "./jd-errors";
 import type { JdBrowserSession } from "./jd-import";
 import { createJdStartRequestId, isJdStartRequestId } from "./jd-start-request";
 
-const platform = z.enum(["51JOB", "BOSS直聘", "猎聘", "LinkedIn"]);
+const platform = z.enum(["51JOB", "BOSS直聘", "猎聘", "LinkedIn", "Seek", "Indeed", "GradConnection"]);
 const card = z.object({
   url: z.string().url().max(8_000), platform, title: z.string().trim().min(1).max(500),
   company: z.string().max(500).optional(), locationText: z.string().max(1_000).optional(),
@@ -76,4 +76,95 @@ export async function readPlatformSearch(session: JdBrowserSession, signal?: Abo
   }
   if ((receipt.status === "ready" && !receipt.cards.length) || (receipt.status !== "ready" && receipt.cards.length)) throw error("搜索列表状态与实际岗位数量不一致。");
   return receipt;
+}
+
+export type LiveBatchProviderResultClient = {
+  provider: PlatformSearchInput["provider"];
+  platform: z.infer<typeof platform>;
+  pageUrl: string;
+  status: "ready" | "empty" | "login_required" | "verification_required" | "unknown_layout" | "oversized" | "unsupported_page" | "error";
+  cards: Array<PlatformSearchCard & { company: string }>;
+  rawCardCount: number;
+  warnings: string[];
+  error?: string;
+};
+
+export type LiveBatchSearchReceipt = {
+  capturedAt: string;
+  results: LiveBatchProviderResultClient[];
+};
+
+export async function runLivePlatformBatchSearch(
+  input: {
+    keyword: string;
+    regionId?: string;
+    districtCode?: string;
+    providers?: PlatformSearchInput["provider"][];
+    depth?: "quick" | "standard" | "deep";
+    maxPages?: number;
+  },
+  signal?: AbortSignal,
+): Promise<LiveBatchSearchReceipt> {
+  try {
+    const payload = await request({ action: "live-batch-search", input }, signal);
+    const capturedAt = typeof payload.capturedAt === "string" ? payload.capturedAt : new Date().toISOString();
+    const results = Array.isArray(payload.results)
+      ? (payload.results as LiveBatchProviderResultClient[])
+      : [];
+    return { capturedAt, results };
+  } catch (cause) {
+    if (signal?.aborted) throw signal.reason ?? cause;
+    return { capturedAt: new Date().toISOString(), results: [] };
+  }
+}
+
+export type DynamicCompanyIntelligenceItem = {
+  companyId?: string;
+  companyName: string;
+  cityHint?: string;
+  rawLocation?: string;
+  jobTexts?: string[];
+  locationTexts?: string[];
+};
+
+export type DynamicCompanyIntelligenceResult = {
+  companyName: string;
+  controllers: Array<{
+    name: string;
+    jurisdictionCode?: string;
+    kind: "state" | "private" | "dispersed" | "joint" | "unknown";
+  }>;
+  categoryLabel: string;
+  reason: string;
+  resolvedOffice?: {
+    district: string;
+    streetAddress: string;
+    formattedAddress: string;
+    latitude: number;
+    longitude: number;
+  };
+  sourceMethod: "cache" | "live-web-search" | "structured-card" | "catalog-heuristic";
+};
+
+export async function lookupCompanyIntelligenceBatchClient(
+  items: DynamicCompanyIntelligenceItem[],
+  signal?: AbortSignal,
+  enableWebSearch = true,
+): Promise<Record<string, DynamicCompanyIntelligenceResult>> {
+  if (items.length === 0) return {};
+  try {
+    const payload = await request(
+      {
+        action: "company-intelligence-batch",
+        input: { items: items.slice(0, 100), enableWebSearch },
+      },
+      signal,
+    );
+    if (payload.results && typeof payload.results === "object" && !Array.isArray(payload.results)) {
+      return payload.results as Record<string, DynamicCompanyIntelligenceResult>;
+    }
+    return {};
+  } catch {
+    return {};
+  }
 }

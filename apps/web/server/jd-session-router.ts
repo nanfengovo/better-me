@@ -277,8 +277,43 @@ export function createJobSessionRouter(standard: JobSessionBackend, liepin: JobS
     },
     async readOnce(owner: string, input: string, signal?: AbortSignal): Promise<JdImportResult> {
       const info = await router.start(owner, input, signal);
-      try { return await router.read(owner, info.sessionId, signal); }
-      finally { await router.close(owner, info.sessionId); }
+      try {
+        const timeoutMs = 60_000;
+        const start = Date.now();
+        let lastError: unknown;
+        let focused = false;
+        while (Date.now() - start < timeoutMs) {
+          signal?.throwIfAborted();
+          try {
+            return await router.read(owner, info.sessionId, signal);
+          } catch (err) {
+            lastError = err;
+            if (
+              err instanceof JdExtractionError &&
+              (err.failure.code === "verification_required" ||
+                err.failure.code === "login_required" ||
+                (err.failure.code === "unsupported_page" &&
+                  typeof err.failure.message === "string" &&
+                  err.failure.message.includes("中转")))
+            ) {
+              if (!focused) {
+                focused = true;
+                void router.focus(owner, info.sessionId, signal).catch(() => undefined);
+              }
+              await new Promise((resolve) => setTimeout(resolve, 1500));
+              continue;
+            }
+            throw err;
+          }
+        }
+        throw lastError ?? new JdExtractionError({
+          code: "verification_required",
+          stage: "page",
+          message: "等待平台安全验证超时，请在浏览器中完成验证后重试。",
+        });
+      } finally {
+        await router.close(owner, info.sessionId);
+      }
     },
     closeAll() {
       if (draining) return draining;

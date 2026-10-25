@@ -1,5 +1,5 @@
 import { chromium, type BrowserContext, type Page } from "playwright-core";
-import { mkdir } from "node:fs/promises";
+import { mkdir, unlink } from "node:fs/promises";
 import path from "node:path";
 import type { JobPlatform } from "../src/lib/jd-source";
 import { JdExtractionError } from "../src/lib/jd-errors";
@@ -11,6 +11,8 @@ export type PersistentJobBrowserOptions = {
   /** A private application-data directory, never a person's daily browser profile. */
   rootDirectory?: string;
   launch?: PersistentJobBrowserLaunch;
+  /** Optional Chrome DevTools Protocol endpoint to take over an already opened real browser */
+  cdpUrl?: string;
   /** Read-only exact profile inspection; absence cannot prove an explicit stop. */
   inspectProfileOccupancy?: (profileDirectory: string) => Promise<"clear" | "occupied" | "unknown">;
   allowedResource: (input: string, platform: JobPlatform) => boolean;
@@ -37,6 +39,9 @@ const PLATFORMS: Record<JobPlatform, { directory: string; origin: string }> = {
   BOSS直聘: { directory: "boss", origin: "https://m.zhipin.com" },
   猎聘: { directory: "liepin", origin: "https://m.liepin.com" },
   LinkedIn: { directory: "linkedin", origin: "https://www.linkedin.com" },
+  Seek: { directory: "seek", origin: "https://www.seek.com.au" },
+  Indeed: { directory: "indeed", origin: "https://www.indeed.com" },
+  GradConnection: { directory: "gradconnection", origin: "https://gradconnection.com" },
 };
 
 function unavailable(message: string, cause?: unknown): JdExtractionError {
@@ -208,14 +213,52 @@ export function createPersistentJobBrowser(options: PersistentJobBrowserOptions)
     try {
       await mkdir(slot.profileDirectory, { recursive: true, mode: 0o700 });
       if (slot.retired) throw slot.reason;
+      for (const file of ["SingletonLock", "SingletonSocket", "SingletonCookie"]) {
+        try {
+          await unlink(path.join(slot.profileDirectory, file));
+        } catch {}
+      }
+      const isTestLaunch = Boolean(options.launch);
+      const defaultArgs = isTestLaunch ? ["--no-proxy-server"] : [
+        "--disable-blink-features=AutomationControlled",
+        "--no-default-browser-check",
+        "--no-first-run",
+        "--no-proxy-server",
+      ];
       const context = await (options.launch ?? chromium.launchPersistentContext.bind(chromium))(slot.profileDirectory, {
-        channel: "msedge", headless: false, timeout: 12_000,
-        serviceWorkers: "block", acceptDownloads: false, locale: "zh-CN",
-        ...(slot.proxyUrl ? { proxy: { server: slot.proxyUrl, bypass: "<-loopback>" } } : { args: ["--no-proxy-server"] }),
+        channel: isTestLaunch ? "msedge" : (process.platform === "win32" ? "msedge" : "chrome"),
+        headless: false,
+        timeout: 12_000,
+        serviceWorkers: isTestLaunch ? "block" : "allow",
+        acceptDownloads: false,
+        locale: "zh-CN",
+        ...(slot.proxyUrl ? { proxy: { server: slot.proxyUrl, bypass: "<-loopback>" } } : { args: defaultArgs }),
       });
       state = { context, alive: true, closed: false, pages: new Set(), failedPages: new Set() };
       slot.state = state;
       unclosed.add(slot);
+      if (!isTestLaunch) {
+        await context.addInitScript(`(() => {
+          try {
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+          } catch (_) {}
+          try {
+            if (!window.chrome) {
+              window.chrome = { runtime: {} };
+            }
+          } catch (_) {}
+          try {
+            Object.defineProperty(navigator, 'plugins', {
+              get: () => [1, 2, 3, 4, 5],
+            });
+          } catch (_) {}
+          try {
+            Object.defineProperty(navigator, 'languages', {
+              get: () => ['zh-CN', 'zh', 'en'],
+            });
+          } catch (_) {}
+        })()`);
+      }
       const currentState = state;
       context.on("close", () => {
         currentState.alive = false;
@@ -227,7 +270,9 @@ export function createPersistentJobBrowser(options: PersistentJobBrowserOptions)
         retire(slot, unavailable("专用浏览器窗口已经关闭，请重新打开岗位。"));
       });
       if (slot.retired) throw slot.reason;
-      await context.routeWebSocket("**/*", (socket) => socket.close());
+      if (isTestLaunch) {
+        await context.routeWebSocket("**/*", (socket) => socket.close());
+      }
       await context.route("**/*", async (route) => {
         try {
           if (slot.retired || !currentState.alive || !options.allowedResource(route.request().url(), slot.platform)) {
@@ -249,7 +294,8 @@ export function createPersistentJobBrowser(options: PersistentJobBrowserOptions)
       slot.initialized = true;
       return state;
     } catch (error) {
-      const reason = error instanceof JdExtractionError ? error : unavailable("无法启动工具专用的 Microsoft Edge，请确认 Edge 已安装且专用数据目录可写。", error);
+      const browserName = options.launch ? "Microsoft Edge" : (process.platform === "win32" ? "Microsoft Edge" : "Google Chrome");
+      const reason = error instanceof JdExtractionError ? error : unavailable(`无法启动工具专用的 ${browserName}，请确认 ${browserName} 已安装且专用数据目录可写。`, error);
       retire(slot, reason);
       if (state) await closeOwnedContext(slot, state);
       throw reason;

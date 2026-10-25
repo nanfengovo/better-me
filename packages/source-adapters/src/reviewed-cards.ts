@@ -17,12 +17,15 @@ export function reviewedCardsSearchPage(input: string, provider: PlatformSearchP
     boss: /^(?:\/web\/geek\/jobs?\/?|\/c\d{9}\/)$/i,
     liepin: /^(?:\/zhaopin\/?|\/city-[a-z]+\/)$/i,
     linkedin: /^\/jobs\/search\/?$/i,
+    seek: /^\/jobs\/?/i,
+    indeed: /^\/jobs\/?/i,
+    gradconnection: /^\/jobs\/?/i,
   };
   return url && patterns[provider].test(url.pathname) ? url.toString() : undefined;
 }
 
 export const ReviewedSearchCardSchema = z.object({
-  platform: z.enum(["51JOB", "BOSS直聘", "猎聘", "LinkedIn"]),
+  platform: z.enum(["51JOB", "BOSS直聘", "猎聘", "LinkedIn", "Seek", "Indeed", "GradConnection"]),
   url: urlText,
   title: text(500),
   company: text(500),

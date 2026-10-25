@@ -19,6 +19,9 @@ export const PlatformSearchRegionSchema = z.object({
     boss: z.string().regex(/^10\d{7}$/).optional(),
     liepin: z.string().regex(/^\d{3}(?:\d{3})?$/).optional(),
     linkedin: safeText(240).optional(),
+    seek: safeText(240).optional(),
+    indeed: safeText(240).optional(),
+    gradconnection: safeText(240).optional(),
   }).strict().refine((value) => Object.keys(value).length > 0, "A region requires at least one platform mapping."),
 }).strict().superRefine((region, context) => {
   if (region.countryCode !== "CN" && ["51job", "boss", "liepin"].some((provider) => provider in region.platforms)) {
@@ -71,8 +74,8 @@ export const PlatformSearchReferenceSchema = z.object({
 }).strict();
 export const PlatformSearchCatalogSchema = z.object({
   schemaVersion: z.literal(1),
-  references: z.array(PlatformSearchReferenceSchema).length(4).refine(
-    (references) => new Set(references.map((reference) => reference.provider)).size === 4,
+  references: z.array(PlatformSearchReferenceSchema).min(4).max(20).refine(
+    (references) => new Set(references.map((reference) => reference.provider)).size === references.length,
     "Each platform requires exactly one public reference.",
   ),
   regions: PlatformSearchRegionsSchema,
@@ -94,6 +97,9 @@ export const PLATFORM_SEARCH_PROVIDERS = freezeDeep([
   { id: "boss", name: "BOSS直聘", regionFilter: "native-code", countryScope: "CN", resultMode: "external-search" },
   { id: "liepin", name: "猎聘", regionFilter: "native-code", countryScope: "CN", resultMode: "external-search" },
   { id: "linkedin", name: "LinkedIn", regionFilter: "location-text", countryScope: "global", resultMode: "external-search" },
+  { id: "seek", name: "Seek", regionFilter: "location-text", countryScope: "global", resultMode: "external-search" },
+  { id: "indeed", name: "Indeed", regionFilter: "location-text", countryScope: "global", resultMode: "external-search" },
+  { id: "gradconnection", name: "GradConnection", regionFilter: "location-text", countryScope: "global", resultMode: "external-search" },
 ] as const);
 
 export type PlatformSearchErrorCode = "invalid-input" | "invalid-regions" | "unknown-region" | "unsupported-region";
@@ -144,6 +150,7 @@ export const PlatformSearchInputSchema = z.object({
   provider: PlatformSearchProviderSchema,
   keyword: z.string().trim().max(300).refine((value) => !/[\p{Cc}\p{Cs}]/u.test(value), "Control characters and unpaired surrogates are not allowed."),
   regionId: regionKey.optional(),
+  districtCode: z.string().regex(/^\d{6}$/).optional(),
 }).strict();
 export type PlatformSearchInput = z.infer<typeof PlatformSearchInputSchema>;
 export type PlatformSearchRequest = {
@@ -171,6 +178,9 @@ const endpoints: Record<PlatformSearchProvider, { platform: PlatformSearchJobPla
   boss: { platform: "BOSS直聘", url: "https://www.zhipin.com/web/geek/job", keywordParam: "query" },
   liepin: { platform: "猎聘", url: "https://www.liepin.com/zhaopin/", keywordParam: "key" },
   linkedin: { platform: "LinkedIn", url: "https://www.linkedin.com/jobs/search", keywordParam: "keywords" },
+  seek: { platform: "Seek", url: "https://www.seek.com.au/jobs", keywordParam: "keywords" },
+  indeed: { platform: "Indeed", url: "https://www.indeed.com/jobs", keywordParam: "q" },
+  gradconnection: { platform: "GradConnection", url: "https://gradconnection.com/jobs/", keywordParam: "q" },
 };
 
 /** Builds a launch request only. The caller chooses when to open it and when to read a single job. */
@@ -180,7 +190,7 @@ export function buildPlatformSearchRequest(
 ): PlatformSearchRequest {
   const parsed = PlatformSearchInputSchema.safeParse(input);
   if (!parsed.success) throw new PlatformSearchError("invalid-input");
-  const { provider, keyword, regionId } = parsed.data;
+  const { provider, keyword, regionId, districtCode } = parsed.data;
   const catalog = parsedRegions(regions);
   const region = regionId === undefined ? undefined : catalog.find((candidate) => candidate.id === regionId);
   if (regionId !== undefined && !region) throw new PlatformSearchError("unknown-region");
@@ -190,9 +200,11 @@ export function buildPlatformSearchRequest(
   const url = new URL(endpoint.url);
   url.searchParams.set(endpoint.keywordParam, keyword);
   if (provider === "51job") url.searchParams.set("searchType", "2");
+  if (provider === "boss" && districtCode) url.searchParams.set("multiBusinessDistrict", districtCode);
   if (providerValue !== undefined) {
     const regionParams: Record<PlatformSearchProvider, readonly string[]> = {
       "51job": ["jobArea"], boss: ["city"], liepin: ["city", "dq"], linkedin: ["location"],
+      seek: ["where"], indeed: ["l"], gradconnection: ["location"],
     };
     regionParams[provider].forEach((param) => url.searchParams.set(param, providerValue));
   }
@@ -204,7 +216,7 @@ export function buildPlatformSearchRequest(
   if (!region) warnings.push("未指定地区，平台可能采用其默认或上次选择的地区；这不代表全球或全国搜索。");
   if (region && basis === "parameter-only") warnings.push("该平台当前仅核对了搜索参数，地区代码尚需在打开的官方页面确认。");
   if (region && basis === "configured-unverified") warnings.push("当前地区来自自定义映射，仅校验了格式；请在官方页面核实对应地区。");
-  if (region && provider === "linkedin") warnings.push("已提交地区文本；平台可能将其解析为自己的地区范围，请检查页面所选地点。");
+  if (region && (provider === "linkedin" || provider === "seek" || provider === "indeed" || provider === "gradconnection")) warnings.push("已提交地区文本；平台可能将其解析为自己的地区范围，请检查页面所选地点。");
   return freezeDeep({
     kind: "external-platform-search", provider, platform: endpoint.platform, url: url.toString(), keyword,
     regionMode: region ? "explicit" : "platform-default",

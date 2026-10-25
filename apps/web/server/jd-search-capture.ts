@@ -14,7 +14,7 @@ const selector = z.string().trim().min(1).max(300);
 const selectors = z.array(selector).min(1).max(25);
 const optionalSelectors = z.array(selector).max(25).default([]);
 export const JobSearchCaptureConfigSchema = z.object({
-  platform: z.enum(["51JOB", "BOSS直聘", "猎聘", "LinkedIn"]),
+  platform: z.enum(["51JOB", "BOSS直聘", "猎聘", "LinkedIn", "Seek", "Indeed", "GradConnection"]),
   cardSelectors: selectors,
   titleSelectors: selectors,
   companySelectors: optionalSelectors,
@@ -31,7 +31,7 @@ export const JOB_SEARCH_CAPTURE_CONFIGS: Readonly<Record<JobPlatform, JobSearchC
     platform: "51JOB", cardSelectors: [".joblist-item", ".joblistitem", ".job-list-item", ".j_joblist > .e"],
     titleSelectors: [".jobname", ".job-name", ".job-title", ".jname", ".t1 a"],
     companySelectors: [".company-name", ".cname", ".com_name"],
-    locationSelectors: [".job-area", ".jobarea", ".workarea", ".work-area"],
+    locationSelectors: [".job-area", ".jobarea", ".workarea", ".work-area", ".area"],
     salarySelectors: [".salary", ".job-salary", ".sal"],
     publicationSelectors: [".job-publish-time", ".published-time", "time[itemprop='datePosted']"],
     emptySelectors: [".search-empty", ".joblist-empty", ".no-result", ".table_nolist"],
@@ -66,6 +66,36 @@ export const JOB_SEARCH_CAPTURE_CONFIGS: Readonly<Record<JobPlatform, JobSearchC
     publicationSelectors: ["time.job-search-card__listdate", "time.job-search-card__listdate--new", "time[itemprop='datePosted']"],
     emptySelectors: [".jobs-search-no-results-banner", ".jobs-search-no-results", ".no-results"],
   },
+  Seek: {
+    platform: "Seek",
+    cardSelectors: [".job-card", "[data-card-type='JobCard']", "article[data-automation='normalJob']", "article[data-automation='premiumJob']", "[data-automation='job-card']", "article"],
+    titleSelectors: [".jobTitle", "[data-automation='jobTitle']", "a[data-automation='jobTitle']", "h3 a", "h3"],
+    companySelectors: [".jobCompany", "[data-automation='jobCompany']", "a[data-automation='jobCompany']"],
+    locationSelectors: [".jobLocation", "[data-automation='jobLocation']", "[data-automation='jobArea']"],
+    salarySelectors: [".jobSalary", "[data-automation='jobSalary']", "span[data-automation='jobSalary']"],
+    publicationSelectors: [".jobListingDate", "[data-automation='jobListingDate']", "span[data-automation='jobListingDate']", "time"],
+    emptySelectors: ["[data-automation='no-jobs-found']", ".no-results"],
+  },
+  Indeed: {
+    platform: "Indeed",
+    cardSelectors: [".job_seen_beacon", ".resultContent", ".jobsearch-ResultsList > li", "div.cardOutline", ".tapItem"],
+    titleSelectors: [".jcs-JobTitle", ".jobTitle a", "h2.jobTitle span", "h2.jobTitle", "a.jcs-JobTitle"],
+    companySelectors: ["[data-testid='company-name']", ".companyName", ".company_location .companyName"],
+    locationSelectors: ["[data-testid='text-location']", ".companyLocation"],
+    salarySelectors: ["[data-testid='attribute_snippet_testid']", ".salary-snippet-container", ".metadata.salary-snippet-container"],
+    publicationSelectors: ["[data-testid='myJobsStateDate']", "span.date", ".date", "time"],
+    emptySelectors: [".no_results", ".jobsearch-NoResult-message"],
+  },
+  GradConnection: {
+    platform: "GradConnection",
+    cardSelectors: [".job-search-result", ".campaign-card", ".job-card", "article"],
+    titleSelectors: [".job-title", ".campaign-title", "h3 a", "h3"],
+    companySelectors: [".employer-name", ".company-name", ".employer"],
+    locationSelectors: [".location-name", ".job-location", ".location"],
+    salarySelectors: [".salary", ".remuneration"],
+    publicationSelectors: [".closing-date", "time"],
+    emptySelectors: [".no-results", ".empty-results"],
+  },
 };
 
 export type JobSearchSnapshot = Pick<BrowserSnapshot, "html" | "url" | "title" | "gate" | "oversized" | "pageLoad" | "searchDiagnostics"> & { captureTruncated?: boolean };
@@ -83,11 +113,18 @@ function detailIdentity(input: string, platform: JobPlatform, base: string): { u
     const allowed = allowedJobUrl(new URL(input, base).toString());
     if (allowed.platform !== platform) return;
     const url = new URL(allowed.url);
+    if (platform === "Indeed") {
+      const jk = url.searchParams.get("jk");
+      if (jk && /^[a-z\d_-]+$/i.test(jk)) return { url: allowed.url, id: jk };
+    }
     const patterns: Record<JobPlatform, RegExp[]> = {
       BOSS直聘: [/^\/job_detail\/([a-z\d_-]+)\.html\/?$/i, /^\/mpa\/html\/weijd\/weijd-job\/([a-z\d_-]+)\/?$/i],
       猎聘: [/^\/job\/(\d+)\.shtml\/?$/i],
       "51JOB": [/^\/jobs\/(?:[^/]+\/)*(\d+)\.html\/?$/i, ...(url.hostname === "jobs.51job.com" ? [/^\/(?!jobs\/)[^/]+\/(\d+)\.html\/?$/i] : [])],
       LinkedIn: [/^\/jobs\/view\/(?:[^/]*-)?(\d+)\/?$/i],
+      Seek: [/^\/job\/(\d+)\/?$/i],
+      Indeed: [/^\/viewjob\/?$/i, /^\/jobs\/view\/(?:[^/]*-)?([a-z\d_-]+)\/?$/i, /^\/rc\/clk\/?$/i],
+      GradConnection: [/^\/jobs\/([a-z\d_-]+)\/?$/i, /^\/graduates\/[a-z\d_-]+\/([a-z\d_-]+)\/?$/i],
     };
     for (const pattern of patterns[platform]) {
       const id = url.pathname.match(pattern)?.[1];
@@ -102,6 +139,9 @@ function searchPage(url: URL, platform: JobPlatform): boolean {
     BOSS直聘: /^(?:\/web\/geek\/jobs?\/?|\/c\d{9}\/)$/i,
     猎聘: /^(?:\/zhaopin\/?|\/city-[a-z]+\/)$/i,
     LinkedIn: /^\/jobs\/search\/?$/i,
+    Seek: /^\/jobs\/?/i,
+    Indeed: /^\/jobs\/?/i,
+    GradConnection: /^\/jobs\/?/i,
   };
   return patterns[platform].test(url.pathname);
 }
@@ -263,7 +303,7 @@ export function buildVisibleJobSearchSnapshot(config?: JobSearchCaptureConfig): 
     const all=document.querySelectorAll('*');
     if(all.length>25000) return {...base,oversized:true};
     const host=new URL(url).hostname;
-    const platform=host==='linkedin.com'||host.endsWith('.linkedin.com')?'LinkedIn':host==='liepin.com'||host.endsWith('.liepin.com')?'猎聘':host==='zhipin.com'||host.endsWith('.zhipin.com')?'BOSS直聘':host==='51job.com'||host.endsWith('.51job.com')?'51JOB':undefined;
+    const platform=host==='linkedin.com'||host.endsWith('.linkedin.com')?'LinkedIn':host==='liepin.com'||host.endsWith('.liepin.com')?'猎聘':host==='zhipin.com'||host.endsWith('.zhipin.com')?'BOSS直聘':host==='51job.com'||host.endsWith('.51job.com')?'51JOB':host==='seek.com.au'||host.endsWith('.seek.com.au')||host==='seek.co.nz'||host.endsWith('.seek.co.nz')?'Seek':host==='indeed.com'||host.endsWith('.indeed.com')?'Indeed':host==='gradconnection.com'||host.endsWith('.gradconnection.com')?'GradConnection':undefined;
     const config=configs.find(c=>c.platform===platform);
     if(!config||!document.body) return base;
     const visible=element=>{
@@ -304,8 +344,11 @@ export function buildVisibleJobSearchSnapshot(config?: JobSearchCaptureConfig): 
         if(source.nodeType===3){parent.append(output.createTextNode(source.nodeValue||''));continue;}
         if(source.nodeType!==1||source.matches(excluded)||!visible(source))continue;
         const copy=output.createElement(source.localName);
-        for(const name of ['class','id','role','aria-modal','open',...(source.tagName==='A'?['href']:[]),...(source.tagName==='TIME'?['datetime']:[])]){
+        for(const name of ['class','id','role','aria-modal','open','data-automation','data-testid','data-card-type',...(source.tagName==='A'?['href']:[]),...(source.tagName==='TIME'?['datetime']:[])]){
           const value=source.getAttribute(name);if(value!==null)copy.setAttribute(name,value);
+        }
+        if(platform==='51JOB'&&source.classList&&source.classList.contains('joblist-item-job')){
+          try{const sd=JSON.parse(source.getAttribute('sensorsdata')||'{}');if(sd&&/^\d+$/.test(String(sd.jobId||''))){const a=output.createElement('a');a.setAttribute('href','https://jobs.51job.com/all/'+sd.jobId+'.html');copy.append(a);}}catch{}
         }
         parent.append(copy);
         for(let i=source.childNodes.length-1;i>=0;i--)pending.push({source:source.childNodes[i],parent:copy});

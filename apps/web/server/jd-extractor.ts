@@ -5,6 +5,7 @@ import { allowedJobUrl, normalizeJobShare, jobPostingPublication, readJdPublicat
 import { JdExtractionError, type JdFailureCode } from "../src/lib/jd-errors";
 import { getNetworkFetch, isTrustedLocalRequest } from "./network-proxy";
 import { browserSessionManager } from "./jd-browser-session";
+import { checkCdpRunning } from "./jd-real-chrome-launcher";
 import type { JobSessionBackend } from "./jd-session-router";
 import { isJdStartRequestId } from "../src/lib/jd-start-request";
 import { isLiepinDescriptionHeading, isLiepinRequirementsHeading } from "./jd-liepin-description";
@@ -37,6 +38,34 @@ function pageFailure(code: JdFailureCode, message = BLOCKED_MESSAGE): never {
   throw new JdExtractionError({ code, stage: "page", message });
 }
 
+/** Visible header of the BOSS mobile share page; its document title is only "BOSS直聘". */
+function readBossShareHeader($: ReturnType<typeof load>, excludedRegions: string): { title: string; lines: string[] } | undefined {
+  const firstText = (selector: string) => {
+    for (const element of $(selector).toArray()) {
+      if ($(element).closest(excludedRegions).length) continue;
+      const text = cleanJobHtml($(element).html() ?? "").replace(/\s+/g, " ").trim();
+      if (text) return text;
+    }
+    return "";
+  };
+  const position = ".share-position .rec-position";
+  const title = firstText(`${position} .job-cotent h2 > p`);
+  if (!title || title.length > 60) return undefined;
+  const company = firstText(`${position} .brandComInfo .brandComBaseInfo > span`) || firstText(`${position} .job-cotent .job-brandComInfo`).split(" ")[0]!;
+  const salary = firstText(`${position} .job-cotent > div`);
+  const requirements = firstText(`${position} .job-cotent h2 > span:not(.job-brandComInfo)`);
+  const address = firstText(`${position} .content p.detail-text.address`);
+  return {
+    title,
+    lines: [
+      title,
+      company,
+      [/\d/.test(salary) && /[kK千万元薪]/.test(salary) ? salary : "", requirements].filter(Boolean).join(" · "),
+      address ? `工作地点：${address}` : "",
+    ].filter(Boolean),
+  };
+}
+
 function timeoutCause(error: unknown): boolean {
   let current = error;
   for (let depth = 0; depth < 6 && current && typeof current === "object"; depth += 1) {
@@ -59,16 +88,25 @@ export function detailIdentity(url: URL, platform: JobPlatform): string | undefi
   if (platform === "BOSS直聘") {
     const mobileId = url.pathname.match(/^\/mpa\/html\/weijd\/weijd-job\/([a-z\d_-]+)\/?$/i)?.[1];
     if (mobileId) return mobileId;
+    const shortJobId = url.pathname.match(/^\/job\/([a-z\d_-]+)\/?$/i)?.[1];
+    if (shortJobId) return shortJobId;
   }
   if (platform === "51JOB") {
     const desktopId = desktop51JobIdentity(url);
     if (desktopId) return desktopId;
   }
+  if (platform === "Indeed") {
+    const jk = url.searchParams.get("jk");
+    if (jk && /^[a-z\d_-]+$/i.test(jk)) return jk;
+  }
   const patterns: Record<JobPlatform, RegExp> = {
-    BOSS直聘: /^\/job_detail\/([^/]+)\.html\/?$/i,
-    猎聘: /^\/job\/(\d+)\.shtml\/?$/i,
+    BOSS直聘: /^\/(?:job_detail|job)\/([^/]+?)(?:\.html)?\/?$/i,
+    猎聘: /^\/(?:job|a)\/(\d+)\.shtml\/?$/i,
     "51JOB": /^\/jobs\/(?:[^/]+\/)*(\d+)\.html\/?$/i,
     LinkedIn: /^\/jobs\/view\/(?:[^/]*-)?(\d+)\/?$/i,
+    Seek: /^\/job\/(\d+)\/?$/i,
+    Indeed: /^\/viewjob\/?$/i,
+    GradConnection: /^\/jobs\/([a-z\d_-]+)\/?$/i,
   };
   return url.pathname.match(patterns[platform])?.[1];
 }
@@ -195,7 +233,7 @@ export function extractPublicJobHtml(html: string, platform: JobPlatform, source
     && /^\/mpa\/html\/weijd\/weijd-job\/[a-z\d_-]+\/?$/i.test(source.pathname);
   const validatedLiepinDescription = options.requireVisibleDescription === true && options.allowValidatedLiepinDescription === true
     && platform === "猎聘" && source?.protocol === "https:" && ["liepin.com", "m.liepin.com", "www.liepin.com"].includes(source.hostname)
-    && !source.username && !source.password && (!source.port || source.port === "443") && /^\/job\/\d+\.shtml\/?$/.test(source.pathname);
+    && !source.username && !source.password && (!source.port || source.port === "443") && /^\/(?:job|a)\/\d+\.shtml\/?$/.test(source.pathname);
   const selectors: Record<JobPlatform, string> = {
     LinkedIn: ".show-more-less-html__markup",
     猎聘: ".job-intro-content,.job-description,.job-desc-content",
@@ -203,8 +241,11 @@ export function extractPublicJobHtml(html: string, platform: JobPlatform, source
     // The mobile share DOM contains collapsed text in its original HTML. Only
     // the browser's validated visible projection may opt into that container.
     BOSS直聘: validatedBossShare ? ".job-sec-text,.share-position .rec-detail > div.detail-text" : ".job-sec-text",
+    Seek: "[data-automation='jobAdDetails'],.templatetext,.job-details,.job-description",
+    Indeed: "#jobDescriptionText,.jobsearch-JobComponent-description,.jobsearch-jobDescriptionText",
+    GradConnection: ".job-description,.campaign-description,.job-details,.opportunity-description",
   };
-  const excludedRegions = "nav,aside,footer,.recommend,.recommendation,.recommendations,.job-recommend,.job-recommend-list,.related-jobs";
+  const excludedRegions = "nav,aside,footer,.recommend,.recommendation,.recommendations,.job-recommend,.job-recommend-list,.related-jobs,.company-info-box";
   const descriptionBody = $("body").clone();
   descriptionBody.find(excludedRegions).remove();
   const visibleDescriptionText = descriptionBody.is(excludedRegions) ? "" : cleanJobHtml(descriptionBody.html() ?? "");
@@ -358,6 +399,10 @@ export function extractPublicJobHtml(html: string, platform: JobPlatform, source
   if (independent[0]) {
     // Unaccepted or other-job metadata cannot be used to bypass location gates.
     const detailLocations = postings.length ? undefined : visibleOfficeCapture();
+    const bossShareHeader = validatedBossShare ? readBossShareHeader($, excludedRegions) : undefined;
+    if (bossShareHeader) {
+      return { text: [bossShareHeader.lines.join("\n"), `职位描述\n${independent[0]}`].join("\n\n"), title: bossShareHeader.title, method: "公开岗位详情正文", ...(detailLocations ? { detailLocations } : {}) };
+    }
     return { text: [pageTitle, independent[0]].filter(Boolean).join("\n\n"), title: pageTitle || undefined, method: "公开岗位详情正文", ...(detailLocations ? { detailLocations } : {}) };
   }
   pageFailure("unsupported_page");
@@ -476,7 +521,475 @@ function sendJson(response: ServerResponse, status: number, value: unknown) {
   response.end(JSON.stringify(value));
 }
 
+let latestSyncedJob: {
+  title: string;
+  company: string;
+  salary?: string;
+  location?: string;
+  description: string;
+  sourceUrl?: string;
+  syncedAt: number;
+} | null = null;
+
+const AUTO_BROWSER_CONTENT_SELECTORS = [
+  ".job-sec-text",
+  ".job-detail-section",
+  ".job-description",
+  ".job-content",
+  ".job-intro-content",
+  ".job_msg",
+  ".show-more-less-html__markup",
+  // BOSS直聘 mobile share page
+  ".share-position .rec-detail .detail-text",
+];
+
+const AUTO_BROWSER_PAGE_STATE = `(() => {
+  const selectors = ${JSON.stringify(AUTO_BROWSER_CONTENT_SELECTORS)};
+  const content = selectors.some((selector) => Array.from(document.querySelectorAll(selector)).some((node) => (node.innerText || "").trim().length >= 20));
+  const text = (document.body && document.body.innerText || "").slice(0, 4000);
+  const gate = /(?:安全验证|人机验证|访问验证|请.{0,8}验证码|拖动.{0,8}(?:滑块|完成)|verify.{0,15}human)/i.test(text)
+    ? "verification_required"
+    : /(?:请先登录|登录后查看|sign in to continue)/i.test(text) ? "login_required" : undefined;
+  return { content, gate };
+})()`;
+
+export type AutoBrowserGatePage = {
+  url(): string;
+  evaluate<T>(script: string): Promise<T>;
+  waitForTimeout(ms: number): Promise<void>;
+};
+
+export type AutoBrowserWaitOptions = {
+  signal?: AbortSignal;
+  /** How long to look for job content when no verification or login gate is shown. */
+  contentTimeoutMs?: number;
+  /** How long the user may take to finish a verification or login in the visible window. */
+  humanTimeoutMs?: number;
+  pollMs?: number;
+  now?: () => number;
+};
+
+/**
+ * Waits until the job content renders. While the platform shows its own verification or
+ * login page, keeps the visible window open so the user can finish it; never solves it.
+ */
+export async function waitForAutoBrowserJob(page: AutoBrowserGatePage, platform: JobPlatform, options: AutoBrowserWaitOptions = {}): Promise<void> {
+  const { signal, contentTimeoutMs = 25_000, humanTimeoutMs = 180_000, pollMs = 1_000, now = Date.now } = options;
+  const { isBrowserVerificationUrl } = await import("./jd-browser");
+  const startedAt = now();
+  let navigatedAt = startedAt;
+  let lastUrl = page.url();
+  let gate: "verification_required" | "login_required" | undefined;
+  for (;;) {
+    signal?.throwIfAborted();
+    const state = await page.evaluate<{ content?: boolean; gate?: typeof gate }>(AUTO_BROWSER_PAGE_STATE).catch(() => ({ content: false, gate: undefined }));
+    const currentUrl = page.url();
+    const onVerificationUrl = isBrowserVerificationUrl(currentUrl, platform);
+    if (state.content && !onVerificationUrl) return;
+    if (onVerificationUrl) gate = "verification_required";
+    else if (state.gate) gate = state.gate;
+    if (currentUrl !== lastUrl) { lastUrl = currentUrl; navigatedAt = now(); }
+    if (!gate && now() - navigatedAt >= contentTimeoutMs) return;
+    if (gate && now() - startedAt >= humanTimeoutMs) break;
+    await page.waitForTimeout(pollMs);
+  }
+  const minutes = Math.round(humanTimeoutMs / 60_000);
+  throw new JdExtractionError({
+    code: gate,
+    stage: "page",
+    message: gate === "login_required"
+      ? `${platform}要求登录后才能查看岗位正文，自动化浏览器等待 ${minutes} 分钟后已关闭。请在原网站自行登录后重试，或截图识别、粘贴正文。`
+      : `${platform}弹出了安全验证，自动化浏览器等待 ${minutes} 分钟仍未看到岗位正文。请重新读取并在弹出的浏览器窗口里自行完成验证，或截图识别、粘贴正文。`,
+  });
+}
+
+export async function autoExtractWithBrowser(input: string, signal?: AbortSignal): Promise<JdImportResult> {
+  let normalizedInput = input.trim();
+  const bossShortMatch = normalizedInput.match(/^(?:https?:\/\/(?:www\.)?zhipin\.com\/)?(?:job|job_detail)\/([a-z\d_-]+)/i);
+  if (bossShortMatch) {
+    normalizedInput = `https://www.zhipin.com/job_detail/${bossShortMatch[1]}.html`;
+  }
+  const { url, platform } = normalizeJobShare(normalizedInput);
+  const { chromium } = await import("playwright-core");
+  const channel = process.platform === "win32" ? "msedge" : "chrome";
+
+  let browser;
+  let isCdp = false;
+
+  // 1. If real Chrome CDP port 9222 is active, connect directly (no new window, completely background)
+  try {
+    const cdpRunning = await checkCdpRunning(9222);
+    if (cdpRunning) {
+      browser = await chromium.connectOverCDP("http://127.0.0.1:9222", { timeout: 2500 });
+      isCdp = true;
+    }
+  } catch {
+    // fallback to normal launch
+  }
+
+  // 2. Otherwise launch browser in background without stealing foreground focus
+  if (!browser) {
+    let frontmostApp: string | null = null;
+    if (process.platform === "darwin") {
+      try {
+        const { execSync } = await import("node:child_process");
+        frontmostApp = execSync(`osascript -e 'tell application "System Events" to get name of first process whose frontmost is true'`, { encoding: "utf8", timeout: 800 }).trim();
+      } catch {}
+    }
+
+    try {
+      browser = await chromium.launch({
+        channel,
+        headless: false,
+        args: [
+          "--disable-blink-features=AutomationControlled",
+          "--no-first-run",
+          "--no-default-browser-check",
+        ],
+      });
+    } catch (cause) {
+      const browserName = process.platform === "win32" ? "Microsoft Edge" : "Google Chrome";
+      throw new JdExtractionError({
+        code: "browser_unavailable",
+        stage: "service",
+        message: `无法启动自动化浏览器（${browserName}），请确认已安装 Chrome 或 Edge。`,
+      }, { cause });
+    }
+
+    // Keep newly launched browser behind current application on macOS
+    if (frontmostApp && process.platform === "darwin") {
+      try {
+        const { exec } = await import("node:child_process");
+        exec(`osascript -e 'tell application "${frontmostApp.replace(/"/g, '\\"')}" to activate'`, () => {});
+      } catch {}
+    }
+  }
+
+  let page: any = undefined;
+  try {
+    const context = isCdp
+      ? (browser.contexts()[0] || await browser.newContext())
+      : await browser.newContext({
+          locale: "zh-CN",
+          viewport: { width: 1280, height: 800 },
+        });
+
+    if (!isCdp) {
+      await context.addInitScript(`(() => {
+        try { Object.defineProperty(navigator, 'webdriver', { get: () => undefined }); } catch (_) {}
+        try { if (!window.chrome) { window.chrome = { runtime: {} }; } } catch (_) {}
+      })()`);
+    }
+
+    page = await context.newPage();
+
+    if (signal) {
+      if (signal.aborted) throw signal.reason;
+      signal.addEventListener("abort", () => {
+        if (isCdp) {
+          void page?.close().catch(() => undefined);
+        } else {
+          void browser?.close().catch(() => undefined);
+        }
+      }, { once: true });
+    }
+
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+    await waitForAutoBrowserJob(page, platform, { signal });
+
+    const html = await page.content();
+    const capturedAt = new Date().toISOString();
+
+    // Capture the final URL after any browser-side redirects (e.g. mobile → desktop).
+    // Using the pre-navigation URL would cause identity mismatches when BOSS redirects
+    // from m.zhipin.com/mpa/... to www.zhipin.com/job_detail/...
+    const finalUrl = page.url();
+    let finalPlatform = platform;
+    try {
+      const resolved = normalizeJobShare(finalUrl);
+      finalPlatform = resolved.platform;
+    } catch { /* keep original platform if the final URL isn't a recognized job URL */ }
+
+    // requireVisibleDescription: only accept description text that is rendered in the live DOM.
+    //   This prevents LD+JSON entries for recommended/related jobs (embedded in BOSS pages)
+    //   from causing "ambiguous_jobs" — they aren't visible as the main job content.
+    // allowValidatedBossShareDescription: enables the .share-position .rec-detail selector
+    //   on validated BOSS mobile share pages.
+    const result = extractPublicJobHtml(html, finalPlatform, finalUrl, {
+      capturedAt,
+      requireVisibleDescription: true,
+      allowValidatedBossShareDescription: true,
+    });
+
+    return {
+      ...result,
+      provenance: {
+        kind: "link",
+        platform: finalPlatform,
+        url: finalUrl,
+        observedAt: capturedAt,
+        title: result.title,
+        ...readJdPublicationFields(result),
+      },
+    };
+  } finally {
+    if (isCdp) {
+      if (page && !page.isClosed()) {
+        await page.close().catch(() => undefined);
+      }
+    } else if (browser) {
+      await browser.close().catch(() => undefined);
+    }
+  }
+}
+
 export async function jdExtractionMiddleware(request: IncomingMessage, response: ServerResponse, next: () => void, sessions: Pick<typeof browserSessionManager, "readOnce"> = browserSessionManager) {
+  if (request.url?.split("?")[0] === "/api/jd/sync-extension") {
+    if (request.method === "OPTIONS") {
+      response.writeHead(204, {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Max-Age": "86400",
+      });
+      response.end();
+      return;
+    }
+    if (request.method === "GET") {
+      response.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Access-Control-Allow-Origin": "*",
+      });
+      response.end(JSON.stringify({ ok: true, latest: latestSyncedJob }));
+      return;
+    }
+    if (request.method === "POST") {
+      const chunks: Buffer[] = [];
+      for await (const chunk of request) {
+        chunks.push(Buffer.from(chunk));
+      }
+      try {
+        const body = JSON.parse(Buffer.concat(chunks).toString("utf-8")) as Record<string, unknown>;
+        latestSyncedJob = {
+          title: String(body.title || "").trim() || "目标职位",
+          company: String(body.company || "").trim() || "目标企业",
+          salary: typeof body.salary === "string" ? body.salary.trim() : undefined,
+          location: typeof body.location === "string" ? body.location.trim() : undefined,
+          description: String(body.description || "").trim(),
+          sourceUrl: typeof body.sourceUrl === "string" ? body.sourceUrl.trim() : undefined,
+          syncedAt: Date.now(),
+        };
+        response.writeHead(200, {
+          "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "no-store",
+          "Access-Control-Allow-Origin": "*",
+        });
+        response.end(JSON.stringify({ ok: true, syncedJob: latestSyncedJob }));
+      } catch {
+        response.writeHead(400, {
+          "Content-Type": "application/json; charset=utf-8",
+          "Access-Control-Allow-Origin": "*",
+        });
+        response.end(JSON.stringify({ error: "Invalid JSON" }));
+      }
+      return;
+    }
+  }
+  if (request.url?.split("?")[0] === "/api/jd/auto-browser-extract") {
+    if (request.method !== "POST") { sendJson(response, 405, { error: "请使用 POST 提交岗位分享链接。" }); return; }
+    if (!request.headers["content-type"]?.includes("application/json")) { sendJson(response, 415, { error: "仅接受 JSON 格式的岗位链接。" }); return; }
+    if (!isTrustedLocalRequest(request) || !request.headers.origin || !request.headers.host) { sendJson(response, 403, { error: "自动化浏览器提取仅允许本机工作台访问。" }); return; }
+    const operation = new AbortController();
+    const abortOperation = () => operation.abort(new DOMException("岗位请求已取消。", "AbortError"));
+    const closeOperation = () => { if (!response.writableEnded) abortOperation(); };
+    request.once("aborted", abortOperation);
+    response.once("close", closeOperation);
+    try {
+      let size = 0;
+      const chunks: Buffer[] = [];
+      for await (const chunk of request) {
+        size += chunk.length;
+        if (size > 32_000) { sendJson(response, 413, { error: "分享内容过长，请只保留岗位链接。" }); return; }
+        chunks.push(Buffer.from(chunk));
+      }
+      const body = JSON.parse(Buffer.concat(chunks).toString("utf-8")) as { input?: unknown };
+      if (typeof body.input !== "string") { sendJson(response, 400, { error: "请提供岗位分享链接。" }); return; }
+      const result = await autoExtractWithBrowser(body.input, operation.signal);
+      sendJson(response, 200, result);
+    } catch (error) {
+      const failure = error instanceof JdExtractionError ? error.failure : { code: "service_unavailable", stage: "service", message: error instanceof Error ? error.message : "自动化浏览器提取失败，请使用截图识别。" };
+      sendJson(response, 422, { error: failure.message, failure });
+    } finally {
+      request.removeListener("aborted", abortOperation);
+      response.removeListener("close", closeOperation);
+    }
+    return;
+  }
+  if (request.url?.split("?")[0] === "/api/jd/cookie-bridge") {
+    if (request.method === "OPTIONS") {
+      response.writeHead(204, {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Max-Age": "86400",
+      });
+      response.end();
+      return;
+    }
+    if (request.method === "GET") {
+      response.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Access-Control-Allow-Origin": "*",
+      });
+      response.end(JSON.stringify({ ok: true, message: "BetterMe Cookie Bridge ready" }));
+      return;
+    }
+    if (request.method === "POST") {
+      const chunks: Buffer[] = [];
+      for await (const chunk of request) {
+        chunks.push(Buffer.from(chunk));
+      }
+      try {
+        const text = Buffer.concat(chunks).toString("utf-8");
+        const rawData: any = JSON.parse(text);
+        let platform = "boss";
+        let cookies: any[] = [];
+        let port = 9222;
+
+        if (Array.isArray(rawData)) {
+          cookies = rawData;
+          const d = String(cookies[0]?.domain || "");
+          if (d.includes("zhipin")) platform = "boss";
+          else if (d.includes("liepin")) platform = "liepin";
+          else if (d.includes("51job")) platform = "51job";
+          else if (d.includes("linkedin")) platform = "linkedin";
+        } else if (typeof rawData === "object" && rawData !== null) {
+          if (typeof rawData.port === "number") port = rawData.port;
+          if (typeof rawData.platform === "string") {
+            const p = rawData.platform.toLowerCase();
+            if (p.includes("zhipin") || p === "boss") platform = "boss";
+            else if (p.includes("liepin")) platform = "liepin";
+            else if (p.includes("51job")) platform = "51job";
+            else if (p.includes("linkedin")) platform = "linkedin";
+            else platform = p;
+          }
+          if (Array.isArray(rawData.cookies)) {
+            cookies = rawData.cookies;
+          } else if (typeof rawData.cookies === "string") {
+            cookies = rawData.cookies
+              .split(";")
+              .map((c: string) => {
+                const parts = c.trim().split("=");
+                return { name: parts[0]?.trim(), value: parts.slice(1).join("=").trim() };
+              })
+              .filter((c: any) => Boolean(c.name));
+          } else if (typeof rawData.cookieString === "string") {
+            cookies = rawData.cookieString
+              .split(";")
+              .map((c: string) => {
+                const parts = c.trim().split("=");
+                return { name: parts[0]?.trim(), value: parts.slice(1).join("=").trim() };
+              })
+              .filter((c: any) => Boolean(c.name));
+          }
+        }
+
+        const { checkCdpRunning, launchRealChromeCdp, injectPlatformCookies } = await import("./jd-real-chrome-launcher");
+        const running = await checkCdpRunning(port);
+        if (!running) {
+          await launchRealChromeCdp(port);
+          await new Promise((r) => setTimeout(r, 600));
+        }
+
+        const result = await injectPlatformCookies(cookies, { defaultDomain: platform, port });
+        response.writeHead(result.success ? 200 : 400, {
+          "Content-Type": "application/json; charset=utf-8",
+          "Access-Control-Allow-Origin": "*",
+        });
+        response.end(JSON.stringify({ ...result, platform }));
+      } catch (err: any) {
+        response.writeHead(400, {
+          "Content-Type": "application/json; charset=utf-8",
+          "Access-Control-Allow-Origin": "*",
+        });
+        response.end(JSON.stringify({ success: false, error: err?.message || "Invalid JSON or cookie payload" }));
+      }
+      return;
+    }
+    response.writeHead(405, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Access-Control-Allow-Origin": "*",
+    });
+    response.end(JSON.stringify({ error: "Method Not Allowed" }));
+    return;
+  }
+  if (request.url?.split("?")[0] === "/api/jd/real-chrome") {
+    const { getRealChromeStatus, launchRealChromeCdp, focusRealChromeWindow, killRealChromeCdp, openRealChromeTab, openRealChromeTabs, getPlatformAuthStatuses, openPlatformLoginTab, injectPlatformCookies } = await import("./jd-real-chrome-launcher");
+    if (request.method === "GET") {
+      const status = await getRealChromeStatus();
+      sendJson(response, 200, status);
+      return;
+    }
+    if (request.method === "POST") {
+      let body: { action?: string; port?: number; url?: string; urls?: string[]; platform?: any; cookies?: any } = {};
+      try {
+        const chunks: Buffer[] = [];
+        for await (const chunk of request) chunks.push(Buffer.from(chunk));
+        body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+      } catch {
+        // empty body
+      }
+      if (body.action === "inject-cookies") {
+        const cookies = Array.isArray(body.cookies) ? body.cookies : [];
+        const result = await injectPlatformCookies(cookies, { defaultDomain: body.platform, port: body.port });
+        sendJson(response, result.success ? 200 : 400, result);
+        return;
+      }
+      if (body.action === "platform-auth") {
+        const authOverview = await getPlatformAuthStatuses(body.port);
+        sendJson(response, 200, authOverview);
+        return;
+      }
+      if (body.action === "open-platform-login") {
+        const platform = body.platform || "boss";
+        const success = await openPlatformLoginTab(platform, body.port);
+        await focusRealChromeWindow(body.port);
+        sendJson(response, 200, { success });
+        return;
+      }
+      if (body.action === "focus") {
+        const success = await focusRealChromeWindow(body.port);
+        sendJson(response, 200, { success });
+        return;
+      }
+      if (body.action === "open-tab" && typeof body.url === "string") {
+        const success = await openRealChromeTab(body.url, body.port);
+        sendJson(response, 200, { success });
+        return;
+      }
+      if (body.action === "open-tabs" && Array.isArray(body.urls) && body.urls.length > 0) {
+        const success = await openRealChromeTabs(body.urls, body.port);
+        sendJson(response, 200, { success });
+        return;
+      }
+      if (body.action === "kill" || body.action === "restart") {
+        await killRealChromeCdp(body.port);
+        if (body.action === "kill") {
+          const status = await getRealChromeStatus(body.port);
+          sendJson(response, 200, status);
+          return;
+        }
+        // If restart, wait a short moment and re-launch
+        await new Promise((r) => setTimeout(r, 400));
+      }
+      const result = await launchRealChromeCdp(body.port);
+      sendJson(response, 200, result);
+      return;
+    }
+    sendJson(response, 405, { error: "仅支持 GET 或 POST 请求" });
+    return;
+  }
   if (request.url?.split("?")[0] === "/api/jd/search-session") { const { jobSearchMiddleware } = await import("./jd-search-api"); await jobSearchMiddleware(request, response, browserSessionManager); return; }
   if (request.url?.split("?")[0] === "/api/jd/browser-session") { await browserSessionMiddleware(request, response); return; }
   if (request.url?.split("?")[0] !== "/api/jd/extract") { next(); return; }
@@ -545,6 +1058,16 @@ export async function browserSessionMiddleware(request: IncomingMessage, respons
       if (stopBrowser) { await sessions.closeAll().catch(() => undefined); await stopBrowser(); }
       else await sessions.stopBrowser();
       sendJson(response, 200, { closed: true });
+    }
+    else if (body.action === "launch-real-chrome") {
+      const { launchRealChromeCdp } = await import("./jd-real-chrome-launcher");
+      const result = await launchRealChromeCdp(typeof body.port === "number" ? body.port : 9222);
+      sendJson(response, 200, result);
+    }
+    else if (body.action === "status-real-chrome") {
+      const { getRealChromeStatus } = await import("./jd-real-chrome-launcher");
+      const result = await getRealChromeStatus(typeof body.port === "number" ? body.port : 9222);
+      sendJson(response, 200, result);
     }
     else if (body.action === "start" && typeof body.input === "string") {
       if (Object.hasOwn(body, "requestId")) {

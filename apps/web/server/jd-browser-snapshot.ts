@@ -6,7 +6,7 @@ import { reviewedCardIdentity } from "@better-me/source-adapters/platform-job-id
 /** Fixed count-only diagnostics. These describe parser roots, never job totals. */
 export const SearchProjectionDiagnosticsSchema = z.object({
   schemaVersion: z.literal(1),
-  platform: z.enum(["51JOB", "BOSS直聘", "猎聘", "LinkedIn"]),
+  platform: z.enum(["51JOB", "BOSS直聘", "猎聘", "LinkedIn", "Seek", "Indeed", "GradConnection"]),
   rawRoots: z.number().int().min(0).max(25_000),
   hiddenRoots: z.number().int().min(0).max(25_000),
   excludedRoots: z.number().int().min(0).max(25_000),

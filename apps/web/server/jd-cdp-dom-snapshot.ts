@@ -514,7 +514,7 @@ export function projectNativeDomSnapshot(
     // These are the scalar wrappers used by the built-in search configurations.
     const fieldClasses = new Set([
       "jobname", "job-name", "job-title", "jname", "company-name", "companyName", "cname", "com_name",
-      "job-area", "jobarea", "workarea", "work-area", "job-location", "job-dq-box", "job-dq",
+      "job-area", "jobarea", "workarea", "work-area", "area", "job-location", "job-dq-box", "job-dq",
       // The observed Liepin build's salary span must remain a whole scalar,
       // including when only its suffix is clipped or visually unsupported.
       "salary", "job-salary", "sal", "text-warning", "_40108qjbMk", "job-publish-time", "published-time", "job-published-time",
@@ -582,7 +582,16 @@ export function projectNativeDomSnapshot(
       if (diagnosticRoots.has(index)) projectedRoots.add(index);
       const keys = ["class", "id", "role", "aria-modal", "open", ...(hasContent(index) && node.name === "A" ? ["href"] : []), ...(hasContent(index) && node.name === "TIME" ? ["datetime"] : [])];
       const attrs = keys.filter(key => node.attrs.has(key)).map(key => ` ${key}="${escapeAttribute(node.attrs.get(key)!)}"`).join("");
-      const result = `<${name}${attrs}>${node.children.map(renderSearch).join("")}${VOID_TAGS.has(node.name) ? "" : `</${name}>`}`;
+      let job51Link = "";
+      if (searchPlatform === "51JOB" && hasContent(index) && classes[index].includes("joblist-item-job") && node.attrs.has("sensorsdata")) {
+        try {
+          const parsed = JSON.parse(node.attrs.get("sensorsdata")!) as { jobId?: unknown };
+          if (typeof parsed?.jobId === "string" && /^\d+$/.test(parsed.jobId)) {
+            job51Link = `<a href="https://jobs.51job.com/all/${parsed.jobId}.html"></a>`;
+          }
+        } catch {}
+      }
+      const result = `<${name}${attrs}>${job51Link}${node.children.map(renderSearch).join("")}${VOID_TAGS.has(node.name) ? "" : `</${name}>`}`;
       units += name.length * 2 + attrs.length + 5; if (units > MAX_HTML_BYTES) fail("snapshot_limit_exceeded"); return result;
     };
     // Search never copies hidden JSON-LD, canonical tags or DOM text as fallback.

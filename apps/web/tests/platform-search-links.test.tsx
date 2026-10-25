@@ -21,12 +21,12 @@ function render(patch: Partial<Props> = {}) {
 afterEach(() => { mock.restoreAll(); dom.document.body.replaceChildren(); });
 after(() => { hooks.deregister(); dom.happyDOM.abort(); });
 
-test("collapsed original-site search renders four encoded links and no collection or network effect", () => {
+test("collapsed original-site search renders seven encoded links and no collection or network effect", () => {
   const fetcher = mock.method(globalThis, "fetch", async () => { throw new Error("Rendering cannot fetch jobs"); });
   let reads = 0;
   const document = render({ onOpenSingleJob: () => { reads++; } });
   assert.equal(document.querySelector("details")!.hasAttribute("open"), false);
-  assert.equal(document.querySelectorAll("a").length, 4);
+  assert.equal(document.querySelectorAll("a").length, 7);
   assert.match(document.body.textContent!, /打开原站搜索；尚未采集到地图/);
   assert.match(document.body.textContent!, /BOSS 当前仅核对搜索参数/);
   assert.match(document.body.textContent!, /读取 \/ 收藏单个岗位/);
@@ -44,7 +44,7 @@ test("collapsed original-site search renders four encoded links and no collectio
 test("an unmapped city blocks every platform instead of falling back to the selected country", () => {
   const document = render({ regionText: "未配置的城市" });
   assert.equal(document.querySelectorAll("a").length, 0);
-  assert.equal(document.querySelectorAll('[aria-disabled="true"]').length, 4);
+  assert.equal(document.querySelectorAll('[aria-disabled="true"]').length, 7);
   assert.match(document.querySelector('[role="status"]')!.textContent!, /未配置的城市.*尚无明确的平台映射/);
   assert.equal(document.body.textContent!.includes("平台默认地区"), false);
 });
@@ -55,14 +55,15 @@ test("conflicting country and resolved city cannot quietly lose the country cons
   assert.match(document.querySelector('[role="status"]')!.textContent!, /上海.*US.*不一致/);
 });
 
-test("an overseas country enables LinkedIn while unmapped domestic providers remain disabled", () => {
+test("an overseas country enables LinkedIn and Indeed while unmapped domestic providers remain disabled", () => {
   const document = render({ regionText: "", countryCode: "US" });
   const links = document.querySelectorAll("a");
-  assert.equal(links.length, 1);
-  assert.equal(new URL(links[0]!.href).hostname, "www.linkedin.com");
-  assert.equal(new URL(links[0]!.href).searchParams.get("location"), "United States");
-  assert.equal(document.querySelectorAll('[aria-disabled="true"]').length, 3);
-  assert.equal(document.querySelectorAll(".atlas-platform-search-grid .atlas-platform-search-error").length, 3);
+  assert.equal(links.length, 2);
+  const hostnames = [...links].map((link) => new URL(link.href).hostname);
+  assert.ok(hostnames.includes("www.linkedin.com"));
+  assert.ok(hostnames.includes("www.indeed.com"));
+  assert.equal(document.querySelectorAll('[aria-disabled="true"]').length, 5);
+  assert.equal(document.querySelectorAll(".atlas-platform-search-grid .atlas-platform-search-error").length, 5);
 });
 
 test("country-only CN retains nationwide platform mappings and empty scope discloses defaults", () => {
@@ -70,7 +71,7 @@ test("country-only CN retains nationwide platform mappings and empty scope discl
   const liepin = document.querySelector('[data-platform-search="liepin"] a')!;
   assert.equal(new URL(liepin.getAttribute("href")!).searchParams.get("dq"), "410");
   document = render({ regionText: "", countryCode: "" });
-  assert.equal(document.querySelectorAll("a").length, 4);
+  assert.equal(document.querySelectorAll("a").length, 7);
   assert.match(document.body.textContent!, /不代表全国或全球搜索/);
   assert.equal(new URL(document.querySelector('[data-platform-search="boss"] a')!.getAttribute("href")!).searchParams.has("city"), false);
 });
@@ -78,13 +79,13 @@ test("country-only CN retains nationwide platform mappings and empty scope discl
 test("empty keywords allow browsing the selected region and invalid keywords remain rejected", () => {
   for (const keyword of ["", "  "]) {
     const document = render({ keyword });
-    assert.equal(document.querySelectorAll("a").length, 4);
+    assert.equal(document.querySelectorAll("a").length, 7);
     assert.match(document.body.textContent!, /按所选地区浏览岗位/);
   }
   for (const keyword of ["C#\n开发", "x".repeat(301)]) {
     const document = render({ keyword });
     assert.equal(document.querySelectorAll("a").length, 0);
-    assert.equal(document.querySelectorAll('[aria-disabled="true"]').length, 4);
+    assert.equal(document.querySelectorAll('[aria-disabled="true"]').length, 7);
   }
 });
 
