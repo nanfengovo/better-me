@@ -4,7 +4,15 @@ import type { JobSessionBackend } from "./jd-session-router";
 import { isTrustedLocalRequest } from "./network-proxy";
 import { JdExtractionError } from "../src/lib/jd-errors";
 import { isJdStartRequestId } from "../src/lib/jd-start-request";
-import { LiveBatchSearchInputSchema, runLiveBatchSearch } from "./jd-live-batch-search";
+import {
+  LiveBatchSearchInputSchema,
+  liveBatchCardBudget,
+  liveBatchProviderPageBudget,
+  liveBatchScrollBudget,
+  runLiveBatchSearch,
+  type LiveBatchSearchInput,
+  type LiveBatchSearchCallbacks,
+} from "./jd-live-batch-search";
 import {
   CompanyIntelligenceBatchInputSchema,
   CompanyIntelligenceLookupInputSchema,
@@ -21,6 +29,97 @@ const send = (response: ServerResponse, status: number, value: unknown) => {
   response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
   response.end(JSON.stringify(value));
 };
+
+const MAX_LIVE_STREAM_BYTES = 24 * 1024 * 1024;
+
+export async function streamLiveBatchSearch(
+  response: ServerResponse,
+  input: LiveBatchSearchInput,
+  operation: AbortController,
+  runner: typeof runLiveBatchSearch = runLiveBatchSearch,
+): Promise<void> {
+  const { signal } = operation;
+  response.writeHead(200, {
+    "Content-Type": "text/event-stream; charset=utf-8",
+    "Cache-Control": "no-store, no-transform",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+  response.flushHeaders?.();
+  let streamBytes = 0;
+  const writeEvent = (event: unknown) => {
+    const frame = `data: ${JSON.stringify(event)}\n\n`;
+    streamBytes += Buffer.byteLength(frame, "utf8");
+    if (streamBytes > MAX_LIVE_STREAM_BYTES) {
+      operation.abort(new Error("实时搜索结果超过 24 MiB 安全上限，已停止本轮采集。"));
+      return Promise.resolve(false);
+    }
+    if (response.destroyed || response.writableEnded || signal.aborted) return Promise.resolve(false);
+    try {
+      if (response.write(frame)) return Promise.resolve(true);
+    } catch { return Promise.resolve(false); }
+    return new Promise<boolean>((resolve) => {
+      const finish = (writable: boolean) => {
+        response.off("drain", onDrain);
+        response.off("close", onClose);
+        signal.removeEventListener("abort", onAbort);
+        resolve(writable);
+      };
+      const onDrain = () => finish(true);
+      const onClose = () => finish(false);
+      const onAbort = () => finish(false);
+      response.once("drain", onDrain);
+      response.once("close", onClose);
+      signal.addEventListener("abort", onAbort, { once: true });
+      if (response.destroyed || response.writableEnded || signal.aborted) finish(false);
+    });
+  };
+  const callbacks: LiveBatchSearchCallbacks = {
+    async onProviderQueued(provider, platform) {
+      await writeEvent({
+        type: "provider-queued",
+        provider,
+        platform,
+        pageLimit: liveBatchProviderPageBudget(provider, input.depth, input.maxPages),
+        scrollLimit: liveBatchScrollBudget(provider, input.depth),
+        cardLimit: liveBatchCardBudget(input.depth),
+      });
+    },
+    async onProviderStart(provider, platform) {
+      await writeEvent({
+        type: "provider-start",
+        provider,
+        platform,
+        pageLimit: liveBatchProviderPageBudget(provider, input.depth, input.maxPages),
+        scrollLimit: liveBatchScrollBudget(provider, input.depth),
+        cardLimit: liveBatchCardBudget(input.depth),
+      });
+    },
+    async onProviderProgress(progress) {
+      await writeEvent({
+        type: "provider-progress",
+        ...progress,
+        pageLimit: liveBatchProviderPageBudget(progress.provider, input.depth, input.maxPages),
+        scrollLimit: liveBatchScrollBudget(progress.provider, input.depth),
+        cardLimit: liveBatchCardBudget(input.depth),
+      });
+    },
+    async onProviderResult(result) { await writeEvent({ type: "provider-result", result }); },
+  };
+  try {
+    const result = await runner(input, signal, callbacks);
+    if (signal.aborted) throw signal.reason;
+    await writeEvent({ type: "complete", capturedAt: result.capturedAt, providers: result.results.map((entry) => entry.provider) });
+    if (!response.destroyed && !response.writableEnded) response.end();
+  } catch (error) {
+    if (response.destroyed || response.writableEnded) return;
+    const failure = error instanceof JdExtractionError ? error.failure : undefined;
+    // If a safety limit or disconnect aborts collection, the missing complete
+    // event is deliberate; clients treat it as an incomplete run, never zero jobs.
+    if (!signal.aborted) await writeEvent({ type: "error", message: failure?.message ?? (error instanceof Error ? error.message : "实时搜索未能完成。") });
+    if (!response.destroyed && !response.writableEnded) response.end();
+  }
+}
 
 /** Uses the same browser owner and global page lease as the single-job reader. */
 export async function jobSearchMiddleware(request: IncomingMessage, response: ServerResponse, sessions: JobSessionBackend) {
@@ -70,6 +169,10 @@ export async function jobSearchMiddleware(request: IncomingMessage, response: Se
       if (!input.success) { send(response, 400, { error: "多平台实时搜索关键词或地区参数无效。" }); return; }
       const result = await runLiveBatchSearch(input.data, operation.signal);
       send(response, 200, result);
+    } else if (body.action === "live-batch-search-stream") {
+      const input = LiveBatchSearchInputSchema.safeParse(body.input);
+      if (!input.success) { send(response, 400, { error: "多平台实时搜索关键词或地区参数无效。" }); return; }
+      await streamLiveBatchSearch(response, input.data, operation);
     } else if (body.action === "company-intelligence") {
       const input = CompanyIntelligenceLookupInputSchema.safeParse(body.input);
       if (!input.success) { send(response, 400, { error: "企业性质与办公地址查询参数无效。" }); return; }

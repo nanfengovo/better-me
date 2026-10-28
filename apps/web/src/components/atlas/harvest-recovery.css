@@ -1,0 +1,17 @@
+.atlas-harvest-recovery {
+  display: flex;
+  align-items: flex-start;
+  gap: .5rem;
+  margin: .5rem 1rem;
+  color: var(--color-ink-muted, var(--ui-text-secondary, #64748b));
+  font-size: .75rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.atlas-harvest-recovery > svg { flex: 0 0 auto; margin-top: .2rem; }
+.atlas-harvest-recovery > span { flex: 1; min-width: 0; }
+.atlas-harvest-recovery > button { flex: 0 0 auto; border: 1px solid var(--color-line, var(--ui-border)); border-radius: 6px; padding: 3px 7px; color: var(--color-ink, var(--ui-text)); background: var(--color-panel, var(--ui-surface)); font: inherit; cursor: pointer; }
+.atlas-harvest-recovery > button:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+.atlas-harvest-recovery > button:disabled { opacity: .55; cursor: default; }
+@media (max-width: 540px) { .atlas-harvest-recovery { flex-wrap: wrap; } .atlas-harvest-recovery > button { margin-left: 1.4rem; } }
+.atlas-harvest-recovery[data-phase="error"] { color: var(--color-warn, var(--ui-warning, #b45309)); }

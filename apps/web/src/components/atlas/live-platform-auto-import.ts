@@ -6,18 +6,23 @@ import {
 import {
   getChinaDistricts,
   matchDisclosedChinaCities,
-  resolveChinaRegionSelection,
   type ChinaRegionSelection,
 } from "./china-regions";
 import {
   classifyEnterpriseOwnershipAndOrigin,
-  resolveEnterpriseOfficeAddress,
 } from "./company-intelligence-catalog";
+import { groupLiveCardsForReviewedImport } from "./live-platform-import-utils";
 import type { createAtlasSourceClient } from "./service-client";
 
 export type LivePlatformImportSummary = {
   snapshot?: AtlasDataset;
   importedPlatforms: string[];
+  importFailures: Array<{
+    platform: string;
+    pageUrl: string;
+    cards: number;
+    error: string;
+  }>;
   loginRequiredPlatforms: string[];
   verificationRequiredPlatforms: string[];
   totalCardsFetched: number;
@@ -26,6 +31,14 @@ export type LivePlatformImportSummary = {
   locationsConfirmed: number;
   officeAddressesConfirmed: number;
   companiesClassified: number;
+  platformCoverage: Array<{
+    provider: LiveBatchSearchReceipt["results"][number]["provider"];
+    platform: string;
+    status: LiveBatchSearchReceipt["results"][number]["status"];
+    cardsCollected: number;
+    coverage: LiveBatchSearchReceipt["results"][number]["coverage"];
+    error?: string;
+  }>;
 };
 
 export type SnapshotEnrichmentSummary = {
@@ -50,10 +63,10 @@ export function isExplicitForeignLocation(text: string): boolean {
 
 function inferChinaAreaFromRaw(
   rawText: string | undefined,
-  companyName: string | undefined,
-  fallbackSelection?: ChinaRegionSelection,
 ): { provinceCode: string; cityCode?: string; districtCode?: string } | undefined {
-  const combinedText = [rawText?.trim() ?? "", companyName?.trim() ?? ""].filter(Boolean).join(" ");
+  // A search filter and an employer's name are not job-location evidence.
+  // Only normalize geography literally disclosed by the captured location.
+  const combinedText = rawText?.trim() ?? "";
   if (!combinedText) return undefined;
 
   // Never align explicit foreign locations (e.g. Zurich, Switzerland, Berlin, Remote - US) to China
@@ -78,21 +91,6 @@ function inferChinaAreaFromRaw(
     };
   }
 
-  // Only apply fallbackSelection when:
-  // 1. Text is NOT an explicit foreign location
-  // 2. The combined text contains at least one Chinese character (indicating domestic Chinese context)
-  const hasChinese = /[\u4e00-\u9fa5]/.test(combinedText);
-  if (fallbackSelection?.provinceCode && hasChinese) {
-    const resolved = resolveChinaRegionSelection(fallbackSelection);
-    if (resolved.selection.provinceCode) {
-      return {
-        provinceCode: resolved.selection.provinceCode,
-        ...(resolved.selection.cityCode ? { cityCode: resolved.selection.cityCode } : {}),
-        ...(resolved.selection.districtCode ? { districtCode: resolved.selection.districtCode } : {}),
-      };
-    }
-  }
-
   return undefined;
 }
 
@@ -104,7 +102,7 @@ export async function enrichSnapshotCompaniesAndOffices(options: {
   enableWebSearch?: boolean;
   signal?: AbortSignal;
 }): Promise<SnapshotEnrichmentSummary> {
-  const { client, fallbackChinaSelection, signal } = options;
+  const { client, signal } = options;
   let snapshot = options.snapshot ?? (await client.snapshot({ signal }));
   const targetIdSet = options.jobIds ? new Set(options.jobIds) : undefined;
   const targetJobs =
@@ -115,7 +113,7 @@ export async function enrichSnapshotCompaniesAndOffices(options: {
   const activeEnrichJobs = targetJobs;
 
   let locationsConfirmed = 0;
-  let officeAddressesConfirmed = 0;
+  const officeAddressesConfirmed = 0;
   let companiesClassified = 0;
 
   // Step 0: Dynamically query backend company & office intelligence tool (live web search + dynamic geocoding + cache)
@@ -150,18 +148,6 @@ export async function enrichSnapshotCompaniesAndOffices(options: {
   const processedLocationIds = new Set<string>();
   for (const job of activeEnrichJobs) {
     if (signal?.aborted) break;
-    const company = companyMap.get(job.companyId);
-    const companyName = company?.names[0] ?? "";
-    const firstRawLoc = snapshot.locations.find((l) => job.locationIds.includes(l.id))?.raw ?? "";
-    const resolvedOffice =
-      dynamicIntelByCompanyId[job.companyId]?.resolvedOffice ??
-      resolveEnterpriseOfficeAddress({
-        companyId: job.companyId,
-        companyName,
-        rawLocation: firstRawLoc,
-        jobTexts: [job.title.value, job.description],
-      });
-
     for (const locationId of job.locationIds) {
       if (signal?.aborted) break;
       if (processedLocationIds.has(locationId)) continue;
@@ -169,11 +155,7 @@ export async function enrichSnapshotCompaniesAndOffices(options: {
       if (!loc || loc.countryCode) continue;
       processedLocationIds.add(locationId);
 
-      const chinaArea = inferChinaAreaFromRaw(
-        [loc.raw, resolvedOffice?.district].filter(Boolean).join(" "),
-        companyName,
-        fallbackChinaSelection,
-      );
+      const chinaArea = inferChinaAreaFromRaw(loc.raw);
       if (!chinaArea) continue;
 
       try {
@@ -185,7 +167,7 @@ export async function enrichSnapshotCompaniesAndOffices(options: {
             ...chinaArea,
           },
         };
-        const reason = `平台实时采集地点与办公区自动对齐：${loc.raw || resolvedOffice?.district || "上海市"}`;
+        const reason = `按平台卡片披露原文规范行政地区：${loc.raw}`;
         const preview = await client.previewLocationConfirmation(
           {
             jobId: job.id,
@@ -218,86 +200,13 @@ export async function enrichSnapshotCompaniesAndOffices(options: {
     }
   }
 
-  // Step 2: Confirm office street address & WGS84 coordinates so 3D map pins and card office addresses appear
+  // Step 2: Preserve source-backed office addresses only. Company intelligence
+  // currently has no job-bound address evidence or coordinate provenance. Its
+  // catalog hubs / deterministic jitter must never be written as an office or
+  // impersonate a manual user confirmation. Exact addresses use the separate
+  // reviewed source-disclosure / office-confirmation flow.
   const refreshedLocationMap = new Map(snapshot.locations.map((loc) => [loc.id, loc]));
-  const refreshedCompanyMap = new Map(snapshot.companies.map((c) => [c.id, c]));
   const listingMap = new Map(snapshot.listings.map((l) => [l.id, l]));
-  const processedOfficeLocationIds = new Set<string>();
-
-  for (const job of activeEnrichJobs) {
-    if (signal?.aborted) break;
-    if (job.workMode === "remote") continue;
-    const company = refreshedCompanyMap.get(job.companyId);
-    const companyName = company?.names[0] ?? "";
-    const primaryListing = job.listingIds.map((id) => listingMap.get(id)).find(Boolean);
-    const evidenceUrl =
-      primaryListing?.canonicalUrl && /^https?:\/\//i.test(primaryListing.canonicalUrl)
-        ? primaryListing.canonicalUrl
-        : "https://www.zhipin.com/";
-
-    for (const locationId of job.locationIds) {
-      if (signal?.aborted) break;
-      if (processedOfficeLocationIds.has(locationId)) continue;
-      const loc = refreshedLocationMap.get(locationId);
-      if (!loc || loc.kind !== "office" || loc.officeResolution) continue;
-      processedOfficeLocationIds.add(locationId);
-
-      const resolvedOffice =
-        dynamicIntelByCompanyId[job.companyId]?.resolvedOffice ??
-        resolveEnterpriseOfficeAddress({
-          companyId: job.companyId,
-          companyName,
-          rawLocation: [loc.raw, loc.city, loc.district].filter(Boolean).join(" "),
-          jobTexts: [job.title.value, job.description],
-        });
-      if (!resolvedOffice) continue;
-
-      try {
-        const proposal = {
-          basis: "manual-user-confirmation" as const,
-          countryCode: "CN",
-          formattedAddress: resolvedOffice.formattedAddress,
-          streetAddress: resolvedOffice.streetAddress,
-          coordinates: {
-            latitude: resolvedOffice.latitude,
-            longitude: resolvedOffice.longitude,
-            coordinateSystem: "WGS84" as const,
-          },
-          evidenceUrl,
-          coordinateMeaning: "site" as const,
-        };
-        const reason = `企业公开办公区与园区坐标核实：${resolvedOffice.formattedAddress}`;
-        const preview = await client.previewOfficeConfirmation(
-          {
-            jobId: job.id,
-            locationId,
-            expectedRevision: snapshot.revision,
-            proposal,
-            reason,
-          },
-          { signal },
-        );
-        const confirmed = await client.confirmOfficeAddress(
-          {
-            jobId: job.id,
-            locationId,
-            expectedRevision: preview.expectedRevision,
-            proposal,
-            reason,
-            previewFingerprint: preview.previewFingerprint,
-            reviewed: true,
-          },
-          { signal, idempotencyKey: `live-office-${crypto.randomUUID()}` },
-        );
-        snapshot = { ...snapshot, revision: confirmed.revision };
-        officeAddressesConfirmed += 1;
-      } catch {
-        try {
-          snapshot = await client.snapshot({ signal });
-        } catch {}
-      }
-    }
-  }
 
   // Step 3: Classify & confirm company ownership & origin country (外企国家、合资、央国企、私企)
   const targetCompanyIds = new Set(activeEnrichJobs.map((j) => j.companyId));
@@ -430,6 +339,7 @@ export async function importAndConfirmLivePlatformResults(options: {
 }): Promise<LivePlatformImportSummary> {
   const { client, batchReceipt, fallbackChinaSelection, signal } = options;
   const importedPlatforms: string[] = [];
+  const importFailures: LivePlatformImportSummary["importFailures"] = [];
   const loginRequiredPlatforms: string[] = [];
   const verificationRequiredPlatforms: string[] = [];
   let totalCardsFetched = 0;
@@ -450,6 +360,7 @@ export async function importAndConfirmLivePlatformResults(options: {
   if (readyProviders.length === 0) {
     return {
       importedPlatforms,
+      importFailures,
       loginRequiredPlatforms,
       verificationRequiredPlatforms,
       totalCardsFetched,
@@ -458,6 +369,11 @@ export async function importAndConfirmLivePlatformResults(options: {
       locationsConfirmed: 0,
       officeAddressesConfirmed: 0,
       companiesClassified: 0,
+      platformCoverage: batchReceipt.results.map((result) => ({
+        provider: result.provider, platform: result.platform, status: result.status,
+        cardsCollected: result.cards.length, coverage: result.coverage,
+        ...(result.error ? { error: result.error } : {}),
+      })),
     };
   }
 
@@ -467,14 +383,14 @@ export async function importAndConfirmLivePlatformResults(options: {
   for (const providerResult of readyProviders) {
     if (signal?.aborted) break;
     let providerImportedCount = 0;
-    for (let offset = 0; offset < providerResult.cards.length; offset += 50) {
+    const chunks = groupLiveCardsForReviewedImport(providerResult.cards, providerResult.provider);
+    for (const { pageUrl, cards: chunk } of chunks) {
       if (signal?.aborted) break;
-      const chunk = providerResult.cards.slice(offset, offset + 50);
       try {
         const preview = await client.previewReviewedCards(
           {
             provider: providerResult.provider,
-            pageUrl: providerResult.pageUrl,
+            pageUrl,
             capturedAt: batchReceipt.capturedAt,
             cards: chunk,
             expectedRevision: snapshot.revision,
@@ -484,7 +400,7 @@ export async function importAndConfirmLivePlatformResults(options: {
         const receipt = await client.importReviewedCards(
           {
             provider: providerResult.provider,
-            pageUrl: providerResult.pageUrl,
+            pageUrl,
             capturedAt: batchReceipt.capturedAt,
             cards: chunk,
             expectedRevision: preview.expectedRevision,
@@ -498,7 +414,13 @@ export async function importAndConfirmLivePlatformResults(options: {
         totalUpdated += receipt.counts.updatedJobs;
         providerImportedCount += chunk.length;
         for (const id of receipt.jobIds) touchedJobIds.add(id);
-      } catch {
+      } catch (error) {
+        importFailures.push({
+          platform: providerResult.platform,
+          pageUrl,
+          cards: chunk.length,
+          error: error instanceof Error ? error.message : "岗位卡片入库失败",
+        });
         try {
           snapshot = await client.snapshot({ signal });
         } catch {}
@@ -524,6 +446,7 @@ export async function importAndConfirmLivePlatformResults(options: {
   return {
     snapshot: enriched.snapshot,
     importedPlatforms,
+    importFailures,
     loginRequiredPlatforms,
     verificationRequiredPlatforms,
     totalCardsFetched,
@@ -532,5 +455,10 @@ export async function importAndConfirmLivePlatformResults(options: {
     locationsConfirmed: enriched.locationsConfirmed,
     officeAddressesConfirmed: enriched.officeAddressesConfirmed,
     companiesClassified: enriched.companiesClassified,
+    platformCoverage: batchReceipt.results.map((result) => ({
+      provider: result.provider, platform: result.platform, status: result.status,
+      cardsCollected: result.cards.length, coverage: result.coverage,
+      ...(result.error ? { error: result.error } : {}),
+    })),
   };
 }

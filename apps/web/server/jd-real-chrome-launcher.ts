@@ -12,6 +12,43 @@ export type RealChromeStatus = {
   binaryPath?: string;
 };
 
+export type RealChromeLaunchOptions = {
+  /** Bring a newly launched browser to the foreground only after an explicit user action. */
+  focusOnLaunch?: boolean;
+};
+
+export function realChromeLaunchCommand(
+  binary: string,
+  args: string[],
+  options: RealChromeLaunchOptions = {},
+  platform = process.platform,
+): { command: string; args: string[] } {
+  const bundlePath = binary.match(/^(.+?\.app)\/Contents\/MacOS\//)?.[1];
+  if (platform === "darwin" && options.focusOnLaunch !== true && bundlePath) {
+    // -g avoids activating the app; -j requests a hidden launch so a fresh
+    // collector instance does not create a foreground window over the user's work.
+    return { command: "open", args: ["-g", "-j", "-n", "-a", bundlePath, "--args", ...args] };
+  }
+  return { command: binary, args };
+}
+
+type TimeoutScheduler = (callback: () => void, delay: number) => NodeJS.Timeout;
+
+/** Keep OS activation behind an explicit opt-in so background jobs never steal focus. */
+export function scheduleLaunchActivation(
+  options: RealChromeLaunchOptions = {},
+  schedule: TimeoutScheduler = setTimeout,
+  activate: () => void = () => {
+    const script = 'tell application "Google Chrome" to activate';
+    spawn("osascript", ["-e", script], { stdio: "ignore" }).unref();
+  },
+  platform = process.platform,
+): boolean {
+  if (platform !== "darwin" || options.focusOnLaunch !== true) return false;
+  schedule(activate, 700);
+  return true;
+}
+
 export function findRealBrowserBinary(): string | undefined {
   if (process.platform === "darwin") {
     const candidates = [
@@ -80,7 +117,11 @@ export async function getRealChromeStatus(port = 9222): Promise<RealChromeStatus
   };
 }
 
-export async function launchRealChromeCdp(port = 9222, targetUrl = "https://www.zhipin.com"): Promise<RealChromeStatus> {
+export async function launchRealChromeCdp(
+  port = 9222,
+  targetUrl = "https://www.zhipin.com",
+  options: RealChromeLaunchOptions = {},
+): Promise<RealChromeStatus> {
   const isAlreadyRunning = await checkCdpRunning(port);
   const binary = findRealBrowserBinary();
 
@@ -127,22 +168,14 @@ export async function launchRealChromeCdp(port = 9222, targetUrl = "https://www.
   ];
 
   try {
-    const child = spawn(binary, args, {
+    const launch = realChromeLaunchCommand(binary, args, options);
+    const child = spawn(launch.command, launch.args, {
       detached: true,
       stdio: "ignore",
     });
     child.unref();
 
-    if (process.platform === "darwin") {
-      setTimeout(() => {
-        try {
-          const script = 'tell application "Google Chrome" to activate';
-          spawn("osascript", ["-e", script], { stdio: "ignore" }).unref();
-        } catch {
-          // ignore
-        }
-      }, 700);
-    }
+    scheduleLaunchActivation(options);
   } catch (error) {
     return {
       running: false,
@@ -234,7 +267,7 @@ export async function openRealChromeTab(url: string, port = 9222): Promise<boole
   try {
     const isRunning = await checkCdpRunning(port);
     if (!isRunning) {
-      const res = await launchRealChromeCdp(port, url);
+      const res = await launchRealChromeCdp(port, url, { focusOnLaunch: true });
       return res.running;
     }
     if (process.platform === "darwin") {
@@ -262,7 +295,7 @@ export async function openRealChromeTabs(urls: string[], port = 9222): Promise<b
     const isRunning = await checkCdpRunning(port);
     let targetUrls = urls;
     if (!isRunning) {
-      await launchRealChromeCdp(port, targetUrls[0]);
+      await launchRealChromeCdp(port, targetUrls[0], { focusOnLaunch: true });
       targetUrls = targetUrls.slice(1);
       // Wait a moment for CDP to be ready
       await new Promise((r) => setTimeout(r, 1200));
