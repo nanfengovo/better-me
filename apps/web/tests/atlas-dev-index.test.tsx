@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { setImmediate as nextTurn } from "node:timers/promises";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -34,6 +36,32 @@ test("development bootstrap stays on the fixed loopback index and outside the re
   assert.equal(typeof plugin.configureServer, "function");
 });
 
+test("Vite dev starts the local job service eagerly and stops its owned process with the server", async () => {
+  let ensureCalls = 0;
+  let closeCalls = 0;
+  const plugin = atlasDevIndexPlugin({
+    createBroker: () => ({
+      ensure: async () => { ensureCalls += 1; return { endpoint: ATLAS_DEV_JOB_INDEX_ENDPOINT, token }; },
+      close: async () => { closeCalls += 1; },
+    }),
+  });
+  const httpServer = new EventEmitter();
+  const server = {
+    middlewares: { use: () => {} },
+    httpServer,
+  };
+  const configureServer = plugin.configureServer as ((server: unknown) => (() => void) | void) | undefined;
+  assert.ok(configureServer);
+  const cleanup = configureServer(server);
+  assert.equal(typeof cleanup, "function");
+  cleanup?.();
+  await nextTurn();
+  assert.equal(ensureCalls, 1, "the service should start with Vite, not only after opening the Atlas page");
+  httpServer.emit("close");
+  await nextTurn();
+  assert.equal(closeCalls, 1, "Vite shutdown should release only the service managed by its broker");
+});
+
 test("an already reachable service is reused for both page origins without spawning", async () => {
   const seen: string[] = [];
   let started = false;
@@ -46,6 +74,26 @@ test("an already reachable service is reused for both page origins without spawn
   assert.deepEqual(await broker.ensure(), { endpoint: ATLAS_DEV_JOB_INDEX_ENDPOINT, token });
   assert.deepEqual(seen, [...origins]);
   assert.equal(started, false);
+});
+
+test("closing during token lookup prevents a late job-service launch", async () => {
+  let releaseToken!: (value: string | undefined) => void;
+  let tokenLookupStarted!: () => void;
+  const started = new Promise<void>((resolve) => { tokenLookupStarted = resolve; });
+  let starts = 0;
+  const broker = createDevJobIndexBroker({
+    dataDirectory: directory,
+    readToken: () => new Promise((resolve) => { releaseToken = resolve; tokenLookupStarted(); }),
+    probe: async () => "down",
+    start: () => { starts += 1; throw new Error("must not start after close"); },
+  });
+  const ensure = broker.ensure();
+  await started;
+  const close = broker.close();
+  releaseToken(undefined);
+  await assert.rejects(ensure, /Vite 开发服务已关闭/);
+  await close;
+  assert.equal(starts, 0);
 });
 
 test("a stopped index is started once with both origins, and a refused origin or token is not replaced", async () => {

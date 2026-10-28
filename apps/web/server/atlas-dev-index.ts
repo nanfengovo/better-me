@@ -134,6 +134,7 @@ export function createDevJobIndexBroker(options: {
   if (origins.length === 0) throw new Error("至少要允许一个开发页来源。");
   let managed: StartedJobService | undefined;
   let inflight: Promise<EnsureResult> | undefined;
+  let closing = false;
 
   async function classify(token: string): Promise<JobServiceProbeStatus> {
     for (const origin of origins) {
@@ -146,10 +147,13 @@ export function createDevJobIndexBroker(options: {
   async function waitUntilReady(service: StartedJobService): Promise<string> {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
+      if (closing) throw new Error("Vite 开发服务已关闭，取消岗位索引启动。");
       if (service.exited()) throw new Error(service.exitError() || "岗位服务进程已退出。");
       const token = await readToken(dataDirectory);
+      if (closing) throw new Error("Vite 开发服务已关闭，取消岗位索引启动。");
       if (token) {
         const status = await classify(token);
+        if (closing) throw new Error("Vite 开发服务已关闭，取消岗位索引启动。");
         if (status === "ready") return token;
         if (status !== "down") throw new Error(statusError(status, endpoint, origins));
       }
@@ -159,16 +163,24 @@ export function createDevJobIndexBroker(options: {
   }
 
   async function ensureOnce(): Promise<EnsureResult> {
+    if (closing) throw new Error("Vite 开发服务已关闭，取消岗位索引启动。");
     const current = await readToken(dataDirectory);
+    if (closing) throw new Error("Vite 开发服务已关闭，取消岗位索引启动。");
     if (current) {
       const status = await classify(current);
+      if (closing) throw new Error("Vite 开发服务已关闭，取消岗位索引启动。");
       if (status === "ready") return { endpoint, token: current };
       if (status !== "down") throw new Error(statusError(status, endpoint, origins));
     } else {
       const listening = await probe(endpoint, DUMMY_PROBE_TOKEN, origins[0] ?? ATLAS_DEV_PAGE_ORIGINS[0]);
+      if (closing) throw new Error("Vite 开发服务已关闭，取消岗位索引启动。");
       if (listening !== "down") throw new Error(`${endpoint} 已有岗位服务，但本机数据目录没有可用的 service.token。开发页不会使用其他令牌。`);
     }
     const service = await start({ dataDirectory, endpoint, origins });
+    if (closing) {
+      await service.stop();
+      throw new Error("Vite 开发服务已关闭，取消岗位索引启动。");
+    }
     managed = service;
     try {
       const token = await waitUntilReady(service);
@@ -185,7 +197,11 @@ export function createDevJobIndexBroker(options: {
       inflight ??= ensureOnce().finally(() => { inflight = undefined; });
       return inflight;
     },
-    close: async () => { const service = managed; managed = undefined; await service?.stop(); },
+    close: async () => {
+      closing = true;
+      await inflight?.catch(() => undefined);
+      const service = managed; managed = undefined; await service?.stop();
+    },
   };
 }
 
@@ -250,13 +266,18 @@ export function createDevJobIndexMiddleware(broker: { ensure: () => Promise<Ensu
 }
 
 /** Registers the loopback helper on the Vite development server only. */
-export function atlasDevIndexPlugin(): Plugin {
+export function atlasDevIndexPlugin(options: {
+  createBroker?: () => ReturnType<typeof createDevJobIndexBroker>;
+} = {}): Plugin {
   return {
     name: "better-me-atlas-dev-index",
     apply: "serve",
     configureServer(server) {
-      const broker = createDevJobIndexBroker();
+      const broker = options.createBroker?.() ?? createDevJobIndexBroker();
       server.middlewares.use(createDevJobIndexMiddleware(broker));
+      void broker.ensure().catch((error) => {
+        console.error(`[atlas-dev-index] ${publicDevIndexError(error)}`);
+      });
       return () => { server.httpServer?.once("close", () => { void broker.close(); }); };
     },
   };
