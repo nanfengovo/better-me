@@ -35,6 +35,46 @@ pnpm --filter @better-me/job-service start --data-dir $jobDataDirectory --origin
 
 按 `Ctrl+C` 停止服务：停止接受新请求、取消进行中的读取、等候应用任务结束，再关闭 SQLite 和释放本进程的锁。清理未成功完成时会保留数据库与锁，便于核对。
 
+## 大库计算隔离
+
+正常 CLI / `pnpm dev` 启动的岗位服务在进程内管理两个计算线程，无需另起服务：
+
+- 单写线程负责采集投影、事务提交和后台地区 / 企业补全；保留原有 CAS、耐久幂等回执、人工核对覆盖及引用校验。
+- 独立只读线程通过 SQLite WAL 读取已提交版本，处理岗位搜索、详情和公开快照导出。写事务未完成时读取上一份完整版本，不读取半批结果，也不争用写锁。
+- HTTP 主线程只处理认证、请求边界与响应转发；完整输出校验和 JSON 序列化在计算线程完成，按字节转移响应，避免主线程再复制 / 序列化整库。
+
+线程启动失败时拒绝启动，不退回阻塞式运行；运行中计算线程失败不自动重放写操作，需按原幂等键核对耐久回执。停止时先取消并排空应用任务，再关闭 SQLite 和释放目录所有权锁。计算隔离不是 OS 权限沙箱，也不改变来源授权范围。显式依赖注入的嵌入式调用仍可使用原本的进程内应用接口。
+
+浏览器的快照解析、查询、全库统计和地图几何计算另由页面自己的 Worker 管理；服务端线程与浏览器 Worker 生命周期独立，离开页面不停止服务端补全。首次完整快照仍保留 64 MiB 字节上限，超过时需要后续分页初始化设计，不会悄悄截断数据。已有基线后的刷新使用下述 revision 增量同步。
+
+## 入库与后台补全的增量投影
+
+来源页准备、实际入库和后台地区 / 企业补全不再每批读取并投影整个岗位库。`projection-slice.ts` 在当前 SQLite 事务内，从本批来源记录或补全任务出发，读取受影响岗位及其公司、地点、薪资、listing、证据、快照和有效人工决策；仍复用原有的合并、地区确认及办公地址投影规则。公共表写入、别名与补全排队只处理该片段，不删除或重算无关岗位。
+
+SQLite V7 新增内部 `base_job_dependencies`，在来源岗位写入的同一事务维护反向依赖。它针对原始岗位而非归并后的摘要，保证共享地点、同一公司，以及公司身份被跨源归并隐藏的来源岗位均能正确参与补全；披露冲突仍保留未知，不合成确定结论。该表不是搜索查询索引，也不作为独立事实备份；V6 → V7 事务迁移和备份恢复会从来源岗位重建，迁移不改变公共 revision 或同步 epoch。
+
+CAS、不可变观察 / JD、幂等回执、补全租约 / 取消 / 重试、人工覆盖、全库实体数量上限和事务失败回滚保持原语义。无参数 `readProjectionSnapshot()`、人工归并 / 核对、完整导出与备份仍保留完整参考路径。首次基线分页、搜索查询算法、UI 和动画没有在此阶段修改；巨大共享公司或归并组仍可能形成较大的真实受影响片段，不承诺所有 SQL 都是 O(delta)。
+
+5000 / 15000 岗的三批真实入库、自动补全和列表 / 地图计算，单轮同场景对比从 18.747 / 41.113 秒降至 9.086 / 20.838 秒。每批新增 16 岗的仓储压测，两个规模均物化 2 行已有入库上下文及 355 行补全读取结果。完整方法、浏览器验收和限制见 [增量投影报告](../../docs/reports/job-atlas-incremental-projection-2026-10-28.md)；这些是合成样本结果，不代表真实平台全站采集耗时。
+
+## Revision 增量同步
+
+浏览器首次连接通过 `POST /api/v1/dataset/sync` 的空请求 `{}` 建立完整公共基线。随后携带 `{ cursor: { epoch, revision } }`，服务端只返回该游标之后仍然有效的净变更：
+
+- `kind: "delta"`：`from` / `to` 游标、八类公共实体的 `upserts` 与 `deletes`，覆盖岗位入库、企业 / 地区补全、人工覆盖、岗位合并 / 拆分等已提交变化。
+- `kind: "unchanged"`：只返回当前游标，不读取、解析或序列化整库。浏览器和 Worker 复用原对象，不重新触发列表 / 地图计算。
+- `kind: "snapshot"`：首次连接、游标断档、仓库变更、游标超前或增量超出预算时，返回同一事务版本的完整公共快照和明确 `reason`，不返回被截断的部分增量。
+
+SQLite V6 将实体变更标记与事实、幂等回执置于同一写事务。每个实体只保留最近一次标记，保留窗口为最近 512 个 revision；引入 V6 同步标记时只建立当前版本基线，不重写历史岗位。`epoch` 在初次建立同步基线或完整备份恢复时生成，普通进程重启及 V6 → V7 投影依赖迁移保持不变。恢复备份会重置同步基线，不复用备份里的同步游标。同步本身不改变 revision、采集覆盖状态或补全队列。
+
+单次增量最多 4096 个**实体**、4 MiB（不是 4096 个岗位）；超出时回到完整快照。原始 `GET /api/v1/dataset/export` 仍可用于导出和旧客户端。新浏览器只有在同步入口明确返回 404 / 405 时才临时使用旧导出，不会把认证失败、网络故障、损坏响应伪装成协议不支持；旧服务能力缓存 30 秒后重新探测。
+
+同步解析与全局引用验证在浏览器 Worker 中进行；向页面也只传变更实体，保持未变行 / 数组对象身份。取消、失败或半次传输不会暴露部分版本。页面接收中断或缓存淘汰时，可用 Worker 中已校验的基线修复本地传输，无需再下载整库。同连接的并发刷新共享一次读取，单个观察者取消不会取消其他观察者。缓存各自最多保留三份基线；端点、令牌或字节预算变化不会错误继承另一连接的游标。
+
+这一阶段不改变查询索引或 UI 动画。增量应用仍保留完整的引用一致性检查，查询与地图投影仍由原计算 Worker 执行；不是把整条采集 / 查询链路都改为 O(delta)。页面刷新导致 Worker 基线丢失时，需要重新建立一次完整基线，不能只凭一个 revision 应用增量。
+
+实现边界、恢复语义、5000 / 15000 岗实际服务与浏览器测试结果见 [revision 增量同步验收报告](../../docs/reports/job-atlas-revision-sync-2026-10-28.md)。
+
 ## 使用 HTTP API
 
 默认 API 地址为 `http://127.0.0.1:5178`。实际地址以启动日志为准；`localhost` 不属于 API 的 Host 允许项。除合法 CORS 预检外，**包括 `/healthz` 在内的请求都需要 Bearer token**。
@@ -86,6 +126,7 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/jobs/search" -Headers $jobHe
 | POST | `/api/v1/runs/:runId/cancel` | `runs.cancel`；JSON `{}`，取消当前身份的任务。 |
 | POST | `/api/v1/dataset/import` | `jobs.import-public`；`{ dataset, expectedRevision? }`，严格公共快照。 |
 | GET | `/api/v1/dataset/export` | `jobs.export-public`；仅公共领域快照。 |
+| POST | `/api/v1/dataset/sync` | `jobs.sync-public`；`{ cursor?: { epoch, revision } }`，同一已提交版本的增量、无变化通知或完整基线。 |
 | GET | `/api/v1/leads` | `leads.list`；线索与招聘批次，独立于正式岗位计数。 |
 
 `scope` 为 `{ "roles": [], "regions": [], "companyNames": [] }`；省略时使用空数组。上游是否支持这些过滤条件由适配器能力和返回的 `coverage.appliedFilters` / `ignoredFilters` 说明。应用另做本地包含匹配，因此“关注范围内刷新”不代表上游已经提供全站搜索或只下载匹配记录。
@@ -204,13 +245,13 @@ SQLite 持久保存来源、公司、岗位、位置、薪资、来源 listing�
 | `resolveJobId(jobId, { atRevision? })` | 将旧 ID 解析到当前或指定 revision 的规范 ID，并返回完整别名历史；未知 ID 返回 `undefined`。 |
 | `readReconciliationConflicts(jobId)` | 返回当前规范 ID、选定摘要来源、冲突预览及有效决策 ID；完整原文仍从各来源观察 / 快照读取。 |
 | `readSnapshot()` | 当前去重后的公共快照，供搜索、地图计数和公共导出使用。 |
-| `readProjectionSnapshot()` | 各来源的原始岗位、地点与 listing 归属，供 `projectSourcePage()` 和来源导入使用；保留当前全局 revision，不混入本地地区确认。 |
+| `readProjectionSnapshot(selection?)` | 各来源的原始岗位、地点与 listing 归属；来源页用 `sourceProjectionSelection()` 选取依赖片段，无参数保留完整参考读取。保留当前全局 revision，不混入本地地区确认。 |
 
 `writeOptions` 必须包含 `{ expectedRevision, actorScope, idempotencyKey }`。人工决策、规范投影、索引、别名历史、受影响来源任务失效和耐久回执在同一事务提交；陈旧 revision 拒绝写入，同键同输入可以在重启后重放。已有 `jobId` 和 `snapshotId` 保留，私人收藏 / 投递无需被归并代码改写。
 
 合并保留所有 listing、不可变观察和 JD、薪资、位置及字段冲突。规范岗位按最近一次有效合并所选目标来源提供标量摘要；来源刷新仍更新各自原始投影，未选中来源的新标题或 JD 不静默取代人工摘要来源。撤销合并恢复各自最新投影。多源地点和薪资保留为集合，查询继续按共享规则报告歧义；不会默认采用最高工资或把冲突状态当已核实。
 
-现有 application 已接通归并兼容：**来源刷新从 `readProjectionSnapshot()` 调用 `projectSourcePage()`**，查询与公共导出继续使用 `readSnapshot()`。详情先捕获公共快照，再以其 revision 调用 `resolveJobId()`，避免合并 / 撤销发生在异步读取间时混用不同版本。归并操作已通过受审工具、认证HTTP及Web显式预览确认接入，repository继续保持一致投影。候选发现与投影尚未做规模优化，测试通过不代表大量来源下的吞吐结论。
+现有 application 已接通归并兼容：**来源刷新从 `readProjectionSnapshot(selection)` 调用 `projectSourcePage()`**，查询与公共导出继续使用 `readSnapshot()`。详情先捕获公共快照，再以其 revision 调用 `resolveJobId()`，避免合并 / 撤销发生在异步读取间时混用不同版本。归并操作已通过受审工具、认证HTTP及Web显式预览确认接入，repository继续保持一致投影。来源导入与后台补全已使用上述增量投影；候选发现与人工操作的完整重放仍未做规模优化，测试通过不代表大量来源下的吞吐结论。
 
 ## 一致性、备份与部署
 
@@ -218,7 +259,7 @@ SQLite 持久保存来源、公司、岗位、位置、薪资、来源 listing�
 
 `GET /api/v1/dataset/export` 是公共领域交换格式，包含当前有效地区及其本人确认标记，但不包含任务、回执、leads、归并 / 地点原始投影或完整决策历史，不能当作完整仓库备份。已合并的公共投影不能重新覆盖原始岗位，普通公共导入也不能伪造 `userResolution`；必须使用完整备份保留拆分和地区撤销能力。
 
-仓库层提供 `repository.backup()` / `repository.restore(backup, { expectedRevision, actorScope, idempotencyKey })`：当前 schema v3 完整备份包含公共数据、任务、回执、线索、原始岗位、归并决策、别名历史、岗位版本计数，以及 `baseLocations` 与 `locationDecisions`。仍接受符合各自规则的 v1 / v2 仓库备份；已有 SQLite v1 / v2 文件在事务中升级，V2 地点初始化来源基线，不改变现有行或全局 revision。
+仓库层提供 `repository.backup()` / `repository.restore(backup, { expectedRevision, actorScope, idempotencyKey })`：当前 schema v7 完整备份包含公共数据、任务、回执、线索、原始岗位、归并决策、别名历史、岗位版本计数、`baseLocations`、`locationDecisions`、`officeDecisions` 与后台补全任务。仍接受符合各自规则的 v1–v6 仓库备份；已有 SQLite 文件在事务中升级，不重写既有事实或全局 revision。同步 epoch 在恢复时重新生成，V7 的来源投影依赖从原始岗位重建，不把这两类派生状态当作独立事实备份。
 
 恢复先校验内容哈希、领域引用、决策引用 / 身份 / 先后关系、可信目录解析、当前别名及有效投影，再重放地区与归并历史；地点回执还需与其当时版本和岗位归属一致。伪造来源地点、目录名称、投影或回执会被拒绝，现库保留。通过后原子替换，运行中任务恢复为已取消。当前没有 HTTP 恢复路由或 CLI 备份 / 恢复命令；集成方应通过可信应用代码调用，不应在服务运行时只复制主 SQLite 文件而遗漏 WAL。
 

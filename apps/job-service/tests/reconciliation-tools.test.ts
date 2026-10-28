@@ -47,6 +47,12 @@ async function error(app: ReturnType<typeof createJobApplication>, tool: string,
 }
 
 test("bounded candidates and explicit directional previews read one version and preserve unknown evidence without writes", async () => fixture(async (repo, _path, app) => {
+  for (let attempt = 0; ; attempt++) {
+    const status = await execute(app, "enrichment.status", {}) as { pending: number; running: number; workerState?: string };
+    if (!status.pending && !status.running && status.workerState === "idle") break;
+    assert.ok(attempt < 200, "the independent background writer must settle before comparing a read-only command's backup");
+    await new Promise<void>(resolve => setTimeout(resolve, 5));
+  }
   const before = await repo.backup();
   const list = MergeCandidatesPageSchema.parse(await execute(app, "jobs.list-merge-candidates", { limit: 1 }));
   assert.equal(list.snapshotRevision, before.dataset.revision); assert.equal(list.candidates.length, 1); assert.equal(list.truncated, true); assert.equal(list.scannedCandidateLimit, 1000);

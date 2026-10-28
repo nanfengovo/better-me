@@ -1,8 +1,12 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { timingSafeEqual, randomUUID } from "node:crypto";
 import { createToolRegistry, type TrustedToolContext } from "@better-me/opportunities";
+import type { SerializedToolResult } from "./application-runtime-protocol.js";
 
-type Registry = ReturnType<typeof createToolRegistry>;
+type Registry = Pick<ReturnType<typeof createToolRegistry>, "execute"> & {
+  /** The isolated runtime has already validated and serialized this response. */
+  executeSerialized?: (tool: string, input: unknown, context: TrustedToolContext) => Promise<SerializedToolResult>;
+};
 export interface JobHttpOptions {
   registry: Registry;
   token: string;
@@ -13,6 +17,7 @@ export interface JobHttpOptions {
 }
 
 const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }> = [
+  { method: "GET", path: /^\/api\/v1\/enrichment\/status$/, tool: "enrichment.status" },
   { method: "POST", path: /^\/api\/v1\/jobs\/address-enrichment\/plan$/, tool: "jobs.plan-address-enrichment" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/candidates$/, tool: "jobs.list-merge-candidates" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/preview$/, tool: "jobs.preview-merge" },
@@ -53,6 +58,7 @@ const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }
   { method: "POST", path: /^\/api\/v1\/runs\/([^/]+)\/cancel$/, tool: "runs.cancel", key: "runId" },
   { method: "POST", path: /^\/api\/v1\/dataset\/import$/, tool: "jobs.import-public" },
   { method: "GET", path: /^\/api\/v1\/dataset\/export$/, tool: "jobs.export-public" },
+  { method: "POST", path: /^\/api\/v1\/dataset\/sync$/, tool: "jobs.sync-public" },
   { method: "GET", path: /^\/api\/v1\/leads$/, tool: "leads.list" },
 ];
 function send(response: ServerResponse, status: number, value: unknown): void {
@@ -147,9 +153,17 @@ export function createJobHttpServer(options: JobHttpOptions) {
         budget: { requests: 80, bytes: 64 * 1024 * 1024, timeoutMs: 120_000 },
         ...(typeof key === "string" ? { idempotencyKey: key } : {}),
       };
-      const result = await options.registry.execute(route.tool, input, context);
-      const status = result.ok ? 200 : result.error.code === "invalid-input" || result.error.code === "invalid-context" ? 400 : result.error.code === "not-authorized" ? 403 : result.error.code === "stale-version" || result.error.code === "idempotency-conflict" ? 409 : result.error.code === "timeout" ? 504 : result.error.code === "rate-limited" ? 429 : 422;
-      send(response, status, result);
+      const serialized = options.registry.executeSerialized ? await options.registry.executeSerialized(route.tool, input, context) : undefined;
+      const result = serialized ? undefined : await options.registry.execute(route.tool, input, context);
+      const ok = serialized?.ok ?? result!.ok;
+      const code = serialized?.errorCode ?? (result && !result.ok ? result.error.code : undefined);
+      const status = ok ? 200 : code === "invalid-input" || code === "invalid-context" ? 400 : code === "not-authorized" ? 403 : code === "stale-version" || code === "idempotency-conflict" ? 409 : code === "timeout" ? 504 : code === "rate-limited" ? 429 : 422;
+      if (serialized) {
+        if (!response.destroyed && !response.writableEnded) {
+          response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });
+          response.end(serialized.json);
+        }
+      } else send(response, status, result);
     } catch (error) {
       send(response, error instanceof Error && error.message === "too-large" ? 413 : 400, { error: "invalid-request" });
     }

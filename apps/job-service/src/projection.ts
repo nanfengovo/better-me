@@ -4,6 +4,7 @@ import {
   type CanonicalJob, type EvidenceRef, type SourceDefinition,
 } from "@better-me/opportunities";
 import { SourceJobRecordSchema, type SourceJobRecord, type SourcePage } from "@better-me/source-adapters";
+import type { ProjectionSelection } from "./projection-slice.js";
 
 function stableValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stableValue);
@@ -20,6 +21,26 @@ export type SourceProjection = { delta: AtlasDataset; leads: ProjectedLead[]; un
 /** Host-selected provenance; source records and tool arguments cannot elevate their own trust. */
 export type SourceProjectionOptions = { mode?: "source" | "user-reviewed-browser" };
 const completenessRank = { lead: 0, excerpt: 1, detail: 2 } as const;
+
+/** Stable source identities needed before projection; never selects a whole source library. */
+export async function sourceProjectionSelection(source: SourceDefinition, page: Pick<SourcePage, "records">): Promise<ProjectionSelection> {
+  const listings = new Set<string>(), companies = new Set<string>(), locations = new Set<string>(), compensations = new Set<string>();
+  for (const input of page.records) {
+    const record = SourceJobRecordSchema.parse(input);
+    const identity = record.sourceRecordId ?? normalizeSourceUrl(record.url!);
+    const listingId = await deriveEntityId("listing", [source.sourceId, identity]);
+    listings.add(listingId);
+    if (record.companyName) companies.add(await deriveEntityId("company", [source.sourceId, record.companyName.normalize("NFKC").trim().toLowerCase()]));
+    for (const location of record.locations) for (const kind of ["office", "remote-region"]) {
+      const fields = { raw: location.raw, countryCode: location.countryCode, region: location.region, city: location.city };
+      locations.add(await deriveEntityId("location", [listingId, kind, digest(fields)]));
+      if (location.streetAddress || location.postalCode) locations.add(await deriveEntityId("location", [listingId, kind, digest({ ...fields,
+        streetAddress: location.streetAddress, postalCode: location.postalCode, addressIdentityVersion: 1 })]));
+    }
+    for (const compensation of record.compensations) compensations.add(await deriveEntityId("compensation", [listingId, digest(compensation)]));
+  }
+  return { sources: [source.sourceId], listings: [...listings], companies: [...companies], locations: [...locations], compensations: [...compensations] };
+}
 
 /** Pure projection. External claims never become personal facts or inferred company ownership. */
 export async function projectSourcePage(snapshot: AtlasDataset, source: SourceDefinition, page: SourcePage, runId: string, options: SourceProjectionOptions = {}): Promise<SourceProjection> {

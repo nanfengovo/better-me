@@ -3,11 +3,13 @@ import { chmod, lstat, mkdir, open, readdir, realpath, rename, rmdir, unlink } f
 import { randomBytes, randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
-import { createControlledSourceTransport, createGoogleDohResolver, CareerWebSearchConfigSchema, createCareerWebSearchProvider, type CareerWebSearchConfig } from "@better-me/source-adapters";
+import { CareerWebSearchConfigSchema, type CareerWebSearchConfig } from "@better-me/source-adapters";
 import { createJobApplication } from "./application.js";
 import { createJobHttpServer, type JobHttpOptions } from "./http.js";
 import { openJobRepository, type JobRepository } from "./repository.js";
-import { createNominatimOfficeProvider, createAmapOfficeProvider, OfficeGeocoderConfigSchema, type OfficeGeocoderConfig } from "./office-address-provider.js";
+import { OfficeGeocoderConfigSchema, type OfficeGeocoderConfig } from "./office-address-provider.js";
+import { configuredApplicationOptions } from "./configured-application.js";
+import { startJobApplicationRuntime } from "./application-runtime.js";
 
 export class LocalJobServiceError extends Error {
   constructor(public readonly code: "invalid-config" | "data-directory-unavailable" | "data-directory-busy" | "invalid-lock" | "lock-ownership-changed" | "invalid-token" | "startup-failed" | "shutdown-failed", message: string) {
@@ -164,7 +166,7 @@ export async function loadOrCreateServiceToken(dataDirectory: string): Promise<{
   } catch { throw new LocalJobServiceError("invalid-token", "The existing local service token is invalid; it was preserved."); }
 }
 
-type Application = Pick<ReturnType<typeof createJobApplication>, "registry" | "shutdown">;
+type Application = { registry: JobHttpOptions["registry"]; shutdown(): Promise<void> };
 type HttpListener = Pick<ReturnType<typeof createJobHttpServer>, "listen" | "close">;
 export type JobServiceDependencies = {
   openRepository?: (path: string) => JobRepository;
@@ -206,11 +208,15 @@ export async function startLocalJobService(input: JobServiceConfig, dependencies
     repository = (dependencies.openRepository ?? openJobRepository)(databasePath);
     // Recovery cannot classify a still-running owner's work as interrupted: the lock is already exclusive.
     const recovered = await repository.recoverInterruptedRuns();
-    const transport = createControlledSourceTransport({ ...(config.dns === "google-doh" ? { resolve: createGoogleDohResolver() } : {}), timeoutMs: 35_000 });
-    application = (dependencies.createApplication ?? createJobApplication)({ repository, transport,
-      ...(config.officeGeocoder?.provider === "nominatim" ? { officeAddressProvider: createNominatimOfficeProvider(transport) } : {}),
-      ...(config.officeGeocoder?.provider === "amap" ? { officeAddressProvider: createAmapOfficeProvider(transport, { key: config.officeGeocoder.key, dataDirectory: lock.dataDirectory }) } : {}),
-      ...(config.careerSearch ? { careerWebSearchProvider: createCareerWebSearchProvider(config.careerSearch) } : {}) });
+    if (dependencies.openRepository || dependencies.createApplication) {
+      // Preserve the explicit in-process seam for embedders and focused tests.
+      application = (dependencies.createApplication ?? createJobApplication)(configuredApplicationOptions(config, repository));
+    } else {
+      // Initialization/recovery occurs once, after acquiring the owner lock.
+      // During serving, only the isolated writer owns a writable connection.
+      repository.close(); repositoryClosed = true;
+      application = await startJobApplicationRuntime({ databasePath, config });
+    }
     http = (dependencies.createHttpServer ?? createJobHttpServer)({ registry: application.registry, token, allowedOrigins: config.allowedOrigins, host: config.host, port: config.port });
     const address = await http.listen();
     listening = true;

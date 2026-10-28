@@ -6,8 +6,9 @@ import {
   CompanyControllerOverrideReceiptSchema, CompensationAuditReceiptSchema,
 } from "@better-me/opportunities";
 import { SourceJobRecordSchema } from "@better-me/source-adapters";
+import { BackgroundEnrichmentTaskSchema } from "./background-enrichment.js";
 
-export const REPOSITORY_SCHEMA_VERSION = 4;
+export const REPOSITORY_SCHEMA_VERSION = 7;
 export const ActorScopeSchema = z.string().min(1).max(200).regex(/^[A-Za-z0-9._:/-]+$/);
 export const IdempotencyKeySchema = z.string().min(1).max(200).regex(/^[A-Za-z0-9._:-]+$/);
 export const RequestFingerprintSchema = z.string().regex(/^[a-f0-9]{64}$/);
@@ -71,7 +72,7 @@ export const StoredReceiptSchema = z.object({
 });
 export type StoredReceipt = z.infer<typeof StoredReceiptSchema>;
 export const RepositoryBackupSchema = z.object({
-  format: z.literal("better-me/job-repository"), schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+  format: z.literal("better-me/job-repository"), schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6), z.literal(7)]),
   createdAt: TimestampSchema, dataset: AtlasDatasetSchema,
   runs: z.array(SyncRunSchema).max(100_000), receipts: z.array(StoredReceiptSchema).max(1_000_000),
   leads: z.array(DiscoveryLeadSchema).max(300_000).default([]),
@@ -82,7 +83,11 @@ export const RepositoryBackupSchema = z.object({
   baseLocations: z.array(JobLocationSchema.refine(value => !value.userResolution && !value.officeResolution, "Source locations cannot contain local decisions.")).max(200_000).optional(),
   locationDecisions: z.array(LocationConfirmationDecisionSchema).max(200_000).default([]),
   officeDecisions: z.array(OfficeAddressDecisionSchema).max(200_000).default([]),
+  enrichmentTasks: z.array(BackgroundEnrichmentTaskSchema).max(100_000).default([]),
 }).strict().superRefine((backup, context) => {
+  if (backup.schemaVersion < 5 && backup.enrichmentTasks.length) context.addIssue({ code: "custom", message: "Old backups cannot contain enrichment tasks." });
+  if (new Set(backup.enrichmentTasks.map(value => value.id)).size !== backup.enrichmentTasks.length
+    || new Set(backup.enrichmentTasks.map(value => JSON.stringify([value.actorScope, value.kind, value.jobId]))).size !== backup.enrichmentTasks.length) context.addIssue({ code: "custom", message: "Duplicate enrichment tasks." });
   if (new Set(backup.runs.map((run) => run.runId)).size !== backup.runs.length) context.addIssue({ code: "custom", message: "Duplicate run IDs." });
   const keys = backup.receipts.map((receipt) => JSON.stringify([receipt.actorScope, receipt.tool, receipt.idempotencyKey]));
   if (new Set(keys).size !== keys.length) context.addIssue({ code: "custom", message: "Duplicate receipt keys." });
@@ -125,6 +130,29 @@ CREATE TABLE discovery_leads (id TEXT PRIMARY KEY, source_id TEXT NOT NULL REFER
 CREATE INDEX listing_sources ON listings(source_id);
 CREATE INDEX jobs_company ON jobs(company_id);
 CREATE INDEX runs_status ON runs(source_id,status);
+`;
+
+export const REPOSITORY_MIGRATION_V5 = `
+CREATE TABLE enrichment_tasks (id TEXT PRIMARY KEY, actor_scope TEXT NOT NULL, kind TEXT NOT NULL, job_id TEXT NOT NULL, state TEXT NOT NULL, next_retry_at TEXT, document TEXT NOT NULL CHECK(json_valid(document)), UNIQUE(actor_scope,kind,job_id)) STRICT;
+CREATE INDEX enrichment_tasks_ready ON enrichment_tasks(actor_scope,state,next_retry_at);
+`;
+
+/** Existing libraries start a new baseline at their current revision, without rewriting entities. */
+export const REPOSITORY_MIGRATION_V6 = `
+INSERT INTO metadata(key,value) VALUES ('sync_epoch',lower(hex(randomblob(16))));
+INSERT INTO metadata(key,value) SELECT 'sync_floor',value FROM metadata WHERE key='revision';
+CREATE TABLE dataset_changes (table_name TEXT NOT NULL CHECK(table_name IN ('sources','companies','jobs','locations','compensations','listings','observations','snapshots')),entity_id TEXT NOT NULL,revision INTEGER NOT NULL,deleted INTEGER NOT NULL CHECK(deleted IN (0,1)),PRIMARY KEY(table_name,entity_id)) STRICT;
+CREATE INDEX dataset_changes_revision ON dataset_changes(revision);
+`;
+
+/** Write-projection dependencies only; public facts, revision and sync epoch are unchanged. */
+export const REPOSITORY_MIGRATION_V7 = `
+CREATE TABLE base_job_dependencies (job_id TEXT NOT NULL REFERENCES base_jobs(id) DEFERRABLE INITIALLY DEFERRED,kind TEXT NOT NULL CHECK(kind IN ('company','location','compensation','listing')),entity_id TEXT NOT NULL,PRIMARY KEY(job_id,kind,entity_id)) STRICT;
+CREATE INDEX base_job_dependency_targets ON base_job_dependencies(kind,entity_id,job_id);
+INSERT OR IGNORE INTO base_job_dependencies SELECT id,'company',json_extract(document,'$.companyId') FROM base_jobs;
+INSERT OR IGNORE INTO base_job_dependencies SELECT j.id,'location',v.value FROM base_jobs j,json_each(j.document,'$.locationIds') v;
+INSERT OR IGNORE INTO base_job_dependencies SELECT j.id,'compensation',v.value FROM base_jobs j,json_each(j.document,'$.compensationIds') v;
+INSERT OR IGNORE INTO base_job_dependencies SELECT j.id,'listing',v.value FROM base_jobs j,json_each(j.document,'$.listingIds') v;
 `;
 
 /** Applied atomically to existing M1 files; origin data is initialized from their current jobs. */

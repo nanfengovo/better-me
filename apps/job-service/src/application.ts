@@ -18,7 +18,7 @@ import {
 } from "@better-me/source-adapters";
 import { RepositoryError, type JobRepository } from "./repository.js";
 import { DiscoveryLeadSchema, ImportReceiptSchema, SyncRunSchema, type PublicRunSummary } from "./repository-schema.js";
-import { projectSourcePage } from "./projection.js";
+import { projectSourcePage, sourceProjectionSelection } from "./projection.js";
 import { createReviewedCardsTools } from "./reviewed-cards.js";
 import { createReviewedDetailLocationsTools } from "./reviewed-detail-locations.js";
 import { createLocationConfirmationTools } from "./location-confirmation.js";
@@ -28,6 +28,8 @@ import { createOfficeAddressTools, type OfficeAddressProvider } from "./office-a
 import { createAddressEnrichmentTool } from "./address-enrichment.js";
 import { createCompanyControllerTools } from "./company-controllers.js";
 import { createCompensationAuditTools } from "./compensation-audit.js";
+import { startBackgroundEnrichmentWorker } from "./background-enrichment-worker.js";
+import { DatasetSyncRequestSchema, DatasetSyncResponseSchema } from "./dataset-sync-contract.js";
 
 const emptyInput = z.object({}).strict();
 // Name-only discovery has no permission to follow arbitrary URLs. This host policy is
@@ -63,6 +65,8 @@ function mappedError(error: unknown): ToolError {
 }
 export type JobApplicationOptions = {
   repository: JobRepository;
+  /** A read-only compute lane must never own a second outbox consumer. */
+  backgroundEnrichment?: boolean;
   adapters?: readonly SourceAdapter[];
   transport?: SourceTransport;
   now?: () => string;
@@ -130,6 +134,12 @@ export function createJobApplication(options: JobApplicationOptions) {
     ...(input.mapCityReferences ? { mapReferences: await mapReferenceTool.execute({ expectedRevision: (await repository.readSnapshot()).revision, limit: 1000 }, context) } : {}),
   }));
   const definitions: ToolDefinition<any, any>[] = [
+    defineTool({ name: "enrichment.status", version: 1, description: "查看当前身份的后台来源事实补全计数，不返回岗位内容或凭据。", effect: "read-index", inputSchema: emptyInput,
+      outputSchema: z.object({ revision: RevisionSchema, pending: z.number().int().nonnegative(), running: z.number().int().nonnegative(),
+        completed: z.number().int().nonnegative(), failed: z.number().int().nonnegative(), nextRetryAt: z.string().datetime({ offset: true }).optional(),
+        workerState: z.enum(["idle", "running", "stopped", "error"]).optional(), workerError: z.string().max(200).optional() }).strict(),
+      execute: (_input, context) => guarded(async () => ({ ...await repository.getEnrichmentStatus({ actorScope: context.actorScope }), ...enrichmentWorker?.status() })),
+    }),
     defineTool({ ...addressEnrichmentTool, execute: (input, context) => guarded(async () => addressEnrichmentTool.execute(input, context)) }),
     ...createReconciliationTools(repository).map(definition => ({ ...definition,
       ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
@@ -229,7 +239,8 @@ export function createJobApplication(options: JobApplicationOptions) {
             // sequence is serialized, so independent sources use the latest base.
             const leads = await serializePageMutation(async () => {
               syncContext.throwIfCancelled();
-              let snapshot = await repository.readProjectionSnapshot();
+              const selection = await sourceProjectionSelection(source, matchedPage);
+              let snapshot = await repository.readProjectionSnapshot(selection);
               for (let attempt = 0; ; attempt++) {
                 syncContext.throwIfCancelled();
                 await repository.assertRunCurrent(run.runId, context.actorScope);
@@ -249,7 +260,7 @@ export function createJobApplication(options: JobApplicationOptions) {
                   syncContext.throwIfCancelled();
                   await repository.assertRunCurrent(run.runId, context.actorScope);
                   await assertSourceConfiguration(source);
-                  const latest = await repository.readProjectionSnapshot();
+                  const latest = await repository.readProjectionSnapshot(selection);
                   // An external registration/import can advance the index while
                   // this page is projected. Retry only a real CAS race, never a
                   // replaced source/run or an unchanged-version semantic failure.
@@ -320,6 +331,7 @@ export function createJobApplication(options: JobApplicationOptions) {
       execute: (input, context) => guarded(async () => { context.throwIfCancelled(); return repository.importSnapshot(input.dataset, { expectedRevision: input.expectedRevision, actorScope: context.actorScope, idempotencyKey: key(context) }); }),
     }),
     defineTool({ name: "jobs.export-public", version: 1, description: "导出公共岗位快照，不包含浏览器简历、投递记录或服务凭据。", effect: "read-index", inputSchema: emptyInput, outputSchema: AtlasDatasetSchema, execute: () => guarded(() => repository.readSnapshot()) }),
+    defineTool({ name: "jobs.sync-public", version: 1, description: "按已提交版本同步公共岗位增量；首次连接或版本断档时返回同版本公共快照。", effect: "read-index", inputSchema: DatasetSyncRequestSchema, outputSchema: DatasetSyncResponseSchema, execute: input => guarded(() => repository.syncSnapshot(input)) }),
     defineTool({ name: "jobs.read-detail", version: 1, description: "返回同一索引版本中的岗位、结构化地点、薪资分项、全部来源、观察和不可变JD快照，保留多源差异。", effect: "read-index", inputSchema: z.object({ jobId: EntityIdSchema }).strict(),
       outputSchema: z.object({ snapshotRevision: RevisionSchema, job: CanonicalJobSchema, company: CompanySchema, locations: z.array(JobLocationSchema), compensations: z.array(CompensationSchema), listings: z.array(SourceListingSchema), observations: z.array(SourceObservationSchema), snapshots: z.array(JdSnapshotSchema), sources: z.array(SourceDefinitionSchema) }).strict(),
       execute: (input) => guarded(async () => {
@@ -337,14 +349,18 @@ export function createJobApplication(options: JobApplicationOptions) {
     defineTool({ name: "runs.cancel", version: 1, description: "取消自己发起的指定任务，阻止该代迟到写入。", effect: "local-write", inputSchema: z.object({ runId: EntityIdSchema }).strict(), outputSchema: SyncRunSchema, execute: (input, context) => guarded(async () => { const result = await repository.cancelRun(input.runId, { actorScope: context.actorScope }); running.get(input.runId)?.abort(); return result; }) }),
     defineTool({ name: "leads.list", version: 1, description: "列出发现线索与招聘批次，不能把它们计为完整岗位。", effect: "read-index", inputSchema: emptyInput, outputSchema: z.array(DiscoveryLeadSchema), execute: () => guarded(() => repository.listDiscoveryLeads()) }),
   ];
-  const registry = createToolRegistry(definitions.map((definition) => ({ ...definition, execute: (input: unknown, context: ToolHandlerContext) => {
+  const registry = createToolRegistry(definitions.map((definition) => ({ ...definition, execute: async (input: unknown, context: ToolHandlerContext) => {
     const signal = AbortSignal.any([context.signal, stopSignal.signal]);
-    return definition.execute(input, { ...context, signal, throwIfCancelled: () => { context.throwIfCancelled(); if (signal.aborted) throw new ToolError("cancelled"); } });
+    const result = await definition.execute(input, { ...context, signal, throwIfCancelled: () => { context.throwIfCancelled(); if (signal.aborted) throw new ToolError("cancelled"); } });
+    if (definition.effect === "local-write") enrichmentWorker?.wake();
+    return result;
   } })));
+  const enrichmentWorker = options.backgroundEnrichment === false ? undefined : startBackgroundEnrichmentWorker(repository, { runLocalBatch: serializePageMutation });
   return { registry, query, sources, shutdown: async () => {
     stopping = true;
     stopSignal.abort();
     for (const controller of running.values()) controller.abort();
+    await enrichmentWorker?.stop();
     while (pending.size) await Promise.allSettled([...pending]);
   } };
 }

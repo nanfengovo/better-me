@@ -1,9 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import {
-  AtlasDatasetObjectSchema, AtlasDatasetSchema, normalizeSearchText,
-  SourceDefinitionSchema, type AtlasDataset, type Company, type CanonicalJob, type SourceListing,
-  CanonicalJobSchema, EntityIdSchema, MergeDecisionSchema, ReconciliationReceiptSchema, JobAliasEventSchema,
+  AtlasDatasetObjectSchema, AtlasDatasetSchema, validateAtlasDatasetReferences, normalizeSearchText,
+  SourceDefinitionSchema, CompanySchema, type AtlasDataset, type Company, type CanonicalJob, type SourceListing,
+  EntityIdSchema, MergeDecisionSchema, ReconciliationReceiptSchema, JobAliasEventSchema,
   ConfirmMergeInputSchema, RejectMergeInputSchema, RevokeMergeInputSchema, explainMergeCandidate,
   findMergeCandidates, projectReconciliation,
   JobLocationSchema, LocationConfirmationDecisionSchema, LocationConfirmationPreviewSchema, LocationConfirmationReceiptSchema,
@@ -31,12 +31,20 @@ import {
 import {
   ActorScopeSchema, IdempotencyKeySchema, SyncRunSchema, RunScopeSchema, PublicRunSummarySchema,
   RequestFingerprintSchema,
-  ImportReceiptSchema, RepositoryBackupSchema, REPOSITORY_SCHEMA_VERSION, REPOSITORY_MIGRATION_V1, REPOSITORY_MIGRATION_V2, REPOSITORY_MIGRATION_V3, LOCATION_DECISION_TRIGGERS, REPOSITORY_MIGRATION_V4, OFFICE_DECISION_TRIGGERS,
+  ImportReceiptSchema, RepositoryBackupSchema, REPOSITORY_SCHEMA_VERSION, REPOSITORY_MIGRATION_V1, REPOSITORY_MIGRATION_V2, REPOSITORY_MIGRATION_V3, LOCATION_DECISION_TRIGGERS, REPOSITORY_MIGRATION_V4, OFFICE_DECISION_TRIGGERS, REPOSITORY_MIGRATION_V5, REPOSITORY_MIGRATION_V6, REPOSITORY_MIGRATION_V7,
   APPEND_ONLY_TRIGGERS, RECONCILIATION_TRIGGERS, type ImportReceipt, type SyncRun, type RunScope, type PublicRunSummary,
   type RepositoryBackup, type StoredReceipt, DiscoveryLeadSchema, DiscoveryLeadReceiptSchema,
   type DiscoveryLead, type DiscoveryLeadReceipt,
 } from "./repository-schema.js";
-import { resolveLocationArea } from "./location-catalog.js";
+import { resolveLocationArea, listSourceNormalizationAreas } from "./location-catalog.js";
+import { BackgroundEnrichmentTaskSchema, ENRICHMENT_MAX_ATTEMPTS, backgroundEnrichmentSource, planBackgroundEnrichment, applyBackgroundEnrichment,
+  type BackgroundEnrichmentTask, type BackgroundEnrichmentOptions, type BackgroundEnrichmentStatus, type BackgroundEnrichmentBatchResult } from "./background-enrichment.js";
+import { createDatasetSyncStore } from "./dataset-sync.js";
+import { DatasetSyncRequestSchema, type DatasetSyncRequest, type DatasetSyncResponse, type DatasetUpserts } from "./dataset-sync-contract.js";
+import { createProjectionSlice, type ProjectionSelection } from "./projection-slice.js";
+import { createProjectionDependencies } from "./projection-dependencies.js";
+import { DATASET_TABLES as TABLES, DATASET_ENTITY_LIMITS } from "./dataset-tables.js";
+export type { BackgroundEnrichmentOptions, BackgroundEnrichmentStatus, BackgroundEnrichmentBatchResult } from "./background-enrichment.js";
 
 export type RepositoryErrorCode = "invalid-data" | "conflict" | "stale-version" | "idempotency-conflict" | "cancelled" | "not-authorized" | "not-found" | "closed" | "unsupported-schema" | "invalid-backup" | "storage-error" | "rate-limited";
 const PUBLIC_ERRORS: Record<RepositoryErrorCode, string> = {
@@ -59,9 +67,32 @@ export type ReconciliationWriteOptions = Omit<ImportOptions, "runId"> & { expect
 export type CandidateQuery = { search?: string; mode?: "exact" | "fuzzy"; viewport?: [number, number, number, number] };
 export type CandidateResult = { jobIds: string[]; indexedHits: string[]; exact: false; reason: "safe-superset"; snapshotVersion: number };
 
-const TABLES = ["sources", "companies", "jobs", "locations", "compensations", "listings", "observations", "snapshots"] as const;
+const BASE_ENTITIES_SCHEMA = AtlasDatasetObjectSchema.pick({ jobs: true, locations: true });
 type Table = typeof TABLES[number];
 const encoder = new TextEncoder();
+const LEGACY_INFERRED_OFFICE_REASON_PREFIX = "企业公开办公区与园区坐标核实：";
+const LEGACY_INFERRED_OFFICE_WARNING = "legacy-office-coordinate-quarantined：历史批量推定的办公地址和坐标已从公共视图隔离；保留来源地点及既有行政区核对，需重新核对实际工作地址。";
+
+/** Read-only safety view; the stored overlay, decisions and receipts remain intact. */
+function projectPublicOfficeLocations(dataset: AtlasDataset, entries: readonly OfficeAddressDecision[]): AtlasDataset {
+  const legacy = new Map(entries.filter((entry): entry is Extract<OfficeAddressDecision, { kind: "confirm" }> =>
+    entry.kind === "confirm" && entry.reason.startsWith(LEGACY_INFERRED_OFFICE_REASON_PREFIX)).map(entry => [entry.id, entry]));
+  if (!legacy.size) return dataset;
+  const affectedObservations = new Set<string>();
+  const locations = dataset.locations.map(location => {
+    const decision = location.officeResolution && legacy.get(location.officeResolution.decisionId);
+    if (!decision || decision.locationId !== location.id || decision.sourceLocation.id !== location.id) return location;
+    for (const evidence of decision.sourceLocation.evidence) affectedObservations.add(evidence.observationId);
+    return decision.sourceLocation;
+  });
+  if (!affectedObservations.size) return dataset;
+  return { ...dataset, locations, observations: dataset.observations.map(observation => {
+    if (!affectedObservations.has(observation.id) || observation.warnings.includes(LEGACY_INFERRED_OFFICE_WARNING)) return observation;
+    // Public warning lists have a 100-entry bound; keep the quarantine visible
+    // even when a historical observation already uses the entire warning budget.
+    return { ...observation, warnings: [...observation.warnings.slice(-99), LEGACY_INFERRED_OFFICE_WARNING] };
+  }) };
+}
 
 function json(value: unknown): string {
   function sorted(item: unknown): unknown {
@@ -156,10 +187,10 @@ function mergeListing(current: SourceListing, incoming: SourceListing): SourceLi
 }
 
 /** Open only a caller-selected path. The repository never discovers user profiles or browser data. */
-export function openJobRepository(path: string, options: { now?: () => string } = {}) {
+export function openJobRepository(path: string, options: { now?: () => string; readOnly?: boolean } = {}) {
   if (typeof path !== "string" || !path || path.includes("\0")) throw new RepositoryError("invalid-data");
   let db: DatabaseSync;
-  try { db = new DatabaseSync(path); } catch { throw new RepositoryError("storage-error"); }
+  try { db = new DatabaseSync(path, { readOnly: options.readOnly ?? false }); } catch { throw new RepositoryError("storage-error"); }
   let closed = false;
   const now = () => {
     const value = options.now?.() ?? new Date().toISOString();
@@ -170,6 +201,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     db.exec("PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;");
     const version = (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
     if (version > REPOSITORY_SCHEMA_VERSION) throw new RepositoryError("unsupported-schema");
+    if (options.readOnly && version !== REPOSITORY_SCHEMA_VERSION) throw new RepositoryError("unsupported-schema");
     if (version === 0) {
       const tables = db.prepare("SELECT name FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%'").all();
       if (tables.length) throw new RepositoryError("unsupported-schema");
@@ -192,7 +224,22 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       try { db.exec(REPOSITORY_MIGRATION_V4); db.exec(OFFICE_DECISION_TRIGGERS); db.exec("PRAGMA user_version=4; COMMIT;"); }
       catch (error) { db.exec("ROLLBACK"); throw error; }
     }
-    db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;");
+    if (version < 5) {
+      db.exec("BEGIN IMMEDIATE");
+      try { db.exec(REPOSITORY_MIGRATION_V5); db.exec("PRAGMA user_version=5; COMMIT;"); }
+      catch (error) { db.exec("ROLLBACK"); throw error; }
+    }
+    if (version < 6) {
+      db.exec("BEGIN IMMEDIATE");
+      try { db.exec(REPOSITORY_MIGRATION_V6); db.exec("PRAGMA user_version=6; COMMIT;"); }
+      catch (error) { db.exec("ROLLBACK"); throw error; }
+    }
+    if (version < 7) {
+      db.exec("BEGIN IMMEDIATE");
+      try { db.exec(REPOSITORY_MIGRATION_V7); db.exec("PRAGMA user_version=7; COMMIT;"); }
+      catch (error) { db.exec("ROLLBACK"); throw error; }
+    }
+    if (!options.readOnly) db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;");
     // Opening a file with a matching user_version is not sufficient proof of this schema.
     db.prepare("SELECT value FROM metadata WHERE key='revision'").get();
     for (const table of TABLES) db.prepare(`SELECT id,document FROM ${table} LIMIT 0`).all();
@@ -201,17 +248,93 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     db.prepare("SELECT id,document FROM base_locations LIMIT 0").all();
     db.prepare("SELECT id,revision,document FROM location_decisions LIMIT 0").all();
     db.prepare("SELECT id,revision,document FROM office_decisions LIMIT 0").all();
+    db.prepare("SELECT id,actor_scope,kind,job_id,state,next_retry_at,document FROM enrichment_tasks LIMIT 0").all();
+    db.prepare("SELECT table_name,entity_id,revision,deleted FROM dataset_changes LIMIT 0").all();
+    db.prepare("SELECT job_id,kind,entity_id FROM base_job_dependencies LIMIT 0").all();
+    for (const key of ["sync_epoch", "sync_floor"]) if (!db.prepare("SELECT value FROM metadata WHERE key=?").get(key)) throw new RepositoryError("storage-error");
     const check = db.prepare("PRAGMA quick_check").get() as Record<string, unknown>;
     if (Object.values(check)[0] !== "ok") throw new RepositoryError("storage-error");
   } catch (error) { db.close(); throw error instanceof RepositoryError ? error : new RepositoryError("storage-error"); }
 
   function ensureOpen() { if (closed) throw new RepositoryError("closed"); }
   function transaction<T>(work: () => T): T {
-    ensureOpen(); db.exec("BEGIN IMMEDIATE");
+    // A WAL reader observes one committed revision without taking the writer lock.
+    ensureOpen(); db.exec(options.readOnly ? "BEGIN" : "BEGIN IMMEDIATE");
     try { const result = work(); db.exec("COMMIT"); return result; }
     catch (error) { try { db.exec("ROLLBACK"); } catch { /* preserve fixed error below */ } throw error instanceof RepositoryError ? error : new RepositoryError("storage-error"); }
   }
   function revision() { return Number((db.prepare("SELECT value FROM metadata WHERE key='revision'").get() as { value: string }).value); }
+  const projectionSlice = createProjectionSlice(db, input => { const data = checked(AtlasDatasetSchema, input); verifyContentHashes(data); return data; });
+  const projectionDependencies = createProjectionDependencies(db);
+  function publicSyncRows(rows: DatasetUpserts): DatasetUpserts {
+    if (!rows.locations.length && !rows.observations.length) return rows;
+    // Only active legacy overlays affect public facts. Read their small decision
+    // set, not every JD/company/document, even in a migrated historical library.
+    const entries = db.prepare("SELECT o.document FROM office_decisions o JOIN locations l ON l.id=json_extract(o.document,'$.locationId') AND json_extract(l.document,'$.officeResolution.decisionId')=o.id WHERE json_extract(o.document,'$.kind')='confirm' AND substr(json_extract(o.document,'$.reason'),1,?)=?")
+      .all(LEGACY_INFERRED_OFFICE_REASON_PREFIX.length, LEGACY_INFERRED_OFFICE_REASON_PREFIX) as { document: string }[];
+    if (!entries.length) return rows;
+    const sourceLocations = new Map<string, JobLocation>(), affected = new Set<string>();
+    for (const row of entries) {
+      const entry = checked(OfficeAddressDecisionSchema, JSON.parse(row.document));
+      if (entry.kind !== "confirm" || entry.sourceLocation.id !== entry.locationId) continue;
+      sourceLocations.set(entry.locationId, entry.sourceLocation);
+      for (const evidence of entry.sourceLocation.evidence) affected.add(evidence.observationId);
+    }
+    return { ...rows, locations: rows.locations.map(location => sourceLocations.get(location.id) ?? location), observations: rows.observations.map(observation =>
+      affected.has(observation.id) && !observation.warnings.includes(LEGACY_INFERRED_OFFICE_WARNING)
+        ? { ...observation, warnings: [...observation.warnings.slice(-99), LEGACY_INFERRED_OFFICE_WARNING] } : observation) };
+  }
+  const datasetSync = createDatasetSyncStore(db, () => projectPublicOfficeLocations(read(), officeDecisions()), publicSyncRows);
+  function markPublicOfficeEvidence(location: JobLocation | undefined, atRevision: number) {
+    const id = location?.officeResolution?.decisionId;
+    if (!id) return;
+    const row = db.prepare("SELECT document FROM office_decisions WHERE id=?").get(id) as { document: string } | undefined;
+    if (!row) return;
+    const entry = checked(OfficeAddressDecisionSchema, JSON.parse(row.document));
+    if (entry.kind !== "confirm" || !entry.reason.startsWith(LEGACY_INFERRED_OFFICE_REASON_PREFIX) || entry.locationId !== location!.id) return;
+    for (const evidence of entry.sourceLocation.evidence) datasetSync.changed("observations", evidence.observationId, atRevision);
+  }
+  function saveEnrichmentTask(task: BackgroundEnrichmentTask) {
+    const value = checked(BackgroundEnrichmentTaskSchema, task);
+    db.prepare("INSERT INTO enrichment_tasks(id,actor_scope,kind,job_id,state,next_retry_at,document) VALUES (?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state,next_retry_at=excluded.next_retry_at,document=excluded.document")
+      .run(value.id, value.actorScope, value.kind, value.jobId, value.state, value.nextRetryAt ?? null, json(value));
+  }
+  function enrichmentTasks(actorScope?: string): BackgroundEnrichmentTask[] {
+    const rows = actorScope === undefined ? db.prepare("SELECT document FROM enrichment_tasks ORDER BY id").all()
+      : db.prepare("SELECT document FROM enrichment_tasks WHERE actor_scope=? ORDER BY id").all(actorScope);
+    return (rows as { document: string }[]).map(row => checked(BackgroundEnrichmentTaskSchema, JSON.parse(row.document)));
+  }
+  function enrichmentStatus(actorScope: string): BackgroundEnrichmentStatus {
+    const result: BackgroundEnrichmentStatus = { revision: revision(), pending: 0, running: 0, completed: 0, failed: 0 };
+    const rows = db.prepare("SELECT state,COUNT(*) AS count,MIN(next_retry_at) AS next FROM enrichment_tasks WHERE actor_scope=? GROUP BY state").all(actorScope) as { state: BackgroundEnrichmentTask["state"]; count: number; next: string | null }[];
+    for (const row of rows) {
+      result[row.state] = row.count;
+      if (row.next && (!result.nextRetryAt || row.next < result.nextRetryAt)) result.nextRetryAt = row.next;
+    }
+    return result;
+  }
+  function enqueueEnrichment(before: AtlasDataset, after: AtlasDataset, actorScope: string) {
+    const changedIds = (table: "jobs" | "locations" | "companies" | "listings") => {
+      const old = new Map(before[table].map(value => [value.id, value]));
+      return new Set(after[table].filter(value => !same(old.get(value.id), value)).map(value => value.id));
+    };
+    const jobs = changedIds("jobs"), locations = changedIds("locations"), companies = changedIds("companies"), listings = changedIds("listings");
+    for (const job of after.jobs) {
+      if (!jobs.has(job.id) && !companies.has(job.companyId) && !job.locationIds.some(id => locations.has(id)) && !job.listingIds.some(id => listings.has(id))) continue;
+      const id = `enrichment_${signature({ actorScope, kind: "source-metadata-v1", jobId: job.id })}`;
+      const sourceFingerprint = signature(backgroundEnrichmentSource(after, job.id));
+      const row = db.prepare("SELECT document FROM enrichment_tasks WHERE id=?").get(id) as { document: string } | undefined;
+      const previous = row && checked(BackgroundEnrichmentTaskSchema, JSON.parse(row.document));
+      if (previous?.sourceFingerprint === sourceFingerprint) continue;
+      saveEnrichmentTask({ id, kind: "source-metadata-v1", jobId: job.id, actorScope, sourceFingerprint, state: "pending", attempts: 0, createdAt: previous?.createdAt ?? now(), updatedAt: now() });
+    }
+  }
+  function releaseEnrichment(task: BackgroundEnrichmentTask, state: "pending" | "failed", at: string): BackgroundEnrichmentTask {
+    const { leaseId: _lease, leaseExpiresAt: _expiry, nextRetryAt: _retry, result: _result, errorCode: _error, ...value } = task;
+    const exhausted = task.attempts >= ENRICHMENT_MAX_ATTEMPTS;
+    return { ...value, state: exhausted ? "failed" : state, updatedAt: at,
+      ...(exhausted ? { errorCode: "attempts-exhausted" as const } : state === "failed" ? { errorCode: "planning-failed" as const, nextRetryAt: new Date(Date.parse(at) + 1000 * 2 ** task.attempts).toISOString() } : {}) };
+  }
   function read(): AtlasDataset {
     ensureOpen(); const dataset = emptyDataset(revision());
     for (const table of TABLES) {
@@ -257,31 +380,61 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     return (db.prepare("SELECT document FROM office_decisions ORDER BY revision").all() as Array<{ document: string }>).map(row => checked(OfficeAddressDecisionSchema, JSON.parse(row.document)));
   }
   function baseSnapshot(current = read()): AtlasDataset {
-    const jobs = (db.prepare("SELECT document FROM base_jobs ORDER BY id").all() as Array<{ document: string }>).map((row) => checked(CanonicalJobSchema, JSON.parse(row.document)));
+    // Every caller supplies read()'s validated current snapshot (or uses the
+    // default). Validate the replaced base entities and their array bounds once,
+    // then validate all composed references without reparsing unchanged tables.
+    const { jobs, locations } = checked(BASE_ENTITIES_SCHEMA, {
+      jobs: (db.prepare("SELECT document FROM base_jobs ORDER BY id").all() as Array<{ document: string }>).map(row => JSON.parse(row.document)),
+      locations: (db.prepare("SELECT document FROM base_locations ORDER BY id").all() as Array<{ document: string }>).map(row => JSON.parse(row.document)),
+    });
     const owner = new Map(jobs.flatMap((job) => job.listingIds.map((id) => [id, job.id] as const)));
-    const locations = (db.prepare("SELECT document FROM base_locations ORDER BY id").all() as Array<{ document: string }>).map(row => checked(JobLocationSchema, JSON.parse(row.document)));
-    return checked(AtlasDatasetSchema, { ...current, jobs, locations, listings: current.listings.map((listing) => ({ ...listing, ...(owner.has(listing.id) ? { canonicalJobId: owner.get(listing.id) } : {}) })) });
+    const result = { ...current, jobs, locations, listings: current.listings.map((listing) => ({ ...listing, ...(owner.has(listing.id) ? { canonicalJobId: owner.get(listing.id) } : {}) })) };
+    if (validateAtlasDatasetReferences(result).length) throw new RepositoryError("invalid-data");
+    return result;
   }
   function writeBaseJobs(jobs: readonly CanonicalJob[], replace = false) {
-    if (replace) db.exec("DELETE FROM base_jobs");
-    for (const job of jobs) db.prepare("INSERT INTO base_jobs(id,document) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document").run(job.id, json(job));
+    if (replace) { projectionDependencies.clear(); db.exec("DELETE FROM base_jobs"); }
+    const existing = db.prepare("SELECT document FROM base_jobs WHERE id=?");
+    const insert = db.prepare("INSERT INTO base_jobs(id,document) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document");
+    for (const job of jobs) {
+      const document = json(job);
+      if ((existing.get(job.id) as { document: string } | undefined)?.document !== document) {
+        insert.run(job.id, document); projectionDependencies.save(job);
+      }
+    }
   }
   function writeBaseLocations(locations: readonly JobLocation[], replace = false) {
     if (replace) db.exec("DELETE FROM base_locations");
+    const existing = db.prepare("SELECT document FROM base_locations WHERE id=?");
+    const insert = db.prepare("INSERT INTO base_locations(id,document) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document");
     for (const location of locations) {
       if (location.userResolution || location.officeResolution) throw new RepositoryError("conflict");
-      db.prepare("INSERT INTO base_locations(id,document) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document").run(location.id, json(location));
+      const document = json(location);
+      if ((existing.get(location.id) as { document: string } | undefined)?.document !== document) insert.run(location.id, document);
     }
   }
   function canonicalProjection(base: AtlasDataset, current: AtlasDataset, entries: readonly MergeDecision[], changedAt: string, locationEntries = locationDecisions(), officeEntries = officeDecisions()) {
-    const projection = projectReconciliation(projectOfficeAddressConfirmations(projectLocationConfirmations(base, locationEntries), officeEntries), entries);
+    // Empty overlays are identity operations. Keep the complete final dataset
+    // validation below, but do not parse every unchanged record four extra times.
+    const withAreas = locationEntries.length ? projectLocationConfirmations(base, locationEntries) : base;
+    const withOffices = officeEntries.length ? projectOfficeAddressConfirmations(withAreas, officeEntries) : withAreas;
+    const revoked = new Set(entries.flatMap(entry => entry.kind === "revoke" ? [entry.targetDecisionId] : []));
+    const activeMerge = entries.some(entry => entry.kind === "merge" && !revoked.has(entry.id));
+    const projection: ReturnType<typeof projectReconciliation> = activeMerge ? projectReconciliation(withOffices, entries) : {
+      dataset: { ...withOffices, jobs: [...withOffices.jobs].sort((a, b) => compareIds(a.id, b.id)) },
+      aliases: withOffices.jobs.map(job => ({ jobId: job.id, canonicalJobId: job.id })).sort((a, b) => compareIds(a.jobId, b.jobId)), conflicts: [],
+    };
     const old = new Map(current.jobs.map((job) => [job.id, job]));
-    const body = (job: CanonicalJob, dataset: AtlasDataset) => { const { revision: _revision, updatedAt: _updatedAt, ...value } = job; return { job: value, locations: job.locationIds.map(id => dataset.locations.find(location => location.id === id)) }; };
+    const currentLocations = new Map(current.locations.map(location => [location.id, location]));
+    const projectedLocations = new Map(projection.dataset.locations.map(location => [location.id, location]));
+    const aliasCounts = new Map<string, number>();
+    for (const alias of projection.aliases) aliasCounts.set(alias.canonicalJobId, (aliasCounts.get(alias.canonicalJobId) ?? 0) + 1);
+    const body = (job: CanonicalJob, locations: ReadonlyMap<string, JobLocation>) => { const { revision: _revision, updatedAt: _updatedAt, ...value } = job; return { job: value, locations: job.locationIds.map(id => locations.get(id)) }; };
     projection.dataset.jobs = projection.dataset.jobs.map((job) => {
       const previous = old.get(job.id);
       if (!previous && !db.prepare("SELECT job_id FROM job_versions WHERE job_id=?").get(job.id)) return job;
-      const count = projection.aliases.filter((alias) => alias.canonicalJobId === job.id).length;
-      if (previous && same(body(previous, current), body(job, projection.dataset))) return count === 1 && job.revision > previous.revision ? job : previous;
+      const count = aliasCounts.get(job.id) ?? 0;
+      if (previous && same(body(previous, currentLocations), body(job, projectedLocations))) return count === 1 && job.revision > previous.revision ? job : previous;
       const counter = db.prepare("SELECT revision FROM job_versions WHERE job_id=?").get(job.id) as { revision: number } | undefined;
       const version = Math.max(job.revision, counter ? counter.revision + 1 : 0, previous ? previous.revision + 1 : 0);
       const updatedAt = [job.updatedAt, ...(previous ? [previous.updatedAt] : []), changedAt].sort((a, b) => Date.parse(b) - Date.parse(a))[0]!;
@@ -290,14 +443,20 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     projection.dataset = checked(AtlasDatasetSchema, projection.dataset);
     return projection;
   }
-  function saveAliases(aliases: readonly { jobId: string; canonicalJobId: string }[], version: number, at: string, decisionId?: string) {
-    const previous = new Map((db.prepare("SELECT job_id,canonical_job_id FROM job_aliases").all() as Array<{ job_id: string; canonical_job_id: string }>).map((row) => [row.job_id, row.canonical_job_id]));
-    db.exec("DELETE FROM job_aliases");
+  function saveAliases(aliases: readonly { jobId: string; canonicalJobId: string }[], version: number, at: string, decisionId?: string, partial = false) {
+    const select = db.prepare("SELECT job_id,canonical_job_id FROM job_aliases WHERE job_id=?");
+    const rows = partial ? aliases.flatMap(alias => { const row = select.get(alias.jobId); return row ? [row] : []; }) : db.prepare("SELECT job_id,canonical_job_id FROM job_aliases").all();
+    const previous = new Map((rows as Array<{ job_id: string; canonical_job_id: string }>).map((row) => [row.job_id, row.canonical_job_id]));
+    const currentIds = new Set(aliases.map(alias => alias.jobId));
+    const remove = db.prepare("DELETE FROM job_aliases WHERE job_id=?");
+    for (const id of previous.keys()) if (!currentIds.has(id)) remove.run(id);
+    const insert = db.prepare("INSERT INTO job_aliases VALUES (?,?) ON CONFLICT(job_id) DO UPDATE SET canonical_job_id=excluded.canonical_job_id");
+    const history = db.prepare("INSERT INTO job_alias_history(job_id,revision,document) VALUES (?,?,?)");
     for (const alias of aliases) {
-      db.prepare("INSERT INTO job_aliases VALUES (?,?)").run(alias.jobId, alias.canonicalJobId);
       if (previous.get(alias.jobId) !== alias.canonicalJobId) {
+        insert.run(alias.jobId, alias.canonicalJobId);
         const event: JobAliasEvent = { ...alias, revision: version, at, ...(decisionId ? { decisionId } : {}) };
-        db.prepare("INSERT INTO job_alias_history(job_id,revision,document) VALUES (?,?,?)").run(alias.jobId, version, json(event));
+        history.run(alias.jobId, version, json(event));
       }
     }
   }
@@ -309,25 +468,39 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       if (sources.has(run.sourceId)) saveRun({ ...run, status: "superseded", finishedAt: now(), summary: { partial: true, errorCode: reason } });
     }
   }
-  function write(dataset: AtlasDataset, replace = false) {
+  function write(dataset: AtlasDataset, replace = false, scope?: ReadonlySet<string>) {
     if (replace) {
       db.exec("DROP TRIGGER observations_no_update; DROP TRIGGER observations_no_delete; DROP TRIGGER snapshots_no_update; DROP TRIGGER snapshots_no_delete;");
       db.exec("DELETE FROM job_locations; DELETE FROM job_compensations; DELETE FROM job_listings; DELETE FROM listing_observations; DELETE FROM location_rtree; DELETE FROM location_rtree_ids; DELETE FROM jobs_fts; DELETE FROM discovery_leads;");
       for (const table of [...TABLES].reverse()) db.exec(`DELETE FROM ${table}`);
     }
+    // Full operations retain the original reference path; hot writes supply a
+    // validated dependency slice and may delete only jobs in that explicit scope.
+    // Existing secondary-index semantics remain derived from actual row changes.
+    const changedJobs = new Set<string>();
+    const changedCompanyNames = new Set<string>();
+    const changedListingObservations = new Set<string>();
+    const changedCoordinates = new Set<string>();
+    const selectExisting = new Map(TABLES.map(table => [table, db.prepare(`SELECT document FROM ${table} WHERE id=?`)]));
     for (const table of TABLES) for (const value of dataset[table]) {
       const id = sourceIdOrId(table, value); const document = json(value);
-      const existing = db.prepare(`SELECT document FROM ${table} WHERE id=?`).get(id) as { document: string } | undefined;
+      const existing = selectExisting.get(table)!.get(id) as { document: string } | undefined;
       if (existing?.document === document) continue;
       if ((table === "observations" || table === "snapshots") && existing) throw new RepositoryError("conflict");
       if (table === "jobs") {
         const job = value as CanonicalJob;
+        changedJobs.add(id);
         db.prepare("INSERT INTO jobs(id,company_id,document) VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET company_id=excluded.company_id,document=excluded.document").run(id, job.companyId, document);
       } else if (table === "locations") {
         const location = value as AtlasDataset["locations"][number];
+        const previous = existing ? JSON.parse(existing.document) as JobLocation : undefined;
+        if (!replace) { markPublicOfficeEvidence(previous, dataset.revision); markPublicOfficeEvidence(location, dataset.revision); }
+        if (!same(previous?.coordinates, location.coordinates)) changedCoordinates.add(id);
         db.prepare("INSERT INTO locations(id,latitude,longitude,document) VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET latitude=excluded.latitude,longitude=excluded.longitude,document=excluded.document").run(id, location.coordinates?.latitude ?? null, location.coordinates?.longitude ?? null, document);
       } else if (table === "listings") {
         const listing = value as SourceListing;
+        const previous = existing ? JSON.parse(existing.document) as SourceListing : undefined;
+        if (!previous || !same(previous.observationIds, listing.observationIds)) changedListingObservations.add(id);
         db.prepare("INSERT INTO listings(id,source_id,job_id,document) VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET source_id=excluded.source_id,job_id=excluded.job_id,document=excluded.document").run(id, listing.sourceId, listing.canonicalJobId ?? null, document);
       } else if (table === "observations") {
         const observation = value as AtlasDataset["observations"][number];
@@ -335,17 +508,41 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       } else if (table === "snapshots") {
         const snapshot = value as AtlasDataset["snapshots"][number];
         db.prepare("INSERT INTO snapshots(id,listing_id,observation_id,document) VALUES (?,?,?,?)").run(id, snapshot.listingId, snapshot.observationId, document);
-      } else db.prepare(`INSERT INTO ${table}(id,document) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document`).run(id, document);
+      } else {
+        if (table === "companies") {
+          const previous = existing ? JSON.parse(existing.document) as Company : undefined;
+          if (!previous || !same(previous.names, (value as Company).names)) changedCompanyNames.add(id);
+        }
+        db.prepare(`INSERT INTO ${table}(id,document) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document`).run(id, document);
+      }
+      if (!replace) datasetSync.changed(table, id, dataset.revision);
     }
-    db.exec("DELETE FROM job_locations; DELETE FROM job_compensations; DELETE FROM job_listings; DELETE FROM listing_observations; DELETE FROM location_rtree; DELETE FROM location_rtree_ids; DELETE FROM jobs_fts;");
     const activeJobIds = new Set(dataset.jobs.map((job) => job.id));
-    for (const row of db.prepare("SELECT id FROM jobs").all() as Array<{ id: string }>) if (!activeJobIds.has(row.id)) db.prepare("DELETE FROM jobs WHERE id=?").run(row.id);
-    for (const job of dataset.jobs) db.prepare("INSERT INTO job_versions VALUES (?,?) ON CONFLICT(job_id) DO UPDATE SET revision=MAX(revision,excluded.revision)").run(job.id, job.revision);
+    const removedJobIds = scope ? [...scope].filter(id => !activeJobIds.has(id))
+      : (db.prepare("SELECT id FROM jobs").all() as Array<{ id: string }>).filter(row => !activeJobIds.has(row.id)).map(row => row.id);
+    for (const id of [...changedJobs, ...removedJobIds]) {
+      db.prepare("DELETE FROM job_locations WHERE job_id=?").run(id);
+      db.prepare("DELETE FROM job_compensations WHERE job_id=?").run(id);
+      db.prepare("DELETE FROM job_listings WHERE job_id=?").run(id);
+    }
+    const reindexedJobs = new Set([...changedJobs, ...removedJobIds]);
+    // A company-only edit changes FTS text for its jobs even if their documents
+    // (and therefore job revisions and relationship rows) remain unchanged.
+    for (const job of dataset.jobs) if (changedCompanyNames.has(job.companyId)) reindexedJobs.add(job.id);
+    for (const id of reindexedJobs) db.prepare("DELETE FROM jobs_fts WHERE job_id=?").run(id);
+    for (const id of removedJobIds) {
+      db.prepare("DELETE FROM jobs WHERE id=?").run(id);
+      if (!replace) datasetSync.changed("jobs", id, dataset.revision, true);
+    }
     const companyById = new Map(dataset.companies.map((company) => [company.id, company]));
     for (const job of dataset.jobs) {
-      for (const id of job.locationIds) db.prepare("INSERT INTO job_locations VALUES (?,?)").run(job.id, id);
-      for (const id of job.compensationIds) db.prepare("INSERT INTO job_compensations VALUES (?,?)").run(job.id, id);
-      for (const id of job.listingIds) db.prepare("INSERT INTO job_listings VALUES (?,?)").run(job.id, id);
+      if (changedJobs.has(job.id)) {
+        db.prepare("INSERT INTO job_versions VALUES (?,?) ON CONFLICT(job_id) DO UPDATE SET revision=MAX(revision,excluded.revision)").run(job.id, job.revision);
+        for (const id of job.locationIds) db.prepare("INSERT INTO job_locations VALUES (?,?)").run(job.id, id);
+        for (const id of job.compensationIds) db.prepare("INSERT INTO job_compensations VALUES (?,?)").run(job.id, id);
+        for (const id of job.listingIds) db.prepare("INSERT INTO job_listings VALUES (?,?)").run(job.id, id);
+      }
+      if (!reindexedJobs.has(job.id)) continue;
       const company = companyById.get(job.companyId)!.names.join(" ");
       const cjkText = [job.title.value, company, job.description].join(" ").normalize("NFKC");
       const cjk: string[] = [];
@@ -355,12 +552,27 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       }
       db.prepare("INSERT INTO jobs_fts(job_id,title,company,description,cjk) VALUES (?,?,?,?,?)").run(job.id, normalizeSearchText(job.title.value), normalizeSearchText(company), normalizeSearchText(job.description), [...new Set(cjk)].join(" "));
     }
-    for (const listing of dataset.listings) for (const observationId of listing.observationIds) db.prepare("INSERT INTO listing_observations VALUES (?,?)").run(listing.id, observationId);
-    for (const location of dataset.locations) if (location.coordinates) {
-      const inserted = db.prepare("INSERT INTO location_rtree_ids(location_id) VALUES (?)").run(location.id);
-      db.prepare("INSERT INTO location_rtree VALUES (?,?,?,?,?)").run(inserted.lastInsertRowid, location.coordinates.longitude, location.coordinates.longitude, location.coordinates.latitude, location.coordinates.latitude);
+    for (const listing of dataset.listings) if (changedListingObservations.has(listing.id)) {
+      db.prepare("DELETE FROM listing_observations WHERE listing_id=?").run(listing.id);
+      for (const observationId of listing.observationIds) db.prepare("INSERT INTO listing_observations VALUES (?,?)").run(listing.id, observationId);
+    }
+    for (const location of dataset.locations) if (changedCoordinates.has(location.id)) {
+      const existing = db.prepare("SELECT rid FROM location_rtree_ids WHERE location_id=?").get(location.id) as { rid: number } | undefined;
+      if (!location.coordinates) {
+        if (existing) db.prepare("DELETE FROM location_rtree WHERE rid=?").run(existing.rid);
+        // Retain the location-to-rid identity if a confirmation is revoked and
+        // later re-added. No RTree row means it is not a spatial candidate.
+        continue;
+      }
+      const rid = existing?.rid ?? db.prepare("INSERT INTO location_rtree_ids(location_id) VALUES (?)").run(location.id).lastInsertRowid;
+      db.prepare("INSERT OR REPLACE INTO location_rtree VALUES (?,?,?,?,?)").run(rid, location.coordinates.longitude, location.coordinates.longitude, location.coordinates.latitude, location.coordinates.latitude);
+    }
+    if (scope) {
+      // Partial validation must preserve the public contract's global array caps.
+      for (const table of TABLES) if ((db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as { count: number }).count > DATASET_ENTITY_LIMITS[table]) throw new RepositoryError("invalid-data");
     }
     db.prepare("UPDATE metadata SET value=? WHERE key='revision'").run(String(dataset.revision));
+    datasetSync.finish(dataset.revision, replace);
     if (replace) db.exec(APPEND_ONLY_TRIGGERS);
   }
   function merged(current: AtlasDataset, incoming: AtlasDataset): AtlasDataset {
@@ -524,9 +736,96 @@ export function openJobRepository(path: string, options: { now?: () => string } 
   }
 
   return {
-    async readSnapshot(): Promise<AtlasDataset> { return transaction(read); },
+    async getEnrichmentStatus(options: Pick<BackgroundEnrichmentOptions, "actorScope"> = {}): Promise<BackgroundEnrichmentStatus> {
+      const actorScope = checked(ActorScopeSchema, options.actorScope ?? "local-owner");
+      return transaction(() => enrichmentStatus(actorScope));
+    },
+    async processEnrichmentBatch(options: BackgroundEnrichmentOptions = {}): Promise<BackgroundEnrichmentBatchResult> {
+      const actorScope = checked(ActorScopeSchema, options.actorScope ?? "local-owner");
+      const limit = options.limit ?? 8;
+      if (!Number.isSafeInteger(limit) || limit < 1 || limit > 32) throw new RepositoryError("invalid-data");
+      options.signal?.throwIfAborted();
+      const claimed = transaction(() => {
+        const at = now();
+        const expired = db.prepare("SELECT document FROM enrichment_tasks WHERE actor_scope=? AND state='running' AND json_extract(document,'$.leaseExpiresAt')<=?").all(actorScope, at) as { document: string }[];
+        for (const row of expired) saveEnrichmentTask(releaseEnrichment(checked(BackgroundEnrichmentTaskSchema, JSON.parse(row.document)), "pending", at));
+        const rows = db.prepare("SELECT document FROM enrichment_tasks WHERE actor_scope=? AND (state='pending' OR (state='failed' AND next_retry_at<=?)) ORDER BY rowid LIMIT ?").all(actorScope, at, limit) as { document: string }[];
+        return rows.map(row => {
+          const task = checked(BackgroundEnrichmentTaskSchema, JSON.parse(row.document));
+          const running: BackgroundEnrichmentTask = { ...task, state: "running", attempts: task.attempts + 1, updatedAt: at, leaseId: `lease_${randomUUID()}`, leaseExpiresAt: new Date(Date.parse(at) + 60_000).toISOString(), nextRetryAt: undefined };
+          saveEnrichmentTask(running); return running;
+        });
+      });
+      if (!claimed.length) {
+        const status = transaction(() => enrichmentStatus(actorScope));
+        return { processed: 0, completed: 0, failed: 0, changedJobs: 0, revision: status.revision, status };
+      }
+      try {
+        return transaction(() => {
+          options.signal?.throwIfAborted();
+          const slice = projectionSlice.read({ seeds: { jobs: claimed.map(task => task.jobId) }, companyContext: true });
+          const { current, base } = slice;
+          let nextBase = base;
+          const completed: Array<{ task: BackgroundEnrichmentTask; changed: boolean }> = [];
+          const changedBaseLocationIds = new Set<string>();
+          let failed = 0;
+          for (const task of claimed) {
+            const row = db.prepare("SELECT document FROM enrichment_tasks WHERE id=?").get(task.id) as { document: string } | undefined;
+            if (!row || checked(BackgroundEnrichmentTaskSchema, JSON.parse(row.document)).leaseId !== task.leaseId) continue;
+            const fingerprint = signature(backgroundEnrichmentSource(base, task.jobId));
+            if (fingerprint !== task.sourceFingerprint) {
+              saveEnrichmentTask({ ...releaseEnrichment(task, "pending", now()), state: "pending", attempts: 0, sourceFingerprint: fingerprint, errorCode: undefined });
+              continue;
+            }
+            try {
+              const plan = planBackgroundEnrichment(nextBase, current, task.jobId, listSourceNormalizationAreas());
+              // Validate each task's small delta here; canonicalProjection below
+              // validates the complete batch, including all cross-record references.
+              const validated = { locations: plan.locations.map(value => checked(JobLocationSchema, value)), companies: plan.companies.map(value => checked(CompanySchema, value)) };
+              completed.push({ task, changed: validated.locations.length > 0 || validated.companies.length > 0 });
+              for (const location of validated.locations) changedBaseLocationIds.add(location.id);
+              nextBase = applyBackgroundEnrichment(nextBase, validated);
+            } catch { saveEnrichmentTask(releaseEnrichment(task, "failed", now())); failed++; }
+          }
+          const projection = canonicalProjection(nextBase, current, slice.merges, now(), slice.locations, slice.offices);
+          const next = projection.dataset;
+          const changed = TABLES.some(table => !same(current[table], next[table]));
+          next.revision = current.revision + Number(changed);
+          const previousCompanies = new Map(current.companies.map(value => [value.id, value]));
+          const previousJobs = new Map(current.jobs.map(value => [value.id, value]));
+          const previousLocations = new Map(current.locations.map(value => [value.id, value]));
+          const changedCompanies = new Set(next.companies.filter(value => !same(previousCompanies.get(value.id), value)).map(value => value.id));
+          const changedLocations = new Set(next.locations.filter(value => !same(previousLocations.get(value.id), value)).map(value => value.id));
+          const changedJobs = next.jobs.filter(value => changedCompanies.has(value.companyId) || value.locationIds.some(id => changedLocations.has(id)) || !same(previousJobs.get(value.id), value)).length;
+          options.signal?.throwIfAborted();
+          if (changed) { writeBaseLocations(nextBase.locations.filter(location => changedBaseLocationIds.has(location.id))); write(next, false, new Set(current.jobs.map(job => job.id))); saveAliases(projection.aliases, next.revision, now(), undefined, true); }
+          for (const { task, changed: taskChanged } of completed) {
+            const clean = releaseEnrichment(task, "pending", now());
+            saveEnrichmentTask({ ...clean, state: "completed", errorCode: undefined, nextRetryAt: undefined, sourceFingerprint: signature(backgroundEnrichmentSource(nextBase, task.jobId)), result: { revision: next.revision, changedJobs: Number(taskChanged) } });
+          }
+          const status = enrichmentStatus(actorScope);
+          return { processed: claimed.length, completed: completed.length, failed, changedJobs, revision: next.revision, status };
+        });
+      } catch (error) {
+        // The work/receipt transaction rolled back. Preserve bounded retry state
+        // without pretending any facts committed; a crash leaves the lease for recovery.
+        transaction(() => {
+          for (const task of claimed) {
+            const row = db.prepare("SELECT document FROM enrichment_tasks WHERE id=?").get(task.id) as { document: string } | undefined;
+            if (row && checked(BackgroundEnrichmentTaskSchema, JSON.parse(row.document)).leaseId === task.leaseId) saveEnrichmentTask(releaseEnrichment(task, options.signal?.aborted ? "pending" : "failed", now()));
+          }
+        });
+        options.signal?.throwIfAborted();
+        throw error;
+      }
+    },
+    async readSnapshot(): Promise<AtlasDataset> { return transaction(() => projectPublicOfficeLocations(read(), officeDecisions())); },
+    async syncSnapshot(input: DatasetSyncRequest = {}): Promise<DatasetSyncResponse> {
+      const request = checked(DatasetSyncRequestSchema, input);
+      return transaction(() => datasetSync.read(request));
+    },
     /** Ingestion-only origins: never use this view for map totals or user-facing search. */
-    async readProjectionSnapshot(): Promise<AtlasDataset> { return transaction(() => baseSnapshot()); },
+    async readProjectionSnapshot(selection?: ProjectionSelection): Promise<AtlasDataset> { return transaction(() => selection ? projectionSlice.read({ seeds: selection, listingHistory: true }).base : baseSnapshot()); },
     async readOfficeAddressTarget(input: OfficeAddressCandidatesInput) {
       const parsed = checked(OfficeAddressCandidatesInputSchema, input);
       return transaction(() => {
@@ -918,14 +1217,14 @@ export function openJobRepository(path: string, options: { now?: () => string } 
       return transaction(() => {
         const cached = receipt<ImportReceipt>(importOptions.actorScope, "dataset.import", importOptions.idempotencyKey, requestSignature);
         if (cached) return checked(ImportReceiptSchema, cached);
-        const current = read();
+        const slice = projectionSlice.read({ incoming });
+        const { current, base } = slice;
         if (importOptions.expectedRevision !== undefined && current.revision !== importOptions.expectedRevision) throw new RepositoryError("stale-version");
         const run = importOptions.runId ? currentRun(importOptions.runId, importOptions.actorScope) : undefined;
-        const base = baseSnapshot(current);
         const nextBase = merged(base, incoming);
         if (run) validateRunDelta(incoming, nextBase, base, run);
         verifyContentHashes(nextBase);
-        const priorOffice = officeDecisions();
+        const priorOffice = slice.offices;
         const inactiveOffice = new Set(priorOffice.flatMap(entry => entry.kind === "revoke" ? [entry.targetDecisionId] : entry.kind === "invalidate" ? entry.targetDecisionIds : []));
         const sourceBasis = (dataset: AtlasDataset, decision: Extract<OfficeAddressDecision, { kind: "confirm" }>) => ({
           location: dataset.locations.find(value => value.id === decision.locationId),
@@ -938,7 +1237,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const invalidation: OfficeAddressDecision | undefined = invalidatedIds.length ? { id: `office-invalidate_${randomUUID()}`, kind: "invalidate", actorScope: importOptions.actorScope,
           at: now(), revision: current.revision + 1, reason: "source-changed", targetDecisionIds: invalidatedIds } : undefined;
         if (invalidation) nextBase.revision = invalidation.revision;
-        const projection = canonicalProjection(nextBase, current, decisions(), now(), locationDecisions(), [...priorOffice, ...(invalidation ? [invalidation] : [])]);
+        const projection = canonicalProjection(nextBase, current, slice.merges, now(), slice.locations, [...priorOffice, ...(invalidation ? [invalidation] : [])]);
         const next = projection.dataset;
         const changed = TABLES.some((table) => !same(base[table], nextBase[table])) || TABLES.some((table) => !same(current[table], next[table]));
         next.revision = current.revision + Number(changed);
@@ -947,7 +1246,12 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const result: ImportReceipt = { ok: true, revision: next.revision, jobIds: effectiveIncoming.jobs.map((job) => job.id), snapshotIds: incoming.snapshots.map((snapshot) => snapshot.id), counts: counts(current, next, effectiveIncoming) };
         if (changed) {
           if (invalidation) db.prepare("INSERT INTO office_decisions VALUES (?,?,?)").run(invalidation.id, invalidation.revision, json(invalidation));
-          writeBaseJobs(nextBase.jobs); writeBaseLocations(nextBase.locations); write(next); saveAliases(projection.aliases, next.revision, now());
+          // Only an incoming origin can change the base tables. Manual overlays
+          // and merges are projected into effective tables, never back into base.
+          const jobIds = new Set(incoming.jobs.map(job => job.id)), locationIds = new Set(incoming.locations.map(location => location.id));
+          writeBaseJobs(nextBase.jobs.filter(job => jobIds.has(job.id))); writeBaseLocations(nextBase.locations.filter(location => locationIds.has(location.id)));
+          write(next, false, new Set(current.jobs.map(job => job.id))); saveAliases(projection.aliases, next.revision, now(), undefined, true);
+          enqueueEnrichment(base, nextBase, importOptions.actorScope);
         }
         saveReceipt(importOptions.actorScope, "dataset.import", importOptions.idempotencyKey, requestSignature, result);
         return result;
@@ -963,8 +1267,10 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     /** Public review composition reads aliases, evidence and decisions under one SQLite version. */
     async readReconciliationState() {
       return transaction(() => {
-        const dataset = read();
-        return { dataset, originDataset: projectOfficeAddressConfirmations(projectLocationConfirmations(baseSnapshot(dataset), locationDecisions()), officeDecisions()), decisions: decisions(), aliases: (db.prepare("SELECT job_id,canonical_job_id FROM job_aliases ORDER BY job_id").all() as Array<{ job_id: string; canonical_job_id: string }>).map(row => ({ jobId: row.job_id, canonicalJobId: row.canonical_job_id })) };
+        const stored = read(), officeEntries = officeDecisions();
+        const dataset = projectPublicOfficeLocations(stored, officeEntries);
+        const originDataset = projectPublicOfficeLocations(projectOfficeAddressConfirmations(projectLocationConfirmations(baseSnapshot(stored), locationDecisions()), officeEntries), officeEntries);
+        return { dataset, originDataset, decisions: decisions(), aliases: (db.prepare("SELECT job_id,canonical_job_id FROM job_aliases ORDER BY job_id").all() as Array<{ job_id: string; canonical_job_id: string }>).map(row => ({ jobId: row.job_id, canonicalJobId: row.canonical_job_id })) };
       });
     },
     /** Recover a lost reviewed-command receipt before checking its now-stale preview revision. */
@@ -1134,6 +1440,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
     /** Invoke once after the service acquires exclusive process ownership, never on each DB open. */
     async recoverInterruptedRuns(): Promise<{ recovered: number }> {
       return transaction(() => {
+        for (const task of enrichmentTasks()) if (task.state === "running") saveEnrichmentTask(releaseEnrichment(task, "pending", now()));
         const interrupted = db.prepare("SELECT document FROM runs WHERE status='running'").all() as Array<{ document: string }>;
         for (const row of interrupted) saveRun({ ...checked(SyncRunSchema, JSON.parse(row.document)), status: "failed", finishedAt: now(), summary: { errorCode: "service-restarted", partial: true } });
         return { recovered: interrupted.length };
@@ -1180,7 +1487,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
           db.prepare("INSERT INTO discovery_leads VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET document=excluded.document").run(lead.id, lead.sourceId, json(lead));
         }
         const nextRevision = revision() + Number(changed);
-        if (changed) db.prepare("UPDATE metadata SET value=? WHERE key='revision'").run(String(nextRevision));
+        if (changed) { db.prepare("UPDATE metadata SET value=? WHERE key='revision'").run(String(nextRevision)); datasetSync.finish(nextRevision); }
         const result: DiscoveryLeadReceipt = { ok: true, revision: nextRevision, leadIds: leads.map((lead) => lead.id) };
         saveReceipt(importOptions.actorScope, "leads.save", importOptions.idempotencyKey, requestSignature, result); return result;
       });
@@ -1217,7 +1524,7 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         const baseJobs = baseSnapshot(dataset).jobs;
         const aliasHistory = (db.prepare("SELECT document FROM job_alias_history ORDER BY sequence").all() as Array<{ document: string }>).map((row) => checked(JobAliasEventSchema, JSON.parse(row.document)));
         const jobVersions = (db.prepare("SELECT job_id,revision FROM job_versions ORDER BY job_id").all() as Array<{ job_id: string; revision: number }>).map((row) => ({ jobId: row.job_id, revision: row.revision }));
-        return checked(RepositoryBackupSchema, { format: "better-me/job-repository", schemaVersion: REPOSITORY_SCHEMA_VERSION, createdAt: now(), dataset, runs, receipts, leads, baseJobs, baseLocations: baseSnapshot(dataset).locations, locationDecisions: locationDecisions(), officeDecisions: officeDecisions(), mergeDecisions: decisions(), aliasHistory, jobVersions }, "invalid-backup");
+        return checked(RepositoryBackupSchema, { format: "better-me/job-repository", schemaVersion: REPOSITORY_SCHEMA_VERSION, createdAt: now(), dataset, runs, receipts, leads, baseJobs, baseLocations: baseSnapshot(dataset).locations, locationDecisions: locationDecisions(), officeDecisions: officeDecisions(), mergeDecisions: decisions(), aliasHistory, jobVersions, enrichmentTasks: enrichmentTasks() }, "invalid-backup");
       });
     },
     async restore(input: unknown, restoreOptions: Omit<ImportOptions, "runId"> & { expectedRevision: number }): Promise<ImportReceipt> {
@@ -1235,6 +1542,9 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         listings: restoredBase.listings.map(listing => listing.id === event.listingId ? { ...listing, locationIds: union(listing.locationIds ?? [], [event.locationId]) } : listing),
       }, "invalid-backup");
       const originIds = new Set(baseJobs.map((job) => job.id)); const decisionIds = new Set<string>(); const decisionRevisions = new Set<number>();
+      if (backup.enrichmentTasks.some(task => !originIds.has(task.jobId)
+        || task.id !== `enrichment_${signature({ actorScope: task.actorScope, kind: task.kind, jobId: task.jobId })}`
+        || task.result && task.result.revision > backup.dataset.revision)) throw new RepositoryError("invalid-backup");
       const priorDecisions = new Map<string, MergeDecision>(); const revokedDecisions = new Set<string>(); let previousRevision = 0;
       for (const entry of backup.mergeDecisions) {
         if (entry.revision > backup.dataset.revision || decisionRevisions.has(entry.revision) || entry.revision <= previousRevision) throw new RepositoryError("invalid-backup");
@@ -1341,6 +1651,8 @@ export function openJobRepository(path: string, options: { now?: () => string } 
         write(dataset, true);
         writeBaseJobs(baseJobs, true);
         writeBaseLocations(baseLocations, true);
+        db.exec("DELETE FROM enrichment_tasks;");
+        for (const task of backup.enrichmentTasks) saveEnrichmentTask(task.state === "running" ? releaseEnrichment(task, "pending", now()) : task);
         db.exec("DROP TRIGGER location_decisions_no_update; DROP TRIGGER location_decisions_no_delete; DELETE FROM location_decisions;");
         for (const entry of backup.locationDecisions) db.prepare("INSERT INTO location_decisions VALUES (?,?,?)").run(entry.id, entry.revision, json(entry));
         db.exec(LOCATION_DECISION_TRIGGERS);

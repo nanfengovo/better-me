@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
-import { OfficeAddressProposalSchema, type AtlasDataset, type OfficeAddressProposal, type PreviewOfficeConfirmationInput, type SourceDefinition, type TrustedToolContext } from "@better-me/opportunities";
+import { OfficeAddressProposalSchema, type AtlasDataset, type JobQueryResult, type OfficeAddressProposal, type PreviewOfficeConfirmationInput, type SourceDefinition, type TrustedToolContext } from "@better-me/opportunities";
 import type { SourceJobRecord } from "@better-me/source-adapters";
 import { createJobApplication } from "../src/application.js";
 import { createJobHttpServer } from "../src/http.js";
@@ -42,6 +42,63 @@ test("manual office preview is read-only; save preserves source and records addr
   await assert.rejects(repo.importSnapshot(data, opts("forged-public-overlay", data.revision)), code("conflict"));
 }));
 
+test("public snapshots quarantine only the active legacy inferred office decision without changing stored history", async () => fixture(async repo => {
+  const initial = await repo.readSnapshot();
+  const area = { jobId: initial.jobs[0]!.id, locationId: initial.jobs[0]!.locationIds[0]!, expectedRevision: initial.revision,
+    reason: "Synthetic reviewed administrative area", proposal: { locationKind: "office" as const, countryCode: "CN",
+      area: { kind: "manual-area" as const, region: "Shanghai", city: "Shanghai", district: "Minhang" } } };
+  const areaPreview = await repo.previewLocationConfirmation(area);
+  await repo.confirmLocation({ ...area, previewFingerprint: areaPreview.previewFingerprint, reviewed: true }, opts("reviewed-area", initial.revision));
+  const source = (await repo.readSnapshot()).locations[0]!;
+  const legacy = { ...input(await repo.readSnapshot()), reason: "企业公开办公区与园区坐标核实：Synthetic inferred campus" };
+  const saved = await confirm(repo, "legacy-inferred-office", legacy);
+  const before = await repo.backup();
+  assert.deepEqual(before.dataset.locations[0]!.coordinates, proposal.coordinates, "the immutable legacy overlay remains stored");
+
+  const visible = await repo.readSnapshot();
+  assert.deepEqual(visible.locations[0], source, "public maps must use the retained source location instead of inferred office coordinates");
+  assert.equal(visible.revision, saved.revision);
+  const observationId = source.evidence[0]!.observationId;
+  assert.ok(visible.observations.find(value => value.id === observationId)!.warnings.some(value => value.includes("legacy-office-coordinate-quarantined")));
+  assert.ok(visible.locations[0]!.userResolution, "the existing administrative confirmation remains intact");
+  const reconciliation = await repo.readReconciliationState();
+  assert.deepEqual(reconciliation.dataset.locations[0], source);
+  assert.deepEqual(reconciliation.originDataset.locations[0], source);
+
+  const app = createJobApplication({ repository: repo, now: () => AT });
+  const context: TrustedToolContext = { requestId: "public-office-quarantine", actorScope: "owner", signal: new AbortController().signal,
+    allowedEffects: ["read-index"], budget: { requests: 0, bytes: 1_000_000, timeoutMs: 5000 } };
+  try {
+    const exported = await app.registry.execute("jobs.export-public", {}, context);
+    assert.equal(exported.ok, true);
+    if (exported.ok) assert.deepEqual((exported.value as AtlasDataset).locations[0], source);
+    const search = await app.registry.execute("jobs.search", { workCountryCodes: ["CN"], workRegionText: "Shanghai" }, context);
+    assert.equal(search.ok, true);
+    if (search.ok) {
+      const result = search.value as JobQueryResult;
+      assert.equal(result.totalJobs, 1, "quarantine keeps the job in its actual city filter");
+      assert.equal(result.mappedJobs, 0, "the inferred office point is not emitted as a map pin");
+      assert.equal(result.locationPinCount, 0);
+    }
+  } finally { await app.shutdown(); }
+  assert.deepEqual(await repo.backup(), before, "reading the safer projection must not rewrite decisions, receipts, locations, or observations");
+
+  const manual = await confirm(repo, "actual-manual-review", { ...input(visible), reason: "本人对照招聘详情核对实际办公地址和坐标" });
+  const reviewed = await repo.readSnapshot();
+  assert.equal(reviewed.locations[0]!.officeResolution?.decisionId, manual.decisionId, "a later genuine manual confirmation remains visible");
+  assert.deepEqual(reviewed.locations[0]!.coordinates, proposal.coordinates);
+  assert.ok(reviewed.observations.every(value => !value.warnings.some(warning => warning.includes("legacy-office-coordinate-quarantined"))), "an inactive historical marker must not taint a genuine active decision");
+}));
+
+test("public snapshot quarantine does not match an arbitrary manual reason mentioning the legacy phrase", async () => fixture(async repo => {
+  const saved = await confirm(repo, "manual-mentions-legacy", {
+    ...input(await repo.readSnapshot()), reason: "本人实地核对；原企业公开办公区与园区坐标核实：资料仅作参考",
+  });
+  const visible = await repo.readSnapshot();
+  assert.equal(visible.locations[0]!.officeResolution?.decisionId, saved.decisionId);
+  assert.deepEqual(visible.locations[0]!.coordinates, proposal.coordinates);
+}));
+
 test("restart, identical retry and revoke recover durable receipts without repeating writes", async () => fixture(async (repo, path) => {
   const value = input(await repo.readSnapshot()), preview = await repo.previewOfficeConfirmation(value), command = { ...value, previewFingerprint: preview.previewFingerprint, reviewed: true as const };
   const saved = await repo.confirmOfficeAddress(command, opts("save", value.expectedRevision));
@@ -64,6 +121,36 @@ test("two office decisions revoke to previous valid point then to unchanged sour
   assert.equal(undo.activeDecisionId, first.decisionId); assert.equal(undo.location.coordinates?.longitude, 121.5);
   const backup = await repo.backup(), target = openJobRepository(":memory:", { now: () => AT });
   try { await target.restore(backup, opts("restore", 0)); assert.deepEqual((await target.readSnapshot()).locations, backup.dataset.locations); } finally { target.close(); }
+}));
+
+test("incremental RTree keeps a stable identity through coordinate edits, removal, re-addition and source invalidation", async () => fixture(async (repo, path) => {
+  const inspector = new DatabaseSync(path);
+  try {
+    const first = await confirm(repo, "spatial-first");
+    const identity = () => inspector.prepare("SELECT rid FROM location_rtree_ids WHERE location_id=?").get(first.locationId) as { rid: number };
+    const rid = identity().rid;
+    const point = () => inspector.prepare("SELECT min_lon,max_lon,min_lat,max_lat FROM location_rtree WHERE rid=?").get(rid);
+    assert.ok(point());
+    const secondInput = { ...input(await repo.readSnapshot()), proposal: { ...proposal, coordinates: { ...proposal.coordinates, longitude: 122.5 } } };
+    const second = await confirm(repo, "spatial-second", secondInput);
+    assert.equal(identity().rid, rid);
+    assert.deepEqual((await repo.candidateIds({ viewport: [121, 31, 122, 32] })).indexedHits, []);
+    assert.deepEqual((await repo.candidateIds({ viewport: [122, 31, 123, 32] })).indexedHits, [first.jobId]);
+    const undoSecond = await repo.revokeOfficeAddress({ jobId: first.jobId, locationId: first.locationId, decisionId: second.decisionId, expectedRevision: second.revision, reason: "Undo synthetic second point", reviewed: true }, opts("spatial-undo-second", second.revision));
+    assert.equal(identity().rid, rid);
+    assert.deepEqual((await repo.candidateIds({ viewport: [121, 31, 122, 32] })).indexedHits, [first.jobId]);
+    await repo.revokeOfficeAddress({ jobId: first.jobId, locationId: first.locationId, decisionId: first.decisionId, expectedRevision: undoSecond.revision, reason: "Remove synthetic first point", reviewed: true }, opts("spatial-undo-first", undoSecond.revision));
+    assert.equal(point(), undefined, "a revoked point must leave no stale spatial candidate");
+    assert.equal(identity().rid, rid, "the retired mapping is retained for this source location");
+    assert.deepEqual((await repo.candidateIds({ viewport: [121, 31, 122, 32] })).indexedHits, []);
+    await confirm(repo, "spatial-third");
+    assert.equal(identity().rid, rid);
+    assert.ok(point());
+    await ingest(repo, "spatial-source-enrichment", undefined, { streetAddress: "Example Road 123号" });
+    assert.equal(point(), undefined, "changed source evidence invalidates the old office point in the same transaction");
+    assert.equal((await repo.readSnapshot()).locations.find(location => location.id === first.locationId)!.officeResolution, undefined);
+    assert.deepEqual(inspector.prepare("PRAGMA foreign_key_check").all(), []);
+  } finally { inspector.close(); }
 }));
 
 test("historical revoke receipts remain restorable after later source enrichment and a later area choice", async () => fixture(async repo => {
@@ -202,8 +289,8 @@ test("stale versions, tampered preview, wrong actor and cancelled transactions n
   await assert.rejects(repo.revokeOfficeAddress({ jobId: value.jobId, locationId: value.locationId, decisionId: saved.decisionId, expectedRevision: saved.revision, reason: "Wrong actor", reviewed: true }, opts("wrong-actor", saved.revision, "stranger")), code("not-authorized"));
 }));
 
-test("v4 backups retain office decisions and receipts; forged overlay, event or receipt rejects atomically", async () => fixture(async repo => {
-  await confirm(repo); const backup = await repo.backup(); assert.equal(backup.schemaVersion, 4); assert.equal(backup.officeDecisions.length, 1);
+test("versioned backups retain office decisions and receipts; forged overlay, event or receipt rejects atomically", async () => fixture(async repo => {
+  await confirm(repo); const backup = await repo.backup(); assert.equal(backup.schemaVersion, 7); assert.equal(backup.officeDecisions.length, 1);
   for (const mutate of [
     (bad: typeof backup) => { bad.dataset.locations[0]!.coordinates!.longitude = 100; },
     (bad: typeof backup) => { const event = bad.officeDecisions[0]!; if (event.kind === "confirm") event.proposal.coordinates.longitude = 100; },
@@ -222,9 +309,9 @@ test("source enhancement cannot change a country, raw text, existing address or 
 }));
 
 test("v3 file migration and v3 backup compatibility do not alter existing source data", async () => fixture(async (repo, path) => {
-  const before = await repo.readSnapshot(), legacyBackup = await repo.backup(); legacyBackup.schemaVersion = 3; legacyBackup.officeDecisions = [];
-  repo.close(); const db = new DatabaseSync(path); try { db.exec("DROP TRIGGER office_decisions_no_update; DROP TRIGGER office_decisions_no_delete; DROP TABLE office_decisions; PRAGMA user_version=3;"); } finally { db.close(); }
-  const reopened = openJobRepository(path, { now: () => AT }); try { assert.deepEqual(await reopened.readSnapshot(), before); assert.equal((await reopened.backup()).schemaVersion, 4); await confirm(reopened); } finally { reopened.close(); }
+  const before = await repo.readSnapshot(), legacyBackup = await repo.backup(); legacyBackup.schemaVersion = 3; legacyBackup.officeDecisions = []; legacyBackup.enrichmentTasks = [];
+  repo.close(); const db = new DatabaseSync(path); try { db.exec("DROP TABLE base_job_dependencies; DROP TABLE dataset_changes; DELETE FROM metadata WHERE key IN ('sync_epoch','sync_floor'); DROP TRIGGER office_decisions_no_update; DROP TRIGGER office_decisions_no_delete; DROP TABLE office_decisions; DROP TABLE enrichment_tasks; PRAGMA user_version=3;"); } finally { db.close(); }
+  const reopened = openJobRepository(path, { now: () => AT }); try { assert.deepEqual(await reopened.readSnapshot(), before); assert.equal((await reopened.backup()).schemaVersion, 7); await confirm(reopened); } finally { reopened.close(); }
   const target = openJobRepository(":memory:", { now: () => AT }); try { await target.restore(legacyBackup, opts("restore-v3", 0)); assert.deepEqual((await target.readSnapshot()).locations, before.locations); } finally { target.close(); }
 }));
 

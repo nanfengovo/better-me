@@ -9,7 +9,7 @@ import {
   type PreviewReviewedCardsInput, type ReviewedCardsCapture, type ReviewedCardsPreview,
 } from "@better-me/source-adapters";
 import type { SourceJobRecord, SourcePage } from "@better-me/source-adapters";
-import { projectSourcePage } from "./projection.js";
+import { projectSourcePage, sourceProjectionSelection } from "./projection.js";
 import { type JobRepository, RepositoryError } from "./repository.js";
 import { ImportReceiptSchema } from "./repository-schema.js";
 
@@ -91,10 +91,10 @@ export function createReviewedCardsTools(options: { repository: JobRepository; n
   async function prepare(input: PreviewReviewedCardsInput, context: ToolHandlerContext) {
     context.throwIfCancelled();
     assertCaptureTime(input);
-    const before = await repository.readProjectionSnapshot();
+    const source = reviewedCardsSource(input.provider), page = reviewedCardsPage(input);
+    const before = await repository.readProjectionSnapshot(await sourceProjectionSelection(source, page));
     context.throwIfCancelled();
     if (before.revision !== input.expectedRevision) throw new ToolError("stale-version");
-    const source = reviewedCardsSource(input.provider);
     const existingSource = before.sources.find((entry) => entry.sourceId === source.sourceId);
     if (existingSource && digest(existingSource) !== digest(source)) throw new ToolError("source-changed");
     for (const card of input.cards) {
@@ -107,7 +107,7 @@ export function createReviewedCardsTools(options: { repository: JobRepository; n
     // projectSourcePage adds each listing identity and record signature to its
     // observation ID, so changed card content still appends its own evidence.
     const captureFingerprint = digest({ version: VERSION, provider: input.provider, pageUrl: input.pageUrl, capturedAt: input.capturedAt });
-    const projection = await projectSourcePage(before, source, reviewedCardsPage(input), `reviewed-cards:${captureFingerprint}`, { mode: "user-reviewed-browser" });
+    const projection = await projectSourcePage(before, source, page, `reviewed-cards:${captureFingerprint}`, { mode: "user-reviewed-browser" });
     context.throwIfCancelled();
     // A location label may describe an area or remote eligibility; it is not office evidence.
     for (const location of projection.delta.locations) location.kind = "unknown";

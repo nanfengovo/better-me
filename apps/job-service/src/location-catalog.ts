@@ -33,3 +33,17 @@ export function resolveLocationArea(input: LocationConfirmationProposal): Resolv
     ...(city ? { city: municipality ? province.name : city.name } : {}), ...(district ? { district: district.name } : {}),
     basis: { kind: "china-catalog", datasetId: data.datasetId, version: data.version, provinceCode, ...(cityCode ? { cityCode } : {}), ...(districtCode ? { districtCode } : {}) } });
 }
+
+export type SourceNormalizationArea = { countryCode: string; region: string; regionId?: string; city?: string; aliases: readonly string[] };
+/** Public administrative labels only; no geocoding, coordinates or user data. */
+export function listSourceNormalizationAreas(): readonly SourceNormalizationArea[] {
+  const data = catalog();
+  return data.provinces.filter(province => !["71", "81", "82"].includes(province.code)).flatMap(province => {
+    const base = { countryCode: "CN", region: province.name, regionId: data.mapIds[province.code] };
+    const names = (name: string) => [...new Set([name, name.replace(/[省市]$/u, "")])];
+    if (["11", "12", "31", "50"].includes(province.code)) return [{ ...base, city: province.name, aliases: names(province.name) }];
+    return [{ ...base, aliases: names(province.name) }, ...(province.children ?? [])
+      .filter(city => /市$/u.test(city.name) && !/直辖|市辖区/u.test(city.name))
+      .map(city => ({ ...base, city: city.name, aliases: names(city.name) }))];
+  });
+}

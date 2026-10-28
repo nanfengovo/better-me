@@ -131,6 +131,50 @@ test("real source projection after merging updates its own origin and splitting 
   await assert.rejects(repo.importSnapshot(projected.delta, { ...options("late-after-split", after.revision), runId: run.runId }), errorCode("stale-version"));
 }));
 
+test("unchanged merged bodies retain their version while singleton aliases accept source version advances", async () => withRepository(async (repo, _path, data) => {
+  const [a, b, c] = data.ids;
+  await repo.mergeJobs({ targetJobId: a!.jobId, sourceJobId: b!.jobId, reason: "合成别名计数回归", companyIdentityConfirmed: true }, options("merge-version-fixture", 1));
+  const before = await repo.readSnapshot();
+  const origins = await repo.readProjectionSnapshot();
+  for (const job of origins.jobs) { job.revision += 10; job.updatedAt = LATER; }
+  await repo.importSnapshot(origins, options("advance-origin-versions", before.revision));
+  const after = await repo.readSnapshot();
+  assert.deepEqual(after.jobs.find((job) => job.id === a!.jobId), before.jobs.find((job) => job.id === a!.jobId));
+  assert.deepEqual(after.jobs.find((job) => job.id === c!.jobId), origins.jobs.find((job) => job.id === c!.jobId));
+  assert.equal((await repo.resolveJobId(a!.jobId))!.canonicalJobId, a!.jobId);
+  assert.equal((await repo.resolveJobId(b!.jobId))!.canonicalJobId, a!.jobId);
+  assert.equal((await repo.resolveJobId(c!.jobId))!.canonicalJobId, c!.jobId);
+  assert.deepEqual(after.locations, before.locations);
+  assert.deepEqual(after.listings, before.listings);
+  assert.deepEqual(after.observations, before.observations);
+  assert.deepEqual(after.snapshots, before.snapshots);
+}, 3));
+
+test("incremental secondary indexes remove merged jobs and reconstruct their exact relationships after a split", async () => withRepository(async (repo, path, data) => {
+  const [a, b, unrelated] = data.ids;
+  const inspector = new DatabaseSync(path);
+  const assertIndexes = async () => {
+    const snapshot = await repo.readSnapshot();
+    const pairs = (table: string, left: string, right: string) => (inspector.prepare(`SELECT ${left},${right} FROM ${table} ORDER BY ${left},${right}`).all() as Record<string, string>[]).map(row => [row[left], row[right]]);
+    const expected = (values: string[][]) => values.sort((left, right) => left[0]!.localeCompare(right[0]!) || left[1]!.localeCompare(right[1]!));
+    assert.deepEqual((inspector.prepare("SELECT job_id FROM jobs_fts ORDER BY job_id").all() as { job_id: string }[]).map(row => row.job_id), snapshot.jobs.map(job => job.id).sort());
+    assert.deepEqual(pairs("job_locations", "job_id", "location_id"), expected(snapshot.jobs.flatMap(job => job.locationIds.map(id => [job.id, id]))));
+    assert.deepEqual(pairs("job_compensations", "job_id", "compensation_id"), expected(snapshot.jobs.flatMap(job => job.compensationIds.map(id => [job.id, id]))));
+    assert.deepEqual(pairs("job_listings", "job_id", "listing_id"), expected(snapshot.jobs.flatMap(job => job.listingIds.map(id => [job.id, id]))));
+    assert.deepEqual(pairs("listing_observations", "listing_id", "observation_id"), expected(snapshot.listings.flatMap(listing => listing.observationIds.map(id => [listing.id, id]))));
+    assert.deepEqual(inspector.prepare("PRAGMA foreign_key_check").all(), []);
+  };
+  try {
+    await assertIndexes();
+    const merged = await repo.mergeJobs({ targetJobId: a!.jobId, sourceJobId: b!.jobId, reason: "Synthetic secondary-index merge", companyIdentityConfirmed: true }, options("index-merge", 1));
+    await assertIndexes();
+    assert.deepEqual((await repo.candidateIds({ search: "TypeScript" })).indexedHits, [a!.jobId, unrelated!.jobId].sort());
+    await repo.revokeMerge({ decisionId: merged.decision.id, reason: "Synthetic secondary-index split" }, options("index-split", merged.revision));
+    await assertIndexes();
+    assert.deepEqual((await repo.candidateIds({ search: "TypeScript" })).indexedHits, data.ids.map(value => value.jobId).sort());
+  } finally { inspector.close(); }
+}, 3));
+
 test("nested merge edges can be revoked independently and aliases retain their historical route", async () => withRepository(async (repo, _path, data) => {
   const [a, b, c] = data.ids;
   const first = await repo.mergeJobs({ targetJobId: a!.jobId, sourceJobId: b!.jobId, reason: "第一组合并", companyIdentityConfirmed: true }, options("first", 1));
@@ -186,7 +230,7 @@ test("versioned backups preserve merge decisions and split origins while v1 publ
   const [a, b] = data.ids; const old = await repo.backup();
   const legacy = { format: old.format, schemaVersion: 1, createdAt: old.createdAt, dataset: old.dataset, runs: old.runs, receipts: old.receipts, leads: old.leads };
   const merge = await repo.mergeJobs({ targetJobId: a!.jobId, sourceJobId: b!.jobId, reason: "备份前确认同岗", companyIdentityConfirmed: true }, options("merge-before-backup", 1));
-  const backup = await repo.backup(); assert.equal(backup.schemaVersion, 4); assert.equal(backup.baseJobs!.length, 2);
+  const backup = await repo.backup(); assert.equal(backup.schemaVersion, 7); assert.equal(backup.baseJobs!.length, 2);
   const restored = openJobRepository(":memory:", { now: () => AT });
   try {
     const invalid = structuredClone(backup); invalid.mergeDecisions[0]!.id = "unrelated-replacement";
@@ -215,14 +259,15 @@ test("versioned backups preserve merge decisions and split origins while v1 publ
 test("an actual persisted schema-v1 database migrates to v3 without changing original evidence or identities", async () => withRepository(async (repo, path, data) => {
   const original = await repo.readSnapshot(); repo.close(); const legacy = new DatabaseSync(path);
   try {
-    legacy.exec("DROP TRIGGER office_decisions_no_update; DROP TRIGGER office_decisions_no_delete; DROP TABLE office_decisions; DROP TRIGGER location_decisions_no_update; DROP TRIGGER location_decisions_no_delete; DROP TABLE location_decisions; DROP TABLE base_locations; DROP TRIGGER merge_decisions_no_update; DROP TRIGGER merge_decisions_no_delete; DROP TRIGGER job_alias_history_no_update; DROP TRIGGER job_alias_history_no_delete; DROP TABLE merge_decisions; DROP TABLE job_aliases; DROP TABLE job_alias_history; DROP TABLE base_jobs; DROP TABLE job_versions; PRAGMA user_version=1;");
+    legacy.exec("DROP TABLE base_job_dependencies; DROP TABLE dataset_changes; DELETE FROM metadata WHERE key IN ('sync_epoch','sync_floor');");
+    legacy.exec("DROP TABLE enrichment_tasks; DROP TRIGGER office_decisions_no_update; DROP TRIGGER office_decisions_no_delete; DROP TABLE office_decisions; DROP TRIGGER location_decisions_no_update; DROP TRIGGER location_decisions_no_delete; DROP TABLE location_decisions; DROP TABLE base_locations; DROP TRIGGER merge_decisions_no_update; DROP TRIGGER merge_decisions_no_delete; DROP TRIGGER job_alias_history_no_update; DROP TRIGGER job_alias_history_no_delete; DROP TABLE merge_decisions; DROP TABLE job_aliases; DROP TABLE job_alias_history; DROP TABLE base_jobs; DROP TABLE job_versions; PRAGMA user_version=1;");
     assert.equal((legacy.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 1);
   } finally { legacy.close(); }
   const upgraded = openJobRepository(path, { now: () => AT });
   try {
     assert.deepEqual(await upgraded.readSnapshot(), original); assert.deepEqual(await upgraded.readProjectionSnapshot(), original);
     const check = new DatabaseSync(path);
-    try { assert.equal((check.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 4); } finally { check.close(); }
+    try { assert.equal((check.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 7); } finally { check.close(); }
     for (const id of data.ids) assert.equal((await upgraded.resolveJobId(id.jobId))!.canonicalJobId, id.jobId);
     await upgraded.mergeJobs({ targetJobId: data.ids[0]!.jobId, sourceJobId: data.ids[1]!.jobId, reason: "升级后继续人工确认", companyIdentityConfirmed: true }, options("after-upgrade", original.revision));
     assert.equal((await upgraded.readSnapshot()).jobs.length, 1);

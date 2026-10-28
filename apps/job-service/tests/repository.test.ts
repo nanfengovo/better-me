@@ -4,7 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { queryJobs, type AtlasDataset } from "@better-me/opportunities";
 import { openJobRepository, RepositoryError, type JobRepository } from "../src/repository.ts";
 import type { DiscoveryLead } from "../src/repository-schema.ts";
@@ -38,13 +38,132 @@ async function tempRepo(run: (repo: JobRepository, path: string, dir: string) =>
 function code(expected: string) { return (error: unknown) => error instanceof RepositoryError && error.code === expected; }
 function sourceOnly(): AtlasDataset { const value = fixture(); return { ...value, companies: [], jobs: [], locations: [], listings: [], observations: [], snapshots: [] }; }
 
+/** Count executed index writes, including repeated runs of a prepared statement. */
+function trackIndexWrites(t: TestContext) {
+  const writes = new Map<string, number>();
+  const originalPrepare = DatabaseSync.prototype.prepare;
+  t.mock.method(DatabaseSync.prototype, "prepare", function (this: DatabaseSync, sql: string) {
+    const statement = originalPrepare.call(this, sql);
+    const match = /^(INSERT(?: OR REPLACE)? INTO|DELETE FROM|UPDATE)\s+(jobs_fts|job_locations|job_compensations|job_listings|listing_observations|location_rtree|location_rtree_ids)\b/i.exec(sql);
+    if (!match) return statement;
+    return new Proxy(statement, {
+      get(target, property) {
+        const value = Reflect.get(target, property, target);
+        if (property === "run") return (...args: Parameters<typeof statement.run>) => {
+          const key = `${match[1]!.startsWith("INSERT") ? "insert" : match[1]!.startsWith("DELETE") ? "delete" : "update"}:${match[2]}`;
+          writes.set(key, (writes.get(key) ?? 0) + 1);
+          return target.run(...args);
+        };
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+  });
+  return { count: (operation: string, table: string) => writes.get(`${operation}:${table}`) ?? 0, reset: () => writes.clear() };
+}
+
+test("one-job delta updates only its secondary-index rows, independent of existing job count", async (t) => {
+  const repo = openJobRepository(":memory:", { now: () => AT });
+  t.after(() => repo.close());
+  const initial = fixture("seed-0");
+  for (let index = 1; index < 100; index++) {
+    const next = fixture(`seed-${index}`);
+    for (const table of ["companies", "jobs", "locations", "compensations", "listings", "observations", "snapshots"] as const) {
+      (initial[table] as unknown[]).push(...next[table]);
+    }
+  }
+  await repo.importSnapshot(initial, options("seed", 0));
+  const writes = trackIndexWrites(t);
+  const receipt = await repo.importSnapshot(fixture("new"), options("new", 1));
+  assert.equal(receipt.counts.newJobs, 1);
+  assert.equal(writes.count("insert", "jobs_fts"), 1, "one new job must not rebuild the existing full-text index");
+  assert.equal(writes.count("insert", "job_locations"), 1);
+  assert.equal(writes.count("insert", "job_listings"), 1);
+  assert.equal(writes.count("insert", "listing_observations"), 1);
+  assert.equal(writes.count("insert", "location_rtree"), 1);
+  assert.equal((await repo.readSnapshot()).jobs.length, 101);
+  writes.reset();
+  assert.deepEqual(await repo.importSnapshot(fixture("new"), options("new", 1)), receipt);
+  assert.equal(writes.count("insert", "jobs_fts"), 0, "replaying a durable receipt must not repeat index writes");
+});
+
+test("company-name-only changes refresh every related FTS row without rewriting unrelated relations or points", async (t) => {
+  const repo = openJobRepository(":memory:", { now: () => AT });
+  t.after(() => repo.close());
+  const initial = fixture("one"), related = fixture("two"), unrelated = fixture("three");
+  related.jobs[0]!.companyId = initial.companies[0]!.id;
+  related.companies = [];
+  for (const next of [related, unrelated]) for (const table of ["companies", "jobs", "locations", "compensations", "listings", "observations", "snapshots"] as const) {
+    (initial[table] as unknown[]).push(...next[table]);
+  }
+  await repo.importSnapshot(initial, options("seed", 0));
+  const before = await repo.readSnapshot();
+  const delta = { ...sourceOnly(), sources: [], companies: [{ ...initial.companies[0]!, names: ["UniqueAliasForRelatedJobs"] }] };
+  const writes = trackIndexWrites(t);
+  await repo.importSnapshot(delta, options("company-alias", 1));
+  assert.deepEqual((await repo.candidateIds({ search: "UniqueAliasForRelatedJobs" })).indexedHits, ["job-one", "job-two"]);
+  assert.equal(writes.count("insert", "jobs_fts"), 2);
+  assert.equal(writes.count("insert", "job_locations"), 0);
+  assert.equal(writes.count("insert", "job_listings"), 0);
+  assert.equal(writes.count("insert", "listing_observations"), 0);
+  assert.equal(writes.count("insert", "location_rtree"), 0);
+  assert.deepEqual((await repo.readSnapshot()).jobs, before.jobs);
+});
+
+test("unrelated imports retain existing RTree identities and identical observations do not rebuild their relations", async (t) => tempRepo(async (repo, path) => {
+  await repo.importSnapshot(fixture("z-existing"), options("seed", 0));
+  const inspector = new DatabaseSync(path);
+  try {
+    const original = inspector.prepare("SELECT rid FROM location_rtree_ids WHERE location_id=?").get("location-z-existing");
+    const writes = trackIndexWrites(t);
+    await repo.importSnapshot(fixture("a-new"), options("new-before-existing", 1));
+    assert.deepEqual(inspector.prepare("SELECT rid FROM location_rtree_ids WHERE location_id=?").get("location-z-existing"), original);
+    assert.equal(writes.count("insert", "location_rtree"), 1);
+    assert.equal(writes.count("insert", "listing_observations"), 1);
+    const snapshot = await repo.readSnapshot();
+    assert.deepEqual((await repo.candidateIds({ viewport: [121, 31, 122, 32] })).indexedHits, snapshot.jobs.map(job => job.id));
+    assert.deepEqual(inspector.prepare("PRAGMA foreign_key_check").all(), []);
+  } finally { inspector.close(); }
+}));
+
+test("an incremental index failure rolls back source evidence, relationships, revision and receipt before retry", async (t) => tempRepo(async (repo, path) => {
+  await repo.importSnapshot(fixture("existing"), options("seed", 0));
+  const before = await repo.backup();
+  const originalPrepare = DatabaseSync.prototype.prepare;
+  const failure = t.mock.method(DatabaseSync.prototype, "prepare", function (this: DatabaseSync, sql: string) {
+    const statement = originalPrepare.call(this, sql);
+    if (!sql.startsWith("INSERT INTO jobs_fts")) return statement;
+    return new Proxy(statement, {
+      get(target, property) {
+        if (property === "run") return () => { throw new Error("synthetic index failure"); };
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+  });
+  await assert.rejects(repo.importSnapshot(fixture("new"), options("retryable-index-write", 1)), code("storage-error"));
+  failure.mock.restore();
+  assert.deepEqual(await repo.backup(), before);
+  assert.deepEqual((await repo.candidateIds({ search: "TypeScript" })).indexedHits, ["job-existing"]);
+  const inspector = new DatabaseSync(path);
+  try {
+    for (const table of ["job_locations", "job_listings", "listing_observations", "location_rtree", "jobs_fts"]) {
+      assert.equal((inspector.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n, 1);
+    }
+    assert.deepEqual(inspector.prepare("PRAGMA foreign_key_check").all(), []);
+  } finally { inspector.close(); }
+  const receipt = await repo.importSnapshot(fixture("new"), options("retryable-index-write", 1));
+  assert.equal(receipt.revision, 2);
+  assert.equal(receipt.counts.newObservations, 1);
+  assert.equal(receipt.counts.newSnapshots, 1);
+}));
+
 test("real SQLite migrations, normalized references, FTS5, RTree and immutable triggers exist", async () => tempRepo(async (repo, path) => {
   const imported = await repo.importSnapshot(fixture(), options("import-1", 0));
   assert.equal(imported.revision, 1);
   assert.deepEqual(imported.counts, { newJobs: 1, updatedJobs: 0, unchangedJobs: 0, newListings: 1, newObservations: 1, newSnapshots: 1 });
   const inspector = new DatabaseSync(path);
   try {
-    assert.equal((inspector.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 4);
+    assert.equal((inspector.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 7);
     assert.equal((inspector.prepare("SELECT COUNT(*) AS n FROM job_listings").get() as { n: number }).n, 1);
     assert.equal((inspector.prepare("SELECT COUNT(*) AS n FROM location_rtree").get() as { n: number }).n, 1);
     assert.equal((inspector.prepare("SELECT COUNT(*) AS n FROM jobs_fts WHERE jobs_fts MATCH 'dotnet OR csharp OR cpp OR 后端'").get() as { n: number }).n, 1);
@@ -261,6 +380,37 @@ test("binary ID ordering across SQLite and merge does not invent a new revision 
   const snapshot = await repo.readSnapshot();
   const repeated = await repo.importSnapshot(snapshot, options("all-again", snapshot.revision));
   assert.equal(repeated.revision, snapshot.revision); assert.equal(repeated.counts.unchangedJobs, 5);
+}));
+
+test("canonical comparisons retain location order and only revise jobs whose referenced locations change", async () => tempRepo(async (repo) => {
+  const initial = fixture("ordered"); const unrelated = fixture("unrelated");
+  initial.companies.push(...unrelated.companies); initial.jobs.push(...unrelated.jobs);
+  initial.locations.push(...unrelated.locations); initial.listings.push(...unrelated.listings);
+  initial.observations.push(...unrelated.observations); initial.snapshots.push(...unrelated.snapshots);
+  const secondLocation = { ...initial.locations[0]!, id: "location-ordered-second", raw: "第二个合成办公地点" };
+  initial.locations.push(secondLocation);
+  initial.jobs[0]!.locationIds.unshift(secondLocation.id);
+  await repo.importSnapshot(initial, options("ordered-locations", 0));
+  const before = await repo.readSnapshot();
+  const reordered = await repo.readProjectionSnapshot(); reordered.locations.reverse();
+  const repeated = await repo.importSnapshot(reordered, options("reordered-locations", before.revision));
+  assert.equal(repeated.revision, before.revision);
+  assert.deepEqual((await repo.readSnapshot()).jobs, before.jobs);
+
+  const changed = await repo.readProjectionSnapshot();
+  const location = changed.locations.find((value) => value.id === secondLocation.id)!;
+  location.streetAddress = "合成路 42 号";
+  const updated = await repo.importSnapshot(changed, options("changed-location", before.revision));
+  const after = await repo.readSnapshot();
+  const previous = before.jobs.find((job) => job.id === "job-ordered")!;
+  const current = after.jobs.find((job) => job.id === previous.id)!;
+  assert.equal(updated.counts.updatedJobs, 1);
+  assert.deepEqual(current, { ...previous, revision: previous.revision + 1 });
+  assert.deepEqual(current.locationIds, initial.jobs[0]!.locationIds);
+  assert.deepEqual(after.jobs.find((job) => job.id === "job-unrelated"), before.jobs.find((job) => job.id === "job-unrelated"));
+  assert.deepEqual(after.locations.find((value) => value.id === location.id), location);
+  assert.deepEqual(after.observations, before.observations);
+  assert.deepEqual(after.snapshots, before.snapshots);
 }));
 
 test("FTS and RTree candidate diagnostics retain a safe superset for fuzzy/CJK and unknown modes", async () => tempRepo(async (repo) => {

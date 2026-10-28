@@ -51,6 +51,14 @@ test("actual sync, HTTP and tools share one query; overlapping pages preserve so
     assert.equal(synced.run.status, "completed"); assert.equal(fetches, 2);
     const snapshot = await f.repository.readSnapshot();
     assert.equal(snapshot.jobs.length, 2); assert.equal(snapshot.observations.length, 2); assert.equal(snapshot.snapshots.length, 2);
+    // These two interfaces must observe the same version. Background source
+    // normalization is allowed to advance it after the import receipt returns.
+    for (let attempt = 0; ; attempt++) {
+      const background = value(await f.application.registry.execute("enrichment.status", {}, context()));
+      if (!background.pending && !background.running && background.workerState === "idle") break;
+      assert.ok(attempt < 200, "background normalization should settle before comparing query transports");
+      await new Promise<void>(resolve => setTimeout(resolve, 5));
+    }
     const expected = value(await f.application.registry.execute("jobs.search", {}, context()));
     assert.equal(expected.totalJobs, 2);
     const token = "synthetic-http-integration-token-1234567890";
