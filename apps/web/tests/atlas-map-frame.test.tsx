@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { MapBucket } from "@better-me/opportunities";
 import { frameAdminRegion, frameSearchMap } from "../src/components/atlas/map-frame.ts";
-import { atlasBucketData } from "../src/components/atlas/prototypes/map-performance.ts";
+import { atlasBucketData, mapBucketPrecisionLabel } from "../src/components/atlas/prototypes/map-performance.ts";
 
 const bucket = (id: string, latitude: number, longitude: number, grade: MapBucket["displayGrade"], positionBasis?: MapBucket["positionBasis"]): MapBucket => ({
   id, label: id, latitude, longitude, jobIds: [`job-${id}`], locationIds: [`location-${id}`], jobCount: 1, pinCount: 1,
@@ -50,7 +50,6 @@ test("map labels name office, street and city grades without drawing a city refe
   assert.match(labels.find(item => item.bucketId === "office")!.label, /办公楼/);
   assert.equal(labels.find(item => item.bucketId === "office")!.grade, "building");
   assert.match(labels.find(item => item.bucketId === "street")!.label, /街道/);
-  assert.match(labels.find(item => item.bucketId === "reference")!.label, /城市估算/);
-  assert.equal(labels.find(item => item.bucketId === "reference")!.grade, "city");
-  assert.doesNotMatch(labels.find(item => item.bucketId === "reference")!.label, /办公楼/);
+  assert.equal(labels.find(item => item.bucketId === "reference"), undefined, "city references stay out of the office GeoJSON layer");
+  assert.match(mapBucketPrecisionLabel(bucket("reference", 31.23, 121.47, "city", "city-reference")), /城市.*估算.*非办公地址/);
 });

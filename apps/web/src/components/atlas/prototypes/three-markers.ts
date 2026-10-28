@@ -1,16 +1,23 @@
 import { Color, Group, InstancedBufferAttribute, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, Quaternion, RingGeometry, ShaderMaterial, SphereGeometry, Vector3 } from "three";
 import type { MapBucket } from "@better-me/opportunities";
-import { bucketRadius, categories, validBuckets, type AtlasMode } from "./types";
+import { bucketRadius, categories, type AtlasMode } from "./types";
 import { domesticPosition, globePosition } from "./three-geometry";
+import { mappableOfficeBuckets } from "./map-performance";
 
-export type MarkerLayer = { group: Group; cores: InstancedMesh; buckets: MapBucket[]; select: (id?: string) => void };
+export type MarkerLayer = { group: Group; cores: InstancedMesh; hitTargets: InstancedMesh; buckets: MapBucket[]; select: (id?: string) => void };
 export function makeMarkers(input: readonly MapBucket[], mode: AtlasMode, extrusion: number): MarkerLayer {
-  const buckets = validBuckets(input);
+  const buckets = mappableOfficeBuckets(input);
   const group = new Group();
   const cores = new InstancedMesh(new SphereGeometry(1, 10, 8), new MeshStandardMaterial({ color: "#ffffff", roughness: .32, metalness: .12, emissive: "#29473f", emissiveIntensity: .6 }), buckets.length);
   cores.name = "atlas-bucket-cores";
   cores.frustumCulled = false;
   group.add(cores);
+  // The visible core is deliberately small at city scale. Keep a larger, fully
+  // transparent proxy so mouse/touch selection does not depend on pixel-perfect aim.
+  const hitTargets = new InstancedMesh(new SphereGeometry(1, 10, 8), new MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0, depthWrite: false }), buckets.length);
+  hitTargets.name = "atlas-bucket-hit-targets";
+  hitTargets.frustumCulled = false;
+  group.add(hitTargets);
   const segments = buckets.flatMap((bucket, index) => {
     const colors = categories(bucket); const total = colors.reduce((sum, item) => sum + item.jobCount, 0);
     if (!colors.length) return [{ bucket: index, start: 0, end: Math.PI * 2, color: "#92a9ae" }];
@@ -39,14 +46,17 @@ export function makeMarkers(input: readonly MapBucket[], mode: AtlasMode, extrus
     markerMatrices.push(new Matrix4().compose(position, orientation, new Vector3(radius, radius, radius)));
     const core = new Matrix4().compose(position, orientation, new Vector3(radius * .56, radius * .56, radius * .56));
     cores.setMatrixAt(index, core);
+    const hit = new Matrix4().compose(position, orientation, new Vector3(Math.max(radius * 1.6, .16), Math.max(radius * 1.6, .16), Math.max(radius * 1.6, .16)));
+    hitTargets.setMatrixAt(index, hit);
     const colors = categories(bucket); cores.setColorAt(index, new Color(colors.length === 1 ? colors[0]!.color : "#e0efe7"));
   });
   segments.forEach((segment, index) => rings.setMatrixAt(index, markerMatrices[segment.bucket]!));
   cores.instanceMatrix.needsUpdate = true; rings.instanceMatrix.needsUpdate = true;
+  hitTargets.instanceMatrix.needsUpdate = true;
   if (cores.instanceColor) cores.instanceColor.needsUpdate = true;
   const halo = new Mesh(new RingGeometry(1.65, 1.78, 64), new MeshBasicMaterial({ color: "#dbfff1", transparent: true, opacity: .95, depthWrite: false }));
   halo.matrixAutoUpdate = false; halo.visible = false; group.add(halo);
-  return { group, cores, buckets, select: (id) => {
+  return { group, cores, hitTargets, buckets, select: (id) => {
     const index = buckets.findIndex((bucket) => bucket.id === id);
     halo.visible = index >= 0;
     if (index >= 0) halo.matrix.copy(markerMatrices[index]!);

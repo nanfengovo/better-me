@@ -3,6 +3,7 @@ import type { MapBucket } from "@better-me/opportunities";
 import type { AtlasBasemapConfig } from "./basemaps";
 import type { AtlasMapFocus } from "../map-focus";
 import type { AdminBoundaryHighlight } from "../admin-boundary-service";
+import type { AtlasMapGeometry } from "./map-performance";
 
 export type AtlasMode = "global" | "domestic";
 export type AtlasRegionSelection = { id: string; name: string; countryCode?: string };
@@ -10,6 +11,8 @@ export type AtlasCamera = { zoom: number; center: [longitude: number, latitude: 
 export type AtlasPrototypeProps = {
   mode: AtlasMode;
   buckets: readonly MapBucket[];
+  /** Same-version compute projection, never synthesized coordinates. */
+  geometry?: AtlasMapGeometry;
   selectedBucketId?: string;
   selectedJobId?: string;
   selectedRegionId?: string;
@@ -17,6 +20,10 @@ export type AtlasPrototypeProps = {
   bounds?: readonly [west: number, south: number, east: number, north: number];
   /** Caps fitBounds so a city estimate cannot zoom to building scale. */
   boundsMaxZoom?: number;
+  /** Auto-frame at most once per search, so background batches never move a reading user's camera. */
+  framingKey?: string;
+  /** Explicit user reset, independent of incremental data and renderer lifetime. */
+  resetRevision?: number;
   /** Undefined uses the registered default. Null explicitly selects local overview geometry only. */
   basemap?: AtlasBasemapConfig | null;
   focus?: AtlasMapFocus;
@@ -24,6 +31,8 @@ export type AtlasPrototypeProps = {
   initialView?: AtlasCamera;
   onViewChange?: (view: AtlasCamera & { bounds: [west: number, south: number, east: number, north: number] }) => void;
   onPick?: (bucket: MapBucket) => void;
+  /** Called after a real map interaction selects an address, so the host can open its first matching job. */
+  onActivateBucket?: (bucket: MapBucket) => void;
   onCountry?: (region: AtlasRegionSelection) => void;
   onError?: (error: Error) => void;
   onReady?: () => void;
@@ -34,6 +43,10 @@ export type AtlasPrototypeProps = {
     pedestal?: boolean;
     entrance?: boolean;
     autoRotate?: boolean;
+    /** A presentation-only camera/projection preference; never changes job geometry. */
+    viewMode?: "flat" | "spatial";
+    /** Keyboard activation changes the camera immediately. Reduced motion always wins. */
+    animateViewChange?: boolean;
     maxDpr?: number;
     /** Three.js scene units. MapLibre uses its own physically scaled equivalent. */
     extrusion?: number;

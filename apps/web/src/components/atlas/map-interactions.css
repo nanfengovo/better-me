@@ -1,0 +1,452 @@
+.atlas-map-hover-card {
+  position: absolute;
+  z-index: 7;
+  display: grid;
+  gap: 4px;
+  box-sizing: border-box;
+  width: min(272px, calc(100% - 24px));
+  max-height: 92px;
+  padding: 9px 11px;
+  overflow: hidden;
+  border: 1px solid rgb(171 219 218 / 34%);
+  border-radius: 10px;
+  color: #e8f3f2;
+  background: rgb(9 26 35 / 94%);
+  box-shadow: 0 9px 24px rgb(0 0 0 / 28%), 0 0 0 1px rgb(255 255 255 / 3%) inset;
+  backdrop-filter: blur(16px) saturate(1.15);
+  pointer-events: none;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 140ms cubic-bezier(.23, 1, .32, 1), transform 140ms cubic-bezier(.23, 1, .32, 1);
+}
+
+.atlas-map-hover-card.light {
+  border-color: rgb(58 107 100 / 24%);
+  color: #173a35;
+  background: rgb(255 255 253 / 96%);
+  box-shadow: 0 9px 24px rgb(25 55 47 / 18%), 0 0 0 1px rgb(255 255 255 / 82%) inset;
+}
+
+.atlas-map-hover-card strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 11px;
+  font-weight: 620;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.atlas-map-hover-card span {
+  overflow: hidden;
+  color: #b8d6cf;
+  font-size: 9px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.atlas-map-hover-card.light span { color: #4c7165; }
+
+@starting-style {
+  .atlas-map-hover-card { opacity: 0; transform: translateY(2px); }
+}
+
+.atlas-map-location-trigger {
+  position: absolute;
+  /* Keep the address browser below the caption controls. In the wide three-column
+     layout the caption is moved into the map's top rail, so the old top-right
+     position sat underneath the reset-view button and swallowed pointer events. */
+  top: 56px;
+  right: 58px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgb(171 219 218 / 34%);
+  border-radius: 9px;
+  color: #e8f3f2;
+  background: rgb(9 26 35 / 88%);
+  box-shadow: 0 7px 18px rgb(0 0 0 / 18%), 0 0 0 1px rgb(255 255 255 / 3%) inset;
+  backdrop-filter: blur(14px) saturate(1.12);
+  font-size: 10px;
+  font-weight: 620;
+  line-height: 1;
+  transition: transform 140ms cubic-bezier(.23, 1, .32, 1), background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.atlas-map-location-trigger > svg:first-child {
+  color: #9fe0ce;
+}
+
+.atlas-map-location-trigger strong {
+  min-width: 18px;
+  padding: 3px 5px;
+  border-radius: 999px;
+  color: #0c2a2b;
+  background: #9fe0ce;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.atlas-map-location-trigger.light {
+  border-color: rgb(58 107 100 / 24%);
+  color: #173a35;
+  background: rgb(255 255 253 / 94%);
+  box-shadow: 0 7px 18px rgb(25 55 47 / 12%), 0 0 0 1px rgb(255 255 255 / 82%) inset;
+}
+
+.atlas-map-location-trigger.light > svg:first-child { color: #176c58; }
+.atlas-map-location-trigger.light strong { color: #effaf4; background: #176c58; }
+
+@media (hover: hover) and (pointer: fine) {
+  .atlas-map-location-trigger:hover {
+    border-color: rgb(159 224 206 / 72%);
+    background: rgb(69 142 126 / 22%);
+    box-shadow: 0 9px 22px rgb(0 0 0 / 24%), 0 0 0 1px rgb(159 224 206 / 14%) inset;
+  }
+}
+
+.atlas-map-location-trigger:active { transform: scale(.97); }
+.atlas-map-location-trigger:focus-visible { outline: 2px solid #9fe0ce; outline-offset: 2px; }
+.atlas-map-location-trigger.light:focus-visible { outline-color: #176c58; }
+
+.atlas-map-location-browser {
+  position: absolute;
+  top: 100px;
+  right: 12px;
+  z-index: 9;
+  display: grid;
+  gap: 9px;
+  box-sizing: border-box;
+  width: min(360px, calc(100% - 24px));
+  max-height: min(470px, calc(100% - 112px));
+  padding: 12px;
+  overflow: hidden;
+  border: 1px solid rgb(171 219 218 / 34%);
+  border-radius: 14px;
+  color: #e8f3f2;
+  background: linear-gradient(145deg, rgb(13 34 43 / 97%), rgb(7 20 29 / 97%));
+  box-shadow: 0 18px 42px rgb(0 0 0 / 38%), 0 0 0 1px rgb(255 255 255 / 3%) inset;
+  backdrop-filter: blur(20px) saturate(1.2);
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 160ms cubic-bezier(.23, 1, .32, 1), transform 160ms cubic-bezier(.23, 1, .32, 1);
+}
+
+@starting-style {
+  .atlas-map-location-browser { opacity: 0; transform: translateY(-3px); }
+}
+
+.atlas-map-location-browser.light {
+  border-color: rgb(58 107 100 / 24%);
+  color: #173a35;
+  background: linear-gradient(145deg, rgb(255 255 253 / 98%), rgb(243 249 246 / 98%));
+  box-shadow: 0 18px 42px rgb(25 55 47 / 20%), 0 0 0 1px rgb(255 255 255 / 82%) inset;
+}
+
+.atlas-map-location-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.atlas-map-location-heading > div { display: grid; gap: 2px; min-width: 0; }
+.atlas-map-location-heading strong { font-size: 12px; font-weight: 650; }
+.atlas-map-location-heading small { color: #a9c0c2; font-size: 10px; line-height: 1.5; }
+.atlas-map-location-browser.light .atlas-map-location-heading small { color: #55736c; }
+
+.atlas-map-location-heading > button {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgb(171 219 218 / 22%);
+  border-radius: 8px;
+  color: inherit;
+  background: rgb(255 255 255 / 6%);
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 120ms ease-out, background-color 120ms ease, border-color 120ms ease;
+}
+
+.atlas-map-location-browser.light .atlas-map-location-heading > button { border-color: rgb(58 107 100 / 20%); background: rgb(27 77 65 / 5%); }
+
+.atlas-map-location-search {
+  display: grid;
+  gap: 4px;
+  color: #a9c0c2;
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.atlas-map-location-browser.light .atlas-map-location-search { color: #55736c; }
+
+.atlas-map-location-search input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid rgb(171 219 218 / 22%);
+  border-radius: 8px;
+  outline: 0;
+  color: inherit;
+  background: rgb(255 255 255 / 6%);
+  font: inherit;
+  font-size: 11px;
+  transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+}
+
+.atlas-map-location-search input::placeholder { color: #8da9aa; }
+.atlas-map-location-browser.light .atlas-map-location-search input { border-color: rgb(58 107 100 / 18%); background: rgb(27 77 65 / 4%); }
+.atlas-map-location-browser.light .atlas-map-location-search input::placeholder { color: #77928b; }
+.atlas-map-location-search input:focus { border-color: #9fe0ce; box-shadow: 0 0 0 3px rgb(159 224 206 / 16%); }
+.atlas-map-location-browser.light .atlas-map-location-search input:focus { border-color: #176c58; box-shadow: 0 0 0 3px rgb(23 108 88 / 12%); }
+
+.atlas-map-location-list {
+  display: grid;
+  gap: 5px;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.atlas-map-location-list > button {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  min-height: 52px;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid rgb(171 219 218 / 15%);
+  border-radius: 8px;
+  color: inherit;
+  background: rgb(255 255 255 / 4%);
+  text-align: left;
+  transition: transform 140ms cubic-bezier(.23, 1, .32, 1), background-color 140ms ease, border-color 140ms ease;
+}
+
+.atlas-map-location-browser.light .atlas-map-location-list > button { border-color: rgb(58 107 100 / 16%); background: rgb(27 77 65 / 4%); }
+.atlas-map-location-list > button.is-selected { border-color: rgb(159 224 206 / 66%); background: rgb(69 142 126 / 18%); }
+
+.atlas-map-location-main { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; min-width: 0; }
+.atlas-map-location-main strong { min-width: 0; display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 11px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+.atlas-map-location-main small, .atlas-map-location-precision { flex: none; color: #b8d6cf; font-size: 9px; font-variant-numeric: tabular-nums; }
+.atlas-map-location-main small { padding-top: 2px; white-space: nowrap; }
+.atlas-map-location-browser.light .atlas-map-location-main small, .atlas-map-location-browser.light .atlas-map-location-precision { color: #4c7165; }
+
+@media (hover: hover) and (pointer: fine) {
+  .atlas-map-location-heading > button:hover, .atlas-map-location-list > button:hover { border-color: rgb(159 224 206 / 60%); background: rgb(69 142 126 / 16%); }
+  .atlas-map-location-list > button:hover { transform: translateY(-1px); }
+}
+
+.atlas-map-location-heading > button:active, .atlas-map-location-list > button:active { transform: scale(.99); }
+.atlas-map-location-heading > button:focus-visible, .atlas-map-location-list > button:focus-visible { outline: 2px solid #9fe0ce; outline-offset: 2px; }
+.atlas-map-location-browser.light .atlas-map-location-heading > button:focus-visible, .atlas-map-location-browser.light .atlas-map-location-list > button:focus-visible { outline-color: #176c58; }
+.atlas-map-location-empty, .atlas-map-location-note { margin: 0; color: #a9c0c2; font-size: 10px; line-height: 1.5; }
+.atlas-map-location-browser.light .atlas-map-location-empty, .atlas-map-location-browser.light .atlas-map-location-note { color: #55736c; }
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-map-location-trigger, .atlas-map-location-browser, .atlas-map-location-heading > button, .atlas-map-location-search input, .atlas-map-location-list > button { transition: background-color 100ms ease, border-color 100ms ease, opacity 100ms ease; }
+  .atlas-map-location-list > button:hover, .atlas-map-location-list > button:active, .atlas-map-location-heading > button:active, .atlas-map-location-trigger:active { transform: none; }
+  @starting-style { .atlas-map-location-browser { opacity: 0; transform: none; } }
+}
+
+.atlas-map-pick-menu {
+  position: absolute;
+  z-index: 8;
+  box-sizing: border-box;
+  display: grid;
+  gap: 9px;
+  width: min(320px, calc(100% - 24px));
+  max-height: min(360px, calc(100% - 24px));
+  padding: 12px;
+  overflow: hidden;
+  border: 1px solid rgb(171 219 218 / 34%);
+  border-radius: 14px;
+  color: #e8f3f2;
+  background: linear-gradient(145deg, rgb(13 34 43 / 97%), rgb(7 20 29 / 97%));
+  box-shadow: 0 18px 42px rgb(0 0 0 / 38%), 0 0 0 1px rgb(255 255 255 / 3%) inset;
+  backdrop-filter: blur(20px) saturate(1.2);
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 160ms cubic-bezier(.23, 1, .32, 1), transform 160ms cubic-bezier(.23, 1, .32, 1);
+}
+
+@starting-style {
+  .atlas-map-pick-menu { opacity: 0; transform: translateY(3px); }
+}
+
+.atlas-map-pick-menu.light {
+  border-color: rgb(58 107 100 / 24%);
+  color: #173a35;
+  background: linear-gradient(145deg, rgb(255 255 253 / 98%), rgb(243 249 246 / 98%));
+  box-shadow: 0 18px 42px rgb(25 55 47 / 20%), 0 0 0 1px rgb(255 255 255 / 82%) inset;
+}
+
+.atlas-map-pick-menu-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.atlas-map-pick-menu-heading > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.atlas-map-pick-menu-heading strong {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.atlas-map-pick-menu-heading small,
+.atlas-map-pick-menu > p {
+  color: #a9c0c2;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.atlas-map-pick-menu.light .atlas-map-pick-menu-heading small,
+.atlas-map-pick-menu.light > p {
+  color: #55736c;
+}
+
+.atlas-map-pick-menu-heading > button {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid rgb(171 219 218 / 22%);
+  border-radius: 7px;
+  color: inherit;
+  background: rgb(255 255 255 / 6%);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.atlas-map-pick-menu.light .atlas-map-pick-menu-heading > button {
+  border-color: rgb(58 107 100 / 20%);
+  background: rgb(27 77 65 / 5%);
+}
+
+.atlas-map-pick-menu-list {
+  display: grid;
+  gap: 5px;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.atlas-map-pick-menu-list > button {
+  display: grid;
+  justify-items: stretch;
+  gap: 5px;
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  padding: 8px 10px;
+  border: 1px solid rgb(171 219 218 / 15%);
+  border-radius: 8px;
+  color: inherit;
+  background: rgb(255 255 255 / 4%);
+  text-align: left;
+  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms cubic-bezier(.23, 1, .32, 1);
+}
+
+.atlas-map-pick-menu.light .atlas-map-pick-menu-list > button {
+  border-color: rgb(58 107 100 / 16%);
+  background: rgb(27 77 65 / 4%);
+}
+
+.atlas-map-pick-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.atlas-map-pick-main strong {
+  min-width: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.atlas-map-pick-main small,
+.atlas-map-pick-precision {
+  flex: none;
+  color: #b8d6cf;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.atlas-map-pick-main small {
+  padding-top: 2px;
+  white-space: nowrap;
+}
+
+.atlas-map-pick-menu.light .atlas-map-pick-main small,
+.atlas-map-pick-menu.light .atlas-map-pick-precision {
+  color: #4c7165;
+}
+
+.atlas-map-pick-menu > p {
+  margin: 0;
+}
+
+.atlas-map-pick-menu button:focus-visible {
+  outline: 2px solid #9fe0ce;
+  outline-offset: 2px;
+}
+
+.atlas-map-pick-menu.light button:focus-visible {
+  outline-color: #176c58;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .atlas-map-pick-menu-heading > button:hover,
+  .atlas-map-pick-menu-list > button:hover {
+    border-color: rgb(159 224 206 / 60%);
+    background: rgb(69 142 126 / 16%);
+  }
+
+  .atlas-map-pick-menu-list > button:hover {
+    transform: translateY(-1px);
+  }
+}
+
+.atlas-map-pick-menu-list > button:active {
+  transform: scale(.99);
+  transition: transform 120ms cubic-bezier(.23, 1, .32, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-map-hover-card { transition: opacity 100ms ease-out; transform: none; }
+  .atlas-map-pick-menu { transition: opacity 120ms ease-out; transform: none; }
+  .atlas-map-pick-menu-list > button { transition: background-color 100ms ease, border-color 100ms ease; }
+  .atlas-map-pick-menu-list > button:hover,
+  .atlas-map-pick-menu-list > button:active { transform: none; }
+  @starting-style {
+    .atlas-map-pick-menu { opacity: 0; transform: none; }
+  }
+}
+
+@media (max-width: 480px) {
+  .atlas-map-pick-menu { width: min(320px, calc(100% - 24px)); padding: 10px; }
+}

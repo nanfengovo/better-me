@@ -1,0 +1,142 @@
+/* A single, wrapping toolbar owns workspace controls. The canvas starts below
+   it, so renderer badges never compete with scope/view controls for an origin. */
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-map-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-map-top {
+  position: relative;
+  inset: auto;
+  z-index: 4;
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-panel);
+  pointer-events: auto;
+}
+
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-map-top > * {
+  flex-shrink: 0;
+}
+
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-mode-switch {
+  height: auto;
+  padding: 4px;
+  border-radius: 12px;
+}
+
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-mode-switch button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 62px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0 12px !important;
+  font-size: 13px !important;
+  white-space: nowrap;
+}
+
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-view-controls.atlas-spatial-controls button {
+  min-width: 52px;
+  min-height: 44px;
+  height: 44px;
+  font-size: 13px;
+}
+
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-map-camera-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-map-camera-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  color: var(--color-ink);
+  background: var(--color-panel);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-map-camera-controls button:first-child { padding: 0; }
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-map-camera-controls button:disabled { cursor: not-allowed; opacity: .5; }
+
+/* Preserve the scene's existing responsive height/flex contract. Only remove
+   the renderer's extra inner corner rounding below the new shared toolbar. */
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-scene { position: relative; }
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-scene > [data-atlas-renderer] { border-radius: 0 !important; }
+
+/* Scene overlays have distinct lanes: boundary on the left, address access at
+   top-right, navigation below it. Cap long labels rather than hiding controls. */
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-admin-boundary-badge {
+  --atlas-boundary-top: 12px;
+  --atlas-boundary-left: 12px;
+  --atlas-boundary-padding: 8px 10px;
+  --atlas-boundary-radius: 12px;
+  --atlas-boundary-font-size: 13px;
+  box-sizing: border-box;
+  max-width: calc(100% - 180px);
+  min-height: 44px;
+  line-height: 1.4;
+}
+
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-admin-boundary-badge > span:first-child { flex: 0 0 8px; }
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-admin-boundary-badge > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-map-location-trigger {
+  top: 12px;
+  right: 12px;
+  box-sizing: border-box;
+  justify-content: center;
+  width: 144px;
+  min-height: 44px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-map-location-trigger strong { font-size: 11px; }
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-scene .maplibregl-ctrl-top-right { top: 68px; right: 12px; }
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-scene .maplibregl-ctrl-top-right .maplibregl-ctrl { margin: 0; }
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-scene .maplibregl-ctrl-group button { width: 44px; height: 44px; }
+
+.atlas-workspace.atlas-experience[data-pane-layout] [data-atlas-office-controls="false"] .atlas-admin-boundary-badge { max-width: calc(100% - 84px); }
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-scene [data-atlas-office-controls="false"] .maplibregl-ctrl-top-right { top: 12px; }
+
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-map-location-browser {
+  top: 68px;
+  right: 68px;
+  width: min(360px, calc(100% - 80px));
+  max-height: min(470px, calc(100% - 80px));
+}
+
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-map-location-heading > button { width: 44px; height: 44px; }
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-map-location-search input { min-height: 44px; }
+
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-map-basemap-warning {
+  --atlas-warning-left: 12px;
+  --atlas-warning-right: 68px;
+  --atlas-warning-top: auto;
+  --atlas-warning-bottom: 64px;
+  --atlas-warning-font: 13px/1.6 system-ui;
+  max-height: calc(100% - 152px);
+  overflow: auto;
+}

@@ -1,5 +1,13 @@
 import manifest from "../../../../../config/geography/china-administrative/source-manifest.json";
 import { getChinaDistricts, getChinaCities, getChinaProvinces, type ChinaRegionSelection } from "./china-regions";
+import {
+  normalizeBoundaryGeometry,
+  type AdminGeoJson,
+  type GeoJsonFeature,
+  type GeoJsonFeatureCollection,
+  type BoundaryCoordinateSystem,
+} from "./boundary-geometry-normalization";
+export type { AdminGeoJson, GeoJsonFeature, GeoJsonFeatureCollection } from "./boundary-geometry-normalization";
 
 export type AdminBoundaryLevel = "province" | "city" | "district";
 
@@ -34,23 +42,6 @@ export const ADMIN_BOUNDARY_COLORS: Record<
   },
 };
 
-export type GeoJsonFeature = {
-  type: "Feature";
-  id?: string | number;
-  properties?: Record<string, any>;
-  geometry: {
-    type: string;
-    coordinates: any;
-  };
-};
-
-export type GeoJsonFeatureCollection = {
-  type: "FeatureCollection";
-  features: GeoJsonFeature[];
-};
-
-export type AdminGeoJson = GeoJsonFeatureCollection | GeoJsonFeature;
-
 export type AdminBoundaryHighlight = {
   level: AdminBoundaryLevel;
   name: string;
@@ -67,7 +58,7 @@ export type AdminBoundaryHighlight = {
 const provinceMapIds: Record<string, string> = manifest.provinceMapIds;
 const municipalities = new Set(["11", "12", "31", "50"]);
 
-// Dynamic GeoJSON boundary memory cache
+// All caches contain display-ready WGS84 geometry; never normalize cached data.
 const boundaryMemoryCache = new Map<string, AdminGeoJson>();
 
 let chinaProvincesCache: GeoJsonFeatureCollection | null = null;
@@ -86,7 +77,7 @@ async function loadBundledShanghaiOfficial(): Promise<GeoJsonFeatureCollection> 
   if (shanghaiOfficialCache) return shanghaiOfficialCache;
   shanghaiOfficialCache = await loadGeoJsonAsset(
     () => import("./geo/shanghai-official-boundary.geojson?url"),
-    "./geo/shanghai-official-boundary.geojson"
+    "./geo/shanghai-official-boundary.geojson", "GCJ-02"
   );
   return shanghaiOfficialCache;
 }
@@ -95,7 +86,7 @@ async function loadBundledBeijingOfficial(): Promise<GeoJsonFeatureCollection> {
   if (beijingOfficialCache) return beijingOfficialCache;
   beijingOfficialCache = await loadGeoJsonAsset(
     () => import("./geo/beijing-official-boundary.geojson?url"),
-    "./geo/beijing-official-boundary.geojson"
+    "./geo/beijing-official-boundary.geojson", "GCJ-02"
   );
   return beijingOfficialCache;
 }
@@ -104,7 +95,7 @@ async function loadBundledTianjinOfficial(): Promise<GeoJsonFeatureCollection> {
   if (tianjinOfficialCache) return tianjinOfficialCache;
   tianjinOfficialCache = await loadGeoJsonAsset(
     () => import("./geo/tianjin-official-boundary.geojson?url"),
-    "./geo/tianjin-official-boundary.geojson"
+    "./geo/tianjin-official-boundary.geojson", "GCJ-02"
   );
   return tianjinOfficialCache;
 }
@@ -113,12 +104,14 @@ async function loadBundledChongqingOfficial(): Promise<GeoJsonFeatureCollection>
   if (chongqingOfficialCache) return chongqingOfficialCache;
   chongqingOfficialCache = await loadGeoJsonAsset(
     () => import("./geo/chongqing-official-boundary.geojson?url"),
-    "./geo/chongqing-official-boundary.geojson"
+    "./geo/chongqing-official-boundary.geojson", "GCJ-02"
   );
   return chongqingOfficialCache;
 }
 
-const OFFICIAL_MUNICIPALITY_LOADERS: Record<string, () => Promise<GeoJsonFeatureCollection>> = {
+// Legacy asset filenames say "official"; they are DataV visualization data,
+// not certified cadastral/coastline geometry. See geo/NOTICE.md for provenance.
+const MUNICIPALITY_LOADERS: Record<string, () => Promise<GeoJsonFeatureCollection>> = {
   "31": loadBundledShanghaiOfficial,
   "11": loadBundledBeijingOfficial,
   "12": loadBundledTianjinOfficial,
@@ -127,25 +120,29 @@ const OFFICIAL_MUNICIPALITY_LOADERS: Record<string, () => Promise<GeoJsonFeature
 
 async function loadGeoJsonAsset(
   loader: () => Promise<{ default: string }>,
-  relativePath: string
+  relativePath: string,
+  coordinateSystem: BoundaryCoordinateSystem
 ): Promise<GeoJsonFeatureCollection> {
+  let geoJson: GeoJsonFeatureCollection;
   if (typeof window === "undefined") {
     const fs = await import("node:fs");
     const path = await import("node:path");
     const { fileURLToPath } = await import("node:url");
     const fullPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), relativePath);
-    return JSON.parse(fs.readFileSync(fullPath, "utf-8")) as GeoJsonFeatureCollection;
+    geoJson = JSON.parse(fs.readFileSync(fullPath, "utf-8")) as GeoJsonFeatureCollection;
+  } else {
+    const asset = await loader();
+    const res = await fetch(asset.default);
+    geoJson = (await res.json()) as GeoJsonFeatureCollection;
   }
-  const asset = await loader();
-  const res = await fetch(asset.default);
-  return (await res.json()) as GeoJsonFeatureCollection;
+  return normalizeBoundaryGeometry({ geoJson, coordinateSystem }).geoJson;
 }
 
 async function loadBundledProvinces(): Promise<GeoJsonFeatureCollection> {
   if (chinaProvincesCache) return chinaProvincesCache;
   chinaProvincesCache = await loadGeoJsonAsset(
     () => import("./geo/china-provinces-10m.geojson?url"),
-    "./geo/china-provinces-10m.geojson"
+    "./geo/china-provinces-10m.geojson", "WGS84"
   );
   return chinaProvincesCache;
 }
@@ -154,7 +151,7 @@ async function loadBundledShanghaiDistricts(): Promise<GeoJsonFeatureCollection>
   if (shanghaiDistrictsCache) return shanghaiDistrictsCache;
   shanghaiDistrictsCache = await loadGeoJsonAsset(
     () => import("./geo/shanghai-districts.geojson?url"),
-    "./geo/shanghai-districts.geojson"
+    "./geo/shanghai-districts.geojson", "GCJ-02"
   );
   return shanghaiDistrictsCache;
 }
@@ -163,7 +160,7 @@ async function loadBundledBeijingDistricts(): Promise<GeoJsonFeatureCollection> 
   if (beijingDistrictsCache) return beijingDistrictsCache;
   beijingDistrictsCache = await loadGeoJsonAsset(
     () => import("./geo/beijing-districts.geojson?url"),
-    "./geo/beijing-districts.geojson"
+    "./geo/beijing-districts.geojson", "GCJ-02"
   );
   return beijingDistrictsCache;
 }
@@ -172,7 +169,7 @@ async function loadBundledGuangdongCities(): Promise<GeoJsonFeatureCollection> {
   if (guangdongCitiesCache) return guangdongCitiesCache;
   guangdongCitiesCache = await loadGeoJsonAsset(
     () => import("./geo/guangdong-cities.geojson?url"),
-    "./geo/guangdong-cities.geojson"
+    "./geo/guangdong-cities.geojson", "GCJ-02"
   );
   return guangdongCitiesCache;
 }
@@ -181,7 +178,7 @@ async function loadBundledJiangsuCities(): Promise<GeoJsonFeatureCollection> {
   if (jiangsuCitiesCache) return jiangsuCitiesCache;
   jiangsuCitiesCache = await loadGeoJsonAsset(
     () => import("./geo/jiangsu-cities.geojson?url"),
-    "./geo/jiangsu-cities.geojson"
+    "./geo/jiangsu-cities.geojson", "GCJ-02"
   );
   return jiangsuCitiesCache;
 }
@@ -190,7 +187,7 @@ async function loadBundledZhejiangCities(): Promise<GeoJsonFeatureCollection> {
   if (zhejiangCitiesCache) return zhejiangCitiesCache;
   zhejiangCitiesCache = await loadGeoJsonAsset(
     () => import("./geo/zhejiang-cities.geojson?url"),
-    "./geo/zhejiang-cities.geojson"
+    "./geo/zhejiang-cities.geojson", "GCJ-02"
   );
   return zhejiangCitiesCache;
 }
@@ -250,8 +247,10 @@ async function fetchOnlineBoundary(adcode: string | number): Promise<AdminGeoJso
     if (!res.ok) return null;
     const data = (await res.json()) as AdminGeoJson;
     if (data && (data.type === "FeatureCollection" || data.type === "Feature")) {
-      boundaryMemoryCache.set(cacheKey, data);
-      return data;
+      // This endpoint is DataV GCJ-02, unlike Natural Earth's WGS84 fallback.
+      const normalized = normalizeBoundaryGeometry({ geoJson: data, coordinateSystem: "GCJ-02" }).geoJson;
+      boundaryMemoryCache.set(cacheKey, normalized);
+      return normalized;
     }
   } catch {
     // Network or timeout: return null to let fallback handle it
@@ -364,9 +363,9 @@ export async function resolveAdminBoundaryHighlight(
     let feature: GeoJsonFeature | null = null;
 
     // For direct-controlled municipalities (Beijing, Shanghai, Tianjin, Chongqing),
-    // selecting the city level highlights the entire municipality boundary with high-precision official boundaries.
+    // selecting the city level uses the bundled DataV municipality geometry.
     if (isDirect) {
-      const officialLoader = OFFICIAL_MUNICIPALITY_LOADERS[provinceCode];
+      const officialLoader = MUNICIPALITY_LOADERS[provinceCode];
       if (officialLoader) {
         const officialCol = await officialLoader();
         if (officialCol.features.length > 0) feature = officialCol.features[0]!;
@@ -465,7 +464,7 @@ export async function resolveAdminBoundaryHighlight(
     const name = province?.name ?? "已选省份";
 
     let feature: GeoJsonFeature | null = null;
-    const officialLoader = OFFICIAL_MUNICIPALITY_LOADERS[provinceCode];
+    const officialLoader = MUNICIPALITY_LOADERS[provinceCode];
     if (officialLoader) {
       const officialCol = await officialLoader();
       if (officialCol.features.length > 0) feature = officialCol.features[0]!;

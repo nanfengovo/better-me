@@ -1,0 +1,446 @@
+/* Atlas-only reading scale. The additional workspace scope deliberately wins
+   over the older wide-pane and small-screen density rules without changing the
+   resume editor, navigation, query state, or motion. */
+.atlas-workspace.atlas-experience .atlas-data-banner,
+.atlas-workspace.atlas-experience .atlas-data-banner strong,
+.atlas-workspace.atlas-experience .atlas-search-affordance {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.atlas-workspace.atlas-experience .atlas-activity-rail > li {
+  padding: 10px 14px;
+}
+.atlas-workspace.atlas-experience .atlas-activity-rail .atlas-activity-label {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-ink);
+}
+.atlas-workspace.atlas-experience .atlas-activity-rail .atlas-activity-state {
+  font-size: 12px;
+  line-height: 1.4;
+}
+.atlas-workspace.atlas-experience .atlas-activity-value strong {
+  font-size: 22px;
+  line-height: 1.15;
+}
+.atlas-workspace.atlas-experience .atlas-activity-value > span,
+.atlas-workspace.atlas-experience .atlas-activity-content p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Live collection shares one scroll owner with its receipts, so expanded
+   evidence cannot squeeze its cards to zero height. The indexed job list keeps
+   its existing scrolling and pagination behavior. */
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-results.is-live-source-results {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+}
+.atlas-workspace.atlas-experience .atlas-results > .atlas-results-heading,
+.atlas-workspace.atlas-experience .atlas-results > .atlas-harvest-progress,
+.atlas-workspace.atlas-experience .atlas-results > .atlas-background-enrichment {
+  flex-shrink: 0;
+}
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-results.is-live-source-results > .atlas-live-harvest-results {
+  flex: 1 0 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+  overflow-y: visible;
+}
+.atlas-workspace.atlas-experience .atlas-results-map-summary,
+.atlas-workspace.atlas-experience .atlas-results h2 > span {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* State is conveyed by the title and small indicator, not a large warning fill. */
+.atlas-workspace.atlas-experience .atlas-results .atlas-harvest-progress {
+  flex: none;
+  margin: 8px 12px;
+  padding: 12px;
+  border-color: var(--color-line);
+  background: var(--color-panel);
+  color: var(--color-ink);
+  box-shadow: none;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-progress-heading {
+  align-items: center;
+  gap: 8px 10px;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-progress[data-state="attention"] .atlas-harvest-progress-indicator,
+.atlas-workspace.atlas-experience .atlas-harvest-progress[data-state="stopped"] .atlas-harvest-progress-indicator {
+  color: var(--color-warn, #98641c);
+  border-color: color-mix(in srgb, var(--color-warn, #98641c) 26%, var(--color-line));
+  background: color-mix(in srgb, var(--color-warn, #98641c) 8%, var(--color-panel));
+}
+.atlas-workspace.atlas-experience .atlas-harvest-progress-copy {
+  flex: 1 1 180px;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-progress-copy > strong {
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-task-label {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-progress-summary {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-progress-summary > div {
+  min-width: 54px;
+  gap: 3px;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-progress-summary dt {
+  font-size: 12px;
+  line-height: 1.4;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-progress-summary dd {
+  font-size: 22px;
+  line-height: 1.2;
+  color: var(--color-ink);
+}
+.atlas-workspace.atlas-experience .atlas-harvest-issues {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-issue {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-line);
+  color: var(--color-ink);
+}
+.atlas-workspace.atlas-experience .atlas-harvest-issue > svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--color-warn, #98641c);
+}
+.atlas-workspace.atlas-experience .atlas-harvest-issue-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 7px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-issue-source {
+  flex: none;
+  padding: 1px 5px;
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 550;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-issue-reason {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.atlas-workspace.atlas-experience .atlas-harvest-issue-advice {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+/* Preserve native details ownership. Closed receipts share the action row;
+   opening them intentionally uses the full card width for readable evidence. */
+.atlas-workspace.atlas-experience .atlas-harvest-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 6px 10px;
+  margin-top: 8px;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-footer > .atlas-harvest-progress-details,
+.atlas-workspace.atlas-experience .atlas-harvest-footer > .atlas-harvest-actions {
+  min-width: 0;
+  margin: 0;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-footer > .atlas-harvest-actions {
+  justify-self: end;
+  max-width: 180px;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-footer > .atlas-harvest-progress-details[open] {
+  grid-column: 1 / -1;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-footer > .atlas-harvest-progress-details[open] + .atlas-harvest-actions {
+  grid-column: 1 / -1;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-actions button,
+.atlas-workspace.atlas-experience .atlas-harvest-progress .atlas-harvest-progress-cancel {
+  min-height: 44px;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-ink);
+}
+.atlas-workspace.atlas-experience .atlas-harvest-progress-details > summary,
+.atlas-workspace.atlas-experience .atlas-live-harvest-sources > summary,
+.atlas-workspace.atlas-experience .atlas-live-card-details > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 44px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-issue-details {
+  display: grid;
+  gap: 10px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-issue-details > li {
+  padding-top: 8px;
+  border-top: 1px solid var(--color-line);
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-issue-details strong,
+.atlas-workspace.atlas-experience .atlas-harvest-issue-details p,
+.atlas-workspace.atlas-experience .atlas-harvest-issue-details summary {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-issue-details p {
+  margin: 4px 0;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-issue-details summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-issue-details ul {
+  padding-left: 20px;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-progress-details > summary > small,
+.atlas-workspace.atlas-experience .atlas-live-harvest-sources > summary > small,
+.atlas-workspace.atlas-experience .atlas-live-harvest-sources > summary > em,
+.atlas-workspace.atlas-experience .atlas-live-harvest-source-note,
+.atlas-workspace.atlas-experience .atlas-harvest-progress-count-note {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-progress-message,
+.atlas-workspace.atlas-experience .atlas-harvest-progress-error,
+.atlas-workspace.atlas-experience .atlas-harvest-progress-cancel-note {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-progress-stages {
+  grid-template-columns: repeat(auto-fit, minmax(95px, 1fr));
+  gap: 8px;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-progress-stages > li,
+.atlas-workspace.atlas-experience .atlas-harvest-progress-metrics > div,
+.atlas-workspace.atlas-experience .atlas-live-harvest-coverage summary span,
+.atlas-workspace.atlas-experience .atlas-live-harvest-coverage summary strong,
+.atlas-workspace.atlas-experience .atlas-live-harvest-coverage summary small,
+.atlas-workspace.atlas-experience .atlas-live-harvest-coverage ul {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-progress-stages > li > span:last-child {
+  overflow: visible;
+  white-space: normal;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-progress-stages > li[data-state="current"] {
+  font-size: 14px;
+}
+
+.atlas-workspace.atlas-experience .atlas-results .atlas-background-enrichment {
+  flex: none;
+  margin: 4px 12px 8px;
+  padding: 2px 10px;
+  background: var(--color-paper);
+}
+.atlas-workspace.atlas-experience .atlas-background-enrichment-heading {
+  align-items: center;
+  min-height: 44px;
+  gap: 4px 10px;
+  cursor: pointer;
+}
+.atlas-workspace.atlas-experience .atlas-background-enrichment-heading > strong,
+.atlas-workspace.atlas-experience .atlas-background-enrichment-activity,
+.atlas-workspace.atlas-experience .atlas-background-enrichment-error {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-ink);
+}
+.atlas-workspace.atlas-experience .atlas-background-enrichment-heading > svg {
+  flex: none;
+  margin-left: auto;
+}
+.atlas-workspace.atlas-experience .atlas-background-enrichment dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 4px 0 8px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.atlas-workspace.atlas-experience .atlas-background-enrichment dl > div {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.atlas-workspace.atlas-experience .atlas-background-enrichment dl dd {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.atlas-workspace.atlas-experience .atlas-background-enrichment-note {
+  margin: 4px 0 8px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* The job, company and location are the reading hierarchy; sources remain
+   legible supporting evidence instead of shrinking into decorative badges. */
+.atlas-workspace.atlas-experience .atlas-results .atlas-company-line {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.atlas-workspace.atlas-experience .atlas-results .atlas-job-card > strong,
+.atlas-workspace.atlas-experience .atlas-results .atlas-live-harvest-card h4 {
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--color-ink);
+  -webkit-line-clamp: 2;
+}
+.atlas-workspace.atlas-experience .atlas-results .atlas-job-meta,
+.atlas-workspace.atlas-experience .atlas-results .atlas-job-salary,
+.atlas-workspace.atlas-experience .atlas-live-harvest-card-top > span:first-child,
+.atlas-workspace.atlas-experience .atlas-live-harvest-card-meta,
+.atlas-workspace.atlas-experience .atlas-live-harvest-card-text {
+  font-size: 14px;
+  line-height: 1.55;
+  opacity: 1;
+}
+.atlas-workspace.atlas-experience .atlas-results .atlas-job-meta {
+  align-items: flex-start;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.atlas-workspace.atlas-experience .atlas-results .atlas-job-meta svg {
+  margin-top: 4px;
+}
+.atlas-workspace.atlas-experience .atlas-results .atlas-job-classification,
+.atlas-workspace.atlas-experience .atlas-results .atlas-badge-platform,
+.atlas-workspace.atlas-experience .atlas-results .atlas-badge-publication,
+.atlas-workspace.atlas-experience .atlas-results .atlas-badge-distance,
+.atlas-workspace.atlas-experience .atlas-results .atlas-source-badge,
+.atlas-workspace.atlas-experience .atlas-results .atlas-card-hint,
+.atlas-workspace.atlas-experience .atlas-live-harvest-kicker,
+.atlas-workspace.atlas-experience .atlas-live-harvest-live-dot,
+.atlas-workspace.atlas-experience .atlas-live-harvest-card > small,
+.atlas-workspace.atlas-experience .atlas-live-card-details > small,
+.atlas-workspace.atlas-experience .atlas-live-harvest-footnote {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.atlas-workspace.atlas-experience .atlas-live-harvest-heading h3 {
+  font-size: 16px;
+  line-height: 1.5;
+}
+.atlas-workspace.atlas-experience .atlas-live-harvest-results.is-compact {
+  gap: 6px;
+}
+.atlas-workspace.atlas-experience .atlas-live-harvest-results.is-compact .atlas-live-harvest-pagination {
+  padding-block: 2px;
+}
+.atlas-workspace.atlas-experience .atlas-live-harvest-heading p,
+.atlas-workspace.atlas-experience .atlas-live-harvest-empty {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.atlas-workspace.atlas-experience .atlas-live-harvest-card-text {
+  color: var(--color-ink);
+}
+.atlas-workspace.atlas-experience .atlas-live-card-details[open] .atlas-live-harvest-card-text {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+}
+.atlas-workspace.atlas-experience .atlas-live-harvest-pagination,
+.atlas-workspace.atlas-experience .atlas-live-harvest-pagination button,
+.atlas-workspace.atlas-experience .atlas-live-harvest-new-slot > small {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.atlas-workspace.atlas-experience .atlas-live-harvest-pagination button,
+.atlas-workspace.atlas-experience .atlas-live-harvest-coverage summary,
+.atlas-workspace.atlas-experience .atlas-live-harvest-card > a {
+  min-height: 44px;
+}
+.atlas-workspace.atlas-experience .atlas-live-harvest-card > a {
+  align-items: center;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.atlas-workspace.atlas-experience .atlas-harvest-actions button:focus-visible,
+.atlas-workspace.atlas-experience .atlas-harvest-progress-details > summary:focus-visible,
+.atlas-workspace.atlas-experience .atlas-harvest-issue-details summary:focus-visible,
+.atlas-workspace.atlas-experience .atlas-background-enrichment > summary:focus-visible,
+.atlas-workspace.atlas-experience .atlas-live-card-details > summary:focus-visible,
+.atlas-workspace.atlas-experience .atlas-live-harvest-sources > summary:focus-visible {
+  outline: 2px solid var(--color-accent) !important;
+  outline-offset: 3px;
+}
+
+/* A narrow pane uses inline counters rather than smaller text. This keeps
+   useful job content above the fold even with two readable issue summaries. */
+.atlas-workspace.atlas-experience[data-pane-layout="narrow"] .atlas-results .atlas-harvest-progress {
+  margin-block: 6px;
+  padding: 10px;
+}
+.atlas-workspace.atlas-experience[data-pane-layout="narrow"] .atlas-harvest-progress-summary > div {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.atlas-workspace.atlas-experience[data-pane-layout="narrow"] .atlas-results .atlas-live-harvest-card {
+  padding-block: 12px;
+}

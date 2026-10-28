@@ -1,0 +1,115 @@
+.atlas-harvest-progress {
+  --harvest-good: var(--ui-accent, var(--color-accent));
+  --harvest-warn: var(--color-warn, #98641c);
+  margin: 4px 10px 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-panel) 96%, var(--color-paper));
+  color: var(--color-ink);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-ink) 4%, transparent);
+}
+.atlas-harvest-progress-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.atlas-harvest-progress-indicator {
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  height: 28px;
+  border: 1px solid color-mix(in srgb, var(--harvest-good) 25%, var(--color-line));
+  border-radius: 50%;
+  color: var(--harvest-good);
+  background: color-mix(in srgb, var(--harvest-good) 8%, var(--color-panel));
+}
+.atlas-harvest-progress.is-cancelled .atlas-harvest-progress-indicator { color: var(--harvest-warn); border-color: color-mix(in srgb, var(--harvest-warn) 26%, var(--color-line)); background: color-mix(in srgb, var(--harvest-warn) 8%, var(--color-panel)); }
+.atlas-harvest-progress-copy { flex: 1 1 170px; min-width: 0; }
+.atlas-harvest-progress-copy > strong { font-size: 12px; line-height: 1.5; font-weight: 600; }
+.atlas-harvest-progress-summary { display: flex; flex: 1 0 auto; justify-content: flex-start; gap: 16px; margin: 0; }
+.atlas-harvest-progress-summary > div { display: grid; gap: 1px; min-width: 36px; }
+.atlas-harvest-progress-summary dt { font-size: 9px; color: var(--color-ink-muted); }
+.atlas-harvest-progress-summary dd { margin: 0; font-size: 15px; line-height: 1.2; font-weight: 600; font-variant-numeric: tabular-nums; }
+.atlas-harvest-progress .atlas-harvest-progress-cancel { flex: none; margin: 0; min-height: 32px; padding: 4px 9px; border: 1px solid var(--color-line); border-radius: 7px; background: var(--color-panel); color: var(--color-ink-muted); font: inherit; font-size: 10px; cursor: pointer; }
+.atlas-harvest-progress-details { margin-top: 6px; }
+.atlas-harvest-progress-details > summary,
+.atlas-live-harvest-sources > summary { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-height: 32px; cursor: pointer; list-style: none; color: var(--color-ink-muted); font-size: 10px; }
+.atlas-harvest-progress-details > summary::-webkit-details-marker,
+.atlas-live-harvest-sources > summary::-webkit-details-marker { display: none; }
+.atlas-harvest-progress-details > summary > svg,
+.atlas-live-harvest-sources > summary > svg { flex: none; transform: rotate(-90deg); }
+.atlas-harvest-progress-details[open] > summary > svg,
+.atlas-live-harvest-sources[open] > summary > svg { transform: none; }
+.atlas-harvest-progress-details > summary > small { min-width: 0; margin-left: auto; font-size: 10px; overflow-wrap: anywhere; }
+.atlas-harvest-progress-details > summary > em { font-style: normal; color: var(--harvest-warn); font-variant-numeric: tabular-nums; }
+.atlas-harvest-progress-message,
+.atlas-harvest-progress-count-note,
+.atlas-live-harvest-source-note { margin: 5px 0 0; color: var(--color-ink-muted); font-size: 10px; line-height: 1.65; overflow-wrap: anywhere; }
+.atlas-harvest-progress-stages { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin: 11px 0 0; padding: 0; list-style: none; }
+.atlas-harvest-progress-stages > li { display: flex; align-items: center; gap: 5px; min-width: 0; color: var(--color-ink-muted); font-size: 9px; line-height: 1.4; }
+.atlas-harvest-progress-stages > li[data-state="complete"] { color: var(--harvest-good); }
+.atlas-harvest-progress-stages > li[data-state="current"] { color: var(--color-ink); font-weight: 600; }
+.atlas-harvest-progress-stages > li[data-state="stopped"] { color: var(--harvest-warn); font-weight: 600; }
+.atlas-harvest-progress-step-icon { display: grid; place-items: center; flex: 0 0 17px; height: 17px; border: 1px solid var(--color-line); border-radius: 50%; }
+.atlas-harvest-progress-stages > li[data-state="complete"] .atlas-harvest-progress-step-icon { border-color: color-mix(in srgb, var(--harvest-good) 34%, var(--color-line)); background: color-mix(in srgb, var(--harvest-good) 9%, var(--color-panel)); }
+.atlas-harvest-progress-stages > li[data-state="current"] .atlas-harvest-progress-step-icon { border-color: var(--harvest-good); color: var(--harvest-good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--harvest-good) 10%, transparent); }
+.atlas-harvest-progress-stages > li[data-state="stopped"] .atlas-harvest-progress-step-icon { border-color: var(--harvest-warn); }
+.atlas-harvest-progress-stages > li[data-state="skipped"] .atlas-harvest-progress-step-icon { border-style: dashed; }
+.atlas-harvest-progress-stages > li > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.atlas-harvest-progress-stages > li[data-state="skipped"] > span:last-child { white-space: normal; }
+.atlas-harvest-progress-metrics { display: flex; flex-wrap: wrap; gap: 5px 14px; margin: 9px 0 0; padding: 8px 0 0; border-top: 1px solid var(--color-line); }
+.atlas-harvest-progress-metrics > div { display: flex; align-items: baseline; gap: 4px; font-size: 10px; line-height: 1.5; }
+.atlas-harvest-progress-metrics dt { color: var(--color-ink-muted); }
+.atlas-harvest-progress-metrics dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.atlas-harvest-progress-metrics > div[data-warning="true"] dd { color: var(--harvest-warn); }
+.atlas-harvest-progress-error,.atlas-harvest-progress-cancel-note { display: flex; align-items: flex-start; gap: 5px; margin: 7px 0 0; color: var(--harvest-warn); font-size: 10px; line-height: 1.6; overflow-wrap: anywhere; }
+.atlas-harvest-progress-error > svg { flex: none; margin-top: 1px; }
+.atlas-live-harvest-results .atlas-live-harvest-heading { padding-top: 4px; }
+.atlas-live-harvest-results .atlas-live-harvest-heading h3 { margin: 3px 0; font-size: 15px; letter-spacing: -.015em; }
+.atlas-live-harvest-results .atlas-live-harvest-live-dot { background: color-mix(in srgb, var(--color-accent) 9%, var(--color-panel)); color: var(--ui-accent, var(--color-accent)); font-variant-numeric: tabular-nums; }
+.atlas-live-harvest-sources { padding: 0 9px; border: 1px solid var(--color-line); border-radius: 8px; background: color-mix(in srgb, var(--color-panel) 97%, var(--color-paper)); }
+.atlas-live-harvest-sources > summary > span { font-weight: 600; color: var(--color-ink); }
+.atlas-live-harvest-sources > summary > small { font-size: 10px; font-variant-numeric: tabular-nums; }
+.atlas-live-harvest-sources > summary > em { margin-left: auto; font-size: 10px; font-style: normal; color: var(--color-warn, #98641c); }
+.atlas-live-harvest-sources .atlas-live-harvest-coverage { margin-top: 4px; }
+.atlas-live-harvest-source-note { margin-bottom: 9px; }
+.atlas-live-harvest-results .atlas-live-harvest-coverage summary { grid-template-columns: minmax(0, 1fr) auto; min-height: 36px; padding: 7px 9px; }
+.atlas-live-harvest-results .atlas-live-harvest-coverage summary small { grid-column: 1 / -1; justify-self: start; text-align: left; line-height: 1.6; }
+.atlas-live-harvest-results .atlas-live-harvest-coverage details[data-state="running"] .atlas-live-harvest-provider-name i { animation: none; }
+.atlas-live-harvest-results .atlas-live-harvest-coverage details[data-state="ready"] .atlas-live-harvest-provider-name i { background: var(--ui-accent, var(--color-accent)); }
+.atlas-live-harvest-results .atlas-live-harvest-pagination { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; padding: 6px 0; font-variant-numeric: tabular-nums; }
+.atlas-live-harvest-results .atlas-live-harvest-pagination button { min-height: 30px; border-radius: 6px; }
+.atlas-live-harvest-results .atlas-live-harvest-pagination .atlas-live-harvest-new-slot { grid-column: 1 / -1; min-height: 30px; }
+.atlas-live-harvest-new-slot > small { color: var(--color-ink-muted); font-size: 9px; }
+.atlas-live-harvest-results .atlas-live-harvest-pagination .atlas-live-harvest-new { color: var(--ui-accent, var(--color-accent)); border-color: color-mix(in srgb, var(--color-accent) 28%, var(--color-line)); background: color-mix(in srgb, var(--color-accent) 6%, var(--color-panel)); }
+.atlas-live-harvest-results .atlas-live-harvest-card { gap: 6px; padding: 13px 3px; }
+.atlas-live-harvest-results .atlas-live-harvest-card h4 { font-size: 13px; line-height: 1.5; letter-spacing: -.01em; }
+.atlas-live-harvest-results .atlas-live-harvest-card-meta,
+.atlas-live-harvest-results .atlas-live-harvest-card-text { font-size: 10px; line-height: 1.6; }
+.atlas-harvest-progress summary:focus-visible,
+.atlas-live-harvest-results summary:focus-visible,
+.atlas-live-harvest-results a:focus-visible { outline: 2px solid var(--ui-accent, var(--color-accent)); outline-offset: 3px; border-radius: 3px; }
+.atlas-harvest-progress .atlas-harvest-progress-cancel:focus-visible,
+.atlas-live-harvest-results .atlas-live-harvest-pagination button:focus-visible { outline: 2px solid var(--ui-accent, var(--color-accent)) !important; outline-offset: 2px; border-color: var(--ui-accent, var(--color-accent)) !important; box-shadow: none !important; }
+.atlas-harvest-progress .atlas-harvest-progress-cancel,
+.atlas-live-harvest-results .atlas-live-harvest-pagination button { transform: none; transition: none; }
+@media (hover: hover) and (pointer: fine) {
+  .atlas-harvest-progress .atlas-harvest-progress-cancel:hover { border-color: var(--ui-accent, var(--color-accent)); color: var(--color-ink); }
+  .atlas-harvest-progress .atlas-harvest-progress-cancel:not(:focus-visible),
+  .atlas-live-harvest-results .atlas-live-harvest-pagination button:not(:focus-visible) { transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1); }
+  .atlas-harvest-progress .atlas-harvest-progress-cancel:active:not(:focus-visible),
+  .atlas-live-harvest-results .atlas-live-harvest-pagination button:active:not(:disabled):not(:focus-visible) { transform: scale(.98); }
+}
+@media (max-width: 620px) {
+  .atlas-harvest-progress { margin-inline: 6px; padding: 10px; }
+  .atlas-harvest-progress-stages { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 7px; }
+}
+@media (pointer: coarse) {
+  .atlas-live-harvest-results .atlas-live-harvest-pagination .atlas-live-harvest-new-slot { min-height: 40px; }
+  .atlas-harvest-progress-details > summary,
+  .atlas-live-harvest-sources > summary,
+  .atlas-live-harvest-results .atlas-live-harvest-coverage summary,
+  .atlas-harvest-progress .atlas-harvest-progress-cancel,
+  .atlas-live-harvest-results .atlas-live-harvest-pagination button { min-height: 40px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .atlas-harvest-progress .atlas-harvest-progress-cancel,
+  .atlas-live-harvest-results .atlas-live-harvest-pagination button { transition: none !important; transform: none !important; }
+}

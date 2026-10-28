@@ -1,6 +1,7 @@
 /** @jsxRuntime automatic */
 import { useState } from "react";
-import { ShieldCheck, Sparkles, Layers, ArrowUpRight, Compass, Check, Globe2, MapPin } from "lucide-react";
+import { ShieldCheck, Sparkles, Layers, ArrowUpRight, Check, Globe2, MapPin } from "lucide-react";
+import { AtlasIllustration } from "./AtlasIllustration";
 import {
   PLATFORM_SEARCH_PROVIDERS,
   buildPlatformSearchRequest,
@@ -56,11 +57,7 @@ export function AtlasLivePlatformQuickSearch({
     request?: PlatformSearchRequest;
     badge: string;
   }> = PLATFORM_SEARCH_PROVIDERS.map((provider) => {
-    let badge = "商业大厂";
-    if (provider.id === "boss") badge = "极速直聘 · 强风控";
-    else if (provider.id === "liepin") badge = "猎头中高端 · 支持卡片解析";
-    else if (provider.id === "51job") badge = "综合龙头 · 编码直搜";
-    else if (provider.id === "linkedin") badge = "外企/跨国机会";
+    const badge = "平台原站";
 
     try {
       const request = buildPlatformSearchRequest({
@@ -83,7 +80,7 @@ export function AtlasLivePlatformQuickSearch({
     try {
       const ok = await openUrlInRealChrome(req.url);
       if (ok) {
-        setOpenedNotice(`已在真实 Chrome 中开启 ${name} 搜索窗口，享有独立硬件指纹！`);
+        setOpenedNotice(`已在 Chrome 中打开 ${name} 搜索。平台可能仍要求登录或验证。`);
       } else {
         window.open(req.url, "_blank", "noopener,noreferrer");
         setOpenedNotice(`已在新标签页打开 ${name} 搜索`);
@@ -120,10 +117,24 @@ export function AtlasLivePlatformQuickSearch({
 
   return (
     <div className="atlas-live-quick-search" role="region" aria-label="全网平台实时聚合搜索">
+      <div className="atlas-live-quick-search-header">
+        <AtlasIllustration kind="search" />
+        <h3 className="atlas-live-title">这个范围内，暂未找到匹配岗位</h3>
+        <p className="atlas-live-desc">
+          已收录数据中没有 <strong>{displayRegion} · {displayKeyword}</strong> 的匹配项。
+          可以放宽条件，或继续读取招聘来源。未读取的来源不代表没有岗位。
+        </p>
+      </div>
+      <div className="atlas-live-empty-actions">
+        <button type="button" onClick={onResetFilters}>清除当前筛选</button>
+        {onLiveCaptureNow && <button type="button" disabled={liveCapturing || opening !== null} onClick={onLiveCaptureNow}>
+          <ShieldCheck size={14} />{liveCapturing ? "正在读取来源…" : "继续从来源获取"}
+        </button>}
+      </div>
       {hasBroaderMatches && broaderMatches && (
         <div className="atlas-live-broader-box" role="region" aria-label="跨区域索引匹配提示">
           <div className="atlas-live-broader-head">
-            <strong>💡 本地索引已有「{displayKeyword}」岗位，仅当前「{displayRegion}」筛选下为 0 岗</strong>
+            <strong>已收录「{displayKeyword}」岗位，当前「{displayRegion}」范围内为 0 岗</strong>
             <span>放宽地区范围即可直接查看已入库岗位：</span>
           </div>
           <div className="atlas-live-broader-actions">
@@ -149,57 +160,30 @@ export function AtlasLivePlatformQuickSearch({
         </div>
       )}
 
-      <div className="atlas-live-quick-search-header">
-        <div className="atlas-live-badge-row">
-          <span className="atlas-live-tag">
-            <Compass size={12} /> 全网商业平台实时机会
-          </span>
-          <span className="atlas-live-tag-alt">
-            <ShieldCheck size={12} /> 真实 Chrome 免滑块风控
-          </span>
-        </div>
-        <h3 className="atlas-live-title">
-          本地离线底池暂无【{displayRegion} · {displayKeyword}】
-        </h3>
-        <p className="atlas-live-desc">
-          当前本地已收录岗位主要来自腾讯（深圳为主）及海外企业官网。查询 <strong>{displayRegion}</strong> 的 <strong>{displayKeyword}</strong> 职位，可通过下方商业平台实时检索并采集入库：
-        </p>
-      </div>
-
       {openedNotice && (
         <div className="atlas-live-notice" role="status">
           <Check size={14} /> {openedNotice}
         </div>
       )}
 
+      <details className="atlas-live-platform-disclosure">
+        <summary>选择招聘平台与采集方式</summary>
+        <p>可在独立 Chrome 中打开来源，或从采集面板读取。平台可能要求登录、验证码，或限制可读取的页数。</p>
       <div className="atlas-live-batch-bar">
-        {onLiveCaptureNow && (
-          <button
-            type="button"
-            className="atlas-live-btn-batch-primary"
-            disabled={liveCapturing || opening !== null}
-            onClick={onLiveCaptureNow}
-          >
-            <ShieldCheck size={14} />{" "}
-            {liveCapturing
-              ? "正在从 BOSS、51JOB、猎聘、领英 实时采集最新岗位入库…"
-              : "⚡ 立即实时抓取全网平台最新岗位入库（BOSS · 51 · 猎聘 · 领英）"}
-          </button>
-        )}
         <button
           type="button"
           className={onLiveCaptureNow ? "atlas-live-btn-batch-secondary" : "atlas-live-btn-batch-primary"}
           disabled={opening !== null}
           onClick={handleBatchOpenRealChrome}
         >
-          <ShieldCheck size={14} /> 一键在真实 Chrome 中打开全部平台搜索窗口（免滑块验证）
+          <ShieldCheck size={14} /> 在 Chrome 中打开多个平台搜索
         </button>
         <button
           type="button"
           className="atlas-live-btn-batch-secondary"
           onClick={onOpenAggregator}
         >
-          <Layers size={13} /> 展开顶部「全网采集读取器」，单平台精细读取入库 ↗
+          <Layers size={13} /> 打开采集面板，按平台读取
         </button>
       </div>
 
@@ -220,7 +204,7 @@ export function AtlasLivePlatformQuickSearch({
                   className="atlas-live-btn-chrome"
                   disabled={opening !== null}
                   onClick={() => handleOpenRealChrome(request, provider.name)}
-                  title="在独立真实 Chrome 中打开，享有真实 TLS、Canvas 指纹和保存的登录态，避免滑块验证码拦截"
+                  title="在独立 Chrome 中打开原站；平台可能仍要求登录或验证"
                 >
                   <ShieldCheck size={12} /> Chrome 检索
                 </button>
@@ -240,6 +224,7 @@ export function AtlasLivePlatformQuickSearch({
           </div>
         ))}
       </div>
+      </details>
 
       <div className="atlas-live-footer-actions">
         {resumePrefill?.hasResumeData && (
@@ -251,13 +236,6 @@ export function AtlasLivePlatformQuickSearch({
             <Sparkles size={13} /> 参考当前简历自动填入（{resumePrefill.summaryLabel}）
           </button>
         )}
-        <button
-          type="button"
-          className="atlas-live-btn-link"
-          onClick={onResetFilters}
-        >
-          清除当前筛选
-        </button>
       </div>
     </div>
   );

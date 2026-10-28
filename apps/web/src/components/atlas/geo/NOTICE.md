@@ -39,12 +39,70 @@ byte count, exact extraction/grouping rules, geometry repair and validation.
   island/claim-line layer. **It is not an official complete standard map** or a
   survey-grade boundary product. Do not crop or conceal islands merely to fit
   the camera, and do not imply that absent geometry means an absent territory.
-- All positions are WGS84 `[longitude, latitude]`. No GCJ-02 or BD-09 conversion
-  is applied. `labelPoint` is for placing a visual region label; it is never an
+- Positions in these **two Natural Earth assets** are WGS84 `[longitude, latitude]`.
+  They must not receive GCJ-02 or BD-09 conversion. `labelPoint` is for placing a
+  visual region label; it is never an
   office, home, geocoding result or promised location accuracy. Generalization
   and topology checks are not geographic accuracy certification.
 
-## Recorded geometry changes
+## DataV administrative detail assets and coordinate normalization
+
+The following legacy detail files are separate from the pinned Natural Earth
+dataset above. Their filenames containing `official` do **not** establish
+official certification or survey accuracy:
+
+| Local file | Corresponding DataV `areas_v3/bound` endpoint |
+| --- | --- |
+| `shanghai-official-boundary.geojson` | `310000.json` |
+| `beijing-official-boundary.geojson` | `110000.json` |
+| `tianjin-official-boundary.geojson` | `120000.json` |
+| `chongqing-official-boundary.geojson` | `500000.json` |
+| `shanghai-districts.geojson` | `310000_full.json` |
+| `beijing-districts.geojson` | `110000_full.json` |
+| `guangdong-cities.geojson` | `440000_full.json` |
+| `jiangsu-cities.geojson` | `320000_full.json` |
+| `zhejiang-cities.geojson` | `330000_full.json` |
+
+Endpoint base: <https://geo.datav.aliyun.com/areas_v3/bound/>. An audit on
+2026-10-28 found matching administrative codes, feature structures, and first
+coordinates for these bundled files and the respective DataV responses. The
+original download dates and versions are not recorded. The bundled Shanghai
+geometry has 807 vertices versus 915 in the response examined on that date;
+**it has not been replaced with the newer response**. No new boundary data,
+coastline correction, or simplification is introduced by coordinate normalization.
+
+[Alibaba DataV's map data documentation](https://help.aliyun.com/en/datav/datav-7-0/user-guide/map-data-format-1)
+identifies its map data coordinate system as **GCJ-02**, while
+[MapLibre LngLat](https://maplibre.org/maplibre-gl-js/docs/API/classes/LngLat/)
+uses **WGS84 / EPSG:4326**. The nine detail assets and live DataV endpoint responses
+are therefore explicitly normalized from GCJ-02 to WGS84 **once, on ingestion
+into the in-memory display cache**. The original files remain unchanged.
+Already-WGS84 input and Natural Earth fallback data pass through unchanged.
+Multipart polygons, holes, ring closure, feature identifiers and non-coordinate
+metadata are retained. DataV's `center` and `centroid` metadata are normalized too;
+existing bounding boxes, when present, are recomputed from the output positions.
+
+The normalization implements the public one-pass approximation from
+[wandergis/coordtransform](https://github.com/wandergis/coordtransform/tree/606c6f3b57b6f1d60458793fea39928d2b11b637),
+which is linked from the DataV documentation via its CLI. This adaptation keeps
+its MIT license in [COORDTRANSFORM-LICENSE.md](COORDTRANSFORM-LICENSE.md).
+The source applicability rectangle is an algorithm guard, not a territorial
+definition. This public approximation has residual model error: there is **no
+guaranteed survey accuracy**. The Shanghai regression vertex
+`[121.153743, 31.276646]` changes to approximately
+`[121.1491789473, 31.2785217292]`, removing an approximately 482-metre datum
+mismatch at that sample; the test tolerance is a numerical regression threshold,
+not a claim about actual geographic accuracy.
+
+Administrative range boundaries are not coastline datasets: they may include
+water, and their geometry/version/generalization can differ from the OSM basemap.
+Residual differences must be investigated against documented source geometry,
+not patched by snapping to the coast or translating a screen-space outline.
+The Natural Earth public-domain notice above does not license these DataV assets.
+Their historical redistribution/license provenance remains unrecorded and needs
+an independent source audit before redistributing them as a boundary dataset.
+
+## Recorded Natural Earth geometry changes
 
 The world source has tiny self-intersections in `USA` and `SDN`. Only those two
 features receive GEOS `make_valid(method="structure", keep_collapsed=False)`.

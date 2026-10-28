@@ -1,0 +1,92 @@
+/* A physical selector, not a second renderer. The only moving elements are its
+   selection surface and the three tiny decorative planes inside the 3D glyph. */
+.atlas-experience .atlas-view-controls.atlas-spatial-controls {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  padding: 4px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-panel) 92%, var(--color-ink) 8%);
+  box-shadow: 0 1px 2px #00000008 inset, 0 2px 5px #00000005;
+}
+
+.atlas-experience .atlas-spatial-controls::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 4px auto 4px 4px;
+  width: calc(50% - 4px);
+  border: 1px solid color-mix(in srgb, var(--color-panel) 12%, transparent);
+  border-radius: 8px;
+  background: var(--color-accent);
+  box-shadow: 0 2px 5px #00000014, 0 1px 0 #ffffff1a inset;
+  transform: translateX(0);
+  transition: none;
+  pointer-events: none;
+}
+
+.atlas-experience .atlas-spatial-controls[data-view="spatial"]::before { transform: translateX(100%); }
+.atlas-experience .atlas-spatial-controls[data-motion="pointer"]::before { transition: transform 200ms var(--atelier-ease, cubic-bezier(.23, 1, .32, 1)); }
+
+.atlas-experience .atlas-view-controls.atlas-spatial-controls button {
+  min-width: 52px;
+  min-height: 30px;
+  height: auto;
+  gap: 6px;
+  padding: 0 10px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.atlas-experience .atlas-view-controls.atlas-spatial-controls button[aria-pressed="true"] {
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-panel);
+}
+
+.atlas-view-spatial-glyph {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 15px;
+  height: 15px;
+  perspective: 72px;
+  transform-style: preserve-3d;
+}
+
+.atlas-view-spatial-glyph i {
+  position: absolute;
+  inset: 2px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  background: var(--color-accent);
+  transform: rotateX(48deg) rotateZ(-32deg);
+  transition: none;
+}
+
+.atlas-view-spatial-glyph i:nth-child(1) { opacity: .35; transform: translateY(3px) rotateX(48deg) rotateZ(-32deg); }
+.atlas-view-spatial-glyph i:nth-child(2) { opacity: .65; }
+.atlas-view-spatial-glyph i:nth-child(3) { transform: translateY(-3px) rotateX(48deg) rotateZ(-32deg); }
+.atlas-spatial-controls[data-view="spatial"] .atlas-view-spatial-glyph i:nth-child(1) { transform: translateY(5px) rotateX(48deg) rotateZ(-32deg); }
+.atlas-spatial-controls[data-view="spatial"] .atlas-view-spatial-glyph i:nth-child(3) { transform: translateY(-5px) rotateX(48deg) rotateZ(-32deg); }
+.atlas-spatial-controls[data-motion="pointer"] .atlas-view-spatial-glyph i { transition: transform 200ms var(--atelier-ease, cubic-bezier(.23, 1, .32, 1)); }
+
+@media (hover: hover) and (pointer: fine) {
+  .atlas-experience .atlas-spatial-controls button:not([aria-pressed="true"]):hover { color: var(--color-ink); }
+}
+
+/* Keyboard activation and assistive synthetic clicks do not inherit an earlier
+   pointer transition. Focus alone is also enough to suppress a running tween. */
+.atlas-experience .atlas-spatial-controls:has(button:focus-visible)::before,
+.atlas-experience .atlas-spatial-controls:has(button:focus-visible) .atlas-view-spatial-glyph i { transition: none; }
+
+@media (pointer: coarse) {
+  .atlas-experience .atlas-view-controls.atlas-spatial-controls button { min-width: 56px; min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-experience .atlas-spatial-controls::before,
+  .atlas-experience .atlas-spatial-controls .atlas-view-spatial-glyph i { transition: none !important; }
+}

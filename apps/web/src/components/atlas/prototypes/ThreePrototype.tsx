@@ -179,12 +179,12 @@ export function ThreePrototype(props: AtlasPrototypeProps) {
         const down = (event: PointerEvent) => { pointerDown = [event.clientX, event.clientY]; };
         const hits = (event: PointerEvent) => {
           const rect = ownedRenderer.domElement.getBoundingClientRect(); pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
-          raycaster.setFromCamera(pointer, camera); return raycaster.intersectObjects(markerLayer ? [...pickTargets, markerLayer.cores] : pickTargets, false);
+          raycaster.setFromCamera(pointer, camera); return raycaster.intersectObjects(markerLayer ? [...pickTargets, markerLayer.hitTargets, markerLayer.cores] : pickTargets, false);
         };
         const up = (event: PointerEvent) => {
           if (Math.hypot(event.clientX - pointerDown[0], event.clientY - pointerDown[1]) > 5) return;
           const first = hits(event)[0]; if (!first) return;
-          if (first.object === markerLayer?.cores && first.instanceId !== undefined) { const bucket = markerLayer.buckets[first.instanceId]; if (bucket) latest.current.onPick?.(bucket); }
+          if ((first.object === markerLayer?.cores || first.object === markerLayer?.hitTargets) && first.instanceId !== undefined) { const bucket = markerLayer.buckets[first.instanceId]; if (bucket) { latest.current.onPick?.(bucket); latest.current.onActivateBucket?.(bucket); } }
           else if (first.object.userData.region) latest.current.onCountry?.(regionSelection(first.object.userData.region as BoundaryFeature));
         };
         const move = (event: PointerEvent) => { const first = hits(event)[0]; ownedRenderer.domElement.style.cursor = first && (first.instanceId !== undefined || first.object.userData.region) ? "pointer" : "grab"; };
