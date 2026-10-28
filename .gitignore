@@ -42,6 +42,8 @@ npm-debug.log*
 
 # Agent runtime noise
 .agent-memory/.tmp/
+.playwright-cli/
+output/
 
 # Personal Career SSOT & Private User Data (NEVER push to GitHub)
 .agent-memory/careerObjectives.md
