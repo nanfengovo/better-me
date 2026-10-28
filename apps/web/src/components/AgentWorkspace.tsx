@@ -1,7 +1,8 @@
 /** @jsxRuntime automatic */
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, type ChangeEvent } from "react";
 import { useUiPreferences } from "../lib/ui-preferences";
 import type { LlmConfig, ProjectedResume } from "@better-me/core";
+import type { ResumeEditContext, ResumeProposalTarget } from "@better-me/agent-contracts";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -33,6 +34,7 @@ import {
   GripVertical,
   PanelRightClose,
   PanelRightOpen,
+  ImagePlus,
 } from "lucide-react";
 import { triggerAgentGuide } from "../lib/agent-guide";
 import { isJdLinkOnly } from "../lib/jd-import";
@@ -41,14 +43,18 @@ import {
   startJdMatch,
   resumeJdMatch,
   sendAgentChat,
+  chatMessagesForRequest,
   checkAgentHostHealth,
   type MatchProposal,
   type ProposalDecision,
   type StructuredJd,
   type ChatMessage,
+  type ResumeTextReference,
 } from "../services/agent-client";
+import { getModelImageCapability, modelImageCapabilityDescription, modelImageCapabilityLabel } from "../lib/model-image-capability";
 import type { DrawerJobContext } from "./JdMatchDrawer";
 import { AgentMarkdownRenderer } from "./AgentMarkdownRenderer";
+import { AgentReplyMeta } from "./AgentReplyMeta";
 
 export interface AgentWorkspaceProps {
   job: DrawerJobContext | null;
@@ -63,6 +69,43 @@ export interface AgentWorkspaceProps {
     targetCompany: string;
   }) => void;
   onSaveOpportunity?: (job: DrawerJobContext) => void;
+  initialReference?: ResumeTextReference | null;
+  onReferenceConsumed?: () => void;
+  resumeEditContext?: ResumeEditContext;
+  onApplyResumeProposal?: (proposal: { targetRef: ResumeProposalTarget; originalText: string; proposedText: string }) => Promise<{ ok: boolean; message?: string }>;
+}
+
+interface PendingChatImage {
+  name: string;
+  mimeType: string;
+  dataUrl: string;
+}
+
+async function prepareChatImage(file: File): Promise<PendingChatImage> {
+  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type.toLowerCase())) throw new Error("仅支持 PNG、JPEG 或 WebP 图片");
+  if (file.size > 15 * 1024 * 1024) throw new Error("单张图片不能超过 15 MB");
+  const bitmap = await createImageBitmap(file);
+  try {
+    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("无法处理这张图片");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    let dataUrl = canvas.toDataURL("image/jpeg", 0.88);
+    let quality = 0.78;
+    while (dataUrl.length > 4_000_000 && quality >= 0.58) {
+      dataUrl = canvas.toDataURL("image/jpeg", quality);
+      quality -= 0.1;
+    }
+    if (dataUrl.length > 4_000_000) throw new Error("图片压缩后仍过大，请先裁剪后再上传");
+    return { name: file.name.slice(0, 160) || "resume-image.jpg", mimeType: "image/jpeg", dataUrl };
+  } finally {
+    bitmap.close();
+  }
 }
 
 // 60fps spring-eased counter hook for score animation
@@ -99,12 +142,21 @@ export function AgentWorkspace({
   onNavigateToResume,
   onApplyToResume,
   onSaveOpportunity,
+  initialReference,
+  onReferenceConsumed,
+  resumeEditContext,
+  onApplyResumeProposal,
 }: AgentWorkspaceProps) {
   const { t, theme } = useUiPreferences();
   const isDark = theme === "dark";
 
   // Current Target Job state
   const [currentJob, setCurrentJob] = useState<DrawerJobContext | null>(job);
+  const currentJobView: DrawerJobContext = currentJob ?? {
+    title: t("简历讨论", "Resume discussion"),
+    company: "",
+    description: "",
+  };
   const [isEditingJob, setIsEditingJob] = useState(false);
   const isSetupMode = !currentJob?.description || isEditingJob;
   const [inputTitle, setInputTitle] = useState(job?.title || "");
@@ -214,10 +266,50 @@ export function AgentWorkspace({
 
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [shareResumeForEditing, setShareResumeForEditing] = useState(false);
+  const [resumeProposalStates, setResumeProposalStates] = useState<Record<string, { status: "saving" | "approved" | "rejected" | "conflict" | "error"; message?: string }>>({});
+  const lastAssistantMessageId = [...messages].reverse().find((message) => message.role === "assistant")?.id;
   const [inputMessage, setInputMessage] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingChatImage[]>([]);
+  const [pendingReferences, setPendingReferences] = useState<ResumeTextReference[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const imageCapability = getModelImageCapability(llmConfig);
+  const chatImageInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const decideResumeProposal = async (key: string, action: NonNullable<ChatMessage["actions"]>[number], approve: boolean) => {
+    if (!approve) {
+      setResumeProposalStates((previous) => ({ ...previous, [key]: { status: "rejected", message: t("已拒绝；简历未修改。", "Rejected. The resume was not changed.") } }));
+      return;
+    }
+    if (action.type !== "resume_proposal" || !action.sourceVerified || !action.targetRef || !action.originalText || !action.proposedText || !onApplyResumeProposal) {
+      setResumeProposalStates((previous) => ({ ...previous, [key]: { status: "error", message: t("缺少已核验的原文目标，无法批准写回。请开启简历字段共享后重新生成建议。", "No verified source field. Enable resume-field sharing and regenerate the proposal.") } }));
+      return;
+    }
+    setResumeProposalStates((previous) => ({ ...previous, [key]: { status: "saving" } }));
+    try {
+      const result = await onApplyResumeProposal({ targetRef: action.targetRef, originalText: action.originalText, proposedText: action.proposedText });
+      setResumeProposalStates((previous) => ({
+        ...previous,
+        [key]: result.ok
+          ? { status: "approved", message: result.message ?? t("已批准并提交到简历保存流程。", "Approved and submitted to the resume save flow.") }
+          : { status: "conflict", message: result.message ?? t("原文已变化，未写入。请重新读取后生成建议。", "The source changed; nothing was written. Refresh the context and regenerate.") },
+      }));
+      if (result.ok) triggerAgentGuide({ section: action.targetRef.kind === "profile_headline" ? "headline" : "experience", text: action.proposedText, label: t("已批准 Agent 简历修改", "Approved Agent resume edit"), actionType: "applied" });
+    } catch (error) {
+      setResumeProposalStates((previous) => ({ ...previous, [key]: { status: "error", message: error instanceof Error ? error.message : t("简历修改未能保存。", "Could not save the resume edit.") } }));
+    }
+  };
+
+  const onReferenceConsumedRef = useRef(onReferenceConsumed);
+  useEffect(() => { onReferenceConsumedRef.current = onReferenceConsumed; }, [onReferenceConsumed]);
+  useEffect(() => {
+    if (!initialReference) return;
+    setPendingReferences((previous) => [...previous.filter((entry) => entry.text !== initialReference.text), initialReference]);
+    onReferenceConsumedRef.current?.();
+  }, [initialReference]);
 
   // View state
   const [showGapsSummary, setShowGapsSummary] = useState(false);
@@ -745,10 +837,35 @@ export function AgentWorkspace({
     setEditingProposalId(null);
   };
 
+  const handleChatImageSelection = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.currentTarget.files ?? []);
+    event.currentTarget.value = "";
+    if (!files.length) return;
+    setAttachmentError(null);
+    const room = Math.max(0, 3 - pendingAttachments.length);
+    if (room === 0) {
+      setAttachmentError(t("一条消息最多附加 3 张图片。", "Attach up to 3 images to a message."));
+      return;
+    }
+    try {
+      const prepared = await Promise.all(files.slice(0, room).map(prepareChatImage));
+      setPendingAttachments((previous) => [...previous, ...prepared].slice(0, 3));
+    } catch (error) {
+      setAttachmentError(error instanceof Error ? error.message : t("图片读取失败，请重试。", "Could not read the image. Try again."));
+    }
+  };
+
   // Chat message submission
   const handleSendMessage = async (customText?: string) => {
-    const textToSend = customText ?? inputMessage;
-    if (!textToSend.trim() || chatLoading) return;
+    const selectedAttachments = customText ? [] : pendingAttachments;
+    if (selectedAttachments.length && imageCapability === "unsupported") {
+      setAttachmentError(modelImageCapabilityDescription(imageCapability, t));
+      return;
+    }
+    const selectedReferences = pendingReferences;
+    const typedText = customText ?? inputMessage;
+    const textToSend = typedText.trim() || (selectedAttachments.length ? t("请帮我分析这张图片。", "Please analyze the attached image.") : selectedReferences.length ? t("请结合引用的简历内容帮我分析。", "Please analyze the quoted resume text.") : "");
+    if ((!textToSend && selectedAttachments.length === 0 && selectedReferences.length === 0) || chatLoading) return;
 
     if (leftViewMode === "jd") {
       showLeftPage("chat");
@@ -758,16 +875,23 @@ export function AgentWorkspace({
       id: `msg-user-${Date.now()}`,
       role: "user",
       content: textToSend.trim(),
+      ...(selectedAttachments.length ? { attachments: selectedAttachments } : {}),
+      ...(selectedReferences.length ? { references: selectedReferences } : {}),
       createdAt: new Date().toISOString(),
     };
 
     setMessages((prev) => [...prev, userMsg]);
-    if (!customText) setInputMessage("");
+    if (!customText) {
+      setInputMessage("");
+      setPendingAttachments([]);
+      setPendingReferences([]);
+      setAttachmentError(null);
+    }
     setChatLoading(true);
 
     try {
       const reply = await sendAgentChat({
-        messages: [...messages, userMsg],
+        messages: chatMessagesForRequest([...messages, userMsg]),
         llmConfig,
         context: {
           currentJob: currentJob
@@ -778,16 +902,7 @@ export function AgentWorkspace({
                 description: currentJob.description,
               }
             : undefined,
-          resumeSummary: resume
-            ? {
-                displayName: resume.profile.displayName,
-                headline: resume.profile.headline,
-                skills: resume.skills,
-                recentExperience: resume.experiences[0]?.title
-                  ? `${resume.experiences[0].org || ""}: ${resume.experiences[0].title}`
-                  : undefined,
-              }
-            : undefined,
+          resumeEditContext: shareResumeForEditing ? resumeEditContext : undefined,
         },
       });
       setMessages((prev) => [...prev, reply]);
@@ -1083,7 +1198,7 @@ export function AgentWorkspace({
               : "bg-white border-slate-200/90 shadow-sm"
           }`}
         >
-          {(!currentJob?.description || isEditingJob) ? (
+          {((!currentJob?.description || isEditingJob) && !(leftViewMode === "chat" && (pendingReferences.length > 0 || messages.length > 0))) ? (
             /* ── VIEW 1: Dedicated Job Setup & Link Extraction Screen (Full Left Pane Height) ── */
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
               {/* Setup View Top Header */}
@@ -1526,42 +1641,42 @@ export function AgentWorkspace({
                         : "bg-emerald-50 border-emerald-200/80 text-emerald-800"
                     }`}
                   >
-                    {(currentJob.company || currentJob.title || "岗").slice(0, 1)}
+                    {(currentJobView.company || currentJobView.title || "岗").slice(0, 1)}
                   </div>
                   <div className="min-w-0 flex-1 space-y-0.5">
                     <h2 className={`text-sm font-semibold leading-snug ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-900"}`}>
-                      {currentJob.title}
+                      {currentJobView.title}
                     </h2>
                     <p className={`text-xs leading-snug ${isDark ? "text-[var(--ui-text-secondary,#c7cad4)]" : "text-slate-700"}`}>
-                      {currentJob.company}
+                      {currentJobView.company}
                     </p>
-                    {currentJob.location ? (
+                    {currentJobView.location ? (
                       <p className={`text-[11px] leading-snug flex items-start gap-1 ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>
                         <MapPin size={11} className="shrink-0 mt-0.5 opacity-70" />
-                        <span>{currentJob.location.replace(/\s+/g, " ")}</span>
+                        <span>{currentJobView.location.replace(/\s+/g, " ")}</span>
                       </p>
                     ) : null}
                     <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pt-0.5 text-[11px]">
-                      {currentJob.salary ? (
+                      {currentJobView.salary ? (
                         <span className={`tabular-nums font-medium ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>
-                          {currentJob.salary}
+                          {currentJobView.salary}
                         </span>
                       ) : null}
-                      {currentJob.sourceUrl ? (
+                      {currentJobView.sourceUrl ? (
                         <a
-                          href={currentJob.sourceUrl}
+                          href={currentJobView.sourceUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className={`inline-flex items-center gap-0.5 hover:underline ${isDark ? "text-emerald-300" : "text-emerald-700"}`}
                         >
-                          {currentJob.sourcePlatform || t("来源", "Source")}
+                          {currentJobView.sourcePlatform || t("来源", "Source")}
                           <ExternalLink size={10} />
                         </a>
                       ) : null}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <button
+                    {currentJob && <button
                       type="button"
                       onClick={handleOpenJobEdit}
                       className={`agent-btn-press inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg border cursor-pointer ${
@@ -1573,8 +1688,8 @@ export function AgentWorkspace({
                     >
                       <Edit3 size={12} />
                       <span>{t("编辑岗位", "Edit")}</span>
-                    </button>
-                    {onSaveOpportunity ? (
+                    </button>}
+                    {onSaveOpportunity && currentJob ? (
                       <button
                         type="button"
                         onClick={() => onSaveOpportunity(currentJob)}
@@ -1681,7 +1796,7 @@ export function AgentWorkspace({
                     {currentJob?.description && (
                       <button
                         type="button"
-                        onClick={() => handleCopy(currentJob.description, "raw-jd")}
+                        onClick={() => handleCopy(currentJobView.description, "raw-jd")}
                         className={`agent-btn-press text-[11px] flex items-center gap-1 px-2.5 py-1 rounded-lg border cursor-pointer transition ${
                           isDark
                             ? "text-[var(--ui-text-secondary,#c7cad4)] hover:text-white border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-soft,#363842)] hover:bg-[var(--ui-hover,#41434e)]"
@@ -1897,6 +2012,20 @@ export function AgentWorkspace({
                     </h3>
                   </div>
                   <div className="flex items-center gap-2">
+                    {resumeEditContext && <button
+                      type="button"
+                      aria-pressed={shareResumeForEditing}
+                      disabled={chatLoading}
+                      onClick={() => setShareResumeForEditing((value) => !value)}
+                      title={t("开启后仅向所选模型发送当前简历视图中的个人简介、技能和经历要点；不会发送姓名、联系方式、头像或简历全文。", "When enabled, only the current resume view’s headline, skills and experience claims are sent to the selected model. Name, contact details, photo and the full resume are excluded.")}
+                      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[10px] font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 disabled:opacity-50 ${shareResumeForEditing
+                        ? isDark ? "border-emerald-400/45 bg-emerald-500/15 text-emerald-200" : "border-emerald-300 bg-emerald-50 text-emerald-800"
+                        : isDark ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface,#27282f)] text-[var(--ui-text-secondary,#c7cad4)] hover:border-emerald-500/40" : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300"
+                      }`}
+                    >
+                      <ShieldCheck size={12} />
+                      <span>{shareResumeForEditing ? t("简历字段已授权", "Resume fields shared") : t("允许 Agent 读取简历字段", "Allow resume fields")}</span>
+                    </button>}
                     <span className={`text-[10px] hidden sm:inline ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-400"}`}>
                       {t("支持查企业 · 优化经历 · 答辩攻略", "Company check · Polish resume · Interview tips")}
                     </span>
@@ -2000,10 +2129,24 @@ export function AgentWorkspace({
                         }`}
                       >
                         {msg.role === "user" ? (
-                          <p className="whitespace-pre-wrap text-xs leading-relaxed">{msg.content}</p>
+                          <>
+                            {msg.content && <p className="whitespace-pre-wrap text-xs leading-relaxed">{msg.content}</p>}
+                            {msg.references?.map((reference, index) => (
+                              <div key={`${msg.id}-reference-${index}`} className="mt-2 max-w-full rounded-xl border border-white/20 bg-black/10 p-2.5 text-[11px]">
+                                <div className="mb-1 flex items-center gap-1.5 font-semibold opacity-85"><FileText size={12} />{reference.sourceLabel}</div>
+                                <blockquote className="max-h-24 overflow-auto whitespace-pre-wrap border-l-2 border-white/50 pl-2 opacity-90">{reference.text}</blockquote>
+                              </div>
+                            ))}
+                            {!!msg.attachments?.length && <div className="mt-2 grid max-w-[320px] grid-cols-2 gap-2">
+                              {msg.attachments.map((attachment, index) => <figure key={`${msg.id}-image-${index}`} className="overflow-hidden rounded-lg border border-white/25 bg-black/10">
+                                <img src={attachment.dataUrl} alt={attachment.name} className="max-h-48 w-full object-contain" />
+                                <figcaption className="truncate px-2 py-1 text-[10px] opacity-80">{attachment.name}</figcaption>
+                              </figure>)}
+                            </div>}
+                          </>
                         ) : (
                           <>
-                            <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-white/10 dark:border-white/5">
+                            <div className="flex items-start justify-between gap-2 pb-2 mb-2 border-b border-white/10 dark:border-white/5">
                               <div className="flex items-center gap-1.5 font-bold text-[11px] text-emerald-500 dark:text-emerald-400">
                                 <Bot size={13} />
                                 <span>{t("Career Copilot", "Career Copilot")}</span>
@@ -2029,6 +2172,13 @@ export function AgentWorkspace({
                                 )}
                               </button>
                             </div>
+                            <AgentReplyMeta meta={msg.meta} compact isDark={isDark} />
+                            {msg.id === lastAssistantMessageId && msg.meta?.status === "truncated" && (
+                              <button type="button" className={`agent-continue-reply ${isDark ? "is-dark" : ""}`} onClick={() => void handleSendMessage(t("请从上一条不完整回复的结束处继续，避免重复已写内容，并补完尚未回答的部分。", "Continue from the end of the previous incomplete reply, avoid repeating completed text, and finish any unanswered parts."))} disabled={chatLoading}>
+                                {chatLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                                <span>{chatLoading ? t("正在补全…", "Continuing…") : t("继续补完", "Continue reply")}</span>
+                              </button>
+                            )}
                             <AgentMarkdownRenderer content={msg.content} isDark={isDark} />
                           </>
                         )}
@@ -2082,70 +2232,57 @@ export function AgentWorkspace({
                               {/* Resume Proposal Card */}
                               {action.type === "resume_proposal" && (
                                 <>
-                                  <div className="flex items-center justify-between text-xs">
-                                    <span className={`font-bold flex items-center gap-1.5 ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-900"}`}>
+                                  <div className="flex items-center justify-between gap-2 text-xs">
+                                    <span className={`font-bold flex min-w-0 items-center gap-1.5 ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-900"}`}>
                                       <Edit3 size={13} className={isDark ? "text-teal-400" : "text-teal-600"} />
-                                      <span>{t("建议润色项", "Suggested Edit")} · {action.targetSection}</span>
+                                      <span className="truncate">{t("简历修改提案", "Resume edit proposal")} · {action.targetSection}</span>
                                     </span>
+                                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold ${action.sourceVerified
+                                      ? isDark ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-300" : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                                      : isDark ? "border-amber-500/35 bg-amber-500/10 text-amber-200" : "border-amber-200 bg-amber-50 text-amber-800"
+                                    }`}>{action.sourceVerified ? t("已绑定简历原文", "Source verified") : t("只读 · 未绑定原文", "Read-only · unlinked")}</span>
                                   </div>
-                                  <div
-                                    className={`p-3 rounded-xl text-xs leading-relaxed font-sans border ${
-                                      isDark
-                                        ? "bg-[var(--ui-input,#22232a)] border-teal-500/30 text-[var(--ui-text,#edeef4)]"
-                                        : "bg-teal-50/50 border-teal-200 text-slate-800"
-                                    }`}
-                                  >
-                                    {action.proposedText}
-                                  </div>
+                                  {action.sourceVerified && action.originalText && <div className="grid gap-2 sm:grid-cols-2">
+                                    <div className={`min-w-0 rounded-xl border p-3 ${isDark ? "border-[var(--ui-border,#484b58)] bg-black/15" : "border-slate-200 bg-slate-50"}`}>
+                                      <div className={`mb-1.5 text-[10px] font-semibold ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>{t("当前原文", "Current text")}</div>
+                                      <p className={`whitespace-pre-wrap break-words text-xs leading-relaxed ${isDark ? "text-[var(--ui-text-secondary,#c7cad4)]" : "text-slate-700"}`}>{action.originalText}</p>
+                                    </div>
+                                    <div className={`min-w-0 rounded-xl border p-3 ${isDark ? "border-teal-500/30 bg-teal-500/5" : "border-teal-200 bg-teal-50/60"}`}>
+                                      <div className={`mb-1.5 text-[10px] font-semibold ${isDark ? "text-teal-300" : "text-teal-800"}`}>{t("建议替换为", "Suggested replacement")}</div>
+                                      <p className={`whitespace-pre-wrap break-words text-xs leading-relaxed ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-800"}`}>{action.proposedText}</p>
+                                    </div>
+                                  </div>}
+                                  {!action.sourceVerified && <div className={`rounded-xl border p-3 text-xs leading-relaxed ${isDark ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-input,#22232a)] text-[var(--ui-text,#edeef4)]" : "border-slate-200 bg-slate-50 text-slate-800"}`}>
+                                    <p>{action.proposedText}</p>
+                                    {action.sourceIssue === "original_mismatch" && <p className="mt-2 flex items-start gap-1.5 text-[11px] text-amber-600 dark:text-amber-300"><AlertTriangle size={12} className="mt-0.5 shrink-0" />{t("模型返回的原文与当前简历字段不一致；为避免错写，已禁用批准。请重新生成建议。", "The model’s source text does not exactly match the current resume field. Approval is disabled to prevent an incorrect write; regenerate the proposal.")}</p>}
+                                    {action.sourceIssue === "not_shared" && <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-300">{t("该目标不在本次授权的简历字段中，不能写回。", "This target was not included in the fields you shared, so it cannot be written back.")}</p>}
+                                  </div>}
                                   <p className={`text-[11px] leading-relaxed flex items-center gap-1.5 ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>
                                     <Lightbulb size={13} className="text-amber-500 shrink-0" />
                                     <span>{action.rationale}</span>
                                   </p>
-                                  <div className="pt-1 flex items-center justify-end gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        triggerAgentGuide({
-                                          section: action.targetSection,
-                                          text: action.proposedText,
-                                          label: t(`🤖 Agent 建议定位: ${action.targetSection}`, `🤖 Locate: ${action.targetSection}`),
-                                          actionType: "suggest",
-                                        });
-                                      }}
-                                      className={`agent-btn-press inline-flex items-center gap-1 text-xs border px-3 py-1.5 rounded-xl transition cursor-pointer ${
-                                        isDark
-                                          ? "text-teal-300 border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20"
-                                          : "text-teal-700 border-teal-200 bg-teal-50 hover:bg-teal-100"
-                                      }`}
-                                    >
-                                      <Crosshair size={12} />
-                                      <span>{t("定位经历", "Locate claim")}</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const newProp: MatchProposal = {
-                                          id: `prop-chat-${Date.now()}`,
-                                          jdItem: `${action.targetSection} 优化`,
-                                          evidenceType: "verified",
-                                          suggestion: action.proposedText || "",
-                                          rationale: action.rationale || "来自 Agent 实时对话建议",
-                                        };
-                                        setProposals((p) => [newProp, ...p]);
-                                        setDecisions((d) => ({ ...d, [newProp.id]: { status: "accepted" } }));
-                                        triggerAgentGuide({
-                                          section: action.targetSection,
-                                          text: action.proposedText,
-                                          label: t("✨ 已采纳此项建议至右侧提案审核区", "✨ Accepted suggestion to review board"),
-                                          actionType: "applied",
-                                        });
-                                      }}
-                                      className="agent-btn-press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold shadow-xs transition cursor-pointer"
-                                    >
-                                      <Check size={12} />
-                                      <span>{t("采纳并加入定制清单", "Accept to board")}</span>
-                                    </button>
-                                  </div>
+                                  {(() => {
+                                    const proposalKey = `${msg.id}:${aIdx}`;
+                                    const decision = resumeProposalStates[proposalKey];
+                                    return <div className="space-y-2 pt-1">
+                                      {decision?.message && <p role="status" className={`text-[11px] ${decision.status === "conflict" || decision.status === "error" ? "text-rose-500" : decision.status === "approved" ? "text-emerald-500" : isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>{decision.message}</p>}
+                                      <div className="flex flex-wrap items-center justify-end gap-2">
+                                        <button type="button" onClick={() => triggerAgentGuide({ section: action.targetRef?.kind === "profile_headline" ? "headline" : "experience", text: action.proposedText, label: t("定位简历中的建议目标", "Locate the proposed resume field"), actionType: "suggest" })} className={`agent-btn-press inline-flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs transition ${isDark ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-raised,#2e3038)] text-[var(--ui-text-secondary,#c7cad4)] hover:border-teal-500/40" : "border-slate-200 bg-white text-slate-700 hover:border-teal-300"}`}>
+                                          <Crosshair size={12} /><span>{t("定位目标", "Locate target")}</span>
+                                        </button>
+                                        {action.sourceVerified && !decision && <>
+                                          <button type="button" onClick={() => void decideResumeProposal(proposalKey, action, false)} className={`agent-btn-press rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${isDark ? "border-rose-500/30 text-rose-200 hover:bg-rose-500/10" : "border-rose-200 text-rose-700 hover:bg-rose-50"}`}>
+                                            {t("拒绝", "Reject")}
+                                          </button>
+                                          <button type="button" onClick={() => void decideResumeProposal(proposalKey, action, true)} className="agent-btn-press inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-teal-500">
+                                            <Check size={12} />
+                                            <span>{t("批准并写回简历", "Approve & write to resume")}</span>
+                                          </button>
+                                        </>}
+                                        {decision?.status === "saving" && <span className="text-[11px] text-slate-400">{t("正在核对原文并保存…", "Checking source and saving…")}</span>}
+                                      </div>
+                                    </div>;
+                                  })()}
                                 </>
                               )}
 
@@ -2194,7 +2331,7 @@ export function AgentWorkspace({
                   {chatLoading && (
                     <div className="flex items-center gap-2 text-xs text-emerald-500 py-2 pl-2">
                       <Loader2 size={14} className="animate-spin text-emerald-500" />
-                      <span>{t("Agent 正在结合 JD 与候选人事实库深度思考…", "Agent thinking & querying candidate facts…")}</span>
+                      <span>{t("Agent 正在结合当前岗位与本次授权内容思考…", "Agent is considering the current job and the context you shared…")}</span>
                     </div>
                   )}
 
@@ -2271,6 +2408,7 @@ export function AgentWorkspace({
                         : "bg-white border-slate-200"
                     }`}
                   >
+                    <input ref={chatImageInputRef} type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" aria-label={t("上传图片给 Agent", "Upload images for Agent")} onChange={(event) => { void handleChatImageSelection(event); }} />
                     <textarea
                       rows={2}
                       value={inputMessage}
@@ -2292,25 +2430,47 @@ export function AgentWorkspace({
                       }`}
                     />
 
+                    {(pendingReferences.length > 0 || pendingAttachments.length > 0) && <div className="flex flex-wrap gap-2 px-1" aria-label={t("待发送的上下文附件", "Pending context attachments")}>
+                      {pendingReferences.map((reference, index) => <div key={`${reference.sourceLabel}-${index}`} className={`flex max-w-full items-start gap-2 rounded-xl border px-2.5 py-2 text-[11px] ${isDark ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`}>
+                        <FileText size={13} className="mt-0.5 shrink-0" />
+                        <span className="min-w-0"><strong className="block">{reference.sourceLabel}</strong><span className="block max-w-[360px] truncate opacity-80">{reference.text}</span></span>
+                        <button type="button" className="shrink-0 opacity-70 hover:opacity-100" aria-label={t("移除引用", "Remove quote")} onClick={() => setPendingReferences((previous) => previous.filter((_, itemIndex) => itemIndex !== index))}><X size={13} /></button>
+                      </div>)}
+                      {pendingAttachments.map((attachment, index) => <div key={`${attachment.name}-${index}`} className={`relative h-20 w-24 overflow-hidden rounded-xl border ${isDark ? "border-[var(--ui-border,#484b58)] bg-black/20" : "border-slate-200 bg-slate-50"}`}>
+                        <img src={attachment.dataUrl} alt={attachment.name} className="h-full w-full object-contain" />
+                        <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-1.5 py-1 text-[9px] text-white">{attachment.name}</span>
+                        <button type="button" className="absolute right-1 top-1 rounded-full bg-black/65 p-0.5 text-white" aria-label={t(`移除图片 ${index + 1}`, `Remove image ${index + 1}`)} onClick={() => setPendingAttachments((previous) => previous.filter((_, itemIndex) => itemIndex !== index))}><X size={11} /></button>
+                      </div>)}
+                    </div>}
+                    {attachmentError && <p role="alert" className="px-1 text-[11px] text-rose-500">{attachmentError}</p>}
+                    {pendingAttachments.length > 0 && <div className={`px-1 text-[10px] leading-4 ${imageCapability === "unsupported" ? "text-rose-500" : imageCapability === "supported" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-300"}`} role="status">
+                      <strong>{modelImageCapabilityLabel(imageCapability, t)}</strong> · {modelImageCapabilityDescription(imageCapability, t)}
+                      {imageCapability === "unsupported" && <button type="button" className="ml-1 underline underline-offset-2" onClick={onOpenConfig}>{t("更换模型", "Change model")}</button>}
+                    </div>}
+
                     {/* Composer Footer Actions */}
                     <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80">
-                      <div className="flex items-center gap-1.5 text-[11px] select-none">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b981] animate-pulse" />
-                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                          {t("AI 顾问随时待命", "AI Copilot Online")}
-                        </span>
-                        <span className="text-slate-300 dark:text-slate-600 hidden sm:inline">|</span>
-                        <span className="text-slate-400 dark:text-slate-400 text-[10px] hidden sm:inline">
-                          {t("Enter 发送 · Shift+Enter 换行", "Enter to send, Shift+Enter for newline")}
-                        </span>
+                      <div className="flex min-w-0 items-center gap-1.5 text-[11px] select-none">
+                        <button type="button" disabled={chatLoading || pendingAttachments.length >= 3} onClick={() => chatImageInputRef.current?.click()} title={t("添加图片（最多 3 张）", "Attach images (up to 3)")} className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition disabled:opacity-40 ${isDark ? "border-[var(--ui-border,#484b58)] text-[var(--ui-text-secondary,#c7cad4)] hover:border-emerald-500/40 hover:text-emerald-300" : "border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700"}`} aria-label={t("上传图片", "Upload image")}><ImagePlus size={15} /></button>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b981] animate-pulse" />
+                            <span className="truncate font-semibold text-emerald-600 dark:text-emerald-400">{t("AI 顾问随时待命", "AI Copilot Online")}</span>
+                            <span className="text-slate-300 dark:text-slate-600 hidden sm:inline">|</span>
+                            <span className="text-slate-400 dark:text-slate-400 text-[10px] hidden sm:inline">{t("Enter 发送 · Shift+Enter 换行", "Enter to send, Shift+Enter for newline")}</span>
+                          </div>
+                          <span className="mt-0.5 block max-w-[38rem] text-[10px] leading-4 text-slate-400">{shareResumeForEditing
+                            ? t("本次还会发送当前简历视图中可见的个人简介、技能与经历要点，以生成可核验的修改建议；不发送姓名、邮箱、电话、头像或全文。", "This request also shares the visible headline, skills and experience claims from the current resume view for grounded edits. Name, email, phone, photo and the full resume are excluded.")
+                            : t("发送时会将对话内容、当前岗位，以及对话中的引用/图片发送给所选模型服务商；简历字段默认不共享，除非你明确开启上方开关或附加选中文字。", "Sending shares this conversation, current job and quoted text/images with the selected model provider. Resume fields are excluded unless you enable the switch above or attach selected text.")}</span>
+                        </div>
                       </div>
 
                       <button
                         type="button"
                         onClick={() => void handleSendMessage()}
-                        disabled={!inputMessage.trim() || chatLoading}
+                        disabled={(!inputMessage.trim() && !pendingAttachments.length && !pendingReferences.length) || chatLoading || (pendingAttachments.length > 0 && imageCapability === "unsupported")}
                         className={`agent-btn-press flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer select-none ${
-                          inputMessage.trim() && !chatLoading
+                          (inputMessage.trim() || pendingAttachments.length || pendingReferences.length) && !chatLoading
                             ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-500/25 active:scale-95"
                             : "bg-slate-100 dark:bg-white/10 text-slate-400 dark:text-slate-400 disabled:opacity-40 cursor-not-allowed"
                         }`}
@@ -2600,7 +2760,7 @@ export function AgentWorkspace({
                   </div>
                   {currentJob?.company ? (
                     <p className={`text-[11px] truncate mt-0.5 ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>
-                      {currentJob.company}
+                      {currentJobView.company}
                     </p>
                   ) : null}
 
@@ -2654,7 +2814,7 @@ export function AgentWorkspace({
                   type="button"
                   onClick={() => {
                     if (currentJob?.description) {
-                      void runMatching(currentJob.description);
+                      void runMatching(currentJobView.description);
                     } else {
                       setIsEditingJob(true);
                     }

@@ -1,4 +1,6 @@
-import { fetchChatCompletion, type LlmConfig } from "@better-me/core";
+import { fetchChatCompletion, fetchChatCompletionResult, type LlmConfig, type ChatMessageContent } from "@better-me/core";
+import type { ResumeEditContext, ResumeProposalTarget } from "@better-me/agent-contracts";
+import { findResumeContextSource } from "../lib/resume-agent-context";
 
 export interface MatchProposal {
   id: string;
@@ -38,6 +40,10 @@ export interface AgentActionCard {
   originalText?: string;
   proposedText?: string;
   rationale?: string;
+  targetRef?: ResumeProposalTarget;
+  /** Set only by bindResumeProposalSources after matching an explicitly shared field. */
+  sourceVerified?: boolean;
+  sourceIssue?: "missing_target" | "not_shared" | "original_mismatch";
   jobId?: string;
   title?: string;
   company?: string;
@@ -49,12 +55,44 @@ export interface AgentActionCard {
   sampleAnswer?: string;
 }
 
+export type AgentResponseSource = "agent-host" | "browser-direct";
+export type AgentResponseStatus = "ready" | "fallback" | "error" | "truncated";
+
+/** Safe, non-secret provenance shown beside every assistant response. */
+export interface AgentMessageMeta {
+  provider: LlmConfig["provider"];
+  providerLabel: string;
+  model: string;
+  source: AgentResponseSource;
+  status: AgentResponseStatus;
+  completeness?: "complete" | "truncated" | "empty";
+  observedAt: string;
+  finishReason?: string;
+  warning?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
+  attachments?: Array<{ name: string; mimeType: string; dataUrl: string }>;
+  references?: ResumeTextReference[];
   actions?: AgentActionCard[];
   createdAt?: string;
+  meta?: AgentMessageMeta;
+}
+
+/** Keep image data on the turn where the user attached it; never resend old image bytes. */
+export function chatMessagesForRequest(messages: ChatMessage[]): ChatMessage[] {
+  return messages.map((message, index) => index === messages.length - 1 || !message.attachments?.length
+    ? message
+    : { ...message, attachments: undefined });
+}
+
+export interface ResumeTextReference {
+  type: "resume_text";
+  text: string;
+  sourceLabel: string;
 }
 
 export interface JdMatchStartResponse {
@@ -77,16 +115,278 @@ export interface JdMatchResumeResponse {
 
 const DEFAULT_AGENT_HOST_URL = "http://127.0.0.1:5179";
 const AGENT_TOKEN = "better-me-agent-token";
+const MAX_CHAT_CONTINUATIONS = 2;
+const MIN_CONTINUATION_OVERLAP = 8;
+const DEFAULT_AGENT_CHAT_TIMEOUT_MS = 35_000;
+const LOCAL_OLLAMA_CHAT_TIMEOUT_MS = 120_000;
+
+function isTimeoutFailure(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return error.name === "TimeoutError" || /(?:signal )?timed? out|timeout/i.test(error.message);
+}
+
+function agentChatHostTimeoutMs(provider: LlmConfig["provider"]): number {
+  return provider === "ollama" ? LOCAL_OLLAMA_CHAT_TIMEOUT_MS : DEFAULT_AGENT_CHAT_TIMEOUT_MS;
+}
+
+function describeAgentChatHostFailure(error: unknown): string {
+  if (isTimeoutFailure(error)) return "Agent Host 回复超时，已改由浏览器直连重新生成。";
+  const detail = error instanceof Error ? error.message : "连接失败";
+  return `Agent Host 不可用，已改为浏览器直连：${detail}`;
+}
+
+function isLengthLimitedFinishReason(reason: string | undefined): boolean {
+  return Boolean(reason && ["length", "max_tokens", "max_output_tokens", "token_limit"].includes(reason.toLowerCase()));
+}
+
+function appendContinuation(current: string, addition: string): string {
+  const scanLength = Math.min(current.length, addition.length, 4_000);
+  for (let overlap = scanLength; overlap >= MIN_CONTINUATION_OVERLAP; overlap -= 1) {
+    if (current.slice(-overlap) === addition.slice(0, overlap)) return current + addition.slice(overlap);
+  }
+  return current + addition;
+}
+
+export interface LocalRuntimeInfo {
+  id: string;
+  name: string;
+  status: "available" | "not-installed" | "needs-config" | "error";
+  version?: string;
+  resolvedCommand?: string;
+  detail?: string;
+  capabilities: string[];
+}
+
+export interface LocalAgentRun {
+  id: string;
+  workflow: string;
+  runtimeId: string;
+  status: "queued" | "running" | "awaiting_approval" | "paused" | "completed" | "failed" | "cancelled";
+  createdAt: string;
+  startedAt?: string;
+  finishedAt?: string;
+  runDirectory: string;
+  outputDirectory: string;
+  isolation?: "process" | "os-sandbox" | "none";
+  allowedReadPaths?: string[];
+  error?: string;
+}
+
+export interface LocalAgentRunStatusResponse {
+  run: LocalAgentRun;
+  latestSequence: number;
+  /** Complete normalized assistant answer, separate from process logs. */
+  output?: string;
+  /** Raw stdout/stderr capture for diagnostics; never render as the answer. */
+  rawOutput?: string;
+}
+
+export interface LocalAgentEvent {
+  id: string;
+  runId: string;
+  sequence: number;
+  type: string;
+  timestamp: string;
+  agentId?: string;
+  payload: Record<string, unknown>;
+}
+
+export interface StartLocalAgentRunParams {
+  runtimeId: string;
+  workflow?: string;
+  prompt: string;
+  contextPack?: {
+    role: string;
+    task: string;
+    artifactRefs?: string[];
+    toolAllowlist?: string[];
+    redactedFields?: string[];
+    content?: Record<string, unknown>;
+    characterBudget?: number;
+  };
+  allowedReadPaths?: string[];
+  timeoutMs?: number;
+  sandboxMode?: "auto" | "required" | "disabled";
+  baseUrl?: string;
+}
+
+export interface StartLocalAgentRunResponse {
+  run: LocalAgentRun;
+  eventsUrl: string;
+  statusUrl: string;
+}
+
+export async function listLocalAgentRuntimes(baseUrl = DEFAULT_AGENT_HOST_URL): Promise<LocalRuntimeInfo[]> {
+  const res = await fetch(`${baseUrl}/api/v1/agent/runtimes`, {
+    headers: { Authorization: `Bearer ${AGENT_TOKEN}` },
+    signal: AbortSignal.timeout(3_500),
+  });
+  if (!res.ok) throw new Error(`agent_host_${res.status}`);
+  const data = await res.json() as { runtimes?: LocalRuntimeInfo[] };
+  return Array.isArray(data.runtimes) ? data.runtimes : [];
+}
+
+export async function scanLocalAgentRuntimes(baseUrl = DEFAULT_AGENT_HOST_URL): Promise<LocalRuntimeInfo[]> {
+  const res = await fetch(`${baseUrl}/api/v1/agent/runtimes/scan`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${AGENT_TOKEN}` },
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!res.ok) throw new Error(`agent_host_${res.status}`);
+  const data = await res.json() as { runtimes?: LocalRuntimeInfo[] };
+  return Array.isArray(data.runtimes) ? data.runtimes : [];
+}
+
+export async function startLocalAgentRun(params: StartLocalAgentRunParams): Promise<StartLocalAgentRunResponse> {
+  const res = await fetch(`${params.baseUrl ?? DEFAULT_AGENT_HOST_URL}/api/v1/agent/runs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${AGENT_TOKEN}` },
+    body: JSON.stringify({
+      runtimeId: params.runtimeId,
+      workflow: params.workflow ?? "companion-run",
+      prompt: params.prompt,
+      contextPack: params.contextPack,
+      allowedReadPaths: params.allowedReadPaths ?? [],
+      timeoutMs: params.timeoutMs,
+      sandboxMode: params.sandboxMode,
+    }),
+    signal: AbortSignal.timeout(12_000),
+  });
+  if (!res.ok) throw new Error(`agent_run_${res.status}`);
+  return res.json() as Promise<StartLocalAgentRunResponse>;
+}
+
+export async function getLocalAgentRun(runId: string, baseUrl = DEFAULT_AGENT_HOST_URL): Promise<LocalAgentRunStatusResponse> {
+  const res = await fetch(`${baseUrl}/api/v1/agent/runs/${encodeURIComponent(runId)}`, {
+    headers: { Authorization: `Bearer ${AGENT_TOKEN}` },
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!res.ok) throw new Error(`agent_run_status_${res.status}`);
+  return res.json() as Promise<LocalAgentRunStatusResponse>;
+}
+
+export async function cancelLocalAgentRun(runId: string, baseUrl = DEFAULT_AGENT_HOST_URL): Promise<{ run: LocalAgentRun }> {
+  const res = await fetch(`${baseUrl}/api/v1/agent/runs/${encodeURIComponent(runId)}/cancel`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${AGENT_TOKEN}` },
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!res.ok) throw new Error(`agent_run_cancel_${res.status}`);
+  return res.json() as Promise<{ run: LocalAgentRun }>;
+}
+
+function emitSseFrame(frame: string, onEvent: (event: LocalAgentEvent) => void): void {
+  const data: string[] = [];
+  let eventId = "";
+  for (const line of frame.split(/\r?\n/)) {
+    if (line.startsWith("id:")) eventId = line.slice(3).trim();
+    if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
+  }
+  if (data.length === 0) return;
+  try {
+    const event = JSON.parse(data.join("\n")) as LocalAgentEvent;
+    if (!event.id && eventId) event.id = eventId;
+    if (Number.isFinite(event.sequence)) onEvent(event);
+  } catch {
+    // Keepalive/comment frames and malformed third-party output are ignored.
+  }
+}
+
+export async function streamLocalAgentRun(params: {
+  runId: string;
+  after?: number;
+  signal?: AbortSignal;
+  baseUrl?: string;
+  onEvent: (event: LocalAgentEvent) => void;
+}): Promise<void> {
+  const query = new URLSearchParams();
+  if (typeof params.after === "number" && params.after >= 0) query.set("after", String(params.after));
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const res = await fetch(`${params.baseUrl ?? DEFAULT_AGENT_HOST_URL}/api/v1/agent/runs/${encodeURIComponent(params.runId)}/events${suffix}`, {
+    headers: { Authorization: `Bearer ${AGENT_TOKEN}`, Accept: "text/event-stream" },
+    signal: params.signal,
+  });
+  if (!res.ok) throw new Error(`agent_run_events_${res.status}`);
+  if (!res.body) return;
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      buffer += decoder.decode(chunk.value, { stream: true });
+      const frames = buffer.split(/\r?\n\r?\n/);
+      buffer = frames.pop() ?? "";
+      for (const frame of frames) emitSseFrame(frame, params.onEvent);
+    }
+    buffer += decoder.decode();
+    if (buffer.trim()) emitSseFrame(buffer, params.onEvent);
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+export interface CareerWorkflowArtifact {
+  id: string;
+  type: string;
+  version: number;
+  runId: string;
+  sourceRefs: string[];
+  payload: Record<string, unknown>;
+}
+
+export interface CareerWorkflowResponse {
+  status: "awaiting_approval" | "complete";
+  threadId: string;
+  workers: Array<{ id: string; status: string; runtimeId?: string; detail?: string }>;
+  artifacts: CareerWorkflowArtifact[];
+  coverage: { attempted: number; completed: number; missing: string[] };
+  errors: string[];
+  stepLog: string[];
+  approval?: { status: "approved" | "rejected"; actorScope?: string; expectedRevision?: number; idempotencyKey?: string };
+}
+
+export async function startCareerWorkflow(params: {
+  threadId: string;
+  task: string;
+  workspaceId?: string;
+  requestedRuntimeId?: string;
+  baseUrl?: string;
+}): Promise<CareerWorkflowResponse> {
+  const res = await fetch(`${params.baseUrl ?? DEFAULT_AGENT_HOST_URL}/api/v1/agent/workflows/career/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${AGENT_TOKEN}` },
+    body: JSON.stringify({ threadId: params.threadId, task: params.task, workspaceId: params.workspaceId ?? "default", requestedRuntimeId: params.requestedRuntimeId }),
+    signal: AbortSignal.timeout(35_000),
+  });
+  if (!res.ok) throw new Error(`career_workflow_${res.status}`);
+  return res.json();
+}
+
+export async function resumeCareerWorkflow(params: {
+  threadId: string;
+  approval: { status: "approved" | "rejected"; approvedArtifactRefs?: string[]; actorScope: string; expectedRevision?: number; idempotencyKey: string };
+  baseUrl?: string;
+}): Promise<CareerWorkflowResponse> {
+  const res = await fetch(`${params.baseUrl ?? DEFAULT_AGENT_HOST_URL}/api/v1/agent/workflows/career/resume`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${AGENT_TOKEN}` },
+    body: JSON.stringify({ threadId: params.threadId, approval: params.approval }),
+    signal: AbortSignal.timeout(35_000),
+  });
+  if (!res.ok) throw new Error(`career_workflow_${res.status}`);
+  return res.json();
+}
 
 export async function checkAgentHostHealth(baseUrl = DEFAULT_AGENT_HOST_URL): Promise<boolean> {
   try {
-    const res = await fetch(`${baseUrl}/api/v1/agent/jd-match/state/health-check`, {
+    const res = await fetch(`${baseUrl}/api/v1/agent/health`, {
       method: "GET",
       headers: { Authorization: `Bearer ${AGENT_TOKEN}` },
       signal: AbortSignal.timeout(1500),
     });
-    // 404 on unknown thread indicates server is up and listening with auth
-    return res.status === 404 || res.status === 200;
+    return res.status === 200;
   } catch {
     return false;
   }
@@ -228,10 +528,12 @@ export async function sendAgentChat(params: {
       skills?: string[];
       recentExperience?: string;
     };
+    resumeEditContext?: ResumeEditContext;
   };
   baseUrl?: string;
 }): Promise<ChatMessage> {
   const host = params.baseUrl ?? DEFAULT_AGENT_HOST_URL;
+  let fallbackWarning: string | undefined;
 
   try {
     const res = await fetch(`${host}/api/v1/agent/chat`, {
@@ -243,6 +545,7 @@ export async function sendAgentChat(params: {
       body: JSON.stringify({
         messages: params.messages,
         modelSettings: {
+          provider: params.llmConfig.provider,
           baseUrl: params.llmConfig.baseUrl,
           model: params.llmConfig.model,
           apiKey: params.llmConfig.apiKey || "mock-key",
@@ -250,18 +553,43 @@ export async function sendAgentChat(params: {
         },
         context: params.context,
       }),
-      signal: AbortSignal.timeout(35_000),
+      signal: AbortSignal.timeout(agentChatHostTimeoutMs(params.llmConfig.provider)),
     });
 
     if (res.ok) {
-      const data = await res.json();
-      return data.reply;
+      const data = await res.json() as { reply?: unknown };
+      const reply = normaliseChatReply(data.reply, createResponseMeta(params.llmConfig, "agent-host", "ready"));
+      if (reply) return bindResumeProposalSources(reply, params.context?.resumeEditContext);
+      fallbackWarning = "Agent Host returned an invalid reply";
+    } else {
+      fallbackWarning = `Agent Host returned HTTP ${res.status}`;
     }
-  } catch {
-    // Fall back to client direct LLM execution
+  } catch (error) {
+    fallbackWarning = describeAgentChatHostFailure(error);
   }
 
-  return executeClientSideChat(params);
+  return bindResumeProposalSources(await executeClientSideChat(params, fallbackWarning), params.context?.resumeEditContext);
+}
+
+function bindResumeProposalSources(reply: ChatMessage, context?: ResumeEditContext): ChatMessage {
+  if (!reply.actions?.length) return reply;
+  return {
+    ...reply,
+    actions: reply.actions.map((action) => {
+      if (action.type !== "resume_proposal") return action;
+      if (!action.targetRef || !context) {
+        const { targetRef: _target, originalText: _original, sourceVerified: _verified, sourceIssue: _issue, ...readOnly } = action;
+        return { ...readOnly, sourceVerified: false, sourceIssue: action.targetRef ? "not_shared" : "missing_target" };
+      }
+      const originalText = findResumeContextSource(context, action.targetRef);
+      if (originalText === undefined) {
+        const { targetRef: _untrustedTarget, originalText: _untrustedOriginal, sourceVerified: _verified, sourceIssue: _issue, ...readOnly } = action;
+        return { ...readOnly, sourceVerified: false, sourceIssue: "not_shared" };
+      }
+      const sourceVerified = action.originalText === originalText;
+      return { ...action, originalText, sourceVerified, ...(!sourceVerified ? { sourceIssue: "original_mismatch" as const } : {}) };
+    }),
+  };
 }
 
 // ── Browser Direct Mode (Real LLM Execution) ──────────────────────────────────
@@ -288,8 +616,157 @@ function extractJsonBlock<T>(raw: string): T {
   return JSON.parse(jsonStr) as T;
 }
 
+function providerLabel(config: LlmConfig): string {
+  if (config.provider === "ollama") return "Ollama · 本地";
+  if (config.provider === "gemini") return "Google Gemini";
+  if (config.provider === "openai-compatible") {
+    const baseUrl = config.baseUrl.toLowerCase();
+    if (baseUrl.includes("deepseek")) return "DeepSeek · API";
+    if (baseUrl.includes("openai.com")) return "OpenAI · API";
+    return "OpenAI-compatible · API";
+  }
+  return "自定义 Provider";
+}
+
+function createResponseMeta(
+  config: LlmConfig,
+  source: AgentResponseSource,
+  status: AgentResponseStatus,
+  warning?: string,
+): AgentMessageMeta {
+  return {
+    provider: config.provider,
+    providerLabel: providerLabel(config),
+    model: config.model || "未指定模型",
+    source,
+    status,
+    observedAt: new Date().toISOString(),
+    ...(warning ? { warning } : {}),
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isResumeProposalTarget(value: unknown): value is ResumeProposalTarget {
+  if (!isRecord(value) || (value.locale !== "zh" && value.locale !== "en")) return false;
+  if (value.kind === "profile_headline") return true;
+  return value.kind === "claim_text" && isNonEmptyString(value.experienceId) && isNonEmptyString(value.claimId);
+}
+
+function isActionCard(value: unknown): value is AgentActionCard {
+  if (!isRecord(value) || typeof value.type !== "string") return false;
+  if (value.type === "company_card") return isNonEmptyString(value.companyName) && isNonEmptyString(value.summary);
+  if (value.type === "resume_proposal") return isNonEmptyString(value.targetSection)
+    && isNonEmptyString(value.proposedText)
+    && isNonEmptyString(value.rationale)
+    && (value.targetRef === undefined || isResumeProposalTarget(value.targetRef));
+  if (value.type === "job_match") return isNonEmptyString(value.title) && isNonEmptyString(value.company) && isNonEmptyString(value.highlight);
+  if (value.type === "interview_defense") return isNonEmptyString(value.gapItem) && isNonEmptyString(value.strategy) && isNonEmptyString(value.sampleAnswer);
+  return false;
+}
+
+function parseActionResponse(rawText: string): { content: string; actions?: AgentActionCard[]; warning?: string } {
+  let content = rawText.trim();
+  let actions: AgentActionCard[] | undefined;
+  let warning: string | undefined;
+  const fence = /```(?:actions|json)\s*([\s\S]*?)\s*```/gi;
+  const matches = [...rawText.matchAll(fence)];
+
+  for (const match of matches) {
+    const block = match[1]?.trim();
+    if (!block) continue;
+    try {
+      const parsed = JSON.parse(block) as unknown;
+      const candidates = Array.isArray(parsed)
+        ? parsed
+        : isRecord(parsed) && Array.isArray(parsed.actions) ? parsed.actions : undefined;
+      if (!candidates) {
+        warning = "模型返回的动作卡片结构无法识别，已保留原始文本。";
+        continue;
+      }
+      const valid = candidates.filter(isActionCard);
+      if (valid.length > 0) {
+        const known = new Set((actions ?? []).map((action) => JSON.stringify(action)));
+        actions = [...(actions ?? []), ...valid.filter((action) => !known.has(JSON.stringify(action)))];
+      }
+      if (valid.length === candidates.length && candidates.length > 0) {
+        content = content.replace(match[0], "").trim();
+      } else {
+        warning = "部分结构化动作卡片无法识别，已保留原始文本供核对。";
+      }
+    } catch {
+      warning = "模型返回的动作卡片不是合法 JSON，已保留原始输出。";
+    }
+  }
+
+  return {
+    content,
+    ...(actions && actions.length > 0 ? { actions } : {}),
+    ...(warning ? { warning } : {}),
+  };
+}
+
+function normaliseChatReply(value: unknown, fallbackMeta: AgentMessageMeta): ChatMessage | undefined {
+  if (!isRecord(value) || !isNonEmptyString(value.content)) return undefined;
+  const parsed = parseActionResponse(value.content);
+  const suppliedActions = Array.isArray(value.actions) ? value.actions.filter(isActionCard) : [];
+  const actions = [...(parsed.actions ?? []), ...suppliedActions];
+  const suppliedMeta = isRecord(value.meta) ? value.meta : undefined;
+  const meta = suppliedMeta ? {
+    ...fallbackMeta,
+    ...suppliedMeta,
+    provider: fallbackMeta.provider,
+    providerLabel: fallbackMeta.providerLabel,
+    model: isNonEmptyString(suppliedMeta.model) ? suppliedMeta.model : fallbackMeta.model,
+    source: "agent-host" as const,
+    status: suppliedMeta.completeness === "truncated" || suppliedMeta.status === "truncated"
+      ? "truncated" as const
+      : suppliedMeta.completeness === "empty" || suppliedMeta.status === "error"
+        ? "error" as const
+        : fallbackMeta.status,
+  } as AgentMessageMeta : fallbackMeta;
+  if (parsed.warning && !meta.warning) meta.warning = parsed.warning;
+  return {
+    id: isNonEmptyString(value.id) ? value.id : `msg-${Date.now()}`,
+    role: value.role === "user" || value.role === "system" ? value.role : "assistant",
+    content: parsed.content,
+    ...(Array.isArray(value.attachments) ? {
+      attachments: value.attachments.flatMap((item) => {
+        if (!isRecord(item) || !isNonEmptyString(item.name) || !isNonEmptyString(item.mimeType) || !isNonEmptyString(item.dataUrl)) return [];
+        if (!/^image\/(png|jpeg|webp)$/i.test(item.mimeType) || !/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(item.dataUrl)) return [];
+        return [{ name: item.name.slice(0, 160), mimeType: item.mimeType, dataUrl: item.dataUrl }];
+      }),
+    } : {}),
+    ...(Array.isArray(value.references) ? {
+      references: value.references.flatMap((item) => {
+        if (!isRecord(item) || item.type !== "resume_text" || !isNonEmptyString(item.text) || !isNonEmptyString(item.sourceLabel)) return [];
+        return [{ type: "resume_text" as const, text: item.text.slice(0, 12_000), sourceLabel: item.sourceLabel.slice(0, 200) }];
+      }),
+    } : {}),
+    ...(actions.length > 0 ? { actions } : {}),
+    createdAt: isNonEmptyString(value.createdAt) ? value.createdAt : new Date().toISOString(),
+    meta,
+  };
+}
+
 const CHAT_SYSTEM_PROMPT = `你是一个内置于 BetterMe 个人求职与成长工作台的专属 Agent 职业顾问助手。
 你的任务是协助候选人深入分析目标岗位、调研雇主背景、优化简历表达、制定面试应对策略。
+
+【真实性与回答质量】
+- 先直接回答用户当前的问题，再给出依据、限制和可执行的下一步；不要只复述问题、套模板或给空泛建议。
+- 有多个对象或要求时逐项覆盖。需要更多信息时先说明缺口，并给出基于现有信息能确定的部分。
+- 没有实时检索或用户提供来源时，不得声称已经核实公司、岗位、薪资或招聘状态；明确区分事实、推断和待核实项。
+- 简历建议不得补造项目、技术、职责或量化成果；缺少事实时用问题标出需补充内容。
+- 仅当请求中含“用户本次明确授权的可编辑简历字段”时，才可生成可写回的简历建议卡。普通聊天、简历概况、引用摘录不授权写回。
+- 简历建议卡必须针对授权字段中的现有目标，逐字复制其 targetRef；originalText 必须与该字段原文完全一致。不得自造目标或 ID；只调整措辞、不增加事实、技术、指标、责任或成果。
+- 缺少可证实内容时不要给简历建议卡，改为追问。建议仍需用户逐条审阅批准，不会自动写入。
+- 回答受长度限制时明确提示未完成，不要用省略号伪装成完整结果。
 
 你可以执行以下专业任务，并在回答中按规范输出结构化动作卡片（Action Cards）：
 1. 查公司资料：分析其控股背景（民营/国企/外企）、业务方向、稳定性及潜在风险。
@@ -313,7 +790,8 @@ const CHAT_SYSTEM_PROMPT = `你是一个内置于 BetterMe 个人求职与成长
   {
     "type": "resume_proposal",
     "targetSection": "目标模块，如 工作经历/个人优势/技术栈",
-    "originalText": "建议替换的原文（可选）",
+    "targetRef": {"kind":"claim_text","experienceId":"只可复制授权上下文中的 ID","claimId":"只可复制授权上下文中的 ID","locale":"zh"},
+    "originalText": "必须与该授权字段原文完全一致",
     "proposedText": "优化后的专业表述",
     "rationale": "优化理由及契合的 JD 核心点"
   },
@@ -333,7 +811,7 @@ const CHAT_SYSTEM_PROMPT = `你是一个内置于 BetterMe 个人求职与成长
   }
 ]
 \`\`\`
-注意：正文可使用常规 Markdown 排版，\`\`\`actions 代码块必须是合法 JSON 数组。`;
+注意：正文可使用常规 Markdown 排版，\`\`\`actions 代码块必须是合法 JSON 数组，不要在 JSON 代码块之后再添加正文。`;
 
 async function executeClientSideJdMatch(
   rawJd: string,
@@ -661,8 +1139,9 @@ async function executeClientSideChat(params: {
       skills?: string[];
       recentExperience?: string;
     };
+    resumeEditContext?: ResumeEditContext;
   };
-}): Promise<ChatMessage> {
+}, fallbackWarning?: string): Promise<ChatMessage> {
   const isConfigured = Boolean(params.llmConfig.apiKey?.trim()) || params.llmConfig.provider === "ollama";
   if (!isConfigured) {
     return {
@@ -670,6 +1149,7 @@ async function executeClientSideChat(params: {
       role: "assistant",
       content: `👋 你好！我是你的专属 AI 求职助手。\n\n当前尚未检测到已配置的 AI 模型密钥。请点击右上角 **⚙️ 设置** 按钮，填入你的 API Key（例如免费的 Google AI Studio Gemini API Key、极高性价比的 DeepSeek，或本地 Ollama 服务）。\n\n配置完成后，我将为你提供：\n- 🔍 **目标企业背调与实控人分析**\n- ✍️ **按 STAR 原则一键优化简历细节**\n- 🛡️ **针对 JD 缺口的面试攻防话术**\n- 🎯 **真实深度岗位契合度诊断**`,
       createdAt: new Date().toISOString(),
+      meta: createResponseMeta(params.llmConfig, "browser-direct", "error", "尚未配置可用的模型服务。"),
     };
   }
 
@@ -686,51 +1166,99 @@ JD 描述：${job.description ? job.description.slice(0, 1500) : "未提供"}`);
   if (params.context?.resumeSummary) {
     const r = params.context.resumeSummary;
     contextNotes.push(`【候选人简历概况】：
-姓名/代号：${r.displayName || "候选人"}
 个人优势/Headline：${r.headline || "未填写"}
 核心技能栈：${r.skills?.join(", ") || "未填写"}
-近期代表经历：${r.recentExperience || "未提供"}`);
+可见经历要点：${r.recentExperience || "未提供"}`);
+  }
+
+  if (params.context?.resumeEditContext) {
+    contextNotes.push(`【用户本次明确授权用于提出修改建议的简历字段】（只读提案，仍需用户逐条批准）：\n${JSON.stringify(params.context.resumeEditContext)}`);
   }
 
   const systemContent = contextNotes.length > 0
     ? `${CHAT_SYSTEM_PROMPT}\n\n当前上下文背景信息：\n${contextNotes.join("\n\n")}`
     : CHAT_SYSTEM_PROMPT;
 
-  const promptMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+  const promptMessages: Array<{ role: "system" | "user" | "assistant"; content: ChatMessageContent }> = [
     { role: "system", content: systemContent },
     ...params.messages.map((m) => ({
       role: m.role,
-      content: m.content,
+      content: m.role === "user" && (m.attachments?.length || m.references?.length)
+        ? [
+            { type: "text" as const, text: [m.content, ...(m.references ?? []).map((reference) => `[简历引用 · ${reference.sourceLabel}]\n${reference.text}`)].filter(Boolean).join("\n\n") || "请分析附件。" },
+            ...(m.attachments ?? []).map((attachment) => ({ type: "image_url" as const, image_url: { url: attachment.dataUrl } })),
+          ]
+        : m.content,
     })),
   ];
 
-  const rawOutput = await fetchChatCompletion(
-    { ...params.llmConfig, temperature: 0.3 },
-    promptMessages
-  );
-
-  let cleanContent = rawOutput;
-  let actions: AgentActionCard[] | undefined;
-
-  const actionMatch = rawOutput.match(/```actions\s*([\s\S]*?)\s*```/);
-  if (actionMatch && actionMatch[1]) {
-    try {
-      const parsed = JSON.parse(actionMatch[1]);
-      if (Array.isArray(parsed)) {
-        actions = parsed;
-        cleanContent = rawOutput.replace(/```actions\s*[\s\S]*?\s*```/, "").trim();
+  let rawOutput: string;
+  let finishReason: string | undefined;
+  let continuationFailed = false;
+  try {
+    const initial = await fetchChatCompletionResult(
+      { ...params.llmConfig, temperature: 0.3 },
+      promptMessages
+    );
+    rawOutput = initial.content;
+    finishReason = initial.finishReason;
+    let continuationCount = 0;
+    while (isLengthLimitedFinishReason(finishReason) && continuationCount < MAX_CHAT_CONTINUATIONS && rawOutput.trim()) {
+      let continuation;
+      try {
+        continuation = await fetchChatCompletionResult(
+          { ...params.llmConfig, temperature: 0.3 },
+          [
+            ...promptMessages,
+            { role: "assistant", content: rawOutput },
+            { role: "user", content: "请从上一条回复准确结束的位置继续，不要重复已输出内容。补完所有尚未完成的段落与结构化动作卡片；如果不能确认某项信息，请明确标注待核实。" },
+          ],
+        );
+      } catch {
+        continuationFailed = true;
+        break;
       }
-    } catch {
-      // Ignore JSON parse errors
+      if (!continuation.content.trim()) break;
+      rawOutput = appendContinuation(rawOutput, continuation.content);
+      finishReason = continuation.finishReason;
+      continuationCount += 1;
     }
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "模型服务请求失败";
+    return {
+      id: `msg-chat-error-${Date.now()}`,
+      role: "assistant",
+      content: `模型未能生成回复：${detail}\n\n请检查服务商、模型名称和网络连接后重试。`,
+      createdAt: new Date().toISOString(),
+      meta: createResponseMeta(params.llmConfig, "browser-direct", "error", detail),
+    };
   }
+
+  const parsed = parseActionResponse(rawOutput);
+  const lengthLimited = isLengthLimitedFinishReason(finishReason);
+  const empty = !parsed.content.trim() && !parsed.actions?.length;
+  const status: AgentResponseStatus = empty ? "error" : lengthLimited ? "truncated" : fallbackWarning ? "fallback" : "ready";
+  const warning = [
+    fallbackWarning,
+    parsed.warning,
+    lengthLimited ? "模型输出仍触及长度上限，回复可能不完整；可让 Agent 继续补完。" : undefined,
+    continuationFailed ? "自动续答请求失败，已保留当前内容；可手动继续补完。" : undefined,
+    empty ? "模型返回空内容，请重试或检查服务商配置。" : undefined,
+  ]
+    .filter(Boolean)
+    .join(" ") || undefined;
 
   return {
     id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     role: "assistant",
-    content: cleanContent,
-    actions,
+    content: parsed.content || (parsed.actions?.length ? "已整理出以下结构化建议：" : "模型返回空内容，请重试。"),
+    ...(parsed.actions ? { actions: parsed.actions } : {}),
     createdAt: new Date().toISOString(),
+    meta: {
+      ...createResponseMeta(params.llmConfig, "browser-direct", status, warning),
+      completeness: empty ? "empty" : lengthLimited ? "truncated" : "complete",
+      ...(finishReason ? { finishReason } : {}),
+    },
   };
 }
 

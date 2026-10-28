@@ -134,11 +134,25 @@ export type ChatMessageContent =
       | { type: "image_url"; image_url: { url: string } }
     >;
 
+export interface ChatCompletionResult {
+  content: string;
+  finishReason?: string;
+}
+
 /** Standard OpenAI-compatible Chat Completion fetcher (supports OpenAI, DeepSeek, Gemini, Ollama) */
 export async function fetchChatCompletion(
   config: LlmConfig,
   messages: { role: "system" | "user" | "assistant"; content: ChatMessageContent }[],
 ): Promise<string> {
+  return (await fetchChatCompletionResult(config, messages)).content;
+}
+
+/** Same request contract, preserving the provider's completion reason for callers
+ * that need to distinguish a finished answer from a token-limited one. */
+export async function fetchChatCompletionResult(
+  config: LlmConfig,
+  messages: { role: "system" | "user" | "assistant"; content: ChatMessageContent }[],
+): Promise<ChatCompletionResult> {
   let url = config.baseUrl.trim().replace(/\/+$/, "");
 
   const officialGeminiBaseUrl = geminiVersionBaseUrl(config.baseUrl);
@@ -178,12 +192,16 @@ export async function fetchChatCompletion(
     }
 
     const json = await readAiJson(response, "AI 生成请求", config.apiKey);
-    const content = json.choices?.[0]?.message?.content;
+    const choice = json.choices?.[0];
+    const content = choice?.message?.content;
     if (typeof content !== "string" || !content.trim()) {
       throw new Error("AI 接口未返回有效的 choices 文本。");
     }
 
-    return content;
+    return {
+      content,
+      ...(typeof choice.finish_reason === "string" ? { finishReason: choice.finish_reason.toLowerCase() } : {}),
+    };
   });
 }
 

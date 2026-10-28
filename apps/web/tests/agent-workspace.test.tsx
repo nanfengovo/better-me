@@ -35,7 +35,12 @@ for (const [key, value] of Object.entries(globals)) {
 }
 
 // Mock fetch for agent host health check and API calls
-globalThis.fetch = (async (input: string | URL | Request) => {
+let nextChatReply: (() => unknown) | undefined;
+let chatRequestBodies: Array<{
+  messages?: Array<{ role: string; content: string }>;
+  context?: { resumeEditContext?: { profile?: { headline?: { text?: string } }; experiences?: unknown[] }; resumeSummary?: unknown };
+}> = [];
+globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
   const url = String(input);
   if (url.includes("/start")) {
     return new Response(
@@ -72,6 +77,8 @@ globalThis.fetch = (async (input: string | URL | Request) => {
     );
   }
   if (url.includes("/chat")) {
+    if (typeof init?.body === "string") chatRequestBodies.push(JSON.parse(init.body) as typeof chatRequestBodies[number]);
+    if (nextChatReply) return Response.json({ reply: nextChatReply() }, { status: 200 });
     return new Response(
       JSON.stringify({
         message: {
@@ -197,6 +204,117 @@ test("AgentWorkspace renders full-page dual-pane layout with job profile and cha
   // Right pane: Matching Analytics & HITL Proposal Deck
   assert.ok(fixture.textContent?.includes("契合度"), "Should render match score");
   assert.ok(fixture.textContent?.includes("全部提案"), "Should render proposal filter tabs");
+});
+
+test("resume edits require explicit field sharing and a verified-source approval", async () => {
+  chatRequestBodies = [];
+  nextChatReply = () => ({
+    id: `msg-resume-edit-${chatRequestBodies.length}`,
+    role: "assistant",
+    content: "我仅调整了已有表述。",
+    actions: [{
+      type: "resume_proposal",
+      targetSection: "个人简介",
+      targetRef: { kind: "profile_headline", locale: "zh" },
+      originalText: chatRequestBodies.length === 3 ? "资深全栈工程师" : "模型伪造的旧原文",
+      proposedText: "资深全栈工程师 · 专注微前端",
+      rationale: "突出与岗位相关的现有方向。",
+    }, ...(chatRequestBodies.length === 3 ? [{
+      type: "resume_proposal",
+      targetSection: "科技公司 · 资深工程师 · 经历要点",
+      targetRef: { kind: "claim_text", experienceId: "exp-1", claimId: "claim-1", locale: "zh" },
+      originalText: "负责前端架构重构，主导微前端方案落地",
+      proposedText: "负责前端架构重构，并主导微前端方案落地",
+      rationale: "提升句式流畅度，不改变既有事实。",
+    }] : [])],
+  });
+  const approvalCapture: { value?: { targetRef: { kind: string; locale: string }; originalText: string; proposedText: string } } = {};
+  const resumeEditContext = {
+    locale: "zh" as const,
+    profile: { headline: { targetRef: { kind: "profile_headline" as const, locale: "zh" as const }, text: "资深全栈工程师" }, skills: ["React"] },
+    experiences: [{
+      id: "exp-1",
+      type: "work" as const,
+      organization: "科技公司",
+      title: "资深工程师",
+      claims: [{
+        targetRef: { kind: "claim_text" as const, experienceId: "exp-1", claimId: "claim-1", locale: "zh" as const },
+        kind: "action",
+        text: "负责前端架构重构，主导微前端方案落地",
+        tags: [],
+      }],
+    }],
+  };
+
+  await mount(h(AgentWorkspace, {
+    job: { title: "全栈架构师", company: "领先科技", description: "需要 React 与 TypeScript。" },
+    resume: dummyResume,
+    resumeEditContext,
+    llmConfig: dummyLlmConfig,
+    onOpenConfig: () => {},
+    onNavigateToResume: () => {},
+    onApplyToResume: () => {},
+    onApplyResumeProposal: async (proposal) => {
+      approvalCapture.value = proposal;
+      return { ok: true, message: "已批准并提交到简历保存流程。" };
+    },
+  }));
+
+  const fixture = dom.document.getElementById("fixture")!;
+  const shareButton = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.includes("允许 Agent 读取简历字段"));
+  assert.ok(shareButton, "Explicit resume-sharing control should be available");
+
+  const textarea = fixture.querySelector(".agent-chat-textarea") as HTMLTextAreaElement;
+  await flush(() => {
+    const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype, "value")?.set;
+    setter?.call(textarea, "请基于已授权简历字段润色个人简介");
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await flush(() => {
+    Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.trim() === "发送")?.click();
+  });
+  assert.equal(chatRequestBodies.at(-1)?.context?.resumeEditContext, undefined, "resume fields are not sent before explicit consent");
+  assert.equal(chatRequestBodies.at(-1)?.context?.resumeSummary, undefined, "personal resume summary is not sent implicitly");
+
+  await flush(() => {
+    Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.includes("允许 Agent 读取简历字段"))?.click();
+    const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype, "value")?.set;
+    setter?.call(textarea, "请基于已授权简历字段润色个人简介");
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await flush(() => {
+    Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.includes("发送"))?.click();
+  });
+
+  assert.equal(chatRequestBodies.at(-1)?.context?.resumeEditContext?.profile?.headline?.text, "资深全栈工程师");
+  assert.equal(chatRequestBodies.at(-1)?.context?.resumeSummary, undefined);
+  assert.ok(fixture.textContent?.includes("模型返回的原文与当前简历字段不一致"));
+  assert.ok(!fixture.textContent?.includes("模型伪造的旧原文"), "untrusted model source text must not be shown as fact");
+  assert.equal(Array.from(fixture.querySelectorAll("button")).filter((button) => button.textContent?.includes("批准并写回简历")).length, 0, "mismatched model source must not be approvable");
+
+  await flush(() => {
+    const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype, "value")?.set;
+    setter?.call(textarea, "请重新基于当前字段生成建议");
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.includes("发送"))?.click();
+  });
+  assert.equal(chatRequestBodies.at(-1)?.context?.resumeEditContext?.profile?.headline?.text, "资深全栈工程师");
+  assert.ok(fixture.textContent?.includes("资深全栈工程师"), "the proposal should display the trusted original text");
+  assert.ok(fixture.textContent?.includes("已绑定简历原文"));
+
+  await flush(() => {
+    Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.includes("批准并写回简历"))?.click();
+  });
+  assert.ok(approvalCapture.value, "approval should invoke the guarded write-back callback");
+  assert.equal(approvalCapture.value?.originalText, "资深全栈工程师");
+  assert.ok(fixture.textContent?.includes("已批准并提交到简历保存流程"));
+  const rejectButton = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.trim() === "拒绝");
+  assert.ok(rejectButton, "a grounded proposal should offer an explicit reject action");
+  await flush(() => rejectButton?.click());
+  assert.ok(fixture.textContent?.includes("已拒绝；简历未修改。"));
+  assert.equal(approvalCapture.value?.proposedText, "资深全栈工程师 · 专注微前端", "rejecting a different proposal must not invoke the write callback");
+  nextChatReply = undefined;
+  chatRequestBodies = [];
 });
 
 test("AgentWorkspace handles proposal accept and triggers onApplyToResume", async () => {
@@ -526,6 +644,71 @@ test("AgentWorkspace: supports draggable splitter and quiet setup summary chips"
     btn.textContent?.includes("前端 / 全栈")
   );
   assert.ok(sampleChip, "Sample chip should exist");
+});
+
+test("AgentWorkspace stages a resume quote with source context in the chat composer", async () => {
+  await mount(
+    h(AgentWorkspace, {
+      job: null,
+      resume: dummyResume,
+      llmConfig: dummyLlmConfig,
+      initialReference: { type: "resume_text", sourceLabel: "简历 · 工作经历", text: "负责前端架构重构，主导微前端方案落地" },
+      onReferenceConsumed: () => {},
+      onOpenConfig: () => {},
+      onNavigateToResume: () => {},
+      onApplyToResume: () => {},
+    }),
+  );
+  const fixture = dom.document.getElementById("fixture")!;
+  assert.ok(fixture.textContent?.includes("简历 · 工作经历"));
+  assert.ok(fixture.textContent?.includes("负责前端架构重构，主导微前端方案落地"));
+  assert.ok(fixture.querySelector('button[aria-label="上传图片"]'), "composer should provide an image attachment entry point");
+});
+
+test("truncated assistant replies offer a one-click continuation using the existing context", async () => {
+  nextChatReply = () => ({
+      id: `truncated-chat-reply-${chatRequestBodies.length}`,
+      role: "assistant",
+      content: "已生成的部分答复。",
+      createdAt: "2026-10-27T12:00:00.000Z",
+      meta: {
+        provider: "openai-compatible",
+        providerLabel: "OpenAI · API",
+        model: "gpt-4o",
+        source: "agent-host",
+        status: "truncated",
+        completeness: "truncated",
+        observedAt: "2026-10-27T12:00:00.000Z",
+        finishReason: "length",
+        warning: "模型输出仍触及长度上限，回复可能不完整。",
+      },
+    });
+  chatRequestBodies = [];
+  try {
+    await mount(h(AgentWorkspace, {
+      job: { title: "全栈架构师", company: "领先科技", description: "React、TypeScript。" },
+      resume: dummyResume,
+      llmConfig: dummyLlmConfig,
+      onOpenConfig: () => {},
+      onNavigateToResume: () => {},
+      onApplyToResume: () => {},
+    }));
+    const fixture = dom.document.getElementById("fixture")!;
+    const quickPrompt = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.includes("调研实控人与背景"));
+    assert.ok(quickPrompt);
+    await flush(() => quickPrompt.click());
+    assert.ok(Array.from(fixture.querySelectorAll("button")).some((button) => button.textContent?.includes("继续补完")));
+
+    const continueButton = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.includes("继续补完"));
+    assert.ok(continueButton);
+    await flush(() => continueButton.click());
+    assert.equal(chatRequestBodies.length, 2);
+    assert.equal(chatRequestBodies[1]?.messages?.at(-2)?.role, "assistant");
+    assert.match(chatRequestBodies[1]?.messages?.at(-1)?.content ?? "", /继续/);
+  } finally {
+    nextChatReply = undefined;
+    chatRequestBodies = [];
+  }
 });
 
 

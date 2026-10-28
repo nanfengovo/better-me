@@ -1,6 +1,9 @@
 /** @jsxRuntime automatic */
 import { useEffect, useRef, useState } from "react";
 import {
+  CheckCircle2,
+  CircleAlert,
+  CircleHelp,
   Sparkles,
   ChevronDown,
   Settings2,
@@ -8,6 +11,7 @@ import {
   ExternalLink,
   Bot,
   Zap,
+  LoaderCircle,
 } from "lucide-react";
 import type { LlmConfig } from "@better-me/core";
 import { testLlmConnection } from "@better-me/core";
@@ -22,6 +26,14 @@ export type AgentTopBarStatusProps = {
 };
 
 export type AgentLiveStatus = "ready" | "unconfigured" | "offline" | "probing";
+
+function StatusIcon({ status }: { status: AgentLiveStatus }) {
+  const props = { size: 12, strokeWidth: 2, "aria-hidden": true as const };
+  if (status === "ready") return <CheckCircle2 {...props} />;
+  if (status === "probing") return <LoaderCircle {...props} className="is-spinning" />;
+  if (status === "offline") return <CircleAlert {...props} />;
+  return <CircleHelp {...props} />;
+}
 
 function getShortModelName(model: string = "", provider: string = ""): string {
   const m = model.toLowerCase();
@@ -176,13 +188,7 @@ export function AgentTopBarStatus({
           </div>
           <Sparkles
             size={14}
-            className={
-              probeStatus === "ready"
-                ? "text-emerald-500 animate-pulse"
-                : probeStatus === "unconfigured"
-                  ? "text-amber-500"
-                  : "text-rose-500"
-            }
+            className={`agent-status-spark agent-status-spark-${probeStatus}`}
           />
           <span>{t("AI Agent 助手", "AI Agent")}</span>
           <span className={`agent-pill-badge ${badgeClass}`}>{statusLabel}</span>
@@ -197,10 +203,7 @@ export function AgentTopBarStatus({
         >
           <ChevronDown
             size={13}
-            style={{
-              transform: dropdownOpen ? "rotate(180deg)" : "none",
-              transition: "transform 0.15s ease",
-            }}
+            className={`agent-top-bar-chevron ${dropdownOpen ? "is-open" : ""}`}
           />
         </button>
       </div>
@@ -212,14 +215,9 @@ export function AgentTopBarStatus({
               <Bot size={15} />
               <span>{t("AI 顾问状态看板", "AI Agent Status Hub")}</span>
             </div>
-            <span className={`agent-pill-badge ${badgeClass}`}>
-              {probeStatus === "ready"
-                ? "🟢 正常"
-                : probeStatus === "probing"
-                  ? "🔵 探测中"
-                  : probeStatus === "unconfigured"
-                    ? "🟡 待配置"
-                    : "🔴 异常"}
+            <span className={`agent-dropdown-status-pill ${badgeClass}`}>
+              <StatusIcon status={probeStatus} />
+              <span>{probeStatus === "ready" ? t("正常", "Ready") : probeStatus === "probing" ? t("探测中", "Probing") : probeStatus === "unconfigured" ? t("待配置", "Setup") : t("异常", "Offline")}</span>
             </span>
           </div>
 
@@ -243,15 +241,7 @@ export function AgentTopBarStatus({
             <div className="agent-info-row">
               <span>{t("连通状态", "Health")}</span>
               <span
-                className="agent-info-val"
-                style={{
-                  color:
-                    probeStatus === "ready"
-                      ? "#10b981"
-                      : probeStatus === "unconfigured"
-                        ? "#f59e0b"
-                        : "#ef4444",
-                }}
+                className={`agent-info-val agent-health-value ${badgeClass}`}
               >
                 {probeMessage || (probeStatus === "ready" ? "连通正常" : "待处理")}
               </span>

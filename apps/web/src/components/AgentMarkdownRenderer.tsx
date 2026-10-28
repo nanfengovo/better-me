@@ -311,17 +311,13 @@ function renderInline(text: string, isDark: boolean): ReactNode[] {
   return parts.map((part, index) => {
     if (!part) return null;
 
-    // 1. **Bold text** -> High-Tech Standard Highlight!
+    // 1. **Bold text** -> readable inline emphasis, not a pill/tag.
     if (part.startsWith("**") && part.endsWith("**") && part.length >= 4) {
       const inner = part.slice(2, -2);
       return (
         <strong
           key={index}
-          className={`font-semibold inline-block px-1.5 py-0.2 mx-0.5 rounded-md border text-[11px] leading-tight transition-all shadow-2xs ${
-            isDark
-              ? "text-emerald-300 bg-emerald-500/15 border-emerald-500/35 hover:bg-emerald-500/25"
-              : "text-emerald-950 bg-emerald-100 border-emerald-300/80 font-bold"
-          }`}
+          className={`font-semibold ${isDark ? "text-emerald-300" : "text-emerald-800"}`}
         >
           {inner}
         </strong>
