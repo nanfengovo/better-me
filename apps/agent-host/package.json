@@ -12,6 +12,7 @@
     "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
+    "@better-me/agent-contracts": "workspace:*",
     "@better-me/opportunities": "workspace:*",
     "@langchain/core": "^1.2.20",
     "@langchain/langgraph": "^1.5.1",

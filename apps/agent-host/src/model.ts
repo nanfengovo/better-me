@@ -11,6 +11,8 @@ import { ChatOpenAI } from "@langchain/openai";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 
 export interface ModelSettings {
+  /** Provider identity is passed through for response provenance; transport remains OpenAI-compatible. */
+  provider?: "openai-compatible" | "gemini" | "ollama" | "custom";
   /** OpenAI-compatible base URL. Omit for official OpenAI. */
   baseUrl?: string;
   /** Model name, e.g. "gpt-4o", "deepseek-chat", "gemini-1.5-pro" */

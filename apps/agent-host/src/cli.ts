@@ -9,6 +9,8 @@
  *   --host <ip>               Bind address (default: 127.0.0.1)
  *   --origin <url>            Allowed CORS origin (repeatable)
  *   --checkpoint-dir <path>   Override checkpoint SQLite directory
+ *   --runs-dir <path>         Override isolated Agent run directory
+ *   --sandbox <mode>          OS sandbox mode: auto, required, or disabled
  *   --token <string>          Bearer token (falls back to AGENT_HOST_TOKEN env)
  */
 
@@ -20,6 +22,8 @@ function parseArgs(argv: string[]): {
   host: string;
   origins: string[];
   checkpointDir?: string;
+  runsDirectory?: string;
+  sandboxMode: "auto" | "required" | "disabled";
   token: string;
 } {
   const args = argv.slice(2);
@@ -27,6 +31,8 @@ function parseArgs(argv: string[]): {
   let host = "127.0.0.1";
   const origins: string[] = [];
   let checkpointDir: string | undefined;
+  let runsDirectory: string | undefined;
+  let sandboxMode: "auto" | "required" | "disabled" = "auto";
   let token = process.env["AGENT_HOST_TOKEN"] ?? "";
 
   for (let i = 0; i < args.length; i++) {
@@ -36,6 +42,8 @@ function parseArgs(argv: string[]): {
     else if (flag === "--host" && next) { host = next; i++; }
     else if (flag === "--origin" && next) { origins.push(next); i++; }
     else if (flag === "--checkpoint-dir" && next) { checkpointDir = next; i++; }
+    else if (flag === "--runs-dir" && next) { runsDirectory = next; i++; }
+    else if (flag === "--sandbox" && next && ["auto", "required", "disabled"].includes(next)) { sandboxMode = next as typeof sandboxMode; i++; }
     else if (flag === "--token" && next) { token = next; i++; }
   }
 
@@ -44,10 +52,10 @@ function parseArgs(argv: string[]): {
     process.exit(1);
   }
 
-  return { port, host, origins, checkpointDir, token };
+  return { port, host, origins, checkpointDir, runsDirectory, sandboxMode, token };
 }
 
-const { port, host, origins, checkpointDir, token } = parseArgs(process.argv);
+const { port, host, origins, checkpointDir, runsDirectory, sandboxMode, token } = parseArgs(process.argv);
 const cpPath = resolveCheckpointPath(checkpointDir);
 console.log(`[agent-host] checkpoint: ${cpPath}`);
 const checkpointer = createCheckpointer(cpPath);
@@ -58,4 +66,6 @@ createAgentServer({
   allowedOrigins: origins.length > 0 ? origins : ["http://localhost:5173", "http://127.0.0.1:5173"],
   authToken: token,
   checkpointer,
+  runsDirectory,
+  sandboxMode,
 });

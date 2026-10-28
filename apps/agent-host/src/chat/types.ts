@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ResumeEditContextSchema, ResumeProposalTargetSchema } from "@better-me/agent-contracts";
 
 export const AgentActionCardSchema = z.discriminatedUnion("type", [
   z.object({
@@ -16,6 +17,7 @@ export const AgentActionCardSchema = z.discriminatedUnion("type", [
     originalText: z.string().optional(),
     proposedText: z.string(),
     rationale: z.string(),
+    targetRef: ResumeProposalTargetSchema.optional(),
   }),
   z.object({
     type: z.literal("job_match"),
@@ -36,11 +38,36 @@ export const AgentActionCardSchema = z.discriminatedUnion("type", [
 
 export type AgentActionCard = z.infer<typeof AgentActionCardSchema>;
 
+export const AgentMessageMetaSchema = z.object({
+  provider: z.enum(["openai-compatible", "gemini", "ollama", "custom"]),
+  providerLabel: z.string().optional(),
+  model: z.string().min(1),
+  source: z.enum(["agent-host", "browser-direct"]),
+  status: z.enum(["ready", "fallback", "error", "truncated"]),
+  completeness: z.enum(["complete", "truncated", "empty"]).optional(),
+  observedAt: z.string().datetime().optional(),
+  finishReason: z.string().optional(),
+  warning: z.string().optional(),
+});
+
+export type AgentMessageMeta = z.infer<typeof AgentMessageMetaSchema>;
+
 export const ChatMessageSchema = z.object({
   id: z.string(),
   role: z.enum(["user", "assistant", "system"]),
   content: z.string(),
+  attachments: z.array(z.object({
+    name: z.string().min(1).max(160),
+    mimeType: z.string().regex(/^image\/(png|jpeg|webp)$/i).max(120),
+    dataUrl: z.string().regex(/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i).max(8_000_000),
+  })).max(3).optional(),
+  references: z.array(z.object({
+    type: z.literal("resume_text"),
+    text: z.string().min(1).max(12_000),
+    sourceLabel: z.string().min(1).max(200),
+  })).max(5).optional(),
   actions: z.array(AgentActionCardSchema).optional(),
+  meta: AgentMessageMetaSchema.optional(),
   createdAt: z.string().optional(),
 });
 
@@ -49,6 +76,7 @@ export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 export const ChatRequestBodySchema = z.object({
   messages: z.array(ChatMessageSchema),
   modelSettings: z.object({
+    provider: z.enum(["openai-compatible", "gemini", "ollama", "custom"]).optional(),
     baseUrl: z.string().url().optional(),
     model: z.string().min(1),
     apiKey: z.string().optional().default("ollama-key"),
@@ -67,6 +95,8 @@ export const ChatRequestBodySchema = z.object({
       skills: z.array(z.string()).optional(),
       recentExperience: z.string().optional(),
     }).optional(),
+    selectedText: z.string().max(12_000).optional(),
+    resumeEditContext: ResumeEditContextSchema.optional(),
   }).optional(),
 });
 
