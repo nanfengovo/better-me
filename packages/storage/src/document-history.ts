@@ -25,6 +25,12 @@ export interface VersionRepository {
   reset?(): void;
 }
 
+/** Secondary durable draft store used when the synchronous localStorage slot is full. */
+export interface DraftRepository {
+  load(): Promise<string | null>;
+  save(raw: string): Promise<void>;
+}
+
 /** Only input constraints are relaxed. Object/array/enum shapes remain guarded. */
 function editingSchema(schema: z.ZodTypeAny): z.ZodTypeAny {
   if (schema instanceof z.ZodEffects) return editingSchema(schema.innerType());
@@ -60,7 +66,7 @@ function decodeDraft(raw: string): unknown {
 function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
 function storageError(error: unknown): string {
   return error instanceof Error && error.name === "QuotaExceededError"
-    ? "浏览器存储空间不足，请下载草稿并清理旧版本。"
+    ? "浏览器本地存储空间不足，请下载备份并检查可用空间。"
     : "浏览器无法保存数据，请检查存储权限并下载草稿。";
 }
 /** Timestamps do not create noise in history. API configuration is never included. */
@@ -246,6 +252,67 @@ export class IndexedDbVersionRepository implements VersionRepository {
   }
 }
 
+/** Keeps an overflow draft outside localStorage's small per-origin quota. */
+export class IndexedDbDraftRepository implements DraftRepository {
+  private database: Promise<IDBDatabase> | null = null;
+
+  private open(): Promise<IDBDatabase> {
+    if (!this.database) {
+      this.database = new Promise((resolve, reject) => {
+        if (typeof indexedDB === "undefined") {
+          reject(new Error("浏览器未提供 IndexedDB。"));
+          return;
+        }
+        const request = indexedDB.open("better-me:document-draft:v1", 1);
+        request.onupgradeneeded = () => {
+          request.result.createObjectStore("drafts");
+        };
+        request.onsuccess = () => {
+          const database = request.result;
+          database.onversionchange = () => {
+            database.close();
+            this.database = null;
+          };
+          database.onclose = () => { this.database = null; };
+          database.onerror = () => { this.database = null; };
+          resolve(database);
+        };
+        request.onerror = () => {
+          this.database = null;
+          reject(request.error ?? new Error("IndexedDB 草稿库打开失败。"));
+        };
+        request.onblocked = () => {
+          this.database = null;
+          reject(new Error("IndexedDB 草稿库被其他标签页占用。"));
+        };
+      });
+    }
+    return this.database;
+  }
+
+  async load(): Promise<string | null> {
+    const database = await this.open();
+    return new Promise((resolve, reject) => {
+      const transaction = database.transaction("drafts", "readonly");
+      const request = transaction.objectStore("drafts").get("active");
+      request.onsuccess = () => resolve(typeof request.result === "string" ? request.result : null);
+      request.onerror = () => reject(request.error ?? new Error("IndexedDB 草稿读取失败。"));
+      transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB 草稿读取被中断。"));
+    });
+  }
+
+  async save(raw: string): Promise<void> {
+    const database = await this.open();
+    return new Promise((resolve, reject) => {
+      const transaction = database.transaction("drafts", "readwrite");
+      transaction.objectStore("drafts").put(raw, "active");
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? new Error("IndexedDB 草稿保存失败。"));
+      transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB 草稿保存被中断。"));
+    });
+  }
+}
+
 export type PersistenceStatus = {
   kind: "loading" | "saved" | "draft" | "pending" | "error";
   message: string;
@@ -310,14 +377,18 @@ export class DocumentPersistenceController {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private operation = 0;
   private saveQueue: Promise<unknown> = Promise.resolve();
+  private draftBackupQueue: Promise<void> = Promise.resolve();
   private externalVersion: BetterMeDocument | null = null;
   private store: LocalJsonStore;
+  private draftRepository: DraftRepository;
   private autoSave: AutoSaveSettings;
   private autoSaveRevision = 0;
   private persistedFingerprint: string | null = null;
-  constructor(options: { history?: LocalDocumentHistory; store?: LocalJsonStore; delayMs?: number; autoSave?: AutoSaveSettings } = {}) {
+  private draftTimestamp = 0;
+  constructor(options: { history?: LocalDocumentHistory; store?: LocalJsonStore; draftRepository?: DraftRepository; delayMs?: number; autoSave?: AutoSaveSettings } = {}) {
     this.history = options.history ?? new LocalDocumentHistory();
     this.store = options.store ?? new LocalJsonStore();
+    this.draftRepository = options.draftRepository ?? new IndexedDbDraftRepository();
     this.autoSave = normalizeAutoSaveSettings(options.autoSave);
     // Legacy explicit delays are used by existing consumers and timer tests.
     if (options.delayMs !== undefined && options.autoSave === undefined) {
@@ -381,25 +452,44 @@ export class DocumentPersistenceController {
     let rawOfficialRecovery: string | undefined;
     let rawPreviousDraftRecovery: string | undefined;
     let officialSavedAt: string | undefined;
+    let localDraftRaw: string | null = null;
+    let indexedDraftRaw: string | null = null;
+    try { rawPreviousDraftRecovery = localStorage.getItem(PREVIOUS_DRAFT_STORAGE_KEY) ?? undefined; }
+    catch { loadError = loadError ?? "浏览器拒绝读取切换前草稿，请检查本地存储权限。"; }
     try {
-      rawPreviousDraftRecovery = localStorage.getItem(PREVIOUS_DRAFT_STORAGE_KEY) ?? undefined;
       const officialRaw = localStorage.getItem(STORAGE_KEY);
       if (loadError && officialRaw !== null) rawOfficialRecovery = officialRaw;
       if (officialRaw) {
         try { officialSavedAt = JSON.parse(officialRaw)._betterMeSavedAt; }
         catch { /* Official corruption is handled above and retained as raw recovery. */ }
       }
-      const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
-      if (raw !== null) {
+    } catch { loadError = loadError ?? "浏览器拒绝读取本地简历，请检查本地存储权限。"; }
+    try { localDraftRaw = localStorage.getItem(DRAFT_STORAGE_KEY); }
+    catch { loadError = loadError ?? "浏览器拒绝读取草稿，请检查本地存储权限。"; }
+    try { indexedDraftRaw = await this.draftRepository.load(); }
+    catch { /* localStorage remains the primary path; IndexedDB is an overflow recovery copy. */ }
+
+    const candidates = [
+      localDraftRaw,
+      indexedDraftRaw,
+    ].filter((raw): raw is string => raw !== null)
+      .map((raw) => {
         try {
           const envelope = DraftEnvelopeSchema.parse(decodeDraft(raw));
-          if (!officialSavedAt || Date.parse(envelope.savedAt) > Date.parse(officialSavedAt)) {
-            draft = envelope.document as BetterMeDocument;
-            draftSavedAt = envelope.savedAt;
-          }
-        } catch { rawDraftRecovery = raw; }
-      }
-    } catch { loadError = loadError ?? "浏览器拒绝读取草稿，请检查本地存储权限。"; }
+          return { raw, envelope };
+        } catch {
+          rawDraftRecovery ??= raw;
+          return null;
+        }
+      })
+      .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null)
+      .sort((a, b) => Date.parse(b.envelope.savedAt) - Date.parse(a.envelope.savedAt));
+    const latestDraft = candidates[0];
+    if (latestDraft && (!officialSavedAt || Date.parse(latestDraft.envelope.savedAt) > Date.parse(officialSavedAt))) {
+      draft = latestDraft.envelope.document as BetterMeDocument;
+      draftSavedAt = latestDraft.envelope.savedAt;
+      this.draftTimestamp = Date.parse(draftSavedAt);
+    }
     const doc = draft ?? official ?? (loadError ? null : createInitialDocument());
     const valid = doc ? DocumentSchema.safeParse(doc).success : false;
     this.persistedFingerprint = official ? documentFingerprint(official) : null;
@@ -436,22 +526,64 @@ export class DocumentPersistenceController {
     }
   }
   private writeDraft(next: BetterMeDocument): PersistenceStatus {
+    let raw: string;
+    let now: string;
     try {
-      let timestamp = Date.now();
-      const officialRaw = localStorage.getItem(STORAGE_KEY);
+      let timestamp = Math.max(Date.now(), this.draftTimestamp + 1);
+      let officialRaw: string | null = null;
+      try { officialRaw = localStorage.getItem(STORAGE_KEY); }
+      catch { /* Still attempt the draft write and IndexedDB fallback if localStorage access is blocked. */ }
       if (officialRaw) {
         try {
           const officialTimestamp = Date.parse(JSON.parse(officialRaw)._betterMeSavedAt);
           if (Number.isFinite(officialTimestamp)) timestamp = Math.max(timestamp, officialTimestamp + 1);
         } catch { /* A protected draft can coexist with corrupt official bytes. */ }
       }
-      const now = new Date(timestamp).toISOString();
+      now = new Date(timestamp).toISOString();
+      this.draftTimestamp = timestamp;
       const safeDraft = DraftDocumentSchema.parse(next) as BetterMeDocument;
-      localStorage.setItem(DRAFT_STORAGE_KEY, encodeDraft({ schemaVersion: 1, savedAt: now, document: safeDraft }));
-      return { ...this.state.status, kind: "draft", message: this.waitingMessage(next), hasPendingChanges: this.hasPendingChanges(next), draftSavedAt: now, rawDraftRecovery: undefined };
+      raw = encodeDraft({ schemaVersion: 1, savedAt: now, document: safeDraft });
     } catch (error) {
       return { ...this.state.status, kind: "error", hasPendingChanges: this.hasPendingChanges(next), message: `${storageError(error)} 当前编辑仅在页面内，离开会丢失。` };
     }
+    try {
+      localStorage.setItem(DRAFT_STORAGE_KEY, raw);
+      const status: PersistenceStatus = { ...this.state.status, kind: "draft", message: this.waitingMessage(next), hasPendingChanges: this.hasPendingChanges(next), draftSavedAt: now, rawDraftRecovery: undefined };
+      if (this.state.status.kind === "error" && this.state.status.message.includes("正在尝试使用 IndexedDB")) this.emit({ status });
+      return status;
+    } catch (error) {
+      this.persistDraftBackup(raw, next, now);
+      return { ...this.state.status, kind: "error", hasPendingChanges: this.hasPendingChanges(next), draftSavedAt: undefined, message: `${storageError(error)} 正在尝试使用 IndexedDB 保护草稿…` };
+    }
+  }
+  private persistDraftBackup(raw: string, next: BetterMeDocument, savedAt: string): void {
+    const task = this.draftBackupQueue.then(async () => {
+      if (!this.state.doc || documentFingerprint(this.state.doc) !== documentFingerprint(next)) return;
+      try {
+        await this.draftRepository.save(raw);
+        if (!this.state.doc || documentFingerprint(this.state.doc) !== documentFingerprint(next)) return;
+        const current = this.state.status;
+        const draftWasPrimaryError = current.kind === "error" && current.message.includes("正在尝试使用 IndexedDB");
+        const duplicateDraftNotice = current.historyError === "完整版本已保存；草稿保护失败，请检查存储空间。";
+        const nextStatus: PersistenceStatus = {
+          ...current,
+          ...(draftWasPrimaryError ? { kind: current.hasPendingChanges ? "draft" : "saved", message: current.hasPendingChanges ? this.waitingMessage(next) : current.message } : {}),
+          draftSavedAt: savedAt,
+          ...(duplicateDraftNotice ? { historyError: undefined } : {}),
+        };
+        this.emit({ status: nextStatus });
+      } catch (error) {
+        if (!this.state.doc || documentFingerprint(this.state.doc) !== documentFingerprint(next)) return;
+        const message = error instanceof Error ? error.message : "IndexedDB 草稿保存失败。";
+        this.emit({ status: {
+          ...this.state.status,
+          kind: "error",
+          message: `浏览器本地存储已满，IndexedDB 备用草稿也未能保存（${message}）。当前编辑仅在页面内，离开会丢失；请立即下载备份。`,
+          historyError: this.state.status.hasPendingChanges ? this.state.status.historyError : "完整版本已保存；草稿保护失败，请立即下载备份。",
+        } });
+      }
+    });
+    this.draftBackupQueue = task;
   }
   update(next: BetterMeDocument): void {
     ++this.operation;

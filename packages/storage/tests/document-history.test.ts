@@ -474,6 +474,101 @@ test("first launch with default Enter mode creates a draft but no history before
   assert.equal((await history.list()).length, 1);
 });
 
+test("localStorage quota overflow protects the latest complete edit in IndexedDB and restores it on reload", async (t) => {
+  const { doc, storage, store } = await setup(t);
+  let indexedDraft: string | null = null;
+  const draftRepository = {
+    async load() { return indexedDraft; },
+    async save(raw: string) { indexedDraft = raw; },
+  };
+  const history = new LocalDocumentHistory(new MemoryVersions());
+  const controller = new DocumentPersistenceController({ history, draftRepository, autoSave: { ...DEFAULT_AUTO_SAVE_SETTINGS, enabled: false } });
+  t.after(() => controller.dispose());
+  await controller.load();
+  const originalSetItem = storage.setItem;
+  t.mock.method(storage, "setItem", (key: string, value: string) => {
+    if (key === DRAFT_STORAGE_KEY) throw new DOMException("quota", "QuotaExceededError");
+    originalSetItem(key, value);
+  });
+
+  const edit = structuredClone(doc);
+  edit.factBase.profile.email = "quota-recovered@example.com";
+  controller.update(edit);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.ok(indexedDraft?.includes("quota-recovered@example.com"));
+  assert.equal(controller.getState().status.kind, "draft");
+  assert.ok(controller.getState().status.draftSavedAt);
+  assert.equal((await store.load())!.factBase.profile.email, doc.factBase.profile.email);
+
+  const refreshed = new DocumentPersistenceController({ history, draftRepository });
+  t.after(() => refreshed.dispose());
+  await refreshed.load();
+  assert.equal(refreshed.getState().doc!.factBase.profile.email, "quota-recovered@example.com");
+  assert.equal(refreshed.getState().status.recoveredDraft, true);
+});
+
+test("successful complete save clears the draft-protection warning after IndexedDB fallback succeeds", async (t) => {
+  const { doc, storage, store } = await setup(t);
+  let indexedDraft: string | null = null;
+  const draftRepository = {
+    async load() { return indexedDraft; },
+    async save(raw: string) { indexedDraft = raw; },
+  };
+  const history = new LocalDocumentHistory(new MemoryVersions());
+  const controller = new DocumentPersistenceController({ store, history, draftRepository, autoSave: { ...DEFAULT_AUTO_SAVE_SETTINGS, enabled: false } });
+  t.after(() => controller.dispose());
+  await controller.load();
+  const originalSetItem = storage.setItem;
+  t.mock.method(storage, "setItem", (key: string, value: string) => {
+    if (key === DRAFT_STORAGE_KEY) throw new DOMException("quota", "QuotaExceededError");
+    originalSetItem(key, value);
+  });
+
+  const edit = structuredClone(doc);
+  edit.factBase.profile.email = "official-saved@example.com";
+  controller.update(edit);
+  assert.equal(await controller.flush(true), true);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.equal((await store.load())!.factBase.profile.email, "official-saved@example.com");
+  assert.ok(indexedDraft?.includes("official-saved@example.com"));
+  assert.equal(controller.getState().status.kind, "saved");
+  assert.equal(controller.getState().status.hasPendingChanges, false);
+  assert.equal(controller.getState().status.historyError, undefined);
+});
+
+test("when both draft stores reject writes, the complete version remains saved and the user gets a recovery warning", async (t) => {
+  const { doc, storage, store } = await setup(t);
+  const draftRepository = {
+    async load() { return null; },
+    async save() { throw new DOMException("quota", "QuotaExceededError"); },
+  };
+  const history = new LocalDocumentHistory(new MemoryVersions());
+  const controller = new DocumentPersistenceController({ store, history, draftRepository, autoSave: { ...DEFAULT_AUTO_SAVE_SETTINGS, enabled: false } });
+  t.after(() => controller.dispose());
+  await controller.load();
+  const originalSetItem = storage.setItem;
+  t.mock.method(storage, "setItem", (key: string, value: string) => {
+    if (key === DRAFT_STORAGE_KEY) throw new DOMException("quota", "QuotaExceededError");
+    originalSetItem(key, value);
+  });
+
+  const edit = structuredClone(doc);
+  edit.factBase.profile.email = "backup-needed@example.com";
+  controller.update(edit);
+  assert.equal(await controller.flush(true), true);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.equal((await store.load())!.factBase.profile.email, "backup-needed@example.com");
+  assert.equal(controller.getState().doc!.factBase.profile.email, "backup-needed@example.com");
+  assert.equal(controller.getState().status.kind, "error");
+  assert.equal(controller.getState().status.hasPendingChanges, false);
+  assert.match(controller.getState().status.message, /仅在页面内，离开会丢失/);
+  assert.match(controller.getState().status.message, /请立即下载备份/);
+  assert.match(controller.getState().status.historyError!, /草稿保护失败/);
+});
+
 test("default Enter first launch reports a failed draft write without claiming local protection", async (t) => {
   const { data, storage } = storageFixture(t);
   t.mock.method(storage, "setItem", () => { throw new DOMException("quota", "QuotaExceededError"); });
@@ -488,7 +583,11 @@ test("default Enter first launch reports a failed draft write without claiming l
   assert.equal(state.status.hasPendingChanges, true);
   assert.equal(state.status.draftSavedAt, undefined);
   assert.match(state.status.message, /存储空间不足/);
-  assert.match(state.status.message, /仅在页面内.*离开会丢失/);
+  assert.match(state.status.message, /正在尝试使用 IndexedDB/);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(controller.getState().status.kind, "error");
+  assert.match(controller.getState().status.message, /仅在页面内.*离开会丢失/);
+  assert.match(controller.getState().status.message, /请立即下载备份/);
   assert.equal(data.has(DRAFT_STORAGE_KEY), false);
   assert.equal(data.has(STORAGE_KEY), false);
   assert.equal((await history.list()).length, 0);

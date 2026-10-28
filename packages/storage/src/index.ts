@@ -16,11 +16,12 @@ export {
   DraftDocumentSchema,
   LocalDocumentHistory,
   IndexedDbVersionRepository,
+  IndexedDbDraftRepository,
   DocumentPersistenceController,
   documentFingerprint,
   describeDocumentChanges,
 } from "./document-history.js";
-export type { DocumentVersion, VersionKind, VersionRepository, PersistenceStatus, PersistenceState } from "./document-history.js";
+export type { DocumentVersion, VersionKind, VersionRepository, DraftRepository, PersistenceStatus, PersistenceState } from "./document-history.js";
 export { getDocumentFieldChanges } from "./document-diff.js";
 export { applyDocumentFieldChange } from "./document-field-restore.js";
 export type { DocumentFieldChange, DocumentFieldTarget, DocumentFieldRestoreResult } from "./document-field-restore.js";
