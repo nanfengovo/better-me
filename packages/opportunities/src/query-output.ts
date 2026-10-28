@@ -40,10 +40,12 @@ export const MapBucketSchema = z.object({
   categories: z.array(z.object({ ruleId: z.string().min(1), label: z.string().min(1), color: z.string().regex(/^#[a-fA-F0-9]{6}$/), jobCount: CountSchema }).strict()),
   positionBasis: z.literal("city-reference").optional(), precision: z.literal("city").optional(), estimated: z.literal(true).optional(),
   displayGrade: z.enum(["building", "street", "address", "city"]).optional(),
+  coordinateMeaning: z.enum(["building", "entrance", "site"]).optional(),
 }).strict().refine(bucket => {
   const reference = bucket.positionBasis !== undefined;
   if (bucket.precision !== undefined !== reference || bucket.estimated !== undefined !== reference) return false;
   if (reference && bucket.displayGrade && bucket.displayGrade !== "city") return false;
+  if (bucket.coordinateMeaning !== undefined && bucket.displayGrade !== "building") return false;
   return true;
 }, "City reference buckets require their complete precision labels.");
 

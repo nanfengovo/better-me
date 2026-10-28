@@ -125,11 +125,12 @@ test("list pagination does not page the full query map, facets or coverage count
   assert.equal(result.facets.countries.US, 1);
   assert.equal(result.facets.sources["source-a"], 3);
   assert.equal(result.facets.sources["source-b"], 1);
-  const shanghai = result.mapBuckets.find((bucket) => bucket.label === "Shanghai")!;
-  assert.equal(shanghai.jobCount, 2);
-  assert.equal(shanghai.pinCount, 3);
-  assert.deepEqual(shanghai.jobIds, ["job-multi", "job-second"]);
-  assert.equal(shanghai.categories.reduce((sum, category) => sum + category.jobCount, 0), 2);
+  const shanghai = result.mapBuckets.filter((bucket) => bucket.jobIds.some((id) => id === "job-multi" || id === "job-second"));
+  assert.equal(shanghai.length, 3, "each source-backed address remains an independently selectable map bucket");
+  assert.ok(shanghai.every((bucket) => bucket.displayGrade === "address"));
+  assert.deepEqual(shanghai.map((bucket) => bucket.pinCount), [1, 1, 1]);
+  assert.deepEqual(shanghai.flatMap((bucket) => bucket.jobIds), ["job-multi", "job-multi", "job-second"]);
+  assert.equal(shanghai.reduce((sum, bucket) => sum + bucket.categories.reduce((total, category) => total + category.jobCount, 0), 0), 3);
   assert.equal(new Set(result.mapBuckets.flatMap((bucket) => bucket.jobIds)).size, result.mappedJobs);
   assert.ok(result.nextCursor);
   assert.equal(result.snapshotVersion, dataset.revision);
@@ -146,7 +147,9 @@ test("ten jobs with two locations each remain ten canonical jobs and twenty pins
   assert.equal(result.mappedJobs, 10);
   assert.equal(result.locationPinCount, 20);
   assert.equal(result.items.length, 3);
-  assert.deepEqual(result.mapBuckets.map((bucket) => bucket.jobCount), [10, 10]);
+  assert.equal(result.mapBuckets.length, 20, "country aggregation keeps real address pins separate");
+  assert.ok(result.mapBuckets.every((bucket) => bucket.jobCount === 1 && bucket.pinCount === 1));
+  assert.equal(result.mapBuckets.reduce((sum, bucket) => sum + bucket.jobCount, 0), 20);
   assert.equal(new Set(result.mapBuckets.flatMap((bucket) => bucket.jobIds)).size, 10);
 });
 

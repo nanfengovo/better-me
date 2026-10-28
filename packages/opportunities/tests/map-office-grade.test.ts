@@ -58,17 +58,34 @@ test("confirmed office coordinates stay separate building pins and a city centro
   assert.equal(result.mapBuckets.some(bucket => bucket.displayGrade === "building" && bucket.locationIds.includes("city.only")), false);
 });
 
-test("city-level address coordinates still share one centroid and are not labelled as confirmed buildings", async () => {
+test("address coordinates stay distinct and keep their real address at every map aggregation level", async () => {
   const locations: JobLocation[] = [0, 1].map(index => ({
-    id: `address.${index}`, raw: "Synthetic address", kind: "office" as const, countryCode: "CN", city: "Shanghai",
+    id: `address.${index}`, raw: `Synthetic address ${index + 1}`, kind: "office" as const, countryCode: "CN", city: "Shanghai",
+    streetAddress: `Synthetic Road ${10 + index * 10}`,
     precision: "address" as const, verification: "unverified" as const, evidence: [], coordinates: point(31.2 + index / 100, 121.4 + index / 100),
-  }));
+  })).concat([{ id: "city-coordinate", raw: "Shanghai", kind: "office", countryCode: "CN", city: "Shanghai", precision: "city", verification: "unverified", evidence: [], coordinates: point(31.25, 121.45) }]);
   const result = await queryJobs(dataset(locations), { mapLevel: "city" }, { now });
-  assert.equal(result.mapBuckets.length, 1);
-  assert.equal(result.mapBuckets[0]!.displayGrade, "address");
-  assert.equal(result.mapBuckets[0]!.pinCount, 2);
-  assert.equal(result.mapBuckets[0]!.label, "Shanghai");
+  const addressBuckets = result.mapBuckets.filter(bucket => bucket.displayGrade === "address");
+  assert.equal(addressBuckets.length, 2);
+  assert.ok(addressBuckets.every(bucket => bucket.pinCount === 1));
+  assert.deepEqual(addressBuckets.map(bucket => bucket.label), ["Synthetic Road 10", "Synthetic Road 20"]);
+  assert.equal(result.mapBuckets.filter(bucket => bucket.displayGrade === "city").length, 1, "a city coordinate cannot merge into or shift an address pin");
+  assert.equal(result.mapBuckets.find(bucket => bucket.displayGrade === "city")!.label, "Shanghai");
+  assert.ok(Math.abs(addressBuckets[0]!.longitude - addressBuckets[1]!.longitude) > 0.005);
+  assert.ok(Math.abs(result.mapBuckets[0]!.longitude - result.mapBuckets[1]!.longitude) > 0.005);
   const located = await queryJobs(dataset(locations), { mapLevel: "location" }, { now });
-  assert.equal(located.mapBuckets.length, 2);
-  assert.ok(located.mapBuckets.every(bucket => bucket.displayGrade === "address"));
+  assert.equal(located.mapBuckets.length, 3);
+  assert.deepEqual(located.mapBuckets.filter(bucket => bucket.displayGrade === "address").map(bucket => bucket.label), ["Synthetic Road 10", "Synthetic Road 20"]);
+});
+
+test("office confirmation meaning reaches map buckets without being generalized to a building", async () => {
+  const locations: JobLocation[] = ["building", "entrance", "site"].map((coordinateMeaning, index) => ({
+    ...office(`confirmed.${coordinateMeaning}`, 31.2 + index / 100, 121.4 + index / 100, `Synthetic address ${index}`),
+    officeResolution: {
+      ...office(`confirmed.${coordinateMeaning}`, 31.2 + index / 100, 121.4 + index / 100, `Synthetic address ${index}`).officeResolution!,
+      coordinateMeaning: coordinateMeaning as "building" | "entrance" | "site",
+    },
+  }));
+  const result = JobQueryResultSchema.parse(await queryJobs(dataset(locations), { mapLevel: "city" }, { now }));
+  assert.deepEqual(result.mapBuckets.map(bucket => bucket.coordinateMeaning), ["building", "entrance", "site"]);
 });

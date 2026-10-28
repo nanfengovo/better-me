@@ -3,10 +3,25 @@ import test from "node:test";
 import { AtlasDatasetSchema, type AtlasDataset, type JobLocation } from "../src/schema.js";
 import { MapReferencesResultSchema, fingerprintMapReferenceLocation, type MapReferencesResult } from "../src/map-references.js";
 import { queryJobs, JobQueryError } from "../src/query.js";
+import { createJobQueryIndex } from "../src/query-index.js";
 import { JobQueryResultSchema } from "../src/query-output.js";
 
 const now = "2026-10-19T12:00:00.000Z";
 const coordinates = (longitude: number) => ({ latitude: 0, longitude, coordinateSystem: "WGS84" as const });
+
+test("indexed city maps share reference facts, invalidate changed batches and recover after rejected stale references", async () => {
+  const dataset = data(), mapReferences = await references(dataset), index = createJobQueryIndex(dataset);
+  for (const query of [{}, { page: { limit: 1 } }, { viewport: { enabled: true, bounds: [0.5, -1, 1.5, 1] as [number, number, number, number] } }]) {
+    const result = await index.search(query, { now, mapReferences });
+    assert.deepEqual(result, await queryJobs(dataset, query, { now, mapReferences }));
+    assert.deepEqual(await index.search(query, { now, mapReferences }), result);
+  }
+  const changed = structuredClone(mapReferences); changed.places[0]!.place.coordinates = coordinates(2);
+  assert.deepEqual(await index.search({}, { now, mapReferences: changed }), await queryJobs(dataset, {}, { now, mapReferences: changed }));
+  const staleReferences = { ...mapReferences, snapshotRevision: dataset.revision + 1 };
+  for (let attempt = 0; attempt < 2; attempt++) await assert.rejects(index.search({}, { now, mapReferences: staleReferences }), error => error instanceof JobQueryError && error.code === "invalid-query");
+  assert.deepEqual(await index.search({}, { now, mapReferences }), await queryJobs(dataset, {}, { now, mapReferences }));
+});
 function data(): AtlasDataset {
   const locations: JobLocation[] = ["a", "b", "c", "d", "e"].map(id => ({
     id: `loc.${id}`, raw: `Synthetic source ${id}`, kind: id === "c" ? "office" : "unknown", countryCode: "CN",
