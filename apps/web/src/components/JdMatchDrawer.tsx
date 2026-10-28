@@ -41,6 +41,8 @@ import {
   type StructuredJd,
   type ChatMessage,
 } from "../services/agent-client";
+import { AgentMarkdownRenderer } from "./AgentMarkdownRenderer";
+import { AgentReplyMeta } from "./AgentReplyMeta";
 
 export interface DrawerJobContext {
   id?: string;
@@ -105,6 +107,7 @@ export function JdMatchDrawer({
 
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const lastAssistantMessageId = [...messages].reverse().find((message) => message.role === "assistant")?.id;
   const [inputMessage, setInputMessage] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -1051,7 +1054,16 @@ export function JdMatchDrawer({
                             : "bg-white text-slate-800 border border-slate-200 shadow-2xs rounded-bl-xs"
                         }`}
                       >
-                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                        {msg.role === "assistant" && <>
+                          <AgentReplyMeta meta={msg.meta} compact />
+                          {msg.id === lastAssistantMessageId && msg.meta?.status === "truncated" && (
+                            <button type="button" className="agent-continue-reply" onClick={() => void handleSendMessage(t("请从上一条不完整回复的结束处继续，避免重复已写内容，并补完尚未回答的部分。", "Continue from the end of the previous incomplete reply, avoid repeating completed text, and finish any unanswered parts."))} disabled={chatLoading}>
+                              {chatLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                              <span>{chatLoading ? t("正在补全…", "Continuing…") : t("继续补完", "Continue reply")}</span>
+                            </button>
+                          )}
+                        </>}
+                        <AgentMarkdownRenderer content={msg.content} isDark={false} />
                       </div>
 
                       {/* Render Interactive Action Cards attached to Assistant reply */}

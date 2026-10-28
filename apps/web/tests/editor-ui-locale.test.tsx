@@ -16,6 +16,7 @@ const React = await import("react");
 const globals = {
   window: dom, document: dom.document, navigator: dom.navigator,
   localStorage: dom.localStorage, HTMLElement: dom.HTMLElement, Element: dom.Element,
+  HTMLTextAreaElement: dom.HTMLTextAreaElement, HTMLInputElement: dom.HTMLInputElement,
   Node: dom.Node, React, IS_REACT_ACT_ENVIRONMENT: true,
   getComputedStyle: dom.getComputedStyle.bind(dom),
   requestAnimationFrame: dom.requestAnimationFrame.bind(dom),
@@ -81,6 +82,27 @@ test("default editor remains Chinese and field filtering never writes facts", as
   assert.ok(areas.some(area => area.value === factBase.experiences[0]!.claims[0]!.text.en));
   assert.ok(areas.every(area => !area.getAttribute("aria-label")?.includes("中文要点")));
   assert.equal(changes, 0); assert.deepEqual(factBase, before);
+});
+
+test("selecting resume text offers a source-labelled quote for the Agent without changing facts", async () => {
+  const factBase = facts(); let reference: { type: string; text: string; sourceLabel: string } | undefined;
+  await mount(h(FactEditor, {
+    factBase,
+    onChange: () => assert.fail("quoting text must not mutate resume facts"),
+    onAskAgentReference: (value: typeof reference) => { reference = value; },
+  }));
+  const textarea = [...dom.document.querySelectorAll<HTMLTextAreaElement>("textarea")]
+    .find(item => item.getAttribute("aria-label")?.includes("中文要点 1"));
+  assert.ok(textarea);
+  await flush(() => {
+    textarea!.setSelectionRange(0, 5);
+    textarea!.dispatchEvent(new dom.Event("select", { bubbles: true }));
+  });
+  assert.match(dom.document.body.textContent!, /带引用询问 Agent/);
+  await click("带引用询问 Agent");
+  assert.equal(reference?.type, "resume_text");
+  assert.equal(reference?.text, textarea.value.slice(0, 5));
+  assert.match(reference?.sourceLabel ?? "", /简历 ·/);
 });
 
 test("English UI translates guidance while preserving Chinese source text and metric state", async () => {

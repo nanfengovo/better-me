@@ -1,13 +1,20 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowDownUp, ArrowUpRight, Check, ChevronDown, ChevronUp, Compass, Database, ExternalLink, Filter, Globe2, Home, KeyRound, Loader2, LogIn, MapPin, Palette, RefreshCw, RotateCcw, Search, ShieldCheck, SlidersHorizontal, Sparkles, X } from "lucide-react";
+import { AlertTriangle, ArrowDownUp, Check, ChevronDown, ChevronUp, Database, ExternalLink, Filter, Globe2, Home, KeyRound, Loader2, LogIn, MapPin, Palette, RefreshCw, RotateCcw, Search, ShieldCheck, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import type { FactBase, ProjectedResume } from "@better-me/core";
 import { extractResumePrefill } from "./atlas/resume-prefill";
 import { CompanyColorConfigSchema, getDefaultCompanyColorConfig, normalizeSearchText, DEFAULT_TECHNICAL_ALIASES, type AtlasDataset, type CompanyColorConfig, type JobLocation, type JobQueryInput, type JobQueryResult, type JobSearchItem, type MapBucket, type QueryOptions, type GeocodingResult, type GeocodingCandidate } from "@better-me/opportunities";
 import type { OpportunitySeed } from "./OpportunityWorkspace";
 import { createAtlasDemo } from "./atlas/demo";
 import type { AtlasCamera } from "./atlas/prototypes/types";
+import { isMappableOfficeBucket, mapBucketPrecisionLabel } from "./atlas/prototypes/map-performance";
+import type { AtlasMapGeometry } from "./atlas/prototypes/map-performance";
 import { ATLAS_BASEMAPS } from "./atlas/prototypes/basemaps";
 import { buildAtlasJobAction, queryAtlasPage, readAtlasSnapshot, type AtlasJobAction } from "./atlas/client";
+import { AtlasActivityRail } from "./atlas/AtlasActivityRail";
+import { AtlasIllustration } from "./atlas/AtlasIllustration";
+import { AtlasJobCardContent } from "./atlas/AtlasJobCardContent";
+import type { AtlasViewMode } from "./atlas/AtlasViewControls";
+import { AtlasMapToolbar } from "./atlas/AtlasMapToolbar";
 import { readOpportunityLibrary } from "../lib/opportunities";
 import { projectLocalOpportunities } from "./atlas/local-opportunities";
 import { createAtlasSourceClient } from "./atlas/service-client";
@@ -18,17 +25,13 @@ import { runAtlasSourceSearch, type AtlasAggregateProgress, type AtlasAggregateS
 import { AtlasSearchProgress } from "./atlas/AtlasSearchProgress";
 import { AtlasJobDetail } from "./atlas/AtlasJobDetail";
 import { useAtlasPaneLayout } from "./atlas/use-atlas-pane-layout";
+import { AtlasWorkbench } from "./atlas/AtlasWorkbench";
 import { createJobMapFocus, type AtlasMapFocus } from "./atlas/map-focus";
 import { frameAdminRegion, frameSearchMap } from "./atlas/map-frame";
 import { buildAtlasCityCandidateQuery } from "./atlas/city-candidate-query";
-import { getAtlasDataCoverage } from "./atlas/coverage";
+import { useComputedAtlasMetadata } from "./atlas/use-computed-metadata";
 import { createAtlasListingPresenter } from "./atlas/presentation";
-import { AtlasListingBadges } from "./atlas/JobSourceBadges";
 import {
-  formatCardPlatform,
-  formatCardPublication,
-  formatCardDistance,
-  formatCardSalaryRMB,
   matchCardPlatform,
   matchCardSalary,
   matchCardDistance,
@@ -37,11 +40,17 @@ import {
 import { analyzeAiJobRelevance } from "./atlas/ai-job-relevance";
 import { PlatformSearchLinks } from "./atlas/PlatformSearchLinks";
 import { AtlasLivePlatformQuickSearch } from "./atlas/AtlasLivePlatformQuickSearch";
-import {
-  enrichSnapshotCompaniesAndOffices,
-  type LivePlatformImportSummary,
-} from "./atlas/live-platform-auto-import";
-import { executeOpportunityHarvestChainedPipeline } from "./atlas/harvest-pipeline";
+import type { LivePlatformImportSummary } from "./atlas/live-platform-auto-import";
+import { executeOpportunityHarvestChainedPipeline, type ClientPipelineProgress } from "./atlas/harvest-pipeline";
+import { AtlasLiveHarvestResults } from "./atlas/AtlasLiveHarvestResults";
+import { applyLiveBatchStreamEvent, buildLiveHarvestView, liveHarvestStopReasonLabel, matchesLiveHarvestQuery, mergeLiveHarvestViews, settleLiveHarvestView, type LiveHarvestView } from "./atlas/live-harvest-view";
+import { AtlasHarvestProgress } from "./atlas/AtlasHarvestProgress";
+import { sanitizeHarvestDiagnostic } from "./atlas/harvest-issue-presentation";
+import { useBackgroundEnrichment } from "./atlas/use-background-enrichment";
+import { AtlasBackgroundEnrichmentStatus } from "./atlas/AtlasBackgroundEnrichmentStatus";
+import { useHarvestRecovery } from "./atlas/use-harvest-recovery";
+import type { HarvestCheckpoint, HarvestRunInput } from "./atlas/harvest-checkpoint";
+import { finiteProgressStat, mergeLiveCommitTotals, toHarvestProgressState, type HarvestProgressState } from "./atlas/harvest-progress-presentation";
 import { buildChinaRegionFilter, findChinaProvinceByMapId, getChinaProvinces, getChinaCities, getChinaDistricts, type ChinaRegionSelection } from "./atlas/china-regions";
 import { resolveAdminBoundaryHighlight, type AdminBoundaryHighlight } from "./atlas/admin-boundary-service";
 import countryCatalog from "../../../../config/geography/countries.json";
@@ -50,8 +59,12 @@ import { ReviewedCardsCaptureSchema, type ReviewedCardsCapture } from "@better-m
 import { PlatformAuthHub } from "./atlas/PlatformAuthHub";
 import { focusRealChrome } from "../lib/real-chrome-client";
 import "./atlas/atlas.css";
+import "./atlas/atlas-harvest-progress.css";
+import "./atlas/background-enrichment.css";
+import "./atlas/harvest-recovery.css";
+import "./atlas/atlas-experience.css";
 
-const AtlasMap = lazy(() => import("./atlas/prototypes/MapLibrePrototype"));
+const AtlasMap = lazy(() => import("./atlas/AtlasMapViewport"));
 const AtlasSourcesPanel = lazy(() => import("./atlas/AtlasSourcesPanel").then((m) => ({ default: m.AtlasSourcesPanel })));
 const AtlasSourceCandidateReview = lazy(() => import("./atlas/AtlasSourceCandidateReview").then((m) => ({ default: m.AtlasSourceCandidateReview })));
 const AtlasReviewedCardImport = lazy(() => import("./atlas/AtlasReviewedCardImport").then((m) => ({ default: m.AtlasReviewedCardImport })));
@@ -60,6 +73,21 @@ const AtlasOfficeAddressConfirmation = lazy(() => import("./atlas/AtlasOfficeAdd
 const AtlasReconciliationPanel = lazy(() => import("./atlas/AtlasReconciliationPanel").then((m) => ({ default: m.AtlasReconciliationPanel })));
 const AtlasAddressEnrichment = lazy(() => import("./atlas/AtlasAddressEnrichment").then(module => ({ default: module.AtlasAddressEnrichment })));
 const AtlasDetailLocations = lazy(() => import("./atlas/AtlasDetailLocations").then(module => ({ default: module.AtlasDetailLocations })));
+
+function backgroundHarvestProgress(progress: ClientPipelineProgress): ClientPipelineProgress {
+  return { ...progress, stats: { ...progress.stats, enrichmentBackground: 1 },
+    ...(progress.stage === "completed" && progress.stats?.enrichmentSkipped === 1
+      ? { message: "本轮平台读取与入库处理已结束；地区和企业继续在后台自动补全，岗位列表与地图会随索引更新。" } : {}) };
+}
+
+function hasIncompleteLiveHarvest(summary: LivePlatformImportSummary): boolean {
+  return summary.importFailures.length > 0 || summary.platformCoverage.some((platform) =>
+    platform.status === "error"
+      || platform.status === "login_required"
+      || platform.status === "verification_required"
+      || platform.coverage.partial,
+  );
+}
 const COLOR_KEY = "better-me:atlas-colors:v1";
 type Props = { active?: boolean; resume?: ProjectedResume | null; factBase?: FactBase | null; onSaveOpportunity: (seed: OpportunitySeed) => void; onAnalyze: (item: AtlasJobAction) => void; onOpenOpportunitySources?: () => void; devJobIndex?: (signal: AbortSignal) => Promise<DevJobIndexBootstrap | undefined> };
 const regionNames = typeof Intl.DisplayNames === "function" ? new Intl.DisplayNames(["zh"], { type: "region" }) : undefined;
@@ -138,6 +166,12 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
   const [initialConnection] = useState(readAtlasConnectionSession);
   const restoreConnection = useRef(initialConnection?.dataMode === "live");
   const [liveData, setLiveData] = useState<AtlasDataset | null>(null);
+  const publishLiveSnapshot = useCallback((snapshot: AtlasDataset) => {
+    setLiveData(current => current && current.revision >= snapshot.revision ? current : snapshot);
+  }, []);
+  const [liveHarvest, setLiveHarvest] = useState<LiveHarvestView | null>(null);
+  const [preferLiveResults, setPreferLiveResults] = useState(true);
+  const [liveCommitStats, setLiveCommitStats] = useState<{ totalAdded: number; totalUpdated: number }>();
   const [dataMode, setDataMode] = useState<AtlasDataMode>(initialConnection?.dataMode ?? "local");
   const [localData, setLocalData] = useState<AtlasDataset | null>(null);
   const [localError, setLocalError] = useState("");
@@ -149,7 +183,11 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
   const [reconciliationOpen, setReconciliationOpen] = useState(false);
   const [searchSourceId, setSearchSourceId] = useState("");
   const [sourceSearching, setSourceSearching] = useState(false);
-  const [harvestStage, setHarvestStage] = useState<{ index: number; total: number; message: string } | null>(null);
+  const [harvestStage, setHarvestStage] = useState<HarvestProgressState | null>(null);
+  const [harvestCancelled, setHarvestCancelled] = useState(false);
+  const [harvestFailed, setHarvestFailed] = useState(false);
+  const [harvestImportFailures, setHarvestImportFailures] = useState<LivePlatformImportSummary["importFailures"]>([]);
+  const [harvestFailureMessage, setHarvestFailureMessage] = useState<string>();
   const [searchProgress, setSearchProgress] = useState<AtlasAggregateProgress | null>(null);
   const [sourceReview, setSourceReview] = useState<AtlasAggregateSource>();
   const [cardReview, setCardReview] = useState<ReviewedCardsCapture>();
@@ -175,6 +213,23 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
   const [sourceSearchMessage, setSourceSearchMessage] = useState("");
   const [sourceSearchError, setSourceSearchError] = useState("");
   const searchAbort = useRef<AbortController | null>(null);
+  function cancelSourceSearch() {
+    const current = searchAbort.current;
+    if (!current) return;
+    const cancellingLiveHarvest = Boolean(harvestStage || liveHarvest);
+    // Invalidate callbacks before aborting: CDP transports may take time to
+    // acknowledge cancellation, but the UI must stop claiming active work now.
+    searchAbort.current = null;
+    void harvestRecovery.cancel().catch(() => { /* The recovery status reports a failed stop receipt. */ });
+    current.abort();
+    setSourceSearching(false);
+    setHarvestCancelled(true);
+    setHarvestFailed(false);
+    setLiveHarvest((previous) => settleLiveHarvestView(previous, { outcome: "cancelled" }));
+    setSourceSearchMessage(cancellingLiveHarvest
+      ? "已发出停止信号，界面不再显示原站读取仍在继续；已收到的岗位保留，未确认请求不计为已覆盖。"
+      : "已停止等待。已确认返回的岗位保留；服务端状态未知的请求可能已保存部分数据，请重新读取索引核对。");
+  }
   const searchKeys = useRef(new Map<string, string>());
   const [mode, setMode] = useState<"global" | "domestic">("global");
   const [text, setText] = useState("");
@@ -198,7 +253,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
   const [salaryFilter, setSalaryFilter] = useState("");
   const [distanceFilter, setDistanceFilter] = useState("");
   const [pubFilter, setPubFilter] = useState("");
-  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(true);
   const [aiPenetratedOnly, setAiPenetratedOnly] = useState(false);
   const [aiBannerDismissed, setAiBannerDismissed] = useState(false);
 
@@ -313,7 +368,11 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
   const [colors, setColors] = useState(initialColors);
   const [colorsMessage, setColorsMessage] = useState("");
   const [rawResult, setResult] = useState<JobQueryResult | null>(null);
+  const [resultGeometry, setResultGeometry] = useState<AtlasMapGeometry>();
   const [resultData, setResultData] = useState<AtlasDataset | null>(null);
+  const [resultIdentity, setResultIdentity] = useState<object | null>(null);
+  const [listResultIdentity, setListResultIdentity] = useState<object | null>(null);
+  const [recheckedSelection, setRecheckedSelection] = useState<{ data: AtlasDataset; identity: object; item: JobSearchItem }>();
   const [queryError, setQueryError] = useState("");
   const [querying, setQuerying] = useState(false);
   const [platformSearchOpen, setPlatformSearchOpen] = useState(false);
@@ -325,11 +384,12 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
   const [bucket, setBucket] = useState<MapBucket | null>(null);
   const [mapError, setMapError] = useState("");
   const [rotating, setRotating] = useState(false);
+  const [mapPresentation, setMapPresentation] = useState<{ mode: AtlasViewMode; animate: boolean }>({ mode: "spatial", animate: false });
   const [mapKey, setMapKey] = useState(0);
   const [listPage, setListPage] = useState<JobQueryResult | null>(null);
   const [listItems, setListItems] = useState<JobSearchItem[]>([]);
   const [pageIndex, setPageIndex] = useState(0);
-  const paging = useRef({ key: "", queryId: "" });
+  const paging = useRef<{ key: string; queryId: string; data?: AtlasDataset; options?: QueryOptions }>({ key: "", queryId: "" });
   const [mapZoom, setMapZoom] = useState(1.5);
   const camera = useRef<AtlasCamera | undefined>(undefined);
   const scene = useRef<HTMLDivElement>(null);
@@ -339,21 +399,35 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
   const locationAbort = useRef<AbortController | null>(null);
   const selectedCard = useRef<JobSearchItem | undefined>(undefined);
   const cardClickTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const mapActivationAbort = useRef<AbortController | null>(null);
   function cancelCardClick() { clearTimeout(cardClickTimer.current); cardClickTimer.current = undefined; }
+  useEffect(() => () => mapActivationAbort.current?.abort(), []);
   const queryAbort = useRef<AbortController | null>(null);
   const data = dataMode === "demo" ? demo : dataMode === "live" ? liveData : localData;
   const connected = Boolean(liveData && connectedIdentity.current?.endpoint === endpoint && connectedIdentity.current.token === token);
+  const backgroundEnrichment = useBackgroundEnrichment({
+    endpoint, token, enabled: active && connected && dataMode === "live", currentRevision: liveData?.revision,
+    onSnapshot: publishLiveSnapshot,
+  });
+  const harvestRecovery = useHarvestRecovery({
+    endpoint, token, enabled: active && connected && dataMode === "live",
+    onResume: async (input, checkpoint, signal) => {
+      // This is the saved intent, not a new search. Update the scope guard before
+      // restoring filters so their normal user-change effect cannot cancel it.
+      liveMarketScope.current = { mode: input.view.mode, country: input.view.country };
+      setMode(input.view.mode); setCountry(input.view.country);
+      setText(input.keyword); setRegion(input.view.region); setRegionText(input.view.regionText);
+      setChinaSelection(input.chinaSelection ?? {}); setSearchDepth(input.depth);
+      await searchLivePlatformsOnly({ input, checkpoint, signal });
+    },
+  });
   const mapReferences = useAtlasMapReferences({ active, dataMode, connected, endpoint, token, snapshot: dataMode === "live" ? liveData : null });
   const searchableSources = (connected ? liveData?.sources : [])?.filter((entry) => entry.enabled && entry.status === "active" && entry.entityType === "job-posting" && entry.runtime.includes("local-service") && entry.capabilities.includes("list-jobs") && entry.entryUrl) ?? [];
   const selectedSearchSources = searchSourceId ? searchableSources.filter((entry) => entry.sourceId === searchSourceId) : searchableSources;
   const reviewSource = sourceReview ? liveData?.sources.find((entry) => entry.sourceId === sourceReview.sourceId) : undefined;
   useEffect(() => { setSourceReview(undefined); setCardReview(undefined); }, [endpoint, token]);
-  const result = resultData === data ? rawResult : null;
-  const locatedBuckets = useMemo(() => (result?.mapBuckets ?? []).filter((bucket) => bucket.positionBasis !== "city-reference"), [result?.mapBuckets]);
-  const mapFrame = useMemo(() => frameSearchMap(locatedBuckets), [locatedBuckets]);
   const emptyIndex = !!data && !data.jobs.length;
   const dataLoading = connecting || (dataMode === "local" && localLoading);
-  const presentListing = useMemo(() => data ? createAtlasListingPresenter(data, { now: publicationNow }) : undefined, [data, publicationNow]);
   useEffect(() => { if (!active) return; setPublicationNow(new Date().toISOString()); const timer = setInterval(() => setPublicationNow(new Date().toISOString()), 60000); return () => clearInterval(timer); }, [active]);
   useEffect(() => {
     if (!active || dataMode !== "local") return;
@@ -366,7 +440,9 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
     }, (error: unknown) => { if (!abort.signal.aborted) { setLocalError(error instanceof Error ? error.message : "无法读取当前机会库。"); setLocalLoading(false); } });
     return () => abort.abort();
   }, [active, dataMode, localReload]);
-  const coverage = useMemo(() => getAtlasDataCoverage(data, { anchor, now: publicationNow, includeEstimates: true, allowCityEstimate: true, workCountryCodes: country ? [country] : mode === "domestic" ? (chinaSelection.provinceCode && ["HK", "MO", "TW"].includes(chinaSelection.provinceCode) ? [chinaSelection.provinceCode] : countryCatalog.domesticCountryCodes) : [] }), [data, anchor, publicationNow, country, mode, chinaSelection.provinceCode]);
+  const metadataScope = useMemo(() => ({ dataMode, endpoint, token }), [dataMode, endpoint, token]);
+  const computedMetadata = useComputedAtlasMetadata(data, { anchor, now: publicationNow, includeEstimates: true, allowCityEstimate: true, workCountryCodes: country ? [country] : mode === "domestic" ? (chinaSelection.provinceCode && ["HK", "MO", "TW"].includes(chinaSelection.provinceCode) ? [chinaSelection.provinceCode] : countryCatalog.domesticCountryCodes) : [] }, text, metadataScope);
+  const coverage = computedMetadata.coverage;
   function applyResumePrefill() {
     if (!resumePrefill.hasResumeData) return;
     if (resumePrefill.targetRole) {
@@ -393,6 +469,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
     prefillTimer.current = setTimeout(() => setPrefillNotice(null), 4000);
   }
   const countries = useMemo(() => [...new Set([...countryCatalog.countries, ...coverage.country.values])].sort((a, b) => countryName(a).localeCompare(countryName(b), "zh")), [coverage.country.values]);
+  const countryOptions = useMemo(() => countries.map(code => <option key={code} value={code}>{countryName(code)}</option>), [countries]);
   const origins = coverage.controller.values;
   const foreignOrigins = useMemo(
     () => origins.filter((c) => c !== "CN" && c !== "unknown"),
@@ -421,15 +498,6 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
     };
   }, [mode, chinaSelection, theme]);
 
-  const displayFrame = useMemo(() => {
-    if (adminBoundary?.bounds) {
-      return {
-        bounds: adminBoundary.bounds,
-        maxZoom: adminBoundary.boundsMaxZoom ?? 11,
-      };
-    }
-    return mapFrame ?? (mode === "domestic" ? frameAdminRegion(chinaFilter.selectedProvince?.mapId) : null);
-  }, [adminBoundary, mapFrame, mode, chinaFilter.selectedProvince?.mapId]);
   const scopePlace = mode === "domestic" ? [chinaFilter.selectedProvince?.name, chinaFilter.selectedCity && !chinaFilter.selectedCity.isGrouping ? chinaFilter.selectedCity.name : undefined, chinaFilter.selectedDistrict?.name].filter(Boolean).join(" · ") : "";
   const chinaCities = getChinaCities(chinaSelection.provinceCode ?? "");
   const chinaDistricts = getChinaDistricts(chinaSelection.provinceCode ?? "", chinaSelection.cityCode ?? "");
@@ -477,23 +545,38 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
     aliases: DEFAULT_TECHNICAL_ALIASES,
     ...(mapReferences.result ? { mapReferences: mapReferences.result } : {}),
   }), [generation, colors, anchor, mapReferences.result]);
-  const penetratedCount = useMemo(() => {
-    if (!text.trim() || !data) return 0;
-    return data.jobs.filter((job) => {
-      const company = data.companies.find((c) => c.id === job.companyId);
-      return analyzeAiJobRelevance(job, text, company?.names?.[0]).isPenetrated;
-    }).length;
-  }, [text, data]);
-
-  const aiPenetratedJobIds = useMemo(() => {
-    if (!aiPenetratedOnly || !text.trim() || !data) return undefined;
-    return data.jobs
-      .filter((job) => {
-        const company = data.companies.find((c) => c.id === job.companyId);
-        return analyzeAiJobRelevance(job, text, company?.names?.[0]).isPenetrated;
-      })
-      .map((job) => job.id);
-  }, [aiPenetratedOnly, text, data]);
+  const queryKey = JSON.stringify(query);
+  const queryIdentity = useMemo(() => ({ queryKey, dataMode, endpoint, token }), [queryKey, dataMode, endpoint, token]);
+  // Keep a coherent prior projection visible while the same query catches up.
+  // A different filter, mode or connection never inherits this stale view.
+  const result = data && resultIdentity === queryIdentity ? rawResult : null;
+  const displayedData = result ? resultData : data;
+  const presentListing = useMemo(() => displayedData ? createAtlasListingPresenter(displayedData, { now: publicationNow }) : undefined, [displayedData, publicationNow]);
+  const locatedBuckets = useMemo(() => (result?.mapBuckets ?? []).filter(isMappableOfficeBucket), [result?.mapBuckets]);
+  const mappableJobIds = useMemo(() => new Set(locatedBuckets.flatMap((entry) => entry.jobIds)), [locatedBuckets]);
+  const mappableJobCount = mappableJobIds.size;
+  const mappableLocationCount = useMemo(() => new Set(locatedBuckets.flatMap((entry) => entry.locationIds)).size, [locatedBuckets]);
+  const mappableCoordinateCount = useMemo(() => new Set(locatedBuckets.map((entry) => `${entry.longitude},${entry.latitude}`)).size, [locatedBuckets]);
+  const noPreciseLocationJobCount = Math.max(0, (result?.totalJobs ?? 0) - mappableJobCount);
+  const mapFrame = useMemo(() => frameSearchMap(locatedBuckets), [locatedBuckets]);
+  const displayFrame = useMemo(() => {
+    if (adminBoundary?.bounds) return { bounds: adminBoundary.bounds, maxZoom: adminBoundary.boundsMaxZoom ?? 11 };
+    return mapFrame ?? (mode === "domestic" ? frameAdminRegion(chinaFilter.selectedProvince?.mapId) : null);
+  }, [adminBoundary, mapFrame, mode, chinaFilter.selectedProvince?.mapId]);
+  const allPenetratedJobIds = computedMetadata.penetratedIds;
+  const aiPenetratedJobIds = aiPenetratedOnly ? allPenetratedJobIds : undefined;
+  const [penetrationResult, setPenetrationResult] = useState<{ data: AtlasDataset; query: JobQueryInput; count: number }>();
+  const penetratedCount = penetrationResult?.data === data && penetrationResult?.query === query
+    ? penetrationResult.count : 0;
+  useEffect(() => {
+    if (!data || !allPenetratedJobIds.length) { setPenetrationResult(undefined); return; }
+    const abort = new AbortController();
+    // Count within the same scope, including jobs without map coordinates.
+    void queryAtlasPage(data, { ...query, jobIds: allPenetratedJobIds, page: { limit: 1 } }, queryOptions, { signal: abort.signal })
+      .then(({ page }) => { if (!abort.signal.aborted) setPenetrationResult({ data, query, count: page.totalJobs }); })
+      .catch(() => { if (!abort.signal.aborted) setPenetrationResult(undefined); });
+    return () => abort.abort();
+  }, [data, query, queryOptions, allPenetratedJobIds]);
 
   const effectiveSelectedJobIds = useMemo(() => {
     if (!bucket?.jobIds && !aiPenetratedJobIds) return undefined;
@@ -502,13 +585,18 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
     const set = new Set(aiPenetratedJobIds);
     return bucket.jobIds.filter((id) => set.has(id));
   }, [bucket?.jobIds, aiPenetratedJobIds]);
+  const selectedIdsKey = useMemo(() => JSON.stringify(effectiveSelectedJobIds ?? null), [effectiveSelectedJobIds]);
+  const listIdentity = useMemo(() => ({ queryIdentity, selectedIdsKey, bucketId: bucket?.id }), [queryIdentity, selectedIdsKey, bucket?.id]);
 
   const selectionKey = JSON.stringify({ ...query, mapLevel: "city", sort: undefined, aiPenetratedOnly });
   useEffect(() => { setAiBannerDismissed(false); }, [text]);
-  useEffect(() => { cancelCardClick(); cancelOfficeFocus(); setOfficeReview(undefined); setLocationChoices(undefined); setBucket(null); setSelectedId(""); setFocus(undefined); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); }, [selectionKey, dataMode]);
+  useEffect(() => { cancelCardClick(); mapActivationAbort.current?.abort(); cancelOfficeFocus(); setOfficeReview(undefined); setLocationChoices(undefined); setBucket(null); setSelectedId(""); setFocus(undefined); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); }, [selectionKey, dataMode]);
   useEffect(() => { if (!active) { cancelCardClick(); cancelOfficeFocus(); setOfficeReview(undefined); setLocationChoices(undefined); } }, [active]);
   useEffect(() => { cancelOfficeFocus(); }, [endpoint, token]);
-  useEffect(() => { cancelCardClick(); setBucket(null); recoveredOfficeSelection.current = undefined; selectedCard.current = undefined; setSelectedId(""); setLocationReview(undefined); setOfficeReview(undefined); setLocationChoices(undefined); setFocus(undefined); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); }, [data, endpoint, token]);
+  useEffect(() => { cancelCardClick(); setBucket(null); recoveredOfficeSelection.current = undefined; selectedCard.current = undefined; setSelectedId(""); setLocationReview(undefined); setOfficeReview(undefined); setLocationChoices(undefined); setFocus(undefined); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); }, [dataMode, endpoint, token]);
+  // Version-bound editing proposals must expire, but an unrelated ingestion
+  // commit must not close the reading pane. The settled query rechecks selection.
+  useEffect(() => { cancelCardClick(); setLocationReview(undefined); setOfficeReview(undefined); setLocationChoices(undefined); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); }, [data]);
   useEffect(() => {
     cancelCardClick(); setBucket(current => current?.positionBasis === "city-reference" ? null : current);
     setFocus(current => current?.positionBasis === "city-reference" ? undefined : current);
@@ -517,20 +605,22 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
   useEffect(() => {
     queryAbort.current?.abort();
     const abort = new AbortController(); queryAbort.current = abort;
-    const listKey = `${selectionKey}|${bucket?.id ?? ""}|${aiPenetratedOnly ? "penetrated" : "all"}|${data?.revision ?? 0}|${data?.jobs.length ?? 0}|${dataMode}`;
+    const listKey = `${queryKey}|${bucket?.id ?? ""}|${aiPenetratedOnly ? "penetrated" : "all"}|${dataMode}`;
     if (paging.current.key !== listKey) {
       paging.current = { key: listKey, queryId: "" };
       if (pageIndex !== 0) { setPageIndex(0); setQuerying(false); return; }
     }
     if (!data) { setResult(null); setListPage(null); setListItems([]); setQuerying(false); return; }
-    const cursor = pageIndex > 0 && paging.current.queryId ? `${paging.current.queryId}:${pageIndex * pageSize}` : undefined;
+    if (aiPenetratedOnly && !computedMetadata.ready) { setQuerying(!computedMetadata.error); return () => abort.abort(); }
+    const cursor = pageIndex > 0 && paging.current.queryId && paging.current.data === data && paging.current.options === queryOptions
+      ? `${paging.current.queryId}:${pageIndex * pageSize}` : undefined;
     setQuerying(true); setQueryError("");
     const timer = setTimeout(() => {
-      void queryAtlasPage(data, query, queryOptions, { signal: abort.signal, ...(cursor ? { cursor } : {}), selectedJobIds: effectiveSelectedJobIds }).then((next) => {
+      void queryAtlasPage(data, query, queryOptions, { signal: abort.signal, ...(cursor ? { cursor } : { pageIndex }), selectedJobIds: effectiveSelectedJobIds }).then((next) => {
         if (abort.signal.aborted || paging.current.key !== listKey) return;
-        const queryId = /^(query_[a-f0-9]{64}):/.exec(next.page.nextCursor ?? "")?.[1];
-        if (queryId) paging.current.queryId = queryId;
-        setResultData(data); setResult(next.summary); setListPage(next.page); setListItems(next.page.items); setQuerying(false);
+        paging.current.queryId = next.page.queryId; paging.current.data = data; paging.current.options = queryOptions;
+        if (next.pageIndex !== undefined && next.pageIndex !== pageIndex) setPageIndex(next.pageIndex);
+        setResultIdentity(queryIdentity); setListResultIdentity(listIdentity); setResultData(data); setResult(next.summary); setResultGeometry(next.geometry); setListPage(next.page); setListItems(next.page.items); setQuerying(false);
       }, (error: unknown) => {
         if (abort.signal.aborted || paging.current.key !== listKey) return;
         const stale = error instanceof Error && error.message.includes("请从第一页");
@@ -539,7 +629,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
       });
     }, 120);
     return () => { abort.abort(); clearTimeout(timer); };
-  }, [data, dataMode, query, queryOptions, bucket, pageIndex, pageSize, selectionKey]);
+  }, [data, dataMode, query, queryKey, queryIdentity, listIdentity, queryOptions, bucket, pageIndex, pageSize, selectionKey, effectiveSelectedJobIds, aiPenetratedOnly, computedMetadata.ready, computedMetadata.error]);
   const [broaderCounts, setBroaderCounts] = useState<{ domestic: number; global: number } | null>(null);
   useEffect(() => {
     const keyword = text.trim();
@@ -602,9 +692,10 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
       const snapshot = await readAtlasSnapshot(identity.endpoint, identity.token, { signal: abort.signal });
       if (connectionAbort.current !== abort || abort.signal.aborted || devAutoConnectSuppressed.current) return;
       restoreConnection.current = false;
+      const sameConnection = connectedIdentity.current?.endpoint === identity.endpoint && connectedIdentity.current?.token === identity.token;
       connectedIdentity.current = identity;
       if (remember && !writeAtlasConnectionSession({ schemaVersion: 1, dataMode: "live", ...identity })) setConnectionNotice("本次已连接；浏览器未允许保存标签页会话，刷新后需要重新连接。");
-      setLiveData(snapshot); setDataMode("live"); setSelectedId(""); setSettings(null); setSourceSearchMessage(""); setSourceSearchError("");
+      setLiveData(current => sameConnection && current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live"); setSelectedId(""); setSettings(null); setSourceSearchMessage(""); setSourceSearchError("");
     } catch (error) {
       if (connectionAbort.current === abort) {
         restoreConnection.current = false;
@@ -693,13 +784,61 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
     return regionText || (region ? regions.find((entry) => entry.id === region)?.label ?? region : "");
   }
 
+  const liveHarvestQuery = useMemo(() => {
+    const queryRegion = mode === "domestic"
+      ? (chinaFilter.selectedCity?.isGrouping && ["11", "12", "31", "50"].includes(chinaFilter.selectedProvince?.code ?? "")
+        ? chinaFilter.selectedProvince?.name
+        : chinaFilter.selectedCity?.name) ?? chinaFilter.selectedProvince?.name ?? ""
+      : regionText || (region ? regions.find((entry) => entry.id === region)?.label ?? region : "");
+    return {
+      keyword: text.trim() || resumePrefill.targetRole || "软件工程师",
+      ...(queryRegion ? { region: queryRegion } : {}),
+      ...(mode === "domestic" && chinaSelection.districtCode ? { districtCode: chinaSelection.districtCode } : {}),
+    };
+  }, [text, resumePrefill.targetRole, mode, chinaFilter, chinaSelection.districtCode, regionText, region, regions]);
+
+  const liveMarketScope = useRef({ mode, country });
+  useEffect(() => {
+    if (liveMarketScope.current.mode === mode && liveMarketScope.current.country === country) return;
+    liveMarketScope.current = { mode, country };
+    void harvestRecovery.cancel().catch(() => { /* Its independent status remains actionable. */ });
+    searchAbort.current?.abort();
+    searchAbort.current = null;
+    setLiveHarvest(null);
+    setLiveCommitStats(undefined);
+    setSourceSearching(false);
+    setHarvestFailed(false);
+    setHarvestCancelled(false);
+    setHarvestImportFailures([]);
+    setHarvestFailureMessage(undefined);
+    setHarvestStage({ stage: "intent-expansion", stageIndex: 1, totalStages: 5, message: "准备本轮实时搜索请求" });
+    setSourceSearchMessage("");
+    setSourceSearchError("");
+  }, [mode, country, harvestRecovery.cancel]);
+
   function formatLivePlatformNotice(summary: LivePlatformImportSummary | undefined): string {
     if (!summary) return "";
     const parts: string[] = [];
     if (summary.importedPlatforms.length > 0) {
       parts.push(
-        `🌐 全网平台实时检索（${summary.importedPlatforms.join("、")}）：共抓取 ${summary.totalCardsFetched} 条最新岗位，新增入库 ${summary.totalAdded} 岗、更新 ${summary.totalUpdated} 岗${summary.officeAddressesConfirmed > 0 || summary.companiesClassified > 0 ? `，已自动核实 ${summary.companiesClassified} 家企业性质/外企国别与 ${summary.officeAddressesConfirmed} 个办公地址坐标并点亮地图` : summary.locationsConfirmed > 0 ? `，已自动对齐 ${summary.locationsConfirmed} 个国内行政地区并点亮地图` : ""}。`,
+        `🌐 商业平台本轮实时读取（${summary.importedPlatforms.join("、")}）：读取 ${summary.totalCardsFetched} 条原站岗位卡片，新增入库 ${summary.totalAdded} 岗、更新 ${summary.totalUpdated} 岗。地区与企业信息由后台按来源自动补全，进度独立显示；未生成推测办公坐标。`,
       );
+    }
+    if (summary.platformCoverage.length > 0) {
+      parts.push(`实时采集覆盖：${summary.platformCoverage.map((entry) => {
+        const { coverage } = entry;
+        const progress = entry.provider === "boss"
+          ? `${entry.platform} ${entry.cardsCollected}条 / 虚拟列表滚动${coverage.scrollSteps}/${coverage.scrollLimit}步`
+          : `${entry.platform} ${entry.cardsCollected}条 / ${coverage.pagesVisited}页（预算${coverage.pageLimit}页）`;
+        if (entry.status === "error") return `${progress} · 失败${entry.error ? `：${entry.error}` : ""}`;
+        if (entry.status === "empty" && !coverage.partial) return `${progress} · 平台返回空列表`;
+        const stopLabel = liveHarvestStopReasonLabel(entry.status, coverage.stopReason);
+        return coverage.partial ? `${progress} · 未完成：${stopLabel}` : `${progress} · ${stopLabel}`;
+      }).join("；")}。`);
+    }
+    if (summary.importFailures.length > 0) {
+      const failedCards = summary.importFailures.reduce((total, failure) => total + failure.cards, 0);
+      parts.push(`实时卡片提交未确认 ${failedCards} 条（${summary.importFailures.map((failure) => `${failure.platform}：${failure.error}`).join("；")}）。卡片仍保留在原站实时列表；未收到成功回执不等于未写入，索引与地图以已确认结果为准。`);
     }
     if (summary.loginRequiredPlatforms.length > 0) {
       parts.push(
@@ -714,44 +853,20 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
     return parts.join(" ");
   }
 
-  async function enrichCurrentIndex() {
-    if (!connected || !liveData) return;
-    searchAbort.current?.abort();
-    const abort = new AbortController();
-    searchAbort.current = abort;
-    setSourceSearching(true);
-    setSourceSearchError("");
-    setSourceSearchMessage("正在智能核实当前岗位库的企业性质（央企/国企/外企国别/合资/民企）与办公地址 WGS84 坐标…");
-    try {
-      const client = createAtlasSourceClient(endpoint, token);
-      const enriched = await enrichSnapshotCompaniesAndOffices({
-        client,
-        snapshot: liveData,
-        fallbackChinaSelection: mode === "domestic" ? chinaSelection : undefined,
-        signal: abort.signal,
-      });
-      if (searchAbort.current !== abort || abort.signal.aborted) return;
-      setLiveData(enriched.snapshot);
-      setDataMode("live");
-      setSourceSearchMessage(
-        `已完成企业与地址智能补全：新增核实 ${enriched.companiesClassified} 家企业控股性质/国别、${enriched.officeAddressesConfirmed} 个办公地址坐标、${enriched.locationsConfirmed} 个行政区划。`,
-      );
-    } catch (error) {
-      if (searchAbort.current === abort) {
-        setSourceSearchError(error instanceof Error ? error.message : "企业性质与办公地址补全未完成。");
-      }
-    } finally {
-      if (searchAbort.current === abort) setSourceSearching(false);
-    }
+  function harvestRunInput(keyword: string): HarvestRunInput {
+    return { keyword, region: currentPlatformRegionText(), depth: searchDepth,
+      maxPages: searchDepth === "deep" ? 50 : searchDepth === "standard" ? 20 : 5,
+      chinaSelection: mode === "domestic" ? chinaSelection : undefined,
+      view: { mode, country, region, regionText } };
   }
 
-  async function searchLivePlatformsOnly() {
+  async function searchLivePlatformsOnly(restored?: { input: HarvestRunInput; checkpoint: HarvestCheckpoint; signal: AbortSignal }) {
     if (!connected) {
       setSettings("connection");
       setSourceSearchMessage("先连接本机来源服务，再执行全网平台实时抓取入库。");
       return;
     }
-    if (text.trim().length > 300) {
+    if ((restored?.input.keyword ?? text).trim().length > 300) {
       setSourceSearchError("来源搜索关键词最多 300 个字符。");
       return;
     }
@@ -760,52 +875,77 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
     searchAbort.current = abort;
     setSourceSearching(true);
     setSourceSearchError("");
-    setSourceSearchMessage("正在通过真实 Chrome CDP 从 猎聘、前程无忧 51JOB、BOSS直聘、LinkedIn 实时抓取最新岗位…");
-    setHarvestStage({ index: 1, total: 5, message: "动态检索意图与语义拓展…" });
+    setLiveHarvest(null);
+    setHarvestCancelled(false);
+    setHarvestFailed(false);
+    setPreferLiveResults(true);
+    setHarvestImportFailures([]);
+    setHarvestFailureMessage(undefined);
+    setLiveCommitStats(undefined);
+    setSearchProgress(null);
+    setSourceSearchMessage(restored ? "正在核对上次入库回执并继续未完成的平台；已完成的平台不重复读取。" : "正在通过真实 Chrome CDP 读取猎聘、前程无忧 51JOB、BOSS直聘和 LinkedIn 的本轮搜索结果…");
+    setHarvestStage({ stage: "intent-expansion", stageIndex: 1, totalStages: 5, message: "正在连接实时平台并准备本轮搜索…" });
     setSourceReview(undefined);
     setBucket(null);
     const client = createAtlasSourceClient(endpoint, token);
-    const liveKeyword = text.trim() || resumePrefill.targetRole || "软件工程师";
-    const liveRegion = currentPlatformRegionText();
+    const savedInput = restored?.input ?? harvestRunInput(text.trim() || resumePrefill.targetRole || "软件工程师");
     try {
-      const summary = await executeOpportunityHarvestChainedPipeline(
+      const execute = (checkpoint: HarvestCheckpoint, signal: AbortSignal) => executeOpportunityHarvestChainedPipeline(
         {
           client,
-          keyword: liveKeyword,
-          region: liveRegion,
-          depth: searchDepth,
-          maxPages: searchDepth === "deep" ? 30 : searchDepth === "standard" ? 15 : 5,
-          chinaSelection: mode === "domestic" ? chinaSelection : undefined,
+          checkpoint,
+          keyword: savedInput.keyword,
+          region: savedInput.region,
+          depth: savedInput.depth,
+          enrichAfterCommit: false,
+          maxPages: savedInput.maxPages,
+          chinaSelection: savedInput.chinaSelection,
           initialSnapshot: (dataMode === "live" && liveData) ? liveData : undefined,
-          signal: abort.signal,
-          onCardsCommitted: (snapshot) => {
+          signal,
+          onLiveResults: (receipt, query) => {
             if (searchAbort.current === abort && !abort.signal.aborted) {
-              setLiveData(snapshot);
+              setLiveHarvest(previous => mergeLiveHarvestViews(previous, buildLiveHarvestView(receipt, query)));
+            }
+          },
+          onLiveProgress: (event, receipt, query) => {
+            if (searchAbort.current === abort && !abort.signal.aborted) {
+              setLiveHarvest(previous => applyLiveBatchStreamEvent(previous, receipt, query, event));
+            }
+          },
+          onCardsCommitted: (snapshot, stats) => {
+            if (searchAbort.current === abort && !abort.signal.aborted) {
+              publishLiveSnapshot(snapshot);
               setDataMode("live");
-              setSourceSearching(false);
+              setLiveCommitStats(previous => mergeLiveCommitTotals(previous, stats));
             }
           },
           onSnapshotAvailable: (snapshot) => {
             if (searchAbort.current === abort && !abort.signal.aborted) {
-              setLiveData(snapshot);
+              publishLiveSnapshot(snapshot);
               setDataMode("live");
             }
           },
         },
         (progress) => {
           if (searchAbort.current === abort && !abort.signal.aborted) {
-            setHarvestStage({
-              index: progress.stageIndex,
-              total: progress.totalStages,
-              message: progress.message,
-            });
+            if (typeof progress.stats?.totalAdded === "number" && typeof progress.stats?.totalUpdated === "number") {
+              setLiveCommitStats({ totalAdded: progress.stats.totalAdded, totalUpdated: progress.stats.totalUpdated });
+            }
+            setHarvestStage(previous => toHarvestProgressState(backgroundHarvestProgress(progress), previous));
             setSourceSearchMessage(`[流水线 ${progress.stageIndex}/5] ${progress.message}`);
           }
         },
       );
+      const summary = restored
+        ? await execute(restored.checkpoint, AbortSignal.any([abort.signal, restored.signal]))
+        : await harvestRecovery.run(savedInput, execute, abort.signal);
+      if (!summary) return;
       if (searchAbort.current !== abort || abort.signal.aborted) return;
+      setLiveCommitStats({ totalAdded: summary.totalAdded, totalUpdated: summary.totalUpdated });
+      setHarvestFailed(hasIncompleteLiveHarvest(summary));
+      setHarvestImportFailures(summary.importFailures);
       if (summary.snapshot) {
-        setLiveData(summary.snapshot);
+        publishLiveSnapshot(summary.snapshot);
         setDataMode("live");
       }
       const notice = formatLivePlatformNotice(summary);
@@ -814,12 +954,18 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
       );
     } catch (error) {
       if (searchAbort.current === abort) {
+        setHarvestFailed(true);
+        setHarvestFailureMessage(error instanceof Error ? error.message : "全网平台实时抓取失败，未返回具体原因。");
+        setLiveHarvest((previous) => settleLiveHarvestView(previous, {
+          outcome: "error",
+          message: error instanceof Error ? error.message : "实时搜索流异常中断",
+        }));
         setSourceSearchError(error instanceof Error ? error.message : "全网平台实时抓取失败。");
       }
+      if (restored && !restored.signal.aborted) throw error;
     } finally {
       if (searchAbort.current === abort) {
         setSourceSearching(false);
-        setHarvestStage(null);
       }
     }
   }
@@ -829,7 +975,9 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
     const effectiveText = (overrideKeyword !== undefined ? overrideKeyword : text).trim();
     if (effectiveText.length > 300) { setSourceSearchError("来源搜索关键词最多 300 个字符。"); return; }
     searchAbort.current?.abort(); const abort = new AbortController(); searchAbort.current = abort;
-    setSourceSearching(true); setSourceSearchError(""); setSourceSearchMessage(""); setSourceReview(undefined); setBucket(null); setIntervenePlatforms([]);
+    setSourceSearching(true); setSourceSearchError(""); setSourceSearchMessage(""); setSourceReview(undefined); setBucket(null); setIntervenePlatforms([]); setLiveHarvest(null);
+    setPreferLiveResults(true); setLiveCommitStats(undefined); setSearchProgress(null); setHarvestStage(null); setHarvestCancelled(false); setHarvestFailed(false);
+    setHarvestImportFailures([]); setHarvestFailureMessage(undefined);
     const client = createAtlasSourceClient(endpoint, token);
     const requestIdentities = new Map<string, string>();
     const scopeCountry = mode === "global" ? country : "";
@@ -839,47 +987,68 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
     // Serialize snapshot refreshes so a slower, older response cannot replace a newer index.
     let refresh: Promise<void> = Promise.resolve();
     const enableLiveCommercialSearch = import.meta.env?.DEV === true && !searchSourceId;
+    if (enableLiveCommercialSearch) {
+      setHarvestStage({ stage: "intent-expansion", stageIndex: 1, totalStages: 5, message: "正在连接实时平台并准备本轮搜索…" });
+    }
     const liveKeyword = effectiveText || resumePrefill.targetRole || "软件工程师";
-    const liveRegion = currentPlatformRegionText();
+    const liveInput = harvestRunInput(liveKeyword);
     let liveSummary: LivePlatformImportSummary | undefined;
+    let liveCommercialError: Error | undefined;
     const liveCommercialPromise: Promise<void> = enableLiveCommercialSearch
-      ? executeOpportunityHarvestChainedPipeline(
+      ? harvestRecovery.run(liveInput, (checkpoint, signal) => executeOpportunityHarvestChainedPipeline(
           {
             client,
+            checkpoint,
             keyword: liveKeyword,
-            region: liveRegion,
+            region: liveInput.region,
             depth: searchDepth,
-            maxPages: searchDepth === "deep" ? 30 : searchDepth === "standard" ? 15 : 5,
+            enrichAfterCommit: false,
+            maxPages: searchDepth === "deep" ? 50 : searchDepth === "standard" ? 20 : 5,
             chinaSelection: mode === "domestic" ? chinaSelection : undefined,
             initialSnapshot: (dataMode === "live" && liveData) ? liveData : undefined,
-            signal: abort.signal,
-            onCardsCommitted: (snapshot) => {
+            signal,
+            onLiveResults: (receipt, query) => {
               if (searchAbort.current === abort && !abort.signal.aborted) {
-                setLiveData(snapshot);
+                setLiveHarvest(previous => mergeLiveHarvestViews(previous, buildLiveHarvestView(receipt, query)));
+              }
+            },
+            onLiveProgress: (event, receipt, query) => {
+              if (searchAbort.current === abort && !abort.signal.aborted) {
+                setLiveHarvest(previous => applyLiveBatchStreamEvent(previous, receipt, query, event));
+              }
+            },
+            onCardsCommitted: (snapshot, stats) => {
+              if (searchAbort.current === abort && !abort.signal.aborted) {
+                publishLiveSnapshot(snapshot);
                 setDataMode("live");
-                if (!selectedSearchSources.length) {
-                  setSourceSearching(false);
-                }
+                setLiveCommitStats(previous => mergeLiveCommitTotals(previous, stats));
               }
             },
             onSnapshotAvailable: (snapshot) => {
               if (searchAbort.current === abort && !abort.signal.aborted) {
-                setLiveData(snapshot);
+                publishLiveSnapshot(snapshot);
                 setDataMode("live");
               }
             },
           },
           (progress) => {
             if (searchAbort.current === abort && !abort.signal.aborted) {
+              if (typeof progress.stats?.totalAdded === "number" && typeof progress.stats?.totalUpdated === "number") {
+                setLiveCommitStats({ totalAdded: progress.stats.totalAdded, totalUpdated: progress.stats.totalUpdated });
+              }
+              setHarvestStage(previous => toHarvestProgressState(backgroundHarvestProgress(progress), previous));
               setSourceSearchMessage(`[全网实时检索 ${progress.stageIndex}/5] ${progress.message}`);
             }
           },
-        )
+        ), abort.signal)
           .then((summary) => {
-            if (abort.signal.aborted || searchAbort.current !== abort) return;
+            if (!summary || abort.signal.aborted || searchAbort.current !== abort) return;
             liveSummary = summary;
+            setHarvestFailed(hasIncompleteLiveHarvest(summary));
+            setHarvestImportFailures(summary.importFailures);
+            setLiveCommitStats({ totalAdded: summary.totalAdded, totalUpdated: summary.totalUpdated });
             if (summary.snapshot) {
-              setLiveData(summary.snapshot);
+              publishLiveSnapshot(summary.snapshot);
               setDataMode("live");
             }
             if (summary.loginRequiredPlatforms.length > 0 || summary.verificationRequiredPlatforms.length > 0) {
@@ -890,16 +1059,27 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
             const notice = formatLivePlatformNotice(summary);
             if (notice) setSourceSearchMessage(notice);
           })
-          .catch(() => {})
+          .catch((error: unknown) => {
+            if (abort.signal.aborted || searchAbort.current !== abort) return;
+            liveCommercialError = error instanceof Error ? error : new Error("全网平台实时抓取失败。");
+            setHarvestFailed(true);
+            setHarvestFailureMessage(liveCommercialError.message);
+            setLiveHarvest((previous) => settleLiveHarvestView(previous, {
+              outcome: "error",
+              message: liveCommercialError!.message,
+            }));
+            setSourceSearchError(liveCommercialError.message);
+          })
       : Promise.resolve();
 
     if (!selectedSearchSources.length) {
       try {
         await liveCommercialPromise;
         if (searchAbort.current !== abort) return;
+        if (liveCommercialError) throw liveCommercialError;
         const liveNotice = formatLivePlatformNotice(liveSummary);
         setSourceSearchMessage(
-          liveNotice || `已完成全网平台（51Job · BOSS · 猎聘 · 领英）实时检索与流式入库。`,
+          liveNotice || "本轮没有收到平台采集回执，未确认有新岗位入库。",
         );
       } catch (error) {
         if (searchAbort.current === abort) setSourceSearchError(error instanceof Error ? error.message : "全网平台实时抓取失败。");
@@ -940,7 +1120,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
             try {
               const snapshot = await client.snapshot({ signal: AbortSignal.any([abort.signal, timeout.signal]) });
               if (abort.signal.aborted || searchAbort.current !== abort) return;
-              setLiveData(snapshot); setDataMode("live");
+              publishLiveSnapshot(snapshot); setDataMode("live");
             } finally { clearTimeout(timer); }
           });
           await refresh;
@@ -955,19 +1135,23 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
       const pendingRequirements = receipts.reduce((n, entry) => n + (entry.receipt?.run.summary?.needsHuman ?? 0), 0);
       const liveNotice = formatLivePlatformNotice(liveSummary);
       const totalAddedAll = added + (liveSummary?.totalAdded ?? 0) + (liveSummary?.totalUpdated ?? 0);
-      setSourceSearchMessage(`${liveNotice ? `${liveNotice} · ` : ""}${aggregate.cancelled ? "已停止等待" : "本次配置来源读取已结束"} · ${receipts.length}/${aggregate.total} 个来源返回回执，原始返回 ${records} 条，新增入库 ${added} 岗。原始条数不代表匹配岗位数；仅已确认匹配的结果进入索引。${pendingRequirements ? ` 另有 ${pendingRequirements} 条候选要求未读全，尚不能判断是否符合。` : ""}${failed ? ` ${failed} 个来源未成功，请展开逐源状态。` : ""}${aggregate.cancelled ? " 未确认的请求可能已保存部分数据，可重新读取索引核对。" : ""}${totalAddedAll === 0 ? " 💡 提示：企业官网公开源可能受海外网络或配额限制（如 ABB 等）；已自动为您展开下方的【全网商业平台聚合搜索】，配合【真实 Chrome 防反爬接管】可快速从 BOSS直聘、猎聘、51JOB 等全平台获取国内最新岗位。" : ""}`);
+      setSourceSearchMessage(`${liveNotice ? `${liveNotice} · ` : ""}${aggregate.cancelled ? "已停止等待" : "本次配置来源读取已结束"} · ${receipts.length}/${aggregate.total} 个来源返回回执，原始返回 ${records} 条，新增入库 ${added} 岗。原始条数不代表匹配岗位数；仅已确认匹配的结果进入索引。${pendingRequirements ? ` 另有 ${pendingRequirements} 条候选要求未读全，尚不能判断是否符合。` : ""}${failed ? ` ${failed} 个来源未成功，请展开逐源状态。` : ""}${aggregate.cancelled ? " 未确认的请求可能已保存部分数据，可重新读取索引核对。" : ""}${totalAddedAll === 0 ? " 💡 提示：企业官网公开源可能受网络或配额限制；已展开【全网商业平台聚合】，可查看平台当前页面在本轮预算内返回的岗位卡片，登录/验证需由你本人在 Chrome 中完成。" : ""}`);
       if (totalAddedAll === 0) setPlatformSearchOpen(true);
-      if (failed) setSourceSearchError(aggregate.sources.filter((entry) => entry.error || entry.status === "failed").map((entry) => `${entry.label}：${entry.error?.message ?? entry.receipt?.sourceError?.code ?? "来源读取失败"}`).join("；"));
+      if (failed || liveCommercialError) setSourceSearchError([
+        liveCommercialError?.message,
+        ...aggregate.sources.filter((entry) => entry.error || entry.status === "failed").map((entry) => `${entry.label}：${entry.error?.message ?? entry.receipt?.sourceError?.code ?? "来源读取失败"}`),
+      ].filter(Boolean).join("；"));
       if (aggregate.notificationErrors.length) setSourceSearchError("部分来源已返回，但索引展示刷新未完成，请点击“重新读取索引”核对。来源回执已保留。");
     } catch (error) {
       if (searchAbort.current === abort) setSourceSearchError(error instanceof Error ? error.message : "聚合来源搜索失败。");
     } finally { if (searchAbort.current === abort) setSourceSearching(false); }
   }
   const visibleItems = useMemo(() => {
-    if (resultData !== data) return [];
+    if (preferLiveResults && !bucket && liveHarvest && matchesLiveHarvestQuery(liveHarvest, liveHarvestQuery)) return [];
+    if (!result || listResultIdentity !== listIdentity) return [];
     return listItems.filter((item) => {
       if (salaryFilter && !matchCardSalary(item, salaryFilter)) return false;
-      if (pubFilter && !matchCardPublication(item, pubFilter, presentListing?.(item), data)) return false;
+      if (pubFilter && !matchCardPublication(item, pubFilter, presentListing?.(item), displayedData)) return false;
       if (distanceFilter && anchor && !matchCardDistance(item, distanceFilter)) return false;
       if (distanceFilter === "exact" && (item.distance?.estimated || !item.distance)) return false;
       if (aiPenetratedOnly) {
@@ -976,9 +1160,31 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
       }
       return true;
     });
-  }, [resultData, data, listItems, salaryFilter, pubFilter, distanceFilter, anchor, presentListing, aiPenetratedOnly, text]);
-  const selected = visibleItems.find((item) => item.job.id === selectedId)
-    ?? (selectedCard.current?.job.id === selectedId && data?.jobs.some((job) => job.id === selectedId) ? selectedCard.current : undefined);
+  }, [preferLiveResults, bucket, liveHarvest, liveHarvestQuery, result, listResultIdentity, listIdentity, displayedData, listItems, salaryFilter, pubFilter, distanceFilter, anchor, presentListing, aiPenetratedOnly, text]);
+  const activeLiveHarvest = preferLiveResults && !bucket && liveHarvest && matchesLiveHarvestQuery(liveHarvest, liveHarvestQuery)
+    ? liveHarvest
+    : null;
+  const showHarvestStatus = Boolean(activeLiveHarvest || harvestStage && (harvestStage.stage !== "intent-expansion"
+    || sourceSearching || harvestFailed || harvestCancelled || Object.keys(harvestStage.stats ?? {}).length));
+  const unlocatedVisibleItems = useMemo(() => visibleItems.filter((item) => !mappableJobIds.has(item.job.id)), [visibleItems, mappableJobIds]);
+  function beginAddressEnrichment() {
+    if (!connected || dataMode !== "live") return;
+    // The review pane can also re-check an existing office. The map footer
+    // calls this with missing-address rows; the folded workspace entry keeps
+    // the broader review behavior for the current page.
+    const candidates = unlocatedVisibleItems.length ? unlocatedVisibleItems : visibleItems;
+    const jobIds = candidates.slice(0, 50).map((item) => item.job.id);
+    if (!jobIds.length) {
+      setSourceSearchMessage("当前页岗位已有来源坐标，或尚未完成列表读取；没有可补全的岗位。");
+      return;
+    }
+    cancelOfficeFocus();
+    setDetailReviewJobId("");
+    setEnrichmentScope(jobIds);
+  }
+  const selected = result && listPage?.totalJobs !== 0 && listResultIdentity === listIdentity ? visibleItems.find((item) => item.job.id === selectedId)
+    ?? (recheckedSelection?.data === data && recheckedSelection.identity === listIdentity && recheckedSelection.item.job.id === selectedId ? recheckedSelection.item : undefined)
+    ?? (selectedCard.current?.job.id === selectedId && data?.jobs.some((job) => job.id === selectedId) ? selectedCard.current : undefined) : undefined;
   useEffect(() => {
     const request = officeFocusRequest;
     if (!request) return;
@@ -1004,24 +1210,58 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
     return () => abort.abort();
   }, [officeFocusRequest, active, connected, dataMode, data, selectionKey, endpoint, token, query, queryOptions]);
   useEffect(() => {
-    if (resultData !== data || !rawResult || !selectedId || listItems.some(item => item.job.id === selectedId)) return;
+    if (!active || !data || resultData !== data || listResultIdentity !== listIdentity || !rawResult || !selectedId || listItems.some(item => item.job.id === selectedId)) return;
+    const abort = new AbortController();
+    const discard = () => {
+      selectedCard.current = undefined; setSelectedId(""); setRecheckedSelection(undefined); setLocationReview(undefined); setOfficeReview(undefined); setLocationChoices(undefined); setFocus(undefined);
+      locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined);
+    };
+    // An authoritative empty scope already excludes the selected job. Do not
+    // retain a revoked fact while scheduling an unnecessary second query.
+    if (listPage?.totalJobs === 0 || effectiveSelectedJobIds && !effectiveSelectedJobIds.includes(selectedId)) { discard(); return; }
     const recovered = recoveredOfficeSelection.current;
     if (recovered?.data === data && recovered.selectionKey === selectionKey && recovered.jobId === selectedId) return;
-    // A saved location may remove this job from the active area. Discard the old card's facts.
-    selectedCard.current = undefined; setSelectedId(""); setLocationReview(undefined); setOfficeReview(undefined); setLocationChoices(undefined); setFocus(undefined);
-    locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined);
-  }, [data, resultData, rawResult, selectedId, listItems, selectionKey]);
+    if (recheckedSelection?.data === data && recheckedSelection.identity === listIdentity && recheckedSelection.item.job.id === selectedId) return;
+    // New jobs may push the selected one off this page without removing it from
+    // the search. Recheck that single job; page membership is not query membership.
+    void queryAtlasPage(data, { ...query, page: { limit: 1 } }, queryOptions, { selectedJobIds: [selectedId], signal: abort.signal }).then(next => {
+      if (abort.signal.aborted) return;
+      const item = next.page.items.find(value => value.job.id === selectedId);
+      if (!item) { discard(); return; }
+      selectedCard.current = item; setRecheckedSelection({ data, identity: listIdentity, item });
+    }, () => { if (!abort.signal.aborted) discard(); });
+    return () => abort.abort();
+  }, [active, data, resultData, rawResult, listPage, listResultIdentity, listIdentity, selectedId, listItems, selectionKey, effectiveSelectedJobIds, query, queryOptions, recheckedSelection]);
   function openJob(item: JobSearchItem) {
     cancelCardClick();
     setDetailReviewJobId(""); setEnrichmentScope(null);
     if (selectedId !== item.job.id) { cancelOfficeFocus(); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); setOfficeReview(undefined); setLocationChoices(undefined); }
     selectedCard.current = item; setSelectedId(item.job.id);
   }
+  function activateMapBucket(next: MapBucket) {
+    const jobId = next.jobIds[0];
+    if (!jobId || !data) return;
+    // A map bucket can contain a job beyond the current list page. Resolve that
+    // one ID against the same query before opening the reading pane, so every
+    // source-backed address has a deterministic next action.
+    const current = listItems.find((item) => item.job.id === jobId);
+    if (current) { openJob(current); return; }
+    mapActivationAbort.current?.abort();
+    const abort = new AbortController(); mapActivationAbort.current = abort;
+    void queryAtlasPage(data, { ...query, page: { limit: 1 } }, queryOptions, { signal: abort.signal, selectedJobIds: [jobId] }).then(({ page }) => {
+      if (abort.signal.aborted) return;
+      const item = page.items.find((entry) => entry.job.id === jobId);
+      if (item) openJob(item);
+    }).catch((error: unknown) => {
+      if (!abort.signal.aborted) setSourceSearchError(error instanceof Error ? error.message : "无法打开该办公地址对应的岗位。");
+    });
+  }
   function clickJob(item: JobSearchItem, detail: number) {
     cancelCardClick();
-    // The desktop reading column is always reserved, keeping the card under the pointer.
-    // Smaller layouts can still move the card when details appear; preserve their double-click window.
-    if (detail === 0 || layout === "wide") openJob(item);
+    // Opening the optional JD pane can move the card, even on desktop. Preserve
+    // its native double-click target until that window ends; keyboard stays instant.
+    const readingPaneOpen = Boolean((selected && data) || detailReviewJobId || enrichmentScope);
+    if (detail === 0 || readingPaneOpen) openJob(item);
     else if (detail === 1) cardClickTimer.current = setTimeout(() => openJob(item), 520);
   }
   function closeJob() { cancelCardClick(); cancelOfficeFocus(); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); setOfficeReview(undefined); setLocationChoices(undefined); setSelectedId(""); setFocus(undefined); }
@@ -1091,10 +1331,10 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
     setAiPenetratedOnly(false);
   }
 
-  return <section ref={workspace} className="atlas-workspace" data-pane-layout={layout} aria-label={t("岗位地图", "Opportunity atlas")}>
+  return <section ref={workspace} className="atlas-workspace atlas-experience" data-pane-layout={layout} data-flexible-layout aria-label={t("岗位地图", "Opportunity atlas")}>
     <div className="atlas-command">
-    <div className="atlas-heading"><div><span className="atlas-eyebrow">BETTERME / OPPORTUNITY ATLAS</span><h1>{t("让下一个机会，有迹可循。", "Find where your next chapter begins.")}</h1><p>{t("从全球视野，找到与你更近的工作。", "Explore opportunities across the world, and closer to home.")}</p></div><details className="atlas-top-actions"><summary>地图与连接</summary><button onClick={() => setSettings(settings === "maps" ? null : "maps")}><Globe2 size={15} />地图服务</button><button onClick={() => setSettings(settings === "home" ? null : "home")}><Home size={15} />{anchor ? t("已设置家庭参照点", "Home set") : t("设置离家距离", "Set home distance")}</button><button onClick={() => setSettings(settings === "connection" ? null : "connection")}><Database size={15} />{t("连接本机服务", "Connect local service")}</button></details></div>
-    <div className={`atlas-data-banner ${dataMode}`} role="status"><span className="atlas-status-dot" /><strong>{dataMode === "demo" ? "演示模式 · 非真实招聘" : dataMode === "live" ? "真实来源 · 本机索引" : "真实来源 · 当前机会库"}</strong><span>{dataMode === "demo" ? "企业、岗位和薪资均为合成样本，不计入真实岗位。" : `${data?.jobs.length ?? 0} 个来源岗位 · ${text.trim() ? `关键词“${text.trim()}”${scopePlace ? `在${scopePlace}` : ""}命中 ${result?.totalJobs ?? 0} 岗 · ` : ""}${dataMode === "local" ? "只在本页读取公开岗位字段，原机会库不变" : connecting ? "正在连接并读取本机索引…" : liveData ? `索引版本 ${liveData.revision} · 手动刷新` : "索引尚未读取 · 请重试连接"}`}</span><label className="atlas-data-selector">数据视图<select aria-label="岗位数据视图" value={dataMode} onChange={(e) => chooseDataMode(e.target.value as AtlasDataMode)}><option value="local">当前机会库 · 真实来源</option><option value="live">本机采集索引 · 真实来源</option><option value="demo">合成演示 · 仅体验地图</option></select></label><details className="atlas-banner-tools"><summary>索引工具</summary>{dataMode === "local" && <button disabled={localLoading} onClick={() => setLocalReload((n) => n + 1)}>{localLoading ? "正在读取…" : "重新读取机会库"}</button>}{dataMode === "live" && <button disabled={connecting} onClick={() => { restoreConnection.current = false; if (devJobIndex && !token.trim() && !devAutoConnectSuppressed.current) void bootstrapDevIndex(); else void connect({ endpoint, token }, true); }}>重新读取索引</button>}<button onClick={() => { setSourcesOpen(!sourcesOpen); setReconciliationOpen(false); setSettings(null); }}>来源工具</button>{dataMode === "live" && connected && <button aria-expanded={reconciliationOpen} onClick={() => { setReconciliationOpen(!reconciliationOpen); setSourcesOpen(false); }}>重复岗位核对</button>}{onOpenOpportunitySources && <button onClick={onOpenOpportunitySources}>全平台单岗读取（BOSS · 猎聘 · 51 · 领英 · Seek · Indeed · GradConnection）</button>}</details></div>
+    <div className="atlas-heading"><div className="atlas-heading-copy"><span className="atlas-eyebrow">BETTERME / OPPORTUNITY ATLAS</span><h1>{t("让下一个机会，有迹可循。", "Find where your next chapter begins.")}</h1><p>{t("从全球视野，找到与你更近的工作。", "Explore opportunities across the world, and closer to home.")}</p></div><AtlasIllustration compact interactive={false} /><details className="atlas-top-actions"><summary>地图与连接</summary><button onClick={() => setSettings(settings === "maps" ? null : "maps")}><Globe2 size={15} />地图服务</button><button onClick={() => setSettings(settings === "home" ? null : "home")}><Home size={15} />{anchor ? t("已设置家庭参照点", "Home set") : t("设置离家距离", "Set home distance")}</button><button onClick={() => setSettings(settings === "connection" ? null : "connection")}><Database size={15} />{t("连接本机服务", "Connect local service")}</button></details></div>
+    <div className={`atlas-data-banner ${dataMode}`} role="status"><span className="atlas-status-dot" /><strong>{dataMode === "demo" ? "演示模式 · 非真实招聘" : dataMode === "live" ? "真实来源 · 本机索引" : "真实来源 · 当前机会库"}</strong><span>{dataMode === "demo" ? "企业、岗位和薪资均为合成样本，不计入真实岗位。" : `${data?.jobs.length ?? 0} 个来源岗位 · ${text.trim() ? `关键词“${text.trim()}”${scopePlace ? `在${scopePlace}` : ""}命中 ${result?.totalJobs ?? (querying ? "—" : 0)} 岗 · ` : ""}${dataMode === "local" ? "只在本页读取公开岗位字段，原机会库不变" : connecting ? "正在连接并读取本机索引…" : liveData ? `索引版本 ${liveData.revision} · 手动刷新` : "索引尚未读取 · 请重试连接"}`}</span><label className="atlas-data-selector">数据视图<select aria-label="岗位数据视图" value={dataMode} onChange={(e) => chooseDataMode(e.target.value as AtlasDataMode)}><option value="local">当前机会库 · 真实来源</option><option value="live">本机采集索引 · 真实来源</option><option value="demo">合成演示 · 仅体验地图</option></select></label><details className="atlas-banner-tools"><summary>索引工具</summary>{dataMode === "local" && <button disabled={localLoading} onClick={() => setLocalReload((n) => n + 1)}>{localLoading ? "正在读取…" : "重新读取机会库"}</button>}{dataMode === "live" && <button disabled={connecting} onClick={() => { restoreConnection.current = false; if (devJobIndex && !token.trim() && !devAutoConnectSuppressed.current) void bootstrapDevIndex(); else void connect({ endpoint, token }, true); }}>重新读取索引</button>}<button onClick={() => { setSourcesOpen(!sourcesOpen); setReconciliationOpen(false); setSettings(null); }}>来源工具</button>{dataMode === "live" && connected && <button aria-expanded={reconciliationOpen} onClick={() => { setReconciliationOpen(!reconciliationOpen); setSourcesOpen(false); }}>重复岗位核对</button>}{onOpenOpportunitySources && <button onClick={onOpenOpportunitySources}>全平台单岗读取（BOSS · 猎聘 · 51 · 领英 · Seek · Indeed · GradConnection）</button>}</details></div>
     {connectionError && <p role="alert" className="atlas-error">{connectionError}</p>}
     {connectionNotice && <p role="status" className="atlas-small">{connectionNotice}</p>}
     {localError && dataMode === "local" && <p role="alert" className="atlas-error">{localError}</p>}
@@ -1105,7 +1345,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
     }} /></Suspense>}
     {sourcesOpen && <Suspense fallback={<p role="status">正在加载来源工具…</p>}><AtlasSourcesPanel endpoint={endpoint} token={token} onSnapshot={(snapshot) => { searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live"); }} onClose={() => setSourcesOpen(false)} /></Suspense>}
     {settings && <div className="atlas-settings"><button className="atlas-panel-close" aria-label="关闭地图设置" onClick={() => setSettings(null)}><X size={17} /></button>
-      {settings === "maps" && <div><h2>地图与街道底图</h2><p>全球与国内均使用同一经纬度视图，可连续缩放至街道。开放底图无需 API Key；联网底图会向所选服务请求当前视野的瓦片，离线轮廓不请求外部地图服务。</p><label className="atlas-basemap-select">底图来源<select value={basemapId} onChange={(e) => { setBasemapId(e.target.value); setMapError(""); }}><option value="auto">OpenFreeMap · 跟随浅深主题</option>{ATLAS_BASEMAPS.map((provider) => <option value={provider.id} key={provider.id}>{provider.name}</option>)}<option value="offline">本地概览 · 离线边界</option></select></label><p className="atlas-small">道路、建筑、门牌和地名是否显示取决于底图覆盖。城市级岗位不会显示成精确办公地址。Google 地图可从岗位详情的“Google 地图”入口打开；内嵌 Google Maps 尚未启用，需要个人 Key、服务权限及对应计费配置。</p></div>}
+      {settings === "maps" && <div><h2>地图与街道底图</h2><p>全球与国内均使用同一经纬度视图，可连续缩放至街道。开放底图无需 API Key；联网底图会向所选服务请求当前视野的瓦片，离线轮廓不请求外部地图服务。</p><label className="atlas-basemap-select">底图来源<select value={basemapId} onChange={(e) => { setBasemapId(e.target.value); setMapError(""); }}><option value="auto">OpenFreeMap · 跟随浅深主题</option>{ATLAS_BASEMAPS.map((provider) => <option value={provider.id} key={provider.id}>{provider.name}</option>)}<option value="offline">本地概览 · 离线边界</option></select></label><p className="atlas-small">道路、建筑、门牌和地名是否显示取决于底图覆盖；仅对含高度属性的底图建筑做 3D 表现，不代表实测楼高。离线省域立体效果是概览示意，不代表实测地形。城市级岗位不会显示成精确办公地址。“三维地球”由 Cesium 渲染本地概略边界，不含卫星影像。地图内“实景 3D / 数据与画质”可加载 Google 摄影测量 3D Tiles 或获准使用的 3D Tiles，需自行配置服务权限、Key 与可能的计费；Key 仅保留在当前页面内存。上海街区覆盖需实测，不能用城市中心或模型网格推断办公地址。</p></div>}
       {settings === "connection" && <form onSubmit={(e) => { e.preventDefault(); devAutoConnectSuppressed.current = false; clearAtlasDevAutoConnectSuppressed(); restoreConnection.current = false; void connect({ endpoint, token }, true); }}><h2>{t("连接你的本机岗位索引", "Connect your local job index")}</h2><p>{import.meta.env?.DEV ? "本机开发页会自动连接 127.0.0.1:5178 并读取索引，不必手填服务地址和访问令牌。" : "公网页面没有本地开发接口，仍需填写本机服务地址和访问令牌。"}允许当前网页 Origin：<code>{window.location.origin}</code>。连接成功后，访问令牌仅保留在当前标签页的会话存储中，刷新可恢复连接；断开并清除后，这个标签页不会马上再自动连接。令牌不写入永久存储或网址。</p><div className="atlas-form-row"><label>服务地址<input value={endpoint} onChange={(e) => changeConnection("endpoint", e.target.value)} placeholder="http://127.0.0.1:5178" /></label><label>访问令牌<input type="password" autoComplete="off" value={token} onChange={(e) => changeConnection("token", e.target.value)} /></label><button type="submit" disabled={connecting}>{connecting ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}{connecting ? "正在连接" : "连接并读取索引"}</button><button type="button" onClick={disconnect}>断开并清除会话连接</button></div><p className="atlas-small">读取公开岗位快照，在本页执行共享查询。家庭参照坐标不发送给服务。公网 HTTPS 页面连接本机可能需要浏览器本地网络授权；完整体验建议使用本机网页。</p></form>}
       {settings === "home" && (
         <form onSubmit={(e) => {
@@ -1212,7 +1452,20 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
         {prefillNotice && <p className="atlas-prefill-notice" role="status"><Check size={13} /> {prefillNotice}</p>}
       </div>
     )}
-    <form className="atlas-searchbar" onSubmit={(e) => { e.preventDefault(); void searchSourceJobs(); }}><label className="atlas-search"><Search size={18} /><input aria-label="搜索地图岗位" value={text} onChange={(e) => setText(e.target.value)} placeholder={t("关键词、技能或公司", "Role, skill, or company")} /></label>{mode === "domestic" ? <div className="atlas-domestic-region" role="group" aria-label="国内省市区筛选"><span>中国</span><select aria-label="工作省份" value={chinaSelection.provinceCode ?? ""} onChange={(e) => setChinaSelection({ provinceCode: e.target.value || undefined })}><option value="">全部省份</option>{getChinaProvinces().map((entry) => <option key={entry.code} value={entry.code}>{entry.label}</option>)}</select><select aria-label="工作城市" disabled={!chinaCities.length} value={chinaSelection.cityCode ?? ""} onChange={(e) => setChinaSelection({ provinceCode: chinaSelection.provinceCode, cityCode: e.target.value || undefined })}><option value="">全部城市</option>{chinaCities.map((entry) => <option key={entry.code} value={entry.code}>{entry.label}</option>)}</select><select aria-label="工作区县" disabled={!chinaDistricts.length} value={chinaSelection.districtCode ?? ""} onChange={(e) => setChinaSelection({ ...chinaSelection, districtCode: e.target.value || undefined })}><option value="">全部区 / 县</option>{chinaDistricts.map((entry) => <option key={entry.code} value={entry.code}>{entry.label}</option>)}</select></div> : <><select aria-label="工作国家或地区" value={country} onChange={(e) => { setCountry(e.target.value); setRegion(""); setRegionText(""); }}><option value="">{t("所有国家 / 地区", "All countries / regions")}</option>{countries.map((c) => <option key={c} value={c}>{countryName(c)}</option>)}</select><label className="atlas-region-search"><MapPin size={15} /><input aria-label="工作城市或地区关键词" value={regionText} onChange={(e) => { setRegionText(e.target.value); setRegion(""); }} placeholder="城市 / 地区，如北京、Berlin" maxLength={300} /></label></>}<details className="atlas-fetch-options"><summary>获取方式</summary>{searchableSources.length > 0 && <select aria-label="搜索原始来源" value={searchSourceId} onChange={(e) => { searchAbort.current?.abort(); setSearchSourceId(e.target.value); }}><option value="">已配置岗位来源（{searchableSources.length}）</option>{searchableSources.map((entry) => <option key={entry.sourceId} value={entry.sourceId}>{entry.attribution.label}{entry.remoteFilters.includes("roles") ? " · 实时关键词" : " · 来源岗位"}</option>)}</select>}<select aria-label="来源读取范围" value={searchDepth} onChange={(e) => setSearchDepth(e.target.value as "quick" | "standard" | "deep")}><option value="deep">深度采集 · 遍历全部分页（最多 10~15 页）</option><option value="standard">标准模式 · 采集 3~5 页</option><option value="quick">快速模式 · 采集 1~2 页</option></select><select aria-label="并发同步数量" value={searchConcurrency} onChange={(e) => { const val = Number(e.target.value); setSearchConcurrency(val); try { localStorage.setItem("better-me:atlas-concurrency", String(val)); } catch {} }}><option value={16}>全源同时并发（极速）</option><option value={6}>6 源并发</option><option value={4}>4 源并发</option><option value={2}>2 源并发（排队）</option></select></details><button className="atlas-source-search" type="submit" disabled={sourceSearching || connecting}>{sourceSearching ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}{connected ? "从来源获取岗位" : "连接真实来源搜索"}</button><button type="button" className="atlas-auth-hub-trigger" title="全网平台统一登录与会话接管中心（BOSS直聘 · 猎聘 · 51JOB · 领英）" onClick={() => setAuthHubOpen(true)}><KeyRound size={15} />平台登录态</button><button type="button" aria-expanded={platformSearchOpen} className="atlas-platform-trigger" title="BOSS · 猎聘 · 51 · 领英 · Seek · Indeed · GradConnection · 官网" onClick={() => setPlatformSearchOpen(!platformSearchOpen)}>全网平台</button><button type="button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(!filtersOpen)}><SlidersHorizontal size={16} />{t("筛选", "Filters")}</button></form>
+    <form className="atlas-searchbar" onSubmit={(e) => { e.preventDefault(); void searchSourceJobs(); }}><label className="atlas-search"><Search size={18} /><input aria-label="搜索地图岗位" aria-describedby="atlas-search-help" value={text} onChange={(e) => setText(e.target.value)} placeholder={t("关键词、技能或公司", "Role, skill, or company")} />{text && <button type="button" className="atlas-search-clear" aria-label="清除岗位关键词" onClick={() => setText("")}><X size={14} /></button>}</label>{mode === "domestic" ? <div className="atlas-domestic-region" role="group" aria-label="国内省市区筛选"><span>中国</span><select aria-label="工作省份" value={chinaSelection.provinceCode ?? ""} onChange={(e) => setChinaSelection({ provinceCode: e.target.value || undefined })}><option value="">全部省份</option>{getChinaProvinces().map((entry) => <option key={entry.code} value={entry.code}>{entry.label}</option>)}</select><select aria-label="工作城市" disabled={!chinaCities.length} value={chinaSelection.cityCode ?? ""} onChange={(e) => setChinaSelection({ provinceCode: chinaSelection.provinceCode, cityCode: e.target.value || undefined })}><option value="">全部城市</option>{chinaCities.map((entry) => <option key={entry.code} value={entry.code}>{entry.label}</option>)}</select><select aria-label="工作区县" disabled={!chinaDistricts.length} value={chinaSelection.districtCode ?? ""} onChange={(e) => setChinaSelection({ ...chinaSelection, districtCode: e.target.value || undefined })}><option value="">全部区 / 县</option>{chinaDistricts.map((entry) => <option key={entry.code} value={entry.code}>{entry.label}</option>)}</select></div> : <><select aria-label="工作国家或地区" value={country} onChange={(e) => { setCountry(e.target.value); setRegion(""); setRegionText(""); }}><option value="">{t("所有国家 / 地区", "All countries / regions")}</option>{countryOptions}</select><label className="atlas-region-search"><MapPin size={15} /><input aria-label="工作城市或地区关键词" value={regionText} onChange={(e) => { setRegionText(e.target.value); setRegion(""); }} placeholder="城市 / 地区，如北京、Berlin" maxLength={300} /></label></>}<details className="atlas-fetch-options"><summary>获取方式</summary>{searchableSources.length > 0 && <select aria-label="搜索原始来源" value={searchSourceId} onChange={(e) => { searchAbort.current?.abort(); setSearchSourceId(e.target.value); }}><option value="">已配置岗位来源（{searchableSources.length}）</option>{searchableSources.map((entry) => <option key={entry.sourceId} value={entry.sourceId}>{entry.attribution.label}{entry.remoteFilters.includes("roles") ? " · 实时关键词" : " · 来源岗位"}</option>)}</select>}<select aria-label="来源读取范围" value={searchDepth} onChange={(e) => setSearchDepth(e.target.value as "quick" | "standard" | "deep")}><option value="deep">深度采集 · 最多 50 页 / 每平台 3000 岗</option><option value="standard">标准模式 · 最多 20 页 / 每平台 1500 岗</option><option value="quick">快速模式 · 最多 5 页 / 每平台 500 岗</option></select><small>预算、登录验证、无新增等情况会提前停止；上限不代表网站总量。</small><select aria-label="并发同步数量" value={searchConcurrency} onChange={(e) => { const val = Number(e.target.value); setSearchConcurrency(val); try { localStorage.setItem("better-me:atlas-concurrency", String(val)); } catch {} }}><option value={16}>全源同时并发（极速）</option><option value={6}>6 源并发</option><option value={4}>4 源并发</option><option value={2}>2 源并发（排队）</option></select></details><button className="atlas-source-search" aria-busy={sourceSearching} type="submit" disabled={sourceSearching || connecting}>{sourceSearching ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}{connected ? "从来源获取岗位" : "连接真实来源搜索"}</button><button type="button" className="atlas-auth-hub-trigger" title="全网平台统一登录与会话接管中心（BOSS直聘 · 猎聘 · 51JOB · 领英）" onClick={() => setAuthHubOpen(true)}><KeyRound size={15} />平台登录态</button><button type="button" aria-expanded={platformSearchOpen} className="atlas-platform-trigger" title="BOSS · 猎聘 · 51 · 领英 · Seek · Indeed · GradConnection · 官网" onClick={() => setPlatformSearchOpen(!platformSearchOpen)}>全网平台</button><button type="button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(!filtersOpen)}><SlidersHorizontal size={16} />{t("筛选", "Filters")}</button></form>
+    <div className="atlas-search-affordance"><span id="atlas-search-help">输入即筛选已收录岗位；点击采集获取新岗位。</span><span><ShieldCheck size={12} aria-hidden="true" />原文可溯源 · 本机保存</span></div>
+    <AtlasActivityRail
+      index={{ state: connectionError || localError ? "attention" : dataLoading ? "working" : data ? "ready" : "idle", value: data?.jobs.length,
+        detail: connectionError || localError ? "读取异常，可重试连接" : dataLoading ? "正在读取，可先浏览已到达的岗位" : dataMode === "demo" ? "合成样本 · 非真实招聘" : data ? "已收录，可即时筛选" : "连接后自动读取" }}
+      collection={{ state: harvestFailed || sourceSearchError ? "attention" : sourceSearching && !harvestCancelled ? "working" : activeLiveHarvest ? "ready" : "idle",
+        value: activeLiveHarvest?.totalCards ?? finiteProgressStat(harvestStage?.stats, "cardsFetched"),
+        detail: harvestCancelled ? "已停止 · 保留收到的结果" : harvestFailed || sourceSearchError ? "部分未完成 · 查看采集详情" : sourceSearching ? "边采集边入库 · 可继续搜索" : harvestStage?.stage === "completed" ? "本轮已结束 · 覆盖范围见回执" : "按当前关键词与地区采集" }}
+      enrichment={{ state: backgroundEnrichment.error || backgroundEnrichment.status?.workerState === "error" || backgroundEnrichment.status?.workerState === "stopped" || (backgroundEnrichment.status?.failed ?? 0) > 0 ? "attention" : backgroundEnrichment.loading || (backgroundEnrichment.status?.pending ?? 0) + (backgroundEnrichment.status?.running ?? 0) > 0 ? "working" : backgroundEnrichment.status ? "ready" : "idle",
+        value: backgroundEnrichment.status ? backgroundEnrichment.status.pending + backgroundEnrichment.status.running : undefined,
+        detail: backgroundEnrichment.error || backgroundEnrichment.status?.workerState === "error" ? "状态异常 · 任务保留" : backgroundEnrichment.status?.workerState === "stopped" ? "后台已停 · 任务保留" : (backgroundEnrichment.status?.failed ?? 0) > 0 ? "部分任务异常 · 详情见列表" : backgroundEnrichment.status ? "后台自动处理，不阻塞搜索" : "连接后自动跟随入库" }}
+      map={{ state: mapError ? "attention" : querying ? "working" : result ? "ready" : "idle", value: result ? mappableJobCount : undefined,
+        detail: mapError ? "地图暂不可用 · 列表仍可用" : querying ? "正在更新 · 可继续阅读" : result && !mappableJobCount ? "暂无来源精确坐标" : mapLevel === "location" ? "街道层级 · 来源真实坐标" : "仅展示来源真实坐标" }}
+    />
     {intervenePlatforms.length > 0 && (
       <div className="atlas-intervene-banner" role="alert">
         <div className="atlas-intervene-content">
@@ -1236,15 +1489,22 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
       </div>
     )}
     </div>
-    <details className="atlas-more" open={moreOpen || platformSearchOpen || filtersOpen} onToggle={(event) => { const open = event.currentTarget.open; setMoreOpen(open); if (!open) { setPlatformSearchOpen(false); setFiltersOpen(false); } }}>
-      <summary>来源说明、聚合与补全</summary>
-    <p className="atlas-small atlas-search-scope">输入会实时筛选已收录的 {data?.jobs.length ?? 0} 个岗位底池{text.trim() ? `（当前关键词${scopePlace ? `在${scopePlace}` : ""}命中 ${result?.totalJobs ?? 0} 岗）` : ""}；{connected ? `点击“从已配置官网源获取”查询 ${selectedSearchSources.length} 个海外及企业官网源；查询国内城市职位（如上海的 C#），请使用【全网商业平台聚合】，通过真实 Chrome CDP 极速获取 BOSS直聘、猎聘、51JOB 等平台海量岗位并流式入库点亮地图。` : "连接本机服务后，可同时查询已启用的真实来源。"}读取不超过来源配置额度；详情完整度见逐源状态。</p>
-    <div className={`atlas-antibot-feature-card ${platformSearchOpen ? "open" : ""}`} aria-label="全网平台防反爬检索聚合">
+    <details className="atlas-more" open={moreOpen || platformSearchOpen || filtersOpen}>
+      <summary onClick={event => {
+        // Native pointer and keyboard activation both dispatch click. Only an
+        // explicit summary action owns moreOpen; derived open/toggle events do not.
+        event.preventDefault();
+        const open = !(moreOpen || platformSearchOpen || filtersOpen);
+        setMoreOpen(open);
+        if (!open) { setPlatformSearchOpen(false); setFiltersOpen(false); }
+      }}>来源说明、聚合与补全</summary>
+    <p className="atlas-small atlas-search-scope">输入会实时筛选已收录的 {data?.jobs.length ?? 0} 个岗位底池{text.trim() ? `（当前关键词${scopePlace ? `在${scopePlace}` : ""}命中 ${result?.totalJobs ?? 0} 岗）` : ""}；{connected ? `点击“从已配置官网源获取”查询 ${selectedSearchSources.length} 个海外及企业官网源；如需查看商业平台本轮搜索结果，请展开【全网商业平台聚合】。卡片直接来自本轮页面，不依赖是否已入库；地图与办公地点仍来自本机索引。` : "连接本机服务后，可查询已启用来源；全网实时平台抓取需要本机搜索服务。"}读取受页数、滚动和岗位预算约束，逐平台状态会标明实际覆盖。</p>
+    <div className={`atlas-antibot-feature-card ${platformSearchOpen ? "open" : ""}`} aria-label="全网平台实时岗位读取">
       <div className="atlas-antibot-header">
         <div className="atlas-antibot-title">
           <ShieldCheck size={16} className="atlas-shield-icon" />
-          <strong>全网商业平台聚合（真实 Chrome CDP 防反爬接管）</strong>
-          <span className="atlas-antibot-tag">规避滑块 · 共享原生指纹与登录态</span>
+          <strong>全网商业平台聚合（Chrome 页面实时读取）</strong>
+          <span className="atlas-antibot-tag">人工完成验证 · 覆盖范围可见</span>
         </div>
         <div className="atlas-antibot-actions">
           <button
@@ -1258,7 +1518,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
         </div>
       </div>
       <p className="atlas-antibot-desc">
-        商业平台（BOSS直聘、猎聘、51JOB 等）普遍具备严格的反爬机制。BetterMe 提供<strong>真实 Chrome 接管能力（CDP 端口 9222）</strong>，运行真实浏览器窗口，具备完全真实的 TLS 握手特征与 Canvas 硬件指纹，并在本地持久化保存账号登录态。不仅能安全规避滑块与 403 拦截，还可直接读取页面岗位卡片，一键批量入库点亮三维地图。
+        <strong>通过本机真实 Chrome（CDP 端口 9222）读取平台搜索页的岗位卡片。</strong>登录和人机验证由你在浏览器中完成；遇到验证、限流、页面结构变化或预算上限时会停止并标记部分覆盖，不绕过平台防护。实时卡片直接显示本轮结果；只有经过确认的卡片才进入本机索引，地图与办公地点仍使用索引数据。
       </p>
     </div>
     <PlatformSearchLinks open={platformSearchOpen} onToggleOpen={setPlatformSearchOpen} keyword={text} regionText={mode === "domestic" ? (chinaFilter.selectedCity?.isGrouping && ["11", "12", "31", "50"].includes(chinaFilter.selectedProvince?.code ?? "") ? chinaFilter.selectedProvince?.name : chinaFilter.selectedCity?.name) ?? chinaFilter.selectedProvince?.name ?? "" : regionText || (region ? regions.find((entry) => entry.id === region)?.label ?? region : "")} countryCode={mode === "domestic" ? chinaFilter.workCountryCodes[0] ?? "CN" : country} districtCode={chinaSelection.districtCode} onOpenSingleJob={onOpenOpportunitySources} onReviewCard={(card, capturedAt) => onSaveOpportunity({ token: crypto.randomUUID(), title: card.title, description: `[原站搜索列表卡片摘要，非完整 JD；请打开岗位原文核对]\n${card.cardText}`, sourceUrl: card.url, sourcePlatform: card.platform, collectedAt: capturedAt, sourcePublishedText: card.publicationText })} onIndexCard={(card, receipt, provider) => {
@@ -1279,7 +1539,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
     {mode === "domestic" && <p className="atlas-small">按省 → 市 → 区县逐级选择，修改上级会清除下级。大陆三级目录采用 2023 统计区划快照，部分末级为镇街/功能区；港澳台保留地区筛选，下级目录待补充。岗位只披露城市时，选择区县会排除位置不明确的岗位。</p>}
     {connected && selectedSearchSources.length > 0 && <details className="atlas-source-limits"><summary>本次实际读取范围 · {selectedSearchSources.length} 个已配置岗位来源（{Math.min(searchConcurrency, selectedSearchSources.length)} 源并发）</summary><ul>{selectedSearchSources.map((entry) => <li key={entry.sourceId}>{entry.attribution.label}：最多 {Math.min(searchDepth === "quick" ? 50 : searchDepth === "deep" ? 2000 : 500, entry.refreshPolicy.maxRecords)} 条 / {Math.min(searchDepth === "quick" ? 2 : searchDepth === "deep" ? 50 : 20, entry.refreshPolicy.maxPages)} 页{entry.options?.fetchDetails === true && typeof entry.options.maxDetailRequestsPerPage === "number" ? `，每页最多 ${entry.options.maxDetailRequestsPerPage} 个详情` : ""}</li>)}</ul><p>这里只查询已配置的岗位来源（企业官网或公开聚合源）。下方原站浏览器搜索独立执行，不计入官网来源回执。</p><button type="button" onClick={() => setSourcesOpen(true)}>管理与扩展来源</button></details>}
     {mode === "domestic" && chinaFilter.selectedDistrict && <p className="atlas-small">原站搜索链接只应用城市范围；区县条件在已收录岗位的位置原文中复核。尚未披露区县不算命中。</p>}
-    <AtlasSearchProgress progress={searchProgress} busy={sourceSearching} onCancel={() => searchAbort.current?.abort()} onReviewSource={setSourceReview} />
+    <AtlasSearchProgress progress={searchProgress} busy={sourceSearching} onCancel={cancelSourceSearch} onReviewSource={setSourceReview} />
     {sourceReview?.receipt && reviewSource && <Suspense fallback={<p role="status">正在加载来源候选核对…</p>}><AtlasSourceCandidateReview key={`${sourceReview.receipt.run.runId}:${endpoint}`} endpoint={endpoint} token={token} source={reviewSource} request={{ scope: sourceReview.receipt.localFilters, maxRecords: sourceReview.receipt.run.scope.maxRecords }} onClose={() => setSourceReview(undefined)} onReview={onSaveOpportunity} /></Suspense>}
     {sourceSearchMessage && <p role="status" className="atlas-search-notice">{sourceSearchMessage}</p>}
     {sourceSearchError && <p role="alert" className="atlas-error">{sourceSearchError}</p>}
@@ -1295,42 +1555,59 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
       <button onClick={resetFilters}>清除筛选</button>
       {mode === "domestic" && <label className="atlas-unknown-toggle"><input type="checkbox" checked={includeUnclassified && !chinaFilter.selectedProvince} disabled={Boolean(chinaFilter.selectedProvince)} onChange={(e) => setIncludeUnclassified(e.target.checked)} />{chinaFilter.selectedProvince ? "已选行政范围，只匹配明确披露国家/地区的岗位" : `国内视图包含国家/地区待核实岗位（${coverage.country.missingJobs}）`}</label>}
     </div>}
-    {connected && dataMode === "live" && visibleItems.length > 0 && <div className="atlas-enrichment-entry"><span>当前页 {visibleItems.length} 条，筛选共 {bucket?.jobCount ?? result?.totalJobs ?? 0} 个岗位（全库 {data?.jobs.length ?? coverage.totalJobs}）。地图只标有来源坐标的岗位。</span><button type="button" onClick={() => { cancelOfficeFocus(); setDetailReviewJobId(""); setEnrichmentScope(visibleItems.slice(0, 50).map(item => item.job.id)); }}><MapPin size={14} />补全当前结果办公地点</button><button type="button" disabled={sourceSearching} onClick={() => void enrichCurrentIndex()}><Sparkles size={14} />智能核实企业性质与办公坐标</button><small>本次最多 50 个已显示结果；读取前可核对范围，不自动保存候选坐标。</small></div>}
+    {connected && dataMode === "live" && Boolean(data?.jobs.length) && <div className="atlas-enrichment-entry"><span>当前页 {visibleItems.length} 条，筛选共 {bucket?.jobCount ?? result?.totalJobs ?? 0} 个岗位（全库 {data?.jobs.length ?? coverage.totalJobs}）。地图只标有来源坐标的岗位。</span><button type="button" disabled={!visibleItems.length} onClick={beginAddressEnrichment}><MapPin size={14} />补全当前结果办公地点</button><small>办公地点补全本次最多读取 50 个未定位结果；来源地址和候选坐标都要核对，不自动生成办公坐标。</small></div>}
     {queryError && <p className="atlas-error" role="alert">{queryError}</p>}
+    {computedMetadata.error && <p className="atlas-error" role="alert">{computedMetadata.error}</p>}
     {mapReferences.loading && <p className="atlas-small" role="status"><Loader2 size={14} className="animate-spin" /> 正在读取城市分布参考，岗位列表可继续使用… <button type="button" onClick={mapReferences.cancel}>取消地图参考读取</button></p>}
     {mapReferences.error && <p className="atlas-small" role="status">{mapReferences.error} <button type="button" onClick={mapReferences.retry}>重新读取城市参考</button></p>}
     {mapReferences.result && <div className="atlas-small" aria-label="城市参考数据来源">城市分布采用离线地名数据，保留来源岗位地点；不确认办公地址。{mapReferences.result.provenance?.attribution}{mapReferences.result.truncated && ` · 本次只处理 ${mapReferences.result.processedLocations}/${mapReferences.result.totalLocations} 个地点，未处理地点仍待定位。`}{mapReferences.result.warnings.length > 0 && <details><summary>城市参考范围与提示</summary><ul>{mapReferences.result.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul></details>}</div>}
     </details>
-    <div className={`atlas-main-grid ${(selected && data) || detailReviewJobId || enrichmentScope ? "has-detail" : ""} ${emptyIndex ? "is-empty-index" : ""}`}><div className="atlas-map-column"><div className={`atlas-map-card ${theme}`}><div className="atlas-map-top"><div className="atlas-mode-switch" role="group" aria-label="地图范围"><button aria-pressed={mode === "global"} className={mode === "global" ? "active" : ""} onClick={() => changeMapMode("global")}><Globe2 size={15} />{t("全球", "Global")}</button><button aria-pressed={mode === "domestic"} className={mode === "domestic" ? "active" : ""} onClick={() => changeMapMode("domestic")}><MapPin size={15} />{t("国内", "China")}</button></div><span>{mapLevel === "location" ? "STREET & ADDRESS" : "3D EXPLORER"} <i /></span></div><div className="atlas-scene" ref={scene}>{active && <Suspense fallback={<div className="atlas-map-loading"><Loader2 className="animate-spin" />正在加载三维地图…</div>}><AtlasMap key={mapKey} mode={mode} basemap={basemapId === "offline" ? null : basemapId === "auto" ? undefined : ATLAS_BASEMAPS.find((p) => p.id === basemapId)} buckets={locatedBuckets} bounds={displayFrame?.bounds} boundsMaxZoom={displayFrame?.maxZoom} adminBoundary={adminBoundary} selectedBucketId={bucket?.id} selectedRegionId={mode === "domestic" ? chinaFilter.selectedProvince?.mapId : region || country || undefined} initialView={camera.current} focus={focus} selectedJobId={selectedId} visual={{ autoRotate: rotating, maxDpr: 1.5, pedestal: true, entrance: true, theme }} onViewChange={(view) => { camera.current = view; setMapZoom(previous => (previous >= 10) === (view.zoom >= 10) ? previous : view.zoom); }} onPick={setBucket} onCountry={(pick) => { if (mode === "domestic") { const province = findChinaProvinceByMapId(pick.id); if (province) setChinaSelection({ provinceCode: province.code }); else setSourceSearchMessage("该区域尚未纳入当前国内行政目录，请按来源披露地点查询。"); } else if (pick.countryCode) { setCountry(pick.countryCode); setRegion(""); setRegionText(""); } }} onError={(error) => setMapError(error.message)} /></Suspense>}</div><div className="atlas-map-caption"><div><span className="atlas-eyebrow">{mode === "global" ? "A WORLD OF POSSIBILITIES" : "CLOSER TO YOUR NEXT CHAPTER"}</span><strong>{mode === "global" ? t("机会，不止一座城。", "Your next role could be anywhere.") : t("在熟悉的土地，发现新可能。", "A new perspective, closer to home.")}</strong><small>拖动旋转 · 连续缩放至街道 · 城市中心与精确地址分开标注</small></div><div className="atlas-map-controls"><button aria-label="重置地图视角" title="重置视角" onClick={resetCamera}><Compass size={17} /></button><button aria-pressed={rotating} onClick={() => setRotating(!rotating)}>{rotating ? "暂停旋转" : "自动旋转"}</button></div></div>{mapError && <div role="alert" className="atlas-render-error">三维地图暂不可用：{mapError}。岗位列表仍可使用。<button onClick={() => { setMapKey((k) => k + 1); setMapError(""); }}>重试</button></div>}</div>
-      <div className="atlas-map-footer"><div className="atlas-stat-grid" aria-live="polite">{[[result?.totalJobs ?? 0, "匹配岗位"], [result?.companyCount ?? 0, "企业"], [result?.mappedJobs ?? 0, "有来源坐标"], [result?.unlocatedJobs ?? 0, "待定位岗位"]].map(([number, label]) => <div key={label}><strong>{number}</strong><span>{label}</span></div>)}</div></div></div>
-      <aside className="atlas-results">
+    <AtlasWorkbench active={active} layout={layout} hasDetail={Boolean((selected && data) || detailReviewJobId || enrichmentScope)} empty={emptyIndex}
+      map={<div className="atlas-map-column"><div className={`atlas-map-card ${theme}`}><AtlasMapToolbar mode={mode} onModeChange={changeMapMode} viewMode={mapPresentation.mode} onViewChange={(mode, animate) => { setMapPresentation({ mode, animate }); setRotating(false); }} rotating={rotating} onToggleRotation={() => setRotating(!rotating)} onReset={resetCamera} globalLabel={t("全球", "Global")} domesticLabel={t("国内", "China")} /><div className="atlas-scene" ref={scene}>{active && <Suspense fallback={<div className="atlas-map-loading"><span className="atlas-map-loading-stack" aria-hidden="true"><i /><i /><i /></span><strong>正在准备地图</strong><small>岗位列表可先浏览，地图随后就绪。</small></div>}><AtlasMap resetRevision={mapKey} mode={mode} basemap={basemapId === "offline" ? null : basemapId === "auto" ? undefined : ATLAS_BASEMAPS.find((p) => p.id === basemapId)} buckets={locatedBuckets} geometry={result ? resultGeometry : undefined} framingKey={selectionKey} bounds={displayFrame?.bounds} boundsMaxZoom={displayFrame?.maxZoom} adminBoundary={adminBoundary} selectedBucketId={bucket?.id} selectedRegionId={mode === "domestic" ? chinaFilter.selectedProvince?.mapId : region || country || undefined} initialView={camera.current} focus={focus} selectedJobId={selectedId} visual={{ viewMode: mapPresentation.mode, animateViewChange: mapPresentation.animate, autoRotate: rotating && !sourceSearching, maxDpr: 1.5, pedestal: true, entrance: true, theme }} onViewChange={(view) => { camera.current = view; setMapZoom(previous => (previous >= 10) === (view.zoom >= 10) ? previous : view.zoom); }} onPick={setBucket} onActivateBucket={activateMapBucket} onCountry={(pick) => { if (mode === "domestic") { const province = findChinaProvinceByMapId(pick.id); if (province) setChinaSelection({ provinceCode: province.code }); else setSourceSearchMessage("该区域尚未纳入当前国内行政目录，请按来源披露地点查询。"); } else if (pick.countryCode) { setCountry(pick.countryCode); setRegion(""); setRegionText(""); } }} onError={(error) => setMapError(error.message)} /></Suspense>}{!querying && !sourceSearching && !connecting && !locatedBuckets.length && (result?.totalJobs ?? 0) > 0 && <div className={`atlas-map-empty-overlay ${theme}`} role="status"><AtlasIllustration kind="discovery" interactive={false} /><strong>暂无可验证办公地址</strong><span>当前 {result?.totalJobs.toLocaleString()} 个匹配岗位只有城市或区域信息，地图不会绘制虚构点位。</span>{text.trim() && <button type="button" onClick={() => setText("")}><Search size={13} />扩大到全部关键词结果</button>}{connected && dataMode === "live" && visibleItems.length > 0 && <button type="button" onClick={() => { cancelOfficeFocus(); setDetailReviewJobId(""); setEnrichmentScope(visibleItems.slice(0, 50).map(item => item.job.id)); }}><MapPin size={13} />补全当前结果办公地点</button>}<small>补全后，来源披露或本人核对的真实坐标会出现在地图上，并可直接点击。</small></div>}</div>{mapError && <div role="alert" className="atlas-render-error">三维地图暂不可用：{mapError}。岗位列表仍可使用。<button onClick={() => { setMapKey((k) => k + 1); setMapError(""); }}>重试</button></div>}</div>
+      <div className="atlas-map-footer"><div className="atlas-stat-grid" aria-live="polite">{[[result?.totalJobs ?? 0, "匹配岗位"], [result?.companyCount ?? 0, "企业"], [mappableLocationCount, "可点位置"], [noPreciseLocationJobCount, "无精确位置岗位"]].map(([number, label]) => <div key={label}><strong>{querying && !result ? "—" : number}</strong><span>{label}</span></div>)}</div>{mappableLocationCount > 0 && <small className="atlas-map-coordinate-note" aria-label="地图坐标统计">地图当前绘制 {mappableCoordinateCount} 个真实坐标，承载 {mappableLocationCount} 个来源地址、{mappableJobCount} 个岗位；同坐标地址已合并显示，点击可逐个选择。</small>}{connected && dataMode === "live" && unlocatedVisibleItems.length > 0 && <div className="atlas-map-address-gap" role="status"><div><strong>{noPreciseLocationJobCount.toLocaleString("zh-CN")} 个岗位暂无可验证办公地址</strong><small>当前页有 {unlocatedVisibleItems.length} 条可读取来源详情；只接受原文披露或本人核对的真实地址。</small></div><button type="button" aria-label="补全当前结果办公地点，最多 50 条" title="本次最多读取 50 个当前页岗位，不生成城市中心办公点" onClick={beginAddressEnrichment}><MapPin size={14} />补全当前结果办公地点</button></div>}</div></div>}
+      jobs={<aside className={`atlas-results ${activeLiveHarvest ? "is-live-source-results" : ""}`}>
         <div className="atlas-results-heading">
           <div className="atlas-results-heading-left">
             <span className="atlas-eyebrow">YOUR OPPORTUNITY RADAR</span>
             <h2>
-              {bucket ? bucket.label : t("探索机会", "Explore opportunities")}{" "}
-              <span>{bucket ? bucket.jobCount : result?.totalJobs ?? 0}</span>
+              {activeLiveHarvest ? "原站实时岗位" : bucket ? bucket.label : t("探索机会", "Explore opportunities")}{" "}
+              <span>{activeLiveHarvest ? activeLiveHarvest.totalCards : bucket ? bucket.jobCount : result?.totalJobs ?? (querying ? "—" : 0)}</span>
             </h2>
+            {!activeLiveHarvest && result && (
+              <p className="atlas-results-map-summary" role="status">
+                <MapPin size={12} aria-hidden="true" />
+                地图办公点位 {mappableCoordinateCount.toLocaleString("zh-CN")} 个真实坐标 · 承载 {mappableJobCount.toLocaleString("zh-CN")} 个岗位 · {noPreciseLocationJobCount.toLocaleString("zh-CN")} 个岗位待定位
+              </p>
+            )}
+            {bucket && <p className="atlas-selected-location-note" role="status">地图点位 · {mapBucketPrecisionLabel(bucket)} · 招聘来源见下方岗位详情</p>}
           </div>
           <div className="atlas-results-heading-actions">
+            {liveHarvest && matchesLiveHarvestQuery(liveHarvest, liveHarvestQuery) && !bucket && (
+              <button type="button" className="atlas-city-clear-btn" onClick={() => setPreferLiveResults(!preferLiveResults)}>
+                {activeLiveHarvest ? "查看索引" : "查看实时结果"}
+              </button>
+            )}
+            {activeLiveHarvest && <button type="button" className="atlas-city-clear-btn" disabled={sourceSearching} onClick={() => void searchLivePlatformsOnly()}>重新实时抓取</button>}
             {querying && <Loader2 size={16} className="animate-spin text-emerald-500" />}
             {bucket && (
               <button
                 type="button"
                 className="atlas-city-clear-btn"
-                aria-label="取消城市选择"
+              aria-label="取消位置选择"
                 onClick={() => setBucket(null)}
-                title="返回全部城市"
+                title="返回全部位置"
               >
                 <X size={13} />
-                <span>清除城市</span>
+                <span>清除位置</span>
               </button>
             )}
             <button
               type="button"
+              hidden={Boolean(activeLiveHarvest)}
               className={`atlas-filter-toggle-btn ${filtersCollapsed ? "is-collapsed" : "is-expanded"}`}
               onClick={() => setFiltersCollapsed((prev) => !prev)}
               aria-expanded={!filtersCollapsed}
+              aria-controls="atlas-quick-filters"
               title={filtersCollapsed ? "展开多维筛选条件" : "收起多维筛选条件"}
             >
               <SlidersHorizontal size={13} />
@@ -1376,7 +1653,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
           </div>
         )}
 
-        <div className={`atlas-quick-filters ${filtersCollapsed ? "is-collapsed" : ""}`} role="group" aria-label="岗位多维快捷筛选">
+        <div id="atlas-quick-filters" className={`atlas-quick-filters ${filtersCollapsed ? "is-collapsed" : ""}`} hidden={filtersCollapsed || Boolean(activeLiveHarvest)} role="group" aria-label="岗位多维快捷筛选">
         {coverage.ownership.supported && (
           <div className="atlas-filter-row">
             <span className="atlas-filter-label is-ownership"><i />性质</span>
@@ -1514,42 +1791,30 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
           </div>
         )}
       </div>
-      {text.trim() && sourceSearching && (
-        <div className="atlas-local-cache-banner live-searching" role="status">
-          <div className="atlas-local-cache-info">
-            <Loader2 size={15} className="text-emerald-500 animate-spin shrink-0" />
-            <div className="atlas-local-cache-text-col">
-              <span>
-                {harvestStage ? (
-                  <>
-                    <strong className="text-emerald-600">[{harvestStage.index}/{harvestStage.total} 流水线]</strong> {harvestStage.message}
-                  </>
-                ) : (
-                  <>
-                    正在<strong>全网商业平台（BOSS直聘 · 51Job · 猎聘 · 领英）</strong>多路并发极速抓取…
-                  </>
-                )}
-              </span>
-              {harvestStage && (
-                <div className="atlas-live-harvest-progress-bar">
-                  <div
-                    className="atlas-live-harvest-progress-fill"
-                    style={{ width: `${Math.max(15, (harvestStage.index / harvestStage.total) * 100)}%` }}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-          <button
-            type="button"
-            className="atlas-local-cache-btn"
-            disabled
-          >
-            <Loader2 size={13} className="animate-spin" />
-            正在抓取入库…
-          </button>
-        </div>
-      )}
+      {showHarvestStatus && <AtlasHarvestProgress
+        progress={harvestStage}
+        discoveredCards={liveHarvest?.totalCards}
+        providers={liveHarvest?.providers}
+        importFailures={harvestImportFailures}
+        failureMessage={harvestFailureMessage}
+        busy={sourceSearching && !harvestCancelled && !harvestFailed && harvestStage?.stage !== "completed"}
+        cancelled={harvestCancelled}
+        failed={harvestFailed}
+        onCancel={sourceSearching && !harvestFailed && harvestStage?.stage !== "completed" ? cancelSourceSearch : undefined}
+        onOpenLogin={() => setAuthHubOpen(true)}
+        onResume={harvestRecovery.state.canResume && !sourceSearching ? () => void harvestRecovery.continuePrevious().catch(() => { /* The status keeps the actual recovery error visible. */ }) : undefined}
+        recoveryMessage={harvestRecovery.state.message}
+        recoveryPhase={harvestRecovery.state.phase}
+      />}
+      <AtlasBackgroundEnrichmentStatus state={backgroundEnrichment} />
+      {!showHarvestStatus && harvestRecovery.state.message && <div className="atlas-harvest-recovery" data-phase={harvestRecovery.state.phase} role={harvestRecovery.state.phase === "error" ? "alert" : "status"}>
+        <Database size={14} aria-hidden="true" />
+        <span>{sanitizeHarvestDiagnostic(harvestRecovery.state.message)}</span>
+        {harvestRecovery.state.canResume && <button type="button" disabled={sourceSearching} onClick={() => void harvestRecovery.continuePrevious().catch(() => { /* The independent status exposes its error. */ })}>继续上次采集</button>}
+      </div>}
+      {result && resultData !== data && <p className="atlas-small atlas-query-refresh" role="status">索引有更新，正在同步当前结果；可以继续阅读。</p>}
+      {activeLiveHarvest && <AtlasLiveHarvestResults view={activeLiveHarvest} compactHeading busy={sourceSearching && (!activeLiveHarvest.providers.length || activeLiveHarvest.providers.some(provider => provider.status === "queued" || provider.status === "running"))} />}
+      {liveCommitStats && !(showHarvestStatus && harvestStage?.stats?.totalAdded === liveCommitStats.totalAdded && harvestStage?.stats?.totalUpdated === liveCommitStats.totalUpdated) && <p className="atlas-small" role="status">本轮已提交：新增 {liveCommitStats.totalAdded} 岗 · 更新 {liveCommitStats.totalUpdated} 岗。地图仍需来源披露的精确坐标。</p>}
       {text.trim() && !sourceSearching && penetratedCount > 0 && !aiBannerDismissed && (
         <div className="atlas-ai-penetration-banner" role="status">
           <div className="atlas-ai-banner-header">
@@ -1559,7 +1824,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
                 AI 穿透定位
               </span>
               <span className="atlas-ai-banner-headline">
-                识别到 <strong>{penetratedCount}</strong> 个高契合通用标题岗位
+                当前筛选内 <strong>{penetratedCount}</strong> 个技术栈匹配的通用标题岗位
               </span>
             </div>
             <button
@@ -1574,7 +1839,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
           </div>
           <div className="atlas-ai-banner-footer">
             <span className="atlas-ai-banner-desc">
-              标题通用（如“软件工程师/上位机”），但 JD 任职要求明确包含 “<strong>{text.trim()}</strong>” 核心技术栈
+              JD 包含 “<strong>{text.trim()}</strong>” 相关技术栈；“仅看穿透”会隐藏标题直接命中的岗位。
             </span>
             <div className="atlas-ai-banner-actions">
               <button
@@ -1589,7 +1854,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
                 type="button"
                 className="atlas-compact-refresh-btn"
                 onClick={() => void searchLivePlatformsOnly()}
-                title="通过真实 Chrome CDP 极速获取全网商业平台岗位并自动入库点亮地图"
+                title="读取原站分页结果并入库；地图仅显示已有真实地址坐标的岗位"
               >
                 <RefreshCw size={11} />
                 全网重搜
@@ -1604,7 +1869,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
             <Globe2 size={15} className="text-emerald-500 shrink-0" />
             <div className="atlas-local-cache-text-col">
               <span>
-                已同步全网平台真实岗位（当前命中 <strong>{bucket ? bucket.jobCount : result?.totalJobs ?? 0}</strong> 岗 / 库内总计 {data?.jobs.length ?? 0} 岗）。
+                本机索引当前命中 <strong>{bucket ? bucket.jobCount : result?.totalJobs ?? (querying ? "—" : 0)}</strong> 岗 / 库内共 {data?.jobs.length ?? 0} 岗；原站本轮采集数量见实时回执。
               </span>
             </div>
           </div>
@@ -1625,7 +1890,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
               className="atlas-local-cache-btn"
               disabled={sourceSearching}
               onClick={() => void searchLivePlatformsOnly()}
-              title="通过真实 Chrome CDP 极速获取全网商业平台岗位并自动入库点亮地图"
+              title="读取原站分页结果并入库；地图仅显示已有真实地址坐标的岗位"
             >
               <RefreshCw size={13} />
               全网重新抓取
@@ -1634,13 +1899,6 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
         </div>
       )}
       <details className="atlas-sort-fold"><summary>{sort === "relevance" ? "相关度" : sort === "salary" ? "年薪" : sort === "distance" ? "距离" : "更新"} · {direction === "desc" ? "降序" : "升序"}</summary><div className="atlas-sort"><select aria-label="岗位排序" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}><option value="relevance">相关度</option><option value="salary" disabled={!coverage.salary.sortSupported}>人民币税前年薪下限{!coverage.salary.sortSupported ? " · 暂无可比数据" : ""}</option><option value="distance" disabled={!coverage.distance.ready}>离家直线距离{!coverage.distance.supported ? " · 缺岗位坐标" : !anchor ? " · 请设参照点" : ""}</option><option value="updated">最近更新</option></select><button aria-label={direction === "desc" ? "当前降序，切换升序" : "当前升序，切换降序"} onClick={() => setDirection(direction === "desc" ? "asc" : "desc")}><ArrowDownUp size={14} />{direction === "desc" ? "降序" : "升序"}</button><label><input type="checkbox" checked={originalCurrency} onChange={(e) => setOriginalCurrency(e.target.checked)} />原币</label><select aria-label="每页条数" value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}><option value={30}>每页 30 岗</option><option value={50}>每页 50 岗</option><option value={100}>每页 100 岗</option><option value={200}>每页 200 岗</option></select></div></details><div className="atlas-job-list" aria-busy={querying || sourceSearching}>{(querying || sourceSearching) && !visibleItems.length && <div className="atlas-results-loading" role="status"><span>{sourceSearching ? "正在从真实来源获取岗位…" : "正在匹配岗位…"}</span>{[0, 1, 2].map((n) => <div key={n} className="atlas-skeleton-card" aria-hidden="true"><i /><i /><i /></div>)}</div>}{visibleItems.map((item) => {
-  const presentations = presentListing?.(item) ?? [];
-  const platformLabel = formatCardPlatform(item);
-  const pubBadge = formatCardPublication(item, presentations, data);
-  const distanceBadge = formatCardDistance(item, Boolean(anchor));
-  const salaryBadge = formatCardSalaryRMB(item);
-  const aiRelevance = analyzeAiJobRelevance(item.job, text, item.company.names[0]);
-
   return (
     <button
       key={item.job.id}
@@ -1650,57 +1908,10 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
       onClick={(event) => clickJob(item, event.detail)}
       onDoubleClick={() => { cancelCardClick(); void locateJob(item); }}
     >
-      <span className="atlas-company-line">
-        <i style={{ background: item.color.color }} />
-        {item.company.names[0]}
-        <ArrowUpRight size={14} />
-      </span>
-      <strong>{item.job.title.value}</strong>
-      {aiRelevance.isPenetrated && (
-        <div className="atlas-ai-penetration-tag" title={aiRelevance.reason}>
-          <span className="atlas-ai-badge-pill">
-            <Sparkles size={11} className="atlas-ai-sparkle-icon" />
-            AI 穿透命中
-          </span>
-          <span className="atlas-ai-skill-text">{aiRelevance.highlightSkillText}</span>
-          {aiRelevance.highlightSnippet && (
-            <span className="atlas-ai-evidence-pill" title={aiRelevance.highlightSnippet}>
-              任职要求明确
-            </span>
-          )}
-        </div>
-      )}
-      <span className="atlas-job-meta">
-        <MapPin size={12} />
-        {item.locations.map((l) => l.officeResolution?.formattedAddress ?? l.streetAddress ?? l.city ?? l.raw).join(" / ") || "地点待核实"}
-      </span>
-      <span
-        className={`atlas-job-salary ${salaryBadge.isNegotiable ? "is-negotiable" : "has-salary"}`}
-        title={salaryBadge.tooltip}
-      >
-        {salaryBadge.label}
-      </span>
-      <div className="atlas-job-card-tags">
-        <span className="atlas-job-classification" style={{ borderColor: `${item.color.color}66` }}>
-          <i style={{ background: item.color.color }} />
-          {item.color.label} {item.color.classification.jurisdictions.map(countryName).join(" / ")}
-        </span>
-        <span className="atlas-badge-platform" title={`来源平台：${platformLabel}`}>
-          {platformLabel}
-        </span>
-        <span className="atlas-badge-publication" title={pubBadge.tooltip}>
-          {pubBadge.label}
-        </span>
-        <span className="atlas-badge-distance" title={distanceBadge.tooltip}>
-          {distanceBadge.label}
-        </span>
-      </div>
-      <AtlasListingBadges presentations={presentations} />
-      {!!item.mapReferences?.length && <span className="atlas-card-hint">城市分布参考 · 城市估算，非办公地址</span>}
-      <span className="atlas-card-hint">单击查看详情 · 双击定位地图</span>
+      <AtlasJobCardContent item={item} presentListing={presentListing} data={data} hasAnchor={Boolean(anchor)} keyword={text} countryName={countryName} />
     </button>
   );
-})}{!visibleItems.length && !querying && !sourceSearching && (
+})}{!activeLiveHarvest && !visibleItems.length && !querying && !sourceSearching && (
   Boolean((text.trim() || chinaFilter.selectedProvince || regionText.trim() || country) && !emptyIndex && data) ? (
     <AtlasLivePlatformQuickSearch
       keyword={text}
@@ -1744,10 +1955,22 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
       } : undefined}
     />
   ) : (
-    <div className="atlas-empty"><Search size={24} /><strong>{dataLoading ? "正在读取岗位…" : emptyIndex ? "先把真实岗位接入地图" : !data && dataMode === "live" ? "连接本机索引，查看已采集岗位" : "暂未找到匹配岗位"}</strong><p>{dataLoading ? "读取完成后会显示当前数据范围。" : emptyIndex ? "当前数据集还没有岗位。连接本机采集索引，或读取并收藏招聘原文；办公室地址会按来源逐岗补全。" : !data && dataMode === "live" ? "当前尚未取得本机岗位数据，请检查连接。" : "当前已收录数据没有匹配项。企业官网（如 ABB、Bosch）常因海外网络或配额限制无法返回国内岗位；推荐使用下方【全网商业平台聚合】，通过真实 Chrome CDP 接管规避反爬。"}</p><div className="atlas-empty-actions">{resumePrefill.hasResumeData && <button type="button" className="atlas-empty-btn-prefill" onClick={applyResumePrefill}><Sparkles size={14} /> 参考当前简历自动填入（{resumePrefill.summaryLabel}）</button>}<button type="button" className="atlas-empty-btn-platform" onClick={() => setPlatformSearchOpen(true)}><ShieldCheck size={14} /> 展开全网商业平台防反爬检索（BOSS · 猎聘 · 51 · 领英）</button></div>{!dataLoading && (emptyIndex || !data) ? <><button onClick={() => connected ? void searchSourceJobs() : setSettings("connection")}>{connected ? searchableSources.length ? "从已配置来源获取岗位" : "配置岗位来源" : "连接真实来源搜索"}</button>{onOpenOpportunitySources && <button onClick={onOpenOpportunitySources}>读取并收藏单个岗位</button>}<ol><li>连接本机采集索引</li><li>搜索岗位并补全工作地点</li><li>单击阅读 · 双击定位</li></ol></> : !dataLoading && <button onClick={resetFilters}>清除筛选</button>}</div>
+    <div className="atlas-empty">
+      {!dataLoading && <AtlasIllustration kind={emptyIndex || !data ? "discovery" : "search"} />}
+      <strong>{dataLoading ? "正在读取岗位…" : emptyIndex ? "先把真实岗位接入地图" : !data && dataMode === "live" ? "连接本机索引，查看已采集岗位" : "暂未找到匹配岗位"}</strong>
+      <p>{dataLoading ? "已读取的岗位会逐步显示，地图随后更新。" : emptyIndex ? "连接本机采集索引，或读取并收藏招聘原文。岗位会逐步出现，地区与企业在后台自动补全。" : !data && dataMode === "live" ? "暂未取得本机岗位数据。请检查服务连接；已有数据不会因此清空。" : "已收录岗位中没有匹配项。可以清除筛选、扩大地区范围，或继续读取招聘来源。"}</p>
+      {!dataLoading && <div className="atlas-empty-actions">
+        {emptyIndex || !data ? <>
+          <button className="atlas-empty-primary" onClick={() => connected ? void searchSourceJobs() : setSettings("connection")}>{connected ? searchableSources.length ? "从已配置来源获取岗位" : "配置岗位来源" : "连接真实来源搜索"}</button>
+          {onOpenOpportunitySources && <button onClick={onOpenOpportunitySources}>读取并收藏单个岗位</button>}
+        </> : <button className="atlas-empty-primary" onClick={resetFilters}>清除筛选</button>}
+        <button type="button" className="atlas-empty-btn-platform" onClick={() => setPlatformSearchOpen(true)}>查看招聘平台与采集选项</button>
+        {resumePrefill.hasResumeData && <button type="button" className="atlas-empty-btn-prefill" onClick={applyResumePrefill}><Sparkles size={14} />参考当前简历自动填入（{resumePrefill.summaryLabel}）</button>}
+      </div>}
+    </div>
   )
-)}{resultData === data && (listPage?.totalJobs ?? 0) > pageSize && <nav className="atlas-pager" aria-label="岗位分页"><button type="button" disabled={pageIndex === 0 || querying} onClick={() => setPageIndex((index) => Math.max(0, index - 1))}>上一页</button><span>第 {pageIndex * pageSize + 1}–{pageIndex * pageSize + visibleItems.length} 条，共 {listPage?.totalJobs ?? 0} 条</span><button type="button" disabled={querying || (pageIndex + 1) * pageSize >= (listPage?.totalJobs ?? 0)} onClick={() => setPageIndex((index) => index + 1)}>下一页</button></nav>}</div><details className="atlas-list-note"><summary>薪资比较口径</summary><p>统一比较税前固定年薪，奖金与股票不混入。未知薪资、缺少有效汇率和未知距离放在排序末尾。{result?.unknownSalaryCount ?? 0} 个岗位薪资暂不可比较。</p></details></aside>
-    {!emptyIndex && !selected && !detailReviewJobId && !enrichmentScope && layout === "wide" && <aside className="atlas-detail-placeholder" aria-label={t("岗位阅读面板", "Job reading pane")}><MapPin size={27} /><strong>{t("选择一个岗位，展开下一步。", "Select a role to explore the details.")}</strong><p>{t("单击阅读岗位原文与工作地址，双击在地图中定位。", "Click to read the posting and work address; double-click to locate it on the map.")}</p><small>{t("具体办公位置以来源披露或本人核对为准。", "Office locations follow source disclosures or your explicit review.")}</small></aside>}
+)}{result && (listPage?.totalJobs ?? 0) > pageSize && <nav className="atlas-pager" aria-label="岗位分页"><button type="button" disabled={pageIndex === 0 || querying} onClick={() => setPageIndex((index) => Math.max(0, index - 1))}>上一页</button><span>第 {pageIndex * pageSize + 1}–{pageIndex * pageSize + visibleItems.length} 条，共 {listPage?.totalJobs ?? 0} 条</span><button type="button" disabled={querying || (pageIndex + 1) * pageSize >= (listPage?.totalJobs ?? 0)} onClick={() => setPageIndex((index) => index + 1)}>下一页</button></nav>}</div><details className="atlas-list-note"><summary>薪资比较口径</summary><p>统一比较税前固定年薪，奖金与股票不混入。未知薪资、缺少有效汇率和未知距离放在排序末尾。{result?.unknownSalaryCount ?? 0} 个岗位薪资暂不可比较。</p></details></aside>}
+    detail={<>
     {active && enrichmentScope && connected && dataMode === "live" && liveData && <aside id="atlas-job-detail" className="atlas-job-detail atlas-enrichment-detail" aria-label="岗位办公地点批量核对面板"><div className="atlas-job-detail-body"><Suspense fallback={<p role="status">正在打开办公地点补全…</p>}><AtlasAddressEnrichment endpoint={endpoint} token={token} data={liveData} jobIds={enrichmentScope} onClose={() => { cancelOfficeFocus(); setEnrichmentScope(null); }} onSnapshot={snapshot => { setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); }} onReviewJob={jobId => {
       setEnrichmentScope(null);
       const item = listItems.find(entry => entry.job.id === jobId);
@@ -1773,7 +1996,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
       searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot);
       setSourceSearchMessage(`办公位置已读取，索引版本 ${snapshot.revision}。符合当前筛选时会定位高亮，也可双击岗位再次定位。`);
     }} /></Suspense></div></aside>}
-    {!enrichmentScope && !detailReviewJobId && selected && data && <AtlasJobDetail key={selected.job.id} item={selected} data={data} searchQuery={text} demo={dataMode === "demo"} originalCurrency={originalCurrency} presentations={presentListing?.(selected) ?? []} onClose={closeJob} onLocate={(locationId) => void locateJob(selected, locationId)} onSave={() => routeJob(selected, false)} onAnalyze={() => routeJob(selected, true)} onConfirmLocation={connected ? location => { setOfficeReview(undefined); setLocationReview({ jobId: selected.job.id, location }); } : undefined} onConfirmOffice={connected ? location => { setLocationReview(undefined); setOfficeReview({ jobId: selected.job.id, location }); } : undefined} onReadLocations={connected && selected.job.listingIds.some(id => data.listings.find(listing => listing.id === id)?.sourceId.startsWith("reviewed-platform-")) ? () => setDetailReviewJobId(selected.job.id) : undefined}>
+    {!enrichmentScope && !detailReviewJobId && selected && data && <AtlasJobDetail key={selected.job.id} item={selected} data={displayedData ?? data} searchQuery={text} demo={dataMode === "demo"} originalCurrency={originalCurrency} presentations={presentListing?.(selected) ?? []} onClose={closeJob} onLocate={(locationId) => void locateJob(selected, locationId)} onSave={() => routeJob(selected, false)} onAnalyze={() => routeJob(selected, true)} onConfirmLocation={connected && resultData === data ? location => { setOfficeReview(undefined); setLocationReview({ jobId: selected.job.id, location }); } : undefined} onConfirmOffice={connected && resultData === data ? location => { setLocationReview(undefined); setOfficeReview({ jobId: selected.job.id, location }); } : undefined} onReadLocations={connected && selected.job.listingIds.some(id => data.listings.find(listing => listing.id === id)?.sourceId.startsWith("reviewed-platform-")) ? () => setDetailReviewJobId(selected.job.id) : undefined}>
       {locationReview?.jobId === selected.job.id && connected && liveData && <Suspense fallback={<p role="status">正在打开地区核对…</p>}><AtlasLocationConfirmation key={`${locationReview.jobId}:${locationReview.location.id}:${endpoint}`} endpoint={endpoint} token={token} jobId={locationReview.jobId} location={locationReview.location} revision={liveData.revision} onClose={() => setLocationReview(undefined)} onSnapshot={snapshot => {
         searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live");
         setSourceSearchMessage(`已读取地区记录，索引版本 ${snapshot.revision}。当前筛选会按最新确认结果重新计算；不再符合条件的岗位会退出列表。`);
@@ -1791,9 +2014,10 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
         {locationSearch.result && <><p>来源没有办公坐标。请选择城市参考点，仅用于本次地图浏览；不会写入岗位地址。</p>{locationSearch.result.candidates.map((candidate) => <button key={candidate.id} onClick={() => chooseLocationCandidate(candidate)}><MapPin size={14} />{candidate.matchedName} · {countryName(candidate.place.countryCode)} · {Object.values(candidate.place.administrativeCodes).join(" / ")}<small>城市估算 · 非办公地址</small></button>)}{!locationSearch.result.candidates.length && <p>在当前国家 / 地区范围没有找到明确候选，请打开原文核对地点。</p>}<small>{locationSearch.result.candidates[0]?.evidence.provenance.attribution}</small></>}
       </div>}
     </AtlasJobDetail>}
-    </div>
+    </>} />
     <div className="atlas-map-notes">
-      <p className="atlas-small" aria-label="地图位置口径">有来源坐标 {result?.mappedJobs ?? 0} 岗，待定位 {result?.unlocatedJobs ?? 0} 岗。地图上的点只来自这些岗位的来源坐标，与当前筛选一致；没有坐标的岗位留在列表里，不使用城市估算补点。</p>
+      <p className="atlas-small" aria-label="地图位置口径">地图按来源坐标绘制地址、街道与本人核对的位置；城市估算不作为办公地址落点。没有足够精度坐标的岗位仍保留在列表中。</p>
+      <div className="atlas-precision-legend" aria-label="地图位置精度说明"><strong>位置精度</strong><span><i className="building" />本人核对 · 楼宇 / 入口 / 园区</span><span><i className="street" />街道级来源坐标</span><span><i className="address" />地址级来源坐标</span><small>点位可点选；重叠时可选择具体地址</small></div>
       <div className="atlas-legend"><div className="atlas-legend-title"><strong>企业控股来源</strong><button onClick={() => setSettings(settings === "colors" ? null : "colors")}><Palette size={14} />配置颜色</button></div><div>{colors.rules.map((r) => <span key={r.id}><i style={{ background: r.color }} />{r.label}</span>)}<span><i style={{ background: colors.defaultColor }} />待核实</span></div></div>
       <p className="atlas-footnote">Natural Earth 概略边界 · OpenFreeMap / OpenStreetMap 街道 · WGS84 · 地图展示来源位置，并区分城市估算与办公地址，远程资格不作为办公地址。国内行政分组用于展示；本地图不用于正式测绘。多地点岗位可有多个标记，统计按岗位去重。</p>
     </div>

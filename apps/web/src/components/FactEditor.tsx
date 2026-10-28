@@ -1,5 +1,5 @@
 import { useUiPreferences } from "../lib/ui-preferences";
-import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, type SyntheticEvent } from "react";
 import { scanClaim } from "@better-me/core";
 import type {
   FactBase,
@@ -27,11 +27,14 @@ import {
   Tag,
   Languages,
   Camera,
+  MessageSquare,
 } from "lucide-react";
 
 type Props = {
   factBase: FactBase;
   onChange: (next: FactBase) => void;
+  /** Open the Agent with an auditable quote from the resume editor. */
+  onAskAgentReference?: (reference: { type: "resume_text"; text: string; sourceLabel: string }) => void;
   textStyles?: Record<string, TextStyleRange[]>;
   onTextStylesChange?: (key: string, ranges: TextStyleRange[]) => void;
   onPreviewTargetChange?: (target: PreviewFollowTarget) => void;
@@ -41,7 +44,7 @@ type Props = {
 
 type ViewMode = "bilingual" | "zh" | "en";
 
-export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange, onPreviewTargetChange, issueNavigation, onDismissIssue }: Props) {
+export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles, onTextStylesChange, onPreviewTargetChange, issueNavigation, onDismissIssue }: Props) {
   const { t, locale } = useUiPreferences();
   const EXPERIENCE_TYPES: { value: Experience["type"]; label: string }[] = [
     { value: "work", label: t("工作经历", "Work experience") },
@@ -56,6 +59,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
   const [collapsedExps, setCollapsedExps] = useState<Record<string, boolean>>({});
   const [newExperienceType, setNewExperienceType] = useState<Experience["type"]>("work");
   const [avatarError, setAvatarError] = useState("");
+  const [selectedResumeText, setSelectedResumeText] = useState<{ text: string; sourceLabel: string } | null>(null);
   const factBaseRef = useRef(factBase);
   const onChangeRef = useRef(onChange);
   const avatarReadIdRef = useRef(0);
@@ -65,6 +69,19 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
   const pendingHoverFrameRef = useRef<number | undefined>(undefined);
   const lastHoverAnchorRef = useRef<string | undefined>(undefined);
   const focusedIssueRequestRef = useRef<IssueNavigationRequest | null>(null);
+
+  const captureResumeSelection = useCallback((event: SyntheticEvent) => {
+    if (!onAskAgentReference) return;
+    const target = event.target;
+    if (!(target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement)) return;
+    const start = target.selectionStart ?? 0;
+    const end = target.selectionEnd ?? 0;
+    if (end <= start) return;
+    const text = target.value.slice(start, end).trim();
+    if (!text) return;
+    const fieldLabel = target.getAttribute("aria-label") || t("当前简历字段", "Current resume field");
+    setSelectedResumeText({ text: text.slice(0, 12_000), sourceLabel: `简历 · ${fieldLabel}` });
+  }, [onAskAgentReference, t]);
 
   const issueExperience = issueNavigation && factBase.experiences.find((item) => item.id === issueNavigation.issue.experienceId);
   const issueClaim = issueExperience?.claims.find((item) => item.id === issueNavigation?.issue.claimId);
@@ -348,6 +365,7 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
       onPointerDownCapture={followEditingTarget}
       onFocusCapture={followEditingTarget}
       onPointerOverCapture={followHoverTarget}
+      onSelectCapture={captureResumeSelection}
       className="fact-editor flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] shadow-sm"
     >
       {/* Editor Header */}
@@ -427,6 +445,24 @@ export function FactEditor({ factBase, onChange, textStyles, onTextStylesChange,
           <p id="editor-fields-help" className="w-full text-[10px] leading-relaxed">{t("仅显示所选语言的编辑字段，不会翻译内容或更改简历输出语言。", "Shows fields in the selected language only. It does not translate content or change the resume output language.")}</p>
         </div>
       </div>
+
+      {onAskAgentReference && selectedResumeText && (
+        <div className="no-print flex items-center gap-2 border-b border-emerald-100 bg-emerald-50/80 px-5 py-2 text-[11px] text-emerald-900">
+          <MessageSquare className="h-3.5 w-3.5 shrink-0 text-emerald-700" />
+          <span className="min-w-0 flex-1 truncate" title={selectedResumeText.text}>
+            {t("已选中简历内容：", "Resume text selected: ")}{selectedResumeText.text}
+          </span>
+          <button
+            type="button"
+            className="shrink-0 rounded-md bg-emerald-700 px-2.5 py-1 font-semibold text-white shadow-xs transition hover:bg-emerald-800"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => onAskAgentReference({ type: "resume_text", ...selectedResumeText })}
+          >
+            {t("在伴侣中提问", "Ask in Companion")}
+          </button>
+          <button type="button" className="shrink-0 rounded-md px-1.5 py-1 text-emerald-700 hover:bg-emerald-100" onClick={() => setSelectedResumeText(null)} aria-label={t("清除引用", "Clear quote")}>×</button>
+        </div>
+      )}
 
       {issueNavigation && issueGuidance && (
         <aside className={`issue-guide no-print ${issueResolved ? "resolved" : ""}`} aria-label={t("内容检查修改指引", "Content review guidance")} id="content-issue-guidance">
