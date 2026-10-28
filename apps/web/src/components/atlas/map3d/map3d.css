@@ -1,0 +1,48 @@
+.atlas-map-viewport { position:absolute; inset:0; display:flex; flex-direction:column; min-height:0; color:var(--color-ink,#203c34); background:var(--color-panel,#fff); }
+.atlas-scene-sourcebar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; padding:8px 12px; border-bottom:1px solid var(--color-line,#dbe4df); flex-shrink:0; }
+.atlas-scene-sourcebar [role=group] { display:flex; gap:4px; flex-wrap:wrap; }
+.atlas-map-viewport button,.atlas-scene-config select,.atlas-scene-config input { font:inherit; }
+.atlas-scene-sourcebar button,.atlas-scene-config button,.atlas-scene-status button,.atlas-cesium-picker header button { min-height:40px; padding:8px 12px; border:1px solid var(--color-line,#dbe4df); border-radius:10px; background:var(--color-panel,#fff); color:inherit; font-size:14px; cursor:pointer; }
+.atlas-scene-sourcebar button[aria-pressed=true],.atlas-scene-config-actions button:first-child { background:#185a4d; border-color:#185a4d; color:white; }
+.atlas-map-viewport button:focus-visible,.atlas-map-viewport input:focus-visible,.atlas-map-viewport select:focus-visible { outline:3px solid #3caa94; outline-offset:2px; }
+.atlas-map-viewport button:disabled { opacity:.45; cursor:not-allowed; }
+.atlas-scene-stage { position:relative; flex:1; min-height:180px; overflow:hidden; }
+.atlas-scene-stage > [data-atlas-renderer] { position:absolute!important; inset:0; width:100%; height:100%; border-radius:0!important; }
+.atlas-scene-config { max-height:58%; overflow:auto; flex-shrink:0; padding:16px; border-bottom:1px solid var(--color-line,#dbe4df); background:var(--color-panel,#fff); font-size:15px; line-height:1.6; }
+.atlas-scene-config header,.atlas-cesium-picker header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.atlas-scene-config header strong { font-size:17px; }
+.atlas-scene-config label:not(.atlas-scene-consent) { display:grid; gap:6px; margin:12px 0; }
+.atlas-scene-config input:not([type=checkbox]),.atlas-scene-config select,.atlas-cesium-picker > input { width:100%; box-sizing:border-box; min-height:44px; padding:9px 12px; border:1px solid var(--color-line,#c5d5cd); border-radius:9px; color:inherit; background:var(--color-panel,#fff); }
+.atlas-scene-config p { font-size:14px; line-height:1.7; margin:10px 0; }
+.atlas-scene-config a { color:inherit; text-decoration:underline; }
+.atlas-scene-config .atlas-scene-coverage-note { padding:10px 12px; border-radius:8px; background:#f7e9cc; color:#72521b; }
+.atlas-scene-consent { display:flex; align-items:flex-start; gap:9px; margin:16px 0; }
+.atlas-scene-consent input { margin-top:5px; }
+.atlas-scene-config-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.atlas-scene-config [role=alert] { color:#a64428; }
+.atlas-scene-status,.atlas-scene-preparing { position:absolute; z-index:3; top:16px; left:16px; right:16px; max-width:440px; padding:16px; border:1px solid var(--color-line,#d5dfdb); background:var(--color-panel,#fff); border-radius:14px; font-size:15px; line-height:1.65; box-shadow:0 8px 25px #122c2d18; }
+.atlas-scene-status strong,.atlas-scene-status span { display:block; }
+.atlas-scene-status.is-error { border-color:#b67b4b; }
+.atlas-scene-status > div { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.atlas-scene-caption { display:flex; justify-content:space-between; flex-wrap:wrap; gap:5px 14px; padding:8px 12px; font-size:13px; line-height:1.5; border-top:1px solid var(--color-line,#dbe4df); }
+.atlas-cesium { position:relative; width:100%; height:100%; }
+.atlas-cesium-canvas { position:absolute; inset:0; }
+.atlas-cesium .cesium-viewer,.atlas-cesium .cesium-viewer-cesiumWidgetContainer,.atlas-cesium .cesium-widget,.atlas-cesium .cesium-widget canvas { width:100%; height:100%; }
+.atlas-cesium .cesium-viewer-bottom { bottom:4px; left:8px; right:8px; max-width:calc(100% - 16px); background:#fffc; border-radius:5px; color:#183e35; }
+.atlas-cesium .cesium-credit-textContainer { font-size:12px; line-height:1.55; }
+.atlas-cesium .cesium-credit-expand-link { color:#185a4d; }
+.atlas-cesium-addresses { position:absolute; z-index:2; right:12px; top:12px; min-height:44px; border:1px solid #b2cec1; border-radius:12px; padding:8px 14px; background:#fffffff0; color:#164b3f; box-shadow:0 4px 16px #092d2726; font-size:15px!important; }
+.atlas-cesium-focus-note { position:absolute; top:66px; right:12px; max-width:70%; border-radius:10px; padding:8px 12px; background:#fffffff0; color:#164b3f; font-size:14px; }
+.atlas-cesium-navigation { position:absolute; z-index:2; right:12px; bottom:74px; display:grid; gap:2px; padding:4px; border:1px solid #b2cec1; border-radius:12px; background:#fffffff0; box-shadow:0 4px 16px #092d2726; }
+.atlas-cesium-navigation button { width:40px; height:40px; padding:0; border:0; border-radius:8px; background:transparent; color:#164b3f; font-size:23px; cursor:pointer; }
+.atlas-cesium-navigation button:last-child { font-size:15px; font-weight:700; }
+.atlas-cesium-navigation button:hover { background:#e6f2eb; }
+.atlas-cesium-picker { position:absolute; z-index:4; top:8px; right:12px; bottom:44px; width:min(370px,calc(100% - 24px)); padding:12px; display:flex; flex-direction:column; box-sizing:border-box; background:var(--color-panel,#fff); border:1px solid var(--color-line,#cad8d0); border-radius:14px; box-shadow:0 10px 35px #0a292c30; }
+.atlas-cesium-picker header { flex-shrink:0; margin-bottom:6px; }
+.atlas-cesium-picker > input { flex-shrink:0; min-height:36px; padding:7px 10px; }
+.atlas-cesium-picker > p { flex-shrink:0; margin:4px 0 0; }
+.atlas-cesium-picker-list { flex:1; min-height:0; overflow:auto; margin-top:10px; }
+.atlas-cesium-picker-list > button { display:block; width:100%; text-align:left; padding:12px; border:0; border-bottom:1px solid var(--color-line,#dbe4df); background:none; color:inherit; cursor:pointer; }
+.atlas-cesium-picker-list strong { display:block; font-size:15px; line-height:1.5; }
+.atlas-cesium-picker-list span,.atlas-cesium-picker p { display:block; font-size:13px; line-height:1.6; margin-top:4px; }
+@media(max-width:600px) { .atlas-scene-sourcebar { padding:8px; } .atlas-scene-sourcebar button { padding:6px 9px; } .atlas-scene-config { padding:12px; max-height:65%; } .atlas-scene-caption { font-size:12px; } }
