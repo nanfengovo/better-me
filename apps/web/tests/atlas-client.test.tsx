@@ -30,6 +30,29 @@ function repeatedDemo(copies = 10): AtlasDataset {
 }
 const hasCode = (code: AtlasClientError["code"]) => (error: unknown) => error instanceof AtlasClientError && error.code === code;
 
+test("a new snapshot can resume the visible page with a fresh cursor instead of jumping to page one", async () => {
+  const data = repeatedDemo(3);
+  const first = await queryAtlasPage(data, { page: { limit: 30 } }, NOW);
+  const second = await queryAtlasPage(data, { page: { limit: 30 } }, NOW, { cursor: first.page.nextCursor });
+  const refreshed = { ...data, revision: data.revision + 1 };
+  const resumed = await queryAtlasPage(refreshed, { page: { limit: 30 } }, NOW, { pageIndex: 1 });
+  assert.deepEqual(resumed.page.items.map(item => item.job.id), second.page.items.map(item => item.job.id));
+  assert.equal(resumed.page.snapshotVersion, refreshed.revision);
+  assert.notEqual(resumed.page.queryId, second.page.queryId);
+  assert.equal(resumed.pageIndex, 1);
+});
+
+test("page recovery clamps a shortened result set and respects a selected address", async () => {
+  const data = repeatedDemo(3);
+  const initial = await queryAtlasPage(data, { page: { limit: 3 } }, NOW);
+  const selectedJobIds = initial.summary.mapBuckets[0]!.jobIds;
+  const selected = await queryAtlasPage(data, { page: { limit: 3 } }, NOW, { pageIndex: 999, selectedJobIds });
+  assert.ok(selected.page.items.length > 0);
+  assert.ok(selected.page.items.every(item => selectedJobIds.includes(item.job.id)));
+  assert.equal(selected.summary.totalJobs, data.jobs.length);
+  assert.equal(selected.pageIndex, Math.floor((selected.page.totalJobs - 1) / 3));
+});
+
 test("loopback snapshot read uses the authenticated public export with no browser credentials or redirects", async () => {
   const data = createAtlasDemo();
   const fetchMock = mockResponse(snapshotBody(data));
