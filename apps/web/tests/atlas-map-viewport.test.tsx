@@ -43,6 +43,13 @@ test("real viewport/React effects gate paid data, survive progress/reset, restor
     assert.equal(instances[0]!.sources.at(-1).apiKey,"synthetic-memory-canary");
     await render({selectedJobId:"job",resetRevision:1});assert.equal(instances.length,1);assert.ok(instances[0]!.updates>0);
     await flush(()=>button("数据与画质").click());
+    assert.equal(host.querySelector(".atlas-map-viewport")!.getAttribute("data-settings-open"),"true");
+    assert.equal(host.querySelector(".atlas-scene-help")!.hasAttribute("open"),false,"verbose guidance is opt-in, while billing/coverage remain visible");
+    await flush(()=>host.querySelector(".atlas-scene-config")!.dispatchEvent(new dom.KeyboardEvent("keydown",{key:"Escape",bubbles:true})));
+    assert.equal(host.querySelector(".atlas-scene-config"),null);
+    assert.equal(dom.document.activeElement,button("数据与画质"),"Escape returns focus to the settings trigger");
+    assert.equal(instances.length,1,"opening and closing settings must not recreate the map engine");
+    await flush(()=>button("数据与画质").click());
     await flush(()=>{const select=host.querySelector<HTMLSelectElement>("select")!;select.value="economy";select.dispatchEvent(new dom.Event("change",{bubbles:true}));});
     assert.equal(instances.length,1);assert.equal(instances[0]!.qualities.at(-1),"economy");
     await flush(()=>button("关闭").click());await flush(()=>button("工作地图").click());assert.equal(instances[0]!.disposed,1);

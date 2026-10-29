@@ -1,30 +1,40 @@
-.atlas-map-viewport { position:absolute; inset:0; display:flex; flex-direction:column; min-height:0; color:var(--color-ink,#203c34); background:var(--color-panel,#fff); }
-.atlas-scene-sourcebar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; padding:8px 12px; border-bottom:1px solid var(--color-line,#dbe4df); flex-shrink:0; }
+.atlas-map-viewport { position:absolute; inset:0; display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr) auto; min-height:0; min-width:0; color:var(--color-ink,#203c34); background:var(--color-panel,#fff); }
+/* Settings share the scene row, not its vertical budget. Neither the canvas nor
+   its credits/navigation are covered; closing restores the full map width. */
+.atlas-map-viewport[data-settings-open=true] { grid-template-columns:minmax(0,1fr) min(300px,48%); }
+.atlas-scene-sourcebar { grid-column:1 / -1; grid-row:1; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px 8px; padding:6px 10px; border-bottom:1px solid var(--color-line,#dbe4df); }
 .atlas-scene-sourcebar [role=group] { display:flex; gap:4px; flex-wrap:wrap; }
 .atlas-map-viewport button,.atlas-scene-config select,.atlas-scene-config input { font:inherit; }
-.atlas-scene-sourcebar button,.atlas-scene-config button,.atlas-scene-status button,.atlas-cesium-picker header button { min-height:40px; padding:8px 12px; border:1px solid var(--color-line,#dbe4df); border-radius:10px; background:var(--color-panel,#fff); color:inherit; font-size:14px; cursor:pointer; }
+.atlas-scene-sourcebar button,.atlas-scene-config button,.atlas-scene-status button,.atlas-cesium-picker header button { min-height:32px; padding:5px 9px; border:1px solid var(--color-line,#dbe4df); border-radius:8px; background:var(--color-panel,#fff); color:inherit; font-size:13px; line-height:1.4; cursor:pointer; }
+.atlas-workspace .atlas-map-viewport .atlas-scene-sourcebar button,.atlas-workspace .atlas-map-viewport .atlas-scene-config button,.atlas-workspace .atlas-map-viewport .atlas-scene-config select,.atlas-workspace .atlas-map-viewport .atlas-scene-config input { font-size:13px; line-height:1.4; }
 .atlas-scene-sourcebar button[aria-pressed=true],.atlas-scene-config-actions button:first-child { background:#185a4d; border-color:#185a4d; color:white; }
 .atlas-map-viewport button:focus-visible,.atlas-map-viewport input:focus-visible,.atlas-map-viewport select:focus-visible { outline:3px solid #3caa94; outline-offset:2px; }
 .atlas-map-viewport button:disabled { opacity:.45; cursor:not-allowed; }
-.atlas-scene-stage { position:relative; flex:1; min-height:180px; overflow:hidden; }
+.atlas-scene-stage { grid-column:1; grid-row:2; position:relative; min-height:0; min-width:0; overflow:hidden; }
 .atlas-scene-stage > [data-atlas-renderer] { position:absolute!important; inset:0; width:100%; height:100%; border-radius:0!important; }
-.atlas-scene-config { max-height:58%; overflow:auto; flex-shrink:0; padding:16px; border-bottom:1px solid var(--color-line,#dbe4df); background:var(--color-panel,#fff); font-size:15px; line-height:1.6; }
+.atlas-scene-config { grid-column:2; grid-row:2; min-height:0; min-width:0; overflow:auto; overscroll-behavior:contain; padding:0 12px 12px; border-left:1px solid var(--color-line,#dbe4df); background:var(--color-panel,#fff); font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
+.atlas-scene-config:focus { outline:none; }
+.atlas-scene-config:focus-visible { outline:2px solid #3caa94; outline-offset:-2px; }
 .atlas-scene-config header,.atlas-cesium-picker header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
-.atlas-scene-config header strong { font-size:17px; }
-.atlas-scene-config label:not(.atlas-scene-consent) { display:grid; gap:6px; margin:12px 0; }
+.atlas-scene-config header { position:sticky; top:0; z-index:1; padding:8px 0; margin-bottom:0; background:var(--color-panel,#fff); }
+.atlas-scene-config header strong { font-size:14px; }
+.atlas-scene-config label:not(.atlas-scene-consent) { display:grid; gap:4px; margin:8px 0; }
 .atlas-scene-config input:not([type=checkbox]),.atlas-scene-config select,.atlas-cesium-picker > input { width:100%; box-sizing:border-box; min-height:44px; padding:9px 12px; border:1px solid var(--color-line,#c5d5cd); border-radius:9px; color:inherit; background:var(--color-panel,#fff); }
-.atlas-scene-config p { font-size:14px; line-height:1.7; margin:10px 0; }
+.atlas-scene-config input:not([type=checkbox]),.atlas-scene-config select { min-height:32px; padding:5px 8px; border-radius:7px; }
+.atlas-scene-config p { font-size:12px; line-height:1.6; margin:8px 0; }
 .atlas-scene-config a { color:inherit; text-decoration:underline; }
-.atlas-scene-config .atlas-scene-coverage-note { padding:10px 12px; border-radius:8px; background:#f7e9cc; color:#72521b; }
-.atlas-scene-consent { display:flex; align-items:flex-start; gap:9px; margin:16px 0; }
-.atlas-scene-consent input { margin-top:5px; }
-.atlas-scene-config-actions { display:flex; gap:10px; flex-wrap:wrap; }
-.atlas-scene-config [role=alert] { color:#a64428; }
+.atlas-scene-config .atlas-scene-coverage-note { padding:8px; border-radius:8px; background:#f7e9cc; color:#72521b; }
+.atlas-scene-help { font-size:12px; }
+.atlas-scene-help summary { cursor:pointer; padding:6px 0; }
+.atlas-scene-consent { display:flex; align-items:flex-start; gap:7px; margin:10px 0; font-size:12px; cursor:pointer; }
+.atlas-scene-consent input { flex-shrink:0; margin-top:3px; }
+.atlas-scene-config-actions { display:flex; gap:6px; flex-wrap:wrap; }
+.atlas-scene-config [role=alert] { color:#a64428; font-size:13px; }
 .atlas-scene-status,.atlas-scene-preparing { position:absolute; z-index:3; top:16px; left:16px; right:16px; max-width:440px; padding:16px; border:1px solid var(--color-line,#d5dfdb); background:var(--color-panel,#fff); border-radius:14px; font-size:15px; line-height:1.65; box-shadow:0 8px 25px #122c2d18; }
 .atlas-scene-status strong,.atlas-scene-status span { display:block; }
 .atlas-scene-status.is-error { border-color:#b67b4b; }
 .atlas-scene-status > div { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
-.atlas-scene-caption { display:flex; justify-content:space-between; flex-wrap:wrap; gap:5px 14px; padding:8px 12px; font-size:13px; line-height:1.5; border-top:1px solid var(--color-line,#dbe4df); }
+.atlas-scene-caption { grid-column:1 / -1; grid-row:3; display:flex; justify-content:space-between; flex-wrap:wrap; gap:3px 10px; padding:4px 10px; font-size:12px; line-height:1.5; border-top:1px solid var(--color-line,#dbe4df); }
 .atlas-cesium { position:relative; width:100%; height:100%; }
 .atlas-cesium-canvas { position:absolute; inset:0; }
 .atlas-cesium .cesium-viewer,.atlas-cesium .cesium-viewer-cesiumWidgetContainer,.atlas-cesium .cesium-widget,.atlas-cesium .cesium-widget canvas { width:100%; height:100%; }
@@ -45,4 +55,8 @@
 .atlas-cesium-picker-list > button { display:block; width:100%; text-align:left; padding:12px; border:0; border-bottom:1px solid var(--color-line,#dbe4df); background:none; color:inherit; cursor:pointer; }
 .atlas-cesium-picker-list strong { display:block; font-size:15px; line-height:1.5; }
 .atlas-cesium-picker-list span,.atlas-cesium-picker p { display:block; font-size:13px; line-height:1.6; margin-top:4px; }
-@media(max-width:600px) { .atlas-scene-sourcebar { padding:8px; } .atlas-scene-sourcebar button { padding:6px 9px; } .atlas-scene-config { padding:12px; max-height:65%; } .atlas-scene-caption { font-size:12px; } }
+@media (max-width:600px) { .atlas-scene-sourcebar { padding:6px 8px; } .atlas-scene-config { padding:0 8px 8px; } }
+@media (pointer:coarse) {
+  .atlas-scene-sourcebar button,.atlas-scene-config button,.atlas-scene-config input:not([type=checkbox]),.atlas-scene-config select { min-height:44px; }
+  .atlas-scene-consent,.atlas-scene-help summary { min-height:44px; box-sizing:border-box; }
+}

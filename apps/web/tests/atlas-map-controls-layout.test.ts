@@ -36,8 +36,8 @@ const fixture = `<main class="atlas-workspace atlas-experience" data-pane-layout
   </div>
 </main>`;
 
-function setup(width: number, layout: "wide" | "medium" | "narrow") {
-  const dom = new Window({ width, height: 900 });
+function setup(width: number, layout: "wide" | "medium" | "narrow", touch = false) {
+  const dom = new Window({ width, height: 900, settings: { navigator: { maxTouchPoints: touch ? 5 : 0 } } });
   const style = dom.document.createElement("style");
   style.textContent = ["atlas.css", "atlas-experience.css", "map-interactions.css"].map(stylesheet).join("\n");
   dom.document.head.append(style);
@@ -54,9 +54,9 @@ for (const [width, layout] of [[1451, "wide"], [1024, "medium"], [390, "narrow"]
       assert.notEqual(css(".atlas-map-top").position, "fixed");
       assert.equal(css(".atlas-map-top").flexShrink, "0", "the reserved toolbar row cannot collapse when the scene grows");
       assert.equal(css(".atlas-map-top").flexWrap, "wrap", "narrow cards wrap complete control groups instead of overlapping");
-      assert.ok(Number.parseFloat(css(".atlas-mode-switch button").minHeight) >= 44, "scope switches keep usable touch targets");
-      assert.ok(Number.parseFloat(css(".atlas-view-controls button").minHeight) >= 44, "2D/3D switches keep usable touch targets");
-      assert.ok(Number.parseFloat(css(".atlas-map-camera-controls button").minHeight) >= 44, "camera actions remain usable after wrapping");
+      assert.equal(css(".atlas-mode-switch button").minHeight, "32px", "desktop scope switches leave height for the map");
+      assert.equal(css(".atlas-view-controls button").minHeight, "32px", "desktop 2D/3D controls use compact sizing");
+      assert.equal(css(".atlas-map-camera-controls button").minHeight, "32px", "desktop camera actions use the same density");
       assert.equal(css(".atlas-scene").position, "relative");
       assert.equal(css(".atlas-map-location-trigger").top, "12px");
       assert.equal(css(".atlas-map-location-trigger").minHeight, "44px");
@@ -70,6 +70,15 @@ for (const [width, layout] of [[1451, "wide"], [1024, "medium"], [390, "narrow"]
     } finally { await dom.happyDOM.close(); }
   });
 }
+
+test("touchscreen map controls retain 44px targets despite desktop density", async () => {
+  const { dom, css } = setup(390, "narrow", true);
+  try {
+    assert.equal(dom.matchMedia("(pointer: coarse)").matches, true);
+    for (const selector of [".atlas-mode-switch button", ".atlas-view-controls button", ".atlas-map-camera-controls button"])
+      assert.equal(css(selector).minHeight, "44px");
+  } finally { await dom.happyDOM.close(); }
+});
 
 test("without office locations the boundary badge uses available width while navigation remains reachable", async () => {
   const { dom, css } = setup(390, "narrow");
