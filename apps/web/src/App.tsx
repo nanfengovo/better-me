@@ -38,6 +38,7 @@ import { ArrowUpRight, BookOpen, Bot, BriefcaseBusiness, Check, ChevronRight, Cl
 import { AgentTopBarStatus } from "./components/AgentTopBarStatus";
 import { AgentCompanion } from "./components/AgentCompanion";
 import { ResumeWritingCopilot } from "./components/ResumeWritingCopilot";
+import { FirstRunGuide } from "./components/FirstRunGuide";
 import { writingSources, writingTargetKey } from "./lib/resume-copilot";
 
 const AtlasWorkspace = lazy(() => import("./components/AtlasWorkspace"));
@@ -365,12 +366,14 @@ export function App() {
       <button aria-label={t("查看历史版本", "View version history")} onClick={() => setIsHistoryOpen(true)}><History size={20} /><span>{t("版本", "History")}</span></button>
       <button aria-label={t("AI 顾问工作台", "AI Agent Workspace")} aria-pressed={page === "agent"} className={page === "agent" ? "active" : ""} onClick={() => setPage("agent")}><Bot size={20} /><span>{t("顾问", "Agent")}</span></button>
       <button aria-label={t("机会与投递", "Opportunities & applications")} aria-pressed={page === "opportunities"} className={page === "opportunities" ? "active" : ""} onClick={() => setPage("opportunities")}><BriefcaseBusiness size={20} /><span>{t("机会", "Jobs")}</span></button>
-      <button aria-label={t("岗位地图", "Opportunity atlas")} aria-pressed={page === "atlas"} className={page === "atlas" ? "active" : ""} onClick={() => { setAtlasInitialized(true); setPage("atlas"); }}><Globe size={20} /><span>{t("地图", "Atlas")}</span></button>
+      <button data-onboarding="atlas" aria-label={t("岗位地图", "Opportunity atlas")} aria-pressed={page === "atlas"} className={page === "atlas" ? "active" : ""} onClick={() => { setAtlasInitialized(true); setPage("atlas"); }}><Globe size={20} /><span>{t("地图", "Atlas")}</span></button>
       <button aria-label={t("求职资料库", "Career resources")} aria-pressed={page === "resources"} className={page === "resources" ? "active" : ""} onClick={() => setPage("resources")}><BookOpen size={20} /><span>{t("资料", "Resources")}</span></button>
       <div className="rail-bottom"><button aria-label={t("网络与代理设置", "Network & proxy settings")} onClick={() => setIsNetworkSettingsOpen(true)}><Globe size={19} /><span>{t("网络", "Network")}</span></button><span className="rail-local" title={t("简历与历史版本保存在当前浏览器", "Your resume and version history are stored in this browser")}><ShieldCheck size={19} /></span><button aria-label={t("打开 AI 配置", "Open AI configuration")} onClick={() => setIsAiConfigOpen(true)}><Settings2 size={19} /><span>{t("设置", "Settings")}</span></button></div>
     </aside>
     <div className="studio-workspace">
-      <header className="studio-header no-print"><div className="studio-brand"><strong>BetterMe<span> / </span></strong><span>{t("迈向更好", "Your next chapter")}</span><ChevronRight size={13} /><span className="header-location">{page === "resume" ? t("简历工作室", "Resume studio") : page === "opportunities" ? t("机会与投递", "Opportunities & applications") : page === "atlas" ? t("岗位地图", "Opportunity atlas") : page === "agent" ? t("AI 顾问工作台", "AI Agent Workspace") : t("求职资料库", "Career resources")}</span></div><div className="header-actions"><WorkspacePreferences /><span className={`save-indicator ${status.kind}`} title={status.message} role="status" aria-live="polite">{statusIcon}<span>{page === "resume" ? saveLabel : t("简历：", "Resume: ") + saveLabel}</span></span><AgentTopBarStatus config={llmConfig} active={page === "agent"} onNavigateToAgent={() => setPage("agent")} onOpenAiConfig={() => setIsAiConfigOpen(true)} /><button className="studio-button subtle" onClick={() => setIsAiConfigOpen(true)}><Settings2 size={14} />{t("AI 配置", "AI settings")}</button><div className="studio-user" title={t("个人本地工作空间", "Personal local workspace")}>{doc.factBase.profile.displayName.zh.slice(0, 1) || "我"}</div></div></header>
+      <header className="studio-header no-print"><div className="studio-brand"><strong>BetterMe<span> / </span></strong><span>{t("迈向更好", "Your next chapter")}</span><ChevronRight size={13} /><span className="header-location">{page === "resume" ? t("简历工作室", "Resume studio") : page === "opportunities" ? t("机会与投递", "Opportunities & applications") : page === "atlas" ? t("岗位地图", "Opportunity atlas") : page === "agent" ? t("AI 顾问工作台", "AI Agent Workspace") : t("求职资料库", "Career resources")}</span></div><div className="header-actions"><WorkspacePreferences /><span className={`save-indicator ${status.kind}`} title={status.message} role="status" aria-live="polite">{statusIcon}<span>{page === "resume" ? saveLabel : t("简历：", "Resume: ") + saveLabel}</span></span><AgentTopBarStatus config={llmConfig} active={page === "agent"} onNavigateToAgent={() => setPage("agent")} onOpenAiConfig={() => setIsAiConfigOpen(true)} />
+        <FirstRunGuide eligible={page === "resume" && workspaceTab === "content" && !isAiConfigOpen && !isNetworkSettingsOpen && !isJdMatchOpen && !isAgentDrawerOpen && !isImportModalOpen && !isHistoryOpen && !isRestoring} onPrepare={() => { setPage("resume"); setWorkspaceTab("content"); setIsMenuOpen(false); }} />
+        <button data-onboarding="ai" className="studio-button subtle" onClick={() => setIsAiConfigOpen(true)}><Settings2 size={14} />{t("AI 配置", "AI settings")}</button><div className="studio-user" title={t("个人本地工作空间", "Personal local workspace")}>{doc.factBase.profile.displayName.zh.slice(0, 1) || "我"}</div></div></header>
       <div className="resume-workspace-body" hidden={page !== "resume"} onMouseUpCapture={captureResumeTextSelection} onKeyUpCapture={captureResumeTextSelection}>
       {resumeSelectionReference && <div className="no-print flex items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-4 py-2 text-[11px] text-emerald-950">
         <MessageSquare size={14} className="shrink-0 text-emerald-700" />
@@ -394,7 +397,7 @@ export function App() {
           </div>
         </div>
         <div className="document-actions">
-          <AutoSaveControls settings={autoSaveSettings} onChange={setAutoSaveSettings} onSave={() => void flush()} preferenceError={autoSavePreferenceError} />
+          <div data-onboarding="save"><AutoSaveControls settings={autoSaveSettings} onChange={setAutoSaveSettings} onSave={() => void flush()} preferenceError={autoSavePreferenceError} /></div>
           <div className="output-language" role="group" aria-label={t("简历输出语言", "Resume output language")} title={t("只影响这份简历的预览与导出，不改变界面语言", "Only changes this resume’s preview and exports, independently of the interface language")}>
             <Languages size={14} /><span className="output-language-label">{t("简历语言", "Resume")}</span>
             {(["zh", "en"] as const).map((locale) => <button key={locale} aria-pressed={activeResume.locale === locale} className={activeResume.locale === locale ? "active" : ""} onClick={() => setResumeLocale(locale)}>{locale === "zh" ? "中文" : "English"}</button>)}
@@ -410,7 +413,7 @@ export function App() {
         <ImportSourceReview source={doc.factBase.importSource} />
       </div>
       <ResizableWorkspace>
-        <div id="resume-editor-panel" className="studio-editor-pane no-print">
+        <div id="resume-editor-panel" data-onboarding="editor" className="studio-editor-pane no-print">
           <div id="content-panel" role="tabpanel" className="studio-panel-slot" hidden={workspaceTab !== "content"}><FactEditor writingFocus={writingFocus} factBase={doc.factBase} onChange={updateFactBase} onAskAgentReference={(reference) => setAgentCompanionReference(reference)} textStyles={activeResume.textStyles} onTextStylesChange={updateStyles} onPreviewTargetChange={setPreviewTarget} issueNavigation={issueNavigation} onDismissIssue={() => setIssueNavigation(null)} /></div>
           <div id="design-panel" role="tabpanel" className="studio-panel-slot" hidden={workspaceTab !== "design"}><ResumeDesignPanel view={activeResume} factBase={doc.factBase} onChange={updateResume} /></div>
           <button className="jd-workspace-invite" onClick={() => setPage("agent")}><span className="jd-invite-icon"><Sparkles size={17} /></span><span><strong>{t("AI Agent 岗位匹配与定制", "AI Agent Job Matching & Customization")}</strong><small>{t("多 Agent 协同 · 查企业 · 优化履历 · 答辩建议", "Multi-Agent · Employer research · Polish resume · Interview defense")}</small></span><ArrowUpRight size={17} /></button>
