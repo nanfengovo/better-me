@@ -15,9 +15,10 @@ type Props = {
   placeholder?: string;
   rows?: number;
   describedBy?: string;
+  writingKey?: string;
 };
 
-export function TextFormattingField({ value, onChange, ranges = [], onStylesChange, label, placeholder, rows = 2, describedBy }: Props) {
+export function TextFormattingField({ value, onChange, ranges = [], onStylesChange, label, placeholder, rows = 2, describedBy, writingKey }: Props) {
   const { t } = useUiPreferences();
 
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -89,7 +90,7 @@ export function TextFormattingField({ value, onChange, ranges = [], onStylesChan
         <span className="format-selection-hint">{hasSelection ? t(`已选 ${selection.end - selection.start} 字`, `${selection.end - selection.start} characters selected`) : t("选中文字设置格式", "Select text to format")}</span>
       </div>}
       {colorOpen && onStylesChange && <HighlightColorPicker key={`${colorSelection.start}:${colorSelection.end}`} id={colorPanelId} anchorRef={colorButtonRef} color={colorValue || lastHighlightColor} activeColor={colorValue || undefined} mixed={fullyHighlighted && selectedColors.length > 1} selectedText={value.slice(colorSelection.start, colorSelection.end)} onApply={applyColor} onClose={closeColorPicker} />}
-      <textarea ref={ref} aria-label={label} aria-describedby={describedBy} value={value} onChange={(event) => onChange(event.target.value)} onSelect={(event) => {
+      <textarea ref={ref} data-writing-key={writingKey} aria-label={label} aria-describedby={describedBy} value={value} onChange={(event) => onChange(event.target.value)} onSelect={(event) => {
         const next = { start: event.currentTarget.selectionStart, end: event.currentTarget.selectionEnd };
         setSelection(next);
         if (colorSelection && (next.start !== colorSelection.start || next.end !== colorSelection.end)) setColorSelection(null);

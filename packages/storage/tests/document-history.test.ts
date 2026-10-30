@@ -51,6 +51,32 @@ async function setup(t: any) {
   return { ...fixture, doc, store, repository, history, controller };
 }
 
+test("approved writing protects an incomplete draft without forcing official save or autosave on", async (t) => {
+  const { doc, controller, data } = await setup(t);
+  controller.setAutoSaveSettings({ ...DEFAULT_AUTO_SAVE_SETTINGS, enabled: false });
+  const incomplete = structuredClone(doc); incomplete.factBase.profile.email = "unfinished@";
+  controller.update(incomplete);
+  const official = data.get(STORAGE_KEY);
+  assert.equal(await controller.protectEdit("伴写修改前"), true);
+  assert.equal(data.get(STORAGE_KEY), official);
+  assert.equal(JSON.parse(data.get(PREVIOUS_DRAFT_STORAGE_KEY)!).document.factBase.profile.email, "unfinished@");
+  assert.equal(controller.getState().doc, incomplete);
+});
+test("writing protection falls back to a separate durable previous-draft slot and fails closed", async (t) => {
+  const { doc, store, history, storage } = await setup(t);
+  let previous = "";
+  const controller = new DocumentPersistenceController({ store, history, previousDraftRepository: { load: async () => previous || null, save: async raw => { previous = raw; } } });
+  t.after(() => controller.dispose()); await controller.load();
+  const incomplete = structuredClone(doc); incomplete.factBase.profile.email = "unfinished@"; controller.update(incomplete);
+  const setItem = storage.setItem;
+  storage.setItem = (key, value) => { if (key === PREVIOUS_DRAFT_STORAGE_KEY) throw new Error("quota"); setItem(key, value); };
+  assert.equal(await controller.protectEdit("伴写修改前"), true);
+  assert.equal(JSON.parse(previous).document.factBase.profile.email, "unfinished@");
+  const failing = new DocumentPersistenceController({ store, history, previousDraftRepository: { load: async () => null, save: async () => { throw new Error("also full"); } } });
+  t.after(() => failing.dispose()); await failing.load(); failing.update(incomplete);
+  assert.equal(await failing.protectEdit("伴写修改前"), false);
+});
+
 test("unfinished draft survives immediate refresh without weakening official schema", async (t) => {
   const { data, doc, store, controller, history } = await setup(t);
   const official = data.get(STORAGE_KEY);

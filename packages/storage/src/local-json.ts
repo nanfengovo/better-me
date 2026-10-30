@@ -10,6 +10,7 @@ import type { BetterMeDocument, DocumentStore } from "./types.js";
 export const STORAGE_KEY = "better-me:document:v1";
 
 const DocumentSchema = z.object({
+  documentId: z.string().min(1).max(200).optional(),
   factBase: FactBaseSchema,
   resumeViews: z.array(ResumeViewSchema).min(1),
   activeResumeId: z.string().min(1),
@@ -81,6 +82,7 @@ export function createInitialDocument(
   const factBase = createDemoFactBase(now);
   const resume = createDefaultResumeView(factBase, now);
   return {
+    documentId: crypto.randomUUID(),
     factBase,
     resumeViews: [resume],
     activeResumeId: resume.id,

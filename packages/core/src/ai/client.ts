@@ -6,7 +6,11 @@ import {
   JdMatchReportSchema,
 } from "./types.js";
 
-export type AiRequestOptions = { signal?: AbortSignal };
+export type AiRequestOptions = {
+  signal?: AbortSignal;
+  /** Opt-in only: callers must know their configured endpoint supports this. */
+  responseFormat?: { type: "json_schema"; json_schema: { name: string; strict: boolean; schema: Record<string, unknown> } };
+};
 
 function cancelledRequest(label: string): DOMException {
   return new DOMException(`${label}已取消。`, "AbortError");
@@ -143,8 +147,9 @@ export interface ChatCompletionResult {
 export async function fetchChatCompletion(
   config: LlmConfig,
   messages: { role: "system" | "user" | "assistant"; content: ChatMessageContent }[],
+  options: AiRequestOptions = {},
 ): Promise<string> {
-  return (await fetchChatCompletionResult(config, messages)).content;
+  return (await fetchChatCompletionResult(config, messages, options)).content;
 }
 
 /** Same request contract, preserving the provider's completion reason for callers
@@ -152,6 +157,7 @@ export async function fetchChatCompletion(
 export async function fetchChatCompletionResult(
   config: LlmConfig,
   messages: { role: "system" | "user" | "assistant"; content: ChatMessageContent }[],
+  options: AiRequestOptions = {},
 ): Promise<ChatCompletionResult> {
   let url = config.baseUrl.trim().replace(/\/+$/, "");
 
@@ -174,6 +180,7 @@ export async function fetchChatCompletionResult(
     model: config.model,
     messages,
     temperature: config.temperature ?? 0.3,
+    ...(options.responseFormat ? { response_format: options.responseFormat } : {}),
   };
 
   return withRequestTimeout(90_000, "AI 生成请求", async (signal) => {
@@ -202,7 +209,7 @@ export async function fetchChatCompletionResult(
       content,
       ...(typeof choice.finish_reason === "string" ? { finishReason: choice.finish_reason.toLowerCase() } : {}),
     };
-  });
+  }, options.signal);
 }
 
 /** Generate detailed JD Match Report & Gap Analysis based on projected resume */

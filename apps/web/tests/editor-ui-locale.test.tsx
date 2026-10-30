@@ -95,11 +95,12 @@ test("selecting resume text offers a source-labelled quote for the Agent without
     .find(item => item.getAttribute("aria-label")?.includes("中文要点 1"));
   assert.ok(textarea);
   await flush(() => {
+    textarea!.focus();
     textarea!.setSelectionRange(0, 5);
-    textarea!.dispatchEvent(new dom.Event("select", { bubbles: true }));
+    textarea!.dispatchEvent(new dom.Event("mouseup", { bubbles: true }));
   });
-  assert.match(dom.document.body.textContent!, /带引用询问 Agent/);
-  await click("带引用询问 Agent");
+  assert.match(dom.document.body.textContent!, /在伴侣中提问/);
+  await click("在伴侣中提问");
   assert.equal(reference?.type, "resume_text");
   assert.equal(reference?.text, textarea.value.slice(0, 5));
   assert.match(reference?.sourceLabel ?? "", /简历 ·/);

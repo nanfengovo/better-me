@@ -1,6 +1,8 @@
 import type { FactBase, ResumeView } from "@better-me/core";
 
 export type BetterMeDocument = {
+  /** Stable across edits, views and history. Optional for legacy backups. */
+  documentId?: string;
   factBase: FactBase;
   resumeViews: ResumeView[];
   activeResumeId: string;

@@ -101,7 +101,7 @@ export class IndexedDbVersionRepository implements VersionRepository {
         (db) => {
           try {
             db.close();
-          } catch {}
+          } catch { /* The connection may already be closed by the browser. */ }
         },
         () => {}
       );
@@ -195,7 +195,7 @@ export class IndexedDbVersionRepository implements VersionRepository {
             .catch((err) => {
               try {
                 transaction.abort();
-              } catch {}
+              } catch { /* A settled transaction cannot be aborted again. */ }
               reject(err);
             });
         });
@@ -254,6 +254,7 @@ export class IndexedDbVersionRepository implements VersionRepository {
 
 /** Keeps an overflow draft outside localStorage's small per-origin quota. */
 export class IndexedDbDraftRepository implements DraftRepository {
+  constructor(private readonly slot = "active") {}
   private database: Promise<IDBDatabase> | null = null;
 
   private open(): Promise<IDBDatabase> {
@@ -294,7 +295,7 @@ export class IndexedDbDraftRepository implements DraftRepository {
     const database = await this.open();
     return new Promise((resolve, reject) => {
       const transaction = database.transaction("drafts", "readonly");
-      const request = transaction.objectStore("drafts").get("active");
+      const request = transaction.objectStore("drafts").get(this.slot);
       request.onsuccess = () => resolve(typeof request.result === "string" ? request.result : null);
       request.onerror = () => reject(request.error ?? new Error("IndexedDB 草稿读取失败。"));
       transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB 草稿读取被中断。"));
@@ -305,7 +306,7 @@ export class IndexedDbDraftRepository implements DraftRepository {
     const database = await this.open();
     return new Promise((resolve, reject) => {
       const transaction = database.transaction("drafts", "readwrite");
-      transaction.objectStore("drafts").put(raw, "active");
+      transaction.objectStore("drafts").put(raw, this.slot);
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error ?? new Error("IndexedDB 草稿保存失败。"));
       transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB 草稿保存被中断。"));
@@ -381,14 +382,16 @@ export class DocumentPersistenceController {
   private externalVersion: BetterMeDocument | null = null;
   private store: LocalJsonStore;
   private draftRepository: DraftRepository;
+  private previousDraftRepository: DraftRepository;
   private autoSave: AutoSaveSettings;
   private autoSaveRevision = 0;
   private persistedFingerprint: string | null = null;
   private draftTimestamp = 0;
-  constructor(options: { history?: LocalDocumentHistory; store?: LocalJsonStore; draftRepository?: DraftRepository; delayMs?: number; autoSave?: AutoSaveSettings } = {}) {
+  constructor(options: { history?: LocalDocumentHistory; store?: LocalJsonStore; draftRepository?: DraftRepository; previousDraftRepository?: DraftRepository; delayMs?: number; autoSave?: AutoSaveSettings } = {}) {
     this.history = options.history ?? new LocalDocumentHistory();
     this.store = options.store ?? new LocalJsonStore();
     this.draftRepository = options.draftRepository ?? new IndexedDbDraftRepository();
+    this.previousDraftRepository = options.previousDraftRepository ?? new IndexedDbDraftRepository("previous");
     this.autoSave = normalizeAutoSaveSettings(options.autoSave);
     // Legacy explicit delays are used by existing consumers and timer tests.
     if (options.delayMs !== undefined && options.autoSave === undefined) {
@@ -456,6 +459,10 @@ export class DocumentPersistenceController {
     let indexedDraftRaw: string | null = null;
     try { rawPreviousDraftRecovery = localStorage.getItem(PREVIOUS_DRAFT_STORAGE_KEY) ?? undefined; }
     catch { loadError = loadError ?? "浏览器拒绝读取切换前草稿，请检查本地存储权限。"; }
+    try {
+      const backup = await this.previousDraftRepository.load();
+      if (backup && (!rawPreviousDraftRecovery || Date.parse(JSON.parse(backup).savedAt) > Date.parse(JSON.parse(rawPreviousDraftRecovery).savedAt))) rawPreviousDraftRecovery = backup;
+    } catch { /* The primary previous draft remains available. */ }
     try {
       const officialRaw = localStorage.getItem(STORAGE_KEY);
       if (loadError && officialRaw !== null) rawOfficialRecovery = officialRaw;
@@ -811,6 +818,26 @@ export class DocumentPersistenceController {
       } });
     }
     return true;
+  }
+  /** Protect before an approved edit, including incomplete drafts; never force autosave on. */
+  async protectEdit(label: string): Promise<boolean> {
+    const current = this.state.doc, operation = this.operation;
+    if (!current || !this.state.ready || this.state.status.externalConflict) return false;
+    try {
+      const valid = DocumentSchema.safeParse(current);
+      if (valid.success) await this.history.append(valid.data as BetterMeDocument, label, "checkpoint");
+      else {
+        const raw = encodeDraft({ schemaVersion: 1, savedAt: new Date().toISOString(), document: DraftDocumentSchema.parse(current) });
+        try { localStorage.setItem(PREVIOUS_DRAFT_STORAGE_KEY, raw); }
+        catch { await this.previousDraftRepository.save(raw); }
+        if (this.operation !== operation || this.state.status.externalConflict) return false;
+        this.emit({ status: { ...this.state.status, rawPreviousDraftRecovery: raw } });
+      }
+      return this.operation === operation && !this.state.status.externalConflict;
+    } catch (error) {
+      if (this.operation === operation) this.emit({ status: { ...this.state.status, historyError: error instanceof Error ? error.message : "修改前草稿保护失败，请下载备份。" } });
+      return false;
+    }
   }
   async checkpoint(label: string): Promise<boolean> {
     const next = this.state.doc;

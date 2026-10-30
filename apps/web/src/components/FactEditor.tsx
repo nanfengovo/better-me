@@ -40,11 +40,12 @@ type Props = {
   onPreviewTargetChange?: (target: PreviewFollowTarget) => void;
   issueNavigation?: IssueNavigationRequest | null;
   onDismissIssue?: () => void;
+  writingFocus?: { key: string; experienceId?: string; locale: "zh" | "en"; requestId: number } | null;
 };
 
 type ViewMode = "bilingual" | "zh" | "en";
 
-export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles, onTextStylesChange, onPreviewTargetChange, issueNavigation, onDismissIssue }: Props) {
+export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles, onTextStylesChange, onPreviewTargetChange, issueNavigation, onDismissIssue, writingFocus }: Props) {
   const { t, locale } = useUiPreferences();
   const EXPERIENCE_TYPES: { value: Experience["type"]; label: string }[] = [
     { value: "work", label: t("工作经历", "Work experience") },
@@ -106,6 +107,18 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
   }, [factBase, onChange]);
 
   useEffect(() => { followCallbackRef.current = onPreviewTargetChange; }, [onPreviewTargetChange]);
+
+  useEffect(() => {
+    if (!writingFocus) return;
+    setActiveTab(writingFocus.experienceId ? "experiences" : "profile");
+    if (writingFocus.experienceId) setCollapsedExps(previous => ({ ...previous, [writingFocus.experienceId!]: false }));
+    setViewMode(previous => previous === "bilingual" ? previous : writingFocus.locale);
+    const frame = requestAnimationFrame(() => {
+      const input = [...(scrollerRef.current?.querySelectorAll<HTMLTextAreaElement>("textarea[data-writing-key]") ?? [])].find(el => el.dataset.writingKey === writingFocus.key);
+      input?.focus({ preventScroll: true }); input?.scrollIntoView({ block: "nearest", behavior: "instant" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [writingFocus]);
 
   useEffect(() => () => {
     if (pendingFollowFrameRef.current !== undefined) cancelAnimationFrame(pendingFollowFrameRef.current);
@@ -366,6 +379,8 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
       onFocusCapture={followEditingTarget}
       onPointerOverCapture={followHoverTarget}
       onSelectCapture={captureResumeSelection}
+      onMouseUpCapture={captureResumeSelection}
+      onKeyUpCapture={captureResumeSelection}
       className="fact-editor flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] shadow-sm"
     >
       {/* Editor Header */}
@@ -586,6 +601,7 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
                       {t("个人定位 / 一句话简介 (中文)", "Headline / short introduction (Chinese)")}</label>
                     <TextFormattingField
                       label={t("中文个人定位", "Headline in Chinese")}
+                      writingKey={JSON.stringify(["profile_headline", "zh"])}
                       rows={1}
                       ranges={textStyles?.["profile:headline:zh"]}
                       onStylesChange={onTextStylesChange ? (ranges) => onTextStylesChange("profile:headline:zh", ranges) : undefined}
@@ -611,6 +627,7 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
                     </label>
                     <TextFormattingField
                       label={t("英文个人定位", "Headline in English")}
+                      writingKey={JSON.stringify(["profile_headline", "en"])}
                       rows={1}
                       ranges={textStyles?.["profile:headline:en"]}
                       onStylesChange={onTextStylesChange ? (ranges) => onTextStylesChange("profile:headline:en", ranges) : undefined}
@@ -1174,6 +1191,7 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
                                     label={t(`${exp.org.zh || t("新经历", "New experience")} · 中文要点 ${claimIndex + 1}`, `${exp.org.zh || t("新经历", "New experience")} · Chinese entry ${claimIndex + 1}`)}
                                     describedBy={isIssueField(exp.id, claim.id, "text-zh") ? "content-issue-guidance" : undefined}
                                     ranges={textStyles?.[`claim:${claim.id}:zh`]}
+                                    writingKey={JSON.stringify(["claim_text", exp.id, claim.id, "zh"])}
                                     onStylesChange={onTextStylesChange ? (ranges) => onTextStylesChange(`claim:${claim.id}:zh`, ranges) : undefined}
                                     value={claim.text.zh}
                                     onChange={(value) =>
@@ -1196,6 +1214,7 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
                                     label={t(`${exp.org.en || exp.org.zh || t("新经历", "New experience")} · 英文要点 ${claimIndex + 1}`, `${exp.org.en || exp.org.zh || t("新经历", "New experience")} · English entry ${claimIndex + 1}`)}
                                     describedBy={isIssueField(exp.id, claim.id, "text-en") ? "content-issue-guidance" : undefined}
                                     ranges={textStyles?.[`claim:${claim.id}:en`]}
+                                    writingKey={JSON.stringify(["claim_text", exp.id, claim.id, "en"])}
                                     onStylesChange={onTextStylesChange ? (ranges) => onTextStylesChange(`claim:${claim.id}:en`, ranges) : undefined}
                                     value={claim.text.en ?? ""}
                                     onChange={(value) =>

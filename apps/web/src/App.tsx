@@ -37,6 +37,8 @@ import { createIssueNavigation, type IssueNavigationRequest } from "./lib/issue-
 import { ArrowUpRight, BookOpen, Bot, BriefcaseBusiness, Check, ChevronRight, CloudOff, Download, FileText, GitBranch, Globe, History, Languages, Loader2, MessageSquare, MoreHorizontal, Palette, RotateCcw, Settings2, ShieldCheck, Sparkles, Upload, X } from "lucide-react";
 import { AgentTopBarStatus } from "./components/AgentTopBarStatus";
 import { AgentCompanion } from "./components/AgentCompanion";
+import { ResumeWritingCopilot } from "./components/ResumeWritingCopilot";
+import { writingSources, writingTargetKey } from "./lib/resume-copilot";
 
 const AtlasWorkspace = lazy(() => import("./components/AtlasWorkspace"));
 const LLM_CONFIG_KEY = "better-me:llm-config";
@@ -50,7 +52,7 @@ function downloadJson(content: string, fileName: string) {
 export function App() {
   const { t } = useUiPreferences();
   const confirm = useConfirm();
-  const { doc, ready, loadError, status, update, replace, restoreField, checkpoint, flush, history, autoSaveSettings, setAutoSaveSettings, autoSavePreferenceError } = useDocumentPersistence();
+  const { doc, ready, loadError, status, update, replace, restoreField, checkpoint, protectEdit, flush, history, autoSaveSettings, setAutoSaveSettings, autoSavePreferenceError } = useDocumentPersistence();
   const [workspaceTab, setWorkspaceTab] = useState<"content" | "design">("content");
   const [page, setPage] = useState<"resume" | "opportunities" | "resources" | "atlas" | "agent">(() => {
     const ws = new URLSearchParams(window.location.search).get("workspace");
@@ -60,6 +62,7 @@ export function App() {
   const [opportunitySeed, setOpportunitySeed] = useState<OpportunitySeed | null>(null);
   const [jdSelection, setJdSelection] = useState<{ token: string; text: string; source: { title: string; url?: string; platform: string; observedAt?: string; sourcePublishedAt?: string; sourcePublishedText?: string } } | null>(null);
   const [previewTarget, setPreviewTarget] = useState<PreviewFollowTarget | null>(null);
+  const [writingFocus, setWritingFocus] = useState<{ key: string; experienceId?: string; locale: "zh" | "en"; requestId: number } | null>(null);
   const [issueNavigation, setIssueNavigation] = useState<IssueNavigationRequest | null>(null);
   const issueRequestIdRef = useRef(0);
   const [isRestoring, setIsRestoring] = useState(false);
@@ -109,6 +112,12 @@ export function App() {
   const projected = useMemo(() => doc && activeResume ? projectResume(doc.factBase, activeResume) : null, [doc, activeResume]);
   const matchReadiness = useMemo(() => projected ? getJdMatchReadiness(projected) : null, [projected]);
   const resumeEditContext = useMemo(() => doc && activeResume ? createResumeAgentContext(doc.factBase, activeResume) : undefined, [doc, activeResume]);
+  const writingContext = useMemo(() => {
+    if (!doc || !activeResume) return [];
+    const locales = activeResume.locale === "en" ? ["en", "zh"] as const : ["zh", "en"] as const;
+    const sources = locales.flatMap(locale => writingSources(createResumeAgentContext(doc.factBase, { ...activeResume, locale })));
+    return [...new Map(sources.map(source => [writingTargetKey(source.targetRef), source])).values()];
+  }, [doc, activeResume]);
   const hasIncompleteDraft = useMemo(() => !!doc && !DocumentSchema.safeParse(doc).success, [doc]);
   const linkedResumeNames = useMemo(() => doc ? resumeNamesByOpportunity(doc) : Object.create(null) as Record<string, string[]>, [doc]);
   function edit(next: NonNullable<typeof doc>) { restoreOperationRef.current += 1; setIsRestoring(false); setActionError(""); docRef.current = next; update(next); }
@@ -133,6 +142,12 @@ export function App() {
     const synced = syncResumeViewsWithFactBase(current.factBase, applied.document.factBase, current.resumeViews, current.activeResumeId);
     edit({ ...applied.document, resumeViews: rebaseViewTextStyles(current.factBase, applied.document.factBase, synced) });
     return { ok: true, message: t("已批准并提交到简历保存流程。草稿立即受保护；完整版本按当前自动保存设置保存，可在历史版本中恢复。", "Approved and submitted to the resume save flow. The draft is protected immediately; the complete version follows your autosave setting and can be restored from history.") };
+  }
+  async function handleApplyWritingProposal(proposal: { targetRef: ResumeProposalTarget; originalText: string; proposedText: string }) {
+    const before = docRef.current;
+    if (status.externalConflict || !await protectEdit(t("伴写修改前", "Before writing suggestion"))) return { ok: false, message: t("未能保护修改前的版本，本次没有写入；请先保存或下载备份。", "Could not protect the previous version. Nothing was written; save or download a backup first.") };
+    if (docRef.current?.activeResumeId !== before?.activeResumeId || docRef.current?.factBase !== before?.factBase) return { ok: false, message: t("简历已切换或原文有新修改，本次没有写入，请重新核对。", "Resume changed. Nothing was written; review the suggestion again.") };
+    return handleApplyResumeProposal(proposal);
   }
   function updateStyles(key: string, ranges: TextStyleRange[]) {
     const current = docRef.current;
@@ -160,7 +175,7 @@ export function App() {
   async function handleImportResumeSuccess(factBase: FactBase, _rawText: string, fileName: string) {
     const view = createDefaultResumeView(factBase); view.name = fileName.replace(/\.[^.]+$/, "") || t("我的简历", "My resume");
     restoreOperationRef.current += 1; setIsRestoring(false);
-    if (!(await replace({ factBase, resumeViews: [view], activeResumeId: view.id }, t(`导入 · ${fileName}`, `Import · ${fileName}`), "import"))) throw new Error(t("导入结果未能保存，当前简历已保留。请检查浏览器空间与字段格式。", "Could not save the import. Your current resume is preserved. Check local storage space and field values."));
+    if (!(await replace({ documentId: crypto.randomUUID(), factBase, resumeViews: [view], activeResumeId: view.id }, t(`导入 · ${fileName}`, `Import · ${fileName}`), "import"))) throw new Error(t("导入结果未能保存，当前简历已保留。请检查浏览器空间与字段格式。", "Could not save the import. Your current resume is preserved. Check local storage space and field values."));
     setIssueNavigation(null);
     setWorkspaceTab("content");
     setPage("resume");
@@ -177,6 +192,7 @@ export function App() {
     void file.text().then(async (raw) => {
       if (operation !== restoreOperationRef.current) return;
       const restored = parseDocumentJson(raw);
+      restored.documentId ??= crypto.randomUUID();
       const saved = await replace(restored, t(`恢复备份 · ${file.name}`, `Restore backup · ${file.name}`), "import");
       if (saved) setIssueNavigation(null);
       if (operation === restoreOperationRef.current && !saved) setActionError(t("备份未能保存，当前简历已保留。", "Could not save the backup. Your current resume is preserved."));
@@ -395,11 +411,15 @@ export function App() {
       </div>
       <ResizableWorkspace>
         <div id="resume-editor-panel" className="studio-editor-pane no-print">
-          <div id="content-panel" role="tabpanel" className="studio-panel-slot" hidden={workspaceTab !== "content"}><FactEditor factBase={doc.factBase} onChange={updateFactBase} onAskAgentReference={(reference) => setAgentCompanionReference(reference)} textStyles={activeResume.textStyles} onTextStylesChange={updateStyles} onPreviewTargetChange={setPreviewTarget} issueNavigation={issueNavigation} onDismissIssue={() => setIssueNavigation(null)} /></div>
+          <div id="content-panel" role="tabpanel" className="studio-panel-slot" hidden={workspaceTab !== "content"}><FactEditor writingFocus={writingFocus} factBase={doc.factBase} onChange={updateFactBase} onAskAgentReference={(reference) => setAgentCompanionReference(reference)} textStyles={activeResume.textStyles} onTextStylesChange={updateStyles} onPreviewTargetChange={setPreviewTarget} issueNavigation={issueNavigation} onDismissIssue={() => setIssueNavigation(null)} /></div>
           <div id="design-panel" role="tabpanel" className="studio-panel-slot" hidden={workspaceTab !== "design"}><ResumeDesignPanel view={activeResume} factBase={doc.factBase} onChange={updateResume} /></div>
           <button className="jd-workspace-invite" onClick={() => setPage("agent")}><span className="jd-invite-icon"><Sparkles size={17} /></span><span><strong>{t("AI Agent 岗位匹配与定制", "AI Agent Job Matching & Customization")}</strong><small>{t("多 Agent 协同 · 查企业 · 优化履历 · 答辩建议", "Multi-Agent · Employer research · Polish resume · Interview defense")}</small></span><ArrowUpRight size={17} /></button>
         </div>
-        <div id="resume-preview-panel" className="studio-preview-pane"><ResumePreview resume={projected} view={activeResume} onViewChange={updateResume} onTemplateChange={setTemplate} followTarget={workspaceTab === "content" ? previewTarget : null} /></div>
+        <div id="resume-preview-panel" className="studio-preview-pane"><ResumeWritingCopilot key={`${doc.documentId ?? "legacy"}:${activeResume.id}:${activeResume.targetJdId ?? ""}`} sessionKey={`${doc.documentId ?? "legacy"}:${activeResume.id}:${activeResume.targetJdId ?? ""}`} sources={writingContext} config={llmConfig} active={page === "resume" && workspaceTab === "content"} onApply={handleApplyWritingProposal} onFocus={(source) => {
+          const target = source.targetRef;
+          setWritingFocus({ key: writingTargetKey(target), locale: target.locale, experienceId: target.kind === "claim_text" ? target.experienceId : undefined, requestId: ++issueRequestIdRef.current });
+          setPreviewTarget({ anchor: target.kind === "claim_text" ? `claim:${target.claimId}` : "profile:headline", source: "focus" });
+        }}><ResumePreview resume={projected} view={activeResume} onViewChange={updateResume} onTemplateChange={setTemplate} followTarget={workspaceTab === "content" ? previewTarget : null} /></ResumeWritingCopilot></div>
       </ResizableWorkspace>
       </div>
       <div className="secondary-workspace no-print" hidden={page !== "opportunities"}><OpportunityWorkspace seed={opportunitySeed} onSeedConsumed={() => setOpportunitySeed(null)} linkedResumeNames={linkedResumeNames} getCurrentResumeMaterial={currentResumeMaterial} onOpenJd={() => setIsJdMatchOpen(true)} onOpenNetworkSettings={() => setIsNetworkSettingsOpen(true)} onCreateResume={createJobResume} onAnalyze={(job) => { openAgentWorkspace({ id: job.id, title: job.title, company: job.company, location: [job.location.city, job.location.region].filter(Boolean).join(" · ") || undefined, salary: job.salaryText || undefined, description: job.description, sourceUrl: job.sourceUrl || undefined, sourcePlatform: job.sourcePlatform }); }} /></div>
