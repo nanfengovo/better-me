@@ -8,15 +8,17 @@ A local-first resume, job atlas and optional AI-agent workspace.
 
 BetterMe 是本地优先的简历与求职工作台。事实库、多份简历、模板、导出、历史和投递记录不依赖 AI；岗位采集、独立后台补全与地图通过本机服务扩展；需要时再连接自己的模型或本机 CLI。
 
-**119 套版式 · 10 套简历主题 · 中英输出 · 并行岗位采集 · 可调整地图/JD 工作台 · Cesium 三维地图 · 可选本机 Agent**
+**119 套版式 · 10 套简历主题 · 中英输出 · 主动简历伴写 · 岗位索引 · 可调整地图/JD 工作台 · Docker 一键运行**
 
 [在线体验（main 部署）](https://nanfengovo.github.io/better-me/) · [快速开始](#快速开始) · [功能状态](#功能状态与边界) · [三维配置](#实景-3d-配置) · [验证](#开发与验证) · [文档索引](#文档索引)
 
 > 本文描述本分支源码，不保证在线体验已经部署同一版本。静态网站不包含本机采集器、SQLite 或 CLI。Google 实景建筑需要合规数据源、凭据与适用计费；上海覆盖和真实 Google 场景性能尚未验收，不能把合成网格或本地地球底图当作实景证明。
 
-![纸张工作室：结构化编辑与实时简历预览](docs/images/workspace-light.webp)
+![真实简历编辑模块中的主动伴写：原文锚点、补充事实和实时预览](docs/images/resume-copilot-20261030.webp)
 
-截图使用合成内容；历史截图可能早于本分支 UI。位置精度、来源与覆盖状态以实际界面为准。
+2026-10-30 更新：以上图片来自实际简历编辑模块，不是独立 HTML 示例页。截图与视频只含示例内容；本次没有读取或修改个人简历、Key 或招聘登录态。
+
+[▶ 查看工作台操作视频（WebM，1 分 37 秒）](docs/media/betterme-workflow-20261030.webm) · [图片与视频来源](docs/media/README.md) · [Docker 使用说明](docs/docker.md)
 
 ## 目录
 
@@ -37,6 +39,23 @@ BetterMe 是本地优先的简历与求职工作台。事实库、多份简历�
 - [来源与许可证](#来源与许可证)
 
 ## 快速开始
+
+### Docker 一键启动（本机完整运行版）
+
+安装并启动 Docker Desktop，或使用 Docker Engine + Compose v2。在包含本功能的分支根目录执行：
+
+```sh
+docker compose up -d --build --wait
+```
+
+打开 **http://127.0.0.1:8080/**。默认镜像同时运行网页、Agent Host 和 SQLite 岗位服务，自动建立同源连接，不必分别开三个终端或复制令牌。
+
+- 简历编辑、主动伴写的本地检查、预览、历史与导出无需模型。
+- 模型不包含在镜像中；在「AI 配置」选择自己的服务。Agent 的本机 Ollama 地址会转换到宿主机网关，不会自动下载模型或购买额度。
+- 容器不接管个人 Chrome/Edge 登录态，也不安装本机 Claude/Codex CLI。需要交互式招聘浏览器或 CLI 时使用下方 `pnpm dev`。
+- 默认只开放本机端口；后台数据写入专用命名卷。简历、草稿、历史和模型配置仍由当前浏览器保存。更新前分别备份。
+
+健康状态：`docker compose ps`；日志：`docker compose logs --tail=100 web`；停止：`docker compose down`（保留数据卷）。端口、模型连接、恢复、迁移与静态模式见 [Docker 指南](docs/docker.md)。
 
 ### 环境与单一开发入口
 
@@ -95,6 +114,12 @@ Agent 独立启动见 [Agent Host README](apps/agent-host/README.md)。开发 br
 | AI/Agent | 模型对话、引用/图片、授权摘要、CLI Run、SSE、编排骨架 | 完整持久职业记忆、追问卡和全部 Worker 执行尚未接通 |
 
 ## 简历、事实与恢复
+
+### 在现有编辑器中主动伴写
+
+进入「内容」编辑经历时，Agent 以锚定原文的轻量批注提醒缺少上下文、流水账表达或缺乏依据的数字。点击「一起完善」后，围绕个人行动、方法、范围和结果逐步补充；本地检查无需模型，模型追问需要配置和明确同意。
+
+补充内容先生成可编辑候选，对照原文后由你决定是否采用；不会自动编造量化结果、修改事实或标记已核实。支持忽略提示、关闭主动提醒、采用后撤销，草稿与历史继续沿用现有编辑模块的保护机制。[查看实际操作视频](docs/media/betterme-workflow-20261030.webm)。
 
 ### 一份事实，多份呈现
 
@@ -313,11 +338,15 @@ dist 可部署 HTTPS 静态站点，但不包含 dev broker、来源读取 API�
 ### Docker
 
 ```sh
-docker compose up --build -d
+docker compose up -d --build --wait
 docker compose ps
 ```
 
-默认 http://127.0.0.1:8080，可用 BETTER_ME_PORT 调整。当前容器是非 root、只读文件系统的**静态 Web**，不自动启动宿主机采集或 Agent；数据仍在各访客浏览器，停止容器不等于备份数据。
+默认 http://127.0.0.1:8080，可用 `BETTER_ME_PORT` 调整。默认 `runtime` 镜像包含网页、Agent Host 和岗位服务；`/healthz` 聚合检查两个配套服务。连续三次失败时运行入口退出，由 Compose 的重启策略重新启动；不是仅标记 unhealthy 就宣称已经恢复。
+
+运行用户非 root、根文件系统只读，仅 `/data` 卷和 `/tmp` 可写；不挂载宿主机源码、密钥、Docker socket 或浏览器 profile。旧 Nginx 静态发行保留为 `docker build --target static`，不要与完整运行模式混淆。具体能力和限制见 [Docker 指南](docs/docker.md)。
+
+![配套 Agent Host 自动连接，模型仍由用户配置](docs/images/agent-runtime-20261030.webp)
 
 ### GitHub Pages 与分支
 

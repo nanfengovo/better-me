@@ -31,6 +31,7 @@ import { frameAdminRegion, frameSearchMap } from "./atlas/map-frame";
 import { buildAtlasCityCandidateQuery } from "./atlas/city-candidate-query";
 import { useComputedAtlasMetadata } from "./atlas/use-computed-metadata";
 import { createAtlasListingPresenter } from "./atlas/presentation";
+import { readRuntimeConnection } from "../lib/runtime-connection";
 import {
   matchCardPlatform,
   matchCardSalary,
@@ -151,7 +152,7 @@ const PUBLICATION_FILTER_OPTIONS = [
   [">90d", "3个月前"],
 ] as const;
 
-export default function AtlasWorkspace({ active = true, resume, factBase, onSaveOpportunity, onAnalyze, onOpenOpportunitySources, devJobIndex = import.meta.env?.DEV === true ? requestDevJobIndex : undefined }: Props) {
+export default function AtlasWorkspace({ active = true, resume, factBase, onSaveOpportunity, onAnalyze, onOpenOpportunitySources, devJobIndex = (import.meta.env?.DEV === true || readRuntimeConnection()) ? requestDevJobIndex : undefined }: Props) {
   const { t, theme } = useUiPreferences();
   const { workspace, layout } = useAtlasPaneLayout(active);
   const resumePrefill = useMemo(() => extractResumePrefill(resume, factBase), [resume, factBase]);
@@ -1346,7 +1347,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, onSave
     {sourcesOpen && <Suspense fallback={<p role="status">正在加载来源工具…</p>}><AtlasSourcesPanel endpoint={endpoint} token={token} onSnapshot={(snapshot) => { searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live"); }} onClose={() => setSourcesOpen(false)} /></Suspense>}
     {settings && <div className="atlas-settings"><button className="atlas-panel-close" aria-label="关闭地图设置" onClick={() => setSettings(null)}><X size={17} /></button>
       {settings === "maps" && <div><h2>地图与街道底图</h2><p>全球与国内均使用同一经纬度视图，可连续缩放至街道。开放底图无需 API Key；联网底图会向所选服务请求当前视野的瓦片，离线轮廓不请求外部地图服务。</p><label className="atlas-basemap-select">底图来源<select value={basemapId} onChange={(e) => { setBasemapId(e.target.value); setMapError(""); }}><option value="auto">OpenFreeMap · 跟随浅深主题</option>{ATLAS_BASEMAPS.map((provider) => <option value={provider.id} key={provider.id}>{provider.name}</option>)}<option value="offline">本地概览 · 离线边界</option></select></label><p className="atlas-small">道路、建筑、门牌和地名是否显示取决于底图覆盖；仅对含高度属性的底图建筑做 3D 表现，不代表实测楼高。离线省域立体效果是概览示意，不代表实测地形。城市级岗位不会显示成精确办公地址。“三维地球”由 Cesium 渲染本地概略边界，不含卫星影像。地图内“实景 3D / 数据与画质”可加载 Google 摄影测量 3D Tiles 或获准使用的 3D Tiles，需自行配置服务权限、Key 与可能的计费；Key 仅保留在当前页面内存。上海街区覆盖需实测，不能用城市中心或模型网格推断办公地址。</p></div>}
-      {settings === "connection" && <form onSubmit={(e) => { e.preventDefault(); devAutoConnectSuppressed.current = false; clearAtlasDevAutoConnectSuppressed(); restoreConnection.current = false; void connect({ endpoint, token }, true); }}><h2>{t("连接你的本机岗位索引", "Connect your local job index")}</h2><p>{import.meta.env?.DEV ? "本机开发页会自动连接 127.0.0.1:5178 并读取索引，不必手填服务地址和访问令牌。" : "公网页面没有本地开发接口，仍需填写本机服务地址和访问令牌。"}允许当前网页 Origin：<code>{window.location.origin}</code>。连接成功后，访问令牌仅保留在当前标签页的会话存储中，刷新可恢复连接；断开并清除后，这个标签页不会马上再自动连接。令牌不写入永久存储或网址。</p><div className="atlas-form-row"><label>服务地址<input value={endpoint} onChange={(e) => changeConnection("endpoint", e.target.value)} placeholder="http://127.0.0.1:5178" /></label><label>访问令牌<input type="password" autoComplete="off" value={token} onChange={(e) => changeConnection("token", e.target.value)} /></label><button type="submit" disabled={connecting}>{connecting ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}{connecting ? "正在连接" : "连接并读取索引"}</button><button type="button" onClick={disconnect}>断开并清除会话连接</button></div><p className="atlas-small">读取公开岗位快照，在本页执行共享查询。家庭参照坐标不发送给服务。公网 HTTPS 页面连接本机可能需要浏览器本地网络授权；完整体验建议使用本机网页。</p></form>}
+      {settings === "connection" && <form onSubmit={(e) => { e.preventDefault(); devAutoConnectSuppressed.current = false; clearAtlasDevAutoConnectSuppressed(); restoreConnection.current = false; void connect({ endpoint, token }, true); }}><h2>{t("连接你的本机岗位索引", "Connect your local job index")}</h2><p>{(import.meta.env?.DEV || readRuntimeConnection()) ? "当前工作台会自动连接配套岗位服务并读取索引，不必手填服务地址和访问令牌。" : "公网页面没有本地开发接口，仍需填写本机服务地址和访问令牌。"}允许当前网页 Origin：<code>{window.location.origin}</code>。连接成功后，访问令牌仅保留在当前标签页的会话存储中，刷新可恢复连接；断开并清除后，这个标签页不会马上再自动连接。令牌不写入永久存储或网址。</p><div className="atlas-form-row"><label>服务地址<input value={endpoint} onChange={(e) => changeConnection("endpoint", e.target.value)} placeholder="http://127.0.0.1:5178" /></label><label>访问令牌<input type="password" autoComplete="off" value={token} onChange={(e) => changeConnection("token", e.target.value)} /></label><button type="submit" disabled={connecting}>{connecting ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}{connecting ? "正在连接" : "连接并读取索引"}</button><button type="button" onClick={disconnect}>断开并清除会话连接</button></div><p className="atlas-small">读取公开岗位快照，在本页执行共享查询。家庭参照坐标不发送给服务。公网 HTTPS 页面连接本机可能需要浏览器本地网络授权；完整体验建议使用本机网页。</p></form>}
       {settings === "home" && (
         <form onSubmit={(e) => {
           e.preventDefault();

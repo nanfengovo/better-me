@@ -1,4 +1,5 @@
 import { DEFAULT_ATLAS_ENDPOINT, parseAtlasConnectionSession } from "./connection-session";
+import { readRuntimeConnection } from "../../lib/runtime-connection";
 
 /** Same path as the Vite development middleware. Public builds never call it. */
 export const ATLAS_DEV_JOB_INDEX_PATH = "/__better-me/dev/local-job-index";
@@ -33,7 +34,7 @@ export function parseDevJobIndexBootstrap(value: unknown): DevJobIndexBootstrap 
   }
   if (keys.length !== 2 || typeof record.endpoint !== "string" || typeof record.token !== "string") return undefined;
   const session = parseAtlasConnectionSession({ schemaVersion: 1, dataMode: "live", endpoint: record.endpoint, token: record.token });
-  if (!session || session.dataMode !== "live" || new URL(session.endpoint).origin !== DEFAULT_ATLAS_ENDPOINT) return undefined;
+  if (!session || session.dataMode !== "live" || ![DEFAULT_ATLAS_ENDPOINT, readRuntimeConnection()?.origin].includes(new URL(session.endpoint).origin)) return undefined;
   return { ok: true, endpoint: new URL(session.endpoint).origin, token: session.token };
 }
 

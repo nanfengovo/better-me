@@ -12,6 +12,14 @@ const groups = JSON.parse(execFileSync(command, ["licenses", "list", "--prod", "
 }));
 const installed = Object.values(groups).flat();
 const manifest = [];
+const pinnedOverrides = {
+  "@cesium/wasm-splats@0.1.0-alpha.2": ["cesium-wasm-splats-0.1.0-alpha.2", "28a2c9a11e7da1844f91eec9dafb9de21b3f70f21b994691062f00dcbdc0e900"],
+  "draco3d@1.5.9": ["draco3d-1.5.9", "d3709b0fb4b8a94bbb1d02b8a2e484f258b0d9c5c5a01f940391f3fe662cd1a4"],
+  "lerc@2.0.0": ["lerc-2.0.0", "c5be5d7c9035d132f68f8f245dee082102fd48465cd8ff11c8db55c8a03e2200"],
+  "@cfworker/json-schema@4.1.1": ["cfworker-json-schema-4.1.1", "376944252ab78ca6b41aee44ddea8894927ee67891e77e61eb9d59af63e35094"],
+  "bitmap-sdf@1.0.4": ["bitmap-sdf-1.0.4", "93f4706437395057668ebb84ae81036f2a5c2afc1afe806311e2a922bd7f8f6e"],
+  "js-tiktoken@1.0.21": ["js-tiktoken-1.0.21", "418cb499b436128d653d79941333a5437b7be2ea9213dcc2f04d15d5d2c51d86"],
+};
 const htmlEscape = (value) => String(value).replace(/[&<>"']/g, (char) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
 })[char]);
@@ -41,15 +49,29 @@ for (const entry of installed.sort((left, right) => left.name.localeCompare(righ
     }
 
     if (!fullLicense) {
-      if ((pkg.name === "hash.js" && pkg.version === "1.1.7")
+      const pinned = pinnedOverrides[`${pkg.name}@${pkg.version}`];
+      if (pinned) {
+        const override = path.join(scriptRoot, "license-overrides", pinned[0]);
+        const contents = await readFile(path.join(override, "LICENSE"));
+        if (createHash("sha256").update(contents).digest("hex") !== pinned[1]) throw new Error(`Pinned upstream license changed: ${id}`);
+        await copyText(path.join(override, "LICENSE"), "LICENSE", "Pinned upstream license; exact provenance and limitations in NOTICE.md");
+        await copyText(path.join(override, "NOTICE.md"), "NOTICE.md", "BetterMe provenance note");
+      } else if (pkg.name === "mersenne-twister" && pkg.version === "1.1.0") {
+        const source = path.join(packagePath, "src", "mersenne-twister.js");
+        const text = await readFile(source, "utf8");
+        if (!text.includes("Redistribution and use in source and binary forms") || !text.includes("THIS SOFTWARE IS PROVIDED")) throw new Error(`Embedded license missing: ${id}`);
+        await copyText(source, "mersenne-twister.js", "Published source includes full BSD-style license; retained unchanged despite package metadata declaring MIT");
+      } else if ((pkg.name === "hash.js" && pkg.version === "1.1.7")
         || (pkg.name === "isarray" && pkg.version === "1.0.0")
-        || (pkg.name === "murmurhash-js" && pkg.version === "1.0.0")) {
+        || (pkg.name === "murmurhash-js" && pkg.version === "1.0.0")
+        || (pkg.name === "commander" && pkg.version === "2.0.0")) {
         // These exact published packages put the full MIT text and copyright in README.
-        const text = await readFile(path.join(packagePath, "README.md"), "utf8");
+        const readme = pkg.name === "commander" ? "Readme.md" : "README.md";
+        const text = await readFile(path.join(packagePath, readme), "utf8");
         if (!text.includes("Permission is hereby granted") || !text.includes("THE SOFTWARE IS PROVIDED")) {
           throw new Error(`Expected complete README license missing: ${id}`);
         }
-        await copyText(path.join(packagePath, "README.md"), "README.md", "Full MIT text in published README, unchanged");
+        await copyText(path.join(packagePath, readme), "README.md", "Full MIT text in published README, unchanged");
       } else if (pkg.name === "saxes" && pkg.version === "6.0.0" && pkg.license === "ISC") {
         const override = path.join(scriptRoot, "license-overrides", "saxes-6.0.0");
         const contents = await readFile(path.join(override, "LICENSE"));

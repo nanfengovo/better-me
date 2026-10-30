@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Loader2, ShieldCheck, RefreshCw, ExternalLink, Sparkles, CheckCircle2 } from "lucide-react";
 import { getRealChromeStatus, launchRealChrome, restartRealChrome, focusRealChrome, type RealChromeStatus } from "../../lib/real-chrome-client";
 import { useUiPreferences } from "../../lib/ui-preferences";
+import { readRuntimeConnection } from "../../lib/runtime-connection";
 import "./real-chrome-launch-bar.css";
 
 export type RealChromeLaunchBarProps = {
@@ -28,6 +29,7 @@ export function RealChromeLaunchBar({ compact = false, onLaunched }: RealChromeL
   };
 
   useEffect(() => {
+    if (readRuntimeConnection()) return;
     if (typeof window !== "undefined") {
       const host = window.location?.hostname || "";
       const isTestEnv = host.includes("fixture.invalid") || host.includes("test") || (typeof process !== "undefined" && Boolean(process.env?.NODE_TEST_CONTEXT));
@@ -111,6 +113,8 @@ export function RealChromeLaunchBar({ compact = false, onLaunched }: RealChromeL
   };
 
   const isRunning = status?.running ?? false;
+
+  if (readRuntimeConnection()) return <div className="real-chrome-bar-compact" role="note">{t("Docker 模式不接管个人浏览器。请粘贴岗位原文，或使用本机 pnpm dev 完成人工登录与网页读取。", "Docker does not attach your personal browser. Paste a job description, or use pnpm dev for interactive sign-in and page reading.")}</div>;
 
   if (compact) {
     return (

@@ -38,6 +38,7 @@ jobs:
       # Includes isolated synthetic browser cases, using the runner's Edge.
       # These are not live recruitment-site or PDF visual acceptance checks.
       - run: pnpm test
+      - run: pnpm test:runtime
 
   build:
     name: Production build (Linux / Pages subpath)
@@ -81,7 +82,7 @@ jobs:
   docker:
     name: Docker image and HTTP checks (Linux)
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -94,6 +95,8 @@ jobs:
       # PRs validate the image locally on the runner; no registry credentials or push.
       - name: Build and verify the static Docker distribution
         run: node scripts/check-docker.mjs
+      - name: Verify full Compose runtime, persistence and crash recovery
+        run: node scripts/check-docker-runtime.mjs
 
   deploy:
     name: Deploy GitHub Pages

@@ -85,7 +85,7 @@ async function writeOwner(lockPath: string, owner: LockOwner): Promise<void> {
 export type DataDirectoryLock = { dataDirectory: string; lockPath: string; release: () => Promise<void> };
 
 /** Atomic directory ownership. A stale owner is quarantined only after a single reclaimer verifies its dead PID again. */
-export async function acquireDataDirectoryLock(dataDirectory: string, options: { processAlive?: (pid: number) => boolean; machineName?: string } = {}): Promise<DataDirectoryLock> {
+export async function acquireDataDirectoryLock(dataDirectory: string, options: { processAlive?: (pid: number) => boolean; machineName?: string; lockDirectory?: string } = {}): Promise<DataDirectoryLock> {
   if (!isAbsolute(dataDirectory)) throw new LocalJobServiceError("invalid-config", "Choose an explicit absolute data directory.");
   let directory: string;
   try {
@@ -95,7 +95,17 @@ export async function acquireDataDirectoryLock(dataDirectory: string, options: {
     if (process.platform !== "win32" && (stat.mode & 0o077) !== 0) throw new Error();
     directory = await realpath(dataDirectory);
   } catch { throw new LocalJobServiceError("data-directory-unavailable", "Choose an available private data directory without a symbolic link; POSIX permissions must exclude other users."); }
-  const lockPath = join(directory, LOCK_NAME);
+  // An embedded runtime may hold an independent kernel-backed volume lease.
+  // Its PID namespace lock then belongs on tmpfs, not in persistent storage.
+  let lockDirectory = directory;
+  if (options.lockDirectory) {
+    if (!isAbsolute(options.lockDirectory)) throw new LocalJobServiceError("invalid-config", "Choose an absolute private lock directory.");
+    await mkdir(options.lockDirectory, { recursive: true, mode: 0o700 });
+    const info = await lstat(options.lockDirectory);
+    if (!info.isDirectory() || info.isSymbolicLink() || (process.platform !== "win32" && (info.mode & 0o077) !== 0)) throw new LocalJobServiceError("data-directory-unavailable", "The runtime lock directory must be private and not a symlink.");
+    lockDirectory = await realpath(options.lockDirectory);
+  }
+  const lockPath = join(lockDirectory, LOCK_NAME);
   const probe = options.processAlive ?? isProcessAlive;
   const machine = options.machineName ?? hostname();
   const owner: LockOwner = { schemaVersion: 1, pid: process.pid, owner: randomUUID(), hostname: machine, createdAt: new Date().toISOString() };
@@ -111,7 +121,7 @@ export async function acquireDataDirectoryLock(dataDirectory: string, options: {
       const current = await readOwner(lockPath);
       if (!sameOwner(current, previous) || current.hostname !== machine || probe(current.pid)) throw busy();
       // Keep the old owner metadata instead of recursively deleting an uncertain directory.
-      await rename(lockPath, join(directory, `.job-service-stale-${previous.owner}-${randomUUID()}`));
+      await rename(lockPath, join(lockDirectory, `.job-service-stale-${previous.owner}-${randomUUID()}`));
       try { await mkdir(lockPath, { mode: 0o700 }); }
       catch { throw busy(); }
     } catch (error) {
@@ -169,6 +179,8 @@ export async function loadOrCreateServiceToken(dataDirectory: string): Promise<{
 type Application = { registry: JobHttpOptions["registry"]; shutdown(): Promise<void> };
 type HttpListener = Pick<ReturnType<typeof createJobHttpServer>, "listen" | "close">;
 export type JobServiceDependencies = {
+  /** Only for embedders already holding an exclusive persistent-volume lease. */
+  lockDirectory?: string;
   openRepository?: (path: string) => JobRepository;
   createApplication?: (options: Parameters<typeof createJobApplication>[0]) => Application;
   createHttpServer?: (options: JobHttpOptions) => HttpListener;
@@ -180,7 +192,7 @@ export type LocalJobServiceHandle = {
 };
 export async function startLocalJobService(input: JobServiceConfig, dependencies: JobServiceDependencies = {}): Promise<LocalJobServiceHandle> {
   const config = validateJobServiceConfig(input);
-  const lock = await acquireDataDirectoryLock(config.dataDirectory);
+  const lock = await acquireDataDirectoryLock(config.dataDirectory, { lockDirectory: dependencies.lockDirectory });
   let repository: JobRepository | undefined;
   let application: Application | undefined;
   let http: HttpListener | undefined;
