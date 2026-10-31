@@ -60,6 +60,7 @@ test("development middleware reloads changed workspace package exports", async (
   let running = 0;
   let maxRunning = 0;
   let output = "";
+  const childClosures: Promise<void>[] = [];
   try {
     await mkdir(path.join(webDirectory, "node_modules"), { recursive: true });
     await mkdir(path.join(packageDirectory, "dist"), { recursive: true });
@@ -75,6 +76,7 @@ export default { server: { hmr: false }, plugins: [{ name: "fixture", configureS
       args: ["--host", "127.0.0.1", "--port", String(port), "--strictPort"],
       stdio: ["ignore", "pipe", "pipe"], debounceMs: 100, log: () => {},
       onSpawn(child) {
+        childClosures.push(new Promise<void>((resolve) => child.once("close", () => resolve())));
         spawns += 1;
         running += 1;
         maxRunning = Math.max(maxRunning, running);
@@ -97,6 +99,8 @@ export default { server: { hmr: false }, plugins: [{ name: "fixture", configureS
     assert.equal(spawns, 2, "declaration-only builds do not restart Vite");
   } finally {
     await service?.close();
-    await rm(directory, { recursive: true, force: true });
+    // Process exit can precede stdio closure and Windows releasing the cwd.
+    await Promise.all(childClosures);
+    await rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
