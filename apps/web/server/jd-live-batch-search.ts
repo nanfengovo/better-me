@@ -1738,24 +1738,33 @@ function samePlatformSearchQuery(current: string, expected: string): boolean {
   }
 }
 
-export async function runLiveBatchSearch(
-  rawInput: unknown,
-  signal?: AbortSignal,
-  callbacks: LiveBatchSearchCallbacks = {},
-): Promise<LiveBatchSearchResult> {
+export function buildLiveBatchSearchPlans(rawInput: unknown) {
   const input = LiveBatchSearchInputSchema.parse(rawInput);
   const resolvedRegion = input.regionId ? resolvePlatformSearchRegion(input.regionId) : undefined;
   const providers: PlatformSearchProvider[] = input.providers ?? ["liepin", "51job", "boss", "linkedin"];
-  const plans = providers.map((provider) =>
-    buildPlatformSearchRequest({
+  const plans = providers.map((provider) => {
+    const plan = buildPlatformSearchRequest({
       provider,
       keyword: input.keyword,
       districtCode: input.districtCode,
       ...(resolvedRegion && resolvedRegion.platforms[provider] !== undefined
         ? { regionId: resolvedRegion.id }
         : {}),
-    }),
-  );
+    });
+    return input.regionId && (!resolvedRegion || resolvedRegion.platforms[provider] === undefined)
+      ? { ...plan, warnings: [...plan.warnings, `请求地区“${input.regionId}”没有该平台的已配置映射；使用平台默认地区读取，返回卡片必须按披露地点复核，不代表已覆盖请求地区。`] }
+      : plan;
+  });
+  return plans;
+}
+
+export async function runLiveBatchSearch(
+  rawInput: unknown,
+  signal?: AbortSignal,
+  callbacks: LiveBatchSearchCallbacks = {},
+): Promise<LiveBatchSearchResult> {
+  const input = LiveBatchSearchInputSchema.parse(rawInput);
+  const plans = buildLiveBatchSearchPlans(input);
 
   const capturedAt = new Date().toISOString();
   if (signal?.aborted) return { capturedAt, results: [] };

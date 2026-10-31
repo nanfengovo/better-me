@@ -84,6 +84,20 @@ test("the non-modal pane leaves card focus intact and closes by its visible butt
   dom.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape" })); assert.equal(closes, 2, "unmount removes the listener");
 });
 
+test("working-condition evidence stays a literal, source-linked disclosure in the reading pane", async () => {
+  const props = await fixture();
+  props.item.job.description = "周末双休；每天8小时；混合办公";
+  const pane = await render(props);
+  const conditions = pane.querySelector(".atlas-working-conditions")!;
+  assert.ok(conditions);
+  assert.match(conditions.querySelector("summary")!.textContent!, /双休.*日工时8小时.*混合办公.*岗位文本声明/);
+  assert.match(conditions.textContent!, /不代表劳动合同或实际执行情况/);
+  assert.match(conditions.textContent!, /原句：每天8小时/);
+  const source = conditions.querySelector("a")!;
+  assert.ok(source && props.presentations.some(entry => entry.url === source.getAttribute("href")));
+  assert.equal(pane.querySelector("button .atlas-working-conditions"), null);
+});
+
 test("a city distribution reference is labelled separately, links its place source and never supplies an office or home distance", async () => {
   const props = await fixture(), location = props.data.locations[0]!; delete location.coordinates; location.precision = "unknown";
   const before = structuredClone(props.data), batch = await createMapReferenceFixture(props.data);

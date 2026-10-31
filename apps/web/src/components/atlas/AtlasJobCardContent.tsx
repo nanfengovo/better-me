@@ -5,6 +5,7 @@ import { analyzeAiJobRelevance } from "./ai-job-relevance";
 import { formatCardDistance, formatCardPlatform, formatCardPublication, formatCardSalaryRMB } from "./card-badges";
 import { AtlasListingBadges } from "./JobSourceBadges";
 import type { AtlasListingPresentation } from "./presentation";
+import { AtlasWorkingConditions } from "./AtlasWorkingConditions";
 
 export type AtlasJobCardContentProps = {
   item: JobSearchItem;
@@ -55,6 +56,10 @@ export const AtlasJobCardContent = memo(function AtlasJobCardContent({
           <span className="atlas-badge-distance" title={distanceBadge.tooltip}>{distanceBadge.label}</span>
         </div>
         <AtlasListingBadges presentations={presentations} />
+        <span className="atlas-card-hint">{item.locations.some(location => location.kind === "remote-region") ? "远程适用地区，不是办公地址"
+          : item.locations.some(location => location.coordinates && ["address", "street", "manual"].includes(location.precision)) ? "已有街道／地址级坐标 · 来源与核对状态见详情"
+            : item.locations.some(location => location.streetAddress) ? "已披露街道地址 · 坐标待核实" : "办公地址待补全 · 城市／区域不作为办公点"}</span>
+        <AtlasWorkingConditions text={item.job.description} compact />
         {!!item.mapReferences?.length && <span className="atlas-card-hint">城市分布参考 · 城市估算，非办公地址</span>}
         <span className="atlas-card-hint">单击查看详情 · 右侧按钮定位地图</span>
       </>,

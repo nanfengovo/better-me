@@ -55,6 +55,7 @@ import { sanitizeHarvestDiagnostic } from "./atlas/harvest-issue-presentation";
 import { useBackgroundEnrichment } from "./atlas/use-background-enrichment";
 import { AtlasBackgroundEnrichmentStatus } from "./atlas/AtlasBackgroundEnrichmentStatus";
 import { useHarvestRecovery } from "./atlas/use-harvest-recovery";
+import { harvestCardUrl, harvestMarketScope, scopeLiveHarvestCards, selectHarvestIndexJobIds } from "./atlas/harvest-scope";
 import type { HarvestCheckpoint, HarvestRunInput } from "./atlas/harvest-checkpoint";
 import { finiteProgressStat, mergeLiveCommitTotals, toHarvestProgressState, type HarvestProgressState } from "./atlas/harvest-progress-presentation";
 import { buildChinaRegionFilter, findChinaProvinceByMapId, getChinaProvinces, getChinaCities, getChinaDistricts, type ChinaRegionSelection } from "./atlas/china-regions";
@@ -519,7 +520,32 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
   const chinaDistricts = getChinaDistricts(chinaSelection.provinceCode ?? "", chinaSelection.cityCode ?? "");
   const mapLevel = mapZoom >= 10 ? "location" : "city";
   const [pageSize, setPageSize] = useState<number>(30);
+  const liveHarvestQuery = useMemo(() => {
+    const queryRegion = mode === "domestic"
+      ? (chinaFilter.selectedCity?.isGrouping && ["11", "12", "31", "50"].includes(chinaFilter.selectedProvince?.code ?? "")
+        ? chinaFilter.selectedProvince?.name : chinaFilter.selectedCity?.name) ?? chinaFilter.selectedProvince?.name ?? "中国"
+      : regionText || (region ? regions.find(entry => entry.id === region)?.label ?? region : "") || (country ? countryName(country) : "");
+    return { keyword: text.trim() || resumePrefill.targetRole || "软件工程师", region: queryRegion || undefined,
+      ...harvestMarketScope(mode, country),
+      ...(mode === "domestic" ? { regionGroups: chinaFilter.workRegionGroups,
+        countryCodes: chinaFilter.workCountryCodes.length ? chinaFilter.workCountryCodes : countryCatalog.domesticCountryCodes } : {}),
+      ...(mode === "domestic" && chinaSelection.districtCode ? { districtCode: chinaSelection.districtCode } : {}) };
+  }, [text, resumePrefill.targetRole, mode, country, chinaFilter, chinaSelection.districtCode, regionText, region, regions]);
+  const rawLiveCards = liveHarvest?.cards;
+  const capturedQuery = liveHarvest?.query;
+  const scopedCards = useMemo(() => rawLiveCards && capturedQuery ? scopeLiveHarvestCards(rawLiveCards, capturedQuery) : null, [rawLiveCards, capturedQuery]);
+  const scopedLiveHarvest = useMemo(() => liveHarvest && scopedCards ? { ...liveHarvest, cards: scopedCards.matching,
+    totalCards: scopedCards.matching.length, scopeSummary: { capturedCards: liveHarvest.cards.length, outside: scopedCards.outside, unknown: scopedCards.unknown } } : null, [liveHarvest, scopedCards]);
+  const liveScopeActive = Boolean(preferLiveResults && liveHarvest && matchesLiveHarvestQuery(liveHarvest, liveHarvestQuery));
+  const liveIndexJobIds = useMemo(() => selectHarvestIndexJobIds(data, scopedCards?.matching ?? []), [data, scopedCards]);
+  const indexedLiveUrls = useMemo(() => {
+    const ids = new Set(liveIndexJobIds);
+    const listingIds = new Set(data?.jobs.filter(job => ids.has(job.id)).flatMap(job => job.listingIds));
+    const urls = new Set(data?.listings.filter(listing => listingIds.has(listing.id) && listing.canonicalUrl).map(listing => harvestCardUrl(listing.canonicalUrl!)));
+    return new Set(scopedCards?.matching.filter(entry => urls.has(harvestCardUrl(entry.card.url))).map(entry => entry.card.url));
+  }, [data, liveIndexJobIds, scopedCards]);
   const query = useMemo<JobQueryInput>(() => ({
+    ...(liveScopeActive ? { jobIds: liveIndexJobIds } : {}),
     search: text.trim() ? { text, mode: "fuzzy" } : undefined,
     market: mode === "domestic" ? "domestic" : "global",
     includeUnknownLocations: mode === "global" || includeUnclassified,
@@ -551,7 +577,10 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
     salary: { range: salaryMin || salaryMax ? { min: salaryMin ? Number(salaryMin) * 10000 : undefined, max: salaryMax ? Number(salaryMax) * 10000 : undefined } : undefined, metric: "min", includeEstimates: true, includeUnknown: !salaryMin && !salaryMax },
     distance: anchor ? { anchorRef: anchor.ref, maxKm: maxKm ? Number(maxKm) : undefined, allowCityEstimate: true, includeUnknown: !maxKm } : undefined,
     sort: { field: sort, direction }, mapLevel: "location", page: { limit: pageSize },
-  }), [text, mode, country, region, regionText, chinaFilter, origin, foreignOrigins, ownership, source, platformFilter, data?.sources, salaryMin, salaryMax, anchor, maxKm, sort, direction, includeUnclassified, pageSize]);
+    // Index-only filters must not silently narrow the live-card map while their controls are hidden.
+    ...(liveScopeActive ? { search: undefined, controllerJurisdictions: [], ownershipKinds: [], sourceIds: [],
+      salary: undefined, distance: undefined } : {}),
+  }), [text, mode, country, region, regionText, chinaFilter, origin, foreignOrigins, ownership, source, platformFilter, data?.sources, salaryMin, salaryMax, anchor, maxKm, sort, direction, includeUnclassified, pageSize, liveScopeActive, liveIndexJobIds]);
   const generation = useMemo(() => ({ data, query, now: new Date().toISOString() }), [data, query]);
   const queryOptions = useMemo<QueryOptions>(() => ({
     now: generation.now,
@@ -604,7 +633,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
   const selectedIdsKey = useMemo(() => JSON.stringify(effectiveSelectedJobIds ?? null), [effectiveSelectedJobIds]);
   const listIdentity = useMemo(() => ({ queryIdentity, selectedIdsKey, bucketId: bucket?.id }), [queryIdentity, selectedIdsKey, bucket?.id]);
 
-  const selectionKey = JSON.stringify({ ...query, mapLevel: "city", sort: undefined, aiPenetratedOnly });
+  const selectionKey = JSON.stringify({ ...query, ...(liveScopeActive ? { jobIds: "current-live-scope" } : {}), mapLevel: "city", sort: undefined, aiPenetratedOnly });
   useEffect(() => { setAiBannerDismissed(false); }, [text]);
   useEffect(() => { mapActivationAbort.current?.abort(); cancelOfficeFocus(); setOfficeReview(undefined); setLocationChoices(undefined); setBucket(null); setSelectedId(""); setFocus(undefined); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); }, [selectionKey, dataMode]);
   useEffect(() => { if (!active) { cancelOfficeFocus(); setOfficeReview(undefined); setLocationChoices(undefined); } }, [active]);
@@ -815,24 +844,11 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
           ? chinaFilter.selectedProvince?.name
           : chinaFilter.selectedCity?.name) ??
         chinaFilter.selectedProvince?.name ??
-        ""
+        "中国"
       );
     }
-    return regionText || (region ? regions.find((entry) => entry.id === region)?.label ?? region : "");
+    return regionText || (region ? regions.find((entry) => entry.id === region)?.label ?? region : "") || (country ? countryName(country) : "");
   }
-
-  const liveHarvestQuery = useMemo(() => {
-    const queryRegion = mode === "domestic"
-      ? (chinaFilter.selectedCity?.isGrouping && ["11", "12", "31", "50"].includes(chinaFilter.selectedProvince?.code ?? "")
-        ? chinaFilter.selectedProvince?.name
-        : chinaFilter.selectedCity?.name) ?? chinaFilter.selectedProvince?.name ?? ""
-      : regionText || (region ? regions.find((entry) => entry.id === region)?.label ?? region : "");
-    return {
-      keyword: text.trim() || resumePrefill.targetRole || "软件工程师",
-      ...(queryRegion ? { region: queryRegion } : {}),
-      ...(mode === "domestic" && chinaSelection.districtCode ? { districtCode: chinaSelection.districtCode } : {}),
-    };
-  }, [text, resumePrefill.targetRole, mode, chinaFilter, chinaSelection.districtCode, regionText, region, regions]);
 
   const liveMarketScope = useRef({ mode, country });
   const cancelHarvestRecovery = harvestRecovery.cancel;
@@ -933,11 +949,12 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
           client,
           checkpoint,
           keyword: savedInput.keyword,
-          region: savedInput.region,
+          region: savedInput.region || (savedInput.view.mode === "domestic" ? "中国" : savedInput.view.country ? countryName(savedInput.view.country) : undefined),
           depth: savedInput.depth,
           enrichAfterCommit: false,
           maxPages: savedInput.maxPages,
           chinaSelection: savedInput.chinaSelection,
+          marketScope: harvestMarketScope(savedInput.view.mode, savedInput.view.country),
           initialSnapshot: (dataMode === "live" && liveData) ? liveData : undefined,
           signal,
           onLiveResults: (receipt, query) => {
@@ -1021,7 +1038,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
     const scopeCountry = mode === "global" ? country : "";
     const requestedRegion = regionText.trim() || (region ? regions.find((entry) => entry.id === region)?.label ?? region : "");
     const scopeRegions = mode === "domestic" ? chinaFilter.sourceRegions : requestedRegion ? [requestedRegion] : [];
-    const acquisitionCountries = mode === "domestic" ? (chinaFilter.workCountryCodes.length ? chinaFilter.workCountryCodes : includeUnclassified ? [] : countryCatalog.domesticCountryCodes) : scopeCountry && scopeRegions.length ? [scopeCountry] : [];
+    const acquisitionCountries = mode === "domestic" ? (chinaFilter.workCountryCodes.length ? chinaFilter.workCountryCodes : countryCatalog.domesticCountryCodes) : scopeCountry ? [scopeCountry] : [];
     // Serialize snapshot refreshes so a slower, older response cannot replace a newer index.
     let refresh: Promise<void> = Promise.resolve();
     const enableLiveCommercialSearch = import.meta.env?.DEV === true && !searchSourceId;
@@ -1043,6 +1060,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
             enrichAfterCommit: false,
             maxPages: searchDepth === "deep" ? 50 : searchDepth === "standard" ? 20 : 5,
             chinaSelection: mode === "domestic" ? chinaSelection : undefined,
+            marketScope: harvestMarketScope(liveInput.view.mode, liveInput.view.country),
             initialSnapshot: (dataMode === "live" && liveData) ? liveData : undefined,
             signal,
             onLiveResults: (receipt, query) => {
@@ -1200,7 +1218,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
     });
   }, [preferLiveResults, bucket, liveHarvest, liveHarvestQuery, result, listResultIdentity, listIdentity, displayedData, listItems, salaryFilter, pubFilter, distanceFilter, anchor, presentListing, aiPenetratedOnly, text]);
   const activeLiveHarvest = preferLiveResults && !bucket && liveHarvest && matchesLiveHarvestQuery(liveHarvest, liveHarvestQuery)
-    ? liveHarvest
+    ? scopedLiveHarvest
     : null;
   const showHarvestStatus = Boolean(activeLiveHarvest || harvestStage && (harvestStage.stage !== "intent-expansion"
     || sourceSearching || harvestFailed || harvestCancelled || Object.keys(harvestStage.stats ?? {}).length));
@@ -1275,6 +1293,17 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
     setDetailReviewJobId(""); setEnrichmentScope(null);
     if (selectedId !== item.job.id) { cancelOfficeFocus(); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); setOfficeReview(undefined); setLocationChoices(undefined); }
     selectedCard.current = item; setSelectedId(item.job.id);
+  }
+  function openIndexedLiveCard(url: string) {
+    if (!data || !scopedCards) return;
+    const card = scopedCards.matching.find(entry => entry.card.url === url);
+    if (!card) return;
+    const ids = selectHarvestIndexJobIds(data, [card]);
+    mapActivationAbort.current?.abort();
+    const abort = new AbortController(); mapActivationAbort.current = abort;
+    void queryAtlasPage(data, { ...query, page: { limit: 1 } }, queryOptions, { signal: abort.signal, selectedJobIds: ids }).then(next => {
+      if (!abort.signal.aborted && next.page.items[0]) openJob(next.page.items[0]);
+    }).catch(() => { if (!abort.signal.aborted) setSourceSearchMessage("关联岗位尚未完成索引核对，请稍后重试；未改写岗位或地址。"); });
   }
   function activateMapBucket(next: MapBucket) {
     const jobId = next.jobIds[0];
@@ -1693,6 +1722,10 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
       recoveryMessage={harvestRecovery.state.message}
       recoveryPhase={harvestRecovery.state.phase}
     />}
+    {liveScopeActive && <div className="atlas-address-coverage" aria-label="本轮与地图关联口径" role="status"><div>
+      <strong>本轮地区匹配 {scopedLiveHarvest?.totalCards ?? 0} 张卡片 · 当前索引匹配 {result?.totalJobs ?? "—"} 岗 · 地图覆盖 {mappableJobCount} 岗</strong>
+      <span>地图仅关联本轮卡片的招聘链接，不展示其他历史岗位。卡片与规范岗位不是同一计数；缺少入库或地址证据的卡片不会生成办公点。</span>
+    </div></div>}
     {dataMode === "live" && connected && result && noPreciseLocationJobCount > 0 && <div className="atlas-address-coverage" aria-label="地图地址覆盖" role="status">
       <div><strong>{mappableCoordinateCount.toLocaleString("zh-CN")} 个坐标点 · {mappableLocationCount.toLocaleString("zh-CN")} 个来源地址 · 覆盖 {mappableJobCount.toLocaleString("zh-CN")} 岗</strong>
         <span>{noPreciseLocationJobCount.toLocaleString("zh-CN")} 个岗位暂无可验证办公地址；城市 / 区域不作为办公地址。</span></div>
@@ -1934,7 +1967,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
         {harvestRecovery.state.canResume && <button type="button" disabled={sourceSearching} onClick={() => void harvestRecovery.continuePrevious().catch(() => { /* The independent status exposes its error. */ })}>继续上次采集</button>}
       </div>}
       {result && resultData !== data && <p className="atlas-small atlas-query-refresh" role="status">索引有更新，正在同步当前结果；可以继续阅读。</p>}
-      {activeLiveHarvest && <AtlasLiveHarvestResults view={activeLiveHarvest} compactHeading busy={sourceSearching && (!activeLiveHarvest.providers.length || activeLiveHarvest.providers.some(provider => provider.status === "queued" || provider.status === "running"))} />}
+      {activeLiveHarvest && <AtlasLiveHarvestResults view={activeLiveHarvest} compactHeading indexedUrls={indexedLiveUrls} onOpenIndexedJob={openIndexedLiveCard} busy={sourceSearching && (!activeLiveHarvest.providers.length || activeLiveHarvest.providers.some(provider => provider.status === "queued" || provider.status === "running"))} />}
       {liveCommitStats && !(showHarvestStatus && harvestStage?.stats?.totalAdded === liveCommitStats.totalAdded && harvestStage?.stats?.totalUpdated === liveCommitStats.totalUpdated) && <p className="atlas-small" role="status">本轮已提交：新增 {liveCommitStats.totalAdded} 岗 · 更新 {liveCommitStats.totalUpdated} 岗。地图仍需来源披露的精确坐标。</p>}
       {text.trim() && !sourceSearching && penetratedCount > 0 && !aiBannerDismissed && (
         <div className="atlas-ai-penetration-banner" role="status">

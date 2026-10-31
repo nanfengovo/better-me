@@ -9,6 +9,13 @@ import type { LiveBatchSearchReceipt } from "../src/lib/platform-search-client";
 
 Object.assign(globalThis, { React });
 
+test("live receipts from another market must not remain active when country changes", () => {
+  const domestic = { keyword: "Java", market: "domestic" as const, countryCodes: ["CN", "HK", "MO", "TW"] };
+  const overseas = { keyword: "Java", market: "global" as const, countryCodes: ["US"] };
+  const view = buildLiveHarvestView(receipt(), domestic);
+  assert.equal(matchesLiveHarvestQuery(view, overseas), false);
+});
+
 function liveCard(id: number, pageUrl: string) {
   const url = `https://jobs.51job.com/shanghai/${100000000 + id}.html`;
   const title = `实时岗位 ${id}`;

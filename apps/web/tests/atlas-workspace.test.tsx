@@ -1151,7 +1151,7 @@ for (const change of ["country", "market mode"] as const) test(`a live harvest r
       captures++;
       const result = {
         provider: "liepin", platform: "猎聘", pageUrl, status: "ready", rawCardCount: 1, warnings: [],
-        cards: [{ platform: "猎聘", url, title, company, cardText: `${title} ${company}`,
+        cards: [{ platform: "猎聘", url, title, company, locationText: "United States", cardText: `${title} ${company} United States`,
           evidence: { pageUrl, cardSelector: ".synthetic-card", fields: [
             { field: "url", selector: "a", text: url }, { field: "title", selector: ".title", text: title },
             { field: "company", selector: ".company", text: company },
@@ -1280,7 +1280,7 @@ test("stopping an in-flight live harvest immediately settles platform UI and kee
       captures++;
       captureSignal = init?.signal ?? null;
       const card = { platform: "猎聘", url, title: "Synthetic live Rust role", company: "Synthetic employer",
-        cardText: "Synthetic live Rust role · Synthetic employer",
+        locationText: "United States", cardText: "Synthetic live Rust role · Synthetic employer · United States",
         evidence: { pageUrl, cardSelector: ".synthetic-card", fields: [
           { field: "url", selector: "a", text: url }, { field: "title", selector: ".title", text: "Synthetic live Rust role" },
           { field: "company", selector: ".company", text: "Synthetic employer" },
@@ -1453,7 +1453,7 @@ test("searching the configured employer enumerates that company and sends the se
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 1);
   await openCollection(); await flush(() => button("确认开始采集").click());
   assert.equal(writes.length, 1);
-  assert.deepEqual(writes[0]!.scope, { roles: [], regions: ["US"], companyNames: ["UniqueEmployerOnly"] });
+  assert.deepEqual(writes[0]!.scope, { roles: [], regions: ["US"], countryCodes: ["US"], companyNames: ["UniqueEmployerOnly"] });
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 1);
 });
 

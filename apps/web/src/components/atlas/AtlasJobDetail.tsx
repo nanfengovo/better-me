@@ -7,6 +7,7 @@ import { AtlasListingBadges } from "./JobSourceBadges";
 import type { AtlasListingPresentation } from "./presentation";
 import { validMapFocus } from "./map-focus";
 import { analyzeAiJobRelevance } from "./ai-job-relevance";
+import { AtlasWorkingConditions } from "./AtlasWorkingConditions";
 import "./AtlasJobDetail.css";
 
 export type AtlasJobDetailProps = {
@@ -197,6 +198,7 @@ export function AtlasJobDetail({ item, data, demo, originalCurrency, presentatio
         <div className="atlas-job-detail-section-heading"><h3>{t("岗位职责与要求", "Responsibilities & requirements")}</h3><span>{completeness === "detail" ? t("来源正文", "Source detail") : completeness === "excerpt" || completeness === "lead" ? t("来源摘录", "Source excerpt") : t("完整性未核实", "Completeness unknown")}</span></div>
         {hasDescription && completeness !== "detail" && <p className="atlas-job-detail-excerpt" role="note">{completeness === "excerpt" || completeness === "lead" ? t("当前正文为来源摘录，可能缺少任职要求；请打开岗位原文核对后再分析简历。", "This is a source excerpt and may omit requirements. Check the original posting before analyzing your resume.") : t("当前正文完整性尚未核实，请在岗位原文中核对职责与要求。", "Completeness has not been verified. Check responsibilities and requirements in the original posting.")}</p>}
         <div className="atlas-job-detail-copy">{hasDescription ? item.job.description : t("当前来源未提供岗位正文。", "The source has not provided a job description.")}</div>
+        <AtlasWorkingConditions text={item.job.description} sourceUrl={demo ? undefined : primary?.url} excerpt={completeness === "excerpt" || completeness === "lead"} />
       </section>
     </div>
 

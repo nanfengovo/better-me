@@ -6,8 +6,11 @@ import {
   type LiveBatchSearchStreamEvent,
 } from "../../lib/platform-search-client";
 import {
+  buildChinaRegionFilter,
   type ChinaRegionSelection,
 } from "./china-regions";
+import { scopeLiveHarvestCards } from "./harvest-scope";
+import type { LiveHarvestQuery } from "./live-harvest-view";
 import {
   enrichSnapshotCompaniesAndOffices,
   type LivePlatformImportSummary,
@@ -135,6 +138,7 @@ export type OpportunityHarvestClientPipelineOptions = {
   keyword: string;
   region?: string;
   chinaSelection?: ChinaRegionSelection;
+  marketScope?: Pick<LiveHarvestQuery, "market" | "countryCodes">;
   enableWebSearch?: boolean;
   /** Keep enrichment available separately when capture should finish at commit. Default: true. */
   enrichAfterCommit?: boolean;
@@ -142,8 +146,8 @@ export type OpportunityHarvestClientPipelineOptions = {
   depth?: "quick" | "standard" | "deep";
   maxPages?: number;
   signal?: AbortSignal;
-  onLiveResults?: (receipt: LiveBatchSearchReceipt, query: { keyword: string; region?: string; districtCode?: string }) => void;
-  onLiveProgress?: (event: LiveBatchSearchStreamEvent, receipt: LiveBatchSearchReceipt, query: { keyword: string; region?: string; districtCode?: string }) => void;
+  onLiveResults?: (receipt: LiveBatchSearchReceipt, query: LiveHarvestQuery) => void;
+  onLiveProgress?: (event: LiveBatchSearchStreamEvent, receipt: LiveBatchSearchReceipt, query: LiveHarvestQuery) => void;
   onCardsCommitted?: (snapshot: AtlasDataset, stats: { totalAdded: number; totalUpdated: number }) => void;
   onSnapshotAvailable?: (snapshot: AtlasDataset) => void;
 };
@@ -165,6 +169,7 @@ export class OpportunityHarvestChainedClientPipeline {
   private keyword: string;
   private region?: string;
   private chinaSelection?: ChinaRegionSelection;
+  private marketScope?: OpportunityHarvestClientPipelineOptions["marketScope"];
   private enableWebSearch?: boolean;
   private enrichAfterCommit: boolean;
   private depth?: "quick" | "standard" | "deep";
@@ -204,6 +209,7 @@ export class OpportunityHarvestChainedClientPipeline {
     this.keyword = options.keyword.trim();
     this.region = options.region?.trim();
     this.chinaSelection = options.chinaSelection;
+    this.marketScope = options.marketScope;
     this.enableWebSearch = options.enableWebSearch;
     this.enrichAfterCommit = options.enrichAfterCommit ?? true;
     this.depth = options.depth;
@@ -250,7 +256,20 @@ export class OpportunityHarvestChainedClientPipeline {
 
   private async enqueueResult(result: LiveBatchProviderResultClient, capturedAt: string): Promise<void> {
     if (result.status !== "ready" || !this.commitQueue) return;
-    await this.commitQueue.enqueue({ provider: result.provider, platform: result.platform, cards: result.cards, capturedAt, cardLimit: result.coverage.cardLimit });
+    await this.commitQueue.enqueue({ provider: result.provider, platform: result.platform, cards: this.scopedCards(result.provider, result.platform, result.cards), capturedAt, cardLimit: result.coverage.cardLimit });
+  }
+
+  private liveQuery(): LiveHarvestQuery {
+    const china = this.marketScope?.market === "domestic" ? buildChinaRegionFilter(this.chinaSelection ?? {}) : undefined;
+    return { keyword: this.keyword, ...(this.region ? { region: this.region } : {}), ...this.marketScope,
+      ...(china ? { regionGroups: china.workRegionGroups,
+        countryCodes: china.workCountryCodes.length ? china.workCountryCodes : this.marketScope?.countryCodes } : {}),
+      ...(this.chinaSelection?.districtCode ? { districtCode: this.chinaSelection.districtCode } : {}) };
+  }
+
+  private scopedCards(provider: LiveBatchProviderResultClient["provider"], platform: LiveBatchProviderResultClient["platform"], cards: LiveBatchProviderResultClient["cards"]) {
+    if (!this.marketScope) return cards;
+    return scopeLiveHarvestCards(cards.map(card => ({ provider, platform, card })), this.liveQuery()).matching.map(entry => entry.card);
   }
 
   private queryTerms(): string[] {
@@ -326,11 +345,7 @@ export class OpportunityHarvestChainedClientPipeline {
   private publishLiveResults(): void {
     if (!this.batchReceipt) return;
     try {
-      this.onLiveResultsCallback?.(this.batchReceipt, {
-        keyword: this.keyword,
-        ...(this.region ? { region: this.region } : {}),
-        ...(this.chinaSelection?.districtCode ? { districtCode: this.chinaSelection.districtCode } : {}),
-      });
+      this.onLiveResultsCallback?.(this.batchReceipt, this.liveQuery());
     } catch (error) {
       console.error("[pipeline] onLiveResults callback error:", error);
     }
@@ -480,18 +495,14 @@ export class OpportunityHarvestChainedClientPipeline {
             upsertReceipt(queryTerm, { capturedAt, results: [...currentQueryResults.values()] });
             accumulatedReceipt = this.includeRecoveredCards(mergeLiveBatchSearchReceipts(receipts, queryTerms, failedTerms, failedTermDetails));
           }
-          const query = {
-            keyword: this.keyword,
-            ...(this.region ? { region: this.region } : {}),
-            ...(this.chinaSelection?.districtCode ? { districtCode: this.chinaSelection.districtCode } : {}),
-          };
+          const query = this.liveQuery();
           try {
             this.onLiveProgressCallback?.(event, accumulatedReceipt, query);
           } catch (error) {
             console.error("[pipeline] onLiveProgress callback error:", error);
           }
           if (event.type === "provider-progress" && event.cards?.length && this.commitQueue) {
-            await this.commitQueue.enqueue({ provider: event.provider, platform: event.platform, cards: event.cards, capturedAt, cardLimit: event.cardLimit });
+            await this.commitQueue.enqueue({ provider: event.provider, platform: event.platform, cards: this.scopedCards(event.provider, event.platform, event.cards), capturedAt, cardLimit: event.cardLimit });
           }
         };
         const receipt = await runLivePlatformBatchSearch(

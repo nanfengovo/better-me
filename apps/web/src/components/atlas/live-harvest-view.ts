@@ -4,6 +4,9 @@ export type LiveHarvestQuery = {
   keyword: string;
   region?: string;
   districtCode?: string;
+  market?: "domestic" | "global";
+  countryCodes?: string[];
+  regionGroups?: string[][];
 };
 
 export type LiveHarvestCard = {
@@ -31,6 +34,7 @@ export type LiveHarvestView = {
   cards: LiveHarvestCard[];
   providers: LiveHarvestProvider[];
   totalCards: number;
+  scopeSummary?: { capturedCards: number; outside: LiveHarvestCard[]; unknown: LiveHarvestCard[] };
 };
 
 export type LiveHarvestProgress = {
@@ -129,6 +133,7 @@ export function buildLiveHarvestView(
   return {
     capturedAt: receipt.capturedAt,
     query: {
+      ...query,
       keyword: query.keyword.trim(),
       ...(query.region?.trim() ? { region: query.region.trim() } : {}),
       ...(query.districtCode ? { districtCode: query.districtCode } : {}),
@@ -194,6 +199,7 @@ export function buildLiveHarvestProgressView(
   result?: LiveBatchProviderResultClient,
   capturedAt = new Date().toISOString(),
 ): LiveHarvestView {
+  if (previous && !matchesLiveHarvestQuery(previous, query)) previous = null;
   const results = new Map((previous?.providers ?? []).map((provider) => [provider.provider, provider]));
   if (result) {
     const current = results.get(result.provider);
@@ -255,6 +261,7 @@ export function buildLiveHarvestProgressView(
   return {
     capturedAt,
     query: previous?.query ?? {
+      ...query,
       keyword: query.keyword.trim(),
       ...(query.region?.trim() ? { region: query.region.trim() } : {}),
       ...(query.districtCode ? { districtCode: query.districtCode } : {}),
@@ -335,6 +342,9 @@ export function matchesLiveHarvestQuery(
   query: LiveHarvestQuery,
 ): boolean {
   return normalizeSearchValue(view.query.keyword) === normalizeSearchValue(query.keyword)
+    && (view.query.market ?? "") === (query.market ?? "")
+    && JSON.stringify([...(view.query.countryCodes ?? [])].sort()) === JSON.stringify([...(query.countryCodes ?? [])].sort())
+    && JSON.stringify(view.query.regionGroups ?? []) === JSON.stringify(query.regionGroups ?? [])
     && normalizeSearchValue(view.query.region) === normalizeSearchValue(query.region)
     && (view.query.districtCode ?? "") === (query.districtCode ?? "");
 }

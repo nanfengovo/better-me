@@ -24,9 +24,9 @@ function view(cards: LiveHarvestCard[]): LiveHarvestView {
   return { capturedAt: "2026-10-27T12:00:00.000Z", query: { keyword: "Java" }, cards, totalCards: cards.length, providers: [{ provider: "51job", platform: "51JOB", status: "running", cardCount: cards.length, progressCardsCaptured: cards.length, pagesVisited: 2, scrollSteps: 0, warnings: [], coverage: { pagesVisited: 2, pageLimit: 15, scrollSteps: 0, scrollLimit: 0, cardLimit: 1_500, stopReason: "page_limit", partial: true } }] };
 }
 
-async function render(value: LiveHarvestView) {
+async function render(value: LiveHarvestView, busy = true) {
   if (!root) { dom.document.body.innerHTML = "<main></main>"; root = createRoot(dom.document.querySelector("main")! as unknown as Element); }
-  await act(async () => root!.render(h(AtlasLiveHarvestResults, { view: value, busy: true })));
+  await act(async () => root!.render(h(AtlasLiveHarvestResults, { view: value, busy })));
 }
 
 function button(label: string) {
@@ -70,4 +70,15 @@ test("metadata updates do not rerender card content while the card reference sta
   urlReads = 0;
   for (let index = 0; index < 10; index++) await render(view(cards));
   assert.equal(urlReads, 0, "provider metadata must not reread visible card URLs during rendering");
+});
+
+test("zero region matches disclose captured exclusions instead of claiming the source returned no cards", async () => {
+  const value = view([]);
+  value.scopeSummary = { capturedCards: 2, outside: [card(1)], unknown: [card(2)] };
+  await render(value, false);
+  assert.match(dom.document.querySelector(".atlas-live-harvest-empty")!.textContent!, /已捕获 2 张卡片.*未找到当前地区.*不代表该地区没有岗位/);
+  assert.match(dom.document.querySelector('[aria-label="地区过滤回执"]')!.textContent!, /范围外 1 张.*地点待核实 1 张/);
+  assert.doesNotMatch(dom.document.querySelector(".atlas-live-harvest-empty")!.textContent!, /没有拿到可验证/);
+  await render(value, true);
+  assert.match(dom.document.querySelector(".atlas-live-harvest-empty")!.textContent!, /暂未找到当前地区.*仍在读取/);
 });

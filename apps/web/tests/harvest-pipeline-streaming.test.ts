@@ -8,6 +8,35 @@ import type { LiveBatchProviderResultClient } from "../src/lib/platform-search-c
 
 type Client = ReturnType<typeof createAtlasSourceClient>;
 
+test("domestic stream keeps raw evidence but only matching disclosed locations reach import", async () => {
+  const originalFetch = globalThis.fetch;
+  const data = createAtlasDemo();
+  const locations = ["上海市浦东新区", "United States, Ohio", undefined];
+  const cards = locations.map((locationText, index) => ({ ...card(index + 1), locationText }));
+  const imported: string[] = [];
+  const client = {
+    snapshot: async () => data,
+    previewReviewedCards: async (input: { expectedRevision: number }) => ({ expectedRevision: input.expectedRevision, previewFingerprint: "synthetic" }),
+    importReviewedCards: async (input: { cards: typeof cards }) => {
+      imported.push(...input.cards.map(card => card.url));
+      return { revision: data.revision, jobIds: [], counts: { newJobs: 0, updatedJobs: 0, unchangedJobs: input.cards.length } };
+    },
+  } as unknown as Client;
+  let rawCount = 0;
+  globalThis.fetch = async () => stream(cards);
+  try {
+    await new OpportunityHarvestChainedClientPipeline({ client, keyword: "C#", region: "中国", depth: "quick",
+      marketScope: { market: "domestic", countryCodes: ["CN", "HK", "MO", "TW"] }, enrichAfterCommit: false,
+      onLiveProgress() {}, onLiveResults(receipt, query) {
+        rawCount = receipt.results[0]?.cards.length ?? 0;
+        assert.equal(query.market, "domestic");
+      },
+    }).execute();
+    assert.equal(rawCount, 3, "raw outside/unknown evidence must not be silently discarded");
+    assert.deepEqual(imported, [cards[0]!.url]);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 function deferred<T = void>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
   const promise = new Promise<T>((done) => { resolve = done; });

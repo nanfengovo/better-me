@@ -2,12 +2,13 @@ import { ChevronDown, ExternalLink, MapPin } from "lucide-react";
 import { memo, useEffect, useMemo, useState } from "react";
 import { getLiveHarvestPage, liveHarvestStopReasonLabel, type LiveHarvestCard, type LiveHarvestView } from "./live-harvest-view";
 import { sanitizeHarvestDiagnostic } from "./harvest-issue-presentation";
+import { AtlasWorkingConditions } from "./AtlasWorkingConditions";
 
 const LIVE_CARDS_PER_PAGE = 50;
 
 export { liveHarvestStopReasonLabel };
 
-const LiveHarvestCards = memo(function LiveHarvestCards({ cards }: { cards: LiveHarvestCard[] }) {
+const LiveHarvestCards = memo(function LiveHarvestCards({ cards, onOpenIndexedJob, indexedUrls }: { cards: LiveHarvestCard[]; onOpenIndexedJob?: (url: string) => void; indexedUrls?: ReadonlySet<string> }) {
   return <div className="atlas-live-harvest-list">
     {cards.map(({ provider, platform, card }) => (
       <article className="atlas-live-harvest-card" key={`${provider}:${card.url}`}>
@@ -22,6 +23,9 @@ const LiveHarvestCards = memo(function LiveHarvestCards({ cards }: { cards: Live
           {card.publicationText && <span>{card.publicationText}</span>}
         </div>
         <a href={card.url} target="_blank" rel="noreferrer">打开招聘原文 <ExternalLink size={13} aria-hidden="true" /></a>
+        <AtlasWorkingConditions text={card.cardText} sourceUrl={card.url} excerpt />
+        <small>{card.locationText ? "来源地点披露 · 尚不代表已核实办公地址／坐标" : "工作地点待披露 · 不使用企业总部代替"}</small>
+        {onOpenIndexedJob && <button type="button" className="atlas-live-card-index" disabled={!indexedUrls?.has(card.url)} onClick={() => onOpenIndexedJob(card.url)}>{indexedUrls?.has(card.url) ? "查看关联岗位／补全地址" : "尚未关联索引 · 不生成办公点"}</button>}
         <details className="atlas-live-card-details"><summary>岗位摘要与采集证据</summary>
           <p className="atlas-live-harvest-card-text">{card.cardText}</p>
           <small>原站列表卡片摘要，不是完整 JD · 证据页：{card.evidence.pageUrl}</small>
@@ -31,8 +35,8 @@ const LiveHarvestCards = memo(function LiveHarvestCards({ cards }: { cards: Live
   </div>;
 });
 
-export function AtlasLiveHarvestResults({ view, busy = false, compactHeading = false }: { view: LiveHarvestView; busy?: boolean; compactHeading?: boolean }) {
-  const queryKey = JSON.stringify([view.query.keyword, view.query.region, view.query.districtCode]);
+export function AtlasLiveHarvestResults({ view, busy = false, compactHeading = false, indexedUrls, onOpenIndexedJob }: { view: LiveHarvestView; busy?: boolean; compactHeading?: boolean; indexedUrls?: ReadonlySet<string>; onOpenIndexedJob?: (url: string) => void }) {
+  const queryKey = JSON.stringify([view.query.keyword, view.query.region, view.query.districtCode, view.query.market, view.query.countryCodes, view.query.regionGroups]);
   const [reading, setReading] = useState({ queryKey, page: 0, acknowledged: view.totalCards });
   const resetReading = reading.queryKey !== queryKey || view.totalCards < reading.acknowledged;
   const page = resetReading ? 0 : reading.page;
@@ -61,6 +65,14 @@ export function AtlasLiveHarvestResults({ view, busy = false, compactHeading = f
         <span className="atlas-live-harvest-live-dot">{busy ? "采集中" : "本轮回执"}</span>
       </header>}
 
+      {view.scopeSummary && <details className="atlas-live-card-details atlas-live-scope" aria-label="地区过滤回执">
+        <summary>本轮捕获 {view.scopeSummary.capturedCards} 张 · 地区匹配 {view.totalCards} 张 · 范围外 {view.scopeSummary.outside.length} 张 · 地点待核实 {view.scopeSummary.unknown.length} 张</summary>
+        <p>只依据岗位披露地点过滤，不根据公司名称、总部或搜索条件补造地点。范围外和地点未知卡片保留供核对，不进入当前地区列表或本轮自动入库。</p>
+        {[...view.scopeSummary.outside, ...view.scopeSummary.unknown].slice(0, 20).map(({ provider, card }) => <p key={`${provider}:${card.url}`}>
+          <a href={card.url} target="_blank" rel="noreferrer">{card.title}</a> · {card.locationText || "地点未披露"}
+        </p>)}
+        {view.scopeSummary.outside.length + view.scopeSummary.unknown.length > 20 && <small>此处展示前20张待核对卡片；完整原始回执保留在本轮采集记录中。</small>}
+      </details>}
       <details className="atlas-live-harvest-sources">
         <summary><ChevronDown size={13} aria-hidden="true" /><span>来源状态</span><small>{view.providers.length} 个平台{runningProviders > 0 ? ` · ${runningProviders} 个读取中` : ""}</small>{attentionProviders > 0 && <em>{attentionProviders} 个需关注</em>}</summary>
         <div className="atlas-live-harvest-coverage" aria-label="实时采集覆盖范围">
@@ -100,8 +112,12 @@ export function AtlasLiveHarvestResults({ view, busy = false, compactHeading = f
               <button type="button" className="atlas-live-harvest-new" onClick={() => showPage(Math.floor(acknowledged / LIVE_CARDS_PER_PAGE))}>查看新增 {newCards}</button>
             </div>}
           </div>
-          <LiveHarvestCards cards={currentPage.items} />
+          <LiveHarvestCards cards={currentPage.items} indexedUrls={indexedUrls} onOpenIndexedJob={onOpenIndexedJob} />
         </>
+      ) : view.scopeSummary && view.scopeSummary.capturedCards > 0 ? (
+        <div className="atlas-live-harvest-empty" role="status">
+          本轮已捕获 {view.scopeSummary.capturedCards} 张卡片，{busy ? "暂未" : "但未"}找到当前地区的明确匹配；范围外和地点待核实卡片见地区过滤回执。{busy ? "其余平台仍在读取。" : "这不代表该地区没有岗位。"}
+        </div>
       ) : busy ? (
         <div className="atlas-live-harvest-empty is-loading" role="status">
           正在等待第一个平台返回已核验的岗位卡片；地图仅显示已收录且具有真实办公坐标的岗位。
@@ -113,7 +129,7 @@ export function AtlasLiveHarvestResults({ view, busy = false, compactHeading = f
       )}
 
       <details className="atlas-live-card-details atlas-live-harvest-method"><summary>来源与地图口径</summary><p className="atlas-live-harvest-footnote">
-        岗位列表以本轮实时抓取为准；地图、企业性质和经过确认的办公坐标仍由本机索引提供。有限页数/滚动预算、登录验证和平台动态排序都会影响覆盖，不能据此声称网站全量。
+        岗位列表以本轮地区匹配卡片为准；地图仅显示这些卡片中已关联本机索引且有可验证办公坐标的岗位。不把未入库卡片当成地图岗位，也不使用整个历史索引凑数。平台来源计数为原始捕获量，地区筛选数量见上方回执；有限预算不代表网站全量。
       </p></details>
     </section>
   );
