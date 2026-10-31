@@ -13,6 +13,17 @@ registerHooks({
 });
 
 const dom = new Window({ url: "http://agent-companion-output-fixture.invalid" });
+// Keep real FileReader decoding, but gate its start so image assertions cannot
+// accidentally depend on setImmediate winning a race with platform timers.
+const pendingImageReads: Array<() => Promise<void>> = [];
+class DeferredFileReader extends dom.FileReader {
+  override readAsDataURL(blob: Parameters<InstanceType<typeof dom.FileReader>["readAsDataURL"]>[0]) {
+    pendingImageReads.push(() => new Promise<void>((resolve) => {
+      this.addEventListener("loadend", () => resolve(), { once: true });
+      super.readAsDataURL(blob);
+    }));
+  }
+}
 let reduceMotionPreference = false;
 Object.defineProperty(dom, "matchMedia", {
   configurable: true,
@@ -29,7 +40,7 @@ for (const [key, value] of Object.entries({
   Node: dom.Node,
   Event: dom.Event,
   CustomEvent: dom.CustomEvent,
-  FileReader: dom.FileReader,
+  FileReader: DeferredFileReader,
   React,
   IS_REACT_ACT_ENVIRONMENT: true,
 })) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
@@ -71,6 +82,13 @@ async function flush(action: () => void = () => {}) {
     action();
     await nextTurn();
     await nextTurn();
+  });
+}
+
+async function flushImageRead(action: () => void) {
+  await flush(action);
+  await act(async () => {
+    while (pendingImageReads.length) await pendingImageReads.shift()!();
   });
 }
 
@@ -433,8 +451,7 @@ test("Companion previews and removes local images, then sends them only with the
       configurable: true,
       value: [new dom.File([size], name, { type })],
     });
-    await flush(() => input.dispatchEvent(new dom.Event("change", { bubbles: true })));
-    for (let attempt = 0; attempt < 10 && !dom.document.querySelector(".agent-companion-chat-image-card") && !dom.document.querySelector(".agent-companion-chat-attachment-error"); attempt += 1) await flush();
+    await flushImageRead(() => input.dispatchEvent(new dom.Event("change", { bubbles: true })));
   }
 
   try {
@@ -535,8 +552,7 @@ test("Companion explains when a known text-only model cannot receive an image", 
       configurable: true,
       value: [new dom.File(["fixture-image"], "resume.png", { type: "image/png" })],
     });
-    await flush(() => input.dispatchEvent(new dom.Event("change", { bubbles: true })));
-    for (let attempt = 0; attempt < 10 && !dom.document.querySelector(".agent-companion-chat-image-capability"); attempt += 1) await flush();
+    await flushImageRead(() => input.dispatchEvent(new dom.Event("change", { bubbles: true })));
 
     assert.match(dom.document.querySelector(".agent-companion-chat-image-capability")?.textContent ?? "", /当前模型不支持图片输入/);
     const sendButton = dom.document.querySelector<HTMLButtonElement>('button[aria-label="发送消息"]');
@@ -610,8 +626,7 @@ test("Companion opens the image picker and stages pasted images without sending 
         files: [pastedFile],
       },
     });
-    await flush(() => textarea.dispatchEvent(pasteEvent));
-    for (let attempt = 0; attempt < 10 && !dom.document.querySelector('.agent-companion-chat-image-card img[alt="待发送图片：clipboard.png"]'); attempt += 1) await flush();
+    await flushImageRead(() => textarea.dispatchEvent(pasteEvent));
 
     assert.equal(pasteEvent.defaultPrevented, true, "image paste should not insert an empty string into the textarea");
     assert.ok(dom.document.querySelector('.agent-companion-chat-image-card img[alt="待发送图片：clipboard.png"]'), "pasted image should appear in the local preview");
