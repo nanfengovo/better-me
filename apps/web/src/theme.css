@@ -88,8 +88,9 @@
   html[data-theme="dark"] body { background:var(--ui-canvas); color:var(--ui-text); }
   html[data-theme="dark"] ::-webkit-scrollbar-thumb { background:var(--ui-border-strong); }
   html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background:var(--ui-text-muted); }
-  html[data-theme="dark"] :is(dialog,[role="dialog"]) { color:var(--ui-text); background:var(--ui-surface); border-color:var(--ui-border); box-shadow:var(--ui-shadow); }
-  html[data-theme="dark"] dialog::backdrop { background:#040a07b3; }
+  /* The tour paints its own SVG shade with a clear spotlight cutout. */
+  html[data-theme="dark"] :is(dialog,[role="dialog"]):not(.first-run-guide) { color:var(--ui-text); background:var(--ui-surface); border-color:var(--ui-border); box-shadow:var(--ui-shadow); }
+  html[data-theme="dark"] dialog:not(.first-run-guide)::backdrop { background:#040a07b3; }
 
   /* Original workbench surfaces and text. These class names never occur in paper. */
   html[data-theme="dark"] :is(.studio-app,.studio-panel-slot>.fact-editor,.studio-loading,.recovery-screen) { background:var(--ui-canvas); color:var(--ui-text); }

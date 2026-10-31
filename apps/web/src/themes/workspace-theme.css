@@ -78,8 +78,9 @@
   html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) body { background:var(--ui-canvas); color:var(--ui-text); }
   html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) ::-webkit-scrollbar-thumb { background:var(--ui-border-strong); }
   html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) ::-webkit-scrollbar-thumb:hover { background:var(--ui-text-muted); }
-  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(dialog,[role="dialog"]) { color:var(--ui-text); background:var(--ui-surface); border-color:var(--ui-border); box-shadow:var(--ui-shadow); }
-  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) dialog::backdrop { background:#04060ab3; }
+  /* Keep the tour's full-screen surface and native backdrop transparent. */
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(dialog,[role="dialog"]):not(.first-run-guide) { color:var(--ui-text); background:var(--ui-surface); border-color:var(--ui-border); box-shadow:var(--ui-shadow); }
+  html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) dialog:not(.first-run-guide)::backdrop { background:#04060ab3; }
 
   /* Original workbench surfaces and text. These class names never occur in paper. */
   html[data-workspace-theme][data-theme]:not([data-workspace-theme="atelier"]) :is(.studio-app,.studio-panel-slot>.fact-editor,.studio-loading,.recovery-screen) { background:var(--ui-canvas); color:var(--ui-text); }

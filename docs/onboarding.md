@@ -28,4 +28,6 @@
 
 运行 `pnpm exec tsx --test apps/web/tests/first-run-guide.test.tsx` 检查偏好版本、损坏/禁用存储、定位边界、首次弹出、输入/弹窗保护、跳过/重播/完成、键盘导航、动效开关与跨标签页关闭。实际 Docker 工作台还需验证原生焦点、所有锚点、小屏和系统减少动态效果；DOM 单测不等于真实浏览器性能验收。
 
+运行 `pnpm exec tsx --test apps/web/tests/first-run-guide-theme.test.ts` 用独立的本机 Chromium 加载实际引导与主题 CSS，覆盖四套工作台配色的浅深模式。全屏引导及其原生 `::backdrop` 必须保持透明，仅由 SVG 绘制带挖空区域的遮罩；通用弹窗主题规则不得覆盖它，否则聚光区会变成空白色块。测试同时确认普通原生弹窗与 `role="dialog"` 弹层仍正常使用主题表面色。
+
 设计参考了 [Driver.js 的产品引导/聚光模式](https://github.com/nilbuild/driver.js)，未复制源码或引入依赖。弹层沿用项目原生 dialog，语义与行为依据 [MDN dialog 文档](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/dialog)。
