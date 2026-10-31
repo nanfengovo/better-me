@@ -38,11 +38,10 @@ describe("runtime registry", () => {
 
   it("resolves an executable through fallback commands", async () => {
     const temp = await fs.mkdtemp(path.join(os.tmpdir(), "better-me-runtime-"));
-    const fallback = path.join(temp, "agent-fallback");
-    await fs.writeFile(fallback, "#!/bin/sh\nprintf 'fallback-v1\\n'\n");
-    await fs.chmod(fallback, 0o755);
+    // Use a real executable on every runner; Windows cannot exec a POSIX shebang.
+    const fallback = process.execPath;
     try {
-      const result = await probeRuntime(definition({ command: path.join(temp, "missing"), fallbackCommands: [fallback] }), { now: fixedNow });
+      const result = await probeRuntime(definition({ command: path.join(temp, "missing"), fallbackCommands: [fallback], versionArgs: ["-e", "console.log('fallback-v1')"] }), { now: fixedNow });
       assert.equal(result.status, "available");
       assert.equal(result.resolvedCommand, fallback);
       assert.equal(result.version, "fallback-v1");
@@ -69,13 +68,11 @@ describe("runtime registry", () => {
 
   it("does not treat a version-only match as runnable when the protocol probe fails", async () => {
     const temp = await fs.mkdtemp(path.join(os.tmpdir(), "better-me-runtime-probe-"));
-    const executable = path.join(temp, "fixture-agent");
-    await fs.writeFile(executable, "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then printf 'fixture 1.0\\n'; exit 0; fi\nprintf 'unknown option: %s\\n' \"$1\" >&2\nexit 2\n");
-    await fs.chmod(executable, 0o755);
     try {
       const result = await probeRuntime(definition({
-        command: executable,
-        probeArgs: ["--help"],
+        command: process.execPath,
+        versionArgs: ["-e", "console.log('fixture 1.0')"],
+        probeArgs: ["-e", "console.error('unknown option: --help'); process.exit(2)"],
         requiredFlags: ["--prompt"],
       }), { now: fixedNow });
       assert.equal(result.status, "available");
@@ -92,14 +89,12 @@ describe("runtime registry", () => {
     const geminiDirectory = path.join(home, ".gemini");
     await fs.mkdir(geminiDirectory, { recursive: true });
     await fs.writeFile(path.join(geminiDirectory, "settings.json"), JSON.stringify({ security: { auth: { selectedType: "oauth-personal" } } }));
-    const executable = path.join(home, "gemini");
-    await fs.writeFile(executable, "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then printf '0.34.0\\n'; exit 0; fi\nprintf 'Usage: gemini --prompt --output-format stream-json\\n'; exit 0\n");
-    await fs.chmod(executable, 0o755);
     try {
       const result = await probeRuntime({
         ...definition({ id: "gemini-cli", name: "Gemini CLI", transport: "stream-json" }),
-        command: executable,
-        probeArgs: ["--help"],
+        command: process.execPath,
+        versionArgs: ["-e", "console.log('0.34.0')"],
+        probeArgs: ["-e", "console.log('Usage: gemini --prompt --output-format stream-json')"],
         requiredFlags: ["--prompt", "--output-format", "stream-json"],
         authEnvVars: ["GEMINI_API_KEY"],
         authFiles: ["~/.gemini/oauth_creds.json"],
@@ -149,6 +144,7 @@ describe("agent run manager", () => {
       }
       const completed = manager.get(run.id)!;
       assert.equal(completed.status, "completed");
+      await manager.flush(run.id);
       assert.equal(completed.runDirectory, path.join(root, run.id));
       assert.equal(completed.outputDirectory, path.join(root, run.id, "output"));
       assert.equal(completed.isolation, "process");
@@ -179,6 +175,7 @@ describe("agent run manager", () => {
       assert.equal(output.output, "完整最终答复");
       assert.match(output.rawOutput ?? "", /临时片段/);
       assert.match(output.rawOutput ?? "", /完整最终答复/);
+      await manager.flush(run.id);
     } finally {
       await fs.rm(root, { recursive: true, force: true });
     }

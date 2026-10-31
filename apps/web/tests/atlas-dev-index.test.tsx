@@ -25,15 +25,17 @@ test("a dev page missing the index helper explains the one-command startup inste
 });
 
 test("development bootstrap stays on the fixed loopback index and outside the repository", () => {
+  const syntheticHome = join(tmpdir(), "betterme-synthetic-home");
+  const dataDirectory = join(syntheticHome, "Library", "Application Support", "BetterMe", "job-atlas");
   assert.equal(CLIENT_PATH, ATLAS_DEV_JOB_INDEX_PATH);
-  assert.equal(defaultJobAtlasDataDirectory("/Users/example"), "/Users/example/Library/Application Support/BetterMe/job-atlas");
-  assert.equal(defaultJobAtlasDataDirectory("/Users/example").includes(`${join("简历", "简历Agent")}`), false);
+  assert.equal(defaultJobAtlasDataDirectory(syntheticHome), dataDirectory);
+  assert.equal(dataDirectory.includes(`${join("简历", "简历Agent")}`), false);
   assert.deepEqual(jobServiceLaunchArgs({
-    dataDirectory: defaultJobAtlasDataDirectory("/Users/example"), port: "5178", origins,
+    dataDirectory: defaultJobAtlasDataDirectory(syntheticHome), port: "5178", origins,
     cliPath: "/opt/job-service/src/cli.ts", tsxLoader: "/opt/tsx/dist/loader.mjs",
   }), [
     "--import", "/opt/tsx/dist/loader.mjs", "/opt/job-service/src/cli.ts",
-    "--data-dir", "/Users/example/Library/Application Support/BetterMe/job-atlas",
+    "--data-dir", dataDirectory,
     "--host", "127.0.0.1", "--port", "5178",
     "--origin", "http://127.0.0.1:5173", "--origin", "http://localhost:5173",
     "--origin", "http://127.0.0.1:5193",

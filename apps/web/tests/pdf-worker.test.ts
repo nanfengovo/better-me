@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { createServer, build } from "vite";
+import { createServer, build, normalizePath } from "vite";
 
 const webRoot = fileURLToPath(new URL("../", import.meta.url));
 const repositoryRoot = path.resolve(webRoot, "../..");
@@ -26,14 +26,21 @@ test("PDF worker remains readable with linked dependencies and a restricted Vite
     const origin = `http://127.0.0.1:${address.port}`;
     const parser = await fetch(`${origin}/src/lib/file-parsers.ts`);
     assert.equal(parser.status, 200);
-    await parser.text();
-    const worker = await fetch(`${origin}/@fs${encodeURI(workerPath)}`);
+    const parserSource = await parser.text();
+    const workerImport = parserSource.match(/import pdfWorkerUrl from "([^"]+)"/);
+    assert.ok(workerImport, "the parser must import its local PDF worker URL");
+    const workerModule = await fetch(new URL(workerImport[1], origin));
+    assert.equal(workerModule.status, 200);
+    const workerExport = (await workerModule.text()).match(/export default ("(?:[^"\\]|\\.)*")/);
+    assert.ok(workerExport, "Vite must resolve the worker URL import");
+    const worker = await fetch(new URL(JSON.parse(workerExport[1]), origin));
     assert.equal(worker.status, 200, "the actual worker request must not return 403 Restricted");
     assert.match(worker.headers.get("content-type") ?? "", /javascript/);
     assert.match(await worker.text(), /WorkerMessageHandler/);
     // A URL import must not open the whole linked package or its parent directory.
     if (!workerPath.startsWith(`${repositoryRoot}${path.sep}`)) {
-      const adjacent = await fetch(`${origin}/@fs${encodeURI(path.resolve(workerPath, "../../README.md"))}`);
+      const adjacentPath = normalizePath(path.resolve(workerPath, "../../README.md")).replace(/^\/+/, "");
+      const adjacent = await fetch(`${origin}/@fs/${encodeURI(adjacentPath)}`);
       assert.equal(adjacent.status, 403);
     }
   } finally {
