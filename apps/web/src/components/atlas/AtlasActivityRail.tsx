@@ -1,5 +1,5 @@
-import { Check, CircleAlert, Database, Ellipsis, Layers3, MapPinned, Minus, Radio } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { Check, ChevronDown, CircleAlert, Database, Ellipsis, Layers3, MapPinned, Minus, Radio } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
 
 export type AtlasActivity = {
   state: "idle" | "working" | "ready" | "attention";
@@ -59,14 +59,27 @@ export function AtlasActivityRail({ index, collection, enrichment, map }: {
   map: AtlasActivity;
 }) {
   const railRef = useActivityMotion();
+  const railId = useId();
+  const [expanded, setExpanded] = useState(false);
   const lanes = [
     { id: "index", label: "岗位索引", icon: Database, activity: index, unit: "岗" },
     { id: "collection", label: "来源采集", icon: Radio, activity: collection, unit: "张卡片" },
     { id: "enrichment", label: "地区与企业", icon: Layers3, activity: enrichment, unit: "项待处理" },
     { id: "map", label: "地图落点", icon: MapPinned, activity: map, unit: "岗" },
   ];
-  return <ol ref={railRef} className="atlas-activity-rail" aria-label="岗位工作区并行状态" data-motion="off">
-    {lanes.map(({ id, label, icon: Icon, activity, unit }) => <li key={id} data-lane={id} data-state={activity.state}>
+  const attention = lanes.filter(lane => lane.activity.state === "attention");
+  const indexSummary = index.value !== undefined ? `索引 ${index.value.toLocaleString("zh-CN")} 岗` : index.state === "working" ? "索引读取中" : "索引未读取";
+  const summaryLabel = attention.length ? `${attention.length} 项需关注` : "状态详情";
+  return <div className="atlas-activity-overview" data-expanded={expanded} data-attention={attention.length > 0}>
+    <button type="button" className="atlas-activity-summary" aria-expanded={expanded} aria-controls={railId}
+      aria-label={`${indexSummary}；${attention.length ? `${summaryLabel}：${attention.map(lane => lane.label).join("、")}；` : ""}${expanded ? "收起" : "展开"}状态详情`}
+      onClick={() => setExpanded(value => !value)}>
+      <span className="atlas-activity-summary-index"><Database size={15} aria-hidden="true" />{indexSummary}</span>
+      <span className="atlas-activity-summary-status">{attention.length > 0 && <CircleAlert size={14} aria-hidden="true" />}{summaryLabel}</span>
+      <ChevronDown className="atlas-activity-summary-chevron" size={16} aria-hidden="true" />
+    </button>
+    <ol id={railId} ref={railRef} className="atlas-activity-rail atlas-activity-rail--compact" aria-label="岗位工作区并行状态" data-motion="off">
+    {lanes.map(({ id, label, icon: Icon, activity, unit }) => <li key={id} data-lane={id} data-state={activity.state} data-has-value={activity.value !== undefined}>
       <span className="atlas-activity-icon" aria-hidden="true">
         <Icon size={17} strokeWidth={1.6} />
         <span className="atlas-activity-signal">
@@ -78,12 +91,13 @@ export function AtlasActivityRail({ index, collection, enrichment, map }: {
       </span>
       <div className="atlas-activity-content">
         <div className="atlas-activity-label"><span>{label}</span><span className="atlas-activity-state">{ACTIVITY_LABELS[activity.state]}</span></div>
-        <div className="atlas-activity-value">
+        <div className="atlas-activity-value" role="group" aria-label={activity.value === undefined ? "数量尚未确认" : `已确认 ${activity.value.toLocaleString("zh-CN")} ${unit}`}>
           <strong>{activity.value === undefined ? "—" : activity.value.toLocaleString("zh-CN")}</strong>
           {activity.value !== undefined && <span>{unit}</span>}
         </div>
         <p>{activity.detail}</p>
       </div>
     </li>)}
-  </ol>;
+    </ol>
+  </div>;
 }

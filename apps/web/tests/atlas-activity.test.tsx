@@ -40,6 +40,11 @@ function activities(state: AtlasActivity["state"] = "idle", value?: number): Rea
     map: { state: "ready", value: 0, detail: "暂无来源真实坐标" },
   };
 }
+
+function stylesheet(url: URL): string {
+  return readFileSync(url, "utf8").replace(/@import\s+["'](.+?)["'];/g, (_match, imported: string) => stylesheet(new URL(imported, url)));
+}
+
 async function render(props = activities()) {
   if (!root) {
     dom.document.body.innerHTML = "<main></main>";
@@ -72,6 +77,128 @@ test("activity state is explicit without turning confirmed counts into completio
   assert.match(rail.textContent, /部分未完成/);
   assert.match(rail.textContent, /暂无来源真实坐标/);
 });
+
+test("compact lanes distinguish unknown counts from confirmed zero without hiding long diagnostic details", async () => {
+  const detail = "部分页面没有返回最终回执；已收到的来源卡片仍保留。" + "https://example.invalid/" + "unconfirmed/".repeat(20);
+  const props = activities("ready", 15000);
+  props.collection = { state: "attention", detail };
+  const rail = await render(props);
+  assert.ok(rail.classList.contains("atlas-activity-rail--compact"));
+  const unknown = rail.querySelector('[data-lane="collection"]')!;
+  const zero = rail.querySelector('[data-lane="map"]')!;
+  assert.equal(unknown.getAttribute("data-has-value"), "false");
+  assert.equal(unknown.querySelector('.atlas-activity-value[role="group"]')!.getAttribute("aria-label"), "数量尚未确认");
+  assert.equal(unknown.querySelector("p")!.textContent, detail);
+  assert.equal(unknown.querySelector("p")!.closest("[hidden], details"), null);
+  assert.equal(zero.getAttribute("data-has-value"), "true");
+  assert.equal(zero.querySelector('.atlas-activity-value[role="group"]')!.getAttribute("aria-label"), "已确认 0 岗");
+  assert.equal(rail.querySelector('[data-lane="index"] .atlas-activity-value')!.getAttribute("aria-label"), "已确认 15,000 岗");
+});
+
+test("mobile disclosure starts closed, names attention lanes and preserves their independent receipts when toggled", async () => {
+  const rail = await render();
+  const overview = rail.parentElement!;
+  const button = overview.querySelector("button")!;
+  const lanes = [...rail.querySelectorAll("[data-lane]")];
+  assert.equal(button.getAttribute("aria-expanded"), "false");
+  assert.equal(overview.getAttribute("data-expanded"), "false");
+  assert.equal(button.getAttribute("aria-controls"), rail.id);
+  assert.match(button.textContent, /索引未读取/);
+  assert.match(button.textContent, /1 项需关注/);
+  assert.match(button.getAttribute("aria-label")!, /来源采集/);
+
+  await React.act(async () => button.click());
+  assert.equal(button.getAttribute("aria-expanded"), "true");
+  assert.equal(overview.getAttribute("data-expanded"), "true");
+  assert.match(button.getAttribute("aria-label")!, /收起状态详情/);
+  const next = activities("ready", 15000);
+  next.map = { state: "attention", value: 0, detail: "尚未取得来源真实坐标" };
+  await render(next);
+  assert.match(button.textContent, /索引 15,000 岗/);
+  assert.match(button.textContent, /2 项需关注/);
+  assert.match(button.getAttribute("aria-label")!, /来源采集、地图落点/);
+  assert.equal(button.getAttribute("aria-expanded"), "true", "receipt updates do not discard the user's disclosure choice");
+  assert.deepEqual([...rail.querySelectorAll("[data-lane]")], lanes);
+  assert.deepEqual([...rail.querySelectorAll("strong")].map(item => item.textContent), ["15,000", "64", "12", "0"]);
+  assert.match(rail.textContent, /尚未取得来源真实坐标/);
+
+  await React.act(async () => button.click());
+  assert.equal(button.getAttribute("aria-expanded"), "false");
+  assert.equal(overview.getAttribute("data-expanded"), "false");
+  assert.match(button.getAttribute("aria-label")!, /展开状态详情/);
+  assert.deepEqual([...rail.querySelectorAll("[data-lane]")], lanes, "collapsing preserves the detail DOM and its verified counts");
+});
+
+test("mobile summary distinguishes zero from unknown and never invents overall completion", async () => {
+  const props = activities("ready", 0);
+  props.collection = { state: "idle", detail: "等待用户采集" };
+  const rail = await render(props);
+  const button = rail.parentElement!.querySelector("button")!;
+  assert.match(button.textContent, /索引 0 岗/);
+  assert.match(button.textContent, /状态详情/);
+  assert.doesNotMatch(button.textContent, /未读取|需关注|全部|完成|正常/);
+  assert.equal(rail.parentElement!.getAttribute("data-attention"), "false");
+  await render({ ...props, index: { state: "working", detail: "等待本机索引回执" } });
+  assert.match(button.textContent, /索引读取中/);
+  assert.doesNotMatch(button.textContent, /索引 0 岗/);
+});
+
+for (const [width, layout] of [[1600, "wide"], [900, "medium"], [1600, "narrow"], [390, "narrow"]] as const) {
+  test(`status disclosure follows measured ${layout} workspace at ${width}px without hiding desktop lanes`, async () => {
+    const rail = await render();
+    const viewport = new Window({ width, height: 900 });
+    try {
+      const style = viewport.document.createElement("style");
+      style.textContent = ["atlas.css", "atlas-experience.css", "atlas-command-center.css"]
+        .map(name => stylesheet(new URL(`../src/components/atlas/${name}`, import.meta.url))).join("\n");
+      viewport.document.head.append(style);
+      viewport.document.body.innerHTML = `<main class="atlas-workspace atlas-experience atlas-command-center" data-pane-layout="${layout}">${rail.parentElement!.outerHTML}</main>`;
+      const overview = viewport.document.querySelector(".atlas-activity-overview")!;
+      const css = (selector: string) => viewport.getComputedStyle(viewport.document.querySelector(selector)!);
+      assert.equal(css(".atlas-activity-summary").display, layout === "narrow" ? "flex" : "none");
+      assert.equal(css(".atlas-activity-rail").display, layout === "narrow" ? "none" : "grid");
+      assert.ok(Number.parseFloat(css(".atlas-activity-summary").minHeight) >= 44);
+      assert.equal(css(".atlas-activity-summary").transition, "none");
+      overview.setAttribute("data-expanded", "true");
+      assert.equal(css(".atlas-activity-rail").display, "grid");
+      assert.equal(css(".atlas-activity-summary").display, layout === "narrow" ? "flex" : "none");
+      assert.equal(overview.querySelectorAll("[data-lane]").length, 4);
+    } finally { await viewport.happyDOM.close(); }
+  });
+}
+
+for (const [width, layout, columns] of [
+  [1600, "wide", "repeat(4, minmax(0, 1fr))"],
+  [900, "wide", "repeat(2, minmax(0, 1fr))"],
+  [1600, "medium", "repeat(2, minmax(0, 1fr))"],
+  [390, "narrow", "repeat(2, minmax(0, 1fr))"],
+  [320, "narrow", "minmax(0, 1fr)"],
+] as const) {
+  test(`compact rail keeps readable full evidence after the stylesheet cascade at ${width}px / ${layout}`, async () => {
+    const rail = await render(activities("ready", 15000));
+    const viewport = new Window({ width, height: 900 });
+    try {
+      const style = viewport.document.createElement("style");
+      style.textContent = ["atlas.css", "atlas-experience.css"]
+        .map(name => stylesheet(new URL(`../src/components/atlas/${name}`, import.meta.url))).join("\n");
+      viewport.document.head.append(style);
+      viewport.document.body.innerHTML = `<main class="atlas-workspace atlas-experience" data-pane-layout="${layout}">${rail.outerHTML}</main>`;
+      const css = (selector: string) => viewport.getComputedStyle(viewport.document.querySelector(selector)!);
+      assert.equal(css(".atlas-activity-rail").gridTemplateColumns, columns);
+      assert.equal(css(".atlas-activity-rail > li").minHeight, "64px");
+      assert.equal(css(".atlas-activity-rail > li").paddingTop, "8px");
+      assert.ok(Number.parseFloat(css(".atlas-activity-label").fontSize) >= 13);
+      assert.ok(Number.parseFloat(css(".atlas-activity-state").fontSize) >= 12);
+      assert.ok(Number.parseFloat(css(".atlas-activity-value strong").fontSize) >= 22);
+      assert.ok(Number.parseFloat(css(".atlas-activity-content p").fontSize) >= 12);
+      assert.equal(css(".atlas-activity-content p").overflowWrap, "anywhere");
+      assert.notEqual(css(".atlas-activity-content p").display, "none");
+      assert.notEqual(css(".atlas-activity-content p").overflow, "hidden");
+      assert.notEqual(css(".atlas-activity-content p").whiteSpace, "nowrap");
+      if (layout === "narrow") assert.equal(css(".atlas-activity-icon").display, "none");
+    } finally { await viewport.happyDOM.close(); }
+  });
+}
 
 test("initial mount and streaming counters preserve stable DOM and never restart motion", async () => {
   const rail = await render(activities("working", 5000));

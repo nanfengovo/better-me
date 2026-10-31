@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, Columns3, Ellipsis, Expand, FileText, GripHorizontal, GripVertical, LayoutGrid, List, Map as MapIcon, RotateCcw, Shrink } from "lucide-react";
 import { useUiPreferences } from "../../lib/ui-preferences";
 import {
@@ -17,6 +17,15 @@ type Gesture = {
   pane?: WorkbenchPaneId; height: number; nextHeight: number; target?: WorkbenchPaneId; moved: boolean;
 };
 
+/** Layout position, not the position after the user scrolls a page or outer pane. */
+function unscrolledTop(element: HTMLElement, top = element.getBoundingClientRect().top): number {
+  let result = top + window.scrollY;
+  for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+    if (parent !== document.scrollingElement) result += parent.scrollTop;
+  }
+  return result;
+}
+
 /** Owns only presentation. Child nodes keep their keys/instances; no job/query dependencies. */
 export function AtlasWorkbench({ map, jobs, detail, hasDetail, layout, active = true, empty = false }: {
   map: ReactNode; jobs: ReactNode; detail: ReactNode; hasDetail: boolean;
@@ -30,12 +39,13 @@ export function AtlasWorkbench({ map, jobs, detail, hasDetail, layout, active = 
   const gesture = useRef<Gesture | null>(null);
   const frame = useRef<number | null>(null);
   const cancelRef = useRef<() => void>(() => {});
+  const measureRef = useRef<() => void>(() => {});
   const [preferences, setPreferences] = useState(() => {
     try { return parseWorkbenchLayout(localStorage.getItem(WORKBENCH_LAYOUT_KEY)); }
     catch { return defaultWorkbenchLayout(); }
   });
   const [width, setWidth] = useState(layout === "wide" ? 1200 : layout === "medium" ? 760 : 390);
-  const [viewportHeight, setViewportHeight] = useState(() => typeof window === "undefined" ? 1000 : window.innerHeight);
+  const [automaticHeight, setAutomaticHeight] = useState(520);
   const [focused, setFocused] = useState<WorkbenchPaneId | null>(null);
   const [status, setStatus] = useState("");
   const [saveFailed, setSaveFailed] = useState(false);
@@ -44,7 +54,7 @@ export function AtlasWorkbench({ map, jobs, detail, hasDetail, layout, active = 
   const columns = !focused && preferences.arrangement !== "rows" && layout !== "narrow"
     && width >= visible.reduce((n,id)=>n+PANE_MIN_WIDTH[id],0) + SPLITTER_SIZE * (visible.length-1);
   const sizes = allocatePaneSizes(visible, preferences.weights, width);
-  const height = preferences.height ?? clampWorkbenchHeight(viewportHeight - 480);
+  const height = preferences.height ?? automaticHeight;
   const content = { map, jobs, detail };
   const icons = { map: MapIcon, jobs: List, detail: FileText };
 
@@ -98,7 +108,7 @@ export function AtlasWorkbench({ map, jobs, detail, hasDetail, layout, active = 
     gesture.current = null;
     clearVisuals();
     try { if (current.element.hasPointerCapture?.(current.pointerId)) current.element.releasePointerCapture(current.pointerId); } catch { /* Already released by the UA. */ }
-    if (cancel) { restoreSize(); setStatus(t("已取消布局调整", "Layout change cancelled")); return; }
+    if (cancel) { restoreSize(); measureRef.current(); setStatus(t("已取消布局调整", "Layout change cancelled")); return; }
     if (current.kind === "width") {
       commit({ ...preferences, weights: weightsFromSizes(current.ids, current.sizes, preferences.weights) }, t("模块宽度已调整", "Pane widths updated"));
     } else if (current.kind === "height") {
@@ -108,21 +118,48 @@ export function AtlasWorkbench({ map, jobs, detail, hasDetail, layout, active = 
       commit({ ...preferences, order: moveWorkbenchPane(preferences.order, current.pane, current.target) }, labels[current.pane] + t("已移动", " moved"));
       requestAnimationFrame(() => panes.current.get(current.pane!)?.querySelector<HTMLButtonElement>(".atlas-pane-drag")?.focus({ preventScroll: true }));
     }
+    measureRef.current();
   }
   cancelRef.current = () => finish(undefined, true);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = grid.current;
     if (!element || !active) return;
+    const scrollport = element.closest<HTMLElement>(".atlas-workspace");
     const measure = () => {
-      const next = element.getBoundingClientRect().width;
-      if (Number.isFinite(next) && next > 0) setWidth(previous => Math.abs(previous-next) < .5 ? previous : next);
-      setViewportHeight(window.innerHeight);
+      const rect = element.getBoundingClientRect();
+      if (!Number.isFinite(rect.width) || rect.width <= 0) return;
+      setWidth(previous => Math.abs(previous-rect.width) < .5 ? previous : rect.width);
+      // A gesture paints its own geometry until release. In particular, an
+      // observer notification caused by a height drag must not fight the pointer.
+      if (gesture.current) return;
+      const portRect = scrollport?.getBoundingClientRect();
+      const portTop = scrollport && portRect ? unscrolledTop(scrollport, portRect.top) + scrollport.clientTop : 0;
+      const viewportRoom = Math.max(0, window.innerHeight - Math.max(0, portTop));
+      const available = scrollport && scrollport.clientHeight > 0 ? Math.min(scrollport.clientHeight, viewportRoom) : viewportRoom;
+      const offset = scrollport && portRect
+        ? rect.top - portRect.top - scrollport.clientTop + scrollport.scrollTop
+        : unscrolledTop(element, rect.top);
+      const padding = scrollport ? Number.parseFloat(window.getComputedStyle(scrollport).paddingBottom) || 0 : 0;
+      const handle = element.parentElement?.querySelector<HTMLElement>(":scope > .atlas-workbench-height");
+      const nextHeight = clampWorkbenchHeight(available - offset - padding - (handle?.getBoundingClientRect().height ?? 0));
+      setAutomaticHeight(previous => previous === nextHeight ? previous : nextHeight);
     };
     const observer = typeof ResizeObserver === "function" ? new ResizeObserver(measure) : undefined;
-    observer?.observe(element); window.addEventListener("resize", measure); measure();
-    return () => { observer?.disconnect(); window.removeEventListener("resize", measure); };
-  }, [active]);
+    observer?.observe(element);
+    if (scrollport) observer?.observe(scrollport);
+    // Header/filter disclosures can move the grid without resizing it. Observe
+    // those layout owners, not job rows, map content or scroll events.
+    for (let node: HTMLElement | null = element; node && node !== scrollport; node = node.parentElement) {
+      for (let sibling = node.previousElementSibling; sibling; sibling = sibling.previousElementSibling) observer?.observe(sibling);
+      if (!scrollport && node === element.parentElement) break;
+    }
+    const handle = element.parentElement?.querySelector<HTMLElement>(":scope > .atlas-workbench-height");
+    if (handle) observer?.observe(handle);
+    measureRef.current = measure;
+    window.addEventListener("resize", measure); measure();
+    return () => { measureRef.current = () => {}; observer?.disconnect(); window.removeEventListener("resize", measure); };
+  }, [active, columns, focused]);
   useEffect(() => { if (focused === "detail" && !hasDetail) setFocused(null); }, [hasDetail, focused]);
   useEffect(() => { cancelRef.current(); }, [layout, width, hasDetail, active, focused, preferences.arrangement]);
   useEffect(() => {
@@ -219,7 +256,10 @@ export function AtlasWorkbench({ map, jobs, detail, hasDetail, layout, active = 
     else if (event.key === "ArrowDown") next = current+(event.shiftKey ? 80 : 24);
     else if (event.key === "Home") next = pane ? PANE_MIN_HEIGHT[pane] : 520;
     else if (event.key === "End") next = 1400;
-    else if (event.key === "Enter") next = pane ? defaultWorkbenchLayout().rowHeights[pane] : clampWorkbenchHeight(viewportHeight-480);
+    else if (event.key === "Enter") {
+      if (!pane) { event.preventDefault(); commit({ ...preferences, height: null }); return; }
+      next = defaultWorkbenchLayout().rowHeights[pane];
+    }
     else return;
     event.preventDefault();
     commit(pane ? { ...preferences, rowHeights: { ...preferences.rowHeights, [pane]: clampPaneHeight(next,pane) } }

@@ -1,4 +1,156 @@
 /* State feedback only. No count animation, timeline, percentage, or perpetual activity loop. */
+.atlas-activity-overview { min-width: 0; }
+.atlas-workspace.atlas-experience .atlas-activity-summary {
+  display: none;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 12px;
+  gap: 8px;
+  border: 1px solid var(--atlas-edge, var(--color-line));
+  border-radius: 11px;
+  background: var(--color-panel);
+  color: var(--color-ink);
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.4;
+  transform: none;
+  transition: none;
+}
+.atlas-activity-summary-index,
+.atlas-activity-summary-status { display: inline-flex; align-items: center; gap: 6px; }
+.atlas-activity-summary-index { min-width: 0; flex: 1; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.atlas-activity-summary-index > svg,
+.atlas-activity-summary-chevron { flex: none; color: var(--color-ink-muted); }
+.atlas-activity-summary-status { flex: none; font-size: 12px; color: var(--color-ink-muted); }
+.atlas-activity-overview[data-attention="true"] .atlas-activity-summary-status { color: var(--color-warn, #98641c); }
+.atlas-activity-overview[data-expanded="true"] .atlas-activity-summary-chevron { transform: rotate(180deg); }
+/* Use the measured workspace width, not the viewport: Atlas also lives in side panels. */
+.atlas-workspace.atlas-experience[data-pane-layout="narrow"] .atlas-activity-summary { display: flex; }
+.atlas-workspace.atlas-experience[data-pane-layout="narrow"] .atlas-activity-overview[data-expanded="false"] > .atlas-activity-rail { display: none; }
+.atlas-workspace.atlas-experience[data-pane-layout="narrow"] .atlas-activity-overview[data-expanded="true"] > .atlas-activity-rail { margin-top: 6px; }
+
+/* The compact variant owns its density after the legacy readability cascade.
+   Details wrap rather than being clipped: an error must not require a hover. */
+.atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  border-radius: 12px;
+}
+.atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact > li {
+  align-items: center;
+  min-height: 64px;
+  gap: 10px;
+  padding: 8px 12px;
+}
+.atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  box-shadow: none;
+}
+.atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-content {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px 8px;
+}
+.atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-label {
+  gap: 2px 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-ink);
+}
+.atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-state {
+  padding: 1px 4px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-value {
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px 4px;
+  white-space: normal;
+}
+.atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-value strong {
+  min-width: 0;
+  font-size: 22px;
+  line-height: 1.2;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}
+.atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-value > span,
+.atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-content p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-content p {
+  overflow-wrap: anywhere;
+}
+.atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact [data-has-value="false"] .atlas-activity-value {
+  color: var(--color-ink-muted);
+}
+.atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact > [data-state="attention"] {
+  background: color-mix(in srgb, var(--color-warn, #98641c) 4%, transparent);
+}
+.atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact > li:first-child {
+  border-start-start-radius: 11px;
+  border-end-start-radius: 11px;
+}
+.atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact > li:last-child {
+  border-start-end-radius: 11px;
+  border-end-end-radius: 11px;
+}
+.atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact [data-state="ready"] .atlas-activity-state {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+.atlas-workspace.atlas-experience[data-pane-layout="medium"] .atlas-activity-rail.atlas-activity-rail--compact,
+.atlas-workspace.atlas-experience[data-pane-layout="narrow"] .atlas-activity-rail.atlas-activity-rail--compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.atlas-workspace.atlas-experience[data-pane-layout="medium"] .atlas-activity-rail.atlas-activity-rail--compact > li:nth-child(3),
+.atlas-workspace.atlas-experience[data-pane-layout="narrow"] .atlas-activity-rail.atlas-activity-rail--compact > li:nth-child(3) {
+  border-left: 0;
+}
+.atlas-workspace.atlas-experience[data-pane-layout="medium"] .atlas-activity-rail.atlas-activity-rail--compact > li:nth-child(n+3),
+.atlas-workspace.atlas-experience[data-pane-layout="narrow"] .atlas-activity-rail.atlas-activity-rail--compact > li:nth-child(n+3) {
+  border-top: 1px solid var(--color-line);
+}
+.atlas-workspace.atlas-experience[data-pane-layout="narrow"] .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-icon { display: none; }
+.atlas-workspace.atlas-experience[data-pane-layout="narrow"] .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-content { grid-template-columns: minmax(0, 1fr); }
+.atlas-workspace.atlas-experience[data-pane-layout="narrow"] .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-label { justify-content: space-between; }
+.atlas-workspace.atlas-experience[data-pane-layout="narrow"] .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-value { justify-content: flex-start; }
+@media (max-width: 1100px) {
+  .atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact > li:nth-child(3) { border-left: 0; }
+  .atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact > li:nth-child(n+3) { border-top: 1px solid var(--color-line); }
+}
+@media (max-width: 480px) {
+  .atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact > li {
+    align-items: start;
+    padding: 8px 10px;
+  }
+  .atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-content {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+  }
+  .atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-label { justify-content: space-between; }
+  .atlas-workspace.atlas-experience .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-value { justify-content: flex-start; }
+}
+@media (max-width: 359px) {
+  .atlas-workspace.atlas-experience[data-pane-layout] .atlas-activity-rail.atlas-activity-rail--compact { grid-template-columns: minmax(0, 1fr); }
+  .atlas-workspace.atlas-experience[data-pane-layout] .atlas-activity-rail.atlas-activity-rail--compact > li + li {
+    border-left: 0;
+    border-top: 1px solid var(--color-line);
+  }
+  .atlas-workspace.atlas-experience[data-pane-layout] .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-content { grid-template-columns: minmax(0, 1fr) auto; }
+  .atlas-workspace.atlas-experience[data-pane-layout] .atlas-activity-rail.atlas-activity-rail--compact .atlas-activity-label { justify-content: flex-start; }
+}
+
 .atlas-experience .atlas-activity-rail .atlas-activity-icon {
   position: relative;
   isolation: isolate;

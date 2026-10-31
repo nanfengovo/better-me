@@ -8,9 +8,19 @@ import { defaultWorkbenchLayout, WORKBENCH_LAYOUT_KEY } from "../src/components/
 
 const dom = new Window({ url: "http://synthetic-workbench.invalid" });
 const frames = new Map<number, FrameRequestCallback>();
+const resizeObservers = new Set<WorkbenchResizeObserver>();
+class WorkbenchResizeObserver implements ResizeObserver {
+  readonly targets = new Set<Element>();
+  constructor(readonly callback: ResizeObserverCallback) { resizeObservers.add(this); }
+  observe(target: Element) { this.targets.add(target); }
+  unobserve(target: Element) { this.targets.delete(target); }
+  disconnect() { this.targets.clear(); resizeObservers.delete(this); }
+}
+const initialViewportHeight = dom.innerHeight;
 let frameId = 0;
 const globals = { React, window: dom, document: dom.document, navigator: dom.navigator, localStorage: dom.localStorage,
   HTMLElement: dom.HTMLElement, Element: dom.Element, Node: dom.Node, IS_REACT_ACT_ENVIRONMENT: true,
+  ResizeObserver: WorkbenchResizeObserver,
   requestAnimationFrame: (callback: FrameRequestCallback) => { frames.set(++frameId,callback); return frameId; },
   cancelAnimationFrame: (id: number) => { frames.delete(id); } };
 const descriptors = new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -29,12 +39,26 @@ const button = (label: string) => host.querySelector<HTMLButtonElement>(`[aria-l
 const pane = (id: string) => host.querySelector<HTMLElement>(`[data-workbench-pane="${id}"]`)!;
 const grid = () => host.querySelector<HTMLElement>(".atlas-workbench-grid")!;
 const current = () => JSON.parse(localStorage.getItem(WORKBENCH_LAYOUT_KEY)!);
-async function mount(props: Partial<React.ComponentProps<typeof AtlasWorkbench>> = {}) {
+const notifyResize = async () => { await React.act(async () => { for (const observer of resizeObservers) observer.callback([], observer); }); };
+async function mount(props: Partial<React.ComponentProps<typeof AtlasWorkbench>> = {}, leading?: React.ReactNode) {
   host = dom.document.createElement("div") as unknown as HTMLDivElement; dom.document.body.append(host);
+  host.className = "atlas-workspace";
   root = createRoot(host);
-  await React.act(async()=>{root!.render(<AtlasWorkbench map={<p>Map content</p>} jobs={<p>Jobs content</p>} detail={<p>JD content</p>} hasDetail layout="wide" {...props} />);});
+  await React.act(async()=>{root!.render(<>{leading}<AtlasWorkbench map={<p>Map content</p>} jobs={<p>Jobs content</p>} detail={<p>JD content</p>} hasDetail layout="wide" {...props} /></>);});
 }
-afterEach(async()=>{if(root)await React.act(async()=>{root!.unmount();});root=undefined;host?.remove();frames.clear();dom.localStorage.clear();Object.defineProperty(globalThis,"localStorage",{value:dom.localStorage,writable:true,configurable:true});});
+function measuredWorkspace() {
+  const geometry = { top: 80, height: 1000, gridOffset: 200, width: 1200 };
+  Object.defineProperty(dom, "innerHeight", { configurable: true, value: 1200 });
+  Object.defineProperty(host, "clientHeight", { configurable: true, get: () => geometry.height });
+  host.style.paddingBottom = "12px";
+  host.getBoundingClientRect = () => new dom.DOMRect(0, geometry.top - dom.scrollY, geometry.width, geometry.height) as unknown as DOMRect;
+  grid().getBoundingClientRect = () => new dom.DOMRect(0,
+    geometry.top + geometry.gridOffset - host.scrollTop - dom.scrollY, geometry.width,
+    Number.parseFloat(grid().style.height) || 600) as unknown as DOMRect;
+  button("调整工作区高度").getBoundingClientRect = () => new dom.DOMRect(0, 0, geometry.width, 18) as unknown as DOMRect;
+  return geometry;
+}
+afterEach(async()=>{if(root)await React.act(async()=>{root!.unmount();});root=undefined;host?.remove();frames.clear();assert.equal(resizeObservers.size,0,"unmount releases layout observers");dom.localStorage.clear();Object.defineProperty(dom,"innerHeight",{configurable:true,value:initialViewportHeight});Object.defineProperty(dom,"scrollY",{configurable:true,value:0});Object.defineProperty(globalThis,"localStorage",{value:dom.localStorage,writable:true,configurable:true});});
 after(()=>{hooks.deregister();dom.happyDOM.abort();for(const[key,descriptor]of descriptors){if(descriptor)Object.defineProperty(globalThis,key,descriptor);else Reflect.deleteProperty(globalThis,key);}});
 
 test("width hot loop does not render children or write preferences until release; cancel restores geometry and ARIA", async()=>{
@@ -136,4 +160,104 @@ test("presets, separator keys and height controls work independently of data; st
   await click(host.querySelector<HTMLButtonElement>(".atlas-workbench-arrange")!);assert.equal(current().arrangement,"rows");assert.equal(host.querySelector(".atlas-workbench")!.getAttribute("data-arrangement"),"rows");
   Object.defineProperty(globalThis,"localStorage",{configurable:true,value:{getItem:()=>null,setItem:()=>{throw Error("quota");}}});
   await click(button("还原默认工作区布局"));assert.match(host.textContent!,/布局暂未保存/);assert.equal(pane("map").hidden,false);
+});
+
+test("automatic workbench height follows its real header and constrained scrollport without remounting or persisting", async () => {
+  let mounts = 0;
+  function Probe() { React.useEffect(() => { mounts++; }, []); return <input defaultValue="unsaved map state" />; }
+  await mount({ map: <Probe /> }, <header className="atlas-command">Search controls</header>);
+  const content = host.querySelector("input");
+  const geometry = measuredWorkspace();
+  await notifyResize();
+  assert.equal(grid().style.height, "770px", "1000px scrollport minus 200px header, 12px padding and 18px handle");
+  for (const target of [host, grid(), host.querySelector(".atlas-command")!, host.querySelector(".atlas-workbench-toolbar")!]) {
+    assert.ok([...resizeObservers].some(observer => observer.targets.has(target)), "observe only geometry owners that can move or resize the grid");
+  }
+  geometry.gridOffset = 120;
+  await notifyResize();
+  assert.equal(grid().style.height, "850px", "a compact command area releases space to the actual map and list");
+  assert.equal(button("调整工作区高度").getAttribute("aria-valuenow"), "850");
+  assert.equal(localStorage.getItem(WORKBENCH_LAYOUT_KEY), null, "automatic measurements are not user preferences");
+  assert.equal(mounts, 1);
+  assert.equal(host.querySelector("input"), content);
+});
+
+test("automatic height is stable while scrolling and clips to the viewport on a real geometry resize", async () => {
+  await mount();
+  const geometry = measuredWorkspace();
+  await notifyResize();
+  host.scrollTop = 250;
+  Object.defineProperty(dom, "scrollY", { configurable: true, value: 180 });
+  host.dispatchEvent(new dom.Event("scroll"));
+  dom.dispatchEvent(new dom.Event("scroll"));
+  await notifyResize();
+  assert.equal(grid().style.height, "770px", "scrolling must not grow the default height or chase the viewport");
+  geometry.height = 1400;
+  await notifyResize();
+  assert.equal(grid().style.height, "890px", "a taller scrollport is still bounded by the unscrolled viewport bottom");
+  Object.defineProperty(dom, "innerHeight", { configurable: true, value: 1000 });
+  await React.act(async () => dom.dispatchEvent(new dom.Event("resize")));
+  assert.equal(grid().style.height, "690px");
+  geometry.gridOffset = 900;
+  await notifyResize();
+  assert.equal(grid().style.height, "520px", "the established usable minimum remains intact");
+  assert.equal(localStorage.getItem(WORKBENCH_LAYOUT_KEY), null);
+});
+
+test("manual workbench height survives header changes and Enter restores responsive automatic sizing", async () => {
+  localStorage.setItem(WORKBENCH_LAYOUT_KEY, JSON.stringify({ ...defaultWorkbenchLayout(), height: 860 }));
+  await mount();
+  const geometry = measuredWorkspace();
+  await notifyResize();
+  assert.equal(grid().style.height, "860px");
+  geometry.gridOffset = 340;
+  await notifyResize();
+  assert.equal(grid().style.height, "860px");
+  assert.equal(current().height, 860);
+  await key(button("调整工作区高度"), "Enter");
+  assert.equal(current().height, null, "reset returns to an automatic preference instead of freezing a measured pixel value");
+  assert.equal(grid().style.height, "630px");
+  geometry.gridOffset = 140;
+  await notifyResize();
+  assert.equal(grid().style.height, "830px");
+  assert.equal(current().height, null);
+});
+
+test("automatic geometry never fights a height drag and resumes after cancellation without saving", async () => {
+  await mount();
+  const geometry = measuredWorkspace();
+  await notifyResize();
+  const handle = button("调整工作区高度");
+  await pointer(handle, "pointerdown", 400, 100);
+  await pointer(handle, "pointermove", 400, 180);
+  await flush();
+  assert.equal(grid().style.height, "850px");
+  geometry.gridOffset = 300;
+  await notifyResize();
+  assert.equal(grid().style.height, "850px", "ResizeObserver cannot overwrite an in-progress pointer height");
+  await key(handle, "Escape");
+  assert.equal(grid().style.height, "670px", "cancellation resumes the current automatic layout");
+  assert.equal(handle.getAttribute("aria-valuenow"), "670");
+  assert.equal(localStorage.getItem(WORKBENCH_LAYOUT_KEY), null);
+  assert.equal(frames.size, 0);
+});
+
+test("inactive workbenches stop observing and remeasure actual geometry when activated", async () => {
+  await mount({ active: false });
+  const geometry = measuredWorkspace();
+  assert.equal(resizeObservers.size, 0);
+  const renderActive = async (active: boolean) => {
+    await React.act(async () => root!.render(<><AtlasWorkbench map={<p>Map content</p>} jobs={<p>Jobs content</p>}
+      detail={<p>JD content</p>} hasDetail layout="wide" active={active} /></>));
+  };
+  await renderActive(true);
+  assert.equal(grid().style.height, "770px");
+  await renderActive(false);
+  assert.equal(resizeObservers.size, 0);
+  geometry.gridOffset = 300;
+  await notifyResize();
+  assert.equal(grid().style.height, "770px");
+  await renderActive(true);
+  assert.equal(grid().style.height, "670px");
+  assert.equal(localStorage.getItem(WORKBENCH_LAYOUT_KEY), null);
 });
