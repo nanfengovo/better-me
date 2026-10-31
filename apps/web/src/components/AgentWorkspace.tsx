@@ -1,5 +1,5 @@
 /** @jsxRuntime automatic */
-import { useEffect, useRef, useState, useMemo, type ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo, type ChangeEvent } from "react";
 import { useUiPreferences } from "../lib/ui-preferences";
 import type { LlmConfig, ProjectedResume } from "@better-me/core";
 import type { ResumeEditContext, ResumeProposalTarget } from "@better-me/agent-contracts";
@@ -116,8 +116,9 @@ async function prepareChatImage(file: File): Promise<PendingChatImage> {
 // 60fps spring-eased counter hook for score animation
 function useAnimatedCounter(target: number, duration = 800) {
   const [current, setCurrent] = useState(0);
+  const lastFrameValue = useRef(0);
   useEffect(() => {
-    const start = current;
+    const start = lastFrameValue.current;
     const startTime = performance.now();
     let frameId: number;
 
@@ -126,7 +127,8 @@ function useAnimatedCounter(target: number, duration = 800) {
       const progress = Math.min(1, elapsed / duration);
       // Apple-like ease-out curve
       const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-      setCurrent(Math.round(start + (target - start) * ease));
+      lastFrameValue.current = Math.round(start + (target - start) * ease);
+      setCurrent(lastFrameValue.current);
       if (progress < 1) {
         frameId = requestAnimationFrame(step);
       }
@@ -344,8 +346,8 @@ export function AgentWorkspace({
         if (!resp.ok) return;
         const data = (await resp.json()) as { latest?: { title: string; company: string; salary?: string; location?: string; description: string; sourceUrl?: string; syncedAt: number } };
         if (data.latest && data.latest.syncedAt > lastProcessedSyncTimeRef.current) {
-          lastProcessedSyncTimeRef.current = data.latest.syncedAt;
           if (isCancelled) return;
+          lastProcessedSyncTimeRef.current = data.latest.syncedAt;
           setInputTitle(data.latest.title);
           setInputCompany(data.latest.company);
           if (data.latest.salary) setInputSalary(data.latest.salary);
@@ -385,7 +387,7 @@ export function AgentWorkspace({
       clearInterval(interval);
       window.removeEventListener("focus", onWindowFocus);
     };
-  }, []);
+  }, [t]);
 
   // Sync prop job changes to local state
   useEffect(() => {
@@ -680,13 +682,6 @@ export function AgentWorkspace({
     void checkAgentHostHealth().then(setAgentHostOnline);
   }, []);
 
-  // Trigger initial match when opened with a job
-  useEffect(() => {
-    if (active && !showCareerCoach && currentJob?.description && proposals.length === 0 && !loading && !errorNotice) {
-      void runMatching(currentJob.description);
-    }
-  }, [currentJob?.description, active, showCareerCoach]);
-
   // Auto-scroll chat
   useEffect(() => {
     if (leftViewMode !== "jd") {
@@ -694,7 +689,9 @@ export function AgentWorkspace({
     }
   }, [messages, leftViewMode]);
 
-  const runMatching = async (jdText: string) => {
+  const autoMatchAttempt = useRef<string | null>(null);
+  const runMatching = useCallback(async (jdText: string) => {
+    autoMatchAttempt.current = jdText;
     setLoading(true);
     setErrorNotice(null);
     const newThreadId = `thread-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -760,7 +757,17 @@ export function AgentWorkspace({
     } finally {
       setLoading(false);
     }
-  };
+  }, [resume, llmConfig, t]);
+
+  // One attempt per opened JD, even during StrictMode replay or an empty result.
+  // Explicit manual matching also records its attempt before changing state.
+  useEffect(() => {
+    if (!active || showCareerCoach) { autoMatchAttempt.current = null; return; }
+    const description = currentJob?.description;
+    if (description && autoMatchAttempt.current !== description && proposals.length === 0 && !loading && !errorNotice) {
+      void runMatching(description);
+    }
+  }, [currentJob?.description, active, showCareerCoach, proposals.length, loading, errorNotice, runMatching]);
 
   const handleDecision = (proposalId: string, status: "accepted" | "rejected") => {
     setDecisions((prev) => ({

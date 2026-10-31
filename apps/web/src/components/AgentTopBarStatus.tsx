@@ -1,5 +1,5 @@
 /** @jsxRuntime automatic */
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   CircleAlert,
@@ -58,6 +58,12 @@ export function AgentTopBarStatus({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const { provider, baseUrl, apiKey, model } = config ?? {};
+  // Model discovery does not use generation options. Depend on connection
+  // values, not a fresh config object from an otherwise unrelated parent render.
+  const probeConfig = useMemo<LlmConfig | null>(() => provider && baseUrl && model
+    ? { provider, baseUrl, apiKey: apiKey ?? "", model, temperature: 0.3 }
+    : null, [provider, baseUrl, apiKey, model]);
 
   const isConfigured = Boolean(
     config &&
@@ -71,14 +77,14 @@ export function AgentTopBarStatus({
   const [probeMessage, setProbeMessage] = useState<string>("");
   const [lastProbeTime, setLastProbeTime] = useState<string>("");
 
-  const probe = async (currentConfig: LlmConfig | null) => {
+  const probe = useCallback(async (currentConfig: LlmConfig | null) => {
+    abortControllerRef.current?.abort();
     if (!currentConfig || (!currentConfig.apiKey?.trim() && currentConfig.provider !== "ollama")) {
       setProbeStatus("unconfigured");
       setProbeMessage(t("尚未配置大模型 API Key", "API key not configured"));
       return;
     }
 
-    abortControllerRef.current?.abort();
     const controller = new AbortController();
     abortControllerRef.current = controller;
     setProbeStatus("probing");
@@ -101,7 +107,7 @@ export function AgentTopBarStatus({
       setProbeMessage(err instanceof Error ? err.message : t("网络超时或配置无效", "Timeout or invalid config"));
       setLastProbeTime(new Date().toLocaleTimeString());
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     if (!isConfigured) {
@@ -109,11 +115,11 @@ export function AgentTopBarStatus({
       setProbeMessage(t("尚未配置大模型 API Key", "API key not configured"));
       return;
     }
-    void probe(config);
+    void probe(probeConfig);
     return () => {
       abortControllerRef.current?.abort();
     };
-  }, [config?.baseUrl, config?.apiKey, config?.model, config?.provider, isConfigured]);
+  }, [probeConfig, isConfigured, probe, t]);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {

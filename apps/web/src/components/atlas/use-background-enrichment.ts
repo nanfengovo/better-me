@@ -37,6 +37,7 @@ export function useBackgroundEnrichment(input: BackgroundEnrichmentInput): Backg
 
   useEffect(() => {
     if (!enabled) return;
+    const { endpoint, token } = connection;
     let disposed = false;
     let pageHidden = false;
     let timer: ReturnType<typeof setTimeout> | undefined;

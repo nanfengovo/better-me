@@ -1,5 +1,5 @@
 /** @jsxRuntime automatic */
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useUiPreferences } from "../lib/ui-preferences";
 import type { LlmConfig, ProjectedResume } from "@better-me/core";
 import {
@@ -149,13 +149,6 @@ export function JdMatchDrawer({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Trigger match when opened with a job
-  useEffect(() => {
-    if (isOpen && currentJob?.description && proposals.length === 0 && !loading && !errorNotice) {
-      void runMatching(currentJob.description);
-    }
-  }, [isOpen, currentJob?.description]);
-
   // Auto scroll chat
   useEffect(() => {
     if (activeTab === "chat") {
@@ -163,7 +156,9 @@ export function JdMatchDrawer({
     }
   }, [messages, activeTab]);
 
-  const runMatching = async (jdText: string) => {
+  const autoMatchAttempt = useRef<string | null>(null);
+  const runMatching = useCallback(async (jdText: string) => {
+    autoMatchAttempt.current = jdText;
     setLoading(true);
     setErrorNotice(null);
     const newThreadId = `thread-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -229,7 +224,16 @@ export function JdMatchDrawer({
     } finally {
       setLoading(false);
     }
-  };
+  }, [resume, llmConfig, t]);
+
+  // A completed empty response is not permission to repeatedly call the model.
+  useEffect(() => {
+    if (!isOpen) { autoMatchAttempt.current = null; return; }
+    const description = currentJob?.description;
+    if (description && autoMatchAttempt.current !== description && proposals.length === 0 && !loading && !errorNotice) {
+      void runMatching(description);
+    }
+  }, [isOpen, currentJob?.description, proposals.length, loading, errorNotice, runMatching]);
 
   const handleDecision = (proposalId: string, status: "accepted" | "rejected") => {
     setDecisions((prev) => ({

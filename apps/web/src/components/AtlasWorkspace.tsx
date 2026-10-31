@@ -835,10 +835,11 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
   }, [text, resumePrefill.targetRole, mode, chinaFilter, chinaSelection.districtCode, regionText, region, regions]);
 
   const liveMarketScope = useRef({ mode, country });
+  const cancelHarvestRecovery = harvestRecovery.cancel;
   useEffect(() => {
     if (liveMarketScope.current.mode === mode && liveMarketScope.current.country === country) return;
     liveMarketScope.current = { mode, country };
-    void harvestRecovery.cancel().catch(() => { /* Its independent status remains actionable. */ });
+    void cancelHarvestRecovery().catch(() => { /* Its independent status remains actionable. */ });
     searchAbort.current?.abort();
     searchAbort.current = null;
     setLiveHarvest(null);
@@ -851,7 +852,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
     setHarvestStage({ stage: "intent-expansion", stageIndex: 1, totalStages: 5, message: "准备本轮实时搜索请求" });
     setSourceSearchMessage("");
     setSourceSearchError("");
-  }, [mode, country, harvestRecovery.cancel]);
+  }, [mode, country, cancelHarvestRecovery]);
 
   function formatLivePlatformNotice(summary: LivePlatformImportSummary | undefined): string {
     if (!summary) return "";

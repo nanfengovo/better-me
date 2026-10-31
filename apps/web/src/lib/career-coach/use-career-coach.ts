@@ -107,7 +107,13 @@ export function useCareerCoach(workspaceKey: string, repository: CoachRepository
   }, [workspaceKey, repository]);
 
   const reload = useCallback(() => loadWorkspace(true), [loadWorkspace]);
-  useEffect(() => { void loadWorkspace(); return () => { generation.current++; usable.current = false; }; }, [loadWorkspace]);
+  const invalidateLoads = useCallback(() => {
+    // Invalidate the latest load (including an explicit reload), not merely the
+    // initial setup's ticket. Accepted writes still drain independently.
+    generation.current += 1;
+    usable.current = false;
+  }, []);
+  useEffect(() => { void loadWorkspace(); return invalidateLoads; }, [loadWorkspace, invalidateLoads]);
 
   const update = useCallback((updater: (state: CoachState) => CoachState) => {
     if (!usable.current || current.current.workspaceKey !== workspaceKey || appliedScope.current.repository !== repository) throw new Error("成长记录尚未就绪，请稍后重试。");
