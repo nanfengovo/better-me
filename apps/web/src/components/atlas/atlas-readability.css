@@ -435,8 +435,8 @@
   opacity: .65;
   cursor: default;
 }
-.atlas-working-conditions { overflow-wrap: anywhere; }
-.atlas-working-conditions > p { margin-block: 8px; line-height: 1.6; }
+.atlas-workspace.atlas-experience .atlas-working-conditions { overflow-wrap: anywhere; }
+.atlas-workspace.atlas-experience .atlas-working-conditions > p { margin-block: 8px; line-height: 1.6; }
 .atlas-workspace.atlas-experience .atlas-harvest-actions button:focus-visible,
 .atlas-workspace.atlas-experience .atlas-live-card-index:focus-visible,
 .atlas-workspace.atlas-experience .atlas-harvest-progress-details > summary:focus-visible,
