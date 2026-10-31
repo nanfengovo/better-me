@@ -44,6 +44,7 @@
 | pnpm lint | 0错误、8个现有Hooks依赖警告 |
 | pnpm memory:check / git diff --check | 通过 |
 | pnpm test:docker | 新构建的完整运行镜像：健康/Origin/鉴权/API、SQLite及令牌持久化、进程SIGKILL后恢复、容器重建通过 |
+| 固定路径后回归 | Agent安全与推荐源18/18通过，两个工作区Git状态干净 |
 
 Docker项目betterme-smoke-8dff3419使用随机端口与独立卷，验收后删除自己创建的容器/卷；原BetterMe与RCS容器均保留。镜像为本地验收产物，不表示已推镜像仓库或部署Pages。模型测试使用合成/模拟数据，不证明真实API密钥鉴权成功；10项跳过项不算大规模性能验收。
 
@@ -54,7 +55,10 @@ Docker项目betterme-smoke-8dff3419使用随机端口与独立卷，验收后删
 - 私有恢复目录在项目父目录betterme-consolidation-backup-20261031.2t4uyC，权限700。含工作区归档、暂停后推荐副本增补归档、Git bundle、源文件清单和验证记录，严禁提交/上传。
 - 原归档19187个文件内容匹配；主目录11个浏览器缓存差异留在原位，不在删除范围。后续推荐归档1407个真实文件内容匹配，AppleDouble元数据不当作源文件差异。删除前其他源码与暂停后清单一致，无新增遗漏。
 - 主目录91个已改源码及未跟踪源码另存本地stash：consolidation-20261031-main-source-before-stable-restore。output/.playwright-cli留在原目录，仅本地Git排除；私人data、真实简历、凭据和现有浏览器未改动。
-- 推送与远端分支清理待最终Git核验；仅候选删除已被agent-os包含的三个功能分支，保留main和agent-os。
+- 功能提交23a3f0660456a75bfc62e0c30f3a9e607eb339a5已正常推送；原子推送同时删除feat/docker-runtime-media-20261030、feat/resume-writing-copilot-20261029、feature/atlas-3d-modular-20261029，删除前逐一验证祖先关系。对应本地分支用安全-d删除，远端与本地分支均只剩main、agent-os；稳定main没有被开发分支覆盖。
+- 最新本地运行镜像better-me:local为sha256:882b2c04f274fb925bcb2d2743d083df0d081a6f53238d06b533ddd4b2460142。仅对本轮构建时间与依赖关系确认的16个闲置、非共享缓存ID进行定向回收，Docker报告释放1.023GB；没有全局清缓存。过滤语义参照[Docker官方说明](https://docs.docker.com/reference/cli/docker/buildx/prune/)。原服务容器与卷、最终镜像保留。
+- 清理后的本机可用空间约2.2GiB，仍偏紧。旧副本的表观目录大小不等同于实际释放量（共享块、备份和新验收镜像都会影响统计）；不把du加总冒充净释放量。
+- 首次推送已触发[跨平台CI](https://github.com/nanfengovo/better-me/actions/runs/41162874299)，本报告写入时仍在执行，不能把本机全绿描述为远端全部完成。后续文档提交的最新CI状态以GitHub实际运行结果为准。
 
 ## 下一步
 
