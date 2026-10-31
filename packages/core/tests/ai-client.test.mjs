@@ -13,6 +13,19 @@ const config = {
 };
 const messages = [{ role: "user", content: "example request" }];
 
+test("structured callers may opt into response_format without changing ordinary chat requests", async (t) => {
+  const bodies = [];
+  t.mock.method(globalThis, "fetch", async (_url, init) => {
+    bodies.push(JSON.parse(init.body));
+    return Response.json({ choices: [{ message: { content: "{}" }, finish_reason: "stop" }] });
+  });
+  const responseFormat = { type: "json_schema", json_schema: { name: "example", strict: true, schema: { type: "object", properties: {}, additionalProperties: false } } };
+  await fetchChatCompletion(config, messages, { responseFormat });
+  assert.deepEqual(bodies[0].response_format, responseFormat);
+  await fetchChatCompletion(config, messages);
+  assert.equal(bodies[1].response_format, undefined);
+});
+
 test("model-list success does not claim generation has been tested", async (t) => {
   const requests = [];
   t.mock.method(globalThis, "fetch", async (url, init) => {

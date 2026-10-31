@@ -81,7 +81,7 @@ async function sourceFiles(directory) {
 try {
   if (build) {
     console.log(`Building ${image} from the repository Dockerfile...`);
-    await docker(["build", "--tag", image, "."], { inherit: true, timeout: 15 * 60_000 });
+    await docker(["build", "--target", "static", "--tag", image, "."], { inherit: true, timeout: 15 * 60_000 });
   }
   console.log(`Starting an isolated read-only container from ${image}...`);
   containerId = await docker([

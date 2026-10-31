@@ -1,0 +1,27 @@
+{
+  "capturedAt": "2026-10-31",
+  "runtime": "Actual BetterMe resume editor on an isolated local development origin",
+  "syntheticResume": true,
+  "jobData": "Read-only candidates from the existing real-source job index; current hiring availability unverified",
+  "realResumeModified": false,
+  "modelCalls": false,
+  "newJobCollection": false,
+  "automaticApplications": false,
+  "image": {
+    "path": "docs/images/resume-job-recommendations-20261031.jpg",
+    "format": "JPEG",
+    "width": 1214,
+    "height": 1066,
+    "bytes": 124426,
+    "sha256": "93caf7ea90dbd58ee3372a5cc3c78c093d67337c07982a01848b8410bf57cee7",
+    "edited": false
+  },
+  "observedQuery": { "candidates": 139, "relevantJobs": 127, "displayedRecommendations": 3, "exhaustiveMarketSearch": false },
+  "motion": { "cardEntryMs": 240, "staggerMs": 45, "reducedMotionSupported": true, "videoCaptured": false },
+  "validationScope": [
+    "Synthetic JSON resume upload through the actual import dialog, explicit confirmation and automatic recommendations",
+    "Read-only live local-index candidate query, cancellation, retry and preferred-area filter",
+    "Selected job handoff to the existing Agent workspace without starting a model request",
+    "No claim of current recruitment-site availability, all import formats, Docker or remote CI acceptance"
+  ]
+}

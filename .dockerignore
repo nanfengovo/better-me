@@ -27,6 +27,7 @@
 !apps/web/src/components/atlas/geo/world-countries-110m.geojson
 !apps/web/src/components/atlas/geo/china-provinces-10m.geojson
 !apps/web/src/components/atlas/geo/world-land-dots.geojson
+!apps/web/src/components/atlas/geo/*.geojson
 !apps/web/src/components/atlas/geo/NOTICE.md
 !apps/web/src/components/atlas/geo/NATURAL-EARTH-LICENSE.md
 !apps/web/src/components/atlas/geo/README.md
@@ -38,6 +39,14 @@
 !apps/job-service/package.json
 !apps/job-service/tsconfig.json
 !apps/job-service/src/**/*.ts
+!apps/agent-host/package.json
+!apps/agent-host/tsconfig.json
+!apps/agent-host/src/**/*.ts
+!packages/agent-contracts/package.json
+!packages/agent-contracts/tsconfig.json
+!packages/agent-contracts/src/**/*.ts
+!apps/web/public/**
+!config/geography/**
 
 !packages/core/package.json
 !packages/core/tsconfig.json
@@ -89,3 +98,5 @@
 **/*-source.txt
 !docker/license-overrides/saxes-6.0.0/LICENSE
 !docker/license-overrides/saxes-6.0.0/NOTICE.md
+!docker/license-overrides/**/LICENSE
+!docker/license-overrides/**/NOTICE.md

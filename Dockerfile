@@ -1,7 +1,6 @@
-# syntax=docker/dockerfile:1
-
-# Version and multi-platform digest pins make both stages reviewable and repeatable.
-FROM node:24.15.0-bookworm-slim@sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d AS build
+# Override only with a trusted registry and the same digest when a local mirror is unavailable.
+ARG NODE_IMAGE=node:24.15.0-bookworm-slim@sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d
+FROM ${NODE_IMAGE} AS build
 WORKDIR /workspace
 ENV CI=true \
     TURBO_TELEMETRY_DISABLED=1
@@ -11,6 +10,8 @@ RUN npm install --global pnpm@11.9.0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
 COPY apps/web/package.json ./apps/web/package.json
 COPY apps/job-service/package.json ./apps/job-service/package.json
+COPY apps/agent-host/package.json ./apps/agent-host/package.json
+COPY packages/agent-contracts/package.json ./packages/agent-contracts/package.json
 COPY packages/core/package.json ./packages/core/package.json
 COPY packages/storage/package.json ./packages/storage/package.json
 COPY packages/opportunities/package.json ./packages/opportunities/package.json
@@ -19,11 +20,14 @@ RUN pnpm install --frozen-lockfile
 
 COPY apps/web ./apps/web
 COPY apps/job-service ./apps/job-service
+COPY apps/agent-host ./apps/agent-host
+COPY packages/agent-contracts ./packages/agent-contracts
 COPY packages/core ./packages/core
 COPY packages/storage ./packages/storage
 COPY packages/opportunities ./packages/opportunities
 COPY packages/source-adapters ./packages/source-adapters
 COPY config/geography/countries.json ./config/geography/countries.json
+COPY config/geography ./config/geography
 COPY config/sources/catalog.json ./config/sources/catalog.json
 COPY config/geography/china-administrative/catalog.json config/geography/china-administrative/source-manifest.json config/geography/china-administrative/text-aliases.json ./config/geography/china-administrative/
 COPY docker/collect-licenses.mjs ./docker/collect-licenses.mjs
@@ -36,7 +40,7 @@ RUN pnpm build \
     && test -s apps/web/dist/legal/geography/dots-manifest.json \
     && node docker/collect-licenses.mjs /tmp/better-me-dependency-licenses
 
-FROM nginx:1.30.6-alpine@sha256:970364228b1e4f932abc22d321932816782cca8a20b85a77552a7cfe9acfb3b5 AS runtime
+FROM nginx:1.30.6-alpine@sha256:970364228b1e4f932abc22d321932816782cca8a20b85a77552a7cfe9acfb3b5 AS static
 ARG VCS_REF=unknown
 LABEL org.opencontainers.image.title="BetterMe static workspace" \
     org.opencontainers.image.description="Local-first resume workspace; job/browser APIs require the local development service." \
@@ -62,3 +66,23 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 # Skip the upstream entrypoint's configuration rewrites on a read-only filesystem.
 ENTRYPOINT ["nginx"]
 CMD ["-g", "daemon off;"]
+
+# Default distribution: one local entry point for the app, Agent Host and job API.
+FROM ${NODE_IMAGE} AS runtime
+WORKDIR /workspace
+ENV NODE_ENV=production BETTER_ME_DATA_DIR=/data
+LABEL org.opencontainers.image.title="BetterMe local workspace" \
+    org.opencontainers.image.description="Resume workspace, Agent Host and persistent job index. Local use only."
+COPY --chown=node:node --from=build /workspace /workspace
+COPY --chown=node:node --from=build /tmp/better-me-dependency-licenses /workspace/apps/web/dist/legal/dependencies
+COPY --chown=node:node templates/licenses /workspace/apps/web/dist/legal/templates/licenses
+COPY --chown=node:node templates/README.md templates/CATALOG.md templates/catalog.json /workspace/apps/web/dist/legal/templates/
+COPY --chown=node:node --from=build /workspace/apps/web/src/components/templates /workspace/apps/web/dist/legal/adapted-source/templates
+COPY --chown=node:node docker/legal.html /workspace/apps/web/dist/legal/index.html
+RUN mkdir -m 700 /data && chown node:node /data
+USER node
+EXPOSE 8080
+STOPSIGNAL SIGTERM
+HEALTHCHECK --interval=10s --timeout=6s --start-period=40s --retries=3 \
+    CMD node -e "const r=require('node:http').get('http://127.0.0.1:8080/healthz',{headers:{Host:'127.0.0.1:'+(process.env.BETTER_ME_PORT||8080)}},s=>{s.resume();process.exit(s.statusCode===200?0:1)});r.setTimeout(5000,()=>r.destroy());r.on('error',()=>process.exit(1))"
+CMD ["node", "--import", "tsx", "apps/web/server/runtime-server.ts"]

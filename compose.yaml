@@ -4,9 +4,19 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runtime
     ports:
       - "127.0.0.1:${BETTER_ME_PORT:-8080}:8080"
     restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    environment:
+      BETTER_ME_PORT: "${BETTER_ME_PORT:-8080}"
+      BETTER_ME_OLLAMA_ENDPOINT: "${BETTER_ME_OLLAMA_ENDPOINT:-http://host.docker.internal:11434}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - better-me-data:/data
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m,mode=1777
@@ -14,5 +24,8 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    pids_limit: 100
-    # Resume data stays in each visitor's browser; no server-side volume is needed.
+    pids_limit: 200
+    # Resume drafts/keys stay in the browser; the public job index and Agent state use /data.
+
+volumes:
+  better-me-data:

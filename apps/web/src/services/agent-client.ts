@@ -1,4 +1,5 @@
 import { fetchChatCompletion, fetchChatCompletionResult, type LlmConfig, type ChatMessageContent } from "@better-me/core";
+import { readRuntimeConnection } from "../lib/runtime-connection";
 import type { ResumeEditContext, ResumeProposalTarget } from "@better-me/agent-contracts";
 import { findResumeContextSource } from "../lib/resume-agent-context";
 
@@ -113,8 +114,8 @@ export interface JdMatchResumeResponse {
   errors: string[];
 }
 
-const DEFAULT_AGENT_HOST_URL = "http://127.0.0.1:5179";
-const AGENT_TOKEN = "better-me-agent-token";
+const DEFAULT_AGENT_HOST_URL = readRuntimeConnection()?.origin ?? "http://127.0.0.1:5179";
+const AGENT_TOKEN = readRuntimeConnection()?.agentToken ?? "better-me-agent-token";
 const MAX_CHAT_CONTINUATIONS = 2;
 const MIN_CONTINUATION_OVERLAP = 8;
 const DEFAULT_AGENT_CHAT_TIMEOUT_MS = 35_000;

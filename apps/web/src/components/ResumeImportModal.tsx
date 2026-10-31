@@ -906,7 +906,7 @@ export function ResumeImportModal({
                       disabled={isImporting}
                       className="flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2 shadow-xs transition"
                     >
-                      <span>{isImporting ? t("正在保存…", "Saving…") : t("确认导入并替换当前简历", "Import and replace current resume")}</span>
+                      <span>{isImporting ? t("正在保存…", "Saving…") : t("确认替换简历并推荐岗位", "Replace resume and recommend jobs")}</span>
                       <ArrowRight className="h-3.5 w-3.5" />
                     </button>
                   </div>

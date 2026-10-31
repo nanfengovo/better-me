@@ -1,0 +1,14 @@
+{
+  "capturedAt": "2026-10-30",
+  "viewport": { "width": 1600, "height": 1000 },
+  "runtime": "Production build and actual embedded services on an isolated host origin, not Docker acceptance evidence",
+  "syntheticOnly": true,
+  "modelCalls": false,
+  "video": { "codec": "VP8", "container": "WebM", "fps": 15, "durationSeconds": 97.4, "edited": false },
+  "files": [
+    { "path": "docs/images/resume-copilot-20261030.webp", "bytes": 268150, "sha256": "57e2d5c01d80453c5a721e235241ac08d4534ad70509e131020324976590e3a6" },
+    { "path": "docs/images/agent-runtime-20261030.webp", "bytes": 249518, "sha256": "54cf032528c17cefd31b0f5e0fe7fedb78c79ec8133c281e25c055091368dddf" },
+    { "path": "docs/images/job-index-20261030.webp", "bytes": 281578, "sha256": "fc521ccadd3c34c2d97e229cbaffa296e22e3e33704015d3db02f5c609fd75bc" },
+    { "path": "docs/media/betterme-workflow-20261030.webm", "bytes": 6977922, "sha256": "37d19de8e7b60b6e2852be890d40e5758b2a6a926ea799372742521031a8845d" }
+  ]
+}

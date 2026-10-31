@@ -116,6 +116,7 @@ export function useDocumentPersistence() {
   const replace = useCallback((document: BetterMeDocument, label?: string, kind?: VersionKind) => controller.replace(document, label, kind), [controller]);
   const restoreField = useCallback((change: DocumentFieldChange, label?: string) => controller.restoreField(change, label), [controller]);
   const checkpoint = useCallback((label: string) => controller.checkpoint(label), [controller]);
+  const protectEdit = useCallback((label: string) => controller.protectEdit(label), [controller]);
   const flush = useCallback(() => controller.flush(true), [controller]);
-  return { ...state, update, replace, restoreField, checkpoint, flush, history: controller.history, autoSaveSettings, setAutoSaveSettings, autoSavePreferenceError };
+  return { ...state, update, replace, restoreField, checkpoint, protectEdit, flush, history: controller.history, autoSaveSettings, setAutoSaveSettings, autoSavePreferenceError };
 }

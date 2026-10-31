@@ -37,6 +37,7 @@ import {
   ImagePlus,
 } from "lucide-react";
 import { triggerAgentGuide } from "../lib/agent-guide";
+import { readRuntimeConnection } from "../lib/runtime-connection";
 import { isJdLinkOnly } from "../lib/jd-import";
 import { extractAndParseJobLink, type ParsedJobInfo } from "../lib/jd-link-parser";
 import {
@@ -322,6 +323,8 @@ export function AgentWorkspace({
   // Auto-listen to direct web sync from Bookmarklet / Browser Extension
   const lastProcessedSyncTimeRef = useRef<number>(Date.now());
   useEffect(() => {
+    // The Docker runtime deliberately does not attach the host browser/profile.
+    if (readRuntimeConnection()) return;
     let isCancelled = false;
     const checkSync = async () => {
       try {

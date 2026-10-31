@@ -1,0 +1,67 @@
+.resume-job-recs { margin: 12px 0 4px; overflow: hidden; min-width: 0; border: 1px solid var(--ui-border); border-radius: 16px; background: var(--ui-surface); color: var(--ui-text); font-size: 12px; }
+.rjr-heading { display: flex; align-items: center; gap: 12px; padding: 17px 20px; background: linear-gradient(110deg, var(--ui-accent-soft), var(--ui-surface) 65%); }
+.rjr-mark { display: grid; place-items: center; flex: 0 0 38px; height: 38px; border-radius: 12px; background: var(--ui-action); color: var(--ui-on-action); }
+.rjr-heading-copy { flex: 1; min-width: 0; }
+.rjr-eyebrow { display: block; color: var(--ui-text-muted); font-size: 9px; letter-spacing: .12em; margin-bottom: 3px; }
+.rjr-heading h2 { font-size: 17px; font-weight: 650; line-height: 1.5; margin: 0; letter-spacing: -.025em; text-wrap: balance; }
+.rjr-state { display: inline-flex; gap: 6px; align-items: center; color: var(--ui-accent); font-size: 11px; flex-shrink: 0; }
+.resume-job-recs button, .resume-job-recs a { cursor: pointer; transition: transform 160ms var(--agent-ease-out), background-color 160ms ease; }
+.resume-job-recs :is(button,a,input):focus-visible { outline: 2px solid var(--ui-focus); outline-offset: 3px; }
+.rjr-icon { display: grid; place-items: center; border-radius: 8px; background: transparent; color: var(--ui-text-secondary); border: 0; min-width: 30px; min-height: 30px; }
+.rjr-icon svg { transition: transform 180ms var(--agent-ease-out); }
+.rjr-expanded { transform: rotate(180deg); }
+.rjr-profile { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 4px 20px 12px; }
+.rjr-profile > span { color: var(--ui-text-muted); margin-right: 4px; font-size: 10px; }
+.rjr-profile b { display: inline-flex; gap: 4px; align-items: center; font-size: 10px; font-weight: 500; padding: 3px 7px; border: 1px solid var(--ui-border); border-radius: 6px; max-width: 100%; overflow-wrap: anywhere; }
+.rjr-controls { display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 20px 12px; color: var(--ui-text-secondary); font-size: 10px; }
+.rjr-controls p { display: flex; gap: 5px; align-items: center; margin: 0; }
+.rjr-controls svg { flex-shrink: 0; }
+.rjr-controls label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+.rjr-controls input { accent-color: var(--ui-action); }
+.rjr-notice { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 20px 12px; padding: 9px 12px; border-radius: 8px; background: var(--ui-warning-soft); color: var(--ui-warning); font-size: 11px; line-height: 1.7; }
+.rjr-notice button { text-decoration: underline; text-underline-offset: 3px; flex-shrink: 0; }
+.rjr-cards, .rjr-skeletons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 20px 14px; }
+.rjr-card { min-width: 0; display: flex; flex-direction: column; padding: 16px; border: 1px solid var(--ui-border); border-radius: 12px; background: var(--ui-surface-raised); animation: rjr-arrive 240ms var(--agent-ease-out) backwards; animation-delay: calc(var(--rjr-index) * 45ms); }
+.rjr-card:first-child { border-color: var(--ui-border-strong); background: linear-gradient(155deg, var(--ui-accent-soft), var(--ui-surface-raised) 50%); }
+.rjr-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ui-text-secondary); font-size: 10px; }
+.rjr-number { font-family: var(--font-serif, Georgia, serif); font-size: 23px; line-height: 1.2; font-style: italic; color: var(--ui-accent); font-variant-numeric: tabular-nums; }
+.rjr-card h3 { font-size: 14px; line-height: 1.6; margin: 10px 0 3px; font-weight: 650; overflow-wrap: anywhere; }
+.rjr-company { margin: 0 0 8px; color: var(--ui-text-secondary); font-size: 11px; overflow-wrap: anywhere; }
+.rjr-place { display: flex; align-items: flex-start; gap: 4px; margin: 0 0 7px; color: var(--ui-text-muted); font-size: 10px; overflow-wrap: anywhere; }
+.rjr-place svg { flex-shrink: 0; margin-top: 1px; }
+.rjr-salary { margin: 0 0 8px; color: var(--ui-accent); font-size: 11px; font-weight: 600; }
+.rjr-reasons { border-top: 1px solid var(--ui-border); padding-top: 10px; margin-top: auto; }
+.rjr-reasons p { display: flex; align-items: center; gap: 5px; margin: 0 0 7px; font-size: 10px; color: var(--ui-accent); }
+.rjr-skill-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.rjr-skill-chips span { padding: 3px 6px; border-radius: 5px; font-size: 10px; background: var(--ui-accent-soft); color: var(--ui-accent); overflow-wrap: anywhere; }
+.rjr-check { margin: 10px 0; color: var(--ui-text-secondary); font-size: 10px; line-height: 1.7; }
+.rjr-source { display: flex; gap: 5px 10px; flex-wrap: wrap; color: var(--ui-text-muted); font-size: 9px; margin-top: auto; padding-bottom: 11px; }
+.rjr-card-actions { display: flex; align-items: center; gap: 8px; }
+.rjr-card-actions button { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px; flex: 1; background: var(--ui-action); color: var(--ui-on-action); border-radius: 7px; font-size: 10px; }
+.rjr-card-actions a { display: inline-flex; align-items: center; gap: 4px; padding: 8px 2px; color: var(--ui-text-secondary); font-size: 10px; white-space: nowrap; }
+.rjr-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 20px 14px; color: var(--ui-text-muted); font-size: 10px; line-height: 1.6; }
+.rjr-footer button, .rjr-loading button { display: inline-flex; gap: 5px; align-items: center; flex-shrink: 0; color: var(--ui-text-secondary); }
+.rjr-loading-copy { display: flex; align-items: center; gap: 8px; padding: 4px 20px 14px; color: var(--ui-text-secondary); font-size: 11px; }
+.rjr-loading-copy button { margin-left: auto; }
+.rjr-pulse { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; background: var(--ui-accent); animation: rjr-breathe 1.2s ease-in-out infinite alternate; }
+.rjr-skeletons > div { height: 170px; padding: 18px; border: 1px solid var(--ui-border); border-radius: 12px; background: var(--ui-surface-raised); }
+.rjr-skeletons i { display: block; width: 70%; height: 10px; border-radius: 5px; margin: 12px 0; background: var(--ui-border); animation: rjr-breathe 1.2s ease-in-out infinite alternate; }
+.rjr-skeletons i:nth-child(2) { width: 45%; }.rjr-skeletons i:nth-child(3) { width: 90%; margin-top: 30px; }
+.rjr-spinner { animation: rjr-spin .9s linear infinite; }
+.rjr-empty { padding: 20px; text-align: center; color: var(--ui-text-secondary); }
+.rjr-empty > svg { margin: 0 auto 8px; color: var(--ui-accent); }
+.rjr-empty h3 { margin: 0 0 8px; color: var(--ui-text); font-size: 14px; }
+.rjr-empty p { font-size: 11px; margin-bottom: 15px; line-height: 1.7; }
+.rjr-empty button { display: inline-flex; gap: 6px; align-items: center; padding: 8px 12px; margin: 3px; border: 1px solid var(--ui-border); border-radius: 7px; }
+@keyframes rjr-arrive { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes rjr-breathe { from { opacity: .4; } to { opacity: .9; } }
+@keyframes rjr-spin { to { transform: rotate(360deg); } }
+@media (hover: hover) and (pointer: fine) {
+  .rjr-card-actions button:hover { background: var(--ui-action-hover); transform: translateY(-1px); }
+  .resume-job-recs :is(.rjr-icon,.rjr-footer button,.rjr-empty button):hover { background: var(--ui-hover); }
+  .rjr-card-actions a:hover { color: var(--ui-accent); }
+}
+@media (max-width: 1050px) { .rjr-cards { grid-template-columns: 1fr; }.rjr-card { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 0 20px; }.rjr-card-top,.rjr-card h3,.rjr-company,.rjr-place,.rjr-salary { grid-column: 1; }.rjr-reasons,.rjr-check,.rjr-source,.rjr-card-actions { grid-column: 2; }.rjr-reasons { grid-row: 1 / 3; border: 0; padding-top: 0; }.rjr-check { grid-row: 3 / 5; }.rjr-source { grid-row: 5; }.rjr-card-actions { grid-row: 6; } }
+@media (max-width: 620px) { .rjr-heading { gap: 8px; padding: 14px 12px; flex-wrap: wrap; }.rjr-heading-copy { flex-basis: calc(100% - 55px); }.rjr-heading h2 { font-size: 16px; }.rjr-state { margin-right: auto; }.rjr-eyebrow { font-size: 8px; }.rjr-profile,.rjr-controls { padding-left: 12px; padding-right: 12px; }.rjr-notice { margin-left: 12px; margin-right: 12px; flex-wrap: wrap; }.rjr-cards,.rjr-skeletons { margin-left: 12px; margin-right: 12px; grid-template-columns: 1fr; }.rjr-skeletons > div:not(:first-child) { display: none; }.rjr-card { display: flex; }.rjr-footer { padding: 0 12px 12px; flex-wrap: wrap; }.rjr-loading-copy { flex-wrap: wrap; }.rjr-loading-copy button { margin-left: 0; }.rjr-reasons { margin-top: 5px; } }
+@media (pointer: coarse) { .rjr-icon,.rjr-card-actions button,.rjr-card-actions a,.rjr-footer button,.rjr-loading button,.rjr-controls label { min-height: 44px; }.rjr-icon { min-width: 44px; } }
+@media (prefers-reduced-motion: reduce) { .resume-job-recs *, .resume-job-recs *::before, .resume-job-recs *::after { animation: none !important; transition: none !important; }.rjr-card { transform: none; }.rjr-spinner,.rjr-pulse { opacity: .7; } }
