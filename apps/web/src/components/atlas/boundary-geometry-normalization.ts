@@ -49,7 +49,7 @@ export type BoundaryGeometryInput<T extends AdminGeoJson> = {
 };
 
 const SEMI_MAJOR_AXIS = 6378245;
-const ECCENTRICITY_SQUARED = 0.00669342162296594323;
+const ECCENTRICITY_SQUARED = 0.006693421622965943;
 
 /**
  * The public coordtransform one-pass inverse, not a survey-grade transformation.

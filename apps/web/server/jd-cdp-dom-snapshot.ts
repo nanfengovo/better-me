@@ -589,7 +589,7 @@ export function projectNativeDomSnapshot(
           if (typeof parsed?.jobId === "string" && /^\d+$/.test(parsed.jobId)) {
             job51Link = `<a href="https://jobs.51job.com/all/${parsed.jobId}.html"></a>`;
           }
-        } catch {}
+        } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
       }
       const result = `<${name}${attrs}>${job51Link}${node.children.map(renderSearch).join("")}${VOID_TAGS.has(node.name) ? "" : `</${name}>`}`;
       units += name.length * 2 + attrs.length + 5; if (units > MAX_HTML_BYTES) fail("snapshot_limit_exceeded"); return result;

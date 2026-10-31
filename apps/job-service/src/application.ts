@@ -30,6 +30,7 @@ import { createCompanyControllerTools } from "./company-controllers.js";
 import { createCompensationAuditTools } from "./compensation-audit.js";
 import { startBackgroundEnrichmentWorker } from "./background-enrichment-worker.js";
 import { DatasetSyncRequestSchema, DatasetSyncResponseSchema } from "./dataset-sync-contract.js";
+import { BaselineRequestSchema, BaselineResponseSchema, BaselineCloseSchema } from "./dataset-baseline-contract.js";
 
 const emptyInput = z.object({}).strict();
 // Name-only discovery has no permission to follow arbitrary URLs. This host policy is
@@ -332,6 +333,11 @@ export function createJobApplication(options: JobApplicationOptions) {
     }),
     defineTool({ name: "jobs.export-public", version: 1, description: "导出公共岗位快照，不包含浏览器简历、投递记录或服务凭据。", effect: "read-index", inputSchema: emptyInput, outputSchema: AtlasDatasetSchema, execute: () => guarded(() => repository.readSnapshot()) }),
     defineTool({ name: "jobs.sync-public", version: 1, description: "按已提交版本同步公共岗位增量；首次连接或版本断档时返回同版本公共快照。", effect: "read-index", inputSchema: DatasetSyncRequestSchema, outputSchema: DatasetSyncResponseSchema, execute: input => guarded(() => repository.syncSnapshot(input)) }),
+    defineTool({ name: "jobs.sync-pages", version: 1, description: "同步公共增量；缺少基线时仅返回分页指引，不构造整库快照。", effect: "read-index", inputSchema: DatasetSyncRequestSchema, outputSchema: DatasetSyncResponseSchema, execute: input => guarded(() => repository.syncSnapshot(input, true)) }),
+    defineTool({ name: "jobs.baseline-page", version: 1, description: "分批读取同一只读版本的公共基线，不锁住采集写入。", effect: "read-index", inputSchema: BaselineRequestSchema, outputSchema: BaselineResponseSchema,
+      execute: (input, context) => guarded(() => { context.throwIfCancelled(); return repository.readBaselinePage(input, context.actorScope); }) }),
+    defineTool({ name: "jobs.baseline-close", version: 1, description: "释放本执行身份的只读基线会话，不修改岗位数据。", effect: "read-index", inputSchema: BaselineCloseSchema, outputSchema: z.object({ closed: z.literal(true) }).strict(),
+      execute: (input, context) => guarded(() => repository.closeBaselineSession(input.session, context.actorScope)) }),
     defineTool({ name: "jobs.read-detail", version: 1, description: "返回同一索引版本中的岗位、结构化地点、薪资分项、全部来源、观察和不可变JD快照，保留多源差异。", effect: "read-index", inputSchema: z.object({ jobId: EntityIdSchema }).strict(),
       outputSchema: z.object({ snapshotRevision: RevisionSchema, job: CanonicalJobSchema, company: CompanySchema, locations: z.array(JobLocationSchema), compensations: z.array(CompensationSchema), listings: z.array(SourceListingSchema), observations: z.array(SourceObservationSchema), snapshots: z.array(JdSnapshotSchema), sources: z.array(SourceDefinitionSchema) }).strict(),
       execute: (input) => guarded(async () => {

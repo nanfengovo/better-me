@@ -29,7 +29,8 @@ export function nativePause(ms: number, signal?: AbortSignal): Promise<void> {
     signal?.addEventListener("abort", abort, { once: true });
   });
 }
-const normalized = (value: string) => path.resolve(value).toLowerCase();
+// These snapshots describe Windows processes even when replayed on another OS.
+const normalized = (value: string) => path.win32.resolve(value).toLowerCase();
 function hasProfile(command: string, profile: string) {
   const args = command.match(/(?:[^\s"]+|"[^"]*")+/g) ?? [];
   return args.map((arg) => arg.replaceAll('"', "")).some((arg) => arg.startsWith("--user-data-dir=") && normalized(arg.slice(16)) === normalized(profile));
@@ -37,7 +38,7 @@ function hasProfile(command: string, profile: string) {
 export type NativeProfileOccupancy = "clear" | "occupied" | "unknown";
 /** No ownership is inferred: an exact profile argument only prevents a false successful stop. */
 export function nativeProfileOccupancySnapshot(value: unknown, profile: string): NativeProfileOccupancy {
-  if (!profile || !path.isAbsolute(profile)) return "unknown";
+  if (!profile || !path.win32.isAbsolute(profile)) return "unknown";
   if (!value || typeof value !== "object" || Array.isArray(value)) return "unknown";
   const rows = (value as { processes?: unknown }).processes;
   if (!Array.isArray(rows) || rows.length > 10_000) return "unknown";
@@ -52,7 +53,7 @@ export function nativeProfileOccupancySnapshot(value: unknown, profile: string):
       const argument = args[index]; const lower = argument.toLowerCase();
       if (lower !== "--user-data-dir" && !lower.startsWith("--user-data-dir=")) continue;
       const candidate = lower === "--user-data-dir" ? args[++index] : argument.slice(16);
-      if (!candidate || candidate.startsWith("--") || !path.isAbsolute(candidate)) { uncertain = true; continue; }
+      if (!candidate || candidate.startsWith("--") || !path.win32.isAbsolute(candidate)) { uncertain = true; continue; }
       try { if (normalized(candidate) === normalized(profile)) return "occupied"; }
       catch { uncertain = true; }
     }
@@ -104,7 +105,7 @@ async function reservePort(): Promise<number> {
 }
 /** The same live startup root must still own every listener on its reserved port. */
 export function nativeReconnectSnapshotConfirmed(state: MachineState, identity: ProcessIdentity, executable: string, profile: string): boolean {
-  if (!Number.isSafeInteger(identity.pid) || identity.pid <= 0 || !identity.created || !identity.command || !path.isAbsolute(profile)) return false;
+  if (!Number.isSafeInteger(identity.pid) || identity.pid <= 0 || !identity.created || !identity.command || !path.win32.isAbsolute(profile)) return false;
   const roots = state.processes.filter(item => !/(?:^|\s)--type=/.test(item.command ?? "") && hasProfile(item.command ?? "", profile));
   if (roots.length !== 1) return false;
   const root = roots[0]!;

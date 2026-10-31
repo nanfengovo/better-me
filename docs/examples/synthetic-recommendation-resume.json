@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-31T00:00:00Z",
+  "profile": {
+    "displayName": { "zh": "合成测试候选人", "en": "Synthetic Candidate" },
+    "headline": { "zh": "后端开发工程师 · C# / .NET / 工业软件" },
+    "targetRoles": [{ "zh": "后端开发工程师" }, { "zh": "软件工程师" }],
+    "location": { "zh": "上海" }
+  },
+  "experiences": [
+    {
+      "id": "synthetic-warehouse", "type": "work",
+      "org": { "zh": "合成示例科技（仅用于功能验收）" },
+      "title": { "zh": "后端开发工程师" }, "start": "2022-01", "end": null,
+      "techStack": ["C#", ".NET", "Docker", "SQL Server", "Redis"],
+      "claims": [
+        { "id": "synthetic-claim-1", "kind": "action", "text": { "zh": "使用 C# 与 .NET 开发仓储调度接口，维护任务流转及设备状态管理。" }, "tags": ["物流", "RCS"] },
+        { "id": "synthetic-claim-2", "kind": "action", "text": { "zh": "为业务服务编写接口契约和异常处理逻辑，保留原始回执便于排查。" }, "tags": ["接口集成"] },
+        { "id": "synthetic-claim-3", "kind": "action", "text": { "zh": "使用 SQL Server 维护任务记录，使用 Redis 处理短时状态查询。" }, "tags": ["数据库"] },
+        { "id": "synthetic-claim-4", "kind": "action", "text": { "zh": "使用 Docker 维护独立开发环境，为部署流程编写说明和回退步骤。" }, "tags": ["工程化"] },
+        { "id": "synthetic-claim-5", "kind": "action", "text": { "zh": "为接口失败、超时与重试路径补充自动化测试，记录未确认的业务结果。" }, "tags": ["测试"] },
+        { "id": "synthetic-claim-6", "kind": "action", "text": { "zh": "参与现场联调，按任务编号关联日志和平台回执，避免将网络超时当作任务失败。" }, "tags": ["联调"] },
+        { "id": "synthetic-claim-7", "kind": "action", "text": { "zh": "整理设备通信与业务处理边界，补充关键状态转换的校验规则。" }, "tags": ["系统集成"] },
+        { "id": "synthetic-claim-8", "kind": "action", "text": { "zh": "将日常排查步骤沉淀为可重复执行的检查清单，支持团队核对异常路径。" }, "tags": ["文档"] }
+      ]
+    },
+    {
+      "id": "synthetic-desktop", "type": "other",
+      "org": { "zh": "合成项目：设备监控客户端" },
+      "title": { "zh": "软件工程师" }, "start": "2020-06", "end": "2021-12",
+      "techStack": ["C#", "WPF"],
+      "claims": [
+        { "id": "synthetic-project-1", "kind": "action", "text": { "zh": "使用 WPF 编写设备状态界面，展示连接、任务和告警信息。" }, "tags": ["工业软件"] },
+        { "id": "synthetic-project-2", "kind": "action", "text": { "zh": "将页面刷新与后台读取分离，避免等待远端响应时阻塞用户操作。" }, "tags": ["交互"] },
+        { "id": "synthetic-project-3", "kind": "action", "text": { "zh": "为异常状态提供明确的操作提示，保留已成功读取的数据。" }, "tags": ["可靠性"] }
+      ]
+    }
+  ]
+}

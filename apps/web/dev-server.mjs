@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
-import { existsSync, watch } from "node:fs";
+import { existsSync, watch, readFileSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +17,19 @@ export function isRuntimeBuildFile(filename) {
 export function watchWorkspaceBuilds(workspaceDirectory, onBuild, debounceMs = 500) {
   let timer;
   const watchers = [];
+  const fingerprints = new Map();
+  const changed = new Set();
+  const fingerprint = (file) => {
+    try { return createHash("sha256").update(readFileSync(file)).digest("hex"); }
+    catch (error) { if (error.code === "ENOENT") return null; throw error; }
+  };
+  const remember = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const file = path.join(directory, entry.name);
+      if (entry.isDirectory()) remember(file);
+      else if (entry.isFile() && /\.(?:[cm]?js|json)$/.test(entry.name)) fingerprints.set(file, fingerprint(file));
+    }
+  };
   const close = () => {
     clearTimeout(timer);
     for (const watcher of watchers) watcher.close();
@@ -24,10 +38,22 @@ export function watchWorkspaceBuilds(workspaceDirectory, onBuild, debounceMs = 5
     for (const name of workspacePackages) {
       const directory = path.join(workspaceDirectory, "packages", name);
       if (!existsSync(directory)) continue;
+      const dist = path.join(directory, "dist");
+      if (existsSync(dist)) remember(dist);
       watchers.push(watch(directory, { recursive: true }, (_event, filename) => {
         if (!filename || !isRuntimeBuildFile(filename.toString())) return;
+        changed.add(path.join(directory, filename.toString()));
         clearTimeout(timer);
-        timer = setTimeout(onBuild, debounceMs);
+        timer = setTimeout(() => {
+          let rebuilt = false;
+          for (const file of changed) {
+            const current = fingerprint(file);
+            if ((fingerprints.get(file) ?? null) !== current) rebuilt = true;
+            fingerprints.set(file, current);
+          }
+          changed.clear();
+          if (rebuilt) onBuild();
+        }, debounceMs);
       }));
     }
   } catch (error) {

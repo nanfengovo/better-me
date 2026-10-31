@@ -79,7 +79,7 @@ const CONTEXT_SCHEMA = z.object({
   budget: z.object({
     requests: z.number().int().min(0).max(10_000),
     timeoutMs: z.number().int().min(1).max(300_000),
-    bytes: z.number().int().min(1).max(64 * 1024 * 1024),
+    bytes: z.number().int().min(1).max(96 * 1024 * 1024),
   }).strict(),
   allowedEffects: z.array(z.enum(TOOL_EFFECTS)).max(TOOL_EFFECTS.length),
 }).strict();

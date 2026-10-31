@@ -18,13 +18,13 @@
  * Resume text and API keys are NOT in the checkpoint.
  */
 
-import { Annotation } from "@langchain/langgraph";
+import { Annotation, UntrackedValueChannel } from "@langchain/langgraph";
 
 export const JdMatchAnnotation = Annotation.Root({
   // ── Input (provided once at thread start) ──────────────────────────────────
 
   /** Raw JD text — used only in structureJd node, not persisted after that. */
-  rawJd: Annotation<string>({ reducer: (_old, next) => next }),
+  rawJd: new UntrackedValueChannel<string>({ initialValueFactory: () => "" }),
 
   /** IDs of verified profile entries the user allows this thread to read. */
   allowedProfileEntryIds: Annotation<string[]>({
@@ -35,9 +35,8 @@ export const JdMatchAnnotation = Annotation.Root({
    * Unverified profile claims from the browser (e.g. a draft section not yet
    * committed to the verified store). Only present during this session.
    */
-  sessionClaims: Annotation<Record<string, string>>({
-    reducer: (_old, next) => next,
-    default: () => ({}),
+  sessionClaims: new UntrackedValueChannel<Record<string, string>>({
+    initialValueFactory: () => ({}),
   }),
 
   // ── Derived by structureJd ─────────────────────────────────────────────────

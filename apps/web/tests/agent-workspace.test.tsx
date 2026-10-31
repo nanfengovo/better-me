@@ -36,6 +36,7 @@ for (const [key, value] of Object.entries(globals)) {
 
 // Mock fetch for agent host health check and API calls
 let nextChatReply: (() => unknown) | undefined;
+let holdChatRequest: ((init: RequestInit | undefined) => Promise<Response>) | undefined;
 let chatRequestBodies: Array<{
   messages?: Array<{ role: string; content: string }>;
   context?: { resumeEditContext?: { profile?: { headline?: { text?: string } }; experiences?: unknown[] }; resumeSummary?: unknown };
@@ -78,6 +79,7 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
   }
   if (url.includes("/chat")) {
     if (typeof init?.body === "string") chatRequestBodies.push(JSON.parse(init.body) as typeof chatRequestBodies[number]);
+    if (holdChatRequest) return holdChatRequest(init);
     if (nextChatReply) return Response.json({ reply: nextChatReply() }, { status: 200 });
     return new Response(
       JSON.stringify({
@@ -122,6 +124,7 @@ async function flush(action: () => void = () => {}) {
 }
 
 async function mount(children: React.ReactNode) {
+  if (root) await flush(() => root!.unmount());
   dom.document.body.innerHTML = '<main id="fixture"></main>';
   root = createRoot(dom.document.getElementById("fixture")!);
   await flush(() =>
@@ -130,6 +133,8 @@ async function mount(children: React.ReactNode) {
     ),
   );
 }
+
+test.after(async () => { if (root) await flush(() => root!.unmount()); });
 
 const dummyResume: ProjectedResume = {
   profile: {
@@ -665,6 +670,41 @@ test("AgentWorkspace stages a resume quote with source context in the chat compo
   assert.ok(fixture.querySelector('button[aria-label="上传图片"]'), "composer should provide an image attachment entry point");
 });
 
+test("full Agent workspace stops an in-flight chat and restores its editable question and quote", async () => {
+  let requestSignal: AbortSignal | undefined;
+  holdChatRequest = (init) => {
+    requestSignal = init?.signal ?? undefined;
+    return new Promise<Response>((_resolve, reject) => requestSignal?.addEventListener("abort", () => reject(requestSignal?.reason), { once: true }));
+  };
+  try {
+    await mount(h(AgentWorkspace, {
+      job: { title: "全栈工程师", company: "样例企业", description: "只用于本地测试。" },
+      resume: dummyResume, llmConfig: dummyLlmConfig,
+      initialReference: { type: "resume_text", sourceLabel: "示例经历", text: "只读引用" },
+      onReferenceConsumed: () => {}, onOpenConfig: () => {}, onNavigateToResume: () => {}, onApplyToResume: () => {},
+    }));
+    const fixture = dom.document.getElementById("fixture")!;
+    const composer = fixture.querySelector<HTMLTextAreaElement>('textarea[placeholder*="向 Copilot 提问"]')!;
+    await flush(() => {
+      Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype, "value")!.set!.call(composer, "分析这个示例");
+      composer.dispatchEvent(new dom.Event("input", { bubbles: true }));
+    });
+    await flush(() => Array.from(fixture.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "发送")?.click());
+    assert.ok(requestSignal);
+    await flush(() => fixture.querySelector<HTMLButtonElement>('[aria-label="停止生成并编辑问题"]')?.click());
+    assert.equal(requestSignal?.aborted, true);
+    assert.equal(composer.value, "分析这个示例");
+    assert.match(fixture.querySelector('[aria-label="待发送的上下文附件"]')?.textContent ?? "", /只读引用/);
+    assert.ok(!fixture.textContent?.includes("模型未能生成回复"));
+    const guide = fixture.querySelector<HTMLButtonElement>('[data-testid="workspace-guide-plan"]');
+    assert.ok(guide);
+    const requestCount = chatRequestBodies.length;
+    await flush(() => guide.click());
+    assert.match(composer.value, /规划/);
+    assert.equal(chatRequestBodies.length, requestCount);
+  } finally { holdChatRequest = undefined; }
+});
+
 test("truncated assistant replies offer a one-click continuation using the existing context", async () => {
   nextChatReply = () => ({
       id: `truncated-chat-reply-${chatRequestBodies.length}`,
@@ -709,6 +749,58 @@ test("truncated assistant replies offer a one-click continuation using the exist
     nextChatReply = undefined;
     chatRequestBodies = [];
   }
+});
+
+test("career growth is reachable inside the existing agent workspace and returns to its conversation", async () => {
+  const previousRequests = chatRequestBodies.length;
+  await mount(h(AgentWorkspace, {
+    workspaceKey: "career-entry-fixture",
+    active: true,
+    job: null,
+    resume: dummyResume,
+    llmConfig: dummyLlmConfig,
+    onOpenConfig: () => {},
+    onNavigateToResume: () => {},
+    onApplyToResume: () => {},
+  }));
+  const fixture = dom.document.getElementById("fixture")!;
+  const entry = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.trim() === "职业成长");
+  assert.ok(entry, "the existing Agent workspace must expose the new workflow");
+  await flush(() => entry.click());
+  for (const label of ["规划分析", "修改建议", "学习方案", "学习监督", "模拟面试"]) {
+    assert.ok(fixture.textContent?.includes(label), `career growth must expose ${label}`);
+  }
+  assert.equal(chatRequestBodies.length, previousRequests, "opening the workspace must not trigger a model conversation");
+  const back = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.includes("返回对话与 JD"));
+  assert.ok(back);
+  await flush(() => back.click());
+  assert.ok(fixture.querySelector('[role="separator"]'), "the existing conversation workspace should remain available");
+  assert.ok(!fixture.querySelector('[aria-label="成长工作区"]'));
+});
+
+test("career growth makes the entered JD available for separate opt-in without running legacy matching", async () => {
+  const previousRequests = chatRequestBodies.length;
+  await mount(h(AgentWorkspace, {
+    workspaceKey: "career-jd-handoff-fixture", active: true, job: null, resume: dummyResume,
+    llmConfig: dummyLlmConfig, onOpenConfig: () => {}, onNavigateToResume: () => {}, onApplyToResume: () => {},
+  }));
+  const fixture = dom.document.getElementById("fixture")!;
+  const sample = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.includes("前端 / 全栈"));
+  assert.ok(sample);
+  await flush(() => sample.click());
+  const entry = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.trim() === "职业成长");
+  assert.ok(entry);
+  await flush(() => entry.click());
+  const shareLabel = Array.from(fixture.querySelectorAll("label")).find((label) => label.textContent?.includes("共享当前目标岗位"));
+  const share = shareLabel?.querySelector("input");
+  assert.ok(share);
+  assert.equal(share.disabled, false, "entered JD must be available without first running legacy matching");
+  assert.equal(share.checked, false, "entering career growth must not silently authorize sharing");
+  assert.equal(chatRequestBodies.length, previousRequests);
+  const back = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.includes("返回对话与 JD"));
+  assert.ok(back);
+  await flush(() => back.click());
+  assert.ok(fixture.textContent?.includes("设定目标岗位与完整 JD"), "the old JD flow must stay unsubmitted");
 });
 
 

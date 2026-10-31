@@ -10,7 +10,6 @@ export interface AgentReplyMetaProps {
   compact?: boolean;
   isDark?: boolean;
 }
-
 function providerTone(provider: AgentMessageMeta["provider"]): string {
   if (provider === "ollama") return "ollama";
   if (provider === "gemini") return "gemini";

@@ -511,7 +511,9 @@ test("desktop workspace exchanges its third reading column for address review wh
   const card = dom.document.querySelector<HTMLButtonElement>(".atlas-job-card")!, list = dom.document.querySelector<HTMLDivElement>(".atlas-job-list")!, map = dom.document.querySelector('[data-detail-address-map-probe]')!;
   const mounts = mapMounts; list.scrollTop = 137;
   await act(async () => card.dispatchEvent(new dom.MouseEvent("click", { bubbles: true, detail: 1, button: 0 })));
-  assert.ok(dom.document.querySelector('[aria-label="地图岗位详情"]'));
+  // The flexible workbench defers the first mouse click to preserve the native
+  // double-click target when opening the third pane changes card geometry.
+  await settled(() => !!dom.document.querySelector('[aria-label="地图岗位详情"]'));
   await click("读取原岗位办公地点"); await settled(() => !!dom.document.querySelector('[aria-label="原岗位办公地点读取"]'));
   const review = dom.document.querySelector('[aria-label="岗位办公地址核对面板"]')!;
   assert.equal(dom.document.querySelector('[aria-label="地图岗位详情"]'), null, "the address reader replaces the same reading column");

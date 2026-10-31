@@ -92,7 +92,7 @@ function loadCache(): Record<string, CachedCompanyRecord> {
         return memoryCache;
       }
     }
-  } catch {}
+  } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
   memoryCache = {};
   return memoryCache;
 }
@@ -103,7 +103,7 @@ function saveCache(): void {
   try {
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, JSON.stringify(memoryCache, null, 2), "utf8");
-  } catch {}
+  } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
 }
 
 async function queryWebSnippet(query: string, signal?: AbortSignal): Promise<string> {
@@ -166,7 +166,7 @@ async function geocodeAddressDynamic(
         };
       }
     }
-  } catch {}
+  } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
   return undefined;
 }
 
@@ -382,7 +382,7 @@ export async function lookupCompanyIntelligenceBatch(
           },
           signal,
         );
-      } catch {}
+      } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
     }
   }
 

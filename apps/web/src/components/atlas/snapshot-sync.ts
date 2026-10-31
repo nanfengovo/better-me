@@ -5,12 +5,13 @@ import {
 } from "../../../../job-service/src/dataset-sync-contract";
 import { AtlasClientError } from "./client-error";
 import { atlasConnection, readAtlasEnvelope, readAtlasSnapshotLegacy, type SnapshotOptions } from "./snapshot-transport";
+import { readAtlasBaseline } from "./baseline-reader";
 
 export type SyncedSnapshot = { dataset: AtlasDataset; base?: AtlasDataset; delta?: DatasetDelta };
-type State = { dataset?: AtlasDataset; cursor?: DatasetCursor; legacyUntil?: number; tail: Promise<unknown> };
+type State = { dataset?: AtlasDataset; cursor?: DatasetCursor; legacyUntil?: number; paged?: boolean; tail: Promise<unknown> };
 const invalid = () => new AtlasClientError("invalid-response", "岗位增量版本或引用不一致；保留上一份可用结果，请重试同步。");
 
-/** One serialized revision stream per authenticated connection. Never exposes a partial dataset. */
+/** One serialized revision stream per connection. Never commits a partial baseline cursor. */
 export function createAtlasSnapshotSynchronizer() {
   const connections = new Map<string, State>();
   return {
@@ -29,7 +30,11 @@ export function createAtlasSnapshotSynchronizer() {
           options.signal?.throwIfAborted(); state.dataset = dataset;
           return { dataset, ...(base ? { base } : {}) };
         }
-        const result = await readAtlasEnvelope(endpoint, token, options, { path: "/api/v1/dataset/sync", body: state.cursor ? { cursor: state.cursor } : {}, allowUnsupported: true });
+        let result = await readAtlasEnvelope(endpoint, token, options, { path: state.paged === false ? "/api/v1/dataset/sync" : "/api/v1/dataset/sync-page", body: state.cursor ? { cursor: state.cursor } : {}, allowUnsupported: true });
+        if (state.paged === undefined) {
+          state.paged = result.supported;
+          if (!result.supported) result = await readAtlasEnvelope(endpoint, token, options, { path: "/api/v1/dataset/sync", body: state.cursor ? { cursor: state.cursor } : {}, allowUnsupported: true });
+        }
         if (!result.supported) {
           const dataset = await readAtlasSnapshotLegacy(endpoint, token, options);
           options.signal?.throwIfAborted();
@@ -40,7 +45,14 @@ export function createAtlasSnapshotSynchronizer() {
         if (!parsed.success) throw invalid();
         const response = parsed.data;
         let dataset: AtlasDataset;
-        if (response.kind === "unchanged") {
+        if (response.kind === "baseline-required") {
+          // The complete cursor advances only after every page and reference was
+          // checked. A preview is never used as an ingestion/CAS baseline.
+          const baseline = await readAtlasBaseline(endpoint, token, options, state.cursor);
+          options.signal?.throwIfAborted();
+          state.dataset = baseline.dataset; state.cursor = baseline.cursor;
+          return { dataset: baseline.dataset, ...(base ? { base } : {}) };
+        } else if (response.kind === "unchanged") {
           if (!base || !state.cursor || !sameDatasetCursor(state.cursor, response.cursor)) throw invalid();
           dataset = base;
         } else if (response.kind === "snapshot") {

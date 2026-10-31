@@ -187,11 +187,12 @@ test("standard search returns honest stable unknown diagnostics after eight seco
       f.page.evaluate = async () => ({ url: linkedinSearchUrl, title: "Jobs", html: '<div class="base-search-card">Still loading</div>'.repeat(++attempt % 2 + 1) });
     }
     try {
-      if (changing) await assert.rejects(f.manager.readSearch("owner", info.sessionId), isFailure("unsupported_page"));
-      else {
+      {
         const result = await f.manager.readSearch("owner", info.sessionId);
         assert.equal(result.status, "unknown_layout"); assert.equal(result.cards.length, 0);
         assert.match(result.warnings.join(" "), /未确认结果数量/);
+        // Different unrecognized markup may normalize to the same diagnostic.
+        // It must not create jobs or extend the absolute read deadline.
       }
       assert.equal(f.now() - started, 8_000);
       assert.deepEqual(f.navigations, [linkedinSearchUrl]); assert.equal(f.count().closed, 0);

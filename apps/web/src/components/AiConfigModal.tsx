@@ -3,6 +3,9 @@ import { useUiPreferences } from "../lib/ui-preferences";
 import { useEffect, useRef, useState } from "react";
 import {
   testLlmConnection,
+  testLlmGeneration,
+  isOfficialDeepSeek,
+  DEEPSEEK_MODELS,
   LlmConfigSchema,
   type LlmConfig,
 } from "@better-me/core";
@@ -55,11 +58,11 @@ const PRESETS = [
     keyDocLabel: t("前往 Google AI Studio 获取 Key", "Get a key from Google AI Studio"),
   },
   {
-    name: t("DeepSeek (高性价比)", "DeepSeek (cost effective)"),
+    name: "DeepSeek",
     provider: "openai-compatible" as const,
-    baseUrl: "https://api.deepseek.com/v1",
-    defaultModel: "deepseek-chat",
-    fallbackModels: ["deepseek-chat", "deepseek-reasoner"],
+    baseUrl: "https://api.deepseek.com",
+    defaultModel: DEEPSEEK_MODELS[0],
+    fallbackModels: [...DEEPSEEK_MODELS],
     keyDocUrl: "https://platform.deepseek.com/api_keys",
     keyDocLabel: t("前往 DeepSeek 平台获取 Key", "Get a key from DeepSeek"),
   },
@@ -84,9 +87,11 @@ const PRESETS = [
   const [formData, setFormData] = useState<LlmConfig>(config);
   const [showKey, setShowKey] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [testKind, setTestKind] = useState<"models" | "generation">("models");
   const [testResult, setTestResult] = useState<{
     success: boolean;
     message: string;
+    kind: "models" | "generation";
   } | null>(null);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [customModelMode, setCustomModelMode] = useState(false);
@@ -118,13 +123,20 @@ const PRESETS = [
 
   if (!isOpen) return null;
 
+  const isDeepSeek = isOfficialDeepSeek(formData);
+  const looksLikeDeepSeekTrackingId = isDeepSeek && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(formData.apiKey?.trim() ?? "");
+  const trackingIdMessage = t(
+    "当前内容是 UUID 格式，疑似误填了 Tracking ID（追踪编号），不是 API Key。请使用创建密钥时显示的完整 Key，不要复制 Tracking ID 列。",
+    "This UUID-shaped value looks like a Tracking ID, not an API key. Use the full key shown when it was created, not the Tracking ID column.",
+  );
   const currentPreset = PRESETS.find((p) =>
-    formData.baseUrl.trim().replace(/\/+$/, "") === p.baseUrl.replace(/\/+$/, ""),
+    (p.name === "DeepSeek" && isDeepSeek) || formData.baseUrl.trim().replace(/\/+$/, "") === p.baseUrl.replace(/\/+$/, ""),
   );
 
   const updateDraft = (changes: Partial<LlmConfig>) => {
     setFormData((prev) => ({ ...prev, ...changes }));
     setSaveError(null);
+    setTestResult(null);
     if ("baseUrl" in changes || "apiKey" in changes) {
       setTestResult(null);
       setAvailableModels([]);
@@ -137,6 +149,11 @@ const PRESETS = [
       provider: preset.provider,
       baseUrl: preset.baseUrl,
       model: preset.defaultModel,
+      // Do not carry a cloud credential to a different provider by accident.
+      apiKey: currentPreset === preset ? prev.apiKey : "",
+      thinkingMode: preset.name === "DeepSeek" ? "disabled" : undefined,
+      reasoningEffort: preset.name === "DeepSeek" ? "high" : undefined,
+      maxTokens: preset.name === "DeepSeek" ? 8192 : undefined,
     }));
     setTestResult(null);
     setAvailableModels([]);
@@ -144,6 +161,7 @@ const PRESETS = [
   };
 
   const validatedConfig = () => {
+    if (looksLikeDeepSeekTrackingId) throw new Error(trackingIdMessage);
     const parsed = LlmConfigSchema.safeParse({
       ...formData,
       baseUrl: formData.baseUrl.trim(),
@@ -164,29 +182,34 @@ const PRESETS = [
     return parsed.data;
   };
 
-  const handleTestConnection = async () => {
+  const handleTestConnection = async (kind: "models" | "generation" = "models") => {
     requestController.current?.abort();
     const controller = new AbortController();
     requestController.current = controller;
     const version = ++requestVersion.current;
     setTesting(true);
+    setTestKind(kind);
     setTestResult(null);
     setAvailableModels([]);
     try {
-      const res = await testLlmConnection(validatedConfig(), { signal: controller.signal });
+      const res: { success: boolean; message: string; models?: string[] } = kind === "generation"
+        ? await testLlmGeneration(validatedConfig(), { signal: controller.signal })
+        : await testLlmConnection(validatedConfig(), { signal: controller.signal });
       if (controller.signal.aborted || version !== requestVersion.current) return;
       setTestResult({
         success: res.success,
         message: res.message,
+        kind,
       });
 
-      if (res.success && res.models.length > 0) {
+      if (res.success && res.models && res.models.length > 0) {
         setAvailableModels(res.models);
       }
     } catch (err) {
       if (controller.signal.aborted || version !== requestVersion.current) return;
       setTestResult({
         success: false,
+        kind,
         message: (err as Error).message || t("获取模型列表失败", "Could not retrieve the model list"),
       });
     } finally {
@@ -316,6 +339,35 @@ const PRESETS = [
             </div>
           )}
 
+          {isDeepSeek && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs text-blue-900 space-y-2">
+              <p>{t("Flash：日常伴写、对话与图片识别。Pro：复杂分析，仅文本。新预设默认快速回复，可按需开启思考。", "Flash: writing, chat and images. Pro: complex text analysis. New presets use fast replies; enable thinking when needed.")}</p>
+              <div className="grid grid-cols-2 gap-2">
+                <label htmlFor="ai-thinking-mode">{t("思考模式", "Thinking mode")}
+                  <select id="ai-thinking-mode" value={formData.thinkingMode ?? "enabled"}
+                    onChange={e => updateDraft({ thinkingMode: e.target.value as "enabled" | "disabled" })}
+                    className="mt-1 w-full rounded-lg border border-blue-200 bg-white px-2 py-1.5">
+                    <option value="disabled">{t("快速回复", "Fast reply")}</option>
+                    <option value="enabled">{t("深度思考", "Thinking")}</option>
+                  </select>
+                </label>
+                <label htmlFor="ai-reasoning-effort">{t("思考强度", "Reasoning effort")}
+                  <select id="ai-reasoning-effort" value={formData.reasoningEffort ?? "high"} disabled={formData.thinkingMode === "disabled"}
+                    onChange={e => updateDraft({ reasoningEffort: e.target.value as "low" | "high" | "max" })}
+                    className="mt-1 w-full rounded-lg border border-blue-200 bg-white px-2 py-1.5 disabled:opacity-50">
+                    <option value="low">{t("轻量", "Low")}</option><option value="high">{t("标准", "High")}</option><option value="max">{t("深入", "Max")}</option>
+                  </select>
+                </label>
+              </div>
+              <label htmlFor="ai-max-tokens" className="block">{t("单次输出上限（含思考 tokens）", "Output limit (including reasoning tokens)")}
+                <input id="ai-max-tokens" type="number" min={1} max={393216} step={1} value={formData.maxTokens ?? (formData.thinkingMode === "disabled" ? 8192 : 16384)}
+                  onChange={e => updateDraft({ maxTokens: Number(e.target.value) })} className="mt-1 w-full rounded-lg border border-blue-200 bg-white px-2 py-1.5" />
+              </label>
+              <p>{t("思考越深入可能越慢、消耗更多 tokens。只显示最终答复，不把思考过程当作简历内容。", "Deeper thinking may take longer and use more tokens. Only the final answer is used as resume content.")}</p>
+              <a href="https://api-docs.deepseek.com/zh-cn/" target="_blank" rel="noreferrer" className="underline">{t("DeepSeek 官方接入文档", "DeepSeek API documentation")}</a>
+            </div>
+          )}
+
           {/* Form Inputs */}
           <div className="min-w-0 space-y-3">
             {/* Base URL */}
@@ -369,6 +421,8 @@ const PRESETS = [
                 type={showKey ? "text" : "password"}
                 autoComplete="off"
                 spellCheck={false}
+                aria-invalid={looksLikeDeepSeekTrackingId || undefined}
+                aria-describedby={isDeepSeek ? "ai-deepseek-key-help" : undefined}
                 value={formData.apiKey ?? ""}
                 onChange={(e) =>
                   updateDraft({ apiKey: e.target.value })
@@ -380,6 +434,14 @@ const PRESETS = [
                     : t("sk-... (如果使用本地 Ollama 可留空)", "sk-... (optional for local Ollama)")
                 }
               />
+              {isDeepSeek && (
+                <p id="ai-deepseek-key-help" role="note" className={`mt-1.5 text-[11px] leading-relaxed ${looksLikeDeepSeekTrackingId ? "text-amber-700" : "text-slate-500"}`}>
+                  {looksLikeDeepSeekTrackingId ? trackingIdMessage : t(
+                    "填写 Key 列对应的完整密钥，不是 Tracking ID（追踪编号）。完整 Key 仅在创建时可复制；旧 Key 已遮蔽时，需要使用之前保存的密钥或新建一把。",
+                    "Use the complete secret for the Key column, not the Tracking ID. The full key can only be copied when created; use your saved secret or create a new one if the old key is masked.",
+                  )}
+                </p>
+              )}
             </div>
 
             {/* Model Name & Dynamic Model Selector */}
@@ -419,7 +481,7 @@ const PRESETS = [
                     updateDraft({ model: e.target.value })
                   }
                   className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs outline-none focus:border-[var(--color-accent)] font-mono"
-                  placeholder={t("例如：gemini-1.5-flash, deepseek-chat", "For example: gemini-1.5-flash, deepseek-chat")}
+                  placeholder={t("例如：deepseek-flash, deepseek-v4-pro", "For example: deepseek-flash, deepseek-v4-pro")}
                 />
               ) : (
                 <div className="flex min-w-0 flex-wrap gap-2 sm:flex-nowrap">
@@ -445,7 +507,7 @@ const PRESETS = [
                   </select>
                   <button
                     type="button"
-                    onClick={handleTestConnection}
+                    onClick={() => void handleTestConnection()}
                     disabled={testing}
                     className="shrink-0 flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
                     title={t("请求服务商的模型列表；不发送生成请求", "Request the provider's model list; no generation request is sent")}
@@ -479,14 +541,14 @@ const PRESETS = [
               <div className="flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={handleTestConnection}
+                  onClick={() => void handleTestConnection()}
                   disabled={testing}
                   className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-white hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition disabled:opacity-50"
                 >
                   {testing ? (
                     <>
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      <span>{t("正在获取模型列表...", "Retrieving model list...")}</span>
+                      <span>{testKind === "generation" ? t("正在测试文本生成...", "Testing text generation...") : t("正在获取模型列表...", "Retrieving model list...")}</span>
                     </>
                   ) : (
                     <>
@@ -496,6 +558,12 @@ const PRESETS = [
                   )}
                 </button>
               </div>
+
+              <button type="button" onClick={() => void handleTestConnection("generation")} disabled={testing}
+                className="mt-2 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50">
+                {t("测试文本生成（少量 tokens）", "Test text generation (a few tokens)")}
+              </button>
+              <p className="mt-1 text-[10px] text-slate-500">{t("仅发送固定测试句，不发送简历或历史对话；点击后会调用所选模型，可能产生少量费用。", "Sends a fixed test sentence, not your resume or history. Clicking calls the selected model and may incur a small charge.")}</p>
 
               {testResult && (
                 <div
@@ -513,7 +581,9 @@ const PRESETS = [
                   )}
                   <div className="min-w-0 break-words [overflow-wrap:anywhere] leading-relaxed">
                     <p className="font-semibold">
-                      {testResult.success ? t("模型列表已获取", "Model list retrieved") : t("未获得模型列表", "Model list not retrieved")}
+                      {testResult.kind === "generation"
+                        ? (testResult.success ? t("文本生成已验证", "Text generation verified") : t("文本生成未通过", "Text generation not verified"))
+                        : (testResult.success ? t("模型列表已获取", "Model list retrieved") : t("未获得模型列表", "Model list not retrieved"))}
                     </p>
                     <p className="text-[11px] mt-0.5">{testResult.message}</p>
                   </div>
@@ -525,7 +595,7 @@ const PRESETS = [
             <div className="rounded-lg bg-slate-50 border border-slate-200 p-2.5 flex items-start gap-2 text-[11px] text-slate-600">
               <ShieldCheck className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
               <span>
-                {t("配置与简历保存在本机浏览器 localStorage。使用云模型时，相关简历、JD 或页面图片会直接发往所选服务商；本项目没有中转服务。使用本机 Ollama 且地址指向本机时，推理才在本机进行。模型列表请求也会携带 API Key。", "Configuration and resumes are stored in this browser's localStorage. Cloud models receive the relevant resume, job description or page images directly, without a BetterMe relay. Inference is local only when Ollama and its address are on this computer. Model list requests also include your API key.")}
+                {t("配置与简历保存在本机浏览器 localStorage。使用云模型时，本次授权发送的简历、JD 或页面图片会直连所选服务商，或经当前配置的 Agent Host 转发。使用本机 Ollama 且地址指向本机时，推理才在本机进行。模型列表请求也会携带 API Key。", "Configuration and resumes are stored in this browser's localStorage. Authorized resume content, job descriptions or page images are sent to the selected cloud provider directly or through the configured Agent Host. Inference is local only when Ollama and its address are on this computer. Model list requests also include your API key.")}
               </span>
             </div>
           </div>

@@ -4,6 +4,8 @@ import type { AtlasPageOptions, AtlasPageResult, SnapshotOptions } from "./clien
 import type { AtlasCoverageOptions } from "./coverage";
 import { ATLAS_CHUNK_SIZE, ATLAS_TABLES, emptyComputeSnapshot, type AtlasMetadata, type ComputeOperation, type ComputeRequest, type ComputeResponse } from "./compute-protocol";
 import { applyDatasetTableDelta, emptyDatasetUpserts, type DatasetDelta } from "../../../../job-service/src/dataset-sync-contract";
+import type { DatasetUpserts } from "../../../../job-service/src/dataset-sync-contract";
+import type { BaselineProgress } from "../../../../job-service/src/dataset-baseline-contract";
 
 export type AtlasComputePort = {
   postMessage(message: ComputeRequest): void;
@@ -17,6 +19,8 @@ type Pending = {
   resolve(value: unknown): void; reject(reason: unknown): void; cleanup(): void;
   snapshot?: AtlasDataset; snapshotKey?: string; page?: AtlasPageResult;
   knownSnapshots?: Map<string, AtlasDataset>; patch?: { base: AtlasDataset; delta: DatasetDelta };
+  preview?: AtlasDataset; fragment?: DatasetUpserts; previewHeader?: Pick<AtlasDataset, "schemaVersion" | "revision">;
+  onProgress?: SnapshotOptions["onProgress"];
 };
 const nextTask = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 export const atlasComputeAvailable = () => {
@@ -32,7 +36,8 @@ export function createAtlasComputeClient(port: AtlasComputePort, options: { yiel
   const pending = new Map<number, Pending>();
   const byData = new WeakMap<AtlasDataset, Installed>();
   const installed = new Map<string, Installed>();
-  const reads = new Map<string, { promise: Promise<AtlasDataset>; controller: AbortController; observers: number; settled: boolean }>();
+  const reads = new Map<string, { promise: Promise<AtlasDataset>; controller: AbortController; observers: number; settled: boolean;
+    listeners: Set<NonNullable<SnapshotOptions["onProgress"]>>; latest?: { data: AtlasDataset; progress: BaselineProgress } }>();
   const yieldTask = options.yieldTask ?? nextTask;
   const unavailable = () => new AtlasClientError("invalid-response", "岗位计算服务暂不可用，请重试连接；已入库数据不受影响。");
   function remember(record: Installed) {
@@ -61,8 +66,26 @@ export function createAtlasComputeClient(port: AtlasComputePort, options: { yiel
     // cannot retain a blocked producer or flood the main-thread message queue.
     if (message.type === "chunk") port.postMessage({ type: "ack", id: message.id, sequence: message.sequence });
     const item = pending.get(message.id);
-    if (!item) return;
-    if (message.type === "begin-snapshot") { item.snapshot = emptyComputeSnapshot(message.header); item.snapshotKey = message.snapshot; }
+    if (!item) { if (message.type === "baseline-checkpoint") port.postMessage({ type: "ack", id: message.id, sequence: message.sequence }); return; }
+    if (message.type === "begin-baseline") { item.fragment = emptyDatasetUpserts(); item.previewHeader = message.header; item.snapshotKey = message.snapshot; }
+    else if (message.type === "baseline-checkpoint") {
+      void (async () => {
+        if (!item.fragment || !item.previewHeader || !item.snapshotKey) throw unavailable();
+        const data = { ...(item.preview ?? emptyComputeSnapshot(item.previewHeader)) };
+        for (const table of ATLAS_TABLES) {
+          if (pending.get(message.id) !== item) return;
+          if (!item.fragment[table].length) continue;
+          (data as unknown as Record<string, unknown>)[table] = applyDatasetTableDelta<unknown>(table, data[table], item.fragment[table], []);
+          await yieldTask();
+        }
+        if (pending.get(message.id) !== item) return;
+        const record: Installed = { key: item.snapshotKey, data, valid: true, ready: Promise.resolve() };
+        byData.set(data, record); remember(record); item.knownSnapshots?.set(record.key, data);
+        item.preview = data; item.fragment = undefined;
+        await item.onProgress?.(data, message.progress);
+      })().catch(fail).finally(() => port.postMessage({ type: "ack", id: message.id, sequence: message.sequence }));
+    }
+    else if (message.type === "begin-snapshot") { item.snapshot = emptyComputeSnapshot(message.header); item.snapshotKey = message.snapshot; }
     else if (message.type === "use-snapshot") {
       const data = item.knownSnapshots?.get(message.snapshot);
       if (!data) { fail(); return; }
@@ -79,7 +102,7 @@ export function createAtlasComputeClient(port: AtlasComputePort, options: { yiel
         : message.target === "pageBuckets" ? item.page?.page.mapBuckets
           : message.target === "mapFeatures" ? item.page?.geometry?.data.features
             : message.target === "officeBucketIds" ? item.page?.geometry?.officeBucketIds
-              : message.target === "coordinateStacks" ? item.page?.geometry?.coordinateStacks : item.patch?.delta.upserts[message.target] ?? item.snapshot?.[message.target];
+              : message.target === "coordinateStacks" ? item.page?.geometry?.coordinateStacks : item.fragment?.[message.target] ?? item.patch?.delta.upserts[message.target] ?? item.snapshot?.[message.target];
       if (!array) { fail(); return; }
       (array as unknown[]).push(...message.values);
     } else {
@@ -159,28 +182,39 @@ export function createAtlasComputeClient(port: AtlasComputePort, options: { yiel
       }
     }
   }
-  function readSnapshot(endpoint: string, token: string, { signal, maxBytes }: SnapshotOptions = {}): Promise<AtlasDataset> {
+  function readSnapshot(endpoint: string, token: string, { signal, maxBytes, onProgress }: SnapshotOptions = {}): Promise<AtlasDataset> {
     if (signal?.aborted) return Promise.reject(signal.reason);
     const key = JSON.stringify([endpoint, token, maxBytes]);
     let sharedRead = reads.get(key);
     if (!sharedRead) {
       const controller = new AbortController();
+      const listeners = new Set<NonNullable<SnapshotOptions["onProgress"]>>();
       const promise = request<AtlasDataset>(id => {
         const known = new Map([...installed].filter(([, record]) => record.valid).map(([name, record]) => [name, record.data]));
         pending.get(id)!.knownSnapshots = known;
+        pending.get(id)!.onProgress = async (data, progress) => {
+          const current = reads.get(key);
+          if (current) current.latest = { data, progress };
+          // A presentation callback cannot poison another observer's shared read.
+          await Promise.all([...listeners].map(async listener => { try { await listener(data, progress); } catch { /* observer owns presentation failure */ } }));
+        };
         port.postMessage({ type: "run", id, operation: { kind: "snapshot", endpoint, token, maxBytes, knownSnapshots: [...known.keys()] } });
       }, controller.signal);
-      sharedRead = { promise, controller, observers: 0, settled: false }; reads.set(key, sharedRead);
+      sharedRead = { promise, controller, observers: 0, settled: false, listeners }; reads.set(key, sharedRead);
       const captured = sharedRead;
       const done = () => { captured.settled = true; if (reads.get(key) === captured) reads.delete(key); };
       void promise.then(done, done);
     }
     const read = sharedRead; read.observers++;
+    if (onProgress) {
+      read.listeners.add(onProgress);
+      if (read.latest) void Promise.resolve().then(() => { if (read.listeners.has(onProgress)) return onProgress(read.latest!.data, read.latest!.progress); }).catch(() => {});
+    }
     return new Promise<AtlasDataset>((resolve, reject) => {
       let active = true;
       const cleanup = () => {
         if (!active) return false;
-        active = false; signal?.removeEventListener("abort", abort); read.observers--; return true;
+        active = false; signal?.removeEventListener("abort", abort); if (onProgress) read.listeners.delete(onProgress); read.observers--; return true;
       };
       const abort = () => {
         if (!cleanup()) return;

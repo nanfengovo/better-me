@@ -1,8 +1,31 @@
 import { AtlasDatasetSchema, type AtlasDataset } from "@better-me/opportunities";
 import { AtlasClientError } from "./client-error";
+import type { BaselineProgress } from "../../../../job-service/src/dataset-baseline-contract";
 
-export type SnapshotOptions = { signal?: AbortSignal; maxBytes?: number };
-const DEFAULT_MAX_BYTES = 64 * 1024 * 1024;
+export type SnapshotOptions = { signal?: AbortSignal; maxBytes?: number; onProgress?: (dataset: AtlasDataset, progress: BaselineProgress) => void | Promise<void> };
+const DEFAULT_MAX_BYTES = 96 * 1024 * 1024;
+async function readSmallToolError(response: Response): Promise<string | undefined> {
+  const declared = response.headers.get("Content-Length");
+  if (declared && /^\d+$/.test(declared) && Number(declared) > 4096) return undefined;
+  const reader = response.body?.getReader();
+  if (!reader) return undefined;
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const part = await reader.read();
+      if (part.done) break;
+      size += part.value.byteLength;
+      if (size > 4096) return undefined;
+      chunks.push(part.value);
+    }
+    const raw = new TextDecoder().decode(Uint8Array.from(chunks.flatMap(chunk => [...chunk])));
+    const parsed: unknown = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && "error" in parsed && parsed.error && typeof parsed.error === "object"
+      && "code" in parsed.error && typeof parsed.error.code === "string" ? parsed.error.code : undefined;
+  } catch { return undefined; }
+  finally { void reader.cancel().catch(() => {}); reader.releaseLock(); }
+}
 export function atlasConnection(endpoint: string, token: string, maxBytes = DEFAULT_MAX_BYTES) {
   let url: URL;
   try { url = new URL(endpoint); } catch { throw new AtlasClientError("invalid-endpoint", "请输入有效的本机服务地址。"); }
@@ -18,7 +41,7 @@ export function atlasConnection(endpoint: string, token: string, maxBytes = DEFA
 
 /** Shared bounded UTF-8/envelope reader for both versioned sync and legacy export. */
 export async function readAtlasEnvelope(endpoint: string, token: string, { signal, maxBytes }: SnapshotOptions,
-  request: { path: string; body?: unknown; allowUnsupported?: boolean }): Promise<{ supported: false } | { supported: true; value: unknown }> {
+  request: { path: string; body?: unknown; allowUnsupported?: boolean }): Promise<{ supported: false } | { supported: true; value: unknown; bytes: number }> {
   signal?.throwIfAborted();
   const connection = atlasConnection(endpoint, token, maxBytes);
   const response = await fetch(new URL(request.path, connection.url), {
@@ -34,8 +57,12 @@ export async function readAtlasEnvelope(endpoint: string, token: string, { signa
     return { supported: false };
   }
   if (!response.ok || response.redirected) {
+    const errorCode = response.status === 422 ? await readSmallToolError(response) : undefined;
     void response.body?.cancel().catch(() => {});
-    throw new AtlasClientError("http-error", `服务返回 ${response.status}。请核对令牌和当前网页的允许 Origin。`);
+    if (errorCode === "budget-exceeded") throw new AtlasClientError("too-large", "公开岗位索引超过单次快照预算；服务仍在线。请缩小采集范围或升级增量读取方式。");
+    throw new AtlasClientError("http-error", [401, 403].includes(response.status)
+      ? `服务返回 ${response.status}。请核对令牌和当前网页的允许 Origin。`
+      : `岗位索引服务返回 ${response.status}。请检查本机服务状态后重试。`);
   }
   const tooLarge = () => new AtlasClientError("too-large", "索引超过当前浏览器快照模式的字节上限，请缩小采集范围。");
   const declaredLength = response.headers.get("Content-Length");
@@ -71,7 +98,7 @@ export async function readAtlasEnvelope(endpoint: string, token: string, { signa
     }
     signal?.throwIfAborted();
     complete = true;
-    return { supported: true, value: payload.value };
+    return { supported: true, value: payload.value, bytes };
   } catch (error) {
     signal?.throwIfAborted();
     if (error instanceof TypeError) throw new AtlasClientError("invalid-response", "服务返回的索引包含无效 UTF-8 或读取失败。");

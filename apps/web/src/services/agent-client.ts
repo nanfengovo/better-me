@@ -1,4 +1,4 @@
-import { fetchChatCompletion, fetchChatCompletionResult, type LlmConfig, type ChatMessageContent } from "@better-me/core";
+import { fetchChatCompletion, fetchChatCompletionResult, isOfficialDeepSeek, type LlmConfig, type ChatMessageContent } from "@better-me/core";
 import { readRuntimeConnection } from "../lib/runtime-connection";
 import type { ResumeEditContext, ResumeProposalTarget } from "@better-me/agent-contracts";
 import { findResumeContextSource } from "../lib/resume-agent-context";
@@ -132,6 +132,9 @@ function agentChatHostTimeoutMs(provider: LlmConfig["provider"]): number {
 
 function describeAgentChatHostFailure(error: unknown): string {
   if (isTimeoutFailure(error)) return "Agent Host 回复超时，已改由浏览器直连重新生成。";
+  if (error instanceof TypeError && /failed to fetch|fetch failed|networkerror|load failed/i.test(error.message)) {
+    return "本机 Agent Host 无法连接。请先保存当前编辑，再启动或重启 pnpm dev；独立验收入口使用 pnpm dev:isolated。本轮已改为浏览器直连。";
+  }
   const detail = error instanceof Error ? error.message : "连接失败";
   return `Agent Host 不可用，已改为浏览器直连：${detail}`;
 }
@@ -426,13 +429,14 @@ export async function startJdMatch(params: {
         allowedProfileEntryIds: params.allowedProfileEntryIds,
         sessionClaims: params.sessionClaims ?? {},
         modelSettings: {
+          ...params.llmConfig,
           baseUrl: params.llmConfig.baseUrl,
           model: params.llmConfig.model,
           apiKey: params.llmConfig.apiKey || "mock-key",
           temperature: params.llmConfig.temperature,
         },
       }),
-      signal: AbortSignal.timeout(35_000),
+      signal: AbortSignal.timeout(isOfficialDeepSeek(params.llmConfig) ? 100_000 : 35_000),
     });
 
     if (res.ok) {
@@ -477,6 +481,7 @@ export async function resumeJdMatch(params: {
         threadId: params.threadId,
         decisions: params.decisions,
         modelSettings: {
+          ...params.llmConfig,
           baseUrl: params.llmConfig.baseUrl,
           model: params.llmConfig.model,
           apiKey: params.llmConfig.apiKey || "mock-key",
@@ -516,6 +521,7 @@ export async function resumeJdMatch(params: {
 export async function sendAgentChat(params: {
   messages: ChatMessage[];
   llmConfig: LlmConfig;
+  signal?: AbortSignal;
   context?: {
     currentJob?: {
       title?: string;
@@ -533,6 +539,7 @@ export async function sendAgentChat(params: {
   };
   baseUrl?: string;
 }): Promise<ChatMessage> {
+  params.signal?.throwIfAborted();
   const host = params.baseUrl ?? DEFAULT_AGENT_HOST_URL;
   let fallbackWarning: string | undefined;
 
@@ -546,6 +553,7 @@ export async function sendAgentChat(params: {
       body: JSON.stringify({
         messages: params.messages,
         modelSettings: {
+          ...params.llmConfig,
           provider: params.llmConfig.provider,
           baseUrl: params.llmConfig.baseUrl,
           model: params.llmConfig.model,
@@ -554,21 +562,34 @@ export async function sendAgentChat(params: {
         },
         context: params.context,
       }),
-      signal: AbortSignal.timeout(agentChatHostTimeoutMs(params.llmConfig.provider)),
+      signal: params.signal
+        ? AbortSignal.any([params.signal, AbortSignal.timeout(isOfficialDeepSeek(params.llmConfig) ? 100_000 : agentChatHostTimeoutMs(params.llmConfig.provider))])
+        : AbortSignal.timeout(isOfficialDeepSeek(params.llmConfig) ? 100_000 : agentChatHostTimeoutMs(params.llmConfig.provider)),
     });
+    params.signal?.throwIfAborted();
 
     if (res.ok) {
       const data = await res.json() as { reply?: unknown };
+      params.signal?.throwIfAborted();
       const reply = normaliseChatReply(data.reply, createResponseMeta(params.llmConfig, "agent-host", "ready"));
       if (reply) return bindResumeProposalSources(reply, params.context?.resumeEditContext);
       fallbackWarning = "Agent Host returned an invalid reply";
     } else {
+      if (isOfficialDeepSeek(params.llmConfig)) {
+        const failure: unknown = await res.json().catch(() => null);
+        if (failure && typeof failure === "object" && "error" in failure && failure.error === "model_provider_error" && "message" in failure && typeof failure.message === "string") {
+          return { id: `msg-${crypto.randomUUID()}`, role: "assistant", content: failure.message,
+            meta: createResponseMeta(params.llmConfig, "agent-host", "error", "上游模型请求失败，未自动重复生成；请处理后重试。"), createdAt: new Date().toISOString() };
+        }
+      }
       fallbackWarning = `Agent Host returned HTTP ${res.status}`;
     }
   } catch (error) {
+    params.signal?.throwIfAborted();
     fallbackWarning = describeAgentChatHostFailure(error);
   }
 
+  params.signal?.throwIfAborted();
   return bindResumeProposalSources(await executeClientSideChat(params, fallbackWarning), params.context?.resumeEditContext);
 }
 
@@ -768,6 +789,8 @@ const CHAT_SYSTEM_PROMPT = `你是一个内置于 BetterMe 个人求职与成长
 - 简历建议卡必须针对授权字段中的现有目标，逐字复制其 targetRef；originalText 必须与该字段原文完全一致。不得自造目标或 ID；只调整措辞、不增加事实、技术、指标、责任或成果。
 - 缺少可证实内容时不要给简历建议卡，改为追问。建议仍需用户逐条审阅批准，不会自动写入。
 - 回答受长度限制时明确提示未完成，不要用省略号伪装成完整结果。
+- 将对话当作连续协作：沿用已确认的目标和限制，不重复追问。信息不足时先提供能确定的部分，再提出至多两个推动下一步的澄清问题。
+- 规划、学习和模拟面试按目标澄清 → 步骤或练习 → 用户反馈 → 调整下一步推进。每轮末尾只给一个可选择的下一步，不要代替用户决定或声称已经执行。
 
 你可以执行以下专业任务，并在回答中按规范输出结构化动作卡片（Action Cards）：
 1. 查公司资料：分析其控股背景（民营/国企/外企）、业务方向、稳定性及潜在风险。
@@ -1041,7 +1064,7 @@ ${verifiedIds}
   }
 ]`;
 
-  let proposals: MatchProposal[] = [];
+  let proposals: MatchProposal[];
   try {
     const rawMatch = await fetchChatCompletion(
       { ...llmConfig, temperature: 0.2 },
@@ -1110,7 +1133,7 @@ ${verifiedIds}
         }
       });
     } else {
-      throw new Error(`岗位匹配分析失败: ${err?.message || String(err)}`);
+      throw new Error(`岗位匹配分析失败: ${err?.message || String(err)}`, { cause: err });
     }
   }
 
@@ -1127,6 +1150,7 @@ ${verifiedIds}
 async function executeClientSideChat(params: {
   messages: ChatMessage[];
   llmConfig: LlmConfig;
+  signal?: AbortSignal;
   context?: {
     currentJob?: {
       title?: string;
@@ -1143,6 +1167,7 @@ async function executeClientSideChat(params: {
     resumeEditContext?: ResumeEditContext;
   };
 }, fallbackWarning?: string): Promise<ChatMessage> {
+  params.signal?.throwIfAborted();
   const isConfigured = Boolean(params.llmConfig.apiKey?.trim()) || params.llmConfig.provider === "ollama";
   if (!isConfigured) {
     return {
@@ -1199,8 +1224,10 @@ JD 描述：${job.description ? job.description.slice(0, 1500) : "未提供"}`);
   try {
     const initial = await fetchChatCompletionResult(
       { ...params.llmConfig, temperature: 0.3 },
-      promptMessages
+      promptMessages,
+      { signal: params.signal },
     );
+    params.signal?.throwIfAborted();
     rawOutput = initial.content;
     finishReason = initial.finishReason;
     let continuationCount = 0;
@@ -1214,17 +1241,21 @@ JD 描述：${job.description ? job.description.slice(0, 1500) : "未提供"}`);
             { role: "assistant", content: rawOutput },
             { role: "user", content: "请从上一条回复准确结束的位置继续，不要重复已输出内容。补完所有尚未完成的段落与结构化动作卡片；如果不能确认某项信息，请明确标注待核实。" },
           ],
+          { signal: params.signal },
         );
       } catch {
+        params.signal?.throwIfAborted();
         continuationFailed = true;
         break;
       }
+      params.signal?.throwIfAborted();
       if (!continuation.content.trim()) break;
       rawOutput = appendContinuation(rawOutput, continuation.content);
       finishReason = continuation.finishReason;
       continuationCount += 1;
     }
   } catch (error) {
+    params.signal?.throwIfAborted();
     const detail = error instanceof Error ? error.message : "模型服务请求失败";
     return {
       id: `msg-chat-error-${Date.now()}`,
@@ -1235,6 +1266,7 @@ JD 描述：${job.description ? job.description.slice(0, 1500) : "未提供"}`);
     };
   }
 
+  params.signal?.throwIfAborted();
   const parsed = parseActionResponse(rawOutput);
   const lengthLimited = isLengthLimitedFinishReason(finishReason);
   const empty = !parsed.content.trim() && !parsed.actions?.length;

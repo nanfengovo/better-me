@@ -2,9 +2,9 @@ name: CI and GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, agent-os]
   pull_request:
-    branches: [main]
+    branches: [main, agent-os]
   workflow_dispatch:
 
 # Pull requests never receive a write token or deployment credentials.

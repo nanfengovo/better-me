@@ -710,7 +710,7 @@ export function createBrowserSessionManager(options: BrowserSessionOptions = {})
               }
             } catch (_) {}
           })()`);
-        } catch {}
+        } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
         let candidate: unknown;
         try { candidate = await track(page.evaluate(VISIBLE_JOB_SEARCH_SNAPSHOT)); }
         catch {

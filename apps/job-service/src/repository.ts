@@ -23,9 +23,9 @@ import {
   CompanyControllerOverridePreviewSchema, CompanyControllerOverrideReceiptSchema,
   PreviewCompensationAuditInputSchema, ConfirmCompensationAuditInputSchema, RevokeCompensationAuditInputSchema,
   CompensationAuditPreviewSchema, CompensationAuditReceiptSchema,
-  type PreviewCompanyControllerOverrideInput, type ConfirmCompanyControllerOverrideInput, type RevokeCompanyControllerOverrideInput,
+  type ConfirmCompanyControllerOverrideInput, type RevokeCompanyControllerOverrideInput,
   type CompanyControllerOverridePreview, type CompanyControllerOverrideReceipt,
-  type PreviewCompensationAuditInput, type ConfirmCompensationAuditInput, type RevokeCompensationAuditInput,
+  type ConfirmCompensationAuditInput, type RevokeCompensationAuditInput,
   type CompensationAuditPreview, type CompensationAuditReceipt,
 } from "@better-me/opportunities";
 import {
@@ -40,6 +40,9 @@ import { resolveLocationArea, listSourceNormalizationAreas } from "./location-ca
 import { BackgroundEnrichmentTaskSchema, ENRICHMENT_MAX_ATTEMPTS, backgroundEnrichmentSource, planBackgroundEnrichment, applyBackgroundEnrichment,
   type BackgroundEnrichmentTask, type BackgroundEnrichmentOptions, type BackgroundEnrichmentStatus, type BackgroundEnrichmentBatchResult } from "./background-enrichment.js";
 import { createDatasetSyncStore } from "./dataset-sync.js";
+import { createDatasetBaselineStore } from "./dataset-baseline.js";
+import { BaselineRequestSchema, type BaselineRequest, type BaselineResponse } from "./dataset-baseline-contract.js";
+import { createPublicSyncProjection } from "./public-sync-projection.js";
 import { DatasetSyncRequestSchema, type DatasetSyncRequest, type DatasetSyncResponse, type DatasetUpserts } from "./dataset-sync-contract.js";
 import { createProjectionSlice, type ProjectionSelection } from "./projection-slice.js";
 import { createProjectionDependencies } from "./projection-dependencies.js";
@@ -267,24 +270,10 @@ export function openJobRepository(path: string, options: { now?: () => string; r
   const projectionSlice = createProjectionSlice(db, input => { const data = checked(AtlasDatasetSchema, input); verifyContentHashes(data); return data; });
   const projectionDependencies = createProjectionDependencies(db);
   function publicSyncRows(rows: DatasetUpserts): DatasetUpserts {
-    if (!rows.locations.length && !rows.observations.length) return rows;
-    // Only active legacy overlays affect public facts. Read their small decision
-    // set, not every JD/company/document, even in a migrated historical library.
-    const entries = db.prepare("SELECT o.document FROM office_decisions o JOIN locations l ON l.id=json_extract(o.document,'$.locationId') AND json_extract(l.document,'$.officeResolution.decisionId')=o.id WHERE json_extract(o.document,'$.kind')='confirm' AND substr(json_extract(o.document,'$.reason'),1,?)=?")
-      .all(LEGACY_INFERRED_OFFICE_REASON_PREFIX.length, LEGACY_INFERRED_OFFICE_REASON_PREFIX) as { document: string }[];
-    if (!entries.length) return rows;
-    const sourceLocations = new Map<string, JobLocation>(), affected = new Set<string>();
-    for (const row of entries) {
-      const entry = checked(OfficeAddressDecisionSchema, JSON.parse(row.document));
-      if (entry.kind !== "confirm" || entry.sourceLocation.id !== entry.locationId) continue;
-      sourceLocations.set(entry.locationId, entry.sourceLocation);
-      for (const evidence of entry.sourceLocation.evidence) affected.add(evidence.observationId);
-    }
-    return { ...rows, locations: rows.locations.map(location => sourceLocations.get(location.id) ?? location), observations: rows.observations.map(observation =>
-      affected.has(observation.id) && !observation.warnings.includes(LEGACY_INFERRED_OFFICE_WARNING)
-        ? { ...observation, warnings: [...observation.warnings.slice(-99), LEGACY_INFERRED_OFFICE_WARNING] } : observation) };
+    return !rows.locations.length && !rows.observations.length ? rows : createPublicSyncProjection(db)(rows);
   }
   const datasetSync = createDatasetSyncStore(db, () => projectPublicOfficeLocations(read(), officeDecisions()), publicSyncRows);
+  const baselineStore = createDatasetBaselineStore(path);
   function markPublicOfficeEvidence(location: JobLocation | undefined, atRevision: number) {
     const id = location?.officeResolution?.decisionId;
     if (!id) return;
@@ -820,10 +809,14 @@ export function openJobRepository(path: string, options: { now?: () => string; r
       }
     },
     async readSnapshot(): Promise<AtlasDataset> { return transaction(() => projectPublicOfficeLocations(read(), officeDecisions())); },
-    async syncSnapshot(input: DatasetSyncRequest = {}): Promise<DatasetSyncResponse> {
+    async syncSnapshot(input: DatasetSyncRequest = {}, paged = false): Promise<DatasetSyncResponse> {
       const request = checked(DatasetSyncRequestSchema, input);
-      return transaction(() => datasetSync.read(request));
+      return transaction(() => datasetSync.read(request, paged));
     },
+    async readBaselinePage(input: BaselineRequest = {}, actorScope = "local-owner"): Promise<BaselineResponse> {
+      ensureOpen(); return baselineStore.read(checked(BaselineRequestSchema, input), actorScope);
+    },
+    async closeBaselineSession(session: string, actorScope = "local-owner") { ensureOpen(); return baselineStore.closeSession(session, actorScope); },
     /** Ingestion-only origins: never use this view for map totals or user-facing search. */
     async readProjectionSnapshot(selection?: ProjectionSelection): Promise<AtlasDataset> { return transaction(() => selection ? projectionSlice.read({ seeds: selection, listingHistory: true }).base : baseSnapshot()); },
     async readOfficeAddressTarget(input: OfficeAddressCandidatesInput) {
@@ -1682,7 +1675,7 @@ export function openJobRepository(path: string, options: { now?: () => string; r
         return result;
       });
     },
-    close() { if (!closed) { db.close(); closed = true; } },
+    close() { if (!closed) { baselineStore.close(); db.close(); closed = true; } },
   };
 }
 export type JobRepository = ReturnType<typeof openJobRepository>;

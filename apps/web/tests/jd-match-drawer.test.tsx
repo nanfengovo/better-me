@@ -215,7 +215,7 @@ test("JdMatchDrawer can switch between Proposals and Chat tabs", async () => {
     chatTabButton.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
   });
 
-  const chatInput = dom.document.querySelector('input[placeholder*="向 Agent 提问"]');
+  const chatInput = dom.document.querySelector('textarea[placeholder*="向 Agent 提问"]');
   assert.ok(chatInput !== null, "Chat input should appear after switching to chat tab");
 });
 

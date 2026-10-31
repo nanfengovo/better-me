@@ -233,6 +233,12 @@ test("effect authorization and idempotency belong to the trusted executor", asyn
   assert.equal(calls, 2);
 });
 
+test("trusted public snapshot budget is bounded at 96 MiB", async () => {
+  const registry = createToolRegistry([tool()]);
+  assert.equal((await registry.execute("jobs.count", { count: 1 }, context({ budget: { requests: 0, bytes: 96 * 1024 * 1024, timeoutMs: 1000 } }))).ok, true);
+  assert.equal(errorCode(await registry.execute("jobs.count", { count: 1 }, context({ budget: { requests: 0, bytes: 97 * 1024 * 1024, timeoutMs: 1000 } }))), "invalid-context");
+});
+
 test("callers cannot mutate a successful receipt to poison later idempotent replays", async () => {
   const registry = createToolRegistry([tool("local-write")]);
   const trusted = context({ allowedEffects: ["local-write"], idempotencyKey: "receipt-mutation" });

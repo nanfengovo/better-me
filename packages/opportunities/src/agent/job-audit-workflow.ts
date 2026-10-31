@@ -8,7 +8,7 @@ import type { LangChainStructuredTool } from "./langchain-tool.js";
 export function stripAddressDecorations(raw: string): string {
   let text = raw.trim();
   // Strip brackets: (A座), （3号楼）
-  text = text.replace(/[\(（][^\)）]*[\)）]/g, " ").trim();
+  text = text.replace(/[(（][^)）]*[)）]/g, " ").trim();
   // Strip room/floor suffixes: 301室, 5层, 12楼, A座, 1号楼, etc.
   text = text.replace(/\s*\d+[-号]?[楼层室栋座]/g, " ").trim();
   text = text.replace(/\s*[A-Za-z0-9]+[座栋单元]/g, " ").trim();

@@ -8,11 +8,12 @@ import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
+import { watchDevService } from "./dev-service-watch.js";
 
 /** Dev-server-only route. Production builds and `vite preview` never register it. */
 export const ATLAS_DEV_JOB_INDEX_PATH = "/__better-me/dev/local-job-index";
 export const ATLAS_DEV_JOB_INDEX_ENDPOINT = "http://127.0.0.1:5178";
-export const ATLAS_DEV_PAGE_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173"] as const;
+export const ATLAS_DEV_PAGE_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173", "http://127.0.0.1:5193"] as const;
 
 const DUMMY_PROBE_TOKEN = "0".repeat(43);
 
@@ -135,6 +136,8 @@ export function createDevJobIndexBroker(options: {
   let managed: StartedJobService | undefined;
   let inflight: Promise<EnsureResult> | undefined;
   let closing = false;
+  let stoppingUnhealthy = false;
+  let unhealthyChecks = 0;
 
   async function classify(token: string): Promise<JobServiceProbeStatus> {
     for (const origin of origins) {
@@ -169,12 +172,22 @@ export function createDevJobIndexBroker(options: {
     if (current) {
       const status = await classify(current);
       if (closing) throw new Error("Vite 开发服务已关闭，取消岗位索引启动。");
-      if (status === "ready") return { endpoint, token: current };
+      if (status === "ready") { unhealthyChecks = 0; return { endpoint, token: current }; }
       if (status !== "down") throw new Error(statusError(status, endpoint, origins));
     } else {
       const listening = await probe(endpoint, DUMMY_PROBE_TOKEN, origins[0] ?? ATLAS_DEV_PAGE_ORIGINS[0]);
       if (closing) throw new Error("Vite 开发服务已关闭，取消岗位索引启动。");
       if (listening !== "down") throw new Error(`${endpoint} 已有岗位服务，但本机数据目录没有可用的 service.token。开发页不会使用其他令牌。`);
+    }
+    if (managed) {
+      if (!managed.exited()) {
+        if (++unhealthyChecks < 2) throw new Error("岗位索引健康检查暂时失败，正在复核恢复状态。");
+        if (!stoppingUnhealthy) { stoppingUnhealthy = true; await managed.stop(); }
+        throw new Error("岗位索引未通过健康检查，正在等待受管理的进程退出后恢复。");
+      }
+      managed = undefined;
+      stoppingUnhealthy = false;
+      unhealthyChecks = 0;
     }
     const service = await start({ dataDirectory, endpoint, origins });
     if (closing) {
@@ -268,6 +281,7 @@ export function createDevJobIndexMiddleware(broker: { ensure: () => Promise<Ensu
 /** Registers the loopback helper on the Vite development server only. */
 export function atlasDevIndexPlugin(options: {
   createBroker?: () => ReturnType<typeof createDevJobIndexBroker>;
+  healthIntervalMs?: number;
 } = {}): Plugin {
   return {
     name: "better-me-atlas-dev-index",
@@ -275,10 +289,10 @@ export function atlasDevIndexPlugin(options: {
     configureServer(server) {
       const broker = options.createBroker?.() ?? createDevJobIndexBroker();
       server.middlewares.use(createDevJobIndexMiddleware(broker));
-      void broker.ensure().catch((error) => {
+      const watch = watchDevService(broker, options.healthIntervalMs ?? 10_000, (error) => {
         console.error(`[atlas-dev-index] ${publicDevIndexError(error)}`);
       });
-      return () => { server.httpServer?.once("close", () => { void broker.close(); }); };
+      return () => { server.httpServer?.once("close", () => { void watch.close(); }); };
     },
   };
 }

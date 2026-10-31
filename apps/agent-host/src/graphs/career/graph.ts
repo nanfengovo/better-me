@@ -54,7 +54,7 @@ export function buildCareerOrchestrator(checkpointer: BaseCheckpointSaver) {
       workers: state.workers.map((worker) => ({ ...worker, status: "queued" })),
       stepLog: ["fanout: queued discovery, research, match, location and fact-check workers"],
     }))
-    .addNode("normalize", async (state: CareerState): Promise<Partial<CareerState>> => ({
+    .addNode("normalize", async (_state: CareerState): Promise<Partial<CareerState>> => ({
       currentStep: "locationEvidence",
       stepLog: ["normalize: worker output must become versioned artifacts before sharing"],
     }))
@@ -94,7 +94,7 @@ export function buildCareerOrchestrator(checkpointer: BaseCheckpointSaver) {
       if (state.approval?.status !== "approved") return { currentStep: "response", errors: ["commit: approval is required"], stepLog: ["commit: fail-closed"] };
       return { currentStep: "response", stepLog: ["commit: emitted proposal; deterministic business tools own the actual write"] };
     })
-    .addNode("response", async (state: CareerState): Promise<Partial<CareerState>> => ({ currentStep: "response", stepLog: ["response: returned artifacts, coverage and audit trail"] }))
+    .addNode("response", async (_state: CareerState): Promise<Partial<CareerState>> => ({ currentStep: "response", stepLog: ["response: returned artifacts, coverage and audit trail"] }))
     .addEdge(START, "intake")
     .addEdge("intake", "plan")
     .addEdge("plan", "fanout")

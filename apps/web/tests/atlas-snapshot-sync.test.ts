@@ -27,6 +27,7 @@ test("real worker installs one baseline, relays only changed rows, and automatic
   const repo = openJobRepository(":memory:");
   const calls: { path: string; input: any; kind: string; bytes: number }[] = [];
   const server = await mockServer(async (path, input) => {
+    if (path === "/api/v1/dataset/sync-page") return { status: 404 };
     assert.equal(path, "/api/v1/dataset/sync");
     const value = await repo.syncSnapshot(input); calls.push({ path, input, kind: value.kind, bytes: Buffer.byteLength(envelope(value)) });
     return { value };
@@ -151,11 +152,11 @@ test("only explicit unsupported responses fall back to legacy export; malformed 
   try {
     const synchronizer = createAtlasSnapshotSynchronizer();
     assert.equal((await synchronizer.read(server.endpoint, "legacy")).dataset.jobs.length, 1);
-    assert.deepEqual(paths, ["/api/v1/dataset/sync", "/api/v1/dataset/export"]);
+    assert.deepEqual(paths, ["/api/v1/dataset/sync-page", "/api/v1/dataset/sync", "/api/v1/dataset/export"]);
     for (mode of ["unauthorized", "malformed"]) {
       const before = paths.length;
       await assert.rejects(synchronizer.read(server.endpoint, mode), AtlasClientError);
-      assert.deepEqual(paths.slice(before), ["/api/v1/dataset/sync"]);
+      assert.deepEqual(paths.slice(before), ["/api/v1/dataset/sync-page"]);
     }
     const before = paths.length;
     await assert.rejects(synchronizer.read("https://example.test", "bad"), AtlasClientError); assert.equal(paths.length, before);

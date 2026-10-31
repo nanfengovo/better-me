@@ -16,7 +16,7 @@
  * concurrent HTTP requests because each request uses its own thread_id.
  */
 
-import { StateGraph, START, END } from "@langchain/langgraph";
+import { StateGraph, START, END, UntrackedValueChannel } from "@langchain/langgraph";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { BaseCheckpointSaver } from "@langchain/langgraph";
 import {
@@ -58,7 +58,13 @@ export function buildJdMatchGraph(
     .addEdge("confirmProposals", "buildOutput")
     .addEdge("buildOutput", END);
 
-  return graph.compile({ checkpointer, interruptBefore: ["confirmProposals"] });
+  const compiled = graph.compile({ checkpointer });
+  // The input envelope otherwise gets persisted in __start__ before nodes run,
+  // even when its individual fields use untracked channels. Keep that ingress
+  // transient too. A crash before structuring requires the user to resubmit;
+  // completed proposals and the dynamic review interrupt remain resumable.
+  compiled.channels[START] = new UntrackedValueChannel();
+  return compiled;
 }
 
 export type JdMatchGraph = ReturnType<typeof buildJdMatchGraph>;

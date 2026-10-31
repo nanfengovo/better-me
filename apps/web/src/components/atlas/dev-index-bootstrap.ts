@@ -54,7 +54,12 @@ export async function requestDevJobIndex(signal: AbortSignal): Promise<DevJobInd
   const text = await response.text();
   signal.throwIfAborted();
   let payload: unknown;
-  try { payload = JSON.parse(text); } catch { return undefined; }
+  try { payload = JSON.parse(text); } catch {
+    if (response.ok && response.headers.get("content-type")?.includes("text/html")) {
+      return { ok: false, error: "本机岗位自动连接尚未就绪。请先保存当前编辑，再启动或重启 pnpm dev；独立验收入口使用 pnpm dev:isolated。无需手填访问令牌。" };
+    }
+    return undefined;
+  }
   const parsed = parseDevJobIndexBootstrap(payload);
   if (!parsed) return undefined;
   if (!response.ok && parsed.ok) return { ok: false, error: `本地开发服务返回 ${response.status}，没有交出可用连接。` };

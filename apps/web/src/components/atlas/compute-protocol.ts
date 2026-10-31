@@ -2,6 +2,7 @@ import type { AtlasDataset, JobQueryInput, QueryOptions } from "@better-me/oppor
 import type { AtlasPageOptions, AtlasPageResult } from "./client";
 import type { AtlasCoverageOptions, AtlasDataCoverage } from "./coverage";
 import type { DatasetDelta } from "../../../../job-service/src/dataset-sync-contract";
+import type { BaselineProgress } from "../../../../job-service/src/dataset-baseline-contract";
 
 export const ATLAS_TABLES = ["sources", "companies", "jobs", "locations", "compensations", "listings", "observations", "snapshots"] as const;
 export type AtlasTable = typeof ATLAS_TABLES[number];
@@ -20,6 +21,8 @@ export type ComputeRequest =
   | { type: "installed"; id: number; snapshot: string };
 export type ComputeResponse =
   | { type: "evicted"; snapshot: string }
+  | { type: "begin-baseline"; id: number; snapshot: string; header: Pick<AtlasDataset, "schemaVersion" | "revision"> }
+  | { type: "baseline-checkpoint"; id: number; sequence: number; progress: BaselineProgress }
   | { type: "begin-snapshot"; id: number; snapshot: string; header: Pick<AtlasDataset, "schemaVersion" | "revision"> }
   | { type: "begin-delta"; id: number; snapshot: string; base: string; delta: Omit<DatasetDelta, "upserts"> }
   | { type: "use-snapshot"; id: number; snapshot: string }

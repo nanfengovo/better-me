@@ -52,8 +52,8 @@ function generateProposalId(jdItem: string, index: number): string {
 
 /**
  * Parses the raw JD text into a structured object.
- * rawJd is consumed here and not forwarded in the return value — the LangGraph
- * state reducer keeps the old value; nodes deliberately don't re-emit it.
+ * rawJd stays in an untracked channel for this invocation only; neither it nor
+ * the ingress envelope is saved in checkpoint history.
  */
 export function makeStructureJdNode(model: BaseChatModel) {
   return async (state: JdMatchState): Promise<Partial<JdMatchState>> => {

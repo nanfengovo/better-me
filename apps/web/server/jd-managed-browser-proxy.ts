@@ -36,7 +36,8 @@ export type ManagedProxyVerifierOptions = {
  * unchanged on-disk startup configuration, not the helper's private memory.
  */
 export function createManagedDomesticBrowserProxyVerifier(options: ManagedProxyVerifierOptions = {}) {
-  const root = path.resolve(options.rootDirectory ?? path.join(import.meta.dirname, "../../.."));
+  const suppliedRoot = options.rootDirectory ?? path.join(import.meta.dirname, "../../..");
+  const root = /^[A-Za-z]:[\\/]|^\\\\/.test(suppliedRoot) ? path.win32.resolve(suppliedRoot) : path.resolve(suppliedRoot);
   const directory = path.join(root, "data/domestic-route");
   const executable = path.join(directory, "mihomo-windows-amd64-compatible.exe");
   const configuration = path.join(directory, "config.yaml");

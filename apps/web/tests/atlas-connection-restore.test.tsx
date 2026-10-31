@@ -97,7 +97,8 @@ test("only an explicitly successful connection persists, and a same-tab reload r
   assert.ok(!dom.location.href.includes(saved.token));
   await reload(); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "restored live index query");
   assert.equal(view().value, "live"); assert.match(dom.document.querySelector(".atlas-data-banner")!.textContent!, /索引版本 42/);
-  assert.equal(requests.length, 2); assert.ok(requests.every(request => request.url === "http://127.0.0.1:5178/api/v1/dataset/export" && request.authorization === `Bearer ${saved.token}`));
+  assert.equal(requests.filter(request => request.url.endsWith("/dataset/export")).length, 2);
+  assert.ok(requests.every(request => ["http://127.0.0.1:5178/api/v1/dataset/export", "http://127.0.0.1:5178/api/v1/enrichment/status"].includes(request.url) && request.authorization === `Bearer ${saved.token}`));
   assert.equal(dom.document.querySelector('input[type="password"]'), null, "credentials are not rendered outside the connection form");
 });
 
@@ -110,7 +111,7 @@ test("failed restoration stays in live view with an actionable visible error, an
   assert.equal(fetcher.mock.callCount(), 1); assert.ok(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY));
   fail = false; await act(async () => button("重新读取索引").click());
   await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "retry live query");
-  assert.equal(dom.document.querySelector('[role="alert"]'), null);
+  assert.equal(dom.document.querySelector('.atlas-error[role="alert"]')?.textContent ?? null, null, "connection error clears; an independent unavailable IndexedDB warning remains truthful");
 });
 
 test("a failed explicit connection never saves the attempted token", async () => {
@@ -137,7 +138,7 @@ for (const mode of ["local", "demo"] as const) test(`choosing ${mode} clears per
   await choose(mode); const stored = dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY)!;
   assert.deepEqual(JSON.parse(stored), { schemaVersion: 1, dataMode: mode }); assert.ok(!stored.includes(saved.token));
   await reload(); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === (mode === "local" ? 1 : 22), "chosen view query");
-  assert.equal(view().value, mode); assert.equal(fetcher.mock.callCount(), 1);
+  assert.equal(view().value, mode); assert.equal(fetcher.mock.calls.filter(call => String(call.arguments[0]).endsWith('/dataset/export')).length, 1);
 });
 
 test("damaged, future and nonloopback records cannot trigger automatic network requests", async () => {
@@ -174,7 +175,7 @@ test("an inactive workspace defers restoration, and StrictMode cleanup does not 
   const fetcher = mock.method(globalThis, "fetch", async () => response());
   await mount(false, true); assert.equal(fetcher.mock.callCount(), 0); assert.equal(view().value, "live");
   await mount(true, true); await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "active StrictMode restore");
-  assert.equal(view().value, "live"); assert.equal(fetcher.mock.callCount(), 1);
+  assert.equal(view().value, "live"); assert.equal(fetcher.mock.calls.filter(call => String(call.arguments[0]).endsWith('/dataset/export')).length, 1);
 });
 
 test("active StrictMode may cancel its first setup but the second setup still restores the live snapshot", async () => {

@@ -5,6 +5,7 @@ import { getAtlasDataCoverage } from "./coverage";
 import { analyzeAiJobRelevance } from "./ai-job-relevance";
 import { prepareAtlasMapGeometry } from "./prototypes/map-performance";
 import { ATLAS_CHUNK_SIZE, ATLAS_TABLES, emptyComputeSnapshot, type ComputeRequest, type ComputeResponse, type AtlasTable } from "./compute-protocol";
+import { datasetEntityId } from "../../../../job-service/src/dataset-sync-contract";
 
 type WorkerPort = { postMessage(message: ComputeResponse): void; onmessage: ((event: { data: ComputeRequest }) => void) | null };
 const yieldTask = () => new Promise<void>(resolve => setTimeout(resolve, 0));
@@ -62,12 +63,34 @@ export function startAtlasComputeWorker(port: WorkerPort) {
     void (async () => {
       await yieldTask(); controller.signal.throwIfAborted();
       if (operation.kind === "snapshot") {
-        const { dataset, base, delta } = await synchronizer.read(operation.endpoint, operation.token, { signal: controller.signal, maxBytes: operation.maxBytes });
+        let previewKey: string | undefined;
+        const relayed = new Map(ATLAS_TABLES.map(table => [table, new Set<string>()]));
+        const { dataset, base, delta } = await synchronizer.read(operation.endpoint, operation.token, { signal: controller.signal, maxBytes: operation.maxBytes,
+          onProgress: async (partial, progress) => {
+            controller.signal.throwIfAborted();
+            const key = `service-${++snapshotSequence}`; put(key, partial); previewKey = key;
+            port.postMessage({ type: "begin-baseline", id, snapshot: key, header: { schemaVersion: 1, revision: partial.revision } });
+            for (const table of ATLAS_TABLES) {
+              const added = partial[table].filter(row => !relayed.get(table)!.has(datasetEntityId(table, row)));
+              await chunks(id, table, added, controller.signal);
+              for (const row of added) relayed.get(table)!.add(datasetEntityId(table, row));
+            }
+            // One closed prefix at a time: acknowledge after the UI has assembled
+            // it, so a fast loopback cannot flood the render thread with snapshots.
+            const sequence = ++chunkSequence, ack = `${id}:${sequence}`;
+            await new Promise<void>((resolve, reject) => {
+              const abort = () => { acknowledgements.delete(ack); reject(controller.signal.reason); };
+              controller.signal.addEventListener("abort", abort, { once: true });
+              acknowledgements.set(ack, () => { controller.signal.removeEventListener("abort", abort); resolve(); });
+              port.postMessage({ type: "baseline-checkpoint", id, sequence, progress });
+            });
+          },
+        });
         controller.signal.throwIfAborted();
         const key = snapshotKeys.get(dataset) ?? `service-${++snapshotSequence}`;
         const baseKey = base && snapshotKeys.get(base);
         put(key, dataset);
-        if (operation.knownSnapshots?.includes(key)) {
+        if (previewKey === key || operation.knownSnapshots?.includes(key)) {
           port.postMessage({ type: "use-snapshot", id, snapshot: key });
         } else if (delta && baseKey && operation.knownSnapshots?.includes(baseKey)) {
           const { upserts, ...header } = delta;

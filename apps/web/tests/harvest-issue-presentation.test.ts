@@ -3,6 +3,7 @@ import test from "node:test";
 import type { LiveHarvestProvider } from "../src/components/atlas/live-harvest-view";
 import type { HarvestProgressState } from "../src/components/atlas/harvest-progress-presentation";
 import { sanitizeHarvestDiagnostic, summarizeHarvestIssues } from "../src/components/atlas/harvest-issue-presentation";
+import { buildHarvestTriage, createHarvestAgentPrompt } from "../src/components/atlas/harvest-agent-triage";
 
 function provider(overrides: Partial<LiveHarvestProvider> = {}): LiveHarvestProvider {
   return {
@@ -16,6 +17,19 @@ function provider(overrides: Partial<LiveHarvestProvider> = {}): LiveHarvestProv
 function completed(stats: HarvestProgressState["stats"] = {}): HarvestProgressState {
   return { stage: "completed", stageIndex: 5, totalStages: 5, message: "本轮处理已结束", stats };
 }
+
+test("Agent triage retains confirmed saves, prioritizes uncertain writes and never sends raw diagnostics to the model", () => {
+  const issues = summarizeHarvestIssues({ failed: true, progress: completed({ failedCards: 2 }), providers: [
+    provider({ status: "verification_required", error: "Cookie: session=private-secret" }),
+    provider({ provider: "boss", platform: "BOSS直聘", status: "error", error: "https://example.test/?token=private-secret timeout" }),
+  ] });
+  const triage = buildHarvestTriage(issues, 914);
+  assert.match(triage.summary, /已确认保存 914.*2 个来源.*1 处需人工.*入库回执/);
+  assert.match(triage.nextStep, /先核对入库回执.*避免重复提交/);
+  const prompt = createHarvestAgentPrompt(issues, 914);
+  assert.match(prompt, /914.*需要安全验证|914.*需人工/);
+  assert.doesNotMatch(prompt, /private-secret|Cookie|https:\/\/|timeout|简历内容/);
+});
 
 test("a login receipt names the required action without blaming the service", () => {
   const [issue] = summarizeHarvestIssues({ providers: [provider({ status: "login_required" })] });

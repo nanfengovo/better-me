@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-31",
+  "baseBranch": "agent-os",
+  "baseCommit": "9ac05f147ead3340b89e634dd043b48415db7d95",
+  "localChanges": "Explainable match percentage, progressive candidate reads, page-memory cache, compact cards and shared page scrolling",
+  "runtime": "Docker Compose, isolated project and volume, full gateway with embedded Agent Host and job service",
+  "image": "better-me:agent-os-match-20261031",
+  "imageId": "sha256:7843f80e126f2d3341cbf654d58ac53eb4aba75926bcf44e150dd1d662d2cf86",
+  "origin": "http://127.0.0.1:18092",
+  "resume": "Synthetic Candidate, synthetic employers, dates and claims; no real resume or provider credentials copied",
+  "jobs": "31 existing public-source jobs in an isolated index; 24 candidates and 19 relevant in the pictured query; hiring availability unverified",
+  "checks": {
+    "recommendationTests": "22 passed",
+    "runtimeTests": "6 passed",
+    "dockerBuild": "8 packages passed; existing bundle-size warnings remain",
+    "health": "full/ok, container healthy",
+    "scroll": "Outer page wheel moved editor and preview by the same 360px; editor scroller height 550px at 1440x1000",
+    "focus": "Continue editing collapses recommendations and focuses resume-editor-panel",
+    "liveEdit": "Eighth synthetic claim edited, preview updated and test suffix restored",
+    "mobile": "390x900 touch viewport, recommendation content width 314px, no horizontal overflow, 44px primary targets",
+    "reducedMotion": "Card computed animation-name is none",
+    "performanceScope": "Small isolated public sample only; observed first cards 886ms and same-page cached reopen 326ms, not a large-index benchmark",
+    "agent": "Selected job reaches existing Agent workbench; model not configured and no generation performed"
+  },
+  "screenshots": [
+    { "file": "resume-job-match-docker-20261031.jpg", "width": 1440, "height": 1000, "bytes": 172869, "sha256": "97df0917143ec5d3f80ab48cc72c0011130922bbac9dc8ac13cb18a2a8a87b07" },
+    { "file": "resume-job-match-editing-20261031.jpg", "width": 1440, "height": 1000, "bytes": 183610, "sha256": "48050ed64a2c4a589c2ff113d841205523fbe416e1e99d12dbfaa9737d2885a0" },
+    { "file": "resume-job-match-mobile-20261031.jpg", "width": 390, "height": 900, "bytes": 59757, "sha256": "8f949a6d533fefe4c4bcdeb9efd94980241654ddb66129ea7f12566c45933e2d" }
+  ]
+}

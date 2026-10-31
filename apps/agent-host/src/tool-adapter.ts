@@ -17,6 +17,7 @@
 
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
+import { createToolRegistry } from "@better-me/opportunities";
 import type {
   ToolDefinition,
   TrustedToolContext,
@@ -64,6 +65,7 @@ export function adaptTool<I, O>(
   definition: ToolDefinition<I, O>,
   opts: ToolAdapterOptions
 ): DynamicStructuredTool {
+  const registry = createToolRegistry([definition]);
   return new DynamicStructuredTool({
     name: definition.name,
     description: definition.description,
@@ -72,20 +74,9 @@ export function adaptTool<I, O>(
     schema: definition.inputSchema as unknown as z.ZodObject<z.ZodRawShape>,
     func: async (input: I) => {
       const context = makeContext(definition.name, opts);
-      const parsed = await definition.inputSchema.parseAsync(input);
-      const output = await definition.execute(parsed, {
-        requestId: context.requestId,
-        signal: context.signal,
-        budget: context.budget,
-        idempotencyKey: context.idempotencyKey,
-        actorScope: context.actorScope,
-        consumeRequests: () => {},
-        consumeBytes: () => {},
-        throwIfCancelled: () => {
-          if (context.signal.aborted) throw new Error("cancelled");
-        },
-      });
-      return JSON.stringify(output);
+      const result = await registry.execute<O>(definition.name, input, context);
+      if (!result.ok) throw new Error(result.error.code);
+      return JSON.stringify(result.value);
     },
   });
 }

@@ -88,7 +88,7 @@ const DOMAIN_DEFINITIONS: DomainDefinition[] = [
 export function normalizeCoreJobTitle(rawTitle: string): string {
   let title = (rawTitle || "").trim();
   // Strip bracketed text: e.g. [上海], (智能制造), 【校招】, (Manufacturing & Engineering Applications)
-  title = title.replace(/[\[【（(][^\]】）)]*[\]】）)]/gu, " ");
+  title = title.replace(/[[【（(][^\]】）)]*[\]】）)]/gu, " ");
   // Strip trailing locations or department tags after commas, dashes or middots
   title = title.replace(/(?:，|,|·|——|-)\s*[\u4e00-\u9fa5A-Za-z0-9\s/&]+$/gu, "");
   // Strip recruitment & cohort prefixes: e.g. 2026届, 2026届校园招聘-, 校招-, 社招-, 应届生-, 0-2年经验-, 0-2年毕业生-

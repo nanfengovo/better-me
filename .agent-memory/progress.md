@@ -1,8 +1,68 @@
 # Progress
 
+## 双工作区整合 · 2026-10-31
+
+- [x] 盘点工作树、快照及远端；初始私有归档和 Git bundle 建立。
+- [x] `agent-os` 保全地图改动并合入远端；各副本主要独有源码已整合。
+- [x] 整合中构建与类型检查通过；推荐重复计数/地址外发的回归先失败后通过。
+- [x] 用户确认暂停另一个写入聊天；补充归档并校验最后8个推荐文档/样例/截图差异。
+- [x] 修复完整测试失败及旧Agent审计中的权限/审批/预算/检查点问题；全量3360通过、0失败、10显式跳过，隔离Compose验收通过。
+- [x] 保留main/agent-os两个固定工作树，旧4个Git工作树与7个快照/测试目录归档后移除，真实数据与现有服务保留。
+- [ ] 最终提交推送与具名远端分支删除，以整合报告和实际Git远端为准。
+
+验证范围、恢复路径及后续规划见 `docs/reports/worktree-consolidation-2026-10-31.md`；不将10项默认跳过的性能压力用例或真实模型鉴权描述为已验收。
+
+## Atlas 等待反馈、地图布局与后台采集 · 2026-10-27
+
+- [x] 实时采集异常/速度/浏览器抢焦点修复（未提交）：声明并维护分页懒加载探测状态，翻页及登录接续后重置；独立浏览器平台使用最多2路并发以减少等待串行叠加，LinkedIn保留已验证岗位且将分页失败明确显示为部分覆盖；BOSS等待新虚拟卡片不再在每次轮询都执行完整DOM快照，下一主读取继续结构快照兜底。no_progress文案按unknown_layout/ready区分“页面未识别或加载超时”和“页码或列表未确认变化”，不再误称连续无新增岗位。macOS启动新采集实例通过`open -g -j -n`请求不激活且隐藏；采集器只操作本轮自建后台标签。采集器/启动器/结果视图定向测试41/41、Web typecheck、`git diff --check`通过。没有访问招聘站真实抓取、没有重启现有服务或浏览器；macOS系统实际显示行为仍未实测。
+- [x] 宽屏无选中岗位/地址核对项时收起空详情占位，地图与列表扩展；进入详情/核对仍可恢复三栏。
+- [x] 多平台抓取回调经服务 SSE → 浏览器 client → 关键词流水线 → Atlas UI 接通，逐项展示 queued/running、页数/虚拟列表滚动、卡片预算和逐平台实时卡片；LinkedIn 页面完成/卡片抽取会即时发进度和结果。
+- [x] SSE 终态仅带捕获时间与平台 ID，避免重复发送整批岗位；按 UTF-8 24 MiB 总上限处理、遵循响应 backpressure，客户端断流取消读取，服务器客户端断开时中止 AbortSignal。无终态不能视为零岗位。
+- [x] 普通批次 CDP 新标签后台创建、不 activate；Chrome 启动默认不显式前台化，登录/人工验证路径仍允许人工接管。地图仍只画真实可核验办公坐标，实时平台结果独立显示。
+- [x] Web typecheck通过；Atlas workspace / live-harvest view / pipeline SSE / client SSE / API SSE / 搜索和 Chrome 启动定向回归共覆盖。浏览器地图及 macOS Chrome 抢焦点未做真实交互 E2E；未刷新 IAB、未清理站点数据、未重启进程以保留现有简历草稿。
+
 本页记录当前交付与待办；2026-10-18公开整理前的完整历史已归档到Git忽略的 `.agent-memory/.tmp/github-push-2026-10-18/memory-originals/`。历史验证数字代表各自时点，UI结果见docs/reports/ui-paper-atelier-2026-10-18.md，119模板集成见docs/reports/open-source-template-integration-2026-10-18.md，已发布批次见原发布报告。
 
 ## 当前交付
+
+- [x] 2026-10-27 Agent Companion 图片按钮/粘贴修复（未提交）：按钮用原生 `showPicker()` 并在不支持/抛错时回退到 `input.click()`；聊天输入框粘贴图片文件时走同一校验/预览队列，粘贴文本保持原生行为，粘贴不会自动发送。测试先红（点击按钮未发起原生选择器请求），补实现后 Companion 输出/粘贴用例6/6、Web typecheck、`git diff --check`通过。未能在系统原生文件选择器里做桌面 E2E，建议刷新运行中页面后复验。
+- [x] 2026-10-27 单命令启动开发配套服务（未提交）：保留 `pnpm dev` 作为唯一入口；Vite serve plugin 启动/复用 Agent Host（5179）和岗位索引服务（5178），健康的外部服务不接管、令牌/Origin 异常不强行替换，索引沿用仓库外现有数据目录。关闭 Vite 时只停止当前启动的进程，并等待进行中的 ensure 收尾，防止关闭竞态产生孤儿子进程；dev-server 对 workspace runtime rebuild 仍会顺序重启并重新确保服务。Agent Host 启动测试、索引服务测试、Web typecheck、`git diff --check` 通过。未重启正在运行的应用或浏览器页。
+- [x] 2026-10-27 Agent 伴侣入口去重复（未提交）：Agent 对话为默认主流程；本机工具折叠，CLI 单次运行收进“高级功能”。说明 CLI 不自动继承对话/简历上下文，要求自行粘贴任务文本；不会自动写入简历或地图；默认不保证 OS 沙箱，运行后按实际状态展示隔离级别。移除“只读 Run”与暗示安全隔离的文案。新增主入口/折叠状态和边界提示断言；定向测试5/5、Web typecheck、`git diff --check`通过。IAB 当前页面仍渲染旧代码，未刷新，避免丢失仅在页面内的简历编辑。
+- [x] 2026-10-27 浏览器存储配额与草稿保护：确认完整简历和草稿都写在 localStorage，配额失败时草稿可能只留内存。新增独立 IndexedDB 备用草稿仓储；localStorage 写失败后转存，启动时比较两处草稿时间并与完整版本时间校验，优先恢复较新草稿；备用写入成功后消除“完整版本已保存但草稿保护失败”的误报，双存储均失败时明确提示立即下载备份。隔离配额模拟和两份 storage 回归46/46、storage typecheck、diff-check通过；临时 Playwright 会话真实执行 IndexedDbDraftRepository 写/读往返。未刷新原用户标签、清理浏览器数据或删历史版本。
+- [x] 2026-10-27 Agent Companion 图片问答：支持最多3张 PNG/JPEG/WebP（每张 <2 MB），本地预览/逐张移除，点发送才把图片作为多模态附件附在对应 user turn；后续消息不重复发送旧附件，成功后清空待发送状态。非法格式、超尺寸有可见报错；agent-host JSON body 有16MB上限并超限返回413。定向 Companion/客户端/Agent Host 测试30/30、Web 与 Agent Host typecheck、`git diff --check`通过；未触发真实模型或浏览器目视验证。
+- [x] 2026-10-27 Agent 图片能力与完整工作台收尾：AgentWorkspace 补齐本地图片预览/移除与按模型能力提示；Gemini、官方 OpenAI 视觉模型、DeepSeek 纯文本模型及已知 Ollama 视觉型号做显式识别，其他兼容端点/未知型号不猜测，标注“未验证”，已知不支持的模型拦截发送并提供切换入口。历史图片仅保留在界面当前对话，后续请求剥离先前轮次图片数据；Companion 已发送图修复了重复渲染。增加能力边界、附件历史过滤和纯文本模型发送拦截测试；定向测试23/23、Web 与 Agent Host typecheck、`git diff --check`通过。未发真实图片请求、未浏览器目视验收。
+- [x] 2026-10-27 Agent Companion 空间、等待与回复动效收尾（未提交）：折叠的模型与本机工具占用更少空间；对话历史独立滚动，等待状态固定在记录区与输入区之间，输入持续可见；仅新答复显示约1.8秒的分段纯文本打字机，可跳过后查看完整 Markdown；系统减少动态效果时无打字机、直接呈现完整 Markdown。补充 reduced-motion 回归；伴侣+chat client 定向测试8/8、Web typecheck、`git diff --check` 通过。IAB在桌面页目视核对折叠/展开布局并恢复原闭合状态；没有发起模型请求。当前无法用已启用浏览器的viewport控制做移动尺寸复核。
+- [x] 2026-10-27 Agent Companion 简历隐私授权：普通聊天默认不附带简历上下文；新增明确授权开关，仅在启用时附带当前投影视图中的简介、技能与可见经历要点，不含姓名/联系方式/头像/简历全文，关闭后下条请求立即撤销。手动选区引用仍仅跟随对应问题。添加限长/去重的摘要构建器、敏感字段排除和三态请求体测试；Agent Companion/简历上下文/Agent Host chat 定向测试17/17、Web 与 Agent Host typecheck、`git diff --check` 通过。未触发真实模型请求或浏览器页面验证。
+- [x] 2026-10-27 Agent 伴侣内引用回复闭环（未提交）：简历预览选中文字与 FactEditor 的引用入口不再导航到 AI 顾问整页，而是将简历引用传入并自动展开右下角 Agent 伴侣；伴侣展示/移除引用、用户可授权后带简历摘要在面板内发送多轮模型问答并展示 Markdown 回复及错误状态。浏览器真实验证入口后页面仍为简历工作室、伴侣内可见引用和问题输入框；未发送问题/未触发真实模型。回归测试 7/7、Web typecheck、`git diff --check` 通过。
+
+- [x] 2026-10-27 Agent 交互结果/模型回复完整性收尾（未提交）：聊天 Host 与浏览器直连读取 finish reason，长度受限时最多自动续答两次、合并重复片段并标记仍不完整；失败保留已有答复并提示。回复卡片可显示 Provider/模型/来源/状态，Markdown 结果区支持对截断答复手动继续。快速 Run 最终答复与原始诊断日志分离；修复单个 stdout chunk 前500行限制导致的静默丢行，提高 Worker 单行答复保留上限并对硬上限显式打标；Companion 收到 CLI 权威 replace 事件会覆盖中间流片段。Agent Host 41/41、回复相关 Web 20/20、Web typecheck、`git diff --check` 通过。React AgentWorkspace 既有测试仍会产生 `act(...)` 警告；真实模型生成 E2E 未执行。
+
+- [x] 2026-10-27 Claude Code 快速运行兼容修复（未提交）：Claude Code 2.1.218 在 `-p` / `--output-format stream-json` 组合下需要 `--verbose`，导致截图中的 `exit_code:1`；Builtin Runtime definition 增加该参数，Claude Worker Adapter 对自定义定义也做防重复注入，并补充 Worker Adapter 回归断言。Agent Host 运行时/Worker 定向测试 11/11、typecheck 通过；重启 5179 后真实 HTTP Run 成功，浏览器 Companion 输入“你好”显示“已完成”，时间线出现文本输出和完成事件。
+
+- [x] 2026-10-27 Agent Companion 主题/折叠/动效收尾（未提交）：补齐缺失的 `agent-companion.css`，将面板、运行时图标、状态、按钮、输入与时间线全部改为工作台语义色 token；首屏展示5个运行时，额外运行时收进带图标堆叠的 `+N` disclosure，带 `aria-expanded` / `aria-controls`，可用入口可选、未安装入口禁用；补齐 `App` 到 Companion 的 `llmConfig` / `onOpenAiConfig` 接线。浅色、深色、390×844 移动端真实浏览器验证通过，页面无横向溢出，Web typecheck、Agent 定向测试4/4、Web build、`git diff --check` 通过。构建保留既有 `node:*` browser externalize 与大 chunk 警告。
+
+- [x] 2026-10-26 Worker Adapter、OS 沙箱计划与 Run 持久化：新增 `apps/agent-host/src/runtime/worker-adapter.ts`，统一 ContextPack 注入、CLI 参数和 Claude/Codex/通用 JSON 输出事件；RunRecord 增加 `process` / `os-sandbox` / `none` 隔离级别与 `allowedReadPaths`。新增 `sandbox.ts`，支持 macOS `sandbox-exec`、Linux `bwrap` 的显式 `required` 模式，默认 `auto` 不静默冒充权限边界；每次运行写 `run.json`、`events.ndjson`，Host 重启恢复历史并将未恢复的运行标为 `host_restarted`，新增历史 Run 列表与 health API。Agent Host 25/25，契约与 Web typecheck 通过。
+- [x] 2026-10-26 Companion 快速运行入口：新增本机 Run start/status/cancel/SSE client，右下角 Companion 可选择已探测 CLI、输入只读任务、实时查看文本/工具事件、显式取消，并显示隔离级别；`agent-client-run.test.ts` 2/2，Playwright 截图 `output/playwright/agent-companion-runner.png` 已验证布局。未把快速入口当复杂审批工作台，也未声称 Career Worker 已真实抓取。
+
+- [x] 2026-10-26 BetterMe Agent 基座 M0（未提交）：新增 `packages/agent-contracts` 共享 Zod 契约；Runtime Registry 预置 Claude Code、OpenCode、Gemini CLI、Codex、DeepSeek Harness、Pi、Antigravity，扫描 PATH、`~/.local/bin`、Homebrew 等路径并保留未安装状态；Run Manager 使用独立运行目录、参数数组、超时/取消、结构化输入输出、Worker Adapter、Run/event 持久化；SSE EventBus 支持单调 sequence 与 `Last-Event-ID` 回放；新增 Career Orchestrator 阶段图和审批门禁路由；Agent Companion 展示真实本机运行时并可进入快速运行入口/工作台。Agent Host 26/26、契约/Web typecheck、Agent Host/Web build 通过；真实5179探测到 Claude/OpenCode/Gemini/Codex。默认仍为 process 隔离，OS 沙箱需显式启用，真实招聘 Worker 网关仍待实现。
+- [x] 2026-10-26 Agent Host 环境验证：Node 26.7 下旧 `better-sqlite3` 原生模块按 Node 24 编译，按当前 Node 重建后 5179 正常启动；Career start 真实返回5个worker、SearchPlan/CoverageReceipt并等待审批。最新仓库级测试共2617项，2593通过、1跳过、23失败，失败集中在本机 Edge 缺失、既有浏览器/session 夹具和开发中间件时序问题，不归因于本批 Agent 代码。
+- [x] 2026-10-26 Ollama 无 Key 接入核验：AI 配置已有 Ollama 预设（`http://127.0.0.1:11434/v1`），本机 `/v1/models` 返回 `gemma4:e2b-it-qat` 与 `gemma4:31b-cloud`；API Key 为空时浏览器请求和 `5179 /api/v1/agent/chat` 均已真实返回模型文本。Antigravity 额度仍属于桌面客户端内部账号配额，当前无受支持的本地 API/CLI，不能直接转接给 BetterMe Agent。
+
+- [x] 2026-10-26 4901 岗位与地图办公点口径修复（未提交）：运行中服务复现 `4901 total / 227 mapped / 4674 unlocated / 227 pins`，并用 `page.limit=1` 确认地图桶仍按完整结果构建，排除分页漏图。地图对完全相同经纬度的来源地址增加聚合标记、地址数/岗位数 hover 提示和同址逐个选择；底部显示真实坐标、来源地址和岗位的区别。新增 exact-coordinate、renderer、workspace 回归，地图/查询相关 58 项、Web noEmit、diff-check 通过。仍需从来源原文或本人核对补齐真实办公地址，未用城市中心凑办公室点。
+- [x] 2026-10-26 4901/办公点口径 UX 提示（未提交）：机会标题旁常驻显示真实坐标、承载岗位和待定位岗位；浏览器实测当前索引 `4901 岗 / 227 个可点办公地址 / 20 组不同坐标 / 4674 个待定位`，列表与地图同一查询，明确不把城市中心或未知地点当办公室。`atlas-workspace` 61/61、Web typecheck、`git diff --check` 通过。
+
+- [x] 2026-10-26 “岗位没有变多”真实闭环复核（未提交）：原站两词快速采集最新825卡＝猎聘416（10/10页）+51JOB150（6/10页；C#首屏失败、.NET成功）+BOSS159（40/40滚动）+LinkedIn100（10/10页），均明确部分覆盖。索引2583→3053，实际净增470；最后一轮仅首块新增6/更新19后停止重复入库，825不是全新增或全入库。上海C#严格匹配324、10位置、314无精确坐标，地区补充尚未完成，不称地图同步增量或全站抓全。
+- [x] 2026-10-26 本轮修复：首屏8秒实际卡片等待；BOSS滚动穿过已加载卡片不误停；CAS首批强制新快照与同块有限重试；来源地点恢复且不再从企业名/搜索条件造地点；逐块累计提交计数和最终snapshot版本校验，刷新失败保留实际已提交数且阻止旧库补充处理；跨国家/模式清旧回执；实时与索引列表可切换。真实DOM发现实时列表高度仅0.625px，改为独立整区滚动与固定分页条，新页面第2页51–100/825及原文链接已目视验证。最终77/77前端相关、44/44仓储相关、noEmit、diff-check通过。
+- [x] 2026-10-26 历史推测坐标隔离与运行更新：仅隔离精确自动理由前缀对应的603条当前办公室，其中旧上海C#地图310条；恢复sourceLocation并加警告，不删历史/岗位，真正后续人工确认不受影响。canonicalProjection按本次调用建Map避免嵌套查找，合成查找中位数247.678→1.141ms仅代表该核心，不代表全链路提速。备份3047岗quick_check=ok后安全重启5178，原Chrome会话不动。原IAB草稿tab3保留，最终tab5留825实时结果；截图output/atlas-live-csharp-825-2026-10-26.png。
+- [ ] 大库每块重复全量投影/校验/FTS关系重建和逐条行政确认仍慢；地区结构化、历史错误行政覆盖、51JOB不同查询稳定性以及标准/深度完整覆盖仍待真实验收。原草稿存储空间不足，禁止为了热更新刷新或关闭原页。
+- [x] 2026-10-26 用户要求启动服务：Vite dev-server在IPv6 localhost:5173启动，本机job-service在127.0.0.1:5178启动，沿用现有BetterMe数据目录；前端与带允许Origin的本地索引bootstrap接口均HTTP200，未重置或重建数据库。
+
+- [x] 2026-10-26 当前页面漏图诊断：浏览器实测页面显示本机索引 2,583 岗、上海 C# 命中 327 岗、地图 320 个可点位置；没有商业平台本轮实时回执。代码确认分页平台标准 / 深度预算为 20 / 50 页，BOSS 为 80 / 300 次虚拟列表滚动；但地图查询对上海筛选要求岗位地点含结构化 `countryCode` / 地区字段，已有「上海大阈信息技术有限公司 · .NET开发工程师（上海-闵行区）」记录 `locationIds=[]`，因此不会进入上海筛选或地图。定向分页、地点恢复、查询过滤测试 60/60 通过，Web typecheck 通过。下一步是重新跑一次真实 Chrome C# + 上海采集并记录逐平台覆盖回执，再处理抓到但未落图的数量提示与地点导入回归。
+
+- [x] 2026-10-26 实时岗位覆盖与索引口径修复（未提交）：BOSS 虚拟列表按 quick/standard/deep 使用 20/80/300 次独立滚动预算，不再显示为普通 `1/1 页`；分页平台标准模式提升至最多 20 页（深度 50 页），满足 51JOB 20 页场景但仍明确受预算、验证和无进展限制。C# 技术词实时检索按模式串行覆盖最多 2/3/6 个词并按岗位 URL 去重，保留各自证据页；实时卡片入库失败不再静默，回执会说明失败平台、证据页和卡片数，提示这些卡片尚未进入本机索引/地图。新增 BOSS 虚拟列表、同义词合并与覆盖回执测试；实时定向 27/27、Web typecheck/build、`git diff --check` 通过。未使用真实平台登录会话，不声称全量抓取。
+
+- [x] 2026-10-26 岗位地图描边/3D/点位交互精修（未提交）：省域边界增加 casing + 主线双描边，高亮边界加 casing/glow/stroke；概略省域 relief 降低。矢量底图按原始建筑可见性过滤，只对有 render_height/height 的建筑生成 3D 挤出与轮廓。修复 MapLibre `Map` 类遮蔽原生 `Map` 导致建筑层创建异常；点位用 44px 投影命中兜底，MapLibre 生产命中扩大为 56px，地址 hover 显示精度与岗位数，重叠选择器可键盘选取，地址浏览器选择后自动打开岗位详情。城市估算/无精度点不会被说成办公地址；空态不再拦截全球/国内切换。地图 renderer/performance 9 + AtlasWorkspace 66、opportunities 135、实时采集 24、Web typecheck/build、`git diff --check` 均通过。Build 有既存 `admin-boundary-service.ts` 的 `node:*` browser externalize 与大 chunk 警告；页面仅有本机 5179 health-check refused 和 favicon 404。真实浏览器已用 `100 Liverpool Street, London` 验证地址入口打开腾讯岗位详情；上海 C# 精确筛选无坐标是源数据事实。
+- [x] 2026-10-26 完善岗位实时采集与结果展示（未提交）：原站本轮卡片直接用于实时结果列表，与本机索引/地图数据区分；UI 每页渲染 50 条并分页。服务端统一 quick/standard/deep 最多 5/15/50 页，卡片上限 500/1500/3000；复用后续页先返回搜索首屏；平台翻页需验证新 URL/页码与卡片变化，点击无效则尝试受限的下一页 URL。BOSS 虚拟列表增加多选择器滚动根、DOMSnapshot 回退和连续底部稳定检查。LinkedIn 页预算耗尽不再报告完整空结果。紧凑卡片摘要限 1200 字符；界面移除“规避滑块/403”，注明人工登录验证及部分覆盖。Web typecheck 通过；实时视图/采集/导入/来源解析/API 客户端/AtlasWorkspace 相关 119 项测试通过，`git diff --check` 通过。尚未对真实登录平台做 E2E，页数预算不等于网站总量；地图边界描边本轮未改，后续另行处理。
 
 - [x] 2026-10-25 解决岗位搜索 Java 岗位少于 C# 与苏黎世海外岗位误入上海（未提交）：
   - **海外岗位误归属上海清理与防御**：清理 SQLite `location_decisions` 中 438 个误归属为上海的海外地点（如苏黎世 Callista Group AG 等），并在 `inferChinaAreaFromRaw` 中加入严格海外地名正则拦截和汉字校验，杜绝海外岗位落入国内视图。

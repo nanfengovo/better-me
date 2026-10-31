@@ -59,8 +59,15 @@ const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }
   { method: "POST", path: /^\/api\/v1\/dataset\/import$/, tool: "jobs.import-public" },
   { method: "GET", path: /^\/api\/v1\/dataset\/export$/, tool: "jobs.export-public" },
   { method: "POST", path: /^\/api\/v1\/dataset\/sync$/, tool: "jobs.sync-public" },
+  { method: "POST", path: /^\/api\/v1\/dataset\/sync-page$/, tool: "jobs.sync-pages" },
+  { method: "POST", path: /^\/api\/v1\/dataset\/baseline$/, tool: "jobs.baseline-page" },
+  { method: "POST", path: /^\/api\/v1\/dataset\/baseline\/close$/, tool: "jobs.baseline-close" },
   { method: "GET", path: /^\/api\/v1\/leads$/, tool: "leads.list" },
 ];
+/** Full public-index snapshots need more room than ordinary tools; writes retain their tighter limit. */
+export function toolResponseBudgetBytes(tool: string): number {
+  return (tool === "jobs.sync-public" || tool === "jobs.export-public" ? 96 : 64) * 1024 * 1024;
+}
 function send(response: ServerResponse, status: number, value: unknown): void {
   if (response.destroyed || response.writableEnded) return;
   response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });
@@ -150,7 +157,7 @@ export function createJobHttpServer(options: JobHttpOptions) {
       const context: TrustedToolContext = {
         requestId, signal: cancellation.signal, actorScope: "local-owner",
         allowedEffects: ["read-index", "external-read", "local-write"],
-        budget: { requests: 80, bytes: 64 * 1024 * 1024, timeoutMs: 120_000 },
+        budget: { requests: 80, bytes: toolResponseBudgetBytes(route.tool), timeoutMs: 120_000 },
         ...(typeof key === "string" ? { idempotencyKey: key } : {}),
       };
       const serialized = options.registry.executeSerialized ? await options.registry.executeSerialized(route.tool, input, context) : undefined;

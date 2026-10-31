@@ -40,7 +40,7 @@ export const AtlasJobCardContent = memo(function AtlasJobCardContent({
       details: <>
         <span className="atlas-job-meta">
           <MapPin size={12} />
-          {item.locations.map(location => location.officeResolution?.formattedAddress ?? location.streetAddress ?? location.city ?? location.raw).join(" / ") || "地点待核实"}
+          {item.locations.map(location => location.officeResolution?.formattedAddress ?? location.streetAddress ?? (location.raw.trim() || location.city || location.region || "地点待核实")).join(" / ") || "地点待核实"}
         </span>
         <span className={`atlas-job-salary ${salaryBadge.isNegotiable ? "is-negotiable" : "has-salary"}`} title={salaryBadge.tooltip}>
           {salaryBadge.label}

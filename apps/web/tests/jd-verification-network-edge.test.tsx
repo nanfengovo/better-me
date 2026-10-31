@@ -7,7 +7,7 @@ import { readVerificationNetworkSnapshot } from "../src/lib/jd-verification-netw
 
 // Every browser request is intercepted locally. The dead proxy also prevents
 // external access if a future change accidentally skips the fixture handler.
-test("真实隔离Edge通过实际网络事件记录51job验证传输，HTTP200不代表验证通过且不泄露内容", { timeout: 20_000 }, async () => {
+test("真实隔离Chromium通过实际网络事件记录51job验证传输，HTTP200不代表验证通过且不泄露内容", { timeout: 20_000 }, async () => {
   const original = "https://jobs.51job.com/shanghai/166509900.html";
   const deviceHost = "device.captcha-open.aliyuncs.com";
   const uploadHost = "upload.captcha-pro-open.aliyuncs.com";
@@ -27,7 +27,7 @@ test("真实隔离Edge通过实际网络事件记录51job验证传输，HTTP200�
       routeFor: () => ({ mode: "manual", source: "isolated verification event fixture", proxyUrl: "http://127.0.0.1:1" }),
     }),
     launch: async options => {
-      const browser = await chromium.launch({ ...options, headless: true, ...(process.platform === "win32" ? { channel: "msedge" } : {}) });
+      const browser = await chromium.launch({ ...options, headless: true, channel: process.platform === "win32" ? "msedge" : "chrome" });
       const newContext = browser.newContext.bind(browser);
       browser.newContext = async contextOptions => {
         const context = await newContext(contextOptions);

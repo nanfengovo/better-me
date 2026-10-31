@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { AtlasDatasetSchema, queryJobs, type AtlasDataset } from "@better-me/opportunities";
 import { createAtlasDemo } from "../src/components/atlas/demo.ts";
 import { AtlasClientError, buildAtlasJobAction, queryAtlasPage, readAtlasSnapshot } from "../src/components/atlas/client.ts";
+import { shouldAutoReconnectAtlas } from "../src/components/atlas/connection-recovery.ts";
 
 const NOW = { now: "2026-10-18T12:00:00.000Z" };
 const encoder = new TextEncoder();
@@ -63,6 +64,21 @@ test("loopback snapshot read uses the authenticated public export with no browse
   assert.deepEqual(options, {
     signal: abort.signal, headers: { Authorization: "Bearer synthetic-test-token" }, credentials: "omit", redirect: "error", cache: "no-store",
   });
+});
+
+test("a snapshot budget failure names the size limit, not the valid token and Origin", async () => {
+  mockResponse(JSON.stringify({ ok: false, requestId: "size", error: { code: "budget-exceeded", message: "budget" } }), { status: 422 });
+  await assert.rejects(readAtlasSnapshot("http://127.0.0.1:5178", "synthetic"), (error: unknown) =>
+    error instanceof AtlasClientError && error.code === "too-large" && /索引|快照/.test(error.message) && !/令牌|Origin/.test(error.message));
+});
+
+test("automatic recovery retries only transient disconnections, not invalid data or configuration", () => {
+  assert.equal(shouldAutoReconnectAtlas(new TypeError("Failed to fetch"), false), true);
+  assert.equal(shouldAutoReconnectAtlas(new Error("timeout"), true), true);
+  assert.equal(shouldAutoReconnectAtlas(new AtlasClientError("http-error", "岗位索引服务返回 503。"), false), true);
+  assert.equal(shouldAutoReconnectAtlas(new AtlasClientError("too-large", "budget exceeded"), false), false);
+  assert.equal(shouldAutoReconnectAtlas(new AtlasClientError("http-error", "服务返回 401。"), false), false);
+  assert.equal(shouldAutoReconnectAtlas(new AtlasClientError("invalid-response", "invalid"), false), false);
 });
 
 test("endpoint policy rejects external addresses, credentials, paths and blank tokens before network access", async () => {

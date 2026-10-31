@@ -1,18 +1,13 @@
 import * as pdfjsLib from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import mammoth from "mammoth";
 import { readResumeImage, resolveImageCrop } from "./resume-image";
 import { reflowPdfText } from "./pdf-text";
 
-// Configure pdf.js worker
+// Register the worker as a Vite asset so linked dependencies are served safely
+// in development and the matching, local worker is emitted for production.
 if (typeof window !== "undefined") {
-  try {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-      "pdfjs-dist/build/pdf.worker.min.mjs",
-      import.meta.url,
-    ).toString();
-  } catch {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-  }
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 }
 
 export interface ExtractedFileResult {

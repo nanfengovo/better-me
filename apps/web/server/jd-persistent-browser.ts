@@ -216,7 +216,7 @@ export function createPersistentJobBrowser(options: PersistentJobBrowserOptions)
       for (const file of ["SingletonLock", "SingletonSocket", "SingletonCookie"]) {
         try {
           await unlink(path.join(slot.profileDirectory, file));
-        } catch {}
+        } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
       }
       const isTestLaunch = Boolean(options.launch);
       const defaultArgs = isTestLaunch ? ["--no-proxy-server"] : [

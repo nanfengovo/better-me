@@ -1,5 +1,6 @@
 import type { ProjectedResume } from "../project/resume-projection.js";
 import { getJdMatchReadiness } from "../project/jd-match-readiness.js";
+import { isOfficialDeepSeek, deepSeekRequestParameters, deepSeekErrorMessage, jsonObjectOptions } from "./deepseek.js";
 import {
   type LlmConfig,
   type JdMatchReport,
@@ -9,7 +10,7 @@ import {
 export type AiRequestOptions = {
   signal?: AbortSignal;
   /** Opt-in only: callers must know their configured endpoint supports this. */
-  responseFormat?: { type: "json_schema"; json_schema: { name: string; strict: boolean; schema: Record<string, unknown> } };
+  responseFormat?: { type: "json_object" } | { type: "json_schema"; json_schema: { name: string; strict: boolean; schema: Record<string, unknown> } };
 };
 
 function cancelledRequest(label: string): DOMException {
@@ -159,7 +160,17 @@ export async function fetchChatCompletionResult(
   messages: { role: "system" | "user" | "assistant"; content: ChatMessageContent }[],
   options: AiRequestOptions = {},
 ): Promise<ChatCompletionResult> {
+  const deepSeek = isOfficialDeepSeek(config);
+  if (deepSeek && !config.apiKey?.trim()) throw new Error("请先在 AI 配置中填写 DeepSeek API Key。");
+  if (deepSeek && options.responseFormat?.type === "json_schema") {
+    throw new Error("DeepSeek Chat Completions 支持 json_object，不支持 json_schema；请使用 JSON 对象格式并在本地校验。");
+  }
+  if (deepSeek && messages.some(message => Array.isArray(message.content) && message.content.some(block => block.type === "image_url") &&
+    (message.role !== "user" || config.model === "deepseek-v4-pro" || /^deepseek-(chat|reasoner|coder)$/.test(config.model)))) {
+    throw new Error("当前 DeepSeek 模型或消息角色不支持图片，请改用 deepseek-flash，且仅在用户消息中附图。");
+  }
   let url = config.baseUrl.trim().replace(/\/+$/, "");
+  if (deepSeek) url = url.replace(/\/(?:models|chat\/completions)$/, "");
 
   const officialGeminiBaseUrl = geminiVersionBaseUrl(config.baseUrl);
   if (officialGeminiBaseUrl) {
@@ -179,7 +190,7 @@ export async function fetchChatCompletionResult(
   const body = {
     model: config.model,
     messages,
-    temperature: config.temperature ?? 0.3,
+    ...(deepSeek ? deepSeekRequestParameters(config) : { temperature: config.temperature ?? 0.3 }),
     ...(options.responseFormat ? { response_format: options.responseFormat } : {}),
   };
 
@@ -192,6 +203,7 @@ export async function fetchChatCompletionResult(
     }, "AI 生成请求", config.apiKey);
 
     if (!response.ok) {
+      if (deepSeek) throw new Error(deepSeekErrorMessage(response.status));
       const detail = await providerErrorDetail(response, config.apiKey);
       throw new Error(
         `AI 接口请求失败 (${response.status}): ${detail}`,
@@ -202,6 +214,9 @@ export async function fetchChatCompletionResult(
     const choice = json.choices?.[0];
     const content = choice?.message?.content;
     if (typeof content !== "string" || !content.trim()) {
+      if (deepSeek) throw new Error(choice?.finish_reason === "length"
+        ? "DeepSeek 输出达到 token 上限但未返回完整答复，请提高输出上限或关闭思考模式后重试；原文未改动。"
+        : "DeepSeek 未返回有效正文（可能仅有思考内容或 JSON 空白），请调整提示后重试；未自动再次计费请求。");
       throw new Error("AI 接口未返回有效的 choices 文本。");
     }
 
@@ -265,7 +280,7 @@ ${jdText.trim()}`;
   const rawOutput = await fetchChatCompletion(config, [
     { role: "system", content: systemPrompt },
     { role: "user", content: userContent },
-  ]);
+  ], jsonObjectOptions(config));
 
   try {
     const cleaned = extractJsonString(rawOutput);
@@ -293,6 +308,7 @@ ${jdText.trim()}`;
 
 /** Fetch list of available models for a given provider/config */
 export async function fetchAvailableModels(config: LlmConfig, options: AiRequestOptions = {}): Promise<string[]> {
+  if (isOfficialDeepSeek(config) && !config.apiKey?.trim()) throw new Error("请先在 AI 配置中填写 DeepSeek API Key。");
   return withRequestTimeout(20_000, "获取模型列表", async (signal) => {
     const officialGeminiBaseUrl = geminiVersionBaseUrl(config.baseUrl);
     const nativeModelsUrl = officialGeminiBaseUrl ? `${officialGeminiBaseUrl}/models` : undefined;
@@ -347,6 +363,7 @@ export async function fetchAvailableModels(config: LlmConfig, options: AiRequest
 
     const res = await fetchAiEndpoint(modelsUrl, { headers, signal }, "获取模型列表", config.apiKey);
     if (!res.ok) {
+      if (isOfficialDeepSeek(config)) throw new Error(deepSeekErrorMessage(res.status));
       const msg = await providerErrorDetail(res, config.apiKey);
       throw new Error(`获取模型列表失败 (${res.status}): ${msg}`);
     }
@@ -361,6 +378,18 @@ export async function fetchAvailableModels(config: LlmConfig, options: AiRequest
 
     return [];
   }, options.signal);
+}
+
+/** Explicit, minimal, billable generation probe. Never includes a resume, JD or conversation. */
+export async function testLlmGeneration(config: LlmConfig, options: AiRequestOptions = {}): Promise<{ success: boolean; message: string }> {
+  try {
+    const result = await fetchChatCompletionResult(config, [{ role: "user", content: "Reply with only: BETTERME_OK" }], options);
+    if (result.finishReason && result.finishReason !== "stop") return { success: false, message: `模型已响应，但生成未完整结束（${result.finishReason}），请调整输出上限后重试。` };
+    return { success: true, message: "已收到所选模型的真实文本答复，生成请求验证通过；未发送任何简历或历史对话。图片能力未由本次测试验证。" };
+  } catch (error) {
+    if (options.signal?.aborted) throw cancelledRequest("测试生成");
+    return { success: false, message: redactApiSecrets(error instanceof Error ? error.message : "生成测试失败", config.apiKey) };
+  }
 }
 
 /** Read the models endpoint; this does not validate a generation request. */

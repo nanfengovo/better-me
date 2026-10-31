@@ -353,6 +353,10 @@
 .agent-companion-chat-heading > span { display: inline-flex; align-items: center; gap: 6px; color: var(--ui-accent, #245345); font-size: 11px; font-weight: 700; }
 .agent-companion-chat-heading-actions { display: flex; min-width: 0; align-items: center; justify-content: flex-end; gap: 7px; }
 .agent-companion-chat-heading small { color: var(--ui-text-muted, #72796f); font-size: 9px; }
+.agent-companion-chat-guides { display: flex; flex-wrap: wrap; gap: 5px; flex: 0 0 auto; }
+.agent-companion-chat-guides button { padding: 4px 8px; color: var(--ui-accent, #245345); background: var(--ui-accent-soft, #e7eee7); border: 1px solid var(--ui-border, #deded6); border-radius: 999px; cursor: pointer; font: inherit; font-size: 9px; font-weight: 600; }
+.agent-companion-chat-guides button:hover:not(:disabled) { border-color: var(--ui-accent, #245345); }
+.agent-companion-chat-guides button:disabled { cursor: wait; opacity: .5; }
 .agent-companion-resume-share { display: inline-flex; min-height: 24px; align-items: center; gap: 4px; padding: 3px 6px; color: var(--ui-text-muted, #72796f); background: var(--ui-surface, #fff); border: 1px solid var(--ui-border, #deded6); border-radius: 999px; cursor: pointer; font: inherit; font-size: 9px; font-weight: 650; white-space: nowrap; transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease; }
 .agent-companion-resume-share:hover:not(:disabled) { color: var(--ui-accent, #245345); border-color: var(--ui-border-strong, #b7bdb3); }
 .agent-companion-resume-share.is-enabled { color: var(--ui-accent, #245345); background: var(--ui-accent-soft, #e7eee7); border-color: color-mix(in srgb, var(--ui-accent, #245345) 28%, var(--ui-border, #deded6)); }
@@ -407,6 +411,9 @@
 .agent-companion-chat-compose button:hover:not(:disabled) { background: var(--ui-action-hover, #326451); }
 .agent-companion-chat-compose button:active:not(:disabled) { transform: scale(.95); }
 .agent-companion-chat-compose button:disabled { cursor: not-allowed; opacity: .45; }
+.agent-companion-chat-compose .agent-companion-stop-chat { background: var(--ui-danger, #a2433d); }
+.agent-companion-chat-compose .agent-companion-stop-chat:hover:not(:disabled) { background: color-mix(in srgb, var(--ui-danger, #a2433d) 86%, #000); }
+.agent-companion-chat-notice { margin: 0; color: var(--ui-accent, #245345); font-size: 10px; line-height: 1.45; }
 .agent-companion-chat-error { margin: 0; color: var(--ui-danger, #a2433d); font-size: 10px; line-height: 1.45; }
 .agent-companion-chat-continue { display: inline-flex; min-height: 27px; align-items: center; justify-content: center; gap: 5px; align-self: flex-start; padding: 4px 8px; color: var(--ui-accent, #245345); background: var(--ui-accent-soft, #e7eee7); border: 1px solid var(--ui-border, #deded6); border-radius: 7px; cursor: pointer; font: inherit; font-size: 9px; font-weight: 650; }
 .agent-companion-chat-continue:disabled { cursor: wait; opacity: .55; }
@@ -594,7 +601,7 @@
 .agent-companion-trigger { position: relative; display: grid; width: 52px; height: 52px; place-items: center; color: var(--ui-on-action, #fff); background: var(--ui-action, #244f42); border: 1px solid color-mix(in srgb, var(--ui-action, #244f42) 80%, #000); border-radius: 50%; box-shadow: 0 10px 24px #173a2a33, inset 0 1px 0 #ffffff22; cursor: pointer; transition: transform 180ms var(--agent-ease), background-color 160ms ease, box-shadow 180ms ease; }
 .agent-companion-trigger:hover { background: var(--ui-action-hover, #326451); box-shadow: 0 13px 28px #173a2a3d, inset 0 1px 0 #ffffff2a; transform: translateY(-2px); }
 .agent-companion-trigger:active { transform: scale(.94); }
-.agent-companion-trigger:focus-visible, .agent-companion-icon-btn:focus-visible, .agent-runtime-tile:focus-visible, .agent-runtime-more:focus-visible, .agent-provider-action:focus-visible, .agent-provider-summary-toggle:focus-visible, .agent-companion-tools-toggle:focus-visible, .agent-companion-advanced-toggle:focus-visible, .agent-companion-chat-thread:focus-visible, .agent-companion-chat-compose button:focus-visible, .agent-companion-chat-skip-typing:focus-visible, .agent-companion-chat-pending-reference button:focus-visible, .agent-companion-chat-continue:focus-visible, .agent-companion-open-btn:focus-visible, .agent-companion-run-button:focus-visible, .agent-companion-cancel:focus-visible { outline: 2px solid var(--ui-accent, #245345); outline-offset: 2px; }
+.agent-companion-trigger:focus-visible, .agent-companion-icon-btn:focus-visible, .agent-runtime-tile:focus-visible, .agent-runtime-more:focus-visible, .agent-provider-action:focus-visible, .agent-provider-summary-toggle:focus-visible, .agent-companion-tools-toggle:focus-visible, .agent-companion-advanced-toggle:focus-visible, .agent-companion-chat-thread:focus-visible, .agent-companion-chat-compose button:focus-visible, .agent-companion-chat-guides button:focus-visible, .agent-companion-chat-skip-typing:focus-visible, .agent-companion-chat-pending-reference button:focus-visible, .agent-companion-chat-continue:focus-visible, .agent-companion-open-btn:focus-visible, .agent-companion-run-button:focus-visible, .agent-companion-cancel:focus-visible { outline: 2px solid var(--ui-accent, #245345); outline-offset: 2px; }
 .agent-companion-resume-share:focus-visible { outline: 2px solid var(--ui-accent, #245345); outline-offset: 2px; }
 .agent-companion-chat-image-card button:focus-visible, .agent-companion-chat-attach:focus-visible { outline: 2px solid var(--ui-accent, #245345); outline-offset: 2px; }
 .agent-companion-orbit { position: absolute; width: 35px; height: 35px; border: 1px solid #ffffff55; border-radius: 50%; transform: rotate(-28deg) scaleX(1.35); animation: agentTriggerOrbit 5s linear infinite; }

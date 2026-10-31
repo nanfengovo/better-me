@@ -219,7 +219,7 @@ export async function killRealChromeCdp(port = 9222): Promise<boolean> {
           for (const pidStr of output.split(/\s+/)) {
             const pid = Number(pidStr);
             if (Number.isInteger(pid) && pid > 0) {
-              try { process.kill(pid, "SIGKILL"); } catch {}
+              try { process.kill(pid, "SIGKILL"); } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
             }
           }
         }
@@ -231,7 +231,7 @@ export async function killRealChromeCdp(port = 9222): Promise<boolean> {
     for (const f of ["SingletonLock", "SingletonSocket", "SingletonCookie"]) {
       try {
         await fs.promises.unlink(path.join(profileDir, f));
-      } catch {}
+      } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
     }
     return true;
   } catch {
@@ -414,7 +414,7 @@ export async function getPlatformAuthStatuses(port = 9222): Promise<PlatformAuth
               defaultOverview.platforms.boss.statusText = "正在登录页面，等待扫码或验证码";
             }
           }
-        } catch {}
+        } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
       }
 
       // Check Liepin
@@ -451,7 +451,7 @@ export async function getPlatformAuthStatuses(port = 9222): Promise<PlatformAuth
               defaultOverview.platforms.liepin.statusText = "免密检索就绪 (登录可查看更多)";
             }
           }
-        } catch {}
+        } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
       }
 
       // Check LinkedIn
@@ -483,7 +483,7 @@ export async function getPlatformAuthStatuses(port = 9222): Promise<PlatformAuth
               defaultOverview.platforms.linkedin.statusText = "免密访客检索中";
             }
           }
-        } catch {}
+        } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
       }
 
       // 51job is always ready for live extraction
@@ -492,7 +492,7 @@ export async function getPlatformAuthStatuses(port = 9222): Promise<PlatformAuth
     } finally {
       cdp.close();
     }
-  } catch {}
+  } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
 
   return defaultOverview;
 }

@@ -62,7 +62,6 @@ test("live batch accepts the actual standard and deep page budgets", () => {
   }
   assert.equal(LiveBatchSearchInputSchema.safeParse({ keyword: "Java", maxPages: 51 }).success, false);
 });
-
 test("live batch rejects unknown region identifiers instead of silently removing the location filter", () => {
   assert.equal(LiveBatchSearchInputSchema.safeParse({ keyword: "C#", regionId: "cn-shanghai" }).success, true);
   assert.equal(LiveBatchSearchInputSchema.safeParse({ keyword: "C#", regionId: "上海" }).success, true);
@@ -238,6 +237,7 @@ test("virtual-list scroll advances, stops at exhaustion, and does not invent BOS
     nextPageUrl: "https://www.zhipin.com/web/geek/job?query=Java&city=101020100&page=2",
   }), { action: "stop", stopReason: "no_progress" });
 });
+
 test("BOSS scroll confirms actual movement and dispatches the event to the list root", async () => {
   for (const allowsScroll of [true, false]) {
     let top = 0;

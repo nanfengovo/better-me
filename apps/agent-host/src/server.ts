@@ -23,8 +23,9 @@
  */
 
 import http from "node:http";
+import { Command } from "@langchain/langgraph";
 import { z } from "zod";
-import { buildModel, type ModelSettings } from "./model.js";
+import { buildModel, ModelSettingsSchema, DeepSeekApiError, type ModelSettings } from "./model.js";
 import { buildJdMatchGraph } from "./graphs/jd-match/graph.js";
 import type { JdMatchGraph } from "./graphs/jd-match/graph.js";
 import type { ProposalDecision } from "./graphs/jd-match/state.js";
@@ -41,13 +42,6 @@ import { buildCareerOrchestrator } from "./graphs/career/graph.js";
 import type { CareerApproval } from "./graphs/career/state.js";
 
 // ── Request schemas ───────────────────────────────────────────────────────────
-
-const ModelSettingsSchema = z.object({
-  baseUrl: z.string().url().optional(),
-  model: z.string().min(1).max(100),
-  apiKey: z.string().optional().default("ollama-key"),
-  temperature: z.number().min(0).max(2).optional(),
-});
 
 const StartBodySchema = z.object({
   threadId: z.string().min(1).max(200).regex(/^[A-Za-z0-9._:-]+$/),
@@ -147,7 +141,6 @@ async function readBody(req: http.IncomingMessage): Promise<unknown> {
 
 export function createAgentServer(opts: ServerOptions): http.Server {
   // Cache one compiled graph per process; thread safety via thread_id in checkpointer.
-  const graphCache = new Map<string, JdMatchGraph>();
   const careerGraph = buildCareerOrchestrator(opts.checkpointer);
   const runtimeRegistry = new RuntimeRegistry({ definitions: opts.runtimeDefinitions });
   const runManager = new AgentRunManager({ registry: runtimeRegistry, rootDirectory: opts.runsDirectory, sandboxMode: opts.sandboxMode });
@@ -160,12 +153,9 @@ export function createAgentServer(opts: ServerOptions): http.Server {
   }
 
   function getGraph(settings: ModelSettings): JdMatchGraph {
-    const cacheKey = `${settings.baseUrl ?? "openai"}:${settings.model}`;
-    if (!graphCache.has(cacheKey)) {
-      const model = buildModel(settings);
-      graphCache.set(cacheKey, buildJdMatchGraph(model, opts.checkpointer));
-    }
-    return graphCache.get(cacheKey)!;
+    // Graph state belongs in the checkpointer, credentials and generation controls do not.
+    // Rebuilding honors key rotation and thinking settings on every request.
+    return buildJdMatchGraph(buildModel(settings), opts.checkpointer);
   }
 
   const server = http.createServer(async (req, res) => {
@@ -217,7 +207,10 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       // ── POST /api/v1/agent/workflows/career/resume ──────────────────────
       if (req.method === "POST" && pathname === "/api/v1/agent/workflows/career/resume") {
         const body = CareerResumeBodySchema.parse(await readBody(req));
-        const result = await careerGraph.invoke({ approval: body.approval as CareerApproval }, { configurable: { thread_id: body.threadId } });
+        const config = { configurable: { thread_id: body.threadId } };
+        const pending = await careerGraph.getState(config);
+        if (!pending.tasks.some(task => task.interrupts?.length)) return jsonResponse(res, 409, { error: "workflow_not_awaiting_approval" });
+        const result = await careerGraph.invoke(new Command({ resume: body.approval as CareerApproval }), config);
         const state = await careerGraph.getState({ configurable: { thread_id: body.threadId } });
         return jsonResponse(res, 200, {
           status: state.next.length > 0 ? "awaiting_approval" : "complete",
@@ -368,10 +361,16 @@ export function createAgentServer(opts: ServerOptions): http.Server {
         const body = ResumeBodySchema.parse(raw);
         const graph = getGraph(body.modelSettings);
 
+        const config = { configurable: { thread_id: body.threadId } };
+        const pending = await graph.getState(config);
+        if (!pending.tasks.some(task => task.interrupts?.length)) return jsonResponse(res, 409, { error: "workflow_not_awaiting_review" });
+        const proposals = pending.values.proposals as Array<{ id: string }>;
+        if (proposals.some(proposal => !body.decisions[proposal.id]) || Object.keys(body.decisions).some(id => !proposals.some(proposal => proposal.id === id))) {
+          return jsonResponse(res, 400, { error: "review_decisions_must_match_proposals" });
+        }
         const result = await graph.invoke(
-          // Supply decisions through the state update on resume
-          { decisions: body.decisions as Record<string, ProposalDecision> },
-          { configurable: { thread_id: body.threadId } }
+          new Command({ resume: body.decisions as Record<string, ProposalDecision> }),
+          config
         );
 
         const accepted = result.proposals.filter(
@@ -416,12 +415,29 @@ export function createAgentServer(opts: ServerOptions): http.Server {
         const raw = await readBody(req);
         const body = ChatRequestBodySchema.parse(raw);
         const model = buildModel(body.modelSettings);
-        const reply = await processAgentChat(model, body);
-        return jsonResponse(res, 200, { reply });
+        const controller = new AbortController();
+        const onAbort = () => controller.abort();
+        const onClose = () => { if (!res.writableEnded) controller.abort(); };
+        req.once("aborted", onAbort);
+        res.once("close", onClose);
+        try {
+          const reply = await processAgentChat(model, body, controller.signal);
+          if (controller.signal.aborted) return;
+          return jsonResponse(res, 200, { reply });
+        } catch (error) {
+          if (controller.signal.aborted) return;
+          throw error;
+        } finally {
+          req.off("aborted", onAbort);
+          res.off("close", onClose);
+        }
       }
 
       return jsonResponse(res, 404, { error: "not_found" });
     } catch (err: any) {
+      if (err instanceof DeepSeekApiError) {
+        return jsonResponse(res, err.status, { error: "model_provider_error", message: err.message });
+      }
       if (err?.name === "PayloadTooLargeError") {
         return jsonResponse(res, 413, { error: "request_body_too_large" });
       }

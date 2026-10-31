@@ -39,6 +39,7 @@ interface ManagedRun {
   answer: string;
   streamBuffers: { stdout: string; stderr: string };
   timeout?: NodeJS.Timeout;
+  protocolFailure?: string;
 }
 
 function defaultRunsRoot(): string {
@@ -80,6 +81,12 @@ export class AgentRunManager {
 
   async ready(): Promise<void> {
     await this.readyPromise;
+  }
+
+  /** Drain writes already scheduled for a settled run before restart or cleanup. */
+  async flush(runId: string): Promise<void> {
+    await this.ready();
+    await this.eventWriteChains.get(runId);
   }
 
   async start(input: StartRunInput): Promise<RunRecord> {
@@ -252,6 +259,7 @@ export class AgentRunManager {
     // line in this chunk does not make retained run output unbounded.
     for (const line of lines.map((item) => item.trim()).filter(Boolean)) {
       for (const event of run.adapter.parseLine(line, stream)) {
+        if (event.failure) run.protocolFailure = event.failure;
         if (event.type === "text.delta" && typeof event.payload.text === "string") {
           run.answer = capText(event.payload.replace === true
             ? event.payload.text
@@ -269,6 +277,10 @@ export class AgentRunManager {
     for (const stream of ["stdout", "stderr"] as const) {
       if (run.streamBuffers[stream].trim()) this.handleOutput(run, "\n", stream);
     }
+    if (status === "completed" && run.protocolFailure) {
+      status = "failed";
+      error = run.protocolFailure;
+    }
     const diagnostic = error ?? (status === "failed" ? run.output.trim().slice(-4_000) : undefined);
     if (status === "failed" && diagnostic) this.registry.reportFailure(run.record.runtimeId, diagnostic);
     run.record = RunRecordSchema.parse({
@@ -279,7 +291,8 @@ export class AgentRunManager {
     });
     this.records.set(runId, run.record);
     void this.persistRecord(run.record);
-    void fs.writeFile(path.join(run.record.outputDirectory, "result.json"), JSON.stringify({ status, error: diagnostic, answer: run.answer, output: run.output }, null, 2), { mode: 0o600 }).catch(() => undefined);
+    const resultText = JSON.stringify({ status, error: diagnostic, answer: run.answer, output: run.output }, null, 2);
+    void this.queueWrite(runId, () => fs.writeFile(path.join(run.record.outputDirectory, "result.json"), resultText, { mode: 0o600 }));
     this.publish(runId, status === "completed" ? "run.completed" : status === "cancelled" ? "run.cancelled" : "run.failed", {
       status,
       ...(diagnostic ? { error: diagnostic.slice(0, 4000) } : {}),
@@ -288,21 +301,28 @@ export class AgentRunManager {
 
   private publish(runId: string, type: Parameters<AgentEventBus["publish"]>[1], payload: Parameters<AgentEventBus["publish"]>[2] = {}, agentId?: string): void {
     const event = this.events.publish(runId, type, payload, agentId);
+    void this.queueWrite(runId, async () => {
+      const run = this.get(runId);
+      if (run) await fs.appendFile(path.join(run.runDirectory, "events.ndjson"), `${JSON.stringify(event)}\n`, { mode: 0o600 });
+    });
+  }
+
+  private queueWrite(runId: string, write: () => Promise<void>): Promise<void> {
     const previous = this.eventWriteChains.get(runId) ?? Promise.resolve();
     const next = previous
       .catch(() => undefined)
-      .then(async () => {
-        const run = this.get(runId);
-        if (!run) return;
-        await fs.appendFile(path.join(run.runDirectory, "events.ndjson"), `${JSON.stringify(event)}\n`, { mode: 0o600 });
-      })
+      .then(write)
       .catch(() => undefined);
     this.eventWriteChains.set(runId, next);
+    return next;
   }
 
   private async persistRecord(record: RunRecord): Promise<void> {
-    await fs.mkdir(record.runDirectory, { recursive: true, mode: 0o700 });
-    await fs.writeFile(path.join(record.runDirectory, "run.json"), `${JSON.stringify(record, null, 2)}\n`, { mode: 0o600 });
+    const text = `${JSON.stringify(record, null, 2)}\n`;
+    await this.queueWrite(record.id, async () => {
+      await fs.mkdir(record.runDirectory, { recursive: true, mode: 0o700 });
+      await fs.writeFile(path.join(record.runDirectory, "run.json"), text, { mode: 0o600 });
+    });
   }
 
   private async loadPersistedRuns(): Promise<void> {

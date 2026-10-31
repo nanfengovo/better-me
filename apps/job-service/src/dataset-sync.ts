@@ -22,10 +22,11 @@ export function createDatasetSyncStore(db: DatabaseSync, publicSnapshot: () => A
       }
     },
     /** Caller holds a read transaction, so cursor, documents and projection share a WAL revision. */
-    read(input: DatasetSyncRequest): DatasetSyncResponse {
+    read(input: DatasetSyncRequest, paged = false): DatasetSyncResponse {
       const cursor = { epoch: metadata("sync_epoch"), revision: Number(metadata("revision")) };
       const snapshot = (reason: Extract<DatasetSyncResponse, { kind: "snapshot" }>["reason"]): DatasetSyncResponse =>
-        ({ protocol: DATASET_SYNC_PROTOCOL, kind: "snapshot", reason, cursor, dataset: publicSnapshot() });
+        paged ? { protocol: DATASET_SYNC_PROTOCOL, kind: "baseline-required", reason, cursor }
+          : { protocol: DATASET_SYNC_PROTOCOL, kind: "snapshot", reason, cursor, dataset: publicSnapshot() };
       if (!input.cursor) return snapshot("initial");
       if (input.cursor.epoch !== cursor.epoch) return snapshot("store-changed");
       if (input.cursor.revision > cursor.revision) return snapshot("cursor-ahead");

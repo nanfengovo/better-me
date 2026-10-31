@@ -11,11 +11,11 @@ import {
   probeAgentHost,
 } from "../server/agent-host-dev.ts";
 
-test("Agent Host launch uses the local-only endpoint, development token, and both Vite origins", () => {
+test("Agent Host launch uses the local-only endpoint, development token, and the normal and preview origins", () => {
   assert.deepEqual(agentHostLaunchArgs({ cliPath: "/repo/apps/agent-host/src/cli.ts", tsxLoader: "/repo/node_modules/tsx/loader.mjs", origins: AGENT_HOST_DEV_ORIGINS }), [
     "--import", "/repo/node_modules/tsx/loader.mjs", "/repo/apps/agent-host/src/cli.ts",
     "--host", "127.0.0.1", "--port", "5179", "--token", AGENT_HOST_DEV_TOKEN,
-    "--origin", "http://127.0.0.1:5173", "--origin", "http://localhost:5173",
+    "--origin", "http://127.0.0.1:5173", "--origin", "http://localhost:5173", "--origin", "http://127.0.0.1:5193",
   ]);
   assert.equal(AGENT_HOST_DEV_ENDPOINT, "http://127.0.0.1:5179");
   assert.deepEqual(agentHostLaunchArgs({ cliPath: "/host.ts", tsxLoader: "/tsx.mjs", origins: [], endpoint: "http://127.0.0.1:5189" }), [
@@ -25,12 +25,21 @@ test("Agent Host launch uses the local-only endpoint, development token, and bot
 
 test("Agent Host probe sends the expected development bearer token and distinguishes a live foreign service", async () => {
   let authorization = "";
+  const seenOrigins: string[] = [];
   assert.equal(await probeAgentHost(AGENT_HOST_DEV_ENDPOINT, async (_input, init) => {
     authorization = new Headers(init?.headers).get("authorization") ?? "";
-    return new Response(null, { status: 200 });
+    const origin = new Headers(init?.headers).get("origin") ?? "";
+    seenOrigins.push(origin);
+    return new Response(null, { status: 200, headers: { "Access-Control-Allow-Origin": origin } });
   }), "ready");
   assert.equal(authorization, `Bearer ${AGENT_HOST_DEV_TOKEN}`);
+  assert.deepEqual(seenOrigins, [...AGENT_HOST_DEV_ORIGINS]);
+  assert.ok(AGENT_HOST_DEV_ORIGINS.includes("http://127.0.0.1:5193"));
   assert.equal(await probeAgentHost(AGENT_HOST_DEV_ENDPOINT, async () => new Response(null, { status: 401 })), "unauthorized");
+  assert.equal(await probeAgentHost(AGENT_HOST_DEV_ENDPOINT, async (_input, init) => {
+    const origin = new Headers(init?.headers).get("origin") ?? "";
+    return new Response(null, { status: 200, headers: origin.endsWith(":5193") ? {} : { "Access-Control-Allow-Origin": origin } });
+  }), "origin-rejected", "a healthy Host without preview CORS must not look reusable");
   assert.equal(await probeAgentHost(AGENT_HOST_DEV_ENDPOINT, async () => { throw new Error("connection refused"); }), "down");
 });
 
@@ -60,6 +69,36 @@ test("dev Agent Host broker does not overwrite a live service with an unknown to
   let starts = 0;
   const broker = createDevAgentHostBroker({ probe: async () => "unauthorized", start: () => { starts += 1; throw new Error("must not start"); } });
   await assert.rejects(broker.ensure(), /开发令牌不匹配/);
+  assert.equal(starts, 0);
+});
+
+test("dev Agent Host broker restarts its exited child and never duplicates a living one", async () => {
+  let status: "ready" | "down" = "down", starts = 0, stops = 0, exited = false;
+  const broker = createDevAgentHostBroker({ probe: async () => status, start: () => {
+    starts++; status = "ready"; exited = false;
+    return { exited: () => exited, exitError: () => "exit", stop: async () => { stops++; status = "down"; exited = true; } };
+  } });
+  await broker.ensure();
+  status = "down";
+  await assert.rejects(broker.ensure(), /正在|退出|恢复/);
+  assert.equal(stops, 0, "one failed health probe must not stop a busy child");
+  status = "ready";
+  await broker.ensure();
+  status = "down";
+  await assert.rejects(broker.ensure(), /正在|退出|恢复/);
+  assert.equal(stops, 0, "a healthy probe resets the failure streak");
+  await assert.rejects(broker.ensure(), /正在|退出|恢复/);
+  assert.equal(starts, 1, "a down probe must not create a second child while the first is alive");
+  await broker.ensure();
+  assert.equal(starts, 2);
+  await broker.close();
+  assert.equal(stops, 2);
+});
+
+test("dev Agent Host broker refuses a live instance that does not allow the active preview origin", async () => {
+  let starts = 0;
+  const broker = createDevAgentHostBroker({ probe: async () => "origin-rejected", start: () => { starts += 1; throw new Error("must not replace"); } });
+  await assert.rejects(broker.ensure(), /未允许当前开发页来源/);
   assert.equal(starts, 0);
 });
 
@@ -99,5 +138,23 @@ test("Vite dev starts Agent Host eagerly and stops its owned child when the serv
   assert.equal(ensures, 1);
   httpServer.emit("close");
   await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(stops, 1);
+});
+
+test("Agent Host watcher keeps checking and stops checks on Vite close", async () => {
+  let checks = 0, stops = 0;
+  const httpServer = new EventEmitter();
+  const plugin = agentHostDevPlugin({ healthIntervalMs: 5, createBroker: () => ({
+    ensure: async () => { checks++; return { endpoint: AGENT_HOST_DEV_ENDPOINT }; },
+    close: async () => { stops++; },
+  }) });
+  const cleanup = (plugin.configureServer as (server: unknown) => () => void)({ httpServer });
+  cleanup();
+  await new Promise((resolve) => setTimeout(resolve, 28));
+  assert.ok(checks >= 2, "a health check must run again without a user request");
+  httpServer.emit("close");
+  const atClose = checks;
+  await new Promise((resolve) => setTimeout(resolve, 28));
+  assert.equal(checks, atClose);
   assert.equal(stops, 1);
 });

@@ -634,7 +634,7 @@ export async function autoExtractWithBrowser(input: string, signal?: AbortSignal
       try {
         const { execSync } = await import("node:child_process");
         frontmostApp = execSync(`osascript -e 'tell application "System Events" to get name of first process whose frontmost is true'`, { encoding: "utf8", timeout: 800 }).trim();
-      } catch {}
+      } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
     }
 
     try {
@@ -661,7 +661,7 @@ export async function autoExtractWithBrowser(input: string, signal?: AbortSignal
       try {
         const { exec } = await import("node:child_process");
         exec(`osascript -e 'tell application "${frontmostApp.replace(/"/g, '\\"')}" to activate'`, () => {});
-      } catch {}
+      } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
     }
   }
 

@@ -110,12 +110,12 @@ function parseBlocks(markdown: string): BlockType[] {
     }
 
     // 6. Ordered List
-    if (/^\s*\d+[\.、]\s+/.test(line)) {
+    if (/^\s*\d+[.、]\s+/.test(line)) {
       const items: string[] = [];
       while (i < lines.length) {
         const cur = lines[i];
-        if (cur === undefined || !/^\s*\d+[\.、]\s+/.test(cur)) break;
-        items.push(cur.replace(/^\s*\d+[\.、]\s+/, ""));
+        if (cur === undefined || !/^\s*\d+[.、]\s+/.test(cur)) break;
+        items.push(cur.replace(/^\s*\d+[.、]\s+/, ""));
         i++;
       }
       blocks.push({ type: "ol", items });
@@ -139,7 +139,7 @@ function parseBlocks(markdown: string): BlockType[] {
         trimmed.startsWith(">") ||
         /^(#{1,4})\s+/.test(cur) ||
         /^\s*[-*•]\s+/.test(cur) ||
-        /^\s*\d+[\.、]\s+/.test(cur) ||
+        /^\s*\d+[.、]\s+/.test(cur) ||
         /^(---|___|\*\*\*)\s*$/.test(trimmed)
       ) {
         break;

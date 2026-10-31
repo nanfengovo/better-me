@@ -220,7 +220,8 @@ test("a resume quote opens the companion and is sent as an in-panel model chat",
     assert.ok(sendButton);
     await flush(() => sendButton.click());
     assert.ok(dom.document.querySelector('[role="status"].agent-companion-chat-loading'), "waiting for the model should be explicit and accessible");
-    assert.equal(sendButton.disabled, true, "the composer should not submit duplicate messages while waiting");
+    assert.ok(dom.document.querySelector('[aria-label="停止生成并编辑问题"]'), "the running chat must offer a stop action");
+    assert.equal(dom.document.querySelector('[aria-label="发送消息"]'), null, "the composer should not submit duplicate messages while waiting");
     assert.ok(resolveChatResponse);
     resolveChatResponse(Response.json({ reply: { id: "reply_fixture", role: "assistant", content: "已在 Agent 伴侣中完成引用回复。这段较长的附加内容用于确认打字机动画有足够时间展示，并且用户可以随时跳过动画查看完整格式化回复。" } }));
 
@@ -243,7 +244,7 @@ test("a resume quote opens the companion and is sent as an in-panel model chat",
       Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype, "value")!.set!.call(textarea, "再问一个问题");
       textarea.dispatchEvent(new dom.Event("input", { bubbles: true }));
     });
-    await flush(() => sendButton.click());
+    await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="发送消息"]')?.click());
     assert.ok(resolveChatResponse);
     reduceMotionPreference = true;
     resolveChatResponse(Response.json({ reply: {
@@ -263,6 +264,55 @@ test("a resume quote opens the companion and is sent as an in-panel model chat",
     assert.doesNotMatch(emphasizedText.className, /border|inline-block|bg-/i, "inline bold terms should not become outlined badge chips");
     assert.match(dom.document.body.textContent ?? "", /完整 Markdown/);
     assert.equal(workspaceOpenCount, 0);
+  } finally {
+    await flush(() => root.unmount());
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("a stopped chat restores its prompt and quote, and guided prompts stay editable before sending", async () => {
+  const requests: Array<{ body: { messages: Array<{ role: string; content: string }> }; signal?: AbortSignal }> = [];
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith("/api/v1/agent/runtimes")) return Response.json({ runtimes: [] });
+    if (url.endsWith("/api/v1/agent/chat")) {
+      requests.push({ body: JSON.parse(String(init?.body)), signal: init?.signal ?? undefined });
+      if (requests.length > 1) return Response.json({ reply: { id: "guided-answer", role: "assistant", content: "先确认目标岗位，再逐步拆解。" } });
+      return new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true }));
+    }
+    return Response.json({ success: true });
+  }) as typeof fetch;
+  dom.document.body.innerHTML = '<main id="fixture"></main>';
+  const root = createRoot(dom.document.getElementById("fixture")!);
+  try {
+    await flush(() => root.render(h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" } }, h(AgentCompanion, {
+      onOpenWorkspace: () => {}, onOpenAiConfig: () => {},
+      llmConfig: { provider: "ollama", baseUrl: "http://127.0.0.1:11434/v1", apiKey: "", model: "fixture", temperature: 0.3 },
+      initialReference: { type: "resume_text", sourceLabel: "工作经历", text: "只读的简历引用" },
+    }))));
+    const composer = dom.document.querySelector<HTMLTextAreaElement>('textarea[aria-label="发送给 Agent"]')!;
+    await flush(() => {
+      Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype, "value")!.set!.call(composer, "请分析这一段");
+      composer.dispatchEvent(new dom.Event("input", { bubbles: true }));
+    });
+    await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="发送消息"]')?.click());
+    assert.equal(requests.length, 1);
+    const stop = dom.document.querySelector<HTMLButtonElement>('[aria-label="停止生成并编辑问题"]');
+    assert.ok(stop, "the running chat needs a stop action beside the composer");
+    await flush(() => stop.click());
+    assert.equal(requests[0]?.signal?.aborted, true);
+    assert.equal(composer.value, "请分析这一段");
+    assert.match(dom.document.querySelector(".agent-companion-chat-pending-reference")?.textContent ?? "", /只读的简历引用/);
+    assert.equal(dom.document.querySelectorAll(".agent-companion-chat-message.is-user").length, 0, "a cancelled question is a draft, not a completed turn");
+    assert.equal(dom.document.querySelectorAll(".agent-companion-chat-message.is-assistant").length, 0);
+    const guide = dom.document.querySelector<HTMLButtonElement>('[data-testid="agent-guide-plan"]');
+    assert.ok(guide, "guided conversation should offer an editable next step");
+    await flush(() => guide.click());
+    assert.match(composer.value, /规划/);
+    assert.equal(requests.length, 1, "choosing a guide must not send a private request on its own");
+    await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="发送消息"]')?.click());
+    assert.equal(requests.length, 2);
+    assert.equal(requests[1]?.body.messages.length, 1, "the stopped question must not be replayed as a prior chat turn");
   } finally {
     await flush(() => root.unmount());
     globalThis.fetch = originalFetch;
@@ -574,6 +624,32 @@ test("Companion opens the image picker and stages pasted images without sending 
     });
     await flush(() => textarea.dispatchEvent(textPaste));
     assert.equal(textPaste.defaultPrevented, false, "ordinary text paste must remain untouched");
+  } finally {
+    await flush(() => root.unmount());
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("an Atlas diagnosis opens guided Agent chat as an editable draft without sending or sharing the resume", async () => {
+  let chatRequests = 0;
+  let consumed = 0;
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    if (String(input).endsWith("/api/v1/agent/chat") && init?.method === "POST") chatRequests++;
+    return Response.json({ runtimes: [] });
+  }) as typeof fetch;
+  dom.document.body.innerHTML = '<main id="fixture"></main>';
+  const root = createRoot(dom.document.getElementById("fixture")!);
+  const llmConfig: LlmConfig = { provider: "ollama", baseUrl: "http://127.0.0.1:11434/v1", apiKey: "", model: "fixture", temperature: 0.3 };
+  try {
+    await flush(() => root.render(h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" } },
+      h(AgentCompanion, { onOpenWorkspace: () => {}, llmConfig, onOpenAiConfig: () => {},
+        initialPrompt: "已保存 9 张，2 个来源未完成。先问我一个核对问题。", onPromptConsumed: () => { consumed++; } }))));
+    const draft = dom.document.querySelector<HTMLTextAreaElement>('textarea[aria-label="发送给 Agent"]');
+    assert.ok(draft);
+    assert.match(draft.value, /已保存 9 张.*先问我一个核对问题/);
+    assert.equal(consumed, 1);
+    assert.equal(chatRequests, 0, "the user decides whether to send the draft");
+    assert.equal(dom.document.querySelector('[aria-label="已引用简历片段"]'), null);
   } finally {
     await flush(() => root.unmount());
     globalThis.fetch = originalFetch;

@@ -9,6 +9,19 @@
   color: var(--color-ink);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--color-ink) 4%, transparent);
 }
+.atlas-harvest-advisor { margin-top: 10px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--harvest-good) 22%, var(--color-line)); border-radius: 9px; background: color-mix(in srgb, var(--harvest-good) 5%, var(--color-panel)); }
+.atlas-harvest-advisor > strong { display: block; font-size: 13px; line-height: 1.5; }
+.atlas-harvest-advisor p { margin: 5px 0 0; font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; white-space: pre-wrap; }
+.atlas-harvest-advisor small { display: block; margin-top: 8px; color: var(--color-ink-muted); font-size: 11px; line-height: 1.55; }
+.atlas-harvest-advisor-model { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--color-line); }
+.atlas-harvest-advisor-model > summary { color: var(--color-ink); font-size: 12px; font-weight: 600; cursor: pointer; }
+.atlas-harvest-advisor button { margin-top: 9px; padding: 6px 10px; border: 1px solid var(--color-line); border-radius: 7px; background: var(--color-panel); color: var(--color-ink); font: inherit; cursor: pointer; }
+.atlas-search-diagnostics { margin: 8px 0; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-panel); }
+.atlas-search-diagnostics > summary { padding: 9px 12px; color: var(--color-ink); font-size: 12px; font-weight: 600; cursor: pointer; }
+.atlas-search-diagnostics > p { margin: 5px 10px 10px; max-height: 14em; overflow: auto; }
+.atlas-harvest-issue-entry > summary { display: flex; justify-content: space-between; gap: 10px; cursor: pointer; }
+.atlas-harvest-issue-entry > summary > span { color: var(--color-ink-muted); font-weight: 400; font-size: 11px; }
+.atlas-harvest-issue-entry > p { overflow-wrap: anywhere; }
 .atlas-harvest-progress-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
 .atlas-harvest-progress-indicator {
   display: grid;
@@ -27,6 +40,10 @@
 .atlas-harvest-progress-summary > div { display: grid; gap: 1px; min-width: 36px; }
 .atlas-harvest-progress-summary dt { font-size: 9px; color: var(--color-ink-muted); }
 .atlas-harvest-progress-summary dd { margin: 0; font-size: 15px; line-height: 1.2; font-weight: 600; font-variant-numeric: tabular-nums; }
+.atlas-workspace > .atlas-harvest-progress { margin: 5px 0 9px; }
+.atlas-harvest-progress-overview { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; color: var(--color-ink-muted); font-size: 11px; line-height: 1.5; }
+.atlas-harvest-progress-overview > span { min-width: 0; overflow-wrap: anywhere; }
+.atlas-harvest-progress-current { color: var(--color-ink); }
 .atlas-harvest-progress .atlas-harvest-progress-cancel { flex: none; margin: 0; min-height: 32px; padding: 4px 9px; border: 1px solid var(--color-line); border-radius: 7px; background: var(--color-panel); color: var(--color-ink-muted); font: inherit; font-size: 10px; cursor: pointer; }
 .atlas-harvest-progress-details { margin-top: 6px; }
 .atlas-harvest-progress-details > summary,

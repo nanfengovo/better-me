@@ -95,6 +95,14 @@ test("raw keyword changes update the AI match fragment without rebuilding headin
   assert.equal(countries, 1);
 });
 
+test("a source city-only location retains its more specific published text without claiming an office address", async () => {
+  const props = await fixture();
+  const item = { ...props.item, locations: props.item.locations.map(location => ({ ...location, city: "上海", raw: "上海·浦东新区", streetAddress: undefined })) };
+  const card = await render({ ...props, item });
+  assert.match(card.querySelector(".atlas-job-meta")!.textContent!, /上海·浦东新区/);
+  assert.doesNotMatch(card.querySelector(".atlas-job-meta")!.textContent!, /办公地址/);
+});
+
 test("immutable item, data, anchor, presenter and country formatter changes remain visible", async () => {
   let props: AtlasJobCardContentProps = await fixture();
   const card = await render(props);

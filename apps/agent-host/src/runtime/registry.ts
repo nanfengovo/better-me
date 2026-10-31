@@ -76,7 +76,8 @@ export async function resolveExecutable(command: string, options: RuntimeProbeOp
 }
 
 function firstLine(value: string): string | undefined {
-  const line = value.replace(/\u001b\[[0-?]*[ -\/]*[@-~]/g, "").split(/\r?\n/).map((item) => item.trim()).find(Boolean);
+  // eslint-disable-next-line no-control-regex -- Strip the actual ANSI escape byte from CLI probe output.
+  const line = value.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "").split(/\r?\n/).map((item) => item.trim()).find(Boolean);
   return line?.slice(0, 300);
 }
 

@@ -51,16 +51,19 @@ function keyInput() {
 }
 const alertText = () => dom.document.querySelector('[role="alert"]')?.textContent ?? "";
 
-async function mount(policy: (request: Request, index: number) => Response | Promise<Response> = () => modelsResponse("model-a", "model-b")) {
+async function mount(policy: (request: Request, index: number) => Response | Promise<Response> = () => modelsResponse("model-a", "model-b"), initialConfig = config) {
   const calls: Request[] = [];
   const saved: LlmConfig[] = [];
   let visible = true;
-  let currentConfig = config;
+  let currentConfig = initialConfig;
   globalThis.fetch = async (url, init) => {
     const request = { url: String(url), init };
-    assert.match(request.url, /^https:\/\/ai-fixture\.invalid\/v[12]\/models$/, "fixture must never request external services");
-    assert.ok(!init?.method || init.method === "GET", "model listing must not make a generation request");
-    assert.equal(init?.body, undefined);
+    assert.match(request.url, /^https:\/\/(?:ai-fixture\.invalid\/v[12]|api\.deepseek\.com(?:\/v1)?)\/(?:models|chat\/completions)$/, "all model requests are synthetic");
+    if (init?.method === "POST") {
+      assert.deepEqual(JSON.parse(String(init.body)).messages, [{ role: "user", content: "Reply with only: BETTERME_OK" }], "probe must not send a resume or history");
+    } else {
+      assert.equal(init?.body, undefined);
+    }
     calls.push(request);
     return policy(request, calls.length - 1);
   };
@@ -210,4 +213,75 @@ test("HTTP 403 保留状态和服务商错误，隐藏回显 Key 且不显示成
   assert.doesNotMatch(alertText(), /fixture-secret-only/);
   assert.equal(dom.document.querySelector('[role="status"]'), null);
   assert.equal(modelSelect().value, config.model);
+});
+
+test("DeepSeek 预设使用当前官方模型，跨服务商不携带旧 Key，思考设置可保存", async () => {
+  const { calls, saved } = await mount();
+  await click("DeepSeek");
+  assert.equal(keyInput().value, "");
+  assert.deepEqual(optionValues(), ["deepseek-flash", "deepseek-v4-pro"]);
+  assert.equal(modelSelect().value, "deepseek-flash");
+  const mode = dom.document.getElementById("ai-thinking-mode") as unknown as HTMLSelectElement;
+  assert.equal(mode.value, "disabled");
+  await flush(() => { mode.value = "enabled"; mode.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  await click("保存配置");
+  assert.equal(saved[0]!.thinkingMode, "enabled");
+  assert.equal(saved[0]!.baseUrl, "https://api.deepseek.com");
+  assert.equal(saved[0]!.maxTokens, 8192);
+  assert.equal(calls.length, 0);
+});
+
+test("旧 DeepSeek 配置打开不迁移模型或 Key，生成探针只在明确点击后发送", async () => {
+  const oldConfig = { ...config, baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat" };
+  const { calls } = await mount(() => response({ choices: [{ message: { content: "BETTERME_OK" }, finish_reason: "stop" }] }), oldConfig);
+  assert.equal(modelSelect().value, "deepseek-chat");
+  assert.equal(keyInput().value, config.apiKey);
+  assert.equal(calls.length, 0);
+  assert.match(dom.document.body.textContent ?? "", /可能产生少量费用/);
+  await click("测试文本生成（少量 tokens）");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]!.init?.method, "POST");
+  assert.match(dom.document.querySelector('[role="status"]')?.textContent ?? "", /文本生成已验证/);
+  assert.equal(modelSelect().value, "deepseek-chat");
+  await flush(() => { modelSelect().value = "deepseek-flash"; modelSelect().dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  assert.equal(dom.document.querySelector('[role="status"]'), null, "a generation result must not validate a different model");
+});
+
+test("生成测试余额不足不重试，也不展示成功或泄露 Key", async () => {
+  const { calls } = await mount(() => response({ error: { message: config.apiKey } }, 402), { ...config, baseUrl: "https://api.deepseek.com", model: "deepseek-flash" });
+  await click("测试文本生成（少量 tokens）");
+  assert.equal(calls.length, 1);
+  assert.match(alertText(), /余额不足/);
+  assert.match(alertText(), /文本生成未通过/);
+  assert.ok(!alertText().includes(config.apiKey));
+});
+
+test("DeepSeek 误填 Tracking ID 时在本地阻止列表、生成和保存，不泄露输入", async () => {
+  const trackingId = "11111111-2222-4333-8444-555555555555";
+  const { calls, saved } = await mount(() => response({ error: { message: "synthetic only" } }, 401), {
+    ...config, baseUrl: "https://api.deepseek.com", model: "deepseek-flash", apiKey: trackingId,
+  });
+  const help = dom.document.getElementById("ai-deepseek-key-help");
+  assert.ok(help);
+  assert.match(help.textContent ?? "", /Tracking ID/);
+  assert.match(help.textContent ?? "", /追踪编号/);
+  assert.equal(keyInput().getAttribute("aria-invalid"), "true");
+  await click("刷新列表");
+  assert.match(alertText(), /Tracking ID/);
+  await click("测试文本生成（少量 tokens）");
+  assert.match(alertText(), /Tracking ID/);
+  await click("保存配置");
+  assert.equal(calls.length, 0, "a tracking identifier must never be sent as a credential");
+  assert.equal(saved.length, 0);
+  assert.ok(!dom.document.body.textContent?.includes(trackingId));
+});
+
+test("第三方兼容服务的 UUID 凭据不受 DeepSeek 官方 Tracking ID 检查影响", async () => {
+  const uuidCredential = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+  const { calls, saved } = await mount(undefined, { ...config, apiKey: uuidCredential });
+  await click("刷新列表");
+  assert.equal(calls.length, 1);
+  assert.equal(new Headers(calls[0]!.init?.headers).get("authorization"), `Bearer ${uuidCredential}`);
+  await click("保存配置");
+  assert.equal(saved[0]!.apiKey, uuidCredential);
 });

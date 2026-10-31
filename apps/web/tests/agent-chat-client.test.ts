@@ -101,6 +101,54 @@ test("a Host timeout fallback explains the retry without exposing AbortSignal in
   assert.doesNotMatch(reply.meta?.warning ?? "", /signal timed out/);
 });
 
+test("an unreachable local Host suggests the one-command dev entry instead of exposing Failed to fetch", async () => {
+  mock.method(globalThis, "fetch", async (input) => {
+    if (String(input).includes("127.0.0.1:5179")) throw new TypeError("Failed to fetch");
+    return completion("浏览器直连仍可回答。", "stop");
+  });
+
+  const reply = await sendAgentChat({ messages: [{ id: "u1", role: "user", content: "合成问题" }], llmConfig: config });
+  assert.equal(reply.content, "浏览器直连仍可回答。");
+  assert.equal(reply.meta?.status, "fallback");
+  assert.match(reply.meta?.warning ?? "", /pnpm dev.*pnpm dev:isolated/);
+  assert.doesNotMatch(reply.meta?.warning ?? "", /Failed to fetch/);
+});
+
+test("stopping a chat aborts the Host request without retrying through the browser provider", async () => {
+  let providerCalls = 0;
+  const controller = new AbortController();
+  mock.method(globalThis, "fetch", async (input, init) => {
+    if (!String(input).includes("127.0.0.1:5179")) {
+      providerCalls += 1;
+      return completion("should not run", "stop");
+    }
+    return new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
+    });
+  });
+  const pending = sendAgentChat({ messages: [{ id: "u1", role: "user", content: "请分析" }], llmConfig: config, signal: controller.signal });
+  controller.abort();
+  await assert.rejects(pending, (error: unknown) => error === controller.signal.reason);
+  assert.equal(providerCalls, 0);
+});
+
+test("stopping a browser-direct generation does not turn cancellation into a model error reply", async () => {
+  const controller = new AbortController();
+  let providerStarted!: () => void;
+  const started = new Promise<void>((resolve) => { providerStarted = resolve; });
+  mock.method(globalThis, "fetch", async (input, init) => {
+    if (String(input).includes("127.0.0.1:5179")) return Response.json({ error: "offline" }, { status: 503 });
+    providerStarted();
+    return new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
+    });
+  });
+  const pending = sendAgentChat({ messages: [{ id: "u1", role: "user", content: "请分析" }], llmConfig: config, signal: controller.signal });
+  await started;
+  controller.abort();
+  await assert.rejects(pending, (error: unknown) => error === controller.signal.reason);
+});
+
 test("browser-direct chat sends quoted resume text and selected images as multimodal input", async () => {
   let providerBody: Record<string, unknown> | undefined;
   const dataUrl = "data:image/jpeg;base64,aGVsbG8=";

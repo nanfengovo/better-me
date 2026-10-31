@@ -10,6 +10,8 @@ export type WorkerEventType = Extract<AgentEventType, "agent.output" | "tool.cal
 export interface WorkerEvent {
   type: WorkerEventType;
   payload: Record<string, JsonValue>;
+  /** Structured terminal failure, never inferred from human-readable answer text. */
+  failure?: "permission_denied" | "runtime_error";
 }
 
 export interface WorkerLaunchInput {
@@ -179,7 +181,23 @@ class ClaudeWorkerAdapter extends DefinitionWorkerAdapter {
       const value = JSON.parse(line) as unknown;
       if (isRecord(value)) {
         const type = typeof value["type"] === "string" ? value["type"] : "";
-        if (type === "user") return [];
+        if (type === "user" || type === "assistant") {
+          const message = value["message"];
+          const content = isRecord(message) ? message["content"] : undefined;
+          const events: WorkerEvent[] = [];
+          if (Array.isArray(content)) {
+            for (const block of content) {
+              if (!isRecord(block)) continue;
+              if (block["type"] === "tool_use") events.push({ type: "tool.called", payload: payload(block) });
+              if (block["type"] === "tool_result") events.push({ type: "tool.result", payload: payload(block) });
+            }
+          }
+          // Prompt echoes are private inputs, not assistant output. Tool results
+          // remain observable; a recoverable tool error is not a terminal failure.
+          const text = type === "assistant" ? textFrom(message) : undefined;
+          if (text) events.push({ type: "text.delta", payload: finalTextPayload(text, stream) });
+          return events;
+        }
         if (type === "content_block_delta") {
           const text = textFrom(value["delta"]);
           return text ? [{ type: "text.delta", payload: textPayload(text, stream) }] : [];
@@ -192,12 +210,18 @@ class ClaudeWorkerAdapter extends DefinitionWorkerAdapter {
           }
           return [];
         }
-        if (type === "assistant") {
-          const text = textFrom(value["message"]);
-          return text ? [{ type: "text.delta", payload: finalTextPayload(text, stream) }] : [];
-        }
-        if (type === "result" && typeof value["result"] === "string") {
-          return [{ type: "text.delta", payload: finalTextPayload(value["result"], stream) }];
+        if (type === "result") {
+          const events: WorkerEvent[] = [];
+          if (typeof value["result"] === "string") events.push({ type: "text.delta", payload: finalTextPayload(value["result"], stream) });
+          const denials = value["permission_denials"];
+          const denied = Array.isArray(denials) && denials.length > 0;
+          const errored = value["is_error"] === true || (typeof value["subtype"] === "string" && value["subtype"].startsWith("error"));
+          if (denied || errored) events.push({
+            type: "agent.output",
+            payload: { code: denied ? "permission_denied" : "runtime_error", ...(denied ? { deniedToolCount: denials.length } : {}) },
+            failure: denied ? "permission_denied" : "runtime_error",
+          });
+          return events;
         }
       }
       return eventForJson(value, stream);

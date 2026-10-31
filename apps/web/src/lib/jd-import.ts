@@ -1,4 +1,4 @@
-import { fetchChatCompletion, type ChatMessageContent, type LlmConfig } from "@better-me/core";
+import { fetchChatCompletion, jsonObjectOptions, type ChatMessageContent, type LlmConfig } from "@better-me/core";
 import { normalizeJobShare, allowedJobUrl, readJdPublicationFields, type JdImportResult, type JdProvenance, type JobPlatform } from "./jd-source";
 import { JdBrowserStartCleanupError, JdExtractionError, readJdFailure } from "./jd-errors";
 import { isSnapshotFailure, type SnapshotFailure } from "./jd-capture-diagnostics";
@@ -428,6 +428,6 @@ export async function recognizeJdScreenshots(config: LlmConfig, screenshots: JdS
   const raw = await fetchChatCompletion({ ...config, temperature: 0 }, [
     { role: "system", content: "你是谨慎的岗位截图文字识别助手，只提取图片中的真实文字，不编造内容。只输出规定的 JSON。" },
     { role: "user", content },
-  ]);
+  ], jsonObjectOptions(config));
   return { text: parseJdOcrResponse(raw), method: "截图文字识别", provenance: { kind: "screenshot", ...source, observedAt: new Date().toISOString(), imageNames: screenshots.map((image) => image.name) } };
 }

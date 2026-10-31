@@ -23,6 +23,7 @@ import {
   MessageSquare,
   RefreshCw,
   Send,
+  Square,
   Settings2,
   ShieldCheck,
   Sparkles,
@@ -56,8 +57,11 @@ import { getModelImageCapability, modelImageCapabilityDescription, modelImageCap
 import type { DrawerJobContext } from "./JdMatchDrawer";
 import { AgentMarkdownRenderer } from "./AgentMarkdownRenderer";
 import { AgentReplyMeta } from "./AgentReplyMeta";
+import { CareerCoachWorkspace } from "./CareerCoachWorkspace";
 
 export interface AgentWorkspaceProps {
+  workspaceKey?: string;
+  active?: boolean;
   job: DrawerJobContext | null;
   resume: ProjectedResume | null;
   llmConfig: LlmConfig;
@@ -113,7 +117,7 @@ async function prepareChatImage(file: File): Promise<PendingChatImage> {
 function useAnimatedCounter(target: number, duration = 800) {
   const [current, setCurrent] = useState(0);
   useEffect(() => {
-    let start = current;
+    const start = current;
     const startTime = performance.now();
     let frameId: number;
 
@@ -136,6 +140,8 @@ function useAnimatedCounter(target: number, duration = 800) {
 }
 
 export function AgentWorkspace({
+  workspaceKey = "active-resume",
+  active = true,
   job,
   resume,
   llmConfig,
@@ -150,6 +156,7 @@ export function AgentWorkspace({
 }: AgentWorkspaceProps) {
   const { t, theme } = useUiPreferences();
   const isDark = theme === "dark";
+  const [showCareerCoach, setShowCareerCoach] = useState(false);
 
   // Current Target Job state
   const [currentJob, setCurrentJob] = useState<DrawerJobContext | null>(job);
@@ -201,7 +208,7 @@ export function AgentWorkspace({
         const parsed = parseFloat(saved);
         if (!isNaN(parsed) && parsed >= 25 && parsed <= 75) return parsed;
       }
-    } catch {}
+    } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
     return DEFAULT_SPLIT_PERCENT;
   });
   const [isDraggingSplitter, setIsDraggingSplitter] = useState(false);
@@ -232,7 +239,7 @@ export function AgentWorkspace({
     if (!splitDragRef.current || splitDragRef.current.pointerId !== e.pointerId) return;
     try {
       localStorage.setItem(AGENT_SPLIT_KEY, String(splitPercent));
-    } catch {}
+    } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId);
     }
@@ -244,7 +251,7 @@ export function AgentWorkspace({
     setSplitPercent(DEFAULT_SPLIT_PERCENT);
     try {
       localStorage.setItem(AGENT_SPLIT_KEY, String(DEFAULT_SPLIT_PERCENT));
-    } catch {}
+    } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
   };
 
   // Foldable sections state
@@ -272,6 +279,9 @@ export function AgentWorkspace({
   const lastAssistantMessageId = [...messages].reverse().find((message) => message.role === "assistant")?.id;
   const [inputMessage, setInputMessage] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [chatNotice, setChatNotice] = useState("");
+  const chatAbortRef = useRef<AbortController | null>(null);
+  const pendingChatRef = useRef<ChatMessage | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<PendingChatImage[]>([]);
   const [pendingReferences, setPendingReferences] = useState<ResumeTextReference[]>([]);
@@ -279,6 +289,8 @@ export function AgentWorkspace({
   const imageCapability = getModelImageCapability(llmConfig);
   const chatImageInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatComposerRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => () => chatAbortRef.current?.abort(), []);
 
   const decideResumeProposal = async (key: string, action: NonNullable<ChatMessage["actions"]>[number], approve: boolean) => {
     if (!approve) {
@@ -578,7 +590,7 @@ export function AgentWorkspace({
             llmConfig,
             mode: "static",
           });
-        } catch (staticErr) {
+        } catch {
           // If static extraction encounters network/anti-bot errors, auto-fallback to local automated browser engine
           setExtractingStepMessage(t("🤖 已启动自动化浏览器接续抓取...若出现滑块验证，请在浏览器中拖动完成，系统将自动继续！", "Automated browser active... If captcha slider appears, please complete it; system will auto-resume!"));
           parsed = await extractAndParseJobLink(inputToProcess, {
@@ -670,10 +682,10 @@ export function AgentWorkspace({
 
   // Trigger initial match when opened with a job
   useEffect(() => {
-    if (currentJob?.description && proposals.length === 0 && !loading && !errorNotice) {
+    if (active && !showCareerCoach && currentJob?.description && proposals.length === 0 && !loading && !errorNotice) {
       void runMatching(currentJob.description);
     }
-  }, [currentJob?.description]);
+  }, [currentJob?.description, active, showCareerCoach]);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -868,7 +880,7 @@ export function AgentWorkspace({
     const selectedReferences = pendingReferences;
     const typedText = customText ?? inputMessage;
     const textToSend = typedText.trim() || (selectedAttachments.length ? t("请帮我分析这张图片。", "Please analyze the attached image.") : selectedReferences.length ? t("请结合引用的简历内容帮我分析。", "Please analyze the quoted resume text.") : "");
-    if ((!textToSend && selectedAttachments.length === 0 && selectedReferences.length === 0) || chatLoading) return;
+    if ((!textToSend && selectedAttachments.length === 0 && selectedReferences.length === 0) || chatLoading || chatAbortRef.current) return;
 
     if (leftViewMode === "jd") {
       showLeftPage("chat");
@@ -883,6 +895,9 @@ export function AgentWorkspace({
       createdAt: new Date().toISOString(),
     };
 
+    const controller = new AbortController();
+    chatAbortRef.current = controller;
+    pendingChatRef.current = userMsg;
     setMessages((prev) => [...prev, userMsg]);
     if (!customText) {
       setInputMessage("");
@@ -891,11 +906,13 @@ export function AgentWorkspace({
       setAttachmentError(null);
     }
     setChatLoading(true);
+    setChatNotice("");
 
     try {
       const reply = await sendAgentChat({
         messages: chatMessagesForRequest([...messages, userMsg]),
         llmConfig,
+        signal: controller.signal,
         context: {
           currentJob: currentJob
             ? {
@@ -908,17 +925,42 @@ export function AgentWorkspace({
           resumeEditContext: shareResumeForEditing ? resumeEditContext : undefined,
         },
       });
+      if (controller.signal.aborted || chatAbortRef.current !== controller) return;
       setMessages((prev) => [...prev, reply]);
+      pendingChatRef.current = null;
     } catch (err) {
+      if (controller.signal.aborted || chatAbortRef.current !== controller) return;
       const errorMsg: ChatMessage = {
         id: `msg-err-${Date.now()}`,
         role: "assistant",
         content: err instanceof Error ? `⚠️ ${err.message}` : t("抱歉，对话服务出现异常，请检查 AI 配置。", "Sorry, chat service failed. Check AI configuration."),
       };
       setMessages((prev) => [...prev, errorMsg]);
+      pendingChatRef.current = null;
     } finally {
-      setChatLoading(false);
+      if (chatAbortRef.current === controller) {
+        chatAbortRef.current = null;
+        setChatLoading(false);
+      }
     }
+  };
+
+  const handleStopChat = () => {
+    const controller = chatAbortRef.current;
+    if (!controller) return;
+    chatAbortRef.current = null;
+    controller.abort();
+    const pending = pendingChatRef.current;
+    pendingChatRef.current = null;
+    if (pending) {
+      setMessages((current) => current.filter((message) => message.id !== pending.id));
+      setInputMessage((current) => current.trim() ? current : pending.content);
+      setPendingReferences((current) => current.length ? current : pending.references ?? []);
+      setPendingAttachments((current) => current.length ? current : pending.attachments ?? []);
+    }
+    setChatNotice(t("已停止。修改问题后可以重新发送。", "Stopped. Edit your question and send it again."));
+    setChatLoading(false);
+    queueMicrotask(() => chatComposerRef.current?.focus());
   };
 
   // Copy helper
@@ -1059,7 +1101,35 @@ export function AgentWorkspace({
     return inQual.length > 0 ? inQual.slice(0, 5) : lines.slice(3, 8);
   }, [structuredJd, currentJob?.description]);
 
+  // Opening growth is not a submission to the legacy matching flow. Make the
+  // user's JD draft available there, still behind its separate sharing consent.
+  const careerCoachJob = useMemo<DrawerJobContext | null>(() => {
+    if (!isSetupMode) return currentJob;
+    const description = inputDescription.trim();
+    if (!description || isJdLinkOnly(description)) return null;
+    return {
+      title: inputTitle.trim() || t("目标职位", "Target Position"),
+      company: inputCompany.trim() || t("目标企业", "Target Company"),
+      description,
+      salary: inputSalary.trim() || undefined,
+      location: inputLocation.trim() || undefined,
+      sourceUrl, sourcePlatform,
+    };
+  }, [currentJob, isSetupMode, inputDescription, inputTitle, inputCompany, inputSalary, inputLocation, sourceUrl, sourcePlatform, t]);
+
   // Circumference for radial progress gauge
+
+  if (showCareerCoach) return (
+    <section className="career-coach-shell">
+      <nav className="career-coach-entry-nav" aria-label={t("Agent 工作区", "Agent workspace")}>
+        <button type="button" onClick={() => setShowCareerCoach(false)}><ArrowLeft size={16} />{t("返回对话与 JD", "Back to chat and JD")}</button>
+        <button type="button" onClick={onNavigateToResume}>{t("返回简历", "Back to resume")}</button>
+      </nav>
+      {active && <CareerCoachWorkspace key={workspaceKey} workspaceKey={workspaceKey} job={careerCoachJob}
+        resumeEditContext={resumeEditContext} llmConfig={llmConfig} onOpenConfig={onOpenConfig}
+        onApplyResumeProposal={onApplyResumeProposal} />}
+    </section>
+  );
 
   return (
     <section
@@ -1128,6 +1198,11 @@ export function AgentWorkspace({
         </div>
 
         <div className="flex items-center gap-2.5">
+          <button type="button" onClick={() => setShowCareerCoach(true)}
+            className="agent-btn-press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs cursor-pointer"
+            style={{ color: "var(--ui-accent)", borderColor: "var(--ui-border)", background: "var(--ui-accent-soft)" }}>
+            <Target size={14} />{t("职业成长", "Career growth")}
+          </button>
           {(!currentJob?.description || isEditingJob) ? null : (
             <button
               type="button"
@@ -2337,6 +2412,7 @@ export function AgentWorkspace({
                       <span>{t("Agent 正在结合当前岗位与本次授权内容思考…", "Agent is considering the current job and the context you shared…")}</span>
                     </div>
                   )}
+                  {chatNotice && <p role="status" className="px-2 py-1 text-xs text-emerald-600 dark:text-emerald-300">{chatNotice}</p>}
 
                   <div ref={chatEndRef} />
                 </div>
@@ -2348,6 +2424,7 @@ export function AgentWorkspace({
                   }`}
                 >
                   <span className={`shrink-0 font-medium ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-400"}`}>{t("快捷指令:", "Quick prompts:")}</span>
+                  {([{ id: "plan", zh: "引导规划", en: "Guided plan", promptZh: "请先问我职业目标和约束，再一起制定分步规划；等我反馈后调整下一步。", promptEn: "Ask about my career goal and constraints, then build a step-by-step plan with me and adjust after my feedback." }, { id: "interview", zh: "逐题面试", en: "One-question interview", promptZh: "请先确认目标岗位与级别，然后一次问一道模拟面试题，等我回答后给反馈和下一题。", promptEn: "Confirm my target role and level, ask one mock interview question at a time, then give feedback after I answer." }] as const).map((guide) => <button key={guide.id} type="button" data-testid={`workspace-guide-${guide.id}`} disabled={chatLoading} onClick={() => { setInputMessage((current) => current.trim() ? `${current.trim()}\n\n${t(guide.promptZh, guide.promptEn)}` : t(guide.promptZh, guide.promptEn)); chatComposerRef.current?.focus(); }} className="shrink-0 rounded-full border border-emerald-300 px-3 py-1 text-emerald-800 hover:bg-emerald-50 disabled:opacity-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-950/30">{t(guide.zh, guide.en)}</button>)}
                   <button
                     type="button"
                     onClick={() => void handleSendMessage(t("帮我深入调研这家公司的控股背景、实控人与业务稳定性", "Inspect company ownership, background and stability"))}
@@ -2413,6 +2490,7 @@ export function AgentWorkspace({
                   >
                     <input ref={chatImageInputRef} type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" aria-label={t("上传图片给 Agent", "Upload images for Agent")} onChange={(event) => { void handleChatImageSelection(event); }} />
                     <textarea
+                      ref={chatComposerRef}
                       rows={2}
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
@@ -2468,23 +2546,19 @@ export function AgentWorkspace({
                         </div>
                       </div>
 
-                      <button
+                      {chatLoading ? <button type="button" onClick={handleStopChat} aria-label={t("停止生成并编辑问题", "Stop generating and edit question")} className="agent-btn-press flex items-center gap-1.5 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-500"><Square size={13} /><span>{t("停止", "Stop")}</span></button> : <button
                         type="button"
                         onClick={() => void handleSendMessage()}
-                        disabled={(!inputMessage.trim() && !pendingAttachments.length && !pendingReferences.length) || chatLoading || (pendingAttachments.length > 0 && imageCapability === "unsupported")}
+                        disabled={(!inputMessage.trim() && !pendingAttachments.length && !pendingReferences.length) || (pendingAttachments.length > 0 && imageCapability === "unsupported")}
                         className={`agent-btn-press flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer select-none ${
                           (inputMessage.trim() || pendingAttachments.length || pendingReferences.length) && !chatLoading
                             ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-500/25 active:scale-95"
                             : "bg-slate-100 dark:bg-white/10 text-slate-400 dark:text-slate-400 disabled:opacity-40 cursor-not-allowed"
                         }`}
                       >
-                        {chatLoading ? (
-                          <Loader2 size={13} className="animate-spin text-emerald-500" />
-                        ) : (
-                          <Send size={13} />
-                        )}
+                        <Send size={13} />
                         <span>{t("发送", "Send")}</span>
-                      </button>
+                      </button>}
                     </div>
                   </div>
                 </div>

@@ -3,7 +3,7 @@ import { request as httpRequest } from "node:http";
 import test from "node:test";
 import { z } from "zod";
 import { createToolRegistry, defineTool } from "@better-me/opportunities";
-import { createJobHttpServer } from "../src/http.js";
+import { createJobHttpServer, toolResponseBudgetBytes } from "../src/http.js";
 
 const TOKEN = "synthetic-test-service-token-only-1234567890";
 const ORIGIN = "http://localhost:5173";
@@ -21,6 +21,13 @@ async function withServer(run: (url: string) => Promise<void>, maxBytes?: number
   try { await run(url); } finally { await server.close(); }
 }
 const headers = { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json", Origin: ORIGIN };
+
+test("only public snapshot reads receive the bounded larger response budget", () => {
+  assert.equal(toolResponseBudgetBytes("jobs.sync-public"), 96 * 1024 * 1024);
+  assert.equal(toolResponseBudgetBytes("jobs.export-public"), 96 * 1024 * 1024);
+  assert.equal(toolResponseBudgetBytes("jobs.search"), 64 * 1024 * 1024);
+  assert.equal(toolResponseBudgetBytes("jobs.import-public"), 64 * 1024 * 1024);
+});
 
 test("local API authenticates every response and rejects unapproved or null origins", async () => {
   await withServer(async (url) => {

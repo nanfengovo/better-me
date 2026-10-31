@@ -55,7 +55,7 @@ export function extractResumePrefill(
 
   let mode: "domestic" | "global" = "domestic";
   let chinaSelection: ChinaRegionSelection = {};
-  let countryCode: string | undefined = undefined;
+  const countryCode: string | undefined = undefined;
   let locationName = rawLocation;
 
   if (rawLocation) {

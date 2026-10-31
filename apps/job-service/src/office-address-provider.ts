@@ -130,7 +130,7 @@ export function createNominatimOfficeProvider(transport: SourceTransport, option
 }
 
 const A_ELLIPSOID = 6378245.0;
-const EE_ELLIPSOID = 0.00669342162296594323;
+const EE_ELLIPSOID = 0.006693421622965943;
 
 function transformLat(x: number, y: number): number {
   let ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
@@ -453,7 +453,7 @@ export function normalizeAddressKey(locality?: string, query?: string): string {
   if (!text) return `${cityCode}:`;
 
   // Strip brackets and parentheses: (A座), （3号楼）
-  text = text.replace(/[\(（][^\)）]*[\)）]/g, " ");
+  text = text.replace(/[(（][^)）]*[)）]/g, " ");
 
   // Strip room/floor suffixes: 301室, 5层, 12楼, A座, 1号楼, etc.
   text = text.replace(/\s*\d+[-号]?[楼层室栋座]/g, " ");

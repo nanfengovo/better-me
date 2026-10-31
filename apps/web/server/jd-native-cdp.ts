@@ -29,13 +29,17 @@ function exactKeys(params: CdpObject, keys: string[]) {
   });
 }
 function expansionParamsAllowed(method: string, params: CdpObject) {
+  if (!params || typeof params !== "object" || Array.isArray(params)) return false;
   if (method === "Page.getLayoutMetrics") return exactKeys(params, []);
   if (method === "DOM.scrollIntoViewIfNeeded" || method === "DOM.getContentQuads") return exactKeys(params, ["backendNodeId"]) && Number.isSafeInteger(params.backendNodeId) && (params.backendNodeId as number) > 0;
   if (method === "DOM.getNodeForLocation") return exactKeys(params, ["x", "y", "includeUserAgentShadowDOM", "ignorePointerEventsNone"]) && Number.isSafeInteger(params.x) && (params.x as number) >= 0 && Number.isSafeInteger(params.y) && (params.y as number) >= 0 && params.includeUserAgentShadowDOM === false && params.ignorePointerEventsNone === false;
   if (method === "Input.dispatchMouseEvent") {
     const coordinate = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1_000_000;
     if (params.type === "mouseWheel") {
-      return coordinate(params.x) && coordinate(params.y) && typeof params.deltaY === "number";
+      return exactKeys(params, ["type", "x", "y", "deltaX", "deltaY"])
+        && coordinate(params.x) && coordinate(params.y)
+        && typeof params.deltaX === "number" && Number.isFinite(params.deltaX) && Math.abs(params.deltaX) <= 1_000_000
+        && typeof params.deltaY === "number" && Number.isFinite(params.deltaY) && Math.abs(params.deltaY) <= 1_000_000;
     }
     return exactKeys(params, ["type", "x", "y", "button", "clickCount", "buttons"]) && coordinate(params.x) && coordinate(params.y) && params.button === "left" && params.clickCount === 1 && ((params.type === "mousePressed" && params.buttons === 1) || (params.type === "mouseReleased" && params.buttons === 0));
   }

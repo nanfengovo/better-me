@@ -32,6 +32,8 @@ export function getModelImageCapability(config: Pick<LlmConfig, "provider" | "ba
   }
 
   if (config.provider === "openai-compatible" && host === "api.deepseek.com") {
+    if (["deepseek-flash", "deepseek-v4-flash", "deepseek-v4-flash-vision-exp"].includes(model)) return "supported";
+    if (model === "deepseek-v4-pro") return "unsupported";
     if (/^deepseek-(?:chat|reasoner|coder)(?:$|[-:])/.test(model)) return "unsupported";
   }
 

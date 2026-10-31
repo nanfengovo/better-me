@@ -45,14 +45,14 @@ function loadSavedCustomKinds(): string[] {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) return parsed.filter((s) => typeof s === "string" && s.trim());
     }
-  } catch {}
+  } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
   return [];
 }
 
 function saveCustomKinds(kinds: string[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(kinds));
-  } catch {}
+  } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
 }
 
 export function ClaimKindSelector({

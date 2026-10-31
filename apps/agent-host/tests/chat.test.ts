@@ -33,6 +33,22 @@ class MockChatModel extends BaseChatModel {
 }
 
 describe("agent-host Chat Service", () => {
+  it("propagates cancellation to an in-flight model call", async () => {
+    const controller = new AbortController();
+    let passedSignal: AbortSignal | undefined;
+    const model = { invoke(_messages: BaseMessage[], options?: { signal?: AbortSignal }) {
+      passedSignal = options?.signal;
+      return new Promise((_resolve, reject) => options?.signal?.addEventListener("abort", () => reject(options.signal?.reason), { once: true }));
+    } } as unknown as BaseChatModel;
+    const pending = processAgentChat(model, {
+      messages: [{ id: "guide-1", role: "user", content: "请引导我规划" }],
+      modelSettings: { model: "fixture-model", apiKey: "fixture" },
+    }, controller.signal);
+    assert.equal(passedSignal, controller.signal);
+    controller.abort();
+    await assert.rejects(pending, (error: unknown) => error === controller.signal.reason);
+  });
+
   it("accepts a browser-direct assistant reply in the next turn's history", () => {
     const result = ChatRequestBodySchema.safeParse({
       messages: [

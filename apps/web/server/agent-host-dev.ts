@@ -4,11 +4,12 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
+import { watchDevService } from "./dev-service-watch.js";
 
 /** Development-only Agent Host. Its token is shared with the local browser client. */
 export const AGENT_HOST_DEV_ENDPOINT = "http://127.0.0.1:5179";
 export const AGENT_HOST_DEV_TOKEN = "better-me-agent-token";
-export const AGENT_HOST_DEV_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173"] as const;
+export const AGENT_HOST_DEV_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173", "http://127.0.0.1:5193"] as const;
 
 function agentHostDirectory(): string {
   const candidates = [
@@ -28,20 +29,23 @@ export function agentHostLaunchArgs(spec: { cliPath: string; tsxLoader: string; 
   ];
 }
 
-export type AgentHostProbeStatus = "ready" | "down" | "unauthorized" | "unavailable";
+export type AgentHostProbeStatus = "ready" | "down" | "unauthorized" | "origin-rejected" | "unavailable";
 
 export async function probeAgentHost(endpoint = AGENT_HOST_DEV_ENDPOINT, fetchImpl: typeof fetch = fetch): Promise<AgentHostProbeStatus> {
   try {
-    const response = await fetchImpl(new URL("/api/v1/agent/health", endpoint), {
-      headers: { Authorization: `Bearer ${AGENT_HOST_DEV_TOKEN}` },
-      redirect: "error",
-      cache: "no-store",
-      signal: AbortSignal.timeout(1_500),
-    });
-    void response.body?.cancel().catch(() => {});
-    if (response.status === 200) return "ready";
-    if (response.status === 401) return "unauthorized";
-    return "unavailable";
+    for (const origin of AGENT_HOST_DEV_ORIGINS) {
+      const response = await fetchImpl(new URL("/api/v1/agent/health", endpoint), {
+        headers: { Authorization: `Bearer ${AGENT_HOST_DEV_TOKEN}`, Origin: origin },
+        redirect: "error",
+        cache: "no-store",
+        signal: AbortSignal.timeout(1_500),
+      });
+      void response.body?.cancel().catch(() => {});
+      if (response.status === 401) return "unauthorized";
+      if (response.status !== 200) return "unavailable";
+      if (response.headers.get("access-control-allow-origin") !== origin) return "origin-rejected";
+    }
+    return "ready";
   } catch {
     return "down";
   }
@@ -75,6 +79,7 @@ function launchAgentHost(spec: AgentHostStartSpec): StartedAgentHost {
 
 function startupError(status: Exclude<AgentHostProbeStatus, "ready" | "down">, endpoint: string): Error {
   if (status === "unauthorized") return new Error(`${endpoint} 上已有 Agent Host，但其开发令牌不匹配；为避免中断现有服务，未替换它。`);
+  if (status === "origin-rejected") return new Error(`${endpoint} 上已有 Agent Host，但未允许当前开发页来源；请检查其跨域配置。为避免中断现有服务，未替换它。`);
   return new Error(`${endpoint} 已被其他服务占用，且未通过 Agent Host 健康检查；为避免中断现有服务，未替换它。`);
 }
 
@@ -93,13 +98,26 @@ export function createDevAgentHostBroker(options: {
   let managed: StartedAgentHost | undefined;
   let inflight: Promise<{ endpoint: string }> | undefined;
   let closing = false;
+  let stoppingUnhealthy = false;
+  let unhealthyChecks = 0;
 
   async function ensureOnce(): Promise<{ endpoint: string }> {
     if (closing) throw new Error("Vite 开发服务已关闭，取消 Agent Host 启动。");
     const current = await probe(endpoint);
     if (closing) throw new Error("Vite 开发服务已关闭，取消 Agent Host 启动。");
-    if (current === "ready") return { endpoint };
+    if (current === "ready") { unhealthyChecks = 0; return { endpoint }; }
     if (current !== "down") throw startupError(current, endpoint);
+
+    if (managed) {
+      if (!managed.exited()) {
+        if (++unhealthyChecks < 2) throw new Error("Agent Host 健康检查暂时失败，正在复核恢复状态。");
+        if (!stoppingUnhealthy) { stoppingUnhealthy = true; await managed.stop(); }
+        throw new Error("Agent Host 未通过健康检查，正在等待受管理的进程退出后恢复。");
+      }
+      managed = undefined;
+      stoppingUnhealthy = false;
+      unhealthyChecks = 0;
+    }
 
     const service = await start({ endpoint });
     if (closing) {
@@ -142,17 +160,18 @@ export function createDevAgentHostBroker(options: {
 /** Starts or reuses Agent Host only in Vite dev, and closes only a child it owns. */
 export function agentHostDevPlugin(options: {
   createBroker?: () => ReturnType<typeof createDevAgentHostBroker>;
+  healthIntervalMs?: number;
 } = {}): Plugin {
   return {
     name: "better-me-agent-host-dev",
     apply: "serve",
     configureServer(server) {
       const broker = options.createBroker?.() ?? createDevAgentHostBroker();
-      void broker.ensure().catch((error) => {
+      const watch = watchDevService(broker, options.healthIntervalMs ?? 10_000, (error) => {
         const message = error instanceof Error && error.message.trim() ? error.message.trim() : "Agent Host 启动失败。";
         console.error(`[agent-host-dev] ${message.replace(/\s+/g, " ").slice(0, 500)}`);
       });
-      return () => { server.httpServer?.once("close", () => { void broker.close(); }); };
+      return () => { server.httpServer?.once("close", () => { void watch.close(); }); };
     },
   };
 }

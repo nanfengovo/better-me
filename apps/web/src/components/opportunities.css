@@ -1,4 +1,8 @@
-.resume-workspace-body { display:flex; flex:1; flex-direction:column; min-height:0; }
+.resume-workspace-body { display:flex; flex:1; flex-direction:column; min-height:0; overflow-y:auto; overflow-x:hidden; scrollbar-gutter:stable; }
+/* Notices and recommendations belong to the page scroll, never to the editor's
+   shrinking flex budget. Both editor and preview travel together down the page. */
+.resume-workspace-body > .studio-main { flex:1 0 auto; height:max(540px,calc(100dvh - 240px)); min-height:max(540px,calc(100dvh - 240px)); padding-bottom:16px; }
+@media(max-width:940px) { .resume-workspace-body { overflow:visible; scrollbar-gutter:auto; }.resume-workspace-body > .studio-main { height:auto; min-height:0; } }
 .resume-workspace-body[hidden],.secondary-workspace[hidden] { display:none; }
 .secondary-workspace { flex:1; min-height:0; display:flex; overflow:hidden; }
 .opportunity-workspace { flex:1; min-width:0; padding:29px 32px 20px; overflow:auto; color:#314b3d; }

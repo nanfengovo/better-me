@@ -5,6 +5,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AtlasHarvestProgress } from "../src/components/atlas/AtlasHarvestProgress";
 import { mergeLiveCommitTotals, toHarvestProgressState, type HarvestProgressState } from "../src/components/atlas/harvest-progress-presentation";
+import type { LiveHarvestProvider } from "../src/components/atlas/live-harvest-view";
 
 Object.assign(globalThis, { React });
 
@@ -78,6 +79,15 @@ test("harvest progress communicates pipeline stages and measured query/card coun
   assert.match(markup, /<dt>已抓取卡片<\/dt><dd>38<\/dd>/);
   assert.doesNotMatch(markup, /role="progressbar"/);
   assert.doesNotMatch(markup, /%/);
+});
+
+test("active collection exposes the measured query and source state before the collapsed details", () => {
+  const markup = renderToStaticMarkup(createElement(AtlasHarvestProgress, { progress: stage, busy: true, discoveredCards: 0 }));
+  const summary = markup.split('<details class="atlas-harvest-progress-details">')[0]!;
+  assert.match(summary, /检索词 2 \/ 4/);
+  assert.match(summary, /当前.*\.NET/);
+  assert.match(summary, /失败检索词 1/);
+  assert.doesNotMatch(summary, /\d+%/);
 });
 
 test("commit progress reports saving without claiming concurrent source collection has ended", () => {
@@ -156,6 +166,23 @@ test("platform failures, verification gates and limited coverage remain distinct
   assert.match(markup, /新增入库<\/dt><dd>18/);
   assert.match(markup, /未返回的平台或页面不计作已覆盖/);
   assert.doesNotMatch(markup, /全网抓取完成/);
+});
+
+test("settled acquisition gives one plain-language summary instead of repeating platform diagnostics above the fold", () => {
+  const providers: LiveHarvestProvider[] = ["ABB 官网", "Arbe itnow", "Bosch 官网"].map((platform, index) => ({
+    provider: `source-${index}` as LiveHarvestProvider["provider"], platform, status: "error", cardCount: 0,
+    pagesVisited: 0, scrollSteps: 0, warnings: ["原始岗位链接：timeout"], error: "timeout",
+    coverage: { pagesVisited: 0, scrollSteps: 0, scrollLimit: 0, pageLimit: 10, cardLimit: 100, stopReason: "error", partial: true },
+  }));
+  const markup = renderToStaticMarkup(createElement(AtlasHarvestProgress, {
+    progress: { ...stage, stage: "completed", stageIndex: 5, stats: { completedQueryTerms: 3, queryTermTotal: 3, committedCards: 20 } },
+    providers, busy: false, failed: true, discoveredCards: 24,
+  }));
+  const overview = markup.split('<details class="atlas-harvest-progress-details">')[0]!;
+  assert.match(overview, /3 个来源/);
+  assert.match(overview, /已保存.*20/);
+  assert.doesNotMatch(overview, /timeout|原始岗位链接/);
+  assert.match(markup, /原始诊断.*timeout/);
 });
 
 test("completed runs label skipped enrichment as optional without a completed checkmark", () => {

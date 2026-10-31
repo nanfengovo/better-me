@@ -5,8 +5,8 @@ import { setImmediate as nextTurn } from "node:timers/promises";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import test from "node:test";
-import { ATLAS_DEV_JOB_INDEX_PATH as CLIENT_PATH, parseDevJobIndexBootstrap } from "../src/components/atlas/dev-index-bootstrap.ts";
+import test, { afterEach, mock } from "node:test";
+import { ATLAS_DEV_JOB_INDEX_PATH as CLIENT_PATH, parseDevJobIndexBootstrap, requestDevJobIndex } from "../src/components/atlas/dev-index-bootstrap.ts";
 import {
   ATLAS_DEV_JOB_INDEX_ENDPOINT, ATLAS_DEV_JOB_INDEX_PATH, ATLAS_DEV_PAGE_ORIGINS, atlasDevIndexPlugin,
   createDevJobIndexBroker, createDevJobIndexMiddleware, defaultJobAtlasDataDirectory, jobServiceLaunchArgs,
@@ -15,7 +15,14 @@ import {
 
 const directory = join(tmpdir(), "better-me-dev-index-synthetic");
 const token = "a".repeat(43);
-const origins = ["http://127.0.0.1:5173", "http://localhost:5173"] as const;
+const origins = ["http://127.0.0.1:5173", "http://localhost:5173", "http://127.0.0.1:5193"] as const;
+afterEach(() => mock.restoreAll());
+
+test("a dev page missing the index helper explains the one-command startup instead of asking for a token", async () => {
+  mock.method(globalThis, "fetch", async () => new Response("<!doctype html><title>BetterMe</title>", { status: 200, headers: { "content-type": "text/html" } }));
+  const result = await requestDevJobIndex(new AbortController().signal);
+  assert.deepEqual(result, { ok: false, error: "本机岗位自动连接尚未就绪。请先保存当前编辑，再启动或重启 pnpm dev；独立验收入口使用 pnpm dev:isolated。无需手填访问令牌。" });
+});
 
 test("development bootstrap stays on the fixed loopback index and outside the repository", () => {
   assert.equal(CLIENT_PATH, ATLAS_DEV_JOB_INDEX_PATH);
@@ -29,6 +36,7 @@ test("development bootstrap stays on the fixed loopback index and outside the re
     "--data-dir", "/Users/example/Library/Application Support/BetterMe/job-atlas",
     "--host", "127.0.0.1", "--port", "5178",
     "--origin", "http://127.0.0.1:5173", "--origin", "http://localhost:5173",
+    "--origin", "http://127.0.0.1:5193",
   ]);
   const plugin = atlasDevIndexPlugin();
   assert.equal(plugin.apply, "serve");
@@ -60,6 +68,24 @@ test("Vite dev starts the local job service eagerly and stops its owned process 
   httpServer.emit("close");
   await nextTurn();
   assert.equal(closeCalls, 1, "Vite shutdown should release only the service managed by its broker");
+});
+
+test("index watcher keeps checking and stops checks on Vite close", async () => {
+  let checks = 0, stops = 0;
+  const httpServer = new EventEmitter();
+  const plugin = atlasDevIndexPlugin({ healthIntervalMs: 5, createBroker: () => ({
+    ensure: async () => { checks++; return { endpoint: ATLAS_DEV_JOB_INDEX_ENDPOINT, token }; },
+    close: async () => { stops++; },
+  }) });
+  const cleanup = (plugin.configureServer as (server: unknown) => () => void)({ middlewares: { use: () => {} }, httpServer });
+  cleanup();
+  await new Promise((resolve) => setTimeout(resolve, 28));
+  assert.ok(checks >= 2);
+  httpServer.emit("close");
+  const atClose = checks;
+  await new Promise((resolve) => setTimeout(resolve, 28));
+  assert.equal(checks, atClose);
+  assert.equal(stops, 1);
 });
 
 test("an already reachable service is reused for both page origins without spawning", async () => {
@@ -147,6 +173,31 @@ test("startup failure is returned without the token and stops the process that w
   assert.equal(stopped, true);
   assert.equal(publicDevIndexError(new Error(`listen failed ${token}`)).includes(token), false);
   assert.match(publicDevIndexError(new Error(`listen failed ${token}`)), /\[redacted\]/);
+});
+
+test("index broker recovers an owned unresponsive child without replacing an unknown instance", async () => {
+  let status: "ready" | "down" = "down", starts = 0, stops = 0, exited = false;
+  const broker = createDevJobIndexBroker({ dataDirectory: directory, readToken: async () => token,
+    probe: async () => status, start: () => {
+      starts++; status = "ready"; exited = false;
+      return { exited: () => exited, exitError: () => "exit", stop: async () => { stops++; exited = true; status = "down"; } };
+    },
+  });
+  await broker.ensure();
+  status = "down";
+  await assert.rejects(broker.ensure(), /正在|退出|恢复/);
+  assert.equal(stops, 0, "a single failed health check should not interrupt a busy snapshot");
+  status = "ready";
+  await broker.ensure();
+  status = "down";
+  await assert.rejects(broker.ensure(), /正在|退出|恢复/);
+  assert.equal(stops, 0);
+  await assert.rejects(broker.ensure(), /正在|退出|恢复/);
+  assert.equal(starts, 1);
+  await broker.ensure();
+  assert.equal(starts, 2);
+  await broker.close();
+  assert.equal(stops, 2);
 });
 
 test("the dev route gives the token only to a loopback page and surfaces a real startup error", async () => {

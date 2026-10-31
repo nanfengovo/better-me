@@ -14,7 +14,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["apps/web/src/**/*.tsx"],
+    files: ["apps/web/src/**/*.ts", "apps/web/src/**/*.tsx"],
     plugins: { "react-hooks": hooks },
     rules: {
       "react-hooks/rules-of-hooks": "error",

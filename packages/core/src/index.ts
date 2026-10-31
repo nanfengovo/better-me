@@ -11,4 +11,5 @@ export * from "./project/rendercv-export.js";
 export * from "./seed/demo-fact-base.js";
 export * from "./ai/types.js";
 export * from "./ai/client.js";
+export * from "./ai/deepseek.js";
 export * from "./ai/resume-parser.js";

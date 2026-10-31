@@ -12,6 +12,9 @@ test("image capability recognizes documented model families without trusting cus
   assert.equal(getModelImageCapability(config("openai-compatible", "https://api.openai.com/v1", "gpt-4o")), "supported");
   assert.equal(getModelImageCapability(config("openai-compatible", "https://api.openai.com/v1", "gpt-3.5-turbo")), "unsupported");
   assert.equal(getModelImageCapability(config("openai-compatible", "https://api.deepseek.com/v1", "deepseek-chat")), "unsupported");
+  assert.equal(getModelImageCapability(config("openai-compatible", "https://api.deepseek.com", "deepseek-flash")), "supported");
+  assert.equal(getModelImageCapability(config("openai-compatible", "https://api.deepseek.com/v1", "deepseek-v4-pro")), "unsupported");
+  assert.equal(getModelImageCapability(config("openai-compatible", "https://gateway.invalid/v1", "deepseek-flash")), "unknown");
   assert.equal(getModelImageCapability(config("gemini", "", "gemini-2.5-flash")), "supported");
   assert.equal(getModelImageCapability(config("gemini", "", "text-embedding-004")), "unsupported");
   assert.equal(getModelImageCapability(config("ollama", "http://localhost:11434", "qwen2.5vl:7b")), "supported");

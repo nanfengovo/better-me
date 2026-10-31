@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ModelSettingsSchema } from "../model.js";
 import { ResumeEditContextSchema, ResumeProposalTargetSchema } from "@better-me/agent-contracts";
 
 export const AgentActionCardSchema = z.discriminatedUnion("type", [
@@ -75,13 +76,7 @@ export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 
 export const ChatRequestBodySchema = z.object({
   messages: z.array(ChatMessageSchema),
-  modelSettings: z.object({
-    provider: z.enum(["openai-compatible", "gemini", "ollama", "custom"]).optional(),
-    baseUrl: z.string().url().optional(),
-    model: z.string().min(1),
-    apiKey: z.string().optional().default("ollama-key"),
-    temperature: z.number().min(0).max(2).optional(),
-  }),
+  modelSettings: ModelSettingsSchema,
   context: z.object({
     currentJob: z.object({
       title: z.string().optional(),

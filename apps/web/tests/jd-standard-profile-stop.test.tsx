@@ -22,7 +22,7 @@ test("ordinary pool cleanup stays owned-only while an explicit empty-pool stop r
   });
   await pool.closeAll(); await pool.stop("owned-only"); assert.deepEqual(checks, []);
   await pool.stop();
-  assert.deepEqual(checks.sort(), ["51job", "boss", "liepin", "linkedin"].map(name => path.join(root, name, "profile")).sort());
+  assert.deepEqual(checks.sort(), ["51job", "boss", "liepin", "linkedin", "seek", "indeed", "gradconnection"].map(name => path.join(root, name, "profile")).sort());
   assert.deepEqual(pool.status(), []);
 });
 
@@ -34,17 +34,17 @@ test("occupied no-handle profile remains blocked through ordinary cleanup and cl
   });
   await assert.rejects(pool.stop(), unavailable);
   assert.deepEqual(pool.status(), [{ platform: "51JOB", state: "close_failed", activePages: 0 }]);
-  await pool.closeAll(); await pool.stop("owned-only"); assert.equal(checks, 4);
+  await pool.closeAll(); await pool.stop("owned-only"); assert.equal(checks, 7);
   await assert.rejects(pool.acquire("51JOB", operation), unavailable); assert.equal(launches, 0);
-  occupancy = "clear"; await pool.stop(); assert.equal(checks, 8); assert.deepEqual(pool.status(), []);
+  occupancy = "clear"; await pool.stop(); assert.equal(checks, 14); assert.deepEqual(pool.status(), []);
 });
 
 test("missing, unknown and failed inspection never turn an explicit no-handle stop into successful closure", async () => {
   for (const inspection of [undefined, async () => "unknown" as const, async (): Promise<never> => { throw new Error("unreadable OS evidence"); }]) {
     const pool = createPersistentJobBrowser({ rootDirectory: root, allowedResource: () => true, launch: noLaunch, inspectProfileOccupancy: inspection });
     await assert.rejects(pool.stop(), unavailable);
-    assert.equal(pool.status().length, 4); assert.ok(pool.status().every(status => status.state === "close_failed"));
-    await pool.stop("owned-only"); assert.equal(pool.status().length, 4);
+    assert.equal(pool.status().length, 7); assert.ok(pool.status().every(status => status.state === "close_failed"));
+    await pool.stop("owned-only"); assert.equal(pool.status().length, 7);
   }
 });
 
@@ -55,7 +55,7 @@ test("explicit pool stops share the complete scan; weaker callers inherit its fa
   });
   const explicit = pool.stop(); const rejected = assert.rejects(explicit, unavailable);
   assert.equal(pool.stop(), explicit); assert.equal(pool.stop("owned-only"), explicit);
-  await tick(); assert.equal(checks, 4);
+  await tick(); assert.equal(checks, 7);
   await assert.rejects(pool.acquire("LinkedIn", operation), unavailable);
   gate.resolve("occupied"); await rejected;
   assert.deepEqual(pool.status(), [{ platform: "51JOB", state: "close_failed", activePages: 0 }]);
@@ -68,7 +68,7 @@ test("an explicit pool stop cannot share pending owned-only success and must sca
   });
   const cleanup = pool.stop("owned-only"); assert.equal(pool.stop("owned-only"), cleanup);
   await assert.rejects(pool.stop(), unavailable); await cleanup; assert.equal(checks, 0);
-  await pool.stop(); assert.equal(checks, 4);
+  await pool.stop(); assert.equal(checks, 7);
 });
 
 test("standard manager preserves mode strength, blocks a direct start while stopping, and retries without touching the OS", async () => {

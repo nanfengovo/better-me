@@ -94,7 +94,7 @@ test("worker fetch validates the same loopback envelope and returns a query-read
   const data = syntheticAtlas(270);
   let invalid = false;
   const server = createServer((request, response) => {
-    if (request.url === "/api/v1/dataset/sync") { response.writeHead(404); response.end(); return; }
+    if (["/api/v1/dataset/sync", "/api/v1/dataset/sync-page"].includes(request.url!)) { response.writeHead(404); response.end(); return; }
     response.setHeader("Content-Type", "application/json"); response.end(JSON.stringify(invalid ? { ok: true, value: data } : { ok: true, requestId: "synthetic-snapshot", value: data }));
   });
   await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));

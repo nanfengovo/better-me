@@ -40,7 +40,9 @@ export function extractRecommendationProfile(factBase: FactBase): Recommendation
   const city = matchDisclosedChinaCities({ countryCode: "CN", raw: location })[0];
   const filter = city ? buildChinaRegionFilter({ provinceCode: city.province.code, cityCode: city.city.code }) : undefined;
   // Use the most specific disclosed city group. A district or precise home address never leaves the browser.
-  const locationAliases = filter?.workRegionGroups.at(-1) ?? (location ? unique(location.split(/\s*[/|,，]\s*/), 6) : []);
+  // Unknown free-form locations may include a street, house number or contact
+  // details. Until a locality is recognized, omit the external area filter.
+  const locationAliases = filter?.workRegionGroups.at(-1) ?? [];
   return { roles, skills, tags, location, locationAliases, ...(city ? { countryCode: "CN" } : {}) };
 }
 
@@ -49,8 +51,27 @@ export type RecommendedJob = {
   sourceUrl: string; sourcePlatform: string; observedAt?: string; status: "open" | "unknown";
   matchedSkills: string[]; matchedTags: string[]; roleMatched: boolean;
   locationMatch: "same-area" | "other-area" | "unknown" | "unspecified";
-  unmentionedSkills: string[]; score: number;
+  unmentionedSkills: string[]; score: number; match: JobEvidenceMatch;
 };
+export type MatchDimension = { kind: "skills" | "tags" | "role" | "location"; matched: number; total: number; weight: number };
+export type JobEvidenceMatch = { percentage: number; dimensions: MatchDimension[] };
+
+/** A fixed rubric, independent of other candidates. Unknown evidence earns no points.
+ * The technical denominator is technologies actually disclosed by the posting,
+ * not every unrelated skill a broad resume happens to contain. */
+function evidenceMatch(profile: RecommendationProfile, fullText: string, matchedSkills: string[], matchedTags: string[], roleMatched: boolean, sameArea: boolean): JobEvidenceMatch {
+  const disclosed = technologies.filter(group => group.some(alias => has(fullText, alias))).map(group => group[0]!);
+  const declared = unique([...disclosed, ...matchedSkills], 100);
+  const dimensions: MatchDimension[] = [
+    { kind: "skills", matched: declared.filter(skill => [...profile.skills, ...profile.tags].some(value => spellings(value).some(alias => spellings(skill).includes(alias)))).length, total: declared.length, weight: profile.skills.length ? 55 : 0 },
+    { kind: "tags", matched: matchedTags.length, total: profile.tags.length, weight: profile.tags.length ? 15 : 0 },
+    { kind: "role", matched: Number(roleMatched), total: 1, weight: profile.roles.length ? 20 : 0 },
+    { kind: "location", matched: Number(sameArea), total: 1, weight: profile.location ? 10 : 0 },
+  ];
+  const weight = dimensions.reduce((sum, dimension) => sum + dimension.weight, 0);
+  const points = dimensions.reduce((sum, dimension) => sum + (dimension.total ? dimension.matched / dimension.total * dimension.weight : 0), 0);
+  return { percentage: weight ? Math.max(0, Math.min(100, Math.round(points / weight * 100))) : 0, dimensions };
+}
 export type RecommendationResult = { jobs: RecommendedJob[]; candidates: number; scanned: number; excludedClosed: number };
 // Bounded server search results deliberately omit the large observation/history tables.
 export type RecommendationPool = Pick<AtlasDataset, "jobs" | "companies" | "locations" | "snapshots"> & {
@@ -108,7 +129,7 @@ export async function recommendResumeJobs(dataset: RecommendationPool, profile: 
     if (options.sameAreaOnly && profile.location && !sameArea) continue;
     const key = `${normalizeSearchText(company.names[0]!)}:${titleText}:${unique(places.map(place => normalizeSearchText(place.city ?? place.raw)), 20).sort().join(",")}`;
     const unmentionedSkills = technologies.filter(group => group.some(alias => has(fullText, alias))
-      && !profile.skills.some(skill => spellings(skill).some(alias => group.some(term => normalizeSearchText(term) === normalizeSearchText(alias)))))
+      && ![...profile.skills, ...profile.tags].some(skill => spellings(skill).some(alias => group.some(term => normalizeSearchText(term) === normalizeSearchText(alias)))))
       .map(group => group[0]!).slice(0, 4);
     const score = matchedSkills.length * 10 + (profile.skills.length ? matchedSkills.length / profile.skills.length * 24 : 0)
       + matchedTags.length * 7 + (roleMatched ? 18 : 0);
@@ -116,13 +137,14 @@ export async function recommendResumeJobs(dataset: RecommendationPool, profile: 
       location: unique(places.map(place => [...new Set([place.city, place.region].filter(Boolean))].join(" · ") || place.raw), 3).join(" / "),
       salary: job.compensationIds.map(id => compensations.get(id)).filter(Boolean).join(" / ") || undefined,
       sourceUrl, sourcePlatform: source?.attribution.label ?? source?.name ?? "来源待核实",
-      observedAt: snapshot?.createdAt, status: job.status, matchedSkills, matchedTags, roleMatched, locationMatch, unmentionedSkills, score };
+      observedAt: snapshot?.createdAt, status: job.status, matchedSkills, matchedTags, roleMatched, locationMatch, unmentionedSkills, score,
+      match: evidenceMatch(profile, fullText, matchedSkills, matchedTags, roleMatched, sameArea) };
     const previous = rankedByIdentity.get(key);
     if (!previous || candidate.score > previous.score || (candidate.score === previous.score && candidate.status === "open" && previous.status !== "open")) rankedByIdentity.set(key, candidate);
   }
   options.signal?.throwIfAborted();
   const ranked = [...rankedByIdentity.values()];
   const locationPriority = (item: RecommendedJob) => item.locationMatch === "same-area" ? 1 : 0;
-  ranked.sort((a, b) => locationPriority(b) - locationPriority(a) || b.score - a.score || a.id.localeCompare(b.id));
+  ranked.sort((a, b) => locationPriority(b) - locationPriority(a) || b.match.percentage - a.match.percentage || b.score - a.score || a.id.localeCompare(b.id));
   return { jobs: ranked.slice(0, Math.max(1, Math.min(options.limit ?? 3, 6))), candidates: ranked.length, scanned: dataset.jobs.length, excludedClosed };
 }

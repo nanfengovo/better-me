@@ -24,9 +24,9 @@ test("uses bounded authenticated public queries, not full snapshots or resume do
   assert.equal(source.kind, "index");
   assert.equal(source.bounded, true);
   assert.equal(source.partial, false);
-  assert.equal(requests.length, 3);
+  assert.equal(requests.length, 4);
   assert.equal(new Set(source.dataset.jobs.map(job => job.id)).size, source.dataset.jobs.length);
-  for (const { url, init, body } of requests) {
+  for (const { url, init, body } of requests.slice(0, 3)) {
     assert.equal(url, `${endpoint}/api/v1/jobs/search`);
     assert.equal(init.method, "POST");
     assert.equal(init.credentials, "omit");
@@ -40,6 +40,7 @@ test("uses bounded authenticated public queries, not full snapshots or resume do
     assert.ok(!String(init.body).includes("合成测试候选人"));
     assert.ok(!String(init.body).includes("合成测试企业"));
   }
+  assert.equal(requests[3]!.body.workRegionGroups, undefined);
   assert.equal(JSON.stringify(fixtureResume), before);
 });
 
@@ -70,6 +71,30 @@ test("falls back once to other areas only when the disclosed-area candidates are
   assert.ok(result.dataset.jobs.length > 0);
 });
 
+test("duplicate hits across skills do not suppress the other-area fallback", async context => {
+  const requests: JobQueryInput[] = [];
+  const dataset = recommendationDataset([{ id: "one-local", description: "C# .NET Docker", city: "上海" }, { id: "remote-area", description: "C# .NET Docker", city: "北京" }]);
+  context.mock.method(globalThis, "fetch", async (_input: unknown, init: RequestInit) => {
+    const query = JSON.parse(String(init.body)) as JobQueryInput; requests.push(query);
+    return Response.json({ ok: true, requestId: "duplicate-regression", value: await queryJobs(dataset, query, { now: at }) });
+  });
+  const source = await readIndexRecommendationCandidates(endpoint, "duplicate-test", extractRecommendationProfile(fixtureResume), new AbortController().signal);
+  assert.equal(requests.length, 4);
+  assert.ok(source.dataset.jobs.some(job => job.id === "remote-area"));
+});
+
+test("unrecognized location text never forwards a private street address to index search", async context => {
+  const resume = structuredClone(fixtureResume);
+  resume.profile.location = { en: "123 Example Street, London" };
+  const bodies: string[] = [];
+  context.mock.method(globalThis, "fetch", async (_input: unknown, init: RequestInit) => {
+    bodies.push(String(init.body)); return reply(JSON.parse(String(init.body)));
+  });
+  await readIndexRecommendationCandidates(endpoint, "private-address-test", extractRecommendationProfile(resume), new AbortController().signal);
+  assert.ok(bodies.length > 0);
+  assert.ok(bodies.every(body => !body.includes("Example Street") && !body.includes("123")));
+});
+
 test("abort cancels requests and no-profile requests never read the index", async context => {
   let calls = 0;
   context.mock.method(globalThis, "fetch", async (_input: unknown, init: RequestInit) => {
@@ -85,4 +110,33 @@ test("abort cancels requests and no-profile requests never read the index", asyn
   const empty = await readIndexRecommendationCandidates(endpoint, "synthetic-test-token", profile, new AbortController().signal);
   assert.equal(calls, 3);
   assert.equal(empty.dataset.jobs.length, 0);
+});
+
+test("publishes successful candidates before a slow term finishes and bounds that term", async context => {
+  context.mock.method(globalThis, "fetch", async (_input: unknown, init: RequestInit) => {
+    const query = JSON.parse(String(init.body)) as JobQueryInput;
+    if (query.search?.text === ".NET") return new Promise<Response>((_resolve, reject) => {
+      init.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
+    });
+    return reply(query);
+  });
+  const updates: number[] = [];
+  const pending = readIndexRecommendationCandidates(endpoint, "slow-query-test", extractRecommendationProfile(fixtureResume), new AbortController().signal,
+    { timeoutMs: 60, onUpdate: source => updates.push(source.dataset.jobs.length) });
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.ok(updates.some(count => count > 0), "available matches must not wait for the slowest query");
+  const final = await pending;
+  assert.equal(final.partial, true);
+  assert.ok(final.dataset.jobs.length > 0);
+});
+
+test("reuses only recent candidates for the same connection and query; explicit refresh bypasses cache", async context => {
+  let calls = 0;
+  context.mock.method(globalThis, "fetch", async (_input: unknown, init: RequestInit) => { calls++; return reply(JSON.parse(String(init.body))); });
+  const profile = extractRecommendationProfile(fixtureResume);
+  const read = (token = "cache-test", forceRefresh = false) => readIndexRecommendationCandidates(endpoint, token, profile, new AbortController().signal, { forceRefresh, cacheTtlMs: 120_000 });
+  await read(); assert.equal(calls, 4);
+  const cached = await read(); assert.equal(calls, 4); assert.equal(cached.cached, true);
+  await read("cache-test", true); assert.equal(calls, 8);
+  await read("different-connection"); assert.equal(calls, 12);
 });

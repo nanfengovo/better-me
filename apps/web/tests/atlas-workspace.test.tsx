@@ -11,7 +11,8 @@ import type { AtlasPrototypeProps } from "../src/components/atlas/prototypes/typ
 import type { AtlasJobDetailProps } from "../src/components/atlas/AtlasJobDetail.tsx";
 import type { AtlasOfficeAddressConfirmationProps } from "../src/components/atlas/AtlasOfficeAddressConfirmation.tsx";
 import type { AtlasSourcesPanelProps } from "../src/components/atlas/AtlasSourcesPanel.tsx";
-import { queryAtlasPage } from "../src/components/atlas/client.ts";
+import { queryAtlasPage, readAtlasSnapshot } from "../src/components/atlas/client.ts";
+import { syntheticAtlas } from "../../job-service/tests/synthetic-atlas.ts";
 import { officeProposal, officeAt } from "./fixtures/atlas-office-address.ts";
 import { createMapReferenceFixture } from "./fixtures/atlas-map-references.ts";
 import type { HarvestCheckpoint, HarvestCheckpointSnapshot, HarvestJournal, HarvestRunInput } from "../src/components/atlas/harvest-checkpoint.ts";
@@ -30,6 +31,8 @@ let pauseRecovery: undefined | ((signal: AbortSignal) => Promise<void>);
 let pauseSnapshotQuery: undefined | ((data: AtlasDataset, signal: AbortSignal) => Promise<void>);
 let sourcePanelProps: AtlasSourcesPanelProps | undefined;
 let backgroundStatusReply: (() => Response) | undefined;
+let baselineReadFixture: typeof readAtlasSnapshot | undefined;
+function workspaceRead(...args: Parameters<typeof readAtlasSnapshot>) { return (baselineReadFixture ?? readAtlasSnapshot)(...args); }
 let recoveryFixture: ReturnType<typeof checkpointFixture> | undefined;
 let recoveryLocked = false;
 function checkpointFixture(input: HarvestRunInput) {
@@ -77,7 +80,7 @@ function DetailProbe(props: AtlasJobDetailProps) {
 }
 const globals = { window: dom, document: dom.document, navigator: dom.navigator, localStorage: dom.localStorage,
   HTMLElement: dom.HTMLElement, Element: dom.Element, Node: dom.Node, React, IS_REACT_ACT_ENVIRONMENT: true,
-  __atlasMapProbe: MapProbe, __atlasDetailProbe: DetailProbe, __atlasOfficeProbe: OfficeProbe, __atlasWorkspacePage: workspacePage, __atlasSourcesProbe: SourcesProbe, __atlasRecoveryIO: recoveryIO };
+  __atlasMapProbe: MapProbe, __atlasDetailProbe: DetailProbe, __atlasOfficeProbe: OfficeProbe, __atlasWorkspacePage: workspacePage, __atlasWorkspaceRead: workspaceRead, __atlasSourcesProbe: SourcesProbe, __atlasRecoveryIO: recoveryIO };
 const descriptors = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
 const hooks = registerHooks({
@@ -87,7 +90,7 @@ const hooks = registerHooks({
     if (specifier === "./atlas/AtlasSourcesPanel") return { url: "data:text/javascript,export const AtlasSourcesPanel = globalThis.__atlasSourcesProbe", shortCircuit: true };
     if (specifier === "./atlas/AtlasJobDetail") return { url: "data:text/javascript,export const AtlasJobDetail = globalThis.__atlasDetailProbe", shortCircuit: true };
     if (specifier === "./atlas/AtlasOfficeAddressConfirmation" || specifier === "./AtlasOfficeAddressConfirmation") return { url: "data:text/javascript,export const AtlasOfficeAddressConfirmation = globalThis.__atlasOfficeProbe", shortCircuit: true };
-    if (specifier === "./atlas/client") return { url: `data:text/javascript,export {buildAtlasJobAction,readAtlasSnapshot} from ${JSON.stringify(new URL("../src/components/atlas/client.ts", import.meta.url).href)};export const queryAtlasPage=globalThis.__atlasWorkspacePage`, shortCircuit: true };
+    if (specifier === "./atlas/client") return { url: `data:text/javascript,export {buildAtlasJobAction} from ${JSON.stringify(new URL("../src/components/atlas/client.ts", import.meta.url).href)};export const readAtlasSnapshot=globalThis.__atlasWorkspaceRead;export const queryAtlasPage=globalThis.__atlasWorkspacePage`, shortCircuit: true };
     return nextResolve(specifier, context);
   },
   load(url, context, nextLoad) {
@@ -101,6 +104,58 @@ const { AtlasJobDetail: RealAtlasJobDetail } = await import("../src/components/a
 const { default: AtlasWorkspace } = await import("../src/components/AtlasWorkspace.tsx");
 let root: ReturnType<typeof createRoot> | undefined;
 const noAction = () => {};
+
+test("paged first-entry previews keep search/list/map usable, disclose partial coverage and preserve the list page on completion", async () => {
+  const prefix = { ...syntheticAtlas(64), revision: 1 }, complete = { ...syntheticAtlas(240), revision: 1 };
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  baselineReadFixture = async (_endpoint, _token, options = {}) => {
+    await options.onProgress?.(prefix, { loadedJobs: 64, totalJobs: 240, pages: 2, complete: false });
+    await gate; options.signal?.throwIfAborted(); return complete;
+  };
+  const calls: string[] = [];
+  installWorkspaceFetch(async input => { calls.push(String(input)); return sourceResponse({}); });
+  try {
+    await render(true, false);
+    await flush(() => button("连接本机服务").click());
+    await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('input[type="password"]')!, "synthetic-fixture-token"));
+    await act(async () => { button("连接并读取索引").click(); });
+    await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 30, "first baseline prefix cards");
+    assert.match(dom.document.querySelector('[aria-label="首次岗位基线加载"]')!.textContent!, /64 \/ 240/);
+    assert.match(dom.document.querySelector('[aria-label="首次岗位基线加载"]')!.textContent!, /不代表全库结果/);
+    assert.ok(mapProps!.buckets!.length > 0);
+    const search = dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!;
+    assert.equal(search.disabled, false);
+    await act(async () => { changeInput(search, "TypeScript"); });
+    await waitFor(() => resultsHeading().includes("32") && mapProps!.buckets!.length === 0, "keyword search within partial baseline");
+    await act(async () => { changeInput(search, "C#"); });
+    await waitFor(() => resultsHeading().includes("32") && mapProps!.buckets!.length > 0, "C# list and real-coordinate map");
+    await act(async () => { button("下一页").click(); });
+    await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 2, "second prefix list page");
+    assert.equal(calls.some(path => /dataset\/import|enrichment\/status|locations\/map-references/.test(path)), false, "a prefix cannot enable background writes/recovery or full-baseline actions");
+    await act(async () => { release(); });
+    await waitFor(() => !dom.document.querySelector('[aria-label="首次岗位基线加载"]') && dom.document.querySelectorAll(".atlas-job-card").length === 30, "completed baseline with preserved second page");
+    assert.match(resultsHeading(), /120/);
+  } finally { release(); }
+});
+test("a failed initial baseline retains read-only prefix cards and offers retry without claiming complete coverage", async () => {
+  let reject!: (error: Error) => void;
+  const gate = new Promise<never>((_resolve, fail) => { reject = fail; });
+  baselineReadFixture = async (_endpoint, _token, options = {}) => {
+    await options.onProgress?.({ ...syntheticAtlas(64), revision: 1 }, { loadedJobs: 64, totalJobs: 240, pages: 2, complete: false });
+    return gate;
+  };
+  await render(true, false);
+  await flush(() => button("连接本机服务").click());
+  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('input[type="password"]')!, "synthetic-fixture-token"));
+  await act(async () => { button("连接并读取索引").click(); });
+  await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 30, "prefix before failure");
+  await act(async () => { reject(new Error("Synthetic interrupted baseline")); });
+  await waitFor(() => Boolean(dom.document.querySelector('[aria-label="首次岗位基线加载"]')?.textContent?.includes("未完成")), "truthful interrupted baseline status");
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30);
+  assert.equal(button("重试读取索引").disabled, false);
+  assert.match(dom.document.querySelector('[role="alert"]')!.textContent!, /Synthetic interrupted baseline/);
+});
 async function waitFor(condition: () => boolean, description: string) {
   const deadline = performance.now() + 15_000;
   while (!condition()) {
@@ -246,7 +301,7 @@ function unresolvedOfficeFixture() {
   data.locations.forEach((location) => { location.kind = "office"; });
   return AtlasDatasetSchema.parse(data);
 }
-afterEach(async () => { if (root) await act(async () => root!.unmount()); root = undefined; mapProps = undefined; detailData = undefined; officeProps = undefined; pauseRecovery = undefined; pauseSnapshotQuery = undefined; sourcePanelProps = undefined; backgroundStatusReply = undefined; recoveryFixture = undefined; recoveryLocked = false; dom.localStorage.clear(); dom.sessionStorage.clear(); mock.restoreAll(); });
+afterEach(async () => { if (root) await act(async () => root!.unmount()); root = undefined; mapProps = undefined; detailData = undefined; officeProps = undefined; pauseRecovery = undefined; pauseSnapshotQuery = undefined; sourcePanelProps = undefined; backgroundStatusReply = undefined; baselineReadFixture = undefined; recoveryFixture = undefined; recoveryLocked = false; dom.localStorage.clear(); dom.sessionStorage.clear(); mock.restoreAll(); });
 
 test("presentation-only controls do not reformat unchanged country options and job content", async () => {
   await render();
@@ -1165,7 +1220,9 @@ test("failed source explanations remain visible when viewing the index or changi
     const issue = [...dom.document.querySelectorAll(".atlas-harvest-issues .atlas-harvest-issue")]
       .find(node => node.querySelector(".atlas-harvest-issue-source")?.textContent === "猎聘");
     assert.ok(issue, "the task card must retain the actual source receipt independently of result-list mode");
-    assert.match(issue.textContent!, /Synthetic source list was not recognized/);
+    assert.match(issue.textContent!, /未识别到可读取列表/);
+    assert.doesNotMatch(issue.textContent!, /Synthetic source list was not recognized/, "原始诊断不再挤进顶部摘要");
+    assert.match(dom.document.querySelector(".atlas-harvest-progress-details")!.textContent!, /Synthetic source list was not recognized/, "逐源原始诊断仍可展开核对");
     assert.doesNotMatch(issue.textContent!, /平台未返回具体原因/);
   };
   assertSourceReason();
@@ -1913,4 +1970,31 @@ test("resume prefill bar displays smart keywords from active resume and pre-fill
   assert.ok(reactChip, "React chip found");
   await flush(() => reactChip!.click());
   assert.equal(searchInput.value, "React");
+});
+
+test("the command area can fold while keeping map mounted and restoring the same search criteria", async () => {
+  await render();
+  const controls = dom.document.querySelector<HTMLDetailsElement>('[aria-label="地图搜索与筛选面板"]')!;
+  assert.ok(controls?.open);
+  const input = dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!;
+  await flush(() => changeInput(input, "C#"));
+  const mounted = mapMounts;
+  await act(async () => { controls.querySelector("summary")!.click(); });
+  assert.equal(controls.open, false);
+  assert.equal(mapMounts, mounted);
+  await act(async () => { controls.querySelector("summary")!.click(); });
+  assert.equal(controls.open, true);
+  assert.equal(input.value, "C#");
+});
+
+test("a live index with no exact office coordinates shows the coverage gap and an address action above the map", async () => {
+  const data = searchFixture();
+  installWorkspaceFetch(async () => new Response(JSON.stringify({ ok: true, requestId: "address-gap-fixture", value: data })));
+  await render();
+  await connectFixture();
+  const coverage = dom.document.querySelector('[aria-label="地图地址覆盖"]');
+  assert.ok(coverage);
+  assert.match(coverage.textContent!, /22 个岗位/);
+  assert.match(coverage.textContent!, /没有可验证的办公地址|暂无可验证办公地址/);
+  assert.ok(coverage.querySelector("button")?.textContent?.includes("补全当前结果办公地点"));
 });

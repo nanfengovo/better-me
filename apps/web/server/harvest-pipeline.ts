@@ -9,7 +9,6 @@ import {
   type CompanyIntelligenceLookupResult,
 } from "./company-intelligence";
 import {
-  classifyEnterpriseOwnershipAndOrigin,
   resolveEnterpriseOfficeAddress,
   type KnownOfficePoint,
 } from "../src/components/atlas/company-intelligence-catalog";
@@ -210,7 +209,7 @@ export class OpportunityHarvestPipeline {
     for (const fn of this.listeners) {
       try {
         fn(event);
-      } catch {}
+      } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
     }
   }
 

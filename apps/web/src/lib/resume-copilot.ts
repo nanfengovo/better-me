@@ -1,4 +1,4 @@
-import { fetchChatCompletionResult, type LlmConfig } from "@better-me/core";
+import { fetchChatCompletionResult, jsonObjectOptions, type LlmConfig } from "@better-me/core";
 import type { ResumeEditContext, ResumeProposalTarget } from "@better-me/agent-contracts";
 import { z } from "zod";
 import { resolveWritingQuote, type WritingQuote } from "./writing-anchor";
@@ -173,7 +173,7 @@ export async function generateWritingReply(config: LlmConfig, source: WritingSou
       evidenceQuotes: { type: "array", maxItems: 2, items: { type: "string", enum: [originalText, ...(confirmedSupplement ? [confirmedSupplement] : [])] } },
       ...(confirmedSupplement ? { proposedText: { type: "string" } } : {}),
     },
-  } } } } : {}) });
+  } } } } : jsonObjectOptions(config)) });
   signal.throwIfAborted();
   if (result.finishReason === "length") throw new Error("模型答复被截断，未采用；请缩短补充内容后重试。");
   return parseWritingReply(result.content, source, answer);

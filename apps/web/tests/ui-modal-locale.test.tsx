@@ -6,6 +6,7 @@ import { Window } from "happy-dom";
 import type { LlmConfig, ProjectedResume } from "@better-me/core";
 
 const css = registerHooks({ load(url, context, nextLoad) {
+  if (url.endsWith("pdf.worker.min.mjs?url")) return { source: 'export default "synthetic-pdf-worker.mjs";', format: "module", shortCircuit: true };
   return url.endsWith(".css") ? { source: "export {};", format: "module", shortCircuit: true } : nextLoad(url, context);
 } });
 const dom = new Window({ url: "http://ui-modal-fixture.invalid" });

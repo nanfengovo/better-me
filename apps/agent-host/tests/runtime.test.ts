@@ -201,11 +201,7 @@ describe("agent run manager", () => {
         assert.ok(output.output?.includes(expected), `expected complete answer to include ${expected}`);
       }
       const eventLogPath = path.join(run.runDirectory, "events.ndjson");
-      for (let attempt = 0; attempt < 100; attempt += 1) {
-        const eventLog = await fs.readFile(eventLogPath, "utf8").catch(() => "");
-        if (eventLog.includes('"type":"run.completed"')) break;
-        await new Promise((resolve) => setTimeout(resolve, 10));
-      }
+      await manager.flush(run.id);
       assert.match(await fs.readFile(eventLogPath, "utf8"), /"type":"run\.completed"/);
     } finally {
       await fs.rm(root, { recursive: true, force: true });
@@ -224,6 +220,7 @@ describe("agent run manager", () => {
         await new Promise((resolve) => setTimeout(resolve, 20));
       }
       assert.equal(firstManager.get(started.id)?.status, "completed");
+      await firstManager.flush(started.id);
 
       const restartedManager = new AgentRunManager({ rootDirectory: root, registry });
       await restartedManager.ready();

@@ -195,7 +195,7 @@ export async function enrichSnapshotCompaniesAndOffices(options: {
       } catch {
         try {
           snapshot = await client.snapshot({ signal });
-        } catch {}
+        } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
       }
     }
   }
@@ -316,7 +316,7 @@ export async function enrichSnapshotCompaniesAndOffices(options: {
     } catch {
       try {
         snapshot = await client.snapshot({ signal });
-      } catch {}
+      } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
     }
   }
 
@@ -423,7 +423,7 @@ export async function importAndConfirmLivePlatformResults(options: {
         });
         try {
           snapshot = await client.snapshot({ signal });
-        } catch {}
+        } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
       }
     }
     if (providerImportedCount > 0) {

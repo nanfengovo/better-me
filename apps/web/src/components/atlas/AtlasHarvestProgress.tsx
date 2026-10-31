@@ -1,8 +1,10 @@
 import { Activity, AlertTriangle, Check, ChevronDown, Circle, Pause } from "lucide-react";
+import type { LlmConfig } from "@better-me/core";
 import type { HarvestProgressState } from "./harvest-progress-presentation";
 import { finiteProgressStat, harvestStageHeadline, harvestStageName, harvestStepState, stringProgressStat } from "./harvest-progress-presentation";
 import type { LiveHarvestProvider } from "./live-harvest-view";
 import { summarizeHarvestIssues, sanitizeHarvestDiagnostic, type HarvestIssueInput } from "./harvest-issue-presentation";
+import { AtlasHarvestAdvisor } from "./AtlasHarvestAdvisor";
 
 const STAGE_COUNT = 5;
 
@@ -20,6 +22,9 @@ export function AtlasHarvestProgress({
   recoveryPhase,
   importFailures,
   failureMessage,
+  agentConfig,
+  active = true,
+  onAskAgent,
 }: {
   progress: HarvestProgressState | null;
   busy: boolean;
@@ -35,6 +40,9 @@ export function AtlasHarvestProgress({
   recoveryPhase?: string;
   importFailures?: HarvestIssueInput["importFailures"];
   failureMessage?: string;
+  agentConfig?: LlmConfig;
+  active?: boolean;
+  onAskAgent?: (prompt: string) => void;
 }) {
   if (!progress && !busy && !cancelled && !failed && discoveredCards === undefined) return null;
   // Changing market scope prepares an intent without starting a harvest. That
@@ -79,6 +87,8 @@ export function AtlasHarvestProgress({
   const visibleIssues = issues.slice(0, 2);
   const needsLogin = issues.some(issue => issue.action.kind === "login");
   const showResume = !busy && Boolean(onResume);
+  const runningProviders = providers?.filter(provider => provider.status === "running") ?? [];
+  const settledProviders = providers?.filter(provider => !["queued", "running"].includes(provider.status)) ?? [];
 
   return (
     <section className={`atlas-harvest-progress ${busy ? "is-busy" : "is-settled"}${stopped ? " is-cancelled" : ""}`} data-state={failed && !busy ? "attention" : stopped ? "stopped" : busy ? "running" : "settled"} aria-label="实时采集与入库阶段" aria-busy={busy}>
@@ -97,14 +107,21 @@ export function AtlasHarvestProgress({
         {busy && onCancel && <button type="button" className="atlas-harvest-progress-cancel" onClick={onCancel}>停止采集</button>}
       </header>
 
+      {(queryTermTotal !== undefined || providers?.length || progress?.message) && <div className="atlas-harvest-progress-overview" role="status" aria-live="polite">
+        {queryTermTotal !== undefined && <span>检索词 {queryTermIndex ?? completedQueryTerms ?? 0} / {queryTermTotal}{queryTerm ? ` · 当前 ${queryTerm}` : ""}</span>}
+        {providers && providers.length > 0 && <span>平台 {settledProviders.length} / {providers.length} 已结束{runningProviders.length ? ` · ${runningProviders.map(provider => provider.platform).slice(0, 2).join("、")}读取中` : ""}</span>}
+        {failedTerms !== undefined && failedTerms > 0 && <span>失败检索词 {failedTerms}</span>}
+        {busy && progress?.message && <span className="atlas-harvest-progress-current">{sanitizeHarvestDiagnostic(progress.message)}</span>}
+      </div>}
+
+      {!busy && issues.length > 0 && <AtlasHarvestAdvisor issues={issues} saved={committedCards} config={agentConfig} active={active} onAskAgent={onAskAgent} />}
       {visibleIssues.length > 0 && <ul className="atlas-harvest-issues" aria-label="本轮未完成原因">
         {visibleIssues.map(issue => <li className="atlas-harvest-issue" key={issue.id} data-severity={issue.severity}>
           <span className="atlas-harvest-issue-source">{issue.source}</span>
-          <div className="atlas-harvest-issue-copy"><p className="atlas-harvest-issue-reason">{issue.reason}</p></div>
+          <div className="atlas-harvest-issue-copy"><p className="atlas-harvest-issue-reason">{issue.title}</p></div>
         </li>)}
       </ul>}
-      {recoveryPhase === "error" && recoveryMessage && <p className="atlas-harvest-progress-error" role="alert">{sanitizeHarvestDiagnostic(recoveryMessage)}</p>}
-      {!busy && issues.length > 0 && !showResume && !(needsLogin && onOpenLogin) && <p className="atlas-harvest-issue-advice">{issues[0]?.advice}</p>}
+      {recoveryPhase === "error" && recoveryMessage && <p className="atlas-harvest-progress-error" role="alert">恢复上次采集未成功，请查看下面的处理详情。</p>}
 
       <div className="atlas-harvest-footer">
       <details className="atlas-harvest-progress-details">
@@ -114,10 +131,14 @@ export function AtlasHarvestProgress({
         </summary>
         {issues.length > 0 && <ul className="atlas-harvest-issue-details" aria-label="完整原因与处理建议">
           {issues.map(issue => <li key={issue.id}>
-            <strong>{issue.source} · {issue.title}</strong><p>{issue.reason}</p><p>{issue.advice}</p>
-            {issue.rawDetails.length > 0 && <details><summary>原始诊断</summary><ul>{issue.rawDetails.map((detail, index) => <li key={index}>{detail}</li>)}</ul></details>}
+            <details className="atlas-harvest-issue-entry">
+              <summary><strong>{issue.source} · {issue.title}</strong><span>查看原因与建议</span></summary>
+              <p>{issue.reason}</p><p>{issue.advice}</p>
+              {issue.rawDetails.length > 0 && <details><summary>原始诊断</summary><ul>{issue.rawDetails.map((detail, index) => <li key={index}>{detail}</li>)}</ul></details>}
+            </details>
           </li>)}
         </ul>}
+        {recoveryPhase === "error" && recoveryMessage && <p className="atlas-harvest-progress-message">恢复诊断：{sanitizeHarvestDiagnostic(recoveryMessage)}</p>}
         {progress?.message && !stopped && !(failed && !busy && progress.stage !== "completed") && <p className="atlas-harvest-progress-message">{sanitizeHarvestDiagnostic(progress.message)}</p>}
         <ol className="atlas-harvest-progress-stages" aria-label="采集处理阶段">
           {Array.from({ length: STAGE_COUNT }, (_, offset) => {

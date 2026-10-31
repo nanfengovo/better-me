@@ -103,6 +103,13 @@ describe("agent-host HTTP Server", () => {
     assert.equal(resume.status, 200);
     const completed = await resume.json();
     assert.equal(completed.status, "complete");
+    assert.equal(completed.stepLog.filter((step: string) => step.startsWith("intake:")).length, 1);
+    assert.deepEqual(completed.artifacts.map((item: { id: string }) => item.id), initial.artifacts.map((item: { id: string }) => item.id));
+    const duplicate = await fetch(`${baseUrl}/api/v1/agent/workflows/career/resume`, {
+      method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ threadId: "career-http-test", approval: { status: "approved", actorScope: "user", idempotencyKey: "career-http-12345678" } }),
+    });
+    assert.equal(duplicate.status, 409, "a completed approval cannot restart the graph");
   });
 });
 

@@ -339,12 +339,12 @@ function extractCardsFromRawDomSnapshot(
       if (cls.includes("joblist-item") || cls.includes("post-item") || cls.includes("job-item")) {
         let data: any = null;
         if (attrs.sensorsdata) {
-          try { data = JSON.parse(attrs.sensorsdata); } catch {}
+          try { data = JSON.parse(attrs.sensorsdata); } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
         }
         let title = String(data?.jobTitle || "").trim();
         let salary = String(data?.jobSalary || "").trim();
         let location = String(data?.jobArea || "").trim();
-        let publication = String(data?.jobTime || "").trim();
+        const publication = String(data?.jobTime || "").trim();
         const jobId = String(data?.jobId || "");
         let company = "";
         let href = "";
@@ -1477,7 +1477,7 @@ export async function captureProviderViaNativeCdp(
                       (c) => (c.name === "lt_token" || c.name === "user_id") && c.value.trim().length > 3,
                     );
                   }
-                } catch {}
+                } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
 
                 let leftGate = false;
                 try {
@@ -1486,7 +1486,7 @@ export async function captureProviderViaNativeCdp(
                   if (curUrl && !/\/web\/user\/|passport\.liepin|security-check|verify/i.test(curUrl) && !curUrl.includes("blank")) {
                     leftGate = true;
                   }
-                } catch {}
+                } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
 
                 if (hasAuthCookie || leftGate) {
                   userResolved = true;
@@ -1510,7 +1510,7 @@ export async function captureProviderViaNativeCdp(
             stopReason = "gate";
             break;
           }
-        } catch {}
+        } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
 
         if (signal?.aborted) { stopReason = "cancelled"; break; }
         if (!pageHasCards) {

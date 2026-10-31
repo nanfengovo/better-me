@@ -10,10 +10,12 @@ test("ranks local technical/tag evidence, excludes closed/irrelevant jobs and ne
   assert.ok(profile.skills.includes("C#"));
   assert.ok(profile.tags.includes("RCS"));
   const result = await recommendResumeJobs(dataset, profile);
-  assert.deepEqual(result.jobs.map(job => job.id), ["local", "tags", "other"]);
+  assert.deepEqual(result.jobs.map(job => job.id), ["tags", "local", "other"]);
   assert.equal(result.jobs[0]!.locationMatch, "same-area");
-  assert.deepEqual(result.jobs[0]!.matchedSkills, ["C#", ".NET", "Docker"]);
-  assert.ok(result.jobs[0]!.unmentionedSkills.includes("Redis"));
+  assert.deepEqual(result.jobs.find(job => job.id === "local")!.matchedSkills, ["C#", ".NET", "Docker"]);
+  assert.ok(result.jobs.find(job => job.id === "local")!.unmentionedSkills.includes("Redis"));
+  assert.ok(!result.jobs[0]!.unmentionedSkills.includes("RCS"));
+  assert.ok(result.jobs[0]!.match.percentage >= result.jobs[1]!.match.percentage);
   assert.equal(result.excludedClosed, 1);
   assert.equal(JSON.stringify({ dataset, fixtureResume }), before);
 });
@@ -79,4 +81,21 @@ test("cross-source identities do not fill multiple recommendation slots and the 
   const result = await recommendResumeJobs(data, extractRecommendationProfile(fixtureResume));
   assert.deepEqual(result.jobs.map(job => job.id), ["strong", "distinct"]);
   assert.equal(result.candidates, 2);
+});
+
+test("match degree is bounded, explainable and reflects job evidence rather than a relative rank", async () => {
+  const profile = extractRecommendationProfile(fixtureResume);
+  const data = recommendationDataset([{ id: "full", title: "后端开发工程师", description: "C# .NET Docker RCS 物流", city: "上海" },
+    { id: "partial", title: "后端开发工程师", description: "C# Java Python", city: "上海" }]);
+  const before = JSON.stringify({ data, profile });
+  const result = await recommendResumeJobs(data, profile);
+  const full = result.jobs.find(job => job.id === "full")!, partial = result.jobs.find(job => job.id === "partial")!;
+  assert.equal(full.match.percentage, 100);
+  assert.ok(partial.match.percentage < full.match.percentage);
+  assert.deepEqual(full.match.dimensions.map(item => item.weight), [55, 15, 20, 10]);
+  assert.equal(full.match.dimensions[0]!.matched, 4);
+  assert.equal(full.match.dimensions[0]!.total, 4);
+  assert.equal(partial.match.dimensions[0]!.total, 3);
+  assert.equal((await recommendResumeJobs(recommendationDataset([{ id: "partial", title: "后端开发工程师", description: "C# Java Python", city: "上海" }]), profile)).jobs[0]!.match.percentage, partial.match.percentage);
+  assert.equal(JSON.stringify({ data, profile }), before);
 });

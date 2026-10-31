@@ -6,6 +6,7 @@ import { Window } from "happy-dom";
 import { fixtureResume, recommendationDataset } from "./fixtures/resume-recommendations";
 import type { RecommendationSource } from "../src/lib/resume-job-source";
 import type { DrawerJobContext } from "../src/components/JdMatchDrawer";
+import type { ResumeJobRecommendationsProps } from "../src/components/ResumeJobRecommendations";
 
 const dom = new Window({ url: "http://recommendations-fixture.invalid" });
 const globals = { window: dom, document: dom.document, navigator: dom.navigator, localStorage: dom.localStorage,
@@ -25,16 +26,17 @@ function button(name: string) {
   const result = [...dom.document.querySelectorAll("button")].find(item => (item.getAttribute("aria-label") ?? item.textContent) === name);
   assert.ok(result, `missing button ${name}`); return result;
 }
-async function mount(loadSource: (signal: AbortSignal) => Promise<RecommendationSource> = async () => source) {
+async function mount(loadSource: NonNullable<ResumeJobRecommendationsProps["loadSource"]> = async () => source) {
   dom.document.body.innerHTML = "<main></main>";
   root = createRoot(dom.document.querySelector("main")! as unknown as Element);
   const analyzed: DrawerJobContext[] = [];
   let closed = 0;
   let refreshed = 0;
+  let edited = 0;
   const render = (requestId = 1, isStale = false) => root!.render(h(Recommendations, { factBase: fixtureResume, requestId, isStale, loadSource,
-    onAnalyze: job => analyzed.push(job), onOpenAtlas: noAction, onRefresh: () => { refreshed++; }, onClose: () => { closed++; } }));
+    onAnalyze: job => analyzed.push(job), onOpenAtlas: noAction, onRefresh: () => { refreshed++; }, onClose: () => { closed++; }, onEditResume: () => { edited++; } }));
   await flush(() => render());
-  return { analyzed, render, closed: () => closed, refreshed: () => refreshed };
+  return { analyzed, render, closed: () => closed, refreshed: () => refreshed, edited: () => edited };
 }
 afterEach(async () => { await flush(() => root?.unmount()); root = undefined; });
 after(async () => { hooks.deregister(); await dom.happyDOM.close(); for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } });
@@ -44,13 +46,46 @@ test("renders three real component cards with evidence and safe source links, ha
   assert.equal(dom.document.querySelectorAll(".rjr-card").length, 3);
   assert.match(dom.document.body.textContent!, /Redis/);
   assert.match(dom.document.body.textContent!, /在招状态待核实/);
-  assert.ok(!dom.document.body.textContent!.includes("%"));
+  assert.equal(dom.document.querySelectorAll(".rjr-match").length, 3);
+  assert.match(dom.document.querySelector(".rjr-match")!.textContent!, /匹配度.*\d+%/);
+  assert.match(dom.document.body.textContent!, /不是录用概率/);
+  assert.equal(dom.document.querySelectorAll(".rjr-card details[open]").length, 0);
   for (const anchor of dom.document.querySelectorAll(".rjr-card a")) assert.equal(anchor.getAttribute("rel"), "noopener noreferrer");
   await flush(() => dom.document.querySelector<HTMLButtonElement>(".rjr-card-actions button")!.click());
   assert.equal(analyzed.length, 1);
-  assert.equal(analyzed[0]!.title, ".NET 后端开发");
-  assert.equal(analyzed[0]!.description, "C# .NET Docker Redis 物流");
+  assert.equal(analyzed[0]!.title, "RCS 软件工程师");
+  assert.equal(analyzed[0]!.description, "RCS 物流 Docker");
   await flush(() => button("关闭岗位推荐").click()); assert.equal(closed(), 1);
+});
+
+test("continue editing collapses recommendations and hands focus back without changing facts", async () => {
+  const before = JSON.stringify(fixtureResume);
+  const { edited } = await mount();
+  await flush(() => button("继续编辑简历").click());
+  assert.equal(dom.document.querySelector("#resume-job-recommendations-1-body")!.hasAttribute("hidden"), true);
+  assert.equal(edited(), 1);
+  assert.equal(JSON.stringify(fixtureResume), before);
+});
+
+test("progressive results remain usable while reading; stopping preserves them and refresh explicitly bypasses cache", async () => {
+  const pending = deferred<RecommendationSource>();
+  let publish: ((value: RecommendationSource) => void) | undefined;
+  let observed: AbortSignal | undefined;
+  const refreshes: boolean[] = [];
+  await mount((signal, _profile, options) => { observed = signal; publish = options?.onUpdate; refreshes.push(Boolean(options?.forceRefresh)); return pending.promise; });
+  await flush(() => publish?.({ ...source, progress: { completed: 1, total: 3 } }));
+  assert.equal(dom.document.querySelectorAll(".rjr-card").length, 3);
+  assert.match(dom.document.body.textContent!, /已返回 1\/3 路候选/);
+  await flush(() => button("停止").click());
+  assert.equal(observed?.aborted, true);
+  assert.match(dom.document.body.textContent!, /已停止补全，保留已返回的推荐/);
+  assert.equal(dom.document.querySelectorAll(".rjr-card").length, 3);
+  await flush(() => button("重新读取岗位").click());
+  assert.deepEqual(refreshes, [false, true]);
+  pending.resolve(source);
+  await flush();
+  assert.equal(dom.document.querySelectorAll(".rjr-card").length, 3);
+  assert.ok(!dom.document.body.textContent!.includes("继续读取中"));
 });
 
 test("stop aborts the real source seam and late results cannot resurrect cancelled output", async () => {

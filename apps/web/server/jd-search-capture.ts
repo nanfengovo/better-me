@@ -348,7 +348,7 @@ export function buildVisibleJobSearchSnapshot(config?: JobSearchCaptureConfig): 
           const value=source.getAttribute(name);if(value!==null)copy.setAttribute(name,value);
         }
         if(platform==='51JOB'&&source.classList&&source.classList.contains('joblist-item-job')){
-          try{const sd=JSON.parse(source.getAttribute('sensorsdata')||'{}');if(sd&&/^\d+$/.test(String(sd.jobId||''))){const a=output.createElement('a');a.setAttribute('href','https://jobs.51job.com/all/'+sd.jobId+'.html');copy.append(a);}}catch{}
+          try{const sd=JSON.parse(source.getAttribute('sensorsdata')||'{}');if(sd&&/^\\d+$/.test(String(sd.jobId||''))){const a=output.createElement('a');a.setAttribute('href','https://jobs.51job.com/all/'+sd.jobId+'.html');copy.append(a);}}catch{}
         }
         parent.append(copy);
         for(let i=source.childNodes.length-1;i>=0;i--)pending.push({source:source.childNodes[i],parent:copy});

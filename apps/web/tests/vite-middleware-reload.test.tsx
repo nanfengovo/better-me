@@ -89,6 +89,9 @@ export default { server: { hmr: false }, plugins: [{ name: "fixture", configureS
     await waitForBody(url, "after");
     assert.equal(spawns, 2, output);
     assert.equal(maxRunning, 1, "the old process must exit before a replacement is launched");
+    await writeFile(packageFile, 'export const generation = "after";\n');
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.equal(spawns, 2, "duplicate filesystem events and byte-identical rebuilds do not restart Vite again");
     await writeFile(path.join(packageDirectory, "dist", "index.d.ts"), "export const generation: string;\n");
     await new Promise((resolve) => setTimeout(resolve, 200));
     assert.equal(spawns, 2, "declaration-only builds do not restart Vite");

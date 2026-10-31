@@ -56,6 +56,8 @@ export interface AgentCompanionProps {
   resume?: ProjectedResume | null;
   initialReference?: ResumeTextReference | null;
   onReferenceConsumed?: () => void;
+  initialPrompt?: string | null;
+  onPromptConsumed?: () => void;
 }
 
 type ProviderCheck = "unknown" | "checking" | "ready" | "offline" | "unconfigured";
@@ -65,6 +67,12 @@ type ChatImageAttachment = NonNullable<ChatMessage["attachments"]>[number];
 const CHAT_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const MAX_CHAT_IMAGE_BYTES = 2_000_000;
 const MAX_CHAT_IMAGES = 3;
+const CHAT_GUIDES = [
+  { id: "plan", zh: "规划方向", en: "Plan a direction", promptZh: "请引导我梳理下一步职业规划：先问我最关键的目标和约束，再根据我的回答分步调整方案。", promptEn: "Guide me through a career plan: ask about my most important goal and constraints first, then adjust the steps based on my answers." },
+  { id: "revise", zh: "修改建议", en: "Review an edit", promptZh: "请先了解我想修改的简历部分和目标岗位，再给出有依据的修改建议；缺少事实请先追问，不要编造。", promptEn: "Ask which resume section and target role I mean, then suggest evidence-based edits. Ask for missing facts instead of inventing them." },
+  { id: "study", zh: "学习监督", en: "Study check-in", promptZh: "请作为学习教练，先确认我的目标、可用时间与当前水平，再安排一小步练习，并在我反馈后调整。", promptEn: "Be my study coach: ask about my goal, available time and current level, assign one small exercise, then adjust after my feedback." },
+  { id: "interview", zh: "模拟面试", en: "Mock interview", promptZh: "请按目标岗位进行模拟面试：先确认岗位和级别，然后一次问我一个问题，等我回答后给出反馈和下一题。", promptEn: "Run a mock interview: confirm the role and level first, ask one question at a time, wait for my answer, then give feedback and the next question." },
+] as const;
 
 function readChatImage(file: File): Promise<ChatImageAttachment> {
   if (!CHAT_IMAGE_MIME_TYPES.has(file.type.toLowerCase())) {
@@ -267,7 +275,7 @@ function AgentCompanionReply({
   return <AgentMarkdownRenderer content={content} isDark={isDark} />;
 }
 
-export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, resume, initialReference, onReferenceConsumed }: AgentCompanionProps) {
+export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, resume, initialReference, onReferenceConsumed, initialPrompt, onPromptConsumed }: AgentCompanionProps) {
   const { t, theme } = useUiPreferences();
   const [open, setOpen] = useState(false);
   const [runtimes, setRuntimes] = useState<LocalRuntimeInfo[]>([]);
@@ -300,9 +308,12 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
   const [readingChatAttachments, setReadingChatAttachments] = useState(false);
   const [shareResumeContext, setShareResumeContext] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
+  const [chatNotice, setChatNotice] = useState("");
   const [typingReplyId, setTypingReplyId] = useState<string | null>(null);
   const [chatError, setChatError] = useState("");
   const streamAbortRef = useRef<AbortController | null>(null);
+  const chatAbortRef = useRef<AbortController | null>(null);
+  const pendingChatRef = useRef<ChatMessage | null>(null);
   const providerAbortRef = useRef<AbortController | null>(null);
   const textDeltaSequencesRef = useRef<Set<number>>(new Set());
   const chatThreadRef = useRef<HTMLDivElement>(null);
@@ -310,8 +321,19 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
   const chatComposerRef = useRef<HTMLTextAreaElement>(null);
   const chatImageInputRef = useRef<HTMLInputElement>(null);
   const onReferenceConsumedRef = useRef(onReferenceConsumed);
+  const onPromptConsumedRef = useRef(onPromptConsumed);
+  const focusIncomingPromptRef = useRef(false);
 
   useEffect(() => { onReferenceConsumedRef.current = onReferenceConsumed; }, [onReferenceConsumed]);
+  useEffect(() => { onPromptConsumedRef.current = onPromptConsumed; }, [onPromptConsumed]);
+  useEffect(() => {
+    if (!initialPrompt) return;
+    setOpen(true);
+    setToolsExpanded(false);
+    focusIncomingPromptRef.current = true;
+    setChatDraft(current => current ? `${current}\n\n${initialPrompt}` : initialPrompt);
+    onPromptConsumedRef.current?.();
+  }, [initialPrompt]);
   useEffect(() => {
     if (!initialReference) return;
     setOpen(true);
@@ -326,6 +348,12 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
   useEffect(() => {
     if (open && chatReferences.length) chatComposerRef.current?.focus();
   }, [open, chatReferences.length]);
+  useEffect(() => {
+    if (open && focusIncomingPromptRef.current && chatComposerRef.current) {
+      chatComposerRef.current.focus();
+      focusIncomingPromptRef.current = false;
+    }
+  }, [open, chatDraft]);
 
   useEffect(() => {
     const thread = chatThreadRef.current;
@@ -389,6 +417,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
 
   useEffect(() => () => {
     streamAbortRef.current?.abort();
+    chatAbortRef.current?.abort();
     providerAbortRef.current?.abort();
   }, []);
 
@@ -522,7 +551,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
     const attachments = customPrompt ? [] : chatAttachments;
     const typedText = customPrompt ?? chatDraft;
     const textToSend = typedText.trim() || (references.length ? t("请结合引用的简历内容帮我分析。", "Please analyze the quoted resume text.") : "");
-    if ((!textToSend && references.length === 0 && attachments.length === 0) || chatLoading || readingChatAttachments) return;
+    if ((!textToSend && references.length === 0 && attachments.length === 0) || chatLoading || chatAbortRef.current || readingChatAttachments) return;
 
     const userMessage: ChatMessage = {
       id: `companion-user-${Date.now()}`,
@@ -538,6 +567,9 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
       return;
     }
     const requestMessages = chatMessagesForRequest(nextMessages);
+    const controller = new AbortController();
+    chatAbortRef.current = controller;
+    pendingChatRef.current = userMessage;
     chatAutoScrollRef.current = true;
     setChatMessages(nextMessages.slice(-24));
     if (!customPrompt) {
@@ -546,20 +578,25 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
       setChatAttachmentError("");
     }
     setChatError("");
+    setChatNotice("");
     setChatLoading(true);
 
     try {
       const reply = await sendAgentChat({
         messages: requestMessages,
         llmConfig,
+        signal: controller.signal,
         context: shareResumeContext ? {
           resumeSummary: createCompanionResumeSummary(resume),
         } : undefined,
       });
+      if (controller.signal.aborted || chatAbortRef.current !== controller) return;
       setChatMessages((current) => [...current, reply].slice(-24));
       setChatAttachments([]);
       setTypingReplyId(reply.id);
+      pendingChatRef.current = null;
     } catch (error) {
+      if (controller.signal.aborted || chatAbortRef.current !== controller) return;
       const message = error instanceof Error ? error.message : t("对话服务暂时不可用，请检查模型配置后重试。", "Chat is temporarily unavailable. Check model settings and try again.");
       setChatError(message);
       const errorMessage: ChatMessage = {
@@ -569,10 +606,32 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
         createdAt: new Date().toISOString(),
       };
       setChatMessages((current) => [...current, errorMessage].slice(-24));
+      pendingChatRef.current = null;
     } finally {
-      setChatLoading(false);
+      if (chatAbortRef.current === controller) {
+        chatAbortRef.current = null;
+        setChatLoading(false);
+      }
     }
   }, [chatAttachments, chatDraft, chatLoading, chatMessages, chatReferences, imageCapability, llmConfig, readingChatAttachments, resume, shareResumeContext, t]);
+
+  const handleStopChat = useCallback(() => {
+    const controller = chatAbortRef.current;
+    if (!controller) return;
+    chatAbortRef.current = null;
+    controller.abort();
+    const pending = pendingChatRef.current;
+    pendingChatRef.current = null;
+    if (pending) {
+      setChatMessages((current) => current.filter((message) => message.id !== pending.id));
+      setChatDraft((current) => current || pending.content);
+      setChatReferences((current) => current.length ? current : pending.references ?? []);
+    }
+    setChatError("");
+    setChatNotice(t("已停止。修改问题后可以重新发送。", "Stopped. Edit your question and send it again."));
+    setChatLoading(false);
+    queueMicrotask(() => chatComposerRef.current?.focus());
+  }, [t]);
 
   const handleAddChatImages = useCallback(async (files: File[]) => {
     if (!files.length) return;
@@ -824,6 +883,19 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
                   <small>{t("引用内容会随问题一并发送", "Quotes are sent with your question")}</small>
                 </div>
               </div>
+              <div className="agent-companion-chat-guides" aria-label={t("引导对话", "Guided conversation")}>
+                {CHAT_GUIDES.map((guide) => <button
+                  key={guide.id}
+                  type="button"
+                  data-testid={`agent-guide-${guide.id}`}
+                  disabled={chatLoading}
+                  onClick={() => {
+                    const suggestion = t(guide.promptZh, guide.promptEn);
+                    setChatDraft((current) => current.trim() ? `${current.trim()}\n\n${suggestion}` : suggestion);
+                    chatComposerRef.current?.focus();
+                  }}
+                >{t(guide.zh, guide.en)}</button>)}
+              </div>
               <div className="agent-companion-chat-thread" ref={chatThreadRef} onScroll={handleChatScroll} data-testid="agent-companion-chat-thread" tabIndex={0} aria-label={t("对话记录", "Conversation history")}>
                 {chatMessages.map((message) => (
                   <article key={message.id} className={`agent-companion-chat-message ${message.role === "user" ? "is-user" : "is-assistant"}`}>
@@ -931,11 +1003,12 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
                   placeholder={t("向 Agent 提问…（Enter 发送，Shift + Enter 换行）", "Ask the Agent… (Enter to send, Shift + Enter for a new line)")}
                   disabled={chatLoading || readingChatAttachments}
                 />
-                <button type="button" aria-label={t("发送消息", "Send message")} onClick={() => void handleSendChat()} disabled={chatLoading || readingChatAttachments || (chatAttachments.length > 0 && imageCapability === "unsupported") || (!chatDraft.trim() && chatReferences.length === 0 && chatAttachments.length === 0)}>
-                  {chatLoading ? <Loader2 size={14} className="is-spinning" /> : <Send size={14} />}
-                </button>
+                {chatLoading
+                  ? <button type="button" className="agent-companion-stop-chat" aria-label={t("停止生成并编辑问题", "Stop generating and edit question")} title={t("停止并修改", "Stop and edit")} onClick={handleStopChat}><Square size={14} /></button>
+                  : <button type="button" aria-label={t("发送消息", "Send message")} onClick={() => void handleSendChat()} disabled={readingChatAttachments || (chatAttachments.length > 0 && imageCapability === "unsupported") || (!chatDraft.trim() && chatReferences.length === 0 && chatAttachments.length === 0)}><Send size={14} /></button>}
               </div>
               <div className="agent-companion-chat-footer">
+                {chatNotice && <p className="agent-companion-chat-notice" role="status">{chatNotice}</p>}
                 {chatError && <p className="agent-companion-chat-error" role="alert">{chatError}</p>}
                 {lastAssistantMessage?.meta?.status === "truncated" && (
                   <button type="button" className="agent-companion-chat-continue" onClick={() => void handleSendChat(t("请从上一条回复的结束位置继续，不要重复内容，并补完未回答的部分。", "Continue from the end of the previous reply without repeating completed content."))} disabled={chatLoading}>

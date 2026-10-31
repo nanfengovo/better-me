@@ -7,7 +7,7 @@ import { AtlasBackgroundEnrichmentStatus } from "../src/components/atlas/AtlasBa
 
 Object.assign(globalThis, { React });
 
-test("a known failure reason is visible before optional technical details", () => {
+test("a known failure category is visible and its exact diagnostic remains available in details", () => {
   const markup = renderToStaticMarkup(React.createElement(AtlasHarvestProgress, {
     progress: { stage: "completed", stageIndex: 5, totalStages: 5, message: "采集已结束", stats: {
       queryTermError: "51JOB：页面加载超时", failedPlatforms: 1,
@@ -15,7 +15,8 @@ test("a known failure reason is visible before optional technical details", () =
     } }, busy: false, failed: true, discoveredCards: 1220,
   }));
   const summary = markup.slice(0, markup.indexOf("<details"));
-  assert.match(summary, /51JOB：页面加载超时/, "the known cause must not be hidden behind a disclosure");
+  assert.match(summary, /检索遇到异常/, "the failure category must remain visible");
+  assert.match(markup, /51JOB：页面加载超时/, "the exact reported diagnostic must remain accessible");
   assert.doesNotMatch(summary, /读取失败、登录验证拦截或达到采集预算/, "do not guess a bundle of unrelated causes");
 });
 
@@ -36,9 +37,12 @@ test("receipt-confirmed import errors are visible without guessing source failur
     providers: [], busy: false, failed: true,
   }));
   const summary = markup.slice(0, markup.indexOf("<details"));
-  assert.match(summary, /岗位服务响应超时/);
+  assert.match(summary, /入库回执尚未确认/);
+  assert.match(markup, /岗位服务响应超时/);
   assert.match(summary, /1122/);
-  assert.doesNotMatch(summary, /验证码|登录验证/);
+  const visibleReasons = [...summary.matchAll(/<p class="atlas-harvest-issue-reason">(.*?)<\/p>/g)].map(match => match[1]).join(" ");
+  assert.doesNotMatch(visibleReasons, /验证码|登录验证/);
+  assert.match(summary, /不会自动重试平台、登录、处理验证码/, "a safety disclaimer is not a diagnosed failure cause");
   assert.doesNotMatch(markup, /<details[^>]+open/);
 });
 

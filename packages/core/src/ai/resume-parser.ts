@@ -9,6 +9,7 @@ import {
 import { LocalizedStringSchema } from "../schema/locale.js";
 import { type LlmConfig } from "./types.js";
 import { fetchChatCompletion, type ChatMessageContent } from "./client.js";
+import { jsonObjectOptions } from "./deepseek.js";
 
 function extractJsonString(raw: string): string {
   const trimmed = raw.trim();
@@ -322,7 +323,7 @@ async function parseResumeText(
     const rawOutput = await fetchChatCompletion({ ...config, temperature: 0.1 }, [
       { role: "system", content: parserPrompt(new Date().toISOString()) },
       { role: "user", content: `【待解析的简历原文】：\n\n${rawText}` },
-    ]);
+    ], jsonObjectOptions(config));
     return { ...validateAiResult(rawOutput, detectedAvatarUrl, allowUnparsed), rawText };
   } catch (err) {
     throw new Error(`AI 简历解析失败：${errorMessage(err)}`, { cause: err });
@@ -364,7 +365,7 @@ async function parseResumePages(
     const rawOutput = await fetchChatCompletion({ ...config, temperature: 0.1 }, [
       { role: "system", content: visionParserPrompt(new Date().toISOString()) },
       { role: "user", content },
-    ]);
+    ], jsonObjectOptions(config));
     return { ...validateAiResult(rawOutput, detectedAvatarUrl, allowUnparsed, true), rawText: fallbackText };
   } catch (err) {
     throw new Error(`视觉 OCR 解析失败：${errorMessage(err)}。未自动生成离线简历；原页面仍可供核对。`, { cause: err });

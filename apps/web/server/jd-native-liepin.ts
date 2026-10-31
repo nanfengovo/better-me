@@ -149,13 +149,11 @@ export function createNativeLiepinSessions(options: NativeLiepinOptions = {}) {
   function gate(snapshot: BrowserSnapshot): "login_required" | "verification_required" | undefined {
     return snapshot.gate ?? (isBrowserVerificationUrl(snapshot.url, platform) || isObservedLiepinVerification(snapshot.html, snapshot.url, platform) ? "verification_required" : isObservedBrowserLogin(snapshot.html, snapshot.url, platform) ? "login_required" : undefined);
   }
-  function gated(snapshot: BrowserSnapshot, session?: Session) {
+  function gated(snapshot: BrowserSnapshot, _session?: Session) {
     const reason = gate(snapshot);
     if (reason) {
-      if (reason === "verification_required" && session) {
-        session.expires = Math.max(session.expires, now() + 600_000);
-        armExpiry(session);
-      }
+      // Reading a verification gate never grants another lease. Only extend()
+      // represents the user's explicit request to keep this session alive.
       throw failure(reason, reason === "verification_required" ? `${platform}要求访问验证，请在专用岗位页自行完成后再读取。` : `${platform}要求登录，请在专用岗位页自行完成后再读取。`);
     }
   }
@@ -283,10 +281,6 @@ export function createNativeLiepinSessions(options: NativeLiepinOptions = {}) {
       try {
         await page.verifyNetwork?.(operationSignal); abortNative(operationSignal); const capture = await page.capture(operationSignal, 1000, session.url, session.purpose === "search" ? { purpose: "search" } : undefined); abortNative(operationSignal);
         const snapshot = capture.snapshot; const reason = snapshot ? gate(snapshot) : undefined;
-        if (reason === "verification_required") {
-          session.expires = Math.max(session.expires, now() + 600_000);
-          armExpiry(session);
-        }
         let pageState: BrowserSessionInspection["pageState"] = snapshot?.url === "about:blank" ? "blank" : "unknown";
         if (snapshot && capture.state === "ready" && allowedBrowserResource(snapshot.url, platform)) {
           if (session.purpose === "search") {
@@ -358,7 +352,7 @@ export function createNativeLiepinSessions(options: NativeLiepinOptions = {}) {
   return {
     start, startSearch, read, readSearch, inspect, focus, extend, close, closeAll, stopBrowser, recoverExited, retryEnded,
     waitForVerification: async (owner: string, id: string, timeoutMs = 60_000, signal?: AbortSignal): Promise<boolean> => {
-      const session = owned(owner, id);
+      owned(owner, id);
       const deadline = now() + timeoutMs;
       while (now() < deadline) {
         abortNative(signal);

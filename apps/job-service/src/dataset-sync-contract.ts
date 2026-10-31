@@ -27,6 +27,8 @@ export const DatasetDeltaSchema = z.object({
 }).strict();
 export type DatasetDelta = z.infer<typeof DatasetDeltaSchema>;
 export const DatasetSyncResponseSchema = z.discriminatedUnion("kind", [
+  z.object({ protocol: z.literal(DATASET_SYNC_PROTOCOL), kind: z.literal("baseline-required"), cursor: DatasetCursorSchema,
+    reason: z.enum(["initial", "cursor-expired", "store-changed", "cursor-ahead", "delta-too-large"]) }).strict(),
   z.object({ protocol: z.literal(DATASET_SYNC_PROTOCOL), kind: z.literal("snapshot"), cursor: DatasetCursorSchema,
     reason: z.enum(["initial", "cursor-expired", "store-changed", "cursor-ahead", "delta-too-large"]), dataset: AtlasDatasetSchema }).strict(),
   DatasetDeltaSchema,

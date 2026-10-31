@@ -6,7 +6,7 @@ import { JdExtractionError } from "../src/lib/jd-errors.ts";
 
 // All responses below are synthetic and intercepted before network access. This
 // checks actual browser session semantics without touching a website or profile.
-test("真实本地Edge的51job读取或检查取消超时保留同一DOM，迟到CDP快照settle后同SID可重试", { timeout: 25_000 }, async () => {
+test("真实本地Chromium的51job读取或检查取消超时保留同一DOM，迟到CDP快照settle后同SID可重试", { timeout: 25_000 }, async () => {
   const original = "https://msearch.51job.com/jobs/all/166761768.html";
   const description = "岗位职责：开发本地合成设备通信服务并维护接口文档和自动化测试。任职要求：掌握 C#、SQL Server、异步编程和单元测试。";
   const owner = "http://localhost:5175";
@@ -17,7 +17,7 @@ test("真实本地Edge的51job读取或检查取消超时保留同一DOM，迟�
     clearTimer: timer => { clearTimeout(timer); timers.delete(timer); },
     getOperation: async () => ({ fetch: async () => { throw new Error("no synthetic preflight"); }, routeFor: () => ({ mode: "manual", source: "local snapshot preservation fixture", proxyUrl: "http://127.0.0.1:1" }) }),
     launch: async options => {
-      const browser = await chromium.launch({ ...options, headless: true, ...(process.platform === "win32" ? { channel: "msedge" } : {}) });
+      const browser = await chromium.launch({ ...options, headless: true, channel: process.platform === "win32" ? "msedge" : "chrome" });
       const newContext = browser.newContext.bind(browser);
       browser.newContext = async contextOptions => {
         const context = await newContext(contextOptions), newPage = context.newPage.bind(context);
@@ -90,7 +90,7 @@ test("真实本地Edge的51job读取或检查取消超时保留同一DOM，迟�
   } finally { await manager.closeAll(); }
 });
 
-test("真实Edge人工接续保留登录完成页，用户返回原岗位后读取且新会话不继承登录", { timeout: 35_000 }, async () => {
+test("真实Chromium人工接续保留登录完成页，用户返回原岗位后读取且新会话不继承登录", { timeout: 35_000 }, async () => {
   const original = "https://m.zhipin.com/mpa/html/weijd/weijd-job/sessionFixtureToken";
   const complete = "https://m.zhipin.com/fixture-auth-complete";
   const security = "https://m.zhipin.com/web/passport/zp/security.html";
@@ -119,7 +119,7 @@ test("真实Edge人工接续保留登录完成页，用户返回原岗位后读�
       routeFor: () => ({ mode: "manual", source: "isolated synthetic fixture", proxyUrl: "http://127.0.0.1:1" }),
     }),
     launch: async (options) => {
-      const browser = await chromium.launch({ ...options, headless: true, ...(process.platform === "win32" ? { channel: "msedge" } : {}) });
+      const browser = await chromium.launch({ ...options, headless: true, channel: process.platform === "win32" ? "msedge" : "chrome" });
       const newContext = browser.newContext.bind(browser);
       browser.newContext = async (contextOptions) => {
         const context = await newContext(contextOptions);
@@ -248,7 +248,7 @@ test("真实Edge人工接续保留登录完成页，用户返回原岗位后读�
   assert.ok(pages.every((page) => page.isClosed()), "真实浏览器会话全部回收");
 });
 
-test("本地普通Edge合成页只报告空白、可见文字、可见iframe与脚本异常次数", { timeout: 30_000 }, async () => {
+test("本地普通Chromium合成页只报告空白、可见文字、可见iframe与脚本异常次数", { timeout: 30_000 }, async () => {
   const original = "https://m.zhipin.com/mpa/html/weijd/weijd-job/loadDiagnosticsFixture";
   let page: Page | undefined;
   const manager = createBrowserSessionManager({
@@ -257,7 +257,7 @@ test("本地普通Edge合成页只报告空白、可见文字、可见iframe与�
       routeFor: () => ({ mode: "direct", source: "ordinary local synthetic fixture" }),
     }),
     launch: async (options) => {
-      const browser = await chromium.launch({ ...options, headless: true, args: [...(options.args ?? []), "--disable-background-networking", "--disable-component-update", "--disable-sync", "--no-first-run"], ...(process.platform === "win32" ? { channel: "msedge" } : {}) });
+      const browser = await chromium.launch({ ...options, headless: true, args: [...(options.args ?? []), "--disable-background-networking", "--disable-component-update", "--disable-sync", "--no-first-run"], channel: process.platform === "win32" ? "msedge" : "chrome" });
       const newContext = browser.newContext.bind(browser);
       browser.newContext = async (contextOptions) => {
         const context = await newContext(contextOptions);
@@ -329,7 +329,7 @@ test("本地普通Edge合成页只报告空白、可见文字、可见iframe与�
   } finally { await manager.closeAll(); }
 });
 
-test("真实本地Edge区分主文档状态、iframe HTTP错误与连接重置，诊断不导航也不泄露资源URL", { timeout: 30_000 }, async () => {
+test("真实本地Chromium区分主文档状态、iframe HTTP错误与连接重置，诊断不导航也不泄露资源URL", { timeout: 30_000 }, async () => {
   const original = "https://m.zhipin.com/mpa/html/weijd/weijd-job/documentDiagnosticsFixture?ticket=private-ticket";
   const child = "https://m.zhipin.com/private-child-frame?token=private-token";
   const script = "https://m.zhipin.com/private-reset-script.js?token=private-token";
@@ -357,7 +357,7 @@ test("真实本地Edge区分主文档状态、iframe HTTP错误与连接重置�
       routeFor: () => ({ mode: "manual", source: "isolated document diagnostics fixture", proxyUrl: "http://127.0.0.1:1" }),
     }),
     launch: async (options) => {
-      const browser = await chromium.launch({ ...options, headless: true, ...(process.platform === "win32" ? { channel: "msedge" } : {}) });
+      const browser = await chromium.launch({ ...options, headless: true, channel: process.platform === "win32" ? "msedge" : "chrome" });
       const newContext = browser.newContext.bind(browser);
       browser.newContext = async (contextOptions) => {
         const context = await newContext(contextOptions);
@@ -422,7 +422,7 @@ test("真实本地Edge区分主文档状态、iframe HTTP错误与连接重置�
   } finally { releasePending(); await manager.closeAll(); }
   assert.equal(page?.isClosed(), true);
 });
-test("真实本地Edge拒绝主世界eval伪造的空白与原岗快照，保留窗口并可恢复", { timeout: 30_000 }, async () => {
+test("真实本地Chromium拒绝主世界eval伪造的空白与原岗快照，保留窗口并可恢复", { timeout: 30_000 }, async () => {
   const original = "https://m.zhipin.com/mpa/html/weijd/weijd-job/snapshotOriginFixture";
   const differentJob = "https://m.zhipin.com/mpa/html/weijd/weijd-job/differentSnapshotFixture";
   const description = "岗位职责：开发合成设备通信服务并维护接口文档。任职要求：掌握 C#、SQL Server、异步编程和完整自动化回归测试。";
@@ -435,7 +435,7 @@ test("真实本地Edge拒绝主世界eval伪造的空白与原岗快照，保留
       routeFor: () => ({ mode: "manual", source: "isolated snapshot origin fixture", proxyUrl: "http://127.0.0.1:1" }),
     }),
     launch: async (options) => {
-      const browser = await chromium.launch({ ...options, headless: true, ...(process.platform === "win32" ? { channel: "msedge" } : {}) });
+      const browser = await chromium.launch({ ...options, headless: true, channel: process.platform === "win32" ? "msedge" : "chrome" });
       const newContext = browser.newContext.bind(browser);
       browser.newContext = async (contextOptions) => {
         const context = await newContext(contextOptions);

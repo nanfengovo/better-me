@@ -10,6 +10,8 @@ const SYSTEM_PROMPT = `你是一个内置于 BetterMe 个人求职与成长工�
 - 改写简历时只调整表达，不补造项目、技术、职责、百分比或业务结果。缺少事实时用问题标出需要用户补充的内容。
 - 先给结论，再说明依据、限制和下一步；涉及多个对象时逐项覆盖，不要只给一个例子后省略其余内容。
 - 输出尽可能完整；若确实受上下文或模型输出长度限制，明确说明缺失部分并给出续问建议，不要用省略号伪装完整结论。
+- 将对话当作连续协作：记住本轮已经确认的目标与限制；信息不足时先给能确定的分析，再提出至多两个与下一步直接相关的澄清问题，不要每轮重复问已回答的内容。
+- 用户想规划、学习或模拟面试时，按目标澄清 → 可执行步骤/练习 → 用户反馈 → 调整下一步推进；每轮末尾只给一个自然的可选下一步，不要替用户决定或声称已经执行。
 
 你可以执行以下专业任务，并在回答中按规范输出结构化动作卡片（Action Cards）：
 1. 查公司资料：分析其控股背景（民营/国企/外企）、业务方向、稳定性及潜在风险。
@@ -137,8 +139,10 @@ function parseActionCards(rawText: string): { content: string; actions?: AgentAc
 
 export async function processAgentChat(
   model: BaseChatModel,
-  body: ChatRequestBody
+  body: ChatRequestBody,
+  signal?: AbortSignal,
 ): Promise<ChatMessage> {
+  signal?.throwIfAborted();
   const contextNotes: string[] = [];
 
   if (body.context?.currentJob) {
@@ -186,7 +190,8 @@ JD 描述：${job.description ? job.description.slice(0, 1500) : "未提供"}`);
     }),
   ];
 
-  const response = await model.invoke(messages);
+  const response = await model.invoke(messages, { signal });
+  signal?.throwIfAborted();
   let rawText = responseText(response);
   let finishReason = responseFinishReason(response);
   let continuationCount = 0;
@@ -199,11 +204,13 @@ JD 描述：${job.description ? job.description.slice(0, 1500) : "未提供"}`);
         ...messages,
         new AIMessage(rawText),
         new HumanMessage("请从上一条回复准确结束的位置继续，不要重复已输出内容。补完所有尚未完成的段落与 JSON 结构化动作卡片；如果不能确认某项信息，请明确标注待核实。"),
-      ]);
+      ], { signal });
     } catch {
+      signal?.throwIfAborted();
       continuationFailed = true;
       break;
     }
+    signal?.throwIfAborted();
     const addition = responseText(continuation);
     if (!addition.trim() || addition.trim() === rawText.trim()) break;
     rawText = appendContinuation(rawText, addition);
@@ -212,6 +219,7 @@ JD 描述：${job.description ? job.description.slice(0, 1500) : "未提供"}`);
     if (rawText.length === previousLength) break;
   }
 
+  signal?.throwIfAborted();
   const parsed = parseActionCards(rawText);
   const lengthLimited = wasLengthLimited(finishReason);
   const empty = !parsed.content && !parsed.actions?.length;
