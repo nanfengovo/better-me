@@ -42,6 +42,7 @@ import { FirstRunGuide } from "./components/FirstRunGuide";
 import { writingSources, writingTargetKey } from "./lib/resume-copilot";
 
 const AtlasWorkspace = lazy(() => import("./components/AtlasWorkspace"));
+const ResumeJobRecommendations = lazy(() => import("./components/ResumeJobRecommendations"));
 const LLM_CONFIG_KEY = "better-me:llm-config";
 function downloadJson(content: string, fileName: string) {
   const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
@@ -75,6 +76,8 @@ export function App() {
   const [agentCompanionReference, setAgentCompanionReference] = useState<ResumeTextReference | null>(null);
   const [resumeSelectionReference, setResumeSelectionReference] = useState<ResumeTextReference | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [jobRecommendation, setJobRecommendation] = useState<{ documentId: string; factBase: FactBase; requestId: number } | null>(null);
+  const recommendationRequestRef = useRef(0);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -176,7 +179,9 @@ export function App() {
   async function handleImportResumeSuccess(factBase: FactBase, _rawText: string, fileName: string) {
     const view = createDefaultResumeView(factBase); view.name = fileName.replace(/\.[^.]+$/, "") || t("我的简历", "My resume");
     restoreOperationRef.current += 1; setIsRestoring(false);
-    if (!(await replace({ documentId: crypto.randomUUID(), factBase, resumeViews: [view], activeResumeId: view.id }, t(`导入 · ${fileName}`, `Import · ${fileName}`), "import"))) throw new Error(t("导入结果未能保存，当前简历已保留。请检查浏览器空间与字段格式。", "Could not save the import. Your current resume is preserved. Check local storage space and field values."));
+    const documentId = crypto.randomUUID();
+    if (!(await replace({ documentId, factBase, resumeViews: [view], activeResumeId: view.id }, t(`导入 · ${fileName}`, `Import · ${fileName}`), "import"))) throw new Error(t("导入结果未能保存，当前简历已保留。请检查浏览器空间与字段格式。", "Could not save the import. Your current resume is preserved. Check local storage space and field values."));
+    setJobRecommendation({ documentId, factBase, requestId: ++recommendationRequestRef.current });
     setIssueNavigation(null);
     setWorkspaceTab("content");
     setPage("resume");
@@ -247,6 +252,10 @@ export function App() {
       setAgentDrawerJob(job);
     }
     setPage("agent");
+  }
+  function refreshJobRecommendations() {
+    const current = docRef.current;
+    if (current) setJobRecommendation({ documentId: current.documentId!, factBase: current.factBase, requestId: ++recommendationRequestRef.current });
   }
   function captureResumeTextSelection(event: SyntheticEvent) {
     const target = event.target;
@@ -403,6 +412,7 @@ export function App() {
             {(["zh", "en"] as const).map((locale) => <button key={locale} aria-pressed={activeResume.locale === locale} className={activeResume.locale === locale ? "active" : ""} onClick={() => setResumeLocale(locale)}>{locale === "zh" ? "中文" : "English"}</button>)}
           </div>
           <button className="studio-button" onClick={() => setIsHistoryOpen(true)}><GitBranch size={14} />{t("历史版本", "Version history")}</button>
+          <button className="studio-button" onClick={refreshJobRecommendations}><Sparkles size={14} />{t("推荐岗位", "Recommend jobs")}</button>
           <button className="studio-button primary" onClick={() => setIsImportModalOpen(true)}><Upload size={14} />{t("导入简历", "Import resume")}</button>
           <div className="document-menu" ref={menuRef}><button className="studio-button icon-button" aria-label={t("更多简历操作", "More resume actions")} aria-expanded={isMenuOpen} onClick={() => setIsMenuOpen(!isMenuOpen)}><MoreHorizontal size={19} /></button>{isMenuOpen && <div className="document-dropdown"><button onClick={handleExportBackup}><Download size={14} />{t("下载 JSON 备份", "Download JSON backup")}</button><button onClick={() => fileInputRef.current?.click()}><RotateCcw size={14} />{t("从备份恢复", "Restore backup")}</button><button onClick={() => { void flush(); setIsMenuOpen(false); }}><Check size={14} />{t("立即保存", "Save now")}<span>Ctrl S</span></button><hr /><button onClick={() => void resetDemo()}><RotateCcw size={14} />{t("恢复演示简历", "Reset demo resume")}</button></div>}</div>
         </div>
@@ -411,6 +421,7 @@ export function App() {
         {(status.kind === "error" || (status.kind === "draft" && hasIncompleteDraft) || status.historyError || isRestoring || actionError || status.rawDraftRecovery || status.rawOfficialRecovery || status.rawPreviousDraftRecovery || loadError) && <div className={`persistence-notice ${status.kind === "error" ? "error" : ""}`} role="status" aria-live="polite"><span>{isRestoring ? t("正在读取备份，继续编辑会取消本次恢复。", "Reading backup. Continuing to edit will cancel this restoration.") : actionError || loadError || status.message}{status.historyError && ` ${status.historyError}`}</span><div>{status.kind === "error" && <button onClick={() => void flush()}>{t("重试保存", "Retry save")}</button>}{status.rawDraftRecovery && <button onClick={() => downloadJson(status.rawDraftRecovery!, "better-me-draft-recovery.json")}>{t("下载原始草稿", "Download original draft")}</button>}<button onClick={handleExportBackup}>{t("下载备份", "Download backup")}</button>{status.rawOfficialRecovery && <button onClick={() => downloadJson(status.rawOfficialRecovery!, "better-me-backup-recovery.json")}>{t("下载原始文档", "Download original document")}</button>}{status.rawPreviousDraftRecovery && <button onClick={() => downloadJson(status.rawPreviousDraftRecovery!, "better-me-draft-before-switch.json")}>{t("下载切换前草稿", "Download pre-switch draft")}</button>}</div></div>}
         <IssuesPanel issues={issues} factBase={doc.factBase} onNavigate={navigateToIssue} activeIssue={issueNavigation?.issue} />
         <ImportSourceReview source={doc.factBase.importSource} />
+        {jobRecommendation && jobRecommendation.documentId === doc.documentId && <Suspense fallback={<div className="persistence-notice" role="status">{t("正在打开岗位推荐…", "Opening job recommendations…")}</div>}><ResumeJobRecommendations key={jobRecommendation.documentId} factBase={jobRecommendation.factBase} currentFactBase={doc.factBase} requestId={jobRecommendation.requestId} onRefresh={refreshJobRecommendations} onClose={() => setJobRecommendation(null)} onOpenAtlas={() => setPage("atlas")} onAnalyze={openAgentWorkspace} /></Suspense>}
       </div>
       <ResizableWorkspace>
         <div id="resume-editor-panel" data-onboarding="editor" className="studio-editor-pane no-print">

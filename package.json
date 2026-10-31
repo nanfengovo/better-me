@@ -12,6 +12,7 @@
     "test": "pnpm --filter @better-me/core build && tsx --test packages/core/tests/*.test.mjs packages/storage/tests/*.test.ts packages/opportunities/tests/*.test.ts packages/source-adapters/tests/*.test.ts apps/job-service/tests/*.test.ts apps/agent-host/tests/*.test.ts apps/web/tests/*.test.tsx",
     "test:opportunities": "tsx --test packages/opportunities/tests/*.test.ts",
     "test:runtime": "tsx --test apps/web/tests/runtime-*.test.ts",
+    "test:recommendations": "tsx --test apps/web/tests/resume-job-recommendations.test.ts apps/web/tests/resume-job-source.test.ts apps/web/tests/resume-job-recommendations-ui.test.tsx",
     "test:docker": "node scripts/check-docker-runtime.mjs",
     "memory:check": "node scripts/check-memory.mjs",
     "network:domestic:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/domestic-route.ps1 -Action Start",
