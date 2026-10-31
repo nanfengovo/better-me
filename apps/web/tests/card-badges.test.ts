@@ -168,7 +168,7 @@ test("formatCardSalaryRMB displays salary ranges explicitly in RMB", () => {
       assumptions: [],
     } as any,
   });
-  assert.equal(formatCardSalaryRMB(itemRawK).label, "¥9-17k");
+  assert.equal(formatCardSalaryRMB(itemRawK).label, "9-17k");
 
   // Raw with bonus (e.g. 1.5-2.5万·14薪)
   const itemRawBonus = createMockItem({
@@ -176,12 +176,12 @@ test("formatCardSalaryRMB displays salary ranges explicitly in RMB", () => {
       raw: "1.5-2.5万·14薪",
     } as any,
   });
-  assert.equal(formatCardSalaryRMB(itemRawBonus).label, "¥1.5-2.5万·14薪");
+  assert.equal(formatCardSalaryRMB(itemRawBonus).label, "1.5-2.5万·14薪");
 
   // Undisclosed
   const itemUnknown = createMockItem({ salary: undefined, salaryCandidates: [] });
-  assert.equal(formatCardSalaryRMB(itemUnknown).label, "薪资面议");
-  assert.equal(formatCardSalaryRMB(itemUnknown).isNegotiable, true);
+  assert.equal(formatCardSalaryRMB(itemUnknown).label, "薪资未披露");
+  assert.equal(formatCardSalaryRMB(itemUnknown).isNegotiable, false);
 });
 
 test("matchCardPlatform correctly matches platform filters", () => {
@@ -201,7 +201,7 @@ test("matchCardPlatform correctly matches platform filters", () => {
 });
 
 test("parseSalaryToMonthlyK and matchCardSalary filter correctly", () => {
-  const item9to17k = createMockItem({ salary: { raw: "9-17k" } as any });
+  const item9to17k = createMockItem({ salary: { raw: "¥9-17k/月" } as any });
   const parsed1 = parseSalaryToMonthlyK(item9to17k);
   assert.equal(parsed1.minK, 9);
   assert.equal(parsed1.maxK, 17);
@@ -212,7 +212,7 @@ test("parseSalaryToMonthlyK and matchCardSalary filter correctly", () => {
   // 9-17k does not match >50k
   assert.equal(matchCardSalary(item9to17k, ">50k"), false);
 
-  const item15to30w = createMockItem({ salary: { raw: "1.5-3万·13薪" } as any });
+  const item15to30w = createMockItem({ salary: { raw: "¥1.5-3万/月·13薪" } as any });
   const parsed2 = parseSalaryToMonthlyK(item15to30w);
   assert.equal(parsed2.minK, 15);
   assert.equal(parsed2.maxK, 30);
@@ -252,7 +252,7 @@ test("matchCardPublication filters by days relative to publication", () => {
         precision: "instant" as const,
         colors: { foreground: "#000", background: "#fff", border: "#ccc" },
         timeZone: "Asia/Shanghai",
-        raw,
+        ...(raw === "今天" ? { publishedAt: new Date().toISOString() } : raw === "5天前" ? { publishedAt: new Date(Date.now() - 5 * 86400000).toISOString() } : { calendarDate: raw }),
       },
     },
   ];
@@ -262,4 +262,28 @@ test("matchCardPublication filters by days relative to publication", () => {
   assert.equal(matchCardPublication(itemToday, "3d", mockPub("5天前")), false);
   assert.equal(matchCardPublication(itemToday, ">90d", mockPub("2025-01-01")), true);
   assert.equal(matchCardPublication(itemToday, "30d", mockPub("2025-01-01")), false);
+});
+
+test("collection timestamps and unresolved relative text never imply a publication date", () => {
+  const item = createMockItem();
+  const collected = new Date().toISOString();
+  const data = { sources: [], listings: [{ id: "listing-1", sourceId: item.sources[0]!.sourceId, firstDiscoveredAt: collected, observationIds: ["obs-1"] }], observations: [{ id: "obs-1", fetchedAt: collected }] } as any;
+  assert.equal(formatCardPublication(item, undefined, data).label, "发布时间未知");
+  assert.equal(matchCardPublication(item, "30d", undefined, data), false);
+  assert.equal(matchCardPublication(item, "3d", [{ publication: { raw: "今天", status: "unknown", precision: "raw", label: "发布时间原文：今天" } }] as any), false);
+});
+
+test("salary uncertainty preserves evidence without inventing currency or negotiability", () => {
+  const rawSalary = (raw: string) => createMockItem({ salary: { raw } as any });
+  const broken = rawSalary("\ue001\ue002-\ue003万");
+  assert.equal(formatCardSalaryRMB(broken).label, "薪资待核实");
+  assert.ok(formatCardSalaryRMB(broken).tooltip.includes("\ue001"));
+  assert.equal(formatCardSalaryRMB(rawSalary("USD 100-120k/year")).label, "USD 100-120k/year");
+  for (const item of [broken, rawSalary("USD 100-120k/year"), rawSalary("待定"), createMockItem(), rawSalary("9-17k")]) {
+    for (const filter of ["negotiable", "<10k", "10-20k", ">50k"]) assert.equal(matchCardSalary(item, filter), false);
+  }
+  assert.equal(matchCardSalary(rawSalary("面议"), "negotiable"), true);
+  const ambiguous = createMockItem({ salarySelection: "ambiguous" });
+  assert.equal(formatCardSalaryRMB(ambiguous).label, "多种薪资待核实");
+  assert.equal(matchCardSalary(ambiguous, "<10k"), false);
 });

@@ -11,10 +11,12 @@ function canRestoreFocus(element: HTMLElement): boolean {
 }
 
 /** The browser owns modality and tab containment; settings stay outside page flow. */
-export function AtlasSettingsDialog({ title, children, onClose }: {
+export function AtlasSettingsDialog({ title, children, onClose, closeLabel = "关闭地图设置", className = "" }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
+  closeLabel?: string;
+  className?: string;
 }) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -46,7 +48,7 @@ export function AtlasSettingsDialog({ title, children, onClose }: {
     return event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
   }
 
-  return <dialog ref={dialogRef} className="atlas-settings atlas-settings-dialog" aria-modal="true" aria-labelledby={titleId}
+  return <dialog ref={dialogRef} className={`atlas-settings atlas-settings-dialog ${className}`} aria-modal="true" aria-labelledby={titleId}
     onCancel={event => { event.preventDefault(); event.stopPropagation(); onClose(); }}
     onKeyDown={event => {
       // A modal keyboard interaction must never clear the job/map selection.
@@ -67,7 +69,7 @@ export function AtlasSettingsDialog({ title, children, onClose }: {
     onPointerCancel={() => { backdropPointer.current = null; }}>
     <header className="atlas-settings-dialog-header">
       <h2 id={titleId}>{title}</h2>
-      <button ref={closeRef} type="button" className="atlas-settings-dialog-close" aria-label="关闭地图设置" onClick={onClose}>
+      <button ref={closeRef} type="button" className="atlas-settings-dialog-close" aria-label={closeLabel} onClick={onClose}>
         <X size={18} aria-hidden="true" />
       </button>
     </header>

@@ -1,4 +1,30 @@
 /* Command surfaces own page hierarchy; map/query/list geometry stays with the workbench. */
+.atlas-primary-search { min-width: 0; }
+.atlas-workspace.atlas-command-center .atlas-primary-search .atlas-searchbar { margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.atlas-job-card-row { position: relative; min-width: 0; }
+.atlas-workspace .atlas-job-card-row .atlas-job-card { width: 100%; padding-right: 52px; margin: 0; }
+.atlas-workspace .atlas-job-locate { position: absolute; right: 6px; bottom: 10px; display: grid; place-items: center; width: 40px; height: 40px; min-height: 40px; padding: 0; border: 1px solid var(--color-line); border-radius: 10px; background: var(--color-panel); color: var(--color-accent); }
+.atlas-workspace .atlas-job-locate:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.atlas-workspace .atlas-job-locate:hover { background: var(--color-accent-soft); }
+.atlas-collection-scope { display: grid; gap: 12px; margin: 20px 0; }
+.atlas-collection-scope > div { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 12px; }
+.atlas-collection-scope dt { color: var(--color-ink-muted); }
+.atlas-collection-scope dd { margin: 0; overflow-wrap: anywhere; }
+.atlas-collection-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.atlas-collection-actions button { min-height: 44px; }
+.atlas-collection-actions button:last-child { background: var(--color-accent); color: var(--color-on-accent, var(--color-paper)); }
+.atlas-workspace.atlas-command-center .atlas-results-heading { padding: 12px 14px 8px; }
+.atlas-workspace.atlas-command-center .atlas-results-heading h2 { font-size: 17px; }
+.atlas-workspace.atlas-command-center .atlas-results-map-summary { margin-top: 5px; font-size: 11px; }
+.atlas-workspace.atlas-command-center .atlas-address-coverage { padding: 8px 12px; gap: 8px; }
+.atlas-workspace.atlas-command-center .atlas-address-coverage span { font-size: 11px; }
+.atlas-workspace.atlas-command-center .atlas-results .atlas-background-enrichment[data-state="idle"] { margin-block: 0 4px; padding-block: 0; }
+.atlas-workspace.atlas-command-center .atlas-background-enrichment[data-state="idle"] .atlas-background-enrichment-heading { min-height: 30px; }
+.atlas-workspace.atlas-command-center .atlas-background-enrichment[data-state="idle"] .atlas-background-enrichment-heading > strong,
+.atlas-workspace.atlas-command-center .atlas-background-enrichment[data-state="idle"] .atlas-background-enrichment-activity { font-size: 11px; }
+@media (pointer: coarse) {
+  .atlas-workspace .atlas-job-locate { width: 44px; height: 44px; min-height: 44px; }
+}
 .atlas-workspace.atlas-command-center {
   padding: 16px 22px 10px;
   gap: 10px;
@@ -178,11 +204,44 @@
 .atlas-workspace.atlas-command-center[data-pane-layout="narrow"] .atlas-connection-alert-copy { flex-basis: calc(100% - 30px); }
 .atlas-workspace.atlas-command-center[data-pane-layout="narrow"] .atlas-connection-alert-actions { margin-left: 28px; }
 .atlas-workspace.atlas-command-center[data-pane-layout="narrow"] .atlas-workbench-toolbar > span { display: none; }
+.atlas-workspace.atlas-command-center[data-pane-layout="narrow"]:not([data-controls-open]) .atlas-search-fields { grid-template-columns: minmax(0, 1fr) 104px; }
+.atlas-workspace.atlas-command-center[data-pane-layout="narrow"]:not([data-controls-open]) .atlas-search-fields > .atlas-search { grid-column: 1; grid-row: 1; }
+.atlas-workspace.atlas-command-center[data-pane-layout="narrow"]:not([data-controls-open]) .atlas-search-fields > .atlas-source-search { grid-column: 2; grid-row: 1; min-width: 0; padding-inline: 8px; }
+.atlas-workspace.atlas-command-center[data-pane-layout="narrow"]:not([data-controls-open]) .atlas-search-fields > :is(select,.atlas-region-search,.atlas-domestic-region) { display: none; }
+.atlas-workspace.atlas-command-center[data-pane-layout="narrow"]:not([data-controls-open]) .atlas-search-tools > :not(:last-child) { display: none; }
+.atlas-workspace.atlas-command-center[data-pane-layout="narrow"]:not([data-controls-open]) .atlas-search-utilities { flex-direction: row; align-items: center; gap: 6px; }
+.atlas-workspace.atlas-command-center[data-pane-layout="narrow"]:not([data-controls-open]) .atlas-search-tools { width: auto; flex: none; }
+.atlas-workspace.atlas-command-center[data-pane-layout="narrow"] .atlas-search-hint { font-size: 10px; }
+.atlas-workspace.atlas-command-center[data-pane-layout="narrow"] .atlas-results-heading .atlas-eyebrow,
+.atlas-workspace.atlas-command-center[data-pane-layout="narrow"] .atlas-results-map-summary { display: none; }
+.atlas-workspace.atlas-command-center[data-pane-layout="narrow"] .atlas-workbench-pane-body .atlas-results-heading { flex-wrap: nowrap; align-items: center; padding-block: 10px; }
+.atlas-workspace.atlas-command-center[data-pane-layout="narrow"] .atlas-address-coverage { gap: 4px; }
+.atlas-workspace.atlas-command-center[data-pane-layout="narrow"] .atlas-address-coverage button { min-height: 44px; }
 @media (max-width: 600px) {
   .atlas-workspace.atlas-command-center .atlas-settings-dialog { width: calc(100vw - 20px); max-height: calc(100dvh - 24px); border-radius: 14px; }
   .atlas-settings-dialog-header { padding: 14px; }
   .atlas-settings-dialog-body { padding: 15px; }
   .atlas-workspace.atlas-command-center .atlas-settings-dialog .atlas-form-row { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Only the active Atlas shell is compacted; résumé editing keeps its full header. */
+@media (max-width: 620px) {
+  .studio-workspace:has(> .secondary-workspace:not([hidden]) .atlas-workspace) > .studio-header { height: auto; min-height: 54px; padding: 8px 12px; gap: 6px; }
+  .studio-workspace:has(> .secondary-workspace:not([hidden]) .atlas-workspace) > .studio-header .studio-brand { display: none; }
+  .studio-workspace:has(> .secondary-workspace:not([hidden]) .atlas-workspace) > .studio-header .header-actions { width: 100%; min-width: 0; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .studio-workspace:has(> .secondary-workspace:not([hidden]) .atlas-workspace) > .studio-header .workspace-preferences { display: flex; flex: 1 1 100%; flex-wrap: nowrap; justify-content: space-between; gap: 4px; min-width: 0; }
+  .studio-workspace:has(> .secondary-workspace:not([hidden]) .atlas-workspace) > .studio-header .workspace-preference-label { display: none; }
+  .studio-workspace:has(> .secondary-workspace:not([hidden]) .atlas-workspace) > .studio-header .workspace-theme-picker { min-width: 0; flex: 1 1 100px; max-width: 130px; }
+  .studio-workspace:has(> .secondary-workspace:not([hidden]) .atlas-workspace) > .studio-header .workspace-theme-picker select { width: 100%; min-width: 0; }
+  .studio-workspace:has(> .secondary-workspace:not([hidden]) .atlas-workspace) > .studio-header .workspace-preference-group button { min-height: 36px; padding-inline: 7px; }
+  .studio-workspace:has(> .secondary-workspace:not([hidden]) .atlas-workspace) > .studio-header .workspace-preference-group[aria-label="界面主题"] button span,
+  .studio-workspace:has(> .secondary-workspace:not([hidden]) .atlas-workspace) > .studio-header .workspace-preference-group[aria-label="Workspace theme"] button span,
+  .studio-workspace:has(> .secondary-workspace:not([hidden]) .atlas-workspace) > .studio-header .save-indicator > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+@media (max-width: 620px) and (pointer: coarse) {
+  .studio-workspace:has(> .secondary-workspace:not([hidden]) .atlas-workspace) > .studio-header .workspace-preference-group button,
+  .studio-workspace:has(> .secondary-workspace:not([hidden]) .atlas-workspace) > .studio-header .workspace-theme-picker select { min-height: 44px; min-width: 44px; }
+  .atlas-workspace.atlas-command-center .atlas-search-tools > button { min-height: 44px; }
 }
 @media (pointer: coarse) {
   .atlas-workspace.atlas-command-center .atlas-toolbar-menu > summary,

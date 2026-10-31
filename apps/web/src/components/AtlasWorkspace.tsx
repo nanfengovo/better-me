@@ -332,11 +332,11 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
       setText("");
     } else {
       setText(keyword);
-      void searchSourceJobs(keyword);
+      // Keyword chips only filter the existing index.
     }
   }
   const [settings, setSettings] = useState<"connection" | "home" | "colors" | "maps" | null>(null);
-  useEffect(() => { if (!active) setSettings(null); }, [active]);
+  useEffect(() => { if (!active) { setSettings(null); setCollectionOpen(false); } }, [active]);
   const [endpoint, setEndpoint] = useState(initialConnection?.dataMode === "live" ? initialConnection.endpoint : DEFAULT_ATLAS_ENDPOINT);
   const [token, setToken] = useState(initialConnection?.dataMode === "live" ? initialConnection.token : "");
   useEffect(() => { setDetailReviewJobId(""); setEnrichmentScope(null); }, [endpoint, token, dataMode, active]);
@@ -392,7 +392,9 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
   const [authHubOpen, setAuthHubOpen] = useState(false);
   const [intervenePlatforms, setIntervenePlatforms] = useState<string[]>([]);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [commandOpen, setCommandOpen] = useState(true);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [collectionOpen, setCollectionOpen] = useState(false);
+  const [readingRevision, setReadingRevision] = useState(0);
   const [selectedId, setSelectedId] = useState("");
   useEffect(() => { setLocationReview(undefined); }, [selectedId, endpoint, token]);
   const [bucket, setBucket] = useState<MapBucket | null>(null);
@@ -412,9 +414,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
   const [locationSearch, setLocationSearch] = useState<{ jobId: string; locationId: string; result?: GeocodingResult; loading: boolean; error?: string }>();
   const locationAbort = useRef<AbortController | null>(null);
   const selectedCard = useRef<JobSearchItem | undefined>(undefined);
-  const cardClickTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const mapActivationAbort = useRef<AbortController | null>(null);
-  function cancelCardClick() { clearTimeout(cardClickTimer.current); cardClickTimer.current = undefined; }
   useEffect(() => () => mapActivationAbort.current?.abort(), []);
   const queryAbort = useRef<AbortController | null>(null);
   const preview = baselinePreview?.endpoint === endpoint && baselinePreview.token === token ? baselinePreview : undefined;
@@ -606,15 +606,15 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
 
   const selectionKey = JSON.stringify({ ...query, mapLevel: "city", sort: undefined, aiPenetratedOnly });
   useEffect(() => { setAiBannerDismissed(false); }, [text]);
-  useEffect(() => { cancelCardClick(); mapActivationAbort.current?.abort(); cancelOfficeFocus(); setOfficeReview(undefined); setLocationChoices(undefined); setBucket(null); setSelectedId(""); setFocus(undefined); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); }, [selectionKey, dataMode]);
-  useEffect(() => { if (!active) { cancelCardClick(); cancelOfficeFocus(); setOfficeReview(undefined); setLocationChoices(undefined); } }, [active]);
+  useEffect(() => { mapActivationAbort.current?.abort(); cancelOfficeFocus(); setOfficeReview(undefined); setLocationChoices(undefined); setBucket(null); setSelectedId(""); setFocus(undefined); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); }, [selectionKey, dataMode]);
+  useEffect(() => { if (!active) { cancelOfficeFocus(); setOfficeReview(undefined); setLocationChoices(undefined); } }, [active]);
   useEffect(() => { cancelOfficeFocus(); }, [endpoint, token]);
-  useEffect(() => { cancelCardClick(); setBucket(null); recoveredOfficeSelection.current = undefined; selectedCard.current = undefined; setSelectedId(""); setLocationReview(undefined); setOfficeReview(undefined); setLocationChoices(undefined); setFocus(undefined); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); }, [dataMode, endpoint, token]);
+  useEffect(() => { setBucket(null); recoveredOfficeSelection.current = undefined; selectedCard.current = undefined; setSelectedId(""); setLocationReview(undefined); setOfficeReview(undefined); setLocationChoices(undefined); setFocus(undefined); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); }, [dataMode, endpoint, token]);
   // Version-bound editing proposals must expire, but an unrelated ingestion
   // commit must not close the reading pane. The settled query rechecks selection.
-  useEffect(() => { cancelCardClick(); setLocationReview(undefined); setOfficeReview(undefined); setLocationChoices(undefined); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); }, [data]);
+  useEffect(() => { setLocationReview(undefined); setOfficeReview(undefined); setLocationChoices(undefined); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); }, [data]);
   useEffect(() => {
-    cancelCardClick(); setBucket(current => current?.positionBasis === "city-reference" ? null : current);
+    setBucket(current => current?.positionBasis === "city-reference" ? null : current);
     setFocus(current => current?.positionBasis === "city-reference" ? undefined : current);
     if (selectedCard.current?.mapReferences?.length && recoveredOfficeSelection.current?.data !== data) { selectedCard.current = undefined; setSelectedId(""); setLocationReview(undefined); }
   }, [mapReferences.result, data]);
@@ -694,7 +694,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
       abort.abort();
     };
   }, [querying, data, text, result?.totalJobs, queryOptions]);
-  useEffect(() => () => { cancelCardClick(); connectionAbort.current?.abort(); devBootstrapAbort.current?.abort(); searchAbort.current?.abort(); locationAbort.current?.abort(); officeFocusAbort.current?.abort(); }, []);
+  useEffect(() => () => { connectionAbort.current?.abort(); devBootstrapAbort.current?.abort(); searchAbort.current?.abort(); locationAbort.current?.abort(); officeFocusAbort.current?.abort(); }, []);
 
   const connect = useCallback(async (identity: AtlasConnectionIdentity, remember: boolean) => {
     searchAbort.current?.abort();
@@ -1271,7 +1271,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
     return () => abort.abort();
   }, [active, data, resultData, rawResult, listPage, listResultIdentity, listIdentity, selectedId, listItems, selectionKey, effectiveSelectedJobIds, query, queryOptions, recheckedSelection]);
   function openJob(item: JobSearchItem) {
-    cancelCardClick();
+    setReadingRevision(revision => revision + 1);
     setDetailReviewJobId(""); setEnrichmentScope(null);
     if (selectedId !== item.job.id) { cancelOfficeFocus(); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); setOfficeReview(undefined); setLocationChoices(undefined); }
     selectedCard.current = item; setSelectedId(item.job.id);
@@ -1294,15 +1294,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
       if (!abort.signal.aborted) setSourceSearchError(error instanceof Error ? error.message : "无法打开该办公地址对应的岗位。");
     });
   }
-  function clickJob(item: JobSearchItem, detail: number) {
-    cancelCardClick();
-    // Opening the optional JD pane can move the card, even on desktop. Preserve
-    // its native double-click target until that window ends; keyboard stays instant.
-    const readingPaneOpen = Boolean((selected && data) || detailReviewJobId || enrichmentScope);
-    if (detail === 0 || readingPaneOpen) openJob(item);
-    else if (detail === 1) cardClickTimer.current = setTimeout(() => openJob(item), 520);
-  }
-  function closeJob() { cancelCardClick(); cancelOfficeFocus(); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); setOfficeReview(undefined); setLocationChoices(undefined); setSelectedId(""); setFocus(undefined); }
+  function closeJob() { cancelOfficeFocus(); locationAbort.current?.abort(); locationAbort.current = null; setLocationSearch(undefined); setOfficeReview(undefined); setLocationChoices(undefined); setSelectedId(""); setFocus(undefined); }
   function flyToJob(target: AtlasMapFocus) {
     setFocus({ ...target, viewportOffset: [0, 0] }); setRotating(false);
     const element = scene.current;
@@ -1386,39 +1378,22 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
     colors: "企业控股来源配色",
   };
 
-  return <section ref={workspace} className="atlas-workspace atlas-experience atlas-command-center" data-pane-layout={layout} data-flexible-layout aria-label={t("岗位地图", "Opportunity atlas")}>
-    <details className="atlas-workspace-controls" aria-label="地图搜索与筛选面板" open={commandOpen}>
-      <summary onClick={event => { event.preventDefault(); setCommandOpen(open => !open); }}>
-        <span>{commandOpen ? "收起" : "展开"}搜索与筛选</span>
-        <small>{text.trim() ? `关键词 ${text.trim()} · ` : ""}{result ? `${result.totalJobs.toLocaleString("zh-CN")} 岗命中` : "岗位地图"}</small>
-      </summary>
-    <div className="atlas-command">
-    <div className="atlas-heading">
-      <div className="atlas-heading-copy"><span className="atlas-eyebrow">OPPORTUNITY ATLAS</span><h1>{t("让下一个机会，有迹可循。", "Find where your next chapter begins.")}</h1></div>
-      <AtlasIllustration compact interactive={false} />
-      <AtlasToolbarMenu className="atlas-top-actions" label={<><SlidersHorizontal size={15} aria-hidden="true" />地图与连接</>}>
-        <button type="button" data-close-menu onClick={() => setSettings("maps")}><Globe2 size={16} />地图服务</button>
-        <button type="button" data-close-menu onClick={() => setSettings("home")}><Home size={16} />{anchor ? t("已设置家庭参照点", "Home set") : t("设置离家距离", "Set home distance")}</button>
-        <button type="button" data-close-menu onClick={() => setSettings("connection")}><Database size={16} />{t("连接本机服务", "Connect local service")}</button>
-      </AtlasToolbarMenu>
+  return <section ref={workspace} className="atlas-workspace atlas-experience atlas-command-center" data-pane-layout={layout} data-controls-open={commandOpen || undefined} data-flexible-layout aria-label={t("岗位地图", "Opportunity atlas")}>
+    <div className="atlas-primary-search">
+      <form className="atlas-searchbar" aria-label="筛选已收录岗位" onSubmit={(e) => { e.preventDefault(); }}>
+        <div className="atlas-search-fields"><label className="atlas-search"><Search size={18} /><input aria-label="搜索地图岗位" aria-describedby="atlas-search-help" value={text} onChange={(e) => setText(e.target.value)} placeholder={t("关键词、技能或公司", "Role, skill, or company")} />{text && <button type="button" className="atlas-search-clear" aria-label="清除岗位关键词" onClick={() => setText("")}><X size={14} /></button>}</label>{mode === "domestic" ? <div className="atlas-domestic-region" role="group" aria-label="国内省市区筛选"><span>中国</span><select aria-label="工作省份" value={chinaSelection.provinceCode ?? ""} onChange={(e) => setChinaSelection({ provinceCode: e.target.value || undefined })}><option value="">全部省份</option>{getChinaProvinces().map((entry) => <option key={entry.code} value={entry.code}>{entry.label}</option>)}</select><select aria-label="工作城市" disabled={!chinaCities.length} value={chinaSelection.cityCode ?? ""} onChange={(e) => setChinaSelection({ provinceCode: chinaSelection.provinceCode, cityCode: e.target.value || undefined })}><option value="">全部城市</option>{chinaCities.map((entry) => <option key={entry.code} value={entry.code}>{entry.label}</option>)}</select><select aria-label="工作区县" disabled={!chinaDistricts.length} value={chinaSelection.districtCode ?? ""} onChange={(e) => setChinaSelection({ ...chinaSelection, districtCode: e.target.value || undefined })}><option value="">全部区 / 县</option>{chinaDistricts.map((entry) => <option key={entry.code} value={entry.code}>{entry.label}</option>)}</select></div> : <><select aria-label="工作国家或地区" value={country} onChange={(e) => { setCountry(e.target.value); setRegion(""); setRegionText(""); }}><option value="">{t("所有国家 / 地区", "All countries / regions")}</option>{countryOptions}</select><label className="atlas-region-search"><MapPin size={15} /><input aria-label="工作城市或地区关键词" value={regionText} onChange={(e) => { setRegionText(e.target.value); setRegion(""); }} placeholder="城市 / 地区，如北京、Berlin" maxLength={300} /></label></>}<button className="atlas-source-search" aria-busy={sourceSearching} type="button" onClick={() => setCollectionOpen(true)} disabled={sourceSearching || connecting}>{sourceSearching ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}采集新岗位</button></div>
+        <div className="atlas-search-utilities">
+          <span id="atlas-search-help" className="atlas-search-hint">仅筛选已收录岗位 · Enter 不启动采集</span>
+          <div className="atlas-search-tools"><AtlasToolbarMenu className="atlas-fetch-options" label="获取方式">{searchableSources.length > 0 && <select aria-label="搜索原始来源" value={searchSourceId} onChange={(e) => { searchAbort.current?.abort(); setSearchSourceId(e.target.value); }}><option value="">已配置岗位来源（{searchableSources.length}）</option>{searchableSources.map((entry) => <option key={entry.sourceId} value={entry.sourceId}>{entry.attribution.label}{entry.remoteFilters.includes("roles") ? " · 实时关键词" : " · 来源岗位"}</option>)}</select>}<select aria-label="来源读取范围" value={searchDepth} onChange={(e) => setSearchDepth(e.target.value as "quick" | "standard" | "deep")}><option value="deep">深度采集 · 最多 50 页 / 每平台 3000 岗</option><option value="standard">标准模式 · 最多 20 页 / 每平台 1500 岗</option><option value="quick">快速模式 · 最多 5 页 / 每平台 500 岗</option></select><small>预算、登录验证、无新增等情况会提前停止；上限不代表网站总量。</small><select aria-label="并发同步数量" value={searchConcurrency} onChange={(e) => { const val = Number(e.target.value); setSearchConcurrency(val); try { localStorage.setItem("better-me:atlas-concurrency", String(val)); } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ } }}><option value={16}>全源同时并发（极速）</option><option value={6}>6 源并发</option><option value={4}>4 源并发</option><option value={2}>2 源并发（排队）</option></select></AtlasToolbarMenu><button type="button" className="atlas-auth-hub-trigger" title="全网平台统一登录与会话接管中心（BOSS直聘 · 猎聘 · 51JOB · 领英）" onClick={() => setAuthHubOpen(true)}><KeyRound size={15} />平台登录态</button><button type="button" aria-expanded={platformSearchOpen} className="atlas-platform-trigger" title="BOSS · 猎聘 · 51 · 领英 · Seek · Indeed · GradConnection · 官网" onClick={() => { setCommandOpen(true); setPlatformSearchOpen(!platformSearchOpen); }}>全网平台</button><button type="button" aria-label={t("筛选", "Filters")} aria-controls="atlas-search-filters" aria-expanded={filtersOpen} onClick={() => { setCommandOpen(true); setFiltersOpen(!filtersOpen); }}><SlidersHorizontal size={16} />{t("筛选", "Filters")}{searchFilterCount > 0 && <span className="atlas-filter-count">{searchFilterCount}</span>}</button></div>
+        </div>
+      </form>
     </div>
-    <div className={`atlas-data-banner ${dataMode}`} data-state={indexState}>
-      <div className="atlas-data-context" role="status">
-        <span className="atlas-status-dot" aria-hidden="true" />
-        <strong>{dataMode === "demo" ? "演示模式 · 非真实招聘" : dataMode === "live" ? "真实来源 · 本机索引" : "真实来源 · 当前机会库"}</strong>
-        <span className="atlas-data-meta">{dataMode === "demo" ? "合成样本，不计入真实岗位" : dataLoading ? "正在读取索引…" : indexError ? (data ? "连接异常 · 显示上次已读数据" : "索引尚未读取") : data ? `${data.jobs.length.toLocaleString("zh-CN")} 个来源岗位${dataMode === "live" ? ` · 索引版本 ${data.revision}` : ""}` : "等待连接"}</span>
-      </div>
-      <div className="atlas-data-controls">
-        <label className="atlas-data-selector"><span>数据视图</span><select aria-label="岗位数据视图" value={dataMode} onChange={(e) => chooseDataMode(e.target.value as AtlasDataMode)}><option value="local">当前机会库 · 真实来源</option><option value="live">本机采集索引 · 真实来源</option><option value="demo">合成演示 · 仅体验地图</option></select></label>
-        <AtlasToolbarMenu className="atlas-banner-tools" label="索引工具">
-          {dataMode === "local" && <button type="button" data-close-menu disabled={localLoading} onClick={() => setLocalReload((n) => n + 1)}><RefreshCw size={15} />{localLoading ? "正在读取…" : "重新读取机会库"}</button>}
-          {dataMode === "live" && <button type="button" data-close-menu disabled={connecting} onClick={retryIndexConnection}><RefreshCw size={15} />重新读取索引</button>}
-          <button type="button" data-close-menu onClick={() => { setSourcesOpen(!sourcesOpen); setReconciliationOpen(false); setSettings(null); }}>来源工具</button>
-          {dataMode === "live" && connected && <button type="button" data-close-menu aria-expanded={reconciliationOpen} onClick={() => { setReconciliationOpen(!reconciliationOpen); setSourcesOpen(false); }}>重复岗位核对</button>}
-          {onOpenOpportunitySources && <button type="button" data-close-menu onClick={onOpenOpportunitySources}>全平台单岗读取（BOSS · 猎聘 · 51 · 领英 · Seek · Indeed · GradConnection）</button>}
-        </AtlasToolbarMenu>
-      </div>
-    </div>
+    {collectionOpen && active && <AtlasSettingsDialog title="采集新岗位" onClose={() => setCollectionOpen(false)} closeLabel="取消岗位采集">
+      <p>这会访问招聘来源，并把返回的岗位收录到当前索引。仅浏览或筛选已有岗位不需要采集。</p>
+      <dl className="atlas-collection-scope"><div><dt>关键词</dt><dd>{text.trim() || (!searchSourceId && import.meta.env?.DEV ? resumePrefill.targetRole || "软件工程师（实时平台默认词）" : "未指定（来源默认范围）")}</dd></div><div><dt>地区</dt><dd>{mode === "domestic" ? ["中国", chinaFilter.selectedProvince?.name, chinaFilter.selectedCity?.name].filter(Boolean).join(" / ") : [country ? countryName(country) : "所有国家 / 地区", regionText || region].filter(Boolean).join(" / ")}</dd></div><div><dt>来源</dt><dd>{searchableSources.find(entry => entry.sourceId === searchSourceId)?.attribution.label ?? (searchableSources.length ? "已配置来源（" + searchableSources.length + "）" + (!searchSourceId && import.meta.env?.DEV ? " + 实时平台（BOSS / 猎聘 / 51Job / 领英）" : "") : "连接后读取已配置来源")}</dd></div><div><dt>预算上限</dt><dd>{searchDepth === "deep" ? "每平台 50 页 / 3000 岗" : searchDepth === "standard" ? "每平台 20 页 / 1500 岗" : "每平台 5 页 / 500 岗"} · {searchConcurrency} 源并发</dd></div></dl>
+      <p className="atlas-small">上限不是预期新增量；登录、来源限制或无新增会提前结束。可取消并保留已收到的结果。</p>
+      <div className="atlas-collection-actions"><button type="button" onClick={() => { setCollectionOpen(false); setCommandOpen(true); }}>调整范围</button><button type="button" onClick={() => setCollectionOpen(false)}>暂不采集</button><button type="button" onClick={() => { setCollectionOpen(false); void searchSourceJobs(); }}>确认开始采集</button></div>
+    </AtlasSettingsDialog>}
     {connectionError && dataMode === "live" && <div className="atlas-connection-alert" role="alert">
       <AlertTriangle size={18} aria-hidden="true" />
       <div className="atlas-connection-alert-copy">
@@ -1433,13 +1408,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
     </div>}
     {dataMode === "live" && preview && !preview.progress.complete && <AtlasBaselineStatus progress={preview.progress} loading={connecting} onRetry={() => void connect({ endpoint, token }, true)} />}
     {connectionNotice && <p role="status" className="atlas-small">{connectionNotice}</p>}
-    {localError && dataMode === "local" && <p role="alert" className="atlas-error">{localError}</p>}
-    {dataMode === "local" && !!localData?.jobs.length && localWarnings > 0 && <p className="atlas-small">有 {localWarnings} 项来源字段提示：未提供的日期、结构化薪资与坐标保持未知。查看岗位详情核对原文；投递记录和联系人未进入地图数据。</p>}
-    {active && reconciliationOpen && connected && dataMode === "live" && liveData && <Suspense fallback={<p role="status">正在打开重复岗位核对…</p>}><AtlasReconciliationPanel endpoint={endpoint} token={token} data={liveData} onClose={() => setReconciliationOpen(false)} onSnapshot={snapshot => {
-      searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot);
-      setSourceSearchMessage(`已读取岗位处理记录，索引版本 ${snapshot.revision}。列表与地图会按当前来源组合重新计算。`);
-    }} /></Suspense>}
-    {sourcesOpen && <Suspense fallback={<p role="status">正在加载来源工具…</p>}><AtlasSourcesPanel endpoint={endpoint} token={token} onSnapshot={(snapshot) => { searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live"); }} onClose={() => setSourcesOpen(false)} /></Suspense>}
+    {!commandOpen && (indexError || sourceSearchError) && <p className="atlas-error" role="alert">{sourceSearchError || indexError}</p>}
     {active && settings && <AtlasSettingsDialog title={settingsTitles[settings]} onClose={() => setSettings(null)}>
       {settings === "maps" && <div><p>全球与国内均使用同一经纬度视图，可连续缩放至街道。开放底图无需 API Key；联网底图会向所选服务请求当前视野的瓦片，离线轮廓不请求外部地图服务。</p><label className="atlas-basemap-select">底图来源<select value={basemapId} onChange={(e) => { setBasemapId(e.target.value); setMapError(""); }}><option value="auto">OpenFreeMap · 跟随浅深主题</option>{ATLAS_BASEMAPS.map((provider) => <option value={provider.id} key={provider.id}>{provider.name}</option>)}<option value="offline">本地概览 · 离线边界</option></select></label><details className="atlas-settings-disclosure"><summary>覆盖范围、3D 与隐私说明</summary><p className="atlas-small">道路、建筑、门牌和地名是否显示取决于底图覆盖；仅对含高度属性的底图建筑做 3D 表现，不代表实测楼高。离线省域立体效果是概览示意，不代表实测地形。城市级岗位不会显示成精确办公地址。“三维地球”由 Cesium 渲染本地概略边界，不含卫星影像。地图内“实景 3D / 数据与画质”可加载 Google 摄影测量 3D Tiles 或获准使用的 3D Tiles，需自行配置服务权限、Key 与可能的计费；Key 仅保留在当前页面内存。上海街区覆盖需实测，不能用城市中心或模型网格推断办公地址。</p></details></div>}
       {settings === "connection" && <form onSubmit={(e) => { e.preventDefault(); devAutoConnectSuppressed.current = false; clearAtlasDevAutoConnectSuppressed(); restoreConnection.current = false; void connect({ endpoint, token }, true); }}><p>{(import.meta.env?.DEV || readRuntimeConnection()) ? "当前工作台会自动连接配套岗位服务并读取索引，不必手填服务地址和访问令牌。" : "公网页面没有本地开发接口，仍需填写本机服务地址和访问令牌。"}允许当前网页 Origin：<code>{window.location.origin}</code>。连接成功后，访问令牌仅保留在当前标签页的会话存储中，刷新可恢复连接；断开并清除后，这个标签页不会马上再自动连接。令牌不写入永久存储或网址。</p><div className="atlas-form-row"><label>服务地址<input value={endpoint} onChange={(e) => changeConnection("endpoint", e.target.value)} placeholder="http://127.0.0.1:5178" /></label><label>访问令牌<input type="password" autoComplete="off" value={token} onChange={(e) => changeConnection("token", e.target.value)} /></label><button type="submit" disabled={connecting}>{connecting ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}{connecting ? "正在连接" : "连接并读取索引"}</button><button type="button" onClick={disconnect}>断开并清除会话连接</button></div>{connectionError && <p role="alert" className="atlas-error">{connectionError}</p>}<p className="atlas-small">读取公开岗位快照，在本页执行共享查询。家庭参照坐标不发送给服务。公网 HTTPS 页面连接本机可能需要浏览器本地网络授权；完整体验建议使用本机网页。</p></form>}
@@ -1507,14 +1476,48 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
       )}
       {settings === "colors" && <div><p>配色依据已核实的最终控股方来源。工作地点不代表企业来源；待核实与证据冲突单列。颜色只影响岗位地图。</p><div className="atlas-color-grid">{colors.rules.map((rule, index) => <label key={rule.id}><input type="color" aria-label={`${rule.label}颜色`} value={rule.color} onChange={(e) => setColors((current) => ({ ...current, rules: current.rules.map((r, n) => n === index ? { ...r, color: e.target.value } : r) }))} /><span>{rule.label}</span></label>)}</div><div className="atlas-form-row"><button onClick={() => { try { localStorage.setItem(COLOR_KEY, JSON.stringify(CompanyColorConfigSchema.parse(colors))); setColorsMessage("配色已保存到当前浏览器。"); } catch { setColorsMessage("浏览器未允许保存，当前页面仍应用此配色。"); } }}>保存配色</button><button onClick={() => { setColors(getDefaultCompanyColorConfig()); setColorsMessage("已恢复默认配色；点击保存可保留。"); }}>恢复默认</button><span role="status">{colorsMessage}</span></div></div>}
     </AtlasSettingsDialog>}
+    <details className="atlas-workspace-controls" aria-label="地图搜索与筛选面板" open={commandOpen}>
+      <summary onClick={event => { event.preventDefault(); setCommandOpen(open => !open); }}>
+        <span>{commandOpen ? "收起" : "展开"}高级选项与运行状态</span>
+        <small>{mode === "domestic" ? [chinaFilter.selectedProvince?.name, chinaFilter.selectedCity?.name].filter(Boolean).join(" / ") : [country ? countryName(country) : "", regionText || region].filter(Boolean).join(" / ")}{(chinaFilter.selectedProvince || country || regionText || region) ? " · " : ""}{text.trim() ? `关键词 ${text.trim()} · ` : ""}{result ? `${result.totalJobs.toLocaleString("zh-CN")} 岗命中` : "岗位地图"}</small>
+      </summary>
+    <div className="atlas-command">
+    <div className="atlas-heading">
+      <div className="atlas-heading-copy"><span className="atlas-eyebrow">OPPORTUNITY ATLAS</span><h1>{t("让下一个机会，有迹可循。", "Find where your next chapter begins.")}</h1></div>
+      <AtlasIllustration compact interactive={false} />
+      <AtlasToolbarMenu className="atlas-top-actions" label={<><SlidersHorizontal size={15} aria-hidden="true" />地图与连接</>}>
+        <button type="button" data-close-menu onClick={() => setSettings("maps")}><Globe2 size={16} />地图服务</button>
+        <button type="button" data-close-menu onClick={() => setSettings("home")}><Home size={16} />{anchor ? t("已设置家庭参照点", "Home set") : t("设置离家距离", "Set home distance")}</button>
+        <button type="button" data-close-menu onClick={() => setSettings("connection")}><Database size={16} />{t("连接本机服务", "Connect local service")}</button>
+      </AtlasToolbarMenu>
+    </div>
+    <div className={`atlas-data-banner ${dataMode}`} data-state={indexState}>
+      <div className="atlas-data-context" role="status">
+        <span className="atlas-status-dot" aria-hidden="true" />
+        <strong>{dataMode === "demo" ? "演示模式 · 非真实招聘" : dataMode === "live" ? "真实来源 · 本机索引" : "真实来源 · 当前机会库"}</strong>
+        <span className="atlas-data-meta">{dataMode === "demo" ? "合成样本，不计入真实岗位" : dataLoading ? "正在读取索引…" : indexError ? (data ? "连接异常 · 显示上次已读数据" : "索引尚未读取") : data ? `${data.jobs.length.toLocaleString("zh-CN")} 个来源岗位${dataMode === "live" ? ` · 索引版本 ${data.revision}` : ""}` : "等待连接"}</span>
+      </div>
+      <div className="atlas-data-controls">
+        <label className="atlas-data-selector"><span>数据视图</span><select aria-label="岗位数据视图" value={dataMode} onChange={(e) => chooseDataMode(e.target.value as AtlasDataMode)}><option value="local">当前机会库 · 真实来源</option><option value="live">本机采集索引 · 真实来源</option><option value="demo">合成演示 · 仅体验地图</option></select></label>
+        <AtlasToolbarMenu className="atlas-banner-tools" label="索引工具">
+          {dataMode === "local" && <button type="button" data-close-menu disabled={localLoading} onClick={() => setLocalReload((n) => n + 1)}><RefreshCw size={15} />{localLoading ? "正在读取…" : "重新读取机会库"}</button>}
+          {dataMode === "live" && <button type="button" data-close-menu disabled={connecting} onClick={retryIndexConnection}><RefreshCw size={15} />重新读取索引</button>}
+          <button type="button" data-close-menu onClick={() => { setSourcesOpen(!sourcesOpen); setReconciliationOpen(false); setSettings(null); }}>来源工具</button>
+          {dataMode === "live" && connected && <button type="button" data-close-menu aria-expanded={reconciliationOpen} onClick={() => { setReconciliationOpen(!reconciliationOpen); setSourcesOpen(false); }}>重复岗位核对</button>}
+          {onOpenOpportunitySources && <button type="button" data-close-menu onClick={onOpenOpportunitySources}>全平台单岗读取（BOSS · 猎聘 · 51 · 领英 · Seek · Indeed · GradConnection）</button>}
+        </AtlasToolbarMenu>
+      </div>
+    </div>
+    {localError && dataMode === "local" && <p role="alert" className="atlas-error">{localError}</p>}
+    {dataMode === "local" && !!localData?.jobs.length && localWarnings > 0 && <p className="atlas-small">有 {localWarnings} 项来源字段提示：未提供的日期、结构化薪资与坐标保持未知。查看岗位详情核对原文；投递记录和联系人未进入地图数据。</p>}
+    {active && reconciliationOpen && connected && dataMode === "live" && liveData && <Suspense fallback={<p role="status">正在打开重复岗位核对…</p>}><AtlasReconciliationPanel endpoint={endpoint} token={token} data={liveData} onClose={() => setReconciliationOpen(false)} onSnapshot={snapshot => {
+      searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot);
+      setSourceSearchMessage(`已读取岗位处理记录，索引版本 ${snapshot.revision}。列表与地图会按当前来源组合重新计算。`);
+    }} /></Suspense>}
+    {sourcesOpen && <Suspense fallback={<p role="status">正在加载来源工具…</p>}><AtlasSourcesPanel endpoint={endpoint} token={token} onSnapshot={(snapshot) => { searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live"); }} onClose={() => setSourcesOpen(false)} /></Suspense>}
+
     <div className="atlas-search-panel">
-      <form className="atlas-searchbar" aria-label="岗位搜索与采集" onSubmit={(e) => { e.preventDefault(); void searchSourceJobs(); }}>
-        <div className="atlas-search-fields"><label className="atlas-search"><Search size={18} /><input aria-label="搜索地图岗位" aria-describedby="atlas-search-help" value={text} onChange={(e) => setText(e.target.value)} placeholder={t("关键词、技能或公司", "Role, skill, or company")} />{text && <button type="button" className="atlas-search-clear" aria-label="清除岗位关键词" onClick={() => setText("")}><X size={14} /></button>}</label>{mode === "domestic" ? <div className="atlas-domestic-region" role="group" aria-label="国内省市区筛选"><span>中国</span><select aria-label="工作省份" value={chinaSelection.provinceCode ?? ""} onChange={(e) => setChinaSelection({ provinceCode: e.target.value || undefined })}><option value="">全部省份</option>{getChinaProvinces().map((entry) => <option key={entry.code} value={entry.code}>{entry.label}</option>)}</select><select aria-label="工作城市" disabled={!chinaCities.length} value={chinaSelection.cityCode ?? ""} onChange={(e) => setChinaSelection({ provinceCode: chinaSelection.provinceCode, cityCode: e.target.value || undefined })}><option value="">全部城市</option>{chinaCities.map((entry) => <option key={entry.code} value={entry.code}>{entry.label}</option>)}</select><select aria-label="工作区县" disabled={!chinaDistricts.length} value={chinaSelection.districtCode ?? ""} onChange={(e) => setChinaSelection({ ...chinaSelection, districtCode: e.target.value || undefined })}><option value="">全部区 / 县</option>{chinaDistricts.map((entry) => <option key={entry.code} value={entry.code}>{entry.label}</option>)}</select></div> : <><select aria-label="工作国家或地区" value={country} onChange={(e) => { setCountry(e.target.value); setRegion(""); setRegionText(""); }}><option value="">{t("所有国家 / 地区", "All countries / regions")}</option>{countryOptions}</select><label className="atlas-region-search"><MapPin size={15} /><input aria-label="工作城市或地区关键词" value={regionText} onChange={(e) => { setRegionText(e.target.value); setRegion(""); }} placeholder="城市 / 地区，如北京、Berlin" maxLength={300} /></label></>}<button className="atlas-source-search" aria-busy={sourceSearching} type="submit" disabled={sourceSearching || connecting}>{sourceSearching ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}{connected ? "从来源获取岗位" : "连接真实来源搜索"}</button></div>
-        <div className="atlas-search-utilities">
-          <span id="atlas-search-help" className="atlas-search-hint">输入即筛选，点击获取新岗位</span>
-          <div className="atlas-search-tools"><AtlasToolbarMenu className="atlas-fetch-options" label="获取方式">{searchableSources.length > 0 && <select aria-label="搜索原始来源" value={searchSourceId} onChange={(e) => { searchAbort.current?.abort(); setSearchSourceId(e.target.value); }}><option value="">已配置岗位来源（{searchableSources.length}）</option>{searchableSources.map((entry) => <option key={entry.sourceId} value={entry.sourceId}>{entry.attribution.label}{entry.remoteFilters.includes("roles") ? " · 实时关键词" : " · 来源岗位"}</option>)}</select>}<select aria-label="来源读取范围" value={searchDepth} onChange={(e) => setSearchDepth(e.target.value as "quick" | "standard" | "deep")}><option value="deep">深度采集 · 最多 50 页 / 每平台 3000 岗</option><option value="standard">标准模式 · 最多 20 页 / 每平台 1500 岗</option><option value="quick">快速模式 · 最多 5 页 / 每平台 500 岗</option></select><small>预算、登录验证、无新增等情况会提前停止；上限不代表网站总量。</small><select aria-label="并发同步数量" value={searchConcurrency} onChange={(e) => { const val = Number(e.target.value); setSearchConcurrency(val); try { localStorage.setItem("better-me:atlas-concurrency", String(val)); } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ } }}><option value={16}>全源同时并发（极速）</option><option value={6}>6 源并发</option><option value={4}>4 源并发</option><option value={2}>2 源并发（排队）</option></select></AtlasToolbarMenu><button type="button" className="atlas-auth-hub-trigger" title="全网平台统一登录与会话接管中心（BOSS直聘 · 猎聘 · 51JOB · 领英）" onClick={() => setAuthHubOpen(true)}><KeyRound size={15} />平台登录态</button><button type="button" aria-expanded={platformSearchOpen} className="atlas-platform-trigger" title="BOSS · 猎聘 · 51 · 领英 · Seek · Indeed · GradConnection · 官网" onClick={() => setPlatformSearchOpen(!platformSearchOpen)}>全网平台</button><button type="button" aria-label={t("筛选", "Filters")} aria-controls="atlas-search-filters" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(!filtersOpen)}><SlidersHorizontal size={16} />{t("筛选", "Filters")}{searchFilterCount > 0 && <span className="atlas-filter-count">{searchFilterCount}</span>}</button></div>
-        </div>
-      </form>
+
     {resumePrefill.hasResumeData && (
       <div className="atlas-resume-prefill-bar" role="region" aria-label="简历画像与关键词快捷联动">
         <div className="atlas-prefill-main">
@@ -1691,13 +1694,13 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
       recoveryPhase={harvestRecovery.state.phase}
     />}
     {dataMode === "live" && connected && result && noPreciseLocationJobCount > 0 && <div className="atlas-address-coverage" aria-label="地图地址覆盖" role="status">
-      <div><strong>{result.totalJobs.toLocaleString("zh-CN")} 个岗位中，{mappableJobCount.toLocaleString("zh-CN")} 个有可绘制的来源坐标</strong>
-        <span>{noPreciseLocationJobCount.toLocaleString("zh-CN")} 个岗位暂无可验证办公地址；城市和区域原文仍可在岗位卡片查看，不会标成办公楼。</span></div>
+      <div><strong>{mappableCoordinateCount.toLocaleString("zh-CN")} 个坐标点 · {mappableLocationCount.toLocaleString("zh-CN")} 个来源地址 · 覆盖 {mappableJobCount.toLocaleString("zh-CN")} 岗</strong>
+        <span>{noPreciseLocationJobCount.toLocaleString("zh-CN")} 个岗位暂无可验证办公地址；城市 / 区域不作为办公地址。</span></div>
       <button type="button" disabled={!unlocatedVisibleItems.length} onClick={beginAddressEnrichment}><MapPin size={14} />补全当前结果办公地点</button>
     </div>}
-    <AtlasWorkbench active={active} layout={layout} hasDetail={Boolean((selected && data) || detailReviewJobId || enrichmentScope)} empty={emptyIndex}
+    <AtlasWorkbench detailKey={readingRevision} mapFocusKey={focus?.requestId} onCloseDetail={() => { closeJob(); setDetailReviewJobId(""); setEnrichmentScope(null); }} active={active} layout={layout} hasDetail={Boolean((selected && data) || detailReviewJobId || enrichmentScope)} empty={emptyIndex}
       map={<div className="atlas-map-column"><div className={`atlas-map-card ${theme}`}><AtlasMapToolbar mode={mode} onModeChange={changeMapMode} viewMode={mapPresentation.mode} onViewChange={(mode, animate) => { setMapPresentation({ mode, animate }); setRotating(false); }} rotating={rotating} onToggleRotation={() => setRotating(!rotating)} onReset={resetCamera} globalLabel={t("全球", "Global")} domesticLabel={t("国内", "China")} /><div className="atlas-scene" ref={scene}>{active && <Suspense fallback={<div className="atlas-map-loading"><span className="atlas-map-loading-stack" aria-hidden="true"><i /><i /><i /></span><strong>正在准备地图</strong><small>岗位列表可先浏览，地图随后就绪。</small></div>}><AtlasMap resetRevision={mapKey} mode={mode} basemap={basemapId === "offline" ? null : basemapId === "auto" ? undefined : ATLAS_BASEMAPS.find((p) => p.id === basemapId)} buckets={locatedBuckets} geometry={result ? resultGeometry : undefined} framingKey={selectionKey} bounds={displayFrame?.bounds} boundsMaxZoom={displayFrame?.maxZoom} adminBoundary={adminBoundary} selectedBucketId={bucket?.id} selectedRegionId={mode === "domestic" ? chinaFilter.selectedProvince?.mapId : region || country || undefined} initialView={camera.current} focus={focus} selectedJobId={selectedId} visual={{ viewMode: mapPresentation.mode, animateViewChange: mapPresentation.animate, autoRotate: rotating && !sourceSearching, maxDpr: 1.5, pedestal: true, entrance: true, theme }} onViewChange={(view) => { camera.current = view; setMapZoom(previous => (previous >= 10) === (view.zoom >= 10) ? previous : view.zoom); }} onPick={setBucket} onActivateBucket={activateMapBucket} onCountry={(pick) => { if (mode === "domestic") { const province = findChinaProvinceByMapId(pick.id); if (province) setChinaSelection({ provinceCode: province.code }); else setSourceSearchMessage("该区域尚未纳入当前国内行政目录，请按来源披露地点查询。"); } else if (pick.countryCode) { setCountry(pick.countryCode); setRegion(""); setRegionText(""); } }} onError={(error) => setMapError(error.message)} /></Suspense>}{!querying && !sourceSearching && !connecting && !locatedBuckets.length && (result?.totalJobs ?? 0) > 0 && <div className={`atlas-map-empty-overlay ${theme}`} role="status"><AtlasIllustration kind="discovery" interactive={false} /><strong>暂无可验证办公地址</strong><span>当前 {result?.totalJobs.toLocaleString()} 个匹配岗位只有城市或区域信息，地图不会绘制虚构点位。</span>{text.trim() && <button type="button" onClick={() => setText("")}><Search size={13} />扩大到全部关键词结果</button>}{connected && dataMode === "live" && visibleItems.length > 0 && <button type="button" onClick={() => { cancelOfficeFocus(); setDetailReviewJobId(""); setEnrichmentScope(visibleItems.slice(0, 50).map(item => item.job.id)); }}><MapPin size={13} />补全当前结果办公地点</button>}<small>补全后，来源披露或本人核对的真实坐标会出现在地图上，并可直接点击。</small></div>}</div>{mapError && <div role="alert" className="atlas-render-error">三维地图暂不可用：{mapError}。岗位列表仍可使用。<button onClick={() => { setMapKey((k) => k + 1); setMapError(""); }}>重试</button></div>}</div>
-      <div className="atlas-map-footer"><div className="atlas-stat-grid" aria-live="polite">{[[result?.totalJobs ?? 0, "匹配岗位"], [result?.companyCount ?? 0, "企业"], [mappableLocationCount, "可点位置"], [noPreciseLocationJobCount, "无精确位置岗位"]].map(([number, label]) => <div key={label}><strong>{!result ? "—" : number}</strong><span>{label}</span></div>)}</div>{mappableLocationCount > 0 && <small className="atlas-map-coordinate-note" aria-label="地图坐标统计">地图当前绘制 {mappableCoordinateCount} 个真实坐标，承载 {mappableLocationCount} 个来源地址、{mappableJobCount} 个岗位；同坐标地址已合并显示，点击可逐个选择。</small>}{connected && dataMode === "live" && unlocatedVisibleItems.length > 0 && <div className="atlas-map-address-gap" role="status"><div><strong>{noPreciseLocationJobCount.toLocaleString("zh-CN")} 个岗位暂无可验证办公地址</strong><small>当前页有 {unlocatedVisibleItems.length} 条可读取来源详情；只接受原文披露或本人核对的真实地址。</small></div><button type="button" aria-label="补全当前结果办公地点，最多 50 条" title="本次最多读取 50 个当前页岗位，不生成城市中心办公点" onClick={beginAddressEnrichment}><MapPin size={14} />补全当前结果办公地点</button></div>}</div></div>}
+      <div className="atlas-map-footer"><div className="atlas-stat-grid" aria-live="polite">{[[result?.totalJobs ?? 0, "匹配岗位"], [result?.companyCount ?? 0, "企业"], [mappableCoordinateCount, "坐标点"], [noPreciseLocationJobCount, "无精确位置岗位"]].map(([number, label]) => <div key={label}><strong>{!result ? "—" : number}</strong><span>{label}</span></div>)}</div>{mappableLocationCount > 0 && <small className="atlas-map-coordinate-note" aria-label="地图坐标统计">地图当前绘制 {mappableCoordinateCount} 个真实坐标，承载 {mappableLocationCount} 个来源地址、{mappableJobCount} 个岗位；同坐标地址已合并显示，点击可逐个选择。</small>}</div></div>}
       jobs={<aside className={`atlas-results ${activeLiveHarvest ? "is-live-source-results" : ""}`}>
         <div className="atlas-results-heading">
           <div className="atlas-results-heading-left">
@@ -1709,7 +1712,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
             {!activeLiveHarvest && result && (
               <p className="atlas-results-map-summary" role="status">
                 <MapPin size={12} aria-hidden="true" />
-                地图办公点位 {mappableCoordinateCount.toLocaleString("zh-CN")} 个真实坐标 · 承载 {mappableJobCount.toLocaleString("zh-CN")} 个岗位 · {noPreciseLocationJobCount.toLocaleString("zh-CN")} 个岗位待定位
+                {mappableCoordinateCount.toLocaleString("zh-CN")} 个坐标点 · {mappableLocationCount.toLocaleString("zh-CN")} 个来源地址 · 覆盖 {mappableJobCount.toLocaleString("zh-CN")} 岗
               </p>
             )}
             {bucket && <p className="atlas-selected-location-note" role="status">地图点位 · {mapBucketPrecisionLabel(bucket)} · 招聘来源见下方岗位详情</p>}
@@ -2018,16 +2021,19 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
       )}
       <details className="atlas-sort-fold"><summary>{sort === "relevance" ? "相关度" : sort === "salary" ? "年薪" : sort === "distance" ? "距离" : "更新"} · {direction === "desc" ? "降序" : "升序"}</summary><div className="atlas-sort"><select aria-label="岗位排序" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}><option value="relevance">相关度</option><option value="salary" disabled={!coverage.salary.sortSupported}>人民币税前年薪下限{!coverage.salary.sortSupported ? " · 暂无可比数据" : ""}</option><option value="distance" disabled={!coverage.distance.ready}>离家直线距离{!coverage.distance.supported ? " · 缺岗位坐标" : !anchor ? " · 请设参照点" : ""}</option><option value="updated">最近更新</option></select><button aria-label={direction === "desc" ? "当前降序，切换升序" : "当前升序，切换降序"} onClick={() => setDirection(direction === "desc" ? "asc" : "desc")}><ArrowDownUp size={14} />{direction === "desc" ? "降序" : "升序"}</button><label><input type="checkbox" checked={originalCurrency} onChange={(e) => setOriginalCurrency(e.target.checked)} />原币</label><select aria-label="每页条数" value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}><option value={30}>每页 30 岗</option><option value={50}>每页 50 岗</option><option value={100}>每页 100 岗</option><option value={200}>每页 200 岗</option></select></div></details><div className="atlas-job-list" aria-busy={querying || sourceSearching}>{(querying || sourceSearching) && !visibleItems.length && <div className="atlas-results-loading" role="status"><span>{sourceSearching ? "正在从真实来源获取岗位…" : "正在匹配岗位…"}</span>{[0, 1, 2].map((n) => <div key={n} className="atlas-skeleton-card" aria-hidden="true"><i /><i /><i /></div>)}</div>}{visibleItems.map((item) => {
   return (
+    <div className="atlas-job-card-row" key={item.job.id}>
     <button
-      key={item.job.id}
+      type="button"
       className={`atlas-job-card ${selectedId === item.job.id ? "selected" : ""}`}
       aria-expanded={selectedId === item.job.id}
       aria-controls="atlas-job-detail"
-      onClick={(event) => clickJob(item, event.detail)}
-      onDoubleClick={() => { cancelCardClick(); void locateJob(item); }}
+      onClick={() => openJob(item)}
+      onDoubleClick={() => { void locateJob(item); }}
     >
       <AtlasJobCardContent item={item} presentListing={presentListing} data={data} hasAnchor={Boolean(anchor)} keyword={text} countryName={countryName} />
     </button>
+    <button type="button" className="atlas-job-locate" aria-label={"在地图定位：" + item.job.title.value} title="在地图定位；未披露坐标时先核对地点" onClick={() => void locateJob(item)}><MapPin size={16} aria-hidden="true" /></button>
+    </div>
   );
 })}{!activeLiveHarvest && !visibleItems.length && !querying && !sourceSearching && (
   (text.trim() || chinaFilter.selectedProvince || regionText.trim() || country) && !emptyIndex && data ? (
@@ -2079,10 +2085,10 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
       <p>{dataLoading ? "已读取的岗位会逐步显示，地图随后更新。" : emptyIndex ? "连接本机采集索引，或读取并收藏招聘原文。岗位会逐步出现，地区与企业在后台自动补全。" : !data && dataMode === "live" ? "暂未取得本机岗位数据。请检查服务连接；已有数据不会因此清空。" : "已收录岗位中没有匹配项。可以清除筛选、扩大地区范围，或继续读取招聘来源。"}</p>
       {!dataLoading && <div className="atlas-empty-actions">
         {emptyIndex || !data ? <>
-          <button className="atlas-empty-primary" onClick={() => connected ? void searchSourceJobs() : setSettings("connection")}>{connected ? searchableSources.length ? "从已配置来源获取岗位" : "配置岗位来源" : "连接真实来源搜索"}</button>
+          <button className="atlas-empty-primary" onClick={() => connected ? setCollectionOpen(true) : setSettings("connection")}>{connected ? searchableSources.length ? "从已配置来源获取岗位" : "配置岗位来源" : "连接真实来源搜索"}</button>
           {onOpenOpportunitySources && <button onClick={onOpenOpportunitySources}>读取并收藏单个岗位</button>}
         </> : <button className="atlas-empty-primary" onClick={resetFilters}>清除筛选</button>}
-        <button type="button" className="atlas-empty-btn-platform" onClick={() => setPlatformSearchOpen(true)}>查看招聘平台与采集选项</button>
+        <button type="button" className="atlas-empty-btn-platform" onClick={() => { setCommandOpen(true); setPlatformSearchOpen(true); }}>查看招聘平台与采集选项</button>
         {resumePrefill.hasResumeData && <button type="button" className="atlas-empty-btn-prefill" onClick={applyResumePrefill}><Sparkles size={14} />参考当前简历自动填入（{resumePrefill.summaryLabel}）</button>}
       </div>}
     </div>

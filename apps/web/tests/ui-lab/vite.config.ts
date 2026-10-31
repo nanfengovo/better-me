@@ -60,6 +60,9 @@ function labApi(): Plugin {
         if (path === "/__atlas-ui-lab/state") { envelope({ revision: state.data.revision, jobs: state.data.jobs.length,
           baselineSize: state.baselineSize, batches: state.batches, streaming: state.streaming, scenario: state.scenario,
           streamBudget: { maxBatches: LAB_STREAM_MAX_BATCHES, jobsPerBatch: 10, intervalMs: 2000 } }); return; }
+        // This in-memory fixture implements legacy revision sync, not SQLite baseline paging.
+        // Advertise unsupported explicitly so the real transport can negotiate its fallback.
+        if (path === "/api/v1/dataset/sync-page") { json({ error: "synthetic-paged-sync-not-supported" }, 404); return; }
         if (path === "/api/v1/dataset/sync") {
           if (state.scenario === "loading") await new Promise(resolve => setTimeout(resolve, 5000));
           envelope(syncLab(state, body.cursor)); return;

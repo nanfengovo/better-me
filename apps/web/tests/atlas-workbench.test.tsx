@@ -107,7 +107,8 @@ test("reordering by keyboard and pointer keeps DOM, list scroll and map state; f
 });
 
 test("row height keyboard and pointer controls clamp; hidden JD adds no empty column, layout reset and reload work",async()=>{
-  await mount({hasDetail:false,layout:"narrow"});
+  localStorage.setItem(WORKBENCH_LAYOUT_KEY, JSON.stringify({ ...defaultWorkbenchLayout(), arrangement: "rows" }));
+  await mount({hasDetail:false,layout:"medium"});
   assert.equal(pane("detail").hidden,true);assert.equal(host.querySelectorAll(".atlas-workbench-divider").length,0);
   const height=button("调整地图高度");assert.ok(height);
   await key(height,"Home");assert.equal(current().rowHeights.map,500);
@@ -116,8 +117,40 @@ test("row height keyboard and pointer controls clamp; hidden JD adds no empty co
   assert.equal(current().rowHeights.map,620);assert.equal(pane("map").style.height,"620px");
   await key(height,"Enter");assert.equal(current().rowHeights.map,560);
   const before=localStorage.getItem(WORKBENCH_LAYOUT_KEY);await React.act(async()=>{root!.unmount();});root=undefined;host.remove();
-  await mount({layout:"narrow",hasDetail:false});assert.equal(pane("map").style.height,"560px");assert.equal(localStorage.getItem(WORKBENCH_LAYOUT_KEY),before);
+  await mount({layout:"medium",hasDetail:false});assert.equal(pane("map").style.height,"560px");assert.equal(localStorage.getItem(WORKBENCH_LAYOUT_KEY),before);
   await click(button("还原默认工作区布局"));assert.deepEqual(current(),defaultWorkbenchLayout());
+});
+
+test("narrow workspaces start on the list and switch without remounting the map or touching saved layout", async () => {
+  let mounts = 0;
+  function MapProbe() { React.useEffect(() => { mounts++; }, []); return <p>persistent map</p>; }
+  await mount({ layout: "narrow", hasDetail: false, map: <MapProbe /> });
+  assert.equal(pane("jobs").hidden, false);
+  assert.equal(pane("map").hidden, true);
+  const mapNode = pane("map").firstElementChild;
+  const toggle = [...host.querySelectorAll("button")].find(node => node.textContent === "查看地图")!;
+  await click(toggle);
+  assert.equal(pane("jobs").hidden, true);
+  assert.equal(pane("map").hidden, false);
+  assert.equal(pane("map").firstElementChild, mapNode);
+  assert.equal(mounts, 1);
+  assert.equal(localStorage.getItem(WORKBENCH_LAYOUT_KEY), null);
+  assert.equal(host.querySelector('[aria-label="调整地图高度"]'), null);
+});
+
+test("narrow detail uses a native modal and Escape returns focus to the opener", async () => {
+  let closes = 0;
+  const opener = dom.document.createElement("button"); opener.textContent = "synthetic opener"; dom.document.body.append(opener); opener.focus();
+  await mount({ layout: "narrow", onCloseDetail: () => { closes++; } });
+  const dialog = host.querySelector<HTMLDialogElement>("dialog")!;
+  assert.equal(dialog.open, true);
+  assert.equal(pane("detail").hidden, true);
+  assert.equal(dialog.querySelector(".atlas-settings-dialog-body")!.textContent, "JD content");
+  await React.act(async () => { dialog.dispatchEvent(new dom.Event("cancel", { cancelable: true })); });
+  assert.equal(closes, 1);
+  assert.equal(host.querySelector("dialog"), null);
+  assert.equal(dom.document.activeElement, opener);
+  opener.remove();
 });
 
 test("pointer cancellation, secondary touch, lost capture and unmount do not save or leave work queued",async()=>{

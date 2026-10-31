@@ -1,5 +1,5 @@
 import type { AtlasDataset, JobSearchItem } from "@better-me/opportunities";
-import type { AtlasListingPresentation } from "./presentation";
+import { createAtlasListingPresenter, formatAtlasPublication, type AtlasListingPresentation } from "./presentation";
 
 /**
  * 1. 红框：表明来源的平台
@@ -32,80 +32,22 @@ export function formatCardPublication(
   presentations?: readonly AtlasListingPresentation[],
   dataset?: AtlasDataset | null,
 ): { label: string; tooltip: string; days?: number } {
-  const pub = presentations?.[0]?.publication;
-  let targetDate: Date | undefined;
-
-  // Direct parsed timestamp from publication badge
-  if (pub?.publishedAt) {
-    const d = new Date(pub.publishedAt);
-    if (!isNaN(d.getTime())) targetDate = d;
-  } else if (pub?.calendarDate && /^\d{4}-\d{2}-\d{2}$/.test(pub.calendarDate)) {
-    const d = new Date(`${pub.calendarDate}T00:00:00.000Z`);
-    if (!isNaN(d.getTime())) targetDate = d;
+  const pub = presentations?.[0]?.publication ?? (dataset ? createAtlasListingPresenter(dataset)(item)[0]?.publication : undefined) ?? formatAtlasPublication({});
+  // Discovery and collection clocks are not source publication evidence.
+  if (pub.status === "review" || pub.status === "unknown") return { label: pub.label, tooltip: pub.raw ? pub.label + " · 来源原文：" + pub.raw : pub.label };
+  let days: number | undefined;
+  if (pub.publishedAt) {
+    const at = Date.parse(pub.publishedAt);
+    if (Number.isFinite(at) && at <= Date.now()) days = Math.floor((Date.now() - at) / 86400000);
+  } else if (pub.calendarDate) {
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: pub.timeZone || "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const at = Date.parse(pub.calendarDate + "T00:00:00Z");
+    if (Number.isFinite(at)) days = Math.floor((Date.parse(today + "T00:00:00Z") - at) / 86400000);
   }
+  if (days === undefined || !Number.isFinite(days) || days < 0) return { label: "发布时间未知", tooltip: "来源没有可确认的发布时间" };
+  const date = pub.calendarDate ?? pub.publishedAt!.slice(0, 10);
+  return { label: days > 90 ? date : days === 0 ? "今天" : days + "天前", tooltip: pub.label, days };
 
-  // Check raw publication text
-  const raw = pub?.raw?.trim() || "";
-  if (!targetDate && raw) {
-    const matchDate = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/.exec(raw);
-    if (matchDate && matchDate[1] && matchDate[2] && matchDate[3]) {
-      const d = new Date(`${matchDate[1]}-${matchDate[2].padStart(2, "0")}-${matchDate[3].padStart(2, "0")}T00:00:00.000Z`);
-      if (!isNaN(d.getTime())) targetDate = d;
-    } else if (raw.includes("刚刚") || raw.includes("今天") || /小时前|分钟前/.test(raw)) {
-      return { label: "今天", tooltip: `发布时间原文：${raw}`, days: 0 };
-    } else if (raw.includes("昨天")) {
-      return { label: "1天前", tooltip: `发布时间原文：${raw}`, days: 1 };
-    } else {
-      const matchDays = /(\d+)\s*天前/.exec(raw);
-      if (matchDays && matchDays[1]) {
-        const days = parseInt(matchDays[1], 10);
-        if (days <= 90) return { label: `${days}天前`, tooltip: `发布时间原文：${raw}`, days };
-        const d = new Date(Date.now() - days * 86400000);
-        const ymd = d.toISOString().slice(0, 10);
-        return { label: ymd, tooltip: `发布时间原文：${raw}`, days };
-      }
-    }
-  }
-
-  // Fallback to dataset listing firstDiscoveredAt or observation fetchedAt
-  if (!targetDate && dataset && item.job.listingIds.length > 0) {
-    for (const listingId of item.job.listingIds) {
-      const listing = dataset.listings.find((l) => l.id === listingId);
-      if (listing?.observationIds?.length) {
-        for (const obsId of listing.observationIds) {
-          const obs = dataset.observations.find((o) => o.id === obsId);
-          if (obs?.sourcePublishedAt) {
-            const d = new Date(obs.sourcePublishedAt);
-            if (!isNaN(d.getTime())) { targetDate = d; break; }
-          }
-          if (obs?.fetchedAt && !targetDate) {
-            const d = new Date(obs.fetchedAt);
-            if (!isNaN(d.getTime())) targetDate = d;
-          }
-        }
-      }
-      if (targetDate) break;
-      if (listing?.firstDiscoveredAt) {
-        const d = new Date(listing.firstDiscoveredAt);
-        if (!isNaN(d.getTime())) targetDate = d;
-      }
-    }
-  }
-
-  if (targetDate) {
-    const now = Date.now();
-    const diffMs = now - targetDate.getTime();
-    const diffDays = Math.max(0, Math.floor(diffMs / (24 * 3600 * 1000)));
-    const dateStr = targetDate.toISOString().slice(0, 10);
-    if (diffDays > 90) {
-      // 超过3个月显示发布的日期
-      return { label: dateStr, tooltip: `发布日期：${dateStr}（距今 ${diffDays} 天）`, days: diffDays };
-    }
-    if (diffDays === 0) return { label: "今天", tooltip: `今日发布（${dateStr}）`, days: 0 };
-    return { label: `${diffDays}天前`, tooltip: `发布时间：${dateStr}（${diffDays} 天前）`, days: diffDays };
-  }
-
-  return { label: "近期发布", tooltip: "来源未标明具体发布时间，按近期收录展示", days: 30 };
 }
 
 /**
@@ -139,15 +81,17 @@ export function formatCardDistance(
 }
 
 /**
- * 4. 右上角绿框：标薪资范围单位都是人民币
+ * 4. 优先显示已归一化人民币薪资，否则保留来源原币种，不猜币种或面议。
  */
 export function formatCardSalaryRMB(item: JobSearchItem): {
   label: string;
   isNegotiable: boolean;
   tooltip: string;
 } {
+  if (item.salarySelection === "ambiguous") return { label: "多种薪资待核实", isNegotiable: false, tooltip: "多地或多种薪资披露，没有单一可比较金额；请查看详情中的来源记录" };
+  if (item.salary?.verification === "conflicting") return { label: "薪资待核实", isNegotiable: false, tooltip: "薪资证据有冲突；来源原文：" + item.salary.raw };
   // 1. If normalized cnyAnnual exists
-  if (item.salary?.cnyAnnual) {
+  if (item.salary?.cnyAnnual && validSalaryBounds(item.salary.cnyAnnual)) {
     const { min, max } = item.salary.cnyAnnual;
     if (min !== undefined && max !== undefined) {
       const minW = (min / 10000).toFixed(min % 10000 === 0 ? 0 : 1);
@@ -167,29 +111,27 @@ export function formatCardSalaryRMB(item: JobSearchItem): {
     }
   }
 
-  // 2. If raw salary is available in salary or candidates
-  const rawCandidate = item.salary?.raw || item.salaryCandidates?.[0]?.raw;
-  if (rawCandidate && typeof rawCandidate === "string" && rawCandidate.trim()) {
-    const raw = rawCandidate.trim();
-    if (/面议|协商|待定|不限/.test(raw)) {
-      return { label: "薪资面议", isNegotiable: true, tooltip: "薪资待双方沟通核对" };
-    }
-    // Prefix with ¥ if pure number range or k/w range
-    if (/^[0-9]+(\.[0-9]+)?[kK千万元]/.test(raw) || /^[0-9]+(\.[0-9]+)?-[0-9]+/.test(raw)) {
-      return { label: `¥${raw}`, isNegotiable: false, tooltip: `来源披露薪资（人民币）：¥${raw}` };
-    }
-    if (raw.startsWith("¥") || raw.startsWith("￥")) {
-      return { label: raw, isNegotiable: false, tooltip: `来源披露薪资（人民币）：${raw}` };
-    }
-    const matchRange = /(\d+(?:\.\d+)?)\s*[-~至到]\s*(\d+(?:\.\d+)?)\s*([kK千万元])([·\s\S]*)?/.exec(raw);
-    if (matchRange && matchRange[1] && matchRange[2] && matchRange[3]) {
-      const formatted = `¥${matchRange[1]}-${matchRange[2]}${matchRange[3].toUpperCase()}${matchRange[4] ? ` ${matchRange[4].trim()}` : ""}`;
-      return { label: formatted, isNegotiable: false, tooltip: `来源披露薪资（人民币）：${formatted}` };
-    }
-    return { label: `¥${raw}`, isNegotiable: false, tooltip: `来源薪资（人民币）：¥${raw}` };
-  }
+  const raw = salaryRaw(item);
+  if (!raw) return { label: "薪资未披露", isNegotiable: false, tooltip: "来源未披露薪资，不能视为面议" };
+  if (corruptSalary(raw) || !/\d|面议|协商/.test(raw)) return { label: "薪资待核实", isNegotiable: false, tooltip: "来源薪资原文（待核实）：" + raw };
+  if (/面议|协商/.test(raw) && !/\d/.test(raw)) return { label: "薪资面议", isNegotiable: true, tooltip: "来源明确披露：" + raw };
+  return { label: raw, isNegotiable: false, tooltip: "来源薪资原文：" + raw + (isCnySalary(item, raw) ? "（人民币，未据此推算年薪）" : "（保留原币种；未换算人民币）") };
 
-  return { label: "薪资面议", isNegotiable: true, tooltip: "来源未披露固定薪资范围" };
+}
+
+function validSalaryBounds(amount: { min?: number; max?: number }): boolean {
+  return (amount.min !== undefined || amount.max !== undefined) && [amount.min, amount.max].every(value => value === undefined || (Number.isFinite(value) && value >= 0)) && !(amount.min !== undefined && amount.max !== undefined && amount.min > amount.max);
+}
+function salaryRaw(item: JobSearchItem): string {
+  return (item.salary?.raw || (item.salaryCandidates.length === 1 ? item.salaryCandidates[0]?.raw : "") || "").trim();
+}
+function corruptSalary(raw: string): boolean { return /[\p{Co}\uFFFD]/u.test(raw) || [...raw].some(character => character.codePointAt(0)! < 32); }
+function salaryCandidate(item: JobSearchItem) {
+  return item.salaryCandidates.find(entry => entry.compensationId === item.salary?.compensationId) ?? (item.salaryCandidates.length === 1 ? item.salaryCandidates[0] : undefined);
+}
+function isCnySalary(item: JobSearchItem, raw: string): boolean {
+  if (/USD|EUR|GBP|AUD|CAD|SGD|HKD|US\$|[$€£]|美元|港币|欧元/i.test(raw)) return false;
+  return (item.salary?.originalAnnual?.currency ?? salaryCandidate(item)?.originalAnnual?.currency) === "CNY" || /[¥￥]|CNY|RMB|人民币/i.test(raw);
 }
 
 /**
@@ -200,8 +142,9 @@ export function parseSalaryToMonthlyK(item: JobSearchItem): {
   maxK?: number;
   isNegotiable: boolean;
 } {
+  if (item.salarySelection === "ambiguous" || item.salary?.verification === "conflicting") return { isNegotiable: false };
   // 1. Normalized cnyAnnual
-  if (item.salary?.cnyAnnual) {
+  if (item.salary?.cnyAnnual && validSalaryBounds(item.salary.cnyAnnual)) {
     const { min, max } = item.salary.cnyAnnual;
     const minK = min !== undefined ? Math.round(min / 1200) / 10 : undefined;
     const maxK = max !== undefined ? Math.round(max / 1200) / 10 : undefined;
@@ -211,12 +154,12 @@ export function parseSalaryToMonthlyK(item: JobSearchItem): {
   }
 
   // 2. Raw candidates
-  const raw = (item.salary?.raw || item.salaryCandidates?.[0]?.raw || "").trim();
-  if (!raw || /面议|协商|待定|不限/.test(raw)) {
-    return { isNegotiable: true };
-  }
+  const raw = salaryRaw(item);
+  if (!raw || corruptSalary(raw)) return { isNegotiable: false };
+  if (/面议|协商/.test(raw) && !/\d/.test(raw)) return { isNegotiable: true };
+  if (!isCnySalary(item, raw) || !/月|年|\/month|\/year/i.test(raw)) return { isNegotiable: false };
 
-  const isAnnual = /年|年薪|\/年/.test(raw);
+  const isAnnual = /年|\/year/i.test(raw);
 
   // Pattern A: "1.5-3万" or "1.5-3万·13薪" or "10-20k"
   const rangeMatch = /(\d+(?:\.\d+)?)\s*[-~至到]\s*(\d+(?:\.\d+)?)\s*([kK千万元])/.exec(raw);
@@ -256,7 +199,7 @@ export function parseSalaryToMonthlyK(item: JobSearchItem): {
     return { minK: val, isNegotiable: false };
   }
 
-  return { isNegotiable: true };
+  return { isNegotiable: false };
 }
 
 /**
@@ -268,7 +211,7 @@ export function matchCardSalary(item: JobSearchItem, filter: string): boolean {
   if (filter === "negotiable") {
     return parsed.isNegotiable;
   }
-  if (parsed.isNegotiable) {
+  if (parsed.isNegotiable || (parsed.minK === undefined && parsed.maxK === undefined)) {
     return false;
   }
   const minK = parsed.minK ?? parsed.maxK ?? 0;
@@ -353,7 +296,8 @@ export function matchCardPublication(
 ): boolean {
   if (!filter || filter === "ALL") return true;
   const pub = formatCardPublication(item, presentations, dataset);
-  const days = pub.days ?? (pub.label === "今天" ? 0 : pub.label === "1天前" ? 1 : 30);
+  const days = pub.days;
+  if (days === undefined) return false;
   switch (filter) {
     case "3d":
       return days <= 3;

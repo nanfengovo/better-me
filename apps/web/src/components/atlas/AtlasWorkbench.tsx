@@ -8,6 +8,7 @@ import {
   type WorkbenchLayout, type WorkbenchPaneId,
 } from "./workbench-layout";
 import type { AtlasPaneLayout } from "./use-atlas-pane-layout";
+import { AtlasSettingsDialog } from "./AtlasSettingsDialog";
 import "./atlas-workbench.css";
 
 type Gesture = {
@@ -27,9 +28,10 @@ function unscrolledTop(element: HTMLElement, top = element.getBoundingClientRect
 }
 
 /** Owns only presentation. Child nodes keep their keys/instances; no job/query dependencies. */
-export function AtlasWorkbench({ map, jobs, detail, hasDetail, layout, active = true, empty = false }: {
+export function AtlasWorkbench({ map, jobs, detail, hasDetail, layout, active = true, empty = false, onCloseDetail, detailKey, mapFocusKey }: {
   map: ReactNode; jobs: ReactNode; detail: ReactNode; hasDetail: boolean;
   layout: AtlasPaneLayout; active?: boolean; empty?: boolean;
+  onCloseDetail?: () => void; detailKey?: string | number; mapFocusKey?: string;
 }) {
   const { t } = useUiPreferences();
   const prefix = useId();
@@ -49,13 +51,20 @@ export function AtlasWorkbench({ map, jobs, detail, hasDetail, layout, active = 
   const [focused, setFocused] = useState<WorkbenchPaneId | null>(null);
   const [status, setStatus] = useState("");
   const [saveFailed, setSaveFailed] = useState(false);
+  const [mobileView, setMobileView] = useState<"map" | "jobs">("jobs");
+  const [detailHidden, setDetailHidden] = useState(false);
+  const narrow = layout === "narrow";
+  useEffect(() => { setDetailHidden(false); }, [hasDetail, detailKey]);
+  useEffect(() => {
+    if (mapFocusKey && narrow) { setMobileView("map"); setDetailHidden(true); }
+  }, [mapFocusKey, narrow]);
   const labels = { map: t("地图", "Map"), jobs: t("岗位列表", "Jobs"), detail: t("JD / 详情", "JD / details") };
-  const visible = preferences.order.filter(id => (id !== "detail" || hasDetail) && (!focused || focused === id));
+  const visible = preferences.order.filter(id => narrow ? id === mobileView : (id !== "detail" || hasDetail) && (!focused || focused === id));
   const columns = !focused && preferences.arrangement !== "rows" && layout !== "narrow"
     && width >= visible.reduce((n,id)=>n+PANE_MIN_WIDTH[id],0) + SPLITTER_SIZE * (visible.length-1);
   const sizes = allocatePaneSizes(visible, preferences.weights, width);
   const height = preferences.height ?? automaticHeight;
-  const content = { map, jobs, detail };
+  const content = { map, jobs, detail: narrow ? null : detail };
   const icons = { map: MapIcon, jobs: List, detail: FileText };
 
   function commit(next: WorkbenchLayout, message?: string) {
@@ -275,8 +284,12 @@ export function AtlasWorkbench({ map, jobs, detail, hasDetail, layout, active = 
     </div>;
   }
 
-  return <div className="atlas-workbench" data-arrangement={columns ? "columns" : "rows"} data-focused={focused ?? ""}>
-    <div className="atlas-workbench-toolbar" role="group" aria-label={t("工作区布局", "Workbench layout")}>
+  return <div className="atlas-workbench" data-mobile={narrow || undefined} data-arrangement={columns ? "columns" : "rows"} data-focused={narrow ? "" : focused ?? ""}>
+    {narrow && <div className="atlas-mobile-views" role="group" aria-label="地图与列表切换">
+      <button type="button" aria-pressed={mobileView === "jobs"} aria-controls={prefix+"-jobs"} onClick={() => setMobileView("jobs")}><List size={16} aria-hidden="true" />岗位列表</button>
+      <button type="button" aria-pressed={mobileView === "map"} aria-controls={prefix+"-map"} onClick={() => setMobileView("map")}><MapIcon size={16} aria-hidden="true" />查看地图</button>
+    </div>}
+    <div className="atlas-workbench-toolbar" hidden={narrow} role="group" aria-label={t("工作区布局", "Workbench layout")}>
       <span><LayoutGrid size={16} aria-hidden="true" />{t("工作区", "Workbench")}</span>
       <div className="atlas-workbench-presets">
         {(["balanced","map","reading"] as const).map(preset=><button key={preset} type="button" disabled={preset==="reading"&&!hasDetail}
@@ -295,13 +308,13 @@ export function AtlasWorkbench({ map, jobs, detail, hasDetail, layout, active = 
     </div>
     <p id={prefix+"-help"} className="atlas-workbench-sr">{t("拖动模块标题旁的手柄换位，或用 Alt 加方向键移动。拖动分隔条调整大小，Escape 取消。", "Drag a pane handle to reorder, or use Alt plus arrow keys. Drag separators to resize. Escape cancels.")}</p>
     <div ref={grid} id={prefix+"-grid"} className={"atlas-main-grid atlas-workbench-grid " + (hasDetail ? "has-detail" : "is-detail-collapsed") + (empty ? " is-empty-index" : "")}
-      style={{gridTemplateColumns:columns ? paneGridTemplate(sizes) : "minmax(0, 1fr)",height:columns||focused ? height : "auto"}}>
+      style={{gridTemplateColumns:columns ? paneGridTemplate(sizes) : "minmax(0, 1fr)",height:narrow ? undefined : columns||focused ? height : "auto"}}>
       {preferences.order.map(id=>{
         const Icon = icons[id], index = visible.indexOf(id), shown = index >= 0;
         return <Fragment key={id}>
           <section ref={element=>{if(element)panes.current.set(id,element);else panes.current.delete(id);}}
             id={prefix+"-"+id} data-workbench-pane={id} className="atlas-workbench-pane" hidden={!shown}
-            aria-label={labels[id]} style={{height:!columns&&!focused ? preferences.rowHeights[id] : undefined}}>
+            aria-label={labels[id]} style={{height:!narrow&&!columns&&!focused ? preferences.rowHeights[id] : undefined}}>
             <header className="atlas-workbench-pane-heading">
               <button className="atlas-pane-drag" type="button" aria-label={t("拖动", "Move ") + labels[id] + t("模块换位", " pane")}
                 aria-describedby={prefix+"-help"} title={t("拖动换位；Alt + 方向键移动", "Drag to reorder; Alt + arrow keys")}
@@ -319,7 +332,7 @@ export function AtlasWorkbench({ map, jobs, detail, hasDetail, layout, active = 
               </details>
             </header>
             <div className="atlas-workbench-pane-body">{content[id]}</div>
-            {!columns&&!focused&&heightHandle(id)}
+            {!narrow&&!columns&&!focused&&heightHandle(id)}
           </section>
           {shown&&columns&&index<visible.length-1&&<div className="atlas-workbench-divider" role="separator" tabIndex={0} aria-orientation="vertical"
             aria-label={labels[id]+t("与", " and ")+labels[visible[index+1]!]+t("分隔条", " splitter")} aria-valuemin={Math.round(PANE_MIN_WIDTH[id]/(sizes[index]!+sizes[index+1]!)*100)}
@@ -331,7 +344,8 @@ export function AtlasWorkbench({ map, jobs, detail, hasDetail, layout, active = 
         </Fragment>;
       })}
     </div>
-    {(columns||focused)&&heightHandle()}
+    {!narrow&&(columns||focused)&&heightHandle()}
+    {narrow && active && hasDetail && !detailHidden && <AtlasSettingsDialog title="岗位详情" className="atlas-mobile-detail" closeLabel="返回岗位列表" onClose={() => { setDetailHidden(true); onCloseDetail?.(); }}>{detail}</AtlasSettingsDialog>}
     <div ref={ghost} className="atlas-workbench-drag-ghost" hidden aria-hidden="true" />
     <p className="atlas-workbench-sr" role="status" aria-live="polite">{status}</p>
   </div>;

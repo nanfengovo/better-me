@@ -4,6 +4,8 @@ import AtlasWorkspace from "../../src/components/AtlasWorkspace";
 import { UiPreferencesProvider, useUiPreferences } from "../../src/lib/ui-preferences";
 import { ConfirmationProvider } from "../../src/components/ConfirmationDialog";
 import { AgentCompanion } from "../../src/components/AgentCompanion";
+import { AgentTopBarStatus } from "../../src/components/AgentTopBarStatus";
+import { WorkspacePreferences } from "../../src/components/WorkspacePreferences";
 import { installCompanionFixture } from "./companion-fixture";
 import { createLabMetrics } from "./metrics";
 import "../../src/index.css";
@@ -19,6 +21,7 @@ const size = parameters.get("size") === "15000" ? 15000 : 5000;
 const scenario = parameters.get("scenario") ?? "ready";
 const compact = parameters.get("controls") === "hidden";
 const companion = parameters.get("companion") === "1";
+const shell = parameters.get("shell") === "1";
 if (companion) installCompanionFixture();
 // A unique origin and token, with no imported cookies or user browser profile.
 sessionStorage.removeItem("better-me:atlas-connection-session:v1");
@@ -63,7 +66,8 @@ function Lab() {
   const act = (action: string) => void command(action).then(value => {
     setStreaming(value.streaming); setMessage(`${value.jobs.toLocaleString("zh-CN")} 岗 · revision ${value.revision} · ${value.scenario}`);
   }).catch(error => setMessage(error.message));
-  return <div className="atlas-ui-lab">
+  return <div className={`atlas-ui-lab ${shell ? "studio-workspace" : ""}`}>
+    {shell && <header className="studio-header no-print"><div className="studio-brand"><strong>BetterMe</strong><span>岗位地图</span></div><div className="header-actions"><WorkspacePreferences /><span className="save-indicator" role="status">✓ <span>合成简历 · 不读写真实档案</span></span><AgentTopBarStatus config={null} active={false} onNavigateToAgent={() => setMessage("隔离验收不打开真实工作台")} onOpenAiConfig={() => setMessage("隔离验收不修改模型配置")} /><button className="studio-button subtle" type="button">AI 配置</button><div className="studio-user">测</div></div></header>}
     <header className={`atlas-ui-lab-toolbar ${compact ? "is-compact" : ""}`}>
       <div><strong>BetterMe</strong><span>隔离 UI 验收 · {size.toLocaleString("zh-CN")} 岗合成样本 · 不连接真实岗位 / 简历</span></div>
       {!compact && <div className="atlas-ui-lab-actions">
@@ -76,7 +80,7 @@ function Lab() {
       </div>}
     </header>
     {measurement && <details className="atlas-ui-lab-measurement" open><summary>浏览器性能记录（实验室采样，非生产 INP）</summary><pre>{measurement}</pre></details>}
-    <main><AtlasWorkspace active devJobIndex={bootstrap} onSaveOpportunity={() => setMessage("隔离验收不写入机会库")}
+    <main className={shell ? "secondary-workspace" : undefined}><AtlasWorkspace active devJobIndex={bootstrap} onSaveOpportunity={() => setMessage("隔离验收不写入机会库")}
       onAnalyze={() => setMessage("隔离验收不调用 AI")} /></main>
     {companion && <AgentCompanion llmConfig={{provider:"gemini",model:"gemini-ui-fixture",baseUrl:"https://synthetic-model.invalid",apiKey:"",temperature:.3}}
       onOpenWorkspace={()=>setMessage("隔离验收不打开真实 Agent 工作台")} onOpenAiConfig={()=>setMessage("隔离验收不修改模型配置")} />}

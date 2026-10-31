@@ -56,7 +56,7 @@ export const AtlasJobCardContent = memo(function AtlasJobCardContent({
         </div>
         <AtlasListingBadges presentations={presentations} />
         {!!item.mapReferences?.length && <span className="atlas-card-hint">城市分布参考 · 城市估算，非办公地址</span>}
-        <span className="atlas-card-hint">单击查看详情 · 双击定位地图</span>
+        <span className="atlas-card-hint">单击查看详情 · 右侧按钮定位地图</span>
       </>,
     };
   }, [item, presentListing, data, hasAnchor, countryName]);
