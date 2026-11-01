@@ -135,6 +135,49 @@ test("contextual tutorial keeps writing drafts and stable portal nodes through e
   assert.equal(await repository.load("isolated-sidebar"), undefined);
 });
 
+test("tutorial resumes its last chapter, restores focus and locates without sending requests", async () => {
+  await render(); await click("打开 BetterMe Agent");
+  const help = dom.document.querySelector<HTMLButtonElement>('[aria-label="Agent 协作教程"]')!;
+  await act(async () => help.focus()); await click("Agent 协作教程");
+  await click("第 6 节：收起继续，重载先核对"); await click("返回工作"); assert.ok(dom.document.activeElement === help);
+  await click("Agent 协作教程"); assert.match(dom.document.querySelector("h3#agent-tutorial-title")?.textContent ?? "", /收起继续/);
+  await click("找到备份与历史");
+  assert.equal(dom.document.querySelector('[role="tab"][aria-selected=true]')?.textContent, "共识与进度");
+  assert.equal(dom.document.activeElement?.className, "agent-guide-coach");
+  await click("伴写对话"); assert.match(dom.document.querySelector(".agent-guide-coach")?.textContent ?? "", /你已切换视图/);
+  await click("回到本节入口"); await click("返回本节教程");
+  assert.match(dom.document.querySelector("h3#agent-tutorial-title")?.textContent ?? "", /收起继续/);
+  assert.equal(await repository.load("isolated-sidebar"), undefined, "teaching and locating do not create actual Agent tasks");
+});
+
+test("an active writing task completes behind a tutorial without losing the exact draft", async () => {
+  await render(); await click("检查当前简历"); await click("一起完善这条经历"); await fill("#writing-answer", "运行中仍保留的草稿");
+  const answer = dom.document.querySelector("#writing-answer");
+  await act(async () => [...dom.document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].find(item => item.parentElement?.textContent?.includes("我确认这段补充"))!.click());
+  await click("请 Agent 整理候选表达"); await click("Agent 协作教程"); await click("下一节");
+  assert.equal(writingSignal?.aborted, false); active = false; await render(); await click("收起 BetterMe Agent");
+  await act(async () => resolveWriting({ questions: ["测试已完成，继续核对"], rationale: "隔离返回", evidenceQuotes: [] }));
+  assert.ok(dom.document.querySelector("#writing-answer") === answer);
+  assert.equal(dom.document.querySelector<HTMLTextAreaElement>("#writing-answer")?.value, "运行中仍保留的草稿");
+  assert.equal((await repository.load("isolated-sidebar"))?.tasks.at(-1)?.status, "completed");
+});
+
+test("real-control spotlight follows the visible target, hides across tabs and never executes it", async () => {
+  await render(); await click("打开 BetterMe Agent");
+  const target = dom.document.querySelector<HTMLElement>('[data-agent-guide="agent-backup"]')!;
+  Object.defineProperty(target, "getClientRects", { configurable: true, value: () => [new dom.DOMRect(100, 200, 250, 30)] });
+  Object.defineProperty(target, "getBoundingClientRect", { configurable: true, value: () => new dom.DOMRect(100, 200, 250, 30) });
+  await click("Agent 协作教程"); await click("第 6 节：收起继续，重载先核对"); await click("找到备份与历史");
+  const ring = dom.document.querySelector<HTMLElement>(".agent-guide-spotlight")!;
+  assert.ok(ring); assert.equal(ring.style.left, "96px"); assert.equal(ring.style.top, "196px");
+  assert.equal(ring.style.width, "258px"); assert.equal(ring.getAttribute("aria-hidden"), "true");
+  await click("重新定位入口"); assert.ok(dom.document.activeElement === target);
+  assert.equal(target.closest("details")?.open, false, "locating focuses, but does not open or execute a real control");
+  await click("伴写对话"); assert.equal(dom.document.querySelector(".agent-guide-spotlight"), null);
+  await click("结束本次定位"); assert.equal(dom.document.querySelector(".agent-guide-coach"), null);
+  assert.equal(await repository.load("isolated-sidebar"), undefined);
+});
+
 test("selected and primary hover states pair foreground/background instead of transparent white text", () => {
   const css = readFileSync(new URL("../src/components/agent-sidebar.css", import.meta.url), "utf8");
   assert.match(css, /--color-soft:var\(--ui-canvas\)/);

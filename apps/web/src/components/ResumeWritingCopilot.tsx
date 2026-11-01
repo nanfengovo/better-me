@@ -302,7 +302,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
       <AgentMemoryConsent checked={shareAgentMemory} onChange={value => { if (!value) stop(); setShareAgentMemory(value); }} />
       </div>
       </details></AgentSurface>
-      <button onClick={() => { check(); setExpanded(false); setAgentCollapsed(false); sidebar?.show("conversation", "writing"); }} disabled={session.mode === "paused"}><Sparkles size={13} />检查当前简历</button>
+      <button data-agent-guide="writing-check" onClick={() => { check(); setExpanded(false); setAgentCollapsed(false); sidebar?.show("conversation", "writing"); }} disabled={session.mode === "paused"}><Sparkles size={13} />检查当前简历</button>
       {selectionQuote && <button onClick={checkSelection} disabled={session.mode === "paused"}>完善选中文字</button>}
       <span className="writing-count">{session.mode === "paused" ? <><Pause size={13} />已暂停</> : `${notes.length} 条待完善`}</span>
       {(busy || understandingRunning) && <span className="writing-running" role="status">{understandingRunning ? "项目理解中" : "伴写分析中"}</span>}
@@ -356,17 +356,17 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
         }}>重新完善这条（保留补充）</button>}</article>;
       })}</details>}
     </div>
-    {visible && focusedNote && <aside ref={card} className="writing-note no-print" aria-label="Agent 伴写批注" key={focusedNote.id} hidden={Boolean(understandingSource)}>
+    {visible && focusedNote && <aside ref={card} tabIndex={-1} className="writing-note no-print" data-agent-guide="writing-note" aria-label="Agent 伴写批注" key={focusedNote.id} hidden={Boolean(understandingSource)}>
       <header><span><Bot size={14} />{busy ? "正在分析这条内容" : "Agent 留意到"}</span>{busy && <button aria-label="停止当前伴写分析" onClick={() => { stop(); setMessage("已停止分析，补充内容留在输入框中。"); }}><Square size={12} />停止</button>}<button aria-label="本条不再提示" onClick={() => dismiss(focusedNote)}><X size={14} /></button></header>
       <button className="writing-source" onClick={() => locate(focusedNote)} title={focusedNote.source.label}>{focusedNote.source.label}</button>
       <nav className="agent-flow-status" aria-label="伴写协作进度"><span>项目共识</span><span aria-current={!focusedNote.proposedText ? "step" : undefined}>本人补充</span><span aria-current={focusedNote.proposedText ? "step" : undefined}>核对候选</span><span>采用与撤销</span></nav><h3>{focusedNote.issue.title}</h3>{sidebar && <button type="button" onClick={() => sidebar.learn("annotation")}>旁批协作教程</button>}
       <blockquote>{writingOriginal(focusedNote.source).slice(0, 180) || "这条要点还是空白，可以先描述一件实际做过的事。"}{writingOriginal(focusedNote.source).length > 180 ? "…" : ""}</blockquote>
       {focusedNote.source.quote && <small>只完善所选片段，周围内容保持不变</small>}
-      <button type="button" onClick={() => { stop(); setUnderstandingSource(focusedNote.source); }}>先对齐项目理解</button>
+      <button type="button" data-agent-guide="understanding-start" onClick={() => { stop(); setUnderstandingSource(focusedNote.source); }}>先对齐项目理解</button>
       {!expanded ? <button className="writing-primary" onClick={() => setExpanded(true)}>一起完善这条经历</button> : <div className="writing-review">
         {(focusedNote.questions?.length ? focusedNote.questions : [focusedNote.issue.question]).map((question, index) => <p className="writing-question" key={index}>{question}</p>)}
         <label htmlFor="writing-answer">补充你实际做过的事情</label>
-        <textarea id="writing-answer" rows={3} maxLength={6000} value={focusedNote.answer} placeholder="可以说不知道或没有数据，不需要编造结果。" onChange={e => { stop(); changeNote(focusedNote.id, { answer: e.target.value, proposedText: undefined, evidenceQuotes: undefined }); setConfirmedAnswer(false); setConfirmedProposal(false); }} />
+        <textarea id="writing-answer" data-agent-guide="writing-answer" rows={3} maxLength={6000} value={focusedNote.answer} placeholder="可以说不知道或没有数据，不需要编造结果。" onChange={e => { stop(); changeNote(focusedNote.id, { answer: e.target.value, proposedText: undefined, evidenceQuotes: undefined }); setConfirmedAnswer(false); setConfirmedProposal(false); }} />
         {focusedNote.answer.trim() && <label className="writing-check"><input type="checkbox" checked={confirmedAnswer} onChange={e => setConfirmedAnswer(e.target.checked)} />我确认这段补充来自实际经历</label>}
         {usableContext && <label className="writing-check"><input type="checkbox" checked={shareProjectContext} onChange={event => { stop(); setShareProjectContext(event.target.checked); }} />本次携带已确认项目共识（仅解释术语和边界，不作为个人贡献依据）</label>}
         <small>点击后发送本条原文、补充{shareProjectContext && usableContext ? "及已确认的项目术语背景" : ""}给{agentKind === "chatgpt" ? `所选 ChatGPT 账号（${chatGptChoice.model || "尚未选择模型"} · 使用套餐）` : `当前配置模型（${config.provider} · ${config.model || "未配置"}）`}，不自动附带姓名、联系方式或其他简历字段。共享共识与成长事件仅在「设置」中明确授权后携带。请勿在补充中填入敏感信息。</small>

@@ -5,6 +5,8 @@ import { useBetterMeAgent } from "../lib/betterme-agent/react";
 import "./agent-sidebar.css";
 import { AGENT_LESSONS, AgentWorkflowGuide, type AgentLesson } from "./AgentWorkflowGuide";
 import { AgentReaderTools } from "./AgentReaderTools";
+import { AgentGuideCoach } from "./AgentGuideCoach";
+import { readTutorial, tutorialKey, tutorialStorage } from "../lib/agent-tutorial";
 import type { UnderstandingClient } from "../services/understanding-client";
 
 type Tab = "conversation" | "memory" | "settings";
@@ -40,8 +42,12 @@ export function AgentSidebarProvider({ children, understandingClient }: { childr
   const [coversApp, setCoversApp] = useState(() => window.matchMedia("(max-width: 600px)").matches);
   const panel = useRef<HTMLElement>(null), close = useRef<HTMLButtonElement>(null), trigger = useRef<HTMLElement | null>(null);
   const launcher = useRef<HTMLButtonElement>(null), wasOpen = useRef(false);
+  const tutorialButton = useRef<HTMLButtonElement>(null), tutorialTrigger = useRef<HTMLElement | null>(null);
+  const tutorialFocus = useRef<"return" | "coach" | null>(null);
   const { agent, snapshot } = useBetterMeAgent();
   const [guide, setGuide] = useState<number | null>(null);
+  const [coach, setCoach] = useState<AgentLesson | null>(null);
+  const guideKey = tutorialKey(snapshot?.data.workspaceKey ?? "standalone");
   const readerKey = `betterme.project-reader.v1:${snapshot?.data.workspaceKey ?? "standalone"}`;
   const [readerRuntime, setReader] = useState(() => { try { return localStorage.getItem(readerKey) || "model"; } catch { return "model"; } });
   const [preferenceError, setPreferenceError] = useState("");
@@ -65,7 +71,20 @@ export function AgentSidebarProvider({ children, understandingClient }: { childr
     if (document.activeElement instanceof HTMLElement && !panel.current?.contains(document.activeElement)) trigger.current = document.activeElement;
     setTab(nextTab); setGuide(null); if (nextConversation) setConversation(nextConversation); setOpen(true);
   }, []);
-  const learn = useCallback((lesson: AgentLesson = "evidence") => { setGuide(Math.max(0, AGENT_LESSONS.findIndex(item => item.id === lesson))); setOpen(true); }, []);
+  const learn = useCallback((lesson?: AgentLesson) => {
+    tutorialTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const next = lesson ?? readTutorial(tutorialStorage(), guideKey).current;
+    setCoach(null); setGuide(Math.max(0, AGENT_LESSONS.findIndex(item => item.id === next))); setOpen(true);
+  }, [guideKey]);
+  useEffect(() => {
+    if (guide !== null || !tutorialFocus.current) return;
+    const destination = tutorialFocus.current;
+    tutorialFocus.current = null;
+    const previous = tutorialTrigger.current;
+    const target = destination === "coach" ? panel.current?.querySelector<HTMLElement>(".agent-guide-coach")
+      : previous?.isConnected && !previous.closest("[hidden], [inert]") ? previous : tutorialButton.current;
+    target?.focus({ preventScroll: true });
+  }, [guide]);
   const hide = useCallback(() => setOpen(false), []);
   useEffect(() => {
     if (open) close.current?.focus();
@@ -92,9 +111,10 @@ export function AgentSidebarProvider({ children, understandingClient }: { childr
         }
       }}>
       <header className="agent-sidebar-header"><div><strong><Bot size={18} />BetterMe Agent</strong><small role="status">{running ? `${running} 项任务运行中 · 收起不停止` : "同一份记忆，继续当前对话"}</small></div>
-        <div className="agent-sidebar-header-actions"><button type="button" aria-label="Agent 协作教程" onClick={() => learn()}><CircleHelp size={18} /></button><button ref={close} type="button" aria-label="收起 BetterMe Agent" onClick={hide}><PanelRightClose size={18} /></button></div></header>
-      {guide !== null && <AgentWorkflowGuide step={guide} onStep={setGuide} onClose={() => setGuide(null)} onAction={destination => { setGuide(null); show(destination === "writing" ? "conversation" : destination, destination === "writing" ? "writing" : undefined); }} />}
+        <div className="agent-sidebar-header-actions"><button ref={tutorialButton} type="button" aria-label="Agent 协作教程" title="协作教程 · 可继续上次章节" onClick={() => learn()}><CircleHelp size={18} /></button><button ref={close} type="button" aria-label="收起 BetterMe Agent" onClick={hide}><PanelRightClose size={18} /></button></div></header>
+      {guide !== null && <AgentWorkflowGuide key={guideKey} step={guide} active={open} storageKey={guideKey} onStep={setGuide} onClose={() => { tutorialFocus.current = "return"; setGuide(null); }} onAction={(destination, lesson) => { tutorialFocus.current = "coach"; setGuide(null); show(destination === "writing" ? "conversation" : destination, destination === "writing" ? "writing" : undefined); setCoach(lesson); }} />}
       <div className="agent-sidebar-work" hidden={guide !== null}>
+      {coach && <AgentGuideCoach lessonId={coach} active={guide === null && open && (AGENT_LESSONS.find(item => item.id === coach)!.destination === "writing" ? tab === "conversation" && conversation === "writing" : tab === AGENT_LESSONS.find(item => item.id === coach)!.destination)} onBack={() => learn(coach)} onClose={() => setCoach(null)} onNavigate={() => { const destination = AGENT_LESSONS.find(item => item.id === coach)!.destination; show(destination === "writing" ? "conversation" : destination, destination === "writing" ? "writing" : undefined); }} />}
       {snapshot?.error && <button type="button" className="agent-sidebar-storage-warning" onClick={() => setTab("memory")}>本地记录需要处理 · 查看恢复选项</button>}
       <div role="tablist" aria-label="BetterMe Agent 视图" className="agent-sidebar-tabs" onKeyDown={event => {
         const offset = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;

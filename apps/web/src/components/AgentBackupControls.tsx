@@ -16,7 +16,7 @@ export function AgentBackupControls({ onExport }: { onExport: () => void }) {
   }, []);
   if (!agent || !snapshot) return null;
   const blocked = busy || !snapshot.ready || snapshot.saving || Boolean(snapshot.error) || snapshot.data.tasks.some(task => task.status === "running");
-  return <details className="agent-backup"><summary>记忆保存、备份与恢复</summary>
+  return <details className="agent-backup"><summary data-agent-guide="agent-backup">记忆保存、备份与恢复</summary>
     <p>对话与共识索引保存在当前浏览器、当前简历的独立空间。项目完整对话由配套 Agent 服务保存；未发送草稿留在浏览器。切页和收起不清除记录。</p>
     <p>{durability}。换浏览器、清理站点或更换访问地址不会自动迁移；Docker 数据卷不包含浏览器记录。</p>
     <p>这里的 JSON 备份包含对话索引、共识和任务记录，不包含未发送草稿、源码授权或服务端完整会话。简历备份与 Docker 数据卷需分别保存。</p>
