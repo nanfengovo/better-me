@@ -5,6 +5,8 @@ services:
       context: .
       dockerfile: Dockerfile
       target: runtime
+      args:
+        VCS_REF: "${VCS_REF:-unknown}"
     ports:
       - "127.0.0.1:${BETTER_ME_PORT:-8080}:8080"
     restart: unless-stopped

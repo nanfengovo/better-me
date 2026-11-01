@@ -1,0 +1,88 @@
+import type { LlmConfig } from "@better-me/core";
+import {
+  UnderstandingCreateSchema, UnderstandingSessionSchema,
+  type UnderstandingCapability, type UnderstandingSession, type UnderstandingTurnInput,
+} from "@better-me/agent-contracts";
+import { z } from "zod";
+import { readRuntimeConnection } from "../lib/runtime-connection";
+
+const SessionResponse = UnderstandingSessionSchema;
+const CapabilitiesResponse = z.object({ runtimes: z.array(z.object({ id: z.string(), name: z.string(), available: z.boolean(), supported: z.boolean(), reason: z.string().optional() })) });
+
+export type UnderstandingRuntime = { kind: "model"; modelSettings: {
+  provider: LlmConfig["provider"]; model: string; baseUrl: string; apiKey?: string; temperature?: number;
+  thinkingMode?: "enabled" | "disabled"; reasoningEffort?: "low" | "high" | "max"; maxTokens?: number;
+} } | { kind: "native"; runtimeId: string };
+export type UnderstandingCreateInput = z.infer<typeof UnderstandingCreateSchema>;
+export type UnderstandingTurnRequest = UnderstandingTurnInput & { runtime: UnderstandingRuntime };
+export class UnderstandingClientError extends Error {
+  constructor(message: string, readonly status?: number, readonly code?: string) { super(message); this.name = "UnderstandingClientError"; }
+}
+export interface UnderstandingClient {
+  createSession(input: UnderstandingCreateInput, signal?: AbortSignal): Promise<UnderstandingSession>;
+  getSession(id: string, signal?: AbortSignal): Promise<UnderstandingSession>;
+  updateSource(id: string, input: { expectedRevision: number; sourceText: string }, signal?: AbortSignal): Promise<UnderstandingSession>;
+  addGrant(id: string, path: string, signal?: AbortSignal): Promise<UnderstandingSession>;
+  revokeGrant(id: string, grantId: string, signal?: AbortSignal): Promise<UnderstandingSession>;
+  startTurn(id: string, input: UnderstandingTurnRequest, signal?: AbortSignal): Promise<UnderstandingSession>;
+  confirm(id: string, input: { expectedRevision: number; summaryHash: string }, signal?: AbortSignal): Promise<UnderstandingSession>;
+  cancel(id: string, expectedTurnCount: number, signal?: AbortSignal): Promise<UnderstandingSession>;
+  getCapabilities(signal?: AbortSignal): Promise<UnderstandingCapability[]>;
+}
+
+/** Resolve the connection per request; neither credentials nor model settings enter local history. */
+export function createUnderstandingClient(options: { baseUrl?: string; fetch?: typeof fetch } = {}): UnderstandingClient {
+  const request = async <Schema extends z.ZodTypeAny>(path: string, schema: Schema, method = "GET", body?: unknown, signal?: AbortSignal): Promise<z.output<Schema>> => {
+    const connection = readRuntimeConnection();
+    const timeout = AbortSignal.timeout(15_000);
+    const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+    let response: Response;
+    try {
+      response = await (options.fetch ?? fetch)(`${options.baseUrl ?? connection?.origin ?? "http://127.0.0.1:5179"}/api/v1/agent/understanding${path}`, {
+        method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${connection?.agentToken ?? "better-me-agent-token"}` },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: combined,
+      });
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      throw new UnderstandingClientError(timeout.aborted
+        ? "本机 Agent 请求等待超时；状态尚未确认，输入已保留。请刷新状态后再决定是否重试。"
+        : "暂时无法连接本机 Agent；输入已保留。请确认配套服务已启动，再刷新状态。", undefined, timeout.aborted ? "timeout" : "unavailable");
+    }
+    const payload: unknown = await response.json().catch(() => undefined);
+    if (!response.ok) {
+      const statusMessages: Record<number, string> = {
+        400: "本次输入未被接受，请检查内容或授权目录；原有记录未被覆盖。",
+        401: "本机 Agent 的连接授权已失效，请重新连接服务。",
+        403: "本次目录或操作没有授权，请检查授权范围。",
+        404: "这段项目对话未找到；本地草稿仍保留，可以重新建立对话。",
+        409: "记录已变化或任务仍在运行，请先刷新最新理解，再核对后提交。",
+        413: "本次资料超出服务限制，请缩小范围；输入仍保留。",
+        422: "当前运行方式不支持本次请求，请检查模型或原生运行时能力。",
+      };
+      const code = payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string" ? payload.error : undefined;
+      throw new UnderstandingClientError(statusMessages[response.status] ?? "本次 Agent 操作未完成；输入已保留，可刷新状态后重试。", response.status, code);
+    }
+    const parsed = schema.safeParse(payload);
+    if (!parsed.success) throw new UnderstandingClientError("Agent 返回的记录格式不完整，未采用；请刷新状态，当前输入仍保留。", response.status, "invalid_response");
+    return parsed.data;
+  };
+  const sessionPath = (id: string) => `/sessions/${encodeURIComponent(id)}`;
+  return {
+    createSession: (input, signal) => request("/sessions", SessionResponse, "POST", UnderstandingCreateSchema.parse(input), signal),
+    getSession: (id, signal) => request(sessionPath(id), SessionResponse, "GET", undefined, signal),
+    updateSource: (id, input, signal) => request(`${sessionPath(id)}/source`, SessionResponse, "POST", input, signal),
+    addGrant: (id, path, signal) => request(`${sessionPath(id)}/grants`, SessionResponse, "POST", { path }, signal),
+    revokeGrant: (id, grantId, signal) => request(`${sessionPath(id)}/grants/${encodeURIComponent(grantId)}`, SessionResponse, "DELETE", undefined, signal),
+    startTurn: (id, input, signal) => request(`${sessionPath(id)}/turns`, SessionResponse, "POST", input, signal),
+    confirm: (id, input, signal) => request(`${sessionPath(id)}/confirm`, SessionResponse, "POST", input, signal),
+    cancel: (id, expectedTurnCount, signal) => request(`${sessionPath(id)}/cancel`, SessionResponse, "POST", { expectedTurnCount }, signal),
+    getCapabilities: async signal => (await request("/capabilities", CapabilitiesResponse, "GET", undefined, signal)).runtimes,
+  };
+}
+export const defaultUnderstandingClient = createUnderstandingClient();
+export function understandingModelRuntime(config: LlmConfig): UnderstandingRuntime {
+  return { kind: "model", modelSettings: {
+    provider: config.provider, model: config.model, baseUrl: config.baseUrl, ...(config.apiKey ? { apiKey: config.apiKey } : {}),
+    temperature: config.temperature, thinkingMode: config.thinkingMode, reasoningEffort: config.reasoningEffort, maxTokens: config.maxTokens,
+  } };
+}

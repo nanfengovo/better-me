@@ -72,7 +72,32 @@ try {
   await request("/api/v1/agent/health", {}, 401);
   const config = await bootstrap();
   const headers = { Authorization: `Bearer ${config.jobToken}`, Origin: base, "Content-Type": "application/json" };
+  const agentHeaders = { ...headers, Authorization: `Bearer ${config.agentToken}` };
   assert.equal(JSON.parse(await request("/api/v1/agent/health", { headers: { Authorization: `Bearer ${config.agentToken}` } })).status, "ok");
+  const understanding = "/api/v1/agent/understanding";
+  await request(`${understanding}/capabilities`, {}, 401);
+  assert.deepEqual(JSON.parse(await request(`${understanding}/capabilities`, { headers: agentHeaders })).runtimes, [], "Container must not pretend host CLIs are installed");
+  const session = JSON.parse(await request(`${understanding}/sessions`, { method: "POST", headers: agentHeaders,
+    body: JSON.stringify({ workspaceKey: "synthetic-docker-smoke", projectKey: "synthetic-project", label: "Synthetic project only", sourceText: "Fictional dispatch orchestration, not personal contribution." }),
+  }, 201));
+  assert.equal(session.phase, "idle");
+  assert.equal(session.turnCount, 0, "Creating a session must not start a model or read source files");
+  const sessionUrl = `${understanding}/sessions/${session.id}`;
+  // Grant only a file inside the public image. No host profile/source mounts or model calls.
+  const granted = JSON.parse(await request(`${sessionUrl}/grants`, { method: "POST", headers: agentHeaders,
+    body: JSON.stringify({ path: "/workspace/apps/agent-host/src/understanding/http.ts" }),
+  }));
+  assert.equal(granted.grants.length, 1);
+  assert.deepEqual(granted.evidence, [], "Authorizing a file is not itself permission to send it to a model");
+  await request(`${sessionUrl}/confirm`, { method: "POST", headers: agentHeaders,
+    body: JSON.stringify({ expectedRevision: granted.revision, summaryHash: "not-a-generated-consensus" }),
+  }, 409);
+  const revoked = JSON.parse(await request(`${sessionUrl}/grants/${granted.grants[0].id}`, { method: "DELETE", headers: agentHeaders }));
+  assert.ok(revoked.grants[0].revokedAt);
+  assert.equal(revoked.confirmation, undefined);
+  const savedSession = JSON.parse(await request(`${sessionUrl}/source`, { method: "POST", headers: agentHeaders,
+    body: JSON.stringify({ expectedRevision: revoked.revision, sourceText: "Fictional project clarification retained across container recreation." }),
+  }));
   assert.equal(JSON.parse(await request("/api/v1/jobs/search", { method: "POST", headers, body: "{}" })).ok, true);
   const receipt = JSON.parse(await request("/api/v1/sources", { method: "POST", headers: { ...headers, "Idempotency-Key": "synthetic-docker-smoke" }, body: JSON.stringify({ source }) }));
   assert.equal(receipt.ok, true);
@@ -80,6 +105,7 @@ try {
     assert.deepEqual(await bootstrap(), config, "Both tokens survive recovery and container recreation");
     const sources = JSON.parse(await request("/api/v1/sources", { headers }));
     assert.ok(sources.value.sources.some(item => item.sourceId === source.sourceId), "SQLite write survives recovery");
+    assert.deepEqual(JSON.parse(await request(sessionUrl, { headers: agentHeaders })), savedSession, "Project history, source revision and revoked grant survive recovery without touching the job index");
   };
   await checkPersisted();
   // Kill only this test container's exact runtime process, not Docker Desktop or host services.
@@ -96,7 +122,7 @@ try {
   await compose("up", "-d", "--force-recreate", "--wait", "--wait-timeout", "120");
   id = (await compose("ps", "-q", "web")).trim();
   await checkPersisted();
-  console.log("PASS: full Compose startup, auth/origin, APIs, SQLite/token persistence, process crash recovery and container recreation.");
+  console.log("PASS: full Compose startup, auth/origin, APIs, project-understanding grant/revocation and session persistence, SQLite/token persistence, process crash recovery and container recreation. No model or host source access.");
 } catch (error) {
   console.error(await compose("logs", "--tail", "80", "web").catch(() => "No test container logs available."));
   throw error;

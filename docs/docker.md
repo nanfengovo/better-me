@@ -34,6 +34,7 @@ Origin 会随配置端口一起调整，不需要放宽 CORS。`localhost` 与 `
 | --- | --- | --- |
 | 简历、事实、模板、历史、导入导出 | 支持，数据在浏览器 | 支持 |
 | 真实编辑器中的主动伴写 | 本地检查支持；模型追问需 AI 配置和同意 | 同左 |
+| 项目理解、动态追问、共识确认与历史恢复 | 支持，独立会话持久保存在 `/data/agent/runs/understanding`；逐轮同意后调用配置模型 | 同左，支持显式授权的本机文本目录/文件 |
 | Agent Host、对话、工作流 | 自动启动；模型需单独配置 | 自动启动或复用 |
 | SQLite 岗位索引、公开来源 API、入库和后台补全 | 支持，保存在卷内；网络/来源许可仍限制覆盖 | 支持 |
 | 原站登录、验证码、专用 Chrome/Edge 窗口、扩展同步 | 不提供；使用粘贴 JD 或宿主机开发模式 | 依赖本机浏览器及人工完成验证 |
@@ -41,6 +42,14 @@ Origin 会随配置端口一起调整，不需要放宽 CORS。`localhost` 与 `
 | 自动修改简历事实、自动投递、购买额度 | 不自动执行 | 不自动执行 |
 
 旧的 `/api/jd/*`、`/api/network/*`、`/api/opportunities/*` 浏览器工具不是独立岗位服务的 `/api/v1/*`。容器对不支持的旧工具返回明确的 501 提示，不把它伪装成零岗位或已成功采集。容器模式也不会持续轮询浏览器扩展接口。
+
+### 项目理解的资料授权
+
+现有简历伴写中的「先对齐项目理解」已包含在完整 runtime 镜像中。问题与选项由所选模型生成，支持自由纠正、不限制对话轮数；只有当前版本经过用户确认，才可按需作为术语背景交给伴写。会话不会自动写入简历或岗位库。
+
+Docker 内填写的路径指**容器内路径**，不能直接读取宿主机的 `/Users/...`、虚拟机 C 盘或本机 Agent。默认 Compose 不挂载任何业务项目、个人资料或 CLI 登录态。需要读取宿主机文本材料时，先选择一个最小的、去敏后的专用目录，再由你自行在 Compose override 中添加明确的只读挂载，并在产品内逐个授权；不要挂载整个用户目录、Docker socket、密钥目录或个人浏览器。只读挂载不是发送模型的同意，取证仍需 Broker 校验和逐轮明确同意。
+
+镜像不安装原生 Claude/Codex/Gemini CLI，不能把宿主机的安装或登录状态宣称为容器能力，也不会自动复制认证文件。宿主机原生 Agent 的严格适配范围与未验证能力见 [本轮功能记录](reports/project-understanding-2026-11-01.md)。
 
 ## 连接模型
 
@@ -82,6 +91,7 @@ curl http://127.0.0.1:8080/healthz
 | 当前浏览器 Origin | 简历、事实、草稿、历史、机会、模型配置 | 工作台导出 JSON；模型配置另行保管 |
 | Docker 命名卷 `/data/jobs` | 岗位 SQLite、来源配置、岗位服务 token | 停止应用后备份完整卷 |
 | `/data/agent` 与 `/data/agent.token` | Agent checkpoint、运行记录、凭据 | 同上；运行记录可能含发送过的简历片段，按私人数据保护 |
+| `/data/agent/runs/understanding` | 项目理解的历史、授权、证据快照和共识确认，不含模型 Key | 随完整卷备份；撤销授权使共识失效，但不等于抹除审计历史或撤回提供商已收内容 |
 
 ```sh
 docker compose down
@@ -89,6 +99,8 @@ docker compose down
 git pull --ff-only
 docker compose up -d --build --wait
 ```
+
+需要追溯镜像版本时，可以在干净的发布快照内用 `VCS_REF=$(git rev-parse HEAD) docker compose up -d --build --wait` 构建；镜像的 `org.opencontainers.image.revision` 标签记录该值。不要从混有其他未提交改动的工作目录构建后将其称作已提交版本。
 
 更新前先导出浏览器 JSON，再停止应用并通过 Docker Desktop 卷管理或自己的备份流程复制完整卷。不要在线只复制 SQLite 主文件而遗漏 WAL/配套文件。恢复必须保留卷内容与权限，并使用相容的程序版本；回滚镜像不等于回滚数据 schema。容器没有挂载原项目的私人数据库，既有宿主机数据不会自动迁移。
 
@@ -111,4 +123,4 @@ node scripts/check-docker.mjs
 node scripts/check-docker-runtime.mjs
 ```
 
-后两项需要可用的 Docker daemon。完整运行验收使用随机独立 Compose 项目、端口和临时卷，检查同源鉴权、Agent/岗位 API、真实 SQLite 写入、进程崩溃重启以及重建持久化；只清理测试自己创建的项目和测试卷，不操作常用工作台数据。CI 已加入这两项，配置工作流不等于远端运行已经通过。实际本轮结果见 [验收记录](reports/docker-runtime-2026-10-30.md)。
+后两项需要可用的 Docker daemon。完整运行验收使用随机独立 Compose 项目、端口和临时卷，检查同源鉴权、Agent/岗位 API、项目理解会话与授权撤销、真实 SQLite 写入、进程崩溃重启以及重建持久化；不调用外部模型，不挂载宿主机业务资料。只清理测试自己创建的项目和测试卷，不操作常用工作台数据。CI 已加入这两项，配置工作流不等于远端运行已经通过。此前运行验收见 [验收记录](reports/docker-runtime-2026-10-30.md)，本次功能验收见 [项目理解记录](reports/project-understanding-2026-11-01.md)。

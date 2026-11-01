@@ -290,6 +290,24 @@ export class RuntimeRegistry {
     return this.list();
   }
 
+  /** Resolve executable locations only: no process, configuration or auth probe.
+   * Use a dedicated registry instance; this snapshot is NOT permission to run. */
+  async discoverExecutables(): Promise<RuntimeAgentInfo[]> {
+    this.snapshot = await Promise.all(this.definitions.map(async definition => {
+      let resolvedCommand: string | undefined;
+      for (const command of [definition.command, ...definition.fallbackCommands]) {
+        resolvedCommand = await resolveExecutable(command, this.probeOptions);
+        if (resolvedCommand) break;
+      }
+      return RuntimeAgentInfoSchema.parse({ ...definition, resolvedCommand,
+        status: resolvedCommand ? "available" : "not-installed", checkedAt: new Date().toISOString(),
+        readiness: "unknown", canRun: false,
+        checks: { version: "skipped", protocol: "skipped", auth: "unknown" },
+      });
+    }));
+    return this.list();
+  }
+
   list(): RuntimeAgentInfo[] {
     return this.snapshot.map((item) => ({
       ...item,

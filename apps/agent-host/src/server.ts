@@ -23,6 +23,7 @@
  */
 
 import http from "node:http";
+import path from "node:path";
 import { Command } from "@langchain/langgraph";
 import { z } from "zod";
 import { buildModel, ModelSettingsSchema, DeepSeekApiError, type ModelSettings } from "./model.js";
@@ -40,6 +41,10 @@ import { RuntimeRegistry } from "./runtime/registry.js";
 import type { RuntimeAgentDef } from "@better-me/agent-contracts";
 import { buildCareerOrchestrator } from "./graphs/career/graph.js";
 import type { CareerApproval } from "./graphs/career/state.js";
+import { resolveCheckpointPath } from "./checkpointer.js";
+import { ProjectUnderstandingService } from "./understanding/service.js";
+import { createUnderstandingHandler, type UnderstandingRuntime } from "./understanding/http.js";
+import type { UnderstandingReasoner } from "@better-me/agent-contracts";
 
 // ── Request schemas ───────────────────────────────────────────────────────────
 
@@ -105,6 +110,10 @@ export interface ServerOptions {
   runtimeDefinitions?: RuntimeAgentDef[];
   /** Global process isolation policy; individual runs may tighten it. */
   sandboxMode?: SandboxMode;
+  /** Separate opt-in evidence/history store; never the resume or jobs database. */
+  understandingDirectory?: string;
+  understandingTurnTimeoutMs?: number;
+  understandingReasoner?: (runtime: UnderstandingRuntime) => Promise<UnderstandingReasoner>;
 }
 
 function jsonResponse(res: http.ServerResponse, status: number, body: unknown): void {
@@ -143,8 +152,16 @@ export function createAgentServer(opts: ServerOptions): http.Server {
   // Cache one compiled graph per process; thread safety via thread_id in checkpointer.
   const careerGraph = buildCareerOrchestrator(opts.checkpointer);
   const runtimeRegistry = new RuntimeRegistry({ definitions: opts.runtimeDefinitions });
+  const understandingRegistry = new RuntimeRegistry({ definitions: opts.runtimeDefinitions });
   const runManager = new AgentRunManager({ registry: runtimeRegistry, rootDirectory: opts.runsDirectory, sandboxMode: opts.sandboxMode });
   let runtimeScan: Promise<unknown> | undefined;
+  const understanding = new ProjectUnderstandingService({
+    storageDir: opts.understandingDirectory ?? path.join(opts.runsDirectory ?? path.dirname(resolveCheckpointPath()), "understanding"),
+    turnTimeoutMs: opts.understandingTurnTimeoutMs,
+  });
+  const handleUnderstanding = createUnderstandingHandler({ service: understanding, registry: understandingRegistry,
+    ensureRuntimeScan: async () => { await understandingRegistry.discoverExecutables(); },
+    readBody, sendJson: jsonResponse, reasoner: opts.understandingReasoner });
 
   async function ensureRuntimeScan(): Promise<void> {
     if (runtimeRegistry.list().length > 0) return;
@@ -163,7 +180,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     const origin = req.headers["origin"] ?? "";
     if (typeof origin === "string" && opts.allowedOrigins.includes(origin)) {
       res.setHeader("Access-Control-Allow-Origin", origin);
-      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     }
     if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
@@ -178,6 +195,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     const { pathname } = url;
 
     try {
+      if (await handleUnderstanding(req, res, pathname)) return;
       // Keep the browser health probe explicit; probing an unknown checkpoint
       // thread produces noisy 404s even when the daemon is healthy.
       if (req.method === "GET" && pathname === "/api/v1/agent/health") {
@@ -449,6 +467,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     }
   });
 
+  server.once("close", () => { void understanding.dispose(); });
   server.listen(opts.port, opts.host, () => {
     console.log(`[agent-host] listening on http://${opts.host}:${opts.port}`);
   });

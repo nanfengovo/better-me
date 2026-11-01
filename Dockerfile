@@ -69,10 +69,13 @@ CMD ["-g", "daemon off;"]
 
 # Default distribution: one local entry point for the app, Agent Host and job API.
 FROM ${NODE_IMAGE} AS runtime
+ARG VCS_REF=unknown
 WORKDIR /workspace
 ENV NODE_ENV=production BETTER_ME_DATA_DIR=/data
 LABEL org.opencontainers.image.title="BetterMe local workspace" \
-    org.opencontainers.image.description="Resume workspace, Agent Host and persistent job index. Local use only."
+    org.opencontainers.image.description="Resume workspace, Agent Host and persistent job index. Local use only." \
+    org.opencontainers.image.source="https://github.com/nanfengovo/better-me" \
+    org.opencontainers.image.revision=$VCS_REF
 COPY --chown=node:node --from=build /workspace /workspace
 COPY --chown=node:node --from=build /tmp/better-me-dependency-licenses /workspace/apps/web/dist/legal/dependencies
 COPY --chown=node:node templates/licenses /workspace/apps/web/dist/legal/templates/licenses

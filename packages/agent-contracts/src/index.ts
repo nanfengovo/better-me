@@ -234,3 +234,4 @@ export function parseAgentEvent(value: unknown): AgentEvent {
 export function parseRuntimeAgentInfo(value: unknown): RuntimeAgentInfo {
   return RuntimeAgentInfoSchema.parse(value);
 }
+export * from "./project-understanding.js";

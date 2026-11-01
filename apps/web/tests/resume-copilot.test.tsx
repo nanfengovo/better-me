@@ -6,9 +6,11 @@ import { createInitialDocument } from "@better-me/storage";
 import { applyResumeProposal, createResumeAgentContext } from "../src/lib/resume-agent-context";
 import {
   generateWritingReply, inspectWriting, newWritingNote, parseWritingReply, readWritingSession,
-  reconcileWritingNotes, saveWritingSession, writingSources, writingTargetKey, writingProposal, type WritingSource,
+  reconcileWritingNotes, saveWritingSession, writingSources, writingTargetKey, writingProposal, confirmedWritingProjectContext, type WritingSource,
 } from "../src/lib/resume-copilot";
 import { quoteWritingText } from "../src/lib/writing-anchor";
+import { fixtureSession, fixtureUnderstanding } from "./fixtures/project-understanding";
+import type { UnderstandingClient } from "../src/services/understanding-client";
 
 // Finish installing the DOM before registering any tests. Otherwise a fast
 // pure async test can let Node run teardown while React is still importing.
@@ -26,6 +28,7 @@ const { act, createElement: h } = React;
 const { createRoot } = await import("react-dom/client");
 const { ResumeWritingCopilot } = await import("../src/components/ResumeWritingCopilot");
 const { observeResumeWriting } = await import("../src/lib/resume-writing-observer");
+const { understandingScope } = await import("../src/components/ProjectUnderstandingPanel");
 
 const source: WritingSource = { targetRef: { kind: "claim_text", experienceId: "fixture-exp", claimId: "fixture-claim", locale: "zh" }, text: "负责接口开发，参与系统维护", label: "虚构测试经历 · 要点 1" };
 const issue = inspectWriting(source, [source])!;
@@ -198,4 +201,42 @@ test("undo reports restoration rather than another adoption", async () => {
   await click("撤销这次修改");
   assert.match(dom.document.body.textContent ?? "", /已撤销这次伴写修改/);
   assert.doesNotMatch(dom.document.body.textContent ?? "", /已批准并提交/);
+});
+test("only an exact current confirmation can be reused, and its background never expands contribution evidence", async () => {
+  const session = fixtureSession({ phase: "confirmed", revision: 5, understanding: { ...fixtureUnderstanding, summary: "团队协调99个服务。", claims: [{ id: "team", kind: "source", text: "团队主导99个服务", evidenceIds: [] }] },
+    summaryHash: "hash-5", confirmation: { revision: 5, summaryHash: "hash-5", confirmedAt: new Date().toISOString() } });
+  const context = confirmedWritingProjectContext(session)!; assert.ok(context);
+  assert.equal(confirmedWritingProjectContext({ ...session, revision: 6 }), undefined);
+  assert.equal(confirmedWritingProjectContext({ ...session, phase: "awaiting-confirmation" }), undefined);
+  await assert.rejects(generateWritingReply(config, source, "我编写了重试逻辑", new AbortController().signal, async (_config, messages) => {
+    const request = JSON.parse(String(messages[1]?.content));
+    assert.equal(request.projectContext.purpose, "terminology-and-boundaries-only");
+    assert.equal(request.projectContext.claims, undefined); assert.equal(request.confirmedSupplement, "我编写了重试逻辑");
+    assert.match(String(messages[0]?.content), /不是个人贡献证据/);
+    return { content: JSON.stringify({ questions: [], rationale: "无依据的候选", evidenceQuotes: [source.text], proposedText: "编写99个服务的重试逻辑" }) };
+  }, context), /数字/);
+  await assert.rejects(generateWritingReply(config, source, "我编写了重试逻辑", new AbortController().signal, async () => ({
+    content: JSON.stringify({ questions: [], rationale: "非法使用项目共识", evidenceQuotes: ["团队协调99个服务。"], proposedText: "编写重试逻辑" }),
+  }), context), /本轮材料以外/);
+});
+test("opt-in project entry makes no model call and a changed confirmed revision blocks later writing", async () => {
+  const scope = await understandingScope("test", writingTargetKey(source.targetRef));
+  const session = fixtureSession({ workspaceKey: "test", projectKey: scope.projectKey, sourceText: source.text, phase: "confirmed", revision: 5, understanding: fixtureUnderstanding,
+    summaryHash: "hash-5", confirmation: { revision: 5, summaryHash: "hash-5", confirmedAt: new Date().toISOString() } });
+  dom.localStorage.setItem(scope.storageKey, JSON.stringify({ sessionId: session.id, answer: "", options: [] }));
+  dom.localStorage.setItem("betterme.writing.v1:test", JSON.stringify({ version: 1, mode: "quiet", notes: [{ ...newWritingNote(source, issue), answer: "我编写了重试逻辑" }] }));
+  let reads = 0, models = 0, mutations = 0;
+  const unexpected = async () => { mutations++; throw new Error("Unexpected project mutation"); };
+  const client: UnderstandingClient = { createSession: unexpected, updateSource: unexpected, addGrant: unexpected, revokeGrant: unexpected, startTurn: unexpected, confirm: unexpected, cancel: unexpected,
+    getCapabilities: async () => [], getSession: async () => { reads++; return reads === 1 ? session : { ...session, revision: 6, phase: "awaiting-confirmation", confirmation: undefined }; } };
+  await render({ understandingClient: client, generate: async () => { models++; return { questions: [], rationale: "", evidenceQuotes: [] }; } });
+  assert.equal(reads, 0); await click("先对齐项目理解");
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  assert.equal(models, 0); assert.equal(mutations, 0); assert.equal(reads, 1);
+  await click("一起完善");
+  const share = [...dom.document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].find(input => input.parentElement?.textContent?.includes("本次携带"))!;
+  const actual = [...dom.document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].find(input => input.parentElement?.textContent?.includes("我确认这段补充"))!;
+  assert.ok(share); await act(async () => { share.click(); actual.click(); });
+  await click("整理候选表达"); assert.equal(models, 0); assert.equal(reads, 2);
+  assert.match(dom.document.body.textContent ?? "", /项目理解已变化或需要重新确认/);
 });

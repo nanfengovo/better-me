@@ -3,11 +3,14 @@ import { Bot, Check, ChevronLeft, ChevronRight, Pause, RotateCcw, Sparkles, Squa
 import type { LlmConfig } from "@better-me/core";
 import {
   generateWritingReply, inspectWriting, isLocalWritingModel, newWritingNote, readWritingSession, reconcileWritingNotes,
-  saveWritingSession, writingTargetKey, writingOriginal, writingProposal, WritingReplyError, type WritingMode, type WritingNote, type WritingSource,
+  saveWritingSession, writingTargetKey, writingOriginal, writingProposal, WritingReplyError, confirmedWritingProjectContext,
+  type ConfirmedWritingProjectContext, type WritingMode, type WritingNote, type WritingSource,
 } from "../lib/resume-copilot";
 import type { ResumeProposalWrite } from "../lib/resume-agent-context";
 import { focusWritingSource, observeResumeWriting, readWritingPreviewSelection, useWritingGeometry, type WritingActivity } from "../lib/resume-writing-observer";
-import { quoteWritingText } from "../lib/writing-anchor";
+import { quoteWritingText, resolveWritingQuote } from "../lib/writing-anchor";
+import { ProjectUnderstandingPanel } from "./ProjectUnderstandingPanel";
+import { defaultUnderstandingClient, type UnderstandingClient } from "../services/understanding-client";
 import "./resume-writing-copilot.css";
 
 type Props = {
@@ -15,14 +18,15 @@ type Props = {
   onApply: (proposal: ResumeProposalWrite) => Promise<{ ok: boolean; message: string }>;
   onFocus: (source: WritingSource) => void;
   generate?: typeof generateWritingReply;
+  understandingClient?: UnderstandingClient;
 };
 
 /** Owns the review session, never the resume. Writes cross the existing approved CAS interface. */
-export function ResumeWritingCopilot({ sessionKey, sources, config, active, onApply, onFocus, children, generate = generateWritingReply }: Props) {
-  return <WritingCopilotSession key={sessionKey} {...{ sessionKey, sources, config, active, onApply, onFocus, children, generate }} />;
+export function ResumeWritingCopilot({ sessionKey, sources, config, active, onApply, onFocus, children, generate = generateWritingReply, understandingClient = defaultUnderstandingClient }: Props) {
+  return <WritingCopilotSession key={sessionKey} {...{ sessionKey, sources, config, active, onApply, onFocus, children, generate, understandingClient }} />;
 }
 
-function WritingCopilotSession({ sessionKey, sources, config, active, onApply, onFocus, children, generate = generateWritingReply }: Props) {
+function WritingCopilotSession({ sessionKey, sources, config, active, onApply, onFocus, children, generate = generateWritingReply, understandingClient = defaultUnderstandingClient }: Props) {
   const storageKey = `betterme.writing.v1:${sessionKey}`;
   const [session, setSession] = useState(() => readWritingSession(localStorage, storageKey));
   const [selected, setSelected] = useState<string>();
@@ -33,6 +37,9 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
   const [storageError, setStorageError] = useState("");
   const [confirmedAnswer, setConfirmedAnswer] = useState(false);
   const [confirmedProposal, setConfirmedProposal] = useState(false);
+  const [understandingSource, setUnderstandingSource] = useState<WritingSource>();
+  const [projectContexts, setProjectContexts] = useState<Record<string, { sourceText: string; context: ConfirmedWritingProjectContext }>>({});
+  const [shareProjectContext, setShareProjectContext] = useState(false);
   const [activity, setActivity] = useState<WritingActivity>();
   const shell = useRef<HTMLDivElement>(null), card = useRef<HTMLElement>(null);
   const latest = useRef({ session, sources, config, active }); latest.current = { session, sources, config, active };
@@ -52,6 +59,12 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
   const selectionQuote = selectionSource && activity && quoteWritingText(selectionSource.text, activity.start, activity.end);
   const visible = active && session.mode !== "paused";
   const canAutoModel = isLocalWritingModel(config);
+  const liveUnderstandingSource = understandingSource && sources.find(source => writingTargetKey(source.targetRef) === writingTargetKey(understandingSource.targetRef));
+  const understandingOriginal = liveUnderstandingSource
+    ? (understandingSource?.quote && resolveWritingQuote(liveUnderstandingSource.text, understandingSource.quote)?.exact) || liveUnderstandingSource.text
+    : undefined;
+  const focusedContext = focusedNote && projectContexts[writingTargetKey(focusedNote.source.targetRef)];
+  const usableContext = focusedNote && focusedContext?.sourceText === writingOriginal(focusedNote.source) ? focusedContext.context : undefined;
   const geometry = useWritingGeometry(shell, card, visible ? focusedNote?.source : undefined);
 
   function stop() { epoch.current++; request.current?.controller.abort(); request.current = null; setBusy(false); }
@@ -134,7 +147,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
   useEffect(() => { alive.current = true; const generation = epoch; return () => { alive.current = false; generation.current++; request.current?.controller.abort(); clearTimeout(timer.current); }; }, []);
   useEffect(() => {
     if (request.current && request.current.noteId !== focusedNote?.id) stop();
-    setConfirmedAnswer(false); setConfirmedProposal(false); setExpanded(pendingExpand.current === focusedNote?.id && !!focusedNote?.id); pendingExpand.current = undefined; setMessage("");
+    setConfirmedAnswer(false); setConfirmedProposal(false); setShareProjectContext(false); setExpanded(pendingExpand.current === focusedNote?.id && !!focusedNote?.id); pendingExpand.current = undefined; setMessage("");
   }, [focusedNote?.id]);
 
   function mode(value: WritingMode) { stop(); setSession(s => ({ ...s, mode: value })); }
@@ -145,7 +158,16 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
     request.current = { controller, id, noteId: note.id }; setBusy(true);
     const timeout = setTimeout(() => controller.abort("timeout"), 120000);
     try {
-      const reply = await generate(config, note.source, note.answer, controller.signal);
+      let context: ConfirmedWritingProjectContext | undefined;
+      if (shareProjectContext && usableContext) {
+        const fresh = await understandingClient.getSession(usableContext.sessionId, controller.signal);
+        context = confirmedWritingProjectContext(fresh);
+        if (!context || fresh.sourceText !== writingOriginal(note.source) || context.revision !== usableContext.revision || context.summaryHash !== usableContext.summaryHash) {
+          setShareProjectContext(false);
+          throw new WritingReplyError("项目理解已变化或需要重新确认，本次未发送伴写请求。请打开项目理解核对最新版本；个人补充仍保留。");
+        }
+      }
+      const reply = await generate(config, note.source, note.answer, controller.signal, undefined, context);
       const current = latest.current.session.notes.find(n => n.id === note.id);
       const source = latest.current.sources.find(s => writingTargetKey(s.targetRef) === writingTargetKey(note.source.targetRef));
       if (epoch.current !== id || controller.signal.aborted || current?.state !== "open" || current.answer !== note.answer || source?.text !== note.source.text) return;
@@ -188,6 +210,18 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
     <div className="writing-status no-print">
       {storageError && <p className="writing-message" role="status">{storageError}</p>}
       {message && <p className="writing-message" role="status">{message}</p>}
+      {active && understandingSource && liveUnderstandingSource && understandingOriginal !== undefined && <ProjectUnderstandingPanel
+        key={writingTargetKey(understandingSource.targetRef)} workspaceKey={sessionKey} projectKey={writingTargetKey(understandingSource.targetRef)}
+        label={liveUnderstandingSource.label} sourceText={understandingOriginal} config={config} client={understandingClient}
+        onClose={() => setUnderstandingSource(undefined)} onConfirmed={context => {
+          const key = writingTargetKey(understandingSource.targetRef);
+          if (!context) setShareProjectContext(false);
+          setProjectContexts(current => {
+            if (context) return { ...current, [key]: { sourceText: understandingOriginal, context } };
+            if (!current[key]) return current;
+            const next = { ...current }; delete next[key]; return next;
+          });
+        }} />}
       {applied && <div className="writing-applied"><Check size={14} />已采用一条表达建议<button onClick={() => void apply(applied, true)}><RotateCcw size={12} />撤销这次修改</button></div>}
       {!!archived.length && <details className="writing-archive"><summary>已处理与历史批注（{archived.length}）</summary>{archived.map(note => {
         const current = sources.find(s => writingTargetKey(s.targetRef) === writingTargetKey(note.source.targetRef));
@@ -205,12 +239,14 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
       <h3>{focusedNote.issue.title}</h3>
       <blockquote>{writingOriginal(focusedNote.source).slice(0, 180) || "这条要点还是空白，可以先描述一件实际做过的事。"}{writingOriginal(focusedNote.source).length > 180 ? "…" : ""}</blockquote>
       {focusedNote.source.quote && <small>只完善所选片段，周围内容保持不变</small>}
+      <button type="button" onClick={() => { stop(); setUnderstandingSource(focusedNote.source); }}>先对齐项目理解</button>
       {!expanded ? <button className="writing-primary" onClick={() => setExpanded(true)}>一起完善这条经历</button> : <div className="writing-review">
         {(focusedNote.questions?.length ? focusedNote.questions : [focusedNote.issue.question]).map((question, index) => <p className="writing-question" key={index}>{question}</p>)}
         <label htmlFor="writing-answer">补充你实际做过的事情</label>
         <textarea id="writing-answer" rows={3} maxLength={6000} value={focusedNote.answer} placeholder="可以说不知道或没有数据，不需要编造结果。" onChange={e => { stop(); changeNote(focusedNote.id, { answer: e.target.value, proposedText: undefined }); setConfirmedAnswer(false); setConfirmedProposal(false); }} />
         {focusedNote.answer.trim() && <label className="writing-check"><input type="checkbox" checked={confirmedAnswer} onChange={e => setConfirmedAnswer(e.target.checked)} />我确认这段补充来自实际经历</label>}
-        <small>点击后仅发送本条原文与补充给当前配置模型（{config.provider} · {config.model || "未配置"}），不附带姓名、联系方式字段或其他经历。请勿在补充中填入敏感信息。</small>
+        {usableContext && <label className="writing-check"><input type="checkbox" checked={shareProjectContext} onChange={event => { stop(); setShareProjectContext(event.target.checked); }} />本次携带已确认项目共识（仅解释术语和边界，不作为个人贡献依据）</label>}
+        <small>点击后发送本条原文、补充{shareProjectContext && usableContext ? "及已确认的项目术语背景" : ""}给当前配置模型（{config.provider} · {config.model || "未配置"}），不附带姓名、联系方式字段或其他经历。请勿在补充中填入敏感信息。</small>
         {busy ? <button className="writing-primary" onClick={() => { stop(); setMessage("已停止分析，补充内容留在输入框中。"); }}><Square size={12} />停止分析</button> : <button className="writing-primary" onClick={() => void ask(focusedNote)} disabled={!!focusedNote.answer.trim() && !confirmedAnswer}>{focusedNote.answer.trim() ? "请 Agent 整理候选表达" : "请 Agent 进一步追问"}</button>}
         {focusedNote.rationale && <p>{focusedNote.rationale}</p>}
         {focusedNote.answer.trim() && !focusedNote.proposedText && <button disabled={!confirmedAnswer} onClick={() => { stop(); changeNote(focusedNote.id, { proposedText: focusedNote.answer.trim(), rationale: "候选直接来自你本人核对的补充，未由模型扩写；请继续检查表达和事实。" }); setConfirmedProposal(false); }}>用我的补充作为可编辑草稿</button>}
