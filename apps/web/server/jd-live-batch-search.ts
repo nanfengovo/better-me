@@ -15,6 +15,7 @@ import { NATIVE_ROOT_SCROLL_STYLES, projectNativeDomSnapshot } from "./jd-cdp-do
 import { extractJobSearchCards, type JobSearchCard } from "./jd-search-capture";
 import { getNetworkFetch } from "./network-proxy";
 import type { JobPlatform } from "../src/lib/jd-source";
+import { classifyHarvestFailure, HARVEST_PAGE_OBSERVATION, HarvestDiagnosticSchema, retainHarvestDiagnostic, type HarvestDiagnostic } from "./jd-harvest-diagnostics";
 
 export const LiveBatchSearchInputSchema = z.object({
   keyword: z.string().trim().min(1).max(120),
@@ -38,6 +39,7 @@ export type LiveBatchCoverage = {
   cardLimit: number;
   stopReason: LiveBatchStopReason;
   partial: boolean;
+  failureKind?: HarvestDiagnostic["observations"][number]["failure"];
 };
 
 export function createLiveBatchCoverage(options: {
@@ -47,6 +49,7 @@ export function createLiveBatchCoverage(options: {
   pageLimit: number;
   cardLimit: number;
   stopReason: LiveBatchStopReason;
+  failureKind?: LiveBatchCoverage["failureKind"];
 }): LiveBatchCoverage {
   return {
     pagesVisited: options.pagesVisited ?? 0,
@@ -56,6 +59,7 @@ export function createLiveBatchCoverage(options: {
     cardLimit: options.cardLimit,
     stopReason: options.stopReason,
     partial: options.stopReason !== "exhausted",
+    ...(options.failureKind ? { failureKind: options.failureKind } : {}),
   };
 }
 
@@ -180,16 +184,6 @@ async function safelyReport(callback: (() => void | Promise<void>) | undefined) 
 export type LiveBatchSearchResult = {
   capturedAt: string;
   results: LiveBatchProviderResult[];
-};
-
-const PLATFORM_HOST_MATCH: Record<PlatformSearchProvider, (hostname: string) => boolean> = {
-  liepin: (h) => h === "www.liepin.com" || h.endsWith(".liepin.com"),
-  "51job": (h) => h === "we.51job.com" || h.endsWith(".51job.com"),
-  boss: (h) => h === "www.zhipin.com" || h.endsWith(".zhipin.com"),
-  linkedin: (h) => h === "www.linkedin.com" || h.endsWith(".linkedin.com"),
-  seek: (h) => h === "www.seek.com.au" || h.endsWith(".seek.com.au"),
-  indeed: (h) => h === "www.indeed.com" || h.endsWith(".indeed.com"),
-  gradconnection: (h) => h === "au.gradconnection.com" || h.endsWith(".gradconnection.com"),
 };
 
 export function sanitizeReviewedCards(
@@ -843,8 +837,11 @@ export async function waitForLiveSearchPageTransition(options: {
   signal?: AbortSignal;
   timeoutMs?: number;
   intervalMs?: number;
+  isLoading?: () => Promise<boolean>;
 }): Promise<LiveSearchPageTransition> {
-  const deadline = Date.now() + (options.timeoutMs ?? 6_000);
+  let deadline = Date.now() + (options.timeoutMs ?? 6_000);
+  const loadingDeadline = Date.now() + 20_000;
+  let extended = false;
   const interval = options.intervalMs ?? 250;
   let previousSignature = "";
   while (Date.now() <= deadline) {
@@ -863,7 +860,12 @@ export async function waitForLiveSearchPageTransition(options: {
       }
       previousSignature = signature;
     }
-    if (Date.now() + interval > deadline) break;
+    if (Date.now() + interval > deadline) {
+      if (!extended && options.isLoading && await options.isLoading().catch(() => false)) {
+        deadline = Math.max(deadline, loadingDeadline);
+        extended = true;
+      } else break;
+    }
     await new Promise((resolve) => setTimeout(resolve, interval));
   }
   return { advanced: false };
@@ -1103,6 +1105,7 @@ export async function fetchLinkedInDirect(
   let pagesVisited = 0;
   let cardsCaptured = 0;
   const publishedCardIds = new Set<string>();
+  let platformLimited = false;
   const reportProgress = async (newCards: JobSearchCard[] = []) => {
     const remainingCardBudget = cardLimit - publishedCardIds.size;
     const batches = remainingCardBudget > 0
@@ -1123,19 +1126,27 @@ export async function fetchLinkedInDirect(
       await safelyReport(() => onProgress?.({ ...progressBase, cards }));
     }
   };
+  const output: Array<PromiseSettledResult<ReturnType<typeof extractJobSearchCards>>> = Array(pageUrls.length);
+  const failures = new Map<number, { failure: HarvestDiagnostic["observations"][number]["failure"]; httpStatus?: number }>();
   const fetchPages = async (fetcher: (url: string) => Promise<Response>) => {
-    const output: Array<PromiseSettledResult<ReturnType<typeof extractJobSearchCards>>> = Array(pageUrls.length);
+    const indices = pageUrls.map((_, i) => i).filter(i => !output[i] || (output[i]?.status === "rejected" && ["network", "timeout"].includes(failures.get(i)?.failure ?? "")));
     let cursor = 0;
-    const workers = Array.from({ length: Math.min(4, pageUrls.length) }, async () => {
-      while (cursor < pageUrls.length && !signal?.aborted) {
-        const index = cursor++;
+    const workers = Array.from({ length: Math.min(4, indices.length) }, async () => {
+      while (cursor < indices.length && !signal?.aborted && !platformLimited) {
+        const index = indices[cursor++]!;
         try {
           const response = await fetcher(pageUrls[index]!);
-          if (!response.ok) throw new Error(`LinkedIn page returned HTTP ${response.status}.`);
+          if (!response.ok) {
+            failures.set(index, { failure: classifyHarvestFailure(undefined, response.status), httpStatus: response.status });
+            if ([401, 403, 429, 999].includes(response.status)) platformLimited = true;
+            await response.body?.cancel().catch(() => {});
+            throw new Error("HTTP failure");
+          }
           const value = extractJobSearchCards(
             { url: pageUrls[index]!, title: "LinkedIn Search", html: await response.text() },
             "LinkedIn",
           );
+          if (value.status === "login_required" || value.status === "verification_required") platformLimited = true;
           pagesVisited++;
           output[index] = { status: "fulfilled", value };
           // Parse and publish at page completion, not after every response has
@@ -1144,7 +1155,10 @@ export async function fetchLinkedInDirect(
           if (value.status === "ready") cardsCaptured += value.cards.length;
           await reportProgress(value.status === "ready" ? value.cards : []);
         }
-        catch (reason) { await reportProgress(); output[index] = { status: "rejected", reason }; }
+        catch (reason) {
+          if (!failures.has(index) || ["network", "timeout"].includes(failures.get(index)!.failure)) failures.set(index, { failure: classifyHarvestFailure(reason) });
+          await reportProgress(); output[index] = { status: "rejected", reason };
+        }
       }
     });
     await Promise.all(workers);
@@ -1154,15 +1168,29 @@ export async function fetchLinkedInDirect(
   let finalPagesVisited = 0;
   let finalFailedPages = 0;
   const warnings: string[] = [];
-  for (const fetcherFactory of fetchers ?? [
+  const transports = fetchers ?? [
     async (u: string) => (await getNetworkFetch())(u, { headers, signal: makeSignal() }),
     (u: string) => fetch(u, { headers, signal: makeSignal() }),
-  ]) {
-    pagesVisited = 0;
-    cardsCaptured = 0;
+  ];
+  for (const [transportIndex, fetcherFactory] of transports.entries()) {
     let failedPages = 0;
     try {
       const responses = await fetchPages(fetcherFactory);
+      const recoverable = responses.some((response, index) => response?.status === "rejected" && ["network", "timeout"].includes(failures.get(index)?.failure ?? ""));
+      if (!signal?.aborted && !platformLimited && recoverable && transportIndex < transports.length - 1) continue;
+      const observations: HarvestDiagnostic["observations"] = pageUrls.flatMap((_, index) => {
+        const res = responses[index];
+        const failure = failures.get(index);
+        if (!failure && res?.status === "fulfilled" && ["ready", "empty"].includes(res.value.status)) return [];
+        const status = res?.status === "fulfilled" ? res.value.status : undefined;
+        return [{ page: index + 1, phase: "request" as const,
+          ...(failure ?? { failure: status === "login_required" ? "login" as const : status === "verification_required" ? "verification" as const : platformLimited ? "platform_limit" as const : "layout" as const }),
+          attempted: !!res, recovered: !!failure && res?.status === "fulfilled" }];
+      });
+      if (observations.length) {
+        const id = await retainHarvestDiagnostic({ provider: "linkedin", observations });
+        warnings.push(`脱敏诊断${id ? ` ${id}` : "保存失败"}：${[...new Set(observations.map(o => o.failure))].join("、")}；未保存页面正文或身份信息。`);
+      }
       const allRawCards: JobSearchCard[] = [];
       let primaryUrl = plan.url;
       const pageStatuses: string[] = [];
@@ -1188,6 +1216,7 @@ export async function fetchLinkedInDirect(
         }
         const stopReason: LiveBatchStopReason = signal?.aborted
           ? "cancelled"
+          : platformLimited ? "gate"
           : failedPages > 0
           ? "error"
           : allRawCards.length >= cardLimit
@@ -1195,6 +1224,8 @@ export async function fetchLinkedInDirect(
             : pagesVisited >= pageLimit
               ? "page_limit"
               : "exhausted";
+        const failureKind = [...failures.values()].find(f => ["platform_limit", "login", "verification"].includes(f.failure))?.failure
+          ?? observations.find(o => !o.recovered)?.failure;
         return {
           provider: "linkedin",
           platform: "LinkedIn",
@@ -1203,7 +1234,7 @@ export async function fetchLinkedInDirect(
           cards,
           rawCardCount: allRawCards.length,
           warnings: cards.length > 0 ? warnings : [...warnings, "平台返回岗位候选，但没有卡片通过来源身份与字段证据校验；不将其判为零岗位。"],
-          coverage: createLiveBatchCoverage({ pagesVisited, pageLimit, cardLimit, stopReason }),
+          coverage: createLiveBatchCoverage({ pagesVisited, pageLimit, cardLimit, stopReason, failureKind }),
         };
       }
       if (!signal?.aborted && areAllLinkedInPagesExplicitlyEmpty(pageStatuses, failedPages)) {
@@ -1222,14 +1253,14 @@ export async function fetchLinkedInDirect(
     } catch {
       // try next fetcher
     }
-    if (signal?.aborted) break;
+    if (signal?.aborted || platformLimited) break;
   }
-  const stopReason: LiveBatchStopReason = signal?.aborted ? "cancelled" : finalPagesVisited === 0 || finalFailedPages > 0 ? "error" : "no_progress";
+  const stopReason: LiveBatchStopReason = signal?.aborted ? "cancelled" : platformLimited ? "gate" : finalPagesVisited === 0 || finalFailedPages > 0 ? "error" : "no_progress";
   return {
     provider: "linkedin", platform: "LinkedIn", pageUrl: plan.url,
     status: "error", cards: [], rawCardCount: 0,
-    warnings: ["未能从 LinkedIn 实时读取到可验证的搜索列表响应；不将连接失败当作零岗位。"],
-    coverage: createLiveBatchCoverage({ pagesVisited: finalPagesVisited, pageLimit, cardLimit, stopReason }),
+    warnings: [...warnings, "未能从 LinkedIn 实时读取到可验证的搜索列表响应；不将连接失败或平台限制当作零岗位。"],
+    coverage: createLiveBatchCoverage({ pagesVisited: finalPagesVisited, pageLimit, cardLimit, stopReason, failureKind: platformLimited ? [...failures.values()].find(f => ["platform_limit", "login", "verification"].includes(f.failure))?.failure ?? "verification" : [...failures.values()][0]?.failure ?? "layout" }),
     error: "LinkedIn 搜索列表当前不可读取。",
   };
 }
@@ -1245,18 +1276,27 @@ export async function captureProviderViaNativeCdp(
   maxPages?: number,
   focusForInteractiveWait: (port: number) => Promise<boolean> = focusRealChromeWindow,
   onProviderProgress?: (progress: LiveBatchProviderProgress) => void | Promise<void>,
+  retainDiagnostic: typeof retainHarvestDiagnostic = retainHarvestDiagnostic,
 ): Promise<LiveBatchProviderResult> {
   let targetId: string | undefined;
   let ownsTarget = false;
   let preserveTargetForInteractiveLogin = false;
   let sessionId: string | undefined;
+  let unsubscribe: (() => void) | undefined;
+  const pendingRequests = new Set<string>();
+  const requestTypes = new Map<string, string>();
+  let failedRequests = 0;
+  let failedDocuments = 0, failedScripts = 0, failedDataRequests = 0, limitedDataResponses = 0;
+  let documentStatus: number | undefined;
 
   try {
     // Never attach to an arbitrary platform tab. Even a matching query can be
     // scrolled by the virtual-list reader; stale queries would also be navigated.
     const created = await cdp.send<{ targetId?: string }>(
       "Target.createTarget",
-      { url: plan.url, background: true },
+      // Attach Network/Page observers before navigation. Creating at the real
+      // URL then stopping an apparently blank target races Chrome's first load.
+      { url: "about:blank", background: true },
       undefined,
       4000,
     );
@@ -1298,6 +1338,32 @@ export async function captureProviderViaNativeCdp(
     }
 
     await cdp.send("Page.enable", {}, sessionId, 3000).catch(() => {});
+    unsubscribe = cdp.on(event => {
+      if (event.sessionId !== sessionId) return;
+      const params = event.params ?? {};
+      const id = typeof params.requestId === "string" ? params.requestId : "";
+      if (event.method === "Network.requestWillBeSent" && ["Document", "XHR", "Fetch", "Script"].includes(String(params.type)) && pendingRequests.size < 10000) {
+        pendingRequests.add(id); requestTypes.set(id, String(params.type));
+      }
+      if (event.method === "Network.loadingFinished" || event.method === "Network.loadingFailed") {
+        if (event.method === "Network.loadingFailed" && pendingRequests.has(id)) {
+          failedRequests = Math.min(10000, failedRequests + 1);
+          const type = requestTypes.get(id);
+          if (type === "Document") failedDocuments = Math.min(10000, failedDocuments + 1);
+          if (type === "Script") failedScripts = Math.min(10000, failedScripts + 1);
+          if (type === "XHR" || type === "Fetch") failedDataRequests = Math.min(10000, failedDataRequests + 1);
+        }
+        pendingRequests.delete(id); requestTypes.delete(id);
+      }
+      // A restricted ad/analytics XHR alone is not a blocked jobs API.
+      if (event.method === "Network.responseReceived" && ["XHR", "Fetch"].includes(String(params.type))
+        && [401, 403, 429, 999].includes(Number((params.response as { status?: unknown } | undefined)?.status))) limitedDataResponses = Math.min(10000, limitedDataResponses + 1);
+      if (event.method === "Network.responseReceived" && params.type === "Document") {
+        const status = (params.response as { status?: unknown } | undefined)?.status;
+        if (typeof status === "number" && status >= 100 && status <= 999) documentStatus = status;
+      }
+    });
+    await cdp.send("Network.enable", {}, sessionId, 3000).catch(() => {});
 
     const pageLimit = liveBatchProviderPageBudget(plan.provider, depth, maxPages);
     const pageUrls = getPlatformExpandedUrls(plan.provider, plan.url, keyword, pageLimit);
@@ -1316,6 +1382,8 @@ export async function captureProviderViaNativeCdp(
     let noProgressPages = 0;
     let stopReason: LiveBatchStopReason = "page_limit";
     let pageScrolled = false;
+    let lastPageState: LiveSearchPageState | undefined;
+    let attemptedPage = 1;
     const publishedCardIds = new Set<string>();
     const reportProgress = async (newCards: JobSearchCard[] = []) => {
       const batches = sanitizeProgressCardBatches(newCards, plan.provider, lastPageUrl, keyword, maxCardCap, publishedCardIds);
@@ -1349,27 +1417,52 @@ export async function captureProviderViaNativeCdp(
       return added;
     };
 
-    // Read the owned page through CDP without selecting the user's visible tab.
-    const curTargets = await cdp.send<NativeTargetList>("Target.getTargets", {}, undefined, 2000).catch(() => ({ targetInfos: [] }));
-    const thisTarget = curTargets.targetInfos?.find((t) => t.targetId === targetId);
-    const currentTabUrl = thisTarget?.url || "";
-
-    const needsInitialNav =
-      !currentTabUrl ||
-      currentTabUrl === "about:blank" ||
-      !PLATFORM_HOST_MATCH[plan.provider](new URL(currentTabUrl.startsWith("http") ? currentTabUrl : "http://localhost").hostname) ||
-      !samePlatformSearchQuery(currentTabUrl, plan.url) ||
-      !isFirstPlatformPage(currentTabUrl, plan.provider);
-
     let pageReadinessDeadline = Date.now() + 8_000;
-    if (needsInitialNav) {
-      await cdp.send("Page.stopLoading", {}, sessionId).catch(() => {});
-      await cdp.send("Page.navigate", { url: plan.url }, sessionId, 8000);
-      pageReadinessDeadline = Date.now() + 8_000;
-      lastPageUrl = plan.url;
-    } else {
-      lastPageUrl = currentTabUrl;
+    let readinessExtended = false;
+    let blankRecoveryUsed = false;
+    let navigationCommandFailed = false;
+    let pageFailedScriptsBaseline = 0;
+    const reloadObservations = new Map<number, Record<string, unknown>>();
+    const readPageEvidence = async (): Promise<Record<string, unknown>> => {
+      try {
+        const result = await cdp.send<{ result?: { value?: Record<string, unknown> } }>("Runtime.evaluate", { expression: HARVEST_PAGE_OBSERVATION, returnByValue: true }, sessionId, 2000);
+        const value = result.result?.value;
+        return value && typeof value === "object" ? value : {};
+      } catch { return {}; }
+    };
+    const stillLoading = async () => {
+      const evidence = await readPageEvidence();
+      return evidence.readyState === "loading" || Number(evidence.loadingIndicators) > 0;
+    };
+    const recoverScriptShell = async (pageNumber: number, url: string, baseline: number) => {
+      const evidence = await readPageEvidence();
+      // Retry only our current Liepin search page, once. A script failure is
+      // supporting evidence, not permission to reload a login/rate-limit gate.
+      if (signal?.aborted || plan.provider !== "liepin" || reloadObservations.has(pageNumber)
+        || !reviewedCardsSearchPage(url, plan.provider) || failedScripts <= baseline
+        || documentStatus && documentStatus >= 400
+        || ["login", "verification", "platform_limit"].includes(String(evidence.failure))
+        || evidence.route !== "search"
+        || !(evidence.readyState === "loading" || Number(evidence.loadingIndicators) > 0)) return false;
+      reloadObservations.set(pageNumber, {
+        ...evidence, page: Math.min(50, pageNumber), phase: pageNumber > 1 ? "pagination" : "initial",
+        failure: "timeout", verifiedCards: allRawCards.length, pendingRequests: pendingRequests.size,
+        failedRequests, failedDocuments, failedScripts, failedDataRequests, limitedDataResponses,
+        navigationAttempts: 2, navigationCommandFailed, ...(documentStatus ? { httpStatus: documentStatus } : {}),
+      });
+      await cdp.send("Page.navigate", { url }, sessionId, 5000).catch(() => { navigationCommandFailed = true; });
+      return !signal?.aborted;
+    };
+    // A CDP response timeout is not a navigation cancellation: inspect the
+    // document within the readiness budget before deciding it failed.
+    if (!signal?.aborted) {
+      try {
+        const navigation = await cdp.send<{ errorText?: string }>("Page.navigate", { url: plan.url }, sessionId, 8000);
+        navigationCommandFailed = Boolean(navigation.errorText);
+      } catch { navigationCommandFailed = true; }
     }
+    const navigationStartedAt = Date.now();
+    pageReadinessDeadline = navigationStartedAt + 8_000;
 
     let page = 1;
     let pageHasCards = false;
@@ -1377,7 +1470,7 @@ export async function captureProviderViaNativeCdp(
       if (signal?.aborted) { stopReason = "cancelled"; break; }
       if (allRawCards.length >= maxCardCap) { stopReason = "card_limit"; break; }
       if (lastVisitedPage !== page) {
-        if (lastVisitedPage > 0) pageReadinessDeadline = Date.now() + 8_000;
+        if (lastVisitedPage > 0) { pageReadinessDeadline = Date.now() + 8_000; readinessExtended = false; }
         pagesVisited++;
         lastVisitedPage = page;
         pageHasCards = false;
@@ -1404,6 +1497,7 @@ export async function captureProviderViaNativeCdp(
         await reportProgress(addCards(evalCards));
         if (evalCards.length) pageHasCards = true;
         const pageStateBeforeAdvance = await readLiveSearchPageState(cdp, sessionId, plan.provider);
+        lastPageState = pageStateBeforeAdvance;
         const cardsSignatureBeforeAdvance = searchCardSignature(evalCards, plan.provider);
 
         // 2. Structural DOM snapshot extraction
@@ -1426,7 +1520,7 @@ export async function captureProviderViaNativeCdp(
 
           const projected = projectNativeDomSnapshot(
             rawSnapshot,
-            { id: targetId, url: lastPageUrl },
+            { id: targetId, url: pageStateBeforeAdvance?.url || lastPageUrl },
             { readyState: "complete" },
             { purpose: "search", detect51JobWaf: plan.platform === "51JOB" },
           );
@@ -1499,6 +1593,7 @@ export async function captureProviderViaNativeCdp(
             if (userResolved) {
               await cdp.send("Page.navigate", { url: plan.url }, sessionId, 5000).catch(() => {});
               pageReadinessDeadline = Date.now() + 8_000;
+              readinessExtended = false;
               pageHasCards = false;
               pageScrolled = false;
               continue;
@@ -1514,22 +1609,50 @@ export async function captureProviderViaNativeCdp(
 
         if (signal?.aborted) { stopReason = "cancelled"; break; }
         if (!pageHasCards) {
+          const evidence = await readPageEvidence();
+          // The projection may reject a redirected document URL; a bounded,
+          // allowlisted DOM probe must still distinguish a gate from no jobs.
+          if (evidence.failure === "verification" || evidence.failure === "login" || evidence.failure === "platform_limit") {
+            lastStatus = evidence.failure === "login" ? "login_required" : evidence.failure === "verification" ? "verification_required" : "error";
+            stopReason = "gate";
+            break;
+          }
+          // Recover only an inert owned blank target, never reload a loading
+          // search SPA or a login/verification page. Keep the absolute deadline.
+          if (page === 1 && evidence.route === "blank" && !blankRecoveryUsed
+            && !documentStatus && pendingRequests.size === 0 && Date.now() - navigationStartedAt >= 2_000) {
+            blankRecoveryUsed = true;
+            await cdp.send("Page.navigate", { url: plan.url }, sessionId, 5000).catch(() => { navigationCommandFailed = true; });
+            continue;
+          }
           if (captureStatus === "empty") { lastStatus = "empty"; stopReason = "exhausted"; break; }
           if (captureStatus !== "unknown_layout") { lastStatus = captureStatus; stopReason = "error"; break; }
           // A loading SPA shell is not an empty result page. Keep reading this
           // page within one absolute grace period before any pagination input.
+          if (Date.now() >= pageReadinessDeadline && !readinessExtended && (evidence.readyState === "loading" || Number(evidence.loadingIndicators) > 0)) {
+            pageReadinessDeadline += 12_000;
+            readinessExtended = true;
+          }
           if (Date.now() < pageReadinessDeadline) {
             await pauseLiveSearchReadiness(Math.min(250, pageReadinessDeadline - Date.now()), signal);
             continue;
           }
+          if (await recoverScriptShell(page, lastPageUrl, pageFailedScriptsBaseline)) {
+            pageReadinessDeadline = Date.now() + 8_000;
+            readinessExtended = false;
+            pageScrolled = false;
+            continue;
+          }
           lastStatus = "unknown_layout";
           stopReason = "no_progress";
-          allWarnings.push("搜索页面在 8 秒内仍未出现可核对的岗位卡片或明确空结果；未跳过当前页或将其计为零岗位，已停止本平台采集。");
+          allWarnings.push(`搜索页面在 ${readinessExtended ? 20 : 8} 秒内仍未出现可核对的岗位卡片或明确空结果；未跳过当前页或将其计为零岗位，已停止本平台采集。`);
           break;
         }
         if (allRawCards.length > 0) {
           lastStatus = "ready";
         }
+        const recoveredObservation = reloadObservations.get(page);
+        if (recoveredObservation) recoveredObservation.recovered = true;
         const cardsAddedThisCapture = allRawCards.length - cardsBeforeCapture;
         if (plan.provider === "boss" && cardsAddedThisCapture > 0) noProgressScrolls = 0;
         if (plan.provider !== "boss" && page > 1 && cardsAddedThisCapture === 0) noProgressPages++;
@@ -1546,6 +1669,7 @@ export async function captureProviderViaNativeCdp(
         if (plan.provider !== "boss" && page >= pageLimit) { stopReason = "page_limit"; break; }
         if (signal?.aborted) { stopReason = "cancelled"; break; }
 
+        const nextPageFailedScriptsBaseline = failedScripts;
         const advance = await clickPlatformNextPage(cdp, sessionId, plan.platform);
         if (advance.kind === "scroll" && advance.advanced) {
           scrollSteps++;
@@ -1601,6 +1725,7 @@ export async function captureProviderViaNativeCdp(
         });
         if (decision.action === "stop") { stopReason = decision.stopReason; break; }
         if (decision.action === "continue-page") {
+          attemptedPage = page + 1;
           const waitForTransition = (expectedPageUrl?: string, timeoutMs?: number) => pageStateBeforeAdvance
             ? waitForLiveSearchPageTransition({
                 before: pageStateBeforeAdvance,
@@ -1610,10 +1735,11 @@ export async function captureProviderViaNativeCdp(
                 readState: () => readLiveSearchPageState(cdp, sessionId!, plan.provider),
                 readCards: (url) => extractCardsViaEvaluate(cdp, sessionId!, plan.platform, url),
                 signal,
+                ...(expectedPageUrl ? { isLoading: stillLoading } : {}),
                 ...(timeoutMs ? { timeoutMs } : {}),
               })
             : Promise.resolve({ advanced: false as const });
-          const transition = await confirmLiveSearchPageAdvance({
+          let transition = await confirmLiveSearchPageAdvance({
             provider: plan.provider,
             ...(nextUrl ? { expectedPageUrl: nextUrl } : {}),
             waitForTransition,
@@ -1622,6 +1748,9 @@ export async function captureProviderViaNativeCdp(
               await cdp.send("Page.navigate", { url: pageUrl }, sessionId, 7000);
             },
           });
+          if (!transition.advanced && nextUrl && await recoverScriptShell(page + 1, nextUrl, nextPageFailedScriptsBaseline)) {
+            transition = await waitForTransition(nextUrl);
+          }
           if (!transition.advanced) {
             stopReason = signal?.aborted ? "cancelled" : "no_progress";
             allWarnings.push("平台翻页控件已触发，但未能确认下一页 URL、页码与岗位卡片列表均已更新；已尝试打开受限的下一页 URL，仍无法核实，因此停止本平台采集。");
@@ -1629,13 +1758,15 @@ export async function captureProviderViaNativeCdp(
           }
           lastPageUrl = transition.pageUrl;
           page++;
+          pageFailedScriptsBaseline = nextPageFailedScriptsBaseline;
           pageScrolled = false;
           continue;
         }
         if (decision.action === "navigate-page") {
+          attemptedPage = page + 1;
           await cdp.send("Page.stopLoading", {}, sessionId).catch(() => {});
           await cdp.send("Page.navigate", { url: decision.pageUrl }, sessionId, 7000);
-          const transition = pageStateBeforeAdvance
+          let transition = pageStateBeforeAdvance
             ? await waitForLiveSearchPageTransition({
                 before: pageStateBeforeAdvance,
                 beforeCardsSignature: cardsSignatureBeforeAdvance,
@@ -1644,8 +1775,18 @@ export async function captureProviderViaNativeCdp(
                 readState: () => readLiveSearchPageState(cdp, sessionId!, plan.provider),
                 readCards: (url) => extractCardsViaEvaluate(cdp, sessionId!, plan.platform, url),
                 signal,
+                isLoading: stillLoading,
               })
             : { advanced: false as const };
+          if (!transition.advanced && pageStateBeforeAdvance && await recoverScriptShell(page + 1, decision.pageUrl, nextPageFailedScriptsBaseline)) {
+            transition = await waitForLiveSearchPageTransition({
+              before: pageStateBeforeAdvance, beforeCardsSignature: cardsSignatureBeforeAdvance,
+              expectedPageUrl: decision.pageUrl, provider: plan.provider,
+              readState: () => readLiveSearchPageState(cdp, sessionId!, plan.provider),
+              readCards: (url) => extractCardsViaEvaluate(cdp, sessionId!, plan.platform, url),
+              signal, isLoading: stillLoading,
+            });
+          }
           if (!transition.advanced) {
             stopReason = signal?.aborted ? "cancelled" : "no_progress";
             allWarnings.push("目标分页 URL 已打开，但未能确认新页面及其岗位卡片更新；为避免将旧页数据归到新页，已停止本平台采集。");
@@ -1653,6 +1794,7 @@ export async function captureProviderViaNativeCdp(
           }
           lastPageUrl = transition.pageUrl;
           page++;
+          pageFailedScriptsBaseline = nextPageFailedScriptsBaseline;
           pageScrolled = false;
           continue;
         }
@@ -1672,6 +1814,33 @@ export async function captureProviderViaNativeCdp(
       keyword,
       maxCardCap,
     );
+    let failureKind: LiveBatchCoverage["failureKind"];
+
+    const diagnosticObservations = [...reloadObservations.values()];
+    if (["no_progress", "gate", "error"].includes(stopReason)) {
+      let pageEvidence: Record<string, unknown> = {};
+      try {
+        const observation = await cdp.send<{ result?: { value?: Record<string, unknown> } }>("Runtime.evaluate", { expression: HARVEST_PAGE_OBSERVATION, returnByValue: true }, sessionId, 2000);
+        pageEvidence = observation.result?.value ?? {};
+      } catch { /* unavailable is itself useful; never retain the error text */ }
+      const failure = ["login", "verification", "platform_limit"].includes(String(pageEvidence.failure)) ? pageEvidence.failure
+        : documentStatus && documentStatus >= 400 ? classifyHarvestFailure(undefined, documentStatus)
+        : pageEvidence.route === "browser_error" ? "network"
+        : pageEvidence.route === "blank" ? failedRequests > 0 ? "network" : "unknown"
+        : pageEvidence.readyState === "loading" || Number(pageEvidence.loadingIndicators) > 0 ? "timeout"
+        : !pageEvidence.readyState ? "unknown"
+        : page > 1 || cards.length > 0 ? (plan.provider === "boss" ? "layout" : "pagination")
+        : failedRequests > 0 ? "network" : "layout";
+      const finalPageState = await readLiveSearchPageState(cdp, sessionId, plan.provider);
+      diagnosticObservations.push({ ...pageEvidence, page: Math.min(50, attemptedPage), phase: cards.length ? plan.provider === "boss" ? "scroll" : "pagination" : "initial", failure, verifiedCards: cards.length, pendingRequests: pendingRequests.size, failedRequests, failedDocuments, failedScripts, failedDataRequests, limitedDataResponses, navigationAttempts: blankRecoveryUsed || reloadObservations.has(attemptedPage) ? 2 : 1, navigationCommandFailed, ...(documentStatus ? { httpStatus: documentStatus } : {}), ...(lastPageState && finalPageState ? { pageUrlChanged: lastPageState.url !== finalPageState.url, pageMarkerChanged: lastPageState.marker !== finalPageState.marker } : {}) });
+      failureKind = "unknown"; // replace with the allowlist-validated terminal observation below
+    }
+    if (diagnosticObservations.length) {
+      const parsed = HarvestDiagnosticSchema.safeParse({ provider: plan.provider, observations: diagnosticObservations });
+      const id = parsed.success ? await retainDiagnostic(parsed.data) : undefined;
+      if (failureKind) failureKind = parsed.success ? parsed.data.observations.at(-1)?.failure : "unknown";
+      allWarnings.push(`脱敏诊断${id ? ` ${id}` : "保存失败"}：${failureKind ?? "加载中断后已恢复"}；仅保留加载、限制与翻页结构证据，不保存页面正文或身份信息。`);
+    }
 
     if (cards.length > 0) {
       return {
@@ -1682,7 +1851,7 @@ export async function captureProviderViaNativeCdp(
         cards,
         rawCardCount: allRawCards.length,
         warnings: allWarnings,
-        coverage: createLiveBatchCoverage({ pagesVisited, scrollSteps, scrollLimit: maxScrollSteps, pageLimit: liveBatchProviderPageBudget(plan.provider, depth, maxPages), cardLimit: maxCardCap, stopReason }),
+        coverage: createLiveBatchCoverage({ pagesVisited, scrollSteps, scrollLimit: maxScrollSteps, pageLimit: liveBatchProviderPageBudget(plan.provider, depth, maxPages), cardLimit: maxCardCap, stopReason, failureKind }),
       };
     }
 
@@ -1699,7 +1868,7 @@ export async function captureProviderViaNativeCdp(
       cards: [],
       rawCardCount: allRawCards.length,
       warnings: allWarnings,
-      coverage: createLiveBatchCoverage({ pagesVisited, scrollSteps, scrollLimit: maxScrollSteps, pageLimit: liveBatchProviderPageBudget(plan.provider, depth, maxPages), cardLimit: maxCardCap, stopReason }),
+      coverage: createLiveBatchCoverage({ pagesVisited, scrollSteps, scrollLimit: maxScrollSteps, pageLimit: liveBatchProviderPageBudget(plan.provider, depth, maxPages), cardLimit: maxCardCap, stopReason, failureKind }),
     };
   } catch (error) {
     return {
@@ -1714,27 +1883,13 @@ export async function captureProviderViaNativeCdp(
       error: error instanceof Error ? error.message : "平台页面读取异常",
     };
   } finally {
+    unsubscribe?.();
     if (sessionId) {
       await cdp.send("Target.detachFromTarget", { sessionId }, undefined, 1500).catch(() => {});
     }
     if (ownsTarget && targetId && !preserveTargetForInteractiveLogin) {
       await cdp.send("Target.closeTarget", { targetId }, undefined, 1500).catch(() => {});
     }
-  }
-}
-
-function samePlatformSearchQuery(current: string, expected: string): boolean {
-  try {
-    const actual = new URL(current);
-    const wanted = new URL(expected);
-    if (actual.origin !== wanted.origin || actual.pathname.replace(/\/$/, "") !== wanted.pathname.replace(/\/$/, "")) return false;
-    const ignoredPagination = new Set(["page", "pageNum", "currentPage", "start", "offset"]);
-    const entries = (url: URL) => [...url.searchParams.entries()]
-      .filter(([key]) => !ignoredPagination.has(key))
-      .sort(([aKey, aValue], [bKey, bValue]) => aKey.localeCompare(bKey) || aValue.localeCompare(bValue));
-    return JSON.stringify(entries(actual)) === JSON.stringify(entries(wanted));
-  } catch {
-    return false;
   }
 }
 

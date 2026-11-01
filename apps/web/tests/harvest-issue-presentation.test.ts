@@ -18,6 +18,15 @@ function completed(stats: HarvestProgressState["stats"] = {}): HarvestProgressSt
   return { stage: "completed", stageIndex: 5, totalStages: 5, message: "本轮处理已结束", stats };
 }
 
+test("structured capture failures distinguish loading, restrictions and pagination without guessing from warning text", () => {
+  for (const [failureKind, title, kind] of [["timeout", "页面加载超时", "details"], ["platform_limit", "平台访问受限", "details"], ["pagination", "翻页未确认", "details"]] as const) {
+    const [issue] = summarizeHarvestIssues({ providers: [provider({ status: "ready", coverage: { ...provider().coverage, stopReason: "no_progress", partial: true, failureKind }, warnings: ["仅为通用提示"] })] });
+    assert.equal(issue!.title, title);
+    assert.equal(issue!.action.kind, kind);
+    assert.doesNotMatch(issue!.reason, /服务故障|已全部采集/);
+  }
+});
+
 test("Agent triage retains confirmed saves, prioritizes uncertain writes and never sends raw diagnostics to the model", () => {
   const issues = summarizeHarvestIssues({ failed: true, progress: completed({ failedCards: 2 }), providers: [
     provider({ status: "verification_required", error: "Cookie: session=private-secret" }),

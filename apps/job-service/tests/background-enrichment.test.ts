@@ -74,6 +74,30 @@ test("English disclosed Shanghai locations become queryable without changing sou
   } finally { repo.close(); }
 });
 
+test("a conflicting historical city confirmation remains explicit and cannot be silently relabelled by collection enrichment", async () => {
+  const repo = openJobRepository(":memory:", { now: () => AT });
+  try {
+    const source = fixture("city-conflict", "上海-青浦区");
+    await repo.importSnapshot(source, opts("city-source", 0));
+    const command = { jobId: "job-city-conflict", locationId: "location-city-conflict", expectedRevision: 1,
+      reason: "Synthetic historical conflicting selection", proposal: { locationKind: "office" as const, countryCode: "CN",
+        area: { kind: "china-catalog" as const, provinceCode: "11", cityCode: "1101" } } };
+    const preview = await repo.previewLocationConfirmation(command);
+    await repo.confirmLocation({ ...command, previewFingerprint: preview.previewFingerprint, reviewed: true }, opts("city-confirm", 1));
+    await repo.processEnrichmentBatch({ actorScope });
+    const data = await repo.readSnapshot();
+    const location = data.locations[0]!;
+    assert.equal(location.raw, "上海-青浦区");
+    assert.equal(location.city, "北京市");
+    assert.equal(location.userResolution?.method, "explicit-user-confirmation");
+    assert.deepEqual(location.evidence, source.locations[0]!.evidence);
+    assert.equal((await queryJobs(data, { workCountryCodes: ["CN"], workRegionGroups: [["上海市", "CN-SH"]] })).totalJobs, 0);
+    assert.equal((await queryJobs(data, { workCountryCodes: ["CN"], workRegionGroups: [["北京市", "CN-BJ"]] })).totalJobs, 1);
+    assert.equal(data.jobs.length, 1);
+    assert.equal(location.coordinates, undefined);
+  } finally { repo.close(); }
+});
+
 test("finite English location aliases respect whole words, parent provinces, explicit countries and source precision", async () => {
   const cases: Array<[string, string | undefined, string | undefined]> = [
     ["Greater Shanghai Area, China", "上海市", "上海市"],

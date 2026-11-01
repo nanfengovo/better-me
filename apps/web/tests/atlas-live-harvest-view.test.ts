@@ -117,6 +117,19 @@ test("live harvest receipts are only active for the exact keyword and location q
   assert.equal(matchesLiveHarvestQuery(view, { keyword: "Python", region: "上海", districtCode: "310115" }), false);
 });
 
+test("metadata label changes retain a live scope only for the same configured region", () => {
+  const query = { keyword: "C#", region: "上海市", market: "global" as const, countryCodes: ["CN"] };
+  const view = buildLiveHarvestView(receipt(), query);
+  for (const region of ["CN-SH", "上海", "Shanghai", "cn-shanghai"]) {
+    assert.equal(matchesLiveHarvestQuery(view, { ...query, region }), true, region);
+  }
+  for (const region of ["北京", "CN-BJ", "上海浦东", "Shanghai, USA", ""]) {
+    assert.equal(matchesLiveHarvestQuery(view, { ...query, region }), false, region);
+  }
+  assert.equal(matchesLiveHarvestQuery(view, { ...query, region: "CN-SH", countryCodes: ["US"] }), false);
+  assert.equal(matchesLiveHarvestQuery(view, { ...query, region: "CN-SH", market: "domestic" }), false);
+});
+
 test("stream progress keeps completed provider cards while replacing only the current provider state", () => {
   const previous = buildLiveHarvestView(receipt(), { keyword: "Java" });
   const running = buildLiveHarvestProgressView(previous, { keyword: "Java" }, {

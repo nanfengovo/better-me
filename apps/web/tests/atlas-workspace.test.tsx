@@ -1382,6 +1382,47 @@ test("connected main search calls the selected source with exact C# and bounded 
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 2);
 });
 
+for (const [label, refreshRecovers, twoSources, sourceFails] of [
+  ["clears a recovered warning", true, false, false],
+  ["retains a still-failing warning", false, false, false],
+  ["accepts a later receipt refresh without an extra export", true, true, false],
+  ["preserves an actual source failure beside a refresh failure", false, false, true],
+] as const) {
+  test(`source refresh rechecks failed receipt notifications and ${label}`, async () => {
+    const initial = searchFixture(true), updated = searchFixture();
+    if (twoSources) for (const data of [initial, updated]) data.sources.push({ ...data.sources[0]!, sourceId: "synthetic-second-source" });
+    let synced = false, refreshReads = 0;
+    installWorkspaceFetch(async (url, init) => {
+      const path = new URL(String(url)).pathname;
+      if (path.endsWith("/sync")) {
+        synced = true;
+        const receipt = sourceReceipt(JSON.parse(String(init?.body)).scope);
+        receipt.run.sourceId = path.includes("synthetic-second-source") ? "synthetic-second-source" : "atlas-demo";
+        if (sourceFails) { receipt.run.status = "failed"; receipt.sourceError = { code: "synthetic-source-unavailable" }; }
+        return sourceResponse(receipt);
+      }
+      assert.equal(path, "/api/v1/dataset/export");
+      if (!synced) return sourceResponse(initial);
+      refreshReads++;
+      if (refreshReads === 1 || !refreshRecovers) throw new Error("Synthetic early snapshot failure");
+      return sourceResponse(updated);
+    });
+    await render(true, false); await connectFixture();
+    const selected = dom.document.querySelector<HTMLSelectElement>('[aria-label="搜索原始来源"]')!;
+    await flush(() => { selected.value = twoSources ? "" : "atlas-demo"; selected.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+    await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "C#"));
+    await openCollection(); await flush(() => button("确认开始采集").click());
+    await waitFor(() => !button("采集新岗位").disabled, "the source run and bounded final snapshot recheck");
+    assert.equal(refreshReads, 2, "one failed receipt export permits one final read, never another collection write");
+    const errors = [...dom.document.querySelectorAll('[role="alert"]')].map(node => node.textContent).join(" ");
+    if (refreshRecovers) {
+      assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 3);
+      assert.doesNotMatch(errors, /索引展示刷新未完成/);
+    } else assert.match(errors, /索引展示刷新未完成/);
+    if (sourceFails) assert.match(errors, /synthetic-source-unavailable/, "the display warning must not overwrite the source failure");
+  });
+}
+
 test("source review opens without rereading and a new search closes candidates bound to the previous query", async () => {
   let previews = 0;
   installWorkspaceFetch(async (url: RequestInfo | URL, init?: RequestInit) => {

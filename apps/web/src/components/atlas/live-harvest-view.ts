@@ -1,5 +1,6 @@
 import type { LiveBatchProviderResultClient, LiveBatchSearchReceipt, LiveBatchSearchStreamEvent } from "../../lib/platform-search-client";
 import { liveCardIdentity } from "./live-card-identity";
+import { resolvePlatformSearchRegion } from "@better-me/source-adapters/browser-contracts";
 
 export type LiveHarvestQuery = {
   keyword: string;
@@ -327,6 +328,12 @@ function normalizeSearchValue(value: string | undefined): string {
   return (value ?? "").trim().replace(/\s+/gu, " ").toLocaleLowerCase();
 }
 
+function normalizeQueryRegion(value: string | undefined): string {
+  // Coverage metadata can temporarily expose the stable ID instead of its label.
+  // Only explicit, unambiguous catalog aliases are equivalent; never infer a city.
+  return (value && resolvePlatformSearchRegion(value)?.id) || normalizeSearchValue(value);
+}
+
 export function matchesLiveHarvestQuery(
   view: LiveHarvestView,
   query: LiveHarvestQuery,
@@ -335,6 +342,6 @@ export function matchesLiveHarvestQuery(
     && (view.query.market ?? "") === (query.market ?? "")
     && JSON.stringify([...(view.query.countryCodes ?? [])].sort()) === JSON.stringify([...(query.countryCodes ?? [])].sort())
     && JSON.stringify(view.query.regionGroups ?? []) === JSON.stringify(query.regionGroups ?? [])
-    && normalizeSearchValue(view.query.region) === normalizeSearchValue(query.region)
+    && normalizeQueryRegion(view.query.region) === normalizeQueryRegion(query.region)
     && (view.query.districtCode ?? "") === (query.districtCode ?? "");
 }

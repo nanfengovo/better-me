@@ -372,7 +372,7 @@ test("collector creates a new platform tab in the background and never activates
   };
 
   await captureProviderViaNativeCdp(cdp, { provider: "51job", platform: "51JOB", url: pageUrl }, [], "Java", controller.signal, 0, "quick");
-  assert.equal(createParams?.url, pageUrl);
+  assert.equal(createParams?.url, "about:blank");
   assert.equal(createParams?.background, true, "a newly created search target should not become the selected tab");
   assert.deepEqual(activatedTargets, []);
 });
@@ -433,11 +433,11 @@ test("collector never navigates a pre-existing platform tab when its search quer
 
   assert.equal(attachedTargets.has("user-visible-51job-session"), false, "collection must not attach to the user's existing platform tab");
   assert.ok(navigations.every(({ sessionId }) => attachedTargets.get(sessionId ?? "") !== target.targetId), "any navigation must stay on an owned background target");
-  assert.deepEqual(createdTargets, [{ url: pageUrl, background: true }], "a mismatched existing page requires an owned background target");
+  assert.deepEqual(createdTargets, [{ url: "about:blank", background: true }], "a mismatched existing page requires an owned background target before navigation");
 });
 
-for (const provider of ["liepin", "51job"] as const) {
-  test(`${provider} collector waits for delayed first-page cards before navigating away`, async (t) => {
+for (const [provider, delay, failedScript = false] of [["liepin", 4000], ["51job", 4000], ["liepin", 12000], ["51job", 12000], ["liepin", 4000, true]] as const) {
+  test(`${provider} collector waits ${delay}ms for loading cards before navigating away${failedScript ? " and recovers a failed-script second page" : ""}`, async (t) => {
     t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000 });
     const platform = provider === "liepin" ? "猎聘" : "51JOB";
     const pageUrl = provider === "liepin"
@@ -450,6 +450,9 @@ for (const provider of ["liepin", "51job"] as const) {
     let lazyScrollProbes = 0;
     const visited: Array<{ url: string; capturedBeforeLeaving: boolean }> = [];
     const capturedPages = new Set<number>();
+    let listener: Parameters<NativeCdp["on"]>[0] | undefined;
+    let secondPageNavigations = 0;
+    const diagnostics: unknown[] = [];
     const pageNumber = () => Number(new URL(currentUrl).searchParams.get(provider === "liepin" ? "currentPage" : "pageNum") ?? (provider === "liepin" ? 0 : 1)) + (provider === "liepin" ? 1 : 0);
     const navigate = (url: string) => {
       if (currentUrl.includes("Java")) visited.push({ url: currentUrl, capturedBeforeLeaving: capturedPages.has(pageNumber()) });
@@ -457,10 +460,16 @@ for (const provider of ["liepin", "51job"] as const) {
       navigationAt = Date.now();
       renderedPage = 0;
       dom.document.body.innerHTML = '<main aria-busy="true">正在加载岗位</main>';
+      if (failedScript && pageNumber() === 2) {
+        secondPageNavigations++;
+        listener?.({ method: "Network.requestWillBeSent", sessionId: "slow-page-session", params: { requestId: "failed-second-page-script", type: "Script" } });
+        listener?.({ method: "Network.loadingFailed", sessionId: "slow-page-session", params: { requestId: "failed-second-page-script" } });
+      }
     };
     const renderWhenReady = () => {
       const page = pageNumber();
-      if (renderedPage === page || Date.now() - navigationAt < 4_000) return;
+      if (failedScript && page === 2 && secondPageNavigations < 2) return;
+      if (renderedPage === page || Date.now() - navigationAt < delay) return;
       renderedPage = page;
       dom.document.body.innerHTML = provider === "liepin"
         ? `<article class="jobCardPcContainer"><a href="https://www.liepin.com/job/${100000000 + page}.shtml"><span class="jobTitleBox">Java 工程师 ${page}</span></a><span class="companyName">合成公司 ${page}</span><span class="labels-box">上海</span></article><ul class="ant-pagination"><li class="ant-pagination-item-active">${page}</li><li class="ant-pagination-next"><button>下一页</button></li></ul>`
@@ -473,7 +482,7 @@ for (const provider of ["liepin", "51job"] as const) {
     };
     const cdp: NativeCdp = {
       connected: true,
-      on() { return () => {}; },
+      on(callback) { listener = callback; return () => { listener = undefined; }; },
       close() {},
       async send<T>(method: string, params?: Record<string, unknown>): Promise<T> {
         if (method === "Target.createTarget") return { targetId: "slow-page" } as T;
@@ -487,7 +496,8 @@ for (const provider of ["liepin", "51job"] as const) {
         if (expression.includes("window.scrollBy(0, 1200)")) lazyScrollProbes++;
         const value = runInNewContext(expression, {
           document: dom.document,
-          location: { href: currentUrl },
+          getComputedStyle: dom.getComputedStyle.bind(dom),
+          location: new URL(currentUrl),
           window: { scrollBy() {} },
         });
         if (expression.includes("return cards;") && Array.isArray(value) && value.length) capturedPages.add(pageNumber());
@@ -496,10 +506,11 @@ for (const provider of ["liepin", "51job"] as const) {
     };
     let settled = false;
     const pending = captureProviderViaNativeCdp(cdp, { provider, platform, url: pageUrl },
-      [{ targetId: "slow-page", type: "page", url: currentUrl }], "Java", undefined, 0, "quick", 2)
+      [{ targetId: "slow-page", type: "page", url: currentUrl }], "Java", undefined, 0, "quick", 2,
+      undefined, undefined, async diagnostic => { diagnostics.push(diagnostic); return undefined; })
       .finally(() => { settled = true; });
     try {
-      for (let turn = 0; turn < 160 && !settled; turn++) {
+      for (let turn = 0; turn < (failedScript ? 300 : 160) && !settled; turn++) {
         t.mock.timers.tick(250);
         await new Promise<void>((resolve) => setImmediate(resolve));
       }
@@ -510,6 +521,12 @@ for (const provider of ["liepin", "51job"] as const) {
       assert.equal(result.coverage?.pagesVisited, 2);
       assert.ok(result.cards.some(item => item.evidence.pageUrl === pageUrl), "the first-page card must retain first-page provenance");
       assert.equal(lazyScrollProbes, 4, "each numbered page gets one bounded two-step lazy-load probe");
+      if (failedScript) {
+        assert.equal(secondPageNavigations, 2, "the failed second-page navigation gets only one script-shell recovery");
+        assert.equal(result.coverage.failureKind, undefined);
+        assert.equal((diagnostics[0] as { observations: Array<{ page: number; recovered: boolean }> }).observations[0]?.page, 2);
+        assert.equal((diagnostics[0] as { observations: Array<{ recovered: boolean }> }).observations[0]?.recovered, true);
+      }
     } finally {
       await dom.happyDOM.abort();
     }
@@ -540,7 +557,114 @@ function readinessSnapshot(pageUrl: string, message: string) {
   };
 }
 
-for (const outcome of ["loading-timeout", "cancelled", "empty", "gate"] as const) {
+for (const outcome of ["delayed-navigation", "blank-recovery", "navigation-timeout", "persistent-blank", "script-recovery", "persistent-script", "script-gate", "script-http-limit"] as const) {
+  test(`owned Liepin initial navigation handles ${outcome} without interrupting an in-flight load`, async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1000 });
+    const url = "https://www.liepin.com/zhaopin/?key=C%23&dq=020";
+    let currentUrl = "about:blank", navigations = 0, stops = 0, createdUrl = "";
+    const started = Date.now();
+    const diagnostics: unknown[] = [];
+    let listener: Parameters<NativeCdp["on"]>[0] | undefined;
+    const dom = new Window({ url });
+    const cdp: NativeCdp = {
+      ...cdpReturning(undefined),
+      on(callback) { listener = callback; return () => { listener = undefined; }; },
+      async send<T>(method: string, params?: Record<string, unknown>): Promise<T> {
+        if (method === "Target.createTarget") { createdUrl = String(params?.url); return { targetId: "owned-navigation" } as T; }
+        if (method === "Target.attachToTarget") return { sessionId: "owned-session" } as T;
+        if (method === "Target.getTargets") return { targetInfos: [{ targetId: "owned-navigation", type: "page", url: currentUrl }] } as T;
+        if (method === "Page.stopLoading") { stops++; return {} as T; }
+        if (method === "Page.navigate") {
+          navigations++;
+          if (outcome.includes("script")) {
+            currentUrl = url;
+            listener?.({ method: "Network.requestWillBeSent", sessionId: "owned-session", params: { requestId: "synthetic-script", type: "Script" } });
+            listener?.({ method: "Network.loadingFailed", sessionId: "owned-session", params: { requestId: "synthetic-script" } });
+            if (outcome === "script-http-limit") listener?.({ method: "Network.responseReceived", sessionId: "owned-session", params: { type: "Document", response: { status: 429 } } });
+          }
+          if (outcome === "navigation-timeout") { currentUrl = url; throw new Error("CDP command timeout"); }
+          if (outcome === "blank-recovery" && navigations > 1) currentUrl = url;
+          return {} as T;
+        }
+        if (method === "DOMSnapshot.captureSnapshot") throw new Error("synthetic live DOM only");
+        if (method !== "Runtime.evaluate") return {} as T;
+        if (outcome === "delayed-navigation" && Date.now() - started >= 1500) currentUrl = url;
+        const scriptStuck = outcome === "persistent-script" || outcome === "script-http-limit" || outcome === "script-recovery" && navigations < 2;
+        dom.document.body.innerHTML = outcome === "script-gate" ? '<main aria-busy="true">请先登录</main>' : scriptStuck ? '<main aria-busy="true">正在加载</main>' : currentUrl === url
+          ? '<article class="jobCardPcContainer"><a href="https://www.liepin.com/job/123456789.shtml"><span class="jobTitleBox">C# 工程师</span></a><span class="companyName">合成公司</span><span class="labels-box">上海</span></article>' : "";
+        return { result: { value: runInNewContext(String(params?.expression), {
+          document: dom.document, getComputedStyle: dom.getComputedStyle.bind(dom), location: new URL(currentUrl), window: { scrollBy() {} },
+        }) } } as T;
+      },
+    };
+    let settled = false;
+    const pending = captureProviderViaNativeCdp(cdp, { provider: "liepin", platform: "猎聘", url }, [], "C#", undefined, 0, "quick", 1,
+      undefined, undefined, async diagnostic => { diagnostics.push(diagnostic); return undefined; }).finally(() => { settled = true; });
+    for (let i = 0; i < 180 && !settled; i++) { t.mock.timers.tick(250); await new Promise<void>(resolve => setImmediate(resolve)); }
+    try {
+      assert.equal(settled, true);
+      const result = await pending;
+      assert.equal(createdUrl, "about:blank", "attach observers before starting exactly one owned navigation");
+      assert.equal(stops, 0, "do not cancel Chrome's initial document load");
+      assert.equal(navigations, ["persistent-blank", "blank-recovery", "script-recovery", "persistent-script"].includes(outcome) ? 2 : 1, "only an inert blank or unrestricted failed-script loading shell gets one bounded recovery");
+      if (outcome === "script-gate" || outcome === "script-http-limit") {
+        assert.equal(result.cards.length, 0);
+        assert.equal(result.coverage.failureKind, outcome === "script-gate" ? "login" : "platform_limit");
+      } else if (outcome === "persistent-blank") {
+        assert.equal(result.cards.length, 0);
+        assert.equal(result.coverage.failureKind, "unknown", "blank without failed requests is not proven network failure");
+        assert.equal(diagnostics.length, 1);
+      } else if (outcome === "persistent-script") {
+        assert.equal(result.cards.length, 0);
+        assert.equal(result.coverage.failureKind, "timeout");
+        assert.equal(diagnostics.length, 1);
+        assert.ok(Date.now() - started < 45_000, "failed scripts cannot cause unlimited refreshes");
+      } else {
+        assert.equal(result.cards.length, 1, "a navigation command timeout does not cancel a successfully loading document");
+        assert.equal(result.status, "ready");
+        if (outcome === "script-recovery") {
+          assert.equal(diagnostics.length, 1, "keep the failed-page observation even after recovery");
+          assert.equal((diagnostics[0] as { observations: Array<{ recovered: boolean }> }).observations[0]?.recovered, true);
+          assert.equal(result.coverage.failureKind, undefined);
+        }
+      }
+    } finally { await dom.happyDOM.abort(); }
+  });
+}
+
+test("verification redirect is a gate even when structural snapshot projection fails", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1000 });
+  const url = "https://www.zhipin.com/web/geek/job?query=C%23&city=101020100";
+  const cdp: NativeCdp = {
+    ...cdpReturning(undefined),
+    async send<T>(method: string, params?: Record<string, unknown>): Promise<T> {
+      if (method === "Target.createTarget") return { targetId: "owned-gate" } as T;
+      if (method === "Target.attachToTarget") return { sessionId: "owned-session" } as T;
+      if (method === "Target.getTargets") return { targetInfos: [{ targetId: "owned-gate", type: "page", url }] } as T;
+      if (method === "DOMSnapshot.captureSnapshot") throw new Error("redirect changed document URL");
+      if (method !== "Runtime.evaluate") return {} as T;
+      const expression = String(params?.expression);
+      const value = expression.includes("return cards;") ? [] : expression.includes("marker:")
+        ? { url: "https://www.zhipin.com/web/user/safe/verify", marker: "" }
+        : expression.includes("candidateLinks:") ? { readyState: "complete", route: "verification", failure: "verification", candidateLinks: 0, listRoots: 0, loadingIndicators: 0 }
+        : { advanced: false, kind: "scroll", exhausted: false };
+      return { result: { value } } as T;
+    },
+  };
+  let settled = false;
+  const pending = captureProviderViaNativeCdp(cdp, { provider: "boss", platform: "BOSS直聘", url }, [], "C#")
+    .finally(() => { settled = true; });
+  for (let i = 0; i < 80 && !settled; i++) {
+    t.mock.timers.tick(250);
+    await new Promise<void>(resolve => setImmediate(resolve));
+  }
+  const result = await pending;
+  assert.equal(result.status, "verification_required");
+  assert.equal(result.coverage.stopReason, "gate");
+  assert.equal(result.coverage.partial, true);
+});
+
+for (const outcome of ["loading-timeout", "loading-stuck", "cancelled", "empty", "gate"] as const) {
   test(`initial page readiness handles ${outcome} without advancing to another page`, async (t) => {
     t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000 });
     const pageUrl = "https://we.51job.com/pc/search?keyword=Java&jobArea=020000&searchType=2";
@@ -557,12 +681,13 @@ for (const outcome of ["loading-timeout", "cancelled", "empty", "gate"] as const
         if (method === "Target.createTarget") return { targetId: target.targetId } as T;
         if (method === "Target.attachToTarget") return { sessionId: "readiness-session" } as T;
         if (method === "Target.getTargets") return { targetInfos: [target] } as T;
-        if (method === "Page.navigate") { paginationInputs++; return {} as T; }
+        if (method === "Page.navigate") { if (params?.url !== pageUrl) paginationInputs++; return {} as T; }
         if (method === "DOMSnapshot.captureSnapshot") { snapshotReads++; return readinessSnapshot(pageUrl, message) as T; }
         if (method !== "Runtime.evaluate") return {} as T;
         const expression = String(params?.expression);
         if (expression.includes("btn.click()")) paginationInputs++;
-        const value = expression.includes("return cards;") ? [] : expression.includes("marker:")
+        const value = expression.includes("candidateLinks:") && outcome === "loading-stuck" ? { readyState: "interactive", route: "search", failure: "unknown", loadingIndicators: 1 }
+          : expression.includes("return cards;") ? [] : expression.includes("marker:")
           ? { url: pageUrl, marker: "" } : { advanced: false, kind: "page", exhausted: false };
         return { result: { value } } as T;
       },
@@ -570,8 +695,8 @@ for (const outcome of ["loading-timeout", "cancelled", "empty", "gate"] as const
     let settled = false;
     const pending = captureProviderViaNativeCdp(cdp, { provider: "51job", platform: "51JOB", url: pageUrl },
       [target], "Java", controller.signal, outcome === "gate" ? 2_500 : 0, "quick", 2,
-      async () => { focusRequests++; if (outcome === "gate") controller.abort(); return true; }).finally(() => { settled = true; });
-    for (let turn = 0; turn < 60 && !settled; turn++) {
+      async () => { focusRequests++; if (outcome === "gate") controller.abort(); return true; }, undefined, async () => undefined).finally(() => { settled = true; });
+    for (let turn = 0; turn < 110 && !settled; turn++) {
       t.mock.timers.tick(250);
       await new Promise<void>((resolve) => setImmediate(resolve));
       if (outcome === "cancelled" && snapshotReads > 0) controller.abort();
@@ -582,12 +707,13 @@ for (const outcome of ["loading-timeout", "cancelled", "empty", "gate"] as const
     assert.equal(result.cards.length, 0);
     assert.equal(result.coverage?.pagesVisited, 1, "readiness retries do not count as additional pages");
     assert.equal(result.status, outcome === "empty" ? "empty" : outcome === "gate" ? "verification_required" : "unknown_layout");
-    assert.equal(result.coverage?.stopReason, outcome === "loading-timeout" ? "no_progress" : outcome === "empty" ? "exhausted" : outcome === "gate" ? "cancelled" : outcome);
+    assert.equal(result.coverage?.stopReason, outcome.startsWith("loading") ? "no_progress" : outcome === "empty" ? "exhausted" : outcome === "gate" ? "cancelled" : outcome);
     assert.equal(result.coverage?.partial, outcome !== "empty");
     assert.equal(focusRequests, outcome === "gate" ? 1 : 0, "only an explicitly enabled interactive gate may request browser focus");
-    if (outcome === "loading-timeout") {
+    if (outcome.startsWith("loading")) {
       assert.ok(snapshotReads > 1, "an unknown loading shell must be re-read");
-      assert.ok(Date.now() - startedAt >= 8_000 && Date.now() - startedAt <= 10_000, "readiness waits are bounded even if the shell never changes");
+      const deadline = outcome === "loading-stuck" ? 20_000 : 8_000;
+      assert.ok(Date.now() - startedAt >= deadline && Date.now() - startedAt <= deadline + 2_000, "readiness waits are bounded even if the shell never changes");
     } else {
       assert.equal(snapshotReads, 1, "cancellation, explicit empty results and gates do not repeat the readiness wait");
       assert.ok(Date.now() - startedAt < 4_000);

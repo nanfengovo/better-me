@@ -49,7 +49,7 @@ test("blocked and unavailable service outcomes are not converted into zero jobs"
 });
 
 test("live batch returns validated coverage and does not turn transport or schema errors into empty results", async () => {
-  const coverage = { pagesVisited: 12, scrollSteps: 0, scrollLimit: 60, pageLimit: 15, cardLimit: 1500, stopReason: "page_limit", partial: true };
+  const coverage = { pagesVisited: 12, scrollSteps: 0, scrollLimit: 60, pageLimit: 15, cardLimit: 1500, stopReason: "page_limit", partial: true, failureKind: "timeout" };
   const live = {
     capturedAt: "2026-10-25T12:00:00Z",
     results: [{ provider: "liepin", platform: "猎聘", pageUrl: "https://www.liepin.com/zhaopin/?key=Java", status: "empty", cards: [], rawCardCount: 0, warnings: [], coverage }],
@@ -58,6 +58,7 @@ test("live batch returns validated coverage and does not turn transport or schem
   const parsed = await runLivePlatformBatchSearch({ keyword: "Java", providers: ["liepin"] });
   assert.equal(parsed.results[0]!.coverage.pagesVisited, 12);
   assert.equal(parsed.results[0]!.coverage.partial, true);
+  assert.equal(parsed.results[0]!.coverage.failureKind, "timeout");
 
   mock.restoreAll();
   mock.method(globalThis, "fetch", async () => Response.json({ capturedAt: live.capturedAt, results: [{ ...live.results[0], coverage: undefined }] }));

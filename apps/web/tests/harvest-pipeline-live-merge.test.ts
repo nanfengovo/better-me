@@ -49,6 +49,15 @@ function card(id: string) {
   };
 }
 
+test("later keyword failures retain their own structured reason in cumulative coverage", () => {
+  const first = receipt("C#", [card("1")]);
+  const later = receipt(".NET", [card("2")]);
+  later.results[0]!.coverage = { ...later.results[0]!.coverage, stopReason: "gate", partial: true, failureKind: "platform_limit" };
+  const merged = mergeLiveBatchSearchReceipts([first, later], ["C#", ".NET"], []);
+  assert.equal(merged.results[0]!.coverage.stopReason, "gate");
+  assert.equal(merged.results[0]!.coverage.failureKind, "platform_limit");
+});
+
 test("merging synonym captures deduplicates cards and sums per-query coverage", () => {
   const merged = mergeLiveBatchSearchReceipts(
     [

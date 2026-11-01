@@ -85,6 +85,19 @@ const statusDescriptions: Partial<Record<LiveHarvestProvider["status"], SourceDe
 
 function coverageDescription(provider: LiveHarvestProvider): SourceDescription | undefined {
   const coverage = provider.coverage;
+  const captureFailures: Partial<Record<NonNullable<typeof coverage.failureKind>, SourceDescription>> = {
+    timeout: { title: "页面加载超时", reason: "截止时页面仍有明确加载信号，未能确认完整岗位列表。", severity: "warning", kind: "details", label: "查看加载诊断", advice: "检查本轮脱敏加载证据；未返回的页面不算已覆盖。" },
+    platform_limit: { title: "平台访问受限", reason: "平台返回访问限制或限流信号，已停止派发后续请求，不自动绕过限制。", severity: "warning", kind: "details", label: "查看限制诊断", advice: "等待平台允许后再由你决定是否继续；不把限流误报为登录失败或零岗位。" },
+    pagination: { title: "翻页未确认", reason: "触发翻页后未能核实下一页与岗位卡片共同更新，未确认页面不算已覆盖。", severity: "warning", kind: "details", label: "查看翻页诊断", advice: "核对翻页前后页码、控件与卡片结构证据，已收到的岗位保留。" },
+    network: { title: "页面连接失败", reason: "页面连接或资源请求失败，无法确认列表完整性。", severity: "warning", kind: "details", label: "查看连接诊断", advice: "检查连接后再决定是否继续，不能据此判断没有岗位。" },
+    layout: { title: "列表结构未识别", reason: "页面未通过列表解析校验，不能据此确认零岗位。", severity: "warning", kind: "details", label: "查看结构诊断", advice: "核对候选链接与列表结构证据，不放宽岗位来源校验。" },
+    login: statusDescriptions.login_required,
+    verification: statusDescriptions.verification_required,
+  };
+  if (coverage.failureKind && coverage.partial && coverage.stopReason !== "cancelled") {
+    const failure = captureFailures[coverage.failureKind];
+    if (failure) return failure;
+  }
   const budget = { severity: "info", kind: "resume", label: "继续读取", advice: "可按需要继续读取；本轮预算不是平台岗位总量，也不代表服务故障。" } as const;
   switch (coverage.stopReason) {
     case "page_limit": return { ...budget, title: "达到本轮页数上限", reason: `已读取 ${coverage.pagesVisited} / ${coverage.pageLimit} 页，本轮按预算停止，未声明覆盖全部岗位。` };
@@ -122,6 +135,10 @@ export function summarizeHarvestIssues({ providers = [], progress, failed = fals
       kind: "resume", label: "继续读取", advice: "已收到的卡片保留；继续读取前可先核对本轮回执。",
     })];
     const description = statusDescriptions[provider.status];
+    if (provider.coverage.failureKind && provider.status !== "login_required" && provider.status !== "verification_required") {
+      const diagnosed = coverageDescription(provider);
+      if (diagnosed) return [sourceIssue(provider, provider.coverage.failureKind, diagnosed)];
+    }
     if (description) return [sourceIssue(provider, provider.status, description)];
     if (provider.status === "error" || provider.coverage.stopReason === "error") return [sourceIssue(provider, "error", {
       title: provider.status === "ready" && provider.cardCount > 0 ? "部分页面读取失败" : "平台读取失败",

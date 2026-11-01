@@ -227,6 +227,34 @@ test("a stale export below the requested revision is not published and is retrie
   assert.equal(exports, 2);
 });
 
+test("a foreground snapshot catching up clears an earlier export warning without downloading again", async () => {
+  mock.timers.enable({ apis: ["setTimeout"] });
+  let exports = 0;
+  mock.method(globalThis, "fetch", async (input: RequestInfo | URL) => {
+    if (new URL(String(input)).pathname.endsWith("/status")) return response(status(11));
+    exports++; return new Response("synthetic unavailable", { status: 503 });
+  });
+  const props = fixture();
+  await render(props);
+  assert.match(state.error ?? "", /索引暂未刷新/);
+  await render({ ...props, currentRevision: 12 });
+  await tick(1_500);
+  assert.equal(state.error, undefined, "the displayed index already contains the requested revision");
+  assert.equal(exports, 1, "do not export the same large index again merely to clear a warning");
+});
+
+test("a foreground catch-up during a failing export does not raise a false stale-index warning", async () => {
+  const slow = deferred<Response>();
+  mock.method(globalThis, "fetch", async (input: RequestInfo | URL) =>
+    new URL(String(input)).pathname.endsWith("/status") ? response(status(11)) : slow.promise);
+  const props = fixture();
+  await render(props);
+  await render({ ...props, currentRevision: 12 });
+  await act(async () => slow.resolve(new Response("synthetic unavailable", { status: 503 })));
+  assert.equal(state.error, undefined);
+  assert.equal(state.refreshingSnapshot, false);
+});
+
 test("disabling observation clears request deadlines even when transport ignores abort", async () => {
   mock.timers.enable({ apis: ["setTimeout"] });
   const scheduling = mock.method(globalThis, "setTimeout");

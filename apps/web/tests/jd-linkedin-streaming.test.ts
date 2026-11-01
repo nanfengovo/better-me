@@ -11,6 +11,45 @@ function deferred() {
 const html = (id: number) => `<li class="base-search-card"><a class="base-search-card__full-link" href="https://www.linkedin.com/jobs/view/${id}/"><h3 class="base-search-card__title">Software Engineer</h3></a><span class="base-search-card__subtitle">Synthetic Company</span></li>`;
 const plan = { provider: "linkedin" as const, platform: "LinkedIn" as const, url: "https://www.linkedin.com/jobs/search/?keywords=software" };
 
+test("LinkedIn recovers only transient failed pages without discarding successful pages", async () => {
+  const first: string[] = [], fallback: string[] = [];
+  const result = await fetchLinkedInDirect(plan, "software", undefined, "quick", 2, undefined, [
+    async url => {
+      first.push(url);
+      if (new URL(url).searchParams.get("start") === "25") throw new TypeError("fetch failed");
+      return new Response(html(123456));
+    },
+    async url => { fallback.push(url); return new Response(html(123457)); },
+  ]);
+  assert.equal(first.length, 2);
+  assert.equal(fallback.length, 1, "a partial success must not suppress recovery of the failed page");
+  assert.equal(new URL(fallback[0]!).searchParams.get("start"), "25");
+  assert.equal(result.cards.length, 2);
+  assert.equal(result.coverage.pagesVisited, 2);
+});
+
+test("LinkedIn never retries platform restrictions through another transport", async () => {
+  let fallback = 0;
+  const result = await fetchLinkedInDirect(plan, "software", undefined, "quick", 2, undefined, [
+    async url => new URL(url).searchParams.get("start") === "25" ? new Response("restricted", { status: 429 }) : new Response(html(123456)),
+    async () => { fallback++; return new Response(html(123457)); },
+  ]);
+  assert.equal(fallback, 0);
+  assert.equal(result.cards.length, 1);
+  assert.equal(result.coverage.partial, true);
+  assert.match(result.warnings.join(" "), /platform_limit/);
+});
+
+test("LinkedIn stops scheduling new pages after a rate-limit response", async () => {
+  let requests = 0;
+  const result = await fetchLinkedInDirect(plan, "software", undefined, "standard", 10, undefined, [
+    async () => ++requests === 1 ? new Response("restricted", { status: 429 }) : new Response(html(123456 + requests)),
+  ]);
+  assert.equal(requests, 4, "only already in-flight requests may finish after a platform restriction");
+  assert.equal(result.coverage.stopReason, "gate");
+  assert.equal(result.coverage.partial, true);
+});
+
 test("LinkedIn parses and emits a successful page before another page response arrives", async () => {
   const releaseSecond = deferred(), secondStarted = deferred();
   const cardBatches: number[] = [];

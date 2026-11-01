@@ -58,6 +58,7 @@ const providerResult = z.object({
   cards: z.array(liveCard).max(3000), rawCardCount: count, warnings: z.array(z.string().max(2000)).max(100), error: z.string().max(2000).optional(),
   coverage: z.object({ pagesVisited: count, scrollSteps: count, scrollLimit: count, pageLimit: count.min(1), cardLimit: count.min(1),
     stopReason: z.enum(["exhausted", "page_limit", "scroll_limit", "card_limit", "no_progress", "gate", "error", "cancelled"]), partial: z.boolean(),
+    failureKind: z.enum(["timeout", "network", "http", "platform_limit", "login", "verification", "layout", "pagination", "cancelled", "unknown"]).optional(),
   }).strict(),
 }).strict().refine(result => result.platform === platforms[result.provider]
   && !!reviewedCardsSearchPage(result.pageUrl, result.provider)

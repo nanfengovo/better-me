@@ -84,6 +84,12 @@ export function mergeLiveBatchSearchReceipts(
             : best
         ), "exhausted" as LiveBatchProviderResultClient["coverage"]["stopReason"]);
     const warnings = [...new Set(entries.flatMap((entry) => entry.warnings))];
+    const diagnosedCoverage = entries
+      .filter(entry => entry.coverage.failureKind)
+      .reduce<LiveBatchProviderResultClient["coverage"] | undefined>((best, entry) => (
+        !best || mergedStopReasonPriority[entry.coverage.stopReason] > mergedStopReasonPriority[best.stopReason]
+          ? entry.coverage : best
+      ), undefined);
     if (queryTerms.length > 1) {
       warnings.push(`本平台串行检索 ${queryTerms.length} 个技术词并合并去重：${queryTerms.join("、")}`);
     }
@@ -105,6 +111,7 @@ export function mergeLiveBatchSearchReceipts(
         scrollSteps,
         scrollLimit,
         stopReason,
+        ...(diagnosedCoverage ? { failureKind: diagnosedCoverage.failureKind } : {}),
         partial: stopReason !== "exhausted",
       },
     });

@@ -1042,6 +1042,20 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
     const acquisitionCountries = mode === "domestic" ? (chinaFilter.workCountryCodes.length ? chinaFilter.workCountryCodes : countryCatalog.domesticCountryCodes) : scopeCountry ? [scopeCountry] : [];
     // Serialize snapshot refreshes so a slower, older response cannot replace a newer index.
     let refresh: Promise<void> = Promise.resolve();
+    let receiptSequence = 0, refreshedThroughReceipt = 0;
+    const refreshSourceSnapshot = async () => {
+      // A read started after these receipts covers their writes. A later
+      // successful read supersedes an earlier failed notification, not vice versa.
+      const throughReceipt = receiptSequence;
+      const timeout = new AbortController();
+      const timer = setTimeout(() => timeout.abort(), 20000);
+      try {
+        const snapshot = await client.snapshot({ signal: AbortSignal.any([abort.signal, timeout.signal]) });
+        if (abort.signal.aborted || searchAbort.current !== abort) return;
+        publishLiveSnapshot(snapshot); setDataMode("live");
+        refreshedThroughReceipt = throughReceipt;
+      } finally { clearTimeout(timer); }
+    };
     const enableLiveCommercialSearch = import.meta.env?.DEV === true && !searchSourceId;
     if (enableLiveCommercialSearch) {
       setHarvestStage({ stage: "intent-expansion", stageIndex: 1, totalStages: 5, message: "正在连接实时平台并准备本轮搜索…" });
@@ -1171,15 +1185,8 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
         onReceipt: async (receipt, entry) => {
           // Keep the key while the server is still running or the outcome is not confirmed.
           if (receipt.run.status !== "running") { const identity = requestIdentities.get(entry.sourceId); if (identity) searchKeys.current.delete(identity); }
-          refresh = refresh.catch(() => {}).then(async () => {
-            const timeout = new AbortController();
-            const timer = setTimeout(() => timeout.abort(), 20000);
-            try {
-              const snapshot = await client.snapshot({ signal: AbortSignal.any([abort.signal, timeout.signal]) });
-              if (abort.signal.aborted || searchAbort.current !== abort) return;
-              publishLiveSnapshot(snapshot); setDataMode("live");
-            } finally { clearTimeout(timer); }
-          });
+          receiptSequence++;
+          refresh = refresh.catch(() => {}).then(refreshSourceSnapshot);
           await refresh;
         },
       });
@@ -1194,11 +1201,20 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
       const totalAddedAll = added + (liveSummary?.totalAdded ?? 0) + (liveSummary?.totalUpdated ?? 0);
       setSourceSearchMessage(`${liveNotice ? `${liveNotice} · ` : ""}${aggregate.cancelled ? "已停止等待" : "本次配置来源读取已结束"} · ${receipts.length}/${aggregate.total} 个来源返回回执，原始返回 ${records} 条，新增入库 ${added} 岗。原始条数不代表匹配岗位数；仅已确认匹配的结果进入索引。${pendingRequirements ? ` 另有 ${pendingRequirements} 条候选要求未读全，尚不能判断是否符合。` : ""}${failed ? ` ${failed} 个来源未成功，请展开逐源状态。` : ""}${aggregate.cancelled ? " 未确认的请求可能已保存部分数据，可重新读取索引核对。" : ""}${totalAddedAll === 0 ? " 💡 提示：企业官网公开源可能受网络或配额限制；已展开【全网商业平台聚合】，可查看平台当前页面在本轮预算内返回的岗位卡片，登录/验证需由你本人在 Chrome 中完成。" : ""}`);
       if (totalAddedAll === 0) setPlatformSearchOpen(true);
-      if (failed || liveCommercialError) setSourceSearchError([
+      let refreshStillFailed = false;
+      if (!abort.signal.aborted && refreshedThroughReceipt < receiptSequence) {
+        // Recheck once after all source receipts; do not recollect or replay a
+        // write just because a display export timed out during ingestion.
+        try { await refreshSourceSnapshot(); }
+        catch { refreshStillFailed = true; }
+      }
+      if (searchAbort.current !== abort) return;
+      setSourceSearchError([
         liveCommercialError?.message,
         ...aggregate.sources.filter((entry) => entry.error || entry.status === "failed").map((entry) => `${entry.label}：${entry.error?.message ?? entry.receipt?.sourceError?.code ?? "来源读取失败"}`),
+        refreshStillFailed ? "部分来源已返回，但索引展示刷新未完成，请点击“重新读取索引”核对。来源回执已保留。" : undefined,
+        aggregate.notificationErrors.some(entry => entry.phase === "progress") ? "部分来源进度展示未完整更新；来源回执已保留，请展开逐源状态核对。" : undefined,
       ].filter(Boolean).join("；"));
-      if (aggregate.notificationErrors.length) setSourceSearchError("部分来源已返回，但索引展示刷新未完成，请点击“重新读取索引”核对。来源回执已保留。");
     } catch (error) {
       if (searchAbort.current === abort) setSourceSearchError(error instanceof Error ? error.message : "聚合来源搜索失败。");
     } finally { if (searchAbort.current === abort) setSourceSearching(false); }

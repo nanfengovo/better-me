@@ -30,6 +30,7 @@ const liveBatchCoverage = z.object({
   cardLimit: z.number().int().positive(),
   stopReason: z.enum(["exhausted", "page_limit", "scroll_limit", "card_limit", "no_progress", "gate", "error", "cancelled"]),
   partial: z.boolean(),
+  failureKind: z.enum(["timeout", "network", "http", "platform_limit", "login", "verification", "layout", "pagination", "cancelled", "unknown"]).optional(),
 }).strict();
 const liveBatchCard = card.extend({ company: z.string().trim().min(1).max(500) });
 const platformForProvider: Record<PlatformSearchInput["provider"], z.infer<typeof platform>> = {

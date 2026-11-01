@@ -58,6 +58,10 @@ export function useBackgroundEnrichment(input: BackgroundEnrichmentInput): Backg
 
     function publish() {
       if (disposed) return;
+      // Foreground ingestion can satisfy the same revision independently of a
+      // failed background export. A historical transport error is not current
+      // evidence that the displayed index is stale.
+      if (wantedRevision <= currentRevision()) snapshotError = undefined;
       const error = statusError ?? snapshotError
         ?? (status?.workerState === "error" || status?.workerError ? WORKER_ERROR : undefined);
       setBound({ connection, state: {
@@ -109,7 +113,7 @@ export function useBackgroundEnrichment(input: BackgroundEnrichmentInput): Backg
           succeeded = true;
         } catch {
           if (!visible() || snapshotRequest !== controller || (controller.signal.aborted && !timedOut)) return;
-          snapshotError = SNAPSHOT_ERROR;
+          snapshotError = wantedRevision > currentRevision() ? SNAPSHOT_ERROR : undefined;
         } finally {
           clearTimeout(timeout);
           controller.signal.removeEventListener("abort", clearDeadline);
