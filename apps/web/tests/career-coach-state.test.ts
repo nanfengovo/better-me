@@ -53,11 +53,13 @@ test("duplicate record delivery is idempotent and cannot replace an earlier reco
   assert.deepEqual(initial.records, [], "adding a record must not mutate the previous state");
 });
 
-test("record limits fail visibly without silently truncating history", () => {
+test("longitudinal records can cross the former 80-record cap without truncating history", () => {
   let state = createCoachState("workspace-a", AT);
   for (let index = 0; index < 80; index++) state = addCoachRecord(state, planRecord(`plan-${index}`));
   const ids = state.records.map(record => record.id);
-  assert.throws(() => addCoachRecord(state, planRecord("over-limit")), /80.*备份/);
+  const extended = addCoachRecord(state, planRecord("over-limit"));
+  assert.equal(extended.records.length, 81);
+  assert.deepEqual(extended.records.slice(0, 80).map(record => record.id), ids);
   assert.deepEqual(state.records.map(record => record.id), ids);
   assert.equal(addCoachRecord(state, state.records[0]!), state, "duplicate delivery remains harmless even at the limit");
 });
@@ -121,11 +123,13 @@ test("unknown task IDs and invalid submission data leave existing state untouche
   assert.deepEqual(state, before);
 });
 
-test("submission limits preserve every prior submission and do not advance a task on failure", () => {
+test("longitudinal submissions cross the former 240 cap while preserving prior evidence", () => {
   let state = adopted();
   for (let index = 0; index < 240; index++) state = addCoachSubmission(state, { taskId: "task-a", evidence: `证据 ${index}`, minutes: 1 });
   const before = structuredClone(state);
-  assert.throws(() => addCoachSubmission(state, { taskId: "task-b", evidence: "超额提交", minutes: 1 }), /240.*备份/);
+  const extended = addCoachSubmission(state, { taskId: "task-b", evidence: "新的提交", minutes: 1 });
+  assert.equal(extended.submissions.length, 241);
+  assert.deepEqual(extended.submissions.slice(0, 240), before.submissions);
   assert.deepEqual(state, before); assert.equal(state.activePlan?.progress["task-b"]?.status, "todo");
 });
 

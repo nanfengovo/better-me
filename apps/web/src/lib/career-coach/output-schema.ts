@@ -53,9 +53,16 @@ export function coachOutputSchema(request: CoachRequest): Schema {
       evidenceAssessment: { type: "string", enum: ["insufficient", "needs_revision", "ready_for_self_check"] },
       strengths: list(text), improvements: list(text), nextActions: list(text), checkQuestions: list(text),
     });
+    case "drill": return object({ kind: kind("drill"), ...(request.drill?.answer ? {
+      feedback: object({ verdict: { type: "string", enum: ["supported", "needs_practice", "uncertain"] }, quote: text, explanation: text, nextAction: text }),
+    } : { question: object({ text, skill: short, why: text, criteria: list(text, 5, 1) }) }) });
     case "interview": {
       const answered = request.interview?.turns.length ?? 0;
       const complete = answered >= (request.interview?.totalRounds ?? request.settings.interviewRounds);
+      if (request.interview?.adaptive && answered > 0 && !complete) return object({
+        kind: kind("interview"), complete: { type: "boolean" }, feedback,
+        question: object({ text, focus: short, evaluationCriteria: list(text, 5, 1) }), summary: text, nextActions: list(text),
+      }, ["question", "summary"]);
       return object({
         kind: kind("interview"), complete: { type: "boolean", const: complete },
         ...(!complete ? { question: object({ text, focus: short, evaluationCriteria: list(text, 5, 1) }) } : { summary: text }),

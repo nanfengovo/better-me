@@ -18,7 +18,7 @@
 .coach-header p { color:var(--ui-text-muted,#637082); max-width:680px; font-size:14px; }
 .coach-header-actions { display:flex; flex-wrap:wrap; gap:8px; flex-shrink:0; padding-top:20px; }
 .coach-header-actions button { font-size:13px; padding:8px 12px; }
-.coach-tabs { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; max-width:1480px; margin:0 auto; padding:0 32px 24px; }
+.coach-tabs { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; max-width:1480px; margin:0 auto; padding:0 32px 24px; }
 .coach-tabs button { justify-content:flex-start; text-align:left; min-width:0; padding:14px 12px; gap:8px; border-radius:12px; }
 .coach-tabs button>svg:last-child { margin-left:auto; flex-shrink:0; opacity:.5; }
 .coach-tabs button>span:not(.coach-tab-number) { font-size:14px; font-weight:600; }
@@ -132,3 +132,13 @@
 @media (max-width:1100px) { .coach-tab-number,.coach-tabs button>svg:last-child { display:none; } .coach-tabs { gap:6px; } .coach-tabs small { display:none; } .coach-layout { grid-template-columns:260px minmax(0,1fr); gap:20px; } .coach-header-actions { max-width:150px; } }
 @media (max-width:760px) { .coach-header { flex-direction:column; padding:24px 18px 20px; gap:10px; } .coach-header-actions { padding-top:0; max-width:none; } .coach-tabs { padding:0 18px 18px; grid-template-columns:repeat(5,minmax(0,1fr)); gap:5px; } .coach-tabs button { flex-direction:column; gap:5px; padding:10px 3px; border-radius:9px; } .coach-tabs button>span:not(.coach-tab-number) { font-size:11px; white-space:nowrap; } .coach-layout { display:flex; flex-direction:column; gap:22px; padding:0 18px 30px; } .coach-setup,.coach-main { width:100%; } .coach-setup { padding:18px; } .coach-compose,.coach-result { padding:18px; } .coach-diff { grid-template-columns:1fr; } .coach-metrics { grid-template-columns:repeat(2,1fr); } .coach-footer { align-items:flex-start; text-align:center; } .coach-footer svg { flex-shrink:0; } .career-coach textarea,.career-coach input:not([type=checkbox]),.career-coach select { font-size:16px; } .coach-empty { padding:32px 18px; } .coach-question { padding:16px; } .career-coach-entry-nav { padding:10px 18px; } }
 @media (prefers-reduced-motion:reduce) { .career-coach button { transition:none; } }
+.coach-journey { display:flex; flex-wrap:wrap; gap:8px 16px; font-size:12px; margin-bottom:18px; color:var(--ui-text-muted); }
+.coach-history-scroll { max-height:380px; overflow:auto; overscroll-behavior:contain; overflow-wrap:anywhere; }
+.career-coach .coach-code { font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:13px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.career-coach .coach-consent { display:flex; flex-direction:row; align-items:flex-start; margin:16px 0; }
+.career-coach .coach-consent input { width:auto; margin-top:4px; }
+.career-coach .coach-import { margin:0; font-size:12px; }
+.career-coach .coach-import input { font-size:12px; padding:5px; }
+.career-coach details>summary { cursor:pointer; }
+.career-coach [hidden] { display:none!important; }
+@media (max-width:760px) { .coach-tabs { grid-template-columns:repeat(3,minmax(0,1fr)); } .coach-history-scroll { max-height:320px; } }

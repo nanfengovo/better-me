@@ -26,6 +26,17 @@ test("task lifetime and complete history survive view unsubscribe and remount", 
   assert.equal(restored.getSnapshot().data.tasks.at(-1)?.status, "completed");
   assert.deepEqual(restored.getSnapshot().data.messages.filter(message => message.origin === "companion").map(message => message.text), ["讨论合成项目", "合成回复"]);
 });
+test("local practice shares unified task lifetime without claiming to wait for a model", async () => {
+  const { agent, reads } = await setup(), started = deferred<void>(), result = deferred<string>();
+  const pending = agent.run({ ...descriptor, origin: "growth", execution: "local", shareMemories: false, destination: "浏览器隔离沙盒" }, async (_signal, context) => {
+    assert.equal(context.text, ""); started.resolve(); return result.promise;
+  }, value => value);
+  await started.promise;
+  assert.match(agent.getSnapshot().data.tasks.at(-1)?.detail ?? "", /隔离练习.*不调用模型/);
+  assert.equal(reads(), 0); agent.setCenterOpen(false);
+  result.resolve("11/11 实际测试通过；不是能力认证。"); await pending;
+  assert.equal(agent.getSnapshot().data.tasks.at(-1)?.status, "completed");
+});
 test("confirmed project background requires both sharing and per-request permission; does not become personal claims", async () => {
   const { agent, memoryId, reads } = await setup();
   assert.equal(agent.getSnapshot().data.memories[0]?.shared, false);

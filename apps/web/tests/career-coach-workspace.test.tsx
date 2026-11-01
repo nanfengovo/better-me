@@ -8,6 +8,7 @@ import type { ResumeEditContext } from "@better-me/agent-contracts";
 import type { CoachGeneration, CoachGenerate, CoachPayload, CoachRequest, CoachState } from "../src/lib/career-coach/types";
 import { createMemoryCoachRepository, type CoachRepository } from "../src/lib/career-coach/storage";
 import { addCoachRecord, adoptCoachPlan, contextFingerprint, createCoachRecord, createCoachState } from "../src/lib/career-coach/state";
+import { confirmGoal } from "../src/lib/career-coach/journey";
 import { BetterMeAgentProvider } from "../src/lib/betterme-agent/react";
 import { createMemoryAgentRepository } from "../src/lib/betterme-agent/storage";
 
@@ -86,7 +87,9 @@ async function seed(repository: CoachRepository, transform: (state: CoachState) 
   await repository.save({ ...state, revision: 1 }, 0);
 }
 function withPlan(state: CoachState, adopted = false) {
-  const record = createCoachRecord(generated("plan"), { mode: "plan", settings: state.settings, input: "合成方案" });
+  const analysis = createCoachRecord(generated("analysis"), { mode: "analysis", settings: state.settings, input: "合成理解" });
+  state = confirmGoal(addCoachRecord(state, analysis), analysis.id, contextFingerprint({}));
+  const record = createCoachRecord(generated("plan"), { mode: "plan", settings: state.settings, input: "合成方案", confirmedGoal: state.goalConfirmations!.at(-1) });
   const next = addCoachRecord(state, record);
   return adopted ? adoptCoachPlan(next, record.id, "2026-10-01") : next;
 }
@@ -124,10 +127,10 @@ test("the unified Agent keeps growth requests alive across internal modes and hi
   assert.equal((await agentRepository.load("unified-growth"))?.tasks.at(-1)?.status, "completed");
 });
 
-test("career coach exposes five modes with resume/JD sharing off and no automatic model request", async () => {
+test("career coach exposes six modes with resume/JD sharing off and no automatic model request", async () => {
   const requests: CoachRequest[] = [];
   await mount({ generate: async request => { requests.push(request); return generated(request.mode); } });
-  for (const name of ["规划分析", "修改建议", "学习方案", "学习监督", "模拟面试"]) assert.ok(button(new RegExp(name)));
+  for (const name of ["规划分析", "修改建议", "学习方案", "学习监督", "针对性刷题", "模拟面试"]) assert.ok(button(new RegExp(name)));
   assert.equal((labelledField(/简历.*(共享|字段)|共享.*简历/) as HTMLInputElement).checked, false);
   assert.equal((labelledField(/共享当前目标岗位/) as HTMLInputElement).checked, false);
   assert.equal(requests.length, 0);
@@ -434,4 +437,87 @@ test("an unrelated external context edit invalidates an otherwise matching resum
   await click(/核对并应用此条/);
   assert.equal(writes, 0);
   assert.ok(body().textContent?.includes("本次授权或简历原文已变化"));
+});
+
+test("planning is gated by confirmed understanding and a changed goal cannot adopt an old candidate", async () => {
+  const requests: CoachRequest[] = [], repository = await configuredRepository();
+  await mount({ repository, generate: async request => { requests.push(request); return generated(request.mode); } });
+  await click(/学习方案/); await click(/生成学习方案/);
+  assert.equal(requests.length, 0); assert.match(body().textContent ?? "", /核对目标/);
+  await click(/01.*规划分析/); await click(/开始规划分析/);
+  await click(/我确认目标与理解一致/); await click(/用本轮结论制定方案/); await click(/生成学习方案/);
+  assert.equal(requests.length, 2); assert.ok(requests[1]?.confirmedGoal?.recordId);
+  await fill(/本阶段目标/, "新的隔离方向"); await click(/采纳此学习方案/);
+  assert.equal((await repository.load(fixtureKey))?.activePlan, undefined);
+  assert.match(body().textContent ?? "", /目标确认或资料已变化/);
+});
+
+test("changing source scope permits fresh goal alignment without sending or deleting the old plan", async () => {
+  const requests: CoachRequest[] = [], repository = await configuredRepository(state => withPlan(state, true));
+  const oldId = (await repository.load(fixtureKey))?.activePlan?.id;
+  await mount({ repository, generate: async request => { requests.push(request); return generated(request.mode); } });
+  await share(/共享当前简历字段/); await click(/开始规划分析/); await click(/我确认目标与理解一致/);
+  await click(/用本轮结论制定方案/); await click(/生成学习方案/);
+  assert.equal(requests.length, 2); assert.equal(requests[0]?.plan, undefined); assert.equal(requests[1]?.plan, undefined);
+  assert.deepEqual(requests[1]?.context?.resume, resume);
+  assert.equal((await repository.load(fixtureKey))?.activePlan?.id, oldId);
+});
+
+test("an uncooperative provider times out without fallback, losing input or adopting a late reply", async () => {
+  const repository = await configuredRepository(); let calls = 0, resolve!: (value: CoachGeneration) => void;
+  await mount({ repository, requestTimeoutMs: 15, generate: async () => { calls++; return new Promise(done => { resolve = done; }); } });
+  await fill(/本轮问题或补充回答/, "超时仍保留的草稿"); await click(/开始规划分析/);
+  await act(async () => { await new Promise(done => setTimeout(done, 40)); });
+  assert.match(body().textContent ?? "", /模型响应超时/);
+  assert.equal(labelledField(/本轮问题或补充回答/).value, "超时仍保留的草稿");
+  await flush(() => resolve(generated("analysis")));
+  assert.equal(calls, 1); assert.equal((await repository.load(fixtureKey))?.records.length, 0);
+});
+
+test("drill answers survive failed assessment, retry quotes real text, and followup carries the actual answer", async () => {
+  const repository = await configuredRepository(state => withPlan(state)), requests: CoachRequest[] = [];
+  let fail = true;
+  await mount({ repository, generate: async request => {
+    requests.push(structuredClone(request));
+    if (request.drill?.answer) {
+      if (fail) { fail = false; throw new Error("隔离反馈暂不可用"); }
+      return { model, payload: { kind: "drill", feedback: { verdict: "needs_practice", quote: "唯一键", explanation: "原答提到唯一键，缺少并发验证", nextAction: "测试并发" } } };
+    }
+    return { model, payload: { kind: "drill", question: { text: "如何避免重复副作用？", skill: "幂等", why: "依据确认目标", criteria: ["说明失败边界"] } } };
+  } });
+  await click(/针对性刷题/); await fill(/这次练什么/, "幂等"); await click(/生成一道练习题/);
+  await fill(/我的练习回答/, "使用唯一键记录处理结果"); await click(/保存回答并请求评价/);
+  assert.equal((await repository.load(fixtureKey))?.drills?.[0]?.answer, "使用唯一键记录处理结果");
+  assert.match(body().textContent ?? "", /隔离反馈暂不可用/); await click(/重试本题评价/);
+  assert.equal((await repository.load(fixtureKey))?.drills?.length, 1);
+  assert.match(body().textContent ?? "", /原答提到唯一键/);
+  await click(/根据这次回答继续练/);
+  assert.match(requests.at(-1)!.input, /使用唯一键记录处理结果/);
+  assert.equal(requests.at(-1)!.sourceRecordIds?.length, 2);
+  assert.equal((await repository.load(fixtureKey))?.drills?.length, 2);
+});
+
+test("interview draft persists across reload and a new session archives rather than overwrites it", async () => {
+  const repository = await configuredRepository();
+  await mount({ repository }); await click(/模拟面试/); await click(/开始模拟面试/);
+  await fill(/你的面试回答/, "尚未提交的本人草稿");
+  await flush(() => root?.unmount()); root = undefined;
+  await mount({ repository }); await click(/模拟面试/);
+  assert.equal(labelledField(/你的面试回答/).value, "尚未提交的本人草稿");
+  const original = dom.confirm; dom.confirm = () => true;
+  try { await click(/重新开始面试/); } finally { dom.confirm = original; }
+  assert.equal((await repository.load(fixtureKey))?.interviewHistory?.[0]?.draft, "尚未提交的本人草稿");
+  assert.equal((await repository.load(fixtureKey))?.interview?.turns.length, 0);
+});
+
+test("unified task history distinguishes model timeout from a user stop", async () => {
+  const repository = await configuredRepository(), agentRepository = createMemoryAgentRepository();
+  const props: Props = { workspaceKey: fixtureKey, job: null, llmConfig: config, onOpenConfig: () => {}, repository, requestTimeoutMs: 20,
+    generate: async () => new Promise(() => {}) };
+  dom.document.body.innerHTML = '<main id="fixture"></main>'; root = createRoot(body());
+  await flush(() => root!.render(h(UiPreferencesProvider, null, h(BetterMeAgentProvider, { workspaceKey: "growth-timeout", repository: agentRepository, children: h(CareerCoachWorkspace, props) }))));
+  await click(/开始规划分析/);
+  await act(async () => { await new Promise(done => setTimeout(done, 50)); });
+  const task = (await agentRepository.load("growth-timeout"))?.tasks.at(-1);
+  assert.equal(task?.status, "failed"); assert.match(task?.detail ?? "", /模型响应超时/);
 });

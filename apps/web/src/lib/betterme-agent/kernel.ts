@@ -5,7 +5,7 @@ import { emptyAgentState, type AgentState, type AgentRepository, type AgentOrigi
 type SessionReader = (id: string, signal?: AbortSignal) => Promise<UnderstandingSession>;
 export type AgentSnapshot = { data: AgentState; ready: boolean; error: string; saving: boolean; centerOpen: boolean; chatGptReady: boolean };
 export type AgentContext = { text: string; memoryIds: string[] };
-type TaskInput = { origin: AgentOrigin; label: string; destination: string; input: string; shareMemories?: boolean; resumeShared?: boolean; id?: string };
+type TaskInput = { origin: AgentOrigin; label: string; destination: string; input: string; shareMemories?: boolean; resumeShared?: boolean; id?: string; execution?: "model" | "local" };
 const now = () => new Date().toISOString();
 const messageOf = (error: unknown) => error instanceof Error ? error.message : "本次 Agent 操作未完成，输入和历史保留。";
 
@@ -181,7 +181,7 @@ export class BetterMeAgent {
       await this.flush();
       this.updateTask(id, { detail: "正在核对本轮授权与共识版本。" });
       const context = await this.context(controller.signal, memoryIds, input.shareMemories);
-      this.updateTask(id, { detail: "已核对本轮上下文，等待明确选择的模型返回。" });
+      this.updateTask(id, { detail: input.execution === "local" ? "正在执行本人授权的隔离练习；不调用模型。" : "已核对本轮上下文，等待明确选择的模型返回。" });
       const result = await new Promise<T>((resolve, reject) => {
         const abort = () => reject(new DOMException("任务已停止。", "AbortError"));
         controller.signal.addEventListener("abort", abort, { once: true });
@@ -189,7 +189,7 @@ export class BetterMeAgent {
         void work(controller.signal, context).then(resolve, reject).finally(() => controller.signal.removeEventListener("abort", abort));
       });
       controller.signal.throwIfAborted();
-      this.updateTask(id, { detail: "模型已返回，正在复核授权与保存结果。" });
+      this.updateTask(id, { detail: input.execution === "local" ? "练习运行器已返回，正在保存实际测试回执。" : "模型已返回，正在复核授权与保存结果。" });
       if (memoryIds.length) await this.context(controller.signal, memoryIds);
       // Recheck the lease after generation; revocation must reject even an uncooperative provider.
       if (memoryIds.some(memoryId => !this.snapshot.data.memories.find(memory => memory.id === memoryId && memory.valid && memory.shared))) throw new Error("共识授权已撤销，迟到结果未采用。");
