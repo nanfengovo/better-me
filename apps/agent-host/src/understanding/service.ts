@@ -8,6 +8,7 @@ import {
   type UnderstandingMessage, type UnderstandingReasoner, type UnderstandingSession, type UnderstandingTurnInput,
 } from "@better-me/agent-contracts";
 import { EvidenceAccessError, EvidenceBroker, type EvidenceRequest, type EvidenceResult } from "./evidence-broker.js";
+import { ChatGptError } from "../chatgpt/errors.js";
 
 export class UnderstandingError extends Error {
   constructor(readonly code: string, message: string, readonly status = 400, readonly recoverable = true) {
@@ -458,6 +459,7 @@ export class ProjectUnderstandingService {
   }
   private safeError(error: unknown): UnderstandingError {
     if (error instanceof UnderstandingError) return error;
+    if (error instanceof ChatGptError) return new UnderstandingError(`chatgpt_${error.issue.code}`, error.message, error.issue.status ?? 502, !["eligibility", "permission"].includes(error.issue.kind));
     if (error instanceof EvidenceAccessError) return new UnderstandingError(error.code, error.message, 400);
     return new UnderstandingError("reasoning_failed", "推理操作失败。未保存运行时错误详情或凭据；历史内容已保留，可以重试。", 502);
   }

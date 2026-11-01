@@ -27,7 +27,9 @@ const job = await startLocalJobService({ dataDirectory: resolve(data, "jobs"), p
 const jobToken = (await readFile(job.tokenPath, "utf8")).trim();
 const checkpointer = createCheckpointer(resolve(data, "agent", "checkpoints.sqlite"));
 const agentEndpoint = "http://127.0.0.1:" + agentPort;
-const agent = createAgentServer({ host: "127.0.0.1", port: agentPort, allowedOrigins: origins, authToken: agentToken, checkpointer, runsDirectory: resolve(data, "agent", "runs"), runtimeDefinitions: [], sandboxMode: "disabled" });
+const agent = createAgentServer({ host: "127.0.0.1", port: agentPort, allowedOrigins: origins, authToken: agentToken, checkpointer, runsDirectory: resolve(data, "agent", "runs"), runtimeDefinitions: [], sandboxMode: "disabled",
+  chatGptAuthorizationUnavailableReason: "此容器运行方式尚未支持宿主机 OAuth 回调。请使用本机启动的 BetterMe / Agent Host 授权；未尝试登录，也不会回退付费 API。",
+});
 if (!agent.listening) await once(agent, "listening");
 let stopping = false;
 async function healthy() {

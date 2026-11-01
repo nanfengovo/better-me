@@ -18,7 +18,7 @@ export function createCoachRecord(generation: CoachGeneration, request: CoachReq
   return CoachRecordSchema.parse({ id: crypto.randomUUID(), createdAt: new Date().toISOString(), mode: request.mode,
     input: request.input, payload: generation.payload, model: generation.model,
     basis: { resumeShared: Boolean(request.context?.resume), jobShared: Boolean(request.context?.job),
-      contextFingerprint: contextFingerprint(request.context ?? {}) } });
+      contextFingerprint: contextFingerprint(request.context ?? {}), ...(request.agentMemoryIds?.length ? { agentMemoryIds: request.agentMemoryIds } : {}) } });
 }
 
 export function addCoachRecord(state: CoachState, record: CoachRecord): CoachState {

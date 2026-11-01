@@ -71,7 +71,7 @@ export function useWritingGeometry(shell: RefObject<HTMLElement | null>, card: R
       // Travel through the paper's outer gutter, not diagonally across other paragraphs.
       const paperRight = anchor.closest(".resume-preview-scale")?.getBoundingClientRect().right ?? x;
       const gutter = Math.min(tx - 8, Math.max(x + 8, paperRight + 8));
-      const connected = root.getBoundingClientRect().width >= 780 && to.height > 0 && to.top >= 0 && ty < window.innerHeight;
+      const connected = to.left >= clip.right && to.height > 0 && to.top >= 0 && ty < window.innerHeight;
       setGeometry({ lines, x, y, ...(connected ? { path: `M ${x} ${y} L ${gutter} ${y} L ${gutter} ${ty} L ${tx} ${ty}` } : {}) });
     };
     const schedule = () => { if (!disposed && !frame) frame = requestAnimationFrame(measure); };

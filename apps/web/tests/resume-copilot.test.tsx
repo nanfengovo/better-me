@@ -6,11 +6,15 @@ import { createInitialDocument } from "@better-me/storage";
 import { applyResumeProposal, createResumeAgentContext } from "../src/lib/resume-agent-context";
 import {
   generateWritingReply, inspectWriting, newWritingNote, parseWritingReply, readWritingSession,
-  reconcileWritingNotes, saveWritingSession, writingSources, writingTargetKey, writingProposal, confirmedWritingProjectContext, type WritingSource,
+  reconcileWritingNotes, saveWritingSession, writingSources, writingTargetKey, writingProposal, confirmedWritingProjectContext, type WritingSource, type WritingReply,
 } from "../src/lib/resume-copilot";
 import { quoteWritingText } from "../src/lib/writing-anchor";
 import { fixtureSession, fixtureUnderstanding } from "./fixtures/project-understanding";
+import { BetterMeAgentProvider } from "../src/lib/betterme-agent/react";
+import { createMemoryAgentRepository, type AgentRepository } from "../src/lib/betterme-agent/storage";
 import type { UnderstandingClient } from "../src/services/understanding-client";
+import type { ChatGptState, ChatGptResponseRequest } from "@better-me/agent-contracts";
+import { ChatGptClientError, type ChatGptClient } from "../src/services/chatgpt-client";
 
 // Finish installing the DOM before registering any tests. Otherwise a fast
 // pure async test can let Node run teardown while React is still importing.
@@ -38,6 +42,42 @@ test("local writing rules distinguish duties, repetition, evidence and useful ac
   assert.equal(inspectWriting({ ...source, text: "优化响应时间，提高效率30%" }, [])?.kind, "evidence");
   assert.equal(inspectWriting(source, [source, { ...source, targetRef: { ...source.targetRef, kind: "claim_text", claimId: "other", experienceId: "other" } }])?.kind, "duplicate");
   assert.equal(inspectWriting({ ...source, text: "将订单接入流程拆成校验、重试与回执三个步骤，使用日志核对失败请求，保留异常上下文以便定位。" }, []) , undefined);
+});
+
+test("ChatGPT is an explicit Agent option; disconnected accounts cannot fall back to a configured model", async () => {
+  let apiCalls = 0, accountCalls = 0;
+  const state: ChatGptState = { profiles: [], usageUrl: "https://chatgpt.com/settings/usage", automaticBillingFallback: false };
+  const client: ChatGptClient = { state: async () => state, models: async () => [], respond: async () => { accountCalls++; throw new Error("must not run"); }, signIn: async () => { throw new Error("No real login in a fixture"); },
+    cancelSignIn: async () => state, signOut: async () => ({ remoteRevoked: true, state }), retry: async () => state };
+  await render({ chatGptClient: client, generate: async () => { apiCalls++; throw new Error("fallback forbidden"); } });
+  await act(async () => { const field = dom.document.querySelector('[aria-label="伴写 Agent 来源"]')! as unknown as HTMLSelectElement; field.value = "chatgpt"; field.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  await click("检查当前简历"); await click("一起完善");
+  const button = [...dom.document.querySelectorAll("button")].find(node => node.textContent?.includes("进一步追问"))!;
+  assert.equal(button.disabled, true); assert.match(dom.document.body.textContent ?? "", /Continue with ChatGPT/);
+  assert.equal(accountCalls, 0); assert.equal(apiCalls, 0);
+});
+
+test("ChatGPT account/model selection routes writing only to the account and retains supplement on quota failure", async () => {
+  let apiCalls = 0; const sent: ChatGptResponseRequest[] = [];
+  const state: ChatGptState = { profiles: [{ id: "synthetic-account", label: "虚构账号", state: "connected" }], usageUrl: "https://chatgpt.com/settings/usage", automaticBillingFallback: false };
+  const client: ChatGptClient = { state: async () => structuredClone(state), models: async () => [{ slug: "synthetic-gpt", displayName: "虚构 GPT" }],
+    respond: async input => { sent.push(input); const issue = { kind: "limit" as const, code: "subscription_sharing_usage_limit_exceeded", message: "测试额度达到限制，未切换付费 API。" }; state.profiles[0]!.issue = issue; throw new ChatGptClientError(issue.message, issue); },
+    signIn: async () => { throw new Error("No real login"); }, cancelSignIn: async () => state, signOut: async () => ({ remoteRevoked: true, state }), retry: async () => state };
+  await render({ chatGptClient: client, generate: async () => { apiCalls++; throw new Error("fallback forbidden"); } });
+  const select = async (selector: string, value: string) => { await act(async () => { const field = dom.document.querySelector(selector)! as unknown as HTMLSelectElement; field.value = value; field.dispatchEvent(new dom.Event("change", { bubbles: true })); }); };
+  await select('[aria-label="伴写 Agent 来源"]', "chatgpt");
+  const selects = () => [...dom.document.querySelectorAll(".chatgpt-agent-fields select")];
+  await act(async () => { const field = selects()[0]!; field.value = "synthetic-account"; field.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  await act(async () => { const field = selects()[1]!; field.value = "synthetic-gpt"; field.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  await click("检查当前简历"); await click("一起完善");
+  const text = "我编写了重试逻辑";
+  await act(async () => { const field = dom.document.querySelector("#writing-answer")!; Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype, "value")!.set!.call(field, text); field.dispatchEvent(new dom.Event("input", { bubbles: true })); });
+  await act(async () => { const input = [...dom.document.querySelectorAll('input[type="checkbox"]')].find(node => node.parentElement?.textContent?.includes("我确认这段补充"))!; (input as unknown as HTMLInputElement).click(); });
+  await click("整理候选表达");
+  assert.equal(sent.length, 1); assert.equal(sent[0]?.model, "synthetic-gpt"); assert.equal(apiCalls, 0);
+  assert.match(dom.document.body.textContent ?? "", /测试额度达到限制/);
+  assert.equal((dom.document.querySelector("#writing-answer") as unknown as HTMLTextAreaElement).value, text);
+  assert.equal(dom.document.querySelector("#writing-proposal"), null);
 });
 test("source deletion or edits invalidate open notes while dismissal survives", () => {
   const note = newWritingNote(source, issue);
@@ -105,16 +145,28 @@ test("selected quote patch and undo preserve the rest of the field; reanchoring 
 
 let root: ReturnType<typeof createRoot> | undefined;
 const config = { provider: "ollama" as const, baseUrl: "http://localhost:11434/v1", model: "test", temperature: 0 };
-async function render(options: Partial<React.ComponentProps<typeof ResumeWritingCopilot>> = {}) {
+async function render(options: Partial<React.ComponentProps<typeof ResumeWritingCopilot>> = {}, agentRepository?: AgentRepository) {
   if (!root) { const container = dom.document.createElement("main"); dom.document.body.append(container); root = createRoot(container as unknown as Element); }
-  await act(async () => root!.render(h(ResumeWritingCopilot, { sessionKey: "test", sources: [source], config, active: true, onApply: async () => ({ ok: true, message: "已采用" }), onFocus() {}, children: h("div", null, "示例预览"), ...options })));
+  const copilot = h(ResumeWritingCopilot, { sessionKey: "test", sources: [source], config, active: true, onApply: async () => ({ ok: true, message: "已采用" }), onFocus() {}, children: h("div", null, "示例预览"), ...options });
+  await act(async () => root!.render(agentRepository ? h(BetterMeAgentProvider, { workspaceKey: "isolated-unified-writing", repository: agentRepository, children: copilot }) : copilot));
 }
 async function click(text: string) {
-  const button = [...dom.document.querySelectorAll("button")].find(b => b.textContent?.includes(text)); assert.ok(button, text);
+  const button = [...dom.document.querySelectorAll("button")].find(b => b.textContent?.includes(text) || b.getAttribute("aria-label") === text); assert.ok(button, text);
   await act(async () => button.click());
 }
 afterEach(async () => { await act(async () => { root?.unmount(); root = undefined; }); dom.document.body.replaceChildren(); dom.localStorage.clear(); });
 after(() => { dom.happyDOM.abort(); for (const [key, value] of originals) { if (value) Object.defineProperty(globalThis, key, value); else Reflect.deleteProperty(globalThis, key); } });
+test("unified writing keeps its pending task and result when the resume page becomes inactive", async () => {
+  const repository = createMemoryAgentRepository(); let resolve!: (reply: WritingReply) => void; let signal: AbortSignal | undefined;
+  const generate: typeof generateWritingReply = async (_config, _source, _answer, inputSignal) => { signal = inputSignal; return new Promise(done => { resolve = done; }); };
+  await render({ generate }, repository); await click("检查当前简历"); await click("一起完善"); await click("进一步追问");
+  await render({ generate, active: false }, repository);
+  assert.equal(signal?.aborted, false);
+  await act(async () => resolve({ questions: ["换页后继续核对个人动作？"], rationale: "保留上下文", evidenceQuotes: [] }));
+  await render({ generate }, repository);
+  assert.match(dom.document.body.textContent ?? "", /换页后继续核对个人动作/);
+  assert.equal((await repository.load("isolated-unified-writing"))?.tasks.at(-1)?.status, "completed");
+});
 test("explicit scan and local progressive questions never call a model without a click", async () => {
   let calls = 0;
   await render({ generate: async () => { calls++; return { questions: ["哪个接口？"], rationale: "需要场景", evidenceQuotes: [] }; } });
@@ -134,6 +186,53 @@ test("stop immediately preserves answer and refuses an uncooperative late respon
   await act(async () => { button.click(); }); await click("停止分析");
   await act(async () => { resolve({ questions: ["不得显示的迟到追问"], rationale: "迟到", evidenceQuotes: [] }); });
   assert.doesNotMatch(dom.document.body.textContent ?? "", /不得显示的迟到/); assert.match(dom.document.body.textContent ?? "", /已停止/);
+});
+test("collapsing the Agent preserves the mounted draft and a running reply without reopening it", async () => {
+  let resolve!: (value: Awaited<ReturnType<typeof generateWritingReply>>) => void;
+  let signal: AbortSignal | undefined;
+  await render({ generate: (_config, _source, _answer, nextSignal) => { signal = nextSignal; return new Promise(done => { resolve = done; }); } });
+  await click("检查当前简历"); await click("一起完善");
+  const field = dom.document.querySelector("#writing-answer")!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype, "value")!.set!.call(field, "我编写了回执重试逻辑");
+    field.dispatchEvent(new dom.Event("input", { bubbles: true }));
+    const consent = [...dom.document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].find(input => input.parentElement?.textContent?.includes("我确认这段补充"))!;
+    consent.click();
+  });
+  await click("整理候选表达");
+  const collapse = dom.document.querySelector<HTMLButtonElement>('[aria-label="收起 Agent 对话"]');
+  assert.ok(collapse, "Agent needs a separate, non-destructive collapse control");
+  await act(async () => collapse.click());
+  const pane = dom.document.getElementById(collapse.getAttribute("aria-controls")!)!;
+  assert.equal(pane.hidden, true); assert.equal(collapse.getAttribute("aria-expanded"), "false");
+  assert.equal(signal?.aborted, false); assert.equal(dom.document.querySelector("#writing-answer"), field);
+  assert.match(dom.document.querySelector(".writing-toolbar")?.textContent ?? "", /分析中/);
+  await act(async () => resolve({ questions: ["重试前如何核对回执状态？"], rationale: "区分个人动作", evidenceQuotes: [] }));
+  assert.equal(pane.hidden, true, "late results must not steal preview space");
+  await click("展开 Agent 对话");
+  assert.equal(pane.hidden, false); assert.equal(dom.document.querySelector("#writing-answer"), field);
+  assert.equal((field as unknown as HTMLTextAreaElement).value, "我编写了回执重试逻辑");
+  assert.match(pane.textContent ?? "", /重试前如何核对回执状态/);
+});
+test("project understanding collapse retains its mounted panel and unsent answer", async () => {
+  let reads = 0;
+  const unexpected = async () => { throw new Error("No writes in a layout regression"); };
+  const client: UnderstandingClient = { createSession: unexpected, updateSource: unexpected, addGrant: unexpected, revokeGrant: unexpected, startTurn: unexpected, confirm: unexpected, cancel: unexpected,
+    getCapabilities: async () => { reads++; return []; }, getSession: unexpected };
+  await render({ understandingClient: client }); await click("检查当前简历"); await click("先对齐项目理解");
+  await act(async () => { await new Promise(done => setTimeout(done, 20)); });
+  const panel = dom.document.querySelector(".understanding-panel")!;
+  const field = panel.querySelector("textarea")!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype, "value")!.set!.call(field, "术语尚未对齐，保留这份未发送草稿");
+    field.dispatchEvent(new dom.Event("input", { bubbles: true }));
+    (panel.querySelector('[aria-label="收起项目理解面板"]') as unknown as HTMLButtonElement).click();
+  });
+  assert.equal(dom.document.querySelector(".understanding-panel"), panel);
+  assert.equal(dom.document.querySelector<HTMLElement>(".writing-agent-pane")?.hidden, true);
+  await click("展开 Agent 对话");
+  assert.equal(dom.document.querySelector(".understanding-panel"), panel); assert.equal(reads, 1);
+  assert.equal((field as unknown as HTMLTextAreaElement).value, "术语尚未对齐，保留这份未发送草稿");
 });
 test("changing the source closes stale annotation and a fresh scan binds only new text", async () => {
   await render(); await click("检查当前简历"); await render({ sources: [{ ...source, text: "参与模块开发，负责接口维护" }] });
@@ -233,7 +332,7 @@ test("opt-in project entry makes no model call and a changed confirmed revision 
   assert.equal(reads, 0); await click("先对齐项目理解");
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   assert.equal(models, 0); assert.equal(mutations, 0); assert.equal(reads, 1);
-  await click("一起完善");
+  await click("返回伴写建议"); await click("一起完善");
   const share = [...dom.document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].find(input => input.parentElement?.textContent?.includes("本次携带"))!;
   const actual = [...dom.document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].find(input => input.parentElement?.textContent?.includes("我确认这段补充"))!;
   assert.ok(share); await act(async () => { share.click(); actual.click(); });

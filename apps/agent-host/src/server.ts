@@ -45,6 +45,8 @@ import { resolveCheckpointPath } from "./checkpointer.js";
 import { ProjectUnderstandingService } from "./understanding/service.js";
 import { createUnderstandingHandler, type UnderstandingRuntime } from "./understanding/http.js";
 import type { UnderstandingReasoner } from "@better-me/agent-contracts";
+import { ChatGptPlanService } from "./chatgpt/service.js";
+import { createChatGptHandler } from "./chatgpt/http.js";
 
 // ── Request schemas ───────────────────────────────────────────────────────────
 
@@ -114,6 +116,11 @@ export interface ServerOptions {
   understandingDirectory?: string;
   understandingTurnTimeoutMs?: number;
   understandingReasoner?: (runtime: UnderstandingRuntime) => Promise<UnderstandingReasoner>;
+  /** Separate OAuth store; never a resume/jobs database or a CLI auth directory. */
+  chatGptDirectory?: string;
+  chatGptAuthorizationUnavailableReason?: string;
+  /** Trusted embedding/testing seam, never supplied through HTTP. */
+  chatGptService?: ChatGptPlanService;
 }
 
 function jsonResponse(res: http.ServerResponse, status: number, body: unknown): void {
@@ -159,9 +166,14 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     storageDir: opts.understandingDirectory ?? path.join(opts.runsDirectory ?? path.dirname(resolveCheckpointPath()), "understanding"),
     turnTimeoutMs: opts.understandingTurnTimeoutMs,
   });
+  const chatGpt = opts.chatGptService ?? new ChatGptPlanService({
+    directory: opts.chatGptDirectory ?? path.join(opts.runsDirectory ?? path.dirname(resolveCheckpointPath()), "chatgpt"),
+    authorizationUnavailableReason: opts.chatGptAuthorizationUnavailableReason,
+  });
+  const handleChatGpt = createChatGptHandler({ service: chatGpt, allowedOrigins: opts.allowedOrigins, readBody, sendJson: jsonResponse });
   const handleUnderstanding = createUnderstandingHandler({ service: understanding, registry: understandingRegistry,
     ensureRuntimeScan: async () => { await understandingRegistry.discoverExecutables(); },
-    readBody, sendJson: jsonResponse, reasoner: opts.understandingReasoner });
+    readBody, sendJson: jsonResponse, reasoner: opts.understandingReasoner, chatGpt });
 
   async function ensureRuntimeScan(): Promise<void> {
     if (runtimeRegistry.list().length > 0) return;
@@ -195,6 +207,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     const { pathname } = url;
 
     try {
+      if (await handleChatGpt(req, res, pathname)) return;
       if (await handleUnderstanding(req, res, pathname)) return;
       // Keep the browser health probe explicit; probing an unknown checkpoint
       // thread produces noisy 404s even when the daemon is healthy.
@@ -467,7 +480,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     }
   });
 
-  server.once("close", () => { void understanding.dispose(); });
+  server.once("close", () => { void understanding.dispose(); chatGpt.dispose(); });
   server.listen(opts.port, opts.host, () => {
     console.log(`[agent-host] listening on http://${opts.host}:${opts.port}`);
   });

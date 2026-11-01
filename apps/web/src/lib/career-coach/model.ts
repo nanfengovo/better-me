@@ -7,6 +7,7 @@ import {
 } from "@better-me/core";
 import { ResumeEditContextSchema, type ResumeEditContext, type ResumeProposalTarget } from "@better-me/agent-contracts";
 import { findResumeContextSource } from "../resume-agent-context";
+import type { ChatGptClient, ChatGptChoice } from "../../services/chatgpt-client";
 import { coachOutputSchema } from "./output-schema";
 import {
   COACH_MODES,
@@ -32,6 +33,8 @@ const RequestSchema = z.object({
   mode: z.enum(COACH_MODES),
   settings: CoachSettingsSchema,
   input: z.string().max(12_000),
+  sharedProjectContext: z.string().max(20000).optional(),
+  agentMemoryIds: z.array(z.string()).optional(),
   // These are allow-listed projections, not permission to read any other store.
   context: z.object({
     resume: ResumeEditContextSchema.optional(),
@@ -70,7 +73,8 @@ const SYSTEM_RULES = `你是 BetterMe 的职业与学习顾问。本轮仅做用
 4. 本轮没有联网查询或工具执行，不得宣称已搜索岗位、访问链接、查证资料、运行代码或完成操作。学习资源只能给检索关键词，不能编造网址。
 5. 所有反馈和评分仅是基于本轮材料的模型参考，不是能力认证、作业实际运行验证、招聘结论或录用概率。证据不足应明确说明并提出核对方法。
 6. 不自动修改简历或事实库，不执行终端命令、不投递、不发送消息、不写入长期画像。简历候选表达必须等待用户逐条核对。
-7. 只返回一个符合本轮指定结构的 JSON 对象，不返回 Markdown 正文或额外字段；所有有依据的内容都应能在提供的数据中定位。`;
+7. 只返回一个符合本轮指定结构的 JSON 对象，不返回 Markdown 正文或额外字段；所有有依据的内容都应能在提供的数据中定位。
+8. sharedProjectContext仅是用户确认的项目共同语言和系统背景，不是个人贡献、技能或成果证明，不能转成简历事实；个人动作仍只能来自用户明确提供的经历与证据。`;
 
 const OUTPUT_SHAPES: Record<CoachRequest["mode"], string> = {
   analysis: `{"kind":"analysis","summary":"本轮结论与依据局限","directions":[{"title":"方向","reason":"理由","evidence":["本轮材料的依据"],"tradeoffs":["取舍"]}],"strengths":["有依据的优势"],"gaps":[{"skill":"技能或条件","status":"unknown 或 needs_practice","reason":"unknown用于未提供依据；needs_practice只能用于用户明确陈述或本轮证据支持的练习需求"}],"questions":[{"question":"关键追问","why":"为何影响判断","options":["可选答案"]}],"nextActions":["具体下一步"]}`,
@@ -163,6 +167,7 @@ function buildMessages(request: CoachRequest): CoachMessages {
     operation: request.mode,
     settings: request.settings,
     input: request.input,
+    ...(request.sharedProjectContext ? { sharedProjectContext: request.sharedProjectContext } : {}),
     providedContext: {
       resumeShared: Boolean(context?.resume),
       jobShared: Boolean(context?.job),
@@ -338,3 +343,16 @@ export function createCoachGenerator(transport: CoachTransport = fetchChatComple
 }
 
 export const generateCoach: CoachGenerate = createCoachGenerator();
+
+/** Same request/output guards, separate account transport. Never calls an API-key generator. */
+export async function generateCoachWithChatGpt(request: CoachRequest, client: ChatGptClient, choice: ChatGptChoice, signal?: AbortSignal) {
+  throwIfCancelled(signal);
+  const safe = validateCoachRequest(request), messages = buildMessages(safe);
+  const result = await client.respond({ ...choice, consentToSend: true,
+    instructions: messages.filter(message => message.role === "system").map(message => message.content).join("\n"),
+    input: messages.filter(message => message.role === "user").map(message => ({ role: "user" as const, content: String(message.content) })),
+  }, signal);
+  throwIfCancelled(signal);
+  if (result.profileId !== choice.profileId || result.model !== choice.model) throw new Error("ChatGPT 账号或模型与本轮选择不一致，未采用；未改用 API。");
+  return { payload: parseCoachPayload(result.text, safe), model: { provider: "chatgpt", name: result.model, generatedAt: new Date().toISOString() } };
+}

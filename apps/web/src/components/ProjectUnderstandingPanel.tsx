@@ -6,11 +6,14 @@ import { z } from "zod";
 import { confirmedWritingProjectContext, type ConfirmedWritingProjectContext } from "../lib/resume-copilot";
 import { defaultUnderstandingClient, understandingModelRuntime, UnderstandingClientError, type UnderstandingClient } from "../services/understanding-client";
 import "./project-understanding-panel.css";
+import { useBetterMeAgent } from "../lib/betterme-agent/react";
 
 type Props = {
   workspaceKey: string; projectKey: string; label: string; sourceText: string; config: LlmConfig;
   onClose: () => void; onConfirmed: (context: ConfirmedWritingProjectContext | undefined) => void;
   client?: UnderstandingClient; pollIntervalMs?: number;
+  chatGpt?: { profileId: string; model: string; ready: boolean };
+  onRunningChange?: (running: boolean) => void;
 };
 const PendingSchema = z.object({ id: z.string(), revision: z.number(), answer: z.string(), options: z.array(z.string()) });
 const DraftSchema = z.object({ sessionId: z.string().optional(), answer: z.string().max(16000).default(""),
@@ -34,7 +37,8 @@ function relativeSeconds(at: string | undefined, now: number): number {
 }
 
 export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sourceText, config, onClose, onConfirmed,
-  client = defaultUnderstandingClient, pollIntervalMs = 1500 }: Props) {
+  client = defaultUnderstandingClient, pollIntervalMs = 1500, chatGpt, onRunningChange }: Props) {
+  const { agent, snapshot: agentSnapshot } = useBetterMeAgent();
   const uid = useId();
   const [scope, setScope] = useState<{ projectKey: string; storageKey: string }>();
   const [session, setSession] = useState<UnderstandingSession>();
@@ -50,7 +54,7 @@ export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sou
   const [missing, setMissing] = useState(false);
   const [capabilities, setCapabilities] = useState<UnderstandingCapability[]>([]);
   const [capabilityError, setCapabilityError] = useState("");
-  const [runtime, setRuntime] = useState("model");
+  const [runtime, setRuntime] = useState(chatGpt ? "chatgpt" : "model");
   const [consent, setConsent] = useState(false);
   const [confirmationToken, setConfirmationToken] = useState("");
   const [grantPath, setGrantPath] = useState("");
@@ -127,8 +131,23 @@ export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sou
     confirmedCallback.current(session && session.sourceText === sourceText ? confirmedWritingProjectContext(session) : undefined);
     setConfirmationToken("");
   }, [session, sourceText]);
+  useEffect(() => {
+    if (session && agentSnapshot?.ready && !agentSnapshot.error) agent?.observeUnderstanding(session, projectKey);
+  }, [agent, agentSnapshot?.ready, agentSnapshot?.error, session, projectKey]);
   useEffect(() => { setConsent(false); }, [config.provider, config.baseUrl, config.model, sourceText]);
+  useEffect(() => { setConsent(false); }, [chatGpt?.profileId, chatGpt?.model, chatGpt?.ready]);
+  const accountAgentSelected = Boolean(chatGpt);
+  useEffect(() => { setRuntime(accountAgentSelected ? "chatgpt" : "model"); setConsent(false); }, [accountAgentSelected]);
   const running = session?.phase === "running";
+  const runningCallback = useRef(onRunningChange); runningCallback.current = onRunningChange;
+  const requestActive = running || operation === "send";
+  useEffect(() => {
+    runningCallback.current?.(requestActive);
+    return () => runningCallback.current?.(false);
+  }, [requestActive]);
+  useEffect(() => {
+    if (!running) window.dispatchEvent(new window.Event("betterme:chatgpt-state"));
+  }, [running]);
   const sourceChanged = Boolean(session && session.sourceText !== sourceText);
   useEffect(() => {
     if (!running || !session?.id) return;
@@ -185,13 +204,14 @@ export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sou
     confirmedCallback.current(undefined); setConsent(false);
     const next = await client.startTurn(before.id, { expectedRevision: before.revision, idempotencyKey: submission.id, answer,
       selectedOptionIds: selected, consentToSend: true,
-      runtime: runtime === "model" ? understandingModelRuntime(config) : { kind: "native", runtimeId: runtime },
+      runtime: runtime === "chatgpt" ? { kind: "chatgpt", profileId: chatGpt?.profileId ?? "", model: chatGpt?.model ?? "" }
+        : runtime === "model" ? understandingModelRuntime(config) : { kind: "native", runtimeId: runtime },
     }, signal);
     if (alive.current) { acceptRef.current(next); setUncertain(false); }
   });
   const token = session?.summaryHash ? `${session.revision}:${session.summaryHash}` : "";
   const selectedNative = capabilities.find(item => item.id === runtime);
-  const runtimeReady = runtime === "model" ? Boolean(config.model.trim() && config.baseUrl.trim() && (config.provider === "ollama" || config.apiKey?.trim())) : Boolean(selectedNative?.available && selectedNative.supported);
+  const runtimeReady = runtime === "chatgpt" ? Boolean(chatGpt?.ready) : runtime === "model" ? Boolean(config.model.trim() && config.baseUrl.trim() && (config.provider === "ollama" || config.apiKey?.trim())) : Boolean(selectedNative?.available && selectedNative.supported);
   const busy = initializing || Boolean(operation);
   const lastEvent = session?.events.at(-1);
   const lastTerminal = session?.events.map(event => event.kind).reduce((last, kind, index) => ["waiting", "completed", "error", "cancelled"].includes(kind) ? index : last, -1) ?? -1;
@@ -242,7 +262,8 @@ export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sou
       {options.length > 0 && <button type="button" onClick={() => setOptions([])}>清除选择</button>}
     </fieldset>}
     <div className="understanding-compose"><label htmlFor={`${uid}-answer`}>{session?.understanding ? "补充或纠正理解" : "用自己的话说说这个项目（也可以先让 Agent 提问）"}</label><textarea id={`${uid}-answer`} rows={3} maxLength={16000} value={answer} onChange={event => setAnswer(event.target.value)} placeholder="例如：这个词在我们的项目里不是这个意思……也可以说明不确定、暂时跳过，或直接提出新的问题。" />
-      <label htmlFor={`${uid}-runtime`}>本轮使用</label><select id={`${uid}-runtime`} value={runtime} disabled={running || busy} onChange={event => { setRuntime(event.target.value); setConsent(false); }}><option value="model">当前模型 · {config.model || "尚未配置"}</option>{capabilities.map(item => <option key={item.id} value={item.id} disabled={!item.available || !item.supported}>{item.name}{!item.supported || !item.available ? " · 暂不可用" : " · 原生 Agent"}</option>)}</select>
+      <label htmlFor={`${uid}-runtime`}>本轮使用</label><select id={`${uid}-runtime`} value={runtime} disabled={running || busy} onChange={event => { setRuntime(event.target.value); setConsent(false); }}><option value="model">当前模型 · {config.model || "尚未配置"}</option><option value="chatgpt">ChatGPT 账号授权 · {chatGpt?.model || "请在上方伴写 Agent 中授权并选模型"}</option>{capabilities.map(item => <option key={item.id} value={item.id} disabled={!item.available || !item.supported}>{item.name}{!item.supported || !item.available ? " · 暂不可用" : " · 原生 Agent"}</option>)}</select>
+      {runtime === "chatgpt" && <p className="understanding-hint">使用上方选择的 ChatGPT 账号与套餐。额度或授权异常时停止，不使用当前 API 配置补发。</p>}
       {capabilityError && <p className="understanding-hint">{capabilityError}</p>}{capabilities.some(item => !item.available || !item.supported) && <details><summary>本机 Agent 兼容性</summary>{capabilities.filter(item => !item.available || !item.supported).map(item => <p className="understanding-hint" key={item.id}>{item.name}：{item.reason ?? "当前环境不支持此只读工作流"}</p>)}</details>}
       {!runtimeReady && <p className="understanding-hint">请先完成当前模型配置，或选择明确可用的原生 Agent。不会自动改用其他提供方。</p>}
       <label className="understanding-consent"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} />允许本轮将这条原文、对话和授权资料交给所选运行方式处理</label>

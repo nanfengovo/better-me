@@ -40,6 +40,8 @@ import { AgentCompanion } from "./components/AgentCompanion";
 import { ResumeWritingCopilot } from "./components/ResumeWritingCopilot";
 import { FirstRunGuide } from "./components/FirstRunGuide";
 import { writingSources, writingTargetKey } from "./lib/resume-copilot";
+import { AgentSourceBridge, BetterMeAgentProvider } from "./lib/betterme-agent/react";
+import { BetterMeAgentCenter } from "./components/BetterMeAgentCenter";
 
 const AtlasWorkspace = lazy(() => import("./components/AtlasWorkspace"));
 const ResumeJobRecommendations = lazy(() => import("./components/ResumeJobRecommendations"));
@@ -124,6 +126,11 @@ export function App() {
     return [...new Map(sources.map(source => [writingTargetKey(source.targetRef), source])).values()];
   }, [doc, activeResume]);
   const hasIncompleteDraft = useMemo(() => !!doc && !DocumentSchema.safeParse(doc).success, [doc]);
+  const agentSources = useMemo(() => {
+    if (!doc) return [];
+    const values = doc.resumeViews.flatMap(view => (["zh", "en"] as const).flatMap(locale => writingSources(createResumeAgentContext(doc.factBase, { ...view, locale }))));
+    return [...new Map(values.map(source => [writingTargetKey(source.targetRef), { key: writingTargetKey(source.targetRef), text: source.text }])).values()];
+  }, [doc]);
   const linkedResumeNames = useMemo(() => doc ? resumeNamesByOpportunity(doc) : Object.create(null) as Record<string, string[]>, [doc]);
   function edit(next: NonNullable<typeof doc>) { restoreOperationRef.current += 1; setIsRestoring(false); setActionError(""); docRef.current = next; update(next); }
   function updateFactBase(factBase: FactBase) {
@@ -367,7 +374,8 @@ export function App() {
   const saveLabel = status.kind === "saved" ? t("已保存", "Saved") : status.kind === "draft" ? t("草稿已保护", "Draft protected") : status.kind === "pending" ? t("等待保存", "Save pending") : status.kind === "error" ? t("保存需要处理", "Save needs attention") : t("正在载入", "Loading");
   const autoSaveDescription = !autoSaveSettings.enabled ? t("自动保存已关闭", "Autosave is off") : autoSaveSettings.trigger === "enter" ? t("按回车保存", "Press Enter to save") : autoSaveSettings.trigger === "blur" ? t("离开编辑项时保存", "Save when leaving a field") : t(`停止输入 ${autoSaveSettings.delayMs / 1000} 秒后保存`, `Save after ${autoSaveSettings.delayMs / 1000} seconds of inactivity`);
 
-  return <div className="studio-app">
+  return <BetterMeAgentProvider workspaceKey={doc.documentId ?? activeResume.id}><div className="studio-app">
+    <AgentSourceBridge sources={agentSources} />
     <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".json" className="hidden" />
     <aside className="studio-rail no-print" aria-label={t("工作室导航", "Workspace navigation")}>
       <a className="studio-monogram" href="#" aria-label={t("BetterMe 简历工作室", "BetterMe resume studio")} onClick={(event) => { event.preventDefault(); setPage("resume"); setWorkspaceTab("content"); }}>b<span>m</span><i /></a><div className="rail-divider" />
@@ -490,6 +498,11 @@ export function App() {
         onPromptConsumed={() => setAgentCompanionPrompt(null)}
         onOpenAiConfig={() => setIsAiConfigOpen(true)}
       />
+      <BetterMeAgentCenter onNavigate={origin => {
+        if (origin === "growth") { setPage("agent"); window.dispatchEvent(new CustomEvent("betterme:open-growth")); }
+        else if (origin === "companion") window.dispatchEvent(new CustomEvent("betterme:open-companion"));
+        else { setPage("resume"); setWorkspaceTab("content"); }
+      }} />
     </div>
-  </div>;
+  </div></BetterMeAgentProvider>;
 }

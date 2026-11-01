@@ -159,6 +159,9 @@ export function AgentWorkspace({
   const { t, theme } = useUiPreferences();
   const isDark = theme === "dark";
   const [showCareerCoach, setShowCareerCoach] = useState(false);
+  const [careerCoachInitialized, setCareerCoachInitialized] = useState(false);
+  useEffect(() => { if (showCareerCoach) setCareerCoachInitialized(true); }, [showCareerCoach]);
+  useEffect(() => { const open = () => setShowCareerCoach(true); window.addEventListener("betterme:open-growth", open); return () => window.removeEventListener("betterme:open-growth", open); }, []);
 
   // Current Target Job state
   const [currentJob, setCurrentJob] = useState<DrawerJobContext | null>(job);
@@ -1126,20 +1129,22 @@ export function AgentWorkspace({
 
   // Circumference for radial progress gauge
 
-  if (showCareerCoach) return (
-    <section className="career-coach-shell">
+  const careerCoachPanel = (showCareerCoach || careerCoachInitialized) && (
+    <section className="career-coach-shell" hidden={!showCareerCoach} style={{ display: showCareerCoach ? undefined : "none" }}>
       <nav className="career-coach-entry-nav" aria-label={t("Agent 工作区", "Agent workspace")}>
         <button type="button" onClick={() => setShowCareerCoach(false)}><ArrowLeft size={16} />{t("返回对话与 JD", "Back to chat and JD")}</button>
         <button type="button" onClick={onNavigateToResume}>{t("返回简历", "Back to resume")}</button>
       </nav>
-      {active && <CareerCoachWorkspace key={workspaceKey} workspaceKey={workspaceKey} job={careerCoachJob}
+      {<CareerCoachWorkspace key={workspaceKey} workspaceKey={workspaceKey} job={careerCoachJob}
         resumeEditContext={resumeEditContext} llmConfig={llmConfig} onOpenConfig={onOpenConfig}
         onApplyResumeProposal={onApplyResumeProposal} />}
     </section>
   );
 
   return (
+    <>{careerCoachPanel}
     <section
+      style={{ display: showCareerCoach ? "none" : undefined }}
       className={`w-full h-full flex flex-col min-h-0 overflow-hidden font-sans transition-colors duration-200 ${
         isDark ? "bg-[var(--ui-canvas,#1a1a1f)] text-[var(--ui-text,#edeef4)]" : "bg-slate-100/90 text-slate-900"
       }`}
@@ -3447,6 +3452,6 @@ export function AgentWorkspace({
           </div>
         </div>
       )}
-    </section>
+    </section></>
   );
 }

@@ -106,6 +106,20 @@ test("opening does not create or send; dynamic choices are unselected and free c
   assert.equal(fake.server.turnCount, 41); assert.equal(fake.turns.length, 3);
 });
 
+test("account understanding sends the selected profile/model only and selection changes require fresh consent", async () => {
+  const fake = fakeClient();
+  await render(fake);
+  await toggle(/允许本轮/);
+  await render(fake, { chatGpt: { profileId: "fictional-profile", model: "fictional-gpt", ready: true } });
+  const picker = dom.document.querySelector<HTMLSelectElement>('select[id$="-runtime"]')!;
+  assert.equal(picker.value, "chatgpt"); assert.equal(button(/让 Agent 继续理解/).disabled, true, "changing Agent clears prior API consent");
+  await toggle(/允许本轮/); await click(/让 Agent 继续理解/);
+  assert.deepEqual(fake.turns[0]?.runtime, { kind: "chatgpt", profileId: "fictional-profile", model: "fictional-gpt" });
+  assert.equal(JSON.stringify(fake.turns[0]).includes("modelSettings"), false);
+  await render(fake, { chatGpt: { profileId: "fictional-profile", model: "other-model", ready: false } });
+  await toggle(/允许本轮/); assert.equal(button(/让 Agent 继续理解/).disabled, true); assert.equal(fake.turns.length, 1);
+});
+
 test("confirmation submits the displayed revision/hash and conflict requires fresh confirmation", async () => {
   const fake = fakeClient(); const received: Array<ConfirmedWritingProjectContext | undefined> = [];
   await seed(fake, { phase: "awaiting-confirmation", revision: 7, understanding: fixtureUnderstanding, summaryHash: "hash-7" });

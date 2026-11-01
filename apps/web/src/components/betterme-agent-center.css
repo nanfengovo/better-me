@@ -1,0 +1,34 @@
+.betterme-agent-entry { font: inherit; font-size: 12px; border: 1px solid var(--ui-border, #cbd0d9); border-radius: 8px; background: var(--ui-surface, white); color: var(--ui-text, #202735); padding: 7px 10px; }
+.betterme-agent-center { position: fixed; inset: 84px 24px 28px auto; z-index: 1300; width: min(620px, calc(100vw - 32px)); display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--ui-border, #cbd0d9); border-radius: 20px; background: var(--ui-surface, white); color: var(--ui-text, #202735); box-shadow: 0 20px 70px #0003; overflow: hidden; }
+.betterme-agent-center > header, .betterme-agent-center > footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 22px; flex-shrink: 0; }
+.betterme-agent-center h2 { margin: 6px 0 0; font-size: 20px; }
+.betterme-agent-center small, .betterme-agent-center footer span, .betterme-agent-consent span { display: block; opacity: .75; font-size: 12px; }
+.betterme-agent-center p { margin: 8px 0; line-height: 1.7; overflow-wrap: anywhere; }
+.betterme-agent-center > nav { display: flex; gap: 6px; padding: 8px 20px; flex-wrap: wrap; }
+.betterme-agent-center button, .betterme-agent-model select { border: 1px solid var(--ui-border, #cbd0d9); background: var(--ui-canvas, #f5f6f8); color: inherit; border-radius: 8px; padding: 7px 10px; font: inherit; cursor: pointer; }
+.betterme-agent-center button[aria-pressed=true] { background: var(--ui-action, #394451); color: var(--ui-on-action, white); }
+.betterme-agent-center button:disabled { opacity: .5; cursor: not-allowed; }
+.betterme-agent-save { padding: 0 22px; font-size: 12px; }
+.betterme-agent-center-body { padding: 0 22px 20px; overflow: auto; overscroll-behavior: contain; min-height: 0; flex: 1; }
+.betterme-agent-center article { border: 1px solid var(--ui-border, #cbd0d9); border-radius: 12px; padding: 14px; margin: 12px 0; }
+.betterme-agent-center article button { margin: 8px 8px 0 0; }
+.betterme-agent-center label { font-size: 13px; line-height: 1.7; }
+.betterme-agent-center input:not([type=checkbox]), .betterme-agent-center textarea { display: block; width: 100%; padding: 8px; background: var(--ui-canvas, #f5f6f8); color: inherit; border: 1px solid var(--ui-border, #cbd0d9); border-radius: 8px; }
+.betterme-agent-history-text { white-space: pre-wrap; }
+.betterme-agent-consent { display: block; font-size: 12px; line-height: 1.6; margin: 8px 0; color: inherit; }
+.betterme-agent-model { font-size: 12px; margin: 6px 0; }
+.betterme-agent-model select { max-width: 100%; }
+.betterme-agent-running-count { position: absolute; top: -4px; right: -4px; display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 12px; color: var(--ui-on-action, white); background: var(--ui-action, #244f42); border: 2px solid var(--ui-surface, white); font-size: 11px; }
+.agent-companion-shared-settings { position: relative; flex: 0 0 auto; font-size: 11px; }
+.agent-companion-shared-settings > summary { padding: 8px; cursor: pointer; border: 1px solid var(--ui-border, #cbd0d9); border-radius: 8px; }
+.agent-companion-shared-settings-body { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 3; max-height: min(420px, calc(100dvh - 290px)); overflow: auto; overscroll-behavior: contain; padding: 10px; border: 1px solid var(--ui-border, #cbd0d9); border-radius: 10px; background: var(--ui-surface, white); box-shadow: 0 10px 30px #0002; }
+@media (max-height: 680px) {
+  .agent-companion .agent-companion-panel { padding: 12px; gap: 6px; }
+  .agent-companion .agent-companion-panel .agent-companion-eyebrow { display: none; }
+  .agent-companion .agent-companion-panel h2 { margin: 0; font-size: 16px; }
+  .agent-companion .agent-companion-panel .agent-companion-content { gap: 4px; }
+  .agent-companion .agent-companion-panel .agent-companion-chat { gap: 4px; }
+  .agent-companion .agent-companion-panel .agent-companion-tools-toggle { min-height: 30px; padding: 4px 8px; }
+  .agent-companion .agent-companion-panel .agent-companion-tools-copy small { display: none; }
+}
+@media (max-width: 650px) { .betterme-agent-center { inset: 12px 8px; width: auto; } .betterme-agent-center > header, .betterme-agent-center > footer { padding: 14px; } }

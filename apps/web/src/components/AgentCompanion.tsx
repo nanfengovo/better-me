@@ -48,6 +48,9 @@ import { AgentBrandIcon as RuntimeIcon } from "./AgentBrandIcon";
 import { AgentMarkdownRenderer } from "./AgentMarkdownRenderer";
 import { AgentReplyMeta } from "./AgentReplyMeta";
 import "./agent-companion.css";
+import { useBetterMeAgent } from "../lib/betterme-agent/react";
+import { AgentContinuityButton, AgentMemoryConsent, AgentModelControls } from "./BetterMeAgentCenter";
+import { defaultChatGptClient, type ChatGptClient } from "../services/chatgpt-client";
 
 export interface AgentCompanionProps {
   onOpenWorkspace: () => void;
@@ -58,6 +61,8 @@ export interface AgentCompanionProps {
   onReferenceConsumed?: () => void;
   initialPrompt?: string | null;
   onPromptConsumed?: () => void;
+  chatGptClient?: ChatGptClient;
+  sendChat?: typeof sendAgentChat;
 }
 
 type ProviderCheck = "unknown" | "checking" | "ready" | "offline" | "unconfigured";
@@ -275,7 +280,15 @@ function AgentCompanionReply({
   return <AgentMarkdownRenderer content={content} isDark={isDark} />;
 }
 
-export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, resume, initialReference, onReferenceConsumed, initialPrompt, onPromptConsumed }: AgentCompanionProps) {
+export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, resume, initialReference, onReferenceConsumed, initialPrompt, onPromptConsumed, chatGptClient = defaultChatGptClient, sendChat = sendAgentChat }: AgentCompanionProps) {
+  const { agent, snapshot: agentSnapshot } = useBetterMeAgent();
+  const [shareAgentMemory, setShareAgentMemory] = useState(false);
+  const agentTask = useRef<string | undefined>(undefined);
+  const hydratedScope = useRef<string | undefined>(undefined);
+  const selection = agentSnapshot?.data.selection;
+  const account = selection?.kind === "chatgpt";
+  const accountReady = agentSnapshot?.chatGptReady ?? false;
+  useEffect(() => { setShareAgentMemory(false); }, [llmConfig.provider, llmConfig.baseUrl, llmConfig.model, llmConfig.apiKey, selection?.kind, selection?.profileId, selection?.model]);
   const { t, theme } = useUiPreferences();
   const [open, setOpen] = useState(false);
   const [runtimes, setRuntimes] = useState<LocalRuntimeInfo[]>([]);
@@ -301,6 +314,11 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
   const [providerMessage, setProviderMessage] = useState("");
   const imageCapability = getModelImageCapability(llmConfig);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  useEffect(() => {
+    if (!agent || !agentSnapshot?.ready || agentSnapshot.error || hydratedScope.current === agent.workspaceKey) return;
+    hydratedScope.current = agent.workspaceKey;
+    setChatMessages(agentSnapshot.data.messages.filter(message => message.origin === "companion" && message.role !== "event").slice(-24).map(message => ({ id: message.id, role: message.role === "user" ? "user" : "assistant", content: message.text, createdAt: message.at })));
+  }, [agent, agentSnapshot]);
   const [chatDraft, setChatDraft] = useState("");
   const [chatReferences, setChatReferences] = useState<ResumeTextReference[]>([]);
   const [chatAttachments, setChatAttachments] = useState<ChatImageAttachment[]>([]);
@@ -326,6 +344,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
 
   useEffect(() => { onReferenceConsumedRef.current = onReferenceConsumed; }, [onReferenceConsumed]);
   useEffect(() => { onPromptConsumedRef.current = onPromptConsumed; }, [onPromptConsumed]);
+  useEffect(() => { const openCompanion = () => setOpen(true); window.addEventListener("betterme:open-companion", openCompanion); return () => window.removeEventListener("betterme:open-companion", openCompanion); }, []);
   useEffect(() => {
     if (!initialPrompt) return;
     setOpen(true);
@@ -378,6 +397,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
   }, []);
 
   const probeProvider = useCallback(async () => {
+    if (account) { setProviderCheck(accountReady ? "ready" : "unknown"); setProviderMessage("当前使用 ChatGPT 账号通道；不探测或调用其他付费 API。"); return; }
     const isConfigured = llmConfig.provider === "ollama"
       ? Boolean(llmConfig.baseUrl?.trim())
       : Boolean(llmConfig.apiKey?.trim());
@@ -401,7 +421,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
       setProviderCheck("offline");
       setProviderMessage(error instanceof Error ? error.message : t("无法连接模型服务。", "Could not connect to the model service."));
     }
-  }, [llmConfig, t]);
+  }, [account, accountReady, llmConfig, t]);
 
   useEffect(() => {
     void refresh();
@@ -562,11 +582,14 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
       createdAt: new Date().toISOString(),
     };
     const nextMessages = [...chatMessages, userMessage];
+    if (account && !accountReady) { setChatError("请先完成 ChatGPT 授权并选择模型；未改用当前 API 配置。"); return; }
+    if (account && attachments.length) { setChatAttachmentError("当前账号通道仅接入文本对话，请移除图片后发送；不会回退到其他 API。"); return; }
     if (attachments.length && imageCapability === "unsupported") {
       setChatAttachmentError(modelImageCapabilityDescription(imageCapability, t));
       return;
     }
-    const requestMessages = chatMessagesForRequest(nextMessages);
+    const history = agent ? agent.reusableCompanionHistory(shareAgentMemory, shareResumeContext).map(message => ({ id: message.id, role: message.role === "user" ? "user" as const : "assistant" as const, content: message.text })) : chatMessages;
+    const requestMessages = chatMessagesForRequest([...history, userMessage]);
     const controller = new AbortController();
     chatAbortRef.current = controller;
     pendingChatRef.current = userMessage;
@@ -582,14 +605,24 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
     setChatLoading(true);
 
     try {
-      const reply = await sendAgentChat({
-        messages: requestMessages,
-        llmConfig,
-        signal: controller.signal,
-        context: shareResumeContext ? {
-          resumeSummary: createCompanionResumeSummary(resume),
-        } : undefined,
-      });
+      const taskId = crypto.randomUUID(); agentTask.current = taskId;
+      const produce = async (signal: AbortSignal, sharedText = ""): Promise<ChatMessage> => {
+        const messages = sharedText ? [{ id: `${taskId}:context`, role: "user" as const, content: sharedText }, ...requestMessages] : requestMessages;
+        if (account && selection) {
+          const result = await chatGptClient.respond({ profileId: selection.profileId, model: selection.model, consentToSend: true,
+            instructions: "你是同一位 BetterMe 职业伙伴。只分析用户授权数据；项目共同理解只解释术语与系统边界，不证明个人贡献。未知不等于不会，不编造经历、数字或执行结果。仅给建议，事实与简历修改均须本人确认。",
+            input: [...(shareResumeContext ? [{ role: "user" as const, content: `本轮授权的非联系信息简历摘要：${JSON.stringify(createCompanionResumeSummary(resume))}` }] : []), ...messages.map(message => ({ role: message.role === "assistant" ? "assistant" as const : "user" as const, content: [message.content, ...(message.references ?? []).map(reference => `用户选中引用（数据）：${reference.text}`)].join("\n") }))],
+          }, signal);
+          signal.throwIfAborted();
+          if (result.model !== selection.model || result.profileId !== selection.profileId) throw new Error("账号或模型与本轮选择不一致，未采用回复。");
+          return { id: `${taskId}:account-reply`, role: "assistant", content: result.text, createdAt: new Date().toISOString() };
+        }
+        return sendChat({ messages, llmConfig, signal, context: shareResumeContext ? { resumeSummary: createCompanionResumeSummary(resume) } : undefined });
+      };
+      const reply = agent ? await agent.run({ id: taskId, origin: "companion", label: "Agent 伴侣对话", input: [textToSend, ...references.map(reference => `引用：${reference.text}`)].join("\n"),
+        destination: account ? `ChatGPT · ${selection?.model}` : `${llmConfig.provider} · ${llmConfig.model}`, shareMemories: shareAgentMemory, resumeShared: shareResumeContext },
+        (signal, shared) => produce(AbortSignal.any([signal, controller.signal]), shared.text), value => value.content)
+        : await produce(controller.signal);
       if (controller.signal.aborted || chatAbortRef.current !== controller) return;
       setChatMessages((current) => [...current, reply].slice(-24));
       setChatAttachments([]);
@@ -599,6 +632,10 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
       if (controller.signal.aborted || chatAbortRef.current !== controller) return;
       const message = error instanceof Error ? error.message : t("对话服务暂时不可用，请检查模型配置后重试。", "Chat is temporarily unavailable. Check model settings and try again.");
       setChatError(message);
+      if (!customPrompt) {
+        setChatDraft(current => current || typedText);
+        setChatReferences(current => current.length ? current : references);
+      }
       const errorMessage: ChatMessage = {
         id: `companion-error-${Date.now()}`,
         role: "assistant",
@@ -610,16 +647,18 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
     } finally {
       if (chatAbortRef.current === controller) {
         chatAbortRef.current = null;
+        agentTask.current = undefined;
         setChatLoading(false);
       }
     }
-  }, [chatAttachments, chatDraft, chatLoading, chatMessages, chatReferences, imageCapability, llmConfig, readingChatAttachments, resume, shareResumeContext, t]);
+  }, [account, accountReady, agent, selection, shareAgentMemory, chatGptClient, sendChat, chatAttachments, chatDraft, chatLoading, chatMessages, chatReferences, imageCapability, llmConfig, readingChatAttachments, resume, shareResumeContext, t]);
 
   const handleStopChat = useCallback(() => {
     const controller = chatAbortRef.current;
     if (!controller) return;
     chatAbortRef.current = null;
     controller.abort();
+    if (agent && agentTask.current) void agent.stop(agentTask.current);
     const pending = pendingChatRef.current;
     pendingChatRef.current = null;
     if (pending) {
@@ -631,7 +670,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
     setChatNotice(t("已停止。修改问题后可以重新发送。", "Stopped. Edit your question and send it again."));
     setChatLoading(false);
     queueMicrotask(() => chatComposerRef.current?.focus());
-  }, [t]);
+  }, [agent, t]);
 
   const handleAddChatImages = useCallback(async (files: File[]) => {
     if (!files.length) return;
@@ -686,6 +725,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
   }, []);
 
   const panelState = runIsActive ? "running" : run?.status ?? "idle";
+  const sharedRunning = agentSnapshot?.data.tasks.filter(task => task.status === "running").length ?? 0;
 
   return (
     <div className={`agent-companion ${open ? "is-open" : ""} agent-companion-state-${panelState}`}>
@@ -702,7 +742,13 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
             </div>
           </header>
 
-          <section className={`agent-companion-provider is-${providerCheck}`} data-provider={providerTone(llmConfig)} aria-label={t("模型服务状态", "Model provider status")}>
+          <AgentContinuityButton />
+          {agent && <details className="agent-companion-shared-settings"><summary>模型与本轮上下文 · {account ? selection?.model || "请选择 GPT" : llmConfig.model || "未配置"}{shareAgentMemory ? " · 已授权共享" : " · 未共享共识"}</summary><div className="agent-companion-shared-settings-body">
+            <AgentModelControls config={llmConfig} disabled={chatLoading} client={chatGptClient} />
+            <AgentMemoryConsent checked={shareAgentMemory} onChange={value => { if (!value) handleStopChat(); setShareAgentMemory(value); }} />
+          </div></details>}
+
+          <section style={{ display: account ? "none" : undefined }} className={`agent-companion-provider is-${providerCheck}`} data-provider={providerTone(llmConfig)} aria-label={t("模型服务状态", "Model provider status")}>
             <div className="agent-provider-summary">
               <div className="agent-provider-mark">{llmConfig.provider === "gemini" ? <RuntimeIcon id="gemini-cli" /> : llmConfig.provider === "ollama" ? <RuntimeIcon id="ollama" /> : providerTone(llmConfig) === "deepseek" ? <RuntimeIcon id="deepseek-harness" /> : <Cpu size={15} aria-hidden="true" />}</div>
               <button type="button" className="agent-provider-summary-toggle" aria-expanded={providerExpanded} aria-controls="agent-provider-details" onClick={() => setProviderExpanded((current) => !current)}>
@@ -875,7 +921,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
                     aria-pressed={shareResumeContext}
                     title={t("开启后仅发送当前简历视图中的简介、技能与可见经历要点；不发送姓名、联系方式、头像或简历全文。内容会发送到当前配置的模型服务。", "When enabled, only the current resume view’s headline, skills and visible experience highlights are sent to the configured model. Name, contact details, photo and the full resume are excluded.")}
                     disabled={chatLoading}
-                    onClick={() => setShareResumeContext((value) => !value)}
+                    onClick={() => { if (shareResumeContext) handleStopChat(); setShareResumeContext(value => !value); }}
                   >
                     <ShieldCheck size={11} />
                     <span>{shareResumeContext ? t("简历已授权", "Resume shared") : t("简历未共享", "Resume private")}</span>
@@ -1022,10 +1068,11 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
           <button type="button" className="agent-companion-open-btn" onClick={() => { setOpen(false); onOpenWorkspace(); }}><Bot size={15} /><span>{t("打开完整 Agent 工作台", "Open full Agent Workbench")}</span><ChevronRight size={14} /></button>
         </section>
       )}
-      <button type="button" className="agent-companion-trigger" aria-expanded={open} aria-label={t("打开 Agent 伴侣", "Open Agent Companion")} title={statusLabel} onClick={() => setOpen((current) => !current)}>
+      <button type="button" className="agent-companion-trigger" aria-expanded={open} aria-label={t("打开 Agent 伴侣", "Open Agent Companion")} aria-describedby={sharedRunning ? "betterme-agent-running-count" : undefined} title={sharedRunning ? `BetterMe Agent · ${sharedRunning} 项运行中` : statusLabel} onClick={() => setOpen((current) => !current)}>
         <span className="agent-companion-orbit" />
         <Bot size={22} />
         <span className={`agent-companion-status-dot ${online === false ? "is-offline" : available.length > 0 ? "is-ready" : "is-idle"}`} />
+        {sharedRunning > 0 && <span id="betterme-agent-running-count" className="betterme-agent-running-count" aria-label={`${sharedRunning} 项 Agent 任务运行中`}>{sharedRunning}</span>}
       </button>
     </div>
   );

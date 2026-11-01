@@ -771,11 +771,18 @@ test("career growth is reachable inside the existing agent workspace and returns
     assert.ok(fixture.textContent?.includes(label), `career growth must expose ${label}`);
   }
   assert.equal(chatRequestBodies.length, previousRequests, "opening the workspace must not trigger a model conversation");
+  const growth = fixture.querySelector('[aria-label="成长工作区"]');
+  assert.ok(growth);
   const back = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.includes("返回对话与 JD"));
   assert.ok(back);
   await flush(() => back.click());
   assert.ok(fixture.querySelector('[role="separator"]'), "the existing conversation workspace should remain available");
-  assert.ok(!fixture.querySelector('[aria-label="成长工作区"]'));
+  assert.equal(fixture.querySelector('[aria-label="成长工作区"]'), growth, "switching pages must preserve the mounted growth session");
+  assert.equal(growth.closest<HTMLElement>(".career-coach-shell")?.hidden, true, "the inactive growth workspace is hidden, not destroyed");
+  assert.equal(chatRequestBodies.length, previousRequests, "returning to the conversation must not generate a request");
+  await flush(() => entry.click());
+  assert.equal(growth.closest<HTMLElement>(".career-coach-shell")?.hidden, false);
+  assert.equal(fixture.querySelector('[aria-label="成长工作区"]'), growth);
 });
 
 test("career growth makes the entered JD available for separate opt-in without running legacy matching", async () => {

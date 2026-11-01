@@ -77,6 +77,8 @@ export interface CoachRequest {
   mode: CoachMode;
   settings: CoachSettings;
   input: string;
+  sharedProjectContext?: string;
+  agentMemoryIds?: string[];
   context?: CoachContext;
   plan?: CoachPlan;
   task?: CoachTask;
@@ -93,7 +95,7 @@ export const CoachRecordSchema = z.object({
   id: z.string().min(1).max(100), createdAt: z.string().datetime(), mode: z.enum(COACH_MODES), input: z.string().max(12000),
   payload: CoachPayloadSchema,
   model: z.object({ provider: short, name: short, generatedAt: z.string().datetime() }).strict(),
-  basis: z.object({ resumeShared: z.boolean(), jobShared: z.boolean(), contextFingerprint: z.string().max(100) }).strict(),
+  basis: z.object({ resumeShared: z.boolean(), jobShared: z.boolean(), contextFingerprint: z.string().max(100), agentMemoryIds: z.array(z.string()).optional() }).strict(),
 }).strict();
 export type CoachRecord = z.infer<typeof CoachRecordSchema>;
 export const CoachTaskProgressSchema = z.object({

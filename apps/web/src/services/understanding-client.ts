@@ -12,7 +12,7 @@ const CapabilitiesResponse = z.object({ runtimes: z.array(z.object({ id: z.strin
 export type UnderstandingRuntime = { kind: "model"; modelSettings: {
   provider: LlmConfig["provider"]; model: string; baseUrl: string; apiKey?: string; temperature?: number;
   thinkingMode?: "enabled" | "disabled"; reasoningEffort?: "low" | "high" | "max"; maxTokens?: number;
-} } | { kind: "native"; runtimeId: string };
+} } | { kind: "native"; runtimeId: string } | { kind: "chatgpt"; profileId: string; model: string };
 export type UnderstandingCreateInput = z.infer<typeof UnderstandingCreateSchema>;
 export type UnderstandingTurnRequest = UnderstandingTurnInput & { runtime: UnderstandingRuntime };
 export class UnderstandingClientError extends Error {

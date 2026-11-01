@@ -8,6 +8,8 @@ import type { ResumeEditContext } from "@better-me/agent-contracts";
 import type { CoachGeneration, CoachGenerate, CoachPayload, CoachRequest, CoachState } from "../src/lib/career-coach/types";
 import { createMemoryCoachRepository, type CoachRepository } from "../src/lib/career-coach/storage";
 import { addCoachRecord, adoptCoachPlan, contextFingerprint, createCoachRecord, createCoachState } from "../src/lib/career-coach/state";
+import { BetterMeAgentProvider } from "../src/lib/betterme-agent/react";
+import { createMemoryAgentRepository } from "../src/lib/betterme-agent/storage";
 
 registerHooks({ load(url, context, nextLoad) {
   return url.endsWith(".css") ? { format: "module", source: "", shortCircuit: true } : nextLoad(url, context);
@@ -105,6 +107,22 @@ async function mount(overrides: Partial<Props> = {}) {
 }
 test.afterEach(async () => { if (root) await flush(() => root?.unmount()); root = undefined; });
 test.after(() => { assert.equal(externalRequests, 0, "the UI suite must never access external services"); });
+
+test("the unified Agent keeps growth requests alive across internal modes and hidden pages", async () => {
+  const repository = await configuredRepository(), agentRepository = createMemoryAgentRepository();
+  let resolve!: (value: CoachGeneration) => void; let signal: AbortSignal | undefined;
+  const props: Props = { workspaceKey: fixtureKey, job, resumeEditContext: resume, llmConfig: config, onOpenConfig: () => {}, repository,
+    generate: async (_request, _config, inputSignal) => { signal = inputSignal; return new Promise(done => { resolve = done; }); } };
+  dom.document.body.innerHTML = '<main id="fixture"></main>'; root = createRoot(body());
+  await flush(() => root!.render(h(UiPreferencesProvider, null, h(BetterMeAgentProvider, { workspaceKey: "unified-growth", repository: agentRepository, children: h(CareerCoachWorkspace, props) }))));
+  await click(/开始规划分析/); await click(/学习方案/); body().hidden = true;
+  assert.equal(signal?.aborted, false);
+  await flush(() => resolve(generated("analysis"))); body().hidden = false;
+  await click(/规划分析/);
+  assert.match(body().textContent ?? "", /合成方向分析结果/);
+  assert.equal((await repository.load(fixtureKey))?.records.length, 1);
+  assert.equal((await agentRepository.load("unified-growth"))?.tasks.at(-1)?.status, "completed");
+});
 
 test("career coach exposes five modes with resume/JD sharing off and no automatic model request", async () => {
   const requests: CoachRequest[] = [];
