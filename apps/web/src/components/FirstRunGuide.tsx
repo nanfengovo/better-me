@@ -1,12 +1,14 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, Check, Compass, FileText, Orbit, ShieldCheck, Sparkles, WandSparkles, X } from "lucide-react";
 import { useUiPreferences } from "../lib/ui-preferences";
 import { FIRST_RUN_GUIDE_KEY, GUIDE_STEPS, placeGuide, rememberGuide, shouldShowGuide, type GuideRect } from "../lib/first-run-guide";
 import "./first-run-guide.css";
+import { useAgentSidebar } from "./AgentSidebar";
 
-type Props = { eligible: boolean; onPrepare: () => void };
-export function FirstRunGuide({ eligible, onPrepare }: Props) {
+type Props = { eligible: boolean; onPrepare: () => void; renderTrigger?: (start: () => void) => ReactNode };
+export function FirstRunGuide({ eligible, onPrepare, renderTrigger }: Props) {
   const { t } = useUiPreferences();
+  const sidebar = useAgentSidebar();
   const [step, setStep] = useState<number | null>(null);
   const [effects, setEffects] = useState(true);
   const [reduced, setReduced] = useState(false);
@@ -33,7 +35,7 @@ export function FirstRunGuide({ eligible, onPrepare }: Props) {
     setStep(Math.max(0, Math.min(GUIDE_STEPS.length - 1, next)));
   }
   function start() {
-    attempted.current = true; previousFocus.current = replay.current;
+    attempted.current = true; previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : replay.current;
     setStorageWarning(false); onPrepare(); setStep(0);
   }
   useEffect(() => {
@@ -100,7 +102,7 @@ export function FirstRunGuide({ eligible, onPrepare }: Props) {
   const cutout = geometry?.target;
   const backdropPath = geometry ? `M0 0H${geometry.width}V${geometry.height}H0Z${cutout ? `M${cutout.x} ${cutout.y}v${cutout.height}h${cutout.width}v-${cutout.height}Z` : ""}` : "";
   return <>
-    <button ref={replay} type="button" className="studio-button subtle guide-replay" aria-label={t("重新播放新手引导", "Replay workspace tour")} onClick={start} title={t("新手引导", "Workspace tour")}><Compass size={16} /><span>{t("新手引导", "Tour")}</span></button>
+    {renderTrigger ? renderTrigger(start) : <button ref={replay} type="button" className="studio-button subtle guide-replay" aria-label={t("重新播放新手引导", "Replay workspace tour")} onClick={start} title={t("新手引导", "Workspace tour")}><Compass size={16} /><span>{t("新手引导", "Tour")}</span></button>}
     {storageWarning && <span className="guide-storage-warning" role="status">{t("引导已关闭，但浏览器未保存偏好，下次可能再次出现。", "Tour closed, but this browser could not remember it.")}</span>}
     {step !== null && stepInfo && <dialog ref={dialog} className={`first-run-guide no-print ${cinematic ? "is-cinematic" : "is-spotlight"} ${animated ? "has-effects" : "reduced-effects"}`} aria-labelledby="guide-title" aria-describedby="guide-description"
       onCancel={event => { event.preventDefault(); close("skipped"); }}
@@ -128,6 +130,7 @@ export function FirstRunGuide({ eligible, onPrepare }: Props) {
           {Array.from({ length: 18 }, (_, index) => <i key={index} className="guide-spark" style={{ "--spark-x": `${(index * 37 + 11) % 100}%`, "--spark-y": `${(index * 23 + 7) % 100}%`, "--spark-delay": `${(index % 6) * 50}ms`, "--spark-angle": `${index * 137.5}deg` } as CSSProperties} />)}
         </div>}
         <div className="guide-copy" aria-live="polite" aria-atomic="true"><div className="guide-chapter"><Sparkles size={14} />{String(step + 1).padStart(2, "0")} / {t(stepInfo.label[0], stepInfo.label[1])}</div><h2 id="guide-title" ref={heading} tabIndex={-1}>{t(stepInfo.title[0], stepInfo.title[1])}</h2><p id="guide-description">{t(stepInfo.description[0], stepInfo.description[1])}</p><div className="guide-hint"><ShieldCheck size={15} /><span>{t(stepInfo.hint[0], stepInfo.hint[1])}</span></div>{!cinematic && !cutout && <p className="guide-target-fallback">{t("当前布局未显示此区域；关闭引导后可从对应导航入口找到。", "This area is not visible in this layout. Find it through the workspace navigation after the tour.")}</p>}</div>
+        {sidebar && ["writing", "ai", "finish"].includes(stepInfo.id) && <button type="button" className="guide-secondary" onClick={() => { close("completed"); sidebar.learn("evidence"); }}>{t("继续学习 Agent 协作细节", "Explore the Agent collaboration guide")}</button>}
         <footer className="guide-footer"><div className="guide-progress" role="group" aria-label={t("引导步骤", "Tour steps")}>{GUIDE_STEPS.map((item, index) => <button key={item.id} type="button" aria-label={t(`第 ${index + 1} 步：${item.label[0]}`, `Step ${index + 1}: ${item.label[1]}`)} aria-current={step === index ? "step" : undefined} className={index <= step ? "is-reached" : ""} onClick={() => navigate(index)}><span /></button>)}</div>
           <div className="guide-actions"><button type="button" className="guide-secondary" onClick={() => step === 0 ? close("skipped") : navigate(step - 1)}>{step === 0 ? t("稍后再说", "Maybe later") : <><ArrowLeft size={15} />{t("上一步", "Back")}</>}</button><button type="button" className="guide-primary" onClick={() => step === GUIDE_STEPS.length - 1 ? close("completed") : navigate(step + 1)}>{step === 0 ? t("带我逛逛", "Show me around") : step === GUIDE_STEPS.length - 1 ? t("开始写我的故事", "Start my story") : t("下一步", "Next")}<ArrowRight size={17} /></button></div>
           <div className="guide-utilities"><label><input type="checkbox" checked={animated} disabled={reduced} onChange={event => setEffects(event.target.checked)} />{reduced ? t("跟随系统 · 减少动态效果", "System: reduced motion") : t("沉浸动效", "Immersive effects")}</label><span>{step + 1} / {GUIDE_STEPS.length}</span>{step > 0 && step < GUIDE_STEPS.length - 1 ? <button type="button" onClick={() => navigate(step + 1)}>{t("跳过本步", "Skip step")}</button> : <button type="button" onClick={() => close("skipped")}>{t("跳过引导", "Skip tour")}</button>}</div>

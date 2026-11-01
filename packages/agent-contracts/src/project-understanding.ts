@@ -10,12 +10,33 @@ export const UnderstandingQuestionSchema = z.object({
 });
 export type UnderstandingQuestion = z.infer<typeof UnderstandingQuestionSchema>;
 
+/** Suggestions are questions, never claims of authorship or permission to disclose clients. */
+export const ContributionLeadSchema = z.object({
+  id: z.string().min(1).max(120), title: z.string().min(1).max(200),
+  hypothesis: z.string().min(1).max(1500),
+  category: z.enum(["responsibility", "customer", "deployment", "challenge", "outcome"]),
+  evidenceIds: z.array(z.string()).min(1).max(12),
+  question: z.string().min(1).max(1500), options: z.array(z.string().min(1).max(500)).max(6),
+});
+export type ContributionLead = z.infer<typeof ContributionLeadSchema>;
+export const UnderstandingCheckpointSchema = z.object({
+  turn: z.number().int().nonnegative(), status: z.enum(["reading", "synthesizing", "partial", "complete"]),
+  used: z.number().int().nonnegative(), budget: z.number().int().positive(),
+  evidenceIds: z.array(z.string()).max(2000), reusedDirectories: z.number().int().nonnegative(),
+});
+/** File type is only a provenance boundary; code is not proof of deployment or authorship. */
+export function isImplementationEvidencePath(file: string): boolean {
+  return /\.(?:tsx?|jsx?|mjs|cjs|cs|fs|vb|py|go|rs|java|kt|swift|c|h|cpp|hpp|vue|svelte|html|css|scss)$/i.test(file);
+}
+
 export const ProjectUnderstandingSchema = z.object({
   summary: z.string().min(1).max(8000),
   terms: z.array(z.object({ term: z.string().min(1).max(200), meaning: z.string().min(1).max(2000), evidenceIds: z.array(z.string()).max(30) })).max(80),
   boundaries: z.array(z.string().max(2000)).max(40),
-  claims: z.array(z.object({ id: z.string().min(1).max(120), text: z.string().min(1).max(3000), kind: z.enum(["source", "user", "inference", "unknown"]), evidenceIds: z.array(z.string()).max(30) })).max(100),
+  claims: z.array(z.object({ id: z.string().min(1).max(120), text: z.string().min(1).max(3000), kind: z.enum(["source", "documentation", "design", "user", "inference", "unknown"]), evidenceIds: z.array(z.string()).max(30) })).max(100),
   unknowns: z.array(z.string().max(2000)).max(40),
+  // Optional (not defaulted) so loading legacy confirmed records never changes their hash.
+  contributionLeads: z.array(ContributionLeadSchema).max(6).optional(),
 });
 export type ProjectUnderstanding = z.infer<typeof ProjectUnderstandingSchema>;
 
@@ -40,6 +61,7 @@ export type UnderstandingSession = {
   messages: UnderstandingMessage[];
   events: UnderstandingEvent[];
   understanding?: ProjectUnderstanding;
+  checkpoint?: z.infer<typeof UnderstandingCheckpointSchema>;
   summaryHash?: string;
   question?: UnderstandingQuestion;
   confirmation?: { revision: number; summaryHash: string; confirmedAt: string };
@@ -58,6 +80,7 @@ export const UnderstandingSessionSchema = z.object({
   messages: z.array(z.object({ id: z.string(), role: z.enum(["user", "agent", "system"]), text: z.string(), at: z.string(), question: UnderstandingQuestionSchema.optional(), selectedOptionIds: z.array(z.string()).optional() })),
   events: z.array(z.object({ sequence: z.number().int(), at: z.string(), label: z.string(), kind: z.enum(["reading", "thinking", "waiting", "completed", "error", "cancelled"]) })),
   understanding: ProjectUnderstandingSchema.optional(), summaryHash: z.string().optional(), question: UnderstandingQuestionSchema.optional(),
+  checkpoint: UnderstandingCheckpointSchema.optional(),
   confirmation: z.object({ revision: z.number().int(), summaryHash: z.string(), confirmedAt: z.string() }).optional(),
   error: z.object({ code: z.string(), message: z.string(), recoverable: z.boolean() }).optional(),
 });

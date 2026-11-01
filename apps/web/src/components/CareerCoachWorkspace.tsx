@@ -314,11 +314,12 @@ function CareerCoachSession({ workspaceKey, resumeEditContext, job, llmConfig, o
   };
 
   return <section className="career-coach" aria-label="成长工作区">
-    <AgentContinuityButton />
-    <AgentModelControls config={llmConfig} disabled={busy} client={chatGptClient} />
-    <AgentMemoryConsent checked={shareAgentMemory} onChange={setShareAgentMemory} />
     <header className="coach-header"><div><div className="coach-eyebrow"><span />BETTERME / CAREER LAB</div><h1>把下一步，变成看得见的成长。</h1><p>从职业判断到学习实践，在你的简历与目标之间建立一条可验证的路径。</p></div>
       <div className="coach-header-actions"><button type="button" onClick={onOpenConfig}><Settings2 size={16} />模型配置</button><button type="button" onClick={exportState} disabled={!ready}><Download size={16} />下载备份</button></div></header>
+    {agent && <div className="coach-agent-bar" role="group" aria-label="本轮 Agent 与授权">
+      <div className="coach-agent-controls"><AgentModelControls config={llmConfig} disabled={busy} client={chatGptClient} /><AgentContinuityButton /></div>
+      <AgentMemoryConsent checked={shareAgentMemory} onChange={setShareAgentMemory} />
+    </div>}
     <nav className="coach-tabs" aria-label="成长任务">{MODES.map((item, index) => <button key={item.id} type="button" aria-pressed={mode === item.id} onClick={() => { if (!agent) invalidate(true); setMode(item.id); if (!busy) { setInput(""); carriedSources.current = []; } setError(undefined); }}><span className="coach-tab-number">0{index + 1}</span><item.icon size={18} /><span>{item.title}<small>{item.subtitle}</small></span><ArrowRight size={15} /></button>)}</nav>
     <div className="coach-layout"><aside className="coach-setup"><div className="coach-section-heading"><Target size={18} /><h2>你的成长坐标</h2></div><p className="coach-muted">同一位 Agent、同一目标；没有 JD 也可以开始。</p>
       {agentSnapshot?.data.goal && agentSnapshot.data.goal !== state.settings.goal && <button type="button" disabled={busy || !ready} onClick={() => changeSettings({ goal: agentSnapshot.data.goal })}>把统一目标带入本阶段（保留原计划）</button>}

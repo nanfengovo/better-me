@@ -8,6 +8,7 @@ import type { UnderstandingClient, UnderstandingTurnRequest } from "../src/servi
 import { UnderstandingClientError } from "../src/services/understanding-client";
 import type { ConfirmedWritingProjectContext } from "../src/lib/resume-copilot";
 import { fixtureSession, fixtureUnderstanding } from "./fixtures/project-understanding";
+import { contributionSupplement, emptyContributionDraft } from "../src/lib/project-contribution";
 
 registerHooks({ load(url, context, next) { return url.endsWith(".css") ? { format: "module", source: "", shortCircuit: true } : next(url, context); } });
 const dom = new Window({ url: "https://understanding-fixture.invalid" });
@@ -87,6 +88,53 @@ async function fill(value: string) {
 async function unmount() { await act(async () => { root?.unmount(); root = undefined; }); dom.document.body.replaceChildren(); }
 afterEach(async () => { await unmount(); dom.localStorage.clear(); assert.equal(externalRequests, 0); });
 after(() => { dom.happyDOM.abort(); for (const [key, value] of originals) { if (value) Object.defineProperty(globalThis, key, value); else Reflect.deleteProperty(globalThis, key); } });
+
+test("contribution handoff excludes hypotheses, unknown ownership and private client notes by construction", () => {
+  const draft = { ...emptyContributionDraft(), answer: "我设计了任务接口", customerPrivate: "PRIVATE_CUSTOMER", publicContext: "半导体现场" };
+  assert.equal(contributionSupplement({ ...draft, stage: "unknown" }), undefined);
+  assert.equal(contributionSupplement({ ...draft, stage: "not-mine" }), undefined);
+  const privateOnly = contributionSupplement({ ...draft, stage: "design" })!;
+  assert.match(privateOnly, /设计方案，未声明已实现或上线/);
+  assert.equal(privateOnly.includes("PRIVATE_CUSTOMER"), false);
+  assert.equal(privateOnly.includes("半导体现场"), false);
+  const publicText = contributionSupplement({ ...draft, stage: "design", disclose: true })!;
+  assert.match(publicText, /半导体现场/); assert.equal(publicText.includes("PRIVATE_CUSTOMER"), false);
+});
+
+test("partial checkpoint labels the old card and shows exactly which evidence survived", async () => {
+  const fake = fakeClient();
+  await seed(fake, { phase: "error", understanding: fixtureUnderstanding,
+    checkpoint: { turn: 7, status: "partial", used: 12, budget: 12, reusedDirectories: 8, evidenceIds: ["ev_doc"] },
+    evidence: [{ id: "ev_doc", grantId: "grant", path: "proposal.md", hash: "fixture", startLine: 1, endLine: 20, excerpt: "Design only", collectedAt: "2026-11-01" }],
+  });
+  await render(fake);
+  assert.match(dom.document.body.textContent ?? "", /上次理解 · 本轮尚未更新/);
+  assert.match(dom.document.body.textContent ?? "", /读取操作 12 \/ 12 · 材料 1 段 · 目录复用 8 次/);
+  assert.match(dom.document.body.textContent ?? "", /proposal.md · 1–20 行/);
+  assert.equal(fake.turns.length, 0);
+});
+
+test("a grounded lead needs separate personal confirmation, retains drafts, and rechecks the server before handoff", async () => {
+  const fake = fakeClient(); let supplements: string[] = [];
+  const understanding = { ...fixtureUnderstanding, contributionLeads: [{ id: "role", title: "接口与职责", hypothesis: "可能负责接口，但尚未确认", category: "responsibility" as const, evidenceIds: ["msg-user"], question: "你实现还是设计了这个接口？", options: ["我做了接口设计", "不是我做的"] }] };
+  await seed(fake, { phase: "confirmed", revision: 3, summaryHash: "lead-hash", confirmation: { revision: 3, summaryHash: "lead-hash", confirmedAt: "2026-11-01" }, understanding });
+  const props = { onContribution: (value: string) => { supplements.push(value); } };
+  await render(fake, props);
+  assert.equal(button(/带入伴写/).disabled, true);
+  await click(/^我做了接口设计$/);
+  await flush(() => { const input = dom.document.querySelector('select[id$="-stage"]')!; (input as unknown as HTMLSelectElement).value = "design"; input.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  await unmount(); await render(fake, props);
+  assert.equal((dom.document.querySelector('textarea[id$="-answer"]') as unknown as HTMLTextAreaElement).value, "我做了接口设计");
+  assert.equal(button(/带入伴写/).disabled, true, "restored draft is not implicitly confirmed");
+  await toggle(/我确认这些是我的实际经历/);
+  await click(/带入伴写/);
+  assert.equal(supplements.length, 1); assert.match(supplements[0]!, /设计方案/);
+  assert.equal(fake.turns.length, 0);
+  supplements = []; fake.change({ phase: "idle", confirmation: undefined });
+  await click(/带入伴写/);
+  assert.equal(supplements.length, 0);
+  assert.match(dom.document.body.textContent ?? "", /项目理解或授权已变化/);
+});
 
 test("opening does not create or send; dynamic choices are unselected and free correction has no round cap", async () => {
   const fake = fakeClient(); await render(fake);

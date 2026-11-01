@@ -2,7 +2,10 @@
 .writing-shell{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);min-height:0;height:100%;gap:8px;position:relative}
 /* The conversation gets a bounded track, never the preview's remaining height.
    Keep it mounted when collapsed so in-flight work, focus state and drafts survive. */
-.writing-shell.has-agent-pane{grid-template-rows:auto clamp(240px,32dvh,300px) minmax(0,1fr)}
+.writing-shell.has-agent-pane{grid-template-rows:auto var(--writing-agent-track,clamp(240px,32dvh,300px)) minmax(0,1fr)}
+.writing-shell.is-agent-idle{--writing-agent-track:auto}
+.is-agent-idle .writing-agent-pane{max-height:clamp(180px,26dvh,260px)}
+.is-agent-idle .writing-agent-scroll{height:auto;max-height:inherit}
 .writing-agent-pane{grid-column:1;grid-row:2;min-height:0;min-width:0;overflow:hidden;border:1px solid color-mix(in srgb,var(--color-accent) 34%,var(--color-line));border-radius:12px;background:var(--color-panel)}
 .writing-agent-pane[hidden],.writing-note[hidden]{display:none}
 .writing-agent-scroll{height:100%;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;overflow-anchor:none}
@@ -16,7 +19,17 @@
 .writing-agent-scroll .understanding-eyebrow{display:none}
 .writing-agent-scroll .understanding-progress{margin:10px 12px 0}
 .writing-agent-scroll .writing-archive{max-height:none;overflow:visible}
-.writing-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;max-height:96px;overflow:auto;scrollbar-gutter:stable;font-size:11px;color:var(--color-ink-muted);padding:7px 10px;border:1px solid var(--color-line);border-radius:12px;background:var(--color-panel);grid-column:1/-1}
+.writing-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;position:relative;z-index:6;font-size:11px;color:var(--color-ink-muted);padding:7px 10px;border:1px solid var(--color-line);border-radius:12px;background:var(--color-panel);grid-column:1/-1}
+.writing-settings summary{display:flex;align-items:center;gap:4px;border:1px solid var(--color-line);border-radius:8px;padding:5px 8px;cursor:pointer;color:var(--color-ink);list-style:none;white-space:nowrap}
+.writing-settings summary::-webkit-details-marker{display:none}
+.writing-settings summary span{color:var(--color-ink-muted)}
+.writing-settings[open] summary{background:var(--color-canvas);border-color:var(--color-accent)}
+.writing-settings-body{position:absolute;top:calc(100% + 6px);left:0;z-index:8;display:grid;gap:12px;width:min(360px,100%);max-height:min(460px,65dvh);overflow:auto;overscroll-behavior:contain;padding:16px;border:1px solid var(--color-line);border-radius:12px;background:var(--color-panel);box-shadow:0 12px 32px #0003;font-size:12px;line-height:1.6}
+.writing-settings-body>label:not(.writing-check):not(.betterme-agent-consent){display:grid;grid-template-columns:80px minmax(0,1fr);gap:8px;align-items:center}
+.writing-settings-body label select{width:100%;max-width:none;padding:7px 8px}
+.writing-settings-body .betterme-agent-consent{display:block;margin:0;padding-top:12px;border-top:1px solid var(--color-line)}
+.writing-settings-body input[type=checkbox]{width:16px;height:16px;flex-shrink:0;margin:0 6px 0 0;vertical-align:-3px;accent-color:var(--color-accent)}
+.writing-settings-body .betterme-agent-consent span{display:block;margin-top:6px;color:var(--color-ink-muted)}
 .writing-brand{display:flex;align-items:center;gap:5px;font-weight:650;color:var(--color-ink)}
 .writing-toolbar button,.writing-toolbar select,.writing-note button,.writing-applied button{display:inline-flex;align-items:center;justify-content:center;gap:5px;border:1px solid var(--color-line);border-radius:8px;padding:5px 8px;background:var(--color-panel);color:var(--color-ink);font-size:11px;cursor:pointer}
 .writing-toolbar select{max-width:145px}.writing-count{margin-left:auto;display:flex}.writing-running{color:var(--color-accent);font-weight:600}.writing-collapse{white-space:nowrap}.writing-document{grid-column:1;min-height:0;min-width:0;height:100%;grid-row:2}.has-agent-pane .writing-document{grid-row:3}.writing-document>.resume-preview{height:100%}
@@ -26,5 +39,5 @@
 .writing-review{display:grid;gap:8px}.writing-review p{margin:0}.writing-review small{font-size:10px;color:var(--color-ink-muted);line-height:1.6}.writing-review textarea{width:100%;border:1px solid var(--color-line);border-radius:8px;padding:8px;background:var(--color-canvas,var(--color-panel));color:var(--color-ink);font:inherit;resize:vertical;min-height:70px}.writing-review textarea:focus{outline:2px solid color-mix(in srgb,var(--color-accent) 45%,transparent);outline-offset:1px}.writing-check{display:flex;align-items:flex-start;gap:5px;font-size:11px}.writing-check input{margin-top:4px;accent-color:var(--color-accent)}.writing-question{border-left:2px solid var(--color-accent);padding-left:8px}.writing-diff{display:grid;gap:7px;border-top:1px solid var(--color-line);padding-top:10px}.writing-diff del{display:block;padding:6px;background:color-mix(in srgb,#b75c46 8%,var(--color-panel));font-size:11px;color:var(--color-ink-muted);white-space:pre-wrap}.writing-note footer{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:10px;color:var(--color-ink-muted)}
 .writing-message,.writing-applied{grid-column:1/-1;margin:0;padding:7px 10px;border-radius:8px;background:var(--color-panel);color:var(--color-ink);font-size:11px;line-height:1.5}.writing-applied{display:flex;align-items:center;gap:8px}.writing-overlay{position:fixed;inset:0;width:100vw;height:100vh;z-index:2;pointer-events:none;overflow:hidden}.writing-overlay rect{fill:color-mix(in srgb,var(--color-accent) 8%,transparent);stroke:color-mix(in srgb,var(--color-accent) 40%,transparent);stroke-width:.7}.writing-overlay path{fill:none;stroke:var(--color-accent);stroke-width:1;stroke-dasharray:4 4;opacity:.65}.writing-overlay circle{fill:var(--color-accent)}
 .writing-archive{font-size:11px;color:var(--color-ink-muted);padding:4px 10px;max-height:28vh;overflow:auto}.writing-archive summary{cursor:pointer}.writing-archive article{padding:8px;border-bottom:1px solid var(--color-line);overflow-wrap:anywhere}.writing-archive blockquote{margin:4px 0}.writing-archive button{border:1px solid var(--color-line);padding:5px 8px;border-radius:6px;color:var(--color-ink);background:var(--color-panel);cursor:pointer}.writing-review textarea:disabled{opacity:.65}.writing-note{overflow-wrap:anywhere}.writing-note>small{color:var(--color-ink-muted);font-size:10px}
-@container (min-width:1000px){.writing-shell.has-agent-pane{grid-template-columns:minmax(0,1fr) 320px;grid-template-rows:auto minmax(0,1fr)}.has-agent-pane .writing-document{grid-column:1;grid-row:2}.has-agent-pane .writing-agent-pane{grid-column:2;grid-row:2}}
+@container (min-width:1000px){.writing-shell.has-agent-pane{grid-template-columns:minmax(0,1fr) 320px;grid-template-rows:auto minmax(0,1fr)}.has-agent-pane .writing-document{grid-column:1;grid-row:2}.has-agent-pane .writing-agent-pane{grid-column:2;grid-row:2}.is-agent-idle .writing-agent-pane{max-height:none}.is-agent-idle .writing-agent-scroll{height:100%}}
 @media print{.writing-shell{display:block;height:auto}.writing-document{display:block;height:auto}.writing-agent-pane,.writing-note,.writing-toolbar,.writing-overlay,.writing-message,.writing-applied{display:none!important}}

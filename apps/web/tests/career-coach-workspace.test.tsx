@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { setImmediate as nextTurn } from "node:timers/promises";
 import { Window } from "happy-dom";
@@ -118,6 +119,18 @@ test("the unified Agent keeps growth requests alive across internal modes and hi
     generate: async (_request, _config, inputSignal) => { signal = inputSignal; return new Promise(done => { resolve = done; }); } };
   dom.document.body.innerHTML = '<main id="fixture"></main>'; root = createRoot(body());
   await flush(() => root!.render(h(UiPreferencesProvider, null, h(BetterMeAgentProvider, { workspaceKey: "unified-growth", repository: agentRepository, children: h(CareerCoachWorkspace, props) }))));
+  const agentBar = body().querySelector('[role="group"][aria-label="本轮 Agent 与授权"]');
+  assert.ok(agentBar, "shared Agent settings belong to one bounded toolbar, not unstyled page siblings");
+  assert.ok(agentBar.querySelector('.betterme-agent-model'));
+  const consent = agentBar.querySelector('.betterme-agent-consent input')!;
+  const style = dom.document.createElement("style");
+  style.textContent = ["betterme-agent-center.css", "career-coach-workspace.css"]
+    .map(name => readFileSync(new URL(`../src/components/${name}`, import.meta.url), "utf8")).join("\n");
+  dom.document.head.append(style);
+  try {
+    assert.equal(dom.getComputedStyle(consent).width, "16px", "checkbox must not stretch across the workspace");
+    assert.equal(dom.getComputedStyle(agentBar.querySelector('.betterme-agent-consent')!).display, "block");
+  } finally { style.remove(); }
   await click(/开始规划分析/); await click(/学习方案/); body().hidden = true;
   assert.equal(signal?.aborted, false);
   await flush(() => resolve(generated("analysis"))); body().hidden = false;

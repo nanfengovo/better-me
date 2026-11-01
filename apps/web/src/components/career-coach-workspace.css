@@ -1,7 +1,7 @@
-.career-coach-shell { display:flex; flex-direction:column; height:100%; min-height:0; overflow:hidden; }
+.career-coach-shell { display:flex; flex:1; flex-direction:column; width:100%; min-width:0; height:100%; min-height:0; overflow:hidden; }
 .career-coach-entry-nav { display:flex; flex-shrink:0; justify-content:space-between; padding:10px 24px; gap:12px; background:var(--ui-surface,#fff); border-bottom:1px solid var(--ui-border,#e2e5eb); color:var(--ui-text,#1b2735); }
 .career-coach-entry-nav button { display:inline-flex; align-items:center; gap:8px; padding:5px 0; background:transparent; border:0; cursor:pointer; font-size:14px; }
-.career-coach { --coach-accent:var(--ui-accent,#366b52); --coach-tint:var(--ui-accent-soft,#eaf3ee); color:var(--ui-text,#1b2735); background:var(--ui-canvas,#f5f6f8); width:100%; min-width:0; min-height:0; overflow:auto; font-family:inherit; font-size:15px; line-height:1.65; }
+.career-coach { --coach-accent:var(--ui-accent,#366b52); --coach-tint:var(--ui-accent-soft,#eaf3ee); color:var(--ui-text,#1b2735); background:var(--ui-canvas,#f5f6f8); flex:1; width:100%; min-width:0; min-height:0; overflow:auto; font-family:inherit; font-size:15px; line-height:1.65; }
 .career-coach * { box-sizing:border-box; }
 .career-coach button,.career-coach input,.career-coach textarea,.career-coach select { font:inherit; }
 .career-coach button { display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid var(--ui-border,#dce1e6); border-radius:10px; background:var(--ui-surface,#fff); color:inherit; padding:9px 14px; cursor:pointer; transition:background .15s,border-color .15s; }
@@ -18,6 +18,15 @@
 .coach-header p { color:var(--ui-text-muted,#637082); max-width:680px; font-size:14px; }
 .coach-header-actions { display:flex; flex-wrap:wrap; gap:8px; flex-shrink:0; padding-top:20px; }
 .coach-header-actions button { font-size:13px; padding:8px 12px; }
+.coach-agent-bar { max-width:1480px; margin:0 auto; padding:0 32px 24px; }
+.coach-agent-controls { display:flex; align-items:flex-start; flex-wrap:wrap; gap:12px 20px; padding-bottom:12px; }
+.coach-agent-controls .betterme-agent-model { flex:1 1 340px; max-width:680px; min-width:0; margin:0; }
+.coach-agent-controls .betterme-agent-model>label { flex-direction:row; align-items:center; margin:0; gap:12px; white-space:nowrap; }
+.coach-agent-controls .betterme-agent-model>label select { flex:1; width:0; min-width:0; padding:7px 10px; font-size:13px; }
+.coach-agent-controls .betterme-agent-entry { flex-shrink:0; margin-left:auto; font-size:13px; }
+.career-coach .betterme-agent-consent { display:block; margin:0; font-size:12px; font-weight:400; line-height:1.6; }
+.career-coach .betterme-agent-consent input { display:inline-block; width:16px; height:16px; margin:0 8px 0 0; vertical-align:-3px; accent-color:var(--coach-accent); }
+.career-coach .betterme-agent-consent>span { padding-left:24px; color:var(--ui-text-muted,#637082); }
 .coach-tabs { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; max-width:1480px; margin:0 auto; padding:0 32px 24px; }
 .coach-tabs button { justify-content:flex-start; text-align:left; min-width:0; padding:14px 12px; gap:8px; border-radius:12px; }
 .coach-tabs button>svg:last-child { margin-left:auto; flex-shrink:0; opacity:.5; }
@@ -142,3 +151,11 @@
 .career-coach details>summary { cursor:pointer; }
 .career-coach [hidden] { display:none!important; }
 @media (max-width:760px) { .coach-tabs { grid-template-columns:repeat(3,minmax(0,1fr)); } .coach-history-scroll { max-height:320px; } }
+@media (max-width:760px) {
+  .coach-agent-bar { padding:0 18px 20px; }
+  .coach-agent-controls { gap:10px; }
+  .coach-agent-controls .betterme-agent-model { flex-basis:100%; max-width:none; }
+  .coach-agent-controls .betterme-agent-model>label { align-items:stretch; flex-direction:column; gap:6px; white-space:normal; }
+  .coach-agent-controls .betterme-agent-model>label select { width:100%; flex:auto; font-size:16px; }
+  .coach-agent-controls .betterme-agent-entry { margin-left:0; }
+}

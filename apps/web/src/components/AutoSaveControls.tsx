@@ -1,5 +1,5 @@
 import { useUiPreferences } from "../lib/ui-preferences";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { AutoSaveSettings } from "@better-me/storage";
 import { Check, ChevronDown, Save, Settings2, X } from "lucide-react";
 import "./autosave-controls.css";
@@ -10,6 +10,7 @@ type Props = {
   onSave: () => void;
   saving?: boolean;
   preferenceError?: string;
+  compactStatus?: ReactNode;
 };
 
 type SecondsFieldProps = {
@@ -63,7 +64,7 @@ function SecondsField({ label, valueMs, min, max, onCommit }: SecondsFieldProps)
   );
 }
 
-export function AutoSaveControls({ settings, onChange, onSave, saving = false, preferenceError }: Props) {
+export function AutoSaveControls({ settings, onChange, onSave, saving = false, preferenceError, compactStatus }: Props) {
   const { t } = useUiPreferences();
 
   const [open, setOpen] = useState(false);
@@ -92,8 +93,9 @@ export function AutoSaveControls({ settings, onChange, onSave, saving = false, p
   }, [open]);
 
   return (
-    <div className="autosave-controls" ref={rootRef}>
-      <div className="autosave-control-group">
+    <div className={`autosave-controls ${compactStatus ? "is-compact" : ""}`} ref={rootRef}>
+      {compactStatus && <button ref={settingsButtonRef} type="button" className="save-status-trigger" aria-label={t("保存状态与设置", "Save status and settings")} aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(value => !value)}>{compactStatus}<ChevronDown size={12} /></button>}
+      {!compactStatus && <div className="autosave-control-group">
         <button
           type="button"
           className={`autosave-switch ${settings.enabled ? "is-on" : ""}`}
@@ -118,16 +120,17 @@ export function AutoSaveControls({ settings, onChange, onSave, saving = false, p
           title={t("设置自动保存条件", "Choose autosave conditions")}
           onClick={() => setOpen((previous) => !previous)}
         ><Settings2 size={13} /><ChevronDown size={10} className={open ? "is-open" : ""} /></button>
-      </div>
-      <button type="button" className="studio-button autosave-now" aria-label={t("立即保存", "Save now")} title={t("立即保存", "Save now")} onClick={onSave} disabled={saving}>
+      </div>}
+      {!compactStatus && <button type="button" className="studio-button autosave-now" aria-label={t("立即保存", "Save now")} title={t("立即保存", "Save now")} onClick={onSave} disabled={saving}>
         <Save size={13} /><span>{saving ? t("正在保存", "Saving") : t("立即保存", "Save now")}</span>
-      </button>
+      </button>}
       {open && (
         <section className="autosave-popover" id={panelId} role="dialog" aria-labelledby={titleId}>
           <div className="autosave-popover-heading">
             <div><span className="autosave-eyebrow">{t("按你的节奏保存", "Save at your pace")}</span><h2 id={titleId}>{t("自动保存设置", "Autosave settings")}</h2></div>
             <button type="button" className="autosave-close" aria-label={t("关闭自动保存设置", "Close autosave settings")} onClick={() => { setOpen(false); settingsButtonRef.current?.focus(); }}><X size={15} /></button>
           </div>
+          {compactStatus && <div className="autosave-compact-actions"><button type="button" role="switch" aria-label={t("自动保存", "Autosave")} aria-checked={settings.enabled} onClick={() => onChange({ ...settings, enabled: !settings.enabled })}>{t("自动保存", "Autosave")} · {settings.enabled ? t("已开启", "On") : t("已关闭", "Off")}</button><button type="button" onClick={onSave} disabled={saving}><Save size={14} />{t("立即保存", "Save now")}</button></div>}
           <label className="autosave-setting-field">
             <span>{t("何时保存完整版本", "When to save a complete version")}</span>
             <select

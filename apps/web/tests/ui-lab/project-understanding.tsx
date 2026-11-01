@@ -7,7 +7,7 @@ import { ConfirmationProvider } from "../../src/components/ConfirmationDialog";
 import { ResumePreview } from "../../src/components/ResumePreview";
 import { ResumeWritingCopilot } from "../../src/components/ResumeWritingCopilot";
 import { applyResumeProposal, createResumeAgentContext } from "../../src/lib/resume-agent-context";
-import { writingSources, writingTargetKey } from "../../src/lib/resume-copilot";
+import { writingSources, writingTargetKey, parseWritingReply } from "../../src/lib/resume-copilot";
 import { UiPreferencesProvider } from "../../src/lib/ui-preferences";
 import type { PreviewFollowTarget } from "../../src/lib/preview-follow";
 import "../../src/index.css";
@@ -39,7 +39,13 @@ function Lab() {
       <div id="resume-editor-panel" style={{ minHeight: 0, display: "flex" }}><FactEditor factBase={doc.factBase} onChange={factBase => setDoc(d => ({ ...d, factBase }))} onPreviewTargetChange={setFollow} writingFocus={focus} /></div>
       <div className="studio-preview-pane" style={{ minWidth: 0, minHeight: 0 }}>
         <ResumeWritingCopilot sessionKey={chatGptMode ? `isolated-chatgpt-${chatGptMode}-v1` : live ? `isolated-project-understanding-live-${liveModel}-v1` : "isolated-project-understanding-fixture-v1"} sources={sources}
-          config={{ provider: "ollama", baseUrl: "http://127.0.0.1:11434/v1", model: live ? liveModel : "test-fixture", temperature: 0.1 }} active
+          config={{ provider: "ollama", baseUrl: "http://127.0.0.1:11434/v1", apiKey: "", model: live ? liveModel : "test-fixture", temperature: 0.1 }} active
+          generate={!live && !chatGptMode ? async (_config, source, answer, signal) => {
+            signal.throwIfAborted();
+            if (answer.includes("PRIVATE_CUSTOMER_SENTINEL")) throw new Error("Private client leaked into writing fixture");
+            const action = answer.split("\n").find(line => line.startsWith("本人确认的动作："))?.slice("本人确认的动作：".length);
+            return parseWritingReply(JSON.stringify({ questions: action ? [] : ["哪一部分是你亲手完成的？"], rationale: "隔离测试模型：只引用本人确认的动作，不复制设计目标或客户私有备注。", evidenceQuotes: action ? [action] : [], ...(action ? { proposedText: action } : {}) }), source, answer);
+          } : undefined}
           onApply={async proposal => { const result = applyResumeProposal(doc, proposal); if (!result.ok) return { ok: false, message: "原文变化，拒绝覆盖。" }; setDoc(result.document); return { ok: true, message: "只修改当前页的内存测试文档。" }; }}
           onFocus={source => setFocus({ key: writingTargetKey(source.targetRef), locale: source.targetRef.locale, experienceId: source.targetRef.kind === "claim_text" ? source.targetRef.experienceId : undefined, requestId: Date.now() })}>
           <ResumePreview resume={projectResume(doc.factBase, view)} view={view} followTarget={follow} onViewChange={next => setDoc(d => ({ ...d, resumeViews: [next] }))} />

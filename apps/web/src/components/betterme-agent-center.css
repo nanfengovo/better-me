@@ -13,8 +13,16 @@
 .betterme-agent-center article { border: 1px solid var(--ui-border, #cbd0d9); border-radius: 12px; padding: 14px; margin: 12px 0; }
 .betterme-agent-center article button { margin: 8px 8px 0 0; }
 .betterme-agent-center label { font-size: 13px; line-height: 1.7; }
+.betterme-agent-center-body > label { display: block; margin: 14px 0 8px; }
+.betterme-agent-center-body > button { margin: 8px 0; }
+.betterme-agent-center input[type=checkbox] { width: 16px; height: 16px; margin: 0 8px 0 0; vertical-align: -3px; accent-color: var(--ui-accent); }
 .betterme-agent-center input:not([type=checkbox]), .betterme-agent-center textarea { display: block; width: 100%; padding: 8px; background: var(--ui-canvas, #f5f6f8); color: inherit; border: 1px solid var(--ui-border, #cbd0d9); border-radius: 8px; }
 .betterme-agent-history-text { white-space: pre-wrap; }
+.agent-storage-alert { margin: 8px 12px; padding: 12px; border: 1px solid var(--color-line); border-left: 3px solid #b78338; border-radius: 10px; background: var(--color-panel); color: var(--color-ink); flex-shrink: 0; max-height: 44dvh; overflow: auto; overflow-wrap: anywhere; font-size: 12px; }
+.agent-storage-alert strong { display: block; font-size: 13px; }
+.agent-storage-actions { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px; }
+.agent-storage-actions details { flex-basis: 100%; }
+.agent-storage-actions summary { cursor: pointer; padding: 4px 0; color: var(--color-ink-muted); }
 .betterme-agent-consent { display: block; font-size: 12px; line-height: 1.6; margin: 8px 0; color: inherit; }
 .betterme-agent-model { font-size: 12px; margin: 6px 0; }
 .betterme-agent-model select { max-width: 100%; }

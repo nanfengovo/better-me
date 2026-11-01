@@ -153,6 +153,16 @@ export class EvidenceBroker {
     return { evidence, skipped, truncated: queue.length > 0 || scanned >= 2000 || files >= 100 || evidence.length >= 20 };
   }
 
+  /** Revalidate scope and directory identity without enumerating it again. No file content cache. */
+  async directoryVersion(grant: UnderstandingGrant, requestedPath = ""): Promise<string | undefined> {
+    if (grant.revokedAt) throw new EvidenceAccessError("grant_revoked", "This source grant was revoked.");
+    if (grant.id.startsWith("file_grant_")) return undefined;
+    const resolved = await this.resolve(grant, relativeInput(requestedPath));
+    const stat = await fs.lstat(resolved);
+    if (!stat.isDirectory()) throw new EvidenceAccessError("directory_required", "List requires a directory.");
+    return `${stat.dev}:${stat.ino}:${stat.mtimeMs}:${stat.ctimeMs}`;
+  }
+
   private isSource(file: string): boolean { return textExtensions.has(path.extname(file).toLowerCase()); }
   private async resolve(grant: UnderstandingGrant, relative: string): Promise<string> {
     const rootStat = await fs.lstat(grant.path).catch(() => undefined);

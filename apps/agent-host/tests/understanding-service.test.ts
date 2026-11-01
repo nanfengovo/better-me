@@ -5,12 +5,105 @@ import os from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { ProjectUnderstandingService } from "../src/understanding/service.ts";
+import { EvidenceBroker, type EvidenceRequest } from "../src/understanding/evidence-broker.ts";
+import type { UnderstandingGrant } from "@better-me/agent-contracts";
 
 const reply = (summary = "Synthetic source receives orders.") => JSON.stringify({ kind: "reply", message: "请核对我的理解。", understanding: { summary, terms: [], boundaries: ["Not personal contribution"], claims: [{ id: "u1", text: "A synthetic project", kind: "inference", evidenceIds: [] }], unknowns: [] }, readyForConfirmation: true });
 async function settled(service: ProjectUnderstandingService, id: string) {
   for (let i = 0; i < 200; i++) { const session = await service.get(id); if (session.phase !== "running") return session; await delay(5); }
   throw new Error("Synthetic turn did not settle");
 }
+
+test("a read batch exceeding the remaining budget still synthesizes the evidence already collected", async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "understanding-budget-synthesis-"));
+  const service = new ProjectUnderstandingService({ storageDir: path.join(directory, "sessions"), maxToolCalls: 1 });
+  try {
+    await fs.writeFile(path.join(directory, "dispatch.ts"), "export const split = () => ['pickup', 'delivery'];\n");
+    let session = await service.create({ workspaceKey: "fixture", projectKey: "budget", label: "Fixture", sourceText: "Unverified project" });
+    await service.turn(session.id, { expectedRevision: session.revision, idempotencyKey: "old-understanding", answer: "", selectedOptionIds: [], consentToSend: true }, async () => reply("Old card: no code read."));
+    session = await settled(service, session.id);
+    session = await service.grant(session.id, directory);
+    let calls = 0;
+    await service.turn(session.id, { expectedRevision: session.revision, idempotencyKey: "budget-fresh-summary", answer: "", selectedOptionIds: [], consentToSend: true }, async prompt => {
+      if (calls++ === 0) return JSON.stringify({ kind: "read", requests: [1, 2].map(() => ({ grantId: session.grants[0]!.id, operation: "read", path: "dispatch.ts" })) });
+      assert.match(prompt, /pickup/);
+      assert.match(prompt, /SYNTHESIS_ONLY/);
+      return reply("Updated: the code splits pickup and delivery; personal ownership is unknown.");
+    });
+    session = await settled(service, session.id);
+    assert.equal(session.phase, "awaiting-confirmation");
+    assert.equal(calls, 2);
+    assert.match(session.understanding!.summary, /^Updated:/);
+    assert.equal(session.evidence.length, 1);
+    assert.equal(session.checkpoint?.status, "complete");
+    assert.equal(session.checkpoint?.used, 1);
+  } finally { await service.dispose(); await fs.rm(directory, { recursive: true, force: true }); }
+});
+
+test("directory inventory survives turns and host reopen, but changes and revocation invalidate reuse", async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "understanding-directory-cache-"));
+  let lists = 0;
+  class CountingBroker extends EvidenceBroker {
+    override async execute(grant: UnderstandingGrant, request: EvidenceRequest, signal?: AbortSignal) {
+      if (request.operation === "list") lists++;
+      return super.execute(grant, request, signal);
+    }
+  }
+  const broker = new CountingBroker();
+  const storageDir = path.join(directory, "sessions");
+  let service = new ProjectUnderstandingService({ storageDir, broker });
+  try {
+    const project = path.join(directory, "project"); await fs.mkdir(project);
+    await fs.writeFile(path.join(project, "flow.ts"), "export const state = 'accepted';");
+    let session = await service.create({ workspaceKey: "fixture", projectKey: "cache", label: "Fixture", sourceText: "Synthetic code" });
+    session = await service.grant(session.id, project);
+    const grantId = session.grants[0]!.id;
+    for (let round = 0; round < 3; round++) {
+      if (round === 1) { await service.dispose(); service = new ProjectUnderstandingService({ storageDir, broker }); }
+      if (round === 2) await fs.writeFile(path.join(project, "new.ts"), "export const next = true;");
+      let calls = 0;
+      await service.turn(session.id, { expectedRevision: session.revision, idempotencyKey: `cache-round-${round}`, answer: "", selectedOptionIds: [], consentToSend: true }, async prompt => {
+        if (round === 1 && calls === 0) assert.match(prompt, /directoryObservations.*flow.ts/s);
+        return calls++ === 0 ? JSON.stringify({ kind: "read", requests: [{ grantId, operation: "list", path: "" }] }) : reply();
+      });
+      session = await settled(service, session.id);
+      assert.equal(session.phase, "awaiting-confirmation");
+      assert.equal(lists, round === 2 ? 2 : 1);
+      assert.equal(session.checkpoint?.reusedDirectories, round === 1 ? 1 : 0);
+    }
+    session = await service.revoke(session.id, grantId);
+    await service.turn(session.id, { expectedRevision: session.revision, idempotencyKey: "after-revoke-cache", answer: "", selectedOptionIds: [], consentToSend: true }, async prompt => {
+      assert.equal(prompt.includes("flow.ts"), false);
+      return reply();
+    });
+    assert.equal((await settled(service, session.id)).phase, "awaiting-confirmation");
+  } finally { await service.dispose(); await fs.rm(directory, { recursive: true, force: true }); }
+});
+
+test("a design document cannot become implemented code or an ungrounded contribution lead", async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "understanding-provenance-"));
+  const service = new ProjectUnderstandingService({ storageDir: path.join(directory, "sessions") });
+  try {
+    await fs.writeFile(path.join(directory, "proposal.md"), "Future proposal: retry orders. Deployment and ownership unknown.");
+    let session = await service.create({ workspaceKey: "fixture", projectKey: "provenance", label: "Fixture", sourceText: "Synthetic project" });
+    session = await service.grant(session.id, path.join(directory, "proposal.md"));
+    for (const kind of ["source", "design", "bad-lead"] as const) {
+      let calls = 0;
+      await service.turn(session.id, { expectedRevision: session.revision, idempotencyKey: `provenance-${kind}`, answer: "", selectedOptionIds: [], consentToSend: true }, async prompt => {
+        if (calls++ === 0) return JSON.stringify({ kind: "read", requests: [{ grantId: session.grants[0]!.id, operation: "read", path: "proposal.md" }] });
+        const state = JSON.parse(prompt.split("\n\n").find(line => line.startsWith('{"project":'))!);
+        const evidenceId = state.context.evidence[0].id;
+        const output = JSON.parse(reply());
+        output.understanding.claims = [{ id: "design", text: "Proposal only, not deployment", kind: kind === "source" ? "source" : "design", evidenceIds: [evidenceId] }];
+        output.understanding.contributionLeads = [{ id: "role", title: "Your role?", hypothesis: "You might have designed it; unconfirmed", category: "responsibility", evidenceIds: [kind === "bad-lead" ? "invented" : evidenceId], question: "Did you design it, implement it, or neither?", options: ["Neither", "Unknown"] }];
+        return JSON.stringify(output);
+      });
+      session = await settled(service, session.id);
+      if (kind === "design") { assert.equal(session.phase, "awaiting-confirmation"); assert.equal(session.understanding?.contributionLeads?.length, 1); }
+      else assert.equal(session.error?.code, kind === "source" ? "unsupported_source_claim" : "unknown_evidence");
+    }
+  } finally { await service.dispose(); await fs.rm(directory, { recursive: true, force: true }); }
+});
 
 test("a stale stop request cannot cancel a replacement turn", async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "understanding-stale-stop-"));
@@ -77,7 +170,7 @@ test("durable understanding requires exact revision and complete-summary confirm
 
 test("cancellation and timeout stop late writes without storing runtime errors or credentials", async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "understanding-lifecycle-"));
-  const service = new ProjectUnderstandingService({ storageDir: directory, turnTimeoutMs: 40 });
+  let service = new ProjectUnderstandingService({ storageDir: directory });
   try {
     const created = await service.create({ workspaceKey: "fixture", projectKey: "cancel", label: "Fixture", sourceText: "Synthetic lifecycle" });
     let finish!: (value: string) => void;
@@ -93,9 +186,14 @@ test("cancellation and timeout stop late writes without storing runtime errors o
     finish(reply("late output must not overwrite cancellation"));
     await delay(15);
     assert.equal((await service.get(created.id)).revision, cancelled.revision);
+    // Test cancellation independently of a 40ms wall-clock race under CI load.
+    await service.dispose();
+    service = new ProjectUnderstandingService({ storageDir: directory, turnTimeoutMs: 40 });
     await service.turn(created.id, { expectedRevision: cancelled.revision, idempotencyKey: "timeout-fixture", answer: "", selectedOptionIds: [], consentToSend: true }, async () => new Promise<string>(() => undefined));
     const timedOut = await settled(service, created.id);
     assert.equal(timedOut.error?.code, "turn_timeout");
+    await service.dispose();
+    service = new ProjectUnderstandingService({ storageDir: directory });
     await service.turn(created.id, { expectedRevision: timedOut.revision, idempotencyKey: "runtime-failure-fixture", answer: "", selectedOptionIds: [], consentToSend: true }, async () => { throw new Error("SYNTHETIC_RUNTIME_CREDENTIAL_DO_NOT_STORE"); });
     const failed = await settled(service, created.id);
     assert.equal(failed.error?.code, "reasoning_failed");
@@ -235,6 +333,8 @@ test("unsupported claims and inconsistent readiness are rejected, and read budge
     await service.turn(current.id, { expectedRevision: current.revision, idempotencyKey: "per-turn-budget-fixture", answer: "", selectedOptionIds: [], consentToSend: true }, async () => JSON.stringify({ kind: "read", requests: [{ grantId: "conversation", operation: "list", path: "" }] }));
     current = await settled(service, current.id);
     assert.equal(current.error?.code, "turn_budget");
+    assert.equal(current.checkpoint?.status, "partial", "failed synthesis keeps a truthful checkpoint instead of a fresh-looking old card");
+    assert.equal(current.checkpoint?.used, 1);
     await service.turn(current.id, { expectedRevision: current.revision, idempotencyKey: "new-turn-after-budget", answer: "", selectedOptionIds: [], consentToSend: true }, async () => reply());
     current = await settled(service, current.id);
     assert.equal(current.phase, "awaiting-confirmation");

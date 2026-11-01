@@ -7,6 +7,7 @@ const Message = z.object({
   taskId: z.string().optional(), memoryIds: z.array(z.string()).default([]),
   contextRevision: z.number().int().optional(),
   resumeShared: z.boolean().optional(),
+  archived: z.boolean().optional(),
 }).strict();
 const Memory = z.object({
   id: z.string(), sessionId: z.string(), workspaceKey: z.string(), projectKey: z.string(), targetKey: z.string(),
@@ -62,28 +63,54 @@ export function createMemoryAgentRepository(): AgentRepository {
 /** A new, independent database. Never opens resume, job, credential or coach stores. */
 export class IndexedDbAgentRepository implements AgentRepository {
   private database?: Promise<IDBDatabase>;
+  constructor(private factory: IDBFactory = globalThis.indexedDB) {}
   private open() {
-    return this.database ??= new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("better-me:agent-continuity:v1", 1);
+    if (this.database) return this.database;
+    const pending = new Promise<IDBDatabase>((resolve, reject) => {
+      let settled = false;
+      const request = this.factory.open("better-me:agent-continuity:v1", 1);
       request.onupgradeneeded = () => request.result.createObjectStore("workspaces");
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(new Error("Agent 本地记录暂时无法打开；不会清理其他数据。"));
-      request.onblocked = () => reject(new Error("Agent 记录升级被其他窗口阻塞，请保留当前输入。"));
+      request.onsuccess = () => {
+        const db = request.result;
+        if (settled) { db.close(); return; }
+        settled = true;
+        const invalidate = () => { if (this.database === pending) this.database = undefined; };
+        db.onversionchange = () => { invalidate(); db.close(); };
+        db.onclose = invalidate;
+        resolve(db);
+      };
+      request.onerror = () => { settled = true; reject(request.error ?? new Error("Agent 本地记录暂时无法打开。")); };
+      request.onblocked = () => { settled = true; reject(new DOMException("Agent 记录升级被其他窗口阻塞，请保留当前输入。", "VersionError")); };
     });
+    this.database = pending;
+    void pending.catch(() => { if (this.database === pending) this.database = undefined; });
+    return pending;
+  }
+  private async transaction(mode: IDBTransactionMode) {
+    const connection = this.open(), db = await connection;
+    try { return db.transaction("workspaces", mode); }
+    catch (error) {
+      // Only retry a rejected transaction *creation*. No write has started;
+      // never replay an aborted/in-flight transaction or a model request.
+      if (!(error instanceof Error) || error.name !== "InvalidStateError") throw error;
+      if (this.database === connection) this.database = undefined;
+      db.close();
+      return (await this.open()).transaction("workspaces", mode);
+    }
   }
   async load(key: string) {
-    const database = await this.open();
+    const tx = await this.transaction("readonly");
     return new Promise<AgentState | undefined>((resolve, reject) => {
-      const tx = database.transaction("workspaces", "readonly"), request = tx.objectStore("workspaces").get(key);
+      const request = tx.objectStore("workspaces").get(key);
       tx.oncomplete = () => { try { resolve(checked(request.result, key)); } catch (error) { reject(error); } };
       tx.onerror = () => reject(tx.error ?? new Error("Agent 记录读取失败。"));
       tx.onabort = () => reject(tx.error ?? new Error("Agent 记录读取中断。"));
     });
   }
   async save(state: AgentState, expectedRevision: number) {
-    const safe = AgentStateSchema.parse(state), database = await this.open();
+    const safe = AgentStateSchema.parse(state), tx = await this.transaction("readwrite");
     return new Promise<void>((resolve, reject) => {
-      const tx = database.transaction("workspaces", "readwrite"), store = tx.objectStore("workspaces");
+      const store = tx.objectStore("workspaces");
       let failure: unknown;
       const request = store.get(safe.workspaceKey);
       request.onsuccess = () => {

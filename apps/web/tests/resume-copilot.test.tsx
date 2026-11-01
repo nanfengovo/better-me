@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test, { after, afterEach } from "node:test";
 import { registerHooks } from "node:module";
+import { readFileSync } from "node:fs";
 import { Window } from "happy-dom";
 import { createInitialDocument } from "@better-me/storage";
 import { applyResumeProposal, createResumeAgentContext } from "../src/lib/resume-agent-context";
@@ -36,12 +37,27 @@ const { understandingScope } = await import("../src/components/ProjectUnderstand
 
 const source: WritingSource = { targetRef: { kind: "claim_text", experienceId: "fixture-exp", claimId: "fixture-claim", locale: "zh" }, text: "负责接口开发，参与系统维护", label: "虚构测试经历 · 要点 1" };
 const issue = inspectWriting(source, [source])!;
+test("leaving the resume page keeps the annotation composer mounted", async () => {
+  await render(); await click("检查当前简历"); await click("一起完善");
+  const composer = dom.document.querySelector("#writing-answer");
+  assert.ok(composer);
+  await render({ active: false });
+  assert.ok(dom.document.querySelector("#writing-answer") === composer, "navigation must not destroy the live composer");
+});
 test("local writing rules distinguish duties, repetition, evidence and useful action", () => {
   assert.equal(issue.kind, "duties");
   assert.equal(inspectWriting({ ...source, text: "完成相关工作和日常工作" }, [])?.kind, "vague");
   assert.equal(inspectWriting({ ...source, text: "优化响应时间，提高效率30%" }, [])?.kind, "evidence");
   assert.equal(inspectWriting(source, [source, { ...source, targetRef: { ...source.targetRef, kind: "claim_text", claimId: "other", experienceId: "other" } }])?.kind, "duplicate");
   assert.equal(inspectWriting({ ...source, text: "将订单接入流程拆成校验、重试与回执三个步骤，使用日志核对失败请求，保留异常上下文以便定位。" }, []) , undefined);
+});
+
+test("design-only contribution cannot be upgraded into implementation by a valid-looking model quote", () => {
+  const answer = "个人贡献口径：设计方案，未声明已实现或上线。\n本人确认的动作：设计了重试接口。";
+  const reply = parseWritingReply(JSON.stringify({ questions: [], rationale: "draft", proposedText: "实现并上线重试接口。", evidenceQuotes: ["设计了重试接口。"] }), source, answer);
+  assert.equal(reply.proposedText, undefined);
+  assert.match(reply.rationale, /只确认了设计方案/);
+  assert.equal(parseWritingReply(JSON.stringify({ questions: [], rationale: "draft", proposedText: "设计重试接口。", evidenceQuotes: ["设计了重试接口。"] }), source, answer).proposedText, "设计重试接口。");
 });
 
 test("ChatGPT is an explicit Agent option; disconnected accounts cannot fall back to a configured model", async () => {
@@ -156,6 +172,36 @@ async function click(text: string) {
 }
 afterEach(async () => { await act(async () => { root?.unmount(); root = undefined; }); dom.document.body.replaceChildren(); dom.localStorage.clear(); });
 after(() => { dom.happyDOM.abort(); for (const [key, value] of originals) { if (value) Object.defineProperty(globalThis, key, value); else Reflect.deleteProperty(globalThis, key); } });
+
+test("project contribution handoff appends to the actual copilot and requires a fresh confirmation before generation or adoption", async () => {
+  const scope = await understandingScope("test", writingTargetKey(source.targetRef));
+  const session = fixtureSession({ workspaceKey: "test", projectKey: scope.projectKey, sourceText: source.text, revision: 5, phase: "confirmed", summaryHash: "lead-hash", confirmation: { revision: 5, summaryHash: "lead-hash", confirmedAt: "2026-11-01" },
+    understanding: { ...fixtureUnderstanding, contributionLeads: [{ id: "role", title: "模块贡献", hypothesis: "可能做过接口", category: "responsibility", evidenceIds: ["msg-user"], question: "这个模块由你实现还是设计？", options: ["我设计了重试接口。"] }] } });
+  dom.localStorage.setItem(scope.storageKey, JSON.stringify({ sessionId: session.id, answer: "", options: [] }));
+  const existing = { ...newWritingNote(source, issue), answer: "保留原有补充。" };
+  saveWritingSession(dom.localStorage as unknown as Storage, "betterme.writing.v1:test", { version: 1, mode: "quiet", notes: [existing] });
+  let models = 0, writes = 0; let sentAnswer = "";
+  const unexpected = async () => { throw new Error("No session mutation expected"); };
+  const client: UnderstandingClient = { createSession: unexpected, updateSource: unexpected, addGrant: unexpected, revokeGrant: unexpected, startTurn: unexpected, confirm: unexpected, cancel: unexpected, getCapabilities: async () => [], getSession: async () => session };
+  await render({ understandingClient: client, onApply: async () => { writes++; return { ok: true, message: "fixture" }; }, generate: async (_config, _source, answer) => { models++; sentAnswer = answer; return { questions: [], proposedText: "设计重试接口。", rationale: "只表达设计", evidenceQuotes: ["我设计了重试接口。"] }; } });
+  await click("先对齐项目理解");
+  for (let index = 0; index < 50 && !dom.document.querySelector(".contribution-lead"); index++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+  await click("我设计了重试接口。");
+  await act(async () => { const select = dom.document.querySelector('select[id$="-stage"]')!; (select as unknown as HTMLSelectElement).value = "design"; select.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  await act(async () => { const checkbox = [...dom.document.querySelectorAll('input[type="checkbox"]')].find(item => item.parentElement?.textContent?.includes("我确认这些"))!; (checkbox as unknown as HTMLInputElement).click(); });
+  await click("带入伴写核对");
+  assert.equal(models, 0); assert.equal(writes, 0);
+  const answer = (dom.document.querySelector("#writing-answer") as unknown as HTMLTextAreaElement).value;
+  assert.match(answer, /^保留原有补充。/); assert.match(answer, /设计方案/); assert.match(answer, /我设计了重试接口/);
+  assert.match(dom.document.body.textContent ?? "", /这个模块由你实现还是设计/);
+  const generateButton = [...dom.document.querySelectorAll("button")].find(item => item.textContent?.includes("整理候选表达"))!;
+  assert.equal(generateButton.disabled, true);
+  await act(async () => { const checkbox = [...dom.document.querySelectorAll('input[type="checkbox"]')].find(item => item.parentElement?.textContent?.includes("我确认这段补充"))!; (checkbox as unknown as HTMLInputElement).click(); });
+  await click("整理候选表达");
+  assert.equal(models, 1); assert.equal(sentAnswer, answer); assert.equal(writes, 0);
+  assert.match(dom.document.querySelector(".writing-candidate-evidence")?.textContent ?? "", /我设计了重试接口/);
+  assert.equal([...dom.document.querySelectorAll("button")].find(item => item.textContent?.includes("确认采用到简历"))!.disabled, true);
+});
 test("unified writing keeps its pending task and result when the resume page becomes inactive", async () => {
   const repository = createMemoryAgentRepository(); let resolve!: (reply: WritingReply) => void; let signal: AbortSignal | undefined;
   const generate: typeof generateWritingReply = async (_config, _source, _answer, inputSignal) => { signal = inputSignal; return new Promise(done => { resolve = done; }); };
@@ -213,6 +259,38 @@ test("collapsing the Agent preserves the mounted draft and a running reply witho
   assert.equal(pane.hidden, false); assert.equal(dom.document.querySelector("#writing-answer"), field);
   assert.equal((field as unknown as HTMLTextAreaElement).value, "我编写了回执重试逻辑");
   assert.match(pane.textContent ?? "", /重试前如何核对回执状态/);
+});
+test("idle hints stay compact and model/memory settings have one disclosure without starting work", async () => {
+  let calls = 0;
+  await render({ generate: async () => { calls++; throw new Error("Layout must not start inference"); } }, createMemoryAgentRepository());
+  await click("检查当前简历");
+  const shell = dom.document.querySelector(".writing-shell")!;
+  assert.ok(shell.classList.contains("is-agent-idle"), "a short hint must not reserve a full conversation track");
+  const settings = dom.document.querySelector<HTMLDetailsElement>(".writing-settings");
+  assert.ok(settings, "settings need a separate disclosure rather than another toolbar row");
+  assert.equal(settings.open, false);
+  assert.match(settings.querySelector("summary")?.textContent ?? "", /当前配置模型/);
+  assert.ok(settings.querySelector('[aria-label="伴写参与方式"]'));
+  assert.ok(settings.querySelector(".betterme-agent-consent"));
+  assert.equal(dom.document.querySelector(".writing-agent-scroll .betterme-agent-consent"), null);
+  const continuity = dom.document.querySelector(".writing-toolbar > .betterme-agent-entry");
+  assert.equal(continuity?.textContent, "记忆与进度", "global task history must remain one click away, outside settings");
+  const style = dom.document.createElement("style");
+  style.textContent = readFileSync(new URL("../src/components/resume-writing-copilot.css", import.meta.url), "utf8");
+  dom.document.head.append(style);
+  try {
+    assert.equal(dom.getComputedStyle(shell).getPropertyValue("--writing-agent-track"), "auto");
+    assert.equal(dom.getComputedStyle(shell).gridTemplateRows, "auto auto minmax(0,1fr)", "the idle track must size to content, leaving the flexible track for the resume");
+    assert.notEqual(dom.getComputedStyle(dom.document.querySelector(".writing-agent-pane")!).maxHeight, "none");
+  } finally { style.remove(); }
+  await click("一起完善");
+  assert.equal(shell.classList.contains("is-agent-idle"), false);
+  const draft = dom.document.querySelector("#writing-answer");
+  await act(async () => { settings.open = true; });
+  await act(async () => { settings.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+  assert.equal(settings.open, false);
+  assert.equal(dom.document.querySelector("#writing-answer"), draft);
+  assert.equal(calls, 0);
 });
 test("project understanding collapse retains its mounted panel and unsent answer", async () => {
   let reads = 0;
@@ -338,4 +416,31 @@ test("opt-in project entry makes no model call and a changed confirmed revision 
   assert.ok(share); await act(async () => { share.click(); actual.click(); });
   await click("整理候选表达"); assert.equal(models, 0); assert.equal(reads, 2);
   assert.match(dom.document.body.textContent ?? "", /项目理解已变化或需要重新确认/);
+});
+test("project confirmation changed during generation cannot become a successful shared Agent task or candidate", async () => {
+  const scope = await understandingScope("test", writingTargetKey(source.targetRef));
+  const session = fixtureSession({ workspaceKey: "test", projectKey: scope.projectKey, sourceText: source.text, phase: "confirmed", revision: 5, understanding: fixtureUnderstanding,
+    summaryHash: "hash-5", confirmation: { revision: 5, summaryHash: "hash-5", confirmedAt: new Date().toISOString() } });
+  dom.localStorage.setItem(scope.storageKey, JSON.stringify({ sessionId: session.id, answer: "", options: [] }));
+  dom.localStorage.setItem("betterme.writing.v1:test", JSON.stringify({ version: 1, mode: "quiet", notes: [{ ...newWritingNote(source, issue), answer: "我编写了重试逻辑" }] }));
+  let reads = 0, models = 0;
+  const unexpected = async () => { throw new Error("Unexpected project mutation"); };
+  const client: UnderstandingClient = { createSession: unexpected, updateSource: unexpected, addGrant: unexpected, revokeGrant: unexpected, startTurn: unexpected, confirm: unexpected, cancel: unexpected,
+    getCapabilities: async () => [], getSession: async () => ++reads <= 2 ? session : { ...session, revision: 6, phase: "awaiting-confirmation", confirmation: undefined } };
+  const repository = createMemoryAgentRepository();
+  await render({ understandingClient: client, generate: async () => { models++; return { questions: [], rationale: "迟到结果", proposedText: "编写重试逻辑", evidenceQuotes: ["我编写了重试逻辑"] }; } }, repository);
+  await click("先对齐项目理解"); await click("返回伴写建议"); await click("一起完善");
+  await act(async () => {
+    for (const input of dom.document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')) {
+      if (/本次携带|我确认这段补充/.test(input.parentElement?.textContent ?? "")) input.click();
+    }
+  });
+  await click("整理候选表达");
+  assert.equal(models, 1); assert.equal(reads, 3);
+  assert.equal(dom.document.querySelector("#writing-proposal"), null);
+  assert.equal((dom.document.querySelector("#writing-answer") as unknown as HTMLTextAreaElement).value, "我编写了重试逻辑");
+  const saved = await repository.load("isolated-unified-writing");
+  assert.equal(saved?.tasks.at(-1)?.status, "failed");
+  assert.match(saved?.tasks.at(-1)?.detail ?? "", /生成期间项目理解或授权已变化/);
+  assert.ok(!saved?.messages.some(message => message.text.includes("迟到结果")));
 });

@@ -1,9 +1,11 @@
 import type { UnderstandingSession } from "@better-me/agent-contracts";
 import { confirmedWritingProjectContext } from "../resume-copilot";
 import { emptyAgentState, type AgentState, type AgentRepository, type AgentOrigin, type AgentTask, type AgentMessage, type AgentGrowthEvent } from "./storage";
+import { agentStorageIssue, type AgentStorageIssue } from "./storage-issue";
+import { mergeAgentBackup, parseAgentBackup } from "./backup";
 
 type SessionReader = (id: string, signal?: AbortSignal) => Promise<UnderstandingSession>;
-export type AgentSnapshot = { data: AgentState; ready: boolean; error: string; saving: boolean; centerOpen: boolean; chatGptReady: boolean };
+export type AgentSnapshot = { data: AgentState; ready: boolean; error: string; storageIssue?: AgentStorageIssue; saving: boolean; centerOpen: boolean; chatGptReady: boolean };
 export type AgentContext = { text: string; memoryIds: string[] };
 type TaskInput = { origin: AgentOrigin; label: string; destination: string; input: string; shareMemories?: boolean; resumeShared?: boolean; id?: string; execution?: "model" | "local" };
 const now = () => new Date().toISOString();
@@ -15,6 +17,9 @@ export class BetterMeAgent {
   private listeners = new Set<() => void>();
   private pending: Promise<void> = Promise.resolve();
   private blocked = false;
+  private loaded = false;
+  private persistedRevision = 0;
+  private recovery?: Promise<void>;
   private operations = new Map<string, { controller: AbortController; memoryIds: string[] }>();
   private sources = new Map<string, string>();
   private sourcesInitialized = false;
@@ -31,13 +36,14 @@ export class BetterMeAgent {
   private async load() {
     try {
       const saved = await this.repository.load(this.workspaceKey);
-      this.publish({ data: saved ?? emptyAgentState(this.workspaceKey), ready: true, error: "" });
+      this.loaded = true; this.persistedRevision = saved?.revision ?? 0; this.blocked = false;
+      this.publish({ data: saved ?? emptyAgentState(this.workspaceKey), ready: true, error: "", storageIssue: undefined });
       if (saved?.tasks.some(task => task.status === "running" && !task.remote)) this.change(state => {
         for (const task of state.tasks) if (task.status === "running" && !task.remote) {
           task.status = "interrupted"; task.detail = "页面重新载入，请回到来源核对后手动重试；未自动重发或切换提供方。"; task.updatedAt = now();
         }
       });
-    } catch (error) { this.blocked = true; this.publish({ ready: true, error: messageOf(error) }); }
+    } catch (error) { this.blocked = true; const issue = agentStorageIssue(error); this.publish({ ready: true, error: issue.message, storageIssue: issue }); }
   }
   private change(operation: (state: AgentState) => void) {
     if (!this.snapshot.ready || this.blocked) throw new Error(this.snapshot.error || "Agent 记忆尚未就绪，请稍后重试。");
@@ -45,19 +51,38 @@ export class BetterMeAgent {
     this.publish({ data: next, saving: true });
     this.pending = this.pending.then(async () => {
       if (this.blocked) return;
-      try { await this.repository.save(next, next.revision - 1); }
+      try { await this.repository.save(next, next.revision - 1); this.persistedRevision = next.revision; }
       catch (error) {
         this.blocked = true;
         for (const operation of this.operations.values()) operation.controller.abort("storage-conflict");
-        const data = structuredClone(this.snapshot.data);
+        const data = structuredClone(this.snapshot.data), issue = agentStorageIssue(error);
         for (const task of data.tasks) if (this.operations.has(task.id) && task.status === "running") {
-          task.status = "failed"; task.detail = `本轮已停止，Agent 记录未保存：${messageOf(error)}`;
+          task.status = "failed"; task.detail = `本轮已停止，Agent 记录未保存：${issue.title}`;
         }
-        this.publish({ data, error: messageOf(error) });
+        this.publish({ data, error: issue.message, storageIssue: issue });
       }
     }).finally(() => { if (this.snapshot.data.revision === next.revision) this.publish({ saving: false }); });
   }
   async flush() { await this.ready; await this.pending; if (this.blocked) throw new Error(this.snapshot.error); }
+  /** Explicit storage-only recovery. Keeps local edits; CAS protects other windows. */
+  recoverStorage(): Promise<void> {
+    if (this.recovery) return this.recovery;
+    this.recovery = (async () => {
+      await this.ready; await this.pending;
+      if (!this.blocked) return;
+      this.publish({ saving: true });
+      try {
+        if (!this.loaded) { await this.load(); await this.flush(); return; }
+        const next = structuredClone(this.snapshot.data); next.revision = this.persistedRevision + 1;
+        await this.repository.save(next, this.persistedRevision);
+        this.persistedRevision = next.revision; this.blocked = false;
+        this.publish({ data: next, error: "", storageIssue: undefined });
+      } catch (error) {
+        const issue = agentStorageIssue(error); this.publish({ error: issue.message, storageIssue: issue }); throw error;
+      } finally { this.publish({ saving: false }); }
+    })().finally(() => { this.recovery = undefined; });
+    return this.recovery;
+  }
   async reload() {
     for (const operation of this.operations.values()) operation.controller.abort("reload-requested");
     await this.pending; this.blocked = false; await this.load(); await this.flush();
@@ -72,6 +97,16 @@ export class BetterMeAgent {
   }
   setTracking(tracking: boolean) { this.change(state => { state.tracking = tracking; state.contextRevision++; }); }
   setGoal(goal: string) { this.change(state => { state.goal = goal.slice(0, 4000); state.contextRevision++; }); }
+  async importBackup(text: string) {
+    await this.flush();
+    if (this.snapshot.data.tasks.some(task => task.status === "running")) throw new Error("请等当前任务完成后再恢复备份；没有停止或打断任务。");
+    const merged = mergeAgentBackup(this.snapshot.data, parseAgentBackup(text));
+    if (merged.added) this.change(state => {
+      state.messages = merged.state.messages; state.memories = merged.state.memories;
+      state.tasks = merged.state.tasks; state.events = merged.state.events;
+    });
+    await this.flush(); return merged.added;
+  }
   record(message: Omit<AgentMessage, "at" | "memoryIds"> & Partial<Pick<AgentMessage, "at" | "memoryIds">>) {
     if (this.snapshot.data.messages.some(item => item.id === message.id)) return;
     this.change(state => { state.messages.push({ ...message, at: message.at ?? now(), memoryIds: message.memoryIds ?? [] }); });
@@ -206,6 +241,6 @@ export class BetterMeAgent {
   }
   /** Historical results derived from revoked context remain visible, never silently resent. */
   reusableCompanionHistory(includeShared = false, includeResume = false): AgentMessage[] {
-    return this.snapshot.data.messages.filter(message => message.origin === "companion" && message.role !== "event" && (!message.resumeShared || includeResume) && (message.contextRevision === undefined || includeShared && message.contextRevision === this.snapshot.data.contextRevision) && (!message.memoryIds.length || includeShared && message.memoryIds.every(id => this.snapshot.data.memories.some(memory => memory.id === id && memory.valid && memory.shared)))).slice(-24);
+    return this.snapshot.data.messages.filter(message => !message.archived && message.origin === "companion" && message.role !== "event" && (!message.resumeShared || includeResume) && (message.contextRevision === undefined || includeShared && message.contextRevision === this.snapshot.data.contextRevision) && (!message.memoryIds.length || includeShared && message.memoryIds.every(id => this.snapshot.data.memories.some(memory => memory.id === id && memory.valid && memory.shared)))).slice(-24);
   }
 }

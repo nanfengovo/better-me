@@ -17,6 +17,7 @@ import type { LlmConfig } from "@better-me/core";
 import { testLlmConnection } from "@better-me/core";
 import { useUiPreferences } from "../lib/ui-preferences";
 import "./agent-top-bar-status.css";
+import { useAgentSidebar } from "./AgentSidebar";
 
 export type AgentTopBarStatusProps = {
   config: LlmConfig | null;
@@ -54,6 +55,7 @@ export function AgentTopBarStatus({
   onNavigateToAgent,
   onOpenAiConfig,
 }: AgentTopBarStatusProps) {
+  const sidebar = useAgentSidebar();
   const { t } = useUiPreferences();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -163,7 +165,8 @@ export function AgentTopBarStatus({
           : "badge-offline";
 
   const handleMainClick = () => {
-    if (probeStatus === "unconfigured") {
+    if (sidebar) { sidebar.show(); }
+    else if (probeStatus === "unconfigured") {
       onOpenAiConfig();
     } else {
       onNavigateToAgent();
@@ -182,7 +185,7 @@ export function AgentTopBarStatus({
           className="agent-top-bar-main-btn"
           onClick={handleMainClick}
           title={
-            probeStatus === "ready"
+            sidebar ? t("打开 BetterMe Agent · 对话、记忆与工具", "Open BetterMe Agent · Conversation, memory and tools") : probeStatus === "ready"
               ? t(`AI Agent 已就绪（模型: ${config?.model}）· 点击进入工作台`, `AI Agent ready (${config?.model}) · Click to open`)
               : probeStatus === "unconfigured"
                 ? t("尚未配置大模型 API Key · 点击立即配置", "API Key unconfigured · Click to setup")
@@ -203,9 +206,9 @@ export function AgentTopBarStatus({
         <button
           type="button"
           className="agent-top-bar-toggle-btn"
-          aria-expanded={dropdownOpen}
+          aria-expanded={sidebar ? sidebar.open && sidebar.tab === "settings" : dropdownOpen}
           aria-label={t("展开 AI Agent 状态与操作", "Toggle AI Agent status & actions")}
-          onClick={() => setDropdownOpen((prev) => !prev)}
+          onClick={() => sidebar ? sidebar.show("settings") : setDropdownOpen((prev) => !prev)}
         >
           <ChevronDown
             size={13}

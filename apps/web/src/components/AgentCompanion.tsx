@@ -50,6 +50,8 @@ import { AgentReplyMeta } from "./AgentReplyMeta";
 import "./agent-companion.css";
 import { useBetterMeAgent } from "../lib/betterme-agent/react";
 import { AgentContinuityButton, AgentMemoryConsent, AgentModelControls } from "./BetterMeAgentCenter";
+import { AgentSurface, useAgentSidebar } from "./AgentSidebar";
+import { AgentExecutionLog } from "./AgentExecutionLog";
 import { defaultChatGptClient, type ChatGptClient } from "../services/chatgpt-client";
 
 export interface AgentCompanionProps {
@@ -290,7 +292,14 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
   const accountReady = agentSnapshot?.chatGptReady ?? false;
   useEffect(() => { setShareAgentMemory(false); }, [llmConfig.provider, llmConfig.baseUrl, llmConfig.model, llmConfig.apiKey, selection?.kind, selection?.profileId, selection?.model]);
   const { t, theme } = useUiPreferences();
-  const [open, setOpen] = useState(false);
+  const sidebar = useAgentSidebar();
+  const showSidebar = sidebar?.show, hideSidebar = sidebar?.hide;
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = sidebar ? sidebar.open && sidebar.tab === "conversation" && sidebar.conversation === "companion" : localOpen;
+  const setOpen = useCallback((next: boolean) => {
+    if (showSidebar && hideSidebar) { if (next) showSidebar("conversation", "companion"); else hideSidebar(); }
+    else setLocalOpen(next);
+  }, [showSidebar, hideSidebar]);
   const [runtimes, setRuntimes] = useState<LocalRuntimeInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -344,7 +353,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
 
   useEffect(() => { onReferenceConsumedRef.current = onReferenceConsumed; }, [onReferenceConsumed]);
   useEffect(() => { onPromptConsumedRef.current = onPromptConsumed; }, [onPromptConsumed]);
-  useEffect(() => { const openCompanion = () => setOpen(true); window.addEventListener("betterme:open-companion", openCompanion); return () => window.removeEventListener("betterme:open-companion", openCompanion); }, []);
+  useEffect(() => { const openCompanion = () => setOpen(true); window.addEventListener("betterme:open-companion", openCompanion); return () => window.removeEventListener("betterme:open-companion", openCompanion); }, [setOpen]);
   useEffect(() => {
     if (!initialPrompt) return;
     setOpen(true);
@@ -352,7 +361,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
     focusIncomingPromptRef.current = true;
     setChatDraft(current => current ? `${current}\n\n${initialPrompt}` : initialPrompt);
     onPromptConsumedRef.current?.();
-  }, [initialPrompt]);
+  }, [initialPrompt, setOpen]);
   useEffect(() => {
     if (!initialReference) return;
     setOpen(true);
@@ -362,7 +371,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
       : [...previous, initialReference].slice(-5));
     setChatDraft((current) => current || t("请结合引用的简历内容帮我分析。", "Please analyze the quoted resume text."));
     onReferenceConsumedRef.current?.();
-  }, [initialReference, t]);
+  }, [initialReference, t, setOpen]);
 
   useEffect(() => {
     if (open && chatReferences.length) chatComposerRef.current?.focus();
@@ -728,9 +737,9 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
   const sharedRunning = agentSnapshot?.data.tasks.filter(task => task.status === "running").length ?? 0;
 
   return (
-    <div className={`agent-companion ${open ? "is-open" : ""} agent-companion-state-${panelState}`}>
-      {open && (
-        <section className="agent-companion-panel" role="dialog" aria-label={t("Agent 运行控制台", "Agent runtime console")}>
+    <div className={`agent-companion ${sidebar ? "is-docked" : ""} ${open ? "is-open" : ""} agent-companion-state-${panelState}`}>
+      {(sidebar || open) && (<AgentSurface name="companion">
+        <section className="agent-companion-panel" role={sidebar ? undefined : "dialog"} aria-label={t("Agent 运行控制台", "Agent runtime console")}>
           <header className="agent-companion-panel-header">
             <div>
               <span className="agent-companion-eyebrow"><Activity size={12} /> {t("本地 Agent 控制台", "Local Agent console")}</span>
@@ -743,8 +752,8 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
           </header>
 
           <AgentContinuityButton />
-          {agent && <details className="agent-companion-shared-settings"><summary>模型与本轮上下文 · {account ? selection?.model || "请选择 GPT" : llmConfig.model || "未配置"}{shareAgentMemory ? " · 已授权共享" : " · 未共享共识"}</summary><div className="agent-companion-shared-settings-body">
-            <AgentModelControls config={llmConfig} disabled={chatLoading} client={chatGptClient} />
+          <AgentSurface name="companion-settings">{agent && <details open={sidebar ? true : undefined} className="agent-companion-shared-settings"><summary>模型与本轮上下文 · {account ? selection?.model || "请选择 GPT" : llmConfig.model || "未配置"}{shareAgentMemory ? " · 已授权共享" : " · 未共享共识"}</summary><div className="agent-companion-shared-settings-body">
+            <AgentModelControls config={llmConfig} disabled={chatLoading || Boolean(agentSnapshot?.data.tasks.some(task => task.status === "running"))} client={chatGptClient} />
             <AgentMemoryConsent checked={shareAgentMemory} onChange={value => { if (!value) handleStopChat(); setShareAgentMemory(value); }} />
           </div></details>}
 
@@ -769,7 +778,8 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
             </div>
           </section>
 
-          <div className="agent-companion-content">
+          </AgentSurface><div className="agent-companion-content">
+            <AgentSurface name="tools">
             <section className="agent-companion-tools" aria-label={t("本机工具", "Local tools")}>
               <button type="button" className="agent-companion-tools-toggle" data-testid="agent-companion-tools-toggle" aria-expanded={toolsExpanded} aria-controls="agent-companion-tools-content" onClick={() => setToolsExpanded((current) => !current)}>
                 <span className="agent-companion-tools-icon"><Terminal size={14} /></span>
@@ -891,18 +901,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
                   )}
 
                   {events.some((event) => event.type !== "text.delta") && (
-                    <section className="agent-companion-timeline" aria-live="polite" aria-label={t("当前运行时间线", "Current Run timeline")}>
-              <div className="agent-companion-section-heading"><span>{t("运行时间线", "Run timeline")}</span><small>{events.filter((event) => event.type !== "text.delta").length} {t("条事件", "events")}</small></div>
-              <div className="agent-timeline-list">
-                {events.slice(-8).map((event) => (
-                  <div key={event.id} className={`agent-timeline-item event-${event.type.replaceAll(".", "-")}`}>
-                    <span className="agent-timeline-dot" />
-                    <div><strong>{eventLabel(event.type, t)}</strong><span>{eventDetail(event, t)}</span></div>
-                    <time>{new Date(event.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
-                  </div>
-                ))}
-              </div>
-                    </section>
+                    <AgentExecutionLog entries={events.filter(event => event.type !== "text.delta").map(event => ({ id: event.id, at: event.timestamp, kind: event.type, label: eventLabel(event.type, t), detail: eventDetail(event, t), important: /failed|completed|cancelled|approval|error/.test(event.type) }))} />
                   )}
                       </div>
                     </section>
@@ -910,7 +909,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
                 </div>
             </section>
 
-            <section className="agent-companion-chat" aria-label={t("Agent 对话", "Agent chat")}>
+            </AgentSurface><section className="agent-companion-chat" aria-label={t("Agent 对话", "Agent chat")}>
               <div className="agent-companion-chat-heading">
                 <span><MessageSquare size={13} />{t("Agent 对话", "Agent chat")}</span>
                 <div className="agent-companion-chat-heading-actions">
@@ -1066,14 +1065,14 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
           </div>
 
           <button type="button" className="agent-companion-open-btn" onClick={() => { setOpen(false); onOpenWorkspace(); }}><Bot size={15} /><span>{t("打开完整 Agent 工作台", "Open full Agent Workbench")}</span><ChevronRight size={14} /></button>
-        </section>
+        </section></AgentSurface>
       )}
-      <button type="button" className="agent-companion-trigger" aria-expanded={open} aria-label={t("打开 Agent 伴侣", "Open Agent Companion")} aria-describedby={sharedRunning ? "betterme-agent-running-count" : undefined} title={sharedRunning ? `BetterMe Agent · ${sharedRunning} 项运行中` : statusLabel} onClick={() => setOpen((current) => !current)}>
+      {!sidebar && <button type="button" className="agent-companion-trigger" aria-expanded={open} aria-label={t("打开 Agent 伴侣", "Open Agent Companion")} aria-describedby={sharedRunning ? "betterme-agent-running-count" : undefined} title={sharedRunning ? `BetterMe Agent · ${sharedRunning} 项运行中` : statusLabel} onClick={() => setOpen(!open)}>
         <span className="agent-companion-orbit" />
         <Bot size={22} />
         <span className={`agent-companion-status-dot ${online === false ? "is-offline" : available.length > 0 ? "is-ready" : "is-idle"}`} />
         {sharedRunning > 0 && <span id="betterme-agent-running-count" className="betterme-agent-running-count" aria-label={`${sharedRunning} 项 Agent 任务运行中`}>{sharedRunning}</span>}
-      </button>
+      </button>}
     </div>
   );
 }
