@@ -96,7 +96,7 @@ export function AtlasLiveHarvestResults({ view, busy = false, compactHeading = f
             </details>
           ))}
         </div>
-        <p className="atlas-live-harvest-source-note">页数与滚动次数是本轮读取量和预算，不是网站总量；不同关键词的回执会累计，候选卡片不计入已核验列表。</p>
+        <p className="atlas-live-harvest-source-note">页数与滚动次数是本轮读取量和预算，不是网站总量；不同关键词按平台岗位 ID 合并去重，追踪链接不会重复计数；候选卡片不计入已核验列表，原始捕获证据保留在回执中。</p>
       </details>
 
       {view.totalCards > 0 ? (
@@ -129,7 +129,7 @@ export function AtlasLiveHarvestResults({ view, busy = false, compactHeading = f
       )}
 
       <details className="atlas-live-card-details atlas-live-harvest-method"><summary>来源与地图口径</summary><p className="atlas-live-harvest-footnote">
-        岗位列表以本轮地区匹配卡片为准；地图仅显示这些卡片中已关联本机索引且有可验证办公坐标的岗位。不把未入库卡片当成地图岗位，也不使用整个历史索引凑数。平台来源计数为原始捕获量，地区筛选数量见上方回执；有限预算不代表网站全量。
+        岗位列表以本轮地区匹配的唯一岗位卡片为准；地图仅显示这些卡片中已关联本机索引且有可验证办公坐标的岗位。不把未入库卡片当成地图岗位，也不使用整个历史索引凑数。平台来源计数按岗位身份去重，地区筛选数量见上方回执；有限预算不代表网站全量。
       </p></details>
     </section>
   );

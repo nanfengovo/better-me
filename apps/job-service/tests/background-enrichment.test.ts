@@ -54,6 +54,66 @@ test("a successful import schedules only its job and background source normaliza
   } finally { repo.close(); }
 });
 
+test("English disclosed Shanghai locations become queryable without changing source evidence or adding an office point", async () => {
+  const repo = openJobRepository(":memory:", { now: () => AT });
+  try {
+    const source = fixture("english", "Shanghai, China");
+    await repo.importSnapshot(source, opts("english-import", 0));
+    await repo.processEnrichmentBatch({ actorScope });
+    const data = await repo.readSnapshot();
+    assert.equal(data.locations[0]!.countryCode, "CN");
+    assert.equal(data.locations[0]!.city, "上海市");
+    assert.equal(data.locations[0]!.raw, "Shanghai, China");
+    assert.equal(data.locations[0]!.coordinates, undefined);
+    assert.deepEqual(data.locations[0]!.evidence, source.locations[0]!.evidence);
+    assert.deepEqual(data.observations, source.observations);
+    assert.deepEqual(data.snapshots, source.snapshots);
+    const result = await queryJobs(data, { market: "domestic", workCountryCodes: ["CN"], workRegionGroups: [["上海", "Shanghai"]] });
+    assert.equal(result.totalJobs, 1);
+    assert.equal((await repo.processEnrichmentBatch({ actorScope })).processed, 0);
+  } finally { repo.close(); }
+});
+
+test("finite English location aliases respect whole words, parent provinces, explicit countries and source precision", async () => {
+  const cases: Array<[string, string | undefined, string | undefined]> = [
+    ["Greater Shanghai Area, China", "上海市", "上海市"],
+    ["SHANGHAI，CN", "上海市", "上海市"],
+    ["Beijing, China", "北京市", "北京市"],
+    ["Shenzhen, Guangdong, China", "广东省", "深圳市"],
+    ["Suzhou, Jiangsu, China", "江苏省", "苏州市"],
+    ["Suzhou, Anhui, China", "安徽省", "宿州市"],
+    ["Inner Mongolia, China", "内蒙古自治区", undefined],
+    ["Suzhou, China", undefined, undefined],
+    ["Shanghai / Beijing, China", undefined, undefined],
+    ["Shanghai, Zhejiang, China", undefined, undefined],
+    ["Shanghai, United States", undefined, undefined],
+    ["Shanghai, China / Canada", undefined, undefined],
+    ["Shanghai, HK", undefined, undefined],
+    ["Shanghai, US", undefined, undefined],
+    ["Shanghai, Taiwan", undefined, undefined],
+    ["Shanghai, Türkiye", undefined, undefined],
+    ["Shanghai, United Arab Emirates", undefined, undefined],
+    ["NewShanghai, China", undefined, undefined],
+    ["Changzhou, China", undefined, undefined],
+    ["Xianyang, China", undefined, undefined],
+  ];
+  for (const [raw, region, city] of cases) {
+    const repo = openJobRepository(":memory:", { now: () => AT });
+    try {
+      const input = fixture("finite-english", raw);
+      await repo.importSnapshot(input, opts("finite-import", 0));
+      await repo.processEnrichmentBatch({ actorScope });
+      const location = (await repo.readSnapshot()).locations[0]!;
+      assert.equal(location.region, region, raw);
+      assert.equal(location.city, city, raw);
+      assert.equal(location.countryCode, region ? "CN" : undefined, raw);
+      assert.equal(location.raw, raw);
+      assert.equal(location.coordinates, undefined);
+      assert.deepEqual(location.evidence, input.locations[0]!.evidence);
+    } finally { repo.close(); }
+  }
+});
+
 test("company candidates parse only their own explicit controller disclosure and remain unverified, never manual", async () => {
   const repo = openJobRepository(":memory:", { now: () => AT });
   try {

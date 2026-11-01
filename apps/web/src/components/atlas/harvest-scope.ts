@@ -1,8 +1,11 @@
-import { normalizeSourceUrl, resolveLegacyCountryCode, type AtlasDataset } from "@better-me/opportunities";
+import { resolveLegacyCountryCode, type AtlasDataset } from "@better-me/opportunities";
 import { resolvePlatformSearchRegion } from "@better-me/source-adapters/browser-contracts";
 import countryCatalog from "../../../../../config/geography/countries.json";
 import { getChinaProvinces, matchDisclosedChinaCities } from "./china-regions";
 import type { LiveHarvestCard, LiveHarvestQuery } from "./live-harvest-view";
+import { liveCardIdentity } from "./live-card-identity";
+import { attachDisclosedLocation } from "./live-platform-import-utils";
+export { harvestCardUrl } from "./live-card-identity";
 
 const normalized = (value: string) => value.normalize("NFKC").trim().replace(/\s+/gu, " ").toLowerCase();
 function contains(value: string, term: string): boolean {
@@ -64,26 +67,19 @@ export function scopeLiveHarvestCards(cards: readonly LiveHarvestCard[], query: 
   const matching: LiveHarvestCard[] = [], outside: LiveHarvestCard[] = [], unknown: LiveHarvestCard[] = [];
   const cache = new Map<string | undefined, ReturnType<typeof classifyHarvestLocation>>();
   for (const entry of cards) {
-    const raw = entry.card.locationText;
+    const card = attachDisclosedLocation(entry.card);
+    const raw = card.locationText;
     const classification = cache.get(raw) ?? classifyHarvestLocation(raw, query);
     cache.set(raw, classification);
-    (classification === "matching" ? matching : classification === "outside" ? outside : unknown).push(entry);
+    (classification === "matching" ? matching : classification === "outside" ? outside : unknown).push(card === entry.card ? entry : { ...entry, card });
   }
   return { matching, outside, unknown };
 }
 
-export function harvestCardUrl(value: string): string {
-  try {
-    const url = new URL(normalizeSourceUrl(value));
-    if (!url.hash.startsWith("#/") && !url.hash.startsWith("#!")) url.hash = "";
-    return url.toString();
-  } catch { return value; }
-}
-
-/** Join by captured listing URL, never by company name or job title. No synthetic jobs/coordinates. */
+/** Join official platform identities (or exact unknown-source URLs), never employer/title guesses. */
 export function selectHarvestIndexJobIds(data: AtlasDataset | null, cards: readonly LiveHarvestCard[]): string[] {
   if (!data) return [];
-  const urls = new Set(cards.map(entry => harvestCardUrl(entry.card.url)));
-  const listingIds = new Set(data.listings.filter(entry => entry.canonicalUrl && urls.has(harvestCardUrl(entry.canonicalUrl))).map(entry => entry.id));
+  const identities = new Set(cards.map(entry => liveCardIdentity(entry.card.url, entry.provider)));
+  const listingIds = new Set(data.listings.filter(entry => entry.canonicalUrl && identities.has(liveCardIdentity(entry.canonicalUrl))).map(entry => entry.id));
   return data.jobs.filter(job => job.listingIds.some(id => listingIds.has(id))).map(job => job.id);
 }

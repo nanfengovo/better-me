@@ -1,5 +1,5 @@
 import type { AtlasDataset } from "@better-me/opportunities";
-import { reviewedCardIdentity } from "@better-me/source-adapters/browser-contracts";
+import { liveCardIdentity } from "./live-card-identity";
 import type { LiveBatchProviderResultClient } from "../../lib/platform-search-client";
 import { groupLiveCardsForReviewedImport } from "./live-platform-import-utils";
 import type { LivePlatformImportSummary } from "./live-platform-auto-import";
@@ -113,7 +113,7 @@ export class LiveCardCommitQueue {
   }
 
   private identity(provider: Provider, card: Card): string {
-    return `${provider}\0${reviewedCardIdentity(card.url, provider)?.id ?? card.url}`;
+    return liveCardIdentity(card.url, provider);
   }
 
   private accountReceipt(batch: HarvestBatchCheckpoint, receipt: HarvestImportReceipt): void {

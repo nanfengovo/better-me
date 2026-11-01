@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { EntityIdSchema, TimestampSchema, type AtlasDataset, type Company, type JobLocation, type EvidenceRef } from "@better-me/opportunities";
-import type { SourceNormalizationArea } from "./location-catalog.js";
+import { hasConflictingSourceCountry, hasLocationTextAlias, type SourceNormalizationArea } from "./location-catalog.js";
 
 export type BackgroundEnrichmentOptions = { actorScope?: string; limit?: number; signal?: AbortSignal };
 export type BackgroundEnrichmentStatus = { revision: number; pending: number; running: number; completed: number; failed: number; nextRetryAt?: string };
@@ -76,9 +76,13 @@ function companyCandidate(data: AtlasDataset, companyId: string): Company | unde
 }
 function sourceArea(location: JobLocation, areas: readonly SourceNormalizationArea[]): SourceNormalizationArea | undefined {
   const raw = normalized(location.raw);
+  if (hasConflictingSourceCountry(raw, "CN")) return undefined;
   const tokens = new Set(raw.split(/[，,、;；/|·\s\-—]+/u).filter(Boolean));
-  const matches = areas.filter(area => area.aliases.some(alias => tokens.has(normalized(alias))
-    || /[市省]$/u.test(alias) && raw.includes(normalized(alias))));
+  const matchesAlias = (alias: string) => tokens.has(normalized(alias))
+    || /[市省]$/u.test(alias) && raw.includes(normalized(alias))
+    || /[a-z]/iu.test(alias) && hasLocationTextAlias(raw, alias);
+  const matches = areas.filter(area => area.aliases.some(matchesAlias)
+    || area.parentRequiredAliases?.some(matchesAlias) && area.regionAliases?.some(matchesAlias));
   const cities = matches.filter(area => area.city);
   const distinctCities = new Map(cities.map(area => [`${area.region}:${area.city}`, area]));
   if (distinctCities.size > 1) return undefined;
@@ -89,7 +93,7 @@ function sourceArea(location: JobLocation, areas: readonly SourceNormalizationAr
   if (found?.city && province && tokens.has(normalized(found.city).replace(/市$/u, "")) && !tokens.has(normalized(found.city))) found = province;
   if (!found || matches.some(area => area.region !== found.region)
     || location.countryCode && location.countryCode !== found.countryCode
-    || location.region && normalized(location.region).replace(/[省市]$/u, "") !== normalized(found.region).replace(/[省市]$/u, "")
+    || location.region && !(found.regionAliases ?? [found.region]).some(alias => normalized(location.region!) === normalized(alias))
     || location.city && found.city && !found.aliases.some(alias => normalized(alias) === normalized(location.city!))) return undefined;
   return found;
 }

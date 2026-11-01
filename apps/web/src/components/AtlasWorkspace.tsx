@@ -55,7 +55,8 @@ import { sanitizeHarvestDiagnostic } from "./atlas/harvest-issue-presentation";
 import { useBackgroundEnrichment } from "./atlas/use-background-enrichment";
 import { AtlasBackgroundEnrichmentStatus } from "./atlas/AtlasBackgroundEnrichmentStatus";
 import { useHarvestRecovery } from "./atlas/use-harvest-recovery";
-import { harvestCardUrl, harvestMarketScope, scopeLiveHarvestCards, selectHarvestIndexJobIds } from "./atlas/harvest-scope";
+import { harvestMarketScope, scopeLiveHarvestCards, selectHarvestIndexJobIds } from "./atlas/harvest-scope";
+import { liveCardIdentity } from "./atlas/live-card-identity";
 import type { HarvestCheckpoint, HarvestRunInput } from "./atlas/harvest-checkpoint";
 import { finiteProgressStat, mergeLiveCommitTotals, toHarvestProgressState, type HarvestProgressState } from "./atlas/harvest-progress-presentation";
 import { buildChinaRegionFilter, findChinaProvinceByMapId, getChinaProvinces, getChinaCities, getChinaDistricts, type ChinaRegionSelection } from "./atlas/china-regions";
@@ -541,8 +542,8 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
   const indexedLiveUrls = useMemo(() => {
     const ids = new Set(liveIndexJobIds);
     const listingIds = new Set(data?.jobs.filter(job => ids.has(job.id)).flatMap(job => job.listingIds));
-    const urls = new Set(data?.listings.filter(listing => listingIds.has(listing.id) && listing.canonicalUrl).map(listing => harvestCardUrl(listing.canonicalUrl!)));
-    return new Set(scopedCards?.matching.filter(entry => urls.has(harvestCardUrl(entry.card.url))).map(entry => entry.card.url));
+    const identities = new Set(data?.listings.filter(listing => listingIds.has(listing.id) && listing.canonicalUrl).map(listing => liveCardIdentity(listing.canonicalUrl!)));
+    return new Set(scopedCards?.matching.filter(entry => identities.has(liveCardIdentity(entry.card.url, entry.provider))).map(entry => entry.card.url));
   }, [data, liveIndexJobIds, scopedCards]);
   const query = useMemo<JobQueryInput>(() => ({
     ...(liveScopeActive ? { jobIds: liveIndexJobIds } : {}),

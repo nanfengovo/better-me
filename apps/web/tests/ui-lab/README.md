@@ -95,6 +95,40 @@ Focused fixture contract tests:
 pnpm exec tsx --test apps/web/tests/ui-lab/data.test.ts
 ```
 
+## Collection identity / synonym / location regression (port 5197)
+
+`collection-consistency.config.ts` is a separate fixture with a newly created
+temporary SQLite database and the real job application / authenticated HTTP
+routes. It seeds 22 synthetic historical jobs, disables their collection
+sources and rejects outbound source transport. Only reviewed-card imports may
+add jobs; resume, AI, arbitrary index mutations and real Chrome control are not
+mounted. The database lives under a unique OS temporary directory, never the
+normal BetterMe data directory. Its CSP blocks connections to the real local
+services. This is **not** a live-platform collection or full-data acceptance test.
+
+Build workspace dependencies in a separate source copy if the user's app is
+running: rebuilding the active checkout's package `dist` can restart its dev
+services. In the prepared copy, from `apps/web`:
+
+```sh
+node node_modules/vite/bin/vite.js --config tests/ui-lab/collection-consistency.config.ts
+```
+
+Open `http://127.0.0.1:5197/tests/ui-lab/collection-consistency.html` in a fresh,
+independently owned browser context, take a snapshot, then run
+`collection-consistency.browser.js` with `playwright-cli run-code --filename`.
+Restart **only this fixture** and use a fresh QA browser before repeating it:
+each run expects the initial 22-row dataset. The browser supplies synthetic SSE
+cards; preview, import, background normalization, dataset sync, query Worker and
+HTTP search are real. Assertions cover tracking-link deduplication and detail
+association, title-backed Liepin location before region filtering, C# / .NET /
+WPF query consistency, English `Shanghai, China` normalization with literal
+source evidence retained, unchanged historical rows, no fictitious office points,
+and mobile overflow. Screenshots go under `output/playwright/`.
+After closing the owned QA browser, an authenticated POST to
+`/__collection-consistency/close` shuts down the fixture and awaits temporary
+database cleanup. Never send that request to the normal application origin.
+
 ## Optional production-bundle comparison (separate port 5190)
 
 This comparison does not change the development lab on5186 or the user's application on5173. Wait until the intended UI source changes are complete, then build **only this Vite fixture**. Do not run workspace/root build commands or rebuild `packages/*/dist`: query-index activation must remain independent.

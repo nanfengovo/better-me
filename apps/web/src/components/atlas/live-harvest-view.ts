@@ -1,4 +1,5 @@
 import type { LiveBatchProviderResultClient, LiveBatchSearchReceipt, LiveBatchSearchStreamEvent } from "../../lib/platform-search-client";
+import { liveCardIdentity } from "./live-card-identity";
 
 export type LiveHarvestQuery = {
   keyword: string;
@@ -90,16 +91,6 @@ export function getLiveHarvestPage<T>(items: readonly T[], requestedPage: number
   };
 }
 
-function normalizeCardUrl(input: string): string {
-  try {
-    const url = new URL(input);
-    url.hash = "";
-    return url.toString();
-  } catch {
-    return input;
-  }
-}
-
 export function buildLiveHarvestView(
   receipt: LiveBatchSearchReceipt,
   query: LiveHarvestQuery,
@@ -110,8 +101,7 @@ export function buildLiveHarvestView(
     const readyCards = result.status === "ready" ? result.cards : [];
     let cardCount = 0;
     for (const card of readyCards) {
-      const normalizedUrl = normalizeCardUrl(card.url);
-      const identity = `${result.provider}\u0000${normalizedUrl}`;
+      const identity = liveCardIdentity(card.url, result.provider);
       if (seen.has(identity)) continue;
       seen.add(identity);
       cards.push({ provider: result.provider, platform: result.platform, card });
@@ -151,11 +141,11 @@ export function mergeLiveHarvestViews(
 ): LiveHarvestView {
   if (!previous || !matchesLiveHarvestQuery(previous, next.query)) return next;
   const cardsByIdentity = new Map(previous.cards.map((entry) => [
-    `${entry.provider}\u0000${normalizeCardUrl(entry.card.url)}`,
+    liveCardIdentity(entry.card.url, entry.provider),
     entry,
   ]));
   for (const entry of next.cards) {
-    cardsByIdentity.set(`${entry.provider}\u0000${normalizeCardUrl(entry.card.url)}`, entry);
+    cardsByIdentity.set(liveCardIdentity(entry.card.url, entry.provider), entry);
   }
 
   const providersById = new Map(previous.providers.map((provider) => [provider.provider, provider]));
@@ -245,10 +235,10 @@ export function buildLiveHarvestProgressView(
   // Metadata arrives much more often than cards. Keep this path independent of
   // the accumulated card count and retain the reference used by list consumers.
   if (incoming.length > 0) {
-    const seen = new Set(cards.map((entry) => `${entry.provider}\u0000${normalizeCardUrl(entry.card.url)}`));
+    const seen = new Set(cards.map((entry) => liveCardIdentity(entry.card.url, entry.provider)));
     const appended: LiveHarvestCard[] = [];
     for (const entry of incoming) {
-      const identity = `${entry.provider}\u0000${normalizeCardUrl(entry.card.url)}`;
+      const identity = liveCardIdentity(entry.card.url, entry.provider);
       if (seen.has(identity)) continue;
       seen.add(identity);
       appended.push(entry);

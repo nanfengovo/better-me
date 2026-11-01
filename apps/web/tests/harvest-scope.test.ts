@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { classifyHarvestLocation, harvestCardUrl, harvestMarketScope, selectHarvestIndexJobIds } from "../src/components/atlas/harvest-scope";
+import { classifyHarvestLocation, harvestCardUrl, harvestMarketScope, scopeLiveHarvestCards, selectHarvestIndexJobIds } from "../src/components/atlas/harvest-scope";
 import { createAtlasDemo } from "../src/components/atlas/demo";
 
 test("domestic geography uses disclosed location, not platform or company nationality", () => {
@@ -45,4 +45,34 @@ test("listing identity drops tracking but retains job IDs and SPA routes", () =>
   assert.equal(harvestCardUrl("https://example.test/job?id=42&utm_source=fixture#section"), "https://example.test/job?id=42");
   assert.equal(harvestCardUrl("https://example.test/#/jobs/42"), "https://example.test/#/jobs/42");
   assert.notEqual(harvestCardUrl("https://example.test/#/jobs/42"), harvestCardUrl("https://example.test/#/jobs/43"));
+});
+
+test("live map joins platform IDs across title slugs and tracking, but not lookalike hosts or other providers", () => {
+  const data = createAtlasDemo();
+  const listing = data.listings[0]!;
+  listing.canonicalUrl = "https://cn.linkedin.com/jobs/view/csharp-4483096821?trackingId=old";
+  const expected = data.jobs.filter(job => job.listingIds.includes(listing.id)).map(job => job.id);
+  const cards = (provider: "linkedin" | "liepin", url: string) => [{ provider, card: { url } }] as Parameters<typeof selectHarvestIndexJobIds>[1];
+  assert.deepEqual(selectHarvestIndexJobIds(data, cards("linkedin", "https://www.linkedin.com/jobs/view/new-slug-4483096821?trackingId=new")), expected);
+  assert.deepEqual(selectHarvestIndexJobIds(data, cards("linkedin", "https://linkedin.com.evil.test/jobs/view/4483096821")), []);
+  assert.deepEqual(selectHarvestIndexJobIds(data, cards("liepin", "https://www.liepin.com/job/4483096821.shtml")), []);
+  assert.deepEqual(selectHarvestIndexJobIds(data, cards("linkedin", "https://www.linkedin.com/jobs/view/4483096822")), []);
+});
+
+test("title-backed Liepin locations are recovered before geography filtering without inventing company locations", () => {
+  const entry = (title: string, extra = {}) => ({ provider: "liepin" as const, platform: "猎聘" as const,
+    card: { url: "https://www.liepin.com/job/123456.shtml", title, company: "上海合成公司", platform: "猎聘" as const,
+      cardText: `${title} 上海合成公司`, evidence: { pageUrl: "https://www.liepin.com/zhaopin/?key=C%23", cardSelector: ".card",
+        fields: [{ field: "title" as const, selector: ".title", text: title }] }, ...extra } });
+  const district = entry(".net开发工程师【上海-静安区】");
+  const city = entry("C#工程师【上海】");
+  const unproven = entry("上海平台 C#开发", { evidence: { pageUrl: "https://www.liepin.com/zhaopin/?key=C%23", cardSelector: ".card", fields: [] } });
+  const conflict = entry("C#工程师【上海】", { locationText: "深圳市南山区" });
+  const forged = entry("C#工程师【上海】", { evidence: { pageUrl: "https://www.liepin.com/zhaopin/?key=C%23", cardSelector: ".card", fields: [{ field: "title", selector: ".title", text: "C#工程师" }] } });
+  const scoped = scopeLiveHarvestCards([district, city, unproven, conflict, forged], { keyword: "C#", countryCodes: ["CN"], regionGroups: [["上海", "Shanghai"]] });
+  assert.deepEqual(scoped.matching.map(e=>e.card.locationText), ["上海-静安区", "上海"]);
+  assert.equal(scoped.outside.length, 1);
+  assert.equal(scoped.unknown.length, 2);
+  assert.equal(district.card.locationText, undefined, "source input is not rewritten");
+  assert.deepEqual(scoped.matching[0]!.card.evidence.fields.at(-1), { field: "locationText", selector: ".title", text: "上海-静安区" });
 });

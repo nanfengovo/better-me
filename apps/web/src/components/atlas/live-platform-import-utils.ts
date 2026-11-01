@@ -67,7 +67,7 @@ function disclosedCityDistrict(title: string): string | undefined {
   return undefined;
 }
 
-function attachDisclosedLocation<TCard extends EvidenceBackedLiveCard>(card: TCard): TCard {
+export function attachDisclosedLocation<TCard extends EvidenceBackedLiveCard>(card: TCard): TCard {
   if (!card || typeof card !== "object" || !("title" in card) || !("cardText" in card) || !("evidence" in card)) return card;
   const candidate = card as TCard & CardWithLocationEvidence;
   if (typeof candidate.title !== "string" || typeof candidate.cardText !== "string"
@@ -79,8 +79,13 @@ function attachDisclosedLocation<TCard extends EvidenceBackedLiveCard>(card: TCa
     return { ...candidate, locationText: capturedLocation.text.trim() } as TCard;
   }
 
-  const titledLocation = disclosedCityDistrict(candidate.title);
-  const titleEvidence = candidate.evidence.fields.find((field) => field.field === "title");
+  const titleEvidence = candidate.evidence.fields.find((field) => field.field === "title" && field.text.trim() === candidate.title.trim());
+  // City-only titles require an explicit location bracket, not an arbitrary
+  // city word in a role/company name. Keep the literal source substring.
+  const bracket = candidate.title.match(/[【[（(]([^【[（(】\]）)]{1,80})[】\]）)]\s*$/u)?.[1]?.trim();
+  const bracketCities = bracket ? matchDisclosedChinaCities({ countryCode: "CN", raw: bracket }) : [];
+  const bracketCity = bracketCities.some(match => [match.matchedText, match.city.name, match.province.name].includes(bracket!)) ? bracket : undefined;
+  const titledLocation = disclosedCityDistrict(candidate.title) ?? bracketCity;
   let locationText = titledLocation && titleEvidence ? titledLocation : undefined;
   let selector = titleEvidence?.selector;
   if (!locationText) {

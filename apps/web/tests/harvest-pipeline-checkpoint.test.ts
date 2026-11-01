@@ -105,6 +105,28 @@ test("interrupted terms restore captured cards immediately and only skip their d
   } finally { globalThis.fetch = originalFetch; }
 });
 
+test("recovery does not add tracking variants already represented by a durable provider result", async () => {
+  const stored = memoryCheckpoint();
+  const recovered = result("liepin", true);
+  stored.state.providers.push({ term: "Rust", capturedAt, result: recovered });
+  stored.state.batches.push({ id: "tracked-capture", provider: "liepin", platform: "猎聘", pageUrl: recovered.pageUrl, capturedAt,
+    cards: recovered.cards.map(card => ({ ...card, url: `${card.url}?trackingId=other` })) });
+  const sizes: number[] = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, init) => {
+    const request = JSON.parse(String(init?.body));
+    return response(request.input.providers.map((provider: HarvestProvider) => result(provider)), true);
+  };
+  try {
+    await new OpportunityHarvestChainedClientPipeline({ client: client().service, checkpoint: stored.checkpoint,
+      keyword: "Rust", enrichAfterCommit: false,
+      onLiveResults: receipt => { sizes.push(receipt.results.reduce((sum, value) => sum + value.cards.length, 0)); },
+    }).execute();
+    assert.ok(sizes.length > 0);
+    assert.ok(sizes.every(size => size === 1), "checkpoint recovery uses the same unique platform identity as live capture");
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test("provider completion is durable only after its cards, in SSE and JSON fallback", async () => {
   for (const streaming of [true, false]) {
     const stored = memoryCheckpoint();

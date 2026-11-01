@@ -68,6 +68,15 @@ test("merging synonym captures deduplicates cards and sums per-query coverage", 
   assert.ok(result.warnings.some((warning) => warning.includes("C#、.NET")));
 });
 
+test("synonym tracking links use platform identities without discarding raw capture counts", () => {
+  const first = receipt("C#", [card("1")]);
+  const next = receipt(".NET", [{ ...card("1"), url: `${card("1").url}?trackingId=different` }, card("2")]);
+  const merged = mergeLiveBatchSearchReceipts([first, next], ["C#", ".NET"]);
+  assert.equal(merged.results[0]!.cards.length, 2);
+  assert.equal(merged.results[0]!.rawCardCount, 3);
+  assert.equal(next.results[0]!.cards.length, 2, "original keyword evidence is not mutated");
+});
+
 test("merged card budget is explicit instead of returning an oversized result", () => {
   const merged = mergeLiveBatchSearchReceipts(
     [receipt("C#", [card("1"), card("2"), card("3")]), receipt(".NET", [card("4")])],

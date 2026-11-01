@@ -60,6 +60,28 @@ function receipt(): LiveBatchSearchReceipt {
   };
 }
 
+test("platform job identity deduplicates tracking URLs through receipt, stream and synonym merge", () => {
+  const batch = receipt();
+  const first = { ...liveCard(1, "https://www.linkedin.com/jobs/search?keywords=C%23"), platform: "LinkedIn" as const,
+    url: "https://cn.linkedin.com/jobs/view/csharp-engineer-4483096821?trackingId=first&position=1" };
+  const duplicate = { ...first, url: "https://www.linkedin.com/jobs/view/different-slug-4483096821?trackingId=second&position=8" };
+  const other = { ...first, url: "https://www.linkedin.com/jobs/view/4483096822?trackingId=first" };
+  batch.results = [{ ...batch.results[0]!, provider: "linkedin", platform: "LinkedIn", cards: [first, duplicate, other], rawCardCount: 3 }];
+  const original = structuredClone(batch);
+  const view = buildLiveHarvestView(batch, { keyword: "C#" });
+  assert.equal(view.totalCards, 2);
+  assert.equal(view.providers[0]!.cardCount, 2);
+  const progressed = buildLiveHarvestProgressView(view, view.query, {
+    provider: "linkedin", platform: "LinkedIn", status: "running", cardsCaptured: 3,
+    pagesVisited: 2, scrollSteps: 0, pageLimit: 5, scrollLimit: 0, cardLimit: 500,
+    cards: [{ provider: "linkedin", platform: "LinkedIn", card: duplicate }],
+  });
+  assert.equal(progressed.totalCards, 2);
+  assert.equal(mergeLiveHarvestViews(progressed, buildLiveHarvestView({ ...batch,
+    results: [{ ...batch.results[0]!, cards: [duplicate] }] }, view.query)).totalCards, 2);
+  assert.deepEqual(batch, original, "raw source receipt and tracking evidence must remain untouched");
+});
+
 test("live harvest view presents this crawl's verified cards directly, independent of any saved-index snapshot", () => {
   const view = buildLiveHarvestView(receipt(), { keyword: "Java" });
 

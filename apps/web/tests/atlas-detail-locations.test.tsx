@@ -544,14 +544,36 @@ test("React extracts a same-job address then explicitly imports it through stric
   const extracted = extractPublicJobHtml(html, "猎聘", JOB_URL, { requireVisibleDescription: true, capturedAt: DETAIL_AT });
   assert.ok(extracted.detailLocations);
   const requestPaths: string[] = [], snapshots: AtlasDataset[] = [], officeSnapshots: Array<{ data: AtlasDataset; location: JobLocation }> = [];
+  const waitForNormalization = async () => {
+    for (let attempt = 0; ; attempt++) {
+      const response = await nativeFetch(`${url}/api/v1/enrichment/status`, { headers: { authorization: `Bearer ${TOKEN}` } });
+      assert.equal(response.status, 200);
+      const { value: status } = await response.json();
+      if (!status.pending && !status.running && status.workerState === "idle") return;
+      assert.ok(attempt < 200, "source normalization must settle before testing read-only address review");
+      await new Promise<void>(resolve => setTimeout(resolve, 5));
+    }
+  };
+  let detailWriteRevision: number | undefined;
   try {
     const cardPreview = await sourceClient.previewReviewedCards({ ...capture, expectedRevision: 0 });
     await sourceClient.importReviewedCards({ ...capture, expectedRevision: 0, previewFingerprint: cardPreview.previewFingerprint, reviewed: true }, { idempotencyKey: "synthetic-integrated-card" });
+    // The English source label now has a genuine independent normalization write.
+    // Compare read-only UI actions only after that writer has become idle.
+    await waitForNormalization();
     const before = await repository.readSnapshot(), job = before.jobs[0]!, listing = before.listings[0]!;
     mock.method(globalThis, "fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = new URL(String(input), dom.location.href).pathname; requestPaths.push(path);
       if (path === paths.extract) return rawResponse({ ...extracted, provenance: { kind: "link", platform: "猎聘", url: JOB_URL, observedAt: DETAIL_AT } });
-      return nativeFetch(input, init);
+      const response = await nativeFetch(input, init);
+      if (path === paths.write) {
+        assert.equal(response.status, 200);
+        detailWriteRevision = (await response.clone().json()).value.revision;
+        // Exercise a real background write before the UI's follow-up snapshot,
+        // rather than racing it against the later manual office preview.
+        await waitForNormalization();
+      }
+      return response;
     });
     const value = { ...props(), endpoint: url, token: TOKEN, data: before, jobId: job.id, onSnapshot: (data: AtlasDataset) => snapshots.push(data),
       onOfficeSnapshot: (data: AtlasDataset, location: JobLocation) => officeSnapshots.push({ data, location }) };
@@ -561,7 +583,10 @@ test("React extracts a same-job address then explicitly imports it through stric
     assert.equal(button(labels.save).disabled, true); assert.deepEqual(await repository.readSnapshot(), before);
     await confirm(); await click(labels.save); await settled(() => snapshots.length === 1);
     const after = await repository.readSnapshot(), next = after.jobs.find(entry => entry.id === job.id)!;
-    assert.equal(after.revision, before.revision + 1); assert.equal(after.jobs.length, 1); assert.equal(after.listings.length, 1);
+    assert.equal(detailWriteRevision, before.revision + 1, "the reviewed import is exactly one transaction");
+    assert.equal(after.revision, detailWriteRevision! + 1, "normalizing the newly disclosed English address is one independent write");
+    assert.equal(snapshots[0]!.revision, after.revision, "the UI refresh includes the completed normalization");
+    assert.equal(after.jobs.length, 1); assert.equal(after.listings.length, 1);
     assert.equal(after.snapshots.length, before.snapshots.length); assert.deepEqual(after.snapshots, before.snapshots);
     assert.deepEqual(after.compensations, before.compensations); assert.deepEqual(next.description, job.description); assert.deepEqual(next.title, job.title);
     assert.deepEqual(next.compensationIds, job.compensationIds); assert.deepEqual(next.listingIds, job.listingIds);

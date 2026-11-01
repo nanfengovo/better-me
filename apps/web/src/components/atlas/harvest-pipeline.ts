@@ -10,6 +10,7 @@ import {
   type ChinaRegionSelection,
 } from "./china-regions";
 import { scopeLiveHarvestCards } from "./harvest-scope";
+import { liveCardIdentity } from "./live-card-identity";
 import type { LiveHarvestQuery } from "./live-harvest-view";
 import {
   enrichSnapshotCompaniesAndOffices,
@@ -58,14 +59,15 @@ export function mergeLiveBatchSearchReceipts(
   for (const entries of byProvider.values()) {
     const first = entries[0]!;
     const cardLimit = first.coverage.cardLimit;
-    const cardsByUrl = new Map<string, LiveBatchProviderResultClient["cards"][number]>();
+    const cardsByIdentity = new Map<string, LiveBatchProviderResultClient["cards"][number]>();
     for (const entry of entries) {
       for (const card of entry.cards) {
-        if (!cardsByUrl.has(card.url)) cardsByUrl.set(card.url, card);
+        const identity = liveCardIdentity(card.url, entry.provider);
+        if (!cardsByIdentity.has(identity)) cardsByIdentity.set(identity, card);
       }
     }
-    const uniqueCardCount = cardsByUrl.size;
-    const cards = [...cardsByUrl.values()].slice(0, cardLimit);
+    const uniqueCardCount = cardsByIdentity.size;
+    const cards = [...cardsByIdentity.values()].slice(0, cardLimit);
     const rawCardCount = entries.reduce((total, entry) => total + entry.rawCardCount, 0);
     const pagesVisited = entries.reduce((total, entry) => total + entry.coverage.pagesVisited, 0);
     const pageLimit = entries.reduce((total, entry) => total + entry.coverage.pageLimit, 0);
@@ -315,8 +317,13 @@ export class OpportunityHarvestChainedClientPipeline {
     const results = new Map(receipt.results.map(result => [result.provider, result]));
     for (const batch of this.checkpointSnapshot.batches) {
       const previous = results.get(batch.provider);
-      const known = new Set(previous?.cards.map(card => card.url));
-      const extra = batch.cards.filter(card => !known.has(card.url));
+      const known = new Set(previous?.cards.map(card => liveCardIdentity(card.url, batch.provider)));
+      const extra = batch.cards.filter(card => {
+        const identity = liveCardIdentity(card.url, batch.provider);
+        if (known.has(identity)) return false;
+        known.add(identity);
+        return true;
+      });
       if (!extra.length) continue;
       const warning = "保留上次已捕获的来源卡片；未完成的平台将重新读取查询，不恢复虚拟列表滚动位置。";
       results.set(batch.provider, previous ? {

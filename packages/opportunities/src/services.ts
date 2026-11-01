@@ -1,4 +1,4 @@
-import { createJobQueryService, JobQueryError, JobQuerySchema, type JobQuery, type QueryOptions } from "./query.js";
+import { createJobQueryService, DEFAULT_TECHNICAL_ALIASES, JobQueryError, JobQuerySchema, type JobQuery, type QueryOptions } from "./query.js";
 import { JobQueryResultSchema } from "./query-output.js";
 import { defineTool, ToolError, type ToolHandlerContext } from "./tools.js";
 
@@ -18,7 +18,7 @@ export function createJobsSearchTool(
       try {
         const options = await resolveOptions(query, context);
         context.throwIfCancelled();
-        const result = await service.search(query, options);
+        const result = await service.search(query, { aliases: DEFAULT_TECHNICAL_ALIASES, ...options });
         context.throwIfCancelled();
         // Zod domain inputs may contain explicit optional undefined. This known response is projected
         // into its JSON representation here; the general tool executor remains strict for all tools.

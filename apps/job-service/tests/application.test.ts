@@ -4,7 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { type SourceDefinition, type TrustedToolContext, type ToolResult } from "@better-me/opportunities";
+import { DEFAULT_TECHNICAL_ALIASES, queryJobs, type SourceDefinition, type TrustedToolContext, type ToolResult } from "@better-me/opportunities";
 import { SourceTransportError, type SourceAdapter, type SourceAdapterRequest, type SourceJobRecord, type SourcePage, type SourceTransport } from "@better-me/source-adapters";
 import { createJobApplication } from "../src/application.js";
 import { createJobHttpServer } from "../src/http.js";
@@ -70,6 +70,36 @@ test("actual sync, HTTP and tools share one query; overlapping pages preserve so
     assert.deepEqual(http, expected);
     const detail = value(await f.application.registry.execute("jobs.read-detail", { jobId: snapshot.jobs[0]!.id }, context()));
     assert.equal(detail.sources[0].attribution.label, source.attribution.label); assert.equal(detail.observations.length, 1);
+  } finally { await server?.close(); await f.close(); }
+});
+
+test("HTTP and agent search default to the same C# aliases as the browser index", async () => {
+  const f = await fixture(async request => page(request, [record("literal", { title: "C# engineer" }),
+    record("synonym", { title: ".NET developer" }), record("ui", { title: "WPF engineer" }), record("other", { title: "Python developer" })]));
+  let server: ReturnType<typeof createJobHttpServer> | undefined;
+  try {
+    value(await f.application.registry.execute("sources.sync", { sourceId: source.sourceId, scope }, context("alias-sync")));
+    for (let attempt = 0; ; attempt++) {
+      const background = value(await f.application.registry.execute("enrichment.status", {}, context()));
+      if (!background.pending && !background.running && background.workerState === "idle") break;
+      assert.ok(attempt < 200); await new Promise<void>(resolve => setTimeout(resolve, 5));
+    }
+    const snapshot = await f.repository.readSnapshot();
+    const input = { search: { text: "C#", mode: "fuzzy" as const }, market: "domestic" as const,
+      workCountryCodes: ["CN"], workRegionGroups: [["上海", "Shanghai"]], mapLevel: "location" as const, page: { limit: 1 } };
+    const browser = await queryJobs(snapshot, input, { now: at, aliases: DEFAULT_TECHNICAL_ALIASES });
+    assert.equal(browser.totalJobs, 3);
+    const tool = value(await f.application.registry.execute("jobs.search", input, context()));
+    assert.deepEqual(tool, browser);
+    const token = "synthetic-alias-http-token-1234567890";
+    server = createJobHttpServer({ registry: f.application.registry, token, allowedOrigins: ["http://127.0.0.1:5197"], port: 0 });
+    const address = await server.listen();
+    const response = await fetch(`${address.url}/api/v1/jobs/search`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(input) });
+    assert.equal(response.status, 200);
+    assert.deepEqual(value(await response.json() as ToolResult), browser);
+    const next = value(await f.application.registry.execute("jobs.search", { ...input, page: { limit: 1, cursor: browser.nextCursor } }, context()));
+    assert.notEqual(next.items[0].job.id, browser.items[0]!.job.id);
+    assert.equal(next.totalJobs, 3);
   } finally { await server?.close(); await f.close(); }
 });
 
@@ -166,7 +196,10 @@ test("source scope preview and sync preserve C#, C++ and .NET semantics despite 
       const synced = value(await f.application.registry.execute("sources.sync", input, context(`symbol-${expectedId}`)));
       assert.equal(synced.run.summary.records, rows.length); assert.equal(synced.run.summary.added, 1);
       const result = value(await f.application.registry.execute("jobs.search", { search: { text: keyword!, mode: "fuzzy" } }, context()));
-      assert.equal(result.totalJobs, 1); assert.equal(result.items[0].sources[0].listingId !== undefined, true);
+      // Capture scope remains literal per keyword; index search uses the same
+      // default technical aliases as the browser (.NET also finds C#).
+      assert.equal(result.totalJobs, keyword === ".NET" ? 2 : 1);
+      assert.ok(result.items.every((item: { sources: Array<{ listingId?: string }> }) => item.sources[0]?.listingId));
       const snapshot = await f.repository.readSnapshot();
       assert.equal(snapshot.listings.filter((listing) => listing.sourceRecordId === expectedId).length, 1);
     }

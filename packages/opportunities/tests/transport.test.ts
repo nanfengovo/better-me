@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   AtlasDatasetSchema, JobQueryResultSchema, createJobQueryService, createJobsSearchTool,
   createToolRegistry, type AtlasDataset, type JobQueryInput, type JobQueryResult, type TrustedToolContext,
-  normalizeSearchText,
+  normalizeSearchText, DEFAULT_TECHNICAL_ALIASES,
 } from "../src/index.js";
 
 const NOW = "2026-10-18T12:00:00.000Z";
@@ -27,7 +27,7 @@ test("real domain query is identical through UI, tool and an isolated HTTP test 
   const service = createJobQueryService({ readSnapshot: async () => structuredClone(snapshot) });
   const registry = createToolRegistry([createJobsSearchTool(service, () => ({ now: NOW }))]);
   const query: JobQueryInput = { search: { text: "cpp" }, workCountryCodes: ["CN"], workRegionIds: ["北京"], workRegionText: "海淀" };
-  const ui = await service.search(query, { now: NOW });
+  const ui = await service.search(query, { now: NOW, aliases: DEFAULT_TECHNICAL_ALIASES });
   assert.equal(ui.totalJobs, 1);
   assert.deepEqual(ui.normalizedQuery.workCountryCodes, ["CN"]);
   assert.equal(ui.normalizedQuery.workRegionText, "海淀");
@@ -58,6 +58,22 @@ test("real domain query is identical through UI, tool and an isolated HTTP test 
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
+});
+
+test("trusted hosts can explicitly disable default aliases without accepting aliases from tool arguments", async () => {
+  const snapshot = dataset();
+  snapshot.jobs[0]!.title.value = "WPF engineer";
+  const service = createJobQueryService({ readSnapshot: async () => snapshot });
+  const defaults = createToolRegistry([createJobsSearchTool(service, () => ({ now: NOW }))]);
+  const literal = createToolRegistry([createJobsSearchTool(service, () => ({ now: NOW, aliases: {} }))]);
+  const query = { search: { text: "C#" } };
+  const expanded = await defaults.execute<JobQueryResult>("jobs.search", query, context());
+  const exact = await literal.execute<JobQueryResult>("jobs.search", query, context());
+  assert.ok(expanded.ok && exact.ok);
+  assert.equal(expanded.value.totalJobs, 1);
+  assert.equal(exact.value.totalJobs, 0);
+  const untrusted = await defaults.execute("jobs.search", { ...query, aliases: {} }, context());
+  assert.equal(untrusted.ok, false);
 });
 
 test("private query configuration cannot be supplied in tool args or returned in results", async () => {

@@ -28,7 +28,16 @@ async function fixture(work: (repo: JobRepository, path: string, app: ReturnType
       const projection = await projectSourcePage(before, source(suffix), { records: [record(suffix)], observedAt: AT, coverage: { complete: true, partial: false, fetchedRecords: 1, appliedFilters: [], ignoredFilters: [] }, warnings: [] }, `seed-${suffix}`);
       await repo.importSnapshot(projection.delta, options(`seed-${suffix}`, before.revision));
     }
-    app = createJobApplication({ repository: repo, now: () => AT }); await work(repo, path, app);
+    app = createJobApplication({ repository: repo, now: () => AT });
+    // English source locations can now produce a real background normalization write.
+    // Establish the fixture's version only after that independent writer has settled.
+    for (let attempt = 0; ; attempt++) {
+      const status = await execute(app, "enrichment.status", {}) as { pending: number; running: number; workerState?: string };
+      if (!status.pending && !status.running && status.workerState === "idle") break;
+      assert.ok(attempt < 200, "the independent background writer must settle before exercising version-bound reconciliation");
+      await new Promise<void>(resolve => setTimeout(resolve, 5));
+    }
+    await work(repo, path, app);
   } finally { await app?.shutdown(); repo.close(); await rm(dir, { recursive: true, force: true }); }
 }
 function context(key?: string, overrides: Partial<TrustedToolContext> = {}): TrustedToolContext { return { requestId: "reconciliation-tools-fixture", actorScope: "local-owner", signal: new AbortController().signal, allowedEffects: ["read-index", "local-write"], budget: { requests: 0, bytes: 16 * 1024 * 1024, timeoutMs: 30000 }, ...(key ? { idempotencyKey: key } : {}), ...overrides }; }
@@ -47,12 +56,6 @@ async function error(app: ReturnType<typeof createJobApplication>, tool: string,
 }
 
 test("bounded candidates and explicit directional previews read one version and preserve unknown evidence without writes", async () => fixture(async (repo, _path, app) => {
-  for (let attempt = 0; ; attempt++) {
-    const status = await execute(app, "enrichment.status", {}) as { pending: number; running: number; workerState?: string };
-    if (!status.pending && !status.running && status.workerState === "idle") break;
-    assert.ok(attempt < 200, "the independent background writer must settle before comparing a read-only command's backup");
-    await new Promise<void>(resolve => setTimeout(resolve, 5));
-  }
   const before = await repo.backup();
   const list = MergeCandidatesPageSchema.parse(await execute(app, "jobs.list-merge-candidates", { limit: 1 }));
   assert.equal(list.snapshotRevision, before.dataset.revision); assert.equal(list.candidates.length, 1); assert.equal(list.truncated, true); assert.equal(list.scannedCandidateLimit, 1000);
