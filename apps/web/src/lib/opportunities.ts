@@ -1,3 +1,5 @@
+import { createDeliveryPlan, parseDeliveryPlans, transitionDelivery, type DeliveryCommand, type DeliveryInput, type DeliveryPlan } from "./domestic-delivery";
+
 /** Local opportunity records. Importing/opening a link never submits an application. */
 export const OPPORTUNITY_STORAGE_KEY = "betterme.opportunities.v1";
 export const OPPORTUNITY_RECOVERY_KEY = "betterme.opportunities-recovery.v1";
@@ -72,10 +74,11 @@ export type Opportunity = {
   status: OpportunityStatus;
   application: OpportunityApplication;
   materials: OpportunityMaterial[];
+  deliveryPlans?: DeliveryPlan[];
   createdAt: string;
   updatedAt: string;
 };
-export type OpportunityLibrary = { schemaVersion: 1; revision: number; updatedAt: string; jobs: Opportunity[] };
+export type OpportunityLibrary = { schemaVersion: 1 | 2; revision: number; updatedAt: string; jobs: Opportunity[] };
 export type OpportunityInput = Pick<Opportunity, "company" | "title"> & Partial<Omit<Opportunity, "id" | "company" | "title" | "application" | "materials" | "createdAt" | "updatedAt">>;
 export type OpportunityPatch = Partial<Omit<Opportunity, "id" | "application" | "materials" | "createdAt" | "updatedAt">>;
 export type OpportunityFilters = {
@@ -273,6 +276,10 @@ function parseOpportunity(value: unknown): Opportunity {
     status: choice(job.status, OPPORTUNITY_STATUSES, "岗位状态"),
     application: parseApplication(job.application),
     materials: parseMaterials(job.materials),
+    ...(job.deliveryPlans === undefined ? {} : { deliveryPlans: parseDeliveryPlans(job.deliveryPlans).map(plan => {
+      if (plan.jobId !== job.id) throw new Error("投递行动不属于当前岗位。");
+      return plan;
+    }) }),
     createdAt: date(job.createdAt, "创建时间")!,
     updatedAt: date(job.updatedAt, "修改时间")!,
   };
@@ -280,14 +287,17 @@ function parseOpportunity(value: unknown): Opportunity {
 
 function parseLibrary(value: unknown): OpportunityLibrary {
   const library = record(value, "机会库");
-  if (library.schemaVersion !== 1) throw new Error("机会库版本不兼容，请保留原文件并使用支持此版本的程序。");
+  if (library.schemaVersion !== 1 && library.schemaVersion !== 2) throw new Error("机会库版本不兼容，请保留原文件并使用支持此版本的程序。");
   if (!Number.isSafeInteger(library.revision) || (library.revision as number) < 0) throw new Error("机会库修订号无效。");
   if (!Array.isArray(library.jobs) || library.jobs.length > MAX_JOBS) throw new Error(`机会库格式错误或超过 ${MAX_JOBS} 条上限。`);
   const jobs = library.jobs.map(parseOpportunity);
   if (new Set(jobs.map((job) => job.id)).size !== jobs.length) throw new Error("机会库岗位编号重复。");
   const urls = jobs.map((job) => job.sourceUrl).filter(Boolean);
   if (new Set(urls).size !== urls.length) throw new Error("机会库存在相同来源链接，请先核对重复岗位。");
-  return { schemaVersion: 1, revision: library.revision as number, updatedAt: date(library.updatedAt, "机会库更新时间")!, jobs };
+  // Promote only when the extension is used. Old clients reject v2 rather than
+  // silently stripping action cards and overwriting the original v1 storage key.
+  const schemaVersion = library.schemaVersion === 2 || jobs.some(job => job.deliveryPlans?.length) ? 2 : 1;
+  return { schemaVersion, revision: library.revision as number, updatedAt: date(library.updatedAt, "机会库更新时间")!, jobs };
 }
 
 export function emptyOpportunityLibrary(): OpportunityLibrary {
@@ -363,6 +373,20 @@ export function updateOpportunity(library: OpportunityLibrary, id: string, patch
   const at = currentTime(now);
   const jobs = library.jobs.map((job) => job.id === id ? parseOpportunity({ ...job, ...patch, id: job.id, application: job.application, materials: job.materials, createdAt: job.createdAt, updatedAt: at }) : job);
   return parseLibrary({ ...library, jobs, updatedAt: at });
+}
+
+export function prepareOpportunityDelivery(library: OpportunityLibrary, id: string, input: DeliveryInput, now = new Date().toISOString()): OpportunityLibrary {
+  const job = library.jobs.find(item => item.id === id);
+  if (!job) throw new Error("岗位不存在，请重新载入机会库。");
+  const deliveryPlans = createDeliveryPlan(job, input, job.deliveryPlans ?? [], now);
+  return parseLibrary({ ...library, updatedAt: now, jobs: library.jobs.map(item => item.id === id ? { ...item, deliveryPlans, updatedAt: now } : item) });
+}
+
+export function commandOpportunityDelivery(library: OpportunityLibrary, jobId: string, planId: string, command: DeliveryCommand, now = new Date().toISOString()): OpportunityLibrary {
+  const job = library.jobs.find(item => item.id === jobId);
+  if (!job) throw new Error("岗位不存在，请重新载入机会库。");
+  const deliveryPlans = transitionDelivery(job.deliveryPlans ?? [], planId, job, command, now);
+  return parseLibrary({ ...library, updatedAt: now, jobs: library.jobs.map(item => item.id === jobId ? { ...item, deliveryPlans, updatedAt: now } : item) });
 }
 
 export function updateApplication(library: OpportunityLibrary, id: string, patch: { stage: ApplicationStage; notes?: string; nextAction?: string; nextActionAt?: string; channel?: string; contactName?: string; contactDetails?: string }, options: { submittedConfirmed?: boolean; now?: string } = {}): OpportunityLibrary {

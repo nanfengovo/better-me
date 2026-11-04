@@ -1,0 +1,57 @@
+.delivery-panel,.delivery-attention { --delivery-line:var(--border-color,#dbe4d8); --delivery-muted:var(--text-secondary,#65705f); --delivery-surface:var(--surface,#fffefa); border:1px solid var(--delivery-line); border-radius:12px; margin:16px 0; background:var(--delivery-surface); color:inherit; min-width:0; }
+.delivery-panel,.delivery-panel * { box-sizing:border-box; }
+.delivery-panel>summary { display:flex; align-items:center; gap:9px; padding:16px 18px; font-weight:600; cursor:pointer; list-style:none; font-size:13px; }
+.opportunity-dialog>.delivery-panel { margin:16px; padding:0; color:inherit; }
+.opportunity-dialog>.delivery-panel>summary { padding:16px 18px; color:inherit; }
+.delivery-panel>summary::-webkit-details-marker { display:none; }
+.delivery-panel>summary::after { content:"+"; margin-left:auto; font-size:18px; font-weight:400; }
+.delivery-panel[open]>summary::after { content:"−"; }
+.delivery-count { border-radius:100px; padding:1px 7px; background:color-mix(in srgb,currentColor 7%,transparent); font-size:11px; }
+.delivery-panel-body { padding:0 18px 18px; }
+.delivery-intro { border-bottom:1px solid var(--delivery-line); padding-bottom:13px; margin-bottom:16px; }
+.delivery-intro strong { font-size:14px; }
+.delivery-intro p,.delivery-footnote,.delivery-attention p { color:var(--delivery-muted); line-height:1.7; font-size:12px; margin:7px 0 0; }
+.delivery-form,.delivery-receipt { display:grid; gap:12px; }
+.delivery-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.delivery-form label,.delivery-receipt label { display:grid; gap:6px; min-width:0; font-size:12px; }
+.delivery-panel :is(input,select,textarea) { width:100%; min-width:0; min-height:38px; border:1px solid var(--delivery-line); border-radius:7px; padding:8px 10px; font:inherit; font-size:12px; color:inherit; background:transparent; }
+.delivery-panel textarea { resize:vertical; line-height:1.65; }
+.delivery-panel :is(input,select,textarea):focus-visible,.delivery-panel summary:focus-visible,.delivery-attention button:focus-visible { outline:2px solid var(--accent-color,#3a714e); outline-offset:3px; }
+.delivery-panel input[readonly] { color:var(--delivery-muted); }
+.delivery-buttons { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.delivery-buttons>span { font-size:11px; color:var(--delivery-muted); }
+.delivery-warning { padding:10px 12px; border-left:3px solid #ad7635; background:color-mix(in srgb,#c88c46 8%,transparent); font-size:12px; line-height:1.7; margin:0; overflow-wrap:anywhere; }
+.delivery-cards { display:grid; gap:12px; margin-bottom:18px; }
+.delivery-card { border:1px solid var(--delivery-line); padding:14px; border-radius:9px; min-width:0; }
+.delivery-card[data-status="outcome_unknown"] { border-color:#ad7635; }
+.delivery-card>header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:13px; }
+.delivery-card>header>span { font-size:11px; color:var(--delivery-muted); }
+.delivery-card dl { display:grid; grid-template-columns:auto minmax(0,1fr); gap:5px 12px; margin:13px 0; font-size:12px; line-height:1.7; }
+.delivery-card dt { color:var(--delivery-muted); }
+.delivery-card dd { margin:0; overflow-wrap:anywhere; }
+.delivery-card pre { font-size:12px; white-space:pre-wrap; overflow-wrap:anywhere; max-height:240px; overflow:auto; margin:10px 0; line-height:1.7; }
+.delivery-card>details { font-size:12px; margin:10px 0; }
+.delivery-card>.studio-button { margin:8px 8px 0 0; }
+.delivery-check { display:flex!important; align-items:flex-start; gap:9px!important; line-height:1.7; font-size:12px; margin-top:10px; }
+.delivery-check input[type="checkbox"] { flex:none; width:16px; height:16px; min-height:0; margin-top:2px; accent-color:#386747; }
+.delivery-receipt { padding-top:14px; margin-top:14px; border-top:1px solid var(--delivery-line); }
+.delivery-receipts { list-style:none; margin:16px 0 0; padding:0; display:grid; gap:10px; }
+.delivery-receipts li { display:flex; flex-wrap:wrap; gap:4px 10px; font-size:11px; }
+.delivery-receipts time { color:var(--delivery-muted); }
+.delivery-receipts li>span { flex-basis:100%; overflow-wrap:anywhere; font-size:12px; }
+.delivery-attention { padding:15px 18px; }
+.delivery-attention>header { display:flex; gap:8px; align-items:center; font-size:13px; }
+.delivery-attention ul { padding:0; margin:12px 0 0; list-style:none; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.delivery-attention button { width:100%; display:flex; justify-content:space-between; gap:12px; padding:9px 11px; border-radius:7px; border:1px solid var(--delivery-line); text-align:left; font-size:12px; cursor:pointer; }
+.delivery-attention button>span { min-width:0; overflow-wrap:anywhere; }
+.delivery-attention small { flex:none; color:var(--delivery-muted); }
+.delivery-panel .disabled { opacity:.5; cursor:not-allowed; }
+.delivery-panel button:active:not(:disabled) { transform:scale(.98); }
+[data-theme="dark"] :is(.delivery-panel,.delivery-attention) { --delivery-line:#38433b; --delivery-muted:#afbaad; --delivery-surface:#202923; color:#dce6d9; }
+[data-theme="dark"] .opportunity-dialog>.delivery-panel { color:#dce6d9; }
+[data-theme="dark"] .opportunity-dialog:has(>.delivery-panel) { background:#1b241f; color:#dce6d9; border-color:#38433b; }
+[data-theme="dark"] .opportunity-dialog:has(>.delivery-panel)>.opportunity-dialog-header { background:#26342a; border-color:#38433b; }
+[data-theme="dark"] .opportunity-dialog:has(>.delivery-panel)>.opportunity-dialog-header h2 { color:#e2eadf; }
+[data-theme="dark"] .delivery-panel option { background:#202923; }
+@media(max-width:560px) { .delivery-form-grid,.delivery-attention ul { grid-template-columns:minmax(0,1fr); }.delivery-panel-body { padding:0 12px 14px; }.delivery-panel>summary { padding:14px 12px; }.delivery-card { padding:11px; }.delivery-card>.studio-button { min-height:40px; }.delivery-card dl { grid-template-columns:minmax(0,1fr); gap:3px; }.delivery-card dd { margin-bottom:6px; } }
+@media(prefers-reduced-motion:reduce) { .delivery-panel button:active:not(:disabled) { transform:none; } }

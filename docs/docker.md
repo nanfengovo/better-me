@@ -55,6 +55,23 @@ Docker 内填写的路径指**容器内路径**，不能直接读取宿主机的
 
 「模型与工具」分别展示推理来源与受控阅读工具，能力列表由当前容器的 Agent Host 返回。默认容器列表为空是正确状态，不会偷偷改用宿主机工具或付费 API。宿主机模式当前严格原生阅读适配为 Claude Code；其他已安装 CLI 不因被发现就能参与受控取证。
 
+## 国内平台投递行动卡与手机边界
+
+正式 Web 构建包含 BOSS、51job、猎聘的投递准备、本人核对、站内待办和本人回执，入口是「机会 → 岗位详情 → 国内平台 · 投递行动卡」。不依赖模型或设备桥接，runtime 与 static 均可使用。具体行为见[使用说明](domestic-delivery.md)。
+
+行动卡、材料核对快照和回执随机会库保存在当前浏览器，不在 `/data` 卷里。升级前在原浏览器导出机会库 JSON；更换访问端口不会自动带走原资料。当前不提供手机采集、OpenCV 点击、后台推送或自动发简历，也不挂载 USB、ADB、宿主机浏览器与 Docker socket。
+
+Compose 支持显式指定镜像名，便于独立验收不覆盖日常 `better-me:local` 标签：
+
+```sh
+BETTER_ME_IMAGE=better-me:delivery-check BETTER_ME_PORT=8082 \
+  docker compose --project-name betterme-delivery-check up -d --build --wait
+```
+
+这个命令使用独立项目与独立数据卷，不迁移日常资料；8082 也是新的浏览器存储空间。确认端口空闲后再运行。常规更新保持原项目名与 origin，先备份再按下文步骤重建，不运行 `down --volumes`。
+
+自动验收 `node scripts/check-docker-runtime.mjs` 默认使用随机独立镜像标签、项目、端口与临时卷，不覆盖普通工作台镜像；它只移除本次创建的测试容器和测试卷。
+
 ## 连接模型
 
 模型不包含在镜像中，也不会自动下载或付费。在工作台「AI 配置」选择模型、地址及需要的凭据。分享或录屏前先检查是否含凭据。

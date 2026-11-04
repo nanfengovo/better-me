@@ -1,6 +1,6 @@
 services:
   web:
-    image: better-me:local
+    image: "${BETTER_ME_IMAGE:-better-me:local}"
     build:
       context: .
       dockerfile: Dockerfile
@@ -27,6 +27,8 @@ services:
     security_opt:
       - no-new-privileges:true
     pids_limit: 200
+    # Application action cards/receipts also stay in the browser. No phone/USB,
+    # ADB, host browser profile or Docker socket is mounted into this container.
     # Resume drafts/keys stay in the browser; the public job index and Agent state use /data.
 
 volumes:
