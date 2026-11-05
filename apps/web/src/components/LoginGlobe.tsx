@@ -31,5 +31,5 @@ export function LoginGlobe({ paused }: { paused: boolean }) {
     frame = requestAnimationFrame(animate);
     return () => { cancelAnimationFrame(frame); observer.disconnect(); globe.destroy(); };
   }, []);
-  return <div className="login-globe-stage" aria-hidden="true"><div className="login-globe-halo" /><canvas ref={canvas} className="login-globe-canvas" />{failed && <div className="login-globe-fallback" />}<span className="login-globe-caption">GLOBAL PERSPECTIVE · BETTER POSSIBILITIES</span></div>;
+  return <div className="login-globe-stage" aria-hidden="true"><div className="login-globe-halo" /><canvas ref={canvas} className="login-globe-canvas" />{failed && <div className="login-globe-fallback" />}</div>;
 }
