@@ -65,8 +65,10 @@ export function CasdoorAccess({ link = false }: { link?: boolean }) {
     const id = catalog?.channels.find(channel => channel.id === submitter?.value)?.id;
     void start(id, "link", event.currentTarget);
   }
-  const channels = <div className="social-login-grid" role="group" aria-label={link ? t("可关联的第三方登录", "Available external sign-in methods to link") : t("第三方账号登录", "External account sign-in")}>
-    {catalog?.channels.map(channel => <button key={channel.id} type={link ? "submit" : "button"} name="provider" value={channel.id}
+  const available = catalog?.service === "ready" ? catalog.channels.filter(channel => channel.state === "available") : [];
+  const hasOnlineLogin = available.length > 0 || catalog?.service === "ready" && catalog.unifiedLoginAvailable;
+  const channels = available.length > 0 && <div className="social-login-grid" role="group" aria-label={link ? t("可关联的第三方登录", "Available external sign-in methods to link") : t("第三方账号登录", "External account sign-in")}>
+    {available.map(channel => <button key={channel.id} type={link ? "submit" : "button"} name="provider" value={channel.id}
       className={`social-login-button social-login-${channel.id}`} disabled={busy || channel.state !== "available"}
       title={channel.message} onClick={link ? undefined : () => void start(channel.id)}>
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d={icons[channel.id].path} /></svg>
@@ -76,7 +78,9 @@ export function CasdoorAccess({ link = false }: { link?: boolean }) {
     </button>)}
   </div>;
   const status = <>
-    {loading ? <p className="social-login-status" role="status">{t("正在核对登录方式…", "Checking sign-in methods…")}</p> : catalog && <p className="social-login-status">{catalog.message}</p>}
+    {loading ? <p className="social-login-status" role="status">{t("正在核对登录方式…", "Checking sign-in methods…")}</p> : catalog && <p className="social-login-status">{hasOnlineLogin ? catalog.message : catalog.service === "offline"
+      ? t("在线登录暂时不可用，请使用本机账号；已有资料保持不变。", "Online sign-in is temporarily unavailable. Use your local account; existing data is unchanged.")
+      : t("使用本机账号即可进入，无需安装或配置第三方登录服务。", "Use your local account. No third-party sign-in setup is required.")}</p>}
     {error && <p className="identity-alert" role="alert">{error}</p>}
     {busy && <p className="social-login-status" role="status">{t(`正在保护记录并连接${selected}…`, `Saving records and connecting to ${selected}…`)}</p>}
     <button type="button" className="social-login-refresh" disabled={loading || busy} onClick={() => void load(true)}><RefreshCw size={13} aria-hidden="true" />{t("重新检查登录方式", "Recheck sign-in methods")}</button>
@@ -97,7 +101,7 @@ export function CasdoorAccess({ link = false }: { link?: boolean }) {
     {status}
   </details>;
   return <section className="social-login" aria-label={t("快捷登录", "Quick sign-in")}>
-    <h2>{t("使用已有账号登录", "Sign in with an existing account")}</h2>
+    {hasOnlineLogin && <h2>{t("使用已有账号登录", "Sign in with an existing account")}</h2>}
     {channels}
     {catalog?.unifiedLoginAvailable && <details className="social-login-other"><summary>{t("其他登录方式", "Other sign-in options")}</summary>
       <button type="button" className="studio-button subtle" disabled={busy} onClick={() => void start()}>{t("统一账号登录 / 注册", "Unified sign-in / sign-up")}<ArrowUpRight size={14} aria-hidden="true" /></button>

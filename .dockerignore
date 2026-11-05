@@ -42,6 +42,7 @@
 !apps/agent-host/package.json
 !apps/agent-host/tsconfig.json
 !apps/agent-host/src/**/*.ts
+!apps/agent-host/scripts/check-identity.ts
 !packages/agent-contracts/package.json
 !packages/agent-contracts/tsconfig.json
 !packages/agent-contracts/src/**/*.ts

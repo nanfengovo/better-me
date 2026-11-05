@@ -13,6 +13,12 @@ build/
 .env
 .env.*
 !.env.example
+secrets/
+.secrets/
+oidc.json
+init_data.json
+client-secret
+bootstrap*.json
 
 # User data (local-first)
 data/

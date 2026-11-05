@@ -60,6 +60,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Build all workspace packages
         run: pnpm build
+      - name: Validate optional unified-identity deployment overlays without secrets
+        run: node --import tsx apps/agent-host/scripts/verify-identity-compose.ts
       - name: Build Pages assets with the correct base path
         shell: bash
         env:

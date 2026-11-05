@@ -1,3 +1,5 @@
+import { readRuntimeConnection } from "../../lib/runtime-connection";
+
 export const ATLAS_CONNECTION_SESSION_KEY = "better-me:atlas-connection-session:v1";
 export const DEFAULT_ATLAS_ENDPOINT = "http://127.0.0.1:5178";
 
@@ -13,13 +15,13 @@ function sessionStore(): SessionStore | undefined {
   try { return window.sessionStorage; } catch { return undefined; }
 }
 
-/** Automatic reconnection is limited to the same loopback root explicitly connected before. */
+/** Automatic reconnection accepts loopback or the exact injected HTTPS gateway, never an arbitrary remote. */
 function validIdentity(value: Record<string, unknown>): value is Record<string, unknown> & AtlasConnectionIdentity {
   if (typeof value.endpoint !== "string" || value.endpoint.length > 200
       || typeof value.token !== "string" || !value.token.trim() || value.token.length > 4096 || /[\r\n\0]/.test(value.token)) return false;
   try {
     const url = new URL(value.endpoint);
-    return ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)
+    return (["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || url.protocol === "https:" && readRuntimeConnection()?.origin === url.origin)
       && ["http:", "https:"].includes(url.protocol) && !url.username && !url.password
       && !url.search && !url.hash && url.pathname === "/";
   } catch { return false; }

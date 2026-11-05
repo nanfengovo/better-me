@@ -8,14 +8,17 @@ import { createAgentServer } from "../../agent-host/src/server.js";
 import { createCheckpointer } from "../../agent-host/src/checkpointer.js";
 import { createRuntimeGateway } from "./runtime-gateway.js";
 import { acquireRuntimeVolume } from "./runtime-volume.js";
+import { loadIdentityDeployment, publicOrigins } from "../../agent-host/src/identity/deployment.js";
 
 const port = Number(process.env.BETTER_ME_INTERNAL_PORT ?? 8080);
 const publicPort = Number(process.env.BETTER_ME_PORT ?? 8080);
 const jobPort = Number(process.env.BETTER_ME_JOB_PORT ?? 5178);
 const agentPort = Number(process.env.BETTER_ME_AGENT_PORT ?? 5179);
 if (![port, publicPort, jobPort, agentPort].every(value => Number.isInteger(value) && value > 0 && value <= 65535)) throw new Error("Runtime ports must be 1-65535.");
-const origins = ["http://127.0.0.1:" + publicPort, "http://localhost:" + publicPort];
+const origins = publicOrigins(process.env, ["http://127.0.0.1:" + publicPort, "http://localhost:" + publicPort]);
 const data = resolve(process.env.BETTER_ME_DATA_DIR ?? "/data");
+const identity = await loadIdentityDeployment({ defaultConfigPath: resolve(data, "agent", "oidc.json") });
+if (identity.issue) console.error(`[identity] ${identity.issue}; local accounts remain available. Run pnpm auth:check.`);
 const volume = await acquireRuntimeVolume(data);
 const agentTokenFile = resolve(data, "agent.token");
 try { await writeFile(agentTokenFile, randomBytes(32).toString("base64url"), { flag: "wx", mode: 0o600 }); }
@@ -28,6 +31,7 @@ const jobToken = (await readFile(job.tokenPath, "utf8")).trim();
 const checkpointer = createCheckpointer(resolve(data, "agent", "checkpoints.sqlite"));
 const agentEndpoint = "http://127.0.0.1:" + agentPort;
 const agent = createAgentServer({ host: "127.0.0.1", port: agentPort, allowedOrigins: origins, authToken: agentToken, checkpointer, runsDirectory: resolve(data, "agent", "runs"), runtimeDefinitions: [], sandboxMode: "disabled",
+  oidc: identity.oidc,
   chatGptAuthorizationUnavailableReason: "此容器运行方式尚未支持宿主机 OAuth 回调。请使用本机启动的 BetterMe / Agent Host 授权；未尝试登录，也不会回退付费 API。",
 });
 if (!agent.listening) await once(agent, "listening");

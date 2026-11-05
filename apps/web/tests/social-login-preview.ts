@@ -13,8 +13,11 @@ import { socialIdp } from "../../agent-host/tests/fixtures/social-idp.js";
 const directory = await mkdtemp(path.join(os.tmpdir(), "betterme-social-browser-"));
 // Resolve a Host-owned test dependency without adding it to the Web runtime.
 const { MemorySaver } = createRequire(new URL("../../agent-host/package.json", import.meta.url))("@langchain/langgraph");
-const frontend = "http://localhost:5383", idp = await socialIdp(frontend + "/api/v1/agent/identity/oidc/callback");
-const host = createAgentServer({ port: 5389, host: "127.0.0.1", allowedOrigins: [frontend], authToken: "better-me-agent-token",
+const frontend = process.env.BETTERME_FIXTURE_ORIGIN ?? "http://social-login-fixture.localhost:5383";
+const frontendUrl = new URL(frontend), hostPort = Number(process.env.BETTERME_FIXTURE_HOST_PORT ?? 5389);
+if (frontendUrl.protocol !== "http:" || !frontendUrl.hostname.endsWith(".localhost") || !frontendUrl.port || !Number.isInteger(hostPort) || hostPort < 1024 || hostPort > 65535) throw new Error("isolated_localhost_fixture_required");
+const idp = await socialIdp(frontend + "/api/v1/agent/identity/oidc/callback");
+const host = createAgentServer({ port: hostPort, host: "127.0.0.1", allowedOrigins: [frontend], authToken: "better-me-agent-token",
   identityDirectory: path.join(directory, "accounts"), checkpointer: new MemorySaver() as never, runtimeDefinitions: [], oidc: idp.options });
 const web = await createServer({ configFile: false, root: fileURLToPath(new URL("../", import.meta.url)),
   cacheDir: path.join(directory, "vite-cache"), plugins: [react(), tailwindcss(), { name: "social-fixture-only", configureServer(server) {
@@ -32,8 +35,8 @@ const web = await createServer({ configFile: false, root: fileURLToPath(new URL(
       next();
     });
   } }], resolve: { dedupe: ["react", "react-dom"] },
-  server: { host: "127.0.0.1", port: 5383, strictPort: true, hmr: false,
-    proxy: { "/api/v1/agent": { target: "http://127.0.0.1:5389", changeOrigin: false } },
+  server: { host: "127.0.0.1", port: Number(frontendUrl.port), strictPort: true, hmr: false,
+    proxy: { "/api/v1/agent": { target: `http://127.0.0.1:${hostPort}`, changeOrigin: false } },
     fs: { allow: [fileURLToPath(new URL("../../../", import.meta.url))] } } });
 await web.listen();
 console.log(JSON.stringify({ isolation: "signed-fictional-identity-only", url: frontend, directory }));

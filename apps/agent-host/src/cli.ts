@@ -17,7 +17,7 @@
 import { resolveCheckpointPath, createCheckpointer } from "./checkpointer.js";
 import { createAgentServer } from "./server.js";
 import path from "node:path";
-import { loadOidcOptions } from "./identity/oidc.js";
+import { loadIdentityDeployment, publicOrigins } from "./identity/deployment.js";
 
 function parseArgs(argv: string[]): {
   port: number;
@@ -61,15 +61,16 @@ const { port, host, origins, checkpointDir, runsDirectory, sandboxMode, token } 
 const cpPath = resolveCheckpointPath(checkpointDir);
 console.log(`[agent-host] checkpoint: ${cpPath}`);
 const checkpointer = createCheckpointer(cpPath);
-const oidc = await loadOidcOptions(process.env["BETTERME_OIDC_CONFIG"] ?? path.join(path.dirname(cpPath), "oidc.json"));
+const identity = await loadIdentityDeployment({ defaultConfigPath: path.join(path.dirname(cpPath), "oidc.json") });
+if (identity.issue) console.error(`[identity] ${identity.issue}; local accounts remain available. Run pnpm auth:check.`);
 
 createAgentServer({
   port,
   host,
-  allowedOrigins: origins.length > 0 ? origins : ["http://localhost:5173", "http://127.0.0.1:5173"],
+  allowedOrigins: publicOrigins(process.env, origins.length > 0 ? origins : ["http://localhost:5173", "http://127.0.0.1:5173"]),
   authToken: token,
   checkpointer,
   runsDirectory,
   sandboxMode,
-  oidc,
+  oidc: identity.oidc,
 });

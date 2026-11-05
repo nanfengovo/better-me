@@ -58,6 +58,12 @@ docker compose up -d --build --wait
 
 健康状态：`docker compose ps`；日志：`docker compose logs --tail=100 web`；停止：`docker compose down`（保留数据卷）。端口、模型连接、恢复、迁移与静态模式见 [Docker 指南](docs/docker.md)。
 
+### 账号与统一登录
+
+本机账号始终可用，不要求普通用户安装 Casdoor 或申请各平台开发者应用。部署方配置统一身份服务后，登录页只展示当前可用的平台；身份服务离线不阻断本机账号登录。已有账号需先登录原账号、核对密码后显式关联，不按相同邮箱认领资料。
+
+管理员跨环境接入使用 [统一登录部署指南](docs/deployment-auth.md)：现有身份中心通过独立 OIDC 配置接入；只有运营方新建身份中心时才使用可选部署模板。密钥由服务端私有文件或部署 secret 提供，不进入镜像构建、前端变量或 Git；新域名不会自动迁移原账号或浏览器资料。
+
 ### 环境与单一开发入口
 
 - Node.js **24.15.0+ 的 24.x，或 26+**，以根 package.json 的 engines 为准。

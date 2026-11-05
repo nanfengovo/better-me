@@ -11,7 +11,17 @@ const Options = z.object({ issuer: z.string().url(), clientId: z.string().min(1)
   callbackUrl: z.string().url(), allowLoopbackHttp: z.boolean().default(false) }).strict();
 export type OidcOptions = z.input<typeof Options>;
 const COOKIE = "betterme_oidc_browser", TTL = 5 * 60_000;
-const loopback = (url: URL) => ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname);
+const loopback = (url: URL) => ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || url.hostname.endsWith(".localhost");
+/** Shared validation for CLI, packaged runtime and operator checks; never rewrites issuer IDs. */
+export function validateOidcOptions(raw: unknown): z.infer<typeof Options> {
+  const options = Options.parse(raw);
+  const issuer = new URL(options.issuer), callback = new URL(options.callbackUrl);
+  for (const url of [issuer, callback]) {
+    if (url.username || url.password || url.hash || url.search || (url.protocol !== "https:" && !(options.allowLoopbackHttp && url.protocol === "http:" && loopback(url)))) throw new Error("unsafe_oidc_url");
+  }
+  if (callback.pathname !== OIDC_CALLBACK_PATH) throw new Error("invalid_oidc_callback");
+  return options;
+}
 const browserId = (cookie?: string) => {
   const values = cookie?.split(";").map(value => value.trim()).filter(value => value.startsWith(COOKIE + "=")) ?? [];
   const id = values.length === 1 ? values[0]!.slice(COOKIE.length + 1) : "";
@@ -27,12 +37,7 @@ export class OidcService {
   private attempts = new Map<string, { count: number; until: number }>();
   private configuration?: Promise<client.Configuration>;
   constructor(options: OidcOptions, private identities: IdentityService, private clock: () => number = Date.now) {
-    this.options = Options.parse(options);
-    const issuer = new URL(this.options.issuer), callback = new URL(this.options.callbackUrl);
-    for (const url of [issuer, callback]) {
-      if (url.username || url.password || url.hash || url.search || (url.protocol !== "https:" && !(this.options.allowLoopbackHttp && url.protocol === "http:" && loopback(url)))) throw new Error("unsafe_oidc_url");
-    }
-    if (callback.pathname !== OIDC_CALLBACK_PATH) throw new Error("invalid_oidc_callback");
+    this.options = validateOidcOptions(options);
     this.social = new SocialLoginCatalogModule(this.options);
   }
   private config() {
@@ -112,5 +117,5 @@ export class OidcService {
 
 export async function loadOidcOptions(filename: string): Promise<OidcOptions | undefined> {
   const raw = await readPrivateJson(filename);
-  return raw === undefined ? undefined : Options.parse(raw);
+  return raw === undefined ? undefined : validateOidcOptions(raw);
 }

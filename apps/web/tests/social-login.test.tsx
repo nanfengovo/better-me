@@ -86,16 +86,27 @@ test("a malformed duplicate-channel catalog fails closed before offering a login
   } finally { await page.close(); }
 });
 
-test("unconfigured or offline platforms are visibly unavailable and do not issue authorization", async () => {
+test("offline login hides unusable platform buttons, keeps local guidance and can recover", async () => {
   activatePrincipal(undefined); catalog = { ...ready(), service: "offline", unifiedLoginAvailable: false,
     channels: ready().channels.map(channel => ({ ...channel, state: "unavailable", message: "服务离线" })) };
   const page = await mount();
   try {
     const buttons = [...page.container.querySelectorAll<HTMLButtonElement>(".social-login-button")];
-    assert.ok(buttons.every(button => button.disabled)); assert.match(page.container.textContent ?? "", /服务离线/);
-    await act(async () => buttons[0]!.click()); assert.equal(starts.length, 0);
+    assert.equal(buttons.length, 0); assert.match(page.container.textContent ?? "", /本机账号/);
+    assert.equal(starts.length, 0);
     catalog = ready(); await act(async () => page.container.querySelector<HTMLButtonElement>(".social-login-refresh")!.click());
     assert.ok([...page.container.querySelectorAll<HTMLButtonElement>(".social-login-button")].every(button => !button.disabled));
+  } finally { await page.close(); }
+});
+
+test("ordinary users only see enabled channels and never instructions to install Casdoor", async () => {
+  activatePrincipal(undefined); catalog = ready();
+  catalog.channels = catalog.channels.map(channel => channel.id === "github" ? channel : { ...channel, state: "not_configured" });
+  const page = await mount();
+  try {
+    assert.equal(page.container.querySelectorAll(".social-login-button").length, 1);
+    assert.equal(page.container.querySelector('button[value="wechat"]'), null);
+    assert.doesNotMatch(page.container.textContent ?? "", /待开通|安装 Casdoor|ClientSecret/);
   } finally { await page.close(); }
 });
 

@@ -1,4 +1,4 @@
-/** Supplied only by the local Docker gateway, before the application module loads. */
+/** Supplied by this deployment's same-origin gateway, before the application module loads. */
 export type RuntimeConnection = { mode: "docker"; origin: string; agentToken: string; jobToken: string };
 
 export function readRuntimeConnection(): RuntimeConnection | undefined {
@@ -9,7 +9,7 @@ export function readRuntimeConnection(): RuntimeConnection | undefined {
   try {
     const origin = new URL(String(config.origin));
     if (config.mode !== "docker" || origin.origin !== window.location.origin || origin.href !== origin.origin + "/"
-      || !["127.0.0.1", "localhost", "[::1]"].includes(origin.hostname)
+      || origin.protocol !== "https:" && !(origin.protocol === "http:" && (["127.0.0.1", "localhost", "[::1]"].includes(origin.hostname) || origin.hostname.endsWith(".localhost")))
       || !["agentToken", "jobToken"].every(key => typeof config[key] === "string" && /^[A-Za-z0-9_-]{43,128}$/.test(config[key] as string))) return undefined;
     return config as RuntimeConnection;
   } catch { return undefined; }

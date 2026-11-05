@@ -11,7 +11,7 @@ await new Promise(resolve => listener.listen(0, "127.0.0.1", resolve));
 const port = listener.address().port;
 await new Promise(resolve => listener.close(resolve));
 const base = `http://127.0.0.1:${port}`;
-const env = { ...process.env, BETTER_ME_PORT: String(port), BETTER_ME_IMAGE: process.env.BETTER_ME_IMAGE || `better-me:${project}` };
+const env = { ...process.env, BETTERME_AUTH_MODE: "local", BETTER_ME_PUBLIC_ORIGIN: "", BETTER_ME_PORT: String(port), BETTER_ME_IMAGE: process.env.BETTER_ME_IMAGE || `better-me:${project}` };
 const skipBuild = process.argv.includes("--skip-build");
 function docker(args, timeout = 180_000) {
   return new Promise((resolve, reject) => {
@@ -66,6 +66,10 @@ try {
   assert.ok(state.Mounts.some(mount => mount.Type === "volume" && mount.Destination === "/data"));
   assert.ok(!state.Mounts.some(mount => mount.Type === "bind"), "No host profile, socket, source or secret mounts");
   assert.deepEqual(JSON.parse(await request("/healthz")), { mode: "full", status: "ok" });
+  const identityCheck = JSON.parse(await docker(["exec", id, "node", "--import", "tsx", "apps/agent-host/scripts/check-identity.ts"]));
+  assert.equal(identityCheck.status, "local_only", "The shipped diagnostic works without requiring Casdoor");
+  assert.equal(identityCheck.localAccounts, true);
+  assert.equal(identityCheck.existingDataChanged, false);
   assert.match(await request("/"), /__better-me\/runtime\.js/);
   await request("/assets/missing.js", {}, 404);
   await request("/__better-me/runtime.js", { headers: { Origin: "https://unrelated.example" } }, 403);

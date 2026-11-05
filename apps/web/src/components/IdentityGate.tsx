@@ -66,7 +66,7 @@ export function IdentityGate({ children }: { children: ReactNode }) {
       <h1 id="identity-title">{!ready ? t("核对本机身份…", "Verifying local identity…") : expired ? t("重新连接你的工作空间", "Reconnect your workspace") : register ? t("创建独立的本机账号", "Create an isolated local account") : t("回到你的工作空间", "Return to your workspace")}</h1>
       <p>{t("登录你的 BetterMe 账号，继续简历、职业资料与 Agent 对话。模型授权与登录账号分开管理。", "Sign in to your BetterMe account to continue your resumes, career profile, and Agent conversations. Model credentials are managed separately.")}</p>
       {ready && <CasdoorAccess />}
-      {ready && <div className="identity-divider"><span>{t("或使用本机账号", "Or use a local account")}</span></div>}
+      {ready && <div className="identity-divider"><span>{t("本机账号登录", "Local account sign-in")}</span></div>}
       {ready && <form onSubmit={event => void submit(event)}>
         {register && <label>{t("显示名称", "Display name")}<input name="displayName" autoComplete="nickname" maxLength={60} required disabled={busy} /></label>}
         <label>{t("账号", "Username")}<input name="username" autoComplete="username" inputMode="text" pattern="[A-Za-z0-9_.\-]{3,48}" minLength={3} maxLength={48} required disabled={busy} placeholder={t("3–48 位字母、数字、点、横线或下划线", "3–48 letters, digits, dots, hyphens, or underscores")} /></label>

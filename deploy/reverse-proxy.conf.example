@@ -1,0 +1,26 @@
+# Operator example: supply your domains and certificates before installation.
+# Keep container ports loopback-only. Never trust client-supplied forwarded hosts.
+server {
+    listen 443 ssl;
+    server_name betterme.example.com;
+    ssl_certificate /etc/ssl/betterme/fullchain.pem;
+    ssl_certificate_key /etc/ssl/betterme/privkey.pem;
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_buffering off;
+        proxy_read_timeout 180s;
+    }
+}
+server {
+    listen 443 ssl;
+    server_name identity.example.com;
+    ssl_certificate /etc/ssl/identity/fullchain.pem;
+    ssl_certificate_key /etc/ssl/identity/privkey.pem;
+    location / {
+        proxy_pass http://127.0.0.1:18000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}

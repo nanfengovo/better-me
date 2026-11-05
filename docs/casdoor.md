@@ -14,6 +14,8 @@ BetterMe 将外部登录接到既有账号隔离层：Casdoor 证明身份，Hos
 
 ## 本机启动
 
+以下是已有个人开发安装的可选操作，不是普通用户使用 BetterMe 的前置条件。跨平台管理员部署、接入现有身份中心与脱敏诊断见 [统一登录部署指南](deployment-auth.md)；保留现有 issuer 与用户库，不要为换环境重新初始化旧安装。
+
 根目录 `pnpm auth:casdoor` 提供 `init [verified-release.tar.gz]`、`start` 和 `status`。原生安装器当前仅支持 macOS ARM64，固定 Casdoor v4.25.0 并校验官方 release 的 SHA256；其他系统按 [Casdoor 官方容器部署说明](https://casdoor.ai/docs/deployment/docker/)另行部署，不能直接使用该二进制。
 
 新环境只初始化一次：
@@ -43,7 +45,7 @@ Host 在启动时读取配置。配置只由服务端保存，结构为 `issuer`
 
 ## 开通社交平台
 
-本机初始安装只启用 Casdoor 用户名密码注册/登录。BetterMe 固定展示微信、QQ、GitHub、Google；Microsoft、GitLab、Discord 仅在当前应用实际关联了对应 provider 时展示。未配置、停用、环境不匹配或服务离线时显示原因并禁用；「已配置」不是平台真实授权验收成功。操作只在管理员端完成，不需要向 BetterMe Web 填平台密钥。固定版本类型、最小权限、平台条件与开源比较见 [平台调研](research/social-login-platforms-2026-11-04.md)，本机真实配置停点见 [扩展与配置报告](reports/social-login-platform-expansion-2026-11-04.md)。
+本机初始安装只启用 Casdoor 用户名密码注册/登录。普通登录页只展示目录中当前可用的平台，不再把未开通渠道渲染为灰色主按钮；目录仍保留逐渠道状态供管理员诊断。微信、QQ、GitHub、Google 的原契约与 Microsoft、GitLab、Discord 的可选适配保持兼容；「已配置」不是平台真实授权验收成功。操作只在管理员端完成，不需要向 BetterMe Web 填平台密钥。固定版本类型、最小权限、平台条件与开源比较见 [平台调研](research/social-login-platforms-2026-11-04.md)，本机真实配置停点见 [扩展与配置报告](reports/social-login-platform-expansion-2026-11-04.md)。
 
 1. 准备已开通的平台开发者应用，使用符合平台要求的公开 HTTPS 域名/回调。各平台要求以其官方控制台为准，不能假设本机 loopback 都受支持。
 2. 在 Casdoor 创建 OAuth provider，并关联到 `app-betterme`。类型按下表精确填写；配置平台 Client ID/Secret，启用 `Can sign in`，按实际注册策略决定 `Can sign up`。
@@ -133,7 +135,7 @@ pnpm exec tsx apps/agent-host/scripts/verify-social-casdoor.ts /absolute/path/to
 
 仅复用已校验安装的可执行文件与公开 Web 静态资源，新建临时 SQLite/配置/证书与动态端口，七个 provider 使用虚构凭据；检查真实 v4.25.0 公开目录、`provider_hint` 和授权入口，随后清理自建进程及目录。不会访问真实社交平台，不能替代上面的逐渠道授权。
 
-UI 可选验收夹具 `pnpm exec tsx apps/web/tests/social-login-preview.ts` 只使用自建 5383/5389 与签名虚构身份源，必须先确认端口空闲；不用正常 5173/5179 或已有私有数据。退出脚本清理自建临时目录。
+UI 可选验收夹具 `pnpm exec tsx apps/web/tests/social-login-preview.ts` 默认使用独立的 `http://social-login-fixture.localhost:5383`、Host 5389 与签名虚构身份源，必须先确认端口空闲；可通过 `BETTERME_FIXTURE_ORIGIN` 与 `BETTERME_FIXTURE_HOST_PORT` 指定新的 `.localhost` 域名及端口。不同端口不隔离 Cookie，因此不用正常 localhost 域名、5173/5179 或已有私有数据。退出脚本清理自建临时目录。
 
 备份应覆盖 Host 的账号目录和恢复档案、浏览器原始草稿/版本、Casdoor 配置/证书及数据库。活动 SQLite 用一致性 `.backup` 或停服备份，不只复制 `.db` 而遗漏 WAL。私有备份按敏感用户数据保护；回退到原工作空间不需要删除任何档案。不要为排查空白账号而清空浏览器、重新导入 PDF 或重置简历。
 

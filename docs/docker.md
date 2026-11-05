@@ -2,6 +2,8 @@
 
 默认 Docker 发行不再只是静态文件：一个容器内包含正式 Web 构建、Agent Host 和 SQLite 岗位服务，通过一个同源入口自动连接。它是个人电脑上的工作台，**不是可直接公开的多用户云服务**。
 
+本机账号不依赖 Casdoor。部署方需要 HTTPS 统一登录时，使用 [统一登录部署指南](deployment-auth.md) 和 `compose.oidc.yaml`；普通用户无需安装身份中心。该适配补齐运行时配置与精确回调，不代表已经完成公网 SaaS 容量、备份、找回及所有平台资质验收。
+
 ## 启动
 
 需要 Docker Engine + Compose v2，或已启动的 Docker Desktop（Linux containers）。在包含此功能的源码分支根目录执行：

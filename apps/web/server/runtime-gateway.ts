@@ -56,6 +56,7 @@ async function proxy(req: IncomingMessage, res: ServerResponse, endpoint: string
     authorization: "Bearer " + token,
     ...(req.headers.origin ? { origin: req.headers.origin } : {}),
     ...(req.headers.cookie ? { cookie: req.headers.cookie } : {}),
+    ...(req.headers["user-agent"] ? { "user-agent": req.headers["user-agent"] } : {}),
     ...(req.headers["x-betterme-owner"] ? { "x-betterme-owner": req.headers["x-betterme-owner"] } : {}),
     ...(req.headers["content-type"] ? { "content-type": req.headers["content-type"] } : {}),
     ...(req.headers["idempotency-key"] ? { "idempotency-key": req.headers["idempotency-key"] } : {}),
@@ -87,11 +88,11 @@ export function createRuntimeGateway(options: GatewayOptions) {
     if (url.pathname === "/__better-me/runtime.js") {
       if (req.method !== "GET") return sendRuntimeJson(res, 405, { error: "method_not_allowed" });
       res.writeHead(200, { "Content-Type": "text/javascript", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Cross-Origin-Resource-Policy": "same-origin" });
-      res.end("window.__BETTER_ME_RUNTIME__=" + JSON.stringify({ mode: "docker", origin: url.origin, agentToken: options.agentToken, jobToken: options.jobToken }) + ";"); return;
+      res.end("window.__BETTER_ME_RUNTIME__=" + JSON.stringify({ mode: "docker", origin: configured, agentToken: options.agentToken, jobToken: options.jobToken }) + ";"); return;
     }
     if (url.pathname === "/__better-me/dev/local-job-index") {
       if (req.method !== "GET") return sendRuntimeJson(res, 405, { error: "method_not_allowed" });
-      return sendRuntimeJson(res, 200, { endpoint: url.origin, token: options.jobToken });
+      return sendRuntimeJson(res, 200, { endpoint: configured, token: options.jobToken });
     }
     if (url.pathname.startsWith("/api/v1/")) {
       const agent = url.pathname.startsWith("/api/v1/agent/");

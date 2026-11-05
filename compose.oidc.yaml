@@ -1,0 +1,15 @@
+# Operator overlay. End users neither install Casdoor nor supply provider credentials.
+# docker compose --env-file /private/deployment.env -f compose.yaml -f compose.oidc.yaml up -d
+services:
+  web:
+    environment:
+      BETTERME_AUTH_MODE: unified
+      BETTER_ME_PUBLIC_ORIGIN: "${BETTER_ME_PUBLIC_ORIGIN:?Set the exact HTTPS BetterMe origin}"
+      BETTERME_OIDC_ISSUER: "${BETTERME_OIDC_ISSUER:?Set the existing HTTPS identity issuer}"
+      BETTERME_OIDC_CLIENT_ID: "${BETTERME_OIDC_CLIENT_ID:?Set this deployment OIDC client ID}"
+      BETTERME_OIDC_CLIENT_SECRET_FILE: /run/secrets/betterme_oidc_client_secret
+    secrets:
+      - betterme_oidc_client_secret
+secrets:
+  betterme_oidc_client_secret:
+    file: "${BETTERME_OIDC_CLIENT_SECRET_FILE:?Use a protected secret file outside the repository}"
