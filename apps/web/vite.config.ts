@@ -31,6 +31,14 @@ export default defineConfig({
       changeOrigin: false,
       configure(proxy) {
         proxy.on("proxyReq", (request) => request.setHeader("Origin", "http://127.0.0.1:5173"));
+        proxy.on("proxyRes", (response, request) => {
+          if (!request.headers.origin?.startsWith("https://")) return;
+          const cookies = response.headers["set-cookie"];
+          if (!cookies) return;
+          response.headers["set-cookie"] = cookies.map(cookie =>
+            `${cookie.replace(/; SameSite=Strict/i, "; SameSite=None")}${/; Secure/i.test(cookie) ? "" : "; Secure"}`,
+          );
+        });
       },
     } },
     watch: {
