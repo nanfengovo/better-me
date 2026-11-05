@@ -33,6 +33,16 @@
 
 本机Docker未运行，没有为发布擅自启动Docker或操作已有容器/卷。本轮本机不能声称完整Compose已通过，Windows真实ACL分支和Linux完整容器持久化/崩溃恢复须跟踪本批远端CI。
 
+## 首次推送与 Windows CI 补修
+
+完整功能提交 `3a9f319` 经保留远端预览配置的合并 `b191809` 已正常推送既有 `agent-os`；远端 SHA 与清单全部153个文件指纹均核对一致，`main` 未变。CI [42030168181](https://github.com/nanfengovo/better-me/actions/runs/42030168181) 的 Linux 生产/Pages 构建、静态 Docker 和完整 Compose 均成功；Windows 全量为3800通过、4失败、9既有跳过。
+
+四项失败都来自同一个 ACL 验收子进程：`Get-Acl` 的 `Microsoft.PowerShell.Security` 无法自动加载，而非已执行权限断言后发现越权。启动链是 runner PowerShell 7 → Node → legacy `powershell.exe`；[微软官方说明](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_psmodulepath?view=powershell-7.6#starting-windows-powershell-from-powershell-7) 解释了中间进程会继承不兼容 PSModulePath，建议仅从旧版子进程环境移除此项，让其构建匹配的默认路径。
+
+新增大小写不敏感、复制而不修改父环境的测试夹具；同一最小回归先红（1失败），过滤后绿，原生专项18/18。原 ACL 所有者/Allow SID 限制、POSIX0600及生产不支持平台的 fail-closed 断言未改。Windows CI 增加前置原生账号专项，便于在完整 Edge 回归前尽早验证；仍须以补修提交实际 CI 结论为准，不以 macOS 环境测试代替 Windows 真正的 Get-Acl 执行。补修额外新增CI路径和测试夹具两个文件，累计发布范围155个路径。
+
+首次推送后并发任务又修改4份社交登录/交接文档；它们不属于冻结快照，原样保留未混入补修。没有重启正常服务或刷新原页面，也没有读取真实凭据。
+
 ## 功能边界
 
 真实简历、旧记录与账号绑定没有因提交而改变。能力采用仍限显式新建的合成业务文档，不接默认真实简历写入桥梁；真实原生工具需每个BetterMe账号自行授权。微信/QQ开通、Microsoft待确认密钥、其他平台验证不因代码发布自动完成。桌面/手机工作流文档仍是规划，不代表设备或自动投递已接通。

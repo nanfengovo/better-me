@@ -35,6 +35,8 @@ jobs:
       - run: pnpm memory:check
       - run: pnpm lint
       - run: pnpm typecheck
+      - name: Verify native-account isolation and Windows ACL checks
+        run: pnpm exec tsx --test apps/agent-host/tests/native-account-tools.test.ts
       # Includes isolated synthetic browser cases, using the runner's Edge.
       # These are not live recruitment-site or PDF visual acceptance checks.
       - run: pnpm test

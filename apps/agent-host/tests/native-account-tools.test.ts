@@ -9,6 +9,7 @@ import { NativeAccountTools, type NativeLease } from "../src/native-tools/servic
 import { NativeOutput } from "../src/native-tools/adapters.js";
 import { IsolatedNativeProcess, NativeToolError, isPublicProviderAddress, nativeEnvironment, nativeSandboxProfile } from "../src/native-tools/process.js";
 import { FixtureNativeProcess, nativeFrames } from "./fixtures/native-process.js";
+import { windowsPowerShellEnvironment } from "./fixtures/windows-powershell.js";
 
 const lease = (session = "session-a"): NativeLease => ({ session, valid: async () => true });
 const authorization = (apiKey = "synthetic-account-a-key") => ({ mode: "api-key", apiKey, model: "synthetic-model", consent: true });
@@ -26,9 +27,16 @@ if ($allowed -notcontains $acl.GetOwner([System.Security.Principal.SecurityIdent
 $other = @($acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier]) | Where-Object { $_.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and $allowed -notcontains $_.IdentityReference.Value })
 if ($other.Count -gt 0) { exit 3 }
 Write-Output 'private-synthetic-credential-acl'`;
-  const result = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")], { encoding: "utf8", timeout: 15_000 });
+  const result = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")], { encoding: "utf8", timeout: 15_000, env: windowsPowerShellEnvironment(process.env) });
   assert.equal(result.trim(), "private-synthetic-credential-acl", "Credential ACL permits only its owner, SYSTEM and local administrators");
 }
+
+test("legacy PowerShell ACL child removes inherited module paths without mutating its parent", () => {
+  const inherited = { PSModulePath: "synthetic-pwsh7-modules", PSMODULEPATH: "synthetic-upper", psmodulepath: "synthetic-lower", Path: "synthetic-system-path", SystemRoot: "synthetic-windows-root", CI: "true" };
+  const before = { ...inherited };
+  assert.deepEqual(windowsPowerShellEnvironment(inherited), { Path: inherited.Path, SystemRoot: inherited.SystemRoot, CI: inherited.CI });
+  assert.deepEqual(inherited, before, "Only the ACL-check child environment may change");
+});
 
 test("production isolation never advertises an unsupported OS as sandboxed", async () => {
   const available = await new IsolatedNativeProcess().isolation();
