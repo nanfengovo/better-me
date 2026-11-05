@@ -23,6 +23,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    allowedHosts: [".vercel.run"],
     // Same-origin HttpOnly identity cookie; never expose it in frontend storage or URLs.
     proxy: { "/api/v1/agent": { target: "http://127.0.0.1:5179", changeOrigin: false } },
     watch: {
