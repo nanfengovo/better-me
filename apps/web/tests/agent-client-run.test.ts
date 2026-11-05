@@ -12,7 +12,7 @@ test("starts a local run with an explicit ContextPack and sandbox mode", async (
   });
   const result = await startLocalAgentRun({ runtimeId: "codex", prompt: "读岗位", sandboxMode: "required", contextPack: { role: "test", task: "读岗位", content: { source: "fixture" } } });
   assert.equal(result.run.id, "run_1");
-  assert.equal((request?.headers as Record<string, string>).Authorization, "Bearer better-me-agent-token");
+  assert.equal(new Headers(request?.headers).get("Authorization"), "Bearer better-me-agent-token");
   const body = JSON.parse(String(request?.body));
   assert.equal(body.sandboxMode, "required");
   assert.equal(body.contextPack.content.source, "fixture");

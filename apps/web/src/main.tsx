@@ -1,6 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { IdentityGate } from "./components/IdentityGate";
+import { RecoverySpaceGate } from "./components/RecoveryArchives";
 import { ConfirmationProvider } from "./components/ConfirmationDialog";
 import { initializeUiAppearance, UiPreferencesProvider } from "./lib/ui-preferences";
 import "./index.css";
@@ -30,6 +32,6 @@ const uiPreferences = initializeUiAppearance();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <UiPreferencesProvider initialPreferences={uiPreferences}><ConfirmationProvider><App /></ConfirmationProvider></UiPreferencesProvider>
+    <UiPreferencesProvider initialPreferences={uiPreferences}><IdentityGate><RecoverySpaceGate><ConfirmationProvider><App /></ConfirmationProvider></RecoverySpaceGate></IdentityGate></UiPreferencesProvider>
   </StrictMode>,
 );

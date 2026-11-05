@@ -1,4 +1,5 @@
 import { fetchChatCompletion, jsonObjectOptions, type ChatMessageContent, type LlmConfig } from "@better-me/core";
+import { privateStorage as localStorage } from "./private-storage";
 import { normalizeJobShare, allowedJobUrl, readJdPublicationFields, type JdImportResult, type JdProvenance, type JobPlatform } from "./jd-source";
 import { JdBrowserStartCleanupError, JdExtractionError, readJdFailure } from "./jd-errors";
 import { isSnapshotFailure, type SnapshotFailure } from "./jd-capture-diagnostics";

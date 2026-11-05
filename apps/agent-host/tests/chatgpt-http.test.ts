@@ -9,6 +9,7 @@ import type { UnderstandingSession } from "@better-me/agent-contracts";
 import { createAgentServer } from "../src/server.js";
 import { ChatGptPlanService } from "../src/chatgpt/service.js";
 import { chatGptProviderFixture } from "./fixtures/chatgpt-provider.js";
+import { registerTestIdentity } from "./fixtures/identity.js";
 
 const summary = { summary: "虚构 RCS 编排搬运任务，不直接控制车辆。", terms: [{ term: "RCS", meaning: "本项目任务编排层", evidenceIds: [] }], boundaries: ["个人贡献另行核实"], claims: [], unknowns: ["尚未说明个人贡献"] };
 const reply = (ready: boolean) => JSON.stringify({ kind: "reply", message: ready ? "请确认当前理解。" : "先核对项目边界。", understanding: summary, readyForConfirmation: ready,
@@ -26,15 +27,17 @@ async function fixture() {
   });
   await once(server, "listening"); const address = server.address(); assert.ok(address && typeof address !== "string");
   const origin = `http://127.0.0.1:${address.port}`;
+  const identity = await registerTestIdentity(origin, "fictional-agent-token", "fixture-user", "http://fixture.invalid");
+  const understandingDirectory = path.join(directory, "runs", "accounts-v1", "owners", identity.principal.id, "understanding");
   const request = (route: string, body?: unknown, headers: Record<string, string> = {}) => fetch(`${origin}/api/v1/agent${route}`, {
-    method: body === undefined ? "GET" : "POST", headers: { Authorization: "Bearer fictional-agent-token", Origin: "http://fixture.invalid", "Content-Type": "application/json", ...headers },
+    method: body === undefined ? "GET" : "POST", headers: { ...identity.headers, Authorization: "Bearer fictional-agent-token", Origin: "http://fixture.invalid", "Content-Type": "application/json", ...headers },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   const settled = async (id: string): Promise<UnderstandingSession> => {
     for (let i = 0; i < 200; i++) { const state: UnderstandingSession = await (await request(`/understanding/sessions/${id}`)).json(); if (state.phase !== "running") return state; await new Promise(resolve => setTimeout(resolve, 5)); }
     throw new Error("Fictional account turn did not settle");
   };
-  return { directory, provider, service, profileId, request, settled, origin, get fallbackCalls() { return fallbackCalls; },
+  return { directory, understandingDirectory, provider, service, profileId, request, settled, origin, get fallbackCalls() { return fallbackCalls; },
     close: async () => { await new Promise<void>(resolve => server.close(() => resolve())); await rm(directory, { recursive: true, force: true }); } };
 }
 
@@ -78,8 +81,8 @@ test("ChatGPT account drives dynamic understanding, exact consensus confirmation
     const count = f.provider.calls.filter(call => call.url.endsWith("/responses")).length;
     await f.request(`/understanding/sessions/${session.id}/turns`, { expectedRevision: session.revision, idempotencyKey: "fictional-blocked-turn", answer: "仍不切换", consentToSend: true, runtime });
     await f.settled(session.id); assert.equal(f.provider.calls.filter(call => call.url.endsWith("/responses")).length, count); assert.equal(f.fallbackCalls, 0);
-    const files = await readdir(path.join(f.directory, "understanding"));
-    for (const name of files.filter(name => name.endsWith(".json"))) assert.doesNotMatch(await readFile(path.join(f.directory, "understanding", name), "utf8"), /FICTIONAL_ACCESS|FICTIONAL_REFRESH|idToken|oaiapp_fixture/);
+    const files = await readdir(f.understandingDirectory);
+    for (const name of files.filter(name => name.endsWith(".json"))) assert.doesNotMatch(await readFile(path.join(f.understandingDirectory, name), "utf8"), /FICTIONAL_ACCESS|FICTIONAL_REFRESH|idToken|oaiapp_fixture/);
   } finally { await f.close(); }
 });
 

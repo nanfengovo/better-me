@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ChatGptStateSchema, ChatGptModelSchema, ChatGptIssueSchema, type ChatGptIssue, type ChatGptResponseRequest } from "@better-me/agent-contracts";
 import { readRuntimeConnection } from "../lib/runtime-connection";
+import { agentOrigin, ownedFetch, IdentityBoundaryError } from "../lib/identity";
 
 export type ChatGptChoice = { profileId: string; model: string };
 export class ChatGptClientError extends Error {
@@ -11,11 +12,11 @@ export function createChatGptClient(options: { baseUrl?: string; fetch?: typeof 
     const connection = readRuntimeConnection();
     const timeout = AbortSignal.timeout(route === "/response" ? 185_000 : 30_000);
     try {
-      const response = await (options.fetch ?? fetch)(`${options.baseUrl ?? connection?.origin ?? "http://127.0.0.1:5179"}/api/v1/agent/chatgpt${route}`, {
+      const response = await ownedFetch(`${options.baseUrl ?? agentOrigin()}/api/v1/agent/chatgpt${route}`, {
         method: body === undefined ? "GET" : "POST", signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
         headers: { Authorization: `Bearer ${connection?.agentToken ?? "better-me-agent-token"}`, "Content-Type": "application/json" },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      });
+      }, options.fetch ?? fetch);
       const payload: unknown = await response.json();
       if (!response.ok) {
         const issue = payload && typeof payload === "object" && "issue" in payload ? ChatGptIssueSchema.safeParse(payload.issue) : undefined;
@@ -25,7 +26,7 @@ export function createChatGptClient(options: { baseUrl?: string; fetch?: typeof 
       if (!parsed.success) throw new ChatGptClientError("ChatGPT 服务返回不完整，未采用结果；不会自动切换提供方。");
       return parsed.data;
     } catch (error) {
-      if (signal?.aborted || error instanceof ChatGptClientError) throw error;
+      if (signal?.aborted || error instanceof ChatGptClientError || error instanceof IdentityBoundaryError) throw error;
       throw new ChatGptClientError(timeout.aborted ? "ChatGPT 请求等待超时，结果尚未确认；输入已保留，不会自动重发。" : "无法连接本机 ChatGPT 授权服务，输入已保留；未切换付费 API。");
     }
   }

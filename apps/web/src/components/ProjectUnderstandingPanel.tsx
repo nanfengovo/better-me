@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { privateStorage as localStorage } from "../lib/identity";
 import { BookOpen, Check, FolderOpen, RefreshCw, Send, ShieldCheck, Square, X } from "lucide-react";
 import type { LlmConfig } from "@better-me/core";
 import type { UnderstandingCapability, UnderstandingSession } from "@better-me/agent-contracts";

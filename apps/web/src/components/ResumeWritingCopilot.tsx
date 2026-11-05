@@ -154,7 +154,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
   }, [session, storageKey]);
   useEffect(() => {
     const sync = (event: StorageEvent) => {
-      if (event.key !== storageKey) return;
+      if (privateStorageEvent(event)?.key !== storageKey) return;
       stop(); setSession(current => {
         const remote = readWritingSession(localStorage, storageKey);
         const merged = new Map(current.notes.map(note => [note.id, note]));
@@ -395,3 +395,4 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
     </svg>}
   </div>;
 }
+import { privateStorage as localStorage, privateStorageEvent } from "../lib/identity";

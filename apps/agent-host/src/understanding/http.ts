@@ -29,6 +29,8 @@ type Dependencies = {
   /** Injection seam for embedded hosts and tests; never configurable by HTTP. */
   reasoner?: (runtime: UnderstandingRuntime) => Promise<UnderstandingReasoner>;
   chatGpt?: ChatGptPlanService;
+  /** Account-scoped hosts must not inherit a shared OS user's native-model credentials. */
+  allowNativeExecution?: boolean;
 };
 
 export async function createUnderstandingReasoner(runtime: UnderstandingRuntime, registry: RuntimeRegistry, chatGpt?: ChatGptPlanService): Promise<UnderstandingReasoner> {
@@ -68,6 +70,12 @@ export function createUnderstandingHandler(deps: Dependencies) {
     try {
       if (req.method === "GET" && pathname === `${prefix}/capabilities`) {
         await deps.ensureRuntimeScan();
+        if (deps.allowNativeExecution === false) {
+          deps.sendJson(res, 200, { runtimes: deps.registry.list().map(runtime => ({ id: runtime.id, name: runtime.name,
+            available: runtime.status === "available", supported: false,
+            reason: "本机 CLI 尚未提供按账号隔离的凭据和进程环境，暂不启用；可明确选择本账号模型或 ChatGPT 授权，资料仍由只读取证器控制。" })) });
+          return true;
+        }
         deps.sendJson(res, 200, { runtimes: await nativeUnderstandingCapabilities(deps.registry) });
         return true;
       }
@@ -87,6 +95,10 @@ export function createUnderstandingHandler(deps: Dependencies) {
         deps.sendJson(res, 200, await deps.service.revoke(id, grantId));
       } else if (req.method === "POST" && action === "turns" && !grantId) {
         const { runtime, ...input } = TurnRequestSchema.parse(await deps.readBody(req));
+        if (runtime.kind === "native" && deps.allowNativeExecution === false) {
+          deps.sendJson(res, 403, { error: "runtime_identity_isolation_required", message: "所选本机 CLI 尚未完成账号级凭据隔离，未启动、未继承他人授权，也未切换付费 API。" });
+          return true;
+        }
         if (runtime.kind === "native") await deps.ensureRuntimeScan();
         // The account route never enters a generic model/native override or fallback.
         const reasoner = await (runtime.kind !== "chatgpt" && deps.reasoner ? deps.reasoner(runtime) : createUnderstandingReasoner(runtime, deps.registry, deps.chatGpt));

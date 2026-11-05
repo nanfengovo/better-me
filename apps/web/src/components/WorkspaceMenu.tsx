@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Compass, Settings2 } from "lucide-react";
 import { WorkspacePreferences } from "./WorkspacePreferences";
+import { IdentityMenu } from "./IdentityGate";
+import { RecoveryArchives } from "./RecoveryArchives";
 import { useUiPreferences } from "../lib/ui-preferences";
 import "./workspace-chrome.css";
 
@@ -19,6 +21,8 @@ export function WorkspaceMenu({ initial, onGuide, onAiConfig }: { initial: strin
     <section className="workspace-menu-panel" hidden={!open} aria-label={t("工作台偏好", "Workspace preferences")}>
       <h2>{t("工作台设置", "Workspace settings")}</h2><WorkspacePreferences />
       <div className="workspace-menu-links"><button type="button" onClick={() => launch(onGuide)}><Compass size={15} />{t("新手引导", "Workspace tour")}</button><button data-onboarding="ai" type="button" onClick={() => launch(onAiConfig)}><Settings2 size={15} />{t("AI 配置", "AI settings")}</button></div>
+      <IdentityMenu />
+      <RecoveryArchives />
     </section>
   </div>;
 }

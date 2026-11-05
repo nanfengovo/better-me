@@ -46,9 +46,17 @@ function inside(root: string, candidate: string): boolean {
 export class EvidenceBroker {
   private readonly maxFileBytes: number;
   private readonly maxEntries: number;
-  constructor(options: { maxFileBytes?: number; maxEntries?: number } = {}) {
+  private readonly forbiddenRoots: string[];
+  constructor(options: { maxFileBytes?: number; maxEntries?: number; forbiddenRoots?: string[] } = {}) {
     this.maxFileBytes = Math.max(1, Math.min(options.maxFileBytes ?? 256 * 1024, 1024 * 1024));
     this.maxEntries = Math.max(1, Math.min(options.maxEntries ?? 100, 200));
+    this.forbiddenRoots = (options.forbiddenRoots ?? []).map(root => path.resolve(root));
+  }
+  private async assertNotPrivate(candidate: string) {
+    for (const root of this.forbiddenRoots) {
+      const canonical = await fs.realpath(root).catch(() => root);
+      if (inside(canonical, candidate)) throw new EvidenceAccessError("private_store_denied", "BetterMe 账号、记忆、任务及凭据目录不能作为项目源码授权。");
+    }
   }
 
   async grant(explicitPath: string): Promise<UnderstandingGrant> {
@@ -69,6 +77,7 @@ export class EvidenceBroker {
     const stat = await fs.lstat(requested).catch(() => undefined);
     if ((!stat?.isDirectory() && !stat?.isFile()) || stat.isSymbolicLink()) throw new EvidenceAccessError("grant_path_denied", "A real project directory or exact source file is required; symlink grants are not allowed.");
     const canonical = await fs.realpath(requested);
+    await this.assertNotPrivate(canonical);
     const home = os.homedir();
     const broad = [path.parse(canonical).root, home, path.dirname(home), os.tmpdir(), "/", "/Users", "/home", "/tmp", "/var", "/private", "/private/var", "/private/tmp", "/etc", "/private/etc", "/System", "/Library", "/Applications", "/usr", "/opt", "/Volumes",
       ...["Documents", "Desktop", "Downloads", "Library", "AppData", "OneDrive"].map(name => path.join(home, name))];
@@ -84,6 +93,7 @@ export class EvidenceBroker {
   async execute(grant: UnderstandingGrant, request: EvidenceRequest, signal?: AbortSignal): Promise<EvidenceResult> {
     signal?.throwIfAborted();
     if (grant.revokedAt) throw new EvidenceAccessError("grant_revoked", "This source grant was revoked.");
+    await this.assertNotPrivate(await fs.realpath(grant.path));
     let relative = relativeInput(request.path);
     const rootStat = await fs.lstat(grant.path).catch(() => undefined);
     const exactFile = grant.id.startsWith("file_grant_");
@@ -120,6 +130,8 @@ export class EvidenceBroker {
         signal?.throwIfAborted();
         if (++scanned > 2000 || entries.length >= this.maxEntries) return { entries, evidence: [], truncated: true };
         if (deniedPart(entry.name) || entry.isSymbolicLink() || (!entry.isDirectory() && !this.isSource(entry.name))) continue;
+        try { await this.assertNotPrivate(path.join(resolved, entry.name)); }
+        catch (error) { if (error instanceof EvidenceAccessError) continue; throw error; }
         entries.push({ path: path.join(relative, entry.name).split(path.sep).join("/"), kind: entry.isDirectory() ? "directory" : "file" });
       }
       entries.sort((a, b) => a.path.localeCompare(b.path));
@@ -138,6 +150,8 @@ export class EvidenceBroker {
         if (++scanned >= 2000 || files >= 100 || evidence.length >= 20) break;
         if (deniedPart(entry.name) || entry.isSymbolicLink()) continue;
         const child = path.join(current, entry.name);
+        try { await this.assertNotPrivate(path.join(grant.path, child)); }
+        catch (error) { if (error instanceof EvidenceAccessError) { skipped++; continue; } throw error; }
         if (entry.isDirectory()) { if (child.split(path.sep).length <= 12) queue.push(child); continue; }
         if (!entry.isFile() || !this.isSource(entry.name)) continue;
         files++;
@@ -168,6 +182,7 @@ export class EvidenceBroker {
     const rootStat = await fs.lstat(grant.path).catch(() => undefined);
     if ((!rootStat?.isDirectory() && !rootStat?.isFile()) || rootStat.isSymbolicLink() || await fs.realpath(grant.path) !== grant.path) throw new EvidenceAccessError("grant_changed", "The granted source path has changed.");
     if (rootStat.isFile() !== grant.id.startsWith("file_grant_")) throw new EvidenceAccessError("grant_changed", "授权对象类型发生变化，请重新授权。");
+    await this.assertNotPrivate(grant.path);
     if (rootStat.isFile()) {
       if (relative !== path.basename(grant.path)) throw new EvidenceAccessError("path_denied", "Only the exact granted file is available.");
       return grant.path;
@@ -179,6 +194,7 @@ export class EvidenceBroker {
       if (!stat || stat.isSymbolicLink()) throw new EvidenceAccessError("path_denied", "Missing paths and symlinks cannot be read.");
     }
     const canonical = await fs.realpath(cursor);
+    await this.assertNotPrivate(canonical);
     if (!inside(grant.path, canonical)) throw new EvidenceAccessError("path_escape", "The path escapes its grant.");
     return canonical;
   }

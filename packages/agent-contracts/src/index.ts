@@ -1,5 +1,6 @@
 import { z } from "zod";
 export * from "./chatgpt-plan.js";
+export * from "./social-login.js";
 
 /** JSON values accepted at process and persistence boundaries. */
 export const JsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>

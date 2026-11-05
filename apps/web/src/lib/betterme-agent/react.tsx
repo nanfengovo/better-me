@@ -1,14 +1,16 @@
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { BetterMeAgent } from "./kernel";
-import { IndexedDbAgentRepository, type AgentRepository } from "./storage";
+import { IndexedDbAgentRepository, createOwnedAgentRepository, type AgentRepository } from "./storage";
+import { currentPrincipal } from "../identity";
 import { defaultUnderstandingClient, type UnderstandingClient } from "../../services/understanding-client";
 
 const Context = createContext<BetterMeAgent | undefined>(undefined);
 const repository = new IndexedDbAgentRepository();
 const instances = new WeakMap<AgentRepository, Map<string, BetterMeAgent>>();
-export function BetterMeAgentProvider({ workspaceKey, children, repository: store = repository, understandingClient = defaultUnderstandingClient }: {
+export function BetterMeAgentProvider({ workspaceKey, children, repository: provided, understandingClient = defaultUnderstandingClient }: {
   workspaceKey: string; children: ReactNode; repository?: AgentRepository; understandingClient?: UnderstandingClient;
 }) {
+  const [store] = useState(() => provided ?? (currentPrincipal() ? createOwnedAgentRepository() : repository));
   return <AgentScope key={workspaceKey} {...{ workspaceKey, store, understandingClient }}>{children}</AgentScope>;
 }
 function AgentScope({ workspaceKey, store, understandingClient, children }: { workspaceKey: string; store: AgentRepository; understandingClient: UnderstandingClient; children: ReactNode }) {
@@ -16,13 +18,18 @@ function AgentScope({ workspaceKey, store, understandingClient, children }: { wo
     let scopes = instances.get(store);
     if (!scopes) { scopes = new Map(); instances.set(store, scopes); }
     let existing = scopes.get(workspaceKey);
-    if (!existing) { existing = new BetterMeAgent(workspaceKey, store, understandingClient.getSession); scopes.set(workspaceKey, existing); }
+    if (!existing) { existing = new BetterMeAgent(workspaceKey, store, understandingClient.getSession, currentPrincipal()?.id); scopes.set(workspaceKey, existing); }
     return existing;
   });
   useEffect(() => {
     // Remote project work lives in Agent Host. Polling here survives every view change.
     const timer = setInterval(() => { void agent.refreshUnderstanding(); }, 3000);
     return () => clearInterval(timer);
+  }, [agent]);
+  useEffect(() => {
+    const prepare = (event: Event) => { (event as CustomEvent<Promise<void>[]>).detail.push(agent.flush()); };
+    window.addEventListener("betterme:before-sign-out", prepare);
+    return () => window.removeEventListener("betterme:before-sign-out", prepare);
   }, [agent]);
   return <Context.Provider value={agent}>{children}</Context.Provider>;
 }

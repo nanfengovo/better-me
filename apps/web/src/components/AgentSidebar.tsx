@@ -7,6 +7,7 @@ import { AGENT_LESSONS, AgentWorkflowGuide, type AgentLesson } from "./AgentWork
 import { AgentReaderTools } from "./AgentReaderTools";
 import { AgentGuideCoach } from "./AgentGuideCoach";
 import { readTutorial, tutorialKey, tutorialStorage } from "../lib/agent-tutorial";
+import { privateStorage as localStorage } from "../lib/private-storage";
 import type { UnderstandingClient } from "../services/understanding-client";
 
 type Tab = "conversation" | "memory" | "settings";

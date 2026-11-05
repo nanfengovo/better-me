@@ -66,7 +66,7 @@ export function BetterMeAgentCenter({ onNavigate }: { onNavigate: (origin: Agent
   };
   return <AgentSurface name="memory"><aside className="betterme-agent-center no-print" role={sidebar ? undefined : "dialog"} aria-label="BetterMe Agent 记忆与进度" onKeyDown={event => { if (!sidebar && event.key === "Escape") agent.setCenterOpen(false); }}>
     <header><div><small>BETTERME / 同一位职业伙伴</small><h2>记忆、对话与进行中的事</h2></div><button ref={close} type="button" aria-label="收起统一 Agent 面板" onClick={() => agent.setCenterOpen(false)}>收起</button></header>
-    <p className="betterme-agent-save" role="status">{!snapshot.ready ? "正在读取本地记录…" : snapshot.saving ? "正在保存 Agent 记录…" : snapshot.error ? "Agent 记录未同步 · 本页内容保留" : "Agent 记录保存在当前浏览器"}</p>
+    <p className="betterme-agent-save" role="status">{!snapshot.ready ? "正在读取本地记录…" : snapshot.saving ? "正在保存 Agent 记录…" : snapshot.error ? "Agent 记录未同步 · 本页内容保留" : snapshot.data.ownerId ? "Agent 记录保存在当前账号的本机 Agent Host" : "Agent 记录保存在当前浏览器"}</p>
     {(issue || error) && <section className="agent-storage-alert" role="alert"><strong>{issue?.title ?? "本次操作未完成"}</strong><p>{issue?.message ?? error}</p><div className="agent-storage-actions">
       {issue?.retryable && <button type="button" disabled={recovering || snapshot.saving} onClick={() => void recover()}>{recovering ? "正在恢复…" : "重连并重试保存"}</button>}
       <button type="button" onClick={exportRecords}>下载本页记录</button>

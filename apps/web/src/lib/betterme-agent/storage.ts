@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { createOwnedRecords } from "../../services/owned-records";
+import { currentPrincipal } from "../identity";
 
 export const Origin = z.enum(["writing", "companion", "growth", "understanding"]);
 export type AgentOrigin = z.infer<typeof Origin>;
@@ -24,6 +26,7 @@ const GrowthEvent = z.object({ id: z.string(), kind: z.enum(["consensus", "resum
   label: z.string(), at: z.string(), origin: Origin, memoryId: z.string().optional() }).strict();
 export const AgentStateSchema = z.object({
   version: z.literal(1), workspaceKey: z.string(), revision: z.number().int().nonnegative(),
+  ownerId: z.string().uuid().optional(),
   messages: z.array(Message), memories: z.array(Memory), tasks: z.array(Task), events: z.array(GrowthEvent),
   tracking: z.boolean(), goal: z.string().max(4000).default(""), contextRevision: z.number().int().default(0),
   selection: z.object({ kind: z.enum(["current", "chatgpt"]), profileId: z.string(), model: z.string() }).strict(),
@@ -33,8 +36,8 @@ export type AgentMessage = AgentState["messages"][number];
 export type AgentTask = AgentState["tasks"][number];
 export type AgentMemory = AgentState["memories"][number];
 export type AgentGrowthEvent = AgentState["events"][number];
-export function emptyAgentState(workspaceKey: string): AgentState {
-  return { version: 1, workspaceKey, revision: 0, messages: [], memories: [], tasks: [], events: [], tracking: false, goal: "", contextRevision: 0,
+export function emptyAgentState(workspaceKey: string, ownerId?: string): AgentState {
+  return { version: 1, workspaceKey, ...(ownerId ? { ownerId } : {}), revision: 0, messages: [], memories: [], tasks: [], events: [], tracking: false, goal: "", contextRevision: 0,
     selection: { kind: "current", profileId: "", model: "" } };
 }
 export class AgentStorageConflict extends Error {
@@ -43,6 +46,22 @@ export class AgentStorageConflict extends Error {
 export interface AgentRepository {
   load(key: string): Promise<AgentState | undefined>;
   save(state: AgentState, expectedRevision: number): Promise<void>;
+}
+/** Authenticated production store. No fallback to unowned IndexedDB on errors. */
+export function createOwnedAgentRepository(): AgentRepository {
+  const ownerId = currentPrincipal()?.id, records = createOwnedRecords("continuity");
+  return {
+    async load(key) {
+      const raw = await records.load(key);
+      const state = checked(raw, key);
+      if (state && state.ownerId !== ownerId) throw new Error("Agent 记录归属不符，未载入或认领旧资料。");
+      return state;
+    },
+    async save(state, revision) {
+      if (!ownerId || state.ownerId !== ownerId) throw new Error("Agent 记录缺少当前账号归属，未保存。");
+      await records.save(state.workspaceKey, revision, AgentStateSchema.parse(state));
+    },
+  };
 }
 function checked(value: unknown, key: string) {
   if (value === undefined) return undefined;

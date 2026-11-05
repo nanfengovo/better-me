@@ -11,13 +11,13 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@better-me/core": "workspace:*",
     "@better-me/agent-contracts": "workspace:*",
+    "@better-me/core": "workspace:*",
     "@better-me/opportunities": "workspace:*",
     "@better-me/source-adapters": "workspace:*",
     "@better-me/storage": "workspace:*",
-    "cheerio": "^1.2.0",
     "cesium": "1.146.0",
+    "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "docx": "^9.11.0",
@@ -41,6 +41,7 @@
     "@types/react-dom": "^19.1.5",
     "@types/three": "0.186.0",
     "@vitejs/plugin-react": "^4.5.2",
+    "fake-indexeddb": "6.2.7",
     "happy-dom": "^21.0.3",
     "tailwindcss": "^4.1.8",
     "typescript": "^5.8.3",

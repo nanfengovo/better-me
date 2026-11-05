@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createCoachState } from "./state";
 import { CoachStateSchema, type CoachState } from "./types";
-import { CoachStorageConflict, defaultCoachRepository, type CoachRepository } from "./storage";
+import { CoachStorageConflict, captureCoachRepository, type CoachRepository } from "./storage";
 
 interface Writer {
   enabled: boolean;
@@ -48,7 +48,9 @@ function recoveryMessage(error: string): string {
   return `${error} 已恢复尚未保存的本页草稿，请先下载备份，再明确读取已保存版本；关闭或刷新整个页面后此临时副本会丢失。`;
 }
 
-export function useCareerCoach(workspaceKey: string, repository: CoachRepository = defaultCoachRepository) {
+export function useCareerCoach(workspaceKey: string, provided?: CoachRepository) {
+  const [defaultRepository] = useState(captureCoachRepository);
+  const repository = provided ?? defaultRepository;
   const [state, setState] = useState(() => createCoachState(workspaceKey));
   const [ready, setReady] = useState(false);
   const [persistenceError, setPersistenceError] = useState<string>();
@@ -168,6 +170,16 @@ export function useCareerCoach(workspaceKey: string, repository: CoachRepository
   }, [workspaceKey, repository]);
 
   const matchesScope = state.workspaceKey === workspaceKey && appliedScope.current.repository === repository;
+  useEffect(() => {
+    const protect = (event: Event) => {
+      const currentWriter = writer.current;
+      (event as CustomEvent<Promise<void>[]>).detail.push(currentWriter.pending.then(() => {
+        if (currentWriter.error) throw new Error(currentWriter.error);
+      }));
+    };
+    window.addEventListener("betterme:before-sign-out", protect);
+    return () => window.removeEventListener("betterme:before-sign-out", protect);
+  }, []);
   return { state: matchesScope ? state : createCoachState(workspaceKey), ready: ready && matchesScope,
     persistenceError: matchesScope ? persistenceError : undefined,
     conflict: matchesScope && conflict, update, reload, clear };

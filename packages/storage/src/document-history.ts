@@ -92,6 +92,7 @@ function isConnectionClosingError(error: unknown): boolean {
 /** IndexedDB avoids duplicating large portrait snapshots in localStorage's small quota. */
 export class IndexedDbVersionRepository implements VersionRepository {
   private database: Promise<IDBDatabase> | null = null;
+  constructor(private readonly databaseName = "better-me:document-history:v1") {}
 
   reset(): void {
     if (this.database) {
@@ -115,7 +116,7 @@ export class IndexedDbVersionRepository implements VersionRepository {
           reject(new Error("浏览器未提供 IndexedDB，当前草稿仍会独立保存。"));
           return;
         }
-        const request = indexedDB.open("better-me:document-history:v1", 1);
+        const request = indexedDB.open(this.databaseName, 1);
         request.onupgradeneeded = () => {
           request.result.createObjectStore("versions", { keyPath: "id" });
         };
@@ -254,7 +255,7 @@ export class IndexedDbVersionRepository implements VersionRepository {
 
 /** Keeps an overflow draft outside localStorage's small per-origin quota. */
 export class IndexedDbDraftRepository implements DraftRepository {
-  constructor(private readonly slot = "active") {}
+  constructor(private readonly slot = "active", private readonly databaseName = "better-me:document-draft:v1") {}
   private database: Promise<IDBDatabase> | null = null;
 
   private open(): Promise<IDBDatabase> {
@@ -264,7 +265,7 @@ export class IndexedDbDraftRepository implements DraftRepository {
           reject(new Error("浏览器未提供 IndexedDB。"));
           return;
         }
-        const request = indexedDB.open("better-me:document-draft:v1", 1);
+        const request = indexedDB.open(this.databaseName, 1);
         request.onupgradeneeded = () => {
           request.result.createObjectStore("drafts");
         };
@@ -387,9 +388,11 @@ export class DocumentPersistenceController {
   private autoSaveRevision = 0;
   private persistedFingerprint: string | null = null;
   private draftTimestamp = 0;
-  constructor(options: { history?: LocalDocumentHistory; store?: LocalJsonStore; draftRepository?: DraftRepository; previousDraftRepository?: DraftRepository; delayMs?: number; autoSave?: AutoSaveSettings } = {}) {
+  private storage: Pick<Storage, "getItem" | "setItem" | "removeItem">;
+  constructor(options: { history?: LocalDocumentHistory; store?: LocalJsonStore; storage?: Pick<Storage, "getItem" | "setItem" | "removeItem">; draftRepository?: DraftRepository; previousDraftRepository?: DraftRepository; delayMs?: number; autoSave?: AutoSaveSettings } = {}) {
+    this.storage = options.storage ?? globalThis.localStorage;
     this.history = options.history ?? new LocalDocumentHistory();
-    this.store = options.store ?? new LocalJsonStore();
+    this.store = options.store ?? new LocalJsonStore(STORAGE_KEY, this.storage);
     this.draftRepository = options.draftRepository ?? new IndexedDbDraftRepository();
     this.previousDraftRepository = options.previousDraftRepository ?? new IndexedDbDraftRepository("previous");
     this.autoSave = normalizeAutoSaveSettings(options.autoSave);
@@ -457,21 +460,21 @@ export class DocumentPersistenceController {
     let officialSavedAt: string | undefined;
     let localDraftRaw: string | null = null;
     let indexedDraftRaw: string | null = null;
-    try { rawPreviousDraftRecovery = localStorage.getItem(PREVIOUS_DRAFT_STORAGE_KEY) ?? undefined; }
+    try { rawPreviousDraftRecovery = this.storage.getItem(PREVIOUS_DRAFT_STORAGE_KEY) ?? undefined; }
     catch { loadError = loadError ?? "浏览器拒绝读取切换前草稿，请检查本地存储权限。"; }
     try {
       const backup = await this.previousDraftRepository.load();
       if (backup && (!rawPreviousDraftRecovery || Date.parse(JSON.parse(backup).savedAt) > Date.parse(JSON.parse(rawPreviousDraftRecovery).savedAt))) rawPreviousDraftRecovery = backup;
     } catch { /* The primary previous draft remains available. */ }
     try {
-      const officialRaw = localStorage.getItem(STORAGE_KEY);
+      const officialRaw = this.storage.getItem(STORAGE_KEY);
       if (loadError && officialRaw !== null) rawOfficialRecovery = officialRaw;
       if (officialRaw) {
         try { officialSavedAt = JSON.parse(officialRaw)._betterMeSavedAt; }
         catch { /* Official corruption is handled above and retained as raw recovery. */ }
       }
     } catch { loadError = loadError ?? "浏览器拒绝读取本地简历，请检查本地存储权限。"; }
-    try { localDraftRaw = localStorage.getItem(DRAFT_STORAGE_KEY); }
+    try { localDraftRaw = this.storage.getItem(DRAFT_STORAGE_KEY); }
     catch { loadError = loadError ?? "浏览器拒绝读取草稿，请检查本地存储权限。"; }
     try { indexedDraftRaw = await this.draftRepository.load(); }
     catch { /* localStorage remains the primary path; IndexedDB is an overflow recovery copy. */ }
@@ -538,7 +541,7 @@ export class DocumentPersistenceController {
     try {
       let timestamp = Math.max(Date.now(), this.draftTimestamp + 1);
       let officialRaw: string | null = null;
-      try { officialRaw = localStorage.getItem(STORAGE_KEY); }
+      try { officialRaw = this.storage.getItem(STORAGE_KEY); }
       catch { /* Still attempt the draft write and IndexedDB fallback if localStorage access is blocked. */ }
       if (officialRaw) {
         try {
@@ -554,7 +557,7 @@ export class DocumentPersistenceController {
       return { ...this.state.status, kind: "error", hasPendingChanges: this.hasPendingChanges(next), message: `${storageError(error)} 当前编辑仅在页面内，离开会丢失。` };
     }
     try {
-      localStorage.setItem(DRAFT_STORAGE_KEY, raw);
+      this.storage.setItem(DRAFT_STORAGE_KEY, raw);
       const status: PersistenceStatus = { ...this.state.status, kind: "draft", message: this.waitingMessage(next), hasPendingChanges: this.hasPendingChanges(next), draftSavedAt: now, rawDraftRecovery: undefined };
       if (this.state.status.kind === "error" && this.state.status.message.includes("正在尝试使用 IndexedDB")) this.emit({ status });
       return status;
@@ -628,7 +631,7 @@ export class DocumentPersistenceController {
     let protectedCurrent = false;
     try {
       rawPreviousDraftRecovery = encodeDraft({ schemaVersion: 1, savedAt: new Date().toISOString(), document: DraftDocumentSchema.parse(current) });
-      localStorage.setItem(PREVIOUS_DRAFT_STORAGE_KEY, rawPreviousDraftRecovery);
+      this.storage.setItem(PREVIOUS_DRAFT_STORAGE_KEY, rawPreviousDraftRecovery);
       protectedCurrent = true;
     } catch { /* The page remains available for downloading even when storage fails. */ }
     this.emit({ status: {
@@ -714,7 +717,7 @@ export class DocumentPersistenceController {
         } else {
           // An unfinished draft must not be promoted into a validated history version.
           const rawPrevious = encodeDraft({ schemaVersion: 1, savedAt: new Date().toISOString(), document: DraftDocumentSchema.parse(previous) });
-          localStorage.setItem(PREVIOUS_DRAFT_STORAGE_KEY, rawPrevious);
+          this.storage.setItem(PREVIOUS_DRAFT_STORAGE_KEY, rawPrevious);
           if (operation === this.operation) this.emit({ status: { ...this.state.status, rawPreviousDraftRecovery: rawPrevious } });
         }
       }
@@ -770,7 +773,7 @@ export class DocumentPersistenceController {
         assertCurrent();
       } else {
         const rawPrevious = encodeDraft({ schemaVersion: 1, savedAt: new Date().toISOString(), document: DraftDocumentSchema.parse(previous) });
-        localStorage.setItem(PREVIOUS_DRAFT_STORAGE_KEY, rawPrevious);
+        this.storage.setItem(PREVIOUS_DRAFT_STORAGE_KEY, rawPrevious);
         assertCurrent();
         this.emit({ status: { ...this.state.status, rawPreviousDraftRecovery: rawPrevious } });
       }
@@ -828,7 +831,7 @@ export class DocumentPersistenceController {
       if (valid.success) await this.history.append(valid.data as BetterMeDocument, label, "checkpoint");
       else {
         const raw = encodeDraft({ schemaVersion: 1, savedAt: new Date().toISOString(), document: DraftDocumentSchema.parse(current) });
-        try { localStorage.setItem(PREVIOUS_DRAFT_STORAGE_KEY, raw); }
+        try { this.storage.setItem(PREVIOUS_DRAFT_STORAGE_KEY, raw); }
         catch { await this.previousDraftRepository.save(raw); }
         if (this.operation !== operation || this.state.status.externalConflict) return false;
         this.emit({ status: { ...this.state.status, rawPreviousDraftRecovery: raw } });

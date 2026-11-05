@@ -5,6 +5,7 @@ import {
 } from "@better-me/agent-contracts";
 import { z } from "zod";
 import { readRuntimeConnection } from "../lib/runtime-connection";
+import { agentOrigin, ownedFetch, IdentityBoundaryError } from "../lib/identity";
 
 const SessionResponse = UnderstandingSessionSchema;
 const CapabilitiesResponse = z.object({ runtimes: z.array(z.object({ id: z.string(), name: z.string(), available: z.boolean(), supported: z.boolean(), reason: z.string().optional() })) });
@@ -38,17 +39,17 @@ export function createUnderstandingClient(options: { baseUrl?: string; fetch?: t
     const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
     let response: Response;
     try {
-      response = await (options.fetch ?? fetch)(`${options.baseUrl ?? connection?.origin ?? "http://127.0.0.1:5179"}/api/v1/agent/understanding${path}`, {
+      response = await ownedFetch(`${options.baseUrl ?? agentOrigin()}/api/v1/agent/understanding${path}`, {
         method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${connection?.agentToken ?? "better-me-agent-token"}` },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: combined,
-      });
+      }, options.fetch ?? fetch);
     } catch (error) {
-      if (signal?.aborted) throw error;
+      if (signal?.aborted || error instanceof IdentityBoundaryError) throw error;
       throw new UnderstandingClientError(timeout.aborted
         ? "本机 Agent 请求等待超时；状态尚未确认，输入已保留。请刷新状态后再决定是否重试。"
         : "暂时无法连接本机 Agent；输入已保留。请确认配套服务已启动，再刷新状态。", undefined, timeout.aborted ? "timeout" : "unavailable");
     }
-    const payload: unknown = await response.json().catch(() => undefined);
+    const payload: unknown = await response.json().catch((error: unknown) => { if (error instanceof IdentityBoundaryError) throw error; return undefined; });
     if (!response.ok) {
       const statusMessages: Record<number, string> = {
         400: "本次输入未被接受，请检查内容或授权目录；原有记录未被覆盖。",

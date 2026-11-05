@@ -7,7 +7,9 @@ import {
   type BetterMeDocument,
   type DocumentFieldChange,
   type VersionKind,
+  IndexedDbVersionRepository, LocalDocumentHistory, IndexedDbDraftRepository,
 } from "@better-me/storage";
+import { captureDocumentStorage, documentDatabase, documentStorageEvent, recoverySpace } from "./private-storage";
 
 const AUTO_SAVE_PREFERENCE_KEY = "better-me:auto-save:v1";
 
@@ -27,10 +29,15 @@ function isDocumentEditor(target: EventTarget | null): target is HTMLElement {
 }
 
 export function useDocumentPersistence() {
+  const [space] = useState(() => recoverySpace(window.location.search));
   const [initialPreference] = useState(readAutoSavePreference);
   const [autoSaveSettings, setSettings] = useState(initialPreference.settings);
   const [autoSavePreferenceError, setPreferenceError] = useState(initialPreference.error);
-  const [controller] = useState(() => new DocumentPersistenceController({ autoSave: initialPreference.settings }));
+  const [controller] = useState(() => new DocumentPersistenceController({ autoSave: initialPreference.settings, storage: captureDocumentStorage(space),
+    history: new LocalDocumentHistory(new IndexedDbVersionRepository(documentDatabase("better-me:document-history:v1", space))),
+    draftRepository: new IndexedDbDraftRepository("active", documentDatabase("better-me:document-draft:v1", space)),
+    previousDraftRepository: new IndexedDbDraftRepository("previous", documentDatabase("better-me:document-draft:v1", space)),
+  }));
   const subscribe = useCallback((notify: () => void) => controller.subscribe(notify), [controller]);
   const getSnapshot = useCallback(() => controller.getState(), [controller]);
   const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
@@ -43,7 +50,8 @@ export function useDocumentPersistence() {
       if (controller.getState().status.kind === "error") event.preventDefault();
     };
     const onStorage = (event: StorageEvent) => {
-      if (event.storageArea === localStorage) controller.handleStorageChange(event.key, event.newValue);
+      const change = documentStorageEvent(event, space);
+      if (change) controller.handleStorageChange(change.key, change.newValue);
     };
     window.addEventListener("pagehide", flush);
     document.addEventListener("visibilitychange", onVisibility);
@@ -56,7 +64,7 @@ export function useDocumentPersistence() {
       window.removeEventListener("storage", onStorage);
       controller.cancelPending();
     };
-  }, [controller]);
+  }, [controller, space]);
 
   useEffect(() => {
     let composing = false;

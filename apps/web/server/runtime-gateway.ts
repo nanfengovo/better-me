@@ -39,8 +39,8 @@ export function containerModelBody(body: Buffer, endpoint?: string): Buffer {
     return Buffer.from(JSON.stringify(data));
   } catch { return body; }
 }
-async function proxy(req: IncomingMessage, res: ServerResponse, endpoint: string, token: string, ollama?: string) {
-  if (!tokenMatches(req, token)) return sendRuntimeJson(res, 401, { error: "unauthorized" });
+async function proxy(req: IncomingMessage, res: ServerResponse, endpoint: string, token: string, ollama?: string, oidcCallback = false) {
+  if (!oidcCallback && !tokenMatches(req, token)) return sendRuntimeJson(res, 401, { error: "unauthorized" });
   const chunks: Buffer[] = []; let bytes = 0;
   for await (const chunk of req) {
     bytes += chunk.length;
@@ -55,6 +55,8 @@ async function proxy(req: IncomingMessage, res: ServerResponse, endpoint: string
   const upstream = httpRequest(target, { method: req.method, headers: {
     authorization: "Bearer " + token,
     ...(req.headers.origin ? { origin: req.headers.origin } : {}),
+    ...(req.headers.cookie ? { cookie: req.headers.cookie } : {}),
+    ...(req.headers["x-betterme-owner"] ? { "x-betterme-owner": req.headers["x-betterme-owner"] } : {}),
     ...(req.headers["content-type"] ? { "content-type": req.headers["content-type"] } : {}),
     ...(req.headers["idempotency-key"] ? { "idempotency-key": req.headers["idempotency-key"] } : {}),
     ...(req.headers["x-request-id"] ? { "x-request-id": req.headers["x-request-id"] } : {}),
@@ -72,8 +74,12 @@ const mime: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js
 
 export function createRuntimeGateway(options: GatewayOptions) {
   return createServer((req, res) => { void (async () => {
-    if (!trustedRuntimeRequest(req, options.origins)) return sendRuntimeJson(res, 403, { error: "local_origin_required" });
     const url = new URL(req.url ?? "/", "http://" + req.headers.host);
+    const configured = options.origins.find(origin => new URL(origin).host === req.headers.host);
+    const oidcCallback = Boolean(configured && req.method === "GET" && url.pathname === "/api/v1/agent/identity/oidc/callback"
+      && (!req.headers.origin || req.headers.origin === configured));
+    // This route still requires one-use OIDC state + browser cookie + signed tokens at Agent Host.
+    if (!oidcCallback && !trustedRuntimeRequest(req, options.origins)) return sendRuntimeJson(res, 403, { error: "local_origin_required" });
     if (url.pathname === "/healthz") {
       const healthy = await options.health();
       return sendRuntimeJson(res, healthy ? 200 : 503, { mode: "full", status: healthy ? "ok" : "recovering" });
@@ -89,7 +95,7 @@ export function createRuntimeGateway(options: GatewayOptions) {
     }
     if (url.pathname.startsWith("/api/v1/")) {
       const agent = url.pathname.startsWith("/api/v1/agent/");
-      return proxy(req, res, agent ? options.agentEndpoint : options.jobEndpoint, agent ? options.agentToken : options.jobToken, agent ? options.ollamaEndpoint : undefined);
+      return proxy(req, res, agent ? options.agentEndpoint : options.jobEndpoint, agent ? options.agentToken : options.jobToken, agent ? options.ollamaEndpoint : undefined, oidcCallback);
     }
     if (url.pathname.startsWith("/api/") || url.pathname === "/api") return sendRuntimeJson(res, 501, { error: "host_browser_required", message: "此操作需要宿主机可交互的招聘浏览器。请使用本机 pnpm dev，或粘贴岗位原文；容器不会接管你的个人浏览器。" });
     if (!["GET", "HEAD"].includes(req.method ?? "")) return sendRuntimeJson(res, 405, { error: "method_not_allowed" });

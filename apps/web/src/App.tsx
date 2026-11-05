@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
+import { privateStorage as localStorage } from "./lib/identity";
 import {
   projectResume, projectedResumeToMarkdown, scanFactBase, createDefaultResumeView, syncResumeViewsWithFactBase, getJdMatchReadiness,
   LlmConfigSchema, type FactBase, type Locale, type ResumeView, type LlmConfig, type TextStyleRange, type ClaimIssue,

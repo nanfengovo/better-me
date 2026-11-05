@@ -1,23 +1,11 @@
 import {
-  FactBaseSchema,
-  ResumeViewSchema,
   createDemoFactBase,
   createDefaultResumeView,
 } from "@better-me/core";
-import { z } from "zod";
+import { DocumentSchema } from "@better-me/core/document";
 import type { BetterMeDocument, DocumentStore } from "./types.js";
 
 export const STORAGE_KEY = "better-me:document:v1";
-
-const DocumentSchema = z.object({
-  documentId: z.string().min(1).max(200).optional(),
-  factBase: FactBaseSchema,
-  resumeViews: z.array(ResumeViewSchema).min(1),
-  activeResumeId: z.string().min(1),
-}).refine((doc) => doc.resumeViews.some((view) => view.id === doc.activeResumeId), {
-  message: "当前简历视图不存在，请检查备份中的 activeResumeId。",
-  path: ["activeResumeId"],
-});
 
 export class StoredDocumentError extends Error {
   constructor() {
@@ -28,11 +16,11 @@ export class StoredDocumentError extends Error {
 
 /** V1 web adapter: structured JSON in localStorage (SQLite/OPFS later behind same port). */
 export class LocalJsonStore implements DocumentStore {
-  constructor(private readonly key = STORAGE_KEY) {}
+  constructor(private readonly key = STORAGE_KEY, private readonly storage: Pick<Storage, "getItem" | "setItem" | "removeItem"> = globalThis.localStorage) {}
 
   async load(): Promise<BetterMeDocument | null> {
-    if (typeof localStorage === "undefined") return null;
-    const raw = localStorage.getItem(this.key);
+    if (!this.storage) return null;
+    const raw = this.storage.getItem(this.key);
     if (raw === null) return null;
     try {
       return DocumentSchema.parse(JSON.parse(raw)) as BetterMeDocument;
@@ -47,7 +35,7 @@ export class LocalJsonStore implements DocumentStore {
     // It is stripped by DocumentSchema and never appears in exported JSON backups.
     let newest = Date.now();
     for (const key of [this.key, `${this.key}:draft:v1`]) {
-      const raw = localStorage.getItem(key);
+      const raw = this.storage.getItem(key);
       if (raw) {
         try {
           const previous = JSON.parse(raw);
@@ -56,11 +44,11 @@ export class LocalJsonStore implements DocumentStore {
         } catch { /* Keep corrupt bytes until a deliberate, validated save. */ }
       }
     }
-    localStorage.setItem(this.key, JSON.stringify({ ...validated, _betterMeSavedAt: new Date(newest).toISOString() }));
+    this.storage.setItem(this.key, JSON.stringify({ ...validated, _betterMeSavedAt: new Date(newest).toISOString() }));
   }
 
   async clear(): Promise<void> {
-    localStorage.removeItem(this.key);
+    this.storage.removeItem(this.key);
   }
 }
 

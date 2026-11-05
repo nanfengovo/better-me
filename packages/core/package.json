@@ -6,6 +6,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
+    "./document": { "types": "./src/schema/document.ts", "import": "./src/schema/document.ts", "default": "./dist/schema/document.js" },
     ".": {
       "types": "./src/index.ts",
       "import": "./src/index.ts",

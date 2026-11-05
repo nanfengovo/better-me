@@ -47,6 +47,13 @@ import { createUnderstandingHandler, type UnderstandingRuntime } from "./underst
 import type { UnderstandingReasoner } from "@better-me/agent-contracts";
 import { ChatGptPlanService } from "./chatgpt/service.js";
 import { createChatGptHandler } from "./chatgpt/http.js";
+import { createHash } from "node:crypto";
+import { IdentityService, IdentityError, type Principal } from "./identity/service.js";
+import { OwnedStore } from "./identity/owned-store.js";
+import { RecoveryCatalog } from "./identity/recovery.js";
+import { OidcService, OIDC_CALLBACK_PATH, type OidcOptions } from "./identity/oidc.js";
+import { unconfiguredSocialLogin } from "./identity/social-login.js";
+import { EvidenceBroker } from "./understanding/evidence-broker.js";
 
 // ── Request schemas ───────────────────────────────────────────────────────────
 
@@ -121,6 +128,12 @@ export interface ServerOptions {
   chatGptAuthorizationUnavailableReason?: string;
   /** Trusted embedding/testing seam, never supplied through HTTP. */
   chatGptService?: ChatGptPlanService;
+  /** New owner-only root. Legacy runs, sessions, credentials and checkpoints are never claimed. */
+  identityDirectory?: string;
+  /** Trusted installation configuration, never accepted from an HTTP request. */
+  oidc?: OidcOptions;
+  /** Trusted single-OS-user embedding only. Not exposed by CLI or HTTP. Unsafe for account isolation. */
+  trustedSingleUserRuntimeExecution?: boolean;
 }
 
 function jsonResponse(res: http.ServerResponse, status: number, body: unknown): void {
@@ -160,24 +173,37 @@ export function createAgentServer(opts: ServerOptions): http.Server {
   const careerGraph = buildCareerOrchestrator(opts.checkpointer);
   const runtimeRegistry = new RuntimeRegistry({ definitions: opts.runtimeDefinitions });
   const understandingRegistry = new RuntimeRegistry({ definitions: opts.runtimeDefinitions });
-  const runManager = new AgentRunManager({ registry: runtimeRegistry, rootDirectory: opts.runsDirectory, sandboxMode: opts.sandboxMode });
   let runtimeScan: Promise<unknown> | undefined;
-  const understanding = new ProjectUnderstandingService({
-    storageDir: opts.understandingDirectory ?? path.join(opts.runsDirectory ?? path.dirname(resolveCheckpointPath()), "understanding"),
-    turnTimeoutMs: opts.understandingTurnTimeoutMs,
-  });
-  const chatGpt = opts.chatGptService ?? new ChatGptPlanService({
-    directory: opts.chatGptDirectory ?? path.join(opts.runsDirectory ?? path.dirname(resolveCheckpointPath()), "chatgpt"),
-    authorizationUnavailableReason: opts.chatGptAuthorizationUnavailableReason,
-  });
-  const handleChatGpt = createChatGptHandler({ service: chatGpt, allowedOrigins: opts.allowedOrigins, readBody, sendJson: jsonResponse });
-  const handleUnderstanding = createUnderstandingHandler({ service: understanding, registry: understandingRegistry,
-    ensureRuntimeScan: async () => { await understandingRegistry.discoverExecutables(); },
-    readBody, sendJson: jsonResponse, reasoner: opts.understandingReasoner, chatGpt });
+  const identityRoot = opts.identityDirectory ?? path.join(opts.runsDirectory ?? path.dirname(resolveCheckpointPath()), "accounts-v1");
+  const identities = new IdentityService(identityRoot);
+  const oidc = opts.oidc ? new OidcService(opts.oidc, identities) : undefined;
+  function makeOwner(principal: Principal) {
+    // principal.id is server-generated and authenticated, never a request path/body field.
+    const root = path.join(identityRoot, "owners", principal.id);
+    const recovery = new RecoveryCatalog(root, principal.id);
+    const understanding = new ProjectUnderstandingService({ storageDir: path.join(root, "understanding"), turnTimeoutMs: opts.understandingTurnTimeoutMs,
+      recovered: id => recovery.session(id),
+      broker: new EvidenceBroker({ forbiddenRoots: [identityRoot, path.dirname(resolveCheckpointPath()),
+        ...[opts.runsDirectory, opts.understandingDirectory, opts.chatGptDirectory].filter((value): value is string => Boolean(value))] }),
+    });
+    const chatGpt = new ChatGptPlanService({ directory: path.join(root, "chatgpt"), authorizationUnavailableReason: opts.chatGptAuthorizationUnavailableReason });
+    // A trusted injected fixture is single-owner only; it can never become a shared credential service.
+    const provider: ChatGptPlanService = opts.chatGptService && owners.size === 0 ? opts.chatGptService : chatGpt;
+    return { understanding, chatGpt: provider, recovery, store: new OwnedStore(path.join(root, "records"), principal.id,
+      (namespace, key) => namespace === "continuity" ? recovery.continuity(key) : Promise.resolve(undefined)),
+      runManager: new AgentRunManager({ registry: runtimeRegistry, rootDirectory: path.join(root, "runs"), sandboxMode: opts.sandboxMode }),
+      handleChatGpt: createChatGptHandler({ service: provider, allowedOrigins: opts.allowedOrigins, readBody, sendJson: jsonResponse }),
+      handleUnderstanding: createUnderstandingHandler({ service: understanding, registry: understandingRegistry,
+        allowNativeExecution: opts.trustedSingleUserRuntimeExecution === true,
+        ensureRuntimeScan: async () => { await understandingRegistry.discoverExecutables(); }, readBody, sendJson: jsonResponse, reasoner: opts.understandingReasoner, chatGpt: provider }),
+    };
+  }
+  const owners = new Map<string, ReturnType<typeof makeOwner>>();
+  const ownerStreams = new Map<string, Set<http.ServerResponse>>();
 
   async function ensureRuntimeScan(): Promise<void> {
     if (runtimeRegistry.list().length > 0) return;
-    runtimeScan ??= runtimeRegistry.scan().finally(() => { runtimeScan = undefined; });
+    runtimeScan ??= (opts.trustedSingleUserRuntimeExecution ? runtimeRegistry.scan() : runtimeRegistry.discoverExecutables()).finally(() => { runtimeScan = undefined; });
     await runtimeScan;
   }
 
@@ -190,29 +216,97 @@ export function createAgentServer(opts: ServerOptions): http.Server {
   const server = http.createServer(async (req, res) => {
     // ── CORS ──────────────────────────────────────────────────────────────────
     const origin = req.headers["origin"] ?? "";
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Vary", "Origin");
+    if (origin && !opts.allowedOrigins.includes(origin)) return jsonResponse(res, 403, { error: "origin_rejected" });
     if (typeof origin === "string" && opts.allowedOrigins.includes(origin)) {
       res.setHeader("Access-Control-Allow-Origin", origin);
-      res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-BetterMe-Owner");
+      res.setHeader("Access-Control-Allow-Credentials", "true");
     }
     if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
 
+    const url = new URL(req.url ?? "/", "http://127.0.0.1");
+    const { pathname } = url;
+    // Only the registered OIDC callback is a browser navigation without the transport token.
+    // Its own one-use state + browser cookie + nonce + PKCE + signed JWT checks are mandatory.
+    if (req.method === "GET" && pathname === OIDC_CALLBACK_PATH && oidc) {
+      try {
+        const result = await oidc.complete(url.search, req.headers.cookie);
+        if ("token" in result) {
+          res.setHeader("Set-Cookie", identities.cookie(result.token, new URL(oidc.options.callbackUrl).protocol === "https:"));
+        }
+        res.writeHead(303, { Location: result.redirect, "Referrer-Policy": "no-referrer" }); res.end();
+      } catch {
+        res.writeHead(400, { "Content-Type": "text/html; charset=utf-8", "Referrer-Policy": "no-referrer" });
+        res.end('<h1>统一登录未完成</h1><p>登录已过期、被取消或未通过验证。没有切换账号，也没有移动资料。</p><a href="/">返回 BetterMe，重新发起登录或关联</a>');
+      }
+      return;
+    }
     // ── Auth ──────────────────────────────────────────────────────────────────
     const auth = req.headers["authorization"] ?? "";
     if (auth !== `Bearer ${opts.authToken}`) {
       return jsonResponse(res, 401, { error: "unauthorized" });
     }
 
-    const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
-    const { pathname } = url;
-
     try {
-      if (await handleChatGpt(req, res, pathname)) return;
-      if (await handleUnderstanding(req, res, pathname)) return;
       // Keep the browser health probe explicit; probing an unknown checkpoint
       // thread produces noisy 404s even when the daemon is healthy.
       if (req.method === "GET" && pathname === "/api/v1/agent/health") {
         return jsonResponse(res, 200, { status: "ok", service: "agent-host" });
+      }
+      if (req.method === "POST" && ["/api/v1/agent/identity/register", "/api/v1/agent/identity/sign-in"].includes(pathname)) {
+        oidc?.cancel(req.headers.cookie);
+        const result = await identities.signIn(await readBody(req), pathname.endsWith("/register"), req.socket.remoteAddress ?? "local");
+        res.setHeader("Set-Cookie", identities.cookie(result.token, Boolean(origin && new URL(origin).protocol === "https:")));
+        return jsonResponse(res, 200, { principal: result.principal, expiresAt: result.expiresAt });
+      }
+      if (req.method === "GET" && pathname === "/api/v1/agent/identity/providers") return jsonResponse(res, 200,
+        oidc ? await oidc.social.list(req.headers["user-agent"], url.searchParams.get("refresh") === "1") : unconfiguredSocialLogin());
+      const principal = await identities.authenticate(req.headers.cookie);
+      if (req.method === "GET" && pathname === "/api/v1/agent/identity/session") return jsonResponse(res, 200, { principal: principal ?? null });
+      if (req.method === "POST" && pathname === "/api/v1/agent/identity/oidc/start") {
+        if (!oidc) return jsonResponse(res, 503, { error: "oidc_not_configured" });
+        if (origin !== new URL(oidc.options.callbackUrl).origin) return jsonResponse(res, 403, { error: "origin_rejected" });
+        const result = await oidc.start(await readBody(req), req.headers.cookie, req.headers["x-betterme-owner"] as string | undefined, req.socket.remoteAddress ?? "local", req.headers["user-agent"]);
+        res.setHeader("Set-Cookie", result.cookie); return jsonResponse(res, 200, { url: result.url });
+      }
+      if (!principal) return jsonResponse(res, 401, { error: "identity_required" });
+      if (req.headers["x-betterme-owner"] !== principal.id) return jsonResponse(res, 409, { error: "identity_changed" });
+      if (req.method === "GET" && pathname === "/api/v1/agent/identity/account") return jsonResponse(res, 200,
+        await identities.loginMethods(req.headers.cookie, principal.id, oidc?.options.issuer));
+      if (req.method === "POST" && pathname === "/api/v1/agent/identity/sign-out") {
+        oidc?.cancel(req.headers.cookie);
+        await identities.signOut(req.headers.cookie); res.setHeader("Set-Cookie", identities.clearCookie());
+        for (const stream of ownerStreams.get(principal.id) ?? []) stream.end();
+        return jsonResponse(res, 200, { signedOut: true });
+      }
+      let owner = owners.get(principal.id);
+      if (!owner) { owner = makeOwner(principal); owners.set(principal.id, owner); }
+      const { handleChatGpt, handleUnderstanding, runManager } = owner;
+      if (req.method === "GET" && pathname === "/api/v1/agent/recovery") return jsonResponse(res, 200, { ownerId: principal.id, archives: await owner.recovery.list() });
+      const recoveryDocument = pathname.match(/^\/api\/v1\/agent\/recovery\/([a-f0-9]{32})\/documents\/([a-zA-Z0-9_-]{1,100})$/);
+      if (req.method === "GET" && recoveryDocument) return jsonResponse(res, 200, { ownerId: principal.id, document: await owner.recovery.document(recoveryDocument[1]!, recoveryDocument[2]!) });
+      const recoverySession = pathname.match(/^\/api\/v1\/agent\/recovery\/([a-f0-9]{32})\/sessions\/([a-zA-Z0-9_-]{1,100})$/);
+      if (req.method === "GET" && recoverySession) return jsonResponse(res, 200, { ownerId: principal.id, session: await owner.recovery.archivedSession(recoverySession[1]!, recoverySession[2]!) });
+      // Namespacing also includes workflow kind; equal client IDs never alias across people or graphs.
+      const thread = (kind: string, id: string) => createHash("sha256").update(JSON.stringify([principal.id, kind, id])).digest("hex");
+      if (await handleChatGpt(req, res, pathname)) return;
+      if (await handleUnderstanding(req, res, pathname)) return;
+      const recordMatch = pathname.match(/^\/api\/v1\/agent\/records\/(continuity|growth)$/);
+      if (recordMatch) {
+        const namespace = recordMatch[1] as "continuity" | "growth";
+        const key = url.searchParams.get("key") ?? "";
+        if (req.method === "GET") {
+          const record = await owner.store.read(namespace, key);
+          return jsonResponse(res, 200, { ownerId: principal.id, revision: record?.revision ?? 0, value: record?.value ?? null });
+        }
+        if (req.method === "POST") {
+          const body = z.object({ expectedRevision: z.number().int().nonnegative(), value: z.unknown() }).strict().parse(await readBody(req));
+          await owner.store.write(namespace, key, body.expectedRevision, body.value);
+          return jsonResponse(res, 200, { ownerId: principal.id, revision: body.expectedRevision + 1 });
+        }
       }
 
       // ── POST /api/v1/agent/workflows/career/start ───────────────────────
@@ -222,8 +316,8 @@ export function createAgentServer(opts: ServerOptions): http.Server {
           task: body.task,
           workspaceId: body.workspaceId,
           requestedRuntimeId: body.requestedRuntimeId,
-        }, { configurable: { thread_id: body.threadId } });
-        const state = await careerGraph.getState({ configurable: { thread_id: body.threadId } });
+        }, { configurable: { thread_id: thread("career", body.threadId) } });
+        const state = await careerGraph.getState({ configurable: { thread_id: thread("career", body.threadId) } });
         return jsonResponse(res, 200, {
           status: state.next.length > 0 ? "awaiting_approval" : "complete",
           threadId: body.threadId,
@@ -238,11 +332,11 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       // ── POST /api/v1/agent/workflows/career/resume ──────────────────────
       if (req.method === "POST" && pathname === "/api/v1/agent/workflows/career/resume") {
         const body = CareerResumeBodySchema.parse(await readBody(req));
-        const config = { configurable: { thread_id: body.threadId } };
+        const config = { configurable: { thread_id: thread("career", body.threadId) } };
         const pending = await careerGraph.getState(config);
         if (!pending.tasks.some(task => task.interrupts?.length)) return jsonResponse(res, 409, { error: "workflow_not_awaiting_approval" });
-        const result = await careerGraph.invoke(new Command({ resume: body.approval as CareerApproval }), config);
-        const state = await careerGraph.getState({ configurable: { thread_id: body.threadId } });
+        const result = await careerGraph.invoke(new Command({ resume: { ...body.approval, actorScope: principal.id } as CareerApproval }), config);
+        const state = await careerGraph.getState(config);
         return jsonResponse(res, 200, {
           status: state.next.length > 0 ? "awaiting_approval" : "complete",
           threadId: body.threadId,
@@ -257,17 +351,25 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       // ── GET /api/v1/agent/runtimes ──────────────────────────────────────
       if (req.method === "GET" && pathname === "/api/v1/agent/runtimes") {
         await ensureRuntimeScan();
-        return jsonResponse(res, 200, { runtimes: runtimeRegistry.list() });
+        return jsonResponse(res, 200, { runtimes: runtimeRegistry.list().map(runtime => opts.trustedSingleUserRuntimeExecution ? runtime : {
+          ...runtime, canRun: false, readiness: "unsupported", detail: "普通 CLI 任务未开放：请在项目理解的「本账号工具授权与状态」中独立授权，使用带强制隔离的受控阅读；不会继承电脑共享登录。",
+        }) });
       }
 
       // ── POST /api/v1/agent/runtimes/scan ─────────────────────────────────
       if (req.method === "POST" && pathname === "/api/v1/agent/runtimes/scan") {
-        const runtimes = await runtimeRegistry.scan();
-        return jsonResponse(res, 200, { runtimes });
+        const runtimes = await (opts.trustedSingleUserRuntimeExecution ? runtimeRegistry.scan() : runtimeRegistry.discoverExecutables());
+        return jsonResponse(res, 200, { runtimes: runtimes.map(runtime => opts.trustedSingleUserRuntimeExecution ? runtime : {
+          ...runtime, canRun: false, readiness: "unsupported", detail: "普通 CLI 任务未开放：请在项目理解的「本账号工具授权与状态」中独立授权，使用带强制隔离的受控阅读；不会继承电脑共享登录。",
+        }) });
       }
 
       // ── POST /api/v1/agent/runs ─────────────────────────────────────────
       if (req.method === "POST" && pathname === "/api/v1/agent/runs") {
+        // Existing CLI runs inherit an OS account and can read its files. A process directory or
+        // the current optional sandbox is NOT a multi-user read boundary. Keep the controlled
+        // understanding Broker; refuse unrestricted runs rather than exposing another owner's data.
+        if (!opts.trustedSingleUserRuntimeExecution) return jsonResponse(res, 403, { error: "runtime_identity_isolation_required" });
         await runManager.ready();
         const raw = await readBody(req);
         const body = StartRunBodySchema.parse(raw);
@@ -322,16 +424,23 @@ export function createAgentServer(opts: ServerOptions): http.Server {
           "X-Accel-Buffering": "no",
         });
         res.write("retry: 2000\n\n");
+        const streams = ownerStreams.get(principal.id) ?? new Set<http.ServerResponse>();
+        streams.add(res); ownerStreams.set(principal.id, streams);
         for (const event of runManager.events.get(runId, afterSequence)) res.write(encodeSseEvent(event));
         const unsubscribe = runManager.events.subscribe(runId, (event) => {
           if (!res.destroyed) res.write(encodeSseEvent(event));
         });
         const heartbeat = setInterval(() => {
-          if (!res.destroyed) res.write(": keepalive\n\n");
+          void identities.authenticate(req.headers.cookie).then(current => {
+            if (current?.id !== principal.id) { res.end(); return; }
+            if (!res.destroyed && !res.writableEnded) res.write(": keepalive\n\n");
+          }).catch(() => res.end());
         }, 15_000);
-        req.on("close", () => {
+        res.on("close", () => {
           clearInterval(heartbeat);
           unsubscribe();
+          streams.delete(res);
+          if (!streams.size) ownerStreams.delete(principal.id);
         });
         return;
       }
@@ -359,12 +468,12 @@ export function createAgentServer(opts: ServerOptions): http.Server {
             sessionClaims: body.sessionClaims ?? {},
           },
           {
-            configurable: { thread_id: body.threadId },
+            configurable: { thread_id: thread("jd", body.threadId) },
             // apiKey is in modelSettings only; not part of graph config
           }
         );
 
-        const threadState = await graph.getState({ configurable: { thread_id: body.threadId } });
+        const threadState = await graph.getState({ configurable: { thread_id: thread("jd", body.threadId) } });
         if (threadState.next.length > 0) {
           // Graph hit interrupt/breakpoint at confirmProposals — return proposals for review
           return jsonResponse(res, 200, {
@@ -392,7 +501,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
         const body = ResumeBodySchema.parse(raw);
         const graph = getGraph(body.modelSettings);
 
-        const config = { configurable: { thread_id: body.threadId } };
+        const config = { configurable: { thread_id: thread("jd", body.threadId) } };
         const pending = await graph.getState(config);
         if (!pending.tasks.some(task => task.interrupts?.length)) return jsonResponse(res, 409, { error: "workflow_not_awaiting_review" });
         const proposals = pending.values.proposals as Array<{ id: string }>;
@@ -429,7 +538,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       const stateMatch = pathname.match(/^\/api\/v1\/agent\/jd-match\/state\/([A-Za-z0-9._:-]+)$/);
       if (req.method === "GET" && stateMatch) {
         const threadId = stateMatch[1]!;
-        const tuple = await opts.checkpointer.getTuple({ configurable: { thread_id: threadId } });
+        const tuple = await opts.checkpointer.getTuple({ configurable: { thread_id: thread("jd", threadId) } });
         if (!tuple) {
           return jsonResponse(res, 404, { error: "thread_not_found" });
         }
@@ -466,6 +575,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
 
       return jsonResponse(res, 404, { error: "not_found" });
     } catch (err: any) {
+      if (err instanceof IdentityError) return jsonResponse(res, err.status, { error: err.code });
       if (err instanceof DeepSeekApiError) {
         return jsonResponse(res, err.status, { error: "model_provider_error", message: err.message });
       }
@@ -475,12 +585,14 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       if (err?.name === "ZodError") {
         return jsonResponse(res, 400, { error: "invalid_request", details: err.errors });
       }
-      console.error("[agent-host] error:", err);
+      // Provider/IO errors may contain prompts, paths or credentials from a private owner.
+      // Installation-wide logs must not become a second, unscoped memory store.
+      console.error("[agent-host] private request failed:", err instanceof Error ? err.name : "UnknownError");
       return jsonResponse(res, 500, { error: "internal_error" });
     }
   });
 
-  server.once("close", () => { void understanding.dispose(); chatGpt.dispose(); });
+  server.once("close", () => { for (const owner of owners.values()) { void owner.understanding.dispose(); owner.chatGpt.dispose(); } });
   server.listen(opts.port, opts.host, () => {
     console.log(`[agent-host] listening on http://${opts.host}:${opts.port}`);
   });

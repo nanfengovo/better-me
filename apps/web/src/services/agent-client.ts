@@ -1,5 +1,6 @@
 import { fetchChatCompletion, fetchChatCompletionResult, isOfficialDeepSeek, type LlmConfig, type ChatMessageContent } from "@better-me/core";
 import { readRuntimeConnection } from "../lib/runtime-connection";
+import { agentOrigin, ownedFetch as fetch, currentPrincipal, IdentityBoundaryError, captureIdentity } from "../lib/identity";
 import type { ResumeEditContext, ResumeProposalTarget } from "@better-me/agent-contracts";
 import { findResumeContextSource } from "../lib/resume-agent-context";
 
@@ -114,7 +115,7 @@ export interface JdMatchResumeResponse {
   errors: string[];
 }
 
-const DEFAULT_AGENT_HOST_URL = readRuntimeConnection()?.origin ?? "http://127.0.0.1:5179";
+const DEFAULT_AGENT_HOST_URL = agentOrigin();
 const AGENT_TOKEN = readRuntimeConnection()?.agentToken ?? "better-me-agent-token";
 const MAX_CHAT_CONTINUATIONS = 2;
 const MIN_CONTINUATION_OVERLAP = 8;
@@ -303,6 +304,7 @@ export async function streamLocalAgentRun(params: {
   baseUrl?: string;
   onEvent: (event: LocalAgentEvent) => void;
 }): Promise<void> {
+  const assertIdentity = captureIdentity();
   const query = new URLSearchParams();
   if (typeof params.after === "number" && params.after >= 0) query.set("after", String(params.after));
   const suffix = query.toString() ? `?${query.toString()}` : "";
@@ -318,15 +320,24 @@ export async function streamLocalAgentRun(params: {
   try {
     for (;;) {
       const chunk = await reader.read();
+      assertIdentity();
       if (chunk.done) break;
       buffer += decoder.decode(chunk.value, { stream: true });
       const frames = buffer.split(/\r?\n\r?\n/);
       buffer = frames.pop() ?? "";
-      for (const frame of frames) emitSseFrame(frame, params.onEvent);
+      for (const frame of frames) {
+        // A callback may synchronously lock or switch identity within this batch.
+        assertIdentity();
+        emitSseFrame(frame, params.onEvent);
+        assertIdentity();
+      }
     }
     buffer += decoder.decode();
+    assertIdentity();
     if (buffer.trim()) emitSseFrame(buffer, params.onEvent);
+    assertIdentity();
   } finally {
+    void reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
 }
@@ -448,7 +459,9 @@ export async function startJdMatch(params: {
         };
       }
     }
-  } catch {
+    if (currentPrincipal()) throw new Error(`Agent Host 未接受本轮请求（HTTP ${res.status}），未切换到浏览器付费 API。`);
+  } catch (error) {
+    if (currentPrincipal() || error instanceof IdentityBoundaryError) throw error;
     // If agent-host is unreachable or error, seamlessly fall back to browser direct LLM
   }
 
@@ -493,7 +506,9 @@ export async function resumeJdMatch(params: {
     if (res.ok) {
       return res.json();
     }
-  } catch {
+    if (currentPrincipal()) throw new Error(`Agent Host 未确认本轮选择（HTTP ${res.status}），未在浏览器绕过授权。`);
+  } catch (error) {
+    if (currentPrincipal() || error instanceof IdentityBoundaryError) throw error;
     // Fallback in-browser resume resolution
   }
 
@@ -573,6 +588,7 @@ export async function sendAgentChat(params: {
       params.signal?.throwIfAborted();
       const reply = normaliseChatReply(data.reply, createResponseMeta(params.llmConfig, "agent-host", "ready"));
       if (reply) return bindResumeProposalSources(reply, params.context?.resumeEditContext);
+      if (currentPrincipal()) throw new Error("Agent Host 返回了无法核对的回复，未切换到浏览器付费 API。");
       fallbackWarning = "Agent Host returned an invalid reply";
     } else {
       if (isOfficialDeepSeek(params.llmConfig)) {
@@ -582,10 +598,12 @@ export async function sendAgentChat(params: {
             meta: createResponseMeta(params.llmConfig, "agent-host", "error", "上游模型请求失败，未自动重复生成；请处理后重试。"), createdAt: new Date().toISOString() };
         }
       }
+      if (currentPrincipal()) throw new Error(`Agent Host 未接受本轮请求（HTTP ${res.status}），未切换到浏览器付费 API。`);
       fallbackWarning = `Agent Host returned HTTP ${res.status}`;
     }
   } catch (error) {
     params.signal?.throwIfAborted();
+    if (currentPrincipal() || error instanceof IdentityBoundaryError) throw error;
     fallbackWarning = describeAgentChatHostFailure(error);
   }
 

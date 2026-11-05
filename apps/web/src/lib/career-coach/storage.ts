@@ -1,5 +1,7 @@
 import { CoachStateSchema, type CoachState } from "./types";
 import { createCoachState } from "./state";
+import { createOwnedRecords, OwnedRecordConflict } from "../../services/owned-records";
+import { currentPrincipal } from "../identity";
 
 export class CoachStorageConflict extends Error {
   constructor() { super("另一窗口已修改成长记录。本页内容未覆盖对方记录，请先下载备份，再读取已保存版本。"); this.name = "CoachStorageConflict"; }
@@ -21,7 +23,7 @@ function assertRevision(current: CoachState | undefined, expected: number) {
   if ((current?.revision ?? 0) !== expected) throw new CoachStorageConflict();
 }
 
-/** Test/in-memory adapter. Production uses the independent IndexedDB store below. */
+/** Test/in-memory adapter. Signed-in production records are stored by the owner-authorized Host. */
 export function createMemoryCoachRepository(): CoachRepository {
   const entries = new Map<string, CoachState>();
   return {
@@ -92,4 +94,29 @@ export class IndexedDbCoachRepository implements CoachRepository {
     return this.write(key, expectedRevision, { ...createCoachState(key), revision: expectedRevision + 1 });
   }
 }
-export const defaultCoachRepository: CoachRepository = new IndexedDbCoachRepository();
+const legacyRepository = new IndexedDbCoachRepository();
+let owned: { owner: string; repository: CoachRepository } | undefined;
+export function captureCoachRepository(): CoachRepository {
+  const owner = currentPrincipal()?.id;
+  if (!owner) return legacyRepository; // Standalone/isolated integrations; main.tsx requires login first.
+  if (owned?.owner === owner) return owned.repository;
+  const records = createOwnedRecords("growth");
+  const save = async (key: string, expected: number, value: CoachState) => {
+    try { await records.save(key, expected, value); }
+    catch (error) { if (error instanceof OwnedRecordConflict) throw new CoachStorageConflict(); throw error; }
+  };
+  const repository: CoachRepository = {
+    async load(key) { return validate(await records.load(key), key); },
+    async save(state, expected) {
+      const next = CoachStateSchema.parse(state);
+      if (next.revision !== expected + 1) throw new CoachStorageConflict();
+      await save(next.workspaceKey, expected, next);
+    },
+    async clear(key, expected) { await save(key, expected, { ...createCoachState(key), revision: expected + 1 }); },
+  };
+  owned = { owner, repository }; return repository;
+}
+export const defaultCoachRepository: CoachRepository = {
+  load: key => captureCoachRepository().load(key), save: (state, revision) => captureCoachRepository().save(state, revision),
+  clear: (key, revision) => captureCoachRepository().clear(key, revision),
+};

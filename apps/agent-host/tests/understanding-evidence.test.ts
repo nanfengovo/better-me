@@ -72,3 +72,25 @@ test("sensitive content, binaries, oversized text, hard links and ancestor alias
     assert.equal((await broker.execute(grant, { operation: "search", query: "fixture" })).evidence.length, 0);
   } finally { await fs.rm(fixture, { recursive: true, force: true }); }
 });
+
+test("private owner stores cannot be read through direct, nested, cached or exact-file grants", async () => {
+  const fixture = await fs.mkdtemp(path.join(os.tmpdir(), "understanding-private-boundary-"));
+  try {
+    const project = path.join(fixture, "project"), privateRoot = path.join(project, "accounts-v1");
+    await fs.mkdir(privateRoot, { recursive: true });
+    await fs.writeFile(path.join(project, "flow.ts"), "export const fixtureFlow = 1;");
+    const record = path.join(privateRoot, "record.json"); await fs.writeFile(record, '{"private":"A-secret-fixture"}');
+    const oldBroker = new EvidenceBroker(), cached = await oldBroker.grant(privateRoot), cachedFile = await oldBroker.grant(record);
+    const broker = new EvidenceBroker({ forbiddenRoots: [privateRoot] });
+    await assert.rejects(broker.grant(privateRoot), /不能作为项目源码/);
+    await assert.rejects(broker.grant(record), /不能作为项目源码/);
+    await assert.rejects(broker.execute(cached, { operation: "list" }), /不能作为项目源码/);
+    await assert.rejects(broker.execute(cachedFile, { operation: "list" }), /不能作为项目源码/);
+    await assert.rejects(broker.execute(cachedFile, { operation: "read" }), /不能作为项目源码/);
+    const ancestor = await broker.grant(project);
+    assert.deepEqual((await broker.execute(ancestor, { operation: "list" })).entries?.map(entry => entry.path), ["flow.ts"]);
+    assert.equal((await broker.execute(ancestor, { operation: "search", query: "A-secret-fixture" })).evidence.length, 0);
+    await assert.rejects(broker.execute(ancestor, { operation: "read", path: "accounts-v1/record.json" }), /不能作为项目源码/);
+    await assert.rejects(broker.directoryVersion(cached), /不能作为项目源码/);
+  } finally { await fs.rm(fixture, { recursive: true, force: true }); }
+});

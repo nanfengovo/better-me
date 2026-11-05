@@ -6,6 +6,10 @@ import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
 import { buildModel, ModelSettingsSchema, DeepSeekApiError } from "../src/model.js";
 import { ChatRequestBodySchema } from "../src/chat/types.js";
 import { createAgentServer } from "../src/server.js";
+import { mkdtemp, rm } from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
+import { registerTestIdentity } from "./fixtures/identity.js";
 
 const settings = { baseUrl: "https://api.deepseek.com", model: "deepseek-flash", apiKey: "synthetic-only", thinkingMode: "enabled" as const, reasoningEffort: "max" as const, maxTokens: 32768 };
 
@@ -98,13 +102,15 @@ test("authenticated Agent HTTP chat honors DeepSeek settings and returns safe pr
       ? Response.json({ id: "synthetic", object: "chat.completion", created: 1, model: settings.model, choices: [{ index: 0, message: { role: "assistant", content: "Synthetic HTTP response", reasoning_content: "never displayed" }, finish_reason: "stop" }] })
       : Response.json({ error: { message: settings.apiKey } }, { status: 402 });
   });
-  const server = createAgentServer({ host: "127.0.0.1", port: 0, authToken: "synthetic-host-token", allowedOrigins: ["http://127.0.0.1:5173"], checkpointer: new MemorySaver() });
+  const directory = await mkdtemp(path.join(os.tmpdir(), "betterme-deepseek-http-"));
+  const server = createAgentServer({ host: "127.0.0.1", port: 0, authToken: "synthetic-host-token", allowedOrigins: ["http://127.0.0.1:5173"], checkpointer: new MemorySaver(), runsDirectory: directory });
   await once(server, "listening");
   try {
     const address = server.address();
     assert.ok(address && typeof address !== "string");
+    const identity = await registerTestIdentity(`http://127.0.0.1:${address.port}`, "synthetic-host-token", "fixture-user", "http://127.0.0.1:5173");
     const send = () => originalFetch(`http://127.0.0.1:${address.port}/api/v1/agent/chat`, {
-      method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer synthetic-host-token", Origin: "http://127.0.0.1:5173" },
+      method: "POST", headers: { ...identity.headers, "Content-Type": "application/json", Authorization: "Bearer synthetic-host-token", Origin: "http://127.0.0.1:5173" },
       body: JSON.stringify({ modelSettings: settings, messages: [{ id: "synthetic", role: "user", content: "Synthetic HTTP request" }] }),
     });
     const first = await send();
@@ -120,5 +126,5 @@ test("authenticated Agent HTTP chat honors DeepSeek settings and returns safe pr
     assert.match(error.message, /余额不足/);
     assert.ok(!JSON.stringify(error).includes(settings.apiKey));
     assert.equal(calls, 2);
-  } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+  } finally { await new Promise<void>(resolve => server.close(() => resolve())); await rm(directory, { recursive: true, force: true }); }
 });

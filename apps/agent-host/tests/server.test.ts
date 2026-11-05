@@ -6,14 +6,18 @@ import os from "node:os";
 import path from "node:path";
 import { MemorySaver } from "@langchain/langgraph";
 import { createAgentServer } from "../src/server.js";
+import { registerTestIdentity } from "./fixtures/identity.js";
 
 describe("agent-host HTTP Server", () => {
   let server: http.Server;
+  let directory: string;
+  let identityHeaders: Record<string, string>;
   const port = 5199;
   const token = "test-agent-secret-token";
   const baseUrl = `http://127.0.0.1:${port}`;
 
   before(async () => {
+    directory = await fs.mkdtemp(path.join(os.tmpdir(), "betterme-http-identity-"));
     const checkpointer = new MemorySaver() as any;
     server = createAgentServer({
       port,
@@ -21,12 +25,15 @@ describe("agent-host HTTP Server", () => {
       allowedOrigins: ["http://127.0.0.1:5173"],
       authToken: token,
       checkpointer,
+      runsDirectory: directory,
     });
     await new Promise((resolve) => server.once("listening", resolve));
+    identityHeaders = (await registerTestIdentity(baseUrl, token)).headers;
   });
 
   after(async () => {
     await new Promise((resolve) => server.close(resolve));
+    await fs.rm(directory, { recursive: true, force: true });
   });
 
   it("rejects unauthorized requests with 401", async () => {
@@ -46,10 +53,27 @@ describe("agent-host HTTP Server", () => {
     assert.deepEqual(await res.json(), { status: "ok", service: "agent-host" });
   });
 
+  it("allows the configured origin to preflight account-scoped routing updates", async () => {
+    const response = await fetch(`${baseUrl}/api/v1/agent/routing`, {
+      method: "OPTIONS",
+      headers: { Origin: "http://127.0.0.1:5173", "Access-Control-Request-Method": "PUT",
+        "Access-Control-Request-Headers": "Content-Type, Authorization, X-BetterMe-Owner" },
+    });
+    assert.equal(response.status, 204);
+    assert.equal(response.headers.get("access-control-allow-origin"), "http://127.0.0.1:5173");
+    assert.ok(response.headers.get("access-control-allow-methods")?.split(/,\s*/).includes("PUT"));
+    assert.equal(response.headers.get("access-control-allow-credentials"), "true");
+    const rejected = await fetch(`${baseUrl}/api/v1/agent/routing`, {
+      method: "OPTIONS", headers: { Origin: "https://untrusted.invalid", "Access-Control-Request-Method": "PUT" },
+    });
+    assert.equal(rejected.status, 403);
+    assert.equal(rejected.headers.get("access-control-allow-origin"), null);
+  });
+
   it("rejects request bodies larger than the bounded JSON limit", async () => {
     const res = await fetch(`${baseUrl}/api/v1/agent/chat`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { ...identityHeaders, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: "x".repeat(16 * 1024 * 1024 + 1),
     });
     assert.equal(res.status, 413);
@@ -58,7 +82,7 @@ describe("agent-host HTTP Server", () => {
 
   it("returns 404 when querying unknown thread state", async () => {
     const res = await fetch(`${baseUrl}/api/v1/agent/jd-match/state/unknown-thread-404`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { ...identityHeaders, Authorization: `Bearer ${token}` },
     });
     assert.equal(res.status, 404);
     const body = await res.json();
@@ -67,7 +91,7 @@ describe("agent-host HTTP Server", () => {
 
   it("exposes a stable local runtime inventory", async () => {
     const res = await fetch(`${baseUrl}/api/v1/agent/runtimes`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { ...identityHeaders, Authorization: `Bearer ${token}` },
     });
     assert.equal(res.status, 200);
     const body = await res.json();
@@ -86,7 +110,7 @@ describe("agent-host HTTP Server", () => {
   it("runs the default career workflow through its approval gate", async () => {
     const start = await fetch(`${baseUrl}/api/v1/agent/workflows/career/start`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { ...identityHeaders, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ threadId: "career-http-test", task: "核实上海岗位与公司地点" }),
     });
     assert.equal(start.status, 200);
@@ -97,7 +121,7 @@ describe("agent-host HTTP Server", () => {
 
     const resume = await fetch(`${baseUrl}/api/v1/agent/workflows/career/resume`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { ...identityHeaders, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ threadId: "career-http-test", approval: { status: "approved", actorScope: "user", idempotencyKey: "career-http-12345678" } }),
     });
     assert.equal(resume.status, 200);
@@ -106,7 +130,7 @@ describe("agent-host HTTP Server", () => {
     assert.equal(completed.stepLog.filter((step: string) => step.startsWith("intake:")).length, 1);
     assert.deepEqual(completed.artifacts.map((item: { id: string }) => item.id), initial.artifacts.map((item: { id: string }) => item.id));
     const duplicate = await fetch(`${baseUrl}/api/v1/agent/workflows/career/resume`, {
-      method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      method: "POST", headers: { ...identityHeaders, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ threadId: "career-http-test", approval: { status: "approved", actorScope: "user", idempotencyKey: "career-http-12345678" } }),
     });
     assert.equal(duplicate.status, 409, "a completed approval cannot restart the graph");
@@ -116,6 +140,7 @@ describe("agent-host HTTP Server", () => {
 describe("agent-host runtime HTTP API", () => {
   let server: http.Server;
   let runsDirectory: string;
+  let identityHeaders: Record<string, string>;
   const port = 5200;
   const token = "test-runtime-token";
   const baseUrl = `http://127.0.0.1:${port}`;
@@ -129,6 +154,7 @@ describe("agent-host runtime HTTP API", () => {
       authToken: token,
       checkpointer: new MemorySaver() as any,
       runsDirectory,
+      trustedSingleUserRuntimeExecution: true,
       runtimeDefinitions: [{
         id: "pi",
         name: "Pi test runtime",
@@ -141,6 +167,7 @@ describe("agent-host runtime HTTP API", () => {
       }],
     });
     await new Promise((resolve) => server.once("listening", resolve));
+    identityHeaders = (await registerTestIdentity(baseUrl, token)).headers;
   });
 
   after(async () => {
@@ -151,7 +178,7 @@ describe("agent-host runtime HTTP API", () => {
   it("starts a local run and supports SSE replay", async () => {
     const start = await fetch(`${baseUrl}/api/v1/agent/runs`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { ...identityHeaders, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ runtimeId: "pi", workflow: "http-test", prompt: "hello" }),
     });
     assert.equal(start.status, 202);
@@ -160,7 +187,7 @@ describe("agent-host runtime HTTP API", () => {
 
     let finalStatus: { run: { status: string }; output?: string; rawOutput?: string } | undefined;
     for (let i = 0; i < 50; i++) {
-      const status = await fetch(`${baseUrl}/api/v1/agent/runs/${runId}`, { headers: { Authorization: `Bearer ${token}` } });
+      const status = await fetch(`${baseUrl}/api/v1/agent/runs/${runId}`, { headers: { ...identityHeaders, Authorization: `Bearer ${token}` } });
       finalStatus = await status.json();
       if (finalStatus.run.status !== "running") break;
       await new Promise((resolve) => setTimeout(resolve, 20));
@@ -171,7 +198,7 @@ describe("agent-host runtime HTTP API", () => {
 
     const controller = new AbortController();
     const events = await fetch(`${baseUrl}/api/v1/agent/runs/${runId}/events?after=0`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { ...identityHeaders, Authorization: `Bearer ${token}` },
       signal: controller.signal,
     });
     assert.equal(events.status, 200);
@@ -186,7 +213,7 @@ describe("agent-host runtime HTTP API", () => {
     assert.match(text, /run\.started/);
     assert.match(text, /run\.completed/);
 
-    const history = await fetch(`${baseUrl}/api/v1/agent/runs?limit=10`, { headers: { Authorization: `Bearer ${token}` } });
+    const history = await fetch(`${baseUrl}/api/v1/agent/runs?limit=10`, { headers: { ...identityHeaders, Authorization: `Bearer ${token}` } });
     assert.equal(history.status, 200);
     const historyBody = await history.json();
     assert.ok(historyBody.runs.some((item: { id: string }) => item.id === runId));

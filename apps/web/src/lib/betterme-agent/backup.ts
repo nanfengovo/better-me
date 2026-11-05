@@ -24,6 +24,7 @@ export function parseAgentBackup(text: string): AgentState {
   return state;
 }
 export function mergeAgentBackup(current: AgentState, source: AgentState) {
+  if (current.ownerId && source.ownerId && current.ownerId !== source.ownerId) throw new Error("备份属于另一个 BetterMe 账号，未导入。请登录原账号恢复，不能跨账号认领记忆。");
   const next = structuredClone(current);
   const prefix = `backup:${encodeURIComponent(source.workspaceKey)}:`;
   const id = (key: string) => key.startsWith("backup:") ? key : `${prefix}${key}`;

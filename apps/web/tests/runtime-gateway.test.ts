@@ -36,6 +36,11 @@ test("Docker gateway serves real static assets, scoped connections and truthful 
     const reply = await fetch(url + "/api/v1/agent/health", { headers: { Authorization: "Bearer " + token } });
     assert.equal(reply.status, 200); assert.equal((await reply.json()).authorization, "Bearer " + token);
     assert.deepEqual(seen, ["/api/v1/agent/health"]);
+    const callback = await fetch(url + "/api/v1/agent/identity/oidc/callback?code=synthetic&state=synthetic", { headers: { "Sec-Fetch-Site": "cross-site", Cookie: "betterme_oidc_browser=synthetic" } });
+    assert.equal(callback.status, 200, "only the exact GET OIDC callback reaches its server-side state validator without a transport header");
+    for (const path of ["/api/v1/agent/identity/oidc/callback/", "/api/v1/agent/identity/session", "/api/v1/agent/records/continuity"]) {
+      assert.equal((await fetch(url + path, { headers: { "Sec-Fetch-Site": "cross-site" } })).status, 403);
+    }
     assert.equal((await fetch(url + "/api/v1/jobs/search", { method: "POST", headers: { Authorization: "Bearer " + "j".repeat(43), "Content-Type": "application/json" }, body: "{}" })).status, 403, "writes require an exact browser Origin");
     assert.equal((await fetch(url + "/api/v1/jobs/search", { method: "POST", headers: { Origin: url, Authorization: "Bearer " + "j".repeat(43), "Content-Type": "application/json" }, body: "{}" })).status, 200);
     const bootstrap = await (await fetch(url + "/__better-me/dev/local-job-index")).json(); assert.equal(bootstrap.endpoint, url);

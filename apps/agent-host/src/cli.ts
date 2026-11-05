@@ -16,6 +16,8 @@
 
 import { resolveCheckpointPath, createCheckpointer } from "./checkpointer.js";
 import { createAgentServer } from "./server.js";
+import path from "node:path";
+import { loadOidcOptions } from "./identity/oidc.js";
 
 function parseArgs(argv: string[]): {
   port: number;
@@ -59,6 +61,7 @@ const { port, host, origins, checkpointDir, runsDirectory, sandboxMode, token } 
 const cpPath = resolveCheckpointPath(checkpointDir);
 console.log(`[agent-host] checkpoint: ${cpPath}`);
 const checkpointer = createCheckpointer(cpPath);
+const oidc = await loadOidcOptions(process.env["BETTERME_OIDC_CONFIG"] ?? path.join(path.dirname(cpPath), "oidc.json"));
 
 createAgentServer({
   port,
@@ -68,4 +71,5 @@ createAgentServer({
   checkpointer,
   runsDirectory,
   sandboxMode,
+  oidc,
 });

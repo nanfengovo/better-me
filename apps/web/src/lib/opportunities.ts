@@ -1,3 +1,5 @@
+import { privateStorage as localStorage } from "./private-storage";
+
 import { createDeliveryPlan, parseDeliveryPlans, transitionDelivery, type DeliveryCommand, type DeliveryInput, type DeliveryPlan } from "./domestic-delivery";
 
 /** Local opportunity records. Importing/opening a link never submits an application. */

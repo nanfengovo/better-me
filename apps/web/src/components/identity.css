@@ -1,0 +1,54 @@
+.identity-screen { min-height:100dvh; max-height:100dvh; overflow:auto; display:grid; place-items:safe center; padding:16px 24px; background:var(--ui-canvas); color:var(--ui-text); }
+.identity-card { width:min(100%, 480px); padding:22px 26px; border:1px solid var(--ui-border); border-radius:20px; background:var(--ui-surface); box-shadow:var(--ui-shadow); animation:identity-card-enter 180ms cubic-bezier(.23,1,.32,1) both; }
+.identity-mark { display:flex; align-items:center; gap:9px; font-weight:700; font-size:15px; }
+.identity-card h1 { margin:14px 0 6px; font-size:24px; line-height:1.25; }
+.identity-card p { margin:0; font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+.identity-card form { display:grid; gap:11px; margin:14px 0; }
+.identity-card label { display:grid; gap:5px; font-size:13px; font-weight:600; }
+.identity-card input { width:100%; min-height:38px; padding:8px 11px; border:1px solid var(--ui-border); border-radius:8px; background:var(--ui-input); color:inherit; font:inherit; font-size:13px; transition:border-color 150ms ease, box-shadow 150ms ease; }
+.identity-card input:focus-visible, .identity-card button:focus-visible { outline:2px solid var(--ui-focus); outline-offset:3px; }
+.identity-card .studio-button { justify-content:center; min-height:38px; }
+.identity-card .studio-button.primary { color:var(--ui-on-action); background:var(--ui-action); border-color:var(--ui-action); }
+.identity-card .studio-button.primary:hover:not(:disabled) { color:var(--ui-on-action); background:var(--ui-action-hover); }
+.identity-card .studio-button.subtle { color:var(--ui-text-secondary); background:transparent; min-height:32px; }
+.identity-card .identity-alert, .identity-menu [role=alert] { border-left:3px solid #b26824; padding:8px 12px; background:#b2682410; margin:0; }
+.identity-card details { padding-top:12px; border-top:1px solid var(--ui-border); }
+.identity-card details p { margin-top:8px; font-size:12px; color:var(--ui-text-secondary); }
+.identity-card summary { display:flex; align-items:center; gap:8px; cursor:pointer; font-size:12px; color:var(--ui-text-secondary); }
+.identity-menu { display:grid; gap:8px; padding:14px 0 0; margin-top:8px; border-top:1px solid var(--ui-border); font-size:13px; }
+.identity-menu small { opacity:.75; font-size:12px; }
+.identity-menu button { justify-content:flex-start; }
+.identity-divider { display:flex; align-items:center; gap:12px; margin:12px 0 0; color:var(--ui-text-secondary); font-size:12px; }
+.identity-divider::before, .identity-divider::after { content:""; flex:1; height:1px; background:var(--ui-border); }
+.social-login { margin-top:14px; }
+.social-login h2 { font-size:14px; font-weight:650; margin:0 0 8px; }
+.social-login-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; }
+.social-login-button { appearance:none; min-height:42px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 11px; border:1px solid var(--ui-border); border-radius:10px; background:var(--ui-surface); color:var(--ui-text); font:inherit; font-size:13px; font-weight:550; cursor:pointer; text-align:left; transition:background-color 150ms ease, border-color 150ms ease, transform 140ms cubic-bezier(.23,1,.32,1); }
+.social-login-button > svg:first-child { width:18px; height:18px; flex-shrink:0; fill:currentColor; }
+.social-login-button small { flex-basis:100%; padding-left:26px; font-size:11px; font-weight:400; color:var(--ui-text-secondary); }
+.social-login-button:hover:not(:disabled) { background:var(--ui-input); border-color:var(--ui-focus); }
+.social-login-button:active:not(:disabled) { transform:scale(.97); }
+.social-login-button:disabled { cursor:not-allowed; color:var(--ui-text-secondary); background:var(--ui-canvas); }
+.social-login-button:focus-visible, .social-login-refresh:focus-visible, .social-account summary:focus-visible { outline:2px solid var(--ui-focus); outline-offset:3px; }
+.social-login-arrow { margin-left:auto; flex-shrink:0; transition:transform 150ms cubic-bezier(.23,1,.32,1); }
+@media (hover:hover) and (pointer:fine) { .social-login-button:hover:not(:disabled) .social-login-arrow { transform:translate(2px, -2px); } }
+.identity-card .social-login-status, .social-login-status { font-size:12px; line-height:1.5; color:var(--ui-text-secondary); margin:6px 0; }
+.social-login-refresh { display:inline-flex; align-items:center; gap:5px; min-height:28px; padding:2px 0; border:0; background:transparent; color:var(--ui-text-secondary); font:inherit; font-size:12px; cursor:pointer; }
+.social-login-refresh:disabled { cursor:default; opacity:.6; }
+.identity-card .social-login-other { border:0; padding:8px 0 0; }
+.social-login-other .studio-button { margin-top:8px; width:100%; }
+.social-account { min-width:0; font-size:13px; }
+.social-account summary { display:flex; align-items:center; gap:6px; cursor:pointer; padding:4px 0; }
+.social-account > .studio-button { width:100%; margin:6px 0; }
+.social-login-methods { display:grid; gap:6px; margin:12px 0; font-size:12px; }
+.social-login-methods > div { display:flex; justify-content:space-between; gap:12px; }
+.social-login-methods dt { color:var(--ui-text-secondary); }
+.social-login-methods dd { margin:0; }
+.social-link-form { display:grid; gap:12px; margin:12px 0; }
+.social-link-form p { margin:0; font-size:12px; line-height:1.65; }
+.social-link-form label { display:grid; gap:6px; }
+.social-link-form input { min-width:0; width:100%; min-height:40px; border:1px solid var(--ui-border); border-radius:8px; padding:9px 10px; color:var(--ui-text); background:var(--ui-input); font:inherit; }
+@keyframes identity-card-enter { from { opacity:0; transform:translateY(6px) scale(.985); } to { opacity:1; transform:translateY(0) scale(1); } }
+@media (max-height:820px) { .identity-screen { padding:10px 16px; } .identity-card { padding:18px 22px; } .identity-card h1 { margin:10px 0 4px; font-size:21px; } .social-login { margin-top:10px; } .identity-card form { gap:9px; margin:10px 0; } }
+@media (prefers-reduced-motion:reduce) { .identity-card, .identity-card input, .social-login-button, .social-login-arrow { animation:none; transition:none; } .social-login-button:active:not(:disabled), .social-login-button:hover:not(:disabled) .social-login-arrow { transform:none; } }
+@media (max-width:520px) { .identity-screen { padding:16px; } .identity-card { padding:20px 18px; } .social-login-grid { grid-template-columns:1fr; } }

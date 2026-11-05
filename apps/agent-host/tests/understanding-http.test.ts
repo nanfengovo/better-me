@@ -8,6 +8,7 @@ import { MemorySaver } from "@langchain/langgraph";
 import type { RuntimeAgentDef, UnderstandingSession } from "@better-me/agent-contracts";
 import { createAgentServer } from "../src/server.js";
 import { RuntimeRegistry } from "../src/runtime/registry.js";
+import { registerTestIdentity } from "./fixtures/identity.js";
 
 const summary = {
   summary: "虚构项目负责把外部运单转为内部搬运任务。", terms: [{ term: "RCS", meaning: "本项目的任务编排层，非车端运动控制器。", evidenceIds: [] }],
@@ -27,7 +28,8 @@ test("understanding HTTP authenticates, keeps consensus separate and guards exac
   await once(server, "listening");
   const address = server.address(); assert.ok(address && typeof address !== "string");
   const base = `http://127.0.0.1:${address.port}/api/v1/agent/understanding`;
-  const request = (url: string, method = "GET", body?: unknown) => fetch(base + url, { method, headers: { Authorization: "Bearer isolated-test-token", "Content-Type": "application/json", Origin: "http://fixture.invalid" }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
+  const identity = await registerTestIdentity(`http://127.0.0.1:${address.port}`, "isolated-test-token", "fixture-user", "http://fixture.invalid");
+  const request = (url: string, method = "GET", body?: unknown) => fetch(base + url, { method, headers: { ...identity.headers, Authorization: "Bearer isolated-test-token", "Content-Type": "application/json", Origin: "http://fixture.invalid" }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
   const settled = async (id: string): Promise<UnderstandingSession> => {
     for (let i = 0; i < 100; i++) {
       const state: UnderstandingSession = await (await request(`/sessions/${id}`)).json();
@@ -63,7 +65,8 @@ test("understanding HTTP authenticates, keeps consensus separate and guards exac
     assert.equal(granted.status, 200); session = await granted.json(); assert.equal(session.confirmation, undefined);
     const revoked = await request(`/sessions/${session.id}/grants/${session.grants[0]!.id}`, "DELETE");
     assert.equal(revoked.status, 200);
-    const persisted = await Promise.all((await readdir(path.join(dir, "sessions"))).filter(name => name.endsWith(".json")).map(name => readFile(path.join(dir, "sessions", name), "utf8")));
+    const ownedDirectory = path.join(dir, "runs", "accounts-v1", "owners", identity.principal.id, "understanding");
+    const persisted = await Promise.all((await readdir(ownedDirectory)).filter(name => name.endsWith(".json")).map(name => readFile(path.join(ownedDirectory, name), "utf8")));
     assert.ok(persisted.length); assert.ok(persisted.every(text => !text.includes("NEVER-PERSIST-TEST-KEY")));
     assert.equal((await request("/sessions/../outside")).status, 404);
   } finally { await new Promise<void>(resolve => server.close(() => resolve())); await rm(dir, { recursive: true, force: true }); }
@@ -85,14 +88,17 @@ test("understanding HTTP discovers unsupported runtimes without legacy probes an
   });
   const server = createAgentServer({ port: 0, host: "127.0.0.1", authToken: "isolated-discovery-token", allowedOrigins: ["http://fixture.invalid"],
     checkpointer: new MemorySaver() as never, runsDirectory: path.join(dir, "runs"), understandingDirectory: path.join(dir, "sessions"),
-    runtimeDefinitions: [definition],
+    // This hermetic single-owner fixture separately exercises the native compatibility gate.
+    // Default multi-account rejection is covered by identity-http.test.ts.
+    runtimeDefinitions: [definition], trustedSingleUserRuntimeExecution: true,
   });
   try {
     await once(server, "listening");
     const address = server.address(); assert.ok(address && typeof address !== "string");
     const base = `http://127.0.0.1:${address.port}/api/v1/agent/understanding`;
+    const identity = await registerTestIdentity(`http://127.0.0.1:${address.port}`, "isolated-discovery-token", "fixture-user", "http://fixture.invalid");
     const request = (url: string, method = "GET", body?: unknown) => fetch(base + url, { method,
-      headers: { Authorization: "Bearer isolated-discovery-token", "Content-Type": "application/json", Origin: "http://fixture.invalid" },
+      headers: { ...identity.headers, Authorization: "Bearer isolated-discovery-token", "Content-Type": "application/json", Origin: "http://fixture.invalid" },
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
 

@@ -61,11 +61,13 @@ export class ProjectUnderstandingService {
   private readonly broker: EvidenceBroker;
   private readonly turnTimeoutMs: number;
   private readonly maxToolCalls: number;
+  private readonly recovered?: (id: string) => Promise<unknown | undefined>;
   private readonly running = new Map<string, Running>();
   private closed = false;
 
-  constructor(options: { storageDir: string; broker?: EvidenceBroker; turnTimeoutMs?: number; maxToolCalls?: number }) {
+  constructor(options: { storageDir: string; broker?: EvidenceBroker; turnTimeoutMs?: number; maxToolCalls?: number; recovered?: (id: string) => Promise<unknown | undefined> }) {
     this.storageDir = path.resolve(options.storageDir);
+    this.recovered = options.recovered;
     this.broker = options.broker ?? new EvidenceBroker();
     // Includes broker calls plus model synthesis. Real local small-model
     // validation exceeded two minutes; the UI remains cancellable throughout.
@@ -157,7 +159,7 @@ export class ProjectUnderstandingService {
     });
   }
 
-  async turn(id: string, input: UnderstandingTurnInput, reasoner: UnderstandingReasoner): Promise<UnderstandingSession> {
+  async turn(id: string, input: UnderstandingTurnInput, reasoner: UnderstandingReasoner, onSettled?: () => void): Promise<UnderstandingSession> {
     this.assertOpen();
     const parsed = UnderstandingTurnSchema.safeParse(input);
     if (!parsed.success) throw invalid("开始本轮需要明确同意发送、提交标识和当前版本。");
@@ -197,7 +199,8 @@ export class ProjectUnderstandingService {
       catch (error) { this.abortOwned(id, "storage_error"); throw error; }
       return clone(stored.session);
     });
-    if (launch) void this.run(id, launch, reasoner);
+    if (launch) void this.run(id, launch, reasoner).finally(onSettled);
+    else onSettled?.();
     return session;
   }
 
@@ -524,7 +527,12 @@ export class ProjectUnderstandingService {
   private async load(id: string): Promise<Stored> {
     let text: string;
     try { text = await fs.readFile(this.filename(id), "utf8"); }
-    catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") throw new UnderstandingError("session_not_found", "未找到该项目理解会话。", 404); throw new UnderstandingError("storage_unavailable", "无法读取本地私有项目理解存储。", 503); }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw new UnderstandingError("storage_unavailable", "无法读取本地私有项目理解存储。", 503);
+      const recovered = await this.recovered?.(id);
+      if (recovered === undefined) throw new UnderstandingError("session_not_found", "未找到该项目理解会话。", 404);
+      text = JSON.stringify(recovered);
+    }
     let stored: Stored;
     try {
       const value = JSON.parse(text) as Stored;
