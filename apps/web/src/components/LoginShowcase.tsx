@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { LoginGlobe } from "./LoginGlobe";
+import { useUiPreferences } from "../lib/ui-preferences";
 import { ArrowUpRight, BriefcaseBusiness, Check, FileText, Layers3, Pause, Play, Sparkles } from "lucide-react";
 
 const scenes = [
@@ -8,19 +10,25 @@ const scenes = [
 ];
 
 export function LoginShowcase() {
+  const { t, locale } = useUiPreferences();
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const scene = scenes[index]!;
+  const englishScenes = [
+    { title: "Turn experience into your advantage.", subtitle: "Shape your real experience into a compelling story.", label: "Resume", card: "Experience, expressed with impact", detail: "Content · Layout · Versions", step: "Organize experience" },
+    { title: "Give your next step direction.", subtitle: "Explore roles alongside your strengths and goals.", label: "Opportunities", card: "Find your next meaningful opportunity", detail: "Save roles · Compare requirements · Track progress", step: "Compare roles" },
+    { title: "A partner for your ambitions.", subtitle: "Break down tasks together. Stay in control.", label: "Agent", card: "You lead. Your Agent supports.", detail: "Define goals · Use tools · Review decisions", step: "Work together" },
+  ];
+  const scene = { ...scenes[index]!, ...(locale === "en" ? englishScenes[index] : {}) };
   const Icon = scene.icon;
   return <aside className={`login-showcase${paused ? " is-paused" : ""}`} aria-label="BetterMe 产品展示">
-    <div className="login-showcase-top"><span className="login-brand"><Layers3 size={23} strokeWidth={1.6} /> BetterMe<span className="login-brand-tag">工作室</span></span><span className="login-edition">为下一步而生</span></div>
-    <div className="login-story"><div className="login-eyebrow"><span /> 属于你的职业工作空间</div><h2>每一步，<br />更接近<span>理想的自己。</span></h2><p>从一份好简历开始，让更好的机会发生。</p></div>
-    <div className="login-art" aria-hidden="true"><div className="login-art-grid" /><div className="login-art-rings"><i /><i /><i /></div><img src={`${import.meta.env?.BASE_URL ?? "/"}images/login-orbit.png`} alt="" fetchPriority="high" /><div className="login-art-shade" /><div className="login-art-glow" /></div>
+    <div className="login-showcase-top"><span className="login-brand"><Layers3 size={23} strokeWidth={1.6} /> BetterMe<span className="login-brand-tag">{t("工作室", "STUDIO")}</span></span><span className="login-edition">{t("为下一步而生", "Built for your next step")}</span></div>
+    <div className="login-story"><div className="login-eyebrow"><span /> {t("立足全球 · 连接你的下一站", "GLOBAL REACH · YOUR NEXT CHAPTER")}</div><h2>{t("世界很大，", "A world of possibility.")}<br /><span>{t("你的未来不设限。", "Your future, unbounded.")}</span></h2><p>{t("以全球视野，发现属于你的职业可能。", "Discover your next career opportunity with a global perspective.")}</p></div>
+    <LoginGlobe paused={paused} />
     <div className="login-scene" key={index}>
-      <div className="login-scene-chip"><span className="login-tool-icon"><Icon size={16} /></span><span>{scene.step}</span><Check size={13} /><span className="login-demo-label">场景展示</span></div>
-      <button type="button" className={`login-floating-card${detailsOpen ? " is-open" : ""}`} onClick={() => setDetailsOpen(value => !value)} aria-expanded={detailsOpen}><div className="login-card-top"><span><Icon size={16} /> {scene.label}</span><ArrowUpRight size={16} /></div><h3>{scene.card}</h3><p>{scene.detail}</p><div className="login-card-lines"><i /><i /><i /></div>{detailsOpen && <div className="login-card-detail"><span className="login-detail-pulse" /> Agent 已准备好协助你</div>}</button>
+      <div className="login-scene-chip"><span className="login-tool-icon"><Icon size={16} /></span><span>{scene.step}</span><Check size={13} /><span className="login-demo-label">{t("场景展示", "PREVIEW")}</span></div>
+      <button type="button" className={`login-floating-card${detailsOpen ? " is-open" : ""}`} onClick={() => setDetailsOpen(value => !value)} aria-expanded={detailsOpen}><div className="login-card-top"><span><Icon size={16} /> {scene.label}</span><ArrowUpRight size={16} /></div><h3>{scene.card}</h3><p>{scene.detail}</p><div className="login-card-lines"><i /><i /><i /></div>{detailsOpen && <div className="login-card-detail"><span className="login-detail-pulse" /> {t("登录后，与 Agent 一起探索下一步", "Sign in to explore your next step with your Agent")}</div>}</button>
     </div>
-    <div className="login-showcase-bottom"><div className="login-scene-copy" aria-live="polite"><strong>{scene.title}</strong><p>{scene.subtitle}</p></div><div className="login-scene-controls"><div className="login-scene-tabs" role="group" aria-label="切换产品场景">{scenes.map((item, i) => <button key={item.label} type="button" aria-pressed={index === i} onClick={() => setIndex(i)}>{item.label}</button>)}</div><button type="button" className="login-motion-button" aria-label={paused ? "播放展示动效" : "暂停展示动效"} aria-pressed={paused} onClick={() => setPaused(value => !value)}>{paused ? <Play size={14} /> : <Pause size={14} />}</button></div></div>
+    <div className="login-showcase-bottom"><div className="login-scene-copy" aria-live="polite"><strong>{scene.title}</strong><p>{scene.subtitle}</p></div><div className="login-scene-controls"><div className="login-scene-tabs" role="group" aria-label="切换产品场景">{scenes.map((item, i) => <button key={item.label} type="button" aria-pressed={index === i} onClick={() => setIndex(i)}>{t(item.label, englishScenes[i]!.label)}</button>)}</div><button type="button" className="login-motion-button" aria-label={paused ? "播放展示动效" : "暂停展示动效"} aria-pressed={paused} onClick={() => setPaused(value => !value)}>{paused ? <Play size={14} /> : <Pause size={14} />}</button></div></div>
   </aside>;
 }

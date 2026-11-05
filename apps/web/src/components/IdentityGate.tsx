@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { ArrowRight, Eye, EyeOff, LoaderCircle, LockKeyhole, LogOut, ShieldCheck } from "lucide-react";
 import { LoginShowcase } from "./LoginShowcase";
+import { LoginPreferences } from "./LoginPreferences";
 import { activatePrincipal, currentPrincipal, identityRequest, invalidateIdentity, type BetterMePrincipal } from "../lib/identity";
 import { useUiPreferences } from "../lib/ui-preferences";
 import "./identity.css";
@@ -63,7 +64,7 @@ export function IdentityGate({ children }: { children: ReactNode }) {
   const locked = !ready || !user || expired;
   return <>
     {user && <div hidden={locked} inert={locked}>{children}</div>}
-    {locked && <main className="identity-screen"><div className="login-layout"><LoginShowcase /><div className="login-form-panel"><div className="login-panel-top"><span>BETTERME / 工作空间</span><span><ShieldCheck size={13} /> 独立账号空间</span></div><section className="identity-card" aria-labelledby="identity-title">
+    {locked && <main className="identity-screen"><div className="login-layout"><LoginShowcase /><div className="login-form-panel"><LoginPreferences /><section className="identity-card" aria-labelledby="identity-title">
       <span className="identity-mark"><LockKeyhole size={19} /></span>
       <h1 id="identity-title">{!ready ? t("正在连接工作空间…", "Connecting to your workspace…") : expired ? t("重新连接你的工作空间", "Reconnect your workspace") : register ? t("开启你的下一步", "Begin your next chapter") : t("欢迎回来", "Welcome back")}</h1>
       <p className="login-intro">{register ? t("创建独立账号，从一份好简历开始。", "Create your account. Start with a great resume.") : t("登录 BetterMe，继续你的职业旅程。", "Sign in to BetterMe. Continue your career journey.")}</p>
@@ -79,7 +80,7 @@ export function IdentityGate({ children }: { children: ReactNode }) {
         {!user && <button type="button" className="studio-button subtle login-mode-switch" disabled={busy} onClick={() => { setRegister(value => !value); setShowPassword(false); setError(""); }}>{register ? t("已有账号，去登录", "Already have an account? Sign in") : t("首次使用？创建本机账号", "First time here? Create a local account")}</button>}
       </form>}
       <details><summary><ShieldCheck size={15} />{t("旧资料与保存设置", "Existing data & save settings")}</summary><p>{t("旧简历、岗位、对话和模型授权保持原位，未自动认领到任何新账号。新账号从独立空间开始；自动保存偏好不会被重置。旧资料的归属迁移需单独核对，不会通过创建账号静默完成。", "Legacy resumes, jobs, chats, and model credentials remain in place and are never silently claimed by a new account. New accounts start in an isolated space without resetting autosave preferences.")}</p><p>{t("本机账号不是操作系统沙箱。共享电脑请使用不同系统账号或浏览器配置；不防御有本机文件权限、开发者工具或恶意扩展的人。暂无密码找回，请妥善保存密码。", "Local accounts are not OS sandboxes. On shared computers, use separate OS user accounts or browser profiles. Keep your password safe as password recovery is not available.")}</p></details>
-    </section><footer className="login-panel-footer"><span>你的经历，值得更好的表达。</span><span>BetterMe © {new Date().getFullYear()}</span></footer></div></div></main>}
+    </section><footer className="login-panel-footer"><span>{t("你的经历，值得更好的表达。", "Your experience deserves a better story.")}</span><span>BetterMe © {new Date().getFullYear()}</span></footer></div></div></main>}
   </>;
 }
 

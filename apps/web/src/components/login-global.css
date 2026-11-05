@@ -1,0 +1,28 @@
+.identity-screen .login-showcase > .login-globe-stage { position:absolute; z-index:1; width:110%; aspect-ratio:1; left:-5%; top:24%; pointer-events:none; }
+.login-globe-canvas { position:relative; width:100%; height:100%; display:block; }
+.login-globe-halo { position:absolute; inset:16%; border-radius:50%; box-shadow:0 0 70px #61dfd119,0 0 140px #61dfd112; }
+.login-globe-caption { position:absolute; bottom:10%; left:0; width:100%; text-align:center; font-size:8px; letter-spacing:2.5px; color:#7fa4aa; }
+.login-globe-fallback { position:absolute; inset:14%; border-radius:50%; background:radial-gradient(circle at 30% 25%,#5a979b,#173742 50%,#080f17 80%); box-shadow:inset -20px -10px 35px #0008,0 0 40px #87dac422; }
+.login-showcase .login-floating-card { width:min(260px,78%); background:linear-gradient(135deg,#24343cb8,#111b24c9); }
+.login-showcase .login-scene { margin-top:36px; }
+.login-preferences { display:flex; gap:12px; align-items:center; justify-content:space-between; position:relative; z-index:3; }
+.login-preferences-brand { font-size:9px; letter-spacing:1px; color:#8e9eac; }
+.login-preference-controls { display:flex; gap:8px; align-items:center; }
+.login-language,.login-theme-button { display:flex; align-items:center; justify-content:center; gap:7px; min-height:36px; border:1px solid #42565f; border-radius:10px; background:linear-gradient(145deg,#2b3c45,#17222c); color:#deeee9; box-shadow:inset 0 1px 0 #ffffff18,0 4px 10px #0003; transition:transform .18s,box-shadow .18s; }
+.login-language { padding:0 9px; }
+.login-language select { max-width:92px; color:inherit; background:transparent; border:0; font:inherit; font-size:11px; padding:6px 0; cursor:pointer; }
+.login-language option { background:#17222c; color:#deeee9; }
+.login-theme-button { width:36px; cursor:pointer; }
+.login-theme-button:hover,.login-language:hover { transform:translateY(-1px); box-shadow:inset 0 1px 0 #ffffff25,0 5px 18px #0004; }
+.login-theme-button:active { transform:scale(.94); }
+.login-theme-button:focus-visible,.login-language:focus-within { outline:2px solid #a3dfd0; outline-offset:3px; }
+html[data-theme=light] .login-form-panel { background:linear-gradient(145deg,#f7faf9,#e8efed); color:#203a38; --ui-text:#203a38; --ui-text-secondary:#516963; --ui-input:#fff; --ui-border:#bacdc7; --ui-action:#205c50; --ui-on-action:#fff; --ui-action-hover:#174b40; }
+html[data-theme=light] .login-form-panel .identity-card label,html[data-theme=light] .login-form-panel .login-intro { color:#4b635e; }
+html[data-theme=light] .login-form-panel .identity-card input { color:#203a38; background:#fafffd; border-color:#bacdc7; }
+html[data-theme=light] .login-form-panel .identity-card input:-webkit-autofill { -webkit-text-fill-color:#203a38; -webkit-box-shadow:0 0 0 1000px #fafffd inset; box-shadow:0 0 0 1000px #fafffd inset; caret-color:#203a38; }
+html[data-theme=light] .login-form-panel .social-login-button { background:linear-gradient(135deg,#fff,#e4efeb); color:#28483f; border-color:#bed2ca; }
+html[data-theme=light] .login-form-panel .social-login-button small,html[data-theme=light] .login-form-panel .social-login h2,html[data-theme=light] .login-form-panel .social-login-status,html[data-theme=light] .login-panel-footer,html[data-theme=light] .login-preferences-brand { color:#536e64; }
+html[data-theme=light] .login-language,html[data-theme=light] .login-theme-button { background:linear-gradient(145deg,#fff,#dce9e4); color:#244b40; border-color:#b9cdc3; box-shadow:inset 0 1px 0 #fff,0 3px 10px #223b3010; }
+html[data-theme=light] .login-language option { background:#f7faf9; color:#244b40; }
+@media(max-width:680px) { .identity-screen .login-showcase > .login-globe-stage { width:280px; top:-15px; left:auto; right:-65px; opacity:.75; } .login-globe-caption { display:none; } .login-preferences { margin-bottom:22px; } .login-preferences-brand { font-size:8px; } }
+@media(prefers-reduced-motion:reduce) { .login-preferences * { transition:none!important; } }

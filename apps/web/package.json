@@ -20,6 +20,7 @@
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cobe": "^2.0.1",
     "docx": "^9.11.0",
     "lucide-react": "^0.511.0",
     "mammoth": "^1.13.0",
