@@ -37,6 +37,29 @@ after(() => {
   }
 });
 
+test("login showcase switches scenes, pauses motion and password visibility resets when changing mode", async () => {
+  session = undefined; activatePrincipal(undefined);
+  const container = dom.document.createElement("div"); dom.document.body.append(container);
+  const root = createRoot(container as unknown as Element);
+  const button = (name: string) => [...container.querySelectorAll("button")].find(item => item.getAttribute("aria-label") === name || item.textContent === name)!;
+  try {
+    await act(async () => root.render(<IdentityGate><span>private</span></IdentityGate>));
+    await act(async () => button("Agent 协作").click());
+    assert.match(container.querySelector(".login-floating-card")!.textContent, /你决定方向，Agent 协助推进/);
+    assert.equal(button("Agent 协作").getAttribute("aria-pressed"), "true");
+    await act(async () => button("暂停展示动效").click());
+    assert.ok(container.querySelector(".login-showcase.is-paused"));
+    const password = container.querySelector<HTMLInputElement>('[name="password"]')!;
+    password.value = "synthetic-password-only";
+    await act(async () => button("显示密码").click());
+    assert.equal(password.type, "text"); assert.equal(password.value, "synthetic-password-only");
+    await act(async () => button("首次使用？创建本机账号").click());
+    assert.equal(container.querySelector<HTMLInputElement>('[name="password"]')!.type, "password");
+    assert.ok(container.querySelector('[name="displayName"]'));
+    assert.equal(currentPrincipal(), undefined, "visual interactions do not authenticate or create an account");
+  } finally { await act(async () => root.unmount()); container.remove(); }
+});
+
 test("a newly registered account locks with a sign-in form, preserving its mounted draft and invalidating its old lease", async () => {
   const container = dom.document.createElement("div"); dom.document.body.append(container);
   const root = createRoot(container as unknown as Element);

@@ -70,9 +70,9 @@ export function CasdoorAccess({ link = false }: { link?: boolean }) {
   const channels = available.length > 0 && <div className="social-login-grid" role="group" aria-label={link ? t("可关联的第三方登录", "Available external sign-in methods to link") : t("第三方账号登录", "External account sign-in")}>
     {available.map(channel => <button key={channel.id} type={link ? "submit" : "button"} name="provider" value={channel.id}
       className={`social-login-button social-login-${channel.id}`} disabled={busy || channel.state !== "available"}
-      title={channel.message} onClick={link ? undefined : () => void start(channel.id)}>
+      title={channel.message} aria-label={link ? t(`关联 ${channel.label}`, `Link ${channel.label}`) : t(`使用 ${channel.label} 登录`, `Sign in with ${channel.label}`)} onClick={link ? undefined : () => void start(channel.id)}>
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d={icons[channel.id].path} /></svg>
-      <span>{link ? t(`关联 ${channel.label}`, `Link ${channel.label}`) : t(`使用 ${channel.label} 登录`, `Sign in with ${channel.label}`)}</span>
+      <span>{link ? t(`关联 ${channel.label}`, `Link ${channel.label}`) : channel.label}</span>
       {stateLabels[channel.state][0] && <small>{t(stateLabels[channel.state][0], stateLabels[channel.state][1])}</small>}
       {channel.state === "available" && <ArrowUpRight size={14} className="social-login-arrow" aria-hidden="true" />}
     </button>)}
@@ -80,7 +80,7 @@ export function CasdoorAccess({ link = false }: { link?: boolean }) {
   const status = <>
     {loading ? <p className="social-login-status" role="status">{t("正在核对登录方式…", "Checking sign-in methods…")}</p> : catalog && <p className="social-login-status">{hasOnlineLogin ? catalog.message : catalog.service === "offline"
       ? t("在线登录暂时不可用，请使用本机账号；已有资料保持不变。", "Online sign-in is temporarily unavailable. Use your local account; existing data is unchanged.")
-      : t("使用本机账号即可进入，无需安装或配置第三方登录服务。", "Use your local account. No third-party sign-in setup is required.")}</p>}
+      : t("当前环境未开通第三方登录，可使用本机账号。", "External sign-in is not configured here. Use your local account.")}</p>}
     {error && <p className="identity-alert" role="alert">{error}</p>}
     {busy && <p className="social-login-status" role="status">{t(`正在保护记录并连接${selected}…`, `Saving records and connecting to ${selected}…`)}</p>}
     <button type="button" className="social-login-refresh" disabled={loading || busy} onClick={() => void load(true)}><RefreshCw size={13} aria-hidden="true" />{t("重新检查登录方式", "Recheck sign-in methods")}</button>
