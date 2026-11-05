@@ -24,8 +24,15 @@ export default defineConfig({
   server: {
     port: 5173,
     allowedHosts: [".vercel.run"],
-    // Same-origin HttpOnly identity cookie; never expose it in frontend storage or URLs.
-    proxy: { "/api/v1/agent": { target: "http://127.0.0.1:5179", changeOrigin: false } },
+    // The browser talks to this same-origin dev proxy. Normalize its upstream Origin so
+    // preview hostnames do not need to be copied into the local Agent Host allowlist.
+    proxy: { "/api/v1/agent": {
+      target: "http://127.0.0.1:5179",
+      changeOrigin: false,
+      configure(proxy) {
+        proxy.on("proxyReq", (request) => request.setHeader("Origin", "http://127.0.0.1:5173"));
+      },
+    } },
     watch: {
       // Saving a test must not reload the workbench and end a live browser session.
       ignored: ["**/tests/**", "**/.agent-memory/.tmp/**"],
