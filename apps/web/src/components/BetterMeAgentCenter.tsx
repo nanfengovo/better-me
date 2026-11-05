@@ -9,6 +9,8 @@ import { AgentSurface, useAgentSidebar } from "./AgentSidebar";
 import { agentStorageIssue } from "../lib/betterme-agent/storage-issue";
 import { AgentBackupControls } from "./AgentBackupControls";
 import { openProjectSource } from "../lib/agent-navigation";
+import { AgentBaseControls } from "./AgentBaseControls";
+import { useAgentRouting } from "../lib/agent-routing";
 
 const origins: Record<AgentOrigin, string> = { writing: "简历伴写", companion: "Agent 伴侣", growth: "职业成长", understanding: "项目理解" };
 const statuses: Record<AgentTask["status"], string> = { running: "运行中", waiting: "等待你参与", completed: "已完成", failed: "本轮失败 · 可回到来源重试", cancelled: "已停止", interrupted: "页面重载 · 待手动恢复" };
@@ -20,19 +22,20 @@ export function AgentContinuityButton({ compact = false }: { compact?: boolean }
   const label = `BetterMe Agent${running ? ` · ${running} 项运行中` : " · 记忆与进度"}`;
   return <button type="button" className="betterme-agent-entry" aria-label={label} title={compact ? label : undefined} onClick={() => sidebar ? sidebar.show("memory") : agent.setCenterOpen(true)}>{compact ? running ? `${running} 项运行中` : "记忆与进度" : label}</button>;
 }
-export function AgentMemoryConsent({ checked, onChange }: { checked: boolean; onChange: (value: boolean) => void }) {
+export function AgentMemoryConsent({ scope, checked, onChange }: { scope: "writing" | "companion" | "growth"; checked: boolean; onChange: (value: boolean) => void }) {
   const { snapshot } = useBetterMeAgent();
   if (!snapshot) return null;
   const count = snapshot.data.memories.filter(memory => memory.valid && memory.shared).length;
   const available = count || snapshot.data.goal || snapshot.data.tracking && snapshot.data.events.length;
-  return <label className="betterme-agent-consent"><input type="checkbox" checked={checked} disabled={!available} onChange={event => onChange(event.target.checked)} />本轮使用已共享共识与成长上下文（{count} 个项目）<span>包含统一目标和已开启跟踪的近期事件；项目背景不作个人贡献依据，发送前重新核对授权。</span></label>;
+  const scopeLabel = scope === "writing" ? "仅简历伴写" : scope === "companion" ? "仅自由对话" : "仅职业成长";
+  return <label className="betterme-agent-consent"><input type="checkbox" checked={checked} disabled={!available} onChange={event => onChange(event.target.checked)} />{scopeLabel}：使用已共享共识与成长上下文（{count} 个项目）<span>只影响此入口，其他入口需单独勾选。包含统一目标和已开启跟踪的近期事件；不授权读取本机文件，也不确认个人贡献。</span></label>;
 }
 export function AgentModelControls({ config, disabled, client = defaultChatGptClient }: { config: LlmConfig; disabled?: boolean; client?: ChatGptClient }) {
   const { agent, snapshot } = useBetterMeAgent();
+  const routing = useAgentRouting();
   if (!agent || !snapshot) return null;
-  return <div className="betterme-agent-model"><label>统一 Agent 来源<select aria-label="统一 Agent 来源" value={snapshot.data.selection.kind} disabled={disabled || !snapshot.ready || Boolean(snapshot.error)} onChange={event => agent.setSelection({ kind: event.target.value === "chatgpt" ? "chatgpt" : "current", profileId: "", model: "" })}>
-    <option value="current">当前明确配置模型 · {config.model || "未配置"}</option><option value="chatgpt">ChatGPT 账号授权 · 不回退 API</option></select></label>
-    {snapshot.data.selection.kind === "chatgpt" && <ChatGptAgentControls value={snapshot.data.selection} onChange={choice => agent.setSelection({ kind: "chatgpt", ...choice })} onReady={agent.setChatGptReady} client={client} disabled={disabled} />}
+  return <div className="betterme-agent-model"><AgentBaseControls legacy={snapshot.data.selection.kind} model={config.model} disabled={disabled || !snapshot.ready || Boolean(snapshot.error)} onLegacy={kind => agent.setSelection({ kind, profileId: "", model: "" })} />
+    {!routing?.enabled && snapshot.data.selection.kind === "chatgpt" && <ChatGptAgentControls value={snapshot.data.selection} onChange={choice => agent.setSelection({ kind: "chatgpt", ...choice })} onReady={agent.setChatGptReady} client={client} disabled={disabled} />}
   </div>;
 }
 export function BetterMeAgentCenter({ onNavigate }: { onNavigate: (origin: AgentOrigin) => void }) {

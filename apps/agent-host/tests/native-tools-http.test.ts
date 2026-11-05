@@ -107,6 +107,29 @@ test("concurrent device login requests start one process and disclose the device
   } finally { release?.(); await f.close(); }
 });
 
+test("unified routing HTTP isolates account policy and traces, backs up before dispatch, and feeds the existing evidence loop", async () => {
+  const f = await fixture();
+  try {
+    const before = await f.create(f.a.headers);
+    assert.equal((await f.call({}, "/routing")).status, 401);
+    const update = { expectedRevision: 0, mode: "auto", preferred: "codex", backups: ["opencode", "claude-code"], allowApiBackups: true, consent: true };
+    assert.equal((await f.call(f.a.headers, "/routing", { ...update, ownerId: f.b.principal.id }, "PUT")).status, 400);
+    assert.equal((await f.call(f.a.headers, "/routing", update, "PUT")).status, 200);
+    assert.equal((await (await f.call(f.b.headers, "/routing")).json()).policy.mode, "legacy");
+    assert.deepEqual(await f.get(f.a.headers, before.id), before, "changing a base does not rewrite existing project sessions");
+    await f.call(f.a.headers, "/understanding/native/opencode/authorization", { mode: "api-key", apiKey: "synthetic-routing-only-key", model: "synthetic-model", consent: true });
+    const input = { id: randomUUID(), expectedRevision: 1, consentToSend: true, instructions: "Synthetic text task only", messages: [{ role: "user", content: "synthetic routing task" }] };
+    const result = await f.call(f.a.headers, "/routing/respond", input); assert.equal(result.status, 200);
+    const reply = await result.json(); assert.equal(reply.trace.runtimeId, "opencode"); assert.ok(reply.trace.attempts.some((attempt: { runtimeId: string; status: string }) => attempt.runtimeId === "codex" && attempt.status === "skipped"));
+    assert.equal((await f.call(f.b.headers, "/routing/respond", input)).status, 409);
+    const other = await (await f.call(f.b.headers, "/routing")).json(); assert.equal(other.trace, undefined);
+    assert.equal((await f.call(f.a.headers, `/understanding/sessions/${before.id}/turns`, { ...f.turn(before, "opencode"), runtime: { kind: "unified", expectedRevision: 1 } })).status, 202);
+    assert.equal((await f.settle(f.a.headers, before.id)).phase, "awaiting-confirmation");
+    assert.equal(await fs.readFile(f.legacy, "utf8"), '{"real-record-sentinel":"untouched"}');
+    const status = JSON.stringify(await (await f.call(f.a.headers, "/routing")).json());
+    assert.doesNotMatch(status, /synthetic-routing-only-key|synthetic routing task|请核对合成项目/);
+  } finally { await f.close(); }
+});
 
 test("Claude native authorization HTTP binds the official code and credential to the initiating BetterMe session", async () => {
   const f = await fixture();
@@ -125,4 +148,28 @@ test("Claude native authorization HTTP binds the official code and credential to
     assert.equal(caps.runtimes.find((item: { id: string }) => item.id === "claude-code").authorizationMode, "native");
     assert.equal(f.runner.executions.length, 0, "native login must not call a model");
   } finally { await f.close(); }
+});
+
+test("unified broker turn retains its cancellation fence across idempotent retries and rejects late output after revocation or selection change", async () => {
+  const f = await fixture(); let release!: () => void;
+  try {
+    for (const action of ["selection", "revoke"] as const) {
+      const previous = (await (await f.call(f.a.headers, "/routing")).json()).policy;
+      const policy = await (await f.call(f.a.headers, "/routing", { expectedRevision: previous.revision, mode: "auto", preferred: "opencode", backups: ["gemini-cli"], allowApiBackups: true, consent: true }, "PUT")).json();
+      await f.call(f.a.headers, "/understanding/native/opencode/authorization", { mode: "api-key", apiKey: "synthetic-cancellable-key", model: "synthetic-model", consent: true });
+      const before = await f.create(f.a.headers), count = f.runner.executions.length;
+      f.runner.gate = new Promise<void>(resolve => { release = resolve; });
+      const input = { ...f.turn(before, "opencode"), runtime: { kind: "unified", expectedRevision: policy.policy.revision } };
+      const endpoint = `/understanding/sessions/${before.id}/turns`;
+      assert.equal((await f.call(f.a.headers, endpoint, input)).status, 202);
+      assert.equal((await f.call(f.a.headers, endpoint, input)).status, 202);
+      for (let countWait = 0; countWait < 100 && f.runner.executions.length === count; countWait++) await new Promise(resolve => setTimeout(resolve, 2));
+      assert.equal(f.runner.executions.length, count + 1);
+      const stopped = action === "revoke" ? await f.call(f.a.headers, "/understanding/native/opencode/authorization", undefined, "DELETE")
+        : await f.call(f.a.headers, "/routing", { expectedRevision: policy.policy.revision, mode: "manual", preferred: "codex", backups: [], allowApiBackups: false, consent: true }, "PUT");
+      assert.equal(stopped.status, 200); release();
+      const final = await f.settle(f.a.headers, before.id); assert.equal(final.phase, "cancelled");
+      assert.ok(!final.messages.some(message => message.text.includes("请核对合成项目")));
+    }
+  } finally { release?.(); await f.close(); }
 });

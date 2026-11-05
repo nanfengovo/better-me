@@ -15,11 +15,13 @@ import { failure } from "../chatgpt/errors.js";
 import { NativeAccountTools, type NativeLease } from "../native-tools/service.js";
 import { NativeToolError } from "../native-tools/process.js";
 import { DeviceAuthorization } from "../native-tools/adapters.js";
+import { AgentRouting, RoutingError } from "../routing/service.js";
 
 const RuntimeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("model"), modelSettings: ModelSettingsSchema }),
   z.object({ kind: z.literal("native"), runtimeId: z.string().min(1).max(120) }),
   ChatGptRuntimeSchema,
+  z.object({ kind: z.literal("unified"), expectedRevision: z.number().int().nonnegative() }).strict(),
 ]);
 export type UnderstandingRuntime = z.infer<typeof RuntimeSchema>;
 const TurnRequestSchema = UnderstandingTurnSchema.extend({ runtime: RuntimeSchema });
@@ -35,9 +37,11 @@ type Dependencies = {
   /** Account-scoped hosts must not inherit a shared OS user's native-model credentials. */
   allowNativeExecution?: boolean;
   nativeTools?: NativeAccountTools;
+  routing?: AgentRouting;
 };
 
 export async function createUnderstandingReasoner(runtime: UnderstandingRuntime, registry: RuntimeRegistry, chatGpt?: ChatGptPlanService): Promise<UnderstandingReasoner> {
+  if (runtime.kind === "unified") throw new RoutingError("routing_unavailable");
   if (runtime.kind === "chatgpt") {
     if (!chatGpt) throw failure("unavailable", "chatgpt_unavailable", "此 Agent Host 尚未提供 ChatGPT 账号通道，未改用其他模型。");
     return async (prompt, signal) => (await chatGpt.respond({ profileId: runtime.profileId, model: runtime.model,
@@ -122,6 +126,13 @@ export function createUnderstandingHandler(deps: Dependencies) {
         deps.sendJson(res, 200, await deps.service.revoke(id, grantId));
       } else if (req.method === "POST" && action === "turns" && !grantId) {
         const { runtime, ...input } = TurnRequestSchema.parse(await deps.readBody(req));
+        if (runtime.kind === "unified") {
+          if (!deps.routing || !lease) throw new RoutingError("routing_unavailable");
+          const reasoner = await deps.routing.reasoner(runtime.expectedRevision, lease);
+          const settled = await deps.routing.watchTurn(id, lease, () => deps.service.cancel(id));
+          try { deps.sendJson(res, 202, await deps.service.turn(id, input, reasoner, settled)); }
+          catch (error) { settled(); throw error; } return true;
+        }
         if (runtime.kind === "native" && deps.nativeTools && lease) {
           await deps.ensureRuntimeScan();
           const reasoner = await deps.nativeTools.reasoner(runtime.runtimeId, lease);

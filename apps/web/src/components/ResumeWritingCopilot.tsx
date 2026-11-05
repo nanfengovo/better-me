@@ -5,6 +5,7 @@ import {
   generateWritingReply, inspectWriting, isLocalWritingModel, newWritingNote, readWritingSession, reconcileWritingNotes,
   saveWritingSession, writingTargetKey, writingOriginal, writingProposal, WritingReplyError, confirmedWritingProjectContext,
   type ConfirmedWritingProjectContext, type WritingMode, type WritingNote, type WritingSource,
+  writingMessages, parseWritingReply,
 } from "../lib/resume-copilot";
 import type { ResumeProposalWrite } from "../lib/resume-agent-context";
 import { focusWritingSource, observeResumeWriting, readWritingPreviewSelection, useWritingGeometry, type WritingActivity } from "../lib/resume-writing-observer";
@@ -19,6 +20,9 @@ import { useBetterMeAgent } from "../lib/betterme-agent/react";
 import { AgentContinuityButton, AgentMemoryConsent } from "./BetterMeAgentCenter";
 import { AgentSurface, useAgentSidebar } from "./AgentSidebar";
 import { OPEN_PROJECT_EVENT } from "../lib/agent-navigation";
+import { useUiPreferences } from "../lib/ui-preferences";
+import { agentBaseLabel, useAgentRouting } from "../lib/agent-routing";
+import { AgentRoutingClientError } from "../services/agent-routing-client";
 
 type Props = {
   sessionKey: string; sources: WritingSource[]; config: LlmConfig; active: boolean; children: ReactNode;
@@ -35,7 +39,9 @@ export function ResumeWritingCopilot({ sessionKey, sources, config, active, onAp
 }
 
 function WritingCopilotSession({ sessionKey, sources, config, active, onApply, onFocus, children, generate = generateWritingReply, understandingClient = defaultUnderstandingClient, chatGptClient = defaultChatGptClient }: Props) {
+  const { t } = useUiPreferences();
   const { agent, snapshot: agentSnapshot } = useBetterMeAgent();
+  const routing = useAgentRouting();
   const sidebar = useAgentSidebar();
   const [shareAgentMemory, setShareAgentMemory] = useState(false);
   const sharedTask = useRef<string | undefined>(undefined);
@@ -85,7 +91,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
   const selectionSource = activity && sources.find(s => writingTargetKey(s.targetRef) === activity.key && s.text === activity.text);
   const selectionQuote = selectionSource && activity && quoteWritingText(selectionSource.text, activity.start, activity.end);
   const visible = session.mode !== "paused";
-  const canAutoModel = agentKind === "current" && isLocalWritingModel(config);
+  const canAutoModel = !routing?.enabled && agentKind === "current" && isLocalWritingModel(config);
   const liveUnderstandingSource = understandingSource && sources.find(source => writingTargetKey(source.targetRef) === writingTargetKey(understandingSource.targetRef));
   const understandingOriginal = liveUnderstandingSource
     ? (understandingSource?.quote && resolveWritingQuote(liveUnderstandingSource.text, understandingSource.quote)?.exact) || liveUnderstandingSource.text
@@ -193,7 +199,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
   }, [active, session.mode]);
   useEffect(() => { if (session.mode === "paused") stop(); if (!active || session.mode === "paused") clearTimeout(timer.current); }, [active, session.mode, stop]);
   useEffect(() => { stop(); setShareAgentMemory(false); }, [config.provider, config.baseUrl, config.model, config.apiKey, stop]);
-  useEffect(() => { stop(); setConfirmedAnswer(false); setShareProjectContext(false); setShareAgentMemory(false); }, [agentKind, chatGptChoice.profileId, chatGptChoice.model, stop]);
+  useEffect(() => { stop(); setConfirmedAnswer(false); setShareProjectContext(false); setShareAgentMemory(false); }, [agentKind, chatGptChoice.profileId, chatGptChoice.model, routing?.policy?.revision, stop]);
   useEffect(() => {
     if (!active || session.mode !== "proactive" || !session.autoLocalModel || !canAutoModel || !focusedNote || focusedNote.autoAsked || focusedNote.answer || focusedNote.questions) return;
     changeNote(focusedNote.id, { autoAsked: true });
@@ -211,7 +217,8 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
   function mode(value: WritingMode) { stop(); setSession(s => ({ ...s, mode: value })); }
   async function ask(note: WritingNote, openOnReturn = true) {
     stop(); setMessage(""); setConfirmedProposal(false);
-    if (agentKind === "chatgpt" && !chatGptReady) { setMessage("请先完成 ChatGPT 授权、选择可用模型并检查额度状态；不会改用当前 API 配置。"); return; }
+    if (routing?.blocked) { setMessage("本账号底座状态尚未确认；请刷新模型与工具。未使用旧 API 配置补发。"); return; }
+    if (!routing?.enabled && agentKind === "chatgpt" && !chatGptReady) { setMessage("请先完成 ChatGPT 授权、选择可用模型并检查额度状态；不会改用当前 API 配置。"); return; }
     if (note.answer.trim() && !confirmedAnswer) { setMessage("请先核对补充内容是否真实；它不会自动变成已核实事实。"); return; }
     const controller = new AbortController(), id = ++epoch.current;
     request.current = { controller, id, noteId: note.id }; setBusy(true);
@@ -227,7 +234,13 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
         }
       }
       const produce = async (signal: AbortSignal, sharedText?: string) => {
-        const result = await (agentKind === "chatgpt"
+        routing?.assertSelected();
+        const nativeReply = async () => {
+          const messages = writingMessages(note.source, note.answer, context, sharedText);
+          const reply = await routing!.respond(messages.filter(message => message.role === "system").map(message => message.content).join("\n"), messages.filter(message => message.role === "user").map(message => ({ role: "user" as const, content: message.content })), signal);
+          signal.throwIfAborted(); return parseWritingReply(reply.text, note.source, note.answer);
+        };
+        const result = await (routing?.enabled ? nativeReply() : agentKind === "chatgpt"
           ? generateChatGptWritingReply(chatGptClient, chatGptChoice, note.source, note.answer, signal, context, sharedText)
           : generate(config, note.source, note.answer, signal, undefined, context, sharedText));
         if (context) {
@@ -241,7 +254,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
         return result; // Validate before the shared Agent records a successful result.
       };
       const taskId = crypto.randomUUID(); sharedTask.current = taskId;
-      const reply = agent ? await agent.run({ id: taskId, origin: "writing", label: `伴写 · ${note.source.label}`, destination: agentKind === "chatgpt" ? `ChatGPT · ${chatGptChoice.model}` : `${config.provider} · ${config.model}`,
+      const reply = agent ? await agent.run({ id: taskId, origin: "writing", label: `伴写 · ${note.source.label}`, destination: routing?.enabled ? agentBaseLabel(routing.policy) : agentKind === "chatgpt" ? `ChatGPT · ${chatGptChoice.model}` : `${config.provider} · ${config.model}`,
         input: [writingOriginal(note.source), note.answer].filter(Boolean).join("\n补充："), shareMemories: shareAgentMemory },
         (signal, shared) => produce(AbortSignal.any([signal, controller.signal]), shared.text), value => [value.rationale, ...value.questions, value.proposedText].filter(Boolean).join("\n"))
         : await produce(controller.signal);
@@ -253,7 +266,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
     } catch (error) {
       if (epoch.current === id) setMessage(controller.signal.aborted
         ? "本次分析等待超时，原文和补充已保留。可重试，或先根据本地追问继续写。"
-        : error instanceof WritingReplyError || error instanceof ChatGptClientError ? error.message : "模型暂时没有给出可核对的完整建议。原文未改动；可以重试或按本地追问自行补充。");
+        : error instanceof WritingReplyError || error instanceof ChatGptClientError || error instanceof AgentRoutingClientError ? error.message : "模型暂时没有给出可核对的完整建议。原文未改动；可以重试或按本地追问自行补充。");
     } finally { clearTimeout(timeout); if (epoch.current === id) { request.current = null; sharedTask.current = undefined; setBusy(false); } }
   }
   autoAsk.current = ask;
@@ -287,19 +300,20 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
       <AgentSurface name="writing-settings"><details open={sidebar ? true : undefined} className="writing-settings" onKeyDown={event => {
         if (!sidebar && event.key === "Escape") { event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); event.stopPropagation(); }
       }} onBlur={event => { if (!sidebar && !event.currentTarget.contains(event.relatedTarget as Node | null)) event.currentTarget.open = false; }}>
-      <summary><Settings2 size={13} />{agentKind === "chatgpt" ? "ChatGPT 账号授权" : "当前配置模型"}<span> · 设置</span></summary>
-      <div className="writing-settings-body" role="group" aria-label="伴写设置与授权">
-      {!sidebar && <label>Agent 来源
-      <select aria-label="伴写 Agent 来源" value={agentKind} disabled={understandingRunning || busy} onChange={event => {
+      <summary><Settings2 size={13} />{routing?.enabled ? agentBaseLabel(routing.policy) : agentKind === "chatgpt" ? t("ChatGPT 账号授权", "ChatGPT account") : t("当前配置模型", "Configured model")}<span>{t(" · 设置", " · Settings")}</span></summary>
+      <div className="writing-settings-body" role="group" aria-label={t("伴写设置与授权", "Copilot settings & access")}>
+      {!sidebar && routing?.enabled && <p>底座来源与备援在 BetterMe Agent 的「模型与工具」中统一设置；当前：{agentBaseLabel(routing.policy)}。</p>}
+      {!sidebar && !routing?.enabled && <label>{t("Agent 来源", "Agent source")}
+      <select aria-label={t("伴写 Agent 来源", "Writing Agent source")} value={agentKind} disabled={understandingRunning || busy} onChange={event => {
         stop(); const next = event.target.value === "chatgpt" ? "chatgpt" : "current"; setAgentKind(next);
-        try { localStorage.setItem(`betterme.writing-agent.v1:${sessionKey}`, next); } catch { setStorageError("Agent 选择暂未保存；不会自动更换当前来源。"); }
-      }}><option value="current">当前配置模型</option><option value="chatgpt">ChatGPT 账号授权</option></select></label>}
-      <label>参与方式
-      <select aria-label="伴写参与方式" value={session.mode} onChange={e => mode(e.target.value as WritingMode)}>
-        <option value="proactive">主动提醒 · 本地</option><option value="quiet">安静 · 手动检查</option><option value="paused">暂停伴写</option>
+        try { localStorage.setItem(`betterme.writing-agent.v1:${sessionKey}`, next); } catch { setStorageError(t("Agent 选择暂未保存；不会自动更换当前来源。", "Agent selection could not be saved; current source remains unchanged.")); }
+      }}><option value="current">{t("当前配置模型", "Configured model")}</option><option value="chatgpt">{t("ChatGPT 账号授权", "ChatGPT account")}</option></select></label>}
+      <label>{t("参与方式", "Mode")}
+      <select aria-label={t("伴写参与方式", "Copilot mode")} value={session.mode} onChange={e => mode(e.target.value as WritingMode)}>
+        <option value="proactive">{t("主动提醒 · 本地", "Proactive · Local")}</option><option value="quiet">{t("安静 · 手动检查", "Quiet · Manual check")}</option><option value="paused">{t("暂停伴写", "Paused")}</option>
       </select></label>
-      {canAutoModel && <label className="writing-check" title="允许停笔后仅将当前条目发送给所配置的本机 Ollama 接口作一次追问。实际推理位置取决于该模型配置；补充和改写仍由你发起。"><input type="checkbox" checked={session.autoLocalModel ?? false} onChange={e => { stop(); setSession(s => ({ ...s, autoLocalModel: e.target.checked })); }} />允许本机模型主动追问</label>}
-      <AgentMemoryConsent checked={shareAgentMemory} onChange={value => { if (!value) stop(); setShareAgentMemory(value); }} />
+      {canAutoModel && <label className="writing-check" title={t("允许停笔后仅将当前条目发送给所配置的本机 Ollama 接口作一次追问。实际推理位置取决于该模型配置；补充和改写仍由你发起。", "After you pause typing, send only the current item to your configured local Ollama endpoint for one follow-up question.")}><input type="checkbox" checked={session.autoLocalModel ?? false} onChange={e => { stop(); setSession(s => ({ ...s, autoLocalModel: e.target.checked })); }} />{t("允许本机模型主动追问", "Allow local model follow-ups")}</label>}
+      <AgentMemoryConsent scope="writing" checked={shareAgentMemory} onChange={value => { if (!value) stop(); setShareAgentMemory(value); }} />
       </div>
       </details></AgentSurface>
       <button data-agent-guide="writing-check" onClick={() => { check(); setExpanded(false); setAgentCollapsed(false); sidebar?.show("conversation", "writing"); }} disabled={session.mode === "paused"}><Sparkles size={13} />检查当前简历</button>
@@ -315,7 +329,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
     <div className="writing-status no-print">
       {sidebar && !hasAgentContent && <p className="writing-message">从简历页点击“检查当前简历”开始；资料不会自动发送给模型。</p>}
       {sidebar && understandingSource && <button type="button" className="writing-return" disabled={understandingRunning} onClick={() => setUnderstandingSource(undefined)}><ChevronLeft size={14} />返回伴写建议</button>}
-      {agentKind === "chatgpt" && !sidebar && <ChatGptAgentControls value={chatGptChoice} onChange={choice => { stop(); setChatGptChoice(choice); }} onReady={setChatGptReady} client={chatGptClient} disabled={busy || understandingRunning} />}
+      {!routing?.enabled && agentKind === "chatgpt" && !sidebar && <ChatGptAgentControls value={chatGptChoice} onChange={choice => { stop(); setChatGptChoice(choice); }} onReady={setChatGptReady} client={chatGptClient} disabled={busy || understandingRunning} />}
       {storageError && <p className="writing-message" role="status">{storageError}</p>}
       {message && <p className="writing-message" role="status">{message}</p>}
       {understandingSource && liveUnderstandingSource && understandingOriginal !== undefined && <div ref={understandingCard} className="writing-understanding-anchor"><button type="button" className="writing-source" onClick={() => { onFocus(liveUnderstandingSource); focusWritingSource(liveUnderstandingSource); }}>定位原文 · {liveUnderstandingSource.label}</button><ProjectUnderstandingPanel
@@ -369,8 +383,8 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
         <textarea id="writing-answer" data-agent-guide="writing-answer" rows={3} maxLength={6000} value={focusedNote.answer} placeholder="可以说不知道或没有数据，不需要编造结果。" onChange={e => { stop(); changeNote(focusedNote.id, { answer: e.target.value, proposedText: undefined, evidenceQuotes: undefined }); setConfirmedAnswer(false); setConfirmedProposal(false); }} />
         {focusedNote.answer.trim() && <label className="writing-check"><input type="checkbox" checked={confirmedAnswer} onChange={e => setConfirmedAnswer(e.target.checked)} />我确认这段补充来自实际经历</label>}
         {usableContext && <label className="writing-check"><input type="checkbox" checked={shareProjectContext} onChange={event => { stop(); setShareProjectContext(event.target.checked); }} />本次携带已确认项目共识（仅解释术语和边界，不作为个人贡献依据）</label>}
-        <small>点击后发送本条原文、补充{shareProjectContext && usableContext ? "及已确认的项目术语背景" : ""}给{agentKind === "chatgpt" ? `所选 ChatGPT 账号（${chatGptChoice.model || "尚未选择模型"} · 使用套餐）` : `当前配置模型（${config.provider} · ${config.model || "未配置"}）`}，不自动附带姓名、联系方式或其他简历字段。共享共识与成长事件仅在「设置」中明确授权后携带。请勿在补充中填入敏感信息。</small>
-        {busy ? <button className="writing-primary" onClick={() => { stop(); setMessage("已停止分析，补充内容留在输入框中。"); }}><Square size={12} />停止分析</button> : <button className="writing-primary" onClick={() => void ask(focusedNote)} disabled={agentKind === "chatgpt" && !chatGptReady || !!focusedNote.answer.trim() && !confirmedAnswer}>{focusedNote.answer.trim() ? "请 Agent 整理候选表达" : "请 Agent 进一步追问"}</button>}
+        <small>点击后发送本条原文、补充{shareProjectContext && usableContext ? "及已确认的项目术语背景" : ""}给{routing?.enabled && routing.policy ? agentBaseLabel(routing.policy) : agentKind === "chatgpt" ? `所选 ChatGPT 账号（${chatGptChoice.model || "尚未选择模型"} · 使用套餐）` : `当前配置模型（${config.provider} · ${config.model || "未配置"}）`}，不自动附带姓名、联系方式或其他简历字段。共享共识与成长事件仅在「设置」中明确授权后携带。请勿在补充中填入敏感信息。</small>
+        {busy ? <button className="writing-primary" onClick={() => { stop(); setMessage("已停止分析，补充内容留在输入框中。"); }}><Square size={12} />停止分析</button> : <button className="writing-primary" onClick={() => void ask(focusedNote)} disabled={!routing?.enabled && agentKind === "chatgpt" && !chatGptReady || !!focusedNote.answer.trim() && !confirmedAnswer}>{focusedNote.answer.trim() ? "请 Agent 整理候选表达" : "请 Agent 进一步追问"}</button>}
         {focusedNote.rationale && <p>{focusedNote.rationale}</p>}
         {focusedNote.answer.trim() && !focusedNote.proposedText && <button disabled={!confirmedAnswer} onClick={() => { stop(); changeNote(focusedNote.id, { proposedText: focusedNote.answer.trim(), evidenceQuotes: [focusedNote.answer.trim()], rationale: "候选直接来自你本人核对的补充，未由模型扩写；请继续检查表达和事实。" }); setConfirmedProposal(false); }}>用我的补充作为可编辑草稿</button>}
         {focusedNote.proposedText && <section className="writing-diff" aria-label="修改对照">

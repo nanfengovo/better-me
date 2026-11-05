@@ -3,6 +3,7 @@ import { BetterMeAgent } from "./kernel";
 import { IndexedDbAgentRepository, createOwnedAgentRepository, type AgentRepository } from "./storage";
 import { currentPrincipal } from "../identity";
 import { defaultUnderstandingClient, type UnderstandingClient } from "../../services/understanding-client";
+import { AgentRoutingProvider } from "../agent-routing";
 
 const Context = createContext<BetterMeAgent | undefined>(undefined);
 const repository = new IndexedDbAgentRepository();
@@ -31,7 +32,7 @@ function AgentScope({ workspaceKey, store, understandingClient, children }: { wo
     window.addEventListener("betterme:before-sign-out", prepare);
     return () => window.removeEventListener("betterme:before-sign-out", prepare);
   }, [agent]);
-  return <Context.Provider value={agent}>{children}</Context.Provider>;
+  return <Context.Provider value={agent}><AgentRoutingProvider onSelectionChange={() => agent.cancelModelOperations()}>{children}</AgentRoutingProvider></Context.Provider>;
 }
 const noSubscribe = () => () => {};
 const noSnapshot = () => undefined;

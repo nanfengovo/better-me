@@ -44,6 +44,8 @@ import type { CareerApproval } from "./graphs/career/state.js";
 import { resolveCheckpointPath } from "./checkpointer.js";
 import { ProjectUnderstandingService } from "./understanding/service.js";
 import { createUnderstandingHandler, type UnderstandingRuntime } from "./understanding/http.js";
+import { AgentRouting } from "./routing/service.js";
+import { createRoutingHandler } from "./routing/http.js";
 import { NativeAccountTools } from "./native-tools/service.js";
 import type { NativeProcessRunner } from "./native-tools/process.js";
 import type { UnderstandingReasoner } from "@better-me/agent-contracts";
@@ -194,12 +196,15 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     // A trusted injected fixture is single-owner only; it can never become a shared credential service.
     const provider: ChatGptPlanService = opts.chatGptService && owners.size === 0 ? opts.chatGptService : chatGpt;
     const nativeTools = new NativeAccountTools({ directory: path.join(root, "native-tools-v1"), registry: understandingRegistry, runner: opts.nativeProcessRunner });
-    return { understanding, nativeTools, chatGpt: provider, recovery, store: new OwnedStore(path.join(root, "records"), principal.id,
+    const routing = new AgentRouting({ directory: path.join(root, "routing-v1"), native: nativeTools, scan: async () => { await understandingRegistry.discoverExecutables(); } });
+    return { understanding, nativeTools, routing, chatGpt: provider, recovery, store: new OwnedStore(path.join(root, "records"), principal.id,
       (namespace, key) => namespace === "continuity" ? recovery.continuity(key) : Promise.resolve(undefined)),
       runManager: new AgentRunManager({ registry: runtimeRegistry, rootDirectory: path.join(root, "runs"), sandboxMode: opts.sandboxMode }),
       handleChatGpt: createChatGptHandler({ service: provider, allowedOrigins: opts.allowedOrigins, readBody, sendJson: jsonResponse }),
+      handleRouting: createRoutingHandler({ service: routing, readBody, sendJson: jsonResponse }),
       handleUnderstanding: createUnderstandingHandler({ service: understanding, registry: understandingRegistry,
         nativeTools: opts.trustedSingleUserRuntimeExecution ? undefined : nativeTools,
+        routing,
         allowNativeExecution: opts.trustedSingleUserRuntimeExecution === true,
         ensureRuntimeScan: async () => { await understandingRegistry.discoverExecutables(); }, readBody, sendJson: jsonResponse, reasoner: opts.understandingReasoner, chatGpt: provider }),
     };
@@ -213,6 +218,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     const previous = await identities.authenticate(cookie);
     if (previous) {
       await owners.get(previous.id)?.nativeTools.invalidateSession(capabilitySession(cookie));
+      await owners.get(previous.id)?.routing.invalidateSession(capabilitySession(cookie));
     }
   };
 
@@ -311,6 +317,8 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       // Namespacing also includes workflow kind; equal client IDs never alias across people or graphs.
       const thread = (kind: string, id: string) => createHash("sha256").update(JSON.stringify([principal.id, kind, id])).digest("hex");
       if (await handleChatGpt(req, res, pathname)) return;
+      if (await owner.handleRouting(req, res, pathname, { session: capabilitySession(req.headers.cookie),
+        valid: async () => (await identities.authenticate(req.headers.cookie))?.id === principal.id })) return;
       if (await handleUnderstanding(req, res, pathname, { session: capabilitySession(req.headers.cookie),
         valid: async () => (await identities.authenticate(req.headers.cookie))?.id === principal.id })) return;
       const recordMatch = pathname.match(/^\/api\/v1\/agent\/records\/(continuity|growth)$/);
@@ -611,7 +619,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     }
   });
 
-  server.once("close", () => { for (const owner of owners.values()) { void owner.nativeTools.close(); void owner.understanding.dispose(); owner.chatGpt.dispose(); } });
+  server.once("close", () => { for (const owner of owners.values()) { void owner.routing.close(); void owner.nativeTools.close(); void owner.understanding.dispose(); owner.chatGpt.dispose(); } });
   server.listen(opts.port, opts.host, () => {
     console.log(`[agent-host] listening on http://${opts.host}:${opts.port}`);
   });

@@ -18,6 +18,7 @@ import { testLlmConnection } from "@better-me/core";
 import { useUiPreferences } from "../lib/ui-preferences";
 import "./agent-top-bar-status.css";
 import { useAgentSidebar } from "./AgentSidebar";
+import { agentBaseLabel, useAgentRouting } from "../lib/agent-routing";
 
 export type AgentTopBarStatusProps = {
   config: LlmConfig | null;
@@ -56,6 +57,8 @@ export function AgentTopBarStatus({
   onOpenAiConfig,
 }: AgentTopBarStatusProps) {
   const sidebar = useAgentSidebar();
+  const routing = useAgentRouting();
+  const routingManaged = Boolean(routing?.enabled || routing?.blocked);
   const { t } = useUiPreferences();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -112,6 +115,7 @@ export function AgentTopBarStatus({
   }, [t]);
 
   useEffect(() => {
+    if (routingManaged) { abortControllerRef.current?.abort(); return; }
     if (!isConfigured) {
       setProbeStatus("unconfigured");
       setProbeMessage(t("尚未配置大模型 API Key", "API key not configured"));
@@ -121,7 +125,7 @@ export function AgentTopBarStatus({
     return () => {
       abortControllerRef.current?.abort();
     };
-  }, [probeConfig, isConfigured, probe, t]);
+  }, [probeConfig, isConfigured, probe, t, routingManaged]);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -136,8 +140,14 @@ export function AgentTopBarStatus({
   }, [dropdownOpen]);
 
   const shortModel = getShortModelName(config?.model, config?.provider);
+  const currentTrace = routing?.trace?.policyRevision === routing?.policy?.revision ? routing?.trace : undefined;
+  const routeStopped = currentTrace?.state === "failed" || currentTrace?.state === "cancelled";
+  const liveStatus: AgentLiveStatus = !routingManaged ? probeStatus : routing?.blocked || currentTrace?.state === "running" ? "probing" : currentTrace?.state === "completed" ? "ready" : routeStopped ? "offline" : "unconfigured";
+  const liveMessage = !routingManaged ? probeMessage : routing?.error || (routing?.blocked ? "本账号底座状态尚未确认；不会使用旧 API 补发。" : currentTrace?.attempts.at(-1)?.reason || "底座选择已读取；尚未发送本轮资料，未调用模型。工具与资料仍需分别授权。");
 
-  const statusLabel =
+  const statusLabel = routingManaged
+    ? routing?.blocked ? "底座待确认" : `${routing?.policy?.mode === "auto" ? "自动备援" : routing?.policy?.preferred} · ${currentTrace?.state === "completed" ? `最近 ${currentTrace.runtimeId}` : currentTrace?.state === "running" ? "执行中" : routeStopped ? "已停止" : "待执行"}`
+    :
     probeStatus === "ready"
       ? t(`在线 · ${shortModel}`, `Online · ${shortModel}`)
       : probeStatus === "probing"
@@ -147,25 +157,26 @@ export function AgentTopBarStatus({
           : t("连接异常", "Offline");
 
   const statusDotClass =
-    probeStatus === "ready"
+    liveStatus === "ready"
       ? "dot-ready"
-      : probeStatus === "probing"
+      : liveStatus === "probing"
         ? "dot-probing"
-        : probeStatus === "unconfigured"
+        : liveStatus === "unconfigured"
           ? "dot-unconfigured"
           : "dot-offline";
 
   const badgeClass =
-    probeStatus === "ready"
+    liveStatus === "ready"
       ? "badge-ready"
-      : probeStatus === "probing"
+      : liveStatus === "probing"
         ? "badge-probing"
-        : probeStatus === "unconfigured"
+        : liveStatus === "unconfigured"
           ? "badge-unconfigured"
           : "badge-offline";
 
   const handleMainClick = () => {
     if (sidebar) { sidebar.show(); }
+    else if (routingManaged) onNavigateToAgent();
     else if (probeStatus === "unconfigured") {
       onOpenAiConfig();
     } else {
@@ -176,7 +187,7 @@ export function AgentTopBarStatus({
   return (
     <div className="agent-top-bar-status-container" ref={containerRef}>
       <div
-        className={`agent-top-bar-btn-group status-${probeStatus} ${active ? "is-active" : ""}`}
+        className={`agent-top-bar-btn-group status-${liveStatus} ${active ? "is-active" : ""}`}
         role="group"
         aria-label={t("AI Agent 助手状态与导航", "AI Agent Status & Navigation")}
       >
@@ -185,7 +196,7 @@ export function AgentTopBarStatus({
           className="agent-top-bar-main-btn"
           onClick={handleMainClick}
           title={
-            sidebar ? t("打开 BetterMe Agent · 对话、记忆与工具", "Open BetterMe Agent · Conversation, memory and tools") : probeStatus === "ready"
+            routingManaged ? `${agentBaseLabel(routing?.policy)} · ${liveMessage}` : sidebar ? t("打开 BetterMe Agent · 对话、记忆与工具", "Open BetterMe Agent · Conversation, memory and tools") : probeStatus === "ready"
               ? t(`AI Agent 已就绪（模型: ${config?.model}）· 点击进入工作台`, `AI Agent ready (${config?.model}) · Click to open`)
               : probeStatus === "unconfigured"
                 ? t("尚未配置大模型 API Key · 点击立即配置", "API Key unconfigured · Click to setup")
@@ -197,7 +208,7 @@ export function AgentTopBarStatus({
           </div>
           <Sparkles
             size={14}
-            className={`agent-status-spark agent-status-spark-${probeStatus}`}
+            className={`agent-status-spark agent-status-spark-${liveStatus}`}
           />
           <span>{t("AI Agent 助手", "AI Agent")}</span>
           <span className={`agent-pill-badge ${badgeClass}`}>{statusLabel}</span>
@@ -225,16 +236,16 @@ export function AgentTopBarStatus({
               <span>{t("AI 顾问状态看板", "AI Agent Status Hub")}</span>
             </div>
             <span className={`agent-dropdown-status-pill ${badgeClass}`}>
-              <StatusIcon status={probeStatus} />
-              <span>{probeStatus === "ready" ? t("正常", "Ready") : probeStatus === "probing" ? t("探测中", "Probing") : probeStatus === "unconfigured" ? t("待配置", "Setup") : t("异常", "Offline")}</span>
+              <StatusIcon status={liveStatus} />
+              <span>{routingManaged ? statusLabel : probeStatus === "ready" ? t("正常", "Ready") : probeStatus === "probing" ? t("探测中", "Probing") : probeStatus === "unconfigured" ? t("待配置", "Setup") : t("异常", "Offline")}</span>
             </span>
           </div>
 
           <div className="agent-dropdown-info-card">
             <div className="agent-info-row">
-              <span>{t("服务提供商", "Provider")}</span>
+              <span>{routingManaged ? "统一底座" : t("服务提供商", "Provider")}</span>
               <span className="agent-info-val">
-                {config?.provider === "ollama"
+                {routingManaged ? agentBaseLabel(routing?.policy) : config?.provider === "ollama"
                   ? "Ollama (本地私有)"
                   : config?.provider === "gemini"
                     ? "Google Gemini"
@@ -244,18 +255,18 @@ export function AgentTopBarStatus({
               </span>
             </div>
             <div className="agent-info-row">
-              <span>{t("驱动模型", "Model")}</span>
-              <span className="agent-info-val">{config?.model || "未指定"}</span>
+              <span>{routingManaged ? "本策略最近执行" : t("驱动模型", "Model")}</span>
+              <span className="agent-info-val">{routingManaged ? currentTrace?.runtimeId || "尚未执行" : config?.model || "未指定"}</span>
             </div>
             <div className="agent-info-row">
               <span>{t("连通状态", "Health")}</span>
               <span
                 className={`agent-info-val agent-health-value ${badgeClass}`}
               >
-                {probeMessage || (probeStatus === "ready" ? "连通正常" : "待处理")}
+                {liveMessage || (probeStatus === "ready" ? "连通正常" : "待处理")}
               </span>
             </div>
-            {lastProbeTime && (
+            {!routingManaged && lastProbeTime && (
               <div className="agent-info-row">
                 <span>{t("最近探测", "Last Checked")}</span>
                 <span className="agent-info-val">{lastProbeTime}</span>
@@ -269,7 +280,7 @@ export function AgentTopBarStatus({
               className={`agent-dropdown-btn ${probeStatus === "unconfigured" ? "warning" : "primary"}`}
               onClick={() => {
                 setDropdownOpen(false);
-                if (probeStatus === "unconfigured") {
+                if (!routingManaged && probeStatus === "unconfigured") {
                   onOpenAiConfig();
                 } else {
                   onNavigateToAgent();
@@ -278,13 +289,13 @@ export function AgentTopBarStatus({
             >
               {probeStatus === "unconfigured" ? <Zap size={14} /> : <ExternalLink size={14} />}
               <span>
-                {probeStatus === "unconfigured"
+                {!routingManaged && probeStatus === "unconfigured"
                   ? t("立即配置 API Key", "Setup API Key Now")
                   : t("进入 AI 顾问多智能体工作台", "Open Agent Workspace")}
               </span>
             </button>
 
-            <button
+            {!routingManaged && <button
               type="button"
               className="agent-dropdown-btn"
               onClick={() => {
@@ -294,21 +305,21 @@ export function AgentTopBarStatus({
             >
               <Settings2 size={14} />
               <span>{t("修改大模型与 API 配置", "Change AI Settings & Model")}</span>
-            </button>
+            </button>}
 
             <button
               type="button"
               className="agent-dropdown-btn"
-              disabled={probeStatus === "probing"}
+              disabled={routingManaged ? routing?.busy : probeStatus === "probing"}
               onClick={() => {
-                void probe(config);
+                if (routingManaged) void routing?.refresh(); else void probe(config);
               }}
             >
               <RefreshCw
                 size={14}
                 className={probeStatus === "probing" ? "animate-spin" : ""}
               />
-              <span>{t("重新探测服务连通状态", "Re-probe Connection")}</span>
+              <span>{routingManaged ? "刷新本账号底座状态（不调用模型）" : t("重新探测服务连通状态", "Re-probe Connection")}</span>
             </button>
           </div>
         </div>

@@ -4,7 +4,7 @@ import type { ResumeEditContext } from "@better-me/agent-contracts";
 import { ArrowRight, BookOpen, Check, Compass, Download, MessageSquare, Settings2, ShieldCheck, Sparkles, Target, X } from "lucide-react";
 import type { DrawerJobContext } from "./JdMatchDrawer";
 import { findResumeContextSource, type ResumeProposalWrite } from "../lib/resume-agent-context";
-import { generateCoach, generateCoachWithChatGpt } from "../lib/career-coach/model";
+import { generateCoach, generateCoachWithChatGpt, generateCoachWithAgentBase } from "../lib/career-coach/model";
 import { addCoachRecord, addCoachSubmission, adoptCoachPlan, contextFingerprint, createCoachRecord, getCoachProgress, goalFingerprint, updateCoachTask } from "../lib/career-coach/state";
 import { confirmedGoal, confirmGoal, planChanges } from "../lib/career-coach/journey";
 import { CareerPractice } from "./CareerPractice";
@@ -16,6 +16,7 @@ import "./career-coach-workspace.css";
 import { useBetterMeAgent } from "../lib/betterme-agent/react";
 import { AgentContinuityButton, AgentMemoryConsent, AgentModelControls } from "./BetterMeAgentCenter";
 import { defaultChatGptClient, type ChatGptClient } from "../services/chatgpt-client";
+import { agentBaseLabel, useAgentRouting } from "../lib/agent-routing";
 
 export interface CareerCoachWorkspaceProps {
   workspaceKey: string;
@@ -64,7 +65,8 @@ function CareerCoachSession({ workspaceKey, resumeEditContext, job, llmConfig, o
   const { agent, snapshot: agentSnapshot } = useBetterMeAgent();
   const [shareAgentMemory, setShareAgentMemory] = useState(false);
   const agentTask = useRef<string | undefined>(undefined);
-  const account = agentSnapshot?.data.selection.kind === "chatgpt";
+  const routing = useAgentRouting();
+  const account = !routing?.enabled && agentSnapshot?.data.selection.kind === "chatgpt";
   const { state, ready, persistenceError, conflict, update, reload, clear } = useCareerCoach(workspaceKey, repository);
   const [mode, setMode] = useState<CoachMode>("analysis");
   const [shareResume, setShareResume] = useState(false);
@@ -122,10 +124,11 @@ function CareerCoachSession({ workspaceKey, resumeEditContext, job, llmConfig, o
     ...(goal && targetMode !== "analysis" && targetMode !== "resume" ? { confirmedGoal: goal } : {}) });
   const run = async (request: CoachRequest, apply?: (next: CoachState, record: CoachRecord) => CoachState) => {
     if (requestRef.current.busy || !ready || conflict) return;
+    if (routing?.blocked) { setError("本账号底座状态尚未确认；请刷新模型与工具。未使用旧 API 配置补发。"); return; }
     if (!request.settings.goal.trim()) { setError("请先填写本阶段目标，再开始这次任务。"); return; }
     if (request.mode === "plan" && !confirmedGoal(stateRef.current, fingerprint)) { setError("请先到规划分析核对目标与 Agent 的理解，并点击确认；不会直接替你决定方向。"); return; }
     if (account && !agentSnapshot?.chatGptReady) { setError("请先完成 ChatGPT 授权与模型选择；不会自动改用 API 配置。"); return; }
-    if (!account && (!llmConfig.baseUrl.trim() || !llmConfig.model.trim() || (llmConfig.provider !== "ollama" && !llmConfig.apiKey.trim()))) {
+    if (!routing?.enabled && !account && (!llmConfig.baseUrl.trim() || !llmConfig.model.trim() || (llmConfig.provider !== "ollama" && !llmConfig.apiKey.trim()))) {
       setError("请先打开模型配置，填写服务地址、模型名称和所需 API Key；Ollama 本地模型可不填 Key。"); return;
     }
     const id = requestRef.current.id + 1;
@@ -148,14 +151,15 @@ function CareerCoachSession({ workspaceKey, resumeEditContext, job, llmConfig, o
         }
       }
       const produce = (signal: AbortSignal) => new Promise<Awaited<ReturnType<CoachGenerate>>>((resolve, reject) => {
+        routing?.assertSelected();
         const abort = () => reject(timedOut ? new Error("模型响应超时，输入与历史保留；请手动重试，不会自动切换付费 API。") : new DOMException("本次生成已停止。", "AbortError"));
         if (signal.aborted) { abort(); return; }
         signal.addEventListener("abort", abort, { once: true });
-        const pending = account && agentSnapshot ? generateCoachWithChatGpt(effectiveRequest, chatGptClient, agentSnapshot.data.selection, signal) : generate(effectiveRequest, llmConfig, signal);
+        const pending = routing?.enabled ? generateCoachWithAgentBase(effectiveRequest, routing.respond, signal) : account && agentSnapshot ? generateCoachWithChatGpt(effectiveRequest, chatGptClient, agentSnapshot.data.selection, signal) : generate(effectiveRequest, llmConfig, signal);
         void pending.then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
       });
       const result = agent ? await agent.run({ id: taskId, origin: "growth", label: `职业成长 · ${MODES.find(item => item.id === request.mode)?.title}`, input: `${request.settings.goal}\n${request.input}`,
-        destination: account ? `ChatGPT · ${agentSnapshot?.data.selection.model}` : `${llmConfig.provider} · ${llmConfig.model}`, shareMemories: shareAgentMemory },
+        destination: routing?.enabled ? agentBaseLabel(routing.policy) : account ? `ChatGPT · ${agentSnapshot?.data.selection.model}` : `${llmConfig.provider} · ${llmConfig.model}`, shareMemories: shareAgentMemory },
         (signal, shared) => { effectiveRequest = { ...request, sharedProjectContext: shared.text || undefined, agentMemoryIds: shared.memoryIds }; return produce(AbortSignal.any([signal, controller.signal])); },
         value => JSON.stringify(value.payload)) : await produce(controller.signal);
       if (controller.signal.aborted || requestRef.current.id !== id || scopeRef.current !== requestScope) return;
@@ -318,7 +322,7 @@ function CareerCoachSession({ workspaceKey, resumeEditContext, job, llmConfig, o
       <div className="coach-header-actions"><button type="button" onClick={onOpenConfig}><Settings2 size={16} />模型配置</button><button type="button" onClick={exportState} disabled={!ready}><Download size={16} />下载备份</button></div></header>
     {agent && <div className="coach-agent-bar" role="group" aria-label="本轮 Agent 与授权">
       <div className="coach-agent-controls"><AgentModelControls config={llmConfig} disabled={busy} client={chatGptClient} /><AgentContinuityButton /></div>
-      <AgentMemoryConsent checked={shareAgentMemory} onChange={setShareAgentMemory} />
+      <AgentMemoryConsent scope="growth" checked={shareAgentMemory} onChange={setShareAgentMemory} />
     </div>}
     <nav className="coach-tabs" aria-label="成长任务">{MODES.map((item, index) => <button key={item.id} type="button" aria-pressed={mode === item.id} onClick={() => { if (!agent) invalidate(true); setMode(item.id); if (!busy) { setInput(""); carriedSources.current = []; } setError(undefined); }}><span className="coach-tab-number">0{index + 1}</span><item.icon size={18} /><span>{item.title}<small>{item.subtitle}</small></span><ArrowRight size={15} /></button>)}</nav>
     <div className="coach-layout"><aside className="coach-setup"><div className="coach-section-heading"><Target size={18} /><h2>你的成长坐标</h2></div><p className="coach-muted">同一位 Agent、同一目标；没有 JD 也可以开始。</p>

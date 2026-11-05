@@ -23,7 +23,7 @@ export type NativeApiAuthorization = { mode: "api-key"; apiKey: string; model: s
 export type UnderstandingRuntime = { kind: "model"; modelSettings: {
   provider: LlmConfig["provider"]; model: string; baseUrl: string; apiKey?: string; temperature?: number;
   thinkingMode?: "enabled" | "disabled"; reasoningEffort?: "low" | "high" | "max"; maxTokens?: number;
-} } | { kind: "native"; runtimeId: string } | { kind: "chatgpt"; profileId: string; model: string };
+} } | { kind: "native"; runtimeId: string } | { kind: "chatgpt"; profileId: string; model: string } | { kind: "unified"; expectedRevision: number };
 export type UnderstandingCreateInput = z.infer<typeof UnderstandingCreateSchema>;
 export type UnderstandingTurnRequest = UnderstandingTurnInput & { runtime: UnderstandingRuntime };
 export class UnderstandingClientError extends Error {

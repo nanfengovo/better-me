@@ -378,3 +378,13 @@ export async function generateCoachWithChatGpt(request: CoachRequest, client: Ch
   if (result.profileId !== choice.profileId || result.model !== choice.model) throw new Error("ChatGPT 账号或模型与本轮选择不一致，未采用；未改用 API。");
   return { payload: parseCoachPayload(result.text, safe), model: { provider: "chatgpt", name: result.model, generatedAt: new Date().toISOString() } };
 }
+
+/** Same business validation; only the replaceable reasoning transport differs. */
+export async function generateCoachWithAgentBase(request: CoachRequest, respond: (instructions: string, messages: { role: "user" | "assistant"; content: string }[], signal: AbortSignal) => Promise<{ text: string; runtimeId: string }>, signal: AbortSignal) {
+  throwIfCancelled(signal);
+  const safe = validateCoachRequest(request), messages = buildMessages(safe);
+  const result = await respond(messages.filter(message => message.role === "system").map(message => String(message.content)).join("\n"),
+    messages.filter(message => message.role === "user").map(message => ({ role: "user" as const, content: String(message.content) })), signal);
+  throwIfCancelled(signal);
+  return { payload: parseCoachPayload(result.text, safe), model: { provider: "native", name: result.runtimeId, generatedAt: new Date().toISOString() } };
+}
