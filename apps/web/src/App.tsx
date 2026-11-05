@@ -24,6 +24,7 @@ import type { ResumeProposalTarget } from "@better-me/agent-contracts";
 import { applyResumeProposal, createResumeAgentContext } from "./lib/resume-agent-context";
 import { triggerAgentGuide } from "./lib/agent-guide";
 import "./components/agent-guide.css";
+import "./components/workspace-refinements.css";
 import { NetworkSettingsModal } from "./components/NetworkSettingsModal";
 import { LazyResumeImportModal } from "./components/LazyResumeImportModal";
 import { useConfirm } from "./components/ConfirmationDialog";
@@ -400,7 +401,7 @@ export function App() {
       {resumeSelectionReference && <div className="no-print flex items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-4 py-2 text-[11px] text-emerald-950">
         <MessageSquare size={14} className="shrink-0 text-emerald-700" />
         <span className="min-w-0 flex-1 truncate" title={resumeSelectionReference.text}>{t("已选中简历预览文字：", "Selected resume text: ")}{resumeSelectionReference.text}</span>
-        <button type="button" className="rounded-lg bg-emerald-700 px-3 py-1.5 font-semibold text-white hover:bg-emerald-800" onClick={() => { setAgentCompanionReference(resumeSelectionReference); setResumeSelectionReference(null); }}>{t("在 Agent 伴侣中提问", "Ask in Agent Companion")}</button>
+        <button type="button" className="rounded-lg bg-emerald-700 px-3 py-1.5 font-semibold text-white hover:bg-emerald-800" onClick={() => { setAgentCompanionReference(resumeSelectionReference); setResumeSelectionReference(null); }}>{t("向 Agent 提问", "Ask Agent")}</button>
         <button type="button" aria-label={t("关闭引用工具", "Dismiss quote action")} onClick={() => setResumeSelectionReference(null)} className="rounded p-1 text-emerald-700 hover:bg-emerald-100"><X size={13} /></button>
       </div>}
       <div className="studio-document-bar no-print">
@@ -417,7 +418,7 @@ export function App() {
         </div>
         <div className="document-actions">
           <div className="output-language" role="group" aria-label={t("简历输出语言", "Resume output language")} title={t("只影响这份简历的预览与导出，不改变界面语言", "Only changes this resume’s preview and exports, independently of the interface language")}>
-            <Languages size={14} /><span className="output-language-label">{t("简历语言", "Resume")}</span>
+            <Languages size={14} /><span className="output-language-label">{t("导出语言", "Export language")}</span>
             {(["zh", "en"] as const).map((locale) => <button key={locale} aria-pressed={activeResume.locale === locale} className={activeResume.locale === locale ? "active" : ""} onClick={() => setResumeLocale(locale)}>{locale === "zh" ? "中文" : "English"}</button>)}
           </div>
           {!autoSaveSettings.enabled && <button className="studio-button subtle" onClick={() => void flush()}><Check size={14} />{t("立即保存", "Save now")}</button>}
@@ -429,7 +430,7 @@ export function App() {
             <button onClick={() => { if (docRef.current) edit(duplicateResumeView(docRef.current, activeResume.id)); setIsMenuOpen(false); }}><FileText size={14} />{t("复制当前简历", "Duplicate resume")}</button>
             <button onClick={() => { setIsHistoryOpen(true); setIsMenuOpen(false); }}><GitBranch size={14} />{t("历史版本", "Version history")}</button>
             <hr /><button onClick={handleExportBackup}><Download size={14} />{t("下载 JSON 备份", "Download JSON backup")}</button><button onClick={() => fileInputRef.current?.click()}><RotateCcw size={14} />{t("从备份恢复", "Restore backup")}</button>
-            <hr /><button disabled={doc.resumeViews.length <= 1} onClick={() => void deleteResumeView(activeResume.id)}>{t("删除当前简历版本", "Delete current resume")}</button><button onClick={() => void resetDemo()}><RotateCcw size={14} />{t("恢复演示简历", "Reset demo resume")}</button></div>}</div>
+            <hr /><span className="document-danger-label">{t("谨慎操作", "Use with care")}</span><button className="document-danger-action" disabled={doc.resumeViews.length <= 1} onClick={() => void deleteResumeView(activeResume.id)}>{t("删除当前简历版本", "Delete current resume")}</button><button className="document-danger-action" onClick={() => void resetDemo()}><RotateCcw size={14} />{t("恢复演示简历", "Reset demo resume")}</button></div>}</div>
         </div>
       </div>
       <div className="studio-notices no-print">

@@ -424,10 +424,11 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
         {/* Bilingual / Locale Toggle */}
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-ink-muted)]" aria-describedby="editor-fields-help">
           <Languages className="h-3.5 w-3.5 text-slate-400" />
-          <span className="font-medium">{t("编辑字段：", "Editor fields:")}</span>
-          <div className="inline-flex rounded-lg border border-[var(--color-line)] bg-white p-0.5 text-xs shadow-xs">
+          <span className="font-medium">{t("编辑语言", "Editing language")}</span>
+          <div className="editor-language-switch inline-flex rounded-lg border border-[var(--color-line)] p-0.5 text-xs shadow-xs">
             <button
               type="button"
+              aria-pressed={viewMode === "bilingual"}
               onClick={() => setViewMode("bilingual")}
               className={`rounded px-2 py-1 font-medium transition ${
                 viewMode === "bilingual"
@@ -438,6 +439,7 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
               {t("中英双语", "Chinese & English")}</button>
             <button
               type="button"
+              aria-pressed={viewMode === "zh"}
               onClick={() => setViewMode("zh")}
               className={`rounded px-2 py-1 font-medium transition ${
                 viewMode === "zh"
@@ -448,6 +450,7 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
               {t("仅中文", "Chinese only")}</button>
             <button
               type="button"
+              aria-pressed={viewMode === "en"}
               onClick={() => setViewMode("en")}
               className={`rounded px-2 py-1 font-medium transition ${
                 viewMode === "en"
@@ -457,7 +460,7 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
             >
               {t("仅英文", "English only")}</button>
           </div>
-          <p id="editor-fields-help" className="w-full text-[10px] leading-relaxed">{t("仅切换编辑字段，不自动翻译；导出语言在顶部设置。", "Switches editing fields without translation. Set the export language above.")}</p>
+          <p id="editor-fields-help" className="w-full text-xs leading-relaxed">{t("仅切换编辑字段，不自动翻译；导出语言在顶部设置。", "Switches editing fields without translation. Set the export language above.")}</p>
         </div>
       </div>
 

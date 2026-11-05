@@ -1,0 +1,46 @@
+@media screen {
+  .studio-app.compact-chrome .studio-document-bar { gap:16px; padding:16px 24px; flex-wrap:wrap; background:var(--ui-surface); border-bottom:1px solid var(--ui-border); }
+  .studio-app.compact-chrome .document-heading { min-width:0; flex:1 1 260px; }
+  .studio-app.compact-chrome .document-title-row { gap:10px; flex-wrap:wrap; }
+  .studio-app.compact-chrome .resume-view-picker select { font-size:16px; font-weight:600; min-height:38px; max-width:min(320px,100%); color:var(--ui-text); border-radius:8px; }
+  .studio-app.compact-chrome .document-badge { font-size:11px; color:var(--ui-text-secondary); background:var(--ui-surface-soft); border:1px solid var(--ui-border); }
+  .studio-app.compact-chrome .document-actions { gap:8px; flex-wrap:wrap; }
+  .studio-app.compact-chrome .output-language { padding:4px; border:1px solid var(--ui-border); background:var(--ui-surface-soft); border-radius:9px; }
+  .studio-app.compact-chrome .output-language-label { font-size:11px; color:var(--ui-text-secondary); }
+  .studio-app.compact-chrome .output-language button { min-height:30px; padding:5px 9px; border-radius:6px; }
+  .studio-app.compact-chrome .output-language button.active { color:var(--ui-accent); background:var(--ui-surface); box-shadow:0 1px 4px #00000016; }
+  .studio-app.compact-chrome .document-actions .studio-button { min-height:36px; font-size:12px; border-radius:8px; }
+  .studio-app.compact-chrome .studio-editor-pane { background:var(--ui-surface); border-color:var(--ui-border); }
+  .studio-app.compact-chrome .studio-editor-pane :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]),textarea,select) { background:var(--ui-input); color:var(--ui-text); border-color:var(--ui-border); border-radius:8px; transition:border-color .18s,box-shadow .18s; }
+  .studio-app.compact-chrome .studio-editor-pane :is(input,textarea)::placeholder { color:var(--ui-text-muted); opacity:1; }
+  .studio-app.compact-chrome .studio-editor-pane :is(input,textarea,select):focus-visible { outline:2px solid var(--ui-focus); outline-offset:2px; box-shadow:0 0 0 4px color-mix(in srgb,var(--ui-focus) 12%,transparent); }
+  .studio-app.compact-chrome .studio-editor-pane input:autofill { box-shadow:0 0 0 1000px var(--ui-input) inset; -webkit-text-fill-color:var(--ui-text); caret-color:var(--ui-text); }
+  .studio-app.compact-chrome .editor-language-switch { background:var(--ui-surface-soft); border-color:var(--ui-border); }
+  .studio-app.compact-chrome .editor-language-switch button { min-height:32px; background:transparent; color:var(--ui-text-secondary); }
+  .studio-app.compact-chrome .editor-language-switch button[aria-pressed=true] { background:var(--ui-surface); color:var(--ui-accent); box-shadow:0 1px 4px #00000020; }
+  .studio-app.compact-chrome #editor-fields-help { color:var(--ui-text-secondary); max-width:62ch; line-height:1.7; }
+  .studio-app.compact-chrome .document-dropdown { min-width:240px; max-width:calc(100vw - 32px); padding:8px; border:1px solid var(--ui-border); border-radius:12px; background:var(--ui-surface-raised); box-shadow:var(--ui-shadow); animation:workspace-pop .16s ease-out; }
+  .studio-app.compact-chrome .document-dropdown button { min-height:36px; border-radius:6px; padding:8px 10px; }
+  .studio-app.compact-chrome .document-dropdown .document-danger-label { display:block; padding:6px 10px; font-size:11px; color:var(--ui-text-secondary); }
+  .studio-app.compact-chrome .document-dropdown .document-danger-action { color:var(--ui-danger); }
+  .studio-app.compact-chrome .document-dropdown .document-danger-action:hover:not(:disabled) { background:var(--ui-danger-soft); }
+  .studio-app.compact-chrome .document-dropdown button:disabled { opacity:.45; cursor:not-allowed; }
+  .studio-app.compact-chrome :is(.document-actions,.studio-editor-pane,.studio-rail) button { transition:background-color .16s,color .16s,box-shadow .16s,transform .12s; }
+  .studio-app.compact-chrome :is(.document-actions,.studio-editor-pane,.studio-rail) button:active:not(:disabled) { transform:translateY(1px); }
+  .studio-app.compact-chrome :is(.document-actions,.studio-editor-pane,.studio-rail) button:focus-visible { outline:2px solid var(--ui-focus); outline-offset:3px; }
+  .studio-app.compact-chrome .jd-workspace-invite { margin-top:20px; border:1px solid var(--ui-border); border-radius:12px; background:linear-gradient(125deg,var(--ui-surface-raised),var(--ui-surface-soft)); box-shadow:0 3px 12px #00000008; }
+  .studio-app.compact-chrome .jd-workspace-invite:hover { border-color:var(--ui-border-strong); box-shadow:0 6px 20px #00000012; }
+  .studio-app.compact-chrome .jd-workspace-invite small { font-size:12px; line-height:1.6; color:var(--ui-text-secondary); }
+  .studio-app.compact-chrome .studio-preview-pane { background:var(--ui-canvas); }
+  .studio-app.compact-chrome .persistence-notice.error { border:1px solid var(--ui-danger-border); background:var(--ui-danger-soft); color:var(--ui-danger); border-radius:8px; font-size:12px; }
+  .studio-app.compact-chrome .studio-footer { font-size:11px; line-height:1.6; gap:12px; color:var(--ui-text-secondary); }
+  .confirmation-dialog { max-width:min(440px,calc(100vw - 32px)); border:1px solid var(--ui-border); border-radius:16px; box-shadow:var(--ui-shadow); }
+  .confirmation-dialog[open] { animation:workspace-pop .18s ease-out; }
+  .confirmation-dialog::backdrop { background:#070d126b; backdrop-filter:blur(4px); }
+  .confirmation-actions button { min-height:40px; border-radius:8px; transition:background .16s,transform .12s; }
+  .confirmation-actions button:active { transform:translateY(1px); }
+  .confirmation-actions button:focus-visible { outline:2px solid var(--ui-focus); outline-offset:3px; }
+}
+@keyframes workspace-pop { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+@media screen and (max-width:760px) { .studio-app.compact-chrome .studio-document-bar { padding:12px; gap:12px; } .studio-app.compact-chrome .document-actions { width:100%; } .studio-app.compact-chrome .document-heading { flex-basis:100%; } .studio-app.compact-chrome .studio-footer { flex-wrap:wrap; } }
+@media (prefers-reduced-motion:reduce) { .studio-app.compact-chrome button,.studio-app.compact-chrome .document-dropdown,.confirmation-dialog[open],.confirmation-actions button { animation:none!important; transition:none!important; } }

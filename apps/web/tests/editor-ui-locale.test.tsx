@@ -75,8 +75,8 @@ after(async () => {
 test("default editor remains Chinese and field filtering never writes facts", async () => {
   const factBase = facts(); const before = structuredClone(factBase); let changes = 0;
   await mount(h(FactEditor, { factBase, onChange: () => { changes += 1; } }));
-  assert.match(dom.document.body.textContent!, /编辑字段：/);
-  assert.match(dom.document.getElementById("editor-fields-help")!.textContent!, /不会翻译内容或更改简历输出语言/);
+  assert.match(dom.document.body.textContent!, /编辑语言/);
+  assert.match(dom.document.getElementById("editor-fields-help")!.textContent!, /不自动翻译；导出语言在顶部设置/);
   await click("仅英文");
   const areas = [...dom.document.querySelectorAll("textarea")];
   assert.ok(areas.some(area => area.value === factBase.experiences[0]!.claims[0]!.text.en));
@@ -115,7 +115,7 @@ test("English UI translates guidance while preserving Chinese source text and me
     factBase, onChange: () => { changes += 1; },
     issueNavigation: { issue, field: "confirmation", requestId: 1 },
   }), "en");
-  assert.match(dom.document.body.textContent!, /Editor fields:/);
+  assert.match(dom.document.body.textContent!, /Editing language/);
   assert.match(dom.document.body.textContent!, /Metric not yet verified/);
   assert.match(dom.document.body.textContent!, /Model extraction or field validation cannot replace your own verification/);
   assert.match(dom.document.querySelector(".issue-guide-context")!.textContent!, /合成单位 · Entry \d/);
@@ -133,7 +133,7 @@ test("changing UI locale preserves the selected editor field language", async ()
   await mount(h(Harness), "en"); await click("English only");
   const values = [...dom.document.querySelectorAll("textarea")].map(area => area.value);
   await click("Switch workspace");
-  assert.match(dom.document.body.textContent!, /编辑字段：/);
+  assert.match(dom.document.body.textContent!, /编辑语言/);
   assert.deepEqual([...dom.document.querySelectorAll("textarea")].map(area => area.value), values);
   assert.deepEqual(factBase, before);
 });
