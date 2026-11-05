@@ -457,7 +457,7 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
             >
               {t("仅英文", "English only")}</button>
           </div>
-          <p id="editor-fields-help" className="w-full text-[10px] leading-relaxed">{t("仅显示所选语言的编辑字段，不会翻译内容或更改简历输出语言。", "Shows fields in the selected language only. It does not translate content or change the resume output language.")}</p>
+          <p id="editor-fields-help" className="w-full text-[10px] leading-relaxed">{t("仅切换编辑字段，不自动翻译；导出语言在顶部设置。", "Switches editing fields without translation. Set the export language above.")}</p>
         </div>
       </div>
 
@@ -546,7 +546,7 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
                         {t("移除", "Remove")}</button>
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-400">{t("上传 JPG、PNG 或粘贴照片。在「排版设计」中选择是否展示；照片设置随简历保存。", "Upload JPG or PNG, or paste a photo. Choose whether to show it in Design; this preference is saved with the resume.")}</p>
+                  <p className="text-[11px] text-slate-400">{t("上传或粘贴 JPG / PNG。在「设计」中控制显示，随简历保存。", "Upload or paste a JPG / PNG. Control visibility in Design; saved with your resume.")}</p>
                   {avatarError && <p role="alert" className="text-xs text-rose-700">{avatarError}</p>}
                 </div>
               </div>
@@ -615,7 +615,7 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
                           },
                         }))
                       }
-                      placeholder={t("例如：高级工业软件研发工程师 · 工业 AI 落地实践者", "For example: Senior Industrial Software Engineer · Applied Industrial AI")}
+                      placeholder={t("例如：产品设计师 · 专注用户体验", "For example: Product Designer · Focused on user experience")}
                     />
                   </div>
                 )}
@@ -761,7 +761,7 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
                     <button type="button" aria-label={t(`删除第 ${index + 1} 条核心优势`, `Delete strength ${index + 1}`)} onClick={() => updateProfile((profile) => ({ ...profile, traits: profile.traits.filter((_, itemIndex) => itemIndex !== index) }))} className="rounded p-1 text-slate-400 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
                 ))}
-                <p className="text-[11px] text-slate-500">{t("优势字段目前共用一份文字，不随编辑语言自动翻译。", "Strengths use one shared text value and are not translated when the editing language changes.")}</p>
+                <p className="text-[11px] text-slate-500">{t("中英文简历共用此内容，不自动翻译。", "Shared across resume languages; not automatically translated.")}</p>
               </div>
 
               <div data-editor-anchor="profile:links" className="space-y-2 border-t border-slate-100 pt-3">
@@ -1202,7 +1202,7 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
                                       }))
                                     }
                                     rows={2}
-                                    placeholder={t("中文事实要点描述（尽量包含 STAR：动作、工具、对标结果）...", "Describe the fact in Chinese (consider STAR: action, tools and supported results)...")}
+                                    placeholder={t("你做了什么？用了哪些方法？取得了哪些可核实的成果？", "What did you do, how did you do it, and what verifiable results did you achieve?")}
                                   />
                                 </div>
                               )}
