@@ -5,7 +5,7 @@ import {
   LocationConfirmationDecisionSchema, LocationConfirmationReceiptSchema, OfficeAddressDecisionSchema, OfficeAddressReceiptSchema,
   CompanyControllerOverrideReceiptSchema, CompensationAuditReceiptSchema,
 } from "@better-me/opportunities";
-import { SourceJobRecordSchema } from "@better-me/source-adapters";
+import { SourceJobRecordSchema, ReviewedCardCompanyConflictSchema } from "@better-me/source-adapters";
 import { BackgroundEnrichmentTaskSchema } from "./background-enrichment.js";
 
 export const REPOSITORY_SCHEMA_VERSION = 7;
@@ -41,6 +41,7 @@ export type SyncRun = z.infer<typeof SyncRunSchema>;
 export const ImportReceiptSchema = z.object({
   ok: z.literal(true), revision: z.number().int().nonnegative(), jobIds: z.array(EntityIdSchema), snapshotIds: z.array(EntityIdSchema),
   counts: z.object({ newJobs: z.number().int().nonnegative(), updatedJobs: z.number().int().nonnegative(), unchangedJobs: z.number().int().nonnegative(), newListings: z.number().int().nonnegative(), newObservations: z.number().int().nonnegative(), newSnapshots: z.number().int().nonnegative() }).strict(),
+  conflicts: z.array(ReviewedCardCompanyConflictSchema).min(1).max(50).optional(),
 }).strict();
 export type ImportReceipt = z.infer<typeof ImportReceiptSchema>;
 export const DiscoveryLeadSchema = z.object({

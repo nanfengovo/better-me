@@ -7,7 +7,7 @@ import {
   SourcePageSchema, SourceRegistrationProposalSchema, SourceScopeSchema,
   DiscoverCompanyCareersRequestSchema, CompanyCareerDiscoveryResultSchema, CompanyCareerDiscoveryCapabilitiesSchema, type DiscoverCompanyCareersInput,
   type DiscoverSourceCandidatesInput, type InspectSourceCandidateInput, type ProposeSourceRegistrationInput,
-  PreviewReviewedCardsInputSchema, ReviewedCardsPreviewSchema, ImportReviewedCardsInputSchema,
+  PreviewReviewedCardsInputSchema, ReviewedCardsPreviewSchema, ImportReviewedCardsInputSchema, ReviewedCardCompanyConflictSchema, reviewedCompanyConflictsMatchCapture,
   type PreviewReviewedCardsInput, type ImportReviewedCardsInput,
   PreviewDetailLocationsInputSchema, ImportDetailLocationsInputSchema, DetailLocationsPreviewSchema,
   type PreviewDetailLocationsInput, type ImportDetailLocationsInput,
@@ -47,6 +47,7 @@ const count = () => z.number().int().nonnegative();
 // These HTTP views intentionally contain only the public fields emitted by the local service.
 const ReceiptSchema = z.object({ ok: z.literal(true), revision: count(), jobIds: z.array(EntityIdSchema), snapshotIds: z.array(EntityIdSchema),
   counts: z.object({ newJobs: count(), updatedJobs: count(), unchangedJobs: count(), newListings: count(), newObservations: count(), newSnapshots: count() }).strict(),
+  conflicts: z.array(ReviewedCardCompanyConflictSchema).min(1).max(50).optional(),
 }).strict();
 const RunSchema = z.object({
   runId: EntityIdSchema, sourceId: EntityIdSchema, actorScope: z.string().min(1).max(200).regex(/^[A-Za-z0-9._:/-]+$/), generation: z.number().int().positive(),
@@ -389,7 +390,11 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
       return result;
     },
     previewReviewedCards: (value: PreviewReviewedCardsInput, options: Options = {}) => request("jobs/reviewed-cards/preview", ReviewedCardsPreviewSchema, options, input(PreviewReviewedCardsInputSchema, value)),
-    importReviewedCards: (value: ImportReviewedCardsInput, options: WriteOptions) => request("jobs/reviewed-cards/import", ReceiptSchema, options, input(ImportReviewedCardsInputSchema, value), input(KeySchema, options.idempotencyKey)),
+    importReviewedCards: async (value: ImportReviewedCardsInput, options: WriteOptions) => {
+      const receipt = await request("jobs/reviewed-cards/import", ReceiptSchema, options, input(ImportReviewedCardsInputSchema, value), input(KeySchema, options.idempotencyKey));
+      if (!reviewedCompanyConflictsMatchCapture(value, receipt.conflicts)) throw new AtlasSourceServiceError("invalid-response", "冲突回执与本次来源卡片不一致，保存结果待核对。");
+      return receipt;
+    },
     previewCompanyControllerOverride: (value: PreviewCompanyControllerOverrideInput, options: Options = {}) => request("companies/controllers/preview", CompanyControllerOverridePreviewSchema, options, input(PreviewCompanyControllerOverrideInputSchema, value)),
     confirmCompanyControllerOverride: (value: ConfirmCompanyControllerOverrideInput, options: WriteOptions) => request("companies/controllers/confirm", CompanyControllerOverrideReceiptSchema, options, input(ConfirmCompanyControllerOverrideInputSchema, value), input(KeySchema, options.idempotencyKey)),
     revokeCompanyControllerOverride: (value: RevokeCompanyControllerOverrideInput, options: WriteOptions) => request("companies/controllers/revoke", CompanyControllerOverrideReceiptSchema, options, input(RevokeCompanyControllerOverrideInputSchema, value), input(KeySchema, options.idempotencyKey)),

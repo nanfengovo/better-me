@@ -305,6 +305,26 @@ test("a provider with valid cards and failed pages is described as partial rathe
   assert.equal(liveHarvestStopReasonLabel("error", "error"), "读取异常（展开查看原因）");
 });
 
+test("source summaries distinguish rate limits from login and verification without hiding captured cards", () => {
+  const batch = receipt();
+  batch.results[0]!.coverage = { ...batch.results[0]!.coverage, stopReason: "gate", failureKind: "platform_limit" };
+  batch.results[1]!.coverage = { ...batch.results[1]!.coverage, stopReason: "gate", failureKind: "login" };
+  batch.results[2]!.status = "verification_required";
+  batch.results[2]!.coverage = { ...batch.results[2]!.coverage, stopReason: "gate", failureKind: "verification" };
+  const view = buildLiveHarvestView(batch, { keyword: "C#" });
+  assert.equal(view.totalCards, 2, "a later platform limit must not discard previously verified cards");
+  assert.deepEqual(view.providers.map(provider => provider.coverage.failureKind), ["platform_limit", "login", "verification"]);
+  const merged = mergeLiveHarvestViews(view, buildLiveHarvestView(structuredClone(batch), view.query));
+  assert.deepEqual(merged.providers.map(provider => provider.coverage.failureKind), ["platform_limit", "login", "verification"]);
+  const markup = renderToStaticMarkup(createElement(AtlasLiveHarvestResults, { view: merged }));
+  assert.match(markup, /部分：平台访问受限（限流或拒绝访问）/);
+  assert.match(markup, /部分：需要登录/);
+  assert.match(markup, /部分：需要安全验证/);
+  assert.doesNotMatch(markup, /登录或安全验证阻断/);
+  assert.equal(liveHarvestStopReasonLabel("ready", "gate"), "登录或安全验证阻断", "old receipts without a failure kind remain explicitly unspecific");
+  assert.equal(liveHarvestStopReasonLabel("cancelled", "cancelled", "platform_limit"), "已取消", "a historic failure kind must not override cancellation");
+});
+
 test("source coverage is collapsed and labels page limits as budgets, not website totals", () => {
   const markup = renderToStaticMarkup(createElement(AtlasLiveHarvestResults, { view: buildLiveHarvestView(receipt(), { keyword: "Java" }) }));
   assert.match(markup, /<details class="atlas-live-harvest-sources">/);

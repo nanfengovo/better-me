@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test, { after, afterEach } from "node:test";
 import { registerHooks } from "node:module";
 import { Window } from "happy-dom";
+import { createInitialDocument, STORAGE_KEY } from "@better-me/storage";
+import { syntheticPersistence } from "./fixtures/synthetic-persistence";
 registerHooks({ load(url, context, next) { return url.endsWith(".css") ? { format: "module", source: "", shortCircuit: true } : next(url, context); } });
 const dom = new Window({ url: "http://chrome-fixture.invalid" });
 const React = await import("react");
@@ -12,6 +14,7 @@ for (const [key, value] of Object.entries({ window: dom, document: dom.document,
 const { createRoot } = await import("react-dom/client"), { act } = React;
 const { UiPreferencesProvider } = await import("../src/lib/ui-preferences");
 const { AutoSaveControls } = await import("../src/components/AutoSaveControls");
+const { DocumentSaveStatus } = await import("../src/components/DocumentSaveStatus");
 const { WorkspaceMenu } = await import("../src/components/WorkspaceMenu");
 const { AgentExecutionLog, groupExecutionEntries } = await import("../src/components/AgentExecutionLog");
 let root: ReturnType<typeof createRoot>;
@@ -29,6 +32,43 @@ test("compact save disclosure preserves the exact preference and manual-save act
   await click("立即保存"); assert.equal(saves, 1); assert.equal(changes.length, 0);
   await click("关闭自动保存设置"); await click("保存状态与设置"); assert.equal(changes.length, 0);
   await click("自动保存"); assert.deepEqual(changes, [{ ...settings, enabled: true }]);
+});
+test("save status distinguishes a protected draft, complete save, pending work and failed history", async () => {
+  const status = { kind: "draft" as const, hasPendingChanges: true, draftSavedAt: "2026-11-04T00:00:00.000Z", message: "草稿已保护，完整版本未更新" };
+  await render(<DocumentSaveStatus status={status} autoSaveEnabled={false} />);
+  assert.match(dom.document.querySelector('[role="status"]')!.textContent!, /草稿已保护.*完整简历待保存.*自动保存关/);
+  await act(async () => root.render(<UiPreferencesProvider><DocumentSaveStatus status={{ ...status, kind: "saved", hasPendingChanges: false, historyError: "版本库暂不可用" }} autoSaveEnabled={false} /></UiPreferencesProvider>));
+  assert.match(dom.document.querySelector('[role="status"]')!.textContent!, /简历已保存.*历史备份需处理/);
+  assert.match(dom.document.querySelector('[role="status"]')!.getAttribute("title")!, /版本库暂不可用/);
+  await act(async () => root.render(<UiPreferencesProvider><DocumentSaveStatus status={{ ...status, kind: "pending" }} autoSaveEnabled /></UiPreferencesProvider>));
+  assert.doesNotMatch(dom.document.querySelector('[role="status"]')!.textContent!, /已保存|已保护/);
+  await act(async () => root.render(<UiPreferencesProvider><DocumentSaveStatus status={{ ...status, kind: "error", draftSavedAt: undefined, message: "浏览器拒绝保存" }} autoSaveEnabled /></UiPreferencesProvider>));
+  assert.match(dom.document.querySelector('[role="status"]')!.textContent!, /保存需要处理/);
+  assert.doesNotMatch(dom.document.querySelector('[role="status"]')!.textContent!, /已保存|已保护/);
+  assert.deepEqual(status, { kind: "draft", hasPendingChanges: true, draftSavedAt: "2026-11-04T00:00:00.000Z", message: "草稿已保护，完整版本未更新" });
+});
+test("save labels follow the real controller through draft, failed complete save, saved content and history failure", async () => {
+  const initial = createInitialDocument(); initial.factBase.profile.displayName = { zh: "合成保存测试" }; initial.factBase.profile.email = "save@example.invalid";
+  const { controller, faults, values } = syntheticPersistence(initial);
+  try {
+    await controller.load();
+    await render(<DocumentSaveStatus status={controller.getState().status} autoSaveEnabled={false} />);
+    const unsubscribe = controller.subscribe(state => root.render(<UiPreferencesProvider><DocumentSaveStatus status={state.status} autoSaveEnabled={false} /></UiPreferencesProvider>));
+    try {
+      const next = structuredClone(initial); next.factBase.profile.headline = { zh: "仅合成的修改" };
+      await act(async () => controller.update(next));
+      assert.match(dom.document.querySelector('[role="status"]')!.textContent!, /草稿已保护.*完整简历待保存/);
+      assert.equal(values.get(STORAGE_KEY), JSON.stringify(initial), "protecting a draft does not overwrite the complete save");
+      faults.official = true;
+      await act(async () => { assert.equal(await controller.flush(true), false); });
+      assert.match(dom.document.querySelector('[role="status"]')!.textContent!, /保存需要处理/);
+      assert.equal(values.get(STORAGE_KEY), JSON.stringify(initial));
+      faults.official = false; faults.history = true;
+      await act(async () => { assert.equal(await controller.flush(true), true); });
+      assert.match(dom.document.querySelector('[role="status"]')!.textContent!, /简历已保存.*历史备份需处理/);
+      assert.equal(JSON.parse(values.get(STORAGE_KEY)!).factBase.profile.headline.zh, "仅合成的修改");
+    } finally { unsubscribe(); }
+  } finally { controller.dispose(); }
 });
 test("workspace preferences remain discoverable but closed, Escape restores trigger focus", async () => {
   let tours = 0;

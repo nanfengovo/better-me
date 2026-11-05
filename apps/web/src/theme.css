@@ -102,12 +102,12 @@
   html[data-theme="dark"] :is(.rail-divider,.format-divider) { background:var(--ui-border); }
   html[data-theme="dark"] :is(.studio-rail button.active,.output-language button.active,.text-format-toolbar button[aria-pressed="true"]) { color:var(--ui-accent); background:var(--ui-accent-soft); }
   html[data-theme="dark"] :is(.studio-rail button:hover,.document-dropdown button:hover,.text-format-toolbar button:hover:not(:disabled)) { background:var(--ui-hover); color:var(--ui-text); }
-  html[data-theme="dark"] :is(.document-badge,.document-dropdown hr,.output-language,.studio-preview-pane>.resume-preview,.resume-view-picker button) { border-color:var(--ui-border); }
+  html[data-theme="dark"] :is(.document-badge,.document-dropdown hr,.output-language,.studio-preview-pane .resume-preview,.resume-view-picker button) { border-color:var(--ui-border); }
   html[data-theme="dark"] :is(.output-language,.studio-user,.studio-splitter-line,.studio-splitter-value) { background:var(--ui-surface-soft); color:var(--ui-text-secondary); border-color:var(--ui-border); }
   html[data-theme="dark"] .studio-splitter::before { background:var(--ui-border); }
   html[data-theme="dark"] :is(.studio-splitter:hover,.studio-splitter:focus-visible,.is-resizing .studio-splitter) .studio-splitter-line { background:var(--ui-hover); color:var(--ui-accent); border-color:var(--ui-border-strong); }
   html[data-theme="dark"] :is(.studio-splitter:hover,.studio-splitter:focus-visible,.is-resizing .studio-splitter)::before { background:var(--ui-border-strong); }
-  html[data-theme="dark"] .studio-preview-pane>.resume-preview { background:#151e19; }
+  html[data-theme="dark"] .studio-preview-pane .resume-preview { background:#151e19; }
   html[data-theme="dark"] .resume-preview-canvas { background:radial-gradient(ellipse at 50% 20%,#26352a,#141d17); }
   html[data-theme="dark"] :is(.studio-button,.network-button,.confirmation-actions button,.autosave-control-group,.resume-view-picker button) { color:var(--ui-text-secondary); background:var(--ui-surface); border-color:var(--ui-border); }
   html[data-theme="dark"] :is(.studio-button:hover:not(:disabled),.network-button:hover:not(:disabled),.confirmation-actions button:hover:not(:disabled),.autosave-switch:hover,.autosave-settings-button:hover,.autosave-close:hover) { color:var(--ui-text); background:var(--ui-hover); border-color:var(--ui-border-strong); }
@@ -129,7 +129,7 @@
 
   /* Consistent fields, including utility-built AI/JD/import/history dialogs. */
   html[data-theme="dark"] :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"])),textarea,select):not(:where(.a4-sheet *,.resume-document *,.template-mini *)) { color:var(--ui-text); background-color:var(--ui-input); border-color:var(--ui-border); }
-  html[data-theme="dark"] .document-title-row input { background:transparent; border-color:transparent; }
+  html[data-theme="dark"] :is(.document-title-row input,.compact-chrome .resume-view-picker select) { background-color:transparent; border-color:transparent; }
   html[data-theme="dark"] :is(.opportunity-search,.atlas-search,.atlas-region-search) input { background:transparent; border-color:transparent; }
   html[data-theme="dark"] .formatted-field textarea { background:var(--ui-input); }
   html[data-theme="dark"] :is(input,textarea)::placeholder { color:#90a38e; opacity:1; }

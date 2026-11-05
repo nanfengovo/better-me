@@ -3,7 +3,7 @@ import {
   AtlasDatasetObjectSchema, deriveEntityId, normalizeSourceUrl, ToolError, type AtlasDataset,
   type CanonicalJob, type EvidenceRef, type SourceDefinition,
 } from "@better-me/opportunities";
-import { SourceJobRecordSchema, type SourceJobRecord, type SourcePage } from "@better-me/source-adapters";
+import { SourceJobRecordSchema, type SourceJobRecord, type SourcePage, type ReviewedCardCompanyConflict } from "@better-me/source-adapters";
 import type { ProjectionSelection } from "./projection-slice.js";
 
 function stableValue(value: unknown): unknown {
@@ -17,9 +17,9 @@ export function emptyDelta(revision = 0): AtlasDataset {
   return { schemaVersion: 1, revision, sources: [], companies: [], jobs: [], locations: [], compensations: [], listings: [], observations: [], snapshots: [] };
 }
 export type ProjectedLead = { id: string; sourceId: string; observedAt: string; record: SourceJobRecord };
-export type SourceProjection = { delta: AtlasDataset; leads: ProjectedLead[]; unchangedJobs: number };
+export type SourceProjection = { delta: AtlasDataset; leads: ProjectedLead[]; unchangedJobs: number; conflicts?: ReviewedCardCompanyConflict[] };
 /** Host-selected provenance; source records and tool arguments cannot elevate their own trust. */
-export type SourceProjectionOptions = { mode?: "source" | "user-reviewed-browser" };
+export type SourceProjectionOptions = { mode?: "source" | "user-reviewed-browser"; isolateCompanyConflicts?: boolean };
 const completenessRank = { lead: 0, excerpt: 1, detail: 2 } as const;
 
 /** Stable source identities needed before projection; never selects a whole source library. */
@@ -51,6 +51,7 @@ export async function projectSourcePage(snapshot: AtlasDataset, source: SourceDe
   const delta = emptyDelta(snapshot.revision);
   delta.sources.push(source);
   const leads: ProjectedLead[] = [];
+  const conflicts: ReviewedCardCompanyConflict[] = [];
   const seen = new Map<string, string>();
   let unchangedJobs = 0;
   for (const input of page.records) {
@@ -75,7 +76,16 @@ export async function projectSourcePage(snapshot: AtlasDataset, source: SourceDe
     const companyId = oldJob?.companyId ?? await deriveEntityId("company", [source.sourceId, record.companyName.normalize("NFKC").trim().toLowerCase()]);
     const oldCompany = snapshot.companies.find((company) => company.id === companyId);
     const normalizeName = (name: string) => name.normalize("NFKC").trim().toLowerCase();
-    if (oldCompany && !oldCompany.names.some((name) => normalizeName(name) === normalizeName(record.companyName!))) throw new ToolError("source-changed");
+    if (oldCompany && !oldCompany.names.some((name) => normalizeName(name) === normalizeName(record.companyName!))) {
+      if (!reviewedBrowser || !options.isolateCompanyConflicts) throw new ToolError("source-changed");
+      // Reject before projecting any fields, observations, locations or employer
+      // entities for this card. Only this explicit conflict is isolatable.
+      conflicts.push({ reason: "company-ownership-conflict", sourceId: source.sourceId, sourceRecordId: identity,
+        jobId, listingId, url: record.url!, title: record.title, company: record.companyName,
+        existingCompanyId: oldCompany.id, existingCompanyNames: [...oldCompany.names],
+        pageUrl: record.evidence[0]!.sourceUrl, capturedAt: page.observedAt });
+      continue;
+    }
     // Cursor overlap is common. Replaying an identical record in one run must not conflict
     // with its immutable observation, while changed content gets a separate observation.
     const observationId = await deriveEntityId("observation", [listingId, runId, signature]);
@@ -201,5 +211,5 @@ export async function projectSourcePage(snapshot: AtlasDataset, source: SourceDe
       ...(record.sourceUpdatedRaw ? { sourceUpdatedRaw: record.sourceUpdatedRaw } : {}), ...(record.sourceUpdatedAt ? { sourceUpdatedAt: record.sourceUpdatedAt } : {}), warnings: record.warnings,
     });
   }
-  return { delta: AtlasDatasetObjectSchema.parse(delta), leads, unchangedJobs };
+  return { delta: AtlasDatasetObjectSchema.parse(delta), leads, unchangedJobs, ...(conflicts.length ? { conflicts } : {}) };
 }

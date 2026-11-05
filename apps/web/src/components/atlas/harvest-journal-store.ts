@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { reviewedCompanyConflictsMatchCapture } from "@better-me/source-adapters/browser-contracts";
 import type { HarvestBatchCheckpoint, HarvestCapturedBatch, HarvestCheckpoint, HarvestCheckpointSnapshot, HarvestJournal, HarvestPreparedImport, HarvestRunRecord } from "./harvest-checkpoint";
 import {
   JournalBatchRowSchema, JournalCapturedBatchSchema, JournalCommandSchema, JournalProviderCheckpointSchema, JournalProviderRowSchema,
@@ -67,7 +68,7 @@ export function createHarvestJournalAdapter(storage: JournalStorage, scope: stri
     const { command, receipt, ...capture } = row.data;
     parsed(JournalCapturedBatchSchema, capture);
     if (row.runId !== runId || row.id !== batchKey(runId, row.data.id) || row.bytes !== bytes(row.data)
-      || (command && !matchingCommand(row.data, command)) || (receipt && !command)) throw corrupt();
+      || (command && !matchingCommand(row.data, command)) || (receipt && (!command || !reviewedCompanyConflictsMatchCapture(capture, receipt.conflicts)))) throw corrupt();
     return row;
   }
   function loadProvider(value: unknown, runId: string) {
@@ -153,6 +154,7 @@ export function createHarvestJournalAdapter(storage: JournalStorage, scope: stri
           const run = await loadRun(tx, id);
           const row = loadBatch(await tx.get("batches", batchKey(id, batchId)), id);
           if (!row.data.command) throw conflict("尚未保存待发送命令，不能登记入库回执。");
+          if (!reviewedCompanyConflictsMatchCapture(row.data, next.conflicts)) throw conflict("冲突回执与已保存卡片不一致，未登记保存结果。");
           if (row.data.receipt) {
             if (!same(row.data.receipt, next)) throw conflict("已确认入库的回执不能替换。");
             return;

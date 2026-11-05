@@ -67,7 +67,13 @@ const stopReasonLabel: Record<LiveHarvestProvider["coverage"]["stopReason"], str
 export function liveHarvestStopReasonLabel(
   status: LiveHarvestProvider["status"],
   stopReason: LiveHarvestProvider["coverage"]["stopReason"],
+  failureKind?: LiveHarvestProvider["coverage"]["failureKind"],
 ): string {
+  if (stopReason === "gate") {
+    if (failureKind === "platform_limit") return "平台访问受限（限流或拒绝访问）";
+    if (failureKind === "login" || status === "login_required") return "需要登录";
+    if (failureKind === "verification" || status === "verification_required") return "需要安全验证";
+  }
   if (stopReason === "no_progress") {
     if (status === "unknown_layout") return "页面未识别或加载超时";
     if (status === "ready") return "页码或列表未确认变化";

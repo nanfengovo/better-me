@@ -238,3 +238,6 @@ export function parseRuntimeAgentInfo(value: unknown): RuntimeAgentInfo {
   return RuntimeAgentInfoSchema.parse(value);
 }
 export * from "./project-understanding.js";
+export * from "./capabilities.js";
+export * from "./evidence-handoff.js";
+export * from "./resume-adoption.js";

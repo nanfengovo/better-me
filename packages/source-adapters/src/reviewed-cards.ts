@@ -90,6 +90,29 @@ export const ImportReviewedCardsInputSchema = z.object({
 }).strict().superRefine(validateCapture);
 export type ImportReviewedCardsInput = z.infer<typeof ImportReviewedCardsInputSchema>;
 
+/** A rejected source claim, never an authorization to reassign an existing job. */
+export const ReviewedCardCompanyConflictSchema = z.object({
+  reason: z.literal("company-ownership-conflict"), sourceId: EntityIdSchema,
+  sourceRecordId: text(500), jobId: EntityIdSchema, listingId: EntityIdSchema,
+  url: urlText, title: text(500), company: text(500),
+  existingCompanyId: EntityIdSchema, existingCompanyNames: z.array(text(2000)).min(1).max(1000),
+  pageUrl: urlText, capturedAt: TimestampSchema,
+}).strict();
+export type ReviewedCardCompanyConflict = z.infer<typeof ReviewedCardCompanyConflictSchema>;
+
+/** Bind rejected claims to the original capture before counting or persisting them. */
+export function reviewedCompanyConflictsMatchCapture(capture: ReviewedCardsCapture, conflicts: readonly ReviewedCardCompanyConflict[] = []): boolean {
+  const seen = new Set<string>();
+  return conflicts.every(conflict => {
+    if (seen.has(conflict.sourceRecordId)) return false;
+    seen.add(conflict.sourceRecordId);
+    const card = capture.cards.find(card => reviewedCardIdentity(card.url, capture.provider)?.id === conflict.sourceRecordId);
+    return !!card && conflict.sourceId === `reviewed-platform-${capture.provider}`
+      && conflict.pageUrl === capture.pageUrl && conflict.capturedAt === capture.capturedAt
+      && conflict.url === reviewedCardIdentity(card.url, capture.provider)?.url && conflict.title === card.title && conflict.company === card.company;
+  });
+}
+
 export const ReviewedCardsPreviewSchema = z.object({
   expectedRevision: RevisionSchema,
   previewFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
@@ -99,7 +122,9 @@ export const ReviewedCardsPreviewSchema = z.object({
     jobId: EntityIdSchema, listingId: EntityIdSchema, url: urlText, title: text(500), company: text(500),
     locationText: text(1000).optional(), salaryText: text(1000).optional(), publicationText: text(1000).optional(),
     existing: z.boolean(),
-  }).strict()).min(1).max(50),
+  }).strict()).max(50),
+  conflicts: z.array(ReviewedCardCompanyConflictSchema).min(1).max(50).optional(),
   warnings: z.array(text(2000)).min(1).max(20),
-}).strict();
+}).strict().refine(value => value.cards.length + (value.conflicts?.length ?? 0) >= 1
+  && value.cards.length + (value.conflicts?.length ?? 0) <= 50);
 export type ReviewedCardsPreview = z.infer<typeof ReviewedCardsPreviewSchema>;

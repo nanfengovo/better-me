@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { Bot, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pause, RotateCcw, Settings2, Sparkles, Square, X } from "lucide-react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { Bot, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, LocateFixed, Pause, RotateCcw, Settings2, Sparkles, Square, X } from "lucide-react";
 import type { LlmConfig } from "@better-me/core";
 import {
   generateWritingReply, inspectWriting, isLocalWritingModel, newWritingNote, readWritingSession, reconcileWritingNotes,
@@ -8,11 +9,13 @@ import {
   writingMessages, parseWritingReply,
 } from "../lib/resume-copilot";
 import type { ResumeProposalWrite } from "../lib/resume-agent-context";
-import { focusWritingSource, observeResumeWriting, readWritingPreviewSelection, useWritingGeometry, type WritingActivity } from "../lib/resume-writing-observer";
+import { focusWritingSource, observeResumeWriting, readWritingPreviewSelection, revealWritingPreview, useWritingGeometry, type WritingActivity } from "../lib/resume-writing-observer";
 import { quoteWritingText, resolveWritingQuote } from "../lib/writing-anchor";
+import { writingAnnotations } from "../lib/writing-annotations";
 import { ProjectUnderstandingPanel } from "./ProjectUnderstandingPanel";
 import { defaultUnderstandingClient, type UnderstandingClient } from "../services/understanding-client";
 import "./resume-writing-copilot.css";
+import "./writing-annotations.css";
 import { ChatGptAgentControls } from "./ChatGptAgentControls";
 import { defaultChatGptClient, ChatGptClientError, type ChatGptClient, type ChatGptChoice } from "../services/chatgpt-client";
 import { generateChatGptWritingReply } from "../lib/chatgpt-writing";
@@ -48,6 +51,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
   const storageKey = `betterme.writing.v1:${sessionKey}`;
   const [session, setSession] = useState(() => readWritingSession(localStorage, storageKey));
   const [selected, setSelected] = useState<string>();
+  const [keyboardNavigation, setKeyboardNavigation] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [agentCollapsed, setAgentCollapsed] = useState(false);
   const agentPaneId = useId();
@@ -82,10 +86,14 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
   const epoch = useRef(0), timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const writeLock = useRef(false), alive = useRef(true);
   const pendingExpand = useRef<string | undefined>(undefined);
+  const revealFrame = useRef(0);
+  const noteIndex = useRef<HTMLElement>(null);
   const notes = session.notes.filter(n => n.state === "open");
+  const annotations = useMemo(() => writingAnnotations(session.notes.filter(note => note.state === "open"), sources), [session.notes, sources]);
   const firstSourceWithNote = sources.find(source => notes.some(note => writingTargetKey(note.source.targetRef) === writingTargetKey(source.targetRef)));
   const focusedNote = notes.find(n => n.id === selected) ?? notes.find(n => writingTargetKey(n.source.targetRef) === activity?.key)
     ?? notes.find(n => firstSourceWithNote && writingTargetKey(n.source.targetRef) === writingTargetKey(firstSourceWithNote.targetRef)) ?? notes[0];
+  const focusedAnnotation = annotations.find(annotation => annotation.id === focusedNote?.id);
   const applied = session.notes.find(n => n.state === "applied" && sources.some(s => writingTargetKey(s.targetRef) === writingTargetKey(n.source.targetRef) && s.text === writingProposal(n)?.proposedText));
   const archived = session.notes.filter(n => n.state !== "open");
   const selectionSource = activity && sources.find(s => writingTargetKey(s.targetRef) === activity.key && s.text === activity.text);
@@ -101,7 +109,22 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
   const hasAgentContent = Boolean(focusedNote && visible || agentKind === "chatgpt" || understandingSource || applied || archived.length || storageError || message);
   const showAgentPane = sidebar ? sidebar.open && sidebar.tab === "conversation" && sidebar.conversation === "writing" : hasAgentContent && !agentCollapsed;
   const compactHint = !expanded && !understandingSource && !busy && agentKind !== "chatgpt";
-  const geometry = useWritingGeometry(shell, understandingSource ? understandingCard : card, active && visible && showAgentPane ? liveUnderstandingSource ?? focusedNote?.source : undefined);
+  const geometry = useWritingGeometry(shell, understandingSource ? understandingCard : card, active && visible && showAgentPane ? liveUnderstandingSource ?? focusedNote?.source : undefined, annotations, focusedNote?.id);
+  useEffect(() => () => cancelAnimationFrame(revealFrame.current), []);
+  useEffect(() => {
+    const index = noteIndex.current;
+    if (!index) return;
+    // Keep the active index visible without moving the chat or the outer page.
+    const reveal = () => {
+      const current = index.querySelector<HTMLElement>('[aria-pressed="true"]');
+      if (!current) return;
+      if (index.scrollWidth > index.clientWidth) index.scrollLeft = Math.max(0, current.offsetLeft - index.clientWidth / 2 + current.offsetWidth / 2);
+      if (index.scrollHeight > index.clientHeight) index.scrollTop = Math.max(0, current.offsetTop - index.clientHeight / 2 + current.offsetHeight / 2);
+    };
+    reveal();
+    const resize = new ResizeObserver(reveal); resize.observe(index);
+    return () => resize.disconnect();
+  }, [focusedNote?.id, expanded, showAgentPane, understandingSource, visible, annotations.length]);
   const navigation = useRef({ busy, understandingRunning, onFocus }); navigation.current = { busy, understandingRunning, onFocus };
   useEffect(() => {
     const open = (event: Event) => {
@@ -186,7 +209,12 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
     if (!editor || !active || session.mode === "paused") return;
     return observeResumeWriting(editor, (next, shouldCheck) => {
       setActivity(next);
-      setSelected(undefined);
+      // Locating a quote focuses its whole textarea. That focus must not replace
+      // the explicitly selected quote with the first note for the same field.
+      setSelected(current => {
+        const note = latest.current.session.notes.find(item => item.id === current);
+        return note && writingTargetKey(note.source.targetRef) === next.key && note.source.text === next.text ? current : undefined;
+      });
       if (!shouldCheck) return;
       clearTimeout(timer.current);
       timer.current = setTimeout(() => { if (latest.current.active && latest.current.session.mode === "proactive") check([next.key]); }, 1800);
@@ -284,19 +312,33 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
     finally { writeLock.current = false; if (alive.current) setApplying(false); }
   }
   function dismiss(note: WritingNote) { stop(); changeNote(note.id, { state: "dismissed" }); setExpanded(false); }
+  function revealPreview(note: WritingNote) {
+    cancelAnimationFrame(revealFrame.current);
+    // Wait for a selected card or revealed workspace to commit its layout.
+    revealFrame.current = requestAnimationFrame(() => { if (shell.current) revealWritingPreview(shell.current, note.source); });
+  }
   function locate(note: WritingNote) {
     onFocus(note.source);
-    if (sidebar && window.matchMedia("(max-width: 1599px)").matches) {
+    revealPreview(note);
+    if (sidebar && window.matchMedia("(max-width: 840px), (max-height: 500px)").matches) {
       sidebar.hide(); requestAnimationFrame(() => focusWritingSource(note.source)); return;
     }
     if (!focusWritingSource(note.source)) setMessage("已定位到对应经历；如果要点已折叠，请展开后编辑。");
   }
+  function selectNote(note: WritingNote, keyboard: boolean) {
+    if (busy || understandingRunning || applying) return;
+    setKeyboardNavigation(keyboard); setSelected(note.id); setExpanded(false);
+    setConfirmedAnswer(false); setConfirmedProposal(false); setShareProjectContext(false);
+    // Paging is browsing, not editing: retain keyboard focus and the mobile
+    // sidebar. The explicit Locate action still opens the matching editor.
+    revealPreview(note);
+  }
 
-  return <div ref={shell} className={`writing-shell ${sidebar ? "is-docked" : showAgentPane ? "has-agent-pane" : ""} ${compactHint ? "is-agent-idle" : ""}`} onMouseUpCapture={() => { if (shell.current) { const next = readWritingPreviewSelection(shell.current, sources); if (next) setActivity(next); } }} onKeyUpCapture={() => { if (shell.current) { const next = readWritingPreviewSelection(shell.current, sources); if (next) setActivity(next); } }}>
+  return <div ref={shell} data-writing-annotations={geometry?.annotations.length ? "true" : undefined} className={`writing-shell ${sidebar ? "is-docked" : showAgentPane ? "has-agent-pane" : ""} ${compactHint ? "is-agent-idle" : ""}`} onMouseUpCapture={() => { if (shell.current) { const next = readWritingPreviewSelection(shell.current, sources); if (next) setActivity(next); } }} onKeyUpCapture={() => { if (shell.current) { const next = readWritingPreviewSelection(shell.current, sources); if (next) setActivity(next); } }}>
     <div className="writing-toolbar no-print">
-      <span className="writing-brand"><Bot size={15} /> 简历伴写</span>
+      <span className="writing-brand"><Bot size={15} /> {t("简历伴写", "Writing copilot")}</span>
       {!sidebar && <AgentContinuityButton compact />}
-      {sidebar && <button type="button" onClick={() => sidebar.show("settings")} aria-label="伴写设置"><Settings2 size={14} /></button>}
+      {sidebar && <button type="button" onClick={() => sidebar.show("settings")} aria-label={t("伴写设置", "Copilot settings")}><Settings2 size={14} /></button>}
       <AgentSurface name="writing-settings"><details open={sidebar ? true : undefined} className="writing-settings" onKeyDown={event => {
         if (!sidebar && event.key === "Escape") { event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); event.stopPropagation(); }
       }} onBlur={event => { if (!sidebar && !event.currentTarget.contains(event.relatedTarget as Node | null)) event.currentTarget.open = false; }}>
@@ -316,23 +358,22 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
       <AgentMemoryConsent scope="writing" checked={shareAgentMemory} onChange={value => { if (!value) stop(); setShareAgentMemory(value); }} />
       </div>
       </details></AgentSurface>
-      <button data-agent-guide="writing-check" onClick={() => { check(); setExpanded(false); setAgentCollapsed(false); sidebar?.show("conversation", "writing"); }} disabled={session.mode === "paused"}><Sparkles size={13} />检查当前简历</button>
-      {selectionQuote && <button onClick={checkSelection} disabled={session.mode === "paused"}>完善选中文字</button>}
-      <span className="writing-count">{session.mode === "paused" ? <><Pause size={13} />已暂停</> : `${notes.length} 条待完善`}</span>
-      {(busy || understandingRunning) && <span className="writing-running" role="status">{understandingRunning ? "项目理解中" : "伴写分析中"}</span>}
-      {!sidebar && understandingSource && <button type="button" disabled={understandingRunning} onClick={() => setUnderstandingSource(undefined)}>返回伴写建议</button>}
-      <button ref={collapseButton} type="button" className="writing-collapse" aria-label={showAgentPane ? "收起 Agent 对话" : "展开 Agent 对话"} aria-controls={agentPaneId} aria-expanded={showAgentPane} disabled={!hasAgentContent}
-        onClick={() => showAgentPane ? collapseAgent() : sidebar ? sidebar.show("conversation", "writing") : setAgentCollapsed(false)}>{showAgentPane ? <ChevronUp size={14} /> : <ChevronDown size={14} />}{showAgentPane ? "收起对话" : "展开对话"}</button>
+      <button data-agent-guide="writing-check" onClick={() => { check(); setExpanded(false); setAgentCollapsed(false); sidebar?.show("conversation", "writing"); }} disabled={session.mode === "paused"}><Sparkles size={13} />{t("检查当前简历", "Review resume")}</button>
+      {selectionQuote && <button onClick={checkSelection} disabled={session.mode === "paused"}>{t("完善选中文字", "Polish selection")}</button>}
+      <span className="writing-count">{session.mode === "paused" ? <><Pause size={13} />{t("已暂停", "Paused")}</> : t(`${notes.length} 条待完善`, `${notes.length} to refine`)}</span>
+      {(busy || understandingRunning) && <span className="writing-running" role="status">{understandingRunning ? t("项目理解中", "Understanding project") : t("伴写分析中", "Analyzing")}</span>}
+      {!sidebar && understandingSource && <button type="button" disabled={understandingRunning} onClick={() => setUnderstandingSource(undefined)}>{t("返回伴写建议", "Back to suggestions")}</button>}
+      <button ref={collapseButton} type="button" className="writing-collapse" aria-label={showAgentPane ? t("收起 Agent 对话", "Collapse Agent chat") : t("展开 Agent 对话", "Expand Agent chat")} aria-controls={agentPaneId} aria-expanded={showAgentPane} disabled={!hasAgentContent}
+        onClick={() => showAgentPane ? collapseAgent() : sidebar ? sidebar.show("conversation", "writing") : setAgentCollapsed(false)}>{showAgentPane ? <ChevronUp size={14} /> : <ChevronDown size={14} />}{showAgentPane ? t("收起对话", "Hide chat") : t("展开对话", "Show chat")}</button>
     </div>
     <AgentSurface name="writing"><div id={agentPaneId} className="writing-agent-pane no-print" hidden={!sidebar && !showAgentPane}>
-    <div className="writing-agent-scroll" role="region" aria-label="Agent 对话与历史" tabIndex={0}>
+    <div className={`writing-agent-scroll${understandingSource ? " has-project-understanding" : expanded && focusedNote ? " has-writing-review" : ""}`} role="region" aria-label="Agent 对话与历史" tabIndex={0}>
     <div className="writing-status no-print">
-      {sidebar && !hasAgentContent && <p className="writing-message">从简历页点击“检查当前简历”开始；资料不会自动发送给模型。</p>}
-      {sidebar && understandingSource && <button type="button" className="writing-return" disabled={understandingRunning} onClick={() => setUnderstandingSource(undefined)}><ChevronLeft size={14} />返回伴写建议</button>}
-      {!routing?.enabled && agentKind === "chatgpt" && !sidebar && <ChatGptAgentControls value={chatGptChoice} onChange={choice => { stop(); setChatGptChoice(choice); }} onReady={setChatGptReady} client={chatGptClient} disabled={busy || understandingRunning} />}
+      {sidebar && !hasAgentContent && <p className="writing-message">{t("从简历页点击“检查当前简历”开始；资料不会自动发送给模型。", "Click \"Review resume\" on the resume page to start; your data is never sent automatically.")}</p>}
+      {agentKind === "chatgpt" && !routing?.enabled && !sidebar && <ChatGptAgentControls value={chatGptChoice} onChange={choice => { stop(); setChatGptChoice(choice); }} onReady={setChatGptReady} client={chatGptClient} disabled={busy || understandingRunning} />}
       {storageError && <p className="writing-message" role="status">{storageError}</p>}
       {message && <p className="writing-message" role="status">{message}</p>}
-      {understandingSource && liveUnderstandingSource && understandingOriginal !== undefined && <div ref={understandingCard} className="writing-understanding-anchor"><button type="button" className="writing-source" onClick={() => { onFocus(liveUnderstandingSource); focusWritingSource(liveUnderstandingSource); }}>定位原文 · {liveUnderstandingSource.label}</button><ProjectUnderstandingPanel
+      {understandingSource && liveUnderstandingSource && understandingOriginal !== undefined && <div ref={understandingCard} className="writing-understanding-anchor"><nav className="writing-understanding-navigation" aria-label={t("当前项目导航", "Current project navigation")}>{sidebar && <button type="button" className="writing-return" disabled={understandingRunning} onClick={() => setUnderstandingSource(undefined)}><ChevronLeft size={14} />{t("返回伴写建议", "Back to suggestions")}</button>}<button type="button" className="writing-source" onClick={() => { onFocus(liveUnderstandingSource); if (sidebar && window.matchMedia("(max-width: 840px), (max-height: 500px)").matches) sidebar.hide(); focusWritingSource(liveUnderstandingSource); }}>{t("定位原文", "Locate source")} · {liveUnderstandingSource.label}</button></nav><ProjectUnderstandingPanel
         key={writingTargetKey(understandingSource.targetRef)} workspaceKey={sessionKey} projectKey={writingTargetKey(understandingSource.targetRef)}
         label={liveUnderstandingSource.label} sourceText={understandingOriginal} config={config} client={understandingClient}
         chatGpt={agentKind === "chatgpt" ? { ...chatGptChoice, ready: chatGptReady } : undefined}
@@ -360,31 +401,36 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
             const next = { ...current }; delete next[key]; return next;
           });
         }} /></div>}
-      {applied && <div className="writing-applied"><Check size={14} />已采用一条表达建议<button onClick={() => void apply(applied, true)}><RotateCcw size={12} />撤销这次修改</button></div>}
-      {!!archived.length && <details className="writing-archive"><summary>已处理与历史批注（{archived.length}）</summary>{archived.map(note => {
+      {applied && <div className="writing-applied"><Check size={14} />{t("已采用一条表达建议", "Applied 1 writing suggestion")}<button onClick={() => void apply(applied, true)}><RotateCcw size={12} />{t("撤销这次修改", "Undo change")}</button></div>}
+      {!!archived.length && <details className="writing-archive"><summary>{t(`已处理与历史批注（${archived.length}）`, `History & resolved notes (${archived.length})`)}</summary>{archived.map(note => {
         const current = sources.find(s => writingTargetKey(s.targetRef) === writingTargetKey(note.source.targetRef));
-        return <article key={note.id}><strong>{note.source.label} · {note.state === "applied" ? "已采用" : note.state === "stale" ? "原文已变化" : "已收起"}</strong><blockquote>{writingOriginal(note.source).slice(0, 180)}</blockquote>{note.answer && <p>你的补充：{note.answer}</p>}{current && note.state !== "applied" && <button onClick={() => {
+        return <article key={note.id}><strong>{note.source.label} · {note.state === "applied" ? t("已采用", "Applied") : note.state === "stale" ? t("原文已变化", "Source changed") : t("已收起", "Dismissed")}</strong><blockquote>{writingOriginal(note.source).slice(0, 180)}</blockquote>{note.answer && <p>{t("你的补充：", "Your input: ")}{note.answer}</p>}{current && note.state !== "applied" && <button onClick={() => {
           stop(); const restored = newWritingNote(current, inspectWriting(current, sources) ?? note.issue);
           restored.answer = note.answer;
           setSession(s => ({ ...s, notes: [restored, ...s.notes].slice(0, 80) })); setSelected(restored.id);
-        }}>重新完善这条（保留补充）</button>}</article>;
+        }}>{t("重新完善这条（保留补充）", "Refine again (keep input)")}</button>}</article>;
       })}</details>}
     </div>
-    {visible && focusedNote && <aside ref={card} tabIndex={-1} className="writing-note no-print" data-agent-guide="writing-note" aria-label="Agent 伴写批注" key={focusedNote.id} hidden={Boolean(understandingSource)}>
-      <header><span><Bot size={14} />{busy ? "正在分析这条内容" : "Agent 留意到"}</span>{busy && <button aria-label="停止当前伴写分析" onClick={() => { stop(); setMessage("已停止分析，补充内容留在输入框中。"); }}><Square size={12} />停止</button>}<button aria-label="本条不再提示" onClick={() => dismiss(focusedNote)}><X size={14} /></button></header>
-      <button className="writing-source" onClick={() => locate(focusedNote)} title={focusedNote.source.label}>{focusedNote.source.label}</button>
-      <nav className="agent-flow-status" aria-label="伴写协作进度"><span>项目共识</span><span aria-current={!focusedNote.proposedText ? "step" : undefined}>本人补充</span><span aria-current={focusedNote.proposedText ? "step" : undefined}>核对候选</span><span>采用与撤销</span></nav><h3>{focusedNote.issue.title}</h3>{sidebar && <button type="button" onClick={() => sidebar.learn("annotation")}>旁批协作教程</button>}
-      <blockquote>{writingOriginal(focusedNote.source).slice(0, 180) || "这条要点还是空白，可以先描述一件实际做过的事。"}{writingOriginal(focusedNote.source).length > 180 ? "…" : ""}</blockquote>
-      {focusedNote.source.quote && <small>只完善所选片段，周围内容保持不变</small>}
-      <button type="button" data-agent-guide="understanding-start" onClick={() => { stop(); setUnderstandingSource(focusedNote.source); }}>先对齐项目理解</button>
-      {!expanded ? <button className="writing-primary" onClick={() => setExpanded(true)}>一起完善这条经历</button> : <div className="writing-review">
+    {visible && !understandingSource && annotations.length > 1 && <nav ref={noteIndex} className="writing-note-index" data-compact={expanded ? "true" : undefined} aria-label={t("按颜色与编号定位批注", "Locate notes by color and number")}>
+      {annotations.map(annotation => <button type="button" key={annotation.id} data-annotation-id={annotation.id} data-annotation-tone={annotation.tone}
+        aria-label={t(`批注 ${annotation.number}：${annotation.source.label}`, `Note ${annotation.number}: ${annotation.source.label}`)} title={`${annotation.number} · ${annotation.source.label}`}
+        aria-pressed={annotation.id === focusedNote?.id} disabled={busy || understandingRunning || applying}
+        onClick={event => { const note = notes.find(item => item.id === annotation.id); if (note) selectNote(note, event.detail === 0); }}>{annotation.number}</button>)}
+    </nav>}
+    {visible && focusedNote && <aside ref={card} tabIndex={-1} className="writing-note no-print" data-agent-guide="writing-note" data-annotation-tone={focusedAnnotation?.tone} data-keyboard={keyboardNavigation ? "true" : undefined} aria-label={t("Agent 伴写批注", "Agent writing note")} key={focusedNote.id} hidden={Boolean(understandingSource)}>
+      <div className="writing-note-context">
+      <header><span><span className="writing-note-number">{focusedAnnotation?.number}</span><Bot size={14} />{busy ? t("正在分析这条内容", "Analyzing this entry") : t("当前批注", "Current note")}</span>{sidebar && <button type="button" className="writing-guide-trigger" onClick={() => sidebar.learn("annotation")}>{t("旁批协作教程", "Note guide")}</button>}{busy && <button aria-label={t("停止当前伴写分析", "Stop current analysis")} onClick={() => { stop(); setMessage("已停止分析，补充内容留在输入框中。"); }}><Square size={12} />{t("停止", "Stop")}</button>}<button aria-label={t("本条不再提示", "Dismiss this note")} onClick={() => dismiss(focusedNote)}><X size={14} /></button></header>
+      <button className="writing-source" onClick={() => locate(focusedNote)} title={focusedNote.source.label}><span>{focusedNote.source.label}</span><LocateFixed size={13} />{t("定位", "Locate")}</button>
+      {geometry && geometry.visibility !== "visible" && <button type="button" className="writing-source-location" onClick={() => locate(focusedNote)}><LocateFixed size={13} />{geometry.visibility === "above" ? t("原文在预览上方 · 点击定位", "Source above · Locate") : geometry.visibility === "below" ? t("原文在预览下方 · 点击定位", "Source below · Locate") : t("原文未在当前预览显示 · 定位编辑字段", "Source outside this preview · Locate editor")}</button>}
+      <nav className="agent-flow-status" aria-label={t("伴写协作进度", "Writing workflow")}><span>{t("项目共识", "Project context")}</span><span aria-current={!focusedNote.proposedText ? "step" : undefined}>{t("本人补充", "Your input")}</span><span aria-current={focusedNote.proposedText ? "step" : undefined}>{t("核对候选", "Review draft")}</span><span>{t("采用与撤销", "Apply & undo")}</span></nav><h3>{focusedNote.issue.title}</h3>
+      <blockquote>{writingOriginal(focusedNote.source).slice(0, 180) || t("这条要点还是空白，可以先描述一件实际做过的事。", "This bullet is still empty—start by describing something you actually did.")}{writingOriginal(focusedNote.source).length > 180 ? "…" : ""}</blockquote>
+      {focusedNote.source.quote && <small>{t("只完善所选片段，周围内容保持不变", "Only refines the selected phrase; surrounding text stays unchanged")}</small>}
+      <div className="writing-note-actions"><button type="button" data-agent-guide="understanding-start" onClick={() => { stop(); setUnderstandingSource(focusedNote.source); }}>{t("先对齐项目理解", "Align project context")}</button>{!expanded && <button className="writing-primary" onClick={() => setExpanded(true)}>{t("一起完善这条经历", "Refine this entry together")}</button>}</div>
+      </div>
+      {expanded && <div className="writing-review">
+        <div className="writing-review-body" role="region" aria-label="伴写建议与修改对照" tabIndex={0}>
         {(focusedNote.questions?.length ? focusedNote.questions : [focusedNote.issue.question]).map((question, index) => <p className="writing-question" key={index}>{question}</p>)}
-        <label htmlFor="writing-answer">补充你实际做过的事情</label>
-        <textarea id="writing-answer" data-agent-guide="writing-answer" rows={3} maxLength={6000} value={focusedNote.answer} placeholder="可以说不知道或没有数据，不需要编造结果。" onChange={e => { stop(); changeNote(focusedNote.id, { answer: e.target.value, proposedText: undefined, evidenceQuotes: undefined }); setConfirmedAnswer(false); setConfirmedProposal(false); }} />
-        {focusedNote.answer.trim() && <label className="writing-check"><input type="checkbox" checked={confirmedAnswer} onChange={e => setConfirmedAnswer(e.target.checked)} />我确认这段补充来自实际经历</label>}
-        {usableContext && <label className="writing-check"><input type="checkbox" checked={shareProjectContext} onChange={event => { stop(); setShareProjectContext(event.target.checked); }} />本次携带已确认项目共识（仅解释术语和边界，不作为个人贡献依据）</label>}
-        <small>点击后发送本条原文、补充{shareProjectContext && usableContext ? "及已确认的项目术语背景" : ""}给{routing?.enabled && routing.policy ? agentBaseLabel(routing.policy) : agentKind === "chatgpt" ? `所选 ChatGPT 账号（${chatGptChoice.model || "尚未选择模型"} · 使用套餐）` : `当前配置模型（${config.provider} · ${config.model || "未配置"}）`}，不自动附带姓名、联系方式或其他简历字段。共享共识与成长事件仅在「设置」中明确授权后携带。请勿在补充中填入敏感信息。</small>
-        {busy ? <button className="writing-primary" onClick={() => { stop(); setMessage("已停止分析，补充内容留在输入框中。"); }}><Square size={12} />停止分析</button> : <button className="writing-primary" onClick={() => void ask(focusedNote)} disabled={!routing?.enabled && agentKind === "chatgpt" && !chatGptReady || !!focusedNote.answer.trim() && !confirmedAnswer}>{focusedNote.answer.trim() ? "请 Agent 整理候选表达" : "请 Agent 进一步追问"}</button>}
+        <details className="writing-send-details"><summary>本次发送范围与授权</summary><small>发送本条原文、本人补充{shareProjectContext && usableContext ? "及已确认项目术语背景" : ""}。不自动附带姓名、联系方式或其他简历字段；共享记忆由「模型与工具」中的简历伴写开关单独控制。项目共识、文件只读授权、本人贡献确认不能互相代替。请勿填入敏感信息。</small></details>
         {focusedNote.rationale && <p>{focusedNote.rationale}</p>}
         {focusedNote.answer.trim() && !focusedNote.proposedText && <button disabled={!confirmedAnswer} onClick={() => { stop(); changeNote(focusedNote.id, { proposedText: focusedNote.answer.trim(), evidenceQuotes: [focusedNote.answer.trim()], rationale: "候选直接来自你本人核对的补充，未由模型扩写；请继续检查表达和事实。" }); setConfirmedProposal(false); }}>用我的补充作为可编辑草稿</button>}
         {focusedNote.proposedText && <section className="writing-diff" aria-label="修改对照">
@@ -397,16 +443,30 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
           <small>仅替换这一字段，不改变事实核实状态。手动编辑原文后本建议失效。</small>
         </section>}
         <button onClick={collapseAgent}>收起，继续写</button>
+        </div>
+        <div className="writing-review-compose" role="region" aria-label="伴写输入">
+          <label htmlFor="writing-answer">补充你实际做过的事情</label>
+          <textarea id="writing-answer" data-agent-guide="writing-answer" rows={2} maxLength={6000} value={focusedNote.answer} placeholder="可以说不知道或没有数据，不需要编造结果。" onChange={e => { stop(); changeNote(focusedNote.id, { answer: e.target.value, proposedText: undefined, evidenceQuotes: undefined }); setConfirmedAnswer(false); setConfirmedProposal(false); }} />
+          {focusedNote.answer.trim() && <label className="writing-check"><input type="checkbox" checked={confirmedAnswer} onChange={e => setConfirmedAnswer(e.target.checked)} />我确认这段补充来自实际经历</label>}
+          {usableContext && <label className="writing-check"><input type="checkbox" checked={shareProjectContext} onChange={event => { stop(); setShareProjectContext(event.target.checked); }} />本次携带已确认项目共识（仅术语和边界，不证明个人贡献）</label>}
+          <small>发送至：{routing?.enabled ? agentBaseLabel(routing.policy) : agentKind === "chatgpt" ? `ChatGPT · ${chatGptChoice.model || "未选择模型"}` : `${config.provider} · ${config.model || "未配置"}`}{shareAgentMemory ? " · 简历伴写记忆已授权" : " · 未共享记忆"}</small>
+          {busy ? <button className="writing-primary" onClick={() => { stop(); setMessage("已停止分析，补充内容留在输入框中。"); }}><Square size={12} />停止分析</button> : <button className="writing-primary" onClick={() => void ask(focusedNote)} disabled={!routing?.enabled && agentKind === "chatgpt" && !chatGptReady || !!focusedNote.answer.trim() && !confirmedAnswer}>{focusedNote.answer.trim() ? "请 Agent 整理候选表达" : "请 Agent 进一步追问"}</button>}
+        </div>
       </div>}
-      {notes.length > 1 && <footer><button aria-label="上一条批注" onClick={() => { setSelected(notes[(notes.indexOf(focusedNote) - 1 + notes.length) % notes.length]!.id); setExpanded(false); }}><ChevronLeft size={13} /></button><span>{notes.indexOf(focusedNote) + 1} / {notes.length}</span><button aria-label="下一条批注" onClick={() => { setSelected(notes[(notes.indexOf(focusedNote) + 1) % notes.length]!.id); setExpanded(false); }}><ChevronRight size={13} /></button></footer>}
+      {notes.length > 1 && <footer><button aria-label="上一条批注" disabled={busy || understandingRunning || applying} onClick={event => selectNote(notes[(notes.indexOf(focusedNote) - 1 + notes.length) % notes.length]!, event.detail === 0)}><ChevronLeft size={13} /></button><span>{t(`第 ${focusedAnnotation?.number} 条 / 共 ${notes.length} 条`, `Note ${focusedAnnotation?.number} / ${notes.length}`)}</span><button aria-label="下一条批注" disabled={busy || understandingRunning || applying} onClick={event => selectNote(notes[(notes.indexOf(focusedNote) + 1) % notes.length]!, event.detail === 0)}><ChevronRight size={13} /></button></footer>}
     </aside>}
     </div>
     </div></AgentSurface>
     <div className="writing-document">{children}</div>
-    {visible && geometry && <svg className="writing-overlay no-print" aria-hidden="true">
-      {geometry.lines.map((line, i) => <rect key={i} {...line} rx="3" />)}
-      {geometry.path && <><path d={geometry.path} /><circle cx={geometry.x} cy={geometry.y} r="4" /></>}
-    </svg>}
+    {visible && geometry && geometry.annotations.length > 0 && createPortal(<svg className="writing-overlay no-print" data-keyboard={keyboardNavigation ? "true" : undefined} aria-hidden="true">
+      {geometry.annotations.map(annotation => <g key={annotation.id} data-annotation-id={annotation.id} data-annotation-tone={annotation.tone} data-active={annotation.active ? "true" : undefined}>
+        {annotation.lines.map((line, index) => <rect className="writing-annotation-highlight" key={index} {...line} rx="3" />)}
+        {annotation.active && geometry.path && <><path className="writing-connector-halo" d={geometry.path} /><path className="writing-connector" d={geometry.path} /><circle className="writing-connector-end" cx={geometry.tx} cy={geometry.ty} r="4" /></>}
+        <circle className="writing-annotation-badge" cx={annotation.badge.x} cy={annotation.badge.y} r={annotation.active ? 11 : 9} />
+        <text className="writing-annotation-number" x={annotation.badge.x} y={annotation.badge.y} dy=".35em" textAnchor="middle">{annotation.number}</text>
+        {annotation.active && <circle key={annotation.id} className="writing-annotation-ping" cx={annotation.badge.x} cy={annotation.badge.y} r="14" />}
+      </g>)}
+    </svg>, document.body)}
   </div>;
 }
 import { privateStorage as localStorage, privateStorageEvent } from "../lib/identity";

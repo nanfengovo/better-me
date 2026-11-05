@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test, { after, afterEach } from "node:test";
 import { registerHooks } from "node:module";
-import { Window, type HTMLButtonElement, type HTMLTextAreaElement, type HTMLSelectElement, type HTMLOptionElement, type HTMLInputElement, type HTMLElement } from "happy-dom";
+import { Window, type HTMLButtonElement, type HTMLTextAreaElement, type HTMLSelectElement, type HTMLOptionElement, type HTMLInputElement, type HTMLElement, type HTMLDialogElement } from "happy-dom";
 import { readFileSync } from "node:fs";
 import { createMemoryAgentRepository } from "../src/lib/betterme-agent/storage";
 import type { WritingReply, WritingSource } from "../src/lib/resume-copilot";
@@ -33,16 +33,17 @@ let repository = createMemoryAgentRepository();
 let resolveWriting: (reply: WritingReply) => void;
 let resolveChat: () => void;
 let writingSignal: AbortSignal | undefined, chatSignal: AbortSignal | undefined;
+let writingMemory: string | undefined, chatInput: string | undefined;
 async function render(understandingClient?: UnderstandingClient) {
   if (!root) { const element = dom.document.createElement("div"); dom.document.body.append(element); root = createRoot(element as unknown as Element); }
   await act(async () => root!.render(<UiPreferencesProvider><BetterMeAgentProvider workspaceKey="isolated-sidebar" repository={repository}><AgentSidebarProvider understandingClient={understandingClient}>
     <div hidden={!active} id="resume-page"><ResumeWritingCopilot sessionKey="sidebar" active={active} sources={[source]} config={config} onFocus={() => {}} onApply={async () => ({ ok: true, message: "isolated" })}
-      generate={async (_config, _source, _answer, signal) => { writingSignal = signal; return new Promise(resolve => { resolveWriting = resolve; }); }}><div className="fixture-paper">纸张</div></ResumeWritingCopilot></div>
+      generate={async (_config, _source, _answer, signal, _fetch, _context, shared) => { writingSignal = signal; writingMemory = shared; return new Promise(resolve => { resolveWriting = resolve; }); }}><div className="fixture-paper">纸张</div></ResumeWritingCopilot></div>
     <AgentTopBarStatus config={null} active={false} onNavigateToAgent={() => assert.fail("must open the single sidebar")} onOpenAiConfig={() => assert.fail("must not open a separate modal")} />
     <AgentContinuityButton /><BetterMeAgentCenter onNavigate={() => {}} />
     <AgentCompanion llmConfig={config} onOpenWorkspace={() => {}} onOpenAiConfig={() => {}} sendChat={async input => {
-      chatSignal = input.signal; await new Promise<void>(resolve => { resolveChat = resolve; });
-      return { id: "isolated-reply", role: "assistant", content: "同一侧栏的完整回复", createdAt: new Date().toISOString() };
+      chatSignal = input.signal; chatInput = JSON.stringify(input.messages); await new Promise<void>(resolve => { resolveChat = resolve; });
+      return { id: crypto.randomUUID(), role: "assistant", content: "同一侧栏的完整回复", createdAt: new Date().toISOString() };
     }} />
   </AgentSidebarProvider></BetterMeAgentProvider></UiPreferencesProvider>));
 }
@@ -76,6 +77,41 @@ test("one sidebar owns writing, memory and tools; preview never contains the con
   assert.equal(dom.localStorage.getItem("autosave-sentinel"), "disabled");
   assert.equal(dom.document.querySelector<HTMLSelectElement>('[aria-label="统一 Agent 来源"]')?.value, "current");
   assert.equal(await repository.load("isolated-sidebar"), undefined, "layout changes do not create or modify Agent settings");
+});
+
+test("writing and free-chat consent have distinct scopes and concurrent requests never borrow each other's grant", async () => {
+  await render(); await click("检查当前简历"); await click("共识与进度"); await click("持续成长");
+  await fill(".betterme-agent-center textarea", "仅合成目标：隔离授权哨兵"); await click("确认目标（不替换已有计划）");
+  await click("模型与工具");
+  const consent = (scope: string) => [...dom.document.querySelectorAll<HTMLInputElement>('.betterme-agent-consent input')].find(input => input.parentElement?.textContent?.includes(scope));
+  const writing = consent("仅简历伴写"), companion = consent("仅自由对话");
+  assert.ok(writing, "writing memory grant names its own entry point");
+  assert.ok(companion, "free chat memory grant names a different entry point");
+  assert.equal(writing.checked, false); assert.equal(companion.checked, false);
+  await act(async () => writing.click()); assert.equal(companion.checked, false);
+  await click("伴写对话"); await click("一起完善这条经历"); await click("请 Agent 进一步追问");
+  assert.match(writingMemory ?? "", /隔离授权哨兵/);
+  await click("自由对话"); await fill('[aria-label="发送给 Agent"]', "合成问题：不使用其他入口的授权"); await click("发送消息");
+  assert.doesNotMatch(chatInput ?? "", /隔离授权哨兵/);
+  assert.equal(writingSignal?.aborted, false, "switching to a second conversation keeps the first task alive");
+  await act(async () => { resolveWriting({ questions: ["合成追问"], rationale: "隔离测试", evidenceQuotes: [] }); resolveChat(); });
+  await click("模型与工具"); await act(async () => { writing.click(); companion.click(); });
+  assert.equal(writing.checked, false); assert.equal(companion.checked, true);
+  await click("伴写对话"); await click("自由对话"); await fill('[aria-label="发送给 Agent"]', "合成问题：这一次明确共享"); await click("发送消息");
+  assert.match(chatInput ?? "", /隔离授权哨兵/);
+  await act(async () => resolveChat());
+  assert.equal((await repository.load("isolated-sidebar"))?.tasks.filter(task => task.status === "completed").length, 3);
+});
+
+test("writing feedback and candidate comparison scroll independently of its input and send controls", async () => {
+  await render(); await click("检查当前简历"); await click("一起完善这条经历");
+  const composer = dom.document.querySelector('[role="region"][aria-label="伴写输入"]');
+  const discussion = dom.document.querySelector('[role="region"][aria-label="伴写建议与修改对照"]');
+  assert.ok(composer); assert.ok(discussion);
+  const input = dom.document.querySelector("#writing-answer"); assert.ok(input);
+  assert.ok(composer.contains(input));
+  assert.equal(discussion.contains(input), false);
+  assert.ok([...composer.querySelectorAll("button")].some(button => button.textContent?.includes("请 Agent 进一步追问")));
 });
 
 test("running writing preserves exact DOM draft through route, tab, hide and completion", async () => {
@@ -127,9 +163,11 @@ test("contextual tutorial keeps writing drafts and stable portal nodes through e
   const answer = dom.document.querySelector("#writing-answer");
   await click("Agent 协作教程");
   assert.equal(dom.document.querySelectorAll('.agent-workflow-guide').length, 1);
-  for (let index = 0; index < 7; index++) await click("下一节");
+  assert.equal(dom.document.querySelector<HTMLDialogElement>('dialog.agent-workflow-guide')?.open, true);
+  assert.equal(dom.document.querySelector<HTMLElement>('.agent-sidebar-work')?.hidden, false, "real controls stay visible behind the spotlight");
+  for (let index = 0; index < 7; index++) await click("下一步");
   assert.match(dom.document.querySelector('.agent-workflow-guide')?.textContent ?? "", /没响应时，不猜测进度/);
-  await click("完成，继续协作");
+  await click("完成引导，返回工作");
   assert.ok(dom.document.querySelector("#writing-answer") === answer);
   assert.equal(dom.document.querySelector<HTMLTextAreaElement>("#writing-answer")?.value, "教程前的未发送草稿");
   assert.equal(await repository.load("isolated-sidebar"), undefined);
@@ -140,13 +178,14 @@ test("tutorial resumes its last chapter, restores focus and locates without send
   const help = dom.document.querySelector<HTMLButtonElement>('[aria-label="Agent 协作教程"]')!;
   await act(async () => help.focus()); await click("Agent 协作教程");
   await click("第 6 节：收起继续，重载先核对"); await click("返回工作"); assert.ok(dom.document.activeElement === help);
-  await click("Agent 协作教程"); assert.match(dom.document.querySelector("h3#agent-tutorial-title")?.textContent ?? "", /收起继续/);
+  await click("Agent 协作教程"); assert.match(dom.document.querySelector("h2#agent-tutorial-title")?.textContent ?? "", /收起继续/);
+  assert.equal(dom.document.querySelector('[role="tab"][aria-selected=true]')?.textContent, "共识与进度", "resuming prepares the real lesson surface without executing it");
   await click("找到备份与历史");
   assert.equal(dom.document.querySelector('[role="tab"][aria-selected=true]')?.textContent, "共识与进度");
   assert.equal(dom.document.activeElement?.className, "agent-guide-coach");
   await click("伴写对话"); assert.match(dom.document.querySelector(".agent-guide-coach")?.textContent ?? "", /你已切换视图/);
   await click("回到本节入口"); await click("返回本节教程");
-  assert.match(dom.document.querySelector("h3#agent-tutorial-title")?.textContent ?? "", /收起继续/);
+  assert.match(dom.document.querySelector("h2#agent-tutorial-title")?.textContent ?? "", /收起继续/);
   assert.equal(await repository.load("isolated-sidebar"), undefined, "teaching and locating do not create actual Agent tasks");
 });
 
@@ -154,7 +193,7 @@ test("an active writing task completes behind a tutorial without losing the exac
   await render(); await click("检查当前简历"); await click("一起完善这条经历"); await fill("#writing-answer", "运行中仍保留的草稿");
   const answer = dom.document.querySelector("#writing-answer");
   await act(async () => [...dom.document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].find(item => item.parentElement?.textContent?.includes("我确认这段补充"))!.click());
-  await click("请 Agent 整理候选表达"); await click("Agent 协作教程"); await click("下一节");
+  await click("请 Agent 整理候选表达"); await click("Agent 协作教程"); await click("下一步");
   assert.equal(writingSignal?.aborted, false); active = false; await render(); await click("收起 BetterMe Agent");
   await act(async () => resolveWriting({ questions: ["测试已完成，继续核对"], rationale: "隔离返回", evidenceQuotes: [] }));
   assert.ok(dom.document.querySelector("#writing-answer") === answer);
@@ -172,7 +211,8 @@ test("real-control spotlight follows the visible target, hides across tabs and n
   assert.ok(ring); assert.equal(ring.style.left, "96px"); assert.equal(ring.style.top, "196px");
   assert.equal(ring.style.width, "258px"); assert.equal(ring.getAttribute("aria-hidden"), "true");
   await click("重新定位入口"); assert.ok(dom.document.activeElement === target);
-  assert.equal(target.closest("details")?.open, false, "locating focuses, but does not open or execute a real control");
+  const details = target.closest("details"); assert.ok(details instanceof dom.HTMLDetailsElement);
+  assert.equal(details.open, false, "locating focuses, but does not open or execute a real control");
   await click("伴写对话"); assert.equal(dom.document.querySelector(".agent-guide-spotlight"), null);
   await click("结束本次定位"); assert.equal(dom.document.querySelector(".agent-guide-coach"), null);
   assert.equal(await repository.load("isolated-sidebar"), undefined);

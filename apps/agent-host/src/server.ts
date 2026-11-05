@@ -58,6 +58,9 @@ import { RecoveryCatalog } from "./identity/recovery.js";
 import { OidcService, OIDC_CALLBACK_PATH, type OidcOptions } from "./identity/oidc.js";
 import { unconfiguredSocialLogin } from "./identity/social-login.js";
 import { EvidenceBroker } from "./understanding/evidence-broker.js";
+import { CareerCapabilities } from "./capabilities/service.js";
+import { handleCapabilities } from "./capabilities/http.js";
+import type { ToolBuilder } from "./capabilities/ollama.js";
 
 // ── Request schemas ───────────────────────────────────────────────────────────
 
@@ -140,6 +143,8 @@ export interface ServerOptions {
   trustedSingleUserRuntimeExecution?: boolean;
   /** Trusted synthetic regression seam only; no HTTP-provided executables/runners. */
   nativeProcessRunner?: NativeProcessRunner;
+  /** Trusted regression seam only; HTTP cannot supply executable source/builders. */
+  capabilityBuilder?: ToolBuilder;
 }
 
 function jsonResponse(res: http.ServerResponse, status: number, body: unknown): void {
@@ -211,12 +216,14 @@ export function createAgentServer(opts: ServerOptions): http.Server {
   }
   const owners = new Map<string, ReturnType<typeof makeOwner>>();
   const ownerStreams = new Map<string, Set<http.ServerResponse>>();
+  const capabilityOwners = new Map<string, CareerCapabilities>();
   const capabilitySession = (cookie: string | undefined) => createHash("sha256")
     .update((cookie ?? "").split(";").map(item => item.trim()).find(item => item.startsWith("betterme_session=")) ?? "").digest("hex");
   const invalidateCapabilitySession = async (cookie: string | undefined) => {
     if (!cookie) return;
     const previous = await identities.authenticate(cookie);
     if (previous) {
+      await capabilityOwners.get(previous.id)?.invalidateSession(capabilitySession(cookie));
       await owners.get(previous.id)?.nativeTools.invalidateSession(capabilitySession(cookie));
       await owners.get(previous.id)?.routing.invalidateSession(capabilitySession(cookie));
     }
@@ -309,6 +316,16 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       let owner = owners.get(principal.id);
       if (!owner) { owner = makeOwner(principal); owners.set(principal.id, owner); }
       const { handleChatGpt, handleUnderstanding, runManager } = owner;
+      if (pathname.startsWith("/api/v1/agent/capabilities")) {
+        let capabilities = capabilityOwners.get(principal.id);
+        if (!capabilities) {
+          capabilities = new CareerCapabilities({ directory: path.join(identityRoot, "owners", principal.id, "career-capabilities-v1"),
+            ownerId: principal.id, builder: opts.capabilityBuilder });
+          capabilityOwners.set(principal.id, capabilities);
+        }
+        if (await handleCapabilities(req, res, pathname, capabilities, { session: capabilitySession(req.headers.cookie),
+          valid: async () => (await identities.authenticate(req.headers.cookie))?.id === principal.id }, readBody, jsonResponse)) return;
+      }
       if (req.method === "GET" && pathname === "/api/v1/agent/recovery") return jsonResponse(res, 200, { ownerId: principal.id, archives: await owner.recovery.list() });
       const recoveryDocument = pathname.match(/^\/api\/v1\/agent\/recovery\/([a-f0-9]{32})\/documents\/([a-zA-Z0-9_-]{1,100})$/);
       if (req.method === "GET" && recoveryDocument) return jsonResponse(res, 200, { ownerId: principal.id, document: await owner.recovery.document(recoveryDocument[1]!, recoveryDocument[2]!) });
@@ -624,5 +641,6 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     console.log(`[agent-host] listening on http://${opts.host}:${opts.port}`);
   });
 
+  server.once("close", () => { for (const service of capabilityOwners.values()) void service.close(); });
   return server;
 }

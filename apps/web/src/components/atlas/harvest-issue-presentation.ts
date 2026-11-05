@@ -20,7 +20,7 @@ export type HarvestIssueInput = {
   progress?: HarvestProgressState | null;
   failed?: boolean;
   cancelled?: boolean;
-  importFailures?: readonly Pick<LivePlatformImportSummary["importFailures"][number], "platform" | "cards" | "error">[];
+  importFailures?: readonly Pick<LivePlatformImportSummary["importFailures"][number], "platform" | "cards" | "error" | "conflict">[];
   /** A run-level catch only, not an error shared with unrelated workspace actions. */
   failureMessage?: string;
 };
@@ -159,7 +159,16 @@ export function summarizeHarvestIssues({ providers = [], progress, failed = fals
     action: { kind: "details", label: "查看原始诊断" }, advice: "根据这次检索返回的原因处理，再决定是否继续读取。", rawDetails: [queryError],
   });
   const unconfirmed = (finiteProgressStat(progress?.stats, "failedCards") ?? 0) + (finiteProgressStat(progress?.stats, "cancelledCards") ?? 0);
-  const importDetails = [...new Set(importFailures.map(failure => `${failure.platform}${Number.isFinite(failure.cards) && failure.cards >= 0 ? `（${failure.cards} 张卡片）` : ""}：${failure.error.trim() || "未返回具体入库原因"}`))];
+  const describeImport = (failure: NonNullable<HarvestIssueInput["importFailures"]>[number]) => `${failure.platform}${Number.isFinite(failure.cards) && failure.cards >= 0 ? `（${failure.cards} 张卡片）` : ""}：${failure.error.trim() || "未返回具体入库原因"}`;
+  const conflicts = importFailures.filter(failure => failure.conflict);
+  const conflictCount = finiteProgressStat(progress?.stats, "conflictedCards") ?? conflicts.reduce((sum, failure) => sum + failure.cards, 0);
+  if (conflictCount > 0) issues.push({
+    id: "ingestion:company-conflict", scope: "ingestion", severity: "warning", source: "公司归属核对", title: "公司归属冲突已逐岗隔离",
+    reason: `${conflictCount} 张卡片的来源公司与已有归属不一致，已明确隔离，未写入冲突岗位；其余岗位照常入库并补全地区。`,
+    action: { kind: "details", label: "查看冲突记录" }, advice: "保留原公司归属和来源卡片证据，逐岗核对后再决定如何处理；不要用自动覆盖消除冲突。",
+    rawDetails: [...new Set(conflicts.map(describeImport))],
+  });
+  const importDetails = [...new Set(importFailures.filter(failure => !failure.conflict).map(describeImport))];
   const importReason = importDetails.join("；");
   if (unconfirmed > 0 || importDetails.length > 0) issues.push({
     id: "ingestion:unconfirmed", scope: "ingestion", severity: "warning", source: "岗位入库", title: "入库回执尚未确认",

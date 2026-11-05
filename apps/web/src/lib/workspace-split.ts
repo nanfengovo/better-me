@@ -4,10 +4,10 @@ export const SPLIT_HANDLE_WIDTH = 20;
 
 /** Both panes retain enough width for their controls at the smallest desktop size. */
 export function getWorkspaceSplitBounds(availableWidth: number) {
-  const width = Number.isFinite(availableWidth) && availableWidth > 0 ? availableWidth : 1000;
+  const width = Number.isFinite(availableWidth) && availableWidth > 0 ? Math.max(780, availableWidth) : 1000;
   return {
-    min: Math.max(22, Math.min(45, 300 / width * 100)),
-    max: Math.min(70, Math.max(55, (1 - 340 / width) * 100)),
+    min: Math.max(22, 360 / width * 100),
+    max: Math.min(70, (1 - 420 / width) * 100),
   };
 }
 

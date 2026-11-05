@@ -22,6 +22,7 @@
     "@langchain/openai": "^1.6.3",
     "jose": "^6.2.14",
     "openid-client": "6.8.9",
+    "quickjs-emscripten": "0.32.0",
     "zod": "^3.25.67"
   },
   "devDependencies": {

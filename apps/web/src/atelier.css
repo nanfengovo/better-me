@@ -37,7 +37,7 @@
     --atelier-canvas: #e7e6df;
     --atelier-dot: #8b8c7c26;
     --atelier-gutter: 28px;
-    --atelier-ease: cubic-bezier(.2,.75,.2,1);
+    --atelier-ease: cubic-bezier(.23,1,.32,1);
     color: var(--ui-text);
     background: var(--ui-canvas);
   }
@@ -242,7 +242,7 @@
   html .studio-app .studio-button.primary:hover:not(:disabled) { color: var(--ui-on-action); background: var(--ui-action-hover); border-color: var(--ui-action-hover); }
   html .studio-app .studio-button.subtle { min-height: 30px; padding: 5px 3px; color: var(--ui-text-secondary); background: transparent; border-color: transparent; box-shadow: none; font-size: 11px; }
   html .studio-app .studio-button.subtle:hover { background: transparent; color: var(--ui-accent); box-shadow: none; }
-  html .studio-app :is(.studio-button,.studio-rail button):active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+  html .studio-app :is(.studio-button,.studio-rail button,.workspace-preference-group button,.output-language button,.text-format-toolbar button,.document-dropdown button):active:not(:disabled) { transform: scale(.97); box-shadow: none; }
   html .studio-app :is(.studio-button,.resume-view-picker select,.resume-view-picker button,.output-language button,.workspace-preference-group button):focus-visible { outline: 2px solid var(--ui-focus); outline-offset: 3px; }
   html .studio-app .studio-button:disabled { opacity: .5; cursor: not-allowed; }
   html .studio-app .document-dropdown {
@@ -252,15 +252,16 @@
     border-color: var(--ui-border);
     border-radius: 13px;
     box-shadow: var(--ui-shadow);
-    animation: atelier-menu-enter 150ms var(--atelier-ease) both;
+    animation: atelier-menu-enter 160ms var(--atelier-ease) both;
     transform-origin: top right;
   }
-  html .studio-app .document-dropdown button { padding: 11px 9px; color: var(--ui-text-secondary); border-radius: 7px; font-size: 12px; }
+  html .studio-app .document-dropdown button { padding: 11px 9px; color: var(--ui-text-secondary); border-radius: 7px; font-size: 12px; transition: background-color 140ms ease, color 140ms ease, transform 140ms var(--atelier-ease); }
   html .studio-app .document-dropdown button:hover { color: var(--ui-text); background: var(--ui-hover); }
   html .studio-app .document-dropdown button span { color: var(--ui-text-muted); font-size: 10px; }
   html .studio-app .document-dropdown hr { border-color: var(--ui-border); margin: 5px 0; }
 
   /* Full-height panels: one outer surface, precise internal dividers. */
+  html .studio-app :is(.resume-workspace-body,.secondary-workspace,.studio-panel-slot):not([hidden]) { animation: atelier-panel-enter 160ms var(--atelier-ease) both; }
   html .studio-app .studio-main { padding: 0 var(--atelier-gutter); grid-template-columns: minmax(0,var(--studio-editor-share,38fr)) 24px minmax(0,var(--studio-preview-share,62fr)); }
   html .studio-app .studio-editor-pane { border-color: var(--ui-border); border-radius: 17px; background: var(--ui-surface); box-shadow: var(--atelier-panel-shadow); }
   html .studio-app .studio-panel-slot > .fact-editor { background: var(--ui-surface-raised); }
@@ -270,7 +271,7 @@
   html .studio-app :is(.studio-splitter:hover,.studio-splitter:focus-visible,.is-resizing .studio-splitter) .studio-splitter-line { background: var(--ui-accent-soft); border-color: var(--ui-border-strong); color: var(--ui-accent); }
   html .studio-app :is(.studio-splitter:hover,.studio-splitter:focus-visible,.is-resizing .studio-splitter)::before { width: 2px; background: var(--ui-border-strong); }
   html .studio-app .studio-splitter-value { color: var(--ui-accent); background: var(--ui-surface); border-color: var(--ui-border); box-shadow: var(--ui-shadow); font-size: 11px; }
-  html .studio-app .studio-preview-pane > .resume-preview { border-color: var(--ui-border); border-radius: 17px; background: var(--atelier-canvas); box-shadow: var(--atelier-panel-shadow); }
+  html .studio-app .studio-preview-pane .resume-preview { border: 1px solid var(--ui-border); border-radius: 17px; background: var(--atelier-canvas); box-shadow: var(--atelier-panel-shadow); }
   html .studio-app .resume-preview-canvas { background-color: var(--atelier-canvas); background-image: radial-gradient(var(--atelier-dot) .7px,transparent .7px); background-size: 18px 18px; }
   html .studio-app .resume-preview-stage { padding: 35px; }
   html .studio-app .resume-preview-scale { box-shadow: 0 30px 65px -35px #27312545; }
@@ -359,12 +360,17 @@
   html .studio-app .format-selection-hint { color: var(--ui-text-muted); font-size: 10px; }
 
   /* The assistant invitation reads as a final action, not a competing banner. */
-  html .studio-app .jd-workspace-invite { padding: 15px 18px; gap: 11px; background: var(--ui-surface); border-color: var(--ui-border); transition: background 150ms; }
+  html .studio-app .jd-workspace-invite { padding: 15px 18px; gap: 11px; background: var(--ui-surface); border-color: var(--ui-border); transition: background-color 150ms ease, transform 140ms var(--atelier-ease); }
   html .studio-app .jd-workspace-invite:hover { background: var(--ui-accent-soft); }
-  html .studio-app .jd-invite-icon { width: 34px; height: 34px; border-radius: 10px; color: var(--ui-accent); background: var(--ui-accent-soft); border-color: transparent; }
+  html .studio-app .jd-workspace-invite:active { transform: scale(.985); }
+  html .studio-app .jd-invite-icon { width: 34px; height: 34px; border-radius: 10px; color: var(--ui-accent); background: var(--ui-accent-soft); border-color: transparent; transition: transform 160ms var(--atelier-ease); }
   html .studio-app .jd-workspace-invite strong { color: var(--ui-text); font-size: 12px; line-height: 1.5; font-weight: 600; }
   html .studio-app .jd-workspace-invite small { margin-top: 4px; color: var(--ui-text-muted); font-size: 10px; line-height: 1.5; }
-  html .studio-app .jd-workspace-invite > svg { color: var(--ui-accent); }
+  html .studio-app .jd-workspace-invite > svg { color: var(--ui-accent); transition: transform 160ms var(--atelier-ease); }
+  @media (hover:hover) and (pointer:fine) {
+    html .studio-app .jd-workspace-invite:hover > svg { transform: translate(2px, -2px); }
+    html .studio-app .jd-workspace-invite:hover .jd-invite-icon { transform: scale(1.04); }
+  }
   html .studio-app .studio-footer { padding: 12px var(--atelier-gutter); gap: 12px; font-size: 10px; color: var(--ui-text-muted); letter-spacing: 0; line-height: 1.5; }
   html .studio-app .studio-footer span { min-width: 0; }
   html .studio-app .studio-footer svg { flex-shrink: 0; }
@@ -403,8 +409,12 @@
   html .studio-app .fact-editor .formatted-field textarea:focus-visible { outline: none; }
 
   @keyframes atelier-menu-enter {
-    from { opacity: 0; transform: translateY(-4px) scale(.985); }
+    from { opacity: 0; transform: translateY(-4px) scale(.97); }
     to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes atelier-panel-enter {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 }
 
@@ -494,7 +504,7 @@
   html .studio-app .autosave-setting-field select { min-width: 100px; max-width: 133px; padding-left: 6px; padding-right: 15px; font-size: 11px; }
   html .studio-app .autosave-seconds-input input { width: 60px; }
   html .studio-app .studio-main { gap: 16px; }
-  html .studio-app :is(.studio-editor-pane,.studio-preview-pane > .resume-preview) { border-radius: 13px; }
+  html .studio-app :is(.studio-editor-pane,.studio-preview-pane .resume-preview) { border-radius: 13px; }
   html .studio-app .studio-editor-pane { height: 780px; }
   html .studio-app .studio-preview-pane { height: 780px; }
   html .studio-app .resume-preview-stage { padding: 20px; }
@@ -531,6 +541,6 @@
   html .studio-app .fact-editor article > div:first-child > button > div > div > span:first-child { font-size: 13px; }
 }
 @media screen and (prefers-reduced-motion:reduce) {
-  html .studio-app :is(.studio-button,.studio-rail button,.document-dropdown,.autosave-popover,.workspace-preference-group button,.studio-splitter-line,.studio-splitter::before,.fact-editor article,.formatted-field,.jd-workspace-invite) { animation: none; transition: none; }
-  html .studio-app :is(.studio-button,.studio-rail button):active:not(:disabled) { transform: none; }
+  html .studio-app :is(.studio-button,.studio-rail button,.document-dropdown,.document-dropdown button,.autosave-popover,.workspace-preference-group button,.output-language button,.text-format-toolbar button,.studio-splitter-line,.studio-splitter-value,.studio-splitter::before,.fact-editor article,.formatted-field,.jd-workspace-invite,.jd-invite-icon,.jd-workspace-invite > svg,.resume-workspace-body,.secondary-workspace,.studio-panel-slot) { animation: none; transition: none; }
+  html .studio-app :is(.studio-button,.studio-rail button,.workspace-preference-group button,.output-language button,.text-format-toolbar button,.document-dropdown button,.jd-workspace-invite):active:not(:disabled) { transform: none; }
 }

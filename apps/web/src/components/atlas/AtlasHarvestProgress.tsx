@@ -171,6 +171,7 @@ export function AtlasHarvestProgress({
           {pendingBatches !== undefined && <div><dt>待处理批次</dt><dd>{pendingBatches}</dd></div>}
           {pendingCards !== undefined && <div><dt>待处理卡片</dt><dd>{pendingCards}</dd></div>}
           {failedCards !== undefined && <div data-warning={failedCards > 0}><dt>失败 / 未确认</dt><dd>{failedCards}</dd></div>}
+          {finiteProgressStat(stats, "conflictedCards") !== undefined && <div data-warning={(finiteProgressStat(stats, "conflictedCards") ?? 0) > 0}><dt>公司冲突 / 已隔离</dt><dd>{finiteProgressStat(stats, "conflictedCards")}</dd></div>}
           {cancelledCards !== undefined && <div data-warning={cancelledCards > 0}><dt>取消 / 未确认</dt><dd>{cancelledCards}</dd></div>}
         </dl>
         <p className="atlas-harvest-progress-count-note">发现按来源卡片去重；已保存以成功回执确认的输入卡片计数，包含未变记录；待处理包含正在提交的批次。新增、更新、未变是岗位回执数，不等于唯一卡片数。— 表示尚无确认值。</p>

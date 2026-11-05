@@ -107,6 +107,45 @@ test("confirmed batches seed counters and identities but never replay HTTP write
   assert.ok(result.snapshot && result.snapshot.revision >= 2);
 });
 
+test("partial receipts retain the conflicting card across recovery and enrich only the thirty-nine saved cards", async () => {
+  const source = batch();
+  const cards = Array.from({ length: 40 }, (_, index) => {
+    const card = batch(index + 1).cards[0]!;
+    return { ...card, evidence: { ...card.evidence, pageUrl: source.pageUrl } };
+  });
+  const value = { ...source, cards };
+  const conflict = { reason: "company-ownership-conflict" as const, sourceId: "reviewed-platform-liepin", sourceRecordId: "100001",
+    jobId: "existing-conflicted-job", listingId: "existing-conflicted-listing", url: cards[0]!.url, title: cards[0]!.title, company: cards[0]!.company,
+    existingCompanyId: "existing-company", existingCompanyNames: ["Keep Original Employer"], pageUrl: value.pageUrl, capturedAt };
+  const partial = { ...receipt(3), jobIds: Array.from({ length: 39 }, (_, index) => `saved-job-${index}`),
+    counts: { ...receipt().counts, newJobs: 39 }, conflicts: [conflict] };
+  const stored = checkpoint([value]);
+  const service = client().service;
+  let imports = 0;
+  service.importReviewedCards = async () => { imports++; return partial; };
+  service.snapshot = async () => ({ ...createAtlasDemo(), revision: imports ? 3 : 2 });
+  let publishedConflicts = 0;
+  const queue = new LiveCardCommitQueue({ client: service, checkpoint: stored.journal, maxPendingBatches: 1,
+    onStats: (_stats, failures) => { publishedConflicts = failures.filter(failure => failure.conflict).length; failures.length = 0; } });
+  await queue.restore(stored.state.batches);
+  const result = await queue.finish();
+  assert.equal(result.stats.committedCards, 39);
+  assert.equal(result.stats.conflictedCards, 1);
+  assert.equal(result.stats.failedCards, 0);
+  assert.equal(result.stats.pendingCards, 0);
+  assert.equal(result.touchedJobIds.size, 39);
+  assert.equal(result.touchedJobIds.has(conflict.jobId), false);
+  assert.deepEqual(result.failures[0]!.conflict, conflict);
+  assert.equal(publishedConflicts, 1, "conflict details publish before the entire collection finishes");
+  assert.equal(stored.state.batches[0]!.cards.length, 40, "full rejected evidence stays in the original checkpoint");
+  const recovered = new LiveCardCommitQueue({ client: service, checkpoint: stored.journal });
+  await recovered.restore((await stored.journal.read()).batches);
+  const restored = await recovered.finish();
+  assert.deepEqual(restored.stats, result.stats);
+  assert.deepEqual(restored.failures, result.failures);
+  assert.equal(imports, 1, "a partial confirmed receipt never replays the successful siblings");
+});
+
 test("capture and prepare durability precede network writes and confirmation", async () => {
   const stored = checkpoint();
   const service = client(stored.events);

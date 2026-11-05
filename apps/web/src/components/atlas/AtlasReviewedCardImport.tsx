@@ -12,7 +12,7 @@ export type AtlasReviewedCardImportProps = {
   onClose: () => void; onSnapshot: (snapshot: AtlasDataset) => void;
 };
 type Write = { input: ImportReviewedCardsInput; key: string };
-type Saved = { revision: number; added: number; updated: number; jobIds: string[] };
+type Saved = { revision: number; added: number; updated: number; jobIds: string[]; conflicts?: ReviewedCardsPreview["conflicts"] };
 type LocationReview = { jobId: string; locationId: string; revision: number };
 const AtlasLocationConfirmation = lazy(() => import("./AtlasLocationConfirmation").then(module => ({ default: module.AtlasLocationConfirmation })));
 
@@ -89,7 +89,7 @@ export function AtlasReviewedCardImport({ endpoint, token, capture, revision, on
       }
       throw problem;
     }
-    alive(signal); setSaved({ binding, value: { revision: receipt.revision, added: receipt.counts.newJobs, updated: receipt.counts.updatedJobs, jobIds: receipt.jobIds } }); setPending(undefined); setIndex(undefined);
+    alive(signal); setSaved({ binding, value: { revision: receipt.revision, added: receipt.counts.newJobs, updated: receipt.counts.updatedJobs, jobIds: receipt.jobIds, conflicts: receipt.conflicts } }); setPending(undefined); setIndex(undefined);
     try { const snapshot = await binding.client.snapshot({ signal }); alive(signal); publishSnapshot(snapshot); }
     catch (problem) { alive(signal); throw new Error(`岗位已写入索引版本 ${receipt.revision}，页面刷新未完成。请点击“重新读取索引”。${problem instanceof Error ? problem.message : ""}`, { cause: problem }); }
   });
@@ -101,6 +101,7 @@ export function AtlasReviewedCardImport({ endpoint, token, capture, revision, on
     <p className="atlas-small">卡片读取时间：<time dateTime={capture.capturedAt}>{capture.capturedAt}</time>；发布时间以卡片披露为准。</p>
     {capture.cards.map(card => <article className="atlas-source-review-card" key={card.url}><h3>{card.title}</h3><p>{card.company} · {card.locationText || "地点未披露"}</p><p>{card.salaryText || "薪资未披露"} · {card.publicationText || "发布时间未知"}</p><a href={card.url} target="_blank" rel="noopener noreferrer">在 {card.platform} 打开原岗位</a><details><summary>核对实际卡片原文</summary><pre className="atlas-reviewed-excerpt">{card.cardText}</pre></details></article>)}
     {value && <div role="status"><p>预览基于索引版本 {value.expectedRevision}：{value.cards.filter(card => !card.existing).length} 个新岗位，{value.cards.filter(card => card.existing).length} 个已有岗位。摘要不会替换已有的完整 JD。</p><ul>{value.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul></div>}
+    {(committed?.conflicts ?? value?.conflicts)?.map(conflict => <div role="status" key={conflict.listingId}><strong>公司归属冲突 · 已隔离</strong><p>{conflict.title}：来源公司“{conflict.company}”，已有归属“{conflict.existingCompanyNames.join(" / ")}”。未覆盖原岗位或公司；同批其他岗位正常处理。</p><a href={conflict.url} target="_blank" rel="noopener noreferrer">核对冲突岗位原文</a></div>)}
     {!committed && <div className="atlas-source-review-actions"><button type="button" disabled={busy || !!write || !token.trim()} onClick={() => void readPreview()}>预览入库变化</button><button type="button" disabled={busy || !!write} onClick={() => void refresh()}>重新读取索引</button></div>}
     {value && !committed && <><label className="atlas-reviewed-confirm"><input type="checkbox" checked={confirmed} disabled={busy || !!write} onChange={event => setConfirmation(event.target.checked ? binding : undefined)} />我已核对来源和卡片字段，确认以待核实摘要加入索引</label><button type="button" disabled={busy || (!write && !confirmed)} onClick={() => void commit()}>{busy && <Loader2 size={15} className="animate-spin" />}{write ? "重试本次写入 · 核对回执" : "确认加入统一索引"}</button></>}
     {busy && <p role="status"><Loader2 size={15} className="animate-spin" />正在处理本次请求…</p>}

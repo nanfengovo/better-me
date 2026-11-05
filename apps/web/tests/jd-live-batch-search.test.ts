@@ -557,6 +557,58 @@ function readinessSnapshot(pageUrl: string, message: string) {
   };
 }
 
+for (const recovers of [false, true]) test(`Liepin pagination operation timeout ${recovers ? "observes the document that loaded despite the command timeout" : "retains verified cards and a typed timeout when the final probe is unavailable"}`, async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1000 });
+  const url = "https://www.liepin.com/zhaopin/?key=C%23&dq=020";
+  const dom = new Window({ url });
+  dom.document.body.innerHTML = '<article class="jobCardPcContainer"><a href="https://www.liepin.com/job/123456789.shtml"><span class="jobTitleBox">C# 工程师</span></a><span class="companyName">合成公司</span><span class="labels-box">上海</span></article>';
+  let navigations = 0, currentUrl = url;
+  const diagnostics: unknown[] = [];
+  const cdp: NativeCdp = {
+    ...cdpReturning(undefined),
+    async send<T>(method: string, params?: Record<string, unknown>): Promise<T> {
+      if (method === "Target.createTarget") return { targetId: "owned-timeout" } as T;
+      if (method === "Target.attachToTarget") return { sessionId: "owned-session" } as T;
+      if (method === "Target.getTargets") return { targetInfos: [{ targetId: "owned-timeout", type: "page", url: currentUrl }] } as T;
+      if (method === "Page.navigate") {
+        if (++navigations > 1) {
+          if (recovers) {
+            currentUrl = String(params?.url);
+            dom.document.body.innerHTML = '<article class="jobCardPcContainer"><a href="https://www.liepin.com/job/123456790.shtml"><span class="jobTitleBox">C# 第二页工程师</span></a><span class="companyName">合成公司</span><span class="labels-box">上海</span></article>';
+          }
+          throw new Error("浏览器操作超时，尚未确认操作结果。");
+        }
+        return {} as T;
+      }
+      if (method === "DOMSnapshot.captureSnapshot") throw new Error("fixture uses visible DOM");
+      if (method !== "Runtime.evaluate") return {} as T;
+      if (navigations > 1 && !recovers) throw new Error("final probe unavailable");
+      return { result: { value: runInNewContext(String(params?.expression), {
+        document: dom.document, getComputedStyle: dom.getComputedStyle.bind(dom), location: new URL(currentUrl), window: { scrollBy() {} },
+      }) } } as T;
+    },
+  };
+  let settled = false;
+  const pending = captureProviderViaNativeCdp(cdp, { provider: "liepin", platform: "猎聘", url }, [], "C#", undefined, 0, "quick", 2,
+    undefined, undefined, async diagnostic => { diagnostics.push(diagnostic); return undefined; }).finally(() => { settled = true; });
+  for (let i = 0; i < 160 && !settled; i++) { t.mock.timers.tick(250); await new Promise<void>(resolve => setImmediate(resolve)); }
+  try {
+    assert.equal(settled, true);
+    const result = await pending;
+    assert.equal(result.cards.length, recovers ? 2 : 1);
+    assert.equal(result.coverage.stopReason, recovers ? "page_limit" : "error");
+    assert.equal(result.coverage.failureKind, recovers ? undefined : "timeout");
+    assert.equal(navigations, 2, "an unconfirmed navigation is not blindly retried");
+    if (recovers) {
+      assert.equal(result.coverage.pagesVisited, 2);
+      assert.equal(result.cards[0]!.evidence.pageUrl, url);
+      assert.equal(result.cards[1]!.evidence.pageUrl, currentUrl, "the recovered second-page card keeps its actual page provenance");
+    }
+    assert.equal((diagnostics[0] as { observations: Array<{ failure: string }> }).observations.at(-1)?.failure, "timeout");
+    assert.equal((diagnostics[0] as { observations: Array<{ recovered: boolean }> }).observations.at(-1)?.recovered, recovers);
+  } finally { await dom.happyDOM.abort(); }
+});
+
 for (const outcome of ["delayed-navigation", "blank-recovery", "navigation-timeout", "persistent-blank", "script-recovery", "persistent-script", "script-gate", "script-http-limit"] as const) {
   test(`owned Liepin initial navigation handles ${outcome} without interrupting an in-flight load`, async (t) => {
     t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1000 });

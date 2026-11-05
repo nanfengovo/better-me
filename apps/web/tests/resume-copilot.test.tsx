@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test, { after, afterEach } from "node:test";
 import { registerHooks } from "node:module";
 import { readFileSync } from "node:fs";
-import { Window } from "happy-dom";
+import { Window, type HTMLButtonElement, type HTMLInputElement, type HTMLTextAreaElement, type HTMLSelectElement, type HTMLDetailsElement, type HTMLElement } from "happy-dom";
 import { createInitialDocument } from "@better-me/storage";
 import { applyResumeProposal, createResumeAgentContext } from "../src/lib/resume-agent-context";
 import {
@@ -25,6 +25,7 @@ const React = await import("react");
 const originals = new Map<string, PropertyDescriptor | undefined>();
 for (const [key, value] of Object.entries({ window: dom, document: dom.document, navigator: dom.navigator, localStorage: dom.localStorage,
   HTMLElement: dom.HTMLElement, HTMLTextAreaElement: dom.HTMLTextAreaElement, Element: dom.Element, Node: dom.Node,
+  Event: dom.Event, CustomEvent: dom.CustomEvent,
   ResizeObserver: dom.ResizeObserver, MutationObserver: dom.MutationObserver,
   requestAnimationFrame: dom.requestAnimationFrame.bind(dom), cancelAnimationFrame: dom.cancelAnimationFrame.bind(dom), React, IS_REACT_ACT_ENVIRONMENT: true })) {
   originals.set(key, Object.getOwnPropertyDescriptor(globalThis, key)); Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
@@ -37,6 +38,57 @@ const { understandingScope } = await import("../src/components/ProjectUnderstand
 
 const source: WritingSource = { targetRef: { kind: "claim_text", experienceId: "fixture-exp", claimId: "fixture-claim", locale: "zh" }, text: "负责接口开发，参与系统维护", label: "虚构测试经历 · 要点 1" };
 const issue = inspectWriting(source, [source])!;
+test("annotation navigation gives concurrent notes matching colors and numbers, and locates the selected source", async () => {
+  const sources = [source, ...[2, 3].map(index => ({ ...source,
+    targetRef: { kind: "claim_text" as const, experienceId: "fixture-exp", claimId: `fixture-claim-${index}`, locale: "zh" as const },
+    text: `负责接口开发，参与系统维护，测试要点${index}`, label: `虚构测试经历 · 要点 ${index}`,
+  }))];
+  const focused: WritingSource[] = []; let modelCalls = 0, writes = 0;
+  await render({ sources, onFocus: item => { focused.push(item); },
+    generate: async () => { modelCalls++; return { questions: [], rationale: "", evidenceQuotes: [] }; },
+    onApply: async () => { writes++; return { ok: true, message: "unused" }; },
+  });
+  await click("检查当前简历");
+  const buttons = [...dom.document.querySelectorAll<HTMLButtonElement>(".writing-note-index button[data-annotation-id]")];
+  assert.equal(buttons.length, 3, "all pending notes need a visible, directly selectable index");
+  assert.equal(new Set(buttons.map(button => button.dataset.annotationTone)).size, 3, "nearby notes must not all use the workspace accent");
+  assert.equal(buttons.filter(button => button.getAttribute("aria-pressed") === "true").length, 1);
+  const tones = buttons.map(button => button.dataset.annotationTone);
+  await act(async () => buttons[1]!.click());
+  const card = dom.document.querySelector<HTMLElement>(".writing-note")!;
+  assert.equal(card.dataset.annotationTone, tones[1]);
+  assert.equal(card.querySelector(".writing-note-number")?.textContent, "2");
+  assert.equal(focused.length, 0, "browsing notes must not force editor focus or close the mobile sidebar");
+  await act(async () => dom.document.querySelector<HTMLButtonElement>(".writing-note .writing-source")!.click());
+  const secondTarget = focused.at(-1)?.targetRef;
+  assert.equal(secondTarget?.kind === "claim_text" && secondTarget.claimId, "fixture-claim-2");
+  await click("下一条批注");
+  assert.equal(dom.document.querySelector<HTMLElement>(".writing-note")?.dataset.annotationTone, tones[2]);
+  assert.equal(focused.length, 1, "paging reveals the preview without moving focus into the editor");
+  assert.equal(modelCalls, 0); assert.equal(writes, 0);
+});
+test("locating a quoted annotation cannot be replaced by the editor's whole-field focus event", async () => {
+  const quoted = { ...source, quote: quoteWritingText(source.text, 0, 6)! };
+  const whole = newWritingNote(source, issue), fragment = newWritingNote(quoted, issue);
+  saveWritingSession(dom.localStorage as unknown as Storage, "betterme.writing.v1:test", { version: 1, mode: "quiet", notes: [whole, fragment] });
+  await render({ children: h("div", { id: "resume-editor-panel" }, h("textarea", { "data-writing-key": writingTargetKey(source.targetRef), defaultValue: source.text })) });
+  await act(async () => dom.document.querySelectorAll<HTMLButtonElement>(".writing-note-index button")[1]!.click());
+  await act(async () => dom.document.querySelector<HTMLButtonElement>(".writing-note .writing-source")!.click());
+  assert.equal(dom.document.querySelector(".writing-note-number")?.textContent, "2");
+  assert.equal(dom.document.querySelector(".writing-note blockquote")?.textContent, quoted.quote.exact);
+  assert.equal(dom.document.activeElement?.tagName, "TEXTAREA");
+});
+test("paging retains each note's supplement but never carries its approval to another note", async () => {
+  const second: WritingSource = { ...source, targetRef: { kind: "claim_text", experienceId: "fixture-exp", claimId: "second", locale: "zh" }, label: "虚构第二条" };
+  const firstNote = { ...newWritingNote(source, issue), answer: "我本人补充的未发送草稿" };
+  saveWritingSession(dom.localStorage as unknown as Storage, "betterme.writing.v1:test", { version: 1, mode: "quiet", notes: [firstNote, newWritingNote(second, issue)] });
+  await render({ sources: [source, second] }); await click("一起完善");
+  await act(async () => (dom.document.querySelector('.writing-review-compose input[type="checkbox"]') as unknown as HTMLInputElement).click());
+  await click("下一条批注"); await click("上一条批注"); await click("一起完善");
+  assert.equal((dom.document.querySelector("#writing-answer") as unknown as HTMLTextAreaElement).value, firstNote.answer);
+  assert.equal((dom.document.querySelector('.writing-review-compose input[type="checkbox"]') as unknown as HTMLInputElement).checked, false);
+  assert.equal([...dom.document.querySelectorAll("button")].find(item => item.textContent?.includes("整理候选表达"))!.disabled, true);
+});
 test("leaving the resume page keeps the annotation composer mounted", async () => {
   await render(); await click("检查当前简历"); await click("一起完善");
   const composer = dom.document.querySelector("#writing-answer");
@@ -82,7 +134,7 @@ test("ChatGPT account/model selection routes writing only to the account and ret
   await render({ chatGptClient: client, generate: async () => { apiCalls++; throw new Error("fallback forbidden"); } });
   const select = async (selector: string, value: string) => { await act(async () => { const field = dom.document.querySelector(selector)! as unknown as HTMLSelectElement; field.value = value; field.dispatchEvent(new dom.Event("change", { bubbles: true })); }); };
   await select('[aria-label="伴写 Agent 来源"]', "chatgpt");
-  const selects = () => [...dom.document.querySelectorAll(".chatgpt-agent-fields select")];
+  const selects = () => [...dom.document.querySelectorAll<HTMLSelectElement>(".chatgpt-agent-fields select")];
   await act(async () => { const field = selects()[0]!; field.value = "synthetic-account"; field.dispatchEvent(new dom.Event("change", { bubbles: true })); });
   await act(async () => { const field = selects()[1]!; field.value = "synthetic-gpt"; field.dispatchEvent(new dom.Event("change", { bubbles: true })); });
   await click("检查当前简历"); await click("一起完善");
@@ -123,7 +175,7 @@ test("model result must quote supplied evidence and cannot introduce a numeric c
 });
 test("model receives one field only and cancellation rejects a late result", async () => {
   const controller = new AbortController();
-  await assert.rejects(generateWritingReply({ provider: "ollama", baseUrl: "http://localhost:11434/v1", model: "fixture", temperature: 0 }, source, "", controller.signal, async (_config, messages) => {
+  await assert.rejects(generateWritingReply({ provider: "ollama", baseUrl: "http://localhost:11434/v1", apiKey: "", model: "fixture", temperature: 0 }, source, "", controller.signal, async (_config, messages) => {
     assert.equal(messages.length, 2); assert.equal(messages[1]?.content, JSON.stringify({ originalText: source.text, confirmedSupplement: "" }));
     controller.abort(); return { content: JSON.stringify({ questions: ["具体做了什么？"], rationale: "待补充", evidenceQuotes: [] }) };
   }), /abort/i);
@@ -160,7 +212,7 @@ test("selected quote patch and undo preserve the rest of the field; reanchoring 
 });
 
 let root: ReturnType<typeof createRoot> | undefined;
-const config = { provider: "ollama" as const, baseUrl: "http://localhost:11434/v1", model: "test", temperature: 0 };
+const config = { provider: "ollama" as const, baseUrl: "http://localhost:11434/v1", apiKey: "", model: "test", temperature: 0 };
 async function render(options: Partial<React.ComponentProps<typeof ResumeWritingCopilot>> = {}, agentRepository?: AgentRepository) {
   if (!root) { const container = dom.document.createElement("main"); dom.document.body.append(container); root = createRoot(container as unknown as Element); }
   const copilot = h(ResumeWritingCopilot, { sessionKey: "test", sources: [source], config, active: true, onApply: async () => ({ ok: true, message: "已采用" }), onFocus() {}, children: h("div", null, "示例预览"), ...options });
@@ -249,7 +301,7 @@ test("collapsing the Agent preserves the mounted draft and a running reply witho
   const collapse = dom.document.querySelector<HTMLButtonElement>('[aria-label="收起 Agent 对话"]');
   assert.ok(collapse, "Agent needs a separate, non-destructive collapse control");
   await act(async () => collapse.click());
-  const pane = dom.document.getElementById(collapse.getAttribute("aria-controls")!)!;
+  const pane = dom.document.getElementById(collapse.getAttribute("aria-controls")!)! as HTMLElement;
   assert.equal(pane.hidden, true); assert.equal(collapse.getAttribute("aria-expanded"), "false");
   assert.equal(signal?.aborted, false); assert.equal(dom.document.querySelector("#writing-answer"), field);
   assert.match(dom.document.querySelector(".writing-toolbar")?.textContent ?? "", /分析中/);
@@ -320,7 +372,7 @@ test("changing the source closes stale annotation and a fresh scan binds only ne
 test("IME input is suppressed until compositionend; caret events request no analysis", () => {
   const editor = dom.document.createElement("div"), input = dom.document.createElement("textarea");
   input.dataset.writingKey = writingTargetKey(source.targetRef); editor.append(input); dom.document.body.append(editor);
-  const events: boolean[] = []; const close = observeResumeWriting(editor as unknown as HTMLElement, (_activity, check) => events.push(check));
+  const events: boolean[] = []; const close = observeResumeWriting(editor as unknown as Parameters<typeof observeResumeWriting>[0], (_activity, check) => events.push(check));
   input.dispatchEvent(new dom.Event("select", { bubbles: true }));
   input.dispatchEvent(new dom.Event("compositionstart", { bubbles: true })); input.dispatchEvent(new dom.Event("input", { bubbles: true }));
   assert.deepEqual(events, [false]); input.dispatchEvent(new dom.Event("compositionend", { bubbles: true })); assert.deepEqual(events, [false, true]); close();
@@ -408,7 +460,8 @@ test("opt-in project entry makes no model call and a changed confirmed revision 
     getCapabilities: async () => [], getSession: async () => { reads++; return reads === 1 ? session : { ...session, revision: 6, phase: "awaiting-confirmation", confirmation: undefined }; } };
   await render({ understandingClient: client, generate: async () => { models++; return { questions: [], rationale: "", evidenceQuotes: [] }; } });
   assert.equal(reads, 0); await click("先对齐项目理解");
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  for (let index = 0; index < 100 && !dom.document.querySelector(".understanding-confirmed"); index++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+  assert.ok(dom.document.querySelector(".understanding-confirmed"), "wait for the restored confirmation, not elapsed time");
   assert.equal(models, 0); assert.equal(mutations, 0); assert.equal(reads, 1);
   await click("返回伴写建议"); await click("一起完善");
   const share = [...dom.document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].find(input => input.parentElement?.textContent?.includes("本次携带"))!;
@@ -429,7 +482,10 @@ test("project confirmation changed during generation cannot become a successful 
     getCapabilities: async () => [], getSession: async () => ++reads <= 2 ? session : { ...session, revision: 6, phase: "awaiting-confirmation", confirmation: undefined } };
   const repository = createMemoryAgentRepository();
   await render({ understandingClient: client, generate: async () => { models++; return { questions: [], rationale: "迟到结果", proposedText: "编写重试逻辑", evidenceQuotes: ["我编写了重试逻辑"] }; } }, repository);
-  await click("先对齐项目理解"); await click("返回伴写建议"); await click("一起完善");
+  await click("先对齐项目理解");
+  for (let index = 0; index < 100 && !dom.document.querySelector(".understanding-confirmed"); index++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+  assert.ok(dom.document.querySelector(".understanding-confirmed"), "the confirmed session must load before returning to writing");
+  await click("返回伴写建议"); await click("一起完善");
   await act(async () => {
     for (const input of dom.document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')) {
       if (/本次携带|我确认这段补充/.test(input.parentElement?.textContent ?? "")) input.click();

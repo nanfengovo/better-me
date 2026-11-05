@@ -2,7 +2,7 @@ import type { AtlasDataset } from "@better-me/opportunities";
 import { liveCardIdentity } from "./live-card-identity";
 import type { LiveBatchProviderResultClient } from "../../lib/platform-search-client";
 import { groupLiveCardsForReviewedImport } from "./live-platform-import-utils";
-import type { LivePlatformImportSummary } from "./live-platform-auto-import";
+import { companyConflictImportFailure, type LivePlatformImportSummary } from "./live-platform-auto-import";
 import type { createAtlasSourceClient } from "./service-client";
 import type { HarvestBatchCheckpoint, HarvestCheckpoint, HarvestImportReceipt, HarvestPreparedImport } from "./harvest-checkpoint";
 
@@ -25,6 +25,8 @@ export type LiveCommitStats = {
   committedCards: number;
   /** No confirmed success receipt; transport ambiguity does not prove absence in storage. */
   failedCards: number;
+  /** Definitively rejected company claims, not transport-ambiguous writes. */
+  conflictedCards?: number;
   /** Accepted cards cancelled without a confirmed receipt, including admission waiters. */
   cancelledCards: number;
   pendingBatches: number;
@@ -71,7 +73,7 @@ export class LiveCardCommitQueue {
     checkpoint?: HarvestCheckpoint;
     onCheckpointFailure?: (error: HarvestCheckpointError) => void;
     signal?: AbortSignal;
-    onStats?: (stats: LiveCommitStats) => void;
+    onStats?: (stats: LiveCommitStats, failures: LivePlatformImportSummary["importFailures"]) => void;
     onSnapshot?: (snapshot: AtlasDataset, stats: LiveCommitStats) => void;
     maxPendingBatches?: number;
     maxPendingBytes?: number;
@@ -87,7 +89,7 @@ export class LiveCardCommitQueue {
   private stats(): LiveCommitStats { return { ...this.counts }; }
   private now(): number { return this.options.now?.() ?? Date.now(); }
   private notify(): void {
-    try { this.options.onStats?.(this.stats()); } catch { /* Observers cannot change commit ownership. */ }
+    try { this.options.onStats?.(this.stats(), structuredClone(this.failures)); } catch { /* Observers cannot change commit ownership. */ }
   }
   private wake(): void { for (const wake of this.waiters) wake(); this.waiters.clear(); }
   private checkCancelled(): void { this.options.signal?.throwIfAborted(); }
@@ -121,7 +123,11 @@ export class LiveCardCommitQueue {
     this.counts.totalAdded += receipt.counts.newJobs;
     this.counts.totalUpdated += receipt.counts.updatedJobs;
     this.counts.totalUnchanged += receipt.counts.unchangedJobs ?? 0;
-    this.counts.committedCards += batch.cards.length;
+    this.counts.committedCards += batch.cards.length - (receipt.conflicts?.length ?? 0);
+    if (receipt.conflicts?.length) {
+      this.counts.conflictedCards = (this.counts.conflictedCards ?? 0) + receipt.conflicts.length;
+      for (const conflict of receipt.conflicts) this.failures.push(companyConflictImportFailure(batch.platform, conflict));
+    }
     for (const id of receipt.jobIds) this.touched.add(id);
   }
 

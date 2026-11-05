@@ -84,7 +84,7 @@ export function AtlasLiveHarvestResults({ view, busy = false, compactHeading = f
                 <small>{provider.status === "queued" ? `排队等待 · 预算 ${provider.coverage.cardLimit} 卡片`
                   : provider.status === "running" ? `${provider.provider === "boss" ? `当前关键词 · 已滚动 ${provider.coverage.scrollSteps} 步 · 预算 ${provider.coverage.scrollLimit} 步` : `当前关键词 · 已读 ${provider.coverage.pagesVisited} 页 · 预算 ${provider.coverage.pageLimit} 页`} · 候选 ${provider.progressCardsCaptured ?? 0} 张 · 继续读取`
                     : provider.provider === "boss" ? `已滚动 ${provider.coverage.scrollSteps} 步 · 预算 ${provider.coverage.scrollLimit} 步` : `已读 ${provider.coverage.pagesVisited} 页 · 预算 ${provider.coverage.pageLimit} 页`}
-                  {provider.status !== "queued" && provider.status !== "running" && (provider.coverage.partial ? ` · 部分：${liveHarvestStopReasonLabel(provider.status, provider.coverage.stopReason)}` : ` · ${liveHarvestStopReasonLabel(provider.status, provider.coverage.stopReason)}`)}
+                  {provider.status !== "queued" && provider.status !== "running" && (provider.coverage.partial ? ` · 部分：${liveHarvestStopReasonLabel(provider.status, provider.coverage.stopReason, provider.coverage.failureKind)}` : ` · ${liveHarvestStopReasonLabel(provider.status, provider.coverage.stopReason, provider.coverage.failureKind)}`)}
                 </small>
               </summary>
               {(provider.error || provider.warnings.length > 0) && (

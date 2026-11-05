@@ -44,5 +44,21 @@ test("reviewed cards use the authenticated application routes and become searcha
     assert.equal(detail.observations.length, 1); assert.equal(detail.observations[0].availability, "unknown");
     const snapshot = await request("dataset/export");
     assert.equal(snapshot.locations[0].raw, card.locationText); assert.equal(snapshot.locations[0].coordinates, undefined);
+    const conflictCompany = "另一家合成企业，不得覆盖";
+    const conflict = { ...card, company: conflictCompany, cardText: card.cardText.replace(card.company, conflictCompany),
+      evidence: { ...card.evidence, fields: card.evidence.fields.map(field => field.field === "company" ? { ...field, text: conflictCompany } : field) } };
+    const nextUrl = "https://www.liepin.com/job/1234567891.shtml";
+    const next = { ...card, url: nextUrl, evidence: { ...card.evidence,
+      fields: card.evidence.fields.map(field => field.field === "url" ? { ...field, text: nextUrl } : field) } };
+    const partialInput = { ...input, expectedRevision: snapshot.revision, cards: [conflict, next] };
+    const partialPreview = await request("jobs/reviewed-cards/preview", partialInput);
+    assert.equal(partialPreview.cards.length, 1); assert.equal(partialPreview.conflicts.length, 1);
+    const partialCommand = { ...partialInput, previewFingerprint: partialPreview.previewFingerprint, reviewed: true };
+    const partialReceipt = await request("jobs/reviewed-cards/import", partialCommand, "synthetic-http-partial");
+    assert.equal(partialReceipt.counts.newJobs, 1);
+    assert.deepEqual(partialReceipt.conflicts, partialPreview.conflicts);
+    assert.deepEqual(await request("jobs/reviewed-cards/import", partialCommand, "synthetic-http-partial"), partialReceipt);
+    const preserved = await request(`jobs/${preview.cards[0].jobId}`);
+    assert.deepEqual(preserved.job, detail.job); assert.deepEqual(preserved.company, detail.company);
   } finally { await app.shutdown(); await server.close(); repository.close(); }
 });

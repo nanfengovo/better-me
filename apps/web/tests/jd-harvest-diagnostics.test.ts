@@ -37,6 +37,7 @@ test("owned-page probe returns only structural evidence even on an account page"
 
 test("timeout, platform limits and HTTP errors stay distinct", () => {
   assert.equal(classifyHarvestFailure(new DOMException("request timed out", "TimeoutError")), "timeout");
+  assert.equal(classifyHarvestFailure(new Error("浏览器操作超时，尚未确认操作结果。")), "timeout");
   assert.equal(classifyHarvestFailure(new TypeError("fetch failed")), "network");
   assert.equal(classifyHarvestFailure(undefined, 429), "platform_limit");
   assert.equal(classifyHarvestFailure(undefined, 403), "platform_limit");

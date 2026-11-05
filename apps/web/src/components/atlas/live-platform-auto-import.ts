@@ -1,4 +1,5 @@
 import type { AtlasDataset } from "@better-me/opportunities";
+import type { ReviewedCardCompanyConflict } from "@better-me/source-adapters/browser-contracts";
 import {
   lookupCompanyIntelligenceBatchClient,
   type LiveBatchSearchReceipt,
@@ -22,6 +23,7 @@ export type LivePlatformImportSummary = {
     pageUrl: string;
     cards: number;
     error: string;
+    conflict?: ReviewedCardCompanyConflict;
   }>;
   loginRequiredPlatforms: string[];
   verificationRequiredPlatforms: string[];
@@ -40,6 +42,11 @@ export type LivePlatformImportSummary = {
     error?: string;
   }>;
 };
+
+export function companyConflictImportFailure(platform: string, conflict: ReviewedCardCompanyConflict): LivePlatformImportSummary["importFailures"][number] {
+  return { platform, pageUrl: conflict.pageUrl, cards: 1, conflict,
+    error: `公司归属冲突：${conflict.title}（${conflict.url}）；来源公司“${conflict.company}”，已有归属“${conflict.existingCompanyNames.join(" / ")}”。已隔离，未覆盖原岗位或公司；同批其他岗位继续处理。` };
+}
 
 export type SnapshotEnrichmentSummary = {
   snapshot: AtlasDataset;
@@ -412,7 +419,8 @@ export async function importAndConfirmLivePlatformResults(options: {
         snapshot = { ...snapshot, revision: receipt.revision };
         totalAdded += receipt.counts.newJobs;
         totalUpdated += receipt.counts.updatedJobs;
-        providerImportedCount += chunk.length;
+        providerImportedCount += chunk.length - (receipt.conflicts?.length ?? 0);
+        for (const conflict of receipt.conflicts ?? []) importFailures.push(companyConflictImportFailure(providerResult.platform, conflict));
         for (const id of receipt.jobIds) touchedJobIds.add(id);
       } catch (error) {
         importFailures.push({

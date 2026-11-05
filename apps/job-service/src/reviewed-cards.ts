@@ -107,11 +107,12 @@ export function createReviewedCardsTools(options: { repository: JobRepository; n
     // projectSourcePage adds each listing identity and record signature to its
     // observation ID, so changed card content still appends its own evidence.
     const captureFingerprint = digest({ version: VERSION, provider: input.provider, pageUrl: input.pageUrl, capturedAt: input.capturedAt });
-    const projection = await projectSourcePage(before, source, page, `reviewed-cards:${captureFingerprint}`, { mode: "user-reviewed-browser" });
+    const projection = await projectSourcePage(before, source, page, `reviewed-cards:${captureFingerprint}`, { mode: "user-reviewed-browser", isolateCompanyConflicts: true });
     context.throwIfCancelled();
     // A location label may describe an area or remote eligibility; it is not office evidence.
     for (const location of projection.delta.locations) location.kind = "unknown";
-    const cards: ReviewedCardsPreview["cards"] = input.cards.map((card) => {
+    const rejected = new Set(projection.conflicts?.map(conflict => conflict.sourceRecordId));
+    const cards: ReviewedCardsPreview["cards"] = input.cards.filter(card => !rejected.has(reviewedCardIdentity(card.url, input.provider)!.id)).map((card) => {
       const identity = reviewedCardIdentity(card.url, input.provider)!;
       const listing = projection.delta.listings.find((entry) => entry.sourceRecordId === identity.id)
         ?? before.listings.find((entry) => entry.sourceId === source.sourceId && entry.sourceRecordId === identity.id);
@@ -121,7 +122,7 @@ export function createReviewedCardsTools(options: { repository: JobRepository; n
         ...(card.publicationText ? { publicationText: card.publicationText } : {}), existing: before.listings.some((entry) => entry.id === listing.id) };
     });
     const preview = ReviewedCardsPreviewSchema.parse({ expectedRevision: before.revision, previewFingerprint: fingerprint, sourceId: source.sourceId,
-      completeness: "excerpt", availability: "unknown", cards, warnings: WARNINGS });
+      completeness: "excerpt", availability: "unknown", cards, ...(projection.conflicts ? { conflicts: projection.conflicts } : {}), warnings: WARNINGS });
     return { projection, preview };
   }
   return [
@@ -146,7 +147,7 @@ export function createReviewedCardsTools(options: { repository: JobRepository; n
         if (cached) return cached;
         const { projection } = await prepare(checkedInput, context);
         context.throwIfCancelled();
-        try { return await repository.importSnapshot(projection.delta, importOptions); }
+        try { return await repository.importSnapshot(projection.delta, { ...importOptions, ...(projection.conflicts ? { conflicts: projection.conflicts } : {}) }); }
         catch (error) {
           // A concurrent retry can commit after our receipt lookup but before CAS.
           // Recover only this exact request; never recompute against a newer revision.

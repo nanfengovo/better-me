@@ -1,0 +1,20 @@
+/* Keep both panes mounted; a narrow workspace selects one, never stacks two long pages. */
+@media screen {
+  html .agent-layout .studio-app{height:100dvh;min-height:0;overflow:hidden}
+  html .agent-layout .studio-workspace{min-width:0;min-height:0;overflow:hidden}
+  html .agent-layout .resume-workspace-body{min-height:0;overflow:hidden;scrollbar-gutter:auto}
+  html .studio-app .studio-main[data-workspace-layout]{flex:1 1 0;height:auto;min-height:0;gap:0;grid-template-rows:minmax(0,1fr);grid-template-columns:minmax(0,var(--studio-editor-share)) 20px minmax(0,var(--studio-preview-share));padding-bottom:12px}
+  html .studio-app .studio-main[data-workspace-layout]>.studio-editor-pane,
+  html .studio-app .studio-main[data-workspace-layout]>.studio-preview-pane{height:100%;min-height:0;grid-row:1}
+  html .studio-app .studio-main[data-workspace-layout]>.studio-splitter{display:flex;grid-row:1}
+  html .studio-app .studio-main[data-workspace-layout=single]{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+  html .studio-app .studio-main[data-workspace-layout=single]>.studio-editor-pane,
+  html .studio-app .studio-main[data-workspace-layout=single]>.studio-preview-pane{grid-column:1;grid-row:2}
+  html .studio-app .studio-main[data-workspace-layout]>[hidden]{display:none!important}
+  .workspace-view-tabs{grid-column:1/-1;grid-row:1;display:flex;gap:4px;padding:0 0 10px}
+  .workspace-view-tabs button{border:1px solid transparent;border-radius:7px;min-height:36px;padding:6px 12px;background:transparent;color:var(--ui-text-secondary);font:inherit;font-size:12px;cursor:pointer}
+  .workspace-view-tabs [aria-selected=true]{border-color:var(--ui-border);background:var(--ui-surface);color:var(--ui-accent);font-weight:650}
+  .workspace-view-tabs :focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px}
+  html .agent-layout .studio-notices{max-height:25dvh;overflow:auto;flex-shrink:0;overscroll-behavior:contain}
+}
+@media print{.workspace-view-tabs{display:none!important}.studio-main>#resume-preview-panel[hidden]{display:block!important}}

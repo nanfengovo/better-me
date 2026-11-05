@@ -5,13 +5,17 @@ export function buildHarvestTriage(issues: readonly HarvestIssue[], saved?: numb
   const sourceCount = issues.filter(issue => issue.scope === "source").length;
   const gateCount = issues.filter(issue => issue.action.kind === "login").length;
   const ingestionCount = issues.filter(issue => issue.scope === "ingestion").length;
+  const conflictCount = issues.filter(issue => issue.id === "ingestion:company-conflict").length;
+  const uncertainIngestion = ingestionCount - conflictCount;
   const runCount = issues.filter(issue => issue.scope === "run" || issue.scope === "query").length;
   const lead = saved === undefined ? "已收到的岗位会保留" : `已确认保存 ${saved} 张输入卡片`;
-  const summary = [lead, sourceCount ? `${sourceCount} 个来源未完整读取` : "", gateCount ? `${gateCount} 处需人工登录或验证` : "", ingestionCount ? "部分入库回执待核对" : "", runCount ? "本轮检索有未确认项" : ""].filter(Boolean).join("；") + "。";
-  const nextStep = ingestionCount
+  const summary = [lead, sourceCount ? `${sourceCount} 个来源未完整读取` : "", gateCount ? `${gateCount} 处需人工登录或验证` : "", uncertainIngestion ? "部分入库回执待核对" : "", conflictCount ? "公司归属冲突已逐岗隔离" : "", runCount ? "本轮检索有未确认项" : ""].filter(Boolean).join("；") + "。";
+  const nextStep = uncertainIngestion
     ? "先核对入库回执，避免重复提交；已确认保存的岗位不受影响。"
     : gateCount
       ? "在独立浏览器里完成平台登录或验证，再由你决定是否继续读取。"
+      : conflictCount
+        ? "逐岗核对保留的公司冲突记录；不要覆盖原归属，同批已保存岗位不受影响。"
       : sourceCount || runCount
         ? "先查看对应原站是否已加载，再由你决定是否从断点继续；未返回的页面不算已覆盖。"
         : "已收到的结果会保留；如需更多页面，可检查来源回执后继续。";

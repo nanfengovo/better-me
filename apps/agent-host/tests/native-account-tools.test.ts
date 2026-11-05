@@ -3,14 +3,38 @@ import test from "node:test";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { RuntimeRegistry, BUILTIN_RUNTIME_DEFINITIONS } from "../src/runtime/registry.js";
 import { NativeAccountTools, type NativeLease } from "../src/native-tools/service.js";
 import { NativeOutput } from "../src/native-tools/adapters.js";
-import { NativeToolError, isPublicProviderAddress, nativeEnvironment, nativeSandboxProfile } from "../src/native-tools/process.js";
+import { IsolatedNativeProcess, NativeToolError, isPublicProviderAddress, nativeEnvironment, nativeSandboxProfile } from "../src/native-tools/process.js";
 import { FixtureNativeProcess, nativeFrames } from "./fixtures/native-process.js";
 
 const lease = (session = "session-a"): NativeLease => ({ session, valid: async () => true });
 const authorization = (apiKey = "synthetic-account-a-key") => ({ mode: "api-key", apiKey, model: "synthetic-model", consent: true });
+
+/** POSIX mode bits do not describe Windows access. Check the real synthetic file ACL there. */
+async function assertPrivateCredentialFile(file: string) {
+  const stats = await fs.lstat(file);
+  assert.equal(stats.isFile() && !stats.isSymbolicLink(), true);
+  if (process.platform !== "win32") { assert.equal(stats.mode & 0o777, 0o600); return; }
+  const script = `$ErrorActionPreference = 'Stop'
+$acl = Get-Acl -LiteralPath '${file.replaceAll("'", "''")}'
+$sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+$allowed = @($sid, 'S-1-5-18', 'S-1-5-32-544')
+if ($allowed -notcontains $acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value) { exit 2 }
+$other = @($acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier]) | Where-Object { $_.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and $allowed -notcontains $_.IdentityReference.Value })
+if ($other.Count -gt 0) { exit 3 }
+Write-Output 'private-synthetic-credential-acl'`;
+  const result = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")], { encoding: "utf8", timeout: 15_000 });
+  assert.equal(result.trim(), "private-synthetic-credential-acl", "Credential ACL permits only its owner, SYSTEM and local administrators");
+}
+
+test("production isolation never advertises an unsupported OS as sandboxed", async () => {
+  const available = await new IsolatedNativeProcess().isolation();
+  assert.equal(typeof available, "boolean");
+  if (process.platform !== "darwin") assert.equal(available, false, "Unsupported production isolation must remain fail-closed, independent of fixture file permissions");
+});
 test("provider proxy rejects local, reserved, translated and tunnel addresses but accepts public IPv4 and IPv6", () => {
   for (const address of ["127.0.0.1", "10.0.0.1", "172.16.1.1", "192.168.1.1", "169.254.169.254", "100.64.0.1", "198.18.0.1", "192.0.2.1", "::1", "fe80::1", "fd00::1", "::ffff:127.0.0.1", "64:ff9b::7f00:1", "2002:7f00:1::", "2001:db8::1", "2001:0000:7f00:0001:0000:0000:0000:0001"]) assert.equal(isPublicProviderAddress(address), false, address);
   for (const address of ["1.1.1.1", "8.8.8.8", "2001:4860:4860::8888", "2606:4700:4700::1111"]) assert.equal(isPublicProviderAddress(address), true, address);
@@ -35,8 +59,8 @@ test("installed tools require fresh owner authorization; no shared environment/k
     assert.equal(fixture.runner.executions.length, 0);
     const environment = nativeEnvironment("/synthetic/own");
     for (const key of ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "NODE_OPTIONS", "SSH_AUTH_SOCK", "AWS_ACCESS_KEY_ID"]) assert.equal(environment[key], undefined);
-    assert.equal(environment["CODEX_HOME"], "/synthetic/own/codex");
-    assert.equal(environment["CLAUDE_CODE_TMPDIR"], "/synthetic/own/tmp", "Claude must not use its shared /tmp/claude-uid default");
+    assert.equal(environment["CODEX_HOME"], path.join("/synthetic/own", "codex"));
+    assert.equal(environment["CLAUDE_CODE_TMPDIR"], path.join("/synthetic/own", "tmp"), "Claude must not use its shared /tmp/claude-uid default");
   } finally { await fixture.close(); }
 });
 
@@ -67,7 +91,7 @@ for (const id of ["codex", "claude-code", "opencode", "gemini-cli"] as const) te
     assert.equal(input.stdin, "only synthetic evidence"); assert.ok(!input.args.includes("only synthetic evidence"));
     assert.equal(input.environment?.["OPENAI_API_KEY"], undefined);
     assert.ok(!JSON.stringify(await f.a.capabilities()).includes("synthetic-account-a-key"));
-    const stats = await fs.stat(path.join(f.directory, "a", id, "connection.json")); assert.equal(stats.mode & 0o777, 0o600);
+    await assertPrivateCredentialFile(path.join(f.directory, "a", id, "connection.json"));
     await f.a.disconnect(id, lease());
     await assert.rejects(run("late", new AbortController().signal), /authorization_changed/);
   } finally { await f.close(); }

@@ -63,7 +63,9 @@ export class RepositoryError extends Error {
 }
 export type ImportOptions = { expectedRevision?: number; actorScope: string; idempotencyKey: string; runId?: string;
   /** Host-computed identity of a fully validated command, independent of its projected delta. */
-  requestFingerprint?: string };
+  requestFingerprint?: string;
+  /** Host-projected rejected claims; persisted atomically with the successful receipt. */
+  conflicts?: ImportReceipt["conflicts"] };
 export type StartRunOptions = { sourceId: string; scope: RunScope; actorScope: string; idempotencyKey: string; requestFingerprint?: string };
 export type FindRunByRequestOptions = { actorScope: string; idempotencyKey: string; requestFingerprint: string };
 export type ReconciliationWriteOptions = Omit<ImportOptions, "runId"> & { expectedRevision: number; throwIfCancelled?: () => void };
@@ -1236,7 +1238,8 @@ export function openJobRepository(path: string, options: { now?: () => string; r
         next.revision = current.revision + Number(changed);
         const targets = new Set(incoming.jobs.map((job) => projection.aliases.find((alias) => alias.jobId === job.id)!.canonicalJobId));
         const effectiveIncoming = { ...incoming, jobs: next.jobs.filter((job) => targets.has(job.id)) };
-        const result: ImportReceipt = { ok: true, revision: next.revision, jobIds: effectiveIncoming.jobs.map((job) => job.id), snapshotIds: incoming.snapshots.map((snapshot) => snapshot.id), counts: counts(current, next, effectiveIncoming) };
+        const result: ImportReceipt = checked(ImportReceiptSchema, { ok: true, revision: next.revision, jobIds: effectiveIncoming.jobs.map((job) => job.id), snapshotIds: incoming.snapshots.map((snapshot) => snapshot.id), counts: counts(current, next, effectiveIncoming),
+          ...(importOptions.conflicts ? { conflicts: importOptions.conflicts } : {}) });
         if (changed) {
           if (invalidation) db.prepare("INSERT INTO office_decisions VALUES (?,?,?)").run(invalidation.id, invalidation.revision, json(invalidation));
           // Only an incoming origin can change the base tables. Manual overlays

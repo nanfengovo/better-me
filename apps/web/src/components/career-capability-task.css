@@ -1,0 +1,30 @@
+.career-capability-task { min-width: 0; padding: 12px 0; border-block: 1px solid var(--studio-border, #d8ddd7); line-height: 1.65; }
+.career-capability-task p { margin: 8px 0; overflow-wrap: anywhere; }
+.capability-disclosure { width: 100%; text-align: left; font-weight: 650; padding: 10px 0; }
+.capability-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+.capability-actions span { font-size: 12px; }
+.career-capability-task textarea { width: 100%; box-sizing: border-box; padding: 8px; font-family: monospace; }
+.capability-consent { display: flex; align-items: start; gap: 8px; margin: 12px 0; }
+.capability-consent input { margin-top: 6px; flex: 0 0 auto; }
+.capability-result { padding-block: 14px; border-top: 1px solid var(--studio-border, #d8ddd7); }
+.capability-result h3 { margin: 0; font-size: 16px; }
+.capability-receipt { font-size: 12px; }
+.career-capability-task pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 300px; overflow: auto; font-size: 11px; }
+.evidence-handoff { margin: 10px 0 18px; padding-left: 12px; border-left: 2px solid var(--studio-border, #d8ddd7); min-width: 0; }
+.evidence-handoff > label:not(.capability-consent) { display: grid; gap: 4px; margin: 10px 0; }
+.evidence-handoff input:not([type="checkbox"]), .evidence-handoff select { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid var(--studio-border, #d8ddd7); border-radius: 6px; padding: 8px; background: var(--studio-surface, white); color: inherit; }
+.evidence-proposal { margin-block: 12px; padding: 10px; border-block: 1px solid var(--studio-border, #d8ddd7); }
+.resume-proposal-adoption { margin: 24px 0; padding: 20px 0; border-block: 1px solid var(--border, #d9dfdc); min-width: 0; }
+.resume-proposal-adoption label { display: grid; gap: 6px; margin-block: 12px; }
+.resume-proposal-adoption label.capability-consent { display: flex; align-items: flex-start; }
+.resume-proposal-adoption button { min-height: 36px; padding: 7px 12px; border: 1px solid var(--studio-border, #cbd5cf); border-radius: 6px; background: var(--studio-surface, #fff); color: inherit; cursor: pointer; }
+.resume-proposal-adoption button[aria-pressed="true"] { border-color: #315c4d; background: #e8f0eb; color: #214f40; }
+.resume-proposal-adoption button:disabled { opacity: .45; cursor: not-allowed; }
+.resume-proposal-adoption button:focus-visible { outline: 2px solid #315c4d; outline-offset: 3px; }
+.resume-proposal-adoption input:not([type="checkbox"]), .resume-proposal-adoption select { width: 100%; min-width: 0; max-width: 100%; padding: 10px; border: 1px solid #cbd5cf; border-radius: 6px; background: var(--surface, #fff); color: inherit; }
+.resume-business-diff { margin-block: 16px; padding-inline-start: 12px; border-inline-start: 3px solid #315c4d; overflow-wrap: anywhere; }
+.resume-diff-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.resume-business-history > div { padding-block: 12px; border-bottom: 1px solid #d9dfdc; overflow-wrap: anywhere; }
+.resume-adoption-paper { margin-block: 16px; min-width: 0; overflow: hidden; }
+.resume-adoption-paper > .a4-sheet { width: 100%; min-width: 0; max-width: 100%; min-height: 0; box-sizing: border-box; }
+@media (max-width: 600px) { .resume-diff-columns { grid-template-columns: minmax(0, 1fr); } .resume-adoption-paper > .a4-sheet { padding: 20px !important; } }

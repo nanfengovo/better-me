@@ -3,7 +3,7 @@ import test from "node:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createToolRegistry, type ToolHandlerContext, type TrustedToolContext } from "@better-me/opportunities";
+import { createToolRegistry, queryJobs, type ToolHandlerContext, type TrustedToolContext } from "@better-me/opportunities";
 import { ReviewedCardsCaptureSchema, type ReviewedCardsCapture } from "@better-me/source-adapters";
 import { createReviewedCardsTools, reviewedCardsPage, reviewedCardsSource } from "../src/reviewed-cards.ts";
 import { emptyDelta, projectSourcePage } from "../src/projection.ts";
@@ -37,6 +37,64 @@ async function preview(repository: JobRepository, input = capture()) {
   const result = await tools[0].execute({ ...input, expectedRevision }, context());
   return { tools, result, command: { ...input, expectedRevision, previewFingerprint: result.previewFingerprint, reviewed: true as const } };
 }
+
+test("one employer conflict in forty cards is retained while thirty-nine jobs and their source locations commit", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "better-me-company-conflict-"));
+  const path = join(dir, "isolated.sqlite");
+  let repo = openJobRepository(path, { now: () => at });
+  try {
+    const first = await preview(repo);
+    await first.tools[1].execute(first.command, context("seed-conflict-owner"));
+    const before = await repo.readSnapshot();
+    const original = capture().cards[0]!;
+    const company = "合成冲突企业（不得覆盖原归属）";
+    const conflict = { ...original, company, cardText: original.cardText.replace(original.company, company),
+      evidence: { ...original.evidence, fields: original.evidence.fields.map(field => field.field === "company" ? { ...field, text: company } : field) } };
+    const batch = await preview(repo, { ...capture(), cards: [conflict,
+      ...Array.from({ length: 39 }, (_, index) => capture(String(800000000 + index)).cards[0]!),
+    ] });
+    assert.equal(batch.result.cards.length, 39);
+    const receipt = await batch.tools[1].execute(batch.command, context("forty-with-conflict"));
+    assert.equal(receipt.counts.newJobs, 39);
+    assert.equal(receipt.jobIds.length, 39);
+    assert.ok("conflicts" in receipt && Array.isArray(receipt.conflicts));
+    assert.equal(receipt.conflicts.length, 1);
+    assert.deepEqual(receipt.conflicts, batch.result.conflicts);
+    assert.equal(receipt.conflicts[0]!.company, company);
+    assert.deepEqual(receipt.conflicts[0]!.existingCompanyNames, [original.company]);
+    const after = await repo.readSnapshot();
+    assert.deepEqual(after.companies.find(item => item.id === before.companies[0]!.id), before.companies[0]);
+    assert.deepEqual(after.jobs.find(item => item.id === before.jobs[0]!.id), before.jobs[0]);
+    assert.deepEqual(after.listings.find(item => item.id === before.listings[0]!.id), before.listings[0]);
+    assert.equal(after.jobs.length, 40);
+    for (const id of receipt.jobIds) {
+      const job = after.jobs.find(item => item.id === id)!;
+      assert.equal(after.locations.find(item => item.id === job.locationIds[0])?.raw, "上海·浦东");
+    }
+    assert.deepEqual(await batch.tools[1].execute(batch.command, context("forty-with-conflict")), receipt);
+    assert.deepEqual(await repo.readSnapshot(), after);
+    repo.close(); repo = openJobRepository(path, { now: () => at });
+    assert.deepEqual(await makeTools(repo)[1].execute(batch.command, context("forty-with-conflict")), receipt);
+    assert.deepEqual(await repo.readSnapshot(), after);
+    const actorScope = context().actorScope;
+    for (let attempt = 0; attempt < 4 && (await repo.getEnrichmentStatus({ actorScope })).pending > 0; attempt++) {
+      await repo.processEnrichmentBatch({ actorScope, limit: 32 });
+    }
+    assert.equal((await repo.getEnrichmentStatus({ actorScope })).pending, 0);
+    const enriched = await repo.readSnapshot();
+    for (const id of receipt.jobIds) {
+      const job = enriched.jobs.find(item => item.id === id)!;
+      const location = enriched.locations.find(item => item.id === job.locationIds[0])!;
+      assert.equal(location.countryCode, "CN");
+      assert.equal(location.city, "上海市");
+      assert.equal(location.coordinates, undefined);
+    }
+    const result = await queryJobs(enriched, { jobIds: receipt.jobIds, workCountryCodes: ["CN"], workRegionGroups: [["上海市"]] });
+    assert.equal(result.totalJobs, 39);
+    assert.equal(result.mappedJobs, 0);
+    assert.equal(result.unlocatedJobs, 39);
+  } finally { repo.close(); await rm(dir, { recursive: true, force: true }); }
+});
 
 test("preview is read-only; confirmed import adds real indexed excerpt and leaves unknown facts unknown", async () => {
   const repo = openJobRepository(":memory:", { now: () => at });
@@ -151,7 +209,13 @@ test("same provider record keeps identity across tracking variants; company repl
     const company = "另一家不相关企业";
     const differentCompany: ReviewedCardsCapture = { ...input, cards: [{ ...card, company, cardText: card.cardText.replace(card.company, company), evidence: { ...card.evidence,
       fields: card.evidence.fields.map((field) => field.field === "company" ? { ...field, text: company } : field) } }] };
-    await assert.rejects(preview(repo, differentCompany), hasCode("source-changed"));
+    const rejected = await preview(repo, differentCompany);
+    assert.deepEqual(rejected.result.cards, []);
+    assert.equal(rejected.result.conflicts?.length, 1);
+    assert.deepEqual(await repo.readSnapshot(), before);
+    const rejectedReceipt = await rejected.tools[1].execute(rejected.command, context("company-isolated"));
+    assert.deepEqual(rejectedReceipt.jobIds, []);
+    assert.equal(rejectedReceipt.conflicts?.length, 1);
     assert.deepEqual(await repo.readSnapshot(), before);
   } finally { repo.close(); }
 });
@@ -222,7 +286,7 @@ test("a cancellation delivered after reading the index prevents a late local wri
   } finally { repo.close(); }
 });
 
-test("a reviewed two-card batch commits one revision; conflicting employer identity makes the entire batch read-only", async () => {
+test("a reviewed two-card batch isolates employer conflict without blocking the unrelated card", async () => {
   const repo = openJobRepository(":memory:", { now: () => at });
   try {
     const firstCapture = capture();
@@ -237,8 +301,16 @@ test("a reviewed two-card batch commits one revision; conflicting employer ident
     const company = "已换成另一雇主";
     const conflict = { ...old, company, cardText: old.cardText.replace(old.company, company), evidence: { ...old.evidence,
       fields: old.evidence.fields.map((field) => field.field === "company" ? { ...field, text: company } : field) } };
-    await assert.rejects(preview(repo, { ...firstCapture, cards: [unrelated, conflict] }), hasCode("source-changed"));
+    const next = await preview(repo, { ...firstCapture, cards: [unrelated, conflict] });
+    assert.equal(next.result.cards.length, 1);
+    assert.equal(next.result.conflicts?.length, 1);
     assert.deepEqual(await repo.readSnapshot(), saved);
+    const partial = await next.tools[1].execute(next.command, context("partial-company-conflict"));
+    assert.equal(partial.counts.newJobs, 1);
+    const after = await repo.readSnapshot();
+    assert.equal(after.jobs.length, 3);
+    assert.deepEqual(after.jobs.find(item => item.id === first.result.cards[0]!.jobId), saved.jobs.find(item => item.id === first.result.cards[0]!.jobId));
+    assert.deepEqual(after.companies, saved.companies);
   } finally { repo.close(); }
 });
 

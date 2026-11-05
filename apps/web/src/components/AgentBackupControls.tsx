@@ -17,8 +17,8 @@ export function AgentBackupControls({ onExport }: { onExport: () => void }) {
   if (!agent || !snapshot) return null;
   const blocked = busy || !snapshot.ready || snapshot.saving || Boolean(snapshot.error) || snapshot.data.tasks.some(task => task.status === "running");
   return <details className="agent-backup"><summary data-agent-guide="agent-backup">记忆保存、备份与恢复</summary>
-    <p>对话与共识索引保存在当前浏览器、当前简历的独立空间。项目完整对话由配套 Agent 服务保存；未发送草稿留在浏览器。切页和收起不清除记录。</p>
-    <p>{durability}。换浏览器、清理站点或更换访问地址不会自动迁移；Docker 数据卷不包含浏览器记录。</p>
+    <p>{snapshot.data.ownerId ? "对话、共识索引与任务保存在当前 BetterMe 账号的本机 Agent Host；登录同一服务的同一账号可继续读取。" : "对话与共识索引保存在当前浏览器、当前简历的独立空间。"}项目完整对话由配套 Agent 服务保存；未发送草稿留在浏览器。切页和收起不清除记录。</p>
+    <p>{durability}。简历与未发送草稿不会因登录自动跨浏览器同步；Docker 数据卷不包含浏览器草稿。旧的无归属记录不会自动进入新账号。</p>
     <p>这里的 JSON 备份包含对话索引、共识和任务记录，不包含未发送草稿、源码授权或服务端完整会话。简历备份与 Docker 数据卷需分别保存。</p>
     <div className="agent-storage-actions"><button type="button" onClick={onExport}>下载当前记录备份</button><button type="button" disabled={busy || !navigator.storage?.persist} onClick={async () => {
       setBusy(true); try { const granted = await navigator.storage.persist(); setDurability(granted ? "浏览器已授予持久保留" : "浏览器未授予持久保留，请定期下载备份"); } catch { setDurability("本次保留请求未完成，请下载备份"); } finally { setBusy(false); }

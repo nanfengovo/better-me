@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test, { after, afterEach } from "node:test";
 import { registerHooks } from "node:module";
 import { setImmediate as nextTurn } from "node:timers/promises";
-import { Window } from "happy-dom";
+import { Window, type HTMLSelectElement } from "happy-dom";
 import type { UnderstandingSession } from "@better-me/agent-contracts";
 import type { UnderstandingClient, UnderstandingTurnRequest } from "../src/services/understanding-client";
 import { UnderstandingClientError } from "../src/services/understanding-client";
@@ -24,7 +24,7 @@ for (const [key, value] of Object.entries({ window: dom, document: dom.document,
 const { act, createElement: h } = React;
 const { createRoot } = await import("react-dom/client");
 const { ProjectUnderstandingPanel, understandingScope } = await import("../src/components/ProjectUnderstandingPanel");
-const config = { provider: "ollama" as const, model: "synthetic", baseUrl: "http://model-fixture.invalid/v1", temperature: 0 };
+const config = { provider: "ollama" as const, model: "synthetic", baseUrl: "http://model-fixture.invalid/v1", apiKey: "", temperature: 0 };
 const sourceText = fixtureSession().sourceText;
 const projectKey = "synthetic-field";
 
@@ -88,6 +88,22 @@ async function fill(value: string) {
 async function unmount() { await act(async () => { root?.unmount(); root = undefined; }); dom.document.body.replaceChildren(); }
 afterEach(async () => { await unmount(); dom.localStorage.clear(); assert.equal(externalRequests, 0); });
 after(() => { dom.happyDOM.abort(); for (const [key, value] of originals) { if (value) Object.defineProperty(globalThis, key, value); else Reflect.deleteProperty(globalThis, key); } });
+
+test("project input and send stay outside the independently scrollable conversation region", async () => {
+  const fake = fakeClient(); await render(fake);
+  const conversation = dom.document.querySelector('[role="region"][aria-label="项目理解对话与证据"]');
+  const composer = dom.document.querySelector('[role="region"][aria-label="项目理解输入"]');
+  assert.ok(conversation, "conversation has its own accessible scroll region");
+  assert.ok(composer, "input has a persistent, separately labelled region");
+  const input = dom.document.querySelector("textarea")!;
+  assert.ok(composer.contains(input));
+  assert.ok(composer.contains(button(/让 Agent 继续理解/)));
+  assert.equal(conversation.contains(input), false, "long evidence/history must not scroll away the composer");
+  await fill("只在隔离测试中的草稿");
+  await click(/刷新状态/);
+  assert.equal(dom.document.querySelector("textarea"), input);
+  assert.equal(input.value, "只在隔离测试中的草稿");
+});
 
 test("contribution handoff excludes hypotheses, unknown ownership and private client notes by construction", () => {
   const draft = { ...emptyContributionDraft(), answer: "我设计了任务接口", customerPrivate: "PRIVATE_CUSTOMER", publicContext: "半导体现场" };

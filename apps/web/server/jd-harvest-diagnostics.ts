@@ -45,7 +45,7 @@ export function classifyHarvestFailure(error: unknown, status?: number): z.infer
   if (status) return "http";
   const name = error instanceof Error ? error.name : "";
   const message = error instanceof Error ? error.message : "";
-  if (/timeout|timed out/i.test(name + " " + message)) return "timeout";
+  if (/timeout|timed out|超时/i.test(name + " " + message)) return "timeout";
   if (name === "AbortError") return "cancelled";
   if (error instanceof Error) return "network";
   return "unknown";

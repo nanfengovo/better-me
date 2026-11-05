@@ -1,17 +1,20 @@
-.agent-layout{--color-ink:var(--ui-text);--color-ink-muted:var(--ui-text-muted);--color-panel:var(--ui-surface);--color-line:var(--ui-border);--color-accent:var(--ui-accent);--color-accent-contrast:var(--ui-on-action);--color-soft:var(--ui-canvas);--color-bg:var(--ui-canvas);display:flex;width:100%;height:100dvh;min-width:0;isolation:isolate;color:var(--color-ink);background:var(--color-bg)}
+.agent-layout{--color-ink:var(--ui-text);--color-ink-muted:var(--ui-text-muted);--color-panel:var(--ui-surface);--color-line:var(--ui-border);--color-accent:var(--ui-accent);--color-accent-contrast:var(--ui-on-action);--color-soft:var(--ui-canvas);--color-bg:var(--ui-canvas);--sidebar-ease:cubic-bezier(.23,1,.32,1);display:flex;width:100%;height:100dvh;min-width:0;isolation:isolate;color:var(--color-ink);background:var(--color-bg)}
 .agent-layout-app{flex:1;min-width:0;min-height:0}
-.agent-sidebar{position:relative;z-index:30;display:flex;flex-direction:column;flex:0 0 380px;width:380px;min-width:0;height:100dvh;min-height:0;overflow:hidden;background:var(--color-panel);border-left:1px solid var(--color-line);box-shadow:-6px 0 24px #00000008;font-size:13px}
+.agent-sidebar{position:relative;z-index:30;display:flex;flex-direction:column;flex:0 0 380px;width:380px;min-width:0;height:100dvh;min-height:0;overflow:hidden;background:var(--color-panel);border-left:1px solid var(--color-line);box-shadow:-6px 0 24px #00000008;font-size:13px;animation:agent-sidebar-enter 190ms var(--sidebar-ease) both}
 .agent-layout [hidden]{display:none!important}
 .agent-sidebar-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 16px 14px;flex-shrink:0}
 .agent-sidebar-header strong{display:flex;align-items:center;gap:8px;font-size:15px}.agent-sidebar-header small{display:block;margin-top:6px;color:var(--color-ink-muted);font-size:11px}
 .agent-sidebar-header-actions{display:flex;gap:6px}.agent-sidebar-work{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
-.agent-sidebar button,.agent-sidebar-launcher{cursor:pointer;border:1px solid var(--color-line);border-radius:8px;background:var(--color-panel);color:var(--color-ink);padding:7px 10px;font:inherit;line-height:1.4}
+.agent-sidebar button,.agent-sidebar-launcher{cursor:pointer;border:1px solid var(--color-line);border-radius:8px;background:var(--color-panel);color:var(--color-ink);padding:7px 10px;font:inherit;line-height:1.4;transition:background-color 150ms ease,border-color 150ms ease,color 150ms ease,box-shadow 150ms ease,transform 140ms var(--sidebar-ease)}
 .agent-sidebar button:disabled{opacity:.5;cursor:not-allowed}
+.agent-sidebar button:active:not(:disabled){transform:scale(.97)}
+.agent-sidebar-launcher:active:not(:disabled){transform:scale(.96)}
 /* A hover must keep foreground and background paired. Portals live outside .studio-app. */
 @media(hover:hover) and (pointer:fine){
   .agent-sidebar button:hover:not(:disabled){background:var(--ui-canvas);color:var(--ui-text)}
   .agent-sidebar button[aria-pressed=true]:hover:not(:disabled),.agent-sidebar .writing-primary:hover:not(:disabled),.agent-sidebar .understanding-primary:hover:not(:disabled),.agent-sidebar .understanding-confirm button:hover:not(:disabled){background:var(--ui-action);color:var(--ui-on-action)}
   .agent-sidebar-tabs button[aria-selected=true]:hover:not(:disabled){background:var(--ui-surface);color:var(--ui-text)}
+  .agent-sidebar-launcher:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 22px #00000024;border-color:var(--color-accent)}
 }
 .agent-sidebar button[aria-pressed=true]{background:var(--ui-action);color:var(--ui-on-action)}
 .agent-sidebar .writing-primary,.agent-sidebar .understanding-primary,.agent-sidebar .understanding-confirm button{background:var(--ui-action);color:var(--ui-on-action)}
@@ -19,16 +22,17 @@
 .agent-sidebar-tabs{display:flex;gap:4px;margin:0 12px 12px;padding:4px;border-radius:10px;background:var(--color-soft);flex-shrink:0}
 .agent-sidebar-tabs button{flex:1;padding:8px 4px;border-color:transparent;background:transparent;white-space:nowrap;font-size:12px}
 .agent-sidebar-tabs [aria-selected=true]{background:var(--color-panel);border-color:var(--color-line);color:var(--color-ink);font-weight:650;box-shadow:0 1px 3px #0001}
-.agent-sidebar-conversation,.agent-sidebar-memory{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+.agent-sidebar-conversation,.agent-sidebar-memory{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;animation:agent-panel-enter 160ms var(--sidebar-ease) both}
 .agent-sidebar-context{display:flex;gap:6px;padding:0 14px 10px;border-bottom:1px solid var(--color-line)}
-.agent-sidebar-context button{border:0;background:none;font-size:12px}.agent-sidebar-context [aria-pressed=true]{background:var(--color-soft);color:var(--color-accent)}
+.agent-sidebar-context button{border:0;border-radius:999px;padding:5px 12px;background:none;color:var(--color-ink-muted);font-size:12px;font-weight:550}.agent-sidebar-context [aria-pressed=true]{background:var(--color-soft);color:var(--color-accent)}
 .agent-sidebar-conversation-body,.agent-sidebar-slot-writing,.agent-sidebar-slot-companion,.agent-sidebar-slot-memory{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
-.agent-sidebar-settings{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 14px 20px;scrollbar-gutter:stable}
+.agent-sidebar-settings{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 14px 20px;scrollbar-gutter:stable;animation:agent-panel-enter 160ms var(--sidebar-ease) both}
 .agent-sidebar-settings h3{display:flex;gap:6px;align-items:center;font-size:13px;font-weight:650;margin:16px 0 10px}
 .agent-sidebar .writing-agent-pane{display:flex;flex:1;min-height:0;border:0;border-radius:0}
-.agent-sidebar .writing-agent-scroll{width:100%;height:auto;flex:1;padding:4px 2px 16px}
-.agent-sidebar .writing-note{padding:14px;font-size:13px}.agent-sidebar .writing-note h3{font-size:15px}
+.agent-sidebar .writing-agent-scroll{width:100%;height:auto;flex:1;padding:10px 12px 16px}
+.agent-sidebar .writing-note{padding:16px;border:1px solid var(--color-line);border-radius:14px;background:var(--color-panel);box-shadow:0 2px 10px #00000006;font-size:13px}.agent-sidebar .writing-note h3{font-size:15px}
 .agent-sidebar .writing-note blockquote,.agent-sidebar .writing-source{font-size:12px}
+.agent-sidebar .writing-note .agent-flow-status{margin:0;padding:2px 0}
 .agent-sidebar .writing-return{display:inline-flex;gap:4px;align-items:center;margin:10px 14px}
 .agent-sidebar .writing-settings{width:100%}.agent-sidebar .writing-settings>summary{display:none}
 .agent-sidebar .writing-settings-body{position:static;width:auto;max-height:none;overflow:visible;padding:12px;box-shadow:none;display:grid}
@@ -37,17 +41,23 @@
 .agent-sidebar .agent-companion-panel{position:static;inset:auto;width:100%;height:100%;max-height:none;border:0;border-radius:0;box-shadow:none;transform:none;opacity:1;animation:none;padding:0;display:flex;flex-direction:column}
 .agent-sidebar .agent-companion-panel-header,.agent-sidebar .agent-companion-panel>.betterme-agent-entry{display:none}
 .agent-sidebar .agent-companion-content{display:flex;flex:1;min-height:0;overflow:hidden;padding:12px}
-.agent-sidebar .agent-companion-chat{display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
-.agent-sidebar .agent-companion-chat-thread{flex:1;min-height:160px;max-height:none;overscroll-behavior:contain}
+.agent-sidebar .agent-companion-chat{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;overscroll-behavior:contain}
+.agent-sidebar .agent-companion-chat-thread{flex:1;min-height:0;max-height:none;overscroll-behavior:contain}
 .agent-sidebar .agent-companion-shared-settings{margin:0}.agent-sidebar .agent-companion-provider{margin:12px 0}
 .agent-sidebar .agent-companion-shared-settings-body{position:static;max-height:none;overflow:visible;box-shadow:none;margin-top:8px}
 .agent-companion.is-docked{position:static}
 .agent-sidebar .agent-companion-tools{margin-top:12px}.agent-sidebar .agent-companion-tools-content{max-height:none}
-.agent-sidebar-launcher{position:fixed;right:20px;bottom:20px;z-index:30;display:flex;gap:6px;align-items:center;border-radius:50%;min-height:44px;min-width:44px;box-shadow:0 4px 16px #0002;color:var(--color-accent)}
+.agent-sidebar-launcher{position:fixed;right:20px;bottom:20px;z-index:30;display:flex;justify-content:center;gap:6px;align-items:center;border-radius:999px;padding:0 11px;min-height:44px;min-width:44px;box-shadow:0 4px 16px #0002;color:var(--color-accent);font-weight:600;transform-origin:bottom right;animation:agent-launcher-enter 180ms var(--sidebar-ease) both}
 .agent-sidebar-launcher span{font-size:11px}
+@keyframes agent-sidebar-enter{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
+@keyframes agent-panel-enter{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
+@keyframes agent-launcher-enter{from{opacity:0;transform:translateY(6px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){.agent-sidebar,.agent-sidebar button,.agent-sidebar-launcher,.agent-sidebar-conversation,.agent-sidebar-memory,.agent-sidebar-settings{animation:none;transition:none}.agent-sidebar button:active:not(:disabled),.agent-sidebar-launcher:active:not(:disabled),.agent-sidebar-launcher:hover:not(:disabled){transform:none}}
 .writing-shell.is-docked{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
 .writing-shell.is-docked>.writing-document{grid-column:1;grid-row:2}
 .writing-shell.is-docked>.writing-toolbar{gap:8px}.writing-shell.is-docked>.writing-toolbar .writing-brand{margin-right:auto}
-@media(max-width:1599px){.agent-sidebar{position:fixed;right:0;top:0;width:min(400px,calc(100vw - 24px));box-shadow:-10px 0 40px #0002}}
-@media(max-width:600px){.agent-sidebar{width:100%;border-left:0}.agent-sidebar-header{padding:12px}.agent-sidebar-tabs{margin-bottom:8px}.agent-sidebar-header button,.agent-sidebar-tabs button,.agent-sidebar-context button{min-height:44px}}
-@media print{.agent-sidebar,.agent-sidebar-launcher{display:none!important}.agent-layout,.agent-layout-app{display:block;height:auto}}
+@media(max-width:840px),(max-height:500px){.agent-layout.is-agent-open>.agent-layout-app{display:none}.agent-sidebar{flex:1 1 100%;width:100%;border-left:0}.agent-sidebar-header{padding:12px}.agent-sidebar-tabs{margin-bottom:8px}.agent-sidebar-header button,.agent-sidebar-tabs button,.agent-sidebar-context button{min-height:44px}}
+@media(max-height:700px){.agent-sidebar-header{padding:10px 12px}.agent-sidebar-header small{display:none}.agent-sidebar-tabs{margin-bottom:6px}.agent-sidebar-context{padding-bottom:6px}}
+@media(max-height:500px){.agent-sidebar-header{padding:5px 12px}.agent-sidebar-tabs{margin-bottom:4px;padding:2px}.agent-sidebar-header button,.agent-sidebar-tabs button,.agent-sidebar-context button{min-height:32px;padding:4px 8px}.agent-sidebar-context{padding-bottom:4px}.agent-sidebar .writing-review-compose textarea,.agent-sidebar .understanding-compose textarea{height:48px;min-height:48px}.agent-sidebar .writing-note>footer{margin:0}.agent-sidebar .writing-note>footer button{min-height:28px;padding:2px 8px}.agent-sidebar .understanding-sticky{padding:4px 12px}}
+@media(max-height:500px){.agent-sidebar .has-writing-review>.writing-note{padding:6px 12px;gap:4px}.agent-sidebar .has-writing-review .writing-note-context{flex:0 0 32px;min-height:0;max-height:32px}.agent-sidebar .writing-review-compose{gap:5px;padding-top:6px}.agent-sidebar .writing-agent-scroll.has-project-understanding .understanding-sticky{display:flex;align-items:center;padding:4px 12px;gap:8px}.agent-sidebar .understanding-heading{flex:1}.agent-sidebar .understanding-compose{padding:6px 12px;gap:4px}.agent-sidebar .understanding-compose>label:first-child{font-size:11px;line-height:1.4}.agent-sidebar .writing-understanding-navigation{padding-top:0;padding-bottom:0}}
+@media print{.agent-sidebar,.agent-sidebar-launcher{display:none!important}.agent-layout,.agent-layout.is-agent-open>.agent-layout-app{display:block!important;height:auto}}

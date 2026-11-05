@@ -18,6 +18,24 @@ function completed(stats: HarvestProgressState["stats"] = {}): HarvestProgressSt
   return { stage: "completed", stageIndex: 5, totalStages: 5, message: "本轮处理已结束", stats };
 }
 
+test("definitively isolated company conflicts are not mislabeled as uncertain writes", () => {
+  const conflict = { reason: "company-ownership-conflict" as const, sourceId: "reviewed-platform-liepin", sourceRecordId: "100001",
+    jobId: "job-existing", listingId: "listing-existing", url: "https://www.liepin.com/job/100001.shtml", title: "C# Engineer", company: "New Claimed Employer",
+    existingCompanyId: "company-existing", existingCompanyNames: ["Keep Original Employer"], pageUrl: "https://www.liepin.com/zhaopin/?key=C%23", capturedAt: "2026-11-01T00:00:00.000Z" };
+  const failures = [{ platform: "猎聘", cards: 1, error: "公司归属冲突：Keep Original Employer / New Claimed Employer", conflict }];
+  const issues = summarizeHarvestIssues({ progress: completed({ committedCards: 39, conflictedCards: 1, failedCards: 0 }), importFailures: failures });
+  assert.equal(issues.length, 1);
+  assert.equal(issues[0]!.id, "ingestion:company-conflict");
+  assert.match(issues[0]!.reason, /1 张.*其余岗位照常入库/);
+  assert.match(issues[0]!.rawDetails[0]!, /Keep Original Employer/);
+  assert.doesNotMatch(issues[0]!.reason, /未收到回执|尚不能确认/);
+  assert.doesNotMatch(buildHarvestTriage(issues, 39).summary, /回执待核对/);
+  assert.match(buildHarvestTriage(issues, 39).nextStep, /不要覆盖原归属/);
+  const mixed = summarizeHarvestIssues({ progress: completed({ conflictedCards: 1, failedCards: 2 }), importFailures: [...failures, { platform: "51JOB", cards: 2, error: "transport error" }] });
+  assert.equal(mixed.filter(issue => issue.id === "ingestion:unconfirmed").length, 1);
+  assert.match(mixed.find(issue => issue.id === "ingestion:unconfirmed")!.reason, /2 张/);
+});
+
 test("structured capture failures distinguish loading, restrictions and pagination without guessing from warning text", () => {
   for (const [failureKind, title, kind] of [["timeout", "页面加载超时", "details"], ["platform_limit", "平台访问受限", "details"], ["pagination", "翻页未确认", "details"]] as const) {
     const [issue] = summarizeHarvestIssues({ providers: [provider({ status: "ready", coverage: { ...provider().coverage, stopReason: "no_progress", partial: true, failureKind }, warnings: ["仅为通用提示"] })] });

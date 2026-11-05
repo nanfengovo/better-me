@@ -159,6 +159,8 @@ export type OpportunityHarvestClientPipelineOptions = {
   onLiveProgress?: (event: LiveBatchSearchStreamEvent, receipt: LiveBatchSearchReceipt, query: LiveHarvestQuery) => void;
   onCardsCommitted?: (snapshot: AtlasDataset, stats: { totalAdded: number; totalUpdated: number }) => void;
   onSnapshotAvailable?: (snapshot: AtlasDataset) => void;
+  /** Includes durable per-card conflicts even if a later platform is stopped. */
+  onImportFailures?: (failures: LivePlatformImportSummary["importFailures"]) => void;
 };
 
 /**
@@ -211,6 +213,7 @@ export class OpportunityHarvestChainedClientPipeline {
   private onSnapshotAvailableCallback?: (snapshot: AtlasDataset) => void;
   private onLiveResultsCallback?: OpportunityHarvestClientPipelineOptions["onLiveResults"];
   private onLiveProgressCallback?: OpportunityHarvestClientPipelineOptions["onLiveProgress"];
+  private onImportFailuresCallback?: OpportunityHarvestClientPipelineOptions["onImportFailures"];
 
   constructor(options: OpportunityHarvestClientPipelineOptions) {
     this.client = options.client;
@@ -232,6 +235,7 @@ export class OpportunityHarvestChainedClientPipeline {
     this.onSnapshotAvailableCallback = options.onSnapshotAvailable;
     this.onLiveResultsCallback = options.onLiveResults;
     this.onLiveProgressCallback = options.onLiveProgress;
+    this.onImportFailuresCallback = options.onImportFailures;
     if (this.initialSnapshot) {
       this.currentSnapshot = this.initialSnapshot;
     }
@@ -248,7 +252,9 @@ export class OpportunityHarvestChainedClientPipeline {
       checkpoint: this.checkpoint,
       onCheckpointFailure: error => { this.checkpointFailureController.abort(error); },
       signal: this.signal,
-      onStats: (stats) => {
+      onStats: (stats, failures) => {
+        this.importFailures = failures;
+        try { this.onImportFailuresCallback?.(structuredClone(failures)); } catch { /* observer only */ }
         this.committedAdded = stats.totalAdded;
         this.committedUpdated = stats.totalUpdated;
         this.emit("cas-ingestion", 3,
@@ -657,9 +663,11 @@ export class OpportunityHarvestChainedClientPipeline {
       cardsCollected: result.cards.length, coverage: result.coverage,
       ...(result.error ? { error: result.error } : {}),
     }));
-    const importedPlatforms = readyProviders.map(
-      (r) => `${r.platform}(${r.cards.length}岗)`,
-    );
+    const importedPlatforms = readyProviders.flatMap(r => {
+      const unconfirmed = this.importFailures.filter(failure => failure.platform === r.platform).reduce((sum, failure) => sum + failure.cards, 0);
+      const confirmed = Math.max(0, this.scopedCards(r.provider, r.platform, r.cards).length - unconfirmed);
+      return confirmed ? [`${r.platform}(${confirmed}岗)`] : [];
+    });
 
     // Fast-path: If no new or updated jobs were touched, skip redundant full-dataset enrichment
     if (!this.enrichAfterCommit || this.touchedJobIds.size === 0) {
@@ -681,7 +689,7 @@ export class OpportunityHarvestChainedClientPipeline {
         companiesClassified: 0,
         platformCoverage,
       };
-      this.emit("completed", 5, `本轮实时卡片处理完成：新增 ${this.committedAdded} 岗，更新 ${this.committedUpdated} 岗${this.importFailures.length ? `，${this.importFailures.length} 个证据块未能入库` : ""}；本轮未生成办公坐标${this.enrichAfterCommit ? "。" : "；企业与地区信息可另行补全。"}`,
+      this.emit("completed", 5, `本轮实时卡片处理完成：新增 ${this.committedAdded} 岗，更新 ${this.committedUpdated} 岗${this.importFailures.length ? `，另有 ${this.importFailures.reduce((sum, failure) => sum + failure.cards, 0)} 张卡片隔离或提交待核对` : ""}；本轮未生成办公坐标${this.enrichAfterCommit ? "。" : "；企业与地区信息可另行补全。"}`,
         this.enrichAfterCommit ? undefined : { enrichmentSkipped: 1 });
       return this.summary;
     }

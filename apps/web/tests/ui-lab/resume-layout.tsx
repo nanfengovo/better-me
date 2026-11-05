@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
 import { createInitialDocument } from "@better-me/storage";
 import { projectResume } from "@better-me/core";
@@ -11,6 +11,7 @@ import { AgentSidebarProvider } from "../../src/components/AgentSidebar";
 import { AgentCompanion } from "../../src/components/AgentCompanion";
 import { AgentTopBarStatus } from "../../src/components/AgentTopBarStatus";
 import { AgentContinuityButton, BetterMeAgentCenter } from "../../src/components/BetterMeAgentCenter";
+import { FirstRunGuide } from "../../src/components/FirstRunGuide";
 import { AgentSourceBridge, BetterMeAgentProvider, useBetterMeAgent } from "../../src/lib/betterme-agent/react";
 import { createMemoryAgentRepository, IndexedDbAgentRepository } from "../../src/lib/betterme-agent/storage";
 import { applyResumeProposal, createResumeAgentContext } from "../../src/lib/resume-agent-context";
@@ -21,6 +22,8 @@ import { UnderstandingSessionSchema, type ChatGptState } from "@better-me/agent-
 import type { ChatGptClient } from "../../src/services/chatgpt-client";
 import type { PreviewFollowTarget } from "../../src/lib/preview-follow";
 import { fixtureSession, fixtureUnderstanding } from "../fixtures/project-understanding";
+import { syntheticPersistence } from "../fixtures/synthetic-persistence";
+import { DocumentSaveStatus } from "../../src/components/DocumentSaveStatus";
 import "../../src/index.css";
 import "../../src/studio.css";
 import "../../src/theme.css";
@@ -104,7 +107,13 @@ const chatGptClient: ChatGptClient = {
 };
 
 function Lab() {
-  const [doc, setDoc] = useState(initial), [follow, setFollow] = useState<PreviewFollowTarget | null>(null);
+  const [persistence] = useState(() => syntheticPersistence(initial));
+  const { controller } = persistence;
+  const savedState = useSyncExternalStore(notify => controller.subscribe(notify), () => controller.getState());
+  useEffect(() => { void controller.load(); return () => controller.dispose(); }, [controller]);
+  const doc = savedState.doc ?? initial;
+  const setDoc = (update: React.SetStateAction<typeof initial>) => controller.update(typeof update === "function" ? update(controller.getState().doc ?? initial) : update);
+  const [follow, setFollow] = useState<PreviewFollowTarget | null>(null);
   const [page, setPage] = useState("resume");
   const { theme, setTheme } = useUiPreferences();
   const { agent, snapshot } = useBetterMeAgent();
@@ -118,13 +127,13 @@ function Lab() {
     {unified && <AgentSourceBridge sources={bindings} />}
     <aside className="studio-rail" aria-label="隔离测试导航"><span className="studio-monogram">bm.</span><button onClick={() => setPage("resume")}>简历</button><button onClick={() => setPage("other")}>切页</button><button onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>明暗</button></aside>
     <div className="studio-workspace">
-      <header className="studio-header"><div className="studio-brand"><strong>BetterMe</strong><span>布局 · 隔离回归</span></div>{unified && <><AgentContinuityButton /><AgentTopBarStatus config={null} active={false} onNavigateToAgent={() => setPage("other")} onOpenAiConfig={() => {}} /></>}</header>
-      <div className="studio-document-bar"><strong>虚构简历 · 仅内存</strong><button className="studio-button" onClick={() => response.current?.({ questions: ["虚构回执链路里，你具体编写了哪一段校验？", "结果如何验证？"], rationale: "这只是隔离 UI 响应，不是模型效果验收。", evidenceQuotes: [] })}>完成隔离测试响应</button>{unified && <button className="studio-button" onClick={() => companionResponse.current?.()}>完成伴侣测试响应</button>}</div>
+      <header className="studio-header"><div className="studio-brand"><strong>BetterMe</strong><span>布局 · 隔离回归</span></div>{unified && <><FirstRunGuide eligible={false} onPrepare={() => setPage("resume")} /><AgentContinuityButton /><AgentTopBarStatus config={null} active={false} onNavigateToAgent={() => setPage("other")} onOpenAiConfig={() => {}} /></>}</header>
+      <div className="studio-document-bar"><strong>虚构简历 · 仅内存</strong><DocumentSaveStatus status={savedState.status} autoSaveEnabled={false} /><button className="studio-button" onClick={() => void controller.flush(true)}>保存合成简历</button><button className="studio-button" onClick={() => response.current?.({ questions: ["虚构回执链路里，你具体编写了哪一段校验？", "结果如何验证？"], rationale: "这只是隔离 UI 响应，不是模型效果验收。", evidenceQuotes: [] })}>完成隔离测试响应</button>{unified && <button className="studio-button" onClick={() => companionResponse.current?.()}>完成伴侣测试响应</button>}</div>
       {storageTest && <div className="persistence-notice"><button onClick={() => { lastConnection?.close(); agent?.setGoal("关闭连接后安全重连"); }}>关闭隔离连接并保存</button><button disabled={Boolean(snapshot?.error)} onClick={() => { failStorage = true; agent?.record({ id: crypto.randomUUID(), role: "user", origin: "companion", text: "故障期间的隔离记录，需要保留。" }); }}>模拟持续连接故障</button><button onClick={() => { failStorage = false; }}>解除隔离故障</button><span>本页内存：{snapshot?.data.messages.length ?? 0} 条 · {snapshot?.data.goal}</span></div>}
       <div className="resume-workspace-body" hidden={page !== "resume"}>
         <div className="studio-notices"><div className="persistence-notice">模拟长页面通知：隔离文档，不会读取或保存真实简历、岗位、凭据。</div><details><summary>导入原文与待补录 · 隔离占位</summary><p>只用于复现顶部空间占用。</p></details></div>
         <ResizableWorkspace>
-          <div className="studio-editor-pane" id="resume-editor-panel"><FactEditor factBase={doc.factBase} onChange={factBase => setDoc(d => ({ ...d, factBase }))} onPreviewTargetChange={setFollow} writingFocus={focus} /></div>
+          <div className="studio-editor-pane" id="resume-editor-panel" data-onboarding="editor"><FactEditor factBase={doc.factBase} onChange={factBase => setDoc(d => ({ ...d, factBase }))} onPreviewTargetChange={setFollow} writingFocus={focus} /></div>
           <div className="studio-preview-pane" id="resume-preview-panel">
             <ResumeWritingCopilot sessionKey="isolated-resume-layout-v1" sources={sources} config={isolatedConfig} active={page === "resume"} understandingClient={client} chatGptClient={chatGptClient}
               generate={() => new Promise(resolve => { response.current = resolve; })}

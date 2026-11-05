@@ -72,10 +72,28 @@ try {
   await request("/api/v1/agent/health", {}, 401);
   const config = await bootstrap();
   const headers = { Authorization: `Bearer ${config.jobToken}`, Origin: base, "Content-Type": "application/json" };
-  const agentHeaders = { ...headers, Authorization: `Bearer ${config.agentToken}` };
+  const agentTransport = { ...headers, Authorization: `Bearer ${config.agentToken}` };
+  const register = async username => {
+    const response = await fetch(`${base}/api/v1/agent/identity/register`, { method: "POST", headers: agentTransport,
+      body: JSON.stringify({ username, password: "synthetic-docker-only-password-2026" }), signal: AbortSignal.timeout(10_000), redirect: "error" });
+    assert.equal(response.status, 200, "Isolated synthetic account registration succeeds");
+    const { principal } = await response.json();
+    assert.equal(typeof principal?.id, "string");
+    const cookie = response.headers.getSetCookie().find(value => value.startsWith("betterme_session="));
+    assert.ok(cookie, "Synthetic registration issues an HttpOnly session");
+    assert.match(cookie, /HttpOnly/); assert.match(cookie, /SameSite=Strict/);
+    return { principal, headers: { ...agentTransport, Cookie: cookie.split(";")[0], "X-BetterMe-Owner": principal.id } };
+  };
+  const alice = await register("synthetic-docker-alice");
+  const bob = await register("synthetic-docker-bob");
+  assert.notEqual(alice.principal.id, bob.principal.id);
+  const agentHeaders = alice.headers;
   assert.equal(JSON.parse(await request("/api/v1/agent/health", { headers: { Authorization: `Bearer ${config.agentToken}` } })).status, "ok");
   const understanding = "/api/v1/agent/understanding";
   await request(`${understanding}/capabilities`, {}, 401);
+  await request(`${understanding}/capabilities`, { headers: agentTransport }, 401);
+  await request(`${understanding}/capabilities`, { headers: { ...agentTransport, Cookie: alice.headers.Cookie } }, 409);
+  await request(`${understanding}/capabilities`, { headers: { ...bob.headers, "X-BetterMe-Owner": alice.principal.id } }, 409);
   assert.deepEqual(JSON.parse(await request(`${understanding}/capabilities`, { headers: agentHeaders })).runtimes, [], "Container must not pretend host CLIs are installed");
   const session = JSON.parse(await request(`${understanding}/sessions`, { method: "POST", headers: agentHeaders,
     body: JSON.stringify({ workspaceKey: "synthetic-docker-smoke", projectKey: "synthetic-project", label: "Synthetic project only", sourceText: "Fictional dispatch orchestration, not personal contribution." }),
@@ -83,6 +101,7 @@ try {
   assert.equal(session.phase, "idle");
   assert.equal(session.turnCount, 0, "Creating a session must not start a model or read source files");
   const sessionUrl = `${understanding}/sessions/${session.id}`;
+  await request(sessionUrl, { headers: bob.headers }, 404);
   // Grant only a file inside the public image. No host profile/source mounts or model calls.
   const granted = JSON.parse(await request(`${sessionUrl}/grants`, { method: "POST", headers: agentHeaders,
     body: JSON.stringify({ path: "/workspace/apps/agent-host/src/understanding/http.ts" }),
@@ -105,6 +124,10 @@ try {
     assert.deepEqual(await bootstrap(), config, "Both tokens survive recovery and container recreation");
     const sources = JSON.parse(await request("/api/v1/sources", { headers }));
     assert.ok(sources.value.sources.some(item => item.sourceId === source.sourceId), "SQLite write survives recovery");
+    assert.equal(JSON.parse(await request("/api/v1/agent/identity/session", { headers: agentHeaders })).principal.id, alice.principal.id,
+      "The same synthetic account session survives recovery and recreation");
+    await request(sessionUrl, { headers: bob.headers }, 404);
+    await request(sessionUrl, { headers: { ...bob.headers, "X-BetterMe-Owner": alice.principal.id } }, 409);
     assert.deepEqual(JSON.parse(await request(sessionUrl, { headers: agentHeaders })), savedSession, "Project history, source revision and revoked grant survive recovery without touching the job index");
   };
   await checkPersisted();
@@ -122,7 +145,7 @@ try {
   await compose("up", "-d", "--force-recreate", "--wait", "--wait-timeout", "120");
   id = (await compose("ps", "-q", "web")).trim();
   await checkPersisted();
-  console.log("PASS: full Compose startup, auth/origin, APIs, project-understanding grant/revocation and session persistence, SQLite/token persistence, process crash recovery and container recreation. No model or host source access.");
+  console.log("PASS: full Compose startup, auth/origin, synthetic account login and cross-account isolation, APIs, project-understanding grant/revocation and session persistence, SQLite/token persistence, process crash recovery and container recreation. No model or host source access.");
 } catch (error) {
   console.error(await compose("logs", "--tail", "80", "web").catch(() => "No test container logs available."));
   throw error;

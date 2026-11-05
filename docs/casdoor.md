@@ -1,6 +1,6 @@
 # 自部署 Casdoor 与旧资料恢复
 
-BetterMe 将外部登录接到既有账号隔离层：Casdoor 证明身份，Host 将经过验证的 `issuer + sub` 映射为稳定的内部 owner。微信、QQ、GitHub、Google 等渠道由 Casdoor 管理；模型账号、API Key、昵称、邮箱或手机号都不能代替资源归属。本提交包含账号隔离、显式关联和独立恢复空间；平台注册、真实账号授权与运维验收仍须逐项完成。
+BetterMe 将外部登录接到既有账号隔离层：Casdoor 证明身份，Host 将经过验证的 `issuer + sub` 映射为稳定的内部 owner。微信、QQ、GitHub、Google 等渠道由 Casdoor 管理；模型账号、API Key、昵称、邮箱或手机号都不能代替资源归属。设计与安全边界见 [社交登录设计](planning/social-login-2026-11-04.md)，本批证据见 [社交登录实施报告](reports/social-login-2026-11-04.md)。
 
 ## 已有本机账号：先关联，再使用统一登录
 
@@ -43,7 +43,7 @@ Host 在启动时读取配置。配置只由服务端保存，结构为 `issuer`
 
 ## 开通社交平台
 
-本机初始安装只启用 Casdoor 用户名密码注册/登录。BetterMe 固定展示微信、QQ、GitHub、Google；Microsoft、GitLab、Discord 仅在当前应用实际关联了对应 provider 时展示。未配置、停用、环境不匹配或服务离线时显示原因并禁用；「已配置」不是平台真实授权验收成功。操作只在管理员端完成，不需要向 BetterMe Web 填平台密钥。下表给出固定版本配置入口；是否获准使用以平台控制台与当前官方要求为准。
+本机初始安装只启用 Casdoor 用户名密码注册/登录。BetterMe 固定展示微信、QQ、GitHub、Google；Microsoft、GitLab、Discord 仅在当前应用实际关联了对应 provider 时展示。未配置、停用、环境不匹配或服务离线时显示原因并禁用；「已配置」不是平台真实授权验收成功。操作只在管理员端完成，不需要向 BetterMe Web 填平台密钥。固定版本类型、最小权限、平台条件与开源比较见 [平台调研](research/social-login-platforms-2026-11-04.md)，本机真实配置停点见 [扩展与配置报告](reports/social-login-platform-expansion-2026-11-04.md)。
 
 1. 准备已开通的平台开发者应用，使用符合平台要求的公开 HTTPS 域名/回调。各平台要求以其官方控制台为准，不能假设本机 loopback 都受支持。
 2. 在 Casdoor 创建 OAuth provider，并关联到 `app-betterme`。类型按下表精确填写；配置平台 Client ID/Secret，启用 `Can sign in`，按实际注册策略决定 `Can sign up`。
@@ -70,7 +70,7 @@ Host 在启动时读取配置。配置只由服务端保存，结构为 `issuer`
 
 Casdoor 管理 API 的配置字段为复数 `scopes`（SQLite 同名），不是 `scope`；未知字段可能被忽略。新增 provider 先保持暂停，保存后读回实际 `scopes`，再核对真实跳转与同意页，不能只根据提交体断言最低权限已经生效。
 
-本机 GitHub/Google 的平台回调准备为 `http://127.0.0.1:18000/callback`。QQ 官方文档要求外网可访问域名，回调不能使用 localhost 或端口号，并有网站/备案审核要求；国际域名另有申请流程。微信网站应用仍需本人拥有的开放平台 AppID/Secret、满足规则的授权回调域及审核。平台主体、域名、费用或资质不能用共享 AppID、陌生扫码中转、伪造二维码或换库代替。平台条件仍须在各自官方控制台核对，不能以适配代码代替审核。
+本机 GitHub/Google 的平台回调准备为 `http://127.0.0.1:18000/callback`。QQ 官方文档要求外网可访问域名，回调不能使用 localhost 或端口号，并有网站/备案审核要求；国际域名另有申请流程。微信网站应用仍需本人拥有的开放平台 AppID/Secret、满足规则的授权回调域及审核。平台主体、域名、费用或资质不能用共享 AppID、陌生扫码中转、伪造二维码或换库代替。准确出处和微信本次未能核实的细则见平台调研。
 
 Microsoft 当前 loopback IP 的 HTTP URI 需要按官方 manifest 方式配置；Discord 带端口 Web 回调仍须本人控制台验证。Google 固定版本 adapter 有额外 People API 电话字段调用的兼容性风险，需真实授权观察；为绕过它扩大电话 scope 不属于本轮批准权限。
 
@@ -102,7 +102,7 @@ Casdoor 的公开/默认脱敏管理响应不适合整对象保存：其中 `red
 
 秘密比较使用只返回布尔值的检查和固定错误码；`assert.equal(secretA, secretB)` 可能将 actual/expected 打印到异常中。出现任何诊断暴露时暂停该 provider 的 `Can sign in`，经本人当次确认生成替换 secret、更新本机 provider、撤销旧 secret 后再启用。日志核对只输出命中布尔值，不输出匹配行。
 
-凭据页的按钮 accessible name 也可能包含完整 secret，即使画面显示为掩码；仅去掉 `Value:` 不足以脱敏。界面读取持留在本机、输出仅用控件编号/角色与固定安全标签白名单，未知名称省略。一次性密钥模态不截图；安全捕获后关闭/隐藏再保存掩码结果证据。本机真实配置与密钥轮换记录不随本代码批次公开。
+凭据页的按钮 accessible name 也可能包含完整 secret，即使画面显示为掩码；仅去掉 `Value:` 不足以脱敏。界面读取持留在本机、输出仅用控件编号/角色与固定安全标签白名单，未知名称省略。一次性密钥模态不截图；安全捕获后关闭/隐藏再保存掩码结果证据。最新真实配置、GitHub 已完成轮换及 Google 待办见 [真实配置续接](reports/social-login-live-setup-2026-11-04.md)。
 
 ## 恢复档案：追加，不替换
 
@@ -125,6 +125,16 @@ pnpm --filter @better-me/agent-host test:casdoor:live
 
 后者显式创建两个随机合成 Casdoor 账号，并使用临时 Host 目录、内存 checkpoint 和注入推理器；会留下合成账号与私有临时测试目录，不自动清理或删除账号。它验证真实授权码、PKCE、签名 JWT、稳定 owner、并发任务、退出后迟到结果及跨账号拒绝；不调用模型、不读取真实简历，也不验证 QQ/微信/邮件/短信供应商。
 
+本批另有不碰已安装账号库的兼容性检查：
+
+```sh
+pnpm exec tsx apps/agent-host/scripts/verify-social-casdoor.ts /absolute/path/to/casdoor /absolute/path/to/casdoor/web
+```
+
+仅复用已校验安装的可执行文件与公开 Web 静态资源，新建临时 SQLite/配置/证书与动态端口，七个 provider 使用虚构凭据；检查真实 v4.25.0 公开目录、`provider_hint` 和授权入口，随后清理自建进程及目录。不会访问真实社交平台，不能替代上面的逐渠道授权。
+
+UI 可选验收夹具 `pnpm exec tsx apps/web/tests/social-login-preview.ts` 只使用自建 5383/5389 与签名虚构身份源，必须先确认端口空闲；不用正常 5173/5179 或已有私有数据。退出脚本清理自建临时目录。
+
 备份应覆盖 Host 的账号目录和恢复档案、浏览器原始草稿/版本、Casdoor 配置/证书及数据库。活动 SQLite 用一致性 `.backup` 或停服备份，不只复制 `.db` 而遗漏 WAL。私有备份按敏感用户数据保护；回退到原工作空间不需要删除任何档案。不要为排查空白账号而清空浏览器、重新导入 PDF 或重置简历。
 
-本批自动化回归使用隔离合成资料，未运行真实身份供应商授权或迁移用户资料。本机单实例隔离不等于 OS 沙箱、端到端加密、跨浏览器自动同步或公网 SaaS；岗位索引仍是安装级。
+本次实施与验收证据见 [确认恢复与 Casdoor 报告](reports/confirmed-recovery-casdoor-2026-11-03.md)。本机单实例隔离不等于 OS 沙箱、端到端加密、跨浏览器自动同步或公网 SaaS；岗位索引仍是安装级。

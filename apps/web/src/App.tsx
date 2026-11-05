@@ -11,6 +11,8 @@ import { ResizableWorkspace } from "./components/ResizableWorkspace";
 import { ResumeDesignPanel } from "./components/ResumeDesignPanel";
 import { VersionHistoryPanel } from "./components/VersionHistoryPanel";
 import { AutoSaveControls } from "./components/AutoSaveControls";
+import { DocumentSaveStatus } from "./components/DocumentSaveStatus";
+import { showResumeEditor } from "./lib/agent-navigation";
 import { IssuesPanel } from "./components/IssuesPanel";
 import { ImportSourceReview } from "./components/ImportSourceReview";
 import { AiConfigModal, DEFAULT_LLM_CONFIG } from "./components/AiConfigModal";
@@ -36,7 +38,7 @@ import { WorkspaceMenu } from "./components/WorkspaceMenu";
 import { rebaseViewTextStyles } from "./lib/text-formatting";
 import type { PreviewFollowTarget } from "./lib/preview-follow";
 import { createIssueNavigation, type IssueNavigationRequest } from "./lib/issue-navigation";
-import { ArrowUpRight, BookOpen, Bot, BriefcaseBusiness, Check, CloudOff, Download, FileText, GitBranch, Globe, History, Languages, Loader2, MessageSquare, MoreHorizontal, Palette, RotateCcw, Settings2, ShieldCheck, Sparkles, Upload, X } from "lucide-react";
+import { ArrowUpRight, BookOpen, Bot, BriefcaseBusiness, Check, Download, FileText, GitBranch, Globe, History, Languages, Loader2, MessageSquare, MoreHorizontal, Palette, RotateCcw, Settings2, ShieldCheck, Sparkles, Upload, X } from "lucide-react";
 import { AgentTopBarStatus } from "./components/AgentTopBarStatus";
 import { AgentCompanion } from "./components/AgentCompanion";
 import { ResumeWritingCopilot } from "./components/ResumeWritingCopilot";
@@ -183,6 +185,7 @@ export function App() {
     setPage("resume");
     setWorkspaceTab("content");
     setIssueNavigation(request);
+    showResumeEditor();
   }
   function handleSaveLlmConfig(config: LlmConfig) {
     const validated = LlmConfigSchema.parse(config); localStorage.setItem(LLM_CONFIG_KEY, JSON.stringify(validated)); setLlmConfig(validated);
@@ -373,8 +376,6 @@ export function App() {
   }
   if (ready && loadError && !doc) return <div className="recovery-screen"><WorkspacePreferences /><div className="recovery-card"><ShieldCheck size={28} /><h1>{t("先保护好你的简历", "Protect your resume first")}</h1><p role="alert">{loadError}</p><p>{t("原始数据已保留。可以下载原文，或从有效备份恢复。", "The original data is preserved. Download it or restore a valid backup.")}</p><input type="file" ref={fileInputRef} accept=".json" onChange={handleFileSelected} className="hidden" /><div className="flex flex-wrap gap-3"><button className="studio-button" onClick={() => { try { downloadJson(localStorage.getItem(STORAGE_KEY) ?? "", "better-me-backup-recovery.json"); } catch { setActionError(t("浏览器拒绝读取存储。", "The browser blocked access to local storage.")); } }}>{t("下载原始数据", "Download original data")}</button><button className="studio-button primary" onClick={() => fileInputRef.current?.click()}>{t("恢复 JSON 备份", "Restore a JSON backup")}</button><button className="studio-button" onClick={() => void resetDemo()}>{t("恢复演示", "Reset demo")}</button></div>{actionError && <p role="alert">{actionError}</p>}</div></div>;
   if (!ready || !doc || !activeResume || !projected) return <div className="studio-loading"><Loader2 size={24} className="animate-spin" /><span>{t("正在打开你的简历工作室…", "Opening your resume studio…")}</span></div>;
-  const statusIcon = status.kind === "pending" ? <Loader2 size={12} className="animate-spin" /> : status.kind === "error" ? <CloudOff size={12} /> : <Check size={12} />;
-  const saveLabel = status.kind === "saved" ? t("已保存", "Saved") : status.kind === "draft" ? t("草稿已保护", "Draft protected") : status.kind === "pending" ? t("等待保存", "Save pending") : status.kind === "error" ? t("保存需要处理", "Save needs attention") : t("正在载入", "Loading");
   const autoSaveDescription = !autoSaveSettings.enabled ? t("自动保存已关闭", "Autosave is off") : autoSaveSettings.trigger === "enter" ? t("按回车保存", "Press Enter to save") : autoSaveSettings.trigger === "blur" ? t("离开编辑项时保存", "Save when leaving a field") : t(`停止输入 ${autoSaveSettings.delayMs / 1000} 秒后保存`, `Save after ${autoSaveSettings.delayMs / 1000} seconds of inactivity`);
 
   return <BetterMeAgentProvider workspaceKey={doc.documentId ?? activeResume.id}><AgentSidebarProvider><div className="studio-app compact-chrome">
@@ -410,7 +411,7 @@ export function App() {
                 {doc.resumeViews.map((view) => <option key={view.id} value={view.id}>{view.name === "Default" ? t("我的简历", "My resume") : view.name}</option>)}
               </select>
             </div>
-            <div data-onboarding="save"><AutoSaveControls settings={autoSaveSettings} onChange={setAutoSaveSettings} onSave={() => void flush()} saving={status.kind === "pending"} preferenceError={autoSavePreferenceError} compactStatus={<span className={`save-indicator ${status.kind}`} title={`${status.message} · ${autoSaveDescription}`} role="status" aria-live="polite">{statusIcon}<span>{saveLabel} · {autoSaveSettings.enabled ? t("自动保存开", "Autosave on") : t("自动保存关", "Autosave off")}</span></span>} /></div>
+            <div data-onboarding="save"><AutoSaveControls settings={autoSaveSettings} onChange={setAutoSaveSettings} onSave={() => void flush()} saving={status.kind === "pending"} preferenceError={autoSavePreferenceError} compactStatus={<DocumentSaveStatus status={status} autoSaveEnabled={autoSaveSettings.enabled} />} /></div>
             <span className="document-badge">{matchReadiness?.reason === "demo" || matchReadiness?.reason === "mixed-demo" ? t("含示例内容", "Includes demo content") : t("个人工作空间", "Personal workspace")}</span>
           </div>
         </div>
@@ -462,7 +463,7 @@ export function App() {
       {atlasInitialized && <div className="secondary-workspace no-print" hidden={page !== "atlas"}><Suspense fallback={<div className="studio-loading"><Loader2 className="animate-spin" />{t("正在加载岗位地图…", "Loading opportunity atlas…")}</div>}><AtlasWorkspace resume={projected} factBase={doc.factBase} agentConfig={llmConfig} onAskAgentAboutHarvest={setAgentCompanionPrompt} onOpenOpportunitySources={() => setPage("opportunities")} active={page === "atlas"} onSaveOpportunity={(seed) => { setOpportunitySeed(seed); setPage("opportunities"); }} onAnalyze={(item) => { const parts = item.title.split(" · "); const company = (parts.length > 1 && parts[0]) ? parts[0] : ""; const title = parts.length > 1 ? parts.slice(1).join(" · ") : item.title; openAgentWorkspace({ title: title || "目标岗位", company: company || "目标企业", description: item.text ?? "", sourceUrl: item.url, sourcePlatform: item.platform }); }} /></Suspense></div>}
       <div className="secondary-workspace no-print" hidden={page !== "resources"}><ResourceLibrary /></div>
       <div className="secondary-workspace no-print" hidden={page !== "agent"}><AgentWorkspace workspaceKey={activeResume?.id ?? "default"} active={page === "agent"} job={agentDrawerJob} resume={projected} resumeEditContext={resumeEditContext} onApplyResumeProposal={handleApplyResumeProposal} llmConfig={llmConfig} onOpenConfig={() => setIsAiConfigOpen(true)} onNavigateToResume={() => { setPage("resume"); setWorkspaceTab("content"); }} onApplyToResume={handleApplyCustomResume} onSaveOpportunity={(job) => { setOpportunitySeed({ token: crypto.randomUUID(), title: job.title, description: job.description, sourceUrl: job.sourceUrl, sourcePlatform: job.sourcePlatform }); setPage("opportunities"); }} /></div>
-      <footer className="studio-footer no-print"><span><ShieldCheck size={12} />{t("本地保存 · 真实经历由你核实", "Saved locally · You verify your experience")}</span><span>{page === "resume" ? t(`${autoSaveDescription} · Ctrl + S 立即保存`, `${autoSaveDescription} · Ctrl + S to save now`) : page === "opportunities" ? t("岗位信息与跟进需点击保存", "Click Save to keep job details and follow-ups") : page === "atlas" ? t("地图、列表与统计使用同一查询 · 来源与事实需核实", "Map, list and statistics share one query · Verify source facts") : page === "agent" ? t("本地 Agent 编排 · 逐条核实履历 · 真实推理由你掌控", "Local Agent orchestration · Verify claims item-by-item · Full user control") : t("查看原始出处，按需使用资料", "Visit original sources and use resources as needed")}</span></footer>
+      <footer className="studio-footer no-print"><span><ShieldCheck size={12} />{t("资料存于本机 · 真实经历由你核实", "Stored on this device · You verify your experience")}</span><span>{page === "resume" ? t(`${autoSaveDescription} · Ctrl + S 立即保存`, `${autoSaveDescription} · Ctrl + S to save now`) : page === "opportunities" ? t("岗位信息与跟进需点击保存", "Click Save to keep job details and follow-ups") : page === "atlas" ? t("地图、列表与统计使用同一查询 · 来源与事实需核实", "Map, list and statistics share one query · Verify source facts") : page === "agent" ? t("本地 Agent 编排 · 逐条核实履历 · 真实推理由你掌控", "Local Agent orchestration · Verify claims item-by-item · Full user control") : t("查看原始出处，按需使用资料", "Visit original sources and use resources as needed")}</span></footer>
     </div>
     <div className="no-print">
       <NetworkSettingsModal isOpen={isNetworkSettingsOpen} onClose={() => setIsNetworkSettingsOpen(false)} />

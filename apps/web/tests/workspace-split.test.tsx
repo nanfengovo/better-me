@@ -4,8 +4,8 @@ import { clampWorkspaceSplit, getWorkspaceSplitBounds, parseWorkspaceSplit, work
 
 test("drag coordinates account for container offset and handle width", () => {
   assert.equal(workspaceSplitFromPointer(510, 100, 1000), 40);
-  assert.ok(Math.abs(workspaceSplitFromPointer(1010, 100, 1000) - 66) < 0.00001);
-  assert.equal(workspaceSplitFromPointer(-200, 100, 1000), 30);
+  assert.ok(Math.abs(workspaceSplitFromPointer(1010, 100, 1000) - 58) < 0.00001);
+  assert.equal(workspaceSplitFromPointer(-200, 100, 1000), 36);
 });
 
 test("desktop bounds preserve usable panes and re-clamp when available width shrinks", () => {

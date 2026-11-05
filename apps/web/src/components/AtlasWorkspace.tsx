@@ -887,13 +887,16 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
           : `${entry.platform} ${entry.cardsCollected}条 / ${coverage.pagesVisited}页（预算${coverage.pageLimit}页）`;
         if (entry.status === "error") return `${progress} · 失败${entry.error ? `：${entry.error}` : ""}`;
         if (entry.status === "empty" && !coverage.partial) return `${progress} · 平台返回空列表`;
-        const stopLabel = liveHarvestStopReasonLabel(entry.status, coverage.stopReason);
+        const stopLabel = liveHarvestStopReasonLabel(entry.status, coverage.stopReason, coverage.failureKind);
         return coverage.partial ? `${progress} · 未完成：${stopLabel}` : `${progress} · ${stopLabel}`;
       }).join("；")}。`);
     }
-    if (summary.importFailures.length > 0) {
-      const failedCards = summary.importFailures.reduce((total, failure) => total + failure.cards, 0);
-      parts.push(`实时卡片提交未确认 ${failedCards} 条（${summary.importFailures.map((failure) => `${failure.platform}：${failure.error}`).join("；")}）。卡片仍保留在原站实时列表；未收到成功回执不等于未写入，索引与地图以已确认结果为准。`);
+    const conflicts = summary.importFailures.filter(failure => failure.conflict);
+    if (conflicts.length) parts.push(`公司归属冲突已逐岗隔离 ${conflicts.reduce((sum, failure) => sum + failure.cards, 0)} 条（${conflicts.map(failure => `${failure.platform}：${failure.error}`).join("；")}）。冲突记录已保留，其余岗位照常入库和补全地区。`);
+    const unconfirmedImports = summary.importFailures.filter(failure => !failure.conflict);
+    if (unconfirmedImports.length > 0) {
+      const failedCards = unconfirmedImports.reduce((total, failure) => total + failure.cards, 0);
+      parts.push(`实时卡片提交未确认 ${failedCards} 条（${unconfirmedImports.map((failure) => `${failure.platform}：${failure.error}`).join("；")}）。卡片仍保留在原站实时列表；未收到成功回执不等于未写入，索引与地图以已确认结果为准。`);
     }
     if (summary.loginRequiredPlatforms.length > 0) {
       parts.push(
@@ -958,6 +961,9 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
           marketScope: harvestMarketScope(savedInput.view.mode, savedInput.view.country),
           initialSnapshot: (dataMode === "live" && liveData) ? liveData : undefined,
           signal,
+          onImportFailures: failures => {
+            if (searchAbort.current === abort) setHarvestImportFailures(failures);
+          },
           onLiveResults: (receipt, query) => {
             if (searchAbort.current === abort && !abort.signal.aborted) {
               setLiveHarvest(previous => mergeLiveHarvestViews(previous, buildLiveHarvestView(receipt, query)));
@@ -1078,6 +1084,9 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
             marketScope: harvestMarketScope(liveInput.view.mode, liveInput.view.country),
             initialSnapshot: (dataMode === "live" && liveData) ? liveData : undefined,
             signal,
+            onImportFailures: failures => {
+              if (searchAbort.current === abort) setHarvestImportFailures(failures);
+            },
             onLiveResults: (receipt, query) => {
               if (searchAbort.current === abort && !abort.signal.aborted) {
                 setLiveHarvest(previous => mergeLiveHarvestViews(previous, buildLiveHarvestView(receipt, query)));

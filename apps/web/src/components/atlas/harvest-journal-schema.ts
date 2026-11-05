@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { EntityIdSchema, TimestampSchema } from "@better-me/opportunities";
-import { ImportReviewedCardsInputSchema, ReviewedCardsCaptureSchema, ReviewedSearchCardSchema, reviewedCardsSearchPage } from "@better-me/source-adapters/browser-contracts";
+import { ImportReviewedCardsInputSchema, ReviewedCardsCaptureSchema, ReviewedSearchCardSchema, ReviewedCardCompanyConflictSchema, reviewedCardsSearchPage } from "@better-me/source-adapters/browser-contracts";
 
 const count = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const visible = (max: number) => z.string().min(1).max(max);
@@ -40,6 +40,7 @@ export const JournalCommandSchema = z.object({ input: ImportReviewedCardsInputSc
 export const JournalReceiptSchema = z.object({
   ok: z.literal(true), revision: count, jobIds: z.array(EntityIdSchema).max(1000), snapshotIds: z.array(EntityIdSchema).max(1000),
   counts: z.object({ newJobs: count, updatedJobs: count, unchangedJobs: count, newListings: count, newObservations: count, newSnapshots: count }).strict(),
+  conflicts: z.array(ReviewedCardCompanyConflictSchema).min(1).max(50).optional(),
 }).strict();
 export const JournalBatchSchema = z.object({ ...batchShape, command: JournalCommandSchema.optional(), receipt: JournalReceiptSchema.optional() }).strict();
 

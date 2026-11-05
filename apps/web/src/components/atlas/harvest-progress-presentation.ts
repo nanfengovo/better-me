@@ -3,7 +3,7 @@ import type { ClientPipelineProgress, ClientPipelineStage } from "./harvest-pipe
 export type HarvestProgressState = Pick<ClientPipelineProgress, "stage" | "stageIndex" | "totalStages" | "message" | "stats">;
 
 const RUN_COUNT_KEYS = [
-  "cardsFetched", "committedCards", "pendingCards", "pendingBatches", "failedCards", "cancelledCards",
+  "cardsFetched", "committedCards", "pendingCards", "pendingBatches", "failedCards", "cancelledCards", "conflictedCards",
   "totalAdded", "totalUpdated", "totalUnchanged", "failedQueryTerms", "completedQueryTerms", "queryTermTotal",
   "failedPlatforms", "blockedPlatforms", "partialPlatforms",
 ] as const;

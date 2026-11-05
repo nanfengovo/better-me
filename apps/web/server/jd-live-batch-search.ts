@@ -1381,6 +1381,7 @@ export async function captureProviderViaNativeCdp(
     let noProgressScrolls = 0;
     let noProgressPages = 0;
     let stopReason: LiveBatchStopReason = "page_limit";
+    let operationTimedOut = false;
     let pageScrolled = false;
     let lastPageState: LiveSearchPageState | undefined;
     let attemptedPage = 1;
@@ -1423,6 +1424,7 @@ export async function captureProviderViaNativeCdp(
     let navigationCommandFailed = false;
     let pageFailedScriptsBaseline = 0;
     const reloadObservations = new Map<number, Record<string, unknown>>();
+    const navigationTimeoutObservations: Record<string, unknown>[] = [];
     const readPageEvidence = async (): Promise<Record<string, unknown>> => {
       try {
         const result = await cdp.send<{ result?: { value?: Record<string, unknown> } }>("Runtime.evaluate", { expression: HARVEST_PAGE_OBSERVATION, returnByValue: true }, sessionId, 2000);
@@ -1765,7 +1767,16 @@ export async function captureProviderViaNativeCdp(
         if (decision.action === "navigate-page") {
           attemptedPage = page + 1;
           await cdp.send("Page.stopLoading", {}, sessionId).catch(() => {});
-          await cdp.send("Page.navigate", { url: decision.pageUrl }, sessionId, 7000);
+          try {
+            await cdp.send("Page.navigate", { url: decision.pageUrl }, sessionId, 7000);
+          } catch (error) {
+            if (classifyHarvestFailure(error) !== "timeout") throw error;
+            // A protocol reply timeout does not prove the document failed to
+            // navigate. Observe this same owned target within the existing
+            // transition budget, without replaying an uncertain navigation.
+            navigationCommandFailed = true;
+            operationTimedOut = true;
+          }
           let transition = pageStateBeforeAdvance
             ? await waitForLiveSearchPageTransition({
                 before: pageStateBeforeAdvance,
@@ -1788,9 +1799,18 @@ export async function captureProviderViaNativeCdp(
             });
           }
           if (!transition.advanced) {
-            stopReason = signal?.aborted ? "cancelled" : "no_progress";
+            stopReason = signal?.aborted ? "cancelled" : operationTimedOut ? "error" : "no_progress";
             allWarnings.push("目标分页 URL 已打开，但未能确认新页面及其岗位卡片更新；为避免将旧页数据归到新页，已停止本平台采集。");
             break;
+          }
+          if (operationTimedOut) {
+            navigationTimeoutObservations.push({
+              ...await readPageEvidence(), page: Math.min(50, attemptedPage), phase: "pagination", failure: "timeout",
+              verifiedCards: allRawCards.length, pendingRequests: pendingRequests.size, failedRequests, failedDocuments,
+              failedScripts, failedDataRequests, limitedDataResponses, navigationAttempts: reloadObservations.has(attemptedPage) ? 2 : 1,
+              navigationCommandFailed: true, recovered: true, ...(documentStatus ? { httpStatus: documentStatus } : {}),
+            });
+            operationTimedOut = false;
           }
           lastPageUrl = transition.pageUrl;
           page++;
@@ -1800,6 +1820,7 @@ export async function captureProviderViaNativeCdp(
         }
       } catch (error) {
         stopReason = "error";
+        operationTimedOut = classifyHarvestFailure(error) === "timeout";
         allWarnings.push(error instanceof Error ? error.message : "读取搜索页时遇到异常。");
         break;
       }
@@ -1816,7 +1837,7 @@ export async function captureProviderViaNativeCdp(
     );
     let failureKind: LiveBatchCoverage["failureKind"];
 
-    const diagnosticObservations = [...reloadObservations.values()];
+    const diagnosticObservations = [...reloadObservations.values(), ...navigationTimeoutObservations];
     if (["no_progress", "gate", "error"].includes(stopReason)) {
       let pageEvidence: Record<string, unknown> = {};
       try {
@@ -1825,6 +1846,7 @@ export async function captureProviderViaNativeCdp(
       } catch { /* unavailable is itself useful; never retain the error text */ }
       const failure = ["login", "verification", "platform_limit"].includes(String(pageEvidence.failure)) ? pageEvidence.failure
         : documentStatus && documentStatus >= 400 ? classifyHarvestFailure(undefined, documentStatus)
+        : operationTimedOut ? "timeout"
         : pageEvidence.route === "browser_error" ? "network"
         : pageEvidence.route === "blank" ? failedRequests > 0 ? "network" : "unknown"
         : pageEvidence.readyState === "loading" || Number(pageEvidence.loadingIndicators) > 0 ? "timeout"

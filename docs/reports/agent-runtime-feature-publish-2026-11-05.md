@@ -31,3 +31,17 @@
 ## 尚需本人授权的部分
 
 真实云账号仍须本人在对应 BetterMe owner 下单独登录，或明确配置 API Key。Codex 的本机管理策略同步阻塞未通过绕过方式解决；它不再阻塞其他已批准工具。Linux/Windows 若没有对应强制隔离适配，应明确显示系统隔离不可用，不降级继承宿主共享凭据。正常运行页面尚未重启加载本批代码，不能仅以 Git 推送宣称当前页面已接通。
+
+## 推送后 CI 跟踪（本地收尾，未再次推送）
+
+三笔提交为 `dd5b936408fb85cd2247fec558d8cd1b91c01483`、`a8566590601bad798a6b044473ac729f769201da`、`6753ed8ff16939183c273e334202e67e8553e64d`，远端 `agent-os` 已核同最后一笔。没有新分支、强推、部署或服务重启。
+
+[Actions 42017073318](https://github.com/nanfengovo/better-me/actions/runs/42017073318) 已结束，最终结论为 **failure**：Linux 全量/Pages 子路径构建与产物验证成功；Docker 静态分发成功，但完整 Compose 验收失败；Windows/Edge 的 lint、类型通过，全量测试 3713 项中 3699 通过、5 失败、9 跳过，运行时步骤未执行。Pages 部署跳过。不能将本批记为 CI 全绿。
+
+失败信号：`scripts/check-docker-runtime.mjs:79` 请求 `/api/v1/agent/understanding/capabilities` 预期 200，实际为 401 `identity_required`。脚本仅发送安装级传输令牌与 Origin，没有注册/登录 BetterMe 合成账号、Cookie 或 `X-BetterMe-Owner`。账号保护按新约定拒绝请求，不是需要取消保护。
+
+独立全新空库的两次最小复现均得到相同 401；同一请求加上临时合成账号的 Cookie 和 owner 后为 200、空工具目录；仅有 Cookie 缺 owner 为 409 `identity_changed`。夹具无需 Docker、真实登录或供应商调用，运行后清理自建临时目录。网关现有代码保留 Cookie/owner 转发。证据定位到验收脚本尚未升级账号协议；不据此宣称后续 Compose 持久化/崩溃恢复已经通过。
+
+Windows 的 5 个失败均在 `apps/agent-host/tests/native-account-tools.test.ts`：第38行硬编码 `/synthetic/own/codex` 与 Windows 路径分隔符不一致；第70行四个工具用例将 `stat.mode & 0o777` 直接断言为 POSIX 0600，Windows 实测为0666。当前生产进程隔离在非macOS上明确不可用，不以注入合成运行器通过代替真实平台权限验证。后续应补平台路径和Windows实际权限验收，不能简单跳过或放宽安全检查。
+
+下一批应让 Compose 合成账号贯穿登录、同账号重启恢复与跨账号拒绝，并处理上述跨平台测试和权限证据，不改变产品身份限制。依本次一次推送范围，尚未修改这两处验收代码、追加提交、重跑 CI 或再次推送。

@@ -4,8 +4,9 @@
 .career-coach { --coach-accent:var(--ui-accent,#366b52); --coach-tint:var(--ui-accent-soft,#eaf3ee); color:var(--ui-text,#1b2735); background:var(--ui-canvas,#f5f6f8); flex:1; width:100%; min-width:0; min-height:0; overflow:auto; font-family:inherit; font-size:15px; line-height:1.65; }
 .career-coach * { box-sizing:border-box; }
 .career-coach button,.career-coach input,.career-coach textarea,.career-coach select { font:inherit; }
-.career-coach button { display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid var(--ui-border,#dce1e6); border-radius:10px; background:var(--ui-surface,#fff); color:inherit; padding:9px 14px; cursor:pointer; transition:background .15s,border-color .15s; }
+.career-coach button { display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid var(--ui-border,#dce1e6); border-radius:10px; background:var(--ui-surface,#fff); color:inherit; padding:9px 14px; cursor:pointer; transition:background-color 150ms ease,border-color 150ms ease,box-shadow 150ms ease,transform 140ms cubic-bezier(.23,1,.32,1); }
 .career-coach button:hover:not(:disabled) { background:var(--ui-hover,#f0f3f6); border-color:var(--coach-accent); }
+.career-coach button:active:not(:disabled) { transform:scale(.98); }
 .career-coach button:disabled { opacity:.5; cursor:not-allowed; }
 .career-coach button:focus-visible,.career-coach input:focus-visible,.career-coach textarea:focus-visible,.career-coach select:focus-visible,.career-coach summary:focus-visible { outline:2px solid var(--coach-accent); outline-offset:3px; }
 .career-coach h1,.career-coach h2,.career-coach h3,.career-coach h4,.career-coach p { margin:0; }
@@ -59,7 +60,7 @@
 .coach-panel-heading { margin:4px 0 18px; }
 .coach-kicker { font-size:10px; font-weight:650; color:var(--coach-accent); letter-spacing:.08em; }
 .coach-panel-heading h2 { font-size:24px; font-weight:650; margin-top:5px; }
-.coach-compose,.coach-result { background:var(--ui-surface,#fff); border:1px solid var(--ui-border,#e1e5eb); border-radius:15px; padding:24px; }
+.coach-compose,.coach-result { background:var(--ui-surface,#fff); border:1px solid var(--ui-border,#e1e5eb); border-radius:15px; padding:24px; animation:coach-card-enter 180ms cubic-bezier(.23,1,.32,1) both; }
 .coach-compose { margin-bottom:20px; }
 .coach-compose>p { margin-bottom:18px; color:var(--ui-text-muted,#637082); font-size:14px; }
 .coach-compose>small { display:block; margin-top:10px; }
@@ -83,24 +84,26 @@
 .coach-gap-list strong { font-size:14px; margin-left:8px; }
 .coach-gap-list p { font-size:13px; margin-top:6px; }
 .coach-badge { display:inline-block; padding:3px 8px; font-size:11px; border:1px solid var(--ui-border,#dce1e6); background:var(--ui-canvas,#f5f6f8); border-radius:6px; }
-.coach-question { margin:18px 0; border-left:3px solid var(--coach-accent); background:var(--coach-tint); padding:20px; border-radius:0 12px 12px 0; }
+.coach-question { margin:18px 0; border-left:3px solid var(--coach-accent); background:var(--coach-tint); padding:20px; border-radius:0 12px 12px 0; animation:coach-card-enter 180ms cubic-bezier(.23,1,.32,1) both; }
 .coach-question h3 { font-size:16px; margin-bottom:10px; }
 .coach-question>p { font-size:13px; margin-bottom:12px; }
 .coach-choice-row { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
 .coach-choice-row button { font-size:13px; }
 .coach-note { font-size:12px!important; color:var(--ui-text-muted,#637082); border-left:2px solid var(--ui-border,#dce1e6); padding-left:12px; margin:16px 0!important; }
-.coach-empty { display:flex; flex-direction:column; align-items:center; text-align:center; padding:50px 24px; border:1px dashed var(--ui-border,#dce1e6); border-radius:16px; }
+.coach-empty { display:flex; flex-direction:column; align-items:center; text-align:center; padding:50px 24px; border:1px dashed var(--ui-border,#dce1e6); border-radius:16px; animation:coach-card-enter 180ms cubic-bezier(.23,1,.32,1) both; }
 .coach-empty-mark { display:flex; align-items:center; justify-content:center; width:60px; height:60px; border:1px solid var(--ui-border,#dce1e6); border-radius:50%; color:var(--coach-accent); margin-bottom:18px; }
 .coach-empty h3 { font-size:18px; margin-bottom:10px; }
 .coach-empty p { font-size:14px; color:var(--ui-text-muted,#637082); max-width:470px; margin-bottom:16px; }
 .coach-alert { border:1px solid #c77a35; background:var(--ui-surface,#fff); border-left:4px solid #c77a35; border-radius:10px; padding:16px; margin-bottom:16px; font-size:13px; }
 .coach-alert p { margin:7px 0; }
 .coach-alert button { font-size:12px; }
-.coach-notice,.coach-running { border:1px solid var(--ui-border,#dce1e6); border-radius:10px; padding:12px 16px; background:var(--coach-tint); margin-bottom:16px!important; font-size:13px; }
+.coach-notice,.coach-running { border:1px solid var(--ui-border,#dce1e6); border-radius:10px; padding:12px 16px; background:var(--coach-tint); margin-bottom:16px!important; font-size:13px; animation:coach-card-enter 160ms cubic-bezier(.23,1,.32,1) both; }
 .coach-running { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
 .coach-running button { margin-left:auto; padding:5px 10px; font-size:12px; }
-.coach-busy-dot { width:8px; height:8px; border-radius:50%; background:var(--coach-accent); }
-.coach-adopted { display:flex; gap:12px; align-items:center; padding:18px; border:1px solid var(--ui-border,#e1e5eb); background:var(--coach-tint); margin-bottom:18px; border-radius:12px; }
+.coach-busy-dot { width:8px; height:8px; border-radius:50%; background:var(--coach-accent); animation:coach-dot-pulse 1.3s cubic-bezier(.77,0,.175,1) infinite; }
+.coach-adopted { display:flex; gap:12px; align-items:center; padding:18px; border:1px solid var(--ui-border,#e1e5eb); background:var(--coach-tint); margin-bottom:18px; border-radius:12px; animation:coach-card-enter 180ms cubic-bezier(.23,1,.32,1) both; }
+@keyframes coach-card-enter { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+@keyframes coach-dot-pulse { 0%,100% { opacity:.4; transform:scale(.88); } 50% { opacity:1; transform:scale(1.15); } }
 .coach-adopted strong { font-size:14px; }
 .coach-adopted p { font-size:12px; }
 .coach-pill-row { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0; }
@@ -140,7 +143,7 @@
 @media (min-width:1200px) { .coach-setup { position:sticky; top:16px; } }
 @media (max-width:1100px) { .coach-tab-number,.coach-tabs button>svg:last-child { display:none; } .coach-tabs { gap:6px; } .coach-tabs small { display:none; } .coach-layout { grid-template-columns:260px minmax(0,1fr); gap:20px; } .coach-header-actions { max-width:150px; } }
 @media (max-width:760px) { .coach-header { flex-direction:column; padding:24px 18px 20px; gap:10px; } .coach-header-actions { padding-top:0; max-width:none; } .coach-tabs { padding:0 18px 18px; grid-template-columns:repeat(5,minmax(0,1fr)); gap:5px; } .coach-tabs button { flex-direction:column; gap:5px; padding:10px 3px; border-radius:9px; } .coach-tabs button>span:not(.coach-tab-number) { font-size:11px; white-space:nowrap; } .coach-layout { display:flex; flex-direction:column; gap:22px; padding:0 18px 30px; } .coach-setup,.coach-main { width:100%; } .coach-setup { padding:18px; } .coach-compose,.coach-result { padding:18px; } .coach-diff { grid-template-columns:1fr; } .coach-metrics { grid-template-columns:repeat(2,1fr); } .coach-footer { align-items:flex-start; text-align:center; } .coach-footer svg { flex-shrink:0; } .career-coach textarea,.career-coach input:not([type=checkbox]),.career-coach select { font-size:16px; } .coach-empty { padding:32px 18px; } .coach-question { padding:16px; } .career-coach-entry-nav { padding:10px 18px; } }
-@media (prefers-reduced-motion:reduce) { .career-coach button { transition:none; } }
+@media (prefers-reduced-motion:reduce) { .career-coach button, .coach-compose, .coach-result, .coach-question, .coach-empty, .coach-notice, .coach-running, .coach-busy-dot, .coach-adopted { animation:none; transition:none; } .career-coach button:active:not(:disabled) { transform:none; } }
 .coach-journey { display:flex; flex-wrap:wrap; gap:8px 16px; font-size:12px; margin-bottom:18px; color:var(--ui-text-muted); }
 .coach-history-scroll { max-height:380px; overflow:auto; overscroll-behavior:contain; overflow-wrap:anywhere; }
 .career-coach .coach-code { font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:13px; white-space:pre-wrap; overflow-wrap:anywhere; }

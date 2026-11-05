@@ -59,6 +59,34 @@ function captured(id = "batch-1"): HarvestCapturedBatch {
 const receipt: HarvestImportReceipt = { ok: true, revision: 11, jobIds: ["job-synthetic"], snapshotIds: ["snapshot-synthetic"],
   counts: { newJobs: 1, updatedJobs: 0, unchangedJobs: 0, newListings: 1, newObservations: 1, newSnapshots: 1 } };
 
+test("company conflict evidence and partial receipts survive journal reopen without replacing captured evidence", async () => {
+  const database = memoryDatabase();
+  const journal = createHarvestJournalAdapter(database.open(), "a".repeat(64));
+  const run = await journal.create(runInput);
+  await run.initialize(["C#"], ["liepin"]);
+  const batch = captured();
+  await run.capture(batch);
+  const { id: _id, platform: _platform, ...capture } = batch;
+  await run.prepare(batch.id, { input: { ...capture, expectedRevision: 10, previewFingerprint: "b".repeat(64), reviewed: true }, idempotencyKey: "partial-same-key" });
+  const card = batch.cards[0]!;
+  const conflict = { reason: "company-ownership-conflict" as const, sourceId: "reviewed-platform-liepin", sourceRecordId: "100001",
+    jobId: "job-existing", listingId: "listing-existing", url: card.url, title: card.title, company: card.company,
+    existingCompanyId: "company-existing", existingCompanyNames: ["Preserved Employer"], pageUrl: batch.pageUrl, capturedAt: batch.capturedAt };
+  const partial = { ...receipt, jobIds: [], snapshotIds: [], counts: { newJobs: 0, updatedJobs: 0, unchangedJobs: 0, newListings: 0, newObservations: 0, newSnapshots: 0 }, conflicts: [conflict] };
+  await assert.rejects(run.confirm(batch.id, { ...partial, conflicts: [{ ...conflict, company: "not the captured claim" }] }), /冲突回执/);
+  await assert.rejects(run.confirm(batch.id, { ...partial, conflicts: [conflict, conflict] }), /冲突回执/);
+  await run.confirm(batch.id, partial);
+  await run.settle("needs-attention");
+  journal.close();
+  const reopened = createHarvestJournalAdapter(database.open(), "a".repeat(64));
+  const resumed = await reopened.findRecoverable();
+  assert.ok(resumed);
+  const stored = (await resumed.read()).batches[0]!;
+  assert.deepEqual(stored.cards, batch.cards);
+  assert.deepEqual(stored.receipt, partial);
+  assert.equal(stored.command?.idempotencyKey, "partial-same-key");
+});
+
 test("connection scopes hash exactly the normalized origin and actual bearer identity without retaining credentials", async () => {
   const scope = await harvestConnectionScope("http://LOCALHOST:80/", " synthetic-private-token ");
   assert.match(scope, /^[a-f0-9]{64}$/);
