@@ -111,6 +111,11 @@
 .identity-card input::placeholder { color:#7e909f; }
 .identity-card input:hover:not(:disabled) { border-color:#536674; }
 .identity-card input:focus { border-color:#9bd4c7; box-shadow:0 0 0 3px #9bd4c714; background:#111c23; outline:none; }
+.identity-card input:-webkit-autofill,
+.identity-card input:-webkit-autofill:hover,
+.identity-card input:-webkit-autofill:focus,
+.identity-card input:-webkit-autofill:active { -webkit-text-fill-color:#edf2f5; -webkit-box-shadow:0 0 0 1000px #0d141b inset, 0 0 0 3px #9bd4c714; box-shadow:0 0 0 1000px #0d141b inset, 0 0 0 3px #9bd4c714; caret-color:#edf2f5; transition:background-color 9999s ease-out 0s; }
+.identity-card input:-moz-autofill { background:#0d141b !important; color:#edf2f5 !important; }
 .login-password-field { display:grid; gap:8px; }
 .login-password-input { position:relative; }
 .login-password-input input { padding-right:46px; }
@@ -132,7 +137,15 @@
 .identity-card .social-login { margin-top:20px; }
 .identity-card .social-login h2 { font-size:11px; font-weight:400; color:#a8b7c3; margin-bottom:10px; }
 .identity-card .social-login-button { flex-wrap:nowrap; min-height:39px; font-size:11px; padding:8px 10px; border-radius:7px; gap:6px; background:#18212a; }
-.identity-card .social-login-button > svg:first-child { width:15px; height:15px; }
+.social-login-icon { position:relative; display:grid; place-items:center; width:30px; height:30px; flex-shrink:0; border-radius:8px; overflow:hidden; }
+.social-login-icon img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.social-login-icon svg { position:relative; width:16px; height:16px; fill:currentColor; color:#e1f2ed; }
+.identity-card .social-login-button { min-height:48px; padding:7px 9px; gap:8px; background:linear-gradient(140deg,#1d2933,#141e27); box-shadow:inset 0 1px 0 #ffffff06; }
+.identity-card .social-login-button small { flex-basis:auto; margin-left:auto; padding-left:0; font-size:9px; white-space:nowrap; color:#a7b5c1; }
+.identity-card .social-login-button:disabled { color:#b9c5ce; opacity:1; border-color:#303d48; }
+.identity-card .social-login-button:disabled .social-login-icon { opacity:.75; }
+.identity-card .social-login-button:hover:not(:disabled) .social-login-icon { transform:translateY(-1px); }
+.social-login-icon { transition:transform .18s ease; }
 .identity-card .social-login-button .social-login-arrow { width:12px; }
 .identity-card .social-login-status { font-size:10px; line-height:1.7; }
 .identity-card .social-login-refresh { font-size:10px; min-height:28px; transition:color .2s; }
