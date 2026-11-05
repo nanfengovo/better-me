@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowUpRight, RefreshCw, ShieldCheck } from "lucide-react";
 import { siDiscord, siGithub, siGitlab, siGoogle, siQq, siWechat } from "simple-icons";
-import { LoginMethodsSchema, SocialLoginCatalogSchema, type LoginMethods, type SocialChannel, type SocialLoginCatalog, type SocialProviderId } from "@better-me/agent-contracts";
+import { SOCIAL_PROVIDERS, LoginMethodsSchema, SocialLoginCatalogSchema, type LoginMethods, type SocialChannel, type SocialLoginCatalog, type SocialProviderId } from "@better-me/agent-contracts";
 import { captureIdentity, captureIdentityTransition, identityRequest } from "../lib/identity";
 import { useUiPreferences } from "../lib/ui-preferences";
 
@@ -67,11 +67,12 @@ export function CasdoorAccess({ link = false }: { link?: boolean }) {
   }
   const available = catalog?.service === "ready" ? catalog.channels.filter(channel => channel.state === "available") : [];
   const hasOnlineLogin = available.length > 0 || catalog?.service === "ready" && catalog.unifiedLoginAvailable;
-  const channels = available.length > 0 && <div className="social-login-grid" role="group" aria-label={link ? t("可关联的第三方登录", "Available external sign-in methods to link") : t("第三方账号登录", "External account sign-in")}>
-    {available.map(channel => <button key={channel.id} type={link ? "submit" : "button"} name="provider" value={channel.id}
-      className={`social-login-button social-login-${channel.id}`} disabled={busy || channel.state !== "available"}
+  const visibleChannels = link ? available : catalog?.channels.filter(channel => SOCIAL_PROVIDERS.some(provider => provider.id === channel.id && provider.primary) || channel.state === "available") ?? [];
+  const channels = visibleChannels.length > 0 && <div className="social-login-grid" role="group" aria-label={link ? t("可关联的第三方登录", "Available external sign-in methods to link") : t("第三方账号登录", "External account sign-in")}>
+    {visibleChannels.map(channel => <button key={channel.id} type={link ? "submit" : "button"} name="provider" value={channel.id}
+      className={`social-login-button social-login-${channel.id}`} disabled={loading || busy || catalog?.service !== "ready" || channel.state !== "available"}
       title={channel.message} aria-label={link ? t(`关联 ${channel.label}`, `Link ${channel.label}`) : t(`使用 ${channel.label} 登录`, `Sign in with ${channel.label}`)} onClick={link ? undefined : () => void start(channel.id)}>
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d={icons[channel.id].path} /></svg>
+      <span className="social-login-icon" aria-hidden="true"><img src={`${import.meta.env?.BASE_URL ?? "/"}images/login-icon-glass.png`} alt="" /><svg viewBox="0 0 24 24" focusable="false"><path d={icons[channel.id].path} /></svg></span>
       <span>{link ? t(`关联 ${channel.label}`, `Link ${channel.label}`) : channel.label}</span>
       {stateLabels[channel.state][0] && <small>{t(stateLabels[channel.state][0], stateLabels[channel.state][1])}</small>}
       {channel.state === "available" && <ArrowUpRight size={14} className="social-login-arrow" aria-hidden="true" />}
@@ -101,7 +102,7 @@ export function CasdoorAccess({ link = false }: { link?: boolean }) {
     {status}
   </details>;
   return <section className="social-login" aria-label={t("快捷登录", "Quick sign-in")}>
-    {hasOnlineLogin && <h2>{t("使用已有账号登录", "Sign in with an existing account")}</h2>}
+    {visibleChannels.length > 0 && <h2>{t("使用已有账号登录", "Sign in with an existing account")}</h2>}
     {channels}
     {catalog?.unifiedLoginAvailable && <details className="social-login-other"><summary>{t("其他登录方式", "Other sign-in options")}</summary>
       <button type="button" className="studio-button subtle" disabled={busy} onClick={() => void start()}>{t("统一账号登录 / 注册", "Unified sign-in / sign-up")}<ArrowUpRight size={14} aria-hidden="true" /></button>
