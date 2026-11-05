@@ -12,6 +12,9 @@ import { createNativeUnderstandingReasoner, nativeUnderstandingCapabilities } fr
 import { ProjectUnderstandingService } from "./service.js";
 import type { ChatGptPlanService } from "../chatgpt/service.js";
 import { failure } from "../chatgpt/errors.js";
+import { NativeAccountTools, type NativeLease } from "../native-tools/service.js";
+import { NativeToolError } from "../native-tools/process.js";
+import { DeviceAuthorization } from "../native-tools/adapters.js";
 
 const RuntimeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("model"), modelSettings: ModelSettingsSchema }),
@@ -31,6 +34,7 @@ type Dependencies = {
   chatGpt?: ChatGptPlanService;
   /** Account-scoped hosts must not inherit a shared OS user's native-model credentials. */
   allowNativeExecution?: boolean;
+  nativeTools?: NativeAccountTools;
 };
 
 export async function createUnderstandingReasoner(runtime: UnderstandingRuntime, registry: RuntimeRegistry, chatGpt?: ChatGptPlanService): Promise<UnderstandingReasoner> {
@@ -64,12 +68,15 @@ export async function createUnderstandingReasoner(runtime: UnderstandingRuntime,
 /** Called only after the host's normal authentication and origin checks. */
 export function createUnderstandingHandler(deps: Dependencies) {
   const prefix = "/api/v1/agent/understanding";
-  return async (req: http.IncomingMessage, res: http.ServerResponse, pathname: string): Promise<boolean> => {
+  return async (req: http.IncomingMessage, res: http.ServerResponse, pathname: string, lease?: NativeLease): Promise<boolean> => {
     if (pathname !== prefix && !pathname.startsWith(`${prefix}/`)) return false;
     res.setHeader("Cache-Control", "no-store");
     try {
       if (req.method === "GET" && pathname === `${prefix}/capabilities`) {
         await deps.ensureRuntimeScan();
+        if (deps.nativeTools) {
+          deps.sendJson(res, 200, { runtimes: await deps.nativeTools.capabilities() }); return true;
+        }
         if (deps.allowNativeExecution === false) {
           deps.sendJson(res, 200, { runtimes: deps.registry.list().map(runtime => ({ id: runtime.id, name: runtime.name,
             available: runtime.status === "available", supported: false,
@@ -77,6 +84,26 @@ export function createUnderstandingHandler(deps: Dependencies) {
           return true;
         }
         deps.sendJson(res, 200, { runtimes: await nativeUnderstandingCapabilities(deps.registry) });
+        return true;
+      }
+      const native = pathname.match(/^\/api\/v1\/agent\/understanding\/native\/([A-Za-z0-9-]+)\/(authorization|login|login-code)$/);
+      if (native && deps.nativeTools && lease) {
+        await deps.ensureRuntimeScan();
+        const [, runtimeId, operation] = native;
+        if (operation === "authorization" && req.method === "POST") {
+          await deps.nativeTools.authorizeApi(runtimeId!, await deps.readBody(req), lease);
+          deps.sendJson(res, 200, { saved: true });
+        } else if (operation === "authorization" && req.method === "DELETE") {
+          await deps.nativeTools.disconnect(runtimeId!, lease); deps.sendJson(res, 200, { disconnected: true });
+        } else if (operation === "login" && ["codex", "claude-code"].includes(runtimeId!) && req.method === "POST") {
+          DeviceAuthorization.parse(await deps.readBody(req)); deps.sendJson(res, 202, runtimeId === "claude-code" ? await deps.nativeTools.startClaudeLogin(lease) : await deps.nativeTools.startDeviceLogin(lease));
+        } else if (operation === "login-code" && runtimeId === "claude-code" && req.method === "POST") {
+          await deps.nativeTools.submitClaudeCode(await deps.readBody(req), lease); deps.sendJson(res, 202, { submitted: true });
+        } else if (operation === "login" && ["codex", "claude-code"].includes(runtimeId!) && req.method === "GET") {
+          deps.sendJson(res, 200, await deps.nativeTools.loginStatus(lease));
+        } else if (operation === "login" && ["codex", "claude-code"].includes(runtimeId!) && req.method === "DELETE") {
+          await deps.nativeTools.cancelDeviceLogin(lease); deps.sendJson(res, 200, { cancelled: true });
+        } else deps.sendJson(res, 405, { error: "method_not_allowed" });
         return true;
       }
       if (req.method === "POST" && pathname === `${prefix}/sessions`) {
@@ -95,6 +122,14 @@ export function createUnderstandingHandler(deps: Dependencies) {
         deps.sendJson(res, 200, await deps.service.revoke(id, grantId));
       } else if (req.method === "POST" && action === "turns" && !grantId) {
         const { runtime, ...input } = TurnRequestSchema.parse(await deps.readBody(req));
+        if (runtime.kind === "native" && deps.nativeTools && lease) {
+          await deps.ensureRuntimeScan();
+          const reasoner = await deps.nativeTools.reasoner(runtime.runtimeId, lease);
+          const settled = deps.nativeTools.watchTurn(id, runtime.runtimeId, lease, () => deps.service.cancel(id));
+          try { deps.sendJson(res, 202, await deps.service.turn(id, input, reasoner, settled)); }
+          catch (error) { settled(); throw error; }
+          return true;
+        }
         if (runtime.kind === "native" && deps.allowNativeExecution === false) {
           deps.sendJson(res, 403, { error: "runtime_identity_isolation_required", message: "所选本机 CLI 尚未完成账号级凭据隔离，未启动、未继承他人授权，也未切换付费 API。" });
           return true;
@@ -112,7 +147,8 @@ export function createUnderstandingHandler(deps: Dependencies) {
         deps.sendJson(res, 200, await deps.service.cancel(id, expectedTurnCount));
       } else deps.sendJson(res, 405, { error: "method_not_allowed" });
     } catch (error) {
-      if (error instanceof z.ZodError) deps.sendJson(res, 400, { error: "invalid_request", message: "请求格式不正确，请刷新会话状态后重试。" });
+      if (error instanceof NativeToolError) deps.sendJson(res, error.status, { error: error.code, message: "本账号工具授权或隔离检查未通过；未继承共享凭据，也未切换模型或付费通道。" });
+      else if (error instanceof z.ZodError) deps.sendJson(res, 400, { error: "invalid_request", message: "请求格式不正确，请刷新会话状态后重试。" });
       else if (error instanceof Error && /^native_understanding_[a-z_]+$/.test(error.message)) {
         deps.sendJson(res, 422, { error: "native_runtime_unavailable", message: "所选原生 Agent 尚未满足受控执行要求；未改用普通 CLI，请重新检查兼容性。" });
       }

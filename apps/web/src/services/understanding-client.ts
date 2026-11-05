@@ -8,7 +8,17 @@ import { readRuntimeConnection } from "../lib/runtime-connection";
 import { agentOrigin, ownedFetch, IdentityBoundaryError } from "../lib/identity";
 
 const SessionResponse = UnderstandingSessionSchema;
-const CapabilitiesResponse = z.object({ runtimes: z.array(z.object({ id: z.string(), name: z.string(), available: z.boolean(), supported: z.boolean(), reason: z.string().optional() })) });
+const CapabilitiesResponse = z.object({ runtimes: z.array(z.object({ id: z.string(), name: z.string(), available: z.boolean(), supported: z.boolean(), reason: z.string().optional(),
+  code: z.enum(["ready", "needs_authorization", "needs_verification", "authorization_pending", "not_installed", "adapter_missing", "sandbox_unavailable", "protocol_incompatible", "managed_policy_unavailable", "runtime_terminated"]).optional(),
+  authMethods: z.array(z.enum(["device", "browser", "api-key"])).optional(), authorized: z.boolean().optional(), model: z.string().optional(), verifiedAt: z.string().optional(), authorizationMode: z.enum(["native", "api-key"]).optional(),
+})) });
+const NativeLoginResponse = z.object({ state: z.enum(["pending", "complete", "failed"]),
+  verificationUrl: z.string().max(6000).refine(value => { const url = new URL(value); return /^https:\/\/auth\.openai\.com\/(?:codex\/)?device$/.test(value) || url.protocol === "https:" && !url.username && !url.password && !url.hash && !url.port && (url.hostname === "claude.ai" && url.pathname === "/oauth/authorize" || url.hostname === "claude.com" && url.pathname === "/cai/oauth/authorize"); }).optional(),
+  userCode: z.string().regex(/^[A-Z0-9]{4,6}-[A-Z0-9]{4,6}$/).optional(), expiresAt: z.number().optional(),
+  runtimeId: z.enum(["codex", "claude-code"]).optional(), acceptsCode: z.boolean().optional(),
+});
+export type NativeLoginState = z.infer<typeof NativeLoginResponse>;
+export type NativeApiAuthorization = { mode: "api-key"; apiKey: string; model: string; endpoint?: string; consent: true };
 
 export type UnderstandingRuntime = { kind: "model"; modelSettings: {
   provider: LlmConfig["provider"]; model: string; baseUrl: string; apiKey?: string; temperature?: number;
@@ -29,6 +39,12 @@ export interface UnderstandingClient {
   confirm(id: string, input: { expectedRevision: number; summaryHash: string }, signal?: AbortSignal): Promise<UnderstandingSession>;
   cancel(id: string, expectedTurnCount: number, signal?: AbortSignal): Promise<UnderstandingSession>;
   getCapabilities(signal?: AbortSignal): Promise<UnderstandingCapability[]>;
+  authorizeNative?(id: string, input: NativeApiAuthorization, signal?: AbortSignal): Promise<unknown>;
+  disconnectNative?(id: string, signal?: AbortSignal): Promise<unknown>;
+  startNativeLogin?(signal?: AbortSignal, id?: "codex" | "claude-code"): Promise<NativeLoginState>;
+  getNativeLogin?(signal?: AbortSignal, id?: "codex" | "claude-code"): Promise<NativeLoginState>;
+  cancelNativeLogin?(signal?: AbortSignal, id?: "codex" | "claude-code"): Promise<unknown>;
+  submitNativeCode?(code: string, signal?: AbortSignal): Promise<unknown>;
 }
 
 /** Resolve the connection per request; neither credentials nor model settings enter local history. */
@@ -61,7 +77,16 @@ export function createUnderstandingClient(options: { baseUrl?: string; fetch?: t
         422: "当前运行方式不支持本次请求，请检查模型或原生运行时能力。",
       };
       const code = payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string" ? payload.error : undefined;
-      throw new UnderstandingClientError(statusMessages[response.status] ?? "本次 Agent 操作未完成；输入已保留，可刷新状态后重试。", response.status, code);
+      const nativeMessages: Record<string, string> = {
+        authorization_required: "所选工具尚未获得本 BetterMe 账号授权，请在模型与工具中连接。",
+        sandbox_unavailable: "操作系统强制隔离未通过检查，工具没有启动，也不会降级运行。",
+        protocol_incompatible: "当前 CLI 版本未通过受控协议检查，未启动工具。",
+        managed_policy_unavailable: "Codex 在隔离中无法同步 macOS 管理策略。未忽略管理员限制，需要兼容版本或系统支持。",
+        runtime_terminated: "CLI 在隔离启动时被系统终止；不是未登录，未取消隔离重试。",
+        authorization_changed: "本账号的工具授权已变化，本轮没有继续执行。",
+        authorization_in_progress: "本账号已有另一个窗口正在授权；未接管该窗口的登录流程。",
+      };
+      throw new UnderstandingClientError(code && nativeMessages[code] || statusMessages[response.status] || "本次 Agent 操作未完成；输入已保留，可刷新状态后重试。", response.status, code);
     }
     const parsed = schema.safeParse(payload);
     if (!parsed.success) throw new UnderstandingClientError("Agent 返回的记录格式不完整，未采用；请刷新状态，当前输入仍保留。", response.status, "invalid_response");
@@ -78,6 +103,12 @@ export function createUnderstandingClient(options: { baseUrl?: string; fetch?: t
     confirm: (id, input, signal) => request(`${sessionPath(id)}/confirm`, SessionResponse, "POST", input, signal),
     cancel: (id, expectedTurnCount, signal) => request(`${sessionPath(id)}/cancel`, SessionResponse, "POST", { expectedTurnCount }, signal),
     getCapabilities: async signal => (await request("/capabilities", CapabilitiesResponse, "GET", undefined, signal)).runtimes,
+    authorizeNative: (id, input, signal) => request(`/native/${encodeURIComponent(id)}/authorization`, z.object({ saved: z.literal(true) }), "POST", input, signal),
+    disconnectNative: (id, signal) => request(`/native/${encodeURIComponent(id)}/authorization`, z.object({ disconnected: z.literal(true) }), "DELETE", undefined, signal),
+    startNativeLogin: (signal, id = "codex") => request(`/native/${id}/login`, NativeLoginResponse, "POST", { consent: true }, signal),
+    getNativeLogin: (signal, id = "codex") => request(`/native/${id}/login`, NativeLoginResponse, "GET", undefined, signal),
+    cancelNativeLogin: (signal, id = "codex") => request(`/native/${id}/login`, z.object({ cancelled: z.literal(true) }), "DELETE", undefined, signal),
+    submitNativeCode: (code, signal) => request("/native/claude-code/login-code", z.object({ submitted: z.literal(true) }), "POST", { code }, signal),
   };
 }
 export const defaultUnderstandingClient = createUnderstandingClient();

@@ -67,7 +67,11 @@ export type UnderstandingSession = {
   confirmation?: { revision: number; summaryHash: string; confirmedAt: string };
   error?: { code: string; message: string; recoverable: boolean };
 };
-export type UnderstandingCapability = { id: string; name: string; available: boolean; supported: boolean; reason?: string };
+export type UnderstandingCapability = {
+  id: string; name: string; available: boolean; supported: boolean; reason?: string;
+  code?: "ready" | "needs_authorization" | "needs_verification" | "authorization_pending" | "not_installed" | "adapter_missing" | "sandbox_unavailable" | "protocol_incompatible" | "managed_policy_unavailable" | "runtime_terminated";
+  authMethods?: ("device" | "browser" | "api-key")[]; authorized?: boolean; model?: string; verifiedAt?: string; authorizationMode?: "native" | "api-key";
+};
 
 /** Validate persisted / HTTP state before rendering it or reusing its consensus. */
 export const UnderstandingSessionSchema = z.object({

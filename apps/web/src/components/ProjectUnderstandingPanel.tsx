@@ -12,6 +12,7 @@ import { useBetterMeAgent } from "../lib/betterme-agent/react";
 import { ProjectContributionReview } from "./ProjectContributionReview";
 import { AgentExecutionLog } from "./AgentExecutionLog";
 import { useAgentSidebar } from "./AgentSidebar";
+import { nativeToolStatus } from "../lib/native-tool-status";
 
 type Props = {
   workspaceKey: string; projectKey: string; label: string; sourceText: string; config: LlmConfig;
@@ -146,6 +147,14 @@ export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sou
   useEffect(() => { setConsent(false); }, [chatGpt?.profileId, chatGpt?.model, chatGpt?.ready]);
   const accountAgentSelected = Boolean(chatGpt);
   const preferredReader = sidebar?.readerRuntime ?? "model";
+  useEffect(() => {
+    const controller = new AbortController();
+    const refresh = () => { void client.getCapabilities(controller.signal).then(value => {
+      if (!controller.signal.aborted) { setCapabilities(value); setCapabilityError(""); }
+    }).catch(() => { if (!controller.signal.aborted) setCapabilityError("工具状态尚未确认，请在模型与工具中刷新；不会自动切换。"); }); };
+    window.addEventListener("betterme:native-tools-changed", refresh);
+    return () => { controller.abort(); window.removeEventListener("betterme:native-tools-changed", refresh); };
+  }, [client]);
   useEffect(() => { setRuntime(preferredReader === "model" ? accountAgentSelected ? "chatgpt" : "model" : preferredReader); setConsent(false); }, [accountAgentSelected, preferredReader]);
   const running = session?.phase === "running";
   const runningCallback = useRef(onRunningChange); runningCallback.current = onRunningChange;
@@ -220,7 +229,7 @@ export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sou
   });
   const token = session?.summaryHash ? `${session.revision}:${session.summaryHash}` : "";
   const selectedNative = capabilities.find(item => item.id === runtime);
-  const runtimeReady = runtime === "chatgpt" ? Boolean(chatGpt?.ready) : runtime === "model" ? Boolean(config.model.trim() && config.baseUrl.trim() && (config.provider === "ollama" || config.apiKey?.trim())) : Boolean(selectedNative?.available && selectedNative.supported);
+  const runtimeReady = (runtime === "chatgpt" ? Boolean(chatGpt?.ready) : runtime === "model" ? Boolean(config.model.trim() && config.baseUrl.trim() && (config.provider === "ollama" || config.apiKey?.trim())) : Boolean(selectedNative?.available && selectedNative.supported));
   const busy = initializing || Boolean(operation);
   const lastEvent = session?.events.at(-1);
   const lastTerminal = session?.events.map(event => event.kind).reduce((last, kind, index) => ["waiting", "completed", "error", "cancelled"].includes(kind) ? index : last, -1) ?? -1;
@@ -292,7 +301,7 @@ export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sou
       {options.length > 0 && <button type="button" onClick={() => setOptions([])}>清除选择</button>}
     </fieldset>}
     <div className="understanding-compose"><label htmlFor={`${uid}-answer`}>{session?.understanding ? "补充或纠正理解" : "用自己的话说说这个项目（也可以先让 Agent 提问）"}</label><textarea id={`${uid}-answer`} data-agent-guide="understanding-answer" rows={3} maxLength={16000} value={answer} onChange={event => setAnswer(event.target.value)} placeholder="例如：这个词在我们的项目里不是这个意思……也可以说明不确定、暂时跳过，或直接提出新的问题。" />
-      <label htmlFor={`${uid}-runtime`}>本轮使用</label><select id={`${uid}-runtime`} value={runtime} disabled={running || busy} onChange={event => { setRuntime(event.target.value); sidebar?.setReaderRuntime(["model", "chatgpt"].includes(event.target.value) ? "model" : event.target.value); setConsent(false); }}><option value="model">当前模型 · {config.model || "尚未配置"}</option><option value="chatgpt">ChatGPT 账号授权 · {chatGpt?.model || "请在上方伴写 Agent 中授权并选模型"}</option>{capabilities.map(item => <option key={item.id} value={item.id} disabled={!item.available || !item.supported}>{item.name}{!item.supported || !item.available ? " · 暂不可用" : " · 原生 Agent"}</option>)}</select>
+      <label htmlFor={`${uid}-runtime`}>本轮使用</label><select id={`${uid}-runtime`} value={runtime} disabled={running || busy} onChange={event => { setRuntime(event.target.value); sidebar?.setReaderRuntime(["model", "chatgpt"].includes(event.target.value) ? "model" : event.target.value); setConsent(false); }}><option value="model">当前模型 · {config.model || "尚未配置"}</option><option value="chatgpt">ChatGPT 账号授权 · {chatGpt?.model || "请在上方伴写 Agent 中授权并选模型"}</option>{capabilities.map(item => <option key={item.id} value={item.id} disabled={!item.available || !item.supported}>{item.name}{` · ${nativeToolStatus(item)}`}</option>)}</select>
       {runtime === "chatgpt" && <p className="understanding-hint">使用上方选择的 ChatGPT 账号与套餐。额度或授权异常时停止，不使用当前 API 配置补发。</p>}
       {capabilityError && <p className="understanding-hint">{capabilityError}</p>}{capabilities.some(item => !item.available || !item.supported) && <details><summary>本机 Agent 兼容性</summary>{capabilities.filter(item => !item.available || !item.supported).map(item => <p className="understanding-hint" key={item.id}>{item.name}：{item.reason ?? "当前环境不支持此只读工作流"}</p>)}</details>}
       {!runtimeReady && <p className="understanding-hint">请先完成当前模型配置，或选择明确可用的原生 Agent。不会自动改用其他提供方。</p>}

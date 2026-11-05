@@ -44,6 +44,8 @@ import type { CareerApproval } from "./graphs/career/state.js";
 import { resolveCheckpointPath } from "./checkpointer.js";
 import { ProjectUnderstandingService } from "./understanding/service.js";
 import { createUnderstandingHandler, type UnderstandingRuntime } from "./understanding/http.js";
+import { NativeAccountTools } from "./native-tools/service.js";
+import type { NativeProcessRunner } from "./native-tools/process.js";
 import type { UnderstandingReasoner } from "@better-me/agent-contracts";
 import { ChatGptPlanService } from "./chatgpt/service.js";
 import { createChatGptHandler } from "./chatgpt/http.js";
@@ -134,6 +136,8 @@ export interface ServerOptions {
   oidc?: OidcOptions;
   /** Trusted single-OS-user embedding only. Not exposed by CLI or HTTP. Unsafe for account isolation. */
   trustedSingleUserRuntimeExecution?: boolean;
+  /** Trusted synthetic regression seam only; no HTTP-provided executables/runners. */
+  nativeProcessRunner?: NativeProcessRunner;
 }
 
 function jsonResponse(res: http.ServerResponse, status: number, body: unknown): void {
@@ -189,17 +193,28 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     const chatGpt = new ChatGptPlanService({ directory: path.join(root, "chatgpt"), authorizationUnavailableReason: opts.chatGptAuthorizationUnavailableReason });
     // A trusted injected fixture is single-owner only; it can never become a shared credential service.
     const provider: ChatGptPlanService = opts.chatGptService && owners.size === 0 ? opts.chatGptService : chatGpt;
-    return { understanding, chatGpt: provider, recovery, store: new OwnedStore(path.join(root, "records"), principal.id,
+    const nativeTools = new NativeAccountTools({ directory: path.join(root, "native-tools-v1"), registry: understandingRegistry, runner: opts.nativeProcessRunner });
+    return { understanding, nativeTools, chatGpt: provider, recovery, store: new OwnedStore(path.join(root, "records"), principal.id,
       (namespace, key) => namespace === "continuity" ? recovery.continuity(key) : Promise.resolve(undefined)),
       runManager: new AgentRunManager({ registry: runtimeRegistry, rootDirectory: path.join(root, "runs"), sandboxMode: opts.sandboxMode }),
       handleChatGpt: createChatGptHandler({ service: provider, allowedOrigins: opts.allowedOrigins, readBody, sendJson: jsonResponse }),
       handleUnderstanding: createUnderstandingHandler({ service: understanding, registry: understandingRegistry,
+        nativeTools: opts.trustedSingleUserRuntimeExecution ? undefined : nativeTools,
         allowNativeExecution: opts.trustedSingleUserRuntimeExecution === true,
         ensureRuntimeScan: async () => { await understandingRegistry.discoverExecutables(); }, readBody, sendJson: jsonResponse, reasoner: opts.understandingReasoner, chatGpt: provider }),
     };
   }
   const owners = new Map<string, ReturnType<typeof makeOwner>>();
   const ownerStreams = new Map<string, Set<http.ServerResponse>>();
+  const capabilitySession = (cookie: string | undefined) => createHash("sha256")
+    .update((cookie ?? "").split(";").map(item => item.trim()).find(item => item.startsWith("betterme_session=")) ?? "").digest("hex");
+  const invalidateCapabilitySession = async (cookie: string | undefined) => {
+    if (!cookie) return;
+    const previous = await identities.authenticate(cookie);
+    if (previous) {
+      await owners.get(previous.id)?.nativeTools.invalidateSession(capabilitySession(cookie));
+    }
+  };
 
   async function ensureRuntimeScan(): Promise<void> {
     if (runtimeRegistry.list().length > 0) return;
@@ -235,6 +250,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       try {
         const result = await oidc.complete(url.search, req.headers.cookie);
         if ("token" in result) {
+          await invalidateCapabilitySession(req.headers.cookie);
           res.setHeader("Set-Cookie", identities.cookie(result.token, new URL(oidc.options.callbackUrl).protocol === "https:"));
         }
         res.writeHead(303, { Location: result.redirect, "Referrer-Policy": "no-referrer" }); res.end();
@@ -259,6 +275,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       if (req.method === "POST" && ["/api/v1/agent/identity/register", "/api/v1/agent/identity/sign-in"].includes(pathname)) {
         oidc?.cancel(req.headers.cookie);
         const result = await identities.signIn(await readBody(req), pathname.endsWith("/register"), req.socket.remoteAddress ?? "local");
+        await invalidateCapabilitySession(req.headers.cookie);
         res.setHeader("Set-Cookie", identities.cookie(result.token, Boolean(origin && new URL(origin).protocol === "https:")));
         return jsonResponse(res, 200, { principal: result.principal, expiresAt: result.expiresAt });
       }
@@ -278,6 +295,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
         await identities.loginMethods(req.headers.cookie, principal.id, oidc?.options.issuer));
       if (req.method === "POST" && pathname === "/api/v1/agent/identity/sign-out") {
         oidc?.cancel(req.headers.cookie);
+        await invalidateCapabilitySession(req.headers.cookie);
         await identities.signOut(req.headers.cookie); res.setHeader("Set-Cookie", identities.clearCookie());
         for (const stream of ownerStreams.get(principal.id) ?? []) stream.end();
         return jsonResponse(res, 200, { signedOut: true });
@@ -293,7 +311,8 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       // Namespacing also includes workflow kind; equal client IDs never alias across people or graphs.
       const thread = (kind: string, id: string) => createHash("sha256").update(JSON.stringify([principal.id, kind, id])).digest("hex");
       if (await handleChatGpt(req, res, pathname)) return;
-      if (await handleUnderstanding(req, res, pathname)) return;
+      if (await handleUnderstanding(req, res, pathname, { session: capabilitySession(req.headers.cookie),
+        valid: async () => (await identities.authenticate(req.headers.cookie))?.id === principal.id })) return;
       const recordMatch = pathname.match(/^\/api\/v1\/agent\/records\/(continuity|growth)$/);
       if (recordMatch) {
         const namespace = recordMatch[1] as "continuity" | "growth";
@@ -592,7 +611,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     }
   });
 
-  server.once("close", () => { for (const owner of owners.values()) { void owner.understanding.dispose(); owner.chatGpt.dispose(); } });
+  server.once("close", () => { for (const owner of owners.values()) { void owner.nativeTools.close(); void owner.understanding.dispose(); owner.chatGpt.dispose(); } });
   server.listen(opts.port, opts.host, () => {
     console.log(`[agent-host] listening on http://${opts.host}:${opts.port}`);
   });
