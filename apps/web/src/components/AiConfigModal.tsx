@@ -282,6 +282,7 @@ const PRESETS = [
         </div>
 
         {/* Quick Presets */}
+        <div className="ai-config-scroll" role="region" aria-label={t("模型配置表单", "Model configuration form")} tabIndex={0}>
         <fieldset disabled={saving || testing} className="ai-config-body">
           <div className="ai-config-section rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 sm:p-4">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -492,7 +493,7 @@ const PRESETS = [
                   placeholder={t("例如：deepseek-flash, deepseek-v4-pro", "For example: deepseek-flash, deepseek-v4-pro")}
                 />
               ) : (
-                <div className="flex min-w-0 flex-wrap gap-2 sm:flex-nowrap">
+                <div className="ai-config-model-row flex min-w-0 flex-wrap gap-2 sm:flex-nowrap">
                   <select
                     id="ai-model"
                     value={formData.model}
@@ -535,11 +536,11 @@ const PRESETS = [
                 </p>
               )}
               {availableModels.length === 0 && (
-                <p className="text-[10px] text-slate-500 mt-1">
+                <p className="ai-config-model-help text-[11px] text-slate-500 mt-2">
                   {t("预设名称仅作示例，可能已变更或停用。请获取列表或按服务商文档手动填写。", "Preset names are examples and may change or be retired. Retrieve the list or enter a name from the provider's documentation.")}
                 </p>
               )}
-              <p className="text-[10px] text-slate-500 mt-1">
+              <p className="ai-config-model-help text-[11px] text-slate-500 mt-2">
                 {t("AI 请求跟随浏览器与系统代理／TUN；“网络与代理”中的岗位连接设置不作用于此处。刷新列表后保留当前模型，由你选择是否更换。", "AI requests use the browser and system proxy/TUN. Job connection settings in Network & proxy do not apply here. Refreshing the list keeps your current model until you choose another.")}
               </p>
             </div>
@@ -619,8 +620,9 @@ const PRESETS = [
           </p>
         )}
 
+        </div>
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 pt-1">
+        <div className="ai-config-footer flex items-center justify-end gap-2 pt-1">
           <button
             type="button"
             onClick={handleClose}

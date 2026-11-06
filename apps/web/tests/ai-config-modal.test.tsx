@@ -83,6 +83,18 @@ async function mount(policy: (request: Request, index: number) => Response | Pro
   return { calls, saved, render };
 }
 
+test("the scroll region owns all form content while footer actions remain outside", async () => {
+  await mount();
+  const scroll = dom.document.querySelector(".ai-config-scroll")!;
+  const footer = dom.document.querySelector(".ai-config-footer")!;
+  assert.ok(scroll.contains(modelSelect()));
+  assert.ok(scroll.querySelector(".ai-config-checks"));
+  assert.ok(scroll.querySelector(".ai-config-privacy"));
+  assert.equal(scroll.contains(footer), false);
+  assert.ok(footer.contains(button("保存配置")));
+  assert.equal(scroll.getAttribute("tabindex"), "0");
+});
+
 afterEach(async () => {
   await flush(() => { root?.unmount(); root = undefined; });
   globalThis.fetch = originalFetch;
@@ -195,7 +207,7 @@ test("API Key 默认隐藏，主动显示后关闭重开仍隐藏且不自动请
   assert.equal(keyInput().type, "password");
   assert.equal(keyInput().value, config.apiKey);
   assert.equal(keyInput().autocomplete, "off");
-  await click("显示");
+  await click("显示 API Key");
   assert.equal(keyInput().type, "text");
   await click("取消");
   await render();
