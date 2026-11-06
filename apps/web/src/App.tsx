@@ -382,7 +382,13 @@ export function App() {
   return <BetterMeAgentProvider workspaceKey={doc.documentId ?? activeResume.id}><AgentSidebarProvider><div className="studio-app compact-chrome">
     <AgentSourceBridge sources={agentSources} />
     <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".json" className="hidden" />
-    <aside className="studio-rail no-print" aria-label={t("工作室导航", "Workspace navigation")}>
+    <aside className="studio-rail no-print" aria-label={t("工作室导航", "Workspace navigation")} onClickCapture={event => {
+      const button = (event.target as HTMLElement).closest('button[aria-pressed]');
+      if (button && window.matchMedia("(max-width: 940px)").matches) {
+        window.scrollTo({ top: 0, behavior: "instant" });
+        button.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" });
+      }
+    }}>
       <a className="studio-monogram" href="#" aria-label={t("BetterMe 简历工作室", "BetterMe resume studio")} onClick={(event) => { event.preventDefault(); setPage("resume"); setWorkspaceTab("content"); }}>b<span>m</span><i /></a><div className="rail-divider" />
       <button aria-label={t("内容编辑", "Content editor")} aria-pressed={page === "resume" && workspaceTab === "content"} className={page === "resume" && workspaceTab === "content" ? "active" : ""} onClick={() => { setPage("resume"); setWorkspaceTab("content"); }}><FileText size={20} /><span>{t("内容", "Content")}</span></button>
       <button aria-label={t("排版设计", "Resume design")} aria-pressed={page === "resume" && workspaceTab === "design"} className={page === "resume" && workspaceTab === "design" ? "active" : ""} onClick={() => { setPage("resume"); setWorkspaceTab("design"); }}><Palette size={20} /><span>{t("设计", "Design")}</span></button>
@@ -422,13 +428,14 @@ export function App() {
             {(["zh", "en"] as const).map((locale) => <button key={locale} aria-pressed={activeResume.locale === locale} className={activeResume.locale === locale ? "active" : ""} onClick={() => setResumeLocale(locale)}>{locale === "zh" ? "中文" : "English"}</button>)}
           </div>
           {!autoSaveSettings.enabled && <button className="studio-button subtle" onClick={() => void flush()}><Check size={14} />{t("立即保存", "Save now")}</button>}
-          <button className="studio-button subtle" onClick={refreshJobRecommendations}><Sparkles size={14} />{t("寻找匹配岗位", "Find matching roles")}</button>
+          <button className="studio-button subtle document-match-action" onClick={refreshJobRecommendations}><Sparkles size={14} />{t("寻找匹配岗位", "Find matching roles")}</button>
           <button className="studio-button subtle" onClick={() => setIsImportModalOpen(true)}><Upload size={14} />{t("导入简历", "Import resume")}</button>
           <div className="document-menu" ref={menuRef}><button className="studio-button icon-button" aria-label={t("更多简历操作", "More resume actions")} aria-expanded={isMenuOpen} onClick={() => setIsMenuOpen(!isMenuOpen)}><MoreHorizontal size={19} /></button>{isMenuOpen && <div className="document-dropdown">
             <label className="document-rename">{t("简历名称", "Resume name")}<input aria-label={t("简历名称", "Resume name")} value={activeResume.name === "Default" ? t("我的简历", "My resume") : activeResume.name} onChange={event => updateResume({ ...activeResume, name: event.target.value })} /></label>
             <button onClick={() => { if (docRef.current) edit(addResumeView(docRef.current)); setIsMenuOpen(false); }}><FileText size={14} />{t("新建简历", "New resume")}</button>
             <button onClick={() => { if (docRef.current) edit(duplicateResumeView(docRef.current, activeResume.id)); setIsMenuOpen(false); }}><FileText size={14} />{t("复制当前简历", "Duplicate resume")}</button>
             <button onClick={() => { setIsHistoryOpen(true); setIsMenuOpen(false); }}><GitBranch size={14} />{t("历史版本", "Version history")}</button>
+            <button className="mobile-match-action" onClick={() => { refreshJobRecommendations(); setIsMenuOpen(false); }}><Sparkles size={14} />{t("寻找匹配岗位", "Find matching roles")}</button>
             <hr /><button onClick={handleExportBackup}><Download size={14} />{t("下载 JSON 备份", "Download JSON backup")}</button><button onClick={() => fileInputRef.current?.click()}><RotateCcw size={14} />{t("从备份恢复", "Restore backup")}</button>
             <hr /><span className="document-danger-label">{t("谨慎操作", "Use with care")}</span><button className="document-danger-action" disabled={doc.resumeViews.length <= 1} onClick={() => void deleteResumeView(activeResume.id)}>{t("删除当前简历版本", "Delete current resume")}</button><button className="document-danger-action" onClick={() => void resetDemo()}><RotateCcw size={14} />{t("恢复演示简历", "Reset demo resume")}</button></div>}</div>
         </div>

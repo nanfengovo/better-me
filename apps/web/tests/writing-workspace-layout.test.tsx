@@ -58,6 +58,26 @@ test("insufficient workspace width switches editor and preview without replacing
   assert.equal(dom.document.querySelector<HTMLElement>("#resume-preview-panel")?.hidden, false, "returning to narrow width retains the chosen view");
 });
 
+test("tablet viewport remains single-pane even when both panes could fit", async () => {
+  const originalWidth = dom.innerWidth;
+  try {
+    Object.defineProperty(dom, "innerWidth", { configurable: true, value: 900 });
+    width = 868;
+    await render();
+    const input = dom.document.querySelector("textarea");
+    assert.equal(dom.document.querySelector("main")?.getAttribute("data-workspace-layout"), "single");
+    await React.act(async () => {
+      Object.defineProperty(dom, "innerWidth", { configurable: true, value: 1440 });
+      width = 1260;
+      for (const callback of resize) callback();
+    });
+    assert.equal(dom.document.querySelector("main")?.getAttribute("data-workspace-layout"), "split");
+    assert.equal(dom.document.querySelector("textarea"), input);
+  } finally {
+    Object.defineProperty(dom, "innerWidth", { configurable: true, value: originalWidth });
+  }
+});
+
 test("locating an Agent source leaves preview-only mode and keeps the same unsent editor draft", async () => {
   await render();
   const input = dom.document.querySelector("textarea")!;

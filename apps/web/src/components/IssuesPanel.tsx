@@ -33,8 +33,8 @@ export function IssuesPanel({ issues, factBase, onNavigate, activeIssue }: Props
 
   return (
     <div className="no-print rounded-xl border border-amber-200/90 bg-amber-50/80 shadow-2xs overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
-        <div className="flex items-center gap-2">
+      <div className="issues-summary flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
+        <div className="issues-summary-copy flex items-center gap-2">
           <ShieldAlert className="h-4 w-4 text-amber-600" />
           <span className="text-xs font-bold text-amber-900">
             {t("内容检查：", "Content review:")}</span>

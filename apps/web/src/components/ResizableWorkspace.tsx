@@ -17,10 +17,11 @@ export function ResizableWorkspace({ children: [editor, preview] }: Props) {
     catch { return DEFAULT_EDITOR_PERCENT; }
   });
   const [availableWidth, setAvailableWidth] = useState(1000);
+  const [compactViewport, setCompactViewport] = useState(() => window.innerWidth <= 940);
   const [view, setView] = useState<"editor" | "preview">("editor");
   const viewId = useId();
   // Minimum usable content widths, excluding the splitter: editor 360 + preview 420.
-  const split = availableWidth >= 780;
+  const split = availableWidth >= 780 && !compactViewport;
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef<{ pointerId: number; percent: number } | null>(null);
   const percent = clampWorkspaceSplit(preferredPercent, availableWidth);
@@ -41,6 +42,7 @@ export function ResizableWorkspace({ children: [editor, preview] }: Props) {
     const container = containerRef.current;
     if (!container) return;
     const measure = () => {
+      setCompactViewport(window.innerWidth <= 940);
       const styles = getComputedStyle(container);
       setAvailableWidth(Math.max(1, container.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight) - SPLIT_HANDLE_WIDTH));
       if (container.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight) < 800 && dragRef.current) {
