@@ -160,6 +160,17 @@ test("dragging stays inside viewport bounds, ends on release and resets after re
   await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointerup", { bubbles: true })));
   await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, clientX: -4000, clientY: -4000 })));
   assert.equal(window.style.getPropertyValue("--window-x"), "16px");
+  const maximize = window.querySelector<HTMLButtonElement>(".os-traffic button:nth-child(3)")!;
+  await flush(() => maximize.click());
+  await flush(() => maximize.click());
+  assert.equal(window.style.getPropertyValue("--window-x"), "16px");
+  assert.equal(window.style.getPropertyValue("--window-y"), "30px");
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointerdown", { bubbles: true, button: 0, clientX: 400, clientY: 70 })));
+  assert.equal(window.dataset.dragging, "true");
+  await flush(() => dom.dispatchEvent(new dom.Event("blur")));
+  assert.equal(window.dataset.dragging, "false");
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, clientX: -4000, clientY: -4000 })));
+  assert.equal(window.style.getPropertyValue("--window-x"), "16px");
   await flush(() => dom.dispatchEvent(new dom.Event("resize")));
   assert.equal(window.style.getPropertyValue("--window-x"), "0px");
   assert.equal(window.style.getPropertyValue("--window-y"), "0px");
