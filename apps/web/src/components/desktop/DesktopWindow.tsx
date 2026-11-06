@@ -25,7 +25,10 @@ export function DesktopWindow({ title, children, hidden = false, inactive = fals
     const d = drag.current;
     if (d) setPosition({ x: Math.max(d.minX, Math.min(d.maxX, d.left + event.clientX - d.x)), y: Math.max(d.minY, Math.min(d.maxY, d.top + event.clientY - d.y)) });
   }
-  function toggleMaximized() { setPosition({ x: 0, y: 0 }); setMaximized(value => !value); }
+  function toggleMaximized() {
+    if (window.matchMedia("(max-width: 940px)").matches) return;
+    setPosition({ x: 0, y: 0 }); setMaximized(value => !value);
+  }
   return <section ref={node} className={`os-window ${settings ? "os-settings-window" : "os-business-window"}${maximized ? " is-maximized" : ""}`} aria-label={title} data-hidden={hidden} inert={hidden || inactive} style={{ "--window-x": `${position.x}px`, "--window-y": `${position.y}px` } as CSSProperties}>
     <header className="os-window-toolbar no-print" onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }} onLostPointerCapture={() => { drag.current = null; }} onDoubleClick={event => { if (!(event.target as HTMLElement).closest("button")) toggleMaximized(); }}>
       <div className="os-traffic" aria-label={t("窗口操作", "Window controls")}>

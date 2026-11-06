@@ -22,7 +22,11 @@ export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, 
   function focusDock(id: string) { shell.current?.querySelector<HTMLButtonElement>(`[data-dock-app="${id}"]`)?.focus({ preventScroll: true }); }
   function closeSettings() { setSettingsOpen(false); focusDock("settings"); }
   function navigate(next: DesktopPage) { setSettingsOpen(false); setMainHidden(false); onNavigate(next); }
-  return <div ref={shell} className="os-desktop" data-wallpaper={wallpaper} data-reduced-motion={reduceMotion}>
+  return <div ref={shell} className="os-desktop" data-wallpaper={wallpaper} data-reduced-motion={reduceMotion} onKeyDown={event => {
+    if (event.key === "Escape" && !event.defaultPrevented && settingsOpen && (event.target as HTMLElement).closest(".os-settings-window")) {
+      event.stopPropagation(); closeSettings();
+    }
+  }}>
     <div className="os-wallpaper no-print" aria-hidden="true" />
     <header className="os-menubar no-print">
       <button type="button" className="os-system-brand" onClick={() => navigate("resume")} aria-label={t("返回简历工作室", "Go to resume studio")}><span>b</span>BetterMe</button>

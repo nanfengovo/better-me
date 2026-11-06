@@ -15,6 +15,7 @@ export function DesktopDock({ page, settingsOpen, onNavigate, onSettings }: { pa
   const dock = useRef<HTMLElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const pointer = useRef<number | null>(null);
+  const hovered = useRef(false);
   const animate = useRef<() => void>(() => {});
   const items = [
     { id: "resume", label: t("简历", "Resume") }, { id: "agent", label: "Agent" },
@@ -65,13 +66,17 @@ export function DesktopDock({ page, settingsOpen, onNavigate, onSettings }: { pa
   }, [reduceMotion]);
   function reveal() { clearTimeout(timer.current); setVisible(true); }
   function hideLater() {
-    clearTimeout(timer.current); pointer.current = null; animate.current();
-    timer.current = setTimeout(() => { if (!dock.current?.querySelector(":focus-visible")) setVisible(false); }, 200);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      if (!hovered.current && !dock.current?.contains(document.activeElement)) setVisible(false);
+    }, 200);
   }
+  function enter() { hovered.current = true; reveal(); }
+  function leave() { hovered.current = false; pointer.current = null; animate.current(); hideLater(); }
   function move(event: PointerEvent) { if (event.pointerType === "mouse") { pointer.current = event.clientX; animate.current(); } }
   return <div className="os-dock-system no-print" data-auto-hide={dockAutoHide} data-visible={visible}>
-    <div className="os-dock-edge" aria-hidden="true" onPointerEnter={reveal} onPointerLeave={hideLater} />
-    <nav className="os-dock" ref={dock} aria-label={t("应用程序 Dock", "Application Dock")} onPointerEnter={reveal} onPointerMove={move} onPointerLeave={hideLater} onFocus={event => { if ((event.target as HTMLElement).matches(":focus-visible")) reveal(); }} onBlur={hideLater}>
+    <div className="os-dock-edge" aria-hidden="true" onPointerEnter={enter} onPointerLeave={leave} />
+    <nav className="os-dock" ref={dock} aria-label={t("应用程序 Dock", "Application Dock")} onPointerEnter={enter} onPointerMove={move} onPointerLeave={leave} onFocus={reveal} onBlur={hideLater}>
       {items.map(item => <button key={item.id} type="button" data-dock-app={item.id} aria-label={item.label} aria-pressed={item.id === "settings" ? settingsOpen : !settingsOpen && page === item.id} onClick={() => item.id === "settings" ? onSettings() : onNavigate(item.id)}>
         <span className="os-app-icon"><img src={desktopIcons[item.id]} width={256} height={256} alt="" draggable={false} /></span>
         <span className="os-dock-label">{item.label}</span><span className="os-running-dot" />

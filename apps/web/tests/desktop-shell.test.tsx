@@ -90,6 +90,54 @@ test("Dock reveals at the edge and hides after the leave delay", async () => {
   await act(async () => { await delay(240); });
   assert.equal(system.getAttribute("data-visible"), "false");
 });
+test("crossing the Dock edge cancels the pending hide and focused controls stay revealed", async () => {
+  await mount();
+  const edge = dom.document.querySelector(".os-dock-edge")!;
+  const dock = dom.document.querySelector(".os-dock")!;
+  const system = dom.document.querySelector(".os-dock-system")!;
+  await flush(() => edge.dispatchEvent(new dom.PointerEvent("pointerover", { bubbles: true })));
+  await flush(() => edge.dispatchEvent(new dom.PointerEvent("pointerout", { bubbles: true })));
+  await flush(() => dock.dispatchEvent(new dom.PointerEvent("pointerover", { bubbles: true })));
+  await act(async () => { await delay(240); });
+  assert.equal(system.getAttribute("data-visible"), "true");
+  await flush(() => button("简历").focus());
+  await flush(() => dock.dispatchEvent(new dom.PointerEvent("pointerout", { bubbles: true })));
+  await act(async () => { await delay(240); });
+  assert.equal(system.getAttribute("data-visible"), "true");
+  await flush(() => button("返回简历工作室").focus());
+  await act(async () => { await delay(240); });
+  assert.equal(system.getAttribute("data-visible"), "false");
+});
+test("moving keyboard focus away does not hide a hovered Dock", async () => {
+  await mount();
+  const dock = dom.document.querySelector(".os-dock")!;
+  await flush(() => dock.dispatchEvent(new dom.PointerEvent("pointerover", { bubbles: true })));
+  await flush(() => button("简历").focus());
+  await flush(() => button("返回简历工作室").focus());
+  await act(async () => { await delay(240); });
+  assert.equal(dom.document.querySelector(".os-dock-system")!.getAttribute("data-visible"), "true");
+});
+test("Escape closes settings and returns focus without replacing the draft", async () => {
+  await mount(); const editor = dom.document.querySelector("textarea");
+  await click("打开系统设置");
+  await flush(() => dom.document.activeElement!.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+  assert.equal(dom.document.querySelector(".os-settings-window")!.getAttribute("data-hidden"), "true");
+  assert.equal(dom.document.activeElement, button("系统设置"));
+  assert.equal(dom.document.querySelector("textarea"), editor);
+});
+test("mobile titlebar double clicks cannot enable desktop maximization", async () => {
+  const matchMedia = dom.matchMedia.bind(dom);
+  dom.matchMedia = ((query: string) => {
+    const result = matchMedia(query);
+    if (query === "(max-width: 940px)") Object.defineProperty(result, "matches", { value: true });
+    return result;
+  }) as typeof dom.matchMedia;
+  try {
+    await mount();
+    await flush(() => dom.document.querySelector(".os-business-window .os-window-toolbar")!.dispatchEvent(new dom.MouseEvent("dblclick", { bubbles: true })));
+    assert.equal(dom.document.querySelector(".os-business-window")!.classList.contains("is-maximized"), false);
+  } finally { dom.matchMedia = matchMedia; }
+});
 test("window maximize and restore do not replace the editor", async () => {
   await mount(); const editor = dom.document.querySelector("textarea");
   const control = dom.document.querySelector<HTMLButtonElement>(".os-business-window .os-traffic button:nth-child(3)")!;
@@ -98,6 +146,23 @@ test("window maximize and restore do not replace the editor", async () => {
   await flush(() => control.click());
   assert.equal(dom.document.querySelector(".os-business-window")!.classList.contains("is-maximized"), false);
   assert.equal(dom.document.querySelector("textarea"), editor);
+});
+test("dragging stays inside viewport bounds, ends on release and resets after resizing", async () => {
+  await mount();
+  const window = dom.document.querySelector<HTMLElement>(".os-business-window")!;
+  const toolbar = window.querySelector<HTMLElement>(".os-window-toolbar")!;
+  Object.defineProperty(window, "getBoundingClientRect", { value: () => ({ left: 24, top: 56, right: dom.innerWidth - 24, bottom: dom.innerHeight - 42 }) });
+  Object.defineProperty(toolbar, "setPointerCapture", { value: () => {} });
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointerdown", { bubbles: true, button: 0, clientX: 400, clientY: 70 })));
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, clientX: 4000, clientY: 4000 })));
+  assert.equal(window.style.getPropertyValue("--window-x"), "16px");
+  assert.equal(window.style.getPropertyValue("--window-y"), "30px");
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointerup", { bubbles: true })));
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, clientX: -4000, clientY: -4000 })));
+  assert.equal(window.style.getPropertyValue("--window-x"), "16px");
+  await flush(() => dom.dispatchEvent(new dom.Event("resize")));
+  assert.equal(window.style.getPropertyValue("--window-x"), "0px");
+  assert.equal(window.style.getPropertyValue("--window-y"), "0px");
 });
 test("reduced motion skips pointer animation and Dock buttons remain keyboard focusable", async () => {
   dom.localStorage.setItem(UI_PREFERENCES_KEY, '{"reduceMotion":true}'); await mount();
