@@ -282,7 +282,7 @@ const PRESETS = [
         </div>
 
         {/* Quick Presets */}
-        <fieldset disabled={saving || testing} className="contents">
+        <fieldset disabled={saving || testing} className="ai-config-body">
           <div className="ai-config-section rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 sm:p-4">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
               {t("模型服务商预设", "Provider presets")}
@@ -295,6 +295,7 @@ const PRESETS = [
                   <button
                     key={p.name}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => handleApplyPreset(p)}
                     className={`rounded-xl border p-2 text-left text-xs transition ${
                       active
@@ -413,6 +414,9 @@ const PRESETS = [
                   )}
                   <button
                     type="button"
+                    aria-controls="ai-api-key"
+                    aria-pressed={showKey}
+                    aria-label={showKey ? t("隐藏 API Key", "Hide API key") : t("显示 API Key", "Show API key")}
                     onClick={() => setShowKey(!showKey)}
                     className="shrink-0 text-[11px] text-slate-400 hover:text-slate-600"
                   >
