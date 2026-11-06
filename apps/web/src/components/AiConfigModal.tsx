@@ -551,17 +551,17 @@ const PRESETS = [
                 <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("连接验证", "Connection checks")}</span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="ai-config-check-actions">
                 <button
                   type="button"
                   onClick={() => void handleTestConnection()}
                   disabled={testing}
                   className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-white hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition disabled:opacity-50"
                 >
-                  {testing ? (
+                  {testing && testKind !== "generation" ? (
                     <>
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      <span>{testKind === "generation" ? t("正在测试文本生成...", "Testing text generation...") : t("正在获取模型列表...", "Retrieving model list...")}</span>
+                      <span>{t("正在获取模型列表...", "Retrieving model list...")}</span>
                     </>
                   ) : (
                     <>
@@ -570,13 +570,14 @@ const PRESETS = [
                     </>
                   )}
                 </button>
-              </div>
-
               <button type="button" onClick={() => void handleTestConnection("generation")} disabled={testing}
-                className="mt-2 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50">
-                {t("测试文本生成（少量 tokens）", "Test text generation (a few tokens)")}
+                aria-busy={testing && testKind === "generation"}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700">
+                {testing && testKind === "generation" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                <span>{testing && testKind === "generation" ? t("正在测试文本生成...", "Testing text generation...") : t("测试文本生成（少量 tokens）", "Test text generation (a few tokens)")}</span>
               </button>
-              <p className="mt-1 text-[10px] text-slate-500">{t("仅发送固定测试句，不发送简历或历史对话；点击后会调用所选模型，可能产生少量费用。", "Sends a fixed test sentence, not your resume or history. Clicking calls the selected model and may incur a small charge.")}</p>
+              </div>
+              <p className="mt-3 text-[11px] text-slate-500">{t("仅发送固定测试句，不发送简历或历史对话；点击后会调用所选模型，可能产生少量费用。", "Sends a fixed test sentence, not your resume or history. Clicking calls the selected model and may incur a small charge.")}</p>
 
               {testResult && (
                 <div
@@ -635,7 +636,7 @@ const PRESETS = [
             type="button"
             onClick={handleSave}
             disabled={saving || testing}
-            className="flex items-center gap-1 rounded-lg bg-[var(--color-accent)] px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-[var(--color-accent-hover)] transition"
+            className="ai-config-save flex items-center gap-1 rounded-lg px-4 py-1.5 text-xs font-semibold shadow-xs transition"
           >
             <Check className="h-3.5 w-3.5" />
             {saving ? t("正在保存...", "Saving...") : t("保存配置", "Save configuration")}

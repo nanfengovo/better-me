@@ -245,7 +245,18 @@ html[data-theme="dark"] .ai-config-modal { background: color-mix(in srgb, var(--
 .ai-config-modal .ai-config-footer { position:relative; flex-shrink:0; gap:10px; padding:16px 24px 20px; background:var(--ui-surface); border:0; }
 .ai-config-modal .ai-config-footer::before { content:""; position:absolute; height:16px; left:0; right:0; top:-16px; background:linear-gradient(transparent,var(--ui-surface)); pointer-events:none; }
 .ai-config-modal .ai-config-footer button { min-height:40px; min-width:84px; justify-content:center; border-radius:12px; padding:0 18px; }
-.ai-config-modal .ai-config-footer button:disabled { opacity:.55; }
+.ai-config-modal .ai-config-footer button:disabled { opacity:1; color:var(--ui-text-muted); background:var(--ui-surface-soft); border:1px solid var(--ui-border); }
+.ai-config-modal .ai-config-footer .ai-config-save { color:#fff; background:#343848; border:1px solid transparent; }
+.ai-config-modal .ai-config-footer .ai-config-save:hover:not(:disabled) { background:#242735; }
+html[data-theme="dark"] .ai-config-modal .ai-config-footer .ai-config-save { color:#242735; background:#d2d5e4; }
+html[data-theme="dark"] .ai-config-modal .ai-config-footer .ai-config-save:hover:not(:disabled) { background:#e5e7f0; }
+html .ai-config-modal .ai-config-footer .ai-config-save:disabled { color:var(--ui-text-muted); background:var(--ui-surface-soft); border-color:var(--ui-border); }
+.ai-config-modal .ai-config-check-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.ai-config-modal .ai-config-check-actions button { width:100%; min-width:0; min-height:44px; justify-content:center; padding:10px 12px; margin:0; line-height:1.5; border-radius:12px; background:var(--ui-surface); color:var(--ui-text); border:1px solid var(--ui-border-strong); box-shadow:none; }
+.ai-config-modal .ai-config-check-actions button svg { flex-shrink:0; }
+.ai-config-modal .ai-config-check-actions button:hover:not(:disabled) { background:var(--ui-surface-raised); border-color:var(--color-accent); }
+.ai-config-modal .ai-config-check-actions button:disabled { opacity:1; color:var(--ui-text-muted); background:var(--ui-surface-soft); border-color:var(--ui-border); }
+@media(max-width:600px) { .ai-config-modal .ai-config-check-actions { grid-template-columns:1fr; } }
 .ai-config-modal .ai-config-scroll { flex:1 1 auto; min-height:0; min-width:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--ui-border-strong) transparent; scrollbar-gutter:stable both-edges; padding:0 14px 32px; scroll-padding-block:16px 32px; }
 .ai-config-modal .ai-config-scroll:focus-visible { outline:2px solid var(--color-accent); outline-offset:-3px; }
 .ai-config-modal .ai-config-body { display:flex; flex-direction:column; gap:24px; min-width:0; margin:0; padding:0; border:0; }
