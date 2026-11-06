@@ -3,7 +3,8 @@ import { DEFAULT_WORKSPACE_THEME_ID, getWorkspaceTheme, isWorkspaceThemeId, work
 
 export type UiLocale = "zh" | "en";
 export type UiTheme = "light" | "dark";
-export type UiPreferences = { locale: UiLocale; theme: UiTheme; workspaceThemeId?: WorkspaceThemeId };
+export type DesktopPreferences = { dockAutoHide?: boolean; reduceMotion?: boolean; wallpaper?: "aurora" | "midnight" | "warm" };
+export type UiPreferences = DesktopPreferences & { locale: UiLocale; theme: UiTheme; workspaceThemeId?: WorkspaceThemeId };
 export const UI_PREFERENCES_KEY = "betterme.ui.preferences.v1";
 export type UiTranslator = (chinese: string, english: string) => string;
 const DEFAULT_PREFERENCES: UiPreferences = { locale: "zh", theme: "light" };
@@ -16,6 +17,9 @@ export function parseUiPreferences(raw: string | null): UiPreferences {
     return {
       locale: saved.locale === "en" ? "en" : "zh", theme: saved.theme === "dark" ? "dark" : "light",
       ...(isWorkspaceThemeId(saved.workspaceThemeId) ? { workspaceThemeId: saved.workspaceThemeId } : {}),
+      ...(typeof saved.dockAutoHide === "boolean" ? { dockAutoHide: saved.dockAutoHide } : {}),
+      ...(typeof saved.reduceMotion === "boolean" ? { reduceMotion: saved.reduceMotion } : {}),
+      ...(saved.wallpaper === "aurora" || saved.wallpaper === "midnight" || saved.wallpaper === "warm" ? { wallpaper: saved.wallpaper } : {}),
     };
   } catch { return { ...DEFAULT_PREFERENCES }; }
 }
@@ -48,11 +52,12 @@ type UiContext = UiPreferences & {
   setLocale: (locale: UiLocale) => void;
   setTheme: (theme: UiTheme) => void;
   setWorkspaceThemeId: (id: WorkspaceThemeId) => void;
+  setDesktopPreferences: (patch: DesktopPreferences) => void;
   persistenceError: boolean;
 };
 const UiPreferencesContext = createContext<UiContext>({
   ...DEFAULT_PREFERENCES, workspaceThemeId: DEFAULT_WORKSPACE_THEME_ID, t: (chinese) => chinese,
-  setLocale: () => {}, setTheme: () => {}, setWorkspaceThemeId: () => {}, persistenceError: false,
+  setLocale: () => {}, setTheme: () => {}, setWorkspaceThemeId: () => {}, setDesktopPreferences: () => {}, persistenceError: false,
 });
 
 export function UiPreferencesProvider({ children, initialPreferences }: { children: ReactNode; initialPreferences?: UiPreferences }) {
@@ -70,7 +75,10 @@ export function UiPreferencesProvider({ children, initialPreferences }: { childr
         next = parseUiPreferences(localStorage.getItem(UI_PREFERENCES_KEY));
       } catch { next = parseUiPreferences(event.newValue); }
       if (preferencesRef.current.locale === next.locale && preferencesRef.current.theme === next.theme
-        && getWorkspaceTheme(preferencesRef.current.workspaceThemeId).id === getWorkspaceTheme(next.workspaceThemeId).id) return;
+        && getWorkspaceTheme(preferencesRef.current.workspaceThemeId).id === getWorkspaceTheme(next.workspaceThemeId).id
+        && preferencesRef.current.dockAutoHide === next.dockAutoHide
+        && preferencesRef.current.reduceMotion === next.reduceMotion
+        && preferencesRef.current.wallpaper === next.wallpaper) return;
       preferencesRef.current = next;
       setPreferences(next);
       // Remote events only update appearance; never echo them into storage.
@@ -91,7 +99,15 @@ export function UiPreferencesProvider({ children, initialPreferences }: { childr
     if (isWorkspaceThemeId(id)) commit({ workspaceThemeId: id });
   }, [commit]);
   const t = useCallback<UiTranslator>((chinese, english) => preferences.locale === "en" ? english : chinese, [preferences.locale]);
-  const context = useMemo(() => ({ ...preferences, workspaceThemeId: getWorkspaceTheme(preferences.workspaceThemeId).id, setLocale, setTheme, setWorkspaceThemeId, t, persistenceError }), [preferences, setLocale, setTheme, setWorkspaceThemeId, t, persistenceError]);
+  const setDesktopPreferences = useCallback((patch: DesktopPreferences) => {
+    const validated = parseUiPreferences(JSON.stringify(patch));
+    const desktop: DesktopPreferences = {};
+    if (validated.dockAutoHide !== undefined) desktop.dockAutoHide = validated.dockAutoHide;
+    if (validated.reduceMotion !== undefined) desktop.reduceMotion = validated.reduceMotion;
+    if (validated.wallpaper !== undefined) desktop.wallpaper = validated.wallpaper;
+    commit(desktop);
+  }, [commit]);
+  const context = useMemo(() => ({ ...preferences, workspaceThemeId: getWorkspaceTheme(preferences.workspaceThemeId).id, setLocale, setTheme, setWorkspaceThemeId, setDesktopPreferences, t, persistenceError }), [preferences, setLocale, setTheme, setWorkspaceThemeId, setDesktopPreferences, t, persistenceError]);
   return <UiPreferencesContext.Provider value={context}>{children}</UiPreferencesContext.Provider>;
 }
 export function useUiPreferences(): UiContext { return useContext(UiPreferencesContext); }

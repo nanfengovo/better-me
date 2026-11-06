@@ -250,7 +250,10 @@ test("reader choice is explicit, scoped and disabled during a task without chang
 
 test("formal App installs the stable shell and its CSS never reserves a vertical conversation track", () => {
   const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
-  assert.match(app, /<AgentSidebarProvider><div className="studio-app compact-chrome">/);
+  assert.match(app, /<AgentSidebarProvider><DesktopShell\b/);
+  assert.match(app, /<DesktopShell[^\n]*><div className="studio-app compact-chrome">/);
+  assert.equal((app.match(/<AgentSidebarProvider>/g) ?? []).length, 1);
+  assert.match(app, /<\/DesktopShell>\s*<div className="no-print">\s*<NetworkSettingsModal/);
   const css = readFileSync(new URL("../src/components/agent-sidebar.css", import.meta.url), "utf8");
   assert.match(css, /\.writing-shell\.is-docked\{[^}]*grid-template-rows:auto minmax\(0,1fr\)/);
 });

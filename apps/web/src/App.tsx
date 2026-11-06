@@ -39,7 +39,7 @@ import { WorkspaceMenu } from "./components/WorkspaceMenu";
 import { rebaseViewTextStyles } from "./lib/text-formatting";
 import type { PreviewFollowTarget } from "./lib/preview-follow";
 import { createIssueNavigation, type IssueNavigationRequest } from "./lib/issue-navigation";
-import { ArrowUpRight, BookOpen, Bot, BriefcaseBusiness, Check, Download, FileText, GitBranch, Globe, History, Languages, Loader2, MessageSquare, MoreHorizontal, Palette, RotateCcw, Settings2, ShieldCheck, Sparkles, Upload, X } from "lucide-react";
+import { ArrowUpRight, Check, Download, FileText, GitBranch, Languages, Loader2, MessageSquare, MoreHorizontal, RotateCcw, ShieldCheck, Sparkles, Upload, X } from "lucide-react";
 import { AgentTopBarStatus } from "./components/AgentTopBarStatus";
 import { AgentCompanion } from "./components/AgentCompanion";
 import { ResumeWritingCopilot } from "./components/ResumeWritingCopilot";
@@ -48,6 +48,8 @@ import { writingSources, writingTargetKey } from "./lib/resume-copilot";
 import { AgentSourceBridge, BetterMeAgentProvider } from "./lib/betterme-agent/react";
 import { BetterMeAgentCenter } from "./components/BetterMeAgentCenter";
 import { AgentSidebarProvider } from "./components/AgentSidebar";
+import { DesktopShell } from "./components/desktop/DesktopShell";
+import "./components/desktop/desktop.css";
 
 const AtlasWorkspace = lazy(() => import("./components/AtlasWorkspace"));
 const ResumeJobRecommendations = lazy(() => import("./components/ResumeJobRecommendations"));
@@ -379,26 +381,9 @@ export function App() {
   if (!ready || !doc || !activeResume || !projected) return <div className="studio-loading"><Loader2 size={24} className="animate-spin" /><span>{t("正在打开你的简历工作室…", "Opening your resume studio…")}</span></div>;
   const autoSaveDescription = !autoSaveSettings.enabled ? t("自动保存已关闭", "Autosave is off") : autoSaveSettings.trigger === "enter" ? t("按回车保存", "Press Enter to save") : autoSaveSettings.trigger === "blur" ? t("离开编辑项时保存", "Save when leaving a field") : t(`停止输入 ${autoSaveSettings.delayMs / 1000} 秒后保存`, `Save after ${autoSaveSettings.delayMs / 1000} seconds of inactivity`);
 
-  return <BetterMeAgentProvider workspaceKey={doc.documentId ?? activeResume.id}><AgentSidebarProvider><div className="studio-app compact-chrome">
+  return <BetterMeAgentProvider workspaceKey={doc.documentId ?? activeResume.id}><AgentSidebarProvider><DesktopShell page={page} onNavigate={next => { if (next === "atlas") setAtlasInitialized(true); if (next === "resume") setWorkspaceTab("content"); setPage(next); }} onDesign={() => { setPage("resume"); setWorkspaceTab("design"); }} onHistory={() => setIsHistoryOpen(true)} onAiConfig={() => setIsAiConfigOpen(true)} onNetwork={() => setIsNetworkSettingsOpen(true)}><div className="studio-app compact-chrome">
     <AgentSourceBridge sources={agentSources} />
     <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".json" className="hidden" />
-    <aside className="studio-rail no-print" aria-label={t("工作室导航", "Workspace navigation")} onClickCapture={event => {
-      const button = (event.target as HTMLElement).closest('button[aria-pressed]');
-      if (button && window.matchMedia("(max-width: 940px)").matches) {
-        window.scrollTo({ top: 0, behavior: "instant" });
-        button.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" });
-      }
-    }}>
-      <a className="studio-monogram" href="#" aria-label={t("BetterMe 简历工作室", "BetterMe resume studio")} onClick={(event) => { event.preventDefault(); setPage("resume"); setWorkspaceTab("content"); }}>b<span>m</span><i /></a><div className="rail-divider" />
-      <button aria-label={t("内容编辑", "Content editor")} aria-pressed={page === "resume" && workspaceTab === "content"} className={page === "resume" && workspaceTab === "content" ? "active" : ""} onClick={() => { setPage("resume"); setWorkspaceTab("content"); }}><FileText size={20} /><span>{t("内容", "Content")}</span></button>
-      <button aria-label={t("排版设计", "Resume design")} aria-pressed={page === "resume" && workspaceTab === "design"} className={page === "resume" && workspaceTab === "design" ? "active" : ""} onClick={() => { setPage("resume"); setWorkspaceTab("design"); }}><Palette size={20} /><span>{t("设计", "Design")}</span></button>
-      <button aria-label={t("查看历史版本", "View version history")} onClick={() => setIsHistoryOpen(true)}><History size={20} /><span>{t("版本", "History")}</span></button>
-      <button aria-label={t("AI 顾问工作台", "AI Agent Workspace")} aria-pressed={page === "agent"} className={page === "agent" ? "active" : ""} onClick={() => setPage("agent")}><Bot size={20} /><span>{t("顾问", "Agent")}</span></button>
-      <button aria-label={t("机会与投递", "Opportunities & applications")} aria-pressed={page === "opportunities"} className={page === "opportunities" ? "active" : ""} onClick={() => setPage("opportunities")}><BriefcaseBusiness size={20} /><span>{t("机会", "Jobs")}</span></button>
-      <button data-onboarding="atlas" aria-label={t("岗位地图", "Opportunity atlas")} aria-pressed={page === "atlas"} className={page === "atlas" ? "active" : ""} onClick={() => { setAtlasInitialized(true); setPage("atlas"); }}><Globe size={20} /><span>{t("地图", "Atlas")}</span></button>
-      <button aria-label={t("求职资料库", "Career resources")} aria-pressed={page === "resources"} className={page === "resources" ? "active" : ""} onClick={() => setPage("resources")}><BookOpen size={20} /><span>{t("资料", "Resources")}</span></button>
-      <div className="rail-bottom"><button aria-label={t("网络与代理设置", "Network & proxy settings")} onClick={() => setIsNetworkSettingsOpen(true)}><Globe size={19} /><span>{t("网络", "Network")}</span></button><span className="rail-local" title={t("简历与历史版本保存在当前浏览器", "Your resume and version history are stored in this browser")}><ShieldCheck size={19} /></span><button aria-label={t("打开 AI 配置", "Open AI configuration")} onClick={() => setIsAiConfigOpen(true)}><Settings2 size={19} /><span>{t("设置", "Settings")}</span></button></div>
-    </aside>
     <div className="studio-workspace">
       <header className="studio-header no-print"><div className="studio-brand"><strong>BetterMe<span> / </span></strong><span className="header-location">{page === "resume" ? t("简历工作室", "Resume studio") : page === "opportunities" ? t("机会与投递", "Opportunities & applications") : page === "atlas" ? t("岗位地图", "Opportunity atlas") : page === "agent" ? t("AI 顾问工作台", "AI Agent Workspace") : t("求职资料库", "Career resources")}</span></div><div className="header-actions"><AgentTopBarStatus config={llmConfig} active={page === "agent"} onNavigateToAgent={() => setPage("agent")} onOpenAiConfig={() => setIsAiConfigOpen(true)} />
         <FirstRunGuide eligible={page === "resume" && workspaceTab === "content" && !isAiConfigOpen && !isNetworkSettingsOpen && !isJdMatchOpen && !isAgentDrawerOpen && !isImportModalOpen && !isHistoryOpen && !isRestoring} onPrepare={() => { setPage("resume"); setWorkspaceTab("content"); setIsMenuOpen(false); }} renderTrigger={start => <WorkspaceMenu initial={doc.factBase.profile.displayName.zh.slice(0, 1) || "我"} onGuide={start} onAiConfig={() => setIsAiConfigOpen(true)} />} />
@@ -472,7 +457,7 @@ export function App() {
       <div className="secondary-workspace no-print" hidden={page !== "resources"}><ResourceLibrary /></div>
       <div className="secondary-workspace no-print" hidden={page !== "agent"}><AgentWorkspace workspaceKey={activeResume?.id ?? "default"} active={page === "agent"} job={agentDrawerJob} resume={projected} resumeEditContext={resumeEditContext} onApplyResumeProposal={handleApplyResumeProposal} llmConfig={llmConfig} onOpenConfig={() => setIsAiConfigOpen(true)} onNavigateToResume={() => { setPage("resume"); setWorkspaceTab("content"); }} onApplyToResume={handleApplyCustomResume} onSaveOpportunity={(job) => { setOpportunitySeed({ token: crypto.randomUUID(), title: job.title, description: job.description, sourceUrl: job.sourceUrl, sourcePlatform: job.sourcePlatform }); setPage("opportunities"); }} /></div>
       <footer className="studio-footer no-print"><span><ShieldCheck size={12} />{t("资料存于本机 · 真实经历由你核实", "Stored on this device · You verify your experience")}</span><span>{page === "resume" ? t(`${autoSaveDescription} · Ctrl + S 立即保存`, `${autoSaveDescription} · Ctrl + S to save now`) : page === "opportunities" ? t("岗位信息与跟进需点击保存", "Click Save to keep job details and follow-ups") : page === "atlas" ? t("地图、列表与统计使用同一查询 · 来源与事实需核实", "Map, list and statistics share one query · Verify source facts") : page === "agent" ? t("本地 Agent 编排 · 逐条核实履历 · 真实推理由你掌控", "Local Agent orchestration · Verify claims item-by-item · Full user control") : t("查看原始出处，按需使用资料", "Visit original sources and use resources as needed")}</span></footer>
-    </div>
+    </div></div></DesktopShell>
     <div className="no-print">
       <NetworkSettingsModal isOpen={isNetworkSettingsOpen} onClose={() => setIsNetworkSettingsOpen(false)} />
       <AiConfigModal isOpen={isAiConfigOpen} onClose={() => setIsAiConfigOpen(false)} config={llmConfig} onSave={handleSaveLlmConfig} />
@@ -519,5 +504,5 @@ export function App() {
         else { setPage("resume"); setWorkspaceTab("content"); }
       }} />
     </div>
-  </div></AgentSidebarProvider></BetterMeAgentProvider>;
+  </AgentSidebarProvider></BetterMeAgentProvider>;
 }
