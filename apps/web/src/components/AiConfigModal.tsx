@@ -254,9 +254,9 @@ const PRESETS = [
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-      <div role="dialog" aria-modal="true" aria-labelledby="ai-config-title" className="w-full min-w-0 max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
+      <div role="dialog" aria-modal="true" aria-labelledby="ai-config-title" className="ai-config-modal w-full min-w-0 max-w-2xl rounded-3xl bg-white/95 p-4 shadow-2xl border border-white/70 space-y-5 animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto backdrop-blur-xl sm:p-6">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="flex items-center justify-between border-b border-slate-200/80 pb-4">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
               <Bot className="h-5 w-5" />
@@ -283,8 +283,8 @@ const PRESETS = [
 
         {/* Quick Presets */}
         <fieldset disabled={saving || testing} className="contents">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 sm:p-4">
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
               {t("模型服务商预设", "Provider presets")}
             </label>
             <div className="grid grid-cols-2 gap-2">
@@ -369,7 +369,11 @@ const PRESETS = [
           )}
 
           {/* Form Inputs */}
-          <div className="min-w-0 space-y-3">
+          <div className="min-w-0 space-y-4 rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-sm sm:p-4">
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+              <div className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("连接参数", "Connection details")}</span>
+            </div>
             {/* Base URL */}
             <div>
               <label htmlFor="ai-base-url" className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
@@ -383,7 +387,7 @@ const PRESETS = [
                 onChange={(e) =>
                   updateDraft({ baseUrl: e.target.value })
                 }
-                className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs outline-none focus:border-[var(--color-accent)] font-mono"
+                className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs outline-none transition focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/15 font-mono"
                 placeholder="https://generativelanguage.googleapis.com/v1beta/openai/"
               />
             </div>
@@ -427,7 +431,7 @@ const PRESETS = [
                 onChange={(e) =>
                   updateDraft({ apiKey: e.target.value })
                 }
-                className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs outline-none focus:border-[var(--color-accent)] font-mono"
+                className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs outline-none transition focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/15 font-mono"
                 placeholder={
                   isGemini
                     ? t("AIzaSy... (在 aistudio.google.com 创建的 Key)", "AIzaSy... (key created at aistudio.google.com)")
@@ -480,7 +484,7 @@ const PRESETS = [
                   onChange={(e) =>
                     updateDraft({ model: e.target.value })
                   }
-                  className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs outline-none focus:border-[var(--color-accent)] font-mono"
+                  className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs outline-none transition focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/15 font-mono"
                   placeholder={t("例如：deepseek-flash, deepseek-v4-pro", "For example: deepseek-flash, deepseek-v4-pro")}
                 />
               ) : (
@@ -537,7 +541,11 @@ const PRESETS = [
             </div>
 
             {/* Test Connection Banner & Button */}
-            <div className="pt-1">
+            <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3.5 sm:p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("连接验证", "Connection checks")}</span>
+              </div>
               <div className="flex items-center justify-between">
                 <button
                   type="button"
@@ -592,7 +600,7 @@ const PRESETS = [
             </div>
 
             {/* Privacy Note */}
-            <div className="rounded-lg bg-slate-50 border border-slate-200 p-2.5 flex items-start gap-2 text-[11px] text-slate-600">
+            <div className="rounded-2xl bg-slate-100/80 border border-slate-200/80 p-3 flex items-start gap-2 text-[11px] leading-relaxed text-slate-600">
               <ShieldCheck className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
               <span>
                 {t("配置与简历保存在本机浏览器 localStorage。使用云模型时，本次授权发送的简历、JD 或页面图片会直连所选服务商，或经当前配置的 Agent Host 转发。使用本机 Ollama 且地址指向本机时，推理才在本机进行。模型列表请求也会携带 API Key。", "Configuration and resumes are stored in this browser's localStorage. Authorized resume content, job descriptions or page images are sent to the selected cloud provider directly or through the configured Agent Host. Inference is local only when Ollama and its address are on this computer. Model list requests also include your API key.")}
@@ -608,7 +616,7 @@ const PRESETS = [
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+        <div className="flex items-center justify-end gap-2 border-t border-slate-200/80 pt-4">
           <button
             type="button"
             onClick={handleClose}
