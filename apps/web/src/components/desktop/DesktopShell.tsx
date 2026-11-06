@@ -4,12 +4,14 @@ import { useUiPreferences } from "../../lib/ui-preferences";
 import { DesktopDock, type DesktopPage } from "./DesktopDock";
 import { DesktopWindow } from "./DesktopWindow";
 import { DesktopSettings } from "./DesktopSettings";
+import { useDesktopWallpaper } from "../../lib/use-desktop-wallpaper";
 
 export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, onAiConfig, onNetwork }: {
   children: ReactNode; page: DesktopPage; onNavigate: (page: DesktopPage) => void;
   onDesign: () => void; onHistory: () => void; onAiConfig: () => void; onNetwork: () => void;
 }) {
   const { t, locale, wallpaper = "aurora", reduceMotion = false } = useUiPreferences();
+  const customWallpaper = useDesktopWallpaper();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mainHidden, setMainHidden] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -27,7 +29,9 @@ export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, 
       event.stopPropagation(); closeSettings();
     }
   }}>
-    <div className="os-wallpaper no-print" aria-hidden="true" />
+    <div className="os-wallpaper no-print" aria-hidden="true" data-custom={Boolean(customWallpaper.data?.enabled && customWallpaper.url)}>
+      {customWallpaper.data?.enabled && customWallpaper.url && <img src={customWallpaper.url} alt="" draggable={false} decoding="async" style={{ objectFit: customWallpaper.data.fit }} />}
+    </div>
     <header className="os-menubar no-print">
       <button type="button" className="os-system-brand" onClick={() => navigate("resume")} aria-label={t("返回简历工作室", "Go to resume studio")}><span>b</span>BetterMe</button>
       <span className="os-menu-location">{settingsOpen ? t("系统设置", "System settings") : titles[page]}</span>

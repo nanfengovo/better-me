@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Accessibility, ArrowUpRight, ChevronLeft, Globe, Monitor, Palette, Search, SlidersHorizontal } from "lucide-react";
 import { useUiPreferences } from "../../lib/ui-preferences";
 import { WORKSPACE_THEMES } from "../../themes/workspace-theme";
+import { DesktopWallpaperSettings } from "./DesktopWallpaperSettings";
 
 function SettingRow({ label, children }: { label: string; children: ReactNode }) {
   return <div className="os-setting-row"><span>{label}</span><div>{children}</div></div>;
@@ -10,7 +11,7 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
   return <button className="os-switch" type="button" role="switch" aria-label={label} aria-checked={value} onClick={() => onChange(!value)}><span /></button>;
 }
 export function DesktopSettings({ onAiConfig, onNetwork }: { onAiConfig: () => void; onNetwork: () => void }) {
-  const { t, locale, theme, setLocale, setTheme, workspaceThemeId, setWorkspaceThemeId, dockAutoHide = true, reduceMotion = false, wallpaper = "aurora", setDesktopPreferences, persistenceError } = useUiPreferences();
+  const { t, locale, theme, setLocale, setTheme, workspaceThemeId, setWorkspaceThemeId, dockAutoHide = true, reduceMotion = false, setDesktopPreferences, persistenceError } = useUiPreferences();
   const [tab, setTab] = useState("appearance");
   const [query, setQuery] = useState("");
   const [mobileDetail, setMobileDetail] = useState(false);
@@ -46,7 +47,7 @@ export function DesktopSettings({ onAiConfig, onNetwork }: { onAiConfig: () => v
       {tab === "desktop" && <>
         <p className="os-setting-intro">{t("留出空间，专注眼前。", "More space for what matters.")}</p>
         <h2>{t("桌面壁纸", "Wallpaper")}</h2>
-        <div className="os-wallpapers" role="group" aria-label={t("桌面壁纸", "Wallpaper")}>{(["aurora", "midnight", "warm"] as const).map((value, i) => <button key={value} type="button" aria-pressed={wallpaper === value} onClick={() => setDesktopPreferences({ wallpaper: value })}><span className={`os-wallpaper-thumb ${value}`} /><span>{[t("流光", "Aurora"), t("暮色", "Midnight"), t("暖沙", "Warm sand")][i]}</span></button>)}</div>
+        <DesktopWallpaperSettings />
         <h2>Dock</h2><div className="os-settings-card"><SettingRow label={t("自动隐藏与显示 Dock", "Automatically hide Dock")}><Toggle label={t("自动隐藏 Dock", "Auto-hide Dock")} value={dockAutoHide} onChange={value => setDesktopPreferences({ dockAutoHide: value })} /></SettingRow></div>
         <p className="os-setting-note">{t("鼠标靠近屏幕底部中央时唤出。触屏设备常驻显示，键盘聚焦也能唤出。", "Move to the bottom edge to reveal. Always visible on touch devices and accessible by keyboard.")}</p>
       </>}

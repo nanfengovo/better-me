@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test, { after, afterEach } from "node:test";
 import { setImmediate as nextTurn, setTimeout as delay } from "node:timers/promises";
 import { Window } from "happy-dom";
+import "fake-indexeddb/auto";
 
 const dom = new Window({ url: "http://desktop-fixture.invalid" });
 const React = await import("react");
