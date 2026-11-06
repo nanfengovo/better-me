@@ -90,9 +90,13 @@ export const TemplateThumbnail = memo(function TemplateThumbnail({ id, locale }:
     };
     resize();
     if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(resize);
+    let frame: number | null = null;
+    const observer = new ResizeObserver(() => {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(() => { frame = null; resize(); });
+    });
     observer.observe(node);
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); if (frame !== null) cancelAnimationFrame(frame); };
   }, []);
 
   return <span className="template-thumbnail" ref={viewport} aria-hidden="true" inert>

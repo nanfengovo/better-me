@@ -19,7 +19,18 @@ export function LoginGlobe({ paused }: { paused: boolean }) {
         baseColor: [.12, .26, .31], markerColor: [.65, .95, .82], glowColor: [.13, .36, .37],
         markers: [], opacity: 1 });
     } catch { setFailed(true); return; }
-    const observer = new ResizeObserver(() => globe.update({ width: size() * dpr, height: size() * dpr }));
+    let appliedSize = size();
+    let resizeFrame: number | null = null;
+    const observer = new ResizeObserver(() => {
+      if (resizeFrame !== null) return;
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = null;
+        const next = size();
+        if (next === appliedSize) return;
+        appliedSize = next;
+        globe.update({ width: next * dpr, height: next * dpr });
+      });
+    });
     observer.observe(element);
     let frame = 0, last = 0, phi = 2.4;
     const animate = (now: number) => {
@@ -29,7 +40,7 @@ export function LoginGlobe({ paused }: { paused: boolean }) {
       frame = requestAnimationFrame(animate);
     };
     frame = requestAnimationFrame(animate);
-    return () => { cancelAnimationFrame(frame); observer.disconnect(); globe.destroy(); };
+    return () => { cancelAnimationFrame(frame); if (resizeFrame !== null) cancelAnimationFrame(resizeFrame); observer.disconnect(); globe.destroy(); };
   }, []);
   return <div className="login-globe-stage" aria-hidden="true"><div className="login-globe-halo" /><canvas ref={canvas} className="login-globe-canvas" />{failed && <div className="login-globe-fallback" />}</div>;
 }

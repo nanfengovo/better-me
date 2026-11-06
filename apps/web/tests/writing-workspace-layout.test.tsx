@@ -9,6 +9,9 @@ const dom = new Window({ url: "http://workspace-fixture.invalid" });
 const React = await import("react");
 let width = 560;
 const resize = new Set<() => void>();
+const frames = new Map<number, FrameRequestCallback>();
+let frameId = 0;
+function flushFrames() { const pending = [...frames.values()]; frames.clear(); for (const frame of pending) frame(0); }
 class Observer {
   constructor(private callback: () => void) { resize.add(callback); }
   observe() {}
@@ -20,7 +23,9 @@ const originals = new Map<string, PropertyDescriptor | undefined>();
 for (const [key, value] of Object.entries({ window: dom, document: dom.document, navigator: dom.navigator, localStorage: dom.localStorage,
   HTMLElement: dom.HTMLElement, Element: dom.Element, Node: dom.Node, Event: dom.Event, ResizeObserver: Observer,
   getComputedStyle: dom.getComputedStyle.bind(dom), React, IS_REACT_ACT_ENVIRONMENT: true,
-  CustomEvent: dom.CustomEvent, requestAnimationFrame: dom.requestAnimationFrame.bind(dom),
+  CustomEvent: dom.CustomEvent,
+  requestAnimationFrame: (callback: FrameRequestCallback) => { frames.set(++frameId, callback); return frameId; },
+  cancelAnimationFrame: (id: number) => frames.delete(id),
 })) { originals.set(key, Object.getOwnPropertyDescriptor(globalThis, key)); Object.defineProperty(globalThis, key, { configurable: true, writable: true, value }); }
 const { createRoot } = await import("react-dom/client");
 const { ResizableWorkspace } = await import("../src/components/ResizableWorkspace");
@@ -50,12 +55,28 @@ test("insufficient workspace width switches editor and preview without replacing
   assert.equal(dom.document.querySelector<HTMLElement>("#resume-preview-panel")?.hidden, false);
   assert.ok(dom.document.querySelector("textarea") === input);
   assert.equal(input.value, "未发送的合成草稿");
-  await React.act(async () => { width = 1260; for (const callback of resize) callback(); });
+  await React.act(async () => { width = 1260; for (const callback of resize) callback(); flushFrames(); });
   assert.equal(dom.document.querySelector<HTMLElement>("#resume-editor-panel")?.hidden, false);
   assert.equal(dom.document.querySelector<HTMLElement>("#resume-preview-panel")?.hidden, false);
   assert.ok(dom.document.querySelector("textarea") === input);
-  await React.act(async () => { width = 560; for (const callback of resize) callback(); });
+  await React.act(async () => { width = 560; for (const callback of resize) callback(); flushFrames(); });
   assert.equal(dom.document.querySelector<HTMLElement>("#resume-preview-panel")?.hidden, false, "returning to narrow width retains the chosen view");
+});
+
+test("resize delivery defers and coalesces layout writes and cancels pending work on unmount", async () => {
+  await render();
+  width = 1260;
+  await React.act(async () => {
+    for (let i = 0; i < 3; i++) for (const callback of resize) callback();
+  });
+  assert.equal(dom.document.querySelector("main")?.getAttribute("data-workspace-layout"), "single");
+  assert.equal(frames.size, 1);
+  await React.act(async () => flushFrames());
+  assert.equal(dom.document.querySelector("main")?.getAttribute("data-workspace-layout"), "split");
+  for (const callback of resize) callback();
+  await React.act(async () => root!.unmount()); root = undefined;
+  assert.equal(frames.size, 0);
+  assert.equal(resize.size, 0);
 });
 
 test("tablet viewport remains single-pane even when both panes could fit", async () => {
@@ -69,7 +90,7 @@ test("tablet viewport remains single-pane even when both panes could fit", async
     await React.act(async () => {
       Object.defineProperty(dom, "innerWidth", { configurable: true, value: 1440 });
       width = 1260;
-      for (const callback of resize) callback();
+      for (const callback of resize) callback(); flushFrames();
     });
     assert.equal(dom.document.querySelector("main")?.getAttribute("data-workspace-layout"), "split");
     assert.equal(dom.document.querySelector("textarea"), input);

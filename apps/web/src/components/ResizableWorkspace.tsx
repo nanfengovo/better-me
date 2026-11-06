@@ -53,10 +53,20 @@ export function ResizableWorkspace({ children: [editor, preview] }: Props) {
         if (separatorRef.current?.hasPointerCapture(pointerId)) separatorRef.current.releasePointerCapture(pointerId);
       }
     };
-    const observer = new ResizeObserver(measure);
+    let frame: number | null = null;
+    // Layout writes must run outside the ResizeObserver delivery cycle.
+    const schedule = () => {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(() => { frame = null; measure(); });
+    };
+    const observer = new ResizeObserver(schedule);
     observer.observe(container);
+    window.addEventListener("resize", schedule);
     measure();
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect(); window.removeEventListener("resize", schedule);
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
   }, []);
 
   function pointerPercent(event: PointerEvent<HTMLDivElement>) {
