@@ -283,7 +283,7 @@ const PRESETS = [
 
         {/* Quick Presets */}
         <fieldset disabled={saving || testing} className="contents">
-          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 sm:p-4">
+          <div className="ai-config-section rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 sm:p-4">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
               {t("模型服务商预设", "Provider presets")}
             </label>
@@ -369,7 +369,7 @@ const PRESETS = [
           )}
 
           {/* Form Inputs */}
-          <div className="min-w-0 space-y-4 rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-sm sm:p-4">
+          <div className="ai-config-section min-w-0 space-y-4 rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-sm sm:p-4">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
               <div className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
               <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("连接参数", "Connection details")}</span>
@@ -541,7 +541,7 @@ const PRESETS = [
             </div>
 
             {/* Test Connection Banner & Button */}
-            <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3.5 sm:p-4">
+            <div className="ai-config-section ai-config-checks rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3.5 sm:p-4">
               <div className="mb-3 flex items-center gap-2">
                 <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("连接验证", "Connection checks")}</span>
@@ -600,7 +600,7 @@ const PRESETS = [
             </div>
 
             {/* Privacy Note */}
-            <div className="rounded-2xl bg-slate-100/80 border border-slate-200/80 p-3 flex items-start gap-2 text-[11px] leading-relaxed text-slate-600">
+            <div className="ai-config-privacy rounded-xl bg-slate-100/80 border border-slate-200/80 p-3 flex items-start gap-2 text-[11px] leading-relaxed text-slate-600">
               <ShieldCheck className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
               <span>
                 {t("配置与简历保存在本机浏览器 localStorage。使用云模型时，本次授权发送的简历、JD 或页面图片会直连所选服务商，或经当前配置的 Agent Host 转发。使用本机 Ollama 且地址指向本机时，推理才在本机进行。模型列表请求也会携带 API Key。", "Configuration and resumes are stored in this browser's localStorage. Authorized resume content, job descriptions or page images are sent to the selected cloud provider directly or through the configured Agent Host. Inference is local only when Ollama and its address are on this computer. Model list requests also include your API key.")}
@@ -616,7 +616,7 @@ const PRESETS = [
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 border-t border-slate-200/80 pt-4">
+        <div className="flex items-center justify-end gap-2 pt-1">
           <button
             type="button"
             onClick={handleClose}
