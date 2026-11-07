@@ -36,6 +36,19 @@ async function mount() {
 afterEach(async () => { if (root) await flush(() => root!.unmount()); root = undefined; dom.document.body.replaceChildren(); dom.localStorage.clear(); aiOpens = 0; networkOpens = 0; });
 after(() => { css.deregister(); dom.happyDOM.abort(); for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } });
 
+test("all apps and settings initially open maximized", async () => {
+  await mount();
+  const win = dom.document.querySelector(".os-business-window")!;
+  assert.ok(win.classList.contains("is-maximized"));
+  for (const app of ["Agent", "简历"]) {
+    await click(app);
+    assert.ok(win.classList.contains("is-maximized"));
+  }
+  await click("打开系统设置");
+  assert.ok(dom.document.querySelector(".os-settings-window")!.classList.contains("is-maximized"));
+  assert.equal(dom.document.querySelectorAll(".os-resize-handle").length, 0);
+});
+
 test("task links open one settings window at the requested section without altering the editor", async () => {
   await mount();
   const editor = dom.document.querySelector('textarea');
@@ -163,20 +176,21 @@ test("narrow windows support titlebar maximization", async () => {
   try {
     await mount();
     await flush(() => dom.document.querySelector(".os-business-window .os-window-toolbar")!.dispatchEvent(new dom.MouseEvent("dblclick", { bubbles: true })));
-    assert.equal(dom.document.querySelector(".os-business-window")!.classList.contains("is-maximized"), true);
+    assert.equal(dom.document.querySelector(".os-business-window")!.classList.contains("is-maximized"), false);
   } finally { dom.matchMedia = matchMedia; }
 });
 test("window maximize and restore do not replace the editor", async () => {
   await mount(); const editor = dom.document.querySelector("textarea");
   const control = dom.document.querySelector<HTMLButtonElement>(".os-business-window .os-traffic button:nth-child(3)")!;
   await flush(() => control.click());
-  assert.equal(dom.document.querySelector(".os-business-window")!.classList.contains("is-maximized"), true);
-  await flush(() => control.click());
   assert.equal(dom.document.querySelector(".os-business-window")!.classList.contains("is-maximized"), false);
+  await flush(() => control.click());
+  assert.equal(dom.document.querySelector(".os-business-window")!.classList.contains("is-maximized"), true);
   assert.equal(dom.document.querySelector("textarea"), editor);
 });
 test("dragging stays inside viewport bounds, ends on release and resets after resizing", async () => {
   await mount();
+  await click("还原窗口大小");
   const window = dom.document.querySelector<HTMLElement>(".os-business-window")!;
   const toolbar = window.querySelector<HTMLElement>(".os-window-toolbar")!;
   Object.defineProperty(window, "getBoundingClientRect", { value: () => ({ left: 24, top: 56, right: dom.innerWidth - 24, bottom: dom.innerHeight - 42 }) });
@@ -203,8 +217,9 @@ test("dragging stays inside viewport bounds, ends on release and resets after re
   assert.equal(window.style.getPropertyValue("--window-x"), "0px");
   assert.equal(window.style.getPropertyValue("--window-y"), "0px");
 });
-test("all windows expose eight resize handles and preserve dimensions across maximize", async () => {
+test("restored windows expose eight resize handles and preserve dimensions across maximize", async () => {
   await mount();
+  await flush(() => { for (const control of dom.document.querySelectorAll<HTMLButtonElement>(".os-traffic button:nth-child(3)")) control.click(); });
   const win = dom.document.querySelector<HTMLElement>(".os-business-window")!;
   const editor = dom.document.querySelector("textarea");
   Object.defineProperty(win, "getBoundingClientRect", { value: () => ({ left: 40, top: 60, right: 640, bottom: 560, width: 600, height: 500 }) });
@@ -240,6 +255,7 @@ test("all windows expose eight resize handles and preserve dimensions across max
 
 test("bottom resize handles can grow into Dock clearance and stop flush with the screen edge", async () => {
   await mount();
+  await click("还原窗口大小");
   for (const edge of ["s", "se", "sw"]) {
     const win = dom.document.querySelector<HTMLElement>(".os-business-window")!;
     const bottom = dom.innerHeight - 92;

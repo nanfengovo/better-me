@@ -9,7 +9,7 @@ const edgeNames = { n: "上边缘", s: "下边缘", e: "右边缘", w: "左边�
 
 
 type WindowLayout = { maximized: boolean; position: { x: number; y: number }; size: { width: number; height: number } | null };
-const defaultLayout: WindowLayout = { maximized: false, position: { x: 0, y: 0 }, size: null };
+const defaultLayout: WindowLayout = { maximized: true, position: { x: 0, y: 0 }, size: null };
 
 export function DesktopWindow({ title, children, hidden = false, inactive = false, settings = false, onHide, actions, layoutKey = "window" }: {
   title: string; children: ReactNode; hidden?: boolean; inactive?: boolean; settings?: boolean; onHide: () => void; actions?: ReactNode; layoutKey?: string;
