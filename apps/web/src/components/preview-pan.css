@@ -1,0 +1,9 @@
+@media screen {
+  .resume-preview-canvas[data-pan-active=true] { cursor:grab; touch-action:none; user-select:none; }
+  .resume-preview-canvas[data-panning=true] { cursor:grabbing; user-select:none; scroll-behavior:auto; }
+  .resume-preview-canvas[data-pan-active=true] *, .resume-preview-canvas[data-panning=true] * { cursor:inherit; user-select:none; }
+  .resume-preview-canvas[data-panning=true] { touch-action:none; }
+  .preview-display-controls .preview-pan-toggle[aria-pressed=true] { color:var(--ui-accent); background:var(--ui-accent-soft); box-shadow:inset 0 0 0 1px var(--ui-accent); }
+  .preview-pan-help { font-size:9px; color:var(--ui-text-secondary); }
+  @media (max-width:600px) { .preview-bottom { flex-wrap:wrap; } .preview-pan-help { margin-left:auto; } }
+}

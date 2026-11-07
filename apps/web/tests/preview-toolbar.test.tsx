@@ -81,6 +81,44 @@ after(async () => {
   }
 });
 
+test("preview supports hand dragging, temporary Space, cancellation and fit reset without changing facts", async () => {
+  const { resume } = await mount();
+  const original = JSON.stringify(resume);
+  const canvas = dom.document.querySelector<HTMLElement>(".resume-preview-canvas")!;
+  Object.defineProperties(canvas, { clientWidth: { value: 500 }, clientHeight: { value: 600 } });
+  let captured = false;
+  canvas.setPointerCapture = () => { captured = true; };
+  canvas.hasPointerCapture = () => captured;
+  canvas.releasePointerCapture = () => { captured = false; };
+  const pointer = async (type: string, x: number, y: number, mouseButton = 0) => flush(() => canvas.dispatchEvent(new dom.PointerEvent(type, { pointerId: 1, button: mouseButton, clientX: x, clientY: y, bubbles: true, cancelable: true })));
+  canvas.scrollLeft = 100; canvas.scrollTop = 200;
+  await pointer("pointerdown", 200, 200);
+  await pointer("pointermove", 150, 120);
+  assert.equal(canvas.scrollTop, 200, "selection mode must not pan");
+  await flush(() => button("Pan").click());
+  await pointer("pointerdown", 200, 200);
+  await pointer("pointermove", 150, 120);
+  assert.equal(canvas.scrollLeft, 150); assert.equal(canvas.scrollTop, 280);
+  assert.equal(canvas.dataset.panning, "true");
+  await pointer("pointercancel", 150, 120);
+  assert.equal(canvas.dataset.panning, "false"); assert.equal(captured, false);
+  await flush(() => button("Pan").click());
+  await flush(() => { canvas.focus(); canvas.dispatchEvent(new dom.KeyboardEvent("keydown", { key: " ", code: "Space", bubbles: true, cancelable: true })); });
+  assert.equal(canvas.dataset.panActive, "true");
+  await flush(() => dom.dispatchEvent(new dom.Event("blur")));
+  assert.equal(canvas.dataset.panActive, "false");
+  await pointer("pointerdown", 200, 200, 1);
+  assert.equal(canvas.dataset.panning, "true");
+  await pointer("pointerup", 200, 200, 1);
+  await flush(() => button("Fit preview width").click());
+  assert.equal(canvas.scrollLeft, 0); assert.equal(canvas.scrollTop, 0);
+  const input = dom.document.createElement("textarea"); dom.document.body.append(input); input.focus();
+  const space = new dom.KeyboardEvent("keydown", { key: " ", code: "Space", bubbles: true, cancelable: true });
+  await flush(() => input.dispatchEvent(space));
+  assert.equal(space.defaultPrevented, false); assert.equal(canvas.dataset.panActive, "false");
+  assert.equal(JSON.stringify(resume), original);
+});
+
 test("export menu opens from either arrow key and supports cyclic navigation, Home and End", async () => {
   await mount();
   const trigger = button("More export formats");

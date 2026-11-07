@@ -8,6 +8,9 @@ import { getTemplateUiMetadata, TEMPLATE_SOURCES } from "./template-catalog";
 import { getFitPreviewZoom, getPreviewScrollTop, resolvePreviewAnchor, type PreviewFollowTarget } from "../lib/preview-follow";
 import { projectedResumeToDocx } from "../lib/docx-export";
 import "./resume-design.css";
+import { Hand } from "lucide-react";
+import { usePreviewPan } from "./usePreviewPan";
+import "./preview-pan.css";
 
 type Props = {
   resume: ProjectedResume;
@@ -189,7 +192,14 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
     return () => { observer?.disconnect(); window.removeEventListener("resize", update); cancelAnimationFrame(frame); };
   }, [fitMode, updateFitWidth, followCurrentTarget]);
 
-  function fitWidth() { setFitMode(true); updateFitWidth(); }
+  const pan = usePreviewPan(canvasRef, pauseForManualPreview);
+  const panHelpId = useId();
+  function fitWidth() {
+    pauseForManualPreview();
+    setFitMode(true);
+    updateFitWidth();
+    if (canvasRef.current) { canvasRef.current.scrollLeft = 0; canvasRef.current.scrollTop = 0; }
+  }
   function changeZoom(delta: number) { setFitMode(false); setZoom((value) => Math.max(20, Math.min(130, value + delta))); }
   function pauseForManualPreview() {
     manualPreviewRef.current = true;
@@ -322,7 +332,7 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
         {copyError && <p role="status" className="preview-feedback preview-feedback-error">{copyError}</p>}
         {exportNotes.length > 0 && <details className="preview-export-notes"><summary>{t(`导出说明（${exportNotes.length}）`, `Export notes (${exportNotes.length})`)}</summary><ul role="status">{exportNotes.map((note, index) => <li key={index}>{note}</li>)}</ul></details>}
       </div>
-      <div ref={canvasRef} className="resume-preview-canvas min-h-0 flex-1" tabIndex={0} aria-label={t("可滚动简历纸张", "Scrollable resume page")} onWheelCapture={pauseForManualPreview} onPointerDownCapture={pauseForManualPreview} onTouchStartCapture={pauseForManualPreview} onKeyDownCapture={(event) => { if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) pauseForManualPreview(); }}>
+      <div ref={canvasRef} className="resume-preview-canvas min-h-0 flex-1" data-pan-active={pan.active} data-panning={pan.dragging} {...pan.handlers} tabIndex={0} aria-describedby={panHelpId} aria-label={t("可滚动简历纸张", "Scrollable resume page")} onWheelCapture={pauseForManualPreview} onPointerDownCapture={pauseForManualPreview} onTouchStartCapture={pauseForManualPreview} onKeyDownCapture={(event) => { if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) pauseForManualPreview(); }}>
         <div ref={stageRef} className="resume-preview-stage" onLoadCapture={followCurrentTarget}>
           <div ref={paperRef} className="resume-preview-scale" style={{ zoom: zoom / 100 }}>
             <ResumeTemplate resume={resume} templateId={templateId} showAvatar={showAvatar} />
@@ -331,10 +341,11 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
       </div>
       <div className="preview-bottom no-print">
         <div className="preview-display-controls">
+          <button type="button" className="preview-pan-toggle" aria-pressed={pan.handMode} title={t("抓手拖动；关闭后可选择文字。也可按住空格或鼠标中键拖动。", "Drag to pan; turn off to select text. Hold Space or drag with the middle mouse button for temporary panning.")} onClick={() => { pan.setHandMode(value => !value); canvasRef.current?.focus({ preventScroll: true }); }}><Hand size={13} /><span>{t("抓手", "Pan")}</span></button>
           <button type="button" className="preview-follow-toggle" onClick={() => { manualPreviewRef.current = false; setFollowEnabled(value => !value); }} aria-pressed={followEnabled} title={t("跟随左侧编辑位置；手动浏览预览后，继续编辑会恢复跟随", "Follow editing; manual browsing pauses following until you edit again")}><ScanLine size={13} /><span>{t("跟随编辑", "Follow editing")}</span></button>
           {(view || resume.profile.avatarUrl) && <button type="button" onClick={toggleAvatar} disabled={isAts} aria-pressed={!isAts && showAvatar} title={t("切换并保存照片显示偏好", "Toggle and save photo visibility")}><User size={13} /><span>{isAts ? t("ATS 无照片", "ATS · no photo") : showAvatar ? t("照片：显示", "Photo: shown") : t("照片：隐藏", "Photo: hidden")}</span></button>}
         </div>
-        <span>A4 · {t("实时预览", "Live preview")}</span>
+        <span id={panHelpId} className="preview-pan-help">{t("空格 + 拖动", "Space + drag")}</span>
       </div>
     </section>
   );
