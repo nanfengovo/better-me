@@ -9,6 +9,8 @@ type Props = {
   issues: ClaimIssue[];
   factBase: FactBase;
   onNavigate: (issue: ClaimIssue) => void;
+  onConfirmMetric?: (experienceId: string, claimId: string) => void;
+  onConfirmAllMetrics?: () => void;
   activeIssue?: ClaimIssue;
   compact?: boolean;
 };
@@ -18,11 +20,12 @@ function summarize(text: string): string {
   return characters.length > 90 ? `${characters.slice(0, 90).join("")}…` : characters.join("");
 }
 
-export function IssuesPanel({ issues, factBase, onNavigate, activeIssue, compact = false }: Props) {
+export function IssuesPanel({ issues, factBase, onNavigate, onConfirmMetric, onConfirmAllMetrics, activeIssue, compact = false }: Props) {
   const { t, locale } = useUiPreferences();
 
   const [open, setOpen] = useState(false);
   const detailsId = useId();
+  const unconfirmedCount = issues.filter(item => item.code === "metric_unconfirmed").length;
   const navigateToIssue = (issue: ClaimIssue) => {
     setOpen(false);
     onNavigate(issue);
@@ -60,12 +63,23 @@ export function IssuesPanel({ issues, factBase, onNavigate, activeIssue, compact
       </div>
 
       {open && (
-        <div id={detailsId} className="border-t border-amber-200/60 bg-white/70 px-4 py-3 text-xs space-y-2">
-          <p className="text-slate-500 flex items-center gap-1.5 text-[11px]">
-            <Info className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-            <span>
-              {t("双击问题条目，或点“定位并修改”，即可跳到编辑区查看修改指导。量化数字必须由你核对后勾选“已核实”；比较基线或因果说明也只能填写有依据的内容。", "Double-click an issue or choose Locate and edit to open guidance in the editor. Verify metrics yourself before confirming them. Use supported facts for baselines and causes.")}</span>
-          </p>
+        <div id={detailsId} className="border-t border-amber-200/60 bg-white/95 px-4 py-3 text-xs space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-slate-500 flex items-center gap-1.5 text-[11px] flex-1 min-w-[200px]">
+              <Info className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+              <span>
+                {t("双击问题条目，或点“定位并修改”，即可跳到编辑区查看修改指导。量化数字必须由你核对后勾选“已核实”；比较基线或因果说明也只能填写有依据的内容。", "Double-click an issue or choose Locate and edit to open guidance in the editor. Verify metrics yourself before confirming them. Use supported facts for baselines and causes.")}</span>
+            </p>
+            {unconfirmedCount > 0 && onConfirmAllMetrics && (
+              <button
+                type="button"
+                onClick={() => onConfirmAllMetrics()}
+                className="shrink-0 rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100 transition"
+              >
+                {t(`✓ 全部核实并展示量化成果（${unconfirmedCount} 项）`, `✓ Confirm & show all metrics (${unconfirmedCount})`)}
+              </button>
+            )}
+          </div>
 
           <ul className="max-h-[min(40dvh,22rem)] overflow-y-auto space-y-1.5 pt-1">
             {issues.map((issue) => {
@@ -95,17 +109,31 @@ export function IssuesPanel({ issues, factBase, onNavigate, activeIssue, compact
                     <p title={text} className="font-medium">{showEnglish && <span className="mr-1.5 rounded bg-slate-100 px-1 py-0.5 text-[10px] text-slate-600">{t("英文", "English")}</span>}<span lang={showEnglish ? "en" : undefined}>{summarize(text)}</span></p>
                     <p className="text-[11px] leading-relaxed text-slate-600">{guidance.description}</p>
                   </div>
-                  <button
-                    type="button"
-                    aria-label={t(`定位并修改：${organization}，${guidance.title}`, `Locate and edit: ${organization}, ${guidance.title}`)}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (event.detail <= 1) navigateToIssue(issue);
-                    }}
-                    onDoubleClick={(event) => event.stopPropagation()}
-                    className="shrink-0 rounded-md border border-amber-300 bg-white px-3 py-2 font-semibold text-amber-900 transition hover:bg-amber-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
-                  >
-                    {t("定位并修改", "Locate and edit")}</button>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {issue.code === "metric_unconfirmed" && onConfirmMetric && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onConfirmMetric(issue.experienceId, issue.claimId);
+                        }}
+                        className="shrink-0 rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-2 text-[11px] font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                      >
+                        {t("✓ 核实并展示", "✓ Confirm")}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      aria-label={t(`定位并修改：${organization}，${guidance.title}`, `Locate and edit: ${organization}, ${guidance.title}`)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (event.detail <= 1) navigateToIssue(issue);
+                      }}
+                      onDoubleClick={(event) => event.stopPropagation()}
+                      className="shrink-0 rounded-md border border-amber-300 bg-white px-3 py-2 font-semibold text-amber-900 transition hover:bg-amber-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
+                    >
+                      {t("定位并修改", "Locate and edit")}</button>
+                  </div>
                 </li>
               );
             })}

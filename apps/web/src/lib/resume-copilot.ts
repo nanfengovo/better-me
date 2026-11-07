@@ -77,6 +77,9 @@ export function reconcileWritingNotes(notes: WritingNote[], sources: WritingSour
       if (quote) return { ...note, source: { ...current, quote }, proposedText: undefined, questions: undefined, rationale: undefined, evidenceQuotes: undefined, autoAsked: false, updatedAt: Date.now() };
       return { ...note, state: "stale", updatedAt: Date.now() };
     }
+    if (note.state === "stale" && current && current.text === note.source.text) {
+      return { ...note, state: "open", updatedAt: Date.now() };
+    }
     return note;
   });
 }
@@ -121,7 +124,7 @@ export function saveWritingSession(storage: Pick<Storage, "getItem" | "setItem">
   const notes = new Map(prior.notes.map(note => [note.id, note]));
   for (const note of session.notes) {
     const old = notes.get(note.id);
-    if (old && old.state !== "open" && note.state === "open") continue;
+    if (old && old.state === "dismissed" && note.state === "open") continue;
     if (!old || old.updatedAt <= note.updatedAt) notes.set(note.id, note);
   }
   const merged = { ...session, notes: [...notes.values()].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 80) };

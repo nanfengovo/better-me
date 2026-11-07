@@ -483,7 +483,10 @@ export function createBrowserSessionManager(options: BrowserSessionOptions = {})
           }
         });
         operationSignal.throwIfAborted();
-        try { await page.goto(session.url, { waitUntil: "domcontentloaded", timeout: 25_000 }); }
+        const targetUrl = (session.platform === "BOSS直聘" && session.url.includes("/weijd/weijd-job/"))
+          ? session.url.replace(/https?:\/\/(?:m|www)\.zhipin\.com\/mpa\/html\/weijd\/weijd-job\/([a-z\d_-]+)[^ \t\r\n]*/i, "https://www.zhipin.com/job_detail/$1.html")
+          : session.url;
+        try { await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 25_000 }); }
         catch { operationSignal.throwIfAborted(); throw failure("network", "人工接续浏览器未完成岗位页面加载，请检查网络后重新打开。", "connect"); }
         operationSignal.throwIfAborted();
         return { sessionId: session.id, platform: session.platform, url: session.url, expiresAt: new Date(session.expires).toISOString() };

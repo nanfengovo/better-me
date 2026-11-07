@@ -6,6 +6,7 @@ export * from "./themes/resolver.js";
 export * from "./validation/claims.js";
 export * from "./project/resume-projection.js";
 export * from "./project/jd-match-readiness.js";
+export * from "./project/jd-decomposition.js";
 export * from "./project/markdown-export.js";
 export * from "./project/rendercv-export.js";
 export * from "./seed/demo-fact-base.js";

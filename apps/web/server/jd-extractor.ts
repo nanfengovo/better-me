@@ -605,9 +605,14 @@ export async function waitForAutoBrowserJob(page: AutoBrowserGatePage, platform:
 
 export async function autoExtractWithBrowser(input: string, signal?: AbortSignal): Promise<JdImportResult> {
   let normalizedInput = input.trim();
-  const bossShortMatch = normalizedInput.match(/^(?:https?:\/\/(?:www\.)?zhipin\.com\/)?(?:job|job_detail)\/([a-z\d_-]+)/i);
-  if (bossShortMatch) {
-    normalizedInput = `https://www.zhipin.com/job_detail/${bossShortMatch[1]}.html`;
+  const bossMobileMatch = normalizedInput.match(/(?:https?:\/\/)?(?:m|www)\.zhipin\.com\/mpa\/html\/weijd\/weijd-job\/([a-z\d_-]+)/i);
+  if (bossMobileMatch) {
+    normalizedInput = `https://www.zhipin.com/job_detail/${bossMobileMatch[1]}.html`;
+  } else {
+    const bossShortMatch = normalizedInput.match(/^(?:https?:\/\/(?:www\.)?zhipin\.com\/)?(?:job|job_detail)\/([a-z\d_-]+)/i);
+    if (bossShortMatch) {
+      normalizedInput = `https://www.zhipin.com/job_detail/${bossShortMatch[1]}.html`;
+    }
   }
   const { url, platform } = normalizeJobShare(normalizedInput);
   const { chromium } = await import("playwright-core");

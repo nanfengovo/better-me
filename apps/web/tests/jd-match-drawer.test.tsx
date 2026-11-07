@@ -444,3 +444,99 @@ test("JdMatchDrawer displays warning banner when API key is missing and provides
   assert.equal(quickPrompts.length, 4, "Should render 4 quick prompt buttons in chat tab");
 });
 
+test("JdMatchDrawer renders and switches to JD Breakdown tab with original quotes and tech stack tags", async () => {
+  const sampleJob = {
+    title: "资深后端开发",
+    company: "云原生科技",
+    location: "上海",
+    description: `
+【岗位职责】
+1. 负责高并发消息队列（Kafka/RabbitMQ）与 Redis 缓存架构优化。
+【任职要求】
+1. 熟练掌握 C#、.NET 与微服务架构设计。
+2. 熟练使用 Kubernetes 与 Docker。
+    `.trim(),
+  };
+
+  await mount(
+    h(JdMatchDrawer, {
+      isOpen: true,
+      onClose: () => {},
+      job: sampleJob,
+      resume: mockResume,
+      llmConfig: mockLlmConfig,
+      onOpenConfig: () => {},
+      onApplyToResume: () => {},
+    }),
+  );
+
+  const decompTab = Array.from(dom.document.querySelectorAll("button")).find((b) =>
+    b.textContent?.includes("JD 原句深度拆解")
+  );
+  assert.ok(decompTab !== undefined, "JD breakdown tab should exist");
+
+  await flush(() => {
+    decompTab.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+
+  const textContent = dom.document.body.textContent || "";
+  assert.ok(textContent.includes("任职资格与硬性门槛（原句保真）"), "Should render hard requirements section");
+  assert.ok(textContent.includes("核心岗位职责（原句保真）"), "Should render responsibilities section");
+  assert.ok(textContent.includes("Kafka"), "Should detect tech stack Kafka");
+  assert.ok(textContent.includes("Kubernetes"), "Should detect tech stack Kubernetes");
+});
+
+test("JdMatchDrawer renders and switches to Interview Defense tab with defense questions, strategy, and answer outlines", async () => {
+  const sampleJob = {
+    title: "自动化软件工程师",
+    company: "梅特勒托利多",
+    location: "上海",
+    description: `
+【岗位职责】
+• 负责车间工控设备、传感器、PLC与工控机通讯对接，解决通讯丢包与生产联动控制。
+【任职要求】
+• 计算机或自动化相关专业本科及以上学历。
+• 熟练掌握 C#、.NET、WPF 与 Modbus、西门子 S7 协议。
+    `.trim(),
+  };
+
+  // Mock resume with associate degree to trigger education gap defense
+  const resumeWithEduGap: ProjectedResume = {
+    ...mockResume,
+    educationSummary: "江苏电子信息职业学院 · 大专 · 电子信息工程技术",
+    profile: {
+      ...mockResume.profile,
+      education: "江苏电子信息职业学院 · 大专 · 电子信息工程技术",
+    },
+  };
+
+  await mount(
+    h(JdMatchDrawer, {
+      isOpen: true,
+      onClose: () => {},
+      job: sampleJob,
+      resume: resumeWithEduGap,
+      llmConfig: mockLlmConfig,
+      onOpenConfig: () => {},
+      onApplyToResume: () => {},
+    }),
+  );
+
+  const defenseTab = Array.from(dom.document.querySelectorAll("button")).find((b) =>
+    b.textContent?.includes("面试攻防防御")
+  );
+  assert.ok(defenseTab !== undefined, "Interview defense tab button should exist");
+
+  await flush(() => {
+    defenseTab.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+
+  const textContent = dom.document.body.textContent || "";
+  assert.ok(textContent.includes("针对性面试追问预演与攻防策略"), "Should render defense banner");
+  assert.ok(textContent.includes("防守核心要点"), "Should render core defense strategy");
+  assert.ok(textContent.includes("结构化回答提纲"), "Should render answer framework");
+  assert.ok(textContent.includes("模拟对练这道题"), "Should render interactive mock practice button");
+});
+
+
+

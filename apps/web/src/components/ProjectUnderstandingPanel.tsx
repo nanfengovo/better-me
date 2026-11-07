@@ -22,6 +22,8 @@ type Props = {
   chatGpt?: { profileId: string; model: string; ready: boolean };
   onRunningChange?: (running: boolean) => void;
   onContribution?: (supplement: string, context: ConfirmedWritingProjectContext, question: string) => void;
+  onSessionChange?: (session: UnderstandingSession | undefined) => void;
+  onCompleteToWriting?: (supplement: string, context: ConfirmedWritingProjectContext) => void;
 };
 const PendingSchema = z.object({ id: z.string(), revision: z.number(), answer: z.string(), options: z.array(z.string()) });
 const DraftSchema = z.object({ sessionId: z.string().optional(), answer: z.string().max(16000).default(""),
@@ -44,8 +46,17 @@ function relativeSeconds(at: string | undefined, now: number): number {
   return Number.isFinite(time) ? Math.max(0, Math.floor((now - time) / 1000)) : 0;
 }
 
+export function extractUnderstandingUserSupplement(session: UnderstandingSession | undefined, draftAnswer = ""): string {
+  const filler = /^(没有|没问题|没有问题|确认|对的|好的|无|ok|okay|那现在这里是闭环了吗.*)$/i;
+  const parts = [
+    ...(session?.messages ?? []).filter(m => m.role === "user").map(m => m.text.trim()),
+    draftAnswer.trim(),
+  ].filter(text => text.length > 0 && !filler.test(text));
+  return [...new Set(parts)].join("\n");
+}
+
 export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sourceText, config, onClose, onConfirmed,
-  client = defaultUnderstandingClient, pollIntervalMs = 1500, chatGpt, onRunningChange, onContribution }: Props) {
+  client = defaultUnderstandingClient, pollIntervalMs = 1500, chatGpt, onRunningChange, onContribution, onSessionChange, onCompleteToWriting }: Props) {
   const { agent, snapshot: agentSnapshot } = useBetterMeAgent();
   const sidebar = useAgentSidebar();
   const uid = useId();
@@ -72,8 +83,10 @@ export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sou
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [now, setNow] = useState(Date.now());
   const alive = useRef(true), lock = useRef(false), activeRequest = useRef<AbortController | undefined>(undefined);
+  const bodyRef = useRef<HTMLDivElement>(null), cardRef = useRef<HTMLElement>(null);
   const current = useRef({ session, scope, answer, options, pending }); current.current = { session, scope, answer, options, pending };
   const confirmedCallback = useRef(onConfirmed); confirmedCallback.current = onConfirmed;
+  const sessionChangeCallback = useRef(onSessionChange); sessionChangeCallback.current = onSessionChange;
   const acceptRef = useRef<(next: UnderstandingSession) => void>(() => {});
 
   function accept(next: UnderstandingSession) {
@@ -140,7 +153,11 @@ export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sou
   }, [answer, initializing, options, pending, pointer, scope, session?.question?.id]);
   useEffect(() => {
     confirmedCallback.current(session && session.sourceText === sourceText ? confirmedWritingProjectContext(session) : undefined);
+    sessionChangeCallback.current?.(session);
     setConfirmationToken("");
+    if (session?.understanding && cardRef.current && bodyRef.current) {
+      bodyRef.current.scrollTop = Math.max(0, cardRef.current.offsetTop - bodyRef.current.offsetTop - 8);
+    }
   }, [session, sourceText]);
   useEffect(() => {
     if (session && agentSnapshot?.ready && !agentSnapshot.error) agent?.observeUnderstanding(session, projectKey);
@@ -246,18 +263,35 @@ export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sou
     <header className="understanding-heading"><div><span className="understanding-eyebrow"><BookOpen size={14} />先建立共同语言</span><h2 id={`${uid}-title`}>一起弄清这个项目</h2></div><button type="button" onClick={onClose} aria-label="收起项目理解面板"><X size={16} /></button></header>
     <div className="understanding-current" role="status" aria-live="polite"><strong>{initializing ? "正在恢复本地对话…" : operation === "send" ? "正在提交本轮请求…" : sourceChanged ? "原文已变化 · 需要重新确认" : sessionPhaseLabel}</strong></div>
     </div>
-    <div className="understanding-body" role="region" aria-label="项目理解对话与证据" tabIndex={0}>
-    <details className="understanding-progress"><summary>协作进度 · {session?.phase === "confirmed" ? "3" : session?.understanding ? "2" : "1"} / 4</summary><span>{session ? `已交流 ${session.turnCount} 轮 · 版本 ${session.revision}` : "没有预设轮数"}</span>
-      {lastEvent && <span>最近进度：{lastEvent.label}{running && <span aria-hidden="true"> · {idleSeconds} 秒前</span>}</span>}
-      {running && <span aria-live="off">本轮已等待 {relativeSeconds(runStart, now)} 秒{idleSeconds >= 30 ? "；暂时没有新的进度，不能据此判断已失败。可停止或刷新状态。" : ""}</span>}
-      <div className="understanding-actions"><button type="button" disabled={busy} onClick={refresh}><RefreshCw size={13} />刷新状态</button>{running && <button type="button" disabled={Boolean(operation)} onClick={() => void perform("cancel", async signal => { const next = await client.cancel(session.id, session.turnCount, signal); if (alive.current) { acceptRef.current(next); setUncertain(false); } })}><Square size={13} />停止本轮</button>}</div>
-    </details>
-    <details className="understanding-help"><summary>如何一起完善这段经历</summary>
-    <nav className="agent-flow-status" aria-label="项目协作进度"><span aria-current={!session?.understanding ? "step" : undefined}>1 理解项目</span><span aria-current={session?.understanding && session.phase !== "confirmed" ? "step" : undefined}>2 核对共识</span><span aria-current={session?.phase === "confirmed" ? "step" : undefined}>3 认领贡献</span><span>4 旁批与候选</span></nav>
-    {sidebar && <button type="button" onClick={() => sidebar.learn("contribution")}>如何把理解转成简历</button>}
-    <p className="understanding-intro">先对齐术语、流程和边界，轮数由你们的理解决定。你确认后，再讨论个人贡献；这里不会修改简历。</p>
-    </details>
-    <details className="understanding-source"><summary>当前字段 · {label}</summary><blockquote>{sourceText}</blockquote><p>只使用这条原文。原文变化会保留对话历史，并要求你重新确认理解。</p></details>
+    <div ref={bodyRef} className="understanding-body" role="region" aria-label="项目理解对话与证据" tabIndex={0}>
+    <div className="understanding-meta-bar">
+      <details className="understanding-progress"><summary>协作进度 · {session?.phase === "confirmed" ? "3" : session?.understanding ? "2" : "1"} / 4</summary><span>{session ? `已交流 ${session.turnCount} 轮 · 版本 ${session.revision}` : "没有预设轮数"}</span>
+        {lastEvent && <span>最近进度：{lastEvent.label}{running && <span aria-hidden="true"> · {idleSeconds} 秒前</span>}</span>}
+        {running && <span aria-live="off">本轮已等待 {relativeSeconds(runStart, now)} 秒{idleSeconds >= 30 ? "；暂时没有新的进度，不能据此判断已失败。可停止或刷新状态。" : ""}</span>}
+        <div className="understanding-actions"><button type="button" disabled={busy} onClick={refresh}><RefreshCw size={13} />刷新状态</button>{running && <button type="button" disabled={Boolean(operation)} onClick={() => void perform("cancel", async signal => { const next = await client.cancel(session.id, session.turnCount, signal); if (alive.current) { acceptRef.current(next); setUncertain(false); } })}><Square size={13} />停止本轮</button>}</div>
+      </details>
+      <details className="understanding-help"><summary>如何一起完善这段经历</summary>
+      <nav className="agent-flow-status" aria-label="项目协作进度"><span aria-current={!session?.understanding ? "step" : undefined}>1 理解项目</span><span aria-current={session?.understanding && session.phase !== "confirmed" ? "step" : undefined}>2 核对共识</span><span aria-current={session?.phase === "confirmed" ? "step" : undefined}>3 认领贡献</span><span>4 旁批与候选</span></nav>
+      {sidebar && <button type="button" onClick={() => sidebar.learn("contribution")}>如何把理解转成简历</button>}
+      <p className="understanding-intro">先对齐术语、流程和边界，轮数由你们的理解决定。你确认后，再讨论个人贡献；这里不会修改简历。</p>
+      </details>
+      <details className="understanding-source"><summary>当前字段 · {label}</summary><blockquote>{sourceText}</blockquote><p>只使用这条原文。原文变化会保留对话历史，并要求你重新确认理解。</p></details>
+      <details className="understanding-permissions"><summary data-agent-guide="permissions"><FolderOpen size={14} />允许 Agent 阅读的资料范围（可选）</summary>{sidebar && <button type="button" onClick={() => sidebar.learn("evidence")}>查看授权教程</button>}
+        <p>仅按你明确授权的目录或文件读取材料；不会据此认定你的个人贡献。撤销授权会使旧确认失效。自动排除不等于完整脱敏，请勿授权凭据或不应共享的资料。</p>
+        <label htmlFor={`${uid}-path`}>要授权的本机目录或文件完整路径</label><div className="understanding-path"><input id={`${uid}-path`} value={grantPath} maxLength={2000} placeholder="输入你要共享的目录或文件" onChange={event => setGrantPath(event.target.value)} /><button type="button" disabled={busy || running || !grantPath.trim()} onClick={() => void perform("grant", async signal => { const before = await ensureSession(signal); confirmedCallback.current(undefined); const next = await client.addGrant(before.id, grantPath.trim(), signal); if (alive.current) { acceptRef.current(next); setGrantPath(""); } })}>授权只读</button></div>
+        {session?.grants.filter(grant => !grant.revokedAt).map(grant => <div className="understanding-grant" key={grant.id}><code>{grant.path}</code><button type="button" disabled={Boolean(operation)} onClick={() => void perform("revoke", async signal => { confirmedCallback.current(undefined); const next = await client.revokeGrant(session.id, grant.id, signal); if (alive.current) acceptRef.current(next); })}>撤销授权</button></div>)}
+      </details>
+      <details className="understanding-runtime"><summary>本轮模型与资料去向 · {routing?.enabled ? agentBaseLabel(routing.policy) : runtime === "model" ? config.model || "未配置" : runtime === "chatgpt" ? chatGpt?.model || "ChatGPT" : capabilities.find(item => item.id === runtime)?.name || runtime}</summary>
+        {routing?.enabled ? <p>跟随统一 Agent 底座；在“模型与工具”中可任意调整首选和备选。跳过和选择原因在同处可见；本轮授权只覆盖当前原文与已批准资料。</p> : <><label htmlFor={`${uid}-runtime`}>本轮使用</label><select id={`${uid}-runtime`} value={runtime} disabled={running || busy} onChange={event => { setRuntime(event.target.value); sidebar?.setReaderRuntime(["model", "chatgpt"].includes(event.target.value) ? "model" : event.target.value); setConsent(false); }}><option value="model">当前模型 · {config.model || "尚未配置"}</option><option value="chatgpt">ChatGPT 账号授权 · {chatGpt?.model || "请在上方伴写 Agent 中授权并选模型"}</option>{capabilities.map(item => <option key={item.id} value={item.id} disabled={!item.available || !item.supported}>{item.name} · {nativeToolStatus(item)}</option>)}</select></>}
+        {runtime === "chatgpt" && <p className="understanding-hint">使用上方选择的 ChatGPT 账号与套餐。额度或授权异常时停止，不使用当前 API 配置补发。</p>}
+        {capabilityError && <p className="understanding-hint">{capabilityError}</p>}{capabilities.some(item => !item.available || !item.supported) && <details><summary>本机 Agent 兼容性</summary>{capabilities.filter(item => !item.available || !item.supported).map(item => <p className="understanding-hint" key={item.id}>{item.name}：{item.reason ?? "当前环境不支持此只读工作流"}</p>)}</details>}
+        {!runtimeReady && <p className="understanding-hint">请先完成当前模型配置，或选择明确可用的原生 Agent。不会自动改用其他提供方。</p>}
+        <p className="understanding-hint">本机原生 Agent 也可能调用云模型。资料会按所选模型或原生工具的配置发送；只读权限不代表资料不会离开本机。</p>
+        <small>输入草稿留在当前浏览器；对话与确认保存在本机 Agent。收起面板不会停止正在运行的一轮。</small>
+      </details>
+      <AgentExecutionLog entries={(session?.events ?? []).map(event => ({ id: String(event.sequence), at: event.at, kind: event.kind, label: event.label, important: !["reading", "thinking"].includes(event.kind) }))} />
+      {Boolean(session?.evidence.length) && <details className="understanding-evidence"><summary>已读取材料 · {session?.evidence.length} 段</summary>{session?.evidence.map(item => <details key={item.id}><summary>{item.path} · {item.startLine}–{item.endLine} 行</summary><p>采集于 <time dateTime={item.collectedAt}>{new Date(item.collectedAt).toLocaleString()}</time> · 内容指纹 <code>{item.hash}</code>。这是采集时快照，不代表当前生产状态，也不证明个人贡献。</p><pre>{item.excerpt || "此材料已撤销或不再用于后续推理；仅保留采集记录。"}</pre></details>)}</details>}
+    </div>
     {sourceChanged && <div className="understanding-alert" role="alert"><p>原文已变化，旧共识暂不可用于伴写。对话历史仍保留；只有你确认后才会更新本次材料。</p><button type="button" disabled={busy || running || sourceText.length > 16000 || !sourceText.trim()} onClick={() => void perform("source", async signal => {
       if (!session) return; confirmedCallback.current(undefined);
       const next = await client.updateSource(session.id, { expectedRevision: session.revision, sourceText }, signal);
@@ -271,12 +305,8 @@ export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sou
       {session.checkpoint.evidenceIds.length > 0 && <details><summary>本轮取得了什么</summary><ul>{session.evidence.filter(item => session.checkpoint!.evidenceIds.includes(item.id)).map(item => <li key={item.id}>{item.path} · {item.startLine}–{item.endLine} 行{!item.excerpt ? " · 已撤销" : ""}</li>)}</ul></details>}
     </section>}
     {missing && <button type="button" disabled={busy} onClick={() => { setPointer(undefined); setMissing(false); setError(""); setSession(undefined); }}>保留输入，重新建立对话</button>}
-    <details className="understanding-permissions"><summary data-agent-guide="permissions"><FolderOpen size={14} />允许 Agent 阅读的资料范围（可选）</summary>{sidebar && <button type="button" onClick={() => sidebar.learn("evidence")}>查看授权教程</button>}
-      <p>仅按你明确授权的目录或文件读取材料；不会据此认定你的个人贡献。撤销授权会使旧确认失效。自动排除不等于完整脱敏，请勿授权凭据或不应共享的资料。</p>
-      <label htmlFor={`${uid}-path`}>要授权的本机目录或文件完整路径</label><div className="understanding-path"><input id={`${uid}-path`} value={grantPath} maxLength={2000} placeholder="输入你要共享的目录或文件" onChange={event => setGrantPath(event.target.value)} /><button type="button" disabled={busy || running || !grantPath.trim()} onClick={() => void perform("grant", async signal => { const before = await ensureSession(signal); confirmedCallback.current(undefined); const next = await client.addGrant(before.id, grantPath.trim(), signal); if (alive.current) { acceptRef.current(next); setGrantPath(""); } })}>授权只读</button></div>
-      {session?.grants.filter(grant => !grant.revokedAt).map(grant => <div className="understanding-grant" key={grant.id}><code>{grant.path}</code><button type="button" disabled={Boolean(operation)} onClick={() => void perform("revoke", async signal => { confirmedCallback.current(undefined); const next = await client.revokeGrant(session.id, grant.id, signal); if (alive.current) acceptRef.current(next); })}>撤销授权</button></div>)}
-    </details>
-    {session?.understanding && <section tabIndex={-1} className="understanding-card" data-agent-guide="understanding-summary" aria-label="当前项目理解卡片"><div className="understanding-card-heading"><h3>{session.checkpoint && session.checkpoint.status !== "complete" ? "上次理解 · 本轮尚未更新" : "我目前这样理解"}</h3><span>{sourceChanged ? "原文已变化 · 待重确认" : session.phase === "confirmed" ? "你已确认" : "待你核对"}</span></div><p>{session.understanding.summary}</p>
+    {Boolean(session?.messages.length) && <details className="understanding-history" open><summary>对话历史 · {session?.messages.length} 条</summary>{!showAllHistory && (session?.messages.length ?? 0) > 20 && <button type="button" onClick={() => setShowAllHistory(true)}>展开更早的 {(session?.messages.length ?? 0) - 20} 条记录</button>}<ol>{visibleMessages?.map(message => <li key={message.id} data-role={message.role}><div><strong>{message.role === "user" ? "你" : message.role === "agent" ? "Agent" : "状态"}</strong><time dateTime={message.at}>{new Date(message.at).toLocaleTimeString()}</time></div><p>{message.text}</p>{message.question && <p className="understanding-history-question">追问：{message.question.text}</p>}</li>)}</ol></details>}
+    {session?.understanding && <section ref={cardRef} tabIndex={-1} className="understanding-card" data-agent-guide="understanding-summary" aria-label="当前项目理解卡片"><div className="understanding-card-heading"><h3>{session.checkpoint && session.checkpoint.status !== "complete" ? "上次理解 · 本轮尚未更新" : "📋 我目前这样理解（完整整理）"}</h3><span>{sourceChanged ? "原文已变化 · 待重确认" : session.phase === "confirmed" ? "你已确认" : "待你核对"}</span></div><p>{session.understanding.summary}</p>
       {session.understanding.terms.length > 0 && <dl className="understanding-terms">{session.understanding.terms.map((term, index) => <div key={`${term.term}-${index}`}><dt>{term.term}</dt><dd>{term.meaning}</dd></div>)}</dl>}
       {session.understanding.boundaries.length > 0 && <><h4>项目边界</h4><ul>{session.understanding.boundaries.map((text, index) => <li key={index}>{text}</li>)}</ul></>}
       {session.understanding.claims.length > 0 && <details><summary>理解依据与待核对推断</summary>{session.understanding.claims.map(claim => <p key={claim.id}><span className="understanding-evidence-kind">{claim.kind === "source" && !session.evidence.some(item => claim.evidenceIds.includes(item.id) && item.excerpt && isImplementationEvidencePath(item.path)) ? "历史材料结论 · 未核对代码证据" : evidenceLabels[claim.kind]}</span>{claim.text}</p>)}</details>}
@@ -285,7 +315,7 @@ export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sou
         const next = await client.confirm(session.id, { expectedRevision: session.revision, summaryHash: session.summaryHash! }, signal);
         if (alive.current) acceptRef.current(next);
       })}><Check size={14} />确认共同理解，再讨论贡献</button></div>}
-      {session.phase === "confirmed" && !sourceChanged && <p className="understanding-confirmed"><ShieldCheck size={15} />确认仅作为术语背景；个人动作和成果仍需你另外提供、逐字核对。</p>}
+      {session.phase === "confirmed" && !sourceChanged && <div className="understanding-confirmed-block"><p className="understanding-confirmed"><ShieldCheck size={15} />确认仅作为术语背景；个人动作和成果仍需你另外提供、逐字核对。</p>{onCompleteToWriting && confirmedWritingProjectContext(session) && <button type="button" className="understanding-primary" disabled={busy} onClick={() => onCompleteToWriting(extractUnderstandingUserSupplement(session, answer), confirmedWritingProjectContext(session)!)}><Check size={14} />同步项目理解与对话记忆，进入经历改写 →</button>}</div>}
     </section>}
     {session && Boolean(session.understanding?.contributionLeads?.length) && <section tabIndex={-1} className="understanding-contributions" data-agent-guide="contribution-review" aria-label="贡献线索与个人确认"><h3>从项目理解到你的贡献</h3><p className="understanding-hint">下面是 Agent 根据材料提出的方向，不是对你职责的认定。项目背景确认、个人贡献确认、简历采用是三个独立步骤。</p>
       {composeNotice && <p role="status">{composeNotice}</p>}
@@ -306,25 +336,31 @@ export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sou
       <div className="understanding-choices">{session.question.options.map(option => <label key={option.id} className={options.includes(option.id) ? "is-selected" : ""}><input type={session.question?.allowMultiple ? "checkbox" : "radio"} name={`${uid}-question`} value={option.id} checked={options.includes(option.id)} onChange={event => setOptions(old => session.question?.allowMultiple ? event.target.checked ? [...old, option.id] : old.filter(id => id !== option.id) : [option.id])} /><span>{option.label}</span></label>)}</div>
       {options.length > 0 && <button type="button" onClick={() => setOptions([])}>清除选择</button>}
     </fieldset>}
-    <details className="understanding-runtime"><summary>本轮模型与资料去向 · {routing?.enabled ? agentBaseLabel(routing.policy) : runtime === "model" ? config.model || "未配置" : runtime === "chatgpt" ? chatGpt?.model || "ChatGPT" : capabilities.find(item => item.id === runtime)?.name || runtime}</summary>
-      {routing?.enabled ? <p>跟随统一 Agent 底座；在“模型与工具”中可任意调整首选和备选。跳过和选择原因在同处可见；本轮授权只覆盖当前原文与已批准资料。</p> : <><label htmlFor={`${uid}-runtime`}>本轮使用</label><select id={`${uid}-runtime`} value={runtime} disabled={running || busy} onChange={event => { setRuntime(event.target.value); sidebar?.setReaderRuntime(["model", "chatgpt"].includes(event.target.value) ? "model" : event.target.value); setConsent(false); }}><option value="model">当前模型 · {config.model || "尚未配置"}</option><option value="chatgpt">ChatGPT 账号授权 · {chatGpt?.model || "请在上方伴写 Agent 中授权并选模型"}</option>{capabilities.map(item => <option key={item.id} value={item.id} disabled={!item.available || !item.supported}>{item.name} · {nativeToolStatus(item)}</option>)}</select></>}
-      {runtime === "chatgpt" && <p className="understanding-hint">使用上方选择的 ChatGPT 账号与套餐。额度或授权异常时停止，不使用当前 API 配置补发。</p>}
-      {capabilityError && <p className="understanding-hint">{capabilityError}</p>}{capabilities.some(item => !item.available || !item.supported) && <details><summary>本机 Agent 兼容性</summary>{capabilities.filter(item => !item.available || !item.supported).map(item => <p className="understanding-hint" key={item.id}>{item.name}：{item.reason ?? "当前环境不支持此只读工作流"}</p>)}</details>}
-      {!runtimeReady && <p className="understanding-hint">请先完成当前模型配置，或选择明确可用的原生 Agent。不会自动改用其他提供方。</p>}
-      <p className="understanding-hint">本机原生 Agent 也可能调用云模型。资料会按所选模型或原生工具的配置发送；只读权限不代表资料不会离开本机。</p>
-      <small>输入草稿留在当前浏览器；对话与确认保存在本机 Agent。收起面板不会停止正在运行的一轮。</small>
-    </details>
-    {Boolean(session?.messages.length) && <details className="understanding-history" open><summary>对话历史 · {session?.messages.length} 条</summary>{!showAllHistory && (session?.messages.length ?? 0) > 20 && <button type="button" onClick={() => setShowAllHistory(true)}>展开更早的 {(session?.messages.length ?? 0) - 20} 条记录</button>}<ol>{visibleMessages?.map(message => <li key={message.id} data-role={message.role}><div><strong>{message.role === "user" ? "你" : message.role === "agent" ? "Agent" : "状态"}</strong><time dateTime={message.at}>{new Date(message.at).toLocaleTimeString()}</time></div><p>{message.text}</p>{message.question && <p className="understanding-history-question">追问：{message.question.text}</p>}</li>)}</ol></details>}
-    <AgentExecutionLog entries={(session?.events ?? []).map(event => ({ id: String(event.sequence), at: event.at, kind: event.kind, label: event.label, important: !["reading", "thinking"].includes(event.kind) }))} />
-    {Boolean(session?.evidence.length) && <details className="understanding-evidence"><summary>已读取材料 · {session?.evidence.length} 段</summary>{session?.evidence.map(item => <details key={item.id}><summary>{item.path} · {item.startLine}–{item.endLine} 行</summary><p>采集于 <time dateTime={item.collectedAt}>{new Date(item.collectedAt).toLocaleString()}</time> · 内容指纹 <code>{item.hash}</code>。这是采集时快照，不代表当前生产状态，也不证明个人贡献。</p><pre>{item.excerpt || "此材料已撤销或不再用于后续推理；仅保留采集记录。"}</pre></details>)}</details>}
     </div>
     <div className="understanding-compose" role="region" aria-label="项目理解输入">
-      <label htmlFor={`${uid}-answer`}>{session?.understanding ? "补充或纠正理解" : "用自己的话说说这个项目（也可以先让 Agent 提问）"}</label><textarea id={`${uid}-answer`} data-agent-guide="understanding-answer" rows={2} maxLength={16000} value={answer} onChange={event => setAnswer(event.target.value)} placeholder="说说原来的困难、你做的事，或纠正 Agent 的理解。" />
-      <label className="understanding-consent"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} />允许本轮将这条原文、对话和授权资料交给所选运行方式处理</label>
-      <p className="understanding-destination">发送至：{runtime === "model" ? `${config.provider} · ${config.model || "未配置"}` : runtime === "chatgpt" ? `ChatGPT · ${chatGpt?.model || "未配置"}` : capabilities.find(item => item.id === runtime)?.name || runtime} · 可能使用云模型</p>
+      {onCompleteToWriting && session?.understanding && !sourceChanged && (session.phase === "awaiting-confirmation" || session.phase === "confirmed") && <div className="understanding-handoff-bar">
+        <small>{session.phase === "confirmed" ? "✓ 项目理解已确认，可携带记忆直接改写" : "💡 若上方理解准确，可直接闭环进入改写"}</small>
+        <button type="button" className="understanding-primary" disabled={busy || running || (session.phase !== "confirmed" && !token)} onClick={() => void perform("confirm-handoff", async signal => {
+          let latestSession = session;
+          if (latestSession.phase !== "confirmed") {
+            latestSession = await client.confirm(latestSession.id, { expectedRevision: latestSession.revision, summaryHash: latestSession.summaryHash! }, signal);
+            if (!alive.current) return;
+            acceptRef.current(latestSession);
+          }
+          const ctx = confirmedWritingProjectContext(latestSession);
+          if (ctx) onCompleteToWriting(extractUnderstandingUserSupplement(latestSession, answer), ctx);
+        })}><Check size={13} />{session.phase === "confirmed" ? "同步理解与对话记忆，去改写 →" : "理解无误，同步记忆去改写 →"}</button>
+      </div>}
+      <label htmlFor={`${uid}-answer`}>{session?.understanding ? "补充或纠正理解" : "用自己的话说说这个项目（也可以先让 Agent 提问）"}</label><textarea id={`${uid}-answer`} data-agent-guide="understanding-answer" rows={1} maxLength={16000} value={answer} onChange={event => setAnswer(event.target.value)} placeholder="说说原来的困难、你做的事，或纠正 Agent 的理解。" />
+      <div className="understanding-compose-footer">
+        <div className="understanding-compose-consent-col">
+          <label className="understanding-consent"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} />允许本轮将这条原文、对话和授权资料交给所选运行方式处理</label>
+          <p className="understanding-destination">发送至：{runtime === "model" ? `${config.provider} · ${config.model || "未配置"}` : runtime === "chatgpt" ? `ChatGPT · ${chatGpt?.model || "未配置"}` : capabilities.find(item => item.id === runtime)?.name || runtime} · 可能使用云模型</p>
+        </div>
+        <button type="button" className="understanding-primary" disabled={busy || running || sourceChanged || uncertain || missing || !scope || !consent || !runtimeReady || sourceText.length > 16000 || !sourceText.trim()} onClick={send}><Send size={13} />{operation === "send" ? "正在提交…" : session?.phase === "confirmed" ? "继续纠正，重新对齐" : "让 Agent 继续理解"}</button>
+      </div>
       {!runtimeReady && <p className="understanding-hint">模型未就绪，请展开“本轮模型与资料去向”检查。</p>}
       {uncertain && <p className="understanding-hint">上次请求结果未确认，请先展开协作进度刷新状态；不会自动重发。</p>}
-      <button type="button" className="understanding-primary" disabled={busy || running || sourceChanged || uncertain || missing || !scope || !consent || !runtimeReady || sourceText.length > 16000 || !sourceText.trim()} onClick={send}><Send size={14} />{operation === "send" ? "正在提交…" : session?.phase === "confirmed" ? "继续纠正，重新对齐" : "让 Agent 继续理解"}</button>
     </div>
   </section>;
 }

@@ -414,7 +414,10 @@ export async function fetchBrowserJd(input: string, operation: NetworkOperation,
       });
     }
     page.on("popup", (popup) => { void popup.close(); });
-    try { await page.goto(initial.url, { waitUntil: "domcontentloaded", timeout: 20_000 }); }
+    const targetUrl = (initial.platform === "BOSS直聘" && initial.url.includes("/weijd/weijd-job/"))
+      ? initial.url.replace(/https?:\/\/(?:m|www)\.zhipin\.com\/mpa\/html\/weijd\/weijd-job\/([a-z\d_-]+)[^ \t\r\n]*/i, "https://www.zhipin.com/job_detail/$1.html")
+      : initial.url;
+    try { await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 20_000 }); }
     catch (error) {
       controller.signal.throwIfAborted();
       if (pageError) throw pageError;

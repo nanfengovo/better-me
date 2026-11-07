@@ -33,6 +33,44 @@ function ProfileSummary({ resume, decorative }: { resume: ProjectedResume; decor
   </div>;
 }
 
+const SUBHEADING_CLAIM_RE = /^(?:内容|主要内容|工作内容|项目内容|个人职责|主要职责|职责描述|岗位职责|核心职责|工作职责|业绩|主要业绩|工作业绩|项目业绩|成果|主要成果|项目成果)\s*[:：]?$/;
+const PROJECT_TITLE_CLAIM_RE = /^(?:核心项目|项目名称|所属项目)\s*[:：]\s*.+/;
+const META_CLAIM_RE = /^(?:项目背景|项目描述|项目简介|技术栈|开发工具|代码库|仓库地址)\s*[:：]\s*.+/;
+
+function isWrappedContinuation(prevText: string | undefined, text: string): boolean {
+  if (!prevText) return false;
+  const prev = prevText.trim();
+  const curr = text.trim();
+  if (!prev || !curr || curr.length > 16) return false;
+  if (SUBHEADING_CLAIM_RE.test(prev) || SUBHEADING_CLAIM_RE.test(curr) || PROJECT_TITLE_CLAIM_RE.test(curr) || META_CLAIM_RE.test(curr)) return false;
+  if (/[。！？；.!?;:：）》”"]$/.test(prev)) return false;
+  return /^[a-zA-Z0-9\u4e00-\u9fa5]+[。！？；.!?;]?$/.test(curr);
+}
+
+function classifyExperienceClaims(claims: Experience["claims"]) {
+  let underSubheading = false;
+  return claims.map((claim, index) => {
+    const text = claim.text.trim();
+    if (SUBHEADING_CLAIM_RE.test(text)) {
+      underSubheading = true;
+      const next = claims[index + 1]?.text.trim();
+      const emptySubheading = !next || SUBHEADING_CLAIM_RE.test(next);
+      return { claim, className: "resume-claim-subheading", emptySubheading };
+    }
+    if (PROJECT_TITLE_CLAIM_RE.test(text)) {
+      return { claim, className: "resume-claim-project-title", emptySubheading: false };
+    }
+    const prev = claims[index - 1]?.text;
+    if (isWrappedContinuation(prev, text)) {
+      return { claim, className: `resume-claim-continuation${underSubheading ? " is-child" : ""}`, emptySubheading: false };
+    }
+    if (META_CLAIM_RE.test(text)) {
+      return { claim, className: `resume-claim-meta${underSubheading ? " is-child" : ""}`, emptySubheading: false };
+    }
+    return { claim, className: underSubheading ? "resume-claim-child" : "resume-claim-item", emptySubheading: false };
+  });
+}
+
 function ExperienceSection({ title, experiences, kind, resume, plain, decorative, roleFirst, dateFirst }: {
   title: string; experiences: Experience[]; kind: "experience" | "projects" | "education"; resume: ProjectedResume; plain: boolean; decorative: boolean; roleFirst: boolean; dateFirst: boolean;
 }) {
@@ -45,12 +83,13 @@ function ExperienceSection({ title, experiences, kind, resume, plain, decorative
         const name = kind === "projects" ? experience.projectName || experience.org : experience.org;
         const end = experience.end ?? (isEnglish ? "Present" : "至今");
         const dates = (experience.start || experience.end) && <p className="resume-dates">{[experience.start, end].filter(Boolean).join(" – ")}</p>;
+        const classifiedClaims = classifyExperienceClaims(experience.claims);
         return <div className="resume-experience" key={experience.id} {...previewAnchor(`experience:${experience.id}`, decorative)}>
           <div className="resume-experience-heading">{dateFirst && dates}<h3>{roleFirst && experience.title ? <><span className="resume-role resume-role-name">{experience.title}</span><span className="resume-role-separator">, </span><span className="resume-organization">{name}</span></> : <><span className="resume-organization">{name}</span>{experience.title && <span className="resume-role"><span className="resume-role-separator"> · </span><span className="resume-role-name">{experience.title}</span></span>}</>}</h3>{!dateFirst && dates}</div>
           {kind === "experience" && experience.projectName && <p className="resume-project-name">{isEnglish ? "Project: " : "项目："}{experience.projectName}</p>}
           {experience.url && <p className="resume-experience-url">{decorative ? <span>{plain ? experience.url : `${isEnglish ? "Link" : "相关链接"}: ${experience.url}`}</span> : <a href={safeHref(experience.url)} target="_blank" rel="noreferrer">{plain ? experience.url : `${isEnglish ? "Link" : "相关链接"}: ${experience.url}`}</a>}</p>}
           {experience.techStack.length > 0 && <p className="resume-tech"><strong>{isEnglish ? "Technologies: " : "技术栈："}</strong>{experience.techStack.join(" · ")}</p>}
-          {experience.claims.length > 0 && <ul className="resume-claims">{experience.claims.map((claim) => <li key={claim.id} {...previewAnchor(`claim:${claim.id}`, decorative)}><RichResumeText text={claim.text} ranges={resume.textStyles?.[`claim:${claim.id}:${resume.locale}`]} /></li>)}</ul>}
+          {classifiedClaims.length > 0 && <ul className="resume-claims">{classifiedClaims.map(({ claim, className, emptySubheading }) => <li key={claim.id} className={className} data-empty-subheading={emptySubheading ? "true" : undefined} {...previewAnchor(`claim:${claim.id}`, decorative)}><RichResumeText text={claim.text} ranges={resume.textStyles?.[`claim:${claim.id}:${resume.locale}`]} /></li>)}</ul>}
         </div>;
       })}
     </div>

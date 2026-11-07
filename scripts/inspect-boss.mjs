@@ -15,24 +15,22 @@ async function main() {
     args: ["--disable-blink-features=AutomationControlled", "--no-proxy-server"],
   });
   const page = await context.newPage();
-  const url = "https://www.zhipin.com/job_detail/789ad05bba32b1b60nV72du4GFtQ.html";
+  const url = "https://www.zhipin.com/job_detail/fb798685269e3fb10nN40tS8GFdZ.html";
   console.log("Navigating to:", url);
-  await page.goto(url, { waitUntil: "networkidle", timeout: 25000 });
-  await page.waitForTimeout(3000);
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 25000 });
+  await page.waitForTimeout(4000);
   console.log("Final URL:", page.url());
   console.log("Title:", await page.title());
-
-  const screenshotPath = path.resolve("./boss-page-actual.png");
-  await page.screenshot({ path: screenshotPath });
-  console.log("Saved screenshot to:", screenshotPath);
 
   const evaluation = await page.evaluate(() => {
     return {
       bodyLength: document.body ? document.body.innerHTML.length : 0,
-      bodyText: document.body ? document.body.innerText.slice(0, 500) : "",
+      bodyText: document.body ? document.body.innerText : "",
     };
   });
-  console.log("Eval:", evaluation);
+  console.log("Text length:", evaluation.bodyText.length);
+  fs.writeFileSync(path.resolve("./data/boss-job-full.txt"), evaluation.bodyText, "utf8");
+  console.log("Saved full text to ./data/boss-job-full.txt");
   await context.close();
 }
 

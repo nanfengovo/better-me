@@ -4,11 +4,14 @@ import { GripVertical } from "lucide-react";
 import { clampWorkspaceSplit, DEFAULT_EDITOR_PERCENT, getWorkspaceSplitBounds, parseWorkspaceSplit, SPLIT_HANDLE_WIDTH, WORKSPACE_SPLIT_KEY, workspaceSplitFromPointer } from "../lib/workspace-split";
 import "./writing-workspace.css";
 import { SHOW_RESUME_EDITOR_EVENT } from "../lib/agent-navigation";
+import { useAgentSidebar } from "./AgentSidebar";
 
 type Props = { children: [ReactElement<HTMLAttributes<HTMLElement>>, ReactElement<HTMLAttributes<HTMLElement>>] };
 
 export function ResizableWorkspace({ children: [editor, preview] }: Props) {
   const { t } = useUiPreferences();
+  const sidebar = useAgentSidebar();
+  const agentOpen = Boolean(sidebar?.open);
 
   const containerRef = useRef<HTMLElement>(null);
   const separatorRef = useRef<HTMLDivElement>(null);
@@ -20,8 +23,8 @@ export function ResizableWorkspace({ children: [editor, preview] }: Props) {
   const [compactViewport, setCompactViewport] = useState(() => window.innerWidth <= 940);
   const [view, setView] = useState<"editor" | "preview">("editor");
   const viewId = useId();
-  // Minimum usable content widths, excluding the splitter: editor 360 + preview 420.
-  const split = availableWidth >= 780 && !compactViewport;
+  // When Agent sidebar is open, collapse the manual editor pane so Preview + Agent form a clean 2-column layout.
+  const split = availableWidth >= 780 && !compactViewport && !agentOpen;
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef<{ pointerId: number; percent: number } | null>(null);
   const percent = clampWorkspaceSplit(preferredPercent, availableWidth);
@@ -37,6 +40,10 @@ export function ResizableWorkspace({ children: [editor, preview] }: Props) {
     window.addEventListener(SHOW_RESUME_EDITOR_EVENT, reveal);
     return () => window.removeEventListener(SHOW_RESUME_EDITOR_EVENT, reveal);
   }, []);
+
+  useEffect(() => {
+    if (agentOpen) setView("preview");
+  }, [agentOpen]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -117,7 +124,7 @@ export function ResizableWorkspace({ children: [editor, preview] }: Props) {
     remember(next);
   }
 
-  return <main ref={containerRef} className={`studio-main${dragging ? " is-resizing" : ""}`} data-workspace-layout={split ? "split" : "single"} style={{ "--studio-editor-share": `${percent}fr`, "--studio-preview-share": `${100 - percent}fr` } as CSSProperties}>
+  return <main ref={containerRef} className={`studio-main${dragging ? " is-resizing" : ""}`} data-workspace-layout={split ? "split" : "single"} data-agent-yield-editor={agentOpen ? "true" : undefined} style={{ "--studio-editor-share": `${percent}fr`, "--studio-preview-share": `${100 - percent}fr` } as CSSProperties}>
     <div className="workspace-view-tabs no-print" role="tablist" aria-label={t("简历工作视图", "Resume workspace view")} hidden={split} onKeyDown={event => {
       if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
       event.preventDefault(); const next = event.key === "Home" ? "editor" : event.key === "End" ? "preview" : view === "editor" ? "preview" : "editor";

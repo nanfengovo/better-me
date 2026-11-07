@@ -94,6 +94,14 @@
 .resume-claims li { padding-left: .12em; }
 .resume-claims li::marker { color: color-mix(in srgb, var(--resume-accent) 65%, #78837b); font-size: .7em; }
 .resume-claims li + li { margin-top: .32em; }
+.resume-claims li.resume-claim-subheading { list-style: none; margin-left: -1.2em; margin-top: .65em; margin-bottom: .18em; padding-left: .5em; border-left: 2.5px solid var(--resume-accent); font-weight: 700; color: #1f2e28; font-size: .96em; letter-spacing: .02em; }
+.resume-claims li.resume-claim-subheading:first-child { margin-top: .15em; }
+.resume-claims li.resume-claim-subheading[data-empty-subheading="true"] { display: none; }
+.resume-claims li.resume-claim-project-title { list-style: none; margin-left: -1.2em; margin-top: .3em; margin-bottom: .2em; padding: 2px 7px; border-radius: 4px; background: color-mix(in srgb, var(--resume-accent) 7%, transparent); font-weight: 700; color: var(--resume-accent); }
+.resume-claims li.resume-claim-meta { list-style: none; margin-left: -.5em; padding-left: .5em; border-left: 1.5px solid var(--resume-rule); color: #36453f; }
+.resume-claims li.resume-claim-child { margin-left: .5em; padding-left: .15em; }
+.resume-claims li.resume-claim-continuation { list-style: none; margin-top: .04em; padding-left: .12em; }
+.resume-claims li.resume-claim-continuation.is-child { margin-left: .5em; }
 .resume-template-attribution { clear:both; grid-column:1 / -1; margin-top:var(--resume-section-spacing); padding-top:7px; border-top:1px solid #ddd; color:#656565; font-size:7pt; line-height:1.5; break-inside:avoid; overflow-wrap:anywhere; }
 
 /* CLASSIC — centered identity, serif chapter labels and quiet horizontal rules. */

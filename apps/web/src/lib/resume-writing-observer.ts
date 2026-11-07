@@ -51,6 +51,7 @@ function visibleRect(element: HTMLElement) {
 
 /** One DOM pass per scheduled frame; no DOM writes, model calls or resume mutations. */
 export function measureWritingGeometry(root: HTMLElement, card: HTMLElement, source: WritingSource, annotations: WritingAnnotation[], activeId?: string): WritingGeometry | null {
+  if (root.ownerDocument.querySelector('[role="dialog"][aria-modal="true"]:not(.agent-sidebar)')) return null;
   const to = visibleRect(card);
   if (to.right <= to.left || to.bottom <= to.top) return null;
   const geometry: WritingGeometry = { annotations: [], visibility: "unavailable", x: 0, y: 0, tx: 0, ty: 0 };
@@ -101,19 +102,27 @@ export function measureWritingGeometry(root: HTMLElement, card: HTMLElement, sou
   return geometry;
 }
 
-/** Read an explicit preview selection, including selections across formatting spans. */
-export function readWritingPreviewSelection(root: HTMLElement, sources: WritingSource[]): WritingActivity | undefined {
+/** Read an explicit preview selection or click on a preview anchor, including selections across formatting spans. */
+export function readWritingPreviewSelection(root: HTMLElement, sources: WritingSource[], eventTarget?: EventTarget | null): WritingActivity | undefined {
   const selection = root.ownerDocument.getSelection();
-  if (!selection?.rangeCount || selection.isCollapsed) return;
-  const range = selection.getRangeAt(0);
-  const start = range.startContainer.nodeType === 1 ? range.startContainer as Element : range.startContainer.parentElement;
-  const anchor = start?.closest<HTMLElement>("[data-preview-anchor]");
-  if (!anchor || !root.contains(anchor) || !anchor.contains(range.endContainer)) return;
-  const source = sources.find(s => anchor.dataset.previewAnchor === (s.targetRef.kind === "claim_text" ? `claim:${s.targetRef.claimId}` : "profile:headline") && anchor.textContent === s.text);
-  if (!source) return;
-  const before = range.cloneRange(); before.selectNodeContents(anchor); before.setEnd(range.startContainer, range.startOffset);
-  const at = before.toString().length;
-  return { key: writingTargetKey(source.targetRef), text: source.text, start: at, end: at + range.toString().length };
+  if (selection?.rangeCount && !selection.isCollapsed) {
+    const range = selection.getRangeAt(0);
+    const start = range.startContainer.nodeType === 1 ? range.startContainer as Element : range.startContainer.parentElement;
+    const anchor = start?.closest<HTMLElement>("[data-preview-anchor]");
+    if (!anchor || !root.contains(anchor) || !anchor.contains(range.endContainer)) return;
+    const source = sources.find(s => anchor.dataset.previewAnchor === (s.targetRef.kind === "claim_text" ? `claim:${s.targetRef.claimId}` : "profile:headline") && anchor.textContent === s.text);
+    if (!source) return;
+    const before = range.cloneRange(); before.selectNodeContents(anchor); before.setEnd(range.startContainer, range.startOffset);
+    const at = before.toString().length;
+    return { key: writingTargetKey(source.targetRef), text: source.text, start: at, end: at + range.toString().length };
+  }
+  if (eventTarget instanceof Element) {
+    const anchor = eventTarget.closest<HTMLElement>("[data-preview-anchor]");
+    if (anchor && root.contains(anchor)) {
+      const source = sources.find(s => anchor.dataset.previewAnchor === (s.targetRef.kind === "claim_text" ? `claim:${s.targetRef.claimId}` : "profile:headline") && anchor.textContent === s.text);
+      if (source) return { key: writingTargetKey(source.targetRef), text: source.text, start: 0, end: 0 };
+    }
+  }
 }
 
 /** Overlay geometry is ephemeral, quote-checked, clipped and RAF-batched. */
@@ -135,9 +144,9 @@ export function useWritingGeometry(shell: RefObject<HTMLElement | null>, card: R
     const mutation = new MutationObserver(schedule);
     const paper = root.querySelector(".resume-preview-stage");
     if (paper) mutation.observe(paper, { attributes: true, childList: true, subtree: true, characterData: true });
-    const layout = root.closest(".agent-layout") ?? root;
+    const layout = root.ownerDocument.body ?? root.closest(".agent-layout") ?? root;
     const visibility = new MutationObserver(schedule);
-    visibility.observe(layout, { attributes: true, subtree: true, attributeFilter: ["hidden", "class", "aria-hidden"] });
+    visibility.observe(layout, { childList: true, attributes: true, subtree: true, attributeFilter: ["hidden", "class", "aria-hidden", "aria-modal", "open"] });
     document.addEventListener("scroll", schedule, true); window.addEventListener("resize", schedule);
     // Card/sidebar entrances may finish after the first geometry read.
     document.addEventListener("animationend", schedule, true); document.addEventListener("transitionend", schedule, true);

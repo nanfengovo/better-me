@@ -1,7 +1,14 @@
 /** @jsxRuntime automatic */
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useUiPreferences } from "../lib/ui-preferences";
-import type { LlmConfig, ProjectedResume } from "@better-me/core";
+import {
+  type LlmConfig,
+  type ProjectedResume,
+  decomposeJdText,
+  alignJdWithResume,
+  type DecomposedJd,
+  type JdEvidenceAlignmentReport,
+} from "@better-me/core";
 import {
   Bot,
   Building2,
@@ -15,6 +22,7 @@ import {
   ExternalLink,
   FileCheck2,
   FileText,
+  Layers,
   Lightbulb,
   Loader2,
   MapPin,
@@ -24,6 +32,7 @@ import {
   RefreshCw,
   Send,
   Settings2,
+  ShieldAlert,
   ShieldCheck,
   Sparkles,
   Target,
@@ -82,7 +91,7 @@ export function JdMatchDrawer({
   onSaveOpportunity,
 }: JdMatchDrawerProps) {
   const { t } = useUiPreferences();
-  const [activeTab, setActiveTab] = useState<"proposals" | "chat">("proposals");
+  const [activeTab, setActiveTab] = useState<"proposals" | "decomposition" | "defenses" | "chat">("proposals");
 
   // Current Target Job state
   const [currentJob, setCurrentJob] = useState<DrawerJobContext | null>(job);
@@ -92,6 +101,22 @@ export function JdMatchDrawer({
   const [inputSalary, setInputSalary] = useState(job?.salary || "");
   const [inputLocation, setInputLocation] = useState(job?.location || "");
   const [inputDescription, setInputDescription] = useState(job?.description || "");
+
+  // Deterministic JD Decomposition & Evidence Alignment
+  const decomposedJd = useMemo<DecomposedJd | null>(() => {
+    const desc = currentJob?.description || inputDescription;
+    if (!desc || desc.trim().length < 5) return null;
+    return decomposeJdText(desc, {
+      title: currentJob?.title || inputTitle,
+      company: currentJob?.company || inputCompany,
+      location: currentJob?.location || inputLocation,
+    });
+  }, [currentJob?.description, currentJob?.title, currentJob?.company, currentJob?.location, inputDescription, inputTitle, inputCompany, inputLocation]);
+
+  const alignmentReport = useMemo<JdEvidenceAlignmentReport | null>(() => {
+    if (!decomposedJd || !resume) return null;
+    return alignJdWithResume(decomposedJd, resume);
+  }, [decomposedJd, resume]);
 
   // Matching state
   const [threadId, setThreadId] = useState<string>("");
@@ -104,6 +129,28 @@ export function JdMatchDrawer({
   const [editedText, setEditedText] = useState("");
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [agentHostOnline, setAgentHostOnline] = useState<boolean | null>(null);
+
+  // Initialize deterministic alignment proposals when no async proposals have loaded
+  useEffect(() => {
+    if (alignmentReport && proposals.length === 0 && !loading) {
+      const generatedProposals: MatchProposal[] = alignmentReport.alignments.map((a) => ({
+        id: a.id,
+        jdItem: a.jdItem.originalQuote,
+        evidenceType: a.status === "verified_match" ? "verified" : a.status === "weak_expression" ? "claimed" : "gap",
+        profileEntryId: a.matchedClaimId,
+        suggestion: a.suggestedText || a.currentResumeText || a.jdItem.summary,
+        rationale: a.rationale,
+      }));
+      setProposals(generatedProposals);
+      const initialDecisions: Record<string, ProposalDecision> = {};
+      for (const p of generatedProposals) {
+        if (p.evidenceType === "verified") {
+          initialDecisions[p.id] = { status: "accepted" };
+        }
+      }
+      setDecisions(initialDecisions);
+    }
+  }, [alignmentReport, proposals.length, loading]);
 
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -766,6 +813,42 @@ export function JdMatchDrawer({
 
             <button
               type="button"
+              onClick={() => setActiveTab("decomposition")}
+              className={`flex items-center gap-2 py-3 px-1 text-xs font-semibold border-b-2 mr-6 transition ${
+                activeTab === "decomposition"
+                  ? "border-emerald-600 text-emerald-700"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <Layers size={16} />
+              <span>{t("JD 原句深度拆解", "JD Breakdown")}</span>
+              {decomposedJd && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-50 text-emerald-700 font-mono">
+                  {decomposedJd.responsibilities.length + decomposedJd.hardRequirements.length + decomposedJd.preferredQualifications.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("defenses")}
+              className={`flex items-center gap-2 py-3 px-1 text-xs font-semibold border-b-2 mr-6 transition ${
+                activeTab === "defenses"
+                  ? "border-emerald-600 text-emerald-700"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <ShieldAlert size={16} />
+              <span>{t("面试攻防防御", "Interview Defense")}</span>
+              {alignmentReport && alignmentReport.interviewDefenses.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-mono">
+                  {alignmentReport.interviewDefenses.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveTab("chat")}
               className={`flex items-center gap-2 py-3 px-1 text-xs font-semibold border-b-2 transition ${
                 activeTab === "chat"
@@ -990,7 +1073,301 @@ export function JdMatchDrawer({
               </div>
             )}
 
-            {/* TAB 2: Agent Chat */}
+            {/* TAB 2: JD 原句深度拆解 */}
+            {activeTab === "decomposition" && (
+              <div className="space-y-4">
+                {!decomposedJd ? (
+                  <div className="py-12 text-center text-slate-500 space-y-2">
+                    <Target size={32} className="mx-auto text-slate-300" />
+                    <p className="text-xs font-medium">{t("暂无 JD 描述，请在上方输入或选择岗位", "No JD provided. Enter or select a job above.")}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Metrics Banner */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs text-center">
+                        <div className="text-lg font-bold text-slate-800">{decomposedJd.responsibilities.length}</div>
+                        <div className="text-[11px] text-slate-500">{t("核心职责", "Responsibilities")}</div>
+                      </div>
+                      <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs text-center">
+                        <div className="text-lg font-bold text-emerald-700">{decomposedJd.hardRequirements.length}</div>
+                        <div className="text-[11px] text-slate-500">{t("硬性门槛", "Hard Requirements")}</div>
+                      </div>
+                      <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs text-center">
+                        <div className="text-lg font-bold text-blue-700">{decomposedJd.preferredQualifications.length}</div>
+                        <div className="text-[11px] text-slate-500">{t("加分优先", "Preferences")}</div>
+                      </div>
+                      <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs text-center">
+                        <div className="text-lg font-bold text-purple-700">{decomposedJd.detectedTechStack.length}</div>
+                        <div className="text-[11px] text-slate-500">{t("识别技术栈", "Tech Stack")}</div>
+                      </div>
+                    </div>
+
+                    {/* Detected Tech Stack Tags */}
+                    {decomposedJd.detectedTechStack.length > 0 && (
+                      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-2">
+                        <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <Sparkles size={14} className="text-purple-600" />
+                          <span>{t("从 JD 原文中精准提取的关键技术栈", "Extracted Tech Stack Keywords")}</span>
+                        </h4>
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {decomposedJd.detectedTechStack.map((tech) => (
+                            <span key={tech} className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                              {tech}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Section 1: Hard Requirements */}
+                    <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                        <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                          <span>{t("任职资格与硬性门槛（原句保真）", "Hard Requirements (Exact Quotes)")}</span>
+                        </h4>
+                        <span className="text-[11px] text-slate-400 font-medium">{decomposedJd.hardRequirements.length} 条</span>
+                      </div>
+                      <div className="space-y-2">
+                        {decomposedJd.hardRequirements.map((item, idx) => (
+                          <div key={item.id || idx} className="p-3 rounded-lg bg-slate-50/70 border border-slate-200/80 text-xs space-y-1.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="font-mono text-slate-800 leading-relaxed select-text">
+                                {item.originalQuote}
+                              </span>
+                              <span className="px-2 py-0.5 rounded text-[10px] font-semibold shrink-0 bg-emerald-100 text-emerald-800">
+                                {item.category === "experience" ? t("年限经验", "Experience") : item.category === "tech_stack" ? t("技术栈", "Tech Stack") : item.category === "education" ? t("学历要求", "Education") : item.category === "domain" ? t("行业领域", "Domain") : t("要求", "Required")}
+                              </span>
+                            </div>
+                            {item.keywords.length > 0 && (
+                              <div className="flex flex-wrap gap-1 pt-1">
+                                {item.keywords.map((kw) => (
+                                  <span key={kw} className="px-1.5 py-0.5 rounded text-[10px] bg-slate-200/80 text-slate-700 font-mono">
+                                    #{kw}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Section 2: Core Responsibilities */}
+                    <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                        <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-blue-500" />
+                          <span>{t("核心岗位职责（原句保真）", "Core Responsibilities (Exact Quotes)")}</span>
+                        </h4>
+                        <span className="text-[11px] text-slate-400 font-medium">{decomposedJd.responsibilities.length} 条</span>
+                      </div>
+                      <div className="space-y-2">
+                        {decomposedJd.responsibilities.map((item, idx) => (
+                          <div key={item.id || idx} className="p-3 rounded-lg bg-slate-50/70 border border-slate-200/80 text-xs space-y-1.5">
+                            <div className="font-mono text-slate-800 leading-relaxed select-text">
+                              {item.originalQuote}
+                            </div>
+                            {item.keywords.length > 0 && (
+                              <div className="flex flex-wrap gap-1 pt-1">
+                                {item.keywords.map((kw) => (
+                                  <span key={kw} className="px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-700 font-mono">
+                                    #{kw}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Section 3: Preferences & Constraints */}
+                    {(decomposedJd.preferredQualifications.length > 0 || decomposedJd.constraints.length > 0) && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {decomposedJd.preferredQualifications.length > 0 && (
+                          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-2">
+                            <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                              <span>🌟 {t("优先加分项", "Preferred Qualifications")}</span>
+                            </h4>
+                            <div className="space-y-1.5">
+                              {decomposedJd.preferredQualifications.map((item, idx) => (
+                                <p key={idx} className="text-xs text-slate-700 bg-slate-50 p-2 rounded border border-slate-100 font-mono">
+                                  {item.originalQuote}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {decomposedJd.constraints.length > 0 && (
+                          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-2">
+                            <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                              <span>📍 {t("地点与基础约束", "Constraints & Location")}</span>
+                            </h4>
+                            <div className="space-y-1.5">
+                              {decomposedJd.constraints.map((item, idx) => (
+                                <p key={idx} className="text-xs text-slate-700 bg-slate-50 p-2 rounded border border-slate-100 font-mono">
+                                  {item.originalQuote}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 3: 面试攻防防御 */}
+            {activeTab === "defenses" && (
+              <div className="space-y-4">
+                {!alignmentReport || alignmentReport.interviewDefenses.length === 0 ? (
+                  <div className="py-12 text-center text-slate-500 space-y-2">
+                    <ShieldCheck size={32} className="mx-auto text-emerald-400" />
+                    <p className="text-xs font-medium">
+                      {t("当前岗位与简历匹配极高，暂未检测到高风险门槛追问或薄弱项", "High alignment detected. No high-risk defense questions flagged.")}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Top Guide Banner */}
+                    <div className="p-3.5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 rounded-xl space-y-1">
+                      <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
+                        <Sparkles size={14} className="text-amber-600" />
+                        <span>{t("针对性面试追问预演与攻防策略", "Targeted Interview Defense & Strategy")}</span>
+                      </div>
+                      <p className="text-[11px] text-amber-800/80 leading-relaxed">
+                        {t(
+                          "基于岗位客观缺口、弱表达与核心要求自动推导。防编造原则：坦诚门槛差距，通过 3 年一线复杂系统落地实操、规范文档习惯与技术深度建立面试官信任。",
+                          "Derived from detected gaps and requirements. Anti-fabrication principle: acknowledge gaps honestly, defend with proven delivery track records."
+                        )}
+                      </p>
+                    </div>
+
+                    {/* Defense Cards */}
+                    <div className="space-y-3.5">
+                      {alignmentReport.interviewDefenses.map((defense) => {
+                        const isHighRisk = defense.riskLevel === "high";
+                        const isMedRisk = defense.riskLevel === "medium";
+                        return (
+                          <div
+                            key={defense.id}
+                            className={`p-4 rounded-xl border transition shadow-sm bg-white ${
+                              isHighRisk
+                                ? "border-rose-200 hover:border-rose-300"
+                                : isMedRisk
+                                ? "border-amber-200 hover:border-amber-300"
+                                : "border-slate-200 hover:border-slate-300"
+                            }`}
+                          >
+                            {/* Card Top: Badges & Topic */}
+                            <div className="flex items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-slate-100">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                    isHighRisk
+                                      ? "bg-rose-100 text-rose-700 border border-rose-200"
+                                      : isMedRisk
+                                      ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                      : "bg-blue-100 text-blue-700 border border-blue-200"
+                                  }`}
+                                >
+                                  {isHighRisk
+                                    ? t("高风险攻防 · 硬门槛", "High Risk · Hard Gate")
+                                    : isMedRisk
+                                    ? t("中风险考察 · 场景排障/并发", "Medium Risk · Tech Drill")
+                                    : t("实战考察 · 业务深度", "Standard Drill · Experience")}
+                                </span>
+                                <span className="text-xs font-semibold text-slate-700">
+                                  {defense.targetTopic}
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const textToCopy = `【面试追问】${defense.question}\n\n【核心攻防策略】${defense.coreDefenseStrategy}\n\n【答辩提纲】\n${defense.suggestedAnswerFramework.join("\n")}`;
+                                  void navigator.clipboard.writeText(textToCopy);
+                                  setCopiedId(defense.id);
+                                  setTimeout(() => setCopiedId(null), 2000);
+                                }}
+                                className="flex items-center gap-1 px-2 py-1 text-[11px] text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded border border-slate-200 transition"
+                              >
+                                {copiedId === defense.id ? (
+                                  <>
+                                    <Check size={12} className="text-emerald-600" />
+                                    <span className="text-emerald-600 font-medium">{t("已复制", "Copied")}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy size={12} />
+                                    <span>{t("复制提纲", "Copy Notes")}</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+
+                            {/* Question Callout */}
+                            <div className="p-3 bg-slate-50/80 rounded-lg border border-slate-200/60 mb-3">
+                              <div className="text-xs font-bold text-slate-900 leading-snug">
+                                ❓ {defense.question}
+                              </div>
+                            </div>
+
+                            {/* Core Strategy */}
+                            <div className="mb-3 text-xs leading-relaxed text-slate-700">
+                              <span className="font-bold text-emerald-800">
+                                🎯 {t("防守核心要点：", "Defense Core Strategy: ")}
+                              </span>
+                              {defense.coreDefenseStrategy}
+                            </div>
+
+                            {/* Answer Framework Steps */}
+                            <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                              <div className="text-[11px] font-semibold text-slate-500">
+                                📝 {t("结构化回答提纲（建议结合真实经历）：", "Structured Answer Outline:")}
+                              </div>
+                              <div className="space-y-1 pl-1">
+                                {defense.suggestedAnswerFramework.map((step, sIdx) => (
+                                  <div
+                                    key={sIdx}
+                                    className="text-xs text-slate-600 leading-relaxed pl-2 border-l-2 border-emerald-300/60"
+                                  >
+                                    {step}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Mock Practice Button */}
+                            <div className="mt-3.5 pt-2.5 border-t border-dashed border-slate-200 flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveTab("chat");
+                                  void handleSendMessage(
+                                    `请作为本岗位的资深技术面试官，针对这一道面试题对进行模拟提问：“${defense.question}”。请你提出追问，并根据我的回答进行专业打分与回答调优辅导。`
+                                  );
+                                }}
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
+                              >
+                                <Bot size={13} />
+                                <span>{t("与 Copilot 模拟对练这道题 →", "Practice with Copilot →")}</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 4: Agent Chat */}
             {activeTab === "chat" && (
               <div className="flex flex-col h-full space-y-4">
                 {/* Conversation List */}

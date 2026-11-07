@@ -417,7 +417,37 @@ export function App() {
           </div>
         </div>
         <div className="document-actions">
-          <IssuesPanel compact issues={issues} factBase={doc.factBase} onNavigate={navigateToIssue} activeIssue={issueNavigation?.issue} />
+          <IssuesPanel
+            compact
+            issues={issues}
+            factBase={doc.factBase}
+            onNavigate={navigateToIssue}
+            activeIssue={issueNavigation?.issue}
+            onConfirmMetric={(experienceId, claimId) => {
+              updateFactBase({
+                ...doc.factBase,
+                experiences: doc.factBase.experiences.map((exp) =>
+                  exp.id === experienceId
+                    ? {
+                        ...exp,
+                        claims: exp.claims.map((c) =>
+                          c.id === claimId && c.metric ? { ...c, metric: { ...c.metric, confirmed: true } } : c
+                        ),
+                      }
+                    : exp
+                ),
+              });
+            }}
+            onConfirmAllMetrics={() => {
+              updateFactBase({
+                ...doc.factBase,
+                experiences: doc.factBase.experiences.map((exp) => ({
+                  ...exp,
+                  claims: exp.claims.map((c) => (c.metric ? { ...c, metric: { ...c.metric, confirmed: true } } : c)),
+                })),
+              });
+            }}
+          />
           <button className="studio-button studio-focus-button" aria-pressed={focused} onClick={() => setFocused(value => !value)}><Maximize2 size={14} />{focused ? t("退出专注", "Exit focus") : t("专注", "Focus")}</button>
           <div className="output-language" role="group" aria-label={t("简历输出语言", "Resume output language")} title={t("只影响这份简历的预览与导出，不改变界面语言", "Only changes this resume’s preview and exports, independently of the interface language")}>
             <Languages size={14} /><span className="output-language-label">{t("导出语言", "Export language")}</span>
@@ -439,7 +469,7 @@ export function App() {
       </div>
       <div className="studio-notices no-print">
         {(status.kind === "error" || (status.kind === "draft" && hasIncompleteDraft) || status.historyError || isRestoring || actionError || status.rawDraftRecovery || status.rawOfficialRecovery || status.rawPreviousDraftRecovery || loadError) && <div className={`persistence-notice ${status.kind === "error" ? "error" : ""}`} role="status" aria-live="polite"><span>{isRestoring ? t("正在读取备份，继续编辑会取消本次恢复。", "Reading backup. Continuing to edit will cancel this restoration.") : actionError || loadError || status.message}{status.historyError && ` ${status.historyError}`}</span><div>{status.kind === "error" && <button onClick={() => void flush()}>{t("重试保存", "Retry save")}</button>}{status.rawDraftRecovery && <button onClick={() => downloadJson(status.rawDraftRecovery!, "better-me-draft-recovery.json")}>{t("下载原始草稿", "Download original draft")}</button>}<button onClick={handleExportBackup}>{t("下载备份", "Download backup")}</button>{status.rawOfficialRecovery && <button onClick={() => downloadJson(status.rawOfficialRecovery!, "better-me-backup-recovery.json")}>{t("下载原始文档", "Download original document")}</button>}{status.rawPreviousDraftRecovery && <button onClick={() => downloadJson(status.rawPreviousDraftRecovery!, "better-me-draft-before-switch.json")}>{t("下载切换前草稿", "Download pre-switch draft")}</button>}</div></div>}
-        <ImportSourceReview source={doc.factBase.importSource} />
+        <ImportSourceReview source={doc.factBase.importSource} factBase={doc.factBase} onUpdateFactBase={updateFactBase} />
         {jobRecommendation && jobRecommendation.documentId === doc.documentId && <Suspense fallback={<div className="persistence-notice" role="status">{t("正在打开岗位推荐…", "Opening job recommendations…")}</div>}><ResumeJobRecommendations key={jobRecommendation.documentId} factBase={jobRecommendation.factBase} currentFactBase={doc.factBase} requestId={jobRecommendation.requestId} onRefresh={refreshJobRecommendations} onClose={() => setJobRecommendation(null)} onOpenAtlas={() => setPage("atlas")} onAnalyze={openAgentWorkspace} onEditResume={() => {
           setWorkspaceTab("content");
           requestAnimationFrame(() => {
@@ -455,7 +485,7 @@ export function App() {
           <div id="design-panel" role="tabpanel" className="studio-panel-slot" hidden={workspaceTab !== "design"}><ResumeDesignPanel view={activeResume} factBase={doc.factBase} onChange={updateResume} /></div>
 
         </div>
-        <div id="resume-preview-panel" className="studio-preview-pane"><ResumeWritingCopilot key={`${doc.documentId ?? "legacy"}:${activeResume.id}:${activeResume.targetJdId ?? ""}`} sessionKey={`${doc.documentId ?? "legacy"}:${activeResume.id}:${activeResume.targetJdId ?? ""}`} sources={writingContext} config={llmConfig} active={page === "resume" && workspaceTab === "content"} onApply={handleApplyWritingProposal} onFocus={(source) => {
+        <div id="resume-preview-panel" className="studio-preview-pane"><ResumeWritingCopilot key={`${doc.documentId ?? "legacy"}:${activeResume.id}:${activeResume.targetJdId ?? ""}`} sessionKey={`${doc.documentId ?? "legacy"}:${activeResume.id}:${activeResume.targetJdId ?? ""}`} sources={writingContext} config={llmConfig} active={page === "resume" && workspaceTab === "content" && !isHistoryOpen && !isJdMatchOpen && !isImportModalOpen && !isAiConfigOpen && !isNetworkSettingsOpen && !isAgentDrawerOpen} onApply={handleApplyWritingProposal} onFocus={(source) => {
           const target = source.targetRef;
           setPage("resume"); setWorkspaceTab("content");
           setWritingFocus({ key: writingTargetKey(target), locale: target.locale, experienceId: target.kind === "claim_text" ? target.experienceId : undefined, requestId: ++issueRequestIdRef.current });
