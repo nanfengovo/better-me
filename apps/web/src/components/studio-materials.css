@@ -1,0 +1,91 @@
+/* Apple HIG Materials: glass belongs to navigation and controls, never resume content.
+   Web approximation only; retain the existing theme and native paper rendering. */
+@media screen {
+  :root {
+    --studio-glass: color-mix(in srgb, var(--ui-surface) 86%, transparent);
+    --studio-glass-edge: #ffffffb3;
+    --studio-control-shadow: 0 1px 3px #15203014, inset 0 1px 0 var(--studio-glass-edge);
+  }
+  :root[data-theme=dark] {
+    --studio-glass: color-mix(in srgb, var(--ui-surface-raised) 90%, transparent);
+    --studio-glass-edge: #ffffff18;
+    --studio-control-shadow: 0 2px 5px #00000026, inset 0 1px 0 var(--studio-glass-edge);
+  }
+  html .os-desktop[data-studio=true] .studio-document-bar {
+    background:var(--studio-glass);
+    border-bottom-color:color-mix(in srgb,var(--ui-border) 60%,transparent);
+  }
+  html .os-desktop[data-studio=true] .preview-toolbar {
+    background:var(--studio-glass);
+    -webkit-backdrop-filter:blur(24px) saturate(1.3);
+    backdrop-filter:blur(24px) saturate(1.3);
+    box-shadow:inset 0 1px 0 var(--studio-glass-edge),0 3px 12px #10203006;
+  }
+  html .os-desktop[data-studio=true] .studio-mode-switch {
+    border-radius:12px;
+    background:color-mix(in srgb,var(--ui-surface-soft) 80%,transparent);
+    box-shadow:inset 0 1px 2px #10203008;
+  }
+  html .os-desktop[data-studio=true] .studio-mode-switch button { border-radius:9px; }
+  html .os-desktop[data-studio=true] .studio-mode-switch button[aria-pressed=true] { box-shadow:var(--studio-control-shadow); }
+  html .os-desktop[data-studio=true] .fact-editor>div:first-child>div:first-child>div {
+    gap:3px;
+    padding:3px;
+    border-radius:11px;
+    background:var(--ui-surface-soft);
+  }
+  html .os-desktop[data-studio=true] .fact-editor>div:first-child button {
+    height:32px;
+    min-height:32px;
+    padding:4px 10px;
+    border:0;
+    border-radius:8px;
+  }
+  html .os-desktop[data-studio=true] .fact-editor>div:first-child button[class~="text-white"] {
+    background:var(--ui-surface);
+    color:var(--ui-text);
+    box-shadow:var(--studio-control-shadow);
+  }
+  html .os-desktop[data-studio=true] :is(.studio-button,.output-language,.document-dropdown,.autosave-popover) { border-radius:12px; }
+  html .os-desktop[data-studio=true] .output-language button { border-radius:9px; }
+  html .os-desktop[data-studio=true] .preview-bottom { background:var(--ui-surface); }
+  html .os-desktop[data-studio=true] .preview-bottom button { border-radius:8px; min-height:28px; }
+  html .os-desktop[data-studio=true] .document-dropdown {
+    padding:8px;
+    box-shadow:0 12px 36px #10203024,inset 0 1px 0 var(--studio-glass-edge);
+  }
+  .agent-layout:has(.os-desktop[data-studio=true]) .agent-sidebar {
+    background:var(--ui-surface-raised);
+    border-radius:20px 0 0 20px;
+    box-shadow:-4px 0 20px #1020300a;
+  }
+  .agent-layout:has(.os-desktop[data-studio=true]) .agent-sidebar-header {
+    background:var(--studio-glass);
+    -webkit-backdrop-filter:blur(24px) saturate(1.3);
+    backdrop-filter:blur(24px) saturate(1.3);
+  }
+  .agent-layout:has(.os-desktop[data-studio=true]) .agent-sidebar-tabs { border-radius:14px; border:1px solid var(--ui-border); }
+  .agent-layout:has(.os-desktop[data-studio=true]) .agent-sidebar-tabs button { border-radius:10px; }
+  .agent-layout:has(.os-desktop[data-studio=true]) .agent-sidebar-tabs [aria-selected=true] { box-shadow:var(--studio-control-shadow); }
+  .agent-layout:has(.os-desktop[data-studio=true]) .agent-sidebar .writing-note { border-radius:18px; box-shadow:0 4px 16px #10203008; }
+  .agent-layout:has(.os-desktop[data-studio=true]) .agent-sidebar .writing-note button { border-radius:11px; }
+}
+@media screen and (max-width:600px) {
+  html .os-desktop[data-studio=true] .studio-main[data-workspace-layout] { padding:6px; }
+  html .os-desktop[data-studio=true] .fact-editor>div:first-child button { padding:4px 7px; }
+}
+@media screen and (max-width:840px), screen and (max-height:500px) {
+  .agent-layout:has(.os-desktop[data-studio=true]) .agent-sidebar { border-radius:0; }
+}
+/* Keep controls opaque when transparency is unavailable or unwanted. */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) {
+  :root, :root[data-theme=dark] { --studio-glass:var(--ui-surface-raised); }
+}
+@media screen and (prefers-reduced-transparency:reduce), screen and (prefers-contrast:more), screen and (forced-colors:active) {
+  :root, :root[data-theme=dark] { --studio-glass:var(--ui-surface-raised); --studio-control-shadow:none; }
+  html .os-desktop[data-studio=true] :is(.os-window-toolbar,.preview-toolbar),
+  .agent-layout:has(.os-desktop[data-studio=true]) .agent-sidebar-header { -webkit-backdrop-filter:none; backdrop-filter:none; }
+  html .os-desktop[data-studio=true] .studio-document-bar { border-bottom-color:var(--ui-border-strong); }
+  html .os-desktop[data-studio=true] .studio-main[data-workspace-layout]>:is(.studio-editor-pane,.studio-preview-pane),
+  .agent-layout:has(.os-desktop[data-studio=true]) .agent-sidebar-tabs { border-color:var(--ui-border-strong); }
+}

@@ -29,6 +29,7 @@ import "./components/resume-themes.css";
 import "./themes/workspace-theme.css";
 import "./components/responsive-workspace.css";
 import "./components/studio-workbench.css";
+import "./components/studio-materials.css";
 
 const uiPreferences = initializeUiAppearance();
 
