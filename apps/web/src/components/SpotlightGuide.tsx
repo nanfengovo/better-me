@@ -46,14 +46,13 @@ export function SpotlightGuide({ stepId, targets, titleId, descriptionId, dialog
     const dialog = dialogRef.current;
     if (dialog && !dialog.open) dialog.showModal();
     if (panel.current) panel.current.scrollTop = 0;
-    let frame = 0, scrolled = false;
+    let frame = 0;
     const observer = new window.ResizeObserver(() => schedule());
     let observed: HTMLElement | null = null;
     function measure() {
       const width = window.innerWidth, height = window.innerHeight;
       const candidates = targets.flatMap(selector => [...document.querySelectorAll<HTMLElement>(selector)].map(element => ({ selector, element })));
       const match = candidates.find(({ element }) => !element.closest("[hidden], [inert]") && element.getBoundingClientRect().width > 0 && element.getBoundingClientRect().height > 0);
-      if (match && !scrolled) { match.element.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" }); scrolled = true; }
       if (observed !== match?.element) { if (observed) observer.unobserve(observed); observed = match?.element ?? null; if (observed) observer.observe(observed); }
       const target = match ? visibleRect(match.element) : null;
       const size = { width: panel.current?.offsetWidth || 440, height: panel.current?.offsetHeight || 460 };

@@ -236,11 +236,14 @@ test("real-control spotlight follows the visible target, hides across tabs and n
   const target = dom.document.querySelector<HTMLElement>('[data-agent-guide="agent-backup"]')!;
   Object.defineProperty(target, "getClientRects", { configurable: true, value: () => [new dom.DOMRect(100, 200, 250, 30)] });
   Object.defineProperty(target, "getBoundingClientRect", { configurable: true, value: () => new dom.DOMRect(100, 200, 250, 30) });
+  let scrollCalls = 0;
+  Object.defineProperty(target, "scrollIntoView", { configurable: true, value: () => scrollCalls++ });
   await click("打开 Agent 使用指南"); await click("安全地提供项目资料"); await click("第 6 节：收起继续，重载先核对"); await click("找到备份与历史");
   const ring = dom.document.querySelector<HTMLElement>(".agent-guide-spotlight")!;
   assert.ok(ring); assert.equal(ring.style.left, "96px"); assert.equal(ring.style.top, "196px");
   assert.equal(ring.style.width, "258px"); assert.equal(ring.getAttribute("aria-hidden"), "true");
-  await click("重新定位入口"); assert.ok(dom.document.activeElement === target);
+  await click("刷新目标高亮"); assert.ok(dom.document.activeElement === target);
+  assert.equal(scrollCalls, 0, "the guide must never move the workspace scroll position");
   const details = target.closest("details"); assert.ok(details instanceof dom.HTMLDetailsElement);
   assert.equal(details.open, false, "locating focuses, but does not open or execute a real control");
   await click("伴写对话"); assert.equal(dom.document.querySelector(".agent-guide-spotlight"), null);

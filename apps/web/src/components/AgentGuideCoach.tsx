@@ -40,7 +40,7 @@ export function AgentGuideCoach({ lessonId, active, onBack, onClose, onNavigate 
       if (!node) setAnchor("");
     }
     const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(measure); };
-    locate.current = () => { measure(); target.current?.scrollIntoView?.({ block: "center", behavior: "auto" }); target.current?.focus({ preventScroll: true }); schedule(); };
+    locate.current = () => { measure(); target.current?.focus({ preventScroll: true }); schedule(); };
     measure();
     const observer = new MutationObserver(schedule); observer.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ["hidden", "open"] });
     const resize = new ResizeObserver(schedule); resize.observe(root);
@@ -49,8 +49,8 @@ export function AgentGuideCoach({ lessonId, active, onBack, onClose, onNavigate 
   }, [active, lesson]);
   return <section ref={coach} className="agent-guide-coach" tabIndex={-1} aria-label="实操定位引导">
     <div className="agent-guide-coach-copy"><strong>{lesson.label}</strong><p role="status">{!active ? "已切换视图，可回到本节入口。" : tutorialInstruction(lessonId, anchor)}</p></div>
-    <div className="agent-guide-coach-actions"><button type="button" title={active ? "重新定位入口" : "回到本节入口"} aria-label={active ? "重新定位入口" : "回到本节入口"} onClick={active ? () => locate.current() : onNavigate}><LocateFixed size={15} /></button><button type="button" title="返回本节教程" aria-label="返回本节教程" onClick={onBack}><ArrowLeft size={15} /></button><button type="button" title="结束本次定位" aria-label="结束本次定位" onClick={onClose}><X size={15} /></button></div>
-    {active && anchor && !rect && <small>入口暂未显示，可重新定位。</small>}
+    <div className="agent-guide-coach-actions"><button type="button" title={active ? "刷新目标高亮" : "回到本节入口"} aria-label={active ? "刷新目标高亮" : "回到本节入口"} onClick={active ? () => locate.current() : onNavigate}><LocateFixed size={15} /></button><button type="button" title="返回本节教程" aria-label="返回本节教程" onClick={onBack}><ArrowLeft size={15} /></button><button type="button" title="结束本次定位" aria-label="结束本次定位" onClick={onClose}><X size={15} /></button></div>
+    {active && anchor && !rect && <small>目标不在当前可见区域，请在原页面中查找。</small>}
     {active && rect && createPortal(<div className="agent-guide-spotlight no-print" aria-hidden="true" style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}><span /></div>, document.body)}
   </section>;
 }
