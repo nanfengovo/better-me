@@ -4,12 +4,10 @@ import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { SourceDefinitionSchema } from "@better-me/opportunities";
-import { SourceCatalogSchema, availableCatalogEntries, sourceCatalogIdentity, sourceCatalogRegistration, sourceCatalog } from "../src/components/atlas/source-catalog.ts";
+import { SourceCatalogSchema, availableCatalogEntries, sourceCatalogIdentity, sourceCatalog } from "../src/components/atlas/source-catalog.ts";
 
 const source = SourceDefinitionSchema.parse({ sourceId: "synthetic-catalog", name: "Synthetic company", adapterId: "mapped-json", adapterVersion: "1", capabilities: ["list-jobs"], remoteFilters: [], runtime: ["local-service"], entityType: "job-posting", enabled: false, status: "needs-review", entryUrl: "https://example.invalid/jobs?b=2&a=1", options: { titlePath: "title", urlPath: "url", discoveryOnly: false }, endpointPolicy: { allowedHosts: ["example.invalid"], allowedPathPrefixes: ["/jobs"], requireHttps: true, allowRedirects: false, maxRedirects: 0 }, attribution: { label: "Synthetic source", usage: "unknown", requiresAttribution: true }, refreshPolicy: { mode: "manual", minIntervalSeconds: 60, maxRecords: 100, maxPages: 1, requestsPerMinute: 5 } });
 const entry = { source, tags: ["C#", ".NET"], coverage: "Synthetic bounded job feed", checkedAt: "2026-10-19T00:00:00Z", evidenceUrls: ["https://example.invalid/docs"] };
-const githubLeadSource = SourceDefinitionSchema.parse({ sourceId: "synthetic-github-markdown-leads", name: "Synthetic GitHub job list", adapterId: "github-markdown", adapterVersion: "1", capabilities: ["list-jobs"], remoteFilters: [], runtime: ["local-service"], entityType: "company-directory", enabled: false, status: "needs-review", entryUrl: "https://raw.githubusercontent.com/example/jobs/main/README.md", options: { tableIndex: 0, enumerationComplete: false }, endpointPolicy: { allowedHosts: ["raw.githubusercontent.com"], allowedPathPrefixes: ["/example/jobs/main/README.md"], requireHttps: true, allowRedirects: false, maxRedirects: 0 }, attribution: { label: "Synthetic GitHub list", homepageUrl: "https://github.com/example/jobs", usage: "link-only", requiresAttribution: true, notes: "License and scope require review." }, refreshPolicy: { mode: "manual", minIntervalSeconds: 86400, maxRecords: 25, maxPages: 1, requestsPerMinute: 2 } });
-const githubLeadEntry = { source: githubLeadSource, tags: ["GitHub", "discovery lead"], coverage: "Synthetic lead-only directory; not current job verification.", checkedAt: "2026-10-19T00:00:00Z", evidenceUrls: ["https://github.com/example/jobs", githubLeadSource.entryUrl!] };
 
 test("the built-in source catalog is validated inert data with unique identifiers and evidence", () => {
   const parsed = SourceCatalogSchema.parse({ schemaVersion: 1, entries: sourceCatalog });
@@ -23,25 +21,6 @@ test("catalog rejects activated, duplicate or non-job entries instead of silentl
   assert.equal(SourceCatalogSchema.safeParse({ schemaVersion: 1, entries: [entry, structuredClone(entry)] }).success, false);
 });
 
-test("GitHub Markdown company-directory entries are accepted only as strict disabled review leads", () => {
-  const parsed = SourceCatalogSchema.parse({ schemaVersion: 1, entries: [githubLeadEntry] });
-  const result = parsed.entries[0]!.source;
-  assert.equal(result.entityType, "company-directory"); assert.equal(result.enabled, false); assert.equal(result.status, "needs-review");
-  assert.equal(result.adapterId, "github-markdown"); assert.equal(result.options?.enumerationComplete, false);
-  const registered = sourceCatalogRegistration(result);
-  assert.equal(registered.enabled, false); assert.equal(registered.status, "needs-review");
-  assert.deepEqual(sourceCatalogRegistration(source), { ...source, enabled: true, status: "active" });
-
-  for (const change of [
-    { entityType: "job-posting" },
-    { adapterId: "github-json" },
-    { entryUrl: "https://github.com/example/jobs/README.md" },
-    { endpointPolicy: { ...result.endpointPolicy, allowedPathPrefixes: ["/example/jobs/main/"] } },
-    { options: { tableIndex: 0, arbitraryCode: "run()" } },
-    { capabilities: ["list-jobs", "read-detail"] },
-  ]) assert.equal(SourceCatalogSchema.safeParse({ schemaVersion: 1, entries: [{ ...githubLeadEntry, source: { ...result, ...change } }] }).success, false, JSON.stringify(change));
-});
-
 test("SmartRecruiters catalog entries bind one tenant and remain explicit reviewable configuration", () => {
   const preset = sourceCatalog.find((item) => item.source.adapterId === "smartrecruiters");
   assert.ok(preset);
@@ -53,26 +32,6 @@ test("SmartRecruiters catalog entries bind one tenant and remain explicit review
   for (const changed of [{ options: { companyIdentifier: "../Other" } }, { entryUrl: "https://api.smartrecruiters.com/v1/companies/Other/postings" }, { remoteFilters: [] }]) {
     assert.equal(SourceCatalogSchema.safeParse({ schemaVersion: 1, entries: [{ ...preset, source: { ...preset.source, ...changed } }] }).success, false);
   }
-  assert.equal(availableCatalogEntries([preset], [preset.source]).length, 0);
-});
-
-test("JLL Workday catalog binds a public site, tenant API path and non-redirecting HTTPS transport", () => {
-  const preset = sourceCatalog.find(item => item.source.adapterId === "workday-cxs");
-  assert.ok(preset);
-  assert.equal(preset.source.sourceId, "jll-china-workday-careers");
-  assert.equal(preset.source.enabled, false); assert.equal(preset.source.status, "needs-review");
-  assert.equal(preset.source.entryUrl, "https://jll.wd1.myworkdayjobs.com/jllcareerschina");
-  assert.deepEqual(preset.source.options, { tenant: "jll", site: "jllcareerschina", pageSize: 20, maxDetailRequestsPerPage: 2 });
-  assert.deepEqual(preset.source.endpointPolicy.allowedHosts, ["jll.wd1.myworkdayjobs.com"]);
-  assert.deepEqual(preset.source.endpointPolicy.allowedPathPrefixes, ["/wday/cxs/jll/jllcareerschina"]);
-  assert.equal(preset.source.endpointPolicy.allowRedirects, false); assert.equal(preset.source.endpointPolicy.maxRedirects, 0);
-  assert.ok(preset.evidenceUrls.includes("https://jll.wd1.myworkdayjobs.com/wday/cxs/jll/jllcareerschina/jobs"));
-  for (const change of [
-    { entryUrl: "https://jll.wd1.myworkdayjobs.com/jll/other" },
-    { entryUrl: "https://user@jll.wd1.myworkdayjobs.com/jllcareerschina" },
-    { endpointPolicy: { ...preset.source.endpointPolicy, allowRedirects: true, maxRedirects: 1 } },
-    { endpointPolicy: { ...preset.source.endpointPolicy, allowedHosts: ["evil.example"] } },
-  ]) assert.equal(SourceCatalogSchema.safeParse({ schemaVersion: 1, entries: [{ ...preset, source: { ...preset.source, ...change } }] }).success, false);
   assert.equal(availableCatalogEntries([preset], [preset.source]).length, 0);
 });
 
@@ -114,29 +73,6 @@ test("catalog UI explains that technical text mentions do not establish job requ
     assert.match(html, /Synthetic source/);
     assert.match(html, /C#/);
     assert.match(html, /\.NET/);
-  } finally { hooks.deregister(); }
-});
-test("catalog UI labels GitHub company directories as pending leads and keeps their registration state disabled", async () => {
-  const hooks = registerHooks({ load(url, context, nextLoad) { return url.endsWith(".css") ? { source: "export {};", format: "module", shortCircuit: true } : nextLoad(url, context); } });
-  try {
-    const { SourceCatalogPanel } = await import("../src/components/atlas/SourceCatalogPanel.tsx");
-    const html = renderToStaticMarkup(createElement(SourceCatalogPanel, { installed: [], busy: false, connected: true, entries: [githubLeadEntry],
-      onInstall: sources => assert.deepEqual(sourceCatalogRegistration(sources[0]!), githubLeadSource) }));
-    assert.match(html, /发现线索 · 待审核/);
-    assert.match(html, /公司目录和 GitHub 清单会保持待审核线索/);
-    assert.match(html, /添加并启用所选 0 个来源/);
-    assert.match(html, /仅保存来源配置/);
-    assert.match(html, /Synthetic GitHub list/);
-  } finally { hooks.deregister(); }
-});
-test("Remotive catalog card shows its enforced UTC daily request limit", async () => {
-  const hooks = registerHooks({ load(url, context, nextLoad) { return url.endsWith(".css") ? { source: "export {};", format: "module", shortCircuit: true } : nextLoad(url, context); } });
-  try {
-    const { SourceCatalogPanel } = await import("../src/components/atlas/SourceCatalogPanel.tsx");
-    const remotive = sourceCatalog.find((item) => item.source.adapterId === "remotive");
-    assert.ok(remotive);
-    const html = renderToStaticMarkup(createElement(SourceCatalogPanel, { installed: [], busy: false, connected: false, entries: [remotive], onInstall: () => assert.fail("rendering must not install sources") }));
-    assert.match(html, /每日最多 4 次（UTC）/);
   } finally { hooks.deregister(); }
 });
 test("catalog endpoint identity ignores query order and labels without overwriting any existing source", () => {

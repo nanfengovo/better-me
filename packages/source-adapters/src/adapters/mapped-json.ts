@@ -3,9 +3,7 @@ export { JsonFieldMappingSchema, type JsonFieldMapping } from "../mapping-contra
 import { ToolError } from '@better-me/opportunities';
 import type { SourceAdapter } from '../contracts.js';
 import { baseRecord, idValue, jsonResponse, page, plainText, publicUrl, timeValue } from './common.js';
-import { allocateDownloadedRecordQuota, allocateDownloadedRecordWindow } from './bounded-records.js';
-import { resolveJsonPage, readJsonNextPage, jsonContinuation, jsonPageFingerprint } from './mapped-json-pagination.js';
-import { applyMappedJsonLocations } from './mapped-json-locations.js';
+import { allocateDownloadedRecordQuota } from './bounded-records.js';
 
 /** No eval, bracket expressions, wildcards, getters, prototype traversal or JavaScript mapping code. */
 export function readJsonField(value: unknown, path: string): unknown {
@@ -37,23 +35,16 @@ function publicationTime(value: unknown, format: JsonFieldMapping['publishedForm
 export const mappedJsonAdapter: SourceAdapter = {
   adapterId: 'mapped-json', version: '1', capabilities: ['list-jobs'], remoteFilters: [], entityTypes: ['job-posting', 'recruitment-campaign', 'discovery-lead'],
   async list(request) {
-    if (!request.source.entryUrl) throw new ToolError('invalid-input');
+    if (request.cursor || !request.source.entryUrl) throw new ToolError('invalid-input');
     const options = request.source.options ?? {};
-    const mappingKeys = ['recordsPath', 'idPath', 'titlePath', 'urlPath', 'applicationUrlPath', 'companyPath', 'descriptionPath', 'locationsPath',
-      'locationTextPath', 'locationCountryPath', 'locationCountryFormat', 'locationRegionPath', 'locationCityPath', 'locationStreetAddressPath', 'locationPostalCodePath',
-      'salaryTextPath', 'publishedPath', 'updatedPath', 'descriptionCompleteness', 'enumerationComplete', 'publishedFormat', 'nextPageUrlPath', 'pageParameter', 'discoveryOnly'];
+    const mappingKeys = ['recordsPath', 'idPath', 'titlePath', 'urlPath', 'applicationUrlPath', 'companyPath', 'descriptionPath', 'locationsPath', 'salaryTextPath', 'publishedPath', 'updatedPath', 'descriptionCompleteness', 'enumerationComplete', 'publishedFormat', 'discoveryOnly'];
     const input = Object.fromEntries(mappingKeys.filter((key) => Object.hasOwn(options, key)).map((key) => [key, options[key]]));
     const parsed = JsonFieldMappingSchema.safeParse(input);
     if (!parsed.success) throw new ToolError('invalid-input');
     const mapping = parsed.data;
-    if (request.cursor && !mapping.nextPageUrlPath) throw new ToolError('invalid-input');
-    const state = mapping.nextPageUrlPath ? resolveJsonPage(request, mapping) : undefined;
-    const response = await jsonResponse(request, state?.url ?? request.source.entryUrl);
-    if (state && response.url !== state.url) throw new ToolError('source-changed');
+    const response = await jsonResponse(request, request.source.entryUrl);
     const rows = readJsonField(response.data, mapping.recordsPath);
     if (!Array.isArray(rows)) throw new ToolError('source-changed');
-    const snapshot = state ? jsonPageFingerprint(response.data) : undefined;
-    if (state?.offset && state.snapshot !== snapshot) throw new ToolError('source-changed');
     const limit = request.source.refreshPolicy.maxRecords;
     const downloaded = rows.map((row, index) => {
       if (index % 64 === 0) request.context.throwIfCancelled();
@@ -76,9 +67,9 @@ export const mappedJsonAdapter: SourceAdapter = {
         result.evidence.push({ field: 'description', selector: `${mapping.recordsPath}[${index}].${mapping.descriptionPath}`, sourceUrl: response.url });
       }
       const places = get(mapping.locationsPath);
-      const rowSelector = `${mapping.recordsPath}[${index}]`;
-      applyMappedJsonLocations(result, places, mapping,
-        mapping.locationsPath === '' ? rowSelector : `${rowSelector}.${mapping.locationsPath}`, response.url, readJsonField);
+      const locations = Array.isArray(places) ? places.map(plainText).filter(Boolean) : plainText(places) ? [plainText(places)] : [];
+      result.locations = [...new Set(locations)].map((raw) => ({ raw }));
+      if (locations.length) result.evidence.push({ field: 'locations', selector: `${mapping.recordsPath}[${index}].${mapping.locationsPath}`, sourceUrl: response.url });
       const salary = plainText(get(mapping.salaryTextPath));
       if (salary) {
         result.compensations = [{ raw: salary, period: 'unknown', tax: 'unknown', kind: 'unknown' }];
@@ -95,24 +86,6 @@ export const mappedJsonAdapter: SourceAdapter = {
       if (mapping.discoveryOnly) result.warnings.push('Discovery lead from a configured feed, not a verified live job. Follow the original posting before using it as job evidence.');
       return result;
     });
-    if (state) {
-      const selected = allocateDownloadedRecordWindow(downloaded, request, limit, state.offset);
-      if (state.offset && state.offset >= selected.totalRecords) throw new ToolError('source-changed');
-      const next = readJsonNextPage(readJsonField(response.data, mapping.nextPageUrlPath!), state);
-      const moreInPage = selected.nextOffset < selected.totalRecords;
-      const nextCursor = moreInPage ? jsonContinuation(state, state.page, selected.nextOffset, snapshot)
-        : next.page !== undefined ? jsonContinuation(state, next.page) : undefined;
-      return page(request, selected.records, { fetchedRecords: rows.length, ...(nextCursor ? { nextCursor } : {}),
-        partial: selected.invalidRecords > 0 || next.invalid || !mapping.enumerationComplete,
-        stopReason: selected.invalidRecords > 0 || next.invalid ? 'source-error' : 'page-limit',
-        warning: [
-          'Configured JSON pagination follows only source-returned numeric pages of the same reviewed endpoint; each call still downloads its full page before applying the output limit.',
-          ...(selected.invalidRecords ? [`${selected.invalidRecords} downloaded source records failed validation and were omitted; enumeration is partial.`] : []),
-          ...(next.invalid ? ['The source next-page field was missing or unsafe; records were retained, but complete upstream enumeration is not claimed.'] : []),
-          ...(!mapping.enumerationComplete ? ['This feed does not claim complete upstream enumeration even at its last returned page.'] : []),
-        ].join(' '),
-      });
-    }
     const selected = allocateDownloadedRecordQuota(downloaded, request, limit);
     return page(request, selected.records, { ...(mapping.enumerationComplete ? { totalAvailable: rows.length } : {}), fetchedRecords: rows.length,
       partial: rows.length > limit || selected.invalidRecords > 0 || !mapping.enumerationComplete,

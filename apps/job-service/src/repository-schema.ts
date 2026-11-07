@@ -1,24 +1,17 @@
 import { z } from "zod";
-import { AtlasDatasetSchema, CanonicalJobSchema, CountryCodeSchema, EntityIdSchema, TimestampSchema, MergeDecisionSchema, JobAliasEventSchema, ReconciliationReceiptSchema, JobLocationSchema, LocationConfirmationDecisionSchema, LocationConfirmationReceiptSchema, OfficeAddressDecisionSchema, OfficeAddressReceiptSchema, CompensationSchema, CompensationReviewDecisionSchema, CompensationReviewReceiptSchema, FxReferenceSnapshotSchema, FxMutationReceiptSchema, CompanySchema, CompanyControlReviewDecisionSchema, CompanyControlReviewReceiptSchema, isCompanyControlReviewEntityId } from "@better-me/opportunities";
-import { DiscoveryLeadSchema, SourceSyncRunSchema } from "@better-me/source-adapters";
-export { DiscoveryLeadSchema, type DiscoveryLead } from "@better-me/source-adapters";
-import { SourceScanCheckpointSchema } from "./source-scan-state.js";
+import {
+  AtlasDatasetSchema, CanonicalJobSchema, CountryCodeSchema, EntityIdSchema, TimestampSchema,
+  MergeDecisionSchema, JobAliasEventSchema, ReconciliationReceiptSchema, JobLocationSchema,
+  LocationConfirmationDecisionSchema, LocationConfirmationReceiptSchema, OfficeAddressDecisionSchema, OfficeAddressReceiptSchema,
+  CompanyControllerOverrideReceiptSchema, CompensationAuditReceiptSchema,
+} from "@better-me/opportunities";
+import { SourceJobRecordSchema, ReviewedCardCompanyConflictSchema } from "@better-me/source-adapters";
+import { BackgroundEnrichmentTaskSchema } from "./background-enrichment.js";
 
-export const REPOSITORY_SCHEMA_VERSION = 8;
+export const REPOSITORY_SCHEMA_VERSION = 7;
 export const ActorScopeSchema = z.string().min(1).max(200).regex(/^[A-Za-z0-9._:/-]+$/);
 export const IdempotencyKeySchema = z.string().min(1).max(200).regex(/^[A-Za-z0-9._:-]+$/);
 export const RequestFingerprintSchema = z.string().regex(/^[a-f0-9]{64}$/);
-export const StoredFxSnapshotSchema = z.object({ revision: z.number().int().positive(), snapshot: FxReferenceSnapshotSchema }).strict();
-export const FxActivationEventSchema = z.object({
-  id: EntityIdSchema, revision: z.number().int().positive(), actorScope: ActorScopeSchema, at: TimestampSchema,
-  kind: z.enum(["import", "activate"]), snapshotId: z.string().min(1).max(200).nullable(), activeSnapshotId: z.string().min(1).max(200).nullable(),
-  activate: z.boolean().optional(), previewFingerprint: RequestFingerprintSchema.optional(),
-}).strict().superRefine((event, context) => {
-  if (event.kind === "import" && (event.snapshotId === null || event.activate === undefined || event.previewFingerprint === undefined)) context.addIssue({ code: "custom", message: "An FX import must bind its preview and activation choice." });
-  if (event.kind === "activate" && (event.activate !== undefined || event.previewFingerprint !== undefined || event.activeSnapshotId !== event.snapshotId)) context.addIssue({ code: "custom", message: "An FX activation must select exactly its requested snapshot." });
-});
-export type StoredFxSnapshot = z.infer<typeof StoredFxSnapshotSchema>;
-export type FxActivationEvent = z.infer<typeof FxActivationEventSchema>;
 export const PublicRunSummarySchema = z.object({
   added: z.number().int().nonnegative().optional(), changed: z.number().int().nonnegative().optional(),
   unchanged: z.number().int().nonnegative().optional(), closed: z.number().int().nonnegative().optional(),
@@ -36,34 +29,51 @@ export const RunScopeSchema = z.object({
   maxPages: z.number().int().min(1).max(10_000).optional(),
 }).strict();
 export type RunScope = z.infer<typeof RunScopeSchema>;
-export const SyncRunSchema = SourceSyncRunSchema;
+export const SyncRunSchema = z.object({
+  runId: EntityIdSchema, sourceId: EntityIdSchema, actorScope: ActorScopeSchema,
+  generation: z.number().int().positive(), scope: RunScopeSchema,
+  requestFingerprint: RequestFingerprintSchema.optional(),
+  status: z.enum(["running", "completed", "partial", "failed", "cancelled", "superseded"]),
+  startedAt: TimestampSchema, finishedAt: TimestampSchema.optional(), summary: PublicRunSummarySchema.optional(),
+}).strict();
 export type SyncRun = z.infer<typeof SyncRunSchema>;
 
 export const ImportReceiptSchema = z.object({
   ok: z.literal(true), revision: z.number().int().nonnegative(), jobIds: z.array(EntityIdSchema), snapshotIds: z.array(EntityIdSchema),
   counts: z.object({ newJobs: z.number().int().nonnegative(), updatedJobs: z.number().int().nonnegative(), unchangedJobs: z.number().int().nonnegative(), newListings: z.number().int().nonnegative(), newObservations: z.number().int().nonnegative(), newSnapshots: z.number().int().nonnegative() }).strict(),
+  conflicts: z.array(ReviewedCardCompanyConflictSchema).min(1).max(50).optional(),
 }).strict();
 export type ImportReceipt = z.infer<typeof ImportReceiptSchema>;
+export const DiscoveryLeadSchema = z.object({
+  id: EntityIdSchema, sourceId: EntityIdSchema, observedAt: TimestampSchema, record: SourceJobRecordSchema,
+}).strict().refine((lead) => lead.record.entityType !== "job-posting", "A discovery lead cannot enter the canonical jobs table.");
+export type DiscoveryLead = z.infer<typeof DiscoveryLeadSchema>;
 export const DiscoveryLeadReceiptSchema = z.object({ ok: z.literal(true), revision: z.number().int().nonnegative(), leadIds: z.array(EntityIdSchema) }).strict();
 export type DiscoveryLeadReceipt = z.infer<typeof DiscoveryLeadReceiptSchema>;
-export const SourceScanPageReceiptSchema = z.object({ ok: z.literal(true), runId: EntityIdSchema, scanId: EntityIdSchema,
-  progressVersion: z.number().int().positive(), receipt: ImportReceiptSchema, leadIds: z.array(EntityIdSchema), revision: z.number().int().nonnegative() }).strict();
-export type SourceScanPageReceipt = z.infer<typeof SourceScanPageReceiptSchema>;
 export const StoredReceiptSchema = z.object({
-  actorScope: ActorScopeSchema, tool: z.enum(["dataset.import", "dataset.restore", "runs.start", "leads.save", "sources.register", "sources.commit-page", "jobs.merge", "jobs.reject-merge", "jobs.revoke-merge", "locations.confirm", "locations.revoke-confirmation", "locations.confirm-office-address", "locations.revoke-office-address", "compensations.confirm-review", "compensations.revoke-review", "fx.confirm-import", "fx.activate", "companies.confirm-control-review", "companies.revoke-control-review"]),
+  actorScope: ActorScopeSchema, tool: z.enum([
+    "dataset.import", "dataset.restore", "runs.start", "leads.save", "sources.register",
+    "jobs.merge", "jobs.reject-merge", "jobs.revoke-merge",
+    "locations.confirm", "locations.revoke-confirmation",
+    "locations.confirm-office-address", "locations.revoke-office-address",
+    "companies.confirm-controller-override", "companies.revoke-controller-override",
+    "compensations.confirm-audit", "compensations.revoke-audit",
+  ]),
   idempotencyKey: IdempotencyKeySchema, signature: z.string().regex(/^[a-f0-9]{64}$/),
-  response: z.union([ImportReceiptSchema, SyncRunSchema, DiscoveryLeadReceiptSchema, SourceScanPageReceiptSchema, ReconciliationReceiptSchema, LocationConfirmationReceiptSchema, OfficeAddressReceiptSchema, CompensationReviewReceiptSchema, FxMutationReceiptSchema, CompanyControlReviewReceiptSchema]), createdAt: TimestampSchema,
+  response: z.union([
+    ImportReceiptSchema, SyncRunSchema, DiscoveryLeadReceiptSchema, ReconciliationReceiptSchema,
+    LocationConfirmationReceiptSchema, OfficeAddressReceiptSchema,
+    CompanyControllerOverrideReceiptSchema, CompensationAuditReceiptSchema,
+  ]), createdAt: TimestampSchema,
 }).strict().superRefine((receipt, context) => {
-  if (receipt.tool === "sources.commit-page" && !SourceScanPageReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Source page commands require an atomic page receipt." });
   if ((receipt.tool === "locations.confirm" || receipt.tool === "locations.revoke-confirmation") && !LocationConfirmationReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Location command receipts require a location response." });
   if ((receipt.tool === "locations.confirm-office-address" || receipt.tool === "locations.revoke-office-address") && !OfficeAddressReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Office command receipts require an office response." });
-  if ((receipt.tool === "compensations.confirm-review" || receipt.tool === "compensations.revoke-review") && !CompensationReviewReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Compensation commands require a compensation review response." });
-  if ((receipt.tool === "fx.confirm-import" || receipt.tool === "fx.activate") && !FxMutationReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "FX commands require an FX mutation receipt." });
-  if ((receipt.tool === "companies.confirm-control-review" || receipt.tool === "companies.revoke-control-review") && !CompanyControlReviewReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Company commands require a company control review receipt." });
+  if ((receipt.tool === "companies.confirm-controller-override" || receipt.tool === "companies.revoke-controller-override") && !CompanyControllerOverrideReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Company controller command receipts require a company controller response." });
+  if ((receipt.tool === "compensations.confirm-audit" || receipt.tool === "compensations.revoke-audit") && !CompensationAuditReceiptSchema.safeParse(receipt.response).success) context.addIssue({ code: "custom", message: "Compensation audit command receipts require a compensation audit response." });
 });
 export type StoredReceipt = z.infer<typeof StoredReceiptSchema>;
 export const RepositoryBackupSchema = z.object({
-  format: z.literal("better-me/job-repository"), schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6), z.literal(7), z.literal(8)]),
+  format: z.literal("better-me/job-repository"), schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6), z.literal(7)]),
   createdAt: TimestampSchema, dataset: AtlasDatasetSchema,
   runs: z.array(SyncRunSchema).max(100_000), receipts: z.array(StoredReceiptSchema).max(1_000_000),
   leads: z.array(DiscoveryLeadSchema).max(300_000).default([]),
@@ -74,16 +84,11 @@ export const RepositoryBackupSchema = z.object({
   baseLocations: z.array(JobLocationSchema.refine(value => !value.userResolution && !value.officeResolution, "Source locations cannot contain local decisions.")).max(200_000).optional(),
   locationDecisions: z.array(LocationConfirmationDecisionSchema).max(200_000).default([]),
   officeDecisions: z.array(OfficeAddressDecisionSchema).max(200_000).default([]),
-  baseCompensations: z.array(CompensationSchema).max(200_000).optional(),
-  compensationDecisions: z.array(CompensationReviewDecisionSchema).max(200_000).default([]),
-  fxSnapshots: z.array(StoredFxSnapshotSchema).max(1000).default([]),
-  fxActivations: z.array(FxActivationEventSchema).max(100_000).default([]),
-  baseCompanies: z.array(CompanySchema.refine(value => !value.controlReview, "Source companies cannot contain local reviews.")).max(100_000).optional(),
-  companyControlDecisions: z.array(CompanyControlReviewDecisionSchema).max(100_000).default([]),
-  sourceScans: z.array(SourceScanCheckpointSchema).max(1_000_000).default([]),
+  enrichmentTasks: z.array(BackgroundEnrichmentTaskSchema).max(100_000).default([]),
 }).strict().superRefine((backup, context) => {
-  if (backup.schemaVersion < 8 && (backup.sourceScans.length || backup.runs.some(run => run.scanId || run.continuedFromRunId) || backup.receipts.some(receipt => receipt.tool === "sources.commit-page"))) context.addIssue({ code: "custom", message: "Old backups cannot contain durable source scans." });
-  if (new Set(backup.sourceScans.map(value => value.id)).size !== backup.sourceScans.length) context.addIssue({ code: "custom", message: "Duplicate source scan events." });
+  if (backup.schemaVersion < 5 && backup.enrichmentTasks.length) context.addIssue({ code: "custom", message: "Old backups cannot contain enrichment tasks." });
+  if (new Set(backup.enrichmentTasks.map(value => value.id)).size !== backup.enrichmentTasks.length
+    || new Set(backup.enrichmentTasks.map(value => JSON.stringify([value.actorScope, value.kind, value.jobId]))).size !== backup.enrichmentTasks.length) context.addIssue({ code: "custom", message: "Duplicate enrichment tasks." });
   if (new Set(backup.runs.map((run) => run.runId)).size !== backup.runs.length) context.addIssue({ code: "custom", message: "Duplicate run IDs." });
   const keys = backup.receipts.map((receipt) => JSON.stringify([receipt.actorScope, receipt.tool, receipt.idempotencyKey]));
   if (new Set(keys).size !== keys.length) context.addIssue({ code: "custom", message: "Duplicate receipt keys." });
@@ -91,18 +96,6 @@ export const RepositoryBackupSchema = z.object({
   if (new Set(backup.leads.map((lead) => lead.id)).size !== backup.leads.length || backup.leads.some((lead) => !sources.has(lead.sourceId))) context.addIssue({ code: "custom", message: "Invalid lead source references." });
   if (backup.schemaVersion >= 2 && !backup.baseJobs) context.addIssue({ code: "custom", message: "Version 2 and later backups require origin jobs." });
   if (backup.schemaVersion >= 3 && !backup.baseLocations) context.addIssue({ code: "custom", message: "Version 3 and later backups require origin locations." });
-  if (backup.schemaVersion >= 5 && !backup.baseCompensations) context.addIssue({ code: "custom", message: "Version 5 and later backups require origin compensations." });
-  if (backup.schemaVersion >= 7 && !backup.baseCompanies) context.addIssue({ code: "custom", message: "Version 7 and later backups require origin companies." });
-  if (backup.schemaVersion < 7 && (backup.baseCompanies !== undefined || backup.companyControlDecisions.length || backup.dataset.companies.some(value => value.controlReview)
-    || backup.dataset.sources.some(value => isCompanyControlReviewEntityId(value.sourceId)) || backup.dataset.listings.some(value => isCompanyControlReviewEntityId(value.id)) || backup.dataset.observations.some(value => isCompanyControlReviewEntityId(value.id))
-    || backup.receipts.some(value => value.tool === "companies.confirm-control-review" || value.tool === "companies.revoke-control-review"))) context.addIssue({ code: "custom", message: "Old backups cannot contain company control reviews." });
-  if (backup.baseCompanies && new Set(backup.baseCompanies.map(value => value.id)).size !== backup.baseCompanies.length
-    || new Set(backup.companyControlDecisions.map(value => value.id)).size !== backup.companyControlDecisions.length
-    || new Set(backup.companyControlDecisions.map(value => value.revision)).size !== backup.companyControlDecisions.length) context.addIssue({ code: "custom", message: "Duplicate company review identities." });
-  if (backup.schemaVersion < 6 && (backup.fxSnapshots.length || backup.fxActivations.length || backup.receipts.some(value => value.tool === "fx.confirm-import" || value.tool === "fx.activate"))) context.addIssue({ code: "custom", message: "Old backups cannot contain FX state." });
-  if (new Set(backup.fxSnapshots.map(value => value.snapshot.fx.id)).size !== backup.fxSnapshots.length || new Set(backup.fxSnapshots.map(value => value.revision)).size !== backup.fxSnapshots.length || new Set(backup.fxActivations.map(value => value.id)).size !== backup.fxActivations.length) context.addIssue({ code: "custom", message: "Duplicate FX state identities." });
-  if (backup.schemaVersion < 5 && (backup.baseCompensations !== undefined || backup.compensationDecisions.length || backup.receipts.some(value => value.tool === "compensations.confirm-review" || value.tool === "compensations.revoke-review"))) context.addIssue({ code: "custom", message: "Old backups cannot contain compensation decisions." });
-  if (backup.baseCompensations && new Set(backup.baseCompensations.map(value => value.id)).size !== backup.baseCompensations.length) context.addIssue({ code: "custom", message: "Duplicate source compensation identities." });
   if (backup.schemaVersion < 4 && (backup.officeDecisions.length || backup.dataset.locations.some(value => value.officeResolution) || backup.receipts.some(value => value.tool === "locations.confirm-office-address" || value.tool === "locations.revoke-office-address"))) context.addIssue({ code: "custom", message: "Old backups cannot contain office decisions." });
   if (backup.schemaVersion < 3 && (backup.baseLocations !== undefined || backup.locationDecisions.length || backup.dataset.locations.some(value => value.userResolution))) context.addIssue({ code: "custom", message: "Old backups cannot contain local location decisions." });
   if (backup.baseLocations && new Set(backup.baseLocations.map(value => value.id)).size !== backup.baseLocations.length) context.addIssue({ code: "custom", message: "Duplicate source location identities." });
@@ -140,6 +133,29 @@ CREATE INDEX jobs_company ON jobs(company_id);
 CREATE INDEX runs_status ON runs(source_id,status);
 `;
 
+export const REPOSITORY_MIGRATION_V5 = `
+CREATE TABLE enrichment_tasks (id TEXT PRIMARY KEY, actor_scope TEXT NOT NULL, kind TEXT NOT NULL, job_id TEXT NOT NULL, state TEXT NOT NULL, next_retry_at TEXT, document TEXT NOT NULL CHECK(json_valid(document)), UNIQUE(actor_scope,kind,job_id)) STRICT;
+CREATE INDEX enrichment_tasks_ready ON enrichment_tasks(actor_scope,state,next_retry_at);
+`;
+
+/** Existing libraries start a new baseline at their current revision, without rewriting entities. */
+export const REPOSITORY_MIGRATION_V6 = `
+INSERT INTO metadata(key,value) VALUES ('sync_epoch',lower(hex(randomblob(16))));
+INSERT INTO metadata(key,value) SELECT 'sync_floor',value FROM metadata WHERE key='revision';
+CREATE TABLE dataset_changes (table_name TEXT NOT NULL CHECK(table_name IN ('sources','companies','jobs','locations','compensations','listings','observations','snapshots')),entity_id TEXT NOT NULL,revision INTEGER NOT NULL,deleted INTEGER NOT NULL CHECK(deleted IN (0,1)),PRIMARY KEY(table_name,entity_id)) STRICT;
+CREATE INDEX dataset_changes_revision ON dataset_changes(revision);
+`;
+
+/** Write-projection dependencies only; public facts, revision and sync epoch are unchanged. */
+export const REPOSITORY_MIGRATION_V7 = `
+CREATE TABLE base_job_dependencies (job_id TEXT NOT NULL REFERENCES base_jobs(id) DEFERRABLE INITIALLY DEFERRED,kind TEXT NOT NULL CHECK(kind IN ('company','location','compensation','listing')),entity_id TEXT NOT NULL,PRIMARY KEY(job_id,kind,entity_id)) STRICT;
+CREATE INDEX base_job_dependency_targets ON base_job_dependencies(kind,entity_id,job_id);
+INSERT OR IGNORE INTO base_job_dependencies SELECT id,'company',json_extract(document,'$.companyId') FROM base_jobs;
+INSERT OR IGNORE INTO base_job_dependencies SELECT j.id,'location',v.value FROM base_jobs j,json_each(j.document,'$.locationIds') v;
+INSERT OR IGNORE INTO base_job_dependencies SELECT j.id,'compensation',v.value FROM base_jobs j,json_each(j.document,'$.compensationIds') v;
+INSERT OR IGNORE INTO base_job_dependencies SELECT j.id,'listing',v.value FROM base_jobs j,json_each(j.document,'$.listingIds') v;
+`;
+
 /** Applied atomically to existing M1 files; origin data is initialized from their current jobs. */
 export const REPOSITORY_MIGRATION_V2 = `
 CREATE TABLE base_jobs (id TEXT PRIMARY KEY,document TEXT NOT NULL CHECK(json_valid(document))) STRICT;
@@ -174,45 +190,9 @@ export const OFFICE_DECISION_TRIGGERS = `
 CREATE TRIGGER office_decisions_no_update BEFORE UPDATE ON office_decisions BEGIN SELECT RAISE(ABORT,'immutable-office-decision'); END;
 CREATE TRIGGER office_decisions_no_delete BEFORE DELETE ON office_decisions BEGIN SELECT RAISE(ABORT,'immutable-office-decision'); END;
 `;
-export const REPOSITORY_MIGRATION_V5 = `
-CREATE TABLE base_compensations (id TEXT PRIMARY KEY,document TEXT NOT NULL CHECK(json_valid(document))) STRICT;
-INSERT INTO base_compensations(id,document) SELECT id,document FROM compensations;
-CREATE TABLE compensation_decisions (id TEXT PRIMARY KEY,revision INTEGER NOT NULL UNIQUE,document TEXT NOT NULL CHECK(json_valid(document))) STRICT;
-`;
-export const COMPENSATION_DECISION_TRIGGERS = `
-CREATE TRIGGER compensation_decisions_no_update BEFORE UPDATE ON compensation_decisions BEGIN SELECT RAISE(ABORT,'immutable-compensation-decision'); END;
-CREATE TRIGGER compensation_decisions_no_delete BEFORE DELETE ON compensation_decisions BEGIN SELECT RAISE(ABORT,'immutable-compensation-decision'); END;
-`;
-export const REPOSITORY_MIGRATION_V6 = `
-CREATE TABLE fx_snapshots (id TEXT PRIMARY KEY,revision INTEGER NOT NULL UNIQUE,document TEXT NOT NULL CHECK(json_valid(document))) STRICT;
-CREATE TABLE fx_activations (id TEXT PRIMARY KEY,revision INTEGER NOT NULL UNIQUE,document TEXT NOT NULL CHECK(json_valid(document))) STRICT;
-`;
-export const FX_TRIGGERS = `
-CREATE TRIGGER fx_snapshots_no_update BEFORE UPDATE ON fx_snapshots BEGIN SELECT RAISE(ABORT,'immutable-fx-snapshot'); END;
-CREATE TRIGGER fx_snapshots_no_delete BEFORE DELETE ON fx_snapshots BEGIN SELECT RAISE(ABORT,'immutable-fx-snapshot'); END;
-CREATE TRIGGER fx_activations_no_update BEFORE UPDATE ON fx_activations BEGIN SELECT RAISE(ABORT,'immutable-fx-activation'); END;
-CREATE TRIGGER fx_activations_no_delete BEFORE DELETE ON fx_activations BEGIN SELECT RAISE(ABORT,'immutable-fx-activation'); END;
-`;
-export const REPOSITORY_MIGRATION_V7 = `
-CREATE TABLE base_companies (id TEXT PRIMARY KEY,document TEXT NOT NULL CHECK(json_valid(document))) STRICT;
-INSERT INTO base_companies(id,document) SELECT id,document FROM companies;
-CREATE TABLE company_control_decisions (id TEXT PRIMARY KEY,revision INTEGER NOT NULL UNIQUE,document TEXT NOT NULL CHECK(json_valid(document))) STRICT;
-`;
-export const COMPANY_CONTROL_DECISION_TRIGGERS = `
-CREATE TRIGGER company_control_decisions_no_update BEFORE UPDATE ON company_control_decisions BEGIN SELECT RAISE(ABORT,'immutable-company-control-decision'); END;
-CREATE TRIGGER company_control_decisions_no_delete BEFORE DELETE ON company_control_decisions BEGIN SELECT RAISE(ABORT,'immutable-company-control-decision'); END;
-`;
 export const APPEND_ONLY_TRIGGERS = `
 CREATE TRIGGER observations_no_update BEFORE UPDATE ON observations BEGIN SELECT RAISE(ABORT,'immutable-observation'); END;
 CREATE TRIGGER observations_no_delete BEFORE DELETE ON observations BEGIN SELECT RAISE(ABORT,'immutable-observation'); END;
 CREATE TRIGGER snapshots_no_update BEFORE UPDATE ON snapshots BEGIN SELECT RAISE(ABORT,'immutable-snapshot'); END;
 CREATE TRIGGER snapshots_no_delete BEFORE DELETE ON snapshots BEGIN SELECT RAISE(ABORT,'immutable-snapshot'); END;
-`;
-export const REPOSITORY_MIGRATION_V8 = `
-CREATE TABLE source_scan_events (id TEXT PRIMARY KEY, scan_id TEXT NOT NULL, version INTEGER NOT NULL, source_id TEXT NOT NULL, actor_scope TEXT NOT NULL, document TEXT NOT NULL CHECK(json_valid(document)), UNIQUE(scan_id,version)) STRICT;
-CREATE INDEX source_scan_sources ON source_scan_events(source_id,actor_scope);
-`;
-export const SOURCE_SCAN_TRIGGERS = `
-CREATE TRIGGER source_scan_events_no_update BEFORE UPDATE ON source_scan_events BEGIN SELECT RAISE(ABORT,'immutable-source-scan'); END;
-CREATE TRIGGER source_scan_events_no_delete BEFORE DELETE ON source_scan_events BEGIN SELECT RAISE(ABORT,'immutable-source-scan'); END;
 `;

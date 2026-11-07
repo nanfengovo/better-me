@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AtlasDatasetSchema, CoordinatesSchema, CountryCodeSchema, EntityIdSchema, HttpUrlSchema, JobLocationSchema, OriginalCoordinatesSchema, RevisionSchema, TimestampSchema, type AtlasDataset, type JobLocation } from "./schema.js";
+import { AtlasDatasetSchema, CoordinatesSchema, CountryCodeSchema, EntityIdSchema, HttpUrlSchema, JobLocationSchema, RevisionSchema, TimestampSchema, type AtlasDataset, type JobLocation } from "./schema.js";
 import { sameLocationValue } from "./location-confirmation.js";
 
 const text = (max: number) => z.string().trim().min(1).max(max).refine(value => !/[\p{Cc}\p{Cs}]/u.test(value), "Use plain address text.");
@@ -8,7 +8,7 @@ const lookupConstraintText = (max: number) => z.string().refine(value => !/[\p{C
 export const OfficeAddressProposalSchema = z.object({
   basis: z.literal("manual-user-confirmation"), countryCode: CountryCodeSchema,
   formattedAddress: text(2000), streetAddress: text(1000), postalCode: text(100).optional(),
-  coordinates: CoordinatesSchema, originalCoordinates: OriginalCoordinatesSchema.optional(), evidenceUrl: HttpUrlSchema,
+  coordinates: CoordinatesSchema, evidenceUrl: HttpUrlSchema,
   coordinateMeaning: z.enum(["building", "entrance", "site"]),
 }).strict();
 export type OfficeAddressProposal = z.infer<typeof OfficeAddressProposalSchema>;
@@ -24,42 +24,6 @@ export const OfficeAddressCandidateSchema = z.object({ id: EntityIdSchema, provi
   estimated: z.literal(true), verification: z.literal("unverified"),
 }).strict();
 export type OfficeAddressCandidate = z.infer<typeof OfficeAddressCandidateSchema>;
-export type OfficeAddressMatchStatus = "match" | "conflict" | "unknown";
-export type OfficeAddressMatchField = "countryCode" | "region" | "city" | "district" | "streetAddress" | "postalCode";
-export type OfficeAddressFieldMatch = { field: OfficeAddressMatchField; status: OfficeAddressMatchStatus; sourceValue?: string; candidateValue?: string };
-export type OfficeAddressMatchSummary = { fields: OfficeAddressFieldMatch[]; matches: number; conflicts: number; unknowns: number };
-
-function normalizeAddressField(value: string, countryCode = false) {
-  const normalized = value.normalize("NFKC").trim().replace(/\s+/gu, " ");
-  return countryCode ? normalized.toUpperCase() : normalized.toLowerCase();
-}
-
-/** Compare only structured address fields. Combined/raw text and coordinates are never evidence here. */
-export function evaluateOfficeAddressCandidate(source: JobLocation, candidate: OfficeAddressCandidate): OfficeAddressMatchSummary {
-  const proposal = candidate.proposal;
-  const compare = (field: OfficeAddressMatchField, sourceValue: string | undefined, candidateValue: string | undefined, country = false): OfficeAddressFieldMatch => {
-    if (!sourceValue?.trim() || !candidateValue?.trim()) return { field, status: "unknown", ...(sourceValue ? { sourceValue } : {}), ...(candidateValue ? { candidateValue } : {}) };
-    return { field, sourceValue, candidateValue,
-      status: normalizeAddressField(sourceValue, country) === normalizeAddressField(candidateValue, country) ? "match" : "conflict" };
-  };
-  const fields = [
-    compare("countryCode", source.countryCode, proposal.countryCode, true),
-    compare("region", source.region, undefined),
-    compare("city", source.city, undefined),
-    compare("district", source.district, undefined),
-    compare("streetAddress", source.streetAddress, proposal.streetAddress),
-    compare("postalCode", source.postalCode, proposal.postalCode),
-  ];
-  const matches = fields.filter(field => field.status === "match").length;
-  const conflicts = fields.filter(field => field.status === "conflict").length;
-  return {
-    fields,
-    matches,
-    conflicts,
-    unknowns: fields.filter(field => field.status === "unknown").length,
-  };
-}
-
 export const OfficeAddressCandidatesResultSchema = z.object({ revision: RevisionSchema, jobId: EntityIdSchema, locationId: EntityIdSchema,
   sourceLocation: JobLocationSchema, configured: z.boolean(), status: z.enum(["manual-available", "not-configured", "candidates", "no-address-match"]),
   candidates: z.array(OfficeAddressCandidateSchema).max(20), warnings: z.array(text(3000)).max(20),
@@ -96,8 +60,7 @@ export function applyOfficeAddressConfirmation(source: JobLocation, decision: Ex
   if (source.kind !== "office" || !source.evidence.length || source.officeResolution || source.countryCode && source.countryCode !== proposal.countryCode) throw new Error("invalid-office-source");
   const { originalCoordinates: _originalCoordinates, postalCode: _postalCode, ...retained } = source;
   return JobLocationSchema.parse({ ...retained, countryCode: proposal.countryCode, streetAddress: proposal.streetAddress,
-    ...(proposal.postalCode ? { postalCode: proposal.postalCode } : {}), coordinates: proposal.coordinates,
-    ...(proposal.originalCoordinates ? { originalCoordinates: proposal.originalCoordinates } : {}), precision: "address", verification: "unverified",
+    ...(proposal.postalCode ? { postalCode: proposal.postalCode } : {}), coordinates: proposal.coordinates, precision: "address", verification: "unverified",
     provider: "manual-user-confirmation", resolvedAt: decision.at,
     officeResolution: { decisionId: decision.id, method: "manual-user-confirmation", at: decision.at, originalLocationId: source.id,
       formattedAddress: proposal.formattedAddress, streetAddress: proposal.streetAddress, ...(proposal.postalCode ? { postalCode: proposal.postalCode } : {}),

@@ -1,38 +1,18 @@
 import { z } from "zod";
 import { PlanAddressEnrichmentInputSchema, AddressEnrichmentPlanSchema, type PlanAddressEnrichmentInput } from "@better-me/opportunities";
-import { EntityIdSchema, SourceDefinitionSchema, TOOL_ERROR_CODES, GeocodingRequestSchema, GeocodingResultSchema, MapReferencesInputSchema, MapReferencesResultSchema, type GeocodingInput, type MapReferencesInput } from "@better-me/opportunities";
+import { EntityIdSchema, SourceDefinitionSchema, TimestampSchema, TOOL_ERROR_CODES, GeocodingRequestSchema, GeocodingResultSchema, MapReferencesInputSchema, MapReferencesResultSchema, type GeocodingInput, type MapReferencesInput } from "@better-me/opportunities";
 import {
   DiscoverSourceCandidatesInputSchema, InspectSourceCandidateInputSchema, ProposeSourceRegistrationInputSchema,
   SourceAdapterMetadataSchema, SourceCandidateInspectionSchema, SourceDiscoveryPageSchema,
   SourcePageSchema, SourceRegistrationProposalSchema, SourceScopeSchema,
   DiscoverCompanyCareersRequestSchema, CompanyCareerDiscoveryResultSchema, CompanyCareerDiscoveryCapabilitiesSchema, type DiscoverCompanyCareersInput,
   type DiscoverSourceCandidatesInput, type InspectSourceCandidateInput, type ProposeSourceRegistrationInput,
-  PreviewReviewedCardsInputSchema, ReviewedCardsPreviewSchema, ImportReviewedCardsInputSchema,
+  PreviewReviewedCardsInputSchema, ReviewedCardsPreviewSchema, ImportReviewedCardsInputSchema, ReviewedCardCompanyConflictSchema, reviewedCompanyConflictsMatchCapture,
   type PreviewReviewedCardsInput, type ImportReviewedCardsInput,
   PreviewDetailLocationsInputSchema, ImportDetailLocationsInputSchema, DetailLocationsPreviewSchema,
   type PreviewDetailLocationsInput, type ImportDetailLocationsInput,
-  ReadOwnedDetailLocationsInputSchema, OwnedDetailLocationsCaptureSchema,
-  PreviewOwnedDetailLocationsInputSchema, ImportOwnedDetailLocationsInputSchema,
-  type ReadOwnedDetailLocationsInput, type PreviewOwnedDetailLocationsInput, type ImportOwnedDetailLocationsInput,
-  SourceSyncRunSchema, SourceSyncResultSchema, SourceScanProgressResultSchema,
-  SourceHealthResultSchema,
-  ReadSourceScanProgressInputSchema, ContinueSourceScanInputSchema, type ContinueSourceScanInput,
 } from "@better-me/source-adapters/browser-contracts";
 import { AtlasClientError, readAtlasSnapshot } from "./client";
-import { resolveAtlasServiceTarget } from "./backend-connection";
-import {
-  ReadFxStateInputSchema, FxStateSchema, FxImportDraftSchema, PreviewFxImportInputSchema, FxImportPreviewSchema,
-  ConfirmFxImportInputSchema, ActivateFxSnapshotInputSchema, FxMutationReceiptSchema,
-  buildFxImportPreview, validateFxQueryContext, validateFxReferenceSnapshot,
-  type ReadFxStateInput, type PreviewFxImportInput, type ConfirmFxImportInput, type ActivateFxSnapshotInput,
-} from "@better-me/opportunities";
-import {
-  ReadCompanyControlReviewInputSchema, CompanyControlReviewReadResultSchema, PreviewCompanyControlReviewInputSchema,
-  CompanyControlReviewPreviewSchema, ConfirmCompanyControlReviewInputSchema, RevokeCompanyControlReviewInputSchema,
-  CompanyControlReviewReceiptSchema, applyCompanyControlReviewConfirmation, sameCompanyControlReviewValue, buildCompanyControlReviewMaterials,
-  type ReadCompanyControlReviewInput, type PreviewCompanyControlReviewInput, type ConfirmCompanyControlReviewInput,
-  type RevokeCompanyControlReviewInput, type CompanyControlReviewReadResult, type CompanyControlReviewProposal, type Company,
-} from "@better-me/opportunities";
 import {
   PreviewLocationConfirmationInputSchema, ConfirmLocationInputSchema, RevokeLocationConfirmationInputSchema,
   LocationConfirmationPreviewSchema, LocationConfirmationReceiptSchema,
@@ -48,17 +28,13 @@ import {
   ConfirmOfficeAddressInputSchema, RevokeOfficeAddressInputSchema, OfficeAddressPreviewSchema, OfficeAddressReceiptSchema,
   sameLocationValue, type OfficeAddressCandidatesInput, type PreviewOfficeConfirmationInput,
   type ConfirmOfficeAddressInput, type RevokeOfficeAddressInput, type OfficeAddressProposal, type JobLocation,
-  ReadCompensationReviewInputSchema, CompensationReviewReadResultSchema, PreviewCompensationReviewInputSchema,
-  CompensationReviewPreviewSchema, ConfirmCompensationReviewInputSchema, RevokeCompensationReviewInputSchema,
-  CompensationReviewReceiptSchema, applyCompensationReviewConfirmation, sameCompensationReviewValue,
-  type ReadCompensationReviewInput, type PreviewCompensationReviewInput, type ConfirmCompensationReviewInput,
-  type RevokeCompensationReviewInput, type CompensationReviewProposal, type CompensationReviewReadResult, type Compensation,
+  PreviewCompanyControllerOverrideInputSchema, CompanyControllerOverridePreviewSchema,
+  ConfirmCompanyControllerOverrideInputSchema, CompanyControllerOverrideReceiptSchema,
+  RevokeCompanyControllerOverrideInputSchema,
+  type PreviewCompanyControllerOverrideInput, type ConfirmCompanyControllerOverrideInput, type RevokeCompanyControllerOverrideInput,
 } from "@better-me/opportunities";
 
-// Older local services may not expose the optional health projection yet. The
-// empty default keeps source configuration readable while newer services add
-// durable per-source status.
-export const AtlasSourceListSchema = z.object({ sources: z.array(SourceDefinitionSchema), adapters: z.array(SourceAdapterMetadataSchema), health: SourceHealthResultSchema.default({ entries: [] }) }).strict();
+export const AtlasSourceListSchema = z.object({ sources: z.array(SourceDefinitionSchema), adapters: z.array(SourceAdapterMetadataSchema) }).strict();
 export type AtlasSourceList = z.infer<typeof AtlasSourceListSchema>;
 export const AtlasRegisterSourceSchema = z.object({ source: SourceDefinitionSchema, expectedRevision: z.number().int().nonnegative().optional() }).strict();
 export type AtlasRegisterSource = z.infer<typeof AtlasRegisterSourceSchema>;
@@ -71,30 +47,28 @@ const count = () => z.number().int().nonnegative();
 // These HTTP views intentionally contain only the public fields emitted by the local service.
 const ReceiptSchema = z.object({ ok: z.literal(true), revision: count(), jobIds: z.array(EntityIdSchema), snapshotIds: z.array(EntityIdSchema),
   counts: z.object({ newJobs: count(), updatedJobs: count(), unchangedJobs: count(), newListings: count(), newObservations: count(), newSnapshots: count() }).strict(),
+  conflicts: z.array(ReviewedCardCompanyConflictSchema).min(1).max(50).optional(),
 }).strict();
-export { SourceSyncRunSchema as AtlasSourceRunSchema };
-export const AtlasSourceSyncSchema = SourceSyncResultSchema;
+const RunSchema = z.object({
+  runId: EntityIdSchema, sourceId: EntityIdSchema, actorScope: z.string().min(1).max(200).regex(/^[A-Za-z0-9._:/-]+$/), generation: z.number().int().positive(),
+  scope: z.object({ keywords: z.array(z.string().trim().min(1).max(300)).max(100).optional(), regions: z.array(z.string().trim().min(1).max(300)).max(100).optional(),
+    companies: z.array(z.string().trim().min(1).max(300)).max(100).optional(), countryCodes: z.array(z.string().regex(/^[A-Z]{2}$/)).max(100).optional(), maxRecords: z.number().int().min(1).max(100_000).optional(), maxPages: z.number().int().min(1).max(10_000).optional() }).strict(),
+  requestFingerprint: z.string().regex(/^[a-f0-9]{64}$/).optional(), status: z.enum(["running", "completed", "partial", "failed", "cancelled", "superseded"]),
+  startedAt: TimestampSchema, finishedAt: TimestampSchema.optional(), summary: z.object({
+    added: count().optional(), changed: count().optional(), unchanged: count().optional(), closed: count().optional(), failed: count().optional(),
+    needsHuman: count().optional(), records: count().optional(), pages: count().optional(), leads: count().optional(), partial: z.boolean().optional(),
+    errorCode: z.string().regex(/^[A-Za-z0-9._:-]{1,100}$/).optional(),
+  }).strict().optional(),
+}).strict();
+export const AtlasSourceSyncSchema = z.object({ run: RunSchema, localFilters: SourceScopeSchema, warnings: z.array(z.string()),
+  sourceError: z.object({ code: z.string(), retryAfterSeconds: z.number().nonnegative().optional() }).strict().optional(),
+}).strict();
 export type AtlasSourceSync = z.infer<typeof AtlasSourceSyncSchema>;
 const requestId = z.string().min(1).max(150);
 const ErrorEnvelopeSchema = z.object({ ok: z.literal(false), requestId, error: z.object({ code: z.enum(TOOL_ERROR_CODES), message: z.string().max(4000) }).strict() }).strict();
 const KeySchema = z.string().min(1).max(200).regex(/^[A-Za-z0-9._:-]+$/);
 type Options = { signal?: AbortSignal; maxBytes?: number };
 type WriteOptions = Options & { idempotencyKey: string };
-
-function matchingSourceSync(result: AtlasSourceSync, sourceId: string) {
-  const { run, scanProgress: progress, localFilters } = result;
-  const scope = { roles: run.scope.keywords ?? [], regions: run.scope.regions ?? [], companyNames: run.scope.companies ?? [],
-    ...(run.scope.countryCodes ? { countryCodes: run.scope.countryCodes } : {}) };
-  return run.sourceId === sourceId && JSON.stringify(scope) === JSON.stringify(localFilters)
-    && (!progress || progress.sourceId === sourceId && progress.runId === run.runId && progress.scanId === run.scanId
-      && progress.running === (run.status === "running") && JSON.stringify(progress.scope) === JSON.stringify(localFilters));
-}
-async function sourceRequestFingerprint(value: unknown): Promise<string> {
-  try {
-    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(value)));
-    return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
-  } catch { throw new AtlasSourceServiceError("invalid-input", "当前浏览器无法校验来源请求指纹，请使用安全上下文后重试；本次请求尚未发送。"); }
-}
 
 const samePair = (left: readonly string[], right: readonly string[]) => left.length === 2 && right.length === 2
   && left[0] !== left[1] && right[0] !== right[1] && left.every(id => right.includes(id));
@@ -139,119 +113,6 @@ function matchingOfficeProposal(location: JobLocation, proposal: OfficeAddressPr
     && resolution.evidenceUrl === proposal.evidenceUrl && location.resolvedAt === resolution.at;
 }
 
-const compensationReviewFields = ["min", "max", "currency", "period", "tax", "kind", "monthsPerYear", "hoursPerYear", "daysPerYear", "weeksPerYear"] as const;
-function matchingCompensationProposal(compensation: Compensation, proposal: CompensationReviewProposal) {
-  return compensation.verification === "unverified" && compensationReviewFields.every(field => compensation[field] === proposal[field])
-    && proposal.supports.every(support => compensation.evidence.some(reference => sameCompensationReviewValue(reference, support.reference)));
-}
-function matchingCompensationHistory(result: CompensationReviewReadResult) {
-  const seen = new Map<string, CompensationReviewReadResult["history"][number]>(), disabled = new Set<string>(), revoked = new Set<string>();
-  let previousRevision = -1, historicalJobId: string | undefined;
-  for (const decision of result.history) {
-    if (seen.has(decision.id) || decision.revision <= previousRevision || decision.revision > result.revision) return false;
-    previousRevision = decision.revision;
-    if (decision.kind === "invalidate") {
-      for (const id of decision.targetDecisionIds) {
-        if (seen.get(id)?.kind !== "confirm" || disabled.has(id)) return false;
-        disabled.add(id);
-      }
-    } else {
-      // Historical source ownership survives canonical-job merges and alias redirects.
-      if (historicalJobId !== undefined && decision.jobId !== historicalJobId || decision.compensationId !== result.compensationId || decision.listingId !== result.listingId
-        || decision.sourceCompensation.id !== result.compensationId) return false;
-      historicalJobId = decision.jobId;
-      if (decision.sourceBinding.listing.id !== decision.listingId
-        || decision.sourceCompensation.evidence.some(reference => !decision.sourceBinding.observations.some(observation => observation.id === reference.observationId))) return false;
-      if (decision.kind === "confirm") {
-        const binding = decision.sourceBinding;
-        for (const support of decision.proposal.supports) {
-          const reference = support.reference, observation = binding.observations.find(value => value.id === reference.observationId);
-          const snapshot = support.snapshotId ? binding.snapshots.find(value => value.id === support.snapshotId) : undefined;
-          if (!observation || observation.result === "failed" || observation.result === "needs-human"
-            || ![observation.fetchedAt, observation.detailFetchedAt].includes(reference.observedAt)
-            || support.snapshotId && (!snapshot || snapshot.observationId !== observation.id)
-            || !(support.snapshotId ? snapshot?.text : observation.rawText)?.includes(reference.quote)
-            || ![binding.listing.canonicalUrl, binding.listing.applicationUrl, snapshot?.sourceUrl,
-              ...decision.sourceCompensation.evidence.filter(value => value.observationId === observation.id).map(value => value.sourceUrl)].includes(reference.sourceUrl)) return false;
-        }
-        try { applyCompensationReviewConfirmation(decision.sourceCompensation, decision); } catch { return false; }
-      } else {
-        const target = seen.get(decision.targetDecisionId);
-        if (target?.kind !== "confirm" || target.actorScope !== decision.actorScope || revoked.has(target.id)) return false;
-        revoked.add(target.id); disabled.add(target.id);
-      }
-    }
-    seen.set(decision.id, decision);
-  }
-  const active = result.history.filter(decision => decision.kind === "confirm" && !disabled.has(decision.id)
-    && sameCompensationReviewValue(decision.sourceCompensation, result.sourceCompensation)).at(-1);
-  if (active?.id !== result.activeDecisionId) return false;
-  try {
-    return sameCompensationReviewValue(result.current, active?.kind === "confirm"
-      ? applyCompensationReviewConfirmation(result.sourceCompensation, active) : result.sourceCompensation);
-  } catch { return false; }
-}
-
-function companyTimesBefore(company: Company, now: number) {
-  const notFuture = (value: string | undefined) => value === undefined || Date.parse(value) <= now;
-  const references = [...(company.legalEntity?.evidence ?? []), ...company.ultimateControllers.evidence,
-    ...company.manualOverrides.flatMap(override => override.field === "legalEntity" || override.field === "ultimateControllers" ? override.value.evidence : [])];
-  return notFuture(company.controlReview?.at) && references.every(reference => notFuture(reference.observedAt))
-    && company.manualOverrides.every(override => notFuture(override.at));
-}
-function matchingCompanyProposal(company: Company, proposal: CompanyControlReviewProposal) {
-  const marker = company.controlReview;
-  return marker?.method === "manual-evidence-review" && marker.status === proposal.status && marker.controlMode === proposal.controlMode
-    && Date.parse(marker.at) >= Math.max(...proposal.documents.map(document => Date.parse(document.retrievedAt)))
-    && marker.parentCompanyName === proposal.parentCompanyName && company.legalEntity?.value === proposal.legalEntityName
-    && company.legalEntity.method === "manual" && company.legalEntity.verification === "verified"
-    && company.ultimateControllers.method === "manual"
-    && company.ultimateControllers.verification === (proposal.status === "resolved" ? "verified" : proposal.status)
-    && sameCompanyControlReviewValue(company.ultimateControllers.value, proposal.controllers)
-    && proposal.supports.every(support => {
-      if (support.field === "parentCompanyName") return true;
-      const document = proposal.documents[support.documentIndex];
-      if (!document) return false;
-      return (support.field === "legalEntityName" ? company.legalEntity?.evidence : company.ultimateControllers.evidence)?.some(reference =>
-        reference.sourceUrl === document.sourceUrl && reference.observedAt === document.retrievedAt && reference.quote === support.quote);
-    });
-}
-async function matchingCompanyHistory(result: CompanyControlReviewReadResult) {
-  const seen = new Map<string, CompanyControlReviewReadResult["history"][number]>(), disabled = new Set<string>(), revoked = new Set<string>();
-  let revision = -1, at = -Infinity; const now = Date.now();
-  if (!companyTimesBefore(result.current, now) || !companyTimesBefore(result.sourceCompany, now)) return false;
-  for (const decision of result.history) {
-    if (seen.has(decision.id) || decision.revision <= revision || decision.revision > result.revision || Date.parse(decision.at) < at || Date.parse(decision.at) > now) return false;
-    revision = decision.revision; at = Date.parse(decision.at);
-    if (decision.kind === "invalidate") {
-      for (const id of decision.targetDecisionIds) { if (seen.get(id)?.kind !== "confirm" || disabled.has(id)) return false; disabled.add(id); }
-    } else {
-      if (decision.companyId !== result.companyId || decision.sourceCompany.id !== result.companyId
-        || decision.sourceBinding.job.id !== decision.jobId || decision.sourceBinding.job.companyId !== result.companyId
-        || !companyTimesBefore(decision.sourceCompany, Date.parse(decision.at))
-        || decision.sourceBinding.observations.some(observation => [observation.fetchedAt, observation.feedFetchedAt, observation.detailFetchedAt, observation.availabilityVerifiedAt].some(value => value && Date.parse(value) > Date.parse(decision.at)))
-        || decision.sourceBinding.snapshots.some(snapshot => Date.parse(snapshot.createdAt) > Date.parse(decision.at))) return false;
-      const references = [...(decision.sourceCompany.legalEntity?.evidence ?? []), ...decision.sourceCompany.ultimateControllers.evidence,
-        ...decision.sourceCompany.manualOverrides.flatMap(override => override.field === "legalEntity" || override.field === "ultimateControllers" ? override.value.evidence : [])];
-      if (references.some(reference => !decision.sourceBinding.observations.some(observation => observation.id === reference.observationId))) return false;
-      if (decision.kind === "confirm") {
-        const materials = await buildCompanyControlReviewMaterials(decision.proposal, { now: decision.at });
-        if (!sameCompanyControlReviewValue(materials, decision.materials)) return false;
-        applyCompanyControlReviewConfirmation(decision.sourceCompany, decision);
-      } else {
-        const target = seen.get(decision.targetDecisionId);
-        if (target?.kind !== "confirm" || target.actorScope !== decision.actorScope || revoked.has(target.id)) return false;
-        revoked.add(target.id); disabled.add(target.id);
-      }
-    }
-    seen.set(decision.id, decision);
-  }
-  const active = result.activeDecisionId ? seen.get(result.activeDecisionId) : undefined;
-  if (result.activeDecisionId && (active?.kind !== "confirm" || disabled.has(result.activeDecisionId))) return false;
-  return sameCompanyControlReviewValue(result.current, active?.kind === "confirm"
-    ? applyCompanyControlReviewConfirmation(result.sourceCompany, active) : result.sourceCompany);
-}
-
 export class AtlasSourceServiceError extends Error {
   constructor(readonly code: "invalid-input" | "invalid-response" | "too-large" | "http-error" | "transport-error" | typeof TOOL_ERROR_CODES[number], message: string, readonly status?: number) {
     super(message); this.name = "AtlasSourceServiceError";
@@ -261,6 +122,16 @@ function input<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, value: unknown): 
   const parsed = schema.safeParse(value);
   if (!parsed.success) throw new AtlasSourceServiceError("invalid-input", "输入不符合来源工具契约，请检查 JSON、范围或限制。");
   return parsed.data;
+}
+function baseUrl(endpoint: string, token: string): URL {
+  let url: URL;
+  try { url = new URL(endpoint); } catch { throw new AtlasClientError("invalid-endpoint", "请输入有效的本机服务地址。"); }
+  if (!["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || !["http:", "https:"].includes(url.protocol)
+    || url.username || url.password || url.search || url.hash || url.pathname !== "/") {
+    throw new AtlasClientError("invalid-endpoint", "来源工具仅连接本机 loopback 服务根地址。");
+  }
+  if (!token.trim()) throw new AtlasClientError("missing-token", "请先填写本机服务访问令牌。");
+  return url;
 }
 async function bodyJson(response: Response, { signal, maxBytes = 32 * 1024 * 1024 }: Options): Promise<unknown> {
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) throw new RangeError("maxBytes must be positive.");
@@ -292,13 +163,13 @@ async function bodyJson(response: Response, { signal, maxBytes = 32 * 1024 * 102
 /** Browser access to the real authenticated tool routes. Source configs remain inert data. */
 export function createAtlasSourceClient(endpoint: string, token: string) {
   async function request<T>(path: string, schema: z.ZodType<T, z.ZodTypeDef, unknown>, options: Options = {}, payload?: unknown, key?: string): Promise<T> {
-    options.signal?.throwIfAborted(); const target = resolveAtlasServiceTarget(endpoint, token);
+    options.signal?.throwIfAborted(); const base = baseUrl(endpoint, token);
     if (key !== undefined) input(KeySchema, key);
     let response: Response;
     try {
-      response = await fetch(new URL(path, target.apiRoot), { method: payload === undefined ? "GET" : "POST", signal: options.signal,
+      response = await fetch(new URL(`/api/v1/${path}`, base), { method: payload === undefined ? "GET" : "POST", signal: options.signal,
         credentials: "omit", redirect: "error", cache: "no-store",
-        headers: { ...target.headers, ...(payload === undefined ? {} : { "Content-Type": "application/json" }), ...(key === undefined ? {} : { "Idempotency-Key": key }) },
+        headers: { Authorization: `Bearer ${token.trim()}`, ...(payload === undefined ? {} : { "Content-Type": "application/json" }), ...(key === undefined ? {} : { "Idempotency-Key": key }) },
         ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
       });
     } catch (error) {
@@ -311,21 +182,9 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
       void response.body?.cancel().catch(() => {});
       throw new AtlasSourceServiceError("http-error", "本机服务尚不支持城市分布参考，请更新岗位服务后重试。", 404);
     }
-    if (path.startsWith("fx/") && response.status === 404) {
-      void response.body?.cancel().catch(() => {});
-      throw new AtlasSourceServiceError("http-error", "当前岗位后端尚不支持汇率管理，请升级并重启岗位后端；人民币与原币披露仍可使用。", 404);
-    }
-    const unsupportedScan = /^sources\/[^/]+\/(?:scan-progress|continue-sync)$/.test(path) && response.status === 404;
-    const scanUpgradeError = () => new AtlasSourceServiceError("http-error", "当前岗位后端尚不支持来源续读，请升级并重启岗位后端。续读重试须保留原请求与原幂等键。", 404);
-    let value: unknown;
-    try { value = await bodyJson(response, options); } catch (error) {
-      if (unsupportedScan && error instanceof AtlasSourceServiceError && error.code === "invalid-response") throw scanUpgradeError();
-      throw error;
-    }
-    options.signal?.throwIfAborted();
+    const value = await bodyJson(response, options); options.signal?.throwIfAborted();
     const error = ErrorEnvelopeSchema.safeParse(value);
     if (error.success) throw new AtlasSourceServiceError(error.data.error.code, `来源工具返回 ${error.data.error.code}。请检查来源状态、版本、范围与服务日志。`, response.status);
-    if (unsupportedScan) throw scanUpgradeError();
     if (!response.ok) throw new AtlasSourceServiceError("http-error", `服务返回 ${response.status}。请核对令牌、允许 Origin 及服务状态。`, response.status);
     const parsed = z.object({ ok: z.literal(true), requestId, value: z.unknown() }).strict().safeParse(value);
     if (!parsed.success) throw new AtlasSourceServiceError("invalid-response", "服务返回内容不符合来源工具契约。");
@@ -335,140 +194,6 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
   }
   const sourcePath = (id: string) => `sources/${encodeURIComponent(input(EntityIdSchema, id))}`;
   return {
-    readCompanyControlReview: async (value: ReadCompanyControlReviewInput, options: Options = {}) => {
-      const query = input(ReadCompanyControlReviewInputSchema, value);
-      const result = await request("companies/control-review/read", CompanyControlReviewReadResultSchema, options, query);
-      let matches = false;
-      try { matches = await matchingCompanyHistory(result); } catch { /* Invalid archived evidence must not become a trusted current classification. */ }
-      options.signal?.throwIfAborted();
-      if (result.revision !== query.expectedRevision || result.jobId !== query.jobId || result.companyId !== query.companyId
-        || result.sourceCompany.id !== query.companyId || result.current.id !== query.companyId
-        || !result.affectedJobIds.includes(query.jobId) || result.current.controlReview?.decisionId !== result.activeDecisionId || !matches)
-        throw new AtlasSourceServiceError("invalid-response", "企业依据与本次岗位、企业、核对历史或版本不一致，请重新读取。");
-      return result;
-    },
-    previewCompanyControlReview: async (value: PreviewCompanyControlReviewInput, options: Options = {}) => {
-      const query = input(PreviewCompanyControlReviewInputSchema, value);
-      const result = await request("companies/control-review/preview", CompanyControlReviewPreviewSchema, options, query);
-      let matches = false;
-      try { await buildCompanyControlReviewMaterials(query.proposal); matches = sameCompanyControlReviewValue(result.proposed, applyCompanyControlReviewConfirmation(result.sourceCompany, {
-        id: "company-control-review-preview", companyId: query.companyId, sourceCompany: result.sourceCompany, proposal: query.proposal,
-        revision: query.expectedRevision, at: [...query.proposal.documents].sort((left, right) => Date.parse(right.retrievedAt) - Date.parse(left.retrievedAt))[0]!.retrievedAt,
-      })); } catch { /* Reject mismatched names, ownership, origins or source projections. */ }
-      options.signal?.throwIfAborted(); const now = Date.now();
-      if (result.expectedRevision !== query.expectedRevision || result.jobId !== query.jobId || result.companyId !== query.companyId
-        || [result.sourceCompany.id, result.current.id, result.proposed.id].some(id => id !== query.companyId)
-        || !result.affectedJobIds.includes(query.jobId) || result.current.controlReview?.decisionId !== result.activeDecisionId
-        || ![result.sourceCompany, result.current, result.proposed].every(company => companyTimesBefore(company, now))
-        || !matchingCompanyProposal(result.proposed, query.proposal) || !matches)
-        throw new AtlasSourceServiceError("invalid-response", "企业预览与本次原文、字段、企业或版本不一致，请重新预览。");
-      return result;
-    },
-    confirmCompanyControlReview: async (value: ConfirmCompanyControlReviewInput, options: WriteOptions) => {
-      const query = input(ConfirmCompanyControlReviewInputSchema, value);
-      const result = await request("companies/control-review/confirm", CompanyControlReviewReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
-      let materialsCurrent = true;
-      try { await buildCompanyControlReviewMaterials(query.proposal); } catch { materialsCurrent = false; }
-      options.signal?.throwIfAborted();
-      if (result.jobId !== query.jobId || result.companyId !== query.companyId || result.company.id !== query.companyId
-        || result.revision !== query.expectedRevision + 1 || result.activeDecisionId !== result.decisionId
-        || result.company.controlReview?.decisionId !== result.decisionId || !result.affectedJobIds.includes(query.jobId)
-        || result.company.ultimateControllers.revision !== result.revision || result.company.legalEntity?.revision !== result.revision
-        || !companyTimesBefore(result.company, Date.now()) || !materialsCurrent || !matchingCompanyProposal(result.company, query.proposal))
-        throw new AtlasSourceServiceError("invalid-response", "企业保存回执与本次逐字段核对不一致，请沿用原请求核对回执。");
-      return result;
-    },
-    revokeCompanyControlReview: async (value: RevokeCompanyControlReviewInput, options: WriteOptions) => {
-      const query = input(RevokeCompanyControlReviewInputSchema, value);
-      const result = await request("companies/control-review/revoke", CompanyControlReviewReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
-      if (result.jobId !== query.jobId || result.companyId !== query.companyId || result.company.id !== query.companyId
-        || result.revision !== query.expectedRevision + 1 || result.decisionId === query.decisionId
-        || result.activeDecisionId === query.decisionId || result.activeDecisionId !== result.company.controlReview?.decisionId
-        || !result.affectedJobIds.includes(query.jobId) || !companyTimesBefore(result.company, Date.now()))
-        throw new AtlasSourceServiceError("invalid-response", "企业撤销回执与本次决议或版本不一致，请沿用原请求核对回执。");
-      return result;
-    },
-    readFxState: async (value: ReadFxStateInput = {}, options: Options = {}) => {
-      const query = input(ReadFxStateInputSchema, value);
-      const result = await request("fx/state", FxStateSchema, options, query);
-      try {
-        if (result.revision !== result.context.datasetRevision || query.expectedRevision !== undefined && result.revision !== query.expectedRevision)
-          throw new Error("revision mismatch");
-        await validateFxQueryContext(result.context);
-        for (const snapshot of result.snapshots) await validateFxReferenceSnapshot(snapshot);
-        const active = result.context.activeSnapshot;
-        if (new Set(result.snapshots.map(snapshot => snapshot.fx.id)).size !== result.snapshots.length
-          || active && !result.snapshots.some(snapshot => sameCompensationReviewValue(snapshot, active))) throw new Error("snapshot mismatch");
-      } catch {
-        throw new AtlasSourceServiceError("invalid-response", "汇率上下文与当前索引版本、原文或快照身份不一致，请重新读取。");
-      }
-      options.signal?.throwIfAborted(); return result;
-    },
-    fetchFxReference: (options: Options = {}) => request("fx/reference", FxImportDraftSchema, options, {}),
-    previewFxImport: async (value: PreviewFxImportInput, options: Options = {}) => {
-      const query = input(PreviewFxImportInputSchema, value);
-      const result = await request("fx/preview", FxImportPreviewSchema, options, query);
-      const expected = await buildFxImportPreview(query);
-      options.signal?.throwIfAborted();
-      if (!sameCompensationReviewValue(result, expected)) throw new AtlasSourceServiceError("invalid-response", "汇率预览与本次原文、出处或索引版本不一致，请重新预览。");
-      return result;
-    },
-    importFxSnapshot: async (value: ConfirmFxImportInput, options: WriteOptions) => {
-      const query = input(ConfirmFxImportInputSchema, value);
-      const result = await request("fx/import", FxMutationReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
-      const expected = await buildFxImportPreview({ draft: query.draft, expectedRevision: query.expectedRevision });
-      options.signal?.throwIfAborted();
-      if (result.revision !== query.expectedRevision + 1 || result.snapshotId !== expected.snapshot.fx.id
-        || query.activate && result.activeSnapshotId !== result.snapshotId)
-        throw new AtlasSourceServiceError("invalid-response", "汇率保存回执与本次快照或版本不一致，请沿用原请求核对回执。");
-      return result;
-    },
-    activateFxSnapshot: async (value: ActivateFxSnapshotInput, options: WriteOptions) => {
-      const query = input(ActivateFxSnapshotInputSchema, value);
-      const result = await request("fx/activate", FxMutationReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
-      if (result.revision !== query.expectedRevision + 1 || result.snapshotId !== query.snapshotId || result.activeSnapshotId !== query.snapshotId)
-        throw new AtlasSourceServiceError("invalid-response", "汇率启用回执与本次快照或版本不一致，请沿用原请求核对回执。");
-      return result;
-    },
-    readCompensationReview: async (value: ReadCompensationReviewInput, options: Options = {}) => {
-      const query = input(ReadCompensationReviewInputSchema, value);
-      const result = await request("compensations/review", CompensationReviewReadResultSchema, options, query);
-      if (result.revision !== query.expectedRevision || result.jobId !== query.jobId || result.compensationId !== query.compensationId
-        || result.sourceCompensation.id !== query.compensationId || result.current.id !== query.compensationId || !matchingCompensationHistory(result))
-        throw new AtlasSourceServiceError("invalid-response", "薪资依据与本次岗位、披露、历史或索引版本不一致，请重新读取。");
-      return result;
-    },
-    previewCompensationReview: async (value: PreviewCompensationReviewInput, options: Options = {}) => {
-      const query = input(PreviewCompensationReviewInputSchema, value);
-      const result = await request("compensations/preview", CompensationReviewPreviewSchema, options, query);
-      let matches = false;
-      try { matches = sameCompensationReviewValue(result.proposed, applyCompensationReviewConfirmation(result.sourceCompensation,
-        { compensationId: query.compensationId, sourceCompensation: result.sourceCompensation, proposal: query.proposal })); } catch { /* Reject unsupported or mismatched proposals. */ }
-      if (result.expectedRevision !== query.expectedRevision || result.jobId !== query.jobId || result.compensationId !== query.compensationId
-        || [result.current.id, result.sourceCompensation.id, result.proposed.id].some(id => id !== query.compensationId)
-        || result.current.raw !== result.sourceCompensation.raw || !sameCompensationReviewValue(result.current.locationIds, result.sourceCompensation.locationIds)
-        || !result.sourceCompensation.evidence.every(reference => result.current.evidence.some(current => sameCompensationReviewValue(current, reference)))
-        || !matches || !matchingCompensationProposal(result.proposed, query.proposal))
-        throw new AtlasSourceServiceError("invalid-response", "薪资预览与本次输入、来源原文或索引版本不一致，请重新核对。");
-      return result;
-    },
-    confirmCompensationReview: async (value: ConfirmCompensationReviewInput, options: WriteOptions) => {
-      const query = input(ConfirmCompensationReviewInputSchema, value);
-      const result = await request("compensations/confirm", CompensationReviewReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
-      if (result.jobId !== query.jobId || result.compensationId !== query.compensationId || result.compensation.id !== query.compensationId
-        || result.revision !== query.expectedRevision + 1 || result.activeDecisionId !== result.decisionId
-        || !matchingCompensationProposal(result.compensation, query.proposal))
-        throw new AtlasSourceServiceError("invalid-response", "薪资保存回执与本次逐字段输入不一致，请沿用原请求核对回执。");
-      return result;
-    },
-    revokeCompensationReview: async (value: RevokeCompensationReviewInput, options: WriteOptions) => {
-      const query = input(RevokeCompensationReviewInputSchema, value);
-      const result = await request("compensations/revoke", CompensationReviewReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
-      if (result.jobId !== query.jobId || result.compensationId !== query.compensationId || result.compensation.id !== query.compensationId
-        || result.revision !== query.expectedRevision + 1 || result.decisionId === query.decisionId || result.activeDecisionId === query.decisionId)
-        throw new AtlasSourceServiceError("invalid-response", "薪资撤销回执与本次核对或版本不一致，请沿用原请求核对回执。");
-      return result;
-    },
     mapReferences: async (value: MapReferencesInput, options: Options = {}) => {
       const query = input(MapReferencesInputSchema, value);
       const result = await request("locations/map-references", MapReferencesResultSchema, options, query);
@@ -619,36 +344,7 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
     list: (options: Options = {}) => request("sources", AtlasSourceListSchema, options),
     register: async (value: AtlasRegisterSource, options: WriteOptions) => request("sources", ReceiptSchema, options, input(AtlasRegisterSourceSchema, value), input(KeySchema, options.idempotencyKey)),
     preview: async (sourceId: string, value: Omit<AtlasSourceScopeInput, "maxPages">, options: Options = {}) => request(`${sourcePath(sourceId)}/preview`, AtlasSourcePreviewSchema, options, input(PreviewInputSchema, value)),
-    sync: async (sourceId: string, value: AtlasSourceScopeInput, options: WriteOptions) => {
-      const id = input(EntityIdSchema, sourceId), query = input(SyncInputSchema, value), key = input(KeySchema, options.idempotencyKey);
-      const scope = query.scope ?? { roles: [], regions: [], companyNames: [] }; options.signal?.throwIfAborted();
-      const fingerprint = await sourceRequestFingerprint({ sourceId: id, scope, ...(query.maxRecords === undefined ? {} : { maxRecords: query.maxRecords }), ...(query.maxPages === undefined ? {} : { maxPages: query.maxPages }) });
-      const result = await request(`${sourcePath(id)}/sync`, AtlasSourceSyncSchema, options, query, key);
-      if (!matchingSourceSync(result, id) || JSON.stringify(result.localFilters) !== JSON.stringify(scope)
-        || (result.run.requestFingerprint !== undefined || result.run.scanId !== undefined) && result.run.requestFingerprint !== fingerprint)
-        throw new AtlasSourceServiceError("invalid-response", "来源刷新回执与本次来源、扫描条件或请求指纹不一致，请沿用原请求与原幂等键核对回执。");
-      return result;
-    },
-    readScanProgress: async (value: z.input<typeof ReadSourceScanProgressInputSchema>, options: Options = {}) => {
-      const query = input(ReadSourceScanProgressInputSchema, value), { sourceId, ...payload } = query;
-      const result = await request(`${sourcePath(sourceId)}/scan-progress`, SourceScanProgressResultSchema, options, payload);
-      if (result.sourceId !== sourceId || result.progress && (result.progress.sourceId !== sourceId || query.runId && result.progress.runId !== query.runId))
-        throw new AtlasSourceServiceError("invalid-response", "来源扫描进度与本次来源或批次不一致，请重新读取当前进度；保留未定续读请求与原幂等键。");
-      return result;
-    },
-    continueSync: async (value: ContinueSourceScanInput, options: WriteOptions) => {
-      const query = input(ContinueSourceScanInputSchema, value), { sourceId, ...payload } = query;
-      // Compute before sending a write: unavailable Web Crypto must not leave an
-      // unsubmitted command looking like an unknown server-side result.
-      const key = input(KeySchema, options.idempotencyKey); options.signal?.throwIfAborted();
-      const fingerprint = await sourceRequestFingerprint({ tool: "sources.continue-sync", input: query }); options.signal?.throwIfAborted();
-      const result = await request(`${sourcePath(sourceId)}/continue-sync`, SourceSyncResultSchema, options, payload, key);
-      if (!matchingSourceSync(result, sourceId) || !result.run.scanId || result.run.runId === query.fromRunId
-        || result.run.continuedFromRunId !== query.fromRunId || result.run.requestFingerprint !== fingerprint
-        || result.scanProgress && result.scanProgress.version <= query.expectedProgressVersion)
-        throw new AtlasSourceServiceError("invalid-response", "来源续读回执与原批次、进度版本或请求指纹不一致，请沿用原请求与原幂等键核对回执。");
-      return result;
-    },
+    sync: async (sourceId: string, value: AtlasSourceScopeInput, options: WriteOptions) => request(`${sourcePath(sourceId)}/sync`, AtlasSourceSyncSchema, options, input(SyncInputSchema, value), input(KeySchema, options.idempotencyKey)),
     discover: async (sourceId: string, value: DiscoverSourceCandidatesInput, options: Options = {}) => request("sources/discover", SourceDiscoveryPageSchema, options, { sourceId: input(EntityIdSchema, sourceId), request: input(DiscoverSourceCandidatesInputSchema, value) }),
     companyDiscoveryCapabilities: (options: Options = {}) => request("companies/discovery-capabilities", CompanyCareerDiscoveryCapabilitiesSchema, options),
     discoverCompany: async (sourceId: string | undefined, value: DiscoverCompanyCareersInput, options: Options = {}) => {
@@ -669,39 +365,6 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
       return result;
     },
     snapshot: (options: Options = {}) => readAtlasSnapshot(endpoint, token, options),
-    readOwnedDetailLocations: async (value: ReadOwnedDetailLocationsInput, options: Options = {}) => {
-      const query = input(ReadOwnedDetailLocationsInputSchema, value);
-      const result = await request("jobs/owned-detail-locations/read", OwnedDetailLocationsCaptureSchema, options, query);
-      if (result.jobId !== query.jobId || result.listingId !== query.listingId)
-        throw new AtlasSourceServiceError("invalid-response", "官网详情与本次岗位或来源记录不一致，请重新读取。");
-      return result;
-    },
-    previewOwnedDetailLocations: async (value: PreviewOwnedDetailLocationsInput, options: Options = {}) => {
-      const query = input(PreviewOwnedDetailLocationsInputSchema, value);
-      const result = await request("jobs/owned-detail-locations/preview", DetailLocationsPreviewSchema, options, query);
-      const sameAddress = (location: JobLocation, address: typeof query.capture.record.locations[number]) =>
-        (["raw", "countryCode", "region", "city", "streetAddress", "postalCode"] as const).every(field => location[field] === address[field])
-        && location.evidence.some(ref => ref.observedAt === query.capture.observedAt
-          && query.capture.record.evidence.some(evidence => /^locations(?:\.|$)/.test(evidence.field)
-            && ref.sourceUrl === evidence.sourceUrl && ref.selector === evidence.selector && ref.quote === evidence.quote));
-      if (result.jobId !== query.jobId || result.listingId !== query.listingId || result.sourceId !== query.capture.sourceId
-        || result.expectedRevision !== query.expectedRevision
-        || result.newLocations.some(location => location.kind !== (query.capture.record.workMode === "remote" ? "remote-region" : "office")
-          || !query.capture.record.locations.some(address => sameAddress(location, address)))
-        || query.capture.record.locations.some(address => !result.newLocations.some(location => sameAddress(location, address))))
-        throw new AtlasSourceServiceError("invalid-response", "官网地点预览与原始地址、出处或当前版本不一致，请重新核对。");
-      return result;
-    },
-    importOwnedDetailLocations: async (value: ImportOwnedDetailLocationsInput, options: WriteOptions) => {
-      const query = input(ImportOwnedDetailLocationsInputSchema, value);
-      const result = await request("jobs/owned-detail-locations/import", ReceiptSchema, options, query, input(KeySchema, options.idempotencyKey));
-      if (result.jobIds.length !== 1 || result.jobIds[0] !== query.jobId || ![query.expectedRevision, query.expectedRevision + 1].includes(result.revision)
-        || result.counts.newJobs !== 0 || result.counts.newListings !== 0 || result.counts.newSnapshots !== 0 || result.snapshotIds.length !== 0
-        || result.counts.updatedJobs + result.counts.unchangedJobs !== 1 || result.counts.updatedJobs > 1 || result.counts.newObservations > 1
-        || (result.revision === query.expectedRevision && (result.counts.updatedJobs !== 0 || result.counts.newObservations !== 0)))
-        throw new AtlasSourceServiceError("invalid-response", "官网地点保存回执与原岗位不一致，请使用原请求核对回执。");
-      return result;
-    },
     previewDetailLocations: async (value: PreviewDetailLocationsInput, options: Options = {}) => {
       const query = input(PreviewDetailLocationsInputSchema, value);
       const result = await request("jobs/detail-locations/preview", DetailLocationsPreviewSchema, options, query);
@@ -727,7 +390,14 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
       return result;
     },
     previewReviewedCards: (value: PreviewReviewedCardsInput, options: Options = {}) => request("jobs/reviewed-cards/preview", ReviewedCardsPreviewSchema, options, input(PreviewReviewedCardsInputSchema, value)),
-    importReviewedCards: (value: ImportReviewedCardsInput, options: WriteOptions) => request("jobs/reviewed-cards/import", ReceiptSchema, options, input(ImportReviewedCardsInputSchema, value), input(KeySchema, options.idempotencyKey)),
+    importReviewedCards: async (value: ImportReviewedCardsInput, options: WriteOptions) => {
+      const receipt = await request("jobs/reviewed-cards/import", ReceiptSchema, options, input(ImportReviewedCardsInputSchema, value), input(KeySchema, options.idempotencyKey));
+      if (!reviewedCompanyConflictsMatchCapture(value, receipt.conflicts)) throw new AtlasSourceServiceError("invalid-response", "冲突回执与本次来源卡片不一致，保存结果待核对。");
+      return receipt;
+    },
+    previewCompanyControllerOverride: (value: PreviewCompanyControllerOverrideInput, options: Options = {}) => request("companies/controllers/preview", CompanyControllerOverridePreviewSchema, options, input(PreviewCompanyControllerOverrideInputSchema, value)),
+    confirmCompanyControllerOverride: (value: ConfirmCompanyControllerOverrideInput, options: WriteOptions) => request("companies/controllers/confirm", CompanyControllerOverrideReceiptSchema, options, input(ConfirmCompanyControllerOverrideInputSchema, value), input(KeySchema, options.idempotencyKey)),
+    revokeCompanyControllerOverride: (value: RevokeCompanyControllerOverrideInput, options: WriteOptions) => request("companies/controllers/revoke", CompanyControllerOverrideReceiptSchema, options, input(RevokeCompanyControllerOverrideInputSchema, value), input(KeySchema, options.idempotencyKey)),
   };
 }
 

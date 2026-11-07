@@ -2,12 +2,12 @@ import { z } from "zod";
 import { fileURLToPath } from "node:url";
 import {
   AtlasDatasetSchema, CanonicalJobSchema, CompanySchema, JobLocationSchema, CompensationSchema, RevisionSchema, SourceDefinitionSchema, SourceListingSchema, SourceObservationSchema, JdSnapshotSchema,
-  EntityIdSchema, queryJobs, createJobsSearchTool, createToolRegistry, defineTool, normalizeSearchText, ToolError,
+  EntityIdSchema, createJobQueryService, createJobsSearchTool, createToolRegistry, defineTool, normalizeSearchText, ToolError,
   type QueryOptions, type SourceDefinition, type ToolHandlerContext, type ToolDefinition,
 } from "@better-me/opportunities";
 import {
   SourceScopeSchema, SourcePageSchema, SourceAdapterMetadataSchema, SourceRegistryError, SourceTransportError,
-  createSourceRegistry, createControlledSourceTransport, greenhouseAdapter, leverAdapter, ashbyAdapter, remotiveAdapter, rssAtomAdapter, githubMarkdownAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter, jobPostingJsonLdAdapter, workdayAdapter,
+  createSourceRegistry, createControlledSourceTransport, greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter, jobPostingJsonLdAdapter,
   discoverSourceCandidates, inspectSourceCandidate, proposeSourceRegistration,
   DiscoverSourceCandidatesInputSchema, SourceDiscoveryPageSchema, InspectSourceCandidateInputSchema, SourceCandidateInspectionSchema,
   ProposeSourceRegistrationInputSchema, SourceRegistrationProposalSchema,
@@ -15,25 +15,22 @@ import {
   createLocalGazetteerProvider, createGeocodingTool, type GeocodingProvider, type MapReferenceProvider,
   locallyMatchesSourceScope as locallyMatches, countSourceScopeMatches,
   type SourceAdapter, type SourceTransport, type CareerWebSearchProvider,
-  ReadSourceScanProgressInputSchema, SourceScanProgressResultSchema, ContinueSourceScanInputSchema, SourceSyncResultSchema, SourceHealthResultSchema,
-  type SourceScope, type SourceSyncRun, type SourceSyncResult, type ContinueSourceScanInput,
 } from "@better-me/source-adapters";
-import { sourceConfigurationFingerprint } from "./source-scan-state.js";
 import { RepositoryError, type JobRepository } from "./repository.js";
 import { DiscoveryLeadSchema, ImportReceiptSchema, SyncRunSchema, type PublicRunSummary } from "./repository-schema.js";
-import { projectSourcePage } from "./projection.js";
+import { projectSourcePage, sourceProjectionSelection } from "./projection.js";
 import { createReviewedCardsTools } from "./reviewed-cards.js";
 import { createReviewedDetailLocationsTools } from "./reviewed-detail-locations.js";
-import { createOwnedDetailLocationsTools } from "./owned-detail-locations.js";
-import { createLeadResolutionTools } from "./lead-resolution.js";
 import { createLocationConfirmationTools } from "./location-confirmation.js";
 import { createReconciliationTools } from "./reconciliation.js";
 import { createLocationMapReferencesTool } from "./location-map-references.js";
 import { createOfficeAddressTools, type OfficeAddressProvider } from "./office-address.js";
 import { createAddressEnrichmentTool } from "./address-enrichment.js";
-import { createCompensationReviewTools } from "./compensation-review.js";
-import { createCompanyControlReviewTools } from "./company-control-review.js";
-import { createFxTools, type FxReferenceProvider } from "./fx.js";
+import { createCompanyControllerTools } from "./company-controllers.js";
+import { createCompensationAuditTools } from "./compensation-audit.js";
+import { startBackgroundEnrichmentWorker } from "./background-enrichment-worker.js";
+import { DatasetSyncRequestSchema, DatasetSyncResponseSchema } from "./dataset-sync-contract.js";
+import { BaselineRequestSchema, BaselineResponseSchema, BaselineCloseSchema } from "./dataset-baseline-contract.js";
 
 const emptyInput = z.object({}).strict();
 // Name-only discovery has no permission to follow arbitrary URLs. This host policy is
@@ -69,6 +66,8 @@ function mappedError(error: unknown): ToolError {
 }
 export type JobApplicationOptions = {
   repository: JobRepository;
+  /** A read-only compute lane must never own a second outbox consumer. */
+  backgroundEnrichment?: boolean;
   adapters?: readonly SourceAdapter[];
   transport?: SourceTransport;
   now?: () => string;
@@ -80,22 +79,15 @@ export type JobApplicationOptions = {
   mapReferenceProvider?: MapReferenceProvider;
   /** Host-only web search; requests cannot install providers or select their endpoints. */
   careerWebSearchProvider?: CareerWebSearchProvider;
-  /** Optional fixed public reference source; reading it never imports or activates it. */
-  fxReferenceProvider?: FxReferenceProvider;
 };
 
 /** One application service backs HTTP and future Agent tools. Private opportunity data stays outside. */
 export function createJobApplication(options: JobApplicationOptions) {
   const repository = options.repository;
   const now = options.now ?? (() => new Date().toISOString());
-  const sources = createSourceRegistry(options.adapters ?? [greenhouseAdapter, leverAdapter, ashbyAdapter, remotiveAdapter, rssAtomAdapter, githubMarkdownAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter, jobPostingJsonLdAdapter, workdayAdapter]);
-  const transport = options.transport ?? createControlledSourceTransport();
-  const query = { search: async (input: Parameters<typeof queryJobs>[1], hostOptions: QueryOptions = {}) => {
-    const captured = await repository.readFxQuerySnapshot();
-    // Caller-provided anchors and colors are independent, while conversion always follows
-    // the repository selection captured atomically with these exact public job rows.
-    return queryJobs(captured.dataset, input, { ...hostOptions, fx: captured.context.activeSnapshot?.fx, now: captured.context.asOf });
-  } };
+  const sources = createSourceRegistry(options.adapters ?? [greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter, jobPostingJsonLdAdapter]);
+  const transport = options.transport ?? createControlledSourceTransport({ timeoutMs: 35_000 });
+  const query = createJobQueryService(repository);
   const running = new Map<string, AbortController>();
   const pending = new Set<Promise<unknown>>();
   const stopSignal = new AbortController();
@@ -137,146 +129,18 @@ export function createJobApplication(options: JobApplicationOptions) {
   const mapReferenceTool = createLocationMapReferencesTool(repository, options.mapReferenceProvider ?? localGazetteer);
   const addressEnrichmentTool = createAddressEnrichmentTool(repository, { canReadOfficialSource: source => {
     try { sources.resolve(source, "list-jobs", "local-service"); return true; } catch { return false; }
-  }, canReadOfficialDetailSource: source => {
-    try { return typeof sources.resolve(source, "list-jobs", "local-service").adapter.readDetail === "function"; } catch { return false; }
   } });
   const searchTool = createJobsSearchTool(query, async (input, context) => ({ now: now(),
     ...(options.resolveQueryOptions ? await options.resolveQueryOptions(context) : {}),
     ...(input.mapCityReferences ? { mapReferences: await mapReferenceTool.execute({ expectedRevision: (await repository.readSnapshot()).revision, limit: 1000 }, context) } : {}),
   }));
-
-  const scopeOfRun = (run: SourceSyncRun): SourceScope => ({ roles: run.scope.keywords ?? [], regions: run.scope.regions ?? [], companyNames: run.scope.companies ?? [], ...(run.scope.countryCodes ? { countryCodes: run.scope.countryCodes } : {}) });
-  async function syncResult(run: SourceSyncRun, localFilters: SourceScope, warnings: string[], sourceError?: { code: string; retryAfterSeconds?: number }): Promise<SourceSyncResult> {
-    const progress = run.scanId ? (await repository.readScanProgress({ sourceId: run.sourceId, runId: run.runId, actorScope: run.actorScope })).progress : undefined;
-    return { run, localFilters, warnings, ...(sourceError ? { sourceError } : {}), ...(progress?.runId === run.runId ? { scanProgress: progress } : {}) };
-  }
-  async function recoverSync(input: unknown, context: ToolHandlerContext, continuation: boolean) {
-    const requestFingerprint = createHash("sha256").update(JSON.stringify(continuation ? { tool: "sources.continue-sync", input } : input)).digest("hex");
-    const existing = await repository.findRunByRequest({ actorScope: context.actorScope, idempotencyKey: key(context), requestFingerprint });
-    return existing ? syncResult(existing, scopeOfRun(existing), ["Recovered the original durable run without new source requests."]) : undefined;
-  }
-  async function executeSync(input: z.infer<typeof scopeInput>, context: ToolHandlerContext, continuation?: ContinueSourceScanInput): Promise<SourceSyncResult> {
-        const sameKey = key(context);
-        const requestFingerprint = createHash("sha256").update(JSON.stringify(continuation ? { tool: "sources.continue-sync", input: continuation } : input)).digest("hex");
-        const existing = await repository.findRunByRequest({ actorScope: context.actorScope, idempotencyKey: sameKey, requestFingerprint });
-        if (existing) return syncResult(existing, scopeOfRun(existing), ["This request already has a persistent run. Read its state; a new refresh requires a new key."]);
-        if (continuation) {
-          const retained = await repository.readScanCheckpoint(continuation.fromRunId, context.actorScope);
-          if (retained.sourceId !== continuation.sourceId || retained.runId !== continuation.fromRunId || retained.version !== continuation.expectedProgressVersion) throw new ToolError("stale-version");
-          input = { sourceId: continuation.sourceId, scope: retained.scope, ...(continuation.maxRecords === undefined ? {} : { maxRecords: continuation.maxRecords }), ...(continuation.maxPages === undefined ? {} : { maxPages: continuation.maxPages }) };
-        }
-        const source = await getSource(input.sourceId);
-        sources.resolve(source, "list-jobs", "local-service");
-        if (source.secretRef) throw new ToolError("needs-auth");
-        const maxRecords = Math.min(input.maxRecords ?? source.refreshPolicy.maxRecords, source.refreshPolicy.maxRecords);
-        const maxPages = Math.min(input.maxPages ?? source.refreshPolicy.maxPages, source.refreshPolicy.maxPages);
-        const run = await repository.startRun({ sourceId: source.sourceId, scope: { keywords: input.scope.roles, regions: input.scope.regions, companies: input.scope.companyNames,
-          ...(input.scope.countryCodes ? { countryCodes: input.scope.countryCodes } : {}), maxRecords, maxPages }, actorScope: context.actorScope, idempotencyKey: sameKey, requestFingerprint,
-          scan: { sourceFingerprint: sourceConfigurationFingerprint(source), scope: input.scope, ...(continuation ? { continue: continuation } : {}) } });
-        if (run.status !== "running") return syncResult(run, input.scope, ["This idempotent request already has a terminal run; use a new key for a new refresh."]);
-        const controller = new AbortController();
-        const forwardAbort = () => controller.abort();
-        context.signal.addEventListener("abort", forwardAbort, { once: true });
-        if (context.signal.aborted) controller.abort();
-        running.set(run.runId, controller);
-        const syncContext: ToolHandlerContext = { ...context, signal: controller.signal, throwIfCancelled: () => { context.throwIfCancelled(); if (controller.signal.aborted) throw new ToolError("cancelled"); } };
-        const summary: PublicRunSummary = { added: 0, changed: 0, unchanged: 0, records: 0, pages: 0, leads: 0, partial: false };
-        const warnings: string[] = [];
-        let checkpoint = await repository.readScanCheckpoint(run.runId, context.actorScope);
-        summary.partial = checkpoint.hadErrors;
-        const cursors = new Set<string>();
-        let cursor = checkpoint.cursor;
-        if (cursor) cursors.add(cursor);
-        try {
-          for (let pageNumber = 0; pageNumber < maxPages; pageNumber++) {
-            syncContext.throwIfCancelled();
-            await repository.assertRunCurrent(run.runId, context.actorScope);
-            await assertSourceConfiguration(source);
-            const remaining = maxRecords - summary.records!;
-            if (remaining <= 0) { summary.partial = true; warnings.push("record-limit"); break; }
-            const page = await sources.list({ source: { ...source, refreshPolicy: { ...source.refreshPolicy, maxRecords: remaining } }, scope: input.scope, ...(cursor ? { cursor } : {}), context: { ...syncContext, observedAt: now() }, transport });
-            syncContext.throwIfCancelled();
-            await repository.assertRunCurrent(run.runId, context.actorScope);
-            await assertSourceConfiguration(source);
-            summary.pages!++; summary.records! += page.coverage.fetchedRecords;
-            summary.partial ||= page.coverage.partial;
-            warnings.push(...page.warnings);
-            const unresolvedScope = countSourceScopeMatches(page.records, input.scope).unknown;
-            if (unresolvedScope) summary.needsHuman = (summary.needsHuman ?? 0) + unresolvedScope;
-            const matchedPage = { ...page, records: page.records.filter((record) => locallyMatches(record, input.scope)) };
-            // Network reads remain concurrent. Only each local read/project/write
-            // sequence is serialized, so independent sources use the latest base.
-            const leads = await serializePageMutation(async () => {
-              syncContext.throwIfCancelled();
-              let snapshot = await repository.readProjectionSnapshot();
-              for (let attempt = 0; ; attempt++) {
-                syncContext.throwIfCancelled();
-                await repository.assertRunCurrent(run.runId, context.actorScope);
-                await assertSourceConfiguration(source);
-                // Refresh source origins rather than a merged canonical summary.
-                const projection = await projectSourcePage(snapshot, source, matchedPage, run.runId);
-                // Observations cannot restore an old endpoint/policy configuration.
-                projection.delta.sources = [];
-                syncContext.throwIfCancelled();
-                await repository.assertRunCurrent(run.runId, context.actorScope);
-                await assertSourceConfiguration(source);
-                let receipt;
-                try {
-                  const committed = await repository.commitScanPage({ delta: projection.delta, leads: projection.leads, page, expectedProgressVersion: checkpoint.version, summary }, { actorScope: context.actorScope, idempotencyKey: `${run.runId}.page-${pageNumber}`, expectedRevision: snapshot.revision, runId: run.runId, throwIfCancelled: syncContext.throwIfCancelled });
-                  receipt = committed.receipt;
-                  checkpoint = await repository.readScanCheckpoint(run.runId, context.actorScope);
-                } catch (error) {
-                  if (!(error instanceof RepositoryError) || error.code !== "stale-version") throw error;
-                  syncContext.throwIfCancelled();
-                  await repository.assertRunCurrent(run.runId, context.actorScope);
-                  await assertSourceConfiguration(source);
-                  const latest = await repository.readProjectionSnapshot();
-                  // An external registration/import can advance the index while
-                  // this page is projected. Retry only a real CAS race, never a
-                  // replaced source/run or an unchanged-version semantic failure.
-                  if (attempt >= 2 || latest.revision <= snapshot.revision) throw error;
-                  snapshot = latest;
-                  continue;
-                }
-                summary.added! += receipt.counts.newJobs; summary.changed! += receipt.counts.updatedJobs; summary.unchanged! += receipt.counts.unchangedJobs;
-                return projection.leads.length;
-              }
-            });
-            summary.leads! += leads;
-            if (!page.nextCursor) { summary.partial ||= !page.coverage.complete; break; }
-            if (cursors.has(page.nextCursor)) { summary.partial = true; warnings.push("repeated-source-cursor"); await repository.markScanFailure(run.runId, context.actorScope, true); break; }
-            cursors.add(page.nextCursor); cursor = page.nextCursor;
-            if (pageNumber + 1 === maxPages) { summary.partial = true; warnings.push("page-limit"); }
-          }
-          syncContext.throwIfCancelled();
-          const finished = await repository.finishRun(run.runId, { actorScope: context.actorScope, status: summary.partial ? "partial" : "completed", summary });
-          return syncResult(finished, input.scope, [...new Set(warnings)].slice(0, 100));
-        } catch (error) {
-          const failure = mappedError(error);
-          const current = await repository.getRun(run.runId);
-          if (!current) throw failure;
-          if (["cancelled", "superseded"].includes(current.status)) return syncResult(current, input.scope, [failure.code], { code: failure.code });
-          await repository.markScanFailure(run.runId, context.actorScope, failure.code === "source-changed");
-          const finished = controller.signal.aborted
-            ? await repository.cancelRun(run.runId, { actorScope: context.actorScope })
-            : await repository.finishRun(run.runId, { actorScope: context.actorScope, status: summary.pages ? "partial" : "failed", summary: { ...summary, partial: Boolean(summary.pages), errorCode: failure.code } });
-          return syncResult(finished, input.scope, [...new Set([...warnings, failure.code])].slice(0, 100), { code: failure.code, ...(error instanceof SourceTransportError && error.retryAfterSeconds !== undefined ? { retryAfterSeconds: error.retryAfterSeconds } : {}) });
-        } finally {
-          context.signal.removeEventListener("abort", forwardAbort);
-          if (running.get(run.runId) === controller) running.delete(run.runId);
-        }
-
-  }
   const definitions: ToolDefinition<any, any>[] = [
-    ...createCompanyControlReviewTools(repository).map(definition => ({ ...definition,
-      ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
-      execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
-    ...createFxTools(repository, options.fxReferenceProvider).map(definition => ({ ...definition,
-      ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
-      execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
-    ...createCompensationReviewTools(repository).map(definition => ({ ...definition,
-      ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
-      execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
+    defineTool({ name: "enrichment.status", version: 1, description: "查看当前身份的后台来源事实补全计数，不返回岗位内容或凭据。", effect: "read-index", inputSchema: emptyInput,
+      outputSchema: z.object({ revision: RevisionSchema, pending: z.number().int().nonnegative(), running: z.number().int().nonnegative(),
+        completed: z.number().int().nonnegative(), failed: z.number().int().nonnegative(), nextRetryAt: z.string().datetime({ offset: true }).optional(),
+        workerState: z.enum(["idle", "running", "stopped", "error"]).optional(), workerError: z.string().max(200).optional() }).strict(),
+      execute: (_input, context) => guarded(async () => ({ ...await repository.getEnrichmentStatus({ actorScope: context.actorScope }), ...enrichmentWorker?.status() })),
+    }),
     defineTool({ ...addressEnrichmentTool, execute: (input, context) => guarded(async () => addressEnrichmentTool.execute(input, context)) }),
     ...createReconciliationTools(repository).map(definition => ({ ...definition,
       ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
@@ -289,12 +153,8 @@ export function createJobApplication(options: JobApplicationOptions) {
     ...createReviewedDetailLocationsTools({ repository, now }).map(definition => ({ ...definition,
       ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
       execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
-    ...createOwnedDetailLocationsTools({ repository, sources, transport, now }).map(definition => ({ ...definition,
-      ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
-      execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
-    ...createLeadResolutionTools({ repository, sources, transport, now }).map(definition => ({ ...definition,
-      ...(definition.recoverInterrupted ? { recoverInterrupted: async (input: any, context: ToolHandlerContext) => (await guarded(async () => ({ receipt: await definition.recoverInterrupted!(input, context) }))).receipt } : {}),
-      execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
+    ...createCompanyControllerTools(repository).map(definition => ({ ...definition, execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
+    ...createCompensationAuditTools(repository).map(definition => ({ ...definition, execute: (input: any, context: ToolHandlerContext) => guarded(async () => definition.execute(input, context)) })),
     defineTool({ ...searchTool, execute: (input, context) => guarded(async () => searchTool.execute(input, context)) }),
     defineTool({ ...mapReferenceTool, execute: (input, context) => guarded(async () => mapReferenceTool.execute(input, context)) }),
     defineTool({ ...geocodingTool, execute: (input, context) => guarded(async () => {
@@ -303,9 +163,9 @@ export function createJobApplication(options: JobApplicationOptions) {
       context.throwIfCancelled();
       return result;
     }) }),
-    defineTool({ name: "sources.list", version: 1, description: "列出来源配置、已安装适配器能力及当前执行身份的来源健康摘要。", effect: "read-index", inputSchema: emptyInput,
-      outputSchema: z.object({ sources: z.array(SourceDefinitionSchema), adapters: z.array(SourceAdapterMetadataSchema), health: SourceHealthResultSchema }).strict(),
-      execute: (_input, context) => guarded(async () => ({ sources: (await repository.readSnapshot()).sources, adapters: sources.describe(), health: await repository.listSourceHealth(context.actorScope) })),
+    defineTool({ name: "sources.list", version: 1, description: "列出来源配置和已安装适配器的实际能力。", effect: "read-index", inputSchema: emptyInput,
+      outputSchema: z.object({ sources: z.array(SourceDefinitionSchema), adapters: z.array(SourceAdapterMetadataSchema) }).strict(),
+      execute: () => guarded(async () => ({ sources: (await repository.readSnapshot()).sources, adapters: sources.describe() })),
     }),
     defineTool({ name: "sources.register", version: 1, description: "保存显式来源配置；来源JSON不能导入执行代码或实际密钥。", effect: "local-write",
       inputSchema: z.object({ source: SourceDefinitionSchema, expectedRevision: z.number().int().nonnegative().optional() }).strict(), outputSchema: ImportReceiptSchema,
@@ -334,19 +194,112 @@ export function createJobApplication(options: JobApplicationOptions) {
         return { page, localMatchedRecords: page.records.filter((record) => locallyMatches(record, input.scope)).length, localFilters: input.scope };
       }),
     }),
-    defineTool({ name: "sources.sync", version: 1, description: "在关注范围内从头手动刷新索引，保留来源观察、部分失败和持久任务回执。", effect: "local-write", inputSchema: scopeInput,
-      outputSchema: SourceSyncResultSchema,
-      recoverInterrupted: (input, context) => guarded(() => recoverSync(input, context, false)),
-      execute: (input, context) => guarded(() => executeSync(input, context)),
-    }),
-    defineTool({ name: "sources.read-scan-progress", version: 1, description: "只读当前身份的来源扫描进度与保存的关注条件，不联网、不暴露上游游标。", effect: "read-index",
-      inputSchema: ReadSourceScanProgressInputSchema, outputSchema: SourceScanProgressResultSchema,
-      execute: (input, context) => guarded(() => repository.readScanProgress({ ...input, actorScope: context.actorScope })),
-    }),
-    defineTool({ name: "sources.continue-sync", version: 1, description: "显式继续上一批已提交的来源扫描，继承原条件并遵守本批预算及原来源间隔，不接受新条件或外部游标。", effect: "local-write",
-      inputSchema: ContinueSourceScanInputSchema, outputSchema: SourceSyncResultSchema,
-      recoverInterrupted: (input, context) => guarded(() => recoverSync(input, context, true)),
-      execute: (input, context) => guarded(() => executeSync({ sourceId: input.sourceId, scope: { roles: [], regions: [], companyNames: [] } }, context, input)),
+    defineTool({ name: "sources.sync", version: 1, description: "在关注范围内手动刷新索引，保留来源观察、部分失败和持久任务回执，不关闭缺席旧岗位。", effect: "local-write", inputSchema: scopeInput,
+      outputSchema: z.object({ run: SyncRunSchema, localFilters: SourceScopeSchema, warnings: z.array(z.string()), sourceError: z.object({ code: z.string(), retryAfterSeconds: z.number().nonnegative().optional() }).strict().optional() }).strict(),
+      execute: (input, context) => guarded(async () => {
+        const sameKey = key(context);
+        const requestFingerprint = createHash("sha256").update(JSON.stringify(input)).digest("hex");
+        const existing = await repository.findRunByRequest({ actorScope: context.actorScope, idempotencyKey: sameKey, requestFingerprint });
+        if (existing) return { run: existing, localFilters: input.scope, warnings: ["This request already has a persistent run. Read its state; a new refresh requires a new key."] };
+        const source = await getSource(input.sourceId);
+        sources.resolve(source, "list-jobs", "local-service");
+        if (source.secretRef) throw new ToolError("needs-auth");
+        const maxRecords = Math.min(input.maxRecords ?? source.refreshPolicy.maxRecords, source.refreshPolicy.maxRecords);
+        const maxPages = Math.min(input.maxPages ?? source.refreshPolicy.maxPages, source.refreshPolicy.maxPages);
+        const run = await repository.startRun({ sourceId: source.sourceId, scope: { keywords: input.scope.roles, regions: input.scope.regions, companies: input.scope.companyNames,
+          ...(input.scope.countryCodes ? { countryCodes: input.scope.countryCodes } : {}), maxRecords, maxPages }, actorScope: context.actorScope, idempotencyKey: sameKey, requestFingerprint });
+        if (run.status !== "running") return { run, localFilters: input.scope, warnings: ["This idempotent request already has a terminal run; use a new key for a new refresh."] };
+        const controller = new AbortController();
+        const forwardAbort = () => controller.abort();
+        context.signal.addEventListener("abort", forwardAbort, { once: true });
+        if (context.signal.aborted) controller.abort();
+        running.set(run.runId, controller);
+        const syncContext: ToolHandlerContext = { ...context, signal: controller.signal, throwIfCancelled: () => { context.throwIfCancelled(); if (controller.signal.aborted) throw new ToolError("cancelled"); } };
+        const summary: PublicRunSummary = { added: 0, changed: 0, unchanged: 0, records: 0, pages: 0, leads: 0, partial: false };
+        const warnings: string[] = [];
+        const cursors = new Set<string>();
+        let cursor: string | undefined;
+        try {
+          for (let pageNumber = 0; pageNumber < maxPages; pageNumber++) {
+            syncContext.throwIfCancelled();
+            await repository.assertRunCurrent(run.runId, context.actorScope);
+            await assertSourceConfiguration(source);
+            const remaining = maxRecords - summary.records!;
+            if (remaining <= 0) { summary.partial = true; warnings.push("record-limit"); break; }
+            const page = await sources.list({ source: { ...source, refreshPolicy: { ...source.refreshPolicy, maxRecords: remaining } }, scope: input.scope, ...(cursor ? { cursor } : {}), context: { ...syncContext, observedAt: now() }, transport });
+            syncContext.throwIfCancelled();
+            await repository.assertRunCurrent(run.runId, context.actorScope);
+            await assertSourceConfiguration(source);
+            summary.pages!++; summary.records! += page.coverage.fetchedRecords;
+            summary.partial ||= page.coverage.partial;
+            warnings.push(...page.warnings);
+            const unresolvedScope = countSourceScopeMatches(page.records, input.scope).unknown;
+            if (unresolvedScope) summary.needsHuman = (summary.needsHuman ?? 0) + unresolvedScope;
+            const matchedPage = { ...page, records: page.records.filter((record) => locallyMatches(record, input.scope)) };
+            // Network reads remain concurrent. Only each local read/project/write
+            // sequence is serialized, so independent sources use the latest base.
+            const leads = await serializePageMutation(async () => {
+              syncContext.throwIfCancelled();
+              const selection = await sourceProjectionSelection(source, matchedPage);
+              let snapshot = await repository.readProjectionSnapshot(selection);
+              for (let attempt = 0; ; attempt++) {
+                syncContext.throwIfCancelled();
+                await repository.assertRunCurrent(run.runId, context.actorScope);
+                await assertSourceConfiguration(source);
+                // Refresh source origins rather than a merged canonical summary.
+                const projection = await projectSourcePage(snapshot, source, matchedPage, run.runId);
+                // Observations cannot restore an old endpoint/policy configuration.
+                projection.delta.sources = [];
+                syncContext.throwIfCancelled();
+                await repository.assertRunCurrent(run.runId, context.actorScope);
+                await assertSourceConfiguration(source);
+                let receipt;
+                try {
+                  receipt = await repository.importSnapshot(projection.delta, { actorScope: context.actorScope, idempotencyKey: `${run.runId}.page-${pageNumber}`, expectedRevision: snapshot.revision, runId: run.runId });
+                } catch (error) {
+                  if (!(error instanceof RepositoryError) || error.code !== "stale-version") throw error;
+                  syncContext.throwIfCancelled();
+                  await repository.assertRunCurrent(run.runId, context.actorScope);
+                  await assertSourceConfiguration(source);
+                  const latest = await repository.readProjectionSnapshot(selection);
+                  // An external registration/import can advance the index while
+                  // this page is projected. Retry only a real CAS race, never a
+                  // replaced source/run or an unchanged-version semantic failure.
+                  if (attempt >= 2 || latest.revision <= snapshot.revision) throw error;
+                  snapshot = latest;
+                  continue;
+                }
+                summary.added! += receipt.counts.newJobs; summary.changed! += receipt.counts.updatedJobs; summary.unchanged! += receipt.counts.unchangedJobs;
+                if (projection.leads.length) {
+                  syncContext.throwIfCancelled();
+                  await repository.saveDiscoveryLeads(projection.leads, { actorScope: context.actorScope, idempotencyKey: `${run.runId}.leads-${pageNumber}`, runId: run.runId });
+                }
+                return projection.leads.length;
+              }
+            });
+            summary.leads! += leads;
+            if (!page.nextCursor) { summary.partial ||= !page.coverage.complete; break; }
+            if (cursors.has(page.nextCursor)) { summary.partial = true; warnings.push("repeated-source-cursor"); break; }
+            cursors.add(page.nextCursor); cursor = page.nextCursor;
+            if (pageNumber + 1 === maxPages) { summary.partial = true; warnings.push("page-limit"); }
+          }
+          syncContext.throwIfCancelled();
+          const finished = await repository.finishRun(run.runId, { actorScope: context.actorScope, status: summary.partial ? "partial" : "completed", summary });
+          return { run: finished, localFilters: input.scope, warnings: [...new Set(warnings)].slice(0, 100) };
+        } catch (error) {
+          const failure = mappedError(error);
+          const current = await repository.getRun(run.runId);
+          if (!current) throw failure;
+          if (["cancelled", "superseded"].includes(current.status)) return { run: current, localFilters: input.scope, warnings: [failure.code], sourceError: { code: failure.code } };
+          const finished = controller.signal.aborted
+            ? await repository.cancelRun(run.runId, { actorScope: context.actorScope })
+            : await repository.finishRun(run.runId, { actorScope: context.actorScope, status: summary.pages ? "partial" : "failed", summary: { ...summary, partial: Boolean(summary.pages), errorCode: failure.code } });
+          return { run: finished, localFilters: input.scope, warnings: [...new Set([...warnings, failure.code])].slice(0, 100), sourceError: { code: failure.code, ...(error instanceof SourceTransportError && error.retryAfterSeconds !== undefined ? { retryAfterSeconds: error.retryAfterSeconds } : {}) } };
+        } finally {
+          context.signal.removeEventListener("abort", forwardAbort);
+          if (running.get(run.runId) === controller) running.delete(run.runId);
+        }
+      }),
     }),
     defineTool({ name: "sources.discover", version: 1, description: "按已启用的发现端点策略搜索来源候选；候选不自动启用或变成岗位。", effect: "external-read",
       inputSchema: z.object({ sourceId: EntityIdSchema, request: DiscoverSourceCandidatesInputSchema }).strict(), outputSchema: SourceDiscoveryPageSchema,
@@ -379,6 +332,12 @@ export function createJobApplication(options: JobApplicationOptions) {
       execute: (input, context) => guarded(async () => { context.throwIfCancelled(); return repository.importSnapshot(input.dataset, { expectedRevision: input.expectedRevision, actorScope: context.actorScope, idempotencyKey: key(context) }); }),
     }),
     defineTool({ name: "jobs.export-public", version: 1, description: "导出公共岗位快照，不包含浏览器简历、投递记录或服务凭据。", effect: "read-index", inputSchema: emptyInput, outputSchema: AtlasDatasetSchema, execute: () => guarded(() => repository.readSnapshot()) }),
+    defineTool({ name: "jobs.sync-public", version: 1, description: "按已提交版本同步公共岗位增量；首次连接或版本断档时返回同版本公共快照。", effect: "read-index", inputSchema: DatasetSyncRequestSchema, outputSchema: DatasetSyncResponseSchema, execute: input => guarded(() => repository.syncSnapshot(input)) }),
+    defineTool({ name: "jobs.sync-pages", version: 1, description: "同步公共增量；缺少基线时仅返回分页指引，不构造整库快照。", effect: "read-index", inputSchema: DatasetSyncRequestSchema, outputSchema: DatasetSyncResponseSchema, execute: input => guarded(() => repository.syncSnapshot(input, true)) }),
+    defineTool({ name: "jobs.baseline-page", version: 1, description: "分批读取同一只读版本的公共基线，不锁住采集写入。", effect: "read-index", inputSchema: BaselineRequestSchema, outputSchema: BaselineResponseSchema,
+      execute: (input, context) => guarded(() => { context.throwIfCancelled(); return repository.readBaselinePage(input, context.actorScope); }) }),
+    defineTool({ name: "jobs.baseline-close", version: 1, description: "释放本执行身份的只读基线会话，不修改岗位数据。", effect: "read-index", inputSchema: BaselineCloseSchema, outputSchema: z.object({ closed: z.literal(true) }).strict(),
+      execute: (input, context) => guarded(() => repository.closeBaselineSession(input.session, context.actorScope)) }),
     defineTool({ name: "jobs.read-detail", version: 1, description: "返回同一索引版本中的岗位、结构化地点、薪资分项、全部来源、观察和不可变JD快照，保留多源差异。", effect: "read-index", inputSchema: z.object({ jobId: EntityIdSchema }).strict(),
       outputSchema: z.object({ snapshotRevision: RevisionSchema, job: CanonicalJobSchema, company: CompanySchema, locations: z.array(JobLocationSchema), compensations: z.array(CompensationSchema), listings: z.array(SourceListingSchema), observations: z.array(SourceObservationSchema), snapshots: z.array(JdSnapshotSchema), sources: z.array(SourceDefinitionSchema) }).strict(),
       execute: (input) => guarded(async () => {
@@ -396,14 +355,18 @@ export function createJobApplication(options: JobApplicationOptions) {
     defineTool({ name: "runs.cancel", version: 1, description: "取消自己发起的指定任务，阻止该代迟到写入。", effect: "local-write", inputSchema: z.object({ runId: EntityIdSchema }).strict(), outputSchema: SyncRunSchema, execute: (input, context) => guarded(async () => { const result = await repository.cancelRun(input.runId, { actorScope: context.actorScope }); running.get(input.runId)?.abort(); return result; }) }),
     defineTool({ name: "leads.list", version: 1, description: "列出发现线索与招聘批次，不能把它们计为完整岗位。", effect: "read-index", inputSchema: emptyInput, outputSchema: z.array(DiscoveryLeadSchema), execute: () => guarded(() => repository.listDiscoveryLeads()) }),
   ];
-  const registry = createToolRegistry(definitions.map((definition) => ({ ...definition, execute: (input: unknown, context: ToolHandlerContext) => {
+  const registry = createToolRegistry(definitions.map((definition) => ({ ...definition, execute: async (input: unknown, context: ToolHandlerContext) => {
     const signal = AbortSignal.any([context.signal, stopSignal.signal]);
-    return definition.execute(input, { ...context, signal, throwIfCancelled: () => { context.throwIfCancelled(); if (signal.aborted) throw new ToolError("cancelled"); } });
+    const result = await definition.execute(input, { ...context, signal, throwIfCancelled: () => { context.throwIfCancelled(); if (signal.aborted) throw new ToolError("cancelled"); } });
+    if (definition.effect === "local-write") enrichmentWorker?.wake();
+    return result;
   } })));
+  const enrichmentWorker = options.backgroundEnrichment === false ? undefined : startBackgroundEnrichmentWorker(repository, { runLocalBatch: serializePageMutation });
   return { registry, query, sources, shutdown: async () => {
     stopping = true;
     stopSignal.abort();
     for (const controller of running.values()) controller.abort();
+    await enrichmentWorker?.stop();
     while (pending.size) await Promise.allSettled([...pending]);
   } };
 }

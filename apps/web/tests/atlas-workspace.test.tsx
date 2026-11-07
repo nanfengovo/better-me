@@ -4,18 +4,18 @@ import test, { after, afterEach, mock } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { Window, type HTMLButtonElement, type HTMLInputElement, type HTMLSelectElement } from "happy-dom";
 import { AtlasDatasetSchema, GeocodingRequestSchema, GeocodingResultSchema, applyOfficeAddressConfirmation, type AddressEnrichmentPlan, type AtlasDataset, type GeocodingRequest } from "@better-me/opportunities";
+import type { ProjectedResume, FactBase } from "@better-me/core";
 import { createOpportunity, OPPORTUNITY_STORAGE_KEY } from "../src/lib/opportunities.ts";
 import { createAtlasDemo } from "../src/components/atlas/demo.ts";
 import type { AtlasPrototypeProps } from "../src/components/atlas/prototypes/types.ts";
-import type { AtlasMapFocus } from "../src/components/atlas/map-focus.ts";
 import type { AtlasJobDetailProps } from "../src/components/atlas/AtlasJobDetail.tsx";
 import type { AtlasOfficeAddressConfirmationProps } from "../src/components/atlas/AtlasOfficeAddressConfirmation.tsx";
-import { queryAtlasPage } from "../src/components/atlas/client.ts";
-import { officeProposal, officeAt, officeCandidate } from "./fixtures/atlas-office-address.ts";
+import type { AtlasSourcesPanelProps } from "../src/components/atlas/AtlasSourcesPanel.tsx";
+import { queryAtlasPage, readAtlasSnapshot } from "../src/components/atlas/client.ts";
+import { syntheticAtlas } from "../../job-service/tests/synthetic-atlas.ts";
+import { officeProposal, officeAt } from "./fixtures/atlas-office-address.ts";
 import { createMapReferenceFixture } from "./fixtures/atlas-map-references.ts";
-import { SourceScopeSchema, buildPlatformSearchRequest, type ReviewedCardsCapture } from "@better-me/source-adapters/browser-contracts";
-import { extractJobSearchCards } from "../server/jd-search-capture.ts";
-import { atlasAggregateRecoveryScope, readAtlasAggregateRecovery, saveAtlasAggregateReceipt, settleAtlasAggregateReceipt } from "../src/components/atlas/aggregate-recovery.ts";
+import type { HarvestCheckpoint, HarvestCheckpointSnapshot, HarvestJournal, HarvestRunInput } from "../src/components/atlas/harvest-checkpoint.ts";
 
 // Exercise the real React workspace and shared queries. The map probe only replaces WebGL/network rendering.
 const dom = new Window({ url: "http://atlas-workspace-fixture.invalid" });
@@ -28,11 +28,46 @@ let mapMounts = 0;
 let detailData: AtlasDataset | undefined;
 let officeProps: AtlasOfficeAddressConfirmationProps | undefined;
 let pauseRecovery: undefined | ((signal: AbortSignal) => Promise<void>);
+let pauseSnapshotQuery: undefined | ((data: AtlasDataset, signal: AbortSignal) => Promise<void>);
+let sourcePanelProps: AtlasSourcesPanelProps | undefined;
+let backgroundStatusReply: (() => Response) | undefined;
+let baselineReadFixture: typeof readAtlasSnapshot | undefined;
+function workspaceRead(...args: Parameters<typeof readAtlasSnapshot>) { return (baselineReadFixture ?? readAtlasSnapshot)(...args); }
+let recoveryFixture: ReturnType<typeof checkpointFixture> | undefined;
+let recoveryLocked = false;
+function checkpointFixture(input: HarvestRunInput) {
+  const saved: HarvestCheckpointSnapshot = { run: { schemaVersion: 1, id: `synthetic-${crypto.randomUUID()}`, scope: "synthetic-scope", input,
+    state: "running", createdAt: "2026-10-28T00:00:00.000Z", updatedAt: "2026-10-28T00:00:00.000Z" }, batches: [], providers: [] };
+  const checkpoint: HarvestCheckpoint = { id: saved.run.id, read: async () => structuredClone(saved),
+    resume: async () => { saved.run.state = "running"; },
+    initialize: async (terms, providers) => { saved.run.queryTerms = [...terms]; saved.run.providers = [...providers]; },
+    capture: async batch => { saved.batches.push(structuredClone(batch)); },
+    prepare: async (id, command) => { saved.batches.find(batch => batch.id === id)!.command = structuredClone(command); },
+    confirm: async (id, receipt) => { saved.batches.find(batch => batch.id === id)!.receipt = structuredClone(receipt); },
+    recordProvider: async value => { saved.providers = [...saved.providers.filter(previous => previous.term !== value.term || previous.result.provider !== value.result.provider), structuredClone(value)]; },
+    settle: async state => { saved.run.state = state; },
+  };
+  return { saved, checkpoint };
+}
+const recoveryJournal: HarvestJournal = { scope: "synthetic-scope",
+  findResumable: async () => recoveryFixture?.saved.run.state === "running" ? recoveryFixture.checkpoint : undefined,
+  findRecoverable: async () => recoveryFixture && ["running", "cancelled", "needs-attention"].includes(recoveryFixture.saved.run.state) ? recoveryFixture.checkpoint : undefined,
+  create: async input => { recoveryFixture = checkpointFixture(input); return recoveryFixture.checkpoint; }, close() {},
+};
+const recoveryIO = {
+  openHarvestJournal: async () => recoveryJournal,
+  acquireHarvestLease: async () => {
+    if (recoveryLocked) return undefined;
+    recoveryLocked = true; return { release: () => { recoveryLocked = false; } };
+  },
+};
 async function workspacePage(...args: Parameters<typeof queryAtlasPage>) {
+  if (pauseSnapshotQuery && args[3]?.signal) await pauseSnapshotQuery(args[0], args[3].signal);
   if (args[1].page?.limit === 1 && args[3]?.selectedJobIds && pauseRecovery) await pauseRecovery(args[3].signal!);
   return queryAtlasPage(...args);
 }
 function OfficeProbe(props: AtlasOfficeAddressConfirmationProps) { officeProps = props; return h("p", { "data-office-probe": true }, "Synthetic office review"); }
+function SourcesProbe(props: AtlasSourcesPanelProps) { sourcePanelProps = props; return h("p", null, "Synthetic source panel"); }
 function MapProbe(props: AtlasPrototypeProps) {
   mapProps = props;
   useEffect(() => { mapMounts++; }, []);
@@ -45,15 +80,17 @@ function DetailProbe(props: AtlasJobDetailProps) {
 }
 const globals = { window: dom, document: dom.document, navigator: dom.navigator, localStorage: dom.localStorage,
   HTMLElement: dom.HTMLElement, Element: dom.Element, Node: dom.Node, React, IS_REACT_ACT_ENVIRONMENT: true,
-  __atlasMapProbe: MapProbe, __atlasDetailProbe: DetailProbe, __atlasOfficeProbe: OfficeProbe, __atlasWorkspacePage: workspacePage };
+  __atlasMapProbe: MapProbe, __atlasDetailProbe: DetailProbe, __atlasOfficeProbe: OfficeProbe, __atlasWorkspacePage: workspacePage, __atlasWorkspaceRead: workspaceRead, __atlasSourcesProbe: SourcesProbe, __atlasRecoveryIO: recoveryIO };
 const descriptors = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
 const hooks = registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier.includes("MapLibrePrototype")) return { url: "data:text/javascript,export default globalThis.__atlasMapProbe", shortCircuit: true };
+    if (specifier === "./harvest-journal") return { url: "data:text/javascript,export const openHarvestJournal=(...args)=>globalThis.__atlasRecoveryIO.openHarvestJournal(...args);export const acquireHarvestLease=(...args)=>globalThis.__atlasRecoveryIO.acquireHarvestLease(...args)", shortCircuit: true };
+    if (specifier === "./atlas/AtlasSourcesPanel") return { url: "data:text/javascript,export const AtlasSourcesPanel = globalThis.__atlasSourcesProbe", shortCircuit: true };
     if (specifier === "./atlas/AtlasJobDetail") return { url: "data:text/javascript,export const AtlasJobDetail = globalThis.__atlasDetailProbe", shortCircuit: true };
     if (specifier === "./atlas/AtlasOfficeAddressConfirmation" || specifier === "./AtlasOfficeAddressConfirmation") return { url: "data:text/javascript,export const AtlasOfficeAddressConfirmation = globalThis.__atlasOfficeProbe", shortCircuit: true };
-    if (specifier === "./atlas/client") return { url: `data:text/javascript,export {buildAtlasJobAction,readAtlasSnapshot} from ${JSON.stringify(new URL("../src/components/atlas/client.ts", import.meta.url).href)};export const queryAtlasPage=globalThis.__atlasWorkspacePage`, shortCircuit: true };
+    if (specifier === "./atlas/client") return { url: `data:text/javascript,export {buildAtlasJobAction} from ${JSON.stringify(new URL("../src/components/atlas/client.ts", import.meta.url).href)};export const readAtlasSnapshot=globalThis.__atlasWorkspaceRead;export const queryAtlasPage=globalThis.__atlasWorkspacePage`, shortCircuit: true };
     return nextResolve(specifier, context);
   },
   load(url, context, nextLoad) {
@@ -67,6 +104,59 @@ const { AtlasJobDetail: RealAtlasJobDetail } = await import("../src/components/a
 const { default: AtlasWorkspace } = await import("../src/components/AtlasWorkspace.tsx");
 let root: ReturnType<typeof createRoot> | undefined;
 const noAction = () => {};
+
+test("paged first-entry previews keep search/list/map usable, disclose partial coverage and preserve the list page on completion", async () => {
+  const prefix = { ...syntheticAtlas(64), revision: 1 }, complete = { ...syntheticAtlas(240), revision: 1 };
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  baselineReadFixture = async (_endpoint, _token, options = {}) => {
+    await options.onProgress?.(prefix, { loadedJobs: 64, totalJobs: 240, pages: 2, complete: false });
+    await gate; options.signal?.throwIfAborted(); return complete;
+  };
+  const calls: string[] = [];
+  installWorkspaceFetch(async input => { calls.push(String(input)); return sourceResponse({}); });
+  try {
+    await render(true, false);
+    await flush(() => button("连接本机服务").click());
+    await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('input[type="password"]')!, "synthetic-fixture-token"));
+    await act(async () => { button("连接并读取索引").click(); });
+    await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 30, "first baseline prefix cards");
+    assert.match(dom.document.querySelector('[aria-label="首次岗位基线加载"]')!.textContent!, /64 \/ 240/);
+    assert.match(dom.document.querySelector('[aria-label="首次岗位基线加载"]')!.textContent!, /不代表全库结果/);
+    assert.equal(dom.document.querySelector('[aria-label="首次岗位基线加载"]')!.closest("details"), null, "partial-index disclosure cannot be hidden by advanced options");
+    assert.ok(mapProps!.buckets!.length > 0);
+    const search = dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!;
+    assert.equal(search.disabled, false);
+    await act(async () => { changeInput(search, "TypeScript"); });
+    await waitFor(() => resultsHeading().includes("32") && mapProps!.buckets!.length === 0, "keyword search within partial baseline");
+    await act(async () => { changeInput(search, "C#"); });
+    await waitFor(() => resultsHeading().includes("32") && mapProps!.buckets!.length > 0, "C# list and real-coordinate map");
+    await act(async () => { button("下一页").click(); });
+    await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 2, "second prefix list page");
+    assert.equal(calls.some(path => /dataset\/import|enrichment\/status|locations\/map-references/.test(path)), false, "a prefix cannot enable background writes/recovery or full-baseline actions");
+    await act(async () => { release(); });
+    await waitFor(() => !dom.document.querySelector('[aria-label="首次岗位基线加载"]') && dom.document.querySelectorAll(".atlas-job-card").length === 30, "completed baseline with preserved second page");
+    assert.match(resultsHeading(), /120/);
+  } finally { release(); }
+});
+test("a failed initial baseline retains read-only prefix cards and offers retry without claiming complete coverage", async () => {
+  let reject!: (error: Error) => void;
+  const gate = new Promise<never>((_resolve, fail) => { reject = fail; });
+  baselineReadFixture = async (_endpoint, _token, options = {}) => {
+    await options.onProgress?.({ ...syntheticAtlas(64), revision: 1 }, { loadedJobs: 64, totalJobs: 240, pages: 2, complete: false });
+    return gate;
+  };
+  await render(true, false);
+  await flush(() => button("连接本机服务").click());
+  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('input[type="password"]')!, "synthetic-fixture-token"));
+  await act(async () => { button("连接并读取索引").click(); });
+  await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 30, "prefix before failure");
+  await act(async () => { reject(new Error("Synthetic interrupted baseline")); });
+  await waitFor(() => Boolean(dom.document.querySelector('[aria-label="首次岗位基线加载"]')?.textContent?.includes("未完成")), "truthful interrupted baseline status");
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30);
+  assert.equal(button("重试读取索引").disabled, false);
+  assert.match(dom.document.querySelector('[role="alert"]')!.textContent!, /Synthetic interrupted baseline/);
+});
 async function waitFor(condition: () => boolean, description: string) {
   const deadline = performance.now() + 15_000;
   while (!condition()) {
@@ -81,32 +171,42 @@ async function flush(action: () => void = () => {}) {
     && !dom.document.querySelector<HTMLButtonElement>(".atlas-load-more")?.disabled,
   "the current query, connection or next-page request to finish");
 }
-async function render(active = true, demo = true) {
+async function render(active = true, demo = true, resume?: ProjectedResume | null, factBase?: FactBase | null) {
   const firstRender = !root;
-  if (!root && !dom.sessionStorage.getItem("better-me:atlas-connection-session:v1")) dom.sessionStorage.setItem("better-me:atlas-connection-session:v1", JSON.stringify({ schemaVersion: 1, dataMode: "local" }));
   if (!root) { dom.document.body.innerHTML = "<main></main>"; root = createRoot(dom.document.querySelector("main")! as unknown as Element); }
   await flush(() => root!.render(h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" },
-    children: h(AtlasWorkspace, { active, onSaveOpportunity: noAction, onAnalyze: noAction }) })));
+    children: h(AtlasWorkspace, { active, onSaveOpportunity: noAction, onAnalyze: noAction, resume, factBase }) })));
   if (firstRender && demo) await flush(() => {
     const dataView = dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!;
-    assert.equal(dataView.value, "local", "this scenario explicitly starts in the local view");
+    assert.equal(dataView.value, "local", "real local data must be the default");
     dataView.value = "demo"; dataView.dispatchEvent(new dom.Event("change", { bubbles: true }));
   });
   if (firstRender && demo) await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22,
     "the initial synthetic query's 22 job cards");
 }
 function button(text: string) {
-  const found = text === "连接本机服务" ? dom.document.querySelector<HTMLButtonElement>('[aria-label="本机后端状态与高级设置"]') : [...dom.document.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent?.trim() === text);
+  const found = [...dom.document.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent?.trim() === text);
   assert.ok(found, `Missing button ${text}`); return found;
 }
+async function openCollection() { await act(async () => button("采集新岗位").click()); }
 function resultsHeading() { return dom.document.querySelector(".atlas-results-heading h2")!.textContent!; }
+function exactDemoBucket() {
+  const demo = createAtlasDemo();
+  const job = demo.jobs[0]!;
+  const location = demo.locations.find(item => job.locationIds.includes(item.id))!;
+  return {
+    id: "synthetic-exact-office-address", label: "Synthetic reviewed office address",
+    latitude: location.coordinates!.latitude, longitude: location.coordinates!.longitude,
+    jobIds: [job.id], locationIds: [location.id], jobCount: 1, pinCount: 1, displayGrade: "address" as const,
+    categories: [{ ruleId: "synthetic", label: "Synthetic", color: "#315b64", jobCount: 1 }],
+  } as NonNullable<AtlasPrototypeProps["buckets"]>[number];
+}
 function changeInput(element: HTMLInputElement, value: string) {
   Object.getOwnPropertyDescriptor(dom.HTMLInputElement.prototype, "value")!.set!.call(element, value);
   element.dispatchEvent(new dom.Event("input", { bubbles: true }));
 }
 async function connectFixture() {
   await flush(() => button("连接本机服务").click());
-  await flush(() => changeInput([...dom.document.querySelectorAll("label")].find(node => node.textContent?.startsWith("服务地址"))!.querySelector<HTMLInputElement>("input")!, "http://127.0.0.1:5178"));
   await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('input[type="password"]')!, "synthetic-fixture-token"));
   await flush(() => button("连接并读取索引").click());
 }
@@ -132,9 +232,9 @@ const sourceResponse = (value: unknown) => new Response(JSON.stringify({ ok: tru
 function installWorkspaceFetch(handler: typeof fetch, mapReply?: (input: { expectedRevision: number }, init?: RequestInit) => Response | Promise<Response>) {
   let latest: AtlasDataset | undefined;
   return mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
-    const path = new URL(String(url)).pathname;
-    // These existing fixtures represent a backend without the optional FX module.
-    if (path === "/api/v1/fx/state") return new Response("", { status: 404 });
+    const path = new URL(String(url), dom.location.href).pathname;
+    if (path === "/api/v1/enrichment/status") return backgroundStatusReply?.()
+      ?? sourceResponse({ revision: latest?.revision ?? 0, pending: 0, running: 0, completed: 0, failed: 0 });
     if (path === "/api/v1/locations/map-references") {
       const input = JSON.parse(String(init!.body));
       if (mapReply) return mapReply(input, init);
@@ -150,12 +250,8 @@ function installWorkspaceFetch(handler: typeof fetch, mapReply?: (input: { expec
     return response;
   });
 }
-const sourceReceipt = (value: unknown) => {
-  const scope = SourceScopeSchema.parse(value);
-  return { run: { runId: "synthetic-main-search-run", sourceId: "atlas-demo", actorScope: "local-owner", generation: 1,
-    scope: { keywords: scope.roles, regions: scope.regions, companies: scope.companyNames, ...(scope.countryCodes ? { countryCodes: scope.countryCodes } : {}) },
-    status: "partial", startedAt: "2026-10-18T12:00:00.000Z", summary: { records: 9, pages: 1, partial: true } }, localFilters: scope, warnings: ["Synthetic bounded fixture, not real recruitment coverage"] };
-};
+const sourceReceipt = (scope: unknown) => ({ run: { runId: "synthetic-main-search-run", sourceId: "atlas-demo", actorScope: "local-owner", generation: 1,
+  scope: {}, status: "partial", startedAt: "2026-10-18T12:00:00.000Z", summary: { records: 9, pages: 1, partial: true } }, localFilters: scope, warnings: ["Synthetic bounded fixture, not real recruitment coverage"] });
 function pointerClick(card: HTMLButtonElement, detail: number) {
   card.dispatchEvent(new dom.MouseEvent("click", { bubbles: true, detail, button: 0 }));
 }
@@ -207,162 +303,189 @@ function unresolvedOfficeFixture() {
   data.locations.forEach((location) => { location.kind = "office"; });
   return AtlasDatasetSchema.parse(data);
 }
-afterEach(async () => {
-  if (root) await act(async () => root!.unmount()); root = undefined; mapProps = undefined; detailData = undefined; officeProps = undefined; pauseRecovery = undefined;
-  const scope = atlasAggregateRecoveryScope("http://127.0.0.1:5178", "synthetic-fixture-token");
-  for (const entry of readAtlasAggregateRecovery(scope).entries) {
-    const receipt = sourceReceipt(entry.input.scope); receipt.run.sourceId = entry.sourceId;
-    saveAtlasAggregateReceipt(scope, entry.key, receipt); settleAtlasAggregateReceipt(scope, entry.key, entry.receipt?.run.runId ?? receipt.run.runId);
-  }
-  dom.localStorage.clear(); dom.sessionStorage.clear(); mock.restoreAll();
+afterEach(async () => { if (root) await act(async () => root!.unmount()); root = undefined; mapProps = undefined; detailData = undefined; officeProps = undefined; pauseRecovery = undefined; pauseSnapshotQuery = undefined; sourcePanelProps = undefined; backgroundStatusReply = undefined; baselineReadFixture = undefined; recoveryFixture = undefined; recoveryLocked = false; dom.localStorage.clear(); dom.sessionStorage.clear(); mock.restoreAll(); });
+
+test("presentation-only controls do not reformat unchanged country options and job content", async () => {
+  await render();
+  const formatRegion = Intl.DisplayNames.prototype.of;
+  let repeatedFormats = 0;
+  mock.method(Intl.DisplayNames.prototype, "of", function (this: Intl.DisplayNames, code: string) {
+    repeatedFormats++;
+    return formatRegion.call(this, code);
+  });
+  const before = [...dom.document.querySelectorAll(".atlas-job-card")].map(card => card.textContent);
+  await act(async () => { button("展开筛选").click(); });
+  await act(async () => { button("收起筛选").click(); });
+  await act(async () => { dom.document.querySelector<HTMLButtonElement>('[aria-label="平面视角 2D"]')!.click(); });
+  assert.deepEqual([...dom.document.querySelectorAll(".atlas-job-card")].map(card => card.textContent), before);
+  assert.equal(repeatedFormats, 0, "unrelated control state must not rebuild country option labels or static job-card content");
 });
 after(() => {
   hooks.deregister(); dom.happyDOM.abort();
   for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); }
 });
 
-test("selected platform cards open the shared review without writing; changing the batch discards its earlier preview and confirmation", async () => {
-  const data = createAtlasDemo(), updated = { ...data, revision: data.revision + 1 };
-  const paths: string[] = [], previews: ReviewedCardsCapture[] = [], imports: ReviewedCardsCapture[] = [], keys: (string | null)[] = [];
-  let pageUrl = "";
-  const readReceipt = () => ({ ...extractJobSearchCards({ url: pageUrl, title: "Synthetic batch", html: `<main>${[0, 1].map(index => `
-    <article class="job-card-pc-container"><a class="job-title" href="https://www.liepin.com/job/${1234567890 + index}.shtml">Synthetic reviewed role ${index}</a>
-    <span class="company-name">Synthetic Employer ${index}</span><p>真实读取流程的合成卡片摘要 ${index}</p></article>`).join("")}</main>` }, "猎聘"), capturedAt: "2026-10-22T00:00:00.000Z" });
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
-    const path = new URL(String(url), dom.location.href).pathname;
-    const body = init?.body ? JSON.parse(String(init.body)) : undefined;
-    paths.push(path);
-    if (path === "/api/jd/search-session") {
-      if (body.action === "start") {
-        pageUrl = buildPlatformSearchRequest(body.input).url;
-        return new Response(JSON.stringify({ sessionId: "synthetic-batch-session-12345", platform: "猎聘", url: pageUrl, expiresAt: new Date(Date.now() + 600_000).toISOString() }));
-      }
-      return new Response(JSON.stringify(body.action === "read" ? readReceipt() : { cancelled: true, closed: true }));
-    }
-    if (path === "/api/v1/fx/state") return new Response("", { status: 404 });
-    if (path === "/api/v1/dataset/export") return sourceResponse(imports.length ? updated : data);
-    if (path === "/api/v1/locations/map-references") return sourceResponse({ schemaVersion: 1, snapshotRevision: body.expectedRevision,
-      providerId: "synthetic-unresolved-map", places: [], references: [], unresolved: data.locations.map(location => ({ locationId: location.id, reason: location.coordinates ? "existing-coordinate" : "no-exact-match" })),
-      totalLocations: data.locations.length, processedLocations: data.locations.length, truncated: false, warnings: [] });
-    if (path === "/api/v1/jobs/reviewed-cards/preview") {
-      previews.push(body);
-      return sourceResponse({ expectedRevision: data.revision, previewFingerprint: "a".repeat(64), sourceId: "synthetic-platform-batch-source", completeness: "excerpt", availability: "unknown",
-        cards: body.cards.map((card: ReviewedCardsCapture["cards"][number], index: number) => ({ jobId: data.jobs[index]!.id, listingId: data.listings[index]!.id, url: card.url, title: card.title, company: card.company, existing: true })), warnings: ["Synthetic excerpts remain unverified."] });
-    }
-    assert.equal(path, "/api/v1/jobs/reviewed-cards/import"); imports.push(body); keys.push(new Headers(init?.headers).get("Idempotency-Key"));
-    if (imports.length === 1) throw new TypeError("Synthetic lost platform-card import receipt");
-    return sourceResponse({ ok: true, revision: updated.revision, jobIds: data.jobs.slice(0, body.cards.length).map(job => job.id), snapshotIds: data.snapshots.slice(0, body.cards.length).map(snapshot => snapshot.id),
-      counts: { newJobs: 0, updatedJobs: body.cards.length, unchangedJobs: 0, newListings: 0, newObservations: body.cards.length, newSnapshots: body.cards.length } });
-  });
-  await render(true, false); await connectFixture();
-  await flush(() => button("搜索并读取当前页").click());
-  await waitFor(() => dom.document.querySelectorAll('.atlas-platform-card-list input[type="checkbox"]').length === 2, "two parsed platform cards");
-  await flush(() => dom.document.querySelector<HTMLInputElement>('.atlas-platform-batch input')!.click());
-  await flush(() => button("核对并加入所选 2 个岗位").click());
-  const review = () => dom.document.querySelector('[aria-label="核对卡片并加入统一索引"]')!;
-  await waitFor(() => Boolean(review()), "shared batch review");
-  assert.match(review().textContent!, /来源卡片摘要 · 2 个岗位/);
-  assert.equal(previews.length, 0); assert.equal(imports.length, 0);
-  await flush(() => button("预览入库变化").click());
-  assert.equal(button("确认加入统一索引").disabled, true);
-  await flush(() => review().querySelector<HTMLInputElement>('.atlas-reviewed-confirm input')!.click());
-  assert.equal(button("确认加入统一索引").disabled, false);
-  await flush(() => dom.document.querySelectorAll<HTMLInputElement>('.atlas-platform-card-list input')[1]!.click());
-  await flush(() => button("核对并加入所选 1 个岗位").click());
-  assert.match(review().textContent!, /来源卡片摘要 · 1 个岗位/);
-  assert.equal(review().querySelector('.atlas-reviewed-confirm'), null, "new batch cannot inherit old preview or confirmation");
-  assert.equal(imports.length, 0); assert.equal(previews.length, 1);
-  await flush(() => button("预览入库变化").click());
-  assert.equal(button("确认加入统一索引").disabled, true);
-  await flush(() => review().querySelector<HTMLInputElement>('.atlas-reviewed-confirm input')!.click());
-  await flush(() => button("确认加入统一索引").click());
-  assert.equal(imports.length, 1); assert.match(review().textContent!, /本次写入尚未确认/);
-  await flush(() => dom.document.querySelector<HTMLInputElement>('.atlas-platform-batch input')!.click());
-  await flush(() => button("核对并加入所选 2 个岗位").click());
-  await flush(() => [...dom.document.querySelectorAll<HTMLButtonElement>('button')].filter(node => node.textContent === "核对并加入统一索引")[1]!.click());
-  await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="关闭卡片入库核对"]')!.click());
-  await flush(() => { const select = dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!; select.value = "demo"; select.dispatchEvent(new dom.Event("change", { bubbles: true })); });
-  await flush(() => button("连接本机服务").click());
-  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('input[type="password"]')!, "synthetic-unwanted-token"));
-  assert.equal(dom.document.querySelector<HTMLInputElement>('input[type="password"]')!.value, "synthetic-fixture-token");
-  await flush(() => button("重试自动后端").click());
-  await flush(() => button("暂停自动读取").click());
-  await flush(() => button("使用自动后端").click());
-  assert.match(review().textContent!, /来源卡片摘要 · 1 个岗位/);
-  assert.equal(imports.length, 1); assert.equal(previews.length, 2);
-  assert.equal(dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!.value, "live");
-  await flush(() => button("重试本次写入 · 核对回执").click());
-  await waitFor(() => Boolean(review().querySelector('.atlas-reviewed-success')), "confirmed batch receipt and refreshed index");
-  assert.deepEqual(previews.map(value => value.cards.length), [2, 1]); assert.equal(imports.length, 2);
-  assert.deepEqual(imports[1], imports[0]); assert.equal(keys[1], keys[0]);
-  assert.deepEqual(imports[0]!.cards, readReceipt().cards.slice(0, 1));
-  assert.equal(paths.filter(path => path === "/api/v1/jobs/reviewed-cards/import").length, 2);
-  assert.match(dom.document.querySelector('.atlas-data-banner')!.textContent!, new RegExp(`索引版本 ${updated.revision}`));
-  await flush(() => button("核对并加入所选 2 个岗位").click());
-  assert.match(review().textContent!, /来源卡片摘要 · 2 个岗位/, "confirmed original receipt releases the replacement barrier");
-  assert.equal(review().querySelector('.atlas-reviewed-confirm'), null);
+test("experience controls hide inactive filters, clear search immediately and switch presentation without rebuilding the map", async () => {
+  await render();
+  const filters = dom.document.querySelector<HTMLElement>("#atlas-quick-filters")!;
+  assert.equal(filters.hidden, true, "collapsed filters are absent from keyboard navigation, not just visually clipped");
+  assert.equal(button("展开筛选").getAttribute("aria-expanded"), "false");
+  assert.equal(button("展开筛选").getAttribute("aria-controls"), filters.id);
+  await act(async () => { button("展开筛选").click(); });
+  assert.equal(filters.hidden, false);
+  await act(async () => { button("收起筛选").click(); });
+  assert.equal(filters.hidden, true);
+  const mounts = mapMounts;
+  const buckets = mapProps!.buckets;
+  await act(async () => { dom.document.querySelector<HTMLButtonElement>('[aria-label="平面视角 2D"]')!.click(); });
+  assert.equal(mapProps!.visual!.viewMode, "flat");
+  assert.equal(mapProps!.visual!.animateViewChange, false, "keyboard/programmatic clicks have no animation request");
+  assert.equal(mapProps!.buckets, buckets, "visual controls do not requery or change job geometry");
+  await act(async () => { dom.document.querySelector<HTMLButtonElement>('[aria-label="空间视角 3D"]')!.dispatchEvent(new dom.MouseEvent("click", { bubbles: true, detail: 1 })); });
+  assert.equal(mapProps!.visual!.viewMode, "spatial");
+  assert.equal(mapProps!.visual!.animateViewChange, true);
+  assert.equal(mapMounts, mounts);
+  const search = dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!;
+  await flush(() => changeInput(search, "C#"));
+  assert.ok(dom.document.querySelector('[aria-label="清除岗位关键词"]'));
+  await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="清除岗位关键词"]')!.click());
+  assert.equal(search.value, "");
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 22);
+  assert.equal(mapMounts, mounts);
+  assert.equal(dom.document.querySelectorAll('[aria-label="岗位工作区并行状态"] [data-lane]').length, 4);
 });
 
-test("city selection uses exact matching jobs while the map still holds the complete search", async () => {
+test("top filters open independently without expanding unrelated source documentation", async () => {
+  await render();
+  const more = dom.document.querySelector("details.atlas-more")!;
+  const mounts = mapMounts;
+  assert.equal(more.hasAttribute("open"), false);
+  await act(async () => { button("筛选").click(); });
+  assert.equal(more.hasAttribute("open"), false, "filtering does not expand collection documentation");
+  const filters = dom.document.querySelector(".atlas-filters")!;
+  assert.ok(filters);
+  assert.equal(filters.closest("details.atlas-more"), null);
+  assert.equal(filters.getAttribute("id"), button("筛选").getAttribute("aria-controls"));
+  // Native browsers dispatch toggle after React changes the open attribute.
+  // Deliver that platform event explicitly rather than rely on happy-dom timing.
+  await act(async () => { more.dispatchEvent(new dom.Event("toggle")); });
+  await act(async () => { button("筛选").click(); });
+  assert.equal(button("筛选").getAttribute("aria-expanded"), "false");
+  assert.equal(dom.document.querySelector(".atlas-filters"), null);
+  assert.equal(more.hasAttribute("open"), false, "the source disclosure remains independently closed");
+  assert.equal(mapMounts, mounts, "collapsing advanced controls keeps the existing map");
+});
+
+test("settings use a modal surface without remounting the map or clearing the current search", async () => {
+  await render();
+  const input = dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!;
+  await flush(() => changeInput(input, "C#"));
+  const map = dom.document.querySelector("[data-map-probe]");
+  const mounts = mapMounts;
+  const opener = button("地图服务");
+  await act(async () => { opener.focus(); opener.click(); });
+  const dialog = dom.document.querySelector("dialog.atlas-settings")!;
+  assert.equal(Boolean(dialog.closest("details")), false, "native settings must not inherit a closed disclosure's visibility");
+  assert.ok(dialog.hasAttribute("open"));
+  assert.equal(dialog.querySelector("h2")?.textContent, "地图与街道底图");
+  assert.equal(dialog.querySelectorAll("h2").length, 1);
+  assert.equal(dom.document.activeElement?.getAttribute("aria-label"), "关闭地图设置");
+  await act(async () => {
+    dialog.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  });
+  assert.equal(dom.document.querySelector("dialog.atlas-settings"), null);
+  assert.equal(input.value, "C#");
+  assert.equal(dom.document.querySelector("[data-map-probe]"), map);
+  assert.equal(mapMounts, mounts);
+  await act(async () => { button("地图服务").click(); });
+  await render(false);
+  assert.equal(dom.document.querySelector("dialog.atlas-settings"), null, "leaving Atlas cannot strand a modal over another workspace");
+});
+
+test("failed index reads stay unknown and offer a direct retry without losing the original diagnostic", async () => {
+  let shouldFail = true;
+  installWorkspaceFetch(async () => shouldFail
+    ? new Response(JSON.stringify({ ok: false, error: { code: "validation_error", message: "合成连接异常：服务返回 422，请核对 Origin。" } }), { status: 422, headers: { "content-type": "application/json" } })
+    : sourceResponse(searchFixture()));
+  await render(true, false);
+  await connectFixture();
+  const banner = dom.document.querySelector(".atlas-data-banner")!;
+  assert.equal(banner.getAttribute("data-state"), "attention");
+  assert.match(banner.textContent!, /索引尚未读取/);
+  assert.doesNotMatch(banner.textContent!, /0 个来源岗位/);
+  assert.match(resultsHeading(), /—/);
+  assert.deepEqual([...dom.document.querySelectorAll('.atlas-stat-grid strong')].map(node => node.textContent), ["—", "—", "—", "—"]);
+  assert.match(dom.document.querySelector('dialog.atlas-settings [role="alert"]')!.textContent!, /422/, "a failed manual connection is visible inside its modal");
+  const alert = dom.document.querySelector(".atlas-connection-alert")!;
+  assert.equal(alert.getAttribute("role"), "alert");
+  assert.match(alert.textContent!, /422/);
+  assert.ok(button("重试连接"));
+  await act(async () => { dom.document.querySelector<HTMLButtonElement>('[aria-label="关闭地图设置"]')!.click(); });
+  shouldFail = false;
+  await flush(() => button("重试连接").click());
+  assert.equal(dom.document.querySelector(".atlas-connection-alert"), null);
+  assert.equal(banner.getAttribute("data-state"), "ready");
+  assert.match(banner.textContent!, /22 个来源岗位/);
+});
+
+test("a failed refresh retains confirmed indexed jobs instead of presenting an empty successful index", async () => {
+  let shouldFail = false;
+  installWorkspaceFetch(async () => shouldFail
+    ? new Response(JSON.stringify({ ok: false, error: { code: "unavailable", message: "合成索引读取暂不可用" } }), { status: 503, headers: { "content-type": "application/json" } })
+    : sourceResponse(searchFixture()));
+  await render(true, false); await connectFixture();
+  const cards = dom.document.querySelectorAll(".atlas-job-card").length;
+  shouldFail = true;
+  await flush(() => button("重新读取索引").click());
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, cards);
+  assert.match(dom.document.querySelector(".atlas-data-banner")!.textContent!, /显示上次已读数据/);
+  assert.match(dom.document.querySelector(".atlas-connection-alert")!.textContent!, /已读取的岗位仍保留/);
+  assert.equal(dom.document.querySelector('.atlas-activity-rail [data-lane="index"]')?.getAttribute("data-state"), "attention");
+});
+
+test("manual source disclosure closes its own panels without collapsing independent filters", async () => {
+  await render();
+  const more = dom.document.querySelector("details.atlas-more")!;
+  const summary = more.querySelector("summary")!;
+  const activate = async (detail: number) => {
+    const click = new dom.MouseEvent("click", { bubbles: true, cancelable: true, detail });
+    await act(async () => { summary.dispatchEvent(click); });
+    assert.equal(click.defaultPrevented, true, "one controlled state change replaces the native toggle");
+  };
+  await activate(0);
+  assert.equal(more.hasAttribute("open"), true, "the native keyboard-style click opens the disclosure");
+  await act(async () => { button("筛选").click(); });
+  await act(async () => { more.dispatchEvent(new dom.Event("toggle")); button("筛选").click(); });
+  assert.equal(more.hasAttribute("open"), true, "an intentional manual open survives a child panel's close");
+  await act(async () => { button("筛选").click(); button("全网平台").click(); });
+  assert.equal(button("筛选").getAttribute("aria-expanded"), "true");
+  assert.equal(button("全网平台").getAttribute("aria-expanded"), "true");
+  await activate(0);
+  assert.equal(more.hasAttribute("open"), false);
+  assert.equal(button("筛选").getAttribute("aria-expanded"), "true");
+  assert.ok(dom.document.querySelector(".atlas-filters"));
+  assert.equal(button("全网平台").getAttribute("aria-expanded"), "false");
+  await activate(1);
+  assert.equal(more.hasAttribute("open"), true, "pointer activation uses the same single toggle");
+  await activate(1);
+  assert.equal(more.hasAttribute("open"), false);
+  await act(async () => { button("全网平台").click(); more.dispatchEvent(new dom.Event("toggle")); });
+  await act(async () => { button("全网平台").click(); });
+  assert.equal(more.hasAttribute("open"), false, "platform-only programmatic opening also does not latch");
+});
+
+test("selecting an exact map location filters its jobs while the map keeps the complete search", async () => {
   await render();
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 22);
-  const city = mapProps!.buckets.find((bucket) => bucket.label === "上海")!;
-  await flush(() => mapProps!.onPick!(city));
+  assert.equal(mapProps!.buckets.length, 0, "synthetic city-centre estimates are not office-address map points");
+  const location = exactDemoBucket();
+  const originalBucketIds = mapProps!.buckets.map(bucket => bucket.id);
+  await flush(() => mapProps!.onPick!(location));
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 1);
-  assert.ok(resultsHeading().startsWith("上海"));
-  assert.equal(mapProps!.buckets.length, 22);
-  await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="取消城市选择"]')!.click());
+  assert.ok(resultsHeading().startsWith(location.label));
+  assert.deepEqual(mapProps!.buckets.map(bucket => bucket.id), originalBucketIds, "a selected address filters the list without narrowing map geometry");
+  await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="取消位置选择"]')!.click());
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 22);
-});
-
-test("job selection highlights its coordinate buckets, follows another job, and leaves coordinate-less jobs without markers", async () => {
-  const data = createAtlasDemo();
-  const coordinateLess = data.jobs.at(-1)!;
-  for (const locationId of coordinateLess.locationIds) {
-    const location = data.locations.find(value => value.id === locationId)!;
-    delete location.coordinates;
-    location.precision = "unknown";
-    location.verification = "unknown";
-  }
-  installWorkspaceFetch(async () => sourceResponse(AtlasDatasetSchema.parse(data)));
-  await render(true, false); await connectFixture();
-
-  const first = data.jobs[0]!;
-  const second = data.jobs[1]!;
-  const expectedFirst = mapProps!.buckets.filter(bucket => bucket.jobIds.includes(first.id)).map(bucket => bucket.id).sort();
-  const expectedSecond = mapProps!.buckets.filter(bucket => bucket.jobIds.includes(second.id)).map(bucket => bucket.id).sort();
-  assert.ok(expectedFirst.length > 0); assert.ok(expectedSecond.length > 0);
-
-  await flush(() => pointerClick(jobCard(first.title.value), 0));
-  assert.deepEqual(mapProps!.selectedBucketIds, expectedFirst);
-  await flush(() => pointerClick(jobCard(second.title.value), 0));
-  assert.deepEqual(mapProps!.selectedBucketIds, expectedSecond);
-
-  await flush(() => pointerClick(jobCard(coordinateLess.title.value), 0));
-  assert.equal(mapProps!.selectedBucketIds, undefined, "a job without coordinate-backed buckets cannot create a marker highlight");
-  assert.equal(mapProps!.buckets.some(bucket => bucket.jobIds.includes(coordinateLess.id)), false, "coordinate-less jobs remain absent from map buckets");
-});
-
-test("overlapping marker selection queries unique jobs across pages while retaining full map statistics and each selected marker", async () => {
-  const data = pagedOfficeFixture();
-  data.locations.forEach(location => { location.coordinates = { coordinateSystem: "WGS84", longitude: 121, latitude: 31 }; location.city = location.id.endsWith("-reference-office") ? "Synthetic B" : "Synthetic A"; delete location.regionId; delete location.region; });
-  installWorkspaceFetch(async () => sourceResponse(data)); await render(true, false); await connectFixture();
-  const members = mapProps!.buckets;
-  assert.equal(members.length, 2); assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30);
-  const expected = [...new Set(members.flatMap(bucket => bucket.jobIds))]; assert.equal(expected.length, 66);
-  assert.ok(members.reduce((sum, bucket) => sum + bucket.jobCount, 0) > expected.length, "multi-location jobs overlap across groups");
-  await flush(() => mapProps!.onPickMany!(members));
-  assert.deepEqual(mapProps!.selectedBucketIds, members.map(bucket => bucket.id).sort()); assert.equal(mapProps!.selectedBucketId, undefined);
-  assert.match(resultsHeading(), /重叠标记 · 2 组.*66/); assert.equal(mapProps!.buckets.length, 2);
-  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30); assert.equal(mapProps!.focus, undefined);
-  await flush(() => button("显示更多岗位").click()); await flush(() => button("显示更多岗位").click());
-  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 66); assert.equal(dom.document.querySelector(".atlas-load-more"), null);
-  assert.equal(dom.document.querySelector(".atlas-stat-grid strong")!.textContent, "66", "map summary counts unique base-query jobs");
-  await flush(() => mapProps!.onViewChange!({ zoom: 12, center: [121, 31], pitch: 0, bearing: 0, bounds: [120, 30, 122, 32] }));
-  assert.equal(mapProps!.bucketLevel, "location"); assert.ok(mapProps!.buckets.length > 2);
-  assert.deepEqual(mapProps!.selectedBucketIds, mapProps!.buckets.map(bucket => bucket.id).sort(), "highlight follows the current location buckets while selection stays a job-ID union");
-  await flush(() => button("降序").click()); assert.equal(mapProps!.selectedBucketIds!.length, mapProps!.buckets.length); assert.match(resultsHeading(), /66/);
-  await flush(() => button("国内").click()); assert.equal(mapProps!.selectedBucketIds, undefined); assert.equal(mapProps!.selectedBucketId, undefined);
 });
 
 test("domestic mode exposes only province-city-district controls and never invents a district for a city-only job", async () => {
@@ -394,22 +517,22 @@ test("domestic mode exposes only province-city-district controls and never inven
 
 test("switching workspace active state preserves search inputs and selected city", async () => {
   await render();
-  const city = mapProps!.buckets.find((bucket) => bucket.label === "上海")!;
-  await flush(() => mapProps!.onPick!(city));
+  const location = exactDemoBucket();
+  await flush(() => mapProps!.onPick!(location));
   const before = mapMounts;
   await render(false); await render(true);
   assert.ok(mapMounts >= before);
-  assert.ok(resultsHeading().startsWith("上海"));
+  assert.ok(resultsHeading().startsWith(location.label));
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 1);
 });
 
-test("sorting within a selected city keeps the city selection", async () => {
+test("sorting within a selected office location keeps the location selection", async () => {
   await render();
-  const city = mapProps!.buckets.find((bucket) => bucket.label === "上海")!;
-  await flush(() => mapProps!.onPick!(city));
+  const location = exactDemoBucket();
+  await flush(() => mapProps!.onPick!(location));
   const select = dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位排序"]')!;
   await flush(() => { select.value = "salary"; select.dispatchEvent(new dom.Event("change", { bubbles: true })); });
-  assert.ok(resultsHeading().startsWith("上海"), resultsHeading());
+  assert.ok(resultsHeading().startsWith(location.label), resultsHeading());
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 1);
 });
 
@@ -433,37 +556,17 @@ test("changing from an overseas location to domestic mode clears the foreign foc
   assert.equal(mapProps!.focus, undefined);
 });
 
-test("a late global camera callback cannot override domestic defaults, while domestic camera survives deactivation", async () => {
+test("the last street camera is passed back after workspace deactivation and does not discard a location selection", async () => {
   await render();
-  const lateGlobalCallback = mapProps!.onViewChange!;
-  await flush(() => button("国内").click());
-  assert.equal(mapProps!.mode, "domestic");
-  assert.equal(mapProps!.initialView, undefined);
-
-  await act(async () => lateGlobalCallback({ center: [0, 0], zoom: 1.2, bearing: 0, pitch: 0 }));
-  await flush(() => button("自动旋转").click());
-  assert.equal(mapProps!.initialView, undefined, "a delayed callback from the global map must not seed the domestic camera");
-
-  const domesticView = { center: [104, 35] as [number, number], zoom: 12.6, bearing: 18, pitch: 38, bounds: [103.9, 34.9, 104.1, 35.1] as [number, number, number, number] };
-  await flush(() => mapProps!.onViewChange!(domesticView));
-  const before = mapMounts;
-  await render(false); await render(true);
-  assert.ok(mapMounts > before);
-  assert.equal(mapProps!.mode, "domestic");
-  assert.deepEqual(mapProps!.initialView, domesticView, "the active domestic map camera should be restored after workspace reactivation");
-});
-
-test("the last street camera is passed back after workspace deactivation and does not discard city selection", async () => {
-  await render();
-  const city = mapProps!.buckets.find((bucket) => bucket.label === "上海")!;
-  await flush(() => mapProps!.onPick!(city));
+  const location = exactDemoBucket();
+  await flush(() => mapProps!.onPick!(location));
   const view = { center: [121.47, 31.23] as [number, number], zoom: 13.4, bearing: 24, pitch: 42, bounds: [121.4, 31.2, 121.5, 31.3] as [number, number, number, number] };
   await flush(() => mapProps!.onViewChange!(view));
   const before = mapMounts;
   await render(false); await render(true);
   assert.ok(mapMounts > before);
   assert.deepEqual(mapProps!.initialView, view);
-  assert.ok(resultsHeading().startsWith("上海"));
+  assert.ok(resultsHeading().startsWith(location.label));
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 1);
 });
 
@@ -485,7 +588,6 @@ test("live snapshot list loads beyond the first page and keeps loaded jobs after
   installWorkspaceFetch(async () => new Response(JSON.stringify({ ok: true, requestId: "workspace-live-fixture", value: AtlasDatasetSchema.parse(data) })));
   await render();
   await flush(() => button("连接本机服务").click());
-  await flush(() => changeInput([...dom.document.querySelectorAll("label")].find(node => node.textContent?.startsWith("服务地址"))!.querySelector<HTMLInputElement>("input")!, "http://127.0.0.1:5178"));
   const token = dom.document.querySelector('input[type="password"]')!;
   await flush(() => { Object.getOwnPropertyDescriptor(dom.HTMLInputElement.prototype, "value")!.set!.call(token, "synthetic-fixture-token"); token.dispatchEvent(new dom.Event("input", { bubbles: true })); });
   await flush(() => button("连接并读取索引").click());
@@ -498,13 +600,13 @@ test("live snapshot list loads beyond the first page and keeps loaded jobs after
   assert.ok(dom.document.querySelector(".atlas-job-classification")!.textContent!.includes("瑞士"));
   await flush(() => { origin.value = ""; origin.dispatchEvent(new dom.Event("change", { bubbles: true })); });
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30);
-  await flush(() => button("显示更多岗位").click());
-  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 60);
+  await flush(() => button("下一页").click());
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30, "page 2 replaces page 1");
   await render(false); await render(true);
-  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 60);
-  await flush(() => button("显示更多岗位").click());
-  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 66);
-  assert.equal(dom.document.querySelector(".atlas-load-more"), null);
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30, "the current page stays after leaving");
+  await flush(() => button("下一页").click());
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 6);
+  assert.equal(dom.document.querySelector<HTMLButtonElement>(".atlas-pager button:last-child")!.disabled, true);
 });
 
 function pagedOfficeFixture() {
@@ -525,15 +627,92 @@ function pagedOfficeFixture() {
   }
   return AtlasDatasetSchema.parse(data);
 }
-async function saveSecondPageOffice(data: AtlasDataset, mutate?: (saved: AtlasDataset) => void,
-  beforeSave?: (props: AtlasOfficeAddressConfirmationProps) => Promise<void>) {
+
+test("background snapshot refresh keeps the current map, selected detail and page readable until the new query is ready", async () => {
+  const data = pagedOfficeFixture();
+  data.locations.forEach((location, index) => { location.precision = "address"; location.coordinates = { coordinateSystem: "WGS84", latitude: 31 + index / 1000, longitude: 121 }; });
+  installWorkspaceFetch(async () => sourceResponse(data));
   await render(true, false); await connectFixture();
-  await flush(() => button("显示更多岗位").click());
-  const card = dom.document.querySelectorAll<HTMLButtonElement>(".atlas-job-card")[40]!;
+  await flush(() => button("来源工具").click());
+  await waitFor(() => !!sourcePanelProps, "the source snapshot callback");
+  await flush(() => button("下一页").click());
+  const card = dom.document.querySelector<HTMLButtonElement>(".atlas-job-card")!;
+  await flush(() => pointerClick(card, 0));
+  const selectedId = mapProps!.selectedJobId;
+  const oldBuckets = mapProps!.buckets;
+  const list = dom.document.querySelector<HTMLElement>(".atlas-job-list")!;
+  list.scrollTop = 97;
+  const refreshed = { ...structuredClone(data), revision: data.revision + 1 };
+  let release: (() => void) | undefined;
+  pauseSnapshotQuery = async snapshot => {
+    if (snapshot.revision === refreshed.revision) await new Promise<void>(resolve => { release = resolve; });
+  };
+  await act(async () => sourcePanelProps!.onSnapshot(refreshed));
+  await waitFor(() => !!release, "the pending refreshed query");
+  try {
+    assert.ok(mapProps!.buckets === oldBuckets, "background commits must not blank the old map");
+    assert.equal(mapProps!.selectedJobId, selectedId, "reading a job survives unrelated background commits");
+    assert.ok(dom.document.querySelector('[aria-label="地图岗位详情"]'));
+    assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30);
+  } finally {
+    pauseSnapshotQuery = undefined;
+    await act(async () => release!());
+  }
+  await flush();
+  assert.match(dom.document.querySelector(".atlas-pager")!.textContent!, /第 31–60 条/);
+  assert.equal(mapProps!.selectedJobId, selectedId);
+  assert.equal(list.scrollTop, 97);
+  assert.equal(detailData!.revision, refreshed.revision);
+});
+
+test("changing the selected office hides the old list scope while its query is pending", async () => {
+  const data = createAtlasDemo();
+  data.locations.forEach(location => { location.kind = "office"; location.precision = "address"; });
+  installWorkspaceFetch(async () => sourceResponse(data));
+  await render(true, false); await connectFixture();
+  const oldBuckets = mapProps!.buckets;
+  const target = oldBuckets[0]!;
+  let release: (() => void) | undefined;
+  pauseSnapshotQuery = async () => new Promise<void>(resolve => { release = resolve; });
+  await act(async () => mapProps!.onPick!(target));
+  await waitFor(() => !!release, "the selected-office query");
+  try {
+    assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0, "old all-jobs rows are not actionable in the new office scope");
+    assert.ok(mapProps!.buckets === oldBuckets, "the map still summarizes the complete base query");
+  } finally {
+    pauseSnapshotQuery = undefined;
+    await act(async () => release!());
+  }
+  await flush();
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, target.jobCount);
+});
+
+test("a selected job pushed off the current page by background additions stays open after a scoped recheck", async () => {
+  const data = pagedOfficeFixture();
+  installWorkspaceFetch(async () => sourceResponse(data));
+  await render(true, false); await connectFixture();
+  await flush(() => button("来源工具").click());
+  await waitFor(() => !!sourcePanelProps, "the source snapshot callback");
+  await flush(() => pointerClick(dom.document.querySelectorAll<HTMLButtonElement>(".atlas-job-card")[29]!, 0));
+  const selectedId = mapProps!.selectedJobId;
+  const groups = ["companies", "jobs", "locations", "compensations", "listings", "observations", "snapshots"] as const;
+  const renamed = new Map(groups.flatMap(group => data[group].map(entity => [entity.id, `aaa-${entity.id}`])));
+  const copy = JSON.parse(JSON.stringify(data, (_key, value: unknown) => typeof value === "string" && renamed.has(value) ? renamed.get(value) : value)) as AtlasDataset;
+  const refreshed = structuredClone(data); refreshed.revision++;
+  for (const group of groups) (refreshed[group] as unknown[]).push(...copy[group]);
+  await act(async () => sourcePanelProps!.onSnapshot(AtlasDatasetSchema.parse(refreshed)));
+  await flush();
+  await waitFor(() => detailData?.revision === refreshed.revision && mapProps?.selectedJobId === selectedId, "the retained selection's new revision");
+  assert.ok(dom.document.querySelector('[aria-label="地图岗位详情"]'));
+  assert.ok([...dom.document.querySelectorAll(".atlas-job-card")].every(card => card.getAttribute("aria-pressed") !== "true"), "selection can remain open independently of the visible page");
+});
+async function saveSecondPageOffice(data: AtlasDataset, mutate?: (saved: AtlasDataset) => void) {
+  await render(true, false); await connectFixture();
+  await flush(() => button("下一页").click());
+  const card = dom.document.querySelectorAll<HTMLButtonElement>(".atlas-job-card")[10]!;
   await flush(() => pointerClick(card, 0)); await flush(() => button("核对办公地址").click());
   await waitFor(() => Boolean(officeProps), "synthetic office panel callback");
   const props = officeProps!, saved = structuredClone(data); saved.revision++;
-  await beforeSave?.(props);
   const job = saved.jobs.find(value => value.id === props.jobId)!, source = saved.locations.find(value => value.id === props.location.id)!;
   const confirmed = applyOfficeAddressConfirmation(source, { id: "synthetic-page2-office", kind: "confirm", jobId: job.id, listingId: job.listingIds[0]!,
     locationId: source.id, actorScope: "synthetic-owner", at: officeAt, revision: saved.revision, reason: "Synthetic explicit office review", sourceLocation: source, proposal: officeProposal });
@@ -546,32 +725,21 @@ test("saved second-page office is rechecked outside pagination, remains selected
   const data = pagedOfficeFixture();
   const pending: Array<{ revision: number; resolve: (response: Response) => void }> = [];
   installWorkspaceFetch(async () => sourceResponse(data), async input => input.expectedRevision === data.revision ? sourceResponse(await createMapReferenceFixture(data)) : new Promise(resolve => pending.push({ revision: input.expectedRevision, resolve })));
-  let candidateFocus: AtlasMapFocus | undefined;
-  const saved = await saveSecondPageOffice(data, undefined, async props => {
-    const revision = data.revision;
-    assert.equal(typeof props.onCandidateFocus, "function");
-    await act(async () => props.onCandidateFocus!(officeCandidate));
-    candidateFocus = mapProps!.focus;
-    assert.equal(data.revision, revision, "candidate preview must not mutate the dataset");
-    assert.equal(candidateFocus!.jobId, props.jobId); assert.equal(candidateFocus!.locationId, props.location.id);
-    assert.equal(candidateFocus!.positionBasis, "geocoder-candidate"); assert.equal(candidateFocus!.estimated, true);
-    assert.equal(candidateFocus!.verification, "unverified");
-    assert.equal(candidateFocus!.latitude, officeCandidate.proposal.coordinates.latitude);
-    assert.equal(candidateFocus!.longitude, officeCandidate.proposal.coordinates.longitude);
-  });
+  const saved = await saveSecondPageOffice(data);
   await waitFor(() => mapProps?.focus?.locationId === saved.locationId, "the saved second-page office focus");
-  await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 30, "the new snapshot's first page");
-  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30, "the list resets to its first page");
+  await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 30 && detailData?.revision === saved.saved.revision,
+    "the new snapshot's current page and coherent detail");
+  assert.match(dom.document.querySelector(".atlas-pager")!.textContent!, /第 31–60 条/, "saving an address keeps the current reading page");
   assert.equal(mapProps!.selectedJobId, saved.jobId); assert.equal(mapProps!.focus!.positionBasis, "office-confirmation");
   assert.equal(detailData!.revision, saved.saved.revision); const firstRequest = mapProps!.focus!.requestId;
   await waitFor(() => pending.some(value => value.revision === saved.saved.revision), "the new snapshot's city projection");
   const batch = await createMapReferenceFixture(saved.saved);
   await act(async () => pending.find(value => value.revision === saved.saved.revision)!.resolve(sourceResponse(batch)));
-  await waitFor(() => Boolean(mapProps!.buckets.some(bucket => bucket.positionBasis === "city-reference")), "late city references");
+  await flush();
+  assert.equal(mapProps!.buckets.some(bucket => bucket.positionBasis === "city-reference"), false, "city estimates are not plotted as job locations");
   await flush(); assert.equal(mapProps!.selectedJobId, saved.jobId); assert.equal(mapProps!.focus!.requestId, firstRequest);
   assert.ok(dom.document.querySelector('[aria-label="地图岗位详情"]'));
-  await flush(() => button("显示更多岗位").click());
-  const recoveredCard = dom.document.querySelectorAll<HTMLButtonElement>(".atlas-job-card")[40]!;
+  const recoveredCard = dom.document.querySelectorAll<HTMLButtonElement>(".atlas-job-card")[10]!;
   assert.match(recoveredCard.querySelector(".atlas-job-meta")!.textContent!, /Synthetic Example Road 10, Shanghai/);
 });
 
@@ -579,6 +747,36 @@ test("source-disclosed office street is shown directly in the job card", async (
   const data = createAtlasDemo(); data.locations[0]!.streetAddress = "Synthetic source street 10";
   installWorkspaceFetch(async () => sourceResponse(data)); await render(true, false); await connectFixture();
   assert.match(jobCard(data.jobs[0]!.title.value).querySelector(".atlas-job-meta")!.textContent!, /Synthetic source street 10/);
+});
+
+test("map coverage separates job totals, source addresses, and shared exact coordinates", async () => {
+  const data = searchFixture();
+  const selected: Array<{ jobId: string; locationId: string }> = [];
+  for (const job of data.jobs) {
+    const locationId = job.locationIds.find(id => !selected.some(value => value.locationId === id));
+    if (!locationId) continue;
+    const location = data.locations.find(value => value.id === locationId)!;
+    if (location.kind === "remote-region") continue;
+    selected.push({ jobId: job.id, locationId });
+    if (selected.length === 2) break;
+  }
+  assert.equal(selected.length, 2);
+  for (const { jobId, locationId } of selected) {
+    const job = data.jobs.find(value => value.id === jobId)!;
+    const location = data.locations.find(value => value.id === locationId)!;
+    job.workMode = "on-site";
+    Object.assign(location, { kind: "office", countryCode: "CN", city: "Shanghai", streetAddress: `Synthetic source address ${locationId}`,
+      precision: "address", coordinates: { coordinateSystem: "WGS84", latitude: 31.23, longitude: 121.47 } });
+  }
+  installWorkspaceFetch(async () => sourceResponse(AtlasDatasetSchema.parse(data)));
+  await render(true, false); await connectFixture();
+  assert.equal(mapProps!.buckets.length, 2);
+  assert.equal(new Set(mapProps!.buckets.map(bucket => `${bucket.longitude},${bucket.latitude}`)).size, 1);
+  assert.match(dom.document.querySelector('[aria-label="地图坐标统计"]')!.textContent!, /1 个真实坐标，承载 2 个来源地址、2 个岗位/);
+  assert.match(dom.document.querySelector('.atlas-results-map-summary')!.textContent!, /1 个坐标点 · 2 个来源地址 · 覆盖 2 岗/);
+  assert.match(dom.document.querySelector(".atlas-map-footer")!.textContent!, /匹配岗位.*坐标点.*无精确位置岗位/);
+  assert.match(dom.document.querySelector('[aria-label="地图地址覆盖"]')!.textContent!, /20 个岗位暂无可验证办公地址/);
+  assert.equal(dom.document.querySelector(".atlas-map-address-gap"), null, "coverage has only one missing-address banner");
 });
 
 test("a saved job which no longer matches the active filters is never recovered", async () => {
@@ -601,14 +799,17 @@ for (const action of ["filter", "identity", "inactive", "different-job", "close"
   if (action === "inactive") await render(false, false);
   if (action === "different-job") { await flush(); await flush(() => pointerClick(dom.document.querySelector<HTMLButtonElement>(".atlas-job-card")!, 0)); }
   if (action === "close") {
-    // The saved snapshot clears the old pane while the independent read is pending;
-    // explicitly opening and closing another card must cancel that pending focus.
+    // Explicitly opening and closing another card cancels the pending focus,
+    // independently of the reading pane retained across background revisions.
     await flush(); await flush(() => pointerClick(dom.document.querySelector<HTMLButtonElement>(".atlas-job-card")!, 0));
     await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="关闭岗位详情"]')!.click());
   }
   assert.equal(signal!.aborted, true);
+  const selectionBeforeRelease = mapProps?.selectedJobId;
   await act(async () => release!()); await flush();
-  assert.notEqual(mapProps?.selectedJobId, saved.jobId); assert.notEqual(mapProps?.focus?.locationId, saved.locationId);
+  if (action === "inactive") assert.equal(mapProps?.selectedJobId, selectionBeforeRelease, "an inactive pane retains its old selection without accepting a late recovery");
+  else assert.notEqual(mapProps?.selectedJobId, saved.jobId);
+  assert.notEqual(mapProps?.focus?.locationId, saved.locationId);
 });
 
 for (const kind of ["remote", "unknown"] as const) test(`${kind} location facts cannot become an office focus or office choice`, async () => {
@@ -623,7 +824,7 @@ for (const kind of ["remote", "unknown"] as const) test(`${kind} location facts 
 });
 
 
-test("explicit local view shows only saved real-source records with separate source/publication badges and never changes the private library", async () => {
+test("default view shows only saved real-source records with separate source/publication badges and never changes the private library", async () => {
   const published = createOpportunity({ company: "合成测试雇主", title: "本地来源测试岗", description: "合成测试正文", sourcePlatform: "51JOB", sourceUrl: "https://jobs.51job.com/shanghai/123456789.html", sourcePublishedAt: "2025-01-01T10:00:00+08:00", collectedAt: "2026-10-18T00:00:00Z" });
   const unknown = createOpportunity({ company: "合成测试雇主", title: "未知发布时间测试岗", description: "合成测试正文", sourcePlatform: "BOSS直聘", sourceUrl: "https://www.zhipin.com/job_detail/synthetic.html", collectedAt: "2026-10-18T00:00:00Z" });
   published.application.notes = "private fixture must stay in old library";
@@ -723,7 +924,7 @@ test("revoking the selected area closes a now-excluded domestic detail and retai
   assert.equal(writes.length, 1); assert.deepEqual(writes[0]!.body, { jobId: "demo-0", locationId: "demo-0-location", decisionId: "synthetic-active-area", expectedRevision: 25,
     reason: "合成原文无法确认国家，撤销本人地区选择。", reviewed: true });
   assert.match(writes[0]!.key!, /^location-revoke-/); assert.match(resultsHeading(), /0/);
-  assert.equal(dom.document.querySelector('[aria-label="地图岗位详情"]'), null, "cached selectedCard must not retain the revoked confirmation after its current query excludes the job");
+  assert.equal(Boolean(dom.document.querySelector('[aria-label="地图岗位详情"]')), false, "cached selectedCard must not retain the revoked confirmation after its current query excludes the job");
   assert.equal(dom.document.querySelector('.atlas-job-card[aria-expanded="true"]'), null); assert.equal(mapProps!.selectedJobId, "");
   assert.match(dom.document.querySelector(".atlas-search-notice")!.textContent!, /已读取地区记录.*索引版本 26/);
   await flush(() => button("全球").click());
@@ -733,18 +934,390 @@ test("revoking the selected area closes a now-excluded domestic detail and retai
   assert.doesNotMatch(freshDetail.textContent!, /本人确认的行政范围/); assert.equal(detailData!.revision, 26);
 });
 
+test("background enrichment publishes its newer snapshot without manual actions or blocking search", async () => {
+  let data = searchFixture();
+  let reads = 0;
+  backgroundStatusReply = () => { reads++; return sourceResponse({ revision: data.revision, pending: 1, running: 0, completed: 0, failed: 0 }); };
+  installWorkspaceFetch(async () => sourceResponse(data));
+  await render(true, false); await connectFixture();
+  assert.ok(reads > 0, "connecting must automatically discover background work");
+  await flush(() => pointerClick(jobCard(data.jobs[0]!.title.value), 0));
+  const selectedJobId = mapProps!.selectedJobId;
+  assert.equal(dom.document.querySelector<HTMLButtonElement>('.atlas-searchbar .atlas-source-search')?.disabled, false,
+    "pending enrichment must not borrow the foreground search busy state");
+  data = { ...structuredClone(data), revision: data.revision + 1 };
+  await waitFor(() => detailData?.revision === data.revision, "automatic background snapshot publication");
+  assert.equal(mapProps!.selectedJobId, selectedJobId);
+  assert.equal(dom.document.querySelector<HTMLButtonElement>('.atlas-searchbar .atlas-source-search')?.disabled, false);
+});
+
+test("same-identity reconnect cannot roll back a newer background snapshot", async () => {
+  const initial = { ...searchFixture(), revision: 10 };
+  const stale = structuredClone(initial); stale.revision = 11;
+  stale.jobs[0]!.title.value = "C# 合成旧版重连岗位";
+  stale.jobs[0]!.description = stale.jobs[0]!.title.value;
+  const fresh = structuredClone(initial); fresh.revision = 12;
+  fresh.jobs[0]!.title.value = "C# 合成后台新版岗位";
+  fresh.jobs[0]!.description = fresh.jobs[0]!.title.value;
+  let statusRevision = initial.revision, exports = 0;
+  let releaseReconnect: ((response: Response) => void) | undefined;
+  backgroundStatusReply = () => sourceResponse({ revision: statusRevision, pending: 1, running: 0, completed: 0, failed: 0 });
+  installWorkspaceFetch(async (url: RequestInfo | URL) => {
+    assert.equal(new URL(String(url)).pathname, "/api/v1/dataset/export");
+    exports++;
+    if (exports === 1) return sourceResponse(initial);
+    if (exports === 2) return new Promise<Response>(resolve => { releaseReconnect = resolve; });
+    return sourceResponse(fresh);
+  });
+  await render(true, false); await connectFixture();
+  await flush(() => pointerClick(jobCard(initial.jobs[0]!.title.value), 0));
+  assert.equal(detailData?.revision, 10);
+  // Keep the same endpoint/token: the manual read starts before the worker's
+  // newer status, but its response deliberately completes after that update.
+  await act(async () => button("重新读取索引").click());
+  await waitFor(() => Boolean(releaseReconnect), "the slow same-identity reconnect export");
+  try {
+    statusRevision = 12;
+    await waitFor(() => detailData?.revision === 12, "background revision 12 to publish while reconnect revision 11 is pending");
+    assert.ok(jobCard(fresh.jobs[0]!.title.value));
+    assert.equal(exports, 3, "initial read, held reconnect and one newer background export");
+    await flush(() => releaseReconnect!(sourceResponse(stale)));
+    assert.match(dom.document.querySelector(".atlas-data-banner")!.textContent!, /索引版本 12/);
+    assert.equal([...dom.document.querySelectorAll(".atlas-job-card")].some(card => card.textContent?.includes(stale.jobs[0]!.title.value)), false);
+    await flush(() => pointerClick(jobCard(fresh.jobs[0]!.title.value), 0));
+    assert.equal(detailData?.revision, 12, "the final job detail receives the newer dataset, not just a retained counter label");
+  } finally {
+    releaseReconnect?.(sourceResponse(stale));
+  }
+});
+
+test("source region alignment remains automatic when the current filters hide every saved job", async () => {
+  let statusReads = 0;
+  backgroundStatusReply = () => { statusReads++; return sourceResponse({ revision: 0, pending: 1, running: 0, completed: 0, failed: 0 }); };
+  installWorkspaceFetch(async () => sourceResponse(searchFixture()));
+  await render(true, false); await connectFixture();
+  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "没有匹配的合成技能"));
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0);
+  assert.ok(statusReads > 0, "background region alignment must not require a matching job to already exist");
+  assert.equal([...dom.document.querySelectorAll("button")].some(node => node.textContent?.includes("按来源对齐地区与企业性质")), false,
+    "the foreground manual enrichment gate is replaced by automatic tasks");
+  assert.equal(button("补全当前结果办公地点").disabled, true,
+    "the empty current page must not start an unscoped office lookup");
+});
+
 test("main search without a connection opens connection settings and never sends a source or snapshot request", async () => {
   const fetcher = installWorkspaceFetch(async () => { throw new Error("An unconnected search must never request a service"); });
   await render(true, false);
   await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "C#"));
-  assert.ok(button("本机后端 · 未就绪"));
-  await flush(() => button("打开后端状态").click());
+  await openCollection(); await flush(() => button("确认开始采集").click());
   assert.equal(fetcher.mock.callCount(), 0);
-  assert.equal(dom.document.querySelector(".atlas-settings h2")!.textContent, "本机后端状态");
-  assert.match(dom.document.querySelector(".atlas-settings")!.textContent!, /本机网页默认使用同源岗位后端/);
-  assert.match(dom.document.querySelector(".atlas-settings")!.textContent!, /不需要手动连接或填写令牌/);
+  assert.equal(dom.document.querySelector(".atlas-settings h2")!.textContent, "连接你的本机岗位索引");
+  assert.match(dom.document.querySelector(".atlas-search-notice")!.textContent!, /先连接本机来源服务/);
   assert.equal(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!.value, "C#");
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0);
+});
+
+test("Enter, keyword chips and cancelled collection only filter the index; acquisition needs explicit confirmation", async () => {
+  const fetcher = installWorkspaceFetch(async () => { throw new Error("Local filtering cannot call a source"); });
+  await render(true, false);
+  const input = dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!;
+  await flush(() => changeInput(input, "C#"));
+  await flush(() => input.closest("form")!.dispatchEvent(new dom.Event("submit", { bubbles: true, cancelable: true })));
+  assert.equal(fetcher.mock.callCount(), 0);
+  await openCollection();
+  assert.equal(dom.document.querySelector("dialog")?.getAttribute("aria-modal"), "true");
+  assert.match(dom.document.querySelector(".atlas-collection-scope")!.textContent!, /C#.*地区.*来源.*预算上限/s);
+  assert.equal(fetcher.mock.callCount(), 0);
+  await flush(() => button("暂不采集").click());
+  assert.equal(dom.document.querySelector("dialog"), null);
+  assert.equal(fetcher.mock.callCount(), 0);
+  assert.equal(input.value, "C#");
+});
+
+test("AI penetration counts follow Shanghai and overseas filters and include matching jobs without coordinates", async () => {
+  const data = createAtlasDemo();
+  data.jobs.forEach(job => { job.title.value = "合成人力资源岗位"; job.description = "负责合成招聘流程与人力资源事务。"; });
+  const implicitIndexes = [0, 1, 3, 16, 17];
+  for (const index of implicitIndexes) {
+    data.jobs[index]!.title.value = `合成软件工程师 ${index}`;
+    data.jobs[index]!.description = "任职要求：熟练掌握 C# 和 ASP.NET Core，开发企业业务系统。";
+  }
+  data.jobs[2]!.title.value = "C# 合成标题直接命中岗位";
+  data.jobs[2]!.description = "任职要求：熟练掌握 C#。";
+  for (const index of [0, 1, 2]) {
+    Object.assign(data.locations[index]!, { countryCode: "CN", regionId: "CN-SH", city: "上海", raw: "上海（合成地点）" });
+  }
+  Object.assign(data.locations[3]!, { countryCode: "CN", regionId: "CN-BJ", city: "北京", raw: "北京（合成地点）" });
+  for (const index of [1, 17]) {
+    delete data.locations[index]!.coordinates;
+    data.locations[index]!.precision = "unknown";
+  }
+  installWorkspaceFetch(async () => sourceResponse(AtlasDatasetSchema.parse(data)));
+  await render(true, false); await connectFixture();
+  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "C#"));
+  const penetrationCount = () => Number(dom.document.querySelector(".atlas-ai-banner-headline strong")?.textContent ?? 0);
+  await waitFor(() => penetrationCount() === 5, "all five synthetic implicit matches in the global scope");
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 6, "title matches remain distinct from implicit JD matches");
+
+  await flush(() => button("国内").click());
+  const province = dom.document.querySelector<HTMLSelectElement>('[aria-label="工作省份"]')!;
+  await flush(() => { province.value = "31"; province.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  await waitFor(() => penetrationCount() === 2, "only Shanghai implicit matches, including its unlocated job");
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 3);
+  assert.match(dom.document.querySelector(".atlas-ai-banner-headline")!.textContent!, /当前筛选内.*2/);
+  await flush(() => button("仅看 AI 穿透命中 (2)").click());
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 2);
+  assert.ok(jobCard("合成软件工程师 1"), "Shanghai's unlocated match must remain in the AI-filtered list");
+
+  await flush(() => button("恢复全部岗位").click());
+  await flush(() => button("全球").click());
+  const country = dom.document.querySelector<HTMLSelectElement>('[aria-label="工作国家或地区"]')!;
+  await flush(() => { country.value = "US"; country.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  await waitFor(() => penetrationCount() === 2, "only the two US implicit matches");
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 2);
+  assert.ok(jobCard("合成软件工程师 16")); assert.ok(jobCard("合成软件工程师 17"));
+
+  const city = dom.document.querySelector<HTMLInputElement>('[aria-label="工作城市或地区关键词"]')!;
+  await flush(() => changeInput(city, "纽约"));
+  await waitFor(() => penetrationCount() === 1, "the unlocated New York job in the current overseas scope");
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 1);
+  assert.ok(jobCard("合成软件工程师 17"));
+  assert.equal(mapProps!.buckets.length, 0, "absence of an office point must not remove a matching job from the count");
+  await flush(() => changeInput(city, "没有匹配的合成城市"));
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0);
+  assert.equal(dom.document.querySelector(".atlas-ai-penetration-banner"), null, "an empty geographic scope must not show the whole-library AI count");
+});
+
+for (const savedState of ["running", "cancelled", "needs-attention"] as const) test(`${savedState === "running" ? "reconnecting automatically" : "explicit continuation"} restores saved filters and only harvests unfinished providers (${savedState})`, async () => {
+  const data = searchFixture();
+  const providers = ["liepin", "51job", "boss", "linkedin"] as const;
+  const platform = { liepin: "猎聘", "51job": "51JOB", boss: "BOSS直聘", linkedin: "LinkedIn" } as const;
+  const urls = { liepin: "https://www.liepin.com/zhaopin/?key=Rust", "51job": "https://we.51job.com/pc/search", boss: "https://www.zhipin.com/web/geek/job", linkedin: "https://www.linkedin.com/jobs/search/" };
+  const empty = (provider: typeof providers[number]) => ({ provider, platform: platform[provider], pageUrl: urls[provider],
+    status: "empty" as const, cards: [], rawCardCount: 0, warnings: [],
+    coverage: { pagesVisited: 1, pageLimit: 5, scrollSteps: 0, scrollLimit: 1, cardLimit: 500, stopReason: "exhausted" as const, partial: false } });
+  recoveryFixture = checkpointFixture({ keyword: "Rust", region: "上海市", depth: "quick", maxPages: 5,
+    chinaSelection: { provinceCode: "31" }, view: { mode: "domestic", country: "CN", region: "", regionText: "" } });
+  recoveryFixture.saved.run.queryTerms = ["Rust"];
+  recoveryFixture.saved.run.state = savedState;
+  recoveryFixture.saved.run.providers = [...providers];
+  recoveryFixture.saved.providers = [{ term: "Rust", capturedAt: "2026-10-28T00:00:00.000Z", result: empty("liepin") }];
+  const runId = recoveryFixture.saved.run.id;
+  let captures = 0;
+  installWorkspaceFetch(async (request, init) => {
+    const path = new URL(String(request), dom.location.href).pathname;
+    if (path === "/api/jd/search-session") {
+      const body = JSON.parse(String(init?.body)); captures++;
+      assert.equal(body.action, "live-batch-search-stream");
+      assert.equal(body.input.keyword, "Rust");
+      assert.equal(body.input.regionId, "上海市");
+      assert.deepEqual(body.input.providers, ["51job", "boss", "linkedin"]);
+      const events = [
+        ...(["51job", "boss", "linkedin"] as const).map(provider => ({ type: "provider-result", result: empty(provider) })),
+        { type: "complete", capturedAt: "2026-10-28T00:01:00.000Z", providers: ["51job", "boss", "linkedin"] },
+      ];
+      return new Response(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join(""), { headers: { "Content-Type": "text/event-stream" } });
+    }
+    assert.equal(path, "/api/v1/dataset/export"); return sourceResponse(data);
+  });
+  await render(true, false); await connectFixture();
+  if (savedState !== "running") {
+    assert.equal(captures, 0, "stopped or failed work cannot silently restart after refresh");
+    await act(async () => button("继续上次采集").click());
+  }
+  await waitFor(() => recoveryFixture?.saved.run.state === "completed", "the recovered bounded run to finish without a manual search");
+  assert.equal(captures, 1);
+  assert.equal(recoveryFixture.saved.run.id, runId);
+  assert.equal(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!.value, "Rust");
+  assert.equal(dom.document.querySelector<HTMLSelectElement>('[aria-label="工作省份"]')!.value, "31");
+  assert.equal(dom.document.querySelector<HTMLButtonElement>('.atlas-searchbar .atlas-source-search')!.disabled, false);
+  await act(async () => root!.unmount()); root = undefined;
+  await render(true, false);
+  assert.equal(captures, 1, "a subsequent page reload does not restart an already settled run");
+});
+
+for (const change of ["country", "market mode"] as const) test(`a live harvest receipt is not reused after the ${change} changes`, async () => {
+  const data = createAtlasDemo();
+  const pageUrl = "https://www.liepin.com/zhaopin/?key=Rust";
+  const url = "https://www.liepin.com/job/123456789.shtml";
+  const title = "Synthetic live Rust role";
+  const company = "Synthetic live employer";
+  let captures = 0;
+  installWorkspaceFetch(async (request, init) => {
+    const path = new URL(String(request), dom.location.href).pathname;
+    if (path === "/api/jd/search-session") {
+      const body = JSON.parse(String(init?.body));
+      assert.equal(body.action, "live-batch-search-stream");
+      captures++;
+      const result = {
+        provider: "liepin", platform: "猎聘", pageUrl, status: "ready", rawCardCount: 1, warnings: [],
+        cards: [{ platform: "猎聘", url, title, company, locationText: "United States", cardText: `${title} ${company} United States`,
+          evidence: { pageUrl, cardSelector: ".synthetic-card", fields: [
+            { field: "url", selector: "a", text: url }, { field: "title", selector: ".title", text: title },
+            { field: "company", selector: ".company", text: company },
+          ] } }],
+        coverage: { pagesVisited: 1, pageLimit: 5, scrollSteps: 0, scrollLimit: 0, cardLimit: 500,
+          stopReason: "exhausted", partial: false },
+      };
+      const streamEvents = [
+        { type: "provider-queued", provider: "liepin", platform: "猎聘", pageLimit: 5, scrollLimit: 0, cardLimit: 500 },
+        { type: "provider-start", provider: "liepin", platform: "猎聘", pageLimit: 5, scrollLimit: 0, cardLimit: 500 },
+        { type: "provider-progress", provider: "liepin", platform: "猎聘", pagesVisited: 1, scrollSteps: 0, cardsCaptured: 1, pageLimit: 5, scrollLimit: 0, cardLimit: 500 },
+        { type: "provider-result", result },
+        { type: "complete", capturedAt: "2026-10-26T00:00:00.000Z", providers: ["liepin"] },
+      ];
+      return new Response(streamEvents.map(event => `data: ${JSON.stringify(event)}\n\n`).join(""), {
+        headers: { "Content-Type": "text/event-stream; charset=utf-8" },
+      });
+    }
+    if (path === "/api/v1/jobs/reviewed-cards/preview") {
+      // A live receipt remains visible even when this isolated fixture declines
+      // local indexing. No source/job repository is accessed by this UI test.
+      return Response.json({ ok: false, requestId: "synthetic-import-declined",
+        error: { code: "invalid-input", message: "Synthetic fixture does not import cards." } }, { status: 422 });
+    }
+    assert.equal(path, "/api/v1/dataset/export");
+    return sourceResponse(data);
+  });
+  await render(true, false); await connectFixture();
+  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "Rust"));
+  const country = dom.document.querySelector<HTMLSelectElement>('[aria-label="工作国家或地区"]')!;
+  await flush(() => { country.value = "US"; country.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  await flush(() => button("全网重新抓取").click());
+  assert.equal(captures, 1);
+  assert.ok(dom.document.querySelector(".atlas-live-harvest-results"), "the original scope must show its actual live receipt first");
+  assert.match(dom.document.querySelector(".atlas-live-harvest-card h4")!.textContent!, /Synthetic live Rust role/);
+  assert.match(dom.document.querySelector(".atlas-harvest-progress")!.textContent!, /本轮采集未完整完成/,
+    "the workspace should surface the reviewed-card import failure in its real progress panel");
+  assert.equal(dom.document.querySelector(".atlas-live-harvest-progress-bar"), null,
+    "stage number divided by stage count is not a measured collection percentage");
+
+  if (change === "country") {
+    await flush(() => { country.value = "DE"; country.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  } else {
+    await flush(() => button("国内").click());
+  }
+  assert.equal(captures, 1, "changing scope does not silently launch another external search");
+  assert.equal(Boolean(dom.document.querySelector(".atlas-live-harvest-results")), false,
+    "a live receipt from the previous country or market must not be presented under the new search scope");
+});
+
+async function renderFailedSourceHarvest() {
+  const data = createAtlasDemo();
+  let captures = 0;
+  installWorkspaceFetch(async (request, init) => {
+    const path = new URL(String(request), dom.location.href).pathname;
+    if (path === "/api/jd/search-session") {
+      assert.equal(JSON.parse(String(init?.body)).action, "live-batch-search-stream");
+      captures++;
+      const result = {
+        provider: "liepin", platform: "猎聘", pageUrl: "https://www.liepin.com/zhaopin/?key=Rust",
+        status: "unknown_layout", cards: [], rawCardCount: 0, warnings: [], error: "Synthetic source list was not recognized",
+        coverage: { pagesVisited: 1, pageLimit: 5, scrollSteps: 0, scrollLimit: 0, cardLimit: 500, stopReason: "error", partial: true },
+      };
+      const events = [
+        { type: "provider-result", result },
+        { type: "complete", capturedAt: "2026-10-28T00:00:00.000Z", providers: ["liepin"] },
+      ];
+      return new Response(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join(""), { headers: { "Content-Type": "text/event-stream" } });
+    }
+    assert.equal(path, "/api/v1/dataset/export");
+    return sourceResponse(data);
+  });
+  await render(true, false); await connectFixture();
+  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "Rust"));
+  const country = dom.document.querySelector<HTMLSelectElement>('[aria-label="工作国家或地区"]')!;
+  await flush(() => { country.value = "US"; country.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  await flush(() => button("全网重新抓取").click());
+  assert.equal(captures, 1);
+  assert.match(dom.document.querySelector(".atlas-harvest-progress")!.textContent!, /本轮采集未完整完成/);
+  return { country, captures: () => captures };
+}
+
+test("failed source explanations remain visible when viewing the index or changing the search text", async () => {
+  const fixture = await renderFailedSourceHarvest();
+  const assertSourceReason = () => {
+    const issue = [...dom.document.querySelectorAll(".atlas-harvest-issues .atlas-harvest-issue")]
+      .find(node => node.querySelector(".atlas-harvest-issue-source")?.textContent === "猎聘");
+    assert.ok(issue, "the task card must retain the actual source receipt independently of result-list mode");
+    assert.match(issue.textContent!, /未识别到可读取列表/);
+    assert.doesNotMatch(issue.textContent!, /Synthetic source list was not recognized/, "原始诊断不再挤进顶部摘要");
+    assert.match(dom.document.querySelector(".atlas-harvest-progress-details")!.textContent!, /Synthetic source list was not recognized/, "逐源原始诊断仍可展开核对");
+    assert.doesNotMatch(issue.textContent!, /平台未返回具体原因/);
+  };
+  assertSourceReason();
+  await flush(() => button("查看索引").click());
+  assert.equal(dom.document.querySelector(".atlas-live-harvest-results"), null);
+  assertSourceReason();
+  await flush(() => button("查看实时结果").click());
+  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "Synthetic different query"));
+  assert.equal(dom.document.querySelector(".atlas-live-harvest-results"), null);
+  assertSourceReason();
+  assert.equal(fixture.captures(), 1, "view and query changes must not silently re-run collection");
+});
+
+test("changing country after a failed harvest clears failure flags instead of showing a false placeholder error", async () => {
+  const fixture = await renderFailedSourceHarvest();
+  assert.ok(dom.document.querySelector(".atlas-harvest-issues"));
+  await flush(() => { fixture.country.value = "DE"; fixture.country.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  assert.equal(fixture.country.value, "DE");
+  assert.equal(dom.document.querySelector(".atlas-live-harvest-results"), null);
+  assert.equal(dom.document.querySelector(".atlas-harvest-progress"), null,
+    "the new scope's intent placeholder must not inherit the previous run's failed or cancelled flags");
+  assert.equal(fixture.captures(), 1, "changing country alone does not start another collection");
+});
+
+test("stopping an in-flight live harvest immediately settles platform UI and keeps verified cards", async () => {
+  const data = createAtlasDemo();
+  const pageUrl = "https://www.liepin.com/zhaopin/?key=Rust";
+  const url = "https://www.liepin.com/job/987654321.shtml";
+  let captures = 0;
+  let captureSignal: AbortSignal | null = null;
+  installWorkspaceFetch(async (request, init) => {
+    const path = new URL(String(request), dom.location.href).pathname;
+    if (path === "/api/jd/search-session") {
+      assert.equal(JSON.parse(String(init?.body)).action, "live-batch-search-stream");
+      captures++;
+      captureSignal = init?.signal ?? null;
+      const card = { platform: "猎聘", url, title: "Synthetic live Rust role", company: "Synthetic employer",
+        locationText: "United States", cardText: "Synthetic live Rust role · Synthetic employer · United States",
+        evidence: { pageUrl, cardSelector: ".synthetic-card", fields: [
+          { field: "url", selector: "a", text: url }, { field: "title", selector: ".title", text: "Synthetic live Rust role" },
+          { field: "company", selector: ".company", text: "Synthetic employer" },
+        ] } };
+      const events = [
+        { type: "provider-queued", provider: "liepin", platform: "猎聘", pageLimit: 5, scrollLimit: 0, cardLimit: 500 },
+        { type: "provider-start", provider: "liepin", platform: "猎聘", pageLimit: 5, scrollLimit: 0, cardLimit: 500 },
+        { type: "provider-progress", provider: "liepin", platform: "猎聘", pagesVisited: 1, scrollSteps: 0, cardsCaptured: 1, pageLimit: 5, scrollLimit: 0, cardLimit: 500, cards: [card] },
+      ];
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join("")));
+          captureSignal?.addEventListener("abort", () => controller.close(), { once: true });
+        },
+      });
+      return new Response(body, { headers: { "Content-Type": "text/event-stream; charset=utf-8" } });
+    }
+    assert.equal(path, "/api/v1/dataset/export");
+    return sourceResponse(data);
+  });
+  await render(true, false); await connectFixture();
+  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "Rust"));
+  const country = dom.document.querySelector<HTMLSelectElement>('[aria-label="工作国家或地区"]')!;
+  await flush(() => { country.value = "US"; country.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+  await act(async () => button("全网重新抓取").click());
+  await waitFor(() => Boolean(dom.document.querySelector(".atlas-live-harvest-card h4")), "the first source-verified card before final platform receipts");
+  assert.equal(captures, 1);
+  assert.equal(dom.document.querySelector(".atlas-live-harvest-results")!.getAttribute("aria-busy"), "true");
+  assert.match(dom.document.querySelector(".atlas-live-harvest-card h4")!.textContent!, /Synthetic live Rust role/);
+
+  await act(async () => button("停止采集").click());
+  await waitFor(() => dom.document.querySelector(".atlas-live-harvest-results")?.getAttribute("aria-busy") === "false", "cancelled platform rows to settle immediately");
+  assert.equal(captureSignal!.aborted, true, "the stop action must propagate an AbortSignal to the live SSE request");
+  assert.equal(dom.document.querySelectorAll(".atlas-live-harvest-card").length, 1, "a verified card remains visible after cancellation");
+  assert.match(dom.document.querySelector(".atlas-harvest-progress")!.textContent!, /已请求停止本轮采集/);
+  assert.doesNotMatch(dom.document.querySelector(".atlas-live-harvest-coverage")!.textContent!, /继续读取/);
+  assert.match(dom.document.querySelector(".atlas-live-harvest-coverage")!.textContent!, /已取消/);
 });
 
 test("connected main search calls the selected source with exact C# and bounded limits, then rebuilds real coverage and filters", async () => {
@@ -766,7 +1339,7 @@ test("connected main search calls the selected source with exact C# and bounded 
   assert.equal(selectedSource.value, "", "all enabled sources are the default");
   await flush(() => { selectedSource.value = "atlas-demo"; selectedSource.dispatchEvent(new dom.Event("change", { bubbles: true })); });
   await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "  C#  "));
-  await flush(() => button("从来源获取岗位").click());
+  await openCollection(); await flush(() => button("确认开始采集").click());
   await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 3, "source snapshot to replace the empty index and apply C# filtering");
   assert.deepEqual(requests.map((request) => request.path), ["/api/v1/dataset/export", "/api/v1/sources/atlas-demo/sync", "/api/v1/dataset/export"]);
   const request = requests[1]!;
@@ -780,7 +1353,7 @@ test("connected main search calls the selected source with exact C# and bounded 
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 3, "C++ jobs must not match C#");
   assert.ok([...dom.document.querySelectorAll(".atlas-job-card strong")].every((title) => title.textContent!.startsWith("C#")));
   assert.match(dom.document.querySelector('[aria-label="当前索引筛选覆盖"]')!.textContent!, /当前视图 22 岗/);
-  assert.match(dom.document.querySelector('[aria-label="当前索引筛选覆盖"]')!.textContent!, /可比较年薪 0可计算距离 0已核实企业性质 0已定位 0/);
+  assert.match(dom.document.querySelector('[aria-label="当前索引筛选覆盖"]')!.textContent!, /可比较年薪 0 岗可计算距离 0 岗已核实企业性质 0 岗已定位 0 岗/);
   assert.equal(mapProps!.buckets.length, 0);
   const sort = dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位排序"]')!;
   assert.equal([...sort.options].find((option) => option.value === "salary")!.disabled, true);
@@ -809,6 +1382,47 @@ test("connected main search calls the selected source with exact C# and bounded 
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 2);
 });
 
+for (const [label, refreshRecovers, twoSources, sourceFails] of [
+  ["clears a recovered warning", true, false, false],
+  ["retains a still-failing warning", false, false, false],
+  ["accepts a later receipt refresh without an extra export", true, true, false],
+  ["preserves an actual source failure beside a refresh failure", false, false, true],
+] as const) {
+  test(`source refresh rechecks failed receipt notifications and ${label}`, async () => {
+    const initial = searchFixture(true), updated = searchFixture();
+    if (twoSources) for (const data of [initial, updated]) data.sources.push({ ...data.sources[0]!, sourceId: "synthetic-second-source" });
+    let synced = false, refreshReads = 0;
+    installWorkspaceFetch(async (url, init) => {
+      const path = new URL(String(url)).pathname;
+      if (path.endsWith("/sync")) {
+        synced = true;
+        const receipt = sourceReceipt(JSON.parse(String(init?.body)).scope);
+        receipt.run.sourceId = path.includes("synthetic-second-source") ? "synthetic-second-source" : "atlas-demo";
+        if (sourceFails) { receipt.run.status = "failed"; receipt.sourceError = { code: "synthetic-source-unavailable" }; }
+        return sourceResponse(receipt);
+      }
+      assert.equal(path, "/api/v1/dataset/export");
+      if (!synced) return sourceResponse(initial);
+      refreshReads++;
+      if (refreshReads === 1 || !refreshRecovers) throw new Error("Synthetic early snapshot failure");
+      return sourceResponse(updated);
+    });
+    await render(true, false); await connectFixture();
+    const selected = dom.document.querySelector<HTMLSelectElement>('[aria-label="搜索原始来源"]')!;
+    await flush(() => { selected.value = twoSources ? "" : "atlas-demo"; selected.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+    await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "C#"));
+    await openCollection(); await flush(() => button("确认开始采集").click());
+    await waitFor(() => !button("采集新岗位").disabled, "the source run and bounded final snapshot recheck");
+    assert.equal(refreshReads, 2, "one failed receipt export permits one final read, never another collection write");
+    const errors = [...dom.document.querySelectorAll('[role="alert"]')].map(node => node.textContent).join(" ");
+    if (refreshRecovers) {
+      assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 3);
+      assert.doesNotMatch(errors, /索引展示刷新未完成/);
+    } else assert.match(errors, /索引展示刷新未完成/);
+    if (sourceFails) assert.match(errors, /synthetic-source-unavailable/, "the display warning must not overwrite the source failure");
+  });
+}
+
 test("source review opens without rereading and a new search closes candidates bound to the previous query", async () => {
   let previews = 0;
   installWorkspaceFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
@@ -821,17 +1435,17 @@ test("source review opens without rereading and a new search closes candidates b
   });
   await render(true, false); await connectFixture();
   await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "C#"));
-  await flush(() => button("从来源获取岗位").click());
+  await openCollection(); await flush(() => button("确认开始采集").click());
   await flush(() => button("查看 合成关键词来源 未核对候选").click());
   await waitFor(() => Boolean(dom.document.querySelector(".atlas-source-review")), "lazy candidate review");
   assert.equal(previews, 0);
   await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "Java"));
-  await flush(() => button("从来源获取岗位").click());
+  await openCollection(); await flush(() => button("确认开始采集").click());
   assert.equal(dom.document.querySelector(".atlas-source-review"), null, "C# candidates cannot appear as Java results");
   assert.equal(previews, 0);
 });
 
-test("an unknown main-search response retains its exact request across remount and changed filters, and a completed recovery permits a new bounded request", async () => {
+test("an unknown main-search response retries the same write key and a completed refresh starts a fresh bounded request", async () => {
   const initial = searchFixture(true), updated = searchFixture();
   for (const data of [initial, updated]) { data.sources[0]!.refreshPolicy.maxRecords = 100; data.sources[0]!.refreshPolicy.maxPages = 10; }
   const writes: Array<{ body: any; key: string | null }> = []; let snapshots = 0;
@@ -845,23 +1459,16 @@ test("an unknown main-search response retains its exact request across remount a
   });
   await render(true, false); await connectFixture();
   await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "C#"));
-  await flush(() => button("从来源获取岗位").click());
+  await openCollection(); await flush(() => button("确认开始采集").click());
   assert.equal(writes.length, 1); assert.equal(snapshots, 1);
   assert.match(dom.document.querySelector('[role="alert"]')!.textContent!, /未收到本机服务回执/);
   assert.deepEqual(writes[0]!.body, { scope: { roles: ["C#"], regions: [], companyNames: [] }, maxRecords: 100, maxPages: 10 });
   assert.ok(writes[0]!.key);
-  assert.equal(button("从来源获取岗位").disabled, true);
-  await act(async () => root!.unmount()); root = undefined;
-  await render(true, false);
-  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "Java"));
-  assert.equal(button("从来源获取岗位").disabled, true, "a remount and changed interests cannot mint a fresh source write");
-  assert.equal(writes.length, 1);
-  await flush(() => button("核对原聚合搜索回执").click());
-  assert.equal(writes.length, 2); assert.deepEqual(writes[1], writes[0]); assert.equal(snapshots, 3);
-  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "C#"));
+  await openCollection(); await flush(() => button("确认开始采集").click());
+  assert.equal(writes.length, 2); assert.deepEqual(writes[1], writes[0]); assert.equal(snapshots, 2);
   await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 3, "the successful retry snapshot query");
-  await flush(() => button("从来源获取岗位").click());
-  assert.equal(writes.length, 3); assert.equal(snapshots, 4);
+  await openCollection(); await flush(() => button("确认开始采集").click());
+  assert.equal(writes.length, 3); assert.equal(snapshots, 3);
   assert.deepEqual(writes[2]!.body, writes[1]!.body); assert.notEqual(writes[2]!.key, writes[1]!.key);
   assert.equal(dom.document.querySelector('[role="alert"]'), null);
 });
@@ -885,41 +1492,10 @@ test("searching the configured employer enumerates that company and sends the se
   const country = dom.document.querySelector<HTMLSelectElement>('[aria-label="工作国家或地区"]')!;
   await flush(() => { country.value = "US"; country.dispatchEvent(new dom.Event("change", { bubbles: true })); });
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 1);
-  await flush(() => button("从来源获取岗位").click());
+  await openCollection(); await flush(() => button("确认开始采集").click());
   assert.equal(writes.length, 1);
-  assert.deepEqual(writes[0]!.scope, { roles: [], regions: ["US"], companyNames: ["UniqueEmployerOnly"] });
+  assert.deepEqual(writes[0]!.scope, { roles: [], regions: ["US"], countryCodes: ["US"], companyNames: ["UniqueEmployerOnly"] });
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 1);
-});
-
-test("an unresolved main search blocks new source-panel writes while indexed reads remain available, then exact recovery unlocks both surfaces", async () => {
-  const data = searchFixture(), writes: Array<{ body: any; key: string | null }> = [];
-  let snapshots = 0;
-  installWorkspaceFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
-    const path = new URL(String(url)).pathname;
-    if (path === "/api/v1/dataset/export") { snapshots++; return sourceResponse(data); }
-    if (path === "/api/v1/sources") return sourceResponse({ sources: data.sources, adapters: [{ adapterId: data.sources[0]!.adapterId, version: data.sources[0]!.adapterVersion, capabilities: ["list-jobs"], remoteFilters: ["roles"], entityTypes: ["job-posting"] }] });
-    if (path.endsWith("/scan-progress")) return sourceResponse({ sourceId: "atlas-demo", progress: null });
-    assert.equal(path, "/api/v1/sources/atlas-demo/sync");
-    const body = JSON.parse(String(init!.body)); writes.push({ body, key: new Headers(init!.headers).get("Idempotency-Key") });
-    if (writes.length === 1) throw new TypeError("Synthetic reply lost after dispatch");
-    return sourceResponse(sourceReceipt(body.scope));
-  });
-  await render(true, false); await connectFixture();
-  await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "C#"));
-  await flush(() => button("从来源获取岗位").click());
-  assert.equal(button("从来源获取岗位").disabled, true); const beforeRead = snapshots;
-  await flush(() => button("重新读取索引").click()); assert.equal(snapshots, beforeRead + 1); assert.equal(writes.length, 1);
-  await flush(() => button("来源工具").click());
-  await waitFor(() => Boolean(dom.document.querySelector(".atlas-sources-panel")) && !dom.document.querySelector(".atlas-sources-panel .animate-spin"), "source tools with retained main request");
-  const panel = dom.document.querySelector(".atlas-sources-panel")!;
-  const panelButton = (label: string) => { const found = [...panel.querySelectorAll<HTMLButtonElement>("button")].find(value => value.textContent?.trim() === label); assert.ok(found, label); return found; };
-  assert.equal(panelButton("手动刷新并更新地图").disabled, true); assert.equal(panelButton("继续上次扫描").disabled, true);
-  assert.equal(panelButton("载入配置供编辑").disabled, true);
-  await flush(() => panelButton("手动刷新并更新地图").click()); assert.equal(writes.length, 1);
-  await flush(() => panelButton("核对原聚合搜索回执").click());
-  assert.equal(writes.length, 2); assert.deepEqual(writes[1], writes[0]);
-  assert.equal(panelButton("手动刷新并更新地图").disabled, false); assert.equal(panelButton("载入配置供编辑").disabled, false);
-  assert.equal(button("从来源获取岗位").disabled, false);
 });
 
 test("empty index allows country and city preselection and preserves the same-location scope through fetch", async () => {
@@ -941,7 +1517,7 @@ test("empty index allows country and city preselection and preserves the same-lo
   await flush(() => { country.value = "CN"; country.dispatchEvent(new dom.Event("change", { bubbles: true })); changeInput(city, "北京"); });
   await connectFixture();
   assert.equal(country.value, "CN"); assert.equal(city.value, "北京");
-  await flush(() => button("从来源获取岗位").click());
+  await openCollection(); await flush(() => button("确认开始采集").click());
   assert.deepEqual(writes[0].scope, { roles: [], regions: ["北京"], countryCodes: ["CN"], companyNames: [] });
   await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 1, "country AND city result");
   assert.equal(city.value, "北京");
@@ -960,7 +1536,7 @@ test("switching data view during a source request prevents its late response fro
     return new Promise<Response>((resolve) => { releaseSync = resolve; });
   });
   await render(true, false); await connectFixture();
-  await act(async () => button("从来源获取岗位").click());
+  await openCollection(); await act(async () => button("确认开始采集").click());
   await waitFor(() => Boolean(releaseSync), "the deferred source request");
   const view = dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!;
   await act(async () => { view.value = "local"; view.dispatchEvent(new dom.Event("change", { bubbles: true })); });
@@ -983,8 +1559,8 @@ test("details occupy a third grid pane while the list, map instance and keyboard
   card.focus();
   await act(async () => pointerClick(card, 0));
   const detail = dom.document.querySelector('[aria-label="地图岗位详情"]')!;
-  assert.equal(detail.parentElement, grid, "the reading pane must reserve a grid column instead of floating over the map");
-  assert.deepEqual([...grid.children].map(element => element.classList[0]), ["atlas-map-column", "atlas-results", "atlas-job-detail"]);
+  assert.equal(detail.closest('[data-workbench-pane="detail"]')?.parentElement, grid, "the reading pane must stay inline instead of floating over the map");
+  assert.deepEqual([...grid.querySelectorAll<HTMLElement>('[data-workbench-pane]:not([hidden])')].map(element => element.dataset.workbenchPane), ["map", "jobs", "detail"]);
   assert.equal(grid.classList.contains("has-detail"), true);
   assert.equal(grid.querySelector("[data-map-probe]"), map); assert.equal(grid.querySelector(".atlas-results"), list);
   assert.equal(mapMounts, before, "opening the right column resizes the existing map without remounting its camera");
@@ -992,44 +1568,39 @@ test("details occupy a third grid pane while the list, map instance and keyboard
   await act(async () => pointerDoubleClick(card));
   assert.ok(mapProps!.focus?.requestId); assert.equal(mapProps!.selectedJobId, mapProps!.focus?.jobId);
   await act(async () => dom.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape" })));
-  assert.equal(grid.classList.contains("has-detail"), false); assert.equal(grid.children.length, 2);
+  assert.equal(grid.classList.contains("has-detail"), false); assert.equal(grid.querySelectorAll('[data-workbench-pane]:not([hidden])').length, 2);
   assert.equal(grid.querySelector("[data-map-probe]"), map); assert.equal(dom.document.activeElement, card);
 });
 
-test("desktop keeps a reading column and opens mouse clicks immediately without replacing the map, list or double-click target", async () => {
+test("desktop keeps the reading pane collapsed until a job is selected", async () => {
   mock.method(dom.HTMLElement.prototype, "getBoundingClientRect", () => new dom.DOMRect(0, 0, 1000, 600));
   await render();
   assert.equal(dom.document.querySelector(".atlas-workspace")!.getAttribute("data-pane-layout"), "wide");
   const grid = dom.document.querySelector(".atlas-main-grid")!, map = grid.querySelector("[data-map-probe]"), list = grid.querySelector(".atlas-results");
   const [first, second] = [...dom.document.querySelectorAll<HTMLButtonElement>(".atlas-job-card")];
-  assert.deepEqual([...grid.children].map(element => element.classList[0]), ["atlas-map-column", "atlas-results", "atlas-detail-placeholder"]);
-  assert.match(grid.children[2]!.textContent!, /单击阅读.*双击在地图中定位/);
+  assert.deepEqual([...grid.querySelectorAll<HTMLElement>('[data-workbench-pane]:not([hidden])')].map(element => element.dataset.workbenchPane), ["map", "jobs"]);
   const mounts = mapMounts; first!.focus();
-  await act(async () => pointerClick(first!, 1));
-  assert.ok(dom.document.querySelector('[aria-label="地图岗位详情"]'), "desktop mouse reading must not wait for a double-click timer");
-  assert.equal(grid.children.length, 3); assert.equal(grid.querySelector("[data-map-probe]"), map); assert.equal(grid.querySelector(".atlas-results"), list);
+  await act(async () => pointerClick(first!, 0));
+  assert.ok(dom.document.querySelector('[aria-label="地图岗位详情"]'), "keyboard reading opens immediately");
+  assert.equal(grid.querySelectorAll('[data-workbench-pane]:not([hidden])').length, 3); assert.equal(grid.querySelector("[data-map-probe]"), map); assert.equal(grid.querySelector(".atlas-results"), list);
   assert.equal(dom.document.querySelector(".atlas-job-card"), first); assert.equal(dom.document.activeElement, first); assert.equal(mapProps!.focus, undefined);
   await act(async () => { pointerClick(first!, 2); first!.dispatchEvent(new dom.MouseEvent("dblclick", { bubbles: true, detail: 2 })); });
   assert.equal(mapProps!.selectedJobId, mapProps!.focus!.jobId); assert.equal(mapMounts, mounts);
   await act(async () => pointerClick(second!, 1));
   assert.equal(second!.getAttribute("aria-expanded"), "true"); assert.equal(first!.getAttribute("aria-expanded"), "false");
   await act(async () => dom.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape" })));
-  assert.deepEqual([...grid.children].map(element => element.classList[0]), ["atlas-map-column", "atlas-results", "atlas-detail-placeholder"]);
+  assert.deepEqual([...grid.querySelectorAll<HTMLElement>('[data-workbench-pane]:not([hidden])')].map(element => element.dataset.workbenchPane), ["map", "jobs"]);
   assert.equal(grid.querySelector("[data-map-probe]"), map); assert.equal(grid.querySelector(".atlas-results"), list); assert.equal(mapMounts, mounts);
 });
 
-for (const width of [750, 390]) test(`${width}px layout delays the first mouse click while keyboard activation opens immediately`, async (t) => {
+for (const width of [1000, 750, 390]) test(`${width}px layout opens pointer and keyboard activation immediately`, async (t) => {
   mock.method(dom.HTMLElement.prototype, "getBoundingClientRect", () => new dom.DOMRect(0, 0, width, 600));
   await render();
   assert.equal(dom.document.querySelector(".atlas-detail-placeholder"), null, "smaller layouts must not reserve a desktop reading column");
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const card = dom.document.querySelector<HTMLButtonElement>(".atlas-job-card")!;
   await act(async () => pointerClick(card, 1));
-  assert.equal(dom.document.querySelector('[aria-label="地图岗位详情"]'), null);
-  assert.equal(card.getAttribute("aria-expanded"), "false");
-  await act(async () => t.mock.timers.tick(519));
-  assert.equal(dom.document.querySelector('[aria-label="地图岗位详情"]'), null, "the first click must leave the card exposed during the double-click window");
-  await act(async () => t.mock.timers.tick(1));
+  assert.equal(card.getAttribute("aria-expanded"), "true");
   assert.ok(dom.document.querySelector('[aria-label="地图岗位详情"]'));
   assert.equal(mapProps!.focus, undefined, "single click opens reading only");
   await act(async () => dom.document.querySelector<HTMLButtonElement>('[aria-label="关闭岗位详情"]')!.click());
@@ -1091,7 +1662,6 @@ for (const position of ["city-reference", "city-coordinate", "address"] as const
   } else {
     await waitFor(() => Boolean(officeProps), "the published street to open office review instead of a coarse focus");
     assert.equal(officeProps!.location.streetAddress, location.streetAddress); assert.equal(mapProps!.focus, undefined);
-    assert.equal(officeProps!.prefillFromSourceAddress, true, "double-click review should prefill the disclosed address for an explicit query");
   }
   assert.deepEqual(routes, ["/api/v1/dataset/export"]); assert.deepEqual(data, before);
 });
@@ -1102,7 +1672,7 @@ test("a detail=1, detail=2 and dblclick event sequence focuses once and never re
   const card = dom.document.querySelector<HTMLButtonElement>(".atlas-job-card")!;
   await act(async () => pointerClick(card, 1));
   await act(async () => t.mock.timers.tick(200));
-  assert.equal(dom.document.querySelector('[aria-label="地图岗位详情"]'), null);
+  assert.ok(dom.document.querySelector('[aria-label="地图岗位详情"]'), "the first click already opens reading; double-click is only an optional location shortcut");
   await act(async () => { pointerClick(card, 2); card.dispatchEvent(new dom.MouseEvent("dblclick", { bubbles: true, detail: 2 })); });
   assert.ok(dom.document.querySelector('[aria-label="地图岗位详情"]'), "the second click must not toggle details shut");
   assert.equal(mapProps!.selectedJobId, mapProps!.focus?.jobId);
@@ -1116,7 +1686,7 @@ test("a detail=1, detail=2 and dblclick event sequence focuses once and never re
   assert.equal(mapProps!.selectedJobId, ""); assert.equal(mapProps!.focus, undefined);
 });
 
-test("closing an existing pane cancels a pending first click on another card", async (t) => {
+test("closing the newly selected card cannot be undone by a delayed first click", async (t) => {
   await render();
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const [first, second] = [...dom.document.querySelectorAll<HTMLButtonElement>(".atlas-job-card")];
@@ -1128,8 +1698,8 @@ test("closing an existing pane cancels a pending first click on another card", a
   assert.equal(mapProps!.selectedJobId, "");
 });
 
-for (const cancellation of ["filter", "data-mode", "inactive"] as const) {
-  test(`${cancellation} cancels a pending first pointer click before it can select a stale job`, async (t) => {
+for (const cancellation of ["filter", "data-mode"] as const) {
+  test(`${cancellation} clears the selected card without any delayed stale selection`, async (t) => {
     await render();
     t.mock.timers.enable({ apis: ["setTimeout"] });
     const card = dom.document.querySelector<HTMLButtonElement>(".atlas-job-card")!;
@@ -1139,7 +1709,6 @@ for (const cancellation of ["filter", "data-mode", "inactive"] as const) {
       const view = dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!;
       view.value = "local"; view.dispatchEvent(new dom.Event("change", { bubbles: true }));
     });
-    else await render(false);
     await act(async () => t.mock.timers.tick(600));
     assert.equal(dom.document.querySelector('[aria-label="地图岗位详情"]'), null);
     assert.equal(dom.document.querySelector('.atlas-job-card[aria-expanded="true"]'), null);
@@ -1147,15 +1716,14 @@ for (const cancellation of ["filter", "data-mode", "inactive"] as const) {
   });
 }
 
-test("unmount explicitly clears the scheduled pointer intent", async (t) => {
+test("pointer selection schedules no delayed reading intent that can outlive unmount", async (t) => {
   await render();
   t.mock.timers.enable({ apis: ["setTimeout"] });
-  const scheduled = t.mock.method(globalThis, "setTimeout"); const cleared = t.mock.method(globalThis, "clearTimeout");
+  const scheduled = t.mock.method(globalThis, "setTimeout");
   await act(async () => pointerClick(dom.document.querySelector<HTMLButtonElement>(".atlas-job-card")!, 1));
   const pending = scheduled.mock.calls.find((call) => call.arguments[1] === 520);
-  assert.ok(pending, "the real click scheduled a bounded reading intent");
+  assert.equal(pending, undefined, "single-click reading must have no 520ms timer");
   await act(async () => root!.unmount()); root = undefined;
-  assert.ok(cleared.mock.calls.some((call) => call.arguments[0] === pending.result), "cleanup must cancel the real scheduled handle");
   await act(async () => t.mock.timers.tick(600));
   assert.equal(dom.document.querySelector(".atlas-workspace"), null);
 });
@@ -1196,20 +1764,20 @@ test("live city distribution references share the real filters and bucket select
     const path = new URL(String(url)).pathname; routes.push(path); assert.equal(path, "/api/v1/dataset/export"); return sourceResponse(data);
   }, input => { mapReads++; assert.equal(input.expectedRevision, data.revision); return sourceResponse(batch); });
   await render(true, false); await connectFixture();
-  assert.equal(mapReads, 1); assert.ok(mapProps!.buckets.length > 0); assert.equal(mapProps!.buckets.every(bucket => bucket.positionBasis === "city-reference"), true);
-  assert.match(dom.document.querySelector('[aria-label="地图位置口径"]')!.textContent!, /有效岗位坐标 0 岗.*城市分布参考 21 岗.*不参与离家距离/);
+  assert.equal(mapReads, 1); assert.equal(mapProps!.buckets.some(bucket => bucket.positionBasis === "city-reference"), false);
+  assert.match(dom.document.querySelector('[aria-label="地图位置口径"]')!.textContent!, /城市估算不作为办公地址落点/);
+  assert.match(dom.document.querySelector(".atlas-map-footer")!.textContent!, /坐标点.*无精确位置岗位/);
   const keyword = dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]'); assert.ok(keyword);
   await flush(() => changeInput(keyword, "C#"));
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 3); assert.equal(mapReads, 1, "filters reuse this snapshot's projection");
-  assert.equal(mapProps!.buckets.reduce((count, bucket) => count + bucket.jobCount, 0), 2);
-  assert.match(dom.document.querySelector('[aria-label="地图位置口径"]')!.textContent!, /城市分布参考 2 岗/);
+  assert.equal(mapProps!.buckets.reduce((count, bucket) => count + bucket.jobCount, 0), 0);
+  assert.match(dom.document.querySelector('[aria-label="地图位置口径"]')!.textContent!, /城市估算不作为办公地址落点/);
   await flush(() => pointerDoubleClick(jobCard("C# 合成工程师 0")));
   assert.equal(mapProps!.focus!.positionBasis, "city-reference"); assert.equal(mapProps!.focus!.precision, "city"); assert.equal(mapProps!.focus!.zoom, 9);
-  assert.match(dom.document.querySelector('[aria-label="地图岗位详情"]')!.textContent!, /城市级估算，非办公地址；不用于离家距离.*地名数据出处/s);
+  assert.match(dom.document.querySelector('[aria-label="地图岗位详情"]')!.textContent!, /城市估算，非办公地址；不用于离家距离.*地名数据出处/s);
   assert.deepEqual(routes, ["/api/v1/dataset/export"]); assert.deepEqual(detailData, before);
-  const city = mapProps!.buckets.find(bucket => bucket.label === "上海")!; assert.ok(city);
-  await flush(() => mapProps!.onPick!(city)); assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 1);
-  assert.ok(resultsHeading().startsWith("上海")); assert.equal(mapProps!.buckets.length, 2, "selected list remains a subset of the base map query");
+  assert.equal(mapProps!.buckets.find(bucket => bucket.positionBasis === "city-reference"), undefined);
+  assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 3);
   assert.equal(mapReads, 1); assert.deepEqual(data, before);
   await render(false, false); await render(true, false);
   assert.equal(mapReads, 1, "completed references reuse the same snapshot cache after activation");
@@ -1226,7 +1794,7 @@ test("city-reference errors preserve the live list and explicit retry adds estim
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 22); assert.equal(mapProps!.buckets.length, 0);
   assert.match(dom.document.body.textContent!, /尚不支持城市分布参考.*更新并重启/); assert.doesNotMatch(dom.document.body.textContent!, /Private service text/);
   await flush(() => button("重新读取城市参考").click()); assert.equal(reads, 2); assert.equal(snapshots, 1);
-  assert.ok(mapProps!.buckets.some(bucket => bucket.positionBasis === "city-reference"));
+  assert.equal(mapProps!.buckets.some(bucket => bucket.positionBasis === "city-reference"), false);
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 22);
 });
 
@@ -1273,9 +1841,9 @@ test("default aggregate search exposes fast source results before a slow source 
     return sourceResponse(sourceReceipt({ roles: [], regions: [], companyNames: [] }));
   });
   await render(true, false); await connectFixture();
-  await act(async () => button("从来源获取岗位").click());
+  await openCollection(); await act(async () => button("确认开始采集").click());
   await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "the fast source to publish while the slow source is pending");
-  assert.equal(writes.length, 2); assert.equal(button("从来源获取岗位").disabled, true);
+  assert.equal(writes.length, 2); assert.equal(button("采集新岗位").disabled, true);
   assert.ok(dom.document.querySelector('[aria-busy="true"]'));
   await flush(() => button("取消等待").click());
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 22, "cancel must keep confirmed results");
@@ -1290,24 +1858,23 @@ test("an empty real opportunity library offers acquisition instead of a vacant r
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0);
   assert.equal(dom.document.querySelector(".atlas-detail-placeholder"), null);
   assert.match(dom.document.querySelector(".atlas-empty")!.textContent!, /先把真实岗位接入地图/);
-  assert.ok(button("本机后端 · 未就绪"));
+  assert.ok(button("连接真实来源搜索"));
   assert.equal([...dom.document.querySelectorAll(".atlas-empty button")].some(node => node.textContent === "清除筛选"), false);
-  await flush(() => button("本机后端 · 未就绪").click());
+  await openCollection(); await flush(() => button("确认开始采集").click());
   assert.ok(dom.document.querySelector(".atlas-settings input[type=password]"));
   assert.equal(external.mock.callCount(), 0, "opening connection never collects or fabricates jobs");
   assert.equal(dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!.value, "local");
 });
 
-test("selecting the live view requests the default backend and keeps connection failure actionable", async () => {
+test("the live index is selectable before connecting and opens connection settings without network requests", async () => {
   const external = mock.method(globalThis, "fetch", async () => { throw new Error("Unexpected external request"); });
   await render(true, false);
   const view = dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!;
   assert.ok([...view.options].some(option => option.value === "live"));
   await flush(() => { view.value = "live"; view.dispatchEvent(new dom.Event("change", { bubbles: true })); });
-  assert.equal(external.mock.callCount(), 1);
-  assert.equal(view.value, "live");
-  assert.match(dom.document.querySelector(".atlas-empty")!.textContent!, /岗位数量未知/);
-  assert.match(dom.document.querySelector('[role="alert"]')!.textContent!, /默认后端不可用/);
+  assert.ok(dom.document.querySelector(".atlas-settings input[type=password]"));
+  assert.equal(external.mock.callCount(), 0);
+  assert.match(dom.document.querySelector(".atlas-empty")!.textContent!, /连接本机索引/);
 });
 
 test("desktop batches occupy only the reading column and leave the card's native single and double click targets stable", async () => {
@@ -1322,8 +1889,8 @@ test("desktop batches occupy only the reading column and leave the card's native
   await flush(() => button("补全当前结果办公地点").click());
   await waitFor(() => !!dom.document.querySelector('[aria-label="关闭批量地址核对"]'), "batch reading column");
   const pane = dom.document.querySelector('[aria-label="岗位办公地点批量核对面板"]')!;
-  assert.equal(pane.parentElement, grid); assert.equal(pane.id, "atlas-job-detail");
-  assert.deepEqual([...grid.children].map(element => element.classList[0]), ["atlas-map-column", "atlas-results", "atlas-job-detail"]);
+  assert.equal(pane.closest('[data-workbench-pane="detail"]')?.parentElement, grid); assert.equal(pane.id, "atlas-job-detail");
+  assert.deepEqual([...grid.querySelectorAll<HTMLElement>('[data-workbench-pane]')].filter(element=>!element.hidden).map(element => element.dataset.workbenchPane), ["map", "jobs", "detail"]);
   assert.equal(grid.querySelector("[data-map-probe]"), map); assert.equal(grid.querySelector(".atlas-results"), listPane);
   assert.equal(list.scrollTop, 87); assert.equal(mapMounts, mounts);
   assert.equal(routes.length, readCount, "opening the review is inert until explicit source reading");
@@ -1339,7 +1906,7 @@ test("desktop batches occupy only the reading column and leave the card's native
   assert.equal(list.scrollTop, 87); assert.equal(mapMounts, mounts);
 });
 
-test("batch Escape and explicit close restore the reserved desktop reading pane", async () => {
+test("batch Escape and explicit close restore the two-pane desktop workspace without remounting the map", async () => {
   mock.method(dom.HTMLElement.prototype, "getBoundingClientRect", () => new dom.DOMRect(0, 0, 1100, 650));
   installWorkspaceFetch(async () => sourceResponse(createAtlasDemo()));
   await render(true, false); await connectFixture();
@@ -1353,11 +1920,11 @@ test("batch Escape and explicit close restore the reserved desktop reading pane"
   assert.ok(dom.document.querySelector('[aria-label="岗位办公地点批量核对面板"]'), "IME cancellation keeps the pane");
   await act(async () => dom.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape" })));
   assert.equal(dom.document.querySelector('[aria-label="岗位办公地点批量核对面板"]'), null);
-  assert.ok(grid.querySelector(".atlas-detail-placeholder")); assert.equal(grid.children.length, 3);
+  assert.equal(grid.querySelector(".atlas-detail-placeholder"), null); assert.equal(grid.querySelectorAll('[data-workbench-pane]:not([hidden])').length, 2);
   await flush(() => button("补全当前结果办公地点").click());
   await waitFor(() => !!dom.document.querySelector('[aria-label="关闭批量地址核对"]'), "batch reopen");
   await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="关闭批量地址核对"]')!.click());
-  assert.ok(grid.querySelector(".atlas-detail-placeholder")); assert.equal(grid.children.length, 3);
+  assert.equal(grid.querySelector(".atlas-detail-placeholder"), null); assert.equal(grid.querySelectorAll('[data-workbench-pane]:not([hidden])').length, 2);
   assert.equal(grid.querySelector("[data-map-probe]"), map); assert.equal(mapMounts, mounts);
 });
 
@@ -1415,5 +1982,76 @@ test("a batch's exact saved office is rechecked and highlighted while its readin
   assert.equal(mapProps!.focus!.latitude, officeProposal.coordinates.latitude);
   assert.equal(mapProps!.focus!.longitude, officeProposal.coordinates.longitude);
   assert.ok(dom.document.querySelector('[aria-label="岗位办公地点批量核对面板"]'));
-  assert.equal(grid.querySelector("[data-map-probe]"), map); assert.equal(mapMounts, mounts); assert.equal(grid.children.length, 3);
+  assert.equal(grid.querySelector("[data-map-probe]"), map); assert.equal(mapMounts, mounts); assert.equal(grid.querySelectorAll('[data-workbench-pane]:not([hidden])').length, 3);
+});
+
+test("resume prefill bar displays smart keywords from active resume and pre-fills search criteria", async () => {
+  const fetcher = installWorkspaceFetch(async () => { throw new Error("A résumé keyword chip cannot start collection"); });
+  const mockResume: ProjectedResume = {
+    header: {
+      fullName: "测试候选人",
+      targetRole: "全栈技术专家",
+      location: "北京市海淀区",
+      email: "test@example.com",
+      phone: "13800000000",
+    },
+    summary: "精通 React 与 Node.js 构建高可用分布式架构",
+    skills: [
+      { name: "React", level: "master", keywords: ["Next.js"] },
+      { name: "TypeScript", level: "expert", keywords: [] },
+    ],
+    experiences: [],
+    educations: [],
+    projects: [],
+  };
+
+  await render(true, true, mockResume);
+  const prefillBar = dom.document.querySelector(".atlas-resume-prefill-bar");
+  assert.ok(prefillBar, "Resume prefill bar should be rendered");
+
+  const prefillBtn = dom.document.querySelector<HTMLButtonElement>(".atlas-prefill-btn");
+  assert.ok(prefillBtn, "Prefill button exists");
+  await flush(() => prefillBtn!.click());
+
+  const searchInput = dom.document.querySelector<HTMLInputElement>('input[aria-label="搜索地图岗位"]')!;
+  assert.equal(searchInput.value, "全栈技术专家");
+
+  const provinceSelect = dom.document.querySelector<HTMLSelectElement>('[aria-label="工作省份"]')!;
+  assert.equal(provinceSelect.value, "11");
+
+  const chipButtons = [...dom.document.querySelectorAll<HTMLButtonElement>(".atlas-chip-btn")];
+  assert.ok(chipButtons.length >= 2, "Expected at least 2 recommendation chips");
+
+  const reactChip = chipButtons.find(btn => btn.textContent?.includes("React"));
+  assert.ok(reactChip, "React chip found");
+  await flush(() => reactChip!.click());
+  assert.equal(searchInput.value, "React");
+  assert.equal(fetcher.mock.callCount(), 0, "prefill and skill chips are local filters only");
+});
+
+test("the command area can fold while keeping map mounted and restoring the same search criteria", async () => {
+  await render();
+  const controls = dom.document.querySelector<HTMLDetailsElement>('[aria-label="地图搜索与筛选面板"]')!;
+  assert.equal(controls?.open, false);
+  const input = dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!;
+  await flush(() => changeInput(input, "C#"));
+  const mounted = mapMounts;
+  await act(async () => { controls.querySelector("summary")!.click(); });
+  assert.equal(controls.open, true);
+  assert.equal(mapMounts, mounted);
+  await act(async () => { controls.querySelector("summary")!.click(); });
+  assert.equal(controls.open, false);
+  assert.equal(input.value, "C#");
+});
+
+test("a live index with no exact office coordinates shows the coverage gap and an address action above the map", async () => {
+  const data = searchFixture();
+  installWorkspaceFetch(async () => new Response(JSON.stringify({ ok: true, requestId: "address-gap-fixture", value: data })));
+  await render();
+  await connectFixture();
+  const coverage = dom.document.querySelector('[aria-label="地图地址覆盖"]');
+  assert.ok(coverage);
+  assert.match(coverage.textContent!, /22 个岗位/);
+  assert.match(coverage.textContent!, /没有可验证的办公地址|暂无可验证办公地址/);
+  assert.ok(coverage.querySelector("button")?.textContent?.includes("补全当前结果办公地点"));
 });

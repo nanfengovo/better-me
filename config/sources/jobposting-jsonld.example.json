@@ -13,14 +13,17 @@
   "entityType": "job-posting",
   "enabled": false,
   "status": "needs-review",
-  "entryUrl": "https://careers.abb/global/en/sitemap_index.xml",
+  "entryUrl": "https://careers.abb/global/en/sitemap1.xml",
   "options": {
     "companyName": "ABB",
-    "enumerationKind": "sitemap-index",
+    "enumerationKind": "sitemap-urlset",
     "enumerationUrls": [
-      "https://careers.abb/global/en/sitemap_index.xml"
+      "https://careers.abb/global/en/sitemap1.xml",
+      "https://careers.abb/global/en/sitemap2.xml",
+      "https://careers.abb/global/en/sitemap3.xml",
+      "https://careers.abb/global/en/sitemap4.xml",
+      "https://careers.abb/global/en/sitemap5.xml"
     ],
-    "maxChildSitemaps": 5,
     "postingPathPrefixes": [
       "/global/en/job/"
     ],
@@ -36,7 +39,6 @@
       "careers.abb"
     ],
     "allowedPathPrefixes": [
-      "/global/en/sitemap_index.xml",
       "/global/en/sitemap1.xml",
       "/global/en/sitemap2.xml",
       "/global/en/sitemap3.xml",

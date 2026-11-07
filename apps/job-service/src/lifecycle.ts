@@ -1,14 +1,15 @@
 import { constants } from "node:fs";
 import { chmod, lstat, mkdir, open, readdir, realpath, rename, rmdir, unlink } from "node:fs/promises";
-import { setTimeout as delay } from "node:timers/promises";
 import { randomBytes, randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
-import { createControlledSourceTransport, createGoogleDohResolver, CareerWebSearchConfigSchema, createCareerWebSearchProvider, createFxReferenceProvider, type CareerWebSearchConfig } from "@better-me/source-adapters";
+import { CareerWebSearchConfigSchema, type CareerWebSearchConfig } from "@better-me/source-adapters";
 import { createJobApplication } from "./application.js";
 import { createJobHttpServer, type JobHttpOptions } from "./http.js";
 import { openJobRepository, type JobRepository } from "./repository.js";
-import { createAmapOfficeProvider, createNominatimOfficeProvider, createPhotonOfficeProvider, OfficeGeocoderConfigSchema, type OfficeGeocoderConfig } from "./office-address-provider.js";
+import { OfficeGeocoderConfigSchema, type OfficeGeocoderConfig } from "./office-address-provider.js";
+import { configuredApplicationOptions } from "./configured-application.js";
+import { startJobApplicationRuntime } from "./application-runtime.js";
 
 export class LocalJobServiceError extends Error {
   constructor(public readonly code: "invalid-config" | "data-directory-unavailable" | "data-directory-busy" | "invalid-lock" | "lock-ownership-changed" | "invalid-token" | "startup-failed" | "shutdown-failed", message: string) {
@@ -34,7 +35,7 @@ export function validateJobServiceConfig(config: JobServiceConfig): ValidatedJob
   const careerSearch = config.careerSearch === undefined ? undefined : CareerWebSearchConfigSchema.safeParse(config.careerSearch);
   if (careerSearch && !careerSearch.success) throw new LocalJobServiceError("invalid-config", "Invalid career search configuration. Choose a supported provider and its permitted endpoint options.");
   const officeGeocoder = config.officeGeocoder === undefined ? undefined : OfficeGeocoderConfigSchema.safeParse(config.officeGeocoder);
-  if (officeGeocoder && !officeGeocoder.success) throw new LocalJobServiceError("invalid-config", "Office geocoding supports only the explicitly enabled nominatim, photon or amap provider.");
+  if (officeGeocoder && !officeGeocoder.success) throw new LocalJobServiceError("invalid-config", "Office geocoding supports nominatim or amap only.");
   if (!["127.0.0.1", "::1"].includes(host) || !Number.isInteger(port) || port < 0 || port > 65535 || !["system", "google-doh"].includes(dns)) throw new LocalJobServiceError("invalid-config", "Invalid loopback listener or DNS configuration.");
   if (!Array.isArray(config.allowedOrigins) || config.allowedOrigins.length === 0) throw new LocalJobServiceError("invalid-config", "Configure at least one exact UI origin.");
   for (const origin of config.allowedOrigins) {
@@ -84,7 +85,7 @@ async function writeOwner(lockPath: string, owner: LockOwner): Promise<void> {
 export type DataDirectoryLock = { dataDirectory: string; lockPath: string; release: () => Promise<void> };
 
 /** Atomic directory ownership. A stale owner is quarantined only after a single reclaimer verifies its dead PID again. */
-export async function acquireDataDirectoryLock(dataDirectory: string, options: { processAlive?: (pid: number) => boolean; machineName?: string } = {}): Promise<DataDirectoryLock> {
+export async function acquireDataDirectoryLock(dataDirectory: string, options: { processAlive?: (pid: number) => boolean; machineName?: string; lockDirectory?: string } = {}): Promise<DataDirectoryLock> {
   if (!isAbsolute(dataDirectory)) throw new LocalJobServiceError("invalid-config", "Choose an explicit absolute data directory.");
   let directory: string;
   try {
@@ -94,7 +95,17 @@ export async function acquireDataDirectoryLock(dataDirectory: string, options: {
     if (process.platform !== "win32" && (stat.mode & 0o077) !== 0) throw new Error();
     directory = await realpath(dataDirectory);
   } catch { throw new LocalJobServiceError("data-directory-unavailable", "Choose an available private data directory without a symbolic link; POSIX permissions must exclude other users."); }
-  const lockPath = join(directory, LOCK_NAME);
+  // An embedded runtime may hold an independent kernel-backed volume lease.
+  // Its PID namespace lock then belongs on tmpfs, not in persistent storage.
+  let lockDirectory = directory;
+  if (options.lockDirectory) {
+    if (!isAbsolute(options.lockDirectory)) throw new LocalJobServiceError("invalid-config", "Choose an absolute private lock directory.");
+    await mkdir(options.lockDirectory, { recursive: true, mode: 0o700 });
+    const info = await lstat(options.lockDirectory);
+    if (!info.isDirectory() || info.isSymbolicLink() || (process.platform !== "win32" && (info.mode & 0o077) !== 0)) throw new LocalJobServiceError("data-directory-unavailable", "The runtime lock directory must be private and not a symlink.");
+    lockDirectory = await realpath(options.lockDirectory);
+  }
+  const lockPath = join(lockDirectory, LOCK_NAME);
   const probe = options.processAlive ?? isProcessAlive;
   const machine = options.machineName ?? hostname();
   const owner: LockOwner = { schemaVersion: 1, pid: process.pid, owner: randomUUID(), hostname: machine, createdAt: new Date().toISOString() };
@@ -106,42 +117,17 @@ export async function acquireDataDirectoryLock(dataDirectory: string, options: {
     const claim = join(lockPath, ".reclaim");
     try { await mkdir(claim, { mode: 0o700 }); }
     catch { throw busy(); }
-    const claimIdentity = await lstat(claim);
-    if (!claimIdentity.isDirectory() || claimIdentity.isSymbolicLink()) throw busy();
-    // A guard left at the same pathname is not necessarily ours after a replacement.
-    // Its directory identity and unique owner both have to survive every retry/cleanup.
-    await writeOwner(claim, owner);
-    const ownsClaim = async () => {
-      const identity = await lstat(claim);
-      return identity.isDirectory() && !identity.isSymbolicLink() && identity.dev === claimIdentity.dev && identity.ino === claimIdentity.ino
-        && sameOwner(await readOwner(claim), owner);
-    };
     try {
-      const quarantine = join(directory, `.job-service-stale-${previous.owner}-${randomUUID()}`);
-      for (let attempt = 0; ; attempt++) {
-        const current = await readOwner(lockPath);
-        if (!sameOwner(current, previous) || current.hostname !== machine || probe(current.pid) || !await ownsClaim()) throw busy();
-        try {
-          // Windows may briefly refuse a directory rename while losing contenders
-          // finish reading the old owner. Keep the guard and revalidate before retrying.
-          await rename(lockPath, quarantine);
-          break;
-        } catch (error) {
-          if (!["EPERM", "EACCES", "EBUSY"].includes(filesystemCode(error) ?? "") || attempt >= 5) throw busy();
-          await delay(10 * 2 ** attempt);
-        }
-      }
+      const current = await readOwner(lockPath);
+      if (!sameOwner(current, previous) || current.hostname !== machine || probe(current.pid)) throw busy();
+      // Keep the old owner metadata instead of recursively deleting an uncertain directory.
+      await rename(lockPath, join(lockDirectory, `.job-service-stale-${previous.owner}-${randomUUID()}`));
       try { await mkdir(lockPath, { mode: 0o700 }); }
       catch { throw busy(); }
     } catch (error) {
       // A competing owner may now hold lockPath. Never remove its files or its reclaim guard.
       const current = await readOwner(lockPath).catch(() => undefined);
-      if (current && sameOwner(current, previous) && await ownsClaim().catch(() => false)) {
-        const files = await readdir(claim).catch(() => []);
-        if (files.length === 1 && files[0] === "owner.json") {
-          await unlink(join(claim, "owner.json")).then(() => rmdir(claim)).catch(() => undefined);
-        }
-      }
+      if (current && sameOwner(current, previous)) await rmdir(claim).catch(() => undefined);
       throw error;
     }
   }
@@ -190,9 +176,11 @@ export async function loadOrCreateServiceToken(dataDirectory: string): Promise<{
   } catch { throw new LocalJobServiceError("invalid-token", "The existing local service token is invalid; it was preserved."); }
 }
 
-type Application = Pick<ReturnType<typeof createJobApplication>, "registry" | "shutdown">;
+type Application = { registry: JobHttpOptions["registry"]; shutdown(): Promise<void> };
 type HttpListener = Pick<ReturnType<typeof createJobHttpServer>, "listen" | "close">;
 export type JobServiceDependencies = {
+  /** Only for embedders already holding an exclusive persistent-volume lease. */
+  lockDirectory?: string;
   openRepository?: (path: string) => JobRepository;
   createApplication?: (options: Parameters<typeof createJobApplication>[0]) => Application;
   createHttpServer?: (options: JobHttpOptions) => HttpListener;
@@ -204,7 +192,7 @@ export type LocalJobServiceHandle = {
 };
 export async function startLocalJobService(input: JobServiceConfig, dependencies: JobServiceDependencies = {}): Promise<LocalJobServiceHandle> {
   const config = validateJobServiceConfig(input);
-  const lock = await acquireDataDirectoryLock(config.dataDirectory);
+  const lock = await acquireDataDirectoryLock(config.dataDirectory, { lockDirectory: dependencies.lockDirectory });
   let repository: JobRepository | undefined;
   let application: Application | undefined;
   let http: HttpListener | undefined;
@@ -232,13 +220,15 @@ export async function startLocalJobService(input: JobServiceConfig, dependencies
     repository = (dependencies.openRepository ?? openJobRepository)(databasePath);
     // Recovery cannot classify a still-running owner's work as interrupted: the lock is already exclusive.
     const recovered = await repository.recoverInterruptedRuns();
-    const transport = createControlledSourceTransport({ ...(config.dns === "google-doh" ? { resolve: createGoogleDohResolver() } : {}) });
-    application = (dependencies.createApplication ?? createJobApplication)({ repository, transport,
-      fxReferenceProvider: createFxReferenceProvider(transport),
-      ...(config.officeGeocoder ? { officeAddressProvider: config.officeGeocoder.provider === "amap"
-        ? createAmapOfficeProvider(transport, { key: process.env.BETTERME_AMAP_WEB_SERVICE_KEY })
-        : config.officeGeocoder.provider === "photon" ? createPhotonOfficeProvider(transport) : createNominatimOfficeProvider(transport) } : {}),
-      ...(config.careerSearch ? { careerWebSearchProvider: createCareerWebSearchProvider(config.careerSearch) } : {}) });
+    if (dependencies.openRepository || dependencies.createApplication) {
+      // Preserve the explicit in-process seam for embedders and focused tests.
+      application = (dependencies.createApplication ?? createJobApplication)(configuredApplicationOptions(config, repository));
+    } else {
+      // Initialization/recovery occurs once, after acquiring the owner lock.
+      // During serving, only the isolated writer owns a writable connection.
+      repository.close(); repositoryClosed = true;
+      application = await startJobApplicationRuntime({ databasePath, config });
+    }
     http = (dependencies.createHttpServer ?? createJobHttpServer)({ registry: application.registry, token, allowedOrigins: config.allowedOrigins, host: config.host, port: config.port });
     const address = await http.listen();
     listening = true;

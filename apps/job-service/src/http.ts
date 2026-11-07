@@ -1,8 +1,12 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { timingSafeEqual, randomUUID } from "node:crypto";
 import { createToolRegistry, type TrustedToolContext } from "@better-me/opportunities";
+import type { SerializedToolResult } from "./application-runtime-protocol.js";
 
-type Registry = ReturnType<typeof createToolRegistry>;
+type Registry = Pick<ReturnType<typeof createToolRegistry>, "execute"> & {
+  /** The isolated runtime has already validated and serialized this response. */
+  executeSerialized?: (tool: string, input: unknown, context: TrustedToolContext) => Promise<SerializedToolResult>;
+};
 export interface JobHttpOptions {
   registry: Registry;
   token: string;
@@ -13,24 +17,7 @@ export interface JobHttpOptions {
 }
 
 const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }> = [
-  { method: "POST", path: /^\/api\/v1\/leads\/query$/, tool: "leads.query" },
-  { method: "POST", path: /^\/api\/v1\/leads\/read$/, tool: "leads.read" },
-  { method: "POST", path: /^\/api\/v1\/leads\/original\/read$/, tool: "leads.read-original" },
-  { method: "POST", path: /^\/api\/v1\/leads\/original\/preview$/, tool: "leads.preview-original" },
-  { method: "POST", path: /^\/api\/v1\/leads\/original\/import$/, tool: "leads.import-original" },
-  { method: "POST", path: /^\/api\/v1\/companies\/control-review\/read$/, tool: "companies.read-control-review" },
-  { method: "POST", path: /^\/api\/v1\/companies\/control-review\/preview$/, tool: "companies.preview-control-review" },
-  { method: "POST", path: /^\/api\/v1\/companies\/control-review\/confirm$/, tool: "companies.confirm-control-review" },
-  { method: "POST", path: /^\/api\/v1\/companies\/control-review\/revoke$/, tool: "companies.revoke-control-review" },
-  { method: "POST", path: /^\/api\/v1\/fx\/reference$/, tool: "fx.fetch-reference" },
-  { method: "POST", path: /^\/api\/v1\/fx\/state$/, tool: "fx.read-state" },
-  { method: "POST", path: /^\/api\/v1\/fx\/preview$/, tool: "fx.preview-import" },
-  { method: "POST", path: /^\/api\/v1\/fx\/import$/, tool: "fx.confirm-import" },
-  { method: "POST", path: /^\/api\/v1\/fx\/activate$/, tool: "fx.activate" },
-  { method: "POST", path: /^\/api\/v1\/compensations\/review$/, tool: "compensations.read-review" },
-  { method: "POST", path: /^\/api\/v1\/compensations\/preview$/, tool: "compensations.preview-review" },
-  { method: "POST", path: /^\/api\/v1\/compensations\/confirm$/, tool: "compensations.confirm-review" },
-  { method: "POST", path: /^\/api\/v1\/compensations\/revoke$/, tool: "compensations.revoke-review" },
+  { method: "GET", path: /^\/api\/v1\/enrichment\/status$/, tool: "enrichment.status" },
   { method: "POST", path: /^\/api\/v1\/jobs\/address-enrichment\/plan$/, tool: "jobs.plan-address-enrichment" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/candidates$/, tool: "jobs.list-merge-candidates" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/preview$/, tool: "jobs.preview-merge" },
@@ -44,9 +31,6 @@ const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }
   { method: "POST", path: /^\/api\/v1\/jobs\/reviewed-cards\/import$/, tool: "jobs.import-reviewed-cards" },
   { method: "POST", path: /^\/api\/v1\/jobs\/detail-locations\/preview$/, tool: "jobs.preview-detail-locations" },
   { method: "POST", path: /^\/api\/v1\/jobs\/detail-locations\/import$/, tool: "jobs.import-detail-locations" },
-  { method: "POST", path: /^\/api\/v1\/jobs\/owned-detail-locations\/read$/, tool: "jobs.read-owned-detail-locations" },
-  { method: "POST", path: /^\/api\/v1\/jobs\/owned-detail-locations\/preview$/, tool: "jobs.preview-owned-detail-locations" },
-  { method: "POST", path: /^\/api\/v1\/jobs\/owned-detail-locations\/import$/, tool: "jobs.import-owned-detail-locations" },
   { method: "POST", path: /^\/api\/v1\/locations\/geocode-candidates$/, tool: "locations.geocode-candidates" },
   { method: "POST", path: /^\/api\/v1\/locations\/office-address\/candidates$/, tool: "locations.office-address-candidates" },
   { method: "POST", path: /^\/api\/v1\/locations\/office-address\/preview$/, tool: "locations.preview-office-confirmation" },
@@ -62,19 +46,28 @@ const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }
   { method: "POST", path: /^\/api\/v1\/sources\/discover$/, tool: "sources.discover" },
   { method: "POST", path: /^\/api\/v1\/companies\/discover-careers$/, tool: "companies.discover-careers" },
   { method: "GET", path: /^\/api\/v1\/companies\/discovery-capabilities$/, tool: "companies.discovery-capabilities" },
+  { method: "POST", path: /^\/api\/v1\/companies\/controllers\/preview$/, tool: "companies.preview-controller-override" },
+  { method: "POST", path: /^\/api\/v1\/companies\/controllers\/confirm$/, tool: "companies.confirm-controller-override" },
+  { method: "POST", path: /^\/api\/v1\/companies\/controllers\/revoke$/, tool: "companies.revoke-controller-override" },
   { method: "POST", path: /^\/api\/v1\/sources\/inspect$/, tool: "sources.inspect" },
   { method: "POST", path: /^\/api\/v1\/sources\/propose$/, tool: "sources.propose" },
   { method: "POST", path: /^\/api\/v1\/sources\/([^/]+)\/preview$/, tool: "sources.preview", key: "sourceId" },
   { method: "POST", path: /^\/api\/v1\/sources\/([^/]+)\/sync$/, tool: "sources.sync", key: "sourceId" },
-  { method: "POST", path: /^\/api\/v1\/sources\/([^/]+)\/scan-progress$/, tool: "sources.read-scan-progress", key: "sourceId" },
-  { method: "POST", path: /^\/api\/v1\/sources\/([^/]+)\/continue-sync$/, tool: "sources.continue-sync", key: "sourceId" },
   { method: "GET", path: /^\/api\/v1\/runs$/, tool: "runs.list" },
   { method: "GET", path: /^\/api\/v1\/runs\/([^/]+)$/, tool: "runs.read", key: "runId" },
   { method: "POST", path: /^\/api\/v1\/runs\/([^/]+)\/cancel$/, tool: "runs.cancel", key: "runId" },
   { method: "POST", path: /^\/api\/v1\/dataset\/import$/, tool: "jobs.import-public" },
   { method: "GET", path: /^\/api\/v1\/dataset\/export$/, tool: "jobs.export-public" },
+  { method: "POST", path: /^\/api\/v1\/dataset\/sync$/, tool: "jobs.sync-public" },
+  { method: "POST", path: /^\/api\/v1\/dataset\/sync-page$/, tool: "jobs.sync-pages" },
+  { method: "POST", path: /^\/api\/v1\/dataset\/baseline$/, tool: "jobs.baseline-page" },
+  { method: "POST", path: /^\/api\/v1\/dataset\/baseline\/close$/, tool: "jobs.baseline-close" },
   { method: "GET", path: /^\/api\/v1\/leads$/, tool: "leads.list" },
 ];
+/** Full public-index snapshots need more room than ordinary tools; writes retain their tighter limit. */
+export function toolResponseBudgetBytes(tool: string): number {
+  return (tool === "jobs.sync-public" || tool === "jobs.export-public" ? 96 : 64) * 1024 * 1024;
+}
 function send(response: ServerResponse, status: number, value: unknown): void {
   if (response.destroyed || response.writableEnded) return;
   response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });
@@ -114,7 +107,7 @@ export function createJobHttpServer(options: JobHttpOptions) {
     return origin;
   }));
   const token = options.token;
-  const maxBytes = options.maxRequestBytes ?? 8 * 1024 * 1024;
+  const maxBytes = options.maxRequestBytes ?? 64 * 1024 * 1024;
   const server = createServer(async (request, response) => {
     // Host and peer checks protect the local API against DNS rebinding as well as CORS bypass.
     const listening = server.address();
@@ -164,12 +157,20 @@ export function createJobHttpServer(options: JobHttpOptions) {
       const context: TrustedToolContext = {
         requestId, signal: cancellation.signal, actorScope: "local-owner",
         allowedEffects: ["read-index", "external-read", "local-write"],
-        budget: { requests: 80, bytes: 32 * 1024 * 1024, timeoutMs: 120_000 },
+        budget: { requests: 80, bytes: toolResponseBudgetBytes(route.tool), timeoutMs: 120_000 },
         ...(typeof key === "string" ? { idempotencyKey: key } : {}),
       };
-      const result = await options.registry.execute(route.tool, input, context);
-      const status = result.ok ? 200 : result.error.code === "invalid-input" || result.error.code === "invalid-context" ? 400 : result.error.code === "not-authorized" ? 403 : result.error.code === "stale-version" || result.error.code === "idempotency-conflict" ? 409 : result.error.code === "timeout" ? 504 : result.error.code === "rate-limited" ? 429 : 422;
-      send(response, status, result);
+      const serialized = options.registry.executeSerialized ? await options.registry.executeSerialized(route.tool, input, context) : undefined;
+      const result = serialized ? undefined : await options.registry.execute(route.tool, input, context);
+      const ok = serialized?.ok ?? result!.ok;
+      const code = serialized?.errorCode ?? (result && !result.ok ? result.error.code : undefined);
+      const status = ok ? 200 : code === "invalid-input" || code === "invalid-context" ? 400 : code === "not-authorized" ? 403 : code === "stale-version" || code === "idempotency-conflict" ? 409 : code === "timeout" ? 504 : code === "rate-limited" ? 429 : 422;
+      if (serialized) {
+        if (!response.destroyed && !response.writableEnded) {
+          response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });
+          response.end(serialized.json);
+        }
+      } else send(response, status, result);
     } catch (error) {
       send(response, error instanceof Error && error.message === "too-large" ? 413 : 400, { error: "invalid-request" });
     }

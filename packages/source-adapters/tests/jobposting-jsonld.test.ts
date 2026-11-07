@@ -11,12 +11,9 @@ const AT = "2026-10-19T00:00:00.000Z";
 const ORIGIN = "https://careers.synthetic-company.com";
 const LIST = `${ORIGIN}/reviewed/list.xml`;
 const LIST2 = `${ORIGIN}/reviewed/second.xml`;
-const CHILD = `${ORIGIN}/reviewed/jobs-1.xml`;
-const CHILD2 = `${ORIGIN}/reviewed/jobs-2.xml`;
 const posting = (id: string | number) => `${ORIGIN}/jobs/${id}`;
 const escapeXml = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;");
 const manifest = (urls: string[]) => `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map((url) => `<url><loc>${escapeXml(url)}</loc></url>`).join("")}</urlset>`;
-const sitemapIndex = (urls: string[]) => `<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map((url) => `<sitemap><loc>${escapeXml(url)}</loc></sitemap>`).join("")}</sitemapindex>`;
 
 function context(controller = new AbortController()): SourceAdapterContext {
   return { observedAt: AT, requestId: "synthetic-jsonld", actorScope: "synthetic-user", signal: controller.signal,
@@ -108,51 +105,6 @@ test("multiple manifests are deduplicated and only actually listed reviewed prio
   assert.ok(result.warnings.some((warning) => warning.includes("Priority URLs absent")));
 });
 
-test("sitemap index reads bounded same-origin leaf urlsets and admits only pages with valid JobPosting JSON-LD", async () => {
-  const { input, calls } = fixture([], { enumerationKind: "sitemap-index", maxChildSitemaps: 2, pageSize: 5 });
-  replace(input, (url) => url === LIST ? { text: sitemapIndex([CHILD]) }
-    : url === CHILD ? { text: manifest([posting(1), posting(2)]) }
-      : url === posting(2) ? { text: "<h1>Posting-looking page without JSON-LD</h1>" } : undefined);
-  const result = await jobPostingJsonLdAdapter.list(input);
-  assert.deepEqual(calls.map((call) => call.url), [LIST, CHILD, posting(1), posting(2)]);
-  assert.deepEqual(result.records.map((record) => record.url), [posting(1)]);
-  assert.equal(result.coverage.fetchedRecords, 2);
-  assert.equal(result.coverage.partial, true);
-  assert.ok(result.warnings.some((warning) => warning.includes("same-origin HTTPS sitemap entries")));
-});
-
-test("rejected index entries and nested child indexes keep coverage partial while valid leaves remain usable", async () => {
-  const nested = `${ORIGIN}/reviewed/nested.xml`, { input, calls } = fixture([], { enumerationKind: "sitemap-index", pageSize: 5 });
-  replace(input, (url) => url === LIST ? { text: sitemapIndex(["https://other.example.com/jobs.xml", nested, CHILD]) }
-    : url === nested ? { text: sitemapIndex([CHILD2]) }
-      : url === CHILD ? { text: manifest([posting(1)]) } : undefined);
-  const result = await jobPostingJsonLdAdapter.list(input);
-  assert.deepEqual(calls.map((call) => call.url), [LIST, nested, CHILD, posting(1)]);
-  assert.deepEqual(result.records.map((record) => record.url), [posting(1)]);
-  assert.equal(result.coverage.partial, true);
-  assert.ok(result.warnings.some((warning) => warning.includes("index entries were rejected")));
-  assert.ok(result.warnings.some((warning) => warning.includes("child sitemap responses were skipped")));
-  assert.ok(!calls.some((call) => call.url === CHILD2));
-});
-
-test("a child-sitemap budget stop returns partial without spending the remainder on detail pages", async () => {
-  const { input, calls } = fixture([], { enumerationKind: "sitemap-index", pageSize: 5 });
-  replace(input, (url) => url === LIST ? { text: sitemapIndex([CHILD, CHILD2]) }
-    : url === CHILD ? { text: manifest([posting(1)]) } : undefined);
-  const transport = input.transport;
-  input.transport = { request: async (args) => {
-    if (args.url === CHILD2) throw new ToolError("budget-exceeded");
-    return transport.request(args);
-  } };
-  const result = await jobPostingJsonLdAdapter.list(input);
-  assert.deepEqual(calls.map((call) => call.url), [LIST, CHILD]);
-  assert.equal(result.records.length, 0);
-  assert.equal(result.coverage.fetchedRecords, 0);
-  assert.equal(result.coverage.partial, true);
-  assert.equal(result.stopReason, "budget");
-  assert.equal(result.nextCursor, undefined);
-});
-
 test("html-list uses static links, preserves posting query identity and never follows pagination or sitemap indices", async () => {
   const queried = `${posting(1)}?locale=en&track=reviewed`;
   const { input, calls } = fixture([], { enumerationKind: "html-list" });
@@ -205,7 +157,6 @@ test("recoverable transport detail failures keep earlier records and preserve a 
     const result = await jobPostingJsonLdAdapter.list(input);
     assert.deepEqual(result.records.map((record) => record.url), [posting(1)]); assert.equal(result.coverage.fetchedRecords, 2);
     assert.equal(result.coverage.partial, true); assert.ok(result.nextCursor);
-    assert.equal(result.retryCurrentPage, undefined);
     input.cursor = result.nextCursor;
     const next = await jobPostingJsonLdAdapter.list(input);
     assert.deepEqual(next.records.map((record) => record.url), [posting(3)]); assert.equal(next.coverage.complete, true);
@@ -218,7 +169,6 @@ test("detail timeout stops further requests and pagination while retaining downl
   const result = await jobPostingJsonLdAdapter.list(input);
   assert.deepEqual(result.records.map((record) => record.url), [posting(1)]); assert.equal(result.coverage.fetchedRecords, 2);
   assert.equal(result.nextCursor, undefined); assert.equal(result.coverage.partial, true); assert.equal(result.stopReason, "source-error");
-  assert.equal(result.retryCurrentPage, true);
   assert.deepEqual(calls.map((call) => call.url), [LIST, posting(1), posting(2)]);
   assert.ok(result.warnings.some((warning) => warning.includes("timed out")));
 });
