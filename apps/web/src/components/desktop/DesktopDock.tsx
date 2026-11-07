@@ -9,9 +9,10 @@ export const desktopIcons = {
   resources: new URL("./assets/icon-files.png", import.meta.url).href,
   settings: new URL("./assets/icon-settings.png", import.meta.url).href,
 };
-export function DesktopDock({ page, settingsOpen, onNavigate, onSettings }: { page: DesktopPage; settingsOpen: boolean; onNavigate: (page: DesktopPage) => void; onSettings: () => void }) {
+export function DesktopDock({ page, settingsOpen, mainHidden, onNavigate, onMinimize, onSettings, onCloseSettings }: { page: DesktopPage; settingsOpen: boolean; mainHidden: boolean; onNavigate: (page: DesktopPage) => void; onMinimize: () => void; onSettings: () => void; onCloseSettings: () => void }) {
   const { t, dockAutoHide = true, reduceMotion = false } = useUiPreferences();
   const [visible, setVisible] = useState(false);
+  const [launching, setLaunching] = useState<string | null>(null);
   const dock = useRef<HTMLElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const pointer = useRef<number | null>(null);
@@ -74,10 +75,20 @@ export function DesktopDock({ page, settingsOpen, onNavigate, onSettings }: { pa
   function enter() { hovered.current = true; reveal(); }
   function leave() { hovered.current = false; pointer.current = null; animate.current(); hideLater(); }
   function move(event: PointerEvent) { if (event.pointerType === "mouse") { pointer.current = event.clientX; animate.current(); } }
+  function activate(id: typeof items[number]["id"]) {
+    setLaunching(id);
+    window.setTimeout(() => setLaunching(current => current === id ? null : current), 620);
+    if (id === "settings") {
+      if (settingsOpen) onCloseSettings(); else onSettings();
+      return;
+    }
+    if (!settingsOpen && page === id && !mainHidden) onMinimize();
+    else onNavigate(id);
+  }
   return <div className="os-dock-system no-print" data-auto-hide={dockAutoHide} data-visible={visible}>
     <div className="os-dock-edge" aria-hidden="true" onPointerEnter={enter} onPointerLeave={leave} />
     <nav className="os-dock" ref={dock} aria-label={t("应用程序 Dock", "Application Dock")} onPointerEnter={enter} onPointerMove={move} onPointerLeave={leave} onFocus={reveal} onBlur={hideLater}>
-      {items.map(item => <button key={item.id} type="button" data-dock-app={item.id} aria-label={item.label} aria-pressed={item.id === "settings" ? settingsOpen : !settingsOpen && page === item.id} onClick={() => item.id === "settings" ? onSettings() : onNavigate(item.id)}>
+      {items.map(item => <button key={item.id} type="button" data-dock-app={item.id} data-launching={launching === item.id} aria-label={item.label} aria-pressed={item.id === "settings" ? settingsOpen : page === item.id && !mainHidden} onClick={() => activate(item.id)}>
         <span className="os-app-icon"><img src={desktopIcons[item.id]} width={256} height={256} alt="" draggable={false} /></span>
         <span className="os-dock-label">{item.label}</span><span className="os-running-dot" />
       </button>)}

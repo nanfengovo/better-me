@@ -50,6 +50,6 @@ export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, 
         <DesktopSettings onAiConfig={onAiConfig} onNetwork={onNetwork} />
       </DesktopWindow>
     </div>
-    <DesktopDock page={page} settingsOpen={settingsOpen} onNavigate={navigate} onSettings={() => setSettingsOpen(true)} />
+    <DesktopDock page={page} settingsOpen={settingsOpen} mainHidden={mainHidden} onNavigate={navigate} onMinimize={() => { setMainHidden(true); focusDock(page === "atlas" ? "resume" : page); }} onSettings={() => setSettingsOpen(true)} onCloseSettings={closeSettings} />
   </div>;
 }

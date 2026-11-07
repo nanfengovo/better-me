@@ -55,6 +55,17 @@ test("minimizing, restoring and navigating keep the same mounted editor node", a
   assert.equal(dom.document.querySelector("textarea"), editor);
   assert.equal(editor.value, "合成草稿");
 });
+test("clicking the active Dock app minimizes it and clicking again restores it", async () => {
+  await mount();
+  await click("简历");
+  assert.equal(dom.document.querySelector(".os-business-window")!.getAttribute("data-hidden"), "true");
+  await click("简历");
+  assert.equal(dom.document.querySelector(".os-business-window")!.getAttribute("data-hidden"), "false");
+  await click("系统设置");
+  assert.equal(dom.document.querySelector(".os-settings-window")!.getAttribute("data-hidden"), "false");
+  await click("系统设置");
+  assert.equal(dom.document.querySelector(".os-settings-window")!.getAttribute("data-hidden"), "true");
+});
 test("settings manage real preferences and restore focus without unmounting business content", async () => {
   await mount();
   const editor = dom.document.querySelector("textarea");
