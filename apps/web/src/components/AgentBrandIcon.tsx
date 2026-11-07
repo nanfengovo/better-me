@@ -10,6 +10,15 @@ export function AgentBrandIcon({ id }: { id: string }) {
 function BrandIcon({ id }: { id: string }) {
   const [failed, setFailed] = useState(false);
   const asset = getAgentIconAsset(id);
+  const officialAssets: Record<string, string> = {
+    "claude-code": "claude-code-brand.svg", codex: "codex-brand.svg", antigravity: "antigravity-brand.svg",
+  };
+  if (Object.hasOwn(officialAssets, id) && !failed) {
+    const base = import.meta.env?.BASE_URL ?? "/";
+    return <span className="agent-brand-sculpture" data-agent-brand={id} aria-hidden="true"><img
+      src={`${base}agent-icons/${officialAssets[id]}`} data-agent-art={id} alt="" aria-hidden="true" width={256} height={256} decoding="async"
+      draggable={false} onError={() => setFailed(true)} /></span>;
+  }
   if (asset?.source === "project-generated" && asset.generatedSrc && !failed) {
     const base = import.meta.env?.BASE_URL ?? "/";
     return <img className="agent-runtime-art" data-agent-art={id}
