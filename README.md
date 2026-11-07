@@ -1,7 +1,7 @@
 # 迈向更好 · BetterMe
 
 <p align="center">
-  <img src="docs/images/resume-job-match-docker-20261031.jpg" alt="BetterMe 智能求职工作台" width="850" style="border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,0.15);" />
+  <img src="docs/images/betterme-demo.gif" alt="BetterMe 智能经历伴写与真实求职工作台" width="880" style="border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,0.18);" />
 </p>
 
 <p align="center">
