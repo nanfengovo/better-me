@@ -36,6 +36,23 @@ async function mount() {
 afterEach(async () => { if (root) await flush(() => root!.unmount()); root = undefined; dom.document.body.replaceChildren(); dom.localStorage.clear(); aiOpens = 0; networkOpens = 0; });
 after(() => { css.deregister(); dom.happyDOM.abort(); for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } });
 
+test("atlas and jobs share the app menu and have independent Dock entries without resume actions", async () => {
+  await mount();
+  const editor = dom.document.querySelector("textarea");
+  await flush(() => dom.document.querySelector<HTMLButtonElement>('[data-dock-app="atlas"]')!.click());
+  assert.equal(dom.document.querySelector("output")!.textContent, "atlas");
+  assert.doesNotMatch(dom.document.querySelector(".os-window-actions")!.textContent!, /排版设计|版本/);
+  assert.ok(dom.document.querySelector('.os-app-menu [aria-current="page"]')!.textContent!.includes("岗位地图"));
+  await click("最小化岗位地图");
+  assert.equal(dom.document.activeElement?.getAttribute("data-dock-app"), "atlas");
+  await flush(() => dom.document.querySelector<HTMLButtonElement>('[data-dock-app="atlas"]')!.click());
+  await flush(() => dom.document.querySelectorAll<HTMLButtonElement>(".os-app-menu nav button")[2]!.click());
+  assert.equal(dom.document.querySelector("output")!.textContent, "opportunities");
+  assert.equal(dom.document.querySelector("textarea"), editor);
+  assert.equal(dom.document.querySelector<HTMLDetailsElement>(".os-app-menu")!.open, false);
+  assert.doesNotMatch(dom.document.querySelector(".os-window-actions")!.textContent!, /排版设计|版本/);
+});
+
 test("all apps and settings initially open maximized", async () => {
   await mount();
   const win = dom.document.querySelector(".os-business-window")!;

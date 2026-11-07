@@ -51,7 +51,7 @@ export function AtlasWorkbench({ map, jobs, detail, hasDetail, layout, active = 
   const [focused, setFocused] = useState<WorkbenchPaneId | null>(null);
   const [status, setStatus] = useState("");
   const [saveFailed, setSaveFailed] = useState(false);
-  const [mobileView, setMobileView] = useState<"map" | "jobs">("jobs");
+  const [mobileView, setMobileView] = useState<"map" | "jobs">("map");
   const [detailHidden, setDetailHidden] = useState(false);
   const narrow = layout === "narrow";
   useEffect(() => { setDetailHidden(false); }, [hasDetail, detailKey]);
@@ -151,7 +151,7 @@ export function AtlasWorkbench({ map, jobs, detail, hasDetail, layout, active = 
         : unscrolledTop(element, rect.top);
       const padding = scrollport ? Number.parseFloat(window.getComputedStyle(scrollport).paddingBottom) || 0 : 0;
       const handle = element.parentElement?.querySelector<HTMLElement>(":scope > .atlas-workbench-height");
-      const nextHeight = clampWorkbenchHeight(available - offset - padding - (handle?.getBoundingClientRect().height ?? 0));
+      const nextHeight = Math.max(280, Math.min(1400, available - offset - padding - (handle?.getBoundingClientRect().height ?? 0)));
       setAutomaticHeight(previous => previous === nextHeight ? previous : nextHeight);
     };
     const observer = typeof ResizeObserver === "function" ? new ResizeObserver(measure) : undefined;
@@ -277,7 +277,7 @@ export function AtlasWorkbench({ map, jobs, detail, hasDetail, layout, active = 
   function heightHandle(pane?: WorkbenchPaneId) {
     return <div className="atlas-workbench-height" role="separator" tabIndex={0} aria-orientation="horizontal"
       aria-label={pane ? t("调整", "Resize ") + labels[pane] + t("高度", " height") : t("调整工作区高度", "Resize workbench height")}
-      aria-valuemin={pane ? PANE_MIN_HEIGHT[pane] : 520} aria-valuemax={1400} aria-valuenow={pane ? preferences.rowHeights[pane] : height}
+      aria-valuemin={pane ? PANE_MIN_HEIGHT[pane] : Math.min(520, height)} aria-valuemax={1400} aria-valuenow={pane ? preferences.rowHeights[pane] : height}
       aria-controls={pane ? prefix+"-"+pane : prefix+"-grid"} title={t("上下拖动；方向键微调，Enter 还原高度", "Drag vertically; arrow keys adjust, Enter resets")}
       onPointerDown={event=>begin(event,"height",0,pane)} {...pointerHandlers} onKeyDown={event=>heightKey(event,pane)}>
       <GripHorizontal size={18} aria-hidden="true" />

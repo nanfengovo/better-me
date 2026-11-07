@@ -121,17 +121,17 @@ test("row height keyboard and pointer controls clamp; hidden JD adds no empty co
   await click(button("还原默认工作区布局"));assert.deepEqual(current(),defaultWorkbenchLayout());
 });
 
-test("narrow workspaces start on the list and switch without remounting the map or touching saved layout", async () => {
+test("narrow atlas workspaces start on the map and switch without remounting or touching saved layout", async () => {
   let mounts = 0;
   function MapProbe() { React.useEffect(() => { mounts++; }, []); return <p>persistent map</p>; }
   await mount({ layout: "narrow", hasDetail: false, map: <MapProbe /> });
-  assert.equal(pane("jobs").hidden, false);
-  assert.equal(pane("map").hidden, true);
-  const mapNode = pane("map").firstElementChild;
-  const toggle = [...host.querySelectorAll("button")].find(node => node.textContent === "查看地图")!;
-  await click(toggle);
   assert.equal(pane("jobs").hidden, true);
   assert.equal(pane("map").hidden, false);
+  const mapNode = pane("map").firstElementChild;
+  const toggle = [...host.querySelectorAll("button")].find(node => node.textContent === "岗位列表")!;
+  await click(toggle);
+  assert.equal(pane("jobs").hidden, false);
+  assert.equal(pane("map").hidden, true);
   assert.equal(pane("map").firstElementChild, mapNode);
   assert.equal(mounts, 1);
   assert.equal(localStorage.getItem(WORKBENCH_LAYOUT_KEY), null);
@@ -233,7 +233,7 @@ test("automatic height is stable while scrolling and clips to the viewport on a 
   assert.equal(grid().style.height, "690px");
   geometry.gridOffset = 900;
   await notifyResize();
-  assert.equal(grid().style.height, "520px", "the established usable minimum remains intact");
+  assert.equal(grid().style.height, "280px", "compact desktop windows retain a usable map without forcing a 520px scrollport");
   assert.equal(localStorage.getItem(WORKBENCH_LAYOUT_KEY), null);
 });
 

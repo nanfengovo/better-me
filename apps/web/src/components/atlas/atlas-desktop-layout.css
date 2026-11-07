@@ -1,0 +1,50 @@
+.os-desktop[data-page="atlas"] .atlas-workspace.atlas-command-center {
+  background: var(--ui-surface, var(--color-panel)); padding: 12px; gap: 8px;
+}
+.atlas-workspace.atlas-command-center .atlas-primary-search .atlas-searchbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.atlas-workspace.atlas-command-center .atlas-primary-search .atlas-search-fields { display:contents; }
+.atlas-workspace.atlas-command-center[data-pane-layout] .atlas-search-fields > .atlas-search { flex:1 1 220px; width:auto; }
+.atlas-workspace.atlas-command-center[data-pane-layout] .atlas-search-fields > .atlas-source-search { flex:none; width:auto; }
+.atlas-workspace .atlas-settings-dialog[hidden] { display:none; }
+.atlas-workspace.atlas-command-center .atlas-search-fields > .atlas-search { flex:1 1 240px; min-width:160px; height:38px; border-radius:9px; }
+.atlas-workspace.atlas-command-center .atlas-search-fields > .atlas-source-search { min-height:38px; padding:0 12px; order:3; }
+.atlas-workspace.atlas-command-center .atlas-search-utilities { display:flex; margin:0; }
+.atlas-workspace.atlas-command-center .atlas-search-hint { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.atlas-workspace.atlas-command-center .atlas-search-tools { flex-wrap:nowrap; gap:4px; }
+.atlas-workspace.atlas-command-center .atlas-search-tools > button,
+.atlas-workspace.atlas-command-center .atlas-search-tools > .atlas-toolbar-menu > summary,
+.atlas-workspace.atlas-command-center .atlas-region-menu > summary { min-height:38px; padding:7px 10px; font-size:12px; color:var(--color-ink); border:1px solid var(--color-line); background:var(--color-panel); border-radius:9px; }
+.atlas-workspace.atlas-command-center .atlas-region-menu .atlas-domestic-region { display:flex; flex-direction:column; align-items:stretch; gap:8px; min-width:200px; }
+.atlas-workspace.atlas-command-center .atlas-region-menu .atlas-domestic-region select { flex:none; height:38px; }
+.atlas-workspace.atlas-command-center .atlas-operations-menu .atlas-fetch-options > .atlas-toolbar-popover { position:static; box-shadow:none; margin-top:6px; min-width:0; width:100%; }
+.atlas-workspace.atlas-command-center .atlas-connection-alert { align-items:center; padding:7px 10px; gap:8px; border-radius:9px; }
+.atlas-workspace.atlas-command-center .atlas-connection-alert-copy { gap:4px 12px; }
+.atlas-workspace.atlas-command-center .atlas-connection-alert-copy strong { font-size:12px; }
+.atlas-workspace.atlas-command-center .atlas-workbench-toolbar { padding:0 0 8px; gap:6px; }
+.atlas-workspace.atlas-command-center .atlas-workbench-toolbar > span { display:none; }
+.atlas-workspace.atlas-command-center .atlas-workbench-toolbar button { min-height:30px; padding:0 9px; font-size:12px; }
+.atlas-workspace.atlas-command-center .atlas-workbench-presets { padding:2px; border-radius:9px; }
+.atlas-workspace.atlas-command-center .atlas-workbench-pane { border-radius:12px; }
+.atlas-workspace.atlas-command-center .atlas-workbench-pane-heading { min-height:36px; }
+.atlas-workspace.atlas-command-center .atlas-workbench-pane-heading > button,
+.atlas-workspace.atlas-command-center .atlas-pane-menu > summary { min-height:30px; height:30px; width:30px; flex-basis:30px; }
+.atlas-workspace.atlas-command-center .atlas-results-heading .atlas-eyebrow { display:none; }
+.atlas-workspace.atlas-command-center .atlas-settings-dialog.atlas-workspace-controls { width:min(760px,calc(100vw - 32px)); }
+.atlas-workspace.atlas-command-center .atlas-workspace-controls .atlas-heading-copy,
+.atlas-workspace.atlas-command-center .atlas-workspace-controls .atlas-heading > .atlas-illustration { display:none; }
+.atlas-workspace.atlas-command-center .atlas-workspace-controls .atlas-heading { min-height:0; }
+.atlas-workspace.atlas-command-center .atlas-workspace-controls .atlas-search-panel:empty { display:none; }
+.atlas-workspace.atlas-command-center .atlas-workspace-controls .atlas-data-controls { flex-wrap:wrap; }
+@container atlas (max-width:700px) {
+  .atlas-workspace.atlas-command-center .atlas-search-fields > .atlas-search { flex-basis:calc(100% - 110px); }
+  .atlas-workspace.atlas-command-center .atlas-search-utilities { flex:1; }
+  .atlas-workspace.atlas-command-center .atlas-connection-alert { flex-wrap:wrap; }
+  .atlas-workspace.atlas-command-center .atlas-connection-alert-copy > span { display:none; }
+}
+@media(pointer:coarse) {
+  .atlas-workspace.atlas-command-center .atlas-search-tools > button,
+  .atlas-workspace.atlas-command-center .atlas-search-tools > .atlas-toolbar-menu > summary,
+  .atlas-workspace.atlas-command-center .atlas-region-menu > summary,
+  .atlas-workspace.atlas-command-center .atlas-search-fields > .atlas-source-search,
+  .atlas-workspace.atlas-command-center .atlas-workbench-toolbar button { min-height:44px; }
+}

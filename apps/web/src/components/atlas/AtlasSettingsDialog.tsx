@@ -11,12 +11,13 @@ function canRestoreFocus(element: HTMLElement): boolean {
 }
 
 /** The browser owns modality and tab containment; settings stay outside page flow. */
-export function AtlasSettingsDialog({ title, children, onClose, closeLabel = "关闭地图设置", className = "" }: {
+export function AtlasSettingsDialog({ title, children, onClose, closeLabel = "关闭地图设置", className = "", open = true }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   closeLabel?: string;
   className?: string;
+  open?: boolean;
 }) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -25,7 +26,7 @@ export function AtlasSettingsDialog({ title, children, onClose, closeLabel = "�
 
   useLayoutEffect(() => {
     const dialog = dialogRef.current;
-    if (!dialog) return;
+    if (!dialog || !open) return;
     const document = dialog.ownerDocument;
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialog.showModal();
@@ -40,7 +41,7 @@ export function AtlasSettingsDialog({ title, children, onClose, closeLabel = "�
         .some(candidate => candidate !== dialog && !dialog.contains(candidate));
       if (ownedFocus && !anotherModal && opener && canRestoreFocus(opener)) opener.focus({ preventScroll: true });
     };
-  }, []);
+  }, [open]);
 
   function isBackdrop(event: PointerEvent<HTMLDialogElement>): boolean {
     if (event.target !== event.currentTarget) return false;
@@ -48,7 +49,7 @@ export function AtlasSettingsDialog({ title, children, onClose, closeLabel = "�
     return event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
   }
 
-  return <dialog ref={dialogRef} className={`atlas-settings atlas-settings-dialog ${className}`} aria-modal="true" aria-labelledby={titleId}
+  return <dialog hidden={!open} ref={dialogRef} className={`atlas-settings atlas-settings-dialog ${className}`} aria-modal="true" aria-labelledby={titleId}
     onCancel={event => { event.preventDefault(); event.stopPropagation(); onClose(); }}
     onKeyDown={event => {
       // A modal keyboard interaction must never clear the job/map selection.

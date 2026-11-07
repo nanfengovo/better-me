@@ -3,6 +3,7 @@ import { useUiPreferences } from "../../lib/ui-preferences";
 
 export type DesktopPage = "resume" | "agent" | "opportunities" | "resources" | "atlas";
 export const desktopIcons = {
+  atlas: new URL("./assets/icon-atlas.png", import.meta.url).href,
   resume: new URL("./assets/icon-resume.png", import.meta.url).href,
   agent: new URL("./assets/icon-agent.png", import.meta.url).href,
   opportunities: new URL("./assets/icon-opportunities.png", import.meta.url).href,
@@ -20,7 +21,7 @@ export function DesktopDock({ page, settingsOpen, mainHidden, onNavigate, onMini
   const animate = useRef<() => void>(() => {});
   const items = [
     { id: "resume", label: t("简历", "Resume") }, { id: "agent", label: "Agent" },
-    { id: "opportunities", label: t("机会", "Opportunities") }, { id: "resources", label: t("资料", "Resources") },
+    { id: "opportunities", label: t("岗位", "Jobs") }, { id: "atlas", label: t("岗位地图", "Atlas") }, { id: "resources", label: t("资料", "Resources") },
     { id: "settings", label: t("系统设置", "System settings") },
   ] as const;
   useEffect(() => {

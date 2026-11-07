@@ -155,7 +155,8 @@ test("a failed initial baseline retains read-only prefix cards and offers retry 
   await waitFor(() => Boolean(dom.document.querySelector('[aria-label="首次岗位基线加载"]')?.textContent?.includes("未完成")), "truthful interrupted baseline status");
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30);
   assert.equal(button("重试读取索引").disabled, false);
-  assert.match(dom.document.querySelector('[role="alert"]')!.textContent!, /Synthetic interrupted baseline/);
+  await act(async () => button("连接详情").click());
+  assert.match(dom.document.querySelector('dialog[open] [role="alert"]')!.textContent!, /Synthetic interrupted baseline/);
 });
 async function waitFor(condition: () => boolean, description: string) {
   const deadline = performance.now() + 15_000;
@@ -360,17 +361,17 @@ test("top filters open independently without expanding unrelated source document
   const more = dom.document.querySelector("details.atlas-more")!;
   const mounts = mapMounts;
   assert.equal(more.hasAttribute("open"), false);
-  await act(async () => { button("筛选").click(); });
+  await act(async () => { button("筛选与设置").click(); });
   assert.equal(more.hasAttribute("open"), false, "filtering does not expand collection documentation");
   const filters = dom.document.querySelector(".atlas-filters")!;
   assert.ok(filters);
   assert.equal(filters.closest("details.atlas-more"), null);
-  assert.equal(filters.getAttribute("id"), button("筛选").getAttribute("aria-controls"));
+  assert.equal(filters.getAttribute("id"), button("筛选与设置").getAttribute("aria-controls"));
   // Native browsers dispatch toggle after React changes the open attribute.
   // Deliver that platform event explicitly rather than rely on happy-dom timing.
   await act(async () => { more.dispatchEvent(new dom.Event("toggle")); });
-  await act(async () => { button("筛选").click(); });
-  assert.equal(button("筛选").getAttribute("aria-expanded"), "false");
+  await act(async () => { button("筛选与设置").click(); });
+  assert.equal(button("筛选与设置").getAttribute("aria-expanded"), "false");
   assert.equal(dom.document.querySelector(".atlas-filters"), null);
   assert.equal(more.hasAttribute("open"), false, "the source disclosure remains independently closed");
   assert.equal(mapMounts, mounts, "collapsing advanced controls keeps the existing map");
@@ -384,7 +385,7 @@ test("settings use a modal surface without remounting the map or clearing the cu
   const mounts = mapMounts;
   const opener = button("地图服务");
   await act(async () => { opener.focus(); opener.click(); });
-  const dialog = dom.document.querySelector("dialog.atlas-settings")!;
+  const dialog = dom.document.querySelector("dialog.atlas-settings[open]")!;
   assert.equal(Boolean(dialog.closest("details")), false, "native settings must not inherit a closed disclosure's visibility");
   assert.ok(dialog.hasAttribute("open"));
   assert.equal(dialog.querySelector("h2")?.textContent, "地图与街道底图");
@@ -393,13 +394,13 @@ test("settings use a modal surface without remounting the map or clearing the cu
   await act(async () => {
     dialog.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
   });
-  assert.equal(dom.document.querySelector("dialog.atlas-settings"), null);
+  assert.equal(dom.document.querySelector("dialog.atlas-settings[open]"), null);
   assert.equal(input.value, "C#");
   assert.equal(dom.document.querySelector("[data-map-probe]"), map);
   assert.equal(mapMounts, mounts);
   await act(async () => { button("地图服务").click(); });
   await render(false);
-  assert.equal(dom.document.querySelector("dialog.atlas-settings"), null, "leaving Atlas cannot strand a modal over another workspace");
+  assert.equal(dom.document.querySelector("dialog.atlas-settings[open]"), null, "leaving Atlas cannot strand a modal over another workspace");
 });
 
 test("failed index reads stay unknown and offer a direct retry without losing the original diagnostic", async () => {
@@ -418,7 +419,8 @@ test("failed index reads stay unknown and offer a direct retry without losing th
   assert.match(dom.document.querySelector('dialog.atlas-settings [role="alert"]')!.textContent!, /422/, "a failed manual connection is visible inside its modal");
   const alert = dom.document.querySelector(".atlas-connection-alert")!;
   assert.equal(alert.getAttribute("role"), "alert");
-  assert.match(alert.textContent!, /422/);
+  assert.match(alert.textContent!, /连接详情/);
+  assert.doesNotMatch(alert.textContent!, /422/, "raw diagnostics stay in connection details, not a second full-width warning");
   assert.ok(button("重试连接"));
   await act(async () => { dom.document.querySelector<HTMLButtonElement>('[aria-label="关闭地图设置"]')!.click(); });
   shouldFail = false;
@@ -439,7 +441,7 @@ test("a failed refresh retains confirmed indexed jobs instead of presenting an e
   await flush(() => button("重新读取索引").click());
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, cards);
   assert.match(dom.document.querySelector(".atlas-data-banner")!.textContent!, /显示上次已读数据/);
-  assert.match(dom.document.querySelector(".atlas-connection-alert")!.textContent!, /已读取的岗位仍保留/);
+  assert.match(dom.document.querySelector(".atlas-connection-alert")!.textContent!, /保留上次已读岗位/);
   assert.equal(dom.document.querySelector('.atlas-activity-rail [data-lane="index"]')?.getAttribute("data-state"), "attention");
 });
 
@@ -454,15 +456,15 @@ test("manual source disclosure closes its own panels without collapsing independ
   };
   await activate(0);
   assert.equal(more.hasAttribute("open"), true, "the native keyboard-style click opens the disclosure");
-  await act(async () => { button("筛选").click(); });
-  await act(async () => { more.dispatchEvent(new dom.Event("toggle")); button("筛选").click(); });
+  await act(async () => { button("筛选与设置").click(); });
+  await act(async () => { more.dispatchEvent(new dom.Event("toggle")); button("筛选与设置").click(); });
   assert.equal(more.hasAttribute("open"), true, "an intentional manual open survives a child panel's close");
-  await act(async () => { button("筛选").click(); button("全网平台").click(); });
-  assert.equal(button("筛选").getAttribute("aria-expanded"), "true");
+  await act(async () => { button("筛选与设置").click(); button("全网平台").click(); });
+  assert.equal(button("筛选与设置").getAttribute("aria-expanded"), "true");
   assert.equal(button("全网平台").getAttribute("aria-expanded"), "true");
   await activate(0);
   assert.equal(more.hasAttribute("open"), false);
-  assert.equal(button("筛选").getAttribute("aria-expanded"), "true");
+  assert.equal(button("筛选与设置").getAttribute("aria-expanded"), "true");
   assert.ok(dom.document.querySelector(".atlas-filters"));
   assert.equal(button("全网平台").getAttribute("aria-expanded"), "false");
   await activate(1);
@@ -592,7 +594,7 @@ test("live snapshot list loads beyond the first page and keeps loaded jobs after
   await flush(() => { Object.getOwnPropertyDescriptor(dom.HTMLInputElement.prototype, "value")!.set!.call(token, "synthetic-fixture-token"); token.dispatchEvent(new dom.Event("input", { bubbles: true })); });
   await flush(() => button("连接并读取索引").click());
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30);
-  await flush(() => button("筛选").click());
+  await flush(() => button("筛选与设置").click());
   const origin = [...dom.document.querySelectorAll<HTMLSelectElement>(".atlas-filters select")].find((node) => node.parentElement?.textContent?.startsWith("控股方国家 / 地区"))!;
   assert.ok([...origin.options].some((option) => option.value === "CH"), "manual controller origin must be selectable even when absent from raw controllers");
   await flush(() => { origin.value = "CH"; origin.dispatchEvent(new dom.Event("change", { bubbles: true })); });
@@ -1358,7 +1360,7 @@ test("connected main search calls the selected source with exact C# and bounded 
   const sort = dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位排序"]')!;
   assert.equal([...sort.options].find((option) => option.value === "salary")!.disabled, true);
   assert.equal([...sort.options].find((option) => option.value === "distance")!.disabled, true);
-  await flush(() => button("筛选").click());
+  await flush(() => button("筛选与设置").click());
   const numeric = [...dom.document.querySelectorAll<HTMLInputElement>('.atlas-filters input[type="number"]')];
   assert.equal(numeric.length, 3); assert.ok(numeric.every((input) => input.disabled));
   const ownership = dom.document.querySelector<HTMLSelectElement>('[aria-label="筛选企业性质"]')!;
@@ -1521,7 +1523,7 @@ test("empty index allows country and city preselection and preserves the same-lo
   assert.deepEqual(writes[0].scope, { roles: [], regions: ["北京"], countryCodes: ["CN"], companyNames: [] });
   await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 1, "country AND city result");
   assert.equal(city.value, "北京");
-  await flush(() => button("筛选").click());
+  await flush(() => button("筛选与设置").click());
   await flush(() => button("清除筛选").click());
   assert.equal(city.value, "");
 });
@@ -2031,15 +2033,15 @@ test("resume prefill bar displays smart keywords from active resume and pre-fill
 
 test("the command area can fold while keeping map mounted and restoring the same search criteria", async () => {
   await render();
-  const controls = dom.document.querySelector<HTMLDetailsElement>('[aria-label="地图搜索与筛选面板"]')!;
+  const controls = dom.document.querySelector<HTMLDialogElement>('dialog.atlas-workspace-controls')!;
   assert.equal(controls?.open, false);
   const input = dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!;
   await flush(() => changeInput(input, "C#"));
   const mounted = mapMounts;
-  await act(async () => { controls.querySelector("summary")!.click(); });
+  await act(async () => { button("筛选与设置").click(); });
   assert.equal(controls.open, true);
   assert.equal(mapMounts, mounted);
-  await act(async () => { controls.querySelector("summary")!.click(); });
+  await act(async () => { controls.querySelector<HTMLButtonElement>('[aria-label="关闭筛选与设置"]')!.click(); });
   assert.equal(controls.open, false);
   assert.equal(input.value, "C#");
 });
