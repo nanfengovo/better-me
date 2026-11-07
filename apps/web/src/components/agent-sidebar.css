@@ -5,8 +5,9 @@
 .agent-sidebar[data-state=closed]{pointer-events:none;animation:agent-sidebar-exit 210ms cubic-bezier(.4,0,.2,1) both}
 @media(min-width:941px) and (min-height:501px){
   .agent-layout:has(>.agent-layout-app .os-desktop){position:relative;background:#253d6a url('./desktop/assets/wallpaper.webp') center/cover}
-  .agent-layout:has(>.agent-layout-app .os-desktop)>.agent-sidebar{height:calc(100dvh - 98px);margin:56px 14px 42px 0;border:1px solid var(--ui-border);border-radius:20px;background:color-mix(in srgb,var(--color-panel) 96%,transparent);box-shadow:0 0 0 1px #10182724,0 24px 64px -16px #07152d80,0 6px 18px #06112b24,inset 0 1px 0 #ffffff99;backdrop-filter:blur(28px) saturate(1.4);-webkit-backdrop-filter:blur(28px) saturate(1.4)}
-  .agent-layout:has(>.agent-layout-app .os-desktop)>.agent-sidebar .agent-sidebar-header{border-radius:19px 19px 0 0;background:linear-gradient(135deg,#ffffff8f,#f5f8ff44);box-shadow:inset 0 1px 0 #ffffff99}
+  .agent-layout:has(>.agent-layout-app .os-desktop)::before{content:"";position:absolute;z-index:20;inset:0 0 auto 0;height:34px;border-bottom:1px solid #ffffff15;background:#15264040;backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);pointer-events:none}
+  .agent-layout:has(>.agent-layout-app .os-desktop)>.agent-sidebar{height:calc(100dvh - 34px);margin:34px 0 0;border:1px solid var(--ui-border);border-right:0;border-bottom:0;border-radius:20px 0 0;background:color-mix(in srgb,var(--color-panel) 97%,transparent);box-shadow:-1px 0 0 #ffffff70,-16px 18px 46px -24px #07152d70,inset 0 1px 0 #ffffff99;backdrop-filter:blur(28px) saturate(1.4);-webkit-backdrop-filter:blur(28px) saturate(1.4)}
+  .agent-layout:has(>.agent-layout-app .os-desktop)>.agent-sidebar .agent-sidebar-header{border-radius:19px 0 0;background:linear-gradient(135deg,#ffffff8f,#f5f8ff44);box-shadow:inset 0 1px 0 #ffffff99}
   :root[data-theme=dark] .agent-layout:has(>.agent-layout-app .os-desktop)>.agent-sidebar .agent-sidebar-header{background:linear-gradient(135deg,#333e52cf,#202735bd)}
 }
 .agent-layout [hidden]{display:none!important}
