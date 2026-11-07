@@ -29,7 +29,8 @@ export function DesktopWindow({ title, children, hidden = false, inactive = fals
   function endDrag() { drag.current = null; resize.current = null; setDragging(false); setResizing(false); }
   function applyResize(edge: Edge, dx: number, dy: number, rect: DOMRect, origin: { x: number; y: number }) {
     const rightLimit = window.innerWidth - 8;
-    const bottomLimit = Math.max(298, window.innerHeight - 92);
+    // Dock clearance belongs to the initial layout, not the user's manual resize limit.
+    const bottomLimit = window.innerHeight - 12;
     const minWidth = Math.min(420, rightLimit - 8);
     const minHeight = Math.min(300, bottomLimit - 38);
     let { left, right, top, bottom } = rect;

@@ -238,6 +238,27 @@ test("all windows expose eight resize handles and preserve dimensions across max
   assert.equal(win.dataset.sized, "false");
 });
 
+test("bottom resize handles can grow into Dock clearance and stop at the screen margin", async () => {
+  await mount();
+  for (const edge of ["s", "se", "sw"]) {
+    const win = dom.document.querySelector<HTMLElement>(".os-business-window")!;
+    const bottom = dom.innerHeight - 92;
+    Object.defineProperty(win, "getBoundingClientRect", { configurable: true, value: () => ({ left: 40, top: 60, right: 640, bottom, width: 600, height: bottom - 60 }) });
+    const handle = win.querySelector<HTMLElement>(`.os-resize-${edge}`)!;
+    Object.defineProperty(handle, "setPointerCapture", { value: () => {} });
+    await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 3, clientX: 640, clientY: bottom })));
+    await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, pointerId: 3, clientX: 640, clientY: bottom + 40 })));
+    assert.equal(win.style.getPropertyValue("--window-height"), `${bottom + 40 - 60}px`, `${edge} must grow beyond the old Dock boundary`);
+    assert.equal(win.style.getPropertyValue("--window-y"), "0px");
+    await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, pointerId: 3, clientX: 640, clientY: dom.innerHeight + 1000 })));
+    assert.equal(win.style.getPropertyValue("--window-height"), `${dom.innerHeight - 12 - 60}px`, `${edge} must keep the screen safety margin`);
+    await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointerup", { bubbles: true, pointerId: 3 })));
+    assert.equal(win.dataset.resizing, "false");
+    await flush(() => handle.dispatchEvent(new dom.KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown", shiftKey: true })));
+    assert.equal(win.style.getPropertyValue("--window-height"), `${bottom + 40 - 60}px`, "Keyboard resizing uses the same boundary");
+  }
+});
+
 test("reduced motion skips pointer animation and Dock buttons remain keyboard focusable", async () => {
   dom.localStorage.setItem(UI_PREFERENCES_KEY, '{"reduceMotion":true}'); await mount();
   const dock = dom.document.querySelector(".os-dock")!;
