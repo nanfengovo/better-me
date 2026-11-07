@@ -229,7 +229,7 @@ test("AgentWorkspace renders full-page dual-pane layout with job profile and cha
 
   // Top header elements
   assert.ok(fixture.textContent?.includes("AI 顾问工作台"), "Should render workspace title");
-  assert.ok(fixture.textContent?.includes("返回简历"), "Should render back to resume button");
+  assert.ok(fixture.querySelector('button[aria-label="返回简历"]'), "Should render an accessible back to resume button");
   assert.ok(!fixture.textContent?.includes("模型设置"), "No duplicate model settings button");
   assert.equal(fixture.querySelectorAll('.advisor-tasks button').length, 5, "all five task areas are reachable");
 
@@ -426,13 +426,13 @@ test("AgentWorkspace displays API Key notice banner when key is missing and navi
 
   // Banner should warn about missing API key
   assert.ok(
-    fixture.textContent?.includes("当前岗位推理尚未配置"),
+    fixture.querySelector(".advisor-context")?.textContent?.includes("推理待配置"),
     "Should display API key warning banner"
   );
 
   // Click Back to Resume button
   const buttons = Array.from(fixture.querySelectorAll("button"));
-  const backBtn = buttons.find((btn) => btn.textContent?.includes("返回简历"));
+  const backBtn = buttons.find((btn) => btn.getAttribute("aria-label") === "返回简历");
   assert.ok(backBtn, "Back button should exist");
   await flush(() => {
     backBtn?.click();
@@ -440,7 +440,7 @@ test("AgentWorkspace displays API Key notice banner when key is missing and navi
   assert.equal(navigatedToResume, true, "Should trigger onNavigateToResume callback");
 
   // Click Configure button
-  const configBtn = buttons.find((btn) => btn.textContent?.includes("前往系统设置"));
+  const configBtn = buttons.find((btn) => btn.textContent?.includes("推理待配置"));
   assert.ok(configBtn, "Config button should exist in banner");
   await flush(() => {
     configBtn?.click();
@@ -539,7 +539,7 @@ test("AgentWorkspace isolates setup view during JD creation/editing without squa
   // During setup mode, the left pane should render the dedicated setup view
   assert.ok(fixture.textContent?.includes("设定目标岗位与完整 JD"), "Should show dedicated setup header");
   assert.ok(fixture.textContent?.includes("开始拆解"), "Should show primary submit button");
-  assert.ok(fixture.textContent?.includes("岗位摘要"), "Should show quiet job summary on the right");
+  assert.ok(fixture.textContent?.includes("从一份真实岗位开始"), "Should guide input before any job content exists");
   // It should NOT render the squashed chat input or header during setup
   assert.ok(!fixture.textContent?.includes("向 Copilot 提问"), "Should not render chat input in setup mode");
   assert.ok(!fixture.textContent?.includes("助理协同对话 (Career Copilot)"), "Should not render copilot header in setup mode");
@@ -677,7 +677,21 @@ test("AgentWorkspace: supports draggable splitter and quiet setup summary chips"
   assert.ok(splitter?.getAttribute("aria-valuenow"), "Splitter should have aria-valuenow indicating percent");
 
   // 2. Quiet right-pane summary (no Live Inspector / pipeline marketing chrome)
-  assert.ok(fixture.textContent?.includes("岗位摘要"), "Job summary should be present");
+  assert.ok(fixture.textContent?.includes("从一份真实岗位开始"), "Empty state guides input instead of showing an empty summary");
+  assert.equal(fixture.querySelector(".advisor-heading"), null);
+  assert.equal(fixture.querySelector(".advisor-job-panel > header"), null);
+  assert.equal(splitter.getAttribute("aria-valuenow"), "65");
+  await flush(() => splitter.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })));
+  assert.equal(splitter.getAttribute("aria-valuenow"), "67");
+  assert.equal(fixture.querySelector<HTMLElement>(".advisor-panes")?.style.getPropertyValue("--advisor-left"), "67%");
+  await flush(() => splitter.dispatchEvent(new dom.MouseEvent("dblclick", { bubbles: true })));
+  assert.equal(splitter.getAttribute("aria-valuenow"), "65");
+  const paneButtons = fixture.querySelectorAll<HTMLButtonElement>(".advisor-pane-switch button");
+  await flush(() => paneButtons[1]!.click());
+  assert.equal(fixture.querySelector(".advisor-panes")?.getAttribute("data-pane"), "result");
+  await flush(() => paneButtons[0]!.click());
+  assert.equal(fixture.querySelector(".advisor-panes")?.getAttribute("data-pane"), "material");
+  assert.ok(fixture.querySelector("textarea"), "Switching views keeps input mounted");
   assert.ok(fixture.textContent?.includes("范例岗位"), "Sample chips section should be present");
   assert.ok(!fixture.textContent?.includes("Live Inspector"), "Should not show Live Inspector chrome");
   assert.ok(!fixture.textContent?.includes("深度解析引擎"), "Should not show inspection engine chrome");
@@ -801,7 +815,7 @@ test("career growth is reachable inside the existing agent workspace and returns
     onApplyToResume: () => {},
   }));
   const fixture = dom.document.getElementById("fixture")!;
-  const entry = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.trim() === "职业成长");
+  const entry = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.trim() === "职业规划");
   assert.ok(entry, "the existing Agent workspace must expose the new workflow");
   await flush(() => entry.click());
   for (const label of ["规划分析", "修改建议", "学习方案", "学习监督", "模拟面试"]) {
@@ -832,7 +846,7 @@ test("career growth makes the entered JD available for separate opt-in without r
   const sample = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.includes("前端 / 全栈"));
   assert.ok(sample);
   await flush(() => sample.click());
-  const entry = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.trim() === "职业成长");
+  const entry = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.trim() === "职业规划");
   assert.ok(entry);
   await flush(() => entry.click());
   const shareLabel = Array.from(fixture.querySelectorAll("label")).find((label) => label.textContent?.includes("共享当前目标岗位"));

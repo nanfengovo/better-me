@@ -24,7 +24,6 @@ import {
   RefreshCw,
   Send,
   Square,
-  Settings2,
   ShieldCheck,
   Sparkles,
   Target,
@@ -208,6 +207,7 @@ export function AgentWorkspace({
   const [pageMotion, setPageMotion] = useState<"forward" | "back" | "none">("none");
   const [rightPaneOpen, setRightPaneOpen] = useState(true);
   const showRightPane = isSetupMode || rightPaneOpen;
+  const [mobilePane, setMobilePane] = useState<"material" | "result">("material");
 
   function showLeftPage(next: "jd" | "chat") {
     if (next === leftViewMode) return;
@@ -228,6 +228,10 @@ export function AgentWorkspace({
     } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
     return DEFAULT_SPLIT_PERCENT;
   });
+  const [splitAdjusted, setSplitAdjusted] = useState(() => {
+    try { const value = Number(localStorage.getItem(AGENT_SPLIT_KEY)); return value >= 25 && value <= 75; } catch { return false; }
+  });
+  const displaySplitPercent = splitAdjusted ? splitPercent : isSetupMode ? 65 : DEFAULT_SPLIT_PERCENT;
   const [isDraggingSplitter, setIsDraggingSplitter] = useState(false);
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const splitDragRef = useRef<{ pointerId: number; percent: number } | null>(null);
@@ -236,7 +240,9 @@ export function AgentWorkspace({
     if (e.button !== 0) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
-    splitDragRef.current = { pointerId: e.pointerId, percent: splitPercent };
+    setSplitPercent(displaySplitPercent);
+    setSplitAdjusted(true);
+    splitDragRef.current = { pointerId: e.pointerId, percent: displaySplitPercent };
     setIsDraggingSplitter(true);
   };
 
@@ -265,9 +271,10 @@ export function AgentWorkspace({
   };
 
   const handleSplitReset = () => {
+    setSplitAdjusted(false);
     setSplitPercent(DEFAULT_SPLIT_PERCENT);
     try {
-      localStorage.setItem(AGENT_SPLIT_KEY, String(DEFAULT_SPLIT_PERCENT));
+      localStorage.removeItem(AGENT_SPLIT_KEY);
     } catch { /* Best-effort operation: preserve the surrounding fallback on failure. */ }
   };
 
@@ -1120,7 +1127,7 @@ export function AgentWorkspace({
 
   return (
     <div className="advisor-workspace">
-    <AgentTaskNavigation active={showCareerCoach ? (taskView === "job" ? "career" : taskView) : taskView} onSelect={selectTask} jobTitle={currentJob ? `${currentJob.company} · ${currentJob.title}` : undefined} />
+    <AgentTaskNavigation onBack={onNavigateToResume} onEdit={currentJob?.description && !isEditingJob ? handleOpenJobEdit : undefined} needsConfig={!llmConfig.apiKey?.trim() && llmConfig.provider !== "ollama"} onConfig={onOpenConfig} active={showCareerCoach ? (taskView === "job" ? "career" : taskView) : taskView} onSelect={selectTask} jobTitle={currentJob ? `${currentJob.company} · ${currentJob.title}` : undefined} />
     {careerCoachPanel}
     <div hidden={taskView !== "handoff"} style={{ display: taskView === "handoff" ? "flex" : "none", flex: 1, minHeight: 0 }}><AgentExternalHandoff job={currentJob} /></div>
     <section
@@ -1130,114 +1137,15 @@ export function AgentWorkspace({
       }`}
     >
       {/* ── Top Workspace Bar ────────────────────────────────────────────── */}
-      <header
-        className={`flex items-center justify-between px-6 py-3 shrink-0 border-b shadow-2xs z-20 transition-colors duration-200 ${
-          isDark
-            ? "bg-[var(--ui-surface-raised,#2e3038)] text-[var(--ui-text,#edeef4)] border-[var(--ui-border,#484b58)]"
-            : "bg-white text-slate-900 border-slate-200"
-        }`}
-      >
-        <div className="flex items-center gap-4 min-w-0">
-          <button
-            type="button"
-            onClick={onNavigateToResume}
-            className={`agent-btn-press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer border ${
-              isDark
-                ? "bg-[var(--ui-surface,#27282f)] hover:bg-[var(--ui-hover,#363842)] text-[var(--ui-text-secondary,#c5c8d6)] hover:text-white border-[var(--ui-border,#484b58)]"
-                : "bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 border-slate-200 shadow-2xs"
-            }`}
-            title={t("返回简历编辑", "Back to resume editor")}
-          >
-            <ArrowLeft size={14} />
-            <span>{t("返回简历", "Back to Resume")}</span>
-          </button>
 
-          <div className={`h-4 w-px ${isDark ? "bg-[var(--ui-border,#484b58)]" : "bg-slate-200"}`} />
-
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span
-              className={`flex h-8 w-8 items-center justify-center rounded-xl border shrink-0 ${
-                isDark
-                  ? "bg-[var(--ui-surface-soft,#363842)] text-emerald-400 border-[var(--ui-border,#484b58)]"
-                  : "bg-emerald-50 text-emerald-700 border-emerald-200"
-              }`}
-            >
-              <Bot size={16} />
-            </span>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <h1 className={`text-sm font-semibold tracking-tight truncate ${isDark ? "text-white" : "text-slate-900"}`}>
-                  {t("AI 顾问工作台", "AI Career Workspace")}
-                </h1>
-                <span
-                  className={`inline-flex h-2 w-2 rounded-full shrink-0 ${
-                    agentHostOnline === true ? "bg-emerald-500" : isDark ? "bg-[var(--ui-text-muted,#8b90a0)]" : "bg-slate-400"
-                  }`}
-                  title={
-                    agentHostOnline === true
-                      ? `本机 Agent :5179${threadId ? ` · #${threadId.slice(-6)}` : ""}`
-                      : t("直连推理（未连本机 Agent）", "Direct LLM (agent-host offline)")
-                  }
-                />
-              </div>
-              {currentJob?.title ? (
-                <p className={`text-[11px] truncate mt-0.5 ${isDark ? "text-[var(--ui-text-muted,#8b90a0)]" : "text-slate-500"}`}>
-                  {currentJob.company} · {currentJob.title}
-                </p>
-              ) : null}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <button type="button" onClick={() => selectTask("career")}
-            className="agent-btn-press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs cursor-pointer"
-            style={{ color: "var(--ui-accent)", borderColor: "var(--ui-border)", background: "var(--ui-accent-soft)" }}>
-            <Target size={14} />{t("职业成长", "Career growth")}
-          </button>
-          {(!currentJob?.description || isEditingJob) ? null : (
-            <button
-              type="button"
-              onClick={handleOpenJobEdit}
-              className={`agent-btn-press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs transition cursor-pointer ${
-                isDark
-                  ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-soft,#363842)] text-[var(--ui-text,#edeef4)] hover:text-white hover:bg-[var(--ui-hover,#41434e)]"
-                  : "border-slate-200 bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 shadow-2xs"
-              }`}
-            >
-              <Edit3 size={13} />
-              <span>{t("更换岗位 / 编辑 JD", "Edit JD")}</span>
-            </button>
-          )}
-
-
-        </div>
-      </header>
-
-      {/* ── API Key Notice Banner ─────────────────────────────────── */}
-      {!llmConfig.apiKey?.trim() && llmConfig.provider !== "ollama" && (
-        <div role="status" className="shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <AlertTriangle size={15} className="text-amber-500 shrink-0" />
-            <span className="truncate">
-              {t("当前岗位推理尚未配置；仍可整理 JD 或使用外部协作。", "Job inference is not configured. You can still prepare a JD or use external collaboration.")}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={onOpenConfig}
-            className="agent-btn-press inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-semibold transition shrink-0 cursor-pointer"
-          >
-            <Settings2 size={12} />
-            <span>{t("前往系统设置", "Open system settings")}</span>
-          </button>
-        </div>
-      )}
-
+      {showRightPane && <nav className="advisor-pane-switch" aria-label={t("内容视图", "Content view")}><button type="button" aria-pressed={mobilePane === "material"} onClick={() => setMobilePane("material")}>{t("材料与对话", "Materials & chat")}</button><button type="button" aria-pressed={mobilePane === "result"} onClick={() => setMobilePane("result")}>{isSetupMode ? t("来源与摘要", "Source & summary") : t("分析结果", "Analysis results")}</button></nav>}
       {/* ── Main Dual-Pane Content Area (With Draggable Splitter) ── */}
       <div
         ref={splitContainerRef}
-        className={`flex-1 w-full min-h-0 p-4 md:p-5 flex flex-col lg:flex-row gap-0 overflow-hidden relative ${
+        data-pane={mobilePane}
+        data-dual={showRightPane}
+        style={{ "--advisor-left": `${displaySplitPercent}%` } as React.CSSProperties}
+        className={`advisor-panes flex-1 w-full min-h-0 p-4 md:p-5 flex flex-col lg:flex-row gap-0 overflow-hidden relative ${
           isDraggingSplitter ? "select-none cursor-col-resize" : ""
         }`}
       >
@@ -2565,8 +2473,19 @@ export function AgentWorkspace({
           role="separator"
           tabIndex={0}
           aria-label={t("左右拖拽调整分栏宽度，双击重置默认", "Drag to resize split panels; double-click to reset")}
-          aria-valuenow={Math.round(splitPercent)}
-          title={t("拖动调整左右宽度；双击恢复 46:54 默认布局", "Drag left/right to resize; double-click to reset")}
+          aria-orientation="vertical"
+          aria-valuemin={25}
+          aria-valuemax={75}
+          aria-valuenow={Math.round(displaySplitPercent)}
+          onKeyDown={(event) => {
+            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+            event.preventDefault();
+            const next = event.key === "Home" ? 25 : event.key === "End" ? 75 : Math.min(75, Math.max(25, displaySplitPercent + (event.key === "ArrowLeft" ? -2 : 2)));
+            setSplitAdjusted(true);
+            setSplitPercent(next);
+            try { localStorage.setItem(AGENT_SPLIT_KEY, String(next)); } catch { /* Keep resizing usable when preference storage is unavailable. */ }
+          }}
+          title={t("拖动或使用方向键调整宽度；双击恢复当前阶段默认布局", "Drag or use arrow keys to resize; double-click to reset")}
           onPointerDown={handleSplitPointerDown}
           onPointerMove={handleSplitPointerMove}
           onPointerUp={handleSplitPointerUp}
@@ -2597,7 +2516,7 @@ export function AgentWorkspace({
               isDraggingSplitter ? "opacity-100" : "opacity-0 group-hover:opacity-100"
             }`}
           >
-            {Math.round(splitPercent)}% / {Math.round(100 - splitPercent)}%
+            {Math.round(displaySplitPercent)}% / {Math.round(100 - displaySplitPercent)}%
           </div>
         </div>
         )}
@@ -2621,10 +2540,10 @@ export function AgentWorkspace({
               >
                 <div>
                   <h3 className={`text-xs font-semibold ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-900"}`}>
-                    {t("岗位摘要", "Job summary")}
+                    {inputDescription.trim() ? t("岗位摘要", "Job summary") : t("从一份真实岗位开始", "Start with a real opportunity")}
                   </h3>
                   <p className={`text-[11px] mt-0.5 ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>
-                    {t("确认左侧字段后开始拆解", "Confirm fields on the left, then start")}
+                    {inputDescription.trim() ? t("确认左侧字段后开始拆解", "Confirm fields on the left, then start") : t("保留完整正文，分析更有依据", "Keep the full description for grounded analysis")}
                   </p>
                 </div>
                 {isEditingJob && currentJob?.description && (
@@ -2643,7 +2562,8 @@ export function AgentWorkspace({
               </div>
 
               <div className="flex-1 min-h-0 overflow-y-auto agent-custom-scrollbar p-4 space-y-5">
-                <div className="space-y-3 text-xs">
+                {!inputDescription.trim() && <div className="advisor-import-guide"><span className="advisor-guide-step">01 / {t("准备材料", "PREPARE")}</span><h4>{t("粘贴链接，或直接放入 JD", "Paste a link or the job description")}</h4><p>{t("支持招聘页面链接与岗位正文。链接无法读取时，可以复制正文继续。", "Use a job URL or paste the description if extraction is unavailable.")}</p><span className="advisor-guide-step">02 / {t("核对来源", "VERIFY")}</span><p>{t("提取后核对职位、公司和正文完整性，再开始分析；网页里的推荐岗位不应混入。", "Verify the role, company and completeness before analysis. Exclude unrelated recommendations.")}</p><div className="advisor-guide-note">{t("没有目标岗位？可以直接进入职业规划。", "No target job yet? Start with career planning.")}</div></div>}
+                <div hidden={!inputDescription.trim()} className="space-y-3 text-xs">
                   {(
                     [
                       { label: t("职位", "Title"), value: inputTitle.trim() },

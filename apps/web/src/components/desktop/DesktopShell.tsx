@@ -38,7 +38,7 @@ export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, 
   function focusDock(id: string) { shell.current?.querySelector<HTMLButtonElement>(`[data-dock-app="${id}"]`)?.focus({ preventScroll: true }); }
   function closeSettings() { setSettingsOpen(false); focusDock("settings"); }
   function navigate(next: DesktopPage) { setSettingsOpen(false); setMainHidden(false); onNavigate(next); }
-  return <div ref={shell} className="os-desktop" data-studio={page === "resume"} data-focused={page === "resume" && focused} data-wallpaper={wallpaper} data-reduced-motion={reduceMotion} onKeyDown={event => {
+  return <div ref={shell} className="os-desktop" data-page={page} data-studio={page === "resume"} data-focused={page === "resume" && focused} data-wallpaper={wallpaper} data-reduced-motion={reduceMotion} onKeyDown={event => {
     if (event.key === "Escape" && !event.defaultPrevented && settingsOpen && (event.target as HTMLElement).closest(".os-settings-window")) {
       event.stopPropagation(); closeSettings();
     }
