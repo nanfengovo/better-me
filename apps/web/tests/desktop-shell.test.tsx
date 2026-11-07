@@ -153,7 +153,7 @@ test("Escape closes settings and returns focus without replacing the draft", asy
   assert.equal(dom.document.activeElement, button("系统设置"));
   assert.equal(dom.document.querySelector("textarea"), editor);
 });
-test("mobile titlebar double clicks cannot enable desktop maximization", async () => {
+test("narrow windows support titlebar maximization", async () => {
   const matchMedia = dom.matchMedia.bind(dom);
   dom.matchMedia = ((query: string) => {
     const result = matchMedia(query);
@@ -163,7 +163,7 @@ test("mobile titlebar double clicks cannot enable desktop maximization", async (
   try {
     await mount();
     await flush(() => dom.document.querySelector(".os-business-window .os-window-toolbar")!.dispatchEvent(new dom.MouseEvent("dblclick", { bubbles: true })));
-    assert.equal(dom.document.querySelector(".os-business-window")!.classList.contains("is-maximized"), false);
+    assert.equal(dom.document.querySelector(".os-business-window")!.classList.contains("is-maximized"), true);
   } finally { dom.matchMedia = matchMedia; }
 });
 test("window maximize and restore do not replace the editor", async () => {
@@ -203,6 +203,41 @@ test("dragging stays inside viewport bounds, ends on release and resets after re
   assert.equal(window.style.getPropertyValue("--window-x"), "0px");
   assert.equal(window.style.getPropertyValue("--window-y"), "0px");
 });
+test("all windows expose eight resize handles and preserve dimensions across maximize", async () => {
+  await mount();
+  const win = dom.document.querySelector<HTMLElement>(".os-business-window")!;
+  const editor = dom.document.querySelector("textarea");
+  Object.defineProperty(win, "getBoundingClientRect", { value: () => ({ left: 40, top: 60, right: 640, bottom: 560, width: 600, height: 500 }) });
+  assert.equal(win.querySelectorAll(".os-resize-handle").length, 8);
+  assert.equal(dom.document.querySelectorAll(".os-settings-window .os-resize-handle").length, 8);
+  const handle = win.querySelector<HTMLElement>(".os-resize-se")!;
+  Object.defineProperty(handle, "setPointerCapture", { value: () => {} });
+  await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 1, clientX: 640, clientY: 560 })));
+  await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, pointerId: 1, clientX: 540, clientY: 460 })));
+  assert.equal(win.style.getPropertyValue("--window-width"), "500px");
+  assert.equal(win.style.getPropertyValue("--window-height"), "400px");
+  await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, pointerId: 1, clientX: -4000, clientY: -4000 })));
+  assert.equal(win.style.getPropertyValue("--window-width"), "420px");
+  assert.equal(win.style.getPropertyValue("--window-height"), "300px");
+  await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointercancel", { bubbles: true, pointerId: 1 })));
+  assert.equal(win.dataset.resizing, "false");
+  const maximize = win.querySelector<HTMLButtonElement>(".os-traffic button:nth-child(3)")!;
+  await flush(() => maximize.click());
+  assert.equal(win.querySelectorAll(".os-resize-handle").length, 0);
+  await flush(() => maximize.click());
+  assert.equal(win.style.getPropertyValue("--window-width"), "420px");
+  assert.equal(dom.document.querySelector("textarea"), editor);
+  await click("Agent");
+  assert.equal(win.dataset.sized, "false");
+  await click("简历");
+  assert.equal(win.style.getPropertyValue("--window-width"), "420px");
+  await flush(() => win.querySelector(".os-resize-nw")!.dispatchEvent(new dom.KeyboardEvent("keydown", { bubbles: true, key: "ArrowRight" })));
+  assert.equal(win.style.getPropertyValue("--window-width"), "590px");
+  assert.equal(win.style.getPropertyValue("--window-x"), "10px");
+  await flush(() => dom.dispatchEvent(new dom.Event("resize")));
+  assert.equal(win.dataset.sized, "false");
+});
+
 test("reduced motion skips pointer animation and Dock buttons remain keyboard focusable", async () => {
   dom.localStorage.setItem(UI_PREFERENCES_KEY, '{"reduceMotion":true}'); await mount();
   const dock = dom.document.querySelector(".os-dock")!;
