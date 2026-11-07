@@ -26,6 +26,7 @@
   <a href="https://nanfengovo.github.io/better-me/">🌐 在线体验（网页端预览）</a> · 
   <a href="#-快速开始">🚀 快速开始</a> · 
   <a href="#-核心特性亮点-highlights">✨ 核心特性</a> · 
+  <a href="#-核心步骤动态演示-core-workflows-in-action">🎬 核心步骤演示</a> · 
   <a href="#-真实工作台预览-refactored-ui">📸 重构界面一览</a> · 
   <a href="#-真实-jd-对齐与岗位匹配">🎯 真实岗位对齐</a> · 
   <a href="#-ai-与-agent-深度伴写工作流">🤖 Agent 深度伴写</a> · 
@@ -64,6 +65,33 @@
 
 ---
 
+## 🎬 核心步骤动态演示 (Core Workflows in Action)
+
+> 💡 **告别盲目填词套壳**：BetterMe 把 Agent 深度挖掘、自适应双栏宽屏、智能导入补录与精准时光机深度融合。以下为沙箱自动化录制的核心工作流演示：
+
+### 1️⃣ 项目理解深度挖掘与共识共享 (Deep Project Understanding)
+像资深架构师/面试官一样先对齐业务背景、真实边界与技术细节，梳理成共识后**跨会话打通共享**至经历伴写，彻底告别重复向 AI 解释背景：
+
+<p align="center">
+  <img src="docs/images/betterme-step-understanding.gif" alt="项目理解深度挖掘与共识共享演示" width="880" style="border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,0.18);" />
+</p>
+
+### 2️⃣ 智能导入补录与 PDF 断行一键修复 (1-Click Supplement & Wrap Repair)
+遇到 PDF 复杂排版导致断行拆散？一键智能合并断行；未能结构化的开源项目与关键荣誉一键补录事实库，量化成果秒级确认：
+
+<p align="center">
+  <img src="docs/images/betterme-step-import-repair.gif" alt="智能导入补录与断行修复演示" width="880" style="border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,0.18);" />
+</p>
+
+### 3️⃣ 版本时光机与单项精细回滚 (Version Time Machine & Granular Rollback)
+全景记录 50 个完整独立检查点，清晰比对修改差异。支持按单条经历定向精准回滚，改写再无误操作或心理负担：
+
+<p align="center">
+  <img src="docs/images/betterme-step-timemachine.gif" alt="版本时光机与单项回滚演示" width="880" style="border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,0.18);" />
+</p>
+
+---
+
 ## 📸 真实工作台预览 (Refactored UI)
 
 > 💡 **全新自适应双栏工作流**：日常模式下「左侧手工编辑 + 右侧 A4 实时预览」；点击批注呼出 Agent 时，左侧自动收起表单，腾出宽阔的独立空间给 Agent 深度对齐、多轮追问与红绿对比，彻底消灭挤在狭窄侧栏对话的压抑感！
@@ -82,6 +110,7 @@
 
 - [快速开始](#-快速开始)
 - [核心设计理念](#-核心特性亮点-highlights)
+- [核心步骤动态演示](#-核心步骤动态演示-core-workflows-in-action)
 - [真实工作台预览](#-真实工作台预览-refactored-ui)
 - [真实 JD 对齐与岗位匹配](#-真实-jd-对齐与岗位匹配)
 - [AI 与 Agent 深度伴写工作流](#-ai-与-agent-深度伴写工作流)
