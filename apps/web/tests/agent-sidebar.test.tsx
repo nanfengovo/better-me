@@ -64,6 +64,18 @@ async function fill(selector: string, value: string) {
 afterEach(async () => { await act(async () => { root?.unmount(); root = undefined; }); dom.document.body.replaceChildren(); dom.localStorage.clear(); repository = createMemoryAgentRepository(); active = true; writingSignal = undefined; chatSignal = undefined; });
 after(() => { dom.happyDOM.abort(); for (const [key, value] of originals) { if (value) Object.defineProperty(globalThis, key, value); else Reflect.deleteProperty(globalThis, key); } });
 
+test("desktop Agent width supports keyboard adjustment and reset", async () => {
+  await render(); await click("打开 BetterMe Agent");
+  const separator = dom.document.querySelector<HTMLElement>('[role="separator"][aria-label="调节 Agent 面板宽度"]');
+  const layout = dom.document.querySelector<HTMLElement>(".agent-layout");
+  assert.ok(separator); assert.ok(layout);
+  assert.equal(separator.getAttribute("aria-valuenow"), "380");
+  await act(async () => separator.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true })));
+  assert.equal(layout.style.getPropertyValue("--agent-sidebar-width"), "388px");
+  await act(async () => separator.dispatchEvent(new dom.MouseEvent("dblclick", { bubbles: true })));
+  assert.equal(layout.style.getPropertyValue("--agent-sidebar-width"), "380px");
+});
+
 test("one sidebar owns writing, memory and tools; preview never contains the conversation", async () => {
   dom.localStorage.setItem("autosave-sentinel", "disabled");
   await render(); await click("检查当前简历");

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Bot, CircleHelp, PanelRightClose, Settings2 } from "lucide-react";
 import { useBetterMeAgent } from "../lib/betterme-agent/react";
@@ -24,6 +24,13 @@ type Sidebar = {
   readerRuntime: string; setReaderRuntime: (runtime: string) => void;
 };
 const Context = createContext<Sidebar | null>(null);
+const AGENT_WIDTH_KEY = "betterme.agent.sidebar-width.v1";
+const AGENT_WIDTH_DEFAULT = 380;
+const AGENT_WIDTH_MIN = 320;
+function clampAgentWidth(value: number) {
+  const viewportMax = Math.max(AGENT_WIDTH_MIN, Math.min(680, Math.round(window.innerWidth * .52)));
+  return Math.min(viewportMax, Math.max(AGENT_WIDTH_MIN, Math.round(value)));
+}
 export const useAgentSidebar = () => useContext(Context);
 
 /** UI lifetime is separate from task lifetime. Stable portal targets never move on tab/route changes. */
@@ -42,6 +49,12 @@ function Slot({ name }: { name: Surface }) {
 export function AgentSidebarProvider({ children, understandingClient }: { children: ReactNode; understandingClient?: UnderstandingClient }) {
   const { t } = useUiPreferences();
   const [open, setOpen] = useState(false), [mounted, setMounted] = useState(false), [tab, setTab] = useState<Tab>("conversation"), [conversation, setConversation] = useState<Conversation>("writing");
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    try { return clampAgentWidth(Number(localStorage.getItem(AGENT_WIDTH_KEY)) || AGENT_WIDTH_DEFAULT); }
+    catch { return clampAgentWidth(AGENT_WIDTH_DEFAULT); }
+  });
+  const [resizing, setResizing] = useState(false);
+  const resizeStart = useRef<{ x: number; width: number } | null>(null);
   const [slots, setSlots] = useState<Sidebar["slots"]>({});
   const [coversApp, setCoversApp] = useState(() => window.matchMedia("(max-width: 840px), (max-height: 500px)").matches);
   const panel = useRef<HTMLElement>(null), close = useRef<HTMLButtonElement>(null), trigger = useRef<HTMLElement | null>(null);
@@ -76,8 +89,9 @@ export function AgentSidebarProvider({ children, understandingClient }: { childr
   const id = useId();
   useEffect(() => {
     const media = window.matchMedia("(max-width: 840px), (max-height: 500px)");
-    const update = () => setCoversApp(media.matches);
-    media.addEventListener("change", update); return () => media.removeEventListener("change", update);
+    const update = () => { setCoversApp(media.matches); setSidebarWidth(width => clampAgentWidth(width)); };
+    media.addEventListener("change", update); window.addEventListener("resize", update);
+    return () => { media.removeEventListener("change", update); window.removeEventListener("resize", update); };
   }, []);
   const register = useCallback((name: Surface, node: HTMLDivElement | null) => setSlots(current => {
     if (current[name] === (node ?? undefined)) return current;
@@ -134,8 +148,20 @@ export function AgentSidebarProvider({ children, understandingClient }: { childr
   const value = useMemo(() => ({ open, tab, conversation, show, hide, slots, register, learn, readerRuntime, setReaderRuntime }), [open, tab, conversation, show, hide, slots, register, learn, readerRuntime, setReaderRuntime]);
   const tabs = [["conversation", t("伴写对话", "Writing & chat")], ["memory", t("共识与进度", "Shared memory")], ["settings", t("模型与工具", "Models & tools")]] as const;
   // Layout/visibility only; no model selection, authorization or autosave mutations here.
-  return <Context.Provider value={value}><div className={`agent-layout ${open ? "is-agent-open" : ""}`}>
+  const commitSidebarWidth = (width: number) => {
+    const next = clampAgentWidth(width); setSidebarWidth(next);
+    try { localStorage.setItem(AGENT_WIDTH_KEY, String(next)); } catch { /* Width remains available for this session. */ }
+  };
+  return <Context.Provider value={value}><div className={`agent-layout ${open ? "is-agent-open" : ""} ${resizing ? "is-agent-resizing" : ""}`} style={{ "--agent-sidebar-width": `${sidebarWidth}px` } as CSSProperties}>
     <div className="agent-layout-app" inert={open && coversApp} aria-hidden={open && coversApp ? true : undefined}>{children}</div>
+    <div className="agent-sidebar-resizer no-print" role="separator" aria-label={t("调节 Agent 面板宽度", "Resize Agent panel")} aria-orientation="vertical" aria-valuemin={AGENT_WIDTH_MIN} aria-valuemax={clampAgentWidth(Number.POSITIVE_INFINITY)} aria-valuenow={sidebarWidth} tabIndex={open && !coversApp ? 0 : -1} hidden={!open || coversApp}
+      title={t("拖动调节宽度，双击恢复默认", "Drag to resize; double-click to reset")}
+      onDoubleClick={() => commitSidebarWidth(AGENT_WIDTH_DEFAULT)}
+      onPointerDown={event => { event.preventDefault(); resizeStart.current = { x: event.clientX, width: sidebarWidth }; event.currentTarget.setPointerCapture(event.pointerId); setResizing(true); }}
+      onPointerMove={event => { if (!resizeStart.current || !event.currentTarget.hasPointerCapture(event.pointerId)) return; setSidebarWidth(clampAgentWidth(resizeStart.current.width + resizeStart.current.x - event.clientX)); }}
+      onPointerUp={event => { if (!resizeStart.current) return; const next = clampAgentWidth(resizeStart.current.width + resizeStart.current.x - event.clientX); resizeStart.current = null; if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); setResizing(false); commitSidebarWidth(next); }}
+      onPointerCancel={() => { if (resizeStart.current) setSidebarWidth(resizeStart.current.width); resizeStart.current = null; setResizing(false); }}
+      onKeyDown={event => { const step = event.shiftKey ? 32 : 8; const next = event.key === "Home" ? AGENT_WIDTH_MIN : event.key === "End" ? clampAgentWidth(Number.POSITIVE_INFINITY) : event.key === "ArrowLeft" ? sidebarWidth + step : event.key === "ArrowRight" ? sidebarWidth - step : undefined; if (next === undefined) return; event.preventDefault(); commitSidebarWidth(next); }} />
     <aside ref={panel} id={id} className="agent-sidebar no-print" role={coversApp ? "dialog" : undefined} aria-modal={coversApp ? true : undefined} aria-label="BetterMe Agent" aria-hidden={!open} inert={!open} hidden={!mounted} data-state={open ? "open" : "closed"}
       onAnimationEnd={event => { if (event.currentTarget === event.target && !open && event.animationName === "agent-sidebar-exit") { if (closeTimer.current) clearTimeout(closeTimer.current); setMounted(false); } }}
       onKeyDown={event => {

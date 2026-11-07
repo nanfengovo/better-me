@@ -101,8 +101,9 @@ export function IdentityMenu() {
       window.location.reload();
     } catch { setError(t("记录尚未安全保存或退出未确认。请先备份并处理错误，未切换账号。", "Records are not yet safely saved or sign-out was not confirmed. Back up and resolve errors first; account was not switched.")); setBusy(false); }
   }
-  return <div className="identity-menu"><strong>{user.displayName}</strong><small>{user.username === `oidc-${user.id}` ? t("第三方账号登录", "External sign-in") : `@${user.username} · ${t("本机账号", "Local account")}`}</small>
-    <CasdoorAccess link />
+  const accountType = user.username === `oidc-${user.id}` ? t("第三方账号", "External account") : t("本机账号", "Local account");
+  return <div className="identity-menu"><div className="identity-menu-profile"><span className="identity-menu-avatar" aria-hidden="true">{Array.from(user.displayName.trim())[0] ?? t("你", "Y")}</span><div className="identity-menu-copy"><strong>{user.displayName}</strong><small>@{user.username}</small><span className="identity-menu-status"><ShieldCheck size={12} aria-hidden="true" />{accountType} · {t("资料已隔离保护", "Data isolated and protected")}</span></div></div>
+  <CasdoorAccess link />
     <button type="button" className="studio-button subtle" disabled={busy} onClick={() => void signOut()}><LogOut size={15} />{busy ? t("保护记录…", "Saving records…") : t("退出并切换账号", "Sign out & switch")}</button>
     {error && <p role="alert">{error}</p>}
   </div>;
