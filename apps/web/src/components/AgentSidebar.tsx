@@ -41,11 +41,11 @@ function Slot({ name }: { name: Surface }) {
 
 export function AgentSidebarProvider({ children, understandingClient }: { children: ReactNode; understandingClient?: UnderstandingClient }) {
   const { t } = useUiPreferences();
-  const [open, setOpen] = useState(false), [tab, setTab] = useState<Tab>("conversation"), [conversation, setConversation] = useState<Conversation>("writing");
+  const [open, setOpen] = useState(false), [mounted, setMounted] = useState(false), [tab, setTab] = useState<Tab>("conversation"), [conversation, setConversation] = useState<Conversation>("writing");
   const [slots, setSlots] = useState<Sidebar["slots"]>({});
   const [coversApp, setCoversApp] = useState(() => window.matchMedia("(max-width: 840px), (max-height: 500px)").matches);
   const panel = useRef<HTMLElement>(null), close = useRef<HTMLButtonElement>(null), trigger = useRef<HTMLElement | null>(null);
-  const launcher = useRef<HTMLButtonElement>(null), wasOpen = useRef(false);
+  const launcher = useRef<HTMLButtonElement>(null), wasOpen = useRef(false), closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tutorialButton = useRef<HTMLButtonElement>(null), tutorialTrigger = useRef<HTMLElement | null>(null);
   const tutorialFocus = useRef<"return" | "coach" | null>(null);
   const { agent, snapshot } = useBetterMeAgent();
@@ -85,7 +85,8 @@ export function AgentSidebarProvider({ children, understandingClient }: { childr
   }), []);
   const show = useCallback((nextTab: Tab = "conversation", nextConversation?: Conversation) => {
     if (document.activeElement instanceof HTMLElement && !panel.current?.contains(document.activeElement)) trigger.current = document.activeElement;
-    setTab(nextTab); setGuide(null); setHelpOpen(false); if (nextConversation) setConversation(nextConversation); setOpen(true);
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setMounted(true); setTab(nextTab); setGuide(null); setHelpOpen(false); if (nextConversation) setConversation(nextConversation); setOpen(true);
   }, []);
   const prepareGuide = useCallback((index: number) => {
     const next = Math.max(0, Math.min(AGENT_LESSONS.length - 1, index));
@@ -101,7 +102,8 @@ export function AgentSidebarProvider({ children, understandingClient }: { childr
       guideOrigin.current = { tab, conversation };
     }
     const next = lesson ?? readTutorial(tutorialStorage(), guideKey).current;
-    setHelpOpen(false); setCoach(null); prepareGuide(AGENT_LESSONS.findIndex(item => item.id === next)); setOpen(true);
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setMounted(true); setHelpOpen(false); setCoach(null); prepareGuide(AGENT_LESSONS.findIndex(item => item.id === next)); setOpen(true);
   }, [guideKey, prepareGuide, helpOpen, guide, tab, conversation]);
   useEffect(() => {
     if (guide !== null || helpOpen || !tutorialFocus.current) return;
@@ -112,7 +114,13 @@ export function AgentSidebarProvider({ children, understandingClient }: { childr
       : previous?.isConnected && !previous.closest("[hidden], [inert]") ? previous : tutorialButton.current;
     target?.focus({ preventScroll: true });
   }, [guide, helpOpen]);
-  const hide = useCallback(() => setOpen(false), []);
+  const hide = useCallback(() => {
+    setOpen(false);
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setMounted(false);
+    else closeTimer.current = setTimeout(() => setMounted(false), 240);
+  }, []);
+  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
   useEffect(() => {
     if (open) { if (!document.querySelector("dialog[open]")) close.current?.focus(); }
     else if (wasOpen.current) {
@@ -128,7 +136,8 @@ export function AgentSidebarProvider({ children, understandingClient }: { childr
   // Layout/visibility only; no model selection, authorization or autosave mutations here.
   return <Context.Provider value={value}><div className={`agent-layout ${open ? "is-agent-open" : ""}`}>
     <div className="agent-layout-app" inert={open && coversApp} aria-hidden={open && coversApp ? true : undefined}>{children}</div>
-    <aside ref={panel} id={id} className="agent-sidebar no-print" role={coversApp ? "dialog" : undefined} aria-modal={coversApp ? true : undefined} aria-label="BetterMe Agent" hidden={!open}
+    <aside ref={panel} id={id} className="agent-sidebar no-print" role={coversApp ? "dialog" : undefined} aria-modal={coversApp ? true : undefined} aria-label="BetterMe Agent" aria-hidden={!open} inert={!open} hidden={!mounted} data-state={open ? "open" : "closed"}
+      onAnimationEnd={event => { if (event.currentTarget === event.target && !open && event.animationName === "agent-sidebar-exit") { if (closeTimer.current) clearTimeout(closeTimer.current); setMounted(false); } }}
       onKeyDown={event => {
         if (event.key === "Escape" && !event.defaultPrevented) { event.stopPropagation(); hide(); }
         if (coversApp && event.key === "Tab") {

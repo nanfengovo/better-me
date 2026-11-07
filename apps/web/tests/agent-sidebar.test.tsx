@@ -56,6 +56,7 @@ async function click(text: string) {
     assert.equal(details.open, true, "expand the section before using its controls");
   }
   await act(async () => button.click());
+  if (text === "收起 BetterMe Agent") await act(async () => dom.document.querySelector(".agent-sidebar")?.dispatchEvent(new dom.AnimationEvent("animationend", { animationName: "agent-sidebar-exit", bubbles: true })));
 }
 async function fill(selector: string, value: string) {
   await act(async () => { const field = dom.document.querySelector(selector); assert.ok(field, selector); Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype, "value")!.set!.call(field, value); field.dispatchEvent(new dom.Event("input", { bubbles: true })); });
@@ -155,13 +156,17 @@ test("companion draft and request survive all sidebar surfaces without a second 
 test("sidebar tabs support arrow navigation and closing returns focus to the opener", async () => {
   await render(); const opener = dom.document.querySelector<HTMLButtonElement>(".agent-sidebar-launcher")!;
   await act(async () => { opener.focus(); opener.click(); });
+  assert.equal(dom.document.querySelector(".agent-sidebar")?.getAttribute("data-state"), "open");
   const tabs = dom.document.querySelectorAll<HTMLButtonElement>('[role="tab"]');
   await act(async () => tabs[0]!.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })));
   assert.equal(tabs[1]!.getAttribute("aria-selected"), "true");
   assert.ok(dom.document.activeElement === tabs[1]);
   await act(async () => tabs[1]!.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
-  assert.equal(dom.document.querySelector<HTMLElement>(".agent-sidebar")?.hidden, true);
+  const sidebar = dom.document.querySelector<HTMLElement>(".agent-sidebar")!;
+  assert.equal(sidebar.dataset.state, "closed");
   assert.ok(dom.document.activeElement === opener);
+  await act(async () => sidebar.dispatchEvent(new dom.AnimationEvent("animationend", { animationName: "agent-sidebar-exit", bubbles: true })));
+  assert.equal(sidebar.hidden, true);
 });
 
 test("help starts with contextual topics without switching views and restores origin on exit", async () => {

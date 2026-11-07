@@ -2,6 +2,8 @@
 
 ## 当前焦点
 
+2026-11-07 增强 BetterMe Agent 菜单开合动画：侧栏引入 mounted/open 双状态，关闭时保留约210ms播放退出后再卸载；桌面同步动画 flex-basis/width、水平位移、透明度与轻微缩放，入口按钮交叉淡入；≤840px/矮屏使用不改布局宽度的全屏滑入滑出；prefers-reduced-motion 立即卸载。29项回归、typecheck、lint通过。Preview已展示；agent-browser 840×826 dark 仍返回空白页面，无法视觉验收。必读附加：无。
+
 2026-11-07 修复指南定位破坏工作区布局：移除 AgentGuideCoach「刷新目标高亮」及 SpotlightGuide 初始定位中的 `scrollIntoView`，引导只测量/描边当前可见目标，不再移动简历预览或任何滚动容器；目标不可见时只显示提示。新增 `scrollCalls === 0` 回归。29项回归、typecheck、lint通过。浏览器840×826可启动并截图，但停在登录页，无法复现登录后的目标流程；Preview已展示。必读附加：无。
 
 2026-11-07 用户再次指出指南入口UI：入口改为与收起键一致的36px纯图标按钮，默认透明、hover轻底色；实操定位从厚重卡片改为单行轻提示条，3个图标动作（定位/返回/关闭），小屏允许两行。29项回归、typecheck、lint通过。浏览器840×826 dark仍返回empty page且截图CDP失败，无法视觉验收，Preview正常展示。下一步：预览恢复后重点看右上角按钮对齐与轻提示条文本截断。必读附加：无。
