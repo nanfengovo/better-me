@@ -14,9 +14,27 @@ const inertTags = new Set([
 ]);
 const HTML_NAMESPACE = "http://www.w3.org/1999/xhtml";
 type Enumeration = { urls: string[]; warnings: string[]; truncated: boolean };
+export type SitemapIndexEnumeration = { urls: string[]; warnings: string[]; truncated: boolean; rejectedEntries: number };
 
 function containsControl(value: string): boolean {
   return Array.from(value).some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127);
+}
+
+function ensureXmlBudget(text: string): void {
+  if (text.length > MAX_BYTES || new TextEncoder().encode(text).byteLength > MAX_BYTES) throw new ToolError("budget-exceeded");
+}
+
+function reviewedSameOriginSitemapUrl(value: string, root: URL): string | undefined {
+  if (!value || value.length > 4096 || value !== value.trim() || /[\\#\s]/u.test(value) || containsControl(value)) return undefined;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.origin !== root.origin || url.username || url.password || url.port || url.hash) return undefined;
+    const rawPath = /^https:\/\/[^/?#]+([^?#]*)/i.exec(value)?.[1] ?? "";
+    if (rawPath.split("/").some((segment) => segment === "." || segment === "..")) return undefined;
+    const path = decodeURIComponent(url.pathname);
+    if (/[\\%]/u.test(path) || containsControl(path) || path.split("/").some((segment) => segment === "." || segment === "..")) return undefined;
+    return url.toString();
+  } catch { return undefined; }
 }
 
 function hidden(tag: string, attributes: Record<string, string>): boolean {
@@ -49,10 +67,11 @@ export function enumerateJobPostingUrls(text: string, url: string, inputOptions:
   const parsed = JobPostingJsonLdOptionsSchema.safeParse(inputOptions);
   if (!parsed.success) throw new ToolError("invalid-input");
   const options = parsed.data;
+  if (options.enumerationKind === "sitemap-index") throw new ToolError("invalid-input");
   let normalizedUrl: string;
   try { normalizedUrl = new URL(url).toString(); } catch { throw new ToolError("invalid-input"); }
   if (!options.enumerationUrls.some((entry) => new URL(entry).toString() === normalizedUrl)) throw new ToolError("invalid-input");
-  if (text.length > MAX_BYTES || new TextEncoder().encode(text).byteLength > MAX_BYTES) throw new ToolError("budget-exceeded");
+  ensureXmlBudget(text);
   const result: Enumeration = { urls: [], warnings: [], truncated: false }, seen = new Set<string>();
   const htmlReferences: string[] = [];
   let htmlBase = normalizedUrl, htmlScanIncomplete = false;
@@ -157,5 +176,98 @@ export function enumerateJobPostingUrls(text: string, url: string, inputOptions:
   }
   if (result.truncated) result.warnings.push("The enumeration URL, token or nesting limit was reached; additional posting links may be unread.");
   if (!result.urls.length) result.warnings.push("No reviewed static posting URLs were found; this does not establish that the company has no vacancies.");
+  return result;
+}
+
+/**
+ * Reads one explicitly reviewed sitemap index and returns only bounded,
+ * same-origin HTTPS child URLs. It never reads a child here and never follows
+ * a child sitemap index; the adapter decides whether a child is a leaf.
+ */
+export function enumerateSitemapIndexUrls(text: string, url: string, inputOptions: JobPostingJsonLdOptions): SitemapIndexEnumeration {
+  const parsed = JobPostingJsonLdOptionsSchema.safeParse(inputOptions);
+  if (!parsed.success || parsed.data.enumerationKind !== "sitemap-index") throw new ToolError("invalid-input");
+  const options = parsed.data;
+  let normalizedUrl: string, root: URL;
+  try { normalizedUrl = new URL(url).toString(); root = new URL(normalizedUrl); } catch { throw new ToolError("invalid-input"); }
+  if (!options.enumerationUrls.some((entry) => new URL(entry).toString() === normalizedUrl)) throw new ToolError("invalid-input");
+  ensureXmlBudget(text);
+  const result: SitemapIndexEnumeration = { urls: [], warnings: [], truncated: false, rejectedEntries: 0 }, seen = new Set<string>();
+  const maxChildren = options.maxChildSitemaps ?? 20;
+  let candidates = 0, tokens = 0, rootSeen = false;
+  const stack: Array<{ local: string; uri: string }> = [];
+  let namespace: string | undefined, current: { loc: boolean } | undefined, location = "";
+  const limit = () => { result.truncated = true; throw LIMIT; };
+  const token = () => { if (++tokens > MAX_TOKENS) limit(); };
+  const changed = (): never => { throw new ToolError("source-changed"); };
+  const parser = new SaxesParser({ xmlns: true });
+  parser.on("error", changed);
+  parser.on("doctype", changed);
+  parser.on("processinginstruction", changed);
+  parser.on("opentag", (tag) => {
+    token();
+    const depth = stack.length, parent = stack.at(-1);
+    if (depth >= 32) limit();
+    if (!depth) {
+      if (rootSeen || tag.local !== "sitemapindex" || !["", SITEMAP_NAMESPACE].includes(tag.uri)) changed();
+      rootSeen = true; namespace = tag.uri;
+    } else if (tag.uri === namespace) {
+      if (depth === 2 && parent?.local === "sitemap" && tag.local === "loc") {
+        if (!current || current.loc) changed();
+        location = "";
+      } else if (depth === 2 && parent?.local === "sitemap" && tag.local === "lastmod") {
+        // The optional timestamp is metadata only; it is not used for job dates.
+      } else if (depth === 1 && parent?.local === "sitemapindex" && tag.local === "sitemap") {
+        if (current) changed();
+        if (++candidates > maxChildren) limit();
+        current = { loc: false };
+      } else if (depth === 0 && tag.local === "sitemap") {
+        // A sitemap child must always be wrapped in <sitemap> at depth 1.
+        changed();
+      } else changed();
+    } else changed();
+    stack.push({ local: tag.local, uri: tag.uri });
+  });
+  const content = (value: string) => {
+    token();
+    const node = stack.at(-1);
+    if (node?.local === "loc" && node.uri === namespace) {
+      location += value;
+      if (location.length > 4096) changed();
+    } else if (node?.local === "lastmod" && node.uri === namespace) {
+      // The optional timestamp is metadata only; it is not used for job dates.
+    } else if (value.trim()) changed();
+  };
+  parser.on("text", content);
+  parser.on("cdata", content);
+  parser.on("closetag", (tag) => {
+    token();
+    if (tag.uri === namespace && tag.local === "loc") {
+      const value = location.trim();
+      if (!value || !current || current.loc) changed();
+      current!.loc = true;
+      const child = reviewedSameOriginSitemapUrl(value, root);
+      if (child) {
+        if (!seen.has(child)) { seen.add(child); result.urls.push(child); }
+      } else {
+        result.rejectedEntries++;
+        result.warnings.push("A sitemap index entry was not a same-origin HTTPS leaf candidate and was ignored.");
+      }
+    } else if (tag.uri === namespace && tag.local === "sitemap") {
+      if (!current?.loc) changed();
+      current = undefined;
+    }
+    stack.pop();
+  });
+  let parserTruncated = false;
+  try { parser.write(text).close(); }
+  catch (error) {
+    if (error === LIMIT) parserTruncated = true;
+    else { if (error instanceof ToolError) throw error; throw new ToolError("source-changed"); }
+  }
+  if (!rootSeen || (!parserTruncated && stack.length)) changed();
+  result.warnings.push("Only same-origin HTTPS sitemap entries from this reviewed root were considered; child sitemap indexes are not followed.");
+  if (result.truncated) result.warnings.push("The configured child sitemap bound or parser limit was reached; additional leaf sitemaps may be unread.");
+  if (!result.urls.length) result.warnings.push("The reviewed sitemap index exposed no readable same-origin leaf sitemaps; this does not establish that there are no vacancies.");
   return result;
 }

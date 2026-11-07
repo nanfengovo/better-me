@@ -1,7 +1,7 @@
 /** @jsxRuntime automatic */
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { FileSearch, Loader2, MapPin, X } from "lucide-react";
-import type { AtlasDataset, JobLocation } from "@better-me/opportunities";
+import type { AtlasDataset, JobLocation, OfficeAddressCandidate } from "@better-me/opportunities";
 import { REVIEWED_PLATFORM_NAMES, reviewedCardIdentity, type DetailLocationsPreview, type ImportDetailLocationsInput, type PlatformDetailLocations } from "@better-me/source-adapters/browser-contracts";
 import { extractJdLink, startJdBrowserSession, readJdBrowserSession, closeJdBrowserSession, cancelJdBrowserStartRequest, type JdBrowserSession, type JdImportResult } from "../../lib/jd-import";
 import { JdBrowserStartCleanupError } from "../../lib/jd-errors";
@@ -14,6 +14,7 @@ export type AtlasDetailLocationsProps = {
   onSnapshot: (snapshot: AtlasDataset) => void;
   onClose: () => void;
   onOfficeSnapshot: (snapshot: AtlasDataset, location: JobLocation) => void;
+  onOfficeCandidateFocus?: (jobId: string, location: JobLocation, candidate: OfficeAddressCandidate) => void;
 };
 const OfficeConfirmation = lazy(() => import("./AtlasOfficeAddressConfirmation").then(module => ({ default: module.AtlasOfficeAddressConfirmation })));
 type Target = { listingId: string; jobId: string; url: string; provider: PlatformDetailLocations["provider"]; label: string };
@@ -60,7 +61,7 @@ export function AtlasDetailLocations(props: AtlasDetailLocationsProps) {
   </section>;
 }
 
-function DetailLocationReader({ endpoint, token, data, target, onSnapshot, onOfficeSnapshot }: AtlasDetailLocationsProps & { target: Target }) {
+function DetailLocationReader({ endpoint, token, data, target, onSnapshot, onOfficeSnapshot, onOfficeCandidateFocus }: AtlasDetailLocationsProps & { target: Target }) {
   const client = useMemo(() => createAtlasSourceClient(endpoint, token), [endpoint, token]);
   const scope = JSON.stringify([endpoint, token, target.jobId, target.listingId]);
   const [recovery] = useState(() => recoverableWrites.get(scope));
@@ -177,7 +178,7 @@ function DetailLocationReader({ endpoint, token, data, target, onSnapshot, onOff
       {preview && !saved && <div className="atlas-detail-address-preview"><p>将补充 {preview.newLocations.length} 个地点，基于索引版本 {preview.expectedRevision}。地点变化可能使旧地区或办公位置确认失效。</p><ul>{preview.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul><label><input type="checkbox" checked={confirmed} disabled={busy || !!pending || preview.expectedRevision !== data.revision} onChange={event => setConfirmed(event.target.checked)} />我已核对原岗位与地点出处，确认保存这些来源地点</label>{preview.expectedRevision !== data.revision && <p role="status">索引版本已改变，请重新预览。</p>}</div>}
       {!saved && (preview || pending) && <button type="button" disabled={busy || (!pending && (!confirmed || preview?.expectedRevision !== data.revision))} onClick={() => void commit()}>{pending ? "核对本次保存回执" : "确认保存来源地点"}</button>}
       {saved && <div role="status"><p>来源地点已保存至索引版本 {saved.revision}。办公位置以当前核对记录为准。</p><button type="button" disabled={busy} onClick={() => void refresh()}>重新读取索引</button>{locations.map(location => <article key={location.id}><strong>{location.streetAddress ?? location.raw}</strong>{location.kind === "office" && <button type="button" disabled={busy} onClick={() => setOfficeId(location.id)}><MapPin size={13} />核对这个办公位置</button>}</article>)}</div>}
-      {office && fresh && <Suspense fallback={<p role="status">正在打开办公位置核对…</p>}><OfficeConfirmation key={`${office.id}:${fresh.revision}`} endpoint={endpoint} token={token} jobId={target.jobId} location={office} revision={fresh.revision} onClose={() => setOfficeId(undefined)} onSnapshot={next => {
+      {office && fresh && <Suspense fallback={<p role="status">正在打开办公位置核对…</p>}><OfficeConfirmation key={`${office.id}:${fresh.revision}`} endpoint={endpoint} token={token} jobId={target.jobId} location={office} revision={fresh.revision} onCandidateFocus={candidate => onOfficeCandidateFocus?.(target.jobId, office, candidate)} onClose={() => setOfficeId(undefined)} onSnapshot={next => {
         if (latest.current.closed || fresh.revision < latest.current.revision || next.revision < latest.current.revision) return;
         setOfficeId(undefined); setFresh(next); latest.current.onOfficeSnapshot(next, office);
       }} /></Suspense>}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Synthetic desktop acceptance for reviewed platform-card batches",
+  "syntheticOnly": true,
+  "privateDataUsed": false,
+  "files": [
+    {
+      "file": "atlas-platform-batch-selection.webp",
+      "width": 1497,
+      "height": 772,
+      "bytes": 61334,
+      "sha256": "b25d4d7565a43a6e0347e10cb6cc847beb47d9503e9b3431083f2e167a5d811a",
+      "capture": "Actual Chrome screenshot of real components connected to an in-memory service with synthetic cards. No real recruitment browser, private database or storage."
+    },
+    {
+      "file": "atlas-platform-batch-success.webp",
+      "width": 1497,
+      "height": 772,
+      "bytes": 43832,
+      "sha256": "305d66fa93228e0f6fc3d52b14a6ba7413b4263e4c30dc2839ce04e17e99f647",
+      "capture": "Actual Chrome screenshot of real components connected to an in-memory service with synthetic cards. No real recruitment browser, private database or storage."
+    }
+  ]
+}

@@ -262,10 +262,17 @@ export async function discoverCompanyCareers(input: DiscoverCompanyCareersInput,
     matchedSources, candidates: [], proposals: [], visitedUrls: [], partial: false,
     warnings: [associationWarning, "Discovery inspects bounded static HTML or supplied links only. JavaScript-rendered careers pages and exhaustive job coverage are not established."],
   };
-  if (matchedSources.length) {
+  // A registered match is only a usable source when it is explicitly enabled
+  // and active. Keep inactive matches visible, but do not let stale configuration
+  // suppress a separately authorized website or host-installed search fallback.
+  const hasUsableMatch = matchedSources.some((match) => match.enabled && match.status === "active");
+  if (hasUsableMatch) {
     result.status = "matched-existing";
     result.warnings.push("Existing-source matches come from installed configuration or aliases; they do not verify company affiliation or availability.");
     return CompanyCareerDiscoveryResultSchema.parse(result);
+  }
+  if (matchedSources.length) {
+    result.warnings.push("Existing-source matches are disabled, under review, or unavailable; they remain visible, but this request may continue only through its explicitly authorized discovery policy or trusted host search.");
   }
   const candidates = new Map<string, CareerSourceCandidate>();
   const warn = (message: string) => { if (!result.warnings.includes(message) && result.warnings.length < 30) result.warnings.push(message); };

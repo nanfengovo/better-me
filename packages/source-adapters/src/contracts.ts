@@ -93,6 +93,8 @@ export const SourcePageSchema = z.object({
   records: z.array(SourceJobRecordSchema).max(100_000),
   observedAt: TimestampSchema,
   nextCursor: z.string().min(1).max(2000).optional(),
+  /** A partial page stopped during a detail request. Retain its starting cursor for an explicit manual retry. */
+  retryCurrentPage: z.literal(true).optional(),
   coverage: z.object({
     complete: z.boolean(),
     partial: z.boolean(),
@@ -104,6 +106,7 @@ export const SourcePageSchema = z.object({
   stopReason: SourceStopReasonSchema.optional(),
   warnings: z.array(z.string().min(1).max(2000)).max(100),
 }).strict().superRefine((page, context) => {
+  if (page.retryCurrentPage && (!page.coverage.partial || page.nextCursor)) context.addIssue({ code: "custom", message: "A retryable partial page cannot advance its cursor." });
   if (page.coverage.complete && (page.coverage.partial || page.nextCursor || page.stopReason)) context.addIssue({ code: z.ZodIssueCode.custom, path: ["coverage", "complete"], message: "Complete enumeration cannot also be partial, stopped, or have another cursor." });
   if (page.stopReason && !page.coverage.partial) context.addIssue({ code: z.ZodIssueCode.custom, path: ["coverage", "partial"], message: "A stopped enumeration must report partial coverage." });
   if (!page.coverage.complete && !page.coverage.partial && !page.nextCursor) context.addIssue({ code: z.ZodIssueCode.custom, path: ["coverage"], message: "Incomplete coverage requires a continuation cursor or a partial result." });
@@ -120,18 +123,38 @@ export type SourceTransportResponse = {
   readonly text: string;
 };
 export type SourceTransport = {
-  /** GET-only; trusted implementation enforces endpoint, DNS, redirect and response budgets. */
+  /** Bounded GET, or explicitly selected JSON POST for installed source adapters; host enforces endpoint and all budgets. */
   request(input: {
     url: string;
     source: SourceDefinition;
     context: SourceAdapterContext;
     headers?: Readonly<Record<string, string>>;
+    /** Only explicitly installed adapters can select JSON POST; transport keeps the same host and budgets. */
+    method?: "GET" | "POST";
+    jsonBody?: string;
   }): Promise<SourceTransportResponse>;
 };
 export type SourceAdapterRequest = {
   source: SourceDefinition;
   scope: SourceScope;
   cursor?: string;
+  context: SourceAdapterContext;
+  transport: SourceTransport;
+};
+/** Read exactly one already-held posting. This narrows the installed list-jobs
+ * implementation; it grants neither new endpoints nor discovery/search scope. */
+export type SourceAdapterDetailRequest = {
+  source: SourceDefinition;
+  sourceRecordId: string;
+  url: string;
+  context: SourceAdapterContext;
+  transport: SourceTransport;
+};
+/** Read one explicit original page using an already reviewed posting source.
+ * Its stable record identity comes from that page, never a discovery lead ID. */
+export type SourceAdapterOriginalRequest = {
+  source: SourceDefinition;
+  url: string;
   context: SourceAdapterContext;
   transport: SourceTransport;
 };
@@ -145,6 +168,10 @@ export const SourceAdapterMetadataSchema = z.object({
 export type SourceAdapterMetadata = z.infer<typeof SourceAdapterMetadataSchema>;
 export type SourceAdapter = SourceAdapterMetadata & {
   readonly list: (request: SourceAdapterRequest) => Promise<SourcePage>;
+  readonly readDetail?: (request: SourceAdapterDetailRequest) => Promise<SourceJobRecord>;
+  readonly readOriginal?: (request: SourceAdapterOriginalRequest) => Promise<SourceJobRecord>;
+  /** Pure installed-code eligibility check; it grants no endpoint access or network read. */
+  readonly matchesOriginalUrl?: (request: Pick<SourceAdapterOriginalRequest, "source" | "url">) => boolean;
 };
 
 export const SOURCE_REGISTRY_ERROR_CODES = ["invalid-source", "adapter-not-found", "unsupported-version", "unsupported-capability", "source-disabled", "invalid-output", "duplicate-adapter"] as const;

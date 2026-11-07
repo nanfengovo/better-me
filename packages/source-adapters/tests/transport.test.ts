@@ -73,6 +73,31 @@ test('credential, local/IP, encoded traversal and path-prefix bypass URLs never 
   assert.equal(dnsCalls, 0);
 });
 
+test('explicit JSON POST stays bounded, same-origin, budgeted and never follows redirects', async () => {
+  const workdaySource = { ...source(), adapterId: "workday-cxs" };
+  let sent: PinnedSendRequest | undefined;
+  const transport = createControlledSourceTransport({ resolve: publicDns, send: async request => { sent = request; return response(200, ['{}']).value; } });
+  const ctx = context();
+  const body = JSON.stringify({ searchText: "C#", limit: 20 });
+  await transport.request({ source: workdaySource, context: ctx.value, url: "https://careers.example.com/jobs", method: "POST", jsonBody: body });
+  assert.equal(sent!.method, "POST"); assert.equal(sent!.body, body);
+  assert.equal(sent!.headers["content-type"], "application/json"); assert.equal(Number(sent!.headers["content-length"]), Buffer.byteLength(body));
+  assert.equal(ctx.requests(), 1);
+  for (const input of [
+    { url: "https://careers.example.com/jobs", jsonBody: body },
+    { url: "https://careers.example.com/jobs", method: "POST" as const },
+    { url: "https://careers.example.com/jobs", method: "POST" as const, jsonBody: "[]" },
+    { url: "https://careers.example.com/jobs", method: "POST" as const, jsonBody: JSON.stringify({ value: "界".repeat(11_000) }) },
+  ]) await assert.rejects(transport.request({ source: workdaySource, context: context().value, ...input }));
+  await assert.rejects(transport.request({ source: source(), context: context().value, url: "https://careers.example.com/jobs", method: "POST", jsonBody: body }),
+    (error: unknown) => error instanceof SourceTransportError && error.code === "unsafe-endpoint");
+  const redirect = response(302, [], { location: "/jobs/other" });
+  const redirectTransport = createControlledSourceTransport({ resolve: publicDns, send: async () => redirect.value });
+  await assert.rejects(redirectTransport.request({ source: { ...workdaySource, endpointPolicy: { ...workdaySource.endpointPolicy, allowRedirects: true, maxRedirects: 1 } }, context: context().value, url: "https://careers.example.com/jobs", method: "POST", jsonBody: body }),
+    (error: unknown) => error instanceof SourceTransportError && error.code === "unsafe-endpoint");
+  assert.equal(redirect.closed(), true);
+});
+
 test('redirects are disabled by default and every explicitly allowed redirect revalidates DNS and policy', async () => {
   const first = response(302, [], { location: '/jobs/next' });
   const transport = createControlledSourceTransport({ resolve: publicDns, send: async () => first.value });

@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { ToolError } from "@better-me/opportunities";
-import { SourceJobRecordSchema, SourcePageSchema, type SourceAdapter, type SourceAdapterRequest, type SourceJobRecord } from "../contracts.js";
+import { SourceJobRecordSchema, SourcePageSchema, type SourceAdapter, type SourceAdapterOriginalRequest, type SourceAdapterRequest, type SourceJobRecord } from "../contracts.js";
 import { validateJobPostingJsonLdSource } from "../jobposting-jsonld-contracts.js";
-import { enumerateJobPostingUrls } from "../jobposting-enumeration.js";
+import { enumerateJobPostingUrls, enumerateSitemapIndexUrls } from "../jobposting-enumeration.js";
 import { readJobPostingJsonLd } from "../jobposting-jsonld-reader.js";
 import { SourceTransportError } from "../transport.js";
 import { page } from "./common.js";
@@ -20,7 +20,7 @@ function stableJson(value: unknown): string {
 }
 function hash(value: unknown): string { return createHash("sha256").update(stableJson(value)).digest("hex"); }
 
-async function readText(request: SourceAdapterRequest, url: string, accept: string): Promise<string> {
+async function readText(request: Pick<SourceAdapterRequest, "source" | "context" | "transport">, url: string, accept: string): Promise<string> {
   request.context.throwIfCancelled();
   const expected = new URL(url).toString();
   const response = await request.transport.request({ url: expected, source: request.source, context: request.context, headers: { accept } });
@@ -31,16 +31,60 @@ async function readText(request: SourceAdapterRequest, url: string, accept: stri
   return response.text;
 }
 
+function validateHeldPosting(request: Pick<SourceAdapterOriginalRequest, "source" | "url">): void {
+  const options = validateJobPostingJsonLdSource(request.source);
+  // Use the same reviewed URL syntax/path constraints as manifest candidates, but
+  // never enumerate a manifest to rediscover an already-held posting.
+  const value = request.url;
+  if (value.length > 4096 || value !== value.trim() || /[\\#\s\p{Cc}\p{Cs}]/u.test(value)
+    || /%(?:2f|5c|2e)/i.test(value.split(/[?#]/, 1)[0]!)) throw new ToolError("invalid-input");
+  let url: URL, path: string;
+  try { url = new URL(value); path = decodeURIComponent(url.pathname); } catch { throw new ToolError("invalid-input"); }
+  if (url.toString() !== value || url.protocol !== "https:" || url.origin !== new URL(options.enumerationUrls[0]!).origin
+    || url.username || url.password || url.port || url.hash || /[\\%\p{Cc}\p{Cs}]/u.test(path)
+    || !options.postingPathPrefixes.some(prefix => path === prefix || path.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`))) {
+    throw new ToolError("invalid-input");
+  }
+}
+
+async function readOriginalPosting(request: SourceAdapterOriginalRequest): Promise<SourceJobRecord> {
+  request.context.throwIfCancelled();
+  validateHeldPosting(request);
+  const text = await readText(request, request.url, "text/html, application/xhtml+xml;q=0.9");
+  const result = readJobPostingJsonLd(text, request.url);
+  request.context.throwIfCancelled();
+  const parsed = SourceJobRecordSchema.safeParse(result.record);
+  if (!parsed.success || parsed.data.entityType !== "job-posting" || parsed.data.url !== request.url
+    || !parsed.data.sourceRecordId?.trim()) throw new ToolError("source-changed");
+  return parsed.data;
+}
+
 function recoverableDetailError(error: unknown): boolean {
   return error instanceof ToolError && error.code === "source-changed"
     || error instanceof SourceTransportError && ["http-error", "response-too-large", "invalid-response"].includes(error.code)
       && error.status !== 401 && error.status !== 403;
 }
 
+function recoverableManifestError(error: unknown): boolean {
+  return error instanceof ToolError && error.code === "source-changed"
+    || error instanceof SourceTransportError && ["http-error", "response-too-large", "invalid-response", "timeout"].includes(error.code)
+      && error.status !== 401 && error.status !== 403;
+}
+
 /** Enumerates only explicitly reviewed static manifests, then reads their own JobPosting pages.
- * No crawler, sitemap-index traversal, endpoint guessing or automatic pagination is performed. */
+ * Sitemap indexes are bounded to same-origin leaf sitemaps; there is no crawler,
+ * endpoint guessing or automatic pagination. */
 export const jobPostingJsonLdAdapter: SourceAdapter = {
   adapterId: "jobposting-jsonld", version: "1", capabilities: ["list-jobs"], remoteFilters: [], entityTypes: ["job-posting"],
+  readOriginal: readOriginalPosting,
+  matchesOriginalUrl(request) {
+    try { validateHeldPosting(request); return true; } catch { return false; }
+  },
+  async readDetail(request) {
+    const record = await readOriginalPosting(request);
+    if (record.sourceRecordId !== request.sourceRecordId) throw new ToolError("source-changed");
+    return record;
+  },
   async list(request) {
     request.context.throwIfCancelled();
     const options = validateJobPostingJsonLdSource(request.source);
@@ -63,19 +107,59 @@ export const jobPostingJsonLdAdapter: SourceAdapter = {
     }
 
     const urls: string[] = [], seen = new Set<string>(), warnings: string[] = [];
-    let truncated = false, emptyManifest = false;
-    for (const url of options.enumerationUrls) {
-      const text = await readText(request, url, options.enumerationKind === "sitemap-urlset"
-        ? "application/xml, text/xml;q=0.9" : "text/html, application/xhtml+xml;q=0.9");
-      const result = enumerateJobPostingUrls(text, url, options);
-      request.context.throwIfCancelled();
-      truncated ||= result.truncated;
-      emptyManifest ||= result.urls.length === 0;
-      warnings.push(...result.warnings);
-      for (const posting of result.urls) {
+    let truncated = false, emptyManifest = false, failedManifests = 0, rejectedManifests = 0, budgetStopped = false;
+    const appendManifestUrls = (candidates: readonly string[]) => {
+      for (const posting of candidates) {
         if (seen.has(posting)) continue;
         if (urls.length < MAX_MANIFEST_URLS) { seen.add(posting); urls.push(posting); } else truncated = true;
       }
+    };
+    for (const url of options.enumerationUrls) {
+      const text = await readText(request, url, options.enumerationKind === "sitemap-urlset" || options.enumerationKind === "sitemap-index"
+        ? "application/xml, text/xml;q=0.9" : "text/html, application/xhtml+xml;q=0.9");
+      if (options.enumerationKind === "sitemap-index") {
+        const index = enumerateSitemapIndexUrls(text, url, options);
+        request.context.throwIfCancelled();
+        truncated ||= index.truncated;
+        emptyManifest ||= index.urls.length === 0;
+        rejectedManifests += index.rejectedEntries;
+        warnings.push(...index.warnings);
+        for (const child of index.urls) {
+          request.context.throwIfCancelled();
+          try {
+            const leafText = await readText(request, child, "application/xml, text/xml;q=0.9");
+            const leafOptions = { ...options, enumerationKind: "sitemap-urlset" as const, enumerationUrls: [child],
+              maxChildSitemaps: undefined, priorityPostingUrls: undefined };
+            const leaf = enumerateJobPostingUrls(leafText, child, leafOptions);
+            request.context.throwIfCancelled();
+            truncated ||= leaf.truncated;
+            emptyManifest ||= leaf.urls.length === 0;
+            warnings.push(...leaf.warnings);
+            appendManifestUrls(leaf.urls);
+          } catch (error) {
+            request.context.throwIfCancelled();
+            if (error instanceof ToolError && error.code === "budget-exceeded") {
+              budgetStopped = true;
+              warnings.push("The request or child-sitemap response budget stopped this sitemap-index batch; already read leaf data was retained.");
+              break;
+            }
+            if (recoverableManifestError(error)) {
+              failedManifests++;
+              warnings.push("A configured same-origin child sitemap was unreadable or was not a leaf urlset; it was skipped without following nested indexes.");
+              continue;
+            }
+            throw error;
+          }
+        }
+      } else {
+        const result = enumerateJobPostingUrls(text, url, options);
+        request.context.throwIfCancelled();
+        truncated ||= result.truncated;
+        emptyManifest ||= result.urls.length === 0;
+        warnings.push(...result.warnings);
+        appendManifestUrls(result.urls);
+      }
+      if (budgetStopped) break;
     }
     const priority = (options.priorityPostingUrls ?? []).map((url) => new URL(url).toString());
     const listed = new Set(urls), prioritized = priority.filter((url) => listed.has(url));
@@ -87,7 +171,7 @@ export const jobPostingJsonLdAdapter: SourceAdapter = {
     const offset = cursor?.offset ?? 0, limit = Math.min(options.pageSize, request.source.refreshPolicy.maxRecords);
     const records: SourceJobRecord[] = [];
     let attempted = 0, failed = 0, timedOut = false;
-    for (const url of queue.slice(offset, offset + limit)) {
+    for (const url of (budgetStopped ? [] : queue.slice(offset, offset + limit))) {
       request.context.throwIfCancelled();
       attempted++;
       try {
@@ -112,14 +196,15 @@ export const jobPostingJsonLdAdapter: SourceAdapter = {
     }
     request.context.throwIfCancelled();
     const nextOffset = offset + attempted;
-    const next = !timedOut && nextOffset < queue.length
+    const next = !timedOut && !budgetStopped && nextOffset < queue.length
       ? Buffer.from(JSON.stringify({ version: 1, fingerprint, manifest, offset: nextOffset })).toString("base64url") : undefined;
     const result = page(request, records, {
       fetchedRecords: attempted,
       ...(next ? { nextCursor: next } : {}),
-      partial: truncated || emptyManifest || queue.length === 0 || failed > 0 || timedOut,
-      stopReason: truncated ? "record-limit" : "source-error",
+      partial: truncated || emptyManifest || queue.length === 0 || failed > 0 || timedOut || failedManifests > 0 || rejectedManifests > 0 || budgetStopped,
+      stopReason: budgetStopped ? "budget" : truncated ? "record-limit" : "source-error",
     });
+    if (timedOut) result.retryCurrentPage = true;
     result.warnings = [...new Set([
       "This reads only reviewed static manifests and their same-origin JobPosting pages; it does not search all employers or the whole market.",
       "Manifest links are candidate page URLs, not verified vacancies or a total job count. Source availability, office coordinates and controlling ownership are not independently verified.",
@@ -128,6 +213,9 @@ export const jobPostingJsonLdAdapter: SourceAdapter = {
       ...(emptyManifest || queue.length === 0 ? ["A reviewed manifest contained no readable in-scope posting links; dynamic content, a challenge or no published links cannot establish that there are no vacancies."] : []),
       ...(failed ? [`${failed} attempted detail pages lacked verifiable same-page JobPosting data or could not be read; prior successful records were retained and coverage is partial.`] : []),
       ...(timedOut ? ["A detail request timed out; subsequent detail requests and pagination stopped, retaining previously downloaded records."] : []),
+      ...(failedManifests ? [`${failedManifests} child sitemap responses were skipped; nested indexes, cross-origin entries and unreadable leaf feeds are not followed.`] : []),
+      ...(rejectedManifests ? [`${rejectedManifests} sitemap index entries were rejected because they were not same-origin HTTPS candidates; rejected entries are not followed.`] : []),
+      ...(budgetStopped ? ["The sitemap-index batch stopped at the request or response budget; the result is partial and may be continued only by a new explicit refresh."] : []),
       ...result.warnings,
       ...warnings,
     ])].slice(0, 100).map((warning) => warning.slice(0, 2000));

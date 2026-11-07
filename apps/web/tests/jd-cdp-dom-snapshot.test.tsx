@@ -94,7 +94,7 @@ test("search root diagnostics locate hidden, excluded and incomplete ancestor lo
   f.add("ARTICLE", f.body, { attrs: { class: "job-card-wrapper" } });
   const result = projectSearch(f);
   assert.deepEqual(result.searchDiagnostics, { schemaVersion: 1, platform: "猎聘", rawRoots: 6,
-    hiddenRoots: 1, excludedRoots: 1, incompleteRoots: 1, otherRemovedRoots: 1, projectedRoots: 2, projectedRootsWithText: 1 });
+    hiddenRoots: 1, excludedRoots: 1, incompleteRoots: 1, otherRemovedRoots: 1, projectedRoots: 2, projectedRootsWithText: 1, visibleSingleJobLinks: 0 });
   assert.doesNotMatch(JSON.stringify(result), /PRIVATE_/);
   const position = { url: source, navigation: 1 };
   assert.deepEqual(validateBrowserSnapshot(result, position, position).snapshot?.searchDiagnostics, result.searchDiagnostics);
@@ -115,6 +115,27 @@ test("search diagnostics recognize a configured direct-child root without counti
   const parsed = extractJobSearchCards(result, "BOSS直聘");
   assert.equal(parsed.status, "unknown_layout");
   assert.match(parsed.warnings[1], /投影前已知根=1.*投影保留=1.*采用选择器候选=1.*单岗链接拒绝=1/);
+});
+
+test("unknown layouts report only a bounded count of visible official single-job links", () => {
+  for (const [platform, url, detail] of [
+    ["51JOB", "https://we.51job.com/pc/search?keyword=C%23", "https://jobs.51job.com/shanghai/123456789.html"],
+    ["BOSS直聘", "https://www.zhipin.com/web/geek/job?query=C%23", "https://www.zhipin.com/job_detail/abc123.html"],
+  ] as const) {
+    const f = fixture(); f.doc.documentURL = f.str(url);
+    const list = f.add("MAIN", f.body, { attrs: { class: "unrecognized-list" } });
+    const anchor = f.add("A", list, { attrs: { href: detail } });
+    f.add("#text", anchor, { text: "PRIVATE_VISIBLE_JOB_TITLE" });
+    const result = projectNativeDomSnapshot(f.snapshot, { ...frame, url }, load, { purpose: "search" });
+    assert.equal(result.searchDiagnostics?.platform, platform);
+    assert.equal(result.searchDiagnostics?.rawRoots, 0);
+    assert.equal(result.searchDiagnostics?.visibleSingleJobLinks, 1);
+    const parsed = extractJobSearchCards(result, platform);
+    assert.equal(parsed.status, "unknown_layout");
+    assert.equal(parsed.cards.length, 0);
+    assert.match(parsed.warnings[1]!, /可见官方单岗链接线索=1（非岗位数）/);
+    assert.doesNotMatch(parsed.warnings.join(" "), /PRIVATE_VISIBLE_JOB_TITLE|123456789|abc123/);
+  }
 });
 
 test("current Liepin camel-case fields remain atomic while safe sibling fields survive", () => {

@@ -14,6 +14,8 @@ export const SearchProjectionDiagnosticsSchema = z.object({
   otherRemovedRoots: z.number().int().min(0).max(25_000),
   projectedRoots: z.number().int().min(0).max(25_000),
   projectedRootsWithText: z.number().int().min(0).max(25_000),
+  /** Added after the original diagnostic wire shape; old native snapshots remain valid. */
+  visibleSingleJobLinks: z.number().int().min(0).max(25_000).optional(),
 }).strict().refine(value => value.rawRoots === value.hiddenRoots + value.excludedRoots + value.incompleteRoots + value.otherRemovedRoots + value.projectedRoots
   && value.projectedRootsWithText <= value.projectedRoots, "inconsistent-search-root-counts");
 export type SearchProjectionDiagnostics = z.infer<typeof SearchProjectionDiagnosticsSchema>;

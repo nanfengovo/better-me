@@ -35,45 +35,23 @@ pnpm --filter @better-me/job-service start --data-dir $jobDataDirectory --origin
 
 按 `Ctrl+C` 停止服务：停止接受新请求、取消进行中的读取、等候应用任务结束，再关闭 SQLite 和释放本进程的锁。清理未成功完成时会保留数据库与锁，便于核对。
 
-## 大库计算隔离
+## 网页默认后端
 
-正常 CLI / `pnpm dev` 启动的岗位服务在进程内管理两个计算线程，无需另起服务：
+先按上方命令启动服务，再运行 `pnpm --filter @better-me/web dev`。本机网页首次进入岗位地图自动经同源 `/api/atlas` 读取索引，宿主读取默认数据目录的 `service.token`，无需网页输入令牌。顶端显示后端状态，手动直连在高级设置；失败保留真实索引视图并提供重试。读取快照不会自动采集。
 
-- 单写线程负责采集投影、事务提交和后台地区 / 企业补全；保留原有 CAS、耐久幂等回执、人工核对覆盖及引用校验。
-- 独立只读线程通过 SQLite WAL 读取已提交版本，处理岗位搜索、详情和公开快照导出。写事务未完成时读取上一份完整版本，不读取半批结果，也不争用写锁。
-- HTTP 主线程只处理认证、请求边界与响应转发；完整输出校验和 JSON 序列化在计算线程完成，按字节转移响应，避免主线程再复制 / 序列化整库。
+网关默认连接 `http://127.0.0.1:5178`，固定以 `http://localhost:5173` 为上游 Origin，所以服务启动参数应包含该 Origin。其他端口或私有数据目录可在**启动 Vite 的终端**设置 `BETTERME_JOB_SERVICE_URL` 与 `BETTERME_JOB_SERVICE_TOKEN_FILE`（绝对路径），再重启 Vite。也可在 Git 忽略的 `apps/web/.env.local` 保存这两项宿主设置，终端变量优先，修改后重启 Vite；不能改用前端 `VITE_*` 或存令牌正文。默认路径不需要配置，Windows 应用隔离路径与普通终端不同时，请采用岗位服务日志中的真实数据目录。
 
-线程启动失败时拒绝启动，不退回阻塞式运行；运行中计算线程失败不自动重放写操作，需按原幂等键核对耐久回执。停止时先取消并排空应用任务，再关闭 SQLite 和释放目录所有权锁。计算隔离不是 OS 权限沙箱，也不改变来源授权范围。显式依赖注入的嵌入式调用仍可使用原本的进程内应用接口。
+当前 5173 可能由另一个需求的开发终端管理，继续保留该进程。需要重启网页以加载宿主配置时，由原管理终端按 `Ctrl+C`，确认它已退出，再在仓库根目录执行：
 
-浏览器的快照解析、查询、全库统计和地图几何计算另由页面自己的 Worker 管理；服务端线程与浏览器 Worker 生命周期独立，离开页面不停止服务端补全。首次完整快照仍保留 64 MiB 字节上限，超过时需要后续分页初始化设计，不会悄悄截断数据。已有基线后的刷新使用下述 revision 增量同步。
+```powershell
+pnpm --filter @better-me/web dev --host localhost --port 5173 --strictPort
+```
 
-## 入库与后台补全的增量投影
+`--strictPort` 会在端口仍被占用时直接报错，不会悄悄改到另一个端口。已在运行的岗位服务可继续保留；不要另起同一数据目录或改用空数据目录。私有的 `apps/web/.env.local` 会由网关读取，无需把令牌填进网页。
 
-来源页准备、实际入库和后台地区 / 企业补全不再每批读取并投影整个岗位库。`projection-slice.ts` 在当前 SQLite 事务内，从本批来源记录或补全任务出发，读取受影响岗位及其公司、地点、薪资、listing、证据、快照和有效人工决策；仍复用原有的合并、地区确认及办公地址投影规则。公共表写入、别名与补全排队只处理该片段，不删除或重算无关岗位。
+GitHub Pages／现有 Nginx Docker 镜像是静态版，没有该网关；可显式高级直连本机服务，远程常驻后端仍待部署。`vite preview` 可提供此索引网关，但不提供四平台招聘浏览器 API。详见[默认后端报告](../../docs/reports/job-atlas-default-backend-2026-10-21.md)。
 
-SQLite V7 新增内部 `base_job_dependencies`，在来源岗位写入的同一事务维护反向依赖。它针对原始岗位而非归并后的摘要，保证共享地点、同一公司，以及公司身份被跨源归并隐藏的来源岗位均能正确参与补全；披露冲突仍保留未知，不合成确定结论。该表不是搜索查询索引，也不作为独立事实备份；V6 → V7 事务迁移和备份恢复会从来源岗位重建，迁移不改变公共 revision 或同步 epoch。
-
-CAS、不可变观察 / JD、幂等回执、补全租约 / 取消 / 重试、人工覆盖、全库实体数量上限和事务失败回滚保持原语义。无参数 `readProjectionSnapshot()`、人工归并 / 核对、完整导出与备份仍保留完整参考路径。首次基线分页、搜索查询算法、UI 和动画没有在此阶段修改；巨大共享公司或归并组仍可能形成较大的真实受影响片段，不承诺所有 SQL 都是 O(delta)。
-
-5000 / 15000 岗的三批真实入库、自动补全和列表 / 地图计算，单轮同场景对比从 18.747 / 41.113 秒降至 9.086 / 20.838 秒。每批新增 16 岗的仓储压测，两个规模均物化 2 行已有入库上下文及 355 行补全读取结果。完整方法、浏览器验收和限制见 [增量投影报告](../../docs/reports/job-atlas-incremental-projection-2026-10-28.md)；这些是合成样本结果，不代表真实平台全站采集耗时。
-
-## Revision 增量同步
-
-浏览器首次连接通过 `POST /api/v1/dataset/sync` 的空请求 `{}` 建立完整公共基线。随后携带 `{ cursor: { epoch, revision } }`，服务端只返回该游标之后仍然有效的净变更：
-
-- `kind: "delta"`：`from` / `to` 游标、八类公共实体的 `upserts` 与 `deletes`，覆盖岗位入库、企业 / 地区补全、人工覆盖、岗位合并 / 拆分等已提交变化。
-- `kind: "unchanged"`：只返回当前游标，不读取、解析或序列化整库。浏览器和 Worker 复用原对象，不重新触发列表 / 地图计算。
-- `kind: "snapshot"`：首次连接、游标断档、仓库变更、游标超前或增量超出预算时，返回同一事务版本的完整公共快照和明确 `reason`，不返回被截断的部分增量。
-
-SQLite V6 将实体变更标记与事实、幂等回执置于同一写事务。每个实体只保留最近一次标记，保留窗口为最近 512 个 revision；引入 V6 同步标记时只建立当前版本基线，不重写历史岗位。`epoch` 在初次建立同步基线或完整备份恢复时生成，普通进程重启及 V6 → V7 投影依赖迁移保持不变。恢复备份会重置同步基线，不复用备份里的同步游标。同步本身不改变 revision、采集覆盖状态或补全队列。
-
-单次增量最多 4096 个**实体**、4 MiB（不是 4096 个岗位）；超出时回到完整快照。原始 `GET /api/v1/dataset/export` 仍可用于导出和旧客户端。新浏览器只有在同步入口明确返回 404 / 405 时才临时使用旧导出，不会把认证失败、网络故障、损坏响应伪装成协议不支持；旧服务能力缓存 30 秒后重新探测。
-
-同步解析与全局引用验证在浏览器 Worker 中进行；向页面也只传变更实体，保持未变行 / 数组对象身份。取消、失败或半次传输不会暴露部分版本。页面接收中断或缓存淘汰时，可用 Worker 中已校验的基线修复本地传输，无需再下载整库。同连接的并发刷新共享一次读取，单个观察者取消不会取消其他观察者。缓存各自最多保留三份基线；端点、令牌或字节预算变化不会错误继承另一连接的游标。
-
-这一阶段不改变查询索引或 UI 动画。增量应用仍保留完整的引用一致性检查，查询与地图投影仍由原计算 Worker 执行；不是把整条采集 / 查询链路都改为 O(delta)。页面刷新导致 Worker 基线丢失时，需要重新建立一次完整基线，不能只凭一个 revision 应用增量。
-
-实现边界、恢复语义、5000 / 15000 岗实际服务与浏览器测试结果见 [revision 增量同步验收报告](../../docs/reports/job-atlas-revision-sync-2026-10-28.md)。
+Remotive 公共远程 feed 已安装为 `remotive@1`，仍按 catalog 项明确审核、添加并启用后才能读取。每次刷新只请求一个有限结果窗口、至多100条，不支持历史游标；源数据延迟约24小时。其官方条款要求标注来源和原职位链接，禁止向其他招聘网站转交列表或在列表站收集注册/邮箱线索。该源最少间隔6小时、每分钟最多2次、每个UTC日最多4次；每日限制在 SQLite 任务启动事务中持久计数，已开始的失败或取消任务也计入，同一幂等请求回放不计第二次。字段局限和官方依据见岗位地图与 source-adapters 文档。
 
 ## 使用 HTTP API
 
@@ -103,6 +81,14 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/jobs/search" -Headers $jobHe
 | HTTP | 路径 | 应用工具 / 输入 |
 | --- | --- | --- |
 | GET | `/healthz` | 认证后的进程存活检查。 |
+| POST | `/api/v1/compensations/review` | `compensations.read-review`；单条薪资来源、当前值及核对历史，只读。 |
+| POST | `/api/v1/compensations/preview` | `compensations.preview-review`；逐字段原文依据、版本及预览指纹，不写库。 |
+| POST | `/api/v1/compensations/confirm` | `compensations.confirm-review`；明确reviewed及幂等键，追加本人核对。 |
+| POST | `/api/v1/compensations/revoke` | `compensations.revoke-review`；明确撤销本人核对，保留历史及回执。 |
+| POST | `/api/v1/companies/control-review/read` | `companies.read-control-review`；读取指定岗位／公司的来源、当前值与核对历史。 |
+| POST | `/api/v1/companies/control-review/preview` | `companies.preview-control-review`；逐字段原文引用与版本预览，不联网、不写库。 |
+| POST | `/api/v1/companies/control-review/confirm` | `companies.confirm-control-review`；明确本人审核、预览指纹及幂等键，追加控股核对。 |
+| POST | `/api/v1/companies/control-review/revoke` | `companies.revoke-control-review`；明确撤销本人的指定核对，保留历史和回执。 |
 | POST | `/api/v1/jobs/search` | `jobs.search`；直接传共享 `JobQuery`。 |
 | GET | `/api/v1/jobs/:jobId` | `jobs.read-detail`；旧 ID 按本次快照解析到规范岗位，返回公司、全部来源、观察与 JD 快照。 |
 | POST | `/api/v1/jobs/reviewed-cards/preview` | `jobs.preview-reviewed-cards`；校验本人核对的四平台卡片、索引版本和字段证据，返回预览指纹，不联网、不写库。 |
@@ -112,24 +98,32 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/jobs/search" -Headers $jobHe
 | POST | `/api/v1/locations/confirmations/preview` | `locations.preview-confirmation`；本人结构化地区选择的只读预览，返回原始 / 当前 / 拟保存地点及指纹。 |
 | POST | `/api/v1/locations/confirmations` | `locations.confirm`；完整预览输入加 `previewFingerprint`、`reviewed: true` 和 `Idempotency-Key`，追加地区确认并保存有效投影。 |
 | POST | `/api/v1/locations/confirmations/revoke` | `locations.revoke-confirmation`；`{ jobId, locationId, decisionId, expectedRevision, reason, reviewed: true }`，追加撤销并恢复上一有效选择或来源地点。 |
-| GET | `/api/v1/sources` | `sources.list`；已保存来源及当前安装的适配器能力。 |
+| GET | `/api/v1/sources` | `sources.list`；已保存来源、当前安装的适配器能力，以及按当前执行身份聚合的安全健康摘要。 |
 | POST | `/api/v1/sources` | `sources.register`；`{ source, expectedRevision? }`，修改既有配置需版本号。 |
 | POST | `/api/v1/sources/:sourceId/preview` | `sources.preview`；`{ scope?, maxRecords? }`，读取一页，不写岗位索引。 |
 | POST | `/api/v1/sources/:sourceId/sync` | `sources.sync`；`{ scope?, maxRecords?, maxPages? }`，受限手动刷新。 |
+| POST | `/api/v1/sources/:sourceId/scan-progress` | `sources.read-scan-progress`；`{ runId? }`，只读当前身份保存的扫描进度，不联网，不需幂等键。 |
+| POST | `/api/v1/sources/:sourceId/continue-sync` | `sources.continue-sync`；`{ fromRunId, expectedProgressVersion, maxRecords?, maxPages? }`，显式继续原范围，需要幂等键。 |
 | GET | `/api/v1/companies/discovery-capabilities` | `companies.discovery-capabilities`；仅读取配置投影，不联网探测或返回端点。 |
 | POST | `/api/v1/companies/discover-careers` | `companies.discover-careers`；`{ sourceId?, request }`，仅企业名可省略 sourceId，明确官网／seed 必须指定已审核策略。 |
 | POST | `/api/v1/sources/discover` | `sources.discover`；`{ sourceId, request }`，发现待审核来源候选。 |
 | POST | `/api/v1/sources/inspect` | `sources.inspect`；`{ sourceId, request }`，有限抽样检查。 |
 | POST | `/api/v1/sources/propose` | `sources.propose`；直接传提案输入，只生成禁用配置。 |
+
+`sources.list` 的 `health.entries` 每项按 `sourceId` 返回 `latestRun`、`lastCompleted`、`lastPartial` 和 `latestError`（如果存在）。摘要只保留状态、完成／开始时间、记录数、页数、有限岗位／地区／国家／公司关注条件、部分标记和安全错误码；不返回 `actorScope`、`runId`、请求指纹、上游游标、端点凭据或原始错误文本。`lastCompleted` 仅表示该来源在本轮配置范围内完成，`lastPartial` 和 `latestError` 分开保留；这些数字不代表来源全量或全网覆盖。旧客户端可以忽略缺少 `health` 的旧服务响应。
 | GET | `/api/v1/runs` | `runs.list`；持久刷新任务。 |
 | GET | `/api/v1/runs/:runId` | `runs.read`；任务状态与数字摘要。 |
 | POST | `/api/v1/runs/:runId/cancel` | `runs.cancel`；JSON `{}`，取消当前身份的任务。 |
 | POST | `/api/v1/dataset/import` | `jobs.import-public`；`{ dataset, expectedRevision? }`，严格公共快照。 |
 | GET | `/api/v1/dataset/export` | `jobs.export-public`；仅公共领域快照。 |
-| POST | `/api/v1/dataset/sync` | `jobs.sync-public`；`{ cursor?: { epoch, revision } }`，同一已提交版本的增量、无变化通知或完整基线。 |
 | GET | `/api/v1/leads` | `leads.list`；线索与招聘批次，独立于正式岗位计数。 |
+| POST | `/api/v1/leads/query` | `leads.query`；按关键词、来源、类型分页查看持久线索，默认 50、最多 100 条，游标绑定查询与索引版本。 |
+| POST | `/api/v1/leads/read` | `leads.read`；重新打开一条线索、历史接续及当前可用的原页来源，零外部读取。 |
+| POST | `/api/v1/leads/original/read` | `leads.read-original`；仅从持久线索的 `record.url` 和独立启用的原来源读取唯一岗位，不接受调用方 URL。 |
+| POST | `/api/v1/leads/original/preview` | `leads.preview-original`；校验宿主读取、线索摘要与来源指纹，预览原来源字段及当前规范目标，不写入。 |
+| POST | `/api/v1/leads/original/import` | `leads.import-original`；`reviewed:true`、原预览指纹及幂等键明确保存，回执可跨服务重建与完整备份恢复。 |
 
-`scope` 为 `{ "roles": [], "regions": [], "companyNames": [] }`；省略时使用空数组。上游是否支持这些过滤条件由适配器能力和返回的 `coverage.appliedFilters` / `ignoredFilters` 说明。应用另做本地包含匹配，因此“关注范围内刷新”不代表上游已经提供全站搜索或只下载匹配记录。
+`scope` 为 `{ "roles": [], "regions": [], "companyNames": [], "countryCodes": ["CN"] }`；`countryCodes` 可省略；整个 `scope` 省略时，roles／regions／companyNames 均为空数组。上游是否支持这些过滤条件由适配器能力和返回的 `coverage.appliedFilters` / `ignoredFilters` 说明。应用另做本地包含匹配，因此“关注范围内刷新”不代表上游已经提供全站搜索或只下载匹配记录。
 
 例如，审核并注册某个来源后可调用：
 
@@ -144,6 +138,48 @@ Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/sources/my-reviewed-source/s
 ```
 
 `my-reviewed-source` 是用户自己保存的来源 ID，示例不会自动创建它。[来源配置示例](../../config/sources/examples.json)全部默认禁用、待审核；必须先核对原站、许可、稳定身份、字段映射和请求范围，再显式注册 / 启用。配置修改使同源正在进行的旧任务失效。
+
+## 分批扫描与显式续读
+
+持久线索接续与扫描是独立链路。`leads.query/read` 从一个 SQLite 事务取得有效岗位、原投影与线索文档；线索本身不能升级成规范岗位；必须另读到唯一 JobPosting、实际雇主、原编号与可读正文，不能仅凭首页或招聘批次条目入库。本版已安装 JSON-LD 与 SmartRecruiters 原页读取，来源代码的 `matchesOriginalUrl` 无网络检查决定可选范围，实际读取仍执行各自的 URL、同源、路径、租户及受控传输检查。不能用 GitHub 的端点策略授权雇主域名；不改用 `applicationUrl`、不猜原始 ID、不自动扫描整源。其他适配器与四平台浏览器仍使用既有独立流程。
+
+预览中的 `job` 是本次原来源字段，`canonicalJobId` 是当前有效归并目标；保存按原来源 ID 去重，经两条线索接续同一原岗只产生一个原来源岗位。发现来源 ID、保留链接和每条 lead 的摘要、原编号、读取序号以不可变独立观察保留，不覆盖 JD 快照的内容哈希，正常来源刷新仍保留发现链。`resolvedJobs` 是包括历史在内的接续记录，不认证当前线索链接仍指向该岗位。保存后统一读取有效索引，最终详情、统计与地图继续使用同版数据；不创建办公室坐标。
+
+未提交 capture 的宿主证明仅在当前服务进程有效，重启后须重新读取。已提交命令先查询耐久回执，再检查临时 capture 或旧 revision；原 body 和幂等键重放不重复写入，同 key 不同 body 冲突。Web 在面板关闭、切视图与组件重挂之间保留内存恢复屏障；整页刷新前应完成恢复。已拿到成功回执但索引读取失败时，仅重读不低于回执版本的快照；不再提交原保存。实现与验收范围见[持久线索接续报告](../../docs/reports/job-atlas-persistent-leads-2026-10-23.md)。
+
+`sources.sync` 保持从头刷新的语义，每个新请求建立新的扫描并永久失效该来源之前的扫描位置。有限预算用完后，要读取清单后面的候选，使用 `sources.continue-sync`；反复执行新 sync 仍会从清单前部开始。继续扫描继承原扫描的关键词、地区、企业与明确国家条件，仅可调整本批 `maxRecords`／`maxPages`，不能提供新的 `scope`、上游 cursor、执行身份或访问端点。
+
+工具输入包含 `sourceId`；HTTP 已由路径提供，因此 body 中不重复此字段。`sources.read-scan-progress` 返回 `{ sourceId, progress }`，没有当前进度时 `progress` 为 null。进度包含 `scanId`、当前拥有位置的 `runId`、版本 `version`、原 `scope`、`state`、`running`、`canContinue`、累计 `attemptedRecords`／`pages`、`hadErrors` 和更新时间，不暴露私有 cursor。累计尝试包含失败及明确重读，不等于唯一岗位数或关键词命中数。可选 `runId` 是精确查询：位置已由后续 run 接管时返回 null，不返回另一个 run 的进度。
+
+| 进度状态 | 含义与后续操作 |
+| --- | --- |
+| `ready` | 保存了下一页位置；任务结束后可显式继续。 |
+| `retry-page` | 上一页未完整读取，保存该页起点；任务结束后可显式重读并按既有身份去重。 |
+| `exhausted` | 适配器明确报告该次受审清单完整且无下一页，不表示覆盖全市场。 |
+| `truncated` | 部分覆盖且没有可继续的位置；不能当作已读完，需核对来源／适配器后另行从头刷新。 |
+| `invalidated` | 原位置已永久失效，需另行从头刷新；原因包括配置变化、新扫描或来源清单变化。 |
+
+`canContinue` 仅在任务已结束且状态为 `ready`／`retry-page` 时为 true。继续请求对来源、原 run、身份、进度版本及配置执行原子核对，陈旧版本或并发重复认领被拒绝。每批仍受来源最小刷新间隔、记录／页数上限、每分钟请求数、可信宿主请求／字节／时间预算及取消控制；不会因继续而自动放宽或循环读取全部页面。
+
+以下沿用前面示例的本机 API 与已审核来源。先只读进度，再明确提交一批；同一批重试保留相同 body 和 `Idempotency-Key`，新的批次另用新键：
+
+```powershell
+$progressResponse = Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/sources/my-reviewed-source/scan-progress" -Headers $jobHeaders -ContentType "application/json" -Body '{}'
+$scan = $progressResponse.value.progress
+if ($null -eq $scan -or -not $scan.canContinue) { throw "当前没有可以继续的扫描，请先核对进度。" }
+$continueBody = @{
+  fromRunId = $scan.runId
+  expectedProgressVersion = $scan.version
+  maxRecords = 6
+  maxPages = 1
+} | ConvertTo-Json -Depth 20
+$continueHeaders = @{ Authorization = "Bearer $jobServiceToken"; "Idempotency-Key" = "my-reviewed-source-continue-001" }
+Invoke-RestMethod -Method Post -Uri "$jobApi/api/v1/sources/my-reviewed-source/continue-sync" -Headers $continueHeaders -ContentType "application/json" -Body $continueBody
+```
+
+JSON-LD 详情超时会保留已读取记录，并明确标记 `retryCurrentPage: true`，不推进到下一页；从第一页超时也保留该页起点。显式继续会重读原页，重复观察沿用既有去重规则。其他适配器返回 partial 且无下一页、又没有明确重读标记时，进度为 `truncated`，不能假定可恢复或已扫描完。JSON-LD 后续读取会重新核对清单队列指纹；次序或内容变化使旧位置永久失效，不能把旧偏移应用到新队列。来源配置 A→B→A 也不会复活旧扫描。
+
+每页的岗位投影、发现线索、扫描 checkpoint、任务统计和耐久页面回执在同一 SQLite 事务提交。取消等待不撤回已提交页面。响应未知时使用原请求／幂等键核对原 run，不换键自动重写；同键恢复不再次请求来源，运行中的原任务仍报告 running。可信终态回执已收到后，索引或进度读取失败只重读。工具缓存的旧成功回执可包含当时进度，当前位置应另读 `scan-progress`。实现及有限验证见[来源续读报告](../../docs/reports/job-atlas-scan-continuation-2026-10-22.md)。
 
 ## SmartRecruiters 企业官网来源
 
@@ -169,6 +205,14 @@ GET https://api.smartrecruiters.com/v1/companies/{companyIdentifier}/postings/{p
 2026-10-19原主界面有限验收：Bosch`.NET`／CN预览首次超时、手动重试后fetched4，返回2条有链候选、确认匹配1条、完整详情2/4；明确sync为partial并新增1条。总库从50岗／revision27，经添加配置revision28，变为51岗／revision29；12项配置中10项可抓取。国内`.NET`全国为3条文本命中／3家企业，江苏→苏州市仅Bosch1条，保留`Suzhou, Jiangsu, China`且无办公室坐标；[原岗位](https://jobs.smartrecruiters.com/BoschGroup/744000140377569--net-bci)新标签的标题／ID／JD实际核对成功。最终恢复全球`C#`14条文本命中／9企业；**本批没有增加C#命中，不能把.NET与C#混算**。
 
 有限实站、隔离检查和发布状态见[本批报告](../../docs/reports/job-atlas-smartrecruiters-2026-10-19.md)。这次成功不保证每次网络读取或所有租户均可用。该协议不提供全市场搜索，也不增加51JOB／BOSS／猎聘／LinkedIn的访问权限；静态Pages和Docker仍需连接独立运行的本机服务。
+
+## Workday 企业招聘站来源
+
+已实测的 JLL 中国预设使用受控的 Workday CXS JSON POST 列表接口和同租户详情接口。Workday 页面入口是 `https://{host}/{site}`；接口路径是 `https://{host}/wday/cxs/{tenant}/{site}/jobs`，不要把租户重复拼进页面入口。来源 JSON 只能设置安全字符集内的固定 `tenant`／`site`、`pageSize`（1–100）及 `maxDetailRequestsPerPage`（0–10）；不能设置任意 URL、header、方法或公司名覆盖。实现和字段限制见 [`workday.ts`](../../packages/source-adapters/src/adapters/workday.ts)、[Workday 契约](../../packages/source-adapters/src/workday-contracts.ts) 与 [适配器说明](../../packages/source-adapters/README.md)。
+
+列表搜索将关注词逐条作为 `searchText` 发给固定 CXS 接口，地区和企业条件在本地校验；总数只代表这一 Workday 租户站点。分页游标绑定来源配置和完整搜索范围，但忽略服务逐页递减的临时记录额度；配置或搜索范围改变会拒绝旧游标。来源短页却报告仍有结果、响应记录超过请求额度、岗位 ID／回链错误，都会阻止不可靠续页并明确部分覆盖。详情只接受同租户、同 ID、同站点和完全相同的原始岗位 URL；缺少雇主／地区的记录可以在本页详情预算内先尝试读取，再由共享严格匹配器判断。详情超时、服务限额或认证失败会停止当前来源读取；认证错误向上报告，不当作普通详情缺失。其他详情失败保留列表摘录并标注 partial。Workday 给出的国家仅在明确披露有效 ISO alpha-2 时保留；城市、薪资与时间不会被推算成办公地址、薪资或精确发布时间。
+
+来源目录包含 JLL China Workday 预设，但默认关闭且待审核。公开可读取不等于允许再分发；使用前请核对 JLL 当前招聘站条款和允许用途，并只在 `岗位地图 → 来源工具 → 扩展可搜索来源` 中明确加入及启用。当前已观察到该租户有限列表和可读详情，不能据此称为 JLL 全量、国内全市场或全网岗位。
 
 ## 用户核对的四平台卡片
 
@@ -223,7 +267,7 @@ Web 使用步骤见[本机岗位地图说明](../../docs/job-atlas.md#核对卡�
 
 国内省市筛选的英文文本别名由共用 [text-aliases.json](../../config/geography/china-administrative/text-aliases.json)配置：现有31个大陆省级节点与有限10个城市，绑定固定行政目录及父省。它只扩展文本核对，保留原地点且不生成坐标；`Suzhou`须结合江苏／安徽等父省证据消歧，单独同名英文不归到苏州或宿州。国家和各级地区仍须匹配同一地点，不把有限别名表描述为完整地名解析服务。
 
-家庭坐标、汇率快照、配色与别名覆盖是可信 host 注入的 `QueryOptions`。当前 CLI 不提供保存家庭住址、自动获取汇率或用户配色面板；未注入坐标时不能完成距离查询，未具备薪资比较证据时保留原文 / 原币和未知状态，不自行补工资、汇率、税制、奖金或控股国别。
+家庭坐标、配色与别名覆盖可由可信 host 注入 `QueryOptions`；生产 `jobs.search` 的汇率和计算日期固定使用仓库同事务捕获的选择，宿主提供的其他FX／日期会被覆盖。参考汇率可经工具显式读取并核对后保存，默认不自动启用。CLI不保存家庭住址；未注入坐标时不能完成距离查询，未具备薪资比较证据时保留原文／原币和未知状态，不补造工资、税制、奖金或控股国别。
 
 SQLite 持久保存来源、公司、岗位、位置、薪资、来源 listing、观察、JD 快照、线索、任务与事务回执。刷新使用增量合并，不清空既有库；同源稳定记录保持 ID，内容变化追加不可变观察与按内容去重的快照；缺失字段不会无依据删除旧信息，未在列表出现也不会被当成已关闭。相同 listing 突然更换雇主会拒绝写入，等待人工核对。当前不会自动把不同来源的同名岗位合并。
 
@@ -245,23 +289,31 @@ SQLite 持久保存来源、公司、岗位、位置、薪资、来源 listing�
 | `resolveJobId(jobId, { atRevision? })` | 将旧 ID 解析到当前或指定 revision 的规范 ID，并返回完整别名历史；未知 ID 返回 `undefined`。 |
 | `readReconciliationConflicts(jobId)` | 返回当前规范 ID、选定摘要来源、冲突预览及有效决策 ID；完整原文仍从各来源观察 / 快照读取。 |
 | `readSnapshot()` | 当前去重后的公共快照，供搜索、地图计数和公共导出使用。 |
-| `readProjectionSnapshot(selection?)` | 各来源的原始岗位、地点与 listing 归属；来源页用 `sourceProjectionSelection()` 选取依赖片段，无参数保留完整参考读取。保留当前全局 revision，不混入本地地区确认。 |
+| `readProjectionSnapshot()` | 各来源的原始岗位、地点与 listing 归属，供 `projectSourcePage()` 和来源导入使用；保留当前全局 revision，不混入本地地区确认。 |
 
 `writeOptions` 必须包含 `{ expectedRevision, actorScope, idempotencyKey }`。人工决策、规范投影、索引、别名历史、受影响来源任务失效和耐久回执在同一事务提交；陈旧 revision 拒绝写入，同键同输入可以在重启后重放。已有 `jobId` 和 `snapshotId` 保留，私人收藏 / 投递无需被归并代码改写。
 
 合并保留所有 listing、不可变观察和 JD、薪资、位置及字段冲突。规范岗位按最近一次有效合并所选目标来源提供标量摘要；来源刷新仍更新各自原始投影，未选中来源的新标题或 JD 不静默取代人工摘要来源。撤销合并恢复各自最新投影。多源地点和薪资保留为集合，查询继续按共享规则报告歧义；不会默认采用最高工资或把冲突状态当已核实。
 
-现有 application 已接通归并兼容：**来源刷新从 `readProjectionSnapshot(selection)` 调用 `projectSourcePage()`**，查询与公共导出继续使用 `readSnapshot()`。详情先捕获公共快照，再以其 revision 调用 `resolveJobId()`，避免合并 / 撤销发生在异步读取间时混用不同版本。归并操作已通过受审工具、认证HTTP及Web显式预览确认接入，repository继续保持一致投影。来源导入与后台补全已使用上述增量投影；候选发现与人工操作的完整重放仍未做规模优化，测试通过不代表大量来源下的吞吐结论。
+现有 application 已接通归并兼容：**来源刷新从 `readProjectionSnapshot()` 调用 `projectSourcePage()`**，查询与公共导出继续使用 `readSnapshot()`。详情先捕获公共快照，再以其 revision 调用 `resolveJobId()`，避免合并 / 撤销发生在异步读取间时混用不同版本。归并操作已通过受审工具、认证HTTP及Web显式预览确认接入，repository继续保持一致投影。候选发现与投影尚未做规模优化，测试通过不代表大量来源下的吞吐结论。
+
+## 来源薪资核对
+
+四项 `compensations.*-review` 工具共用严格Schema和认证HTTP，网页同源网关仅代理固定端点。逐字段引用同一原岗位已存观察／正文，不以平台惯例代替原文依据；确认需明确审核及原版本／指纹，撤销保留历史。SQLite V5以来源底账和仅追加决议生成有效薪资，先于跨源归并应用；相关岗位版本随变化更新。来源变化永久失效旧核对，A→B→A不复活。
+
+本人核对保持待核实，不改JD／来源原文／地点适用范围，不自动取得雇主认证。耐久回执支持原body／key恢复；保存成功后的读取失败只重读。外币保留原币，带出处的FX快照可独立管理，详见下节；网页默认不估算缺失保证月份。详见 [薪资核对报告](../../docs/reports/job-atlas-compensation-review-2026-10-21.md)。
 
 ## 一致性、备份与部署
 
 写入、版本号和耐久幂等回执在同一个 SQLite 事务内提交。取消、同源新任务和来源配置变更使用代次校验，迟到结果不能覆盖新任务。进程内工具结果缓存不等于这些耐久回执；涉及外部网络的读取本身也不具备事务回滚。
 
-`GET /api/v1/dataset/export` 是公共领域交换格式，包含当前有效地区及其本人确认标记，但不包含任务、回执、leads、归并 / 地点原始投影或完整决策历史，不能当作完整仓库备份。已合并的公共投影不能重新覆盖原始岗位，普通公共导入也不能伪造 `userResolution`；必须使用完整备份保留拆分和地区撤销能力。
+`GET /api/v1/dataset/export` 是公共领域交换格式，包含当前有效地区及其本人确认标记，以及当前有效企业核对实际引用的独立企业目录材料；不包含任务、回执、leads、归并／地点／公司原始投影或完整决策历史，不能当作完整仓库备份。已合并的公共投影不能重新覆盖原始岗位，普通公共导入也不能伪造 `userResolution`、企业 `controlReview` 或专用补证记录；必须使用完整备份保留拆分、地区及企业核对的撤销能力。
 
-仓库层提供 `repository.backup()` / `repository.restore(backup, { expectedRevision, actorScope, idempotencyKey })`：当前 schema v7 完整备份包含公共数据、任务、回执、线索、原始岗位、归并决策、别名历史、岗位版本计数、`baseLocations`、`locationDecisions`、`officeDecisions` 与后台补全任务。仍接受符合各自规则的 v1–v6 仓库备份；已有 SQLite 文件在事务中升级，不重写既有事实或全局 revision。同步 epoch 在恢复时重新生成，V7 的来源投影依赖从原始岗位重建，不把这两类派生状态当作独立事实备份。
+仓库层提供 `repository.backup()` / `repository.restore(backup, { expectedRevision, actorScope, idempotencyKey })`：当前源码 schema V8 的完整备份包含公共数据、任务、回执、线索、原始岗位、归并决策、别名历史、岗位版本计数，以及 `baseLocations`、`locationDecisions`、办公确认历史、`baseCompensations` 与 `compensationDecisions`、`fxSnapshots` 原文与 `fxActivations` 选择历史、`baseCompanies` 和全部 `companyControlDecisions` 原文／决议，新增私有 `sourceScans` 扫描事件及关联页面回执。仍接受符合各自规则且不删除目标已有历史的 V1–V7 备份；V7→V8 增加 `source_scan_events`、索引及不可变触发器，空扫描历史的升级本身不应改变原有数据或全局 revision。实际服务须完成完整备份与隔离迁移验证后才能使用新版接口，不能只刷新页面。
 
-恢复先校验内容哈希、领域引用、决策引用 / 身份 / 先后关系、可信目录解析、当前别名及有效投影，再重放地区与归并历史；地点回执还需与其当时版本和岗位归属一致。伪造来源地点、目录名称、投影或回执会被拒绝，现库保留。通过后原子替换，运行中任务恢复为已取消。当前没有 HTTP 恢复路由或 CLI 备份 / 恢复命令；集成方应通过可信应用代码调用，不应在服务运行时只复制主 SQLite 文件而遗漏 WAL。
+`/healthz` 仅报告进程状态与 `apiVersion: 1`；公共 dataset 的 `schemaVersion: 1` 也不是 SQLite 版本。只读检查数据库版本应使用 Node `DatabaseSync` 的 `{ readOnly: true }` 打开明确选定文件，查询 `PRAGMA user_version` 后关闭；不能使用 `openJobRepository()` 做只读健康检查，它会自动执行 schema 迁移。已经升级的 V8 数据库拒绝由 V7 及以前代码打开；需要回滚时先保留新库及完整历史，再在原管理终端安排恢复升级前完整备份，不能直接覆盖正在运行的数据库或丢弃升级后的写入。
+
+恢复先校验内容哈希、领域引用、决策引用 / 身份 / 先后关系、可信目录解析、当前别名及有效投影，再重放地区与归并历史；地点回执还需与其当时版本和岗位归属一致。V8 另核对扫描事件版本链、原范围／来源指纹、run／身份绑定、累计统计与原子页面回执；不能通过旧备份删除目标已有扫描事件、相关 run 和精确命令回执，或消除失效记录、复活已消费的位置。伪造或冲突会被拒绝，现库保留。通过后原子替换，运行中任务恢复为已取消并保留已提交统计。完整备份含私有 cursor，应保存在专用私有目录。当前没有 HTTP 恢复路由或 CLI 备份 / 恢复命令；集成方应通过可信应用代码调用，不应在服务运行时只复制主 SQLite 文件而遗漏 WAL。
 
 GitHub Pages 与现有 nginx Docker 镜像仍然只发布静态网页。本包参与工作区检查 / 编译，不会自动运行在静态容器或 Pages 上。当前 HTTP 只允许本机回环并使用单一 `local-owner` 身份；服务器部署需另行实现服务器身份认证、授权与部署运行配置，不能直接把监听地址改为公网使用。
 
@@ -333,17 +385,26 @@ Web 展开“来源工具 → 企业官网招聘”后才读配置，点击发�
 
 已安装 `jobposting-jsonld@1`，复用 `sources.register`、`sources.preview`、`sources.sync`、`jobs.search` 和 `jobs.read-detail`。读取 [JSON 示例](../../config/sources/jobposting-jsonld.example.json)，先核对官网、条款、域名／路径和清单，再显式启用；分发示例与目录均默认禁用待审，不覆盖已登记来源。`options.companyName` 仅供企业招聘入口关联，不会填入缺失的真实雇主。
 
-`enumerationKind` 为 `sitemap-urlset` 或 `html-list`；`enumerationUrls` 为同源1–20个受审地址，`entryUrl` 必须等于第一项；`postingPathPrefixes` 限定岗位路径，`pageSize` 为1–20。可选 `priorityPostingUrls` 仅调整本次真实清单中已有地址的队列次序，不直接造岗位。所有请求仍经过已登记 endpointPolicy、公开DNS、HTTPS、禁止跳转及请求／字节／超时预算；不递归 sitemap index、不猜分页、不执行网站脚本或远程 JSON-LD context。
+`enumerationKind` 支持 `sitemap-urlset`、`sitemap-index` 或 `html-list`；`enumerationUrls` 为同源1–20个受审地址，`entryUrl` 必须等于第一项。`sitemap-index` 必须只有一个根索引，可用 `maxChildSitemaps` 限制读取1–100个同源叶子清单（默认20）；所有实际根、子清单和岗位路径都必须列入 `endpointPolicy`。跨源／非HTTPS条目会被拒绝，子清单必须是 `urlset`，嵌套索引不会递归读取；不可读、被拒或达到预算都会明确标 partial。只有叶子清单中的链接经岗位页有效 JobPosting JSON-LD 验证后才成为岗位候选。`postingPathPrefixes` 限定岗位路径，`pageSize` 为1–20。可选 `priorityPostingUrls` 仅调整本次真实叶子清单中已有地址的队列次序，不直接造岗位。所有请求仍经过已登记 endpointPolicy、公开DNS、HTTPS、禁止跳转及请求／字节／超时预算；不会猜分页、执行网站脚本或访问远程 JSON-LD context。
+
+ABB 全球英文 sitemap-index 已做一次有界只读探测：根索引列出5个叶子清单，读取3个详情返回3条真实 JobPosting JSON-LD；这只是首批验证，不是全量或授权声明，完整请求数、样本字段和未写入索引边界见[ABB探测报告](../../docs/reports/job-atlas-abb-sitemap-index-2026-10-25.md)。
 
 静态HTML以 parse5 的WHATWG解析读取真实锚点，XML以saxes拒绝DTD／实体／畸形结构；每页2MiB、最多10,000候选URL，节点／深度／JSON脚本另有限额。候选URL数、实际详情请求数、返回记录数和本地匹配数分别计量。游标绑定来源配置、完整关注范围及本次队列；队列变化拒绝旧游标。404或不可用结构标partial，timeout保留成功结果并停止后续详情／续页，401／403／429及安全／预算错误不当空岗位。
 
-角色／地区／国家／企业条件按已读字段本地筛选，无上游搜索承诺。每次新sync从有限队首开始，不提供跨次采集进度；ABB示例每页3详情、最多2页6个尝试，两个优先样本不等于搜遍ABB。缺雇主只保留线索，FULL_TIME不推定社招；date-only保留raw而不补午夜，薪资仅原文不进入可比税前年薪，城市geo不成为办公室或距离。国家只从明确country字段匹配共享249项ISO白名单及Node/ICU英中名称、有限既有别名，未知保留原文。
+角色／地区／国家／企业条件按已读字段本地筛选，无上游搜索承诺。每次新 sync 从有限队首开始；V8 可通过上文的显式续读工具继续保存的位置，不能反复新建 sync 期待自动翻到后部。ABB示例以 `robots.txt` 声明的全球英文 sitemap index 为根，当前观察到5个叶子清单；每页3详情、最多2页6个详情尝试，两个优先样本不等于搜遍ABB。来源条款仍需使用者复核。缺雇主只保留线索，FULL_TIME不推定社招；date-only保留raw而不补午夜，薪资仅原文不进入可比税前年薪，城市geo不成为办公室或距离。国家只从明确country字段匹配共享249项ISO白名单及Node/ICU英中名称、有限既有别名，未知保留原文。
 
 企业搜索可关联已登记同名源；陌生企业仍需官网线索／已配置宿主搜索与另行审核，不能据零命中认定官网无岗位。源码编译后仍需保留根目录 `config/geography/countries.json`；现有仓库与Docker构建布局已包含它。静态Pages／Docker网页需连接独立本机服务，并不内置这个采集后台。实测与限制见[官网结构化来源报告](../../docs/reports/job-atlas-jsonld-sources-2026-10-19.md)。
 
 ## 办公地址核对与可选地址提供方
 
-默认关闭外部地址查询；需要时在原启动命令末尾增加`--office-geocoder nominatim`，保留原data-dir／port／Origin／DNS配置。它只安装提供方，不启动批量请求；网页必须输入具体query并点击查询。固定Nominatim HTTPS、最多5候选、至少1.1秒门控、15分钟有限进程缓存，尊重Retry-After，不自动重试、自动补全或扫描索引。署名／OSM记录随候选返回。国内覆盖由地图数据决定。后续按宿主已配置Google DoH完成一次公开地标请求，Nominatim HTTP200；真实响应的place/house门牌漏召回已修。但3个候选属于其他城镇，未准确命中目标地标，也没有证明岗位办公关联；必须核对完整地址后再明确保存。旧system探针失败原因仍未知。实证与验证见[本批报告](../../docs/reports/job-atlas-office-provider-real-2026-10-19.md)。
+默认关闭外部地址查询；需要时在原启动命令末尾增加`--office-geocoder nominatim`、`--office-geocoder photon`或`--office-geocoder amap`，保留原data-dir／port／Origin／DNS配置。高德 provider 只从宿主环境变量`BETTERME_AMAP_WEB_SERVICE_KEY`读取 Key；没有 Key 时请使用 Photon/Nominatim，或让 Amap 查询明确返回 `needs-auth`。如果已有服务占用同一数据目录，先在原服务终端停止它，再沿用原有目录和其他参数重启：
+
+```powershell
+$jobDataDirectory = Join-Path $env:LOCALAPPDATA "BetterMe/job-atlas"
+pnpm --filter @better-me/job-service start --data-dir $jobDataDirectory --origin http://localhost:5173 --office-geocoder photon
+```
+
+它只安装提供方，不启动批量请求；网页必须输入具体query并点击查询。三个提供方均固定 HTTPS、最多5候选、15分钟有限进程缓存并尊重Retry-After；Nominatim至少1.1秒门控，Photon和Amap至少2秒门控。Amap只接受中国门牌号／楼栋级结果，保留原始GCJ-02并转换为WGS84候选；不支持把邮编约束伪装成命中。所有 provider 都不自动重试、自动补全或扫描索引。署名记录随候选返回；候选始终是待核对建议，不会自动成为办公确认。实证与验证见[本批报告](../../docs/reports/job-atlas-office-provider-real-2026-10-19.md)。
 
 四项共享工具与认证POST路径如下，执行身份由宿主提供；客户端不能传provider端点、actorScope或任意代码。
 
@@ -354,11 +415,11 @@ Web 展开“来源工具 → 企业官网招聘”后才读配置，点击发�
 | locations.confirm-office-address | confirmations |
 | locations.revoke-office-address | revoke |
 
-候选输入为`{jobId,locationId,expectedRevision,query?}`；没有query只返回来源／配置、不外发请求。query只发送明确文本和已知国家过滤，不附带来源正文、家庭位置或owner。`proposal`固定为`basis:manual-user-confirmation`、countryCode、formattedAddress、streetAddress、可选postalCode、WGS84 coordinates、evidenceUrl和`coordinateMeaning:building|entrance|site`。预览与确认共用job／location／版本／proposal／reason；确认还需previewFingerprint、reviewed:true及Idempotency-Key。撤销提交原decisionId、expectedRevision、reason、reviewed:true及Idempotency-Key。
+候选输入为`{jobId,locationId,expectedRevision,query?}`；没有query只返回来源／配置、不外发请求。query只发送明确文本和已知国家过滤，不附带来源正文、家庭位置或owner。`proposal`固定为`basis:manual-user-confirmation`、countryCode、formattedAddress、streetAddress、可选postalCode、WGS84 `coordinates`、可选 provider 原始 `originalCoordinates`、evidenceUrl 和`coordinateMeaning:building|entrance|site`。预览与确认共用job／location／版本／proposal／reason；确认还需previewFingerprint、reviewed:true及Idempotency-Key。撤销提交原decisionId、expectedRevision、reason、reviewed:true及Idempotency-Key。
 
 SQLite V4保留base地点、行政决议、办公确认／撤销／source失效事件和耐久回执。来源地点或证据一度变化后旧办公点不会在A→B→A时自动激活。公共快照导入拒绝本地overlay；完整备份恢复包含历史。保存仍待核实，不把GCJ02当WGS84、城市／道路候选当门牌、地图候选当雇主认证。超时使用原body／key核对回执，已保存后读快照失败只重读。详见[本批报告](../../docs/reports/job-atlas-desktop-office-address-2026-10-19.md)。
 
-`locations.office-address-candidates`可显式传`locality`（≤200字符）和`postalCode`（≤100字符），二者必须与`query`同传；无query仍只读配置。宿主不会隐式发送来源城市或邮编。有约束时Nominatim使用structured查询并严格核对实际市级字段及邮编；州县不当市、未知或不符拒绝，缓存按全部约束隔离。不猜翻译、门牌或办公关联。详见[桌面与精度报告](../../docs/reports/job-atlas-desktop-precision-2026-10-19.md)。
+`locations.office-address-candidates`可显式传`locality`（≤200字符）和`postalCode`（≤100字符），二者必须与`query`同传；无query仍只读配置。宿主不会隐式发送来源城市或邮编。有约束时 Nominatim/Photon 严格核对 provider 披露的市级字段和邮编；Amap 当前只核对市级字段，provider 未披露邮编时邮编约束返回无候选。州县不当市、未知或不符拒绝，不猜翻译、门牌或办公关联。
 
 ## 逐岗地址规划与来源地点补充
 
@@ -373,3 +434,30 @@ Web逐岗外读、官网发现、地址候选、来源保存与办公坐标确�
 原JSON-LD `PlatformDetailLocations.version:1`保持兼容，新增`version:2` Liepin可见地址证据。`selector:liepin-work-address[n]`与quote中的`{selector:"liepin-work-address",label:"工作地址"|"工作地点",text}`必须逐项规范重放；V1拒绝此分支，V2不混合JSON-LD与可见数组，坐标字段禁止。native projector/caller才开启可见sidecar，不把普通`requireVisibleDescription`视为证明；URL/provider/同岗/时间/预览版本检查保持。
 
 工具层只将selector/quote映射到领域evidence，完整capture保存在观察rawText，避免wire-only kind污染严格domain。来源原文无行政字段时不会自动继承，地点精度保持unknown。只补来源的street字段不代表已取得办公坐标；明确远程或非本岗位地址的可见披露拒绝。源刷新在同label明确街道/邮编冲突时换新location身份，搬迁后稀疏刷新跟随当前贡献，不拼旧值；V4在同revision持久失效旧office。验证及限制见[可见地址与换址报告](../../docs/reports/job-atlas-visible-office-evidence-2026-10-19.md)。
+
+
+## 官网原岗地点工具
+
+`jobs.read-owned-detail-locations`、`jobs.preview-owned-detail-locations`、`jobs.import-owned-detail-locations` 对应认证 POST `/api/v1/jobs/owned-detail-locations/read|preview|import`。按索引原岗位／listing／版本定位目标；JSON-LD 与 SmartRecruiters 具备实际精确 reader，其他协议保持线索能力。保存必须审核并提供幂等键，只替换原 listing 地点贡献，不改变 JD／薪资／企业或生成坐标。签名 capture、版本和来源指纹、读取顺序及耐久回执防止陈旧覆盖，详见[精确读取报告](../../docs/reports/job-atlas-owned-detail-locations-2026-10-21.md)。
+
+## 参考汇率与查询上下文
+
+参考汇率管理使用 `fx.fetch-reference`／`fx.read-state`／`fx.preview-import`／`fx.confirm-import`／`fx.activate` 五项共享工具，分别对应 `/api/v1/fx/reference`、`state`、`preview`、`import`、`activate` 的认证 POST。默认公开参考源由宿主安装，只有明确点击读取才请求网络；保存与启用仍须另外核对。SQLite V6 完整备份保留原文快照、选择历史及回执，旧版本代码不能直接打开 V6 数据库。使用与换算边界见[汇率说明](../../docs/reports/job-atlas-fx-context-2026-10-21.md)。
+
+## 企业最终控股证据核对
+
+四项 `companies.*-control-review` 工具使用上表的认证 POST 路径；网页同源网关只开放固定路由，由宿主管理令牌。读取／预览是 `read-index`，确认／撤销是 `local-write`；均不联网，不自动访问填写的出处 URL 或抓取企业信息。
+
+读取输入为 `{ jobId, companyId, expectedRevision }`。预览增加 `proposal`、`reason`；确认重交相同输入并增加 `previewFingerprint`、`reviewed: true` 和 `Idempotency-Key`。撤销输入为 `{ jobId, companyId, decisionId, expectedRevision, reason, reviewed: true }`，同样需要幂等键。执行身份与预算来自可信宿主，不能在请求中自封。
+
+`proposal.basis` 固定为 `manual-evidence-review`；`documents` 保留实际 `sourceUrl`、`retrievedAt` 和 `rawText`。`supports` 以 `field`、`documentIndex`、`quote` 及可选 `controllerIndex` 引用原句。实际雇主法定名称、可选母公司关系、状态与控制模式均有字段引用；每个控制方另需名称、性质、`controllerControl` 实际最终控制关系，以及填写时的来源国别引用。最多10份材料、20个控制方，原文单份256 KiB／合计1 MiB UTF-8字节；确认和恢复从原文计算SHA-256并拒绝未来读取／决议。
+
+`resolved` 配合 `single`／`joint`／`dispersed` 区分单一、共同及无实际控制人；后者不创建控制方名称或控股来源国家。`unknown`／`conflicting` 可以保存核对历史，但保持未分类。有效公司附 `controlReview` 本人核对标记，手工 `verified` 不代表发布机构认证；原句存在也不表示系统自动验证了法律含义。不能用品牌、注册地或母公司名称猜控制国别。
+
+核对绑定现有岗位与确切公司，作用同 `companyId` 岗位，不按同名合并企业；决议归档当时的 `affectedJobIds`，新岗位不会改变旧回执。普通标题／JD／薪资更新、新增别名或同公司岗位保留有效核对；实际雇主身份、原控制字段、相关覆盖及绑定证据变化追加永久失效事件，A→B→A不复活。有效核对优先于旧控制方覆盖，原覆盖正文保留。
+
+V7的确认／撤销／失效决议与有效公司投影、相关岗位版本及回执原子提交。完整备份保留全部原文；公开数据集仅追加每公司最新有效核对实际引用的禁用 `company-directory` 来源／listing／observation，不挂入任何岗位的 `listingIds`、不创建JD或增加岗位数。撤销或失效的材料继续由历史读取／完整备份保留，避免每次地图查询复制全部旧原文。专用命名空间、来源证据、历史回执和有效投影须能严格重建；恢复不得丢弃目标库已有企业核对历史。
+
+提交后响应未知时使用原body／幂等键恢复耐久回执；可信回执已收到而索引读取失败时只重读。网页内存恢复屏障覆盖关闭面板、切换视图与工作区重挂，整页刷新／浏览器关闭不保证保留前端请求。后端回执持续保存，但恢复原命令仍需原输入和键。
+
+2026-10-22 本切片32文件独立树已通过2742/2742、types10／Lint／build6；合成浏览器940px中文浅色保存1→2、390px英文深色撤销2→3及认证HTTP通过。完整备份及隔离克隆后，真实5178已升级V7，原40表、dataset、token与五组查询保持，89岗rev85／0控股核对。产品b67463d及文档1b22e47的Windows质量、Linux构建、Docker与Pages四项均成功，远端2742/2742，公开6资源200；后续发布状态以[main工作流](https://github.com/nanfengovo/better-me/actions/workflows/ci-pages.yml?query=branch%3Amain)为准。原5173进程保留，宿主重启沿用上方“网页默认后端”的严格端口命令。完整范围与后续结果见[企业控股核对报告](../../docs/reports/job-atlas-company-control-review-2026-10-22.md)。

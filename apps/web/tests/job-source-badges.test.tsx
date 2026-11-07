@@ -130,7 +130,14 @@ test("legacy workspace list, board and details share source badges while collect
 
 test("map-to-opportunity seed preserves source publication precision and never substitutes collection time", async () => {
   const published = "2026-09-01T12:34:56.789Z";
-  await mount(workspace({ token: "synthetic-seed", title: "Seed engineer", description: "Synthetic JD", sourcePlatform: "LinkedIn", sourcePublishedAt: published, sourcePublishedText: "Sep 1, 2026", collectedAt: NOW }));
+  const sourceReferences = [{ sourceId: "linkedin", listingId: "listing-seed", sourcePlatform: "LinkedIn", sourceUrl: "https://jobs.example.invalid/seed",
+    sourceJobId: "seed-42", observedAt: NOW, sourcePublishedAt: published, sourcePublishedText: "Sep 1, 2026", salaryTexts: ["USD 100k-120k"] }];
+  const workLocations = [{ id: "seed-location", raw: "Synthetic office disclosure", kind: "office" as const, countryCode: "US", region: "Washington", city: "Seattle",
+    precision: "city" as const, verification: "unverified" as const,
+    evidence: [{ sourceId: "linkedin", listingId: "listing-seed", observationId: "observation-seed", sourceUrl: "https://jobs.example.invalid/seed", observedAt: NOW, quote: "Synthetic source location" }] }];
+  await mount(workspace({ token: "synthetic-seed", company: "Synthetic employer", title: "Seed engineer", description: "Synthetic JD", sourcePlatform: "LinkedIn",
+    sourceUrl: "https://jobs.example.invalid/seed", sourcePublishedAt: published, sourcePublishedText: "Sep 1, 2026", collectedAt: NOW,
+    salaryText: "USD 100k-120k", market: "overseas", location: { country: "US", region: "Washington", city: "Seattle" }, sourceReferences, workLocations }));
   const company = label("公司名称").querySelector("input")!;
   await act(async () => {
     Object.getOwnPropertyDescriptor(dom.HTMLInputElement.prototype, "value")!.set!.call(company, "Synthetic employer");
@@ -141,6 +148,8 @@ test("map-to-opportunity seed preserves source publication precision and never s
   const saved = readOpportunityLibrary().library.jobs[0];
   assert.ok(saved, dom.document.body.textContent);
   assert.equal(saved.sourcePublishedAt, published); assert.equal(saved.sourcePublishedText, "Sep 1, 2026"); assert.equal(saved.collectedAt, NOW);
+  assert.equal(saved.salaryText, "USD 100k-120k"); assert.equal(saved.market, "overseas");
+  assert.deepEqual(saved.sourceReferences, sourceReferences); assert.deepEqual(saved.workLocations, workLocations);
 });
 
 test("date-only publication seeds retain raw precision without inventing a midnight timestamp", async () => {

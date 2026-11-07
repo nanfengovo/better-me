@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-22",
+  "purpose": "isolated component acceptance screenshots",
+  "actualMarketCoverageClaim": false,
+  "screenshots": [
+    {
+      "file": "atlas-map-local-first-global.webp",
+      "sha256": "782069345ca235cbfebf14ffd52a989ca77ee0aff9648aece0e960f87daf5c15",
+      "bytes": 44080,
+      "syntheticJobs": true,
+      "privateDataRead": false,
+      "kind": "actual-map-component-synthetic-points"
+    },
+    {
+      "file": "atlas-map-local-first-china.webp",
+      "sha256": "688c10971c7a95bdc6e683d72cb406f8163ca22c1e3e41446a68148f1605c15e",
+      "bytes": 34766,
+      "syntheticJobs": true,
+      "privateDataRead": false,
+      "kind": "actual-map-component-synthetic-points"
+    },
+    {
+      "file": "atlas-map-local-first-street.webp",
+      "sha256": "a71c816b16190355496d577142777dd841edee4f3e7e8b9ca9194676df47743a",
+      "bytes": 69910,
+      "syntheticJobs": true,
+      "privateDataRead": false,
+      "kind": "actual-map-component-synthetic-points",
+      "onlineStreetData": "OpenFreeMap / OpenMapTiles / OpenStreetMap"
+    },
+    {
+      "file": "atlas-source-scan-progress.webp",
+      "sha256": "e215af6233009c2919986b615d87a8309503ad3749b94c9556365ccb540b2e66",
+      "bytes": 54578,
+      "syntheticJobs": true,
+      "privateDataRead": false,
+      "kind": "actual-source-panel-synthetic-backend"
+    }
+  ]
+}

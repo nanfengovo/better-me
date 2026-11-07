@@ -271,6 +271,45 @@ test("旧机会库没有材料字段时兼容为空，快照导入仅保留已�
   assert.doesNotMatch(exportOpportunityJson(importOpportunityJson(JSON.stringify(input))), /private-key|private-facts|apiKey|fullDocument/);
 });
 
+test("Atlas结构化来源与多地点证据可完整备份往返，旧机会库缺少新增字段时默认兼容", () => {
+  const library = addOpportunity(emptyOpportunityLibrary(), {
+    company: "合成企业", title: "合成工程师", sourcePlatform: "招聘来源 A", sourceUrl: "https://jobs.example.test/role-a",
+    sourceReferences: [
+      { sourceId: "source-a", listingId: "listing-a", sourcePlatform: "招聘来源 A", sourceUrl: "https://jobs.example.test/role-a",
+        sourceJobId: "ROLE-A", observedAt: AT, sourcePublishedAt: "2026-10-10T08:00:00.000Z", sourcePublishedText: "10月10日发布",
+        sourceUpdatedAt: "2026-10-11T08:00:00.000Z", salaryTexts: ["月薪 30-40K"] },
+      { sourceId: "source-b", listingId: "listing-b", sourcePlatform: "招聘来源 B", sourceUrl: "https://careers.example.test/role-b",
+        observedAt: LATER, sourcePublishedText: "3 days ago", salaryTexts: ["Negotiable"] },
+    ],
+    workLocations: [
+      { id: "office-sh", raw: "上海市浦东新区合成路 10 号", kind: "office", countryCode: "CN", region: "上海市", city: "上海市", district: "浦东新区",
+        streetAddress: "合成路 10 号", precision: "address", verification: "unverified",
+        coordinates: { latitude: 31.2, longitude: 121.5, coordinateSystem: "WGS84" }, provider: "synthetic-source", resolvedAt: AT,
+        evidence: [{ sourceId: "source-a", listingId: "listing-a", observationId: "observation-a", sourceUrl: "https://jobs.example.test/role-a", observedAt: AT, quote: "工作地点：上海市浦东新区合成路 10 号" }] },
+      { id: "office-seattle", raw: "Seattle, Washington, US", kind: "office", countryCode: "US", region: "Washington", city: "Seattle",
+        precision: "city", verification: "unknown", evidence: [{ sourceId: "source-b", listingId: "listing-b", observationId: "observation-b", observedAt: LATER }] },
+    ],
+  }, AT).library;
+  const job = library.jobs[0]!;
+  assert.deepEqual(importOpportunityJson(exportOpportunityJson(library)), library);
+  assert.equal(job.sourceReferences[0]!.sourcePublishedText, "10月10日发布");
+  assert.equal(job.workLocations[0]!.coordinates?.coordinateSystem, "WGS84");
+  assert.equal(job.workLocations[1]!.evidence[0]!.sourceUrl, undefined);
+
+  const legacy = JSON.parse(exportOpportunityJson(library));
+  delete legacy.jobs[0].sourceReferences;
+  delete legacy.jobs[0].workLocations;
+  const restored = importOpportunityJson(JSON.stringify(legacy)).jobs[0]!;
+  assert.deepEqual(restored.sourceReferences, []);
+  assert.deepEqual(restored.workLocations, []);
+  for (const invalid of [
+    { ...job, sourceReferences: [{ ...job.sourceReferences[0]!, sourceUrl: "javascript:alert(1)" }] },
+    { ...job, sourceReferences: [job.sourceReferences[0], job.sourceReferences[0]] },
+    { ...job, workLocations: [{ ...job.workLocations[0]!, coordinates: { latitude: 91, longitude: 121, coordinateSystem: "WGS84" } }] },
+    { ...job, workLocations: [job.workLocations[0], job.workLocations[0]] },
+  ]) assert.throws(() => importOpportunityJson(JSON.stringify({ ...library, jobs: [invalid] })));
+});
+
 test("材料超限明确报错且不删除旧快照，手动清理后可以继续记录", () => {
   let library = fixture();
   const id = library.jobs[0]!.id;

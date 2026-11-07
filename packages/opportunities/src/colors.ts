@@ -108,6 +108,9 @@ export const CompanyClassificationSchema: z.ZodType<CompanyClassification> = z.o
   if (value.jurisdictionComplete && (!value.jurisdictions.length || !value.controllerNames.length)) {
     context.addIssue({ code: 'custom', path: ['jurisdictionComplete'], message: 'Complete jurisdiction requires a known controller and origin.' });
   }
+  if (value.ownership === 'dispersed' && (value.controllerNames.length || value.jurisdictions.length || value.jurisdictionComplete)) {
+    context.addIssue({ code: 'custom', path: ['ownership'], message: 'No actual controller does not establish a controlling party or its origin.' });
+  }
 });
 export const CompanyColorMatchReasonSchema = z.enum([
   'matched-rule', 'controllers-unverified', 'controllers-conflicting', 'controllers-unknown', 'controllers-evidence-missing', 'no-rule',
@@ -136,6 +139,8 @@ const OWNERSHIP_LABELS: Record<CompanyOwnership, string> = {
 /** Resolve audited manual edits without overwriting source observations or accepting future revisions. */
 export function effectiveCompanyControllers(company: Company): Company['ultimateControllers'] {
   const base = company.ultimateControllers;
+  // A replayed review is the current explicit interpretation; legacy edits remain archived.
+  if (company.controlReview) return structuredClone(base);
   let effective = base;
   const knownManualRevisions = new Set<number>();
   const edits = [...company.manualOverrides].sort((left, right) =>
@@ -167,6 +172,10 @@ export function classifyCompany(company: Company): CompanyClassification {
     return classification;
   }
   const values = controllers.value;
+  if (company.controlReview?.status === 'resolved' && company.controlReview.controlMode === 'dispersed'
+    || values.length === 1 && values[0]!.kind === 'dispersed') {
+    return { ...classification, ownership: 'dispersed' };
+  }
   if (values.length === 0) return { ...classification, status: 'unknown' };
   classification.jurisdictions = [...new Set(values.flatMap((entry) => entry.jurisdictionCode ? [entry.jurisdictionCode] : []))].sort();
   classification.controllerNames = [...new Set(values.map((entry) => entry.name))].sort();

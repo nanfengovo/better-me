@@ -97,6 +97,26 @@ test("opening is inert, source text stays text, and a city point never prefills 
   assert.equal(link.target, "_blank"); assert.match(link.rel, /noopener/); assert.equal(new URL(link.href).searchParams.get("query"), props.location.raw);
 });
 
+test("the double-click review path prefills the source address and waits for an explicit candidate query", async () => {
+  const sourceLocation = { ...officeSource, streetAddress: officeProposal.streetAddress, postalCode: officeProposal.postalCode };
+  const calls = installFetch(), props = { ...fixture(), location: sourceLocation, prefillFromSourceAddress: true };
+  await render(props);
+  assert.equal(field("办公地址查询").value, sourceLocation.streetAddress);
+  assert.equal(field("办公地址限定城市").value, sourceLocation.city);
+  assert.equal(field("办公地址限定邮编").value, sourceLocation.postalCode);
+  assert.match(dom.document.body.textContent!, /点击“查询地址候选”后才会发送给地址服务/);
+  assert.equal(button("查询地址候选").disabled, false);
+  assert.equal(calls.length, 0);
+  assert.equal(dom.document.querySelector(".atlas-office-candidates"), null);
+  await click("查询地址候选");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]!.path, officeRoutes.candidates);
+  assert.deepEqual(calls[0]!.body, { jobId: officeJobId, locationId: officeSource.id, expectedRevision: 11,
+    query: sourceLocation.streetAddress, locality: sourceLocation.city, postalCode: sourceLocation.postalCode });
+  assert.equal(calls.some(call => call.path === officeRoutes.preview || call.path === officeRoutes.confirm), false);
+  assert.equal(field("办公地址纬度").value, "");
+});
+
 test("remote or evidence-free locations cannot open an office write workflow", async () => {
   const calls = installFetch();
   for (const location of [{ ...officeSource, kind: "remote-region" as const }, { ...officeSource, evidence: [] }]) {
@@ -150,14 +170,31 @@ test("editing any candidate-query field clears old candidates and blank constrai
 });
 
 test("candidate choice only fills a manual unverified proposal; it never previews or saves automatically", async () => {
-  const calls = installFetch(); await render(fixture()); await change("办公地址查询", "Synthetic Example Road 10"); await click("查询地址候选");
+  const calls = installFetch(), focused: string[] = [], props = fixture(); props.onCandidateFocus = candidate => focused.push(candidate.id);
+  await render(props); await change("办公地址查询", "Synthetic Example Road 10"); await click("查询地址候选");
   assert.match(dom.document.querySelector(".atlas-office-candidates")!.textContent!, /估算候选.*待核实/);
-  assert.equal(field("办公地址纬度").value, ""); await click("填入表单，继续人工核对");
+  assert.equal(field("办公地址纬度").value, ""); await click("定位候选到地图");
+  assert.deepEqual(focused, [officeCandidates.candidates[0]!.id]); assert.equal(calls.length, 1);
+  assert.equal(field("办公地址纬度").value, ""); assert.equal(dom.document.querySelector(".atlas-office-preview"), null);
+  await click("填入表单，继续人工核对");
   assert.equal(field("完整办公地址").value, officeProposal.formattedAddress); assert.equal(field("办公地址纬度").value, String(officeProposal.coordinates.latitude));
   assert.equal(calls.length, 1); assert.equal(dom.document.querySelector(".atlas-office-preview"), null);
   await change("办公地址核对说明", officeReason); await click(previewLabel);
   assert.equal((calls[1]!.body?.proposal as typeof officeProposal).basis, "manual-user-confirmation");
   assert.equal(button(saveLabel).disabled, true);
+});
+
+test("candidate field comparison is explicit, conservative and has no workflow side effects", async () => {
+  const calls = installFetch(), focused: string[] = [], props = fixture(); props.onCandidateFocus = candidate => focused.push(candidate.id);
+  await render(props); await change("办公地址查询", "Synthetic Example Road 10"); await click("查询地址候选");
+  const panel = dom.document.querySelector('[aria-label="地址字段核对"]'); assert.ok(panel);
+  assert.match(panel.textContent!, /来源字段核对/); assert.match(panel.textContent!, /1 项匹配 · 0 项冲突 · 5 项未知/);
+  assert.match(panel.textContent!, /城市Shanghai→未知未知/); assert.match(panel.textContent!, /区县未知→未知未知/);
+  assert.equal(panel.querySelector('[data-status="match"] dt')?.textContent, "国家／地区");
+  assert.equal(panel.querySelector('[data-status="unknown"] dt')?.textContent, "省／州／地区");
+  assert.match(dom.document.querySelector(".atlas-office-candidates")!.textContent!, /估算候选 · 待核实/);
+  assert.equal(field("办公地址纬度").value, ""); assert.equal(dom.document.querySelector(".atlas-office-preview"), null);
+  assert.deepEqual(focused, []); assert.equal(calls.length, 1);
 });
 
 test("blank or invalid coordinates and unsafe evidence never reach preview; edits invalidate review", async () => {

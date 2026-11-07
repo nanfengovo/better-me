@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Overlapping map marker chooser desktop and narrow acceptance",
+  "syntheticOnly": true,
+  "privateDataUsed": false,
+  "officePrecisionVerified": false,
+  "attribution": "Natural Earth overview; OpenFreeMap / OpenMapTiles / OpenStreetMap contributors street map. Provider credits remain visible in each screenshot.",
+  "files": [
+    {
+      "file": "atlas-overlap-choices.webp",
+      "width": 1506,
+      "height": 978,
+      "viewport": [
+        1512,
+        982
+      ],
+      "bytes": 96064,
+      "sha256": "a029f5c685461d770fbc61ab5b005115f42633d7de3f64c4291a0ae7b7a5aee0",
+      "sourcePngSha256": "ee61934daa9aad076e0622be936a33674b10e3cfb10b8ded5b21c7fe45d16860",
+      "capture": "Actual Chrome screenshot of AtlasWorkspace and MapLibre with 22 explicit synthetic jobs; A and B share coordinates but remain distinct location groups. No private index or live recruitment backend. No crop or visual alteration beyond WebP compression."
+    },
+    {
+      "file": "atlas-overlap-narrow.webp",
+      "width": 384,
+      "height": 831,
+      "viewport": [
+        390,
+        844
+      ],
+      "bytes": 33888,
+      "sha256": "1fcadd7ace5ff65304c2076a24eff76d504e02b06b39921b27c3348b8708e3be",
+      "sourcePngSha256": "3adaa1aba140ab579c7da2de1e0f43bfb9c6a13def2f6fc73da3e5eae8bbf2c6",
+      "capture": "Actual Chrome screenshot of AtlasWorkspace and MapLibre with 22 explicit synthetic jobs; A and B share coordinates but remain distinct location groups. No private index or live recruitment backend. No crop or visual alteration beyond WebP compression."
+    }
+  ]
+}

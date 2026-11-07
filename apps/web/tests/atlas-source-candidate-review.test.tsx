@@ -207,3 +207,13 @@ test("invalid original URL or response scope never exposes an unsafe link or an 
   invalidScope = true; await click(readLabel);
   assert.match(dom.document.querySelector('[role="alert"]')!.textContent!, /预览条件与本次请求不一致/); assert.deepEqual(titles(), []);
 });
+
+
+test("default backend permits an explicit candidate preview without a browser token", async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => { calls.push({ url: String(url), init }); return response(preview([])); });
+  await render({ ...fixture(), endpoint: "/api/atlas", token: "" }); assert.equal(calls.length, 0);
+  assert.equal(button(readLabel).disabled, false); await click(readLabel);
+  assert.equal(calls.length, 1); assert.equal(calls[0]!.url, `${dom.location.origin}/api/atlas/api/v1/sources/${source.sourceId}/preview`);
+  assert.equal(new Headers(calls[0]!.init?.headers).has("Authorization"), false);
+});

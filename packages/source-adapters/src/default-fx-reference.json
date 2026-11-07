@@ -1,0 +1,6 @@
+{
+  "provider": "Frankfurter / ECB reference rates",
+  "endpoint": "https://api.frankfurter.dev/v2/rates",
+  "format": "frankfurter-v2-eur-json-v1",
+  "providerKey": "ECB"
+}

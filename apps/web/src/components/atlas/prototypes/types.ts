@@ -2,8 +2,6 @@ import type { CSSProperties } from "react";
 import type { MapBucket } from "@better-me/opportunities";
 import type { AtlasBasemapConfig } from "./basemaps";
 import type { AtlasMapFocus } from "../map-focus";
-import type { AdminBoundaryHighlight } from "../admin-boundary-service";
-import type { AtlasMapGeometry } from "./map-performance";
 
 export type AtlasMode = "global" | "domestic";
 export type AtlasRegionSelection = { id: string; name: string; countryCode?: string };
@@ -11,19 +9,13 @@ export type AtlasCamera = { zoom: number; center: [longitude: number, latitude: 
 export type AtlasPrototypeProps = {
   mode: AtlasMode;
   buckets: readonly MapBucket[];
-  /** Same-version compute projection, never synthesized coordinates. */
-  geometry?: AtlasMapGeometry;
+  /** Query aggregation level; bucket IDs are opaque and do not encode camera precision. */
+  bucketLevel?: "country" | "region" | "city" | "location";
   selectedBucketId?: string;
+  selectedBucketIds?: readonly string[];
   selectedJobId?: string;
   selectedRegionId?: string;
-  adminBoundary?: AdminBoundaryHighlight | null;
   bounds?: readonly [west: number, south: number, east: number, north: number];
-  /** Caps fitBounds so a city estimate cannot zoom to building scale. */
-  boundsMaxZoom?: number;
-  /** Auto-frame at most once per search, so background batches never move a reading user's camera. */
-  framingKey?: string;
-  /** Explicit user reset, independent of incremental data and renderer lifetime. */
-  resetRevision?: number;
   /** Undefined uses the registered default. Null explicitly selects local overview geometry only. */
   basemap?: AtlasBasemapConfig | null;
   focus?: AtlasMapFocus;
@@ -31,8 +23,8 @@ export type AtlasPrototypeProps = {
   initialView?: AtlasCamera;
   onViewChange?: (view: AtlasCamera & { bounds: [west: number, south: number, east: number, north: number] }) => void;
   onPick?: (bucket: MapBucket) => void;
-  /** Called after a real map interaction selects an address, so the host can open its first matching job. */
-  onActivateBucket?: (bucket: MapBucket) => void;
+  /** A display selection of original buckets, not a newly inferred location. */
+  onPickMany?: (buckets: readonly MapBucket[]) => void;
   onCountry?: (region: AtlasRegionSelection) => void;
   onError?: (error: Error) => void;
   onReady?: () => void;
@@ -43,10 +35,6 @@ export type AtlasPrototypeProps = {
     pedestal?: boolean;
     entrance?: boolean;
     autoRotate?: boolean;
-    /** A presentation-only camera/projection preference; never changes job geometry. */
-    viewMode?: "flat" | "spatial";
-    /** Keyboard activation changes the camera immediately. Reduced motion always wins. */
-    animateViewChange?: boolean;
     maxDpr?: number;
     /** Three.js scene units. MapLibre uses its own physically scaled equivalent. */
     extrusion?: number;
@@ -88,7 +76,7 @@ export async function loadBoundary(mode: AtlasMode, signal: AbortSignal): Promis
   if (!value || typeof value !== "object" || !("type" in value) || value.type !== "FeatureCollection" || !("features" in value) || !Array.isArray(value.features)) throw new Error("Invalid local atlas boundary asset.");
   return value as BoundaryCollection;
 }
-export const prototypeFrameStyle: CSSProperties = { position: "relative", width: "100%", height: "100%", minHeight: 0, overflow: "hidden", isolation: "isolate", borderRadius: 20, background: PROTOTYPE_BACKGROUND };
+export const prototypeFrameStyle: CSSProperties = { position: "relative", width: "100%", height: "100%", minHeight: 380, overflow: "hidden", isolation: "isolate", borderRadius: 20, background: PROTOTYPE_BACKGROUND };
 export const canvasHostStyle: CSSProperties = { position: "absolute", inset: 0 };
 export const creditStyle: CSSProperties = { position: "absolute", left: 18, bottom: 12, zIndex: 2, font: "10px/1.4 system-ui,sans-serif", color: "#9ab1bb", letterSpacing: ".04em", pointerEvents: "none" };
 export const errorStyle: CSSProperties = { position: "absolute", inset: 0, display: "grid", placeItems: "center", padding: 32, color: "#d5e6e9", textAlign: "center", font: "13px/1.7 system-ui,sans-serif", background: "#091925e8" };

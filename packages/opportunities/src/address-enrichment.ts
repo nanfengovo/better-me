@@ -26,6 +26,8 @@ export type AddressEnrichmentPlatformTarget = z.infer<typeof AddressEnrichmentPl
 export const AddressEnrichmentOfficialTargetSchema = z.object({
   listingId: EntityIdSchema, sourceId: EntityIdSchema, adapterId: EntityIdSchema,
   url: HttpUrlSchema, label: text(240),
+  /** Optional for older hosts. Only installed exact single-record readers set this to true. */
+  exactDetail: z.boolean().optional(),
 }).strict();
 export type AddressEnrichmentOfficialTarget = z.infer<typeof AddressEnrichmentOfficialTargetSchema>;
 export const AddressEnrichmentStatusSchema = z.enum(["office-ready", "source-street", "platform-detail", "official-source", "company-discovery", "remote-only"]);

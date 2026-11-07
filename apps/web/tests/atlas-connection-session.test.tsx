@@ -38,3 +38,13 @@ test("blocked or full session storage does not break page-memory connections", (
   assert.equal(writeAtlasConnectionSession(live, storage), false);
   assert.doesNotThrow(() => clearAtlasConnectionSession(storage));
 });
+
+
+test("default backend sessions contain only a fixed endpoint marker and empty token", () => {
+  const gateway = { schemaVersion: 1 as const, dataMode: "live" as const, endpoint: "/api/atlas", token: "" };
+  assert.deepEqual(parseAtlasConnectionSession(gateway), gateway);
+  const storage = store(); assert.equal(writeAtlasConnectionSession(gateway, storage), true);
+  assert.deepEqual(readAtlasConnectionSession(storage), gateway);
+  for (const endpoint of ["/api/atlas/", "/api/atlas?token=x", "/api/atlas/api/v1", "//untrusted.example.invalid/api/atlas"]) assert.equal(parseAtlasConnectionSession({ ...gateway, endpoint }), undefined);
+  assert.equal(parseAtlasConnectionSession({ ...gateway, token: "host-secret-must-not-reach-browser" }), undefined);
+});

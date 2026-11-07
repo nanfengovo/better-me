@@ -310,6 +310,21 @@ test("source refresh interval is checked before superseding a running task", asy
   } finally { release.resolve(); await f.close(); }
 });
 
+test("a catalog source daily budget stops extra upstream reads while identical retries keep their original durable request", async () => {
+  let reads = 0; const dailySource = { ...source, refreshPolicy: { ...source.refreshPolicy, maxRequestsPerUtcDay: 1 } };
+  const f = await fixture(async (request) => { reads++; return page(request, []); });
+  try {
+    await f.repository.registerSource(dailySource, { expectedRevision: (await f.repository.readSnapshot()).revision, actorScope: "local-owner", idempotencyKey: "daily-budget-policy" });
+    const first = value(await f.application.registry.execute("sources.sync", { sourceId: source.sourceId, scope }, context("daily-budget-first")));
+    assert.equal(first.run.status, "completed"); assert.equal(reads, 1);
+    const repeated = value(await f.application.registry.execute("sources.sync", { sourceId: source.sourceId, scope }, context("daily-budget-first")));
+    assert.equal(repeated.run.runId, first.run.runId); assert.equal(reads, 1);
+    const denied = await f.application.registry.execute("sources.sync", { sourceId: source.sourceId, scope }, context("daily-budget-second"));
+    assert.equal(denied.ok, false); if (!denied.ok) assert.equal(denied.error.code, "rate-limited");
+    assert.equal(reads, 1, "daily cap is enforced before the adapter can contact the source");
+  } finally { await f.close(); }
+});
+
 test("shutdown aborts and drains sync work before the caller can close SQLite", async () => {
   const entered = deferred<void>();
   const f = await fixture(async (request) => { entered.resolve(); await new Promise<void>((resolve) => request.context.signal.addEventListener("abort", () => resolve(), { once: true })); request.context.throwIfCancelled(); return page(request, []); });
@@ -350,6 +365,29 @@ test("company career discovery reuses registered company metadata without fetchi
     assert.deepEqual(await f.repository.readSnapshot(), before);
     assert.deepEqual(await f.repository.listRuns(), []);
     assert.deepEqual(value(await f.application.registry.execute("leads.list", {}, context())), []);
+  } finally { await f.close(); }
+});
+
+test("inactive registered company matches remain visible while an explicit website uses the active policy", async () => {
+  let requests = 0;
+  const f = await fixture(async (request) => page(request, []), { async request(input) {
+    requests++;
+    return { url: input.url, status: 200, headers: { "content-type": "text/html" }, text: '<html><body><a href="/careers">Careers</a></body></html>' };
+  } });
+  try {
+    const inactive: SourceDefinition = { ...source, sourceId: "inactive-company-source", name: "Inactive Registered Company", enabled: false, status: "needs-review",
+      options: { companyName: "Inactive Registered Company" }, entryUrl: "https://careers.example.test/old-postings" };
+    await f.repository.registerSource(inactive, { expectedRevision: (await f.repository.readSnapshot()).revision, actorScope: "local-owner", idempotencyKey: "inactive-company" });
+    const before = await f.repository.backup();
+    const found = value(await f.application.registry.execute("companies.discover-careers", {
+      sourceId: source.sourceId, request: { companyName: "Inactive Registered Company", companyWebsite: "https://careers.example.test/" },
+    }, context()));
+    assert.equal(found.status, "needs-review");
+    assert.deepEqual(found.matchedSources, [{ sourceId: inactive.sourceId, name: inactive.name, matchedBy: "company-name", enabled: false, status: "needs-review", entryUrl: inactive.entryUrl }]);
+    assert.deepEqual(found.visitedUrls, ["https://careers.example.test/", "https://careers.example.test/careers"]);
+    assert.equal(found.candidates.length, 1); assert.equal(found.proposals.length, 1);
+    assert.equal(requests, 2);
+    assert.deepEqual(await f.repository.backup(), before); assert.deepEqual(await f.repository.listRuns(), []);
   } finally { await f.close(); }
 });
 

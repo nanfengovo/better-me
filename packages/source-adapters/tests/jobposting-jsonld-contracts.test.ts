@@ -22,12 +22,24 @@ test("flat reviewed JobPosting options default only page size and preserve expli
   assert.equal(JobPostingJsonLdOptionsSchema.parse({ ...options, pageSize: 20 }).pageSize, 20);
 });
 
-test("empty, unsupported, nested and unknown configuration is rejected without throwing outside schema validation", () => {
-  for (const changes of [{ enumerationKind: "sitemap-index" }, { enumerationKind: "dynamic-list" }, { enumerationUrls: [] }, { enumerationUrls: ["invalid"] },
+test("empty, unsupported and unknown configuration is rejected without throwing outside schema validation", () => {
+  for (const changes of [{ enumerationKind: "dynamic-list" }, { enumerationUrls: [] }, { enumerationUrls: ["invalid"] },
     { postingPathPrefixes: [] }, { pageSize: 0 }, { pageSize: 21 }, { pageSize: 1.5 }, { selectors: { links: "a" } }, { fetchDetails: true }]) {
     assert.equal(JobPostingJsonLdOptionsSchema.safeParse({ ...options, ...changes }).success, false, JSON.stringify(changes));
   }
   assert.throws(() => validateJobPostingJsonLdSource(source({ options: undefined })), invalidInput);
+});
+
+test("sitemap indexes require one reviewed root and bound only child sitemap reads", () => {
+  const indexOptions = { ...options, enumerationKind: "sitemap-index" as const, maxChildSitemaps: 3 };
+  assert.deepEqual(JobPostingJsonLdOptionsSchema.parse(indexOptions), { ...indexOptions, pageSize: 5 });
+  assert.deepEqual(validateJobPostingJsonLdSource(source({ options: indexOptions })), { ...indexOptions, pageSize: 5 });
+  for (const maxChildSitemaps of [0, 101, 1.5]) {
+    assert.equal(JobPostingJsonLdOptionsSchema.safeParse({ ...indexOptions, maxChildSitemaps }).success, false);
+  }
+  assert.equal(JobPostingJsonLdOptionsSchema.safeParse({ ...indexOptions, enumerationUrls: [entry, "https://careers.example.com/other-index.xml"] }).success, false);
+  assert.equal(JobPostingJsonLdOptionsSchema.safeParse({ ...options, maxChildSitemaps: 3 }).success, false);
+  assert.equal(JobPostingJsonLdOptionsSchema.parse({ ...options, enumerationKind: "sitemap-index" }).maxChildSitemaps, undefined);
 });
 
 test("enumeration and priority URL lists have finite bounds and normalized unique entries", () => {

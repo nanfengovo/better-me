@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CanonicalJobSchema, CompanySchema, JobLocationSchema, EntityIdSchema, TimestampSchema, HttpUrlSchema } from "./schema.js";
+import { CanonicalJobSchema, CompanySchema, JobLocationSchema, EntityIdSchema, TimestampSchema, HttpUrlSchema, LocationPrecisionSchema } from "./schema.js";
 import { NormalizedCompensationSchema } from "./compensation.js";
 import { LocationDistanceSchema } from "./geo.js";
 import { CompanyColorMatchSchema } from "./colors.js";
@@ -38,16 +38,15 @@ export const MapBucketSchema = z.object({
   latitude: z.number().finite().min(-90).max(90), longitude: z.number().finite().min(-180).max(180),
   jobIds: z.array(EntityIdSchema), locationIds: z.array(EntityIdSchema), jobCount: CountSchema, pinCount: CountSchema,
   categories: z.array(z.object({ ruleId: z.string().min(1), label: z.string().min(1), color: z.string().regex(/^#[a-fA-F0-9]{6}$/), jobCount: CountSchema }).strict()),
-  positionBasis: z.literal("city-reference").optional(), precision: z.literal("city").optional(), estimated: z.literal(true).optional(),
-  displayGrade: z.enum(["building", "street", "address", "city"]).optional(),
-  coordinateMeaning: z.enum(["building", "entrance", "site"]).optional(),
-}).strict().refine(bucket => {
-  const reference = bucket.positionBasis !== undefined;
-  if (bucket.precision !== undefined !== reference || bucket.estimated !== undefined !== reference) return false;
-  if (reference && bucket.displayGrade && bucket.displayGrade !== "city") return false;
-  if (bucket.coordinateMeaning !== undefined && bucket.displayGrade !== "building") return false;
-  return true;
-}, "City reference buckets require their complete precision labels.");
+  positionBasis: z.literal("city-reference").optional(), precision: LocationPrecisionSchema.optional(), estimated: z.literal(true).optional(),
+}).strict().superRefine((bucket, context) => {
+  if (bucket.positionBasis === "city-reference" && (bucket.precision !== "city" || bucket.estimated !== true)) {
+    context.addIssue({ code: "custom", message: "City reference buckets require city precision and an estimated label." });
+  }
+  if (bucket.positionBasis === undefined && bucket.estimated !== undefined) {
+    context.addIssue({ code: "custom", message: "Source coordinate buckets cannot be marked as estimated." });
+  }
+});
 
 /** The actual JSON response contract, including nested domain/value validation. */
 export const JobQueryResultSchema: z.ZodType<JobQueryResult, z.ZodTypeDef, unknown> = z.object({

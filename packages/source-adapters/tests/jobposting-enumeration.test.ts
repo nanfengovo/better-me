@@ -2,15 +2,65 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolError } from "@better-me/opportunities";
 import { JobPostingJsonLdOptionsSchema } from "../src/jobposting-jsonld-contracts.js";
-import { enumerateJobPostingUrls } from "../src/jobposting-enumeration.js";
+import { enumerateJobPostingUrls, enumerateSitemapIndexUrls } from "../src/jobposting-enumeration.js";
 
 const entry = "https://careers.example.com/list.xml";
 const options = JobPostingJsonLdOptionsSchema.parse({ enumerationKind: "sitemap-urlset", enumerationUrls: [entry], postingPathPrefixes: ["/jobs"] });
+const indexEntry = "https://careers.example.com/index.xml";
+const indexOptions = JobPostingJsonLdOptionsSchema.parse({ enumerationKind: "sitemap-index", enumerationUrls: [indexEntry], postingPathPrefixes: ["/jobs"] });
 const xml = (body: string) => `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`;
 const loc = (value: string) => `<url><loc>${value}</loc></url>`;
+const sitemapIndex = (body: string) => `<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</sitemapindex>`;
+const sitemap = (value: string, metadata = "") => `<sitemap><loc>${value}</loc>${metadata}</sitemap>`;
 const enumerate = (body: string) => enumerateJobPostingUrls(body, entry, options);
 const html = (body: string) => enumerateJobPostingUrls(body, entry, { ...options, enumerationKind: "html-list" });
 const code = (expected: string) => (error: unknown) => error instanceof ToolError && error.code === expected;
+
+test("sitemap index accepts namespaced same-origin child sitemaps, ignores metadata and deduplicates", () => {
+  const child = "https://careers.example.com/reviewed/jobs-1.xml";
+  const result = enumerateSitemapIndexUrls(sitemapIndex(`${sitemap(child, "<lastmod>2026-10-01</lastmod>")}${sitemap(child)}`), indexEntry, indexOptions);
+  assert.deepEqual(result.urls, [child]);
+  assert.equal(result.rejectedEntries, 0);
+  assert.equal(result.truncated, false);
+  assert.ok(result.warnings.some((warning) => warning.includes("not followed")));
+});
+
+test("sitemap index rejects cross-origin, non-HTTPS and ambiguous child entries without following them", () => {
+  const result = enumerateSitemapIndexUrls(sitemapIndex([
+    sitemap("https://other.example.com/jobs.xml"),
+    sitemap("http://careers.example.com/reviewed/http.xml"),
+    sitemap("https://careers.example.com/reviewed/a/../jobs.xml"),
+    sitemap("https://careers.example.com/reviewed/ok.xml"),
+  ].join("")), indexEntry, indexOptions);
+  assert.deepEqual(result.urls, ["https://careers.example.com/reviewed/ok.xml"]);
+  assert.equal(result.rejectedEntries, 3);
+  assert.ok(result.warnings.some((warning) => warning.includes("ignored")));
+});
+
+test("sitemap index enforces child bound before reading beyond the reviewed budget", () => {
+  const result = enumerateSitemapIndexUrls(sitemapIndex([
+    sitemap("https://careers.example.com/reviewed/one.xml"),
+    sitemap("https://careers.example.com/reviewed/two.xml"),
+    sitemap("https://careers.example.com/reviewed/three.xml"),
+  ].join("")), indexEntry, { ...indexOptions, maxChildSitemaps: 2 });
+  assert.deepEqual(result.urls, [
+    "https://careers.example.com/reviewed/one.xml",
+    "https://careers.example.com/reviewed/two.xml",
+  ]);
+  assert.equal(result.truncated, true);
+  assert.ok(result.warnings.some((warning) => warning.includes("bound")));
+});
+
+test("sitemap index rejects nested XML structures, wrong roots, DTDs and malformed documents", () => {
+  for (const body of [
+    sitemapIndex(`<sitemap><loc>https://careers.example.com/reviewed/nested.xml</loc><sitemapindex/></sitemap>`),
+    "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"><url><loc>https://careers.example.com/jobs/1</loc></url></urlset>",
+    "<!DOCTYPE sitemapindex><sitemapindex><sitemap><loc>https://careers.example.com/reviewed/one.xml</loc></sitemap></sitemapindex>",
+    "<sitemapindex><sitemap><loc>https://careers.example.com/reviewed/one.xml",
+  ]) {
+    assert.throws(() => enumerateSitemapIndexUrls(body, indexEntry, indexOptions), code("source-changed"));
+  }
+});
 
 test("sitemap URL-set preserves observed order, decodes predefined XML entities, ignores metadata and deduplicates", () => {
   const result = enumerate(xml(`${loc("https://careers.example.com/jobs/2?a=1&amp;b=2")}<url><lastmod>2026-09-13</lastmod><loc>https://careers.example.com/jobs/1</loc><changefreq>daily</changefreq><priority>0.5</priority></url>${loc("https://careers.example.com/jobs/1")}`));
