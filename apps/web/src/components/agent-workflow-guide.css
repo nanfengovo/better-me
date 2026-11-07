@@ -1,4 +1,13 @@
 .agent-workflow-guide .guide-panel{width:min(460px,calc(100vw - 32px))}
+.agent-workflow-guide .agent-guide-directory{display:inline-flex;align-items:center;gap:6px;min-height:32px;background:transparent;border:0;color:#d8ebde;padding:0;font-size:12px;margin-bottom:10px}
+.agent-workflow-guide .guide-progress{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+.agent-workflow-guide .guide-progress button{display:flex;align-items:center;justify-content:center;gap:4px;width:auto;height:auto;min-height:32px;padding:5px 3px;border:1px solid #b8ddc52b;border-radius:8px;font-size:11px;color:#bfd1c6;background:transparent}
+.agent-workflow-guide .guide-progress button>span{display:none}
+.agent-workflow-guide .guide-progress button[aria-current=step]{color:#14251f;background:#d6f3aa;border-color:#d6f3aa}
+.agent-workflow-guide .guide-progress button.is-reached:not([aria-current]){border-color:#b8ddc566}
+.agent-workflow-guide .guide-copy .agent-guide-action{background:#d6f3aa;color:#14251f;border:1px solid #d6f3aa;min-height:40px}
+.agent-workflow-guide .agent-guide-directory:focus-visible{outline:2px solid #d5faca;outline-offset:3px}
+@media(pointer:coarse){.agent-workflow-guide .guide-progress button,.agent-workflow-guide .agent-guide-directory{min-height:44px}}
 .agent-workflow-guide .guide-copy{padding-bottom:18px}
 .agent-workflow-guide .guide-copy h2{font-size:clamp(24px,2.5vw,30px)}
 .agent-workflow-guide .agent-tutorial-location{margin-top:20px;color:#c3dfcc;font-size:12px;line-height:1.8}
@@ -35,7 +44,7 @@
 .agent-workflow-guide .guide-footer{position:sticky;bottom:0;background:#14251f;padding-top:12px;border-top:1px solid #b8ddc51c;z-index:2}
 .agent-workflow-guide.is-constrained .guide-top{padding:12px 18px 4px}
 .agent-workflow-guide.is-constrained .guide-copy{padding:10px 20px 14px}
-.agent-workflow-guide.is-constrained .guide-copy>p{display:none}
+.agent-workflow-guide.is-constrained .guide-copy>p{font-size:12px;line-height:1.6;margin:8px 0}
 .agent-workflow-guide.is-constrained .guide-copy h2{margin:8px 0}
 .agent-workflow-guide.is-constrained .agent-tutorial-location{margin-top:10px;padding:0;border:0;background:none;font-size:11px;line-height:1.7}
 .agent-workflow-guide.is-constrained .guide-footer{padding:8px 18px 12px}

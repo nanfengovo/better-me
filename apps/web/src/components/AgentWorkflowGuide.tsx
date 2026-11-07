@@ -12,8 +12,9 @@ const targets = AGENT_LESSONS.map(lesson => lesson.targets.flatMap(name => {
   return entries[name] ? [root + " " + entries[name], root] : [root];
 }));
 
-export function AgentWorkflowGuide({ step, active = true, storageKey = "betterme.agent-tutorial.v1:standalone", onStep, onClose, onAction }: {
+export function AgentWorkflowGuide({ step, active = true, storageKey = "betterme.agent-tutorial.v1:standalone", onStep, onClose, onAction, onDirectory }: {
   step: number; active?: boolean; storageKey?: string; onStep: (step: number) => void; onClose: () => void;
+  onDirectory?: () => void;
   onAction: (destination: "writing" | "memory" | "settings", lesson: AgentLesson) => void;
 }) {
   const { setEffects, reduced, animated } = useGuideEffects();
@@ -42,11 +43,12 @@ export function AgentWorkflowGuide({ step, active = true, storageKey = "betterme
   return <SpotlightGuide dialogRef={dialog} stepId={lesson.id} targets={targets[index]!} titleId="agent-tutorial-title" descriptionId="agent-tutorial-description" animated={animated} className="agent-workflow-guide" onClose={close} onNavigate={offset => navigate(index + offset)}>{selector => <>
     <header className="guide-top"><span><span className="guide-brand-dot" />BETTERME <b>/ 协作引导</b></span><button type="button" className="guide-icon-button" aria-label="返回工作" title="返回工作，保留当前章节" onClick={close}><X size={18} /></button></header>
     <article className="guide-copy agent-tutorial-content" key={lesson.id} aria-labelledby="agent-tutorial-title">
+      {onDirectory && <button type="button" className="agent-guide-directory" onClick={() => { dialog.current?.close(); onDirectory(); }}><ArrowLeft size={14} />所有主题</button>}
       <div className="guide-chapter"><Sparkles size={14} />{String(index + 1).padStart(2, "0")} / {lesson.label}</div>
       <h2 id="agent-tutorial-title" tabIndex={-1}>{lesson.title}</h2>
       <p id="agent-tutorial-description">{lesson.result}</p>
       <div className="guide-hint agent-tutorial-location"><Compass size={16} /><span>{tutorialInstruction(lesson.id, selector?.match(/"([^"]+)"/)?.[1] ?? "")}</span></div>
-      <button type="button" className="guide-secondary agent-guide-action" onClick={() => { remember(); dialog.current?.close(); onAction(lesson.destination, lesson.id); }}>{lesson.action}<ArrowRight size={15} /></button>
+      <button type="button" className="guide-primary agent-guide-action" onClick={() => { remember(); dialog.current?.close(); onAction(lesson.destination, lesson.id); }}>{lesson.action}<ArrowRight size={15} /></button>
       <small className="agent-tutorial-safe">只定位，不替你授权、发送或采用。</small>
       <details className="agent-tutorial-practice"><summary><Play size={13} />用示例了解这一步<span>不使用你的资料</span></summary>
         <section aria-label="安全示例练习">
@@ -63,8 +65,8 @@ export function AgentWorkflowGuide({ step, active = true, storageKey = "betterme
       {storageWarning && <p className="agent-tutorial-warning" role="status">教程进度仅在本页保留；浏览器未能保存。不会影响你的工作或阻止退出。</p>}
     </article>
     <footer className="guide-footer">
-      <nav className="guide-progress" aria-label="协作引导步骤">{AGENT_LESSONS.map((item, position) => <button key={item.id} type="button" aria-current={index === position ? "step" : undefined} className={progress.viewed.includes(item.id) ? "is-reached" : ""} onClick={() => navigate(position)} aria-label={"第 " + (position + 1) + " 节：" + item.title} title={item.label}><span /></button>)}</nav>
-      <div className="guide-actions"><button type="button" className="guide-secondary" onClick={() => index === 0 ? close() : navigate(index - 1)}>{index === 0 ? "稍后再说" : <><ArrowLeft size={15} />上一步</>}</button><button type="button" className="guide-primary" onClick={() => index === AGENT_LESSONS.length - 1 ? close() : navigate(index + 1)}>{index === AGENT_LESSONS.length - 1 ? "完成引导，返回工作" : "下一步"}<ArrowRight size={17} /></button></div>
+      <nav className="guide-progress" aria-label="协作引导步骤">{AGENT_LESSONS.map((item, position) => <button key={item.id} type="button" aria-current={index === position ? "step" : undefined} className={progress.viewed.includes(item.id) ? "is-reached" : ""} onClick={() => navigate(position)} aria-label={"第 " + (position + 1) + " 节：" + item.title} title={item.label}><span />{item.label}</button>)}</nav>
+      <div className="guide-actions"><button type="button" className="guide-secondary" onClick={() => index === 0 ? close() : navigate(index - 1)}>{index === 0 ? "稍后再说" : <><ArrowLeft size={15} />上一步</>}</button><button type="button" className="guide-secondary" onClick={() => index === AGENT_LESSONS.length - 1 ? close() : navigate(index + 1)}>{index === AGENT_LESSONS.length - 1 ? "完成引导，返回工作" : "下一步"}<ArrowRight size={17} /></button></div>
       <div className="guide-utilities"><label><input type="checkbox" checked={animated} disabled={reduced} onChange={event => setEffects(event.target.checked)} />{reduced ? "跟随系统 · 减少动效" : "沉浸动效"}</label><span>{index + 1} / {AGENT_LESSONS.length}</span><button type="button" onClick={() => index === AGENT_LESSONS.length - 1 ? close() : navigate(index + 1)}>{index === AGENT_LESSONS.length - 1 ? "返回工作" : "跳过本步"}</button></div>
     </footer>
   </>}</SpotlightGuide>;
