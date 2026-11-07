@@ -23,7 +23,8 @@ class SyntheticMap {
   emit(name: string, event: unknown = {}) { for (const handler of [...(this.handlers.get(name) ?? [])]) handler(event); }
   addControl() {} getCanvas() { return this.canvas; } getZoom() { return this.zoom; } getPitch() { return 0; } getBearing() { return 0; }
   getCenter() { return { lng: 104, lat: 26 }; } getBounds() { return { getWest: () => 100, getEast: () => 110, getSouth: () => 20, getNorth: () => 30 }; }
-  isMoving() { return this.moving; } stop() { this.moving = false; } setCenter() {} resize() {} triggerRepaint() {}
+  resizes = 0;
+  isMoving() { return this.moving; } stop() { this.moving = false; } setCenter() {} resize() { this.resizes++; } triggerRepaint() {}
   getLayer(id: string) { return ((this.options.style as { layers: Array<{ id: string }> }).layers).some(layer => layer.id === id); }
   getSource(id?: string) { return { setData: () => { if (id === "buckets") this.uploads++; if (id === "admin-highlight") this.boundaryUploads++; } }; }
   setProjection(value: unknown) { this.projection = value; } setSky() {} setLight() {}
@@ -37,8 +38,9 @@ class SyntheticMap {
 class SyntheticMarker {
   constructor() { markerEvents.push("create"); } setLngLat() { return this; } addTo() { return this; } remove() { markerEvents.push("remove"); }
 }
+const resizeObservers: Array<{ notify: () => void; disconnected: boolean }> = [];
 const globals = { window: dom, document: dom.document, navigator: dom.navigator, HTMLElement: dom.HTMLElement, Element: dom.Element, Node: dom.Node,
-  ResizeObserver: class { observe() {} disconnect() {} }, requestAnimationFrame: (callback: FrameRequestCallback) => { frames.set(++frameId, callback); return frameId; }, cancelAnimationFrame: (id: number) => { frames.delete(id); },
+  ResizeObserver: class { disconnected = false; constructor(readonly notify: () => void) { resizeObservers.push(this); } observe() {} disconnect() { this.disconnected = true; } }, requestAnimationFrame: (callback: FrameRequestCallback) => { frames.set(++frameId, callback); return frameId; }, cancelAnimationFrame: (id: number) => { frames.delete(id); },
   IS_REACT_ACT_ENVIRONMENT: true, __atlasPerformanceMap: SyntheticMap, __atlasPerformanceMarker: SyntheticMarker };
 const descriptors = new Map(Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
@@ -68,6 +70,30 @@ const React = await import("react"), { createRoot } = await import("react-dom/cl
 const { MapLibrePrototype } = await import("../src/components/atlas/prototypes/MapLibrePrototype.tsx");
 const { createElement: h, act } = React;
 after(() => { hooks.deregister(); globalThis.fetch = realFetch; dom.happyDOM.abort(); for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } });
+
+test("window resizing is frame-coalesced, skips hidden geometry and cancels on unmount", async () => {
+  const host = dom.document.createElement("div"); dom.document.body.append(host);
+  const root = createRoot(host as unknown as HTMLElement);
+  const flushFrames = () => { const queued = [...frames.values()]; frames.clear(); queued.forEach(callback => callback(16)); };
+  try {
+    await act(async () => { root.render(h(MapLibrePrototype, { mode: "domestic", buckets: [], basemap: null, visual: { autoRotate: false } })); for (let i = 0; i < 4; i++) await nextTurn(); });
+    const map = instances.at(-1)!;
+    await act(async () => map.emit("load"));
+    const observer = resizeObservers.at(-1)!;
+    const element = map.options.container as HTMLElement;
+    let width = 700;
+    Object.defineProperties(element, { clientWidth: { configurable: true, get: () => width }, clientHeight: { configurable: true, get: () => 500 } });
+    const initialResizes = map.resizes;
+    observer.notify(); observer.notify(); observer.notify();
+    assert.equal(map.resizes, initialResizes, "observer delivery must not synchronously write layout");
+    assert.equal(frames.size, 1);
+    await act(async () => flushFrames()); assert.equal(map.resizes, initialResizes + 1);
+    width = 0; observer.notify(); await act(async () => flushFrames()); assert.equal(map.resizes, initialResizes + 1);
+    width = 700; observer.notify(); await act(async () => flushFrames()); assert.equal(map.resizes, initialResizes + 2);
+    observer.notify(); await act(async () => root.unmount());
+    assert.equal(frames.size, 0); assert.equal(observer.disconnected, true); assert.equal(map.removed, true);
+  } finally { if (!instances.at(-1)?.removed) await act(async () => root.unmount()); host.remove(); }
+});
 
 test("real map effects keep one renderer and unchanged worker data across camera/UI updates, while selection, point changes and office focus remain live", async () => {
   const host = dom.document.createElement("div"); dom.document.body.append(host); const root = createRoot(host as unknown as HTMLDivElement);

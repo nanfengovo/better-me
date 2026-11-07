@@ -52,7 +52,12 @@ import { AgentSidebarProvider } from "./components/AgentSidebar";
 import { DesktopShell } from "./components/desktop/DesktopShell";
 import "./components/desktop/desktop.css";
 
-const AtlasWorkspace = lazy(() => import("./components/AtlasWorkspace"));
+import { RecoverableModule } from "./components/atlas/RecoverableModule";
+import type { ComponentProps } from "react";
+const loadAtlasWorkspace = () => import("./components/AtlasWorkspace");
+function AtlasWorkspace(props: ComponentProps<typeof import("./components/AtlasWorkspace").default>) {
+  return <RecoverableModule load={loadAtlasWorkspace} componentProps={props} label="岗位地图" onExit={props.onOpenOpportunitySources} />;
+}
 const ResumeJobRecommendations = lazy(() => import("./components/ResumeJobRecommendations"));
 const LLM_CONFIG_KEY = "better-me:llm-config";
 function downloadJson(content: string, fileName: string) {
@@ -68,11 +73,15 @@ export function App() {
   const { doc, ready, loadError, status, update, replace, restoreField, checkpoint, protectEdit, flush, history, autoSaveSettings, setAutoSaveSettings, autoSavePreferenceError } = useDocumentPersistence();
   const [workspaceTab, setWorkspaceTab] = useState<"content" | "design">("content");
   const [focused, setFocused] = useState(false);
-  const [page, setPage] = useState<"resume" | "opportunities" | "resources" | "atlas" | "agent">(() => {
+  const [page, updatePage] = useState<"resume" | "opportunities" | "resources" | "atlas" | "agent">(() => {
     const ws = new URLSearchParams(window.location.search).get("workspace");
     return ws === "atlas" ? "atlas" : ws === "agent" ? "agent" : "resume";
   });
   const [atlasInitialized, setAtlasInitialized] = useState(page === "atlas");
+  function setPage(next: typeof page) {
+    if (next === "atlas") setAtlasInitialized(true);
+    updatePage(next);
+  }
   const [opportunitySeed, setOpportunitySeed] = useState<OpportunitySeed | null>(null);
   const [jdSelection, setJdSelection] = useState<{ token: string; text: string; source: { title: string; url?: string; platform: string; observedAt?: string; sourcePublishedAt?: string; sourcePublishedText?: string } } | null>(null);
   const [previewTarget, setPreviewTarget] = useState<PreviewFollowTarget | null>(null);
@@ -383,11 +392,11 @@ export function App() {
   if (!ready || !doc || !activeResume || !projected) return <div className="studio-loading"><Loader2 size={24} className="animate-spin" /><span>{t("正在打开你的简历工作室…", "Opening your resume studio…")}</span></div>;
   const autoSaveDescription = !autoSaveSettings.enabled ? t("自动保存已关闭", "Autosave is off") : autoSaveSettings.trigger === "enter" ? t("按回车保存", "Press Enter to save") : autoSaveSettings.trigger === "blur" ? t("离开编辑项时保存", "Save when leaving a field") : t(`停止输入 ${autoSaveSettings.delayMs / 1000} 秒后保存`, `Save after ${autoSaveSettings.delayMs / 1000} seconds of inactivity`);
 
-  return <BetterMeAgentProvider workspaceKey={doc.documentId ?? activeResume.id}><AgentSidebarProvider><DesktopShell page={page} resumeTab={workspaceTab} focused={focused} onContent={() => setWorkspaceTab("content")} accountControls={<FirstRunGuide eligible={page === "resume" && workspaceTab === "content" && !isAiConfigOpen && !isNetworkSettingsOpen && !isJdMatchOpen && !isAgentDrawerOpen && !isImportModalOpen && !isHistoryOpen && !isRestoring} onPrepare={() => { setPage("resume"); setWorkspaceTab("content"); setIsMenuOpen(false); }} renderTrigger={start => <WorkspaceMenu initial={doc.factBase.profile.displayName.zh.slice(0, 1) || "我"} onGuide={start} onAiConfig={() => openSystemSettings("connections")} />} />} onNavigate={next => { if (next === "atlas") setAtlasInitialized(true); if (next === "resume") setWorkspaceTab("content"); setPage(next); }} onDesign={() => { setPage("resume"); setWorkspaceTab("design"); }} onHistory={() => setIsHistoryOpen(true)} onAiConfig={() => setIsAiConfigOpen(true)} onNetwork={() => setIsNetworkSettingsOpen(true)}><div className="studio-app compact-chrome">
+  return <BetterMeAgentProvider workspaceKey={doc.documentId ?? activeResume.id}><AgentSidebarProvider><DesktopShell page={page} resumeTab={workspaceTab} focused={focused} onContent={() => setWorkspaceTab("content")} accountControls={<FirstRunGuide eligible={page === "resume" && workspaceTab === "content" && !isAiConfigOpen && !isNetworkSettingsOpen && !isJdMatchOpen && !isAgentDrawerOpen && !isImportModalOpen && !isHistoryOpen && !isRestoring} onPrepare={() => { setPage("resume"); setWorkspaceTab("content"); setIsMenuOpen(false); }} renderTrigger={start => <WorkspaceMenu initial={doc.factBase.profile.displayName.zh.slice(0, 1) || "我"} onGuide={start} onAiConfig={() => openSystemSettings("connections")} />} />} onNavigate={next => { if (next === "resume") setWorkspaceTab("content"); setPage(next); }} onDesign={() => { setPage("resume"); setWorkspaceTab("design"); }} onHistory={() => setIsHistoryOpen(true)} onAiConfig={() => setIsAiConfigOpen(true)} onNetwork={() => setIsNetworkSettingsOpen(true)}><div className="studio-app compact-chrome">
     <AgentSourceBridge sources={agentSources} />
     <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".json" className="hidden" />
     <div className="studio-workspace">
-      {page !== "resume" && page !== "agent" && <header className="studio-header no-print"><AgentTopBarStatus config={llmConfig} active={false} onNavigateToAgent={() => setPage("agent")} onOpenAiConfig={() => openSystemSettings("connections")} /></header>}
+      {page !== "resume" && page !== "agent" && page !== "atlas" && <header className="studio-header no-print"><AgentTopBarStatus config={llmConfig} active={false} onNavigateToAgent={() => setPage("agent")} onOpenAiConfig={() => openSystemSettings("connections")} /></header>}
       <div className="resume-workspace-body" hidden={page !== "resume"} onMouseUpCapture={captureResumeTextSelection} onKeyUpCapture={captureResumeTextSelection}>
       {resumeSelectionReference && <div className="no-print flex items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-4 py-2 text-[11px] text-emerald-950">
         <MessageSquare size={14} className="shrink-0 text-emerald-700" />

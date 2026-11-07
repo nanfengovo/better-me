@@ -1,4 +1,9 @@
 /* Command surfaces own page hierarchy; map/query/list geometry stays with the workbench. */
+.os-desktop[data-page="atlas"] .atlas-workspace.atlas-command-center { padding: 12px 16px; gap: 8px; }
+.os-desktop[data-page="atlas"] .atlas-workspace[data-pane-layout="narrow"] { padding: 10px; }
+.os-desktop[data-page="atlas"] .atlas-search-utilities { flex-wrap: wrap; }
+.os-desktop[data-page="atlas"] .atlas-search-tools { flex-wrap: wrap; min-width: 0; }
+.os-desktop[data-page="atlas"] .studio-footer { display: none; }
 .atlas-primary-search { min-width: 0; }
 .atlas-workspace.atlas-command-center .atlas-primary-search .atlas-searchbar { margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
 .atlas-job-card-row { position: relative; min-width: 0; }

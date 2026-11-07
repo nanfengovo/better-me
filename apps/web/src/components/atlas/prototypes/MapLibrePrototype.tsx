@@ -88,7 +88,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
     const element = host.current; if (!element) return;
     const openingFocus = latest.current.focus;
     const provider = basemapKey === "null" ? null : parseAtlasBasemap(JSON.parse(basemapKey));
-    let stopped = false; let map: Map | undefined; let observer: ResizeObserver | undefined; let rotationFrame = 0;
+    let stopped = false; let map: Map | undefined; let observer: ResizeObserver | undefined; let rotationFrame = 0; let resizeFrame = 0;
     let rotationResume: ReturnType<typeof setTimeout> | undefined, interacting = false, userMoved = false; let cancelHover = () => {};
     let focusMarker: Marker | undefined; let markerSignature = "";
     const abort = new AbortController(); const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -368,12 +368,17 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
         else if (latest.current.focus) focus(latest.current.focus);
         else fit();
         observer = new ResizeObserver(() => {
+          if (resizeFrame) cancelAnimationFrame(resizeFrame);
+          resizeFrame = requestAnimationFrame(() => {
+          resizeFrame = 0;
+          if (stopped || element.clientWidth <= 0 || element.clientHeight <= 0) return;
           ownedMap.resize();
           if (userMoved || mode !== "global") return;
           const target = latest.current.bounds;
           if (target && !wideGlobeBounds([target[0], target[1], target[2], target[3]])) return;
           const zoom = globeFillZoom(element.clientWidth, element.clientHeight);
           if (Math.abs(ownedMap.getZoom() - zoom) > 0.08) ownedMap.jumpTo({ center: ownedMap.getCenter().toArray() as [number, number], zoom });
+          });
         }); observer.observe(element);
         ownedMap.once("render", () => { if (!stopped) { latest.current.onReady?.(); viewChanged(); } }); rotate();
       });
@@ -434,7 +439,7 @@ export function MapLibrePrototype(props: AtlasPrototypeProps) {
       ownedMap.on("movestart", () => { setPickMenu(null); setHoverCard(null); });
       abort.signal.addEventListener("abort", () => ownedMap.getCanvas().removeEventListener("mouseleave", leave), { once: true });
     })().catch(report);
-    return () => { stopped = true; abort.abort(); stopRotation(); if (rotationResume) clearTimeout(rotationResume); cancelHover(); observer?.disconnect(); document.removeEventListener("visibilitychange", visibility); motion.removeEventListener("change", motionChange); handle.current?.dispose(); handle.current = null; map?.remove(); };
+    return () => { stopped = true; abort.abort(); stopRotation(); if (resizeFrame) cancelAnimationFrame(resizeFrame); if (rotationResume) clearTimeout(rotationResume); cancelHover(); observer?.disconnect(); document.removeEventListener("visibilitychange", visibility); motion.removeEventListener("change", motionChange); handle.current?.dispose(); handle.current = null; map?.remove(); };
   }, [mode, background, maxDpr, entrance, basemapKey, light]);
   useEffect(() => { handle.current?.update(latest.current); }, [props.buckets, props.selectedBucketId, props.selectedRegionId, props.focus, props.selectedJobId, props.visual?.autoRotate, props.visual?.viewMode, props.visual?.animateViewChange, props.adminBoundary]);
   useEffect(() => { handle.current?.fit(props.bounds); }, [props.bounds, props.boundsMaxZoom, props.framingKey]);
