@@ -10,8 +10,8 @@ html[data-theme="dark"] [data-annotation-tone]:not(g){--annotation-ink:color-mix
 
 .writing-note-index{display:flex;position:relative;flex:0 0 auto;align-content:flex-start;flex-wrap:wrap;gap:6px;max-height:78px;overflow:auto;overscroll-behavior:contain;padding:4px 2px 10px;scrollbar-width:thin}
 .writing-note-index[data-compact="true"]{flex-wrap:nowrap;max-height:44px;overflow-y:hidden}
-.writing-note-index button[data-annotation-id]{display:inline-flex;align-items:center;justify-content:center;flex:0 0 30px;width:30px;min-height:28px;height:28px;padding:0;border:1px solid color-mix(in srgb,var(--annotation-color) 32%,var(--color-line));border-radius:8px;background:var(--annotation-soft);color:var(--annotation-ink);font-size:11px;font-weight:650;font-variant-numeric:tabular-nums;cursor:pointer;transition:transform 140ms cubic-bezier(.23,1,.32,1)}
-.writing-note-index button[data-annotation-id][aria-pressed="true"]{background:var(--annotation-color);border-color:var(--annotation-color);color:#fff;box-shadow:0 0 0 2px var(--color-panel),0 0 0 3px var(--annotation-color)}
+.writing-note-index button[data-annotation-id]{display:inline-flex;align-items:center;justify-content:center;flex:0 0 30px;width:30px;min-height:28px;height:28px;padding:0;border:1px solid color-mix(in srgb,var(--annotation-color) 32%,var(--color-line));border-radius:8px;background:var(--annotation-soft);color:var(--annotation-ink);font-size:11px;font-weight:650;font-variant-numeric:tabular-nums;cursor:pointer;transform-origin:center;transition:transform 180ms cubic-bezier(.23,1,.32,1),background-color 180ms ease,border-color 180ms ease,color 150ms ease,box-shadow 180ms ease}
+.writing-note-index button[data-annotation-id][aria-pressed="true"]{background:var(--annotation-color);border-color:var(--annotation-color);color:#fff;box-shadow:0 0 0 2px var(--color-panel),0 0 0 3px var(--annotation-color);animation:writing-index-select 260ms cubic-bezier(.23,1,.32,1)}
 .writing-note-index button:disabled{opacity:.5;cursor:not-allowed}
 .writing-note-index button:focus-visible{outline:2px solid var(--annotation-ink);outline-offset:3px;transition:none}
 .writing-note-index button:active:not(:disabled){transform:scale(.97)}
@@ -20,7 +20,7 @@ html[data-theme="dark"] [data-annotation-tone]:not(g){--annotation-ink:color-mix
   .writing-note-index button[data-annotation-id][aria-pressed="true"]:hover:not(:disabled){color:#fff;background:var(--annotation-color)}
 }
 
-.writing-note[data-annotation-tone],.agent-sidebar .writing-note[data-annotation-tone]{border:1px solid color-mix(in srgb,var(--annotation-color) 48%,var(--color-line));border-left:3px solid var(--annotation-color);border-radius:12px;box-shadow:0 3px 14px color-mix(in srgb,var(--annotation-color) 7%,transparent);animation:writing-annotation-enter 160ms cubic-bezier(.23,1,.32,1) both}
+.writing-note[data-annotation-tone],.agent-sidebar .writing-note[data-annotation-tone]{border:1px solid color-mix(in srgb,var(--annotation-color) 48%,var(--color-line));border-left:3px solid var(--annotation-color);border-radius:12px;box-shadow:0 3px 14px color-mix(in srgb,var(--annotation-color) 7%,transparent);transform-origin:top right;animation:writing-annotation-enter 240ms cubic-bezier(.23,1,.32,1) both}
 .writing-note[data-annotation-tone] header{color:var(--annotation-ink)}
 .writing-note header .writing-note-number{display:inline-flex;align-items:center;justify-content:center;flex:0 0 23px;width:23px;height:23px;margin:0;border-radius:7px;background:var(--annotation-color);color:#fff;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
 .writing-note[data-annotation-tone] .writing-source{display:flex;align-items:center;gap:6px;width:100%;padding:3px 0;color:var(--annotation-ink);font-size:11px;text-decoration:none}
@@ -35,13 +35,15 @@ html[data-theme="dark"] [data-annotation-tone]:not(g){--annotation-ink:color-mix
 .writing-overlay{position:fixed;inset:0;display:block;width:100%;height:100%;z-index:35;pointer-events:none;overflow:hidden;animation:none}
 .writing-overlay .writing-annotation-highlight{fill:color-mix(in srgb,var(--annotation-color) 9%,transparent);stroke:color-mix(in srgb,var(--annotation-color) 38%,transparent);stroke-width:.8}
 .writing-overlay [data-active="true"] .writing-annotation-highlight{fill:color-mix(in srgb,var(--annotation-color) 19%,transparent);stroke:var(--annotation-color);stroke-width:1.5}
-.writing-overlay .writing-connector,.writing-overlay .writing-connector-halo{fill:none;stroke:var(--annotation-color);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;opacity:1;animation:none}
-.writing-overlay .writing-connector-halo{stroke:#fff;stroke-width:5;opacity:.88}
+.writing-overlay .writing-connector,.writing-overlay .writing-connector-halo{fill:none;stroke:var(--annotation-color);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:0;opacity:1;animation:writing-connector-draw 320ms cubic-bezier(.23,1,.32,1) both}
+.writing-overlay .writing-connector-halo{stroke:#fff;stroke-width:5;opacity:.88;animation-duration:260ms}
 .writing-overlay .writing-annotation-badge,.writing-overlay .writing-connector-end{fill:var(--annotation-color);stroke:#fff;stroke-width:1.5}
 .writing-overlay .writing-annotation-number{fill:#fff;font:700 10px system-ui,sans-serif}
 .writing-overlay .writing-annotation-ping{fill:none;stroke:var(--annotation-color);stroke-width:2;transform-box:fill-box;transform-origin:center;animation:writing-annotation-focus 250ms cubic-bezier(.23,1,.32,1) both}
 .writing-overlay[data-keyboard="true"] .writing-annotation-ping{display:none}
-@keyframes writing-annotation-enter{from{opacity:.65}to{opacity:1}}
+@keyframes writing-index-select{0%{transform:scale(.9)}65%{transform:scale(1.08)}100%{transform:scale(1)}}
+@keyframes writing-annotation-enter{from{opacity:0;transform:translateX(10px) scale(.985)}to{opacity:1;transform:translateX(0) scale(1)}}
+@keyframes writing-connector-draw{from{stroke-dashoffset:1;opacity:.25}to{stroke-dashoffset:0;opacity:1}}
 @keyframes writing-annotation-focus{from{opacity:.6;transform:scale(.85)}to{opacity:0;transform:scale(1.35)}}
 
 /* Edit-follow marks the current editing location; Agent overlays independently mark review notes. */
@@ -53,5 +55,5 @@ html[data-theme="dark"] [data-annotation-tone]:not(g){--annotation-ink:color-mix
   .agent-sidebar .writing-review-body{height:100%;min-height:0}
   .agent-sidebar .writing-review-compose{min-height:0;overflow:auto;overscroll-behavior:contain;align-content:start;border-top:0;border-left:1px solid var(--color-line);padding:0 0 0 14px;gap:4px}
 }
-@media(prefers-reduced-motion:reduce){.writing-note[data-annotation-tone],.writing-note-index button[data-annotation-id],.writing-overlay .writing-annotation-ping{animation:none;transition:none}.writing-overlay .writing-annotation-ping{display:none}.writing-note-index button:active:not(:disabled){transform:none}}
+@media(prefers-reduced-motion:reduce){.writing-note[data-annotation-tone],.writing-note-index button[data-annotation-id],.writing-overlay .writing-annotation-ping,.writing-overlay .writing-connector,.writing-overlay .writing-connector-halo{animation:none;transition:none}.writing-overlay .writing-annotation-ping{display:none}.writing-note-index button:active:not(:disabled){transform:none}}
 @media print{.writing-note-index{display:none!important}}

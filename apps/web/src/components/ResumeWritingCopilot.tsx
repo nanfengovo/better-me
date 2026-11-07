@@ -461,7 +461,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
     {visible && geometry && geometry.annotations.length > 0 && createPortal(<svg className="writing-overlay no-print" data-keyboard={keyboardNavigation ? "true" : undefined} aria-hidden="true">
       {geometry.annotations.map(annotation => <g key={annotation.id} data-annotation-id={annotation.id} data-annotation-tone={annotation.tone} data-active={annotation.active ? "true" : undefined}>
         {annotation.lines.map((line, index) => <rect className="writing-annotation-highlight" key={index} {...line} rx="3" />)}
-        {annotation.active && geometry.path && <><path className="writing-connector-halo" d={geometry.path} /><path className="writing-connector" d={geometry.path} /><circle className="writing-connector-end" cx={geometry.tx} cy={geometry.ty} r="4" /></>}
+        {annotation.active && geometry.path && <><path className="writing-connector-halo" d={geometry.path} pathLength="1" /><path className="writing-connector" d={geometry.path} pathLength="1" /><circle className="writing-connector-end" cx={geometry.tx} cy={geometry.ty} r="4" /></>}
         <circle className="writing-annotation-badge" cx={annotation.badge.x} cy={annotation.badge.y} r={annotation.active ? 11 : 9} />
         <text className="writing-annotation-number" x={annotation.badge.x} y={annotation.badge.y} dy=".35em" textAnchor="middle">{annotation.number}</text>
         {annotation.active && <circle key={annotation.id} className="writing-annotation-ping" cx={annotation.badge.x} cy={annotation.badge.y} r="14" />}
