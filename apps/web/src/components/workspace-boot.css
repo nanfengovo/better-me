@@ -1,0 +1,15 @@
+.workspace-boot{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;background:#000;color:#f5f5f7;animation:workspace-boot-away .35s 1.45s ease both}
+.workspace-boot-center{display:flex;flex-direction:column;align-items:center;gap:18px;animation:workspace-boot-appear .45s ease both}
+.workspace-boot-center>svg{color:#c0eddf}
+.workspace-boot-name{font-size:20px;font-weight:500;letter-spacing:-.5px}
+.workspace-boot-track{width:154px;height:3px;margin-top:24px;background:#343436;border-radius:8px;overflow:hidden}
+.workspace-boot-track span{display:block;width:100%;height:100%;background:#e6e6e8;transform-origin:left;animation:workspace-boot-fill 1.4s cubic-bezier(.25,.65,.3,1) both}
+.workspace-boot-center p{font-size:12px;color:#a1a1a6;margin:0}
+.workspace-boot>button{position:absolute;bottom:max(32px,env(safe-area-inset-bottom));padding:10px 18px;min-height:44px;background:transparent;border:1px solid #363638;border-radius:24px;color:#c5c5ca;font:inherit;font-size:12px;cursor:pointer}
+.workspace-boot>button:hover{background:#1d1d1f;color:#fff}
+.workspace-boot>button:focus-visible{outline:2px solid #c0eddf;outline-offset:4px}
+@keyframes workspace-boot-appear{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes workspace-boot-fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes workspace-boot-away{to{opacity:0}}
+@media(prefers-reduced-motion:reduce){.workspace-boot,.workspace-boot-center,.workspace-boot-track span{animation:none}}
+@media print{.workspace-boot{display:none!important}}

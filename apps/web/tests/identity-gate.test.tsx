@@ -30,6 +30,32 @@ for (const [key, value] of Object.entries({ window: dom, document: dom.document,
 const { createRoot } = await import("react-dom/client");
 const { act } = React;
 const { IdentityGate } = await import("../src/components/IdentityGate");
+const { WorkspaceBoot } = await import("../src/components/WorkspaceBoot");
+
+test("boot finishes automatically and respects system reduced motion", async () => {
+  const container = dom.document.createElement("div"); dom.document.body.append(container);
+  const root = createRoot(container as unknown as Element);
+  let finished = 0;
+  const complete = () => { finished++; };
+  const originalMatch = dom.matchMedia.bind(dom);
+  try {
+    await act(async () => root.render(<WorkspaceBoot onComplete={complete} />));
+    assert.equal(finished, 0);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 1850)); });
+    assert.equal(finished, 1, "animation never blocks the workspace indefinitely");
+    await act(async () => root.render(null));
+    dom.matchMedia = ((query: string) => {
+      const media = originalMatch(query);
+      Object.defineProperty(media, "matches", { value: true });
+      return media;
+    }) as typeof dom.matchMedia;
+    await act(async () => root.render(<WorkspaceBoot onComplete={complete} />));
+    assert.equal(finished, 2, "reduced motion skips immediately");
+  } finally {
+    dom.matchMedia = originalMatch;
+    await act(async () => root.unmount()); container.remove();
+  }
+});
 after(() => {
   activatePrincipal(undefined); css.deregister(); dom.happyDOM.abort();
   for (const [key, value] of originals) {
@@ -72,6 +98,11 @@ test("a newly registered account locks with a sign-in form, preserving its mount
     }
     await act(async () => { dom.document.querySelector("form")!.dispatchEvent(new dom.Event("submit", { bubbles: true, cancelable: true })); });
     assert.equal(currentPrincipal()?.id, alice.id);
+    assert.ok(container.querySelector('.workspace-boot[role="dialog"]'), "boot starts only after verified authentication");
+    assert.ok(container.querySelector('[aria-label="Synthetic mounted draft"]')?.parentElement?.hasAttribute("inert"));
+    await act(async () => container.querySelector<HTMLButtonElement>(".workspace-boot > button")!.click());
+    assert.equal(container.querySelector(".workspace-boot"), null, "skip immediately releases the workspace");
+    assert.equal(container.querySelector('[aria-label="Synthetic mounted draft"]')?.parentElement?.hasAttribute("inert"), false);
     const lease = captureIdentity();
     const draft = dom.document.querySelector<HTMLInputElement>('[aria-label="Synthetic mounted draft"]'); assert.ok(draft);
     draft.value = "ALICE-ONLY unsent correction";

@@ -72,7 +72,7 @@ export function CasdoorAccess({ link = false }: { link?: boolean }) {
     {visibleChannels.map(channel => <button key={channel.id} type={link ? "submit" : "button"} name="provider" value={channel.id}
       className={`social-login-button social-login-${channel.id}`} disabled={loading || busy || catalog?.service !== "ready" || channel.state !== "available"}
       title={channel.message} aria-label={link ? t(`关联 ${channel.label}`, `Link ${channel.label}`) : t(`使用 ${channel.label} 登录`, `Sign in with ${channel.label}`)} onClick={link ? undefined : () => void start(channel.id)}>
-      <span className="social-login-icon" aria-hidden="true"><img src={`${import.meta.env?.BASE_URL ?? "/"}images/login-icon-glass.png`} alt="" /><svg viewBox="0 0 24 24" focusable="false"><path d={icons[channel.id].path} /></svg></span>
+      <span className="social-login-icon" aria-hidden="true">{["wechat", "qq", "google"].includes(channel.id) ? <img src={`${import.meta.env?.BASE_URL ?? "/"}images/social/${channel.id}.svg`} alt="" /> : <svg viewBox="0 0 24 24" focusable="false">{channel.id === "microsoft" ? <><path fill="#f25022" d="M1 1h10v10H1z" /><path fill="#7fba00" d="M13 1h10v10H13z" /><path fill="#00a4ef" d="M1 13h10v10H1z" /><path fill="#ffb900" d="M13 13h10v10H13z" /></> : <path d={icons[channel.id].path} />}</svg>}</span>
       <span>{link ? t(`关联 ${channel.label}`, `Link ${channel.label}`) : channel.label}</span>
       {stateLabels[channel.state][0] && <small>{t(stateLabels[channel.state][0], stateLabels[channel.state][1])}</small>}
       {channel.state === "available" && <ArrowUpRight size={14} className="social-login-arrow" aria-hidden="true" />}

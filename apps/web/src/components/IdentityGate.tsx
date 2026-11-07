@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { WorkspaceBoot } from "./WorkspaceBoot";
 import { ArrowRight, Eye, EyeOff, LoaderCircle, LockKeyhole, LogOut, ShieldCheck } from "lucide-react";
 import { LoginShowcase } from "./LoginShowcase";
 import { LoginPreferences } from "./LoginPreferences";
@@ -14,6 +15,12 @@ export function IdentityGate({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false), [expired, setExpired] = useState(false), [error, setError] = useState("");
   const [register, setRegister] = useState(false), [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [bootDone, setBootDone] = useState(false);
+  const workspace = useRef<HTMLDivElement>(null);
+  const finishBoot = useCallback(() => {
+    setBootDone(true);
+    window.requestAnimationFrame(() => workspace.current?.focus({ preventScroll: true }));
+  }, []);
   useEffect(() => {
     let active = true;
     void identityRequest("session").then(result => {
@@ -63,7 +70,8 @@ export function IdentityGate({ children }: { children: ReactNode }) {
   }
   const locked = !ready || !user || expired;
   return <>
-    {user && <div hidden={locked} inert={locked}>{children}</div>}
+    {user && <div ref={workspace} tabIndex={-1} hidden={locked} inert={locked || !bootDone}>{children}</div>}
+    {!locked && !bootDone && <WorkspaceBoot onComplete={finishBoot} />}
     {locked && <main className="identity-screen"><div className="login-layout"><LoginShowcase /><div className="login-form-panel"><LoginPreferences /><section className="identity-card" aria-labelledby="identity-title">
       <span className="identity-mark"><LockKeyhole size={19} /></span>
       <h1 id="identity-title">{!ready ? t("正在连接工作空间…", "Connecting to your workspace…") : expired ? t("重新连接你的工作空间", "Reconnect your workspace") : register ? t("开启你的下一步", "Begin your next chapter") : t("欢迎回来", "Welcome back")}</h1>
