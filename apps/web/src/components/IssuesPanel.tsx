@@ -10,6 +10,7 @@ type Props = {
   factBase: FactBase;
   onNavigate: (issue: ClaimIssue) => void;
   activeIssue?: ClaimIssue;
+  compact?: boolean;
 };
 
 function summarize(text: string): string {
@@ -17,7 +18,7 @@ function summarize(text: string): string {
   return characters.length > 90 ? `${characters.slice(0, 90).join("")}…` : characters.join("");
 }
 
-export function IssuesPanel({ issues, factBase, onNavigate, activeIssue }: Props) {
+export function IssuesPanel({ issues, factBase, onNavigate, activeIssue, compact = false }: Props) {
   const { t, locale } = useUiPreferences();
 
   const [open, setOpen] = useState(false);
@@ -32,7 +33,7 @@ export function IssuesPanel({ issues, factBase, onNavigate, activeIssue }: Props
   }
 
   return (
-    <div className="no-print rounded-xl border border-amber-200/90 bg-amber-50/80 shadow-2xs overflow-hidden">
+    <div className={compact ? "studio-issues-popover no-print" : "no-print rounded-xl border border-amber-200/90 bg-amber-50/80 shadow-2xs overflow-hidden"} onBlur={event => { if (compact && !event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false); }} onKeyDown={event => { if (compact && event.key === "Escape") { event.stopPropagation(); setOpen(false); event.currentTarget.querySelector<HTMLButtonElement>("button")?.focus(); } }}>
       <div className="issues-summary flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
         <div className="issues-summary-copy flex items-center gap-2">
           <ShieldAlert className="h-4 w-4 text-amber-600" />
@@ -49,7 +50,7 @@ export function IssuesPanel({ issues, factBase, onNavigate, activeIssue }: Props
           aria-controls={detailsId}
           className="flex items-center gap-1 text-xs font-semibold text-amber-900 hover:text-amber-950 transition"
         >
-          <span>{open ? t("收起明细", "Hide details") : t("查看明细", "Show details")}</span>
+          <span>{compact ? t(`${issues.length} 项待检查`, `${issues.length} to review`) : open ? t("收起明细", "Hide details") : t("查看明细", "Show details")}</span>
           {open ? (
             <ChevronDown className="h-3.5 w-3.5" />
           ) : (

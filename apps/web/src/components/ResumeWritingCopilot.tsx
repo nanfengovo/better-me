@@ -335,7 +335,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
   }
 
   return <div ref={shell} data-writing-annotations={geometry?.annotations.length ? "true" : undefined} className={`writing-shell ${sidebar ? "is-docked" : showAgentPane ? "has-agent-pane" : ""} ${compactHint ? "is-agent-idle" : ""}`} onMouseUpCapture={() => { if (shell.current) { const next = readWritingPreviewSelection(shell.current, sources); if (next) setActivity(next); } }} onKeyUpCapture={() => { if (shell.current) { const next = readWritingPreviewSelection(shell.current, sources); if (next) setActivity(next); } }}>
-    <div className="writing-toolbar no-print">
+    <AgentSurface name="writing"><div className="writing-toolbar no-print">
       <span className="writing-brand"><Bot size={15} /> {t("简历伴写", "Writing copilot")}</span>
       {!sidebar && <AgentContinuityButton compact />}
       {sidebar && <button type="button" onClick={() => sidebar.show("settings")} aria-label={t("伴写设置", "Copilot settings")}><Settings2 size={14} /></button>}
@@ -365,7 +365,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
       {!sidebar && understandingSource && <button type="button" disabled={understandingRunning} onClick={() => setUnderstandingSource(undefined)}>{t("返回伴写建议", "Back to suggestions")}</button>}
       <button ref={collapseButton} type="button" className="writing-collapse" aria-label={showAgentPane ? t("收起 Agent 对话", "Collapse Agent chat") : t("展开 Agent 对话", "Expand Agent chat")} aria-controls={agentPaneId} aria-expanded={showAgentPane} disabled={!hasAgentContent}
         onClick={() => showAgentPane ? collapseAgent() : sidebar ? sidebar.show("conversation", "writing") : setAgentCollapsed(false)}>{showAgentPane ? <ChevronUp size={14} /> : <ChevronDown size={14} />}{showAgentPane ? t("收起对话", "Hide chat") : t("展开对话", "Show chat")}</button>
-    </div>
+    </div></AgentSurface>
     <AgentSurface name="writing"><div id={agentPaneId} className="writing-agent-pane no-print" hidden={!sidebar && !showAgentPane}>
     <div className={`writing-agent-scroll${understandingSource ? " has-project-understanding" : expanded && focusedNote ? " has-writing-review" : ""}`} role="region" aria-label="Agent 对话与历史" tabIndex={0}>
     <div className="writing-status no-print">

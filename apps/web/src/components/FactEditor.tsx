@@ -25,7 +25,6 @@ import {
   ChevronDown,
   ChevronRight,
   Tag,
-  Languages,
   Camera,
   MessageSquare,
 } from "lucide-react";
@@ -423,44 +422,12 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
 
         {/* Bilingual / Locale Toggle */}
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-ink-muted)]" aria-describedby="editor-fields-help">
-          <Languages className="h-3.5 w-3.5 text-slate-400" />
-          <span className="font-medium">{t("编辑语言", "Editing language")}</span>
-          <div className="editor-language-switch inline-flex rounded-lg border border-[var(--color-line)] p-0.5 text-xs shadow-xs">
-            <button
-              type="button"
-              aria-pressed={viewMode === "bilingual"}
-              onClick={() => setViewMode("bilingual")}
-              className={`rounded px-2 py-1 font-medium transition ${
-                viewMode === "bilingual"
-                  ? "bg-slate-800 text-white"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              {t("中英双语", "Chinese & English")}</button>
-            <button
-              type="button"
-              aria-pressed={viewMode === "zh"}
-              onClick={() => setViewMode("zh")}
-              className={`rounded px-2 py-1 font-medium transition ${
-                viewMode === "zh"
-                  ? "bg-slate-800 text-white"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              {t("仅中文", "Chinese only")}</button>
-            <button
-              type="button"
-              aria-pressed={viewMode === "en"}
-              onClick={() => setViewMode("en")}
-              className={`rounded px-2 py-1 font-medium transition ${
-                viewMode === "en"
-                  ? "bg-slate-800 text-white"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              {t("仅英文", "English only")}</button>
-          </div>
-          <p id="editor-fields-help" className="w-full text-xs leading-relaxed">{t("仅切换编辑字段，不自动翻译；导出语言在顶部设置。", "Switches editing fields without translation. Set the export language above.")}</p>
+          <select className="editor-language-select" aria-label={t("编辑语言", "Editing language")} value={viewMode} onChange={event => setViewMode(event.target.value as ViewMode)}>
+            <option value="zh">{t("仅中文", "Chinese only")}</option>
+            <option value="en">{t("仅英文", "English only")}</option>
+            <option value="bilingual">{t("中英双语", "Chinese & English")}</option>
+          </select>
+          <p id="editor-fields-help" className="sr-only">{t("仅切换编辑字段，不自动翻译；导出语言在顶部设置。", "Switches editing fields without translation. Set the export language above.")}</p>
         </div>
       </div>
 
@@ -846,7 +813,7 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
           /* ================= Experiences Editor ================= */
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs text-slate-500">
+              <p className="sr-only">
                 {t("新增内容保持空白，补齐必填字段后保存。未核实的量化不会投影到最终简历。", "New entries start blank. Complete required fields before saving. Unverified metrics stay out of the final resume.")}</p>
               <div className="flex items-center gap-2">
                 <select aria-label={t("新增经历类型", "New experience type")} value={newExperienceType} onChange={(event) => setNewExperienceType(event.target.value as Experience["type"])} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-[var(--color-accent)]">
@@ -918,6 +885,8 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
                   {!isCollapsed && (
                     <div className="p-4 space-y-4">
                       {/* Basic Meta Inputs */}
+                      <details className="experience-metadata" open={!exp.org.zh.trim() || !exp.title.zh.trim() || !exp.start ? true : undefined}>
+                        <summary><span>{t("公司、职位与任职时间", "Organization, role & dates")}</span><span className="metadata-edit">{t("编辑", "Edit")} <Plus size={13} /></span></summary>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label htmlFor={`experience-type-${exp.id}`} className="mb-1 block text-[11px] font-semibold text-slate-600">{t("经历类型", "Experience type")}</label>
@@ -1093,6 +1062,8 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
                           inputAriaLabel={t("技术栈名称", "Technology name")}
                         />
                       </div>
+
+                      </details>
 
                       {/* Claims / Bullets Section */}
                       <div className="border-t border-slate-100 pt-3">

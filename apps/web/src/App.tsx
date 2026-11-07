@@ -39,7 +39,7 @@ import { WorkspaceMenu } from "./components/WorkspaceMenu";
 import { rebaseViewTextStyles } from "./lib/text-formatting";
 import type { PreviewFollowTarget } from "./lib/preview-follow";
 import { createIssueNavigation, type IssueNavigationRequest } from "./lib/issue-navigation";
-import { ArrowUpRight, Check, Download, FileText, GitBranch, Languages, Loader2, MessageSquare, MoreHorizontal, RotateCcw, ShieldCheck, Sparkles, Upload, X } from "lucide-react";
+import { Maximize2, Check, Download, FileText, GitBranch, Languages, Loader2, MessageSquare, MoreHorizontal, RotateCcw, ShieldCheck, Sparkles, Upload, X } from "lucide-react";
 import { AgentTopBarStatus } from "./components/AgentTopBarStatus";
 import { AgentCompanion } from "./components/AgentCompanion";
 import { ResumeWritingCopilot } from "./components/ResumeWritingCopilot";
@@ -66,6 +66,7 @@ export function App() {
   const confirm = useConfirm();
   const { doc, ready, loadError, status, update, replace, restoreField, checkpoint, protectEdit, flush, history, autoSaveSettings, setAutoSaveSettings, autoSavePreferenceError } = useDocumentPersistence();
   const [workspaceTab, setWorkspaceTab] = useState<"content" | "design">("content");
+  const [focused, setFocused] = useState(false);
   const [page, setPage] = useState<"resume" | "opportunities" | "resources" | "atlas" | "agent">(() => {
     const ws = new URLSearchParams(window.location.search).get("workspace");
     return ws === "atlas" ? "atlas" : ws === "agent" ? "agent" : "resume";
@@ -381,13 +382,11 @@ export function App() {
   if (!ready || !doc || !activeResume || !projected) return <div className="studio-loading"><Loader2 size={24} className="animate-spin" /><span>{t("正在打开你的简历工作室…", "Opening your resume studio…")}</span></div>;
   const autoSaveDescription = !autoSaveSettings.enabled ? t("自动保存已关闭", "Autosave is off") : autoSaveSettings.trigger === "enter" ? t("按回车保存", "Press Enter to save") : autoSaveSettings.trigger === "blur" ? t("离开编辑项时保存", "Save when leaving a field") : t(`停止输入 ${autoSaveSettings.delayMs / 1000} 秒后保存`, `Save after ${autoSaveSettings.delayMs / 1000} seconds of inactivity`);
 
-  return <BetterMeAgentProvider workspaceKey={doc.documentId ?? activeResume.id}><AgentSidebarProvider><DesktopShell page={page} onNavigate={next => { if (next === "atlas") setAtlasInitialized(true); if (next === "resume") setWorkspaceTab("content"); setPage(next); }} onDesign={() => { setPage("resume"); setWorkspaceTab("design"); }} onHistory={() => setIsHistoryOpen(true)} onAiConfig={() => setIsAiConfigOpen(true)} onNetwork={() => setIsNetworkSettingsOpen(true)}><div className="studio-app compact-chrome">
+  return <BetterMeAgentProvider workspaceKey={doc.documentId ?? activeResume.id}><AgentSidebarProvider><DesktopShell page={page} resumeTab={workspaceTab} focused={focused} onContent={() => setWorkspaceTab("content")} accountControls={<FirstRunGuide eligible={page === "resume" && workspaceTab === "content" && !isAiConfigOpen && !isNetworkSettingsOpen && !isJdMatchOpen && !isAgentDrawerOpen && !isImportModalOpen && !isHistoryOpen && !isRestoring} onPrepare={() => { setPage("resume"); setWorkspaceTab("content"); setIsMenuOpen(false); }} renderTrigger={start => <WorkspaceMenu initial={doc.factBase.profile.displayName.zh.slice(0, 1) || "我"} onGuide={start} onAiConfig={() => setIsAiConfigOpen(true)} />} />} onNavigate={next => { if (next === "atlas") setAtlasInitialized(true); if (next === "resume") setWorkspaceTab("content"); setPage(next); }} onDesign={() => { setPage("resume"); setWorkspaceTab("design"); }} onHistory={() => setIsHistoryOpen(true)} onAiConfig={() => setIsAiConfigOpen(true)} onNetwork={() => setIsNetworkSettingsOpen(true)}><div className="studio-app compact-chrome">
     <AgentSourceBridge sources={agentSources} />
     <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".json" className="hidden" />
     <div className="studio-workspace">
-      <header className="studio-header no-print"><div className="studio-brand"><strong>BetterMe<span> / </span></strong><span className="header-location">{page === "resume" ? t("简历工作室", "Resume studio") : page === "opportunities" ? t("机会与投递", "Opportunities & applications") : page === "atlas" ? t("岗位地图", "Opportunity atlas") : page === "agent" ? t("AI 顾问工作台", "AI Agent Workspace") : t("求职资料库", "Career resources")}</span></div><div className="header-actions"><AgentTopBarStatus config={llmConfig} active={page === "agent"} onNavigateToAgent={() => setPage("agent")} onOpenAiConfig={() => setIsAiConfigOpen(true)} />
-        <FirstRunGuide eligible={page === "resume" && workspaceTab === "content" && !isAiConfigOpen && !isNetworkSettingsOpen && !isJdMatchOpen && !isAgentDrawerOpen && !isImportModalOpen && !isHistoryOpen && !isRestoring} onPrepare={() => { setPage("resume"); setWorkspaceTab("content"); setIsMenuOpen(false); }} renderTrigger={start => <WorkspaceMenu initial={doc.factBase.profile.displayName.zh.slice(0, 1) || "我"} onGuide={start} onAiConfig={() => setIsAiConfigOpen(true)} />} />
-        </div></header>
+      {page !== "resume" && <header className="studio-header no-print"><AgentTopBarStatus config={llmConfig} active={page === "agent"} onNavigateToAgent={() => setPage("agent")} onOpenAiConfig={() => setIsAiConfigOpen(true)} /></header>}
       <div className="resume-workspace-body" hidden={page !== "resume"} onMouseUpCapture={captureResumeTextSelection} onKeyUpCapture={captureResumeTextSelection}>
       {resumeSelectionReference && <div className="no-print flex items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-4 py-2 text-[11px] text-emerald-950">
         <MessageSquare size={14} className="shrink-0 text-emerald-700" />
@@ -408,26 +407,28 @@ export function App() {
           </div>
         </div>
         <div className="document-actions">
+          <IssuesPanel compact issues={issues} factBase={doc.factBase} onNavigate={navigateToIssue} activeIssue={issueNavigation?.issue} />
+          <button className="studio-button studio-focus-button" aria-pressed={focused} onClick={() => setFocused(value => !value)}><Maximize2 size={14} />{focused ? t("退出专注", "Exit focus") : t("专注", "Focus")}</button>
           <div className="output-language" role="group" aria-label={t("简历输出语言", "Resume output language")} title={t("只影响这份简历的预览与导出，不改变界面语言", "Only changes this resume’s preview and exports, independently of the interface language")}>
             <Languages size={14} /><span className="output-language-label">{t("导出语言", "Export language")}</span>
             {(["zh", "en"] as const).map((locale) => <button key={locale} aria-pressed={activeResume.locale === locale} className={activeResume.locale === locale ? "active" : ""} onClick={() => setResumeLocale(locale)}>{locale === "zh" ? "中文" : "English"}</button>)}
           </div>
           {!autoSaveSettings.enabled && <button className="studio-button subtle" onClick={() => void flush()}><Check size={14} />{t("立即保存", "Save now")}</button>}
-          <button className="studio-button subtle document-match-action" onClick={refreshJobRecommendations}><Sparkles size={14} />{t("寻找匹配岗位", "Find matching roles")}</button>
-          <button className="studio-button subtle" onClick={() => setIsImportModalOpen(true)}><Upload size={14} />{t("导入简历", "Import resume")}</button>
+
           <div className="document-menu" ref={menuRef}><button className="studio-button icon-button" aria-label={t("更多简历操作", "More resume actions")} aria-expanded={isMenuOpen} onClick={() => setIsMenuOpen(!isMenuOpen)}><MoreHorizontal size={19} /></button>{isMenuOpen && <div className="document-dropdown">
             <label className="document-rename">{t("简历名称", "Resume name")}<input aria-label={t("简历名称", "Resume name")} value={activeResume.name === "Default" ? t("我的简历", "My resume") : activeResume.name} onChange={event => updateResume({ ...activeResume, name: event.target.value })} /></label>
             <button onClick={() => { if (docRef.current) edit(addResumeView(docRef.current)); setIsMenuOpen(false); }}><FileText size={14} />{t("新建简历", "New resume")}</button>
             <button onClick={() => { if (docRef.current) edit(duplicateResumeView(docRef.current, activeResume.id)); setIsMenuOpen(false); }}><FileText size={14} />{t("复制当前简历", "Duplicate resume")}</button>
             <button onClick={() => { setIsHistoryOpen(true); setIsMenuOpen(false); }}><GitBranch size={14} />{t("历史版本", "Version history")}</button>
-            <button className="mobile-match-action" onClick={() => { refreshJobRecommendations(); setIsMenuOpen(false); }}><Sparkles size={14} />{t("寻找匹配岗位", "Find matching roles")}</button>
+            <AgentTopBarStatus config={llmConfig} active={false} onNavigateToAgent={() => { setPage("agent"); setIsMenuOpen(false); }} onOpenAiConfig={() => { setIsAiConfigOpen(true); setIsMenuOpen(false); }} />
+            <button onClick={() => { setIsImportModalOpen(true); setIsMenuOpen(false); }}><Upload size={14} />{t("导入简历", "Import resume")}</button>
+            <button onClick={() => { refreshJobRecommendations(); setIsMenuOpen(false); }}><Sparkles size={14} />{t("寻找匹配岗位", "Find matching roles")}</button>
             <hr /><button onClick={handleExportBackup}><Download size={14} />{t("下载 JSON 备份", "Download JSON backup")}</button><button onClick={() => fileInputRef.current?.click()}><RotateCcw size={14} />{t("从备份恢复", "Restore backup")}</button>
             <hr /><span className="document-danger-label">{t("谨慎操作", "Use with care")}</span><button className="document-danger-action" disabled={doc.resumeViews.length <= 1} onClick={() => void deleteResumeView(activeResume.id)}>{t("删除当前简历版本", "Delete current resume")}</button><button className="document-danger-action" onClick={() => void resetDemo()}><RotateCcw size={14} />{t("恢复演示简历", "Reset demo resume")}</button></div>}</div>
         </div>
       </div>
       <div className="studio-notices no-print">
         {(status.kind === "error" || (status.kind === "draft" && hasIncompleteDraft) || status.historyError || isRestoring || actionError || status.rawDraftRecovery || status.rawOfficialRecovery || status.rawPreviousDraftRecovery || loadError) && <div className={`persistence-notice ${status.kind === "error" ? "error" : ""}`} role="status" aria-live="polite"><span>{isRestoring ? t("正在读取备份，继续编辑会取消本次恢复。", "Reading backup. Continuing to edit will cancel this restoration.") : actionError || loadError || status.message}{status.historyError && ` ${status.historyError}`}</span><div>{status.kind === "error" && <button onClick={() => void flush()}>{t("重试保存", "Retry save")}</button>}{status.rawDraftRecovery && <button onClick={() => downloadJson(status.rawDraftRecovery!, "better-me-draft-recovery.json")}>{t("下载原始草稿", "Download original draft")}</button>}<button onClick={handleExportBackup}>{t("下载备份", "Download backup")}</button>{status.rawOfficialRecovery && <button onClick={() => downloadJson(status.rawOfficialRecovery!, "better-me-backup-recovery.json")}>{t("下载原始文档", "Download original document")}</button>}{status.rawPreviousDraftRecovery && <button onClick={() => downloadJson(status.rawPreviousDraftRecovery!, "better-me-draft-before-switch.json")}>{t("下载切换前草稿", "Download pre-switch draft")}</button>}</div></div>}
-        <IssuesPanel issues={issues} factBase={doc.factBase} onNavigate={navigateToIssue} activeIssue={issueNavigation?.issue} />
         <ImportSourceReview source={doc.factBase.importSource} />
         {jobRecommendation && jobRecommendation.documentId === doc.documentId && <Suspense fallback={<div className="persistence-notice" role="status">{t("正在打开岗位推荐…", "Opening job recommendations…")}</div>}><ResumeJobRecommendations key={jobRecommendation.documentId} factBase={jobRecommendation.factBase} currentFactBase={doc.factBase} requestId={jobRecommendation.requestId} onRefresh={refreshJobRecommendations} onClose={() => setJobRecommendation(null)} onOpenAtlas={() => setPage("atlas")} onAnalyze={openAgentWorkspace} onEditResume={() => {
           setWorkspaceTab("content");
@@ -442,7 +443,7 @@ export function App() {
         <div id="resume-editor-panel" tabIndex={-1} data-onboarding="editor" className="studio-editor-pane no-print">
           <div id="content-panel" role="tabpanel" className="studio-panel-slot" hidden={workspaceTab !== "content"}><FactEditor writingFocus={writingFocus} factBase={doc.factBase} onChange={updateFactBase} onAskAgentReference={(reference) => setAgentCompanionReference(reference)} textStyles={activeResume.textStyles} onTextStylesChange={updateStyles} onPreviewTargetChange={setPreviewTarget} issueNavigation={issueNavigation} onDismissIssue={() => setIssueNavigation(null)} /></div>
           <div id="design-panel" role="tabpanel" className="studio-panel-slot" hidden={workspaceTab !== "design"}><ResumeDesignPanel view={activeResume} factBase={doc.factBase} onChange={updateResume} /></div>
-          <button className="jd-workspace-invite" onClick={() => setPage("agent")}><span className="jd-invite-icon"><Sparkles size={17} /></span><span><strong>{t("为下一份工作做好准备", "Prepare for your next role")}</strong><small>{t("与 Agent 一起了解岗位、打磨简历", "Explore roles and refine your resume with your Agent")}</small></span><ArrowUpRight size={17} /></button>
+
         </div>
         <div id="resume-preview-panel" className="studio-preview-pane"><ResumeWritingCopilot key={`${doc.documentId ?? "legacy"}:${activeResume.id}:${activeResume.targetJdId ?? ""}`} sessionKey={`${doc.documentId ?? "legacy"}:${activeResume.id}:${activeResume.targetJdId ?? ""}`} sources={writingContext} config={llmConfig} active={page === "resume" && workspaceTab === "content"} onApply={handleApplyWritingProposal} onFocus={(source) => {
           const target = source.targetRef;

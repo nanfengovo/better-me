@@ -53,6 +53,10 @@ function button(label: string) {
   return found;
 }
 async function click(label: string) { await flush(() => button(label).click()); }
+async function selectLanguage(value: string) {
+  const select = dom.document.querySelector<HTMLSelectElement>(".editor-language-select")!;
+  await flush(() => { select.value = value; select.dispatchEvent(new dom.Event("change", { bubbles: true })); });
+}
 function facts() {
   const factBase = createDemoFactBase("2000-01-01T00:00:00.000Z");
   factBase.profile.displayName = { zh: "合成姓名", en: "Fixture Name" };
@@ -75,13 +79,45 @@ after(async () => {
 test("default editor remains Chinese and field filtering never writes facts", async () => {
   const factBase = facts(); const before = structuredClone(factBase); let changes = 0;
   await mount(h(FactEditor, { factBase, onChange: () => { changes += 1; } }));
-  assert.match(dom.document.body.textContent!, /编辑语言/);
+  assert.equal(dom.document.querySelector(".editor-language-select")?.getAttribute("aria-label"), "编辑语言");
   assert.match(dom.document.getElementById("editor-fields-help")!.textContent!, /不自动翻译；导出语言在顶部设置/);
-  await click("仅英文");
+  await selectLanguage("en");
   const areas = [...dom.document.querySelectorAll("textarea")];
   assert.ok(areas.some(area => area.value === factBase.experiences[0]!.claims[0]!.text.en));
   assert.ok(areas.every(area => !area.getAttribute("aria-label")?.includes("中文要点")));
   assert.equal(changes, 0); assert.deepEqual(factBase, before);
+});
+
+test("complete experience metadata starts folded without hiding claims or replacing fields", async () => {
+  const factBase = facts();
+  await mount(h(FactEditor, { factBase, onChange: () => assert.fail("folding must not write facts") }));
+  const details = dom.document.querySelector<HTMLDetailsElement>(".experience-metadata")!;
+  const field = details.querySelector("input")!;
+  assert.equal(details.open, false);
+  const claim = dom.document.querySelector("textarea[data-writing-key]");
+  assert.ok(claim); assert.equal(details.contains(claim), false);
+  await flush(() => { details.open = true; });
+  assert.equal(details.querySelector("input"), field);
+  await selectLanguage("en");
+  assert.equal(details.open, true);
+});
+
+test("compact issue status opens actionable checks and Escape restores trigger focus", async () => {
+  const factBase = facts(), experience = factBase.experiences[0]!;
+  const claim = experience.claims.find(item => item.metric)!; claim.metric!.confirmed = false;
+  const issue = scanClaim(claim, experience.id).find(item => item.code === "metric_unconfirmed")!;
+  let target;
+  await mount(h(IssuesPanel, { factBase, compact: true, issues: [issue], onNavigate: value => { target = value; } }));
+  const trigger = button("1 项待检查");
+  assert.equal(trigger.getAttribute("aria-expanded"), "false");
+  await flush(() => trigger.click());
+  assert.equal(trigger.getAttribute("aria-expanded"), "true");
+  await flush(() => trigger.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+  assert.equal(trigger.getAttribute("aria-expanded"), "false");
+  assert.equal(dom.document.activeElement, trigger);
+  await flush(() => trigger.click());
+  const locate = [...dom.document.querySelectorAll("button")].find(item => item.textContent === "定位并修改")!;
+  await flush(() => locate.click()); assert.equal(target, issue);
 });
 
 test("selecting resume text offers a source-labelled quote for the Agent without changing facts", async () => {
@@ -115,7 +151,7 @@ test("English UI translates guidance while preserving Chinese source text and me
     factBase, onChange: () => { changes += 1; },
     issueNavigation: { issue, field: "confirmation", requestId: 1 },
   }), "en");
-  assert.match(dom.document.body.textContent!, /Editing language/);
+  assert.equal(dom.document.querySelector(".editor-language-select")?.getAttribute("aria-label"), "Editing language");
   assert.match(dom.document.body.textContent!, /Metric not yet verified/);
   assert.match(dom.document.body.textContent!, /Model extraction or field validation cannot replace your own verification/);
   assert.match(dom.document.querySelector(".issue-guide-context")!.textContent!, /合成单位 · Entry \d/);
@@ -130,10 +166,10 @@ test("changing UI locale preserves the selected editor field language", async ()
     const { setLocale } = useUiPreferences();
     return h(React.Fragment, null, h("button", { onClick: () => setLocale("zh") }, "Switch workspace"), h(FactEditor, { factBase, onChange: () => assert.fail("locale/filter must not write facts") }));
   }
-  await mount(h(Harness), "en"); await click("English only");
+  await mount(h(Harness), "en"); await selectLanguage("en");
   const values = [...dom.document.querySelectorAll("textarea")].map(area => area.value);
   await click("Switch workspace");
-  assert.match(dom.document.body.textContent!, /编辑语言/);
+  assert.equal(dom.document.querySelector(".editor-language-select")?.getAttribute("aria-label"), "编辑语言");
   assert.deepEqual([...dom.document.querySelectorAll("textarea")].map(area => area.value), values);
   assert.deepEqual(factBase, before);
 });

@@ -274,7 +274,7 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
             </div>
             <div className="preview-export" ref={exportMenuRef} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setIsExportMenuOpen(false); }}>
               <div className="preview-export-split">
-                <button type="button" onClick={() => window.print()} className="preview-export-primary"><Printer size={15} aria-hidden="true" /><span>{t("导出 PDF / 打印", "Export PDF / Print")}</span></button>
+                <button type="button" onClick={() => window.print()} className="preview-export-primary" aria-label={t("导出 PDF / 打印", "Export PDF / Print")}><Printer size={15} aria-hidden="true" /><span>{t("导出", "Export")}</span></button>
                 <button ref={exportTriggerRef} type="button" className="preview-export-toggle" aria-label={t("更多导出格式", "More export formats")} aria-haspopup="menu" aria-expanded={isExportMenuOpen} aria-controls={exportMenuId} onClick={() => { setIsExportMenuOpen((value) => !value); setIsHelpOpen(false); }} onKeyDown={(event) => {
                   if (event.key === "ArrowDown" || event.key === "ArrowUp") {
                     event.preventDefault();
@@ -316,10 +316,7 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
             <button type="button" onClick={() => changeZoom(10)} disabled={!fitMode && zoom >= 130} aria-label={t("放大预览", "Zoom in")}><ZoomIn size={14} /></button>
             <button type="button" onClick={fitWidth} aria-label={t("适应预览宽度", "Fit preview width")} aria-pressed={fitMode} title={t("适应宽度，拖动分栏时自动调整", "Fit width and resize automatically when dragging the divider")}><Maximize2 size={14} /></button>
           </div>
-          <div className="preview-display-controls">
-            <button type="button" className="preview-follow-toggle" onClick={() => { manualPreviewRef.current = false; setFollowEnabled((value) => !value); }} aria-pressed={followEnabled} title={t("跟随左侧编辑位置；手动浏览预览后，继续编辑会恢复跟随", "Follow the editor position; editing resumes following after manual preview browsing")}><ScanLine size={14} /><span>{t("跟随编辑", "Follow editing")}</span></button>
-            {(view || resume.profile.avatarUrl) && <button type="button" onClick={toggleAvatar} disabled={isAts} aria-pressed={!isAts && showAvatar} title={isAts ? t("简洁 ATS 模板固定不显示照片", "The ATS template always hides photos") : t("切换并保存照片显示偏好", "Toggle and save photo visibility")}><User size={14} /><span>{isAts ? t("ATS 无照片", "ATS · no photo") : showAvatar ? t("照片：显示", "Photo: shown") : t("照片：隐藏", "Photo: hidden")}</span></button>}
-          </div>
+
         </div>
         {copied && !copyError && <p role="status" className="preview-feedback"><Check size={13} />{t("Markdown 已复制", "Markdown copied")}</p>}
         {copyError && <p role="status" className="preview-feedback preview-feedback-error">{copyError}</p>}
@@ -331,6 +328,13 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
             <ResumeTemplate resume={resume} templateId={templateId} showAvatar={showAvatar} />
           </div>
         </div>
+      </div>
+      <div className="preview-bottom no-print">
+        <div className="preview-display-controls">
+          <button type="button" className="preview-follow-toggle" onClick={() => { manualPreviewRef.current = false; setFollowEnabled(value => !value); }} aria-pressed={followEnabled} title={t("跟随左侧编辑位置；手动浏览预览后，继续编辑会恢复跟随", "Follow editing; manual browsing pauses following until you edit again")}><ScanLine size={13} /><span>{t("跟随编辑", "Follow editing")}</span></button>
+          {(view || resume.profile.avatarUrl) && <button type="button" onClick={toggleAvatar} disabled={isAts} aria-pressed={!isAts && showAvatar} title={t("切换并保存照片显示偏好", "Toggle and save photo visibility")}><User size={13} /><span>{isAts ? t("ATS 无照片", "ATS · no photo") : showAvatar ? t("照片：显示", "Photo: shown") : t("照片：隐藏", "Photo: hidden")}</span></button>}
+        </div>
+        <span>A4 · {t("实时预览", "Live preview")}</span>
       </div>
     </section>
   );

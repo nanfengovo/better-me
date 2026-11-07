@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Globe, History, Palette, Settings2 } from "lucide-react";
+import { Globe, History, Palette, Settings2, Sparkles } from "lucide-react";
+import { useAgentSidebar } from "../AgentSidebar";
 import { useUiPreferences } from "../../lib/ui-preferences";
 import { DesktopDock, type DesktopPage } from "./DesktopDock";
 import { DesktopWindow } from "./DesktopWindow";
 import { DesktopSettings } from "./DesktopSettings";
 import { useDesktopWallpaper } from "../../lib/use-desktop-wallpaper";
 
-export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, onAiConfig, onNetwork }: {
+export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, onAiConfig, onNetwork, resumeTab = "content", onContent, accountControls, focused = false }: {
   children: ReactNode; page: DesktopPage; onNavigate: (page: DesktopPage) => void;
   onDesign: () => void; onHistory: () => void; onAiConfig: () => void; onNetwork: () => void;
+  resumeTab?: "content" | "design"; onContent?: () => void; accountControls?: ReactNode; focused?: boolean;
 }) {
+  const sidebar = useAgentSidebar();
   const { t, locale, wallpaper = "aurora", reduceMotion = false } = useUiPreferences();
   const customWallpaper = useDesktopWallpaper();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -24,7 +27,7 @@ export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, 
   function focusDock(id: string) { shell.current?.querySelector<HTMLButtonElement>(`[data-dock-app="${id}"]`)?.focus({ preventScroll: true }); }
   function closeSettings() { setSettingsOpen(false); focusDock("settings"); }
   function navigate(next: DesktopPage) { setSettingsOpen(false); setMainHidden(false); onNavigate(next); }
-  return <div ref={shell} className="os-desktop" data-wallpaper={wallpaper} data-reduced-motion={reduceMotion} onKeyDown={event => {
+  return <div ref={shell} className="os-desktop" data-studio={page === "resume"} data-focused={page === "resume" && focused} data-wallpaper={wallpaper} data-reduced-motion={reduceMotion} onKeyDown={event => {
     if (event.key === "Escape" && !event.defaultPrevented && settingsOpen && (event.target as HTMLElement).closest(".os-settings-window")) {
       event.stopPropagation(); closeSettings();
     }
@@ -40,7 +43,7 @@ export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, 
     </header>
     <div className="os-stage">
       <div className="os-desktop-empty no-print" aria-hidden={!mainHidden}><span>BetterMe</span><p>{t("为下一步，留一点空间。", "A little space for your next step.")}</p>{mainHidden && <button type="button" onClick={() => setMainHidden(false)}>{t("返回工作空间", "Return to workspace")}</button>}</div>
-      <DesktopWindow title={titles[page]} hidden={mainHidden} inactive={settingsOpen} onHide={() => { setMainHidden(true); focusDock(page === "atlas" ? "resume" : page); }} actions={<><button type="button" onClick={() => { navigate("resume"); onDesign(); }}><Palette size={14} /><span>{t("排版设计", "Design")}</span></button><button type="button" onClick={onHistory}><History size={14} /><span>{t("版本", "History")}</span></button></>}>
+      <DesktopWindow title={titles[page]} hidden={mainHidden} inactive={settingsOpen} onHide={() => { setMainHidden(true); focusDock(page === "atlas" ? "resume" : page); }} actions={<>{page === "resume" ? <><div className="studio-mode-switch" role="group" aria-label={t("工作室模式", "Studio mode")}><button type="button" aria-pressed={resumeTab === "content"} aria-controls="content-panel" onClick={() => onContent ? onContent() : navigate("resume")}>{t("内容", "Content")}</button><button type="button" aria-pressed={resumeTab === "design"} aria-controls="design-panel" onClick={onDesign}>{t("设计", "Design")}</button></div><button type="button" className="studio-writing-trigger" aria-expanded={sidebar?.open && sidebar.conversation === "writing"} onClick={() => sidebar?.open && sidebar.conversation === "writing" ? sidebar.hide() : sidebar?.show("conversation", "writing")}><Sparkles size={14} /><span>{t("写作助手", "Writing assistant")}</span></button></> : <><button type="button" onClick={() => { navigate("resume"); onDesign(); }}><Palette size={14} /><span>{t("排版设计", "Design")}</span></button><button type="button" onClick={onHistory}><History size={14} /><span>{t("版本", "History")}</span></button></>}{accountControls}</>}>
         {children}
       </DesktopWindow>
       <DesktopWindow title={t("系统设置", "System settings")} settings hidden={!settingsOpen} onHide={closeSettings}>
