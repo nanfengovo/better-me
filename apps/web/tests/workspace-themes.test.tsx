@@ -31,6 +31,21 @@ test("all four workspace palettes have readable light and dark surfaces", () => 
   }
 });
 
+test("dark workspaces use pure black canvases and neutral readable surface layers", () => {
+  for (const theme of WORKSPACE_THEMES) {
+    for (const key of ["canvas", "rail", "previewCanvas"] as const) assert.equal(theme.dark[key], "#000000");
+    for (const key of ["surface", "surfaceRaised", "surfaceSoft", "input", "hover", "border", "borderStrong", "text", "textSecondary", "textMuted"] as const) {
+      const color = theme.dark[key];
+      assert.equal(color.slice(1, 3), color.slice(3, 5));
+      assert.equal(color.slice(3, 5), color.slice(5, 7));
+    }
+    for (const surface of ["surface", "surfaceRaised", "surfaceSoft", "input", "hover"] as const) {
+      assert.ok(contrast(theme.dark.textMuted, theme.dark[surface]) >= 4.5);
+    }
+    assert.notEqual(theme.light.canvas, "#000000");
+  }
+});
+
 test("workspace theme validation rejects unsupported versions and executable CSS values", () => {
   const theme = getWorkspaceTheme("navy");
   for (const invalid of [null, [], { ...theme, schemaVersion: 2 }, { ...theme, id: "unknown" }, { ...theme, css: "body{}" },
@@ -50,7 +65,7 @@ test("CSS resolver produces only workspace variables and copies parsed theme dat
   assert.equal(parsed.light.action, "#744381");
   const variables = workspaceThemeVariables("plum", "dark");
   assert.equal(variables["--workspace-action"], "#81518f");
-  assert.equal(variables["--workspace-preview-canvas"], "#1e1725");
+  assert.equal(variables["--workspace-preview-canvas"], "#000000");
   assert.ok(Object.keys(variables).every(name => name.startsWith("--workspace-")));
   assert.ok(!Object.keys(variables).some(name => name.includes("resume") || name.includes("font") || name.includes("margin")));
 });
