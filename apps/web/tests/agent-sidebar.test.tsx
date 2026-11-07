@@ -18,7 +18,7 @@ for (const [key, value] of Object.entries({ window: dom, document: dom.document,
 })) { originals.set(key, Object.getOwnPropertyDescriptor(globalThis, key)); Object.defineProperty(globalThis, key, { configurable: true, writable: true, value }); }
 const { createRoot } = await import("react-dom/client");
 const { act } = React;
-const { AgentSidebarProvider } = await import("../src/components/AgentSidebar");
+const { AgentSidebarProvider, AgentSettingsPanel } = await import("../src/components/AgentSidebar");
 const { ResumeWritingCopilot } = await import("../src/components/ResumeWritingCopilot");
 const { AgentCompanion } = await import("../src/components/AgentCompanion");
 const { BetterMeAgentCenter, AgentContinuityButton } = await import("../src/components/BetterMeAgentCenter");
@@ -41,6 +41,7 @@ async function render(understandingClient?: UnderstandingClient) {
       generate={async (_config, _source, _answer, signal, _fetch, _context, shared) => { writingSignal = signal; writingMemory = shared; return new Promise(resolve => { resolveWriting = resolve; }); }}><div className="fixture-paper">纸张</div></ResumeWritingCopilot></div>
     <AgentTopBarStatus config={null} active={false} onNavigateToAgent={() => assert.fail("must open the single sidebar")} onOpenAiConfig={() => assert.fail("must not open a separate modal")} />
     <AgentContinuityButton /><BetterMeAgentCenter onNavigate={() => {}} />
+    <div className="fixture-system-settings"><AgentSettingsPanel /></div>
     <AgentCompanion llmConfig={config} onOpenWorkspace={() => {}} onOpenAiConfig={() => {}} sendChat={async input => {
       chatSignal = input.signal; chatInput = JSON.stringify(input.messages); await new Promise<void>(resolve => { resolveChat = resolve; });
       return { id: crypto.randomUUID(), role: "assistant", content: "同一侧栏的完整回复", createdAt: new Date().toISOString() };
@@ -86,7 +87,8 @@ test("one sidebar owns writing, memory and tools; preview never contains the con
   assert.equal(dom.document.querySelectorAll(".writing-document .fixture-paper").length, 1);
   assert.equal(dom.document.querySelector(".writing-shell.has-agent-pane"), null);
   await click("模型与工具");
-  assert.ok(dom.document.querySelector(".agent-sidebar-settings .agent-companion-tools"));
+  assert.ok(dom.document.querySelector(".fixture-system-settings .agent-companion-tools"));
+  assert.equal(dom.document.querySelector(".agent-sidebar .agent-companion-tools"), null, "configuration belongs only to system settings");
   assert.ok(dom.document.querySelector(".agent-sidebar-settings .writing-settings"));
   const companion = dom.document.querySelector(".agent-companion-chat");
   await click("共识与进度"); await click("持续成长"); await fill(".betterme-agent-center textarea", "尚未提交的个人目标");

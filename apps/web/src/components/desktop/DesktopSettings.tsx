@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { AgentSettingsPanel } from "../AgentSidebar";
 import { Accessibility, ArrowUpRight, ChevronLeft, Globe, Monitor, Palette, Search, SlidersHorizontal } from "lucide-react";
 import { useUiPreferences } from "../../lib/ui-preferences";
 import { WORKSPACE_THEMES } from "../../themes/workspace-theme";
@@ -10,16 +11,21 @@ function SettingRow({ label, children }: { label: string; children: ReactNode })
 function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (value: boolean) => void }) {
   return <button className="os-switch" type="button" role="switch" aria-label={label} aria-checked={value} onClick={() => onChange(!value)}><span /></button>;
 }
-export function DesktopSettings({ onAiConfig, onNetwork }: { onAiConfig: () => void; onNetwork: () => void }) {
+export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig: () => void; onNetwork: () => void; request?: { section: string; id: number } }) {
   const { t, locale, theme, setLocale, setTheme, workspaceThemeId, setWorkspaceThemeId, dockAutoHide = true, reduceMotion = false, setDesktopPreferences, persistenceError } = useUiPreferences();
   const [tab, setTab] = useState("appearance");
   const [query, setQuery] = useState("");
   const [mobileDetail, setMobileDetail] = useState(false);
+  useEffect(() => {
+    if (request) { setTab(request.section); setMobileDetail(true); }
+  }, [request]);
   const tabs = [
     { id: "appearance", name: t("外观", "Appearance"), icon: Palette },
     { id: "desktop", name: t("桌面与 Dock", "Desktop & Dock"), icon: Monitor },
     { id: "accessibility", name: t("辅助功能", "Accessibility"), icon: Accessibility },
-    { id: "connections", name: t("模型与网络", "Models & network"), icon: Globe },
+    { id: "connections", name: t("模型与推理", "Models & inference"), icon: SlidersHorizontal },
+    { id: "tools", name: t("工具与授权", "Tools & permissions"), icon: Accessibility },
+    { id: "research", name: t("联网与外部协作", "Research & handoff"), icon: Globe },
   ];
   const title = tabs.find(item => item.id === tab)!.name;
   return <div className="os-settings" data-detail={mobileDetail}>
@@ -60,6 +66,17 @@ export function DesktopSettings({ onAiConfig, onNetwork }: { onAiConfig: () => v
         <p className="os-setting-intro">{t("沿用你已有的模型与连接配置。", "Manage your existing model and connection settings.")}</p>
         <div className="os-settings-card os-settings-links"><button type="button" onClick={onAiConfig}><SlidersHorizontal size={18} /><span>{t("模型与 AI 配置", "Models & AI configuration")}</span><ArrowUpRight size={16} /></button><button type="button" onClick={onNetwork}><Globe size={18} /><span>{t("网络与代理", "Network & proxy")}</span><ArrowUpRight size={16} /></button></div>
         <p className="os-setting-note">{t("打开现有设置表单；不会自动修改密钥、授权或模型选择。", "Opens the existing forms without changing credentials, permissions or model selection.")}</p>
+      </>}
+      <section hidden={tab !== "tools"}><p className="os-setting-intro">{t("所有任务共用一份配置，资料授权仍由你逐项决定。", "Shared configuration, with explicit access to each source.")}</p><AgentSettingsPanel /></section>
+      {tab === "research" && <>
+        <p className="os-setting-intro">{t("推理不等于检索，来源与时效需要单独核对。", "Inference is not retrieval. Verify sources and freshness separately.")}</p>
+        <div className="os-settings-card">
+          <SettingRow label={t("岗位网页读取", "Job page extraction")}><span>{t("使用现有读取服务", "Existing extraction service")}</span></SettingRow>
+          <SettingRow label={t("实时搜索 API", "Live search API")}><span>{t("尚未接入", "Not connected")}</span></SettingRow>
+          <SettingRow label={t("网页模型协作", "Web model handoff")}><span>{t("手动任务包 · 本人确认", "Manual, reviewed task package")}</span></SettingRow>
+        </div>
+        <p className="os-setting-note">{t("GPT / Claude / Gemini / DeepSeek 网页账号不等于 API 权限。在顾问工作区预览任务包后手动分享，结果带回后仍需核对。", "Web accounts do not grant API access. Review a task package before sharing and verify returned results.")}</p>
+        <div className="os-settings-card os-settings-links"><button type="button" onClick={onNetwork}><Globe size={18} /><span>{t("网络与代理", "Network & proxy")}</span><ArrowUpRight size={16} /></button></div>
       </>}
       {persistenceError && <p role="status" className="os-preference-error">{t("本次设置已生效，但浏览器未能保存偏好。", "Applied for this session, but preferences could not be saved.")}</p>}
     </div>

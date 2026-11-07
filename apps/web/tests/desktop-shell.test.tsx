@@ -36,6 +36,20 @@ async function mount() {
 afterEach(async () => { if (root) await flush(() => root!.unmount()); root = undefined; dom.document.body.replaceChildren(); dom.localStorage.clear(); aiOpens = 0; networkOpens = 0; });
 after(() => { css.deregister(); dom.happyDOM.abort(); for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } });
 
+test("task links open one settings window at the requested section without altering the editor", async () => {
+  await mount();
+  const editor = dom.document.querySelector('textarea');
+  await flush(() => dom.dispatchEvent(new dom.CustomEvent('betterme:open-settings', { detail: 'research' })));
+  assert.equal(dom.document.querySelector('.os-settings-window')?.getAttribute('data-hidden'), 'false');
+  assert.equal(dom.document.querySelector('.os-settings-content h1')?.textContent, '联网与外部协作');
+  await click('外观');
+  await flush(() => dom.dispatchEvent(new dom.CustomEvent('betterme:open-settings', { detail: 'research' })));
+  assert.equal(dom.document.querySelector('.os-settings-content h1')?.textContent, '联网与外部协作');
+  assert.equal(dom.document.querySelectorAll('.os-settings-window').length, 1);
+  assert.equal(dom.document.querySelector('textarea'), editor);
+  assert.equal(aiOpens, 0); assert.equal(networkOpens, 0);
+});
+
 test("desktop preferences accept only supported values and preserve legacy defaults", () => {
   assert.deepEqual(parseUiPreferences('{"locale":"en","theme":"dark"}'), { locale: "en", theme: "dark" });
   assert.deepEqual(parseUiPreferences('{"dockAutoHide":false,"reduceMotion":true,"wallpaper":"midnight"}'), { locale: "zh", theme: "light", dockAutoHide: false, reduceMotion: true, wallpaper: "midnight" });
@@ -210,7 +224,7 @@ test("failed preference writes apply in-session and show the existing warning", 
   } finally { Object.defineProperty(globalThis, "localStorage", original); }
 });
 test("model and network buttons invoke existing callbacks only after explicit clicks", async () => {
-  await mount(); await click("打开系统设置"); await click("模型与网络");
+  await mount(); await click("打开系统设置"); await click("模型与推理");
   assert.equal(aiOpens + networkOpens, 0);
   await click("模型与 AI 配置"); await click("网络与代理");
   assert.equal(aiOpens, 1); assert.equal(networkOpens, 1);

@@ -16,6 +16,17 @@ export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, 
   const { t, locale, wallpaper = "aurora", reduceMotion = false } = useUiPreferences();
   const customWallpaper = useDesktopWallpaper();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsRequest, setSettingsRequest] = useState<{ section: string; id: number }>();
+  useEffect(() => {
+    const open = (event: Event) => {
+      const section = (event as CustomEvent).detail;
+      if (!["connections", "tools", "research"].includes(section)) return;
+      setSettingsRequest(previous => ({ section, id: (previous?.id ?? 0) + 1 }));
+      setSettingsOpen(true);
+    };
+    window.addEventListener("betterme:open-settings", open);
+    return () => window.removeEventListener("betterme:open-settings", open);
+  }, []);
   const [mainHidden, setMainHidden] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const shell = useRef<HTMLDivElement>(null);
@@ -47,7 +58,7 @@ export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, 
         {children}
       </DesktopWindow>
       <DesktopWindow title={t("系统设置", "System settings")} settings hidden={!settingsOpen} onHide={closeSettings}>
-        <DesktopSettings onAiConfig={onAiConfig} onNetwork={onNetwork} />
+        <DesktopSettings request={settingsRequest} onAiConfig={onAiConfig} onNetwork={onNetwork} />
       </DesktopWindow>
     </div>
     <DesktopDock page={page} settingsOpen={settingsOpen} mainHidden={mainHidden} onNavigate={navigate} onMinimize={() => { setMainHidden(true); focusDock(page === "atlas" ? "resume" : page); }} onSettings={() => setSettingsOpen(true)} onCloseSettings={closeSettings} />

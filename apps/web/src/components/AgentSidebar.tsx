@@ -10,6 +10,7 @@ import { AgentHelpHome } from "./AgentHelpHome";
 import { readTutorial, tutorialKey, tutorialStorage } from "../lib/agent-tutorial";
 import { privateStorage as localStorage } from "../lib/private-storage";
 import { useUiPreferences } from "../lib/ui-preferences";
+import { openSystemSettings } from "../lib/settings-navigation";
 import type { UnderstandingClient } from "../services/understanding-client";
 
 type Tab = "conversation" | "memory" | "settings";
@@ -22,6 +23,7 @@ type Sidebar = {
   register: (name: Surface, node: HTMLDivElement | null) => void;
   learn: (lesson?: AgentLesson) => void;
   readerRuntime: string; setReaderRuntime: (runtime: string) => void;
+  understandingClient?: UnderstandingClient;
 };
 const Context = createContext<Sidebar | null>(null);
 const AGENT_WIDTH_KEY = "betterme.agent.sidebar-width.v1";
@@ -39,6 +41,17 @@ export function AgentSurface({ name, children }: { name: Surface; children: Reac
   if (!sidebar) return children;
   const target = sidebar.slots[name];
   return target ? createPortal(children, target) : null;
+}
+export function AgentSettingsPanel({ understandingClient }: { understandingClient?: UnderstandingClient }) {
+  const { t } = useUiPreferences();
+  const sidebar = useAgentSidebar();
+  if (!sidebar) return null;
+  understandingClient ??= sidebar.understandingClient;
+  return <div className="agent-sidebar-settings unified-agent-settings">
+    <h3>{t("统一推理与对话授权", "Inference & conversation access")}</h3><Slot name="companion-settings" /><Slot name="tools" />
+    <h3>{t("伴写参与方式", "Writing participation")}</h3><Slot name="writing-settings" />
+    <h3>{t("已安装 Agent 与受控取证", "Installed agents & evidence tools")}</h3><AgentReaderTools client={understandingClient} />
+  </div>;
 }
 function Slot({ name }: { name: Surface }) {
   const { register } = useAgentSidebar()!;
@@ -145,7 +158,7 @@ export function AgentSidebarProvider({ children, understandingClient }: { childr
   }, [open]);
   // Older producers may still request the shared memory view through the kernel.
   useEffect(() => { if (snapshot?.centerOpen) { show("memory"); agent?.setCenterOpen(false); } }, [snapshot?.centerOpen, show, agent]);
-  const value = useMemo(() => ({ open, tab, conversation, show, hide, slots, register, learn, readerRuntime, setReaderRuntime }), [open, tab, conversation, show, hide, slots, register, learn, readerRuntime, setReaderRuntime]);
+  const value = useMemo(() => ({ open, tab, conversation, show, hide, slots, register, learn, readerRuntime, setReaderRuntime, understandingClient }), [open, tab, conversation, show, hide, slots, register, learn, readerRuntime, setReaderRuntime, understandingClient]);
   const tabs = [["conversation", t("伴写对话", "Writing & chat")], ["memory", t("共识与进度", "Shared memory")], ["settings", t("模型与工具", "Models & tools")]] as const;
   // Layout/visibility only; no model selection, authorization or autosave mutations here.
   const commitSidebarWidth = (width: number) => {
@@ -192,9 +205,10 @@ export function AgentSidebarProvider({ children, understandingClient }: { childr
       </section>
       <section role="tabpanel" id={`${id}-memory-panel`} aria-labelledby={`${id}-memory`} hidden={tab !== "memory"} className="agent-sidebar-memory"><Slot name="memory" /></section>
       <section role="tabpanel" id={`${id}-settings-panel`} aria-labelledby={`${id}-settings`} hidden={tab !== "settings"} className="agent-sidebar-settings">
-        <h3><Settings2 size={15} />{t("伴写参与方式", "Writing copilot mode")}</h3><Slot name="writing-settings" />
-        <h3>{t("统一模型与对话授权", "Unified model & chat access")}</h3><Slot name="companion-settings" /><Slot name="tools" />
-        <h3>{t("已安装 Agent 与受控取证", "Installed agents & evidence tools")}</h3><AgentReaderTools client={understandingClient} />{preferenceError && <p role="status">{preferenceError}</p>}
+        <h3><Settings2 size={15} />{t("统一设置", "System settings")}</h3>
+        <p>{t("模型、工具与授权统一在系统设置管理。当前对话与任务会保持。", "Manage models, tools and permissions in system settings without losing this conversation.")}</p>
+        <button type="button" onClick={() => { hide(); openSystemSettings("tools"); }}>{t("打开系统设置", "Open system settings")}</button>
+        {preferenceError && <p role="status">{preferenceError}</p>}
       </section>
       </div>
     </aside>

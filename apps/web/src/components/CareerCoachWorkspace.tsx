@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LlmConfig } from "@better-me/core";
 import type { ResumeEditContext } from "@better-me/agent-contracts";
-import { ArrowRight, BookOpen, Check, Compass, Download, MessageSquare, Settings2, ShieldCheck, Sparkles, Target, X } from "lucide-react";
+import { ArrowRight, BookOpen, Check, Compass, Download, MessageSquare, ShieldCheck, Sparkles, Target, X } from "lucide-react";
 import type { DrawerJobContext } from "./JdMatchDrawer";
 import { findResumeContextSource, type ResumeProposalWrite } from "../lib/resume-agent-context";
 import { generateCoach, generateCoachWithChatGpt, generateCoachWithAgentBase } from "../lib/career-coach/model";
@@ -20,6 +20,8 @@ import { agentBaseLabel, useAgentRouting } from "../lib/agent-routing";
 
 export interface CareerCoachWorkspaceProps {
   workspaceKey: string;
+  modeRequest?: { mode: CoachMode; id: number };
+  onModeChange?: (mode: CoachMode) => void;
   resumeEditContext?: ResumeEditContext;
   job: DrawerJobContext | null;
   llmConfig: LlmConfig;
@@ -61,7 +63,7 @@ export function CareerCoachWorkspace(props: CareerCoachWorkspaceProps) {
   return <CareerCoachSession key={props.workspaceKey} {...props} />;
 }
 
-function CareerCoachSession({ workspaceKey, resumeEditContext, job, llmConfig, onOpenConfig, onApplyResumeProposal, generate = generateCoach, repository, chatGptClient = defaultChatGptClient, requestTimeoutMs = 120000 }: CareerCoachWorkspaceProps) {
+function CareerCoachSession({ workspaceKey, modeRequest, onModeChange, resumeEditContext, job, llmConfig, onOpenConfig, onApplyResumeProposal, generate = generateCoach, repository, chatGptClient = defaultChatGptClient, requestTimeoutMs = 120000 }: CareerCoachWorkspaceProps) {
   const { agent, snapshot: agentSnapshot } = useBetterMeAgent();
   const [shareAgentMemory, setShareAgentMemory] = useState(false);
   const agentTask = useRef<string | undefined>(undefined);
@@ -69,6 +71,9 @@ function CareerCoachSession({ workspaceKey, resumeEditContext, job, llmConfig, o
   const account = !routing?.enabled && agentSnapshot?.data.selection.kind === "chatgpt";
   const { state, ready, persistenceError, conflict, update, reload, clear } = useCareerCoach(workspaceKey, repository);
   const [mode, setMode] = useState<CoachMode>("analysis");
+  const modeRef = useRef(mode); modeRef.current = mode;
+  const notifyMode = useRef(onModeChange); notifyMode.current = onModeChange;
+  useEffect(() => { notifyMode.current?.(mode); }, [mode]);
   const [shareResume, setShareResume] = useState(false);
   const [shareJob, setShareJob] = useState(false);
   const [input, setInput] = useState("");
@@ -86,6 +91,11 @@ function CareerCoachSession({ workspaceKey, resumeEditContext, job, llmConfig, o
   const carriedSources = useRef<string[]>([]);
   const requestRef = useRef<{ id: number; controller?: AbortController; busy: boolean }>({ id: 0, busy: false });
   const applyingRef = useRef(false);
+  useEffect(() => {
+    if (!modeRequest) return;
+    if (requestRef.current.busy) { setNotice("当前任务仍在执行，未切换模式。请完成或停止后再选择任务。"); notifyMode.current?.(modeRef.current); return; }
+    setMode(modeRequest.mode);
+  }, [modeRequest]);
   const appliedContextFingerprints = useRef(new Map<string, string>());
   const stateRef = useRef(state); stateRef.current = state;
   const context = useMemo<CoachContext>(() => ({ ...(shareResume && resumeEditContext ? { resume: resumeEditContext } : {}),
@@ -319,7 +329,7 @@ function CareerCoachSession({ workspaceKey, resumeEditContext, job, llmConfig, o
 
   return <section className="career-coach" aria-label="成长工作区">
     <header className="coach-header"><div><div className="coach-eyebrow"><span />BETTERME / CAREER LAB</div><h1>把下一步，变成看得见的成长。</h1><p>从职业判断到学习实践，在你的简历与目标之间建立一条可验证的路径。</p></div>
-      <div className="coach-header-actions"><button type="button" onClick={onOpenConfig}><Settings2 size={16} />模型配置</button><button type="button" onClick={exportState} disabled={!ready}><Download size={16} />下载备份</button></div></header>
+      <div className="coach-header-actions"><button type="button" onClick={exportState} disabled={!ready}><Download size={16} />下载备份</button></div></header>
     {agent && <div className="coach-agent-bar" role="group" aria-label="本轮 Agent 与授权">
       <div className="coach-agent-controls"><AgentModelControls config={llmConfig} disabled={busy} client={chatGptClient} /><AgentContinuityButton /></div>
       <AgentMemoryConsent scope="growth" checked={shareAgentMemory} onChange={setShareAgentMemory} />

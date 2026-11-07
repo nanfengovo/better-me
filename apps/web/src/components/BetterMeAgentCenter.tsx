@@ -31,10 +31,11 @@ export function AgentMemoryConsent({ scope, checked, onChange }: { scope: "writi
   const scopeLabel = scope === "writing" ? "仅简历伴写" : scope === "companion" ? "仅自由对话" : "仅职业成长";
   return <label className="betterme-agent-consent"><input type="checkbox" checked={checked} disabled={!available} onChange={event => onChange(event.target.checked)} />{scopeLabel}：使用已共享共识与成长上下文（{count} 个项目）<span>只影响此入口，其他入口需单独勾选。包含统一目标和已开启跟踪的近期事件；不授权读取本机文件，也不确认个人贡献。</span></label>;
 }
-export function AgentModelControls({ config, disabled, client = defaultChatGptClient }: { config: LlmConfig; disabled?: boolean; client?: ChatGptClient }) {
+export function AgentModelControls({ config, disabled, client = defaultChatGptClient, editable = false }: { config: LlmConfig; disabled?: boolean; client?: ChatGptClient; editable?: boolean }) {
   const { agent, snapshot } = useBetterMeAgent();
   const routing = useAgentRouting();
   if (!agent || !snapshot) return null;
+  if (!editable) return <span className="agent-model-summary">{routing?.enabled ? "使用统一 Agent 策略" : snapshot.data.selection.kind === "chatgpt" ? "使用已选 ChatGPT" : config.model || "推理尚未配置"}</span>;
   return <div className="betterme-agent-model"><AgentBaseControls legacy={snapshot.data.selection.kind} model={config.model} disabled={disabled || !snapshot.ready || Boolean(snapshot.error)} onLegacy={kind => agent.setSelection({ kind, profileId: "", model: "" })} />
     {!routing?.enabled && snapshot.data.selection.kind === "chatgpt" && <ChatGptAgentControls value={snapshot.data.selection} onChange={choice => agent.setSelection({ kind: "chatgpt", ...choice })} onReady={agent.setChatGptReady} client={client} disabled={disabled} />}
   </div>;

@@ -766,7 +766,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
 
           <AgentContinuityButton />
           <AgentSurface name="companion-settings">{agent && <details open={sidebar ? true : undefined} className="agent-companion-shared-settings"><summary>模型与本轮上下文 · {routing?.enabled ? agentBaseLabel(routing.policy) : account ? selection?.model || "请选择 GPT" : llmConfig.model || "未配置"}{shareAgentMemory ? " · 已授权共享" : " · 未共享共识"}</summary><div className="agent-companion-shared-settings-body">
-            <AgentModelControls config={llmConfig} disabled={chatLoading || Boolean(agentSnapshot?.data.tasks.some(task => task.status === "running"))} client={chatGptClient} />
+            <AgentModelControls editable config={llmConfig} disabled={chatLoading || Boolean(agentSnapshot?.data.tasks.some(task => task.status === "running"))} client={chatGptClient} />
             <AgentMemoryConsent scope="companion" checked={shareAgentMemory} onChange={value => { if (!value) handleStopChat(); setShareAgentMemory(value); }} />
           </div></details>}
 

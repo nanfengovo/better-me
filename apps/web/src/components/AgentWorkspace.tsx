@@ -58,6 +58,10 @@ import type { DrawerJobContext } from "./JdMatchDrawer";
 import { AgentMarkdownRenderer } from "./AgentMarkdownRenderer";
 import { AgentReplyMeta } from "./AgentReplyMeta";
 import { CareerCoachWorkspace } from "./CareerCoachWorkspace";
+import { AgentTaskNavigation, type AgentTaskView } from "./AgentTaskNavigation";
+import { AgentExternalHandoff } from "./AgentExternalHandoff";
+import { extractJobLink } from "../lib/job-link";
+import type { CoachMode } from "../lib/career-coach/types";
 
 export interface AgentWorkspaceProps {
   workspaceKey?: string;
@@ -159,9 +163,17 @@ export function AgentWorkspace({
   const { t, theme } = useUiPreferences();
   const isDark = theme === "dark";
   const [showCareerCoach, setShowCareerCoach] = useState(false);
+  const [taskView, setTaskView] = useState<AgentTaskView>("job");
+  const [coachRequest, setCoachRequest] = useState<{ mode: CoachMode; id: number }>();
+  function selectTask(view: AgentTaskView) {
+    setTaskView(view);
+    const mode: CoachMode | undefined = view === "resume" ? "resume" : view === "career" ? "analysis" : view === "learning" ? "plan" : view === "practice" ? "interview" : undefined;
+    setShowCareerCoach(Boolean(mode));
+    if (mode) setCoachRequest(previous => ({ mode, id: (previous?.id ?? 0) + 1 }));
+  }
   const [careerCoachInitialized, setCareerCoachInitialized] = useState(false);
   useEffect(() => { if (showCareerCoach) setCareerCoachInitialized(true); }, [showCareerCoach]);
-  useEffect(() => { const open = () => setShowCareerCoach(true); window.addEventListener("betterme:open-growth", open); return () => window.removeEventListener("betterme:open-growth", open); }, []);
+  useEffect(() => { const open = () => { setTaskView("career"); setShowCareerCoach(true); }; window.addEventListener("betterme:open-growth", open); return () => window.removeEventListener("betterme:open-growth", open); }, []);
 
   // Current Target Job state
   const [currentJob, setCurrentJob] = useState<DrawerJobContext | null>(job);
@@ -407,36 +419,7 @@ export function AgentWorkspace({
     }
   }, [job]);
 
-  function extractUrlFromText(text: string): string | null {
-    if (!text) return null;
-    const trimmed = text.trim();
-    const bossShortMatch = trimmed.match(/^(?:https?:\/\/(?:www\.)?zhipin\.com\/)?(?:job|job_detail)\/([a-z\d_-]+)/i);
-    if (bossShortMatch) {
-      return `https://www.zhipin.com/job_detail/${bossShortMatch[1]}.html`;
-    }
-    const match = text.match(/https?:\/\/[^\s<>"「」『』。，；！？【】《》]+/i);
-    if (match) {
-      const foundUrl = match[0];
-      const bossUrlMatch = foundUrl.match(/https?:\/\/(?:www\.)?zhipin\.com\/(?:job|job_detail)\/([a-z\d_-]+)/i);
-      if (bossUrlMatch) {
-        return `https://www.zhipin.com/job_detail/${bossUrlMatch[1]}.html`;
-      }
-      return foundUrl;
-    }
-    if (trimmed.startsWith("job/") || trimmed.startsWith("/job/") || trimmed.includes("zhipin.com")) {
-      const cleanPath = trimmed.replace(/^https?:\/\//i, "").replace(/^www\.zhipin\.com\/?/i, "").replace(/^\/+/, "");
-      return `https://www.zhipin.com/${cleanPath}`;
-    }
-    if (trimmed.includes("liepin.com")) {
-      const cleanPath = trimmed.replace(/^https?:\/\//i, "").replace(/^www\.liepin\.com\/?/i, "").replace(/^\/+/, "");
-      return `https://www.liepin.com/${cleanPath}`;
-    }
-    if (trimmed.includes("51job.com")) {
-      const cleanPath = trimmed.replace(/^https?:\/\//i, "").replace(/^jobs\.51job\.com\/?/i, "").replace(/^www\.51job\.com\/?/i, "").replace(/^\/+/, "");
-      return `https://jobs.51job.com/${cleanPath}`;
-    }
-    return null;
-  }
+  const extractUrlFromText = extractJobLink;
 
   type SampleJobPreset = {
     id: string;
@@ -747,14 +730,8 @@ export function AgentWorkspace({
         setStructuredJd(res.structuredJd);
       }
 
-      // Default decisions: accept verified items, leave others undecided
-      const initialDecisions: Record<string, ProposalDecision> = {};
-      for (const p of loadedProposals) {
-        if (p.evidenceType === "verified") {
-          initialDecisions[p.id] = { status: "accepted" };
-        }
-      }
-      setDecisions(initialDecisions);
+      // Evidence classification is not user consent to change a resume.
+      setDecisions({});
     } catch (err) {
       setErrorNotice(err instanceof Error ? err.message : t("岗位匹配失败，请检查模型配置", "Job matching failed"));
     } finally {
@@ -1132,20 +1109,23 @@ export function AgentWorkspace({
   const careerCoachPanel = (showCareerCoach || careerCoachInitialized) && (
     <section className="career-coach-shell" hidden={!showCareerCoach} style={{ display: showCareerCoach ? undefined : "none" }}>
       <nav className="career-coach-entry-nav" aria-label={t("Agent 工作区", "Agent workspace")}>
-        <button type="button" onClick={() => setShowCareerCoach(false)}><ArrowLeft size={16} />{t("返回对话与 JD", "Back to chat and JD")}</button>
+        <button type="button" onClick={() => selectTask("job")}><ArrowLeft size={16} />{t("返回对话与 JD", "Back to chat and JD")}</button>
         <button type="button" onClick={onNavigateToResume}>{t("返回简历", "Back to resume")}</button>
       </nav>
-      {<CareerCoachWorkspace key={workspaceKey} workspaceKey={workspaceKey} job={careerCoachJob}
+      {<CareerCoachWorkspace key={workspaceKey} modeRequest={coachRequest} onModeChange={mode => { if (showCareerCoach) setTaskView(mode === "resume" ? "resume" : mode === "analysis" ? "career" : mode === "plan" || mode === "review" ? "learning" : "practice"); }} workspaceKey={workspaceKey} job={careerCoachJob}
         resumeEditContext={resumeEditContext} llmConfig={llmConfig} onOpenConfig={onOpenConfig}
         onApplyResumeProposal={onApplyResumeProposal} />}
     </section>
   );
 
   return (
-    <>{careerCoachPanel}
+    <div className="advisor-workspace">
+    <AgentTaskNavigation active={showCareerCoach ? (taskView === "job" ? "career" : taskView) : taskView} onSelect={selectTask} jobTitle={currentJob ? `${currentJob.company} · ${currentJob.title}` : undefined} />
+    {careerCoachPanel}
+    <div hidden={taskView !== "handoff"} style={{ display: taskView === "handoff" ? "flex" : "none", flex: 1, minHeight: 0 }}><AgentExternalHandoff job={currentJob} /></div>
     <section
-      style={{ display: showCareerCoach ? "none" : undefined }}
-      className={`w-full h-full flex flex-col min-h-0 overflow-hidden font-sans transition-colors duration-200 ${
+      style={{ display: showCareerCoach || taskView === "handoff" ? "none" : undefined }}
+      className={`advisor-job-panel w-full h-full flex flex-col min-h-0 overflow-hidden font-sans transition-colors duration-200 ${
         isDark ? "bg-[var(--ui-canvas,#1a1a1f)] text-[var(--ui-text,#edeef4)]" : "bg-slate-100/90 text-slate-900"
       }`}
     >
@@ -1210,7 +1190,7 @@ export function AgentWorkspace({
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button type="button" onClick={() => setShowCareerCoach(true)}
+          <button type="button" onClick={() => selectTask("career")}
             className="agent-btn-press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs cursor-pointer"
             style={{ color: "var(--ui-accent)", borderColor: "var(--ui-border)", background: "var(--ui-accent-soft)" }}>
             <Target size={14} />{t("职业成长", "Career growth")}
@@ -1230,35 +1210,17 @@ export function AgentWorkspace({
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={onOpenConfig}
-            title={t("AI 模型配置", "AI configuration")}
-            className={`agent-btn-press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs transition cursor-pointer ${
-              isDark
-                ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-soft,#363842)] text-[var(--ui-text,#edeef4)] hover:text-white hover:bg-[var(--ui-hover,#41434e)]"
-                : "border-slate-200 bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 shadow-2xs"
-            }`}
-          >
-            <Settings2 size={14} />
-            <span>{t("模型设置", "Model Settings")}</span>
-          </button>
+
         </div>
       </header>
 
       {/* ── API Key Notice Banner ─────────────────────────────────── */}
       {!llmConfig.apiKey?.trim() && llmConfig.provider !== "ollama" && (
-        <div
-          className={`flex items-center justify-between gap-4 px-6 py-2.5 border-b text-xs shrink-0 z-10 ${
-            isDark
-              ? "bg-amber-500/10 border-amber-500/25 text-amber-200"
-              : "bg-amber-50 border-amber-200/80 text-amber-900"
-          }`}
-        >
+        <div role="status" className="shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <AlertTriangle size={15} className="text-amber-500 shrink-0" />
             <span className="truncate">
-              {t("未配置模型 API Key，无法拆解与对话。", "API Key missing — matching and chat unavailable.")}
+              {t("当前岗位推理尚未配置；仍可整理 JD 或使用外部协作。", "Job inference is not configured. You can still prepare a JD or use external collaboration.")}
             </span>
           </div>
           <button
@@ -1267,7 +1229,7 @@ export function AgentWorkspace({
             className="agent-btn-press inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-semibold transition shrink-0 cursor-pointer"
           >
             <Settings2 size={12} />
-            <span>{t("去配置", "Configure")}</span>
+            <span>{t("前往系统设置", "Open system settings")}</span>
           </button>
         </div>
       )}
@@ -3452,6 +3414,6 @@ export function AgentWorkspace({
           </div>
         </div>
       )}
-    </section></>
+    </section></div>
   );
 }

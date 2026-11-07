@@ -136,6 +136,38 @@ async function mount(children: React.ReactNode) {
 
 test.after(async () => { if (root) await flush(() => root!.unmount()); });
 
+test("external handoff shares no job by default, preserves drafts across tabs, and never auto-imports answers", async () => {
+  await mount(h(AgentWorkspace, { job: null, resume: dummyResume, llmConfig: dummyLlmConfig, onOpenConfig() {}, onNavigateToResume() {}, onApplyToResume() { assert.fail("handoff must not write a resume"); } }));
+  const findButton = (name: string) => [...dom.document.querySelectorAll('button')].find(b => b.textContent?.includes(name))!;
+  await flush(() => findButton('外部协作').click());
+  const panel = dom.document.querySelector('.advisor-handoff-panel')!;
+  assert.ok(panel);
+  const checkbox = panel.querySelector<HTMLInputElement>('input[type=checkbox]')!;
+  assert.equal(checkbox.checked, false);
+  assert.equal(checkbox.disabled, true);
+  const payload = panel.querySelector<HTMLTextAreaElement>('[aria-label="实际任务包"]')!;
+  assert.ok(!payload.value.includes('张敏'), 'full resume is never silently included');
+  assert.equal(panel.querySelectorAll('a[target="_blank"]').length, 4);
+  const returned = panel.querySelector<HTMLTextAreaElement>('.advisor-returned-result')!;
+  await flush(() => {
+    Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype, 'value')!.set!.call(returned, '外部回答，来源待核实');
+    returned.dispatchEvent(new dom.Event('input', { bubbles: true }));
+  });
+  await flush(() => findButton('岗位研判').click());
+  await flush(() => findButton('外部协作').click());
+  assert.equal(panel.querySelector('.advisor-returned-result'), returned, 'draft DOM survives task navigation');
+  assert.equal(returned.value, '外部回答，来源待核实');
+});
+
+test("top-level learning and interview navigation reaches the existing real modes", async () => {
+  await mount(h(AgentWorkspace, { job: null, resume: dummyResume, llmConfig: dummyLlmConfig, onOpenConfig() {}, onNavigateToResume() {} }));
+  const choose = async (text: string) => flush(() => [...dom.document.querySelectorAll('.advisor-tasks button')].find(b => b.textContent?.includes(text))!.dispatchEvent(new dom.MouseEvent('click', { bubbles: true })));
+  await choose('学习提升');
+  assert.ok(dom.document.querySelector('.coach-tabs [aria-pressed="true"]')?.textContent?.includes('学习方案'));
+  await choose('训练与面试');
+  assert.ok(dom.document.querySelector('.coach-tabs [aria-pressed="true"]')?.textContent?.includes('模拟面试'));
+});
+
 const dummyResume: ProjectedResume = {
   profile: {
     displayName: "张敏",
@@ -198,7 +230,8 @@ test("AgentWorkspace renders full-page dual-pane layout with job profile and cha
   // Top header elements
   assert.ok(fixture.textContent?.includes("AI 顾问工作台"), "Should render workspace title");
   assert.ok(fixture.textContent?.includes("返回简历"), "Should render back to resume button");
-  assert.ok(fixture.textContent?.includes("模型设置"), "Should render model settings button");
+  assert.ok(!fixture.textContent?.includes("模型设置"), "No duplicate model settings button");
+  assert.equal(fixture.querySelectorAll('.advisor-tasks button').length, 5, "all five task areas are reachable");
 
   // Left pane: Job Profile Card & Chat
   assert.ok(fixture.textContent?.includes("领先科技"), "Should render company name in job card");
@@ -345,7 +378,11 @@ test("AgentWorkspace handles proposal accept and triggers onApplyToResume", asyn
   const fixture = dom.document.getElementById("fixture");
   assert.ok(fixture !== null);
 
-  // Find the "应用已采纳" button
+  const initialApply = Array.from(fixture.querySelectorAll("button")).find(btn => btn.textContent?.includes("应用已采纳"));
+  assert.ok(initialApply?.disabled, "verified proposals are not automatically accepted");
+  const accept = Array.from(fixture.querySelectorAll("button")).find(btn => btn.textContent?.trim() === "采纳");
+  assert.ok(accept, "explicit acceptance is available");
+  await flush(() => accept.click());
   const buttons = Array.from(fixture.querySelectorAll("button"));
   const applyButton = buttons.find((btn) => btn.textContent?.includes("应用已采纳"));
   assert.ok(applyButton, "Apply button should be present");
@@ -389,7 +426,7 @@ test("AgentWorkspace displays API Key notice banner when key is missing and navi
 
   // Banner should warn about missing API key
   assert.ok(
-    fixture.textContent?.includes("未配置模型 API Key"),
+    fixture.textContent?.includes("当前岗位推理尚未配置"),
     "Should display API key warning banner"
   );
 
@@ -403,7 +440,7 @@ test("AgentWorkspace displays API Key notice banner when key is missing and navi
   assert.equal(navigatedToResume, true, "Should trigger onNavigateToResume callback");
 
   // Click Configure button
-  const configBtn = buttons.find((btn) => btn.textContent?.includes("去配置"));
+  const configBtn = buttons.find((btn) => btn.textContent?.includes("前往系统设置"));
   assert.ok(configBtn, "Config button should exist in banner");
   await flush(() => {
     configBtn?.click();
@@ -480,7 +517,7 @@ test("AgentWorkspace provides link extraction button, opens input panel, and aut
   assert.ok(salaryInput, "Salary input should be auto-filled");
   assert.ok(locationInput, "Location input should be auto-filled");
 
-  const textarea = fixture.querySelector("textarea");
+  const textarea = fixture.querySelector<HTMLTextAreaElement>(".advisor-job-panel textarea");
   assert.ok(textarea?.value?.includes("智能 Agent 前端架构演进"), "JD text area should be populated");
 });
 

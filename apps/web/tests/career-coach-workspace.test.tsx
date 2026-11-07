@@ -121,7 +121,8 @@ test("the unified Agent keeps growth requests alive across internal modes and hi
   await flush(() => root!.render(h(UiPreferencesProvider, null, h(BetterMeAgentProvider, { workspaceKey: "unified-growth", repository: agentRepository, children: h(CareerCoachWorkspace, props) }))));
   const agentBar = body().querySelector('[role="group"][aria-label="本轮 Agent 与授权"]');
   assert.ok(agentBar, "shared Agent settings belong to one bounded toolbar, not unstyled page siblings");
-  assert.ok(agentBar.querySelector('.betterme-agent-model'));
+  assert.ok(agentBar.querySelector('.agent-model-summary'));
+  assert.equal(agentBar.querySelector('.betterme-agent-model'), null);
   const consent = agentBar.querySelector('.betterme-agent-consent input')!;
   const style = dom.document.createElement("style");
   style.textContent = ["betterme-agent-center.css", "career-coach-workspace.css"]
@@ -387,7 +388,7 @@ test("missing model configuration opens settings rather than starting a request"
   if (start) await flush(() => start.click());
   assert.equal(externalRequests, beforeRequests);
   assert.match(body().textContent ?? "", /模型配置.*API Key/);
-  await click(/^模型配置$/);
+  await click(/^检查模型配置$/);
   assert.equal(opened, 1);
 });
 
