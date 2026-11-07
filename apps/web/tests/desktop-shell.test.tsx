@@ -184,7 +184,7 @@ test("dragging stays inside viewport bounds, ends on release and resets after re
   await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointerdown", { bubbles: true, button: 0, clientX: 400, clientY: 70 })));
   await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, clientX: 4000, clientY: 4000 })));
   assert.equal(window.style.getPropertyValue("--window-x"), "16px");
-  assert.equal(window.style.getPropertyValue("--window-y"), "30px");
+  assert.equal(window.style.getPropertyValue("--window-y"), "42px");
   await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointerup", { bubbles: true })));
   await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, clientX: -4000, clientY: -4000 })));
   assert.equal(window.style.getPropertyValue("--window-x"), "16px");
@@ -192,7 +192,7 @@ test("dragging stays inside viewport bounds, ends on release and resets after re
   await flush(() => maximize.click());
   await flush(() => maximize.click());
   assert.equal(window.style.getPropertyValue("--window-x"), "16px");
-  assert.equal(window.style.getPropertyValue("--window-y"), "30px");
+  assert.equal(window.style.getPropertyValue("--window-y"), "42px");
   await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointerdown", { bubbles: true, button: 0, clientX: 400, clientY: 70 })));
   assert.equal(window.dataset.dragging, "true");
   await flush(() => dom.dispatchEvent(new dom.Event("blur")));
@@ -238,7 +238,7 @@ test("all windows expose eight resize handles and preserve dimensions across max
   assert.equal(win.dataset.sized, "false");
 });
 
-test("bottom resize handles can grow into Dock clearance and stop at the screen margin", async () => {
+test("bottom resize handles can grow into Dock clearance and stop flush with the screen edge", async () => {
   await mount();
   for (const edge of ["s", "se", "sw"]) {
     const win = dom.document.querySelector<HTMLElement>(".os-business-window")!;
@@ -251,7 +251,7 @@ test("bottom resize handles can grow into Dock clearance and stop at the screen 
     assert.equal(win.style.getPropertyValue("--window-height"), `${bottom + 40 - 60}px`, `${edge} must grow beyond the old Dock boundary`);
     assert.equal(win.style.getPropertyValue("--window-y"), "0px");
     await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, pointerId: 3, clientX: 640, clientY: dom.innerHeight + 1000 })));
-    assert.equal(win.style.getPropertyValue("--window-height"), `${dom.innerHeight - 12 - 60}px`, `${edge} must keep the screen safety margin`);
+    assert.equal(win.style.getPropertyValue("--window-height"), `${dom.innerHeight - 60}px`, `${edge} must reach the screen bottom without a gap or overflow`);
     await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointerup", { bubbles: true, pointerId: 3 })));
     assert.equal(win.dataset.resizing, "false");
     await flush(() => handle.dispatchEvent(new dom.KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown", shiftKey: true })));
