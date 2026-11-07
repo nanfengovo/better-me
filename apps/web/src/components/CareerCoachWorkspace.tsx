@@ -13,6 +13,7 @@ import { useCareerCoach } from "../lib/career-coach/use-career-coach";
 import type { CoachRepository } from "../lib/career-coach/storage";
 import type { CoachContext, CoachGenerate, CoachInterviewFeedback, CoachMode, CoachPlan, CoachRecord, CoachRequest, CoachSettings, CoachState, CoachSubmission, CoachTaskStatus } from "../lib/career-coach/types";
 import "./career-coach-workspace.css";
+import "./career-coach-layout.css";
 import { useBetterMeAgent } from "../lib/betterme-agent/react";
 import { AgentContinuityButton, AgentMemoryConsent, AgentModelControls } from "./BetterMeAgentCenter";
 import { defaultChatGptClient, type ChatGptClient } from "../services/chatgpt-client";
@@ -20,6 +21,8 @@ import { agentBaseLabel, useAgentRouting } from "../lib/agent-routing";
 
 export interface CareerCoachWorkspaceProps {
   workspaceKey: string;
+  embedded?: boolean;
+  onOpenResume?: () => void;
   modeRequest?: { mode: CoachMode; id: number };
   onModeChange?: (mode: CoachMode) => void;
   resumeEditContext?: ResumeEditContext;
@@ -63,14 +66,17 @@ export function CareerCoachWorkspace(props: CareerCoachWorkspaceProps) {
   return <CareerCoachSession key={props.workspaceKey} {...props} />;
 }
 
-function CareerCoachSession({ workspaceKey, modeRequest, onModeChange, resumeEditContext, job, llmConfig, onOpenConfig, onApplyResumeProposal, generate = generateCoach, repository, chatGptClient = defaultChatGptClient, requestTimeoutMs = 120000 }: CareerCoachWorkspaceProps) {
+function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, modeRequest, onModeChange, resumeEditContext, job, llmConfig, onOpenConfig, onApplyResumeProposal, generate = generateCoach, repository, chatGptClient = defaultChatGptClient, requestTimeoutMs = 120000 }: CareerCoachWorkspaceProps) {
   const { agent, snapshot: agentSnapshot } = useBetterMeAgent();
   const [shareAgentMemory, setShareAgentMemory] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
   const agentTask = useRef<string | undefined>(undefined);
   const routing = useAgentRouting();
   const account = !routing?.enabled && agentSnapshot?.data.selection.kind === "chatgpt";
   const { state, ready, persistenceError, conflict, update, reload, clear } = useCareerCoach(workspaceKey, repository);
   const [mode, setMode] = useState<CoachMode>("analysis");
+  const workspaceElement = useRef<HTMLElement>(null);
+  useEffect(() => { workspaceElement.current?.scrollTo({ top: 0 }); }, [mode]);
   const modeRef = useRef(mode); modeRef.current = mode;
   const notifyMode = useRef(onModeChange); notifyMode.current = onModeChange;
   useEffect(() => { notifyMode.current?.(mode); }, [mode]);
@@ -327,15 +333,17 @@ function CareerCoachSession({ workspaceKey, modeRequest, onModeChange, resumeEdi
     try { await clear(); setInput(""); setAnswer(""); setEvidence(""); setDecisions({}); setNotice("已清除当前成长记录；原简历和岗位库未被改动。"); setError(undefined); } catch (failure) { setError(messageOf(failure)); }
   };
 
-  return <section className="career-coach" aria-label="成长工作区">
-    <header className="coach-header"><div><div className="coach-eyebrow"><span />BETTERME / CAREER LAB</div><h1>把下一步，变成看得见的成长。</h1><p>从职业判断到学习实践，在你的简历与目标之间建立一条可验证的路径。</p></div>
-      <div className="coach-header-actions"><button type="button" onClick={exportState} disabled={!ready}><Download size={16} />下载备份</button></div></header>
-    {agent && <div className="coach-agent-bar" role="group" aria-label="本轮 Agent 与授权">
+  const currentMode = MODES.find(item => item.id === mode)!;
+  const visibleModes = embedded ? MODES.filter(item => mode === "plan" || mode === "review" ? item.id === "plan" || item.id === "review" : mode === "drill" || mode === "interview" ? item.id === "drill" || item.id === "interview" : item.id === mode) : MODES;
+  return <section ref={workspaceElement} className="career-coach" aria-label="成长工作区" data-mode={mode}>
+    <header className="coach-header"><div className="coach-title"><currentMode.icon size={22} aria-hidden="true" /><div><h1>{currentMode.title}</h1><p>{currentMode.subtitle}</p></div></div>
+      <div className="coach-header-actions">{onOpenResume && <button type="button" onClick={onOpenResume}>打开简历</button>}<button type="button" onClick={exportState} disabled={!ready}><Download size={15} />下载备份</button></div></header>
+    {agent && <details className="coach-agent-bar"><summary>模型与记忆授权<span>{shareAgentMemory ? "已授权成长记忆" : "未共享成长记忆"}</span></summary><div role="group" aria-label="本轮 Agent 与授权">
       <div className="coach-agent-controls"><AgentModelControls config={llmConfig} disabled={busy} client={chatGptClient} /><AgentContinuityButton /></div>
       <AgentMemoryConsent scope="growth" checked={shareAgentMemory} onChange={setShareAgentMemory} />
-    </div>}
-    <nav className="coach-tabs" aria-label="成长任务">{MODES.map((item, index) => <button key={item.id} type="button" aria-pressed={mode === item.id} onClick={() => { if (!agent) invalidate(true); setMode(item.id); if (!busy) { setInput(""); carriedSources.current = []; } setError(undefined); }}><span className="coach-tab-number">0{index + 1}</span><item.icon size={18} /><span>{item.title}<small>{item.subtitle}</small></span><ArrowRight size={15} /></button>)}</nav>
-    <div className="coach-layout"><aside className="coach-setup"><div className="coach-section-heading"><Target size={18} /><h2>你的成长坐标</h2></div><p className="coach-muted">同一位 Agent、同一目标；没有 JD 也可以开始。</p>
+    </div></details>}
+    {visibleModes.length > 1 && <nav className="coach-tabs" aria-label="成长任务">{visibleModes.map(item => <button key={item.id} type="button" aria-pressed={mode === item.id} onClick={() => { if (!agent) invalidate(true); setMode(item.id); if (!busy) { setInput(""); carriedSources.current = []; } setError(undefined); }}><item.icon size={15} /><span>{item.title}</span></button>)}</nav>}
+    <div className="coach-layout"><details className="coach-setup" open={setupOpen} onToggle={event => setSetupOpen(event.currentTarget.open)}><summary><Target size={17} /><strong>目标与资料</strong><span>{state.settings.goal.trim() || "尚未设置目标，点击补充"}</span></summary><div className="coach-setup-body"><p className="coach-muted">各任务共用此目标，资料仅在你明确授权后发送。</p>
       {agentSnapshot?.data.goal && agentSnapshot.data.goal !== state.settings.goal && <button type="button" disabled={busy || !ready} onClick={() => changeSettings({ goal: agentSnapshot.data.goal })}>把统一目标带入本阶段（保留原计划）</button>}
       <fieldset disabled={!ready || conflict}><label>本阶段目标<textarea value={state.settings.goal} maxLength={4000} rows={3} placeholder="例如：8 周内补齐接口设计与测试，准备全栈岗位面试" onChange={(event) => changeSettings({ goal: event.target.value })} /></label>
         <label>背景与限制<textarea value={state.settings.background} maxLength={6000} rows={3} placeholder="已有经验、希望改善的方面、时间或精力限制" onChange={(event) => changeSettings({ background: event.target.value })} /></label>
@@ -346,14 +354,14 @@ function CareerCoachSession({ workspaceKey, modeRequest, onModeChange, resumeEdi
         <label><input type="checkbox" checked={shareJob} disabled={!job} onChange={(event) => { invalidate(true); setShareJob(event.target.checked); }} /><span>共享当前目标岗位<small>{job ? [job.company, job.title].filter(Boolean).join(" · ") : "可先回 JD 工作区选择岗位"}</small></span></label>
         <p>默认不共享。点击生成后，已选资料与本次输入会发送给你配置的模型服务。关闭授权不删除已有私人记录。</p></div>
       <div className="coach-storage"><strong>只保存在此浏览器 · 当前简历视图</strong><p>{state.records.length} 条模型记录 · {state.submissions.length} 条学习提交</p><button type="button" className="coach-text-button" onClick={() => void reset()} disabled={!ready || busy}>清除成长记录</button></div>
-    </aside><main className="coach-main">
+    </div></details><main className="coach-main">
       {!ready && <p role="status">正在读取本地成长记录…</p>}
       {persistenceError && <div className="coach-alert" role="alert"><strong>{conflict ? "检测到跨窗口保存冲突" : "本地记录尚未可靠保存"}</strong><p>{persistenceError}</p><p>请先下载备份。重新读取会用已保存版本替换本页草稿。</p><button type="button" onClick={() => { if (window.confirm("已下载需要保留的草稿？重新读取会替换当前内容。")) { invalidate(); void reload(); } }}>重新读取记录</button></div>}
       {error && <div className="coach-alert" role="alert"><strong>这一步尚未完成</strong><p>{error}</p><button type="button" onClick={onOpenConfig}>检查模型配置</button></div>}
       {notice && <p className="coach-notice" role="status">{notice}</p>}
-      <div className="coach-journey" aria-label="成长进度"><span>{goal ? "✓ 目标已确认" : "1 目标待确认"}</span><span>{state.activePlan ? "✓ 方案已采纳" : "2 学习规划"}</span><span>{state.submissions.length ? `3 已留存 ${state.submissions.length} 次实践` : "3 实际练习"}</span><span>4 评价与调整由你确认</span></div>
+      {(goal || state.activePlan || state.submissions.length > 0) && <div className="coach-journey" aria-label="成长进度"><span>{goal ? "目标已确认" : "目标待确认"}</span><span>{state.activePlan ? "方案已采纳" : "待制定学习方案"}</span><span>{state.submissions.length ? `已留存 ${state.submissions.length} 次实践` : "尚无实践记录"}</span></div>}
       {busy && <div className="coach-running" role="status"><span className="coach-busy-dot" />等待已选模型 · {elapsed} 秒{elapsed >= 30 ? " · 耗时较长，可停止后重试，未切换提供方" : ""}<button type="button" onClick={() => invalidate(true)}><X size={16} />取消生成</button></div>}
-      <div className="coach-panel-heading"><span className="coach-kicker">{String(MODES.findIndex((item) => item.id === mode) + 1).padStart(2, "0")} / GROWTH WORKSPACE</span><h2>{MODES.find((item) => item.id === mode)?.title}</h2></div>
+
       {(mode === "analysis" || mode === "resume" || mode === "plan") && modeRecords.length > 1 && <label>查看本类历史结果<select value={latest?.id ?? ""} disabled={disabled} onChange={(event) => setSelectedRecordId(event.target.value)}>{modeRecords.map((record) => <option key={record.id} value={record.id}>{new Date(record.createdAt).toLocaleString()} · {record.payload.kind === "plan" ? record.payload.title : record.payload.kind === "analysis" || record.payload.kind === "resume" ? record.payload.summary.slice(0, 45) : record.mode}</option>)}</select></label>}
       {(mode === "analysis" || mode === "resume" || mode === "plan") && <section className="coach-compose">
         {mode === "plan" && !goal && <p className="coach-note">需要先核对目标理解。<button type="button" onClick={() => setMode("analysis")}>去对齐目标</button></p>}
@@ -361,7 +369,8 @@ function CareerCoachSession({ workspaceKey, modeRequest, onModeChange, resumeEdi
         {mode === "plan" && state.activePlan && <p className="coach-note">{reusablePlan ? `本次会一并发送已采纳方案「${state.activePlan.plan.title}」用于调整；发送前核对来源授权，不会自动替换。` : "旧计划源资料的共享范围已变化，本次不发送旧计划；仍保留在本地，可在当前授权下生成新方案。"}</p>}
         <label>{mode === "analysis" ? "本轮问题或补充回答" : mode === "resume" ? "希望怎样改善表达" : "本轮学习重点"}<textarea value={input} rows={3} maxLength={12000} disabled={disabled} placeholder={mode === "analysis" ? "例如：我想提高收入，但希望保持可持续的工作节奏，应该先补什么？" : mode === "resume" ? "例如：让职责描述更明确，保持事实与原意" : "例如：优先练接口设计、异常处理和自动化测试"} onChange={(event) => setInput(event.target.value)} /></label>
         <button type="button" className="coach-primary" disabled={disabled || (mode === "resume" && !shareResume)} onClick={() => mode === "analysis" ? generateAnalysis() : void run({ ...makeRequest(mode), ...(mode === "plan" ? { plan: reusablePlan } : {}) })}><Sparkles size={17} />{mode === "analysis" ? "开始规划分析" : "resume" === mode ? "生成修改建议" : "生成学习方案"}<ArrowRight size={16} /></button>
-        {mode === "resume" && !shareResume && <small>请先在左侧明确授权共享当前简历字段。</small>}
+        {mode === "resume" && !shareResume && <div className="coach-prerequisite"><ShieldCheck size={16} /><span>{resumeEditContext ? "生成前，需要你授权使用当前简历。" : "请先打开简历，添加需要优化的真实经历。"}</span><button type="button" onClick={() => setSetupOpen(true)}>查看资料授权</button></div>}
+        {mode !== "resume" && !state.settings.goal.trim() && <div className="coach-prerequisite"><Target size={16} /><span>先补充本阶段目标，让建议更有针对性。</span><button type="button" onClick={() => setSetupOpen(true)}>设置目标</button></div>}
       </section>}
       {latest && (mode === "analysis" || mode === "resume" || mode === "plan") && <div className="coach-result-meta"><span>模型参考 · {latest.model.name}</span><span>{new Date(latest.createdAt).toLocaleString()} · {latest.basis.resumeShared ? "含简历" : "无简历"} / {latest.basis.jobShared ? "含岗位" : "无岗位"}</span></div>}
       {mode === "analysis" && (analysis ? <section className="coach-result"><h3>本轮判断</h3><p className="coach-summary">{analysis.summary}</p><div className="coach-direction-grid">{analysis.directions.map((direction, index) => <article key={index}><span className="coach-kicker">方向 {index + 1}</span><h3>{direction.title}</h3><p>{direction.reason}</p><Points title="材料依据" items={direction.evidence} /><Points title="需要权衡" items={direction.tradeoffs} /></article>)}</div><Points title="已有优势" items={analysis.strengths} />
@@ -395,6 +404,7 @@ function CareerCoachSession({ workspaceKey, modeRequest, onModeChange, resumeEdi
             <button type="button" disabled={disabled} onClick={() => carryToPlan(`本人请求基于这次提交和模型参考反馈调整方案；不要当能力认证：\n提交ID：${submission.id}\n${submission.evidence}\n反馈：${feedback.summary}\n${feedback.nextActions.join("\n")}`, record)}>用实践反馈调整方案</button></div> : <p className="coach-muted">已保留提交，尚无模型反馈。</p>}<button type="button" disabled={disabled} onClick={() => reviewSubmission(submission)}>{feedback ? "重新请求反馈" : "请求模型反馈"}</button></article>;
         })}</section></> : <Empty title="先采纳一份学习方案" text="学习监督只跟踪你明确采纳的任务。到学习方案生成并采纳后，再提交证据、复盘和自评完成。" action={<button type="button" className="coach-primary" onClick={() => setMode("plan")}>去制定学习方案<ArrowRight size={16} /></button>} />)}
       {mode === "interview" && <>
+        {!state.settings.goal.trim() && <div className="coach-prerequisite"><Target size={16} /><span>设置目标岗位或想练习的方向，再开始面试。</span><button type="button" onClick={() => setSetupOpen(true)}>设置目标</button></div>}
         <div className="coach-compose"><p>每次只问一道题，等你的实际回答后评价。本场上限 {interview?.totalRounds ?? state.settings.interviewRounds} 轮；自适应模式可在取得本场足够材料后提前总结，结束不等于能力认证。</p><label className="coach-consent"><input type="checkbox" checked={adaptiveInterview} disabled={disabled} onChange={event => setAdaptiveInterview(event.target.checked)} />新一场启用自适应追问与提前总结</label><div className="coach-inline-actions"><button type="button" className="coach-primary" disabled={disabled} onClick={startInterview}><MessageSquare size={17} />{interview ? "重新开始面试" : "开始模拟面试"}</button>{interview?.status === "active" && <button type="button" onClick={() => { invalidate(true); mutate((current) => ({ ...current, interview: current.interview ? { ...current.interview, status: "stopped" } : undefined })); }}>停止本轮面试</button>}</div></div>
         {interviewChanged && <p className="coach-alert" role="alert">面试使用的简历或岗位授权已变化。请恢复原资料授权后继续，或下载记录后重新开始；不会把新旧上下文静默混合。</p>}
         {!interview && <Empty title="把“我做过”讲成有证据的回答" text="练习项目细节、方案取舍和异常处理。先自行回答，再看模型基于文本提供的评分依据。" />}

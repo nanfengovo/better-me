@@ -5,7 +5,6 @@ import type { LlmConfig, ProjectedResume } from "@better-me/core";
 import type { ResumeEditContext, ResumeProposalTarget } from "@better-me/agent-contracts";
 import {
   AlertTriangle,
-  ArrowLeft,
   Bot,
   Building2,
   Check,
@@ -1115,11 +1114,7 @@ export function AgentWorkspace({
 
   const careerCoachPanel = (showCareerCoach || careerCoachInitialized) && (
     <section className="career-coach-shell" hidden={!showCareerCoach} style={{ display: showCareerCoach ? undefined : "none" }}>
-      <nav className="career-coach-entry-nav" aria-label={t("Agent 工作区", "Agent workspace")}>
-        <button type="button" onClick={() => selectTask("job")}><ArrowLeft size={16} />{t("返回对话与 JD", "Back to chat and JD")}</button>
-        <button type="button" onClick={onNavigateToResume}>{t("返回简历", "Back to resume")}</button>
-      </nav>
-      {<CareerCoachWorkspace key={workspaceKey} modeRequest={coachRequest} onModeChange={mode => { if (showCareerCoach) setTaskView(mode === "resume" ? "resume" : mode === "analysis" ? "career" : mode === "plan" || mode === "review" ? "learning" : "practice"); }} workspaceKey={workspaceKey} job={careerCoachJob}
+      {<CareerCoachWorkspace embedded onOpenResume={onNavigateToResume} key={workspaceKey} modeRequest={coachRequest} onModeChange={mode => { if (showCareerCoach) setTaskView(mode === "resume" ? "resume" : mode === "analysis" ? "career" : mode === "plan" || mode === "review" ? "learning" : "practice"); }} workspaceKey={workspaceKey} job={careerCoachJob}
         resumeEditContext={resumeEditContext} llmConfig={llmConfig} onOpenConfig={onOpenConfig}
         onApplyResumeProposal={onApplyResumeProposal} />}
     </section>

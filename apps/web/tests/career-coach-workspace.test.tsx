@@ -112,6 +112,22 @@ async function mount(overrides: Partial<Props> = {}) {
 test.afterEach(async () => { if (root) await flush(() => root?.unmount()); root = undefined; });
 test.after(() => { assert.equal(externalRequests, 0, "the UI suite must never access external services"); });
 
+test("embedded tasks keep the first screen compact and expose explicit consent without clearing fields", async () => {
+  await mount({ embedded: true, modeRequest: { mode: "resume", id: 1 } });
+  const setup = body().querySelector<HTMLDetailsElement>(".coach-setup")!;
+  assert.equal(setup.open, false);
+  assert.equal(body().querySelector(".coach-header h1")?.textContent, "修改建议");
+  assert.equal(body().querySelector(".coach-tabs"), null);
+  assert.equal(body().textContent?.includes("把下一步，变成看得见的成长"), false);
+  await click(/查看资料授权/);
+  assert.equal(setup.open, true);
+  await fill(/本阶段目标/, "保留这份目标草稿");
+  await share(/共享当前简历字段/);
+  await flush(() => { setup.open = false; setup.dispatchEvent(new dom.Event("toggle")); });
+  assert.equal(labelledField(/本阶段目标/).value, "保留这份目标草稿");
+  assert.equal((labelledField(/共享当前简历字段/) as HTMLInputElement).checked, true);
+});
+
 test("the unified Agent keeps growth requests alive across internal modes and hidden pages", async () => {
   const repository = await configuredRepository(), agentRepository = createMemoryAgentRepository();
   let resolve!: (value: CoachGeneration) => void; let signal: AbortSignal | undefined;
@@ -458,7 +474,7 @@ test("planning is gated by confirmed understanding and a changed goal cannot ado
   await mount({ repository, generate: async request => { requests.push(request); return generated(request.mode); } });
   await click(/学习方案/); await click(/生成学习方案/);
   assert.equal(requests.length, 0); assert.match(body().textContent ?? "", /核对目标/);
-  await click(/01.*规划分析/); await click(/开始规划分析/);
+  await click(/^规划分析$/); await click(/开始规划分析/);
   await click(/我确认目标与理解一致/); await click(/用本轮结论制定方案/); await click(/生成学习方案/);
   assert.equal(requests.length, 2); assert.ok(requests[1]?.confirmedGoal?.recordId);
   await fill(/本阶段目标/, "新的隔离方向"); await click(/采纳此学习方案/);

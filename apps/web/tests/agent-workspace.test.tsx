@@ -818,13 +818,18 @@ test("career growth is reachable inside the existing agent workspace and returns
   const entry = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.trim() === "职业规划");
   assert.ok(entry, "the existing Agent workspace must expose the new workflow");
   await flush(() => entry.click());
-  for (const label of ["规划分析", "修改建议", "学习方案", "学习监督", "模拟面试"]) {
-    assert.ok(fixture.textContent?.includes(label), `career growth must expose ${label}`);
+  for (const [tab, title] of [["简历与经历", "修改建议"], ["学习提升", "学习方案"], ["训练与面试", "模拟面试"], ["职业规划", "规划分析"]]) {
+    const task = Array.from(fixture.querySelectorAll("button")).find(button => button.textContent?.trim() === tab);
+    assert.ok(task);
+    await flush(() => task.click());
+    assert.equal(fixture.querySelector(".coach-header h1")?.textContent, title);
   }
+  assert.equal(fixture.querySelector(".career-coach-entry-nav"), null, "do not repeat the top-level navigation");
+  assert.equal(fixture.querySelector(".coach-tabs"), null, "single-mode tasks need no duplicate mode navigation");
   assert.equal(chatRequestBodies.length, previousRequests, "opening the workspace must not trigger a model conversation");
   const growth = fixture.querySelector('[aria-label="成长工作区"]');
   assert.ok(growth);
-  const back = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.includes("返回对话与 JD"));
+  const back = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.trim() === "岗位研判");
   assert.ok(back);
   await flush(() => back.click());
   assert.ok(fixture.querySelector('[role="separator"]'), "the existing conversation workspace should remain available");
@@ -855,7 +860,7 @@ test("career growth makes the entered JD available for separate opt-in without r
   assert.equal(share.disabled, false, "entered JD must be available without first running legacy matching");
   assert.equal(share.checked, false, "entering career growth must not silently authorize sharing");
   assert.equal(chatRequestBodies.length, previousRequests);
-  const back = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.includes("返回对话与 JD"));
+  const back = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.trim() === "岗位研判");
   assert.ok(back);
   await flush(() => back.click());
   assert.ok(fixture.textContent?.includes("设定目标岗位与完整 JD"), "the old JD flow must stay unsubmitted");
