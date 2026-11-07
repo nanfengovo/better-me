@@ -43,6 +43,31 @@
 .agent-sidebar-conversation-body,.agent-sidebar-slot-writing,.agent-sidebar-slot-companion,.agent-sidebar-slot-memory{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
 .agent-sidebar-settings{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 14px 20px;scrollbar-gutter:stable;animation:agent-panel-enter 160ms var(--sidebar-ease) both}
 .agent-sidebar-settings h3{display:flex;gap:6px;align-items:center;font-size:13px;font-weight:650;margin:16px 0 10px}
+.unified-agent-settings{--color-ink:var(--ui-text);--color-ink-muted:var(--ui-text-muted);--color-panel:var(--ui-surface);--color-line:var(--ui-border);padding:0 0 24px;overflow:visible;line-height:1.6}
+.unified-agent-settings h3{margin:28px 0 12px;font-size:13px;letter-spacing:.01em}
+.unified-agent-settings .agent-sidebar-slot{min-width:0}
+.unified-agent-settings .agent-companion-shared-settings{margin:0}
+.unified-agent-settings .agent-companion-shared-settings>summary{padding:12px 14px;border-radius:10px;font-size:13px;cursor:pointer}
+.unified-agent-settings .agent-companion-shared-settings-body,.unified-agent-settings .writing-settings-body{position:static;inset:auto;width:auto;max-height:none;overflow:visible;box-shadow:none;margin-top:10px;padding:16px;display:grid;gap:16px}
+.unified-agent-settings .chatgpt-agent-controls{max-height:none;overflow:visible;scrollbar-gutter:auto;padding:18px;gap:16px;background:var(--ui-surface);font-size:13px}
+.unified-agent-settings .chatgpt-agent-controls header{justify-content:space-between;gap:8px 16px}
+.unified-agent-settings .chatgpt-agent-controls header strong{font-size:14px}
+.unified-agent-settings .chatgpt-agent-controls header span{padding:3px 9px;border:1px solid var(--ui-border);border-radius:999px;background:var(--ui-surface-soft);font-size:11px}
+.unified-agent-settings .chatgpt-agent-controls>p{color:var(--ui-text-secondary);line-height:1.7}
+.unified-agent-settings .chatgpt-agent-fields{grid-template-columns:minmax(120px,160px) minmax(0,1fr);gap:12px 16px}
+.unified-agent-settings .chatgpt-agent-fields select{min-width:0;width:100%;min-height:40px;padding:8px 12px;border-radius:8px}
+.unified-agent-settings .chatgpt-agent-actions{display:flex;flex-wrap:wrap;gap:8px}
+.unified-agent-settings .chatgpt-agent-actions button{min-height:38px;padding:8px 12px;border-radius:8px}
+.unified-agent-settings .chatgpt-agent-usage{display:grid;gap:8px;padding-top:14px;border-top:1px solid var(--ui-border)}
+.unified-agent-settings .chatgpt-agent-usage a{width:fit-content;font-size:12px;text-underline-offset:4px}
+.unified-agent-settings .chatgpt-agent-usage small{line-height:1.7}
+.unified-agent-settings .betterme-agent-consent{display:block;margin:0;padding:16px;border:1px solid var(--ui-border);border-radius:10px;background:var(--ui-surface);font-size:12px;line-height:1.7}
+.unified-agent-settings .betterme-agent-consent input{width:16px;height:16px;margin:0 8px 0 0;vertical-align:-3px;accent-color:var(--ui-accent)}
+.unified-agent-settings .betterme-agent-consent>span{margin-top:6px;padding-left:24px;color:var(--ui-text-muted);opacity:1}
+.unified-agent-settings .agent-companion-tools{margin-top:16px}
+.unified-agent-settings .agent-companion-tools-content{max-height:none}
+.unified-agent-settings :is(button,select,input,summary,a):focus-visible{outline:2px solid var(--ui-accent);outline-offset:3px}
+@media(max-width:940px){.unified-agent-settings .chatgpt-agent-fields{grid-template-columns:minmax(0,1fr);gap:8px}.unified-agent-settings .chatgpt-agent-fields label:not(:first-child){margin-top:4px}.unified-agent-settings .agent-companion-shared-settings-body,.unified-agent-settings .writing-settings-body{padding:12px}.unified-agent-settings .chatgpt-agent-controls{padding:14px}.unified-agent-settings .chatgpt-agent-actions button{min-height:44px}}
 .agent-sidebar .writing-agent-pane{display:flex;flex:1;min-height:0;border:0;border-radius:0}
 .agent-sidebar .writing-agent-scroll{width:100%;height:auto;flex:1;padding:10px 12px 16px}
 .agent-sidebar .writing-note{padding:16px;border:1px solid var(--color-line);border-radius:14px;background:var(--color-panel);box-shadow:0 2px 10px #00000006;font-size:13px}.agent-sidebar .writing-note h3{font-size:15px}
