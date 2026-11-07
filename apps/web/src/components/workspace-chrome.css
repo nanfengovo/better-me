@@ -1,10 +1,10 @@
 /* Workspace chrome only. Resume paper, preference values and task lifetimes are untouched. */
-.workspace-menu{--chrome-ease:cubic-bezier(.23,1,.32,1);position:relative;flex-shrink:0}
+.workspace-menu{--chrome-ease:cubic-bezier(.23,1,.32,1);position:relative;z-index:30;flex-shrink:0}
 .workspace-menu-trigger{display:flex;align-items:center;gap:5px;padding:5px;border-radius:24px;border:1px solid var(--color-line);background:var(--color-panel);color:var(--color-ink);cursor:pointer;transition:background-color 150ms ease,border-color 150ms ease,transform 140ms var(--chrome-ease)}
 .workspace-menu-trigger>span{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--color-soft);font-size:13px}
 .workspace-menu-trigger>svg{transition:transform 180ms var(--chrome-ease)}
 .workspace-menu-trigger[aria-expanded=true]>svg{transform:rotate(180deg)}
-.workspace-menu-panel{position:absolute;right:0;top:calc(100% + 8px);z-index:100;width:min(330px,calc(100vw - 28px));padding:16px;border:1px solid var(--color-line);border-radius:12px;background:var(--color-panel);color:var(--color-ink);box-shadow:0 8px 28px #0002;max-height:calc(100dvh - 90px);overflow:auto;overscroll-behavior:contain;transform-origin:top right;animation:workspace-menu-enter 160ms var(--chrome-ease) both}
+.workspace-menu-panel{position:absolute;right:0;top:calc(100% + 10px);z-index:100;width:min(344px,calc(100vw - 28px));padding:16px;border:1px solid var(--ui-border-strong,var(--color-line));border-radius:16px;background:color-mix(in srgb,var(--ui-surface-raised,var(--color-panel)) 97%,transparent);color:var(--color-ink);box-shadow:0 20px 54px #07152d38,0 4px 14px #07152d1f,inset 0 1px 0 #fff9;backdrop-filter:blur(28px) saturate(1.3);max-height:calc(100dvh - 90px);overflow:auto;overscroll-behavior:contain;transform-origin:top right;animation:workspace-menu-enter 180ms var(--chrome-ease) both}
 .workspace-menu-panel[hidden]{display:none}.workspace-menu-panel h2{font-size:14px;margin:0 0 14px}
 @keyframes workspace-menu-enter{from{opacity:0;transform:translateY(-4px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 html .studio-app.compact-chrome .workspace-menu-panel .workspace-preferences{display:flex;flex-direction:column;align-items:stretch;gap:12px}
