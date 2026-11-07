@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Compass, LocateFixed, X } from "lucide-react";
+import { ArrowLeft, LocateFixed, X } from "lucide-react";
 import { AGENT_LESSONS, tutorialInstruction, type AgentLesson } from "../lib/agent-tutorial";
 import type { GuideRect } from "../lib/first-run-guide";
 
@@ -47,10 +47,10 @@ export function AgentGuideCoach({ lessonId, active, onBack, onClose, onNavigate 
     window.addEventListener("scroll", schedule, true); window.addEventListener("resize", schedule);
     return () => { cancelAnimationFrame(frame); observer.disconnect(); resize.disconnect(); window.removeEventListener("scroll", schedule, true); window.removeEventListener("resize", schedule); target.current = null; locate.current = () => {}; };
   }, [active, lesson]);
-  return <section ref={coach} className="agent-guide-coach" tabIndex={-1} aria-label="实操定位引导"><header><strong><Compass size={14} />实操定位 · {lesson.label}</strong><button type="button" aria-label="结束本次定位" onClick={onClose}><X size={14} /></button></header>
-    <p role="status">{!active ? "你已切换视图；可以回到本节入口，任务和输入不会被打断。" : tutorialInstruction(lessonId, anchor)}</p>
-    <div><button type="button" onClick={active ? () => locate.current() : onNavigate}><LocateFixed size={13} />{active ? "重新定位入口" : "回到本节入口"}</button><button type="button" onClick={onBack}>返回本节教程</button></div>
-    {active && anchor && !rect && <small>入口在滚动区域中，点击「重新定位入口」查看。</small>}
+  return <section ref={coach} className="agent-guide-coach" tabIndex={-1} aria-label="实操定位引导">
+    <div className="agent-guide-coach-copy"><strong>{lesson.label}</strong><p role="status">{!active ? "已切换视图，可回到本节入口。" : tutorialInstruction(lessonId, anchor)}</p></div>
+    <div className="agent-guide-coach-actions"><button type="button" title={active ? "重新定位入口" : "回到本节入口"} aria-label={active ? "重新定位入口" : "回到本节入口"} onClick={active ? () => locate.current() : onNavigate}><LocateFixed size={15} /></button><button type="button" title="返回本节教程" aria-label="返回本节教程" onClick={onBack}><ArrowLeft size={15} /></button><button type="button" title="结束本次定位" aria-label="结束本次定位" onClick={onClose}><X size={15} /></button></div>
+    {active && anchor && !rect && <small>入口暂未显示，可重新定位。</small>}
     {active && rect && createPortal(<div className="agent-guide-spotlight no-print" aria-hidden="true" style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}><span /></div>, document.body)}
   </section>;
 }

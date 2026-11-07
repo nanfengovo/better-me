@@ -167,6 +167,7 @@ test("sidebar tabs support arrow navigation and closing returns focus to the ope
 test("help starts with contextual topics without switching views and restores origin on exit", async () => {
   await render(); await click("打开 BetterMe Agent"); await click("模型与工具");
   const help = dom.document.querySelector<HTMLButtonElement>('[aria-label="打开 Agent 使用指南"]')!;
+  assert.equal(help.querySelector("span"), null, "guide launcher stays icon-only");
   await act(async () => help.focus()); await click("打开 Agent 使用指南");
   assert.equal(dom.document.querySelector<HTMLDialogElement>("dialog.agent-help-home")?.open, true);
   assert.equal(dom.document.querySelector('[role="tab"][aria-selected=true]')?.textContent, "模型与工具");
@@ -212,7 +213,7 @@ test("help opens the selected topic, restores focus and locates without sending 
   await click("找到备份与历史");
   assert.equal(dom.document.querySelector('[role="tab"][aria-selected=true]')?.textContent, "共识与进度");
   assert.equal(dom.document.activeElement?.className, "agent-guide-coach");
-  await click("伴写对话"); assert.match(dom.document.querySelector(".agent-guide-coach")?.textContent ?? "", /你已切换视图/);
+  await click("伴写对话"); assert.match(dom.document.querySelector(".agent-guide-coach")?.textContent ?? "", /已切换视图/);
   await click("回到本节入口"); await click("返回本节教程");
   assert.match(dom.document.querySelector("h2#agent-tutorial-title")?.textContent ?? "", /收起继续/);
   assert.equal(await repository.load("isolated-sidebar"), undefined, "teaching and locating do not create actual Agent tasks");

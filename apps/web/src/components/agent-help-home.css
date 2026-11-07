@@ -22,7 +22,8 @@
 .agent-help-home footer{bottom:0;border-top:1px solid var(--ui-border);font-size:11px;color:var(--ui-text-secondary)}
 .agent-help-home footer button{flex-shrink:0;min-height:36px;padding:6px 12px;border:1px solid var(--ui-border);border-radius:10px;background:var(--ui-surface-raised);color:var(--ui-text);font-size:12px}
 .agent-help-home button:focus-visible{outline:2px solid var(--ui-focus);outline-offset:3px}
-.agent-sidebar-header-actions .agent-help-launcher{width:auto;gap:5px;padding:0 9px;display:flex;font-size:12px;white-space:nowrap}
+.agent-sidebar-header-actions .agent-help-launcher{display:grid;place-items:center;width:36px;height:36px;padding:0;border-color:transparent;background:transparent;color:var(--ui-text-secondary)}
+.agent-sidebar-header-actions .agent-help-launcher:hover{border-color:var(--ui-border);background:var(--ui-surface-soft);color:var(--ui-text)}
 @media(hover:hover){.agent-help-topics button:hover{background:var(--ui-surface-soft)}.agent-help-topics button:hover{border-color:var(--ui-border)}}
 @media(max-width:600px){.agent-help-home{border-radius:18px;width:calc(100vw - 20px);max-height:calc(100dvh - 20px)}.agent-help-body{padding:18px}.agent-help-home header,.agent-help-home footer{padding:12px 18px}.agent-help-body h2{font-size:22px}.agent-help-home button{min-height:44px}.agent-help-home footer{align-items:flex-start}}
 @media(prefers-contrast:more){.agent-help-topics button{border-color:var(--ui-border-strong)}}
