@@ -447,33 +447,33 @@ test("a failed refresh retains confirmed indexed jobs instead of presenting an e
 
 test("manual source disclosure closes its own panels without collapsing independent filters", async () => {
   await render();
-  const more = dom.document.querySelector("details.atlas-more")!;
-  const summary = more.querySelector("summary")!;
+  const more = () => dom.document.querySelector("details.atlas-more")!;
   const activate = async (detail: number) => {
+    const summary = more().querySelector("summary")!;
     const click = new dom.MouseEvent("click", { bubbles: true, cancelable: true, detail });
     await act(async () => { summary.dispatchEvent(click); });
     assert.equal(click.defaultPrevented, true, "one controlled state change replaces the native toggle");
   };
   await activate(0);
-  assert.equal(more.hasAttribute("open"), true, "the native keyboard-style click opens the disclosure");
+  assert.equal(more().hasAttribute("open"), true, "the native keyboard-style click opens the disclosure");
   await act(async () => { button("筛选与设置").click(); });
-  await act(async () => { more.dispatchEvent(new dom.Event("toggle")); button("筛选与设置").click(); });
-  assert.equal(more.hasAttribute("open"), true, "an intentional manual open survives a child panel's close");
+  await act(async () => { more().dispatchEvent(new dom.Event("toggle")); button("筛选与设置").click(); });
+  assert.equal(more().hasAttribute("open"), true, "an intentional manual open survives a child panel's close");
   await act(async () => { button("筛选与设置").click(); button("全网平台").click(); });
   assert.equal(button("筛选与设置").getAttribute("aria-expanded"), "true");
   assert.equal(button("全网平台").getAttribute("aria-expanded"), "true");
   await activate(0);
-  assert.equal(more.hasAttribute("open"), false);
+  assert.equal(more().hasAttribute("open"), false);
   assert.equal(button("筛选与设置").getAttribute("aria-expanded"), "true");
   assert.ok(dom.document.querySelector(".atlas-filters"));
   assert.equal(button("全网平台").getAttribute("aria-expanded"), "false");
   await activate(1);
-  assert.equal(more.hasAttribute("open"), true, "pointer activation uses the same single toggle");
+  assert.equal(more().hasAttribute("open"), true, "pointer activation uses the same single toggle");
   await activate(1);
-  assert.equal(more.hasAttribute("open"), false);
-  await act(async () => { button("全网平台").click(); more.dispatchEvent(new dom.Event("toggle")); });
+  assert.equal(more().hasAttribute("open"), false);
+  await act(async () => { button("全网平台").click(); more().dispatchEvent(new dom.Event("toggle")); });
   await act(async () => { button("全网平台").click(); });
-  assert.equal(more.hasAttribute("open"), false, "platform-only programmatic opening also does not latch");
+  assert.equal(more().hasAttribute("open"), false, "platform-only programmatic opening also does not latch");
 });
 
 test("selecting an exact map location filters its jobs while the map keeps the complete search", async () => {
@@ -2033,16 +2033,18 @@ test("resume prefill bar displays smart keywords from active resume and pre-fill
 
 test("the command area can fold while keeping map mounted and restoring the same search criteria", async () => {
   await render();
-  const controls = dom.document.querySelector<HTMLDialogElement>('dialog.atlas-workspace-controls')!;
-  assert.equal(controls?.open, false);
+  assert.equal(dom.document.querySelector('dialog.atlas-workspace-controls'), null);
+  assert.equal(dom.document.querySelector<HTMLElement>('.atlas-workspace-controls')?.hidden, true);
   const input = dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!;
   await flush(() => changeInput(input, "C#"));
   const mounted = mapMounts;
   await act(async () => { button("筛选与设置").click(); });
+  const controls = dom.document.querySelector<HTMLDialogElement>('dialog.atlas-workspace-controls')!;
   assert.equal(controls.open, true);
   assert.equal(mapMounts, mounted);
   await act(async () => { controls.querySelector<HTMLButtonElement>('[aria-label="关闭筛选与设置"]')!.click(); });
-  assert.equal(controls.open, false);
+  assert.equal(dom.document.querySelector('dialog.atlas-workspace-controls'), null);
+  assert.equal(dom.document.querySelector<HTMLElement>('.atlas-workspace-controls')?.hidden, true);
   assert.equal(input.value, "C#");
 });
 

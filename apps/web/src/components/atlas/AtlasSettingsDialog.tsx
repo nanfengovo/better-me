@@ -49,7 +49,19 @@ export function AtlasSettingsDialog({ title, children, onClose, closeLabel = "å…
     return event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
   }
 
-  return <dialog hidden={!open} ref={dialogRef} className={`atlas-settings atlas-settings-dialog ${className}`} aria-modal="true" aria-labelledby={titleId}
+  const content = <>
+    <header className="atlas-settings-dialog-header">
+      <h2 id={titleId}>{title}</h2>
+      <button ref={closeRef} type="button" className="atlas-settings-dialog-close" aria-label={closeLabel} onClick={onClose}>
+        <X size={18} aria-hidden="true" />
+      </button>
+    </header>
+    <div className="atlas-settings-dialog-body">{children}</div>
+  </>;
+
+  if (!open) return <div hidden aria-hidden="true" className={`atlas-settings atlas-settings-dialog ${className}`}>{content}</div>;
+
+  return <dialog ref={dialogRef} className={`atlas-settings atlas-settings-dialog ${className}`} aria-modal="true" aria-labelledby={titleId}
     onCancel={event => { event.preventDefault(); event.stopPropagation(); onClose(); }}
     onKeyDown={event => {
       // A modal keyboard interaction must never clear the job/map selection.
@@ -68,12 +80,6 @@ export function AtlasSettingsDialog({ title, children, onClose, closeLabel = "å…
       if (dismiss) onClose();
     }}
     onPointerCancel={() => { backdropPointer.current = null; }}>
-    <header className="atlas-settings-dialog-header">
-      <h2 id={titleId}>{title}</h2>
-      <button ref={closeRef} type="button" className="atlas-settings-dialog-close" aria-label={closeLabel} onClick={onClose}>
-        <X size={18} aria-hidden="true" />
-      </button>
-    </header>
-    <div className="atlas-settings-dialog-body">{children}</div>
+    {content}
   </dialog>;
 }
