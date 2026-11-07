@@ -278,45 +278,18 @@ html .ai-config-modal .ai-config-privacy { margin-top:20px; padding:0 4px; borde
 .ai-config-modal .ai-config-body button[aria-pressed=true] { background:var(--color-accent-soft); color:var(--ui-text); border-color:var(--color-accent); }
 .ai-config-modal :is(button,a,input,select):focus-visible { outline:2px solid var(--color-accent); outline-offset:3px; }
 
-/* Bridge global semantic overrides at the page boundary: their higher-specificity
-   selectors must resolve to the same palette as the opportunity materials. */
+/* Opportunity materials inherit the selected workspace palette in both modes. */
 .opportunity-workspace {
-  --ui-canvas: var(--op-canvas);
-  --ui-surface: var(--op-surface);
-  --ui-surface-raised: var(--op-raised);
-  --ui-surface-soft: #34363c;
-  --ui-input: var(--op-inset);
-  --ui-hover: #393c43;
-  --ui-border: var(--op-line);
-  --ui-border-strong: var(--op-line-strong);
-  --ui-text: var(--op-text);
-  --ui-text-secondary: var(--op-secondary);
-  --ui-text-muted: #a9adb7;
-  --ui-accent: #8ab4f8;
-  --ui-accent-soft: #27364d;
-  --ui-action: #fbbc04;
-  --ui-action-hover: #ffd04b;
-  --ui-on-action: #202124;
-  --ui-focus: #8ab4f8;
-  --ui-warning: #fdd663;
-  --ui-warning-soft: #3a321c;
-  --ui-warning-border: #8a6820;
-  --ui-danger: #ffb4ab;
-  --ui-danger-soft: #432827;
-  --ui-danger-border: #97554e;
-  --ui-info: #8ab4f8;
-  --ui-info-soft: #27364d;
-  --ui-info-border: #526c94;
-  --color-ink: var(--op-text);
-  --color-ink-muted: var(--op-secondary);
+  --color-ink: var(--ui-text);
+  --color-ink-muted: var(--ui-text-secondary);
   --color-ink-faint: var(--ui-text-muted);
-  --color-panel: var(--op-surface);
-  --color-paper: var(--op-canvas);
-  --color-line: var(--op-line);
+  --color-panel: var(--ui-surface);
+  --color-paper: var(--ui-canvas);
+  --color-line: var(--ui-border);
   --color-accent: var(--ui-action);
 }
 
-.opportunity-workspace.opportunity-workspace { color-scheme:dark; --op-canvas:#1f2023; --op-surface:#28292d; --op-raised:#303136; --op-inset:#222327; --op-line:#4c4e55; --op-line-strong:#686b74; --op-text:#f1f3f4; --op-secondary:#c7c9ce; --op-muted:#9699a3; --op-blue:#4285f4; --op-red:#ea4335; --op-yellow:#fbbc04; --op-green:#34a853; padding:28px 32px 42px; background:var(--op-canvas); color:var(--op-text); }
+.opportunity-workspace.opportunity-workspace { color-scheme:inherit; --op-canvas:var(--ui-canvas); --op-surface:var(--ui-surface); --op-raised:var(--ui-surface-raised); --op-inset:var(--ui-input); --op-line:var(--ui-border); --op-line-strong:var(--ui-border-strong); --op-text:var(--ui-text); --op-secondary:var(--ui-text-secondary); --op-muted:var(--ui-text-muted); --op-blue:#4285f4; --op-red:#ea4335; --op-yellow:#fbbc04; --op-green:#34a853; padding:28px 32px 42px; background:var(--op-canvas); color:var(--op-text); }
 .opportunity-workspace .opportunity-heading { position:relative; min-height:0; padding:22px 24px; margin-bottom:20px; border:1px solid var(--op-line); border-radius:18px; background:var(--op-surface); box-shadow:inset 0 1px 0 #ffffff16,0 3px 0 #131416,0 16px 28px #00000055; }
 .opportunity-workspace .opportunity-heading::before { content:""; position:absolute; top:-1px; left:24px; width:72px; height:4px; border-radius:0 0 4px 4px; background:var(--op-blue); box-shadow:76px 0 0 var(--op-red),152px 0 0 var(--op-yellow),228px 0 0 var(--op-green); }
 .opportunity-workspace .opportunity-heading>div:first-child { display:flex; flex-direction:column; gap:4px; min-width:260px; }
@@ -351,7 +324,29 @@ html .ai-config-modal .ai-config-privacy { margin-top:20px; padding:0 4px; borde
 .opportunity-workspace .opportunity-empty { min-height:270px; border-style:solid; border-radius:16px; }.opportunity-workspace .opportunity-empty>div { border:1px solid #6b530f; background:#3a321c; color:#fdd663; box-shadow:inset 0 1px 0 #ffffff16,0 3px 0 #17181a; }.opportunity-workspace .opportunity-empty p { max-width:42ch; color:var(--op-muted); }
 .opportunity-workspace .opportunity-context-card.quiet { border-style:dashed; background:transparent; box-shadow:none; }.opportunity-workspace .opportunity-place { border-color:var(--op-line); color:var(--op-secondary); }.opportunity-workspace .opportunity-coverage,.opportunity-workspace .opportunity-context :is(p,small,ol) { color:var(--op-muted); }
 .opportunity-workspace .opportunity-column { border-color:var(--op-line); background:var(--op-surface); box-shadow:inset 0 1px 0 #ffffff10,0 3px 0 #17181a; }.opportunity-workspace .opportunity-column h2 { color:var(--op-secondary); }.opportunity-workspace .opportunity-board-card { border-color:var(--op-line); background:var(--op-raised); color:var(--op-text); box-shadow:inset 0 1px 0 #ffffff10,0 3px 0 #17181a,0 8px 16px #0004; }
-.opportunity-workspace :is(button,a,input,select,summary):focus-visible { outline-color:#8ab4f8; }
+.opportunity-workspace :is(button,a,input,select,summary):focus-visible { outline-color:var(--ui-focus); }
+html[data-theme] .opportunity-workspace :is(.opportunity-heading,.opportunity-stats>div,.opportunity-source-panel,.application-queues,.application-communications,.opportunity-context-card,.opportunity-empty,.opportunity-column,.opportunity-board-card) { box-shadow:0 1px 2px color-mix(in srgb,var(--ui-text) 5%,transparent),0 6px 18px color-mix(in srgb,var(--ui-text) 4%,transparent); }
+html[data-theme] .opportunity-workspace :is(.opportunity-actions .studio-button,.opportunity-search,.opportunity-filters select,.opportunity-row-side select,.application-queue) { box-shadow:0 1px 2px color-mix(in srgb,var(--ui-text) 6%,transparent); }
+html[data-theme] .opportunity-workspace .opportunity-actions .studio-button:hover:not(:disabled) { background:var(--ui-hover); color:var(--ui-text); }
+html[data-theme] .opportunity-workspace :is(.opportunity-actions .studio-button.primary,.opportunity-view-toggle button.active) { background:var(--ui-action); color:var(--ui-on-action); border-color:var(--ui-action); box-shadow:0 2px 5px color-mix(in srgb,var(--ui-action) 20%,transparent); }
+html[data-theme] .opportunity-workspace .opportunity-actions .studio-button.primary:hover:not(:disabled) { background:var(--ui-action-hover); color:var(--ui-on-action); }
+html[data-theme] .opportunity-workspace :is(.opportunity-heading .studio-eyebrow,.opportunity-markets>button.active,.opportunity-search svg) { color:var(--ui-accent); }
+html[data-theme] .opportunity-workspace .opportunity-source-panel summary:hover { background:var(--ui-hover); }
+html[data-theme] .opportunity-workspace :is(.opportunity-markets>button span,.application-queues-heading span) { background:var(--ui-surface-soft); color:var(--ui-text-secondary); }
+html[data-theme] .opportunity-workspace .opportunity-search:focus-within { border-color:var(--ui-focus); box-shadow:0 0 0 3px color-mix(in srgb,var(--ui-focus) 15%,transparent); }
+html[data-theme] .opportunity-workspace .application-queue.overdue { border-color:var(--ui-warning-border); }
+html[data-theme] .opportunity-workspace .opportunity-empty>div { background:var(--ui-accent-soft); border-color:var(--ui-border); color:var(--ui-accent); box-shadow:none; }
+html[data-theme] .opportunity-workspace .opportunity-context-card.quiet { box-shadow:none; }
+html[data-theme] .opportunity-workspace { --op-ink:var(--ui-text); --op-plane:var(--ui-surface); --op-plane-raised:var(--ui-surface-raised); }
+html[data-theme] .opportunity-workspace .opportunity-card-face { background:var(--ui-surface); box-shadow:0 2px 0 var(--ui-border),0 8px 20px color-mix(in srgb,var(--ui-text) 10%,transparent); }
+html[data-theme] .opportunity-workspace :is(.opportunity-card-back header strong,.opportunity-card-note span) { color:var(--ui-text); }
+html[data-theme] .opportunity-workspace :is(.opportunity-card-flip,.opportunity-card-stage,.opportunity-card-front .job-source-badge,.opportunity-card-front .job-status) { background:var(--ui-surface-soft); color:var(--ui-text-secondary); border-color:var(--ui-border); box-shadow:none; }
+html[data-theme] .opportunity-workspace .opportunity-card-front .job-status.open { background:var(--ui-accent-soft); color:var(--ui-accent); }
+html[data-theme] .opportunity-workspace .opportunity-card-note { background:var(--ui-surface-soft); border-color:var(--ui-border); box-shadow:none; }
+html[data-theme] .opportunity-workspace .opportunity-card-note p { color:var(--ui-text-secondary); }
+html[data-theme] .opportunity-workspace .opportunity-card-detail { background:var(--ui-action); color:var(--ui-on-action); box-shadow:none; }
+html[data-theme] .opportunity-workspace .opportunity-card-flip:hover { background:var(--ui-hover); color:var(--ui-text); }
+html[data-theme] .opportunity-workspace .opportunity-3d-card:focus-within .opportunity-card-face { outline-color:var(--ui-focus); }
 @media(max-width:940px) { .opportunity-workspace.opportunity-workspace { padding:22px 18px 36px; }.opportunity-workspace .opportunity-heading { align-items:flex-start; }.opportunity-workspace .opportunity-actions { justify-content:flex-start; } }
 @media(max-width:620px) { .opportunity-workspace.opportunity-workspace { padding:18px 12px 30px; }.opportunity-workspace .opportunity-heading { padding:20px 17px; }.opportunity-workspace .opportunity-heading::before { left:17px; width:44px; box-shadow:48px 0 0 var(--op-red),96px 0 0 var(--op-yellow),144px 0 0 var(--op-green); }.opportunity-workspace .opportunity-heading h1 { font-size:25px; }.opportunity-workspace .opportunity-heading>div:first-child { min-width:0; }.opportunity-workspace .opportunity-actions { width:100%; }.opportunity-workspace .opportunity-actions .studio-button { flex:1 1 42%; }.opportunity-workspace .opportunity-stats>div { min-height:118px; padding:16px; } }
 .ai-config-modal button:disabled { cursor:wait; }
