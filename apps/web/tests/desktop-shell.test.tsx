@@ -49,6 +49,26 @@ test("all apps and settings initially open maximized", async () => {
   assert.equal(dom.document.querySelectorAll(".os-resize-handle").length, 0);
 });
 
+test("Agent can resize directly from maximized without losing its draft", async () => {
+  await mount(); await click("Agent");
+  const win = dom.document.querySelector<HTMLElement>(".os-business-window")!;
+  const editor = dom.document.querySelector("textarea");
+  assert.equal(win.querySelectorAll(".os-resize-handle").length, 8);
+  Object.defineProperty(win, "getBoundingClientRect", { value: () => ({ left: 0, top: 34, right: 840, bottom: 826, width: 840, height: 792 }) });
+  const handle = win.querySelector<HTMLElement>(".os-resize-se")!;
+  Object.defineProperty(handle, "setPointerCapture", { value: () => {} });
+  await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 1, clientX: 838, clientY: 824 })));
+  await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, pointerId: 1, clientX: 638, clientY: 624 })));
+  assert.equal(win.classList.contains("is-maximized"), false);
+  assert.equal(win.style.getPropertyValue("--window-width"), "640px");
+  assert.equal(win.style.getPropertyValue("--window-height"), "592px");
+  await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointerup", { bubbles: true, pointerId: 1 })));
+  assert.equal(win.dataset.resizing, "false");
+  await click("最大化窗口");
+  assert.ok(win.classList.contains("is-maximized"));
+  assert.equal(dom.document.querySelector("textarea"), editor);
+});
+
 test("task links open one settings window at the requested section without altering the editor", async () => {
   await mount();
   const editor = dom.document.querySelector('textarea');

@@ -16,6 +16,9 @@
 .os-resize-ne,.os-resize-nw,.os-resize-se,.os-resize-sw{width:18px;height:18px}
 .os-resize-ne,.os-resize-sw{cursor:nesw-resize}.os-resize-nw,.os-resize-se{cursor:nwse-resize}
 .os-resize-ne{right:-4px;top:-4px}.os-resize-nw{left:-4px;top:-4px}.os-resize-se{right:-4px;bottom:-4px}.os-resize-sw{left:-4px;bottom:-4px}
+.os-window.is-maximized .os-resize-n{top:0}.os-window.is-maximized .os-resize-s{bottom:0}
+.os-window.is-maximized .os-resize-e{right:0}.os-window.is-maximized .os-resize-w{left:0}
+.os-window.is-maximized .os-resize-ne{right:0;top:0}.os-window.is-maximized .os-resize-nw{left:0;top:0}.os-window.is-maximized .os-resize-se{right:0;bottom:0}.os-window.is-maximized .os-resize-sw{left:0;bottom:0}
 .os-resize-handle:focus-visible{background:color-mix(in srgb,var(--os-accent) 35%,transparent);border-radius:6px}
 .os-window[data-inactive=true]{box-shadow:0 0 0 1px #10182720,0 12px 35px -12px #07152d50,inset 0 1px 0 var(--os-glass-highlight)}
 .os-window[data-inactive=true] .os-traffic button:before{background:#979ca685;box-shadow:inset 0 1px 1px #fff2}

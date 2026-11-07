@@ -41,12 +41,24 @@ export function DesktopWindow({ title, children, hidden = false, inactive = fals
     setSize({ width: right - left, height: bottom - top });
     setPosition({ x: origin.x + left - rect.left, y: origin.y + top - rect.top });
   }
+  function resizeOrigin() {
+    const rect = node.current!.getBoundingClientRect();
+    if (!maximized) return { rect, origin: position };
+    const parent = node.current!.parentElement!;
+    const bounds = parent.getBoundingClientRect();
+    const style = window.getComputedStyle(parent);
+    // Restored business windows use the stage's content box rather than its border box.
+    const origin = { x: rect.left - bounds.left - (parseFloat(style.paddingLeft) || 0), y: rect.top - bounds.top - (parseFloat(style.paddingTop) || 0) };
+    setLayouts(previous => ({ ...previous, [layoutKey]: { maximized: false, position: origin, size: { width: rect.width, height: rect.height } } }));
+    return { rect, origin };
+  }
   function startResize(event: PointerEvent<HTMLButtonElement>, edge: Edge) {
-    if (event.button !== 0 || maximized) return;
+    if (event.button !== 0) return;
     event.preventDefault(); event.stopPropagation();
     event.currentTarget.focus({ preventScroll: true });
     endDrag();
-    resize.current = { edge, pointerId: event.pointerId, x: event.clientX, y: event.clientY, rect: node.current!.getBoundingClientRect(), position };
+    const { rect, origin } = resizeOrigin();
+    resize.current = { edge, pointerId: event.pointerId, x: event.clientX, y: event.clientY, rect, position: origin };
     setResizing(true);
     event.currentTarget.setPointerCapture(event.pointerId);
   }
@@ -89,11 +101,12 @@ export function DesktopWindow({ title, children, hidden = false, inactive = fals
       <strong>{title}</strong><div className="os-window-actions">{actions}</div>
     </header>
     <div className="os-window-content">{children}</div>
-    {!maximized && edges.map(edge => <button key={edge} type="button" className={`os-resize-handle os-resize-${edge} no-print`} aria-label={t(`拖动${edgeNames[edge]}调整窗口大小`, `Resize window from ${edge}`)} title={t("拖动缩放；聚焦后用方向键微调，Shift 加速", "Drag to resize; use arrow keys, Shift for larger steps")} onPointerDown={event => startResize(event, edge)} onPointerMove={moveResize} onPointerUp={endDrag} onPointerCancel={endDrag} onLostPointerCapture={endDrag} onKeyDown={event => {
+    {(!maximized || layoutKey === "agent") && edges.map(edge => <button key={edge} type="button" className={`os-resize-handle os-resize-${edge} no-print`} aria-label={t(`拖动${edgeNames[edge]}调整窗口大小`, `Resize window from ${edge}`)} title={t("拖动缩放；聚焦后用方向键微调，Shift 加速", "Drag to resize; use arrow keys, Shift for larger steps")} onPointerDown={event => startResize(event, edge)} onPointerMove={moveResize} onPointerUp={endDrag} onPointerCancel={endDrag} onLostPointerCapture={endDrag} onKeyDown={event => {
       if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
       event.preventDefault(); event.stopPropagation();
       const step = event.shiftKey ? 40 : 10;
-      applyResize(edge, event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0, event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0, node.current!.getBoundingClientRect(), position);
+      const { rect, origin } = resizeOrigin();
+      applyResize(edge, event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0, event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0, rect, origin);
     }} />)}
   </section>;
 }
