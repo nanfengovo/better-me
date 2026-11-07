@@ -1,5 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
+
+test("opportunity surfaces and global overrides share page-scoped semantic colors", () => {
+  const css = readFileSync(new URL("../src/theme.css", import.meta.url), "utf8");
+  const scope = css.match(/\.opportunity-workspace \{([^}]+)\}/)?.[1] ?? "";
+  for (const [semantic, material] of [["surface", "surface"], ["surface-raised", "raised"], ["input", "inset"], ["text", "text"], ["text-secondary", "secondary"], ["border", "line"]]) {
+    assert.ok(scope.includes(`--ui-${semantic}: var(--op-${material})`), semantic);
+  }
+  for (const surface of ["#28292d", "#303136", "#222327"]) {
+    assert.ok(contrast("#f1f3f4", surface) >= 4.5);
+    assert.ok(contrast("#a9adb7", surface) >= 4.5);
+  }
+  assert.ok(contrast("#202124", "#fbbc04") >= 4.5);
+});
 import { WORKSPACE_THEMES, getWorkspaceTheme, parseWorkspaceTheme, workspaceThemeVariables } from "../src/themes/workspace-theme.ts";
 
 function luminance(hex: string) {
