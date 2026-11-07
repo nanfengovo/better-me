@@ -15,6 +15,13 @@ function notes(sources: WritingSource[]) {
   return sources.map(item => newWritingNote(item, inspectWriting(item, sources)!));
 }
 
+test("Agent annotations do not override the editor-follow highlight", () => {
+  const annotations = readFileSync(new URL("../src/components/writing-annotations.css", import.meta.url), "utf8");
+  const preview = readFileSync(new URL("../src/components/resume-design.css", import.meta.url), "utf8");
+  assert.doesNotMatch(annotations, /\[data-preview-followed[\s\S]*?\{[^}]*(?:outline:\s*none|background:\s*transparent|display:\s*none)/);
+  assert.match(preview, /\[data-preview-followed="true"\][\s\S]*?outline:\s*2\.5px solid/);
+});
+
 test("annotation identity follows document order, not generated IDs, selection or dismissed notes", () => {
   const sources = Array.from({ length: 10 }, (_, index) => source(index));
   const initial = notes(sources), annotations = writingAnnotations(initial, sources);

@@ -44,11 +44,7 @@ html[data-theme="dark"] [data-annotation-tone]:not(g){--annotation-ink:color-mix
 @keyframes writing-annotation-enter{from{opacity:.65}to{opacity:1}}
 @keyframes writing-annotation-focus{from{opacity:.6;transform:scale(.85)}to{opacity:0;transform:scale(1.35)}}
 
-/* Do not mix the old green edit-follow indicator with a colored Agent note. */
-@media screen{
-  .writing-shell[data-writing-annotations="true"] .resume-preview-canvas [data-preview-followed="true"]{outline:none!important;box-shadow:none!important;background:transparent!important;transition:none!important}
-  .writing-shell[data-writing-annotations="true"] .resume-preview-canvas [data-preview-followed="true"]::before{display:none!important}
-}
+/* Edit-follow marks the current editing location; Agent overlays independently mark review notes. */
 @media(max-height:500px){.writing-note-index{max-height:38px;flex-wrap:nowrap;padding:2px 2px 6px;overflow-y:hidden}.writing-note-index button[data-annotation-id]{height:26px;min-height:26px}}
 /* A landscape phone has width, not height. Keep questions beside the composer
    rather than letting the extra index reduce the readable thread to zero. */
