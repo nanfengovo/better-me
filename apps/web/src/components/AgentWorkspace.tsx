@@ -2276,6 +2276,82 @@ export function AgentWorkspace({
                                   </div>
                                 </>
                               )}
+
+                              {/* vork 3D Physical Raytraced Badge Card */}
+                              {action.type === "badge_3d" && (
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between gap-2 text-xs">
+                                    <span className={`font-bold flex min-w-0 items-center gap-1.5 ${isDark ? "text-purple-300" : "text-purple-900"}`}>
+                                      <Sparkles size={14} className="text-purple-400 shrink-0" />
+                                      <span className="truncate">{action.title}</span>
+                                    </span>
+                                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold ${
+                                      isDark ? "border-purple-500/40 bg-purple-500/10 text-purple-200" : "border-purple-200 bg-purple-50 text-purple-800"
+                                    }`}>
+                                      ⚡️ vork Metal 物理光追 {action.renderDurationMs ? `· ${(action.renderDurationMs / 1000).toFixed(1)}s` : ""}
+                                    </span>
+                                  </div>
+
+                                  <p className={`text-xs leading-relaxed font-medium ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-800"}`}>
+                                    {action.highlight}
+                                  </p>
+
+                                  {action.imageUrl && (
+                                    <div className="relative overflow-hidden rounded-xl border border-purple-500/30 bg-black/40 shadow-inner group">
+                                      <img
+                                        src={action.imageUrl}
+                                        alt={action.title}
+                                        className="w-full h-44 object-cover object-center transition-transform duration-500 group-hover:scale-105"
+                                      />
+                                      <div className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-black/75 backdrop-blur-md px-2 py-1 rounded-md text-[10px] text-purple-200 border border-purple-500/30">
+                                        <span>OpenPBR 物理着色 · Metal 硬件加速</span>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {action.rationale && (
+                                    <p className={`text-[11px] leading-relaxed flex items-center gap-1.5 ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>
+                                      <Lightbulb size={13} className="text-amber-500 shrink-0" />
+                                      <span>{action.rationale}</span>
+                                    </p>
+                                  )}
+
+                                  <div className="pt-1 flex flex-wrap items-center justify-end gap-2">
+                                    {action.imageUrl && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const a = document.createElement("a");
+                                          a.href = action.imageUrl!;
+                                          a.download = `${action.title || "3d-architecture-badge"}.png`;
+                                          a.click();
+                                        }}
+                                        className={`agent-btn-press inline-flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs transition ${
+                                          isDark
+                                            ? "border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-raised,#2e3038)] text-[var(--ui-text-secondary,#c7cad4)] hover:border-purple-500/40"
+                                            : "border-slate-200 bg-white text-slate-700 hover:border-purple-300"
+                                        }`}
+                                      >
+                                        <ImagePlus size={12} />
+                                        <span>{t("下载 3D 徽章高清图", "Download 3D Badge")}</span>
+                                      </button>
+                                    )}
+
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopy(`![${action.title}](${action.imageUrl || ""})\n> **${action.title}**\n> ${action.highlight}`, `badge-${aIdx}`)}
+                                      className={`agent-btn-press inline-flex items-center gap-1.5 text-xs border px-3 py-1.5 rounded-xl cursor-pointer ${
+                                        isDark
+                                          ? "text-[var(--ui-text-secondary,#c7cad4)] hover:text-white border-[var(--ui-border,#484b58)] bg-[var(--ui-surface-soft,#363842)] hover:bg-[var(--ui-hover,#41434e)]"
+                                          : "text-slate-700 hover:text-slate-900 border-slate-200 bg-slate-50"
+                                      }`}
+                                    >
+                                      {copiedId === `badge-${aIdx}` ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                                      <span>{copiedId === `badge-${aIdx}` ? t("已复制引用代码", "Copied markdown") : t("复制作品集引用", "Copy markdown")}</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>

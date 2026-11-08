@@ -31,6 +31,10 @@ Agent **无法检测**你何时关闭聊天窗口。及时保存靠：
 
 ## 代码约定（随实现补充）
 
+- **双端同步演进规则（强制核心铁律）**：
+  - **以后每一个改动 Web 端改了，桌面端（Electron / `@better-me/desktop` / `BetterMe.app`）也必须同步修改、构建与验证**。
+  - 严禁出现 Web 端更新了功能、样式、壁纸或系统配置，而桌面端遗留未改或落后失效的情况。
+  - 每次前端（`apps/web`）发生改动后，必须执行 `pnpm desktop:build` 并同步刷新 `BetterMe.app`，确保桌面客户端无论是 UI、3D 动效、壁纸、主题还是本地服务逻辑都与 Web 端 100% 保持最新。
 - 用户数据与 API Key 不进 Git
 - 模板带 `LICENSE` / `NOTICE`（若移植开源主题）
 - UI 与排版：Avoid unnecessary secondary labels and descriptions. Let the layout do the explaining.

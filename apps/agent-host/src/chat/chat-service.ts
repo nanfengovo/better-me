@@ -1,6 +1,7 @@
 import { HumanMessage, SystemMessage, AIMessage, BaseMessage } from "@langchain/core/messages";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { AgentActionCardSchema, type ChatRequestBody, type ChatMessage, type AgentActionCard } from "./types.js";
+import { vorkService } from "../vork/service.js";
 
 const SYSTEM_PROMPT = `你是一个内置于 BetterMe 个人求职与成长工作台的专属 Agent 职业顾问助手。
 你的任务是协助候选人深入分析目标岗位、调研雇主背景、优化简历表达、制定面试应对策略。回答要直接回应问题，给出可执行且有上下文的结论，不要只复述用户的问题或输出空泛模板。
@@ -17,6 +18,7 @@ const SYSTEM_PROMPT = `你是一个内置于 BetterMe 个人求职与成长工�
 1. 查公司资料：分析其控股背景（民营/国企/外企）、业务方向、稳定性及潜在风险。
 2. 优化简历细节：针对目标 JD 将口语化、扁平的经历改写为符合 STAR 原则、量化且突出技术难点的 Bullet Point。
 3. 岗位匹配与缺口攻防：分析简历在目标岗位的优势与盲区，提供面试应答防守策略。
+4. 3D 物理光追架构徽章生成：当用户希望对核心项目、高并发系统或重大突破生成立体成果展示（如“生成 3D 徽章”、“生成架构徽章”）时，输出 3D 徽章卡片。
 
 【简历定点修改协议】
 - 仅当当前请求提供了“用户明确授权的可编辑简历字段”时，才可提出简历修改卡；普通聊天、简历概况、引用摘录都不授权写回。
@@ -60,6 +62,13 @@ const SYSTEM_PROMPT = `你是一个内置于 BetterMe 个人求职与成长工�
     "salary": "薪资范围",
     "location": "城市",
     "highlight": "与候选人画像契合的亮点"
+  },
+  {
+    "type": "badge_3d",
+    "title": "项目突破名称，如：高并发分布式中台架构重构",
+    "highlight": "核心架构难点与指标，如：千万级 TPS 削峰 · 毫秒级事务一致性",
+    "style": "quantum_prism（量子色散棱镜）/ cyber_neon（赛博黑曜石）/ sunset_solitude（深渊浮岛）",
+    "rationale": "选用该物理光追特质代表该项目的工程特质理由"
   }
 ]
 \`\`\`
@@ -221,6 +230,56 @@ JD 描述：${job.description ? job.description.slice(0, 1500) : "未提供"}`);
 
   signal?.throwIfAborted();
   const parsed = parseActionCards(rawText);
+
+  // ── vork 3D 物理光追徽章生成 (Metal GPU Hardware Acceleration) ─────────────
+  if (parsed.actions) {
+    for (const card of parsed.actions) {
+      if (card.type === "badge_3d" && !card.imageUrl) {
+        try {
+          const style = card.style || "quantum_prism";
+          const res = await vorkService.render({
+            presetId: style,
+            resolution: [1280, 720],
+            profile: "std/draft",
+          });
+          card.imageUrl = res.dataUrl;
+          card.renderDurationMs = res.durationMs;
+        } catch (vorkErr) {
+          console.warn("[vork-tool] 渲染 3D 徽章失败:", vorkErr);
+        }
+      }
+    }
+  }
+
+  // 兜底支持：当用户显式提出 3D 徽章诉求，而模型未按 fenced 规范输出动作卡片时自动唤起
+  const lastUserMsg = body.messages.filter((m) => m.role === "user").slice(-1)[0]?.content ?? "";
+  const isBadgeRequest = /(3D|3d|三维)/.test(lastUserMsg) && /(徽章|架构|badge)/.test(lastUserMsg);
+  if (isBadgeRequest && !parsed.actions?.some((a) => a.type === "badge_3d")) {
+    try {
+      const style = /(赛博|黑曜石|neon)/i.test(lastUserMsg)
+        ? "cyber_neon"
+        : /(暮光|落日|浮岛|sunset)/i.test(lastUserMsg)
+          ? "sunset_solitude"
+          : "quantum_prism";
+      const renderRes = await vorkService.render({
+        presetId: style,
+        resolution: [1280, 720],
+        profile: "std/draft",
+      });
+      const badgeCard: AgentActionCard = {
+        type: "badge_3d",
+        title: "高并发分布式系统重构 · 3D 物理光追架构徽章",
+        highlight: "千万级 TPS 削峰 · 毫秒级事务一致性 · OpenPBR 物理光追",
+        style: style as any,
+        imageUrl: renderRes.dataUrl,
+        renderDurationMs: renderRes.durationMs,
+        rationale: "由 Apple Silicon Metal GPU 硬件加速光线追踪实时渲染，呈现微表面色散折射与高反光金属质感。",
+      };
+      parsed.actions = [...(parsed.actions ?? []), badgeCard];
+    } catch (vorkErr) {
+      console.warn("[vork-tool] 自动生成 3D 徽章失败:", vorkErr);
+    }
+  }
   const lengthLimited = wasLengthLimited(finishReason);
   const empty = !parsed.content && !parsed.actions?.length;
   const warning = [

@@ -12,7 +12,25 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
   return <button className="os-switch" type="button" role="switch" aria-label={label} aria-checked={value} onClick={() => onChange(!value)}><span /></button>;
 }
 export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig: () => void; onNetwork: () => void; request?: { section: string; id: number } }) {
-  const { t, locale, theme, setLocale, setTheme, workspaceThemeId, setWorkspaceThemeId, dockAutoHide = true, reduceMotion = false, setDesktopPreferences, persistenceError } = useUiPreferences();
+  const {
+    t,
+    locale,
+    theme,
+    setLocale,
+    setTheme,
+    workspaceThemeId,
+    setWorkspaceThemeId,
+    dockAutoHide = true,
+    dockPosition = "bottom",
+    dockSize = 48,
+    dockMagnification = true,
+    dockMagScale = 1.45,
+    dockOpacity = 0.85,
+    dockBlur = 24,
+    reduceMotion = false,
+    setDesktopPreferences,
+    persistenceError,
+  } = useUiPreferences();
   const [tab, setTab] = useState("appearance");
   const [query, setQuery] = useState("");
   const [mobileDetail, setMobileDetail] = useState(false);
@@ -54,8 +72,185 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
         <p className="os-setting-intro">{t("留出空间，专注眼前。", "More space for what matters.")}</p>
         <h2>{t("桌面壁纸", "Wallpaper")}</h2>
         <DesktopWallpaperSettings />
-        <h2>Dock</h2><div className="os-settings-card"><SettingRow label={t("自动隐藏与显示 Dock", "Automatically hide Dock")}><Toggle label={t("自动隐藏 Dock", "Auto-hide Dock")} value={dockAutoHide} onChange={value => setDesktopPreferences({ dockAutoHide: value })} /></SettingRow></div>
-        <p className="os-setting-note">{t("鼠标靠近屏幕底部中央时唤出。触屏设备常驻显示，键盘聚焦也能唤出。", "Move to the bottom edge to reveal. Always visible on touch devices and accessible by keyboard.")}</p>
+        <h2>Dock</h2>
+        <div className="os-settings-card">
+          {/* 1. 屏幕上的位置 (Position on screen) */}
+          <div className="os-setting-row">
+            <div>
+              <span style={{ fontWeight: 600 }}>{t("屏幕上的位置", "Position on screen")}</span>
+              <small style={{ display: "block", color: "var(--os-muted)", fontSize: 11, marginTop: 2 }}>
+                {t("选择 Dock 栏停靠在屏幕的哪个边缘", "Choose which screen edge to pin the Dock")}
+              </small>
+            </div>
+            <div className="os-dock-position-switch" role="radiogroup" aria-label={t("Dock 屏幕位置", "Dock position")}>
+              {[
+                { id: "left", label: t("左侧", "Left") },
+                { id: "bottom", label: t("底部", "Bottom") },
+                { id: "right", label: t("右侧", "Right") },
+              ].map((pos) => (
+                <button
+                  key={pos.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={dockPosition === pos.id}
+                  className={`os-dock-pos-btn ${dockPosition === pos.id ? "is-active" : ""}`}
+                  onClick={() => setDesktopPreferences({ dockPosition: pos.id as any })}
+                >
+                  {pos.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 2. Dock 大小 (Icon Size) */}
+          <div className="os-setting-row">
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 600 }}>{t("大小", "Size")}</span>
+                <b style={{ fontVariantNumeric: "tabular-nums", fontSize: 11 }}>{dockSize}px</b>
+              </div>
+              <small style={{ display: "block", color: "var(--os-muted)", fontSize: 11, marginTop: 2 }}>
+                {t("调整 Dock 栏和图标的显示尺寸", "Adjust the icon and Dock size")}
+              </small>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 180 }}>
+              <span style={{ fontSize: 10, color: "var(--os-muted)" }}>{t("小", "Small")}</span>
+              <input
+                type="range"
+                min="36"
+                max="68"
+                step="2"
+                value={dockSize}
+                onChange={(e) => setDesktopPreferences({ dockSize: parseInt(e.target.value, 10) })}
+                className="os-effect-slider"
+                aria-label="Dock 大小"
+              />
+              <span style={{ fontSize: 10, color: "var(--os-muted)" }}>{t("大", "Large")}</span>
+            </div>
+          </div>
+
+          {/* 3. 悬浮放大效果 (Magnification) */}
+          <SettingRow label={t("放大效果", "Magnification")}>
+            <Toggle
+              label={t("开启 Dock 悬浮放大", "Enable Dock magnification")}
+              value={dockMagnification}
+              onChange={(value) => setDesktopPreferences({ dockMagnification: value })}
+            />
+          </SettingRow>
+
+          {/* 放大倍率微调 */}
+          {dockMagnification && (
+            <div className="os-setting-row" style={{ paddingLeft: 16, background: "rgba(255, 255, 255, 0.03)" }}>
+              <div style={{ flex: 1 }}>
+                <span style={{ fontSize: 11.5 }}>{t("放大倍率", "Magnification scale")}</span>
+                <small style={{ display: "block", color: "var(--os-muted)", fontSize: 10, marginTop: 1 }}>
+                  {t("鼠标悬停在图标上方时的缩放幅度", "Scale factor when pointer hovers over an icon")}
+                </small>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 180 }}>
+                <input
+                  type="range"
+                  min="1.1"
+                  max="1.8"
+                  step="0.05"
+                  value={dockMagScale}
+                  onChange={(e) => setDesktopPreferences({ dockMagScale: parseFloat(e.target.value) })}
+                  className="os-effect-slider"
+                  aria-label="Dock 放大倍率"
+                />
+                <span style={{ fontSize: 11, fontWeight: 700, minWidth: 32, textAlign: "right" }}>
+                  {dockMagScale.toFixed(2)}x
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* 4. Dock 不透明度 (Opacity) */}
+          <div className="os-setting-row">
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 600 }}>{t("Dock 不透明度", "Dock Opacity")}</span>
+                <b style={{ fontVariantNumeric: "tabular-nums", fontSize: 11 }}>{Math.round(dockOpacity * 100)}%</b>
+              </div>
+              <small style={{ display: "block", color: "var(--os-muted)", fontSize: 11, marginTop: 2 }}>
+                {t("调节底座透光度，展现 8K 壁纸与晶莹亚克力质感", "Adjust transparency to reveal the 8K wallpaper")}
+              </small>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 180 }}>
+              <input
+                type="range"
+                min="0.2"
+                max="1.0"
+                step="0.05"
+                value={dockOpacity}
+                onChange={(e) => setDesktopPreferences({ dockOpacity: parseFloat(e.target.value) })}
+                className="os-effect-slider"
+                aria-label="Dock 不透明度"
+              />
+            </div>
+          </div>
+
+          {/* Dock 透明度预设挡位 */}
+          <div className="os-opacity-presets" style={{ padding: "0 15px 12px", marginTop: -4 }}>
+            {[
+              { val: 1.0, label: t("100% 实体", "100% Solid") },
+              { val: 0.85, label: t("85% 毛玻璃", "85% Frosted") },
+              { val: 0.65, label: t("65% 晶莹", "65% Crystal") },
+              { val: 0.40, label: t("40% 极透", "40% Ghost") },
+            ].map((p) => (
+              <button
+                key={p.val}
+                type="button"
+                className={`os-opacity-pill ${Math.abs(dockOpacity - p.val) < 0.03 ? "is-selected" : ""}`}
+                onClick={() => setDesktopPreferences({ dockOpacity: p.val })}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {/* 5. Dock 毛玻璃景深虚化 (Blur) */}
+          <div className="os-setting-row">
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 600 }}>{t("Dock 毛玻璃景深虚化", "Dock Glass Blur")}</span>
+                <b style={{ fontVariantNumeric: "tabular-nums", fontSize: 11 }}>{dockBlur}px</b>
+              </div>
+              <small style={{ display: "block", color: "var(--os-muted)", fontSize: 11, marginTop: 2 }}>
+                {t("底座后方壁纸的光学弥散半径", "Optical dispersion radius behind the Dock")}
+              </small>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 180 }}>
+              <input
+                type="range"
+                min="0"
+                max="36"
+                step="2"
+                value={dockBlur}
+                onChange={(e) => setDesktopPreferences({ dockBlur: parseInt(e.target.value, 10) })}
+                className="os-effect-slider"
+                aria-label="Dock 虚化度"
+              />
+              <span style={{ fontSize: 11, fontWeight: 700, minWidth: 32, textAlign: "right" }}>{dockBlur}px</span>
+            </div>
+          </div>
+
+          {/* 6. 自动隐藏与显示 Dock */}
+          <SettingRow label={t("自动隐藏与显示 Dock", "Automatically hide Dock")}>
+            <Toggle
+              label={t("自动隐藏 Dock", "Auto-hide Dock")}
+              value={dockAutoHide}
+              onChange={(value) => setDesktopPreferences({ dockAutoHide: value })}
+            />
+          </SettingRow>
+        </div>
+        <p className="os-setting-note">
+          {dockPosition === "left"
+            ? t("鼠标靠近屏幕左边缘时唤出。支持毛玻璃质感、悬浮放大和图标大小任意调节。", "Hover near left screen edge to reveal. Supports acrylic glass, magnification, and sizing.")
+            : dockPosition === "right"
+            ? t("鼠标靠近屏幕右边缘时唤出。支持毛玻璃质感、悬浮放大和图标大小任意调节。", "Hover near right screen edge to reveal. Supports acrylic glass, magnification, and sizing.")
+            : t("鼠标靠近屏幕底部中央时唤出。支持毛玻璃质感、悬浮放大和图标大小任意调节。", "Hover near bottom edge to reveal. Supports acrylic glass, magnification, and sizing.")}
+        </p>
       </>}
       {tab === "accessibility" && <>
         <p className="os-setting-intro">{t("按你的节奏使用。", "Move at your own pace.")}</p>

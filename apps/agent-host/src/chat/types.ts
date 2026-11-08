@@ -35,6 +35,15 @@ export const AgentActionCardSchema = z.discriminatedUnion("type", [
     strategy: z.string(),
     sampleAnswer: z.string(),
   }),
+  z.object({
+    type: z.literal("badge_3d"),
+    title: z.string(),
+    highlight: z.string(),
+    style: z.enum(["quantum_prism", "cyber_neon", "sunset_solitude"]).default("quantum_prism"),
+    imageUrl: z.string().optional(),
+    renderDurationMs: z.number().optional(),
+    rationale: z.string().optional(),
+  }),
 ]);
 
 export type AgentActionCard = z.infer<typeof AgentActionCardSchema>;

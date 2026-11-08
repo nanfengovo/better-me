@@ -18,6 +18,7 @@ import { resolveCheckpointPath, createCheckpointer } from "./checkpointer.js";
 import { createAgentServer } from "./server.js";
 import path from "node:path";
 import { loadIdentityDeployment, publicOrigins } from "./identity/deployment.js";
+import { ensureBuiltinOrConfiguredOidc } from "./identity/builtin-idp.js";
 
 function parseArgs(argv: string[]): {
   port: number;
@@ -61,16 +62,31 @@ const { port, host, origins, checkpointDir, runsDirectory, sandboxMode, token } 
 const cpPath = resolveCheckpointPath(checkpointDir);
 console.log(`[agent-host] checkpoint: ${cpPath}`);
 const checkpointer = createCheckpointer(cpPath);
+const allowedOrigins = publicOrigins(process.env, origins.length > 0 ? origins : ["http://localhost:5173", "http://127.0.0.1:5173"]);
+const primaryOrigin = allowedOrigins.find((item) => item.includes("localhost")) ?? allowedOrigins[0] ?? "http://localhost:5173";
 const identity = await loadIdentityDeployment({ defaultConfigPath: path.join(path.dirname(cpPath), "oidc.json") });
 if (identity.issue) console.error(`[identity] ${identity.issue}; local accounts remain available. Run pnpm auth:check.`);
+const { oidc, builtinHandle } = await ensureBuiltinOrConfiguredOidc({
+  storageDir: path.join(path.dirname(cpPath), "builtin-idp"),
+  primaryOrigin,
+  configuredOidc: identity.oidc,
+  authMode: process.env["BETTERME_AUTH_MODE"],
+  hasExplicitIssue: Boolean(identity.issue),
+});
+if (builtinHandle) {
+  console.log(`[identity] built-in zero-install OIDC & social auth broker active at ${builtinHandle.issuer}`);
+}
 
-createAgentServer({
+const server = createAgentServer({
   port,
   host,
-  allowedOrigins: publicOrigins(process.env, origins.length > 0 ? origins : ["http://localhost:5173", "http://127.0.0.1:5173"]),
+  allowedOrigins,
   authToken: token,
   checkpointer,
   runsDirectory,
   sandboxMode,
-  oidc: identity.oidc,
+  oidc,
+});
+server.once("close", () => {
+  void builtinHandle?.close();
 });

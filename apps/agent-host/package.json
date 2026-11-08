@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": "^24.15.0 || >=26" },
+  "engines": {
+    "node": "^24.15.0 || >=26"
+  },
   "scripts": {
     "start": "tsx src/cli.ts",
     "dev": "tsx watch src/cli.ts",
@@ -20,6 +22,7 @@
     "@langchain/langgraph": "^1.5.1",
     "@langchain/langgraph-checkpoint-sqlite": "^1.1.0",
     "@langchain/openai": "^1.6.3",
+    "esbuild": "^0.28.2",
     "jose": "^6.2.14",
     "openid-client": "6.8.9",
     "quickjs-emscripten": "0.32.0",

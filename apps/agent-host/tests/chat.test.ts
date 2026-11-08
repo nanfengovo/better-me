@@ -267,4 +267,33 @@ describe("agent-host Chat Service", () => {
     assert.match(String(systemMessage.content), /originalText 必须与该目标字段原文完全一致/);
     assert.doesNotMatch(String(systemMessage.content), /email|phone|avatarUrl/i);
   });
+
+  it("generates a vork 3D architecture badge action card when requested", async () => {
+    const model = new MockChatModel([{
+      text: `我已经为您的高并发分布式系统设计了专属 3D 架构徽章：
+\`\`\`actions
+[
+  {
+    "type": "badge_3d",
+    "title": "高并发分布式系统重构 · 3D 架构徽章",
+    "highlight": "千万级 TPS 削峰 · 毫秒级事务一致性",
+    "style": "cyber_neon",
+    "rationale": "采用黑曜石材质与冷暖霓虹光束，具象化系统的高稳定性与高吞吐。"
+  }
+]
+\`\`\``,
+    }]);
+
+    const reply = await processAgentChat(model, {
+      messages: [{ id: "u-badge", role: "user", content: "帮我这个高并发项目生成一个 3D 架构徽章" }],
+      modelSettings: { provider: "ollama", model: "mock-model", apiKey: "" },
+    });
+
+    assert.ok(reply.actions?.length);
+    const badge = reply.actions[0];
+    assert.equal(badge.type, "badge_3d");
+    assert.equal(badge.title, "高并发分布式系统重构 · 3D 架构徽章");
+    assert.ok(badge.imageUrl?.startsWith("data:image/png;base64,"));
+    assert.ok((badge.renderDurationMs ?? 0) > 0);
+  });
 });

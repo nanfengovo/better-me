@@ -13,6 +13,7 @@ export function DesktopAppMenu({ page, title, onNavigate }: { page: DesktopPage;
     { id: "opportunities", label: t("岗位与投递", "Jobs & applications") },
     { id: "atlas", label: t("岗位地图", "Opportunity atlas") },
     { id: "resources", label: t("资料库", "Resources") },
+    { id: "autopilot", label: t("自动化工坊", "Autopilot studio") },
   ] as const;
   function close() { if (ref.current) { ref.current.open = false; ref.current.querySelector("summary")?.focus(); } }
   return <details ref={ref} className="os-app-menu" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) event.currentTarget.open = false; }} onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); close(); } }}>

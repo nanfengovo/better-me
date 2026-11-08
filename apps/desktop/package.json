@@ -1,0 +1,22 @@
+{
+  "name": "@better-me/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "迈向更好 / BetterMe OS 桌面端应用",
+  "main": "dist/main/index.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "node --import tsx src/main/dev-runner.ts",
+    "build:main": "esbuild src/main/index.ts --bundle --platform=node --target=node22 --outfile=dist/main/index.cjs --format=cjs --external:electron",
+    "build:preload": "esbuild src/preload/index.ts --bundle --platform=node --target=node22 --outfile=dist/preload/index.cjs --format=cjs --external:electron",
+    "build": "pnpm build:main && pnpm build:preload",
+    "start": "electron dist/main/index.cjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "electron": "^34.2.0",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.8.3"
+  }
+}

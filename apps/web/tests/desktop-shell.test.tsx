@@ -25,7 +25,7 @@ function button(label: string) {
 async function click(label: string) { await flush(() => button(label).click()); }
 async function mount() {
   function Harness() {
-    const [page, setPage] = React.useState<"resume" | "agent" | "opportunities" | "resources" | "atlas">("resume");
+    const [page, setPage] = React.useState<"resume" | "agent" | "opportunities" | "resources" | "atlas" | "autopilot">("resume");
     const [draft, setDraft] = React.useState("合成草稿");
     return h(DesktopShell, { page, onNavigate: setPage, onDesign() {}, onHistory() {}, onAiConfig() { aiOpens++; }, onNetwork() { networkOpens++; } },
       h("textarea", { "aria-label": "合成编辑器", value: draft, onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => setDraft(event.target.value) }), h("output", null, page));
@@ -337,4 +337,18 @@ test("model and network buttons invoke existing callbacks only after explicit cl
   assert.equal(aiOpens + networkOpens, 0);
   await click("模型与 AI 配置"); await click("网络与代理");
   assert.equal(aiOpens, 1); assert.equal(networkOpens, 1);
+});
+test("autopilot studio Dock item navigates to autopilot and pinned micro-apps open in null-origin sandbox host", async () => {
+  const { installMicroApp, createOfferBackcheckRadarApp } = await import("../src/lib/micro-app-registry.ts");
+  await mount();
+  await flush(() => dom.document.querySelector<HTMLButtonElement>('[data-dock-app="autopilot"]')!.click());
+  assert.equal(dom.document.querySelector("output")!.textContent, "autopilot");
+  assert.ok(dom.document.querySelector('.os-app-menu [aria-current="page"]')!.textContent!.includes("自动化工坊"));
+  await flush(() => { installMicroApp(createOfferBackcheckRadarApp()); });
+  const microBtn = dom.document.querySelector<HTMLButtonElement>('[data-dock-microapp="offer-backcheck-radar"]');
+  assert.ok(microBtn, "Expected pinned micro-app button in Dock");
+  await flush(() => microBtn!.click());
+  const iframe = dom.document.querySelector<HTMLIFrameElement>('[data-testid="sandboxed-microapp-iframe"]');
+  assert.ok(iframe, "Expected sandboxed iframe to render");
+  assert.equal(iframe!.getAttribute("sandbox"), "allow-scripts", "Iframe must not have allow-same-origin");
 });

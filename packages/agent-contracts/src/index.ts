@@ -237,6 +237,78 @@ export function parseAgentEvent(value: unknown): AgentEvent {
 export function parseRuntimeAgentInfo(value: unknown): RuntimeAgentInfo {
   return RuntimeAgentInfoSchema.parse(value);
 }
+
+export const AutopilotJobStatusSchema = z.enum([
+  "queued",
+  "prefetching",
+  "ready_for_approval",
+  "hibernated",
+  "interview_prep",
+  "offer_backcheck",
+  "onboarded",
+  "declined",
+]);
+export type AutopilotJobStatus = z.infer<typeof AutopilotJobStatusSchema>;
+
+export const CompanyBackcheckEvidenceTierSchema = z.enum(["tier1_compliance", "tier2_business", "tier3_sentiment"]);
+export type CompanyBackcheckEvidenceTier = z.infer<typeof CompanyBackcheckEvidenceTierSchema>;
+
+export const CompanyBackcheckEvidenceSchema = z.object({
+  id: z.string().min(1),
+  tier: CompanyBackcheckEvidenceTierSchema,
+  sourceName: z.string().min(1),
+  sourceUrl: z.string().url().optional(),
+  observedAt: z.string().datetime(),
+  confidence: z.enum(["high", "medium", "low"]),
+  summary: z.string().min(1),
+  sanitizedExcerpt: z.string().min(1),
+  strippedInjectionFragments: z.number().int().nonnegative().default(0),
+});
+export type CompanyBackcheckEvidence = z.infer<typeof CompanyBackcheckEvidenceSchema>;
+
+export const CompanyBackcheckReportSchema = z.object({
+  company: z.string().min(1),
+  role: z.string().min(1),
+  legalEntity: z.string().min(1),
+  generatedAt: z.string().datetime(),
+  tier1ComplianceSummary: z.string().min(1),
+  tier2BusinessSummary: z.string().min(1),
+  tier3SentimentSummary: z.string().min(1),
+  estimatedSchedule: z.string().min(1),
+  estimatedWeeklyHours: z.number().positive(),
+  bonusRealizationRate: z.number().min(0).max(1.5),
+  sentimentSampleCount: z.number().int().nonnegative(),
+  overallRecommendation: z.enum(["strongly_recommended", "recommended_with_caution", "high_risk_decline"]),
+  evidences: z.array(CompanyBackcheckEvidenceSchema).min(1),
+});
+export type CompanyBackcheckReport = z.infer<typeof CompanyBackcheckReportSchema>;
+
+export const MicroAppScopeSchema = z.enum(["selected_offers", "backcheck_summary", "job_snapshots"]);
+export type MicroAppScope = z.infer<typeof MicroAppScopeSchema>;
+
+export const MicroAppManifestSchema = z.object({
+  appId: z.string().regex(/^[a-z0-9][a-z0-9-_]{2,63}$/),
+  name: z.string().min(1).max(80),
+  nameEn: z.string().min(1).max(80),
+  version: z.string().regex(/^\d+\.\d+\.\d+$/),
+  dependencies: z.record(z.string(), z.string()).default({}),
+  grantedScopes: z.array(MicroAppScopeSchema).min(1),
+  pinnedToDock: z.boolean().default(true),
+});
+export type MicroAppManifest = z.infer<typeof MicroAppManifestSchema>;
+
+export const MicroAppBuildReceiptSchema = z.object({
+  appId: z.string().min(1),
+  version: z.string().min(1),
+  codeHash: z.string().regex(/^[a-f0-9]{16,64}$/),
+  verifierVersion: z.string().min(1),
+  status: z.enum(["passed", "failed"]),
+  syntheticFixturesPassed: z.number().int().nonnegative(),
+  containerIsolationFlags: z.array(z.string().min(1)).min(1),
+  verifiedAt: z.string().datetime(),
+});
+export type MicroAppBuildReceipt = z.infer<typeof MicroAppBuildReceiptSchema>;
+
 export * from "./project-understanding.js";
 export * from "./capabilities.js";
 export * from "./evidence-handoff.js";

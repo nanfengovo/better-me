@@ -16,6 +16,7 @@
 import path from "node:path";
 import os from "node:os";
 import fs from "node:fs";
+import { MemorySaver } from "@langchain/langgraph";
 import { SqliteSaver } from "@langchain/langgraph-checkpoint-sqlite";
 
 export function resolveCheckpointPath(override?: string): string {
@@ -37,5 +38,12 @@ export function createCheckpointer(dbPath: string): SqliteSaver {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  return SqliteSaver.fromConnString(dbPath);
+  try {
+    return SqliteSaver.fromConnString(dbPath);
+  } catch (error) {
+    console.warn(
+      `[agent-host] SqliteSaver native addon unavailable (${error instanceof Error ? error.message.split("\n")[0] : "unknown"}); falling back to in-memory checkpointer.`
+    );
+    return new MemorySaver() as unknown as SqliteSaver;
+  }
 }

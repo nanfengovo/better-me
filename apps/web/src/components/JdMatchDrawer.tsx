@@ -1568,6 +1568,39 @@ export function JdMatchDrawer({
                                   </div>
                                 </>
                               )}
+
+                              {/* 5. 3D Architecture Badge Card */}
+                              {action.type === "badge_3d" && (
+                                <div className="space-y-2.5">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="font-bold text-purple-900 flex items-center gap-1.5">
+                                      <Sparkles size={13} className="text-purple-600" />
+                                      {action.title}
+                                    </span>
+                                    <span className="text-[9px] px-2 py-0.5 rounded-full border border-purple-200 bg-purple-50 text-purple-800 font-semibold">
+                                      ⚡️ vork Metal 光追 {action.renderDurationMs ? `· ${(action.renderDurationMs / 1000).toFixed(1)}s` : ""}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                                    {action.highlight}
+                                  </p>
+                                  {action.imageUrl && (
+                                    <div className="relative rounded-lg overflow-hidden border border-purple-200 bg-black/30">
+                                      <img src={action.imageUrl} alt={action.title} className="w-full h-36 object-cover" />
+                                    </div>
+                                  )}
+                                  <div className="pt-1 flex justify-end gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopy(`![${action.title}](${action.imageUrl || ""})\n> **${action.title}**\n> ${action.highlight}`, `badge-${aIdx}`)}
+                                      className="inline-flex items-center gap-1 text-[11px] text-slate-600 hover:text-slate-900 border border-slate-200 px-2.5 py-1 rounded-md bg-slate-50 hover:bg-slate-100"
+                                    >
+                                      {copiedId === `badge-${aIdx}` ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                                      <span>{copiedId === `badge-${aIdx}` ? t("已复制引用", "Copied") : t("复制作品集 Markdown", "Copy Markdown")}</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>

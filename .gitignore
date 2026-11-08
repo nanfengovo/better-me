@@ -76,3 +76,10 @@ resume-en-*.docx
 *-extracted.txt
 *-原文.txt
 *-source.txt
+
+# Release distribution packages
+release/
+*.dmg
+*.zip
+BetterMe.app/
+BetterMe.icns

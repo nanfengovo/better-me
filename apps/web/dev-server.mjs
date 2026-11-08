@@ -137,6 +137,16 @@ export function startDevServer({
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const casdoorScript = path.resolve(webDirectory, "../../scripts/casdoor-local.mjs");
+  if (existsSync(casdoorScript)) {
+    const probe = spawn(process.execPath, [casdoorScript, "status"], { stdio: "ignore" });
+    probe.once("exit", (code) => {
+      if (code !== 0) {
+        const child = spawn(process.execPath, [casdoorScript, "start"], { detached: true, stdio: "ignore" });
+        child.unref();
+      }
+    });
+  }
   const server = startDevServer({ args: process.argv.slice(2) });
   const close = () => { void server.close(); };
   process.once("SIGINT", close);

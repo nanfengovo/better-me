@@ -58,9 +58,11 @@ import { RecoveryCatalog } from "./identity/recovery.js";
 import { OidcService, OIDC_CALLBACK_PATH, type OidcOptions } from "./identity/oidc.js";
 import { unconfiguredSocialLogin } from "./identity/social-login.js";
 import { EvidenceBroker } from "./understanding/evidence-broker.js";
+import { vorkService } from "./vork/service.js";
 import { CareerCapabilities } from "./capabilities/service.js";
 import { handleCapabilities } from "./capabilities/http.js";
 import type { ToolBuilder } from "./capabilities/ollama.js";
+import { SandboxBuildService, type SandboxBuildInput } from "./sandbox/build-service.js";
 
 // ── Request schemas ───────────────────────────────────────────────────────────
 
@@ -241,6 +243,8 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     return buildJdMatchGraph(buildModel(settings), opts.checkpointer);
   }
 
+  const sandboxBuildService = new SandboxBuildService();
+
   const server = http.createServer(async (req, res) => {
     // ── CORS ──────────────────────────────────────────────────────────────────
     const origin = req.headers["origin"] ?? "";
@@ -285,6 +289,23 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       if (req.method === "GET" && pathname === "/api/v1/agent/health") {
         return jsonResponse(res, 200, { status: "ok", service: "agent-host" });
       }
+
+      // ── vork 3D Raytracing Engine (Metal / Slang / OpenPBR) ────────────────
+      if (req.method === "GET" && pathname === "/api/v1/agent/vork/status") {
+        return jsonResponse(res, 200, vorkService.getStatus());
+      }
+      if (req.method === "POST" && pathname === "/api/v1/agent/vork/render") {
+        try {
+          const body = (await readBody(req)) as any;
+          const result = await vorkService.render(body || {});
+          return jsonResponse(res, 200, result);
+        } catch (vorkError: any) {
+          return jsonResponse(res, 500, {
+            success: false,
+            error: vorkError instanceof Error ? vorkError.message : String(vorkError),
+          });
+        }
+      }
       if (req.method === "POST" && ["/api/v1/agent/identity/register", "/api/v1/agent/identity/sign-in"].includes(pathname)) {
         oidc?.cancel(req.headers.cookie);
         const result = await identities.signIn(await readBody(req), pathname.endsWith("/register"), req.socket.remoteAddress ?? "local");
@@ -298,7 +319,9 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       if (req.method === "GET" && pathname === "/api/v1/agent/identity/session") return jsonResponse(res, 200, { principal: principal ?? null });
       if (req.method === "POST" && pathname === "/api/v1/agent/identity/oidc/start") {
         if (!oidc) return jsonResponse(res, 503, { error: "oidc_not_configured" });
-        if (origin !== new URL(oidc.options.callbackUrl).origin) return jsonResponse(res, 403, { error: "origin_rejected" });
+        const callbackOrigin = new URL(oidc.options.callbackUrl).origin;
+        const isAllowedOrigin = origin === callbackOrigin || (origin && opts.allowedOrigins.includes(origin)) || (origin && ["http://127.0.0.1:5173", "http://localhost:5173"].includes(origin));
+        if (!isAllowedOrigin) return jsonResponse(res, 403, { error: "origin_rejected" });
         const result = await oidc.start(await readBody(req), req.headers.cookie, req.headers["x-betterme-owner"] as string | undefined, req.socket.remoteAddress ?? "local", req.headers["user-agent"]);
         res.setHeader("Set-Cookie", result.cookie); return jsonResponse(res, 200, { url: result.url });
       }
@@ -312,6 +335,18 @@ export function createAgentServer(opts: ServerOptions): http.Server {
         await identities.signOut(req.headers.cookie); res.setHeader("Set-Cookie", identities.clearCookie());
         for (const stream of ownerStreams.get(principal.id) ?? []) stream.end();
         return jsonResponse(res, 200, { signedOut: true });
+      }
+      if (req.method === "POST" && pathname === "/api/v1/agent/sandbox/build") {
+        try {
+          const body = await readBody(req);
+          const artifact = await sandboxBuildService.build(body as SandboxBuildInput);
+          return jsonResponse(res, 200, { ok: true, app: artifact, verification: artifact.verification });
+        } catch (buildError) {
+          return jsonResponse(res, 500, {
+            ok: false,
+            error: buildError instanceof Error ? buildError.message : String(buildError),
+          });
+        }
       }
       let owner = owners.get(principal.id);
       if (!owner) { owner = makeOwner(principal); owners.set(principal.id, owner); }

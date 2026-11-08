@@ -31,6 +31,7 @@ import { LazyResumeImportModal } from "./components/LazyResumeImportModal";
 import { useConfirm } from "./components/ConfirmationDialog";
 import { OpportunityWorkspace, type OpportunitySeed } from "./components/OpportunityWorkspace";
 import { ResourceLibrary } from "./components/ResourceLibrary";
+import { AutopilotStudioWorkspace } from "./components/AutopilotStudioWorkspace";
 import { addResumeView, duplicateResumeView, removeResumeView, resumeNamesByOpportunity } from "./lib/resume-views";
 import type { Opportunity, OpportunityMaterial } from "./lib/opportunities";
 import { useDocumentPersistence } from "./lib/useDocumentPersistence";
@@ -73,9 +74,9 @@ export function App() {
   const { doc, ready, loadError, status, update, replace, restoreField, checkpoint, protectEdit, flush, history, autoSaveSettings, setAutoSaveSettings, autoSavePreferenceError } = useDocumentPersistence();
   const [workspaceTab, setWorkspaceTab] = useState<"content" | "design">("content");
   const [focused, setFocused] = useState(false);
-  const [page, updatePage] = useState<"resume" | "opportunities" | "resources" | "atlas" | "agent">(() => {
+  const [page, updatePage] = useState<"resume" | "opportunities" | "resources" | "atlas" | "agent" | "autopilot">(() => {
     const ws = new URLSearchParams(window.location.search).get("workspace");
-    return ws === "atlas" ? "atlas" : ws === "agent" ? "agent" : "resume";
+    return ws === "atlas" ? "atlas" : ws === "agent" ? "agent" : ws === "autopilot" ? "autopilot" : "resume";
   });
   const [atlasInitialized, setAtlasInitialized] = useState(page === "atlas");
   function setPage(next: typeof page) {
@@ -396,7 +397,7 @@ export function App() {
     <AgentSourceBridge sources={agentSources} />
     <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".json" className="hidden" />
     <div className="studio-workspace">
-      {page !== "resume" && page !== "agent" && page !== "atlas" && <header className="studio-header no-print"><AgentTopBarStatus config={llmConfig} active={false} onNavigateToAgent={() => setPage("agent")} onOpenAiConfig={() => openSystemSettings("connections")} /></header>}
+      {page !== "resume" && page !== "agent" && page !== "atlas" && page !== "autopilot" && <header className="studio-header no-print"><AgentTopBarStatus config={llmConfig} active={false} onNavigateToAgent={() => setPage("agent")} onOpenAiConfig={() => openSystemSettings("connections")} /></header>}
       <div className="resume-workspace-body" hidden={page !== "resume"} onMouseUpCapture={captureResumeTextSelection} onKeyUpCapture={captureResumeTextSelection}>
       {resumeSelectionReference && <div className="no-print flex items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-4 py-2 text-[11px] text-emerald-950">
         <MessageSquare size={14} className="shrink-0 text-emerald-700" />
@@ -497,7 +498,14 @@ export function App() {
       {atlasInitialized && <div className="secondary-workspace no-print" hidden={page !== "atlas"}><Suspense fallback={<div className="studio-loading"><Loader2 className="animate-spin" />{t("正在加载岗位地图…", "Loading opportunity atlas…")}</div>}><AtlasWorkspace resume={projected} factBase={doc.factBase} agentConfig={llmConfig} onAskAgentAboutHarvest={setAgentCompanionPrompt} onOpenOpportunitySources={() => setPage("opportunities")} active={page === "atlas"} onSaveOpportunity={(seed) => { setOpportunitySeed(seed); setPage("opportunities"); }} onAnalyze={(item) => { const parts = item.title.split(" · "); const company = (parts.length > 1 && parts[0]) ? parts[0] : ""; const title = parts.length > 1 ? parts.slice(1).join(" · ") : item.title; openAgentWorkspace({ title: title || "目标岗位", company: company || "目标企业", description: item.text ?? "", sourceUrl: item.url, sourcePlatform: item.platform }); }} /></Suspense></div>}
       <div className="secondary-workspace no-print" hidden={page !== "resources"}><ResourceLibrary /></div>
       <div className="secondary-workspace no-print" hidden={page !== "agent"}><AgentWorkspace workspaceKey={activeResume?.id ?? "default"} active={page === "agent"} job={agentDrawerJob} resume={projected} resumeEditContext={resumeEditContext} onApplyResumeProposal={handleApplyResumeProposal} llmConfig={llmConfig} onOpenConfig={() => openSystemSettings("connections")} onNavigateToResume={() => { setPage("resume"); setWorkspaceTab("content"); }} onApplyToResume={handleApplyCustomResume} onSaveOpportunity={(job) => { setOpportunitySeed({ token: crypto.randomUUID(), title: job.title, description: job.description, sourceUrl: job.sourceUrl, sourcePlatform: job.sourcePlatform }); setPage("opportunities"); }} /></div>
-      <footer className="studio-footer no-print"><span><ShieldCheck size={12} />{t("资料存于本机 · 真实经历由你核实", "Stored on this device · You verify your experience")}</span><span>{page === "resume" ? t(`${autoSaveDescription} · Ctrl + S 立即保存`, `${autoSaveDescription} · Ctrl + S to save now`) : page === "opportunities" ? t("岗位信息与跟进需点击保存", "Click Save to keep job details and follow-ups") : page === "atlas" ? t("地图、列表与统计使用同一查询 · 来源与事实需核实", "Map, list and statistics share one query · Verify source facts") : page === "agent" ? t("本地 Agent 编排 · 逐条核实履历 · 真实推理由你掌控", "Local Agent orchestration · Verify claims item-by-item · Full user control") : t("查看原始出处，按需使用资料", "Visit original sources and use resources as needed")}</span></footer>
+      <div className="secondary-workspace no-print" hidden={page !== "autopilot"}>
+        <AutopilotStudioWorkspace
+          factBase={doc.factBase}
+          resume={projected}
+          onOpenMicroApp={app => window.dispatchEvent(new window.CustomEvent("betterme:open-micro-app", { detail: app }))}
+        />
+      </div>
+      <footer className="studio-footer no-print"><span><ShieldCheck size={12} />{t("资料存于本机 · 真实经历由你核实", "Stored on this device · You verify your experience")}</span><span>{page === "resume" ? t(`${autoSaveDescription} · Ctrl + S 立即保存`, `${autoSaveDescription} · Ctrl + S to save now`) : page === "opportunities" ? t("岗位信息与跟进需点击保存", "Click Save to keep job details and follow-ups") : page === "atlas" ? t("地图、列表与统计使用同一查询 · 来源与事实需核实", "Map, list and statistics share one query · Verify source facts") : page === "agent" ? t("本地 Agent 编排 · 逐条核实履历 · 真实推理由你掌控", "Local Agent orchestration · Verify claims item-by-item · Full user control") : page === "autopilot" ? t("多岗位队列 (Prefetch=2) · 投递后异步挂起 · Offer 全网背调 · 三层沙箱微应用", "Multi-job queue (Prefetch=2) · Async hibernation · Offer reverse due diligence · 3-layer sandboxed micro-apps") : t("查看原始出处，按需使用资料", "Visit original sources and use resources as needed")}</span></footer>
     </div></div></DesktopShell>
     <div className="no-print">
       <NetworkSettingsModal isOpen={isNetworkSettingsOpen} onClose={() => setIsNetworkSettingsOpen(false)} />

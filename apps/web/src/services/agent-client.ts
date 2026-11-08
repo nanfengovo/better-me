@@ -31,7 +31,7 @@ export interface StructuredJd {
 }
 
 export interface AgentActionCard {
-  type: "company_card" | "resume_proposal" | "job_match" | "interview_defense";
+  type: "company_card" | "resume_proposal" | "job_match" | "interview_defense" | "badge_3d";
   companyName?: string;
   ownership?: string;
   jurisdiction?: string;
@@ -55,6 +55,9 @@ export interface AgentActionCard {
   gapItem?: string;
   strategy?: string;
   sampleAnswer?: string;
+  style?: "quantum_prism" | "cyber_neon" | "sunset_solitude";
+  imageUrl?: string;
+  renderDurationMs?: number;
 }
 
 export type AgentResponseSource = "agent-host" | "browser-direct";
@@ -708,6 +711,7 @@ function isActionCard(value: unknown): value is AgentActionCard {
     && (value.targetRef === undefined || isResumeProposalTarget(value.targetRef));
   if (value.type === "job_match") return isNonEmptyString(value.title) && isNonEmptyString(value.company) && isNonEmptyString(value.highlight);
   if (value.type === "interview_defense") return isNonEmptyString(value.gapItem) && isNonEmptyString(value.strategy) && isNonEmptyString(value.sampleAnswer);
+  if (value.type === "badge_3d") return isNonEmptyString(value.title) && isNonEmptyString(value.highlight);
   return false;
 }
 
