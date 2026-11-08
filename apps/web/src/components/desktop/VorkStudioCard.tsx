@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sparkles, Cpu, Play, CheckCircle2, AlertCircle, Loader2, RefreshCw } from "lucide-react";
+import { Sparkles, Play, CheckCircle2, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import {
   fetchVorkStatus,
   triggerVorkRender,
@@ -163,7 +163,7 @@ export function VorkStudioCard({ onApplied }: VorkStudioCardProps) {
               value={`${resolution[0]}x${resolution[1]}`}
               onChange={(e) => {
                 const [w, h] = e.target.value.split("x").map(Number);
-                setResolution([w, h]);
+                setResolution([w ?? 1920, h ?? 1080]);
               }}
               className="os-vork-select"
               disabled={rendering}

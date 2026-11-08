@@ -68,11 +68,12 @@ export function IdentityGate({ children }: { children: ReactNode }) {
     } catch (failure) { setError(failure instanceof Error ? failure.message : "登录未完成，请重试。"); }
     finally { setBusy(false); }
   }
+  const isElectron = typeof window !== "undefined" && Boolean((window as any).desktopApi?.isElectron);
   const locked = !ready || !user || expired;
   return <>
     {user && <div ref={workspace} tabIndex={-1} hidden={locked} inert={locked || !bootDone}>{children}</div>}
     {!locked && !bootDone && <WorkspaceBoot onComplete={finishBoot} />}
-    {locked && <main className="identity-screen"><div className="login-layout"><LoginShowcase /><div className="login-form-panel"><LoginPreferences /><section className="identity-card" aria-labelledby="identity-title">
+    {locked && <main className="identity-screen" data-electron={isElectron}><div className="login-layout"><LoginShowcase /><div className="login-form-panel"><LoginPreferences /><section className="identity-card" aria-labelledby="identity-title">
       <span className="identity-mark"><LockKeyhole size={19} /></span>
       <h1 id="identity-title">{!ready ? t("正在连接工作空间…", "Connecting to your workspace…") : expired ? t("重新连接你的工作空间", "Reconnect your workspace") : register ? t("开启你的下一步", "Begin your next chapter") : t("欢迎回来", "Welcome back")}</h1>
       <p className="login-intro">{register ? t("创建独立账号，从一份好简历开始。", "Create your account. Start with a great resume.") : t("登录 BetterMe，继续你的职业旅程。", "Sign in to BetterMe. Continue your career journey.")}</p>

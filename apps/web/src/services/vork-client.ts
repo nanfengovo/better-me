@@ -69,7 +69,7 @@ export async function triggerVorkRender(options: {
   }
 
   // Convert base64 dataUrl to Blob
-  const base64Data = data.dataUrl.split(",")[1];
+  const base64Data = data.dataUrl.split(",")[1] ?? "";
   const binaryString = atob(base64Data);
   const len = binaryString.length;
   const bytes = new Uint8Array(len);
