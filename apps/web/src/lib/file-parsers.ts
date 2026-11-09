@@ -1,11 +1,13 @@
-import * as pdfjsLib from "pdfjs-dist";
-import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import mammoth from "mammoth";
 import { readResumeImage, resolveImageCrop } from "./resume-image";
 import { reflowPdfText } from "./pdf-text";
 
 // Register the worker as a Vite asset so linked dependencies are served safely
 // in development and the matching, local worker is emitted for production.
+// Keep both builds legacy: desktop Chromium may lack newer typed-array APIs,
+// and compatibility polyfills in the page do not cover a separate worker realm.
 if (typeof window !== "undefined") {
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 }

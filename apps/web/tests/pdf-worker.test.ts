@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { access, mkdtemp, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -10,7 +10,7 @@ import { createServer, build, normalizePath } from "vite";
 const webRoot = fileURLToPath(new URL("../", import.meta.url));
 const repositoryRoot = path.resolve(webRoot, "../..");
 const require = createRequire(import.meta.url);
-const workerPath = require.resolve("pdfjs-dist/build/pdf.worker.min.mjs");
+const workerPath = require.resolve("pdfjs-dist/legacy/build/pdf.worker.min.mjs");
 
 test("PDF worker remains readable with linked dependencies and a restricted Vite filesystem", async () => {
   const cacheDir = await mkdtemp(path.join(tmpdir(), "betterme-pdf-worker-"));
@@ -39,7 +39,9 @@ test("PDF worker remains readable with linked dependencies and a restricted Vite
     assert.match(await worker.text(), /WorkerMessageHandler/);
     // A URL import must not open the whole linked package or its parent directory.
     if (!workerPath.startsWith(`${repositoryRoot}${path.sep}`)) {
-      const adjacentPath = normalizePath(path.resolve(workerPath, "../../README.md")).replace(/^\/+/, "");
+      const adjacentTarget = path.join(path.dirname(require.resolve("pdfjs-dist/package.json")), "README.md");
+      await access(adjacentTarget); // A missing file may return the SPA fallback instead of exercising the filesystem guard.
+      const adjacentPath = normalizePath(adjacentTarget).replace(/^\/+/, "");
       const adjacent = await fetch(`${origin}/@fs/${encodeURI(adjacentPath)}`);
       assert.equal(adjacent.status, 403);
     }
