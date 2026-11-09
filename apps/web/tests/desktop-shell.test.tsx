@@ -6,7 +6,12 @@ import { setImmediate as nextTurn, setTimeout as delay } from "node:timers/promi
 import { Window } from "happy-dom";
 import "fake-indexeddb/auto";
 
-const dom = new Window({ url: "http://desktop-fixture.invalid" });
+const dom = new Window({ url: "http://desktop-fixture.invalid", width: 1280, height: 900 });
+const defaultDesktopPreferences = {
+  dockPosition: "bottom", dockSize: 48, dockMagnification: true, dockMagScale: 1.45,
+  dockOpacity: 0.85, dockBlur: 24, dockAutoHide: true, wallpaperOpacity: 1,
+  wallpaperBlur: 0, windowOpacity: 0.92, windowBlur: 24, menuOpacity: 0.9,
+};
 const React = await import("react");
 const globals = { window: dom, document: dom.document, navigator: dom.navigator, localStorage: dom.localStorage, HTMLElement: dom.HTMLElement, Element: dom.Element, React, IS_REACT_ACT_ENVIRONMENT: true, requestAnimationFrame: dom.requestAnimationFrame.bind(dom), cancelAnimationFrame: dom.cancelAnimationFrame.bind(dom) };
 const descriptors = new Map(Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -23,17 +28,41 @@ function button(label: string) {
   assert.ok(element, `Missing button: ${label}`); return element;
 }
 async function click(label: string) { await flush(() => button(label).click()); }
+function mockWindowRect(win: HTMLElement, left: number, top: number, width: number, height: number) {
+  let measured = false;
+  Object.defineProperty(win, "getBoundingClientRect", { configurable: true, value: () => {
+    if (!measured || win.dataset.snapMode !== "custom") {
+      measured = true;
+      return new dom.DOMRect(left, top, width, height);
+    }
+    const stage = win.parentElement!.getBoundingClientRect();
+    return new dom.DOMRect(stage.left + Number.parseFloat(win.style.getPropertyValue("--window-x")), stage.top + Number.parseFloat(win.style.getPropertyValue("--window-y")), Number.parseFloat(win.style.getPropertyValue("--window-width")), Number.parseFloat(win.style.getPropertyValue("--window-height")));
+  } });
+}
+function mockPointerCapture(element: HTMLElement) {
+  const captured = new Set<number>();
+  Object.defineProperties(element, {
+    setPointerCapture: { configurable: true, value: (id: number) => captured.add(id) },
+    hasPointerCapture: { configurable: true, value: (id: number) => captured.has(id) },
+    releasePointerCapture: { configurable: true, value: (id: number) => captured.delete(id) },
+  });
+  return captured;
+}
 async function mount() {
   function Harness() {
     const [page, setPage] = React.useState<"resume" | "agent" | "opportunities" | "resources" | "atlas" | "autopilot">("resume");
     const [draft, setDraft] = React.useState("合成草稿");
+    React.useLayoutEffect(() => {
+      const stage = dom.document.querySelector<HTMLElement>(".os-stage")!;
+      Object.defineProperty(stage, "getBoundingClientRect", { configurable: true, value: () => new dom.DOMRect(0, 34, dom.innerWidth, dom.innerHeight - 34) });
+    }, []);
     return h(DesktopShell, { page, onNavigate: setPage, onDesign() {}, onHistory() {}, onAiConfig() { aiOpens++; }, onNetwork() { networkOpens++; } },
       h("textarea", { "aria-label": "合成编辑器", value: draft, onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => setDraft(event.target.value) }), h("output", null, page));
   }
   const host = dom.document.createElement("div"); dom.document.body.append(host); root = createRoot(host);
   await flush(() => root!.render(h(UiPreferencesProvider, null, h(Harness))));
 }
-afterEach(async () => { if (root) await flush(() => root!.unmount()); root = undefined; dom.document.body.replaceChildren(); dom.localStorage.clear(); aiOpens = 0; networkOpens = 0; });
+afterEach(async () => { if (root) await flush(() => root!.unmount()); root = undefined; dom.document.body.replaceChildren(); dom.localStorage.clear(); dom.happyDOM.setWindowSize({ width: 1280, height: 900 }); aiOpens = 0; networkOpens = 0; });
 after(() => { css.deregister(); dom.happyDOM.abort(); for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } });
 
 test("atlas and jobs share the app menu and have independent Dock entries without resume actions", async () => {
@@ -53,7 +82,7 @@ test("atlas and jobs share the app menu and have independent Dock entries withou
   assert.doesNotMatch(dom.document.querySelector(".os-window-actions")!.textContent!, /排版设计|版本/);
 });
 
-test("all apps and settings initially open maximized", async () => {
+test("apps initially open maximized while settings use the centered nonmodal layout", async () => {
   await mount();
   const win = dom.document.querySelector(".os-business-window")!;
   assert.ok(win.classList.contains("is-maximized"));
@@ -62,18 +91,23 @@ test("all apps and settings initially open maximized", async () => {
     assert.ok(win.classList.contains("is-maximized"));
   }
   await click("打开系统设置");
-  assert.ok(dom.document.querySelector(".os-settings-window")!.classList.contains("is-maximized"));
-  assert.equal(dom.document.querySelectorAll(".os-resize-handle").length, 0);
+  const settings = dom.document.querySelector<HTMLElement>(".os-settings-window")!;
+  assert.equal(settings.dataset.snapMode, "centered");
+  assert.equal(settings.classList.contains("is-maximized"), false);
+  assert.equal(settings.hasAttribute("inert"), false);
+  assert.equal(win.querySelectorAll(".os-resize-handle").length, 8);
+  assert.equal(settings.querySelectorAll(".os-resize-handle").length, 8);
+  assert.equal(dom.document.activeElement, settings.querySelector(".os-traffic button"));
 });
 
-test("Agent can resize directly from maximized without losing its draft", async () => {
+test("synthetic resize events detach maximized Agent geometry without losing its draft", async () => {
   await mount(); await click("Agent");
   const win = dom.document.querySelector<HTMLElement>(".os-business-window")!;
   const editor = dom.document.querySelector("textarea");
   assert.equal(win.querySelectorAll(".os-resize-handle").length, 8);
-  Object.defineProperty(win, "getBoundingClientRect", { value: () => ({ left: 0, top: 34, right: 840, bottom: 826, width: 840, height: 792 }) });
+  mockWindowRect(win, 8, 44, 840, 792);
   const handle = win.querySelector<HTMLElement>(".os-resize-se")!;
-  Object.defineProperty(handle, "setPointerCapture", { value: () => {} });
+  const capture = mockPointerCapture(handle);
   await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 1, clientX: 838, clientY: 824 })));
   await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, pointerId: 1, clientX: 638, clientY: 624 })));
   assert.equal(win.classList.contains("is-maximized"), false);
@@ -81,6 +115,7 @@ test("Agent can resize directly from maximized without losing its draft", async 
   assert.equal(win.style.getPropertyValue("--window-height"), "592px");
   await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointerup", { bubbles: true, pointerId: 1 })));
   assert.equal(win.dataset.resizing, "false");
+  assert.equal(capture.size, 0);
   await click("最大化窗口");
   assert.ok(win.classList.contains("is-maximized"));
   assert.equal(dom.document.querySelector("textarea"), editor);
@@ -100,10 +135,18 @@ test("task links open one settings window at the requested section without alter
   assert.equal(aiOpens, 0); assert.equal(networkOpens, 0);
 });
 
-test("desktop preferences accept only supported values and preserve legacy defaults", () => {
+test("desktop preferences reject invalid flags and resolve wallpaper tokens only as local assets", async () => {
   assert.deepEqual(parseUiPreferences('{"locale":"en","theme":"dark"}'), { locale: "en", theme: "dark" });
   assert.deepEqual(parseUiPreferences('{"dockAutoHide":false,"reduceMotion":true,"wallpaper":"midnight"}'), { locale: "zh", theme: "light", dockAutoHide: false, reduceMotion: true, wallpaper: "midnight" });
-  assert.deepEqual(parseUiPreferences('{"dockAutoHide":"false","reduceMotion":1,"wallpaper":"javascript:alert(1)"}'), { locale: "zh", theme: "light" });
+  assert.deepEqual(parseUiPreferences('{"dockAutoHide":"false","reduceMotion":1,"wallpaper":42,"apiKey":"ignored"}'), { locale: "zh", theme: "light" });
+  const raw = '{"dockAutoHide":"false","reduceMotion":1,"wallpaper":"javascript:alert(1)"}';
+  assert.deepEqual(parseUiPreferences(raw), { locale: "zh", theme: "light", wallpaper: "javascript:alert(1)" });
+  dom.localStorage.setItem(UI_PREFERENCES_KEY, raw);
+  await mount();
+  const image = dom.document.querySelector<HTMLImageElement>(".os-wallpaper img")!;
+  assert.equal(image.getAttribute("src"), "/wallpapers/javascript:alert(1).jpg");
+  assert.equal(new URL(image.src).origin, "http://desktop-fixture.invalid");
+  assert.equal(new URL(image.src).protocol, "http:");
 });
 test("minimizing, restoring and navigating keep the same mounted editor node", async () => {
   await mount();
@@ -134,10 +177,14 @@ test("settings manage real preferences and restore focus without unmounting busi
   await mount();
   const editor = dom.document.querySelector("textarea");
   await click("打开系统设置");
-  assert.equal(dom.document.querySelector(".os-business-window")!.hasAttribute("inert"), true);
-  await click("深色"); await click("桌面与 Dock"); await click("自动隐藏 Dock"); await click("暮色");
+  assert.equal(dom.document.querySelector(".os-business-window")!.hasAttribute("inert"), false);
+  assert.equal(dom.document.activeElement, dom.document.querySelector(".os-settings-window .os-traffic button"));
+  await click("深色"); await click("桌面与 Dock"); await click("自动隐藏 Dock");
+  const midnight = [...dom.document.querySelectorAll(".os-wallpaper-card-title")].find(title => title.textContent === "原厂 · 暮色");
+  assert.ok(midnight, "the classic Midnight wallpaper must remain selectable");
+  await flush(() => midnight.closest<HTMLButtonElement>("button")!.click());
   await click("辅助功能"); await click("减少动态效果");
-  assert.deepEqual(JSON.parse(dom.localStorage.getItem(UI_PREFERENCES_KEY)!), { locale: "zh", theme: "dark", dockAutoHide: false, wallpaper: "midnight", reduceMotion: true });
+  assert.deepEqual(JSON.parse(dom.localStorage.getItem(UI_PREFERENCES_KEY)!), { ...defaultDesktopPreferences, locale: "zh", theme: "dark", dockAutoHide: false, wallpaper: "midnight", reduceMotion: true });
   assert.equal(dom.document.querySelector(".os-desktop")!.getAttribute("data-reduced-motion"), "true");
   await click("关闭系统设置窗口");
   assert.equal(dom.document.querySelector(".os-business-window")!.hasAttribute("inert"), false);
@@ -225,45 +272,67 @@ test("window maximize and restore do not replace the editor", async () => {
   assert.equal(dom.document.querySelector(".os-business-window")!.classList.contains("is-maximized"), true);
   assert.equal(dom.document.querySelector("textarea"), editor);
 });
-test("dragging stays inside viewport bounds, ends on release and resets after resizing", async () => {
+test("dragging stays inside viewport bounds and owned gestures stop on release, cancel, blur and viewport resize", async () => {
   await mount();
   await click("还原窗口大小");
   const window = dom.document.querySelector<HTMLElement>(".os-business-window")!;
   const toolbar = window.querySelector<HTMLElement>(".os-window-toolbar")!;
-  Object.defineProperty(window, "getBoundingClientRect", { value: () => ({ left: 24, top: 56, right: dom.innerWidth - 24, bottom: dom.innerHeight - 42 }) });
-  Object.defineProperty(toolbar, "setPointerCapture", { value: () => {} });
-  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointerdown", { bubbles: true, button: 0, clientX: 400, clientY: 70 })));
-  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, clientX: 4000, clientY: 4000 })));
-  assert.equal(window.style.getPropertyValue("--window-x"), "16px");
-  assert.equal(window.style.getPropertyValue("--window-y"), "42px");
-  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointerup", { bubbles: true })));
-  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, clientX: -4000, clientY: -4000 })));
-  assert.equal(window.style.getPropertyValue("--window-x"), "16px");
+  mockWindowRect(window, 24, 56, 800, 600);
+  const capture = mockPointerCapture(toolbar);
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 7, clientX: 400, clientY: 70 })));
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, pointerId: 8, clientX: 4000, clientY: 4000 })));
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointercancel", { bubbles: true, pointerId: 8 })));
+  assert.equal(window.dataset.dragging, "true");
+  assert.equal(window.dataset.snapMode, "centered");
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, pointerId: 7, clientX: 4000, clientY: 4000 })));
+  assert.equal(window.style.getPropertyValue("--window-x"), "350px");
+  assert.equal(window.style.getPropertyValue("--window-y"), "226px");
+  assert.equal(window.style.getPropertyValue("--window-width"), "922px");
+  assert.equal(window.style.getPropertyValue("--window-height"), "640px");
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointerup", { bubbles: true, pointerId: 7 })));
+  assert.equal(capture.size, 0);
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, pointerId: 7, clientX: -4000, clientY: -4000 })));
+  assert.equal(window.style.getPropertyValue("--window-x"), "350px");
   const maximize = window.querySelector<HTMLButtonElement>(".os-traffic button:nth-child(3)")!;
   await flush(() => maximize.click());
   await flush(() => maximize.click());
-  assert.equal(window.style.getPropertyValue("--window-x"), "16px");
-  assert.equal(window.style.getPropertyValue("--window-y"), "42px");
-  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointerdown", { bubbles: true, button: 0, clientX: 400, clientY: 70 })));
+  assert.equal(window.dataset.snapMode, "custom");
+  assert.equal(window.style.getPropertyValue("--window-x"), "350px");
+  assert.equal(window.style.getPropertyValue("--window-y"), "226px");
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 7, clientX: 400, clientY: 270 })));
   assert.equal(window.dataset.dragging, "true");
   await flush(() => dom.dispatchEvent(new dom.Event("blur")));
   assert.equal(window.dataset.dragging, "false");
-  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, clientX: -4000, clientY: -4000 })));
-  assert.equal(window.style.getPropertyValue("--window-x"), "16px");
-  await flush(() => dom.dispatchEvent(new dom.Event("resize")));
-  assert.equal(window.style.getPropertyValue("--window-x"), "0px");
-  assert.equal(window.style.getPropertyValue("--window-y"), "0px");
+  assert.equal(capture.size, 0);
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, pointerId: 7, clientX: -4000, clientY: -4000 })));
+  assert.equal(window.style.getPropertyValue("--window-x"), "350px");
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 7, clientX: 400, clientY: 270 })));
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, pointerId: 7, clientX: -4000, clientY: 270 })));
+  assert.ok(dom.document.querySelector(".os-snap-guide.is-left"));
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointercancel", { bubbles: true, pointerId: 7 })));
+  assert.equal(window.dataset.snapMode, "custom", "cancellation must not adopt the snap preview");
+  assert.equal(dom.document.querySelector(".os-snap-guide"), null);
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 7, clientX: 400, clientY: 270 })));
+  await flush(() => { dom.happyDOM.setWindowSize({ width: 640, height: 500 }); dom.dispatchEvent(new dom.Event("resize")); });
+  assert.equal(window.dataset.dragging, "false");
+  assert.equal(capture.size, 0);
+  assert.equal(window.style.getPropertyValue("--window-x"), "8px");
+  assert.equal(window.style.getPropertyValue("--window-y"), "4px");
+  assert.equal(window.style.getPropertyValue("--window-width"), "624px");
+  assert.equal(window.style.getPropertyValue("--window-height"), "462px");
+  await flush(() => toolbar.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, pointerId: 7, clientX: 4000, clientY: 4000 })));
+  assert.equal(window.style.getPropertyValue("--window-x"), "8px");
 });
 test("restored windows expose eight resize handles and preserve dimensions across maximize", async () => {
   await mount();
-  await flush(() => { for (const control of dom.document.querySelectorAll<HTMLButtonElement>(".os-traffic button:nth-child(3)")) control.click(); });
+  await flush(() => dom.document.querySelector<HTMLButtonElement>(".os-business-window .os-traffic button:nth-child(3)")!.click());
   const win = dom.document.querySelector<HTMLElement>(".os-business-window")!;
   const editor = dom.document.querySelector("textarea");
-  Object.defineProperty(win, "getBoundingClientRect", { value: () => ({ left: 40, top: 60, right: 640, bottom: 560, width: 600, height: 500 }) });
+  mockWindowRect(win, 40, 60, 600, 500);
   assert.equal(win.querySelectorAll(".os-resize-handle").length, 8);
   assert.equal(dom.document.querySelectorAll(".os-settings-window .os-resize-handle").length, 8);
   const handle = win.querySelector<HTMLElement>(".os-resize-se")!;
-  Object.defineProperty(handle, "setPointerCapture", { value: () => {} });
+  mockPointerCapture(handle);
   await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 1, clientX: 640, clientY: 560 })));
   await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, pointerId: 1, clientX: 540, clientY: 460 })));
   assert.equal(win.style.getPropertyValue("--window-width"), "500px");
@@ -275,7 +344,8 @@ test("restored windows expose eight resize handles and preserve dimensions acros
   assert.equal(win.dataset.resizing, "false");
   const maximize = win.querySelector<HTMLButtonElement>(".os-traffic button:nth-child(3)")!;
   await flush(() => maximize.click());
-  assert.equal(win.querySelectorAll(".os-resize-handle").length, 0);
+  assert.equal(win.dataset.snapMode, "maximized");
+  assert.equal(win.querySelectorAll(".os-resize-handle").length, 8, "handles remain mounted; CSS controls maximized visibility");
   await flush(() => maximize.click());
   assert.equal(win.style.getPropertyValue("--window-width"), "420px");
   assert.equal(dom.document.querySelector("textarea"), editor);
@@ -283,11 +353,20 @@ test("restored windows expose eight resize handles and preserve dimensions acros
   assert.equal(win.dataset.sized, "false");
   await click("简历");
   assert.equal(win.style.getPropertyValue("--window-width"), "420px");
-  await flush(() => win.querySelector(".os-resize-nw")!.dispatchEvent(new dom.KeyboardEvent("keydown", { bubbles: true, key: "ArrowRight" })));
-  assert.equal(win.style.getPropertyValue("--window-width"), "590px");
-  assert.equal(win.style.getPropertyValue("--window-x"), "10px");
+  const key = new dom.KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowLeft" });
+  await flush(() => win.querySelector(".os-resize-nw")!.dispatchEvent(key));
+  assert.equal(key.defaultPrevented, true);
+  assert.equal(win.style.getPropertyValue("--window-width"), "430px");
+  assert.equal(win.style.getPropertyValue("--window-x"), "30px");
+  await flush(() => handle.dispatchEvent(new dom.KeyboardEvent("keydown", { bubbles: true, key: "ArrowRight", shiftKey: true })));
+  assert.equal(win.style.getPropertyValue("--window-width"), "470px");
+  const unrelatedKey = new dom.KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" });
+  await flush(() => handle.dispatchEvent(unrelatedKey));
+  assert.equal(unrelatedKey.defaultPrevented, false);
   await flush(() => dom.dispatchEvent(new dom.Event("resize")));
-  assert.equal(win.dataset.sized, "false");
+  assert.equal(win.dataset.sized, "true");
+  assert.equal(win.dataset.snapMode, "custom");
+  assert.equal(win.style.getPropertyValue("--window-width"), "470px");
 });
 
 test("bottom resize handles can grow into Dock clearance and stop flush with the screen edge", async () => {
@@ -296,20 +375,117 @@ test("bottom resize handles can grow into Dock clearance and stop flush with the
   for (const edge of ["s", "se", "sw"]) {
     const win = dom.document.querySelector<HTMLElement>(".os-business-window")!;
     const bottom = dom.innerHeight - 92;
-    Object.defineProperty(win, "getBoundingClientRect", { configurable: true, value: () => ({ left: 40, top: 60, right: 640, bottom, width: 600, height: bottom - 60 }) });
+    mockWindowRect(win, 40, 60, 600, bottom - 60);
     const handle = win.querySelector<HTMLElement>(`.os-resize-${edge}`)!;
-    Object.defineProperty(handle, "setPointerCapture", { value: () => {} });
+    mockPointerCapture(handle);
     await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 3, clientX: 640, clientY: bottom })));
     await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, pointerId: 3, clientX: 640, clientY: bottom + 40 })));
     assert.equal(win.style.getPropertyValue("--window-height"), `${bottom + 40 - 60}px`, `${edge} must grow beyond the old Dock boundary`);
-    assert.equal(win.style.getPropertyValue("--window-y"), "0px");
+    assert.equal(win.style.getPropertyValue("--window-y"), "26px", "position is relative to the stage below the 34px menu bar");
     await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, pointerId: 3, clientX: 640, clientY: dom.innerHeight + 1000 })));
     assert.equal(win.style.getPropertyValue("--window-height"), `${dom.innerHeight - 60}px`, `${edge} must reach the screen bottom without a gap or overflow`);
     await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointerup", { bubbles: true, pointerId: 3 })));
     assert.equal(win.dataset.resizing, "false");
+    await flush(() => handle.dispatchEvent(new dom.KeyboardEvent("keydown", { bubbles: true, key: "ArrowUp", shiftKey: true })));
+    assert.equal(win.style.getPropertyValue("--window-height"), `${dom.innerHeight - 100}px`, "Shift keyboard resizing uses a 40px step");
     await flush(() => handle.dispatchEvent(new dom.KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown", shiftKey: true })));
-    assert.equal(win.style.getPropertyValue("--window-height"), `${bottom + 40 - 60}px`, "Keyboard resizing uses the same boundary");
+    assert.equal(win.style.getPropertyValue("--window-height"), `${dom.innerHeight - 60}px`, "Keyboard resizing uses the same screen-bottom boundary");
   }
+});
+
+test("resize ownership survives wrong pointers and stops on lost capture, app changes, hiding and unmount", async () => {
+  await mount(); await click("还原窗口大小");
+  const win = dom.document.querySelector<HTMLElement>(".os-business-window")!;
+  const editor = dom.document.querySelector("textarea");
+  mockWindowRect(win, 40, 60, 600, 500);
+  const handle = win.querySelector<HTMLElement>(".os-resize-se")!;
+  const capture = mockPointerCapture(handle);
+  const pointer = (type: string, id: number, x = 640, y = 560) => handle.dispatchEvent(new dom.PointerEvent(type, { bubbles: true, button: 0, pointerId: id, clientX: x, clientY: y }));
+  await flush(() => pointer("pointerdown", 71));
+  await flush(() => pointer("pointermove", 71, 740, 610));
+  const resized = dom.localStorage.getItem("betterme.window.layouts.v2");
+  await flush(() => pointer("pointercancel", 72));
+  await flush(() => pointer("pointermove", 72, -4000, -4000));
+  assert.equal(win.dataset.resizing, "true");
+  assert.equal(capture.has(71), true);
+  assert.equal(dom.localStorage.getItem("betterme.window.layouts.v2"), resized);
+  await flush(() => pointer("lostpointercapture", 71));
+  assert.equal(win.dataset.resizing, "false");
+  assert.equal(capture.size, 0);
+  await flush(() => pointer("pointermove", 71, 4000, 4000));
+  assert.equal(dom.localStorage.getItem("betterme.window.layouts.v2"), resized);
+
+  await flush(() => pointer("pointerdown", 73, 740, 610));
+  await flush(() => pointer("pointermove", 73, 760, 630));
+  await click("Agent");
+  assert.equal(win.dataset.layoutKey, "agent");
+  assert.equal(win.dataset.snapMode, "maximized");
+  assert.equal(win.dataset.resizing, "false");
+  assert.equal(capture.size, 0);
+  await flush(() => pointer("pointermove", 73, 4000, 4000));
+  assert.equal(win.style.getPropertyValue("--window-width"), "1000px");
+  assert.equal(JSON.parse(dom.localStorage.getItem("betterme.window.layouts.v2")!).agent, undefined);
+  await click("简历");
+  assert.equal(win.style.getPropertyValue("--window-width"), "720px");
+  assert.equal(dom.document.querySelector("textarea"), editor);
+
+  await flush(() => pointer("pointerdown", 74, 760, 630));
+  await click("最小化简历工作室");
+  const hidden = dom.localStorage.getItem("betterme.window.layouts.v2");
+  assert.equal(win.dataset.hidden, "true");
+  assert.equal(win.dataset.resizing, "false");
+  assert.equal(capture.size, 0);
+  await flush(() => pointer("pointermove", 74, 4000, 4000));
+  assert.equal(dom.localStorage.getItem("betterme.window.layouts.v2"), hidden);
+  await click("简历");
+  assert.equal(dom.document.querySelector("textarea"), editor);
+  assert.equal(editor!.value, "合成草稿");
+
+  await flush(() => pointer("pointerdown", 75, 760, 630));
+  const beforeUnmount = dom.localStorage.getItem("betterme.window.layouts.v2");
+  await flush(() => root!.unmount()); root = undefined;
+  assert.equal(capture.size, 0);
+  await flush(() => pointer("pointermove", 75, 4000, 4000));
+  assert.equal(dom.localStorage.getItem("betterme.window.layouts.v2"), beforeUnmount);
+});
+
+test("viewport clamping fits narrow screens without negative sizes and cancels an active resize", async () => {
+  await mount(); await click("还原窗口大小");
+  const win = dom.document.querySelector<HTMLElement>(".os-business-window")!;
+  mockWindowRect(win, 40, 60, 600, 500);
+  const handle = win.querySelector<HTMLElement>(".os-resize-se")!;
+  const capture = mockPointerCapture(handle);
+  await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 5, clientX: 640, clientY: 560 })));
+  await flush(() => { dom.happyDOM.setWindowSize({ width: 300, height: 260 }); dom.dispatchEvent(new dom.Event("resize")); });
+  assert.equal(win.dataset.snapMode, "custom");
+  assert.equal(win.dataset.resizing, "false");
+  assert.equal(capture.size, 0);
+  assert.equal(win.style.getPropertyValue("--window-x"), "8px");
+  assert.equal(win.style.getPropertyValue("--window-y"), "4px");
+  assert.equal(win.style.getPropertyValue("--window-width"), "284px");
+  assert.equal(win.style.getPropertyValue("--window-height"), "222px");
+  await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, pointerId: 5, clientX: 4000, clientY: 4000 })));
+  assert.equal(win.style.getPropertyValue("--window-width"), "284px");
+  await flush(() => handle.dispatchEvent(new dom.KeyboardEvent("keydown", { bubbles: true, key: "ArrowLeft", shiftKey: true })));
+  assert.equal(win.style.getPropertyValue("--window-width"), "284px", "the minimum width adapts to the available viewport");
+});
+
+test("viewport persistence never writes another window key from a stale layout snapshot", async () => {
+  dom.localStorage.setItem("betterme.window.layouts.v2", JSON.stringify({ resume: { snapMode: "custom", position: { x: 40, y: 26 }, size: { width: 600, height: 500 } } }));
+  await mount();
+  const win = dom.document.querySelector<HTMLElement>(".os-business-window")!;
+  mockWindowRect(win, 40, 60, 600, 500);
+  const handle = win.querySelector<HTMLElement>(".os-resize-se")!;
+  mockPointerCapture(handle);
+  await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 6, clientX: 640, clientY: 560 })));
+  await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointermove", { bubbles: true, pointerId: 6, clientX: 720, clientY: 600 })));
+  await flush(() => handle.dispatchEvent(new dom.PointerEvent("pointerup", { bubbles: true, pointerId: 6 })));
+  assert.deepEqual(JSON.parse(dom.localStorage.getItem("betterme.window.layouts.v2")!).resume.size, { width: 680, height: 540 });
+  await flush(() => { dom.happyDOM.setWindowSize({ width: 600, height: 800 }); dom.dispatchEvent(new dom.Event("resize")); });
+  assert.deepEqual(JSON.parse(dom.localStorage.getItem("betterme.window.layouts.v2")!).resume.size, { width: 584, height: 540 });
+  assert.equal(win.style.getPropertyValue("--window-width"), "584px");
+  assert.equal(win.style.getPropertyValue("--window-height"), "540px");
+  assert.equal(dom.document.querySelector<HTMLElement>(".os-settings-window")!.dataset.snapMode, "centered");
 });
 
 test("reduced motion skips pointer animation and Dock buttons remain keyboard focusable", async () => {

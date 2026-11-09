@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import { Maximize2, Minimize2, Minus, X, SlidersHorizontal, RotateCcw, Check, Layout } from "lucide-react";
 import { useUiPreferences } from "../../lib/ui-preferences";
 import "./window-resize.css";
@@ -29,6 +29,42 @@ export interface WindowLayoutState {
 
 const STORAGE_KEY = "betterme.window.layouts.v2";
 
+function initialLayout(settings: boolean, defaultSnap: SnapMode): WindowLayoutState {
+  return {
+    snapMode: settings ? "centered" : defaultSnap,
+    position: { x: settings ? 80 : 20, y: settings ? 40 : 20 },
+    size: { width: settings ? 820 : 1000, height: settings ? 620 : 680 },
+  };
+}
+
+function windowBounds(element: HTMLElement) {
+  const parent = element.parentElement;
+  const rect = parent?.getBoundingClientRect();
+  // Absolute window coordinates are relative to the stage padding box, not the viewport.
+  const x = (rect?.left ?? 0) + (parent?.clientLeft ?? 0);
+  const y = (rect?.top ?? 34) + (parent?.clientTop ?? 0);
+  const left = Math.min(window.innerWidth - 1, Math.max(8, x + 8));
+  const top = Math.min(window.innerHeight - 1, Math.max(38, y));
+  const right = Math.max(left + 1, Math.min(window.innerWidth - 8, rect && rect.width > 0 ? rect.right - 8 : window.innerWidth - 8));
+  const bottom = Math.max(top + 1, Math.min(window.innerHeight, rect && rect.height > 0 ? rect.bottom : window.innerHeight));
+  return { x, y, left, top, right, bottom };
+}
+type WindowBounds = ReturnType<typeof windowBounds>;
+
+function clampCustomLayout(layout: WindowLayoutState, bounds: WindowBounds): WindowLayoutState {
+  if (layout.snapMode !== "custom") return layout;
+  const width = Math.min(bounds.right - bounds.left, Math.max(Math.min(420, bounds.right - bounds.left), layout.size.width));
+  const height = Math.min(bounds.bottom - bounds.top, Math.max(Math.min(300, bounds.bottom - bounds.top), layout.size.height));
+  const x = Math.max(bounds.left, Math.min(bounds.right - width, bounds.x + layout.position.x)) - bounds.x;
+  const y = Math.max(bounds.top, Math.min(bounds.bottom - height, bounds.y + layout.position.y)) - bounds.y;
+  if (width === layout.size.width && height === layout.size.height && x === layout.position.x && y === layout.position.y) return layout;
+  return {
+    ...layout,
+    size: { width, height },
+    position: { x, y },
+  };
+}
+
 function readSavedLayouts(): Record<string, WindowLayoutState> {
   if (typeof window === "undefined") return {};
   try {
@@ -45,7 +81,7 @@ function saveLayout(key: string, state: WindowLayoutState) {
     const current = readSavedLayouts();
     current[key] = state;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
-  } catch {}
+  } catch { /* A rejected layout preference must not block the workspace. */ }
 }
 
 let globalZIndexCounter = 30;
@@ -76,18 +112,8 @@ export function DesktopWindow({
   const { t, windowOpacity: globalWindowOpacity = 0.92, windowBlur: globalWindowBlur = 24, setDesktopPreferences } = useUiPreferences();
   
   // 1. Initial State from Storage
-  const [layoutState, setLayoutState] = useState<WindowLayoutState>(() => {
-    const saved = readSavedLayouts()[layoutKey];
-    if (saved) return saved;
-    return {
-      snapMode: settings ? "centered" : defaultSnap,
-      position: { x: settings ? 80 : 20, y: settings ? 40 : 20 },
-      size: { width: settings ? 820 : 1000, height: settings ? 620 : 680 },
-      opacity: undefined,
-      blur: undefined,
-    };
-  });
-
+  const [layouts, setLayouts] = useState<Record<string, WindowLayoutState>>(readSavedLayouts);
+  const layoutState = layouts[layoutKey] ?? initialLayout(settings, defaultSnap);
   const { snapMode, position, size } = layoutState;
   const currentOpacity = layoutState.opacity ?? globalWindowOpacity;
   const currentBlur = layoutState.blur ?? globalWindowBlur;
@@ -109,14 +135,18 @@ export function DesktopWindow({
   const [showOpacityMenu, setShowOpacityMenu] = useState(false);
 
   const node = useRef<HTMLElement>(null);
+  const capture = useRef<{ element: HTMLElement; pointerId: number; layoutKey: string } | null>(null);
+  const restoreModes = useRef<Record<string, SnapMode>>({});
   const dragRef = useRef<{
+    pointerId: number;
     startX: number;
     startY: number;
     origX: number;
     origY: number;
     wasSnapped: boolean;
     hasDetached: boolean;
-    rect: DOMRect;
+    rect: { width: number; height: number };
+    bounds: WindowBounds;
   } | null>(null);
 
   const resize = useRef<{
@@ -125,60 +155,119 @@ export function DesktopWindow({
     x: number;
     y: number;
     rect: DOMRect;
-    position: { x: number; y: number };
+    bounds: WindowBounds;
   } | null>(null);
 
   const interactiveTarget = "button, a, input, select, textarea, [role=button], [contenteditable=true]";
 
   // Helper to commit layout change
   function updateLayout(patch: Partial<WindowLayoutState>) {
-    setLayoutState((prev) => {
-      const next = { ...prev, ...patch };
+    setLayouts((prev) => {
+      const next = { ...(prev[layoutKey] ?? initialLayout(settings, defaultSnap)), ...patch };
       saveLayout(layoutKey, next);
-      return next;
+      return { ...prev, [layoutKey]: next };
     });
   }
 
+  const clearInteraction = useCallback(() => {
+    dragRef.current = null;
+    resize.current = null;
+    const owned = capture.current;
+    capture.current = null;
+    try {
+      if (owned?.element.hasPointerCapture?.(owned.pointerId)) owned.element.releasePointerCapture(owned.pointerId);
+    } catch { /* A removed capture target must not retain the interaction. */ }
+  }, []);
+  const cancelInteraction = useCallback(() => {
+    clearInteraction();
+    setDragging(false);
+    setResizing(false);
+    setSnapGuide(null);
+  }, [clearInteraction]);
+
+  useEffect(() => {
+    const onResize = () => {
+      cancelInteraction();
+      if (!node.current) return;
+      const bounds = windowBounds(node.current);
+      setLayouts(previous => {
+        const layout = previous[layoutKey];
+        if (!layout) return previous;
+        const next = clampCustomLayout(layout, bounds);
+        if (next === layout) return previous;
+        saveLayout(layoutKey, next);
+        return { ...previous, [layoutKey]: next };
+      });
+    };
+    window.addEventListener("blur", cancelInteraction);
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("blur", cancelInteraction);
+      window.removeEventListener("resize", onResize);
+      clearInteraction();
+    };
+  }, [layoutKey, cancelInteraction, clearInteraction]);
+  useEffect(() => {
+    cancelInteraction();
+    if (!node.current || hidden || inactive) return;
+    const bounds = windowBounds(node.current);
+    setLayouts(previous => {
+      const layout = previous[layoutKey];
+      if (!layout) return previous;
+      const next = clampCustomLayout(layout, bounds);
+      if (next === layout) return previous;
+      saveLayout(layoutKey, next);
+      return { ...previous, [layoutKey]: next };
+    });
+  }, [layoutKey, hidden, inactive, cancelInteraction]);
+
   // 3. Snap Layout Helpers
   function applySnap(mode: SnapMode) {
+    cancelInteraction();
+    if (mode === "maximized" && snapMode !== "maximized") restoreModes.current[layoutKey] = snapMode;
     setShowSnapMenu(false);
     updateLayout({ snapMode: mode });
   }
 
   function toggleMaximize() {
     if (snapMode === "maximized") {
-      updateLayout({ snapMode: "centered" });
+      applySnap(restoreModes.current[layoutKey] ?? "centered");
     } else {
-      updateLayout({ snapMode: "maximized" });
+      applySnap("maximized");
     }
   }
 
   // 4. Drag Lifecycle
   function startDrag(event: PointerEvent<HTMLElement>) {
-    if (event.button !== 0 || (event.target as HTMLElement).closest(interactiveTarget)) return;
+    if (hidden || inactive || event.button !== 0 || (event.target as HTMLElement).closest(interactiveTarget)) return;
+    if (capture.current?.layoutKey === layoutKey && capture.current.pointerId !== event.pointerId) return;
     event.preventDefault();
+    cancelInteraction();
     bringToFront();
 
     const rect = node.current!.getBoundingClientRect();
-    const parent = node.current!.parentElement?.getBoundingClientRect() ?? { left: 0, top: 34 };
+    const bounds = windowBounds(node.current!);
 
     dragRef.current = {
+      pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
-      origX: rect.left - parent.left,
-      origY: rect.top - parent.top,
+      origX: rect.left - bounds.x,
+      origY: rect.top - bounds.y,
       wasSnapped: snapMode !== "custom",
       hasDetached: false,
       rect,
+      bounds,
     };
 
+    capture.current = { element: event.currentTarget, pointerId: event.pointerId, layoutKey };
     setDragging(true);
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
   function moveDrag(event: PointerEvent<HTMLElement>) {
     const d = dragRef.current;
-    if (!d) return;
+    if (hidden || inactive || capture.current?.layoutKey !== layoutKey || !d || d.pointerId !== event.pointerId) return;
 
     const dx = event.clientX - d.startX;
     const dy = event.clientY - d.startY;
@@ -187,15 +276,16 @@ export function DesktopWindow({
     // If snapped and dragged by > 8px, smoothly detach to floating custom layout
     if (d.wasSnapped && !d.hasDetached && dist > 8) {
       d.hasDetached = true;
-      const floatWidth = Math.min(960, Math.round(window.innerWidth * 0.72));
-      const floatHeight = Math.min(640, Math.round(window.innerHeight * 0.75));
-      const newX = Math.max(8, Math.min(window.innerWidth - floatWidth - 8, event.clientX - floatWidth / 2));
-      const newY = Math.max(38, Math.min(window.innerHeight - floatHeight - 40, event.clientY - 20));
+      const floatWidth = Math.min(960, Math.round(window.innerWidth * 0.72), d.bounds.right - d.bounds.left);
+      const floatHeight = Math.min(640, Math.round(window.innerHeight * 0.75), d.bounds.bottom - d.bounds.top);
+      const newX = Math.max(d.bounds.left, Math.min(d.bounds.right - floatWidth, event.clientX - floatWidth / 2)) - d.bounds.x;
+      const newY = Math.max(d.bounds.top, Math.min(d.bounds.bottom - floatHeight, event.clientY - 20)) - d.bounds.y;
 
       d.origX = newX;
       d.origY = newY;
       d.startX = event.clientX;
       d.startY = event.clientY;
+      d.rect = { width: floatWidth, height: floatHeight };
 
       updateLayout({
         snapMode: "custom",
@@ -206,8 +296,8 @@ export function DesktopWindow({
     }
 
     if (!d.wasSnapped || d.hasDetached) {
-      const nextX = Math.max(8, Math.min(window.innerWidth - 120, d.origX + dx));
-      const nextY = Math.max(38, Math.min(window.innerHeight - 80, d.origY + dy));
+      const nextX = Math.max(d.bounds.left, Math.min(d.bounds.right - d.rect.width, d.bounds.x + d.origX + dx)) - d.bounds.x;
+      const nextY = Math.max(d.bounds.top, Math.min(d.bounds.bottom - d.rect.height, d.bounds.y + d.origY + dy)) - d.bounds.y;
       updateLayout({ position: { x: nextX, y: nextY } });
 
       // Edge Snap Detection
@@ -223,8 +313,9 @@ export function DesktopWindow({
     }
   }
 
-  function endDrag() {
-    if (dragRef.current) {
+  function endDrag(event: PointerEvent<HTMLElement>, commitSnap = false) {
+    if (!capture.current || capture.current.pointerId !== event.pointerId) return;
+    if (commitSnap && !hidden && !inactive && capture.current.layoutKey === layoutKey && dragRef.current) {
       if (snapGuide === "left") {
         updateLayout({ snapMode: "split-left" });
       } else if (snapGuide === "right") {
@@ -233,60 +324,52 @@ export function DesktopWindow({
         updateLayout({ snapMode: "maximized" });
       }
     }
-    dragRef.current = null;
-    resize.current = null;
-    setDragging(false);
-    setResizing(false);
-    setSnapGuide(null);
+    cancelInteraction();
   }
 
   // 5. Resizing
   function startResize(event: PointerEvent<HTMLButtonElement>, edge: Edge) {
-    if (event.button !== 0) return;
+    if (hidden || inactive || event.button !== 0) return;
+    if (capture.current?.layoutKey === layoutKey && capture.current.pointerId !== event.pointerId) return;
     event.preventDefault();
     event.stopPropagation();
+    cancelInteraction();
+    event.currentTarget.focus({ preventScroll: true });
     bringToFront();
 
     const rect = node.current!.getBoundingClientRect();
-    const parent = node.current!.parentElement?.getBoundingClientRect() ?? { left: 0, top: 34 };
-    const origin = { x: rect.left - parent.left, y: rect.top - parent.top };
-
-    // Detach into custom layout if resizing from a snap mode
-    if (snapMode !== "custom") {
-      updateLayout({
-        snapMode: "custom",
-        position: origin,
-        size: { width: rect.width, height: rect.height },
-      });
-    }
-
-    resize.current = { edge, pointerId: event.pointerId, x: event.clientX, y: event.clientY, rect, position: origin };
+    const bounds = windowBounds(node.current!);
+    applyResize(edge, 0, 0, rect, bounds);
+    resize.current = { edge, pointerId: event.pointerId, x: event.clientX, y: event.clientY, rect, bounds };
+    capture.current = { element: event.currentTarget, pointerId: event.pointerId, layoutKey };
     setResizing(true);
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
   function moveResize(event: PointerEvent<HTMLButtonElement>) {
     const r = resize.current;
-    if (!r || r.pointerId !== event.pointerId) return;
+    if (hidden || inactive || capture.current?.layoutKey !== layoutKey || !r || r.pointerId !== event.pointerId) return;
 
-    const dx = event.clientX - r.x;
-    const dy = event.clientY - r.y;
-    let { left, right, top, bottom } = r.rect;
+    applyResize(r.edge, event.clientX - r.x, event.clientY - r.y, r.rect, r.bounds);
+  }
 
-    const minWidth = 420;
-    const minHeight = 300;
-    const rightLimit = window.innerWidth - 8;
-    const bottomLimit = window.innerHeight - 30;
+  function applyResize(edge: Edge, dx: number, dy: number, rect: DOMRect, bounds: WindowBounds) {
+    const minWidth = Math.min(420, bounds.right - bounds.left);
+    const minHeight = Math.min(300, bounds.bottom - bounds.top);
+    let left = Math.max(bounds.left, Math.min(bounds.right - minWidth, rect.left));
+    let right = Math.max(left + minWidth, Math.min(bounds.right, rect.right));
+    let top = Math.max(bounds.top, Math.min(bounds.bottom - minHeight, rect.top));
+    let bottom = Math.max(top + minHeight, Math.min(bounds.bottom, rect.bottom));
 
-    if (r.edge.includes("w")) left = Math.max(8, Math.min(right - minWidth, left + dx));
-    if (r.edge.includes("e")) right = Math.min(rightLimit, Math.max(left + minWidth, right + dx));
-    if (r.edge.includes("n")) top = Math.max(38, Math.min(bottom - minHeight, top + dy));
-    if (r.edge.includes("s")) bottom = Math.min(bottomLimit, Math.max(top + minHeight, bottom + dy));
+    if (edge.includes("w")) left = Math.max(bounds.left, Math.min(right - minWidth, left + dx));
+    if (edge.includes("e")) right = Math.min(bounds.right, Math.max(left + minWidth, right + dx));
+    if (edge.includes("n")) top = Math.max(bounds.top, Math.min(bottom - minHeight, top + dy));
+    if (edge.includes("s")) bottom = Math.min(bounds.bottom, Math.max(top + minHeight, bottom + dy));
 
     const newWidth = Math.round(right - left);
     const newHeight = Math.round(bottom - top);
-    const newX = Math.round(r.position.x + (left - r.rect.left));
-    const newY = Math.round(r.position.y + (top - r.rect.top));
+    const newX = Math.round(left - bounds.x);
+    const newY = Math.round(top - bounds.y);
 
     updateLayout({
       snapMode: "custom",
@@ -346,6 +429,7 @@ export function DesktopWindow({
         data-inactive={inactive}
         data-dragging={dragging}
         data-resizing={resizing}
+        data-sized={snapMode === "custom"}
         data-hidden={hidden}
         inert={hidden || inactive}
         style={
@@ -364,7 +448,7 @@ export function DesktopWindow({
           className="os-window-toolbar no-print"
           onPointerDown={startDrag}
           onPointerMove={moveDrag}
-          onPointerUp={endDrag}
+          onPointerUp={event => endDrag(event, true)}
           onPointerCancel={endDrag}
           onLostPointerCapture={endDrag}
           onDoubleClick={(event) => {
@@ -606,11 +690,20 @@ export function DesktopWindow({
             type="button"
             className={`os-resize-handle os-resize-${edge} no-print`}
             aria-label={t(`拖动${edgeNames[edge]}调整窗口大小`, `Resize window from ${edge}`)}
+            title={t("拖动缩放；聚焦后用方向键微调，Shift 加速", "Drag to resize; use arrow keys, Shift for larger steps")}
             onPointerDown={(event) => startResize(event, edge)}
             onPointerMove={moveResize}
-            onPointerUp={endDrag}
+            onPointerUp={event => endDrag(event, true)}
             onPointerCancel={endDrag}
             onLostPointerCapture={endDrag}
+            onKeyDown={event => {
+              if (hidden || inactive || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+              event.preventDefault(); event.stopPropagation();
+              cancelInteraction();
+              const step = event.shiftKey ? 40 : 10;
+              const rect = node.current!.getBoundingClientRect();
+              applyResize(edge, event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0, event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0, rect, windowBounds(node.current!));
+            }}
           />
         ))}
       </section>
