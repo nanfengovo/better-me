@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { setImmediate as nextTurn } from "node:timers/promises";
 import { RuntimeRegistry, BUILTIN_RUNTIME_DEFINITIONS } from "../src/runtime/registry.js";
 import { NativeAccountTools, type NativeLease } from "../src/native-tools/service.js";
 import { AgentRouting, RoutingError } from "../src/routing/service.js";
@@ -25,6 +26,16 @@ async function fixture() {
   };
   const api = (id: string) => native.authorizeApi(id, { mode: "api-key", apiKey: "synthetic-only-private-key", model: "synthetic-model", consent: true }, lease());
   return { directory, native, routing, runner, save, api, async close() { await routing.close(); await native.close(); await fs.rm(directory, { recursive: true, force: true }); } };
+}
+async function terminalLogin(native: NativeAccountTools) {
+  const deadline = AbortSignal.timeout(5_000);
+  let status = await native.loginStatus(lease());
+  while (status.state === "pending") {
+    // The synthetic process returning does not finish the private auth-file transaction.
+    await nextTurn(undefined, { signal: deadline });
+    status = await native.loginStatus(lease());
+  }
+  return status;
 }
 test("routing read is non-mutating and defaults preserve all legacy choices/records", async () => {
   const f = await fixture();
@@ -54,20 +65,30 @@ test("auto never silently uses API credentials; manual explicitly selected API r
     assert.equal((await f.routing.run(randomUUID(), manual.revision, "synthetic", signal(), lease())).trace.runtimeId, "opencode");
   } finally { await f.close(); }
 });
-test("native subscription login is preferred inside the approved chain, without Console/API fallback", async () => {
+test("native subscription login is preferred inside the approved chain, without Console/API fallback", async t => {
   const f = await fixture();
+  const loginReady = Promise.withResolvers<void>();
+  f.runner.deviceGate = loginReady.promise;
   try {
     await f.api("opencode"); await f.native.startClaudeLogin(lease());
     await f.native.submitClaudeCode({ code: "synthetic-code#synthetic-state" }, lease());
-    for (let count = 0; count < 20 && (await f.native.loginStatus(lease())).state === "pending"; count++) await new Promise(resolve => setTimeout(resolve, 5));
-    assert.equal((await f.native.loginStatus(lease())).state, "complete");
+    // Complete only after more observations than the old fixed poll count.
+    // This keeps delayed native completion deterministic without a wall-clock sleep.
+    let pendingReads = 0;
+    const loginStatus = f.native.loginStatus.bind(f.native);
+    t.mock.method(f.native, "loginStatus", async currentLease => {
+      const status = await loginStatus(currentLease);
+      if (status.state === "pending" && ++pendingReads === 25) loginReady.resolve();
+      return status;
+    });
+    assert.equal((await terminalLogin(f.native)).state, "complete");
     const policy = await f.save({ mode: "auto", preferred: "opencode", backups: ["claude-code"], allowApiBackups: true });
     const reply = await f.routing.run(randomUUID(), policy.revision, "synthetic", signal(), lease());
     assert.equal(reply.trace.runtimeId, "claude-code"); assert.equal(f.runner.executions.length, 1);
     const input = f.runner.executions[0]!;
     assert.ok(!input.args.includes("--bare")); assert.ok(!input.environment?.["ANTHROPIC_API_KEY"]);
     assert.deepEqual(input.args.slice(0, 2), ["--print", "--input-format"]);
-  } finally { await f.close(); }
+  } finally { loginReady.resolve(); await f.close(); }
 });
 test("manual unavailable selection stops, and execution/protocol failure is never replayed on backups", async () => {
   const f = await fixture();
@@ -95,21 +116,31 @@ test("revision CAS, unknown adapter rejection, idempotency and restart receipts 
     await assert.rejects(restarted.run(id, policy.revision, "synthetic", signal(), lease()), /routing_result_unknown/); await restarted.close();
   } finally { await f.close(); }
 });
-test("change selection, revoke authorization, or invalidate identity rejects a deliberately late process", async () => {
+test("change selection, revoke authorization, or invalidate identity rejects a deliberately late process", async t => {
   for (const action of ["selection", "authorization", "identity"] as const) {
     const f = await fixture(); let release!: () => void;
+    let dispatchDeadline: ReturnType<typeof setTimeout> | undefined;
     try {
       await f.api("opencode"); const policy = await f.save({ mode: "manual", preferred: "opencode", backups: [] });
+      const dispatched = Promise.withResolvers<void>();
+      const run = f.runner.run.bind(f.runner);
+      t.mock.method(f.runner, "run", input => {
+        const result = run(input);
+        if (f.runner.executions.length) dispatched.resolve();
+        return result;
+      });
       f.runner.gate = new Promise<void>(resolve => { release = resolve; });
       const pending = f.routing.run(randomUUID(), policy.revision, "synthetic", signal(), lease());
       const rejected = assert.rejects(pending);
-      for (let count = 0; count < 30 && !f.runner.executions.length; count++) await new Promise(resolve => setTimeout(resolve, 5));
+      dispatchDeadline = setTimeout(() => dispatched.reject(new Error("synthetic process did not dispatch")), 5_000);
+      // Revoke only after the actual runner starts, not after an assumed FS/scan duration.
+      await Promise.race([dispatched.promise, pending]);
       assert.equal(f.runner.executions.length, 1);
       if (action === "selection") await f.save({ revision: policy.revision, mode: "manual", preferred: "codex", backups: [] });
       else if (action === "authorization") await f.native.disconnect("opencode", lease());
       else { f.routing.invalidateSession("a"); await f.native.invalidateSession("a"); }
       release(); await rejected;
-    } finally { release?.(); await f.close(); }
+    } finally { clearTimeout(dispatchDeadline); release?.(); await f.close(); }
   }
 });
 test("an idempotent cached reply cannot cross a later authorization or selection boundary", async () => {

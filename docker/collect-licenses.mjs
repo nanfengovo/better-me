@@ -20,6 +20,12 @@ const pinnedOverrides = {
   "bitmap-sdf@1.0.4": ["bitmap-sdf-1.0.4", "93f4706437395057668ebb84ae81036f2a5c2afc1afe806311e2a922bd7f8f6e"],
   "js-tiktoken@1.0.21": ["js-tiktoken-1.0.21", "418cb499b436128d653d79941333a5437b7be2ea9213dcc2f04d15d5d2c51d86"],
 };
+const esbuildPlatforms = new Set([
+  "aix-ppc64", "android-arm", "android-arm64", "android-x64", "darwin-arm64", "darwin-x64",
+  "freebsd-arm64", "freebsd-x64", "linux-arm", "linux-arm64", "linux-ia32", "linux-loong64",
+  "linux-mips64el", "linux-ppc64", "linux-riscv64", "linux-s390x", "linux-x64", "netbsd-arm64",
+  "netbsd-x64", "openbsd-arm64", "openbsd-x64", "openharmony-arm64", "sunos-x64", "win32-arm64", "win32-ia32", "win32-x64",
+]);
 const htmlEscape = (value) => String(value).replace(/[&<>"']/g, (char) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
 })[char]);
@@ -38,8 +44,8 @@ for (const entry of installed.sort((left, right) => left.name.localeCompare(righ
       && /^(?:licen[cs]e|copying|notice|copyright)(?:$|[.-])/i.test(file.name));
     const fullLicense = notices.some((file) => /^(?:licen[cs]e|copying)(?:$|[.-])/i.test(file.name));
     const files = [];
-    const copyText = async (sourceFile, outputName, provenance) => {
-      const contents = await readFile(sourceFile);
+    const copyText = async (sourceFile, outputName, provenance, verifiedContents) => {
+      const contents = verifiedContents ?? await readFile(sourceFile);
       await writeFile(path.join(output, outputName), contents);
       files.push({ path: `packages/${id}/${outputName}`, source: provenance,
         sha256: createHash("sha256").update(contents).digest("hex") });
@@ -88,6 +94,23 @@ for (const entry of installed.sort((left, right) => left.name.localeCompare(righ
         }
         await copyText(path.join(override, "LICENSE"), "LICENSE", "Fixed upstream commit; provenance in NOTICE.md");
         await copyText(path.join(override, "NOTICE.md"), "NOTICE.md", "BetterMe provenance note");
+      } else if (pkg.name.startsWith("@esbuild/") && pkg.version === "0.28.2") {
+        // These exact optional binary archives omit LICENSE. Never infer a license
+        // from the scope alone: verify the real parent, exact mapping and pinned text.
+        if (!esbuildPlatforms.has(pkg.name.slice("@esbuild/".length)) || pkg.license !== "MIT") throw new Error(`No pinned MIT esbuild platform license: ${id}`);
+        let copied = false;
+        for (const parentPath of installed.filter(item => item.name === "esbuild").flatMap(item => item.paths)) {
+          const parent = JSON.parse(await readFile(path.join(parentPath, "package.json"), "utf8"));
+          if (parent.name !== "esbuild" || parent.version !== pkg.version) continue;
+          if (parent.license !== "MIT" || parent.optionalDependencies?.[pkg.name] !== pkg.version) throw new Error(`No matching MIT esbuild optional dependency mapping: ${id}`);
+          const source = path.join(parentPath, "LICENSE.md");
+          const contents = await readFile(source);
+          if (createHash("sha256").update(contents).digest("hex") !== "b40ec5baec7bb34fa5b1c09521fa3cd52d5fad7adafed74932a2010d3612a681") throw new Error(`Pinned esbuild upstream license changed: ${id}`);
+          await copyText(source, "LICENSE.md", `Same-version esbuild@${pkg.version} LICENSE.md; ${pkg.name}@${pkg.version} optional platform binary; SHA-256 pinned`, contents);
+          copied = true;
+          break;
+        }
+        if (!copied) throw new Error(`No same-version esbuild license: ${id}`);
       } else if (pkg.name.startsWith("@napi-rs/canvas-")) {
         // Optional native platform archives omit LICENSE; use their same-version upstream package.
         const parent = installed.find((item) => item.name === "@napi-rs/canvas" && item.versions.includes(pkg.version));

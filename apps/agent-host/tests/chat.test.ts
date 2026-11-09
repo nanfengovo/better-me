@@ -4,6 +4,7 @@ import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { AIMessage, type BaseMessage } from "@langchain/core/messages";
 import { processAgentChat } from "../src/chat/chat-service.js";
 import { ChatRequestBodySchema, type ChatRequestBody } from "../src/chat/types.js";
+import { vorkService, type VorkRenderResult } from "../src/vork/service.js";
 
 class MockChatModel extends BaseChatModel {
   private index = 0;
@@ -268,7 +269,19 @@ describe("agent-host Chat Service", () => {
     assert.doesNotMatch(String(systemMessage.content), /email|phone|avatarUrl/i);
   });
 
-  it("generates a vork 3D architecture badge action card when requested", async () => {
+  it("generates a vork 3D architecture badge action card when requested", async (t) => {
+    // This is the chat-to-renderer contract, not a requirement for a local GPU or vork binary.
+    const rendered: VorkRenderResult = {
+      success: true,
+      presetId: "cyber_neon",
+      durationMs: 42,
+      imagePath: "synthetic-vork.png",
+      dataUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jfN8AAAAASUVORK5CYII=",
+      resolution: [1280, 720],
+      engine: "synthetic-renderer",
+      gpuDevice: "test-fixture",
+    };
+    const render = t.mock.method(vorkService, "render", async () => rendered);
     const model = new MockChatModel([{
       text: `我已经为您的高并发分布式系统设计了专属 3D 架构徽章：
 \`\`\`actions
@@ -293,7 +306,42 @@ describe("agent-host Chat Service", () => {
     const badge = reply.actions[0];
     assert.equal(badge.type, "badge_3d");
     assert.equal(badge.title, "高并发分布式系统重构 · 3D 架构徽章");
-    assert.ok(badge.imageUrl?.startsWith("data:image/png;base64,"));
-    assert.ok((badge.renderDurationMs ?? 0) > 0);
+    assert.equal(badge.imageUrl, rendered.dataUrl);
+    assert.equal(badge.renderDurationMs, rendered.durationMs);
+    assert.equal(render.mock.callCount(), 1);
+    assert.deepEqual(render.mock.calls[0]?.arguments, [{
+      presetId: "cyber_neon",
+      resolution: [1280, 720],
+      profile: "std/draft",
+    }]);
+  });
+
+  it("retains the badge proposal without inventing an image when the renderer is unavailable", async (t) => {
+    const unavailable = new Error("synthetic renderer is unavailable");
+    const render = t.mock.method(vorkService, "render", async () => { throw unavailable; });
+    const warning = t.mock.method(console, "warn", () => {});
+    const model = new MockChatModel([{
+      text: '徽章方案供审阅。\n```actions\n[{"type":"badge_3d","title":"合成项目","highlight":"已核验的合成案例","style":"quantum_prism","rationale":"仅用于测试渲染失败边界"}]\n```',
+    }]);
+    const reply = await processAgentChat(model, {
+      messages: [{ id: "u-badge-unavailable", role: "user", content: "为合成项目生成 3D 徽章" }],
+      modelSettings: { provider: "ollama", model: "mock-model", apiKey: "" },
+    });
+
+    assert.equal(reply.content, "徽章方案供审阅。");
+    assert.equal(reply.actions?.length, 1);
+    const badge = reply.actions[0];
+    assert.ok(badge?.type === "badge_3d");
+    assert.equal(badge.title, "合成项目");
+    assert.equal(badge.imageUrl, undefined);
+    assert.equal(badge.renderDurationMs, undefined);
+    assert.equal(render.mock.callCount(), 1, "A failed render must not trigger the automatic badge fallback again");
+    assert.deepEqual(render.mock.calls[0]?.arguments, [{
+      presetId: "quantum_prism",
+      resolution: [1280, 720],
+      profile: "std/draft",
+    }]);
+    assert.equal(warning.mock.callCount(), 1);
+    assert.deepEqual(warning.mock.calls[0]?.arguments, ["[vork-tool] 渲染 3D 徽章失败:", unavailable]);
   });
 });
