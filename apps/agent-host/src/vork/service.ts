@@ -348,6 +348,7 @@ export class VorkEngineService {
     }
 
     const preset = VORK_PRESETS.find((p) => p.id === (request.presetId || "quantum_prism")) || VORK_PRESETS[0];
+    if (!preset) throw new Error("没有可用的渲染预设，未启动渲染。");
     const resolution = request.resolution || preset.defaultResolution;
     const profile = request.profile || "std/draft";
 

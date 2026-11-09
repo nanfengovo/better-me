@@ -4,6 +4,21 @@ import { setImmediate as nextTurn } from "node:timers/promises";
 import { Window } from "happy-dom";
 import { createDemoFactBase, createDefaultResumeView, projectResume } from "@better-me/core";
 
+const defaultDesktopPreferences = {
+  dockPosition: "bottom",
+  dockSize: 48,
+  dockMagnification: true,
+  dockMagScale: 1.45,
+  dockOpacity: 0.85,
+  dockBlur: 24,
+  dockAutoHide: true,
+  wallpaperOpacity: 1,
+  wallpaperBlur: 0,
+  windowOpacity: 0.92,
+  windowBlur: 24,
+  menuOpacity: 0.9,
+};
+
 const dom = new Window({ url: "http://ui-fixture.invalid" });
 const React = await import("react");
 const globals = { window: dom, document: dom.document, navigator: dom.navigator, localStorage: dom.localStorage, HTMLElement: dom.HTMLElement, Element: dom.Element, React, IS_REACT_ACT_ENVIRONMENT: true };
@@ -39,9 +54,27 @@ after(() => {
 });
 
 test("invalid preference data recovers each setting without accepting extra values", () => {
-  for (const raw of [null, "broken", "[]", "null", '{"locale":"fr","theme":"auto"}']) assert.deepEqual(parseUiPreferences(raw), { locale: "zh", theme: "light" });
+  for (const raw of [null, "broken", "[]", "null"]) {
+    assert.deepEqual(parseUiPreferences(raw), { locale: "zh", theme: "light", ...defaultDesktopPreferences });
+  }
+  assert.deepEqual(parseUiPreferences('{"locale":"fr","theme":"auto"}'), { locale: "zh", theme: "light" });
   assert.deepEqual(parseUiPreferences('{"locale":"en","theme":"dark","apiKey":"ignored"}'), { locale: "en", theme: "dark" });
   assert.deepEqual(parseUiPreferences('{"locale":"zh","theme":"dark"}'), { locale: "zh", theme: "dark" });
+  for (const invalidDesktopPreferences of [
+    {
+      dockAutoHide: "true", dockPosition: "top", dockSize: 31, dockMagnification: "true",
+      dockMagScale: 0.99, dockOpacity: 0.09, dockBlur: -1, reduceMotion: "false", wallpaper: 42,
+      wallpaperOpacity: 0.04, wallpaperBlur: -1, windowOpacity: 0.19, windowBlur: -1, menuOpacity: 0.19,
+    },
+    {
+      dockSize: 81, dockMagScale: 2.21, dockOpacity: 1.01, dockBlur: 41,
+      wallpaperOpacity: 1.01, wallpaperBlur: 41, windowOpacity: 1.01, windowBlur: 41, menuOpacity: 1.01,
+    },
+  ]) {
+    assert.deepEqual(parseUiPreferences(JSON.stringify({
+      locale: "en", theme: "dark", ...invalidDesktopPreferences, apiKey: "ignored", unknownSetting: true,
+    })), { locale: "en", theme: "dark" });
+  }
 });
 
 test("saved appearance is applied before React mount and survives remount", async () => {
@@ -69,7 +102,7 @@ test("global controls change only browser preferences while Chinese resume conte
   assert.deepEqual({ factBase, view }, before);
   assert.equal(dom.localStorage.getItem("betterme.official.fixture"), "unchanged resume");
   assert.equal(dom.localStorage.getItem("betterme.draft.fixture"), "unchanged draft");
-  assert.deepEqual(JSON.parse(dom.localStorage.getItem(UI_PREFERENCES_KEY)!), { locale: "en", theme: "dark" });
+  assert.deepEqual(JSON.parse(dom.localStorage.getItem(UI_PREFERENCES_KEY)!), { locale: "en", theme: "dark", ...defaultDesktopPreferences });
   await click("中文");
   assert.equal(button("深色主题").getAttribute("aria-pressed"), "true");
   await click("浅色主题");
@@ -167,7 +200,7 @@ test("workspace palette persists independently of language, light mode, and resu
   await click("English"); await click("Dark theme");
   assert.equal(palettePicker().value, "navy");
   assert.equal(dom.document.documentElement.style.getPropertyValue("--workspace-action"), "#3e6192");
-  assert.deepEqual(JSON.parse(dom.localStorage.getItem(UI_PREFERENCES_KEY)!), { locale: "en", theme: "dark", workspaceThemeId: "navy" });
+  assert.deepEqual(JSON.parse(dom.localStorage.getItem(UI_PREFERENCES_KEY)!), { locale: "en", theme: "dark", ...defaultDesktopPreferences, workspaceThemeId: "navy" });
   assert.equal(dom.document.querySelector(".resume-document")!.outerHTML, paperBefore);
   assert.deepEqual({ facts, view }, before);
   assert.equal(dom.localStorage.getItem("betterme.resume.fixture"), "unchanged official resume");

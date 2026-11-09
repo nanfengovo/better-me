@@ -92,6 +92,7 @@ test("真实本地Chromium的51job读取或检查取消超时保留同一DOM，�
 
 test("真实Chromium人工接续保留登录完成页，用户返回原岗位后读取且新会话不继承登录", { timeout: 35_000 }, async () => {
   const original = "https://m.zhipin.com/mpa/html/weijd/weijd-job/sessionFixtureToken";
+  const canonical = "https://www.zhipin.com/job_detail/sessionFixtureToken.html";
   const complete = "https://m.zhipin.com/fixture-auth-complete";
   const security = "https://m.zhipin.com/web/passport/zp/security.html";
   const description = "岗位职责：开发设备通信服务，维护接口文档及自动化回归测试。任职要求：熟悉 C#、SQL Server、异步编程和单元测试。";
@@ -106,7 +107,7 @@ test("真实Chromium人工接续保留登录完成页，用户返回原岗位后
       await route.fulfill({ contentType: "text/html; charset=utf-8", headers: { "Set-Cookie": "fixture_session=ok; Secure; HttpOnly; Path=/; SameSite=Lax" }, body: "<h1>合成测试登录完成</h1>" });
     } else if (url === security) {
       await route.fulfill({ contentType: "text/html; charset=utf-8", body: '<html><head><title>合成访问验证</title></head><body><div role="dialog">请进行安全验证<input aria-label="合成验证进度" /></div></body></html>' });
-    } else if (url === original) {
+    } else if (url === original || url === canonical) {
       // This header belongs only to the test's in-memory, synthetic origin.
       if ((await request.headerValue("cookie"))?.includes("fixture_session=ok")) {
         await route.fulfill({ contentType: "text/html; charset=utf-8", body: `<html><head><title>合成设备研发岗位</title><script type="application/ld+json">${posting}</script></head><body><h1>合成设备研发岗位</h1><main>${description}</main></body></html>` });
@@ -138,6 +139,8 @@ test("真实Chromium人工接续保留登录完成页，用户返回原岗位后
   const owner = "http://[::1]:5175";
   try {
     const first = await manager.start(owner, original);
+    assert.equal(first.url, original, "会话保留用户授权的原始分享链接");
+    assert.equal(pages[0].url(), canonical, "初始导航使用规范桌面岗位页，仍由本地fixture响应");
     const inspectAfterNavigation = async () => {
       const deadline = Date.now() + 5_000;
       for (;;) {
@@ -243,13 +246,14 @@ test("真实Chromium人工接续保留登录完成页，用户返回原岗位后
     const second = await manager.start(owner, original);
     assert.equal(pages.length, 2);
     await assert.rejects(manager.read(owner, second.sessionId), (error: unknown) => error instanceof JdExtractionError && error.failure.code === "login_required");
-    assert.ok(requested.every((url) => [original, complete, security].includes(url)), "fixture不访问其他站点");
+    assert.ok(requested.every((url) => [original, canonical, complete, security].includes(url)), "fixture不访问其他站点");
   } finally { await manager.closeAll(); }
   assert.ok(pages.every((page) => page.isClosed()), "真实浏览器会话全部回收");
 });
 
 test("本地普通Chromium合成页只报告空白、可见文字、可见iframe与脚本异常次数", { timeout: 30_000 }, async () => {
   const original = "https://m.zhipin.com/mpa/html/weijd/weijd-job/loadDiagnosticsFixture";
+  const canonical = "https://www.zhipin.com/job_detail/loadDiagnosticsFixture.html";
   let page: Page | undefined;
   const manager = createBrowserSessionManager({
     getOperation: async () => ({
@@ -264,7 +268,7 @@ test("本地普通Chromium合成页只报告空白、可见文字、可见iframe
         const newPage = context.newPage.bind(context);
         context.newPage = async () => {
           await context.route("**/*", async (route) => {
-            if (route.request().url() === original) await route.fulfill({ contentType: "text/html; charset=utf-8", body: "<!doctype html><html><head><title>private-title</title></head><body></body></html>" });
+            if ([original, canonical].includes(route.request().url())) await route.fulfill({ contentType: "text/html; charset=utf-8", body: "<!doctype html><html><head><title>private-title</title></head><body></body></html>" });
             else await route.abort("blockedbyclient");
           });
           page = await newPage();
@@ -279,6 +283,8 @@ test("本地普通Chromium合成页只报告空白、可见文字、可见iframe
   try {
     const info = await manager.start(fixtureOwner, original);
     assert.ok(page);
+    assert.equal(info.url, original);
+    assert.equal(page.url(), canonical, "规范桌面URL必须由合成路由处理");
     const inspect = () => manager.inspect(fixtureOwner, info.sessionId);
     const empty = await inspect();
     assert.equal(empty.snapshotState, "ready");
@@ -331,6 +337,7 @@ test("本地普通Chromium合成页只报告空白、可见文字、可见iframe
 
 test("真实本地Chromium区分主文档状态、iframe HTTP错误与连接重置，诊断不导航也不泄露资源URL", { timeout: 30_000 }, async () => {
   const original = "https://m.zhipin.com/mpa/html/weijd/weijd-job/documentDiagnosticsFixture?ticket=private-ticket";
+  const canonical = "https://www.zhipin.com/job_detail/documentDiagnosticsFixture.html";
   const child = "https://m.zhipin.com/private-child-frame?token=private-token";
   const script = "https://m.zhipin.com/private-reset-script.js?token=private-token";
   const unavailable = "https://m.zhipin.com/private-unavailable?token=private-token";
@@ -344,7 +351,7 @@ test("真实本地Chromium区分主文档状态、iframe HTTP错误与连接重�
   const fixture = async (route: Route) => {
     const url = route.request().url();
     requests.push(url);
-    if (url === original) await route.fulfill({ contentType: "text/html; charset=utf-8", body: `<!doctype html><html><head><title>private-title</title></head><body><main>合成主文档</main><iframe src="${child}"></iframe><script src="${script}"></script></body></html>` });
+    if (url === original || url === canonical) await route.fulfill({ contentType: "text/html; charset=utf-8", body: `<!doctype html><html><head><title>private-title</title></head><body><main>合成主文档</main><iframe src="${child}"></iframe><script src="${script}"></script></body></html>` });
     else if (url === child) await route.fulfill({ status: 404, contentType: "text/html; charset=utf-8", body: "<main>private-child-error</main>" });
     else if (url === script) await route.abort("connectionreset");
     else if (url === unavailable) await route.fulfill({ status: 503, contentType: "text/html; charset=utf-8", body: "<main>合成主文档暂不可用</main>" });
@@ -376,6 +383,8 @@ test("真实本地Chromium区分主文档状态、iframe HTTP错误与连接重�
   try {
     const info = await manager.start(fixtureOwner, original);
     assert.ok(page);
+    assert.equal(info.url, original);
+    assert.equal(page.url(), canonical, "带分享参数的原链只导航到受控规范岗位页");
     await page.waitForLoadState("load");
     const inspect = async () => {
       const before = requests.length;
@@ -418,12 +427,13 @@ test("真实本地Chromium区分主文档状态、iframe HTTP错误与连接重�
 
     await page.goto(original, { waitUntil: "load" });
     assert.deepEqual((await inspect()).mainDocument, { state: "response", status: 200 }, "恢复主文档200后iframe404与脚本失败不能覆盖主文档状态");
-    assert.ok(requests.every((url) => [original, child, script, unavailable, pending].includes(url)), "所有合成响应均本地拦截，无真实站点请求");
+    assert.ok(requests.every((url) => [original, canonical, child, script, unavailable, pending].includes(url)), "所有合成响应均本地拦截，无真实站点请求");
   } finally { releasePending(); await manager.closeAll(); }
   assert.equal(page?.isClosed(), true);
 });
 test("真实本地Chromium拒绝主世界eval伪造的空白与原岗快照，保留窗口并可恢复", { timeout: 30_000 }, async () => {
   const original = "https://m.zhipin.com/mpa/html/weijd/weijd-job/snapshotOriginFixture";
+  const canonical = "https://www.zhipin.com/job_detail/snapshotOriginFixture.html";
   const differentJob = "https://m.zhipin.com/mpa/html/weijd/weijd-job/differentSnapshotFixture";
   const description = "岗位职责：开发合成设备通信服务并维护接口文档。任职要求：掌握 C#、SQL Server、异步编程和完整自动化回归测试。";
   const html = `<!doctype html><html><head><title>合成来源校验岗位</title></head><body><h1>合成来源校验岗位</h1><div class="job-sec-text">${description}</div></body></html>`;
@@ -444,7 +454,7 @@ test("真实本地Chromium拒绝主世界eval伪造的空白与原岗快照，�
           await context.route("**/*", async (route) => {
             const url = route.request().url();
             requests.push(url);
-            if (url === original || url === differentJob) await route.fulfill({ contentType: "text/html; charset=utf-8", body: html });
+            if ([original, canonical, differentJob].includes(url)) await route.fulfill({ contentType: "text/html; charset=utf-8", body: html });
             else await route.abort("blockedbyclient");
           });
           page = await newPage();
@@ -459,6 +469,8 @@ test("真实本地Chromium拒绝主世界eval伪造的空白与原岗快照，�
   try {
     const info = await manager.start(fixtureOwner, original);
     assert.ok(page);
+    assert.equal(info.url, original);
+    assert.equal(page.url(), canonical);
     assert.equal((await manager.inspect(fixtureOwner, info.sessionId)).pageState, "original_job");
     assert.match((await manager.read(fixtureOwner, info.sessionId)).text, /SQL Server/);
     for (const actual of [original, differentJob]) {
@@ -504,7 +516,7 @@ test("真实本地Chromium拒绝主世界eval伪造的空白与原岗快照，�
     const beforeRecoveredRead = requests.length;
     assert.match((await manager.read(fixtureOwner, info.sessionId)).text, /合成设备通信服务/);
     assert.equal(requests.length, beforeRecoveredRead);
-    assert.ok(requests.every((url) => [original, differentJob].includes(url)), "全部响应本地拦截，不访问真实网站");
+    assert.ok(requests.every((url) => [original, canonical, differentJob].includes(url)), "全部响应本地拦截，不访问真实网站");
   } finally { await manager.closeAll(); }
   assert.equal(page?.isClosed(), true);
 });

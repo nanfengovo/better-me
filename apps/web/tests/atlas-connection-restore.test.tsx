@@ -106,11 +106,21 @@ test("failed restoration stays in live view with an actionable visible error, an
   seedLocal(); dom.sessionStorage.setItem(ATLAS_CONNECTION_SESSION_KEY, JSON.stringify(saved)); let fail = true;
   const fetcher = mock.method(globalThis, "fetch", async () => { if (fail) throw new TypeError("Synthetic service offline"); return response(); });
   await mount(); await waitFor(() => !!dom.document.querySelector('[role="alert"]'), "visible restore failure");
-  assert.equal(view().value, "live"); assert.match(dom.document.querySelector('[role="alert"]')!.textContent!, /未能恢复本机索引连接.*仍保留本机索引视图.*Synthetic service offline/);
+  assert.equal(view().value, "live");
+  assert.match(dom.document.querySelector('.atlas-connection-alert[role="alert"]')!.textContent!, /本机索引连接未恢复/);
+  await act(async () => button("连接详情").click());
+  await waitFor(() => !!dom.document.querySelector('.atlas-settings-dialog[open] .atlas-error[role="alert"]'), "restore error details");
+  assert.match(dom.document.querySelector('.atlas-settings-dialog[open] .atlas-error[role="alert"]')!.textContent!, /未能恢复本机索引连接.*仍保留本机索引视图.*Synthetic service offline/);
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0); assert.ok(!dom.document.body.textContent!.includes("Only local C# fixture"));
   assert.equal(fetcher.mock.callCount(), 1); assert.ok(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY));
-  fail = false; await act(async () => button("重新读取索引").click());
+  await act(async () => dom.document.querySelector<HTMLButtonElement>('.atlas-settings-dialog[open] button[aria-label="关闭地图设置"]')!.click());
+  assert.equal(dom.document.querySelector('.atlas-settings-dialog[open]'), null, "close the native modal before retrying from the compact alert");
+  assert.equal(fetcher.mock.callCount(), 1, "opening and closing connection details must not dispatch a retry");
+  assert.equal(button("重试连接").disabled, false);
+  fail = false; await act(async () => button("重试连接").click());
   await waitFor(() => dom.document.querySelectorAll(".atlas-job-card").length === 22, "retry live query");
+  assert.equal(view().value, "live");
+  assert.equal(dom.document.querySelector('.atlas-connection-alert[role="alert"]'), null, "the compact connection failure must clear after a successful retry");
   assert.equal(dom.document.querySelector('.atlas-error[role="alert"]')?.textContent ?? null, null, "connection error clears; an independent unavailable IndexedDB warning remains truthful");
 });
 
@@ -270,9 +280,13 @@ test("disconnect during dev bootstrap ignores credentials that arrive afterwards
 });
 
 test("a failed dev index preparation shows the real error and does not present a connected index", async () => {
-  mock.method(globalThis, "fetch", async () => { throw new Error("snapshot must not run"); });
+  const fetcher = mock.method(globalThis, "fetch", async () => { throw new Error("snapshot must not run"); });
   await mount(true, false, async () => ({ ok: false, error: "synthetic job service refused to start: EADDRINUSE" }));
-  await waitFor(() => dom.document.querySelector('[role="alert"]')?.textContent?.includes("EADDRINUSE") === true, "startup error");
+  await waitFor(() => !!dom.document.querySelector('.atlas-connection-alert[role="alert"]'), "startup error summary");
+  await act(async () => button("连接详情").click());
+  await waitFor(() => dom.document.querySelector('.atlas-settings-dialog[open] .atlas-error[role="alert"]')?.textContent?.includes("EADDRINUSE") === true, "startup error details");
+  assert.match(dom.document.querySelector('.atlas-settings-dialog[open] .atlas-error[role="alert"]')!.textContent!, /synthetic job service refused to start: EADDRINUSE/);
+  assert.equal(fetcher.mock.callCount(), 0, "failed preparation must not dispatch a snapshot request");
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0);
   assert.equal(view().value, "live");
   assert.equal(dom.sessionStorage.getItem(ATLAS_CONNECTION_SESSION_KEY), null);

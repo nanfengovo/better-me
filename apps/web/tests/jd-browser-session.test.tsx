@@ -11,7 +11,9 @@ import { browserSessionMiddleware } from "../server/jd-extractor.ts";
 import { JdExtractionError, type JdFailureCode } from "../src/lib/jd-errors.ts";
 import type { NetworkOperation } from "../server/network-proxy.ts";
 
-const source = "https://m.zhipin.com/mpa/html/weijd/weijd-job/anonymousJob?fromSource=2";
+const shareSource = "https://m.zhipin.com/mpa/html/weijd/weijd-job/anonymousJob?fromSource=2";
+// Detail-page snapshots represent the canonical navigation target, not the original share URL.
+const source = "https://www.zhipin.com/job_detail/anonymousJob.html";
 const owner = "http://localhost:5175\nlocalhost:5175";
 const description = "岗位职责：研发设备通信服务并交付完整回归测试。任职要求：熟悉 C#、SQL Server、异步编程、单元测试与接口文档。";
 const html = `<title>匿名研发职位</title><div class="job-sec-text">${description}</div>`;
@@ -442,9 +444,9 @@ test("session isActive preserves a busy usable lease and rejects externally clos
 test("人工会话新建可见非持久浏览器，无静态预检，原岗位read不刷新且使用同一网络快照", async () => {
   const f = fixture();
   try {
-    const info = await f.manager.start(owner, source);
+    const info = await f.manager.start(owner, shareSource);
     assert.match(info.sessionId, /^[a-f\d-]{36}$/);
-    assert.equal(info.url, source);
+    assert.equal(info.url, shareSource);
     assert.equal(info.platform, "BOSS直聘");
     assert.equal(Date.parse(info.expiresAt), 1_700_000_600_000);
     assert.equal(f.launchOptions[0]?.headless, false);
@@ -454,7 +456,7 @@ test("人工会话新建可见非持久浏览器，无静态预检，原岗位re
     const result = await f.manager.read(owner, info.sessionId);
     assert.match(result.method, /人工接续/);
     assert.match(result.text, /设备通信/);
-    assert.equal(result.provenance.url, source);
+    assert.equal(result.provenance.url, shareSource);
     assert.deepEqual(f.navigations, [source]);
     assert.equal(f.page.url(), source);
     assert.match((await f.manager.read(owner, info.sessionId)).text, /设备通信/);
@@ -465,6 +467,21 @@ test("人工会话新建可见非持久浏览器，无静态预检，原岗位re
     assert.ok(f.count().snapshots >= 3);
     assert.deepEqual(await f.manager.close(owner, info.sessionId), { closed: true });
     assert.equal(f.count().closed, 1);
+  } finally { await f.manager.closeAll(); }
+});
+
+test("BOSS桌面详情输入不重复改写，当前页面与快照一致且保留同岗来源", async () => {
+  const f = fixture();
+  try {
+    const info = await f.manager.start(owner, source);
+    assert.equal(info.url, source);
+    assert.deepEqual(f.navigations, [source]);
+    assert.equal(f.page.url(), source);
+    assert.deepEqual(await f.page.evaluate(), { html, url: source, title: "匿名研发职位" });
+    const result = await f.manager.read(owner, info.sessionId);
+    assert.equal(result.provenance.url, source);
+    assert.match(result.text, /设备通信/);
+    assert.deepEqual(f.navigations, [source]);
   } finally { await f.manager.closeAll(); }
 });
 

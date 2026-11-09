@@ -1,5 +1,4 @@
 import http from "node:http";
-import { once } from "node:events";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";

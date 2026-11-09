@@ -12,6 +12,7 @@ import type { NetworkOperation } from "../server/network-proxy.ts";
 import { JdExtractionError, type JdFailureCode } from "../src/lib/jd-errors.ts";
 
 const source = "https://m.zhipin.com/mpa/html/weijd/weijd-job/fixtureToken?fromSource=2";
+const canonicalSource = "https://www.zhipin.com/job_detail/fixtureToken.html";
 const description = "岗位职责：开发设备通信服务并维护自动化回归测试。任职要求：熟悉异步编程、SQL Server、单元测试与接口文档。";
 const liepinVerification = "行为异常。尊敬的客户您好，猎聘安全中心发现您的帐号或IP可能存在异常，为了保障您的账号及资源安全，请进行安全验证。";
 const html = (body: string, extraHead = "") => `<!doctype html><html><head><title>合成研发岗位</title>${extraHead}</head><body>${body}</body></html>`;
@@ -765,13 +766,13 @@ test("导航短暂销毁evaluate上下文后继续读取，成功也关闭临时
     on: events.on.bind(events), mainFrame: () => mainFrame,
     waitForNavigation: (options: { signal?: AbortSignal }) => navigationCommit(events, options),
     isClosed: () => false,
-    url: () => source,
-    goto: async (url: string) => { navigations += 1; assert.equal(url, source); nativeDocument(events, mainFrame); },
+    url: () => canonicalSource,
+    goto: async (url: string) => { navigations += 1; assert.equal(url, canonicalSource); nativeDocument(events, mainFrame, { url: canonicalSource }); },
     evaluate: async (expression: string) => {
       assert.equal(expression, VISIBLE_JOB_SNAPSHOT);
       evaluations += 1;
       if (evaluations === 1) throw new Error("Execution context was destroyed, most likely because of a navigation.");
-      return { html: visible, url: source, title: "合成研发岗位" };
+      return { html: visible, url: canonicalSource, title: "合成研发岗位" };
     },
   };
   const context = { routeWebSocket: async () => undefined, route: async () => undefined, newPage: async () => page };
