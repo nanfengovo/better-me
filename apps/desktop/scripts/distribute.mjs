@@ -18,7 +18,7 @@ if (args.some(arg => !["--dir", "--x64", "--arm64"].includes(arg))) throw new Er
 const arch = args.includes("--x64") ? "x64" : args.includes("--arm64") ? "arm64" : process.arch;
 if (arch !== process.arch) throw new Error("Use a native runner for each architecture; cross-built native dependencies are not release-validated.");
 if (!["darwin", "win32", "linux"].includes(process.platform)) throw new Error("Unsupported desktop platform.");
-for (const file of ["dist/main/index.cjs", "dist/preload/index.cjs", "dist/runtime/server.mjs", "resources/icon.png"]) await stat(path.join(desktop, file));
+for (const file of ["dist/main/index.cjs", "dist/preload/index.cjs", "dist/runtime/server.mjs", "dist/runtime/application-runtime-worker.js", "resources/icon.png"]) await stat(path.join(desktop, file));
 await stat(path.join(root, "apps/web/dist/index.html"));
 const stage = await mkdtemp(path.join(tmpdir(), "betterme-distribution-"));
 const appDir = path.join(stage, "app"), runtime = path.join(stage, "runtime");
@@ -39,7 +39,6 @@ command(process.execPath, [pnpm, "--filter", "@better-me/desktop", "deploy", "--
 command(process.execPath, [pnpm, "install", "--offline", "--frozen-lockfile"]);
 await mkdir(runtime, { recursive: true });
 await cp(path.join(root, "apps/web/dist"), path.join(runtime, "web"), { recursive: true });
-await cp(path.join(root, "config"), path.join(runtime, "config"), { recursive: true });
 await cp(path.join(desktop, "resources/icon.png"), path.join(runtime, "icon.png"));
 const legal = path.join(runtime, "web/legal");
 await mkdir(legal, { recursive: true });
@@ -56,10 +55,11 @@ const platform = process.platform === "darwin" ? Platform.MAC : process.platform
 const targets = platform.createTarget(args.includes("--dir") ? ["dir"] : undefined, arch === "arm64" ? Arch.arm64 : Arch.x64);
 const artifacts = await build({ targets, projectDir: appDir, publish: "never", config: { ...config, electronVersion: pkg.devDependencies.electron,
   directories: { app: appDir, output, buildResources: path.join(desktop, "resources") },
-  extraResources: [{ from: runtime, to: "runtime" }],
+  // Bundled job modules resolve ../../../config from app.asar/dist/runtime.
+  extraResources: [{ from: runtime, to: "runtime" }, { from: path.join(root, "config"), to: "config" }],
   mac: { ...config.mac, icon: path.join(desktop, "resources/icon.png") },
   win: { ...config.win, icon: path.join(desktop, "resources/icon.png") },
-  linux: { ...config.linux, icon: path.join(desktop, "resources/icon.png") },
+  linux: { ...config.linux, icon: path.join(desktop, "resources/icon.png"), artifactName: `BetterMe-\${version}-linux-${arch}.\${ext}` },
 } });
 const checksums = [];
 for (const file of artifacts) {
