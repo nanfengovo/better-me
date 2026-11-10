@@ -92,7 +92,7 @@ export function startPackagedApp() {
   app.on("second-instance", () => { if (!quitting) void bootstrap(); });
   app.on("window-all-closed", () => { if (process.platform !== "darwin" || smoke) app.quit(); });
   app.on("before-quit", event => {
-    if (stopped || !child || child.exitCode !== null || child.signalCode !== null) return;
+    if (stopped || !child?.pid || child.exitCode !== null || child.signalCode !== null) return;
     event.preventDefault(); if (quitting) return; quitting = true;
     const owned = child;
     const deadline = setTimeout(() => owned.kill("SIGKILL"), 20_000);

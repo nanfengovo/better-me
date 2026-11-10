@@ -34,8 +34,13 @@ const identity = await loadIdentityDeployment({ defaultConfigPath: resolve(data,
 const job = await startLocalJobService({ dataDirectory: resolve(data, "jobs"), host: "127.0.0.1", port: jobPort!, allowedOrigins: [origin] });
 const jobToken = (await readFile(job.tokenPath, "utf8")).trim();
 const agentEndpoint = `http://127.0.0.1:${agentPort}`;
+const checkpointer = createCheckpointer(resolve(data, "agent", "checkpoints.sqlite"));
+// A portable release must not silently lose checkpoints if a native dependency
+// was omitted or built for the wrong Electron ABI.
+if (!checkpointer.db) throw new Error("Persistent checkpoint storage is unavailable; data preserved.");
+checkpointer.db.prepare("SELECT 1").get();
 const agent = createAgentServer({ host: "127.0.0.1", port: agentPort!, allowedOrigins: [origin], authToken: agentToken,
-  checkpointer: createCheckpointer(resolve(data, "agent", "checkpoints.sqlite")), runsDirectory: resolve(data, "agent", "runs"), runtimeDefinitions: [], sandboxMode: "disabled", oidc: identity.oidc,
+  checkpointer, runsDirectory: resolve(data, "agent", "runs"), runtimeDefinitions: [], sandboxMode: "disabled", oidc: identity.oidc,
 });
 if (!agent.listening) await once(agent, "listening");
 let stopping = false;
@@ -57,6 +62,7 @@ async function close(code = 0) {
   const deadline = setTimeout(() => process.exit(1), 15_000); deadline.unref();
   gateway.close(); agent.close();
   await job.close().catch(() => { code = 1; });
+  checkpointer.db.close();
   volume.close();
   process.exit(code);
 }
