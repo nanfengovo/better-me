@@ -27,12 +27,11 @@ import {
 } from "lucide-react";
 import { testLlmConnection } from "@better-me/core";
 import { useUiPreferences } from "../lib/ui-preferences";
+import { useLocalAgentRuntime } from "../lib/local-agent-runtime";
 import { createCompanionResumeSummary } from "../lib/resume-agent-context";
 import {
   cancelLocalAgentRun,
   getLocalAgentRun,
-  listLocalAgentRuntimes,
-  scanLocalAgentRuntimes,
   startLocalAgentRun,
   streamLocalAgentRun,
   sendAgentChat,
@@ -302,15 +301,12 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
     if (showSidebar && hideSidebar) { if (next) showSidebar("conversation", "companion"); else hideSidebar(); }
     else setLocalOpen(next);
   }, [showSidebar, hideSidebar]);
-  const [runtimes, setRuntimes] = useState<LocalRuntimeInfo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { runtimes, loading, refreshing, online, selectedRuntimeId, selectedRuntime, setSelectedRuntimeId, refresh, ready: runtimeReady } = useLocalAgentRuntime();
   const [runtimeExpanded, setRuntimeExpanded] = useState(false);
   const [toolsExpanded, setToolsExpanded] = useState(false);
   const [quickRunExpanded, setQuickRunExpanded] = useState(false);
   const [providerExpanded, setProviderExpanded] = useState(false);
-  const [online, setOnline] = useState<boolean | null>(null);
-  const [selectedRuntimeId, setSelectedRuntimeId] = useState("");
+
   const [prompt, setPrompt] = useState("");
   const [run, setRun] = useState<LocalAgentRun | null>(null);
   const [events, setEvents] = useState<LocalAgentEvent[]>([]);
@@ -390,22 +386,6 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
     if (chatAutoScrollRef.current && thread) thread.scrollTop = thread.scrollHeight;
   }, [chatMessages, chatLoading, typingReplyId]);
 
-  const refresh = useCallback(async (forceScan = false) => {
-    setRefreshing(forceScan);
-    try {
-      const next = forceScan ? await scanLocalAgentRuntimes() : await listLocalAgentRuntimes();
-      setRuntimes(next);
-      setOnline(true);
-      setSelectedRuntimeId((current) => current && next.some((item) => item.id === current && item.status === "available")
-        ? current
-        : next.find((item) => item.status === "available")?.id ?? "");
-    } catch {
-      setOnline(false);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
 
   const probeProvider = useCallback(async () => {
     if (routing?.enabled) { setProviderCheck("ready"); setProviderMessage("当前使用本账号的统一底座路由；不探测当前 API 配置。实际底座与跳过原因见模型与工具。"); return; }
@@ -435,11 +415,6 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
     }
   }, [account, accountReady, llmConfig, t, routing?.enabled]);
 
-  useEffect(() => {
-    void refresh();
-    const timer = window.setInterval(() => void refresh(), 30_000);
-    return () => window.clearInterval(timer);
-  }, [refresh]);
 
   useEffect(() => {
     if (!open) return;
@@ -455,7 +430,6 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
 
   const runIsActive = run?.status === "running" || run?.status === "queued";
   const available = useMemo(() => runtimes.filter((runtime) => runtime.status === "available"), [runtimes]);
-  const selectedRuntime = useMemo(() => runtimes.find((runtime) => runtime.id === selectedRuntimeId), [runtimes, selectedRuntimeId]);
   const visibleRuntimes = runtimeExpanded ? runtimes : runtimes.slice(0, 5);
   const hiddenRuntimes = runtimes.slice(5);
   const statusLabel = loading
@@ -468,7 +442,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
 
   const handleStartRun = useCallback(async () => {
     const cleanPrompt = prompt.trim();
-    if (!selectedRuntimeId || !cleanPrompt || runIsActive) return;
+    if (!runtimeReady || !selectedRuntimeId || !cleanPrompt || runIsActive) return;
     setToolsExpanded(true);
     setQuickRunExpanded(true);
     setRunError(null);
@@ -553,7 +527,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
     } catch (error) {
       setRunError(error instanceof Error ? error.message : "agent_run_failed");
     }
-  }, [prompt, runIsActive, selectedRuntimeId, t]);
+  }, [prompt, runIsActive, selectedRuntimeId, runtimeReady, t]);
 
   const handleCopyOutput = useCallback(async () => {
     if (!runOutput) return;
@@ -805,7 +779,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
                     <div className={`agent-companion-core ${runIsActive ? "is-running" : ""}`}>
                       <span className="agent-companion-core-orbit orbit-one" />
                       <span className="agent-companion-core-orbit orbit-two" />
-                      <span className={`agent-companion-core-icon ${runtimeTone(selectedRuntimeId)}`}><RuntimeIcon id={selectedRuntimeId || "ollama"} /></span>
+                      <span className={`agent-companion-core-icon ${runtimeTone(selectedRuntimeId)}`}><RuntimeIcon id={selectedRuntimeId || "unconfigured"} /></span>
                       {runIsActive && <span className="agent-companion-core-signal" />}
                     </div>
                     <div className="agent-companion-hero-copy">
@@ -813,6 +787,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
                       <strong>{selectedRuntime?.name ?? t("选择一个本机 Agent", "Choose a local Agent")}</strong>
                       <small>{selectedRuntime?.version ?? selectedRuntime?.resolvedCommand ?? t("从下方轨道选择可用运行时", "Choose an available runtime below")}</small>
                     </div>
+                    <button type="button" className="agent-provider-action" disabled={!selectedRuntimeId || Boolean(runIsActive)} onClick={() => setSelectedRuntimeId("")}>{t("清除选择", "Clear selection")}</button>
                     <button type="button" className="agent-companion-refresh hero-refresh" aria-label={t("重新扫描本机 Agent", "Rescan local agents")} title={t("重新扫描", "Rescan")} onClick={() => void refresh(true)} disabled={refreshing}><RefreshCw size={14} className={refreshing ? "is-spinning" : ""} /></button>
                   </div>
                   <div className={`agent-companion-health ${online === false ? "is-offline" : available.length > 0 ? "is-ready" : "is-idle"}`}>
@@ -891,7 +866,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
               <div className="agent-companion-run-heading"><div><span>{t("本机 CLI 单次运行", "One-off local CLI run")}</span><small>{t("单次 CLI；不会自动带入本对话/简历上下文，也不会自动写入简历或地图。默认不保证 OS 沙箱，实际运行级别见下方状态。", "One-off CLI; chat/resume context is not attached, and nothing is automatically written to your resume or map. OS sandboxing is not guaranteed; the actual level appears below.")}</small></div></div>
               <label className="agent-companion-field"><span>{t("任务提示", "Task prompt")}</span><textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder={t("先粘贴岗位描述或其他文本，再写明任务", "Paste the job description or other text, then describe the task")} rows={3} disabled={Boolean(runIsActive)} /></label>
               <div className="agent-companion-run-actions">
-                <button type="button" className="agent-companion-run-button" onClick={() => void handleStartRun()} disabled={!selectedRuntimeId || !prompt.trim() || Boolean(runIsActive)}><Play size={13} />{t("开始运行", "Run now")}</button>
+                <button type="button" className="agent-companion-run-button" onClick={() => void handleStartRun()} disabled={!runtimeReady || !selectedRuntimeId || !prompt.trim() || Boolean(runIsActive)}><Play size={13} />{t("开始运行", "Run now")}</button>
                 {runIsActive && <button type="button" className="agent-companion-cancel" onClick={() => void handleCancelRun()} aria-label={t("取消当前运行", "Cancel current run")} title={t("取消", "Cancel")}><Square size={13} /></button>}
               </div>
               {run && <div className={`agent-companion-run-status is-${run.status}`}><span>{run.status === "running" || run.status === "queued" ? <Loader2 size={12} className="is-spinning" /> : <Activity size={12} />}</span><span>{run.status === "running" ? t("运行中", "Running") : run.status === "queued" ? t("排队中", "Queued") : run.status === "completed" ? t("已完成", "Completed") : run.status === "failed" ? t("失败", "Failed") : run.status === "cancelled" ? t("已取消", "Cancelled") : run.status}</span><small>{run.isolation === "os-sandbox" ? t("OS 沙箱", "OS sandbox") : run.isolation === "process" ? t("进程运行 · 无 OS 沙箱", "Process run · no OS sandbox") : t("未启用沙箱", "No sandbox")}</small></div>}

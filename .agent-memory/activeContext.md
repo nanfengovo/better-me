@@ -2,6 +2,10 @@
 
 ## 当前焦点
 
+2026-11-10：工坊 Agent 身份与系统设置联动。`LocalAgentRuntimeProvider` 通过 SWR 共用运行时探测与会话内选择，`AgentCompanion` 和工坊使用同一 ID / 名称 / `AgentBrandIcon`；保留原有视觉，补充浅色材质、键盘节点、减少动态及未配置/离线状态。显式选择失效不会静默切换品牌。选择延续原先的会话语义，不新增持久化或改变模型路由。
+
+### 此前交付
+
 2026-11-08 JD 原句深度拆解与证据链匹配抽屉落地（双端闭环）：
 - **核心拆解与证据对齐引擎（packages/core）**：
   - 新增 `packages/core/src/project/jd-decomposition.ts`，导出 `decomposeJdText` 与 `alignJdWithResume`；
@@ -16,11 +20,12 @@
   - `apps/web/tests/jd-match-drawer.test.tsx` 扩充至 10/10 全绿通过。
 
 ## 卡点
-无。核心包与 Web 界面测试全部畅通。
+本轮定向 ESLint、Web 类型检查、9 项组件回归及 `pnpm desktop:build` 通过。正式浏览器页停在登录门禁；隔离工坊测试页遭遇 CDP `DOM.enable` 超时，尚未获得视觉截图。Linux 沙箱无法刷新或启动用户本机 macOS `BetterMe.app`，不可将共享产物构建成功视作桌面实机验收。
 
 ## 下一步
-1. 建立 2~3 个典型脱敏技术岗（如高并发后端、云原生架构）的真实 JD/简历对比样本库；
-2. 推进阶段 2 的 DOCX/PDF 真实多栏排版打印抽检。
+1. 在已登录环境复核设置 → 工坊的 7 种 Agent 图标、清除选择、离线状态以及移动端布局；隔离页面为 `apps/web/tests/ui-lab/studio-agent-identity.html`，只使用测试运行时。
+2. 在 macOS 刷新并运行 BetterMe.app，验证共享界面改动。
+3. 继续此前 JD 样本库与 DOCX/PDF 排版抽检工作。
 
 ## 必读附加
 - `docs/ROADMAP.md`

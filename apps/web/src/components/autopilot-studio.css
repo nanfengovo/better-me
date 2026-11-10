@@ -3,6 +3,26 @@
  * Adapts to BetterMe's --workspace-* palette tokens (Atelier / Navy / Plum / Graphite)
  * ───────────────────────────────────────────────────────────────────────────── */
 
+.studio-runtime-icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 22%; color: var(--workspace-text-secondary, #94b1a3); }
+.studio-runtime-icon > img, .studio-runtime-icon > svg { width: 100%; height: 100%; object-fit: contain; }
+.studio-runtime-icon > svg.agent-runtime-brand { fill: currentColor; }
+.studio-agent-trigger { padding: 4px 7px; border-radius: 8px; cursor: pointer; transition: background-color .18s; }
+.studio-agent-trigger:hover { background: color-mix(in srgb, currentColor 9%, transparent); }
+.studio-workshop button:focus-visible { outline: 2px solid #089fc3; outline-offset: 3px; }
+.studio-workshop [data-node-id] { text-align: left; backdrop-filter: blur(12px); }
+.studio-workshop [data-testid="studio-agent-courier"][hidden] { display: none; }
+.studio-workshop[data-theme="light"] main > div > [data-node-id] { background-image: linear-gradient(145deg, #ffffffcf, #edf5fb45); }
+.studio-workshop[data-theme="light"] main > div > .row-start-2 { box-shadow: 0 10px 32px #6f572b24, inset 0 1px #ffffff !important; background-image: linear-gradient(130deg, #fff, #f8fbff); }
+.studio-workshop > header { flex-wrap: wrap; row-gap: 10px; }
+@media (max-width: 850px) {
+  .studio-workshop > main { overflow-x: auto; justify-content: flex-start; }
+  .studio-workshop > main > .grid { min-width: 780px; }
+  .studio-workshop > header { padding: 10px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .studio-workshop *, .studio-workshop *::before, .studio-workshop *::after { animation: none !important; transition: none !important; }
+}
+
 .autopilot-studio-root {
   /* Light Theme Defaults (bound to BetterMe workspace tokens) */
   --ap-canvas: var(--workspace-canvas, #f4f4ee);

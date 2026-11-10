@@ -43,13 +43,15 @@ import {
   Mic,
 } from "lucide-react";
 import { openSystemSettings } from "../lib/settings-navigation";
+import { useLocalAgentRuntime } from "../lib/local-agent-runtime";
+import { StudioRuntimeIcon } from "./StudioRuntimeIcon";
 import "./autopilot-studio.css";
 
 // ============================================================================
 // 1. 四大可选 AI AGENT 内核配置
 // ============================================================================
 export interface AgentKernelConfig {
-  id: "opus-5.5" | "deepseek-r2" | "gpt-5.2" | "ollama-qwen3";
+  id: string;
   shortName: string;
   brandName: string;
   fullTitle: string;
@@ -1494,7 +1496,7 @@ function CyberJobCard3D({
             }`}
           >
             <div className="flex items-center gap-1.5">
-              <AgentTotemIcon agentId={agent.id} className="w-4 h-4" />
+              <StudioRuntimeIcon agentId={agent.id} className="w-4 h-4" />
               <span className={isLight ? "text-slate-600" : "text-slate-300"}>{agent.shortName}:</span>
               <span className={`font-bold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>{job.stage3D}</span>
             </div>
@@ -1524,7 +1526,7 @@ function CyberJobCard3D({
             isLight ? "border-slate-200" : "border-white/10"
           }`}>
             <div className="flex items-center gap-2 font-mono text-xs font-bold" style={{ color: isLight ? (agent.id === "opus-5.5" ? "#B45309" : agent.primaryHex) : agent.primaryHex }}>
-              <AgentTotemIcon agentId={agent.id} className="w-5 h-5" />
+              <StudioRuntimeIcon agentId={agent.id} className="w-5 h-5" />
               <span>{agent.shortName} RECON // 背调实证</span>
             </div>
             <span className={`font-mono text-[10px] px-2 py-0.5 rounded border ${
@@ -1630,9 +1632,23 @@ export function AutopilotStudioWorkspace({
 }) {
   const { theme, setTheme } = useUiPreferences();
 
-  // 1. AI 内核选择 ('opus-5.5' | 'deepseek-r2' | 'gpt-5.2' | 'ollama-qwen3')
-  const [selectedAgentId] = useState<AgentKernelConfig["id"]>("opus-5.5");
-  const currentAgent: AgentKernelConfig = AGENT_KERNELS[selectedAgentId] ?? AGENT_KERNELS["opus-5.5"]!;
+  // 1. 工坊身份跟随系统设置；视觉配色不再决定执行运行时。
+  const { selectedRuntime, selectedRuntimeId, ready: runtimeReady, loading: runtimeLoading, online } = useLocalAgentRuntime();
+  const runtimeName = selectedRuntime?.name ?? (selectedRuntimeId ? "所选 Agent 暂不可用" : "未配置 Agent");
+  const runtimeStatus = runtimeLoading ? "正在检测" : online === false ? "Host 未连接" : runtimeReady ? "本机可用" : selectedRuntimeId ? "暂不可用" : "待配置";
+  const currentAgent: AgentKernelConfig = {
+    ...AGENT_KERNELS["opus-5.5"]!,
+    id: selectedRuntimeId || "unconfigured",
+    shortName: runtimeName, brandName: runtimeName, fullTitle: runtimeName,
+    cliHeaderTitle: runtimeName, cliVersion: selectedRuntime?.version ?? "版本未提供",
+    heroBannerPrefix: `${runtimeName} + FACTBASE`, mascotName: runtimeName,
+    mascotRole: "跟随系统设置 · 本机执行入口",
+    modelSpec: selectedRuntime?.version ?? "模型由运行时配置",
+    computeBadge: runtimeStatus, signatureQuote: "执行入口与系统设置保持一致。",
+  };
+  const studioNodes = useMemo(() => STUDIO_20_NODES.map(node => node.id === 1
+    ? { ...node, name: runtimeName, sub: `系统设置 · ${runtimeStatus}` }
+    : node), [runtimeName, runtimeStatus]);
 
   // 2. 工作台模式 ('studio' | 'space3d' | 'split')
   const [workspaceMode, setWorkspaceMode] = useState<"studio" | "space3d" | "split">("studio");
@@ -1710,7 +1726,7 @@ export function AutopilotStudioWorkspace({
   const [toast, setToast] = useState<{ title: string; desc: string } | null>(null);
 
   const activeJob = useMemo(() => jobs.find((j) => j.id === activeJobId) || jobs[0]!, [jobs, activeJobId]);
-  const activeNode = STUDIO_20_NODES[activeNodeIdx]!;
+  const activeNode = studioNodes[activeNodeIdx]!;
   const collected3DJobs = useMemo(() => jobs.filter((j) => j.collectedIn3D), [jobs]);
 
   // FactBase claim count & summary
@@ -1734,18 +1750,21 @@ export function AutopilotStudioWorkspace({
 
   // 自动环流定时器
   useEffect(() => {
-    if (!autoLoopPlaying || workspaceMode === "space3d") return;
+    if (!runtimeReady || !autoLoopPlaying || workspaceMode === "space3d") return;
     const timer = setInterval(() => {
       setActiveNodeIdx((prev) => (prev + 1) % STUDIO_20_NODES.length);
     }, 2400);
     return () => clearInterval(timer);
-  }, [autoLoopPlaying, workspaceMode]);
+  }, [autoLoopPlaying, workspaceMode, runtimeReady]);
+
+  useEffect(() => { setAutoLoopPlaying(false); }, [selectedRuntimeId, runtimeReady]);
 
   // 键盘快捷键 (Space 暂停/继续，左右箭头单步)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (["INPUT", "TEXTAREA"].includes((e.target as HTMLElement)?.tagName)) return;
+      if (e.isComposing || e.keyCode === 229 || (e.target as HTMLElement)?.closest("input, textarea, select, button, [contenteditable=true], [role=dialog]")) return;
       if (e.code === "Space") {
+        if (!runtimeReady) return;
         e.preventDefault();
         setAutoLoopPlaying((p) => !p);
       } else if (e.code === "ArrowRight") {
@@ -1758,12 +1777,12 @@ export function AutopilotStudioWorkspace({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [runtimeReady]);
 
   // 20 张卡片在 6x6 外环物理槽位坐标映射
   const positionedCards = useMemo(() => {
     const spotlightSlotIndex = 2; // Top Row, Col 3
-    return STUDIO_20_NODES.map((node, nodeIndex) => {
+    return studioNodes.map((node, nodeIndex) => {
       const slotIndex = conveyorShiftMode
         ? (nodeIndex - activeNodeIdx + spotlightSlotIndex + 20) % 20
         : nodeIndex;
@@ -1777,7 +1796,7 @@ export function AutopilotStudioWorkspace({
         isSpotlight,
       };
     });
-  }, [activeNodeIdx, conveyorShiftMode]);
+  }, [activeNodeIdx, conveyorShiftMode, studioNodes]);
 
   // 中央 CLI 终端滚动结构化树日志
   const visibleTerminalStream = useMemo(() => {
@@ -1785,12 +1804,12 @@ export function AutopilotStudioWorkspace({
     for (let offset = -4; offset <= 0; offset++) {
       const idx = (activeNodeIdx + offset + STUDIO_20_NODES.length) % STUDIO_20_NODES.length;
       list.push({
-        ...STUDIO_20_NODES[idx]!,
+        ...studioNodes[idx]!,
         isCurrent: offset === 0,
       });
     }
     return list;
-  }, [activeNodeIdx]);
+  }, [activeNodeIdx, studioNodes]);
 
   // 铸造 3D 机会卡
   const handleMint3DCard = (targetJob = activeJob) => {
@@ -1942,7 +1961,8 @@ export function AutopilotStudioWorkspace({
         `,
         backgroundSize: "100% 100%, 16px 16px, 64px 64px, 64px 64px",
       }}
-      className="relative w-full h-full min-h-0 overflow-hidden flex flex-col justify-between text-slate-100 select-none transition-colors duration-500 font-sans"
+      data-theme={theme}
+      className="studio-workshop relative w-full h-full min-h-0 overflow-hidden flex flex-col justify-between text-slate-100 select-none transition-colors duration-500 font-sans"
     >
       {/* Toast 提示横幅 */}
       {toast && (
@@ -1954,7 +1974,7 @@ export function AutopilotStudioWorkspace({
           className="fixed top-4 right-4 z-50 w-96 p-3.5 rounded-2xl bg-[#0A101A]/95 border backdrop-blur-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-200"
         >
           <div className="p-1.5 rounded-xl bg-white/[0.04] border border-white/10 shrink-0">
-            <AgentMascotSprite agentId={currentAgent.id} className="w-8 h-7" />
+            <StudioRuntimeIcon agentId={currentAgent.id} className="w-8 h-7" />
           </div>
           <div className="font-mono text-xs leading-relaxed">
             <div style={{ color: currentAgent.primaryHex }} className="font-bold">
@@ -2120,7 +2140,7 @@ export function AutopilotStudioWorkspace({
         {workspaceMode === "studio" && (
           <div className="relative w-full h-full max-w-[1580px] grid grid-cols-6 grid-rows-6 gap-2">
             {/* 游走 AI Mascot 精灵 */}
-            <div
+            <div hidden={!runtimeReady} data-testid="studio-agent-courier"
               style={{
                 top: `${(positionedCards.find((c) => c.isSpotlight)?.slot.row || 1) * 16 - 2}%`,
                 left: `${(positionedCards.find((c) => c.isSpotlight)?.slot.col || 3) * 16 - 4}%`,
@@ -2128,13 +2148,15 @@ export function AutopilotStudioWorkspace({
               className="pointer-events-none absolute z-40 transition-all duration-700 ease-out flex flex-col items-center"
             >
               <div style={{ animation: "ap-rover-float 2.2s ease-in-out infinite" }}>
-                <AgentMascotSprite agentId={currentAgent.id} className="w-10 h-10 drop-shadow-[0_4px_14px_rgba(245,158,11,0.6)]" />
+                <StudioRuntimeIcon agentId={currentAgent.id} className="w-10 h-10 drop-shadow-[0_4px_14px_rgba(245,158,11,0.6)]" />
               </div>
             </div>
 
             {/* 20 张外环技能卡片 */}
             {positionedCards.map(({ node, nodeIndex, slot, isSpotlight }) => (
-              <div
+              <button
+                type="button"
+                aria-pressed={isSpotlight}
                 key={node.id}
                 data-node-id={node.id}
                 onClick={() => {
@@ -2225,7 +2247,7 @@ export function AutopilotStudioWorkspace({
                   agent={currentAgent}
                   theme={theme}
                 />
-              </div>
+              </button>
             ))}
 
             {/* 中央 4x4 控制台/深度工件工作台 */}
@@ -2247,10 +2269,11 @@ export function AutopilotStudioWorkspace({
               >
                 {/* 顶栏左侧品牌 */}
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5 font-bold" style={{ color: currentAgent.primaryHex }}>
-                    <AgentTotemIcon agentId={currentAgent.id} className="w-4 h-4" />
+                  <button type="button" onClick={() => openSystemSettings("tools")} aria-label={`${runtimeName}，打开 Agent 设置`} className="studio-agent-trigger flex items-center gap-1.5 font-bold" style={{ color: theme === "light" ? "#925509" : currentAgent.primaryHex }}>
+                    <StudioRuntimeIcon agentId={currentAgent.id} className="w-6 h-6" />
                     <span>{currentAgent.cliHeaderTitle}</span>
-                  </div>
+                    <Sliders className="w-3 h-3" aria-hidden="true" />
+                  </button>
 
                   {/* 视图 Tab 切换 */}
                   <div className={`flex items-center gap-1 p-0.5 rounded-lg border ${
@@ -2302,8 +2325,8 @@ export function AutopilotStudioWorkspace({
                   </button>
 
                   <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                    <span>:9222 CDP</span>
+                    <span className={`w-2 h-2 rounded-full ${runtimeReady ? "bg-emerald-400" : "bg-slate-400"}`} />
+                    <span role="status">{runtimeStatus}</span>
                   </div>
                 </div>
               </div>
@@ -2321,7 +2344,7 @@ export function AutopilotStudioWorkspace({
                       }}
                       className="p-4 rounded-xl border flex items-start gap-4"
                     >
-                      <AgentMascotSprite agentId={currentAgent.id} className="w-14 h-14 shrink-0" />
+                      <StudioRuntimeIcon agentId={currentAgent.id} className="w-14 h-14 shrink-0" />
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex items-center justify-between">
                           <h2 className={`text-sm font-bold flex items-center gap-2 ${
@@ -2333,7 +2356,7 @@ export function AutopilotStudioWorkspace({
                                 ? "bg-cyan-50 text-cyan-800 border-cyan-300 font-bold"
                                 : "bg-cyan-500/20 text-cyan-300 border-cyan-500/30"
                             }`}>
-                              自动化流水线引擎 · 已就绪
+                              工序预览 · {runtimeStatus}
                             </span>
                           </h2>
                           <div className={`flex items-center gap-1 text-[11px] font-bold ${
@@ -3231,7 +3254,9 @@ export function AutopilotStudioWorkspace({
 
             <button
               onClick={() => setAutoLoopPlaying((p) => !p)}
-              className={`px-3 py-1 rounded-lg font-bold flex items-center gap-1.5 transition ${
+              disabled={!runtimeReady}
+              title={runtimeReady ? "仅预览工序，不执行真实任务" : "请先在系统设置中配置可用 Agent"}
+              className={`px-3 py-1 rounded-lg font-bold flex items-center gap-1.5 transition disabled:opacity-50 disabled:cursor-not-allowed ${
                 autoLoopPlaying
                   ? "bg-amber-400 text-slate-950 shadow"
                   : theme === "light"
@@ -3240,7 +3265,7 @@ export function AutopilotStudioWorkspace({
               }`}
             >
               {autoLoopPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-              <span>{autoLoopPlaying ? "环流中" : "单步推进"}</span>
+              <span>{!runtimeReady ? "Agent 未就绪" : autoLoopPlaying ? "预览中" : "播放工序"}</span>
             </button>
 
             <button
