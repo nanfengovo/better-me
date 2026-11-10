@@ -1,19 +1,25 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from "electron";
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createMainWindow, setupNativeMenu } from "./window.js";
 import { externalUrl, validateSmokeProfile } from "./launch-policy.js";
 
 export function startPackagedApp() {
   const smoke = app.commandLine.hasSwitch("betterme-smoke-test");
-  if (smoke) app.setPath("userData", validateSmokeProfile(app.commandLine.getSwitchValue("betterme-smoke-profile")));
+  if (smoke) {
+    try { app.setPath("userData", validateSmokeProfile(app.commandLine.getSwitchValue("betterme-smoke-profile"))); }
+    catch (error) { console.error("Smoke profile rejected:", String(error)); app.exit(1); return; }
+  }
   const userData = app.getPath("userData");
+  const trace = (phase: string) => { if (smoke) appendFileSync(path.join(userData, "smoke-phases.txt"), phase + "\n", { mode: 0o600 }); };
+  trace("profile-validated");
   // Do not silently import a developer browser/old Electron profile.
   for (const [key, name] of [["sessionData", "sessions"], ["logs", "logs"], ["crashDumps", "crashes"]] as const) {
     const directory = path.join(userData, name); mkdirSync(directory, { recursive: true, mode: 0o700 }); app.setPath(key, directory);
   }
   if (!app.requestSingleInstanceLock()) { app.quit(); return; }
+  trace("user-data-ready");
   let child: ChildProcess | undefined, window: BrowserWindow | null = null;
   let ready: { origin: string; endpoint: string; token: string; port: number; runtimePid: number; node: string } | undefined;
   let opening: Promise<void> | undefined, quitting = false, stopped = false;
@@ -32,6 +38,7 @@ export function startPackagedApp() {
   nativeTheme.on("updated", () => window?.webContents.send("desktop:theme-changed", nativeTheme.shouldUseDarkColors ? "dark" : "light"));
 
   async function runtime() {
+    trace("runtime-spawn");
     const environment = { ...process.env };
     for (const key of Object.keys(environment)) if (["NODE_OPTIONS", "NODE_PATH", "NODE_CHANNEL_FD", "NODE_CHANNEL_SERIALIZATION_MODE"].includes(key.toUpperCase())) delete environment[key];
     child = spawn(process.execPath, [path.join(app.getAppPath(), "dist/runtime/server.mjs")], {
@@ -54,6 +61,7 @@ export function startPackagedApp() {
             || endpoint.hostname !== "127.0.0.1" || endpoint.protocol !== "http:" || !/^[A-Za-z0-9_-]{43,128}$/.test(String(value.agentToken))) throw new Error("Invalid bundled service handshake.");
           ready = { origin: origin.origin, endpoint: endpoint.origin, token: String(value.agentToken), port: Number(value.port), runtimePid: Number(value.runtimePid), node: String(value.node) };
           clearTimeout(timer); child!.removeListener("error", fail); child!.removeListener("exit", fail); accept();
+          trace("runtime-ready");
         } catch (error) { clearTimeout(timer); reject(error); }
       });
     });
@@ -62,12 +70,14 @@ export function startPackagedApp() {
   async function open() {
     if (window) { window.show(); window.focus(); return; }
     if (!ready) await runtime();
+    trace("window-create");
     setupNativeMenu(explainHud);
     window = createMainWindow({ preloadPath, devServerUrl: ready!.origin + "/?workspace=autopilot", iconPath: path.join(resources, "icon.png") });
     window.on("closed", () => { window = null; });
     if (smoke) {
       const current = window;
       await new Promise<void>((accept, reject) => { current.webContents.once("did-finish-load", () => accept()); current.webContents.once("did-fail-load", (_event, _code, message) => reject(new Error(message))); });
+      trace("renderer-loaded");
       let rendered = false;
       for (let attempt = 0; attempt < 100; attempt++) {
         rendered = await current.webContents.executeJavaScript("Boolean(document.querySelector('#root')?.childElementCount)");
@@ -75,6 +85,7 @@ export function startPackagedApp() {
         await new Promise(accept => setTimeout(accept, 100));
       }
       if (!rendered) throw new Error("The packaged renderer did not mount.");
+      trace("renderer-mounted");
       const health = await fetch(ready!.origin + "/healthz");
       if (!health.ok) throw new Error("Packaged runtime health check failed.");
       const state = { version: app.getVersion(), platform: process.platform, arch: process.arch, rendererMounted: rendered, node: ready!.node, runtimePid: ready!.runtimePid, origin: ready!.origin };
@@ -87,16 +98,17 @@ export function startPackagedApp() {
     else dialog.showErrorBox("无法打开 BetterMe", "本机服务无法启动。没有替换其他服务或清除资料。请检查端口占用，并重新打开应用。");
     app.quit();
   }).finally(() => { opening = undefined; });
-  app.whenReady().then(bootstrap);
+  app.whenReady().then(() => { trace("app-ready"); return bootstrap(); });
   app.on("activate", () => { if (!quitting) void bootstrap(); });
   app.on("second-instance", () => { if (!quitting) void bootstrap(); });
   app.on("window-all-closed", () => { if (process.platform !== "darwin" || smoke) app.quit(); });
   app.on("before-quit", event => {
     if (stopped || !child?.pid || child.exitCode !== null || child.signalCode !== null) return;
     event.preventDefault(); if (quitting) return; quitting = true;
+    trace("runtime-shutdown");
     const owned = child;
     const deadline = setTimeout(() => owned.kill("SIGKILL"), 20_000);
-    owned.once("exit", () => { clearTimeout(deadline); stopped = true; app.quit(); });
+    owned.once("exit", () => { trace("runtime-exited"); clearTimeout(deadline); stopped = true; app.quit(); });
     if (owned.connected) owned.send({ type: "shutdown" }); else owned.kill("SIGTERM");
   });
 }

@@ -15,18 +15,22 @@ const env = { ...process.env };
 for (const key of Object.keys(env)) if (["ELECTRON_RUN_AS_NODE", "NODE_OPTIONS", "NODE_PATH"].includes(key.toUpperCase())) delete env[key];
 const child = spawn(executable, ["--betterme-smoke-test", `--betterme-smoke-profile=${profile}`], { cwd: profile, env, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
 let outputText = "";
+async function diagnostics() {
+  const phases = await readFile(path.join(profile, "smoke-phases.txt"), "utf8").catch(() => "No startup phases recorded.");
+  const error = await readFile(path.join(profile, "smoke-error.txt"), "utf8").catch(() => "No startup error recorded.");
+  return `Isolated profile: ${profile}\n${phases}\n${error}\n${outputText}`;
+}
 child.stdout.on("data", data => { outputText = (outputText + data).slice(-12000); });
 child.stderr.on("data", data => { outputText = (outputText + data).slice(-12000); });
 const result = await new Promise((accept, reject) => {
-  const timeout = setTimeout(() => { child.kill("SIGKILL"); reject(new Error("Packaged smoke timed out. " + outputText)); }, 90_000);
+  const timeout = setTimeout(() => { child.kill("SIGKILL"); void diagnostics().then(details => reject(new Error("Packaged smoke timed out. " + details))); }, 90_000);
   child.once("error", error => { clearTimeout(timeout); reject(error); });
   child.once("close", (code, signal) => { clearTimeout(timeout); accept({ code, signal }); });
 });
 let report;
 try { report = JSON.parse(await readFile(path.join(profile, "smoke-result.json"), "utf8")); }
 catch {
-  const error = await readFile(path.join(profile, "smoke-error.txt"), "utf8").catch(() => "No smoke result.");
-  throw new Error(error + "\n" + outputText);
+  throw new Error("No smoke result.\n" + await diagnostics());
 }
 assert.equal(result.code, 0, outputText); assert.equal(result.signal, null);
 assert.equal(report.rendererMounted, true); assert.equal(report.platform, process.platform); assert.equal(report.arch, process.arch);
