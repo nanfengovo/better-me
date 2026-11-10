@@ -5,6 +5,11 @@ WORKDIR /workspace
 ENV CI=true \
     TURBO_TELEMETRY_DISABLED=1
 
+# SQLite's stable Node-API package invokes node-gyp to check its prebuild even
+# when no compilation is needed. Keep its toolchain in this build stage only.
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
 RUN npm install --global pnpm@11.9.0
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
