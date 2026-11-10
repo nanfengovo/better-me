@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Layers } from "lucide-react";
+import { ProductMark } from "./ProductMark";
 import { useUiPreferences } from "../lib/ui-preferences";
 import "./workspace-boot.css";
 
@@ -17,7 +17,7 @@ export function WorkspaceBoot({ onComplete }: { onComplete: () => void }) {
   }, [onComplete, reduceMotion]);
   return <section className="workspace-boot no-print" role="dialog" aria-modal="true" aria-label={t("进入 BetterMe", "Entering BetterMe")} onKeyDown={event => { if (event.key === "Escape") { event.stopPropagation(); onComplete(); } }}>
     <div className="workspace-boot-center">
-      <Layers size={58} strokeWidth={1.3} aria-hidden="true" />
+      <ProductMark size={72} />
       <span className="workspace-boot-name">BetterMe</span>
       <div className="workspace-boot-track" aria-hidden="true"><span /></div>
       <p role="status">{t("欢迎回来", "Welcome back")}</p>

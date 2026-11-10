@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { LoginGlobe } from "./LoginGlobe";
 import { useUiPreferences } from "../lib/ui-preferences";
-import { ArrowUpRight, BriefcaseBusiness, Check, FileText, Layers3, Pause, Play, Sparkles } from "lucide-react";
+import { ArrowUpRight, BriefcaseBusiness, Check, FileText, Pause, Play, Sparkles } from "lucide-react";
+import { ProductMark } from "./ProductMark";
 
 const scenes = [
   { title: "让经历，成为你的优势。", subtitle: "梳理真实经历，打磨每一次表达。", icon: FileText, label: "简历创作", card: "从经历，到有说服力的表达", detail: "内容梳理 · 版式设计 · 版本管理", step: "整理经历" },
@@ -22,7 +23,7 @@ export function LoginShowcase() {
   const scene = { ...scenes[index]!, ...(locale === "en" ? englishScenes[index] : {}) };
   const Icon = scene.icon;
   return <aside className={`login-showcase${paused ? " is-paused" : ""}`} aria-label="BetterMe 产品展示">
-    <div className="login-showcase-top"><span className="login-brand"><Layers3 size={23} strokeWidth={1.6} /> BetterMe<span className="login-brand-tag">{t("工作室", "STUDIO")}</span></span></div>
+    <div className="login-showcase-top"><span className="login-brand"><ProductMark size={30} /> BetterMe<span className="login-brand-tag">{t("工作室", "STUDIO")}</span></span></div>
     <div className="login-story"><div className="login-eyebrow"><span /> {t("立足全球 · 连接你的下一站", "GLOBAL REACH · YOUR NEXT CHAPTER")}</div><h2>{t("世界很大，", "A world of possibility.")}<br /><span>{t("你的未来不设限。", "Your future, unbounded.")}</span></h2><p>{t("以全球视野，发现属于你的职业可能。", "Discover your next career opportunity with a global perspective.")}</p></div>
     <LoginGlobe paused={paused} />
     <div className="login-scene" key={index}>

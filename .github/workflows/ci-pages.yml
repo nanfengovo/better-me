@@ -147,7 +147,7 @@ jobs:
           path: |
             release/*/BetterMe-*.dmg
             release/*/BetterMe-*.zip
-            release/*/BetterMe-*.exe
+            release/*/BetterMe-*-setup.exe
             release/*/BetterMe-*.AppImage
             release/*/SHA256SUMS-*.txt
 
