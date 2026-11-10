@@ -5,6 +5,11 @@ import { AgentHostManager } from "./agent-host-manager.js";
 import { WebServerManager } from "./web-server-manager.js";
 import { createMainWindow, setupNativeMenu } from "./window.js";
 import { toggleStarHud } from "./hud-window.js";
+import { startPackagedApp } from "./packaged.js";
+
+if (app.isPackaged) {
+  startPackagedApp();
+} else {
 
 const isDev = !app.isPackaged;
 
@@ -92,3 +97,4 @@ app.on("activate", () => {
     bootstrap();
   }
 });
+}

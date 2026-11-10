@@ -108,3 +108,25 @@ test("browser runtime and index autoconnection only accept the exact local gatew
     assert.equal(parseDevJobIndexBootstrap({ endpoint: config.origin, token: config.jobToken }), undefined);
   } finally { if (previous) Object.defineProperty(globalThis, "window", previous); else Reflect.deleteProperty(globalThis, "window"); }
 });
+
+test("desktop injection preserves the gateway origin and token guards", async () => {
+  const root = await mkdtemp(join(tmpdir(), "betterme-desktop-gateway-"));
+  const origins: string[] = [];
+  const gateway = createRuntimeGateway({ mode: "desktop", root, origins, agentEndpoint: "http://127.0.0.1:1", jobEndpoint: "http://127.0.0.1:1", agentToken: "a".repeat(43), jobToken: "j".repeat(43), health: async () => true });
+  const url = await listen(gateway); origins.push(url);
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const config = { mode: "desktop", origin: url, agentToken: "a".repeat(43), jobToken: "j".repeat(43) };
+  const win = { location: { origin: url }, __BETTER_ME_RUNTIME__: config };
+  try {
+    assert.match(await (await fetch(url + "/__better-me/runtime.js")).text(), /"mode":"desktop"/);
+    Object.defineProperty(globalThis, "window", { configurable: true, value: win });
+    assert.deepEqual(readRuntimeConnection(), config);
+    for (const invalid of [{ origin: url + "/subpath" }, { origin: "http://localhost:1" }, { agentToken: "short" }, { jobToken: "bad token" }, { mode: "arbitrary" }]) {
+      win.__BETTER_ME_RUNTIME__ = { ...config, ...invalid };
+      assert.equal(readRuntimeConnection(), undefined);
+    }
+  } finally {
+    if (previous) Object.defineProperty(globalThis, "window", previous); else Reflect.deleteProperty(globalThis, "window");
+    await close(gateway); await rm(root, { recursive: true, force: true });
+  }
+});

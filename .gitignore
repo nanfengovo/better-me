@@ -79,6 +79,7 @@ resume-en-*.docx
 
 # Release distribution packages
 release/
+apps/desktop/staging/
 *.dmg
 *.zip
 BetterMe.app/

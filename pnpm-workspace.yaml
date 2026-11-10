@@ -2,9 +2,16 @@ packages:
   - "apps/*"
   - "packages/*"
 
+# 26.18 calls ElectronDownloadCacheMode (not exported by its declared get v3).
+# Scope the compatible API to the packager; keep Electron's own downloader intact.
+overrides:
+  'app-builder-lib@26.18.0>@electron/get': 5.1.0
+
 allowBuilds:
   better-sqlite3: true
   electron: true
+  # Windows uses NSIS, not Squirrel. Do not execute its unused installer script.
+  electron-winstaller: false
   esbuild: true
 
 minimumReleaseAgeExclude:

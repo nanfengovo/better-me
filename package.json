@@ -1,13 +1,16 @@
 {
   "name": "better-me",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.1.0",
   "description": "迈向更好 / BetterMe — local-first growth & career workstation",
   "type": "module",
   "scripts": {
     "dev": "turbo run dev --filter=@better-me/web",
     "desktop": "pnpm --filter @better-me/desktop dev",
-    "desktop:build": "pnpm --filter @better-me/web build && pnpm --filter @better-me/desktop build",
+    "desktop:build": "turbo run build --filter=@better-me/desktop --filter=@better-me/web",
+    "desktop:dist": "node apps/desktop/scripts/distribute.mjs",
+    "desktop:smoke": "node apps/desktop/scripts/smoke.mjs",
+    "test:desktop": "node --import tsx --test apps/desktop/tests/*.test.ts",
     "dev:isolated": "pnpm exec turbo run build --filter=@better-me/web^... && pnpm --filter @better-me/web exec node dev-server.mjs --config tests/ui-lab/career-coach-live.config.ts",
     "dev:capabilities": "node scripts/capability-lab.mjs",
     "dev:capabilities:m2": "node scripts/capability-lab.mjs --m2",

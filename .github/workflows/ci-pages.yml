@@ -3,6 +3,7 @@ name: CI and GitHub Pages
 on:
   push:
     branches: [main, agent-os]
+    tags: ["v*.*.*"]
   pull_request:
     branches: [main, agent-os]
   workflow_dispatch:
@@ -41,6 +42,7 @@ jobs:
       # These are not live recruitment-site or PDF visual acceptance checks.
       - run: pnpm test
       - run: pnpm test:runtime
+      - run: pnpm test:desktop
 
   build:
     name: Production build (Linux / Pages subpath)
@@ -102,9 +104,80 @@ jobs:
       - name: Verify full Compose runtime, persistence and crash recovery
         run: node scripts/check-docker-runtime.mjs
 
+  desktop:
+    name: Desktop package (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: macos-arm64, runner: macos-15, arch: arm64 }
+          - { name: macos-x64, runner: macos-15-intel, arch: x64 }
+          - { name: windows-x64, runner: windows-2025, arch: x64 }
+          - { name: linux-x64, runner: ubuntu-22.04, arch: x64 }
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.15.0
+          package-manager-cache: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+        with:
+          cache: true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:desktop
+      - run: pnpm desktop:build
+      - name: Package the native architecture without publishing
+        run: pnpm desktop:dist --${{ matrix.arch }}
+      - name: Start the packaged app with a new isolated profile and verify owned-service shutdown
+        if: runner.os != 'Linux'
+        run: pnpm desktop:smoke
+      - name: Start the Linux package with its renderer sandbox enabled
+        if: runner.os == 'Linux'
+        run: xvfb-run -a pnpm desktop:smoke
+      - name: Upload verified installers and checksums
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: desktop-${{ matrix.name }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            release/*/BetterMe-*.dmg
+            release/*/BetterMe-*.zip
+            release/*/BetterMe-*.exe
+            release/*/BetterMe-*.AppImage
+            release/*/SHA256SUMS-*.txt
+
+  release:
+    name: Publish versioned desktop release
+    if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
+    needs: [quality, build, docker, desktop]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          pattern: desktop-*
+          path: release-assets
+          merge-multiple: true
+      - name: Verify tag, complete platform set and hashes before publication
+        run: node apps/desktop/scripts/verify-release.mjs release-assets
+      - name: Publish installers only after every required gate passes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node apps/desktop/scripts/verify-release.mjs release-assets --publish
+
   deploy:
     name: Deploy GitHub Pages
-    needs: [quality, build, docker]
+    needs: [quality, build, docker, desktop]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 10

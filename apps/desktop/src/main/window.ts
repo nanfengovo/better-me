@@ -1,10 +1,12 @@
 import { BrowserWindow, shell, nativeTheme, Menu, app } from "electron";
 import path from "node:path";
+import { externalUrl } from "./launch-policy.js";
 
 export interface MainWindowOptions {
   preloadPath: string;
   devServerUrl?: string;
   distPath?: string;
+  iconPath?: string;
 }
 
 export function createMainWindow(options: MainWindowOptions): BrowserWindow {
@@ -16,7 +18,8 @@ export function createMainWindow(options: MainWindowOptions): BrowserWindow {
     minWidth: 1180,
     minHeight: 760,
     show: false,
-    title: "BetterMe · 自动化工坊",
+    title: "BetterMe · 职业工作台",
+    icon: options.iconPath,
     titleBarStyle: isMac ? "hiddenInset" : "default",
     trafficLightPosition: isMac ? { x: 18, y: 18 } : undefined,
     vibrancy: isMac ? "under-window" : undefined,
@@ -26,7 +29,7 @@ export function createMainWindow(options: MainWindowOptions): BrowserWindow {
       preload: options.preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
       webSecurity: true,
       spellcheck: false,
     },
@@ -39,11 +42,21 @@ export function createMainWindow(options: MainWindowOptions): BrowserWindow {
 
   // Open external links in default browser
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith("http:") || url.startsWith("https:")) {
-      shell.openExternal(url);
-    }
+    const safe = externalUrl(url);
+    if (safe) void shell.openExternal(safe);
     return { action: "deny" };
   });
+
+  if (app.isPackaged && options.devServerUrl) {
+    const origin = new URL(options.devServerUrl).origin;
+    const restrict = (event: { preventDefault(): void }, destination: string) => {
+      try { if (new URL(destination).origin === origin) return; } catch { /* deny invalid navigation */ }
+      event.preventDefault();
+    };
+    win.webContents.on("will-navigate", restrict);
+    win.webContents.on("will-redirect", restrict);
+    win.webContents.session.setPermissionRequestHandler((_contents, permission, callback) => callback(permission === "clipboard-sanitized-write"));
+  }
 
   // Load URL
   if (options.devServerUrl) {
@@ -134,7 +147,7 @@ export function setupNativeMenu(onToggleHud: () => void): void {
       submenu: [
         {
           label: "访问 BetterMe 官方文档",
-          click: () => shell.openExternal("https://github.com/"),
+          click: () => shell.openExternal("https://github.com/nanfengovo/better-me"),
         },
       ],
     },
