@@ -22,6 +22,7 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
     workspaceThemeId,
     setWorkspaceThemeId,
     dockAutoHide = true,
+    menuBarAutoHide = false,
     dockPosition = "bottom",
     dockSize = 48,
     dockMagnification = true,
@@ -236,6 +237,9 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
             </div>
           </div>
 
+          <SettingRow label={t("自动隐藏与显示菜单栏", "Automatically hide menu bar")}>
+            <Toggle label={t("自动隐藏菜单栏", "Auto-hide menu bar")} value={menuBarAutoHide} onChange={value => setDesktopPreferences({ menuBarAutoHide: value })} />
+          </SettingRow>
           {/* 6. 自动隐藏与显示 Dock */}
           <SettingRow label={t("自动隐藏与显示 Dock", "Automatically hide Dock")}>
             <Toggle
@@ -245,6 +249,7 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
             />
           </SettingRow>
         </div>
+        <p className="os-setting-note">{t("菜单栏隐藏后，鼠标移到顶部或按 F10 唤出；也可右击菜单栏切换。触屏和窄屏保持常显。", "Reveal the hidden menu bar at the top edge or press F10. Right-click it to toggle. It stays visible on touch and narrow screens.")}</p>
         <p className="os-setting-note">
           {dockPosition === "left"
             ? t("鼠标靠近屏幕左边缘时唤出。支持毛玻璃质感、悬浮放大和图标大小任意调节。", "Hover near left screen edge to reveal. Supports acrylic glass, magnification, and sizing.")

@@ -12,6 +12,7 @@ const defaultDesktopPreferences = {
   dockOpacity: 0.85,
   dockBlur: 24,
   dockAutoHide: true,
+  menuBarAutoHide: false,
   wallpaperOpacity: 1,
   wallpaperBlur: 0,
   windowOpacity: 0.92,

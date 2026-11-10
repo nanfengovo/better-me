@@ -5,6 +5,7 @@ export type UiLocale = "zh" | "en";
 export type UiTheme = "light" | "dark";
 export type DockPosition = "bottom" | "left" | "right";
 export type DesktopPreferences = {
+  menuBarAutoHide?: boolean;
   dockAutoHide?: boolean;
   dockPosition?: DockPosition;
   dockSize?: number;
@@ -33,6 +34,7 @@ const DEFAULT_PREFERENCES: UiPreferences = {
   dockOpacity: 0.85,
   dockBlur: 24,
   dockAutoHide: true,
+  menuBarAutoHide: false,
   wallpaperOpacity: 1,
   wallpaperBlur: 0,
   windowOpacity: 0.92,
@@ -49,6 +51,7 @@ export function parseUiPreferences(raw: string | null): UiPreferences {
       locale: saved.locale === "en" ? "en" : "zh", theme: saved.theme === "dark" ? "dark" : "light",
       ...(isWorkspaceThemeId(saved.workspaceThemeId) ? { workspaceThemeId: saved.workspaceThemeId } : {}),
       ...(typeof saved.dockAutoHide === "boolean" ? { dockAutoHide: saved.dockAutoHide } : {}),
+      ...(typeof saved.menuBarAutoHide === "boolean" ? { menuBarAutoHide: saved.menuBarAutoHide } : {}),
       ...(saved.dockPosition === "left" || saved.dockPosition === "right" || saved.dockPosition === "bottom" ? { dockPosition: saved.dockPosition } : {}),
       ...(typeof saved.dockSize === "number" && saved.dockSize >= 32 && saved.dockSize <= 80 ? { dockSize: saved.dockSize } : {}),
       ...(typeof saved.dockMagnification === "boolean" ? { dockMagnification: saved.dockMagnification } : {}),
@@ -134,6 +137,7 @@ export function UiPreferencesProvider({ children, initialPreferences }: { childr
       if (preferencesRef.current.locale === next.locale && preferencesRef.current.theme === next.theme
         && getWorkspaceTheme(preferencesRef.current.workspaceThemeId).id === getWorkspaceTheme(next.workspaceThemeId).id
         && preferencesRef.current.dockAutoHide === next.dockAutoHide
+        && preferencesRef.current.menuBarAutoHide === next.menuBarAutoHide
         && preferencesRef.current.dockPosition === next.dockPosition
         && preferencesRef.current.dockSize === next.dockSize
         && preferencesRef.current.dockMagnification === next.dockMagnification
@@ -167,6 +171,7 @@ export function UiPreferencesProvider({ children, initialPreferences }: { childr
   const setDesktopPreferences = useCallback((patch: DesktopPreferences) => {
     const desktop: DesktopPreferences = {};
     if (typeof patch.dockAutoHide === "boolean") desktop.dockAutoHide = patch.dockAutoHide;
+    if (typeof patch.menuBarAutoHide === "boolean") desktop.menuBarAutoHide = patch.menuBarAutoHide;
     if (patch.dockPosition === "left" || patch.dockPosition === "right" || patch.dockPosition === "bottom") {
       desktop.dockPosition = patch.dockPosition;
     }
