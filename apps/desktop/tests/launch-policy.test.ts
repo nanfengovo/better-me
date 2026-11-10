@@ -1,13 +1,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, realpathSync, writeFileSync } from "node:fs";
+import { realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { externalUrl, validateSmokeProfile } from "../src/main/launch-policy.js";
 
-test("desktop smoke can claim only an empty private temp profile", () => {
-  const profile = realpathSync(mkdtempSync(path.join(tmpdir(), "betterme-desktop-smoke-")));
+test("desktop smoke can claim only an empty private temp profile", async () => {
+  // Match the async launcher, including native Windows long-path expansion.
+  const profile = await realpath(mkdtempSync(path.join(tmpdir(), "betterme-desktop-smoke-")));
   assert.equal(validateSmokeProfile(profile), profile);
+  if (process.platform === "win32") {
+    const alternateCase = path.join(path.dirname(profile).toUpperCase(), path.basename(profile));
+    assert.equal(validateSmokeProfile(alternateCase), alternateCase);
+  }
   writeFileSync(path.join(profile, "existing-account-marker"), "untouched");
   assert.throws(() => validateSmokeProfile(profile), /new, empty and private/);
   assert.throws(() => validateSmokeProfile(realpathSync(tmpdir())));

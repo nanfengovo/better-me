@@ -72,5 +72,5 @@ await writeFile(path.join(output, `SHA256SUMS-${process.platform}-${arch}.txt`),
 console.log(`Desktop distribution ready: ${output}`);
 } finally {
   // This exact directory was created above by mkdtemp for this invocation only.
-  await rm(stage, { recursive: true, force: true });
+  await rm(stage, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
 }
