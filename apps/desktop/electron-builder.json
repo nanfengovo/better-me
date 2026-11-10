@@ -5,7 +5,7 @@
   "asarUnpack": ["**/*.node", "**/esbuild/**", "**/@esbuild/**"],
   "files": ["dist/**", "resources/icon.png", "package.json"],
   "forceCodeSigning": false,
-  "npmRebuild": true,
+  "npmRebuild": false,
   "publish": null,
   "mac": {
     "category": "public.app-category.productivity",

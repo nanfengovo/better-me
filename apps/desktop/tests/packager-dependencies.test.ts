@@ -11,9 +11,11 @@ test("the packager resolves the downloader cache API it actually calls", () => {
   assert.equal(typeof downloader.downloadArtifact, "function");
 });
 
-test("the native checkpoint addon is a direct production dependency for Electron rebuilding", () => {
+test("the packaged native checkpoint addon uses the stable Node-API contract", () => {
   const require = createRequire(new URL("../package.json", import.meta.url));
   const desktop = require("./package.json");
   assert.equal(desktop.dependencies["better-sqlite3"], require("better-sqlite3/package.json").version);
-  assert.ok(require.resolve("better-sqlite3/binding.gyp"));
+  assert.equal(desktop.dependencies["better-sqlite3"], "13.0.0");
+  assert.ok(require("better-sqlite3/package.json").dependencies["node-addon-api"]);
+  assert.equal(require("./electron-builder.json").npmRebuild, false);
 });

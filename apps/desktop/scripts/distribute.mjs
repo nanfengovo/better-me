@@ -32,7 +32,7 @@ function command(executable, argv) {
 }
 // An isolated production dependency tree; no credentials, developer profile,
 // .env, source checkout or real career data is added to the application.
-command(process.execPath, [pnpm, "--filter", "@better-me/desktop", "deploy", "--prod", "--legacy", appDir]);
+command(process.execPath, [pnpm, "--filter", "@better-me/desktop", "deploy", "--prod", "--legacy", "--virtual-store-dir", path.join(appDir, "node_modules/.pnpm"), appDir]);
 // pnpm 11 legacy deploy records its production-only settings in the source
 // workspace state. Restore the existing frozen development tree offline so the
 // next command does not try to purge/reinstall it as a production workspace.
@@ -48,6 +48,10 @@ await cp(path.join(root, "apps/web/src/components/templates"), path.join(legal, 
 for (const name of ["README.md", "CATALOG.md", "catalog.json"]) await cp(path.join(root, "templates", name), path.join(legal, "templates", name));
 await cp(path.join(root, "docker/legal.html"), path.join(legal, "index.html"));
 const config = JSON.parse(await readFile(path.join(desktop, "electron-builder.json"), "utf8"));
+// SQLite v13 ships stable Node-API binaries (not V8/Node ABI-specific builds).
+// Do not rebuild them against Electron headers or mutate pnpm's source store;
+// each native runner's packaged startup must still load the actual addon.
+if (pkg.dependencies["better-sqlite3"] !== "13.0.0" || config.npmRebuild !== false) throw new Error("Revisit the native-addon packaging contract before changing SQLite.");
 const output = path.join(root, "release", `${process.platform}-${arch}`);
 for (const key of ["CSC_LINK", "CSC_KEY_PASSWORD", "WIN_CSC_LINK", "WIN_CSC_KEY_PASSWORD"]) delete process.env[key];
 process.env.CSC_IDENTITY_AUTO_DISCOVERY = "false";

@@ -20,7 +20,7 @@
   "dependencies": {
     "@better-me/agent-host": "workspace:*",
     "@better-me/job-service": "workspace:*",
-    "better-sqlite3": "12.11.1"
+    "better-sqlite3": "13.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.0",

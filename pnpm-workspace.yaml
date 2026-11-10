@@ -6,6 +6,8 @@ packages:
 # Scope the compatible API to the packager; keep Electron's own downloader intact.
 overrides:
   'app-builder-lib@26.18.0>@electron/get': 5.1.0
+  # v13 uses stable Node-API; v12's V8 API cannot compile with Electron 45.
+  '@langchain/langgraph-checkpoint-sqlite@1.1.0>better-sqlite3': 13.0.0
 
 allowBuilds:
   better-sqlite3: true

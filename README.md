@@ -34,7 +34,7 @@ Local-first career workspace and personal agent. Ground experience in evidence, 
 | --- | --- | --- |
 | macOS | `.dmg`、`.zip` | Apple Silicon arm64、Intel x64 分开提供 |
 | Windows | `.exe` 安装程序 | x64 |
-| Linux | `.AppImage` | x64 |
+| Linux | `.AppImage` | glibc x64，要求 glibc ≥ 2.34；CI 使用 Ubuntu 22.04 |
 
 桌面包包含 Electron 运行时、应用页面及本地后台依赖，不需要另行安装 Node、pnpm 或 Docker。云模型、Ollama、招聘浏览器、CLI 和 vork 等外部能力不随安装包自动配置或授权。
 
@@ -144,7 +144,7 @@ pnpm test:desktop
 pnpm desktop:build
 ```
 
-CI 分别检查 Windows 质量门禁、Linux 生产构建与 Docker，以及四组原生桌面包。桌面烟测启动真实打包客户端，检查界面挂载、后台健康和退出清理；不把它当作所有输入格式、招聘站、模型或设备都已验收。
+CI 分别检查 Windows 质量门禁、Linux 生产构建与 Docker，以及四组原生桌面包。SQLite 使用稳定 Node-API 依赖，另测检查点与待完成写入跨连接恢复、事务回滚；正式桌面启动不接受内存回退。桌面烟测启动真实打包客户端，检查界面挂载、后台健康和退出清理；不把它当作所有输入格式、招聘站、模型或设备都已验收。
 
 版本标签必须与 `package.json` 一致。只有质量、Docker、生产构建和全部桌面包门禁通过，才上传版本 Release；发布前再次核对平台附件集合及 SHA-256。参见 [发行流程](.github/workflows/ci-pages.yml) 和 [v1.1.0 说明](docs/releases/v1.1.0.md)。
 
