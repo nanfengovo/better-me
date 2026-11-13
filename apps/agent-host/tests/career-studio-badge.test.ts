@@ -39,12 +39,13 @@ test("unavailable/revoked renderer and caller-tampered scenes never launch", asy
 });
 test("artifact SQLite persists CAS revisions across instances without a memory fallback", async t => {
   const directory = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "betterme-studio-store-"))), store = new StudioArtifactStore("owner", directory);
-  t.after(async () => { store.close(); await fs.rm(directory, { recursive: true, force: true }); });
+  const stores = [store];
+  t.after(async () => { for (const current of stores) current.close(); await fs.rm(directory, { recursive: true, force: true }); });
   const value = { source: "synthetic", unknown: true }, saved = store.put("analysis", "item", 0, value);
   assert.equal(saved.revision, 1); assert.equal(store.list("analysis")[0]?.hash, saved.hash);
   assert.throws(() => store.put("analysis", "item", 0, value), (error: unknown) => error instanceof StudioError && error.code === "studio_revision_conflict");
   assert.throws(() => new StudioArtifactStore("other-owner", directory), /studio_owner_mismatch/);
-  store.close(); const second = new StudioArtifactStore("owner", directory); t.after(() => second.close());
+  store.close(); const second = new StudioArtifactStore("owner", directory); stores.push(second);
   assert.deepEqual(second.get("analysis", "item")?.value, value); assert.equal(second.put("analysis", "item", 1, { unknown: false }).revision, 2);
 });
 test("opt-in LIVE: real Vork renders a private receipt-bound badge without fake GPU claims", { skip: process.env["BETTERME_TEST_VORK"] !== "1", timeout: 310_000 }, async t => {

@@ -25,7 +25,8 @@ function fixture({ version = "20.18.2", sqlite = false, platform = "darwin", tar
   const child = { spawnSync(cmd, args, opts) { probes.push({ cmd, args, opts }); return { status: 0, stdout: probeResult }; },
     spawn(cmd, args, opts) { starts.push({ cmd, args, opts }); healthy = true; return new EventEmitter(); } };
   const requireDouble = id => id === "electron" ? { app: { isPackaged: true, getAppPath: () => "/fixture/BetterMe.app/Contents/Resources/app" } }
-    : id === "node:child_process" ? child : id === "node:fs" ? fs : require(id);
+    // The fixture models a macOS installation even when the runner is Windows.
+    : id === "node:path" ? path.posix : id === "node:child_process" ? child : id === "node:fs" ? fs : require(id);
   vm.runInNewContext(bundle, { __dirname: "/fixture/BetterMe.app/Contents/Resources/app/dist/main", module, exports: module.exports,
     require: requireDouble, process: processDouble, fetch: async () => ({ ok: healthy }), AbortSignal, URL, setTimeout,
     console: { log() {}, error() {}, warn() {} } });

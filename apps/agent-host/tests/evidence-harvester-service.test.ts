@@ -34,10 +34,12 @@ async function fixture(t: TestContext, overrides: { complete?: HarvesterModel["c
   };
   const model: HarvesterModel = { binding: overrides.binding ?? (async () => runtime), complete: async input => { calls++; assert.ok(input.signal); assert.doesNotMatch(input.prompt, /synthetic@example.invalid/); return overrides.complete ? overrides.complete(input) : response(); } };
   const ledger = new SqliteHarvesterLedger("owner-a", store), service = new EvidenceHarvester({ ledger, model, workspace });
-  t.after(async () => { service.close(); ledger.close(); await fs.rm(directory, { recursive: true, force: true }); });
+  const ledgers = [ledger];
+  const trackLedger = (next: SqliteHarvesterLedger) => { ledgers.push(next); return next; };
+  t.after(async () => { service.close(); for (const current of ledgers) current.close(); await fs.rm(directory, { recursive: true, force: true }); });
   const access = { session: "session-a", valid: async () => valid };
   const subscribe = async (limits = policy()) => { const preview = await service.preview(root, access); return service.subscribe({ previewId: preview.previewId, runtime, policy: limits, consent: true, idempotencyKey: preview.previewId }, access); };
-  return { service, ledger, root, store, directory, commit, git, access, subscribe, receipts, model, workspace, calls: () => calls, writes: () => writes, invalidate: () => { valid = false; } };
+  return { service, ledger, trackLedger, root, store, directory, commit, git, access, subscribe, receipts, model, workspace, calls: () => calls, writes: () => writes, invalidate: () => { valid = false; } };
 }
 const code = (value: string) => (error: unknown) => error instanceof HarvesterError && error.code === value;
 
@@ -61,7 +63,7 @@ test("SQLite owner validation, rollback, capacity validation and synchronous tra
   assert.deepEqual(f.ledger.read(), before);
   assert.throws(() => f.ledger.transact(async state => { state.revision++; }), code("async_harvester_transaction_denied"));
   assert.deepEqual(f.ledger.read(), before);
-  const second = new SqliteHarvesterLedger("owner-a", f.store); t.after(() => second.close());
+  const second = f.trackLedger(new SqliteHarvesterLedger("owner-a", f.store));
   assert.throws(() => f.ledger.transact(() => second.transact(state => { state.revision++; })), /locked/);
   assert.deepEqual(f.ledger.read(), before);
 });

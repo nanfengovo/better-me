@@ -95,11 +95,13 @@ test("pause and account revocation reject late answers and stale stop never canc
 
 test("deadline aborts a noncooperative provider, malformed decisions have bounded charged repairs",()=>fixture(async s=>{
   let t=await s.create(sample({maxModelCalls:12,maxToolCalls:30,maxActiveMs:130}));
-  const late=Promise.withResolvers<string>();await s.run(t.id,"start",cmd(t),options(async()=>late.promise),access);t=await settled(s,t.id);late.resolve(tool("read_job"));
+  let dispatched=0;
+  const late=Promise.withResolvers<string>();await s.run(t.id,"start",cmd(t),options(async()=>{dispatched++;return late.promise;}),access);t=await settled(s,t.id);late.resolve(tool("read_job"));
+  assert.equal(t.usage.modelCalls,dispatched,"a deadline before dispatch must not invent a model charge");
   assert.equal(t.status,"budget_exhausted");assert.equal(t.usage.toolCalls,0);await delay(4);assert.equal((await s.get(t.id)).evidence.length,0);
   t=await s.budget(t.id,t.revision,{...CAREER_TASK_DEFAULT_BUDGET},access);let repairs=0;
   await s.run(t.id,"resume",cmd(t),options(async()=>{repairs++;return "not JSON";}),access);t=await settled(s,t.id);
-  assert.equal(t.status,"failed");assert.equal(t.error,"decision_repair_exhausted");assert.equal(repairs,3);assert.equal(t.usage.modelCalls,4);
+  assert.equal(t.status,"failed");assert.equal(t.error,"decision_repair_exhausted");assert.equal(repairs,3);assert.equal(t.usage.modelCalls,dispatched+3);
 }));
 
 test("explicit broker scope and current source hash are rechecked before a resumed model receives evidence",()=>fixture(async(s,dir)=>{

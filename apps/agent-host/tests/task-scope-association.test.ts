@@ -13,10 +13,15 @@ const chat=(key:string):FreeChatTaskCreate=>({kind:"free_chat",workspaceKey:key,
 const command=(task:AgentTask)=>({expectedRevision:task.revision,sourceFingerprint:"sourceFingerprint"in task?task.sourceFingerprint:"",runtimeBinding,consent:true as const});
 const association=(rootScopeKey:string,previewToken:string):TaskScopeAssociationRequest=>({rootScopeKey,previewToken,confirmation:"associate_records_and_usage_only"});
 async function stopped(kernel:AgentTaskKernel,id:string){for(let i=0;i<200;i++){const task=await kernel.readTask(id);if(task.status!=="running")return task;await delay(5);}throw new Error("synthetic task did not stop");}
-async function setup(t:test.TestContext){const directory=await mkdtemp(path.join(os.tmpdir(),"betterme-task-association-")),kernel=new AgentTaskKernel({ownerId:"synthetic-owner",directory});t.after(async()=>{await kernel.close();await rm(directory,{recursive:true,force:true});});return {directory,kernel};}
+async function setup(t:test.TestContext){
+  const directory=await mkdtemp(path.join(os.tmpdir(),"betterme-task-association-")),kernel=new AgentTaskKernel({ownerId:"synthetic-owner",directory});
+  const kernels=[kernel],track=(next:AgentTaskKernel)=>{kernels.push(next);return next;};
+  t.after(async()=>{for(const current of kernels)await current.close();await rm(directory,{recursive:true,force:true});});
+  return {directory,kernel,track};
+}
 
 test("explicit legacy association is one metadata write, preserving every original journal, charge, source and runtime",async t=>{
-  const {directory,kernel}=await setup(t);let calls=0;
+  const {directory,kernel,track}=await setup(t);let calls=0;
   const runtime={runtimeFingerprint:"exact-account-generation",reasoner:async()=>{calls++;return JSON.stringify({kind:"reply",content:"  全文😀\r\nEND  "});}};
   const root=await kernel.createTask({...chat("root"),budget:{maxModelCalls:2,maxToolCalls:7,maxActiveMs:60000}},access);
   await kernel.run(root.id,"start",command(root),runtime,access);await stopped(kernel,root.id);
@@ -31,7 +36,7 @@ test("explicit legacy association is one metadata write, preserving every origin
   assert.equal((await kernel.readTask(child.id)).rootScopeKey,"resume-scope");
   await assert.rejects(kernel.createTask({...chat("no-refund"),rootScopeKey:"resume-scope"},access),/model_call_budget/);
   const retry=await kernel.associateLegacyScope(root.id,association("resume-scope",candidate.previewToken!),access);assert.deepEqual(retry.association,linked.association);
-  await kernel.close();const reopened=new AgentTaskKernel({ownerId:"synthetic-owner",directory});t.after(()=>reopened.close());
+  await kernel.close();const reopened=track(new AgentTaskKernel({ownerId:"synthetic-owner",directory}));
   assert.equal((await reopened.readTask(child.id)).rootLedger!.usage.modelCalls,2);assert.equal((await reopened.previewLegacyScopes("resume-scope",access)).candidates.length,0);
   const current=await reopened.readTask(root.id);await reopened.budget(root.id,current.revision,{...current.budget,maxModelCalls:3},access);
   const next=await reopened.createTask({...chat("next"),rootScopeKey:"resume-scope"},access);assert.equal(next.parentTaskId,root.id);assert.equal(next.rootScopeKey,"resume-scope");assert.equal(next.budget.maxModelCalls,3);
@@ -64,7 +69,7 @@ test("concurrent confirmations cannot claim an occupied scope or discard either 
 });
 
 test("running and revoked groups require stopping/review; association cannot authorize execution or another owner",async t=>{
-  const {kernel,directory}=await setup(t),root=await kernel.createTask(chat("pending"),access),entered=Promise.withResolvers<void>(),finish=Promise.withResolvers<string>();
+  const {kernel,directory,track}=await setup(t),root=await kernel.createTask(chat("pending"),access),entered=Promise.withResolvers<void>(),finish=Promise.withResolvers<string>();
   t.after(()=>finish.resolve(JSON.stringify({kind:"reply",content:"late"})));
   await kernel.run(root.id,"start",command(root),{runtimeFingerprint:"pending",reasoner:async()=>{entered.resolve();return finish.promise;}},access);await entered.promise;
   const blocked=(await kernel.previewLegacyScopes("scope",access)).candidates[0]!;assert.equal(blocked.blockedBy,"pause_before_scope_association");assert.equal(blocked.previewToken,undefined);
@@ -72,7 +77,7 @@ test("running and revoked groups require stopping/review; association cannot aut
   const current=await kernel.readTask(root.id);await kernel.stop(root.id,current.revision,true,access);finish.resolve(JSON.stringify({kind:"reply",content:"late"}));
   const revoked=(await kernel.previewLegacyScopes("scope",access)).candidates[0]!;assert.equal(revoked.blockedBy,"root_task_revoked");
   await assert.rejects(kernel.previewLegacyScopes("scope",{session:"invalid",valid:async()=>false}),/interaction_lease_invalid/);
-  await kernel.close();const other=new AgentTaskKernel({ownerId:"other-owner",directory});t.after(()=>other.close());
+  await kernel.close();const other=track(new AgentTaskKernel({ownerId:"other-owner",directory}));
   await assert.rejects(other.previewLegacyScopes("scope",access),/invalid_private_task/);
 });
 
@@ -95,10 +100,10 @@ test("old records without stored rootTaskId obtain a derived lineage, not a jour
 });
 
 test("interrupted legacy takeover retains the old call and requires a separate exact-runtime resume",async t=>{
-  const {kernel,directory}=await setup(t),root=await kernel.createTask(chat("interrupted"),access),entered=Promise.withResolvers<void>(),late=Promise.withResolvers<string>();let calls=0;
+  const {kernel,directory,track}=await setup(t),root=await kernel.createTask(chat("interrupted"),access),entered=Promise.withResolvers<void>(),late=Promise.withResolvers<string>();let calls=0;
   const originalRuntime={runtimeFingerprint:"interrupted-runtime-generation",reasoner:async()=>{calls++;entered.resolve();return late.promise;}};
   await kernel.run(root.id,"start",command(root),originalRuntime,access);await entered.promise;await kernel.close();
-  const reopened=new AgentTaskKernel({ownerId:"synthetic-owner",directory});t.after(async()=>{late.resolve(JSON.stringify({kind:"reply",content:"late"}));await reopened.close();});
+  const reopened=track(new AgentTaskKernel({ownerId:"synthetic-owner",directory}));t.after(()=>{late.resolve(JSON.stringify({kind:"reply",content:"late"}));});
   const interrupted=await reopened.readTask(root.id);assert.equal(interrupted.status,"interrupted");assert.equal(interrupted.usage.modelCalls,1);
   const token=(await reopened.previewLegacyScopes("recovered",access)).candidates[0]!.previewToken!,linked=await reopened.associateLegacyScope(root.id,association("recovered",token),access);
   assert.equal(linked.task.status,"interrupted");assert.equal(calls,1);assert.equal(linked.task.rootLedger!.usage.modelCalls,1);

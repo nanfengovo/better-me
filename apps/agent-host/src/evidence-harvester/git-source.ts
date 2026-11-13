@@ -75,7 +75,10 @@ export class GitEvidenceSource {
     const metadataIdentity = await this.metadataIdentity(root);
     const signalNow = signal ?? new AbortController().signal;
     const actualRoot = (await this.git(root, ["rev-parse", "--show-toplevel"], signalNow)).toString("utf8").trim();
-    if (actualRoot !== root) throw new GitEvidenceError("repository_root_mismatch");
+    // Git for Windows reports forward slashes. Resolve both spellings to the
+    // same canonical directory; do not loosen this to prefixes/case folding.
+    if (!path.isAbsolute(actualRoot) || containsPathControl(actualRoot) ||
+      await fs.realpath(actualRoot).catch(() => undefined) !== root) throw new GitEvidenceError("repository_root_mismatch");
     const head = (await this.git(root, ["rev-parse", "--verify", "HEAD"], signalNow)).toString("utf8").trim();
     if (!oidPattern.test(head)) throw new GitEvidenceError("repository_has_no_commit");
     const format = (await this.git(root, ["rev-parse", "--show-object-format"], signalNow)).toString("utf8").trim();

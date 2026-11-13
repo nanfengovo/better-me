@@ -40,6 +40,21 @@ test("private requests use HttpOnly credentials plus expected owner and refuse l
   finish(Response.json({ secret: "A" })); await assert.rejects(pending, IdentityBoundaryError);
 });
 
+test("an already aborted late response can reject cancellation without leaking an unhandled rejection or the old account", async () => {
+  activatePrincipal(alice);
+  const headers = Promise.withResolvers<Response>();
+  let cancelled = 0;
+  const body = new ReadableStream({ cancel() { cancelled++; throw new DOMException("already aborted", "AbortError"); } });
+  const pending = ownedFetch("http://fixture.invalid", {}, async () => headers.promise);
+  const denied = assert.rejects(pending, IdentityBoundaryError);
+  activatePrincipal(bob);
+  headers.resolve(new Response(body));
+  await denied;
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(cancelled, 1);
+  assert.doesNotThrow(captureIdentity(), "cleanup failure must not invalidate Bob");
+});
+
 test("a locked identity cannot start another private request even when the transport ignores abort", async () => {
   activatePrincipal(alice); invalidateIdentity();
   let requests = 0;

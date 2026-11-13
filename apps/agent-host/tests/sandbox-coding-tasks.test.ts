@@ -232,16 +232,19 @@ test("active-time exhaustion interrupts a noncooperative generator, persists the
 });
 
 test("a stalled model metadata preflight exhausts the same active budget without spending an inference attempt", async t => {
-  const late=barrier<string>();let pins=0,calls=0,aborted=false;
+  // Freeze persistence time, then advance the deadline only after the real
+  // metadata callback is entered. A slow Windows fs must not win this race.
+  t.mock.timers.enable({apis:["Date","setTimeout"],now:Date.now()});
+  const late=barrier<string>(),entered=barrier<void>();let pins=0,calls=0,aborted=false;
   const {service,open}=await fixture(t,{resolveModel:async(_model,signal)=>{
     if(++pins===1)return digest;
-    signal.addEventListener("abort",()=>{aborted=true;},{once:true});return late.promise;
+    signal.addEventListener("abort",()=>{aborted=true;},{once:true});entered.resolve();return late.promise;
   },generate:async()=>{calls++;return "x => x * 2";}});
   const start=await service.create({...spec(),maxActiveMs:20},grant);
   const step=service.step(start.id,start.revision,grant);
   try {
-    await Promise.race([step.catch(e=>{assert.match(String(e),/coding_budget_exhausted/);}),
-      new Promise((_,reject)=>{const timer=setTimeout(()=>reject(Error("20ms preflight still pending after 400ms")),400);timer.unref();})]);
+    await entered.promise;t.mock.timers.tick(20);
+    await assert.rejects(step,/coding_budget_exhausted/);
   } finally {late.resolve(digest);await step.catch(()=>{});}
   const state=await service.get(start.id,grant);assert.equal(aborted,true);
   assert.equal(state.status,"budget_exhausted");assert.equal(state.activeMs,20);assert.equal(state.attemptsUsed,0);

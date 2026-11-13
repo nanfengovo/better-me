@@ -31,8 +31,9 @@ async function fixture(t: TestContext, broker?: EvidenceBroker) {
     return context;
   } };
   const kernel = new AgentTaskKernel(options);
-  t.after(async () => { await kernel.close(); await rm(directory, { recursive: true, force: true }); });
-  return { kernel, directory, options, revoke: () => { valid = false; }, checks: () => checks };
+  const kernels = [kernel], track = (next: AgentTaskKernel) => { kernels.push(next); return next; };
+  t.after(async () => { for (const current of kernels) await current.close(); await rm(directory, { recursive: true, force: true }); });
+  return { kernel, directory, options, track, revoke: () => { valid = false; }, checks: () => checks };
 }
 const scripted: CareerTaskReasoner = async (prompt, _signal, phase, _images, _source, schema) => {
   assert.equal(phase, "studio_committee"); assert.ok(schema); const assessment = Array.isArray(schema["anyOf"]) ? schema["anyOf"][0] as Record<string, unknown> : schema;
@@ -147,7 +148,7 @@ test("oversized wire remains complete in a private artifact; host reopen does no
   const f = await fixture(t); let task = await f.kernel.createTask(input(), access), calls = 0; const huge = "完整😀\r\n".repeat(30000) + "TAIL";
   await f.kernel.run(task.id, "start", command(task), execution(async (...args) => { calls++; return calls === 2 ? huge : scripted(...args); }), access);
   task = await settled(f.kernel, task.id); assert.equal(task.error, "decision_output_budget"); assert.equal((await f.kernel.readOutput(task.id, task.outputArtifacts![0]!.id)).text, huge); assert.equal(task.usage.modelCalls, 2);
-  await f.kernel.close(); const reopened = new AgentTaskKernel(f.options); t.after(() => reopened.close());
+  await f.kernel.close(); const reopened = f.track(new AgentTaskKernel(f.options));
   task = StudioCommitteeTaskSchema.parse(await reopened.readTask(task.id)); assert.equal(calls, 2);
   await reopened.run(task.id, "resume", command(task), execution(async (...args) => { calls++; return scripted(...args); }), access); task = await settled(reopened, task.id);
   assert.equal(task.status, "completed", task.error); assert.equal(calls, 15); assert.equal(task.usage.modelCalls, 15);
@@ -158,7 +159,7 @@ test("committee protocol is Host-selected, preserves exact grammar, and missing 
   assert.deepEqual(careerTaskProtocol("studio_committee", undefined, grammar).jsonSchema, grammar);
   assert.throws(() => careerTaskProtocol("studio_committee"), /analysis_contract_phase_mismatch/);
   assert.throws(() => careerTaskProtocol("free_chat", undefined, grammar), /analysis_contract_phase_mismatch/);
-  const missing = new AgentTaskKernel({ ownerId: context.ownerId, directory: path.join(f.directory, "missing-authority") }); t.after(() => missing.close());
+  const missing = f.track(new AgentTaskKernel({ ownerId: context.ownerId, directory: path.join(f.directory, "missing-authority") }));
   await assert.rejects(missing.createTask(input(), access), /studio_committee_authority_required/);
   const forged = input(); forged.rootScopeKey = "other-scope"; await assert.rejects(f.kernel.createTask(forged, access), /studio_task_scope_mismatch/);
   assert.equal(digest(statement).length, 64);

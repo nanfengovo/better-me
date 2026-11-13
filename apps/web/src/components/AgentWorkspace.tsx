@@ -58,6 +58,7 @@ import {
 import { getModelImageCapability, modelImageCapabilityDescription, modelImageCapabilityLabel } from "../lib/model-image-capability";
 import type { DrawerJobContext } from "./JdMatchDrawer";
 import { AgentMarkdownRenderer } from "./AgentMarkdownRenderer";
+import { AgentSpeechControl, useAgentSpeech } from "./AgentSpeechControl";
 import { AgentReplyMeta } from "./AgentReplyMeta";
 import { CareerCoachWorkspace } from "./CareerCoachWorkspace";
 import { AgentTaskNavigation, type AgentTaskView } from "./AgentTaskNavigation";
@@ -164,6 +165,7 @@ function AgentWorkspaceSession({
   const [showCareerTask, setShowCareerTask] = useState(false);
   const [taskObjective, setTaskObjective] = useState<string>();
   const [taskView, setTaskView] = useRecoveryField(recovery, "taskView");
+  const speech = useAgentSpeech(`advisor:${privateKey(workspaceKey)}`, active && !showCareerCoach && taskView !== "handoff" && !showCareerTask);
   const [coachRequest, setCoachRequest] = useState<{ mode: CoachMode; id: number }>();
   function selectTask(view: AgentTaskView) {
     interviewRecovery.field("open",false);
@@ -2201,6 +2203,7 @@ function AgentWorkspaceSession({
                                 )}
                               </button>
                             </div>
+                            <AgentSpeechControl message={msg} speech={speech} />
                             <AgentReplyMeta meta={msg.meta} compact isDark={isDark} />
                             {msg.id === lastAssistantMessageId && msg.meta?.status === "truncated" && (
                               <button type="button" className={`agent-continue-reply ${isDark ? "is-dark" : ""}`} onClick={() => void handleSendMessage(t("请从上一条不完整回复的结束处继续，避免重复已写内容，并补完尚未回答的部分。", "Continue from the end of the previous incomplete reply, avoid repeating completed text, and finish any unanswered parts."))} disabled={chatLoading}>

@@ -122,7 +122,7 @@ test("MCP stdio requires exact reviewed artifact hashes and never falls back to 
   await assert.rejects(createReviewedStdioTransport({ spec: { ...invalid, command: process.execPath }, approvedSpecHash: "b".repeat(64) }), code("mcp_stdio_review_invalid"));
 });
 
-test("MCP actual official stdio protocol runs inside OS sandbox: unselected file, network and inherited secret denied", async t => {
+test("MCP official stdio is sandboxed or fails closed on unsupported Windows; no unselected file, network or inherited secret", async t => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "betterme-mcp-protocol-"));
   t.after(() => fs.rm(directory, { recursive: true, force: true }));
   const secretPath = path.join(directory, "not-selected.txt"), entrypoint = path.join(directory, "synthetic-server.mjs");
@@ -140,6 +140,12 @@ test("MCP actual official stdio protocol runs inside OS sandbox: unselected file
   const oldCanary = process.env["BETTERME_TEST_CANARY_SECRET"]; process.env["BETTERME_TEST_CANARY_SECRET"] = "SYNTHETIC_ENV_CANARY_65947";
   t.after(() => { if (oldCanary === undefined) delete process.env["BETTERME_TEST_CANARY_SECRET"]; else process.env["BETTERME_TEST_CANARY_SECRET"] = oldCanary; });
   const connection = { ...auth, manifestHash: reviewedMcpServerHash(spec), valid: async () => true };
+  if (process.platform === "win32") {
+    // Windows has no reviewed OS-sandbox provider. This is a real denial test,
+    // not an unsandboxed fallback or a skipped security assertion.
+    await assert.rejects(CareerMcpClient.connect({ server: spec, grant: connection }), code("mcp_os_sandbox_unavailable"));
+    assert.equal(connections, 0); return;
+  }
   const client = await CareerMcpClient.connect({ server: spec, grant: connection }); t.after(() => client.close());
   const review = await client.review();
   const grant = (kind: "tool" | "resource", name: string): McpCallGrant => ({ ...connection, toolsetHash: review.toolsetHash, inputHash: mcpCallInputHash(kind, name, {}), operationId: kind, reserve: async () => true });

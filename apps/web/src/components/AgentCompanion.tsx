@@ -51,6 +51,7 @@ import { useRecoveryField, useWorkspaceRecovery } from "../lib/use-workspace-rec
 import { CompanionRecoverySchema } from "../lib/advisor-recovery";
 import { privateKey } from "../lib/private-storage";
 import { WorkspaceRecoveryNotice } from "./WorkspaceRecoveryNotice";
+import { AgentSpeechControl, useAgentSpeech } from "./AgentSpeechControl";
 
 export interface AgentCompanionProps {
   workspaceKey?: string;
@@ -246,6 +247,7 @@ function AgentCompanionSession({ workspaceKey = "active-resume", onOpenWorkspace
   const showSidebar = sidebar?.show, hideSidebar = sidebar?.hide;
   const [localOpen, setLocalOpen] = useState(false);
   const open = sidebar ? sidebar.open && sidebar.tab === "conversation" && sidebar.conversation === "companion" : localOpen;
+  const speech = useAgentSpeech(`companion:${privateKey(workspaceKey)}`, open);
   const setOpen = useCallback((next: boolean) => {
     if (showSidebar && hideSidebar) { if (next) showSidebar("conversation", "companion"); else hideSidebar(); }
     else setLocalOpen(next);
@@ -727,7 +729,7 @@ function AgentCompanionSession({ workspaceKey = "active-resume", onOpenWorkspace
                       </>
                     ) : (
                       <>
-                        <div className="agent-companion-chat-assistant-label"><Bot size={12} />{t("Agent 伴侣", "Agent Companion")}</div>
+                        <div className="agent-companion-chat-assistant-label"><Bot size={12} />{t("Agent 伴侣", "Agent Companion")}<AgentSpeechControl message={message} speech={speech} /></div>
                         {message.meta && <AgentReplyMeta meta={message.meta} compact isDark={theme === "dark"} />}
                         {message.id === typingReplyId
                           ? <AgentCompanionReply content={message.content} animate isDark={theme === "dark"} skipLabel={t("显示完整回复", "Show full reply")} messageId={message.id} onComplete={finishReplyTyping} onProgress={keepChatAtBottom} />

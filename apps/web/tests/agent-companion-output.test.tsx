@@ -69,6 +69,41 @@ async function flushImageRead(action: () => void) {
 }
 test.afterEach(() => dom.localStorage.clear());
 
+test("four provider replies expose local-only read/stop controls; hide, page exit and remount never replay or lose the draft", async () => {
+  const spoken: Array<{text:string;voice?:{localService:boolean};onstart?:()=>void;onend?:()=>void}> = [];
+  let cancels=0,calls=0;
+  const engine={getVoices:()=>[{lang:"zh-CN",localService:true},{lang:"en-US",localService:true},{lang:"zh-CN",localService:false}],
+    speak:(utterance:typeof spoken[number])=>{spoken.push(utterance);utterance.onstart?.();},cancel:()=>{cancels++;}};
+  Object.defineProperty(dom,"speechSynthesis",{configurable:true,value:engine});
+  Object.defineProperty(dom,"SpeechSynthesisUtterance",{configurable:true,value:class {constructor(readonly text:string){}}});
+  const messages=["DeepSeek","Ollama","OpenAI","Google"].map((provider,index)=>({id:`speech-${provider}`,role:"assistant",content:`${provider} 合成回复。 Keep your draft.`,
+    meta:{provider:index===1?"ollama":index===3?"gemini":"openai-compatible",providerLabel:provider,model:"synthetic",source:"agent-host",status:"ready",completeness:"complete",observedAt:"2026-11-13T00:00:00Z"}}));
+  dom.localStorage.setItem("betterme.recovery.v1:companion:synthetic-speech-unit",JSON.stringify({version:1,value:{messages:[...messages,{id:"speech-error",role:"assistant",content:"⚠️ 错误，不应朗读"}],draft:"  原草稿😀  ",references:[],attachments:[],prompt:"",pending:false}}));
+  globalThis.fetch=async()=>Response.json({runtimes:[]});
+  dom.document.body.innerHTML='<main id="fixture"></main>';
+  let root=createRoot(dom.document.getElementById("fixture")!);
+  const render=()=>root.render(h(UiPreferencesProvider,null,h(AgentCompanion,{workspaceKey:"synthetic-speech-unit",llmConfig:{provider:"ollama",model:"fixture",baseUrl:"http://127.0.0.1:1/v1"},onOpenWorkspace(){},onOpenAiConfig(){},sendChat:async()=>{calls++;throw Error("must not send");}})));
+  const click=(label:string,index=0)=>flush(()=>dom.document.querySelectorAll<HTMLButtonElement>(`[aria-label="${label}"]`)[index]!.click());
+  try {
+    await flush(render);await click("打开 Agent 伴侣");assert.equal(spoken.length,0);
+    assert.equal(dom.document.querySelectorAll('[aria-label="本机朗读"]').length,4,"error assistant is not a model reply");
+    for(let index=0;index<4;index++){
+      await click("本机朗读",index);assert.equal(spoken.at(-1)?.voice?.localService,true);await click("停止朗读");
+      const count=spoken.length;await flush(()=>spoken.at(-1)?.onend?.());assert.equal(spoken.length,count,"late end after stop cannot enqueue");
+    }
+    await click("本机朗读");const beforeHide=cancels;await click("关闭 Agent 伴侣");assert.equal(cancels,beforeHide+1);
+    const beforeOpen=spoken.length;await click("打开 Agent 伴侣");assert.equal(spoken.length,beforeOpen);
+    await click("本机朗读");const beforeExit=cancels;await flush(()=>dom.dispatchEvent(new dom.Event("pagehide")));assert.equal(cancels,beforeExit+1);
+    await flush(()=>root.unmount());root=createRoot(dom.document.getElementById("fixture")!);const beforeRemount=spoken.length;
+    await flush(render);await click("打开 Agent 伴侣");assert.equal(spoken.length,beforeRemount);
+    assert.ok([...dom.document.querySelectorAll("textarea")].some(field=>field.value==="  原草稿😀  "));assert.equal(calls,0);
+    engine.getVoices=()=>[];await click("本机朗读");assert.match(dom.document.body.textContent??"",/本机音色尚未就绪/);assert.equal(spoken.length,beforeRemount);
+  } finally {
+    await flush(()=>root.unmount());globalThis.fetch=originalFetch;
+    Reflect.deleteProperty(dom,"speechSynthesis");Reflect.deleteProperty(dom,"SpeechSynthesisUtterance");
+  }
+});
+
 test("companion restores all saved turns and the unfinished question after remount without sending", async () => {
   const llmConfig: LlmConfig = { provider: "ollama", baseUrl: "https://synthetic.invalid", apiKey: "", model: "fixture" };
   const messages = Array.from({ length: 30 }, (_, index) => ({ id: `synthetic-${index}`, role: index % 2 ? "assistant" : "user", content: `保留的第${index}轮` }));

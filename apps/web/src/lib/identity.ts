@@ -63,7 +63,12 @@ export async function ownedFetch(input: RequestInfo | URL, init: RequestInit = {
     response = await fetcher(input, { ...init, headers, credentials: "include", cache: "no-store",
       signal: init.signal ? AbortSignal.any([init.signal, signal]) : signal });
   } catch (error) { if (version !== epoch) throw new IdentityBoundaryError(); throw error; }
-  if (version !== epoch) { void response.body?.cancel(); throw new IdentityBoundaryError(); }
+  if (version !== epoch) {
+    // The identity abort can already have errored this body. Cleanup is best-effort;
+    // its rejected cancellation must not escape the authoritative identity denial.
+    void response.body?.cancel().catch(() => undefined);
+    throw new IdentityBoundaryError();
+  }
   if (owner && (response.status === 401 || response.status === 409)) {
     const payload: unknown = await response.clone().json().catch(() => undefined);
     // Decoding an old denial may finish after a different account signed in.

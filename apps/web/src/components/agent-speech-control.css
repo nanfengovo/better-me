@@ -1,0 +1,9 @@
+.agent-speech-control { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; max-width: 100%; }
+.agent-speech-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 30px; padding: 5px 8px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--ui-text-muted, #64748b); font: inherit; font-size: 11px; font-weight: 500; cursor: pointer; transition: background-color 140ms ease, color 140ms ease; }
+.agent-speech-button[aria-pressed="true"] { color: var(--ui-accent, #245345); background: var(--ui-surface-soft, #f1f5f9); }
+.agent-speech-button:focus-visible { outline: 2px solid var(--ui-accent, #245345); outline-offset: 2px; }
+.agent-speech-button:active { transform: scale(.97); }
+.agent-speech-issue { font-size: 11px; font-weight: 400; color: var(--ui-text-muted, #64748b); line-height: 1.5; }
+@media (hover: hover) and (pointer: fine) { .agent-speech-button:hover { color: var(--ui-text, #1e293b); background: var(--ui-surface-soft, #f1f5f9); } }
+@media (pointer: coarse) { .agent-speech-button { min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .agent-speech-button { transition: none; } .agent-speech-button:active { transform: none; } }

@@ -55,7 +55,7 @@ test("desktop QA managers reuse only their actual loopback fixtures and cannot s
 
 const qaEnvironment = () => ({ NODE_ENV: "test", BETTERME_DESKTOP_QA_MODE: "external-reuse-only",
   BETTERME_DESKTOP_QA_HOST_URL: "http://127.0.0.1:5279", BETTERME_DESKTOP_QA_WEB_URL: "http://127.0.0.1:5273",
-  BETTERME_DESKTOP_QA_TOKEN: "synthetic-qa-token-canary", BETTERME_DESKTOP_QA_PROFILE_ROOT: "/tmp/betterme-desktop-qa-ABC123" });
+  BETTERME_DESKTOP_QA_TOKEN: "synthetic-qa-token-canary", BETTERME_DESKTOP_QA_PROFILE_ROOT: path.resolve(os.tmpdir(), "betterme-desktop-qa-ABC123") });
 
 test("desktop QA accepts only an explicit unpackaged test process with numeric loopback non-production ports", () => {
   const { resolveDesktopQaConfig } = moduleUnderTest("../src/main/isolated-qa-config.ts");
