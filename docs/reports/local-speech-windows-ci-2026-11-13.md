@@ -105,3 +105,18 @@ pnpm --filter @better-me/web exec node dev-server.mjs --config tests/ui-lab/loca
 ## 后续发布回执
 
 本人授权发布后已实际 fetch：本地 HEAD、tracking ref 和远端 `agent-os` 同为 `71089f7`，没有分叉；待发布文件仅本片源码、合成测试与技术交接，临时账号、截图、构建成品、数据库及凭据不入 Git。提交前重新验证关联用例，最终提交 SHA、Windows 作业链接和结论以本片发布后的实查回执为准，不引用旧运行当作新代码结果。
+
+- 已正常提交推送 [`c3e4fb2`](https://github.com/nanfengovo/better-me/commit/c3e4fb2365368e6b7ce1ecc95a597a54625a1100)，共 28 个相关文件。实际 `ls-remote` 与本地 SHA 一致，提交后工作树干净，没有强推、新分支或 Release。
+- 提交前复验身份/合成 HTTP/语音/伴侣与 Windows Git 根共 38/38，桌面 21/21、Memory 与 staged diff 检查通过；暂存新增行检查未见真实密钥格式、个人绝对路径或数据/构建产物。
+- 新运行为 [43427883983](https://github.com/nanfengovo/better-me/actions/runs/43427883983)，严格对应 `c3e4fb2`。Windows 桌面 [job 131893717291](https://github.com/nanfengovo/better-me/actions/runs/43427883983/job/131893717291) 已最终成功：测试、构建、打包、成品启动/自有服务清理及产物上传全部通过，耗时 6分8秒。
+- Windows 普通 [job 131893716809](https://github.com/nanfengovo/better-me/actions/runs/43427883983/job/131893716809) 实际普通阶段为 4,903 项：4,880 通过、3 失败、20 条件跳过，没有取消。不同平台的有效测试分母不同，不与本机4,896直接相加。三个新失败在下节记录；桌面 21 项为19通过/2原有平台条件跳过/0失败。监控的 GitHub API EOF 已自动重连，传输中断不等于 CI 失败。
+
+### Windows 第二轮修正
+
+第一轮原33项失败的共因已修正，剩余三个失败均在既有 HTTP 合成夹具，未改用户数据或生产权限：
+
+1. `apps/agent-host/tests/studio-committee-http.test.ts` 的隐私拒绝测试在 Windows 耗时约62秒，超过夹具60秒预算而正确进入 `budget_exhausted`。用实际HTTP+受控逻辑时钟每次模型调用5秒，6.6秒内先复现同一失败；夹具允许180秒后通过，新增精确断言14次共70秒仍计入同一任务。其他完整协议夹具沿同一测试预算，生产默认预算与专门耗尽测试不变。
+2. `legacy-workflow-http.test.ts` 用10ms等待猜测“旧响应已到”，慢Windows上可能先中止尚未完成的HTTP handler，清理发生 `ENOTEMPTY`，且没有真正测到迟到响应。改为HTTP响应头实际就绪的 Promise barrier 后切换身份，仍要求拒绝、只读历史不变、0模型/外部调用；没有用重试删除或吞掉清理异常替代边界。
+3. Web `studio-committee-http.test.ts` 用200次轮询作为归档等待窗口，不能代表Windows实际持久化。大回复刻意增加3秒迟到交付后，在本机先复现同一“归档未保留”失败；改为最多30秒等待完整私有归档条件，每次核对原文精确相等，同时断言未采用为结果、未新增模型计量。实际条件达成即返回，不盲等满30秒或跳过归档校验。
+
+修正后的两个HTTP文件、旧历史HTTP与身份边界共26/26通过。Windows第一次作业从启动到失败已16分14秒，后续58项独立评测/协议/runtime门尚未执行；只将CI作业总上限20调到30分钟以容纳完整门，不更改产品任务时限、跳过检查或取消沙箱。第二轮提交与新运行结论继续从对应SHA实查。

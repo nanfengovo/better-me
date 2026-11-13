@@ -13,12 +13,18 @@ import { registerTestIdentity } from "./fixtures/identity.js";
 import type { CareerTaskReasoner } from "../src/kernel/model-protocol.js";
 
 const selected = { model: "synthetic-committee-http", modelDigest: "a".repeat(64) }, runtime = studioAnalysisRuntime(selected.model), scope = "synthetic-committee-workspace";
-async function setup(t: TestContext) {
+// These HTTP/privacy tests exercise fourteen persisted steps, not disk speed.
+// Deadline exhaustion is tested separately; production defaults are unchanged.
+const fixtureActiveBudgetMs = 180_000;
+async function setup(t: TestContext, modelStepMs = 0) {
+  let logicalTime = Date.now();
+  if (modelStepMs) t.mock.method(Date, "now", () => logicalTime);
   const directory = await realpath(await mkdtemp(path.join(os.tmpdir(), "betterme-committee-http-"))), sourceRoot = path.join(directory, "synthetic-source");
   await mkdir(sourceRoot); const sourceFile = path.join(sourceRoot, "lease.ts"), sourceText = "export const lease = '完整合成源码😀';\r\n// 私有源码不进入目录\r\n";
   await writeFile(sourceFile, sourceText); await writeFile(path.join(sourceRoot, "recovery.ts"), "export const recovery = true;\n");
   let calls = 0, adapters = 0, legacyCalls = 0, metadataDigest = selected.modelDigest;
   const reasoner: CareerTaskReasoner = async (prompt, _signal, phase, _images, _source, contract) => {
+    logicalTime += modelStepMs;
     calls++; if (phase === "free_chat") return JSON.stringify({ kind: "reply", content: "合成根已建立" });
     assert.equal(phase, "studio_committee"); assert.ok(contract);
     const assessment = Array.isArray(contract["anyOf"]) ? contract["anyOf"][0] as Record<string, unknown> : contract;
@@ -44,7 +50,7 @@ async function setup(t: TestContext) {
   assert.equal((await request("/career-studio/runtime/select", { contextId: context.id, runtime: selected, consent: true })).status, 200);
   const input = (key = "committee-http-request"): StudioCommitteeTaskCreate => ({ kind: "studio_committee", workspaceKey: `studio-committee:${scope}`, rootScopeKey: scope, objective: "合成委员会审查",
     request: { contextId: context.id, idempotencyKey: key, consent: true, runtime: selected, claimIds: ["claim-a"], statements: [{ label: "合成设计", kind: "design", text: "  原始资料😀\r\n保留个人行动未知。\r\nTAIL  " }], code: [] },
-    runtimeBinding: careerRuntimeBinding(runtime), budget: { maxModelCalls: 20, maxToolCalls: 50, maxActiveMs: 60000 }, consent: true, idempotencyKey: key });
+    runtimeBinding: careerRuntimeBinding(runtime), budget: { maxModelCalls: 20, maxToolCalls: 50, maxActiveMs: fixtureActiveBudgetMs }, consent: true, idempotencyKey: key });
   const start = (task: StudioCommitteeTask, rt = runtime) => request(`/tasks/${task.id}/start`, { expectedRevision: task.revision, sourceFingerprint: task.sourceFingerprint, runtimeBinding: task.runtimeBinding, consent: true, runtime: rt });
   const settled = async (id: string) => { for (let i = 0; i < 1000; i++) { const task = StudioCommitteeTaskSchema.parse((await request(`/tasks/${id}`)).data.task); if (task.status !== "running") return task; await delay(5); } throw Error("HTTP committee did not settle"); };
   return { request, input, start, settled, context, identity, base, sourceRoot, sourceFile, sourceText, counts: () => ({ calls, adapters, legacyCalls }), changeDigest: () => { metadataDigest = "d".repeat(64); } };
@@ -118,16 +124,19 @@ test("actual owner kernel supplies privacy metadata without free reads; selected
   await writeFile(f.sourceFile, f.sourceText);
   task = StudioCommitteeTaskSchema.parse((await f.request(`/tasks/${task.id}`)).data.task);
   const ceiling = task.rootLedger!.usage.toolCalls;
-  assert.equal((await f.request(`/tasks/${task.id}/budget`, { expectedRevision: task.revision, consent: true, budget: { maxModelCalls: 20, maxToolCalls: ceiling, maxActiveMs: 60000 } })).status, 200);
+  assert.equal((await f.request(`/tasks/${task.id}/budget`, { expectedRevision: task.revision, consent: true, budget: { maxModelCalls: 20, maxToolCalls: ceiling, maxActiveMs: fixtureActiveBudgetMs } })).status, 200);
   const denied = await f.request("/career-studio/privacy/local/configure", { ...body, expectedRevision: 1 }); assert.equal(denied.status, 409); assert.equal(denied.data.error, "tool_call_budget");
   task = StudioCommitteeTaskSchema.parse((await f.request(`/tasks/${task.id}`)).data.task); assert.equal(task.rootLedger?.usage.toolCalls, ceiling);
   assert.equal((await catalog()).data.revision, 1); assert.deepEqual(f.counts(), { calls: 14, adapters: 1, legacyCalls: 0 });
 });
 
 test("privacy reuse rejects foreign selection, local digest drift and revoked current context without another model call", async t => {
-  const f = await setup(t), data = f.input(); data.budget!.maxToolCalls = 500;
+  // Model a slow machine without waiting a real minute. This is a privacy
+  // protocol test, not a 60-second disk/HTTP performance requirement.
+  const f = await setup(t, 5000), data = f.input(); data.budget!.maxToolCalls = 500;
   data.request.code = [{ root: f.sourceRoot, files: [{ path: "lease.ts", startLine: 1, endLine: 2 }] }];
-  let task = StudioCommitteeTaskSchema.parse((await f.request("/tasks", data)).data.task); await f.start(task); task = await f.settled(task.id); assert.equal(task.status, "completed");
+  let task = StudioCommitteeTaskSchema.parse((await f.request("/tasks", data)).data.task); await f.start(task); task = await f.settled(task.id); assert.equal(task.status, "completed", task.error);
+  assert.equal(task.usage.activeMs, 14 * 5000, "all fourteen synthetic model steps remain on the same charged clock");
   const catalog = await f.request("/career-studio/privacy/local/catalog", { contextId: f.context.id });
   const choices = (catalog.data.sources as Array<{ operationId: string; evidenceId: string }>).map(({ operationId, evidenceId }) => ({ operationId, evidenceId }));
   const body = { contextId: f.context.id, expectedRevision: 0, selections: choices, privateTerms: [], consent: true };

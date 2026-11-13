@@ -116,7 +116,11 @@ for (const oversized of [false,true]) test(`actual owner runtime preserves a ful
   const f = await fixture(t, async (...args) => {
     if (args[2] !== "studio_committee") return scripted(...args);
     expected = oversized ? "  完整迟到回复😀\r\n"+"private synthetic wire ".repeat(9000)+"\r\nTAIL  " : await scripted(...args) as string;
-    entered.resolve(); await late.promise; returned.resolve(); return expected;
+    entered.resolve(); await late.promise; returned.resolve();
+    // Completion notification is not archive publication. Exercise a delayed
+    // large delivery as well as the real persistence path, even on a fast disk.
+    if (oversized) await delay(3000);
+    return expected;
   });
   const operation = StudioOperationSchema.parse(await f.studio.request("/committee/start", f.body)); await entered.promise;
   const paused = StudioOperationSchema.parse(await f.studio.request("/operation/cancel", { contextId: f.context.id, operationId: operation.id })); assert.equal(paused.taskStatus, "paused");
@@ -124,13 +128,16 @@ for (const oversized of [false,true]) test(`actual owner runtime preserves a ful
   const owners = await readdir(path.join(f.directory, "identity/owners")); assert.equal(owners.length, 1);
   const file = path.join(f.directory, "identity/owners", owners[0]!, "career-tasks-v1", `${operation.id}.json`);
   let retained = false;
-  for (let i = 0; i < 200; i++) {
+  // Wait for durable publication, not 200 scheduler turns. Windows fsync and
+  // the deliberate delayed delivery above may outlast that accidental window.
+  const publicationDeadline = Date.now() + 30_000;
+  while (Date.now() < publicationDeadline) {
     const record = JSON.parse(await readFile(file, "utf8"));
     if(oversized){
       const artifact=record.task.outputArtifacts?.[0];
       if(artifact)retained=(await readFile(path.join(path.dirname(file),"outputs",operation.id,`${artifact.id}.txt`),"utf8"))===expected;
     }else retained = record.recent.some((row: { kind: string; output?: string; late?: boolean }) => row.kind === "studio_committee_output" && row.output === expected && row.late === true);
-    if (retained) { assert.equal(record.committeeState.completed.length,0);assert.equal(record.task.result,undefined);break; } await delay(5);
+    if (retained) { assert.equal(record.committeeState.completed.length,0);assert.equal(record.task.result,undefined);break; } await delay(25);
   }
   assert.equal(retained, true, "the real owner runtime must deliver late complete wire to the kernel's private archive before refusing adoption");
   const task = (await f.tasks()).find(row => row.id === operation.id)!; assert.equal(task.status, "paused"); assert.equal(task.usage.modelCalls, 1); assert.equal(f.counts().calls, 2); assert.equal(f.counts().legacy, 0);
