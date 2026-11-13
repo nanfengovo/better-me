@@ -12,6 +12,7 @@ import { CareerTaskBudgetSchema, CareerTaskCreateSchema, CareerTaskDecisionSchem
   JdOcrTaskCreateSchema,JdOcrUploadSchema,jdOcrPrompt,parseJdOcrResult,type JdOcrTask,type JdOcrTaskCreate,type JdOcrUpload,
   StudioAnalysisTaskCreateSchema,studioAnalysisOutputSchema,studioAnalysisPrompt,type StudioAnalysisTask,type StudioAnalysisTaskCreate,
   StudioCommitteeTaskCreateSchema,type StudioCommitteeTask,type StudioCommitteeTaskCreate,
+  GrowthPracticeTaskCreateSchema,GrowthPracticeStepSchema,growthPracticeVerificationHash,type GrowthPracticeTask,type GrowthPracticeTaskCreate,type GrowthPracticeStep,
   type ProjectUnderstandingTask, type ProjectUnderstandingTaskCreate, type UnderstandingTurnInput,
   type AgentTask, type AgentTaskCreate, type ConversationTask, type ExperienceRefineTask, type ExperienceRefineTaskCreate, type FreeChatTask, type FreeChatTaskCreate, type CareerTask, type CareerTaskBudget, type CareerTaskCreate, type CareerTaskEvent, type CareerTaskEvidence, type CareerToolArtifact, type UnderstandingGrant } from "@better-me/agent-contracts";
 import type { WritingReply } from "@better-me/core/experience-writing";
@@ -39,6 +40,7 @@ import { containsGitEvidenceSecret } from "../evidence-harvester/git-source.js";
 import { CommitteeReportSchema, validateCommitteeSnapshot, runHiringCommittee } from "@better-me/core/career-intelligence";
 import { committeeModelRequest } from "../career-studio/committee-model.js";
 import { prepareCommitteeTask, revalidateCommitteeSources, type CommitteeTaskState } from "./studio-committee.js";
+import { growthPracticeInput, isVerifiedGrowthPractice, lookupGrowthPracticeSource, runGrowthPracticeDecision, verifyGrowthPractice } from "./growth-practice.js";
 export { CareerTaskError };
 
 type Store<T extends AgentTask=CareerTask>={schema:1;task:T;grants:UnderstandingGrant[];inputHash:string;runtimeHash?:string;recent:unknown[];statements?:Record<string,string>;exposedEvidenceIds?:string[];projectState?:ProjectTaskState;committeeState?:CommitteeTaskState;lastActiveAt?:number;runGeneration:number};
@@ -46,6 +48,7 @@ type AnyStore=Store<AgentTask>;
 const projectStore=(s:AnyStore):Store<ProjectUnderstandingTask>=>{if(s.task.kind!=="project_understanding")fail("task_kind_not_supported_by_operation",422);return s as Store<ProjectUnderstandingTask>;};
 const jdStore=(s:AnyStore):Store<JdMatchTask>=>{if(s.task.kind!=="jd_match")fail("task_kind_not_supported_by_operation",422);return s as Store<JdMatchTask>;};
 const interviewStore=(s:AnyStore):Store<MockInterviewTask>=>{if(s.task.kind!=="mock_interview")fail("task_kind_not_supported_by_operation",422);return s as Store<MockInterviewTask>;};
+const growthPracticeStore=(s:AnyStore):Store<GrowthPracticeTask>=>{if(s.task.kind!=="growth_practice")fail("task_kind_not_supported_by_operation",422);return s as Store<GrowthPracticeTask>;};
 const careerStore=(s:AnyStore):Store=>{if(!isCareerTask(s.task))throw new CareerTaskError("task_kind_not_supported_by_operation",422);return s as Store;};
 export type CareerTaskAccess={session:string;valid:()=>Promise<boolean>};
 export type CareerTaskRuntime={reasoner:CareerTaskReasoner;runtimeFingerprint:string;supportsImages?:boolean;release?:()=>void};
@@ -119,7 +122,8 @@ export class AgentTaskKernel{
   private images:JdOcrImageStore;
   private scopes:TaskScopeAssociations;
   constructor(private opts:{ownerId:string;directory:string;broker?:EvidenceBroker;validateStudioAnalysis?:(task:StudioAnalysisTask,access:CareerTaskAccess)=>Promise<void>;
-    validateStudioCommittee?:(task:StudioCommitteeTask,access:CareerTaskAccess)=>Promise<StudioContext>}){
+    validateStudioCommittee?:(task:StudioCommitteeTask,access:CareerTaskAccess)=>Promise<StudioContext>;
+    growthPracticeLookup?:(input:{taskId:string;sourceId:string;sourceText:string;sourceHash:string})=>Promise<string>}){
     this.broker=opts.broker??new EvidenceBroker({forbiddenRoots:[opts.directory]});
     this.images=new JdOcrImageStore(opts.directory,opts.ownerId);
     this.scopes=new TaskScopeAssociations(opts.directory,opts.ownerId);
@@ -283,8 +287,9 @@ export class AgentTaskKernel{
   createTask(input:JdIntakeTaskCreate,access?:CareerTaskAccess):Promise<JdIntakeTask>;
   createTask(input:JdOcrTaskCreate,access?:CareerTaskAccess):Promise<JdOcrTask>;
   createTask(input:StudioCommitteeTaskCreate,access?:CareerTaskAccess):Promise<StudioCommitteeTask>;
+  createTask(input:GrowthPracticeTaskCreate,access?:CareerTaskAccess):Promise<GrowthPracticeTask>;
   createTask(input:AgentTaskCreate,access?:CareerTaskAccess):Promise<AgentTask>;
-  createTask(input:AgentTaskCreate,access?:CareerTaskAccess){return input.kind==="studio_committee"?this.createStudioCommittee(input,access):input.kind==="studio_analysis"?this.createStudioAnalysis(input,access):input.kind==="jd_ocr"?this.createOcr(input,access):input.kind==="jd_intake"?this.createIntake(input,access):input.kind==="career_coach"?this.createCoach(input,access):input.kind==="mock_interview"?this.createInterview(input,access):input.kind==="jd_match"?this.createJdMatch(input,access):input.kind==="project_understanding"?this.createProject(input,access):input.kind==="free_chat"||input.kind==="experience_refine"?this.createConversation(input,access):this.create(input as CareerTaskCreate,access);}
+  createTask(input:AgentTaskCreate,access?:CareerTaskAccess){return input.kind==="growth_practice"?this.createGrowthPractice(input,access):input.kind==="studio_committee"?this.createStudioCommittee(input,access):input.kind==="studio_analysis"?this.createStudioAnalysis(input,access):input.kind==="jd_ocr"?this.createOcr(input,access):input.kind==="jd_intake"?this.createIntake(input,access):input.kind==="career_coach"?this.createCoach(input,access):input.kind==="mock_interview"?this.createInterview(input,access):input.kind==="jd_match"?this.createJdMatch(input,access):input.kind==="project_understanding"?this.createProject(input,access):input.kind==="free_chat"||input.kind==="experience_refine"?this.createConversation(input,access):this.create(input as CareerTaskCreate,access);}
   private async validateCommittee(task:StudioCommitteeTask,access?:CareerTaskAccess){
     if(!access||!this.opts.validateStudioCommittee)fail("studio_committee_authority_required",422);
     const context=await this.opts.validateStudioCommittee(task,access);await this.assertAccess(access);return context;
@@ -398,6 +403,70 @@ export class AgentTaskKernel{
     const image=task.request.images.find(item=>item.id===imageId);if(!image||!task.uploadedImageIds.includes(imageId))fail("task_image_not_found",404);
     const input=await this.images.read(id,image!);await this.assertAccess(access);return {image:image!,dataUrl:input.dataUrl};
   });}
+  private async createGrowthPractice(input:GrowthPracticeTaskCreate,access?:CareerTaskAccess){
+    const data=GrowthPracticeTaskCreateSchema.parse(input),id=`ct_${digest([this.opts.ownerId,data.idempotencyKey]).slice(0,32)}`,inputHash=digest(data);
+    return this.atomic(async()=>{
+      await this.assertAccess(access);const previous=await readPrivateJson(this.file(id)) as AnyStore|undefined;
+      if(previous){if(previous.inputHash!==inputHash)fail("idempotency_conflict");return this.view(growthPracticeStore(await this.loadAny(id)));}
+      const lineage=await this.lineage(id,data.parentTaskId,data.runtimeBinding,input.budget,data.rootScopeKey),at=date();
+      const task:GrowthPracticeTask={id,ownerId:this.opts.ownerId,kind:"growth_practice",workspaceKey:data.workspaceKey,objective:data.objective,status:"ready",revision:0,createdAt:at,updatedAt:at,
+        request:data.request,sourceFingerprint:digest(data.request),runtimeBinding:data.runtimeBinding,budget:data.budget,...lineage,
+        usage:{modelCalls:0,toolCalls:0,activeMs:0},events:[],practice:{phase:"ready"}};
+      event(task,"created","Frozen synthetic source, learner answer, code and acceptance contract; no model, career data or lookup executed.");
+      const stored:Store<GrowthPracticeTask>={schema:1,task,grants:[],inputHash,recent:[],runGeneration:0};await this.save(stored);return this.view(stored);
+    });
+  }
+  async stepGrowthPractice(id:string,input:GrowthPracticeStep,access?:CareerTaskAccess){
+    const data=GrowthPracticeStepSchema.parse(input);
+    return this.atomic(async()=>{
+      await this.assertAccess(access);const s=growthPracticeStore(await this.loadAny(id)),task=s.task;
+      checkRevision(s,data.expectedRevision);if(data.sourceFingerprint!==task.sourceFingerprint)fail("source_changed_new_comparison_required");
+      if(task.practice.phase==="outcome_unknown")fail("growth_practice_lookup_outcome_unknown",409);
+      const failed=async(code:string,status:"failed"|"budget_exhausted"="failed")=>{charge(s);delete s.lastActiveAt;task.practice.phase="failed";task.practice.error=code;stage(task,status,code);event(task,"stopped",code);await this.save(s);return this.view(s);};
+      const interrupted=async(error:unknown):Promise<never>=>{const code=safeCode(error);charge(s);delete s.lastActiveAt;task.practice.error=code;
+        stage(task,"interrupted",code);event(task,"stopped","Authorization ended before the bounded synthetic step could be committed; no later result was adopted.");await this.save(s);throw error;};
+      try{
+      if(task.practice.phase==="ready"){
+        if(!["ready","paused","interrupted"].includes(task.status))fail("growth_practice_not_runnable");
+        await this.checkRoot(s,undefined,true);s.runGeneration++;s.lastActiveAt=Date.now();stage(task,"running");delete task.practice.error;
+        event(task,"started","Synthetic practice decision started in QuickJS; no model, filesystem, network or career source is available.");
+        await this.reserve(s,"tool");event(task,"tool_call","Evaluate the frozen learner source in the bounded QuickJS profile.");await this.save(s);
+        try{await this.assertAccess(access);}catch(error){return interrupted(error);}
+        let decision;
+        try{decision=await runGrowthPracticeDecision(task.request.sourceCode,growthPracticeInput(task,null));}
+        catch{return failed("growth_practice_source_rejected");}
+        if(decision.kind!=="lookup"||decision.noteId!==task.request.sourceId)return failed("growth_practice_lookup_required");
+        try{await this.assertAccess(access);}catch(error){return interrupted(error);}
+        task.practice.phase="outcome_unknown";
+        await this.reserve(s,"tool");event(task,"tool_call",`Dispatch the one allowlisted read-only lookup ${task.request.sourceId}; an unconfirmed outcome is never retried automatically.`);await this.save(s);
+        let result:string,dispatched=false;
+        try{await this.assertAccess(access);dispatched=true;
+          result=await (this.opts.growthPracticeLookup?.({taskId:task.id,sourceId:task.request.sourceId,sourceText:task.request.sourceText,sourceHash:task.request.sourceHash})??Promise.resolve(lookupGrowthPracticeSource(task,decision.noteId)));await this.assertAccess(access);}
+        catch(error){if(!dispatched){task.practice.phase="ready";return interrupted(error);}
+          charge(s);delete s.lastActiveAt;task.practice.error="growth_practice_lookup_outcome_unknown";stage(task,"interrupted","growth_practice_lookup_outcome_unknown");event(task,"stopped","Lookup was dispatched but no durable result was confirmed; retained as unknown and not retried.");await this.save(s);return this.view(s);}
+        if(result!==task.request.sourceText||digest(result)!==task.request.sourceHash)return failed("growth_practice_lookup_result_mismatch");
+        task.practice={phase:"lookup_saved",checkpoint:{stepId:"lookup-note-v1",noteId:task.request.sourceId,result,resultHash:digest(result),lookupCalls:1,savedAt:date()}};
+        charge(s);delete s.lastActiveAt;stage(task,"awaiting_review");event(task,"tool_result","Exact synthetic note and hash saved as a checkpoint; reopening performs GET only and cannot dispatch lookup again.");await this.save(s);return this.view(s);
+      }
+      if(task.practice.phase!=="lookup_saved"||!["awaiting_review","interrupted"].includes(task.status)||!task.practice.checkpoint)fail("growth_practice_not_runnable");
+      const checkpoint=structuredClone(task.practice.checkpoint);s.runGeneration++;s.lastActiveAt=Date.now();stage(task,"running");
+      event(task,"started","Independent frozen verification started from the saved checkpoint; the original lookup is not available to this phase.");await this.save(s);
+      try{
+        const verification=await verifyGrowthPractice(task,checkpoint,async(decisionInput,label)=>{
+          await this.assertAccess(access);
+          await this.reserve(s,"tool");event(task,"tool_call",`QuickJS frozen check: ${label}`);await this.save(s);
+          await this.assertAccess(access);
+          return runGrowthPracticeDecision(task.request.sourceCode,decisionInput);
+        });
+        await this.assertAccess(access);charge(s);delete s.lastActiveAt;task.practice.verification=verification;task.practice.verificationHash=growthPracticeVerificationHash(verification);
+        if(isVerifiedGrowthPractice(verification)){task.practice.phase="verified";delete task.practice.error;stage(task,"completed");event(task,"receipt","All four frozen checks passed against the exact code, answer, source and checkpoint; this is practice evidence, not production experience.");}
+        else{task.practice.phase="failed";task.practice.error="growth_practice_verification_failed";stage(task,"failed","growth_practice_verification_failed");event(task,"receipt","Frozen verification failed; no competency or project acceptance may be claimed.");}
+        await this.save(s);return this.view(s);
+      }catch(error){const code=safeCode(error);if(["tool_call_budget","model_call_budget","active_time_budget"].includes(code))throw error;
+        return code==="interaction_lease_invalid"?interrupted(error):failed("growth_practice_verifier_failed");}
+      }catch(error){const code=safeCode(error);if(["tool_call_budget","model_call_budget","active_time_budget"].includes(code))return failed(code,"budget_exhausted");throw error;}
+    });
+  }
   private async createIntake(input:JdIntakeTaskCreate,access?:CareerTaskAccess){
     const data=JdIntakeTaskCreateSchema.parse(input),id=`ct_${digest([this.opts.ownerId,data.idempotencyKey]).slice(0,32)}`,inputHash=digest(data);
     return this.atomic(async()=>{
@@ -581,6 +650,7 @@ export class AgentTaskKernel{
       const task=await this.atomic(async()=>{
         const s=await this.loadAny(id),t=s.task;
         await this.assertAccess(access);
+        if(t.kind==="growth_practice")fail("growth_practice_use_step",422);
         if(t.kind==="project_understanding"&&data.projectTurn&&projectReplay(projectStore(s),data.projectTurn))return this.view(s);
         checkRevision(s,data.expectedRevision);
         if(JSON.stringify(data.runtimeBinding)!==JSON.stringify(t.runtimeBinding))fail("runtime_binding_changed");
@@ -656,8 +726,8 @@ export class AgentTaskKernel{
   async invalidateSession(session:string){this.revoked.add(session);await Promise.all([...this.active].filter(([,a])=>a.session===session).map(([id,a])=>this.stopActive(id,a,"paused","interaction_lease_invalid")));}
   async close(){this.closed=true;await Promise.all([...this.active].map(([id,a])=>this.stopActive(id,a,"interrupted","host_stopped")));await this.writes;this.writer?.close();this.writer=undefined;}
   private async preserveOverflowOutput(s:AnyStore,text:string,runGeneration=s.runGeneration){
-    if(isCareerTask(s.task))fail("task_kind_not_supported_by_operation",422);
-    const task=s.task as Exclude<AgentTask,CareerTask>,hash=digest(text),outputId=`out_${digest([task.id,runGeneration,task.usage.modelCalls,hash]).slice(0,32)}`;
+    if(isCareerTask(s.task)||s.task.kind==="growth_practice")fail("task_kind_not_supported_by_operation",422);
+    const task=s.task,hash=digest(text),outputId=`out_${digest([task.id,runGeneration,task.usage.modelCalls,hash]).slice(0,32)}`;
     const directory=path.join(this.opts.directory,"outputs",task.id);await privateDirectory(directory);
     const handle=await fs.open(path.join(directory,`${outputId}.txt`),"wx",0o600);
     try{await handle.writeFile(text);await handle.sync();}finally{await handle.close();}
@@ -666,8 +736,8 @@ export class AgentTaskKernel{
   }
   async readOutput(id:string,outputId:string){return this.atomic(async()=>{
     const task=(await this.loadAny(id)).task;
-    if(isCareerTask(task)||!/^out_[a-f0-9]{32}$/.test(outputId)||!task.outputArtifacts?.some(item=>item.id===outputId))fail("task_output_not_found",404);
-    const artifact=(task as Exclude<AgentTask,CareerTask>).outputArtifacts!.find(item=>item.id===outputId)!;
+    if(isCareerTask(task)||task.kind==="growth_practice"||!/^out_[a-f0-9]{32}$/.test(outputId)||!task.outputArtifacts?.some(item=>item.id===outputId))fail("task_output_not_found",404);
+    const artifact=task.outputArtifacts!.find(item=>item.id===outputId)!;
     const file=path.join(this.opts.directory,"outputs",id,`${outputId}.txt`),stat=await fs.lstat(file);
     if(!stat.isFile()||stat.isSymbolicLink()||stat.nlink!==1||stat.size!==artifact.bytes||process.platform!=="win32"&&(stat.mode&0o077)!==0)fail("unsafe_task_output",503);
     const text=await fs.readFile(file,"utf8");if(digest(text)!==artifact.hash)fail("task_output_changed",409);return {artifact,text};
@@ -1040,7 +1110,7 @@ export class AgentTaskKernel{
         await this.checkedAny(id,a,async s=>{
           if(output.length>126000){await this.preserveOverflowOutput(s,output);return;}
           s.recent.push({kind:`${task.kind}_output`,turn:task.turn,output,finishReason});
-          if(!isCareerTask(s.task)&&modelOutputIncomplete(response))s.task.partialOutput={text:output,finishReason};});
+          if(!isCareerTask(s.task)&&s.task.kind!=="growth_practice"&&modelOutputIncomplete(response))s.task.partialOutput={text:output,finishReason};});
         if(output.length>126000)fail("decision_output_budget",413);
         if(modelOutputIncomplete(response))fail("model_output_incomplete",422);
         await this.recheckRefinementProject(id,a);

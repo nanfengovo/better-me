@@ -115,7 +115,7 @@ test("workspace navigation restores subtabs and browser back/forward selects the
   dom.history.replaceState(null, "", "/");
   await mount();
   await React.act(async () => root!.render(React.createElement(NavigationProbe)));
-  await React.act(async () => { navigation.setPage("agent"); navigation.setWorkspaceTab("design"); navigation.setAgentMode("studio"); });
+  await React.act(async () => { navigation.setPage("agent"); navigation.setWorkspaceTab("design"); navigation.setAgentMode("growth"); });
   assert.equal(new URLSearchParams(dom.location.search).get("workspace"), "agent");
   await React.act(async () => {
     dom.history.replaceState(null, "", "/?workspace=resume"); dom.dispatchEvent(new dom.PopStateEvent("popstate"));
@@ -127,5 +127,5 @@ test("workspace navigation restores subtabs and browser back/forward selects the
   assert.equal(navigation.page, "agent");
   await mount();
   await React.act(async () => root!.render(React.createElement(NavigationProbe)));
-  assert.equal(navigation.page, "agent"); assert.equal(navigation.workspaceTab, "design"); assert.equal(navigation.agentMode, "studio");
+  assert.equal(navigation.page, "agent"); assert.equal(navigation.workspaceTab, "design"); assert.equal(navigation.agentMode, "growth");
 });

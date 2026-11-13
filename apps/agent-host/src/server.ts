@@ -70,6 +70,8 @@ import type { VerifiedJobResolver } from "./career-studio/verified-jobs.js";
 import type { ConfiguredCareerMcpServer } from "./career-studio/mcp-client-http.js";
 import type { CloudPrivacyAdapter } from "./privacy/types.js";
 import type { loadCareerOperatorConfig } from "./career-studio/operator-config.js";
+import { GrowthJourneys, GrowthJourneyError } from "./growth/service.js";
+import { handleGrowthJourneys } from "./growth/http.js";
 
 // ── Server factory ────────────────────────────────────────────────────────────
 
@@ -219,7 +221,17 @@ export function createAgentServer(opts: ServerOptions): http.Server {
         privacyBroker: studioBroker, finalExportRenderer: opts.careerFinalExportRenderer, readBody, sendJson: jsonResponse });
       return studioHttp;
     };
-    return { understanding, nativeTools, routing, careerTasks, taskRuntime, getStudioHttp, peekStudioHttp: () => studioHttp, chatGpt: provider, recovery, store: new OwnedStore(path.join(root, "records"), principal.id,
+    let growthJourneys: GrowthJourneys | undefined;
+    let growthKernel: AgentTaskKernel | undefined;
+    const getGrowthJourneys = () => {
+      // Synthetic validation uses the existing Kernel implementation, but never
+      // scans or claims the user's real career-task history or root ledger.
+      growthKernel ??= new AgentTaskKernel({ ownerId: principal.id, directory: path.join(root, "growth-synthetic-tasks-v1") });
+      return growthJourneys ??= new GrowthJourneys({ ownerId: principal.id, directory: path.join(root, "growth-journeys-v1"), kernel: growthKernel });
+    };
+    const closeGrowthJourneys = async () => { try { await growthJourneys?.close(); } finally { await growthKernel?.close(); } };
+    const invalidateGrowthSession = async (session: string) => { growthJourneys?.invalidateSession(session); await growthKernel?.invalidateSession(session); };
+    return { understanding, nativeTools, routing, careerTasks, taskRuntime, getGrowthJourneys, closeGrowthJourneys, invalidateGrowthSession, getStudioHttp, peekStudioHttp: () => studioHttp, chatGpt: provider, recovery, store: new OwnedStore(path.join(root, "records"), principal.id,
       (namespace, key) => namespace === "continuity" ? recovery.continuity(key) : Promise.resolve(undefined)),
       runManager: new AgentRunManager({ registry: runtimeRegistry, rootDirectory: path.join(root, "runs"), sandboxMode: opts.sandboxMode }),
       handleChatGpt: createChatGptHandler({ service: provider, allowedOrigins: opts.allowedOrigins, readBody, sendJson: jsonResponse }),
@@ -254,6 +266,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       await owners.get(previous.id)?.nativeTools.invalidateSession(capabilitySession(cookie));
       await owners.get(previous.id)?.routing.invalidateSession(capabilitySession(cookie));
       await owners.get(previous.id)?.careerTasks.invalidateSession(capabilitySession(cookie));
+      await owners.get(previous.id)?.invalidateGrowthSession(capabilitySession(cookie));
       await owners.get(previous.id)?.peekStudioHttp()?.invalidateSession(capabilitySession(cookie));
     }
   };
@@ -391,6 +404,9 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       let owner = owners.get(principal.id);
       if (!owner) { owner = makeOwner(principal); owners.set(principal.id, owner); }
       const { handleChatGpt, handleUnderstanding, runManager } = owner;
+      if (pathname.startsWith("/api/v1/agent/growth/")) return await handleGrowthJourneys(req, res, pathname, owner.getGrowthJourneys(), {
+        session: capabilitySession(req.headers.cookie), valid: async () => (await identities.authenticate(req.headers.cookie))?.id === principal.id,
+      }, readBody, jsonResponse);
       if (pathname.startsWith("/api/v1/agent/career-studio/") && await owner.getStudioHttp().handleOwner(req, res, pathname, { session: capabilitySession(req.headers.cookie),
         valid: async () => (await identities.authenticate(req.headers.cookie))?.id === principal.id })) return;
       if (pathname.startsWith("/api/v1/agent/capabilities")) {
@@ -564,6 +580,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       return jsonResponse(res, 404, { error: "not_found" });
     } catch (err: any) {
       if (err instanceof CodingTaskError || err instanceof SandboxBuildError) return jsonResponse(res, err.status, { error:err.code });
+      if (err instanceof GrowthJourneyError) return jsonResponse(res, err.status, { error: err.code });
       if (err instanceof IdentityError) return jsonResponse(res, err.status, { error: err.code });
       if (err instanceof DeepSeekApiError) {
         return jsonResponse(res, err.status, { error: "model_provider_error", message: err.message });
@@ -587,7 +604,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     const work:Promise<unknown>[]=[];
     for(const owner of owners.values()){
       owner.taskRuntime.close();
-      work.push(owner.careerTasks.close().finally(async()=>{
+      work.push((async () => { try { await owner.closeGrowthJourneys(); } finally { await owner.careerTasks.close(); } })().finally(async()=>{
         await Promise.allSettled([owner.peekStudioHttp()?.close(),owner.routing.close(),owner.nativeTools.close(),owner.understanding.dispose()]);
         owner.chatGpt.dispose();
       }));

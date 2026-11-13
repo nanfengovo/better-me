@@ -1,5 +1,12 @@
 # Progress
 
+## 第一条合成成长闭环 · 2026-11-13
+
+- [x] 最新明确授权范围已完成：现有 Agent → 成长闭环串起目标、合成资料、原代码/原答、真实受限 lookup、持久断点、明确继续固定验证、本人验收及完整 JSON 导出。共用 `AgentTaskKernel` 实现，独立 owner 合成目录，不读取职业任务或写简历/FactBase。
+- [x] 重开 GET-only；稳定命令 ID/版本对账，未知不重派；失败修正仍计原根，额度耗尽可读停止，不以新根加额。原请求/断点/报告/项目完整绑定，guest 异常不能冒充权限拒绝，代码/派送前最后一跳撤权有回归。
+- [x] Host 全目录 736 项：726 通过/10 条件跳过/0 失败；相关 Web 68/68、Desktop 21/21、全仓类型16/16、零 warning lint、双端构建9/9通过。Browser 重载不增 POST，两个独立 Electron 进程及中间 Host 重启保留 lookup=1；最新536安装资源差异0、成品离线两窗口通过。
+- 范围/日志/视觉/回退唯一权威：`docs/reports/personal-growth-first-loop-2026-11-13.md`。0 外部模型/真实资料变更；原正式窗口和服务未由本轮重启。实施验收时未提交推送，随后本人已明确要求将本片沿现有 `agent-os` 发布；最终远端和 CI 以 Git/Actions 回执为准。4/4不作语义评分或独立掌握认证，仍 `pending_retest`；四类外部引擎和此前暂停 R1–R8 不据此算完成或自动续跑。
+
 ## Studio 懒加载 504 与白屏恢复 · 2026-11-13
 - [x] 实际隔离 Chrome 复现同一 `CareerStudioWorkspace.tsx?t=1794532225701` 动态导入失败，日志定位 `qrcode.js?v=fc225f4f` 连续 504；原服务存活和首页200不足以覆盖懒加载。qrcode 包存在，旧预构建索引缺项；运行依赖同步后须验证模块图或重启开发服务，不能只看存活。
 - [x] 仅备份 `.vite` 生成缓存至 `/private/tmp/betterme-vite-recovery.N5vQcx/previous-vite-cache`，正常关闭 Web 后由 `dev-server.mjs --force` 恢复。托管岗位服务沿原目录恢复；Host/OIDC/Ollama 未重启，所有健康200。同 URL 导入转绿，合成组件标题/授权初始区可见、未自动授权、当前资源504为零，截图 `output/playwright/studio-cache-recovered.png` 已目视。

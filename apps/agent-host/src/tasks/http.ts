@@ -48,7 +48,10 @@ export function createCareerTaskHandler(deps:Dependencies){
       }
       if(pathname===root&&req.method==="GET"){const tasks=root.endsWith("career-tasks")?await service.list():await service.listTasks();await valid();deps.sendJson(res,200,{tasks});return true;}
       if(pathname===root&&req.method==="POST"){
-        const input=await deps.readBody(req);AgentTaskCreateSchema.parse(input);
+        const input=await deps.readBody(req),validated=AgentTaskCreateSchema.parse(input);
+        // Synthetic growth is admitted only through its owner-bound facade,
+        // whose Kernel instance never scans or writes the career task directory.
+        if(validated.kind==="growth_practice")throw new CareerTaskError("growth_practice_use_journey",422);
         // Kernel owns normalization: an omitted child budget must not become an
         // explicit request for the schema's fresh-root default ceiling.
         const task=await service.createTask(input as AgentTaskCreate,lease);await valid();deps.sendJson(res,201,{task});return true;

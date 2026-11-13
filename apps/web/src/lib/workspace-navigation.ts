@@ -3,7 +3,7 @@ import { z } from "zod";
 import { useRecoveryField, useWorkspaceRecovery } from "./use-workspace-recovery";
 
 const PageSchema = z.enum(["resume", "opportunities", "resources", "atlas", "agent", "autopilot"]);
-const NavigationSchema = z.object({ page: PageSchema, workspaceTab: z.enum(["content", "design"]), agentMode: z.enum(["advisor", "studio"]) }).strict();
+const NavigationSchema = z.object({ page: PageSchema, workspaceTab: z.enum(["content", "design"]), agentMode: z.enum(["advisor", "growth", "studio"]) }).strict();
 export function workspacePageFromSearch(search: string) {
   const page = PageSchema.safeParse(new URLSearchParams(search).get("workspace"));
   return page.success ? page.data : undefined;

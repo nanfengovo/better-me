@@ -278,6 +278,8 @@ export * from "./resume-adoption.js";
 export * from "./career-task.js";
 export * from "./agent-chat.js";
 export * from "./agent-task.js";
+export * from "./growth-practice.js";
+export * from "./growth-journey.js";
 export * from "./jd-match.js";
 export * from "./mock-interview.js";
 export * from "./jd-intake.js";

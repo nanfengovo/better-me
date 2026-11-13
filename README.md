@@ -91,9 +91,18 @@ Local-first career workspace and personal agent. Ground experience in evidence, 
 
 运行入口：`pnpm test:resume-quality`、`pnpm evals:resume-quality`、`pnpm evals:career`。详细参数见 [评测说明](evals/resume-quality/README.md) 与 [数据集许可](evals/resume-quality/gold/v1/NOTICES.md)。采样脚本会执行模型请求，应先核对授权、端点及预算，不是默认测试步骤。
 
+### 7. 合成成长闭环
+
+- **入口**：Agent 工作区 → 成长闭环。本人设目标、选内置合成资料、保存原代码与作答，再明确运行、继续检查和接受项目。
+- **可恢复实践**：真实受限 QuickJS 执行一次白名单 lookup，保存工具结果与断点；重开只读取，明确继续才执行固定验证，已保存步骤不重派。
+- **完整尝试与验收**：失败尝试不覆盖，修正仍沿原根累计预算；源码、原答、解释、辅助归属和报告可回查与本地导出。4/4 只代表本次固定程序检查，能力仍待复测。
+- **隔离边界**：仅新建 owner 范围的合成记录，不扫描或采用现有简历、岗位和投递资料；语音、OXR、PDF 翻译及 DeepTutor 真实引擎尚未开启。
+
+实现范围、恢复语义和双端验收见 [合成成长闭环实现与验收](docs/reports/personal-growth-first-loop-2026-11-13.md)。
+
 ### 尚未完成的验收
 
-回放、采集器、隐私模型步骤和 Coding Sandbox 等剩余循环迁移；新任务类型的检索与精确位置逐类验收；更广的多根/授权版本接手；真正不同模型的同条件比较，以及整体审计仍待完成。现有源审也发现项目遗漏、通用职责照搬及部分错引风险，不能宣称写作质量已整体过关。Personal Growth OS 系统设计属于提案，不是本次已交付产品。
+回放、采集器、隐私模型步骤和 Coding Sandbox 等剩余循环迁移；新任务类型的检索与精确位置逐类验收；更广的多根/授权版本接手；真正不同模型的同条件比较，以及整体审计仍待完成。现有源审也发现项目遗漏、通用职责照搬及部分错引风险，不能宣称写作质量已整体过关。Personal Growth OS 整体仍是分阶段设计；上述第一条合成成长闭环不代表其全部领域和外部引擎已交付。
 
 完整范围以 [R1–R8 清单](docs/reports/unified-agent-expansion-2026-11-11.md) 为准，阶段完成与整体完成分别记录。
 
