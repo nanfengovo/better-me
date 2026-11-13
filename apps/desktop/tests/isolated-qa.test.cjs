@@ -109,7 +109,7 @@ test("the real desktop bootstrap sets every private profile path before readines
     setPath: (name, location) => { assert.equal(readyObserved, false); assert.ok(location.startsWith(root + path.sep)); profilePaths.set(name, location); },
     whenReady: async () => { readyObserved = true; assert.equal(profilePaths.size, 4, "profile boundaries must precede Electron readiness"); }, quit() {} });
   class BrowserWindow extends EventEmitter {
-    constructor() { super(); windows.push(this); this.webContents = Object.assign(new EventEmitter(), { setWindowOpenHandler() {}, send() {} }); }
+    constructor() { super(); windows.push(this); this.webContents = Object.assign(new EventEmitter(), { setWindowOpenHandler() {}, send() {}, session: { setPermissionRequestHandler() {} } }); }
     static getAllWindows() { return windows; }
     async loadURL(url) { this.url = url; }
   }

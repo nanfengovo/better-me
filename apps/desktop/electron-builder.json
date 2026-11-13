@@ -1,0 +1,33 @@
+{
+  "appId": "io.github.nanfengovo.betterme",
+  "productName": "BetterMe",
+  "asar": true,
+  "asarUnpack": ["**/*.node", "**/esbuild/**", "**/@esbuild/**"],
+  "files": ["dist/**", "resources/icon.png", "package.json"],
+  "forceCodeSigning": false,
+  "npmRebuild": false,
+  "publish": null,
+  "mac": {
+    "category": "public.app-category.productivity",
+    "identity": "-",
+    "target": ["dmg", "zip"],
+    "artifactName": "BetterMe-${version}-macos-${arch}.${ext}"
+  },
+  "win": {
+    "target": ["nsis"],
+    "artifactName": "BetterMe-${version}-windows-${arch}-setup.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "deleteAppDataOnUninstall": false,
+    "createDesktopShortcut": true
+  },
+  "linux": {
+    "target": ["AppImage"],
+    "category": "Office",
+    "executableName": "betterme",
+    "artifactName": "BetterMe-${version}-linux-${arch}.${ext}"
+  }
+}

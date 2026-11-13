@@ -4,6 +4,7 @@ import { Accessibility, ArrowUpRight, ChevronLeft, Globe, Monitor, Palette, Sear
 import { useUiPreferences } from "../../lib/ui-preferences";
 import { WORKSPACE_THEMES } from "../../themes/workspace-theme";
 import { DesktopWallpaperSettings } from "./DesktopWallpaperSettings";
+import { ProductMark } from "../ProductMark";
 
 function SettingRow({ label, children }: { label: string; children: ReactNode }) {
   return <div className="os-setting-row"><span>{label}</span><div>{children}</div></div>;
@@ -49,7 +50,7 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
   const title = tabs.find(item => item.id === tab)!.name;
   return <div className="os-settings" data-detail={mobileDetail}>
     <aside className="os-settings-sidebar">
-      <div className="os-settings-identity"><div className="os-avatar">b</div><div><strong>BetterMe</strong><small>{t("你的职业工作空间", "Your career workspace")}</small></div></div>
+      <div className="os-settings-identity"><ProductMark size={38} /><div><strong>BetterMe</strong><small>{t("你的职业工作空间", "Your career workspace")}</small></div></div>
       <label className="os-settings-search"><Search size={14} /><input value={query} onChange={e => setQuery(e.target.value)} aria-label={t("搜索设置分类", "Search settings categories")} placeholder={t("搜索设置", "Search settings")} /></label>
       <nav aria-label={t("设置分类", "Settings categories")}>{tabs.filter(item => item.name.toLowerCase().includes(query.toLowerCase())).map(item => <button key={item.id} type="button" aria-current={tab === item.id ? "page" : undefined} onClick={() => { setTab(item.id); setMobileDetail(true); }}><span className={`os-category-icon ${item.id}`}><item.icon size={15} /></span>{item.name}</button>)}</nav>
       {query && !tabs.some(item => item.name.toLowerCase().includes(query.toLowerCase())) && <p className="os-setting-note">{t("没有匹配的设置分类", "No matching settings")}</p>}

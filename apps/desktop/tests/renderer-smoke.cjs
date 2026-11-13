@@ -33,7 +33,7 @@ if (!process.versions.electron) {
   const origin = "http://127.0.0.1:5173", url = origin + "/?workspace=autopilot";
   const forbidden = [], assets = new Set(), sleep = (ms) => new Promise((r) => setTimeout(r,ms));
   let syntheticApiReads = 0, blockedRequests = 0, windows = 0;
-  app.setName("betterme-offline-smoke");
+  app.setName("better-me-desktop");
   for (const key of ["userData","sessionData","crashDumps","logs"]) {
     const location = path.join(dir,key); fs.mkdirSync(location,{ recursive:true }); app.setPath(key,location);
   }

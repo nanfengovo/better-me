@@ -1,0 +1,11 @@
+{
+  "tool": "built-in image_gen",
+  "selected": "asset-core",
+  "product": "A trusted Career Workspace plus a controlled Personal Career Agent; assets belong to the person, actions use evidence, and verified results enrich the workspace.",
+  "concepts": [
+    { "id": "evidence-weave", "image": "concepts/evidence-weave.png", "meaning": "Experience, evidence, controlled action and verification are connected in a crafted circuit." },
+    { "id": "asset-core", "image": "concepts/asset-core.png", "meaning": "The person's stable assets are central; adaptable agent capabilities support rather than replace the person." },
+    { "id": "growth-joinery", "image": "concepts/growth-joinery.png", "meaning": "Verified achievements interlock into an expandable personal capability structure." }
+  ],
+  "selectedPrompt": "Use case: logo-brand. Create ONE final original desktop app icon for a personal career operating system, concept ASSET CORE. Product essence: the human owns real career assets; an adaptable agent acts around those assets with permission; evidence stays stable while abilities grow. NOT a letter logo. Design a highly distinctive compact emblem: a small warm-ivory upright faceted seed at the center, held by two asymmetrical, substantial jade architectural cradle pieces; a third short amber joining piece completes the supporting structure without enclosing or dominating the seed. The forms feel like a tiny inhabitable workspace or precision-cut sculpture, not a flower, atom, gemstone shop, shield or generic AI swirl. Strong bold negative space, genuinely interesting silhouette at 24px. Keep it minimal: four solid components maximum, no thin rings, no floating dots, no circuits, no letter, no b, no arrow, no stairs, no sparkle, no robot, no briefcase, no text. Premium restrained product identity, tactile matte ceramic with very subtle dimensional light. Deep emerald rounded-square app tile, centered emblem about 62 percent of tile, genuine transparent outside corners, 1024 square. Only the icon, no presentation board or mockup."
+}

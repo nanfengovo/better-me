@@ -24,11 +24,10 @@ import {
 } from "lucide-react";
 import { testLlmConnection } from "@better-me/core";
 import { useUiPreferences } from "../lib/ui-preferences";
+import { useLocalAgentRuntime } from "../lib/local-agent-runtime";
 import { readChatImage, chatImageErrorMessage, MAX_CHAT_IMAGES, type ChatImageAttachment } from "../lib/chat-images";
 import { createCompanionResumeSummary } from "../lib/resume-agent-context";
 import {
-  listLocalAgentRuntimes,
-  scanLocalAgentRuntimes,
   sendAgentChat,
   pauseAgentChatTask,
   chatMessagesForRequest,
@@ -251,14 +250,11 @@ function AgentCompanionSession({ workspaceKey = "active-resume", onOpenWorkspace
     if (showSidebar && hideSidebar) { if (next) showSidebar("conversation", "companion"); else hideSidebar(); }
     else setLocalOpen(next);
   }, [showSidebar, hideSidebar]);
-  const [runtimes, setRuntimes] = useState<LocalRuntimeInfo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { runtimes, loading, refreshing, online, refresh } = useLocalAgentRuntime();
   const [runtimeExpanded, setRuntimeExpanded] = useState(false);
   const [toolsExpanded, setToolsExpanded] = useState(false);
   const [quickRunExpanded, setQuickRunExpanded] = useState(false);
   const [providerExpanded, setProviderExpanded] = useState(false);
-  const [online, setOnline] = useState<boolean | null>(null);
   const [prompt, setPrompt] = useRecoveryField(recovery, "prompt");
   const [providerCheck, setProviderCheck] = useState<ProviderCheck>("unknown");
   const [providerMessage, setProviderMessage] = useState("");
@@ -329,19 +325,6 @@ function AgentCompanionSession({ workspaceKey = "active-resume", onOpenWorkspace
     if (chatAutoScrollRef.current && thread) thread.scrollTop = thread.scrollHeight;
   }, [chatMessages, chatLoading, typingReplyId]);
 
-  const refresh = useCallback(async (forceScan = false) => {
-    setRefreshing(forceScan);
-    try {
-      const next = forceScan ? await scanLocalAgentRuntimes() : await listLocalAgentRuntimes();
-      setRuntimes(next);
-      setOnline(true);
-    } catch {
-      setOnline(false);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
 
   const probeProvider = useCallback(async () => {
     if (routing?.enabled) { setProviderCheck("ready"); setProviderMessage("当前使用本账号的统一底座路由；不探测当前 API 配置。实际底座与跳过原因见模型与工具。"); return; }

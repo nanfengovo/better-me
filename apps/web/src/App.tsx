@@ -55,6 +55,7 @@ import { createIssueNavigation, type IssueNavigationRequest } from "./lib/issue-
 import { Maximize2, Check, Download, FileText, GitBranch, Languages, Loader2, MessageSquare, MoreHorizontal, RotateCcw, ShieldCheck, Sparkles, Upload, X } from "lucide-react";
 import { AgentTopBarStatus } from "./components/AgentTopBarStatus";
 import { AgentCompanion } from "./components/AgentCompanion";
+import { LocalAgentRuntimeProvider } from "./lib/local-agent-runtime";
 import { ResumeWritingCopilot } from "./components/ResumeWritingCopilot";
 import { FirstRunGuide } from "./components/FirstRunGuide";
 import { writingSources, writingTargetKey, writingProjectSourceKey } from "./lib/resume-copilot";
@@ -458,7 +459,7 @@ export function App() {
   const visibleFacts = resolveResumeFactBase(doc.factBase, activeResume);
   const autoSaveDescription = !autoSaveSettings.enabled ? t("自动保存已关闭", "Autosave is off") : autoSaveSettings.trigger === "enter" ? t("按回车保存", "Press Enter to save") : autoSaveSettings.trigger === "blur" ? t("离开编辑项时保存", "Save when leaving a field") : t(`停止输入 ${autoSaveSettings.delayMs / 1000} 秒后保存`, `Save after ${autoSaveSettings.delayMs / 1000} seconds of inactivity`);
 
-  return <BetterMeAgentProvider workspaceKey={doc.documentId ?? activeResume.id}><AgentSidebarProvider><DesktopShell page={page} resumeTab={workspaceTab} focused={focused} onContent={() => setWorkspaceTab("content")} accountControls={<FirstRunGuide eligible={page === "resume" && workspaceTab === "content" && !isAiConfigOpen && !isNetworkSettingsOpen && !isJdMatchOpen && !isAgentDrawerOpen && !isImportModalOpen && !isHistoryOpen && !isRestoring} onPrepare={() => { setPage("resume"); setWorkspaceTab("content"); setIsMenuOpen(false); }} renderTrigger={start => <WorkspaceMenu initial={doc.factBase.profile.displayName.zh.slice(0, 1) || "我"} onGuide={start} onAiConfig={() => openSystemSettings("connections")} />} />} onNavigate={next => { if (next === "resume") setWorkspaceTab("content"); setPage(next); }} onDesign={() => { setPage("resume"); setWorkspaceTab("design"); }} onHistory={() => setIsHistoryOpen(true)} onAiConfig={() => setIsAiConfigOpen(true)} onNetwork={() => setIsNetworkSettingsOpen(true)}><div className="studio-app compact-chrome">
+  return <LocalAgentRuntimeProvider><BetterMeAgentProvider workspaceKey={doc.documentId ?? activeResume.id}><AgentSidebarProvider><DesktopShell page={page} resumeTab={workspaceTab} focused={focused} onContent={() => setWorkspaceTab("content")} accountControls={<FirstRunGuide eligible={page === "resume" && workspaceTab === "content" && !isAiConfigOpen && !isNetworkSettingsOpen && !isJdMatchOpen && !isAgentDrawerOpen && !isImportModalOpen && !isHistoryOpen && !isRestoring} onPrepare={() => { setPage("resume"); setWorkspaceTab("content"); setIsMenuOpen(false); }} renderTrigger={start => <WorkspaceMenu initial={doc.factBase.profile.displayName.zh.slice(0, 1) || "我"} onGuide={start} onAiConfig={() => openSystemSettings("connections")} />} />} onNavigate={next => { if (next === "resume") setWorkspaceTab("content"); setPage(next); }} onDesign={() => { setPage("resume"); setWorkspaceTab("design"); }} onHistory={() => setIsHistoryOpen(true)} onAiConfig={() => setIsAiConfigOpen(true)} onNetwork={() => setIsNetworkSettingsOpen(true)}><div className="studio-app compact-chrome">
     <AgentSourceBridge sources={agentSources} />
     <UnifiedCareerTaskSurface workspaceKey={doc.documentId ?? "default"} sourceResumeId={activeResume.id} sourceResumeName={activeResume.name} sourceFingerprint={careerSourceFingerprint} resumeFields={resumeEditContext} llmConfig={llmConfig} onSave={handleSaveCareerTask} onCommitFact={handleCommitCareerFact} onReconcile={reconcileCareerWorkspace} />
     <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept=".json" className="hidden" />
@@ -622,5 +623,5 @@ export function App() {
         else { setPage("resume"); setWorkspaceTab("content"); }
       }} />
     </div>
-  </AgentSidebarProvider></BetterMeAgentProvider>;
+  </AgentSidebarProvider></BetterMeAgentProvider></LocalAgentRuntimeProvider>;
 }

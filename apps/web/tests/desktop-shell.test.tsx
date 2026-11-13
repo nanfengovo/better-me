@@ -73,6 +73,9 @@ after(() => { css.deregister(); dom.happyDOM.abort(); for (const [key, descripto
 
 test("atlas and jobs share the app menu and have independent Dock entries without resume actions", async () => {
   await mount();
+  const mark = dom.document.querySelector<HTMLImageElement>(".os-system-brand .betterme-product-mark");
+  assert.equal(mark?.getAttribute("src"), "/brand/betterme-icon.png");
+  assert.equal(mark?.getAttribute("alt"), "", "the adjacent product label supplies the accessible name");
   const editor = dom.document.querySelector("textarea");
   await flush(() => dom.document.querySelector<HTMLButtonElement>('[data-dock-app="atlas"]')!.click());
   assert.equal(dom.document.querySelector("output")!.textContent, "atlas");

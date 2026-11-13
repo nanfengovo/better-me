@@ -20,13 +20,13 @@ async function desktop({ externalHost = false, packaged = false, foreignWeb = fa
   const live = new Set(), created = [], handles = [], health = [], starts = [], stops = [], errors = [];
   const services = new Set(externalHost ? ["host"] : []);
   let quits = 0;
-  Object.assign(app, { getAppPath: () => "/fixture/desktop", isPackaged: packaged,
+  Object.assign(app, { getAppPath: () => "/fixture/desktop", getName: () => "better-me-desktop", isPackaged: packaged,
     whenReady: async () => undefined, quit: () => { quits++; } });
   class BrowserWindow extends EventEmitter {
     constructor() {
       super(); live.add(this); created.push(this);
       this.messages = [];
-      this.webContents = Object.assign(new EventEmitter(), { setWindowOpenHandler() {}, send: (...args) => this.messages.push(args) });
+      this.webContents = Object.assign(new EventEmitter(), { setWindowOpenHandler() {}, send: (...args) => this.messages.push(args), session: { setPermissionRequestHandler() {} } });
     }
     static getAllWindows() { return Array.from(live); }
     async loadURL(url) { this.url = url; }
@@ -40,7 +40,7 @@ async function desktop({ externalHost = false, packaged = false, foreignWeb = fa
     buildFromTemplate: (items) => items, setApplicationMenu() {},
   }, ipcMain: { handle(channel) { handles.push(channel); } } };
   const modules = {
-    electron, "node:path": path.posix,
+    electron, "node:path": path.posix, "node:os": { tmpdir: () => "/fixture/tmp" },
     "node:fs": { existsSync: (file) => ["/src/cli.ts", "/tsx/dist/loader.mjs", "/package.json", "/.bin/vite"].some((suffix) => file.endsWith(suffix)) },
     "node:child_process": { spawn(command, args) {
       const service = args.some((s) => s.endsWith("/src/cli.ts")) ? "host" : command.endsWith("/vite") ? "web" : undefined;
@@ -132,4 +132,26 @@ test("a different service occupying the local web port is never opened or replac
   assert.deepEqual(d.starts, []);
   assert.equal(d.errors.length, 1, "explain the unavailable workspace with no renderer or file fallback");
   d.assertNoDispatch();
+});
+
+test("distributable packages always dispatch to the bundled runtime, never developer managers", () => {
+  const compiled = buildSync({
+    entryPoints: [path.resolve(__dirname, "../src/main/index.ts")], bundle: true,
+    platform: "node", format: "cjs", target: "node22", write: false,
+    external: ["electron", "./agent-host-manager.js", "./web-server-manager.js", "./window.js", "./hud-window.js", "./isolated-qa-config.js", "./packaged.js"],
+  }).outputFiles[0].text;
+  for (const name of ["@better-me/desktop", "BetterMe", undefined]) {
+    let bundledStarts = 0;
+    const unexpected = () => { throw Error("a distributable must not start a developer service or QA path"); };
+    const modules = {
+      electron: { app: { isPackaged: true, getName: () => name } }, "node:path": path,
+      "./packaged.js": { startPackagedApp: () => { bundledStarts++; } },
+      "./agent-host-manager.js": { AgentHostManager: unexpected },
+      "./web-server-manager.js": { WebServerManager: unexpected },
+      "./window.js": {}, "./hud-window.js": {},
+      "./isolated-qa-config.js": { resolveDesktopQaConfig: unexpected },
+    };
+    vm.runInNewContext(compiled, { require: id => { assert.ok(Object.hasOwn(modules, id), id); return modules[id]; } });
+    assert.equal(bundledStarts, 1);
+  }
 });

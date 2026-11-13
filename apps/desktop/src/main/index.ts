@@ -5,6 +5,14 @@ import { WebServerManager } from "./web-server-manager.js";
 import { createMainWindow, setupNativeMenu } from "./window.js";
 import { toggleStarHud } from "./hud-window.js";
 import { prepareDesktopQaProfile, resolveDesktopQaConfig } from "./isolated-qa-config.js";
+import { startPackagedApp } from "./packaged.js";
+
+// The adjacent, source-linked legacy app remains a deliberate development shell.
+// Distributable builds always use the bundled, persistent runtime; a missing
+// release runtime must never silently fall back to a developer service.
+if (app.isPackaged && app.getName?.() !== "better-me-desktop") {
+  startPackagedApp();
+} else {
 
 const isDev = !app.isPackaged;
 const qaConfig = resolveDesktopQaConfig({ environment: process.env, isPackaged: app.isPackaged });
@@ -86,3 +94,4 @@ app.on("activate", () => {
     bootstrap();
   }
 });
+}

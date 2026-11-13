@@ -5,6 +5,7 @@ import { timingSafeEqual } from "node:crypto";
 import { extname, resolve, sep } from "node:path";
 
 export type GatewayOptions = {
+  mode?: "docker" | "desktop";
   root: string; origins: string[]; agentEndpoint: string; jobEndpoint: string;
   agentToken: string; jobToken: string;
   health: () => Promise<boolean>;
@@ -88,7 +89,7 @@ export function createRuntimeGateway(options: GatewayOptions) {
     if (url.pathname === "/__better-me/runtime.js") {
       if (req.method !== "GET") return sendRuntimeJson(res, 405, { error: "method_not_allowed" });
       res.writeHead(200, { "Content-Type": "text/javascript", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Cross-Origin-Resource-Policy": "same-origin" });
-      res.end("window.__BETTER_ME_RUNTIME__=" + JSON.stringify({ mode: "docker", origin: configured, agentToken: options.agentToken, jobToken: options.jobToken }) + ";"); return;
+      res.end("window.__BETTER_ME_RUNTIME__=" + JSON.stringify({ mode: options.mode ?? "docker", origin: configured, agentToken: options.agentToken, jobToken: options.jobToken }) + ";"); return;
     }
     if (url.pathname === "/__better-me/dev/local-job-index") {
       if (req.method !== "GET") return sendRuntimeJson(res, 405, { error: "method_not_allowed" });
