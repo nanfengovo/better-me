@@ -67,13 +67,21 @@ async function waitFor(predicate: () => boolean, timeoutMs = 2000) {
   }
   assert.ok(predicate(), `bounded UI wait timed out after ${timeoutMs}ms; busy=${win.document.querySelector('[aria-busy="true"]')?.getAttribute("aria-label") ?? "none"}`);
 }
+async function loadCurrentVersion() {
+  await click(/^载入当前版本$/);
+  // Every positive flow must wait for identity to commit before interacting
+  // with its disabled fieldsets; three immediate turns do not establish this.
+  await waitFor(() => win.document.body.textContent!.includes("内容快照引用") && !win.document.querySelector('[aria-busy="true"]'));
+  assert.ok([...win.document.querySelectorAll("fieldset")].every(item => !item.hasAttribute("disabled")));
+  assert.equal(button(/^执行选定分析$/).disabled, true, "identity loading never grants analysis consent");
+}
 async function fixture(model = local) {
   const directory = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "betterme-feedback-ui-"))), store = new StudioArtifactStore("synthetic-ui-owner", directory), context = selected();
   cleanups.push(async () => { store.close(); await fs.rm(directory, { recursive: true, force: true }); });
   const helper = createReplayFeedback({ store, ownerId: context.ownerId, getContext: id => { if (id !== context.id) throw Error("context not selected"); return context; }, localModel: model }), calls: Array<{ route: string; body: Record<string, unknown> }> = [];
   const request: CareerReplayFeedbackPanelProps["request"] = async (route, body) => {
     const payload = body as Record<string, unknown>; calls.push({ route, body: structuredClone(payload) });
-    if (route === "/feedback/identity") return helper.feedbackIdentity(String(payload.contextId), access);
+    if (route === "/feedback/identity") { await delay(60); return helper.feedbackIdentity(String(payload.contextId), access); }
     if (route === "/replay/get") return helper.replayGet(String(payload.runId), String(payload.contextId), access);
     if (route === "/rules/runtime") return helper.runtimeRules(String(payload.contextId), access);
     const method = ({ "/replay/create": "replayCreate", "/replay/continue": "replayContinue", "/replay/fork": "replayFork", "/feedback/save": "feedbackSave", "/feedback/analyze": "feedbackAnalyze", "/rules/propose": "rulePropose", "/rules/apply": "ruleApply", "/rules/revert": "ruleRevert", "/rules/export": "ruleExport" } as const)[route as "/replay/create"];
@@ -89,7 +97,7 @@ test("initial/empty UI uses accessible ordinary forms, no automatic writes or fa
   const setup = await fixture(); await mounted({ request: setup.request });
   assert.equal(setup.calls.length, 0); assert.equal(button(/^执行选定分析$/).disabled, true); assert.equal(button(/^保存并分析反馈$/).disabled, true);
   assert.match(win.document.body.textContent!, /不自动投递、不改简历/);
-  await click(/^载入当前版本$/); await waitFor(() => win.document.body.textContent!.includes("内容快照引用"));
+  await loadCurrentVersion();
   assert.equal(setup.calls.length, 1); assert.equal(field(/^映射到选定简历条目/, "select").textContent?.includes("实现本机单写者租约"), true);
   assert.ok(win.document.querySelector('[aria-label="回放与求职反馈工作台"]'));
   assert.equal(win.document.querySelector("input[type=file]")?.getAttribute("accept"), ".txt,.md,.srt,.vtt,text/plain");
@@ -113,7 +121,7 @@ test("UI wait remains bounded and fails immediately on an observable UI error in
 
 test("clear-and-type replay input creates real SQLite timeline; exact N fork skips earlier analysis and verifies original branch hashes", async () => {
   const seen: string[] = [], setup = await fixture(async request => { seen.push(request.step.id); return local(request); });
-  await mounted({ request: setup.request }); await click(/^载入当前版本$/);
+  await mounted({ request: setup.request }); await loadCurrentVersion();
   await fill(/^本次假设/, ""); await fill(/^本次假设/, "仅设计，尚未上线。"); await check(/^岗位差异分析/); await check(/^仅授权本次本地分析/);
   await click(/^执行选定分析$/); await waitFor(() => win.document.querySelectorAll(".crfp-timeline li").length === 5);
   assert.deepEqual(seen, ["resume-review", "job-gap-review"]); assert.match(win.document.body.textContent!, /公开分析摘要/);
@@ -133,7 +141,7 @@ test("clear-and-type replay input creates real SQLite timeline; exact N fork ski
 test("stop-waiting and context replacement discard late UI results instead of claiming server cancellation/success", async () => {
   let release!: () => void, started = false;
   const gate = new Promise<void>(resolve => { release = resolve; }), setup = await fixture(async request => { started = true; await gate; return local(request); });
-  await mounted({ request: setup.request }); await click(/^载入当前版本$/); await check(/^仅授权本次本地分析/); await click(/^执行选定分析$/); await waitFor(() => started);
+  await mounted({ request: setup.request }); await loadCurrentVersion(); await check(/^仅授权本次本地分析/); await click(/^执行选定分析$/); await waitFor(() => started);
   await click(/^停止等待$/); assert.match(win.document.body.textContent!, /服务端是否完成可能未知/);
   await mounted({ contextId: "another-context", request: setup.request }); await settle(release); await settle();
   assert.equal(win.document.body.textContent!.includes("公开分析摘要"), false); assert.equal(win.document.body.textContent!.includes("内容快照引用"), false);
@@ -142,7 +150,7 @@ test("stop-waiting and context replacement discard late UI results instead of cl
 
 test("normal feedback form binds exact content/claim hashes and flows through reviewed runtime-only rule apply and revert", async () => {
   const modelRequests: StudioReplayLocalRequest[] = [];
-  const setup = await fixture(async request => { modelRequests.push(request); return local(request); }); await mounted({ request: setup.request }); await click(/^载入当前版本$/);
+  const setup = await fixture(async request => { modelRequests.push(request); return local(request); }); await mounted({ request: setup.request }); await loadCurrentVersion();
   await check(/^仅授权本次本地分析/); await click(/^执行选定分析$/); await waitFor(() => modelRequests.length === 1 && !win.document.querySelector('[aria-busy=true]'));
   assert.equal(modelRequests[0]!.reviewedRuntimeRules.rules.length, 0);
   await fill(/^投递记录标识/, "application-real-reference"); await choose(/^观察到的结果/, "no_response"); await choose(/^记录来源/, "platform_receipt"); await fill(/^所选回执编号/, "user-imported-receipt"); await click(/^加入事件草稿$/);
@@ -178,13 +186,7 @@ test("unavailable model/storage and mismatched server version never produce a fa
 });
 
 test("selected transcript file imports through the real file control, and export is separately confirmed/hash-checked without installing Skill", async () => {
-  const setup = await fixture(); await mounted({ request: async (...args) => {
-    if (args[0] === "/feedback/identity") await delay(60);
-    return setup.request(...args);
-  } }); await click(/^载入当前版本$/);
-  // A user cannot select a file while identity loading disables this fieldset.
-  // Dispatch only after that prerequisite actually commits, not three turns.
-  await waitFor(() => win.document.body.textContent!.includes("内容快照引用") && !win.document.querySelector('[aria-busy="true"]'));
+  const setup = await fixture(); await mounted({ request: setup.request }); await loadCurrentVersion();
   const imported = "1\n00:18:00,000 --> 00:18:30,000\n请解释个人贡献边界。\n", file = new win.File([imported], "interview-review.srt", { type: "text/plain" });
   const input = win.document.querySelector('input[type=file][accept^=".txt"]')!;
   assert.equal(input.closest("fieldset")?.hasAttribute("disabled"), false);

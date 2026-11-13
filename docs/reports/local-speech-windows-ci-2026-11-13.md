@@ -76,7 +76,7 @@ Web 使用新的 Playwright Chrome context；桌面使用新的临时 Electron p
 - 最终 `pnpm test` 完整命令退出 0：普通阶段 4,896 项，4,876 通过、0 失败/取消、20 原有条件跳过；随后独立简历评测 58/58，通过且 0 跳过。最终普通阶段约 262 秒，评测约 98 秒，原始完整日志只在本机 `betterme-speech-full-tests.sxIIAB` 保留。
 - 最终 `pnpm typecheck` 16/16、`pnpm lint` 零 warning、`pnpm desktop:build` 9/9、`pnpm test:desktop` 21/21 均通过。构建仍有既有 Atlas Node 模块外置与大 chunk 提示，没有将它们当成新增语音错误或零构建提示。
 - 最终执行 `scripts/sync-local-desktop-dist.mjs`：相邻 `BetterMe.app/Contents/Resources/app/dist` 共 536 资源，候选构建与安装清单精确一致；只移动/替换明确的构建目录，未改变进程或用户数据。当前安装清单 SHA-256 为 `1c159a2869bf95623224fef217775f75b44c3fc7f75641e901796a8451f73bb3`，Web 清单为 `16dffeb18c32390b1de4ee8ff32d314cd542cc68e900fb31b984d7bcacb25d54`。
-- 最新重新构建/同步的即时备份为 `../.unified-agent-app-kOSywz/previous-dist`，与当前安装清单相同；前轮的 `../.unified-agent-app-bJAcIA/previous-dist`、`../.unified-agent-app-7TvfQG/previous-dist` 与 `../.unified-agent-app-eTDuTb/previous-dist` 仍保留。前一不同版本保留于 `../.unified-agent-app-DbFITq/previous-dist`，清单 `512b47b4206464c2f795081e6cea52a8269dfcc18fb21ec3cf9ecf98d80f3800`；语音实施前完整版本仍保留于 `../.unified-agent-app-dJHbal/previous-dist`，清单 `f005adcf729def4de6bf1347b3945fe2d4b19add4c16b58ea7b86b1fe6f0ab38`。没有删除任何备份或个人记录，没有打开默认 App/profile。
+- 最新重新构建/同步的即时备份为 `../.unified-agent-app-Gkh2eh/previous-dist`，与当前安装清单相同；前轮的 `../.unified-agent-app-kOSywz/previous-dist`、`../.unified-agent-app-bJAcIA/previous-dist`、`../.unified-agent-app-7TvfQG/previous-dist` 与 `../.unified-agent-app-eTDuTb/previous-dist` 仍保留。前一不同版本保留于 `../.unified-agent-app-DbFITq/previous-dist`，清单 `512b47b4206464c2f795081e6cea52a8269dfcc18fb21ec3cf9ecf98d80f3800`；语音实施前完整版本仍保留于 `../.unified-agent-app-dJHbal/previous-dist`，清单 `f005adcf729def4de6bf1347b3945fe2d4b19add4c16b58ea7b86b1fe6f0ab38`。没有删除任何备份或个人记录，没有打开默认 App/profile。
 - `pnpm memory:check` 与 `git diff --check` 通过；个人事实三份 SSOT 无变更。实际原生语音验收是隔离 Electron 加载共享 React 与构建 preload；安装资源的验收是构建/清单同步，不冒称默认安装账号窗口或 Windows 成品已经做过音质验收。
 
 ## 复验与下一门
@@ -193,3 +193,15 @@ pnpm --filter @better-me/web exec node dev-server.mjs --config tests/ui-lab/loca
 同一第六轮另有macOS x64 [job 131976783555](https://github.com/nanfengovo/better-me/actions/runs/43452149622/job/131976783555) 在DMG卸载阶段报 `hdiutil: couldn't eject "disk2" - Resource busy`。仅只读提取该日志，未将其混记为Windows故障或擅自修改Mac打包逻辑；最后发布时分平台报告实际结论，不把Windows两项成功称为整条工作流全绿。本批仍只改离线评测/测试、CI与交接，不改Web/Host生产或安装资源、正式服务及个人资料。
 
 第七轮补丁的本机完整 `pnpm test` 实际退出0：普通4,897项，4,877通过/0失败或取消/20原有条件跳过（约229秒），独立62/62且0跳过或取消（约87秒），新增2项为两种报告路径适配器。日志 `betterme-speech-ci-seventh-full-tests.cj2cAT` 只留本机；类型16/16、lint零warning、双端构建9/9、桌面21/21、协议 `evals:career`、runtime10/10、Memory/diff与实际YAML解析均通过。提交前fetch及live remote均为 `476e59d`，本批限定9个评测/CI/交接文件，冻结v1和个人三份SSOT相对基线无差异。仍以最终推送同SHA的两个Windows作业完整结论交接，不拿本机结果提前替代。
+
+### Windows 第八轮：全部正向流程等待身份载入
+
+第七轮正常推送 [`d5ca112`](https://github.com/nanfengovo/better-me/commit/d5ca112a3d40d5afa74fc3046f8c05bdb83fcca9)，运行 [43457619995](https://github.com/nanfengovo/better-me/actions/runs/43457619995)。Windows桌面 [job 131995815574](https://github.com/nanfengovo/better-me/actions/runs/43457619995/job/131995815574) 最终成功（5分20秒），macOS x64亦成功（14分35秒），上一轮DMG busy未再现，其余平台也成功；Pages/Release按原分支规则跳过。Windows质量 [job 131995815522](https://github.com/nanfengovo/better-me/actions/runs/43457619995/job/131995815522) 前置门含报告路径全部通过，完整普通4,904项为4,883通过/1失败/20原有条件跳过、0取消（约699秒）。独立62项因前段失败未执行，不把前置门或本机结果当作该段已过。
+
+唯一失败为 `career-replay-feedback-ui.test.tsx` 的完整正常反馈/规则采用回退流程：载入当前版本后只让出3次immediate就勾授权执行，2秒等不到首个模型回调、busy已为none。区分禁用控件期间事件未生效、授权未提交、实际SQLite/WebCrypto慢三个方向，给真实 `/feedback/identity` 合成请求增加60ms后，在本机约2.05秒先红复现同一位置和同一超时；原样单跑通过不替代这个受控反例。
+
+此前第四轮只修了同文件的字幕导入，未覆盖其他载入调用者。这次将60ms延迟放到共享fixture，所有五条正向流程共用 `loadCurrentVersion`：先等真实内容快照与busy解除，断言fieldset可用且尚未授权分析，再交给各流程明确操作。完整文件10/10通过，原2秒上限不变，内容/claim hash、原根新idempotency、规则预览/单独采用/回退历史、完整字幕导出、停止迟到结果与0自动模型调用等断言全部保留。没有改产品budget、业务busy保护或用户授权规则；已有Windows前置门继续覆盖整个文件，无须删除/跳过测试或改变完整并发数。
+
+类型16/16、lint零warning、双端构建9/9、桌面21/21、协议 `evals:career` 与runtime10/10再次通过。按Web测试也需双端同步的仓库规则，536资源同hash可回退同步，最新即时备份见上方 `Gkh2eh`；未打开默认App/profile、重启正式服务或改个人资料。本批仅一个Web合成测试及三份技术交接，最终仍需完整本机与最后SHA的Windows实际复验。
+
+第八轮补丁的本机完整 `pnpm test` 实际退出0：普通4,897项，4,877通过/0失败或取消/20原有条件跳过（约244秒），独立62/62且0跳过或取消（约85秒）；完整日志 `betterme-speech-ci-eighth-full-tests.ZlThmC` 只留本机。Memory/diff和实际YAML解析通过；fetch确认本地/远端均为 `d5ca112`，冻结Gold v1与三份个人SSOT相对实施基线无差异。限定本批4文件正常推送，再以最后SHA的两个Windows作业最终结论交接，先前失败与本机通过均不替代远端。
