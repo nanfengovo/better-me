@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { once } from "node:events";
-import { mkdtemp, realpath, rm, mkdir, writeFile, readFile, readdir } from "node:fs/promises";
+import fs, { mkdtemp, realpath, rm, mkdir, writeFile, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { setTimeout as delay } from "node:timers/promises";
@@ -124,21 +124,57 @@ for (const oversized of [false,true]) test(`actual owner runtime preserves a ful
   });
   const operation = StudioOperationSchema.parse(await f.studio.request("/committee/start", f.body)); await entered.promise;
   const paused = StudioOperationSchema.parse(await f.studio.request("/operation/cancel", { contextId: f.context.id, operationId: operation.id })); assert.equal(paused.taskStatus, "paused");
-  late.resolve(); await returned.promise;
   const owners = await readdir(path.join(f.directory, "identity/owners")); assert.equal(owners.length, 1);
   const file = path.join(f.directory, "identity/owners", owners[0]!, "career-tasks-v1", `${operation.id}.json`);
+  const pausedRevision = (await f.tasks()).find(row => row.id === operation.id)!.revision;
+  const publicationAttempted = Promise.withResolvers<void>();
+  let readingSnapshot = false, sharingCollision = false, publicationError: string | undefined;
+  if (oversized) {
+    const rename = fs.rename;
+    // Emulate an exclusive external reader during Windows atomic replacement.
+    // Only this fixture's final journal is guarded; real writes still execute.
+    t.mock.method(fs, "rename", async (from, to) => {
+      if (String(to) === file) {
+        publicationAttempted.resolve();
+        if (readingSnapshot) {
+          sharingCollision = true;
+          throw Object.assign(Error("synthetic Windows journal sharing violation"), { code: "EBUSY" });
+        }
+      }
+      try { return await rename(from, to); }
+      catch (error) { if (String(to) === file) publicationError = (error as NodeJS.ErrnoException).code; throw error; }
+    });
+  }
+  const readSnapshot = async () => {
+    readingSnapshot = true;
+    try {
+      if (oversized) await Promise.race([publicationAttempted.promise, delay(5_000, undefined, { ref: false })]);
+      return JSON.parse(await readFile(file, "utf8"));
+    } finally { readingSnapshot = false; }
+  };
+  late.resolve(); await returned.promise;
   let retained = false;
-  // Wait for durable publication, not 200 scheduler turns. Windows fsync and
-  // the deliberate delayed delivery above may outlast that accidental window.
+  // The production GET joins the kernel writer queue. Observe its published
+  // revision before opening the private journal, never compete with its rename.
+  // Still verify the complete private bytes, not just a model callback or status.
   const publicationDeadline = Date.now() + 30_000;
   while (Date.now() < publicationDeadline) {
-    const record = JSON.parse(await readFile(file, "utf8"));
+    const observed = (await f.tasks()).find(row => row.id === operation.id)!;
+    if (observed.revision <= pausedRevision || oversized && !observed.outputArtifacts?.length) { await delay(25); continue; }
+    const record = await readSnapshot();
     if(oversized){
       const artifact=record.task.outputArtifacts?.[0];
       if(artifact)retained=(await readFile(path.join(path.dirname(file),"outputs",operation.id,`${artifact.id}.txt`),"utf8"))===expected;
     }else retained = record.recent.some((row: { kind: string; output?: string; late?: boolean }) => row.kind === "studio_committee_output" && row.output === expected && row.late === true);
-    if (retained) { assert.equal(record.committeeState.completed.length,0);assert.equal(record.task.result,undefined);break; } await delay(25);
+    if (retained) {
+      assert.equal(record.task.revision, observed.revision);
+      if (oversized) assert.deepEqual(record.task.outputArtifacts, observed.outputArtifacts);
+      assert.equal(record.committeeState.completed.length,0);assert.equal(record.task.result,undefined);break;
+    }
+    if (sharingCollision) break;
+    await delay(25);
   }
-  assert.equal(retained, true, "the real owner runtime must deliver late complete wire to the kernel's private archive before refusing adoption");
+  assert.equal(retained, true, `the real owner runtime must deliver late complete wire to the kernel's private archive before refusing adoption; ${JSON.stringify({ sharingCollision, publicationError })}`);
+  assert.equal(sharingCollision, false, "private assertions must wait for the serialized HTTP publication before taking an external read handle");
   const task = (await f.tasks()).find(row => row.id === operation.id)!; assert.equal(task.status, "paused"); assert.equal(task.usage.modelCalls, 1); assert.equal(f.counts().calls, 2); assert.equal(f.counts().legacy, 0);
 });

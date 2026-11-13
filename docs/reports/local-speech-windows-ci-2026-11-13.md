@@ -76,7 +76,7 @@ Web 使用新的 Playwright Chrome context；桌面使用新的临时 Electron p
 - 最终 `pnpm test` 完整命令退出 0：普通阶段 4,896 项，4,876 通过、0 失败/取消、20 原有条件跳过；随后独立简历评测 58/58，通过且 0 跳过。最终普通阶段约 262 秒，评测约 98 秒，原始完整日志只在本机 `betterme-speech-full-tests.sxIIAB` 保留。
 - 最终 `pnpm typecheck` 16/16、`pnpm lint` 零 warning、`pnpm desktop:build` 9/9、`pnpm test:desktop` 21/21 均通过。构建仍有既有 Atlas Node 模块外置与大 chunk 提示，没有将它们当成新增语音错误或零构建提示。
 - 最终执行 `scripts/sync-local-desktop-dist.mjs`：相邻 `BetterMe.app/Contents/Resources/app/dist` 共 536 资源，候选构建与安装清单精确一致；只移动/替换明确的构建目录，未改变进程或用户数据。当前安装清单 SHA-256 为 `1c159a2869bf95623224fef217775f75b44c3fc7f75641e901796a8451f73bb3`，Web 清单为 `16dffeb18c32390b1de4ee8ff32d314cd542cc68e900fb31b984d7bcacb25d54`。
-- 最新重新构建/同步的即时备份为 `../.unified-agent-app-bJAcIA/previous-dist`，与当前安装清单相同；前轮的 `../.unified-agent-app-7TvfQG/previous-dist` 与 `../.unified-agent-app-eTDuTb/previous-dist` 仍保留。前一不同版本保留于 `../.unified-agent-app-DbFITq/previous-dist`，清单 `512b47b4206464c2f795081e6cea52a8269dfcc18fb21ec3cf9ecf98d80f3800`；语音实施前完整版本仍保留于 `../.unified-agent-app-dJHbal/previous-dist`，清单 `f005adcf729def4de6bf1347b3945fe2d4b19add4c16b58ea7b86b1fe6f0ab38`。没有删除任何备份或个人记录，没有打开默认 App/profile。
+- 最新重新构建/同步的即时备份为 `../.unified-agent-app-kOSywz/previous-dist`，与当前安装清单相同；前轮的 `../.unified-agent-app-bJAcIA/previous-dist`、`../.unified-agent-app-7TvfQG/previous-dist` 与 `../.unified-agent-app-eTDuTb/previous-dist` 仍保留。前一不同版本保留于 `../.unified-agent-app-DbFITq/previous-dist`，清单 `512b47b4206464c2f795081e6cea52a8269dfcc18fb21ec3cf9ecf98d80f3800`；语音实施前完整版本仍保留于 `../.unified-agent-app-dJHbal/previous-dist`，清单 `f005adcf729def4de6bf1347b3945fe2d4b19add4c16b58ea7b86b1fe6f0ab38`。没有删除任何备份或个人记录，没有打开默认 App/profile。
 - `pnpm memory:check` 与 `git diff --check` 通过；个人事实三份 SSOT 无变更。实际原生语音验收是隔离 Electron 加载共享 React 与构建 preload；安装资源的验收是构建/清单同步，不冒称默认安装账号窗口或 Windows 成品已经做过音质验收。
 
 ## 复验与下一门
@@ -155,3 +155,17 @@ pnpm --filter @better-me/web exec node dev-server.mjs --config tests/ui-lab/loca
 本机上述4个Web文件（含micro-card）完整57/57通过；类型16/16、lint零warning、双端构建9/9与桌面21/21再次通过，536资源同hash同步至上方最新备份，0进程/用户数据变更。Windows完整检查前新增生成时限/这4个Web文件的早期回归门，沿用实际生产边界；原5轮TCP回归、完整 `pnpm test`、独立评测、协议、runtime、ACL与桌面检查全部保留，不降低完整测试并发、不跳过失败或重试碰运气。
 
 这批4文件修正后的本机完整 `pnpm test` 再次实际退出0：普通4,897项，4,877通过/0失败或取消/20原有条件跳过（约240秒），随后独立58/58（约95秒）；新增的1项是明确的另一种批注排序，不与重复执行数混算。日志 `betterme-speech-ci-fourth-full-tests.nA2owv` 仅留本机。推送前fetch确认本地/远端同为第三轮 `897f423`，限定本批8个测试/CI/交接文件，个人三份SSOT相对实施基线无差异。第四轮及后续推送的最终作业结论从文首同一SHA的Actions核对，不预先把这份本机回执写成Windows已通过。
+
+### Windows 第五轮：迟到归档的读写竞争
+
+第四轮正常推送 [`374aa45`](https://github.com/nanfengovo/better-me/commit/374aa45b57762acb936d55c48c852e5f3ebd1515)，运行 [43440809655](https://github.com/nanfengovo/better-me/actions/runs/43440809655)。Windows桌面 [job 131937607691](https://github.com/nanfengovo/better-me/actions/runs/43440809655/job/131937607691) 最终成功（5分27秒），含成品启动、自有服务清理和产物上传；其他平台也通过。Windows质量 [job 131937608270](https://github.com/nanfengovo/better-me/actions/runs/43440809655/job/131937608270) 的5轮TCP及新增前置门全过，但完整普通4,904项为4,883通过/1失败/20原有条件跳过、0取消（约819秒），独立58项尚未运行。第三轮3个失败本轮全部通过。
+
+唯一剩余失败为 `apps/web/tests/studio-committee-http.test.ts` 暂停后的大文本迟到归档，32秒内未见完整artifact。第二轮30秒有界等待没有完全解决此场景。本机原样单跑这两个实际owner用例2/2通过，不据此说Windows无故失败。优先区分外部直接轮询私有文件与原子替换竞争、回调返回早于归档，以及实际写入失败；原日志无底层文件系统错误码，不能凭空断言具体syscall原因。
+
+在真实HTTP/owner/kernel路径为该合成任务的最终JSON替换增加受控“外部独占读取”守卫，其他文件和实际写入照常执行。旧测试在归档前打开私有快照，约4秒稳定复现原 `retained: false` 断言及 `sharingCollision: true`。此为原竞争模式的受控复现，不冒称捕获了Windows原生错误码。修正仅在测试：先通过生产GET加入kernel串行写入队列，等暂停版本之后的新修订及artifact指针已发布，再一次读取私有快照和完整原文；保留守卫防回退，并核对HTTP/磁盘修订与artifact元数据相同。
+
+30秒上限、3秒合成迟到交付、全文逐字比较、0已完成角色/无任务结果、最终paused、模型计量1次与总调用2次等断言全部保留；不改变生产写入器、预算、权限或数据，也不吞掉真实归档失败。修正后同一守卫与两条迟到用例2/2通过，并将这个文件加入Windows前置门；完整检查仍照常执行。最终平台结论须核对下一推送同SHA的Actions。
+
+两个完整HTTP文件、旧历史HTTP与身份边界的26/26关联回归再次通过；类型16/16、lint零warning、双端构建9/9、桌面21/21、Memory与diff检查也通过。依Web测试变更的双端交付规则，536资源同hash可回退同步至本节最新备份；未打开默认profile、重启正式服务或改变用户资料。
+
+第五轮补丁的本机完整 `pnpm test` 已实际退出0：普通4,897项，4,877通过/0失败或取消/20原有条件跳过（约273秒），独立58/58（约83秒）。原始日志 `betterme-speech-ci-fifth-full-tests.06Dz7D` 仅留本机。提交前fetch确认本地与远端均为第四轮 `374aa45`，本批限定测试、CI与三份技术交接共5文件，个人三份SSOT相对基线仍无差异；新Windows最终结论只认同SHA的Actions，不拿本机这份通过提前盖章。
