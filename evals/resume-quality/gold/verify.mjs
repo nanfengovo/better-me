@@ -11,15 +11,26 @@ const read = async file => {
   return fs.readFile(file);
 };
 const json = async file => JSON.parse((await read(file)).toString("utf8"));
-async function fileList(directory, relative = "") {
-  const files = [];
-  for (const entry of (await fs.readdir(path.join(directory, relative))).sort()) {
-    const name = path.join(relative, entry), stat = await fs.lstat(path.join(directory, name));
-    assert.ok(!stat.isSymbolicLink(), "Dataset links are rejected.");
-    if (stat.isDirectory()) files.push(...await fileList(directory, name));
-    else { assert.ok(stat.isFile()); files.push(name); }
-  }
-  return files;
+/**
+ * @param {string} directory
+ * @param {{ paths?: Pick<typeof path, "join">,
+ *   readDirectory?: (directory: string) => Promise<string[]>,
+ *   inspect?: (file: string) => Promise<Pick<import("node:fs").Stats, "isSymbolicLink" | "isDirectory" | "isFile">> }} [access]
+ */
+export async function goldFileList(directory, { paths = path, readDirectory = fs.readdir, inspect = fs.lstat } = {}) {
+  const walk = async (relative = "") => {
+    const files = [];
+    for (const entry of (await readDirectory(paths.join(directory, relative))).sort()) {
+      // Manifest keys are POSIX identifiers on every OS; only physical access
+      // uses the native path implementation. Never rewrite the frozen manifest.
+      const name = path.posix.join(relative, entry), stat = await inspect(paths.join(directory, name));
+      assert.ok(!stat.isSymbolicLink(), "Dataset links are rejected.");
+      if (stat.isDirectory()) files.push(...await walk(name));
+      else { assert.ok(stat.isFile(), "Dataset entries must be regular files."); files.push(name); }
+    }
+    return files;
+  };
+  return walk();
 }
 /** Offline derived-data integrity; optional full raw-snapshot coordinate verification. */
 export async function verifyGold({ datasetDirectory, sourceDirectory }) {
@@ -28,7 +39,7 @@ export async function verifyGold({ datasetDirectory, sourceDirectory }) {
   assert.equal(manifest.schemaVersion, 1); assert.equal(manifest.realPairs, 5); assert.equal(manifest.modelCalls, 0);
   const names = manifest.files.map(f => f.path);
   assert.equal(new Set(names).size, names.length, "Duplicate manifest path.");
-  assert.deepEqual((await fileList(datasetDirectory)).filter(f => f !== "dataset-manifest.json").sort(), [...names].sort(), "Unlisted/missing dataset file.");
+  assert.deepEqual((await goldFileList(datasetDirectory)).filter(f => f !== "dataset-manifest.json").sort(), [...names].sort(), "Unlisted/missing dataset file.");
   for (const file of manifest.files) {
     assert.ok(!path.isAbsolute(file.path) && !file.path.split(/[\\/]/).some(p => p === ".."), "Unsafe manifest path.");
     const bytes = await read(path.join(datasetDirectory, file.path));

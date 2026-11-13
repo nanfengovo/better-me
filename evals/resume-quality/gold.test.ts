@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { verifyGold } from "./gold/verify.mjs";
+import { goldFileList, verifyGold } from "./gold/verify.mjs";
 import { digest, piiFindings, jobLinkFindings, sourceSpan } from "./gold/extract.mjs";
 import { resumes, jobs } from "./gold/sources.mjs";
 import { buildGold } from "./gold/build.mjs";
@@ -15,6 +15,26 @@ import { syntheticQualityFixture } from "./fixtures.js";
 const directory = fileURLToPath(new URL("./gold/v1/", import.meta.url));
 async function readCase(id: string) { return validateResumeQualityCase(JSON.parse(await fs.readFile(path.join(directory, `cases/${id}.case.json`), "utf8"))); }
 async function readRun(id: string) { return ResumeQualityRunSchema.parse(JSON.parse(await fs.readFile(path.join(directory, `baselines/${id}.run.json`), "utf8"))); }
+
+for (const [platform, paths, root] of [["POSIX", path.posix, "/synthetic-gold"], ["Windows", path.win32, "C:\\synthetic-gold"]] as const) {
+  test(`Gold inventory keeps canonical manifest names over a native ${platform} filesystem`, async () => {
+    const folders = new Map([
+      ["", ["licenses", "cases", "NOTICES.md"]], ["cases", ["nested space"]],
+      ["cases/nested space", ["sample😀.case.json"]], ["licenses", ["sample.txt"]],
+    ]), files = ["NOTICES.md", "cases/nested space/sample😀.case.json", "licenses/sample.txt"], inspected: string[] = [];
+    const relative = (file: string) => { assert.ok(paths.isAbsolute(file)); return paths.relative(root, file).split(paths.sep).join("/"); };
+    const readDirectory = async (file: string) => { const names = folders.get(relative(file)); assert.ok(names, `Unknown directory: ${file}`); return names.slice(); };
+    const inspect = async (file: string) => {
+      inspected.push(file); const name = relative(file), folder = folders.has(name);
+      assert.ok(folder || files.includes(name), `Unknown file: ${file}`);
+      return { isSymbolicLink: () => false, isDirectory: () => folder, isFile: () => !folder };
+    };
+    assert.deepEqual(await goldFileList(root, { paths, readDirectory, inspect }), files);
+    assert.ok(inspected.includes(paths.join(root, "cases/nested space/sample😀.case.json")), "physical lookups must retain native path semantics");
+    await assert.rejects(goldFileList(root, { paths, readDirectory, inspect: async () => ({ isSymbolicLink: () => true, isDirectory: () => false, isFile: () => true }) }), /Dataset links are rejected/);
+    await assert.rejects(goldFileList(root, { paths, readDirectory, inspect: async () => ({ isSymbolicLink: () => false, isDirectory: () => false, isFile: () => false }) }), /Dataset entries must be regular files/);
+  });
+}
 
 test("five distinct licensed real-source pairs have complete derived hashes, source maps, labels and no model requests", async () => {
   const verified = await verifyGold({ datasetDirectory: directory });

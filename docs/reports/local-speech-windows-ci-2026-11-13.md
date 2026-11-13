@@ -169,3 +169,15 @@ pnpm --filter @better-me/web exec node dev-server.mjs --config tests/ui-lab/loca
 两个完整HTTP文件、旧历史HTTP与身份边界的26/26关联回归再次通过；类型16/16、lint零warning、双端构建9/9、桌面21/21、Memory与diff检查也通过。依Web测试变更的双端交付规则，536资源同hash可回退同步至本节最新备份；未打开默认profile、重启正式服务或改变用户资料。
 
 第五轮补丁的本机完整 `pnpm test` 已实际退出0：普通4,897项，4,877通过/0失败或取消/20原有条件跳过（约273秒），独立58/58（约83秒）。原始日志 `betterme-speech-ci-fifth-full-tests.06Dz7D` 仅留本机。提交前fetch确认本地与远端均为第四轮 `374aa45`，本批限定测试、CI与三份技术交接共5文件，个人三份SSOT相对基线仍无差异；新Windows最终结论只认同SHA的Actions，不拿本机这份通过提前盖章。
+
+### Windows 第六轮：独立评测的逻辑清单路径
+
+第五轮正常推送 [`a59be31`](https://github.com/nanfengovo/better-me/commit/a59be31399da1cb3f904d8a900a0cef8ce181154)，运行 [43446485326](https://github.com/nanfengovo/better-me/actions/runs/43446485326)。Windows桌面 [job 131957159581](https://github.com/nanfengovo/better-me/actions/runs/43446485326/job/131957159581) 最终成功（4分55秒）；普通质量 [job 131957159788](https://github.com/nanfengovo/better-me/actions/runs/43446485326/job/131957159788) 的4,904项终于全部完成：4,884通过/0失败或取消/20原有条件跳过（约796秒），包括大文本迟到归档与所有前置门。本机日志不代替这份实际Windows结果。
+
+该作业随后第一次执行到独立58项评测，29通过/29失败/0取消或跳过；29项均源于同一个Gold目录清单断言，不是29个新的模型质量结论。原始差异一一对应：实际为 `cases\\gold-backend.case.json` 等Windows分隔符，冻结清单为 `cases/gold-backend.case.json`，文件名/数量本身一致。源审与基线差异核对排除了本轮修改或重建数据集、标签、旧分数及其hash；未拿改清单/hash绕过完整性检查。
+
+将实际递归清单遍历提取为可注入原生路径/读取适配器的 `goldFileList`，生产验证默认仍走真实fs。加入POSIX和Windows两种虚拟原生目录（嵌套/空格/emoji），同一真实遍历函数在修正前POSIX通过、Windows稳定先红，复现同样反斜杠差异，约1毫秒。修正仅将逻辑清单key固定为 `path.posix.join`，实际目录/文件访问仍用原生join；不把实际文件系统当成POSIX。两个平台同时核对确实进行了原生路径lookup，并继续拒绝symlink与非普通文件。
+
+完整Gold文件15/15通过，含原始派生字节/hash、337条证据/147条需求、3个0模型基线、许可、标签隔离、篡改/额外文件/链接拒绝；新加2项是两种路径适配器用例。Windows长套件之前增加该完整Gold文件的早期门，原普通全量、独立评测、协议、runtime与桌面检查均保留。本批只改评测工具/测试、CI与交接，不改Web/Host生产实现或再次替换安装资源，沿用上方536资源与最新可恢复备份；个人三份SSOT和冻结Gold v1相对实施基线仍无差异。
+
+第六轮补丁本机完整 `pnpm test` 实际退出0：普通4,897项，4,877通过/0失败或取消/20原有条件跳过（约232秒），随后独立评测60/60（约88秒）；独立分母增加2为明确的POSIX/Windows路径回归，不删旧58项。完整日志 `betterme-speech-ci-sixth-full-tests.TvJ4zA` 仅留本机。类型16/16、lint零warning、双端构建9/9、桌面21/21、脚本协议 `evals:career`、runtime10/10、Memory/diff与YAML检查均通过。提交前fetch确认本地/远端 `a59be31` 一致，限定本批6个评测/CI/技术交接文件；末次提交和最终两个Windows作业仍以文首Actions同SHA核对，不用旧作业或本机结果替代。
