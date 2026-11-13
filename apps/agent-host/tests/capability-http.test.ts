@@ -49,7 +49,7 @@ for (const evidenceMode of [false, true]) test(`authenticated HTTP isolates A/B 
     buildResult.resolve();
     const aState = await wait(alice.headers), bState = await wait(bob.headers);
     assert.equal(aState.tasks[0]?.stage, "cancelled"); assert.equal(aState.versions.length, 0); assert.equal(aState.tasks[0]?.receipt, undefined);
-    assert.equal(bState.tasks[0]?.stage, "completed"); assert.equal(bState.ownerId, bob.principal.id);
+    assert.equal(bState.tasks[0]?.stage, "completed", `independent owner task error: ${bState.tasks[0]?.error ?? "none"}`); assert.equal(bState.ownerId, bob.principal.id);
     assert.ok(!JSON.stringify(bState).includes("FIRST-ONLY-CANARY-7319"));
     if (evidenceMode) { assert.ok(!JSON.stringify(bState).includes("EVIDENCE-FIRST-ONLY-8421")); assert.ok(bState.tasks[0]?.evidenceReport); }
     assert.equal(await (await call(alice.headers, "/records/continuity?key=existing")).text(), before);
