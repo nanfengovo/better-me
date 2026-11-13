@@ -4,6 +4,7 @@ import { lstat, mkdtemp, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { CodingTaskService, type CodingTaskLease, type CreateCodingTask } from "../src/sandbox/coding-tasks.js";
@@ -218,10 +219,31 @@ test("a partial or forged verifier report cannot promote a candidate; failure re
 });
 
 test("active-time exhaustion interrupts a noncooperative generator, persists the charge, and never triggers retry", async t => {
-  const late = barrier<string>(); let calls = 0;
-  const { service, open } = await fixture(t, { generate: async () => { calls++; return late.promise; } });
+  // Model slow preflight work, but select the generation phase by an actual
+  // callback barrier instead of letting disk speed spend this 40ms deadline.
+  // The separate preflight test below verifies exhaustion before generation.
+  const wallDelay = delay;
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: Date.now() });
+  const late = barrier<string>(), entered = barrier<void>(); let calls = 0, pins = 0, aborted = false;
+  const { service, open } = await fixture(t, { resolveModel: async () => {
+    if (++pins === 2) await wallDelay(60);
+    return digest;
+  }, generate: async (_input, signal) => {
+    calls++; signal.addEventListener("abort", () => { aborted = true; }, { once: true });
+    entered.resolve(); return late.promise;
+  } });
   const start = await service.create({ ...spec(), maxActiveMs: 40 }, grant);
-  const stopped = await service.step(start.id, start.revision, grant);
+  const step = service.step(start.id, start.revision, grant);
+  const stopped = await (async () => {
+    try {
+      await Promise.race([entered.promise, step.then(() => assert.fail("generation must be entered before the controlled deadline"))]);
+      assert.equal(calls, 1); assert.equal(pins, 2); assert.equal(aborted, false);
+      t.mock.timers.tick(39); assert.equal(aborted, false);
+      t.mock.timers.tick(1);
+      return await step;
+    } finally { late.resolve("x => x * 2"); await step.catch(() => {}); }
+  })();
+  assert.equal(aborted, true);
   assert.equal(stopped.status, "budget_exhausted"); assert.equal(stopped.activeMs, 40);
   assert.equal(stopped.attemptsUsed, 1); assert.equal(stopped.history[0]?.error, "coding_step_timeout");
   late.resolve("x => x * 2");

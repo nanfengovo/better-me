@@ -29,7 +29,9 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 24.15.0
+          # Node 24.15.0 can fast-fail in Windows TCP connect (nodejs/node#63620).
+          # Stay on the same LTS line with the upstream libuv fix.
+          node-version: 24.16.0
           package-manager-cache: false
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         with:
@@ -40,6 +42,14 @@ jobs:
       - run: pnpm typecheck
       - name: Verify native-account isolation and Windows ACL checks
         run: pnpm exec tsx --test apps/agent-host/tests/native-account-tools.test.ts
+      - name: Repeat real Windows TCP proxy regressions before the complete suite
+        shell: pwsh
+        run: |
+          node -p 'JSON.stringify(process.versions)'
+          1..5 | ForEach-Object {
+            pnpm exec tsx --tsconfig apps/web/tsconfig.json --test apps/web/tests/network-proxy.test.tsx
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
       # Includes isolated synthetic browser cases, using the runner's Edge.
       # These are not live recruitment-site or PDF visual acceptance checks.
       - run: pnpm test
@@ -126,7 +136,8 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 24.15.0
+          # Match the fixed Windows quality runtime; other platforms are unchanged.
+          node-version: ${{ runner.os == 'Windows' && '24.16.0' || '24.15.0' }}
           package-manager-cache: false
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         with:

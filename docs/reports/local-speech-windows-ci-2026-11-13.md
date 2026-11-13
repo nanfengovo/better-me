@@ -76,7 +76,7 @@ Web 使用新的 Playwright Chrome context；桌面使用新的临时 Electron p
 - 最终 `pnpm test` 完整命令退出 0：普通阶段 4,896 项，4,876 通过、0 失败/取消、20 原有条件跳过；随后独立简历评测 58/58，通过且 0 跳过。最终普通阶段约 262 秒，评测约 98 秒，原始完整日志只在本机 `betterme-speech-full-tests.sxIIAB` 保留。
 - 最终 `pnpm typecheck` 16/16、`pnpm lint` 零 warning、`pnpm desktop:build` 9/9、`pnpm test:desktop` 21/21 均通过。构建仍有既有 Atlas Node 模块外置与大 chunk 提示，没有将它们当成新增语音错误或零构建提示。
 - 最终执行 `scripts/sync-local-desktop-dist.mjs`：相邻 `BetterMe.app/Contents/Resources/app/dist` 共 536 资源，候选构建与安装清单精确一致；只移动/替换明确的构建目录，未改变进程或用户数据。当前安装清单 SHA-256 为 `1c159a2869bf95623224fef217775f75b44c3fc7f75641e901796a8451f73bb3`，Web 清单为 `16dffeb18c32390b1de4ee8ff32d314cd542cc68e900fb31b984d7bcacb25d54`。
-- 完整直接上一版保留于 `../.unified-agent-app-DbFITq/previous-dist`，清单 `512b47b4206464c2f795081e6cea52a8269dfcc18fb21ec3cf9ecf98d80f3800`；语音实施前完整版本仍保留于 `../.unified-agent-app-dJHbal/previous-dist`，清单 `f005adcf729def4de6bf1347b3945fe2d4b19add4c16b58ea7b86b1fe6f0ab38`。没有删除任何备份或个人记录，没有打开默认 App/profile。
+- 第二轮重新构建/同步的即时备份为 `../.unified-agent-app-eTDuTb/previous-dist`，与当前安装清单相同；前一不同版本保留于 `../.unified-agent-app-DbFITq/previous-dist`，清单 `512b47b4206464c2f795081e6cea52a8269dfcc18fb21ec3cf9ecf98d80f3800`；语音实施前完整版本仍保留于 `../.unified-agent-app-dJHbal/previous-dist`，清单 `f005adcf729def4de6bf1347b3945fe2d4b19add4c16b58ea7b86b1fe6f0ab38`。没有删除任何备份或个人记录，没有打开默认 App/profile。
 - `pnpm memory:check` 与 `git diff --check` 通过；个人事实三份 SSOT 无变更。实际原生语音验收是隔离 Electron 加载共享 React 与构建 preload；安装资源的验收是构建/清单同步，不冒称默认安装账号窗口或 Windows 成品已经做过音质验收。
 
 ## 复验与下一门
@@ -120,3 +120,14 @@ pnpm --filter @better-me/web exec node dev-server.mjs --config tests/ui-lab/loca
 3. Web `studio-committee-http.test.ts` 用200次轮询作为归档等待窗口，不能代表Windows实际持久化。大回复刻意增加3秒迟到交付后，在本机先复现同一“归档未保留”失败；改为最多30秒等待完整私有归档条件，每次核对原文精确相等，同时断言未采用为结果、未新增模型计量。实际条件达成即返回，不盲等满30秒或跳过归档校验。
 
 修正后的两个HTTP文件、旧历史HTTP与身份边界共26/26通过。Windows第一次作业从启动到失败已16分14秒，后续58项独立评测/协议/runtime门尚未执行；只将CI作业总上限20调到30分钟以容纳完整门，不更改产品任务时限、跳过检查或取消沙箱。第二轮提交与新运行结论继续从对应SHA实查。
+
+- 第二轮已正常推送 [`c67f5d1`](https://github.com/nanfengovo/better-me/commit/c67f5d123036a711888e7f362416410ac857b939)，运行 [43431952687](https://github.com/nanfengovo/better-me/actions/runs/43431952687)。Windows桌面 [job 131907374817](https://github.com/nanfengovo/better-me/actions/runs/43431952687/job/131907374817) 再次通过：19通过/2原有平台条件跳过、构建/打包/成品启动和自有服务清理成功；Linux生产/Docker及另三种桌面架构通过。
+- Windows普通 [job 131907374136](https://github.com/nanfengovo/better-me/actions/runs/43431952687/job/131907374136) 仍失败：4,893项，4,871通过/2失败/20条件跳过。一个是40ms的生成超时夹具在预检阶段先耗尽，另一个是 `network-proxy.test.tsx` 的原生进程退出 `3221226505`，不是13项断言全通过。进程中断导致部分子用例未注册，分母减少不算删掉测试。前轮3个HTTP用例本轮已通过。
+- 第二轮修正的本机完整 `pnpm test` 再次退出0：普通4,876通过/0失败/20条件跳过（约239秒），独立评测58/58（约82秒），完整日志 `betterme-speech-ci-fix-full-tests.6g2XgS` 仅留本机。脚本协议 `evals:career` 与运行时10/10也通过；仍不拿本机结果代替远端Windows。
+
+### Windows 第三轮修正
+
+1. 生成超时夹具：保持40ms预算，给实际metadata预检增加60ms合成延迟后，在本机两次先红，均在同一生产预检结束路径抛 `coding_budget_exhausted`。这说明原测试没有保证进入它要测试的生成阶段。改用冻结的持久化时钟和真实生成回调barrier；进入后先推进39ms仍未中止，再推进1ms触发实际abort，核对40ms扣费、1次尝试、迟到回复不采用、重开不重试。相邻独立metadata耗尽测试保留0次生成断言；未延长生产预算或把预检时间免计费。
+2. 原生TCP退出：本机代理13/13通过，但不能在macOS复现Windows native fast-fail。对照 [Node官方已确认问题 #63620](https://github.com/nodejs/node/issues/63620) 与 [24.16.0发行记录](https://nodejs.org/en/blog/release/v24.16.0)，当前CI的24.15.0含已知Windows TCP连接崩溃、24.16.0带libuv修复。该匹配是本次故障的首要推断，没有本次native dump，不声称已定位到同一C栈。仅将Windows两个作业的Host Node固定到同一24 LTS的24.16.0，Linux/macOS及应用Electron版本不变；完整检查前额外连续运行5次真实代理文件，任一次非零即失败。保留所有完整检查、并发数、安全拒绝与原分母，不以重试整套直到碰巧通过代替验证。
+
+本机生成/预检/计量/恢复15项与代理13项的定向回归执行通过；Windows版本修正与原生短循环须在新Actions实际验证。第三轮没有改Web/Host生产实现或安装资源，沿用第二轮已核对的536文件清单与可恢复备份。
