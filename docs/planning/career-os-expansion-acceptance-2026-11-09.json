@@ -1,0 +1,2681 @@
+{
+  "schemaVersion": 1,
+  "objective": "完成上面全部功能的开发和测试 闭环 先规划边界不要导致潜在的冲突",
+  "plan": "career-os-expansion-boundaries-2026-11-09.md",
+  "baselineCommit": "7674df22df1f512656cfa59729b04bb8745c0306",
+  "overallStatus": "implementation_complete_with_validation_limits",
+  "progressSnapshot": {
+    "phase": "bounded_validation_finished;implementation_complete_with_validation_limits",
+    "evidenceRoot": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance",
+    "authoritativeScope": "Current fields supersede historical* snapshots. Older evidence/requirements are retained, not claimed as current counts or pending work.",
+    "activeRetests": [],
+    "implementationComplete": true,
+    "allProductionAcceptancePassed": false,
+    "realModel": "Explicit fixed local gemma4:e2b-it-qat; no cloud fallback/download",
+    "latestFullSuite": {
+      "tests": 4435,
+      "passed": 4361,
+      "failed": 54,
+      "skipped": 20,
+      "cancelled": 0,
+      "exitCode": 1,
+      "durationMs": 201058.814792,
+      "log": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/full-test-closure-final.log"
+    },
+    "latestTargetedSuite": {
+      "tests": 630,
+      "passed": 626,
+      "failed": 0,
+      "skipped": 4,
+      "cancelled": 0,
+      "exitCode": 0,
+      "actualRendererTests": 11,
+      "log": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/career-targeted-closure-final.log"
+    },
+    "latestQualityAudit": "final-test-audit",
+    "knownLimits": [
+      {
+        "requirement": 3,
+        "status": "partial_acceptance",
+        "reason": "Three real wording responses had candidates[]; no wording/fresh-context7review positive, nonconvergent bounded layout; old DOCX diagnostics retained."
+      },
+      {
+        "requirement": 10,
+        "status": "partial_acceptance",
+        "reason": "No installed embedding model/paid cloud configuration; no automatic setup."
+      },
+      "External MCP unconfigured; no public Internet deployment; no verified live-office links.",
+      "No zero-hallucination/leakage, hiring-probability, authorship or production-impact guarantee.",
+      "Full workspace still not green."
+    ],
+    "native": {
+      "compiledProductionEntry": "/assets/index-BuI-q5WS.js",
+      "committeeCompleted": true,
+      "minimumWindow": {
+        "width": 1180,
+        "height": 760,
+        "clientWidth": 1180,
+        "scrollWidth": 1180
+      },
+      "rootViewedScreenshots": true,
+      "qualification": "Specific live flows plus all-nine-tab smoke; not twelve separately repeated native positives."
+    },
+    "cleanup": {
+      "proof": "cleanup-closure",
+      "qaPortsStopped": [
+        5273,
+        5277,
+        5279
+      ],
+      "originalServicesPreserved": [
+        5173,
+        5178,
+        5179,
+        18000,
+        11434
+      ],
+      "allSyntheticCapsulesRevoked": true,
+      "ruleReverted": true,
+      "realDataUsed": false,
+      "commitOrPush": false
+    },
+    "activationRequired": "User must choose a restart window for original Host/App. An independently running external Host is reused by App; reopening App alone does not replace that process."
+  },
+  "requirements": [
+    {
+      "id": 1,
+      "name": "影子招聘委员会",
+      "status": "verified_with_limitations",
+      "implementationStatus": "implemented",
+      "definitionRef": "historicalRequirements[id=1]; original contract and evidence preserved",
+      "evidenceIds": [
+        "committee-closure",
+        "native-committee-final",
+        "committee-strict-operation"
+      ],
+      "gateResults": {
+        "status": "verified_with_limitations",
+        "note": "Real local models completed14calls21reads in Web115781ms and Native105744ms; authorship remains self-report."
+      },
+      "remainingAcceptance": []
+    },
+    {
+      "id": 2,
+      "name": "职业路径反事实模拟",
+      "status": "verified_with_limitations",
+      "implementationStatus": "implemented",
+      "definitionRef": "historicalRequirements[id=2]; original contract and evidence preserved",
+      "evidenceIds": [
+        "simulation"
+      ],
+      "gateResults": {
+        "status": "verified_with_limitations",
+        "note": "Frozen two-job conditional coverage; not a market percentile, verified future Fact or hiring probability."
+      },
+      "remainingAcceptance": []
+    },
+    {
+      "id": 3,
+      "name": "视觉排版自愈",
+      "status": "partial_acceptance",
+      "implementationStatus": "implemented",
+      "definitionRef": "historicalRequirements[id=3]; original contract and evidence preserved",
+      "evidenceIds": [
+        "wording-closure",
+        "layout-adoption",
+        "actual-pdf",
+        "actual-docx",
+        "docx-derived"
+      ],
+      "gateResults": {
+        "status": "partial_acceptance",
+        "note": "Implemented guards and actual DOM/final-file diagnostics. Latest three real wording requests returned empty candidates: no wording positive, no fresh-context7review; bounded nonconvergence/no adoption. Preserve DOCX two-page/text-difference diagnostics."
+      },
+      "remainingAcceptance": []
+    },
+    {
+      "id": 4,
+      "name": "证据徽章和技能星图",
+      "status": "verified_with_limitations",
+      "implementationStatus": "implemented",
+      "definitionRef": "historicalRequirements[id=4]; original contract and evidence preserved",
+      "evidenceIds": [
+        "badge-strict-operation",
+        "badge-strict-render",
+        "gpu-fixture"
+      ],
+      "gateResults": {
+        "status": "verified_with_limitations",
+        "note": "Actual Vork PNG and Cesium fixture. Static entries are not runtime complexity/coverage/PoW; live verified-office authority unavailable."
+      },
+      "remainingAcceptance": []
+    },
+    {
+      "id": 5,
+      "name": "白板故障注入面试",
+      "status": "verified_with_limitations",
+      "implementationStatus": "implemented",
+      "definitionRef": "historicalRequirements[id=5]; original contract and evidence preserved",
+      "evidenceIds": [
+        "architecture-strict-source-ui",
+        "native-architecture-real-qa",
+        "native-architecture-real-save"
+      ],
+      "gateResults": {
+        "status": "verified_with_limitations",
+        "note": "Editable graph, simulated faults, local model practice and versioned save; not real chaos on user services or Fact promotion."
+      },
+      "remainingAcceptance": []
+    },
+    {
+      "id": 6,
+      "name": "日常高光捕手",
+      "status": "verified_with_limitations",
+      "implementationStatus": "implemented",
+      "definitionRef": "historicalRequirements[id=6]; original contract and evidence preserved",
+      "evidenceIds": [
+        "harvest-card",
+        "harvest-adopt",
+        "harvest-revoke"
+      ],
+      "gateResults": {
+        "status": "verified_with_limitations",
+        "note": "Synthetic Git commit through local micro-card and explicit formal adoption; opt-in Host-active collection, no real repository hooks installed."
+      },
+      "remainingAcceptance": []
+    },
+    {
+      "id": 7,
+      "name": "招聘情报对账",
+      "status": "verified_with_limitations",
+      "implementationStatus": "implemented",
+      "definitionRef": "historicalRequirements[id=7]; original contract and evidence preserved",
+      "evidenceIds": [
+        "forensics"
+      ],
+      "gateResults": {
+        "status": "verified_with_limitations",
+        "note": "Timestamped public HTTPS source plus conflict fixtures; unknown hiring intent/job availability/actual work remains unknown."
+      },
+      "remainingAcceptance": []
+    },
+    {
+      "id": 8,
+      "name": "候选人数字孪生胶囊",
+      "status": "verified_with_limitations",
+      "implementationStatus": "implemented",
+      "definitionRef": "historicalRequirements[id=8]; original contract and evidence preserved",
+      "evidenceIds": [
+        "diagram-closure",
+        "linked-pdf-closure",
+        "twin-strict-access-lifecycle"
+      ],
+      "gateResults": {
+        "status": "verified_with_limitations",
+        "note": "Saved current graph and reviewed claim -> selected redacted fields -> separate freeze/publish/issue -> no-cookie actual SVG -> revoke403. Actual PDF exact link checked. Loopback-only; downloaded copies cannot be recalled."
+      },
+      "remainingAcceptance": []
+    },
+    {
+      "id": 9,
+      "name": "MCP 双向架构",
+      "status": "verified_with_limitations",
+      "implementationStatus": "implemented",
+      "definitionRef": "historicalRequirements[id=9]; original contract and evidence preserved",
+      "evidenceIds": [
+        "targeted-closure",
+        "mcp-unconfigured",
+        "runtime-report"
+      ],
+      "gateResults": {
+        "status": "verified_with_limitations",
+        "note": "Official SDK protocol, real local stdio OS sandbox and HTTP tests; no live external private-account server configured."
+      },
+      "remainingAcceptance": []
+    },
+    {
+      "id": 10,
+      "name": "端云混合隐私路由",
+      "status": "partial_acceptance",
+      "implementationStatus": "implemented",
+      "definitionRef": "historicalRequirements[id=10]; original contract and evidence preserved",
+      "evidenceIds": [
+        "privacy-strict-draft",
+        "privacy-strict-revoked",
+        "targeted-closure"
+      ],
+      "gateResults": {
+        "status": "partial_acceptance",
+        "note": "Real local draft and original-grant local_only reuse verified. Installed-model embedding and paid cloud currently unconfigured/unavailable; adapters tested, no auto-download/credential creation/provider fallback."
+      },
+      "remainingAcceptance": []
+    },
+    {
+      "id": 11,
+      "name": "时间旅行和黄金评测",
+      "status": "verified_with_limitations",
+      "implementationStatus": "implemented",
+      "definitionRef": "historicalRequirements[id=11]; original contract and evidence preserved",
+      "evidenceIds": [
+        "rules-closure",
+        "golden-closure",
+        "replay"
+      ],
+      "gateResults": {
+        "status": "verified_with_limitations",
+        "note": "Persistent branch/fork and frozen reviewed rule versions;36 scripted eval expectations, not real-model semantic scoring."
+      },
+      "remainingAcceptance": []
+    },
+    {
+      "id": 12,
+      "name": "投递反馈飞轮",
+      "status": "verified_with_limitations",
+      "implementationStatus": "implemented",
+      "definitionRef": "historicalRequirements[id=12]; original contract and evidence preserved",
+      "evidenceIds": [
+        "rules-closure",
+        "feedback",
+        "rules-applied",
+        "rules-reverted"
+      ],
+      "gateResults": {
+        "status": "verified_with_limitations",
+        "note": "Timestamped self-reported notes -> explicit private-rule v3 apply -> new real analysis -> v4 revert -> new real analysis0active. No RL training, causal reward proof, global Skill or real Fact writes."
+      },
+      "remainingAcceptance": []
+    }
+  ],
+  "globalGateResults": [
+    {
+      "gate": "implementation",
+      "status": "complete_with_validation_limits"
+    },
+    {
+      "gate": "quality",
+      "status": "targeted_type_lint_build_passed_full_suite_not_green",
+      "evidence": [
+        "targeted-closure",
+        "final-test-audit"
+      ]
+    },
+    {
+      "gate": "real_runtime",
+      "status": "bounded_validation_finished_with_partial_wording_and_unconfigured_privacy",
+      "evidence": [
+        "native-committee-final",
+        "wording-closure",
+        "diagram-closure",
+        "rules-closure"
+      ]
+    },
+    {
+      "gate": "app_delivery",
+      "status": "verified_exact_derived_union_user_activation_required",
+      "evidence": [
+        "app-sync-closure",
+        "native-minimum-closure"
+      ]
+    },
+    {
+      "gate": "protected_state",
+      "status": "preserved_qa_cleaned",
+      "evidence": [
+        "cleanup-closure"
+      ]
+    }
+  ],
+  "delivery": {
+    "status": "verified_exact_final_derived_union",
+    "target": "/Users/feng/Documents/Private/简历/简历Agent/BetterMe.app/Contents/Resources/app/dist",
+    "installed": {
+      "fileCount": 532,
+      "directoryCount": 64,
+      "bytes": 137260974,
+      "manifestSha256": "4fbeaad54a4afb036251a761bdb2888bf8e3cf35cf586f0a2f85d5c86d4dbefa"
+    },
+    "entry": {
+      "path": "assets/index-BuI-q5WS.js",
+      "sha256": "2657c02aff5ea36acf7eb5119860752b44dfbdd584ba1485dd03a63f98beba3c"
+    },
+    "receipt": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/app-dist-sync-closure-final-2026-11-09-receipt.json",
+    "receiptSha256": "bd50efb94d29429b0322cfb8cf626881116004697809aeec6ff5eee4c9594dc2",
+    "latestBackup": "/private/var/folders/hj/dq9kl7md40l2hhdwppqsbc_r0000gn/T/betterme-app-dist-backup-fP7SZ3/previous-dist",
+    "olderBackupsPreserved": [
+      "betterme-app-dist-backup-Zw25FY/previous-dist",
+      "betterme-app-dist-backup-rkgBlf/previous-dist"
+    ],
+    "infoAndPackageUnchanged": true,
+    "dailyAppRestarted": false,
+    "dailyHostReloaded": false,
+    "activationRequired": "User must choose a restart window for original Host/App. An independently running external Host is reused by App; reopening App alone does not replace that process.",
+    "sourceInputQualification": "The old744-file source-input pin is historical only; no new complete source-input hash is claimed. Current delivery verifies final Web/main/preload derived union.",
+    "backupLimitation": "System temp backup retention is not permanent archival."
+  },
+  "latestTestStatus": {
+    "status": "not-green",
+    "full": {
+      "tests": 4435,
+      "passed": 4361,
+      "failed": 54,
+      "skipped": 20,
+      "cancelled": 0,
+      "exitCode": 1,
+      "durationMs": 201058.814792,
+      "log": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/full-test-closure-final.log"
+    },
+    "targeted": {
+      "tests": 630,
+      "passed": 626,
+      "failed": 0,
+      "skipped": 4,
+      "cancelled": 0,
+      "exitCode": 0,
+      "actualRendererTests": 11,
+      "log": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/career-targeted-closure-final.log"
+    },
+    "typecheck": "13/13 tasks; exit0",
+    "lint": "Root observed tracked serial session86656 exit0",
+    "build": "9/9 tasks; exit0",
+    "desktopBuild": "exit0",
+    "desktopTests": {
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "log": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/desktop-closure-final.log"
+    },
+    "golden": {
+      "expectations": 36,
+      "passed": 36,
+      "scripted": true,
+      "realModelQualityClaim": false,
+      "log": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/golden-closure-final.log"
+    },
+    "failureQualification": "Exact same 54 file+test names as strict snapshot. Documented bounded HEAD-source comparisons cover21; remaining33 JD-session failures lack individual HEAD execution proof. Not a clean-HEAD environment or all54proven preexisting.",
+    "audit": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/final-test-audit.json"
+  },
+  "historicalProgressSnapshot": {
+    "phase": "production implemented;final strict-transport snapshots and specific Web/native positives verified;workspace notgreen,latest native committee/linked-PDF/remaining native acceptance pending",
+    "evidenceRoot": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance",
+    "protectedState": "agent-os branch and existing real services, credentials, account data, browser profiles and unrelated dirty changes preserved; no commit or push",
+    "realModel": "Explicit local gemma4:e2b-it-qat only; remote cloud-tagged model excluded; no embedding model installed or downloaded",
+    "verifiedFlows": [
+      "synthetic Git commit to local-model micro-card to exact reviewed personal statement and formal Workspace version readback",
+      "frozen two-job conditional scenario comparison",
+      "explicit public HTTPS read with timestamp and content hash",
+      "editable architecture and simulated chaos",
+      "real Cesium WebGL render, filter, selection and revocation",
+      "persistent analysis checkpoint fork",
+      "self-reported outcome to timestamped claim notes to reviewed rule patch, export and revert",
+      "strict real local committee14calls21reads149113ms completed;separate self-reported contribution review saved",
+      "receipt-bound actual Vork768PNG/3static entries;coverage/evolution unknown;hardware not_measured",
+      "capsule preview/publish/localQR/0cookie exact Q&A/unknown+injection refusal/token+capsule revoke",
+      "completed-committee original-grant lease.ts L1–25 revalidated+saved local_only/1private term",
+      "source-backed architecture fresh original-grant L1–25 read/2inventory confirmations/one service node citation/real question+review+formal save;contradicted practice feedback,not Fact promotion",
+      "actual strict local Gemma privacy draft2exact fields/not-deployed preserved/local_only source excluded/0redactions0repairs/cloudapproval disabled/revoke confirmed"
+    ],
+    "activeRetests": [
+      "Latest populated native committee: fresh isolated profile launched/logged in and first claim prepared; actual model run remains pending.",
+      "Actual final PDF containing capsule link/QR and final-file link verification",
+      "Remaining populated native workflows beyond recorded smoke/specific architecture positive"
+    ],
+    "latestFullSuite": {
+      "status": "not-green",
+      "tests": 4406,
+      "passed": 4332,
+      "failed": 54,
+      "skipped": 20,
+      "cancelled": 0,
+      "exitCode": 1,
+      "durationMs": 210980.010625,
+      "log": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/full-test-strict-transport-final.log",
+      "qualification": "Same named failure groups remain;bounded HEAD comparisons cover stated subset,not all54preexisting or a clean-HEAD environment."
+    },
+    "baselineComparisons": {
+      "desktop": "docs/reports/career-os-existing-desktop-test-baseline-2026-11-09.md",
+      "preferences": "baseline-ui-preferences.log: 11 tests, 8 pass, same 3 failures with HEAD Web source loaded in memory",
+      "atlas": "baseline-atlas-restore.log: 22 tests, 20 pass, same 2 failures with HEAD Web source loaded in memory",
+      "jobBrowser": "Six owning source/test files byte-identical to HEAD; 10 representative tests, including 4 real Chromium cases, reproduce the same failures under a bounded in-memory HEAD-source loader"
+    },
+    "notClaimed": [
+      "all tests green",
+      "all twelve acceptance inventories complete",
+      "hiring probability or market percentile prediction",
+      "independently verified personal authorship or production impact",
+      "public Internet deployment",
+      "configured paid cloud provider or live external MCP installation",
+      "automatic audio transcription",
+      "zero hallucinations or zero data leakage as an absolute guarantee",
+      "real installed-model embedding acceptance",
+      "all final DOCX text/visual diagnostics clear",
+      "all twelve populated native positive workflows"
+    ],
+    "latestTargetedSuite": {
+      "status": "passed_with_skips",
+      "tests": 601,
+      "passed": 597,
+      "failed": 0,
+      "skipped": 4,
+      "cancelled": 0,
+      "exitCode": 0,
+      "durationMs": 17701.940792,
+      "log": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/career-targeted-strict-transport-final.log",
+      "actualRendererTests": 11,
+      "qualification": "Final frozen strict Host source;skips/unconfigured capabilities are not runtime acceptance."
+    },
+    "native": {
+      "status": "smoke_and_specific_architecture_positive_with_limitations",
+      "runtime": "actual compiled Desktop main + production preview on isolated loopback/profile",
+      "selectedClaims": 0,
+      "selectedJobs": 0,
+      "tabs": 9,
+      "rootViewedAllNineScreenshots": true,
+      "alerts": 0,
+      "dom": {
+        "pages": 1,
+        "lines": 33,
+        "issues": 0,
+        "tailWhitespacePercent": 16
+      },
+      "notClaimed": "all twelve native positive workflows",
+      "specificPositiveFlows": [
+        "native 2-node/1-edge editable graph, disk-full simulated unknown, formal save",
+        "revoke scope then explicit restore under fresh same-hash authorization; no old fault/Q&A",
+        "real Gemma question/answer-review successful; evidence remains unknown; formal save and same-scope reload preserve one simulated fault, two turns and review; Root independently viewed the result"
+      ]
+    },
+    "latestStrictTransportValidation": {
+      "status": "verified_with_limitations",
+      "sourcePins": [
+        {
+          "path": "apps/agent-host/src/privacy/local-ollama.ts",
+          "sha256": "10d2a85a2541ead12bf685e1140d06f871d9f3bfa6681b159e79e9705c749694"
+        },
+        {
+          "path": "apps/agent-host/src/career-studio/committee-model.ts",
+          "sha256": "bab49fa41f3040bd5183db4f4ef5d9fb2c22470cbf2166cec023c91d6fc98de5"
+        }
+      ],
+      "rootSerialSession": 16665,
+      "typecheck": "13/13 exit0",
+      "lint": "exit0",
+      "build": "9/9 exit0",
+      "desktopBuild": "exit0",
+      "targeted": "597pass/0fail/4skip",
+      "fullWorkspace": "4332pass/54fail/20skip;notgreen",
+      "realModelWeb": "completed committee14calls21reads149113ms;snapshot-limited,not authenticity certification",
+      "remaining": [
+        "Latest populated native committee pending;fresh native profile launched/login/claim setup but model not started at this snapshot.",
+        "Actual final PDF containing capsule link/QR and final-file link verification remain pending."
+      ]
+    }
+  },
+  "historicalRequirements": [
+    {
+      "id": 1,
+      "name": "影子招聘委员会",
+      "status": "verified_with_limitations",
+      "dependsOn": [
+        10,
+        11
+      ],
+      "gates": [
+        "four-role-model-workflow",
+        "citation-and-contribution-verification",
+        "bounded-adversarial-review",
+        "versioned-report-and-adoption",
+        "web-and-electron"
+      ],
+      "evidence": [
+        {
+          "id": "career-targeted",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/career-targeted-strict-transport-final.log"
+        },
+        {
+          "id": "committee-strict-operation",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/committee-strict-public-operation.json"
+        },
+        {
+          "id": "committee-strict-ui",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/committee-strict-completed-ui.txt"
+        },
+        {
+          "id": "committee-strict-image",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/committee-strict-completed.png"
+        },
+        {
+          "id": "source-scope",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/scope-setup-with-jobs.png"
+        }
+      ],
+      "implementation": "implemented",
+      "gateResults": [
+        {
+          "gate": "four-role-model-workflow",
+          "status": "verified_real_local_model_web",
+          "evidence": [
+            "career-targeted",
+            "committee-strict-operation",
+            "committee-strict-ui",
+            "committee-strict-image",
+            "source-scope"
+          ],
+          "note": "completed;14calls/21bounded reads/149113ms/7role records including independent judge/0issues for selected synthetic claim."
+        },
+        {
+          "gate": "citation-and-contribution-verification",
+          "status": "verified_web_exact_citations_and_self_reported_review",
+          "evidence": [
+            "career-targeted",
+            "committee-strict-operation",
+            "committee-strict-ui",
+            "committee-strict-image",
+            "source-scope"
+          ],
+          "note": "One supported low-risk claim;2exact citations;separate explicit contribution review saved but ownership remains self-reported."
+        },
+        {
+          "gate": "bounded-adversarial-review",
+          "status": "verified_real_local_model_web",
+          "evidence": [
+            "career-targeted",
+            "committee-strict-operation",
+            "committee-strict-ui",
+            "committee-strict-image",
+            "source-scope"
+          ],
+          "note": "Bounded primary roles/red-blue cross-review/judge completed;not general semantic accuracy."
+        },
+        {
+          "gate": "versioned-report-and-adoption",
+          "status": "verified_web_report_and_separate_publication_review",
+          "evidence": [
+            "career-targeted",
+            "committee-strict-operation",
+            "committee-strict-ui",
+            "committee-strict-image",
+            "source-scope"
+          ],
+          "note": "Version-bound completed report and separate publication review saved;no automatic resume/Fact promotion."
+        },
+        {
+          "gate": "web-and-electron",
+          "status": "verified_web_pending_latest_native_positive",
+          "evidence": [
+            "career-targeted",
+            "committee-strict-operation",
+            "committee-strict-ui",
+            "committee-strict-image",
+            "source-scope"
+          ],
+          "note": "Actual Web positive;latest populated native committee still pending."
+        }
+      ],
+      "remainingAcceptance": [
+        "Latest populated native committee remains pending;current positive is production Web on one synthetic non-deployed Lease claim.",
+        "Completed version-bound report and separate self-reported contribution review are not independent authorship/deployment/impact certification or automatic resume adoption."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "职业路径反事实模拟",
+      "status": "verified_with_limitations",
+      "dependsOn": [
+        1
+      ],
+      "gates": [
+        "frozen-job-cohort",
+        "hypothesis-isolation",
+        "effort-and-sensitivity",
+        "reproducible-comparison",
+        "interactive-scenario-results"
+      ],
+      "evidence": [
+        {
+          "id": "career-targeted",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/career-targeted-strict-transport-final.log"
+        },
+        {
+          "id": "simulation",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/simulation-real-cohort.png"
+        }
+      ],
+      "implementation": "implemented",
+      "gateResults": [
+        {
+          "gate": "frozen-job-cohort",
+          "status": "verified_web_limited",
+          "evidence": [
+            "career-targeted",
+            "simulation"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "hypothesis-isolation",
+          "status": "verified_unit_integration",
+          "evidence": [
+            "career-targeted",
+            "simulation"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "effort-and-sensitivity",
+          "status": "verified_web_limited",
+          "evidence": [
+            "career-targeted",
+            "simulation"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "reproducible-comparison",
+          "status": "verified_unit_integration",
+          "evidence": [
+            "career-targeted",
+            "simulation"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "interactive-scenario-results",
+          "status": "verified_web_limited",
+          "evidence": [
+            "career-targeted",
+            "simulation"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        }
+      ],
+      "remainingAcceptance": [
+        "Frozen cohort is two synthetic jobs, not 50 current production opportunities.",
+        "Sensitivity and effort are conditional evidence-coverage estimates, not a market percentile, offer probability or causal ROI; native populated scenario not accepted."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "视觉排版自愈",
+      "status": "verified_with_limitations",
+      "dependsOn": [
+        1
+      ],
+      "gates": [
+        "actual-layout-measurement",
+        "fact-preserving-repair",
+        "bounded-rerender",
+        "pdf-and-docx-validation",
+        "web-and-electron"
+      ],
+      "evidence": [
+        {
+          "id": "career-targeted",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/career-targeted-strict-transport-final.log"
+        },
+        {
+          "id": "layout-adoption",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/layout-actual-adoption-receipt-fixed.png"
+        },
+        {
+          "id": "native-layout",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/native-production-layout-measured.png"
+        },
+        {
+          "id": "actual-pdf",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/actual-final-pdf.pdf"
+        },
+        {
+          "id": "actual-docx",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/actual-final-docx.docx"
+        },
+        {
+          "id": "docx-derived",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/actual-final-docx-rendered.pdf"
+        },
+        {
+          "id": "pdf-page",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/final-production-pdf-page-1.png"
+        },
+        {
+          "id": "docx-page1",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/final-production-docx-page-1.png"
+        },
+        {
+          "id": "docx-page2",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/final-production-docx-page-2.png"
+        }
+      ],
+      "implementation": "implemented",
+      "gateResults": [
+        {
+          "gate": "actual-layout-measurement",
+          "status": "verified_web_and_native_dom",
+          "evidence": [
+            "career-targeted",
+            "layout-adoption",
+            "native-layout",
+            "actual-pdf",
+            "actual-docx",
+            "docx-derived",
+            "pdf-page",
+            "docx-page1",
+            "docx-page2"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "fact-preserving-repair",
+          "status": "verified_unit_and_manual_layout",
+          "evidence": [
+            "career-targeted",
+            "layout-adoption",
+            "native-layout",
+            "actual-pdf",
+            "actual-docx",
+            "docx-derived",
+            "pdf-page",
+            "docx-page1",
+            "docx-page2"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "bounded-rerender",
+          "status": "verified_unit_integration",
+          "evidence": [
+            "career-targeted",
+            "layout-adoption",
+            "native-layout",
+            "actual-pdf",
+            "actual-docx",
+            "docx-derived",
+            "pdf-page",
+            "docx-page1",
+            "docx-page2"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "pdf-and-docx-validation",
+          "status": "verified_detector_with_findings",
+          "evidence": [
+            "career-targeted",
+            "layout-adoption",
+            "native-layout",
+            "actual-pdf",
+            "actual-docx",
+            "docx-derived",
+            "pdf-page",
+            "docx-page1",
+            "docx-page2"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "web-and-electron",
+          "status": "partial_acceptance",
+          "evidence": [
+            "career-targeted",
+            "layout-adoption",
+            "native-layout",
+            "actual-pdf",
+            "actual-docx",
+            "docx-derived",
+            "pdf-page",
+            "docx-page1",
+            "docx-page2"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        }
+      ],
+      "remainingAcceptance": [
+        "Latest PDF is a viewed one-page body/link-aligned output; DOCX is a viewed two-page output with truthful serializer body mismatch and orphan-page diagnostics, not a perfect single-page pass.",
+        "No broad text-normalization relaxation or fact deletion was used; latest autonomous local-model semantic rewrite and full native final-export workflow are not signed off.",
+        "Actual final PDF containing capsule link/QR and final-file link verification remains pending;earlier aligned PDF is not this new acceptance."
+      ]
+    },
+    {
+      "id": 4,
+      "name": "证据徽章和技能星图",
+      "status": "verified_with_limitations",
+      "dependsOn": [
+        1
+      ],
+      "gates": [
+        "receipt-bound-parameters",
+        "actual-vork-render",
+        "no-unsupported-metrics",
+        "atlas-skill-links",
+        "precision-and-fallback"
+      ],
+      "evidence": [
+        {
+          "id": "career-targeted",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/career-targeted-strict-transport-final.log"
+        },
+        {
+          "id": "badge-strict-operation",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/badge-strict-public-operation.json"
+        },
+        {
+          "id": "badge-strict-render",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/badge-strict-vork.png"
+        },
+        {
+          "id": "badge-strict-image",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/badge-strict-completed.png"
+        },
+        {
+          "id": "gpu-fixture",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/constellation-real-gpu-desktop.png"
+        },
+        {
+          "id": "gpu-filter",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/constellation-filter-selected.png"
+        }
+      ],
+      "implementation": "implemented",
+      "gateResults": [
+        {
+          "gate": "receipt-bound-parameters",
+          "status": "verified_web_receipt_bound_static_measurement",
+          "evidence": [
+            "career-targeted",
+            "badge-strict-operation",
+            "badge-strict-render",
+            "badge-strict-image",
+            "gpu-fixture",
+            "gpu-filter"
+          ],
+          "note": "transitions.json L1–1:3declared entries bound to input/excerpt/target/receipt hashes;not runtime complexity."
+        },
+        {
+          "gate": "actual-vork-render",
+          "status": "verified_actual_vork_render",
+          "evidence": [
+            "career-targeted",
+            "badge-strict-operation",
+            "badge-strict-render",
+            "badge-strict-image",
+            "gpu-fixture",
+            "gpu-filter"
+          ],
+          "note": "768x768PNG/3719ms/SHA c2819b7f755d276a3a5176ba39b59605bce8a1e35423c3f657c55d6d5dd68bc8;Root viewed actual PNG+UI;hardware not_measured."
+        },
+        {
+          "gate": "no-unsupported-metrics",
+          "status": "verified_web_unknowns_preserved",
+          "evidence": [
+            "career-targeted",
+            "badge-strict-operation",
+            "badge-strict-render",
+            "badge-strict-image",
+            "gpu-fixture",
+            "gpu-filter"
+          ],
+          "note": "Coverage/evolution unknown;no execution,throughput,hardware or work certification."
+        },
+        {
+          "gate": "atlas-skill-links",
+          "status": "verified_fixture_gpu_not_live_job_authority",
+          "evidence": [
+            "career-targeted",
+            "badge-strict-operation",
+            "badge-strict-render",
+            "badge-strict-image",
+            "gpu-fixture",
+            "gpu-filter"
+          ],
+          "note": "Actual4point GPU fixture/filter/revoke passed;production badge0jobs/no fabricated offices."
+        },
+        {
+          "gate": "precision-and-fallback",
+          "status": "verified_unit_with_actual_badge_and_fixture_gpu",
+          "evidence": [
+            "career-targeted",
+            "badge-strict-operation",
+            "badge-strict-render",
+            "badge-strict-image",
+            "gpu-fixture",
+            "gpu-filter"
+          ],
+          "note": "Bounded controls plus actual receipt badge+GPU fixture;not live recruiting/office proof."
+        }
+      ],
+      "remainingAcceptance": [
+        "Actual receipt-bound Vork passed for3static JSON declarations;not runtime state-machine complexity,coverage,production performance or work/skill proof.",
+        "Coverage/evolution unknown,hardware not_measured;badge run0jobs/no fabricated offices. Four-point Cesium GPU/filter/revoke fixtures are not production indexed-job/verified-office authority.",
+        "Native populated badge and live authority-backed job links remain unaccepted."
+      ]
+    },
+    {
+      "id": 5,
+      "name": "白板故障注入面试",
+      "status": "verified_with_limitations",
+      "dependsOn": [
+        1
+      ],
+      "gates": [
+        "editable-architecture-graph",
+        "evidence-backed-questioning",
+        "simulated-chaos-propagation",
+        "answer-and-review-persistence",
+        "web-and-electron"
+      ],
+      "evidence": [
+        {
+          "id": "career-targeted",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/career-targeted-strict-transport-final.log"
+        },
+        {
+          "id": "architecture",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/architecture-chaos-desktop.png"
+        },
+        {
+          "id": "native-smoke",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/native-production-smoke.json"
+        },
+        {
+          "id": "native-architecture-restored",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/native-architecture-new-context-restored-ui.txt"
+        },
+        {
+          "id": "native-architecture-real-qa",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/native-architecture-real-qa-ui.txt"
+        },
+        {
+          "id": "native-architecture-real-save",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/native-architecture-real-qa-readback-ui.txt"
+        },
+        {
+          "id": "native-architecture-review-image",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/native-architecture-real-review.png"
+        },
+        {
+          "id": "architecture-strict-source-ui",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/architecture-strict-source-qa-ui.txt"
+        },
+        {
+          "id": "architecture-strict-source-image",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/architecture-strict-source-review.png"
+        }
+      ],
+      "implementation": "implemented",
+      "gateResults": [
+        {
+          "gate": "editable-architecture-graph",
+          "status": "verified_web_and_native_graph",
+          "evidence": [
+            "career-targeted",
+            "architecture",
+            "native-architecture-restored",
+            "native-architecture-real-qa",
+            "native-architecture-real-save",
+            "native-architecture-review-image",
+            "architecture-strict-source-ui",
+            "architecture-strict-source-image"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "evidence-backed-questioning",
+          "status": "verified_web_original_source_and_specific_native_model",
+          "evidence": [
+            "career-targeted",
+            "architecture",
+            "native-architecture-restored",
+            "native-architecture-real-qa",
+            "native-architecture-real-save",
+            "native-architecture-review-image",
+            "architecture-strict-source-ui",
+            "architecture-strict-source-image"
+          ],
+          "note": "Actual source-backed local model question/review+formal save passed;review contradicted the answer's cross-process sufficiency. Personal authorship unknown,not Fact promotion."
+        },
+        {
+          "gate": "simulated-chaos-propagation",
+          "status": "verified_native_simulation_unknown_preserved",
+          "evidence": [
+            "career-targeted",
+            "architecture",
+            "native-architecture-restored",
+            "native-architecture-real-qa",
+            "native-architecture-real-save",
+            "native-architecture-review-image",
+            "architecture-strict-source-ui",
+            "architecture-strict-source-image"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "answer-and-review-persistence",
+          "status": "verified_web_source_model_save_and_native_formal_persistence",
+          "evidence": [
+            "career-targeted",
+            "architecture",
+            "native-architecture-restored",
+            "native-architecture-real-qa",
+            "native-architecture-real-save",
+            "native-architecture-review-image",
+            "architecture-strict-source-ui",
+            "architecture-strict-source-image"
+          ],
+          "note": "Actual source-backed Web save plus earlier native1fault/2turns/review same-scope readback;scope-specific only."
+        },
+        {
+          "gate": "web-and-electron",
+          "status": "verified_web_and_native_specific_workflow",
+          "evidence": [
+            "career-targeted",
+            "architecture",
+            "native-architecture-restored",
+            "native-architecture-real-qa",
+            "native-architecture-real-save",
+            "native-architecture-review-image",
+            "architecture-strict-source-ui",
+            "architecture-strict-source-image"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        }
+      ],
+      "remainingAcceptance": [
+        "Actual native graph/model Q&A, formal save, explicit same-scope reload and Root visual review passed for the selected synthetic graph; this is not all twelve populated native workflows.",
+        "Review explicitly leaves implementation evidence unknown: a drawn design is not implementation; restoring with a fresh grant does not restore old faults or Q&A.",
+        "Source-backed production Web import/question/review/save passed on one service node after original L1–25 grant fresh-read and2explicit inventory confirmations. The contradicted review critiques the cross-process design answer;it is practice feedback,not a new Fact or authorship certification."
+      ]
+    },
+    {
+      "id": 6,
+      "name": "日常高光捕手",
+      "status": "verified_with_limitations",
+      "dependsOn": [
+        10
+      ],
+      "gates": [
+        "opt-in-git-trigger",
+        "bounded-async-local-analysis",
+        "proposal-inbox-and-deduplication",
+        "personal-review-to-workspace-receipt",
+        "revoke-restart-and-secret-exclusion"
+      ],
+      "evidence": [
+        {
+          "id": "career-targeted",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/career-targeted-strict-transport-final.log"
+        },
+        {
+          "id": "harvest-card",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/harvest-card-desktop.png"
+        },
+        {
+          "id": "harvest-adopt",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/harvest-adoption-state-desktop.png"
+        },
+        {
+          "id": "harvest-revoke",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/harvest-revoked-desktop.png"
+        }
+      ],
+      "implementation": "implemented",
+      "gateResults": [
+        {
+          "gate": "opt-in-git-trigger",
+          "status": "verified_web_limited",
+          "evidence": [
+            "career-targeted",
+            "harvest-card",
+            "harvest-adopt",
+            "harvest-revoke"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "bounded-async-local-analysis",
+          "status": "verified_real_local_model_limited",
+          "evidence": [
+            "career-targeted",
+            "harvest-card",
+            "harvest-adopt",
+            "harvest-revoke"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "proposal-inbox-and-deduplication",
+          "status": "verified_unit_and_web",
+          "evidence": [
+            "career-targeted",
+            "harvest-card",
+            "harvest-adopt",
+            "harvest-revoke"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "personal-review-to-workspace-receipt",
+          "status": "verified_web_limited",
+          "evidence": [
+            "career-targeted",
+            "harvest-card",
+            "harvest-adopt",
+            "harvest-revoke"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "revoke-restart-and-secret-exclusion",
+          "status": "verified_unit_and_web",
+          "evidence": [
+            "career-targeted",
+            "harvest-card",
+            "harvest-adopt",
+            "harvest-revoke"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        }
+      ],
+      "remainingAcceptance": [
+        "Actual positive is a fresh synthetic local Git commit and explicit quote reviewed as a self-reported contribution.",
+        "Opt-in Host watcher requires active authorized runtime; no OS daemon install, automatic private grant restoration or native populated loop claimed."
+      ]
+    },
+    {
+      "id": 7,
+      "name": "招聘情报对账",
+      "status": "verified_with_limitations",
+      "dependsOn": [
+        1
+      ],
+      "gates": [
+        "source-observation-history",
+        "cross-source-and-salary-signals",
+        "public-tech-evidence-comparison",
+        "unknown-and-conflict-preservation",
+        "authorized-source-integration"
+      ],
+      "evidence": [
+        {
+          "id": "career-targeted",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/career-targeted-strict-transport-final.log"
+        },
+        {
+          "id": "forensics",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/forensics-public-source-desktop.png"
+        }
+      ],
+      "implementation": "implemented",
+      "gateResults": [
+        {
+          "gate": "source-observation-history",
+          "status": "verified_unit_and_web",
+          "evidence": [
+            "career-targeted",
+            "forensics"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "cross-source-and-salary-signals",
+          "status": "verified_unit_and_web",
+          "evidence": [
+            "career-targeted",
+            "forensics"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "public-tech-evidence-comparison",
+          "status": "verified_web_limited",
+          "evidence": [
+            "career-targeted",
+            "forensics"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "unknown-and-conflict-preservation",
+          "status": "verified_unit_integration",
+          "evidence": [
+            "career-targeted",
+            "forensics"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "authorized-source-integration",
+          "status": "verified_web_limited",
+          "evidence": [
+            "career-targeted",
+            "forensics"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        }
+      ],
+      "remainingAcceptance": [
+        "Actual external read is explicit public HTTPS without cookies, not authenticated BOSS/LinkedIn collection or a company-internal investigation.",
+        "Anomalies and technical-stack evidence gaps do not establish ghost jobs, intent, actual team duties or causation."
+      ]
+    },
+    {
+      "id": 8,
+      "name": "候选人数字孪生胶囊",
+      "status": "verified_with_limitations",
+      "dependsOn": [
+        1,
+        9,
+        10
+      ],
+      "gates": [
+        "field-level-publication-preview",
+        "immutable-redacted-export",
+        "evidence-only-question-answering",
+        "readonly-page-mcp-and-qr",
+        "access-revoke-and-injection-tests"
+      ],
+      "evidence": [
+        {
+          "id": "career-targeted",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/career-targeted-strict-transport-final.log"
+        },
+        {
+          "id": "twin-strict-preview",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/twin-strict-preview-ui.txt"
+        },
+        {
+          "id": "twin-strict-public-qa",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/twin-strict-public-qa.json"
+        },
+        {
+          "id": "twin-strict-access-lifecycle",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/twin-strict-access-lifecycle.json"
+        },
+        {
+          "id": "twin-strict-recipient",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/twin-strict-recipient-ui.txt"
+        },
+        {
+          "id": "twin-strict-unknown-image",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/twin-strict-recipient-unknown.png"
+        },
+        {
+          "id": "twin-strict-revocation",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/twin-strict-revocation-ui.txt"
+        },
+        {
+          "id": "twin-strict-revoked-image",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/twin-strict-recipient-revoked.png"
+        },
+        {
+          "id": "twin-strict-owner-revoked",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/twin-strict-owner-revoked-ui.txt"
+        },
+        {
+          "id": "runtime-report",
+          "path": "/Users/feng/Documents/Private/简历/简历Agent/better-me-agent-os/docs/reports/career-os-runtime-configuration-2026-11-09.md"
+        }
+      ],
+      "implementation": "implemented",
+      "gateResults": [
+        {
+          "gate": "field-level-publication-preview",
+          "status": "verified_production_web_selected_fields",
+          "evidence": [
+            "career-targeted",
+            "twin-strict-preview",
+            "twin-strict-public-qa",
+            "twin-strict-access-lifecycle",
+            "twin-strict-recipient",
+            "twin-strict-unknown-image",
+            "twin-strict-revocation",
+            "twin-strict-revoked-image",
+            "twin-strict-owner-revoked",
+            "runtime-report"
+          ],
+          "note": "True content preview before explicit publish after separate contribution review."
+        },
+        {
+          "gate": "immutable-redacted-export",
+          "status": "verified_production_web_frozen_capsule",
+          "evidence": [
+            "career-targeted",
+            "twin-strict-preview",
+            "twin-strict-public-qa",
+            "twin-strict-access-lifecycle",
+            "twin-strict-recipient",
+            "twin-strict-unknown-image",
+            "twin-strict-revocation",
+            "twin-strict-revoked-image",
+            "twin-strict-owner-revoked",
+            "runtime-report"
+          ],
+          "note": "One immutable explicit-field synthetic capsule;no raw source;self-reported ownership."
+        },
+        {
+          "gate": "evidence-only-question-answering",
+          "status": "verified_zero_cookie_recipient_exact_citations",
+          "evidence": [
+            "career-targeted",
+            "twin-strict-preview",
+            "twin-strict-public-qa",
+            "twin-strict-access-lifecycle",
+            "twin-strict-recipient",
+            "twin-strict-unknown-image",
+            "twin-strict-revocation",
+            "twin-strict-revoked-image",
+            "twin-strict-owner-revoked",
+            "runtime-report"
+          ],
+          "note": "Fresh0cookie recipient:known exact field citations;unknown/injection return unknown with0citations."
+        },
+        {
+          "gate": "readonly-page-mcp-and-qr",
+          "status": "verified_loopback_page_qr_and_sdk_integration",
+          "evidence": [
+            "career-targeted",
+            "twin-strict-preview",
+            "twin-strict-public-qa",
+            "twin-strict-access-lifecycle",
+            "twin-strict-recipient",
+            "twin-strict-unknown-image",
+            "twin-strict-revocation",
+            "twin-strict-revoked-image",
+            "twin-strict-owner-revoked",
+            "runtime-report"
+          ],
+          "note": "Local232SVG decoded once by CoreImage with matching hash;page recipient passed. Official-SDK MCP covered separately by integration tests,not live external install;appended PDF link pending."
+        },
+        {
+          "gate": "access-revoke-and-injection-tests",
+          "status": "verified_live_loopback_revoke_and_injection",
+          "evidence": [
+            "career-targeted",
+            "twin-strict-preview",
+            "twin-strict-public-qa",
+            "twin-strict-access-lifecycle",
+            "twin-strict-recipient",
+            "twin-strict-unknown-image",
+            "twin-strict-revocation",
+            "twin-strict-revoked-image",
+            "twin-strict-owner-revoked",
+            "runtime-report"
+          ],
+          "note": "Same recipient token revoke403;capsule revoke confirmed/issuance disabled;Root viewed unknown+revoked images;no downloaded-copy recall."
+        }
+      ],
+      "remainingAcceptance": [
+        "Loopback preview/publish/QR/0cookie recipient exact Q&A/unknown+injection refusal/revoke passed for one synthetic capsule;not Internet deployment or all-native acceptance.",
+        "Only explicit public fields/self-reported contribution were published,not raw source. Downloaded copies cannot be revoked;active token/QR is not stored in permanent QA.",
+        "Actual final PDF containing capsule link/QR and final-file link verification remains pending."
+      ]
+    },
+    {
+      "id": 9,
+      "name": "MCP 双向架构",
+      "status": "verified_with_limitations",
+      "dependsOn": [
+        10
+      ],
+      "gates": [
+        "official-sdk-client-and-server",
+        "facts-proposals-and-jd-tools",
+        "transport-and-authorization",
+        "process-and-resource-isolation",
+        "cross-owner-revoke-and-adversarial-tools"
+      ],
+      "evidence": [
+        {
+          "id": "career-targeted",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/career-targeted-strict-transport-final.log"
+        },
+        {
+          "id": "mcp-unconfigured",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/mcp-unconfigured-desktop.png"
+        },
+        {
+          "id": "runtime-report",
+          "path": "/Users/feng/Documents/Private/简历/简历Agent/better-me-agent-os/docs/reports/career-os-runtime-configuration-2026-11-09.md"
+        }
+      ],
+      "implementation": "implemented",
+      "gateResults": [
+        {
+          "gate": "official-sdk-client-and-server",
+          "status": "verified_actual_sdk_protocol",
+          "evidence": [
+            "career-targeted",
+            "mcp-unconfigured",
+            "runtime-report"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "facts-proposals-and-jd-tools",
+          "status": "verified_actual_sdk_protocol",
+          "evidence": [
+            "career-targeted",
+            "mcp-unconfigured",
+            "runtime-report"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "transport-and-authorization",
+          "status": "verified_actual_sdk_protocol",
+          "evidence": [
+            "career-targeted",
+            "mcp-unconfigured",
+            "runtime-report"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "process-and-resource-isolation",
+          "status": "verified_actual_stdio_os_sandbox",
+          "evidence": [
+            "career-targeted",
+            "mcp-unconfigured",
+            "runtime-report"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "cross-owner-revoke-and-adversarial-tools",
+          "status": "verified_unit_integration",
+          "evidence": [
+            "career-targeted",
+            "mcp-unconfigured",
+            "runtime-report"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        }
+      ],
+      "remainingAcceptance": [
+        "Official SDK client/server HTTP and actual local stdio OS-sandbox protocols are tested with synthetic adapters.",
+        "Current UI operator service is unconfigured; no configured live external MCP installation/account or complete native connect/call/resource positive claimed."
+      ]
+    },
+    {
+      "id": 10,
+      "name": "端云混合隐私路由",
+      "status": "partial_acceptance",
+      "dependsOn": [],
+      "gates": [
+        "local-sensitive-processing",
+        "approved-structured-cloud-egress",
+        "dispatch-generation-and-budget",
+        "captured-network-and-no-fallback",
+        "repair-and-retrieval"
+      ],
+      "evidence": [
+        {
+          "id": "career-targeted",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/career-targeted-strict-transport-final.log"
+        },
+        {
+          "id": "privacy-draft",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/privacy-local-draft-desktop.png"
+        },
+        {
+          "id": "privacy-strict-source-ui",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/privacy-strict-original-grant-ui.txt"
+        },
+        {
+          "id": "privacy-strict-source-image",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/privacy-strict-original-grant.png"
+        },
+        {
+          "id": "runtime-report",
+          "path": "/Users/feng/Documents/Private/简历/简历Agent/better-me-agent-os/docs/reports/career-os-runtime-configuration-2026-11-09.md"
+        },
+        {
+          "id": "privacy-strict-draft",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/privacy-strict-local-draft-ui.txt"
+        },
+        {
+          "id": "privacy-strict-revoked",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/privacy-strict-local-revoked-ui.txt"
+        }
+      ],
+      "implementation": "implemented",
+      "gateResults": [
+        {
+          "gate": "local-sensitive-processing",
+          "status": "verified_web_original_grant_local_only",
+          "evidence": [
+            "career-targeted",
+            "privacy-draft",
+            "privacy-strict-source-ui",
+            "privacy-strict-source-image",
+            "runtime-report",
+            "privacy-strict-draft",
+            "privacy-strict-revoked"
+          ],
+          "note": "Original completed-committee grant/range revalidated for lease.ts L1–25;1source+1private term,no expanded or cloud authority. Actual strict local Gemma generated2exact approved-summary fields while the1local_only source was excluded from summary model input;0redactions/0repairs."
+        },
+        {
+          "gate": "approved-structured-cloud-egress",
+          "status": "verified_synthetic_http_capture_cloud_unconfigured",
+          "evidence": [
+            "career-targeted",
+            "privacy-draft",
+            "privacy-strict-source-ui",
+            "privacy-strict-source-image",
+            "runtime-report",
+            "privacy-strict-draft",
+            "privacy-strict-revoked"
+          ],
+          "note": "Fake HTTP capture only approved exact structured summary;cloud UI unavailable;no paid request."
+        },
+        {
+          "gate": "dispatch-generation-and-budget",
+          "status": "verified_unit_integration_strict_runtime_bound",
+          "evidence": [
+            "career-targeted",
+            "privacy-draft",
+            "privacy-strict-source-ui",
+            "privacy-strict-source-image",
+            "runtime-report",
+            "privacy-strict-draft",
+            "privacy-strict-revoked"
+          ],
+          "note": "Exact draft/runtime/recipient/generation/budget/cancel tests;current strict runtime binds model/API/context/generation policies. Actual local draft revoke confirmed;cloud approval disabled because no cloud configured."
+        },
+        {
+          "gate": "captured-network-and-no-fallback",
+          "status": "verified_synthetic_http_capture_no_cloud_fallback",
+          "evidence": [
+            "career-targeted",
+            "privacy-draft",
+            "privacy-strict-source-ui",
+            "privacy-strict-source-image",
+            "runtime-report",
+            "privacy-strict-draft",
+            "privacy-strict-revoked"
+          ],
+          "note": "Synthetic canary/late consent/revoke/no-fallback regressions pass;not live paid-provider acceptance."
+        },
+        {
+          "gate": "repair-and-retrieval",
+          "status": "partial_acceptance_embedding_unavailable",
+          "evidence": [
+            "career-targeted",
+            "privacy-draft",
+            "privacy-strict-source-ui",
+            "privacy-strict-source-image",
+            "runtime-report",
+            "privacy-strict-draft",
+            "privacy-strict-revoked"
+          ],
+          "note": "Bounded repair+injected retrieval tests pass;no installed embedding or real-model retrieval acceptance."
+        }
+      ],
+      "remainingAcceptance": [
+        "Completed-committee original grant/range revalidated and saved for lease.ts L1–25 as local_only with1private term;source cannot enter summary/cloud.",
+        "No local embedding model installed/downloaded:unavailable. Injected /api/embed fake-HTTP tests are not real-model embedding acceptance.",
+        "Cloud remains unconfigured/unavailable;synthetic canary capture proves the approved-summary boundary,not a paid-provider call or authority to auto-configure one.",
+        "Final strict local committee positive does not certify arbitrary source redaction,model quality or all-native privacy.",
+        "Actual strict local model prepared2exact fields preserving the claim and not-deployed limitation;1local_only source remained excluded;0redactions/0repairs. Cloud approval was actually disabled and revoke confirmed;no cloud request."
+      ]
+    },
+    {
+      "id": 11,
+      "name": "时间旅行和黄金评测",
+      "status": "verified_with_limitations",
+      "dependsOn": [],
+      "gates": [
+        "versioned-execution-timeline",
+        "persistent-checkpoint-fork",
+        "no-external-side-effect-replay",
+        "twenty-golden-evals-and-metrics",
+        "restart-revoke-and-visible-durability"
+      ],
+      "evidence": [
+        {
+          "id": "career-targeted",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/career-targeted-strict-transport-final.log"
+        },
+        {
+          "id": "golden",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/golden-strict-transport-final.log"
+        },
+        {
+          "id": "replay",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/mobile-replay.png"
+        }
+      ],
+      "implementation": "implemented",
+      "gateResults": [
+        {
+          "gate": "versioned-execution-timeline",
+          "status": "verified_unit_and_web",
+          "evidence": [
+            "career-targeted",
+            "golden",
+            "replay"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "persistent-checkpoint-fork",
+          "status": "verified_durable_sqlite",
+          "evidence": [
+            "career-targeted",
+            "golden",
+            "replay"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "no-external-side-effect-replay",
+          "status": "verified_unit_integration",
+          "evidence": [
+            "career-targeted",
+            "golden",
+            "replay"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "twenty-golden-evals-and-metrics",
+          "status": "verified_bounded_golden_fixtures",
+          "evidence": [
+            "career-targeted",
+            "golden",
+            "replay"
+          ],
+          "note": "36scripted fixtures/36expected passes;fixture faithfulness+citprecision1;431scripted adapter calls/204tools/28ms;not real-model quality."
+        },
+        {
+          "gate": "restart-revoke-and-visible-durability",
+          "status": "verified_unit_integration",
+          "evidence": [
+            "career-targeted",
+            "golden",
+            "replay"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        }
+      ],
+      "remainingAcceptance": [
+        "Checkpoint lineage is explicit public analysis state, not hidden chain-of-thought; forks need fresh grants and never replay external side effects.",
+        "Thirty-six scripted protocol fixtures/metrics are a bounded engineering regression, not a guarantee of real-model faithfulness across arbitrary tasks; native populated restart workflow not fully accepted."
+      ]
+    },
+    {
+      "id": 12,
+      "name": "投递反馈飞轮",
+      "status": "verified_with_limitations",
+      "dependsOn": [
+        1
+      ],
+      "gates": [
+        "resume-version-outcome-binding",
+        "authorized-recording-and-notes-import",
+        "timestamp-to-claim-review",
+        "evolution-patch-approval-and-revoke",
+        "unknown-provenance-and-no-causal-claims"
+      ],
+      "evidence": [
+        {
+          "id": "career-targeted",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/career-targeted-strict-transport-final.log"
+        },
+        {
+          "id": "feedback",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/feedback-report-desktop.png"
+        },
+        {
+          "id": "rules-applied",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/rules-applied-desktop.png"
+        },
+        {
+          "id": "rules-reverted",
+          "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/rules-reverted-desktop.png"
+        }
+      ],
+      "implementation": "implemented",
+      "gateResults": [
+        {
+          "gate": "resume-version-outcome-binding",
+          "status": "verified_unit_and_web",
+          "evidence": [
+            "career-targeted",
+            "feedback",
+            "rules-applied",
+            "rules-reverted"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "authorized-recording-and-notes-import",
+          "status": "verified_notes_and_bounded_import",
+          "evidence": [
+            "career-targeted",
+            "feedback",
+            "rules-applied",
+            "rules-reverted"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "timestamp-to-claim-review",
+          "status": "verified_unit_and_web",
+          "evidence": [
+            "career-targeted",
+            "feedback",
+            "rules-applied",
+            "rules-reverted"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "evolution-patch-approval-and-revoke",
+          "status": "verified_unit_and_web",
+          "evidence": [
+            "career-targeted",
+            "feedback",
+            "rules-applied",
+            "rules-reverted"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        },
+        {
+          "gate": "unknown-provenance-and-no-causal-claims",
+          "status": "verified_unit_integration",
+          "evidence": [
+            "career-targeted",
+            "feedback",
+            "rules-applied",
+            "rules-reverted"
+          ],
+          "note": "See this record's remainingAcceptance/pending and linked evidence scope. This is not an all-runtime signoff."
+        }
+      ],
+      "remainingAcceptance": [
+        "Actual positive uses self-reported events and timestamped text notes; automated audio transcription is not configured or claimed.",
+        "Evolution is an explicitly approved personal rule sidecar with CAS/export/revert, not causal inference or silent mutation of global resumeGuidelines/Skills; native populated feedback loop not fully accepted."
+      ]
+    }
+  ],
+  "globalGates": [
+    "preserve-concurrent-changes",
+    "synthetic-isolated-tests",
+    "owner-session-revocation",
+    "no-secret-or-private-data-output",
+    "typecheck",
+    "lint",
+    "full-tests",
+    "production-build",
+    "desktop-build",
+    "betterme-app-refresh",
+    "web-visual-functional-qa",
+    "electron-visual-functional-qa",
+    "requirement-by-requirement-audit"
+  ],
+  "globalEvidence": [
+    {
+      "id": "targeted-closure",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/career-targeted-closure-final.log",
+      "scope": "Final closure snapshot; synthetic isolated acceptance only",
+      "result": "630tests626pass0fail4skip; actualrenderer11nonskip",
+      "limitations": "Evidence proves only its stated scope; not universal production signoff."
+    },
+    {
+      "id": "final-test-audit",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/final-test-audit.json",
+      "scope": "Final closure snapshot; synthetic isolated acceptance only",
+      "result": "final quality and bounded historical-failure qualification",
+      "limitations": "Evidence proves only its stated scope; not universal production signoff."
+    },
+    {
+      "id": "committee-closure",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/committee-closure-operation.json",
+      "scope": "Final closure snapshot; synthetic isolated acceptance only",
+      "result": "actual local Web14calls21reads115781ms18500chars completed",
+      "limitations": "Evidence proves only its stated scope; not universal production signoff."
+    },
+    {
+      "id": "native-committee-final",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/native-committee-strict-public-operation.json",
+      "scope": "Final closure snapshot; synthetic isolated acceptance only",
+      "result": "actual compiled Native14calls21reads105744ms completed",
+      "limitations": "Evidence proves only its stated scope; not universal production signoff."
+    },
+    {
+      "id": "wording-closure",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/native-layout-wording-closure-proof.json",
+      "scope": "Final closure snapshot; synthetic isolated acceptance only",
+      "result": "partial:3empty real candidate responses; no fresh review/no adoption",
+      "limitations": "Evidence proves only its stated scope; not universal production signoff."
+    },
+    {
+      "id": "linked-pdf-closure",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/capsule-linked-pdf-proof.json",
+      "scope": "Final closure snapshot; synthetic isolated acceptance only",
+      "result": "actual final PDF exact capsule URI and zero-cookie read/revoke403",
+      "limitations": "Evidence proves only its stated scope; not universal production signoff."
+    },
+    {
+      "id": "diagram-closure",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/diagram-closure-proof.json",
+      "scope": "Final closure snapshot; synthetic isolated acceptance only",
+      "result": "actual UI saved graph projection/redaction/publish/SVG/no-cookie/revoke403",
+      "limitations": "Evidence proves only its stated scope; not universal production signoff."
+    },
+    {
+      "id": "rules-closure",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/rules-closure-proof.json",
+      "scope": "Final closure snapshot; synthetic isolated acceptance only",
+      "result": "actual local analyses bind appliedv3/revertedv4 rule fingerprints",
+      "limitations": "Evidence proves only its stated scope; not universal production signoff."
+    },
+    {
+      "id": "native-minimum-closure",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/native-minimum-closure-proof.json",
+      "scope": "Final closure snapshot; synthetic isolated acceptance only",
+      "result": "compiled latest asset1180x760 no horizontal overflow",
+      "limitations": "Evidence proves only its stated scope; not universal production signoff."
+    },
+    {
+      "id": "golden-closure",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/golden-closure-final.log",
+      "scope": "Final closure snapshot; synthetic isolated acceptance only",
+      "result": "36scripted expectations, not real-model semantic quality",
+      "limitations": "Evidence proves only its stated scope; not universal production signoff."
+    },
+    {
+      "id": "app-sync-closure",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/app-dist-sync-closure-final-2026-11-09-receipt.json",
+      "scope": "Final closure snapshot; synthetic isolated acceptance only",
+      "result": "third recoverable exact union sync; old backups unchanged",
+      "limitations": "Evidence proves only its stated scope; not universal production signoff."
+    },
+    {
+      "id": "cleanup-closure",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/final-service-cleanup.json",
+      "scope": "Final closure snapshot; synthetic isolated acceptance only",
+      "result": "owned QA closed; original services retained; daily activation still required",
+      "limitations": "Evidence proves only its stated scope; not universal production signoff."
+    },
+    {
+      "id": "career-targeted",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/career-targeted-strict-transport-final.log",
+      "scope": "Final strict-transport scoped Career OS regression including11actual renderer tests",
+      "result": "601tests/597pass/0fail/4skip/0cancelled;exit0;17701.940792ms",
+      "limitations": [
+        "Skipped cases and unconfigured capabilities are not runtime acceptance."
+      ]
+    },
+    {
+      "id": "full-suite",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/full-test-strict-transport-final.log",
+      "scope": "Final strict-transport full workspace regression",
+      "result": "4406tests/4332pass/54fail/20skip/0cancelled;exit1;210980.010625ms",
+      "limitations": [
+        "Workspace remains not green;same named failure groups persist. Bounded HEAD source comparisons cover only their stated subset,not proof all54 preexisting or a clean-HEAD reconstruction."
+      ]
+    },
+    {
+      "id": "typecheck",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/typecheck-strict-transport-final.log",
+      "scope": "Full workspace TypeScript after final Host freeze",
+      "result": "13/13tasks successful;exit0;4.295s",
+      "limitations": []
+    },
+    {
+      "id": "lint",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/lint-strict-transport-final.log",
+      "scope": "Full lint after final Host freeze",
+      "result": "Root observed serial session16665 exit0;empty lint stdout is normal",
+      "limitations": []
+    },
+    {
+      "id": "build",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/build-strict-transport-final.log",
+      "scope": "Full workspace production build after final Host freeze",
+      "result": "9/9tasks successful;exit0;50.311s;7cached",
+      "limitations": [
+        "Existing externalized Node built-in and >500KB chunk warnings remain."
+      ]
+    },
+    {
+      "id": "desktop-tests",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/desktop-strict-transport-final.log",
+      "scope": "Final Desktop isolation/manager regression",
+      "result": "10/10pass;exit0;182.706708ms",
+      "limitations": [
+        "Not native feature workflow acceptance."
+      ]
+    },
+    {
+      "id": "golden",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/golden-strict-transport-final.log",
+      "scope": "36scripted protocol fixtures,not actual-model quality",
+      "result": "36/36expected outcomes;expectationPassRate1;fixture faithfulness1;fixture citationPrecision1;431scripted calls;204tool steps;28ms",
+      "limitations": [
+        "Agreement with fixture expectations is not real-model semantic faithfulness,hiring probability or monetary/token cost. Intentionally incomplete adversarial cases are included."
+      ]
+    },
+    {
+      "id": "head-jd",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/head-jd-readonly-comparison-2026-11-09.log",
+      "scope": "Six primary source/test files identical to HEAD; ten selected same-symptom failures",
+      "result": "10 reproduced failures; current==HEAD 7674df22; log SHA d926d9755a1057ad24949dc29b5b01b015624bae31e266ade0fc1feae3b531b2",
+      "limitations": [
+        "Other dependencies resolve from existing workspace/node_modules; not all 54 failures were individually rerun by this loader."
+      ]
+    },
+    {
+      "id": "desktop-baseline",
+      "path": "/Users/feng/Documents/Private/简历/简历Agent/better-me-agent-os/docs/reports/career-os-existing-desktop-test-baseline-2026-11-09.md",
+      "scope": "Existing desktop six-failure HEAD-source comparison",
+      "result": "Same six named failures with same actual/expected",
+      "limitations": [
+        "Does not make existing behavior correct or the full suite green."
+      ]
+    },
+    {
+      "id": "native-smoke",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/native-production-smoke.json",
+      "scope": "Actual compiled Desktop main + latest production preview; isolated profile; 0 selected claims and 0 jobs",
+      "result": "Root viewed all nine tab screenshots; no alert smoke",
+      "limitations": [
+        "Not all twelve native positive workflows; no committee/publication/remote MCP/embedding success implied."
+      ]
+    },
+    {
+      "id": "native-layout",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/native-production-layout-measured.png",
+      "scope": "Actual native DOM measurement in the empty selected scope",
+      "result": "Root observed 1 page / 33 lines / 0 issues / 16% tail whitespace",
+      "limitations": [
+        "DOM estimate is not final PDF/DOCX or semantic rewrite acceptance."
+      ]
+    },
+    {
+      "id": "source-scope",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/scope-setup-with-jobs.png",
+      "scope": "Web explicit source/runtime/claim/job scope form",
+      "result": "Root observed isolated scope setup",
+      "limitations": [
+        "Screenshot alone does not prove all revocation paths."
+      ]
+    },
+    {
+      "id": "committee-partial",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/committee-third-public-operation.json",
+      "scope": "Earlier captured real local-model committee",
+      "result": "Earlier partial operation retained as diagnostic history;superseded by committee-strict-operation",
+      "limitations": [
+        "This old partial artifact is not current successful acceptance evidence."
+      ]
+    },
+    {
+      "id": "simulation",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/simulation-real-cohort.png",
+      "scope": "Frozen synthetic two-job cohort and conditional scenario comparison",
+      "result": "Root observed actual UI comparison",
+      "limitations": [
+        "Not a live 50-job cohort, market percentile, offer probability, or causal ROI."
+      ]
+    },
+    {
+      "id": "layout-adoption",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/layout-actual-adoption-receipt-fixed.png",
+      "scope": "Web explicit manual layout adoption and formal Workspace readback",
+      "result": "Root observed lineHeight 1.6→1.4 with exact saved version readback",
+      "limitations": [
+        "Does not prove an autonomous semantic rewrite or every native adoption path."
+      ]
+    },
+    {
+      "id": "actual-pdf",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/actual-final-pdf.pdf",
+      "scope": "Latest actual UI final PDF",
+      "result": "SHA256 e4a998dd88d9521bdcb8c4fce432ba47bce1a8f4b54455fcf0bd2d969f9de073; 1 page; Root viewed; body and links aligned",
+      "limitations": []
+    },
+    {
+      "id": "actual-docx",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/actual-final-docx.docx",
+      "scope": "Latest exact UI DOCX source bytes",
+      "result": "SHA256 d7e57b770d7b3ee0f7f04b6710f8d35e7234724ebdcb8afeb5631f90f8ea3610",
+      "limitations": [
+        "Editable DOCX pagination is renderer-specific."
+      ]
+    },
+    {
+      "id": "docx-derived",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/actual-final-docx-rendered.pdf",
+      "scope": "Derived PDF from latest exact DOCX",
+      "result": "SHA256 cb0080c63a64ae499368865017f86e58c8209b5d9e50f18bf18f3d29d6258bca; 2 pages; Root viewed both; Chinese readable",
+      "limitations": [
+        "UI truthfully reports body mismatch and orphan page (page 2: 3 lines / 94% blank); links align."
+      ]
+    },
+    {
+      "id": "pdf-page",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/final-production-pdf-page-1.png",
+      "scope": "Latest actual PDF page image",
+      "result": "Root viewed independently",
+      "limitations": []
+    },
+    {
+      "id": "docx-page1",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/final-production-docx-page-1.png",
+      "scope": "Latest actual DOCX-derived page 1 image",
+      "result": "Root viewed independently",
+      "limitations": []
+    },
+    {
+      "id": "docx-page2",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/final-production-docx-page-2.png",
+      "scope": "Latest actual DOCX-derived page 2 image",
+      "result": "Root viewed independently; orphan page remains",
+      "limitations": []
+    },
+    {
+      "id": "gpu-fixture",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/constellation-real-gpu-desktop.png",
+      "scope": "Actual Cesium WebGL using four synthetic fixture office points",
+      "result": "Root observed real GPU render",
+      "limitations": [
+        "These are not production indexed jobs or proof of live recruiting."
+      ]
+    },
+    {
+      "id": "gpu-filter",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/constellation-filter-selected.png",
+      "scope": "Four-point GPU fixture filter, selection and revocation",
+      "result": "Root observed controls",
+      "limitations": [
+        "No production Job Service authority token/readback claim."
+      ]
+    },
+    {
+      "id": "architecture",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/architecture-chaos-desktop.png",
+      "scope": "Web editable architecture and simulated propagation",
+      "result": "Root observed graph/chaos controls",
+      "limitations": [
+        "Older editable design/chaos screenshot only; later specific native review and strict source-backed Web question/review/save positives are recorded in their separate evidence."
+      ]
+    },
+    {
+      "id": "harvest-card",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/harvest-card-desktop.png",
+      "scope": "Fresh synthetic Git commit and explicit local-model micro-card",
+      "result": "Root observed actual Git→local model→card",
+      "limitations": []
+    },
+    {
+      "id": "harvest-adopt",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/harvest-adoption-state-desktop.png",
+      "scope": "Exact user-reviewed personal statement and formal Workspace version readback",
+      "result": "Root observed adopted state",
+      "limitations": [
+        "Personal contribution is self-reported, not independently certified."
+      ]
+    },
+    {
+      "id": "harvest-revoke",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/harvest-revoked-desktop.png",
+      "scope": "Opt-in watcher revocation",
+      "result": "Root observed revoked state",
+      "limitations": [
+        "No OS startup daemon or unattended post-restart source authorization claimed."
+      ]
+    },
+    {
+      "id": "forensics",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/forensics-public-source-desktop.png",
+      "scope": "Explicit public HTTPS, no-cookie read with timestamp/hash provenance",
+      "result": "Root observed public source disclosure",
+      "limitations": [
+        "Signals are anomalies/unknowns, not employer motive or ghost-job certainty."
+      ]
+    },
+    {
+      "id": "mcp-unconfigured",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/mcp-unconfigured-desktop.png",
+      "scope": "Unconfigured trusted MCP operator configuration",
+      "result": "Root observed unavailable UI",
+      "limitations": [
+        "Configured UI connect/call/resource positive is not established by this screenshot."
+      ]
+    },
+    {
+      "id": "privacy-draft",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/privacy-local-draft-desktop.png",
+      "scope": "Earlier local disclosure form/draft view",
+      "result": "Observed UI state",
+      "limitations": [
+        "Earlier form view only;final original-grant selection recorded separately in privacy-strict-source-ui. No real embedding or paid-cloud dispatch."
+      ]
+    },
+    {
+      "id": "replay",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/mobile-replay.png",
+      "scope": "Replay mobile UI plus durable timeline integration tests",
+      "result": "Observed UI with persistent-fork feature exercised in Root flow",
+      "limitations": [
+        "A UI screenshot is not by itself proof of restart lineage; scoped tests cover persistence."
+      ]
+    },
+    {
+      "id": "feedback",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/feedback-report-desktop.png",
+      "scope": "Version-bound self-reported outcome and timestamped claim notes",
+      "result": "Root observed analysis",
+      "limitations": []
+    },
+    {
+      "id": "rules-applied",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/rules-applied-desktop.png",
+      "scope": "Explicit sidecar evolution patch approval",
+      "result": "Root observed applied revision",
+      "limitations": [
+        "No causal hiring inference or silent global Skill update."
+      ]
+    },
+    {
+      "id": "rules-reverted",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/rules-reverted-desktop.png",
+      "scope": "Explicit rule export/revert",
+      "result": "Root observed reverted revision",
+      "limitations": [
+        "Automatic speech transcription is not configured or claimed."
+      ]
+    },
+    {
+      "id": "runtime-report",
+      "path": "/Users/feng/Documents/Private/简历/简历Agent/better-me-agent-os/docs/reports/career-os-runtime-configuration-2026-11-09.md",
+      "scope": "Trusted operator settings, renderer, privacy, capsule/loopback limits, desktop isolation and exact sync receipts",
+      "result": "Documented runtime interfaces and bounded verification",
+      "limitations": [
+        "Build/hash proofs are not native feature acceptance."
+      ]
+    },
+    {
+      "id": "final-sync",
+      "path": "/private/var/folders/hj/dq9kl7md40l2hhdwppqsbc_r0000gn/T/betterme-app-dist-backup-rkgBlf/sync-receipt.json",
+      "scope": "Final source-union delivery after Root full build",
+      "result": "SHA256 25592fd4c91c74687964d520387d28c1571d62ac49b01468fa41909a424f9e91",
+      "limitations": [
+        "Only Web/main/preload app resources; this action did not restart Host/services or native apps."
+      ]
+    },
+    {
+      "id": "native-architecture-restored",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/native-architecture-new-context-restored-ui.txt",
+      "scope": "Actual native graph save, revoke, fresh same-hash grant and explicit restore",
+      "result": "Root observed 2 nodes / 1 edge; SQLite moved to 620/250; disk-full simulated unknown; no old faults/Q&A restored",
+      "limitations": [
+        "Simulation/design is not implemented code."
+      ]
+    },
+    {
+      "id": "native-architecture-real-qa",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/native-architecture-real-qa-ui.txt",
+      "scope": "Actual native local Gemma question and answer review",
+      "result": "Root observed successful native Gemma Q&A/review with implementation evidence unknown",
+      "limitations": [
+        "Design is not implementation;Root independently viewed native-architecture-real-review.png."
+      ]
+    },
+    {
+      "id": "native-architecture-real-save",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/native-architecture-real-qa-readback-ui.txt",
+      "scope": "Actual native model Q&A/review formal save",
+      "result": "Root observed formal save and same-scope reload preserving1fault,2turns and review",
+      "limitations": [
+        "No independent implementation/authorship certificate."
+      ]
+    },
+    {
+      "id": "native-architecture-review-image",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/native-architecture-real-review.png",
+      "scope": "Actual native model review image",
+      "result": "Root independently viewed review with design distinguished from unknown implementation evidence",
+      "limitations": [
+        "Specific synthetic native graph,not all-native feature acceptance."
+      ]
+    },
+    {
+      "id": "mobile-production",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/production-mobile-smoke.json",
+      "scope": "Latest production Web at 390x844, nine tabs",
+      "result": "Root viewed all nine screenshots; document width and scrollWidth 390; alerts 0",
+      "limitations": [
+        "Geometry/tab smoke does not prove all populated feature positives."
+      ]
+    },
+    {
+      "id": "committee-strict-operation",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/committee-strict-public-operation.json",
+      "scope": "Final strict-transport real local Gemma committee; one explicitly authorized synthetic Lease claim",
+      "result": "completed;14 model calls;21 reads;149113ms;7 role records;0 issues;1 supported low-risk claim",
+      "sha256": "a1cf42a319ce48eee784841510589a2e797c4497692306eebc7634bc4efbce55",
+      "bytes": 22013,
+      "limitations": [
+        "Scope-limited evidence support, not independent authorship, deployment, impact or general model quality."
+      ]
+    },
+    {
+      "id": "committee-strict-ui",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/committee-strict-completed-ui.txt",
+      "scope": "Production completed report and separate personal-contribution publication review",
+      "result": "Root observed completed report and separately saved contribution review",
+      "sha256": "828f80641a27d3da182912863fee9565017a5190ae27dba280baaf5588dc970b",
+      "bytes": 5915,
+      "limitations": [
+        "Contribution remains self-reported; no automatic resume adoption or Fact promotion."
+      ]
+    },
+    {
+      "id": "committee-strict-image",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/committee-strict-completed.png",
+      "scope": "Actual completed production Web report image",
+      "result": "Root independently viewed",
+      "sha256": "0031fa56658648abf110105500ad4663418177ba44012014a13234bcc9384455",
+      "bytes": 154737,
+      "limitations": [
+        "Newest populated native committee still pending."
+      ]
+    },
+    {
+      "id": "badge-strict-operation",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/badge-strict-public-operation.json",
+      "scope": "Actual receipt-bound Vork and exact-range static JSON metric",
+      "result": "completed;transitions.json L1–1:3 declared entries;768x768 PNG;3719ms;hardware not_measured",
+      "sha256": "9f14278a3fbc1b479a61d091cdf485db1b5acb29081cbd64cc3852b33045ddc1",
+      "bytes": 1252947,
+      "limitations": [
+        "Not runtime complexity, executed coverage, work proof or hardware measurement;coverage/evolution unknown;0jobs/no fabricated offices."
+      ]
+    },
+    {
+      "id": "badge-strict-render",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/badge-strict-vork.png",
+      "scope": "Exact actual Vork PNG",
+      "result": "Root independently viewed;SHA c2819b7f755d276a3a5176ba39b59605bce8a1e35423c3f657c55d6d5dd68bc8",
+      "sha256": "c2819b7f755d276a3a5176ba39b59605bce8a1e35423c3f657c55d6d5dd68bc8",
+      "bytes": 926167,
+      "limitations": [
+        "No physical spectrum, measured GPU or personal-work certification."
+      ]
+    },
+    {
+      "id": "badge-strict-image",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/badge-strict-completed.png",
+      "scope": "Production completed badge UI",
+      "result": "Root independently viewed",
+      "sha256": "ed90716d611ca5fc3b88e04c567813364c6383b172bd8ea2cc70e6a9521bd07a",
+      "bytes": 262831,
+      "limitations": [
+        "Live verified-office job authority was not exercised;GPU fixture evidence is separate."
+      ]
+    },
+    {
+      "id": "privacy-strict-source-ui",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/privacy-strict-original-grant-ui.txt",
+      "scope": "Original completed-committee grant/range local-only source configuration",
+      "result": "Root observed lease.ts L1–25 revalidation;1local_only source+1explicit private term;embedding/cloud unavailable",
+      "sha256": "b61025158c4315440dadd4b0a8cd5f42c94ee953826152dc25276fdb59fa5e90",
+      "bytes": 1974,
+      "limitations": [
+        "No expanded source authority, source-to-summary/cloud route, installed embedding or paid-cloud call."
+      ]
+    },
+    {
+      "id": "privacy-strict-source-image",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/privacy-strict-original-grant.png",
+      "scope": "Actual production original-grant source configuration image",
+      "result": "Root independently viewed",
+      "sha256": "bd1eccd28bd3f8cd2a48277b98e14f387c4f3379bb2ba3f93e87c92433f41581",
+      "bytes": 162784,
+      "limitations": [
+        "One selected synthetic scope only;embedding remains unavailable."
+      ]
+    },
+    {
+      "id": "twin-strict-preview",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/twin-strict-preview-ui.txt",
+      "scope": "Selected-field immutable/redacted capsule preview",
+      "result": "Root observed true preview before explicit publish",
+      "sha256": "bc235077d049d5291d952c03b034ad146a3428170f2655330ef304ff713027f2",
+      "bytes": 1858,
+      "limitations": [
+        "Self-reported contribution,not independent authorship;raw source not published."
+      ]
+    },
+    {
+      "id": "twin-strict-public-qa",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/twin-strict-public-qa.json",
+      "scope": "Fresh0cookie recipient known/unknown/injection Q&A",
+      "result": "Known answer has exact published-field citations;unknown/injection return unknown with0citations;fragment cleared",
+      "sha256": "29329b9432eefe1b2f0c4498415c58cd19a4244b94cabed30a69e7554a56ff03",
+      "bytes": 1610,
+      "limitations": [
+        "Loopback only;not a zero-hallucination guarantee."
+      ]
+    },
+    {
+      "id": "twin-strict-access-lifecycle",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/twin-strict-access-lifecycle.json",
+      "scope": "Local QR decoding,recipient and access-revocation lifecycle",
+      "result": "232SVG;CoreImage decoded1QR matching SHA;0cookies;token revoke403;capsule revoke confirmed/issue disabled",
+      "sha256": "501ce1abc8f244880af7cfc4444a0dd2eed03d33760e4bf065888df7b2d76bd8",
+      "bytes": 1138,
+      "limitations": [
+        "No active token or QR stored in this evidence;downloaded copies cannot be recalled;not Internet deployment."
+      ]
+    },
+    {
+      "id": "twin-strict-recipient",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/twin-strict-recipient-ui.txt",
+      "scope": "Fresh recipient read-only capsule page",
+      "result": "Root observed selected published content without owner cookies",
+      "sha256": "c2234b89d7cd9f14af43ea9a83435352bcebb295bdaac4a73a02d2269d9cce41",
+      "bytes": 1584,
+      "limitations": [
+        "Opaque limited capability required;not Internet deployment."
+      ]
+    },
+    {
+      "id": "twin-strict-unknown-image",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/twin-strict-recipient-unknown.png",
+      "scope": "Actual recipient unknown-answer image",
+      "result": "Root independently viewed",
+      "sha256": "2389d56f46280bc6936598dc662964682601c037b8631f328b86a17c7fb15d49",
+      "bytes": 123497,
+      "limitations": [
+        "Specific unknown/injection requests only."
+      ]
+    },
+    {
+      "id": "twin-strict-revocation",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/twin-strict-revocation-ui.txt",
+      "scope": "Same recipient after token revoke",
+      "result": "Access denied403",
+      "sha256": "5c51bce8dd919c8a2474e01087dd230a446829d783c4baf77eb3020226e6364b",
+      "bytes": 1606,
+      "limitations": [
+        "Online access denial does not erase downloaded copies."
+      ]
+    },
+    {
+      "id": "twin-strict-revoked-image",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/twin-strict-recipient-revoked.png",
+      "scope": "Actual revoked-recipient image",
+      "result": "Root independently viewed",
+      "sha256": "71d0f817743c62906ebf6ba45bbc3e3711fe8c22771f521712092b718a5cd755",
+      "bytes": 120481,
+      "limitations": [
+        "Online revocation only."
+      ]
+    },
+    {
+      "id": "twin-strict-owner-revoked",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/twin-strict-owner-revoked-ui.txt",
+      "scope": "Owner-side capsule revoke",
+      "result": "Confirmed;issuance disabled",
+      "sha256": "405b3a7c294e4bf3daf8b30ef976e3534711d353d29e9df9d75c022b75174c72",
+      "bytes": 1497,
+      "limitations": [
+        "No recall of exported copies."
+      ]
+    },
+    {
+      "id": "strict-app-comparison",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/strict-transport-app-bundle-comparison-2026-11-09.json",
+      "scope": "Two stable read-only full SHA scans after latest strict-transport desktop build",
+      "result": "fresh union==App==installed pin;532files/137250837bytes/64dirs;0diff;no third refresh needed",
+      "sha256": "a11804b6391b70537dfbc3577348da3c7e75b6f5622dd1cf7078cd820930a0e5",
+      "bytes": 6093,
+      "limitations": [
+        "Byte identity is not Host runtime or native feature acceptance."
+      ]
+    },
+    {
+      "id": "desktop-build",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/desktop-build-strict-transport-final.log",
+      "scope": "Latest production Web+Desktop main/preload build",
+      "result": "Root serial session16665 exit0;Web19.60s/main4ms/preload2ms",
+      "limitations": [
+        "Build and byte identity are not full native acceptance."
+      ]
+    },
+    {
+      "id": "architecture-strict-source-ui",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/architecture-strict-source-qa-ui.txt",
+      "scope": "Production source-backed architecture import,question/review and formal save",
+      "result": "Original grant L1–25 fresh read;2inventory items explicitly confirmed;one service node carries source citation;actual local model question+review+save",
+      "sha256": "7f254efee5ac88184dcc198dbb6cd26a9503565e918628510c9fa4be1547488e",
+      "bytes": 4566,
+      "limitations": [
+        "Review verdict contradicted is practice feedback about insufficient cross-process design answer,not Fact promotion or independent personal attribution."
+      ]
+    },
+    {
+      "id": "architecture-strict-source-image",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/architecture-strict-source-review.png",
+      "scope": "Actual production source-backed architecture review image",
+      "result": "Root independently viewed",
+      "sha256": "63d186398f6cc357eca24d668106941e8f0a062e768023920916ea367b5c9163",
+      "bytes": 191105,
+      "limitations": [
+        "The critique is not independent implementation/authorship evidence;personal authorship remains unknown."
+      ]
+    },
+    {
+      "id": "privacy-strict-draft",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/privacy-strict-local-draft-ui.txt",
+      "scope": "Actual strict local Gemma disclosure-draft preparation",
+      "result": "2exact fields preserve synthetic Lease claim and not-deployed limit;1local_only source excluded from summary;0redactions/0repairs;cloud approval actually disabled",
+      "sha256": "57e457ab3114d41de8e581ae20d4c89f0feef19dd8b8be7af34bbb1af0ca7d11",
+      "bytes": 1642,
+      "limitations": [
+        "This is local draft preparation,not cloud dispatch or actual installed embedding;0repair is not a live repair positive."
+      ]
+    },
+    {
+      "id": "privacy-strict-revoked",
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/privacy-strict-local-revoked-ui.txt",
+      "scope": "Actual local privacy-operation revoke",
+      "result": "Root observed revoke confirmed",
+      "sha256": "0e6566a723e1fdb1d485d085535f7d9b3edb41c9c7b6d8905b338460f9573261",
+      "bytes": 1719,
+      "limitations": [
+        "No paid-cloud request or fallback was made."
+      ]
+    }
+  ],
+  "knownIntegrationHotspots": [
+    "apps/agent-host/src/server.ts",
+    "apps/agent-host/src/model.ts",
+    "apps/agent-host/src/native-tools/service.ts",
+    "apps/agent-host/src/tasks/",
+    "apps/web/src/App.tsx",
+    "apps/web/src/components/AgentWorkspace.tsx",
+    "apps/web/src/components/JdMatchDrawer.tsx",
+    "apps/web/src/lib/useDocumentPersistence.ts",
+    "packages/core/src/schema/resume.ts",
+    "packages/core/src/project/resume-projection.ts",
+    "packages/storage/src/document-history.ts",
+    "packages/core/src/index.ts",
+    "packages/agent-contracts/src/index.ts",
+    "package.json",
+    "pnpm-lock.yaml"
+  ],
+  "updatedAt": "2026-11-08T21:18:20.458Z",
+  "signoffStatus": "bounded-validation-finished;not-all-production-acceptance-passed",
+  "historicalGlobalGateResults": [
+    {
+      "gate": "preserve-concurrent-changes",
+      "status": "verified_with_scope_limits",
+      "note": "See bounded globalEvidence; build/testing is not feature signoff."
+    },
+    {
+      "gate": "synthetic-isolated-tests",
+      "status": "verified_with_limitations",
+      "note": "See bounded globalEvidence; build/testing is not feature signoff."
+    },
+    {
+      "gate": "owner-session-revocation",
+      "status": "verified_unit_integration",
+      "note": "See bounded globalEvidence; build/testing is not feature signoff."
+    },
+    {
+      "gate": "no-secret-or-private-data-output",
+      "status": "verified_mechanisms_not_absolute_guarantee",
+      "note": "See bounded globalEvidence; build/testing is not feature signoff."
+    },
+    {
+      "gate": "typecheck",
+      "status": "verified_latest_strict_transport_snapshot",
+      "note": "Root serial session16665 completed exit0 on frozen Host pins;not all-feature signoff.",
+      "evidence": [
+        "typecheck"
+      ]
+    },
+    {
+      "gate": "lint",
+      "status": "verified_latest_strict_transport_snapshot",
+      "note": "Root serial session16665 completed exit0 on frozen Host pins;not all-feature signoff.",
+      "evidence": [
+        "lint"
+      ]
+    },
+    {
+      "gate": "full-tests",
+      "status": "not_green_baseline_failures_retained",
+      "note": "4406tests/4332pass/54fail/20skip;global gate not passed. HEAD subset is not all54preexisting proof.",
+      "evidence": [
+        "full-suite",
+        "head-jd",
+        "desktop-baseline"
+      ]
+    },
+    {
+      "gate": "production-build",
+      "status": "verified_latest_strict_transport_snapshot",
+      "note": "Root serial session16665 completed exit0 on frozen Host pins;not all-feature signoff.",
+      "evidence": [
+        "build"
+      ]
+    },
+    {
+      "gate": "desktop-build",
+      "status": "verified_latest_strict_transport_snapshot",
+      "note": "Root serial session16665 completed exit0 on frozen Host pins;not all-feature signoff.",
+      "evidence": [
+        "desktop-build"
+      ]
+    },
+    {
+      "gate": "betterme-app-refresh",
+      "status": "verified_exact_union_latest_rebuild_byte_identical",
+      "note": "532files/137250837bytes/64dirs identical;no third copy needed/performed;backups preserved.",
+      "evidence": [
+        "final-sync",
+        "strict-app-comparison"
+      ]
+    },
+    {
+      "gate": "web-visual-functional-qa",
+      "status": "partial_acceptance",
+      "note": "Specific completed committee/badge/source-backed architecture Q&A+save/original-grant privacy local draft+revoke/capsule QR+Q&A+revoke positives recorded. Appended-link PDF and remaining native positives pending."
+    },
+    {
+      "gate": "electron-visual-functional-qa",
+      "status": "specific_architecture_and_smoke_partial_acceptance",
+      "note": "Recorded graph/model review/formal save+9tab smoke;latest native committee/remaining populated workflows pending."
+    },
+    {
+      "gate": "requirement-by-requirement-audit",
+      "status": "recorded_not_all_signed_off",
+      "note": "See bounded globalEvidence; build/testing is not feature signoff."
+    }
+  ],
+  "historicalDelivery": {
+    "status": "verified_derived_bytes_not_native_signoff",
+    "target": "/Users/feng/Documents/Private/简历/简历Agent/BetterMe.app/Contents/Resources/app/dist",
+    "productionInputs": {
+      "fileCount": 744,
+      "bytes": 122211382,
+      "sha256": "0d53bd62536df6293b68c0f40e1998677f265c88a039d3059ca750d7f0e20588"
+    },
+    "installed": {
+      "fileCount": 532,
+      "bytes": 137250837,
+      "manifestSha256": "4f87794b2a88a7f94bd2a49a40e6294e6264db9a136ca9bd7a7a18e757f7a8aa"
+    },
+    "keyFiles": [
+      {
+        "path": "index.html",
+        "bytes": 795,
+        "sha256": "93741411c2e047a3707f4a08a91750f6d8438c8dd332efa1a152502b86a7d6a3"
+      },
+      {
+        "path": "main/index.cjs",
+        "bytes": 29007,
+        "sha256": "ae122804c786110f69392870a4527da504ea1e713fc551a264970aa9785b1a20"
+      },
+      {
+        "path": "preload/index.cjs",
+        "bytes": 1675,
+        "sha256": "70cb32be239ff1f00c102248b1ea8cf9746365b76250c8246a41ea1c001c256e"
+      }
+    ],
+    "receipt": "/private/var/folders/hj/dq9kl7md40l2hhdwppqsbc_r0000gn/T/betterme-app-dist-backup-rkgBlf/sync-receipt.json",
+    "receiptSha256": "25592fd4c91c74687964d520387d28c1571d62ac49b01468fa41909a424f9e91",
+    "originalBackup": "/private/var/folders/hj/dq9kl7md40l2hhdwppqsbc_r0000gn/T/betterme-app-dist-backup-Zw25FY/previous-dist",
+    "firstInstalledBackup": "/private/var/folders/hj/dq9kl7md40l2hhdwppqsbc_r0000gn/T/betterme-app-dist-backup-rkgBlf/previous-dist",
+    "firstReceipt": "/private/var/folders/hj/dq9kl7md40l2hhdwppqsbc_r0000gn/T/betterme-app-dist-backup-Zw25FY/sync-receipt.json",
+    "infoAndPackageUnchanged": true,
+    "realAccountUserDataAndRunningServicesNotMutatedBySync": true,
+    "processStartStopOrRestartBySync": false,
+    "latestStrictTransportValidation": {
+      "status": "verified_with_limitations",
+      "sourcePins": [
+        {
+          "path": "apps/agent-host/src/privacy/local-ollama.ts",
+          "sha256": "10d2a85a2541ead12bf685e1140d06f871d9f3bfa6681b159e79e9705c749694"
+        },
+        {
+          "path": "apps/agent-host/src/career-studio/committee-model.ts",
+          "sha256": "bab49fa41f3040bd5183db4f4ef5d9fb2c22470cbf2166cec023c91d6fc98de5"
+        }
+      ],
+      "rootSerialSession": 16665,
+      "typecheck": "13/13 exit0",
+      "lint": "exit0",
+      "build": "9/9 exit0",
+      "desktopBuild": "exit0",
+      "targeted": "597pass/0fail/4skip",
+      "fullWorkspace": "4332pass/54fail/20skip;notgreen",
+      "realModelWeb": "completed committee14calls21reads149113ms;snapshot-limited,not authenticity certification",
+      "remaining": [
+        "Latest populated native committee pending;fresh native profile launched/login/claim setup but model not started at this snapshot.",
+        "Actual final PDF containing capsule link/QR and final-file link verification remain pending."
+      ]
+    },
+    "latestBundleRecheck": {
+      "path": "/Users/feng/.codex/visualizations/2026/11/08/01a1bc03-ba43-72d1-9a16-1e39203205da/career-os-acceptance/strict-transport-app-bundle-comparison-2026-11-09.json",
+      "sha256": "a11804b6391b70537dfbc3577348da3c7e75b6f5622dd1cf7078cd820930a0e5",
+      "status": "byte_identical_no_third_refresh_needed",
+      "files": 532,
+      "bytes": 137250837,
+      "directories": 64,
+      "manifestSha256": "4f87794b2a88a7f94bd2a49a40e6294e6264db9a136ca9bd7a7a18e757f7a8aa",
+      "twoScansStable": true,
+      "addedFiles": 0,
+      "removedFiles": 0,
+      "changedFiles": 0,
+      "addedDirectories": 0,
+      "removedDirectories": 0,
+      "copyPerformed": false
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "BetterMe 个人成长系统 · 目标架构",
+    "quality_profile": "showcase",
+    "legend": {"mode":"auto","entries":{"frontend":{"label":"用户入口"},"backend":{"label":"核心模块"},"external":{"label":"可替换执行器"},"database":{"label":"有归属的记录"},"security":{"label":"本人决定"}}}
+  },
+  "layout": {"mode":"grid","origin":[44,75],"cols":4,"cellW":205,"cellH":76,"gapX":112,"gapY":118},
+  "components": [
+    {"id":"goal-space","type":"frontend","label":"目标工作区","sublabel":"同一目标 · 跨领域行动","col":0,"row":0,"size":[205,76]},
+    {"id":"task-kernel","type":"backend","label":"统一任务内核","sublabel":"归属 · 预算 · 恢复","col":1,"row":0,"size":[205,76]},
+    {"id":"capability-router","type":"backend","label":"能力路由","sublabel":"权限 · 语言 · 处理位置","col":2,"row":0,"size":[205,76]},
+    {"id":"executors","type":"external","label":"执行适配器","sublabel":"模型 · 语音 · 文档 · 教学","col":3,"row":0,"size":[205,76]},
+    {"id":"root-ledger","type":"database","label":"任务根账","sublabel":"共享额度 · 不继承授权","col":1,"row":1,"size":[205,76]},
+    {"id":"purpose-grant","type":"security","label":"用途授权","sublabel":"只限本次资料和接收方","col":2,"row":1,"size":[205,76]},
+    {"id":"candidate-record","type":"database","label":"产物与验证回执","sublabel":"保留来源、范围及未知项","col":3,"row":2,"size":[205,76]},
+    {"id":"review","type":"security","label":"本人审阅","sublabel":"可采纳、纠正或拒绝","col":2,"row":2,"size":[205,76]},
+    {"id":"domain-record","type":"database","label":"领域权威记录","sublabel":"带版本的记录及业务回执","col":1,"row":2,"size":[205,76]},
+    {"id":"insight","type":"backend","label":"成长复盘","sublabel":"只读进展 · 提出下一步","col":0,"row":2,"size":[205,76]}
+  ],
+  "connections": [
+    {"id":"request-work","from":"goal-space","to":"task-kernel","label":"发起任务","variant":"emphasis","fromSide":"right","toSide":"left"},
+    {"id":"select-operation","from":"task-kernel","to":"capability-router","label":"限定用途","fromSide":"right","toSide":"left"},
+    {"id":"ledger","from":"task-kernel","to":"root-ledger","fromSide":"bottom","toSide":"top"},
+    {"id":"require-grant","from":"purpose-grant","to":"capability-router","fromSide":"top","toSide":"bottom","variant":"security"},
+    {"id":"dispatch","from":"capability-router","to":"executors","label":"授权调用","fromSide":"right","toSide":"left"},
+    {"id":"receive-candidate","from":"executors","to":"candidate-record","label":"由宿主接收并校验","fromSide":"bottom","toSide":"top","labelAt":[1098,165]},
+    {"id":"read-candidate","from":"candidate-record","to":"review","label":"展示候选","fromSide":"left","toSide":"right"},
+    {"id":"adopt","from":"review","to":"domain-record","label":"确认变更","variant":"security","fromSide":"left","toSide":"right"},
+    {"id":"read-observations","from":"domain-record","to":"insight","label":"读取证据","fromSide":"left","toSide":"right"},
+    {"id":"propose","from":"insight","to":"goal-space","label":"提议修订目标","variant":"dashed","fromSide":"top","toSide":"bottom"}
+  ],
+  "cards": [
+    {"dot":"cyan","title":"六个领域共享一个目标","items":["目标、知识、学习、项目、职业、复盘各管自己的记录。"]},
+    {"dot":"emerald","title":"执行和采纳是两件事","items":["任务结束可以留下产物，不会自动新增职业事实。"]},
+    {"dot":"amber","title":"人的成长与工具晋升分开","items":["练习说明这次表现；启用工具另需独立验证和授权。"]}
+  ]
+}
