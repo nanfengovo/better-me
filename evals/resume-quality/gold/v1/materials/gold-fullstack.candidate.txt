@@ -1,0 +1,101 @@
+[freelance-action-0; freelance; self_reported]
+Self-employed Web Developer & Designer. Designing layouts for mobile, tablet, and desktop devices.
+
+[freelance-action-1; freelance; self_reported]
+Self-employed Web Developer & Designer. Creating mockups for web pages and applications.
+
+[freelance-action-2; freelance; self_reported]
+Self-employed Web Developer & Designer. Creating Photoshop Documents (PSDs) for the visual layout of web pages.
+
+[freelance-action-3; freelance; self_reported]
+Self-employed Web Developer & Designer. Editing images and designing graphics, icons and logos.
+
+[freelance-action-4; freelance; self_reported]
+Self-employed Web Developer & Designer. Using HTML, CSS and JavaScript to bring concepts to life.
+
+[freelance-action-5; freelance; self_reported]
+Self-employed Web Developer & Designer. Optimizing the user experience.
+
+[freelance-action-6; freelance; self_reported]
+Self-employed Web Developer & Designer. Developing and maintaining the user interface.
+
+[freelance-action-7; freelance; self_reported]
+Self-employed Web Developer & Designer. Implementing design on mobile websites.
+
+[freelance-action-8; freelance; self_reported]
+Self-employed Web Developer & Designer. Creating tools that improve site interaction regardless of the browser.
+
+[freelance-action-9; freelance; self_reported]
+Self-employed Web Developer & Designer. Managing software workflow.
+
+[freelance-action-10; freelance; self_reported]
+Self-employed Web Developer & Designer. Fixing bugs and testing for usability.
+
+[freelance-action-11; freelance; self_reported]
+Self-employed Web Developer & Designer. Designing stable, reliable and effective databases.
+
+[freelance-action-12; freelance; self_reported]
+Self-employed Web Developer & Designer. Modifing databases according to requests and perform tests.
+
+[freelance-action-13; freelance; self_reported]
+Self-employed Web Developer & Designer. Solving database usage issues and malfunctions.
+
+[freelance-action-14; freelance; self_reported]
+Self-employed Web Developer & Designer. Writing clean code to develop functional web applications.
+
+[freelance-action-15; freelance; self_reported]
+Self-employed Web Developer & Designer. Troubleshoot and debug applications.
+
+[freelance-action-16; freelance; self_reported]
+Self-employed Web Developer & Designer. Creating functional APIs.
+
+[freelance-action-17; freelance; self_reported]
+Self-employed Web Developer & Designer. Monitoring the status of servers.
+
+[freelance-action-18; freelance; self_reported]
+Self-employed Web Developer & Designer. Building reusable code and libraries for future use.
+
+[freelance-action-19; freelance; self_reported]
+Self-employed Web Developer & Designer. Ensuring high-performance and availability, and managing all technical aspects of the CMS.
+
+[freelance-action-20; freelance; self_reported]
+Self-employed Web Developer & Designer. Helping formulate an effective, responsive design and turning it into a working theme and plugin.
+
+[freelance-action-21; freelance; self_reported]
+Self-employed Web Developer & Designer. Designing and developing WordPress websites.
+
+[freelance-action-22; freelance; self_reported]
+Self-employed Web Developer & Designer. Working with debugging tools like Firebug, Chrome inspector, etc.
+
+[freelance-action-23; freelance; self_reported]
+Self-employed Web Developer & Designer. Following SEO best practices.
+
+[project-0; portfolio; self_reported]
+Tourism project A - Tourism Website. This project contains a complex dynamic responsive website with a complete reservation system in one city, where users can contact directly the owners of properties such as hotels, apartments, villas, rooms, restaurants, boats and car rentals, similar to the website booking.com. With excellent SEO, all properties appear at the top of Google searches.
+
+[project-1; portfolio; self_reported]
+A multilingual website created for an Client I. This project contains a responsive multilingual website created in English, Korean, Poland and Croatian language. It's created using WordPress with Elementor and plugins such as Polylang, Contact Form 7, Multilingual Contact Form 7 with Polylang, Yoast SEO (helps website perform better in search engines like Google) and WP-Optimize.
+
+[project-2; fictional_practice; self_reported]
+WordPress site for the fictional company Practice company A. This project is created using Hello Elementor WordPress theme and the entire project was done using the Elementor plugin. So this project contains five pages with a consistent design across all pages. Also, there are implemented various widgets, such as a slideshow with background images on the home page, a carousel gallery, and some other widgets.
+
+[project-3; portfolio; self_reported]
+SQL Quizzer. This project contains a dynamic responsive SQL quizzer made with PHP MySQL, HTML, and CSS. So, quizz contain some questions by w3school where user need to choose correct answer. There is also the possibility of adding a question, and after that that question appears with the other questions in the quizz, and is instantly inserted into the database.
+
+[project-4; portfolio; self_reported]
+Shoutbox application. This project contains a dynamic responsive Shoutbox built using PHP, MySQL, jQuery, AJAX, HTML, and CSS. So, when the user sends a name and a message, that information appears at the top of the Shoutbox along with the time the message was sent. With the help of AJAX, it appears instantly on the page, without reloading the page.
+
+[education-0; education; self_reported]
+Professional education, Web Design - Training provider B Web Design Certificate, 2018 1 year full-time program covering Drawing, Adobe Photoshop, History of Design, Theory of Design, Copyrights, Adobe Illustrator,Web Design Theory, HTML and CSS, Dreamweaver, JavaScript, Dynamic Websites – WordPress, Search Engine Optimization, Internet Marketing, Adobe Animate CC, and Portfolio
+
+[education-1; education; self_reported]
+Professional education, PHP Development - Training provider B PHP Web Development Certificate, 2017 1 year full-time program covering HTML and CSS, Core PHP Programming, Adobe Dreamweaver CC, Building Web Applications – Advanced PHP Programming, Core JavaScript Programming, MySQL Programming and Administration, Advanced JavaScript Programming and Ajax, XML/PHP Programming, Apache Web Server Administration, Advanced WordPress, Internet Marketing, Web Cryptography and Security – TLS/SSL, and Software Engineering
+
+[education-2; education; self_reported]
+School A Graduated Technician of Tourism Units and Hospitality Businesses (Hotel Management) with honors, 2002-2006
+
+[profile; summary; self_reported]
+I've been in the tech industry for over 7 years and have a diverse range of experiences from working as a full-stack developer, WordPress developer, and web designer. I enjoy coding and the challenge of learning something new every day to refresh and expand my knowledge.
+
+[professional-skills; skill_list; self_reported]
+Created so many projects using following skillset: HTML, CSS, JavaScript, jQuery, JSON, AJAX, PHP, MySQL, SEO, WordPress, Joomla, Photoshop, Illustrator, Animate

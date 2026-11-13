@@ -1,0 +1,255 @@
+[
+  {
+    "id": "work-0",
+    "title": "Senior fullstack developer at Employer D .",
+    "organization": "Employer 1",
+    "dates": "Since 2024",
+    "kind": "employment",
+    "originals": [
+      {
+        "start": 31,
+        "end": 155,
+        "startLine": 3,
+        "endLine": 5,
+        "sha256": "2cfcb3b009acda4d4d419e0255ceaa2cbddd5ea30fe6f3f926a3cb6d3dd48728"
+      },
+      {
+        "start": 9,
+        "end": 30,
+        "startLine": 2,
+        "endLine": 2,
+        "sha256": "445505177f19904402b36761a595c3bc65950930511557277ee9f249a51bef12"
+      }
+    ]
+  },
+  {
+    "id": "work-1",
+    "title": "Senior developer for the Web agency Employer E .",
+    "organization": "Employer 2",
+    "dates": "2023 - 2024",
+    "kind": "employment",
+    "originals": [
+      {
+        "start": 994,
+        "end": 1111,
+        "startLine": 30,
+        "endLine": 32,
+        "sha256": "f94aa98160b9251a4299a8c0ff8189e0a93b3a56c9cf8ca7433975f85d4c91ed"
+      },
+      {
+        "start": 971,
+        "end": 993,
+        "startLine": 29,
+        "endLine": 29,
+        "sha256": "50916aedfea973b4da556caa7f83f3f7e7780ca85e41d6aca7058f75817aa8d2"
+      }
+    ]
+  },
+  {
+    "id": "work-2",
+    "title": "Senior developer for Employer F (as a contractor).",
+    "organization": "Employer 3",
+    "dates": "2022",
+    "kind": "employment",
+    "originals": [
+      {
+        "start": 1757,
+        "end": 1882,
+        "startLine": 52,
+        "endLine": 54,
+        "sha256": "39f4fa0748bf6e76e13e3e1477b314a0613de9b1fc4bfe5f8b1962bf217d82d1"
+      },
+      {
+        "start": 1741,
+        "end": 1756,
+        "startLine": 51,
+        "endLine": 51,
+        "sha256": "aaa13702c4470f0ca2b6af2993a02c404899e5c8ea0bb2a843330d15c30ae200"
+      }
+    ]
+  },
+  {
+    "id": "work-3",
+    "title": "Lead developer for Employer G .",
+    "organization": "Employer 4",
+    "dates": "2018 - 2021",
+    "kind": "employment",
+    "originals": [
+      {
+        "start": 2454,
+        "end": 2562,
+        "startLine": 71,
+        "endLine": 73,
+        "sha256": "c2d55ae5109ab9cff24253b470ec6e074bb7ef08c4eec1965924b6928fe43763"
+      },
+      {
+        "start": 2431,
+        "end": 2453,
+        "startLine": 70,
+        "endLine": 70,
+        "sha256": "71898bf8f6f4122ecec4ef5a0d773e22d5e95da9bf806377f0ed6f4b14e476be"
+      }
+    ]
+  },
+  {
+    "id": "work-4",
+    "title": "Lead PHP APIs developer for Employer H .",
+    "organization": "Employer 5",
+    "dates": "2017",
+    "kind": "employment",
+    "originals": [
+      {
+        "start": 3385,
+        "end": 3516,
+        "startLine": 99,
+        "endLine": 100,
+        "sha256": "1b95d93d97ae80e63f6499e4a695a6785a18dde2d5e9abe355a7f92ced81b26f"
+      },
+      {
+        "start": 3369,
+        "end": 3384,
+        "startLine": 98,
+        "endLine": 98,
+        "sha256": "bbef82f0e1261a2c7c505d35ea620abfb7585253bb5d950a881418143c3bc549"
+      }
+    ]
+  },
+  {
+    "id": "work-5",
+    "title": "Forward deployed engineer at Employer I .",
+    "organization": "Employer 6",
+    "dates": "2014 - 2016",
+    "kind": "employment",
+    "originals": [
+      {
+        "start": 3975,
+        "end": 4083,
+        "startLine": 115,
+        "endLine": 117,
+        "sha256": "7581a9ded161842cd0af8ec058a779e303b077cc97a41c0e32416a8b03b59fe4"
+      },
+      {
+        "start": 3952,
+        "end": 3974,
+        "startLine": 114,
+        "endLine": 114,
+        "sha256": "576c86000078cd45bff48f0ff50e6b1cd362b6443c37f197e0d484f31f6bc2fa"
+      }
+    ]
+  },
+  {
+    "id": "work-6",
+    "title": "PHP / JavaScript / Ruby / Flash freelance developer , working with companies such as Client C , Client D , Client E ...",
+    "organization": "Employer 7",
+    "dates": "2008 - 2014",
+    "kind": "freelance",
+    "originals": [
+      {
+        "start": 4576,
+        "end": 4838,
+        "startLine": 134,
+        "endLine": 139,
+        "sha256": "e1afae881c94a9cb8998fbddf7bae4a146534c57b1cb320ff19281fc837db498"
+      },
+      {
+        "start": 4553,
+        "end": 4575,
+        "startLine": 133,
+        "endLine": 133,
+        "sha256": "6a7d1118c1c4aaf9972708d2713687f92f793c55baf685c4f7c95a081ba35d18"
+      }
+    ]
+  },
+  {
+    "id": "work-7",
+    "title": "Flash Lead Developer at Employer J, in Montréal.",
+    "organization": "Employer 8",
+    "dates": "2009",
+    "kind": "employment",
+    "originals": [
+      {
+        "start": 5254,
+        "end": 5331,
+        "startLine": 153,
+        "endLine": 154,
+        "sha256": "aacfdc04dcf377de40de8cc47c7e21e2d61b57cd61fc3bff28fd57db9ebbd72f"
+      },
+      {
+        "start": 5238,
+        "end": 5253,
+        "startLine": 152,
+        "endLine": 152,
+        "sha256": "f37dc8942be2ef66a9d7fd6169b25f0cf04e7a79f30209860c927bbfbcd28bde"
+      }
+    ]
+  },
+  {
+    "id": "work-8",
+    "title": "Flash / PHP Developer for the Web agency \"Employer K\".",
+    "organization": "Employer 9",
+    "dates": "2006 - 2007",
+    "kind": "employment",
+    "originals": [
+      {
+        "start": 5393,
+        "end": 5476,
+        "startLine": 159,
+        "endLine": 160,
+        "sha256": "69657c7513f1c905c3592c5e112e3a4f0409691fa388bb7c3b138de27fbb82ab"
+      },
+      {
+        "start": 5370,
+        "end": 5392,
+        "startLine": 158,
+        "endLine": 158,
+        "sha256": "c6166e0c685173c7e94dc134a30dffa2c829e1a86b4e645f1514e9f3d87be4a1"
+      }
+    ]
+  },
+  {
+    "id": "work-9",
+    "title": "Flash / PHP Developer for the Web agency \"Employer L\".",
+    "organization": "Employer 10",
+    "dates": "2005",
+    "kind": "employment",
+    "originals": [
+      {
+        "start": 5550,
+        "end": 5627,
+        "startLine": 166,
+        "endLine": 167,
+        "sha256": "4aaeefbcb4b5c25939886b87f951a726f0615e8d2defad39c3069ecb9e5ec5f0"
+      },
+      {
+        "start": 5534,
+        "end": 5549,
+        "startLine": 165,
+        "endLine": 165,
+        "sha256": "b7f3b8d25847863c28624e6ca4379baf3ce9692dc7592130e9758ec12c883d53"
+      }
+    ]
+  },
+  {
+    "id": "work-10",
+    "title": "Web Developer for the Web agency \"Employer M\".",
+    "organization": "Employer 11",
+    "dates": "2000 - 2004",
+    "kind": "employment",
+    "originals": [
+      {
+        "start": 5708,
+        "end": 5782,
+        "startLine": 173,
+        "endLine": 174,
+        "sha256": "ede2333466a4a32dfd95ee204d23e77ea14f32257cc997f979e6ddf2d1da4272"
+      },
+      {
+        "start": 5685,
+        "end": 5707,
+        "startLine": 172,
+        "endLine": 172,
+        "sha256": "78931af6a38877355ca3ea6977e444838101ba9ef2ad7775e201aba49995d261"
+      }
+    ]
+  }
+]

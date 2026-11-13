@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 1,
+  "caseId": "gold-sre",
+  "caseSha256": "bef0968230a558d1c481649ec0da3983f54fe65ac0ba909ae3c13ab53111cebc",
+  "origin": {
+    "kind": "extractive_baseline",
+    "label": "Deterministic full-unit extraction with source-month dates; not a model or human-authored resume"
+  },
+  "model": {
+    "provider": "none",
+    "id": "source-extraction",
+    "revision": "gold-source-review-v1",
+    "runtimeId": "offline-no-runtime"
+  },
+  "protocolVersion": "gold-source-review-v1",
+  "budget": {
+    "maxModelCalls": 0,
+    "maxToolCalls": 0,
+    "maxActiveMs": 0
+  },
+  "observed": {
+    "modelCalls": 0,
+    "toolCalls": 0,
+    "activeMs": 0
+  },
+  "factBase": {
+    "schemaVersion": 1,
+    "updatedAt": "2026-11-12T00:00:00.000Z",
+    "profile": {
+      "displayName": {
+        "zh": "Candidate - sre",
+        "en": "Candidate - sre"
+      },
+      "links": [],
+      "traits": [],
+      "targetRoles": [],
+      "constraints": []
+    },
+    "experiences": [
+      {
+        "id": "work-0",
+        "type": "work",
+        "org": {
+          "zh": "Employer A"
+        },
+        "title": {
+          "zh": "System / DevOps Engineer"
+        },
+        "start": "2025-06",
+        "end": null,
+        "techStack": [],
+        "claims": [
+          {
+            "id": "work-0-action-2",
+            "kind": "action",
+            "text": {
+              "zh": "System / DevOps Engineer Maintained AWS and on-premise infrastructure within the regional engineering team using Git-based infrastructure as code workflows with Terraform, Terragrunt, and Atlantis."
+            },
+            "tags": []
+          },
+          {
+            "id": "work-0-action-4",
+            "kind": "action",
+            "text": {
+              "zh": "System / DevOps Engineer Maintained system initialization automation with Ansible for Linux configuration, Java runtime, Nginx, RabbitMQ, and NFS setup."
+            },
+            "tags": []
+          },
+          {
+            "id": "work-0-action-7",
+            "kind": "action",
+            "text": {
+              "zh": "System / DevOps Engineer Analyzed system resource utilization and performance metrics through Prometheus and Grafana to identify infrastructure bottlenecks and propose optimization solutions."
+            },
+            "tags": []
+          }
+        ]
+      },
+      {
+        "id": "work-1",
+        "type": "work",
+        "org": {
+          "zh": "Employer B"
+        },
+        "title": {
+          "zh": "System / SRE / DevOps Engineering"
+        },
+        "start": "2023-11",
+        "end": "2024-12",
+        "techStack": [],
+        "claims": [
+          {
+            "id": "work-1-action-1",
+            "kind": "action",
+            "text": {
+              "zh": "System / Site Reliability Engineering (SRE) / DevOps Engineering Participated in on-call rotations about one week per month and troubleshot production issues with team members."
+            },
+            "tags": []
+          },
+          {
+            "id": "work-1-action-3",
+            "kind": "action",
+            "text": {
+              "zh": "System / Site Reliability Engineering (SRE) / DevOps Engineering Administered Kubernetes clusters on AWS and on-premise environments."
+            },
+            "tags": []
+          }
+        ]
+      },
+      {
+        "id": "work-2",
+        "type": "work",
+        "org": {
+          "zh": "Employer C"
+        },
+        "title": {
+          "zh": "SRE / DevOps / Cloud Engineering"
+        },
+        "start": "2021-11",
+        "end": "2023-04",
+        "techStack": [],
+        "claims": [
+          {
+            "id": "work-2-action-2",
+            "kind": "action",
+            "text": {
+              "zh": "Site Reliability Engineering (SRE) / DevOps / Cloud Engineering Developed a Python automation project for web monitoring."
+            },
+            "tags": []
+          }
+        ]
+      }
+    ]
+  },
+  "view": {
+    "id": "gold-sre-extractive",
+    "name": "Deterministic extractive baseline; not a model",
+    "locale": "en",
+    "templateId": "zh-classic",
+    "includedExperienceIds": [],
+    "includedClaimIds": [],
+    "sectionOrder": [
+      "summary",
+      "experience",
+      "projects",
+      "skills",
+      "education"
+    ],
+    "layout": {
+      "bodyFontSize": 10,
+      "lineHeight": 1.6,
+      "pageMargin": 16
+    },
+    "updatedAt": "2026-11-12T00:00:00.000Z"
+  },
+  "locale": "en",
+  "citations": [
+    {
+      "claimId": "work-0-action-2",
+      "evidenceId": "work-0-action-2",
+      "sourceSha256": "d46fbd3237d51295c4522833618df2b0e6213b63e6fa78dd6c65976ef469ea3d",
+      "original": {
+        "start": 0,
+        "end": 197,
+        "quote": "System / DevOps Engineer Maintained AWS and on-premise infrastructure within the regional engineering team using Git-based infrastructure as code workflows with Terraform, Terragrunt, and Atlantis."
+      }
+    },
+    {
+      "claimId": "work-0-action-4",
+      "evidenceId": "work-0-action-4",
+      "sourceSha256": "67e26e32937bc847234fd9975b976ec898fad760bd33838186bdc5b71d5639e0",
+      "original": {
+        "start": 0,
+        "end": 152,
+        "quote": "System / DevOps Engineer Maintained system initialization automation with Ansible for Linux configuration, Java runtime, Nginx, RabbitMQ, and NFS setup."
+      }
+    },
+    {
+      "claimId": "work-0-action-7",
+      "evidenceId": "work-0-action-7",
+      "sourceSha256": "6f70b1b1581264270fff1610ec85d09e88c6f2c4c864818074d3a958a9f5c4ca",
+      "original": {
+        "start": 0,
+        "end": 191,
+        "quote": "System / DevOps Engineer Analyzed system resource utilization and performance metrics through Prometheus and Grafana to identify infrastructure bottlenecks and propose optimization solutions."
+      }
+    },
+    {
+      "claimId": "work-1-action-1",
+      "evidenceId": "work-1-action-1",
+      "sourceSha256": "93928591e9a53fe873e2d923234e565ef9dc088b656128f3222e3fe4e9ad5b73",
+      "original": {
+        "start": 0,
+        "end": 176,
+        "quote": "System / Site Reliability Engineering (SRE) / DevOps Engineering Participated in on-call rotations about one week per month and troubleshot production issues with team members."
+      }
+    },
+    {
+      "claimId": "work-1-action-3",
+      "evidenceId": "work-1-action-3",
+      "sourceSha256": "6e532bb0d6e1f11d34a81fa551442db796ab094becd288f9d025b7302b62fe4a",
+      "original": {
+        "start": 0,
+        "end": 133,
+        "quote": "System / Site Reliability Engineering (SRE) / DevOps Engineering Administered Kubernetes clusters on AWS and on-premise environments."
+      }
+    },
+    {
+      "claimId": "work-2-action-2",
+      "evidenceId": "work-2-action-2",
+      "sourceSha256": "aabf1f667a5049081f02736587a5da39f55d43020760d2530d658aa4b1c57e51",
+      "original": {
+        "start": 0,
+        "end": 121,
+        "quote": "Site Reliability Engineering (SRE) / DevOps / Cloud Engineering Developed a Python automation project for web monitoring."
+      }
+    }
+  ]
+}

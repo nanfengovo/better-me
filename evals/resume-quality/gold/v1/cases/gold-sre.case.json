@@ -1,0 +1,2834 @@
+{
+  "schemaVersion": 1,
+  "id": "gold-sre",
+  "dataKind": "real_anonymized",
+  "role": "Site Reliability Engineer - common non-senior scope",
+  "job": {
+    "text": "## As an SRE you will\n\n- Be on an on-call rotation to respond to incidents that impact GitLab.com availability, and provide support for service engineers with customer incidents.\n- Use your on-call shift to prevent incidents from ever happening.\n- Run our infrastructure with Chef, Ansible, Terraform, GitLab CI/CD, and Kubernetes.\n- Build monitoring that alerts on symptoms rather than on outages.\n- [Document every action](https://gitlab.com/gitlab-com/runbooks) so your findings turn into repeatable actions and then into automation.\n- Use the GitLab product to run GitLab.com as a first resort and improve the product as much as possible\n- Improve operational processes (such as deployments and upgrades) to make them as boring as possible.\n- Design, build and maintain core infrastructure that enables GitLab scaling to support hundreds of thousands of concurrent users.\n- Debug production issues across services and levels of the stack.\n- Plan the growth of GitLab's infrastructure.\n\n## You may be a fit to this role if you have some of these inclinations\n\n- Think about systems: edge cases, failure modes, behaviors, specific implementations.\n- Know your way around Linux and the Unix Shell.\n- Know what is the use of configuration management systems like Chef and Ansible.\n- Have strong programming skills: Shell, and Ruby and/or Go.\n- Have an urge to collaborate and communicate asynchronously.\n- Have an urge to document all the things so you don't need to learn the same thing twice.\n- Have an enthusiastic, go-for-it attitude. When you see something broken, you can't help but fix it.\n- Have an urge for delivering quickly and effectively, and iterating fast.\n- Share our values, and work in accordance with those values.\n- Have experience with Nginx, HAProxy, Docker, Kubernetes, Terraform, or similar technologies\n- Ability to use GitLab\n\n",
+    "sha256": "fd3b8f4c328c475a2a119ceeca078d09dbcf3979781f72db205fe503f4239a79",
+    "provenance": {
+      "url": "https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/f7efde2339c3ff060bb972805bf22692c534893d/content/job-description-library/engineering/infrastructure/site-reliability-engineer.md",
+      "revision": "f7efde2339c3ff060bb972805bf22692c534893d",
+      "license": "CC-BY-SA-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "retrievedAt": "2026-11-12T00:00:00.000Z",
+      "originalSha256": "e0c076c2b54ea164aa8bd3fa58e701622b8ae4f511d7c6c75dbac8a7bff9b1ba",
+      "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+    }
+  },
+  "evidence": [
+    {
+      "id": "summary",
+      "text": "System / DevOps / SRE engineer with experience across Linux operations, cloud and on-premise infrastructure, Kubernetes, CI/CD, observability, and infrastructure automation.",
+      "sha256": "a13227dc0ec31564f6486b273a9e7308080fb0e4fe0bc9cbbe95528e46416097",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-action-0",
+      "text": "System / DevOps Engineer Worked in a Linux terminal environment.",
+      "sha256": "6ebe43d69d2d5a7e14e4d4d0632ce1d9a00456f815304ddf5846359fe8d24b7a",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-action-1",
+      "text": "System / DevOps Engineer Built and maintained a Rocky Linux based Amazon Machine Image for EC2 using Packer.",
+      "sha256": "f61263ba158a7571ce8b5f52a90fb4db8acac0f97cbf83dd011dfafa5e66e566",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-action-2",
+      "text": "System / DevOps Engineer Maintained AWS and on-premise infrastructure within the regional engineering team using Git-based infrastructure as code workflows with Terraform, Terragrunt, and Atlantis.",
+      "sha256": "d46fbd3237d51295c4522833618df2b0e6213b63e6fa78dd6c65976ef469ea3d",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "on-premise infrastructure"
+        ],
+        "task": [
+          "infrastructure as code workflows"
+        ],
+        "action": [
+          "Maintained AWS"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-action-3",
+      "text": "System / DevOps Engineer Assisted in reviewing and validating existing technical documentation and infrastructure processes, identifying inconsistencies across regions.",
+      "sha256": "2ad918f72c3492da4e9da351f5da37ec14c2a950733cd931cbb5acc8ca92fc48",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-action-4",
+      "text": "System / DevOps Engineer Maintained system initialization automation with Ansible for Linux configuration, Java runtime, Nginx, RabbitMQ, and NFS setup.",
+      "sha256": "67e26e32937bc847234fd9975b976ec898fad760bd33838186bdc5b71d5639e0",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [
+          "Linux configuration"
+        ],
+        "action": [
+          "Maintained system initialization automation"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-action-5",
+      "text": "System / DevOps Engineer Built and maintained Jenkins CI/CD pipelines using Groovy scripts for regional engineering workflows.",
+      "sha256": "89047af285dd64284b4fbe8bca3d2d56120b2ef4faba3262e215af70846363b0",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-action-6",
+      "text": "System / DevOps Engineer Managed bastion host and internal asset tracking services based on Consul and Golang services, integrating EC2 metadata into centralized access control.",
+      "sha256": "652d9f1bd27bb8c7f3ae4bad9d46172ad7d54cdb7f3287257b2e8d65ffc3469c",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-action-7",
+      "text": "System / DevOps Engineer Analyzed system resource utilization and performance metrics through Prometheus and Grafana to identify infrastructure bottlenecks and propose optimization solutions.",
+      "sha256": "6f70b1b1581264270fff1610ec85d09e88c6f2c4c864818074d3a958a9f5c4ca",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "infrastructure bottlenecks"
+        ],
+        "task": [
+          "identify infrastructure bottlenecks"
+        ],
+        "action": [
+          "Analyzed system resource utilization"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-action-8",
+      "text": "System / DevOps Engineer Maintained the observability stack built around Prometheus, Grafana, and Consul.",
+      "sha256": "419f248850f7d561a935f7f48f3ab8dec012b1b48405ce411a80bc5b28a01775",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-0",
+      "text": "Linux",
+      "sha256": "4828e60247c1636f57b7446a314e7f599c12b53d40061cc851a1442004354fed",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-1",
+      "text": "AWS",
+      "sha256": "32fd72a0e0746043a1cce59f2e840490df6b9ea49e9bbcade136da5e8173d6c0",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-2",
+      "text": "Packer",
+      "sha256": "ed363350696a726b7932db864dda019bd2017365c9e299627830f06954643f93",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-3",
+      "text": "Terraform",
+      "sha256": "05b073bd5e46bbede792d1e77a68c71801b7bac2dd8e0236299dede9a3a1909d",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-4",
+      "text": "Terragrunt",
+      "sha256": "6e14e30332af44520d20959bb1eb4aca4c40cf2022072723ab83aeb6fdd850fc",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-5",
+      "text": "Atlantis",
+      "sha256": "edbe7dd7b99b3a7b87656488d55611b2a4f345f3f8f663459636cd5473079cc8",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-6",
+      "text": "Ansible",
+      "sha256": "e876abbe46eade2f0408a603254c0a5546fb6c28d4b74246252e1d59073ff6e3",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-7",
+      "text": "Jenkins",
+      "sha256": "9a4d10e69361c7d6c9f874d5a907d30fdbd08726da03b543d4e262fd6fde6a42",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-8",
+      "text": "Groovy",
+      "sha256": "be20cdfc984a810db87fe9388725643e5f14a80d59b1cea58fddb556e0c4a78b",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-9",
+      "text": "Prometheus",
+      "sha256": "bfa97cfb590b2093ee41d9e44a906fbe19c3f809130727a37895afe9bad12756",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-10",
+      "text": "Grafana",
+      "sha256": "0642a7b0f3466de53f8acd4fd3d71105f567d8ca4feae5e070e2c4d814e8ced3",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-11",
+      "text": "Consul",
+      "sha256": "13a53db9c0642e0537ef327630bfd861234a765480c1135a19bc168b29ecad10",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-12",
+      "text": "Golang",
+      "sha256": "50e56e797c4ac89f7994a37480fce29a8a0f0f123a695e2dc32d5632197e2318",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-action-0",
+      "text": "System / Site Reliability Engineering (SRE) / DevOps Engineering Worked in a Linux terminal environment.",
+      "sha256": "19c5a876fed2ce37d5e85852c0dd6f87e1f28d86cb3b7e31798ebf71c2db26d0",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-action-1",
+      "text": "System / Site Reliability Engineering (SRE) / DevOps Engineering Participated in on-call rotations about one week per month and troubleshot production issues with team members.",
+      "sha256": "93928591e9a53fe873e2d923234e565ef9dc088b656128f3222e3fe4e9ad5b73",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "production issues"
+        ],
+        "task": [
+          "on-call rotations"
+        ],
+        "action": [
+          "troubleshot production issues with team members"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-action-2",
+      "text": "System / Site Reliability Engineering (SRE) / DevOps Engineering Supported a cryptocurrency exchange platform on AWS and on-premise infrastructure.",
+      "sha256": "e5306d86f9e3baa3e350b06d34021cf542635055ed6feef0bef028efc5bb510b",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-action-3",
+      "text": "System / Site Reliability Engineering (SRE) / DevOps Engineering Administered Kubernetes clusters on AWS and on-premise environments.",
+      "sha256": "6e532bb0d6e1f11d34a81fa551442db796ab094becd288f9d025b7302b62fe4a",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "on-premise environments"
+        ],
+        "task": [],
+        "action": [
+          "Administered Kubernetes clusters"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-action-4",
+      "text": "System / Site Reliability Engineering (SRE) / DevOps Engineering Managed AWS and Cloudflare infrastructure with Pulumi and Ansible.",
+      "sha256": "c98c2d62182bedbde70c92eaedf790bfd466c13292e1c7438d9426f7a2cb36b6",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-action-5",
+      "text": "System / Site Reliability Engineering (SRE) / DevOps Engineering Administered CI/CD pipelines with GitLab CI and Jenkins.",
+      "sha256": "67fc04c2ad6053955a88722ed9c8eb4a62eb9370db613629c24d9d14fd40576e",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-technology-0",
+      "text": "Linux",
+      "sha256": "4828e60247c1636f57b7446a314e7f599c12b53d40061cc851a1442004354fed",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-technology-1",
+      "text": "AWS",
+      "sha256": "32fd72a0e0746043a1cce59f2e840490df6b9ea49e9bbcade136da5e8173d6c0",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-technology-2",
+      "text": "Cloudflare",
+      "sha256": "f9191531404c401686ab9b96e57d6a30825f3487b3375c8b90a2245b65f40551",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-technology-3",
+      "text": "Kubernetes",
+      "sha256": "a37d07fe30048d3ae9db9a02c8c16da029bb44a586c5adaea2a1ce7be2c9d904",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-technology-4",
+      "text": "Pulumi",
+      "sha256": "899ba5f0b96873bb4d045c3b01fd3f942048ae1507dcf367dfb3cc7af1067678",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-technology-5",
+      "text": "Ansible",
+      "sha256": "e876abbe46eade2f0408a603254c0a5546fb6c28d4b74246252e1d59073ff6e3",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-technology-6",
+      "text": "GitLab CI",
+      "sha256": "0c03e3faaef073c59e48370a7abceaf35a8f9d49e9dcac105593d477b9818b39",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-technology-7",
+      "text": "Jenkins",
+      "sha256": "9a4d10e69361c7d6c9f874d5a907d30fdbd08726da03b543d4e262fd6fde6a42",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-action-0",
+      "text": "Site Reliability Engineering (SRE) / DevOps / Cloud Engineering Worked in a Linux terminal environment.",
+      "sha256": "1a482cffd2a3c1bfc264bf4d2ea1c1e89daa25256330293e5c8c5cd576cfd30c",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-action-1",
+      "text": "Site Reliability Engineering (SRE) / DevOps / Cloud Engineering Participated in on-call rotations and troubleshooting with team members.",
+      "sha256": "dda4cd1de1b56b77da9e04d52c89e00978024558cddec1d355c286c5e68529c2",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-action-2",
+      "text": "Site Reliability Engineering (SRE) / DevOps / Cloud Engineering Developed a Python automation project for web monitoring.",
+      "sha256": "aabf1f667a5049081f02736587a5da39f55d43020760d2530d658aa4b1c57e51",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [
+          "web monitoring"
+        ],
+        "action": [
+          "Developed a Python automation project"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-action-3",
+      "text": "Site Reliability Engineering (SRE) / DevOps / Cloud Engineering Developed a streaming platform project based on GCP GKE and Aliyun ACK.",
+      "sha256": "93bea030da348989f00d2428ecacaa6347c3c6cfbc67faf91a960dfda6c6b378",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-action-4",
+      "text": "Site Reliability Engineering (SRE) / DevOps / Cloud Engineering Managed cloud infrastructure across AWS, GCP, Aliyun, and Cloudflare with JumpServer.",
+      "sha256": "a90f447f4ec632e3d620adfb4f3712b0629362733fc50bdf511efac48858148c",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-action-5",
+      "text": "Site Reliability Engineering (SRE) / DevOps / Cloud Engineering Administered Kubernetes clusters on AWS EKS, GCP GKE, and Aliyun ACK.",
+      "sha256": "4335c0d6d45e98b662be32489aaded34956d34782088774bafff57e0ddf125eb",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-action-6",
+      "text": "Site Reliability Engineering (SRE) / DevOps / Cloud Engineering Administered CI/CD pipelines with GitLab CI, Jenkins, and Tekton.",
+      "sha256": "e57cc1f6d5c6c7a7dd786ba454229a72423b3c3ab2a82b485108b8564d6fff10",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-0",
+      "text": "Linux",
+      "sha256": "4828e60247c1636f57b7446a314e7f599c12b53d40061cc851a1442004354fed",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-1",
+      "text": "Python",
+      "sha256": "18885f27b5af9012df19e496460f9294d5ab76128824c6f993787004f6d9a7db",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-2",
+      "text": "GCP",
+      "sha256": "31e3cbd5c7bd25c4de00fdd6635f2d0bf237930e0d6a4e6b1bbf8a4fcccc6c4c",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-3",
+      "text": "GKE",
+      "sha256": "25aefdc0a1c20269d63fe3409bcb915306c123368efa973f108e3440b41d6549",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-4",
+      "text": "Aliyun",
+      "sha256": "c9cf3948fbef972d87ab9922b2dcb30e70333e9f95afd65a0b655acdc07aa6bd",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-5",
+      "text": "ACK",
+      "sha256": "a2f1a6d79bfb0fe6d2fe2f0f08c2f32ce53cc935520e9d8a9f8daa051b4f239b",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-6",
+      "text": "AWS",
+      "sha256": "32fd72a0e0746043a1cce59f2e840490df6b9ea49e9bbcade136da5e8173d6c0",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-7",
+      "text": "EKS",
+      "sha256": "f4920dac3075feca0bd92a92f6691f50e9f815e5e398f88c188499875b4a5129",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-8",
+      "text": "Cloudflare",
+      "sha256": "f9191531404c401686ab9b96e57d6a30825f3487b3375c8b90a2245b65f40551",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-9",
+      "text": "JumpServer",
+      "sha256": "4e2429cec3745334ff01d21b8fe0800416dd107470107ab784105115a8a476e0",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-10",
+      "text": "Kubernetes",
+      "sha256": "a37d07fe30048d3ae9db9a02c8c16da029bb44a586c5adaea2a1ce7be2c9d904",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-11",
+      "text": "GitLab CI",
+      "sha256": "0c03e3faaef073c59e48370a7abceaf35a8f9d49e9dcac105593d477b9818b39",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-12",
+      "text": "Jenkins",
+      "sha256": "9a4d10e69361c7d6c9f874d5a907d30fdbd08726da03b543d4e262fd6fde6a42",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-13",
+      "text": "Tekton",
+      "sha256": "f4a7e975f9833f8df743aac97aa4ba7b1ab36a5ef337de74803aa27e9fbb5d25",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-action-0",
+      "text": "Training. IoT Bootcamp (Full-Stack & System Fundamentals Training) Completed an intensive hands-on training program covering web development fundamentals, system programming, Linux environments, networking basics, and IoT system integration.",
+      "sha256": "4b1963c00222c2df79ce10de452381f2ce94fe80cdc4b817e280b1748dde59eb",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-action-1",
+      "text": "Training. IoT Bootcamp (Full-Stack & System Fundamentals Training) Built an IoT monitoring system named Training project A using Raspberry Pi and ESP8266 for temperature and humidity data collection.",
+      "sha256": "533e3d76dfc15ecf1bed36acbed21a575a8a41039cfde78ccd18f52d045c5961",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-technology-0",
+      "text": "Web Development",
+      "sha256": "746c6626eb051ec066c5daac68c9aea6dc5a307c6f9bea7dce9f85f626de2579",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-technology-1",
+      "text": "Linux",
+      "sha256": "4828e60247c1636f57b7446a314e7f599c12b53d40061cc851a1442004354fed",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-technology-2",
+      "text": "Networking",
+      "sha256": "204de4b6d5a34560d2e3e6b15bfb2f3df0152de7d7b74474ac9a866b74dd70d1",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-technology-3",
+      "text": "IoT",
+      "sha256": "5aa5a4a0e913f4cc927d442bdd747b771629681433ae18f018f05f0c6fa097dd",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-technology-4",
+      "text": "Raspberry Pi",
+      "sha256": "d8d3e93c9367f244a4c391f0f2324abff3305e0ff39a185198d87e2fc79dbaa4",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-technology-5",
+      "text": "ESP8266",
+      "sha256": "ae915ad1976be2dbd942b1ddc0512d2ee9d628533b4a54a67ac5944d97aa7346",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-0-0",
+      "text": "Mandarin (native)",
+      "sha256": "651855d8bff7d72c4080b91ccd9b40bc447a757204ff63da6e77745f9aacc835",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-0-1",
+      "text": "English (professional working proficiency)",
+      "sha256": "2c68f3a5e16b89740367469ecdb783447816dd1f9d4e30025c3cbae637dee6a9",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-1-0",
+      "text": "Python (proficient)",
+      "sha256": "d07c19c0ef20c9b3bd1f4fbf78759dcf7c83739f296b6708a2db721379bf4ee5",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-1-1",
+      "text": "Bash (competence)",
+      "sha256": "1876f99f1a07fe0ddae6e0df5653a5193a77a203c6eafcd6fb61ecd62ccaa248",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-1-2",
+      "text": "SQL (competence)",
+      "sha256": "3cbd0943b26ae3687f511e02c509c35bee149d96e4e83f144a1cf01d380b6d40",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-1-3",
+      "text": "Rust (competence)",
+      "sha256": "bab4c3533f867768a28065debde1d323d53b912dc5e6c8e54376ebe86691875b",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-1-4",
+      "text": "Golang (beginner)",
+      "sha256": "9695c9e80ed8b954ad62a343adb39c1e10b412214eb58e9ff71008b063035dd9",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-2-0",
+      "text": "Git",
+      "sha256": "b949c922b6ef9ffbf41eb853b99578624ca6f6475c4f13abe2995484b0348e5c",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-3-0",
+      "text": "Django",
+      "sha256": "4445d918dfcf1af804b749eeee4835dccfd27c06b6828533be827473ff63439f",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-3-1",
+      "text": "FastAPI",
+      "sha256": "2dd9eb7d9f0c11864fe058aaa0f3fbae5b1887555c9bc1f9ff84877d75f446a5",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-3-2",
+      "text": "Selenium",
+      "sha256": "e28a70b2356a8e991440ce970130ae0e0320978d93ebcf5c445cd048b8f1304a",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-3-3",
+      "text": "pandas",
+      "sha256": "ae4863bdae026314d5994730ad24730434f256c274d8431c53ed537393992be6",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-3-4",
+      "text": "SQLAlchemy",
+      "sha256": "dd0804b065a533eb0198e076460421ada3d861683b408ef39daea67e9aad46a6",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-4-0",
+      "text": "Linux (proficient)",
+      "sha256": "35af4e515765ca26e47e0072c5846e2b4ee6e4f4536b19829f6b24cf1205e554",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-4-1",
+      "text": "macOS (competence)",
+      "sha256": "551e8cfb524e346bd1e724f84d73e2eb4c6b5e3c4235bb9985068c0a6ea90388",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-4-2",
+      "text": "Windows (beginner)",
+      "sha256": "0de254e6051ade63431af02cd3c32d1ef1d72184d9d57b459fe4b6868cec613e",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-5-0",
+      "text": "GitLab Runner",
+      "sha256": "a34f753b28fcff4f155ad9003a18448688390d8c5d2acb20721b7cccccff6e3a",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-5-1",
+      "text": "GitHub Actions",
+      "sha256": "fae83bd48c808f084dc6ad40e94127e7f6509b8b1fa2d6d0cc021108f3558bf1",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-5-2",
+      "text": "Jenkins",
+      "sha256": "9a4d10e69361c7d6c9f874d5a907d30fdbd08726da03b543d4e262fd6fde6a42",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-5-3",
+      "text": "Tekton Pipelines",
+      "sha256": "4af1b8e2674c112434ae740a9868ec7537ec60000c5f5eb8d0805035f712608f",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-5-4",
+      "text": "Argo CD",
+      "sha256": "e32af138eab22e9953fc004fd10da28a2f5fd6685ce145df404199f7a2b52103",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-6-0",
+      "text": "Apache RocketMQ",
+      "sha256": "b8cce1e6d1346b802a9794419f1ba9b2f22c5cced6f86d8512533020d4c2da4e",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-6-1",
+      "text": "RabbitMQ",
+      "sha256": "694032b7ede90d08b6d0ebba2aa83fa9529ef4a113d0897bb7445984ad4cccbd",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-7-0",
+      "text": "Kubernetes (EKS, GKE, ACK, k0s, k3s)",
+      "sha256": "5ffa416fc861ec9f4f8c17a80b047438af50aca5a56ee7ec7320de181dc74e7e",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-8-0",
+      "text": "ingress-nginx",
+      "sha256": "34f2b6a43f672a30fd9f65c4f070f54c54df80038daada8c17ea548537b99467",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-8-1",
+      "text": "cert-manager",
+      "sha256": "e6bb20df7151448c93c41c1c37336c5d68f13348ede4432c2df950b5f9071f73",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-8-2",
+      "text": "ECK operator",
+      "sha256": "03109a562260b417e463091494ffcef1b542359eb533f7e2bb9c30e2f0e90291",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-8-3",
+      "text": "KEDA",
+      "sha256": "b5ecb38cc10dc6216f0fd4d57060f92a407c580e95ea22ca9c20cadccc9c179a",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-8-4",
+      "text": "Istio",
+      "sha256": "0c16521ac7ae32cf5bd781122b689c39c3ad67da12da1acb831c7ecd3d5e0c67",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-9-0",
+      "text": "NGINX",
+      "sha256": "93fea02d2fb09567107ff582ebb8d1ffdc471537a2208cc8793f2bdfad5b8023",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-9-1",
+      "text": "HAProxy",
+      "sha256": "597992364235f0462f20e8347dffb83844944f7f4f29b4631cd6330f03e6b2fe",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-9-2",
+      "text": "MetalLB",
+      "sha256": "e29c49f863304681d87655818dac5de2ac3df069eecf8041187a79e027cea48b",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-9-3",
+      "text": "Envoy",
+      "sha256": "93163a5fed0d40cf2237c254701ae4d0b061aae0e149432aa1ca7d43b393e19d",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-10-0",
+      "text": "Apache Zookeeper",
+      "sha256": "d0b49806bc977076fd770dbe12acddb5864269682f2e59d72e1c5a886ad6ca72",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-10-1",
+      "text": "Nacos",
+      "sha256": "6ad1e0e1ac674a4e0f30f71d53a9596164d22bb547c4aed6458faa771ea0f2af",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-10-2",
+      "text": "Consul",
+      "sha256": "13a53db9c0642e0537ef327630bfd861234a765480c1135a19bc168b29ecad10",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-11-0",
+      "text": "Harbor",
+      "sha256": "8a8c65415401f7ed0a6828f3da318b887524e488c8e0e3287e44a6c244a49f28",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-12-0",
+      "text": "Ansible",
+      "sha256": "e876abbe46eade2f0408a603254c0a5546fb6c28d4b74246252e1d59073ff6e3",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-12-1",
+      "text": "Atlantis",
+      "sha256": "edbe7dd7b99b3a7b87656488d55611b2a4f345f3f8f663459636cd5473079cc8",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-12-2",
+      "text": "Terraform",
+      "sha256": "05b073bd5e46bbede792d1e77a68c71801b7bac2dd8e0236299dede9a3a1909d",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-12-3",
+      "text": "Terragrunt",
+      "sha256": "6e14e30332af44520d20959bb1eb4aca4c40cf2022072723ab83aeb6fdd850fc",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-12-4",
+      "text": "Pulumi",
+      "sha256": "899ba5f0b96873bb4d045c3b01fd3f942048ae1507dcf367dfb3cc7af1067678",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-13-0",
+      "text": "AWS",
+      "sha256": "32fd72a0e0746043a1cce59f2e840490df6b9ea49e9bbcade136da5e8173d6c0",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-13-1",
+      "text": "Google Cloud",
+      "sha256": "69bd2211a05e151338291eb88add1fcdd30966b4d92a1de7f3fb651f3e5078db",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-13-2",
+      "text": "Alibaba Cloud",
+      "sha256": "dd325ff034ce2ae3f83a2cebf5d869ea44ae54357f2203e27e3f01ddc1f55e03",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skill-13-3",
+      "text": "Cloudflare",
+      "sha256": "f9191531404c401686ab9b96e57d6a30825f3487b3375c8b90a2245b65f40551",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "personal-0-0",
+      "text": "Personal project. A personal Linux lab environment built on Proxmox VE to support multiple personal projects. Built infrastructure with Proxmox VE to support personal Linux lab environments.",
+      "sha256": "8621e13fb646f75bb30d1481c32b2a63e61104c399eb6e443a6fa2fc68302f7e",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "personal-1-0",
+      "text": "Personal project. An online CV website based on LaTeX for recording experience, projects, education, and skills. Built an online CV website based on LaTeX.",
+      "sha256": "cc13e8caf4700bb81b3f5b6f15c29cd00682d01bfa5e767ff634f9f0dfd0b45a",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "education-0",
+      "text": "University A Master of Science in Materials Science and Engineering 2016 2019",
+      "sha256": "595a983da830bb1db283e1b95f7962d189d05a5d24f5b6e7289e67c96c36d6ac",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "education-1",
+      "text": "University A Bachelor of Science in Materials Science and Engineering 2012 2016",
+      "sha256": "d1c7476eef4aaf0134355a994cb8e5aafc4f3f699cd360a5bb788a886a45be2e",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "certification-0",
+      "text": "AWS Certified Solutions Architect Associate",
+      "sha256": "30f73434d1ddc4578f8ebc8d0ac5a403aef6abbc11596eb88e158fd16e8598fd",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "certification-1",
+      "text": "AWS Certified Cloud Practitioner",
+      "sha256": "770d5dca018c9e9297081b495a7aef613b40e084be4730666461f2a49783fa87",
+      "provenance": {
+        "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+        "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    }
+  ],
+  "requirements": [
+    {
+      "id": "requirement-01",
+      "original": {
+        "start": 25,
+        "end": 178,
+        "quote": "Be on an on-call rotation to respond to incidents that impact GitLab.com availability, and provide support for service engineers with customer incidents."
+      },
+      "weight": 3,
+      "support": "supported",
+      "anchorGroups": [
+        [
+          "on-call"
+        ],
+        [
+          "production",
+          "troubleshot",
+          "troubleshooting"
+        ]
+      ],
+      "evidenceIds": [
+        "work-1-action-1",
+        "work-2-action-1"
+      ]
+    },
+    {
+      "id": "requirement-02",
+      "original": {
+        "start": 181,
+        "end": 245,
+        "quote": "Use your on-call shift to prevent incidents from ever happening."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Use your on-call shift to prevent incidents from ever happening."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-03",
+      "original": {
+        "start": 248,
+        "end": 331,
+        "quote": "Run our infrastructure with Chef, Ansible, Terraform, GitLab CI/CD, and Kubernetes."
+      },
+      "weight": 3,
+      "support": "partial",
+      "anchorGroups": [
+        [
+          "infrastructure"
+        ],
+        [
+          "Terraform",
+          "Ansible"
+        ]
+      ],
+      "evidenceIds": [
+        "work-0-action-2",
+        "work-1-action-4"
+      ]
+    },
+    {
+      "id": "requirement-04",
+      "original": {
+        "start": 334,
+        "end": 398,
+        "quote": "Build monitoring that alerts on symptoms rather than on outages."
+      },
+      "weight": 2,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "alerts"
+        ],
+        [
+          "symptoms"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-05",
+      "original": {
+        "start": 401,
+        "end": 536,
+        "quote": "[Document every action](https://gitlab.com/gitlab-com/runbooks) so your findings turn into repeatable actions and then into automation."
+      },
+      "weight": 2,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "document"
+        ],
+        [
+          "automation"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-06",
+      "original": {
+        "start": 539,
+        "end": 641,
+        "quote": "Use the GitLab product to run GitLab.com as a first resort and improve the product as much as possible"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Use the GitLab product to run GitLab.com as a first resort and improve the product as much as possible"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-07",
+      "original": {
+        "start": 644,
+        "end": 744,
+        "quote": "Improve operational processes (such as deployments and upgrades) to make them as boring as possible."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Improve operational processes (such as deployments and upgrades) to make them as boring as possible."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-08",
+      "original": {
+        "start": 747,
+        "end": 875,
+        "quote": "Design, build and maintain core infrastructure that enables GitLab scaling to support hundreds of thousands of concurrent users."
+      },
+      "weight": 3,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "infrastructure"
+        ],
+        [
+          "concurrent users"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-09",
+      "original": {
+        "start": 878,
+        "end": 942,
+        "quote": "Debug production issues across services and levels of the stack."
+      },
+      "weight": 3,
+      "support": "supported",
+      "anchorGroups": [
+        [
+          "production"
+        ],
+        [
+          "troubleshot"
+        ]
+      ],
+      "evidenceIds": [
+        "work-1-action-1"
+      ]
+    },
+    {
+      "id": "requirement-10",
+      "original": {
+        "start": 945,
+        "end": 988,
+        "quote": "Plan the growth of GitLab's infrastructure."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Plan the growth of GitLab's infrastructure."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-11",
+      "original": {
+        "start": 1065,
+        "end": 1149,
+        "quote": "Think about systems: edge cases, failure modes, behaviors, specific implementations."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Think about systems: edge cases, failure modes, behaviors, specific implementations."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-12",
+      "original": {
+        "start": 1152,
+        "end": 1198,
+        "quote": "Know your way around Linux and the Unix Shell."
+      },
+      "weight": 2,
+      "support": "supported",
+      "anchorGroups": [
+        [
+          "Linux"
+        ],
+        [
+          "terminal"
+        ]
+      ],
+      "evidenceIds": [
+        "work-0-action-0",
+        "work-1-action-0",
+        "work-2-action-0"
+      ]
+    },
+    {
+      "id": "requirement-13",
+      "original": {
+        "start": 1201,
+        "end": 1280,
+        "quote": "Know what is the use of configuration management systems like Chef and Ansible."
+      },
+      "weight": 2,
+      "support": "supported",
+      "anchorGroups": [
+        [
+          "Ansible"
+        ],
+        [
+          "configuration",
+          "infrastructure"
+        ]
+      ],
+      "evidenceIds": [
+        "work-0-action-4",
+        "work-1-action-4"
+      ]
+    },
+    {
+      "id": "requirement-14",
+      "original": {
+        "start": 1283,
+        "end": 1341,
+        "quote": "Have strong programming skills: Shell, and Ruby and/or Go."
+      },
+      "weight": 3,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Shell"
+        ],
+        [
+          "Ruby",
+          "Go"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-15",
+      "original": {
+        "start": 1344,
+        "end": 1403,
+        "quote": "Have an urge to collaborate and communicate asynchronously."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Have an urge to collaborate and communicate asynchronously."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-16",
+      "original": {
+        "start": 1406,
+        "end": 1494,
+        "quote": "Have an urge to document all the things so you don't need to learn the same thing twice."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Have an urge to document all the things so you don't need to learn the same thing twice."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-17",
+      "original": {
+        "start": 1497,
+        "end": 1596,
+        "quote": "Have an enthusiastic, go-for-it attitude. When you see something broken, you can't help but fix it."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Have an enthusiastic, go-for-it attitude. When you see something broken, you can't help but fix it."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-18",
+      "original": {
+        "start": 1599,
+        "end": 1671,
+        "quote": "Have an urge for delivering quickly and effectively, and iterating fast."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Have an urge for delivering quickly and effectively, and iterating fast."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-19",
+      "original": {
+        "start": 1674,
+        "end": 1733,
+        "quote": "Share our values, and work in accordance with those values."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Share our values, and work in accordance with those values."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-20",
+      "original": {
+        "start": 1736,
+        "end": 1827,
+        "quote": "Have experience with Nginx, HAProxy, Docker, Kubernetes, Terraform, or similar technologies"
+      },
+      "weight": 2,
+      "support": "supported",
+      "anchorGroups": [
+        [
+          "Kubernetes",
+          "Nginx",
+          "Terraform"
+        ]
+      ],
+      "evidenceIds": [
+        "work-0-action-2",
+        "work-0-action-4",
+        "work-1-action-3",
+        "work-2-action-5"
+      ]
+    },
+    {
+      "id": "requirement-21",
+      "original": {
+        "start": 1830,
+        "end": 1851,
+        "quote": "Ability to use GitLab"
+      },
+      "weight": 1,
+      "support": "supported",
+      "anchorGroups": [
+        [
+          "GitLab CI"
+        ],
+        [
+          "Administered"
+        ]
+      ],
+      "evidenceIds": [
+        "work-1-action-5",
+        "work-2-action-6"
+      ]
+    }
+  ],
+  "entityLexicon": [
+    "Chef",
+    "Ansible",
+    "Terraform",
+    "Kubernetes",
+    "Ruby",
+    "Ruby on Rails",
+    "Go",
+    "Golang",
+    "Redis",
+    "Kafka",
+    "React",
+    "React Native",
+    "Vue.js",
+    "JavaScript",
+    "GitLab",
+    "Snowflake",
+    "Airflow",
+    "SQL",
+    "Docker",
+    "Django",
+    "C#",
+    ".NET"
+  ],
+  "approvedParaphrases": []
+}

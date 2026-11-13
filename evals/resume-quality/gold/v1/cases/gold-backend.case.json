@@ -1,0 +1,2114 @@
+{
+  "schemaVersion": 1,
+  "id": "gold-backend",
+  "dataKind": "real_anonymized",
+  "role": "Backend Engineer - common requirements; high-volume backend candidate",
+  "job": {
+    "text": "### Requirements\n\n- Significant [professional experience](#professional-experience) with Ruby on Rails **or** [language](#primary-programming-language) required by the specialty\n- Professional experience with any other technologies that may be required by the specialty\n- Proficiency in the English language, both written and verbal, sufficient for success in a remote and largely asynchronous work environment\n- Demonstrated capacity to clearly and concisely communicate about complex technical, architectural, and/or organizational problems and propose thorough iterative solutions\n- Experience with performance and optimization problems and a demonstrated ability to both diagnose and prevent these problems\n- Comfort working in a highly agile, intensely iterative software development process\n- Demonstrated ability to onboard and integrate with an organization long-term\n- Positive and solution-oriented mindset\n- Effective communication skills: Regularly achieve consensus with peers, and clear status updates\n- An inclination towards communication, inclusion, and visibility\n- Experience owning a project from concept to production, including proposal, discussion, and execution.\n- Self-motivated and self-managing, with strong organizational skills.\n- Demonstrated ability to work closely with other parts of the organization\n- Share our values, and work in accordance with those values\n- Ability to thrive in a fully remote organization\n- Ability to use GitLab\n\n### Nice-to-haves\n\n- Experience in a peak performance organization, preferably a tech startup\n- Experience with the GitLab product as a user or contributor\n- Product company experience\n- Experience working with a remote team\n- Enterprise software company experience\n- Developer platform/tool industry experience\n- Experience working with a global or otherwise multicultural team\n- Computer science education or equivalent experience\n- Passionate about/experienced with open source and developer tools\n\n### Responsibilities\n\n- Develop features and improvements to the GitLab product in a secure,\n  well-tested, and performant way\n- Collaborate with Product Management and other stakeholders within Engineering (Frontend, UX, etc.) to maintain a high bar for quality in a fast-paced, iterative environment\n- Advocate for improvements to product quality, security, and performance\n- Solve technical problems of moderate scope and complexity.\n- Craft code that meets our internal standards for style, maintainability, and best practices for a high-scale web environment. Maintain and advocate for these standards through code review.\n- Recognize impediments to our efficiency as a team (\"technical debt\"), propose and implement solutions\n- Represent GitLab and its values in public communication around specific projects and community contributions.\n- Confidently ship small features and improvements with minimal guidance and support from other team members. Collaborate with the team on larger projects.\n- Participate in Tier 2 or Tier 3 weekday and weekend and occasional night [on-call rotations](/handbook/engineering/workflow/development-processes/infra-dev-escalation/process/) to assist troubleshooting product operations, security operations, and urgent engineering issues.\n",
+    "sha256": "f34b8926ee5c07eba364709135428a50b61735be438cf0bf3188854d09e84efd",
+    "provenance": {
+      "url": "https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/f7efde2339c3ff060bb972805bf22692c534893d/content/job-description-library/engineering/development/backend/_index.md",
+      "revision": "f7efde2339c3ff060bb972805bf22692c534893d",
+      "license": "CC-BY-SA-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "retrievedAt": "2026-11-12T00:00:00.000Z",
+      "originalSha256": "aee78b7831335acc168966521f02a4b3ec7b994a27b617f8b95f311f9b393ed3",
+      "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+    }
+  },
+  "evidence": [
+    {
+      "id": "work-0-action-0",
+      "text": "Senior fullstack developer at Employer D . Greenfield: With the rest of the team, built and scaled the new Django and React based multitenant platform - where each client has their own high-volume Postgres and ClickHouse databases.",
+      "sha256": "6d61f02b3363cfda151aacfc6aa56f984bf47c1d2048eb43eeaf40d8db260b00",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "multitenant platform"
+        ],
+        "task": [
+          "high-volume Postgres and ClickHouse databases"
+        ],
+        "action": [
+          "With the rest of the team, built and scaled"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-action-1",
+      "text": "Senior fullstack developer at Employer D . Brownfield: New features and bugfixes on the business' legacy systems, based on Django and Vue.js. Added integrations to new 3rd-party platforms.",
+      "sha256": "a18bac46bc60e7c28f037aef080b63bcae4eea5f70d3c67645ee2ea8bb2c9e78",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-action-2",
+      "text": "Senior fullstack developer at Employer D . Established type safety by introducing type hinting across the Python codebases, and mentoring the team on related best practices.",
+      "sha256": "26e14b0eb365688fadcdee505a94bf94741697c0cf94722b4bb6e89225dce4cb",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "Python codebases"
+        ],
+        "task": [
+          "type safety"
+        ],
+        "action": [
+          "introducing type hinting"
+        ],
+        "result": [
+          "Established type safety"
+        ]
+      }
+    },
+    {
+      "id": "work-0-technology-0",
+      "text": "Python",
+      "sha256": "18885f27b5af9012df19e496460f9294d5ab76128824c6f993787004f6d9a7db",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-1",
+      "text": "Django",
+      "sha256": "4445d918dfcf1af804b749eeee4835dccfd27c06b6828533be827473ff63439f",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-2",
+      "text": "Django REST Framework",
+      "sha256": "071ceeb09dce1e5d756bd61cc2d513d3bb74af4e2d61e143972d346bc9bc2eaa",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-3",
+      "text": "Celery",
+      "sha256": "17d78bdb4c7cb3d90f9585bf896b71e3e51cf77acf9764258690cc83a886bdcb",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-4",
+      "text": "Postgres",
+      "sha256": "44368adad746bc27c3f1133f81ad8938a444ddb3789a3f15bce4544bc1459801",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-5",
+      "text": "ClickHouse",
+      "sha256": "dee91ddb90597936302cfd4341e409c87779ed9e0e8c8fde580e0af6cdace179",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-6",
+      "text": "TypeScript",
+      "sha256": "ed0504f70a48ffe9ed17e7ddee02a72a9c8af602aee1f7ce11853975ce911733",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-7",
+      "text": "React",
+      "sha256": "01fad993ff61aca9a1f2f07100c95eb1559d8b6440a00cb974a92810a6b5a2dc",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-0-technology-8",
+      "text": "Vue.js",
+      "sha256": "274b0f34ea9f3cc6ad2bd4c670b58ab9045a793b9731928554aa00a3c907348e",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-action-0",
+      "text": "Senior developer for the Web agency Employer E . Greenfield: Led fullstack architecture for a Wagtail/Django platform under tight deadlines. Also managed the migration from the previous CMS and bespoke search logic.",
+      "sha256": "7d25bc78a4dd07851aa41ebc7990f7fed2304af8dc5c817cd0c3d479d7601350",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-action-1",
+      "text": "Senior developer for the Web agency Employer E . Brownfield: Took ownership of a large legacy Node.js + Elasticsearch system and led its progressive migration to TypeScript to make bugfixing and addition of new features easier.",
+      "sha256": "a4e91360581e8bb14e437684d036630008a4b1b53aa9eabde16678fc5c42af29",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "large legacy Node.js + Elasticsearch system"
+        ],
+        "task": [
+          "make bugfixing and addition of new features easier"
+        ],
+        "action": [
+          "led its progressive migration to TypeScript"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-technology-0",
+      "text": "Python",
+      "sha256": "18885f27b5af9012df19e496460f9294d5ab76128824c6f993787004f6d9a7db",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-technology-1",
+      "text": "Django",
+      "sha256": "4445d918dfcf1af804b749eeee4835dccfd27c06b6828533be827473ff63439f",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-technology-2",
+      "text": "Wagtail",
+      "sha256": "42c7b829d8ba6456141435c80285d5e68bd22c050aa0e67f5cd945df445b79e0",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-technology-3",
+      "text": "HTMX",
+      "sha256": "29841e00466b0e7cc40fea32f26a142fe30b47868820991ed02616d2ad0a6d01",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-technology-4",
+      "text": "Postgres",
+      "sha256": "44368adad746bc27c3f1133f81ad8938a444ddb3789a3f15bce4544bc1459801",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-technology-5",
+      "text": "Node.js",
+      "sha256": "1fc0c785332e80fb931c7a11323f27abb47a0a7f8bbdf23ffca3cac46497b21c",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-technology-6",
+      "text": "Elasticsearch",
+      "sha256": "31c819b24cf3c3c7cde022ff83007ff54b8e9087780f230a68e08fd47ed569e4",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-technology-7",
+      "text": "TypeScript",
+      "sha256": "ed0504f70a48ffe9ed17e7ddee02a72a9c8af602aee1f7ce11853975ce911733",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1-technology-8",
+      "text": "React",
+      "sha256": "01fad993ff61aca9a1f2f07100c95eb1559d8b6440a00cb974a92810a6b5a2dc",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-action-0",
+      "text": "Senior developer for Employer F (as a contractor). Brownfield: Built fullstack features for this Django and React platform serving 3 million users and handling up to 600 requests/second at peak time.",
+      "sha256": "a0d0a8723fd4ad29499e2efafa5e494ccc2dfb62bbd96518a84d0c7d1e6d9597",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "platform serving 3 million users"
+        ],
+        "task": [],
+        "action": [
+          "Built fullstack features"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-action-1",
+      "text": "Senior developer for Employer F (as a contractor). Championed type safety by introducing type hints to a 10 years old Python codebase, and sharing associated best practices with the team.",
+      "sha256": "f67f7a98d5ebc2526f00e63b33c41197ffa396b719ec3852707d7735242362e7",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-0",
+      "text": "Python",
+      "sha256": "18885f27b5af9012df19e496460f9294d5ab76128824c6f993787004f6d9a7db",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-1",
+      "text": "Django",
+      "sha256": "4445d918dfcf1af804b749eeee4835dccfd27c06b6828533be827473ff63439f",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-2",
+      "text": "Django REST Framework",
+      "sha256": "071ceeb09dce1e5d756bd61cc2d513d3bb74af4e2d61e143972d346bc9bc2eaa",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-3",
+      "text": "Celery",
+      "sha256": "17d78bdb4c7cb3d90f9585bf896b71e3e51cf77acf9764258690cc83a886bdcb",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-4",
+      "text": "MySQL",
+      "sha256": "211906c1c32db77e3082ad28ae2eb3130f83d6e7a6150b6aa6ab6545173c13a7",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-5",
+      "text": "TypeScript",
+      "sha256": "ed0504f70a48ffe9ed17e7ddee02a72a9c8af602aee1f7ce11853975ce911733",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2-technology-6",
+      "text": "React",
+      "sha256": "01fad993ff61aca9a1f2f07100c95eb1559d8b6440a00cb974a92810a6b5a2dc",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-action-0",
+      "text": "Lead developer for Employer G . Greenfield: Led a 4 engineers team to deliver a IoT solar fleet management system, scaling from pilot to production. I led both the Django and React sides of the development.",
+      "sha256": "4b3d7d2836bbead3fc25129a8c2b705ed5490416f87e08b04a7c41705f2334f8",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "IoT solar fleet management system"
+        ],
+        "task": [
+          "deliver a IoT solar fleet management system"
+        ],
+        "action": [
+          "Led a 4 engineers team"
+        ],
+        "result": [
+          "scaling from pilot to production"
+        ]
+      }
+    },
+    {
+      "id": "work-3-action-1",
+      "text": "Lead developer for Employer G . Greenfield: Designed API structure and data models to support real-time ingestion via MQTT and historical analytics workloads.",
+      "sha256": "0813aef34dbdd7d2a07b96a876b7a9969c00bc55368f30921fb91c3832d48568",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-action-2",
+      "text": "Lead developer for Employer G . Greenfield: Proactively migrated historical data storage from Postgres to TimescaleDB to support growing real-time analytical workloads as the platform scaled.",
+      "sha256": "9f9839e545777c18fbb26d1fd284ec4ff44d88518f7c42a04e93f452dd9c1e34",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "growing real-time analytical workloads"
+        ],
+        "task": [
+          "support growing real-time analytical workloads"
+        ],
+        "action": [
+          "Proactively migrated historical data storage"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-technology-0",
+      "text": "Python",
+      "sha256": "18885f27b5af9012df19e496460f9294d5ab76128824c6f993787004f6d9a7db",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-technology-1",
+      "text": "Django",
+      "sha256": "4445d918dfcf1af804b749eeee4835dccfd27c06b6828533be827473ff63439f",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-technology-2",
+      "text": "Celery",
+      "sha256": "17d78bdb4c7cb3d90f9585bf896b71e3e51cf77acf9764258690cc83a886bdcb",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-technology-3",
+      "text": "Postgres",
+      "sha256": "44368adad746bc27c3f1133f81ad8938a444ddb3789a3f15bce4544bc1459801",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-technology-4",
+      "text": "TimescaleDB",
+      "sha256": "40ae60e18f02de3279ad4d65e26de52c56983cb5084bdab09ee73935e0920945",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-technology-5",
+      "text": "MQTT",
+      "sha256": "51b197a5083739756d3f8634ae444e9874b51e7703a7b6e72276385d54cf4db3",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-technology-6",
+      "text": "TypeScript",
+      "sha256": "ed0504f70a48ffe9ed17e7ddee02a72a9c8af602aee1f7ce11853975ce911733",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-technology-7",
+      "text": "React",
+      "sha256": "01fad993ff61aca9a1f2f07100c95eb1559d8b6440a00cb974a92810a6b5a2dc",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3-technology-8",
+      "text": "GraphQL",
+      "sha256": "ee27322554e46143c3c56f419fc28b71a445380e4e5af7332aabdb87c7d0ec26",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-4-action-0",
+      "text": "Lead PHP APIs developer for Employer H . Brownfield: Led a team of 4 PHP developers to maintain the existing user-facing APIs and website.",
+      "sha256": "adbe7d8c950e83c2fc8867994a487ad84eb95ebe8d0e7d8f5b69d338e8e47639",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-4-action-1",
+      "text": "Lead PHP APIs developer for Employer H . Greenfield: Led the development of a new website based on a modernized data layer architecture.",
+      "sha256": "7d2b7845a32fbf6d197c0230a64b9649cbeab20cba62e3cd6dae610602210435",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-4-technology-0",
+      "text": "PHP",
+      "sha256": "0a6a15345ad0c7e36ed9dc3ec9c8ce843af4bc765d1019eb6d563e0836b962f3",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-4-technology-1",
+      "text": "Symfony",
+      "sha256": "45eff1960e31c7dec75830614cf50de9bad832e964f8074a92567fcb9aecdd05",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-4-technology-2",
+      "text": "RabbitMQ",
+      "sha256": "694032b7ede90d08b6d0ebba2aa83fa9529ef4a113d0897bb7445984ad4cccbd",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-4-technology-3",
+      "text": "Postgres",
+      "sha256": "44368adad746bc27c3f1133f81ad8938a444ddb3789a3f15bce4544bc1459801",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-4-technology-4",
+      "text": "SOAP",
+      "sha256": "2e460ba72bb849ac369c4b71cf891c8f51f6ae9144ca6834b06486d1cedabc01",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-5-action-0",
+      "text": "Forward deployed engineer at Employer I . Greenfield: Led a team of 5 developers to refactor the Client A platform's backend services.",
+      "sha256": "be196871cb39384a922a71e54e2a277f08aae75da8dd976d7ee268198c36b98e",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-5-action-1",
+      "text": "Forward deployed engineer at Employer I . Greenfield: Led a team of 3 developers to rebuild the Client B website and CMS, relying on Elasticsearch and Redis as data projection layers.",
+      "sha256": "6a64aaa27fc43c6a9f62de6136769b90d83a5f15485bff2cfb8013cee920e53d",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-5-technology-0",
+      "text": "PHP",
+      "sha256": "0a6a15345ad0c7e36ed9dc3ec9c8ce843af4bc765d1019eb6d563e0836b962f3",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-5-technology-1",
+      "text": "Symfony",
+      "sha256": "45eff1960e31c7dec75830614cf50de9bad832e964f8074a92567fcb9aecdd05",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-5-technology-2",
+      "text": "JavaScript",
+      "sha256": "b27ad06d123c6145fba7e9217a4cfbf2488b4743810ed8c8ff14ad01a5bbe515",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-5-technology-3",
+      "text": "Elasticsearch",
+      "sha256": "31c819b24cf3c3c7cde022ff83007ff54b8e9087780f230a68e08fd47ed569e4",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-5-technology-4",
+      "text": "Redis",
+      "sha256": "a7f6415749a3297a04a2a5159d1542811f779562b547367d5e13a30e0ca5fc0f",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-6-action-0",
+      "text": "PHP / JavaScript / Ruby / Flash freelance developer , working with companies such as Client C , Client D , Client E ... Brownfield: Worked on Client C, one of France's main news websites",
+      "sha256": "ff887d93beeaf543b1c3fcae5455541063a95855eece762a49f6c253be3f70ec",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-6-action-1",
+      "text": "PHP / JavaScript / Ruby / Flash freelance developer , working with companies such as Client C , Client D , Client E ... Greenfield: Built a mass mailing Ruby on Rails web application for Client F",
+      "sha256": "100d5107f9ad171b016b061b9776963a79c4ebcc60c9337ca3216b8d116ce0d5",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "mass mailing"
+        ],
+        "task": [
+          "web application"
+        ],
+        "action": [
+          "Built a mass mailing Ruby on Rails web application"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "work-6-action-2",
+      "text": "PHP / JavaScript / Ruby / Flash freelance developer , working with companies such as Client C , Client D , Client E ... Greenfield: Led JavaScript development for the Client D mobile site",
+      "sha256": "00865b3e2f90e1581c04b55d5e803dbaf249f44d5ffd1104833b835df82b68fa",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-6-technology-0",
+      "text": "PHP",
+      "sha256": "0a6a15345ad0c7e36ed9dc3ec9c8ce843af4bc765d1019eb6d563e0836b962f3",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-6-technology-1",
+      "text": "Symfony",
+      "sha256": "45eff1960e31c7dec75830614cf50de9bad832e964f8074a92567fcb9aecdd05",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-6-technology-2",
+      "text": "JavaScript",
+      "sha256": "b27ad06d123c6145fba7e9217a4cfbf2488b4743810ed8c8ff14ad01a5bbe515",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-6-technology-3",
+      "text": "Node.js",
+      "sha256": "1fc0c785332e80fb931c7a11323f27abb47a0a7f8bbdf23ffca3cac46497b21c",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-6-technology-4",
+      "text": "Backbone.js",
+      "sha256": "7d86844a5dc5940eb94b95e0ac4dec23ef1dd37aacd01fb6990a4c09b9cc07f6",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-6-technology-5",
+      "text": "Ruby",
+      "sha256": "108040ac289a13952927ac14f658a0b06cf24612c43375801b63f87be11191f7",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-6-technology-6",
+      "text": "Ruby on Rails",
+      "sha256": "87771745c9412ed0b89633894d74694fbee50486e9c1c902d280d2b0088c6572",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-7",
+      "text": "Flash Lead Developer at Employer J, in Montréal.",
+      "sha256": "ad9b9368af0ec23ed4122132a4242bb7c78405913a7fe9dcbe498309f511bb4d",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-8",
+      "text": "Flash / PHP Developer for the Web agency \"Employer K\".",
+      "sha256": "1f33db122aa96cc9f27ac8f9ee3835b624d2b48a9f1d936b0e9ed700b3dfbe73",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-9",
+      "text": "Flash / PHP Developer for the Web agency \"Employer L\".",
+      "sha256": "ac336c30843ef14fa96422c47a18560feb42e39250580d0fc6f47a6e5b72f9eb",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-10",
+      "text": "Web Developer for the Web agency \"Employer M\".",
+      "sha256": "cf2ac8fec0e866a9c3e7877b08fa6afdfbb9487cdd2cbb60d53168231f792f66",
+      "provenance": {
+        "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+        "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    }
+  ],
+  "requirements": [
+    {
+      "id": "requirement-01",
+      "original": {
+        "start": 20,
+        "end": 177,
+        "quote": "Significant [professional experience](#professional-experience) with Ruby on Rails **or** [language](#primary-programming-language) required by the specialty"
+      },
+      "weight": 3,
+      "support": "partial",
+      "anchorGroups": [
+        [
+          "Ruby on Rails"
+        ],
+        [
+          "Built"
+        ]
+      ],
+      "evidenceIds": [
+        "work-6-action-1"
+      ]
+    },
+    {
+      "id": "requirement-02",
+      "original": {
+        "start": 180,
+        "end": 269,
+        "quote": "Professional experience with any other technologies that may be required by the specialty"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Professional experience with any other technologies that may be required by the specialty"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-03",
+      "original": {
+        "start": 272,
+        "end": 410,
+        "quote": "Proficiency in the English language, both written and verbal, sufficient for success in a remote and largely asynchronous work environment"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Proficiency in the English language, both written and verbal, sufficient for success in a remote and largely asynchronous work environment"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-04",
+      "original": {
+        "start": 413,
+        "end": 583,
+        "quote": "Demonstrated capacity to clearly and concisely communicate about complex technical, architectural, and/or organizational problems and propose thorough iterative solutions"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Demonstrated capacity to clearly and concisely communicate about complex technical, architectural, and/or organizational problems and propose thorough iterative solutions"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-05",
+      "original": {
+        "start": 586,
+        "end": 710,
+        "quote": "Experience with performance and optimization problems and a demonstrated ability to both diagnose and prevent these problems"
+      },
+      "weight": 3,
+      "support": "supported",
+      "anchorGroups": [
+        [
+          "TimescaleDB"
+        ],
+        [
+          "analytical workloads"
+        ]
+      ],
+      "evidenceIds": [
+        "work-3-action-2"
+      ]
+    },
+    {
+      "id": "requirement-06",
+      "original": {
+        "start": 713,
+        "end": 796,
+        "quote": "Comfort working in a highly agile, intensely iterative software development process"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Comfort working in a highly agile, intensely iterative software development process"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-07",
+      "original": {
+        "start": 799,
+        "end": 875,
+        "quote": "Demonstrated ability to onboard and integrate with an organization long-term"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Demonstrated ability to onboard and integrate with an organization long-term"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-08",
+      "original": {
+        "start": 878,
+        "end": 916,
+        "quote": "Positive and solution-oriented mindset"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Positive and solution-oriented mindset"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-09",
+      "original": {
+        "start": 919,
+        "end": 1015,
+        "quote": "Effective communication skills: Regularly achieve consensus with peers, and clear status updates"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Effective communication skills: Regularly achieve consensus with peers, and clear status updates"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-10",
+      "original": {
+        "start": 1018,
+        "end": 1081,
+        "quote": "An inclination towards communication, inclusion, and visibility"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "An inclination towards communication, inclusion, and visibility"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-11",
+      "original": {
+        "start": 1084,
+        "end": 1186,
+        "quote": "Experience owning a project from concept to production, including proposal, discussion, and execution."
+      },
+      "weight": 3,
+      "support": "supported",
+      "anchorGroups": [
+        [
+          "pilot"
+        ],
+        [
+          "production"
+        ],
+        [
+          "Led"
+        ]
+      ],
+      "evidenceIds": [
+        "work-3-action-0"
+      ]
+    },
+    {
+      "id": "requirement-12",
+      "original": {
+        "start": 1189,
+        "end": 1257,
+        "quote": "Self-motivated and self-managing, with strong organizational skills."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Self-motivated and self-managing, with strong organizational skills."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-13",
+      "original": {
+        "start": 1260,
+        "end": 1333,
+        "quote": "Demonstrated ability to work closely with other parts of the organization"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Demonstrated ability to work closely with other parts of the organization"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-14",
+      "original": {
+        "start": 1336,
+        "end": 1394,
+        "quote": "Share our values, and work in accordance with those values"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Share our values, and work in accordance with those values"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-15",
+      "original": {
+        "start": 1397,
+        "end": 1445,
+        "quote": "Ability to thrive in a fully remote organization"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Ability to thrive in a fully remote organization"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-16",
+      "original": {
+        "start": 1448,
+        "end": 1469,
+        "quote": "Ability to use GitLab"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "GitLab"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-17",
+      "original": {
+        "start": 1492,
+        "end": 1564,
+        "quote": "Experience in a peak performance organization, preferably a tech startup"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Experience in a peak performance organization, preferably a tech startup"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-18",
+      "original": {
+        "start": 1567,
+        "end": 1626,
+        "quote": "Experience with the GitLab product as a user or contributor"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Experience with the GitLab product as a user or contributor"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-19",
+      "original": {
+        "start": 1629,
+        "end": 1655,
+        "quote": "Product company experience"
+      },
+      "weight": 1,
+      "support": "supported",
+      "anchorGroups": [
+        [
+          "Django"
+        ],
+        [
+          "platform"
+        ]
+      ],
+      "evidenceIds": [
+        "work-0-action-0",
+        "work-2-action-0"
+      ]
+    },
+    {
+      "id": "requirement-20",
+      "original": {
+        "start": 1658,
+        "end": 1695,
+        "quote": "Experience working with a remote team"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Experience working with a remote team"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-21",
+      "original": {
+        "start": 1698,
+        "end": 1736,
+        "quote": "Enterprise software company experience"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Enterprise software company experience"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-22",
+      "original": {
+        "start": 1739,
+        "end": 1782,
+        "quote": "Developer platform/tool industry experience"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Developer platform/tool industry experience"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-23",
+      "original": {
+        "start": 1785,
+        "end": 1849,
+        "quote": "Experience working with a global or otherwise multicultural team"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Experience working with a global or otherwise multicultural team"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-24",
+      "original": {
+        "start": 1852,
+        "end": 1903,
+        "quote": "Computer science education or equivalent experience"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Computer science education or equivalent experience"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-25",
+      "original": {
+        "start": 1906,
+        "end": 1971,
+        "quote": "Passionate about/experienced with open source and developer tools"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Passionate about/experienced with open source and developer tools"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-26",
+      "original": {
+        "start": 1997,
+        "end": 2099,
+        "quote": "Develop features and improvements to the GitLab product in a secure,\n  well-tested, and performant way"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Develop features and improvements to the GitLab product in a secure,\n  well-tested, and performant way"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-27",
+      "original": {
+        "start": 2102,
+        "end": 2274,
+        "quote": "Collaborate with Product Management and other stakeholders within Engineering (Frontend, UX, etc.) to maintain a high bar for quality in a fast-paced, iterative environment"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Collaborate with Product Management and other stakeholders within Engineering (Frontend, UX, etc.) to maintain a high bar for quality in a fast-paced, iterative environment"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-28",
+      "original": {
+        "start": 2277,
+        "end": 2348,
+        "quote": "Advocate for improvements to product quality, security, and performance"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Advocate for improvements to product quality, security, and performance"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-29",
+      "original": {
+        "start": 2351,
+        "end": 2409,
+        "quote": "Solve technical problems of moderate scope and complexity."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Solve technical problems of moderate scope and complexity."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-30",
+      "original": {
+        "start": 2412,
+        "end": 2600,
+        "quote": "Craft code that meets our internal standards for style, maintainability, and best practices for a high-scale web environment. Maintain and advocate for these standards through code review."
+      },
+      "weight": 2,
+      "support": "partial",
+      "anchorGroups": [
+        [
+          "type safety",
+          "type hints",
+          "type hinting"
+        ],
+        [
+          "best practices"
+        ]
+      ],
+      "evidenceIds": [
+        "work-0-action-2",
+        "work-2-action-1"
+      ]
+    },
+    {
+      "id": "requirement-31",
+      "original": {
+        "start": 2603,
+        "end": 2704,
+        "quote": "Recognize impediments to our efficiency as a team (\"technical debt\"), propose and implement solutions"
+      },
+      "weight": 2,
+      "support": "supported",
+      "anchorGroups": [
+        [
+          "legacy"
+        ],
+        [
+          "migration",
+          "TypeScript"
+        ]
+      ],
+      "evidenceIds": [
+        "work-1-action-1"
+      ]
+    },
+    {
+      "id": "requirement-32",
+      "original": {
+        "start": 2707,
+        "end": 2816,
+        "quote": "Represent GitLab and its values in public communication around specific projects and community contributions."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Represent GitLab and its values in public communication around specific projects and community contributions."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-33",
+      "original": {
+        "start": 2819,
+        "end": 2972,
+        "quote": "Confidently ship small features and improvements with minimal guidance and support from other team members. Collaborate with the team on larger projects."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Confidently ship small features and improvements with minimal guidance and support from other team members. Collaborate with the team on larger projects."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-34",
+      "original": {
+        "start": 2975,
+        "end": 3249,
+        "quote": "Participate in Tier 2 or Tier 3 weekday and weekend and occasional night [on-call rotations](/handbook/engineering/workflow/development-processes/infra-dev-escalation/process/) to assist troubleshooting product operations, security operations, and urgent engineering issues."
+      },
+      "weight": 2,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "on-call"
+        ]
+      ],
+      "evidenceIds": []
+    }
+  ],
+  "entityLexicon": [
+    "Chef",
+    "Ansible",
+    "Terraform",
+    "Kubernetes",
+    "Ruby",
+    "Ruby on Rails",
+    "Go",
+    "Golang",
+    "Redis",
+    "Kafka",
+    "React",
+    "React Native",
+    "Vue.js",
+    "JavaScript",
+    "GitLab",
+    "Snowflake",
+    "Airflow",
+    "SQL",
+    "Docker",
+    "Django",
+    "C#",
+    ".NET"
+  ],
+  "approvedParaphrases": []
+}

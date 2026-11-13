@@ -1,0 +1,215 @@
+[work-0-action-0; employment; self_reported]
+Senior fullstack developer at Employer D . Greenfield: With the rest of the team, built and scaled the new Django and React based multitenant platform - where each client has their own high-volume Postgres and ClickHouse databases.
+
+[work-0-action-1; employment; self_reported]
+Senior fullstack developer at Employer D . Brownfield: New features and bugfixes on the business' legacy systems, based on Django and Vue.js. Added integrations to new 3rd-party platforms.
+
+[work-0-action-2; employment; self_reported]
+Senior fullstack developer at Employer D . Established type safety by introducing type hinting across the Python codebases, and mentoring the team on related best practices.
+
+[work-0-technology-0; technology_list; self_reported]
+Python
+
+[work-0-technology-1; technology_list; self_reported]
+Django
+
+[work-0-technology-2; technology_list; self_reported]
+Django REST Framework
+
+[work-0-technology-3; technology_list; self_reported]
+Celery
+
+[work-0-technology-4; technology_list; self_reported]
+Postgres
+
+[work-0-technology-5; technology_list; self_reported]
+ClickHouse
+
+[work-0-technology-6; technology_list; self_reported]
+TypeScript
+
+[work-0-technology-7; technology_list; self_reported]
+React
+
+[work-0-technology-8; technology_list; self_reported]
+Vue.js
+
+[work-1-action-0; employment; self_reported]
+Senior developer for the Web agency Employer E . Greenfield: Led fullstack architecture for a Wagtail/Django platform under tight deadlines. Also managed the migration from the previous CMS and bespoke search logic.
+
+[work-1-action-1; employment; self_reported]
+Senior developer for the Web agency Employer E . Brownfield: Took ownership of a large legacy Node.js + Elasticsearch system and led its progressive migration to TypeScript to make bugfixing and addition of new features easier.
+
+[work-1-technology-0; technology_list; self_reported]
+Python
+
+[work-1-technology-1; technology_list; self_reported]
+Django
+
+[work-1-technology-2; technology_list; self_reported]
+Wagtail
+
+[work-1-technology-3; technology_list; self_reported]
+HTMX
+
+[work-1-technology-4; technology_list; self_reported]
+Postgres
+
+[work-1-technology-5; technology_list; self_reported]
+Node.js
+
+[work-1-technology-6; technology_list; self_reported]
+Elasticsearch
+
+[work-1-technology-7; technology_list; self_reported]
+TypeScript
+
+[work-1-technology-8; technology_list; self_reported]
+React
+
+[work-2-action-0; employment; self_reported]
+Senior developer for Employer F (as a contractor). Brownfield: Built fullstack features for this Django and React platform serving 3 million users and handling up to 600 requests/second at peak time.
+
+[work-2-action-1; employment; self_reported]
+Senior developer for Employer F (as a contractor). Championed type safety by introducing type hints to a 10 years old Python codebase, and sharing associated best practices with the team.
+
+[work-2-technology-0; technology_list; self_reported]
+Python
+
+[work-2-technology-1; technology_list; self_reported]
+Django
+
+[work-2-technology-2; technology_list; self_reported]
+Django REST Framework
+
+[work-2-technology-3; technology_list; self_reported]
+Celery
+
+[work-2-technology-4; technology_list; self_reported]
+MySQL
+
+[work-2-technology-5; technology_list; self_reported]
+TypeScript
+
+[work-2-technology-6; technology_list; self_reported]
+React
+
+[work-3-action-0; employment; self_reported]
+Lead developer for Employer G . Greenfield: Led a 4 engineers team to deliver a IoT solar fleet management system, scaling from pilot to production. I led both the Django and React sides of the development.
+
+[work-3-action-1; employment; self_reported]
+Lead developer for Employer G . Greenfield: Designed API structure and data models to support real-time ingestion via MQTT and historical analytics workloads.
+
+[work-3-action-2; employment; self_reported]
+Lead developer for Employer G . Greenfield: Proactively migrated historical data storage from Postgres to TimescaleDB to support growing real-time analytical workloads as the platform scaled.
+
+[work-3-technology-0; technology_list; self_reported]
+Python
+
+[work-3-technology-1; technology_list; self_reported]
+Django
+
+[work-3-technology-2; technology_list; self_reported]
+Celery
+
+[work-3-technology-3; technology_list; self_reported]
+Postgres
+
+[work-3-technology-4; technology_list; self_reported]
+TimescaleDB
+
+[work-3-technology-5; technology_list; self_reported]
+MQTT
+
+[work-3-technology-6; technology_list; self_reported]
+TypeScript
+
+[work-3-technology-7; technology_list; self_reported]
+React
+
+[work-3-technology-8; technology_list; self_reported]
+GraphQL
+
+[work-4-action-0; employment; self_reported]
+Lead PHP APIs developer for Employer H . Brownfield: Led a team of 4 PHP developers to maintain the existing user-facing APIs and website.
+
+[work-4-action-1; employment; self_reported]
+Lead PHP APIs developer for Employer H . Greenfield: Led the development of a new website based on a modernized data layer architecture.
+
+[work-4-technology-0; technology_list; self_reported]
+PHP
+
+[work-4-technology-1; technology_list; self_reported]
+Symfony
+
+[work-4-technology-2; technology_list; self_reported]
+RabbitMQ
+
+[work-4-technology-3; technology_list; self_reported]
+Postgres
+
+[work-4-technology-4; technology_list; self_reported]
+SOAP
+
+[work-5-action-0; employment; self_reported]
+Forward deployed engineer at Employer I . Greenfield: Led a team of 5 developers to refactor the Client A platform's backend services.
+
+[work-5-action-1; employment; self_reported]
+Forward deployed engineer at Employer I . Greenfield: Led a team of 3 developers to rebuild the Client B website and CMS, relying on Elasticsearch and Redis as data projection layers.
+
+[work-5-technology-0; technology_list; self_reported]
+PHP
+
+[work-5-technology-1; technology_list; self_reported]
+Symfony
+
+[work-5-technology-2; technology_list; self_reported]
+JavaScript
+
+[work-5-technology-3; technology_list; self_reported]
+Elasticsearch
+
+[work-5-technology-4; technology_list; self_reported]
+Redis
+
+[work-6-action-0; freelance; self_reported]
+PHP / JavaScript / Ruby / Flash freelance developer , working with companies such as Client C , Client D , Client E ... Brownfield: Worked on Client C, one of France's main news websites
+
+[work-6-action-1; freelance; self_reported]
+PHP / JavaScript / Ruby / Flash freelance developer , working with companies such as Client C , Client D , Client E ... Greenfield: Built a mass mailing Ruby on Rails web application for Client F
+
+[work-6-action-2; freelance; self_reported]
+PHP / JavaScript / Ruby / Flash freelance developer , working with companies such as Client C , Client D , Client E ... Greenfield: Led JavaScript development for the Client D mobile site
+
+[work-6-technology-0; technology_list; self_reported]
+PHP
+
+[work-6-technology-1; technology_list; self_reported]
+Symfony
+
+[work-6-technology-2; technology_list; self_reported]
+JavaScript
+
+[work-6-technology-3; technology_list; self_reported]
+Node.js
+
+[work-6-technology-4; technology_list; self_reported]
+Backbone.js
+
+[work-6-technology-5; technology_list; self_reported]
+Ruby
+
+[work-6-technology-6; technology_list; self_reported]
+Ruby on Rails
+
+[work-7; employment; self_reported]
+Flash Lead Developer at Employer J, in Montréal.
+
+[work-8; employment; self_reported]
+Flash / PHP Developer for the Web agency "Employer K".
+
+[work-9; employment; self_reported]
+Flash / PHP Developer for the Web agency "Employer L".
+
+[work-10; employment; self_reported]
+Web Developer for the Web agency "Employer M".

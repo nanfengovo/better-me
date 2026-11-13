@@ -1,0 +1,98 @@
+[
+  {
+    "id": "freelance",
+    "title": "Web Developer & Designer",
+    "organization": "Self-employed",
+    "dates": "Jan 2017 - Present",
+    "kind": "freelance",
+    "originals": [
+      {
+        "start": 8054,
+        "end": 8274,
+        "startLine": 109,
+        "endLine": 116,
+        "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+      }
+    ]
+  },
+  {
+    "id": "project-0",
+    "title": "Tourism project A - Tourism Website",
+    "organization": "Portfolio",
+    "dates": "Not stated",
+    "kind": "portfolio",
+    "originals": [
+      {
+        "start": 4101,
+        "end": 4817,
+        "startLine": 66,
+        "endLine": 71,
+        "sha256": "0631900d481bb02795b830aef18840d4be3a9e913cc8681af3dfbd8c97180b45"
+      }
+    ]
+  },
+  {
+    "id": "project-1",
+    "title": "A multilingual website created for an Client I",
+    "organization": "Portfolio",
+    "dates": "Not stated",
+    "kind": "portfolio",
+    "originals": [
+      {
+        "start": 4829,
+        "end": 5556,
+        "startLine": 73,
+        "endLine": 78,
+        "sha256": "3f587abe0f3a3b59a8767e2e708ef49a9851d50133d405de3e7a95124464abdd"
+      }
+    ]
+  },
+  {
+    "id": "project-2",
+    "title": "WordPress site for the fictional company Practice company A",
+    "organization": "Portfolio",
+    "dates": "Not stated",
+    "kind": "fictional_practice",
+    "originals": [
+      {
+        "start": 5568,
+        "end": 6299,
+        "startLine": 80,
+        "endLine": 85,
+        "sha256": "7d20976b6f632c5142b6840bcab7be3f7e58d5e5bfc8b78aa52b0ed7cf5919f1"
+      }
+    ]
+  },
+  {
+    "id": "project-3",
+    "title": "SQL Quizzer",
+    "organization": "Portfolio",
+    "dates": "Not stated",
+    "kind": "portfolio",
+    "originals": [
+      {
+        "start": 6311,
+        "end": 7010,
+        "startLine": 87,
+        "endLine": 92,
+        "sha256": "5e46156a0e8e27ddbe3ffed492897fe58d43377dbf834ebb1dfd53f4ae8ab2b1"
+      }
+    ]
+  },
+  {
+    "id": "project-4",
+    "title": "Shoutbox application",
+    "organization": "Portfolio",
+    "dates": "Not stated",
+    "kind": "portfolio",
+    "originals": [
+      {
+        "start": 7032,
+        "end": 7707,
+        "startLine": 94,
+        "endLine": 99,
+        "sha256": "8aaee958dd97bee42b3949a0630b589c7abd06b9fa15bec56fa9d6245cc3864f"
+      }
+    ]
+  }
+]

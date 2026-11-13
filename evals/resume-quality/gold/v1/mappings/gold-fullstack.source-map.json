@@ -1,0 +1,1782 @@
+{
+  "schemaVersion": 1,
+  "labelVersion": "gold-source-review-v1",
+  "caseSha256": "f10cc37d16fbc4c7d44591442a411789b371f473e3f8d71b40a45ce4bfb0dda4",
+  "source": {
+    "id": "c04",
+    "file": "C04-resume.html",
+    "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+    "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+    "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+    "author": "Mirnes Glamočić",
+    "license": "MIT",
+    "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE"
+  },
+  "jobSource": {
+    "id": "j04",
+    "file": "J04-fullstack.md",
+    "originalSha256": "2de27a56827b22b521ae1b89804bdfcd8d60c5d594dca4637084ae9cbedb89b7",
+    "revision": "f7efde2339c3ff060bb972805bf22692c534893d",
+    "url": "https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/f7efde2339c3ff060bb972805bf22692c534893d/content/job-description-library/engineering/development/fullstack/_index.md",
+    "author": "GitLab handbook contributors",
+    "license": "CC-BY-SA-4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  "candidateTextSha256": "0786e5fb0cfcdf53a257b441de91944b8af1842de2ffe0915fa12cf39d05eed3",
+  "coordinateSystem": "UTF-16 code units, zero-based half-open; lines one-based; hashes UTF-8 bytes",
+  "mappingGranularity": "Selected complete source tokens/markup units; derived strings are transformed. Never equate derived offsets with original offsets.",
+  "units": [
+    {
+      "id": "freelance-action-0",
+      "derivedSha256": "4e52a61854b83f6526e752e66ae301a07e893a488f5755d96c6a6ebebd13c971",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 8560,
+          "end": 8627,
+          "startLine": 121,
+          "endLine": 121,
+          "sha256": "99c6d5f079f31e39c151026f2a668f59f6cc5fa556b87ae8c6338636e44fb541"
+        }
+      ],
+      "derivedStart": 47,
+      "derivedEnd": 145,
+      "derivedStartLine": 2,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "freelance-action-1",
+      "derivedSha256": "24380e2b8cd655afcdc6fbbcb6abae570df319140fb66336c8460d0b0bd1aec4",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 8642,
+          "end": 8699,
+          "startLine": 122,
+          "endLine": 122,
+          "sha256": "0cd3217fdc930e01061b33c778faa7a02e4a916c7887f08e18801d54ac23b2ae"
+        }
+      ],
+      "derivedStart": 194,
+      "derivedEnd": 282,
+      "derivedStartLine": 5,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "freelance-action-2",
+      "derivedSha256": "6dfdb1ea144a822be8cd60113d916ebfcf04497157b8b44b725f64374a6851b4",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 8714,
+          "end": 8794,
+          "startLine": 123,
+          "endLine": 123,
+          "sha256": "45ec89dc9445106cb9d98b885fb8e15b9fc3324edaa449ca7870834525f339ca"
+        }
+      ],
+      "derivedStart": 331,
+      "derivedEnd": 442,
+      "derivedStartLine": 8,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "freelance-action-3",
+      "derivedSha256": "8667415ea9195a13d55e5750f61d734d022c1cdc10b07f508d2188630d10faff",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 8809,
+          "end": 8873,
+          "startLine": 124,
+          "endLine": 124,
+          "sha256": "72e28d3f5335bfdbe3c9b958067f8249163fecd832571140f4f36d70a49227ae"
+        }
+      ],
+      "derivedStart": 491,
+      "derivedEnd": 586,
+      "derivedStartLine": 11,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "freelance-action-4",
+      "derivedSha256": "1fd64445be1901d99c6ba648e127afe98fa807796d8a8d2424724b95cdce2c02",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 8888,
+          "end": 8954,
+          "startLine": 125,
+          "endLine": 125,
+          "sha256": "235fbefa125a26cd14dd0ad59263862cfd233a79ea1e9629f64219c7e404805a"
+        }
+      ],
+      "derivedStart": 635,
+      "derivedEnd": 732,
+      "derivedStartLine": 14,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "freelance-action-5",
+      "derivedSha256": "5b4552d869f604a0c08eab558f990a98c57828de58e0a29785eb88a8edf113df",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 8969,
+          "end": 9009,
+          "startLine": 126,
+          "endLine": 126,
+          "sha256": "c13e3bc4aba60d3758671928bc8587afa1c4534dec31274ea6edf9b453f48a22"
+        }
+      ],
+      "derivedStart": 781,
+      "derivedEnd": 852,
+      "derivedStartLine": 17,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "freelance-action-6",
+      "derivedSha256": "496d9b7a1cf438a09c5ea2ef7be5ae457ffd391e9122b6b4c5860302b84a0ce4",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 9024,
+          "end": 9079,
+          "startLine": 127,
+          "endLine": 127,
+          "sha256": "4d36625ebd007f448546707da5b07ce2acd0aa39bb272b8c58768ad72bc12c8d"
+        }
+      ],
+      "derivedStart": 901,
+      "derivedEnd": 987,
+      "derivedStartLine": 20,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "freelance-action-7",
+      "derivedSha256": "727acd72845eaf34f3f279e9af8c5debcbe72efd2510b4c488c598bb4828872a",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 9094,
+          "end": 9142,
+          "startLine": 128,
+          "endLine": 128,
+          "sha256": "ad88fe3ae5d64b48fc87460a7735bd0362905616270e550f624d73295086ec60"
+        }
+      ],
+      "derivedStart": 1036,
+      "derivedEnd": 1115,
+      "derivedStartLine": 23,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "freelance-action-8",
+      "derivedSha256": "39caa0cf4a72b7dad647af5cc73c864637398d6fe5de4c84d772f5cca1ef560d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 9157,
+          "end": 9237,
+          "startLine": 129,
+          "endLine": 129,
+          "sha256": "86791cb2efbb43d5ff16f0915de8ad6bc0ca3a110004d6d044215b7998299b1d"
+        }
+      ],
+      "derivedStart": 1164,
+      "derivedEnd": 1275,
+      "derivedStartLine": 26,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "freelance-action-9",
+      "derivedSha256": "5eced4cd87835f4838d27edcace9acc4a33790c509b9a1de8b5d6e7035cf3af1",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 9252,
+          "end": 9288,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "f34e9f1f1622127591a312f74189f1de59b69f6593716c9c9a401f210f9e59e6"
+        }
+      ],
+      "derivedStart": 1324,
+      "derivedEnd": 1391,
+      "derivedStartLine": 29,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "freelance-action-10",
+      "derivedSha256": "351abaad9a13ba9b6615ac214dde80f13931d6f0996eea7dccd651e70f3d9eff",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 9303,
+          "end": 9350,
+          "startLine": 131,
+          "endLine": 131,
+          "sha256": "a5f3647b66e16e8ad7a740eb7ca8e37879308dfa4d8eae1ee16f504c1af55449"
+        }
+      ],
+      "derivedStart": 1441,
+      "derivedEnd": 1519,
+      "derivedStartLine": 32,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "freelance-action-11",
+      "derivedSha256": "516627ca12de735e713696fe20553034b71aa5b590381abf03bfabbb612f0093",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 9365,
+          "end": 9425,
+          "startLine": 132,
+          "endLine": 132,
+          "sha256": "8a4706c9ddb0d4c1320da052764a7b19759229b3452ce0eaeb5dcd113ea2457a"
+        }
+      ],
+      "derivedStart": 1569,
+      "derivedEnd": 1660,
+      "derivedStartLine": 35,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "freelance-action-12",
+      "derivedSha256": "5648e82559f53cdfd8cae2966d81afede43b5583e046f55e45fbe67f4017fd4d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 9440,
+          "end": 9508,
+          "startLine": 133,
+          "endLine": 133,
+          "sha256": "7ecd22c8437edae1a47feee5a5300ea4f6859822edb1e220a89887baea16c503"
+        }
+      ],
+      "derivedStart": 1710,
+      "derivedEnd": 1809,
+      "derivedStartLine": 38,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "freelance-action-13",
+      "derivedSha256": "59ccf3a9bbd8753c6d874e2848b298944fefe4504cfde5d7ba80bd229291f7ee",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 9523,
+          "end": 9579,
+          "startLine": 134,
+          "endLine": 134,
+          "sha256": "14ef3bb3a9d8e4f071c98b0e8fd36199b75e9c7ac0b556319c1ef164b8a56ca6"
+        }
+      ],
+      "derivedStart": 1859,
+      "derivedEnd": 1946,
+      "derivedStartLine": 41,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "freelance-action-14",
+      "derivedSha256": "bdaaa4dd8936c3f95a4088f0072fb9de55b0265b0580838b2ab9bc188b262330",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 9594,
+          "end": 9661,
+          "startLine": 135,
+          "endLine": 135,
+          "sha256": "b6908423b4cc6e19e0e9fe71136bbd01395facf2334c17fb2a99162c9126f9c3"
+        }
+      ],
+      "derivedStart": 1996,
+      "derivedEnd": 2094,
+      "derivedStartLine": 44,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "freelance-action-15",
+      "derivedSha256": "15a6dd73f71c6dc5d35483f2f7fe741d8a5c421c9e77d077a9bb12893f06ec01",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 9676,
+          "end": 9721,
+          "startLine": 136,
+          "endLine": 136,
+          "sha256": "046d82e7e491ebf1d73f32ff67449cab0098f3585c8e6363aa8bc0a8315caf0b"
+        }
+      ],
+      "derivedStart": 2144,
+      "derivedEnd": 2220,
+      "derivedStartLine": 47,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "freelance-action-16",
+      "derivedSha256": "a9917693115cff349c50f07107b146d22ab7836d10d16846b6eadcde38107db8",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 9736,
+          "end": 9770,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "ea65bf36ef4a8bca655210b3e52548b35fdde1a94e5b345323632162d66db1bd"
+        }
+      ],
+      "derivedStart": 2270,
+      "derivedEnd": 2335,
+      "derivedStartLine": 50,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "freelance-action-17",
+      "derivedSha256": "0650f673194b23d4727c2f5585f72e06b41ab041f11a69af32a02da0f5ce53b0",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 9785,
+          "end": 9827,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "5ce151f141c552127ee921417cd98a673746be3fa95722620f9f4806a393a4a4"
+        }
+      ],
+      "derivedStart": 2385,
+      "derivedEnd": 2458,
+      "derivedStartLine": 53,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "freelance-action-18",
+      "derivedSha256": "c78039d7fe44f0dbf7941b73362c62d0b706e7d860ce638e3240df39c89b7836",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 9842,
+          "end": 9903,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "f9bbd128a908584fd7368f610756df24fb57066e68b89387185a13b6de79d241"
+        }
+      ],
+      "derivedStart": 2508,
+      "derivedEnd": 2600,
+      "derivedStartLine": 56,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "freelance-action-19",
+      "derivedSha256": "079eccc98d9569055c9483c1452860622e5f28f8053d3c3f72dc9af2e2ae9d52",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 9918,
+          "end": 10017,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "fc0c24810ab5927c43575371fb2ecd1902ef0b2094a168d2bd4438b460b2d89c"
+        }
+      ],
+      "derivedStart": 2650,
+      "derivedEnd": 2780,
+      "derivedStartLine": 59,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "freelance-action-20",
+      "derivedSha256": "5033ef2a26f31b8da18aee15ae2fe8a8e3883ed804b9be6608ca5e87985eebec",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 10032,
+          "end": 10138,
+          "startLine": 141,
+          "endLine": 141,
+          "sha256": "ee919cf9b89adbb38b8aa7d4cfe3f96d30775b2bd41a51ccc8597686752ad05b"
+        }
+      ],
+      "derivedStart": 2830,
+      "derivedEnd": 2967,
+      "derivedStartLine": 62,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "freelance-action-21",
+      "derivedSha256": "2dc2770c3216916bf6162191efb2f03d23ecd522c1a33a14ffa70d5878c6ee96",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 10153,
+          "end": 10206,
+          "startLine": 142,
+          "endLine": 142,
+          "sha256": "666c9b7bd02cc54dbed8378525c65b2c6d979ce5f4c91191b6d6dce8882e25ab"
+        }
+      ],
+      "derivedStart": 3017,
+      "derivedEnd": 3101,
+      "derivedStartLine": 65,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "freelance-action-22",
+      "derivedSha256": "aee5b9f489048194f227dbcfcf331d5b1e9c6a6446b8c5d92f1fcce10410408e",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 10221,
+          "end": 10295,
+          "startLine": 143,
+          "endLine": 143,
+          "sha256": "9e53847a89d5b10b9d9f7e679431e123165edf52abc7b7d3a868f85097c21941"
+        }
+      ],
+      "derivedStart": 3151,
+      "derivedEnd": 3256,
+      "derivedStartLine": 68,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "freelance-action-23",
+      "derivedSha256": "d4e2b2351deda517358456c289a5925668d52e6159ab127cd1b9b59a396f0706",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Self-employed Web Developer & Designer. ",
+      "originals": [
+        {
+          "start": 10310,
+          "end": 10348,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "cd32b9e19f9ce6cd37198969104502b0b7eecebe01ead1b5327b9f830fd76d32"
+        }
+      ],
+      "derivedStart": 3306,
+      "derivedEnd": 3375,
+      "derivedStartLine": 71,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-0",
+      "derivedSha256": "76f484460861ae9a82e6ceb609cff20f0afe5439242760501cd4d8b71b75dbd9",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4101,
+          "end": 4817,
+          "startLine": 66,
+          "endLine": 71,
+          "sha256": "0631900d481bb02795b830aef18840d4be3a9e913cc8681af3dfbd8c97180b45"
+        }
+      ],
+      "derivedStart": 3415,
+      "derivedEnd": 3804,
+      "derivedStartLine": 74,
+      "contextOriginals": [
+        {
+          "start": 4101,
+          "end": 4817,
+          "startLine": 66,
+          "endLine": 71,
+          "sha256": "0631900d481bb02795b830aef18840d4be3a9e913cc8681af3dfbd8c97180b45"
+        }
+      ],
+      "group": "project-0",
+      "kind": "portfolio",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-1",
+      "derivedSha256": "c546c9ed68b28197b9e0c2feb4d9cde6b7569b56542e77d9a1f384432a8086f2",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4829,
+          "end": 5556,
+          "startLine": 73,
+          "endLine": 78,
+          "sha256": "3f587abe0f3a3b59a8767e2e708ef49a9851d50133d405de3e7a95124464abdd"
+        }
+      ],
+      "derivedStart": 3844,
+      "derivedEnd": 4226,
+      "derivedStartLine": 77,
+      "contextOriginals": [
+        {
+          "start": 4829,
+          "end": 5556,
+          "startLine": 73,
+          "endLine": 78,
+          "sha256": "3f587abe0f3a3b59a8767e2e708ef49a9851d50133d405de3e7a95124464abdd"
+        }
+      ],
+      "group": "project-1",
+      "kind": "portfolio",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-2",
+      "derivedSha256": "a6c1b339a5e701bac77ca6f25ab297a69b774119704b83d737a7eaceaf48c3c4",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5568,
+          "end": 6299,
+          "startLine": 80,
+          "endLine": 85,
+          "sha256": "7d20976b6f632c5142b6840bcab7be3f7e58d5e5bfc8b78aa52b0ed7cf5919f1"
+        }
+      ],
+      "derivedStart": 4275,
+      "derivedEnd": 4686,
+      "derivedStartLine": 80,
+      "contextOriginals": [
+        {
+          "start": 5568,
+          "end": 6299,
+          "startLine": 80,
+          "endLine": 85,
+          "sha256": "7d20976b6f632c5142b6840bcab7be3f7e58d5e5bfc8b78aa52b0ed7cf5919f1"
+        }
+      ],
+      "group": "project-2",
+      "kind": "fictional_practice",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "project-3",
+      "derivedSha256": "ac10a2e1f804e88c6e33ca6e48c646e39a4786db7bd46bcfb282a3d787c9b429",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6311,
+          "end": 7010,
+          "startLine": 87,
+          "endLine": 92,
+          "sha256": "5e46156a0e8e27ddbe3ffed492897fe58d43377dbf834ebb1dfd53f4ae8ab2b1"
+        }
+      ],
+      "derivedStart": 4726,
+      "derivedEnd": 5089,
+      "derivedStartLine": 83,
+      "contextOriginals": [
+        {
+          "start": 6311,
+          "end": 7010,
+          "startLine": 87,
+          "endLine": 92,
+          "sha256": "5e46156a0e8e27ddbe3ffed492897fe58d43377dbf834ebb1dfd53f4ae8ab2b1"
+        }
+      ],
+      "group": "project-3",
+      "kind": "portfolio",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-4",
+      "derivedSha256": "9b55fa5c13b7c52d0cf7d6a1e7c11e2ab539c3999717fa8ac647ade0e1846b99",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 7032,
+          "end": 7707,
+          "startLine": 94,
+          "endLine": 99,
+          "sha256": "8aaee958dd97bee42b3949a0630b589c7abd06b9fa15bec56fa9d6245cc3864f"
+        }
+      ],
+      "derivedStart": 5129,
+      "derivedEnd": 5480,
+      "derivedStartLine": 86,
+      "contextOriginals": [
+        {
+          "start": 7032,
+          "end": 7707,
+          "startLine": 94,
+          "endLine": 99,
+          "sha256": "8aaee958dd97bee42b3949a0630b589c7abd06b9fa15bec56fa9d6245cc3864f"
+        }
+      ],
+      "group": "project-4",
+      "kind": "portfolio",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "education-0",
+      "derivedSha256": "1db5e154db9b8433b03b72b20bd95fa298521e1cf26bfe8f3cff3eea8c99576b",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 10602,
+          "end": 11090,
+          "startLine": 156,
+          "endLine": 160,
+          "sha256": "9bc76928bb05759c0ba7adeb90ed92fe36c811ac25ac701c67227ed7c1298454"
+        }
+      ],
+      "derivedStart": 5522,
+      "derivedEnd": 5902,
+      "derivedStartLine": 89,
+      "contextOriginals": [],
+      "group": "education",
+      "kind": "education",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "education-1",
+      "derivedSha256": "515373f3a1e124153136a92462875baa0fbe0780c22269b944bc2d5ead39d0d5",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 11100,
+          "end": 11723,
+          "startLine": 162,
+          "endLine": 166,
+          "sha256": "8fc6af7997d12ce19a7afa9e3cdbef8bd60893fb89b53885120f7f406cf38ed1"
+        }
+      ],
+      "derivedStart": 5944,
+      "derivedEnd": 6459,
+      "derivedStartLine": 92,
+      "contextOriginals": [],
+      "group": "education",
+      "kind": "education",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "education-2",
+      "derivedSha256": "1b924077b518f84317c7986d8db8b07910dff03514b3c5758782815db9d8fd69",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 11733,
+          "end": 11991,
+          "startLine": 168,
+          "endLine": 171,
+          "sha256": "b96d02d13723fdddc42e84b53f334bd3a0ea57d0cfdd530b2c259d1101b8178d"
+        }
+      ],
+      "derivedStart": 6501,
+      "derivedEnd": 6616,
+      "derivedStartLine": 95,
+      "contextOriginals": [],
+      "group": "education",
+      "kind": "education",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "profile",
+      "derivedSha256": "90ecc3eec769d09c9cdf0020d70524e64daac4197e937957f8b04ebbbbcc0457",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3444,
+          "end": 3722,
+          "startLine": 55,
+          "endLine": 55,
+          "sha256": "d4c5520433c87a4d34bcbf6f67005a76352f848324b233525b93dd9b155ad905"
+        }
+      ],
+      "derivedStart": 6652,
+      "derivedEnd": 6923,
+      "derivedStartLine": 98,
+      "contextOriginals": [],
+      "group": "profile",
+      "kind": "summary",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "professional-skills",
+      "derivedSha256": "f0b15c56115c50ad2ca421d0ec2e196df629038e558563f7f686c8b1e9f4d15e",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 8313,
+          "end": 8495,
+          "startLine": 117,
+          "endLine": 118,
+          "sha256": "4746c8a01da0e27b94ae0585a38db4fec2fd255bdb794b56a5aeb785c12f6bd7"
+        }
+      ],
+      "derivedStart": 6974,
+      "derivedEnd": 7135,
+      "derivedStartLine": 101,
+      "contextOriginals": [
+        {
+          "start": 8054,
+          "end": 8274,
+          "startLine": 109,
+          "endLine": 116,
+          "sha256": "178036002f22c55dbbbb7515167895f7d2730df9161e332545bebe9f49797937"
+        }
+      ],
+      "group": "freelance",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    }
+  ],
+  "selectedJob": [
+    {
+      "derivedStart": 0,
+      "derivedEnd": 20,
+      "original": {
+        "start": 1038,
+        "end": 1058,
+        "startLine": 16,
+        "endLine": 16,
+        "sha256": "b42129022da12d1d9c2bc3482e6939386df47cff5cc8207ea7f182ca9b9f719d"
+      }
+    },
+    {
+      "derivedStart": 20,
+      "derivedEnd": 21,
+      "original": {
+        "start": 1058,
+        "end": 1059,
+        "startLine": 17,
+        "endLine": 17,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 21,
+      "derivedEnd": 124,
+      "original": {
+        "start": 1059,
+        "end": 1162,
+        "startLine": 18,
+        "endLine": 18,
+        "sha256": "d2923c77b77f09a5e35368f432195521e12afde849e40979c66af48c45ea2d9b"
+      }
+    },
+    {
+      "derivedStart": 124,
+      "derivedEnd": 208,
+      "original": {
+        "start": 1162,
+        "end": 1246,
+        "startLine": 19,
+        "endLine": 19,
+        "sha256": "a3df67ea1a058ff12c59e975687c984468d1f3162e2d4e5a77314e306f8a8234"
+      }
+    },
+    {
+      "derivedStart": 208,
+      "derivedEnd": 372,
+      "original": {
+        "start": 1246,
+        "end": 1410,
+        "startLine": 20,
+        "endLine": 20,
+        "sha256": "7763a5d7746bb683b076829e273437c71a8afc9bc0f723440dae5dfac97104f4"
+      }
+    },
+    {
+      "derivedStart": 372,
+      "derivedEnd": 446,
+      "original": {
+        "start": 1410,
+        "end": 1484,
+        "startLine": 21,
+        "endLine": 21,
+        "sha256": "92bbadab78fa43d0b456d0091c9f91c1bc29fa7ed6ccc033745d44585c7d9516"
+      }
+    },
+    {
+      "derivedStart": 446,
+      "derivedEnd": 507,
+      "original": {
+        "start": 1484,
+        "end": 1545,
+        "startLine": 22,
+        "endLine": 22,
+        "sha256": "2f7f6c3b09257b10585138ea0881fccbe355efdd971f5c531d247b7126fb0dd0"
+      }
+    },
+    {
+      "derivedStart": 507,
+      "derivedEnd": 698,
+      "original": {
+        "start": 1545,
+        "end": 1736,
+        "startLine": 23,
+        "endLine": 23,
+        "sha256": "d5de389796cd5751d62a92c580963d644d4f35b17424ecbe01aee54e554642de"
+      }
+    },
+    {
+      "derivedStart": 698,
+      "derivedEnd": 810,
+      "original": {
+        "start": 1736,
+        "end": 1848,
+        "startLine": 24,
+        "endLine": 24,
+        "sha256": "22efda8a8c2c398a093646712a47495647d5f9941d1f6315f6f94d4c735387ba"
+      }
+    },
+    {
+      "derivedStart": 810,
+      "derivedEnd": 966,
+      "original": {
+        "start": 1848,
+        "end": 2004,
+        "startLine": 25,
+        "endLine": 25,
+        "sha256": "6fc55e8b83edb2008b1c16c23304b5c43aecdf733d3140a7913dbb899ca5dc12"
+      }
+    },
+    {
+      "derivedStart": 966,
+      "derivedEnd": 1243,
+      "original": {
+        "start": 2004,
+        "end": 2281,
+        "startLine": 26,
+        "endLine": 26,
+        "sha256": "06c7c8a6671ae3a263d437523fd93080e0cbdd8cec7c48438cf35e70cb7c19a6"
+      }
+    },
+    {
+      "derivedStart": 1243,
+      "derivedEnd": 1244,
+      "original": {
+        "start": 2931,
+        "end": 2932,
+        "startLine": 29,
+        "endLine": 29,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 1244,
+      "derivedEnd": 1260,
+      "original": {
+        "start": 2932,
+        "end": 2948,
+        "startLine": 30,
+        "endLine": 30,
+        "sha256": "d8416f1863ce5290f0f41fa533fb9e10fef5d405c1300c03e276a0a894382b61"
+      }
+    },
+    {
+      "derivedStart": 1260,
+      "derivedEnd": 1261,
+      "original": {
+        "start": 2948,
+        "end": 2949,
+        "startLine": 31,
+        "endLine": 31,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 1261,
+      "derivedEnd": 1307,
+      "original": {
+        "start": 2949,
+        "end": 2995,
+        "startLine": 32,
+        "endLine": 32,
+        "sha256": "43d8be0505ef5860f89976c84afbeb8c0dfc8ab6e068bd5bc68cc2ebc0c0e0e6"
+      }
+    },
+    {
+      "derivedStart": 1307,
+      "derivedEnd": 1402,
+      "original": {
+        "start": 2995,
+        "end": 3090,
+        "startLine": 33,
+        "endLine": 33,
+        "sha256": "bd34784031d93dd634a99453be64406fe34f6da9c5a37066b9e65901c0d24c2f"
+      }
+    },
+    {
+      "derivedStart": 1402,
+      "derivedEnd": 1543,
+      "original": {
+        "start": 3090,
+        "end": 3231,
+        "startLine": 34,
+        "endLine": 34,
+        "sha256": "c42ca953bacf1a7afd9b69e5f3331b82d7f0550be9ae4fc359f837117b98f718"
+      }
+    },
+    {
+      "derivedStart": 1543,
+      "derivedEnd": 1716,
+      "original": {
+        "start": 3231,
+        "end": 3404,
+        "startLine": 35,
+        "endLine": 35,
+        "sha256": "4178fb2fa2c32490b7e9c8936228af435a89fa6c23d1372f820f30d8ccb362bf"
+      }
+    },
+    {
+      "derivedStart": 1716,
+      "derivedEnd": 1843,
+      "original": {
+        "start": 3404,
+        "end": 3531,
+        "startLine": 36,
+        "endLine": 36,
+        "sha256": "b287275917141a803cbb619322dcb67bc91be8daa9764144905f28efc4f727f9"
+      }
+    },
+    {
+      "derivedStart": 1843,
+      "derivedEnd": 1929,
+      "original": {
+        "start": 3531,
+        "end": 3617,
+        "startLine": 37,
+        "endLine": 37,
+        "sha256": "8b836c3e5bdc931386a0d0e922ab02e15b67200f5300e0d84fa1c0a1835865a7"
+      }
+    },
+    {
+      "derivedStart": 1929,
+      "derivedEnd": 2008,
+      "original": {
+        "start": 3617,
+        "end": 3696,
+        "startLine": 38,
+        "endLine": 38,
+        "sha256": "09c609c4d488f61f1d72a801e1f620a8f4f12a002de3aabdf60da04b1e90c0c1"
+      }
+    },
+    {
+      "derivedStart": 2008,
+      "derivedEnd": 2049,
+      "original": {
+        "start": 3696,
+        "end": 3737,
+        "startLine": 39,
+        "endLine": 39,
+        "sha256": "1d5111e7d4a7868af7337f54a963d368f4a2b21e9cb65e9818f9713f319af427"
+      }
+    },
+    {
+      "derivedStart": 2049,
+      "derivedEnd": 2148,
+      "original": {
+        "start": 3737,
+        "end": 3836,
+        "startLine": 40,
+        "endLine": 40,
+        "sha256": "4c1559c9fc56428e78f470bd2c9c189434e60a157292f805417f8dfdc83e551e"
+      }
+    },
+    {
+      "derivedStart": 2148,
+      "derivedEnd": 2214,
+      "original": {
+        "start": 3836,
+        "end": 3902,
+        "startLine": 41,
+        "endLine": 41,
+        "sha256": "d0c78a698aef99c0ebb21702624728dc17f89cfa8984546f0b3f30627901f5e6"
+      }
+    },
+    {
+      "derivedStart": 2214,
+      "derivedEnd": 2319,
+      "original": {
+        "start": 3902,
+        "end": 4007,
+        "startLine": 42,
+        "endLine": 42,
+        "sha256": "03479bc7434768a40807f598bd16b170de71ceef9c1bd65c26ef58ea2b68e5de"
+      }
+    },
+    {
+      "derivedStart": 2319,
+      "derivedEnd": 2390,
+      "original": {
+        "start": 4007,
+        "end": 4078,
+        "startLine": 43,
+        "endLine": 43,
+        "sha256": "15fb256886ddad88ee7587e230e4e6f2fab94f73f372565469fc4694754248b7"
+      }
+    },
+    {
+      "derivedStart": 2390,
+      "derivedEnd": 2466,
+      "original": {
+        "start": 4078,
+        "end": 4154,
+        "startLine": 44,
+        "endLine": 44,
+        "sha256": "436bc6fd5f136a36ece847d472e7b51e041c28dd34975e903d214eccac85e958"
+      }
+    },
+    {
+      "derivedStart": 2466,
+      "derivedEnd": 2527,
+      "original": {
+        "start": 4154,
+        "end": 4215,
+        "startLine": 45,
+        "endLine": 45,
+        "sha256": "2deb45350941113e93d36838a4274f371c19249fdfad71b0c3157985fe56af41"
+      }
+    },
+    {
+      "derivedStart": 2527,
+      "derivedEnd": 2551,
+      "original": {
+        "start": 4215,
+        "end": 4239,
+        "startLine": 46,
+        "endLine": 46,
+        "sha256": "7b5adf8ae9aafc3775dd231fc7245da67eb092da0054599d4afff08fd8a9b197"
+      }
+    },
+    {
+      "derivedStart": 2551,
+      "derivedEnd": 2602,
+      "original": {
+        "start": 4239,
+        "end": 4290,
+        "startLine": 47,
+        "endLine": 47,
+        "sha256": "1ee4842f786cc39777d9786507b43ed11fc2ef452abc158c2f7136fa3373fcad"
+      }
+    },
+    {
+      "derivedStart": 2602,
+      "derivedEnd": 2603,
+      "original": {
+        "start": 4290,
+        "end": 4291,
+        "startLine": 48,
+        "endLine": 48,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 2603,
+      "derivedEnd": 2621,
+      "original": {
+        "start": 4291,
+        "end": 4309,
+        "startLine": 49,
+        "endLine": 49,
+        "sha256": "c4743ed084c8222e40d5760b233a634c86bd9d1d80409cc90a38a7ac64d0b754"
+      }
+    },
+    {
+      "derivedStart": 2621,
+      "derivedEnd": 2622,
+      "original": {
+        "start": 4309,
+        "end": 4310,
+        "startLine": 50,
+        "endLine": 50,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 2622,
+      "derivedEnd": 2704,
+      "original": {
+        "start": 4310,
+        "end": 4392,
+        "startLine": 51,
+        "endLine": 51,
+        "sha256": "99a748e42bd5b1f8a7c17cb75a22ea25a537c49bd4d16a37566c7e9042b4b345"
+      }
+    },
+    {
+      "derivedStart": 2704,
+      "derivedEnd": 2779,
+      "original": {
+        "start": 4392,
+        "end": 4467,
+        "startLine": 52,
+        "endLine": 52,
+        "sha256": "ef5fe40e5f0b4aff00e168d032f092810e68b8666a74381170c1b3ff4375238b"
+      }
+    },
+    {
+      "derivedStart": 2779,
+      "derivedEnd": 2841,
+      "original": {
+        "start": 4467,
+        "end": 4529,
+        "startLine": 53,
+        "endLine": 53,
+        "sha256": "8ec7ad586eef757c536573082a22dc1ec8f163b83e8f761bb811932b724e0927"
+      }
+    },
+    {
+      "derivedStart": 2841,
+      "derivedEnd": 2870,
+      "original": {
+        "start": 4529,
+        "end": 4558,
+        "startLine": 54,
+        "endLine": 54,
+        "sha256": "ce5654e1e7afa6b19f6e6309a4ec36177bfc0ea2757edd467fbe7e0d9021b4ce"
+      }
+    },
+    {
+      "derivedStart": 2870,
+      "derivedEnd": 2910,
+      "original": {
+        "start": 4558,
+        "end": 4598,
+        "startLine": 55,
+        "endLine": 55,
+        "sha256": "772f1f4f4804ac44bc363ca25a0038e879014c08dce41305c4cfbe436506ebcd"
+      }
+    },
+    {
+      "derivedStart": 2910,
+      "derivedEnd": 2951,
+      "original": {
+        "start": 4598,
+        "end": 4639,
+        "startLine": 56,
+        "endLine": 56,
+        "sha256": "94946481993e31448a9e8491dd4f3701a67e4d6c2de52f2c2c2ef4e9d64e6f51"
+      }
+    },
+    {
+      "derivedStart": 2951,
+      "derivedEnd": 2997,
+      "original": {
+        "start": 4639,
+        "end": 4685,
+        "startLine": 57,
+        "endLine": 57,
+        "sha256": "dd8f55d34a7d6266c1d67fcfe6777243de7fd25a793c21460d5bc80e0ce553e7"
+      }
+    },
+    {
+      "derivedStart": 2997,
+      "derivedEnd": 3064,
+      "original": {
+        "start": 4685,
+        "end": 4752,
+        "startLine": 58,
+        "endLine": 58,
+        "sha256": "b809732d5b462eea926229b81509e5b916a7521c142bc83d3daba9e1cce2e888"
+      }
+    },
+    {
+      "derivedStart": 3064,
+      "derivedEnd": 3118,
+      "original": {
+        "start": 4752,
+        "end": 4806,
+        "startLine": 59,
+        "endLine": 59,
+        "sha256": "78b59371825b2ff5f9b7b6591d11ba4c59a0ffdcb93e11d98ba475a06e9fab5a"
+      }
+    },
+    {
+      "derivedStart": 3118,
+      "derivedEnd": 3186,
+      "original": {
+        "start": 4806,
+        "end": 4874,
+        "startLine": 60,
+        "endLine": 60,
+        "sha256": "12859fb33326ee9e239d7b36bae08496cb02a87f1bf4920ec7245ed43c25867d"
+      }
+    },
+    {
+      "derivedStart": 3186,
+      "derivedEnd": 3187,
+      "original": {
+        "start": 4874,
+        "end": 4875,
+        "startLine": 61,
+        "endLine": 61,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    }
+  ],
+  "requirements": [
+    {
+      "id": "requirement-01",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-02",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-03",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-04",
+      "support": "partial",
+      "reason": "Explicit bugfix/usability testing; no security claim.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-05",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-06",
+      "support": "partial",
+      "reason": "Reusable code is evidence for maintainability only; high-scale review remains unproven.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-07",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-08",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-09",
+      "support": "not_evidenced",
+      "reason": "No on-call evidence.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-10",
+      "support": "not_evidenced",
+      "reason": "PHP experience cannot become Ruby/Rails experience.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-11",
+      "support": "partial",
+      "reason": "Actual professional HTML/CSS/JS action, with semantic HTML still not independently demonstrated.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-12",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-13",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-14",
+      "support": "partial",
+      "reason": "Self-reported CMS performance responsibility; not measured improvement.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-15",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-16",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-17",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-18",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-19",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-20",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-21",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-22",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-23",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-24",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-25",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-26",
+      "support": "not_evidenced",
+      "reason": "WordPress/Elementor is not React/Vue/Angular evidence.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-27",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-28",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-29",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-30",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-31",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-32",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-33",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-34",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-35",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    }
+  ],
+  "dates": [
+    {
+      "group": "freelance",
+      "originalPeriod": "Jan 2017 - Present",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "project-0",
+      "originalPeriod": "Not stated",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "project-1",
+      "originalPeriod": "Not stated",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "project-2",
+      "originalPeriod": "Not stated",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "project-3",
+      "originalPeriod": "Not stated",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "project-4",
+      "originalPeriod": "Not stated",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    }
+  ]
+}

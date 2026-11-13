@@ -1,0 +1,1345 @@
+{
+  "schemaVersion": 1,
+  "id": "gold-fullstack",
+  "dataKind": "real_anonymized",
+  "role": "Fullstack Engineer - common non-senior scope; PHP/JS candidate",
+  "job": {
+    "text": "## Responsibilities\n\n- Develop features and improvements to the GitLab product in a secure, well-tested, and performant way\n- Analyze and interpret highly complex data to arrive at actionable recommendations\n- Collaborate with Product Management and other stakeholders within Engineering (e.g. UX) to maintain a high bar for quality in a fast-paced, iterative environment\n- Advocate for improvements to product quality, security, and performance\n- Solve technical problems of moderate scope and complexity.\n- Craft code that meets our internal standards for style, maintainability, and best practices for a high-scale web environment. Maintain and advocate for these standards through code review.\n- Represent GitLab and its values in public communication around specific projects and community contributions.\n- Confidently ship small features and improvements with minimal guidance and support from other team members. Collaborate with the team on larger projects.\n- Participate in Tier 2 or Tier 3 weekday and weekend and occasional night [on-call rotations](/handbook/engineering/workflow/development-processes/infra-dev-escalation/process/) to assist troubleshooting product operations, security operations, and urgent engineering issues.\n\n## Requirements\n\n- Professional experience with Ruby and Rails\n- Professional experience with JavaScript and associated web technologies (CSS, semantic HTML)\n- Proficiency in the English language, both written and verbal, sufficient for success in a remote and largely asynchronous work environment\n- Demonstrated capacity to clearly and concisely communicate about complex technical, architectural, and/or organizational problems and propose thorough iterative solutions\n- Experience with performance and optimization problems and a demonstrated ability to both diagnose and prevent these problems\n- Comfort working in a highly agile, intensely iterative software development process\n- Demonstrated ability to onboard and integrate with an organization long-term\n- Positive and solution-oriented mindset\n- Effective communication skills: Regularly achieve consensus with peers, and clear status updates\n- An inclination towards communication, inclusion, and visibility\n- Experience owning a project from concept to production, including proposal, discussion, and execution.\n- Self-motivated and self-managing, with strong organizational skills.\n- Demonstrated ability to work closely with other parts of the organization\n- Share our values, and work in accordance with those values\n- Ability to use GitLab\n- Ability to thrive in a fully remote organization\n\n### Nice-to-haves\n\n- Experience working with modern frontend frameworks (eg. React, Vue.js, Angular)\n- Experience in a peak performance organization, preferably a tech startup\n- Experience with the GitLab product as a user or contributor\n- Product company experience\n- Experience working with a remote team\n- Enterprise software company experience\n- Developer platform/tool industry experience\n- Experience working with a global or otherwise multicultural team\n- Computer science education or equivalent experience\n- Passionate about/experienced with open source and developer tools\n\n",
+    "sha256": "20224ad22b779af7375d2879be620d487646ece0b9efcfb7abf4ae96c001692f",
+    "provenance": {
+      "url": "https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/f7efde2339c3ff060bb972805bf22692c534893d/content/job-description-library/engineering/development/fullstack/_index.md",
+      "revision": "f7efde2339c3ff060bb972805bf22692c534893d",
+      "license": "CC-BY-SA-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "retrievedAt": "2026-11-12T00:00:00.000Z",
+      "originalSha256": "2de27a56827b22b521ae1b89804bdfcd8d60c5d594dca4637084ae9cbedb89b7",
+      "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+    }
+  },
+  "evidence": [
+    {
+      "id": "freelance-action-0",
+      "text": "Self-employed Web Developer & Designer. Designing layouts for mobile, tablet, and desktop devices.",
+      "sha256": "4e52a61854b83f6526e752e66ae301a07e893a488f5755d96c6a6ebebd13c971",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-1",
+      "text": "Self-employed Web Developer & Designer. Creating mockups for web pages and applications.",
+      "sha256": "24380e2b8cd655afcdc6fbbcb6abae570df319140fb66336c8460d0b0bd1aec4",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-2",
+      "text": "Self-employed Web Developer & Designer. Creating Photoshop Documents (PSDs) for the visual layout of web pages.",
+      "sha256": "6dfdb1ea144a822be8cd60113d916ebfcf04497157b8b44b725f64374a6851b4",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-3",
+      "text": "Self-employed Web Developer & Designer. Editing images and designing graphics, icons and logos.",
+      "sha256": "8667415ea9195a13d55e5750f61d734d022c1cdc10b07f508d2188630d10faff",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-4",
+      "text": "Self-employed Web Developer & Designer. Using HTML, CSS and JavaScript to bring concepts to life.",
+      "sha256": "1fd64445be1901d99c6ba648e127afe98fa807796d8a8d2424724b95cdce2c02",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [
+          "bring concepts to life"
+        ],
+        "action": [
+          "Using HTML, CSS and JavaScript"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-5",
+      "text": "Self-employed Web Developer & Designer. Optimizing the user experience.",
+      "sha256": "5b4552d869f604a0c08eab558f990a98c57828de58e0a29785eb88a8edf113df",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-6",
+      "text": "Self-employed Web Developer & Designer. Developing and maintaining the user interface.",
+      "sha256": "496d9b7a1cf438a09c5ea2ef7be5ae457ffd391e9122b6b4c5860302b84a0ce4",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-7",
+      "text": "Self-employed Web Developer & Designer. Implementing design on mobile websites.",
+      "sha256": "727acd72845eaf34f3f279e9af8c5debcbe72efd2510b4c488c598bb4828872a",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-8",
+      "text": "Self-employed Web Developer & Designer. Creating tools that improve site interaction regardless of the browser.",
+      "sha256": "39caa0cf4a72b7dad647af5cc73c864637398d6fe5de4c84d772f5cca1ef560d",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-9",
+      "text": "Self-employed Web Developer & Designer. Managing software workflow.",
+      "sha256": "5eced4cd87835f4838d27edcace9acc4a33790c509b9a1de8b5d6e7035cf3af1",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-10",
+      "text": "Self-employed Web Developer & Designer. Fixing bugs and testing for usability.",
+      "sha256": "351abaad9a13ba9b6615ac214dde80f13931d6f0996eea7dccd651e70f3d9eff",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "bugs"
+        ],
+        "task": [
+          "usability"
+        ],
+        "action": [
+          "Fixing bugs and testing"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-11",
+      "text": "Self-employed Web Developer & Designer. Designing stable, reliable and effective databases.",
+      "sha256": "516627ca12de735e713696fe20553034b71aa5b590381abf03bfabbb612f0093",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-12",
+      "text": "Self-employed Web Developer & Designer. Modifing databases according to requests and perform tests.",
+      "sha256": "5648e82559f53cdfd8cae2966d81afede43b5583e046f55e45fbe67f4017fd4d",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-13",
+      "text": "Self-employed Web Developer & Designer. Solving database usage issues and malfunctions.",
+      "sha256": "59ccf3a9bbd8753c6d874e2848b298944fefe4504cfde5d7ba80bd229291f7ee",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-14",
+      "text": "Self-employed Web Developer & Designer. Writing clean code to develop functional web applications.",
+      "sha256": "bdaaa4dd8936c3f95a4088f0072fb9de55b0265b0580838b2ab9bc188b262330",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-15",
+      "text": "Self-employed Web Developer & Designer. Troubleshoot and debug applications.",
+      "sha256": "15a6dd73f71c6dc5d35483f2f7fe741d8a5c421c9e77d077a9bb12893f06ec01",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-16",
+      "text": "Self-employed Web Developer & Designer. Creating functional APIs.",
+      "sha256": "a9917693115cff349c50f07107b146d22ab7836d10d16846b6eadcde38107db8",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [
+          "functional APIs"
+        ],
+        "action": [
+          "Creating functional APIs"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-17",
+      "text": "Self-employed Web Developer & Designer. Monitoring the status of servers.",
+      "sha256": "0650f673194b23d4727c2f5585f72e06b41ab041f11a69af32a02da0f5ce53b0",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-18",
+      "text": "Self-employed Web Developer & Designer. Building reusable code and libraries for future use.",
+      "sha256": "c78039d7fe44f0dbf7941b73362c62d0b706e7d860ce638e3240df39c89b7836",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [
+          "future use"
+        ],
+        "action": [
+          "Building reusable code and libraries"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-19",
+      "text": "Self-employed Web Developer & Designer. Ensuring high-performance and availability, and managing all technical aspects of the CMS.",
+      "sha256": "079eccc98d9569055c9483c1452860622e5f28f8053d3c3f72dc9af2e2ae9d52",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "CMS"
+        ],
+        "task": [
+          "high-performance and availability"
+        ],
+        "action": [
+          "managing all technical aspects"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-20",
+      "text": "Self-employed Web Developer & Designer. Helping formulate an effective, responsive design and turning it into a working theme and plugin.",
+      "sha256": "5033ef2a26f31b8da18aee15ae2fe8a8e3883ed804b9be6608ca5e87985eebec",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-21",
+      "text": "Self-employed Web Developer & Designer. Designing and developing WordPress websites.",
+      "sha256": "2dc2770c3216916bf6162191efb2f03d23ecd522c1a33a14ffa70d5878c6ee96",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-22",
+      "text": "Self-employed Web Developer & Designer. Working with debugging tools like Firebug, Chrome inspector, etc.",
+      "sha256": "aee5b9f489048194f227dbcfcf331d5b1e9c6a6446b8c5d92f1fcce10410408e",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "freelance-action-23",
+      "text": "Self-employed Web Developer & Designer. Following SEO best practices.",
+      "sha256": "d4e2b2351deda517358456c289a5925668d52e6159ab127cd1b9b59a396f0706",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-0",
+      "text": "Tourism project A - Tourism Website. This project contains a complex dynamic responsive website with a complete reservation system in one city, where users can contact directly the owners of properties such as hotels, apartments, villas, rooms, restaurants, boats and car rentals, similar to the website booking.com. With excellent SEO, all properties appear at the top of Google searches.",
+      "sha256": "76f484460861ae9a82e6ceb609cff20f0afe5439242760501cd4d8b71b75dbd9",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-1",
+      "text": "A multilingual website created for an Client I. This project contains a responsive multilingual website created in English, Korean, Poland and Croatian language. It's created using WordPress with Elementor and plugins such as Polylang, Contact Form 7, Multilingual Contact Form 7 with Polylang, Yoast SEO (helps website perform better in search engines like Google) and WP-Optimize.",
+      "sha256": "c546c9ed68b28197b9e0c2feb4d9cde6b7569b56542e77d9a1f384432a8086f2",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-2",
+      "text": "WordPress site for the fictional company Practice company A. This project is created using Hello Elementor WordPress theme and the entire project was done using the Elementor plugin. So this project contains five pages with a consistent design across all pages. Also, there are implemented various widgets, such as a slideshow with background images on the home page, a carousel gallery, and some other widgets.",
+      "sha256": "a6c1b339a5e701bac77ca6f25ab297a69b774119704b83d737a7eaceaf48c3c4",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "fictional company"
+        ],
+        "task": [
+          "five pages with a consistent design"
+        ],
+        "action": [
+          "created using Hello Elementor WordPress theme"
+        ],
+        "result": [
+          "implemented various widgets"
+        ]
+      }
+    },
+    {
+      "id": "project-3",
+      "text": "SQL Quizzer. This project contains a dynamic responsive SQL quizzer made with PHP MySQL, HTML, and CSS. So, quizz contain some questions by w3school where user need to choose correct answer. There is also the possibility of adding a question, and after that that question appears with the other questions in the quizz, and is instantly inserted into the database.",
+      "sha256": "ac10a2e1f804e88c6e33ca6e48c646e39a4786db7bd46bcfb282a3d787c9b429",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-4",
+      "text": "Shoutbox application. This project contains a dynamic responsive Shoutbox built using PHP, MySQL, jQuery, AJAX, HTML, and CSS. So, when the user sends a name and a message, that information appears at the top of the Shoutbox along with the time the message was sent. With the help of AJAX, it appears instantly on the page, without reloading the page.",
+      "sha256": "9b55fa5c13b7c52d0cf7d6a1e7c11e2ab539c3999717fa8ac647ade0e1846b99",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "education-0",
+      "text": "Professional education, Web Design - Training provider B Web Design Certificate, 2018 1 year full-time program covering Drawing, Adobe Photoshop, History of Design, Theory of Design, Copyrights, Adobe Illustrator,Web Design Theory, HTML and CSS, Dreamweaver, JavaScript, Dynamic Websites – WordPress, Search Engine Optimization, Internet Marketing, Adobe Animate CC, and Portfolio",
+      "sha256": "1db5e154db9b8433b03b72b20bd95fa298521e1cf26bfe8f3cff3eea8c99576b",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "education-1",
+      "text": "Professional education, PHP Development - Training provider B PHP Web Development Certificate, 2017 1 year full-time program covering HTML and CSS, Core PHP Programming, Adobe Dreamweaver CC, Building Web Applications – Advanced PHP Programming, Core JavaScript Programming, MySQL Programming and Administration, Advanced JavaScript Programming and Ajax, XML/PHP Programming, Apache Web Server Administration, Advanced WordPress, Internet Marketing, Web Cryptography and Security – TLS/SSL, and Software Engineering",
+      "sha256": "515373f3a1e124153136a92462875baa0fbe0780c22269b944bc2d5ead39d0d5",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "education-2",
+      "text": "School A Graduated Technician of Tourism Units and Hospitality Businesses (Hotel Management) with honors, 2002-2006",
+      "sha256": "1b924077b518f84317c7986d8db8b07910dff03514b3c5758782815db9d8fd69",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "profile",
+      "text": "I've been in the tech industry for over 7 years and have a diverse range of experiences from working as a full-stack developer, WordPress developer, and web designer. I enjoy coding and the challenge of learning something new every day to refresh and expand my knowledge.",
+      "sha256": "90ecc3eec769d09c9cdf0020d70524e64daac4197e937957f8b04ebbbbcc0457",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "professional-skills",
+      "text": "Created so many projects using following skillset: HTML, CSS, JavaScript, jQuery, JSON, AJAX, PHP, MySQL, SEO, WordPress, Joomla, Photoshop, Illustrator, Animate",
+      "sha256": "f0b15c56115c50ad2ca421d0ec2e196df629038e558563f7f686c8b1e9f4d15e",
+      "provenance": {
+        "url": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/resume.html",
+        "revision": "c2fb37a30a56d69ef97c387ed4148e05ac90db68",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/full-stack-web-developer-and-designer/resume/blob/c2fb37a30a56d69ef97c387ed4148e05ac90db68/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "a83f7667a8d5ef510999cc01de17fb1684928820cbe31996a9e1f4df9cfad00d",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    }
+  ],
+  "requirements": [
+    {
+      "id": "requirement-01",
+      "original": {
+        "start": 23,
+        "end": 123,
+        "quote": "Develop features and improvements to the GitLab product in a secure, well-tested, and performant way"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Develop features and improvements to the GitLab product in a secure, well-tested, and performant way"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-02",
+      "original": {
+        "start": 126,
+        "end": 207,
+        "quote": "Analyze and interpret highly complex data to arrive at actionable recommendations"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Analyze and interpret highly complex data to arrive at actionable recommendations"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-03",
+      "original": {
+        "start": 210,
+        "end": 371,
+        "quote": "Collaborate with Product Management and other stakeholders within Engineering (e.g. UX) to maintain a high bar for quality in a fast-paced, iterative environment"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Collaborate with Product Management and other stakeholders within Engineering (e.g. UX) to maintain a high bar for quality in a fast-paced, iterative environment"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-04",
+      "original": {
+        "start": 374,
+        "end": 445,
+        "quote": "Advocate for improvements to product quality, security, and performance"
+      },
+      "weight": 2,
+      "support": "partial",
+      "anchorGroups": [
+        [
+          "bugs",
+          "testing",
+          "usability"
+        ]
+      ],
+      "evidenceIds": [
+        "freelance-action-10"
+      ]
+    },
+    {
+      "id": "requirement-05",
+      "original": {
+        "start": 448,
+        "end": 506,
+        "quote": "Solve technical problems of moderate scope and complexity."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Solve technical problems of moderate scope and complexity."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-06",
+      "original": {
+        "start": 509,
+        "end": 697,
+        "quote": "Craft code that meets our internal standards for style, maintainability, and best practices for a high-scale web environment. Maintain and advocate for these standards through code review."
+      },
+      "weight": 2,
+      "support": "partial",
+      "anchorGroups": [
+        [
+          "reusable code",
+          "libraries"
+        ]
+      ],
+      "evidenceIds": [
+        "freelance-action-18"
+      ]
+    },
+    {
+      "id": "requirement-07",
+      "original": {
+        "start": 700,
+        "end": 809,
+        "quote": "Represent GitLab and its values in public communication around specific projects and community contributions."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Represent GitLab and its values in public communication around specific projects and community contributions."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-08",
+      "original": {
+        "start": 812,
+        "end": 965,
+        "quote": "Confidently ship small features and improvements with minimal guidance and support from other team members. Collaborate with the team on larger projects."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Confidently ship small features and improvements with minimal guidance and support from other team members. Collaborate with the team on larger projects."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-09",
+      "original": {
+        "start": 968,
+        "end": 1242,
+        "quote": "Participate in Tier 2 or Tier 3 weekday and weekend and occasional night [on-call rotations](/handbook/engineering/workflow/development-processes/infra-dev-escalation/process/) to assist troubleshooting product operations, security operations, and urgent engineering issues."
+      },
+      "weight": 2,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "on-call"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-10",
+      "original": {
+        "start": 1263,
+        "end": 1306,
+        "quote": "Professional experience with Ruby and Rails"
+      },
+      "weight": 3,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Ruby"
+        ],
+        [
+          "Rails"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-11",
+      "original": {
+        "start": 1309,
+        "end": 1401,
+        "quote": "Professional experience with JavaScript and associated web technologies (CSS, semantic HTML)"
+      },
+      "weight": 3,
+      "support": "partial",
+      "anchorGroups": [
+        [
+          "HTML"
+        ],
+        [
+          "CSS"
+        ],
+        [
+          "JavaScript"
+        ]
+      ],
+      "evidenceIds": [
+        "freelance-action-4"
+      ]
+    },
+    {
+      "id": "requirement-12",
+      "original": {
+        "start": 1404,
+        "end": 1542,
+        "quote": "Proficiency in the English language, both written and verbal, sufficient for success in a remote and largely asynchronous work environment"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Proficiency in the English language, both written and verbal, sufficient for success in a remote and largely asynchronous work environment"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-13",
+      "original": {
+        "start": 1545,
+        "end": 1715,
+        "quote": "Demonstrated capacity to clearly and concisely communicate about complex technical, architectural, and/or organizational problems and propose thorough iterative solutions"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Demonstrated capacity to clearly and concisely communicate about complex technical, architectural, and/or organizational problems and propose thorough iterative solutions"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-14",
+      "original": {
+        "start": 1718,
+        "end": 1842,
+        "quote": "Experience with performance and optimization problems and a demonstrated ability to both diagnose and prevent these problems"
+      },
+      "weight": 2,
+      "support": "partial",
+      "anchorGroups": [
+        [
+          "high-performance"
+        ],
+        [
+          "CMS"
+        ]
+      ],
+      "evidenceIds": [
+        "freelance-action-19"
+      ]
+    },
+    {
+      "id": "requirement-15",
+      "original": {
+        "start": 1845,
+        "end": 1928,
+        "quote": "Comfort working in a highly agile, intensely iterative software development process"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Comfort working in a highly agile, intensely iterative software development process"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-16",
+      "original": {
+        "start": 1931,
+        "end": 2007,
+        "quote": "Demonstrated ability to onboard and integrate with an organization long-term"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Demonstrated ability to onboard and integrate with an organization long-term"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-17",
+      "original": {
+        "start": 2010,
+        "end": 2048,
+        "quote": "Positive and solution-oriented mindset"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Positive and solution-oriented mindset"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-18",
+      "original": {
+        "start": 2051,
+        "end": 2147,
+        "quote": "Effective communication skills: Regularly achieve consensus with peers, and clear status updates"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Effective communication skills: Regularly achieve consensus with peers, and clear status updates"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-19",
+      "original": {
+        "start": 2150,
+        "end": 2213,
+        "quote": "An inclination towards communication, inclusion, and visibility"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "An inclination towards communication, inclusion, and visibility"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-20",
+      "original": {
+        "start": 2216,
+        "end": 2318,
+        "quote": "Experience owning a project from concept to production, including proposal, discussion, and execution."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Experience owning a project from concept to production, including proposal, discussion, and execution."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-21",
+      "original": {
+        "start": 2321,
+        "end": 2389,
+        "quote": "Self-motivated and self-managing, with strong organizational skills."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Self-motivated and self-managing, with strong organizational skills."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-22",
+      "original": {
+        "start": 2392,
+        "end": 2465,
+        "quote": "Demonstrated ability to work closely with other parts of the organization"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Demonstrated ability to work closely with other parts of the organization"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-23",
+      "original": {
+        "start": 2468,
+        "end": 2526,
+        "quote": "Share our values, and work in accordance with those values"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Share our values, and work in accordance with those values"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-24",
+      "original": {
+        "start": 2529,
+        "end": 2550,
+        "quote": "Ability to use GitLab"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Ability to use GitLab"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-25",
+      "original": {
+        "start": 2553,
+        "end": 2601,
+        "quote": "Ability to thrive in a fully remote organization"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Ability to thrive in a fully remote organization"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-26",
+      "original": {
+        "start": 2624,
+        "end": 2703,
+        "quote": "Experience working with modern frontend frameworks (eg. React, Vue.js, Angular)"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "React",
+          "Vue.js",
+          "Angular"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-27",
+      "original": {
+        "start": 2706,
+        "end": 2778,
+        "quote": "Experience in a peak performance organization, preferably a tech startup"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Experience in a peak performance organization, preferably a tech startup"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-28",
+      "original": {
+        "start": 2781,
+        "end": 2840,
+        "quote": "Experience with the GitLab product as a user or contributor"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Experience with the GitLab product as a user or contributor"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-29",
+      "original": {
+        "start": 2843,
+        "end": 2869,
+        "quote": "Product company experience"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Product company experience"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-30",
+      "original": {
+        "start": 2872,
+        "end": 2909,
+        "quote": "Experience working with a remote team"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Experience working with a remote team"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-31",
+      "original": {
+        "start": 2912,
+        "end": 2950,
+        "quote": "Enterprise software company experience"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Enterprise software company experience"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-32",
+      "original": {
+        "start": 2953,
+        "end": 2996,
+        "quote": "Developer platform/tool industry experience"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Developer platform/tool industry experience"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-33",
+      "original": {
+        "start": 2999,
+        "end": 3063,
+        "quote": "Experience working with a global or otherwise multicultural team"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Experience working with a global or otherwise multicultural team"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-34",
+      "original": {
+        "start": 3066,
+        "end": 3117,
+        "quote": "Computer science education or equivalent experience"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Computer science education or equivalent experience"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-35",
+      "original": {
+        "start": 3120,
+        "end": 3185,
+        "quote": "Passionate about/experienced with open source and developer tools"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Passionate about/experienced with open source and developer tools"
+        ]
+      ],
+      "evidenceIds": []
+    }
+  ],
+  "entityLexicon": [
+    "Chef",
+    "Ansible",
+    "Terraform",
+    "Kubernetes",
+    "Ruby",
+    "Ruby on Rails",
+    "Go",
+    "Golang",
+    "Redis",
+    "Kafka",
+    "React",
+    "React Native",
+    "Vue.js",
+    "JavaScript",
+    "GitLab",
+    "Snowflake",
+    "Airflow",
+    "SQL",
+    "Docker",
+    "Django",
+    "C#",
+    ".NET"
+  ],
+  "approvedParaphrases": []
+}

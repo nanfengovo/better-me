@@ -1,0 +1,5070 @@
+{
+  "schemaVersion": 1,
+  "labelVersion": "gold-source-review-v1",
+  "caseSha256": "b53fca3292d0bdaaac5ab6bdfa4f0d471d552956ee526a1b48bb31da4f6622e3",
+  "source": {
+    "id": "c03",
+    "file": "C03-resume.json",
+    "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+    "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+    "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+    "author": "Qifan Yang",
+    "license": "MIT",
+    "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE"
+  },
+  "jobSource": {
+    "id": "j03",
+    "file": "J03-frontend.md",
+    "originalSha256": "fd0f53ac2e38e995a8d0d028b22c6197d08eb72a789959a469cb31387c491b3c",
+    "revision": "f7efde2339c3ff060bb972805bf22692c534893d",
+    "url": "https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/f7efde2339c3ff060bb972805bf22692c534893d/content/job-description-library/engineering/development/frontend/_index.md",
+    "author": "GitLab handbook contributors",
+    "license": "CC-BY-SA-4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  "candidateTextSha256": "6581aa5e5e57b13cb129326dc7f7c34a4aa4bb6135cf1ea6443393c718519ed7",
+  "coordinateSystem": "UTF-16 code units, zero-based half-open; lines one-based; hashes UTF-8 bytes",
+  "mappingGranularity": "Selected complete source tokens/markup units; derived strings are transformed. Never equate derived offsets with original offsets.",
+  "units": [
+    {
+      "id": "work-0",
+      "derivedSha256": "1a3874ee5de82015ff18de3871dda5848772005c1df874c7d2da30b740ef5f07",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 888,
+          "end": 914,
+          "startLine": 57,
+          "endLine": 57,
+          "sha256": "99e4a25041b0b56ee49e92b1e253d8136edfc378fc8ace05e167e74a57cae4e8"
+        },
+        {
+          "start": 937,
+          "end": 1002,
+          "startLine": 58,
+          "endLine": 58,
+          "sha256": "4383416a6b415aaf0c2ab53c5653d98003c6d9da26525d902e470bc6a296b2e2"
+        }
+      ],
+      "derivedStart": 36,
+      "derivedEnd": 134,
+      "derivedStartLine": 2,
+      "contextOriginals": [
+        {
+          "start": 853,
+          "end": 871,
+          "startLine": 56,
+          "endLine": 56,
+          "sha256": "5250dc1ce59d41d75e806024f415e8efc35a382ad2af0a772bf6844d6899bf3a"
+        },
+        {
+          "start": 888,
+          "end": 914,
+          "startLine": 57,
+          "endLine": 57,
+          "sha256": "99e4a25041b0b56ee49e92b1e253d8136edfc378fc8ace05e167e74a57cae4e8"
+        },
+        {
+          "start": 795,
+          "end": 806,
+          "startLine": 54,
+          "endLine": 54,
+          "sha256": "c5e31ea584641a48dfc2ca059d5d4bcf2b3b1231ed8708cddeb9bb5190ef9b98"
+        },
+        {
+          "start": 825,
+          "end": 834,
+          "startLine": 55,
+          "endLine": 55,
+          "sha256": "694ac7b20bfcc058a5e4d61b9f9897dc3f4cb079ac954629a0a66cf24e4276eb"
+        }
+      ],
+      "group": "work-0",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1",
+      "derivedSha256": "35c4afd7002367bff958b0c0e787c3bf78155e69217f78ccaa7cd3be53b6cacc",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1134,
+          "end": 1152,
+          "startLine": 64,
+          "endLine": 64,
+          "sha256": "bdd9544a291c4acae76618398575180c9140ad76094927970e0ec02d0696b423"
+        },
+        {
+          "start": 1175,
+          "end": 1313,
+          "startLine": 65,
+          "endLine": 65,
+          "sha256": "b40364bd41b1204d99c480bc5f29d2d56225205292928b79609b0f7cfdc3c032"
+        }
+      ],
+      "derivedStart": 172,
+      "derivedEnd": 325,
+      "derivedStartLine": 5,
+      "contextOriginals": [
+        {
+          "start": 1101,
+          "end": 1117,
+          "startLine": 63,
+          "endLine": 63,
+          "sha256": "e588331699207223cd23905990411144c170ba9ace83e9f656b851304a3a1644"
+        },
+        {
+          "start": 1134,
+          "end": 1152,
+          "startLine": 64,
+          "endLine": 64,
+          "sha256": "bdd9544a291c4acae76618398575180c9140ad76094927970e0ec02d0696b423"
+        },
+        {
+          "start": 1045,
+          "end": 1054,
+          "startLine": 61,
+          "endLine": 61,
+          "sha256": "26cde50fbdb4ed54b6cd9bd024f855f07aef98fcad79cac973f637f4daae3b23"
+        },
+        {
+          "start": 1073,
+          "end": 1082,
+          "startLine": 62,
+          "endLine": 62,
+          "sha256": "9f7c7eeaaf2752d3886197a35c92db63513a61f54dfe94069b639996cb295146"
+        }
+      ],
+      "group": "work-1",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2",
+      "derivedSha256": "c92dcc834ba98a2ae570ac9242daa152ff9ec3d48b3bd7820e1b287097a21556",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1462,
+          "end": 1480,
+          "startLine": 71,
+          "endLine": 71,
+          "sha256": "bdd9544a291c4acae76618398575180c9140ad76094927970e0ec02d0696b423"
+        },
+        {
+          "start": 1503,
+          "end": 1689,
+          "startLine": 72,
+          "endLine": 72,
+          "sha256": "442de39cdf0f20b87c98dbc4a4625f3ce452b1abd982b57576577470438a3d7a"
+        }
+      ],
+      "derivedStart": 363,
+      "derivedEnd": 564,
+      "derivedStartLine": 8,
+      "contextOriginals": [
+        {
+          "start": 1412,
+          "end": 1445,
+          "startLine": 70,
+          "endLine": 70,
+          "sha256": "14aceaab7e59ef2173a2c54e5585b4c9a6feb2d2adab415f37522d127e7a9461"
+        },
+        {
+          "start": 1462,
+          "end": 1480,
+          "startLine": 71,
+          "endLine": 71,
+          "sha256": "bdd9544a291c4acae76618398575180c9140ad76094927970e0ec02d0696b423"
+        },
+        {
+          "start": 1356,
+          "end": 1365,
+          "startLine": 68,
+          "endLine": 68,
+          "sha256": "15cf2a185f8ee9eb3d15464de7156ae39ba298a5025c56ed1dd0d567a3527fae"
+        },
+        {
+          "start": 1384,
+          "end": 1393,
+          "startLine": 69,
+          "endLine": 69,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        }
+      ],
+      "group": "work-2",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3",
+      "derivedSha256": "95c7397aee6991635045b5e29e36de70dea5fd22a2abe18fb385a5846810c97c",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1834,
+          "end": 1861,
+          "startLine": 78,
+          "endLine": 78,
+          "sha256": "79029a62f2a8aeff536c02c047e21e42c1e902dd35887107c249be7e5ed3aee7"
+        },
+        {
+          "start": 1884,
+          "end": 2253,
+          "startLine": 79,
+          "endLine": 79,
+          "sha256": "9f974da342d3306099ca1d96ccd9465f0f5d29e70bb50aa34b9b5497ea9a588e"
+        }
+      ],
+      "derivedStart": 602,
+      "derivedEnd": 995,
+      "derivedStartLine": 11,
+      "contextOriginals": [
+        {
+          "start": 1788,
+          "end": 1817,
+          "startLine": 77,
+          "endLine": 77,
+          "sha256": "661999d2eb7fd645b80cc0e0ec383956606b1620e813ddac5c7dd5ae61f85c97"
+        },
+        {
+          "start": 1834,
+          "end": 1861,
+          "startLine": 78,
+          "endLine": 78,
+          "sha256": "79029a62f2a8aeff536c02c047e21e42c1e902dd35887107c249be7e5ed3aee7"
+        },
+        {
+          "start": 1732,
+          "end": 1741,
+          "startLine": 75,
+          "endLine": 75,
+          "sha256": "cb3d12a99b163f33d1842e722064f0ce02ab971a3e856579f1578abc766d4f63"
+        },
+        {
+          "start": 1760,
+          "end": 1769,
+          "startLine": 76,
+          "endLine": 76,
+          "sha256": "51a063875a4706af194f0cb99df32eb39cb1779145860ad3b8eafdd23b24089b"
+        }
+      ],
+      "group": "work-3",
+      "kind": "internship",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "education-1",
+      "derivedSha256": "62fd91f0b3a48c9da876afab32262fcba1bd9cf67e786abf4db8b4eb4a5e8023",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2334,
+          "end": 2378,
+          "startLine": 83,
+          "endLine": 83,
+          "sha256": "7d5f72553afdb5c73582ebfaacc9087380829818e87ac5129048b378b3c7ecc4"
+        },
+        {
+          "start": 2395,
+          "end": 2414,
+          "startLine": 84,
+          "endLine": 84,
+          "sha256": "92e6f54b56fa20ebe187c3dbae7a0514fdeaf0c7cdcc4396d649854b41b8c262"
+        },
+        {
+          "start": 2432,
+          "end": 2487,
+          "startLine": 85,
+          "endLine": 85,
+          "sha256": "9a4f7817b164e3dc1b435811ef941889031657e7f26d854d060d800ac7b53465"
+        },
+        {
+          "start": 2296,
+          "end": 2315,
+          "startLine": 82,
+          "endLine": 82,
+          "sha256": "cf1a3398f154d37305e3b4887f3688653ae0fd2ce5aa7807775984010c6013e7"
+        },
+        {
+          "start": 2510,
+          "end": 3088,
+          "startLine": 86,
+          "endLine": 86,
+          "sha256": "d324169f58df44eb57f7a81568002fc097a2e8560ce981f3ce0125250e940d0e"
+        }
+      ],
+      "derivedStart": 1037,
+      "derivedEnd": 1715,
+      "derivedStartLine": 14,
+      "contextOriginals": [],
+      "group": "education",
+      "kind": "education",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "education-2",
+      "derivedSha256": "fa2045da44d482f1112ab968211c8b48530a06169acb0136815dca94cfb922ea",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3169,
+          "end": 3197,
+          "startLine": 90,
+          "endLine": 90,
+          "sha256": "4a0740d361fee164efc8d55cac987414447ee4f86c72e9230398d24f889d0cb5"
+        },
+        {
+          "start": 3214,
+          "end": 3233,
+          "startLine": 91,
+          "endLine": 91,
+          "sha256": "6733a2a2b4be20433b1a7e3337f54736787807f1239dfed4d8015b4c40a57ed3"
+        },
+        {
+          "start": 3251,
+          "end": 3295,
+          "startLine": 92,
+          "endLine": 92,
+          "sha256": "955e0cc24039f22f17354732adab2f0802a850af2494f934db03e0d32a088301"
+        },
+        {
+          "start": 3131,
+          "end": 3150,
+          "startLine": 89,
+          "endLine": 89,
+          "sha256": "ec517952ce3fa6c9417ae18bbefc898df6504a5e721999c5f0d6981777f17349"
+        },
+        {
+          "start": 3318,
+          "end": 3689,
+          "startLine": 93,
+          "endLine": 93,
+          "sha256": "a68982c8280833258c87bdcb08125ac6a784ee5f7226cd021a5278ba24e7aa94"
+        }
+      ],
+      "derivedStart": 1757,
+      "derivedEnd": 2217,
+      "derivedStartLine": 17,
+      "contextOriginals": [],
+      "group": "education",
+      "kind": "education",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-0-action-0",
+      "derivedSha256": "4b10015e8c5aaef58d3a8c7033ac3ece91e8f79f01df5a82e99db1817f7c5461",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3791,
+          "end": 3799,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "56c70d4493a48d6f6104d446add19e720b4b56abfab8f9c4313bed0b7b923250"
+        },
+        {
+          "start": 4782,
+          "end": 4807,
+          "startLine": 108,
+          "endLine": 108,
+          "sha256": "00d5f6d05fac60527fab780f19d2f3b9043d91df3238e23f7e008609bf197ab6"
+        },
+        {
+          "start": 3884,
+          "end": 4011,
+          "startLine": 101,
+          "endLine": 101,
+          "sha256": "9c6a90d0ea5f5b60033cf656a156bb139dad2732a355cbd9b2803ac14c0f5f58"
+        }
+      ],
+      "derivedStart": 2271,
+      "derivedEnd": 2441,
+      "derivedStartLine": 20,
+      "contextOriginals": [
+        {
+          "start": 3791,
+          "end": 3799,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "56c70d4493a48d6f6104d446add19e720b4b56abfab8f9c4313bed0b7b923250"
+        },
+        {
+          "start": 4782,
+          "end": 4807,
+          "startLine": 108,
+          "endLine": 108,
+          "sha256": "00d5f6d05fac60527fab780f19d2f3b9043d91df3238e23f7e008609bf197ab6"
+        },
+        {
+          "start": 3735,
+          "end": 3746,
+          "startLine": 96,
+          "endLine": 96,
+          "sha256": "c5e31ea584641a48dfc2ca059d5d4bcf2b3b1231ed8708cddeb9bb5190ef9b98"
+        },
+        {
+          "start": 3765,
+          "end": 3774,
+          "startLine": 97,
+          "endLine": 97,
+          "sha256": "694ac7b20bfcc058a5e4d61b9f9897dc3f4cb079ac954629a0a66cf24e4276eb"
+        }
+      ],
+      "group": "project-0",
+      "kind": "mobile_project",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "project-0-action-1",
+      "derivedSha256": "8739d3436107da3e809088da302ae651c8ae6f0282df6f9135aae87e2ff12afb",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3791,
+          "end": 3799,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "56c70d4493a48d6f6104d446add19e720b4b56abfab8f9c4313bed0b7b923250"
+        },
+        {
+          "start": 4782,
+          "end": 4807,
+          "startLine": 108,
+          "endLine": 108,
+          "sha256": "00d5f6d05fac60527fab780f19d2f3b9043d91df3238e23f7e008609bf197ab6"
+        },
+        {
+          "start": 4021,
+          "end": 4233,
+          "startLine": 102,
+          "endLine": 102,
+          "sha256": "cdd78bfe9a5e1e1d9d096e3f83203f18f9160cca354d7f33ff25f13575c196df"
+        }
+      ],
+      "derivedStart": 2495,
+      "derivedEnd": 2746,
+      "derivedStartLine": 23,
+      "contextOriginals": [
+        {
+          "start": 3791,
+          "end": 3799,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "56c70d4493a48d6f6104d446add19e720b4b56abfab8f9c4313bed0b7b923250"
+        },
+        {
+          "start": 4782,
+          "end": 4807,
+          "startLine": 108,
+          "endLine": 108,
+          "sha256": "00d5f6d05fac60527fab780f19d2f3b9043d91df3238e23f7e008609bf197ab6"
+        },
+        {
+          "start": 3735,
+          "end": 3746,
+          "startLine": 96,
+          "endLine": 96,
+          "sha256": "c5e31ea584641a48dfc2ca059d5d4bcf2b3b1231ed8708cddeb9bb5190ef9b98"
+        },
+        {
+          "start": 3765,
+          "end": 3774,
+          "startLine": 97,
+          "endLine": 97,
+          "sha256": "694ac7b20bfcc058a5e4d61b9f9897dc3f4cb079ac954629a0a66cf24e4276eb"
+        }
+      ],
+      "group": "project-0",
+      "kind": "mobile_project",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "project-0-action-2",
+      "derivedSha256": "dc493db19db24c2cc3ab6dbedce2aa7c4675fc1039bfdd163245e020f727d37f",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3791,
+          "end": 3799,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "56c70d4493a48d6f6104d446add19e720b4b56abfab8f9c4313bed0b7b923250"
+        },
+        {
+          "start": 4782,
+          "end": 4807,
+          "startLine": 108,
+          "endLine": 108,
+          "sha256": "00d5f6d05fac60527fab780f19d2f3b9043d91df3238e23f7e008609bf197ab6"
+        },
+        {
+          "start": 4243,
+          "end": 4412,
+          "startLine": 103,
+          "endLine": 103,
+          "sha256": "e373454a71ddf5ad1549d18bfac20cf0d2e94f62d47e1352f0f261711d2d83c2"
+        }
+      ],
+      "derivedStart": 2800,
+      "derivedEnd": 3018,
+      "derivedStartLine": 26,
+      "contextOriginals": [
+        {
+          "start": 3791,
+          "end": 3799,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "56c70d4493a48d6f6104d446add19e720b4b56abfab8f9c4313bed0b7b923250"
+        },
+        {
+          "start": 4782,
+          "end": 4807,
+          "startLine": 108,
+          "endLine": 108,
+          "sha256": "00d5f6d05fac60527fab780f19d2f3b9043d91df3238e23f7e008609bf197ab6"
+        },
+        {
+          "start": 3735,
+          "end": 3746,
+          "startLine": 96,
+          "endLine": 96,
+          "sha256": "c5e31ea584641a48dfc2ca059d5d4bcf2b3b1231ed8708cddeb9bb5190ef9b98"
+        },
+        {
+          "start": 3765,
+          "end": 3774,
+          "startLine": 97,
+          "endLine": 97,
+          "sha256": "694ac7b20bfcc058a5e4d61b9f9897dc3f4cb079ac954629a0a66cf24e4276eb"
+        }
+      ],
+      "group": "project-0",
+      "kind": "mobile_project",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-0-action-3",
+      "derivedSha256": "277a48016aff2968d810ba2ab641e3f5947a1a5cc8cbbf8a3878b549cb8797bd",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3791,
+          "end": 3799,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "56c70d4493a48d6f6104d446add19e720b4b56abfab8f9c4313bed0b7b923250"
+        },
+        {
+          "start": 4782,
+          "end": 4807,
+          "startLine": 108,
+          "endLine": 108,
+          "sha256": "00d5f6d05fac60527fab780f19d2f3b9043d91df3238e23f7e008609bf197ab6"
+        },
+        {
+          "start": 4422,
+          "end": 4626,
+          "startLine": 104,
+          "endLine": 104,
+          "sha256": "f52240aae744ea60bbb91cdfee7fe3e9a8e8115cf2373a0df3cbe169e0b5137c"
+        }
+      ],
+      "derivedStart": 3072,
+      "derivedEnd": 3315,
+      "derivedStartLine": 29,
+      "contextOriginals": [
+        {
+          "start": 3791,
+          "end": 3799,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "56c70d4493a48d6f6104d446add19e720b4b56abfab8f9c4313bed0b7b923250"
+        },
+        {
+          "start": 4782,
+          "end": 4807,
+          "startLine": 108,
+          "endLine": 108,
+          "sha256": "00d5f6d05fac60527fab780f19d2f3b9043d91df3238e23f7e008609bf197ab6"
+        },
+        {
+          "start": 3735,
+          "end": 3746,
+          "startLine": 96,
+          "endLine": 96,
+          "sha256": "c5e31ea584641a48dfc2ca059d5d4bcf2b3b1231ed8708cddeb9bb5190ef9b98"
+        },
+        {
+          "start": 3765,
+          "end": 3774,
+          "startLine": 97,
+          "endLine": 97,
+          "sha256": "694ac7b20bfcc058a5e4d61b9f9897dc3f4cb079ac954629a0a66cf24e4276eb"
+        }
+      ],
+      "group": "project-0",
+      "kind": "mobile_project",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-0-action-4",
+      "derivedSha256": "982dae07c5806b95bea238636f003b403deb1e775acfe1690fc20b6032d5fb70",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3791,
+          "end": 3799,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "56c70d4493a48d6f6104d446add19e720b4b56abfab8f9c4313bed0b7b923250"
+        },
+        {
+          "start": 4782,
+          "end": 4807,
+          "startLine": 108,
+          "endLine": 108,
+          "sha256": "00d5f6d05fac60527fab780f19d2f3b9043d91df3238e23f7e008609bf197ab6"
+        },
+        {
+          "start": 4636,
+          "end": 4728,
+          "startLine": 105,
+          "endLine": 105,
+          "sha256": "dbcf16f46e4d5eaa7d8b34ad7af6c8fcf6a09f8baff9209ee94e15b2d0221e8c"
+        }
+      ],
+      "derivedStart": 3369,
+      "derivedEnd": 3500,
+      "derivedStartLine": 32,
+      "contextOriginals": [
+        {
+          "start": 3791,
+          "end": 3799,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "56c70d4493a48d6f6104d446add19e720b4b56abfab8f9c4313bed0b7b923250"
+        },
+        {
+          "start": 4782,
+          "end": 4807,
+          "startLine": 108,
+          "endLine": 108,
+          "sha256": "00d5f6d05fac60527fab780f19d2f3b9043d91df3238e23f7e008609bf197ab6"
+        },
+        {
+          "start": 3735,
+          "end": 3746,
+          "startLine": 96,
+          "endLine": 96,
+          "sha256": "c5e31ea584641a48dfc2ca059d5d4bcf2b3b1231ed8708cddeb9bb5190ef9b98"
+        },
+        {
+          "start": 3765,
+          "end": 3774,
+          "startLine": 97,
+          "endLine": 97,
+          "sha256": "694ac7b20bfcc058a5e4d61b9f9897dc3f4cb079ac954629a0a66cf24e4276eb"
+        }
+      ],
+      "group": "project-0",
+      "kind": "mobile_project",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-0-technology-0",
+      "derivedSha256": "c78f6c97923e81a2f04f09c5e87b69e085c1e47066a1136b5f590bfde696e2eb",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4838,
+          "end": 4846,
+          "startLine": 110,
+          "endLine": 110,
+          "sha256": "15b2f87730b30d9bb2680518c4b66e2495fe7e3585a7d996b77943a7345ca0d7"
+        }
+      ],
+      "derivedStart": 3559,
+      "derivedEnd": 3565,
+      "derivedStartLine": 35,
+      "contextOriginals": [
+        {
+          "start": 3791,
+          "end": 3799,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "56c70d4493a48d6f6104d446add19e720b4b56abfab8f9c4313bed0b7b923250"
+        },
+        {
+          "start": 4782,
+          "end": 4807,
+          "startLine": 108,
+          "endLine": 108,
+          "sha256": "00d5f6d05fac60527fab780f19d2f3b9043d91df3238e23f7e008609bf197ab6"
+        },
+        {
+          "start": 3735,
+          "end": 3746,
+          "startLine": 96,
+          "endLine": 96,
+          "sha256": "c5e31ea584641a48dfc2ca059d5d4bcf2b3b1231ed8708cddeb9bb5190ef9b98"
+        },
+        {
+          "start": 3765,
+          "end": 3774,
+          "startLine": 97,
+          "endLine": 97,
+          "sha256": "694ac7b20bfcc058a5e4d61b9f9897dc3f4cb079ac954629a0a66cf24e4276eb"
+        }
+      ],
+      "group": "project-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-0-technology-1",
+      "derivedSha256": "c1ba60ce13586503a21a05e9ef0bb959f1ba74a1d37bcfcbf5fc6bfb548f684d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4856,
+          "end": 4862,
+          "startLine": 111,
+          "endLine": 111,
+          "sha256": "dbc9eae3cb7810939cb7cb94629c1a42dc06032e9933df026da68e6aba8ebfb4"
+        }
+      ],
+      "derivedStart": 3624,
+      "derivedEnd": 3628,
+      "derivedStartLine": 38,
+      "contextOriginals": [
+        {
+          "start": 3791,
+          "end": 3799,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "56c70d4493a48d6f6104d446add19e720b4b56abfab8f9c4313bed0b7b923250"
+        },
+        {
+          "start": 4782,
+          "end": 4807,
+          "startLine": 108,
+          "endLine": 108,
+          "sha256": "00d5f6d05fac60527fab780f19d2f3b9043d91df3238e23f7e008609bf197ab6"
+        },
+        {
+          "start": 3735,
+          "end": 3746,
+          "startLine": 96,
+          "endLine": 96,
+          "sha256": "c5e31ea584641a48dfc2ca059d5d4bcf2b3b1231ed8708cddeb9bb5190ef9b98"
+        },
+        {
+          "start": 3765,
+          "end": 3774,
+          "startLine": 97,
+          "endLine": 97,
+          "sha256": "694ac7b20bfcc058a5e4d61b9f9897dc3f4cb079ac954629a0a66cf24e4276eb"
+        }
+      ],
+      "group": "project-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-0-technology-2",
+      "derivedSha256": "d58e5dc49ab81442b14867efed7a92daf57a051ea6452e7067e712dcf7150580",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4872,
+          "end": 4878,
+          "startLine": 112,
+          "endLine": 112,
+          "sha256": "99cb8f34729e70ac8aca9456ecb7f2ca003dddc20c5b36392b6727f0055c4858"
+        }
+      ],
+      "derivedStart": 3687,
+      "derivedEnd": 3691,
+      "derivedStartLine": 41,
+      "contextOriginals": [
+        {
+          "start": 3791,
+          "end": 3799,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "56c70d4493a48d6f6104d446add19e720b4b56abfab8f9c4313bed0b7b923250"
+        },
+        {
+          "start": 4782,
+          "end": 4807,
+          "startLine": 108,
+          "endLine": 108,
+          "sha256": "00d5f6d05fac60527fab780f19d2f3b9043d91df3238e23f7e008609bf197ab6"
+        },
+        {
+          "start": 3735,
+          "end": 3746,
+          "startLine": 96,
+          "endLine": 96,
+          "sha256": "c5e31ea584641a48dfc2ca059d5d4bcf2b3b1231ed8708cddeb9bb5190ef9b98"
+        },
+        {
+          "start": 3765,
+          "end": 3774,
+          "startLine": 97,
+          "endLine": 97,
+          "sha256": "694ac7b20bfcc058a5e4d61b9f9897dc3f4cb079ac954629a0a66cf24e4276eb"
+        }
+      ],
+      "group": "project-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-0-technology-3",
+      "derivedSha256": "d35edfbed21630e0b79e20918da3f8faec27ab03bdb5e46bcd1fed853a322af1",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4888,
+          "end": 4897,
+          "startLine": 113,
+          "endLine": 113,
+          "sha256": "a072dd3897f74436763682fd3af192a4a71c086a653e6d8e75176c4f49ebaaf5"
+        }
+      ],
+      "derivedStart": 3750,
+      "derivedEnd": 3757,
+      "derivedStartLine": 44,
+      "contextOriginals": [
+        {
+          "start": 3791,
+          "end": 3799,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "56c70d4493a48d6f6104d446add19e720b4b56abfab8f9c4313bed0b7b923250"
+        },
+        {
+          "start": 4782,
+          "end": 4807,
+          "startLine": 108,
+          "endLine": 108,
+          "sha256": "00d5f6d05fac60527fab780f19d2f3b9043d91df3238e23f7e008609bf197ab6"
+        },
+        {
+          "start": 3735,
+          "end": 3746,
+          "startLine": 96,
+          "endLine": 96,
+          "sha256": "c5e31ea584641a48dfc2ca059d5d4bcf2b3b1231ed8708cddeb9bb5190ef9b98"
+        },
+        {
+          "start": 3765,
+          "end": 3774,
+          "startLine": 97,
+          "endLine": 97,
+          "sha256": "694ac7b20bfcc058a5e4d61b9f9897dc3f4cb079ac954629a0a66cf24e4276eb"
+        }
+      ],
+      "group": "project-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-0-technology-4",
+      "derivedSha256": "98652afe6ee7c577b0fb7c4ce080c1560e100e50e988356351a243ee55d30900",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4907,
+          "end": 4916,
+          "startLine": 114,
+          "endLine": 114,
+          "sha256": "1d306428fc2bc470857679ac0a9688f5eb93b18002048c9d98890d7fb605f74e"
+        }
+      ],
+      "derivedStart": 3816,
+      "derivedEnd": 3823,
+      "derivedStartLine": 47,
+      "contextOriginals": [
+        {
+          "start": 3791,
+          "end": 3799,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "56c70d4493a48d6f6104d446add19e720b4b56abfab8f9c4313bed0b7b923250"
+        },
+        {
+          "start": 4782,
+          "end": 4807,
+          "startLine": 108,
+          "endLine": 108,
+          "sha256": "00d5f6d05fac60527fab780f19d2f3b9043d91df3238e23f7e008609bf197ab6"
+        },
+        {
+          "start": 3735,
+          "end": 3746,
+          "startLine": 96,
+          "endLine": 96,
+          "sha256": "c5e31ea584641a48dfc2ca059d5d4bcf2b3b1231ed8708cddeb9bb5190ef9b98"
+        },
+        {
+          "start": 3765,
+          "end": 3774,
+          "startLine": 97,
+          "endLine": 97,
+          "sha256": "694ac7b20bfcc058a5e4d61b9f9897dc3f4cb079ac954629a0a66cf24e4276eb"
+        }
+      ],
+      "group": "project-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-1-action-0",
+      "derivedSha256": "7da9ffea08c94bc3969eeb8c41581ceb0699e1a2956fbaab215d7c5c5ae6f514",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5121,
+          "end": 5130,
+          "startLine": 121,
+          "endLine": 121,
+          "sha256": "4240415f14a07079a5f1d9fdbd767bf9cb4548d0620bb22f722641ee5c052d1c"
+        },
+        {
+          "start": 5787,
+          "end": 5806,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 5273,
+          "end": 5431,
+          "startLine": 124,
+          "endLine": 124,
+          "sha256": "a42e4d9aba8f13dc0485587bc7d8fce9de3201e7203caa4b7baf4d4f75d8b449"
+        }
+      ],
+      "derivedStart": 3877,
+      "derivedEnd": 4071,
+      "derivedStartLine": 50,
+      "contextOriginals": [
+        {
+          "start": 5121,
+          "end": 5130,
+          "startLine": 121,
+          "endLine": 121,
+          "sha256": "4240415f14a07079a5f1d9fdbd767bf9cb4548d0620bb22f722641ee5c052d1c"
+        },
+        {
+          "start": 5787,
+          "end": 5806,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 5067,
+          "end": 5076,
+          "startLine": 119,
+          "endLine": 119,
+          "sha256": "df574fd2159edd4baab2bbc444a588318072e5345ce9675758eb329f5ef413ac"
+        },
+        {
+          "start": 5095,
+          "end": 5104,
+          "startLine": 120,
+          "endLine": 120,
+          "sha256": "9f7c7eeaaf2752d3886197a35c92db63513a61f54dfe94069b639996cb295146"
+        }
+      ],
+      "group": "project-1",
+      "kind": "mobile_project",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-1-action-1",
+      "derivedSha256": "1a383e8e1c8d741f83d66011b7367b61b7b81d247194fa5a8d60122662f6c91a",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5121,
+          "end": 5130,
+          "startLine": 121,
+          "endLine": 121,
+          "sha256": "4240415f14a07079a5f1d9fdbd767bf9cb4548d0620bb22f722641ee5c052d1c"
+        },
+        {
+          "start": 5787,
+          "end": 5806,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 5441,
+          "end": 5531,
+          "startLine": 125,
+          "endLine": 125,
+          "sha256": "71ac3ed7676c5417692cc19fce3cd95c1bdf277e3de3ee7e0649038934336fde"
+        }
+      ],
+      "derivedStart": 4125,
+      "derivedEnd": 4245,
+      "derivedStartLine": 53,
+      "contextOriginals": [
+        {
+          "start": 5121,
+          "end": 5130,
+          "startLine": 121,
+          "endLine": 121,
+          "sha256": "4240415f14a07079a5f1d9fdbd767bf9cb4548d0620bb22f722641ee5c052d1c"
+        },
+        {
+          "start": 5787,
+          "end": 5806,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 5067,
+          "end": 5076,
+          "startLine": 119,
+          "endLine": 119,
+          "sha256": "df574fd2159edd4baab2bbc444a588318072e5345ce9675758eb329f5ef413ac"
+        },
+        {
+          "start": 5095,
+          "end": 5104,
+          "startLine": 120,
+          "endLine": 120,
+          "sha256": "9f7c7eeaaf2752d3886197a35c92db63513a61f54dfe94069b639996cb295146"
+        }
+      ],
+      "group": "project-1",
+      "kind": "mobile_project",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-1-action-2",
+      "derivedSha256": "3d70cc047e8166996105fe760dd95c6d6dec899ca996e4e62f5b98c5f41a989f",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5121,
+          "end": 5130,
+          "startLine": 121,
+          "endLine": 121,
+          "sha256": "4240415f14a07079a5f1d9fdbd767bf9cb4548d0620bb22f722641ee5c052d1c"
+        },
+        {
+          "start": 5787,
+          "end": 5806,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 5541,
+          "end": 5625,
+          "startLine": 126,
+          "endLine": 126,
+          "sha256": "1a81cfe7f109c3b2c66404ff82d838670ee882a42e89e5fcbdfe85908d80a6bf"
+        }
+      ],
+      "derivedStart": 4299,
+      "derivedEnd": 4413,
+      "derivedStartLine": 56,
+      "contextOriginals": [
+        {
+          "start": 5121,
+          "end": 5130,
+          "startLine": 121,
+          "endLine": 121,
+          "sha256": "4240415f14a07079a5f1d9fdbd767bf9cb4548d0620bb22f722641ee5c052d1c"
+        },
+        {
+          "start": 5787,
+          "end": 5806,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 5067,
+          "end": 5076,
+          "startLine": 119,
+          "endLine": 119,
+          "sha256": "df574fd2159edd4baab2bbc444a588318072e5345ce9675758eb329f5ef413ac"
+        },
+        {
+          "start": 5095,
+          "end": 5104,
+          "startLine": 120,
+          "endLine": 120,
+          "sha256": "9f7c7eeaaf2752d3886197a35c92db63513a61f54dfe94069b639996cb295146"
+        }
+      ],
+      "group": "project-1",
+      "kind": "mobile_project",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-1-action-3",
+      "derivedSha256": "0dc638da180fb23d8b58186c9e6e2287218c97cccef237bb63d6f40ea718daa3",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5121,
+          "end": 5130,
+          "startLine": 121,
+          "endLine": 121,
+          "sha256": "4240415f14a07079a5f1d9fdbd767bf9cb4548d0620bb22f722641ee5c052d1c"
+        },
+        {
+          "start": 5787,
+          "end": 5806,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 5635,
+          "end": 5732,
+          "startLine": 127,
+          "endLine": 127,
+          "sha256": "3fedfbb9fc50a47c29f62a32fa2e553b701eb85562130035e43474727b230c99"
+        }
+      ],
+      "derivedStart": 4467,
+      "derivedEnd": 4594,
+      "derivedStartLine": 59,
+      "contextOriginals": [
+        {
+          "start": 5121,
+          "end": 5130,
+          "startLine": 121,
+          "endLine": 121,
+          "sha256": "4240415f14a07079a5f1d9fdbd767bf9cb4548d0620bb22f722641ee5c052d1c"
+        },
+        {
+          "start": 5787,
+          "end": 5806,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 5067,
+          "end": 5076,
+          "startLine": 119,
+          "endLine": 119,
+          "sha256": "df574fd2159edd4baab2bbc444a588318072e5345ce9675758eb329f5ef413ac"
+        },
+        {
+          "start": 5095,
+          "end": 5104,
+          "startLine": 120,
+          "endLine": 120,
+          "sha256": "9f7c7eeaaf2752d3886197a35c92db63513a61f54dfe94069b639996cb295146"
+        }
+      ],
+      "group": "project-1",
+      "kind": "mobile_project",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-1-technology-0",
+      "derivedSha256": "c78f6c97923e81a2f04f09c5e87b69e085c1e47066a1136b5f590bfde696e2eb",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5837,
+          "end": 5845,
+          "startLine": 132,
+          "endLine": 132,
+          "sha256": "15b2f87730b30d9bb2680518c4b66e2495fe7e3585a7d996b77943a7345ca0d7"
+        }
+      ],
+      "derivedStart": 4653,
+      "derivedEnd": 4659,
+      "derivedStartLine": 62,
+      "contextOriginals": [
+        {
+          "start": 5121,
+          "end": 5130,
+          "startLine": 121,
+          "endLine": 121,
+          "sha256": "4240415f14a07079a5f1d9fdbd767bf9cb4548d0620bb22f722641ee5c052d1c"
+        },
+        {
+          "start": 5787,
+          "end": 5806,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 5067,
+          "end": 5076,
+          "startLine": 119,
+          "endLine": 119,
+          "sha256": "df574fd2159edd4baab2bbc444a588318072e5345ce9675758eb329f5ef413ac"
+        },
+        {
+          "start": 5095,
+          "end": 5104,
+          "startLine": 120,
+          "endLine": 120,
+          "sha256": "9f7c7eeaaf2752d3886197a35c92db63513a61f54dfe94069b639996cb295146"
+        }
+      ],
+      "group": "project-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-1-technology-1",
+      "derivedSha256": "c1ba60ce13586503a21a05e9ef0bb959f1ba74a1d37bcfcbf5fc6bfb548f684d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5855,
+          "end": 5861,
+          "startLine": 133,
+          "endLine": 133,
+          "sha256": "dbc9eae3cb7810939cb7cb94629c1a42dc06032e9933df026da68e6aba8ebfb4"
+        }
+      ],
+      "derivedStart": 4718,
+      "derivedEnd": 4722,
+      "derivedStartLine": 65,
+      "contextOriginals": [
+        {
+          "start": 5121,
+          "end": 5130,
+          "startLine": 121,
+          "endLine": 121,
+          "sha256": "4240415f14a07079a5f1d9fdbd767bf9cb4548d0620bb22f722641ee5c052d1c"
+        },
+        {
+          "start": 5787,
+          "end": 5806,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 5067,
+          "end": 5076,
+          "startLine": 119,
+          "endLine": 119,
+          "sha256": "df574fd2159edd4baab2bbc444a588318072e5345ce9675758eb329f5ef413ac"
+        },
+        {
+          "start": 5095,
+          "end": 5104,
+          "startLine": 120,
+          "endLine": 120,
+          "sha256": "9f7c7eeaaf2752d3886197a35c92db63513a61f54dfe94069b639996cb295146"
+        }
+      ],
+      "group": "project-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-1-technology-2",
+      "derivedSha256": "5679daa7c55dde153a0e3f2e5d7c5318f149fa10716a7d874fa97e46639426a3",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5871,
+          "end": 5879,
+          "startLine": 134,
+          "endLine": 134,
+          "sha256": "6cfa9d6f38834bc0ae7d7e8e32042c9e468422d25ca9ea6fed64ea50e465ed47"
+        }
+      ],
+      "derivedStart": 4781,
+      "derivedEnd": 4787,
+      "derivedStartLine": 68,
+      "contextOriginals": [
+        {
+          "start": 5121,
+          "end": 5130,
+          "startLine": 121,
+          "endLine": 121,
+          "sha256": "4240415f14a07079a5f1d9fdbd767bf9cb4548d0620bb22f722641ee5c052d1c"
+        },
+        {
+          "start": 5787,
+          "end": 5806,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 5067,
+          "end": 5076,
+          "startLine": 119,
+          "endLine": 119,
+          "sha256": "df574fd2159edd4baab2bbc444a588318072e5345ce9675758eb329f5ef413ac"
+        },
+        {
+          "start": 5095,
+          "end": 5104,
+          "startLine": 120,
+          "endLine": 120,
+          "sha256": "9f7c7eeaaf2752d3886197a35c92db63513a61f54dfe94069b639996cb295146"
+        }
+      ],
+      "group": "project-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-1-technology-3",
+      "derivedSha256": "3953f7eea41d0899c63898d11f2ec9e4900d77fadbb725b465310e0595961ea5",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5889,
+          "end": 5894,
+          "startLine": 135,
+          "endLine": 135,
+          "sha256": "7e2ad10e80acc86162f654f8b19a8812e9f7fdb9951671f21d40a591fe353e49"
+        }
+      ],
+      "derivedStart": 4846,
+      "derivedEnd": 4849,
+      "derivedStartLine": 71,
+      "contextOriginals": [
+        {
+          "start": 5121,
+          "end": 5130,
+          "startLine": 121,
+          "endLine": 121,
+          "sha256": "4240415f14a07079a5f1d9fdbd767bf9cb4548d0620bb22f722641ee5c052d1c"
+        },
+        {
+          "start": 5787,
+          "end": 5806,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 5067,
+          "end": 5076,
+          "startLine": 119,
+          "endLine": 119,
+          "sha256": "df574fd2159edd4baab2bbc444a588318072e5345ce9675758eb329f5ef413ac"
+        },
+        {
+          "start": 5095,
+          "end": 5104,
+          "startLine": 120,
+          "endLine": 120,
+          "sha256": "9f7c7eeaaf2752d3886197a35c92db63513a61f54dfe94069b639996cb295146"
+        }
+      ],
+      "group": "project-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-1-technology-4",
+      "derivedSha256": "d662e9c6792b9f2dc1b60e5ac40dcfb6dbfd264af7176c0366ac2e8a4cfb7a27",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5904,
+          "end": 5912,
+          "startLine": 136,
+          "endLine": 136,
+          "sha256": "56b2b9861d97f22052c0a9fec9fadb635424c6cd363ea4ef8da66a68602b128b"
+        }
+      ],
+      "derivedStart": 4908,
+      "derivedEnd": 4914,
+      "derivedStartLine": 74,
+      "contextOriginals": [
+        {
+          "start": 5121,
+          "end": 5130,
+          "startLine": 121,
+          "endLine": 121,
+          "sha256": "4240415f14a07079a5f1d9fdbd767bf9cb4548d0620bb22f722641ee5c052d1c"
+        },
+        {
+          "start": 5787,
+          "end": 5806,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 5067,
+          "end": 5076,
+          "startLine": 119,
+          "endLine": 119,
+          "sha256": "df574fd2159edd4baab2bbc444a588318072e5345ce9675758eb329f5ef413ac"
+        },
+        {
+          "start": 5095,
+          "end": 5104,
+          "startLine": 120,
+          "endLine": 120,
+          "sha256": "9f7c7eeaaf2752d3886197a35c92db63513a61f54dfe94069b639996cb295146"
+        }
+      ],
+      "group": "project-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-1-technology-5",
+      "derivedSha256": "39572dfa7731f7c0600478a76f317e1c316f1d06baca61f3c9257e32a15a07ad",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5922,
+          "end": 5935,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "2f75ba7ebef6258a8428b5e61e561b0e2e94b96bcb6d3e2df34ffc562df0b8cc"
+        }
+      ],
+      "derivedStart": 4973,
+      "derivedEnd": 4984,
+      "derivedStartLine": 77,
+      "contextOriginals": [
+        {
+          "start": 5121,
+          "end": 5130,
+          "startLine": 121,
+          "endLine": 121,
+          "sha256": "4240415f14a07079a5f1d9fdbd767bf9cb4548d0620bb22f722641ee5c052d1c"
+        },
+        {
+          "start": 5787,
+          "end": 5806,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 5067,
+          "end": 5076,
+          "startLine": 119,
+          "endLine": 119,
+          "sha256": "df574fd2159edd4baab2bbc444a588318072e5345ce9675758eb329f5ef413ac"
+        },
+        {
+          "start": 5095,
+          "end": 5104,
+          "startLine": 120,
+          "endLine": 120,
+          "sha256": "9f7c7eeaaf2752d3886197a35c92db63513a61f54dfe94069b639996cb295146"
+        }
+      ],
+      "group": "project-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-2-action-0",
+      "derivedSha256": "8424577afd65642bc3671d3ad99ec00daee66765b59e3ba193bac3de1f8a031d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6131,
+          "end": 6167,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "f3f8a0e85d276e5d5e08fdfe38661aa60514a7c977aaf649271c010feca0a849"
+        },
+        {
+          "start": 6859,
+          "end": 6878,
+          "startLine": 152,
+          "endLine": 152,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 6314,
+          "end": 6511,
+          "startLine": 147,
+          "endLine": 147,
+          "sha256": "9c9d66d649abfedef71ee342252b4404c276abe5d2ee63c7f338987a86e620a4"
+        }
+      ],
+      "derivedStart": 5038,
+      "derivedEnd": 5268,
+      "derivedStartLine": 80,
+      "contextOriginals": [
+        {
+          "start": 6131,
+          "end": 6167,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "f3f8a0e85d276e5d5e08fdfe38661aa60514a7c977aaf649271c010feca0a849"
+        },
+        {
+          "start": 6859,
+          "end": 6878,
+          "startLine": 152,
+          "endLine": 152,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 6077,
+          "end": 6086,
+          "startLine": 142,
+          "endLine": 142,
+          "sha256": "15cf2a185f8ee9eb3d15464de7156ae39ba298a5025c56ed1dd0d567a3527fae"
+        },
+        {
+          "start": 6105,
+          "end": 6114,
+          "startLine": 143,
+          "endLine": 143,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        }
+      ],
+      "group": "project-2",
+      "kind": "mobile_project",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "project-2-action-1",
+      "derivedSha256": "52bca86deadd3fdeb64d594b664cbb25f5252c55322d59e94cfed53913ac1426",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6131,
+          "end": 6167,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "f3f8a0e85d276e5d5e08fdfe38661aa60514a7c977aaf649271c010feca0a849"
+        },
+        {
+          "start": 6859,
+          "end": 6878,
+          "startLine": 152,
+          "endLine": 152,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 6521,
+          "end": 6635,
+          "startLine": 148,
+          "endLine": 148,
+          "sha256": "19eabda692d31786ab62f005eb56cf5737d7ac8077911d2a0d77228781fb9ace"
+        }
+      ],
+      "derivedStart": 5322,
+      "derivedEnd": 5469,
+      "derivedStartLine": 83,
+      "contextOriginals": [
+        {
+          "start": 6131,
+          "end": 6167,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "f3f8a0e85d276e5d5e08fdfe38661aa60514a7c977aaf649271c010feca0a849"
+        },
+        {
+          "start": 6859,
+          "end": 6878,
+          "startLine": 152,
+          "endLine": 152,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 6077,
+          "end": 6086,
+          "startLine": 142,
+          "endLine": 142,
+          "sha256": "15cf2a185f8ee9eb3d15464de7156ae39ba298a5025c56ed1dd0d567a3527fae"
+        },
+        {
+          "start": 6105,
+          "end": 6114,
+          "startLine": 143,
+          "endLine": 143,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        }
+      ],
+      "group": "project-2",
+      "kind": "mobile_project",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-2-action-2",
+      "derivedSha256": "084e576de1a53d5a870f7f81ef24ffc63139951b48ff3b68f78f297eb37678e9",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6131,
+          "end": 6167,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "f3f8a0e85d276e5d5e08fdfe38661aa60514a7c977aaf649271c010feca0a849"
+        },
+        {
+          "start": 6859,
+          "end": 6878,
+          "startLine": 152,
+          "endLine": 152,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 6645,
+          "end": 6807,
+          "startLine": 149,
+          "endLine": 149,
+          "sha256": "a93de5c331130bb859c8e193b182fe7f2147cdef931cae5a4c406f37de691142"
+        }
+      ],
+      "derivedStart": 5523,
+      "derivedEnd": 5718,
+      "derivedStartLine": 86,
+      "contextOriginals": [
+        {
+          "start": 6131,
+          "end": 6167,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "f3f8a0e85d276e5d5e08fdfe38661aa60514a7c977aaf649271c010feca0a849"
+        },
+        {
+          "start": 6859,
+          "end": 6878,
+          "startLine": 152,
+          "endLine": 152,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 6077,
+          "end": 6086,
+          "startLine": 142,
+          "endLine": 142,
+          "sha256": "15cf2a185f8ee9eb3d15464de7156ae39ba298a5025c56ed1dd0d567a3527fae"
+        },
+        {
+          "start": 6105,
+          "end": 6114,
+          "startLine": 143,
+          "endLine": 143,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        }
+      ],
+      "group": "project-2",
+      "kind": "mobile_project",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-2-technology-0",
+      "derivedSha256": "c78f6c97923e81a2f04f09c5e87b69e085c1e47066a1136b5f590bfde696e2eb",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6909,
+          "end": 6917,
+          "startLine": 154,
+          "endLine": 154,
+          "sha256": "15b2f87730b30d9bb2680518c4b66e2495fe7e3585a7d996b77943a7345ca0d7"
+        }
+      ],
+      "derivedStart": 5777,
+      "derivedEnd": 5783,
+      "derivedStartLine": 89,
+      "contextOriginals": [
+        {
+          "start": 6131,
+          "end": 6167,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "f3f8a0e85d276e5d5e08fdfe38661aa60514a7c977aaf649271c010feca0a849"
+        },
+        {
+          "start": 6859,
+          "end": 6878,
+          "startLine": 152,
+          "endLine": 152,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 6077,
+          "end": 6086,
+          "startLine": 142,
+          "endLine": 142,
+          "sha256": "15cf2a185f8ee9eb3d15464de7156ae39ba298a5025c56ed1dd0d567a3527fae"
+        },
+        {
+          "start": 6105,
+          "end": 6114,
+          "startLine": 143,
+          "endLine": 143,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        }
+      ],
+      "group": "project-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-2-technology-1",
+      "derivedSha256": "e9c760bbbca4c9de139e88c2f029561becbd1959a1ce2976e1d1ee1b6e2b17b7",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6927,
+          "end": 6935,
+          "startLine": 155,
+          "endLine": 155,
+          "sha256": "4d2c3dcf61a9ded59f1286f48465ae1151ae802a407c6745ca448cf8182a7789"
+        }
+      ],
+      "derivedStart": 5842,
+      "derivedEnd": 5848,
+      "derivedStartLine": 92,
+      "contextOriginals": [
+        {
+          "start": 6131,
+          "end": 6167,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "f3f8a0e85d276e5d5e08fdfe38661aa60514a7c977aaf649271c010feca0a849"
+        },
+        {
+          "start": 6859,
+          "end": 6878,
+          "startLine": 152,
+          "endLine": 152,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 6077,
+          "end": 6086,
+          "startLine": 142,
+          "endLine": 142,
+          "sha256": "15cf2a185f8ee9eb3d15464de7156ae39ba298a5025c56ed1dd0d567a3527fae"
+        },
+        {
+          "start": 6105,
+          "end": 6114,
+          "startLine": 143,
+          "endLine": 143,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        }
+      ],
+      "group": "project-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-2-technology-2",
+      "derivedSha256": "28fa8c49c50b5375d89d9e282380e207576f2139a1ec5ca8b2d952a4be768705",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6945,
+          "end": 6954,
+          "startLine": 156,
+          "endLine": 156,
+          "sha256": "40655cec1be84b9559f39a2ee0f3300c6b8fd0911090ba8dbf2311a7422328d6"
+        }
+      ],
+      "derivedStart": 5907,
+      "derivedEnd": 5914,
+      "derivedStartLine": 95,
+      "contextOriginals": [
+        {
+          "start": 6131,
+          "end": 6167,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "f3f8a0e85d276e5d5e08fdfe38661aa60514a7c977aaf649271c010feca0a849"
+        },
+        {
+          "start": 6859,
+          "end": 6878,
+          "startLine": 152,
+          "endLine": 152,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 6077,
+          "end": 6086,
+          "startLine": 142,
+          "endLine": 142,
+          "sha256": "15cf2a185f8ee9eb3d15464de7156ae39ba298a5025c56ed1dd0d567a3527fae"
+        },
+        {
+          "start": 6105,
+          "end": 6114,
+          "startLine": 143,
+          "endLine": 143,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        }
+      ],
+      "group": "project-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-2-technology-3",
+      "derivedSha256": "57d592c480eded4961fbcb9b667f25674ecfdcd8758816704a0504abb6ba8480",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6964,
+          "end": 6976,
+          "startLine": 157,
+          "endLine": 157,
+          "sha256": "cc988487063900c16071ce03b20b838d55fa13946ad088001d51dd5bf2d7f3e7"
+        }
+      ],
+      "derivedStart": 5973,
+      "derivedEnd": 5983,
+      "derivedStartLine": 98,
+      "contextOriginals": [
+        {
+          "start": 6131,
+          "end": 6167,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "f3f8a0e85d276e5d5e08fdfe38661aa60514a7c977aaf649271c010feca0a849"
+        },
+        {
+          "start": 6859,
+          "end": 6878,
+          "startLine": 152,
+          "endLine": 152,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 6077,
+          "end": 6086,
+          "startLine": 142,
+          "endLine": 142,
+          "sha256": "15cf2a185f8ee9eb3d15464de7156ae39ba298a5025c56ed1dd0d567a3527fae"
+        },
+        {
+          "start": 6105,
+          "end": 6114,
+          "startLine": 143,
+          "endLine": 143,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        }
+      ],
+      "group": "project-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-2-technology-4",
+      "derivedSha256": "5679daa7c55dde153a0e3f2e5d7c5318f149fa10716a7d874fa97e46639426a3",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6986,
+          "end": 6994,
+          "startLine": 158,
+          "endLine": 158,
+          "sha256": "6cfa9d6f38834bc0ae7d7e8e32042c9e468422d25ca9ea6fed64ea50e465ed47"
+        }
+      ],
+      "derivedStart": 6042,
+      "derivedEnd": 6048,
+      "derivedStartLine": 101,
+      "contextOriginals": [
+        {
+          "start": 6131,
+          "end": 6167,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "f3f8a0e85d276e5d5e08fdfe38661aa60514a7c977aaf649271c010feca0a849"
+        },
+        {
+          "start": 6859,
+          "end": 6878,
+          "startLine": 152,
+          "endLine": 152,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 6077,
+          "end": 6086,
+          "startLine": 142,
+          "endLine": 142,
+          "sha256": "15cf2a185f8ee9eb3d15464de7156ae39ba298a5025c56ed1dd0d567a3527fae"
+        },
+        {
+          "start": 6105,
+          "end": 6114,
+          "startLine": 143,
+          "endLine": 143,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        }
+      ],
+      "group": "project-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-2-technology-5",
+      "derivedSha256": "3953f7eea41d0899c63898d11f2ec9e4900d77fadbb725b465310e0595961ea5",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 7004,
+          "end": 7009,
+          "startLine": 159,
+          "endLine": 159,
+          "sha256": "7e2ad10e80acc86162f654f8b19a8812e9f7fdb9951671f21d40a591fe353e49"
+        }
+      ],
+      "derivedStart": 6107,
+      "derivedEnd": 6110,
+      "derivedStartLine": 104,
+      "contextOriginals": [
+        {
+          "start": 6131,
+          "end": 6167,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "f3f8a0e85d276e5d5e08fdfe38661aa60514a7c977aaf649271c010feca0a849"
+        },
+        {
+          "start": 6859,
+          "end": 6878,
+          "startLine": 152,
+          "endLine": 152,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 6077,
+          "end": 6086,
+          "startLine": 142,
+          "endLine": 142,
+          "sha256": "15cf2a185f8ee9eb3d15464de7156ae39ba298a5025c56ed1dd0d567a3527fae"
+        },
+        {
+          "start": 6105,
+          "end": 6114,
+          "startLine": 143,
+          "endLine": 143,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        }
+      ],
+      "group": "project-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-2-technology-6",
+      "derivedSha256": "4de8beaed579161f2abcc882454fda7777154801725a767e64fa01c7ca75eb34",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 7019,
+          "end": 7029,
+          "startLine": 160,
+          "endLine": 160,
+          "sha256": "adbe5611d0c2ad413d1b9a800c71524bd39173721b31daa159ad6a883edf1cb6"
+        }
+      ],
+      "derivedStart": 6169,
+      "derivedEnd": 6177,
+      "derivedStartLine": 107,
+      "contextOriginals": [
+        {
+          "start": 6131,
+          "end": 6167,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "f3f8a0e85d276e5d5e08fdfe38661aa60514a7c977aaf649271c010feca0a849"
+        },
+        {
+          "start": 6859,
+          "end": 6878,
+          "startLine": 152,
+          "endLine": 152,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 6077,
+          "end": 6086,
+          "startLine": 142,
+          "endLine": 142,
+          "sha256": "15cf2a185f8ee9eb3d15464de7156ae39ba298a5025c56ed1dd0d567a3527fae"
+        },
+        {
+          "start": 6105,
+          "end": 6114,
+          "startLine": 143,
+          "endLine": 143,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        }
+      ],
+      "group": "project-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-2-technology-7",
+      "derivedSha256": "1523f2a12c34bb9e3698851833173264a05421408b1387e3bdf46b5b3861ec4e",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 7039,
+          "end": 7050,
+          "startLine": 161,
+          "endLine": 161,
+          "sha256": "b1df01393f6dabe3531cc7c13f57e0cb652fb6b85f3d38e51d7211a3c5f7edcc"
+        }
+      ],
+      "derivedStart": 6236,
+      "derivedEnd": 6245,
+      "derivedStartLine": 110,
+      "contextOriginals": [
+        {
+          "start": 6131,
+          "end": 6167,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "f3f8a0e85d276e5d5e08fdfe38661aa60514a7c977aaf649271c010feca0a849"
+        },
+        {
+          "start": 6859,
+          "end": 6878,
+          "startLine": 152,
+          "endLine": 152,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 6077,
+          "end": 6086,
+          "startLine": 142,
+          "endLine": 142,
+          "sha256": "15cf2a185f8ee9eb3d15464de7156ae39ba298a5025c56ed1dd0d567a3527fae"
+        },
+        {
+          "start": 6105,
+          "end": 6114,
+          "startLine": 143,
+          "endLine": 143,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        }
+      ],
+      "group": "project-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-2-technology-8",
+      "derivedSha256": "e25dc4762c339fa65e58e66cf5fdcde14764faca1cc743004f83571be1f5568d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 7060,
+          "end": 7070,
+          "startLine": 162,
+          "endLine": 162,
+          "sha256": "90a046bda22aa1e66787a99b3ad5688b814f3f89ef300c3ff24710998dce47b1"
+        }
+      ],
+      "derivedStart": 6304,
+      "derivedEnd": 6312,
+      "derivedStartLine": 113,
+      "contextOriginals": [
+        {
+          "start": 6131,
+          "end": 6167,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "f3f8a0e85d276e5d5e08fdfe38661aa60514a7c977aaf649271c010feca0a849"
+        },
+        {
+          "start": 6859,
+          "end": 6878,
+          "startLine": 152,
+          "endLine": 152,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 6077,
+          "end": 6086,
+          "startLine": 142,
+          "endLine": 142,
+          "sha256": "15cf2a185f8ee9eb3d15464de7156ae39ba298a5025c56ed1dd0d567a3527fae"
+        },
+        {
+          "start": 6105,
+          "end": 6114,
+          "startLine": 143,
+          "endLine": 143,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        }
+      ],
+      "group": "project-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-2-technology-9",
+      "derivedSha256": "39572dfa7731f7c0600478a76f317e1c316f1d06baca61f3c9257e32a15a07ad",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 7080,
+          "end": 7093,
+          "startLine": 163,
+          "endLine": 163,
+          "sha256": "2f75ba7ebef6258a8428b5e61e561b0e2e94b96bcb6d3e2df34ffc562df0b8cc"
+        }
+      ],
+      "derivedStart": 6371,
+      "derivedEnd": 6382,
+      "derivedStartLine": 116,
+      "contextOriginals": [
+        {
+          "start": 6131,
+          "end": 6167,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "f3f8a0e85d276e5d5e08fdfe38661aa60514a7c977aaf649271c010feca0a849"
+        },
+        {
+          "start": 6859,
+          "end": 6878,
+          "startLine": 152,
+          "endLine": 152,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 6077,
+          "end": 6086,
+          "startLine": 142,
+          "endLine": 142,
+          "sha256": "15cf2a185f8ee9eb3d15464de7156ae39ba298a5025c56ed1dd0d567a3527fae"
+        },
+        {
+          "start": 6105,
+          "end": 6114,
+          "startLine": 143,
+          "endLine": 143,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        }
+      ],
+      "group": "project-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-3-action-0",
+      "derivedSha256": "e30bab523663934af0b076249c8d5c0dc1fdf7b572f6e5766d4e33274f0e7f79",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 7297,
+          "end": 7330,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "457d40ede23704e108045d755db8fe1aed53c599248a34d678f1bb7b19702e19"
+        },
+        {
+          "start": 7608,
+          "end": 7646,
+          "startLine": 173,
+          "endLine": 173,
+          "sha256": "620271f1a3347b506c23b634fb2f404062870617c7baf930697d05457e353671"
+        },
+        {
+          "start": 7678,
+          "end": 7723,
+          "startLine": 175,
+          "endLine": 175,
+          "sha256": "5d461be540c2e61c7948f43013d8d07efd83816c6aee65881337ade87e8f4173"
+        }
+      ],
+      "derivedStart": 6440,
+      "derivedEnd": 6537,
+      "derivedStartLine": 119,
+      "contextOriginals": [
+        {
+          "start": 7297,
+          "end": 7330,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "457d40ede23704e108045d755db8fe1aed53c599248a34d678f1bb7b19702e19"
+        },
+        {
+          "start": 7608,
+          "end": 7646,
+          "startLine": 173,
+          "endLine": 173,
+          "sha256": "620271f1a3347b506c23b634fb2f404062870617c7baf930697d05457e353671"
+        },
+        {
+          "start": 7243,
+          "end": 7252,
+          "startLine": 168,
+          "endLine": 168,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        },
+        {
+          "start": 7271,
+          "end": 7280,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "4f5baea8253ca38255b6257a367db4e5e40864de062dbe3da33f6711925c2f19"
+        }
+      ],
+      "group": "project-3",
+      "kind": "mobile_web_project",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-3-action-1",
+      "derivedSha256": "d2c177d83de983bf9b0ce3c215b6fbb059434134ba06602683584570bdeafae2",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 7297,
+          "end": 7330,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "457d40ede23704e108045d755db8fe1aed53c599248a34d678f1bb7b19702e19"
+        },
+        {
+          "start": 7608,
+          "end": 7646,
+          "startLine": 173,
+          "endLine": 173,
+          "sha256": "620271f1a3347b506c23b634fb2f404062870617c7baf930697d05457e353671"
+        },
+        {
+          "start": 7733,
+          "end": 7837,
+          "startLine": 176,
+          "endLine": 176,
+          "sha256": "dbdc266f830779a5a6c1aafe190c7360ef5d7f50a7924b152e8fbdca5b62a84b"
+        }
+      ],
+      "derivedStart": 6595,
+      "derivedEnd": 6751,
+      "derivedStartLine": 122,
+      "contextOriginals": [
+        {
+          "start": 7297,
+          "end": 7330,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "457d40ede23704e108045d755db8fe1aed53c599248a34d678f1bb7b19702e19"
+        },
+        {
+          "start": 7608,
+          "end": 7646,
+          "startLine": 173,
+          "endLine": 173,
+          "sha256": "620271f1a3347b506c23b634fb2f404062870617c7baf930697d05457e353671"
+        },
+        {
+          "start": 7243,
+          "end": 7252,
+          "startLine": 168,
+          "endLine": 168,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        },
+        {
+          "start": 7271,
+          "end": 7280,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "4f5baea8253ca38255b6257a367db4e5e40864de062dbe3da33f6711925c2f19"
+        }
+      ],
+      "group": "project-3",
+      "kind": "mobile_web_project",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "project-3-action-2",
+      "derivedSha256": "9b5515eedaaf3fb497305e68fc658bae46dbc24e4fa392cea34199bf0e3a0e77",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 7297,
+          "end": 7330,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "457d40ede23704e108045d755db8fe1aed53c599248a34d678f1bb7b19702e19"
+        },
+        {
+          "start": 7608,
+          "end": 7646,
+          "startLine": 173,
+          "endLine": 173,
+          "sha256": "620271f1a3347b506c23b634fb2f404062870617c7baf930697d05457e353671"
+        },
+        {
+          "start": 7847,
+          "end": 7920,
+          "startLine": 177,
+          "endLine": 177,
+          "sha256": "2e3018f57bc66e0a1944f883ff32b718ed35b8034921a6ccda5d96cc83f1dc78"
+        }
+      ],
+      "derivedStart": 6809,
+      "derivedEnd": 6934,
+      "derivedStartLine": 125,
+      "contextOriginals": [
+        {
+          "start": 7297,
+          "end": 7330,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "457d40ede23704e108045d755db8fe1aed53c599248a34d678f1bb7b19702e19"
+        },
+        {
+          "start": 7608,
+          "end": 7646,
+          "startLine": 173,
+          "endLine": 173,
+          "sha256": "620271f1a3347b506c23b634fb2f404062870617c7baf930697d05457e353671"
+        },
+        {
+          "start": 7243,
+          "end": 7252,
+          "startLine": 168,
+          "endLine": 168,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        },
+        {
+          "start": 7271,
+          "end": 7280,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "4f5baea8253ca38255b6257a367db4e5e40864de062dbe3da33f6711925c2f19"
+        }
+      ],
+      "group": "project-3",
+      "kind": "mobile_web_project",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-3-technology-0",
+      "derivedSha256": "1cd07be18aed5105b1a78df8344ca494a327e6e5548dfba72b9d72f298b1bee9",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 7959,
+          "end": 7973,
+          "startLine": 180,
+          "endLine": 180,
+          "sha256": "9d1c55bb58efcc26b4843f6285af255254d48bd3816004fd1e5ed67379612e37"
+        }
+      ],
+      "derivedStart": 6993,
+      "derivedEnd": 7005,
+      "derivedStartLine": 128,
+      "contextOriginals": [
+        {
+          "start": 7297,
+          "end": 7330,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "457d40ede23704e108045d755db8fe1aed53c599248a34d678f1bb7b19702e19"
+        },
+        {
+          "start": 7608,
+          "end": 7646,
+          "startLine": 173,
+          "endLine": 173,
+          "sha256": "620271f1a3347b506c23b634fb2f404062870617c7baf930697d05457e353671"
+        },
+        {
+          "start": 7243,
+          "end": 7252,
+          "startLine": 168,
+          "endLine": 168,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        },
+        {
+          "start": 7271,
+          "end": 7280,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "4f5baea8253ca38255b6257a367db4e5e40864de062dbe3da33f6711925c2f19"
+        }
+      ],
+      "group": "project-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-3-technology-1",
+      "derivedSha256": "01fad993ff61aca9a1f2f07100c95eb1559d8b6440a00cb974a92810a6b5a2dc",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 7983,
+          "end": 7990,
+          "startLine": 181,
+          "endLine": 181,
+          "sha256": "8547fea176beffc6b9ba494c67799714bd6d8955fa65c4db4bfc1f09d18fe697"
+        }
+      ],
+      "derivedStart": 7064,
+      "derivedEnd": 7069,
+      "derivedStartLine": 131,
+      "contextOriginals": [
+        {
+          "start": 7297,
+          "end": 7330,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "457d40ede23704e108045d755db8fe1aed53c599248a34d678f1bb7b19702e19"
+        },
+        {
+          "start": 7608,
+          "end": 7646,
+          "startLine": 173,
+          "endLine": 173,
+          "sha256": "620271f1a3347b506c23b634fb2f404062870617c7baf930697d05457e353671"
+        },
+        {
+          "start": 7243,
+          "end": 7252,
+          "startLine": 168,
+          "endLine": 168,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        },
+        {
+          "start": 7271,
+          "end": 7280,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "4f5baea8253ca38255b6257a367db4e5e40864de062dbe3da33f6711925c2f19"
+        }
+      ],
+      "group": "project-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-3-technology-2",
+      "derivedSha256": "4f3a3e91015ed845f6eb5550bc3334001c9501620b1d75299234903fe95f527e",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 8000,
+          "end": 8010,
+          "startLine": 182,
+          "endLine": 182,
+          "sha256": "c9db2ab8d5b2fbeea2e5eaf96daeabdd0497f7b50aaa5d22a1ce7b222fef6a0c"
+        }
+      ],
+      "derivedStart": 7128,
+      "derivedEnd": 7136,
+      "derivedStartLine": 134,
+      "contextOriginals": [
+        {
+          "start": 7297,
+          "end": 7330,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "457d40ede23704e108045d755db8fe1aed53c599248a34d678f1bb7b19702e19"
+        },
+        {
+          "start": 7608,
+          "end": 7646,
+          "startLine": 173,
+          "endLine": 173,
+          "sha256": "620271f1a3347b506c23b634fb2f404062870617c7baf930697d05457e353671"
+        },
+        {
+          "start": 7243,
+          "end": 7252,
+          "startLine": 168,
+          "endLine": 168,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        },
+        {
+          "start": 7271,
+          "end": 7280,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "4f5baea8253ca38255b6257a367db4e5e40864de062dbe3da33f6711925c2f19"
+        }
+      ],
+      "group": "project-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-3-technology-3",
+      "derivedSha256": "c8841d0a3fb6e3ec7ce59aa0253ee6f4e6b71e8349b45d6a6cc9aeb5c37920f2",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 8020,
+          "end": 8031,
+          "startLine": 183,
+          "endLine": 183,
+          "sha256": "917db4a09502c63b3e396df7f5a2cfba28e8ac02bf8600db37542cc83276e1b5"
+        }
+      ],
+      "derivedStart": 7195,
+      "derivedEnd": 7204,
+      "derivedStartLine": 137,
+      "contextOriginals": [
+        {
+          "start": 7297,
+          "end": 7330,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "457d40ede23704e108045d755db8fe1aed53c599248a34d678f1bb7b19702e19"
+        },
+        {
+          "start": 7608,
+          "end": 7646,
+          "startLine": 173,
+          "endLine": 173,
+          "sha256": "620271f1a3347b506c23b634fb2f404062870617c7baf930697d05457e353671"
+        },
+        {
+          "start": 7243,
+          "end": 7252,
+          "startLine": 168,
+          "endLine": 168,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        },
+        {
+          "start": 7271,
+          "end": 7280,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "4f5baea8253ca38255b6257a367db4e5e40864de062dbe3da33f6711925c2f19"
+        }
+      ],
+      "group": "project-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-3-technology-4",
+      "derivedSha256": "f75b290c2e18d3da0503412dd371d4a5afbdbd43a3cfa911998dace144fb6836",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 8041,
+          "end": 8050,
+          "startLine": 184,
+          "endLine": 184,
+          "sha256": "c6f1fac30e3c9291661de0830e40a56e2faa88cf5f977655c591ee63bfd45302"
+        }
+      ],
+      "derivedStart": 7263,
+      "derivedEnd": 7270,
+      "derivedStartLine": 140,
+      "contextOriginals": [
+        {
+          "start": 7297,
+          "end": 7330,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "457d40ede23704e108045d755db8fe1aed53c599248a34d678f1bb7b19702e19"
+        },
+        {
+          "start": 7608,
+          "end": 7646,
+          "startLine": 173,
+          "endLine": 173,
+          "sha256": "620271f1a3347b506c23b634fb2f404062870617c7baf930697d05457e353671"
+        },
+        {
+          "start": 7243,
+          "end": 7252,
+          "startLine": 168,
+          "endLine": 168,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        },
+        {
+          "start": 7271,
+          "end": 7280,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "4f5baea8253ca38255b6257a367db4e5e40864de062dbe3da33f6711925c2f19"
+        }
+      ],
+      "group": "project-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-3-technology-5",
+      "derivedSha256": "73f887a71bc9251a95ceafdb630302acb41a40110c8b6ee092a9490761cf5a6d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 8060,
+          "end": 8067,
+          "startLine": 185,
+          "endLine": 185,
+          "sha256": "42ef6db209ba29a26b975fc209e6e164a6ecf5156b3649131a91d097779a3540"
+        }
+      ],
+      "derivedStart": 7329,
+      "derivedEnd": 7334,
+      "derivedStartLine": 143,
+      "contextOriginals": [
+        {
+          "start": 7297,
+          "end": 7330,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "457d40ede23704e108045d755db8fe1aed53c599248a34d678f1bb7b19702e19"
+        },
+        {
+          "start": 7608,
+          "end": 7646,
+          "startLine": 173,
+          "endLine": 173,
+          "sha256": "620271f1a3347b506c23b634fb2f404062870617c7baf930697d05457e353671"
+        },
+        {
+          "start": 7243,
+          "end": 7252,
+          "startLine": 168,
+          "endLine": 168,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        },
+        {
+          "start": 7271,
+          "end": 7280,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "4f5baea8253ca38255b6257a367db4e5e40864de062dbe3da33f6711925c2f19"
+        }
+      ],
+      "group": "project-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-3-technology-6",
+      "derivedSha256": "1f30f03bec8a6bcf5c3b119bfb0ff1b5d19c88372b5be906eb67dcf053009ba7",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 8077,
+          "end": 8083,
+          "startLine": 186,
+          "endLine": 186,
+          "sha256": "4958dc6b27da4ff7781b8238de81e70d2094cfa424a3a7bd4ead7447a677593c"
+        }
+      ],
+      "derivedStart": 7393,
+      "derivedEnd": 7397,
+      "derivedStartLine": 146,
+      "contextOriginals": [
+        {
+          "start": 7297,
+          "end": 7330,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "457d40ede23704e108045d755db8fe1aed53c599248a34d678f1bb7b19702e19"
+        },
+        {
+          "start": 7608,
+          "end": 7646,
+          "startLine": 173,
+          "endLine": 173,
+          "sha256": "620271f1a3347b506c23b634fb2f404062870617c7baf930697d05457e353671"
+        },
+        {
+          "start": 7243,
+          "end": 7252,
+          "startLine": 168,
+          "endLine": 168,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        },
+        {
+          "start": 7271,
+          "end": 7280,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "4f5baea8253ca38255b6257a367db4e5e40864de062dbe3da33f6711925c2f19"
+        }
+      ],
+      "group": "project-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-4-action-0",
+      "derivedSha256": "9294ae31224eed7c5d5ec600a6a6c16cde75b22769b2b440aae473cbc0b413bc",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 8271,
+          "end": 8292,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "b546784a9abbe6933e78567702e19ff96c5e7b2913af6a9d49432b5a6c3b55d9"
+        },
+        {
+          "start": 8489,
+          "end": 8517,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "57485c2ac2e750784ec105400e6a2f9ba97d44a8455265ef0f74e81048959cfc"
+        },
+        {
+          "start": 8655,
+          "end": 8700,
+          "startLine": 204,
+          "endLine": 204,
+          "sha256": "5d461be540c2e61c7948f43013d8d07efd83816c6aee65881337ade87e8f4173"
+        }
+      ],
+      "derivedStart": 7455,
+      "derivedEnd": 7543,
+      "derivedStartLine": 149,
+      "contextOriginals": [
+        {
+          "start": 8271,
+          "end": 8292,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "b546784a9abbe6933e78567702e19ff96c5e7b2913af6a9d49432b5a6c3b55d9"
+        },
+        {
+          "start": 8489,
+          "end": 8517,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "57485c2ac2e750784ec105400e6a2f9ba97d44a8455265ef0f74e81048959cfc"
+        },
+        {
+          "start": 8217,
+          "end": 8226,
+          "startLine": 191,
+          "endLine": 191,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        },
+        {
+          "start": 8245,
+          "end": 8254,
+          "startLine": 192,
+          "endLine": 192,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        }
+      ],
+      "group": "project-4",
+      "kind": "mobile_web_project",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-4-action-1",
+      "derivedSha256": "4953bbffcba63f70cb8264a1125b3c7eaca729ff1916fb0f1b528c86e013ca08",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 8271,
+          "end": 8292,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "b546784a9abbe6933e78567702e19ff96c5e7b2913af6a9d49432b5a6c3b55d9"
+        },
+        {
+          "start": 8489,
+          "end": 8517,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "57485c2ac2e750784ec105400e6a2f9ba97d44a8455265ef0f74e81048959cfc"
+        },
+        {
+          "start": 8710,
+          "end": 8754,
+          "startLine": 205,
+          "endLine": 205,
+          "sha256": "1b3e869e9df0008f7193808976b1a0ac423faf9ee852c14c6ad67bf1ecc707e1"
+        }
+      ],
+      "derivedStart": 7601,
+      "derivedEnd": 7688,
+      "derivedStartLine": 152,
+      "contextOriginals": [
+        {
+          "start": 8271,
+          "end": 8292,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "b546784a9abbe6933e78567702e19ff96c5e7b2913af6a9d49432b5a6c3b55d9"
+        },
+        {
+          "start": 8489,
+          "end": 8517,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "57485c2ac2e750784ec105400e6a2f9ba97d44a8455265ef0f74e81048959cfc"
+        },
+        {
+          "start": 8217,
+          "end": 8226,
+          "startLine": 191,
+          "endLine": 191,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        },
+        {
+          "start": 8245,
+          "end": 8254,
+          "startLine": 192,
+          "endLine": 192,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        }
+      ],
+      "group": "project-4",
+      "kind": "mobile_web_project",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "project-4-action-2",
+      "derivedSha256": "62346107f51a53387cd60cc81545e1db4c0e816da58a48f392f1841692e349c3",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 8271,
+          "end": 8292,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "b546784a9abbe6933e78567702e19ff96c5e7b2913af6a9d49432b5a6c3b55d9"
+        },
+        {
+          "start": 8489,
+          "end": 8517,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "57485c2ac2e750784ec105400e6a2f9ba97d44a8455265ef0f74e81048959cfc"
+        },
+        {
+          "start": 8764,
+          "end": 8809,
+          "startLine": 206,
+          "endLine": 206,
+          "sha256": "68c88c3e9b319b5c04de2f5dae787f5f9ef24a7d39ed9c7d84e82ca8b8242a9a"
+        }
+      ],
+      "derivedStart": 7746,
+      "derivedEnd": 7834,
+      "derivedStartLine": 155,
+      "contextOriginals": [
+        {
+          "start": 8271,
+          "end": 8292,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "b546784a9abbe6933e78567702e19ff96c5e7b2913af6a9d49432b5a6c3b55d9"
+        },
+        {
+          "start": 8489,
+          "end": 8517,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "57485c2ac2e750784ec105400e6a2f9ba97d44a8455265ef0f74e81048959cfc"
+        },
+        {
+          "start": 8217,
+          "end": 8226,
+          "startLine": 191,
+          "endLine": 191,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        },
+        {
+          "start": 8245,
+          "end": 8254,
+          "startLine": 192,
+          "endLine": 192,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        }
+      ],
+      "group": "project-4",
+      "kind": "mobile_web_project",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-4-technology-0",
+      "derivedSha256": "01fad993ff61aca9a1f2f07100c95eb1559d8b6440a00cb974a92810a6b5a2dc",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 8548,
+          "end": 8555,
+          "startLine": 198,
+          "endLine": 198,
+          "sha256": "8547fea176beffc6b9ba494c67799714bd6d8955fa65c4db4bfc1f09d18fe697"
+        }
+      ],
+      "derivedStart": 7893,
+      "derivedEnd": 7898,
+      "derivedStartLine": 158,
+      "contextOriginals": [
+        {
+          "start": 8271,
+          "end": 8292,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "b546784a9abbe6933e78567702e19ff96c5e7b2913af6a9d49432b5a6c3b55d9"
+        },
+        {
+          "start": 8489,
+          "end": 8517,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "57485c2ac2e750784ec105400e6a2f9ba97d44a8455265ef0f74e81048959cfc"
+        },
+        {
+          "start": 8217,
+          "end": 8226,
+          "startLine": 191,
+          "endLine": 191,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        },
+        {
+          "start": 8245,
+          "end": 8254,
+          "startLine": 192,
+          "endLine": 192,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        }
+      ],
+      "group": "project-4",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-4-technology-1",
+      "derivedSha256": "72b0dea7acd1669e4a3c4f5b8dab560ce531928facf75b9bf33ec7d3a435a1a6",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 8565,
+          "end": 8579,
+          "startLine": 199,
+          "endLine": 199,
+          "sha256": "a3882a89c811d5694ff83fa1c4824a94525f87d711f25dea894bd998d43633f4"
+        }
+      ],
+      "derivedStart": 7957,
+      "derivedEnd": 7969,
+      "derivedStartLine": 161,
+      "contextOriginals": [
+        {
+          "start": 8271,
+          "end": 8292,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "b546784a9abbe6933e78567702e19ff96c5e7b2913af6a9d49432b5a6c3b55d9"
+        },
+        {
+          "start": 8489,
+          "end": 8517,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "57485c2ac2e750784ec105400e6a2f9ba97d44a8455265ef0f74e81048959cfc"
+        },
+        {
+          "start": 8217,
+          "end": 8226,
+          "startLine": 191,
+          "endLine": 191,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        },
+        {
+          "start": 8245,
+          "end": 8254,
+          "startLine": 192,
+          "endLine": 192,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        }
+      ],
+      "group": "project-4",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-4-technology-2",
+      "derivedSha256": "10d610bcded5b25d6c321a48268ae5a94139a3814ff69d470d420f8ad3706a4e",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 8589,
+          "end": 8599,
+          "startLine": 200,
+          "endLine": 200,
+          "sha256": "0d7df35b64e7eb77d753be6aa248a3895b6c884cd36a6ea36ca110ad584c4b40"
+        }
+      ],
+      "derivedStart": 8028,
+      "derivedEnd": 8036,
+      "derivedStartLine": 164,
+      "contextOriginals": [
+        {
+          "start": 8271,
+          "end": 8292,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "b546784a9abbe6933e78567702e19ff96c5e7b2913af6a9d49432b5a6c3b55d9"
+        },
+        {
+          "start": 8489,
+          "end": 8517,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "57485c2ac2e750784ec105400e6a2f9ba97d44a8455265ef0f74e81048959cfc"
+        },
+        {
+          "start": 8217,
+          "end": 8226,
+          "startLine": 191,
+          "endLine": 191,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        },
+        {
+          "start": 8245,
+          "end": 8254,
+          "startLine": 192,
+          "endLine": 192,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        }
+      ],
+      "group": "project-4",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-4-technology-3",
+      "derivedSha256": "1f30f03bec8a6bcf5c3b119bfb0ff1b5d19c88372b5be906eb67dcf053009ba7",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 8609,
+          "end": 8615,
+          "startLine": 201,
+          "endLine": 201,
+          "sha256": "4958dc6b27da4ff7781b8238de81e70d2094cfa424a3a7bd4ead7447a677593c"
+        }
+      ],
+      "derivedStart": 8095,
+      "derivedEnd": 8099,
+      "derivedStartLine": 167,
+      "contextOriginals": [
+        {
+          "start": 8271,
+          "end": 8292,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "b546784a9abbe6933e78567702e19ff96c5e7b2913af6a9d49432b5a6c3b55d9"
+        },
+        {
+          "start": 8489,
+          "end": 8517,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "57485c2ac2e750784ec105400e6a2f9ba97d44a8455265ef0f74e81048959cfc"
+        },
+        {
+          "start": 8217,
+          "end": 8226,
+          "startLine": 191,
+          "endLine": 191,
+          "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+        },
+        {
+          "start": 8245,
+          "end": 8254,
+          "startLine": 192,
+          "endLine": 192,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        }
+      ],
+      "group": "project-4",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-5-action-0",
+      "derivedSha256": "b1efe2a517e9c50be98ba25cd559b482aa7d3dc41ce07ae77e05671a2daf50a2",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 8935,
+          "end": 8955,
+          "startLine": 213,
+          "endLine": 213,
+          "sha256": "98e6b0e6b6f30587a838441beacae40cab150603a3b206cc42cadddfa5a3532e"
+        },
+        {
+          "start": 9161,
+          "end": 9179,
+          "startLine": 216,
+          "endLine": 216,
+          "sha256": "bdd9544a291c4acae76618398575180c9140ad76094927970e0ec02d0696b423"
+        },
+        {
+          "start": 9297,
+          "end": 9342,
+          "startLine": 223,
+          "endLine": 223,
+          "sha256": "5d461be540c2e61c7948f43013d8d07efd83816c6aee65881337ade87e8f4173"
+        }
+      ],
+      "derivedStart": 8157,
+      "derivedEnd": 8237,
+      "derivedStartLine": 170,
+      "contextOriginals": [
+        {
+          "start": 8935,
+          "end": 8955,
+          "startLine": 213,
+          "endLine": 213,
+          "sha256": "98e6b0e6b6f30587a838441beacae40cab150603a3b206cc42cadddfa5a3532e"
+        },
+        {
+          "start": 9161,
+          "end": 9179,
+          "startLine": 216,
+          "endLine": 216,
+          "sha256": "bdd9544a291c4acae76618398575180c9140ad76094927970e0ec02d0696b423"
+        },
+        {
+          "start": 8881,
+          "end": 8890,
+          "startLine": 211,
+          "endLine": 211,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        },
+        {
+          "start": 8909,
+          "end": 8918,
+          "startLine": 212,
+          "endLine": 212,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        }
+      ],
+      "group": "project-5",
+      "kind": "mobile_web_project",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-5-action-1",
+      "derivedSha256": "afa40a869037e59892af26cf89e145b4a56ba017d91cdfd4ae4a248c6be55812",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 8935,
+          "end": 8955,
+          "startLine": 213,
+          "endLine": 213,
+          "sha256": "98e6b0e6b6f30587a838441beacae40cab150603a3b206cc42cadddfa5a3532e"
+        },
+        {
+          "start": 9161,
+          "end": 9179,
+          "startLine": 216,
+          "endLine": 216,
+          "sha256": "bdd9544a291c4acae76618398575180c9140ad76094927970e0ec02d0696b423"
+        },
+        {
+          "start": 9352,
+          "end": 9384,
+          "startLine": 224,
+          "endLine": 224,
+          "sha256": "d708f5effcbce57da372d2585a534abfcd4e3208d40dc7c511ec4b26965c917f"
+        }
+      ],
+      "derivedStart": 8295,
+      "derivedEnd": 8362,
+      "derivedStartLine": 173,
+      "contextOriginals": [
+        {
+          "start": 8935,
+          "end": 8955,
+          "startLine": 213,
+          "endLine": 213,
+          "sha256": "98e6b0e6b6f30587a838441beacae40cab150603a3b206cc42cadddfa5a3532e"
+        },
+        {
+          "start": 9161,
+          "end": 9179,
+          "startLine": 216,
+          "endLine": 216,
+          "sha256": "bdd9544a291c4acae76618398575180c9140ad76094927970e0ec02d0696b423"
+        },
+        {
+          "start": 8881,
+          "end": 8890,
+          "startLine": 211,
+          "endLine": 211,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        },
+        {
+          "start": 8909,
+          "end": 8918,
+          "startLine": 212,
+          "endLine": 212,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        }
+      ],
+      "group": "project-5",
+      "kind": "mobile_web_project",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "project-5-technology-0",
+      "derivedSha256": "1cd07be18aed5105b1a78df8344ca494a327e6e5548dfba72b9d72f298b1bee9",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 9210,
+          "end": 9224,
+          "startLine": 218,
+          "endLine": 218,
+          "sha256": "9d1c55bb58efcc26b4843f6285af255254d48bd3816004fd1e5ed67379612e37"
+        }
+      ],
+      "derivedStart": 8421,
+      "derivedEnd": 8433,
+      "derivedStartLine": 176,
+      "contextOriginals": [
+        {
+          "start": 8935,
+          "end": 8955,
+          "startLine": 213,
+          "endLine": 213,
+          "sha256": "98e6b0e6b6f30587a838441beacae40cab150603a3b206cc42cadddfa5a3532e"
+        },
+        {
+          "start": 9161,
+          "end": 9179,
+          "startLine": 216,
+          "endLine": 216,
+          "sha256": "bdd9544a291c4acae76618398575180c9140ad76094927970e0ec02d0696b423"
+        },
+        {
+          "start": 8881,
+          "end": 8890,
+          "startLine": 211,
+          "endLine": 211,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        },
+        {
+          "start": 8909,
+          "end": 8918,
+          "startLine": 212,
+          "endLine": 212,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        }
+      ],
+      "group": "project-5",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-5-technology-1",
+      "derivedSha256": "73f887a71bc9251a95ceafdb630302acb41a40110c8b6ee092a9490761cf5a6d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 9234,
+          "end": 9241,
+          "startLine": 219,
+          "endLine": 219,
+          "sha256": "42ef6db209ba29a26b975fc209e6e164a6ecf5156b3649131a91d097779a3540"
+        }
+      ],
+      "derivedStart": 8492,
+      "derivedEnd": 8497,
+      "derivedStartLine": 179,
+      "contextOriginals": [
+        {
+          "start": 8935,
+          "end": 8955,
+          "startLine": 213,
+          "endLine": 213,
+          "sha256": "98e6b0e6b6f30587a838441beacae40cab150603a3b206cc42cadddfa5a3532e"
+        },
+        {
+          "start": 9161,
+          "end": 9179,
+          "startLine": 216,
+          "endLine": 216,
+          "sha256": "bdd9544a291c4acae76618398575180c9140ad76094927970e0ec02d0696b423"
+        },
+        {
+          "start": 8881,
+          "end": 8890,
+          "startLine": 211,
+          "endLine": 211,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        },
+        {
+          "start": 8909,
+          "end": 8918,
+          "startLine": 212,
+          "endLine": 212,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        }
+      ],
+      "group": "project-5",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-5-technology-2",
+      "derivedSha256": "e93372533f323b2f12783aa3a586135cf421486439c2cdcde47411b78f9839ec",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 9251,
+          "end": 9257,
+          "startLine": 220,
+          "endLine": 220,
+          "sha256": "3ea44453fcd08a6ea6f69f628b82137b00ba6b42c7d1b9c3c7e66bca9e785b6b"
+        }
+      ],
+      "derivedStart": 8556,
+      "derivedEnd": 8560,
+      "derivedStartLine": 182,
+      "contextOriginals": [
+        {
+          "start": 8935,
+          "end": 8955,
+          "startLine": 213,
+          "endLine": 213,
+          "sha256": "98e6b0e6b6f30587a838441beacae40cab150603a3b206cc42cadddfa5a3532e"
+        },
+        {
+          "start": 9161,
+          "end": 9179,
+          "startLine": 216,
+          "endLine": 216,
+          "sha256": "bdd9544a291c4acae76618398575180c9140ad76094927970e0ec02d0696b423"
+        },
+        {
+          "start": 8881,
+          "end": 8890,
+          "startLine": 211,
+          "endLine": 211,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        },
+        {
+          "start": 8909,
+          "end": 8918,
+          "startLine": 212,
+          "endLine": 212,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        }
+      ],
+      "group": "project-5",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-6-action-0",
+      "derivedSha256": "d472c653c15e6ddd203789470bb93cdf950cdc3a6788720a56f4087691a5e5a9",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 9510,
+          "end": 9519,
+          "startLine": 231,
+          "endLine": 231,
+          "sha256": "131537e088f1cfee9e1aece49e14c742f4f5f0eb04462aa95ef5a594a75cef4d"
+        },
+        {
+          "start": 9678,
+          "end": 9697,
+          "startLine": 234,
+          "endLine": 234,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 9866,
+          "end": 9908,
+          "startLine": 244,
+          "endLine": 244,
+          "sha256": "74f16c406b2029178dd1cb42adff27ba3e74370e66f18647df4bad2965c61af3"
+        }
+      ],
+      "derivedStart": 8614,
+      "derivedEnd": 8691,
+      "derivedStartLine": 185,
+      "contextOriginals": [
+        {
+          "start": 9510,
+          "end": 9519,
+          "startLine": 231,
+          "endLine": 231,
+          "sha256": "131537e088f1cfee9e1aece49e14c742f4f5f0eb04462aa95ef5a594a75cef4d"
+        },
+        {
+          "start": 9678,
+          "end": 9697,
+          "startLine": 234,
+          "endLine": 234,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 9456,
+          "end": 9465,
+          "startLine": 229,
+          "endLine": 229,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        },
+        {
+          "start": 9484,
+          "end": 9493,
+          "startLine": 230,
+          "endLine": 230,
+          "sha256": "0012efe974f68e7e24ce55b997b70014e97d9b32dccf8a93c3712a5f578258c6"
+        }
+      ],
+      "group": "project-6",
+      "kind": "mobile_project",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-6-action-1",
+      "derivedSha256": "304acfe6780d5834d4da31994e68fc4f0bcac8aa13f5296ce2602a7e6e5d29af",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 9510,
+          "end": 9519,
+          "startLine": 231,
+          "endLine": 231,
+          "sha256": "131537e088f1cfee9e1aece49e14c742f4f5f0eb04462aa95ef5a594a75cef4d"
+        },
+        {
+          "start": 9678,
+          "end": 9697,
+          "startLine": 234,
+          "endLine": 234,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 9918,
+          "end": 9981,
+          "startLine": 245,
+          "endLine": 245,
+          "sha256": "0331907190e32b7fbb7abaefd40611c16ee84c070411d7a526109e131992b3bf"
+        }
+      ],
+      "derivedStart": 8745,
+      "derivedEnd": 8843,
+      "derivedStartLine": 188,
+      "contextOriginals": [
+        {
+          "start": 9510,
+          "end": 9519,
+          "startLine": 231,
+          "endLine": 231,
+          "sha256": "131537e088f1cfee9e1aece49e14c742f4f5f0eb04462aa95ef5a594a75cef4d"
+        },
+        {
+          "start": 9678,
+          "end": 9697,
+          "startLine": 234,
+          "endLine": 234,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 9456,
+          "end": 9465,
+          "startLine": 229,
+          "endLine": 229,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        },
+        {
+          "start": 9484,
+          "end": 9493,
+          "startLine": 230,
+          "endLine": 230,
+          "sha256": "0012efe974f68e7e24ce55b997b70014e97d9b32dccf8a93c3712a5f578258c6"
+        }
+      ],
+      "group": "project-6",
+      "kind": "mobile_project",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-6-action-2",
+      "derivedSha256": "588b970a6131e0918928388ed84d1d0763da99675dc1e777c6e5cb144329b423",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 9510,
+          "end": 9519,
+          "startLine": 231,
+          "endLine": 231,
+          "sha256": "131537e088f1cfee9e1aece49e14c742f4f5f0eb04462aa95ef5a594a75cef4d"
+        },
+        {
+          "start": 9678,
+          "end": 9697,
+          "startLine": 234,
+          "endLine": 234,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 9991,
+          "end": 10107,
+          "startLine": 246,
+          "endLine": 246,
+          "sha256": "b332af71fd97554601ab36a634d79a76c84cfd37b2f40ba115cf60d962d29dfb"
+        }
+      ],
+      "derivedStart": 8897,
+      "derivedEnd": 9048,
+      "derivedStartLine": 191,
+      "contextOriginals": [
+        {
+          "start": 9510,
+          "end": 9519,
+          "startLine": 231,
+          "endLine": 231,
+          "sha256": "131537e088f1cfee9e1aece49e14c742f4f5f0eb04462aa95ef5a594a75cef4d"
+        },
+        {
+          "start": 9678,
+          "end": 9697,
+          "startLine": 234,
+          "endLine": 234,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 9456,
+          "end": 9465,
+          "startLine": 229,
+          "endLine": 229,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        },
+        {
+          "start": 9484,
+          "end": 9493,
+          "startLine": 230,
+          "endLine": 230,
+          "sha256": "0012efe974f68e7e24ce55b997b70014e97d9b32dccf8a93c3712a5f578258c6"
+        }
+      ],
+      "group": "project-6",
+      "kind": "mobile_project",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-6-technology-0",
+      "derivedSha256": "c78f6c97923e81a2f04f09c5e87b69e085c1e47066a1136b5f590bfde696e2eb",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 9728,
+          "end": 9736,
+          "startLine": 236,
+          "endLine": 236,
+          "sha256": "15b2f87730b30d9bb2680518c4b66e2495fe7e3585a7d996b77943a7345ca0d7"
+        }
+      ],
+      "derivedStart": 9107,
+      "derivedEnd": 9113,
+      "derivedStartLine": 194,
+      "contextOriginals": [
+        {
+          "start": 9510,
+          "end": 9519,
+          "startLine": 231,
+          "endLine": 231,
+          "sha256": "131537e088f1cfee9e1aece49e14c742f4f5f0eb04462aa95ef5a594a75cef4d"
+        },
+        {
+          "start": 9678,
+          "end": 9697,
+          "startLine": 234,
+          "endLine": 234,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 9456,
+          "end": 9465,
+          "startLine": 229,
+          "endLine": 229,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        },
+        {
+          "start": 9484,
+          "end": 9493,
+          "startLine": 230,
+          "endLine": 230,
+          "sha256": "0012efe974f68e7e24ce55b997b70014e97d9b32dccf8a93c3712a5f578258c6"
+        }
+      ],
+      "group": "project-6",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-6-technology-1",
+      "derivedSha256": "833b4069129d615ba1fbe77481a51ceeec9e7184ffc27248fb63b832db22c4b5",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 9746,
+          "end": 9756,
+          "startLine": 237,
+          "endLine": 237,
+          "sha256": "e14841fb2364be39d1baf55aa3b4037c663fabc31bfa09736d71f523ddf03447"
+        }
+      ],
+      "derivedStart": 9172,
+      "derivedEnd": 9180,
+      "derivedStartLine": 197,
+      "contextOriginals": [
+        {
+          "start": 9510,
+          "end": 9519,
+          "startLine": 231,
+          "endLine": 231,
+          "sha256": "131537e088f1cfee9e1aece49e14c742f4f5f0eb04462aa95ef5a594a75cef4d"
+        },
+        {
+          "start": 9678,
+          "end": 9697,
+          "startLine": 234,
+          "endLine": 234,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 9456,
+          "end": 9465,
+          "startLine": 229,
+          "endLine": 229,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        },
+        {
+          "start": 9484,
+          "end": 9493,
+          "startLine": 230,
+          "endLine": 230,
+          "sha256": "0012efe974f68e7e24ce55b997b70014e97d9b32dccf8a93c3712a5f578258c6"
+        }
+      ],
+      "group": "project-6",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-6-technology-2",
+      "derivedSha256": "73f887a71bc9251a95ceafdb630302acb41a40110c8b6ee092a9490761cf5a6d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 9766,
+          "end": 9773,
+          "startLine": 238,
+          "endLine": 238,
+          "sha256": "42ef6db209ba29a26b975fc209e6e164a6ecf5156b3649131a91d097779a3540"
+        }
+      ],
+      "derivedStart": 9239,
+      "derivedEnd": 9244,
+      "derivedStartLine": 200,
+      "contextOriginals": [
+        {
+          "start": 9510,
+          "end": 9519,
+          "startLine": 231,
+          "endLine": 231,
+          "sha256": "131537e088f1cfee9e1aece49e14c742f4f5f0eb04462aa95ef5a594a75cef4d"
+        },
+        {
+          "start": 9678,
+          "end": 9697,
+          "startLine": 234,
+          "endLine": 234,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 9456,
+          "end": 9465,
+          "startLine": 229,
+          "endLine": 229,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        },
+        {
+          "start": 9484,
+          "end": 9493,
+          "startLine": 230,
+          "endLine": 230,
+          "sha256": "0012efe974f68e7e24ce55b997b70014e97d9b32dccf8a93c3712a5f578258c6"
+        }
+      ],
+      "group": "project-6",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-6-technology-3",
+      "derivedSha256": "e176056dab7a6bd15598f58f83b59bd37f8f7e3a9d6e3aaa3d3a0bfc0ea9aad3",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 9783,
+          "end": 9791,
+          "startLine": 239,
+          "endLine": 239,
+          "sha256": "a640ad871a4532a0ee2e86f4b7cdffbd695dcb1b0baf57bf827ce4998cf938c5"
+        }
+      ],
+      "derivedStart": 9303,
+      "derivedEnd": 9309,
+      "derivedStartLine": 203,
+      "contextOriginals": [
+        {
+          "start": 9510,
+          "end": 9519,
+          "startLine": 231,
+          "endLine": 231,
+          "sha256": "131537e088f1cfee9e1aece49e14c742f4f5f0eb04462aa95ef5a594a75cef4d"
+        },
+        {
+          "start": 9678,
+          "end": 9697,
+          "startLine": 234,
+          "endLine": 234,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 9456,
+          "end": 9465,
+          "startLine": 229,
+          "endLine": 229,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        },
+        {
+          "start": 9484,
+          "end": 9493,
+          "startLine": 230,
+          "endLine": 230,
+          "sha256": "0012efe974f68e7e24ce55b997b70014e97d9b32dccf8a93c3712a5f578258c6"
+        }
+      ],
+      "group": "project-6",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "project-6-technology-4",
+      "derivedSha256": "2919fe8558c441c9a4ae0ca22fbff2abb0be4b7f6de6dc7a37f7979c9a72f4bd",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 9801,
+          "end": 9808,
+          "startLine": 240,
+          "endLine": 240,
+          "sha256": "1319df6897f7e08c4bba6a77c123c615a05faeee9649b31cb2b005358eda92ba"
+        }
+      ],
+      "derivedStart": 9368,
+      "derivedEnd": 9373,
+      "derivedStartLine": 206,
+      "contextOriginals": [
+        {
+          "start": 9510,
+          "end": 9519,
+          "startLine": 231,
+          "endLine": 231,
+          "sha256": "131537e088f1cfee9e1aece49e14c742f4f5f0eb04462aa95ef5a594a75cef4d"
+        },
+        {
+          "start": 9678,
+          "end": 9697,
+          "startLine": 234,
+          "endLine": 234,
+          "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+        },
+        {
+          "start": 9456,
+          "end": 9465,
+          "startLine": 229,
+          "endLine": 229,
+          "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+        },
+        {
+          "start": 9484,
+          "end": 9493,
+          "startLine": 230,
+          "endLine": 230,
+          "sha256": "0012efe974f68e7e24ce55b997b70014e97d9b32dccf8a93c3712a5f578258c6"
+        }
+      ],
+      "group": "project-6",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skills-1",
+      "derivedSha256": "6d612a86bee4b0a659b8b3affd6f1fbcad15c4cbbbbdc4996c6c01c786711a21",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 10155,
+          "end": 10164,
+          "startLine": 250,
+          "endLine": 250,
+          "sha256": "166fc7fd58ee2d021024eaed3bb624454c2bd8e866fe0dc33c1c590361a9b696"
+        }
+      ],
+      "derivedStart": 9413,
+      "derivedEnd": 9420,
+      "derivedStartLine": 209,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skills-2",
+      "derivedSha256": "c78f6c97923e81a2f04f09c5e87b69e085c1e47066a1136b5f590bfde696e2eb",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 10229,
+          "end": 10237,
+          "startLine": 254,
+          "endLine": 254,
+          "sha256": "15b2f87730b30d9bb2680518c4b66e2495fe7e3585a7d996b77943a7345ca0d7"
+        }
+      ],
+      "derivedStart": 9460,
+      "derivedEnd": 9466,
+      "derivedStartLine": 212,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skills-3",
+      "derivedSha256": "c1ba60ce13586503a21a05e9ef0bb959f1ba74a1d37bcfcbf5fc6bfb548f684d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 10301,
+          "end": 10307,
+          "startLine": 258,
+          "endLine": 258,
+          "sha256": "dbc9eae3cb7810939cb7cb94629c1a42dc06032e9933df026da68e6aba8ebfb4"
+        }
+      ],
+      "derivedStart": 9506,
+      "derivedEnd": 9510,
+      "derivedStartLine": 215,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skills-4",
+      "derivedSha256": "1cd07be18aed5105b1a78df8344ca494a327e6e5548dfba72b9d72f298b1bee9",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 10369,
+          "end": 10383,
+          "startLine": 262,
+          "endLine": 262,
+          "sha256": "9d1c55bb58efcc26b4843f6285af255254d48bd3816004fd1e5ed67379612e37"
+        }
+      ],
+      "derivedStart": 9550,
+      "derivedEnd": 9562,
+      "derivedStartLine": 218,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skills-5",
+      "derivedSha256": "ae782ce52a2cdf7d19e081cb4e76e23abf5fe02dd04c652d3662039af6ad19ed",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 10446,
+          "end": 10456,
+          "startLine": 266,
+          "endLine": 266,
+          "sha256": "5c6a80c03870a6dae26d4f7137c01e1cbb59471970d540705354f3e3af0a6e52"
+        }
+      ],
+      "derivedStart": 9602,
+      "derivedEnd": 9610,
+      "derivedStartLine": 221,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skills-6",
+      "derivedSha256": "b27ad06d123c6145fba7e9217a4cfbf2488b4743810ed8c8ff14ad01a5bbe515",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 10519,
+          "end": 10531,
+          "startLine": 270,
+          "endLine": 270,
+          "sha256": "ecdfde4ca4a5ab6a9d89e185588a639b15fe15f71bef98808702a192ca0fe327"
+        }
+      ],
+      "derivedStart": 9650,
+      "derivedEnd": 9660,
+      "derivedStartLine": 224,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skills-7",
+      "derivedSha256": "3835f71bf33ecfb6d4da668c155ac31cf0208b940a41ec84a561cd74b3626fed",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 10599,
+          "end": 10604,
+          "startLine": 274,
+          "endLine": 274,
+          "sha256": "176004d70ce552c7584d63aae44ef6dbaf05befd851b3265835ebcea210c087e"
+        }
+      ],
+      "derivedStart": 9700,
+      "derivedEnd": 9703,
+      "derivedStartLine": 227,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skills-8",
+      "derivedSha256": "9c0fca3b23381bf8de7f96f037d0f48f6b87274755fc1790bdae7b6330dec1be",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 10665,
+          "end": 10671,
+          "startLine": 278,
+          "endLine": 278,
+          "sha256": "c7853cc50eec2480fd781fad21868597b62492cf05941b9865884f3c2913873a"
+        }
+      ],
+      "derivedStart": 9743,
+      "derivedEnd": 9747,
+      "derivedStartLine": 230,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skills-9",
+      "derivedSha256": "108040ac289a13952927ac14f658a0b06cf24612c43375801b63f87be11191f7",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 10733,
+          "end": 10739,
+          "startLine": 282,
+          "endLine": 282,
+          "sha256": "770da4c5283f9ef77f5094634d82e496c1f46cd6fb26e31abdd5f6ea102f681d"
+        }
+      ],
+      "derivedStart": 9787,
+      "derivedEnd": 9791,
+      "derivedStartLine": 233,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skills-10",
+      "derivedSha256": "b949c922b6ef9ffbf41eb853b99578624ca6f6475c4f13abe2995484b0348e5c",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 10802,
+          "end": 10807,
+          "startLine": 286,
+          "endLine": 286,
+          "sha256": "5e67969e3cbb3b72d24051f1108ee9040638c5ffbc8bcc46494803d76f111860"
+        }
+      ],
+      "derivedStart": 9832,
+      "derivedEnd": 9835,
+      "derivedStartLine": 236,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skills-11",
+      "derivedSha256": "daa4f9df1d6110db4a3241843b0e03773e623cb6c9f470b1d334a6ebe404e47b",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 10869,
+          "end": 10877,
+          "startLine": 290,
+          "endLine": 290,
+          "sha256": "79f65c32cf16a3fd6acc1edf940286bbbbf18cb952c9d69566e491a00b965052"
+        }
+      ],
+      "derivedStart": 9876,
+      "derivedEnd": 9882,
+      "derivedStartLine": 239,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skills-12",
+      "derivedSha256": "a327ee463fa784b18949914a7ca6840893fc9cd9f3eb87d8251e1fd4f87f4ddf",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 10942,
+          "end": 10950,
+          "startLine": 294,
+          "endLine": 294,
+          "sha256": "d579a1799fd844509a1af8b02fd6f294a0066a69a3b929c1dec75bafe13102e1"
+        }
+      ],
+      "derivedStart": 9923,
+      "derivedEnd": 9929,
+      "derivedStartLine": 242,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    }
+  ],
+  "selectedJob": [
+    {
+      "derivedStart": 0,
+      "derivedEnd": 17,
+      "original": {
+        "start": 802,
+        "end": 819,
+        "startLine": 15,
+        "endLine": 15,
+        "sha256": "4bfa198a651330772ec5f0be182d097f7e8e8821c9f042636333dc4b547c4862"
+      }
+    },
+    {
+      "derivedStart": 17,
+      "derivedEnd": 18,
+      "original": {
+        "start": 819,
+        "end": 820,
+        "startLine": 16,
+        "endLine": 16,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 18,
+      "derivedEnd": 131,
+      "original": {
+        "start": 820,
+        "end": 933,
+        "startLine": 17,
+        "endLine": 17,
+        "sha256": "7bdd4ead55c8c99362c7bc7cfe3277622b25133322aca917d16d36e62ecbbf05"
+      }
+    },
+    {
+      "derivedStart": 131,
+      "derivedEnd": 218,
+      "original": {
+        "start": 933,
+        "end": 1020,
+        "startLine": 18,
+        "endLine": 18,
+        "sha256": "4d5c0bc2d28695c02001d4bb2564391c3c23026de61faec11de6d7b209e1c911"
+      }
+    },
+    {
+      "derivedStart": 218,
+      "derivedEnd": 281,
+      "original": {
+        "start": 1020,
+        "end": 1083,
+        "startLine": 19,
+        "endLine": 19,
+        "sha256": "49eb80ae364e486008c7b2fa11a964990bf96b1f09f671ed7996f9988ba7096c"
+      }
+    },
+    {
+      "derivedStart": 281,
+      "derivedEnd": 393,
+      "original": {
+        "start": 1083,
+        "end": 1195,
+        "startLine": 20,
+        "endLine": 20,
+        "sha256": "c398d680e9cf410ebab6ee41dff4e03d3d1574e09631159f165ae6457908552f"
+      }
+    },
+    {
+      "derivedStart": 393,
+      "derivedEnd": 470,
+      "original": {
+        "start": 1195,
+        "end": 1272,
+        "startLine": 21,
+        "endLine": 21,
+        "sha256": "e541a9eed72df8b07455da0994fc4b4e3817bad3ebbe541ea051056bc496db46"
+      }
+    },
+    {
+      "derivedStart": 470,
+      "derivedEnd": 611,
+      "original": {
+        "start": 1272,
+        "end": 1413,
+        "startLine": 22,
+        "endLine": 22,
+        "sha256": "c42ca953bacf1a7afd9b69e5f3331b82d7f0550be9ae4fc359f837117b98f718"
+      }
+    },
+    {
+      "derivedStart": 611,
+      "derivedEnd": 784,
+      "original": {
+        "start": 1413,
+        "end": 1586,
+        "startLine": 23,
+        "endLine": 23,
+        "sha256": "4178fb2fa2c32490b7e9c8936228af435a89fa6c23d1372f820f30d8ccb362bf"
+      }
+    },
+    {
+      "derivedStart": 784,
+      "derivedEnd": 911,
+      "original": {
+        "start": 1586,
+        "end": 1713,
+        "startLine": 24,
+        "endLine": 24,
+        "sha256": "b287275917141a803cbb619322dcb67bc91be8daa9764144905f28efc4f727f9"
+      }
+    },
+    {
+      "derivedStart": 911,
+      "derivedEnd": 997,
+      "original": {
+        "start": 1713,
+        "end": 1799,
+        "startLine": 25,
+        "endLine": 25,
+        "sha256": "8b836c3e5bdc931386a0d0e922ab02e15b67200f5300e0d84fa1c0a1835865a7"
+      }
+    },
+    {
+      "derivedStart": 997,
+      "derivedEnd": 1076,
+      "original": {
+        "start": 1799,
+        "end": 1878,
+        "startLine": 26,
+        "endLine": 26,
+        "sha256": "09c609c4d488f61f1d72a801e1f620a8f4f12a002de3aabdf60da04b1e90c0c1"
+      }
+    },
+    {
+      "derivedStart": 1076,
+      "derivedEnd": 1117,
+      "original": {
+        "start": 1878,
+        "end": 1919,
+        "startLine": 27,
+        "endLine": 27,
+        "sha256": "1d5111e7d4a7868af7337f54a963d368f4a2b21e9cb65e9818f9713f319af427"
+      }
+    },
+    {
+      "derivedStart": 1117,
+      "derivedEnd": 1216,
+      "original": {
+        "start": 1919,
+        "end": 2018,
+        "startLine": 28,
+        "endLine": 28,
+        "sha256": "4c1559c9fc56428e78f470bd2c9c189434e60a157292f805417f8dfdc83e551e"
+      }
+    },
+    {
+      "derivedStart": 1216,
+      "derivedEnd": 1282,
+      "original": {
+        "start": 2018,
+        "end": 2084,
+        "startLine": 29,
+        "endLine": 29,
+        "sha256": "d0c78a698aef99c0ebb21702624728dc17f89cfa8984546f0b3f30627901f5e6"
+      }
+    },
+    {
+      "derivedStart": 1282,
+      "derivedEnd": 1352,
+      "original": {
+        "start": 2084,
+        "end": 2154,
+        "startLine": 30,
+        "endLine": 30,
+        "sha256": "a09d60caff31bb106750f2523e0c9c337cbac85c89949b22a46e545f439406f9"
+      }
+    },
+    {
+      "derivedStart": 1352,
+      "derivedEnd": 1428,
+      "original": {
+        "start": 2154,
+        "end": 2230,
+        "startLine": 31,
+        "endLine": 31,
+        "sha256": "436bc6fd5f136a36ece847d472e7b51e041c28dd34975e903d214eccac85e958"
+      }
+    },
+    {
+      "derivedStart": 1428,
+      "derivedEnd": 1489,
+      "original": {
+        "start": 2230,
+        "end": 2291,
+        "startLine": 32,
+        "endLine": 32,
+        "sha256": "2deb45350941113e93d36838a4274f371c19249fdfad71b0c3157985fe56af41"
+      }
+    },
+    {
+      "derivedStart": 1489,
+      "derivedEnd": 1540,
+      "original": {
+        "start": 2291,
+        "end": 2342,
+        "startLine": 33,
+        "endLine": 33,
+        "sha256": "1ee4842f786cc39777d9786507b43ed11fc2ef452abc158c2f7136fa3373fcad"
+      }
+    },
+    {
+      "derivedStart": 1540,
+      "derivedEnd": 1564,
+      "original": {
+        "start": 2342,
+        "end": 2366,
+        "startLine": 34,
+        "endLine": 34,
+        "sha256": "7b5adf8ae9aafc3775dd231fc7245da67eb092da0054599d4afff08fd8a9b197"
+      }
+    },
+    {
+      "derivedStart": 1564,
+      "derivedEnd": 1666,
+      "original": {
+        "start": 2366,
+        "end": 2468,
+        "startLine": 35,
+        "endLine": 35,
+        "sha256": "afb68db673d78caf6c2c938c94a27aa2a6fe657963e1c3444e2645f943e1bd60"
+      }
+    },
+    {
+      "derivedStart": 1666,
+      "derivedEnd": 1667,
+      "original": {
+        "start": 2468,
+        "end": 2469,
+        "startLine": 36,
+        "endLine": 36,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 1667,
+      "derivedEnd": 1685,
+      "original": {
+        "start": 2469,
+        "end": 2487,
+        "startLine": 37,
+        "endLine": 37,
+        "sha256": "553ae02d23aa341c5154ce561e48983d749702113c7e92223c9c6d2a88c94654"
+      }
+    },
+    {
+      "derivedStart": 1685,
+      "derivedEnd": 1686,
+      "original": {
+        "start": 2487,
+        "end": 2488,
+        "startLine": 38,
+        "endLine": 38,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 1686,
+      "derivedEnd": 1732,
+      "original": {
+        "start": 2488,
+        "end": 2534,
+        "startLine": 39,
+        "endLine": 39,
+        "sha256": "bb1b050c7bd8607651983a46a4158a50b633d4d7e278eaa54d90e8f18b8e6d38"
+      }
+    },
+    {
+      "derivedStart": 1732,
+      "derivedEnd": 1807,
+      "original": {
+        "start": 2534,
+        "end": 2609,
+        "startLine": 40,
+        "endLine": 40,
+        "sha256": "ef5fe40e5f0b4aff00e168d032f092810e68b8666a74381170c1b3ff4375238b"
+      }
+    },
+    {
+      "derivedStart": 1807,
+      "derivedEnd": 1869,
+      "original": {
+        "start": 2609,
+        "end": 2671,
+        "startLine": 41,
+        "endLine": 41,
+        "sha256": "8ec7ad586eef757c536573082a22dc1ec8f163b83e8f761bb811932b724e0927"
+      }
+    },
+    {
+      "derivedStart": 1869,
+      "derivedEnd": 1898,
+      "original": {
+        "start": 2671,
+        "end": 2700,
+        "startLine": 42,
+        "endLine": 42,
+        "sha256": "ce5654e1e7afa6b19f6e6309a4ec36177bfc0ea2757edd467fbe7e0d9021b4ce"
+      }
+    },
+    {
+      "derivedStart": 1898,
+      "derivedEnd": 1938,
+      "original": {
+        "start": 2700,
+        "end": 2740,
+        "startLine": 43,
+        "endLine": 43,
+        "sha256": "772f1f4f4804ac44bc363ca25a0038e879014c08dce41305c4cfbe436506ebcd"
+      }
+    },
+    {
+      "derivedStart": 1938,
+      "derivedEnd": 1979,
+      "original": {
+        "start": 2740,
+        "end": 2781,
+        "startLine": 44,
+        "endLine": 44,
+        "sha256": "94946481993e31448a9e8491dd4f3701a67e4d6c2de52f2c2c2ef4e9d64e6f51"
+      }
+    },
+    {
+      "derivedStart": 1979,
+      "derivedEnd": 2025,
+      "original": {
+        "start": 2781,
+        "end": 2827,
+        "startLine": 45,
+        "endLine": 45,
+        "sha256": "dd8f55d34a7d6266c1d67fcfe6777243de7fd25a793c21460d5bc80e0ce553e7"
+      }
+    },
+    {
+      "derivedStart": 2025,
+      "derivedEnd": 2092,
+      "original": {
+        "start": 2827,
+        "end": 2894,
+        "startLine": 46,
+        "endLine": 46,
+        "sha256": "b809732d5b462eea926229b81509e5b916a7521c142bc83d3daba9e1cce2e888"
+      }
+    },
+    {
+      "derivedStart": 2092,
+      "derivedEnd": 2142,
+      "original": {
+        "start": 2894,
+        "end": 2944,
+        "startLine": 47,
+        "endLine": 47,
+        "sha256": "eea338cfd37c7e983d78a86c40a676d8b8c34d2a9dea5f0f41d47da5ab68fa27"
+      }
+    },
+    {
+      "derivedStart": 2142,
+      "derivedEnd": 2299,
+      "original": {
+        "start": 2944,
+        "end": 3101,
+        "startLine": 48,
+        "endLine": 48,
+        "sha256": "10833120854491eb8cdf7c9b9b06998aaf3a414a76578142c9d76a602fccc53d"
+      }
+    },
+    {
+      "derivedStart": 2299,
+      "derivedEnd": 2300,
+      "original": {
+        "start": 3101,
+        "end": 3102,
+        "startLine": 49,
+        "endLine": 49,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 2300,
+      "derivedEnd": 2330,
+      "original": {
+        "start": 3102,
+        "end": 3132,
+        "startLine": 50,
+        "endLine": 50,
+        "sha256": "7684338de1c56948a7f93acaa09d5a787098f78634647f95d9b9ee9668bcd2c8"
+      }
+    },
+    {
+      "derivedStart": 2330,
+      "derivedEnd": 2331,
+      "original": {
+        "start": 3132,
+        "end": 3133,
+        "startLine": 51,
+        "endLine": 51,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 2331,
+      "derivedEnd": 2352,
+      "original": {
+        "start": 3133,
+        "end": 3154,
+        "startLine": 52,
+        "endLine": 52,
+        "sha256": "cc3011cbb75b120859d8489d681f7b3181623829b343eb017842eefc343184b0"
+      }
+    },
+    {
+      "derivedStart": 2352,
+      "derivedEnd": 2353,
+      "original": {
+        "start": 3154,
+        "end": 3155,
+        "startLine": 53,
+        "endLine": 53,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 2353,
+      "derivedEnd": 2456,
+      "original": {
+        "start": 3155,
+        "end": 3258,
+        "startLine": 54,
+        "endLine": 54,
+        "sha256": "d2923c77b77f09a5e35368f432195521e12afde849e40979c66af48c45ea2d9b"
+      }
+    },
+    {
+      "derivedStart": 2456,
+      "derivedEnd": 2591,
+      "original": {
+        "start": 3258,
+        "end": 3393,
+        "startLine": 55,
+        "endLine": 55,
+        "sha256": "a7e25cc08f5e7182b3b31d13b8b749bc663d60e801c639bc55d9aa0c80bbd30b"
+      }
+    },
+    {
+      "derivedStart": 2591,
+      "derivedEnd": 2782,
+      "original": {
+        "start": 3393,
+        "end": 3584,
+        "startLine": 56,
+        "endLine": 56,
+        "sha256": "d5de389796cd5751d62a92c580963d644d4f35b17424ecbe01aee54e554642de"
+      }
+    },
+    {
+      "derivedStart": 2782,
+      "derivedEnd": 2939,
+      "original": {
+        "start": 3584,
+        "end": 3741,
+        "startLine": 57,
+        "endLine": 57,
+        "sha256": "1d7e9e4fb1a25426c7728f68b3caf2eeef11ec0e708808b6ee3259c3563d28ed"
+      }
+    },
+    {
+      "derivedStart": 2939,
+      "derivedEnd": 3156,
+      "original": {
+        "start": 3741,
+        "end": 3958,
+        "startLine": 58,
+        "endLine": 58,
+        "sha256": "efa7f23e11f5a92c6d4057d118d9f577f76726fa58ee543010c9178cb19ba580"
+      }
+    },
+    {
+      "derivedStart": 3156,
+      "derivedEnd": 3375,
+      "original": {
+        "start": 3958,
+        "end": 4177,
+        "startLine": 59,
+        "endLine": 59,
+        "sha256": "f96ecd25259a594b98740d6e17d9f0b96819a31c9c7033f34719b3aaa053be25"
+      }
+    },
+    {
+      "derivedStart": 3375,
+      "derivedEnd": 3542,
+      "original": {
+        "start": 4177,
+        "end": 4344,
+        "startLine": 60,
+        "endLine": 60,
+        "sha256": "111574ea1d954143b7c578069d8c73f816166df6a891aef09a14b87af30c2813"
+      }
+    },
+    {
+      "derivedStart": 3542,
+      "derivedEnd": 3694,
+      "original": {
+        "start": 4344,
+        "end": 4496,
+        "startLine": 61,
+        "endLine": 61,
+        "sha256": "e7238ea1351193db44cc68d0a6e830978e92293e1b9ec8b1a21a57f1bb13cd35"
+      }
+    },
+    {
+      "derivedStart": 3694,
+      "derivedEnd": 3832,
+      "original": {
+        "start": 4496,
+        "end": 4634,
+        "startLine": 62,
+        "endLine": 62,
+        "sha256": "5c2e7b0bd7e3f3185cc4e32f5da44c10b6bb7a7f6db692f8f8476961a5c03d04"
+      }
+    },
+    {
+      "derivedStart": 3832,
+      "derivedEnd": 3833,
+      "original": {
+        "start": 4634,
+        "end": 4635,
+        "startLine": 63,
+        "endLine": 63,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    }
+  ],
+  "requirements": [
+    {
+      "id": "requirement-01",
+      "support": "supported",
+      "reason": "Web React evidence, not Android/React Native substituted for Web.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-02",
+      "support": "not_evidenced",
+      "reason": "Jest appears only in technology lists; writing tests is not evidenced.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-03",
+      "support": "not_evidenced",
+      "reason": "Generic Git skill listing is not proof of workplace use.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-04",
+      "support": "not_evidenced",
+      "reason": "No browser parsing/construction evidence.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-05",
+      "support": "not_evidenced",
+      "reason": "Generic skill names do not establish these core concepts.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-06",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-07",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-08",
+      "support": "not_evidenced",
+      "reason": "1400ms-to-100ms feed result is Android; cannot credit as Web performance.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-09",
+      "support": "supported",
+      "reason": "Mobile delivery still supports iterative client collaboration, not Web performance.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-10",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-11",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-12",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-13",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-14",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-15",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-16",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-17",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-18",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-19",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-20",
+      "support": "not_evidenced",
+      "reason": "Ruby listed alone; Rails/Haml knowledge not evidenced.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-21",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-22",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-23",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-24",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-25",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-26",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-27",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-28",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-29",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-30",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-31",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-32",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-33",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-34",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-35",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-36",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-37",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-38",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    }
+  ],
+  "dates": [
+    {
+      "group": "work-0",
+      "originalPeriod": "Until Now / 10,2022 (original fields; chronology unresolved)",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "work-1",
+      "originalPeriod": "08.2022 / 01,2020 (original fields; chronology unresolved)",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "work-2",
+      "originalPeriod": "12,2019 / 02,2018 (original fields; chronology unresolved)",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "work-3",
+      "originalPeriod": "02,2016 / 09,2015 (original fields; chronology unresolved)",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "project-0",
+      "originalPeriod": "Until Now / 10,2022 (original fields; chronology unresolved)",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "project-1",
+      "originalPeriod": "08 2022 / 01,2020 (original fields; chronology unresolved)",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "project-2",
+      "originalPeriod": "12,2019 / 02,2018 (original fields; chronology unresolved)",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "project-3",
+      "originalPeriod": "02,2018 / 12,2017 (original fields; chronology unresolved)",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "project-4",
+      "originalPeriod": "02,2018 / 09,2017 (original fields; chronology unresolved)",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "project-5",
+      "originalPeriod": "09,2017 / 09,2017 (original fields; chronology unresolved)",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "project-6",
+      "originalPeriod": "09,2017 / 02,2017 (original fields; chronology unresolved)",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    }
+  ]
+}

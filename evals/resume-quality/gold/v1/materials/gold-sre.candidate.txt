@@ -1,0 +1,353 @@
+[summary; summary; self_reported]
+System / DevOps / SRE engineer with experience across Linux operations, cloud and on-premise infrastructure, Kubernetes, CI/CD, observability, and infrastructure automation.
+
+[work-0-action-0; employment; self_reported]
+System / DevOps Engineer Worked in a Linux terminal environment.
+
+[work-0-action-1; employment; self_reported]
+System / DevOps Engineer Built and maintained a Rocky Linux based Amazon Machine Image for EC2 using Packer.
+
+[work-0-action-2; employment; self_reported]
+System / DevOps Engineer Maintained AWS and on-premise infrastructure within the regional engineering team using Git-based infrastructure as code workflows with Terraform, Terragrunt, and Atlantis.
+
+[work-0-action-3; employment; self_reported]
+System / DevOps Engineer Assisted in reviewing and validating existing technical documentation and infrastructure processes, identifying inconsistencies across regions.
+
+[work-0-action-4; employment; self_reported]
+System / DevOps Engineer Maintained system initialization automation with Ansible for Linux configuration, Java runtime, Nginx, RabbitMQ, and NFS setup.
+
+[work-0-action-5; employment; self_reported]
+System / DevOps Engineer Built and maintained Jenkins CI/CD pipelines using Groovy scripts for regional engineering workflows.
+
+[work-0-action-6; employment; self_reported]
+System / DevOps Engineer Managed bastion host and internal asset tracking services based on Consul and Golang services, integrating EC2 metadata into centralized access control.
+
+[work-0-action-7; employment; self_reported]
+System / DevOps Engineer Analyzed system resource utilization and performance metrics through Prometheus and Grafana to identify infrastructure bottlenecks and propose optimization solutions.
+
+[work-0-action-8; employment; self_reported]
+System / DevOps Engineer Maintained the observability stack built around Prometheus, Grafana, and Consul.
+
+[work-0-technology-0; technology_list; self_reported]
+Linux
+
+[work-0-technology-1; technology_list; self_reported]
+AWS
+
+[work-0-technology-2; technology_list; self_reported]
+Packer
+
+[work-0-technology-3; technology_list; self_reported]
+Terraform
+
+[work-0-technology-4; technology_list; self_reported]
+Terragrunt
+
+[work-0-technology-5; technology_list; self_reported]
+Atlantis
+
+[work-0-technology-6; technology_list; self_reported]
+Ansible
+
+[work-0-technology-7; technology_list; self_reported]
+Jenkins
+
+[work-0-technology-8; technology_list; self_reported]
+Groovy
+
+[work-0-technology-9; technology_list; self_reported]
+Prometheus
+
+[work-0-technology-10; technology_list; self_reported]
+Grafana
+
+[work-0-technology-11; technology_list; self_reported]
+Consul
+
+[work-0-technology-12; technology_list; self_reported]
+Golang
+
+[work-1-action-0; employment; self_reported]
+System / Site Reliability Engineering (SRE) / DevOps Engineering Worked in a Linux terminal environment.
+
+[work-1-action-1; employment; self_reported]
+System / Site Reliability Engineering (SRE) / DevOps Engineering Participated in on-call rotations about one week per month and troubleshot production issues with team members.
+
+[work-1-action-2; employment; self_reported]
+System / Site Reliability Engineering (SRE) / DevOps Engineering Supported a cryptocurrency exchange platform on AWS and on-premise infrastructure.
+
+[work-1-action-3; employment; self_reported]
+System / Site Reliability Engineering (SRE) / DevOps Engineering Administered Kubernetes clusters on AWS and on-premise environments.
+
+[work-1-action-4; employment; self_reported]
+System / Site Reliability Engineering (SRE) / DevOps Engineering Managed AWS and Cloudflare infrastructure with Pulumi and Ansible.
+
+[work-1-action-5; employment; self_reported]
+System / Site Reliability Engineering (SRE) / DevOps Engineering Administered CI/CD pipelines with GitLab CI and Jenkins.
+
+[work-1-technology-0; technology_list; self_reported]
+Linux
+
+[work-1-technology-1; technology_list; self_reported]
+AWS
+
+[work-1-technology-2; technology_list; self_reported]
+Cloudflare
+
+[work-1-technology-3; technology_list; self_reported]
+Kubernetes
+
+[work-1-technology-4; technology_list; self_reported]
+Pulumi
+
+[work-1-technology-5; technology_list; self_reported]
+Ansible
+
+[work-1-technology-6; technology_list; self_reported]
+GitLab CI
+
+[work-1-technology-7; technology_list; self_reported]
+Jenkins
+
+[work-2-action-0; employment; self_reported]
+Site Reliability Engineering (SRE) / DevOps / Cloud Engineering Worked in a Linux terminal environment.
+
+[work-2-action-1; employment; self_reported]
+Site Reliability Engineering (SRE) / DevOps / Cloud Engineering Participated in on-call rotations and troubleshooting with team members.
+
+[work-2-action-2; employment; self_reported]
+Site Reliability Engineering (SRE) / DevOps / Cloud Engineering Developed a Python automation project for web monitoring.
+
+[work-2-action-3; employment; self_reported]
+Site Reliability Engineering (SRE) / DevOps / Cloud Engineering Developed a streaming platform project based on GCP GKE and Aliyun ACK.
+
+[work-2-action-4; employment; self_reported]
+Site Reliability Engineering (SRE) / DevOps / Cloud Engineering Managed cloud infrastructure across AWS, GCP, Aliyun, and Cloudflare with JumpServer.
+
+[work-2-action-5; employment; self_reported]
+Site Reliability Engineering (SRE) / DevOps / Cloud Engineering Administered Kubernetes clusters on AWS EKS, GCP GKE, and Aliyun ACK.
+
+[work-2-action-6; employment; self_reported]
+Site Reliability Engineering (SRE) / DevOps / Cloud Engineering Administered CI/CD pipelines with GitLab CI, Jenkins, and Tekton.
+
+[work-2-technology-0; technology_list; self_reported]
+Linux
+
+[work-2-technology-1; technology_list; self_reported]
+Python
+
+[work-2-technology-2; technology_list; self_reported]
+GCP
+
+[work-2-technology-3; technology_list; self_reported]
+GKE
+
+[work-2-technology-4; technology_list; self_reported]
+Aliyun
+
+[work-2-technology-5; technology_list; self_reported]
+ACK
+
+[work-2-technology-6; technology_list; self_reported]
+AWS
+
+[work-2-technology-7; technology_list; self_reported]
+EKS
+
+[work-2-technology-8; technology_list; self_reported]
+Cloudflare
+
+[work-2-technology-9; technology_list; self_reported]
+JumpServer
+
+[work-2-technology-10; technology_list; self_reported]
+Kubernetes
+
+[work-2-technology-11; technology_list; self_reported]
+GitLab CI
+
+[work-2-technology-12; technology_list; self_reported]
+Jenkins
+
+[work-2-technology-13; technology_list; self_reported]
+Tekton
+
+[work-3-action-0; training; self_reported]
+Training. IoT Bootcamp (Full-Stack & System Fundamentals Training) Completed an intensive hands-on training program covering web development fundamentals, system programming, Linux environments, networking basics, and IoT system integration.
+
+[work-3-action-1; training; self_reported]
+Training. IoT Bootcamp (Full-Stack & System Fundamentals Training) Built an IoT monitoring system named Training project A using Raspberry Pi and ESP8266 for temperature and humidity data collection.
+
+[work-3-technology-0; technology_list; self_reported]
+Web Development
+
+[work-3-technology-1; technology_list; self_reported]
+Linux
+
+[work-3-technology-2; technology_list; self_reported]
+Networking
+
+[work-3-technology-3; technology_list; self_reported]
+IoT
+
+[work-3-technology-4; technology_list; self_reported]
+Raspberry Pi
+
+[work-3-technology-5; technology_list; self_reported]
+ESP8266
+
+[skill-0-0; skill_list; self_reported]
+Mandarin (native)
+
+[skill-0-1; skill_list; self_reported]
+English (professional working proficiency)
+
+[skill-1-0; skill_list; self_reported]
+Python (proficient)
+
+[skill-1-1; skill_list; self_reported]
+Bash (competence)
+
+[skill-1-2; skill_list; self_reported]
+SQL (competence)
+
+[skill-1-3; skill_list; self_reported]
+Rust (competence)
+
+[skill-1-4; skill_list; self_reported]
+Golang (beginner)
+
+[skill-2-0; skill_list; self_reported]
+Git
+
+[skill-3-0; skill_list; self_reported]
+Django
+
+[skill-3-1; skill_list; self_reported]
+FastAPI
+
+[skill-3-2; skill_list; self_reported]
+Selenium
+
+[skill-3-3; skill_list; self_reported]
+pandas
+
+[skill-3-4; skill_list; self_reported]
+SQLAlchemy
+
+[skill-4-0; skill_list; self_reported]
+Linux (proficient)
+
+[skill-4-1; skill_list; self_reported]
+macOS (competence)
+
+[skill-4-2; skill_list; self_reported]
+Windows (beginner)
+
+[skill-5-0; skill_list; self_reported]
+GitLab Runner
+
+[skill-5-1; skill_list; self_reported]
+GitHub Actions
+
+[skill-5-2; skill_list; self_reported]
+Jenkins
+
+[skill-5-3; skill_list; self_reported]
+Tekton Pipelines
+
+[skill-5-4; skill_list; self_reported]
+Argo CD
+
+[skill-6-0; skill_list; self_reported]
+Apache RocketMQ
+
+[skill-6-1; skill_list; self_reported]
+RabbitMQ
+
+[skill-7-0; skill_list; self_reported]
+Kubernetes (EKS, GKE, ACK, k0s, k3s)
+
+[skill-8-0; skill_list; self_reported]
+ingress-nginx
+
+[skill-8-1; skill_list; self_reported]
+cert-manager
+
+[skill-8-2; skill_list; self_reported]
+ECK operator
+
+[skill-8-3; skill_list; self_reported]
+KEDA
+
+[skill-8-4; skill_list; self_reported]
+Istio
+
+[skill-9-0; skill_list; self_reported]
+NGINX
+
+[skill-9-1; skill_list; self_reported]
+HAProxy
+
+[skill-9-2; skill_list; self_reported]
+MetalLB
+
+[skill-9-3; skill_list; self_reported]
+Envoy
+
+[skill-10-0; skill_list; self_reported]
+Apache Zookeeper
+
+[skill-10-1; skill_list; self_reported]
+Nacos
+
+[skill-10-2; skill_list; self_reported]
+Consul
+
+[skill-11-0; skill_list; self_reported]
+Harbor
+
+[skill-12-0; skill_list; self_reported]
+Ansible
+
+[skill-12-1; skill_list; self_reported]
+Atlantis
+
+[skill-12-2; skill_list; self_reported]
+Terraform
+
+[skill-12-3; skill_list; self_reported]
+Terragrunt
+
+[skill-12-4; skill_list; self_reported]
+Pulumi
+
+[skill-13-0; skill_list; self_reported]
+AWS
+
+[skill-13-1; skill_list; self_reported]
+Google Cloud
+
+[skill-13-2; skill_list; self_reported]
+Alibaba Cloud
+
+[skill-13-3; skill_list; self_reported]
+Cloudflare
+
+[personal-0-0; personal; self_reported]
+Personal project. A personal Linux lab environment built on Proxmox VE to support multiple personal projects. Built infrastructure with Proxmox VE to support personal Linux lab environments.
+
+[personal-1-0; personal; self_reported]
+Personal project. An online CV website based on LaTeX for recording experience, projects, education, and skills. Built an online CV website based on LaTeX.
+
+[education-0; education; self_reported]
+University A Master of Science in Materials Science and Engineering 2016 2019
+
+[education-1; education; self_reported]
+University A Bachelor of Science in Materials Science and Engineering 2012 2016
+
+[certification-0; certification; self_reported]
+AWS Certified Solutions Architect Associate
+
+[certification-1; certification; self_reported]
+AWS Certified Cloud Practitioner

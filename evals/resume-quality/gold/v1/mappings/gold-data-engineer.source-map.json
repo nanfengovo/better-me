@@ -1,0 +1,1211 @@
+{
+  "schemaVersion": 1,
+  "labelVersion": "gold-source-review-v1",
+  "caseSha256": "6b5f97f2b05fac9792a5590d1780fc263658e2801b3d544a322ef0856c85019c",
+  "source": {
+    "id": "c05",
+    "file": "C05-resume.tex",
+    "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+    "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+    "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+    "author": "Weitian LI",
+    "license": "CC-BY-4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/"
+  },
+  "jobSource": {
+    "id": "j05",
+    "file": "J05-data-engineer.md",
+    "originalSha256": "38853991faa7ae097dc9a87a8ce0df1f432313fc965dd9786981b870c3cb66d3",
+    "revision": "f7efde2339c3ff060bb972805bf22692c534893d",
+    "url": "https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/f7efde2339c3ff060bb972805bf22692c534893d/content/job-description-library/marketing/enterprise-data/data-engineer.md",
+    "author": "GitLab handbook contributors",
+    "license": "CC-BY-SA-4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  "candidateTextSha256": "d4f5c0901e08b1f23f47cd1ca10f5de14ab442f3c58bcd8c14735a75ed9ae884",
+  "coordinateSystem": "UTF-16 code units, zero-based half-open; lines one-based; hashes UTF-8 bytes",
+  "mappingGranularity": "Selected complete source tokens/markup units; derived strings are transformed. Never equate derived offsets with original offsets.",
+  "units": [
+    {
+      "id": "item-0",
+      "derivedSha256": "9d8fabd9ff3d797e2405873aea387611c1341f856c1c7600ddfbfdbd5256defc",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Computer Skills. ",
+      "originals": [
+        {
+          "start": 4175,
+          "end": 4371,
+          "startLine": 143,
+          "endLine": 147,
+          "sha256": "bdf63c89290002c4ec9af0d3a2b321b7668f0913955e64d5f7262bf8be8f3200"
+        }
+      ],
+      "derivedStart": 41,
+      "derivedEnd": 233,
+      "derivedStartLine": 2,
+      "contextOriginals": [],
+      "group": "computer-skills",
+      "kind": "computer_skills",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "item-1",
+      "derivedSha256": "81632c8632e905ac69c22b5a7c97246141dfb22d1f2185302a324255f93c425d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Computer Skills. ",
+      "originals": [
+        {
+          "start": 4371,
+          "end": 4504,
+          "startLine": 147,
+          "endLine": 149,
+          "sha256": "957360c335e5aba08830e69c3f0362ae5b8c3bf150a23e55d3af567524ee2662"
+        }
+      ],
+      "derivedStart": 276,
+      "derivedEnd": 413,
+      "derivedStartLine": 5,
+      "contextOriginals": [],
+      "group": "computer-skills",
+      "kind": "computer_skills",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "item-2",
+      "derivedSha256": "5036ac645a5366fcf4c87d7881aa3fc814dd7a90306566e646e37b1de6d9f5ab",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Computer Skills. ",
+      "originals": [
+        {
+          "start": 4504,
+          "end": 4621,
+          "startLine": 149,
+          "endLine": 151,
+          "sha256": "41ba161778f5d073278737483e3ee507d519f6b7bd13526bdae8cffed6533c01"
+        }
+      ],
+      "derivedStart": 456,
+      "derivedEnd": 577,
+      "derivedStartLine": 8,
+      "contextOriginals": [],
+      "group": "computer-skills",
+      "kind": "computer_skills",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "item-3",
+      "derivedSha256": "6d3ff0ae15a1858297d9d81e3e62a168bc82e595a1063c48c58711414510b89c",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Computer Skills. ",
+      "originals": [
+        {
+          "start": 4621,
+          "end": 4804,
+          "startLine": 151,
+          "endLine": 154,
+          "sha256": "957952f436a24b3453660e5ade39b0f596c6823e8fe5b25bb132485054541f4d"
+        }
+      ],
+      "derivedStart": 620,
+      "derivedEnd": 790,
+      "derivedStartLine": 11,
+      "contextOriginals": [],
+      "group": "computer-skills",
+      "kind": "computer_skills",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "item-4",
+      "derivedSha256": "f6e04bb318d64326455a06d57ebb63a4684e7fa71bd02f437573be401a165ea6",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Computer Skills. ",
+      "originals": [
+        {
+          "start": 4804,
+          "end": 4961,
+          "startLine": 154,
+          "endLine": 156,
+          "sha256": "3470306856dce74113195b3feb8b9704c5cb09ef788c9272c3db0dda5c2a6b44"
+        }
+      ],
+      "derivedStart": 833,
+      "derivedEnd": 957,
+      "derivedStartLine": 14,
+      "contextOriginals": [],
+      "group": "computer-skills",
+      "kind": "computer_skills",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "item-5",
+      "derivedSha256": "f4c2e10a4256c3518cf88f0f6eda0b6a9ed12745be0a39aec0f01e6a279ed60b",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Personal Projects. ",
+      "originals": [
+        {
+          "start": 5180,
+          "end": 5382,
+          "startLine": 163,
+          "endLine": 167,
+          "sha256": "f9fca93d8155ea71d3e7026560f775ba2a89cdedb35636b44ef6bfb823ce162c"
+        }
+      ],
+      "derivedStart": 993,
+      "derivedEnd": 1146,
+      "derivedStartLine": 17,
+      "contextOriginals": [],
+      "group": "personal-projects",
+      "kind": "personal",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "item-6",
+      "derivedSha256": "07c7a205ff332383a725e6750a6e31b7dc013394c74f656a71a3628674364f1f",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Personal Projects. ",
+      "originals": [
+        {
+          "start": 5382,
+          "end": 5527,
+          "startLine": 167,
+          "endLine": 170,
+          "sha256": "2ba7a5a791584220446ea2936c9a4d2db37a55ec21381183ad5eee995674d063"
+        }
+      ],
+      "derivedStart": 1182,
+      "derivedEnd": 1276,
+      "derivedStartLine": 20,
+      "contextOriginals": [],
+      "group": "personal-projects",
+      "kind": "personal",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "item-7",
+      "derivedSha256": "1c47bcd2650adc3102d6675c5f7b726410cb7ada17aec369cac9e14e9cf20643",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Personal Projects. ",
+      "originals": [
+        {
+          "start": 5527,
+          "end": 5687,
+          "startLine": 170,
+          "endLine": 173,
+          "sha256": "0e9f407d431ef0b9bc2367c4b89d7da3c3458d898533c77a7b2435eb60877750"
+        }
+      ],
+      "derivedStart": 1312,
+      "derivedEnd": 1411,
+      "derivedStartLine": 23,
+      "contextOriginals": [],
+      "group": "personal-projects",
+      "kind": "personal",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "item-8",
+      "derivedSha256": "150deab098804af528549b29c3d8dc1f8573e8ab597c5b8508ee037c199953d4",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Personal Projects. ",
+      "originals": [
+        {
+          "start": 5687,
+          "end": 5820,
+          "startLine": 173,
+          "endLine": 176,
+          "sha256": "8cce3b2fe74a088066c31fc0575da86f35f4d1d2eaad4feda15d61735090f377"
+        }
+      ],
+      "derivedStart": 1447,
+      "derivedEnd": 1537,
+      "derivedStartLine": 26,
+      "contextOriginals": [],
+      "group": "personal-projects",
+      "kind": "personal",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "item-9",
+      "derivedSha256": "fc9ef2730424a289d9d8e4f05b02152fb5e4638c609fb7ce6176c3fbec9d9515",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Personal Projects. ",
+      "originals": [
+        {
+          "start": 5820,
+          "end": 6006,
+          "startLine": 176,
+          "endLine": 180,
+          "sha256": "2bb5ba3ce073867b517266acfb8deee1a7763657ee6caf766634cd7e76167c5e"
+        }
+      ],
+      "derivedStart": 1573,
+      "derivedEnd": 1710,
+      "derivedStartLine": 29,
+      "contextOriginals": [],
+      "group": "personal-projects",
+      "kind": "personal",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "item-10",
+      "derivedSha256": "2f49dc4bc4b1be84da69993f2db02f71f9ec58f021d50eee8e80732dd3527c00",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Personal Projects. ",
+      "originals": [
+        {
+          "start": 6006,
+          "end": 6199,
+          "startLine": 180,
+          "endLine": 183,
+          "sha256": "e76b4f79bd8c81f2a1f4422646714bcca578128380ee6792ac0e1c0cf93040a2"
+        }
+      ],
+      "derivedStart": 1747,
+      "derivedEnd": 1869,
+      "derivedStartLine": 32,
+      "contextOriginals": [],
+      "group": "personal-projects",
+      "kind": "personal",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "item-11",
+      "derivedSha256": "d6fe043c8221fd3f3b5db0f70f57cc1e6624068f9600a50c3129f3d421490e1b",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Personal Projects. ",
+      "originals": [
+        {
+          "start": 6199,
+          "end": 6338,
+          "startLine": 183,
+          "endLine": 185,
+          "sha256": "ad7814f3be2ea0c996c36501d664f4760f826833f7108fa41ede7766fb0a52c0"
+        }
+      ],
+      "derivedStart": 1906,
+      "derivedEnd": 1986,
+      "derivedStartLine": 35,
+      "contextOriginals": [],
+      "group": "personal-projects",
+      "kind": "personal",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "item-12",
+      "derivedSha256": "785a9d859b95c48d344a23d0160fa6a430b362372ef46f5914147b18eb8c3bb9",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Research Achievements. ",
+      "originals": [
+        {
+          "start": 6561,
+          "end": 6703,
+          "startLine": 192,
+          "endLine": 194,
+          "sha256": "9ad66e793b80b631d9de9889ab1d0a431f7823b27442ffda16f7bdf5003d8e3a"
+        }
+      ],
+      "derivedStart": 2023,
+      "derivedEnd": 2130,
+      "derivedStartLine": 38,
+      "contextOriginals": [],
+      "group": "research-achievements",
+      "kind": "academic",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "item-13",
+      "derivedSha256": "e32cc0d2648cbff26da27ba8d09172c98bb1258caff7f4a2d88594bc3327db37",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Research Achievements. ",
+      "originals": [
+        {
+          "start": 6703,
+          "end": 6898,
+          "startLine": 194,
+          "endLine": 197,
+          "sha256": "3bfbb3ce96aa8c96ab4d860b26e5784a12bf2ebbcf8a120a2d13edd7ba5be02f"
+        }
+      ],
+      "derivedStart": 2167,
+      "derivedEnd": 2295,
+      "derivedStartLine": 41,
+      "contextOriginals": [],
+      "group": "research-achievements",
+      "kind": "academic",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "item-14",
+      "derivedSha256": "0852c83656108a738aea85659654ae42fff4d3457d996a0acadbcd1229569403",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Research Achievements. ",
+      "originals": [
+        {
+          "start": 6898,
+          "end": 7036,
+          "startLine": 197,
+          "endLine": 199,
+          "sha256": "5babffcd3e0592f4de4c65860b15295c98bb493d9076b172f1de457aaf72eac9"
+        }
+      ],
+      "derivedStart": 2332,
+      "derivedEnd": 2480,
+      "derivedStartLine": 44,
+      "contextOriginals": [],
+      "group": "research-achievements",
+      "kind": "academic",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "item-15",
+      "derivedSha256": "549de47d2c831d5a3018d65b1c99ba7354a913e3010a8fcc73b16280d563c896",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Research Achievements. ",
+      "originals": [
+        {
+          "start": 7036,
+          "end": 7169,
+          "startLine": 199,
+          "endLine": 201,
+          "sha256": "070b20328c55dfb66d3170f89ab18ee92ece582cf9d2a9db07eda572a8fb09db"
+        }
+      ],
+      "derivedStart": 2517,
+      "derivedEnd": 2660,
+      "derivedStartLine": 47,
+      "contextOriginals": [],
+      "group": "research-achievements",
+      "kind": "academic",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "item-16",
+      "derivedSha256": "cac8c89e8c6709200dbb51499162ac841c485f2b8c2618d229851920afb6943b",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Research Achievements. ",
+      "originals": [
+        {
+          "start": 7169,
+          "end": 7332,
+          "startLine": 201,
+          "endLine": 204,
+          "sha256": "5b2cbeb39ad44d54931ef758f407730e5be56a1ca0665310c9e68f25054a70d3"
+        }
+      ],
+      "derivedStart": 2697,
+      "derivedEnd": 2866,
+      "derivedStartLine": 50,
+      "contextOriginals": [],
+      "group": "research-achievements",
+      "kind": "academic",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "item-17",
+      "derivedSha256": "ac67eb4f60d776fb8a19540f70e61a8cab493e2412b873c15eb33df124c18060",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Research Achievements. ",
+      "originals": [
+        {
+          "start": 7332,
+          "end": 7454,
+          "startLine": 204,
+          "endLine": 206,
+          "sha256": "2be888706cd11d6bd709dfab124aa8ef251e02233a1b12b701fe8e2af2ddb0d0"
+        }
+      ],
+      "derivedStart": 2903,
+      "derivedEnd": 3035,
+      "derivedStartLine": 53,
+      "contextOriginals": [],
+      "group": "research-achievements",
+      "kind": "academic",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "item-18",
+      "derivedSha256": "6718f01a47f77ba7df48da757e0469a760899cb56f30c354f1f710b0eb200a82",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Research Achievements. ",
+      "originals": [
+        {
+          "start": 7454,
+          "end": 7515,
+          "startLine": 206,
+          "endLine": 206,
+          "sha256": "d84d886e0ff5baa72c9481ee866776bef0eb008a57445b10c9dd5f69118685bf"
+        }
+      ],
+      "derivedStart": 3072,
+      "derivedEnd": 3149,
+      "derivedStartLine": 56,
+      "contextOriginals": [],
+      "group": "research-achievements",
+      "kind": "academic",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "item-19",
+      "derivedSha256": "9407de92456844690bab4494a352a34da234600695680c13fc4770c262c592f5",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Data Engineer internship (April-August 2018). ",
+      "originals": [
+        {
+          "start": 7881,
+          "end": 7999,
+          "startLine": 218,
+          "endLine": 220,
+          "sha256": "a3d11e135f89ffd71afa77783df8e36ef29aecdea6778606620f8ec658c92e79"
+        }
+      ],
+      "derivedStart": 3188,
+      "derivedEnd": 3331,
+      "derivedStartLine": 59,
+      "contextOriginals": [
+        {
+          "start": 7737,
+          "end": 7858,
+          "startLine": 213,
+          "endLine": 217,
+          "sha256": "224bcfbce3fc6d0bc14eea59c9885f939bd1f0e75ab659ec182c0eaf21a3a51c"
+        }
+      ],
+      "group": "internship-data",
+      "kind": "internship",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "item-20",
+      "derivedSha256": "0e0ce0758ac5c7c264fa8ccfd41d89e22af0e61372b6351be4d7684c96d2a839",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Data Engineer internship (April-August 2018). ",
+      "originals": [
+        {
+          "start": 7999,
+          "end": 8133,
+          "startLine": 220,
+          "endLine": 222,
+          "sha256": "eb45877e07f5f5176a82a08bfc38668ce55c5161a49511572e5daec188f1915f"
+        }
+      ],
+      "derivedStart": 3370,
+      "derivedEnd": 3529,
+      "derivedStartLine": 62,
+      "contextOriginals": [
+        {
+          "start": 7737,
+          "end": 7858,
+          "startLine": 213,
+          "endLine": 217,
+          "sha256": "224bcfbce3fc6d0bc14eea59c9885f939bd1f0e75ab659ec182c0eaf21a3a51c"
+        }
+      ],
+      "group": "internship-data",
+      "kind": "internship",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "item-21",
+      "derivedSha256": "cd78326dba4753ca72a9065cf34ef1bcba4f8f97d9511a97bb1b9ef49f18c33d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Data Engineer internship (April-August 2018). ",
+      "originals": [
+        {
+          "start": 8133,
+          "end": 8258,
+          "startLine": 222,
+          "endLine": 224,
+          "sha256": "9b65bdfe61638a5501073b46280b3df96af07dfcf780eded89884a22715da0a4"
+        }
+      ],
+      "derivedStart": 3568,
+      "derivedEnd": 3720,
+      "derivedStartLine": 65,
+      "contextOriginals": [
+        {
+          "start": 7737,
+          "end": 7858,
+          "startLine": 213,
+          "endLine": 217,
+          "sha256": "224bcfbce3fc6d0bc14eea59c9885f939bd1f0e75ab659ec182c0eaf21a3a51c"
+        }
+      ],
+      "group": "internship-data",
+      "kind": "internship",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "item-22",
+      "derivedSha256": "df6b4e50f215b23cc707d147f63f37d90a23b605c473045cb6fd5f7d0413810f",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Web Developer internship (July-September 2013). ",
+      "originals": [
+        {
+          "start": 8427,
+          "end": 8534,
+          "startLine": 232,
+          "endLine": 234,
+          "sha256": "7ee634ee9e29e947a0fd07b846bda38b8cdf37241e478af9d86d7aec4e6c3b0a"
+        }
+      ],
+      "derivedStart": 3759,
+      "derivedEnd": 3893,
+      "derivedStartLine": 68,
+      "contextOriginals": [
+        {
+          "start": 8296,
+          "end": 8404,
+          "startLine": 227,
+          "endLine": 231,
+          "sha256": "847fb6ed188489fa105c45baa9aab18ee44a1c06f17d4467a0ae79ebd10c3214"
+        }
+      ],
+      "group": "internship-web",
+      "kind": "internship",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "item-23",
+      "derivedSha256": "a32980f654536fd1dcd47220dff3caf138bfd92e29ac53214103e9305bbeb8f1",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Web Developer internship (July-September 2013). ",
+      "originals": [
+        {
+          "start": 8534,
+          "end": 8667,
+          "startLine": 234,
+          "endLine": 236,
+          "sha256": "1d6d65be2fb37743447e833ba9d847f78510fdce589ff73563529ca7a38a613c"
+        }
+      ],
+      "derivedStart": 3932,
+      "derivedEnd": 4094,
+      "derivedStartLine": 71,
+      "contextOriginals": [
+        {
+          "start": 8296,
+          "end": 8404,
+          "startLine": 227,
+          "endLine": 231,
+          "sha256": "847fb6ed188489fa105c45baa9aab18ee44a1c06f17d4467a0ae79ebd10c3214"
+        }
+      ],
+      "group": "internship-web",
+      "kind": "internship",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "summary",
+      "derivedSha256": "af46c3247e425c6f58f2aa1dbcc1762491efa8e3295608b28911c7543fdb4f60",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1997,
+          "end": 2571,
+          "startLine": 76,
+          "endLine": 88,
+          "sha256": "28c7c36d105d188f22f4ce02b125256d61f6ec1906eea32a47ba737cf2333d23"
+        }
+      ],
+      "derivedStart": 4130,
+      "derivedEnd": 4596,
+      "derivedStartLine": 74,
+      "contextOriginals": [],
+      "group": "profile",
+      "kind": "summary",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "competence-0",
+      "derivedSha256": "550e8a40c83a8cb1ba7952d430830ed86fed28ab33fa4f71cde78d596e17fef3",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2796,
+          "end": 2925,
+          "startLine": 94,
+          "endLine": 97,
+          "sha256": "f01f6b4e4a1076f5ef371e75e5e5e08caafdf4f60c035ce21ee9c8586b6b2cae"
+        }
+      ],
+      "derivedStart": 4640,
+      "derivedEnd": 4710,
+      "derivedStartLine": 77,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "competence-1",
+      "derivedSha256": "95604620e6b5e7a1c96b001747791f85b22fb72b544d34934545aa3628499e1d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2928,
+          "end": 2989,
+          "startLine": 98,
+          "endLine": 100,
+          "sha256": "34c6dec64ce120bc33d99593519af22db7623e1c064414c994d45bfe1574fbc5"
+        }
+      ],
+      "derivedStart": 4754,
+      "derivedEnd": 4794,
+      "derivedStartLine": 80,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "competence-2",
+      "derivedSha256": "45b7abde418092d1b356c71cb063c914bf326d4511ae0d1db865783db0bb277f",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2992,
+          "end": 3053,
+          "startLine": 101,
+          "endLine": 103,
+          "sha256": "3c5772139377d7f735db5865ebce1a0245d01dae7dacf7fce247f8773165c2df"
+        }
+      ],
+      "derivedStart": 4838,
+      "derivedEnd": 4878,
+      "derivedStartLine": 83,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "competence-3",
+      "derivedSha256": "1a6d3ff3ae52c99ea2567e2433e32beb009965a2ea6cb49027e4ce9c76accb83",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3056,
+          "end": 3143,
+          "startLine": 104,
+          "endLine": 106,
+          "sha256": "c5ba65d931008f471ba485f68817cc8efbccd76d1b353573b159e23ee7aad7f1"
+        }
+      ],
+      "derivedStart": 4922,
+      "derivedEnd": 4988,
+      "derivedStartLine": 86,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "competence-4",
+      "derivedSha256": "627ace9c8fbbdc5a589f0f9a0a485bb0487e3b0dc752121fdf620f5374d197b0",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3146,
+          "end": 3220,
+          "startLine": 107,
+          "endLine": 109,
+          "sha256": "5f3887760bc7f18553d3aecbc34cfb56e281c4d2b4b527afe05a16484618e16b"
+        }
+      ],
+      "derivedStart": 5032,
+      "derivedEnd": 5085,
+      "derivedStartLine": 89,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "education-0",
+      "derivedSha256": "0abfb81ac8fec0ca99a2a3380d330071e2cd3d898440ee609cf7f4d050523d6b",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3595,
+          "end": 3753,
+          "startLine": 121,
+          "endLine": 127,
+          "sha256": "e1228d4ac185754a915692ed653aa76dbc72f2028e032ab51ace50097d2f782c"
+        }
+      ],
+      "derivedStart": 5127,
+      "derivedEnd": 5215,
+      "derivedStartLine": 92,
+      "contextOriginals": [],
+      "group": "education",
+      "kind": "education",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "education-1",
+      "derivedSha256": "4a745eb6faa1032bd968704e2194f58fb18fa2b49a87edfcd42468d401271a88",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3777,
+          "end": 3954,
+          "startLine": 130,
+          "endLine": 136,
+          "sha256": "3f48124e6fa351eb93e6f793e0e0dd6b14d2fc65eaa99f97ed483229b68b4cfe"
+        }
+      ],
+      "derivedStart": 5257,
+      "derivedEnd": 5364,
+      "derivedStartLine": 95,
+      "contextOriginals": [],
+      "group": "education",
+      "kind": "education",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    }
+  ],
+  "selectedJob": [
+    {
+      "derivedStart": 0,
+      "derivedEnd": 40,
+      "original": {
+        "start": 827,
+        "end": 867,
+        "startLine": 15,
+        "endLine": 15,
+        "sha256": "43ce0bb76eac0ac8abc4fca6eb6eed6a81951181c2cd8af5501fab5d38097016"
+      }
+    },
+    {
+      "derivedStart": 40,
+      "derivedEnd": 41,
+      "original": {
+        "start": 867,
+        "end": 868,
+        "startLine": 16,
+        "endLine": 16,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 41,
+      "derivedEnd": 122,
+      "original": {
+        "start": 868,
+        "end": 949,
+        "startLine": 17,
+        "endLine": 17,
+        "sha256": "db567e337797a1657729a9e372fb93cad750432b95994bb4274fdfdf2629b43f"
+      }
+    },
+    {
+      "derivedStart": 122,
+      "derivedEnd": 186,
+      "original": {
+        "start": 949,
+        "end": 1013,
+        "startLine": 18,
+        "endLine": 18,
+        "sha256": "3fba14672d2abe19d0bfd834a158fd3a027dc97735351c67bdc130d77afdf8f5"
+      }
+    },
+    {
+      "derivedStart": 186,
+      "derivedEnd": 245,
+      "original": {
+        "start": 1013,
+        "end": 1072,
+        "startLine": 19,
+        "endLine": 19,
+        "sha256": "f4ca38c867eee12c206b950adb50552a1078365d1357d2ae445b0454cc54abb4"
+      }
+    },
+    {
+      "derivedStart": 245,
+      "derivedEnd": 292,
+      "original": {
+        "start": 1072,
+        "end": 1119,
+        "startLine": 20,
+        "endLine": 20,
+        "sha256": "b7bd24b27280c4633e974d1f20d4c01e5eddd3e0031e4658e1af22535306bd8b"
+      }
+    },
+    {
+      "derivedStart": 292,
+      "derivedEnd": 356,
+      "original": {
+        "start": 1119,
+        "end": 1183,
+        "startLine": 21,
+        "endLine": 21,
+        "sha256": "dceba02739159bdc7d41621999d4a430fb3c8152fb1a9a254c1be97358184735"
+      }
+    },
+    {
+      "derivedStart": 356,
+      "derivedEnd": 436,
+      "original": {
+        "start": 1183,
+        "end": 1263,
+        "startLine": 22,
+        "endLine": 22,
+        "sha256": "25c0bf92909becd6ac59943bca4c02e3f9ee107176dbfe75e48aaec32c619acc"
+      }
+    },
+    {
+      "derivedStart": 436,
+      "derivedEnd": 550,
+      "original": {
+        "start": 1263,
+        "end": 1377,
+        "startLine": 23,
+        "endLine": 23,
+        "sha256": "5882392257d61e1f1d3c5a44d8cfb17904eb4cdd5c6d6227d6d0b99e4f2bc283"
+      }
+    },
+    {
+      "derivedStart": 550,
+      "derivedEnd": 596,
+      "original": {
+        "start": 1377,
+        "end": 1423,
+        "startLine": 24,
+        "endLine": 24,
+        "sha256": "e014da6a59c0c7ad2e6c004b448439c3231af0488339d4a36320c77988553ee6"
+      }
+    },
+    {
+      "derivedStart": 596,
+      "derivedEnd": 632,
+      "original": {
+        "start": 1423,
+        "end": 1459,
+        "startLine": 25,
+        "endLine": 25,
+        "sha256": "92e9f117e05dd9a7f9d863bf8e68ae633c3aac8f63363fdf5a71077d1e8bf4c6"
+      }
+    },
+    {
+      "derivedStart": 632,
+      "derivedEnd": 656,
+      "original": {
+        "start": 1459,
+        "end": 1483,
+        "startLine": 26,
+        "endLine": 26,
+        "sha256": "7b5adf8ae9aafc3775dd231fc7245da67eb092da0054599d4afff08fd8a9b197"
+      }
+    },
+    {
+      "derivedStart": 656,
+      "derivedEnd": 657,
+      "original": {
+        "start": 1483,
+        "end": 1484,
+        "startLine": 27,
+        "endLine": 27,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 657,
+      "derivedEnd": 701,
+      "original": {
+        "start": 1484,
+        "end": 1528,
+        "startLine": 28,
+        "endLine": 28,
+        "sha256": "f9fbb81ba42be9918bb71f2932ef687814ffcc41a77a192ffae15a3ce2d26b49"
+      }
+    },
+    {
+      "derivedStart": 701,
+      "derivedEnd": 702,
+      "original": {
+        "start": 1528,
+        "end": 1529,
+        "startLine": 29,
+        "endLine": 29,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 702,
+      "derivedEnd": 799,
+      "original": {
+        "start": 1529,
+        "end": 1626,
+        "startLine": 30,
+        "endLine": 30,
+        "sha256": "a3637a9597f586bf79c380083a95fe77df535bcec256509cfc196f222df28fea"
+      }
+    },
+    {
+      "derivedStart": 799,
+      "derivedEnd": 881,
+      "original": {
+        "start": 1626,
+        "end": 1708,
+        "startLine": 31,
+        "endLine": 31,
+        "sha256": "62b920cc61d04666f2423ff0554f5ebac65515c7f42cc1684dc0de7b28dfab7a"
+      }
+    },
+    {
+      "derivedStart": 881,
+      "derivedEnd": 925,
+      "original": {
+        "start": 1708,
+        "end": 1752,
+        "startLine": 32,
+        "endLine": 32,
+        "sha256": "36cd72f78526318a032ecdcc7a292e9f4750b1f6b0c89bfef65be38793d1dab5"
+      }
+    },
+    {
+      "derivedStart": 925,
+      "derivedEnd": 963,
+      "original": {
+        "start": 1752,
+        "end": 1790,
+        "startLine": 33,
+        "endLine": 33,
+        "sha256": "e35a9bfd7fa2829c6affcb6ee1dcf61796781e2d7167fd403ceb0f4f851a2759"
+      }
+    },
+    {
+      "derivedStart": 963,
+      "derivedEnd": 1060,
+      "original": {
+        "start": 1790,
+        "end": 1887,
+        "startLine": 34,
+        "endLine": 34,
+        "sha256": "0ab1d085311a31242ef4e4bbcdc7545058430cd9ad4558843a70c7f254f87e98"
+      }
+    },
+    {
+      "derivedStart": 1060,
+      "derivedEnd": 1157,
+      "original": {
+        "start": 1887,
+        "end": 1984,
+        "startLine": 35,
+        "endLine": 35,
+        "sha256": "1edf311f0ab04704269f7401f91ab4e70db0ae7ba0c10c7037b5ca3e4b608580"
+      }
+    },
+    {
+      "derivedStart": 1157,
+      "derivedEnd": 1393,
+      "original": {
+        "start": 1984,
+        "end": 2220,
+        "startLine": 36,
+        "endLine": 36,
+        "sha256": "72e36550e50fc71f697e824de3bcd1f7bbc051afff5751ccb14dc7b1bdb9515c"
+      }
+    },
+    {
+      "derivedStart": 1393,
+      "derivedEnd": 1463,
+      "original": {
+        "start": 2220,
+        "end": 2290,
+        "startLine": 37,
+        "endLine": 37,
+        "sha256": "cea7b1ca056126d325fcae79d06e93798e581064bcc1858389e9471b282a594c"
+      }
+    },
+    {
+      "derivedStart": 1463,
+      "derivedEnd": 1573,
+      "original": {
+        "start": 2290,
+        "end": 2400,
+        "startLine": 38,
+        "endLine": 38,
+        "sha256": "205f964ee0249fb9d39e8a52989b18819167593240b3839d1090ae4415e3e733"
+      }
+    },
+    {
+      "derivedStart": 1573,
+      "derivedEnd": 1574,
+      "original": {
+        "start": 2400,
+        "end": 2401,
+        "startLine": 39,
+        "endLine": 39,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    }
+  ],
+  "requirements": [
+    {
+      "id": "requirement-01",
+      "support": "supported",
+      "reason": "Explicit internship scraping/research data processing; not years of production platform ownership.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-02",
+      "support": "supported",
+      "reason": "Actual packages in an internship/project, not inferred from the template.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-03",
+      "support": "not_evidenced",
+      "reason": "No analytical data-warehouse evidence.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-04",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-05",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-06",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-07",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-08",
+      "support": "not_evidenced",
+      "reason": "OSS commits do not alone establish review activity.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-09",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-10",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-11",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-12",
+      "support": "supported",
+      "reason": "Scheduled data retrieval in internship; not an enterprise pipeline scale claim.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-13",
+      "support": "not_evidenced",
+      "reason": "No source evidence for maintaining systems documentation.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-14",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-15",
+      "support": "not_evidenced",
+      "reason": "No DataOps methodology claim.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-16",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-17",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-18",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-19",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    }
+  ],
+  "dates": [
+    {
+      "group": "internship-data",
+      "originalPeriod": "April-August 2018",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "internship-web",
+      "originalPeriod": "July-September 2013",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    }
+  ]
+}

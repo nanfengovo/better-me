@@ -1,0 +1,1056 @@
+{
+  "schemaVersion": 1,
+  "id": "gold-data-engineer",
+  "dataKind": "real_anonymized",
+  "role": "Data Engineer (Junior) - academic/OSS/internship transition candidate",
+  "job": {
+    "text": "### Data Engineer (Junior) Requirements\n\n- Experience using Python, Java, or Scala for data processing (Python preferred)\n- Knowledge of and experience with data-related Python packages\n- Good understanding of SQL and analytical data warehouses\n- Share and work in accordance with our values\n- Constantly improve product quality, security, and performance\n- Desire to continually keep up with advancements in data engineering practices\n- Collaborate with team members to identify requirements, define successful outcomes, and deliver trusted results\n- Catch bugs and style issues in code reviews\n- Ship small features independently\n- Ability to use GitLab\n\n### Data Engineer (Junior) Responsibilities\n\n- Maintain our [data platform](/handbook/enterprise-data/platform/) with timely and quality data\n- Build and maintain data pipelines from internal databases and SaaS applications\n- Create and maintain systems documentation\n- Write maintainable, performant code\n- Implement the [DataOps](https://en.wikipedia.org/wiki/DataOps) philosophy in everything you do\n- Plan and execute system expansion as needed to support the company's growth and analytic needs\n- Collaborate with [Analytics Engineers](/job-description-library/marketing/enterprise-data/analytics-engineer/) and [Data Analysts](/job-description-library/marketing/enterprise-data/data-analyst/) to drive efficiencies for their work\n- Collaborate with other functions to ensure data needs are addressed\n- This position is always [central](/handbook/enterprise-data/organization/) and reports to the Manager, Data\n\n",
+    "sha256": "dc07bee3fe707dd612aec4312124bf02e19363401432c265ca4d3575f06023d7",
+    "provenance": {
+      "url": "https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/f7efde2339c3ff060bb972805bf22692c534893d/content/job-description-library/marketing/enterprise-data/data-engineer.md",
+      "revision": "f7efde2339c3ff060bb972805bf22692c534893d",
+      "license": "CC-BY-SA-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "retrievedAt": "2026-11-12T00:00:00.000Z",
+      "originalSha256": "38853991faa7ae097dc9a87a8ce0df1f432313fc965dd9786981b870c3cb66d3",
+      "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+    }
+  },
+  "evidence": [
+    {
+      "id": "item-0",
+      "text": "Computer Skills. DragonFly BSD operating system developer: 200+ code commits; kernel and system utilities; participate in discussions and anwser questions in mailing lists and the IRC channel.",
+      "sha256": "9d8fabd9ff3d797e2405873aea387611c1341f856c1c7600ddfbfdbd5256defc",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "DragonFly BSD"
+        ],
+        "task": [
+          "kernel and system utilities"
+        ],
+        "action": [
+          "operating system developer"
+        ],
+        "result": [
+          "200+ code commits"
+        ]
+      }
+    },
+    {
+      "id": "item-1",
+      "text": "Computer Skills. Use Ansible to manage a VPS running DragonFly BSD that serves personal email, authoritative DNS, website, Git, IRC, etc.",
+      "sha256": "81632c8632e905ac69c22b5a7c97246141dfb22d1f2185302a324255f93c425d",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "item-2",
+      "text": "Computer Skills. Built and administrate the workstations, a 4-node computer cluster, and network facilities for the team.",
+      "sha256": "5036ac645a5366fcf4c87d7881aa3fc814dd7a90306566e646e37b1de6d9f5ab",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "item-3",
+      "text": "Computer Skills. Participated in building and testing the SKA high-performance cluster prototype (1 login node + 1 data node + 4 computing nodes) in Research institute A.",
+      "sha256": "6d3ff0ae15a1858297d9d81e3e62a168bc82e595a1063c48c58711414510b89c",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "high-performance cluster prototype"
+        ],
+        "task": [],
+        "action": [
+          "Participated in building and testing"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "item-4",
+      "text": "Computer Skills. Designed and developed the whole website (Django, Bootstrap, jQuery) for Research school project A in 2014.",
+      "sha256": "f6e04bb318d64326455a06d57ebb63a4684e7fa71bd02f437573be401a165ea6",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "item-5",
+      "text": "Personal Projects. Personal project A: (Python, Shell) Various tools collected over the years, to help manage systems, do daily tasks, analyze data, etc.",
+      "sha256": "f4c2e10a4256c3518cf88f0f6eda0b6a9ed12745be0a39aec0f01e6a279ed60b",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "item-6",
+      "text": "Personal Projects. Personal project B: (Shell) A simple tool to update a DragonFly BSD system.",
+      "sha256": "07c7a205ff332383a725e6750a6e31b7dc013394c74f656a71a3628674364f1f",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "item-7",
+      "text": "Personal Projects. Personal project C: (C) Enhance OpenBSD RCS, to make it compatible with GNU RCS.",
+      "sha256": "1c47bcd2650adc3102d6675c5f7b726410cb7ada17aec369cac9e14e9cf20643",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "item-8",
+      "text": "Personal Projects. Research project C: (Python) Simulate the low-frequency radio sky maps.",
+      "sha256": "150deab098804af528549b29c3d8dc1f8573e8ab597c5b8508ee037c199953d4",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "item-9",
+      "text": "Personal Projects. Research project D: (Python, Keras) Use a Convolutional Denoising Autoencoder (CDAE) to separate the faint EoR signal.",
+      "sha256": "fc9ef2730424a289d9d8e4f05b02152fb5e4638c609fb7ce6176c3fbec9d9515",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "item-10",
+      "text": "Personal Projects. Research project B: (Python, Shell, Tcl) Semi-automate utilities for analyzing X-ray astronomical data.",
+      "sha256": "2f49dc4bc4b1be84da69993f2db02f71f9ec58f021d50eee8e80732dd3527c00",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "X-ray astronomical data"
+        ],
+        "task": [
+          "analyzing X-ray astronomical data"
+        ],
+        "action": [
+          "Semi-automate utilities"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "item-11",
+      "text": "Personal Projects. resume: (LaTeX) The template and source files of this resume.",
+      "sha256": "d6fe043c8221fd3f3b5db0f70f57cc1e6624068f9600a50c3129f3d421490e1b",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "item-12",
+      "text": "Research Achievements. Developed the low-frequency radio sky image simulation software: Research project C.",
+      "sha256": "785a9d859b95c48d344a23d0160fa6a430b362372ef46f5914147b18eb8c3bb9",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "item-13",
+      "text": "Research Achievements. Developed a suite of utilities to semi-automate the X-ray astronomical data analysis: Research project B.",
+      "sha256": "e32cc0d2648cbff26da27ba8d09172c98bb1258caff7f4a2d88594bc3327db37",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "item-14",
+      "text": "Research Achievements. Separated the faint cosmological EoR signal along the frequency dimension using a Convolutional Denoising Autoencoder (CDAE).",
+      "sha256": "0852c83656108a738aea85659654ae42fff4d3457d996a0acadbcd1229569403",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "item-15",
+      "text": "Research Achievements. Classified the radio galaxies in the FIRST survey according to morphologies using a Convolutional Neutral Network (CNN).",
+      "sha256": "549de47d2c831d5a3018d65b1c99ba7354a913e3010a8fcc73b16280d563c896",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "item-16",
+      "text": "Research Achievements. Significantly improved the modeling of radio halos, and integrated the instrumental effects of radio interferometers into the simulation pipeline.",
+      "sha256": "cac8c89e8c6709200dbb51499162ac841c485f2b8c2618d229851920afb6943b",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "item-17",
+      "text": "Research Achievements. Improved the background modeling in X-ray spectral fitting achieved more accurate and robust fitting results.",
+      "sha256": "ac67eb4f60d776fb8a19540f70e61a8cab493e2412b873c15eb33df124c18060",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "X-ray spectral fitting"
+        ],
+        "task": [
+          "background modeling"
+        ],
+        "action": [
+          "Improved the background modeling"
+        ],
+        "result": [
+          "more accurate and robust fitting results"
+        ]
+      }
+    },
+    {
+      "id": "item-18",
+      "text": "Research Achievements. Published 2 first-author and 8 co-authored SCI papers.",
+      "sha256": "6718f01a47f77ba7df48da757e0469a760899cb56f30c354f1f710b0eb200a82",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "item-19",
+      "text": "Data Engineer internship (April-August 2018). Search and scrape product and advertising data from Amazon web (Python, Requests, BeautifulSoup).",
+      "sha256": "9407de92456844690bab4494a352a34da234600695680c13fc4770c262c592f5",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "product and advertising data"
+        ],
+        "task": [
+          "data from Amazon"
+        ],
+        "action": [
+          "Search and scrape"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "item-20",
+      "text": "Data Engineer internship (April-August 2018). Deployed the Airflow server and database to periodically retrieve product sales and advertising data from Amazon.",
+      "sha256": "0e0ce0758ac5c7c264fa8ccfd41d89e22af0e61372b6351be4d7684c96d2a839",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "product sales and advertising data"
+        ],
+        "task": [
+          "periodically retrieve"
+        ],
+        "action": [
+          "Deployed the Airflow server and database"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "item-21",
+      "text": "Data Engineer internship (April-August 2018). Developed the website (Flask, jQuery) to help customers to optimize their advertising campaigns on Amazon.",
+      "sha256": "cd78326dba4753ca72a9065cf34ef1bcba4f8f97d9511a97bb1b9ef49f18c33d",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "advertising campaigns on Amazon"
+        ],
+        "task": [
+          "help customers to optimize"
+        ],
+        "action": [
+          "Developed the website"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "item-22",
+      "text": "Web Developer internship (July-September 2013). Developed the back-end (Django) to support user registration, data storage and search.",
+      "sha256": "df6b4e50f215b23cc707d147f63f37d90a23b605c473045cb6fd5f7d0413810f",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "item-23",
+      "text": "Web Developer internship (July-September 2013). Developed the front-end (jQuery, AJAX) to visualize the temporal variations of a patient's examination indicators.",
+      "sha256": "a32980f654536fd1dcd47220dff3caf138bfd92e29ac53214103e9305bbeb8f1",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "summary",
+      "text": "Highly-motivated Ph.D. in Physics (radio astronomy) with good foundations of math and statistics. Proficient in data modeling and analysis, and enthusiastic about computer and network technologies. With 10 years experience in Linux and BSD, skilled in Shell, Python, and C programming. Passionate about open source and share multiple projects on my GitHub. Meanwhile a DragonFly BSD operating system developer and a contributor to several other open source projects.",
+      "sha256": "af46c3247e425c6f58f2aa1dbcc1762491efa8e3295608b28911c7543fdb4f60",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "competence-0",
+      "text": "Operating Systems: Linux (10 years), DragonFly BSD & FreeBSD (7 years)",
+      "sha256": "550e8a40c83a8cb1ba7952d430830ed86fed28ab33fa4f71cde78d596e17fef3",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "competence-1",
+      "text": "Programming: Python, C, Shell, R, Tcl/Tk",
+      "sha256": "95604620e6b5e7a1c96b001747791f85b22fb72b544d34934545aa3628499e1d",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "competence-2",
+      "text": "Tools: SSH, Git, Make, Tmux, Vi, Ansible",
+      "sha256": "45b7abde418092d1b356c71cb063c914bf326d4511ae0d1db865783db0bb277f",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "competence-3",
+      "text": "Data Analysis: R, Pandas; Matplotlib, ggplot2; Keras, Scikit-learn",
+      "sha256": "1a6d3ff3ae52c99ea2567e2433e32beb009965a2ea6cb49027e4ce9c76accb83",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "competence-4",
+      "text": "Web Development: Flask, JavaScript, jQuery, Bootstrap",
+      "sha256": "627ace9c8fbbdc5a589f0f9a0a485bb0487e3b0dc752121fdf620f5374d197b0",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "education-0",
+      "text": "September 2013 September 2019 University D School of Physics and Astronomy Physics Ph.D.",
+      "sha256": "0abfb81ac8fec0ca99a2a3380d330071e2cd3d898440ee609cf7f4d050523d6b",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "education-1",
+      "text": "September 2009 June 2013 University D Department of Physics and Astronomy Applied Physics Bachelor's Degree",
+      "sha256": "4a745eb6faa1032bd968704e2194f58fb18fa2b49a87edfcd42468d401271a88",
+      "provenance": {
+        "url": "https://github.com/liweitianux/resume/blob/b3ccb2ec858f052903ef735300b67f701be266a7/resume-en.tex",
+        "revision": "b3ccb2ec858f052903ef735300b67f701be266a7",
+        "license": "CC-BY-4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "c69f14296702cf3fecb74e8bd673985e503dcd7a08ae263650c866a2ae761847",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    }
+  ],
+  "requirements": [
+    {
+      "id": "requirement-01",
+      "original": {
+        "start": 43,
+        "end": 121,
+        "quote": "Experience using Python, Java, or Scala for data processing (Python preferred)"
+      },
+      "weight": 3,
+      "support": "supported",
+      "anchorGroups": [
+        [
+          "Python"
+        ],
+        [
+          "data"
+        ]
+      ],
+      "evidenceIds": [
+        "item-19",
+        "item-10"
+      ]
+    },
+    {
+      "id": "requirement-02",
+      "original": {
+        "start": 124,
+        "end": 185,
+        "quote": "Knowledge of and experience with data-related Python packages"
+      },
+      "weight": 2,
+      "support": "supported",
+      "anchorGroups": [
+        [
+          "Requests",
+          "BeautifulSoup",
+          "Keras"
+        ]
+      ],
+      "evidenceIds": [
+        "item-19",
+        "item-9"
+      ]
+    },
+    {
+      "id": "requirement-03",
+      "original": {
+        "start": 188,
+        "end": 244,
+        "quote": "Good understanding of SQL and analytical data warehouses"
+      },
+      "weight": 3,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "SQL"
+        ],
+        [
+          "warehouse"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-04",
+      "original": {
+        "start": 247,
+        "end": 291,
+        "quote": "Share and work in accordance with our values"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Share and work in accordance with our values"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-05",
+      "original": {
+        "start": 294,
+        "end": 355,
+        "quote": "Constantly improve product quality, security, and performance"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Constantly improve product quality, security, and performance"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-06",
+      "original": {
+        "start": 358,
+        "end": 435,
+        "quote": "Desire to continually keep up with advancements in data engineering practices"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Desire to continually keep up with advancements in data engineering practices"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-07",
+      "original": {
+        "start": 438,
+        "end": 549,
+        "quote": "Collaborate with team members to identify requirements, define successful outcomes, and deliver trusted results"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Collaborate with team members to identify requirements, define successful outcomes, and deliver trusted results"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-08",
+      "original": {
+        "start": 552,
+        "end": 595,
+        "quote": "Catch bugs and style issues in code reviews"
+      },
+      "weight": 2,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "code reviews"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-09",
+      "original": {
+        "start": 598,
+        "end": 631,
+        "quote": "Ship small features independently"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Ship small features independently"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-10",
+      "original": {
+        "start": 634,
+        "end": 655,
+        "quote": "Ability to use GitLab"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Ability to use GitLab"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-11",
+      "original": {
+        "start": 704,
+        "end": 798,
+        "quote": "Maintain our [data platform](/handbook/enterprise-data/platform/) with timely and quality data"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Maintain our [data platform](/handbook/enterprise-data/platform/) with timely and quality data"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-12",
+      "original": {
+        "start": 801,
+        "end": 880,
+        "quote": "Build and maintain data pipelines from internal databases and SaaS applications"
+      },
+      "weight": 3,
+      "support": "supported",
+      "anchorGroups": [
+        [
+          "Airflow"
+        ],
+        [
+          "periodically retrieve",
+          "data"
+        ]
+      ],
+      "evidenceIds": [
+        "item-20"
+      ]
+    },
+    {
+      "id": "requirement-13",
+      "original": {
+        "start": 883,
+        "end": 924,
+        "quote": "Create and maintain systems documentation"
+      },
+      "weight": 2,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "documentation"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-14",
+      "original": {
+        "start": 927,
+        "end": 962,
+        "quote": "Write maintainable, performant code"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Write maintainable, performant code"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-15",
+      "original": {
+        "start": 965,
+        "end": 1059,
+        "quote": "Implement the [DataOps](https://en.wikipedia.org/wiki/DataOps) philosophy in everything you do"
+      },
+      "weight": 2,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "DataOps"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-16",
+      "original": {
+        "start": 1062,
+        "end": 1156,
+        "quote": "Plan and execute system expansion as needed to support the company's growth and analytic needs"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Plan and execute system expansion as needed to support the company's growth and analytic needs"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-17",
+      "original": {
+        "start": 1159,
+        "end": 1392,
+        "quote": "Collaborate with [Analytics Engineers](/job-description-library/marketing/enterprise-data/analytics-engineer/) and [Data Analysts](/job-description-library/marketing/enterprise-data/data-analyst/) to drive efficiencies for their work"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Collaborate with [Analytics Engineers](/job-description-library/marketing/enterprise-data/analytics-engineer/) and [Data Analysts](/job-description-library/marketing/enterprise-data/data-analyst/) to drive efficiencies for their work"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-18",
+      "original": {
+        "start": 1395,
+        "end": 1462,
+        "quote": "Collaborate with other functions to ensure data needs are addressed"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Collaborate with other functions to ensure data needs are addressed"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-19",
+      "original": {
+        "start": 1465,
+        "end": 1572,
+        "quote": "This position is always [central](/handbook/enterprise-data/organization/) and reports to the Manager, Data"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "This position is always [central](/handbook/enterprise-data/organization/) and reports to the Manager, Data"
+        ]
+      ],
+      "evidenceIds": []
+    }
+  ],
+  "entityLexicon": [
+    "Chef",
+    "Ansible",
+    "Terraform",
+    "Kubernetes",
+    "Ruby",
+    "Ruby on Rails",
+    "Go",
+    "Golang",
+    "Redis",
+    "Kafka",
+    "React",
+    "React Native",
+    "Vue.js",
+    "JavaScript",
+    "GitLab",
+    "Snowflake",
+    "Airflow",
+    "SQL",
+    "Docker",
+    "Django",
+    "C#",
+    ".NET"
+  ],
+  "approvedParaphrases": []
+}

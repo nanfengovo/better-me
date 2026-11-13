@@ -1,0 +1,3623 @@
+{
+  "schemaVersion": 1,
+  "labelVersion": "gold-source-review-v1",
+  "caseSha256": "275393c2fe6d64176bb8399910349955fb22f85effb4b9c42177720fa38cf6fb",
+  "source": {
+    "id": "c02",
+    "file": "C02-jobs.toml",
+    "url": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/myresume/data/en/job_experience.toml",
+    "revision": "cd9838fd39603bdc898e5909c099c5f8db0438a8",
+    "originalSha256": "ec29601dc23e4042174cde366d85d79ebeef2f401a592c5489c4003502588ba1",
+    "author": "Olivier Philippon",
+    "license": "MIT",
+    "licenseUrl": "https://github.com/olivierphi/my-resume/blob/cd9838fd39603bdc898e5909c099c5f8db0438a8/LICENSE"
+  },
+  "jobSource": {
+    "id": "j02",
+    "file": "J02-backend.md",
+    "originalSha256": "aee78b7831335acc168966521f02a4b3ec7b994a27b617f8b95f311f9b393ed3",
+    "revision": "f7efde2339c3ff060bb972805bf22692c534893d",
+    "url": "https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/f7efde2339c3ff060bb972805bf22692c534893d/content/job-description-library/engineering/development/backend/_index.md",
+    "author": "GitLab handbook contributors",
+    "license": "CC-BY-SA-4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  "candidateTextSha256": "22a88d501d16626edd74276ab094b2c27a3d49e1818d3bc7d0245a46b4c67a90",
+  "coordinateSystem": "UTF-16 code units, zero-based half-open; lines one-based; hashes UTF-8 bytes",
+  "mappingGranularity": "Selected complete source tokens/markup units; derived strings are transformed. Never equate derived offsets with original offsets.",
+  "units": [
+    {
+      "id": "work-0-action-0",
+      "derivedSha256": "6d61f02b3363cfda151aacfc6aa56f984bf47c1d2048eb43eeaf40d8db260b00",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 31,
+          "end": 155,
+          "startLine": 3,
+          "endLine": 5,
+          "sha256": "2cfcb3b009acda4d4d419e0255ceaa2cbddd5ea30fe6f3f926a3cb6d3dd48728"
+        },
+        {
+          "start": 291,
+          "end": 499,
+          "startLine": 10,
+          "endLine": 13,
+          "sha256": "2b09b6576d73da38e2c0b268adfbdcb13da863c22ddb49140915d0a1727b49de"
+        }
+      ],
+      "derivedStart": 45,
+      "derivedEnd": 276,
+      "derivedStartLine": 2,
+      "contextOriginals": [
+        {
+          "start": 31,
+          "end": 155,
+          "startLine": 3,
+          "endLine": 5,
+          "sha256": "2cfcb3b009acda4d4d419e0255ceaa2cbddd5ea30fe6f3f926a3cb6d3dd48728"
+        },
+        {
+          "start": 9,
+          "end": 30,
+          "startLine": 2,
+          "endLine": 2,
+          "sha256": "445505177f19904402b36761a595c3bc65950930511557277ee9f249a51bef12"
+        }
+      ],
+      "group": "work-0",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "work-0-action-1",
+      "derivedSha256": "a18bac46bc60e7c28f037aef080b63bcae4eea5f70d3c67645ee2ea8bb2c9e78",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 31,
+          "end": 155,
+          "startLine": 3,
+          "endLine": 5,
+          "sha256": "2cfcb3b009acda4d4d419e0255ceaa2cbddd5ea30fe6f3f926a3cb6d3dd48728"
+        },
+        {
+          "start": 505,
+          "end": 670,
+          "startLine": 14,
+          "endLine": 17,
+          "sha256": "b3ea88b95ad88aff95c90ce7dd75ae4cf1340633a4942d31d7a186d0d7810824"
+        }
+      ],
+      "derivedStart": 323,
+      "derivedEnd": 511,
+      "derivedStartLine": 5,
+      "contextOriginals": [
+        {
+          "start": 31,
+          "end": 155,
+          "startLine": 3,
+          "endLine": 5,
+          "sha256": "2cfcb3b009acda4d4d419e0255ceaa2cbddd5ea30fe6f3f926a3cb6d3dd48728"
+        },
+        {
+          "start": 9,
+          "end": 30,
+          "startLine": 2,
+          "endLine": 2,
+          "sha256": "445505177f19904402b36761a595c3bc65950930511557277ee9f249a51bef12"
+        }
+      ],
+      "group": "work-0",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-action-2",
+      "derivedSha256": "26e14b0eb365688fadcdee505a94bf94741697c0cf94722b4bb6e89225dce4cb",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 31,
+          "end": 155,
+          "startLine": 3,
+          "endLine": 5,
+          "sha256": "2cfcb3b009acda4d4d419e0255ceaa2cbddd5ea30fe6f3f926a3cb6d3dd48728"
+        },
+        {
+          "start": 676,
+          "end": 826,
+          "startLine": 18,
+          "endLine": 21,
+          "sha256": "b222c56e524e96abc6b0cceca3976a5b5bfca715efc44cab137704a71e1287a0"
+        }
+      ],
+      "derivedStart": 558,
+      "derivedEnd": 731,
+      "derivedStartLine": 8,
+      "contextOriginals": [
+        {
+          "start": 31,
+          "end": 155,
+          "startLine": 3,
+          "endLine": 5,
+          "sha256": "2cfcb3b009acda4d4d419e0255ceaa2cbddd5ea30fe6f3f926a3cb6d3dd48728"
+        },
+        {
+          "start": 9,
+          "end": 30,
+          "startLine": 2,
+          "endLine": 2,
+          "sha256": "445505177f19904402b36761a595c3bc65950930511557277ee9f249a51bef12"
+        }
+      ],
+      "group": "work-0",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "work-0-technology-0",
+      "derivedSha256": "18885f27b5af9012df19e496460f9294d5ab76128824c6f993787004f6d9a7db",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 842,
+          "end": 850,
+          "startLine": 24,
+          "endLine": 24,
+          "sha256": "45f13bf50ac1fca6e27296d5383380ef0a471d3d5d04f78c829a445829f7d05a"
+        }
+      ],
+      "derivedStart": 787,
+      "derivedEnd": 793,
+      "derivedStartLine": 11,
+      "contextOriginals": [
+        {
+          "start": 31,
+          "end": 155,
+          "startLine": 3,
+          "endLine": 5,
+          "sha256": "2cfcb3b009acda4d4d419e0255ceaa2cbddd5ea30fe6f3f926a3cb6d3dd48728"
+        },
+        {
+          "start": 9,
+          "end": 30,
+          "startLine": 2,
+          "endLine": 2,
+          "sha256": "445505177f19904402b36761a595c3bc65950930511557277ee9f249a51bef12"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-1",
+      "derivedSha256": "4445d918dfcf1af804b749eeee4835dccfd27c06b6828533be827473ff63439f",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 852,
+          "end": 860,
+          "startLine": 24,
+          "endLine": 24,
+          "sha256": "d084ac08451dd954392bb7d31197af601a2d5e7374089dd9ff1938c3f16cf968"
+        }
+      ],
+      "derivedStart": 849,
+      "derivedEnd": 855,
+      "derivedStartLine": 14,
+      "contextOriginals": [
+        {
+          "start": 31,
+          "end": 155,
+          "startLine": 3,
+          "endLine": 5,
+          "sha256": "2cfcb3b009acda4d4d419e0255ceaa2cbddd5ea30fe6f3f926a3cb6d3dd48728"
+        },
+        {
+          "start": 9,
+          "end": 30,
+          "startLine": 2,
+          "endLine": 2,
+          "sha256": "445505177f19904402b36761a595c3bc65950930511557277ee9f249a51bef12"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-2",
+      "derivedSha256": "071ceeb09dce1e5d756bd61cc2d513d3bb74af4e2d61e143972d346bc9bc2eaa",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 862,
+          "end": 885,
+          "startLine": 24,
+          "endLine": 24,
+          "sha256": "0565d8151b2baf288b6c00f90f5676966d416b01c8b3b0898c40fc24d419c6e9"
+        }
+      ],
+      "derivedStart": 911,
+      "derivedEnd": 932,
+      "derivedStartLine": 17,
+      "contextOriginals": [
+        {
+          "start": 31,
+          "end": 155,
+          "startLine": 3,
+          "endLine": 5,
+          "sha256": "2cfcb3b009acda4d4d419e0255ceaa2cbddd5ea30fe6f3f926a3cb6d3dd48728"
+        },
+        {
+          "start": 9,
+          "end": 30,
+          "startLine": 2,
+          "endLine": 2,
+          "sha256": "445505177f19904402b36761a595c3bc65950930511557277ee9f249a51bef12"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-3",
+      "derivedSha256": "17d78bdb4c7cb3d90f9585bf896b71e3e51cf77acf9764258690cc83a886bdcb",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 887,
+          "end": 895,
+          "startLine": 24,
+          "endLine": 24,
+          "sha256": "104f9946e6caea930cc841fec7641d932a29405fcc1bbe0320fa71bf6d061b7d"
+        }
+      ],
+      "derivedStart": 988,
+      "derivedEnd": 994,
+      "derivedStartLine": 20,
+      "contextOriginals": [
+        {
+          "start": 31,
+          "end": 155,
+          "startLine": 3,
+          "endLine": 5,
+          "sha256": "2cfcb3b009acda4d4d419e0255ceaa2cbddd5ea30fe6f3f926a3cb6d3dd48728"
+        },
+        {
+          "start": 9,
+          "end": 30,
+          "startLine": 2,
+          "endLine": 2,
+          "sha256": "445505177f19904402b36761a595c3bc65950930511557277ee9f249a51bef12"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-4",
+      "derivedSha256": "44368adad746bc27c3f1133f81ad8938a444ddb3789a3f15bce4544bc1459801",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 897,
+          "end": 907,
+          "startLine": 24,
+          "endLine": 24,
+          "sha256": "9e59632b6bd5b4233697d7e9791c614802ef58ec8759e06576b4beb46831c8dd"
+        }
+      ],
+      "derivedStart": 1050,
+      "derivedEnd": 1058,
+      "derivedStartLine": 23,
+      "contextOriginals": [
+        {
+          "start": 31,
+          "end": 155,
+          "startLine": 3,
+          "endLine": 5,
+          "sha256": "2cfcb3b009acda4d4d419e0255ceaa2cbddd5ea30fe6f3f926a3cb6d3dd48728"
+        },
+        {
+          "start": 9,
+          "end": 30,
+          "startLine": 2,
+          "endLine": 2,
+          "sha256": "445505177f19904402b36761a595c3bc65950930511557277ee9f249a51bef12"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-5",
+      "derivedSha256": "dee91ddb90597936302cfd4341e409c87779ed9e0e8c8fde580e0af6cdace179",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 909,
+          "end": 921,
+          "startLine": 24,
+          "endLine": 24,
+          "sha256": "d832fb4c0712bef130af344e72faf6148be7e4880800b88b7a3b3edb037e30b9"
+        }
+      ],
+      "derivedStart": 1114,
+      "derivedEnd": 1124,
+      "derivedStartLine": 26,
+      "contextOriginals": [
+        {
+          "start": 31,
+          "end": 155,
+          "startLine": 3,
+          "endLine": 5,
+          "sha256": "2cfcb3b009acda4d4d419e0255ceaa2cbddd5ea30fe6f3f926a3cb6d3dd48728"
+        },
+        {
+          "start": 9,
+          "end": 30,
+          "startLine": 2,
+          "endLine": 2,
+          "sha256": "445505177f19904402b36761a595c3bc65950930511557277ee9f249a51bef12"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-6",
+      "derivedSha256": "ed0504f70a48ffe9ed17e7ddee02a72a9c8af602aee1f7ce11853975ce911733",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 927,
+          "end": 939,
+          "startLine": 25,
+          "endLine": 25,
+          "sha256": "57b41938142ed6c0d94ceff5fb10761fd88f431be3fe665e84776047a7b5eaa0"
+        }
+      ],
+      "derivedStart": 1180,
+      "derivedEnd": 1190,
+      "derivedStartLine": 29,
+      "contextOriginals": [
+        {
+          "start": 31,
+          "end": 155,
+          "startLine": 3,
+          "endLine": 5,
+          "sha256": "2cfcb3b009acda4d4d419e0255ceaa2cbddd5ea30fe6f3f926a3cb6d3dd48728"
+        },
+        {
+          "start": 9,
+          "end": 30,
+          "startLine": 2,
+          "endLine": 2,
+          "sha256": "445505177f19904402b36761a595c3bc65950930511557277ee9f249a51bef12"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-7",
+      "derivedSha256": "01fad993ff61aca9a1f2f07100c95eb1559d8b6440a00cb974a92810a6b5a2dc",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 941,
+          "end": 948,
+          "startLine": 25,
+          "endLine": 25,
+          "sha256": "8547fea176beffc6b9ba494c67799714bd6d8955fa65c4db4bfc1f09d18fe697"
+        }
+      ],
+      "derivedStart": 1246,
+      "derivedEnd": 1251,
+      "derivedStartLine": 32,
+      "contextOriginals": [
+        {
+          "start": 31,
+          "end": 155,
+          "startLine": 3,
+          "endLine": 5,
+          "sha256": "2cfcb3b009acda4d4d419e0255ceaa2cbddd5ea30fe6f3f926a3cb6d3dd48728"
+        },
+        {
+          "start": 9,
+          "end": 30,
+          "startLine": 2,
+          "endLine": 2,
+          "sha256": "445505177f19904402b36761a595c3bc65950930511557277ee9f249a51bef12"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-8",
+      "derivedSha256": "274b0f34ea9f3cc6ad2bd4c670b58ab9045a793b9731928554aa00a3c907348e",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 950,
+          "end": 958,
+          "startLine": 25,
+          "endLine": 25,
+          "sha256": "2b346a8d30c13de5c19f550706869bd3d89e0210f0e48f0ad8964e08d3e0bc8d"
+        }
+      ],
+      "derivedStart": 1307,
+      "derivedEnd": 1313,
+      "derivedStartLine": 35,
+      "contextOriginals": [
+        {
+          "start": 31,
+          "end": 155,
+          "startLine": 3,
+          "endLine": 5,
+          "sha256": "2cfcb3b009acda4d4d419e0255ceaa2cbddd5ea30fe6f3f926a3cb6d3dd48728"
+        },
+        {
+          "start": 9,
+          "end": 30,
+          "startLine": 2,
+          "endLine": 2,
+          "sha256": "445505177f19904402b36761a595c3bc65950930511557277ee9f249a51bef12"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-action-0",
+      "derivedSha256": "7d25bc78a4dd07851aa41ebc7990f7fed2304af8dc5c817cd0c3d479d7601350",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 994,
+          "end": 1111,
+          "startLine": 30,
+          "endLine": 32,
+          "sha256": "f94aa98160b9251a4299a8c0ff8189e0a93b3a56c9cf8ca7433975f85d4c91ed"
+        },
+        {
+          "start": 1217,
+          "end": 1403,
+          "startLine": 36,
+          "endLine": 39,
+          "sha256": "57cfbbde3709cdc3e5212156b0f473ee57f910450ac6b4bdc316437303968e02"
+        }
+      ],
+      "derivedStart": 1360,
+      "derivedEnd": 1575,
+      "derivedStartLine": 38,
+      "contextOriginals": [
+        {
+          "start": 994,
+          "end": 1111,
+          "startLine": 30,
+          "endLine": 32,
+          "sha256": "f94aa98160b9251a4299a8c0ff8189e0a93b3a56c9cf8ca7433975f85d4c91ed"
+        },
+        {
+          "start": 971,
+          "end": 993,
+          "startLine": 29,
+          "endLine": 29,
+          "sha256": "50916aedfea973b4da556caa7f83f3f7e7780ca85e41d6aca7058f75817aa8d2"
+        }
+      ],
+      "group": "work-1",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-action-1",
+      "derivedSha256": "a4e91360581e8bb14e437684d036630008a4b1b53aa9eabde16678fc5c42af29",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 994,
+          "end": 1111,
+          "startLine": 30,
+          "endLine": 32,
+          "sha256": "f94aa98160b9251a4299a8c0ff8189e0a93b3a56c9cf8ca7433975f85d4c91ed"
+        },
+        {
+          "start": 1409,
+          "end": 1607,
+          "startLine": 40,
+          "endLine": 43,
+          "sha256": "329bba89917221f3aae5bc2942fa9950cc6c43b107095cf7c3d3e1df37783d33"
+        }
+      ],
+      "derivedStart": 1622,
+      "derivedEnd": 1849,
+      "derivedStartLine": 41,
+      "contextOriginals": [
+        {
+          "start": 994,
+          "end": 1111,
+          "startLine": 30,
+          "endLine": 32,
+          "sha256": "f94aa98160b9251a4299a8c0ff8189e0a93b3a56c9cf8ca7433975f85d4c91ed"
+        },
+        {
+          "start": 971,
+          "end": 993,
+          "startLine": 29,
+          "endLine": 29,
+          "sha256": "50916aedfea973b4da556caa7f83f3f7e7780ca85e41d6aca7058f75817aa8d2"
+        }
+      ],
+      "group": "work-1",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "work-1-technology-0",
+      "derivedSha256": "18885f27b5af9012df19e496460f9294d5ab76128824c6f993787004f6d9a7db",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1624,
+          "end": 1632,
+          "startLine": 46,
+          "endLine": 46,
+          "sha256": "45f13bf50ac1fca6e27296d5383380ef0a471d3d5d04f78c829a445829f7d05a"
+        }
+      ],
+      "derivedStart": 1905,
+      "derivedEnd": 1911,
+      "derivedStartLine": 44,
+      "contextOriginals": [
+        {
+          "start": 994,
+          "end": 1111,
+          "startLine": 30,
+          "endLine": 32,
+          "sha256": "f94aa98160b9251a4299a8c0ff8189e0a93b3a56c9cf8ca7433975f85d4c91ed"
+        },
+        {
+          "start": 971,
+          "end": 993,
+          "startLine": 29,
+          "endLine": 29,
+          "sha256": "50916aedfea973b4da556caa7f83f3f7e7780ca85e41d6aca7058f75817aa8d2"
+        }
+      ],
+      "group": "work-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-technology-1",
+      "derivedSha256": "4445d918dfcf1af804b749eeee4835dccfd27c06b6828533be827473ff63439f",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1634,
+          "end": 1642,
+          "startLine": 46,
+          "endLine": 46,
+          "sha256": "d084ac08451dd954392bb7d31197af601a2d5e7374089dd9ff1938c3f16cf968"
+        }
+      ],
+      "derivedStart": 1967,
+      "derivedEnd": 1973,
+      "derivedStartLine": 47,
+      "contextOriginals": [
+        {
+          "start": 994,
+          "end": 1111,
+          "startLine": 30,
+          "endLine": 32,
+          "sha256": "f94aa98160b9251a4299a8c0ff8189e0a93b3a56c9cf8ca7433975f85d4c91ed"
+        },
+        {
+          "start": 971,
+          "end": 993,
+          "startLine": 29,
+          "endLine": 29,
+          "sha256": "50916aedfea973b4da556caa7f83f3f7e7780ca85e41d6aca7058f75817aa8d2"
+        }
+      ],
+      "group": "work-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-technology-2",
+      "derivedSha256": "42c7b829d8ba6456141435c80285d5e68bd22c050aa0e67f5cd945df445b79e0",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1644,
+          "end": 1653,
+          "startLine": 46,
+          "endLine": 46,
+          "sha256": "ef205c4daf7d1e64e03ec38dd4c3ae3f9c4fd01d7b24e237b886148f8e45d17c"
+        }
+      ],
+      "derivedStart": 2029,
+      "derivedEnd": 2036,
+      "derivedStartLine": 50,
+      "contextOriginals": [
+        {
+          "start": 994,
+          "end": 1111,
+          "startLine": 30,
+          "endLine": 32,
+          "sha256": "f94aa98160b9251a4299a8c0ff8189e0a93b3a56c9cf8ca7433975f85d4c91ed"
+        },
+        {
+          "start": 971,
+          "end": 993,
+          "startLine": 29,
+          "endLine": 29,
+          "sha256": "50916aedfea973b4da556caa7f83f3f7e7780ca85e41d6aca7058f75817aa8d2"
+        }
+      ],
+      "group": "work-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-technology-3",
+      "derivedSha256": "29841e00466b0e7cc40fea32f26a142fe30b47868820991ed02616d2ad0a6d01",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1655,
+          "end": 1661,
+          "startLine": 46,
+          "endLine": 46,
+          "sha256": "65c3aa60f38a27286f591f912d9f8a9450529f9486554ce8d668092f07f53e47"
+        }
+      ],
+      "derivedStart": 2092,
+      "derivedEnd": 2096,
+      "derivedStartLine": 53,
+      "contextOriginals": [
+        {
+          "start": 994,
+          "end": 1111,
+          "startLine": 30,
+          "endLine": 32,
+          "sha256": "f94aa98160b9251a4299a8c0ff8189e0a93b3a56c9cf8ca7433975f85d4c91ed"
+        },
+        {
+          "start": 971,
+          "end": 993,
+          "startLine": 29,
+          "endLine": 29,
+          "sha256": "50916aedfea973b4da556caa7f83f3f7e7780ca85e41d6aca7058f75817aa8d2"
+        }
+      ],
+      "group": "work-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-technology-4",
+      "derivedSha256": "44368adad746bc27c3f1133f81ad8938a444ddb3789a3f15bce4544bc1459801",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1663,
+          "end": 1673,
+          "startLine": 46,
+          "endLine": 46,
+          "sha256": "9e59632b6bd5b4233697d7e9791c614802ef58ec8759e06576b4beb46831c8dd"
+        }
+      ],
+      "derivedStart": 2152,
+      "derivedEnd": 2160,
+      "derivedStartLine": 56,
+      "contextOriginals": [
+        {
+          "start": 994,
+          "end": 1111,
+          "startLine": 30,
+          "endLine": 32,
+          "sha256": "f94aa98160b9251a4299a8c0ff8189e0a93b3a56c9cf8ca7433975f85d4c91ed"
+        },
+        {
+          "start": 971,
+          "end": 993,
+          "startLine": 29,
+          "endLine": 29,
+          "sha256": "50916aedfea973b4da556caa7f83f3f7e7780ca85e41d6aca7058f75817aa8d2"
+        }
+      ],
+      "group": "work-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-technology-5",
+      "derivedSha256": "1fc0c785332e80fb931c7a11323f27abb47a0a7f8bbdf23ffca3cac46497b21c",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1675,
+          "end": 1684,
+          "startLine": 46,
+          "endLine": 46,
+          "sha256": "6759411a99c005601071034c9d1b38a0eef0a08dcee943f9093b1f50f7e7b6a4"
+        }
+      ],
+      "derivedStart": 2216,
+      "derivedEnd": 2223,
+      "derivedStartLine": 59,
+      "contextOriginals": [
+        {
+          "start": 994,
+          "end": 1111,
+          "startLine": 30,
+          "endLine": 32,
+          "sha256": "f94aa98160b9251a4299a8c0ff8189e0a93b3a56c9cf8ca7433975f85d4c91ed"
+        },
+        {
+          "start": 971,
+          "end": 993,
+          "startLine": 29,
+          "endLine": 29,
+          "sha256": "50916aedfea973b4da556caa7f83f3f7e7780ca85e41d6aca7058f75817aa8d2"
+        }
+      ],
+      "group": "work-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-technology-6",
+      "derivedSha256": "31c819b24cf3c3c7cde022ff83007ff54b8e9087780f230a68e08fd47ed569e4",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1690,
+          "end": 1705,
+          "startLine": 47,
+          "endLine": 47,
+          "sha256": "13ce07f0c5ee10e5503ef11370af13ea9c40888cbfa6c724bc40e51a327f8c10"
+        }
+      ],
+      "derivedStart": 2279,
+      "derivedEnd": 2292,
+      "derivedStartLine": 62,
+      "contextOriginals": [
+        {
+          "start": 994,
+          "end": 1111,
+          "startLine": 30,
+          "endLine": 32,
+          "sha256": "f94aa98160b9251a4299a8c0ff8189e0a93b3a56c9cf8ca7433975f85d4c91ed"
+        },
+        {
+          "start": 971,
+          "end": 993,
+          "startLine": 29,
+          "endLine": 29,
+          "sha256": "50916aedfea973b4da556caa7f83f3f7e7780ca85e41d6aca7058f75817aa8d2"
+        }
+      ],
+      "group": "work-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-technology-7",
+      "derivedSha256": "ed0504f70a48ffe9ed17e7ddee02a72a9c8af602aee1f7ce11853975ce911733",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1707,
+          "end": 1719,
+          "startLine": 47,
+          "endLine": 47,
+          "sha256": "57b41938142ed6c0d94ceff5fb10761fd88f431be3fe665e84776047a7b5eaa0"
+        }
+      ],
+      "derivedStart": 2348,
+      "derivedEnd": 2358,
+      "derivedStartLine": 65,
+      "contextOriginals": [
+        {
+          "start": 994,
+          "end": 1111,
+          "startLine": 30,
+          "endLine": 32,
+          "sha256": "f94aa98160b9251a4299a8c0ff8189e0a93b3a56c9cf8ca7433975f85d4c91ed"
+        },
+        {
+          "start": 971,
+          "end": 993,
+          "startLine": 29,
+          "endLine": 29,
+          "sha256": "50916aedfea973b4da556caa7f83f3f7e7780ca85e41d6aca7058f75817aa8d2"
+        }
+      ],
+      "group": "work-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-technology-8",
+      "derivedSha256": "01fad993ff61aca9a1f2f07100c95eb1559d8b6440a00cb974a92810a6b5a2dc",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1721,
+          "end": 1728,
+          "startLine": 47,
+          "endLine": 47,
+          "sha256": "8547fea176beffc6b9ba494c67799714bd6d8955fa65c4db4bfc1f09d18fe697"
+        }
+      ],
+      "derivedStart": 2414,
+      "derivedEnd": 2419,
+      "derivedStartLine": 68,
+      "contextOriginals": [
+        {
+          "start": 994,
+          "end": 1111,
+          "startLine": 30,
+          "endLine": 32,
+          "sha256": "f94aa98160b9251a4299a8c0ff8189e0a93b3a56c9cf8ca7433975f85d4c91ed"
+        },
+        {
+          "start": 971,
+          "end": 993,
+          "startLine": 29,
+          "endLine": 29,
+          "sha256": "50916aedfea973b4da556caa7f83f3f7e7780ca85e41d6aca7058f75817aa8d2"
+        }
+      ],
+      "group": "work-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-action-0",
+      "derivedSha256": "a0d0a8723fd4ad29499e2efafa5e494ccc2dfb62bbd96518a84d0c7d1e6d9597",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1757,
+          "end": 1882,
+          "startLine": 52,
+          "endLine": 54,
+          "sha256": "39f4fa0748bf6e76e13e3e1477b314a0613de9b1fc4bfe5f8b1962bf217d82d1"
+        },
+        {
+          "start": 1993,
+          "end": 2161,
+          "startLine": 58,
+          "endLine": 61,
+          "sha256": "c88c0a23060cfe3753fe1a1518d99d0c120a1978f3403585dd84391305267910"
+        }
+      ],
+      "derivedStart": 2466,
+      "derivedEnd": 2665,
+      "derivedStartLine": 71,
+      "contextOriginals": [
+        {
+          "start": 1757,
+          "end": 1882,
+          "startLine": 52,
+          "endLine": 54,
+          "sha256": "39f4fa0748bf6e76e13e3e1477b314a0613de9b1fc4bfe5f8b1962bf217d82d1"
+        },
+        {
+          "start": 1741,
+          "end": 1756,
+          "startLine": 51,
+          "endLine": 51,
+          "sha256": "aaa13702c4470f0ca2b6af2993a02c404899e5c8ea0bb2a843330d15c30ae200"
+        }
+      ],
+      "group": "work-2",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "work-2-action-1",
+      "derivedSha256": "f67f7a98d5ebc2526f00e63b33c41197ffa396b719ec3852707d7735242362e7",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1757,
+          "end": 1882,
+          "startLine": 52,
+          "endLine": 54,
+          "sha256": "39f4fa0748bf6e76e13e3e1477b314a0613de9b1fc4bfe5f8b1962bf217d82d1"
+        },
+        {
+          "start": 2167,
+          "end": 2323,
+          "startLine": 62,
+          "endLine": 65,
+          "sha256": "646c28e9ee38839211758c576142632fab279c3ea7ddd940c1cd8c58971896a0"
+        }
+      ],
+      "derivedStart": 2712,
+      "derivedEnd": 2899,
+      "derivedStartLine": 74,
+      "contextOriginals": [
+        {
+          "start": 1757,
+          "end": 1882,
+          "startLine": 52,
+          "endLine": 54,
+          "sha256": "39f4fa0748bf6e76e13e3e1477b314a0613de9b1fc4bfe5f8b1962bf217d82d1"
+        },
+        {
+          "start": 1741,
+          "end": 1756,
+          "startLine": 51,
+          "endLine": 51,
+          "sha256": "aaa13702c4470f0ca2b6af2993a02c404899e5c8ea0bb2a843330d15c30ae200"
+        }
+      ],
+      "group": "work-2",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-0",
+      "derivedSha256": "18885f27b5af9012df19e496460f9294d5ab76128824c6f993787004f6d9a7db",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2334,
+          "end": 2342,
+          "startLine": 67,
+          "endLine": 67,
+          "sha256": "45f13bf50ac1fca6e27296d5383380ef0a471d3d5d04f78c829a445829f7d05a"
+        }
+      ],
+      "derivedStart": 2955,
+      "derivedEnd": 2961,
+      "derivedStartLine": 77,
+      "contextOriginals": [
+        {
+          "start": 1757,
+          "end": 1882,
+          "startLine": 52,
+          "endLine": 54,
+          "sha256": "39f4fa0748bf6e76e13e3e1477b314a0613de9b1fc4bfe5f8b1962bf217d82d1"
+        },
+        {
+          "start": 1741,
+          "end": 1756,
+          "startLine": 51,
+          "endLine": 51,
+          "sha256": "aaa13702c4470f0ca2b6af2993a02c404899e5c8ea0bb2a843330d15c30ae200"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-1",
+      "derivedSha256": "4445d918dfcf1af804b749eeee4835dccfd27c06b6828533be827473ff63439f",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2344,
+          "end": 2352,
+          "startLine": 67,
+          "endLine": 67,
+          "sha256": "d084ac08451dd954392bb7d31197af601a2d5e7374089dd9ff1938c3f16cf968"
+        }
+      ],
+      "derivedStart": 3017,
+      "derivedEnd": 3023,
+      "derivedStartLine": 80,
+      "contextOriginals": [
+        {
+          "start": 1757,
+          "end": 1882,
+          "startLine": 52,
+          "endLine": 54,
+          "sha256": "39f4fa0748bf6e76e13e3e1477b314a0613de9b1fc4bfe5f8b1962bf217d82d1"
+        },
+        {
+          "start": 1741,
+          "end": 1756,
+          "startLine": 51,
+          "endLine": 51,
+          "sha256": "aaa13702c4470f0ca2b6af2993a02c404899e5c8ea0bb2a843330d15c30ae200"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-2",
+      "derivedSha256": "071ceeb09dce1e5d756bd61cc2d513d3bb74af4e2d61e143972d346bc9bc2eaa",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2354,
+          "end": 2377,
+          "startLine": 67,
+          "endLine": 67,
+          "sha256": "0565d8151b2baf288b6c00f90f5676966d416b01c8b3b0898c40fc24d419c6e9"
+        }
+      ],
+      "derivedStart": 3079,
+      "derivedEnd": 3100,
+      "derivedStartLine": 83,
+      "contextOriginals": [
+        {
+          "start": 1757,
+          "end": 1882,
+          "startLine": 52,
+          "endLine": 54,
+          "sha256": "39f4fa0748bf6e76e13e3e1477b314a0613de9b1fc4bfe5f8b1962bf217d82d1"
+        },
+        {
+          "start": 1741,
+          "end": 1756,
+          "startLine": 51,
+          "endLine": 51,
+          "sha256": "aaa13702c4470f0ca2b6af2993a02c404899e5c8ea0bb2a843330d15c30ae200"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-3",
+      "derivedSha256": "17d78bdb4c7cb3d90f9585bf896b71e3e51cf77acf9764258690cc83a886bdcb",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2379,
+          "end": 2387,
+          "startLine": 67,
+          "endLine": 67,
+          "sha256": "104f9946e6caea930cc841fec7641d932a29405fcc1bbe0320fa71bf6d061b7d"
+        }
+      ],
+      "derivedStart": 3156,
+      "derivedEnd": 3162,
+      "derivedStartLine": 86,
+      "contextOriginals": [
+        {
+          "start": 1757,
+          "end": 1882,
+          "startLine": 52,
+          "endLine": 54,
+          "sha256": "39f4fa0748bf6e76e13e3e1477b314a0613de9b1fc4bfe5f8b1962bf217d82d1"
+        },
+        {
+          "start": 1741,
+          "end": 1756,
+          "startLine": 51,
+          "endLine": 51,
+          "sha256": "aaa13702c4470f0ca2b6af2993a02c404899e5c8ea0bb2a843330d15c30ae200"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-4",
+      "derivedSha256": "211906c1c32db77e3082ad28ae2eb3130f83d6e7a6150b6aa6ab6545173c13a7",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2389,
+          "end": 2396,
+          "startLine": 67,
+          "endLine": 67,
+          "sha256": "3def64d9536ac1e96b55921bc80ba79344ea0ce6042acb0c867618635eff4918"
+        }
+      ],
+      "derivedStart": 3218,
+      "derivedEnd": 3223,
+      "derivedStartLine": 89,
+      "contextOriginals": [
+        {
+          "start": 1757,
+          "end": 1882,
+          "startLine": 52,
+          "endLine": 54,
+          "sha256": "39f4fa0748bf6e76e13e3e1477b314a0613de9b1fc4bfe5f8b1962bf217d82d1"
+        },
+        {
+          "start": 1741,
+          "end": 1756,
+          "startLine": 51,
+          "endLine": 51,
+          "sha256": "aaa13702c4470f0ca2b6af2993a02c404899e5c8ea0bb2a843330d15c30ae200"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-5",
+      "derivedSha256": "ed0504f70a48ffe9ed17e7ddee02a72a9c8af602aee1f7ce11853975ce911733",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2398,
+          "end": 2410,
+          "startLine": 67,
+          "endLine": 67,
+          "sha256": "57b41938142ed6c0d94ceff5fb10761fd88f431be3fe665e84776047a7b5eaa0"
+        }
+      ],
+      "derivedStart": 3279,
+      "derivedEnd": 3289,
+      "derivedStartLine": 92,
+      "contextOriginals": [
+        {
+          "start": 1757,
+          "end": 1882,
+          "startLine": 52,
+          "endLine": 54,
+          "sha256": "39f4fa0748bf6e76e13e3e1477b314a0613de9b1fc4bfe5f8b1962bf217d82d1"
+        },
+        {
+          "start": 1741,
+          "end": 1756,
+          "startLine": 51,
+          "endLine": 51,
+          "sha256": "aaa13702c4470f0ca2b6af2993a02c404899e5c8ea0bb2a843330d15c30ae200"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-6",
+      "derivedSha256": "01fad993ff61aca9a1f2f07100c95eb1559d8b6440a00cb974a92810a6b5a2dc",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2412,
+          "end": 2419,
+          "startLine": 67,
+          "endLine": 67,
+          "sha256": "8547fea176beffc6b9ba494c67799714bd6d8955fa65c4db4bfc1f09d18fe697"
+        }
+      ],
+      "derivedStart": 3345,
+      "derivedEnd": 3350,
+      "derivedStartLine": 95,
+      "contextOriginals": [
+        {
+          "start": 1757,
+          "end": 1882,
+          "startLine": 52,
+          "endLine": 54,
+          "sha256": "39f4fa0748bf6e76e13e3e1477b314a0613de9b1fc4bfe5f8b1962bf217d82d1"
+        },
+        {
+          "start": 1741,
+          "end": 1756,
+          "startLine": 51,
+          "endLine": 51,
+          "sha256": "aaa13702c4470f0ca2b6af2993a02c404899e5c8ea0bb2a843330d15c30ae200"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3-action-0",
+      "derivedSha256": "4b3d7d2836bbead3fc25129a8c2b705ed5490416f87e08b04a7c41705f2334f8",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2454,
+          "end": 2562,
+          "startLine": 71,
+          "endLine": 73,
+          "sha256": "c2d55ae5109ab9cff24253b470ec6e074bb7ef08c4eec1965924b6928fe43763"
+        },
+        {
+          "start": 2678,
+          "end": 2872,
+          "startLine": 77,
+          "endLine": 80,
+          "sha256": "b2dd1eac529ea87f5fa4e17fc26d69700633df249aa8fa2989eaeb6eae6dce72"
+        }
+      ],
+      "derivedStart": 3397,
+      "derivedEnd": 3603,
+      "derivedStartLine": 98,
+      "contextOriginals": [
+        {
+          "start": 2454,
+          "end": 2562,
+          "startLine": 71,
+          "endLine": 73,
+          "sha256": "c2d55ae5109ab9cff24253b470ec6e074bb7ef08c4eec1965924b6928fe43763"
+        },
+        {
+          "start": 2431,
+          "end": 2453,
+          "startLine": 70,
+          "endLine": 70,
+          "sha256": "71898bf8f6f4122ecec4ef5a0d773e22d5e95da9bf806377f0ed6f4b14e476be"
+        }
+      ],
+      "group": "work-3",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "work-3-action-1",
+      "derivedSha256": "0813aef34dbdd7d2a07b96a876b7a9969c00bc55368f30921fb91c3832d48568",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2454,
+          "end": 2562,
+          "startLine": 71,
+          "endLine": 73,
+          "sha256": "c2d55ae5109ab9cff24253b470ec6e074bb7ef08c4eec1965924b6928fe43763"
+        },
+        {
+          "start": 2878,
+          "end": 3024,
+          "startLine": 81,
+          "endLine": 84,
+          "sha256": "ce7907d8fe8cc9bef4b543e4696e7ce4a039aea69c6ec7879ed4322a0a8dc807"
+        }
+      ],
+      "derivedStart": 3650,
+      "derivedEnd": 3808,
+      "derivedStartLine": 101,
+      "contextOriginals": [
+        {
+          "start": 2454,
+          "end": 2562,
+          "startLine": 71,
+          "endLine": 73,
+          "sha256": "c2d55ae5109ab9cff24253b470ec6e074bb7ef08c4eec1965924b6928fe43763"
+        },
+        {
+          "start": 2431,
+          "end": 2453,
+          "startLine": 70,
+          "endLine": 70,
+          "sha256": "71898bf8f6f4122ecec4ef5a0d773e22d5e95da9bf806377f0ed6f4b14e476be"
+        }
+      ],
+      "group": "work-3",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3-action-2",
+      "derivedSha256": "9f9839e545777c18fbb26d1fd284ec4ff44d88518f7c42a04e93f452dd9c1e34",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2454,
+          "end": 2562,
+          "startLine": 71,
+          "endLine": 73,
+          "sha256": "c2d55ae5109ab9cff24253b470ec6e074bb7ef08c4eec1965924b6928fe43763"
+        },
+        {
+          "start": 3030,
+          "end": 3209,
+          "startLine": 85,
+          "endLine": 88,
+          "sha256": "2ddb78c31b037faf205eae23563be6a769783de507cf161fa4bd72330c4b880b"
+        }
+      ],
+      "derivedStart": 3855,
+      "derivedEnd": 4046,
+      "derivedStartLine": 104,
+      "contextOriginals": [
+        {
+          "start": 2454,
+          "end": 2562,
+          "startLine": 71,
+          "endLine": 73,
+          "sha256": "c2d55ae5109ab9cff24253b470ec6e074bb7ef08c4eec1965924b6928fe43763"
+        },
+        {
+          "start": 2431,
+          "end": 2453,
+          "startLine": 70,
+          "endLine": 70,
+          "sha256": "71898bf8f6f4122ecec4ef5a0d773e22d5e95da9bf806377f0ed6f4b14e476be"
+        }
+      ],
+      "group": "work-3",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "work-3-technology-0",
+      "derivedSha256": "18885f27b5af9012df19e496460f9294d5ab76128824c6f993787004f6d9a7db",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3226,
+          "end": 3234,
+          "startLine": 91,
+          "endLine": 91,
+          "sha256": "45f13bf50ac1fca6e27296d5383380ef0a471d3d5d04f78c829a445829f7d05a"
+        }
+      ],
+      "derivedStart": 4102,
+      "derivedEnd": 4108,
+      "derivedStartLine": 107,
+      "contextOriginals": [
+        {
+          "start": 2454,
+          "end": 2562,
+          "startLine": 71,
+          "endLine": 73,
+          "sha256": "c2d55ae5109ab9cff24253b470ec6e074bb7ef08c4eec1965924b6928fe43763"
+        },
+        {
+          "start": 2431,
+          "end": 2453,
+          "startLine": 70,
+          "endLine": 70,
+          "sha256": "71898bf8f6f4122ecec4ef5a0d773e22d5e95da9bf806377f0ed6f4b14e476be"
+        }
+      ],
+      "group": "work-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3-technology-1",
+      "derivedSha256": "4445d918dfcf1af804b749eeee4835dccfd27c06b6828533be827473ff63439f",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3236,
+          "end": 3244,
+          "startLine": 91,
+          "endLine": 91,
+          "sha256": "d084ac08451dd954392bb7d31197af601a2d5e7374089dd9ff1938c3f16cf968"
+        }
+      ],
+      "derivedStart": 4164,
+      "derivedEnd": 4170,
+      "derivedStartLine": 110,
+      "contextOriginals": [
+        {
+          "start": 2454,
+          "end": 2562,
+          "startLine": 71,
+          "endLine": 73,
+          "sha256": "c2d55ae5109ab9cff24253b470ec6e074bb7ef08c4eec1965924b6928fe43763"
+        },
+        {
+          "start": 2431,
+          "end": 2453,
+          "startLine": 70,
+          "endLine": 70,
+          "sha256": "71898bf8f6f4122ecec4ef5a0d773e22d5e95da9bf806377f0ed6f4b14e476be"
+        }
+      ],
+      "group": "work-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3-technology-2",
+      "derivedSha256": "17d78bdb4c7cb3d90f9585bf896b71e3e51cf77acf9764258690cc83a886bdcb",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3246,
+          "end": 3254,
+          "startLine": 91,
+          "endLine": 91,
+          "sha256": "104f9946e6caea930cc841fec7641d932a29405fcc1bbe0320fa71bf6d061b7d"
+        }
+      ],
+      "derivedStart": 4226,
+      "derivedEnd": 4232,
+      "derivedStartLine": 113,
+      "contextOriginals": [
+        {
+          "start": 2454,
+          "end": 2562,
+          "startLine": 71,
+          "endLine": 73,
+          "sha256": "c2d55ae5109ab9cff24253b470ec6e074bb7ef08c4eec1965924b6928fe43763"
+        },
+        {
+          "start": 2431,
+          "end": 2453,
+          "startLine": 70,
+          "endLine": 70,
+          "sha256": "71898bf8f6f4122ecec4ef5a0d773e22d5e95da9bf806377f0ed6f4b14e476be"
+        }
+      ],
+      "group": "work-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3-technology-3",
+      "derivedSha256": "44368adad746bc27c3f1133f81ad8938a444ddb3789a3f15bce4544bc1459801",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3260,
+          "end": 3270,
+          "startLine": 92,
+          "endLine": 92,
+          "sha256": "9e59632b6bd5b4233697d7e9791c614802ef58ec8759e06576b4beb46831c8dd"
+        }
+      ],
+      "derivedStart": 4288,
+      "derivedEnd": 4296,
+      "derivedStartLine": 116,
+      "contextOriginals": [
+        {
+          "start": 2454,
+          "end": 2562,
+          "startLine": 71,
+          "endLine": 73,
+          "sha256": "c2d55ae5109ab9cff24253b470ec6e074bb7ef08c4eec1965924b6928fe43763"
+        },
+        {
+          "start": 2431,
+          "end": 2453,
+          "startLine": 70,
+          "endLine": 70,
+          "sha256": "71898bf8f6f4122ecec4ef5a0d773e22d5e95da9bf806377f0ed6f4b14e476be"
+        }
+      ],
+      "group": "work-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3-technology-4",
+      "derivedSha256": "40ae60e18f02de3279ad4d65e26de52c56983cb5084bdab09ee73935e0920945",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3272,
+          "end": 3285,
+          "startLine": 92,
+          "endLine": 92,
+          "sha256": "a8b5b58abf9ba0acb5900c0667c3bdbd4aef02b2ac667d3a95b770a3ba3ba749"
+        }
+      ],
+      "derivedStart": 4352,
+      "derivedEnd": 4363,
+      "derivedStartLine": 119,
+      "contextOriginals": [
+        {
+          "start": 2454,
+          "end": 2562,
+          "startLine": 71,
+          "endLine": 73,
+          "sha256": "c2d55ae5109ab9cff24253b470ec6e074bb7ef08c4eec1965924b6928fe43763"
+        },
+        {
+          "start": 2431,
+          "end": 2453,
+          "startLine": 70,
+          "endLine": 70,
+          "sha256": "71898bf8f6f4122ecec4ef5a0d773e22d5e95da9bf806377f0ed6f4b14e476be"
+        }
+      ],
+      "group": "work-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3-technology-5",
+      "derivedSha256": "51b197a5083739756d3f8634ae444e9874b51e7703a7b6e72276385d54cf4db3",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3287,
+          "end": 3293,
+          "startLine": 92,
+          "endLine": 92,
+          "sha256": "c16f48bbef0ea160cb211fd719ba318a44179af4898077e0857a8ebe4ac99d37"
+        }
+      ],
+      "derivedStart": 4419,
+      "derivedEnd": 4423,
+      "derivedStartLine": 122,
+      "contextOriginals": [
+        {
+          "start": 2454,
+          "end": 2562,
+          "startLine": 71,
+          "endLine": 73,
+          "sha256": "c2d55ae5109ab9cff24253b470ec6e074bb7ef08c4eec1965924b6928fe43763"
+        },
+        {
+          "start": 2431,
+          "end": 2453,
+          "startLine": 70,
+          "endLine": 70,
+          "sha256": "71898bf8f6f4122ecec4ef5a0d773e22d5e95da9bf806377f0ed6f4b14e476be"
+        }
+      ],
+      "group": "work-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3-technology-6",
+      "derivedSha256": "ed0504f70a48ffe9ed17e7ddee02a72a9c8af602aee1f7ce11853975ce911733",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3299,
+          "end": 3311,
+          "startLine": 93,
+          "endLine": 93,
+          "sha256": "57b41938142ed6c0d94ceff5fb10761fd88f431be3fe665e84776047a7b5eaa0"
+        }
+      ],
+      "derivedStart": 4479,
+      "derivedEnd": 4489,
+      "derivedStartLine": 125,
+      "contextOriginals": [
+        {
+          "start": 2454,
+          "end": 2562,
+          "startLine": 71,
+          "endLine": 73,
+          "sha256": "c2d55ae5109ab9cff24253b470ec6e074bb7ef08c4eec1965924b6928fe43763"
+        },
+        {
+          "start": 2431,
+          "end": 2453,
+          "startLine": 70,
+          "endLine": 70,
+          "sha256": "71898bf8f6f4122ecec4ef5a0d773e22d5e95da9bf806377f0ed6f4b14e476be"
+        }
+      ],
+      "group": "work-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3-technology-7",
+      "derivedSha256": "01fad993ff61aca9a1f2f07100c95eb1559d8b6440a00cb974a92810a6b5a2dc",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3313,
+          "end": 3320,
+          "startLine": 93,
+          "endLine": 93,
+          "sha256": "8547fea176beffc6b9ba494c67799714bd6d8955fa65c4db4bfc1f09d18fe697"
+        }
+      ],
+      "derivedStart": 4545,
+      "derivedEnd": 4550,
+      "derivedStartLine": 128,
+      "contextOriginals": [
+        {
+          "start": 2454,
+          "end": 2562,
+          "startLine": 71,
+          "endLine": 73,
+          "sha256": "c2d55ae5109ab9cff24253b470ec6e074bb7ef08c4eec1965924b6928fe43763"
+        },
+        {
+          "start": 2431,
+          "end": 2453,
+          "startLine": 70,
+          "endLine": 70,
+          "sha256": "71898bf8f6f4122ecec4ef5a0d773e22d5e95da9bf806377f0ed6f4b14e476be"
+        }
+      ],
+      "group": "work-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3-technology-8",
+      "derivedSha256": "ee27322554e46143c3c56f419fc28b71a445380e4e5af7332aabdb87c7d0ec26",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3322,
+          "end": 3331,
+          "startLine": 93,
+          "endLine": 93,
+          "sha256": "448a9057010fd99756fd64f6a28164787d5e2a57ba516deddbc139bd7a7a5ff3"
+        }
+      ],
+      "derivedStart": 4606,
+      "derivedEnd": 4613,
+      "derivedStartLine": 131,
+      "contextOriginals": [
+        {
+          "start": 2454,
+          "end": 2562,
+          "startLine": 71,
+          "endLine": 73,
+          "sha256": "c2d55ae5109ab9cff24253b470ec6e074bb7ef08c4eec1965924b6928fe43763"
+        },
+        {
+          "start": 2431,
+          "end": 2453,
+          "startLine": 70,
+          "endLine": 70,
+          "sha256": "71898bf8f6f4122ecec4ef5a0d773e22d5e95da9bf806377f0ed6f4b14e476be"
+        }
+      ],
+      "group": "work-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-4-action-0",
+      "derivedSha256": "adbe7d8c950e83c2fc8867994a487ad84eb95ebe8d0e7d8f5b69d338e8e47639",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3385,
+          "end": 3516,
+          "startLine": 99,
+          "endLine": 100,
+          "sha256": "1b95d93d97ae80e63f6499e4a695a6785a18dde2d5e9abe355a7f92ced81b26f"
+        },
+        {
+          "start": 3650,
+          "end": 3763,
+          "startLine": 104,
+          "endLine": 106,
+          "sha256": "4ef009e9c74f957461196af4d7e772c0f67954e56f7d9e5065b0d47b04cff98d"
+        }
+      ],
+      "derivedStart": 4660,
+      "derivedEnd": 4798,
+      "derivedStartLine": 134,
+      "contextOriginals": [
+        {
+          "start": 3385,
+          "end": 3516,
+          "startLine": 99,
+          "endLine": 100,
+          "sha256": "1b95d93d97ae80e63f6499e4a695a6785a18dde2d5e9abe355a7f92ced81b26f"
+        },
+        {
+          "start": 3369,
+          "end": 3384,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "bbef82f0e1261a2c7c505d35ea620abfb7585253bb5d950a881418143c3bc549"
+        }
+      ],
+      "group": "work-4",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-4-action-1",
+      "derivedSha256": "7d2b7845a32fbf6d197c0230a64b9649cbeab20cba62e3cd6dae610602210435",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3385,
+          "end": 3516,
+          "startLine": 99,
+          "endLine": 100,
+          "sha256": "1b95d93d97ae80e63f6499e4a695a6785a18dde2d5e9abe355a7f92ced81b26f"
+        },
+        {
+          "start": 3769,
+          "end": 3880,
+          "startLine": 107,
+          "endLine": 109,
+          "sha256": "4c6063c6aea3d21c35861037d2b62d83c41d0980b3d8ea500aae46ccee1c38d6"
+        }
+      ],
+      "derivedStart": 4845,
+      "derivedEnd": 4981,
+      "derivedStartLine": 137,
+      "contextOriginals": [
+        {
+          "start": 3385,
+          "end": 3516,
+          "startLine": 99,
+          "endLine": 100,
+          "sha256": "1b95d93d97ae80e63f6499e4a695a6785a18dde2d5e9abe355a7f92ced81b26f"
+        },
+        {
+          "start": 3369,
+          "end": 3384,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "bbef82f0e1261a2c7c505d35ea620abfb7585253bb5d950a881418143c3bc549"
+        }
+      ],
+      "group": "work-4",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-4-technology-0",
+      "derivedSha256": "0a6a15345ad0c7e36ed9dc3ec9c8ce843af4bc765d1019eb6d563e0836b962f3",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3892,
+          "end": 3897,
+          "startLine": 111,
+          "endLine": 111,
+          "sha256": "f8d45684ad22b951c4786d51d6ce36da5eea15038d9c0546f3632e0c94193fde"
+        }
+      ],
+      "derivedStart": 5037,
+      "derivedEnd": 5040,
+      "derivedStartLine": 140,
+      "contextOriginals": [
+        {
+          "start": 3385,
+          "end": 3516,
+          "startLine": 99,
+          "endLine": 100,
+          "sha256": "1b95d93d97ae80e63f6499e4a695a6785a18dde2d5e9abe355a7f92ced81b26f"
+        },
+        {
+          "start": 3369,
+          "end": 3384,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "bbef82f0e1261a2c7c505d35ea620abfb7585253bb5d950a881418143c3bc549"
+        }
+      ],
+      "group": "work-4",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-4-technology-1",
+      "derivedSha256": "45eff1960e31c7dec75830614cf50de9bad832e964f8074a92567fcb9aecdd05",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3899,
+          "end": 3908,
+          "startLine": 111,
+          "endLine": 111,
+          "sha256": "2c5ac21a5a982b9567779c5348a865cc2a47512a82a12b09273dab2fb880fe00"
+        }
+      ],
+      "derivedStart": 5096,
+      "derivedEnd": 5103,
+      "derivedStartLine": 143,
+      "contextOriginals": [
+        {
+          "start": 3385,
+          "end": 3516,
+          "startLine": 99,
+          "endLine": 100,
+          "sha256": "1b95d93d97ae80e63f6499e4a695a6785a18dde2d5e9abe355a7f92ced81b26f"
+        },
+        {
+          "start": 3369,
+          "end": 3384,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "bbef82f0e1261a2c7c505d35ea620abfb7585253bb5d950a881418143c3bc549"
+        }
+      ],
+      "group": "work-4",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-4-technology-2",
+      "derivedSha256": "694032b7ede90d08b6d0ebba2aa83fa9529ef4a113d0897bb7445984ad4cccbd",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3910,
+          "end": 3920,
+          "startLine": 111,
+          "endLine": 111,
+          "sha256": "91e67c1177e80fa1c45aab3fa35fb06e733b052dcde4c4a8e15c1f641e3fbab8"
+        }
+      ],
+      "derivedStart": 5159,
+      "derivedEnd": 5167,
+      "derivedStartLine": 146,
+      "contextOriginals": [
+        {
+          "start": 3385,
+          "end": 3516,
+          "startLine": 99,
+          "endLine": 100,
+          "sha256": "1b95d93d97ae80e63f6499e4a695a6785a18dde2d5e9abe355a7f92ced81b26f"
+        },
+        {
+          "start": 3369,
+          "end": 3384,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "bbef82f0e1261a2c7c505d35ea620abfb7585253bb5d950a881418143c3bc549"
+        }
+      ],
+      "group": "work-4",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-4-technology-3",
+      "derivedSha256": "44368adad746bc27c3f1133f81ad8938a444ddb3789a3f15bce4544bc1459801",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3922,
+          "end": 3932,
+          "startLine": 111,
+          "endLine": 111,
+          "sha256": "9e59632b6bd5b4233697d7e9791c614802ef58ec8759e06576b4beb46831c8dd"
+        }
+      ],
+      "derivedStart": 5223,
+      "derivedEnd": 5231,
+      "derivedStartLine": 149,
+      "contextOriginals": [
+        {
+          "start": 3385,
+          "end": 3516,
+          "startLine": 99,
+          "endLine": 100,
+          "sha256": "1b95d93d97ae80e63f6499e4a695a6785a18dde2d5e9abe355a7f92ced81b26f"
+        },
+        {
+          "start": 3369,
+          "end": 3384,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "bbef82f0e1261a2c7c505d35ea620abfb7585253bb5d950a881418143c3bc549"
+        }
+      ],
+      "group": "work-4",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-4-technology-4",
+      "derivedSha256": "2e460ba72bb849ac369c4b71cf891c8f51f6ae9144ca6834b06486d1cedabc01",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3934,
+          "end": 3940,
+          "startLine": 111,
+          "endLine": 111,
+          "sha256": "83eda62045a484a07f8b8457529dc1a992e0731d7a41602b99bb1d613f5caeab"
+        }
+      ],
+      "derivedStart": 5287,
+      "derivedEnd": 5291,
+      "derivedStartLine": 152,
+      "contextOriginals": [
+        {
+          "start": 3385,
+          "end": 3516,
+          "startLine": 99,
+          "endLine": 100,
+          "sha256": "1b95d93d97ae80e63f6499e4a695a6785a18dde2d5e9abe355a7f92ced81b26f"
+        },
+        {
+          "start": 3369,
+          "end": 3384,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "bbef82f0e1261a2c7c505d35ea620abfb7585253bb5d950a881418143c3bc549"
+        }
+      ],
+      "group": "work-4",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-5-action-0",
+      "derivedSha256": "be196871cb39384a922a71e54e2a277f08aae75da8dd976d7ee268198c36b98e",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3975,
+          "end": 4083,
+          "startLine": 115,
+          "endLine": 117,
+          "sha256": "7581a9ded161842cd0af8ec058a779e303b077cc97a41c0e32416a8b03b59fe4"
+        },
+        {
+          "start": 4187,
+          "end": 4298,
+          "startLine": 121,
+          "endLine": 124,
+          "sha256": "26ddbbafb6af63bb7043757bd2e5bed95376127bc39a00de614231ef54aa2a60"
+        }
+      ],
+      "derivedStart": 5338,
+      "derivedEnd": 5472,
+      "derivedStartLine": 155,
+      "contextOriginals": [
+        {
+          "start": 3975,
+          "end": 4083,
+          "startLine": 115,
+          "endLine": 117,
+          "sha256": "7581a9ded161842cd0af8ec058a779e303b077cc97a41c0e32416a8b03b59fe4"
+        },
+        {
+          "start": 3952,
+          "end": 3974,
+          "startLine": 114,
+          "endLine": 114,
+          "sha256": "576c86000078cd45bff48f0ff50e6b1cd362b6443c37f197e0d484f31f6bc2fa"
+        }
+      ],
+      "group": "work-5",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-5-action-1",
+      "derivedSha256": "6a64aaa27fc43c6a9f62de6136769b90d83a5f15485bff2cfb8013cee920e53d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 3975,
+          "end": 4083,
+          "startLine": 115,
+          "endLine": 117,
+          "sha256": "7581a9ded161842cd0af8ec058a779e303b077cc97a41c0e32416a8b03b59fe4"
+        },
+        {
+          "start": 4304,
+          "end": 4473,
+          "startLine": 125,
+          "endLine": 128,
+          "sha256": "65fbf74d1ad1ec507df2fa5b1c25b7ccbd5420a95315be52e8e2555090b26c6a"
+        }
+      ],
+      "derivedStart": 5519,
+      "derivedEnd": 5702,
+      "derivedStartLine": 158,
+      "contextOriginals": [
+        {
+          "start": 3975,
+          "end": 4083,
+          "startLine": 115,
+          "endLine": 117,
+          "sha256": "7581a9ded161842cd0af8ec058a779e303b077cc97a41c0e32416a8b03b59fe4"
+        },
+        {
+          "start": 3952,
+          "end": 3974,
+          "startLine": 114,
+          "endLine": 114,
+          "sha256": "576c86000078cd45bff48f0ff50e6b1cd362b6443c37f197e0d484f31f6bc2fa"
+        }
+      ],
+      "group": "work-5",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-5-technology-0",
+      "derivedSha256": "0a6a15345ad0c7e36ed9dc3ec9c8ce843af4bc765d1019eb6d563e0836b962f3",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4485,
+          "end": 4490,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "f8d45684ad22b951c4786d51d6ce36da5eea15038d9c0546f3632e0c94193fde"
+        }
+      ],
+      "derivedStart": 5758,
+      "derivedEnd": 5761,
+      "derivedStartLine": 161,
+      "contextOriginals": [
+        {
+          "start": 3975,
+          "end": 4083,
+          "startLine": 115,
+          "endLine": 117,
+          "sha256": "7581a9ded161842cd0af8ec058a779e303b077cc97a41c0e32416a8b03b59fe4"
+        },
+        {
+          "start": 3952,
+          "end": 3974,
+          "startLine": 114,
+          "endLine": 114,
+          "sha256": "576c86000078cd45bff48f0ff50e6b1cd362b6443c37f197e0d484f31f6bc2fa"
+        }
+      ],
+      "group": "work-5",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-5-technology-1",
+      "derivedSha256": "45eff1960e31c7dec75830614cf50de9bad832e964f8074a92567fcb9aecdd05",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4492,
+          "end": 4501,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "2c5ac21a5a982b9567779c5348a865cc2a47512a82a12b09273dab2fb880fe00"
+        }
+      ],
+      "derivedStart": 5817,
+      "derivedEnd": 5824,
+      "derivedStartLine": 164,
+      "contextOriginals": [
+        {
+          "start": 3975,
+          "end": 4083,
+          "startLine": 115,
+          "endLine": 117,
+          "sha256": "7581a9ded161842cd0af8ec058a779e303b077cc97a41c0e32416a8b03b59fe4"
+        },
+        {
+          "start": 3952,
+          "end": 3974,
+          "startLine": 114,
+          "endLine": 114,
+          "sha256": "576c86000078cd45bff48f0ff50e6b1cd362b6443c37f197e0d484f31f6bc2fa"
+        }
+      ],
+      "group": "work-5",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-5-technology-2",
+      "derivedSha256": "b27ad06d123c6145fba7e9217a4cfbf2488b4743810ed8c8ff14ad01a5bbe515",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4503,
+          "end": 4515,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "ecdfde4ca4a5ab6a9d89e185588a639b15fe15f71bef98808702a192ca0fe327"
+        }
+      ],
+      "derivedStart": 5880,
+      "derivedEnd": 5890,
+      "derivedStartLine": 167,
+      "contextOriginals": [
+        {
+          "start": 3975,
+          "end": 4083,
+          "startLine": 115,
+          "endLine": 117,
+          "sha256": "7581a9ded161842cd0af8ec058a779e303b077cc97a41c0e32416a8b03b59fe4"
+        },
+        {
+          "start": 3952,
+          "end": 3974,
+          "startLine": 114,
+          "endLine": 114,
+          "sha256": "576c86000078cd45bff48f0ff50e6b1cd362b6443c37f197e0d484f31f6bc2fa"
+        }
+      ],
+      "group": "work-5",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-5-technology-3",
+      "derivedSha256": "31c819b24cf3c3c7cde022ff83007ff54b8e9087780f230a68e08fd47ed569e4",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4517,
+          "end": 4532,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "13ce07f0c5ee10e5503ef11370af13ea9c40888cbfa6c724bc40e51a327f8c10"
+        }
+      ],
+      "derivedStart": 5946,
+      "derivedEnd": 5959,
+      "derivedStartLine": 170,
+      "contextOriginals": [
+        {
+          "start": 3975,
+          "end": 4083,
+          "startLine": 115,
+          "endLine": 117,
+          "sha256": "7581a9ded161842cd0af8ec058a779e303b077cc97a41c0e32416a8b03b59fe4"
+        },
+        {
+          "start": 3952,
+          "end": 3974,
+          "startLine": 114,
+          "endLine": 114,
+          "sha256": "576c86000078cd45bff48f0ff50e6b1cd362b6443c37f197e0d484f31f6bc2fa"
+        }
+      ],
+      "group": "work-5",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-5-technology-4",
+      "derivedSha256": "a7f6415749a3297a04a2a5159d1542811f779562b547367d5e13a30e0ca5fc0f",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4534,
+          "end": 4541,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "511435c703fdc35933fb4cc9ce4a4c951c5243f4d840cb7a92fa9691b7beaf42"
+        }
+      ],
+      "derivedStart": 6015,
+      "derivedEnd": 6020,
+      "derivedStartLine": 173,
+      "contextOriginals": [
+        {
+          "start": 3975,
+          "end": 4083,
+          "startLine": 115,
+          "endLine": 117,
+          "sha256": "7581a9ded161842cd0af8ec058a779e303b077cc97a41c0e32416a8b03b59fe4"
+        },
+        {
+          "start": 3952,
+          "end": 3974,
+          "startLine": 114,
+          "endLine": 114,
+          "sha256": "576c86000078cd45bff48f0ff50e6b1cd362b6443c37f197e0d484f31f6bc2fa"
+        }
+      ],
+      "group": "work-5",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-6-action-0",
+      "derivedSha256": "ff887d93beeaf543b1c3fcae5455541063a95855eece762a49f6c253be3f70ec",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4576,
+          "end": 4838,
+          "startLine": 134,
+          "endLine": 139,
+          "sha256": "e1afae881c94a9cb8998fbddf7bae4a146534c57b1cb320ff19281fc837db498"
+        },
+        {
+          "start": 4876,
+          "end": 4946,
+          "startLine": 142,
+          "endLine": 142,
+          "sha256": "1f26d53202fb53bd6494af91ff245b38f64f00dc2011d697804d36b565b54f72"
+        }
+      ],
+      "derivedStart": 6066,
+      "derivedEnd": 6252,
+      "derivedStartLine": 176,
+      "contextOriginals": [
+        {
+          "start": 4576,
+          "end": 4838,
+          "startLine": 134,
+          "endLine": 139,
+          "sha256": "e1afae881c94a9cb8998fbddf7bae4a146534c57b1cb320ff19281fc837db498"
+        },
+        {
+          "start": 4553,
+          "end": 4575,
+          "startLine": 133,
+          "endLine": 133,
+          "sha256": "6a7d1118c1c4aaf9972708d2713687f92f793c55baf685c4f7c95a081ba35d18"
+        }
+      ],
+      "group": "work-6",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-6-action-1",
+      "derivedSha256": "100d5107f9ad171b016b061b9776963a79c4ebcc60c9337ca3216b8d116ce0d5",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4576,
+          "end": 4838,
+          "startLine": 134,
+          "endLine": 139,
+          "sha256": "e1afae881c94a9cb8998fbddf7bae4a146534c57b1cb320ff19281fc837db498"
+        },
+        {
+          "start": 4952,
+          "end": 5044,
+          "startLine": 143,
+          "endLine": 143,
+          "sha256": "10eb83ae23cc640e0756bed18451453397336c6ba0d305a6286c48f1735ec15e"
+        }
+      ],
+      "derivedStart": 6298,
+      "derivedEnd": 6493,
+      "derivedStartLine": 179,
+      "contextOriginals": [
+        {
+          "start": 4576,
+          "end": 4838,
+          "startLine": 134,
+          "endLine": 139,
+          "sha256": "e1afae881c94a9cb8998fbddf7bae4a146534c57b1cb320ff19281fc837db498"
+        },
+        {
+          "start": 4553,
+          "end": 4575,
+          "startLine": 133,
+          "endLine": 133,
+          "sha256": "6a7d1118c1c4aaf9972708d2713687f92f793c55baf685c4f7c95a081ba35d18"
+        }
+      ],
+      "group": "work-6",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "work-6-action-2",
+      "derivedSha256": "00865b3e2f90e1581c04b55d5e803dbaf249f44d5ffd1104833b835df82b68fa",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4576,
+          "end": 4838,
+          "startLine": 134,
+          "endLine": 139,
+          "sha256": "e1afae881c94a9cb8998fbddf7bae4a146534c57b1cb320ff19281fc837db498"
+        },
+        {
+          "start": 5050,
+          "end": 5116,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "c537a3b9da2d4d9b6de98f2919ae59a69629904f1cd4d67dfe8f46c8cfac4223"
+        }
+      ],
+      "derivedStart": 6539,
+      "derivedEnd": 6726,
+      "derivedStartLine": 182,
+      "contextOriginals": [
+        {
+          "start": 4576,
+          "end": 4838,
+          "startLine": 134,
+          "endLine": 139,
+          "sha256": "e1afae881c94a9cb8998fbddf7bae4a146534c57b1cb320ff19281fc837db498"
+        },
+        {
+          "start": 4553,
+          "end": 4575,
+          "startLine": 133,
+          "endLine": 133,
+          "sha256": "6a7d1118c1c4aaf9972708d2713687f92f793c55baf685c4f7c95a081ba35d18"
+        }
+      ],
+      "group": "work-6",
+      "kind": "freelance",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-6-technology-0",
+      "derivedSha256": "0a6a15345ad0c7e36ed9dc3ec9c8ce843af4bc765d1019eb6d563e0836b962f3",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5132,
+          "end": 5137,
+          "startLine": 147,
+          "endLine": 147,
+          "sha256": "f8d45684ad22b951c4786d51d6ce36da5eea15038d9c0546f3632e0c94193fde"
+        }
+      ],
+      "derivedStart": 6782,
+      "derivedEnd": 6785,
+      "derivedStartLine": 185,
+      "contextOriginals": [
+        {
+          "start": 4576,
+          "end": 4838,
+          "startLine": 134,
+          "endLine": 139,
+          "sha256": "e1afae881c94a9cb8998fbddf7bae4a146534c57b1cb320ff19281fc837db498"
+        },
+        {
+          "start": 4553,
+          "end": 4575,
+          "startLine": 133,
+          "endLine": 133,
+          "sha256": "6a7d1118c1c4aaf9972708d2713687f92f793c55baf685c4f7c95a081ba35d18"
+        }
+      ],
+      "group": "work-6",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-6-technology-1",
+      "derivedSha256": "45eff1960e31c7dec75830614cf50de9bad832e964f8074a92567fcb9aecdd05",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5139,
+          "end": 5148,
+          "startLine": 147,
+          "endLine": 147,
+          "sha256": "2c5ac21a5a982b9567779c5348a865cc2a47512a82a12b09273dab2fb880fe00"
+        }
+      ],
+      "derivedStart": 6841,
+      "derivedEnd": 6848,
+      "derivedStartLine": 188,
+      "contextOriginals": [
+        {
+          "start": 4576,
+          "end": 4838,
+          "startLine": 134,
+          "endLine": 139,
+          "sha256": "e1afae881c94a9cb8998fbddf7bae4a146534c57b1cb320ff19281fc837db498"
+        },
+        {
+          "start": 4553,
+          "end": 4575,
+          "startLine": 133,
+          "endLine": 133,
+          "sha256": "6a7d1118c1c4aaf9972708d2713687f92f793c55baf685c4f7c95a081ba35d18"
+        }
+      ],
+      "group": "work-6",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-6-technology-2",
+      "derivedSha256": "b27ad06d123c6145fba7e9217a4cfbf2488b4743810ed8c8ff14ad01a5bbe515",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5150,
+          "end": 5162,
+          "startLine": 147,
+          "endLine": 147,
+          "sha256": "ecdfde4ca4a5ab6a9d89e185588a639b15fe15f71bef98808702a192ca0fe327"
+        }
+      ],
+      "derivedStart": 6904,
+      "derivedEnd": 6914,
+      "derivedStartLine": 191,
+      "contextOriginals": [
+        {
+          "start": 4576,
+          "end": 4838,
+          "startLine": 134,
+          "endLine": 139,
+          "sha256": "e1afae881c94a9cb8998fbddf7bae4a146534c57b1cb320ff19281fc837db498"
+        },
+        {
+          "start": 4553,
+          "end": 4575,
+          "startLine": 133,
+          "endLine": 133,
+          "sha256": "6a7d1118c1c4aaf9972708d2713687f92f793c55baf685c4f7c95a081ba35d18"
+        }
+      ],
+      "group": "work-6",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-6-technology-3",
+      "derivedSha256": "1fc0c785332e80fb931c7a11323f27abb47a0a7f8bbdf23ffca3cac46497b21c",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5164,
+          "end": 5173,
+          "startLine": 147,
+          "endLine": 147,
+          "sha256": "6759411a99c005601071034c9d1b38a0eef0a08dcee943f9093b1f50f7e7b6a4"
+        }
+      ],
+      "derivedStart": 6970,
+      "derivedEnd": 6977,
+      "derivedStartLine": 194,
+      "contextOriginals": [
+        {
+          "start": 4576,
+          "end": 4838,
+          "startLine": 134,
+          "endLine": 139,
+          "sha256": "e1afae881c94a9cb8998fbddf7bae4a146534c57b1cb320ff19281fc837db498"
+        },
+        {
+          "start": 4553,
+          "end": 4575,
+          "startLine": 133,
+          "endLine": 133,
+          "sha256": "6a7d1118c1c4aaf9972708d2713687f92f793c55baf685c4f7c95a081ba35d18"
+        }
+      ],
+      "group": "work-6",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-6-technology-4",
+      "derivedSha256": "7d86844a5dc5940eb94b95e0ac4dec23ef1dd37aacd01fb6990a4c09b9cc07f6",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5175,
+          "end": 5188,
+          "startLine": 147,
+          "endLine": 147,
+          "sha256": "fb30d8123e65d669cdec5ac4af39467d5312e484a4b6d03d8c1eeef282377314"
+        }
+      ],
+      "derivedStart": 7033,
+      "derivedEnd": 7044,
+      "derivedStartLine": 197,
+      "contextOriginals": [
+        {
+          "start": 4576,
+          "end": 4838,
+          "startLine": 134,
+          "endLine": 139,
+          "sha256": "e1afae881c94a9cb8998fbddf7bae4a146534c57b1cb320ff19281fc837db498"
+        },
+        {
+          "start": 4553,
+          "end": 4575,
+          "startLine": 133,
+          "endLine": 133,
+          "sha256": "6a7d1118c1c4aaf9972708d2713687f92f793c55baf685c4f7c95a081ba35d18"
+        }
+      ],
+      "group": "work-6",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-6-technology-5",
+      "derivedSha256": "108040ac289a13952927ac14f658a0b06cf24612c43375801b63f87be11191f7",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5190,
+          "end": 5196,
+          "startLine": 147,
+          "endLine": 147,
+          "sha256": "770da4c5283f9ef77f5094634d82e496c1f46cd6fb26e31abdd5f6ea102f681d"
+        }
+      ],
+      "derivedStart": 7100,
+      "derivedEnd": 7104,
+      "derivedStartLine": 200,
+      "contextOriginals": [
+        {
+          "start": 4576,
+          "end": 4838,
+          "startLine": 134,
+          "endLine": 139,
+          "sha256": "e1afae881c94a9cb8998fbddf7bae4a146534c57b1cb320ff19281fc837db498"
+        },
+        {
+          "start": 4553,
+          "end": 4575,
+          "startLine": 133,
+          "endLine": 133,
+          "sha256": "6a7d1118c1c4aaf9972708d2713687f92f793c55baf685c4f7c95a081ba35d18"
+        }
+      ],
+      "group": "work-6",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-6-technology-6",
+      "derivedSha256": "87771745c9412ed0b89633894d74694fbee50486e9c1c902d280d2b0088c6572",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5202,
+          "end": 5217,
+          "startLine": 148,
+          "endLine": 148,
+          "sha256": "d03062566acc3b4f162caf210a446a0de3e44c2d12446ceacc6c241098b6b8e6"
+        }
+      ],
+      "derivedStart": 7160,
+      "derivedEnd": 7173,
+      "derivedStartLine": 203,
+      "contextOriginals": [
+        {
+          "start": 4576,
+          "end": 4838,
+          "startLine": 134,
+          "endLine": 139,
+          "sha256": "e1afae881c94a9cb8998fbddf7bae4a146534c57b1cb320ff19281fc837db498"
+        },
+        {
+          "start": 4553,
+          "end": 4575,
+          "startLine": 133,
+          "endLine": 133,
+          "sha256": "6a7d1118c1c4aaf9972708d2713687f92f793c55baf685c4f7c95a081ba35d18"
+        }
+      ],
+      "group": "work-6",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-7",
+      "derivedSha256": "ad9b9368af0ec23ed4122132a4242bb7c78405913a7fe9dcbe498309f511bb4d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5254,
+          "end": 5331,
+          "startLine": 153,
+          "endLine": 154,
+          "sha256": "aacfdc04dcf377de40de8cc47c7e21e2d61b57cd61fc3bff28fd57db9ebbd72f"
+        }
+      ],
+      "derivedStart": 7211,
+      "derivedEnd": 7259,
+      "derivedStartLine": 206,
+      "contextOriginals": [
+        {
+          "start": 5254,
+          "end": 5331,
+          "startLine": 153,
+          "endLine": 154,
+          "sha256": "aacfdc04dcf377de40de8cc47c7e21e2d61b57cd61fc3bff28fd57db9ebbd72f"
+        },
+        {
+          "start": 5238,
+          "end": 5253,
+          "startLine": 152,
+          "endLine": 152,
+          "sha256": "f37dc8942be2ef66a9d7fd6169b25f0cf04e7a79f30209860c927bbfbcd28bde"
+        }
+      ],
+      "group": "work-7",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-8",
+      "derivedSha256": "1f33db122aa96cc9f27ac8f9ee3835b624d2b48a9f1d936b0e9ed700b3dfbe73",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5393,
+          "end": 5476,
+          "startLine": 159,
+          "endLine": 160,
+          "sha256": "69657c7513f1c905c3592c5e112e3a4f0409691fa388bb7c3b138de27fbb82ab"
+        }
+      ],
+      "derivedStart": 7297,
+      "derivedEnd": 7351,
+      "derivedStartLine": 209,
+      "contextOriginals": [
+        {
+          "start": 5393,
+          "end": 5476,
+          "startLine": 159,
+          "endLine": 160,
+          "sha256": "69657c7513f1c905c3592c5e112e3a4f0409691fa388bb7c3b138de27fbb82ab"
+        },
+        {
+          "start": 5370,
+          "end": 5392,
+          "startLine": 158,
+          "endLine": 158,
+          "sha256": "c6166e0c685173c7e94dc134a30dffa2c829e1a86b4e645f1514e9f3d87be4a1"
+        }
+      ],
+      "group": "work-8",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-9",
+      "derivedSha256": "ac336c30843ef14fa96422c47a18560feb42e39250580d0fc6f47a6e5b72f9eb",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5550,
+          "end": 5627,
+          "startLine": 166,
+          "endLine": 167,
+          "sha256": "4aaeefbcb4b5c25939886b87f951a726f0615e8d2defad39c3069ecb9e5ec5f0"
+        }
+      ],
+      "derivedStart": 7389,
+      "derivedEnd": 7443,
+      "derivedStartLine": 212,
+      "contextOriginals": [
+        {
+          "start": 5550,
+          "end": 5627,
+          "startLine": 166,
+          "endLine": 167,
+          "sha256": "4aaeefbcb4b5c25939886b87f951a726f0615e8d2defad39c3069ecb9e5ec5f0"
+        },
+        {
+          "start": 5534,
+          "end": 5549,
+          "startLine": 165,
+          "endLine": 165,
+          "sha256": "b7f3b8d25847863c28624e6ca4379baf3ce9692dc7592130e9758ec12c883d53"
+        }
+      ],
+      "group": "work-9",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-10",
+      "derivedSha256": "cf2ac8fec0e866a9c3e7877b08fa6afdfbb9487cdd2cbb60d53168231f792f66",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5708,
+          "end": 5782,
+          "startLine": 173,
+          "endLine": 174,
+          "sha256": "ede2333466a4a32dfd95ee204d23e77ea14f32257cc997f979e6ddf2d1da4272"
+        }
+      ],
+      "derivedStart": 7482,
+      "derivedEnd": 7528,
+      "derivedStartLine": 215,
+      "contextOriginals": [
+        {
+          "start": 5708,
+          "end": 5782,
+          "startLine": 173,
+          "endLine": 174,
+          "sha256": "ede2333466a4a32dfd95ee204d23e77ea14f32257cc997f979e6ddf2d1da4272"
+        },
+        {
+          "start": 5685,
+          "end": 5707,
+          "startLine": 172,
+          "endLine": 172,
+          "sha256": "78931af6a38877355ca3ea6977e444838101ba9ef2ad7775e201aba49995d261"
+        }
+      ],
+      "group": "work-10",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    }
+  ],
+  "selectedJob": [
+    {
+      "derivedStart": 0,
+      "derivedEnd": 17,
+      "original": {
+        "start": 769,
+        "end": 786,
+        "startLine": 16,
+        "endLine": 16,
+        "sha256": "4bfa198a651330772ec5f0be182d097f7e8e8821c9f042636333dc4b547c4862"
+      }
+    },
+    {
+      "derivedStart": 17,
+      "derivedEnd": 18,
+      "original": {
+        "start": 786,
+        "end": 787,
+        "startLine": 17,
+        "endLine": 17,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 18,
+      "derivedEnd": 178,
+      "original": {
+        "start": 787,
+        "end": 947,
+        "startLine": 18,
+        "endLine": 18,
+        "sha256": "d98ae543487f88a30ea34669b28bfeb502f1c7986ae7026da2f20182573db435"
+      }
+    },
+    {
+      "derivedStart": 178,
+      "derivedEnd": 270,
+      "original": {
+        "start": 947,
+        "end": 1039,
+        "startLine": 19,
+        "endLine": 19,
+        "sha256": "d329b6c8233a8da74f2147345ef6bfc447fe1dc8e5087ca1b237995f2127d425"
+      }
+    },
+    {
+      "derivedStart": 270,
+      "derivedEnd": 411,
+      "original": {
+        "start": 1039,
+        "end": 1180,
+        "startLine": 20,
+        "endLine": 20,
+        "sha256": "c42ca953bacf1a7afd9b69e5f3331b82d7f0550be9ae4fc359f837117b98f718"
+      }
+    },
+    {
+      "derivedStart": 411,
+      "derivedEnd": 584,
+      "original": {
+        "start": 1180,
+        "end": 1353,
+        "startLine": 21,
+        "endLine": 21,
+        "sha256": "4178fb2fa2c32490b7e9c8936228af435a89fa6c23d1372f820f30d8ccb362bf"
+      }
+    },
+    {
+      "derivedStart": 584,
+      "derivedEnd": 711,
+      "original": {
+        "start": 1353,
+        "end": 1480,
+        "startLine": 22,
+        "endLine": 22,
+        "sha256": "b287275917141a803cbb619322dcb67bc91be8daa9764144905f28efc4f727f9"
+      }
+    },
+    {
+      "derivedStart": 711,
+      "derivedEnd": 797,
+      "original": {
+        "start": 1480,
+        "end": 1566,
+        "startLine": 23,
+        "endLine": 23,
+        "sha256": "8b836c3e5bdc931386a0d0e922ab02e15b67200f5300e0d84fa1c0a1835865a7"
+      }
+    },
+    {
+      "derivedStart": 797,
+      "derivedEnd": 876,
+      "original": {
+        "start": 1566,
+        "end": 1645,
+        "startLine": 24,
+        "endLine": 24,
+        "sha256": "09c609c4d488f61f1d72a801e1f620a8f4f12a002de3aabdf60da04b1e90c0c1"
+      }
+    },
+    {
+      "derivedStart": 876,
+      "derivedEnd": 917,
+      "original": {
+        "start": 1645,
+        "end": 1686,
+        "startLine": 25,
+        "endLine": 25,
+        "sha256": "1d5111e7d4a7868af7337f54a963d368f4a2b21e9cb65e9818f9713f319af427"
+      }
+    },
+    {
+      "derivedStart": 917,
+      "derivedEnd": 1016,
+      "original": {
+        "start": 1686,
+        "end": 1785,
+        "startLine": 26,
+        "endLine": 26,
+        "sha256": "4c1559c9fc56428e78f470bd2c9c189434e60a157292f805417f8dfdc83e551e"
+      }
+    },
+    {
+      "derivedStart": 1016,
+      "derivedEnd": 1082,
+      "original": {
+        "start": 1785,
+        "end": 1851,
+        "startLine": 27,
+        "endLine": 27,
+        "sha256": "d0c78a698aef99c0ebb21702624728dc17f89cfa8984546f0b3f30627901f5e6"
+      }
+    },
+    {
+      "derivedStart": 1082,
+      "derivedEnd": 1187,
+      "original": {
+        "start": 1851,
+        "end": 1956,
+        "startLine": 28,
+        "endLine": 28,
+        "sha256": "03479bc7434768a40807f598bd16b170de71ceef9c1bd65c26ef58ea2b68e5de"
+      }
+    },
+    {
+      "derivedStart": 1187,
+      "derivedEnd": 1258,
+      "original": {
+        "start": 1956,
+        "end": 2027,
+        "startLine": 29,
+        "endLine": 29,
+        "sha256": "15fb256886ddad88ee7587e230e4e6f2fab94f73f372565469fc4694754248b7"
+      }
+    },
+    {
+      "derivedStart": 1258,
+      "derivedEnd": 1334,
+      "original": {
+        "start": 2027,
+        "end": 2103,
+        "startLine": 30,
+        "endLine": 30,
+        "sha256": "436bc6fd5f136a36ece847d472e7b51e041c28dd34975e903d214eccac85e958"
+      }
+    },
+    {
+      "derivedStart": 1334,
+      "derivedEnd": 1395,
+      "original": {
+        "start": 2103,
+        "end": 2164,
+        "startLine": 31,
+        "endLine": 31,
+        "sha256": "2deb45350941113e93d36838a4274f371c19249fdfad71b0c3157985fe56af41"
+      }
+    },
+    {
+      "derivedStart": 1395,
+      "derivedEnd": 1446,
+      "original": {
+        "start": 2164,
+        "end": 2215,
+        "startLine": 32,
+        "endLine": 32,
+        "sha256": "1ee4842f786cc39777d9786507b43ed11fc2ef452abc158c2f7136fa3373fcad"
+      }
+    },
+    {
+      "derivedStart": 1446,
+      "derivedEnd": 1470,
+      "original": {
+        "start": 2215,
+        "end": 2239,
+        "startLine": 33,
+        "endLine": 33,
+        "sha256": "7b5adf8ae9aafc3775dd231fc7245da67eb092da0054599d4afff08fd8a9b197"
+      }
+    },
+    {
+      "derivedStart": 1470,
+      "derivedEnd": 1471,
+      "original": {
+        "start": 2239,
+        "end": 2240,
+        "startLine": 34,
+        "endLine": 34,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 1471,
+      "derivedEnd": 1489,
+      "original": {
+        "start": 2240,
+        "end": 2258,
+        "startLine": 35,
+        "endLine": 35,
+        "sha256": "c4743ed084c8222e40d5760b233a634c86bd9d1d80409cc90a38a7ac64d0b754"
+      }
+    },
+    {
+      "derivedStart": 1489,
+      "derivedEnd": 1490,
+      "original": {
+        "start": 2258,
+        "end": 2259,
+        "startLine": 36,
+        "endLine": 36,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 1490,
+      "derivedEnd": 1565,
+      "original": {
+        "start": 2259,
+        "end": 2334,
+        "startLine": 37,
+        "endLine": 37,
+        "sha256": "ef5fe40e5f0b4aff00e168d032f092810e68b8666a74381170c1b3ff4375238b"
+      }
+    },
+    {
+      "derivedStart": 1565,
+      "derivedEnd": 1627,
+      "original": {
+        "start": 2334,
+        "end": 2396,
+        "startLine": 38,
+        "endLine": 38,
+        "sha256": "8ec7ad586eef757c536573082a22dc1ec8f163b83e8f761bb811932b724e0927"
+      }
+    },
+    {
+      "derivedStart": 1627,
+      "derivedEnd": 1656,
+      "original": {
+        "start": 2396,
+        "end": 2425,
+        "startLine": 39,
+        "endLine": 39,
+        "sha256": "ce5654e1e7afa6b19f6e6309a4ec36177bfc0ea2757edd467fbe7e0d9021b4ce"
+      }
+    },
+    {
+      "derivedStart": 1656,
+      "derivedEnd": 1696,
+      "original": {
+        "start": 2425,
+        "end": 2465,
+        "startLine": 40,
+        "endLine": 40,
+        "sha256": "772f1f4f4804ac44bc363ca25a0038e879014c08dce41305c4cfbe436506ebcd"
+      }
+    },
+    {
+      "derivedStart": 1696,
+      "derivedEnd": 1737,
+      "original": {
+        "start": 2465,
+        "end": 2506,
+        "startLine": 41,
+        "endLine": 41,
+        "sha256": "94946481993e31448a9e8491dd4f3701a67e4d6c2de52f2c2c2ef4e9d64e6f51"
+      }
+    },
+    {
+      "derivedStart": 1737,
+      "derivedEnd": 1783,
+      "original": {
+        "start": 2506,
+        "end": 2552,
+        "startLine": 42,
+        "endLine": 42,
+        "sha256": "dd8f55d34a7d6266c1d67fcfe6777243de7fd25a793c21460d5bc80e0ce553e7"
+      }
+    },
+    {
+      "derivedStart": 1783,
+      "derivedEnd": 1850,
+      "original": {
+        "start": 2552,
+        "end": 2619,
+        "startLine": 43,
+        "endLine": 43,
+        "sha256": "b809732d5b462eea926229b81509e5b916a7521c142bc83d3daba9e1cce2e888"
+      }
+    },
+    {
+      "derivedStart": 1850,
+      "derivedEnd": 1904,
+      "original": {
+        "start": 2619,
+        "end": 2673,
+        "startLine": 44,
+        "endLine": 44,
+        "sha256": "78b59371825b2ff5f9b7b6591d11ba4c59a0ffdcb93e11d98ba475a06e9fab5a"
+      }
+    },
+    {
+      "derivedStart": 1904,
+      "derivedEnd": 1972,
+      "original": {
+        "start": 2673,
+        "end": 2741,
+        "startLine": 45,
+        "endLine": 45,
+        "sha256": "12859fb33326ee9e239d7b36bae08496cb02a87f1bf4920ec7245ed43c25867d"
+      }
+    },
+    {
+      "derivedStart": 1972,
+      "derivedEnd": 1973,
+      "original": {
+        "start": 2741,
+        "end": 2742,
+        "startLine": 46,
+        "endLine": 46,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 1973,
+      "derivedEnd": 1994,
+      "original": {
+        "start": 2742,
+        "end": 2763,
+        "startLine": 47,
+        "endLine": 47,
+        "sha256": "cc3011cbb75b120859d8489d681f7b3181623829b343eb017842eefc343184b0"
+      }
+    },
+    {
+      "derivedStart": 1994,
+      "derivedEnd": 1995,
+      "original": {
+        "start": 2763,
+        "end": 2764,
+        "startLine": 48,
+        "endLine": 48,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 1995,
+      "derivedEnd": 2066,
+      "original": {
+        "start": 2764,
+        "end": 2835,
+        "startLine": 49,
+        "endLine": 49,
+        "sha256": "738b8ccd7216ce6129bd781cbf93757648004f5459908724c99d34bce2561e8f"
+      }
+    },
+    {
+      "derivedStart": 2066,
+      "derivedEnd": 2100,
+      "original": {
+        "start": 2835,
+        "end": 2869,
+        "startLine": 50,
+        "endLine": 50,
+        "sha256": "eca16e570988524fbb52398932c8d2dbfd4ce5ab7d9ae367535871dfb6dd22f6"
+      }
+    },
+    {
+      "derivedStart": 2100,
+      "derivedEnd": 2275,
+      "original": {
+        "start": 2869,
+        "end": 3044,
+        "startLine": 51,
+        "endLine": 51,
+        "sha256": "c9863a29d3a164566fb9f7a95405512f660d23b513c8bc94646bda07e2ed5d74"
+      }
+    },
+    {
+      "derivedStart": 2275,
+      "derivedEnd": 2349,
+      "original": {
+        "start": 3044,
+        "end": 3118,
+        "startLine": 52,
+        "endLine": 52,
+        "sha256": "92bbadab78fa43d0b456d0091c9f91c1bc29fa7ed6ccc033745d44585c7d9516"
+      }
+    },
+    {
+      "derivedStart": 2349,
+      "derivedEnd": 2410,
+      "original": {
+        "start": 3118,
+        "end": 3179,
+        "startLine": 53,
+        "endLine": 53,
+        "sha256": "2f7f6c3b09257b10585138ea0881fccbe355efdd971f5c531d247b7126fb0dd0"
+      }
+    },
+    {
+      "derivedStart": 2410,
+      "derivedEnd": 2601,
+      "original": {
+        "start": 3179,
+        "end": 3370,
+        "startLine": 54,
+        "endLine": 54,
+        "sha256": "d5de389796cd5751d62a92c580963d644d4f35b17424ecbe01aee54e554642de"
+      }
+    },
+    {
+      "derivedStart": 2601,
+      "derivedEnd": 2705,
+      "original": {
+        "start": 3370,
+        "end": 3474,
+        "startLine": 55,
+        "endLine": 55,
+        "sha256": "e754f51307803de1e4b20a06b92837e24574bfd02cb576a1b79278b9bac061f7"
+      }
+    },
+    {
+      "derivedStart": 2705,
+      "derivedEnd": 2817,
+      "original": {
+        "start": 3474,
+        "end": 3586,
+        "startLine": 56,
+        "endLine": 56,
+        "sha256": "22efda8a8c2c398a093646712a47495647d5f9941d1f6315f6f94d4c735387ba"
+      }
+    },
+    {
+      "derivedStart": 2817,
+      "derivedEnd": 2973,
+      "original": {
+        "start": 3586,
+        "end": 3742,
+        "startLine": 57,
+        "endLine": 57,
+        "sha256": "6fc55e8b83edb2008b1c16c23304b5c43aecdf733d3140a7913dbb899ca5dc12"
+      }
+    },
+    {
+      "derivedStart": 2973,
+      "derivedEnd": 3250,
+      "original": {
+        "start": 3742,
+        "end": 4019,
+        "startLine": 58,
+        "endLine": 58,
+        "sha256": "06c7c8a6671ae3a263d437523fd93080e0cbdd8cec7c48438cf35e70cb7c19a6"
+      }
+    }
+  ],
+  "requirements": [
+    {
+      "id": "requirement-01",
+      "support": "partial",
+      "reason": "Historical freelance Rails exists; source does not establish significant current specialty experience. Retain as partial, not absent.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-02",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-03",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-04",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-05",
+      "support": "supported",
+      "reason": "Explicit migration in response to growing workload; no latency improvement invented.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-06",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-07",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-08",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-09",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-10",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-11",
+      "support": "supported",
+      "reason": "Explicit pilot-to-production and team leadership.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-12",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-13",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-14",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-15",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-16",
+      "support": "not_evidenced",
+      "reason": "No GitLab use stated in downloaded professional-history base.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-17",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-18",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-19",
+      "support": "supported",
+      "reason": "Actual product platform features rather than generic framework familiarity.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-20",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-21",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-22",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-23",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-24",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-25",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-26",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-27",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-28",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-29",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-30",
+      "support": "partial",
+      "reason": "Maintainability practices; code-review ownership is not inferred.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-31",
+      "support": "supported",
+      "reason": "Source links migration to easier bugfixing/features, not an invented percentage.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-32",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-33",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-34",
+      "support": "not_evidenced",
+      "reason": "No on-call evidence.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    }
+  ],
+  "dates": [
+    {
+      "group": "work-0",
+      "originalPeriod": "Since 2024",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "work-1",
+      "originalPeriod": "2023 - 2024",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "work-2",
+      "originalPeriod": "2022",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "work-3",
+      "originalPeriod": "2018 - 2021",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "work-4",
+      "originalPeriod": "2017",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "work-5",
+      "originalPeriod": "2014 - 2016",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "work-6",
+      "originalPeriod": "2008 - 2014",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "work-7",
+      "originalPeriod": "2009",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "work-8",
+      "originalPeriod": "2006 - 2007",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "work-9",
+      "originalPeriod": "2005",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "work-10",
+      "originalPeriod": "2000 - 2004",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    }
+  ]
+}

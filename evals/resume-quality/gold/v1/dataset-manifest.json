@@ -1,0 +1,218 @@
+{
+  "schemaVersion": 1,
+  "datasetVersion": "gold-source-review-v1",
+  "createdFromRetrievedAt": "2026-11-12T00:00:00.000Z",
+  "realPairs": 5,
+  "independentAuthors": 5,
+  "roles": [
+    "Site Reliability Engineer - common non-senior scope",
+    "Backend Engineer - common requirements; high-volume backend candidate",
+    "Frontend Engineer - common scope; mobile-to-web transition candidate",
+    "Fullstack Engineer - common non-senior scope; PHP/JS candidate",
+    "Data Engineer (Junior) - academic/OSS/internship transition candidate"
+  ],
+  "modelCalls": 0,
+  "labeling": "Source-reviewed by Codex independently of candidate generation; external human adjudication not claimed. Unadjudicated STAR units receive no credit.",
+  "scope": "GitLab common job-family definitions; selected level only, not current vacancies. Five distinct public self-reported resume bases, not independently verified personal facts.",
+  "limitations": [
+    "Employer/language/region bias: all JDs from one employer, English-language sources.",
+    "No claim of cloud-architect seniority or C# industrial-software representativeness.",
+    "Historical Rails is partial professional support, not absent; mobile latency is not Web performance; fictional projects are not commercial delivery.",
+    "Year-only/ambiguous dates prevent two baselines under current month-required FactBase; no January/epoch dates invented.",
+    "Full-unit extractive baselines test source preservation and layout, not generated resume quality or model ranking."
+  ],
+  "cases": [
+    {
+      "id": "gold-sre",
+      "canonicalSha256": "bef0968230a558d1c481649ec0da3983f54fe65ac0ba909ae3c13ab53111cebc",
+      "evidenceUnits": 118,
+      "requirements": 21,
+      "supported": 6,
+      "partial": 1,
+      "notEvidenced": 14,
+      "baseline": true
+    },
+    {
+      "id": "gold-backend",
+      "canonicalSha256": "275393c2fe6d64176bb8399910349955fb22f85effb4b9c42177720fa38cf6fb",
+      "evidenceUnits": 72,
+      "requirements": 34,
+      "supported": 4,
+      "partial": 2,
+      "notEvidenced": 28,
+      "baseline": false
+    },
+    {
+      "id": "gold-frontend",
+      "canonicalSha256": "b53fca3292d0bdaaac5ab6bdfa4f0d471d552956ee526a1b48bb31da4f6622e3",
+      "evidenceUnits": 81,
+      "requirements": 38,
+      "supported": 2,
+      "partial": 0,
+      "notEvidenced": 36,
+      "baseline": false
+    },
+    {
+      "id": "gold-fullstack",
+      "canonicalSha256": "f10cc37d16fbc4c7d44591442a411789b371f473e3f8d71b40a45ce4bfb0dda4",
+      "evidenceUnits": 34,
+      "requirements": 35,
+      "supported": 0,
+      "partial": 4,
+      "notEvidenced": 31,
+      "baseline": true
+    },
+    {
+      "id": "gold-data-engineer",
+      "canonicalSha256": "6b5f97f2b05fac9792a5590d1780fc263658e2801b3d544a322ef0856c85019c",
+      "evidenceUnits": 32,
+      "requirements": 19,
+      "supported": 3,
+      "partial": 0,
+      "notEvidenced": 16,
+      "baseline": true
+    }
+  ],
+  "files": [
+    {
+      "path": "baselines/gold-data-engineer.run.json",
+      "bytes": 5760,
+      "sha256": "675db31a2ddd03896c865d35103ad81bf1432b8c7cee666ab8422df53d1a3388"
+    },
+    {
+      "path": "baselines/gold-fullstack.run.json",
+      "bytes": 5656,
+      "sha256": "3c40a3adbf8605d58580d3efd5491eb8cdd80cd811a1bb44298f705b063940f3"
+    },
+    {
+      "path": "baselines/gold-sre.run.json",
+      "bytes": 7019,
+      "sha256": "c5805b81e4f8284808ac1e04836524b44b7f6c9b6a0cb62317e998b7da5eb084"
+    },
+    {
+      "path": "cases/gold-backend.case.json",
+      "bytes": 103276,
+      "sha256": "20123f1c3b675f234be6c4f29332dc1a45e61f371a1c5c5bb88b6827aaf96239"
+    },
+    {
+      "path": "cases/gold-data-engineer.case.json",
+      "bytes": 48600,
+      "sha256": "9072d2add6698b89d0efc6766b45d9d261817c0a4606bb2221ce6612e14c614c"
+    },
+    {
+      "path": "cases/gold-frontend.case.json",
+      "bytes": 116044,
+      "sha256": "72d90509450afd2f701dba926607b78f266a2de49e838417c9519448dea300a8"
+    },
+    {
+      "path": "cases/gold-fullstack.case.json",
+      "bytes": 64029,
+      "sha256": "e3b5db103e7e5bff32d37106bfef366cb8157025cd66ff89cfbf26d18079daa6"
+    },
+    {
+      "path": "cases/gold-sre.case.json",
+      "bytes": 144972,
+      "sha256": "b75ce95f97a1869ffa763d3207939b0e50c0c2dd7efcdeace4e7436fb78d371f"
+    },
+    {
+      "path": "licenses/C01-MIT.txt",
+      "bytes": 1063,
+      "sha256": "3caf4d4d9d2053eebff5b867264318d064df12dc1565ea41f1b70bec52a09031"
+    },
+    {
+      "path": "licenses/C02-MIT.txt",
+      "bytes": 1074,
+      "sha256": "32382a01603dccde8409f4f848565b0f9646946d26a7f33086b1730d86e7d17e"
+    },
+    {
+      "path": "licenses/C03-MIT.txt",
+      "bytes": 1066,
+      "sha256": "f0dd210e34e0a8e7ce8dff1ad5f491c8387bc0fd67282de9fd135975e7f46444"
+    },
+    {
+      "path": "licenses/C04-MIT.txt",
+      "bytes": 1074,
+      "sha256": "ebd461dbb79af51433910a397551af828cfef2b4fecac0290c1086b661881645"
+    },
+    {
+      "path": "mappings/gold-backend.source-map.json",
+      "bytes": 116062,
+      "sha256": "11e003a7c98c18b0556491b6cd0f4feb5836c935afa80f64b6ef150c7713a0b6"
+    },
+    {
+      "path": "mappings/gold-data-engineer.source-map.json",
+      "bytes": 41027,
+      "sha256": "dce6d1caea3eebe2eeeeac3c6cf8b55e6bab84c1327727e6a60d0f1d6ae73b59"
+    },
+    {
+      "path": "mappings/gold-frontend.source-map.json",
+      "bytes": 161880,
+      "sha256": "6dd30615d8d54c4d5337abfcd00b7bd670334e9f580cde2778c5ebe330b2e1c1"
+    },
+    {
+      "path": "mappings/gold-fullstack.source-map.json",
+      "bytes": 59607,
+      "sha256": "cea82b5338f1a8ff2532a4359ecb4adc83ade6c3ffede27860aac4f41ce45228"
+    },
+    {
+      "path": "mappings/gold-sre.source-map.json",
+      "bytes": 169694,
+      "sha256": "a3445b6fbdf8ce5e9eac8d470975f973a37721008c483874a07af1ab588c6380"
+    },
+    {
+      "path": "materials/gold-backend.candidate.txt",
+      "bytes": 7529,
+      "sha256": "22a88d501d16626edd74276ab094b2c27a3d49e1818d3bc7d0245a46b4c67a90"
+    },
+    {
+      "path": "materials/gold-backend.groups.json",
+      "bytes": 6572,
+      "sha256": "4c23ea5ab5ea6e1a40734404541fbffd0cf6cd60d3833dfacf8b139236beb1ca"
+    },
+    {
+      "path": "materials/gold-data-engineer.candidate.txt",
+      "bytes": 5364,
+      "sha256": "d4f5c0901e08b1f23f47cd1ca10f5de14ab442f3c58bcd8c14735a75ed9ae884"
+    },
+    {
+      "path": "materials/gold-data-engineer.groups.json",
+      "bytes": 790,
+      "sha256": "87d57e7d6b53edf7b7ab47d934b81f8e36ac3ef4b781a0797c6ae9df5e1d179a"
+    },
+    {
+      "path": "materials/gold-frontend.candidate.txt",
+      "bytes": 9929,
+      "sha256": "6581aa5e5e57b13cb129326dc7f7c34a4aa4bb6135cf1ea6443393c718519ed7"
+    },
+    {
+      "path": "materials/gold-frontend.groups.json",
+      "bytes": 11118,
+      "sha256": "ce16bf036f881a42bc279246d97435c1c3d0d6ffadb3a111703f33e7c2f697f7"
+    },
+    {
+      "path": "materials/gold-fullstack.candidate.txt",
+      "bytes": 7141,
+      "sha256": "0786e5fb0cfcdf53a257b441de91944b8af1842de2ffe0915fa12cf39d05eed3"
+    },
+    {
+      "path": "materials/gold-fullstack.groups.json",
+      "bytes": 2333,
+      "sha256": "bb9c1261400a7052eb5c1f5be9706662f5da4d0cbc3c1c7fb6de22a1cfd693cb"
+    },
+    {
+      "path": "materials/gold-sre.candidate.txt",
+      "bytes": 10642,
+      "sha256": "1b4835892ffa137b142836cc1932caa8fac19ac4f24e4be18d38b3274e3187d0"
+    },
+    {
+      "path": "materials/gold-sre.groups.json",
+      "bytes": 4009,
+      "sha256": "c50034d1a51c0f5bd149cdfae708f62be2f34117e987c6369f7cef0b2f1cbaa3"
+    },
+    {
+      "path": "NOTICES.md",
+      "bytes": 8881,
+      "sha256": "88674f2c209e01e2e3001e194fa0c03e0738f0868ccdd8b4bc210b572ac78cf6"
+    }
+  ]
+}

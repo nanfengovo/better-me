@@ -1,0 +1,2344 @@
+{
+  "schemaVersion": 1,
+  "id": "gold-frontend",
+  "dataKind": "real_anonymized",
+  "role": "Frontend Engineer - common scope; mobile-to-web transition candidate",
+  "job": {
+    "text": "### Requirements\n\n- Professional experience with VueJS **or** another modern JavaScript web framework (React, Angular, Ember, etc)\n- Experience with writing automated tests (eg. Jest, Karma, Jasmine, Mocha, AVA, tape)\n- Experience using Git in a professional/workplace environment\n- A solid understanding in core web and browser concepts (eg. how the browser parses and constructs a web page)\n- A solid understanding of semantic HTML, CSS, and core JavaScript concepts.\n- Proficiency in the English language, both written and verbal, sufficient for success in a remote and largely asynchronous work environment\n- Demonstrated capacity to clearly and concisely communicate about complex technical, architectural, and/or organizational problems and propose thorough iterative solutions\n- Experience with performance and optimization problems and a demonstrated ability to both diagnose and prevent these problems\n- Comfort working in a highly agile, intensely iterative software development process\n- Demonstrated ability to onboard and integrate with an organization long-term\n- Positive and solution-oriented mindset\n- Effective communication skills: Regularly achieve consensus with peers, and clear status updates\n- An inclination towards communication, inclusion, and visibility\n- Self-motivated and self-managing, with great organizational skills.\n- Demonstrated ability to work closely with other parts of the organization\n- Share our values, and work in accordance with those values\n- Ability to thrive in a fully remote organization\n- Ability to use GitLab\n- Comfort and familiarity with our [code review process](/handbook/engineering/workflow/code-review/)\n\n#### Nice to have\n\n- Working knowledge of Ruby on Rails and Haml\n- Experience in a peak performance organization, preferably a tech startup\n- Experience with the GitLab product as a user or contributor\n- Product company experience\n- Experience working with a remote team\n- Enterprise software company experience\n- Developer platform/tool industry experience\n- Experience working with a global or otherwise multicultural team\n- Experience contributing to open source software\n- Domain knowledge relevant to the product stage in which you are looking to join (eg. someone with CI/CD experience applying for the Verify & Release team)\n\n<a id=\"responsibilities\"></a>\n\n### Responsibilities\n\n- Develop features and improvements to the GitLab product in a secure, well-tested, and performant way\n- You'll work with Product Management and other stakeholders (Backend, UX, etc.) to iterate on new features within the GitLab product.\n- Craft code that meets our internal standards for style, maintainability, and best practices for a high-scale web environment. Maintain and advocate for these standards through code review.\n- Consistently ship small features and improvements with minimal guidance and support from other team members. Collaborate with the team on larger projects.\n- You'll help improve the overall experience of our product through improving the quality of the Frontend features both in your [group](/handbook/product/categories/#hierarchy) and features that benefit other groups.\n- You'll help identify areas of improvements in the code base, both specific to your [group](/handbook/product/categories/#hierarchy) and outside your group (eg. component library) and help contribute to make it better\n- You'll learn, collaborate and teach other Frontend Engineers. Everyone can contribute something new to the team regardless of how long they've been in the industry.\n- You'll fix prioritized issues from the issue tracker. These are typically bugs listed in a GitLab issue with an attached severity and priority label.\n- You'll contribute to and follow our workflow process, alongside the rest of the Frontend Engineers and the GitLab community as a whole.\n\n",
+    "sha256": "12baceb610148e5ee54e0daacc046a6ea56cb3a59b1101e811fe3c234d603271",
+    "provenance": {
+      "url": "https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/f7efde2339c3ff060bb972805bf22692c534893d/content/job-description-library/engineering/development/frontend/_index.md",
+      "revision": "f7efde2339c3ff060bb972805bf22692c534893d",
+      "license": "CC-BY-SA-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "retrievedAt": "2026-11-12T00:00:00.000Z",
+      "originalSha256": "fd0f53ac2e38e995a8d0d028b22c6197d08eb72a789959a469cb31387c491b3c",
+      "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+    }
+  },
+  "evidence": [
+    {
+      "id": "work-0",
+      "text": "Senior Android Developer Responsible for developing the Mobile product A products for Photos Genre",
+      "sha256": "1a3874ee5de82015ff18de3871dda5848772005c1df874c7d2da30b740ef5f07",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-1",
+      "text": "Mobile Developer Responsible for developing the android application by kotlin and java. The application aimed to exchange interactions with IOT products.",
+      "sha256": "35c4afd7002367bff958b0c0e787c3bf78155e69217f78ccaa7cd3be53b6cacc",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-2",
+      "text": "Mobile Developer Responsible for developing the android application by kotlin and java. The most time of my work is trying to build a highly efficient and responsive mobile application for our clients.",
+      "sha256": "c92dcc834ba98a2ae570ac9242daa152ff9ec3d48b3bd7820e1b287097a21556",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "work-3",
+      "text": ".Net Developer Internship I am mainly responsible for the company's official website, the daily operation of the page, management background page optimization. Work is very saturated, but in time to spare time to learn a lot of new frameworks and libraries and JQuery have a certain understanding-During this internship, I've improved my skills especially in developing front-end and back-end.",
+      "sha256": "95c7397aee6991635045b5e29e36de70dea5fd22a2abe18fb385a5846810c97c",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "education-1",
+      "text": "University B Engineer's Degree Systems Engineering, Networks and Telecommunications 10,2017 - 09,2014 Ever since I studied in France, I mainly learned such as operating systems, computer networks, JAVA, Android, assembly language, machine learning and so on.Since university and especially during my French Engineer Program, I've had the chance to work with researchers of various backgrounds on different subjects, mainly regarding systems mobiles,network protocols,website development through research projects at school. It's my pleasure, at an early point of my career, to have been able to discover these exciting projects which has also been helpful to my career planning.",
+      "sha256": "62fd91f0b3a48c9da876afab32262fcba1bd9cf67e786abf4db8b4eb4a5e8023",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "education-2",
+      "text": "University C Bachelor's Degree Information and communication engineering 06,2014 - 09,2011 I mainly studied such as C / C + + programming language, data structure, compilation principles etc during my three years in university. These basic knowledge lay a solid foundation for my study abroad in France- Besides, during the school I participated in community activities particularly in the 24-hour innovation contest, I won the second place in Asia's division.",
+      "sha256": "fa2045da44d482f1112ab968211c8b48530a06169acb0136815dca94cfb922ea",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-0-action-0",
+      "text": "Mobile product A Android Senior Engineer - Deeply involved in the development of Mobile product A from scratch, improved the average latency of feeds from 1400ms to 100ms",
+      "sha256": "4b10015e8c5aaef58d3a8c7033ac3ece91e8f79f01df5a82e99db1817f7c5461",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "feeds"
+        ],
+        "task": [
+          "development of Mobile product A from scratch"
+        ],
+        "action": [
+          "Deeply involved"
+        ],
+        "result": [
+          "improved the average latency of feeds from 1400ms to 100ms"
+        ]
+      }
+    },
+    {
+      "id": "project-0-action-1",
+      "text": "Mobile product A Android Senior Engineer - Actively involved in enhancing user perceptions of QoS (Quality of Service) and QoE (Quality of Experience) through various methods, which successfully reduced the average image load time from 1000ms to 300ms",
+      "sha256": "8739d3436107da3e809088da302ae651c8ae6f0282df6f9135aae87e2ff12afb",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "QoS (Quality of Service) and QoE (Quality of Experience)"
+        ],
+        "task": [
+          "enhancing user perceptions"
+        ],
+        "action": [
+          "Actively involved"
+        ],
+        "result": [
+          "reduced the average image load time from 1000ms to 300ms"
+        ]
+      }
+    },
+    {
+      "id": "project-0-action-2",
+      "text": "Mobile product A Android Senior Engineer - Developed a tool using GPT to assist operations staff in automatically labelling various posts automatically and significantly optimize content selection from Mobile product A",
+      "sha256": "dc493db19db24c2cc3ab6dbedce2aa7c4675fc1039bfdd163245e020f727d37f",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-0-action-3",
+      "text": "Mobile product A Android Senior Engineer - Took Charge of developing a framework to produce an efficiency score for all components in photos genre. The score can then be used for determining the priority and integration standards of components",
+      "sha256": "277a48016aff2968d810ba2ab641e3f5947a1a5cc8cbbf8a3878b549cb8797bd",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-0-action-4",
+      "text": "Mobile product A Android Senior Engineer - Served as the Android Tech Interviewer and trained new staff as a mentor within the team",
+      "sha256": "982dae07c5806b95bea238636f003b403deb1e775acfe1690fc20b6032d5fb70",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-0-technology-0",
+      "text": "Kotlin",
+      "sha256": "c78f6c97923e81a2f04f09c5e87b69e085c1e47066a1136b5f590bfde696e2eb",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-0-technology-1",
+      "text": "Java",
+      "sha256": "c1ba60ce13586503a21a05e9ef0bb959f1ba74a1d37bcfcbf5fc6bfb548f684d",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-0-technology-2",
+      "text": "MVVM",
+      "sha256": "d58e5dc49ab81442b14867efed7a92daf57a051ea6452e7067e712dcf7150580",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-0-technology-3",
+      "text": "Jetpack",
+      "sha256": "d35edfbed21630e0b79e20918da3f8faec27ab03bdb5e46bcd1fed853a322af1",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-0-technology-4",
+      "text": "Compose",
+      "sha256": "98652afe6ee7c577b0fb7c4ce080c1560e100e50e988356351a243ee55d30900",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-1-action-0",
+      "text": "IoT product A Developer Android - Worked in IoT product A's eco system of software and hardware, many of these iOT products have cross plateform technologies such as (WebRTC, Wifi-Scanning etc.)",
+      "sha256": "7da9ffea08c94bc3969eeb8c41581ceb0699e1a2956fbaab215d7c5c5ae6f514",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-1-action-1",
+      "text": "IoT product A Developer Android - Took part in building some apps from scratch and gain great reputations from playstore",
+      "sha256": "1a383e8e1c8d741f83d66011b7367b61b7b81d247194fa5a8d60122662f6c91a",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-1-action-2",
+      "text": "IoT product A Developer Android - Published and improved magnificiant internal tools and libraries for application",
+      "sha256": "3d70cc047e8166996105fe760dd95c6d6dec899ca996e4e62f5b98c5f41a989f",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-1-action-3",
+      "text": "IoT product A Developer Android - Played key role in developing and deploying new critical business product via some iOT System",
+      "sha256": "0dc638da180fb23d8b58186c9e6e2287218c97cccef237bb63d6f40ea718daa3",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-1-technology-0",
+      "text": "Kotlin",
+      "sha256": "c78f6c97923e81a2f04f09c5e87b69e085c1e47066a1136b5f590bfde696e2eb",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-1-technology-1",
+      "text": "Java",
+      "sha256": "c1ba60ce13586503a21a05e9ef0bb959f1ba74a1d37bcfcbf5fc6bfb548f684d",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-1-technology-2",
+      "text": "Dagger",
+      "sha256": "5679daa7c55dde153a0e3f2e5d7c5318f149fa10716a7d874fa97e46639426a3",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-1-technology-3",
+      "text": "MVP",
+      "sha256": "3953f7eea41d0899c63898d11f2ec9e4900d77fadbb725b465310e0595961ea5",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-1-technology-4",
+      "text": "OkHttp",
+      "sha256": "d662e9c6792b9f2dc1b60e5ac40dcfb6dbfd264af7176c0366ac2e8a4cfb7a27",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-1-technology-5",
+      "text": "Robolectric",
+      "sha256": "39572dfa7731f7c0600478a76f317e1c316f1d06baca61f3c9257e32a15a07ad",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-2-action-0",
+      "text": "Mobile product B Developer Android - Played key role in developing and deploying new critical business product which required me to produce in fast development cycles followed by multiple weekly iterations with client for feedback",
+      "sha256": "8424577afd65642bc3671d3ad99ec00daee66765b59e3ba193bac3de1f8a031d",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [
+          "fast development cycles"
+        ],
+        "task": [
+          "new critical business product"
+        ],
+        "action": [
+          "Played key role in developing and deploying"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "project-2-action-1",
+      "text": "Mobile product B Developer Android - Did fundamental architectural change major project by replacing AsyncTaskLoader by Kotlin Coroutine and RxJAVA",
+      "sha256": "52bca86deadd3fdeb64d594b664cbb25f5252c55322d59e94cfed53913ac1426",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-2-action-2",
+      "text": "Mobile product B Developer Android - Established new standards on departmental level by developing Java & Kotlin modules that I linked to two projects as dependency from common Futures repository",
+      "sha256": "084e576de1a53d5a870f7f81ef24ffc63139951b48ff3b68f78f297eb37678e9",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-2-technology-0",
+      "text": "Kotlin",
+      "sha256": "c78f6c97923e81a2f04f09c5e87b69e085c1e47066a1136b5f590bfde696e2eb",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-2-technology-1",
+      "text": "RxJava",
+      "sha256": "e9c760bbbca4c9de139e88c2f029561becbd1959a1ce2976e1d1ee1b6e2b17b7",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-2-technology-2",
+      "text": "JetPack",
+      "sha256": "28fa8c49c50b5375d89d9e282380e207576f2139a1ec5ca8b2d952a4be768705",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-2-technology-3",
+      "text": "Coroutines",
+      "sha256": "57d592c480eded4961fbcb9b667f25674ecfdcd8758816704a0504abb6ba8480",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-2-technology-4",
+      "text": "Dagger",
+      "sha256": "5679daa7c55dde153a0e3f2e5d7c5318f149fa10716a7d874fa97e46639426a3",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-2-technology-5",
+      "text": "MVP",
+      "sha256": "3953f7eea41d0899c63898d11f2ec9e4900d77fadbb725b465310e0595961ea5",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-2-technology-6",
+      "text": "Retrofit",
+      "sha256": "4de8beaed579161f2abcc882454fda7777154801725a767e64fa01c7ca75eb34",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-2-technology-7",
+      "text": "Accengage",
+      "sha256": "1523f2a12c34bb9e3698851833173264a05421408b1387e3bdf46b5b3861ec4e",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-2-technology-8",
+      "text": "Espresso",
+      "sha256": "e25dc4762c339fa65e58e66cf5fdcde14764faca1cc743004f83571be1f5568d",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-2-technology-9",
+      "text": "Robolectric",
+      "sha256": "39572dfa7731f7c0600478a76f317e1c316f1d06baca61f3c9257e32a15a07ad",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-3-action-0",
+      "text": "Mobile project C Developer Mobile and Mini BackOffice - Developed the application by React Native",
+      "sha256": "e30bab523663934af0b076249c8d5c0dc1fdf7b572f6e5766d4e33274f0e7f79",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-3-action-1",
+      "text": "Mobile project C Developer Mobile and Mini BackOffice - Realized a back office in React JS (management of the users, follow-up of the activity of the users)",
+      "sha256": "d2c177d83de983bf9b0ce3c215b6fbb059434134ba06602683584570bdeafae2",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [
+          "management of the users, follow-up of the activity of the users"
+        ],
+        "action": [
+          "Realized a back office in React JS"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "project-3-action-2",
+      "text": "Mobile project C Developer Mobile and Mini BackOffice - Implemented of Firebase Analytics (hit on articles and user activity)",
+      "sha256": "9b5515eedaaf3fb497305e68fc658bae46dbc24e4fa392cea34199bf0e3a0e77",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-3-technology-0",
+      "text": "React Native",
+      "sha256": "1cd07be18aed5105b1a78df8344ca494a327e6e5548dfba72b9d72f298b1bee9",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-3-technology-1",
+      "text": "React",
+      "sha256": "01fad993ff61aca9a1f2f07100c95eb1559d8b6440a00cb974a92810a6b5a2dc",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-3-technology-2",
+      "text": "Firebase",
+      "sha256": "4f3a3e91015ed845f6eb5550bc3334001c9501620b1d75299234903fe95f527e",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-3-technology-3",
+      "text": "FireStore",
+      "sha256": "c8841d0a3fb6e3ec7ce59aa0253ee6f4e6b71e8349b45d6a6cc9aeb5c37920f2",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-3-technology-4",
+      "text": "Prismic",
+      "sha256": "f75b290c2e18d3da0503412dd371d4a5afbdbd43a3cfa911998dace144fb6836",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-3-technology-5",
+      "text": "Redux",
+      "sha256": "73f887a71bc9251a95ceafdb630302acb41a40110c8b6ee092a9490761cf5a6d",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-3-technology-6",
+      "text": "Jest",
+      "sha256": "1f30f03bec8a6bcf5c3b119bfb0ff1b5d19c88372b5be906eb67dcf053009ba7",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-4-action-0",
+      "text": "Payment project A Developer Mobile and front - Developed the application by React Native",
+      "sha256": "9294ae31224eed7c5d5ec600a6a6c16cde75b22769b2b440aae473cbc0b413bc",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-4-action-1",
+      "text": "Payment project A Developer Mobile and front - Realization a responsive web by React JS",
+      "sha256": "4953bbffcba63f70cb8264a1125b3c7eaca729ff1916fb0f1b528c86e013ca08",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [
+          "responsive web"
+        ],
+        "action": [
+          "Realization a responsive web by React JS"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "project-4-action-2",
+      "text": "Payment project A Developer Mobile and front - Used Rest API for extraction of user data",
+      "sha256": "62346107f51a53387cd60cc81545e1db4c0e816da58a48f392f1841692e349c3",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-4-technology-0",
+      "text": "React",
+      "sha256": "01fad993ff61aca9a1f2f07100c95eb1559d8b6440a00cb974a92810a6b5a2dc",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-4-technology-1",
+      "text": "React-Native",
+      "sha256": "72b0dea7acd1669e4a3c4f5b8dab560ce531928facf75b9bf33ec7d3a435a1a6",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-4-technology-2",
+      "text": "Rest API",
+      "sha256": "10d610bcded5b25d6c321a48268ae5a94139a3814ff69d470d420f8ad3706a4e",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-4-technology-3",
+      "text": "Jest",
+      "sha256": "1f30f03bec8a6bcf5c3b119bfb0ff1b5d19c88372b5be906eb67dcf053009ba7",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-5-action-0",
+      "text": "Inventory project A Mobile Developer - Developed the application by React Native",
+      "sha256": "b1efe2a517e9c50be98ba25cd559b482aa7d3dc41ce07ae77e05671a2daf50a2",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-5-action-1",
+      "text": "Inventory project A Mobile Developer - Developed backend by Node.js",
+      "sha256": "afa40a869037e59892af26cf89e145b4a56ba017d91cdfd4ae4a248c6be55812",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [
+          "backend"
+        ],
+        "action": [
+          "Developed backend by Node.js"
+        ],
+        "result": []
+      }
+    },
+    {
+      "id": "project-5-technology-0",
+      "text": "React Native",
+      "sha256": "1cd07be18aed5105b1a78df8344ca494a327e6e5548dfba72b9d72f298b1bee9",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-5-technology-1",
+      "text": "Redux",
+      "sha256": "73f887a71bc9251a95ceafdb630302acb41a40110c8b6ee092a9490761cf5a6d",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-5-technology-2",
+      "text": "Node",
+      "sha256": "e93372533f323b2f12783aa3a586135cf421486439c2cdcde47411b78f9839ec",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-6-action-0",
+      "text": "Internal project A Developer Android - Developed the application from scratch",
+      "sha256": "d472c653c15e6ddd203789470bb93cdf950cdc3a6788720a56f4087691a5e5a9",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-6-action-1",
+      "text": "Internal project A Developer Android - Storing structured data with newly announced Realm database",
+      "sha256": "304acfe6780d5834d4da31994e68fc4f0bcac8aa13f5296ce2602a7e6e5d29af",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-6-action-2",
+      "text": "Internal project A Developer Android - Designed proof of concept with agile user stories and class diagrams for company asset lifecycle management tool",
+      "sha256": "588b970a6131e0918928388ed84d1d0763da99675dc1e777c6e5cb144329b423",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-6-technology-0",
+      "text": "Kotlin",
+      "sha256": "c78f6c97923e81a2f04f09c5e87b69e085c1e47066a1136b5f590bfde696e2eb",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-6-technology-1",
+      "text": "RxKotlin",
+      "sha256": "833b4069129d615ba1fbe77481a51ceeec9e7184ffc27248fb63b832db22c4b5",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-6-technology-2",
+      "text": "Redux",
+      "sha256": "73f887a71bc9251a95ceafdb630302acb41a40110c8b6ee092a9490761cf5a6d",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-6-technology-3",
+      "text": "Mapbox",
+      "sha256": "e176056dab7a6bd15598f58f83b59bd37f8f7e3a9d6e3aaa3d3a0bfc0ea9aad3",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "project-6-technology-4",
+      "text": "Realm",
+      "sha256": "2919fe8558c441c9a4ae0ca22fbff2abb0be4b7f6de6dc7a37f7979c9a72f4bd",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skills-1",
+      "text": "Android",
+      "sha256": "6d612a86bee4b0a659b8b3affd6f1fbcad15c4cbbbbdc4996c6c01c786711a21",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skills-2",
+      "text": "Kotlin",
+      "sha256": "c78f6c97923e81a2f04f09c5e87b69e085c1e47066a1136b5f590bfde696e2eb",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skills-3",
+      "text": "Java",
+      "sha256": "c1ba60ce13586503a21a05e9ef0bb959f1ba74a1d37bcfcbf5fc6bfb548f684d",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skills-4",
+      "text": "React Native",
+      "sha256": "1cd07be18aed5105b1a78df8344ca494a327e6e5548dfba72b9d72f298b1bee9",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skills-5",
+      "text": "React JS",
+      "sha256": "ae782ce52a2cdf7d19e081cb4e76e23abf5fe02dd04c652d3662039af6ad19ed",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skills-6",
+      "text": "JavaScript",
+      "sha256": "b27ad06d123c6145fba7e9217a4cfbf2488b4743810ed8c8ff14ad01a5bbe515",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skills-7",
+      "text": "Css",
+      "sha256": "3835f71bf33ecfb6d4da668c155ac31cf0208b940a41ec84a561cd74b3626fed",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skills-8",
+      "text": "Html",
+      "sha256": "9c0fca3b23381bf8de7f96f037d0f48f6b87274755fc1790bdae7b6330dec1be",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skills-9",
+      "text": "Ruby",
+      "sha256": "108040ac289a13952927ac14f658a0b06cf24612c43375801b63f87be11191f7",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skills-10",
+      "text": "Git",
+      "sha256": "b949c922b6ef9ffbf41eb853b99578624ca6f6475c4f13abe2995484b0348e5c",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skills-11",
+      "text": "Heroku",
+      "sha256": "daa4f9df1d6110db4a3241843b0e03773e623cb6c9f470b1d334a6ebe404e47b",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    },
+    {
+      "id": "skills-12",
+      "text": "Jekyll",
+      "sha256": "a327ee463fa784b18949914a7ca6840893fc9cd9f3eb87d8251e1fd4f87f4ddf",
+      "provenance": {
+        "url": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/public/data.json",
+        "revision": "2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d",
+        "license": "MIT",
+        "licenseUrl": "https://github.com/underwindfall/resume/blob/2ec3f3e631aab7aa31bf1482f1e1b811b7807a2d/LICENSE",
+        "retrievedAt": "2026-11-12T00:00:00.000Z",
+        "originalSha256": "daa62be7bb26cb0af055d9a2503055f2312e0e86a01fecc9ef163ae7ddec8c98",
+        "anonymization": "Deterministic pseudonymization v1: omit contact/identity metadata; replace employer/client/school/product names; retain all selected professional units and qualifiers. Source attribution is separate. Public source links allow re-identification; not irreversible anonymity."
+      },
+      "star": {
+        "situation": [],
+        "task": [],
+        "action": [],
+        "result": []
+      }
+    }
+  ],
+  "requirements": [
+    {
+      "id": "requirement-01",
+      "original": {
+        "start": 20,
+        "end": 130,
+        "quote": "Professional experience with VueJS **or** another modern JavaScript web framework (React, Angular, Ember, etc)"
+      },
+      "weight": 3,
+      "support": "supported",
+      "anchorGroups": [
+        [
+          "React JS"
+        ],
+        [
+          "back office",
+          "responsive web"
+        ]
+      ],
+      "evidenceIds": [
+        "project-3-action-1",
+        "project-4-action-1"
+      ]
+    },
+    {
+      "id": "requirement-02",
+      "original": {
+        "start": 133,
+        "end": 217,
+        "quote": "Experience with writing automated tests (eg. Jest, Karma, Jasmine, Mocha, AVA, tape)"
+      },
+      "weight": 3,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Jest"
+        ],
+        [
+          "tests",
+          "testing"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-03",
+      "original": {
+        "start": 220,
+        "end": 280,
+        "quote": "Experience using Git in a professional/workplace environment"
+      },
+      "weight": 2,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Git"
+        ],
+        [
+          "professional"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-04",
+      "original": {
+        "start": 283,
+        "end": 392,
+        "quote": "A solid understanding in core web and browser concepts (eg. how the browser parses and constructs a web page)"
+      },
+      "weight": 3,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "browser"
+        ],
+        [
+          "parses"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-05",
+      "original": {
+        "start": 395,
+        "end": 469,
+        "quote": "A solid understanding of semantic HTML, CSS, and core JavaScript concepts."
+      },
+      "weight": 3,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "semantic HTML"
+        ],
+        [
+          "CSS"
+        ],
+        [
+          "JavaScript"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-06",
+      "original": {
+        "start": 472,
+        "end": 610,
+        "quote": "Proficiency in the English language, both written and verbal, sufficient for success in a remote and largely asynchronous work environment"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Proficiency in the English language, both written and verbal, sufficient for success in a remote and largely asynchronous work environment"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-07",
+      "original": {
+        "start": 613,
+        "end": 783,
+        "quote": "Demonstrated capacity to clearly and concisely communicate about complex technical, architectural, and/or organizational problems and propose thorough iterative solutions"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Demonstrated capacity to clearly and concisely communicate about complex technical, architectural, and/or organizational problems and propose thorough iterative solutions"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-08",
+      "original": {
+        "start": 786,
+        "end": 910,
+        "quote": "Experience with performance and optimization problems and a demonstrated ability to both diagnose and prevent these problems"
+      },
+      "weight": 3,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "web"
+        ],
+        [
+          "performance"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-09",
+      "original": {
+        "start": 913,
+        "end": 996,
+        "quote": "Comfort working in a highly agile, intensely iterative software development process"
+      },
+      "weight": 2,
+      "support": "supported",
+      "anchorGroups": [
+        [
+          "iterations"
+        ],
+        [
+          "client"
+        ]
+      ],
+      "evidenceIds": [
+        "project-2-action-0"
+      ]
+    },
+    {
+      "id": "requirement-10",
+      "original": {
+        "start": 999,
+        "end": 1075,
+        "quote": "Demonstrated ability to onboard and integrate with an organization long-term"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Demonstrated ability to onboard and integrate with an organization long-term"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-11",
+      "original": {
+        "start": 1078,
+        "end": 1116,
+        "quote": "Positive and solution-oriented mindset"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Positive and solution-oriented mindset"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-12",
+      "original": {
+        "start": 1119,
+        "end": 1215,
+        "quote": "Effective communication skills: Regularly achieve consensus with peers, and clear status updates"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Effective communication skills: Regularly achieve consensus with peers, and clear status updates"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-13",
+      "original": {
+        "start": 1218,
+        "end": 1281,
+        "quote": "An inclination towards communication, inclusion, and visibility"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "An inclination towards communication, inclusion, and visibility"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-14",
+      "original": {
+        "start": 1284,
+        "end": 1351,
+        "quote": "Self-motivated and self-managing, with great organizational skills."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Self-motivated and self-managing, with great organizational skills."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-15",
+      "original": {
+        "start": 1354,
+        "end": 1427,
+        "quote": "Demonstrated ability to work closely with other parts of the organization"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Demonstrated ability to work closely with other parts of the organization"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-16",
+      "original": {
+        "start": 1430,
+        "end": 1488,
+        "quote": "Share our values, and work in accordance with those values"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Share our values, and work in accordance with those values"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-17",
+      "original": {
+        "start": 1491,
+        "end": 1539,
+        "quote": "Ability to thrive in a fully remote organization"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Ability to thrive in a fully remote organization"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-18",
+      "original": {
+        "start": 1542,
+        "end": 1563,
+        "quote": "Ability to use GitLab"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Ability to use GitLab"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-19",
+      "original": {
+        "start": 1566,
+        "end": 1665,
+        "quote": "Comfort and familiarity with our [code review process](/handbook/engineering/workflow/code-review/)"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Comfort and familiarity with our [code review process](/handbook/engineering/workflow/code-review/)"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-20",
+      "original": {
+        "start": 1688,
+        "end": 1731,
+        "quote": "Working knowledge of Ruby on Rails and Haml"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Ruby on Rails"
+        ],
+        [
+          "Haml"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-21",
+      "original": {
+        "start": 1734,
+        "end": 1806,
+        "quote": "Experience in a peak performance organization, preferably a tech startup"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Experience in a peak performance organization, preferably a tech startup"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-22",
+      "original": {
+        "start": 1809,
+        "end": 1868,
+        "quote": "Experience with the GitLab product as a user or contributor"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Experience with the GitLab product as a user or contributor"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-23",
+      "original": {
+        "start": 1871,
+        "end": 1897,
+        "quote": "Product company experience"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Product company experience"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-24",
+      "original": {
+        "start": 1900,
+        "end": 1937,
+        "quote": "Experience working with a remote team"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Experience working with a remote team"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-25",
+      "original": {
+        "start": 1940,
+        "end": 1978,
+        "quote": "Enterprise software company experience"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Enterprise software company experience"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-26",
+      "original": {
+        "start": 1981,
+        "end": 2024,
+        "quote": "Developer platform/tool industry experience"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Developer platform/tool industry experience"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-27",
+      "original": {
+        "start": 2027,
+        "end": 2091,
+        "quote": "Experience working with a global or otherwise multicultural team"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Experience working with a global or otherwise multicultural team"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-28",
+      "original": {
+        "start": 2094,
+        "end": 2141,
+        "quote": "Experience contributing to open source software"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Experience contributing to open source software"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-29",
+      "original": {
+        "start": 2144,
+        "end": 2298,
+        "quote": "Domain knowledge relevant to the product stage in which you are looking to join (eg. someone with CI/CD experience applying for the Verify & Release team)"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Domain knowledge relevant to the product stage in which you are looking to join (eg. someone with CI/CD experience applying for the Verify & Release team)"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-30",
+      "original": {
+        "start": 2355,
+        "end": 2455,
+        "quote": "Develop features and improvements to the GitLab product in a secure, well-tested, and performant way"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Develop features and improvements to the GitLab product in a secure, well-tested, and performant way"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-31",
+      "original": {
+        "start": 2458,
+        "end": 2590,
+        "quote": "You'll work with Product Management and other stakeholders (Backend, UX, etc.) to iterate on new features within the GitLab product."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "You'll work with Product Management and other stakeholders (Backend, UX, etc.) to iterate on new features within the GitLab product."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-32",
+      "original": {
+        "start": 2593,
+        "end": 2781,
+        "quote": "Craft code that meets our internal standards for style, maintainability, and best practices for a high-scale web environment. Maintain and advocate for these standards through code review."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Craft code that meets our internal standards for style, maintainability, and best practices for a high-scale web environment. Maintain and advocate for these standards through code review."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-33",
+      "original": {
+        "start": 2784,
+        "end": 2938,
+        "quote": "Consistently ship small features and improvements with minimal guidance and support from other team members. Collaborate with the team on larger projects."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "Consistently ship small features and improvements with minimal guidance and support from other team members. Collaborate with the team on larger projects."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-34",
+      "original": {
+        "start": 2941,
+        "end": 3155,
+        "quote": "You'll help improve the overall experience of our product through improving the quality of the Frontend features both in your [group](/handbook/product/categories/#hierarchy) and features that benefit other groups."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "You'll help improve the overall experience of our product through improving the quality of the Frontend features both in your [group](/handbook/product/categories/#hierarchy) and features that benefit other groups."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-35",
+      "original": {
+        "start": 3158,
+        "end": 3374,
+        "quote": "You'll help identify areas of improvements in the code base, both specific to your [group](/handbook/product/categories/#hierarchy) and outside your group (eg. component library) and help contribute to make it better"
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "You'll help identify areas of improvements in the code base, both specific to your [group](/handbook/product/categories/#hierarchy) and outside your group (eg. component library) and help contribute to make it better"
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-36",
+      "original": {
+        "start": 3377,
+        "end": 3541,
+        "quote": "You'll learn, collaborate and teach other Frontend Engineers. Everyone can contribute something new to the team regardless of how long they've been in the industry."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "You'll learn, collaborate and teach other Frontend Engineers. Everyone can contribute something new to the team regardless of how long they've been in the industry."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-37",
+      "original": {
+        "start": 3544,
+        "end": 3693,
+        "quote": "You'll fix prioritized issues from the issue tracker. These are typically bugs listed in a GitLab issue with an attached severity and priority label."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "You'll fix prioritized issues from the issue tracker. These are typically bugs listed in a GitLab issue with an attached severity and priority label."
+        ]
+      ],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement-38",
+      "original": {
+        "start": 3696,
+        "end": 3831,
+        "quote": "You'll contribute to and follow our workflow process, alongside the rest of the Frontend Engineers and the GitLab community as a whole."
+      },
+      "weight": 1,
+      "support": "not_evidenced",
+      "anchorGroups": [
+        [
+          "You'll contribute to and follow our workflow process, alongside the rest of the Frontend Engineers and the GitLab community as a whole."
+        ]
+      ],
+      "evidenceIds": []
+    }
+  ],
+  "entityLexicon": [
+    "Chef",
+    "Ansible",
+    "Terraform",
+    "Kubernetes",
+    "Ruby",
+    "Ruby on Rails",
+    "Go",
+    "Golang",
+    "Redis",
+    "Kafka",
+    "React",
+    "React Native",
+    "Vue.js",
+    "JavaScript",
+    "GitLab",
+    "Snowflake",
+    "Airflow",
+    "SQL",
+    "Docker",
+    "Django",
+    "C#",
+    ".NET"
+  ],
+  "approvedParaphrases": []
+}

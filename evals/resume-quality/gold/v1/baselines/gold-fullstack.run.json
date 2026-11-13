@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 1,
+  "caseId": "gold-fullstack",
+  "caseSha256": "f10cc37d16fbc4c7d44591442a411789b371f473e3f8d71b40a45ce4bfb0dda4",
+  "origin": {
+    "kind": "extractive_baseline",
+    "label": "Deterministic full-unit extraction with source-month dates; not a model or human-authored resume"
+  },
+  "model": {
+    "provider": "none",
+    "id": "source-extraction",
+    "revision": "gold-source-review-v1",
+    "runtimeId": "offline-no-runtime"
+  },
+  "protocolVersion": "gold-source-review-v1",
+  "budget": {
+    "maxModelCalls": 0,
+    "maxToolCalls": 0,
+    "maxActiveMs": 0
+  },
+  "observed": {
+    "modelCalls": 0,
+    "toolCalls": 0,
+    "activeMs": 0
+  },
+  "factBase": {
+    "schemaVersion": 1,
+    "updatedAt": "2026-11-12T00:00:00.000Z",
+    "profile": {
+      "displayName": {
+        "zh": "Candidate - fullstack",
+        "en": "Candidate - fullstack"
+      },
+      "links": [],
+      "traits": [],
+      "targetRoles": [],
+      "constraints": []
+    },
+    "experiences": [
+      {
+        "id": "freelance",
+        "type": "work",
+        "org": {
+          "zh": "Self-employed"
+        },
+        "title": {
+          "zh": "Web Developer & Designer"
+        },
+        "start": "2017-01",
+        "end": null,
+        "techStack": [],
+        "claims": [
+          {
+            "id": "freelance-action-4",
+            "kind": "action",
+            "text": {
+              "zh": "Self-employed Web Developer & Designer. Using HTML, CSS and JavaScript to bring concepts to life."
+            },
+            "tags": []
+          },
+          {
+            "id": "freelance-action-10",
+            "kind": "action",
+            "text": {
+              "zh": "Self-employed Web Developer & Designer. Fixing bugs and testing for usability."
+            },
+            "tags": []
+          },
+          {
+            "id": "freelance-action-11",
+            "kind": "action",
+            "text": {
+              "zh": "Self-employed Web Developer & Designer. Designing stable, reliable and effective databases."
+            },
+            "tags": []
+          },
+          {
+            "id": "freelance-action-16",
+            "kind": "action",
+            "text": {
+              "zh": "Self-employed Web Developer & Designer. Creating functional APIs."
+            },
+            "tags": []
+          },
+          {
+            "id": "freelance-action-18",
+            "kind": "action",
+            "text": {
+              "zh": "Self-employed Web Developer & Designer. Building reusable code and libraries for future use."
+            },
+            "tags": []
+          },
+          {
+            "id": "freelance-action-19",
+            "kind": "action",
+            "text": {
+              "zh": "Self-employed Web Developer & Designer. Ensuring high-performance and availability, and managing all technical aspects of the CMS."
+            },
+            "tags": []
+          }
+        ]
+      }
+    ]
+  },
+  "view": {
+    "id": "gold-fullstack-extractive",
+    "name": "Deterministic extractive baseline; not a model",
+    "locale": "en",
+    "templateId": "zh-classic",
+    "includedExperienceIds": [],
+    "includedClaimIds": [],
+    "sectionOrder": [
+      "summary",
+      "experience",
+      "projects",
+      "skills",
+      "education"
+    ],
+    "layout": {
+      "bodyFontSize": 10,
+      "lineHeight": 1.6,
+      "pageMargin": 16
+    },
+    "updatedAt": "2026-11-12T00:00:00.000Z"
+  },
+  "locale": "en",
+  "citations": [
+    {
+      "claimId": "freelance-action-4",
+      "evidenceId": "freelance-action-4",
+      "sourceSha256": "1fd64445be1901d99c6ba648e127afe98fa807796d8a8d2424724b95cdce2c02",
+      "original": {
+        "start": 0,
+        "end": 97,
+        "quote": "Self-employed Web Developer & Designer. Using HTML, CSS and JavaScript to bring concepts to life."
+      }
+    },
+    {
+      "claimId": "freelance-action-10",
+      "evidenceId": "freelance-action-10",
+      "sourceSha256": "351abaad9a13ba9b6615ac214dde80f13931d6f0996eea7dccd651e70f3d9eff",
+      "original": {
+        "start": 0,
+        "end": 78,
+        "quote": "Self-employed Web Developer & Designer. Fixing bugs and testing for usability."
+      }
+    },
+    {
+      "claimId": "freelance-action-11",
+      "evidenceId": "freelance-action-11",
+      "sourceSha256": "516627ca12de735e713696fe20553034b71aa5b590381abf03bfabbb612f0093",
+      "original": {
+        "start": 0,
+        "end": 91,
+        "quote": "Self-employed Web Developer & Designer. Designing stable, reliable and effective databases."
+      }
+    },
+    {
+      "claimId": "freelance-action-16",
+      "evidenceId": "freelance-action-16",
+      "sourceSha256": "a9917693115cff349c50f07107b146d22ab7836d10d16846b6eadcde38107db8",
+      "original": {
+        "start": 0,
+        "end": 65,
+        "quote": "Self-employed Web Developer & Designer. Creating functional APIs."
+      }
+    },
+    {
+      "claimId": "freelance-action-18",
+      "evidenceId": "freelance-action-18",
+      "sourceSha256": "c78039d7fe44f0dbf7941b73362c62d0b706e7d860ce638e3240df39c89b7836",
+      "original": {
+        "start": 0,
+        "end": 92,
+        "quote": "Self-employed Web Developer & Designer. Building reusable code and libraries for future use."
+      }
+    },
+    {
+      "claimId": "freelance-action-19",
+      "evidenceId": "freelance-action-19",
+      "sourceSha256": "079eccc98d9569055c9483c1452860622e5f28f8053d3c3f72dc9af2e2ae9d52",
+      "original": {
+        "start": 0,
+        "end": 130,
+        "quote": "Self-employed Web Developer & Designer. Ensuring high-performance and availability, and managing all technical aspects of the CMS."
+      }
+    }
+  ]
+}

@@ -1,0 +1,242 @@
+[work-0; employment; self_reported]
+Senior Android Developer Responsible for developing the Mobile product A products for Photos Genre
+
+[work-1; employment; self_reported]
+Mobile Developer Responsible for developing the android application by kotlin and java. The application aimed to exchange interactions with IOT products.
+
+[work-2; employment; self_reported]
+Mobile Developer Responsible for developing the android application by kotlin and java. The most time of my work is trying to build a highly efficient and responsive mobile application for our clients.
+
+[work-3; internship; self_reported]
+.Net Developer Internship I am mainly responsible for the company's official website, the daily operation of the page, management background page optimization. Work is very saturated, but in time to spare time to learn a lot of new frameworks and libraries and JQuery have a certain understanding-During this internship, I've improved my skills especially in developing front-end and back-end.
+
+[education-1; education; self_reported]
+University B Engineer's Degree Systems Engineering, Networks and Telecommunications 10,2017 - 09,2014 Ever since I studied in France, I mainly learned such as operating systems, computer networks, JAVA, Android, assembly language, machine learning and so on.Since university and especially during my French Engineer Program, I've had the chance to work with researchers of various backgrounds on different subjects, mainly regarding systems mobiles,network protocols,website development through research projects at school. It's my pleasure, at an early point of my career, to have been able to discover these exciting projects which has also been helpful to my career planning.
+
+[education-2; education; self_reported]
+University C Bachelor's Degree Information and communication engineering 06,2014 - 09,2011 I mainly studied such as C / C + + programming language, data structure, compilation principles etc during my three years in university. These basic knowledge lay a solid foundation for my study abroad in France- Besides, during the school I participated in community activities particularly in the 24-hour innovation contest, I won the second place in Asia's division.
+
+[project-0-action-0; mobile_project; self_reported]
+Mobile product A Android Senior Engineer - Deeply involved in the development of Mobile product A from scratch, improved the average latency of feeds from 1400ms to 100ms
+
+[project-0-action-1; mobile_project; self_reported]
+Mobile product A Android Senior Engineer - Actively involved in enhancing user perceptions of QoS (Quality of Service) and QoE (Quality of Experience) through various methods, which successfully reduced the average image load time from 1000ms to 300ms
+
+[project-0-action-2; mobile_project; self_reported]
+Mobile product A Android Senior Engineer - Developed a tool using GPT to assist operations staff in automatically labelling various posts automatically and significantly optimize content selection from Mobile product A
+
+[project-0-action-3; mobile_project; self_reported]
+Mobile product A Android Senior Engineer - Took Charge of developing a framework to produce an efficiency score for all components in photos genre. The score can then be used for determining the priority and integration standards of components
+
+[project-0-action-4; mobile_project; self_reported]
+Mobile product A Android Senior Engineer - Served as the Android Tech Interviewer and trained new staff as a mentor within the team
+
+[project-0-technology-0; technology_list; self_reported]
+Kotlin
+
+[project-0-technology-1; technology_list; self_reported]
+Java
+
+[project-0-technology-2; technology_list; self_reported]
+MVVM
+
+[project-0-technology-3; technology_list; self_reported]
+Jetpack
+
+[project-0-technology-4; technology_list; self_reported]
+Compose
+
+[project-1-action-0; mobile_project; self_reported]
+IoT product A Developer Android - Worked in IoT product A's eco system of software and hardware, many of these iOT products have cross plateform technologies such as (WebRTC, Wifi-Scanning etc.)
+
+[project-1-action-1; mobile_project; self_reported]
+IoT product A Developer Android - Took part in building some apps from scratch and gain great reputations from playstore
+
+[project-1-action-2; mobile_project; self_reported]
+IoT product A Developer Android - Published and improved magnificiant internal tools and libraries for application
+
+[project-1-action-3; mobile_project; self_reported]
+IoT product A Developer Android - Played key role in developing and deploying new critical business product via some iOT System
+
+[project-1-technology-0; technology_list; self_reported]
+Kotlin
+
+[project-1-technology-1; technology_list; self_reported]
+Java
+
+[project-1-technology-2; technology_list; self_reported]
+Dagger
+
+[project-1-technology-3; technology_list; self_reported]
+MVP
+
+[project-1-technology-4; technology_list; self_reported]
+OkHttp
+
+[project-1-technology-5; technology_list; self_reported]
+Robolectric
+
+[project-2-action-0; mobile_project; self_reported]
+Mobile product B Developer Android - Played key role in developing and deploying new critical business product which required me to produce in fast development cycles followed by multiple weekly iterations with client for feedback
+
+[project-2-action-1; mobile_project; self_reported]
+Mobile product B Developer Android - Did fundamental architectural change major project by replacing AsyncTaskLoader by Kotlin Coroutine and RxJAVA
+
+[project-2-action-2; mobile_project; self_reported]
+Mobile product B Developer Android - Established new standards on departmental level by developing Java & Kotlin modules that I linked to two projects as dependency from common Futures repository
+
+[project-2-technology-0; technology_list; self_reported]
+Kotlin
+
+[project-2-technology-1; technology_list; self_reported]
+RxJava
+
+[project-2-technology-2; technology_list; self_reported]
+JetPack
+
+[project-2-technology-3; technology_list; self_reported]
+Coroutines
+
+[project-2-technology-4; technology_list; self_reported]
+Dagger
+
+[project-2-technology-5; technology_list; self_reported]
+MVP
+
+[project-2-technology-6; technology_list; self_reported]
+Retrofit
+
+[project-2-technology-7; technology_list; self_reported]
+Accengage
+
+[project-2-technology-8; technology_list; self_reported]
+Espresso
+
+[project-2-technology-9; technology_list; self_reported]
+Robolectric
+
+[project-3-action-0; mobile_web_project; self_reported]
+Mobile project C Developer Mobile and Mini BackOffice - Developed the application by React Native
+
+[project-3-action-1; mobile_web_project; self_reported]
+Mobile project C Developer Mobile and Mini BackOffice - Realized a back office in React JS (management of the users, follow-up of the activity of the users)
+
+[project-3-action-2; mobile_web_project; self_reported]
+Mobile project C Developer Mobile and Mini BackOffice - Implemented of Firebase Analytics (hit on articles and user activity)
+
+[project-3-technology-0; technology_list; self_reported]
+React Native
+
+[project-3-technology-1; technology_list; self_reported]
+React
+
+[project-3-technology-2; technology_list; self_reported]
+Firebase
+
+[project-3-technology-3; technology_list; self_reported]
+FireStore
+
+[project-3-technology-4; technology_list; self_reported]
+Prismic
+
+[project-3-technology-5; technology_list; self_reported]
+Redux
+
+[project-3-technology-6; technology_list; self_reported]
+Jest
+
+[project-4-action-0; mobile_web_project; self_reported]
+Payment project A Developer Mobile and front - Developed the application by React Native
+
+[project-4-action-1; mobile_web_project; self_reported]
+Payment project A Developer Mobile and front - Realization a responsive web by React JS
+
+[project-4-action-2; mobile_web_project; self_reported]
+Payment project A Developer Mobile and front - Used Rest API for extraction of user data
+
+[project-4-technology-0; technology_list; self_reported]
+React
+
+[project-4-technology-1; technology_list; self_reported]
+React-Native
+
+[project-4-technology-2; technology_list; self_reported]
+Rest API
+
+[project-4-technology-3; technology_list; self_reported]
+Jest
+
+[project-5-action-0; mobile_web_project; self_reported]
+Inventory project A Mobile Developer - Developed the application by React Native
+
+[project-5-action-1; mobile_web_project; self_reported]
+Inventory project A Mobile Developer - Developed backend by Node.js
+
+[project-5-technology-0; technology_list; self_reported]
+React Native
+
+[project-5-technology-1; technology_list; self_reported]
+Redux
+
+[project-5-technology-2; technology_list; self_reported]
+Node
+
+[project-6-action-0; mobile_project; self_reported]
+Internal project A Developer Android - Developed the application from scratch
+
+[project-6-action-1; mobile_project; self_reported]
+Internal project A Developer Android - Storing structured data with newly announced Realm database
+
+[project-6-action-2; mobile_project; self_reported]
+Internal project A Developer Android - Designed proof of concept with agile user stories and class diagrams for company asset lifecycle management tool
+
+[project-6-technology-0; technology_list; self_reported]
+Kotlin
+
+[project-6-technology-1; technology_list; self_reported]
+RxKotlin
+
+[project-6-technology-2; technology_list; self_reported]
+Redux
+
+[project-6-technology-3; technology_list; self_reported]
+Mapbox
+
+[project-6-technology-4; technology_list; self_reported]
+Realm
+
+[skills-1; skill_list; self_reported]
+Android
+
+[skills-2; skill_list; self_reported]
+Kotlin
+
+[skills-3; skill_list; self_reported]
+Java
+
+[skills-4; skill_list; self_reported]
+React Native
+
+[skills-5; skill_list; self_reported]
+React JS
+
+[skills-6; skill_list; self_reported]
+JavaScript
+
+[skills-7; skill_list; self_reported]
+Css
+
+[skills-8; skill_list; self_reported]
+Html
+
+[skills-9; skill_list; self_reported]
+Ruby
+
+[skills-10; skill_list; self_reported]
+Git
+
+[skills-11; skill_list; self_reported]
+Heroku
+
+[skills-12; skill_list; self_reported]
+Jekyll

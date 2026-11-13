@@ -1,0 +1,409 @@
+[
+  {
+    "id": "work-0",
+    "title": "Senior Android Developer",
+    "organization": "Employer N",
+    "dates": "Until Now / 10,2022 (original fields; chronology unresolved)",
+    "kind": "employment",
+    "originals": [
+      {
+        "start": 853,
+        "end": 871,
+        "startLine": 56,
+        "endLine": 56,
+        "sha256": "5250dc1ce59d41d75e806024f415e8efc35a382ad2af0a772bf6844d6899bf3a"
+      },
+      {
+        "start": 888,
+        "end": 914,
+        "startLine": 57,
+        "endLine": 57,
+        "sha256": "99e4a25041b0b56ee49e92b1e253d8136edfc378fc8ace05e167e74a57cae4e8"
+      },
+      {
+        "start": 795,
+        "end": 806,
+        "startLine": 54,
+        "endLine": 54,
+        "sha256": "c5e31ea584641a48dfc2ca059d5d4bcf2b3b1231ed8708cddeb9bb5190ef9b98"
+      },
+      {
+        "start": 825,
+        "end": 834,
+        "startLine": 55,
+        "endLine": 55,
+        "sha256": "694ac7b20bfcc058a5e4d61b9f9897dc3f4cb079ac954629a0a66cf24e4276eb"
+      }
+    ]
+  },
+  {
+    "id": "work-1",
+    "title": "Mobile Developer",
+    "organization": "Employer O",
+    "dates": "08.2022 / 01,2020 (original fields; chronology unresolved)",
+    "kind": "employment",
+    "originals": [
+      {
+        "start": 1101,
+        "end": 1117,
+        "startLine": 63,
+        "endLine": 63,
+        "sha256": "e588331699207223cd23905990411144c170ba9ace83e9f656b851304a3a1644"
+      },
+      {
+        "start": 1134,
+        "end": 1152,
+        "startLine": 64,
+        "endLine": 64,
+        "sha256": "bdd9544a291c4acae76618398575180c9140ad76094927970e0ec02d0696b423"
+      },
+      {
+        "start": 1045,
+        "end": 1054,
+        "startLine": 61,
+        "endLine": 61,
+        "sha256": "26cde50fbdb4ed54b6cd9bd024f855f07aef98fcad79cac973f637f4daae3b23"
+      },
+      {
+        "start": 1073,
+        "end": 1082,
+        "startLine": 62,
+        "endLine": 62,
+        "sha256": "9f7c7eeaaf2752d3886197a35c92db63513a61f54dfe94069b639996cb295146"
+      }
+    ]
+  },
+  {
+    "id": "work-2",
+    "title": "Mobile Developer",
+    "organization": "Employer P",
+    "dates": "12,2019 / 02,2018 (original fields; chronology unresolved)",
+    "kind": "employment",
+    "originals": [
+      {
+        "start": 1412,
+        "end": 1445,
+        "startLine": 70,
+        "endLine": 70,
+        "sha256": "14aceaab7e59ef2173a2c54e5585b4c9a6feb2d2adab415f37522d127e7a9461"
+      },
+      {
+        "start": 1462,
+        "end": 1480,
+        "startLine": 71,
+        "endLine": 71,
+        "sha256": "bdd9544a291c4acae76618398575180c9140ad76094927970e0ec02d0696b423"
+      },
+      {
+        "start": 1356,
+        "end": 1365,
+        "startLine": 68,
+        "endLine": 68,
+        "sha256": "15cf2a185f8ee9eb3d15464de7156ae39ba298a5025c56ed1dd0d567a3527fae"
+      },
+      {
+        "start": 1384,
+        "end": 1393,
+        "startLine": 69,
+        "endLine": 69,
+        "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+      }
+    ]
+  },
+  {
+    "id": "work-3",
+    "title": ".Net Developer Internship",
+    "organization": "Employer Q",
+    "dates": "02,2016 / 09,2015 (original fields; chronology unresolved)",
+    "kind": "internship",
+    "originals": [
+      {
+        "start": 1788,
+        "end": 1817,
+        "startLine": 77,
+        "endLine": 77,
+        "sha256": "661999d2eb7fd645b80cc0e0ec383956606b1620e813ddac5c7dd5ae61f85c97"
+      },
+      {
+        "start": 1834,
+        "end": 1861,
+        "startLine": 78,
+        "endLine": 78,
+        "sha256": "79029a62f2a8aeff536c02c047e21e42c1e902dd35887107c249be7e5ed3aee7"
+      },
+      {
+        "start": 1732,
+        "end": 1741,
+        "startLine": 75,
+        "endLine": 75,
+        "sha256": "cb3d12a99b163f33d1842e722064f0ce02ab971a3e856579f1578abc766d4f63"
+      },
+      {
+        "start": 1760,
+        "end": 1769,
+        "startLine": 76,
+        "endLine": 76,
+        "sha256": "51a063875a4706af194f0cb99df32eb39cb1779145860ad3b8eafdd23b24089b"
+      }
+    ]
+  },
+  {
+    "id": "project-0",
+    "title": "Mobile product A",
+    "organization": "Android Senior Engineer",
+    "dates": "Until Now / 10,2022 (original fields; chronology unresolved)",
+    "kind": "project",
+    "originals": [
+      {
+        "start": 3791,
+        "end": 3799,
+        "startLine": 98,
+        "endLine": 98,
+        "sha256": "56c70d4493a48d6f6104d446add19e720b4b56abfab8f9c4313bed0b7b923250"
+      },
+      {
+        "start": 4782,
+        "end": 4807,
+        "startLine": 108,
+        "endLine": 108,
+        "sha256": "00d5f6d05fac60527fab780f19d2f3b9043d91df3238e23f7e008609bf197ab6"
+      },
+      {
+        "start": 3735,
+        "end": 3746,
+        "startLine": 96,
+        "endLine": 96,
+        "sha256": "c5e31ea584641a48dfc2ca059d5d4bcf2b3b1231ed8708cddeb9bb5190ef9b98"
+      },
+      {
+        "start": 3765,
+        "end": 3774,
+        "startLine": 97,
+        "endLine": 97,
+        "sha256": "694ac7b20bfcc058a5e4d61b9f9897dc3f4cb079ac954629a0a66cf24e4276eb"
+      }
+    ]
+  },
+  {
+    "id": "project-1",
+    "title": "IoT product A",
+    "organization": "Developer Android",
+    "dates": "08 2022 / 01,2020 (original fields; chronology unresolved)",
+    "kind": "project",
+    "originals": [
+      {
+        "start": 5121,
+        "end": 5130,
+        "startLine": 121,
+        "endLine": 121,
+        "sha256": "4240415f14a07079a5f1d9fdbd767bf9cb4548d0620bb22f722641ee5c052d1c"
+      },
+      {
+        "start": 5787,
+        "end": 5806,
+        "startLine": 130,
+        "endLine": 130,
+        "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+      },
+      {
+        "start": 5067,
+        "end": 5076,
+        "startLine": 119,
+        "endLine": 119,
+        "sha256": "df574fd2159edd4baab2bbc444a588318072e5345ce9675758eb329f5ef413ac"
+      },
+      {
+        "start": 5095,
+        "end": 5104,
+        "startLine": 120,
+        "endLine": 120,
+        "sha256": "9f7c7eeaaf2752d3886197a35c92db63513a61f54dfe94069b639996cb295146"
+      }
+    ]
+  },
+  {
+    "id": "project-2",
+    "title": "Mobile product B",
+    "organization": "Developer Android",
+    "dates": "12,2019 / 02,2018 (original fields; chronology unresolved)",
+    "kind": "project",
+    "originals": [
+      {
+        "start": 6131,
+        "end": 6167,
+        "startLine": 144,
+        "endLine": 144,
+        "sha256": "f3f8a0e85d276e5d5e08fdfe38661aa60514a7c977aaf649271c010feca0a849"
+      },
+      {
+        "start": 6859,
+        "end": 6878,
+        "startLine": 152,
+        "endLine": 152,
+        "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+      },
+      {
+        "start": 6077,
+        "end": 6086,
+        "startLine": 142,
+        "endLine": 142,
+        "sha256": "15cf2a185f8ee9eb3d15464de7156ae39ba298a5025c56ed1dd0d567a3527fae"
+      },
+      {
+        "start": 6105,
+        "end": 6114,
+        "startLine": 143,
+        "endLine": 143,
+        "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+      }
+    ]
+  },
+  {
+    "id": "project-3",
+    "title": "Mobile project C",
+    "organization": "Developer Mobile and Mini BackOffice",
+    "dates": "02,2018 / 12,2017 (original fields; chronology unresolved)",
+    "kind": "project",
+    "originals": [
+      {
+        "start": 7297,
+        "end": 7330,
+        "startLine": 170,
+        "endLine": 170,
+        "sha256": "457d40ede23704e108045d755db8fe1aed53c599248a34d678f1bb7b19702e19"
+      },
+      {
+        "start": 7608,
+        "end": 7646,
+        "startLine": 173,
+        "endLine": 173,
+        "sha256": "620271f1a3347b506c23b634fb2f404062870617c7baf930697d05457e353671"
+      },
+      {
+        "start": 7243,
+        "end": 7252,
+        "startLine": 168,
+        "endLine": 168,
+        "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+      },
+      {
+        "start": 7271,
+        "end": 7280,
+        "startLine": 169,
+        "endLine": 169,
+        "sha256": "4f5baea8253ca38255b6257a367db4e5e40864de062dbe3da33f6711925c2f19"
+      }
+    ]
+  },
+  {
+    "id": "project-4",
+    "title": "Payment project A",
+    "organization": "Developer Mobile and front",
+    "dates": "02,2018 / 09,2017 (original fields; chronology unresolved)",
+    "kind": "project",
+    "originals": [
+      {
+        "start": 8271,
+        "end": 8292,
+        "startLine": 193,
+        "endLine": 193,
+        "sha256": "b546784a9abbe6933e78567702e19ff96c5e7b2913af6a9d49432b5a6c3b55d9"
+      },
+      {
+        "start": 8489,
+        "end": 8517,
+        "startLine": 196,
+        "endLine": 196,
+        "sha256": "57485c2ac2e750784ec105400e6a2f9ba97d44a8455265ef0f74e81048959cfc"
+      },
+      {
+        "start": 8217,
+        "end": 8226,
+        "startLine": 191,
+        "endLine": 191,
+        "sha256": "4906a4846583b6803cae6d02d853d0bca54b2ead734be9d70a56dfa09e98d4e3"
+      },
+      {
+        "start": 8245,
+        "end": 8254,
+        "startLine": 192,
+        "endLine": 192,
+        "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+      }
+    ]
+  },
+  {
+    "id": "project-5",
+    "title": "Inventory project A",
+    "organization": "Mobile Developer",
+    "dates": "09,2017 / 09,2017 (original fields; chronology unresolved)",
+    "kind": "project",
+    "originals": [
+      {
+        "start": 8935,
+        "end": 8955,
+        "startLine": 213,
+        "endLine": 213,
+        "sha256": "98e6b0e6b6f30587a838441beacae40cab150603a3b206cc42cadddfa5a3532e"
+      },
+      {
+        "start": 9161,
+        "end": 9179,
+        "startLine": 216,
+        "endLine": 216,
+        "sha256": "bdd9544a291c4acae76618398575180c9140ad76094927970e0ec02d0696b423"
+      },
+      {
+        "start": 8881,
+        "end": 8890,
+        "startLine": 211,
+        "endLine": 211,
+        "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+      },
+      {
+        "start": 8909,
+        "end": 8918,
+        "startLine": 212,
+        "endLine": 212,
+        "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+      }
+    ]
+  },
+  {
+    "id": "project-6",
+    "title": "Internal project A",
+    "organization": "Developer Android",
+    "dates": "09,2017 / 02,2017 (original fields; chronology unresolved)",
+    "kind": "project",
+    "originals": [
+      {
+        "start": 9510,
+        "end": 9519,
+        "startLine": 231,
+        "endLine": 231,
+        "sha256": "131537e088f1cfee9e1aece49e14c742f4f5f0eb04462aa95ef5a594a75cef4d"
+      },
+      {
+        "start": 9678,
+        "end": 9697,
+        "startLine": 234,
+        "endLine": 234,
+        "sha256": "caf85db4fa66cb8fe7bcea8ce54ef4ce95f7c8c411377019360e33d4d3433d61"
+      },
+      {
+        "start": 9456,
+        "end": 9465,
+        "startLine": 229,
+        "endLine": 229,
+        "sha256": "e8882f36e6e16c3ccc7d2fead6a7e1f0376d37f57df482609056d564d15a9a68"
+      },
+      {
+        "start": 9484,
+        "end": 9493,
+        "startLine": 230,
+        "endLine": 230,
+        "sha256": "0012efe974f68e7e24ce55b997b70014e97d9b32dccf8a93c3712a5f578258c6"
+      }
+    ]
+  }
+]

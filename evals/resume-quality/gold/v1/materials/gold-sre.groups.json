@@ -1,0 +1,150 @@
+[
+  {
+    "id": "work-0",
+    "title": "System / DevOps Engineer",
+    "organization": "Employer A",
+    "dates": "2025-06 - present",
+    "kind": "employment",
+    "originals": [
+      {
+        "start": 2787,
+        "end": 2809,
+        "startLine": 137,
+        "endLine": 137,
+        "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+      },
+      {
+        "start": 2825,
+        "end": 2851,
+        "startLine": 138,
+        "endLine": 138,
+        "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+      },
+      {
+        "start": 2868,
+        "end": 2877,
+        "startLine": 139,
+        "endLine": 139,
+        "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+      },
+      {
+        "start": 2892,
+        "end": 2901,
+        "startLine": 140,
+        "endLine": 140,
+        "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+      }
+    ]
+  },
+  {
+    "id": "work-1",
+    "title": "System / Site Reliability Engineering (SRE) / DevOps Engineering",
+    "organization": "Employer B",
+    "dates": "2023-11 - 2024-12",
+    "kind": "employment",
+    "originals": [
+      {
+        "start": 4407,
+        "end": 4437,
+        "startLine": 169,
+        "endLine": 169,
+        "sha256": "e74a37c90897b7c575319549c30e0ebd17a23c8d38aed54160731c846fe4501e"
+      },
+      {
+        "start": 4453,
+        "end": 4519,
+        "startLine": 170,
+        "endLine": 170,
+        "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+      },
+      {
+        "start": 4536,
+        "end": 4545,
+        "startLine": 171,
+        "endLine": 171,
+        "sha256": "903ae652cea92f8ca4f5f0103d583435f4810f6020533c5055c2a55aeb67438a"
+      },
+      {
+        "start": 4560,
+        "end": 4569,
+        "startLine": 172,
+        "endLine": 172,
+        "sha256": "cd6a0a1e8f4d8861ed0615029218224855940cc5c0aa7845be3ef35bd46e6e65"
+      }
+    ]
+  },
+  {
+    "id": "work-2",
+    "title": "Site Reliability Engineering (SRE) / DevOps / Cloud Engineering",
+    "organization": "Employer C",
+    "dates": "2021-11 - 2023-04",
+    "kind": "employment",
+    "originals": [
+      {
+        "start": 5309,
+        "end": 5340,
+        "startLine": 193,
+        "endLine": 193,
+        "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+      },
+      {
+        "start": 5356,
+        "end": 5421,
+        "startLine": 194,
+        "endLine": 194,
+        "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+      },
+      {
+        "start": 5438,
+        "end": 5447,
+        "startLine": 195,
+        "endLine": 195,
+        "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+      },
+      {
+        "start": 5462,
+        "end": 5471,
+        "startLine": 196,
+        "endLine": 196,
+        "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+      }
+    ]
+  },
+  {
+    "id": "work-3",
+    "title": "IoT Bootcamp (Full-Stack & System Fundamentals Training)",
+    "organization": "Training provider A",
+    "dates": "2021-01 - 2021-05",
+    "kind": "training",
+    "originals": [
+      {
+        "start": 6358,
+        "end": 6407,
+        "startLine": 224,
+        "endLine": 224,
+        "sha256": "2642015677ff0b96ad12387650176e498ea23250d5643089b2223b71673f6ef0"
+      },
+      {
+        "start": 6423,
+        "end": 6481,
+        "startLine": 225,
+        "endLine": 225,
+        "sha256": "52fadc44bfabc220557497ff3962af9693aadc1c30c38e5da6a7b2f50c824625"
+      },
+      {
+        "start": 6498,
+        "end": 6507,
+        "startLine": 226,
+        "endLine": 226,
+        "sha256": "2c4b9244ff1743911d05f76b57b28d522d930d6506244ae9aeb8fb4c1aae3ba1"
+      },
+      {
+        "start": 6522,
+        "end": 6531,
+        "startLine": 227,
+        "endLine": 227,
+        "sha256": "2bb40468cf202e4f86485e3a5a209dcf17bcfd168a23ab06b26a042a7a2a810f"
+      }
+    ]
+  }
+]

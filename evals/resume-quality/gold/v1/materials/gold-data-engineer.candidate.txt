@@ -1,0 +1,95 @@
+[item-0; computer_skills; self_reported]
+Computer Skills. DragonFly BSD operating system developer: 200+ code commits; kernel and system utilities; participate in discussions and anwser questions in mailing lists and the IRC channel.
+
+[item-1; computer_skills; self_reported]
+Computer Skills. Use Ansible to manage a VPS running DragonFly BSD that serves personal email, authoritative DNS, website, Git, IRC, etc.
+
+[item-2; computer_skills; self_reported]
+Computer Skills. Built and administrate the workstations, a 4-node computer cluster, and network facilities for the team.
+
+[item-3; computer_skills; self_reported]
+Computer Skills. Participated in building and testing the SKA high-performance cluster prototype (1 login node + 1 data node + 4 computing nodes) in Research institute A.
+
+[item-4; computer_skills; self_reported]
+Computer Skills. Designed and developed the whole website (Django, Bootstrap, jQuery) for Research school project A in 2014.
+
+[item-5; personal; self_reported]
+Personal Projects. Personal project A: (Python, Shell) Various tools collected over the years, to help manage systems, do daily tasks, analyze data, etc.
+
+[item-6; personal; self_reported]
+Personal Projects. Personal project B: (Shell) A simple tool to update a DragonFly BSD system.
+
+[item-7; personal; self_reported]
+Personal Projects. Personal project C: (C) Enhance OpenBSD RCS, to make it compatible with GNU RCS.
+
+[item-8; personal; self_reported]
+Personal Projects. Research project C: (Python) Simulate the low-frequency radio sky maps.
+
+[item-9; personal; self_reported]
+Personal Projects. Research project D: (Python, Keras) Use a Convolutional Denoising Autoencoder (CDAE) to separate the faint EoR signal.
+
+[item-10; personal; self_reported]
+Personal Projects. Research project B: (Python, Shell, Tcl) Semi-automate utilities for analyzing X-ray astronomical data.
+
+[item-11; personal; self_reported]
+Personal Projects. resume: (LaTeX) The template and source files of this resume.
+
+[item-12; academic; self_reported]
+Research Achievements. Developed the low-frequency radio sky image simulation software: Research project C.
+
+[item-13; academic; self_reported]
+Research Achievements. Developed a suite of utilities to semi-automate the X-ray astronomical data analysis: Research project B.
+
+[item-14; academic; self_reported]
+Research Achievements. Separated the faint cosmological EoR signal along the frequency dimension using a Convolutional Denoising Autoencoder (CDAE).
+
+[item-15; academic; self_reported]
+Research Achievements. Classified the radio galaxies in the FIRST survey according to morphologies using a Convolutional Neutral Network (CNN).
+
+[item-16; academic; self_reported]
+Research Achievements. Significantly improved the modeling of radio halos, and integrated the instrumental effects of radio interferometers into the simulation pipeline.
+
+[item-17; academic; self_reported]
+Research Achievements. Improved the background modeling in X-ray spectral fitting achieved more accurate and robust fitting results.
+
+[item-18; academic; self_reported]
+Research Achievements. Published 2 first-author and 8 co-authored SCI papers.
+
+[item-19; internship; self_reported]
+Data Engineer internship (April-August 2018). Search and scrape product and advertising data from Amazon web (Python, Requests, BeautifulSoup).
+
+[item-20; internship; self_reported]
+Data Engineer internship (April-August 2018). Deployed the Airflow server and database to periodically retrieve product sales and advertising data from Amazon.
+
+[item-21; internship; self_reported]
+Data Engineer internship (April-August 2018). Developed the website (Flask, jQuery) to help customers to optimize their advertising campaigns on Amazon.
+
+[item-22; internship; self_reported]
+Web Developer internship (July-September 2013). Developed the back-end (Django) to support user registration, data storage and search.
+
+[item-23; internship; self_reported]
+Web Developer internship (July-September 2013). Developed the front-end (jQuery, AJAX) to visualize the temporal variations of a patient's examination indicators.
+
+[summary; summary; self_reported]
+Highly-motivated Ph.D. in Physics (radio astronomy) with good foundations of math and statistics. Proficient in data modeling and analysis, and enthusiastic about computer and network technologies. With 10 years experience in Linux and BSD, skilled in Shell, Python, and C programming. Passionate about open source and share multiple projects on my GitHub. Meanwhile a DragonFly BSD operating system developer and a contributor to several other open source projects.
+
+[competence-0; skill_list; self_reported]
+Operating Systems: Linux (10 years), DragonFly BSD & FreeBSD (7 years)
+
+[competence-1; skill_list; self_reported]
+Programming: Python, C, Shell, R, Tcl/Tk
+
+[competence-2; skill_list; self_reported]
+Tools: SSH, Git, Make, Tmux, Vi, Ansible
+
+[competence-3; skill_list; self_reported]
+Data Analysis: R, Pandas; Matplotlib, ggplot2; Keras, Scikit-learn
+
+[competence-4; skill_list; self_reported]
+Web Development: Flask, JavaScript, jQuery, Bootstrap
+
+[education-0; education; self_reported]
+September 2013 September 2019 University D School of Physics and Astronomy Physics Ph.D.
+
+[education-1; education; self_reported]
+September 2009 June 2013 University D Department of Physics and Astronomy Applied Physics Bachelor's Degree

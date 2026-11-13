@@ -1,0 +1,186 @@
+{
+  "schemaVersion": 1,
+  "caseId": "gold-data-engineer",
+  "caseSha256": "6b5f97f2b05fac9792a5590d1780fc263658e2801b3d544a322ef0856c85019c",
+  "origin": {
+    "kind": "extractive_baseline",
+    "label": "Deterministic full-unit extraction with source-month dates; not a model or human-authored resume"
+  },
+  "model": {
+    "provider": "none",
+    "id": "source-extraction",
+    "revision": "gold-source-review-v1",
+    "runtimeId": "offline-no-runtime"
+  },
+  "protocolVersion": "gold-source-review-v1",
+  "budget": {
+    "maxModelCalls": 0,
+    "maxToolCalls": 0,
+    "maxActiveMs": 0
+  },
+  "observed": {
+    "modelCalls": 0,
+    "toolCalls": 0,
+    "activeMs": 0
+  },
+  "factBase": {
+    "schemaVersion": 1,
+    "updatedAt": "2026-11-12T00:00:00.000Z",
+    "profile": {
+      "displayName": {
+        "zh": "Candidate - data-engineer",
+        "en": "Candidate - data-engineer"
+      },
+      "links": [],
+      "traits": [],
+      "targetRoles": [],
+      "constraints": []
+    },
+    "experiences": [
+      {
+        "id": "internship-data",
+        "type": "work",
+        "org": {
+          "zh": "Employer R"
+        },
+        "title": {
+          "zh": "Data Engineer internship"
+        },
+        "start": "2018-04",
+        "end": "2018-08",
+        "techStack": [],
+        "claims": [
+          {
+            "id": "item-19",
+            "kind": "action",
+            "text": {
+              "zh": "Data Engineer internship (April-August 2018). Search and scrape product and advertising data from Amazon web (Python, Requests, BeautifulSoup)."
+            },
+            "tags": []
+          },
+          {
+            "id": "item-20",
+            "kind": "action",
+            "text": {
+              "zh": "Data Engineer internship (April-August 2018). Deployed the Airflow server and database to periodically retrieve product sales and advertising data from Amazon."
+            },
+            "tags": []
+          },
+          {
+            "id": "item-21",
+            "kind": "action",
+            "text": {
+              "zh": "Data Engineer internship (April-August 2018). Developed the website (Flask, jQuery) to help customers to optimize their advertising campaigns on Amazon."
+            },
+            "tags": []
+          }
+        ]
+      },
+      {
+        "id": "internship-web",
+        "type": "work",
+        "org": {
+          "zh": "Employer S"
+        },
+        "title": {
+          "zh": "Web Developer internship"
+        },
+        "start": "2013-07",
+        "end": "2013-09",
+        "techStack": [],
+        "claims": [
+          {
+            "id": "item-22",
+            "kind": "action",
+            "text": {
+              "zh": "Web Developer internship (July-September 2013). Developed the back-end (Django) to support user registration, data storage and search."
+            },
+            "tags": []
+          },
+          {
+            "id": "item-23",
+            "kind": "action",
+            "text": {
+              "zh": "Web Developer internship (July-September 2013). Developed the front-end (jQuery, AJAX) to visualize the temporal variations of a patient's examination indicators."
+            },
+            "tags": []
+          }
+        ]
+      }
+    ]
+  },
+  "view": {
+    "id": "gold-data-engineer-extractive",
+    "name": "Deterministic extractive baseline; not a model",
+    "locale": "en",
+    "templateId": "zh-classic",
+    "includedExperienceIds": [],
+    "includedClaimIds": [],
+    "sectionOrder": [
+      "summary",
+      "experience",
+      "projects",
+      "skills",
+      "education"
+    ],
+    "layout": {
+      "bodyFontSize": 10,
+      "lineHeight": 1.6,
+      "pageMargin": 16
+    },
+    "updatedAt": "2026-11-12T00:00:00.000Z"
+  },
+  "locale": "en",
+  "citations": [
+    {
+      "claimId": "item-19",
+      "evidenceId": "item-19",
+      "sourceSha256": "9407de92456844690bab4494a352a34da234600695680c13fc4770c262c592f5",
+      "original": {
+        "start": 0,
+        "end": 143,
+        "quote": "Data Engineer internship (April-August 2018). Search and scrape product and advertising data from Amazon web (Python, Requests, BeautifulSoup)."
+      }
+    },
+    {
+      "claimId": "item-20",
+      "evidenceId": "item-20",
+      "sourceSha256": "0e0ce0758ac5c7c264fa8ccfd41d89e22af0e61372b6351be4d7684c96d2a839",
+      "original": {
+        "start": 0,
+        "end": 159,
+        "quote": "Data Engineer internship (April-August 2018). Deployed the Airflow server and database to periodically retrieve product sales and advertising data from Amazon."
+      }
+    },
+    {
+      "claimId": "item-21",
+      "evidenceId": "item-21",
+      "sourceSha256": "cd78326dba4753ca72a9065cf34ef1bcba4f8f97d9511a97bb1b9ef49f18c33d",
+      "original": {
+        "start": 0,
+        "end": 152,
+        "quote": "Data Engineer internship (April-August 2018). Developed the website (Flask, jQuery) to help customers to optimize their advertising campaigns on Amazon."
+      }
+    },
+    {
+      "claimId": "item-22",
+      "evidenceId": "item-22",
+      "sourceSha256": "df6b4e50f215b23cc707d147f63f37d90a23b605c473045cb6fd5f7d0413810f",
+      "original": {
+        "start": 0,
+        "end": 134,
+        "quote": "Web Developer internship (July-September 2013). Developed the back-end (Django) to support user registration, data storage and search."
+      }
+    },
+    {
+      "claimId": "item-23",
+      "evidenceId": "item-23",
+      "sourceSha256": "a32980f654536fd1dcd47220dff3caf138bfd92e29ac53214103e9305bbeb8f1",
+      "original": {
+        "start": 0,
+        "end": 162,
+        "quote": "Web Developer internship (July-September 2013). Developed the front-end (jQuery, AJAX) to visualize the temporal variations of a patient's examination indicators."
+      }
+    }
+  ]
+}

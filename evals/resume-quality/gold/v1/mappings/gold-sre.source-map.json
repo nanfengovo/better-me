@@ -1,0 +1,5302 @@
+{
+  "schemaVersion": 1,
+  "labelVersion": "gold-source-review-v1",
+  "caseSha256": "bef0968230a558d1c481649ec0da3983f54fe65ac0ba909ae3c13ab53111cebc",
+  "source": {
+    "id": "c01",
+    "file": "C01-resume.json",
+    "url": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/content/resume.en.json",
+    "revision": "4be6afd7de2ddbac415da8cc2740ca9a846b96d8",
+    "originalSha256": "3e4bb1ae378d97df80d96b5fdb47d476fba8477fbe98e966124e9724f49be941",
+    "author": "Joe (Yung-Hung) Huang; copyright Desert",
+    "license": "MIT",
+    "licenseUrl": "https://github.com/blackdesert575/resume/blob/4be6afd7de2ddbac415da8cc2740ca9a846b96d8/LICENSE"
+  },
+  "jobSource": {
+    "id": "j01",
+    "file": "J01-sre.md",
+    "originalSha256": "e0c076c2b54ea164aa8bd3fa58e701622b8ae4f511d7c6c75dbac8a7bff9b1ba",
+    "revision": "f7efde2339c3ff060bb972805bf22692c534893d",
+    "url": "https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/f7efde2339c3ff060bb972805bf22692c534893d/content/job-description-library/engineering/infrastructure/site-reliability-engineer.md",
+    "author": "GitLab handbook contributors",
+    "license": "CC-BY-SA-4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  "candidateTextSha256": "1b4835892ffa137b142836cc1932caa8fac19ac4f24e4be18d38b3274e3187d0",
+  "coordinateSystem": "UTF-16 code units, zero-based half-open; lines one-based; hashes UTF-8 bytes",
+  "mappingGranularity": "Selected complete source tokens/markup units; derived strings are transformed. Never equate derived offsets with original offsets.",
+  "units": [
+    {
+      "id": "summary",
+      "derivedSha256": "a13227dc0ec31564f6486b273a9e7308080fb0e4fe0bc9cbbe95528e46416097",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 388,
+          "end": 563,
+          "startLine": 16,
+          "endLine": 16,
+          "sha256": "0fbba2f294846fd63354e696569d11e716a6fc02ceb53a83202ac8a2705a1989"
+        }
+      ],
+      "derivedStart": 34,
+      "derivedEnd": 207,
+      "derivedStartLine": 2,
+      "contextOriginals": [],
+      "group": "profile",
+      "kind": "summary",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-action-0",
+      "derivedSha256": "6ebe43d69d2d5a7e14e4d4d0632ce1d9a00456f815304ddf5846359fe8d24b7a",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2933,
+          "end": 2974,
+          "startLine": 142,
+          "endLine": 142,
+          "sha256": "3afc8d58e9c562d19fee88a723cb226661f981729b06242869543962e1fd3361"
+        }
+      ],
+      "derivedStart": 254,
+      "derivedEnd": 318,
+      "derivedStartLine": 5,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-action-1",
+      "derivedSha256": "f61263ba158a7571ce8b5f52a90fb4db8acac0f97cbf83dd011dfafa5e66e566",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2984,
+          "end": 3069,
+          "startLine": 143,
+          "endLine": 143,
+          "sha256": "2d4f5b7d8fde7f297842382cd50d69b1d76f33cdd2a54b0d830da962bd10bab7"
+        }
+      ],
+      "derivedStart": 365,
+      "derivedEnd": 473,
+      "derivedStartLine": 8,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-action-2",
+      "derivedSha256": "d46fbd3237d51295c4522833618df2b0e6213b63e6fa78dd6c65976ef469ea3d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 3079,
+          "end": 3251,
+          "startLine": 144,
+          "endLine": 144,
+          "sha256": "0da58f61b111fb65250b8bf306ace2139bb7436e92e2056914dd7bdf7fb7c21d"
+        }
+      ],
+      "derivedStart": 520,
+      "derivedEnd": 717,
+      "derivedStartLine": 11,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "work-0-action-3",
+      "derivedSha256": "2ad918f72c3492da4e9da351f5da37ec14c2a950733cd931cbb5acc8ca92fc48",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 3261,
+          "end": 3406,
+          "startLine": 145,
+          "endLine": 145,
+          "sha256": "0b0e1398d9ea4660257c9396d88aea3026873977f2143c8e814690499865fb66"
+        }
+      ],
+      "derivedStart": 764,
+      "derivedEnd": 932,
+      "derivedStartLine": 14,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-action-4",
+      "derivedSha256": "67e26e32937bc847234fd9975b976ec898fad760bd33838186bdc5b71d5639e0",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 3416,
+          "end": 3545,
+          "startLine": 146,
+          "endLine": 146,
+          "sha256": "82d1660a7382b6facc6613e0350a0e837bfd22f75ee985480c00ffa45a7d3912"
+        }
+      ],
+      "derivedStart": 979,
+      "derivedEnd": 1131,
+      "derivedStartLine": 17,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "work-0-action-5",
+      "derivedSha256": "89047af285dd64284b4fbe8bca3d2d56120b2ef4faba3262e215af70846363b0",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 3555,
+          "end": 3656,
+          "startLine": 147,
+          "endLine": 147,
+          "sha256": "a5372cfba6a230d0ae07c1340aa0d0c6eb80554abb2cd3ba0de647585ef3333b"
+        }
+      ],
+      "derivedStart": 1178,
+      "derivedEnd": 1304,
+      "derivedStartLine": 20,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-action-6",
+      "derivedSha256": "652d9f1bd27bb8c7f3ae4bad9d46172ad7d54cdb7f3287257b2e8d65ffc3469c",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 3666,
+          "end": 3820,
+          "startLine": 148,
+          "endLine": 148,
+          "sha256": "bd0d7e81c8e0bbd1e26af9d2e16996e688b6131fbc4d1d7ad2e8026731537353"
+        }
+      ],
+      "derivedStart": 1351,
+      "derivedEnd": 1528,
+      "derivedStartLine": 23,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-action-7",
+      "derivedSha256": "6f70b1b1581264270fff1610ec85d09e88c6f2c4c864818074d3a958a9f5c4ca",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 3830,
+          "end": 3998,
+          "startLine": 149,
+          "endLine": 149,
+          "sha256": "3fe1f5d0bf636a3f84714e32dc1737d860acab1f1d50eecdca719b99ab3353d2"
+        }
+      ],
+      "derivedStart": 1575,
+      "derivedEnd": 1766,
+      "derivedStartLine": 26,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "work-0-action-8",
+      "derivedSha256": "419f248850f7d561a935f7f48f3ab8dec012b1b48405ce411a80bc5b28a01775",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 4008,
+          "end": 4090,
+          "startLine": 150,
+          "endLine": 150,
+          "sha256": "e07ba71af29c577d7894edd18d2fa169ed551548a4b7f9cd8456f0d836755b18"
+        }
+      ],
+      "derivedStart": 1813,
+      "derivedEnd": 1918,
+      "derivedStartLine": 29,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-0",
+      "derivedSha256": "4828e60247c1636f57b7446a314e7f599c12b53d40061cc851a1442004354fed",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4132,
+          "end": 4139,
+          "startLine": 153,
+          "endLine": 153,
+          "sha256": "1ca133af50fd8cbddcc9d46be6688e37475554a0232ccd9fa0d0c7a2dee2c05a"
+        }
+      ],
+      "derivedStart": 1974,
+      "derivedEnd": 1979,
+      "derivedStartLine": 32,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-1",
+      "derivedSha256": "32fd72a0e0746043a1cce59f2e840490df6b9ea49e9bbcade136da5e8173d6c0",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4149,
+          "end": 4154,
+          "startLine": 154,
+          "endLine": 154,
+          "sha256": "74a8f6202f89a963b93e19d27f2e9acd3fbdcaaae5b855c8b1842f6a8e35c7de"
+        }
+      ],
+      "derivedStart": 2035,
+      "derivedEnd": 2038,
+      "derivedStartLine": 35,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-2",
+      "derivedSha256": "ed363350696a726b7932db864dda019bd2017365c9e299627830f06954643f93",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4164,
+          "end": 4172,
+          "startLine": 155,
+          "endLine": 155,
+          "sha256": "053067db87823f19a67a2c1723386ffcc6df850f0de6e02d31bae74bbf645dcb"
+        }
+      ],
+      "derivedStart": 2094,
+      "derivedEnd": 2100,
+      "derivedStartLine": 38,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-3",
+      "derivedSha256": "05b073bd5e46bbede792d1e77a68c71801b7bac2dd8e0236299dede9a3a1909d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4182,
+          "end": 4193,
+          "startLine": 156,
+          "endLine": 156,
+          "sha256": "0472abda23a08f1bc859ad9eab22e2706936fb540ab115f9514016a9630189c9"
+        }
+      ],
+      "derivedStart": 2156,
+      "derivedEnd": 2165,
+      "derivedStartLine": 41,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-4",
+      "derivedSha256": "6e14e30332af44520d20959bb1eb4aca4c40cf2022072723ab83aeb6fdd850fc",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4203,
+          "end": 4215,
+          "startLine": 157,
+          "endLine": 157,
+          "sha256": "c29a426c4f5c723e59d6965c3390fa9bb93d2d2149bc661add748947fe6dcbca"
+        }
+      ],
+      "derivedStart": 2221,
+      "derivedEnd": 2231,
+      "derivedStartLine": 44,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-5",
+      "derivedSha256": "edbe7dd7b99b3a7b87656488d55611b2a4f345f3f8f663459636cd5473079cc8",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4225,
+          "end": 4235,
+          "startLine": 158,
+          "endLine": 158,
+          "sha256": "5c536251fe3346f7d39ff153c968f8a2cc57d76a7b59fc1bcd8ef968e028e03f"
+        }
+      ],
+      "derivedStart": 2287,
+      "derivedEnd": 2295,
+      "derivedStartLine": 47,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-6",
+      "derivedSha256": "e876abbe46eade2f0408a603254c0a5546fb6c28d4b74246252e1d59073ff6e3",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4245,
+          "end": 4254,
+          "startLine": 159,
+          "endLine": 159,
+          "sha256": "c517e43309995e73d7b270e7533929dd2271b395b48ea4615074807fa20b9dc9"
+        }
+      ],
+      "derivedStart": 2351,
+      "derivedEnd": 2358,
+      "derivedStartLine": 50,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-7",
+      "derivedSha256": "9a4d10e69361c7d6c9f874d5a907d30fdbd08726da03b543d4e262fd6fde6a42",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4264,
+          "end": 4273,
+          "startLine": 160,
+          "endLine": 160,
+          "sha256": "584c2f9cd4379a6bc5d9f5d6db5bfa2b7538e4f0493d569eca8fa2bed7b5e57d"
+        }
+      ],
+      "derivedStart": 2414,
+      "derivedEnd": 2421,
+      "derivedStartLine": 53,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-8",
+      "derivedSha256": "be20cdfc984a810db87fe9388725643e5f14a80d59b1cea58fddb556e0c4a78b",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4283,
+          "end": 4291,
+          "startLine": 161,
+          "endLine": 161,
+          "sha256": "5f1621f942a08367790b9ea8359db335095cf3a9a488775dc1c4400b2278905a"
+        }
+      ],
+      "derivedStart": 2477,
+      "derivedEnd": 2483,
+      "derivedStartLine": 56,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-9",
+      "derivedSha256": "bfa97cfb590b2093ee41d9e44a906fbe19c3f809130727a37895afe9bad12756",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4301,
+          "end": 4313,
+          "startLine": 162,
+          "endLine": 162,
+          "sha256": "1da8a9ef4bc2ee0db5966f926f13745ddaf7f17298c3886834b7a7f20956ef7f"
+        }
+      ],
+      "derivedStart": 2539,
+      "derivedEnd": 2549,
+      "derivedStartLine": 59,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-10",
+      "derivedSha256": "0642a7b0f3466de53f8acd4fd3d71105f567d8ca4feae5e070e2c4d814e8ced3",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4323,
+          "end": 4332,
+          "startLine": 163,
+          "endLine": 163,
+          "sha256": "ba2ccfb5cddd58283e3e2fe4e2625c42935e5eab6a09f9af6b1d197398d9b6e0"
+        }
+      ],
+      "derivedStart": 2606,
+      "derivedEnd": 2613,
+      "derivedStartLine": 62,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-11",
+      "derivedSha256": "13a53db9c0642e0537ef327630bfd861234a765480c1135a19bc168b29ecad10",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4342,
+          "end": 4350,
+          "startLine": 164,
+          "endLine": 164,
+          "sha256": "847da6064da03c6fa0fb594a37029a0787fed1aff53072c3cf3c740c88adba9c"
+        }
+      ],
+      "derivedStart": 2670,
+      "derivedEnd": 2676,
+      "derivedStartLine": 65,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-0-technology-12",
+      "derivedSha256": "50e56e797c4ac89f7994a37480fce29a8a0f0f123a695e2dc32d5632197e2318",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4360,
+          "end": 4368,
+          "startLine": 165,
+          "endLine": 165,
+          "sha256": "2b6410b03c74f22a80bcf0b5089a6f657c565d15de33677441fbf5c3b2464a75"
+        }
+      ],
+      "derivedStart": 2733,
+      "derivedEnd": 2739,
+      "derivedStartLine": 68,
+      "contextOriginals": [
+        {
+          "start": 2787,
+          "end": 2809,
+          "startLine": 137,
+          "endLine": 137,
+          "sha256": "beae2a9ab8c367976e1de44ea550ebaf7b6c223f5d6629a32da8c0b23971d96d"
+        },
+        {
+          "start": 2825,
+          "end": 2851,
+          "startLine": 138,
+          "endLine": 138,
+          "sha256": "cd0c9965518968d314af534a312075bd1564d2d5dcfec2d413a3a0ebc62ef182"
+        },
+        {
+          "start": 2868,
+          "end": 2877,
+          "startLine": 139,
+          "endLine": 139,
+          "sha256": "8574e2d14c885025103d5b4b4da9a3a39387f50753e109ea85da39766555e62b"
+        },
+        {
+          "start": 2892,
+          "end": 2901,
+          "startLine": 140,
+          "endLine": 140,
+          "sha256": "94332144d941eb1212c9af7f968e215a7042bf94925c9c10b21de97a2f0cea06"
+        }
+      ],
+      "group": "work-0",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-action-0",
+      "derivedSha256": "19c5a876fed2ce37d5e85852c0dd6f87e1f28d86cb3b7e31798ebf71c2db26d0",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4601,
+          "end": 4642,
+          "startLine": 174,
+          "endLine": 174,
+          "sha256": "3afc8d58e9c562d19fee88a723cb226661f981729b06242869543962e1fd3361"
+        }
+      ],
+      "derivedStart": 2786,
+      "derivedEnd": 2890,
+      "derivedStartLine": 71,
+      "contextOriginals": [
+        {
+          "start": 4407,
+          "end": 4437,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "e74a37c90897b7c575319549c30e0ebd17a23c8d38aed54160731c846fe4501e"
+        },
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4536,
+          "end": 4545,
+          "startLine": 171,
+          "endLine": 171,
+          "sha256": "903ae652cea92f8ca4f5f0103d583435f4810f6020533c5055c2a55aeb67438a"
+        },
+        {
+          "start": 4560,
+          "end": 4569,
+          "startLine": 172,
+          "endLine": 172,
+          "sha256": "cd6a0a1e8f4d8861ed0615029218224855940cc5c0aa7845be3ef35bd46e6e65"
+        }
+      ],
+      "group": "work-1",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-action-1",
+      "derivedSha256": "93928591e9a53fe873e2d923234e565ef9dc088b656128f3222e3fe4e9ad5b73",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4652,
+          "end": 4765,
+          "startLine": 175,
+          "endLine": 175,
+          "sha256": "9c3d9e4fd52979ee980fe9697adcca6a8dacfcba238afe98feaf8357b2b61476"
+        }
+      ],
+      "derivedStart": 2937,
+      "derivedEnd": 3113,
+      "derivedStartLine": 74,
+      "contextOriginals": [
+        {
+          "start": 4407,
+          "end": 4437,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "e74a37c90897b7c575319549c30e0ebd17a23c8d38aed54160731c846fe4501e"
+        },
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4536,
+          "end": 4545,
+          "startLine": 171,
+          "endLine": 171,
+          "sha256": "903ae652cea92f8ca4f5f0103d583435f4810f6020533c5055c2a55aeb67438a"
+        },
+        {
+          "start": 4560,
+          "end": 4569,
+          "startLine": 172,
+          "endLine": 172,
+          "sha256": "cd6a0a1e8f4d8861ed0615029218224855940cc5c0aa7845be3ef35bd46e6e65"
+        }
+      ],
+      "group": "work-1",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "work-1-action-2",
+      "derivedSha256": "e5306d86f9e3baa3e350b06d34021cf542635055ed6feef0bef028efc5bb510b",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4775,
+          "end": 4859,
+          "startLine": 176,
+          "endLine": 176,
+          "sha256": "6a4206283cd2161c4e1b63961ec2d418ae8c3acf806dd256514e8c2ba9555995"
+        }
+      ],
+      "derivedStart": 3160,
+      "derivedEnd": 3307,
+      "derivedStartLine": 77,
+      "contextOriginals": [
+        {
+          "start": 4407,
+          "end": 4437,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "e74a37c90897b7c575319549c30e0ebd17a23c8d38aed54160731c846fe4501e"
+        },
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4536,
+          "end": 4545,
+          "startLine": 171,
+          "endLine": 171,
+          "sha256": "903ae652cea92f8ca4f5f0103d583435f4810f6020533c5055c2a55aeb67438a"
+        },
+        {
+          "start": 4560,
+          "end": 4569,
+          "startLine": 172,
+          "endLine": 172,
+          "sha256": "cd6a0a1e8f4d8861ed0615029218224855940cc5c0aa7845be3ef35bd46e6e65"
+        }
+      ],
+      "group": "work-1",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-action-3",
+      "derivedSha256": "6e532bb0d6e1f11d34a81fa551442db796ab094becd288f9d025b7302b62fe4a",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4869,
+          "end": 4939,
+          "startLine": 177,
+          "endLine": 177,
+          "sha256": "f8bfc0c6e75c214b27aa767a1301756cd8f50a0b1f355c5295b0d81856c8ce4f"
+        }
+      ],
+      "derivedStart": 3354,
+      "derivedEnd": 3487,
+      "derivedStartLine": 80,
+      "contextOriginals": [
+        {
+          "start": 4407,
+          "end": 4437,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "e74a37c90897b7c575319549c30e0ebd17a23c8d38aed54160731c846fe4501e"
+        },
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4536,
+          "end": 4545,
+          "startLine": 171,
+          "endLine": 171,
+          "sha256": "903ae652cea92f8ca4f5f0103d583435f4810f6020533c5055c2a55aeb67438a"
+        },
+        {
+          "start": 4560,
+          "end": 4569,
+          "startLine": 172,
+          "endLine": 172,
+          "sha256": "cd6a0a1e8f4d8861ed0615029218224855940cc5c0aa7845be3ef35bd46e6e65"
+        }
+      ],
+      "group": "work-1",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "work-1-action-4",
+      "derivedSha256": "c98c2d62182bedbde70c92eaedf790bfd466c13292e1c7438d9426f7a2cb36b6",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4949,
+          "end": 5017,
+          "startLine": 178,
+          "endLine": 178,
+          "sha256": "84d1f692a0357d86c4f0825a20dd0b11b8945c4faa7387e1eacc701f9dc556b6"
+        }
+      ],
+      "derivedStart": 3534,
+      "derivedEnd": 3665,
+      "derivedStartLine": 83,
+      "contextOriginals": [
+        {
+          "start": 4407,
+          "end": 4437,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "e74a37c90897b7c575319549c30e0ebd17a23c8d38aed54160731c846fe4501e"
+        },
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4536,
+          "end": 4545,
+          "startLine": 171,
+          "endLine": 171,
+          "sha256": "903ae652cea92f8ca4f5f0103d583435f4810f6020533c5055c2a55aeb67438a"
+        },
+        {
+          "start": 4560,
+          "end": 4569,
+          "startLine": 172,
+          "endLine": 172,
+          "sha256": "cd6a0a1e8f4d8861ed0615029218224855940cc5c0aa7845be3ef35bd46e6e65"
+        }
+      ],
+      "group": "work-1",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-action-5",
+      "derivedSha256": "67fc04c2ad6053955a88722ed9c8eb4a62eb9370db613629c24d9d14fd40576e",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 5027,
+          "end": 5085,
+          "startLine": 179,
+          "endLine": 179,
+          "sha256": "7d2fd2042e9021488fde7536045803f7d8382a4bee2744c653e0f0e40dc693e4"
+        }
+      ],
+      "derivedStart": 3712,
+      "derivedEnd": 3833,
+      "derivedStartLine": 86,
+      "contextOriginals": [
+        {
+          "start": 4407,
+          "end": 4437,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "e74a37c90897b7c575319549c30e0ebd17a23c8d38aed54160731c846fe4501e"
+        },
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4536,
+          "end": 4545,
+          "startLine": 171,
+          "endLine": 171,
+          "sha256": "903ae652cea92f8ca4f5f0103d583435f4810f6020533c5055c2a55aeb67438a"
+        },
+        {
+          "start": 4560,
+          "end": 4569,
+          "startLine": 172,
+          "endLine": 172,
+          "sha256": "cd6a0a1e8f4d8861ed0615029218224855940cc5c0aa7845be3ef35bd46e6e65"
+        }
+      ],
+      "group": "work-1",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-technology-0",
+      "derivedSha256": "4828e60247c1636f57b7446a314e7f599c12b53d40061cc851a1442004354fed",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5127,
+          "end": 5134,
+          "startLine": 182,
+          "endLine": 182,
+          "sha256": "1ca133af50fd8cbddcc9d46be6688e37475554a0232ccd9fa0d0c7a2dee2c05a"
+        }
+      ],
+      "derivedStart": 3889,
+      "derivedEnd": 3894,
+      "derivedStartLine": 89,
+      "contextOriginals": [
+        {
+          "start": 4407,
+          "end": 4437,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "e74a37c90897b7c575319549c30e0ebd17a23c8d38aed54160731c846fe4501e"
+        },
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4536,
+          "end": 4545,
+          "startLine": 171,
+          "endLine": 171,
+          "sha256": "903ae652cea92f8ca4f5f0103d583435f4810f6020533c5055c2a55aeb67438a"
+        },
+        {
+          "start": 4560,
+          "end": 4569,
+          "startLine": 172,
+          "endLine": 172,
+          "sha256": "cd6a0a1e8f4d8861ed0615029218224855940cc5c0aa7845be3ef35bd46e6e65"
+        }
+      ],
+      "group": "work-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-technology-1",
+      "derivedSha256": "32fd72a0e0746043a1cce59f2e840490df6b9ea49e9bbcade136da5e8173d6c0",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5144,
+          "end": 5149,
+          "startLine": 183,
+          "endLine": 183,
+          "sha256": "74a8f6202f89a963b93e19d27f2e9acd3fbdcaaae5b855c8b1842f6a8e35c7de"
+        }
+      ],
+      "derivedStart": 3950,
+      "derivedEnd": 3953,
+      "derivedStartLine": 92,
+      "contextOriginals": [
+        {
+          "start": 4407,
+          "end": 4437,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "e74a37c90897b7c575319549c30e0ebd17a23c8d38aed54160731c846fe4501e"
+        },
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4536,
+          "end": 4545,
+          "startLine": 171,
+          "endLine": 171,
+          "sha256": "903ae652cea92f8ca4f5f0103d583435f4810f6020533c5055c2a55aeb67438a"
+        },
+        {
+          "start": 4560,
+          "end": 4569,
+          "startLine": 172,
+          "endLine": 172,
+          "sha256": "cd6a0a1e8f4d8861ed0615029218224855940cc5c0aa7845be3ef35bd46e6e65"
+        }
+      ],
+      "group": "work-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-technology-2",
+      "derivedSha256": "f9191531404c401686ab9b96e57d6a30825f3487b3375c8b90a2245b65f40551",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5159,
+          "end": 5171,
+          "startLine": 184,
+          "endLine": 184,
+          "sha256": "2131eb68de76ef8881da3efdd6d643add5fa7b3b7d8d34ccb611f1ec36da542c"
+        }
+      ],
+      "derivedStart": 4009,
+      "derivedEnd": 4019,
+      "derivedStartLine": 95,
+      "contextOriginals": [
+        {
+          "start": 4407,
+          "end": 4437,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "e74a37c90897b7c575319549c30e0ebd17a23c8d38aed54160731c846fe4501e"
+        },
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4536,
+          "end": 4545,
+          "startLine": 171,
+          "endLine": 171,
+          "sha256": "903ae652cea92f8ca4f5f0103d583435f4810f6020533c5055c2a55aeb67438a"
+        },
+        {
+          "start": 4560,
+          "end": 4569,
+          "startLine": 172,
+          "endLine": 172,
+          "sha256": "cd6a0a1e8f4d8861ed0615029218224855940cc5c0aa7845be3ef35bd46e6e65"
+        }
+      ],
+      "group": "work-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-technology-3",
+      "derivedSha256": "a37d07fe30048d3ae9db9a02c8c16da029bb44a586c5adaea2a1ce7be2c9d904",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5181,
+          "end": 5193,
+          "startLine": 185,
+          "endLine": 185,
+          "sha256": "98ae306929c78df8a09616a3b2b63c00f5d07e9153cb276e8791f66b2c6281b7"
+        }
+      ],
+      "derivedStart": 4075,
+      "derivedEnd": 4085,
+      "derivedStartLine": 98,
+      "contextOriginals": [
+        {
+          "start": 4407,
+          "end": 4437,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "e74a37c90897b7c575319549c30e0ebd17a23c8d38aed54160731c846fe4501e"
+        },
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4536,
+          "end": 4545,
+          "startLine": 171,
+          "endLine": 171,
+          "sha256": "903ae652cea92f8ca4f5f0103d583435f4810f6020533c5055c2a55aeb67438a"
+        },
+        {
+          "start": 4560,
+          "end": 4569,
+          "startLine": 172,
+          "endLine": 172,
+          "sha256": "cd6a0a1e8f4d8861ed0615029218224855940cc5c0aa7845be3ef35bd46e6e65"
+        }
+      ],
+      "group": "work-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-technology-4",
+      "derivedSha256": "899ba5f0b96873bb4d045c3b01fd3f942048ae1507dcf367dfb3cc7af1067678",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5203,
+          "end": 5211,
+          "startLine": 186,
+          "endLine": 186,
+          "sha256": "de8e15cb34bce96c91f5395a1f1129de89275ab59fcc81e8958a44b1701f1ed7"
+        }
+      ],
+      "derivedStart": 4141,
+      "derivedEnd": 4147,
+      "derivedStartLine": 101,
+      "contextOriginals": [
+        {
+          "start": 4407,
+          "end": 4437,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "e74a37c90897b7c575319549c30e0ebd17a23c8d38aed54160731c846fe4501e"
+        },
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4536,
+          "end": 4545,
+          "startLine": 171,
+          "endLine": 171,
+          "sha256": "903ae652cea92f8ca4f5f0103d583435f4810f6020533c5055c2a55aeb67438a"
+        },
+        {
+          "start": 4560,
+          "end": 4569,
+          "startLine": 172,
+          "endLine": 172,
+          "sha256": "cd6a0a1e8f4d8861ed0615029218224855940cc5c0aa7845be3ef35bd46e6e65"
+        }
+      ],
+      "group": "work-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-technology-5",
+      "derivedSha256": "e876abbe46eade2f0408a603254c0a5546fb6c28d4b74246252e1d59073ff6e3",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5221,
+          "end": 5230,
+          "startLine": 187,
+          "endLine": 187,
+          "sha256": "c517e43309995e73d7b270e7533929dd2271b395b48ea4615074807fa20b9dc9"
+        }
+      ],
+      "derivedStart": 4203,
+      "derivedEnd": 4210,
+      "derivedStartLine": 104,
+      "contextOriginals": [
+        {
+          "start": 4407,
+          "end": 4437,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "e74a37c90897b7c575319549c30e0ebd17a23c8d38aed54160731c846fe4501e"
+        },
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4536,
+          "end": 4545,
+          "startLine": 171,
+          "endLine": 171,
+          "sha256": "903ae652cea92f8ca4f5f0103d583435f4810f6020533c5055c2a55aeb67438a"
+        },
+        {
+          "start": 4560,
+          "end": 4569,
+          "startLine": 172,
+          "endLine": 172,
+          "sha256": "cd6a0a1e8f4d8861ed0615029218224855940cc5c0aa7845be3ef35bd46e6e65"
+        }
+      ],
+      "group": "work-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-technology-6",
+      "derivedSha256": "0c03e3faaef073c59e48370a7abceaf35a8f9d49e9dcac105593d477b9818b39",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5240,
+          "end": 5251,
+          "startLine": 188,
+          "endLine": 188,
+          "sha256": "ac94ee6a6f4eeca85d7e269dd1f43cb7dd449433bf09b11e6e137dc12fb239fc"
+        }
+      ],
+      "derivedStart": 4266,
+      "derivedEnd": 4275,
+      "derivedStartLine": 107,
+      "contextOriginals": [
+        {
+          "start": 4407,
+          "end": 4437,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "e74a37c90897b7c575319549c30e0ebd17a23c8d38aed54160731c846fe4501e"
+        },
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4536,
+          "end": 4545,
+          "startLine": 171,
+          "endLine": 171,
+          "sha256": "903ae652cea92f8ca4f5f0103d583435f4810f6020533c5055c2a55aeb67438a"
+        },
+        {
+          "start": 4560,
+          "end": 4569,
+          "startLine": 172,
+          "endLine": 172,
+          "sha256": "cd6a0a1e8f4d8861ed0615029218224855940cc5c0aa7845be3ef35bd46e6e65"
+        }
+      ],
+      "group": "work-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-1-technology-7",
+      "derivedSha256": "9a4d10e69361c7d6c9f874d5a907d30fdbd08726da03b543d4e262fd6fde6a42",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5261,
+          "end": 5270,
+          "startLine": 189,
+          "endLine": 189,
+          "sha256": "584c2f9cd4379a6bc5d9f5d6db5bfa2b7538e4f0493d569eca8fa2bed7b5e57d"
+        }
+      ],
+      "derivedStart": 4331,
+      "derivedEnd": 4338,
+      "derivedStartLine": 110,
+      "contextOriginals": [
+        {
+          "start": 4407,
+          "end": 4437,
+          "startLine": 169,
+          "endLine": 169,
+          "sha256": "e74a37c90897b7c575319549c30e0ebd17a23c8d38aed54160731c846fe4501e"
+        },
+        {
+          "start": 4453,
+          "end": 4519,
+          "startLine": 170,
+          "endLine": 170,
+          "sha256": "1afa220ede1f2119d032996e4cb145f3fb1695c18eafbb27b7c2e5e67288da58"
+        },
+        {
+          "start": 4536,
+          "end": 4545,
+          "startLine": 171,
+          "endLine": 171,
+          "sha256": "903ae652cea92f8ca4f5f0103d583435f4810f6020533c5055c2a55aeb67438a"
+        },
+        {
+          "start": 4560,
+          "end": 4569,
+          "startLine": 172,
+          "endLine": 172,
+          "sha256": "cd6a0a1e8f4d8861ed0615029218224855940cc5c0aa7845be3ef35bd46e6e65"
+        }
+      ],
+      "group": "work-1",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-action-0",
+      "derivedSha256": "1a482cffd2a3c1bfc264bf4d2ea1c1e89daa25256330293e5c8c5cd576cfd30c",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5503,
+          "end": 5544,
+          "startLine": 198,
+          "endLine": 198,
+          "sha256": "3afc8d58e9c562d19fee88a723cb226661f981729b06242869543962e1fd3361"
+        }
+      ],
+      "derivedStart": 4385,
+      "derivedEnd": 4488,
+      "derivedStartLine": 113,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-action-1",
+      "derivedSha256": "dda4cd1de1b56b77da9e04d52c89e00978024558cddec1d355c286c5e68529c2",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5554,
+          "end": 5628,
+          "startLine": 199,
+          "endLine": 199,
+          "sha256": "7a665e78843cb7ab844813b2e098ab467d5fa61d123bc2c0794b15c4b55d7e7c"
+        }
+      ],
+      "derivedStart": 4535,
+      "derivedEnd": 4671,
+      "derivedStartLine": 116,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-action-2",
+      "derivedSha256": "aabf1f667a5049081f02736587a5da39f55d43020760d2530d658aa4b1c57e51",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5638,
+          "end": 5697,
+          "startLine": 200,
+          "endLine": 200,
+          "sha256": "40b63480327d21ac535456cd42e8c35fa0f86a7141355529d5eaf7361cbef248"
+        }
+      ],
+      "derivedStart": 4718,
+      "derivedEnd": 4839,
+      "derivedStartLine": 119,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "source_reviewed"
+    },
+    {
+      "id": "work-2-action-3",
+      "derivedSha256": "93bea030da348989f00d2428ecacaa6347c3c6cfbc67faf91a960dfda6c6b378",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5707,
+          "end": 5780,
+          "startLine": 201,
+          "endLine": 201,
+          "sha256": "25988d7cceb6cb92e97f220a7929a149ef3afae74ae38ece6a5ca88f6fb29dd3"
+        }
+      ],
+      "derivedStart": 4886,
+      "derivedEnd": 5021,
+      "derivedStartLine": 122,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-action-4",
+      "derivedSha256": "a90f447f4ec632e3d620adfb4f3712b0629362733fc50bdf511efac48858148c",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5790,
+          "end": 5877,
+          "startLine": 202,
+          "endLine": 202,
+          "sha256": "28050537813bf6a82d914844f10d6781c4e7276dd925a97420e20a43a3590cff"
+        }
+      ],
+      "derivedStart": 5068,
+      "derivedEnd": 5217,
+      "derivedStartLine": 125,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-action-5",
+      "derivedSha256": "4335c0d6d45e98b662be32489aaded34956d34782088774bafff57e0ddf125eb",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5887,
+          "end": 5958,
+          "startLine": 203,
+          "endLine": 203,
+          "sha256": "64804bffdc613d4678d925101e1a341f7b1e0d59e0116d7e096717be18672f27"
+        }
+      ],
+      "derivedStart": 5264,
+      "derivedEnd": 5397,
+      "derivedStartLine": 128,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-action-6",
+      "derivedSha256": "e57cc1f6d5c6c7a7dd786ba454229a72423b3c3ab2a82b485108b8564d6fff10",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5968,
+          "end": 6035,
+          "startLine": 204,
+          "endLine": 204,
+          "sha256": "715f9695db9c2bdbf8a76215e6f24f3a41057f7adaa78b1473cada8ee5f6fec4"
+        }
+      ],
+      "derivedStart": 5444,
+      "derivedEnd": 5573,
+      "derivedStartLine": 131,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "employment",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-0",
+      "derivedSha256": "4828e60247c1636f57b7446a314e7f599c12b53d40061cc851a1442004354fed",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6077,
+          "end": 6084,
+          "startLine": 207,
+          "endLine": 207,
+          "sha256": "1ca133af50fd8cbddcc9d46be6688e37475554a0232ccd9fa0d0c7a2dee2c05a"
+        }
+      ],
+      "derivedStart": 5629,
+      "derivedEnd": 5634,
+      "derivedStartLine": 134,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-1",
+      "derivedSha256": "18885f27b5af9012df19e496460f9294d5ab76128824c6f993787004f6d9a7db",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6094,
+          "end": 6102,
+          "startLine": 208,
+          "endLine": 208,
+          "sha256": "45f13bf50ac1fca6e27296d5383380ef0a471d3d5d04f78c829a445829f7d05a"
+        }
+      ],
+      "derivedStart": 5690,
+      "derivedEnd": 5696,
+      "derivedStartLine": 137,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-2",
+      "derivedSha256": "31e3cbd5c7bd25c4de00fdd6635f2d0bf237930e0d6a4e6b1bbf8a4fcccc6c4c",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6112,
+          "end": 6117,
+          "startLine": 209,
+          "endLine": 209,
+          "sha256": "a64fe198d9986718a07a99c17755c5e48fd3a81b44e75e74c97661b72c3f407e"
+        }
+      ],
+      "derivedStart": 5752,
+      "derivedEnd": 5755,
+      "derivedStartLine": 140,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-3",
+      "derivedSha256": "25aefdc0a1c20269d63fe3409bcb915306c123368efa973f108e3440b41d6549",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6127,
+          "end": 6132,
+          "startLine": 210,
+          "endLine": 210,
+          "sha256": "c6ca173e5e547f45b39672698abaef90b25636f2e0475ea1cd078c51c81f027c"
+        }
+      ],
+      "derivedStart": 5811,
+      "derivedEnd": 5814,
+      "derivedStartLine": 143,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-4",
+      "derivedSha256": "c9cf3948fbef972d87ab9922b2dcb30e70333e9f95afd65a0b655acdc07aa6bd",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6142,
+          "end": 6150,
+          "startLine": 211,
+          "endLine": 211,
+          "sha256": "409f882b94b37136b571ad80ecce2854be97e701650ede6453bcdeae1113f03a"
+        }
+      ],
+      "derivedStart": 5870,
+      "derivedEnd": 5876,
+      "derivedStartLine": 146,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-5",
+      "derivedSha256": "a2f1a6d79bfb0fe6d2fe2f0f08c2f32ce53cc935520e9d8a9f8daa051b4f239b",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6160,
+          "end": 6165,
+          "startLine": 212,
+          "endLine": 212,
+          "sha256": "8ae18128586fbd0f953fde4a4c9e5784438bcb0336e5dd583b7bc64fdef118da"
+        }
+      ],
+      "derivedStart": 5932,
+      "derivedEnd": 5935,
+      "derivedStartLine": 149,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-6",
+      "derivedSha256": "32fd72a0e0746043a1cce59f2e840490df6b9ea49e9bbcade136da5e8173d6c0",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6175,
+          "end": 6180,
+          "startLine": 213,
+          "endLine": 213,
+          "sha256": "74a8f6202f89a963b93e19d27f2e9acd3fbdcaaae5b855c8b1842f6a8e35c7de"
+        }
+      ],
+      "derivedStart": 5991,
+      "derivedEnd": 5994,
+      "derivedStartLine": 152,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-7",
+      "derivedSha256": "f4920dac3075feca0bd92a92f6691f50e9f815e5e398f88c188499875b4a5129",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6190,
+          "end": 6195,
+          "startLine": 214,
+          "endLine": 214,
+          "sha256": "2a998510d2b8b857438e1485972b5d1ecb29604c8b3d8bf2cc1e9c53f24a4305"
+        }
+      ],
+      "derivedStart": 6050,
+      "derivedEnd": 6053,
+      "derivedStartLine": 155,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-8",
+      "derivedSha256": "f9191531404c401686ab9b96e57d6a30825f3487b3375c8b90a2245b65f40551",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6205,
+          "end": 6217,
+          "startLine": 215,
+          "endLine": 215,
+          "sha256": "2131eb68de76ef8881da3efdd6d643add5fa7b3b7d8d34ccb611f1ec36da542c"
+        }
+      ],
+      "derivedStart": 6109,
+      "derivedEnd": 6119,
+      "derivedStartLine": 158,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-9",
+      "derivedSha256": "4e2429cec3745334ff01d21b8fe0800416dd107470107ab784105115a8a476e0",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6227,
+          "end": 6239,
+          "startLine": 216,
+          "endLine": 216,
+          "sha256": "ab8da7fab856dd2e76afdd7cc12ac598125cd5e99df8f439f58924c076cbcd54"
+        }
+      ],
+      "derivedStart": 6175,
+      "derivedEnd": 6185,
+      "derivedStartLine": 161,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-10",
+      "derivedSha256": "a37d07fe30048d3ae9db9a02c8c16da029bb44a586c5adaea2a1ce7be2c9d904",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6249,
+          "end": 6261,
+          "startLine": 217,
+          "endLine": 217,
+          "sha256": "98ae306929c78df8a09616a3b2b63c00f5d07e9153cb276e8791f66b2c6281b7"
+        }
+      ],
+      "derivedStart": 6242,
+      "derivedEnd": 6252,
+      "derivedStartLine": 164,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-11",
+      "derivedSha256": "0c03e3faaef073c59e48370a7abceaf35a8f9d49e9dcac105593d477b9818b39",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6271,
+          "end": 6282,
+          "startLine": 218,
+          "endLine": 218,
+          "sha256": "ac94ee6a6f4eeca85d7e269dd1f43cb7dd449433bf09b11e6e137dc12fb239fc"
+        }
+      ],
+      "derivedStart": 6309,
+      "derivedEnd": 6318,
+      "derivedStartLine": 167,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-12",
+      "derivedSha256": "9a4d10e69361c7d6c9f874d5a907d30fdbd08726da03b543d4e262fd6fde6a42",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6292,
+          "end": 6301,
+          "startLine": 219,
+          "endLine": 219,
+          "sha256": "584c2f9cd4379a6bc5d9f5d6db5bfa2b7538e4f0493d569eca8fa2bed7b5e57d"
+        }
+      ],
+      "derivedStart": 6375,
+      "derivedEnd": 6382,
+      "derivedStartLine": 170,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-2-technology-13",
+      "derivedSha256": "f4a7e975f9833f8df743aac97aa4ba7b1ab36a5ef337de74803aa27e9fbb5d25",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6311,
+          "end": 6319,
+          "startLine": 220,
+          "endLine": 220,
+          "sha256": "2793abd2b41f8de8429a61b3e14fb23096a805be5e2afabeff056aad23d08be3"
+        }
+      ],
+      "derivedStart": 6439,
+      "derivedEnd": 6445,
+      "derivedStartLine": 173,
+      "contextOriginals": [
+        {
+          "start": 5309,
+          "end": 5340,
+          "startLine": 193,
+          "endLine": 193,
+          "sha256": "29b0da2ea4a7a5b13c4e0b1a9ca7ffe2634f9eba6794161b330860dc7b1b5af2"
+        },
+        {
+          "start": 5356,
+          "end": 5421,
+          "startLine": 194,
+          "endLine": 194,
+          "sha256": "22753ce2877ebb198b0d6ceb7d133b20f8b9e9a3fcf41ffe8802b14b25faba3c"
+        },
+        {
+          "start": 5438,
+          "end": 5447,
+          "startLine": 195,
+          "endLine": 195,
+          "sha256": "d4be881ce04a6339222af2956245a8a5f556746869aa6c396cf113a9bff7d40b"
+        },
+        {
+          "start": 5462,
+          "end": 5471,
+          "startLine": 196,
+          "endLine": 196,
+          "sha256": "d380c07123d7aa16a19c955cf84dece64ff31ef09b1b10f4ea0c031712c1d571"
+        }
+      ],
+      "group": "work-2",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3-action-0",
+      "derivedSha256": "4b1963c00222c2df79ce10de452381f2ce94fe80cdc4b817e280b1748dde59eb",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Training. ",
+      "originals": [
+        {
+          "start": 6423,
+          "end": 6481,
+          "startLine": 225,
+          "endLine": 225,
+          "sha256": "52fadc44bfabc220557497ff3962af9693aadc1c30c38e5da6a7b2f50c824625"
+        },
+        {
+          "start": 6563,
+          "end": 6739,
+          "startLine": 229,
+          "endLine": 229,
+          "sha256": "33b03225212ca324633f6c85969855e48bb5e9e944322a7abc980e6660b81172"
+        }
+      ],
+      "derivedStart": 6490,
+      "derivedEnd": 6731,
+      "derivedStartLine": 176,
+      "contextOriginals": [
+        {
+          "start": 6358,
+          "end": 6407,
+          "startLine": 224,
+          "endLine": 224,
+          "sha256": "2642015677ff0b96ad12387650176e498ea23250d5643089b2223b71673f6ef0"
+        },
+        {
+          "start": 6423,
+          "end": 6481,
+          "startLine": 225,
+          "endLine": 225,
+          "sha256": "52fadc44bfabc220557497ff3962af9693aadc1c30c38e5da6a7b2f50c824625"
+        },
+        {
+          "start": 6498,
+          "end": 6507,
+          "startLine": 226,
+          "endLine": 226,
+          "sha256": "2c4b9244ff1743911d05f76b57b28d522d930d6506244ae9aeb8fb4c1aae3ba1"
+        },
+        {
+          "start": 6522,
+          "end": 6531,
+          "startLine": 227,
+          "endLine": 227,
+          "sha256": "2bb40468cf202e4f86485e3a5a209dcf17bcfd168a23ab06b26a042a7a2a810f"
+        }
+      ],
+      "group": "work-3",
+      "kind": "training",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3-action-1",
+      "derivedSha256": "533e3d76dfc15ecf1bed36acbed21a575a8a41039cfde78ccd18f52d045c5961",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Training. ",
+      "originals": [
+        {
+          "start": 6423,
+          "end": 6481,
+          "startLine": 225,
+          "endLine": 225,
+          "sha256": "52fadc44bfabc220557497ff3962af9693aadc1c30c38e5da6a7b2f50c824625"
+        },
+        {
+          "start": 6749,
+          "end": 6877,
+          "startLine": 230,
+          "endLine": 230,
+          "sha256": "029a46f2e79a473f85e20f073f54c8f713e8864a505a91a0e6a0e9dcaca8640e"
+        }
+      ],
+      "derivedStart": 6776,
+      "derivedEnd": 6975,
+      "derivedStartLine": 179,
+      "contextOriginals": [
+        {
+          "start": 6358,
+          "end": 6407,
+          "startLine": 224,
+          "endLine": 224,
+          "sha256": "2642015677ff0b96ad12387650176e498ea23250d5643089b2223b71673f6ef0"
+        },
+        {
+          "start": 6423,
+          "end": 6481,
+          "startLine": 225,
+          "endLine": 225,
+          "sha256": "52fadc44bfabc220557497ff3962af9693aadc1c30c38e5da6a7b2f50c824625"
+        },
+        {
+          "start": 6498,
+          "end": 6507,
+          "startLine": 226,
+          "endLine": 226,
+          "sha256": "2c4b9244ff1743911d05f76b57b28d522d930d6506244ae9aeb8fb4c1aae3ba1"
+        },
+        {
+          "start": 6522,
+          "end": 6531,
+          "startLine": 227,
+          "endLine": 227,
+          "sha256": "2bb40468cf202e4f86485e3a5a209dcf17bcfd168a23ab06b26a042a7a2a810f"
+        }
+      ],
+      "group": "work-3",
+      "kind": "training",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3-technology-0",
+      "derivedSha256": "746c6626eb051ec066c5daac68c9aea6dc5a307c6f9bea7dce9f85f626de2579",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6919,
+          "end": 6936,
+          "startLine": 233,
+          "endLine": 233,
+          "sha256": "ee0b0eab9a169a6ef46c174e9c17fde5a9b2609d13bfd10e4b356f9b945678a4"
+        }
+      ],
+      "derivedStart": 7031,
+      "derivedEnd": 7046,
+      "derivedStartLine": 182,
+      "contextOriginals": [
+        {
+          "start": 6358,
+          "end": 6407,
+          "startLine": 224,
+          "endLine": 224,
+          "sha256": "2642015677ff0b96ad12387650176e498ea23250d5643089b2223b71673f6ef0"
+        },
+        {
+          "start": 6423,
+          "end": 6481,
+          "startLine": 225,
+          "endLine": 225,
+          "sha256": "52fadc44bfabc220557497ff3962af9693aadc1c30c38e5da6a7b2f50c824625"
+        },
+        {
+          "start": 6498,
+          "end": 6507,
+          "startLine": 226,
+          "endLine": 226,
+          "sha256": "2c4b9244ff1743911d05f76b57b28d522d930d6506244ae9aeb8fb4c1aae3ba1"
+        },
+        {
+          "start": 6522,
+          "end": 6531,
+          "startLine": 227,
+          "endLine": 227,
+          "sha256": "2bb40468cf202e4f86485e3a5a209dcf17bcfd168a23ab06b26a042a7a2a810f"
+        }
+      ],
+      "group": "work-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3-technology-1",
+      "derivedSha256": "4828e60247c1636f57b7446a314e7f599c12b53d40061cc851a1442004354fed",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6946,
+          "end": 6953,
+          "startLine": 234,
+          "endLine": 234,
+          "sha256": "1ca133af50fd8cbddcc9d46be6688e37475554a0232ccd9fa0d0c7a2dee2c05a"
+        }
+      ],
+      "derivedStart": 7102,
+      "derivedEnd": 7107,
+      "derivedStartLine": 185,
+      "contextOriginals": [
+        {
+          "start": 6358,
+          "end": 6407,
+          "startLine": 224,
+          "endLine": 224,
+          "sha256": "2642015677ff0b96ad12387650176e498ea23250d5643089b2223b71673f6ef0"
+        },
+        {
+          "start": 6423,
+          "end": 6481,
+          "startLine": 225,
+          "endLine": 225,
+          "sha256": "52fadc44bfabc220557497ff3962af9693aadc1c30c38e5da6a7b2f50c824625"
+        },
+        {
+          "start": 6498,
+          "end": 6507,
+          "startLine": 226,
+          "endLine": 226,
+          "sha256": "2c4b9244ff1743911d05f76b57b28d522d930d6506244ae9aeb8fb4c1aae3ba1"
+        },
+        {
+          "start": 6522,
+          "end": 6531,
+          "startLine": 227,
+          "endLine": 227,
+          "sha256": "2bb40468cf202e4f86485e3a5a209dcf17bcfd168a23ab06b26a042a7a2a810f"
+        }
+      ],
+      "group": "work-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3-technology-2",
+      "derivedSha256": "204de4b6d5a34560d2e3e6b15bfb2f3df0152de7d7b74474ac9a866b74dd70d1",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6963,
+          "end": 6975,
+          "startLine": 235,
+          "endLine": 235,
+          "sha256": "16440281d650ded8d7961521fce97cc252a2dc69492cc31c7ada20ecb73b5259"
+        }
+      ],
+      "derivedStart": 7163,
+      "derivedEnd": 7173,
+      "derivedStartLine": 188,
+      "contextOriginals": [
+        {
+          "start": 6358,
+          "end": 6407,
+          "startLine": 224,
+          "endLine": 224,
+          "sha256": "2642015677ff0b96ad12387650176e498ea23250d5643089b2223b71673f6ef0"
+        },
+        {
+          "start": 6423,
+          "end": 6481,
+          "startLine": 225,
+          "endLine": 225,
+          "sha256": "52fadc44bfabc220557497ff3962af9693aadc1c30c38e5da6a7b2f50c824625"
+        },
+        {
+          "start": 6498,
+          "end": 6507,
+          "startLine": 226,
+          "endLine": 226,
+          "sha256": "2c4b9244ff1743911d05f76b57b28d522d930d6506244ae9aeb8fb4c1aae3ba1"
+        },
+        {
+          "start": 6522,
+          "end": 6531,
+          "startLine": 227,
+          "endLine": 227,
+          "sha256": "2bb40468cf202e4f86485e3a5a209dcf17bcfd168a23ab06b26a042a7a2a810f"
+        }
+      ],
+      "group": "work-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3-technology-3",
+      "derivedSha256": "5aa5a4a0e913f4cc927d442bdd747b771629681433ae18f018f05f0c6fa097dd",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 6985,
+          "end": 6990,
+          "startLine": 236,
+          "endLine": 236,
+          "sha256": "14bbb920562b6d1a263107341beed3ac3b9cfea1d460c2c5afade5a4bd937771"
+        }
+      ],
+      "derivedStart": 7229,
+      "derivedEnd": 7232,
+      "derivedStartLine": 191,
+      "contextOriginals": [
+        {
+          "start": 6358,
+          "end": 6407,
+          "startLine": 224,
+          "endLine": 224,
+          "sha256": "2642015677ff0b96ad12387650176e498ea23250d5643089b2223b71673f6ef0"
+        },
+        {
+          "start": 6423,
+          "end": 6481,
+          "startLine": 225,
+          "endLine": 225,
+          "sha256": "52fadc44bfabc220557497ff3962af9693aadc1c30c38e5da6a7b2f50c824625"
+        },
+        {
+          "start": 6498,
+          "end": 6507,
+          "startLine": 226,
+          "endLine": 226,
+          "sha256": "2c4b9244ff1743911d05f76b57b28d522d930d6506244ae9aeb8fb4c1aae3ba1"
+        },
+        {
+          "start": 6522,
+          "end": 6531,
+          "startLine": 227,
+          "endLine": 227,
+          "sha256": "2bb40468cf202e4f86485e3a5a209dcf17bcfd168a23ab06b26a042a7a2a810f"
+        }
+      ],
+      "group": "work-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3-technology-4",
+      "derivedSha256": "d8d3e93c9367f244a4c391f0f2324abff3305e0ff39a185198d87e2fc79dbaa4",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 7000,
+          "end": 7014,
+          "startLine": 237,
+          "endLine": 237,
+          "sha256": "8028f0e4343ffe2f6aef2ceab87207619610100712c3d9ae5e1acb552523ca44"
+        }
+      ],
+      "derivedStart": 7288,
+      "derivedEnd": 7300,
+      "derivedStartLine": 194,
+      "contextOriginals": [
+        {
+          "start": 6358,
+          "end": 6407,
+          "startLine": 224,
+          "endLine": 224,
+          "sha256": "2642015677ff0b96ad12387650176e498ea23250d5643089b2223b71673f6ef0"
+        },
+        {
+          "start": 6423,
+          "end": 6481,
+          "startLine": 225,
+          "endLine": 225,
+          "sha256": "52fadc44bfabc220557497ff3962af9693aadc1c30c38e5da6a7b2f50c824625"
+        },
+        {
+          "start": 6498,
+          "end": 6507,
+          "startLine": 226,
+          "endLine": 226,
+          "sha256": "2c4b9244ff1743911d05f76b57b28d522d930d6506244ae9aeb8fb4c1aae3ba1"
+        },
+        {
+          "start": 6522,
+          "end": 6531,
+          "startLine": 227,
+          "endLine": 227,
+          "sha256": "2bb40468cf202e4f86485e3a5a209dcf17bcfd168a23ab06b26a042a7a2a810f"
+        }
+      ],
+      "group": "work-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "work-3-technology-5",
+      "derivedSha256": "ae915ad1976be2dbd942b1ddc0512d2ee9d628533b4a54a67ac5944d97aa7346",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 7024,
+          "end": 7033,
+          "startLine": 238,
+          "endLine": 238,
+          "sha256": "a921382b20c985ee05482bc6e4e8367820201f98b54f5e31938a5312a4124f4d"
+        }
+      ],
+      "derivedStart": 7356,
+      "derivedEnd": 7363,
+      "derivedStartLine": 197,
+      "contextOriginals": [
+        {
+          "start": 6358,
+          "end": 6407,
+          "startLine": 224,
+          "endLine": 224,
+          "sha256": "2642015677ff0b96ad12387650176e498ea23250d5643089b2223b71673f6ef0"
+        },
+        {
+          "start": 6423,
+          "end": 6481,
+          "startLine": 225,
+          "endLine": 225,
+          "sha256": "52fadc44bfabc220557497ff3962af9693aadc1c30c38e5da6a7b2f50c824625"
+        },
+        {
+          "start": 6498,
+          "end": 6507,
+          "startLine": 226,
+          "endLine": 226,
+          "sha256": "2c4b9244ff1743911d05f76b57b28d522d930d6506244ae9aeb8fb4c1aae3ba1"
+        },
+        {
+          "start": 6522,
+          "end": 6531,
+          "startLine": 227,
+          "endLine": 227,
+          "sha256": "2bb40468cf202e4f86485e3a5a209dcf17bcfd168a23ab06b26a042a7a2a810f"
+        }
+      ],
+      "group": "work-3",
+      "kind": "technology_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-0-0",
+      "derivedSha256": "651855d8bff7d72c4080b91ccd9b40bc447a757204ff63da6e77745f9aacc835",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 641,
+          "end": 660,
+          "startLine": 21,
+          "endLine": 21,
+          "sha256": "5b56e8caafbac0ffbc3c6d2269dbb39cf3a844a783ca397545b6cf3d8f42cdca"
+        }
+      ],
+      "derivedStart": 7404,
+      "derivedEnd": 7421,
+      "derivedStartLine": 200,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-0-1",
+      "derivedSha256": "2c68f3a5e16b89740367469ecdb783447816dd1f9d4e30025c3cbae637dee6a9",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 670,
+          "end": 714,
+          "startLine": 22,
+          "endLine": 22,
+          "sha256": "281cd27f75f242e3d388ce3009add17dca449b995f9b6fb5b4d9b010db4a90e3"
+        }
+      ],
+      "derivedStart": 7462,
+      "derivedEnd": 7504,
+      "derivedStartLine": 203,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-1-0",
+      "derivedSha256": "d07c19c0ef20c9b3bd1f4fbf78759dcf7c83739f296b6708a2db721379bf4ee5",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 804,
+          "end": 825,
+          "startLine": 28,
+          "endLine": 28,
+          "sha256": "eafbdfcb240ea87de8266fad5f1deeaa426073fd02f1e682ff9f5e0c36568ad0"
+        }
+      ],
+      "derivedStart": 7545,
+      "derivedEnd": 7564,
+      "derivedStartLine": 206,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-1-1",
+      "derivedSha256": "1876f99f1a07fe0ddae6e0df5653a5193a77a203c6eafcd6fb61ecd62ccaa248",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 835,
+          "end": 854,
+          "startLine": 29,
+          "endLine": 29,
+          "sha256": "f93aa65e9af73e7b085ef3204c50861c88aefc20aefaa844e3163c105ef254b2"
+        }
+      ],
+      "derivedStart": 7605,
+      "derivedEnd": 7622,
+      "derivedStartLine": 209,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-1-2",
+      "derivedSha256": "3cbd0943b26ae3687f511e02c509c35bee149d96e4e83f144a1cf01d380b6d40",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 864,
+          "end": 882,
+          "startLine": 30,
+          "endLine": 30,
+          "sha256": "2b540ee3c3a0a20a9e233026a1f614f17bda24316e4c10f47967f1fc680231ad"
+        }
+      ],
+      "derivedStart": 7663,
+      "derivedEnd": 7679,
+      "derivedStartLine": 212,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-1-3",
+      "derivedSha256": "bab4c3533f867768a28065debde1d323d53b912dc5e6c8e54376ebe86691875b",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 892,
+          "end": 911,
+          "startLine": 31,
+          "endLine": 31,
+          "sha256": "6a52e17a5954bb4d352bc3db22542fc4e0a228499b95d91675b692e5d0f8f57e"
+        }
+      ],
+      "derivedStart": 7720,
+      "derivedEnd": 7737,
+      "derivedStartLine": 215,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-1-4",
+      "derivedSha256": "9695c9e80ed8b954ad62a343adb39c1e10b412214eb58e9ff71008b063035dd9",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 921,
+          "end": 940,
+          "startLine": 32,
+          "endLine": 32,
+          "sha256": "3e18cfe51748f92efb7a71f265a9d7603876f51d84cb5d8e314752b6ac7f0a27"
+        }
+      ],
+      "derivedStart": 7778,
+      "derivedEnd": 7795,
+      "derivedStartLine": 218,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-2-0",
+      "derivedSha256": "b949c922b6ef9ffbf41eb853b99578624ca6f6475c4f13abe2995484b0348e5c",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1024,
+          "end": 1029,
+          "startLine": 38,
+          "endLine": 38,
+          "sha256": "5e67969e3cbb3b72d24051f1108ee9040638c5ffbc8bcc46494803d76f111860"
+        }
+      ],
+      "derivedStart": 7836,
+      "derivedEnd": 7839,
+      "derivedStartLine": 221,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-3-0",
+      "derivedSha256": "4445d918dfcf1af804b749eeee4835dccfd27c06b6828533be827473ff63439f",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1108,
+          "end": 1116,
+          "startLine": 44,
+          "endLine": 44,
+          "sha256": "d084ac08451dd954392bb7d31197af601a2d5e7374089dd9ff1938c3f16cf968"
+        }
+      ],
+      "derivedStart": 7880,
+      "derivedEnd": 7886,
+      "derivedStartLine": 224,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-3-1",
+      "derivedSha256": "2dd9eb7d9f0c11864fe058aaa0f3fbae5b1887555c9bc1f9ff84877d75f446a5",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1126,
+          "end": 1135,
+          "startLine": 45,
+          "endLine": 45,
+          "sha256": "7835c2385096ecc9533956da1a4f97ce4b6e01eb64b26f97ec150c952bc46f6e"
+        }
+      ],
+      "derivedStart": 7927,
+      "derivedEnd": 7934,
+      "derivedStartLine": 227,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-3-2",
+      "derivedSha256": "e28a70b2356a8e991440ce970130ae0e0320978d93ebcf5c445cd048b8f1304a",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1145,
+          "end": 1155,
+          "startLine": 46,
+          "endLine": 46,
+          "sha256": "bf08eaf67a68ac4918c47431738666707773a4f4234d7b066ff90ae3c815e67a"
+        }
+      ],
+      "derivedStart": 7975,
+      "derivedEnd": 7983,
+      "derivedStartLine": 230,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-3-3",
+      "derivedSha256": "ae4863bdae026314d5994730ad24730434f256c274d8431c53ed537393992be6",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1165,
+          "end": 1173,
+          "startLine": 47,
+          "endLine": 47,
+          "sha256": "0a6934e28a6bb591c4542051ac4f02f7ba3ea2ac86e9de22c68b4e0e08409e81"
+        }
+      ],
+      "derivedStart": 8024,
+      "derivedEnd": 8030,
+      "derivedStartLine": 233,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-3-4",
+      "derivedSha256": "dd0804b065a533eb0198e076460421ada3d861683b408ef39daea67e9aad46a6",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1183,
+          "end": 1195,
+          "startLine": 48,
+          "endLine": 48,
+          "sha256": "008763cf433342da7954205eada0e6922edf63f52254d0fed67c0c97584a731a"
+        }
+      ],
+      "derivedStart": 8071,
+      "derivedEnd": 8081,
+      "derivedStartLine": 236,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-4-0",
+      "derivedSha256": "35af4e515765ca26e47e0072c5846e2b4ee6e4f4536b19829f6b24cf1205e554",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1281,
+          "end": 1301,
+          "startLine": 54,
+          "endLine": 54,
+          "sha256": "72b48af32d03dc74a134e323b63841c075c39fb1e7d6f03d21569d3c9e8d9ac0"
+        }
+      ],
+      "derivedStart": 8122,
+      "derivedEnd": 8140,
+      "derivedStartLine": 239,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-4-1",
+      "derivedSha256": "551e8cfb524e346bd1e724f84d73e2eb4c6b5e3c4235bb9985068c0a6ea90388",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1311,
+          "end": 1331,
+          "startLine": 55,
+          "endLine": 55,
+          "sha256": "1a6b5af753c841ecea94524969d995b4c0fd5ee15a3bd5aff5c40a66789b736f"
+        }
+      ],
+      "derivedStart": 8181,
+      "derivedEnd": 8199,
+      "derivedStartLine": 242,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-4-2",
+      "derivedSha256": "0de254e6051ade63431af02cd3c32d1ef1d72184d9d57b459fe4b6868cec613e",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1341,
+          "end": 1361,
+          "startLine": 56,
+          "endLine": 56,
+          "sha256": "f2a1fe22c3c77ac5bfa54e6d0842c6d3e884a9b0b4d9dee692d52d991da51e1a"
+        }
+      ],
+      "derivedStart": 8240,
+      "derivedEnd": 8258,
+      "derivedStartLine": 245,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-5-0",
+      "derivedSha256": "a34f753b28fcff4f155ad9003a18448688390d8c5d2acb20721b7cccccff6e3a",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1435,
+          "end": 1450,
+          "startLine": 62,
+          "endLine": 62,
+          "sha256": "2a9edb1b3626442389414de8109ca1a6813d40f9f1fea60f151a1404ba9637e9"
+        }
+      ],
+      "derivedStart": 8299,
+      "derivedEnd": 8312,
+      "derivedStartLine": 248,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-5-1",
+      "derivedSha256": "fae83bd48c808f084dc6ad40e94127e7f6509b8b1fa2d6d0cc021108f3558bf1",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1460,
+          "end": 1476,
+          "startLine": 63,
+          "endLine": 63,
+          "sha256": "6e1a29c67c915fa13ef944659fa8b10cbb96a3d292fa4f2d3d392268dc0041b8"
+        }
+      ],
+      "derivedStart": 8353,
+      "derivedEnd": 8367,
+      "derivedStartLine": 251,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-5-2",
+      "derivedSha256": "9a4d10e69361c7d6c9f874d5a907d30fdbd08726da03b543d4e262fd6fde6a42",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1486,
+          "end": 1495,
+          "startLine": 64,
+          "endLine": 64,
+          "sha256": "584c2f9cd4379a6bc5d9f5d6db5bfa2b7538e4f0493d569eca8fa2bed7b5e57d"
+        }
+      ],
+      "derivedStart": 8408,
+      "derivedEnd": 8415,
+      "derivedStartLine": 254,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-5-3",
+      "derivedSha256": "4af1b8e2674c112434ae740a9868ec7537ec60000c5f5eb8d0805035f712608f",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1505,
+          "end": 1523,
+          "startLine": 65,
+          "endLine": 65,
+          "sha256": "12a66d91b0a2c1c25e1a0d90dea15a5414c06afa31c3b1eadcd85082544decd8"
+        }
+      ],
+      "derivedStart": 8456,
+      "derivedEnd": 8472,
+      "derivedStartLine": 257,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-5-4",
+      "derivedSha256": "e32af138eab22e9953fc004fd10da28a2f5fd6685ce145df404199f7a2b52103",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1533,
+          "end": 1542,
+          "startLine": 66,
+          "endLine": 66,
+          "sha256": "0c40406429bf51affd948663fb44992763ea117c02ffadb39d0b12f9efd54acb"
+        }
+      ],
+      "derivedStart": 8513,
+      "derivedEnd": 8520,
+      "derivedStartLine": 260,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-6-0",
+      "derivedSha256": "b8cce1e6d1346b802a9794419f1ba9b2f22c5cced6f86d8512533020d4c2da4e",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1632,
+          "end": 1649,
+          "startLine": 72,
+          "endLine": 72,
+          "sha256": "09d93a1e4c20b70ffb0144bf2be50ed74e46801cf657f48df1d966755b8d2de4"
+        }
+      ],
+      "derivedStart": 8561,
+      "derivedEnd": 8576,
+      "derivedStartLine": 263,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-6-1",
+      "derivedSha256": "694032b7ede90d08b6d0ebba2aa83fa9529ef4a113d0897bb7445984ad4cccbd",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1659,
+          "end": 1669,
+          "startLine": 73,
+          "endLine": 73,
+          "sha256": "91e67c1177e80fa1c45aab3fa35fb06e733b052dcde4c4a8e15c1f641e3fbab8"
+        }
+      ],
+      "derivedStart": 8617,
+      "derivedEnd": 8625,
+      "derivedStartLine": 266,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-7-0",
+      "derivedSha256": "5ffa416fc861ec9f4f8c17a80b047438af50aca5a56ee7ec7320de181dc74e7e",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1764,
+          "end": 1802,
+          "startLine": 79,
+          "endLine": 79,
+          "sha256": "738ad381e6e0b099107969587dff1477175114732e42d23c507fe858d801e8b6"
+        }
+      ],
+      "derivedStart": 8666,
+      "derivedEnd": 8702,
+      "derivedStartLine": 269,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-8-0",
+      "derivedSha256": "34f2b6a43f672a30fd9f65c4f070f54c54df80038daada8c17ea548537b99467",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1892,
+          "end": 1907,
+          "startLine": 85,
+          "endLine": 85,
+          "sha256": "cc35e35c32798b6419e9ebc1a4286441c579d3cd704eda2246d879c2d4b213a3"
+        }
+      ],
+      "derivedStart": 8743,
+      "derivedEnd": 8756,
+      "derivedStartLine": 272,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-8-1",
+      "derivedSha256": "e6bb20df7151448c93c41c1c37336c5d68f13348ede4432c2df950b5f9071f73",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1917,
+          "end": 1931,
+          "startLine": 86,
+          "endLine": 86,
+          "sha256": "1b2b3dc7fe55ebec8a9f2f67463bc47f047c8c8b4019536ced3a27af2f89f8dd"
+        }
+      ],
+      "derivedStart": 8797,
+      "derivedEnd": 8809,
+      "derivedStartLine": 275,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-8-2",
+      "derivedSha256": "03109a562260b417e463091494ffcef1b542359eb533f7e2bb9c30e2f0e90291",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1941,
+          "end": 1955,
+          "startLine": 87,
+          "endLine": 87,
+          "sha256": "2d3415f4849cd840ec9877c6b6bb4d8d6b64907b465f6d880be0ccd6fd5d1ba1"
+        }
+      ],
+      "derivedStart": 8850,
+      "derivedEnd": 8862,
+      "derivedStartLine": 278,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-8-3",
+      "derivedSha256": "b5ecb38cc10dc6216f0fd4d57060f92a407c580e95ea22ca9c20cadccc9c179a",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1965,
+          "end": 1971,
+          "startLine": 88,
+          "endLine": 88,
+          "sha256": "074194c50b65c877894d6f5e11d0a46ee2b2a54cba7d0b615758152dc9fcaa71"
+        }
+      ],
+      "derivedStart": 8903,
+      "derivedEnd": 8907,
+      "derivedStartLine": 281,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-8-4",
+      "derivedSha256": "0c16521ac7ae32cf5bd781122b689c39c3ad67da12da1acb831c7ecd3d5e0c67",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 1981,
+          "end": 1988,
+          "startLine": 89,
+          "endLine": 89,
+          "sha256": "aed377b8f9371fbce36bfdec9562eb3baffb6ead3aeedd3f781d78484814aedb"
+        }
+      ],
+      "derivedStart": 8948,
+      "derivedEnd": 8953,
+      "derivedStartLine": 284,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-9-0",
+      "derivedSha256": "93fea02d2fb09567107ff582ebb8d1ffdc471537a2208cc8793f2bdfad5b8023",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2070,
+          "end": 2077,
+          "startLine": 95,
+          "endLine": 95,
+          "sha256": "8b987a9c1275317cec37f846e5e4a896e8c39a5d43109fd00bdacb9789a0ed7a"
+        }
+      ],
+      "derivedStart": 8994,
+      "derivedEnd": 8999,
+      "derivedStartLine": 287,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-9-1",
+      "derivedSha256": "597992364235f0462f20e8347dffb83844944f7f4f29b4631cd6330f03e6b2fe",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2087,
+          "end": 2096,
+          "startLine": 96,
+          "endLine": 96,
+          "sha256": "7f24bcd439d908ef1219c099dd59bcd8bdc6b1f05751ac2d8aa09cffa66c6e1d"
+        }
+      ],
+      "derivedStart": 9040,
+      "derivedEnd": 9047,
+      "derivedStartLine": 290,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-9-2",
+      "derivedSha256": "e29c49f863304681d87655818dac5de2ac3df069eecf8041187a79e027cea48b",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2106,
+          "end": 2115,
+          "startLine": 97,
+          "endLine": 97,
+          "sha256": "ac094972b529665439db80094259adf466df1cd2747ed27ec52170593498708c"
+        }
+      ],
+      "derivedStart": 9088,
+      "derivedEnd": 9095,
+      "derivedStartLine": 293,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-9-3",
+      "derivedSha256": "93163a5fed0d40cf2237c254701ae4d0b061aae0e149432aa1ca7d43b393e19d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2125,
+          "end": 2132,
+          "startLine": 98,
+          "endLine": 98,
+          "sha256": "870f403dc930735f15161e4fbafc7c99e5492a7a697c60ee92ad2b65eb57ddf9"
+        }
+      ],
+      "derivedStart": 9136,
+      "derivedEnd": 9141,
+      "derivedStartLine": 296,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-10-0",
+      "derivedSha256": "d0b49806bc977076fd770dbe12acddb5864269682f2e59d72e1c5a886ad6ca72",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2233,
+          "end": 2251,
+          "startLine": 104,
+          "endLine": 104,
+          "sha256": "57f2aef79f90c1248c514ed015a91ec6dc7af87bf02bcbad5efa1b02545a37d9"
+        }
+      ],
+      "derivedStart": 9183,
+      "derivedEnd": 9199,
+      "derivedStartLine": 299,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-10-1",
+      "derivedSha256": "6ad1e0e1ac674a4e0f30f71d53a9596164d22bb547c4aed6458faa771ea0f2af",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2261,
+          "end": 2268,
+          "startLine": 105,
+          "endLine": 105,
+          "sha256": "e22316f0121ff755b444952c2600af429b1a2b8a274dbfb35257f8f295a55392"
+        }
+      ],
+      "derivedStart": 9241,
+      "derivedEnd": 9246,
+      "derivedStartLine": 302,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-10-2",
+      "derivedSha256": "13a53db9c0642e0537ef327630bfd861234a765480c1135a19bc168b29ecad10",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2278,
+          "end": 2286,
+          "startLine": 106,
+          "endLine": 106,
+          "sha256": "847da6064da03c6fa0fb594a37029a0787fed1aff53072c3cf3c740c88adba9c"
+        }
+      ],
+      "derivedStart": 9288,
+      "derivedEnd": 9294,
+      "derivedStartLine": 305,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-11-0",
+      "derivedSha256": "8a8c65415401f7ed0a6828f3da318b887524e488c8e0e3287e44a6c244a49f28",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2373,
+          "end": 2381,
+          "startLine": 112,
+          "endLine": 112,
+          "sha256": "52830688cc608177185d081cc57d338b845af6c691b0aa44fe2a4ca160b87fbd"
+        }
+      ],
+      "derivedStart": 9336,
+      "derivedEnd": 9342,
+      "derivedStartLine": 308,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-12-0",
+      "derivedSha256": "e876abbe46eade2f0408a603254c0a5546fb6c28d4b74246252e1d59073ff6e3",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2476,
+          "end": 2485,
+          "startLine": 118,
+          "endLine": 118,
+          "sha256": "c517e43309995e73d7b270e7533929dd2271b395b48ea4615074807fa20b9dc9"
+        }
+      ],
+      "derivedStart": 9384,
+      "derivedEnd": 9391,
+      "derivedStartLine": 311,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-12-1",
+      "derivedSha256": "edbe7dd7b99b3a7b87656488d55611b2a4f345f3f8f663459636cd5473079cc8",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2495,
+          "end": 2505,
+          "startLine": 119,
+          "endLine": 119,
+          "sha256": "5c536251fe3346f7d39ff153c968f8a2cc57d76a7b59fc1bcd8ef968e028e03f"
+        }
+      ],
+      "derivedStart": 9433,
+      "derivedEnd": 9441,
+      "derivedStartLine": 314,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-12-2",
+      "derivedSha256": "05b073bd5e46bbede792d1e77a68c71801b7bac2dd8e0236299dede9a3a1909d",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2515,
+          "end": 2526,
+          "startLine": 120,
+          "endLine": 120,
+          "sha256": "0472abda23a08f1bc859ad9eab22e2706936fb540ab115f9514016a9630189c9"
+        }
+      ],
+      "derivedStart": 9483,
+      "derivedEnd": 9492,
+      "derivedStartLine": 317,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-12-3",
+      "derivedSha256": "6e14e30332af44520d20959bb1eb4aca4c40cf2022072723ab83aeb6fdd850fc",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2536,
+          "end": 2548,
+          "startLine": 121,
+          "endLine": 121,
+          "sha256": "c29a426c4f5c723e59d6965c3390fa9bb93d2d2149bc661add748947fe6dcbca"
+        }
+      ],
+      "derivedStart": 9534,
+      "derivedEnd": 9544,
+      "derivedStartLine": 320,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-12-4",
+      "derivedSha256": "899ba5f0b96873bb4d045c3b01fd3f942048ae1507dcf367dfb3cc7af1067678",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2558,
+          "end": 2566,
+          "startLine": 122,
+          "endLine": 122,
+          "sha256": "de8e15cb34bce96c91f5395a1f1129de89275ab59fcc81e8958a44b1701f1ed7"
+        }
+      ],
+      "derivedStart": 9586,
+      "derivedEnd": 9592,
+      "derivedStartLine": 323,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-13-0",
+      "derivedSha256": "32fd72a0e0746043a1cce59f2e840490df6b9ea49e9bbcade136da5e8173d6c0",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2650,
+          "end": 2655,
+          "startLine": 128,
+          "endLine": 128,
+          "sha256": "74a8f6202f89a963b93e19d27f2e9acd3fbdcaaae5b855c8b1842f6a8e35c7de"
+        }
+      ],
+      "derivedStart": 9634,
+      "derivedEnd": 9637,
+      "derivedStartLine": 326,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-13-1",
+      "derivedSha256": "69bd2211a05e151338291eb88add1fcdd30966b4d92a1de7f3fb651f3e5078db",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2665,
+          "end": 2679,
+          "startLine": 129,
+          "endLine": 129,
+          "sha256": "f40c4aa7d50b93019e3d5e87393c5c7df75eadb7420b04c8bade91808ed95066"
+        }
+      ],
+      "derivedStart": 9679,
+      "derivedEnd": 9691,
+      "derivedStartLine": 329,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-13-2",
+      "derivedSha256": "dd325ff034ce2ae3f83a2cebf5d869ea44ae54357f2203e27e3f01ddc1f55e03",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2689,
+          "end": 2704,
+          "startLine": 130,
+          "endLine": 130,
+          "sha256": "5b791fa521500ff4cfd5118a4c62545710a2e885beef770f10ec67bfa4d573b4"
+        }
+      ],
+      "derivedStart": 9733,
+      "derivedEnd": 9746,
+      "derivedStartLine": 332,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "skill-13-3",
+      "derivedSha256": "f9191531404c401686ab9b96e57d6a30825f3487b3375c8b90a2245b65f40551",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 2714,
+          "end": 2726,
+          "startLine": 131,
+          "endLine": 131,
+          "sha256": "2131eb68de76ef8881da3efdd6d643add5fa7b3b7d8d34ccb611f1ec36da542c"
+        }
+      ],
+      "derivedStart": 9788,
+      "derivedEnd": 9798,
+      "derivedStartLine": 335,
+      "contextOriginals": [],
+      "group": "skills",
+      "kind": "skill_list",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "personal-0-0",
+      "derivedSha256": "8621e13fb646f75bb30d1481c32b2a63e61104c399eb6e443a6fa2fc68302f7e",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Personal project. ",
+      "originals": [
+        {
+          "start": 7121,
+          "end": 7214,
+          "startLine": 245,
+          "endLine": 245,
+          "sha256": "caf4c282653873952045ac4c60fbd0c6d8905bc71f21eca57727cc4778dd778e"
+        },
+        {
+          "start": 7246,
+          "end": 7328,
+          "startLine": 247,
+          "endLine": 247,
+          "sha256": "30a2c67bfe5f9e4fd9dce1d00c7b11f0c3854b0ba71996407e9bac5cbab49ea9"
+        }
+      ],
+      "derivedStart": 9840,
+      "derivedEnd": 10030,
+      "derivedStartLine": 338,
+      "contextOriginals": [],
+      "group": "personal",
+      "kind": "personal",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "personal-1-0",
+      "derivedSha256": "cc13e8caf4700bb81b3f5b6f15c29cd00682d01bfa5e767ff634f9f0dfd0b45a",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "Personal project. ",
+      "originals": [
+        {
+          "start": 7530,
+          "end": 7626,
+          "startLine": 257,
+          "endLine": 257,
+          "sha256": "6adbc3c3103fce6e540f22f01efbe9dc9a348feb3d016e5ee7eba2980b01ffc8"
+        },
+        {
+          "start": 7658,
+          "end": 7702,
+          "startLine": 259,
+          "endLine": 259,
+          "sha256": "f8229a43be5ee9c3e6da21747233ea08c85cbf9e0979e417b7b39ac184e30935"
+        }
+      ],
+      "derivedStart": 10072,
+      "derivedEnd": 10227,
+      "derivedStartLine": 341,
+      "contextOriginals": [],
+      "group": "personal",
+      "kind": "personal",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "education-0",
+      "derivedSha256": "595a983da830bb1db283e1b95f7962d189d05a5d24f5b6e7289e67c96c36d6ac",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 7864,
+          "end": 7894,
+          "startLine": 270,
+          "endLine": 270,
+          "sha256": "c969988be61516dc660a4e3f911444dbd04bec2cb65bf1d290a37d22d557b9a4"
+        },
+        {
+          "start": 7912,
+          "end": 7968,
+          "startLine": 271,
+          "endLine": 271,
+          "sha256": "72b9340cb2d555e56f240f0fedda12f11524c6579ffe873d6947fb93b6859b52"
+        },
+        {
+          "start": 8024,
+          "end": 8030,
+          "startLine": 273,
+          "endLine": 273,
+          "sha256": "2a1d615c21cc3e24971c4bd877dcb2ec17635ccb77a401cd874e71e227351823"
+        },
+        {
+          "start": 8045,
+          "end": 8051,
+          "startLine": 274,
+          "endLine": 274,
+          "sha256": "bc855b713402120bf0c74426aea399eac2fd6ab1c3d9b8670993e0df4f607f72"
+        }
+      ],
+      "derivedStart": 10269,
+      "derivedEnd": 10346,
+      "derivedStartLine": 344,
+      "contextOriginals": [],
+      "group": "education",
+      "kind": "education",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "education-1",
+      "derivedSha256": "d1c7476eef4aaf0134355a994cb8e5aafc4f3f699cd360a5bb788a886a45be2e",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 8081,
+          "end": 8111,
+          "startLine": 277,
+          "endLine": 277,
+          "sha256": "c969988be61516dc660a4e3f911444dbd04bec2cb65bf1d290a37d22d557b9a4"
+        },
+        {
+          "start": 8129,
+          "end": 8187,
+          "startLine": 278,
+          "endLine": 278,
+          "sha256": "a04a7871403762ce7d20304849f6cdf031255b9606061a697c569a224368b3c5"
+        },
+        {
+          "start": 8243,
+          "end": 8249,
+          "startLine": 280,
+          "endLine": 280,
+          "sha256": "821faefdab15d8560563bf5b95c4e564329f62c19c8c31195b7d945e59408ad0"
+        },
+        {
+          "start": 8264,
+          "end": 8270,
+          "startLine": 281,
+          "endLine": 281,
+          "sha256": "2a1d615c21cc3e24971c4bd877dcb2ec17635ccb77a401cd874e71e227351823"
+        }
+      ],
+      "derivedStart": 10388,
+      "derivedEnd": 10467,
+      "derivedStartLine": 347,
+      "contextOriginals": [],
+      "group": "education",
+      "kind": "education",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "certification-0",
+      "derivedSha256": "30f73434d1ddc4578f8ebc8d0ac5a403aef6abbc11596eb88e158fd16e8598fd",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 8324,
+          "end": 8369,
+          "startLine": 286,
+          "endLine": 286,
+          "sha256": "c9a41decedc1dd3b78b8658a6d924a4afbc89c12d99fd066ebcb4b432ecc1dab"
+        }
+      ],
+      "derivedStart": 10517,
+      "derivedEnd": 10560,
+      "derivedStartLine": 350,
+      "contextOriginals": [],
+      "group": "certifications",
+      "kind": "certification",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    },
+    {
+      "id": "certification-1",
+      "derivedSha256": "770d5dca018c9e9297081b495a7aef613b40e084be4730666461f2a49783fa87",
+      "operation": "decode markup/JSON; normalize whitespace; deterministic pseudonym replacement; retain full selected unit",
+      "context": "",
+      "originals": [
+        {
+          "start": 8436,
+          "end": 8470,
+          "startLine": 290,
+          "endLine": 290,
+          "sha256": "b1cceeee61729e5fcb5fa5a052792f1e638b3c6481b36fd7233d8b7e216cad87"
+        }
+      ],
+      "derivedStart": 10610,
+      "derivedEnd": 10642,
+      "derivedStartLine": 353,
+      "contextOriginals": [],
+      "group": "certifications",
+      "kind": "certification",
+      "verification": "self_reported",
+      "starLabelState": "not_adjudicated_no_credit"
+    }
+  ],
+  "selectedJob": [
+    {
+      "derivedStart": 0,
+      "derivedEnd": 22,
+      "original": {
+        "start": 1126,
+        "end": 1148,
+        "startLine": 12,
+        "endLine": 12,
+        "sha256": "1f2620d8dbd1ebcc1f72980a58985309edd583ae30c1eddff52840af48a8453b"
+      }
+    },
+    {
+      "derivedStart": 22,
+      "derivedEnd": 23,
+      "original": {
+        "start": 1148,
+        "end": 1149,
+        "startLine": 13,
+        "endLine": 13,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 23,
+      "derivedEnd": 179,
+      "original": {
+        "start": 1149,
+        "end": 1305,
+        "startLine": 14,
+        "endLine": 14,
+        "sha256": "7aaf82128cac928e9cb852f00ddde7200e308566eddd7803f0db2eda333b5ea9"
+      }
+    },
+    {
+      "derivedStart": 179,
+      "derivedEnd": 246,
+      "original": {
+        "start": 1305,
+        "end": 1372,
+        "startLine": 15,
+        "endLine": 15,
+        "sha256": "d8387451e7069f4ff9e025c91c2a1e68f8f0003b45da4d05e134ba3fbdb8adc9"
+      }
+    },
+    {
+      "derivedStart": 246,
+      "derivedEnd": 332,
+      "original": {
+        "start": 1372,
+        "end": 1458,
+        "startLine": 16,
+        "endLine": 16,
+        "sha256": "4baac210b1108b3c8bddc586077682572b25ae2f592b87728400f8b73657ef7d"
+      }
+    },
+    {
+      "derivedStart": 332,
+      "derivedEnd": 399,
+      "original": {
+        "start": 1458,
+        "end": 1525,
+        "startLine": 17,
+        "endLine": 17,
+        "sha256": "60b407bc8b00df4392ad15ebe63e6e8305f632429fb1b37f28967ebcdc068ce3"
+      }
+    },
+    {
+      "derivedStart": 399,
+      "derivedEnd": 537,
+      "original": {
+        "start": 1525,
+        "end": 1663,
+        "startLine": 18,
+        "endLine": 18,
+        "sha256": "585173185928a1509d16c7e0c5ed9b1acd0e509f7e82030224119b7e7b3fc7e3"
+      }
+    },
+    {
+      "derivedStart": 537,
+      "derivedEnd": 642,
+      "original": {
+        "start": 1663,
+        "end": 1768,
+        "startLine": 19,
+        "endLine": 19,
+        "sha256": "7c57331d185e45b6fd16de7ae31202080669f79d75b3ff1e0f9edf41e7ae87ca"
+      }
+    },
+    {
+      "derivedStart": 642,
+      "derivedEnd": 745,
+      "original": {
+        "start": 1768,
+        "end": 1871,
+        "startLine": 20,
+        "endLine": 20,
+        "sha256": "fbf00d97a6224d264e32c84bb1b7d07ee7b8c3d6ba7f4f40c0a580deaea3e8eb"
+      }
+    },
+    {
+      "derivedStart": 745,
+      "derivedEnd": 876,
+      "original": {
+        "start": 1871,
+        "end": 2002,
+        "startLine": 21,
+        "endLine": 21,
+        "sha256": "f530a8ac3db916495ff5b1af1dceb179f5450631818785185aa4216668cd255b"
+      }
+    },
+    {
+      "derivedStart": 876,
+      "derivedEnd": 943,
+      "original": {
+        "start": 2002,
+        "end": 2069,
+        "startLine": 22,
+        "endLine": 22,
+        "sha256": "92ba966bde613192cf0886e46d5c45c750ea2847b482ae02b1ebb68a1de40cc9"
+      }
+    },
+    {
+      "derivedStart": 943,
+      "derivedEnd": 989,
+      "original": {
+        "start": 2069,
+        "end": 2115,
+        "startLine": 23,
+        "endLine": 23,
+        "sha256": "690b5c30a7bdb8b490cfe56e0c700fca480688fdd238ee5fe1ce5d811526d4a0"
+      }
+    },
+    {
+      "derivedStart": 989,
+      "derivedEnd": 990,
+      "original": {
+        "start": 2115,
+        "end": 2116,
+        "startLine": 24,
+        "endLine": 24,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 990,
+      "derivedEnd": 1062,
+      "original": {
+        "start": 2116,
+        "end": 2188,
+        "startLine": 25,
+        "endLine": 25,
+        "sha256": "6d911b375851967929c2ac0fae0c9c611c2750359ea528ec83eceba7f5d7a256"
+      }
+    },
+    {
+      "derivedStart": 1062,
+      "derivedEnd": 1063,
+      "original": {
+        "start": 2188,
+        "end": 2189,
+        "startLine": 26,
+        "endLine": 26,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    },
+    {
+      "derivedStart": 1063,
+      "derivedEnd": 1150,
+      "original": {
+        "start": 2189,
+        "end": 2276,
+        "startLine": 27,
+        "endLine": 27,
+        "sha256": "d5d59f05e05f26ef89048352dce0f15dd86c7f4f8524b8a3cc85c416d8642d28"
+      }
+    },
+    {
+      "derivedStart": 1150,
+      "derivedEnd": 1199,
+      "original": {
+        "start": 2276,
+        "end": 2325,
+        "startLine": 28,
+        "endLine": 28,
+        "sha256": "4bafe497a514f60b3875146b39d569b8dbcfe85e1f924e54eb6f1f2a9b332af8"
+      }
+    },
+    {
+      "derivedStart": 1199,
+      "derivedEnd": 1281,
+      "original": {
+        "start": 2325,
+        "end": 2407,
+        "startLine": 29,
+        "endLine": 29,
+        "sha256": "0450b2e072ab41e11543d60c0e23739b97e8aa2ddaa9cc330ebd2e3526d43452"
+      }
+    },
+    {
+      "derivedStart": 1281,
+      "derivedEnd": 1342,
+      "original": {
+        "start": 2407,
+        "end": 2468,
+        "startLine": 30,
+        "endLine": 30,
+        "sha256": "aa92078ce6dc7b98ba9f83abfe3bc6675ffddf8f19f33d623494f1d085a28c1e"
+      }
+    },
+    {
+      "derivedStart": 1342,
+      "derivedEnd": 1404,
+      "original": {
+        "start": 2468,
+        "end": 2530,
+        "startLine": 31,
+        "endLine": 31,
+        "sha256": "a11dbb258537c66b04188bf5dc1986f427d8cd8da04791cab7dc3c3fa83d26e3"
+      }
+    },
+    {
+      "derivedStart": 1404,
+      "derivedEnd": 1495,
+      "original": {
+        "start": 2530,
+        "end": 2621,
+        "startLine": 32,
+        "endLine": 32,
+        "sha256": "04ca9e753c96310505b7eb59da0a565e4170d73dc48dc77b08f8726ae5fae8e8"
+      }
+    },
+    {
+      "derivedStart": 1495,
+      "derivedEnd": 1597,
+      "original": {
+        "start": 2621,
+        "end": 2723,
+        "startLine": 33,
+        "endLine": 33,
+        "sha256": "84bc1d430ab0cffce8de6e8fb6dfed9700aaf6e0873c34a5f7ea0036c0984bb7"
+      }
+    },
+    {
+      "derivedStart": 1597,
+      "derivedEnd": 1672,
+      "original": {
+        "start": 2723,
+        "end": 2798,
+        "startLine": 34,
+        "endLine": 34,
+        "sha256": "2e85810baca4000b7709e458e34741cc35b35d786d017035757ed7f327259ed4"
+      }
+    },
+    {
+      "derivedStart": 1672,
+      "derivedEnd": 1734,
+      "original": {
+        "start": 2798,
+        "end": 2860,
+        "startLine": 35,
+        "endLine": 35,
+        "sha256": "8329971787c0365106f115ee6483bce42d18a19ea2f81c2d43d7b2c84a81d06e"
+      }
+    },
+    {
+      "derivedStart": 1734,
+      "derivedEnd": 1828,
+      "original": {
+        "start": 2860,
+        "end": 2954,
+        "startLine": 36,
+        "endLine": 36,
+        "sha256": "e98f7b534802b2cd331f7ce07814a348b936520b2544a80fddcc3714f1b65df1"
+      }
+    },
+    {
+      "derivedStart": 1828,
+      "derivedEnd": 1852,
+      "original": {
+        "start": 2954,
+        "end": 2978,
+        "startLine": 37,
+        "endLine": 37,
+        "sha256": "7b5adf8ae9aafc3775dd231fc7245da67eb092da0054599d4afff08fd8a9b197"
+      }
+    },
+    {
+      "derivedStart": 1852,
+      "derivedEnd": 1853,
+      "original": {
+        "start": 2978,
+        "end": 2979,
+        "startLine": 38,
+        "endLine": 38,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      }
+    }
+  ],
+  "requirements": [
+    {
+      "id": "requirement-01",
+      "support": "supported",
+      "reason": "Actual team on-call; no sole incident ownership claim.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-02",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-03",
+      "support": "partial",
+      "reason": "Partial tool overlap, not evidence for Chef or every named tool.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-04",
+      "support": "not_evidenced",
+      "reason": "Prometheus maintenance does not establish symptom-oriented alert design.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-05",
+      "support": "not_evidenced",
+      "reason": "Assisted documentation review does not establish documenting every action or runbook automation.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-06",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-07",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-08",
+      "support": "not_evidenced",
+      "reason": "No supported concurrent-user capacity number.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-09",
+      "support": "supported",
+      "reason": "Troubleshooting with team members, not a solo resolution.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-10",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-11",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-12",
+      "support": "supported",
+      "reason": "Actual terminal work; not inferred from a standalone tool list.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-13",
+      "support": "supported",
+      "reason": "Ansible use is explicit; Chef remains unproven.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-14",
+      "support": "not_evidenced",
+      "reason": "Listed beginner Golang and operations do not prove strong Shell plus Ruby/Go programming.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-15",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-16",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-17",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-18",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-19",
+      "support": "not_evidenced",
+      "reason": "No direct complete support in the selected professional source. This means not evidenced, not proof the person lacks the ability.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-20",
+      "support": "supported",
+      "reason": "JD says or similar; not an AND over all tools.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    },
+    {
+      "id": "requirement-21",
+      "support": "supported",
+      "reason": "Actual administration of GitLab CI pipelines supports GitLab use; not merely a skills list.",
+      "sourceReview": "Codex reviewed against fixed source; no external human adjudication claimed"
+    }
+  ],
+  "dates": [
+    {
+      "group": "work-0",
+      "originalPeriod": "2025-06 - present",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "work-1",
+      "originalPeriod": "2023-11 - 2024-12",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "work-2",
+      "originalPeriod": "2021-11 - 2023-04",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    },
+    {
+      "group": "work-3",
+      "originalPeriod": "2021-01 - 2021-05",
+      "policy": "Source text retained; year-only/ambiguous chronology not repaired for baseline."
+    }
+  ]
+}
