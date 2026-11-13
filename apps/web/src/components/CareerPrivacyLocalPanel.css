@@ -1,0 +1,9 @@
+.career-privacy-local { border: 1px solid var(--border-color, #354254); border-radius: 12px; padding: 16px; margin-bottom: 18px; background: rgba(18, 32, 48, .1); }
+.career-privacy-local > header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.career-privacy-local h4 { margin: 0 0 8px; }
+.career-privacy-local label:not(.ctr-check):not(.cpl-source) { display: grid; gap: 6px; margin: 12px 0; }
+.career-privacy-local input:not([type=checkbox]), .career-privacy-local select, .career-privacy-local textarea { min-width: 0; width: 100%; box-sizing: border-box; }
+.career-privacy-local .cpl-source { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; overflow-wrap: anywhere; }
+.career-privacy-local small { display: block; opacity: .7; font-size: 11px; margin-top: 3px; overflow-wrap: anywhere; }
+.career-privacy-local fieldset { min-width: 0; margin-top: 12px; }
+.career-privacy-local p, .career-privacy-local code { overflow-wrap: anywhere; }

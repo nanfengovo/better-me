@@ -1,0 +1,13 @@
+.coding-lab{--lab-line:var(--ui-border,var(--color-line,#718184));--lab-panel:var(--ui-surface,var(--color-panel,#17212b));display:grid;min-width:0;gap:12px;padding:14px;border:1px solid var(--lab-line);border-radius:12px;background:var(--lab-panel);color:var(--ui-text,var(--color-ink,#e5edef));font-size:13px;line-height:1.55;user-select:text}
+.coding-lab h3,.coding-lab h4,.coding-lab p{margin:0}.coding-lab h3{font-size:16px}.coding-lab h4{font-size:14px}
+.coding-lab header,.coding-form,.coding-task,.coding-source,.coding-lab label{display:grid;gap:6px;min-width:0}
+.coding-lab p,.coding-lab small{overflow-wrap:anywhere}.coding-lab p,.coding-lab small,.coding-lab summary{color:var(--ui-text-secondary,var(--color-ink-muted,#a9b8bf))}
+.coding-lab .coding-bounds{display:grid;grid-template-columns:minmax(0,2fr) minmax(100px,1fr);gap:8px}
+.coding-lab input:not([type=checkbox]),.coding-lab textarea,.coding-lab pre{width:100%;min-width:0;padding:8px;border:1px solid var(--lab-line);border-radius:6px;background:var(--ui-input,var(--color-panel,#19252d));color:inherit}
+.coding-lab textarea{resize:vertical}.coding-lab pre{overflow:auto;max-height:240px;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.coding-lab code{overflow-wrap:anywhere}.coding-actions{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.coding-lab button{min-height:34px;padding:4px 9px;border:1px solid var(--lab-line);border-radius:6px;background:var(--lab-panel);color:inherit;cursor:pointer}
+.coding-lab button:disabled{opacity:.5;cursor:not-allowed}.coding-lab .coding-primary{background:var(--ui-action,#196343);color:var(--ui-on-action,#fff);border-color:transparent}
+.coding-lab :focus-visible{outline:2px solid var(--ui-focus,#76b7e5);outline-offset:2px}.coding-lab .coding-grant{display:flex;align-items:flex-start;gap:7px}.coding-lab .coding-grant input{margin-top:4px}
+.coding-lab summary{cursor:pointer}.coding-lab li{margin:4px 0}.coding-lab ol{list-style:decimal;padding-left:20px}.coding-history{display:block;text-align:start;margin-top:4px}
+.coding-lab .coding-error{color:var(--ui-danger,#d96e57)}@media(max-width:620px){.coding-lab .coding-bounds{grid-template-columns:1fr}}@media(pointer:coarse){.coding-lab button{min-height:44px}}

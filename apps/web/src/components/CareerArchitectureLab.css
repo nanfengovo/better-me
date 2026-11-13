@@ -1,0 +1,127 @@
+.architecture-lab {
+  --cal-canvas: var(--color-paper, #f5f5ef);
+  --cal-surface: var(--color-panel, #fff);
+  --cal-subtle: var(--color-accent-soft, #edf4ed);
+  --cal-text: var(--color-ink, #14212b);
+  --cal-muted: var(--color-ink-muted, #64748b);
+  --cal-stroke: var(--color-line, #e3e6df);
+  --cal-stroke-strong: var(--color-line-strong, #cbd5e1);
+  --cal-accent: var(--color-accent, #1b5147);
+  --cal-focus: var(--color-accent-hover, #286758);
+  --cal-warning: var(--color-warn, #b45309);
+  --cal-warning-soft: var(--color-warn-soft, #fef3c7);
+  --cal-danger: var(--color-danger, #e11d48);
+  --cal-danger-soft: var(--color-danger-soft, #ffe4e6);
+  color: var(--cal-text);
+  background: var(--cal-surface);
+  border: 1px solid var(--cal-stroke);
+  border-radius: 14px;
+  padding: 20px;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 14px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.dark .architecture-lab, [data-theme="dark"] .architecture-lab {
+  --cal-canvas: #101519; --cal-surface: #161d22; --cal-subtle: #22332f;
+  --cal-text: #edf3f1; --cal-muted: #a8b8be; --cal-stroke: #334149; --cal-stroke-strong: #54666e;
+  --cal-accent: #9cd4bf; --cal-focus: #b2e3d1; --cal-warning: #f4c276; --cal-warning-soft: #3d3020;
+  --cal-danger: #ffa8b8; --cal-danger-soft: #40262e;
+}
+.architecture-lab *, .architecture-lab *::before, .architecture-lab *::after { box-sizing: border-box; }
+.architecture-lab h2, .architecture-lab h3, .architecture-lab h4, .architecture-lab p { margin: 0 0 10px; }
+.architecture-lab h2 { font-size: 21px; line-height: 1.3; font-weight: 600; }
+.architecture-lab h3 { font-size: 16px; font-weight: 600; }
+.architecture-lab h4 { font-size: 13px; margin-top: 12px; }
+.architecture-lab p, .architecture-lab summary { overflow-wrap: anywhere; }
+.cal-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 12px; }
+.cal-header p { color: var(--cal-muted); max-width: 72ch; }
+.cal-header .cal-eyebrow { color: var(--cal-accent); font-size: 12px; letter-spacing: .04em; margin-bottom: 6px; }
+.cal-save-state { flex: none; font-size: 12px; padding: 5px 8px; border: 1px solid var(--cal-stroke); border-radius: 6px; color: var(--cal-muted); }
+.cal-toolbar { display: flex; flex-wrap: wrap; gap: 6px; padding-block: 8px 12px; border-bottom: 1px solid var(--cal-stroke); }
+.architecture-lab button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 34px; padding: 6px 10px; border: 1px solid var(--cal-stroke-strong); border-radius: 6px; background: var(--cal-surface); color: var(--cal-text); font: inherit; font-size: 12px; cursor: pointer; flex-shrink: 0; }
+.architecture-lab button:active:not(:disabled) { transform: scale(.98); }
+.architecture-lab button:disabled { opacity: .48; cursor: not-allowed; }
+.architecture-lab :is(button, input, select, textarea, summary):focus-visible { outline: 2px solid var(--cal-focus); outline-offset: 3px; }
+.architecture-lab label { display: grid; gap: 4px; color: var(--cal-muted); font-size: 12px; min-width: 0; margin-bottom: 10px; }
+.architecture-lab input:not([type="checkbox"]), .architecture-lab select, .architecture-lab textarea { border: 1px solid var(--cal-stroke-strong); border-radius: 6px; background: var(--cal-surface); color: var(--cal-text); padding: 7px 8px; font: inherit; font-size: 13px; min-width: 0; max-width: 100%; width: 100%; }
+.architecture-lab textarea { resize: vertical; line-height: 1.6; min-height: 72px; }
+.architecture-lab input[type="checkbox"] { accent-color: var(--cal-accent); width: 15px; height: 15px; flex: none; margin: 3px 0 0; }
+.architecture-lab .cal-checkbox { display: flex; align-items: flex-start; gap: 8px; color: var(--cal-text); }
+.architecture-lab fieldset { border: 1px solid var(--cal-stroke); padding: 10px; margin: 12px 0; min-width: 0; border-radius: 6px; }
+.architecture-lab legend { color: var(--cal-muted); font-size: 12px; padding-inline: 4px; }
+.cal-divider { width: 1px; background: var(--cal-stroke); margin-inline: 4px; }
+.cal-notice, .cal-unknown, .cal-loaded { padding: 10px 12px; background: var(--cal-warning-soft); color: var(--cal-warning); border: 1px solid var(--cal-stroke); border-radius: 6px; margin-block: 10px; }
+.cal-messages { min-height: 16px; margin-block: 8px; font-size: 13px; }
+.cal-messages p { margin-block: 6px; }
+.cal-error { color: var(--cal-danger); }
+.cal-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(250px, 300px); gap: 16px; align-items: start; }
+.cal-board { min-width: 0; }
+.cal-canvas-controls { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.cal-canvas-controls label:first-child { flex: 1; min-width: 150px; }
+.cal-canvas-controls label { margin-bottom: 0; }
+.cal-canvas-controls button { margin-bottom: 1px; }
+.cal-help { color: var(--cal-muted); font-size: 12px; margin-top: 10px !important; }
+.cal-canvas-viewport { width: 100%; max-width: 100%; height: 440px; min-height: 260px; overflow: auto; border: 1px solid var(--cal-stroke-strong); border-radius: 8px; background: var(--cal-canvas); overscroll-behavior: contain; }
+.cal-canvas-viewport > svg { display: block; max-width: none; touch-action: none; user-select: none; }
+.cal-grid-dot { fill: var(--cal-stroke-strong); opacity: .55; }
+.cal-empty-canvas { fill: var(--cal-muted); font-size: 15px; }
+.cal-node { cursor: grab; }
+.cal-node:active { cursor: grabbing; }
+.cal-node > rect { fill: var(--cal-surface); stroke: var(--cal-stroke-strong); stroke-width: 1.5; }
+.cal-node.is-selected > rect, .cal-node:focus-visible > rect { stroke: var(--cal-focus); stroke-width: 3; }
+.cal-node:focus-visible, .cal-port:focus-visible, .cal-edge:focus-visible, .cal-annotation:focus-visible { outline: none; }
+.cal-node-title { fill: var(--cal-text); font-size: 14px; font-weight: 600; }
+.cal-node-kind, .cal-node-meta { fill: var(--cal-muted); font-size: 11px; }
+.cal-node.is-failed > rect { stroke: var(--cal-danger); stroke-dasharray: 5 3; }
+.cal-node.is-at-risk > rect, .cal-node.is-unknown > rect { stroke: var(--cal-warning); stroke-dasharray: 3 3; }
+.cal-node.is-contained > rect { stroke: var(--cal-accent); }
+.cal-port { fill: var(--cal-subtle); stroke: var(--cal-accent); stroke-width: 1.5; cursor: crosshair; }
+.cal-port:focus-visible { stroke-width: 4; fill: var(--cal-accent); }
+.cal-edge-line { fill: none; stroke: var(--cal-stroke-strong); stroke-width: 2; }
+.cal-edge-hit { fill: none; stroke: transparent; stroke-width: 20; cursor: pointer; }
+.cal-edge.is-selected .cal-edge-line, .cal-edge:focus-visible .cal-edge-line { stroke: var(--cal-focus); stroke-width: 3; }
+.cal-arrow { fill: var(--cal-stroke-strong); }
+.cal-edge-label { fill: var(--cal-text); font-size: 11px; pointer-events: none; }
+.cal-connection-draft { fill: none; stroke: var(--cal-focus); stroke-width: 2; stroke-dasharray: 5 4; pointer-events: none; }
+.cal-annotation { cursor: grab; }
+.cal-annotation > rect { fill: var(--cal-warning-soft); stroke: var(--cal-warning); stroke-dasharray: 4 3; }
+.cal-annotation > text { fill: var(--cal-text); font-size: 12px; }
+.cal-annotation.is-selected > rect, .cal-annotation:focus-visible > rect { stroke-width: 3; }
+.cal-connecting { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--cal-accent); font-size: 12px; }
+.cal-node-list { margin-top: 10px; border: 1px solid var(--cal-stroke); border-radius: 6px; padding: 10px; }
+.architecture-lab summary { cursor: pointer; font-size: 13px; color: var(--cal-text); }
+.cal-node-list ul, .cal-evidence-list { padding-left: 0; list-style: none; margin: 8px 0 0; }
+.cal-node-list li { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 5px; }
+.cal-node-list li button:first-child { flex: 1; justify-content: flex-start; min-width: 120px; overflow-wrap: anywhere; }
+.cal-details { min-width: 0; border-left: 1px solid var(--cal-stroke); padding-left: 16px; max-height: 800px; overflow-y: auto; }
+.cal-details > p { color: var(--cal-muted); font-size: 13px; }
+.cal-coordinate-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.architecture-lab .cal-danger-button { color: var(--cal-danger); border-color: var(--cal-danger); margin-top: 12px; }
+.cal-evidence-list details { margin-block: 4px; }
+.cal-evidence-list code, .cal-evidence-list pre { display: block; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; color: var(--cal-muted); max-height: 180px; overflow: auto; }
+.cal-interview-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--cal-stroke); }
+.cal-interview-grid > section { min-width: 0; }
+.cal-interview-grid > section > p { color: var(--cal-muted); font-size: 13px; }
+.cal-fault-fields { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px; }
+.cal-fault-fields label { flex: 1; min-width: 130px; margin-bottom: 0; }
+.cal-outcomes { padding-left: 0; list-style: none; margin-block: 14px; }
+.cal-outcomes > li { border-left: 3px solid var(--cal-stroke-strong); padding: 8px 10px; margin-bottom: 7px; background: var(--cal-canvas); font-size: 12px; }
+.cal-outcomes > li p { margin: 4px 0 0; }
+.cal-outcomes > .is-failed { border-color: var(--cal-danger); }
+.cal-outcomes > .is-at-risk, .cal-outcomes > .is-unknown { border-color: var(--cal-warning); }
+.cal-outcomes > .is-contained { border-color: var(--cal-accent); }
+.cal-fault-caption { margin-top: 12px !important; font-variant-numeric: tabular-nums; }
+.cal-empty { padding: 14px 0; color: var(--cal-muted); }
+.architecture-lab blockquote { margin: 14px 0; padding: 10px 12px; border-left: 3px solid var(--cal-accent); background: var(--cal-subtle); white-space: pre-wrap; overflow-wrap: anywhere; }
+.cal-review { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--cal-stroke); font-size: 13px; }
+.cal-review ul, .cal-unknown ul { padding-left: 20px; }
+.cal-history, .cal-export { margin-top: 20px; padding: 14px; background: var(--cal-canvas); border: 1px solid var(--cal-stroke); border-radius: 8px; }
+.cal-history ol { padding-left: 22px; }
+.cal-history li { padding-block: 8px; border-bottom: 1px solid var(--cal-stroke); font-size: 13px; }
+.cal-export textarea { font-family: ui-monospace, monospace; font-size: 11px; }
+@media (hover: hover) and (pointer: fine) { .architecture-lab button:hover:not(:disabled) { border-color: var(--cal-accent); background: var(--cal-subtle); } .cal-port:hover { stroke-width: 3; } }
+@media (max-width: 1080px) { .cal-workspace { grid-template-columns: minmax(0, 1fr); } .cal-details { border-left: 0; border-top: 1px solid var(--cal-stroke); padding: 14px 0 0; max-height: none; } .cal-details fieldset { max-width: 640px; } }
+@media (max-width: 700px) { .architecture-lab { padding: 12px; border-radius: 8px; } .cal-header { flex-direction: column; gap: 8px; } .architecture-lab h2 { font-size: 19px; } .cal-interview-grid { grid-template-columns: minmax(0, 1fr); } .cal-canvas-viewport { height: 330px; } .cal-toolbar button { min-height: 38px; } .cal-save-state { white-space: normal; } }
+@media (prefers-reduced-motion: reduce) { .architecture-lab button:active:not(:disabled) { transform: none; } }

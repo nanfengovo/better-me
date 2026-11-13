@@ -1,0 +1,64 @@
+.atlas-skill-constellation { --asc-surface: var(--color-panel, #fff); --asc-canvas: var(--color-paper, #f5f5ef); --asc-text: var(--color-ink, #14212b); --asc-muted: var(--color-ink-muted, #64748b); --asc-line: var(--color-line, #e3e6df); --asc-line-strong: var(--color-line-strong, #cbd5e1); --asc-accent: var(--color-accent, #1b5147); --asc-soft: var(--color-accent-soft, #edf4ed); --asc-warn: var(--color-warn, #97540d); color: var(--asc-text); background: var(--asc-surface); border: 1px solid var(--asc-line); border-radius: 12px; padding: 20px; min-width: 0; max-width: 100%; font-size: 14px; line-height: 1.55; }
+.dark .atlas-skill-constellation, [data-theme="dark"] .atlas-skill-constellation { --asc-surface: #161d22; --asc-canvas: #101519; --asc-text: #edf3f1; --asc-muted: #a8b8be; --asc-line: #334149; --asc-line-strong: #54666e; --asc-accent: #9cd4bf; --asc-soft: #22332f; --asc-warn: #f4c276; }
+.asc-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.asc-header h2 { font-size: 21px; font-weight: 600; margin: 0 0 8px; }
+.asc-header p { max-width: 76ch; color: var(--asc-muted); margin: 0 0 8px; }
+.asc-header .asc-eyebrow { color: var(--asc-accent); font-size: 11px; letter-spacing: .04em; }
+.asc-header > span { flex: none; color: var(--asc-muted); font-size: 12px; border: 1px solid var(--asc-line); padding: 4px 7px; border-radius: 5px; }
+.atlas-skill-constellation button { display: inline-flex; justify-content: center; align-items: center; gap: 5px; min-height: 36px; padding: 7px 10px; border: 1px solid var(--asc-line-strong); border-radius: 6px; background: var(--asc-surface); color: var(--asc-text); cursor: pointer; font: inherit; font-size: 12px; }
+.atlas-skill-constellation button:disabled { opacity: .5; cursor: not-allowed; }
+.atlas-skill-constellation button:active:not(:disabled) { transform: scale(.98); }
+.atlas-skill-constellation :is(button, input, select, summary):focus-visible { outline: 2px solid var(--asc-accent); outline-offset: 3px; }
+.asc-badge-strip { display: flex; gap: 12px; align-items: center; padding: 12px 14px; background: var(--asc-canvas); border: 1px solid var(--asc-line); border-radius: 8px; margin: 14px 0; min-width: 0; }
+.asc-badge-strip > div { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.asc-badge-strip strong, .asc-badge-strip div > span { display: block; }
+.asc-badge-strip div > span { font-size: 12px; color: var(--asc-muted); }
+.asc-virtual-symbol { font-size: 38px; line-height: 1; color: var(--asc-accent); }
+.asc-workspace { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(250px, 1fr); gap: 16px; }
+.asc-map-column, .asc-list-column { min-width: 0; }
+.asc-globe { position: relative; height: clamp(350px, 42vw, 530px); border-radius: 8px; border: 1px solid #36535c; overflow: hidden; background: #101e29; isolation: isolate; }
+.asc-scene-host { position: absolute; inset: 0; min-width: 0; }
+.asc-scene-host .cesium-viewer, .asc-scene-host .cesium-viewer-cesiumWidgetContainer, .asc-scene-host .cesium-widget, .asc-scene-host canvas { width: 100%; height: 100%; }
+.asc-scene-host .cesium-credit-lightbox-overlay { z-index: 3; }
+.asc-scene-fallback { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px; gap: 10px; text-align: center; background: #101e29ed; color: #e8f1f2; z-index: 1; }
+.asc-scene-fallback p { margin: 0; color: #b6cbd0; max-width: 46ch; font-size: 13px; }
+.asc-scene-fallback button { background: #20383f; color: #e8f1f2; border-color: #5b7f89; margin-top: 4px; }
+.asc-map-controls { position: absolute; top: 12px; right: 12px; display: flex; gap: 5px; z-index: 2; }
+.asc-map-controls button { background: #173039; color: #edf4f4; border-color: #69858e; min-width: 36px; }
+.asc-shared { height: 160px; min-height: 160px; }
+.asc-shared-note { color: #d2e6e1; position: absolute; inset: 20px; display: grid; place-items: center; text-align: center; }
+.asc-map-state { color: var(--asc-muted); margin: 8px 0; font-size: 12px; }
+.asc-legend { color: var(--asc-muted); font-size: 11px; margin: 6px 0 12px; }
+.asc-legend span { color: var(--asc-accent); margin-left: 5px; }
+.asc-list-column { border: 1px solid var(--asc-line); border-radius: 8px; padding: 14px; align-self: start; }
+.asc-list-column h3, .asc-selected h3, .asc-receipt h3 { margin: 0 0 8px; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.asc-list-column > p { color: var(--asc-muted); font-size: 12px; margin: 6px 0 10px; }
+.asc-filters { display: grid; gap: 9px; }
+.asc-filters label { display: grid; gap: 5px; color: var(--asc-muted); font-size: 12px; min-width: 0; }
+.asc-filters :is(input, select) { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; padding: 7px 8px; border: 1px solid var(--asc-line-strong); border-radius: 6px; background: var(--asc-surface); color: var(--asc-text); font: inherit; }
+.asc-job-list { list-style: none; margin: 8px 0 12px; padding: 0; max-height: 440px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.asc-job-list li { margin-block: 7px; }
+.asc-job-list button { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; width: 100%; box-sizing: border-box; min-width: 0; padding: 10px 12px; overflow-wrap: anywhere; }
+.asc-job-list button[aria-pressed="true"] { background: var(--asc-soft); border-color: var(--asc-accent); box-shadow: inset 3px 0 var(--asc-accent); }
+.asc-job-list strong { font-weight: 600; font-size: 13px; }
+.asc-job-list span { font-size: 11px; color: var(--asc-muted); }
+.asc-list-empty { padding-block: 16px; }
+.asc-more { margin-right: 6px; }
+.asc-overlaps { border: 1px solid var(--asc-line-strong); border-radius: 7px; padding: 10px; margin-block: 10px; }
+.asc-overlaps header { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; margin-bottom: 8px; }
+.asc-overlaps > button { display: flex; margin-block: 6px; width: 100%; text-align: left; justify-content: flex-start; overflow-wrap: anywhere; }
+.asc-selected, .asc-receipt { padding: 14px; border: 1px solid var(--asc-line); border-radius: 8px; margin-block: 12px; background: var(--asc-canvas); min-width: 0; }
+.asc-selected p, .asc-receipt p { color: var(--asc-muted); font-size: 12px; margin: 7px 0; overflow-wrap: anywhere; }
+.atlas-skill-constellation dl { display: grid; gap: 8px; font-size: 11px; margin: 10px 0; }
+.atlas-skill-constellation dt { color: var(--asc-muted); }
+.atlas-skill-constellation dd { margin: 2px 0 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.asc-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 10px; }
+.asc-notice { color: var(--asc-warn); font-size: 12px; overflow-wrap: anywhere; }
+.asc-boundaries { color: var(--asc-muted); font-size: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--asc-line); }
+.asc-boundaries summary { cursor: pointer; }
+.asc-boundaries li { margin-block: 5px; overflow-wrap: anywhere; }
+@media (hover: hover) and (pointer: fine) { .atlas-skill-constellation button:hover:not(:disabled) { background: var(--asc-soft); border-color: var(--asc-accent); } .asc-map-controls button:hover:not(:disabled), .asc-scene-fallback button:hover:not(:disabled) { background: #31525c; color: #fff; } }
+@media (max-width: 960px) { .asc-workspace { grid-template-columns: minmax(0, 1fr); } .asc-job-list { max-height: 360px; } .asc-filters { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); } }
+@media (max-width: 480px) { .atlas-skill-constellation { padding: 12px; } .asc-header { flex-direction: column; gap: 4px; } .asc-badge-strip { flex-wrap: wrap; padding: 10px; } .asc-badge-strip button { width: 100%; } .asc-filters { grid-template-columns: minmax(0, 1fr); } .asc-globe { height: 350px; } .asc-shared { height: 160px; } .asc-scene-fallback { padding: 18px; } .asc-list-column { padding: 11px; } }
+@media (prefers-reduced-motion: reduce) { .atlas-skill-constellation button:active:not(:disabled) { transform: none; } }
+@media print { .asc-globe { display: none; } .asc-job-list { max-height: none; overflow: visible; } .asc-workspace { display: block; } }

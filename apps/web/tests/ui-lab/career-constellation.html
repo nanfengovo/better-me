@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:,">
+    <title>仅合成图形验收 · BetterMe 技能星图 GPU</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #101519; color: #edf3f1; font: 15px/1.6 system-ui, sans-serif; }
+      main { max-width: 1460px; margin: 0 auto; padding: 24px; }
+      .gpu-lab-warning { margin: 0 0 20px; padding: 18px 22px; color: #fff0d0; border: 2px solid #f3b960; border-radius: 10px; background: #443119; }
+      .gpu-lab-warning h1 { margin: 0 0 8px; font-size: clamp(22px, 2.4vw, 32px); line-height: 1.35; }
+      .gpu-lab-warning p { margin: 8px 0 0; }
+      .gpu-lab-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 16px 0; }
+      .gpu-lab-controls button { min-height: 40px; padding: 8px 14px; background: #223b35; color: #e1f6ec; border: 1px solid #8dc4b0; border-radius: 6px; font: inherit; cursor: pointer; }
+      .gpu-lab-controls button:disabled { opacity: .5; cursor: not-allowed; }
+      .gpu-lab-controls button:focus-visible { outline: 3px solid #f3b960; outline-offset: 3px; }
+      .gpu-lab-info { color: #b9cdc6; font-size: 13px; overflow-wrap: anywhere; }
+      .gpu-lab-log { padding: 10px 14px; border: 1px solid #3a514c; border-radius: 6px; color: #cfdfd9; overflow-wrap: anywhere; }
+      @media (max-width: 600px) { main { padding: 12px; } .gpu-lab-warning { padding: 14px; } }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/tests/ui-lab/career-constellation.tsx"></script>
+  </body>
+</html>
