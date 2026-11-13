@@ -51,7 +51,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
       - name: Verify Windows deadlines, UI readiness and durable file operations
-        run: pnpm exec tsx --tsconfig apps/web/tsconfig.json --test --test-concurrency=2 apps/agent-host/tests/sandbox-coding-tasks.test.ts apps/web/tests/career-replay-feedback-ui.test.tsx apps/web/tests/resume-copilot.test.tsx apps/web/tests/vite-middleware-reload.test.tsx apps/web/tests/career-studio-workspace.test.tsx apps/web/tests/studio-committee-http.test.ts
+        run: pnpm exec tsx --tsconfig apps/web/tsconfig.json --test --test-concurrency=2 apps/agent-host/tests/sandbox-coding-tasks.test.ts apps/agent-host/tests/evidence-harvester-service.test.ts apps/web/tests/career-replay-feedback-ui.test.tsx apps/web/tests/resume-copilot.test.tsx apps/web/tests/vite-middleware-reload.test.tsx apps/web/tests/career-studio-workspace.test.tsx apps/web/tests/studio-committee-http.test.ts
       - name: Verify portable Gold and report inventories with unchanged dataset integrity
         run: pnpm exec tsx --tsconfig apps/web/tsconfig.json --test evals/resume-quality/gold.test.ts evals/resume-quality/collection-report-paths.test.ts
       # Includes isolated synthetic browser cases, using the runner's Edge.

@@ -205,3 +205,15 @@ pnpm --filter @better-me/web exec node dev-server.mjs --config tests/ui-lab/loca
 类型16/16、lint零warning、双端构建9/9、桌面21/21、协议 `evals:career` 与runtime10/10再次通过。按Web测试也需双端同步的仓库规则，536资源同hash可回退同步，最新即时备份见上方 `Gkh2eh`；未打开默认App/profile、重启正式服务或改个人资料。本批仅一个Web合成测试及三份技术交接，最终仍需完整本机与最后SHA的Windows实际复验。
 
 第八轮补丁的本机完整 `pnpm test` 实际退出0：普通4,897项，4,877通过/0失败或取消/20原有条件跳过（约244秒），独立62/62且0跳过或取消（约85秒）；完整日志 `betterme-speech-ci-eighth-full-tests.ZlThmC` 只留本机。Memory/diff和实际YAML解析通过；fetch确认本地/远端均为 `d5ca112`，冻结Gold v1与三份个人SSOT相对实施基线无差异。限定本批4文件正常推送，再以最后SHA的两个Windows作业最终结论交接，先前失败与本机通过均不替代远端。
+
+### Windows 第九轮：Git 准备与非法输出校验分开验收
+
+第八轮正常推送 [`f65b31e`](https://github.com/nanfengovo/better-me/commit/f65b31e390f96a692fca7df8285b4f810b908c78)，运行 [43462234239](https://github.com/nanfengovo/better-me/actions/runs/43462234239)。Windows桌面 [job 132011850777](https://github.com/nanfengovo/better-me/actions/runs/43462234239/job/132011850777) 最终成功（5分10秒），其余平台也成功；Pages/Release按原规则跳过。Windows质量 [job 132011850223](https://github.com/nanfengovo/better-me/actions/runs/43462234239/job/132011850223) 普通4,904项为4,883通过/1失败/20原有条件跳过、0取消（约843秒）；前轮反馈UI已过，独立62项因前段失败未执行。
+
+唯一失败在 `evidence-harvester-service.test.ts` 的非法引用/模拟泄密输出用例：期待模型调用1次，实际0次。原合成policy给真实Git准备与生成合计仅3秒，原日志无entry错误码，不能伪称已捕获其具体超时码。对照准备时限、来源过滤/去重、绑定或校验不同拒绝三种可能，在同一实际 `GitEvidenceSource.capture` 前增加3.1秒准备延迟，本机约3.25秒稳定复现同一个 `0 !== 1`；原样单跑通过不代替该反例。新调用次数断言保留实际 `entry.errorCode`，再次失败能区分准备取消、Git内部时限和输出拒绝。
+
+仅将正向合成policy的 `maxActiveMs` 从3秒设为30秒，保留3.1秒慢准备和原三种非法输出；必须真实派送1次、非准备超时、无引用/无Workspace写入、同提交不重试。另补完整合法JSON中带模拟Bearer泄密的候选，明确断言生产返回 `unsafe_micro_fact_output`；不靠坏JSON失败冒充泄密守卫。生产policy范围、Git自己的8秒时限与原200ms生成超时用例均不变。
+
+新增独立200ms准备时限用例，在实际捕获barrier触发真实组合signal，随后仍执行原Git捕获路径：准备中止、失败留存、0模型/0写入、1次提交尝试计账且再次读取不重试、不变账。完整采集器15/15通过（新增1条独立用例），整个文件加入Windows前置门；所有全量、独立评测、协议/runtime/ACL及桌面成品门保留。本批仅Host合成测试、CI与三份技术交接，不改Web/Host生产或再次同步安装资源，沿用上方536资源与可恢复备份；个人SSOT及冻结数据不改。
+
+第九轮补丁本机完整 `pnpm test` 实际退出0：普通4,898项，4,878通过/0失败或取消/20原有条件跳过（约237秒），独立62/62且0跳过或取消（约82秒）。日志 `betterme-speech-ci-ninth-full-tests.0FXZRI` 只留本机；类型16/16、lint零warning、双端构建9/9、桌面21/21、协议 `evals:career`、runtime10/10、Memory/diff与实际YAML解析均通过。提交前fetch确认本地/远端 `f65b31e` 一致，限定5个测试/CI/技术交接文件，个人三份SSOT和冻结v1相对基线无差异。最终交接仍只认最后推送同SHA的两个Windows作业，不将本机完整结果提前写成远端通过。

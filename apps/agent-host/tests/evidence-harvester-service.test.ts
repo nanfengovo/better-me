@@ -16,7 +16,9 @@ const runtime: HarvesterRuntime = { id: "synthetic-local", location: "local", en
 const content = "export const state = 'review';";
 const response = () => JSON.stringify({ kind: "proposal", title: "状态转换线索", summary: "项目代码新增 review 状态。", contributionQuestion: "这次变更中你负责实现还是设计？",
   citationIds: ["e1"] });
-const policy = (): HarvesterPolicy => ({ expiresAt: Date.now() + 60_000, maxCommitsPerDay: 10, maxModelCallsPerDay: 10, maxInputBytes: 20_000, maxOutputBytes: 8000, maxActiveMs: 3000 });
+// Positive fixtures include real Git preparation; deadline boundaries are tested
+// explicitly below instead of racing native process startup against parsing.
+const policy = (): HarvesterPolicy => ({ expiresAt: Date.now() + 60_000, maxCommitsPerDay: 10, maxModelCallsPerDay: 10, maxInputBytes: 20_000, maxOutputBytes: 8000, maxActiveMs: 30_000 });
 
 async function fixture(t: TestContext, overrides: { complete?: HarvesterModel["complete"]; workspace?: HarvesterWorkspaceAdapter; binding?: HarvesterModel["binding"] } = {}) {
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), "betterme-harvester-service-")), directory = await fs.realpath(temp);
@@ -100,12 +102,45 @@ test("same commit is deduplicated and daily budgets charge attempts without auto
 });
 
 test("invalid citations and leaked secrets remain failed candidate artifacts, never facts or automatic retries", async t => {
+  const capture = GitEvidenceSource.prototype.capture;
+  t.mock.method(GitEvidenceSource.prototype, "capture", async function (this: GitEvidenceSource, ...args: Parameters<GitEvidenceSource["capture"]>) { await delay(3100); return capture.apply(this, args); });
   for (const output of [response().replace("e1", "invented"), '{"kind":"proposal","title":"x","summary":"api_key = \\"synthetic-secret-value\\""}', "not-json"]) {
     const f = await fixture(t, { complete: async () => output }), sub = await f.subscribe(), commit = await f.commit(content);
     const entry = await f.service.capture(sub.id, commit, f.access);
     assert.equal(entry.status, "failed"); assert.equal(entry.citations.length, 0); assert.equal(f.writes(), 0);
+    assert.equal(f.calls(), 1, `the invalid-output guard must receive model output; observed failure=${entry.errorCode ?? "unknown"}`);
+    assert.notEqual(entry.errorCode, "harvester_cancelled_or_timed_out");
     await f.service.capture(sub.id, commit, f.access); assert.equal(f.calls(), 1);
   }
+  const f = await fixture(t, { complete: async () => JSON.stringify({ ...JSON.parse(response()), summary: "Bearer synthetic-secret-value" }) });
+  const sub = await f.subscribe(), commit = await f.commit(content), entry = await f.service.capture(sub.id, commit, f.access);
+  assert.equal(entry.status, "failed"); assert.equal(entry.errorCode, "unsafe_micro_fact_output"); assert.equal(entry.citations.length, 0);
+  assert.equal(f.calls(), 1); assert.equal(f.writes(), 0);
+  assert.equal((await f.service.capture(sub.id, commit, f.access)).id, entry.id); assert.equal(f.calls(), 1);
+});
+
+test("a deadline exhausted during Git preparation preserves a charged attempt with zero model calls and no automatic retry", async t => {
+  const capture = GitEvidenceSource.prototype.capture, preparing = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
+  let preparationSignal: AbortSignal | undefined, captureCalls = 0;
+  t.mock.method(GitEvidenceSource.prototype, "capture", async function (this: GitEvidenceSource, ...args: Parameters<GitEvidenceSource["capture"]>) {
+    captureCalls++; preparationSignal = args[2]; preparing.resolve(); await release.promise; return capture.apply(this, args);
+  });
+  const deadline = new AbortController(), nativeTimeout = AbortSignal.timeout.bind(AbortSignal); let deadlineRequests = 0;
+  t.mock.method(AbortSignal, "timeout", (milliseconds: number) => { if (milliseconds !== 200) return nativeTimeout(milliseconds); deadlineRequests++; return deadline.signal; });
+  const f = await fixture(t), sub = await f.subscribe({ ...policy(), maxActiveMs: 200 }), commit = await f.commit(content);
+  const running = f.service.capture(sub.id, commit, f.access);
+  try {
+    assert.equal(await Promise.race([preparing.promise.then(() => "preparing"), running.then(entry => `finished:${entry.errorCode}`)]), "preparing");
+    assert.equal(deadlineRequests, 1); assert.equal(preparationSignal?.aborted, false); assert.equal(f.calls(), 0);
+    deadline.abort(new DOMException("Synthetic 200ms preparation deadline elapsed", "TimeoutError")); release.resolve();
+    const entry = await running;
+    assert.equal(entry.status, "failed"); assert.equal(entry.errorCode, "harvester_cancelled_or_timed_out");
+    assert.equal(preparationSignal?.aborted, true); assert.equal(entry.citations.length, 0); assert.equal(f.calls(), 0); assert.equal(f.writes(), 0);
+    const before = f.ledger.read();
+    assert.equal(before.subscriptions[0]!.usage.commits, 1); assert.equal(before.subscriptions[0]!.usage.modelCalls, 0);
+    assert.equal((await f.service.capture(sub.id, commit, f.access)).id, entry.id);
+    assert.equal(captureCalls, 1); assert.equal(f.calls(), 0); assert.deepEqual(f.ledger.read(), before);
+  } finally { release.resolve(); await running; }
 });
 
 test("revocation aborts in-flight model and late output cannot enter the review inbox", async t => {
