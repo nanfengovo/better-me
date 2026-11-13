@@ -50,6 +50,7 @@ npm-debug.log*
 .agent-memory/.tmp/
 .playwright-cli/
 output/
+tmp/
 
 # Personal Career SSOT & Private User Data (NEVER push to GitHub)
 .agent-memory/careerObjectives.md
