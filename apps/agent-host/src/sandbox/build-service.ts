@@ -1,317 +1,61 @@
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
-import vm from "node:vm";
-import { createHash, randomUUID } from "node:crypto";
-import * as esbuild from "esbuild";
+import { createHash } from "node:crypto";
+import { transform } from "esbuild";
+import { z } from "zod";
 
-export type MicroAppScope = "selected_offers" | "backcheck_summary" | "job_snapshots";
-
-export interface SandboxBuildInput {
-  appId: string;
-  name: string;
-  nameEn?: string;
-  icon?: string;
-  version?: string;
-  description?: string;
-  grantedScopes: MicroAppScope[];
-  sourceCode: string;
-  customCss?: string;
-  dependencies?: string[];
-  syntheticMockData?: unknown;
-}
-
-export interface SandboxVerificationCheck {
-  id: string;
-  name: string;
-  passed: boolean;
-  detail: string;
-}
-
-export interface SandboxVerificationResult {
-  passed: boolean;
-  timestamp: string;
-  checks: SandboxVerificationCheck[];
-}
-
+const scope = z.enum(["selected_offers", "backcheck_summary", "job_snapshots"]);
+export type MicroAppScope = z.infer<typeof scope>;
+const template = z.object({
+  appId: z.string().regex(/^[a-z][a-z0-9-]{1,63}$/), name: z.string().min(1).max(200),
+  nameEn: z.string().max(200), icon: z.string().max(32), version: z.string().max(32),
+  description: z.string().max(1000), grantedScopes: z.array(scope).max(3),
+  sourceCode: z.string().max(64 * 1024), customCss: z.string().max(64 * 1024), htmlBody: z.string().max(64 * 1024),
+}).strict();
+export type SandboxBuildInput = z.infer<typeof template>;
+export interface SandboxVerificationCheck { id: string; name: string; passed: boolean; detail: string }
 export interface BuiltMicroAppArtifact {
-  appId: string;
-  name: string;
-  nameEn: string;
-  icon: string;
-  version: string;
-  description: string;
-  codeHash: string;
-  grantedScopes: MicroAppScope[];
-  bundleHtml: string;
-  compiledAt: string;
-  pinnedToDock: boolean;
-  verification: SandboxVerificationResult;
+  appId: string; name: string; nameEn: string; icon: string; version: string; description: string;
+  grantedScopes: MicroAppScope[]; codeHash: string; bundleHtml: string; compiledAt: string; pinnedToDock: false;
+  verifierVersion:"reviewed-builtin-v2"; dependencies:Record<string,never>;
+  verification: { passed: boolean; timestamp: string; checks: SandboxVerificationCheck[]; profile: "reviewed-builtin-v2" };
+}
+export class SandboxBuildError extends Error {
+  constructor(readonly code: string, readonly status: number) { super(code); }
 }
 
+// Release-time allowlist of the *entire* four reviewed UI templates, not a hash
+// supplied by the caller. Changing markup, permissions or metadata needs review
+// and a deliberate pin update. Model-generated code must use the QuickJS lab.
+const reviewed = new Map([
+  ["offer-backcheck-radar", "831f81dc8f61f3f69c38dc7b21f28944a98fecf1c9c55ea0b764d5f054121551"],
+  ["star-prompter", "dc16b9fbcc2a8785d9f750ddad1b6c32b40d5f5399992eb9b47ba8dea3ba7735"],
+  ["tax-fund-calculator", "d97726fbd7bb08a987e61cc13b4edb3f0d6328835507095c9da048164609f70a"],
+  ["equity-options-calculator", "58b76857dc51d90c20a5d74881c1ea3b91c3daa2d1cf49eeb03c3044ca53f9d3"],
+]);
+const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+const csp = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none';";
+const baseCss = `:root{--bg:#f6f6f0;--surface:#fff;--surface-soft:#eef1e8;--border:#dfe5d8;--text:#17261f;--muted:#64756c;--accent:#1f5a47;--accent-soft:rgba(31,90,71,.08);--accent-ink:#fff;--warn:#b85d19;--ok:#15803d}
+:root[data-theme="dark"]{--bg:#0b0f13;--surface:#11181f;--surface-soft:rgba(255,255,255,.04);--border:rgba(255,255,255,.12);--text:#edf2ef;--muted:#8b9aa6;--accent:#4fd1a5;--accent-soft:rgba(79,209,165,.12);--accent-ink:#052017;--warn:#f59e0b;--ok:#34d399}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--text);font:13px system-ui,sans-serif;padding:16px 20px}.mono{font-family:ui-monospace,monospace}`;
 export class SandboxBuildService {
-  constructor(private readonly workDir = path.join(os.tmpdir(), "betterme-sandbox-builds")) {}
-
-  /**
-   * Bundles source code using esbuild inside an isolated directory,
-   * performs a pre-flight synthetic execution in a secure VM realm,
-   * and wraps it in a hardened CSP-locked HTML document.
-   */
-  async build(input: SandboxBuildInput): Promise<BuiltMicroAppArtifact> {
-    const buildId = randomUUID();
-    const buildDir = path.join(this.workDir, `build-${input.appId}-${buildId}`);
-    await fs.mkdir(buildDir, { recursive: true });
-
-    try {
-      const entryFile = path.join(buildDir, "index.tsx");
-      await fs.writeFile(entryFile, input.sourceCode, "utf8");
-
-      // 1. esbuild isolated compilation
-      const buildResult = await esbuild.build({
-        entryPoints: [entryFile],
-        bundle: false,
-        format: "iife",
-        target: ["es2022"],
-        minify: false,
-        write: false,
-        loader: {
-          ".tsx": "tsx",
-          ".ts": "ts",
-          ".jsx": "jsx",
-          ".js": "js",
-        },
-      });
-
-      const compiledJs = buildResult.outputFiles?.[0]?.text ?? input.sourceCode;
-      const codeHash = createHash("sha256").update(compiledJs).digest("hex");
-
-      // 2. Pre-flight synthetic test
-      const checks: SandboxVerificationCheck[] = [];
-
-      // Check 1: Compilation sanity
-      checks.push({
-        id: "esbuild-compile",
-        name: "esbuild 语法解析与 IIFE 隔离编译",
-        passed: true,
-        detail: `代码编译通过，产物尺寸: ${(Buffer.byteLength(compiledJs) / 1024).toFixed(1)} KB`,
-      });
-
-      // Check 2: CSP security audit
-      const hasDangerousEvals = /\beval\(|new\s+Function\(|document\.cookie|window\.parent\.localStorage/i.test(compiledJs);
-      checks.push({
-        id: "csp-security",
-        name: "CSP 零外联与越权访问静态审计",
-        passed: !hasDangerousEvals,
-        detail: hasDangerousEvals
-          ? "检测到潜在危险的 eval 或直接宿主存储访问"
-          : "无越权调用，严格遵循 postMessage 受控桥通道",
-      });
-
-      // Check 3: Synthetic data dry run in VM realm
-      let syntheticPassed = true;
-      let syntheticDetail = "合成数据隔离自检通过";
-      try {
-        const sandboxGlobals: Record<string, unknown> = {
-          window: {
-            renderMicroApp: null,
-            parent: { postMessage: () => {} },
-            addEventListener: () => {},
-            removeEventListener: () => {},
-          },
-          document: {
-            documentElement: { setAttribute: () => {} },
-            getElementById: () => ({ innerHTML: "" }),
-          },
-          console: { log: () => {}, warn: () => {}, error: () => {} },
-        };
-        const script = new vm.Script(`
-          (function() {
-            ${compiledJs}
-          })();
-        `);
-        const context = vm.createContext(sandboxGlobals);
-        script.runInContext(context, { timeout: 1500 });
-        syntheticDetail = "已成功在隔离环境模拟运行并核验脚本生命周期";
-      } catch (err) {
-        syntheticPassed = false;
-        syntheticDetail = `合成自检未通过: ${err instanceof Error ? err.message : String(err)}`;
-      }
-
-      checks.push({
-        id: "synthetic-dryrun",
-        name: "合成数据隔离环境冒烟测试",
-        passed: syntheticPassed,
-        detail: syntheticDetail,
-      });
-
-      const allPassed = checks.every((c) => c.passed);
-
-      // 3. Assemble hardened CSP-locked HTML
-      const version = input.version || "1.0.0";
-      const bundleHtml = this.generateHardenedHtml({
-        appId: input.appId,
-        name: input.name,
-        version,
-        codeHash,
-        jsCode: compiledJs,
-        customCss: input.customCss || "",
-      });
-
-      return {
-        appId: input.appId,
-        name: input.name,
-        nameEn: input.nameEn || input.name,
-        icon: input.icon || "⚡",
-        version,
-        description: input.description || "Agent 自主构建与安全验证的微应用",
-        codeHash,
-        grantedScopes: input.grantedScopes,
-        bundleHtml,
-        compiledAt: new Date().toISOString(),
-        pinnedToDock: false,
-        verification: {
-          passed: allPassed,
-          timestamp: new Date().toISOString(),
-          checks,
-        },
-      };
-    } finally {
-      await fs.rm(buildDir, { recursive: true, force: true }).catch(() => {});
-    }
-  }
-
-  private generateHardenedHtml(opts: {
-    appId: string;
-    name: string;
-    version: string;
-    codeHash: string;
-    jsCode: string;
-    customCss: string;
-  }): string {
-    return `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline';">
-<title>${opts.name}</title>
-<style>
-  :root {
-    --bg: #F8FAFC;
-    --surface: #FFFFFF;
-    --border: #E2E8F0;
-    --text: #0F172A;
-    --muted: #64748B;
-    --accent: #0284C7;
-    --accent-bg: rgba(2, 132, 199, 0.08);
-    --success: #059669;
-    --warn: #D97706;
-  }
-  :root[data-theme="dark"] {
-    --bg: #070B12;
-    --surface: #0E1624;
-    --border: #1E2D40;
-    --text: #F1F5F9;
-    --muted: #94A3B8;
-    --accent: #38BDF8;
-    --accent-bg: rgba(56, 189, 248, 0.12);
-    --success: #10B981;
-    --warn: #F59E0B;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    padding: 16px;
-    font-size: 13px;
-    line-height: 1.5;
-  }
-  .app-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 16px;
-  }
-  .app-badge {
-    font-size: 10px;
-    font-family: ui-monospace, monospace;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: var(--accent-bg);
-    color: var(--accent);
-    border: 1px solid var(--border);
-  }
-  ${opts.customCss}
-</style>
-</head>
-<body>
-<div id="root">
-  <div class="app-header">
-    <div>
-      <h2 style="font-size:15px; font-weight:800;">${opts.name}</h2>
-      <p style="font-size:11px; color:var(--muted); margin-top:2px;">BetterMe Agent OS · 安全沙箱隔离容器</p>
-    </div>
-    <span class="app-badge">HASH: ${opts.codeHash.slice(0, 8)}</span>
-  </div>
-  <div id="app-content">
-    <div style="padding:24px; text-align:center; color:var(--muted);">
-      <p>正在建立安全 JSON-RPC 双向受控通道...</p>
-    </div>
-  </div>
-</div>
-
-<script>
-(function() {
-  var APP_META = {
-    appId: "${opts.appId}",
-    version: "${opts.version}",
-    codeHash: "${opts.codeHash}"
-  };
-
-  // 1. Send handshake ready signal to host window
-  window.parent.postMessage({
-    jsonrpc: "2.0",
-    method: "ui/ready",
-    params: { appId: APP_META.appId }
-  }, "*");
-
-  // 2. Listen for host data initialization
-  window.addEventListener("message", function(event) {
-    if (!event.data || event.data.jsonrpc !== "2.0") return;
-    if (event.data.method === "ui/initialize" && event.data.params) {
-      var params = event.data.params;
-      if (params.theme) {
-        document.documentElement.setAttribute("data-theme", params.theme);
-      }
-      try {
-        if (typeof window.renderMicroApp === "function") {
-          window.renderMicroApp(params, document.getElementById("app-content"), function(action, payload) {
-            window.parent.postMessage({
-              jsonrpc: "2.0",
-              method: "workspace/proposeDecision",
-              params: Object.assign({ appId: APP_META.appId, action: action }, payload || {})
-            }, "*");
-          });
-        }
-      } catch(err) {
-        console.error("Micro-app render error:", err);
-      }
-    }
-  });
-
-  // User-compiled script execution
-  try {
-    ${opts.jsCode}
-  } catch(e) {
-    console.error("Sandboxed app bootstrap error:", e);
-    document.getElementById("app-content").innerHTML = '<div style="color:#ef4444; padding:16px; background:rgba(239,68,68,0.1); border-radius:8px;"><strong>微应用启动异常:</strong> ' + e.message + '</div>';
-  }
-})();
-</script>
-</body>
-</html>`;
+  async build(raw: unknown): Promise<BuiltMicroAppArtifact> {
+    const parsed = template.safeParse(raw);
+    if (!parsed.success) throw new SandboxBuildError("invalid_sandbox_template", 400);
+    const t = parsed.data;
+    const manifestHash = hash([t.appId,t.name,t.nameEn,t.icon,t.version,t.description,t.grantedScopes,t.htmlBody,t.customCss,t.sourceCode]);
+    if (reviewed.get(t.appId) !== manifestHash) throw new SandboxBuildError("unreviewed_sandbox_template", 422);
+    // Compile in memory, no loaders resolving dependencies, no untrusted path,
+    // no candidate execution in the Node process, and no temporary source files.
+    const { code } = await transform(t.sourceCode, { loader: "js", format: "iife", target: "es2022", logLevel: "silent" });
+    // Only pinned, application-owned text enters this document. srcDoc isolation
+    // is applied separately by SandboxedAppHost; this is not a browser E2E test.
+    const bundleHtml = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><title>${t.name}</title><style>${baseCss}\n${t.customCss}</style></head><body>${t.htmlBody}<script>${code}</script></body></html>`;
+    const at = new Date().toISOString();
+    return { appId:t.appId, name:t.name, nameEn:t.nameEn, icon:t.icon, version:t.version, description:t.description,
+      grantedScopes:t.grantedScopes, codeHash:hash(["reviewed-builtin-v2",manifestHash,bundleHtml]), bundleHtml, compiledAt:at, pinnedToDock:false,
+      verifierVersion:"reviewed-builtin-v2", dependencies:{},
+      verification:{profile:"reviewed-builtin-v2", passed:true, timestamp:at, checks:[
+        {id:"template-integrity",name:"内置模板校验",passed:true,detail:"源码、HTML、样式、权限与版本均匹配发行时固定的摘要。"},
+        {id:"compile",name:"脚本编译",passed:true,detail:"Host 已编译内置脚本；未在 Node 中运行候选代码，未运行浏览器功能测试。"},
+      ]} };
   }
 }
