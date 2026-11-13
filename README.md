@@ -30,6 +30,8 @@ Local-first career workspace and personal agent. Ground experience in evidence, 
 
 以下描述当前源码工作区。既有 Release 附件不会因分支推送自动更新；实验能力、合成测试和实际模型效果分别记录。
 
+本轮功能分组提交、远端整合取舍、验证结果与本机资源回退记录见 [2026-11-13 工作区发布回执](docs/reports/agent-os-workspace-publish-2026-11-13.md)。
+
 ### 1. 统一 Agent 任务与可追溯执行
 
 - **统一任务内核**：顾问与伴侣聊天、经历润色、项目理解、JD 匹配、岗位元数据提取、截图 OCR、职业指导、模拟面试，以及 Studio 分析和委员会审阅通过任务协议执行。
