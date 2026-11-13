@@ -1,21 +1,45 @@
-import { app, BrowserWindow, ipcMain, shell, nativeTheme } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell, nativeTheme } from "electron";
 import path from "node:path";
-import { existsSync } from "node:fs";
 import { AgentHostManager } from "./agent-host-manager.js";
 import { WebServerManager } from "./web-server-manager.js";
 import { createMainWindow, setupNativeMenu } from "./window.js";
 import { toggleStarHud } from "./hud-window.js";
+import { prepareDesktopQaProfile, resolveDesktopQaConfig } from "./isolated-qa-config.js";
 
 const isDev = !app.isPackaged;
+const qaConfig = resolveDesktopQaConfig({ environment: process.env, isPackaged: app.isPackaged });
+if (qaConfig) {
+  const paths = prepareDesktopQaProfile(qaConfig, app.getPath("temp"));
+  for (const key of ["userData", "sessionData", "logs", "crashDumps"] as const) app.setPath(key, paths[key]);
+}
 
 // In CommonJS, __dirname is already a global variable.
 const preloadPath = path.resolve(__dirname, "../preload/index.cjs");
 
-const agentHostManager = new AgentHostManager();
-const webServerManager = new WebServerManager();
+const agentHostManager = new AgentHostManager(qaConfig ? { ...qaConfig.host, externalOnly: true } : undefined);
+const webServerManager = new WebServerManager(qaConfig ? { ...qaConfig.web, externalOnly: true } : undefined);
 let mainWindow: BrowserWindow | null = null;
+let opening: Promise<void> | undefined;
 
-async function bootstrap() {
+// These belong to the Host lifetime, not a window lifetime. macOS can close
+// every window while a granted task continues, then reopen the same Host.
+ipcMain.handle("desktop:get-agent-info", async () => agentHostManager.getConfig());
+ipcMain.handle("desktop:toggle-hud", async () => toggleStarHud(preloadPath));
+ipcMain.handle("desktop:open-external", async (_, url: string) => {
+  if (typeof url === "string" && (url.startsWith("http:") || url.startsWith("https:"))) await shell.openExternal(url);
+});
+nativeTheme.on("updated", () => {
+  mainWindow?.webContents.send("desktop:theme-changed", nativeTheme.shouldUseDarkColors ? "dark" : "light");
+});
+
+function bootstrap(): Promise<void> {
+  opening ??= openWorkspace().catch((error: unknown) => {
+    dialog.showErrorBox("无法打开 BetterMe 工作台", error instanceof Error ? error.message : "本机工作台服务未就绪。没有打开其他网站或运行任务。");
+  }).finally(() => { opening = undefined; });
+  return opening;
+}
+async function openWorkspace() {
+  if (mainWindow) return;
   console.log("[desktop:main] Starting BetterMe Desktop application...");
 
   // 1. Ensure backend agent-host and web server are healthy/started
@@ -28,42 +52,12 @@ async function bootstrap() {
   });
 
   // 3. Create Main Window
-  const devUrl = process.env.VITE_DEV_SERVER_URL || "http://localhost:5173/?workspace=autopilot";
-  const distCandidates = [
-    path.resolve(__dirname, "../../../web/dist/index.html"),
-    path.resolve(app.getAppPath(), "../web/dist/index.html"),
-    path.resolve(app.getAppPath(), "../../../../better-me-agent-os/apps/web/dist/index.html"),
-    path.resolve(process.cwd(), "better-me-agent-os/apps/web/dist/index.html"),
-    path.resolve(process.cwd(), "apps/web/dist/index.html"),
-    path.resolve(process.cwd(), "../web/dist/index.html"),
-  ];
-  const prodDistPath = distCandidates.find((p) => existsSync(p)) || distCandidates[0];
-
+  // Vite root assets and the Agent API proxy require the same HTTP origin.
+  // A packaged window never uses arbitrary dev URLs or falls back to file://.
+  const workspaceUrl = qaConfig?.workspaceUrl ?? (isDev ? process.env.VITE_DEV_SERVER_URL || "http://localhost:5173/?workspace=autopilot"
+    : new URL("/?workspace=autopilot", webServerManager.getEndpoint()).href);
   mainWindow = createMainWindow({
-    preloadPath,
-    devServerUrl: isDev ? devUrl : undefined,
-    distPath: !isDev ? prodDistPath : undefined,
-  });
-
-  // 4. Setup IPC Handlers
-  ipcMain.handle("desktop:get-agent-info", async () => {
-    return agentHostManager.getConfig();
-  });
-
-  ipcMain.handle("desktop:toggle-hud", async () => {
-    toggleStarHud(preloadPath);
-  });
-
-  ipcMain.handle("desktop:open-external", async (_, url: string) => {
-    if (typeof url === "string" && (url.startsWith("http:") || url.startsWith("https:"))) {
-      await shell.openExternal(url);
-    }
-  });
-
-  // Theme change sync
-  nativeTheme.on("updated", () => {
-    const current = nativeTheme.shouldUseDarkColors ? "dark" : "light";
-    mainWindow?.webContents.send("desktop:theme-changed", current);
+    preloadPath, workspaceUrl, restrictOrigin: !!qaConfig || !isDev,
   });
 
   mainWindow.on("closed", () => {

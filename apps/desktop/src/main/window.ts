@@ -1,10 +1,9 @@
-import { BrowserWindow, shell, nativeTheme, Menu, app } from "electron";
-import path from "node:path";
+import { BrowserWindow, shell, nativeTheme, Menu, app, dialog } from "electron";
 
 export interface MainWindowOptions {
   preloadPath: string;
-  devServerUrl?: string;
-  distPath?: string;
+  workspaceUrl: string;
+  restrictOrigin: boolean;
 }
 
 export function createMainWindow(options: MainWindowOptions): BrowserWindow {
@@ -45,17 +44,20 @@ export function createMainWindow(options: MainWindowOptions): BrowserWindow {
     return { action: "deny" };
   });
 
-  // Load URL
-  if (options.devServerUrl) {
-    console.log("[desktop:window] Loading dev server:", options.devServerUrl);
-    win.loadURL(options.devServerUrl);
-  } else if (options.distPath) {
-    console.log("[desktop:window] Loading bundled web:", options.distPath);
-    win.loadFile(options.distPath);
-  } else {
-    // Default dev fallback
-    win.loadURL("http://localhost:5173/?workspace=autopilot");
+  if (options.restrictOrigin) {
+    const origin = new URL(options.workspaceUrl).origin;
+    const stayOnWorkspace = (event: { preventDefault(): void }, destination: string) => {
+      try { if (new URL(destination).origin === origin) return; } catch { /* deny invalid destinations */ }
+      event.preventDefault();
+    };
+    win.webContents.on("will-navigate", stayOnWorkspace);
+    win.webContents.on("will-redirect", stayOnWorkspace);
   }
+  void win.loadURL(options.workspaceUrl).catch(() => {
+    if (win.isDestroyed()) return;
+    dialog.showErrorBox("无法打开 BetterMe 工作台", "本机工作台页面加载失败。请检查本机 BetterMe Web 服务后重新打开窗口。");
+    win.close();
+  });
 
   return win;
 }
