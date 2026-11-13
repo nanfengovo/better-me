@@ -129,7 +129,8 @@ test("E2E闭环验证: 张海东真实履历 × 梅特勒托利多真实工控JD
     a => a.jdItem.category === "education" && a.status === "gap"
   );
   assert.ok(educationGap, "防编造铁律：必须将本科学历门槛与大专现状识别为客观 gap，严禁虚构造假");
-  assert.match(educationGap.rationale, /严禁在简历中篡改学历/, "门槛缺口中必须明确防编造提示");
+  assert.match(educationGap.rationale, /不篡改学历/, "门槛缺口中必须明确防编造提示");
+  assert.match(educationGap.rationale, /不补写未提供的年限、领域或交付成果/, "缺口提示不能鼓励补写不存在的经验");
 
   // 断言面试防守策略
   assert.ok(report.defenseQuestions.length > 0, "必须生成针对弱项或缺口的面试防守追问");

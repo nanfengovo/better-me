@@ -205,7 +205,8 @@ test("observed JD-as-experience failure cannot gain fact or JD coverage credit f
   } finally { await f.kernel.close(); }
 });
 
-test("fixture tasks on all five real Gold sources export and print without invented timelines or a real-model ranking", { timeout: 60_000 }, async () => {
+// Five real browser/print passes need an integration deadline, not a model budget.
+test("fixture tasks on all five real Gold sources export and print without invented timelines or a real-model ranking", { timeout: 180_000 }, async () => {
   const outputs = [];
   for (const caseId of ["gold-sre", "gold-backend", "gold-frontend", "gold-fullstack", "gold-data-engineer"]) {
     const f = await fixture(caseId, false);

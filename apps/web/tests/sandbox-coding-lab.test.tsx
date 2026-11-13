@@ -132,13 +132,14 @@ test("the shared studio node exposes the real lab separately from manual presets
     let opened=0;
     const host=win.document.createElement("div");win.document.body.append(host);root=createRoot(host as unknown as HTMLElement);
     await settle(()=>root!.render(React.createElement(AutopilotStudioWorkspace,{onOpenMicroApp:()=>{opened++;}})));
-    const entry=win.document.querySelector('[data-node-id="20"]');assert.ok(entry);
-    await settle(()=>entry.dispatchEvent(new win.KeyboardEvent("keydown",{key:"Enter",code:"Enter",bubbles:true})));
+    const entry=win.document.querySelector('[data-node-id="20"]');assert.ok(entry instanceof win.HTMLButtonElement);
+    assert.equal(entry.tagName,"BUTTON", "native buttons own keyboard activation; a DOM keydown alone does not synthesize a click");
+    await settle(()=>entry.click());
     assert.ok(win.document.querySelector('section[aria-label="本地模型编码实验台"]'));
     assert.match(body(),/内置微应用 · 手工选择预设/);assert.doesNotMatch(body(),/Agent 生成并构建|3\/3 VM/);
     await click(/编译并审阅权限/);
     assert.equal(opened,0);assert.equal(win.document.querySelector('[role="dialog"]'),null);
-    assert.match(body(),/HTTP 422/);assert.deepEqual(calls,["GET /api/v1/agent/sandbox/coding/tasks","POST /api/v1/agent/sandbox/build"]);
+    assert.match(body(),/HTTP 422/);assert.deepEqual(calls,["GET /api/v1/agent/runtimes","GET /api/v1/agent/sandbox/coding/tasks","POST /api/v1/agent/sandbox/build"]);
     assert.equal(capturePrivateStorage().getItem(MICRO_APPS_STORAGE_KEY),null);
   } finally {globalThis.fetch=guard;}
 });

@@ -124,7 +124,9 @@ test("normal authenticated task repair rejects all three observed academic reloc
   } finally { await f.close(); }
 });
 
-test("five normal authenticated HTTP tasks archive successes, invalid candidates and complete overflow without hiding failures", { timeout: 30_000 }, async () => {
+// This integration also launches real browsers for three complete PDF reports.
+// Its outer deadline is not the task's active/model budget, which stays unchanged.
+test("five normal authenticated HTTP tasks archive successes, invalid candidates and complete overflow without hiding failures", { timeout: 120_000 }, async () => {
   const seen = new Map<string, number>(), overflow = "FULL-OVERFLOW-".repeat(20_000) + "EXACT-END";
   const f = await fixture(prompt => {
     const r = reply(prompt), id = r.plan.material.caseId, n = (seen.get(id) ?? 0) + 1; seen.set(id, n);

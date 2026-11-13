@@ -3,7 +3,7 @@ import { registerHooks } from "node:module";
 import test, { after, afterEach } from "node:test";
 import { setImmediate as nextTurn } from "node:timers/promises";
 import { Window } from "happy-dom";
-import type { LlmConfig, ProjectedResume } from "@better-me/core";
+import type { JdMatchReport, LlmConfig, ProjectedResume } from "@better-me/core";
 
 const css = registerHooks({ load(url, context, nextLoad) {
   if (url.endsWith("pdf.worker.min.mjs?url")) return { source: 'export default "synthetic-pdf-worker.mjs";', format: "module", shortCircuit: true };
@@ -25,6 +25,7 @@ const { UiPreferencesProvider, useUiPreferences } = await import("../src/lib/ui-
 const { AiConfigModal } = await import("../src/components/AiConfigModal.tsx");
 const { JdMatchModal } = await import("../src/components/JdMatchModal.tsx");
 const { ResumeImportModal } = await import("../src/components/ResumeImportModal.tsx");
+const { defaultJdMatchTaskClient } = await import("../src/services/jd-match-task-client.ts");
 const originalFetch = globalThis.fetch;
 const config: LlmConfig = { provider: "openai-compatible", baseUrl: "https://ai-fixture.invalid/v1", apiKey: "synthetic-key", model: "synthetic-model", temperature: 0.3 };
 const originalClaim = "为合成设备告警接口编写输入校验与自动化回归测试。";
@@ -84,25 +85,27 @@ test("English AI configuration preserves unsaved model/key and exact saved value
   assert.equal(requests, 0);
 });
 
-test("English matching UI sends the original Chinese resume/JD and keeps a pending report through language switching", async () => {
-  const snapshot = structuredClone(resume); const bodies: Record<string, unknown>[] = [];
-  let finish!: (value: Response) => void;
-  globalThis.fetch = async (url, init) => {
-    assert.equal(String(url), "https://ai-fixture.invalid/v1/chat/completions");
-    bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
-    return new Promise<Response>(resolve => { finish = resolve; });
-  };
+test("English matching UI shares original Chinese material with its task and preserves a pending report across locale switches", async t => {
+  const snapshot = structuredClone(resume);
+  const calls: Parameters<typeof defaultJdMatchTaskClient.report>[0][] = [];
+  let finish!: (value: {report:JdMatchReport}) => void;
+  globalThis.fetch = async () => { throw new Error("Locale rendering must not call a model endpoint directly"); };
+  t.mock.method(defaultJdMatchTaskClient,"report", async (params:Parameters<typeof defaultJdMatchTaskClient.report>[0]) => {
+    calls.push(params);
+    return new Promise<{report:JdMatchReport}>(resolve => { finish=resolve; });
+  });
   await mount(h(JdMatchModal, { isOpen: true, resume, llmConfig: config, initialText: jd, onClose() {}, onOpenConfig() {}, onOpenNetworkSettings() {} }));
   assert.equal((dom.document.getElementById("jd-text") as HTMLTextAreaElement).value, jd);
-  await click("Start AI match analysis");
-  assert.equal(bodies.length, 1);
-  const messages = bodies[0]!.messages as { role: string; content: string }[];
-  const user = messages.find(message => message.role === "user")!.content;
-  assert.ok(user.includes(JSON.stringify(resume, null, 2)));
-  assert.ok(user.endsWith(jd));
+  assert.equal(calls.length,0,"opening the modal must not dispatch an analysis");
+  await click("Share current resume & create report");
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0]!.resume,resume);
+  assert.equal(calls[0]!.rawJd,jd);
+  assert.equal(calls[0]!.consent,true);
+  assert.equal(calls[0]!.rootScopeKey,calls[0]!.workspaceKey);
   await click("fixture-zh"); await click("fixture-en");
-  assert.equal(bodies.length, 1, "UI translation must not restart analysis");
-  await flush(() => finish(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ matchScore: 60, scoreSummary: "合成中文报告原文，保持原样。", matchingStrengths: ["合成匹配依据"], missingGaps: [], tailoredSuggestions: [], interviewDefenseTips: ["合成中文追问"] }) } }] }), { headers: { "Content-Type": "application/json" } })));
+  assert.equal(calls.length, 1, "UI translation must not restart analysis");
+  await flush(() => finish({report:{matchScore:60,scoreSummary:"合成中文报告原文，保持原样。",matchingStrengths:["合成匹配依据"],missingGaps:[],tailoredSuggestions:[],interviewDefenseTips:["合成中文追问"]}}));
   assert.match(dom.document.body.textContent ?? "", /AI text reference score/);
   assert.match(dom.document.body.textContent ?? "", /合成中文报告原文，保持原样。/);
   assert.match(dom.document.body.textContent ?? "", /合成中文追问/);

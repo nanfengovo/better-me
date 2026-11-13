@@ -76,7 +76,8 @@ test("strict explicit selection rejects secrets, unsafe recurrence and symlinked
   await assert.rejects(fs.stat(path.join(root, "already-aborted")), /ENOENT/);
 });
 
-test("actual HTTP fixtures retain full failures; periodic selection refreshes without inference and abort prevents a third cycle", { timeout: 150_000 }, async () => {
+// Multiple full real-browser PDF passes remain serial and assert zero new inference.
+test("actual HTTP fixtures retain full failures; periodic selection refreshes without inference and abort prevents a third cycle", { timeout: 300_000 }, async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "betterme-comparison-http-"));
   const token = "synthetic-comparison-host-token", secret = "COMPARISON-FIXTURE-CREDENTIAL-MUST-NEVER-BE-ARCHIVED";
   const invalid = "invalid-json:" + "全量𠮷".repeat(12000) + "EXACT-FAILED-OUTPUT-END";
