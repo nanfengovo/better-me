@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { reviewCollection, reviewCollectionQuality } from "./collection-report.mjs";
+import { reportFileManifest, reviewCollection, reviewCollectionQuality } from "./collection-report.mjs";
 import { decode, loadGoldCase, readRegular } from "./freeze.mjs";
 import { digest } from "./gold/extract.mjs";
 
@@ -133,15 +133,7 @@ export async function reviewCampaignComparison({ config, outputDirectory }) {
       "Costs were not recorded by collection and remain null. Rule/STAR diagnostics do not certify semantic support, employment, personal attribution or an excellent resume. No composite best-model ranking is invented."] };
   const rows = campaigns.map(c => `| ${escape(c.metadata.id)} @ ${escape(c.metadata.revision)} | ${escape(c.metadata.execution)} | ${c.frozen}/${c.planned}; ${c.failed}/${c.unresolved} | ${percent(c.candidateAcceptancePercent)} | ${c.measuredRealCases}/${c.realCaseIds.length} | ${percent(c.conditionalQuality.coverage)} | ${percent(c.conditionalQuality.antiHallucination)} | ${percent(c.conditionalQuality.star)} | ${percent(c.conditionalQuality.a4PassRate)} | ${c.observedModelCalls ?? "未知"} |`);
   await fs.writeFile(path.join(outputDirectory, "report.md"), `# 完整批次模型诊断对比\n\n交付可比：${eligibility.deliveryComparable ? "是" : "否"}；全计划四轴可比：${eligibility.qualityComparable ? "是（仅诊断）" : "否"}。原因：${eligibility.reasonCodes.join(", ") || "可比条件已具备，仍非总体质量认证"}。不同真实模型：${eligibility.distinctRealModels}；本报告模型请求0次；最佳模型未自动指定。\n\n| 模型/版本 | 执行来源 | 冻结/计划; 失败/未决 | 交付接受率 | 质量实测真实案例 | JD覆盖* | 事实规则* | STAR* | A4* | 原根模型派送 |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n${rows.join("\n")}\n\n* 条件均值只包含可冻结的真实案例；失败/未决各项为null，不计作满分或零分。逐例全部结果、完整来源/wire/私有根成员及新打印的全部页PDF在各campaign目录，原输入不变。规则事实分和STAR字面结构不是人工语义质量分，版面占用不是审美分。\n\n${receipt.limitations.map(l => `- ${l}`).join("\n")}\n`, { flag: "wx", mode: 0o600 });
-  const files = [];
-  async function manifest(relative = "") {
-    for (const name of (await fs.readdir(path.join(outputDirectory, relative))).sort()) {
-      const file = path.join(relative, name), stat = await fs.lstat(path.join(outputDirectory, file));
-      if (stat.isDirectory()) await manifest(file);
-      else { const content = await readRegular(path.join(outputDirectory, file)); files.push({ path: file, bytes: content.length, sha256: digest(content) }); }
-    }
-  }
-  await manifest(); receipt.files = files;
+  receipt.files = await reportFileManifest(outputDirectory);
   await write(path.join(outputDirectory, "comparison.json"), receipt);
   return receipt;
 }

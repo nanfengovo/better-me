@@ -181,3 +181,15 @@ pnpm --filter @better-me/web exec node dev-server.mjs --config tests/ui-lab/loca
 完整Gold文件15/15通过，含原始派生字节/hash、337条证据/147条需求、3个0模型基线、许可、标签隔离、篡改/额外文件/链接拒绝；新加2项是两种路径适配器用例。Windows长套件之前增加该完整Gold文件的早期门，原普通全量、独立评测、协议、runtime与桌面检查均保留。本批只改评测工具/测试、CI与交接，不改Web/Host生产实现或再次替换安装资源，沿用上方536资源与最新可恢复备份；个人三份SSOT和冻结Gold v1相对实施基线仍无差异。
 
 第六轮补丁本机完整 `pnpm test` 实际退出0：普通4,897项，4,877通过/0失败或取消/20原有条件跳过（约232秒），随后独立评测60/60（约88秒）；独立分母增加2为明确的POSIX/Windows路径回归，不删旧58项。完整日志 `betterme-speech-ci-sixth-full-tests.TvJ4zA` 仅留本机。类型16/16、lint零warning、双端构建9/9、桌面21/21、脚本协议 `evals:career`、runtime10/10、Memory/diff与YAML检查均通过。提交前fetch确认本地/远端 `a59be31` 一致，限定本批6个评测/CI/技术交接文件；末次提交和最终两个Windows作业仍以文首Actions同SHA核对，不用旧作业或本机结果替代。
+
+### Windows 第七轮：完整报告清单的 PDF 路径
+
+第六轮正常推送 [`476e59d`](https://github.com/nanfengovo/better-me/commit/476e59de87b3c5a35871136106ca4b521a0114b5)，运行 [43452149622](https://github.com/nanfengovo/better-me/actions/runs/43452149622)。Windows桌面 [job 131976783606](https://github.com/nanfengovo/better-me/actions/runs/43452149622/job/131976783606) 最终成功（6分27秒）；质量 [job 131976782871](https://github.com/nanfengovo/better-me/actions/runs/43452149622/job/131976782871) 的完整普通4,904项再次4,884通过/0失败或取消/20原有跳过（约721秒），Gold及其余前置门均通过。独立60项已改善为59通过/1失败/0跳过或取消（约131秒），原29个Gold差异消除。唯一失败在完整HTTP采样报告：`quality/`前缀的PDF数为0，预期3；前面的五案例、3份已测质量、2份失败、8次原根计量等断言已通过。
+
+原用例本机单跑通过，不能据此声称Windows无错。区分清单路径分隔符、PDF生成缺失、报告发布未完成三个方向后，将报告中同一实际递归遍历提取为 `reportFileManifest` 并保留原逻辑，注入Windows原生路径适配器约2ms复现同一个 `0 !== 3`；POSIX通过。修正仅将逻辑清单key改为POSIX，物理lookup仍原生，所有文件完整字节/SHA-256继续列出，符号链接与非普通文件拒绝保留。批次比较的重复遍历复用同一函数，并在其完整回归中断言可移植key；不覆盖旧报告或更改旧分数。
+
+修正后两平台报告路径加完整Gold17/17通过；新两项覆盖3份模拟PDF名、嵌套/空格/emoji、原生lookup、精确二进制字节/hash与拒绝路径。原真实HTTP→离线模板打印用例另行通过，并新增对3份实际PDF逐一读取文件头、字节数与独立SHA-256核对，保留原五案例/全失败分母/0报告推理/不重派等全部断言。这不是用模拟字节替代原真实打印测试，Windows仍须新SHA实际复验。报告路径文件加入原Gold早期门，普通全量、完整独立评测、协议/runtime/ACL与桌面成品门均保留。
+
+同一第六轮另有macOS x64 [job 131976783555](https://github.com/nanfengovo/better-me/actions/runs/43452149622/job/131976783555) 在DMG卸载阶段报 `hdiutil: couldn't eject "disk2" - Resource busy`。仅只读提取该日志，未将其混记为Windows故障或擅自修改Mac打包逻辑；最后发布时分平台报告实际结论，不把Windows两项成功称为整条工作流全绿。本批仍只改离线评测/测试、CI与交接，不改Web/Host生产或安装资源、正式服务及个人资料。
+
+第七轮补丁的本机完整 `pnpm test` 实际退出0：普通4,897项，4,877通过/0失败或取消/20原有条件跳过（约229秒），独立62/62且0跳过或取消（约87秒），新增2项为两种报告路径适配器。日志 `betterme-speech-ci-seventh-full-tests.cj2cAT` 只留本机；类型16/16、lint零warning、双端构建9/9、桌面21/21、协议 `evals:career`、runtime10/10、Memory/diff与实际YAML解析均通过。提交前fetch及live remote均为 `476e59d`，本批限定9个评测/CI/交接文件，冻结v1和个人三份SSOT相对基线无差异。仍以最终推送同SHA的两个Windows作业完整结论交接，不拿本机结果提前替代。

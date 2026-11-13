@@ -15,6 +15,31 @@ const displayReason = result => {
   return result.candidateRejections?.length ? `${terminal}；原候选拒绝：${result.candidateRejections.map(r => r.code).join(", ")}` : terminal;
 };
 
+/** Enumerate complete report bytes; adapters exercise native filesystem paths.
+ * @param {string} directory
+ * @param {{ paths?: Pick<typeof path, "join">,
+ *   readDirectory?: (directory: string) => Promise<string[]>,
+ *   inspect?: (file: string) => Promise<Pick<import("node:fs").Stats, "isSymbolicLink" | "isDirectory" | "isFile">>,
+ *   read?: (file: string) => Promise<Uint8Array> }} [access]
+ */
+export async function reportFileManifest(directory, { paths = path, readDirectory = fs.readdir, inspect = fs.lstat, read = readRegular } = {}) {
+  const files = [];
+  async function walk(relative = "") {
+    for (const name of (await readDirectory(paths.join(directory, relative))).sort()) {
+      // Receipt identifiers are portable POSIX paths; filesystem access is native.
+      const item = path.posix.join(relative, name), physical = paths.join(directory, item), stat = await inspect(physical);
+      if (stat.isSymbolicLink()) throw Error("quality_report_link_rejected");
+      if (stat.isDirectory()) await walk(item);
+      else {
+        if (!stat.isFile()) throw Error("explicit_regular_file_required");
+        const bytes = await read(physical); files.push({ path: item, bytes: bytes.length, sha256: digest(bytes) });
+      }
+    }
+  }
+  await walk();
+  return files;
+}
+
 /** Offline whole-campaign receipt. All planned cases remain visible, including zero valid candidates. */
 export async function reviewCollection({ datasetDirectory, campaignDirectory, outputDirectory, contextDirectory, verifyOnly = false }) {
   campaignDirectory = await fs.realpath(campaignDirectory);
@@ -143,16 +168,7 @@ export async function reviewCollectionQuality({ datasetDirectory, campaignDirect
     }
     results.push({ ...result, metrics });
   }
-  const files = [];
-  async function manifest(relative = "") {
-    for (const name of (await fs.readdir(path.join(outputDirectory, relative))).sort()) {
-      const item = path.join(relative, name), stat = await fs.lstat(path.join(outputDirectory, item));
-      if (stat.isSymbolicLink()) throw Error("quality_report_link_rejected");
-      if (stat.isDirectory()) await manifest(item);
-      else { const bytes = await readRegular(path.join(outputDirectory, item)); files.push({ path: item, bytes: bytes.length, sha256: digest(bytes) }); }
-    }
-  }
-  await manifest();
+  const files = await reportFileManifest(outputDirectory);
   const receipt = { schemaVersion: 1, protocolVersion: "resume-quality-full-collection-v1", campaignId: collection.campaignId, metadata: collection.metadata,
     planned: collection.planned, frozen: collection.frozen, failed: collection.failed, unresolved: collection.unresolved,
     qualityMeasured: results.filter(r => r.metrics !== null).length, allPlannedQualityMeasured: collection.frozen === collection.planned,

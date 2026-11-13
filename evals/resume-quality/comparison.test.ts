@@ -123,6 +123,7 @@ test("actual HTTP fixtures retain full failures; periodic selection refreshes wi
   assert.equal(failed.metrics, null); assert.equal(failed.observed.modelCalls, 1);
   let fullFailureFound = false;
   for (const file of result.files) {
+    assert.ok(!file.path.includes("\\"), "comparison receipt paths must be portable identifiers");
     const content = await fs.readFile(path.join(out, file.path));
     assert.equal(content.length, file.bytes); assert.equal(digest(content), file.sha256);
     assert.equal(content.includes(Buffer.from(secret)), false);

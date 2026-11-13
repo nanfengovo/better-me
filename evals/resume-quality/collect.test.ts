@@ -3,6 +3,7 @@ import test from "node:test";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { once } from "node:events";
 import { createRequire } from "node:module";
@@ -178,7 +179,14 @@ test("five normal authenticated HTTP tasks archive successes, invalid candidates
     }
     assert.equal(full.candidateAcceptancePercent, 60); assert.equal(full.comparable, false); assert.equal(full.observedModelCalls, 8); assert.equal(f.calls, 8);
     assert.equal(full.results.filter(r => r.metrics === null).length, 2); assert.equal(full.conditionalQuality[0].execution, "scripted_fixture");
-    assert.equal(full.files.filter(file => file.path.startsWith("quality/") && file.path.endsWith(".pdf")).length, 3);
+    const pdfs = full.files.filter(file => file.path.startsWith("quality/") && file.path.endsWith(".pdf"));
+    assert.equal(pdfs.length, 3);
+    for (const file of pdfs) {
+      const bytes = await fs.readFile(path.join(f.directory, "whole-quality-report", file.path));
+      assert.equal(bytes.subarray(0, 5).toString("ascii"), "%PDF-");
+      assert.equal(bytes.length, file.bytes);
+      assert.equal(createHash("sha256").update(bytes).digest("hex"), file.sha256);
+    }
     const changed = structuredClone(summary); changed.results.pop(); changed.planned = 4;
     await fs.writeFile(path.join(f.options.outputDirectory, "summary.json"), JSON.stringify(changed));
     await assert.rejects(reviewCollection({ datasetDirectory, campaignDirectory: f.options.outputDirectory, outputDirectory: path.join(f.directory, "changed-report") }), /result_set_changed/);
