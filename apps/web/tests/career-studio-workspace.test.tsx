@@ -57,7 +57,14 @@ async function fill(pattern: RegExp, value: string) {
   const result = field(pattern), prototype = result.tagName === "TEXTAREA" ? win.HTMLTextAreaElement.prototype : win.HTMLInputElement.prototype;
   await settle(() => { Object.getOwnPropertyDescriptor(prototype, "value")!.set!.call(result, value); result.dispatchEvent(new win.Event("input", { bubbles: true })); });
 }
-async function waitFor(predicate: () => boolean) { for (let turn = 0; turn < 80; turn++) { if (predicate()) return; await settle(); } assert.ok(predicate(), "bounded UI wait did not converge"); }
+async function waitFor(predicate: () => boolean) {
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    if (predicate()) return;
+    await React.act(async () => { await delay(5); });
+  }
+  assert.ok(predicate(), "bounded UI wait did not converge");
+}
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { promise, resolve }; }
 function operation(contextId: string, status: StudioOperation["status"] = "running"): StudioOperation { return { id: "c".repeat(64), contextId, kind: "committee", inputHash: "d".repeat(64), status, startedAt: asOf, updatedAt: asOf }; }
 const taskPath = "/api/v1/agent/tasks", isCreate = (call: FetchCall) => call.route === taskPath && call.method === "POST";
@@ -174,7 +181,11 @@ test("micro-card form requires a personal quote and a separate reviewed adoption
     if (call.route === "/harvest/propose") { current = { ...current, status: "proposal_created", proposalReceipt: { id: "receipt-ui", proposalId: "proposal-ui", status: "pending_business_review" } }; return current; }
     return fallback(call);
   };
-  await mounted({ onAdoptEvidence: async (entryId, expectedReviewHash) => { assert.equal(entryId, current.id); adoptions++; adopted = await buildCareerEvidenceStatement(base, current, expectedReviewHash); return { versionId: "readback-version-ui", statementId: adopted.statementId }; } });
+  await mounted({ onAdoptEvidence: async (entryId, expectedReviewHash) => {
+    assert.equal(entryId, current.id); adoptions++; adopted = await buildCareerEvidenceStatement(base, current, expectedReviewHash);
+    // A reviewed business receipt may arrive after many event-loop turns.
+    await delay(150); return { versionId: "readback-version-ui", statementId: adopted.statementId };
+  } });
   await selectScope(); await click(/^高光收件箱06$/); assert.equal(calls.some(call => call.route === "/harvest/inbox"), false);
   await click(/^刷新收件箱与订阅状态$/); await click(/^打开卡片并核对来源$/); await choose(/^本人贡献边界/, "implementation");
   await fill(/^本人实际贡献原话/, personalQuote); await fill(/^角色边界/, "参与实现"); await fill(/^部署\/未上线说明/, "仅本地，未上线");

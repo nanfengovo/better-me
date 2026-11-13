@@ -83,14 +83,19 @@ test("annotation navigation gives concurrent notes matching colors and numbers, 
   assert.equal(focused.length, 1, "paging reveals the preview without moving focus into the editor");
   assert.equal(modelCalls, 0); assert.equal(writes, 0);
 });
-test("locating a quoted annotation cannot be replaced by the editor's whole-field focus event", async () => {
+for (const newerFragment of [false, true]) test(`locating a quoted annotation cannot be replaced by the editor's whole-field focus event (${newerFragment ? "newer" : "older"} fragment)`, async () => {
   const quoted = { ...source, quote: quoteWritingText(source.text, 0, 6)! };
   const whole = newWritingNote(source, issue), fragment = newWritingNote(quoted, issue);
+  // Saving sorts by recency. Neither timestamp ties nor array index identify
+  // the quote; both real orderings must keep the explicitly selected note.
+  fragment.updatedAt = whole.updatedAt + (newerFragment ? 1 : -1);
   saveWritingSession(dom.localStorage as unknown as Storage, "betterme.writing.v1:test", { version: 1, mode: "quiet", notes: [whole, fragment] });
   await render({ children: h("div", { id: "resume-editor-panel" }, h("textarea", { "data-writing-key": writingTargetKey(source.targetRef), defaultValue: source.text })) });
-  await act(async () => dom.document.querySelectorAll<HTMLButtonElement>(".writing-note-index button")[1]!.click());
+  const fragmentButton = () => dom.document.querySelector<HTMLButtonElement>(`.writing-note-index button[data-annotation-id="${fragment.id}"]`)!;
+  await act(async () => fragmentButton().click());
   await act(async () => dom.document.querySelector<HTMLButtonElement>(".writing-note .writing-source")!.click());
-  assert.equal(dom.document.querySelector(".writing-note-number")?.textContent, "2");
+  assert.equal(fragmentButton().getAttribute("aria-pressed"), "true");
+  assert.equal(dom.document.querySelector(".writing-note-number")?.textContent, newerFragment ? "1" : "2");
   assert.equal(dom.document.querySelector(".writing-note blockquote")?.textContent, quoted.quote.exact);
   assert.equal(dom.document.activeElement?.tagName, "TEXTAREA");
 });

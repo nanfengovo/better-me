@@ -29,9 +29,9 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          # Node 24.15.0 can fast-fail in Windows TCP connect (nodejs/node#63620).
-          # Stay on the same LTS line with the upstream libuv fix.
-          node-version: 24.16.0
+          # Keep the same LTS line with the Windows TCP and short-path fs-event
+          # fixes (nodejs/node#63620 and nodejs/node#65118).
+          node-version: 24.21.0
           package-manager-cache: false
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         with:
@@ -50,6 +50,8 @@ jobs:
             pnpm exec tsx --tsconfig apps/web/tsconfig.json --test apps/web/tests/network-proxy.test.tsx
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
+      - name: Verify Windows deadlines, UI readiness and canonical file watching
+        run: pnpm exec tsx --tsconfig apps/web/tsconfig.json --test --test-concurrency=2 apps/agent-host/tests/sandbox-coding-tasks.test.ts apps/web/tests/career-replay-feedback-ui.test.tsx apps/web/tests/resume-copilot.test.tsx apps/web/tests/vite-middleware-reload.test.tsx apps/web/tests/career-studio-workspace.test.tsx
       # Includes isolated synthetic browser cases, using the runner's Edge.
       # These are not live recruitment-site or PDF visual acceptance checks.
       - run: pnpm test
@@ -137,7 +139,7 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           # Match the fixed Windows quality runtime; other platforms are unchanged.
-          node-version: ${{ runner.os == 'Windows' && '24.16.0' || '24.15.0' }}
+          node-version: ${{ runner.os == 'Windows' && '24.21.0' || '24.15.0' }}
           package-manager-cache: false
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         with:

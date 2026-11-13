@@ -178,9 +178,16 @@ test("unavailable model/storage and mismatched server version never produce a fa
 });
 
 test("selected transcript file imports through the real file control, and export is separately confirmed/hash-checked without installing Skill", async () => {
-  const setup = await fixture(); await mounted({ request: setup.request }); await click(/^载入当前版本$/);
+  const setup = await fixture(); await mounted({ request: async (...args) => {
+    if (args[0] === "/feedback/identity") await delay(60);
+    return setup.request(...args);
+  } }); await click(/^载入当前版本$/);
+  // A user cannot select a file while identity loading disables this fieldset.
+  // Dispatch only after that prerequisite actually commits, not three turns.
+  await waitFor(() => win.document.body.textContent!.includes("内容快照引用") && !win.document.querySelector('[aria-busy="true"]'));
   const imported = "1\n00:18:00,000 --> 00:18:30,000\n请解释个人贡献边界。\n", file = new win.File([imported], "interview-review.srt", { type: "text/plain" });
   const input = win.document.querySelector('input[type=file][accept^=".txt"]')!;
+  assert.equal(input.closest("fieldset")?.hasAttribute("disabled"), false);
   await settle(() => { Object.defineProperty(input, "files", { configurable: true, value: [file] }); input.dispatchEvent(new win.Event("change", { bubbles: true })); });
   await waitFor(() => (field(/^复盘笔记/) as unknown as HTMLTextAreaElement).value === imported);
   assert.match(win.document.body.textContent!, /interview-review.srt/);

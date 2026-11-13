@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer, get } from "node:http";
 import { createRequire } from "node:module";
 import type { AddressInfo } from "node:net";
@@ -46,7 +46,9 @@ test("only compiled runtime files trigger a process restart", () => {
 // The middleware is bundled with Vite's config, while workspace package imports
 // are external Node modules. Rebuilding them must not silently keep old exports.
 test("development middleware reloads changed workspace package exports", async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), "betterme-vite-reload-"));
+  // Windows TEMP may use RUNNER~1 while native fs events report the long path.
+  // Watching the canonical path avoids libuv's short/long-prefix assertion.
+  const directory = await realpath(await mkdtemp(path.join(tmpdir(), "betterme-vite-reload-")));
   const webDirectory = path.join(directory, "web");
   const packageDirectory = path.join(directory, "packages", "core");
   const configPath = path.join(webDirectory, "vite.config.mjs");
@@ -62,6 +64,7 @@ test("development middleware reloads changed workspace package exports", async (
   let output = "";
   const childClosures: Promise<void>[] = [];
   try {
+    assert.equal(directory, await realpath(directory), "native watchers must receive the canonical fixture root, never a short-name alias");
     await mkdir(path.join(webDirectory, "node_modules"), { recursive: true });
     await mkdir(path.join(packageDirectory, "dist"), { recursive: true });
     await writeFile(path.join(packageDirectory, "package.json"), JSON.stringify({ name: "fixture-package", type: "module", exports: "./dist/index.mjs" }));

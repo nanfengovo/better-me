@@ -6,7 +6,7 @@
 
 沿原 `agent-os`、基线 `71089f7` 实施。本机实施验收阶段没有提交推送，随后本人已明确授权将本片提交推送并跟进 Windows 两项 CI，失败继续排查修复直到通过。发布不新建分支、不强推、不创建 Release，也不改现有简历和求职数据。本片不接入收费 TTS、录音/语音识别、OXR、PDF 翻译或 DeepTutor。两个 Agent 对话入口共用同一前端本机朗读能力，不为每个文本供应商新增语音协议或凭据。
 
-本机原生双端验收已通过；发布与远端 Windows 复验正在执行，最终提交与作业结论见本文后续发布回执，不能将本机修正写成 Windows CI 已修绿。完整测试与最终资源同步结果见下方验收记录。
+本机原生双端验收已通过；发布后的历次 Windows 失败、修正与复验逐轮保留在本文。最新推送的机器结论以 [agent-os Actions](https://github.com/nanfengovo/better-me/actions/workflows/ci-pages.yml?query=branch%3Aagent-os) 的同一 `head_sha` 为准，只有普通质量与桌面成品两个 Windows 作业均最终成功才结束本阶段；本文本机通过不替代远端结果。完整测试与最终资源同步结果见下方验收记录。
 
 ## 实现与安全边界
 
@@ -36,7 +36,7 @@
 
 桌面 4 项中，3 项是 macOS Bundle 路径的测试被 Windows 的 `node:path` 解释；先用 `path.win32` 注入复现了同样的 `source-unavailable`，再明确模拟平台的 POSIX 语义。另 1 项是 QA 配置使用 `/tmp/…` 而非 Windows 的规范绝对路径。Windows 私有 QA profile 未获 ACL 支持时继续安全拒绝，原有 2 项条件跳过不改成假通过。
 
-本机定向回归覆盖以上关联 Host 用例共 92 项：91 通过、1 原有 opt-in 跳过；桌面本机 21/21。Windows runner 对这些改动的最终结果仍待推送后重新运行。
+实施阶段本机定向回归覆盖以上关联 Host 用例共 92 项：91 通过、1 原有 opt-in 跳过；桌面本机 21/21。此处为推送前快照，后续 Windows runner 的实际结果逐轮列在发布回执，不从本机推定。
 
 ## 完整回归额外发现的身份清理异常
 
@@ -76,7 +76,7 @@ Web 使用新的 Playwright Chrome context；桌面使用新的临时 Electron p
 - 最终 `pnpm test` 完整命令退出 0：普通阶段 4,896 项，4,876 通过、0 失败/取消、20 原有条件跳过；随后独立简历评测 58/58，通过且 0 跳过。最终普通阶段约 262 秒，评测约 98 秒，原始完整日志只在本机 `betterme-speech-full-tests.sxIIAB` 保留。
 - 最终 `pnpm typecheck` 16/16、`pnpm lint` 零 warning、`pnpm desktop:build` 9/9、`pnpm test:desktop` 21/21 均通过。构建仍有既有 Atlas Node 模块外置与大 chunk 提示，没有将它们当成新增语音错误或零构建提示。
 - 最终执行 `scripts/sync-local-desktop-dist.mjs`：相邻 `BetterMe.app/Contents/Resources/app/dist` 共 536 资源，候选构建与安装清单精确一致；只移动/替换明确的构建目录，未改变进程或用户数据。当前安装清单 SHA-256 为 `1c159a2869bf95623224fef217775f75b44c3fc7f75641e901796a8451f73bb3`，Web 清单为 `16dffeb18c32390b1de4ee8ff32d314cd542cc68e900fb31b984d7bcacb25d54`。
-- 第二轮重新构建/同步的即时备份为 `../.unified-agent-app-eTDuTb/previous-dist`，与当前安装清单相同；前一不同版本保留于 `../.unified-agent-app-DbFITq/previous-dist`，清单 `512b47b4206464c2f795081e6cea52a8269dfcc18fb21ec3cf9ecf98d80f3800`；语音实施前完整版本仍保留于 `../.unified-agent-app-dJHbal/previous-dist`，清单 `f005adcf729def4de6bf1347b3945fe2d4b19add4c16b58ea7b86b1fe6f0ab38`。没有删除任何备份或个人记录，没有打开默认 App/profile。
+- 最新重新构建/同步的即时备份为 `../.unified-agent-app-bJAcIA/previous-dist`，与当前安装清单相同；前轮的 `../.unified-agent-app-7TvfQG/previous-dist` 与 `../.unified-agent-app-eTDuTb/previous-dist` 仍保留。前一不同版本保留于 `../.unified-agent-app-DbFITq/previous-dist`，清单 `512b47b4206464c2f795081e6cea52a8269dfcc18fb21ec3cf9ecf98d80f3800`；语音实施前完整版本仍保留于 `../.unified-agent-app-dJHbal/previous-dist`，清单 `f005adcf729def4de6bf1347b3945fe2d4b19add4c16b58ea7b86b1fe6f0ab38`。没有删除任何备份或个人记录，没有打开默认 App/profile。
 - `pnpm memory:check` 与 `git diff --check` 通过；个人事实三份 SSOT 无变更。实际原生语音验收是隔离 Electron 加载共享 React 与构建 preload；安装资源的验收是构建/清单同步，不冒称默认安装账号窗口或 Windows 成品已经做过音质验收。
 
 ## 复验与下一门
@@ -131,3 +131,27 @@ pnpm --filter @better-me/web exec node dev-server.mjs --config tests/ui-lab/loca
 2. 原生TCP退出：本机代理13/13通过，但不能在macOS复现Windows native fast-fail。对照 [Node官方已确认问题 #63620](https://github.com/nodejs/node/issues/63620) 与 [24.16.0发行记录](https://nodejs.org/en/blog/release/v24.16.0)，当前CI的24.15.0含已知Windows TCP连接崩溃、24.16.0带libuv修复。该匹配是本次故障的首要推断，没有本次native dump，不声称已定位到同一C栈。仅将Windows两个作业的Host Node固定到同一24 LTS的24.16.0，Linux/macOS及应用Electron版本不变；完整检查前额外连续运行5次真实代理文件，任一次非零即失败。保留所有完整检查、并发数、安全拒绝与原分母，不以重试整套直到碰巧通过代替验证。
 
 本机生成/预检/计量/恢复15项与代理13项的定向回归执行通过；Windows版本修正与原生短循环须在新Actions实际验证。第三轮没有改Web/Host生产实现或安装资源，沿用第二轮已核对的536文件清单与可恢复备份。
+
+### 本机完整复验补充：UI 回执等待
+
+第三轮正常推送 [`897f423`](https://github.com/nanfengovo/better-me/commit/897f423dea48113adfa5c5a293f3f7021dab824e)，运行 [43435709198](https://github.com/nanfengovo/better-me/actions/runs/43435709198)。Windows实际5轮代理文件检查全部成功（每轮13项），桌面 [job 131920125832](https://github.com/nanfengovo/better-me/actions/runs/43435709198/job/131920125832) 完整打包/成品启动最终成功；质量 [job 131920125608](https://github.com/nanfengovo/better-me/actions/runs/43435709198/job/131920125608) 最终失败：普通4,903项，4,880通过/3失败/20条件跳过，0取消，后段独立58项未运行。前轮40ms生成与HTTP用例本轮均通过，其余平台验证也成功。40ms用例另在本机连续10轮通过，重复执行不计作10个不同测试。
+
+本机并行完整复验另有1项失败：普通4,875通过/1失败/20条件跳过，独立58项评测因前段失败未运行。`career-studio-workspace.test.tsx` 的micro-card等待审阅采用回执，原helper仅循环80次setImmediate，实际不到一次异步业务回执所需时间。给真实采用callback增加150ms合成延迟后，复现同一末端“等待readback-version”断言失败；不是简历采用权限失效，也没有采用真实资料。
+
+仅将该测试helper改为最多5秒等待真实UI条件、每5ms在React act内让出；保留150ms迟到回执作为持续回归，并完整保留本人原话/独立审批/0提前采用/模型摘要不作Fact/原合成FactBase不变等断言。整个UI文件8/8通过。随后按仓库双端规则再次构建9/9、桌面21/21、536安装资源同hash可回退同步，未重启原服务/真实窗口。
+
+修正后的本机完整 `pnpm test` 实际退出0：普通4,896项，4,876通过/0失败或取消/20原有条件跳过（约236秒）；随后独立58/58（约84秒），日志 `betterme-speech-ci-ui-full-tests.KLCGey` 只留本机。保留上述4,875/1失败的原始记录，不用定向8/8替代完整重跑。
+
+### Windows 第四轮：真实就绪、稳定批注 ID 与原生监听路径
+
+第三轮的3个失败按原始日志分别修正，未修改生产业务逻辑、权限或数据：
+
+1. `career-replay-feedback-ui.test.tsx` 在“载入当前版本”后只等3个事件循环，就向仍被禁用的文件控件派送事件。生产的 busy guard 正确拒绝该竞争事件。给真实合成 identity 请求增加60ms延迟后，在本机复现相同2秒等待失败；改为等待内容快照已提交且busy结束，再断言fieldset启用后选择真实File。保留60ms延迟及原2秒上限，继续核对字幕全文、文件名、单独导出审批/hash、1次规则应用/1次导出/0安装。
+2. `resume-copilot.test.tsx` 保存时按 `updatedAt` 排序，原测试却把数组第2个按钮当作片段批注；毫秒时间戳不再相等就选中了整段。明确将片段置为晚1ms后在本机复现相同错文断言；改按稳定 `data-annotation-id` 选择，并分别覆盖片段早/晚1ms两种真实排序，断言选中、序号、精确片段与实际textarea焦点。新增1个独立用例，不删除旧断言或改用户批注排序。
+3. `vite-middleware-reload.test.tsx` 在 Windows 出现明确C断言：`!_wcsnicmp(filename, dir, dirlen)`，`src\win\fs-event.c:72`。这与第二轮无堆栈的TCP退出分开记录。夹具临时根先经 `realpath`，不把 `RUNNER~1` 短名交给原生监听。规范目录不变量在macOS原 `/var` 别名下先红，再修绿；这只是该不变量的本机复现，不冒充Windows C崩溃复现。真实Vite子进程、HTTP before→after、恰好2次启动/最大1个运行、相同字节或`.d.ts`不重启、自有清理均保留。
+
+原生监听崩溃同时核对了 [Node 上游修复 #65118](https://github.com/nodejs/node/pull/65118)：libuv 对8.3短目录与长事件名的前缀处理触发断言。[Node 24.21.0 LTS 发行记录](https://nodejs.org/en/blog/release/v24.21.0) 明确收录该修复。因此仅将两个 Windows CI 的 Host Node 从第三轮24.16.0固定到同一24 LTS的24.21.0，保留前轮TCP修复；Linux/macOS、Docker、应用Electron及本机安装的Node不变。规范夹具与修正运行时同时保留，不用跳过真实监听来规避崩溃。
+
+本机上述4个Web文件（含micro-card）完整57/57通过；类型16/16、lint零warning、双端构建9/9与桌面21/21再次通过，536资源同hash同步至上方最新备份，0进程/用户数据变更。Windows完整检查前新增生成时限/这4个Web文件的早期回归门，沿用实际生产边界；原5轮TCP回归、完整 `pnpm test`、独立评测、协议、runtime、ACL与桌面检查全部保留，不降低完整测试并发、不跳过失败或重试碰运气。
+
+这批4文件修正后的本机完整 `pnpm test` 再次实际退出0：普通4,897项，4,877通过/0失败或取消/20原有条件跳过（约240秒），随后独立58/58（约95秒）；新增的1项是明确的另一种批注排序，不与重复执行数混算。日志 `betterme-speech-ci-fourth-full-tests.nA2owv` 仅留本机。推送前fetch确认本地/远端同为第三轮 `897f423`，限定本批8个测试/CI/交接文件，个人三份SSOT相对实施基线无差异。第四轮及后续推送的最终作业结论从文首同一SHA的Actions核对，不预先把这份本机回执写成Windows已通过。
