@@ -1,3 +1,4 @@
+import {widgetChat} from "./fixtures/widget-chat";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test from "node:test";
@@ -51,31 +52,6 @@ const { UiPreferencesProvider } = await import("../src/lib/ui-preferences.tsx");
 const { AgentCompanion } = await import("../src/components/AgentCompanion.tsx");
 const originalFetch = globalThis.fetch;
 
-function event(sequence: number, type: string, payload: Record<string, unknown>) {
-  return {
-    id: `run_1:${sequence}:fixture`,
-    runId: "run_1",
-    sequence,
-    type,
-    timestamp: "2026-10-27T12:00:00.000Z",
-    payload,
-  };
-}
-
-function responseStream(): ReadableStream<Uint8Array> {
-  const encoder = new TextEncoder();
-  const frames = [
-    event(1, "text.delta", { text: "临时流式片段" }),
-    event(2, "text.delta", { text: "最终完整答复", replace: true }),
-    event(3, "run.completed", { status: "completed" }),
-  ].map((item) => `id: ${item.id}\nevent: ${item.type}\ndata: ${JSON.stringify(item)}\n\n`);
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      controller.enqueue(encoder.encode(frames.join("")));
-      controller.close();
-    },
-  });
-}
 
 async function flush(action: () => void = () => {}) {
   await act(async () => {
@@ -91,82 +67,58 @@ async function flushImageRead(action: () => void) {
     while (pendingImageReads.length) await pendingImageReads.shift()!();
   });
 }
+test.afterEach(() => dom.localStorage.clear());
 
-test("Agent Companion replaces interim run chunks with the CLI's authoritative final answer", async () => {
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    const url = String(input);
-    if (url.endsWith("/api/v1/agent/runtimes")) {
-      return Response.json({ runtimes: [{ id: "codex", name: "Codex", status: "available", version: "fixture", capabilities: ["text"] }] });
-    }
-    if (url.endsWith("/api/v1/agent/runs") && init?.method === "POST") {
-      const now = "2026-10-27T12:00:00.000Z";
-      return Response.json({
-        run: { id: "run_1", workflow: "companion-run", runtimeId: "codex", status: "running", createdAt: now, startedAt: now, runDirectory: "/tmp/run_1", outputDirectory: "/tmp/run_1/output", isolation: "process" },
-        eventsUrl: "/events",
-        statusUrl: "/status",
-      }, { status: 202 });
-    }
-    if (url.includes("/api/v1/agent/runs/run_1/events")) {
-      return new Response(responseStream(), { status: 200, headers: { "Content-Type": "text/event-stream" } });
-    }
-    if (url.includes("/api/v1/agent/runs/run_1")) return new Response("unavailable", { status: 503 });
-    return Response.json({ ok: true });
-  }) as typeof fetch;
-
+test("companion restores all saved turns and the unfinished question after remount without sending", async () => {
+  const llmConfig: LlmConfig = { provider: "ollama", baseUrl: "https://synthetic.invalid", apiKey: "", model: "fixture" };
+  const messages = Array.from({ length: 30 }, (_, index) => ({ id: `synthetic-${index}`, role: index % 2 ? "assistant" : "user", content: `保留的第${index}轮` }));
+  dom.localStorage.setItem("betterme.recovery.v1:companion:synthetic-reopen", JSON.stringify({ version: 1,
+    value: { messages, draft: "尚未发送的伴侣草稿", references: [], attachments: [], prompt: "", pending: true } }));
+  let calls = 0; let received: string[] = [];
+  globalThis.fetch = async () => Response.json({ runtimes: [] });
   dom.document.body.innerHTML = '<main id="fixture"></main>';
   const root = createRoot(dom.document.getElementById("fixture")!);
-  const llmConfig: LlmConfig = {
-    provider: "openai-compatible",
-    baseUrl: "https://api.example.invalid/v1",
-    apiKey: "",
-    model: "fixture-model",
-    temperature: 0.3,
-  };
+  const render = () => root.render(h(UiPreferencesProvider, null, h(AgentCompanion, {...{sendChat:widgetChat},
+    workspaceKey: "synthetic-reopen", llmConfig, onOpenAiConfig() {}, onOpenWorkspace() {},
+    sendChat: async ({ messages }) => { calls++; received = messages.map(message => message.content); return { id: "full-history-reply", role: "assistant", content: "完整历史已收到" }; },
+  })));
   try {
-    await flush(() => root.render(
-      h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" } },
-        h(AgentCompanion, { onOpenWorkspace: () => {}, llmConfig, onOpenAiConfig: () => {} }),
-      ),
-    ));
-    await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="打开 Agent 伴侣"]')?.click());
-    const chatPanel = dom.document.querySelector<HTMLElement>(".agent-companion-chat");
-    const toolsToggle = dom.document.querySelector<HTMLButtonElement>('[data-testid="agent-companion-tools-toggle"]');
-    const toolsContent = dom.document.getElementById("agent-companion-tools-content");
-    assert.ok(chatPanel && toolsToggle && toolsContent);
-    assert.match(chatPanel.textContent ?? "", /Agent 对话/, "the conversation should be the primary visible workflow");
-    assert.equal(toolsToggle.getAttribute("aria-expanded"), "false");
-    assert.equal(toolsContent.hidden, true, "secondary local tools should stay collapsed by default");
-    await flush(() => toolsToggle.click());
-    const quickRunToggle = dom.document.querySelector<HTMLButtonElement>('[data-testid="agent-companion-quick-run-toggle"]');
-    const quickRunContent = dom.document.getElementById("agent-companion-quick-run-content");
-    assert.ok(quickRunToggle && quickRunContent);
-    assert.equal(quickRunToggle.getAttribute("aria-expanded"), "false");
-    assert.equal(quickRunContent.hidden, true, "the one-off CLI runner should be secondary and collapsed by default");
-    await flush(() => quickRunToggle.click());
-    assert.equal(quickRunContent.hidden, false, "the local CLI runner should expand on demand");
-    assert.match(quickRunContent.textContent ?? "", /不会自动带入本对话\/简历上下文/);
-    assert.match(quickRunContent.textContent ?? "", /默认不保证 OS 沙箱/);
-    const textarea = dom.document.querySelector<HTMLTextAreaElement>(".agent-companion-field textarea");
-    assert.ok(textarea);
-    assert.equal(textarea.placeholder, "先粘贴岗位描述或其他文本，再写明任务");
-    await flush(() => {
-      Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype, "value")!.set!.call(textarea, "帮我总结岗位要求");
-      textarea.dispatchEvent(new dom.Event("input", { bubbles: true }));
-    });
-    const runButton = [...dom.document.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.includes("开始运行"));
-    assert.ok(runButton);
-    await flush(() => runButton.click());
-    for (let attempt = 0; attempt < 10 && !dom.document.querySelector(".agent-output-text"); attempt += 1) {
-      await flush();
-    }
-    const answer = dom.document.querySelector(".agent-output-text")?.textContent ?? "";
-    assert.match(answer, /最终完整答复/);
-    assert.doesNotMatch(answer, /临时流式片段/);
-    assert.match(dom.document.querySelector(".agent-companion-run-status")?.textContent ?? "", /进程运行 · 无 OS 沙箱/, "show the actual process isolation level instead of a generic isolated badge");
-  } finally {
-    await flush(() => root.unmount());
-    globalThis.fetch = originalFetch;
-  }
+    await flush(render);
+    await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="打开 Agent 伴侣"]')!.click());
+    assert.match(dom.document.body.textContent ?? "", /保留的第0轮/);
+    assert.match(dom.document.body.textContent ?? "", /保留的第29轮/);
+    assert.match(dom.document.body.textContent ?? "", /上次请求已中断/);
+    assert.ok([...dom.document.querySelectorAll("textarea")].some(field => field.value === "尚未发送的伴侣草稿"));
+    assert.equal(calls, 0);
+    await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="发送消息"]')!.click());
+    assert.equal(calls, 1);
+    assert.equal(received.length, 31);
+    assert.deepEqual(received.slice(0, 30), messages.map(message => message.content));
+    assert.equal(received[30], "尚未发送的伴侣草稿");
+  } finally { await flush(() => root.unmount()); globalThis.fetch = originalFetch; }
+});
+
+test("the single text task is secondary, explicitly authorized and has no independent runtime selector", async () => {
+  let posts=0;
+  globalThis.fetch=async(_input,init)=>{if(init?.method==="POST")posts++;return Response.json({runtimes:[{id:"codex",name:"Codex",status:"available",capabilities:["text"]}]});};
+  dom.document.body.innerHTML='<main id="fixture"></main>';
+  const root=createRoot(dom.document.getElementById("fixture")!);
+  try{
+    await flush(()=>root.render(h(UiPreferencesProvider,null,h(AgentCompanion,{sendChat:widgetChat,llmConfig:{provider:"ollama",baseUrl:"http://127.0.0.1:1/v1",model:"fixture"},onOpenWorkspace(){},onOpenAiConfig(){}}))));
+    await flush(()=>dom.document.querySelector<HTMLButtonElement>('[aria-label="打开 Agent 伴侣"]')!.click());
+    const tools=dom.document.querySelector<HTMLButtonElement>('[data-testid="agent-companion-tools-toggle"]')!;
+    assert.equal(tools.getAttribute("aria-expanded"),"false");await flush(()=>tools.click());
+    const toggle=dom.document.querySelector<HTMLButtonElement>('[data-testid="agent-companion-quick-run-toggle"]')!,content=dom.document.getElementById("agent-companion-quick-run-content")!;
+    assert.equal(toggle.getAttribute("aria-expanded"),"false");assert.equal(content.hidden,true);await flush(()=>toggle.click());assert.equal(content.hidden,false);
+    assert.match(content.textContent??"",/共用底座和工作区总额度/);assert.match(content.textContent??"",/不自动附加对话、简历或文件/);
+    assert.equal(dom.document.querySelector("button.agent-runtime-tile"),null,"capability discovery must not silently replace the shared runtime");
+    const field=content.querySelector<HTMLTextAreaElement>("textarea")!;
+    await flush(()=>{Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype,"value")!.set!.call(field,"  完整任务提示😀  ");field.dispatchEvent(new dom.Event("input",{bubbles:true}));});
+    assert.equal(field.value,"  完整任务提示😀  ");assert.equal(content.querySelector<HTMLInputElement>('input[type="checkbox"]')!.checked,false);
+    assert.ok([...content.querySelectorAll<HTMLButtonElement>("button")].find(item=>item.textContent?.includes("开始运行"))!.disabled);assert.equal(posts,0);
+    // Full authoritative answer / copy / remount are exercised against actual
+    // authenticated HTTP and production defaults in one-off-task-http.test.tsx.
+  }finally{await flush(()=>root.unmount());globalThis.fetch=originalFetch;}
 });
 
 test("a resume quote opens the companion and is sent as an in-panel model chat", async () => {
@@ -179,7 +131,7 @@ test("a resume quote opens the companion and is sent as an in-panel model chat",
     if (url.endsWith("/api/v1/agent/runtimes")) {
       return Response.json({ runtimes: [{ id: "codex", name: "Codex", status: "available", version: "fixture", capabilities: ["text"] }] });
     }
-    if (url.endsWith("/api/v1/agent/chat") && init?.method === "POST") {
+    if (url.endsWith("/ui-chat-fixture") && init?.method === "POST") {
       chatBody = JSON.parse(String(init.body)) as Record<string, unknown>;
       return await new Promise<Response>((resolve) => { resolveChatResponse = resolve; });
     }
@@ -199,7 +151,7 @@ test("a resume quote opens the companion and is sent as an in-panel model chat",
   try {
     await flush(() => root.render(
       h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" } },
-        h(AgentCompanion, {
+        h(AgentCompanion, {...{sendChat:widgetChat},
           onOpenWorkspace: () => { workspaceOpenCount += 1; },
           llmConfig,
           onOpenAiConfig: () => {},
@@ -293,7 +245,7 @@ test("a stopped chat restores its prompt and quote, and guided prompts stay edit
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith("/api/v1/agent/runtimes")) return Response.json({ runtimes: [] });
-    if (url.endsWith("/api/v1/agent/chat")) {
+    if (url.endsWith("/ui-chat-fixture")) {
       requests.push({ body: JSON.parse(String(init?.body)), signal: init?.signal ?? undefined });
       if (requests.length > 1) return Response.json({ reply: { id: "guided-answer", role: "assistant", content: "先确认目标岗位，再逐步拆解。" } });
       return new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true }));
@@ -303,7 +255,7 @@ test("a stopped chat restores its prompt and quote, and guided prompts stay edit
   dom.document.body.innerHTML = '<main id="fixture"></main>';
   const root = createRoot(dom.document.getElementById("fixture")!);
   try {
-    await flush(() => root.render(h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" } }, h(AgentCompanion, {
+    await flush(() => root.render(h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" } }, h(AgentCompanion, {...{sendChat:widgetChat},
       onOpenWorkspace: () => {}, onOpenAiConfig: () => {},
       llmConfig: { provider: "ollama", baseUrl: "http://127.0.0.1:11434/v1", apiKey: "", model: "fixture", temperature: 0.3 },
       initialReference: { type: "resume_text", sourceLabel: "工作经历", text: "只读的简历引用" },
@@ -344,7 +296,7 @@ test("Companion sends no resume context by default and shares only the sanitized
     if (url.endsWith("/api/v1/agent/runtimes")) {
       return Response.json({ runtimes: [{ id: "codex", name: "Codex", status: "available", version: "fixture", capabilities: ["text"] }] });
     }
-    if (url.endsWith("/api/v1/agent/chat") && init?.method === "POST") {
+    if (url.endsWith("/ui-chat-fixture") && init?.method === "POST") {
       const body = JSON.parse(String(init.body)) as Record<string, unknown>;
       requests.push(body);
       return Response.json({ reply: { id: `reply_${requests.length}`, role: "assistant", content: "收到。" } });
@@ -384,7 +336,7 @@ test("Companion sends no resume context by default and shares only the sanitized
   try {
     await flush(() => root.render(
       h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" } },
-        h(AgentCompanion, { onOpenWorkspace: () => {}, llmConfig, onOpenAiConfig: () => {}, resume }),
+        h(AgentCompanion, {...{sendChat:widgetChat}, onOpenWorkspace: () => {}, llmConfig, onOpenAiConfig: () => {}, resume }),
       ),
     ));
     await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="打开 Agent 伴侣"]')?.click());
@@ -418,7 +370,7 @@ test("Companion sends no resume context by default and shares only the sanitized
   }
 });
 
-test("Companion previews and removes local images, then sends them only with the selected chat message", async () => {
+test("Companion previews/removes local images and preserves authorized historical images on later turns", async () => {
   const requests: Array<Record<string, unknown>> = [];
   let replyNumber = 0;
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
@@ -426,7 +378,7 @@ test("Companion previews and removes local images, then sends them only with the
     if (url.endsWith("/api/v1/agent/runtimes")) {
       return Response.json({ runtimes: [{ id: "codex", name: "Codex", status: "available", version: "fixture", capabilities: ["text"] }] });
     }
-    if (url.endsWith("/api/v1/agent/chat") && init?.method === "POST") {
+    if (url.endsWith("/ui-chat-fixture") && init?.method === "POST") {
       requests.push(JSON.parse(String(init.body)) as Record<string, unknown>);
       replyNumber += 1;
       return Response.json({ reply: { id: `image_reply_${replyNumber}`, role: "assistant", content: "我看到了这张图片。" } });
@@ -457,7 +409,7 @@ test("Companion previews and removes local images, then sends them only with the
   try {
     await flush(() => root.render(
       h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" } },
-        h(AgentCompanion, { onOpenWorkspace: () => {}, llmConfig, onOpenAiConfig: () => {} }),
+        h(AgentCompanion, {...{sendChat:widgetChat}, onOpenWorkspace: () => {}, llmConfig, onOpenAiConfig: () => {} }),
       ),
     ));
     await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="打开 Agent 伴侣"]')?.click());
@@ -479,6 +431,8 @@ test("Companion previews and removes local images, then sends them only with the
 
     await chooseImage("architecture.webp", "image/webp");
     assert.ok(dom.document.querySelector(".agent-companion-chat-image-card img"));
+    assert.match(dom.document.querySelector(".agent-companion-chat-privacy-note")?.textContent ?? "", /完整对话历史随本轮及后续问题/);
+    assert.doesNotMatch(dom.document.body.textContent ?? "", /图片只随本条消息|不会附加到后续问题/);
     const textarea = dom.document.querySelector<HTMLTextAreaElement>('textarea[aria-label="发送给 Agent"]');
     assert.ok(textarea);
     await flush(() => {
@@ -510,7 +464,8 @@ test("Companion previews and removes local images, then sends them only with the
     for (let attempt = 0; attempt < 10 && requests.length < 2; attempt += 1) await flush();
     assert.equal(requests.length, 2);
     const followupMessages = requests[1]?.messages as Array<Record<string, unknown>>;
-    assert.ok(followupMessages.every((message) => !message.attachments), "previous images are not resent with later turns");
+    assert.deepEqual(followupMessages.find(message=>Array.isArray(message.attachments))?.attachments,attachments,"earlier authorized image bytes remain exact");
+    assert.equal(followupMessages.at(-1)?.attachments,undefined,"the followup does not fabricate a new attachment");
     assert.equal(followupMessages.at(-1)?.content, "再问一个不相关的问题");
   } finally {
     await flush(() => root.unmount());
@@ -524,7 +479,7 @@ test("Companion explains when a known text-only model cannot receive an image", 
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith("/api/v1/agent/runtimes")) return Response.json({ runtimes: [] });
-    if (url.endsWith("/api/v1/agent/chat") && init?.method === "POST") chatRequests += 1;
+    if (url.endsWith("/ui-chat-fixture") && init?.method === "POST") chatRequests += 1;
     return Response.json({ ok: true });
   }) as typeof fetch;
 
@@ -541,7 +496,7 @@ test("Companion explains when a known text-only model cannot receive an image", 
   try {
     await flush(() => root.render(
       h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" } },
-        h(AgentCompanion, { onOpenWorkspace: () => {}, llmConfig, onOpenAiConfig: () => { openConfigCount += 1; } }),
+        h(AgentCompanion, {...{sendChat:widgetChat}, onOpenWorkspace: () => {}, llmConfig, onOpenAiConfig: () => { openConfigCount += 1; } }),
       ),
     ));
     await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="打开 Agent 伴侣"]')?.click());
@@ -573,7 +528,7 @@ test("Companion opens the image picker and stages pasted images without sending 
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith("/api/v1/agent/runtimes")) return Response.json({ runtimes: [] });
-    if (url.endsWith("/api/v1/agent/chat") && init?.method === "POST") chatRequests += 1;
+    if (url.endsWith("/ui-chat-fixture") && init?.method === "POST") chatRequests += 1;
     return Response.json({ ok: true });
   }) as typeof fetch;
 
@@ -592,7 +547,7 @@ test("Companion opens the image picker and stages pasted images without sending 
   try {
     await flush(() => root.render(
       h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" } },
-        h(AgentCompanion, { onOpenWorkspace: () => {}, llmConfig, onOpenAiConfig: () => {} }),
+        h(AgentCompanion, {...{sendChat:widgetChat}, onOpenWorkspace: () => {}, llmConfig, onOpenAiConfig: () => {} }),
       ),
     ));
     await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="打开 Agent 伴侣"]')?.click());
@@ -649,7 +604,7 @@ test("an Atlas diagnosis opens guided Agent chat as an editable draft without se
   let chatRequests = 0;
   let consumed = 0;
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    if (String(input).endsWith("/api/v1/agent/chat") && init?.method === "POST") chatRequests++;
+    if (String(input).endsWith("/ui-chat-fixture") && init?.method === "POST") chatRequests++;
     return Response.json({ runtimes: [] });
   }) as typeof fetch;
   dom.document.body.innerHTML = '<main id="fixture"></main>';
@@ -657,7 +612,7 @@ test("an Atlas diagnosis opens guided Agent chat as an editable draft without se
   const llmConfig: LlmConfig = { provider: "ollama", baseUrl: "http://127.0.0.1:11434/v1", apiKey: "", model: "fixture", temperature: 0.3 };
   try {
     await flush(() => root.render(h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" } },
-      h(AgentCompanion, { onOpenWorkspace: () => {}, llmConfig, onOpenAiConfig: () => {},
+      h(AgentCompanion, {...{sendChat:widgetChat}, onOpenWorkspace: () => {}, llmConfig, onOpenAiConfig: () => {},
         initialPrompt: "已保存 9 张，2 个来源未完成。先问我一个核对问题。", onPromptConsumed: () => { consumed++; } }))));
     const draft = dom.document.querySelector<HTMLTextAreaElement>('textarea[aria-label="发送给 Agent"]');
     assert.ok(draft);

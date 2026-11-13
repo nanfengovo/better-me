@@ -3,7 +3,6 @@ import { useUiPreferences } from "../lib/ui-preferences";
 import { useEffect, useRef, useState } from "react";
 import {
   testLlmConnection,
-  testLlmGeneration,
   isOfficialDeepSeek,
   DEEPSEEK_MODELS,
   LlmConfigSchema,
@@ -26,6 +25,7 @@ import {
   Edit3,
   List,
 } from "lucide-react";
+import {MODEL_CONFIGURATION_PROBE,OneOffAgentTask} from "./OneOffAgentTask";
 
 export const DEFAULT_LLM_CONFIG: LlmConfig = {
   provider: "gemini",
@@ -42,9 +42,10 @@ type Props = {
   onClose: () => void;
   config: LlmConfig;
   onSave: (config: LlmConfig) => Promise<void> | void;
+  rootScopeKey: string;
 };
 
-export function AiConfigModal({ isOpen, onClose, config, onSave }: Props) {
+export function AiConfigModal({ isOpen, onClose, config, onSave, rootScopeKey }: Props) {
   const { t } = useUiPreferences();
 
 const PRESETS = [
@@ -97,6 +98,7 @@ const PRESETS = [
   const [customModelMode, setCustomModelMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [probeConfig,setProbeConfig] = useState<LlmConfig>();
   const requestVersion = useRef(0);
   const requestController = useRef<AbortController | null>(null);
 
@@ -113,6 +115,7 @@ const PRESETS = [
       setSaveError(null);
       setAvailableModels([]);
       setCustomModelMode(false);
+      setProbeConfig(undefined);
     }
     return () => {
       requestVersion.current += 1;
@@ -134,6 +137,7 @@ const PRESETS = [
   );
 
   const updateDraft = (changes: Partial<LlmConfig>) => {
+    setProbeConfig(undefined);
     setFormData((prev) => ({ ...prev, ...changes }));
     setSaveError(null);
     setTestResult(null);
@@ -144,6 +148,7 @@ const PRESETS = [
   };
 
   const handleApplyPreset = (preset: (typeof PRESETS)[0]) => {
+    setProbeConfig(undefined);
     setFormData((prev) => ({
       ...prev,
       provider: preset.provider,
@@ -192,9 +197,12 @@ const PRESETS = [
     setTestResult(null);
     setAvailableModels([]);
     try {
-      const res: { success: boolean; message: string; models?: string[] } = kind === "generation"
-        ? await testLlmGeneration(validatedConfig(), { signal: controller.signal })
-        : await testLlmConnection(validatedConfig(), { signal: controller.signal });
+      const checkedConfig=validatedConfig();
+      if(kind==="generation"){
+        setProbeConfig(checkedConfig);
+        return;
+      }
+      const res = await testLlmConnection(checkedConfig, { signal: controller.signal });
       if (controller.signal.aborted || version !== requestVersion.current) return;
       setTestResult({
         success: res.success,
@@ -541,7 +549,7 @@ const PRESETS = [
                 </p>
               )}
               <p className="ai-config-model-help text-[11px] text-slate-500 mt-2">
-                {t("AI 请求跟随浏览器与系统代理／TUN；“网络与代理”中的岗位连接设置不作用于此处。刷新列表后保留当前模型，由你选择是否更换。", "AI requests use the browser and system proxy/TUN. Job connection settings in Network & proxy do not apply here. Refreshing the list keeps your current model until you choose another.")}
+                {t("模型列表由浏览器读取；生成测试经 Agent Host 的统一任务执行。两者的代理环境可能不同。刷新列表保留当前模型，由你决定是否更换。", "The browser reads the model list; Agent Host executes generation checks through unified tasks. Their proxy environments may differ. Refreshing the list keeps your chosen model.")}
               </p>
             </div>
 
@@ -574,10 +582,11 @@ const PRESETS = [
                 aria-busy={testing && testKind === "generation"}
                 className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700">
                 {testing && testKind === "generation" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                <span>{testing && testKind === "generation" ? t("正在测试文本生成...", "Testing text generation...") : t("测试文本生成（少量 tokens）", "Test text generation (a few tokens)")}</span>
+                <span>{t("测试文本生成（计入总额度）", "Test text generation (shared budget)")}</span>
               </button>
               </div>
-              <p className="mt-3 text-[11px] text-slate-500">{t("仅发送固定测试句，不发送简历或历史对话；点击后会调用所选模型，可能产生少量费用。", "Sends a fixed test sentence, not your resume or history. Clicking calls the selected model and may incur a small charge.")}</p>
+              <p className="mt-3 text-[11px] text-slate-500">{t("打开后先核对原任务并明确授权，再执行固定测试；使用统一根账，可能产生费用。模型列表成功不等于生成或图片能力通过。", "Open the check, review the original task and explicitly authorize before running the fixed check. It uses the shared root budget and may incur charges. Model discovery does not verify generation or image support.")}</p>
+              {probeConfig&&<OneOffAgentTask key={rootScopeKey} workspaceKey={`model-probe:${rootScopeKey}`} rootScopeKey={rootScopeKey} config={probeConfig} prompt={MODEL_CONFIGURATION_PROBE} onPromptChange={()=>{}} configurationProbe/>}
 
               {testResult && (
                 <div
@@ -609,7 +618,7 @@ const PRESETS = [
             <div className="ai-config-privacy rounded-xl bg-slate-100/80 border border-slate-200/80 p-3 flex items-start gap-2 text-[11px] leading-relaxed text-slate-600">
               <ShieldCheck className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
               <span>
-                {t("配置与简历保存在本机浏览器 localStorage。使用云模型时，本次授权发送的简历、JD 或页面图片会直连所选服务商，或经当前配置的 Agent Host 转发。使用本机 Ollama 且地址指向本机时，推理才在本机进行。模型列表请求也会携带 API Key。", "Configuration and resumes are stored in this browser's localStorage. Authorized resume content, job descriptions or page images are sent to the selected cloud provider directly or through the configured Agent Host. Inference is local only when Ollama and its address are on this computer. Model list requests also include your API key.")}
+                {t("配置保存在本机。模型列表请求由浏览器携带 API Key；生成测试仅向本机 Agent Host 提交上方配置，由统一任务调用服务商，不把凭据写入任务档案。只有地址确实指向本机的 Ollama 才是本机推理。", "Configuration is stored locally. Browser model-list requests include the API key; generation checks send the form configuration to the local Agent Host, which calls the provider through a unified task without storing credentials in task archives. Inference is local only when Ollama actually points to this computer.")}
               </span>
             </div>
           </div>

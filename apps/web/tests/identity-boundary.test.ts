@@ -109,16 +109,16 @@ test("cross-account backup import is rejected; unowned legacy import stays an in
 test("identity failures stop chat, matching and confirmation without any paid-provider request", async () => {
   activatePrincipal(alice); const urls: string[] = [];
   mock.method(globalThis, "fetch", async (input: RequestInfo | URL) => { urls.push(String(input)); return Response.json({ error: "identity_changed" }, { status: 409 }); });
-  await assert.rejects(sendAgentChat({ messages: [], llmConfig: config }), IdentityBoundaryError);
-  activatePrincipal(alice); await assert.rejects(startJdMatch({ threadId: "same", rawJd: "synthetic", allowedProfileEntryIds: [], llmConfig: config }), IdentityBoundaryError);
-  activatePrincipal(alice); await assert.rejects(resumeJdMatch({ threadId: "same", decisions: {}, currentProposals: [], llmConfig: config }), IdentityBoundaryError);
+  await assert.rejects(sendAgentChat({ messages: [{id:"synthetic",role:"user",content:"synthetic"}], llmConfig: config }), IdentityBoundaryError);
+  activatePrincipal(alice); await assert.rejects(startJdMatch({ threadId: "same", rawJd: "synthetic", allowedProfileEntryIds: [], consent: true, llmConfig: config }), IdentityBoundaryError);
+  activatePrincipal(alice); await assert.rejects(resumeJdMatch({ threadId: "ct_" + "a".repeat(32), decisions: {}, currentProposals: [], matching: {rawJd:"synthetic",allowedProfileEntryIds:[],sessionClaims:{}}, llmConfig: config }), IdentityBoundaryError);
   assert.equal(urls.length, 3); assert.ok(urls.every(url => url.includes("/api/v1/agent/")));
 });
 
 test("malformed authenticated chat does not trigger a second browser/paid generation", async () => {
   activatePrincipal(alice); let calls = 0;
   mock.method(globalThis, "fetch", async () => { calls++; return Response.json({ reply: null }); });
-  await assert.rejects(sendAgentChat({ messages: [], llmConfig: config }), /无法核对/); assert.equal(calls, 1);
+  await assert.rejects(sendAgentChat({ messages: [{id:"synthetic",role:"user",content:"synthetic"}], llmConfig: config }), /无法核对/); assert.equal(calls, 1);
 });
 
 test("understanding and ChatGPT transports propagate identity invalidation instead of masking or retrying it", async () => {

@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import type { FactBase, ProjectedResume } from "@better-me/core";
 import {
-  installMicroApp,
   useInstalledMicroApps,
   type InstalledMicroApp,
 } from "../lib/micro-app-registry";
@@ -9,12 +8,15 @@ import {
   readOpportunityLibrary,
 } from "../lib/opportunities";
 import { useUiPreferences } from "../lib/ui-preferences";
+import { captureIdentityLease } from "../lib/identity";
 import {
   buildSandboxedMicroApp,
+  openReviewedPreset,
   PRESET_MICRO_APP_TEMPLATES,
   type BuiltMicroAppArtifact,
 } from "../services/sandbox-build-client";
 import { MicroAppPermissionModal } from "./MicroAppPermissionModal";
+import { SandboxCodingLab } from "./SandboxCodingLab";
 import {
   Play,
   Pause,
@@ -39,7 +41,6 @@ import {
   Sliders,
   Loader2,
   CheckCircle2,
-  Sparkles,
   Mic,
 } from "lucide-react";
 import { openSystemSettings } from "../lib/settings-navigation";
@@ -728,13 +729,13 @@ export const STUDIO_20_NODES: ReadonlyArray<StudioNode> = [
     code: "20",
     name: "沙箱应用工坊",
     tag: "SANDBOX",
-    sub: "esbuild 容器构建 · 动态装入 Dock",
+    sub: "内置预设 · 本地模型编码实验台",
     vizType: "polygon",
-    latency: "195ms",
-    tokens: "0.6k",
+    latency: "—",
+    tokens: "—",
     bulletColor: "#38BDF8",
-    cmdTitle: 'sandbox.mount_dock_app(bundle="STAR_Prompter.tsx")',
-    cmdDetail: "Built micro-app in 195ms · Mounted to macOS Sequoia Dock",
+    cmdTitle: "sandbox · choose a reviewed preset or start a local coding task",
+    cmdDetail: "Manual authorization required. Check the Host receipt for actual results.",
   },
 ];
 
@@ -1260,10 +1261,10 @@ function BlueprintMicroChamber({
               <circle cx="39" cy="11" r="2.2" fill={isLight ? "#D97706" : "#F59E0B"} />
             </g>
             <text x="48" y="15" fill={isLight ? "#1E293B" : "#E2E8F0"} fontSize="7" fontFamily="monospace" fontWeight="bold">
-              npm · esbuild
+              esbuild · QuickJS
             </text>
             <text x="48" y="26" fill={isLight ? "#7E22CE" : "#C084FC"} fontSize="6.5" fontFamily="monospace" fontWeight="600">
-              Dock 沙箱容器 ✓
+              预设 / 本机编码
             </text>
           </svg>
         )}
@@ -1705,9 +1706,11 @@ export function AutopilotStudioWorkspace({
   const [buildingAppId, setBuildingAppId] = useState<string | null>(null);
   const [pendingArtifact, setPendingArtifact] = useState<BuiltMicroAppArtifact | null>(null);
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
-  const [customPrompt, setCustomPrompt] = useState("");
+  const pendingBuild = useRef<ReturnType<typeof captureIdentityLease> | null>(null);
 
   const [toast, setToast] = useState<{ title: string; desc: string } | null>(null);
+  const toastTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (toastTimer.current !== null) window.clearTimeout(toastTimer.current); }, []);
 
   const activeJob = useMemo(() => jobs.find((j) => j.id === activeJobId) || jobs[0]!, [jobs, activeJobId]);
   const activeNode = STUDIO_20_NODES[activeNodeIdx]!;
@@ -1727,8 +1730,10 @@ export function AutopilotStudioWorkspace({
 
   const triggerToast = useCallback((title: string, desc: string) => {
     setToast({ title, desc });
-    setTimeout(() => {
+    if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => {
       setToast((prev) => (prev?.title === title ? null : prev));
+      toastTimer.current = null;
     }, 3800);
   }, []);
 
@@ -1744,7 +1749,7 @@ export function AutopilotStudioWorkspace({
   // 键盘快捷键 (Space 暂停/继续，左右箭头单步)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (["INPUT", "TEXTAREA"].includes((e.target as HTMLElement)?.tagName)) return;
+      if (e.defaultPrevented || (e.target instanceof HTMLElement && e.target.closest("input,textarea,select,button,summary,[contenteditable=true],[role=button]"))) return;
       if (e.code === "Space") {
         e.preventDefault();
         setAutoLoopPlaying((p) => !p);
@@ -1805,116 +1810,52 @@ export function AutopilotStudioWorkspace({
     );
   };
 
-  // 触发微应用编译构建流程 (调用 agent-host 沙箱构建服务)
+  const openArtifact = (app: InstalledMicroApp) => {
+    if (onOpenMicroApp) onOpenMicroApp(app);
+    else window.dispatchEvent(new window.CustomEvent("betterme:open-micro-app", { detail: app }));
+  };
+  const handleOpenInstalledApp = openArtifact;
+
+  // The Host verifies and compiles a pinned preset. Only the user's next action can open it.
   const handleTriggerSandboxBuild = async (appId: string) => {
     const template = PRESET_MICRO_APP_TEMPLATES[appId];
-    if (!template) return;
-
+    if (!template || (pendingBuild.current && !pendingBuild.current.signal.aborted && buildStatus === "building")) return;
+    const lease = captureIdentityLease();
+    pendingBuild.current = lease;
+    setPendingArtifact(null);
+    setIsPermissionModalOpen(false);
     setBuildingAppId(appId);
     setBuildStatus("building");
-    setBuildingStep("正在创建隔离构建目录并在沙箱中配置源码 (esbuild IIFE)...");
-
+    setBuildingStep("正在请求本机宿主核对内置模板并编译…");
     try {
-      const stepTimer = setTimeout(() => {
-        setBuildingStep("esbuild 打包完成，正在执行自动化预检 VM 与 CSP 合规审计 (3/3)...");
-      }, 350);
-
-      const artifact = await buildSandboxedMicroApp({
-        appId,
-        name: template.name,
-        nameEn: template.nameEn,
-        icon: template.icon,
-        version: template.version,
-        description: template.description,
-        grantedScopes: template.grantedScopes,
-        sourceCode: template.sourceCode,
-        customCss: template.customCss,
-        htmlBody: template.htmlBody,
-      });
-
-      clearTimeout(stepTimer);
-      setBuildingStep("预检审计通过！正在唤起安全许可审计门禁...");
+      const artifact = await buildSandboxedMicroApp({ appId, ...template });
+      lease.assert();
+      if (pendingBuild.current !== lease) return;
+      setBuildingStep("宿主检查通过，等待你的运行或固定授权。");
       setPendingArtifact(artifact);
       setBuildStatus("success");
       setIsPermissionModalOpen(true);
     } catch (err) {
+      if (lease.signal.aborted || pendingBuild.current !== lease) return;
       setBuildStatus("error");
-      triggerToast("沙箱编译失败", err instanceof Error ? err.message : String(err));
+      triggerToast("预设未构建", err instanceof Error ? err.message : String(err));
     } finally {
-      setBuildingAppId(null);
+      if (pendingBuild.current === lease) setBuildingAppId(null);
     }
   };
 
-  // 由 AI Agent 现场实时生成新工具
-  const handleCustomAgentBuild = async () => {
-    const prompt = customPrompt.trim();
-    if (!prompt) return;
-    const slug = "custom-" + Date.now().toString(36);
-
-    setBuildingAppId(slug);
-    setBuildStatus("building");
-    setBuildingStep(`AI Agent 正在根据需求「${prompt}」编写逻辑并打包...`);
-
-    try {
-      const isStar = prompt.includes("STAR") || prompt.includes("面试");
-      const isTax = prompt.includes("税") || prompt.includes("公积金") || prompt.includes("薪");
-      const isOption = prompt.includes("期权") || prompt.includes("股权") || prompt.includes("行权");
-      const baseTemplate = isOption
-        ? PRESET_MICRO_APP_TEMPLATES["equity-options-calculator"]!
-        : isStar
-        ? PRESET_MICRO_APP_TEMPLATES["star-prompter"]!
-        : isTax
-        ? PRESET_MICRO_APP_TEMPLATES["tax-fund-calculator"]!
-        : PRESET_MICRO_APP_TEMPLATES["offer-backcheck-radar"]!;
-
-      const artifact = await buildSandboxedMicroApp({
-        appId: slug,
-        name: `${prompt} (定制)`,
-        nameEn: `Custom App: ${prompt}`,
-        icon: isOption ? "📈" : isStar ? "🎙" : isTax ? "🧮" : "⚡",
-        version: "1.0.0",
-        description: `基于 Agent 动态生成的求职辅助工具: ${prompt}`,
-        grantedScopes: ["selected_offers"],
-        sourceCode: baseTemplate.sourceCode,
-        customCss: baseTemplate.customCss,
-        htmlBody: baseTemplate.htmlBody,
-      });
-
-      setPendingArtifact(artifact);
-      setBuildStatus("success");
-      setIsPermissionModalOpen(true);
-      setCustomPrompt("");
-    } catch (err) {
-      setBuildStatus("error");
-      triggerToast("Agent 生成失败", err instanceof Error ? err.message : String(err));
-    } finally {
-      setBuildingAppId(null);
-    }
-  };
-
-  // 用户在审计门禁点击批准
   const handleApproveArtifact = (artifact: BuiltMicroAppArtifact, pinToDock: boolean) => {
-    installMicroApp({
-      ...artifact,
-      pinnedToDock: pinToDock,
-    });
-    setIsPermissionModalOpen(false);
-    setPendingArtifact(null);
-
-    // 唤起受控沙箱宿主
-    onOpenMicroApp?.(artifact);
-    window.dispatchEvent(new window.CustomEvent("betterme:open-micro-app", { detail: artifact }));
-
-    triggerToast(
-      `✦ ${currentAgent.shortName} 已挂载微应用「${artifact.name}」`,
-      pinToDock ? "已批准授权并安全固定至 macOS Dock 沙箱。" : "已启动单次受控沙箱运行会话。"
-    );
-  };
-
-  // 打开已安装的微应用
-  const handleOpenInstalledApp = (app: InstalledMicroApp) => {
-    onOpenMicroApp?.(app);
-    window.dispatchEvent(new window.CustomEvent("betterme:open-micro-app", { detail: app }));
+    if (!pendingBuild.current || pendingBuild.current.signal.aborted || artifact !== pendingArtifact) return;
+    try {
+      pendingBuild.current.assert();
+      openReviewedPreset(artifact, pinToDock, openArtifact);
+      triggerToast(`已打开「${artifact.name}」`, pinToDock ? "已按你的授权固定到应用 Dock。" : "仅本次打开，未写入应用列表。");
+    } catch (err) {
+      triggerToast("预设未打开", err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsPermissionModalOpen(false);
+      setPendingArtifact(null);
+    }
   };
 
   // #19 真实净时薪精算
@@ -2137,6 +2078,13 @@ export function AutopilotStudioWorkspace({
               <div
                 key={node.id}
                 data-node-id={node.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`打开 ${node.code} ${node.name}`}
+                aria-pressed={isSpotlight}
+                onKeyDown={e => {
+                  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); }
+                }}
                 onClick={() => {
                   setAutoLoopPlaying(false);
                   setActiveNodeIdx(nodeIndex);
@@ -2764,7 +2712,7 @@ export function AutopilotStudioWorkspace({
                     {/* Node 20: 沙箱应用工坊 */}
                     {activeNode.id === 20 && (
                       <div className="space-y-4">
-                        {/* 顶栏：三层沙箱受控安全体系 */}
+                        {/* 手工内置预设，与下方的模型实验台分开 */}
                         <div className={`flex flex-col gap-2 pb-2.5 border-b ${
                           theme === "light" ? "border-slate-200" : "border-white/10"
                         }`}>
@@ -2773,14 +2721,14 @@ export function AutopilotStudioWorkspace({
                               theme === "light" ? "text-slate-900" : "text-cyan-300"
                             }`}>
                               <Layers className="w-4 h-4 text-cyan-500" />
-                              <span>esbuild 沙箱编译引擎 · 动态装载微应用</span>
+                              <span>内置微应用 · 手工选择预设</span>
                             </h3>
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                               theme === "light"
                                 ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
                                 : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                             }`}>
-                              三层受控安全沙箱
+                              不调用模型
                             </span>
                           </div>
 
@@ -2789,19 +2737,19 @@ export function AutopilotStudioWorkspace({
                             <span className={`px-2 py-0.5 rounded border ${
                               theme === "light" ? "bg-slate-100 text-slate-700 border-slate-300" : "bg-white/5 text-slate-300 border-white/10"
                             }`}>
-                              ① 宿主容器隔离
+                              ① 核对内置模板
                             </span>
                             <span className="text-slate-400">➔</span>
                             <span className={`px-2 py-0.5 rounded border ${
                               theme === "light" ? "bg-cyan-50 text-cyan-800 border-cyan-300" : "bg-cyan-950/40 text-cyan-300 border-cyan-500/30"
                             }`}>
-                              ② 隔离源域 &amp; CSP default-src 'none'
+                              ② 宿主编译与回执
                             </span>
                             <span className="text-slate-400">➔</span>
                             <span className={`px-2 py-0.5 rounded border ${
                               theme === "light" ? "bg-amber-50 text-amber-800 border-amber-300" : "bg-amber-950/40 text-amber-300 border-amber-500/30"
                             }`}>
-                              ③ esbuild IIFE 零外链 &amp; VM 预检
+                              ③ 你批准后打开
                             </span>
                           </div>
                         </div>
@@ -2815,13 +2763,13 @@ export function AutopilotStudioWorkspace({
                           }`}>
                             <Loader2 className="w-4 h-4 animate-spin text-cyan-500 shrink-0" />
                             <div className="text-xs font-mono">
-                              <div className="font-bold">正在执行微应用沙箱编译与预检测试...</div>
+                              <div className="font-bold">正在等待内置预设构建回执</div>
                               <div className="text-[11px] opacity-80 mt-0.5">{buildingStep}</div>
                             </div>
                           </div>
                         )}
 
-                        {/* 预置 3 大专业求职微应用卡片 */}
+                        {/* 已审查的内置模板 */}
                         <div className="space-y-2.5">
                           {Object.entries(PRESET_MICRO_APP_TEMPLATES).map(([appId, tmpl]) => {
                             const isInstalled = installedMicroApps.some((a) => a.appId === appId);
@@ -2857,7 +2805,7 @@ export function AutopilotStudioWorkspace({
                                         {isInstalled && (
                                           <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
                                             <CheckCircle2 size={11} />
-                                            已装入 Dock
+                                            {installedApp?.pinnedToDock ? "已固定到 Dock" : "已安装"}
                                           </span>
                                         )}
                                       </div>
@@ -2886,7 +2834,7 @@ export function AutopilotStudioWorkspace({
                                               ? "border-slate-300 text-slate-600 hover:bg-slate-100"
                                               : "border-white/10 text-slate-400 hover:bg-white/10"
                                           }`}
-                                          title="重新执行隔离编译与预检"
+                                          title="请宿主重新核对并编译内置模板"
                                         >
                                           重新构建
                                         </button>
@@ -2901,12 +2849,12 @@ export function AutopilotStudioWorkspace({
                                         {isCompilingThis ? (
                                           <>
                                             <Loader2 size={12} className="animate-spin" />
-                                            <span>编译预检中...</span>
+                                            <span>等待宿主回执…</span>
                                           </>
                                         ) : (
                                           <>
                                             <Zap size={12} />
-                                            <span>编译并装入 Dock ➔</span>
+                                            <span>编译并审阅权限 ➔</span>
                                           </>
                                         )}
                                       </button>
@@ -2931,7 +2879,7 @@ export function AutopilotStudioWorkspace({
                                     </span>
                                   ))}
                                   <span className="ml-auto text-[10px] text-emerald-600 dark:text-emerald-400">
-                                    ✓ CSP null-origin 隔离
+                                    运行于隔离 iframe
                                   </span>
                                 </div>
                               </div>
@@ -2939,70 +2887,7 @@ export function AutopilotStudioWorkspace({
                           })}
                         </div>
 
-                        {/* 自定义 Agent 动态定制微应用工坊 */}
-                        <div className={`p-3.5 rounded-xl border space-y-2.5 ${
-                          theme === "light"
-                            ? "bg-slate-50 border-slate-200"
-                            : "bg-[#0B121A] border-white/10"
-                        }`}>
-                          <div className="flex items-center justify-between">
-                            <span className={`text-xs font-bold flex items-center gap-1.5 ${
-                              theme === "light" ? "text-slate-900" : "text-amber-300"
-                            }`}>
-                              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                              <span>现场定制：AI Agent 实时编写沙箱新微应用</span>
-                            </span>
-                            <span className="text-[10px] text-slate-500 font-mono">
-                              自然语言 ➔ esbuild IIFE 打包
-                            </span>
-                          </div>
-
-                          {/* 快捷推荐提示词芯片 */}
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {["期权估值与行权测算器", "竞业协议风险预警", "猎头话术反套路审计"].map((chip) => (
-                              <button
-                                key={chip}
-                                type="button"
-                                onClick={() => setCustomPrompt(chip)}
-                                className={`text-[10.5px] px-2 py-0.5 rounded-md border transition ${
-                                  customPrompt === chip
-                                    ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/40 font-bold"
-                                    : theme === "light"
-                                    ? "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-                                    : "bg-white/5 text-slate-400 border-white/10 hover:border-white/20"
-                                }`}
-                              >
-                                + {chip}
-                              </button>
-                            ))}
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={customPrompt}
-                              onChange={(e) => setCustomPrompt(e.target.value)}
-                              placeholder="输入你想构建的求职工具提示词..."
-                              className={`flex-1 px-3 py-1.5 rounded-lg text-xs border outline-none font-mono transition ${
-                                theme === "light"
-                                  ? "bg-white border-slate-300 text-slate-900 focus:border-cyan-500"
-                                  : "bg-black/50 border-white/10 text-white focus:border-cyan-400"
-                              }`}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" && customPrompt.trim()) handleCustomAgentBuild();
-                              }}
-                            />
-                            <button
-                              type="button"
-                              disabled={!customPrompt.trim() || buildStatus === "building"}
-                              onClick={handleCustomAgentBuild}
-                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-amber-400 to-cyan-400 text-slate-950 hover:brightness-110 shadow flex items-center gap-1 shrink-0 disabled:opacity-50 transition-all"
-                            >
-                              <Zap size={12} />
-                              <span>Agent 生成并构建</span>
-                            </button>
-                          </div>
-                        </div>
+                        <SandboxCodingLab />
                       </div>
                     )}
 
@@ -3279,7 +3164,7 @@ export function AutopilotStudioWorkspace({
               : "bg-[#0E1724] border-[#1E2E42] text-slate-300"
           }`}>
             <Layers className="w-3 h-3 text-cyan-500" />
-            <span>Dock 沙箱 ({installedMicroApps.length})</span>
+            <span>已安装微应用 ({installedMicroApps.length})</span>
           </div>
         </div>
       </footer>

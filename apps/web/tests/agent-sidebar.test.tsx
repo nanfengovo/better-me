@@ -3,7 +3,7 @@ import test, { after, afterEach } from "node:test";
 import { registerHooks } from "node:module";
 import { Window, type HTMLButtonElement, type HTMLTextAreaElement, type HTMLSelectElement, type HTMLOptionElement, type HTMLInputElement, type HTMLElement, type HTMLDialogElement } from "happy-dom";
 import { readFileSync } from "node:fs";
-import { createMemoryAgentRepository } from "../src/lib/betterme-agent/storage";
+import { createMemoryAgentRepository, emptyAgentState } from "../src/lib/betterme-agent/storage";
 import type { WritingReply, WritingSource } from "../src/lib/resume-copilot";
 import { defaultUnderstandingClient, type UnderstandingClient } from "../src/services/understanding-client";
 registerHooks({ load(url, context, next) { return url.endsWith(".css") ? { format: "module", source: "", shortCircuit: true } : next(url, context); } });
@@ -18,7 +18,7 @@ for (const [key, value] of Object.entries({ window: dom, document: dom.document,
 })) { originals.set(key, Object.getOwnPropertyDescriptor(globalThis, key)); Object.defineProperty(globalThis, key, { configurable: true, writable: true, value }); }
 const { createRoot } = await import("react-dom/client");
 const { act } = React;
-const { AgentSidebarProvider, AgentSettingsPanel } = await import("../src/components/AgentSidebar");
+const { AgentSidebarProvider, AgentSettingsPanel, useAgentSidebar } = await import("../src/components/AgentSidebar");
 const { ResumeWritingCopilot } = await import("../src/components/ResumeWritingCopilot");
 const { AgentCompanion } = await import("../src/components/AgentCompanion");
 const { BetterMeAgentCenter, AgentContinuityButton } = await import("../src/components/BetterMeAgentCenter");
@@ -34,6 +34,10 @@ let resolveWriting: (reply: WritingReply) => void;
 let resolveChat: () => void;
 let writingSignal: AbortSignal | undefined, chatSignal: AbortSignal | undefined;
 let writingMemory: string | undefined, chatInput: string | undefined;
+function FixtureSettings() {
+  const sidebar = useAgentSidebar();
+  return <AgentSettingsPanel active={Boolean(sidebar?.open && sidebar.tab === "settings")} />;
+}
 async function render(understandingClient?: UnderstandingClient) {
   if (!root) { const element = dom.document.createElement("div"); dom.document.body.append(element); root = createRoot(element as unknown as Element); }
   await act(async () => root!.render(<UiPreferencesProvider><BetterMeAgentProvider workspaceKey="isolated-sidebar" repository={repository}><AgentSidebarProvider understandingClient={understandingClient}>
@@ -41,9 +45,9 @@ async function render(understandingClient?: UnderstandingClient) {
       generate={async (_config, _source, _answer, signal, _fetch, _context, shared) => { writingSignal = signal; writingMemory = shared; return new Promise(resolve => { resolveWriting = resolve; }); }}><div className="fixture-paper">纸张</div></ResumeWritingCopilot></div>
     <AgentTopBarStatus config={null} active={false} onNavigateToAgent={() => assert.fail("must open the single sidebar")} onOpenAiConfig={() => assert.fail("must not open a separate modal")} />
     <AgentContinuityButton /><BetterMeAgentCenter onNavigate={() => {}} />
-    <div className="fixture-system-settings"><AgentSettingsPanel /></div>
+    <div className="fixture-system-settings"><FixtureSettings /></div>
     <AgentCompanion llmConfig={config} onOpenWorkspace={() => {}} onOpenAiConfig={() => {}} sendChat={async input => {
-      chatSignal = input.signal; chatInput = JSON.stringify(input.messages); await new Promise<void>(resolve => { resolveChat = resolve; });
+      chatSignal = input.signal; chatInput = JSON.stringify({ messages: input.messages, context: input.context }); await new Promise<void>(resolve => { resolveChat = resolve; });
       return { id: crypto.randomUUID(), role: "assistant", content: "同一侧栏的完整回复", createdAt: new Date().toISOString() };
     }} />
   </AgentSidebarProvider></BetterMeAgentProvider></UiPreferencesProvider>));
@@ -75,6 +79,31 @@ test("desktop Agent width supports keyboard adjustment and reset", async () => {
   assert.equal(layout.style.getPropertyValue("--agent-sidebar-width"), "388px");
   await act(async () => separator.dispatchEvent(new dom.MouseEvent("dblclick", { bubbles: true })));
   assert.equal(layout.style.getPropertyValue("--agent-sidebar-width"), "380px");
+});
+
+test("memory task cards separate status and source without clipping any task detail or changing records", async () => {
+  const state = emptyAgentState("isolated-sidebar"); state.revision = 1;
+  const detail = `第一行保留换行\n${"完整任务细节 · C#/.NET · ".repeat(180)}末尾哨兵`;
+  state.tasks.push({ id: "synthetic-completed", origin: "companion", label: "核对工业软件经历", destination: "本机 Codex", status: "completed", detail, memoryIds: [], at: new Date().toISOString(), updatedAt: new Date().toISOString() });
+  await repository.save(state, 0);
+  await render(); await click("BetterMe Agent · 记忆与进度");
+  const card = dom.document.querySelector(".betterme-agent-task-card"); assert.ok(card);
+  assert.equal(card.querySelector(".betterme-agent-task-heading > strong")?.textContent, "核对工业软件经历");
+  assert.equal(card.querySelector('[data-status="completed"]')?.textContent, "已完成");
+  assert.equal(card.querySelector(".betterme-agent-task-meta")?.textContent, "Agent 伴侣 · 本机 Codex");
+  assert.equal(card.querySelector(".betterme-agent-task-detail")?.textContent, detail);
+  assert.ok(card.querySelector("button")?.textContent?.includes("回到来源"));
+  await click("对话历史"); await click("任务");
+  assert.deepEqual(await repository.load("isolated-sidebar"), state, "visual navigation does not mutate stored task data");
+});
+
+test("memory empty state keeps backup and export reachable without presenting a fake task", async () => {
+  await render(); await click("BetterMe Agent · 记忆与进度");
+  assert.equal(dom.document.querySelectorAll(".betterme-agent-task-card").length, 0);
+  assert.match(dom.document.querySelector(".betterme-agent-empty")?.textContent ?? "", /从简历伴写、自由对话或职业成长开始/);
+  assert.equal(dom.document.querySelector(".betterme-agent-save")?.getAttribute("data-state"), "saved");
+  assert.ok(dom.document.querySelector(".agent-backup > summary"));
+  assert.ok([...dom.document.querySelectorAll(".betterme-agent-center > footer button")].some(button => button.textContent === "下载 Agent 记录"));
 });
 
 test("one sidebar owns writing, memory and tools; preview never contains the conversation", async () => {

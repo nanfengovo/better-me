@@ -277,6 +277,23 @@ html .ai-config-modal .ai-config-privacy { margin-top:20px; padding:0 4px; borde
 .ai-config-modal button[aria-pressed] { min-height:42px; }
 .ai-config-modal .ai-config-body button[aria-pressed=true] { background:var(--color-accent-soft); color:var(--ui-text); border-color:var(--color-accent); }
 .ai-config-modal :is(button,a,input,select):focus-visible { outline:2px solid var(--color-accent); outline-offset:3px; }
+.ai-config-modal .agent-companion-run { margin-top:16px; padding-top:16px; border-top:1px solid var(--ui-border); font-size:12px; line-height:1.65; }
+.ai-config-modal .agent-companion-run-heading { display:block; }
+.ai-config-modal .agent-companion-run-heading small { display:block; margin-top:6px; color:var(--ui-text-muted); font-size:11px; }
+.ai-config-modal .agent-companion-run-actions { display:flex; flex-wrap:wrap; gap:8px; margin-block:12px; }
+.ai-config-modal .agent-companion-run-actions button { display:inline-flex; flex:0 1 auto; align-items:center; justify-content:center; gap:6px; padding:8px 12px; border:1px solid var(--ui-border-strong); border-radius:10px; color:var(--ui-text); background:var(--ui-surface); font-size:12px; line-height:1.5; transition:transform 140ms ease-out; }
+.ai-config-modal .agent-companion-run-actions button:active:not(:disabled) { transform:scale(.97); }
+.ai-config-modal .agent-companion-run-actions button:disabled { opacity:1; color:var(--ui-text-muted); border-color:var(--ui-border); background:var(--ui-surface-soft); }
+.ai-config-modal .betterme-agent-consent { display:flex; align-items:flex-start; gap:8px; margin-block:12px; }
+.ai-config-modal .ai-config-body .betterme-agent-consent input { flex:0 0 16px; width:16px; height:16px; min-height:16px; margin-top:3px; accent-color:var(--color-accent); }
+.ai-config-modal .model-probe-prompt { margin-block:10px; color:var(--ui-text-secondary); }
+.ai-config-modal .model-probe-prompt summary { cursor:pointer; }
+.ai-config-modal .model-probe-prompt pre { margin-top:8px; padding:10px; border-radius:10px; background:var(--ui-surface); white-space:pre-wrap; overflow-wrap:anywhere; font-size:11px; }
+.ai-config-modal .agent-companion-run :is(.agent-output-text,.agent-companion-run-error) { overflow-wrap:anywhere; }
+.ai-config-modal .agent-companion-run-actions button:focus-visible,.ai-config-modal .model-probe-prompt summary:focus-visible { outline:2px solid var(--color-accent); outline-offset:3px; }
+@media(hover:hover) and (pointer:fine) { .ai-config-modal .agent-companion-run-actions button:hover:not(:disabled) { border-color:var(--color-accent); background:var(--ui-surface-raised); } }
+@media(max-width:600px) { .ai-config-modal .agent-companion-run-actions button { min-height:44px; } }
+@media(prefers-reduced-motion:reduce) { .ai-config-modal .agent-companion-run-actions button { transition:none; } .ai-config-modal .agent-companion-run-actions button:active:not(:disabled) { transform:none; } }
 
 /* Opportunity materials inherit the selected workspace palette in both modes. */
 .opportunity-workspace {

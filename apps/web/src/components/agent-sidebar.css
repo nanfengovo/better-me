@@ -16,7 +16,9 @@
 .agent-sidebar[data-state=closed]{pointer-events:none;animation:agent-sidebar-exit 210ms cubic-bezier(.4,0,.2,1) both}
 @media(min-width:941px) and (min-height:501px){
   .agent-layout:has(>.agent-layout-app .os-desktop){position:relative;background:#253d6a url('./desktop/assets/wallpaper.webp') center/cover}
-  .agent-layout:has(>.agent-layout-app .os-desktop)>.agent-sidebar{height:100dvh;margin:0;border:0;border-radius:0;background:color-mix(in srgb,var(--color-panel) 98%,transparent);box-shadow:-1px 0 0 #ffffff70,-16px 18px 46px -24px #07152d70;backdrop-filter:blur(28px) saturate(1.4);-webkit-backdrop-filter:blur(28px) saturate(1.4)}
+  .agent-layout:has(>.agent-layout-app .os-desktop)>.agent-sidebar{height:100dvh;margin:0;border:0;border-radius:0;background:color-mix(in srgb,var(--color-panel) 98%,transparent);box-shadow:none;backdrop-filter:blur(28px) saturate(1.4);-webkit-backdrop-filter:blur(28px) saturate(1.4)}
+  .agent-layout:has(>.agent-layout-app .os-desktop)>.agent-sidebar-resizer::before{inset:0 5.5px;background:var(--color-line);box-shadow:none}
+  .agent-layout:has(>.agent-layout-app .os-desktop)>.agent-sidebar-resizer:is(:hover,:focus-visible)::before,.agent-layout.is-agent-resizing:has(>.agent-layout-app .os-desktop)>.agent-sidebar-resizer::before{background:var(--color-accent)}
   .agent-layout:has(>.agent-layout-app .os-desktop)>.agent-sidebar .agent-sidebar-header{min-height:42px;padding:6px 12px;border-radius:0;background:linear-gradient(145deg,#ffffffb8,#f3f6fc78);border-bottom:1px solid var(--ui-border);box-shadow:inset 0 1px 0 #ffffffcc}
   :root[data-theme=dark] .agent-layout:has(>.agent-layout-app .os-desktop)>.agent-sidebar .agent-sidebar-header{background:linear-gradient(135deg,#333e52cf,#202735bd)}
 }
@@ -83,7 +85,7 @@
 .agent-sidebar .writing-return{display:inline-flex;gap:4px;align-items:center;margin:2px 4px}
 .agent-sidebar .writing-settings{width:100%}.agent-sidebar .writing-settings>summary{display:none}
 .agent-sidebar .writing-settings-body{position:static;width:auto;max-height:none;overflow:visible;padding:12px;box-shadow:none;display:grid}
-.agent-sidebar .betterme-agent-center{position:static;inset:auto;transform:none;width:100%;max-width:none;height:100%;max-height:none;min-height:0;border:0;border-radius:0;box-shadow:none;padding:12px;display:flex;flex-direction:column;background:var(--color-panel)}
+.agent-sidebar .betterme-agent-center{position:static;inset:auto;transform:none;width:100%;max-width:none;height:100%;max-height:none;min-height:0;border:0;border-radius:0;box-shadow:none;padding:0;display:flex;flex-direction:column;background:var(--color-panel)}
 .agent-sidebar .betterme-agent-center>header{display:none}.agent-sidebar .betterme-agent-center-body{min-height:0;flex:1;overscroll-behavior:contain;scrollbar-gutter:stable}
 .agent-sidebar .agent-companion-panel{position:static;inset:auto;width:100%;height:100%;max-height:none;border:0;border-radius:0;box-shadow:none;transform:none;opacity:1;animation:none;padding:0;display:flex;flex-direction:column}
 .agent-sidebar .agent-companion-panel-header,.agent-sidebar .agent-companion-panel>.betterme-agent-entry{display:none}

@@ -51,6 +51,16 @@
 .has-writing-review .writing-review{display:flex;flex-direction:column;flex:1;min-height:0;gap:6px}
 .writing-review-body{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:8px}
 .writing-review-body>*{flex-shrink:0}
+.writing-examples summary{cursor:pointer}
+.writing-examples ul{list-style:disc;padding-inline-start:1.25rem}
+.writing-examples li+li{margin-block-start:.35rem}
+.writing-examples a{color:var(--color-accent);text-decoration:underline}
+/* In a short inline pane the pinned composer can consume the entire review
+   body. Use one scroll surface here; the taller docked sidebar keeps its own. */
+@container (max-width:999px){
+  .writing-shell:not(.is-docked) .writing-agent-scroll.has-writing-review{display:block;overflow:auto}
+  .writing-shell:not(.is-docked) .has-writing-review .writing-review-body{flex:none;overflow:visible}
+}
 .writing-review-compose{display:grid;flex:0 0 auto;gap:5px;border-top:1px solid var(--color-line);padding-top:6px}
 .writing-review-compose textarea{min-height:42px;height:46px;max-height:14dvh;resize:vertical}
 .has-writing-review>.writing-note>footer{flex-shrink:0;margin-top:0}

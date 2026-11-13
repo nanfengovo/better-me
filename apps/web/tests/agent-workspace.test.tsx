@@ -1,3 +1,4 @@
+import {widgetChat} from "./fixtures/widget-chat";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test from "node:test";
@@ -13,6 +14,15 @@ registerHooks({
 });
 
 const dom = new Window({ url: "http://agent-workspace-fixture.invalid" });
+const pendingImageReads: Array<() => Promise<void>> = [];
+class DeferredFileReader extends dom.FileReader {
+  override readAsDataURL(blob: Parameters<InstanceType<typeof dom.FileReader>["readAsDataURL"]>[0]) {
+    pendingImageReads.push(() => new Promise<void>(resolve => {
+      this.addEventListener("loadend", () => resolve(), { once: true });
+      super.readAsDataURL(blob);
+    }));
+  }
+}
 const React = await import("react");
 const globals = {
   window: dom,
@@ -24,6 +34,7 @@ const globals = {
   Node: dom.Node,
   Event: dom.Event,
   CustomEvent: dom.CustomEvent,
+  FileReader: DeferredFileReader,
   React,
   IS_REACT_ACT_ENVIRONMENT: true,
   getComputedStyle: dom.getComputedStyle.bind(dom),
@@ -36,6 +47,7 @@ for (const [key, value] of Object.entries(globals)) {
 
 // Mock fetch for agent host health check and API calls
 let nextChatReply: (() => unknown) | undefined;
+let matchingRequestCount = 0;
 let holdChatRequest: ((init: RequestInit | undefined) => Promise<Response>) | undefined;
 let chatRequestBodies: Array<{
   messages?: Array<{ role: string; content: string }>;
@@ -44,6 +56,7 @@ let chatRequestBodies: Array<{
 globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
   const url = String(input);
   if (url.includes("/start")) {
+    matchingRequestCount++;
     return new Response(
       JSON.stringify({
         status: "awaiting_review",
@@ -77,7 +90,7 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   }
-  if (url.includes("/chat")) {
+  if (url.endsWith("/ui-chat-fixture")) {
     if (typeof init?.body === "string") chatRequestBodies.push(JSON.parse(init.body) as typeof chatRequestBodies[number]);
     if (holdChatRequest) return holdChatRequest(init);
     if (nextChatReply) return Response.json({ reply: nextChatReply() }, { status: 200 });
@@ -112,6 +125,7 @@ const { createElement: h, act } = React;
 const { createRoot } = await import("react-dom/client");
 const { UiPreferencesProvider } = await import("../src/lib/ui-preferences.tsx");
 const { AgentWorkspace } = await import("../src/components/AgentWorkspace.tsx");
+const { initialAdvisorRecovery } = await import("../src/lib/advisor-recovery.ts");
 
 let root: ReturnType<typeof createRoot> | undefined;
 
@@ -135,9 +149,10 @@ async function mount(children: React.ReactNode) {
 }
 
 test.after(async () => { if (root) await flush(() => root!.unmount()); });
+test.afterEach(async () => { if (root) await flush(() => root!.unmount()); root = undefined; dom.localStorage.clear(); nextChatReply = undefined; });
 
 test("external handoff shares no job by default, preserves drafts across tabs, and never auto-imports answers", async () => {
-  await mount(h(AgentWorkspace, { job: null, resume: dummyResume, llmConfig: dummyLlmConfig, onOpenConfig() {}, onNavigateToResume() {}, onApplyToResume() { assert.fail("handoff must not write a resume"); } }));
+  await mount(h(AgentWorkspace, {...{sendChat:widgetChat}, job: null, resume: dummyResume, llmConfig: dummyLlmConfig, onOpenConfig() {}, onNavigateToResume() {}, onApplyToResume() { assert.fail("handoff must not write a resume"); } }));
   const findButton = (name: string) => [...dom.document.querySelectorAll('button')].find(b => b.textContent?.includes(name))!;
   await flush(() => findButton('外部协作').click());
   const panel = dom.document.querySelector('.advisor-handoff-panel')!;
@@ -160,7 +175,7 @@ test("external handoff shares no job by default, preserves drafts across tabs, a
 });
 
 test("top-level learning and interview navigation reaches the existing real modes", async () => {
-  await mount(h(AgentWorkspace, { job: null, resume: dummyResume, llmConfig: dummyLlmConfig, onOpenConfig() {}, onNavigateToResume() {} }));
+  await mount(h(AgentWorkspace, {...{sendChat:widgetChat}, job: null, resume: dummyResume, llmConfig: dummyLlmConfig, onOpenConfig() {}, onNavigateToResume() {} }));
   const choose = async (text: string) => flush(() => [...dom.document.querySelectorAll('.advisor-tasks button')].find(b => b.textContent?.includes(text))!.dispatchEvent(new dom.MouseEvent('click', { bubbles: true })));
   await choose('学习提升');
   assert.ok(dom.document.querySelector('.coach-tabs [aria-pressed="true"]')?.textContent?.includes('学习方案'));
@@ -206,9 +221,83 @@ const dummyLlmConfig: LlmConfig = {
   temperature: 0.3,
 };
 
+test("reopening the advisor restores chat history and the next unsent question without resending", async () => {
+  chatRequestBodies = [];
+  nextChatReply = () => ({ id: "synthetic-recovery-reply", role: "assistant", content: "已为你查询到该公司背景：合成说明" });
+  const props = { sendChat:widgetChat, workspaceKey: "synthetic-navigation-recovery", job: { title: "合成工程师", company: "合成企业", description: "合成岗位说明" },
+    resume: dummyResume, llmConfig: dummyLlmConfig, onOpenConfig() {}, onNavigateToResume() {} };
+  await mount(h(AgentWorkspace, props));
+  const fillComposer = async (text: string) => flush(() => {
+    const field = dom.document.querySelector(".agent-chat-textarea")!;
+    Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype, "value")!.set!.call(field, text);
+    field.dispatchEvent(new dom.Event("input", { bubbles: true }));
+  });
+  const exactQuestion="  请保留这条合成问题\n🙂完整结尾  ";
+  await fillComposer(exactQuestion);
+  await flush(() => [...dom.document.querySelectorAll("button")].find(b => b.textContent?.trim() === "发送")!.click());
+  const sentRequests = chatRequestBodies.length;
+  assert.ok(sentRequests > 0);
+  assert.equal(chatRequestBodies.at(-1)?.messages?.filter(message=>message.role==="user").at(-1)?.content,exactQuestion,"the advisor must preserve leading/trailing whitespace and full Unicode input");
+  await fillComposer("下一条尚未发送的合成草稿");
+  await mount(h(AgentWorkspace, props));
+  assert.ok(dom.document.getElementById("fixture")!.textContent?.includes("请保留这条合成问题"), "the sent question must survive reopening");
+  assert.ok(dom.document.getElementById("fixture")!.textContent?.includes("已为你查询到该公司背景"), "the completed reply must survive reopening");
+  assert.equal(dom.document.querySelector<HTMLTextAreaElement>(".agent-chat-textarea")?.value, "下一条尚未发送的合成草稿");
+  assert.equal(chatRequestBodies.length, sentRequests, "recovery must not resend the model request");
+});
+
+test("reopening the advisor restores the selected task and external returned draft but not sharing consent", async () => {
+  const props = { workspaceKey: "synthetic-handoff-reopen", job: { title: "合成工程师", company: "合成企业", description: "合成 JD" },
+    resume: dummyResume, llmConfig: dummyLlmConfig, onOpenConfig() {}, onNavigateToResume() {} };
+  await mount(h(AgentWorkspace, props));
+  await flush(() => dom.document.querySelector<HTMLButtonElement>('[aria-label="外部协作"]')!.click());
+  await flush(() => {
+    const field = dom.document.querySelector<HTMLTextAreaElement>(".advisor-returned-result")!;
+    Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype, "value")!.set!.call(field, "外部回答：仍待核实");
+    field.dispatchEvent(new dom.Event("input", { bubbles: true }));
+    dom.document.querySelector<HTMLInputElement>(".advisor-handoff-panel input[type=checkbox]")!.click();
+  });
+  await mount(h(AgentWorkspace, props));
+  assert.equal(dom.document.querySelector('[aria-label="外部协作"]')?.getAttribute("aria-pressed"), "true");
+  assert.equal(dom.document.querySelector<HTMLTextAreaElement>(".advisor-returned-result")?.value, "外部回答：仍待核实");
+  assert.equal(dom.document.querySelector<HTMLInputElement>(".advisor-handoff-panel input[type=checkbox]")?.checked, false);
+});
+
+test("an interrupted conversation and empty matching result restore without silently replaying either request", async () => {
+  const job = { title: "合成工程师", company: "合成企业", description: "合成岗位说明" };
+  const state = initialAdvisorRecovery(job);
+  state.messages = [{ id: "interrupted-question", role: "user", content: "这条问题发送后窗口意外关闭" }];
+  state.pendingChatId = "interrupted-question";
+  state.threadId = "empty-result-thread";
+  dom.localStorage.setItem("betterme.recovery.v1:advisor:synthetic-no-replay", JSON.stringify({ version: 1, value: state }));
+  const matches = matchingRequestCount, chats = chatRequestBodies.length;
+  await mount(h(AgentWorkspace, {...{sendChat:widgetChat}, workspaceKey: "synthetic-no-replay", job, resume: dummyResume,
+    llmConfig: dummyLlmConfig, onOpenConfig() {}, onNavigateToResume() {} }));
+  const text = dom.document.getElementById("fixture")!.textContent ?? "";
+  assert.match(text, /这条问题发送后窗口意外关闭/);
+  assert.match(text, /上次对话请求已中断/);
+  assert.equal(matchingRequestCount, matches, "an empty historical result is not permission to rerun matching");
+  assert.equal(chatRequestBodies.length, chats, "an interrupted request must remain unknown, not replay automatically");
+});
+
+test("switching resume workspaces cannot copy chat drafts into the other resume", async () => {
+  const props = { job: { title: "合成工程师", company: "合成企业", description: "合成 JD" },
+    resume: dummyResume, llmConfig: dummyLlmConfig, onOpenConfig() {}, onNavigateToResume() {} };
+  await mount(h(AgentWorkspace, {...{sendChat:widgetChat}, ...props, workspaceKey: "resume-a" }));
+  await flush(() => {
+    const field = dom.document.querySelector<HTMLTextAreaElement>(".agent-chat-textarea")!;
+    Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype, "value")!.set!.call(field, "甲简历的问题");
+    field.dispatchEvent(new dom.Event("input", { bubbles: true }));
+  });
+  await mount(h(AgentWorkspace, {...{sendChat:widgetChat}, ...props, workspaceKey: "resume-b" }));
+  assert.equal(dom.document.querySelector<HTMLTextAreaElement>(".agent-chat-textarea")?.value, "");
+  await mount(h(AgentWorkspace, {...{sendChat:widgetChat}, ...props, workspaceKey: "resume-a" }));
+  assert.equal(dom.document.querySelector<HTMLTextAreaElement>(".agent-chat-textarea")?.value, "甲简历的问题");
+});
+
 test("AgentWorkspace renders full-page dual-pane layout with job profile and chat on left, analytics and proposals on right", async () => {
   await mount(
-    h(AgentWorkspace, {
+    h(AgentWorkspace, {...{sendChat:widgetChat},
       job: {
         title: "全栈架构师",
         company: "领先科技",
@@ -284,7 +373,7 @@ test("resume edits require explicit field sharing and a verified-source approval
     }],
   };
 
-  await mount(h(AgentWorkspace, {
+  await mount(h(AgentWorkspace, {...{sendChat:widgetChat},
     job: { title: "全栈架构师", company: "领先科技", description: "需要 React 与 TypeScript。" },
     resume: dummyResume,
     resumeEditContext,
@@ -357,14 +446,18 @@ test("resume edits require explicit field sharing and a verified-source approval
 
 test("AgentWorkspace handles proposal accept and triggers onApplyToResume", async () => {
   let appliedPayload: { acceptedProposals: MatchProposal[]; customResumeName: string } | null = null;
+  const job = { title: "全栈架构师", company: "领先科技", description: "精通 React，微前端架构。" };
+  const state = initialAdvisorRecovery(job);
+  state.threadId = "historical-local-review";
+  state.proposals = [{ id: "historical-claim", jdItem: "精通 React，微前端架构。", evidenceType: "claimed",
+    suggestion: "突出已有 React 经历", rationale: "历史候选，仍需本人核实" }];
+  dom.localStorage.setItem("betterme.recovery.v1:advisor:manual-review", JSON.stringify({ version: 1, value: state }));
+  const beforeMatching = matchingRequestCount;
 
   await mount(
-    h(AgentWorkspace, {
-      job: {
-        title: "全栈架构师",
-        company: "领先科技",
-        description: "精通 React，微前端架构。",
-      },
+    h(AgentWorkspace, {...{sendChat:widgetChat},
+      workspaceKey: "manual-review",
+      job,
       resume: dummyResume,
       llmConfig: dummyLlmConfig,
       onOpenConfig: () => {},
@@ -380,6 +473,7 @@ test("AgentWorkspace handles proposal accept and triggers onApplyToResume", asyn
 
   const initialApply = Array.from(fixture.querySelectorAll("button")).find(btn => btn.textContent?.includes("应用已采纳"));
   assert.ok(initialApply?.disabled, "verified proposals are not automatically accepted");
+  assert.equal(matchingRequestCount, beforeMatching, "restoring a candidate is not consent for model analysis");
   const accept = Array.from(fixture.querySelectorAll("button")).find(btn => btn.textContent?.trim() === "采纳");
   assert.ok(accept, "explicit acceptance is available");
   await flush(() => accept.click());
@@ -401,7 +495,7 @@ test("AgentWorkspace displays API Key notice banner when key is missing and navi
   let openedConfig = false;
 
   await mount(
-    h(AgentWorkspace, {
+    h(AgentWorkspace, {...{sendChat:widgetChat},
       job: null,
       resume: dummyResume,
       llmConfig: {
@@ -450,7 +544,7 @@ test("AgentWorkspace displays API Key notice banner when key is missing and navi
 
 test("AgentWorkspace provides link extraction button, opens input panel, and auto-fills job fields", async () => {
   await mount(
-    h(AgentWorkspace, {
+    h(AgentWorkspace, {...{sendChat:widgetChat},
       job: null,
       resume: dummyResume,
       llmConfig: dummyLlmConfig,
@@ -523,7 +617,7 @@ test("AgentWorkspace provides link extraction button, opens input panel, and aut
 
 test("AgentWorkspace isolates setup view during JD creation/editing without squashed chat, and smoothly transitions on submit", async () => {
   await mount(
-    h(AgentWorkspace, {
+    h(AgentWorkspace, {...{sendChat:widgetChat},
       job: null,
       resume: dummyResume,
       llmConfig: dummyLlmConfig,
@@ -593,7 +687,7 @@ test("AgentWorkspace isolates setup view during JD creation/editing without squa
 
 test("AgentWorkspace: displays actionable guide and buttons when platform verification is required", async () => {
   await mount(
-    h(AgentWorkspace, {
+    h(AgentWorkspace, {...{sendChat:widgetChat},
       job: null,
       resume: dummyResume,
       llmConfig: {
@@ -652,7 +746,7 @@ test("AgentWorkspace: displays actionable guide and buttons when platform verifi
 
 test("AgentWorkspace: supports draggable splitter and quiet setup summary chips", async () => {
   await mount(
-    h(AgentWorkspace, {
+    h(AgentWorkspace, {...{sendChat:widgetChat},
       job: null,
       resume: dummyResume,
       llmConfig: {
@@ -704,7 +798,7 @@ test("AgentWorkspace: supports draggable splitter and quiet setup summary chips"
 
 test("AgentWorkspace stages a resume quote with source context in the chat composer", async () => {
   await mount(
-    h(AgentWorkspace, {
+    h(AgentWorkspace, {...{sendChat:widgetChat},
       job: null,
       resume: dummyResume,
       llmConfig: dummyLlmConfig,
@@ -721,6 +815,34 @@ test("AgentWorkspace stages a resume quote with source context in the chat compo
   assert.ok(fixture.querySelector('button[aria-label="上传图片"]'), "composer should provide an image attachment entry point");
 });
 
+test("advisor uploads the original PNG and explicitly refuses an over-capacity batch without selecting a subset", async () => {
+  const received: import("../src/services/agent-client").ChatMessage[][] = [];
+  await mount(h(AgentWorkspace, {
+    workspaceKey: "original-image", job: null, resume: dummyResume, llmConfig: dummyLlmConfig,
+    initialReference: { type: "resume_text", sourceLabel: "合成引用", text: "只做接口测试。" },
+    onOpenConfig() {}, onNavigateToResume() {}, onApplyToResume() {},
+    sendChat: async ({ messages }) => { received.push(messages); return { id: "original-image-reply", role: "assistant", content: "合成完整回答" }; },
+  }));
+  const fixture = dom.document.getElementById("fixture")!, input = fixture.querySelector<HTMLInputElement>('[aria-label="上传图片给 Agent"]')!;
+  const bytes = Buffer.from([0, 255, 127, 13, 10, 128]), file = new dom.File([bytes], "original.png", { type: "image/png" });
+  async function choose(files: InstanceType<typeof dom.File>[]) {
+    Object.defineProperty(input, "files", { configurable: true, value: files });
+    await flush(() => input.dispatchEvent(new dom.Event("change", { bubbles: true })));
+    if (pendingImageReads.length) assert.equal(Array.from(fixture.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.trim() === "发送")?.disabled, true, "do not send without an image still being read");
+    await act(async () => { while (pendingImageReads.length) await pendingImageReads.shift()!(); });
+  }
+  await choose([file, file, file, file]);
+  assert.match(fixture.textContent ?? "", /本批未附加/);
+  assert.equal(fixture.querySelector('[aria-label="待发送的上下文附件"] img'), null);
+  assert.equal(received.length, 0);
+  await choose([file]);
+  const exact = `data:image/png;base64,${bytes.toString("base64")}`;
+  assert.equal(fixture.querySelector<HTMLImageElement>('[aria-label="待发送的上下文附件"] img')?.src, exact);
+  assert.equal(received.length, 0, "reading an image never sends a model request");
+  await flush(() => Array.from(fixture.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.trim() === "发送")!.click());
+  assert.deepEqual(received[0]?.at(-1)?.attachments, [{ name: "original.png", mimeType: "image/png", dataUrl: exact }]);
+});
+
 test("full Agent workspace stops an in-flight chat and restores its editable question and quote", async () => {
   let requestSignal: AbortSignal | undefined;
   holdChatRequest = (init) => {
@@ -728,7 +850,7 @@ test("full Agent workspace stops an in-flight chat and restores its editable que
     return new Promise<Response>((_resolve, reject) => requestSignal?.addEventListener("abort", () => reject(requestSignal?.reason), { once: true }));
   };
   try {
-    await mount(h(AgentWorkspace, {
+    await mount(h(AgentWorkspace, {...{sendChat:widgetChat},
       job: { title: "全栈工程师", company: "样例企业", description: "只用于本地测试。" },
       resume: dummyResume, llmConfig: dummyLlmConfig,
       initialReference: { type: "resume_text", sourceLabel: "示例经历", text: "只读引用" },
@@ -776,7 +898,7 @@ test("truncated assistant replies offer a one-click continuation using the exist
     });
   chatRequestBodies = [];
   try {
-    await mount(h(AgentWorkspace, {
+    await mount(h(AgentWorkspace, {...{sendChat:widgetChat},
       job: { title: "全栈架构师", company: "领先科技", description: "React、TypeScript。" },
       resume: dummyResume,
       llmConfig: dummyLlmConfig,
@@ -804,7 +926,7 @@ test("truncated assistant replies offer a one-click continuation using the exist
 
 test("career growth is reachable inside the existing agent workspace and returns to its conversation", async () => {
   const previousRequests = chatRequestBodies.length;
-  await mount(h(AgentWorkspace, {
+  await mount(h(AgentWorkspace, {...{sendChat:widgetChat},
     workspaceKey: "career-entry-fixture",
     active: true,
     job: null,
@@ -843,7 +965,7 @@ test("career growth is reachable inside the existing agent workspace and returns
 
 test("career growth makes the entered JD available for separate opt-in without running legacy matching", async () => {
   const previousRequests = chatRequestBodies.length;
-  await mount(h(AgentWorkspace, {
+  await mount(h(AgentWorkspace, {...{sendChat:widgetChat},
     workspaceKey: "career-jd-handoff-fixture", active: true, job: null, resume: dummyResume,
     llmConfig: dummyLlmConfig, onOpenConfig: () => {}, onNavigateToResume: () => {}, onApplyToResume: () => {},
   }));

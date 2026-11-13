@@ -182,6 +182,7 @@ test("help is operable by click, describes export differences and dismisses with
   const panel = dom.document.getElementById(help.getAttribute("aria-controls")!);
   assert.ok(panel); assert.equal(panel.getAttribute("role"), "region");
   assert.match(panel.textContent!, /DOCX is editable single-column content without photos; PDF keeps the selected template/);
+  assert.match(panel.textContent!, /turn off Headers and footers/);
   assert.equal(help.getAttribute("aria-expanded"), "true");
   await key(help, "Escape");
   assert.equal(dom.document.getElementById(panel.id), null); expectActive(help);
@@ -200,6 +201,8 @@ test("help and export surfaces are mutually exclusive and keep Chinese accessibl
   const trigger = button("更多导出格式");
   await pointerClick(help);
   assert.equal(help.getAttribute("aria-expanded"), "true");
+  assert.match(dom.document.getElementById(help.getAttribute("aria-controls")!)!.textContent!, /关闭「页眉和页脚」/);
+  assert.match(button("导出 PDF / 打印").title, /更多设置/);
   await pointerClick(trigger);
   assert.ok(menu()); assert.equal(help.getAttribute("aria-expanded"), "false");
   await pointerClick(help);

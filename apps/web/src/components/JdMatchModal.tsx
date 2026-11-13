@@ -3,7 +3,6 @@ import { useUiPreferences } from "../lib/ui-preferences";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { isBossDescriptionCollapsed, snapshotFailureMessage } from "../lib/jd-capture-diagnostics";
 import {
-  analyzeJdMatch,
   getJdMatchReadiness,
   type JdMatchReport,
   type LlmConfig,
@@ -57,6 +56,12 @@ import {
 import { JdBrowserStartCleanupError, JdExtractionError, jdFailureGuidance, type JdFailure } from "../lib/jd-errors";
 import { jdBrowserCleanupTracker } from "../lib/jd-browser-cleanup";
 import { SourcePublicationBadges } from "./atlas/JobSourceBadges";
+import {useBetterMeAgent} from "../lib/betterme-agent/react";
+import {useAgentRouting} from "../lib/agent-routing";
+import {defaultJdMatchTaskClient} from "../services/jd-match-task-client";
+import {useAgentTaskRuntime} from "../lib/agent-task-runtime";
+import {defaultJdOcrTaskClient,ocrManifest} from "../services/jd-ocr-task-client";
+import type {JdOcrTask} from "@better-me/agent-contracts";
 
 async function closeTrackedBrowserSession(sessionId: string): Promise<void> {
   const key = `session:${sessionId}`;
@@ -70,6 +75,7 @@ async function closeTrackedBrowserSession(sessionId: string): Promise<void> {
 }
 
 type Props = {
+  workspaceKey?:string;
   isOpen: boolean;
   onClose: () => void;
   resume: ProjectedResume;
@@ -97,6 +103,7 @@ const SAMPLE_JD = `【外企/高端智能装备】高级工业软件研发工程
 4. 英语良好，能阅读英文技术文档与参与国际化团队技术协作。`;
 
 export function JdMatchModal({
+  workspaceKey="active-resume",
   isOpen,
   onClose,
   resume,
@@ -110,6 +117,10 @@ export function JdMatchModal({
   onSaveOpportunity,
 }: Props) {
   const { t, locale } = useUiPreferences();
+  const {agent}=useBetterMeAgent(),routing=useAgentRouting();
+  const taskRuntime=useAgentTaskRuntime(llmConfig);
+  const canonicalWorkspace=agent?.workspaceKey??workspaceKey;
+  const routingVersion=taskRuntime.key;
   const uiTextRef = useRef(t);
   uiTextRef.current = t;
 
@@ -123,6 +134,8 @@ export function JdMatchModal({
   const [shareInput, setShareInput] = useState(initialDraft.shareInput);
   const [tab, setTab] = useState<"text" | "link" | "screenshot">("text");
   const [screenshots, setScreenshots] = useState<JdScreenshot[]>([]);
+  const [ocrTask,setOcrTask]=useState<JdOcrTask|null>(null);
+  const [ocrResumeConsent,setOcrResumeConsent]=useState(false);
   const [pending, setPending] = useState<JdImportResult | null>(null);
   const [acquiring, setAcquiring] = useState<"link" | "browser" | "browser-stop" | "session-start" | "session-focus" | "session-extend" | "session-read" | "session-inspect" | "session-close" | "ocr" | "images" | null>(null);
   const closingBrowser = acquiring === "session-close" || acquiring === "browser-stop";
@@ -133,11 +146,13 @@ export function JdMatchModal({
   const [draftStatus, setDraftStatus] = useState(t("JD 文字与来源保存在此浏览器", "JD text and sources are stored in this browser"));
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<JdMatchReport | null>(null);
+  const [restoredReport,setRestoredReport]=useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorSource, setErrorSource] = useState<"link" | "other">("other");
   const [linkFailure, setLinkFailure] = useState<JdFailure | null>(null);
   const [copied, setCopied] = useState(false);
   const requestVersion = useRef(0);
+  const analysisObserver=useRef<AbortController|null>(null);
   const acquisitionVersion = useRef(0);
   const acquisitionController = useRef<AbortController | null>(null);
   const browserSessionRef = useRef<JdBrowserSession | null>(null);
@@ -150,13 +165,27 @@ export function JdMatchModal({
 
   useEffect(() => {
     requestVersion.current += 1;
+    analysisObserver.current?.abort();analysisObserver.current=null;
     setLoading(false);
     setReport(null);
+    setRestoredReport(false);
     setError(null);
     setLinkFailure(null);
     setCopied(false);
-    return () => { requestVersion.current += 1; };
-  }, [isOpen, jdText, resume, llmConfig]);
+    return () => { requestVersion.current += 1;analysisObserver.current?.abort();analysisObserver.current=null; };
+  }, [isOpen, jdText, resume, llmConfig,canonicalWorkspace,routingVersion]);
+
+  useEffect(()=>{
+    if(!isOpen||loading||report||!readiness.ready||!jdText.trim()||isJdLinkOnly(jdText)||routing?.blocked)return;
+    const observer=new AbortController(),version=requestVersion.current;
+    const timer=setTimeout(()=>{
+      void defaultJdMatchTaskClient.findReport({workspaceKey:canonicalWorkspace,rootScopeKey:canonicalWorkspace,rawJd:jdText,resume,signal:observer.signal,
+        runtime:taskRuntime.runtime,preferredRuntimeId:taskRuntime.preferredRuntimeId,
+      }).then(cached=>{if(!observer.signal.aborted&&version===requestVersion.current&&cached?.report){setReport(cached.report);setRestoredReport(true);}})
+        .catch(failure=>{if(!observer.signal.aborted&&version===requestVersion.current)setError(failure instanceof Error?failure.message:"无法读取上次报告；没有重新推理。");});
+    },250);
+    return ()=>{clearTimeout(timer);observer.abort();};
+  },[isOpen,loading,report,readiness.ready,jdText,resume,llmConfig,canonicalWorkspace,routingVersion,routing,taskRuntime]);
 
   useEffect(() => {
     sessionUiActive.current = isOpen;
@@ -174,6 +203,7 @@ export function JdMatchModal({
     setScreenshots(screenshotsRef.current);
     setAcquiring(null);
     setPending(null);
+    setOcrTask(null);setOcrResumeConsent(false);
     return () => {
       sessionUiActive.current = false;
       acquisitionVersion.current += 1;
@@ -184,7 +214,7 @@ export function JdMatchModal({
       if (session) void closeTrackedBrowserSession(session.sessionId).catch(() => undefined);
       imageVersion.current += 1;
     };
-  }, [isOpen, llmConfig]);
+  }, [isOpen, llmConfig,canonicalWorkspace,routingVersion]);
 
   useEffect(() => {
     if (!browserSession) return;
@@ -266,6 +296,7 @@ export function JdMatchModal({
     }
     setAcquiring(null);
     setPending(null);
+    setOcrResumeConsent(false);
     setError(null);
     setLinkFailure(null);
     setErrorSource("other");
@@ -558,29 +589,57 @@ export function JdMatchModal({
     }
   }
 
-  async function handleRecognize() {
+  async function handleRecognize(resume=false) {
     setErrorSource("other");
     setLinkFailure(null);
-    if (!llmConfig.apiKey?.trim() && llmConfig.provider === "gemini") {
-      setError(t("请先配置 Gemini API Key，并选择支持图片输入的模型。", "Configure a Gemini API key and select a model that accepts images first."));
-      onOpenConfig();
-      return;
-    }
+    if(resume&&(!ocrTask||!ocrResumeConsent))return;
+    const resumeTaskId=resume?ocrTask?.id:undefined;
     invalidateAcquisition();
     const version = acquisitionVersion.current;
+    const controller=new AbortController();acquisitionController.current=controller;
     setAcquiring("ocr");
     setError(null);
     let sourceUrl: string | undefined;
     try { sourceUrl = normalizeJobShare(shareInput).url; } catch { /* Screenshots can be used without a link. */ }
     try {
-      const result = await recognizeJdScreenshots(llmConfig, screenshots, sourceUrl);
+      taskRuntime.assertSelected();
+      const result = await recognizeJdScreenshots({workspaceKey:canonicalWorkspace,rootScopeKey:canonicalWorkspace,runtime:taskRuntime.runtime,preferredRuntimeId:taskRuntime.preferredRuntimeId,
+        consent:true,signal:controller.signal,resumeTaskId,onTask:task=>{if(version===acquisitionVersion.current&&!controller.signal.aborted)setOcrTask(task);}},screenshots,sourceUrl);
+      taskRuntime.assertSelected();
       if (version !== acquisitionVersion.current) return;
       setPending(result);
     } catch (err) {
       if (version === acquisitionVersion.current) setError(`${err instanceof Error ? err.message : t("截图识别失败。", "Screenshot recognition failed.")} ${t("请确认当前模型支持图片输入。", "Check that the current model accepts images.")}`);
     } finally {
+      if(acquisitionController.current===controller)acquisitionController.current=null;
       if (version === acquisitionVersion.current) setAcquiring(null);
     }
+  }
+
+  async function readPreviousOcr(){
+    invalidateAcquisition();const version=acquisitionVersion.current,controller=new AbortController();acquisitionController.current=controller;setAcquiring("ocr");
+    try{
+      const task=(await defaultJdOcrTaskClient.list(canonicalWorkspace,controller.signal))[0];
+      if(!task)throw new Error(t("没有可读取的本账号截图任务；未请求模型。","No screenshot task for this account; no inference requested."));
+      if(task.rootScopeKey!==canonicalWorkspace)throw new Error(t("上次任务不属于当前工作区，未自动认领。","The previous task belongs to a different workspace; it was not claimed."));
+      if(version!==acquisitionVersion.current||controller.signal.aborted)return;
+      setOcrTask(task);
+      let sourceUrl:string|undefined;try{sourceUrl=normalizeJobShare(shareInput).url;}catch{/* An empty source can be restored explicitly. */}
+      if(shareInput.trim()&&sourceUrl!==task.request.sourceUrl)throw new Error(t("当前来源与上次任务不同，未覆盖。请先另存当前来源，再清空后读取。","Current source differs; it was not overwritten. Save it separately and clear it before restoring."));
+      if(screenshotsRef.current.length&&JSON.stringify(await ocrManifest(screenshotsRef.current,sourceUrl))!==JSON.stringify(task.request))throw new Error(t("当前截图与上次任务不同，未替换。请先保留当前图片。","Current screenshots differ and were not replaced; preserve them first."));
+      if(task.uploadedImageIds.length!==task.request.images.length)throw new Error(t("上次上传尚未完成；请重新选择同一组完整原图，再核对原任务继续。","The previous upload is incomplete. Select the same full set of original images before continuing."));
+      const images=await Promise.all(task.request.images.map(image=>defaultJdOcrTaskClient.getImage(task,image.id,controller.signal)));
+      if(version!==acquisitionVersion.current||controller.signal.aborted)return;
+      screenshotsRef.current=images;setScreenshots(images);if(!shareInput.trim())setShareInput(task.request.sourceUrl??"");
+      if(task.status==="completed"&&task.result){const source=task.request.sourceUrl?normalizeJobShare(task.request.sourceUrl):undefined;
+        setPending({text:task.result.text,method:"截图文字识别",provenance:{kind:"screenshot",...source,observedAt:task.updatedAt,imageNames:task.request.images.map(image=>image.name)}});}
+    }catch(error){if(version===acquisitionVersion.current&&!controller.signal.aborted)setError(error instanceof Error?error.message:t("无法读取原任务；未重新识别。","Could not read the original task; no new recognition requested."));}
+    finally{if(acquisitionController.current===controller)acquisitionController.current=null;if(version===acquisitionVersion.current)setAcquiring(null);}
+  }
+  async function stopOcr(){
+    if(!ocrTask)return;const id=ocrTask.id;invalidateAcquisition();const version=acquisitionVersion.current;
+    try{const task=await defaultJdOcrTaskClient.pause(id);if(version===acquisitionVersion.current)setOcrTask(task);}
+    catch(error){if(version===acquisitionVersion.current)setError(error instanceof Error?error.message:"无法确认停止；请读取原任务核对。");}
   }
 
   let originalLink: string | undefined;
@@ -589,6 +648,7 @@ export function JdMatchModal({
   if (!isOpen) return null;
 
   const handleStartAnalysis = async () => {
+    if(loading)return;
     invalidateAcquisition();
     setErrorSource("other");
     setLinkFailure(null);
@@ -601,25 +661,34 @@ export function JdMatchModal({
       setError(t("请先输入岗位正文，或提取链接/截图后确认文字。", "Enter a job description, or extract and confirm text from a link or screenshot first."));
       return;
     }
-    if (!llmConfig.apiKey?.trim() && llmConfig.provider === "gemini") {
+    if (!routing?.enabled&&!llmConfig.apiKey?.trim() && llmConfig.provider === "gemini") {
       setError(t("请先配置 Gemini API Key。", "Configure a Gemini API key first."));
       onOpenConfig();
       return;
     }
 
     const version = ++requestVersion.current;
+    const observer=new AbortController();analysisObserver.current=observer;
     setLoading(true);
     setError(null);
     setReport(null);
     setCopied(false);
+    setRestoredReport(false);
     try {
-      const res = await analyzeJdMatch(llmConfig, resume, jdText);
+      if(routing?.blocked)throw new Error("底座状态尚未确认，未用旧 API 配置补发。");
+      taskRuntime.assertSelected();
+      const res = await defaultJdMatchTaskClient.report({workspaceKey:canonicalWorkspace,rootScopeKey:canonicalWorkspace,
+        rawJd:jdText,resume,consent:true,signal:observer.signal,
+        runtime:taskRuntime.runtime,preferredRuntimeId:taskRuntime.preferredRuntimeId,
+      });
       if (version !== requestVersion.current) return;
-      setReport(res);
+      taskRuntime.assertSelected();
+      setReport(res.report);
     } catch (err) {
       if (version !== requestVersion.current) return;
       setError(err instanceof Error ? err.message : t("分析匹配失败，请检查网络或配置。", "Match analysis failed. Check your connection or configuration."));
     } finally {
+      if(analysisObserver.current===observer)analysisObserver.current=null;
       if (version === requestVersion.current) setLoading(false);
     }
   };
@@ -780,7 +849,7 @@ ${report.interviewDefenseTips.map((tip) => `- ${tip}`).join("\n")}
               title={t("配置 AI 模型", "Configure AI model")}
             >
               <Settings2 className="h-3.5 w-3.5 text-slate-500" />
-              <span>{llmConfig.model}</span>
+              <span>{taskRuntime.label}</span>
             </button>
             <button
               type="button"
@@ -902,8 +971,18 @@ ${report.interviewDefenseTips.map((tip) => `- ${tip}`).join("\n")}
               {screenshots.length > 0 && <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {screenshots.map((shot, index) => <div key={shot.id} className="relative overflow-hidden rounded-lg border border-slate-200 bg-white">{shot.dataUrl ? <img src={shot.dataUrl} alt={t(`岗位截图 ${index + 1}`, `Job screenshot ${index + 1}`)} className="h-28 w-full object-contain bg-slate-50" /> : <div role="status" className="flex h-28 flex-col items-center justify-center gap-2 bg-slate-50 text-[11px] text-slate-500"><Loader2 className="h-5 w-5 animate-spin text-[#244e43]" /><span>{t("正在读取截图…", "Reading screenshots…")}</span></div>}<div className="truncate px-2 py-2 text-[11px] text-slate-600">{index + 1}. {shot.name}</div><button type="button" aria-label={t(`移除截图 ${index + 1}`, `Remove screenshot ${index + 1}`)} onClick={() => { invalidateAcquisition(false); screenshotsRef.current = screenshotsRef.current.filter((image) => image.id !== shot.id); setScreenshots(screenshotsRef.current); setAcquiring(screenshotsRef.current.some((image) => !image.dataUrl) ? "images" : null); }} className="absolute top-1 right-1 rounded-md bg-white/90 p-1 text-slate-500 hover:text-rose-700"><X className="h-3.5 w-3.5" /></button></div>)}
               </div>}
-              <div className="flex flex-wrap items-center gap-3"><button type="button" disabled={!screenshots.length || !!acquiring || screenshots.some((image) => !image.dataUrl)} onClick={() => void handleRecognize()} className="inline-flex items-center gap-2 rounded-lg bg-[#244e43] px-4 py-2 text-xs font-semibold text-white hover:bg-[#193c32] disabled:opacity-45">{acquiring === "ocr" || acquiring === "images" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}{acquiring === "ocr" ? t("正在识别截图…", "Recognizing screenshots…") : acquiring === "images" ? t("正在读取图片…", "Reading images…") : t("识别截图文字", "Recognize screenshot text")}</button><span className="text-[11px] text-slate-500">{t("当前模型：", "Current model:")}{llmConfig.model}{t("，需支持图片输入", "; image input support required")}</span></div>
-              <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-500"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />{t("点击识别后才将截图发送给你配置的模型服务。截图仅保留在本次页面中；确认后的文字与来源自动保存。", "Screenshots are sent to your configured provider only after recognition starts. Images stay in this page session; confirmed text and sources are saved automatically.")}</p>
+              <div className="flex flex-wrap items-center gap-3"><button type="button" disabled={!screenshots.length || !!acquiring || !!taskRuntime.error || screenshots.some((image) => !image.dataUrl)} onClick={() => void handleRecognize()} className="inline-flex items-center gap-2 rounded-lg bg-[#244e43] px-4 py-2 text-xs font-semibold text-white hover:bg-[#193c32] disabled:opacity-45">{acquiring === "ocr" || acquiring === "images" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}{acquiring === "ocr" ? t("正在核对截图任务…", "Checking screenshot task…") : acquiring === "images" ? t("正在读取图片…", "Reading images…") : t("授权并识别截图文字", "Authorize screenshot recognition")}</button><span className="text-[11px] text-slate-500">{t("当前底座：", "Selected runtime:")}{taskRuntime.label}{t("，需支持图片输入", "; image input support required")}</span></div>
+              <button type="button" disabled={!!acquiring} onClick={()=>void readPreviousOcr()} className="text-xs text-[#244e43] underline disabled:opacity-45">{t("读取上次截图任务与原图（不重新识别）", "Read previous screenshot task and originals (no inference)")}</button>
+              <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-500"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />{t("点击授权后，完整原图保存在当前账号的本机任务中，再交由当前底座识别；不支持图片则停止，不切换 API。重开只读取原记录；正文仍需你确认后使用。", "After authorization, complete originals are stored in this account's local task and sent to the selected runtime. Unsupported images stop the task without API fallback. Reopening only reads records; review the text before use.")}</p>
+              {ocrTask&&<section aria-label={t("截图任务记录","Screenshot task record")} className="space-y-3 rounded-lg border border-slate-200 bg-white p-3 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2"><span>{t("原任务：","Original task:")}{ocrTask.id} · {ocrTask.status} · {t("累计模型请求 ","Model calls ")}{ocrTask.rootLedger?.usage.modelCalls??ocrTask.usage.modelCalls}</span>
+                  {["ready","running"].includes(ocrTask.status)&&<button type="button" onClick={()=>void stopOcr()} className="text-amber-800 underline">{t("停止截图任务","Stop screenshot task")}</button>}</div>
+                <details><summary className="cursor-pointer">{t("查看完整图片清单、输出与回执","Inspect complete image manifest, output and receipt")}</summary><pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-50 p-3">{JSON.stringify(ocrTask,null,2)}</pre></details>
+                {["paused","interrupted","failed","budget_exhausted"].includes(ocrTask.status)&&<>
+                  <label className="flex items-start gap-2"><input type="checkbox" checked={ocrResumeConsent} disabled={!!acquiring} onChange={event=>setOcrResumeConsent(event.target.checked)} />{t("已核对全部原图、来源与已有输出，授权在原底座和原预算中继续本任务。","I reviewed every original image, source and existing output, and authorize continuing this task with the original runtime and budget.")}</label>
+                  <button type="button" disabled={!ocrResumeConsent||!!acquiring||!!taskRuntime.error} onClick={()=>void handleRecognize(true)} className="rounded border border-slate-300 px-3 py-2 disabled:opacity-45">{t("恢复原截图任务","Resume original screenshot task")}</button>
+                </>}
+              </section>}
             </div>}
 
             {pending && <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-3">
@@ -949,7 +1028,7 @@ ${report.interviewDefenseTips.map((tip) => `- ${tip}`).join("\n")}
                 ) : (
                   <>
                     <Sparkles className="h-3.5 w-3.5" />
-                    <span>{t("开始智能匹配与诊断", "Start AI match analysis")}</span>
+                    <span>{t("授权当前简历并生成报告", "Share current resume & create report")}</span>
                   </>
                 )}
               </button>
@@ -984,6 +1063,7 @@ ${report.interviewDefenseTips.map((tip) => `- ${tip}`).join("\n")}
           )}
 
           {/* Report Results */}
+          {restoredReport&&report&&<p role="status" aria-label="报告恢复状态" className="text-xs text-slate-500">{t("已读取本机已有报告 · 未重新请求模型", "Loaded the existing local report · No new model request")}</p>}
           {report && readiness.ready && (
             <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-200">
               {/* Score & Summary Banner */}

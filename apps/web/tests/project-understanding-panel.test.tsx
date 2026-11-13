@@ -24,7 +24,7 @@ for (const [key, value] of Object.entries({ window: dom, document: dom.document,
 const { act, createElement: h } = React;
 const { createRoot } = await import("react-dom/client");
 const { ProjectUnderstandingPanel, understandingScope } = await import("../src/components/ProjectUnderstandingPanel");
-const config = { provider: "ollama" as const, model: "synthetic", baseUrl: "http://model-fixture.invalid/v1", apiKey: "", temperature: 0 };
+const config = { provider: "ollama" as const, model: "synthetic", baseUrl: "https://model-fixture.invalid/v1", apiKey: "", temperature: 0 };
 const sourceText = fixtureSession().sourceText;
 const projectKey = "synthetic-field";
 

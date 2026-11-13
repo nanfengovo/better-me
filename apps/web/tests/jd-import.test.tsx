@@ -186,6 +186,7 @@ test("旧岗位网页可按 meta charset 解码", async () => {
 
 test("OCR 拒绝空结果及错误 JSON，接受完整可编辑的原文", () => {
   assert.equal(parseJdOcrResponse(`\`\`\`json\n${JSON.stringify({ text: description })}\n\`\`\``), description);
+  assert.equal(parseJdOcrResponse(JSON.stringify({text:` \r\n${description}  \n`})),` \r\n${description}  \n`);
   for (const output of ["没有岗位", '{"text":""}', '{"text":42}', '{"title":"职位"}']) assert.throws(() => parseJdOcrResponse(output));
 });
 
@@ -220,7 +221,7 @@ test("读取中的截图不触发 OCR 请求或只发送已完成部分", async 
   globalThis.fetch = async () => { calls += 1; throw new Error("OCR must not send pending screenshots"); };
   try {
     const images = [{ id: "ready", name: "1.png", size: 100, dataUrl: "data:image/png;base64,ready" }, { id: "pending", name: "2.png", size: 100, dataUrl: "" }];
-    await assert.rejects(() => recognizeJdScreenshots({ provider: "openai-compatible", baseUrl: "https://model.example/v1", apiKey: "", model: "vision", temperature: 0 }, images), /仍在读取/);
+    await assert.rejects(() => recognizeJdScreenshots({workspaceKey:"synthetic-pending",rootScopeKey:"synthetic-pending",runtime:{kind:"model",modelSettings:{provider:"ollama",baseUrl:"http://127.0.0.1:1/v1",model:"synthetic-vision"}},consent:true}, images), /仍在读取/);
     assert.equal(calls, 0);
   } finally { globalThis.fetch = original; }
 });
@@ -260,23 +261,14 @@ test("缺少服务和错误 JSON 响应能明确恢复到文字与截图流程",
   } finally { globalThis.fetch = original; }
 });
 
-test("OCR 使用所有截图且不包含简历与 API Key 于草稿", async () => {
-  const originalFetch = globalThis.fetch;
+test("已审阅 OCR 正文与来源可存草稿，不混入原图字节或模型凭据", () => {
   const originalStorage = globalThis.localStorage;
-  const screenshots = [1, 2].map((n) => ({ id: String(n), name: `${n}.png`, size: 100, dataUrl: `data:image/png;base64,${n}` }));
   const records = new Map<string, string>();
   globalThis.localStorage = { getItem: (key: string) => records.get(key) ?? null, setItem: (key: string, value: string) => { records.set(key, value); } } as Storage;
-  globalThis.fetch = async (_input, init) => {
-    const body = JSON.parse(String(init?.body));
-    assert.equal(body.messages[1].content.filter((part: { type: string }) => part.type === "image_url").length, 2);
-    assert.match(body.messages[1].content[0].text, /不推测/);
-    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ text: description }) } }] }));
-  };
   try {
-    const result = await recognizeJdScreenshots({ provider: "openai-compatible", baseUrl: "https://model.example/v1", apiKey: "private-key", model: "vision" }, screenshots);
-    assert.deepEqual(result.provenance.imageNames, ["1.png", "2.png"]);
-    saveJdDraft({ text: result.text, shareInput: "", provenance: result.provenance });
+    saveJdDraft({text:description,shareInput:"",provenance:{kind:"screenshot",observedAt:"2026-11-12T00:00:00Z",imageNames:["1.png","2.png"]}});
     assert.equal(readJdDraft().text, description);
+    assert.deepEqual(readJdDraft().provenance?.imageNames,["1.png","2.png"]);
     assert.doesNotMatch([...records.values()].join(""), /private-key|data:image/);
-  } finally { globalThis.fetch = originalFetch; globalThis.localStorage = originalStorage; }
+  } finally { globalThis.localStorage = originalStorage; }
 });

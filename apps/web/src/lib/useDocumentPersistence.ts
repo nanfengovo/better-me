@@ -28,12 +28,24 @@ function isDocumentEditor(target: EventTarget | null): target is HTMLElement {
     && target.matches("input:not([type=file]):not([type=button]), textarea, select, [contenteditable=true]");
 }
 
+/** Capture exactly the owner and recovery space used by this controller's
+ * storage, even if a different account is activated before its queued write. */
+function captureOfficialCommitLock(space?: string) {
+  const name = documentDatabase("better-me:official-commit:v1", space);
+  try {
+    const locks = globalThis.navigator?.locks;
+    if (typeof locks?.request !== "function") return undefined;
+    return (write: () => Promise<boolean>) => locks.request(name, { mode: "exclusive" }, write);
+  } catch { return undefined; }
+}
+
 export function useDocumentPersistence() {
   const [space] = useState(() => recoverySpace(window.location.search));
   const [initialPreference] = useState(readAutoSavePreference);
   const [autoSaveSettings, setSettings] = useState(initialPreference.settings);
   const [autoSavePreferenceError, setPreferenceError] = useState(initialPreference.error);
   const [controller] = useState(() => new DocumentPersistenceController({ autoSave: initialPreference.settings, storage: captureDocumentStorage(space),
+    commitLock: captureOfficialCommitLock(space),
     history: new LocalDocumentHistory(new IndexedDbVersionRepository(documentDatabase("better-me:document-history:v1", space))),
     draftRepository: new IndexedDbDraftRepository("active", documentDatabase("better-me:document-draft:v1", space)),
     previousDraftRepository: new IndexedDbDraftRepository("previous", documentDatabase("better-me:document-draft:v1", space)),
@@ -125,6 +137,9 @@ export function useDocumentPersistence() {
   const restoreField = useCallback((change: DocumentFieldChange, label?: string) => controller.restoreField(change, label), [controller]);
   const checkpoint = useCallback((label: string) => controller.checkpoint(label), [controller]);
   const protectEdit = useCallback((label: string) => controller.protectEdit(label), [controller]);
+  const saveReviewedVersion = useCallback((next: BetterMeDocument, expected: BetterMeDocument, label: string, assertAuthorized?: () => void | Promise<void>) =>
+    controller.saveReviewedVersion(next, expected, label, assertAuthorized), [controller]);
+  const readOfficialForReview = useCallback((expected: BetterMeDocument) => controller.readOfficialForReview(expected), [controller]);
   const flush = useCallback(() => controller.flush(true), [controller]);
-  return { ...state, update, replace, restoreField, checkpoint, protectEdit, flush, history: controller.history, autoSaveSettings, setAutoSaveSettings, autoSavePreferenceError };
+  return { ...state, update, replace, restoreField, checkpoint, protectEdit, saveReviewedVersion, readOfficialForReview, flush, history: controller.history, autoSaveSettings, setAutoSaveSettings, autoSavePreferenceError };
 }

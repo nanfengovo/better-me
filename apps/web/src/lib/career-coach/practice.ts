@@ -38,7 +38,7 @@ export function practiceEvidence(receipt: PracticeReceipt): string {
   return [`BetterMe 原创隔离练习：${TRANSITION_EXERCISE.title} v${receipt.version}`, `运行ID：${receipt.id}；代码SHA-256：${receipt.sourceHash}`,
     `本浏览器实际运行 ${receipt.checks.length} 项：${passed} 通过，${receipt.checks.length - passed} 失败，0 跳过。仅覆盖此练习，不是生产能力认证。`,
     ...receipt.checks.map(item => `${item.passed ? "通过" : "失败"} ${item.name}；期望 ${item.expected}；实际 ${item.actual}`),
-    `提交代码（JavaScript函数体${receipt.source.length > 5000 ? "，仅摘录前5000字；完整代码保留在结构化回执" : ""}）：\n${receipt.source.slice(0, 5000)}`].join("\n");
+    `提交代码（JavaScript函数体，完整原文）：\n${receipt.source}`].join("\n");
 }
 export function practiceBundle(source: string) {
   return JSON.stringify({ format: "betterme-practice-v1", exerciseId: TRANSITION_EXERCISE.id, version: TRANSITION_EXERCISE.version, source }, null, 2);

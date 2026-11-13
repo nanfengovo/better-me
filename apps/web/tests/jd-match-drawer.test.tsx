@@ -87,6 +87,7 @@ async function flush(action: () => void = () => {}) {
 }
 
 async function mount(children: React.ReactNode) {
+  if (root) await flush(() => root!.unmount());
   dom.document.body.innerHTML = '<main id="fixture"></main>';
   root = createRoot(dom.document.getElementById("fixture")!);
   await flush(() =>
@@ -95,6 +96,7 @@ async function mount(children: React.ReactNode) {
     ),
   );
 }
+test.afterEach(async () => { if (root) await flush(() => root!.unmount()); root = undefined; dom.localStorage.clear(); });
 
 const mockLlmConfig: LlmConfig = {
   provider: "custom",
@@ -181,9 +183,20 @@ test("JdMatchDrawer renders job info and tab headers when open", async () => {
   assert.ok(textContent.includes("未来科技有限公司"), "Company should be displayed");
   assert.ok(textContent.includes("前端专家"), "Title should be displayed");
   assert.ok(textContent.includes("35k-50k"), "Salary should be displayed");
-  assert.ok(textContent.includes("LangGraph"), "LangGraph badge should be displayed");
+  assert.ok(!textContent.includes("LangGraph"), "the task UI should not show an obsolete orchestration badge");
   assert.ok(textContent.includes("提案卡片审核"), "Proposals tab header should be present");
   assert.ok(textContent.includes("助理协同对话"), "Chat tab header should be present");
+});
+
+test("unconfirmed Host health never claims a direct-browser model fallback",async()=>{
+  const original=globalThis.fetch;let calls=0;
+  globalThis.fetch=async()=>{calls++;return Response.json({error:"synthetic_health_unknown"},{status:503});};
+  try{
+    await mount(h(JdMatchDrawer,{isOpen:true,onClose(){},job:{title:"合成测试",company:"合成企业",description:"了解 C# 接口测试。"},resume:mockResume,llmConfig:mockLlmConfig,onOpenConfig(){},onApplyToResume(){}}));
+    await flush();const dialog=dom.document.querySelector('[role="dialog"]')!;
+    assert.ok(dialog.textContent?.includes("连接待确认"));assert.ok(!dialog.textContent?.includes("直连模式"));
+    assert.ok(dialog.querySelector('[title*="模型请求仍只走统一任务"]'));assert.equal(calls,1,"read-only health probe only");
+  }finally{globalThis.fetch=original;}
 });
 
 test("JdMatchDrawer can switch between Proposals and Chat tabs", async () => {
@@ -252,15 +265,16 @@ test("JdMatchDrawer handles proposal actions and triggers onApplyToResume", asyn
   const applyButton = buttons.find((b) => b.textContent?.includes("一键应用到当前定制简历"));
   assert.ok(applyButton, "Apply button should exist in footer");
 
-  // If there are accepted proposals (from initial parse), clicking apply triggers callback
-  if (!applyButton.hasAttribute("disabled")) {
-    await flush(() => {
-      applyButton.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
-    });
-    assert.ok(appliedPayload !== null);
-    assert.equal(appliedPayload.targetCompany, "创新工坊");
-    assert.equal(appliedPayload.targetJobTitle, "全栈架构师");
-  }
+  assert.equal(applyButton.disabled, true, "local alignment must not automatically adopt a claim");
+  assert.equal(appliedPayload, null);
+  const accept = buttons.find(button => button.textContent?.trim() === "采纳");
+  assert.ok(accept, "a local candidate can be selected explicitly");
+  await flush(() => accept.click());
+  assert.equal(applyButton.disabled, false);
+  await flush(() => applyButton.click());
+  assert.ok(appliedPayload !== null);
+  assert.equal(appliedPayload.targetCompany, "创新工坊");
+  assert.equal(appliedPayload.targetJobTitle, "全栈架构师");
 });
 
 test("JdMatchDrawer renders in modeless copilot mode with non-blocking left-side and width toggle", async () => {
@@ -381,7 +395,7 @@ test("JdMatchDrawer renders target job setup form and loads sample JD when opene
   assert.ok(textarea !== null && textarea.value.length > 50, "Sample JD text should be loaded into textarea");
 
   const startButton = Array.from(dom.document.querySelectorAll("button")).find((b) =>
-    b.textContent?.includes("开始智能拆解与匹配分析")
+    b.textContent?.includes("授权当前简历并开始分析")
   );
   assert.ok(startButton !== undefined, "Start button should be present");
   assert.equal(startButton.disabled, false, "Start button should be enabled after loading sample");

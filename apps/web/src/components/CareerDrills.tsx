@@ -19,10 +19,10 @@ export function CareerDrills({ state, context, disabled, mutate, request, run, o
     if (!selectedTopic.trim()) return;
     const reference = previous?.feedbackRecordId && state.records.find(item => item.id === previous.feedbackRecordId);
     const feedback = reference && reference.payload.kind === "drill" ? reference.payload.feedback : undefined;
-    const history = previous ? `\n上次原题：${previous.question.text}\n本人原答：${previous.answer.slice(0, 6000)}\n${previous.disputed ? "本人已质疑上次评价，不沿用其判断；请从原答重新判断。" : feedback ? `上次参考反馈（不代表认证）：${feedback.explanation}\n建议：${feedback.nextAction}` : "尚无有效评价。"}\n请据此选择下一道题，检验理解迁移而不是简单重复原题。` : "";
-    void run({ ...request("drill", `围绕本次主题生成一道新题。题目和评价条件要清楚，资料不足可追问。${history}`.slice(0, 12000)),
+    const history = previous ? `\n上次原题：${previous.question.text}\n本人原答：${previous.answer}\n${previous.disputed ? "本人已质疑上次评价，不沿用其判断；请从原答重新判断。" : feedback ? `上次参考反馈（不代表认证）：${feedback.explanation}\n建议：${feedback.nextAction}` : "尚无有效评价。"}\n请据此选择下一道题，检验理解迁移而不是简单重复原题。` : "";
+    void run({ ...request("drill", `围绕本次主题生成一道新题。题目和评价条件要清楚，资料不足可追问。${history}`),
       sourceRecordIds: previous ? [previous.questionRecordId, ...(!previous.disputed && reference ? [reference.id] : [])] : undefined,
-      drill: { topic: selectedTopic.trim() } }, (next, record) => createDrill(next, record, selectedTopic.trim(), context));
+      drill: { topic: selectedTopic } }, (next, record) => createDrill(next, record, selectedTopic, context));
   };
   const feedbackRecord = current?.feedbackRecordId && state.records.find(item => item.id === current.feedbackRecordId);
   const feedback = feedbackRecord && feedbackRecord.payload.kind === "drill" ? feedbackRecord.payload.feedback : undefined;
@@ -37,7 +37,7 @@ export function CareerDrills({ state, context, disabled, mutate, request, run, o
       <ul>{current.question.criteria.map(item => <li key={item}>{item}</li>)}</ul>
       {!current.answer ? <><label>我的练习回答<textarea rows={6} maxLength={12000} value={current.draft ?? ""} disabled={disabled} onChange={event => mutate(previous => ({ ...previous, drills: previous.drills?.map(item => item.id === current.id ? { ...item, draft: event.target.value } : item) }))} /></label>
         <div className="coach-inline-actions"><button type="button" className="coach-primary" disabled={disabled || !current.draft?.trim()} onClick={() => {
-          const answered = { ...current, answer: current.draft!.trim() };
+          const answered = { ...current, answer: current.draft! };
           if (mutate(previous => saveDrillAnswer(previous, current.id, answered.answer))) evaluate(answered);
         }}>保存回答并请求评价</button><button type="button" disabled={disabled} onClick={() => mutate(previous => saveDrillAnswer(previous, current.id, [current.draft, "本人选择：暂时不会或题目不适用，跳过本题；未评价。"].filter(Boolean).join("\n")))}>保留草稿并跳过</button></div>
       </> : <><div className="coach-answer"><small>本次实际回答</small><p className="coach-prewrap">{current.answer}</p></div>

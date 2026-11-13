@@ -41,8 +41,8 @@ export function createDrill(state: CoachState, record: CoachRecord, topic: strin
 export function saveDrillAnswer(state: CoachState, id: string, answer: string): CoachState {
   const attempt = state.drills?.find(item => item.id === id);
   if (!attempt || !answer.trim() || answer.length > 12000) throw new Error("请先填写自己的回答。");
-  if (attempt.answer) { if (attempt.answer === answer.trim()) return state; throw new Error("这次作答已保存；请发起新的尝试，不覆盖原回答。"); }
-  return { ...state, drills: state.drills!.map(item => item.id === id ? { ...item, answer: answer.trim(), draft: undefined } : item) };
+  if (attempt.answer) { if (attempt.answer === answer) return state; throw new Error("这次作答已保存；请发起新的尝试，不覆盖原回答。"); }
+  return { ...state, drills: state.drills!.map(item => item.id === id ? { ...item, answer, draft: undefined } : item) };
 }
 export function evaluateDrill(state: CoachState, id: string, record: CoachRecord): CoachState {
   const attempt = state.drills?.find(item => item.id === id);

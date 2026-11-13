@@ -8,7 +8,19 @@ export function createCoachState(workspaceKey: string, now = new Date().toISOStr
 
 /** Non-secret change token, not a cryptographic identity or an authorization token. */
 export function contextFingerprint(context: CoachContext): string {
-  return fingerprintValue(context);
+  return fingerprintValue(canonicalContext(context));
+}
+/** Schema parsing can reorder object keys; it must not invalidate unchanged source consent.
+ * Preserve array order and exact text bytes. Legacy fingerprints are never silently upgraded. */
+function canonicalContext(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalContext);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value)
+      .filter(([, entry]) => entry !== undefined)
+      .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+      .map(([key, entry]) => [key, canonicalContext(entry)]));
+  }
+  return value;
 }
 function fingerprintValue(value: unknown): string {
   const raw = JSON.stringify(value);
@@ -22,11 +34,12 @@ export function goalFingerprint(settings: CoachSettings): string {
 }
 
 export function createCoachRecord(generation: CoachGeneration, request: CoachRequest): CoachRecord {
-  return CoachRecordSchema.parse({ id: crypto.randomUUID(), createdAt: new Date().toISOString(), mode: request.mode,
+  return CoachRecordSchema.parse({ id: generation.task?.id ?? crypto.randomUUID(), createdAt: new Date().toISOString(), mode: request.mode,
     input: request.input, payload: generation.payload, model: generation.model,
     basis: { resumeShared: Boolean(request.context?.resume), jobShared: Boolean(request.context?.job),
       contextFingerprint: contextFingerprint(request.context ?? {}), goalFingerprint: goalFingerprint(request.settings),
       ...(request.confirmedGoal ? { goalId: request.confirmedGoal.id } : {}),
+      ...(generation.task ? { taskId: generation.task.id } : {}),
       ...(request.agentMemoryIds?.length ? { agentMemoryIds: request.agentMemoryIds } : {}) } });
 }
 

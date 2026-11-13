@@ -1,0 +1,41 @@
+.career-task-panel { display:grid; gap:12px; align-content:start; min-width:0; padding:14px; color:var(--color-ink); background:var(--color-panel); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+.advisor-workspace>.career-task-panel { flex:1 1 auto; min-height:0; width:100%; overflow:auto; overscroll-behavior:contain; scrollbar-gutter:stable }
+.agent-sidebar-slot-task { display:flex; flex:1; min-height:0; overflow:hidden }
+.agent-sidebar-slot-task>.career-task-panel { flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; scrollbar-gutter:stable }
+.ct-tool-source { white-space:pre-wrap; overflow-wrap:anywhere; max-height:240px; overflow:auto; padding:8px; background:var(--color-accent-soft); border-radius:7px; font-size:11px }
+.career-task-panel>.ct-section,.career-task-panel>.ct-header,.career-task-panel>.ct-alert { width:min(100%,900px); justify-self:center }
+.career-task-panel *, .career-task-panel *::before { box-sizing:border-box }
+.career-task-panel :is(h2,h3,p,ul,ol,blockquote) { margin:0 }
+.ct-header,.ct-actions,.ct-status { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px }
+.ct-header { justify-content:space-between }
+.ct-kicker,.career-task-panel h3 { display:inline-flex; align-items:center; gap:7px }
+.ct-kicker { color:var(--ui-accent,var(--color-accent)); font-size:12px; font-weight:600 }
+.career-task-panel h2 { font-size:19px; line-height:1.35 }
+.career-task-panel h3 { font-size:15px }
+.ct-section,.career-task-panel fieldset { min-width:0; display:grid; gap:9px; border:0; border-top:1px solid var(--color-line); padding:12px 0 0; margin:0 }
+.career-task-panel fieldset { align-content:start; padding:6px 0 0 }
+.career-task-panel legend { font-weight:600; padding:0 6px 0 0 }
+.career-task-panel details.ct-section { display:block }
+.career-task-panel details[open]>:not(summary) { margin-top:9px }
+.career-task-panel summary { cursor:pointer; font-weight:550; padding:4px 0 }
+.career-task-panel label { display:grid; gap:4px; min-width:0 }
+.career-task-panel .ct-check { display:flex; align-items:flex-start; gap:8px; line-height:1.45; cursor:pointer; padding:3px 0 }
+.ct-check input { margin:3px 0 0; width:16px; height:16px; flex:0 0 16px; accent-color:var(--color-accent) }
+.ct-check strong,.ct-sources small { display:block }
+.career-task-panel :is(input:not([type=checkbox]),textarea,select) { width:100%; min-width:0; padding:7px 9px; border:1px solid var(--color-line-strong); border-radius:7px; background:var(--color-panel); color:var(--color-ink); font:inherit }
+.career-task-panel textarea { min-height:54px; resize:vertical }
+.career-task-panel button { justify-self:start; width:fit-content; min-height:34px; max-width:100%; padding:5px 11px; white-space:normal; border:1px solid var(--color-line-strong); border-radius:8px; color:var(--color-ink); background:var(--color-panel); font:inherit; cursor:pointer }
+.career-task-panel button:disabled { opacity:.55; cursor:not-allowed }
+.career-task-panel button.ct-primary { background:var(--ui-action,var(--color-accent)); color:var(--ui-on-action,var(--color-accent-contrast,#fff)); border-color:transparent; font-weight:600 }
+.career-task-panel :focus-visible { outline:2px solid var(--ui-focus,var(--color-accent)); outline-offset:2px }
+.ct-budget { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(132px,100%),1fr)); gap:8px }
+.ct-status { padding:8px 10px; border-radius:7px; background:var(--color-accent-soft) }
+.ct-status span,.career-task-panel small,.ct-events time { color:var(--color-ink-muted); font-size:12px }
+.career-task-panel .ct-alert { border-left:3px solid var(--ui-warning,var(--color-warn)); padding:7px 10px; background:var(--ui-warning-soft,var(--color-warn-soft)); color:var(--color-ink) }
+.career-task-panel blockquote { padding:4px 9px; border-left:2px solid var(--color-line-strong); white-space:pre-wrap }
+.ct-events,.ct-history,.ct-sources { padding-left:20px; display:grid; gap:5px }
+.ct-events time { display:block }
+.ct-diff { min-width:0; display:grid; gap:5px; border-left:2px solid var(--color-line-strong); padding-left:10px }
+.ct-diff p { white-space:pre-wrap }
+@media (hover:hover) and (pointer:fine) { .career-task-panel button:enabled:hover:not(.ct-primary) { background:var(--color-accent-soft) } }
+@media (pointer:coarse) { .career-task-panel button,.career-task-panel .ct-check,.career-task-panel summary { min-height:44px } }

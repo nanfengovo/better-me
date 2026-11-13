@@ -6,6 +6,8 @@ import { readOpportunityLibrary, type Opportunity } from "./opportunities";
 export type MicroAppScope = "selected_offers" | "backcheck_summary" | "job_snapshots";
 
 export interface InstalledMicroApp {
+  /** A one-off instance is never a management handle for any installed version. */
+  sessionOnly?: boolean;
   appId: string;
   name: string;
   nameEn: string;

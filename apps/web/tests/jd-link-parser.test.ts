@@ -4,8 +4,20 @@ import {
   cleanPlatformTitle,
   parseJobTextHeuristics,
   extractAndParseJobLink,
-  type ParsedJobInfo,
+  applyJdMetadata,
 } from "../src/lib/jd-link-parser";
+import {completeMetadataText,metadataResult} from "../../agent-host/tests/fixtures/jd-intake";
+
+test("rule intake retains full exact source, never dispatches a model and metadata unknowns remain empty",async()=>{
+  const original=globalThis.fetch;let calls=0;
+  globalThis.fetch=async()=>{calls++;throw Error("plain text must not invoke a provider or browser");};
+  try{
+    const parsed=await extractAndParseJobLink(completeMetadataText,{signal:new AbortController().signal});
+    assert.equal(calls,0);assert.equal(parsed.sourceText,completeMetadataText);assert.ok(parsed.sourceText.length>3000);
+    const refined=applyJdMetadata(parsed,metadataResult(completeMetadataText));assert.equal(refined.title,"合成接口测试工程师");assert.equal(refined.sourceText,completeMetadataText);
+    const unknown=applyJdMetadata(parsed,{kind:"metadata",fields:{title:null,company:null,salary:null,location:null}});assert.equal(unknown.title,"");assert.equal(unknown.company,"");assert.equal(unknown.salary,"");assert.equal(unknown.location,"");
+  }finally{globalThis.fetch=original;}
+});
 
 test("cleanPlatformTitle strips platform suffixes and extracts delimiters", () => {
   const cases = [

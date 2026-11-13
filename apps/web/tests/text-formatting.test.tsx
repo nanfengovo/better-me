@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { formatSelection, rebaseTextStyles } from "../src/lib/text-formatting";
+import { formatSelection, rebaseTextStyles, rebaseViewTextStyles } from "../src/lib/text-formatting";
+import { createInitialDocument } from "@better-me/storage";
 
 test("selection styles preserve adjacent runs and can clear a middle range", () => {
   const first = formatSelection("abcdefghij", [], 0, 10, { bold: true });
@@ -37,4 +38,15 @@ test("text edits retain colors only on surviving characters", () => {
     { start: 0, end: 2, highlight: true, highlightColor: "#cce5ff" },
     { start: 4, end: 6, highlight: true, highlightColor: "#cce5ff" },
   ]);
+});
+
+test("formatting changes in one fact store cannot remove or shift marks in a different resume snapshot", () => {
+  const { factBase, resumeViews } = createInitialDocument();
+  const next = structuredClone(factBase); delete next.profile.headline;
+  const style = { "profile:headline:zh": [{ start: 0, end: 2, bold: true }] };
+  const base = { ...resumeViews[0]!, textStyles: style };
+  const edition = { ...base, id: "independent", isolatedFactBase: structuredClone(factBase) };
+  const views = [base, edition];
+  assert.deepEqual(rebaseViewTextStyles(factBase, next, views).map(v => v.textStyles), [{}, style]);
+  assert.deepEqual(rebaseViewTextStyles(factBase, next, views, edition.id).map(v => v.textStyles), [style, {}]);
 });

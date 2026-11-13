@@ -4,11 +4,9 @@ import type { LlmConfig, ProjectedResume } from "@better-me/core";
 import {
   Activity,
   Bot,
-  Check,
   ChevronRight,
   CircleAlert,
   Command,
-  Copy,
   Cpu,
   ChevronDown,
   ExternalLink,
@@ -16,7 +14,6 @@ import {
   ImagePlus,
   Loader2,
   MessageSquare,
-  Play,
   RefreshCw,
   Send,
   ShieldCheck,
@@ -27,19 +24,15 @@ import {
 } from "lucide-react";
 import { testLlmConnection } from "@better-me/core";
 import { useUiPreferences } from "../lib/ui-preferences";
+import { readChatImage, chatImageErrorMessage, MAX_CHAT_IMAGES, type ChatImageAttachment } from "../lib/chat-images";
 import { createCompanionResumeSummary } from "../lib/resume-agent-context";
 import {
-  cancelLocalAgentRun,
-  getLocalAgentRun,
   listLocalAgentRuntimes,
   scanLocalAgentRuntimes,
-  startLocalAgentRun,
-  streamLocalAgentRun,
   sendAgentChat,
+  pauseAgentChatTask,
   chatMessagesForRequest,
   type ChatMessage,
-  type LocalAgentEvent,
-  type LocalAgentRun,
   type LocalRuntimeInfo,
   type ResumeTextReference,
 } from "../services/agent-client";
@@ -49,13 +42,19 @@ import { AgentMarkdownRenderer } from "./AgentMarkdownRenderer";
 import { AgentReplyMeta } from "./AgentReplyMeta";
 import "./agent-companion.css";
 import { useBetterMeAgent } from "../lib/betterme-agent/react";
+import { useAgentTaskRuntime } from "../lib/agent-task-runtime";
 import { AgentContinuityButton, AgentMemoryConsent, AgentModelControls } from "./BetterMeAgentCenter";
 import { agentBaseLabel, useAgentRouting } from "../lib/agent-routing";
 import { AgentSurface, useAgentSidebar } from "./AgentSidebar";
-import { AgentExecutionLog } from "./AgentExecutionLog";
+import { OneOffAgentTask } from "./OneOffAgentTask";
 import { defaultChatGptClient, type ChatGptClient } from "../services/chatgpt-client";
+import { useRecoveryField, useWorkspaceRecovery } from "../lib/use-workspace-recovery";
+import { CompanionRecoverySchema } from "../lib/advisor-recovery";
+import { privateKey } from "../lib/private-storage";
+import { WorkspaceRecoveryNotice } from "./WorkspaceRecoveryNotice";
 
 export interface AgentCompanionProps {
+  workspaceKey?: string;
   onOpenWorkspace: () => void;
   llmConfig: LlmConfig;
   onOpenAiConfig: () => void;
@@ -70,51 +69,12 @@ export interface AgentCompanionProps {
 
 type ProviderCheck = "unknown" | "checking" | "ready" | "offline" | "unconfigured";
 
-type ChatImageAttachment = NonNullable<ChatMessage["attachments"]>[number];
-
-const CHAT_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
-const MAX_CHAT_IMAGE_BYTES = 2_000_000;
-const MAX_CHAT_IMAGES = 3;
 const CHAT_GUIDES = [
   { id: "plan", zh: "规划方向", en: "Plan a direction", promptZh: "请引导我梳理下一步职业规划：先问我最关键的目标和约束，再根据我的回答分步调整方案。", promptEn: "Guide me through a career plan: ask about my most important goal and constraints first, then adjust the steps based on my answers." },
   { id: "revise", zh: "修改建议", en: "Review an edit", promptZh: "请先了解我想修改的简历部分和目标岗位，再给出有依据的修改建议；缺少事实请先追问，不要编造。", promptEn: "Ask which resume section and target role I mean, then suggest evidence-based edits. Ask for missing facts instead of inventing them." },
   { id: "study", zh: "学习监督", en: "Study check-in", promptZh: "请作为学习教练，先确认我的目标、可用时间与当前水平，再安排一小步练习，并在我反馈后调整。", promptEn: "Be my study coach: ask about my goal, available time and current level, assign one small exercise, then adjust after my feedback." },
   { id: "interview", zh: "模拟面试", en: "Mock interview", promptZh: "请按目标岗位进行模拟面试：先确认岗位和级别，然后一次问我一个问题，等我回答后给出反馈和下一题。", promptEn: "Run a mock interview: confirm the role and level first, ask one question at a time, wait for my answer, then give feedback and the next question." },
 ] as const;
-
-function readChatImage(file: File): Promise<ChatImageAttachment> {
-  if (!CHAT_IMAGE_MIME_TYPES.has(file.type.toLowerCase())) {
-    return Promise.reject(new Error("unsupported_type"));
-  }
-  if (!file.size || file.size > MAX_CHAT_IMAGE_BYTES) {
-    return Promise.reject(new Error("image_too_large"));
-  }
-
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("image_read_failed"));
-    reader.onabort = () => reject(new Error("image_read_failed"));
-    reader.onload = () => {
-      if (typeof reader.result !== "string" || reader.result.length > 8_000_000) {
-        reject(new Error("image_too_large"));
-        return;
-      }
-      resolve({
-        name: file.name.trim().slice(0, 160) || "image",
-        mimeType: file.type.toLowerCase(),
-        dataUrl: reader.result,
-      });
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-function chatImageErrorMessage(error: unknown, t: (zh: string, en: string) => string): string {
-  const code = error instanceof Error ? error.message : "image_read_failed";
-  if (code === "unsupported_type") return t("图片格式仅支持 PNG、JPEG 或 WebP。", "Only PNG, JPEG or WebP images are supported.");
-  if (code === "image_too_large") return t("单张图片需小于 2 MB。", "Each image must be smaller than 2 MB.");
-  return t("图片读取失败，请重新选择。", "Could not read the image. Please choose it again.");
-}
 
 
 function runtimeTone(id: string): string {
@@ -138,24 +98,6 @@ function providerTone(config: LlmConfig): string {
     return "compatible";
   }
   return "custom";
-}
-
-function eventLabel(type: string, t: (zh: string, en: string) => string): string {
-  if (type === "text.delta") return t("输出", "Output");
-  if (type === "tool.called") return t("工具", "Tool");
-  if (type === "agent.thinking") return t("思考", "Thinking");
-  if (type === "run.completed") return t("完成", "Completed");
-  if (type === "run.failed") return t("失败", "Failed");
-  if (type === "run.cancelled") return t("已取消", "Cancelled");
-  return type.replaceAll(".", " ");
-}
-
-function eventDetail(event: LocalAgentEvent, t: (zh: string, en: string) => string): string {
-  if (typeof event.payload.text === "string") return event.payload.text;
-  if (typeof event.payload.name === "string") return event.payload.name;
-  if (typeof event.payload.error === "string") return event.payload.error;
-  if (event.type === "run.completed") return t("运行结果已写入本次 Run 输出目录。", "The result was written to this Run output directory.");
-  return t("收到结构化事件。", "Structured event received.");
 }
 
 function providerName(config: LlmConfig, t: (zh: string, en: string) => string): string {
@@ -283,7 +225,13 @@ function AgentCompanionReply({
   return <AgentMarkdownRenderer content={content} isDark={isDark} />;
 }
 
-export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, resume, initialReference, onReferenceConsumed, initialPrompt, onPromptConsumed, chatGptClient = defaultChatGptClient, sendChat = sendAgentChat }: AgentCompanionProps) {
+export function AgentCompanion(props: AgentCompanionProps) {
+  return <AgentCompanionSession key={privateKey(props.workspaceKey ?? "active-resume")} {...props} />;
+}
+
+function AgentCompanionSession({ workspaceKey = "active-resume", onOpenWorkspace, llmConfig, onOpenAiConfig, resume, initialReference, onReferenceConsumed, initialPrompt, onPromptConsumed, chatGptClient = defaultChatGptClient, sendChat = sendAgentChat }: AgentCompanionProps) {
+  const recovery = useWorkspaceRecovery(`companion:${workspaceKey}`, CompanionRecoverySchema, () => ({ messages: [], draft: "", references: [], attachments: [], prompt: "", pending: false }));
+  const saveRecoveryField = recovery.field;
   const { agent, snapshot: agentSnapshot } = useBetterMeAgent();
   const [shareAgentMemory, setShareAgentMemory] = useState(false);
   const agentTask = useRef<string | undefined>(undefined);
@@ -292,6 +240,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
   const routing = useAgentRouting();
   const account = !routing?.enabled && selection?.kind === "chatgpt";
   const accountReady = agentSnapshot?.chatGptReady ?? false;
+  const taskRuntime = useAgentTaskRuntime(llmConfig);
   useEffect(() => { setShareAgentMemory(false); }, [llmConfig.provider, llmConfig.baseUrl, llmConfig.model, llmConfig.apiKey, selection?.kind, selection?.profileId, selection?.model]);
   const { t, theme } = useUiPreferences();
   const sidebar = useAgentSidebar();
@@ -310,41 +259,31 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
   const [quickRunExpanded, setQuickRunExpanded] = useState(false);
   const [providerExpanded, setProviderExpanded] = useState(false);
   const [online, setOnline] = useState<boolean | null>(null);
-  const [selectedRuntimeId, setSelectedRuntimeId] = useState("");
-  const [prompt, setPrompt] = useState("");
-  const [run, setRun] = useState<LocalAgentRun | null>(null);
-  const [events, setEvents] = useState<LocalAgentEvent[]>([]);
-  // Keep the user-facing answer separate from the structured event timeline.
-  // A single Run can emit dozens of text.delta chunks; rendering those chunks
-  // as timeline rows both truncates the answer and makes the log hard to scan.
-  const [runOutput, setRunOutput] = useState("");
-  const [runOutputWarning, setRunOutputWarning] = useState("");
-  const [outputCopied, setOutputCopied] = useState(false);
-  const [runError, setRunError] = useState<string | null>(null);
+  const [prompt, setPrompt] = useRecoveryField(recovery, "prompt");
   const [providerCheck, setProviderCheck] = useState<ProviderCheck>("unknown");
   const [providerMessage, setProviderMessage] = useState("");
   const imageCapability = getModelImageCapability(llmConfig);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatMessages, setChatMessages] = useRecoveryField(recovery, "messages");
   useEffect(() => {
     if (!agent || !agentSnapshot?.ready || agentSnapshot.error || hydratedScope.current === agent.workspaceKey) return;
     hydratedScope.current = agent.workspaceKey;
-    setChatMessages(agentSnapshot.data.messages.filter(message => message.origin === "companion" && message.role !== "event").slice(-24).map(message => ({ id: message.id, role: message.role === "user" ? "user" : "assistant", content: message.text, createdAt: message.at })));
-  }, [agent, agentSnapshot]);
-  const [chatDraft, setChatDraft] = useState("");
-  const [chatReferences, setChatReferences] = useState<ResumeTextReference[]>([]);
-  const [chatAttachments, setChatAttachments] = useState<ChatImageAttachment[]>([]);
+    const saved = agentSnapshot.data.messages.filter(message => message.origin === "companion" && message.role !== "event").map(message => ({ id: message.id, role: message.role === "user" ? "user" as const : "assistant" as const, content: message.text, createdAt: message.at }));
+    setChatMessages(current => [...current, ...saved.filter(message => !current.some(item => item.id === message.id))]);
+  }, [agent, agentSnapshot, setChatMessages]);
+  const [chatDraft, setChatDraft] = useRecoveryField(recovery, "draft");
+  const [chatReferences, setChatReferences] = useRecoveryField(recovery, "references");
+  const [chatAttachments, setChatAttachments] = useRecoveryField(recovery, "attachments");
   const [chatAttachmentError, setChatAttachmentError] = useState("");
   const [readingChatAttachments, setReadingChatAttachments] = useState(false);
   const [shareResumeContext, setShareResumeContext] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
-  const [chatNotice, setChatNotice] = useState("");
+  const [chatNotice, setChatNotice] = useState(recovery.value.pending ? "上次请求已中断，问题和已完成的对话已保留；请核对后手动重试，未自动重发。" : "");
   const [typingReplyId, setTypingReplyId] = useState<string | null>(null);
   const [chatError, setChatError] = useState("");
-  const streamAbortRef = useRef<AbortController | null>(null);
   const chatAbortRef = useRef<AbortController | null>(null);
+  const kernelChatId = useRef<string|undefined>(undefined);
   const pendingChatRef = useRef<ChatMessage | null>(null);
   const providerAbortRef = useRef<AbortController | null>(null);
-  const textDeltaSequencesRef = useRef<Set<number>>(new Set());
   const chatThreadRef = useRef<HTMLDivElement>(null);
   const chatAutoScrollRef = useRef(true);
   const chatComposerRef = useRef<HTMLTextAreaElement>(null);
@@ -363,7 +302,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
     focusIncomingPromptRef.current = true;
     setChatDraft(current => current ? `${current}\n\n${initialPrompt}` : initialPrompt);
     onPromptConsumedRef.current?.();
-  }, [initialPrompt, setOpen]);
+  }, [initialPrompt, setOpen, setChatDraft]);
   useEffect(() => {
     if (!initialReference) return;
     setOpen(true);
@@ -373,7 +312,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
       : [...previous, initialReference].slice(-5));
     setChatDraft((current) => current || t("请结合引用的简历内容帮我分析。", "Please analyze the quoted resume text."));
     onReferenceConsumedRef.current?.();
-  }, [initialReference, t, setOpen]);
+  }, [initialReference, t, setOpen, setChatDraft, setChatReferences]);
 
   useEffect(() => {
     if (open && chatReferences.length) chatComposerRef.current?.focus();
@@ -396,9 +335,6 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
       const next = forceScan ? await scanLocalAgentRuntimes() : await listLocalAgentRuntimes();
       setRuntimes(next);
       setOnline(true);
-      setSelectedRuntimeId((current) => current && next.some((item) => item.id === current && item.status === "available")
-        ? current
-        : next.find((item) => item.status === "available")?.id ?? "");
     } catch {
       setOnline(false);
     } finally {
@@ -448,14 +384,11 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
   }, [open, probeProvider]);
 
   useEffect(() => () => {
-    streamAbortRef.current?.abort();
     chatAbortRef.current?.abort();
     providerAbortRef.current?.abort();
   }, []);
 
-  const runIsActive = run?.status === "running" || run?.status === "queued";
   const available = useMemo(() => runtimes.filter((runtime) => runtime.status === "available"), [runtimes]);
-  const selectedRuntime = useMemo(() => runtimes.find((runtime) => runtime.id === selectedRuntimeId), [runtimes, selectedRuntimeId]);
   const visibleRuntimes = runtimeExpanded ? runtimes : runtimes.slice(0, 5);
   const hiddenRuntimes = runtimes.slice(5);
   const statusLabel = loading
@@ -466,123 +399,12 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
         ? t(`${available.length} 个本机 Agent 可用`, `${available.length} local agent${available.length === 1 ? "" : "s"} ready`)
         : t("暂无可用本机 Agent", "No local agent ready");
 
-  const handleStartRun = useCallback(async () => {
-    const cleanPrompt = prompt.trim();
-    if (!selectedRuntimeId || !cleanPrompt || runIsActive) return;
-    setToolsExpanded(true);
-    setQuickRunExpanded(true);
-    setRunError(null);
-    setEvents([]);
-    setRunOutput("");
-    setRunOutputWarning("");
-    setOutputCopied(false);
-    textDeltaSequencesRef.current = new Set();
-    let terminalEventSeen = false;
-    let startedRunId = "";
-    try {
-      const started = await startLocalAgentRun({
-        runtimeId: selectedRuntimeId,
-        workflow: "companion-run",
-        prompt: cleanPrompt,
-        contextPack: {
-          role: "companion-user",
-          task: cleanPrompt,
-          artifactRefs: [],
-          toolAllowlist: [],
-          redactedFields: [],
-          content: {},
-          characterBudget: 8_000,
-        },
-      });
-      startedRunId = started.run.id;
-      setRun(started.run);
-      const controller = new AbortController();
-      streamAbortRef.current?.abort();
-      streamAbortRef.current = controller;
-      await streamLocalAgentRun({
-        runId: started.run.id,
-        signal: controller.signal,
-        onEvent: (event) => {
-          if (event.type !== "text.delta") {
-            setEvents((current) => current.some((item) => item.sequence === event.sequence)
-              ? current
-              : [...current, event].slice(-80));
-          }
-          if (event.type === "text.delta" && typeof event.payload.text === "string") {
-            const sequence = Number(event.sequence);
-            const text = event.payload.text;
-            const isReplacement = event.payload.replace === true;
-            if (!textDeltaSequencesRef.current.has(sequence)) {
-              textDeltaSequencesRef.current.add(sequence);
-              setRunOutput((current) => isReplacement
-                ? text.slice(0, 80_000)
-                : current.length >= 80_000
-                  ? current
-                  : `${current}${text}`.slice(0, 80_000));
-            }
-          }
-          if (event.type === "run.completed" || event.type === "run.failed" || event.type === "run.cancelled") {
-            terminalEventSeen = true;
-            setRun((current) => current ? { ...current, status: event.type === "run.completed" ? "completed" : event.type === "run.cancelled" ? "cancelled" : "failed", finishedAt: event.timestamp, error: typeof event.payload.error === "string" ? event.payload.error : current.error } : current);
-            controller.abort();
-          }
-        },
-      });
-    } catch (error) {
-      // A terminal SSE event intentionally aborts the connection. Continue to
-      // fetch the persisted Run status/output instead of treating that abort as
-      // a user cancellation.
-      if (!terminalEventSeen) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        setRunError(error instanceof Error ? error.message : "agent_run_failed");
-        return;
-      }
-    }
-    if (!startedRunId) return;
-    try {
-      const latest = await getLocalAgentRun(startedRunId).catch(() => undefined);
-      if (latest) {
-        setRun(latest.run);
-        // The status endpoint is authoritative: it replaces any partial or
-        // duplicated live chunks with the persisted complete answer.
-        if (typeof latest.output === "string") setRunOutput(latest.output);
-        if (!latest.output?.trim() && latest.rawOutput?.trim()) {
-          setRunOutputWarning(t("运行时输出未解析出最终答复；原始诊断日志已保留在本地 Run 目录，未混入答案。", "The runtime output did not contain a parsed final answer. Raw diagnostics remain in the local Run directory and are not mixed into the answer."));
-        }
-      }
-    } catch (error) {
-      setRunError(error instanceof Error ? error.message : "agent_run_failed");
-    }
-  }, [prompt, runIsActive, selectedRuntimeId, t]);
-
-  const handleCopyOutput = useCallback(async () => {
-    if (!runOutput) return;
-    try {
-      await navigator.clipboard.writeText(runOutput);
-      setOutputCopied(true);
-      window.setTimeout(() => setOutputCopied(false), 1_600);
-    } catch {
-      setOutputCopied(false);
-    }
-  }, [runOutput]);
-
-  const handleCancelRun = useCallback(async () => {
-    if (!run || !runIsActive) return;
-    try {
-      await cancelLocalAgentRun(run.id);
-    } catch (error) {
-      setRunError(error instanceof Error ? error.message : "agent_cancel_failed");
-    } finally {
-      streamAbortRef.current?.abort();
-      setRun((current) => current ? { ...current, status: "cancelled" } : current);
-    }
-  }, [run, runIsActive]);
 
   const handleSendChat = useCallback(async (customPrompt?: string) => {
     const references = customPrompt ? [] : chatReferences;
     const attachments = customPrompt ? [] : chatAttachments;
     const typedText = customPrompt ?? chatDraft;
-    const textToSend = typedText.trim() || (references.length ? t("请结合引用的简历内容帮我分析。", "Please analyze the quoted resume text.") : "");
+    const textToSend = typedText.trim() ? typedText : (references.length ? t("请结合引用的简历内容帮我分析。", "Please analyze the quoted resume text.") : "");
     if ((!textToSend && references.length === 0 && attachments.length === 0) || chatLoading || chatAbortRef.current || readingChatAttachments) return;
 
     const userMessage: ChatMessage = {
@@ -602,13 +424,15 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
       setChatAttachmentError(modelImageCapabilityDescription(imageCapability, t));
       return;
     }
-    const history = agent ? agent.reusableCompanionHistory(shareAgentMemory, shareResumeContext).map(message => ({ id: message.id, role: message.role === "user" ? "user" as const : "assistant" as const, content: message.text })) : chatMessages;
+    const history = agent ? agent.reusableCompanionHistory(shareAgentMemory, shareResumeContext).map(message => chatMessages.find(item=>item.id===message.id)??({ id: message.id, role: message.role === "user" ? "user" as const : "assistant" as const, content: message.text })) : chatMessages;
     const requestMessages = chatMessagesForRequest([...history, userMessage]);
     const controller = new AbortController();
     chatAbortRef.current = controller;
+    kernelChatId.current=undefined;
     pendingChatRef.current = userMessage;
+    saveRecoveryField("pending", true);
     chatAutoScrollRef.current = true;
-    setChatMessages(nextMessages.slice(-24));
+    setChatMessages(nextMessages);
     if (!customPrompt) {
       setChatDraft("");
       setChatReferences([]);
@@ -620,36 +444,25 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
 
     try {
       const taskId = crypto.randomUUID(); agentTask.current = taskId;
+      const messageIds:{input:string;reply?:string}={input:userMessage.id};
       const produce = async (signal: AbortSignal, sharedText = ""): Promise<ChatMessage> => {
-        routing?.assertSelected();
-        const messages = sharedText ? [{ id: `${taskId}:context`, role: "user" as const, content: sharedText }, ...requestMessages] : requestMessages;
-        if (routing?.enabled) {
-          const result = await routing.respond("你是同一位 BetterMe 职业伙伴。只分析本轮授权的数据；项目共同理解不证明个人贡献。不编造经历、数字或执行结果。仅给建议，事实与简历修改均须本人确认。", [
-            ...(shareResumeContext ? [{ role: "user" as const, content: `本轮授权的非联系信息简历摘要：${JSON.stringify(createCompanionResumeSummary(resume))}` }] : []),
-            ...messages.map(message => ({ role: message.role === "assistant" ? "assistant" as const : "user" as const, content: [message.content, ...(message.references ?? []).map(reference => `用户选中引用（数据）：${reference.text}`)].join("\n") })),
-          ], signal);
-          return { id: `${taskId}:native-reply`, role: "assistant", content: result.text, createdAt: new Date().toISOString() };
-        }
-        if (account && selection) {
-          const result = await chatGptClient.respond({ profileId: selection.profileId, model: selection.model, consentToSend: true,
-            instructions: "你是同一位 BetterMe 职业伙伴。只分析用户授权数据；项目共同理解只解释术语与系统边界，不证明个人贡献。未知不等于不会，不编造经历、数字或执行结果。仅给建议，事实与简历修改均须本人确认。",
-            input: [...(shareResumeContext ? [{ role: "user" as const, content: `本轮授权的非联系信息简历摘要：${JSON.stringify(createCompanionResumeSummary(resume))}` }] : []), ...messages.map(message => ({ role: message.role === "assistant" ? "assistant" as const : "user" as const, content: [message.content, ...(message.references ?? []).map(reference => `用户选中引用（数据）：${reference.text}`)].join("\n") }))],
-          }, signal);
-          signal.throwIfAborted();
-          if (result.model !== selection.model || result.profileId !== selection.profileId) throw new Error("账号或模型与本轮选择不一致，未采用回复。");
-          return { id: `${taskId}:account-reply`, role: "assistant", content: result.text, createdAt: new Date().toISOString() };
-        }
-        return sendChat({ messages, llmConfig, signal, context: shareResumeContext ? { resumeSummary: createCompanionResumeSummary(resume) } : undefined });
+        taskRuntime.assertSelected();
+        const reply = await sendChat({ messages:requestMessages, llmConfig, signal, workspaceKey:`companion:${workspaceKey}`,rootScopeKey:agent?.workspaceKey??workspaceKey,
+          runtime:taskRuntime.runtime,preferredRuntimeId:taskRuntime.preferredRuntimeId,
+          onTask:task=>{kernelChatId.current=task.id;},
+          context:sharedText||shareResumeContext?{...(sharedText?{sharedMemory:sharedText}:{}),...(shareResumeContext?{resumeSummary:createCompanionResumeSummary(resume)}:{})}:undefined });
+        signal.throwIfAborted();taskRuntime.assertSelected();return reply;
       };
       const reply = agent ? await agent.run({ id: taskId, origin: "companion", label: "Agent 伴侣对话", input: [textToSend, ...references.map(reference => `引用：${reference.text}`)].join("\n"),
-        destination: routing?.enabled ? agentBaseLabel(routing.policy) : account ? `ChatGPT · ${selection?.model}` : `${llmConfig.provider} · ${llmConfig.model}`, shareMemories: shareAgentMemory, resumeShared: shareResumeContext },
-        (signal, shared) => produce(AbortSignal.any([signal, controller.signal]), shared.text), value => value.content)
+        destination: routing?.enabled ? agentBaseLabel(routing.policy) : account ? `ChatGPT · ${selection?.model}` : `${llmConfig.provider} · ${llmConfig.model}`, shareMemories: shareAgentMemory, resumeShared: shareResumeContext, messageIds },
+        async (signal, shared) => {const result=await produce(AbortSignal.any([signal, controller.signal]), shared.text);messageIds.reply=result.id;return result;}, value => value.content)
         : await produce(controller.signal);
       if (controller.signal.aborted || chatAbortRef.current !== controller) return;
-      setChatMessages((current) => [...current, reply].slice(-24));
+      setChatMessages((current) => [...current, reply]);
       setChatAttachments([]);
       setTypingReplyId(reply.id);
       pendingChatRef.current = null;
+      saveRecoveryField("pending", false);
     } catch (error) {
       if (controller.signal.aborted || chatAbortRef.current !== controller) return;
       const message = error instanceof Error ? error.message : t("对话服务暂时不可用，请检查模型配置后重试。", "Chat is temporarily unavailable. Check model settings and try again.");
@@ -664,8 +477,9 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
         content: `⚠️ ${message}`,
         createdAt: new Date().toISOString(),
       };
-      setChatMessages((current) => [...current, errorMessage].slice(-24));
+      setChatMessages((current) => [...current, errorMessage]);
       pendingChatRef.current = null;
+      saveRecoveryField("pending", false);
     } finally {
       if (chatAbortRef.current === controller) {
         chatAbortRef.current = null;
@@ -673,16 +487,18 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
         setChatLoading(false);
       }
     }
-  }, [account, accountReady, agent, selection, shareAgentMemory, chatGptClient, sendChat, chatAttachments, chatDraft, chatLoading, chatMessages, chatReferences, imageCapability, llmConfig, readingChatAttachments, resume, shareResumeContext, t, routing]);
+  }, [workspaceKey, account, accountReady, agent, selection, shareAgentMemory, taskRuntime, sendChat, chatAttachments, chatDraft, chatLoading, chatMessages, chatReferences, imageCapability, llmConfig, readingChatAttachments, resume, shareResumeContext, t, routing, saveRecoveryField, setChatAttachments, setChatDraft, setChatMessages, setChatReferences]);
 
   const handleStopChat = useCallback(() => {
     const controller = chatAbortRef.current;
     if (!controller) return;
     chatAbortRef.current = null;
     controller.abort();
+    if(kernelChatId.current)void pauseAgentChatTask(kernelChatId.current).catch(error=>setChatNotice(error instanceof Error?error.message:"停止结果尚未确认，请读取任务。"));
     if (agent && agentTask.current) void agent.stop(agentTask.current);
     const pending = pendingChatRef.current;
     pendingChatRef.current = null;
+    saveRecoveryField("pending", false);
     if (pending) {
       setChatMessages((current) => current.filter((message) => message.id !== pending.id));
       setChatDraft((current) => current || pending.content);
@@ -692,7 +508,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
     setChatNotice(t("已停止。修改问题后可以重新发送。", "Stopped. Edit your question and send it again."));
     setChatLoading(false);
     queueMicrotask(() => chatComposerRef.current?.focus());
-  }, [agent, t]);
+  }, [agent, t, saveRecoveryField, setChatDraft, setChatMessages, setChatReferences]);
 
   const handleAddChatImages = useCallback(async (files: File[]) => {
     if (!files.length) return;
@@ -716,7 +532,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
     if (next.length) setChatAttachments((current) => [...current, ...next].slice(0, MAX_CHAT_IMAGES));
     setChatAttachmentError(error);
     setReadingChatAttachments(false);
-  }, [chatAttachments.length, t]);
+  }, [chatAttachments.length, t, setChatAttachments]);
 
   const openChatImagePicker = useCallback(() => {
     const input = chatImageInputRef.current;
@@ -746,7 +562,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
     if (thread) chatAutoScrollRef.current = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 36;
   }, []);
 
-  const panelState = runIsActive ? "running" : run?.status ?? "idle";
+  const panelState = chatLoading ? "running" : "idle";
   const sharedRunning = agentSnapshot?.data.tasks.filter(task => task.status === "running").length ?? 0;
 
   return (
@@ -765,6 +581,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
           </header>
 
           <AgentContinuityButton />
+          <WorkspaceRecoveryNotice {...recovery} />
           <AgentSurface name="companion-settings">{agent && <details open={sidebar ? true : undefined} className="agent-companion-shared-settings"><summary>模型与本轮上下文 · {routing?.enabled ? agentBaseLabel(routing.policy) : account ? selection?.model || "请选择 GPT" : llmConfig.model || "未配置"}{shareAgentMemory ? " · 已授权共享" : " · 未共享共识"}</summary><div className="agent-companion-shared-settings-body">
             <AgentModelControls editable config={llmConfig} disabled={chatLoading || Boolean(agentSnapshot?.data.tasks.some(task => task.status === "running"))} client={chatGptClient} />
             <AgentMemoryConsent scope="companion" checked={shareAgentMemory} onChange={value => { if (!value) handleStopChat(); setShareAgentMemory(value); }} />
@@ -796,53 +613,48 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
             <section className="agent-companion-tools" aria-label={t("本机工具", "Local tools")}>
               <button type="button" className="agent-companion-tools-toggle" data-testid="agent-companion-tools-toggle" aria-expanded={toolsExpanded} aria-controls="agent-companion-tools-content" onClick={() => setToolsExpanded((current) => !current)}>
                 <span className="agent-companion-tools-icon"><Terminal size={14} /></span>
-                <span className="agent-companion-tools-copy"><strong>{t("本机工具", "Local tools")}</strong><small>{selectedRuntime?.name ?? statusLabel}</small></span>
+                <span className="agent-companion-tools-copy"><strong>{t("本机工具", "Local tools")}</strong><small>{taskRuntime.label}</small></span>
                 <span className="agent-companion-tools-count">{available.length} {t("可用", "ready")}</span>
                 <ChevronDown size={14} className={toolsExpanded ? "is-expanded" : ""} />
               </button>
                 <div className="agent-companion-tools-content" id="agent-companion-tools-content" hidden={!toolsExpanded}>
                   <div className="agent-companion-hero">
-                    <div className={`agent-companion-core ${runIsActive ? "is-running" : ""}`}>
+                    <div className="agent-companion-core">
                       <span className="agent-companion-core-orbit orbit-one" />
                       <span className="agent-companion-core-orbit orbit-two" />
-                      <span className={`agent-companion-core-icon ${runtimeTone(selectedRuntimeId)}`}><RuntimeIcon id={selectedRuntimeId || "ollama"} /></span>
-                      {runIsActive && <span className="agent-companion-core-signal" />}
+                      <span className={`agent-companion-core-icon ${runtimeTone(taskRuntime.preferredRuntimeId ?? "agent")}`}><RuntimeIcon id={taskRuntime.preferredRuntimeId ?? "agent"} /></span>
                     </div>
                     <div className="agent-companion-hero-copy">
-                      <span>{runIsActive ? t("正在执行 CLI 单次任务", "Running one-off CLI task") : t("当前执行入口", "Current execution target")}</span>
-                      <strong>{selectedRuntime?.name ?? t("选择一个本机 Agent", "Choose a local Agent")}</strong>
-                      <small>{selectedRuntime?.version ?? selectedRuntime?.resolvedCommand ?? t("从下方轨道选择可用运行时", "Choose an available runtime below")}</small>
+                      <span>{t("当前统一底座", "Selected shared runtime")}</span>
+                      <strong>{taskRuntime.label}</strong>
+                      <small>{t("单次任务也计入工作区总额度", "One-off tasks use the workspace budget too")}</small>
                     </div>
                     <button type="button" className="agent-companion-refresh hero-refresh" aria-label={t("重新扫描本机 Agent", "Rescan local agents")} title={t("重新扫描", "Rescan")} onClick={() => void refresh(true)} disabled={refreshing}><RefreshCw size={14} className={refreshing ? "is-spinning" : ""} /></button>
                   </div>
                   <div className={`agent-companion-health ${online === false ? "is-offline" : available.length > 0 ? "is-ready" : "is-idle"}`}>
                     <span className="agent-companion-health-dot" />
                     <span>{statusLabel}</span>
-                    <small>{t("本机 CLI · 每次任务使用独立目录", "Local CLI · separate directory per run")}</small>
+                    <small>{t("本机能力探测 · 任务沿用统一底座选择", "Local capability discovery · tasks use the shared runtime selection")}</small>
                   </div>
 
                   <section className="agent-companion-runtime-section" aria-label={t("本机 Agent 运行时", "Local Agent runtimes")}>
-            <div className="agent-companion-section-heading"><span>{t("运行时轨道", "Runtime rail")}</span><small>{t("点击图标切换入口", "Select an entry")}</small></div>
+            <div className="agent-companion-section-heading"><span>{t("本机能力", "Local capabilities")}</span><small>{t("在模型与工具中选择统一底座", "Select the shared runtime in Models & tools")}</small></div>
             {loading ? (
               <div className="agent-runtime-rail" aria-busy="true">{[0, 1, 2, 3].map((item) => <span className="agent-runtime-skeleton" key={item} />)}</div>
             ) : (
               <div className="agent-runtime-rail" id="agent-runtime-extra">
                 {visibleRuntimes.map((runtime) => (
-                  <button
-                    type="button"
-                    className={`agent-runtime-tile ${selectedRuntimeId === runtime.id ? "is-selected" : ""} ${runtime.status !== "available" ? "is-unavailable" : ""}`}
+                  <div
+                    className={`agent-runtime-tile ${runtime.status !== "available" ? "is-unavailable" : ""}`}
                     key={runtime.id}
-                    disabled={runtime.status !== "available" || Boolean(runIsActive)}
                     aria-label={t(`${runtime.name}，${runtimeStatusLabel(runtime, t)}`, `${runtime.name}, ${runtimeStatusLabel(runtime, t)}`)}
-                    aria-pressed={selectedRuntimeId === runtime.id}
-                    title={runtime.status === "available" ? t(`使用 ${runtime.name}`, `Use ${runtime.name}`) : t(`${runtime.name} · ${runtimeStatusLabel(runtime, t)}`, `${runtime.name} · ${runtimeStatusLabel(runtime, t)}`)}
-                    onClick={() => setSelectedRuntimeId(runtime.id)}
+                    role="img"
                   >
                     <span className={`agent-runtime-tile-icon ${runtimeTone(runtime.id)}`}><RuntimeIcon id={runtime.id} /></span>
                     <span className="agent-runtime-tile-name">{runtime.name}</span>
                     <span className={`agent-runtime-tile-state status-${runtime.status}`}>{runtimeStatusLabel(runtime, t)}</span>
                     <span className={`agent-runtime-tile-dot status-${runtime.status}`} />
-                  </button>
+                  </div>
                 ))}
                 {hiddenRuntimes.length > 0 && (
                   <button
@@ -871,54 +683,16 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
             )}
                   </section>
 
-                  {available.length > 0 && (
-                    <section className={`agent-companion-advanced ${quickRunExpanded ? "is-expanded" : ""}`} aria-label={t("高级功能", "Advanced features")}>
-                      <button
-                        type="button"
-                        className="agent-companion-advanced-toggle"
-                        data-testid="agent-companion-quick-run-toggle"
-                        aria-expanded={quickRunExpanded}
-                        aria-controls="agent-companion-quick-run-content"
-                        onClick={() => setQuickRunExpanded((current) => !current)}
-                      >
-                        <span className="agent-companion-advanced-icon"><Command size={13} /></span>
-                        <span className="agent-companion-advanced-copy"><strong>{t("高级功能", "Advanced features")}</strong><small>{t("本机 CLI 单次运行", "One-off local CLI run")}</small></span>
-                        {run && <span className={`agent-companion-advanced-status is-${run.status}`}>{run.status === "completed" ? t("已完成", "Complete") : run.status === "failed" ? t("失败", "Failed") : run.status === "cancelled" ? t("已取消", "Cancelled") : run.status === "running" || run.status === "queued" ? t("运行中", "Running") : t("CLI", "CLI")}</span>}
-                        <ChevronDown size={13} className={quickRunExpanded ? "is-expanded" : ""} />
-                      </button>
-                      <div className="agent-companion-advanced-content" id="agent-companion-quick-run-content" hidden={!quickRunExpanded}>
-                        <section className="agent-companion-run" aria-label={t("运行本机 Agent", "Run a local agent")}>
-              <div className="agent-companion-run-heading"><div><span>{t("本机 CLI 单次运行", "One-off local CLI run")}</span><small>{t("单次 CLI；不会自动带入本对话/简历上下文，也不会自动写入简历或地图。默认不保证 OS 沙箱，实际运行级别见下方状态。", "One-off CLI; chat/resume context is not attached, and nothing is automatically written to your resume or map. OS sandboxing is not guaranteed; the actual level appears below.")}</small></div></div>
-              <label className="agent-companion-field"><span>{t("任务提示", "Task prompt")}</span><textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder={t("先粘贴岗位描述或其他文本，再写明任务", "Paste the job description or other text, then describe the task")} rows={3} disabled={Boolean(runIsActive)} /></label>
-              <div className="agent-companion-run-actions">
-                <button type="button" className="agent-companion-run-button" onClick={() => void handleStartRun()} disabled={!selectedRuntimeId || !prompt.trim() || Boolean(runIsActive)}><Play size={13} />{t("开始运行", "Run now")}</button>
-                {runIsActive && <button type="button" className="agent-companion-cancel" onClick={() => void handleCancelRun()} aria-label={t("取消当前运行", "Cancel current run")} title={t("取消", "Cancel")}><Square size={13} /></button>}
-              </div>
-              {run && <div className={`agent-companion-run-status is-${run.status}`}><span>{run.status === "running" || run.status === "queued" ? <Loader2 size={12} className="is-spinning" /> : <Activity size={12} />}</span><span>{run.status === "running" ? t("运行中", "Running") : run.status === "queued" ? t("排队中", "Queued") : run.status === "completed" ? t("已完成", "Completed") : run.status === "failed" ? t("失败", "Failed") : run.status === "cancelled" ? t("已取消", "Cancelled") : run.status}</span><small>{run.isolation === "os-sandbox" ? t("OS 沙箱", "OS sandbox") : run.isolation === "process" ? t("进程运行 · 无 OS 沙箱", "Process run · no OS sandbox") : t("未启用沙箱", "No sandbox")}</small></div>}
-              {runError && <div className="agent-companion-run-error"><CircleAlert size={13} />{runError}</div>}
-                        </section>
-
-                  {run && (
-                    <section className="agent-companion-output" aria-live="polite" aria-label={t("本次运行结果", "Run output")}>
-              <div className="agent-companion-section-heading">
-                <span>{t("运行结果", "Run output")}</span>
-                <button type="button" className="agent-output-copy" onClick={() => void handleCopyOutput()} disabled={!runOutput} aria-label={t("复制完整运行结果", "Copy complete run output")} title={t("复制完整结果", "Copy complete output")}>
-                  {outputCopied ? <Check size={12} /> : <Copy size={12} />}
-                  <span>{outputCopied ? t("已复制", "Copied") : t("复制", "Copy")}</span>
-                </button>
-              </div>
-              {runOutput
-                ? <div className="agent-output-text"><AgentMarkdownRenderer content={runOutput} isDark={false} /></div>
-                : <div className="agent-output-empty"><p>{runIsActive ? t("等待 Agent 返回结果…", "Waiting for the Agent response…") : t("本次运行没有返回可展示的文本结果。", "This run returned no displayable text output.")}</p>{runOutputWarning && <p className="agent-output-warning" role="status">{runOutputWarning}</p>}</div>}
-                    </section>
-                  )}
-
-                  {events.some((event) => event.type !== "text.delta") && (
-                    <AgentExecutionLog entries={events.filter(event => event.type !== "text.delta").map(event => ({ id: event.id, at: event.timestamp, kind: event.type, label: eventLabel(event.type, t), detail: eventDetail(event, t), important: /failed|completed|cancelled|approval|error/.test(event.type) }))} />
-                  )}
-                      </div>
-                    </section>
-                  )}
+                  <section className={`agent-companion-advanced ${quickRunExpanded ? "is-expanded" : ""}`} aria-label={t("高级功能", "Advanced features")}>
+                    <button type="button" className="agent-companion-advanced-toggle" data-testid="agent-companion-quick-run-toggle" aria-expanded={quickRunExpanded} aria-controls="agent-companion-quick-run-content" onClick={() => setQuickRunExpanded(current => !current)}>
+                      <span className="agent-companion-advanced-icon"><Command size={13} /></span>
+                      <span className="agent-companion-advanced-copy"><strong>{t("高级功能", "Advanced features")}</strong><small>{t("单次文本任务 · 共用底座与总额度", "One-off text task · shared runtime and budget")}</small></span>
+                      <ChevronDown size={13} className={quickRunExpanded ? "is-expanded" : ""} />
+                    </button>
+                    <div className="agent-companion-advanced-content" id="agent-companion-quick-run-content" hidden={!quickRunExpanded}>
+                      <OneOffAgentTask workspaceKey={workspaceKey} rootScopeKey={agent?.workspaceKey ?? workspaceKey} config={llmConfig} prompt={prompt} onPromptChange={setPrompt} />
+                    </div>
+                  </section>
                 </div>
             </section>
 
@@ -1007,7 +781,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
                 <strong>{modelImageCapabilityLabel(imageCapability, t)}</strong><span>{modelImageCapabilityDescription(imageCapability, t)}</span>
                 {imageCapability === "unsupported" && <button type="button" onClick={onOpenAiConfig}>{t("更换模型", "Change model")}</button>}
               </div>}
-              <small className="agent-companion-chat-privacy-note">{t("图片只随本条消息发送给当前模型，不会附加到后续问题或保存进简历。", "Images are sent with this message only, not future questions, and are not saved to the resume.")}</small>
+              <small className="agent-companion-chat-privacy-note">{t("图片会作为完整对话历史随本轮及后续问题发送给当前模型，不会写入简历。", "Images remain in the complete conversation history sent to the current model for this and subsequent questions. They are not saved to the resume.")}</small>
               <div className="agent-companion-chat-compose">
                 <input
                   ref={chatImageInputRef}
@@ -1027,7 +801,7 @@ export function AgentCompanion({ onOpenWorkspace, llmConfig, onOpenAiConfig, res
                   type="button"
                   className="agent-companion-chat-attach"
                   aria-label={t("添加图片", "Add image")}
-                  title={t("添加 PNG、JPEG 或 WebP（最多 3 张，每张小于 2 MB）", "Add PNG, JPEG or WebP (up to 3 images, under 2 MB each)")}
+                  title={t("添加原始 PNG、JPEG 或 WebP（最多 3 张，单张不超过 2 MB，不压缩）", "Add original PNG, JPEG or WebP (up to 3, at most 2 MB each, no compression)")}
                   onClick={openChatImagePicker}
                   disabled={chatLoading || readingChatAttachments || chatAttachments.length >= MAX_CHAT_IMAGES}
                 >

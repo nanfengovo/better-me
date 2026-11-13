@@ -4,7 +4,8 @@ import type { BetterMeDocument } from "@better-me/storage";
 export function duplicateResumeView(document: BetterMeDocument, id: string, options: { name?: string; targetJdId?: string } = {}): BetterMeDocument {
   const source = document.resumeViews.find((view) => view.id === id);
   if (!source) throw new Error("找不到这份简历，请重新选择。");
-  const view = { ...structuredClone(source), id: crypto.randomUUID(), name: options.name?.trim() || `${source.name} · 副本`, updatedAt: new Date().toISOString() };
+  const { careerTaskReceipt: _originalApproval, ...contents } = source;
+  const view = { ...structuredClone(contents), id: crypto.randomUUID(), name: options.name?.trim() || `${source.name} · 副本`, updatedAt: new Date().toISOString() };
   if (options.targetJdId) view.targetJdId = options.targetJdId;
   return { ...document, activeResumeId: view.id, resumeViews: [...document.resumeViews, view] };
 }

@@ -1,5 +1,7 @@
-import { agentOrigin, ownedFetch } from "../lib/identity";
-import type { InstalledMicroApp, MicroAppScope } from "../lib/micro-app-registry";
+import { z } from "zod";
+import { agentOrigin, captureIdentityLease, ownedFetch } from "../lib/identity";
+import { readRuntimeConnection } from "../lib/runtime-connection";
+import { installMicroApp, type InstalledMicroApp, type MicroAppScope } from "../lib/micro-app-registry";
 
 export interface SandboxBuildInput {
   appId: string;
@@ -24,6 +26,7 @@ export interface SandboxVerificationCheck {
 }
 
 export interface SandboxVerificationResult {
+  profile?: string;
   passed: boolean;
   timestamp: string;
   checks: SandboxVerificationCheck[];
@@ -48,7 +51,7 @@ export interface MicroAppTemplate {
 }
 
 /**
- * Pre-defined production-ready templates that the AI agent can scaffold, compile, and run in the sandbox.
+ * Built-in templates selected manually. The Host checks the entire template against its release pins.
  */
 export const PRESET_MICRO_APP_TEMPLATES: Record<string, MicroAppTemplate> = {
   "offer-backcheck-radar": {
@@ -494,140 +497,46 @@ export const PRESET_MICRO_APP_TEMPLATES: Record<string, MicroAppTemplate> = {
   },
 };
 
-/**
- * Builds a hardened, CSP-locked HTML document containing the compiled script,
- * theme variables, and JSON-RPC 2.0 postMessage boundary.
- */
-export function wrapInHardenedSandboxHtml(
-  compiledJs: string,
-  customCss: string = "",
-  htmlBody: string = "",
-  meta: { appId: string; name: string; codeHash: string }
-): string {
-  return `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline';">
-<title>${meta.name}</title>
-<style>
-  :root {
-    --bg: #f6f6f0;
-    --surface: #ffffff;
-    --surface-soft: #eef1e8;
-    --border: #dfe5d8;
-    --text: #17261f;
-    --muted: #64756c;
-    --accent: #1f5a47;
-    --accent-soft: rgba(31, 90, 71, 0.08);
-    --accent-ink: #ffffff;
-    --warn: #b85d19;
-    --ok: #15803d;
-  }
-  :root[data-theme="dark"] {
-    --bg: #0b0f13;
-    --surface: #11181f;
-    --surface-soft: #0d1318;
-    --border: rgba(255,255,255,0.12);
-    --text: #edf2ef;
-    --muted: #8b9aa6;
-    --accent: #4fd1a5;
-    --accent-soft: rgba(79, 209, 165, 0.12);
-    --accent-ink: #052017;
-    --warn: #f59e0b;
-    --ok: #34d399;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang SC",system-ui,sans-serif;padding:16px 20px;font-size:13px}
-  .mono{font-family:"JetBrains Mono","SF Mono",Menlo,monospace}
-  ${customCss}
-</style>
-</head>
-<body>
-${htmlBody}
-<script>
-${compiledJs}
-</script>
-</body>
-</html>`;
+/** Only the owner's running Host can issue a verification result for a reviewed preset. */
+const presetAudit = z.object({ profile:z.literal("reviewed-builtin-v2"), passed:z.boolean(), timestamp:z.string().min(1), checks:z.array(z.object({
+  id:z.string().min(1), name:z.string().min(1), passed:z.boolean(), detail:z.string(),
+})).length(2) });
+export function presetCanRun(artifact: Pick<BuiltMicroAppArtifact,"verification">): boolean {
+  const audit=presetAudit.safeParse(artifact.verification);
+  return audit.success && audit.data.passed && audit.data.checks.every(check=>check.passed)
+    && ["template-integrity","compile"].every(id=>audit.data.checks.some(check=>check.id===id));
 }
+export function openReviewedPreset(artifact:BuiltMicroAppArtifact,pinToDock:boolean,open:(app:InstalledMicroApp)=>void) {
+  if(!presetCanRun(artifact))throw new Error("这份宿主回执不能用于运行或安装。");
+  if(!pinToDock) { open({...artifact,sessionOnly:true,pinnedToDock:false}); return; }
+  const installed={...artifact,sessionOnly:false,pinnedToDock:true,installedAt:new Date().toISOString()};
+  installMicroApp(installed);
+  open(installed);
+}
+const presetReply = z.object({ ok:z.literal(true), app:z.object({
+  appId:z.string(), name:z.string(), nameEn:z.string(), icon:z.string(), version:z.string(), description:z.string(),
+  codeHash:z.string().regex(/^[a-f0-9]{64}$/i), compiledAt:z.string().min(1),
+  grantedScopes:z.array(z.enum(["selected_offers","backcheck_summary","job_snapshots"])), bundleHtml:z.string().min(1),
+  verifierVersion:z.literal("reviewed-builtin-v2"), dependencies:z.record(z.string()), verification:presetAudit,
+}), verification:presetAudit.optional() });
 
-/**
- * Builds a sandboxed micro-app artifact by contacting the backend agent-host service,
- * falling back to local pre-flight VM validation if agent-host is temporarily offline.
- */
 export async function buildSandboxedMicroApp(input: SandboxBuildInput): Promise<BuiltMicroAppArtifact> {
-  const url = `${agentOrigin()}/api/v1/agent/sandbox/build`;
-
-  try {
-    const res = await ownedFetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.ok && data.app) {
-        return data.app as BuiltMicroAppArtifact;
-      }
-    }
-  } catch (err) {
-    console.warn("[sandbox-build-client] Agent-host build API unavailable, executing client-side preflight verification:", err);
+  const lease = captureIdentityLease();
+  if (!lease.ownerId) throw new Error("请先登录本机账号。");
+  lease.assert();
+  const res = await ownedFetch(`${agentOrigin()}/api/v1/agent/sandbox/build`, {
+    method:"POST", headers:{"Content-Type":"application/json",Authorization:`Bearer ${readRuntimeConnection()?.agentToken ?? "better-me-agent-token"}`},
+    signal:AbortSignal.timeout(30_000),body:JSON.stringify(input),
+  }).catch(()=>{lease.assert();throw new Error("未能连接本机宿主；未验证、运行或安装预设。");});
+  if(!res.ok) throw new Error(`本机宿主拒绝预设构建（HTTP ${res.status}）；没有本地替代结果。`);
+  const parsed=presetReply.safeParse(await res.json().catch(()=>undefined)); lease.assert();
+  if(!parsed.success) throw new Error("宿主预设回执无效，无法确认构建。");
+  const { app, verification }=parsed.data;
+  if(app.appId!==input.appId || app.version!==(input.version??"1.0.0") ||
+    app.grantedScopes.length!==input.grantedScopes.length || new Set(app.grantedScopes).size!==app.grantedScopes.length ||
+    app.grantedScopes.some(s=>!input.grantedScopes.includes(s)) ||
+    !presetCanRun(app) || (verification && !presetCanRun({verification}))) {
+    throw new Error("宿主回执与请求不符或有检查未通过；禁止运行或固定到 Dock。");
   }
-
-  // Standalone / client-side compilation fallback
-  const codeHash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input.sourceCode))))
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join("")
-    .slice(0, 16);
-
-  const verification: SandboxVerificationResult = {
-    passed: true,
-    timestamp: new Date().toISOString(),
-    checks: [
-      {
-        id: "syntax-bundle",
-        name: "IIFE 独立打包验证 (Zero external import)",
-        passed: true,
-        detail: "ES2022 规范校验通过，依赖项闭环零外部网络泄露。",
-      },
-      {
-        id: "vm-dry-run",
-        name: "预检沙箱模拟运行 (Synthetic Mock Test)",
-        passed: true,
-        detail: "在受控隔离环境中通过综合负载测试，事件循环响应正常。",
-      },
-      {
-        id: "csp-conformance",
-        name: "CSP 安全边界与隔离源验证",
-        passed: true,
-        detail: "default-src 'none' 策略生效，DOM/Window/Cookie 跨域访问隔离拦截完毕。",
-      },
-    ],
-  };
-
-  const bundleHtml = wrapInHardenedSandboxHtml(input.sourceCode, input.customCss || "", input.htmlBody || "", {
-    appId: input.appId,
-    name: input.name,
-    codeHash,
-  });
-
-  return {
-    appId: input.appId,
-    name: input.name,
-    nameEn: input.nameEn || input.name,
-    icon: input.icon || "📦",
-    version: input.version || "1.0.0",
-    description: input.description || "",
-    codeHash,
-    verifierVersion: "quickjs-wasm-json-v1+esbuild-isolated-v1",
-    dependencies: { recharts: "2.12.7", zod: "3.23.8" },
-    grantedScopes: input.grantedScopes,
-    pinnedToDock: true,
-    installedAt: new Date().toISOString(),
-    compiledAt: new Date().toISOString(),
-    bundleHtml,
-    verification,
-  };
+  return {...app,pinnedToDock:false,installedAt:app.compiledAt};
 }

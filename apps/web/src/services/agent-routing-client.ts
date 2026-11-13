@@ -11,6 +11,7 @@ export class AgentRoutingClientError extends Error {
       routing_revision_conflict: "底座选择已变化，本轮已停止；请核对新选择后重新发送。",
       routing_result_unknown: "这次请求已有执行标记，结果未确认；为避免重复计费，没有重放。",
       cancelled: "本轮已停止，没有自动重放或切换底座。",
+      routing_response_moved_to_tasks: "旧底座推理入口已退役，请使用统一任务；未发送资料或切换底座。",
     };
     super(`${messages[code] ?? "底座请求未完成，可能已消耗额度；没有自动重放或切换 API。"}${trace?.attempts.filter(item => item.status === "skipped").map(item => ` ${item.runtimeId}：${item.reason}`).join("") ?? ""}`);
     this.name = "AgentRoutingClientError";
@@ -35,7 +36,7 @@ export function createAgentRoutingClient(options: { baseUrl?: string; fetch?: ty
   return {
     status: signal => request("", z.object({ policy: AgentRoutingPolicySchema, trace: AgentRoutingTraceSchema.optional() }), "GET", undefined, signal),
     update: async (policy, signal) => (await request("", z.object({ policy: AgentRoutingPolicySchema }), "PUT", { expectedRevision: policy.revision, mode: policy.mode, preferred: policy.preferred, backups: policy.backups, allowApiBackups: policy.allowApiBackups, consent: true }, signal)).policy,
-    respond: (input, signal) => request("/respond", AgentRoutingResultSchema, "POST", { ...input, consentToSend: true }, signal),
+    respond: async () => { throw new AgentRoutingClientError("routing_response_moved_to_tasks"); },
   };
 }
 export const defaultAgentRoutingClient = createAgentRoutingClient();

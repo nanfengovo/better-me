@@ -1,8 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { projectResume } from "@better-me/core";
+import { projectResume, resolveResumeFactBase } from "@better-me/core";
 import { createInitialDocument } from "@better-me/storage";
 import { applyResumeProposal, createCompanionResumeSummary, createResumeAgentContext, findResumeContextSource } from "../src/lib/resume-agent-context";
+
+test("the consented resume payload keeps every visible experience, claim and long text intact", () => {
+  const document = createInitialDocument("2026-10-27T12:00:00.000Z");
+  const view = document.resumeViews[0]!;
+  const resume = projectResume(document.factBase, view);
+  const claim = structuredClone(resume.experiences[0]!.claims[0]!);
+  claim.text = "CLAIM_START_" + "完整细节".repeat(2000) + "_CLAIM_END";
+  resume.profile.headline = "HEADLINE_START_" + "简介".repeat(400) + "_HEADLINE_END";
+  resume.skills = Array.from({ length: 35 }, (_, i) => `SKILL_${i}_${"s".repeat(110)}`);
+  resume.experiences = Array.from({ length: 5 }, (_, i) => ({ ...structuredClone(resume.experiences[0]!), org: `COMPANY_${i}`, claims: Array.from({ length: 5 }, () => structuredClone(claim)) }));
+  const summary = createCompanionResumeSummary(resume)!;
+  assert.equal(summary.headline, resume.profile.headline);
+  assert.deepEqual(summary.skills, resume.skills);
+  assert.ok(summary.recentExperience!.includes("COMPANY_4"));
+  assert.equal(summary.recentExperience!.split(claim.text).length - 1, 25);
+});
 
 test("Companion resume summary is opt-in payload-safe and uses only the active projected view", () => {
   const document = createInitialDocument("2026-10-27T12:00:00.000Z");
@@ -67,6 +83,9 @@ test("proposal source lookup only resolves targets included in the consented con
 
 test("approved proposal writes only after exact-source CAS and preserves other document data", () => {
   const document = createInitialDocument("2026-10-27T12:00:00.000Z");
+  document.factBase.personalStatements = [];
+  const other = { ...structuredClone(document.resumeViews[0]!), id: "other-resume" };
+  document.resumeViews.push(other);
   const context = createResumeAgentContext(document.factBase, document.resumeViews[0]!);
   const experience = context.experiences[0]!;
   const claim = experience.claims[0]!;
@@ -78,7 +97,14 @@ test("approved proposal writes only after exact-source CAS and preserves other d
 
   assert.equal(result.ok, true);
   if (!result.ok) return;
-  const written = result.document.factBase.experiences.find((item) => item.id === experience.id)!.claims.find((item) => item.id === claim.targetRef.claimId)!;
+  const edition = result.document.resumeViews[0]!.isolatedFactBase;
+  assert.ok(edition);
+  assert.equal(result.document.factBase, document.factBase);
+  assert.equal(result.document.resumeViews[1], other);
+  assert.equal(findResumeContextSource(createResumeAgentContext(result.document.factBase, other), claim.targetRef), claim.text);
+  assert.equal(edition.personalStatements, undefined);
+  assert.notEqual(edition.profile, document.factBase.profile);
+  const written = edition.experiences.find((item) => item.id === experience.id)!.claims.find((item) => item.id === claim.targetRef.claimId)!;
   assert.equal(written.text[claim.targetRef.locale], `${claim.text}（经用户审阅的表达）`);
   assert.equal(result.document.factBase.profile.email, document.factBase.profile.email);
   assert.equal(result.document.resumeViews[0]!.id, document.resumeViews[0]!.id);
@@ -104,6 +130,40 @@ test("headline proposal applies to its exact locale and conflicting sources fail
   const result = applyResumeProposal(document, { targetRef, originalText, proposedText: "清晰的个人简介" });
 
   assert.equal(result.ok, true);
-  if (result.ok) assert.equal(result.document.factBase.profile.headline?.[locale], "清晰的个人简介");
+  if (result.ok) {
+    assert.equal(resolveResumeFactBase(result.document.factBase, result.document.resumeViews[0]!).profile.headline?.[locale], "清晰的个人简介");
+    assert.equal(result.document.factBase.profile.headline?.[locale], originalText);
+  }
   assert.deepEqual(applyResumeProposal(document, { targetRef, originalText: "旧内容", proposedText: "不应写入" }), { ok: false, reason: "conflict" });
+});
+
+test("agent edits and evidence lookup on a job edition use its frozen source, even if the shared claim disappears", () => {
+  const doc = createInitialDocument("2026-01-01T00:00:00.000Z"), original = doc.resumeViews[0]!;
+  const isolatedFactBase = structuredClone(doc.factBase);
+  isolatedFactBase.profile.headline = { zh: "仅岗位版的简介" };
+  const edition = { ...structuredClone(original), id: "job-copy", name: "合成岗位版", isolatedFactBase };
+  doc.resumeViews.push(edition); doc.activeResumeId = edition.id;
+  const initialContext = createResumeAgentContext(doc.factBase, edition);
+  const frozenClaim = initialContext.experiences.flatMap(e => e.claims)[0]!;
+  doc.factBase.experiences = [];
+  const context = createResumeAgentContext(doc.factBase, edition);
+  assert.equal(findResumeContextSource(context, frozenClaim.targetRef), frozenClaim.text);
+  const changed = applyResumeProposal(doc, { targetRef: frozenClaim.targetRef, originalText: frozenClaim.text, proposedText: "后来只改岗位版的虚构文本" });
+  assert.equal(changed.ok, true); if (!changed.ok) return;
+  assert.equal(changed.document.factBase, doc.factBase);
+  assert.deepEqual(changed.document.resumeViews[0], original);
+  assert.equal(findResumeContextSource(createResumeAgentContext(doc.factBase, changed.document.resumeViews[1]!), frozenClaim.targetRef), "后来只改岗位版的虚构文本");
+  const headline = applyResumeProposal(changed.document, { targetRef: { kind: "profile_headline", locale: "zh" }, originalText: "仅岗位版的简介", proposedText: "另一条批准的简介" });
+  assert.equal(headline.ok, true); if (!headline.ok) return;
+  assert.equal(headline.document.resumeViews[1]!.isolatedFactBase?.profile.headline?.zh, "另一条批准的简介");
+  assert.equal(headline.document.factBase, doc.factBase);
+});
+
+test("a reviewed sentence never updates two ambiguous claims, even when they have identical source text", () => {
+  const doc = createInitialDocument("2026-01-01T00:00:00.000Z"), active = doc.resumeViews[0]!;
+  const first = createResumeAgentContext(doc.factBase, active).experiences.flatMap(e => e.claims)[0]!;
+  const experience = doc.factBase.experiences.find(e => e.id === first.targetRef.experienceId)!;
+  experience.claims.push(structuredClone(experience.claims.find(c => c.id === first.targetRef.claimId)!));
+  assert.deepEqual(applyResumeProposal(doc, { targetRef: first.targetRef, originalText: first.text, proposedText: "虚构候选" }), { ok: false, reason: "conflict" });
+  assert.equal(active.isolatedFactBase, undefined);
 });

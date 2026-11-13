@@ -1,11 +1,13 @@
 import type { LlmConfig } from "@better-me/core";
 import {
   UnderstandingCreateSchema, UnderstandingSessionSchema,
-  type UnderstandingCapability, type UnderstandingSession, type UnderstandingTurnInput,
+  type UnderstandingCapability, type UnderstandingSession, type UnderstandingTurnInput, type CareerRuntimeBinding,
 } from "@better-me/agent-contracts";
 import { z } from "zod";
 import { readRuntimeConnection } from "../lib/runtime-connection";
 import { agentOrigin, ownedFetch, IdentityBoundaryError } from "../lib/identity";
+import { createProjectTaskClient } from "./project-task-client";
+import { AgentTaskClientError } from "./agent-task-transport";
 
 const SessionResponse = UnderstandingSessionSchema;
 const CapabilitiesResponse = z.object({ runtimes: z.array(z.object({ id: z.string(), name: z.string(), available: z.boolean(), supported: z.boolean(), reason: z.string().optional(),
@@ -24,7 +26,7 @@ export type UnderstandingRuntime = { kind: "model"; modelSettings: {
   provider: LlmConfig["provider"]; model: string; baseUrl: string; apiKey?: string; temperature?: number;
   thinkingMode?: "enabled" | "disabled"; reasoningEffort?: "low" | "high" | "max"; maxTokens?: number;
 } } | { kind: "native"; runtimeId: string } | { kind: "chatgpt"; profileId: string; model: string } | { kind: "unified"; expectedRevision: number };
-export type UnderstandingCreateInput = z.infer<typeof UnderstandingCreateSchema>;
+export type UnderstandingCreateInput = z.infer<typeof UnderstandingCreateSchema>&{runtimeBinding?:CareerRuntimeBinding;parentTaskId?:string;rootScopeKey?:string};
 export type UnderstandingTurnRequest = UnderstandingTurnInput & { runtime: UnderstandingRuntime };
 export class UnderstandingClientError extends Error {
   constructor(message: string, readonly status?: number, readonly code?: string) { super(message); this.name = "UnderstandingClientError"; }
@@ -49,6 +51,9 @@ export interface UnderstandingClient {
 
 /** Resolve the connection per request; neither credentials nor model settings enter local history. */
 export function createUnderstandingClient(options: { baseUrl?: string; fetch?: typeof fetch } = {}): UnderstandingClient {
+  const tasks=createProjectTaskClient(options),isTask=(id:string)=>/^ct_[a-f0-9]{32}$/.test(id);
+  const legacy=async():Promise<never>=>{throw new UnderstandingClientError("旧项目记录不再启动模型请求；请保留旧记录后明确建立内核任务，再重新核对资料授权。旧许可和模型请求不会自动重放。",409,"legacy_project_execution_disabled");};
+  async function taskCall<T>(action:()=>Promise<T>){try{return await action();}catch(error){if(error instanceof AgentTaskClientError)throw new UnderstandingClientError(error.message,error.code==="outcome_unknown"?undefined:error.code==="task_not_found"?404:409,error.code);throw error;}}
   const request = async <Schema extends z.ZodTypeAny>(path: string, schema: Schema, method = "GET", body?: unknown, signal?: AbortSignal): Promise<z.output<Schema>> => {
     const connection = readRuntimeConnection();
     const timeout = AbortSignal.timeout(15_000);
@@ -94,14 +99,15 @@ export function createUnderstandingClient(options: { baseUrl?: string; fetch?: t
   };
   const sessionPath = (id: string) => `/sessions/${encodeURIComponent(id)}`;
   return {
-    createSession: (input, signal) => request("/sessions", SessionResponse, "POST", UnderstandingCreateSchema.parse(input), signal),
-    getSession: (id, signal) => request(sessionPath(id), SessionResponse, "GET", undefined, signal),
-    updateSource: (id, input, signal) => request(`${sessionPath(id)}/source`, SessionResponse, "POST", input, signal),
-    addGrant: (id, path, signal) => request(`${sessionPath(id)}/grants`, SessionResponse, "POST", { path }, signal),
-    revokeGrant: (id, grantId, signal) => request(`${sessionPath(id)}/grants/${encodeURIComponent(grantId)}`, SessionResponse, "DELETE", undefined, signal),
-    startTurn: (id, input, signal) => request(`${sessionPath(id)}/turns`, SessionResponse, "POST", input, signal),
-    confirm: (id, input, signal) => request(`${sessionPath(id)}/confirm`, SessionResponse, "POST", input, signal),
-    cancel: (id, expectedTurnCount, signal) => request(`${sessionPath(id)}/cancel`, SessionResponse, "POST", { expectedTurnCount }, signal),
+    createSession: (input, signal) => taskCall(()=>{if(!input.runtimeBinding)throw new UnderstandingClientError("请先明确选择本项目任务使用的底座。",409,"explicit_selected_runtime_required");
+      return tasks.create({...UnderstandingCreateSchema.parse(input),runtimeBinding:input.runtimeBinding,...(input.parentTaskId?{parentTaskId:input.parentTaskId}:{}),...(input.rootScopeKey?{rootScopeKey:input.rootScopeKey}:{})},signal);}),
+    getSession: (id, signal) => isTask(id)?taskCall(()=>tasks.get(id,signal)):request(sessionPath(id), SessionResponse, "GET", undefined, signal),
+    updateSource: (id, input, signal) => isTask(id)?taskCall(()=>tasks.source(id,input,signal)):request(`${sessionPath(id)}/source`,SessionResponse,"POST",input,signal),
+    addGrant: (id, path, signal) => isTask(id)?taskCall(()=>tasks.grant(id,path,signal)):request(`${sessionPath(id)}/grants`,SessionResponse,"POST",{path},signal),
+    revokeGrant: (id, grantId, signal) => isTask(id)?taskCall(()=>tasks.revoke(id,grantId,signal)):request(`${sessionPath(id)}/grants/${encodeURIComponent(grantId)}`,SessionResponse,"DELETE",undefined,signal),
+    startTurn: (id, input, signal) => isTask(id)?taskCall(()=>tasks.start(id,input,signal)):legacy(),
+    confirm: (id, input, signal) => isTask(id)?taskCall(()=>tasks.confirm(id,input,signal)):request(`${sessionPath(id)}/confirm`,SessionResponse,"POST",input,signal),
+    cancel: (id, expectedTurnCount, signal) => isTask(id)?taskCall(()=>tasks.cancel(id,expectedTurnCount,signal)):request(`${sessionPath(id)}/cancel`,SessionResponse,"POST",{expectedTurnCount},signal),
     getCapabilities: async signal => (await request("/capabilities", CapabilitiesResponse, "GET", undefined, signal)).runtimes,
     authorizeNative: (id, input, signal) => request(`/native/${encodeURIComponent(id)}/authorization`, z.object({ saved: z.literal(true) }), "POST", input, signal),
     disconnectNative: (id, signal) => request(`/native/${encodeURIComponent(id)}/authorization`, z.object({ disconnected: z.literal(true) }), "DELETE", undefined, signal),

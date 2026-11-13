@@ -109,8 +109,31 @@ async function mount(overrides: Partial<Props> = {}) {
   await flush(() => root!.render(h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" } }, h(CareerCoachWorkspace, props))));
   return { repository, props };
 }
-test.afterEach(async () => { if (root) await flush(() => root?.unmount()); root = undefined; });
+test.afterEach(async () => { if (root) await flush(() => root?.unmount()); root = undefined; dom.localStorage.clear(); });
 test.after(() => { assert.equal(externalRequests, 0, "the UI suite must never access external services"); });
+
+test("leaving and reopening restores the unfinished coach question without generating again", async () => {
+  const repository = await configuredRepository();
+  let calls = 0;
+  const generate: CoachGenerate = async request => { calls++; return generated(request.mode); };
+  await mount({ repository, generate });
+  await fill(/本轮问题或补充回答/, "离开页面前尚未发送的职业问题");
+  await flush(() => root!.unmount()); root = undefined;
+  await mount({ repository, generate });
+  assert.equal(labelledField(/本轮问题或补充回答/).value, "离开页面前尚未发送的职业问题");
+  assert.equal(calls, 0, "restoring a draft must not issue a model request");
+});
+
+test("each coach mode retains its own question when navigating back", async () => {
+  await mount({ repository: await configuredRepository() });
+  await fill(/本轮问题或补充回答/, "规划草稿");
+  await click(/修改建议/);
+  await fill(/希望怎样改善表达/, "简历修改草稿");
+  await click(/^规划分析$/);
+  assert.equal(labelledField(/本轮问题或补充回答/).value, "规划草稿");
+  await click(/修改建议/);
+  assert.equal(labelledField(/希望怎样改善表达/).value, "简历修改草稿");
+});
 
 test("embedded tasks keep the first screen compact and expose explicit consent without clearing fields", async () => {
   await mount({ embedded: true, modeRequest: { mode: "resume", id: 1 } });
@@ -516,8 +539,10 @@ test("drill answers survive failed assessment, retry quotes real text, and follo
     return { model, payload: { kind: "drill", question: { text: "如何避免重复副作用？", skill: "幂等", why: "依据确认目标", criteria: ["说明失败边界"] } } };
   } });
   await click(/针对性刷题/); await fill(/这次练什么/, "幂等"); await click(/生成一道练习题/);
-  await fill(/我的练习回答/, "使用唯一键记录处理结果"); await click(/保存回答并请求评价/);
-  assert.equal((await repository.load(fixtureKey))?.drills?.[0]?.answer, "使用唯一键记录处理结果");
+  const answer = "  使用唯一键记录处理结果\n完整作答🚧END  ";
+  await fill(/我的练习回答/, answer); await click(/保存回答并请求评价/);
+  assert.equal((await repository.load(fixtureKey))?.drills?.[0]?.answer, answer);
+  assert.equal(requests.at(-1)!.drill?.answer, answer);
   assert.match(body().textContent ?? "", /隔离反馈暂不可用/); await click(/重试本题评价/);
   assert.equal((await repository.load(fixtureKey))?.drills?.length, 1);
   assert.match(body().textContent ?? "", /原答提到唯一键/);

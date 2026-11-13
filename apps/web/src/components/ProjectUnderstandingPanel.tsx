@@ -3,10 +3,10 @@ import { privateStorage as localStorage } from "../lib/identity";
 import { BookOpen, Check, FolderOpen, RefreshCw, Send, ShieldCheck, Square, X } from "lucide-react";
 import type { LlmConfig } from "@better-me/core";
 import type { UnderstandingCapability, UnderstandingSession } from "@better-me/agent-contracts";
-import { isImplementationEvidencePath } from "@better-me/agent-contracts";
+import { isImplementationEvidencePath, careerRuntimeBinding } from "@better-me/agent-contracts";
 import { z } from "zod";
 import { confirmedWritingProjectContext, type ConfirmedWritingProjectContext } from "../lib/resume-copilot";
-import { defaultUnderstandingClient, understandingModelRuntime, UnderstandingClientError, type UnderstandingClient } from "../services/understanding-client";
+import { defaultUnderstandingClient, understandingModelRuntime, UnderstandingClientError, type UnderstandingClient, type UnderstandingRuntime } from "../services/understanding-client";
 import { agentBaseLabel, useAgentRouting } from "../lib/agent-routing";
 import "./project-understanding-panel.css";
 import { useBetterMeAgent } from "../lib/betterme-agent/react";
@@ -221,10 +221,12 @@ export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sou
       const restored = await client.getSession(pointer, signal); acceptRef.current(restored); return restored;
     }
     if (!current.current.scope) throw new Error("来源绑定尚未就绪，请稍后重试。");
-    const created = await client.createSession({ workspaceKey, projectKey: current.current.scope.projectKey, label: label.slice(0, 300), sourceText }, signal);
+    if(routing?.blocked)throw new Error("本账号底座状态尚未确认；未使用旧配置建立新任务。");
+    const created = await client.createSession({ workspaceKey, projectKey: current.current.scope.projectKey, label, sourceText,rootScopeKey:agent?.workspaceKey??workspaceKey,runtimeBinding:careerRuntimeBinding(selectedRuntime(),routing?.policy?.preferred) }, signal);
     if (!alive.current || signal.aborted) throw new DOMException("Aborted", "AbortError");
     acceptRef.current(created); return created;
   }
+  function selectedRuntime():UnderstandingRuntime{return routing?.enabled&&routing.policy?{kind:"unified",expectedRevision:routing.policy.revision}:runtime==="chatgpt"?{kind:"chatgpt",profileId:chatGpt?.profileId??"",model:chatGpt?.model??""}:runtime==="model"?understandingModelRuntime(config):{kind:"native",runtimeId:runtime};}
   const refresh = () => void perform("refresh", async signal => {
     if (pointer) { const next = await client.getSession(pointer, signal); if (alive.current) acceptRef.current(next); }
     const runtimes = await client.getCapabilities(signal); if (alive.current) { setCapabilities(runtimes); setCapabilityError(""); setUncertain(false); }
@@ -242,8 +244,7 @@ export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sou
     confirmedCallback.current(undefined); setConsent(false);
     const next = await client.startTurn(before.id, { expectedRevision: before.revision, idempotencyKey: submission.id, answer,
       selectedOptionIds: selected, consentToSend: true,
-      runtime: routing?.enabled && routing.policy ? { kind: "unified", expectedRevision: routing.policy.revision } : runtime === "chatgpt" ? { kind: "chatgpt", profileId: chatGpt?.profileId ?? "", model: chatGpt?.model ?? "" }
-        : runtime === "model" ? understandingModelRuntime(config) : { kind: "native", runtimeId: runtime },
+      runtime: selectedRuntime(),
     }, signal);
     if (alive.current) { acceptRef.current(next); setUncertain(false); }
   });
@@ -305,6 +306,7 @@ export function ProjectUnderstandingPanel({ workspaceKey, projectKey, label, sou
       {session.checkpoint.evidenceIds.length > 0 && <details><summary>本轮取得了什么</summary><ul>{session.evidence.filter(item => session.checkpoint!.evidenceIds.includes(item.id)).map(item => <li key={item.id}>{item.path} · {item.startLine}–{item.endLine} 行{!item.excerpt ? " · 已撤销" : ""}</li>)}</ul></details>}
     </section>}
     {missing && <button type="button" disabled={busy} onClick={() => { setPointer(undefined); setMissing(false); setError(""); setSession(undefined); }}>保留输入，重新建立对话</button>}
+    {session?.id.startsWith("understanding_")&&<button type="button" disabled={busy||running} onClick={()=>{current.current.session=undefined;setPointer(undefined);setSession(undefined);setPending(undefined);setOptions([]);setConsent(false);setError("");confirmedCallback.current(undefined);}}>保留旧记录，建立内核任务（重新授权）</button>}
     {Boolean(session?.messages.length) && <details className="understanding-history" open><summary>对话历史 · {session?.messages.length} 条</summary>{!showAllHistory && (session?.messages.length ?? 0) > 20 && <button type="button" onClick={() => setShowAllHistory(true)}>展开更早的 {(session?.messages.length ?? 0) - 20} 条记录</button>}<ol>{visibleMessages?.map(message => <li key={message.id} data-role={message.role}><div><strong>{message.role === "user" ? "你" : message.role === "agent" ? "Agent" : "状态"}</strong><time dateTime={message.at}>{new Date(message.at).toLocaleTimeString()}</time></div><p>{message.text}</p>{message.question && <p className="understanding-history-question">追问：{message.question.text}</p>}</li>)}</ol></details>}
     {session?.understanding && <section ref={cardRef} tabIndex={-1} className="understanding-card" data-agent-guide="understanding-summary" aria-label="当前项目理解卡片"><div className="understanding-card-heading"><h3>{session.checkpoint && session.checkpoint.status !== "complete" ? "上次理解 · 本轮尚未更新" : "📋 我目前这样理解（完整整理）"}</h3><span>{sourceChanged ? "原文已变化 · 待重确认" : session.phase === "confirmed" ? "你已确认" : "待你核对"}</span></div><p>{session.understanding.summary}</p>
       {session.understanding.terms.length > 0 && <dl className="understanding-terms">{session.understanding.terms.map((term, index) => <div key={`${term.term}-${index}`}><dt>{term.term}</dt><dd>{term.meaning}</dd></div>)}</dl>}

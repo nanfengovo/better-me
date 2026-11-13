@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { registerHooks } from "node:module";
 const css = registerHooks({ load(url, context, nextLoad) { return url.endsWith(".css") ? { format: "module", source: "", shortCircuit: true } : nextLoad(url, context); } });
 import test, { after, afterEach } from "node:test";
@@ -9,7 +10,7 @@ import "fake-indexeddb/auto";
 const dom = new Window({ url: "http://desktop-fixture.invalid", width: 1280, height: 900 });
 const defaultDesktopPreferences = {
   dockPosition: "bottom", dockSize: 48, dockMagnification: true, dockMagScale: 1.45,
-  dockOpacity: 0.85, dockBlur: 24, dockAutoHide: true, wallpaperOpacity: 1,
+  dockOpacity: 0.85, dockBlur: 24, dockAutoHide: true, menuBarAutoHide: false, wallpaperOpacity: 1,
   wallpaperBlur: 0, windowOpacity: 0.92, windowBlur: 24, menuOpacity: 0.9,
 };
 const React = await import("react");
@@ -20,6 +21,11 @@ const { createElement: h, act } = React;
 const { createRoot } = await import("react-dom/client");
 const { DesktopShell } = await import("../src/components/desktop/DesktopShell.tsx");
 const { UiPreferencesProvider, UI_PREFERENCES_KEY, parseUiPreferences } = await import("../src/lib/ui-preferences.tsx");
+
+test("window focus counters are isolated below the shell navigation", async () => {
+  const styles = await readFile(new URL("../src/components/desktop/desktop.css", import.meta.url), "utf8");
+  assert.match(styles, /\.os-stage\s*\{[^}]*z-index:\s*0\s*;[^}]*isolation:\s*isolate\s*;/);
+});
 let root: ReturnType<typeof createRoot> | undefined;
 let aiOpens = 0, networkOpens = 0;
 async function flush(fn: () => void = () => {}) { await act(async () => { fn(); await nextTurn(); await nextTurn(); }); }
@@ -147,6 +153,87 @@ test("desktop preferences reject invalid flags and resolve wallpaper tokens only
   assert.equal(image.getAttribute("src"), "/wallpapers/javascript:alert(1).jpg");
   assert.equal(new URL(image.src).origin, "http://desktop-fixture.invalid");
   assert.equal(new URL(image.src).protocol, "http:");
+});
+const menuBarMedia = "(hover: hover) and (pointer: fine) and (min-width: 601px)";
+async function withFineMenuBar(run: () => Promise<void>) {
+  const original = dom.matchMedia.bind(dom);
+  dom.matchMedia = ((query: string) => {
+    const result = original(query);
+    if (query === menuBarMedia) Object.defineProperty(result, "matches", { value: true });
+    return result;
+  }) as typeof dom.matchMedia;
+  try { await run(); } finally { dom.matchMedia = original; }
+}
+async function openMenuBarContext() {
+  const bar = dom.document.querySelector<HTMLElement>(".os-menubar")!;
+  const event = new dom.MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 1200, clientY: 25 });
+  await flush(() => bar.dispatchEvent(event));
+  assert.equal(event.defaultPrevented, true);
+  assert.equal(dom.document.activeElement?.getAttribute("role"), "menuitemcheckbox");
+}
+test("menu bar hiding is an explicit boolean desktop preference", () => {
+  assert.equal(parseUiPreferences(null).menuBarAutoHide, false);
+  assert.equal(parseUiPreferences('{"menuBarAutoHide":true}').menuBarAutoHide, true);
+  assert.equal(parseUiPreferences('{"menuBarAutoHide":"true"}').menuBarAutoHide, undefined);
+});
+test("menu-bar context toggle reclaims the shared stage without remounting any app or draft", async () => withFineMenuBar(async () => {
+  await mount(); const editor = dom.document.querySelector("textarea")!;
+  await flush(() => editor.focus());
+  await openMenuBarContext();
+  await click("自动隐藏菜单栏");
+  const system = dom.document.querySelector<HTMLElement>(".os-menubar-system")!;
+  assert.equal(system.dataset.autoHide, "true");
+  assert.equal(JSON.parse(dom.localStorage.getItem(UI_PREFERENCES_KEY)!).menuBarAutoHide, true);
+  assert.equal(dom.document.activeElement, editor);
+  await act(async () => { await delay(260); });
+  assert.equal(system.dataset.visible, "false");
+  for (const page of ["Agent", "岗位地图", "资料", "简历"]) { await click(page); assert.equal(system.dataset.autoHide, "true"); }
+  assert.equal(dom.document.querySelector("textarea"), editor);
+  assert.equal(editor.value, "合成草稿");
+  await flush(() => root!.unmount()); root = undefined; dom.document.body.replaceChildren(); await mount();
+  assert.equal(dom.document.querySelector<HTMLElement>(".os-menubar-system")!.dataset.autoHide, "true");
+}));
+test("menu edge reveals on hover, cancels leave during crossing, and waits for keyboard focus", async () => withFineMenuBar(async () => {
+  dom.localStorage.setItem(UI_PREFERENCES_KEY, '{"menuBarAutoHide":true}'); await mount();
+  const system = dom.document.querySelector<HTMLElement>(".os-menubar-system")!;
+  const edge = dom.document.querySelector<HTMLElement>(".os-menubar-edge")!;
+  await flush(() => edge.dispatchEvent(new dom.PointerEvent("pointerover", { bubbles: true, pointerType: "mouse" })));
+  assert.equal(system.dataset.visible, "true");
+  await flush(() => edge.dispatchEvent(new dom.PointerEvent("pointerout", { bubbles: true, pointerType: "mouse" })));
+  await flush(() => dom.document.querySelector(".os-menubar")!.dispatchEvent(new dom.PointerEvent("pointerover", { bubbles: true, pointerType: "mouse" })));
+  await act(async () => { await delay(260); });
+  assert.equal(system.dataset.visible, "true");
+  await flush(() => button("返回简历工作室").focus());
+  await flush(() => system.dispatchEvent(new dom.PointerEvent("pointerout", { bubbles: true, pointerType: "mouse" })));
+  await act(async () => { await delay(260); });
+  assert.equal(system.dataset.visible, "true");
+  await flush(() => dom.document.querySelector<HTMLElement>("textarea")!.focus());
+  await act(async () => { await delay(260); });
+  assert.equal(system.dataset.visible, "false");
+}));
+test("menu settings and cross-window updates share the same preference, never a business write", async () => withFineMenuBar(async () => {
+  await mount(); const editor = dom.document.querySelector("textarea");
+  await click("打开系统设置"); await click("桌面与 Dock"); await click("自动隐藏菜单栏");
+  assert.equal(dom.document.querySelector<HTMLElement>(".os-menubar-system")!.dataset.autoHide, "true");
+  dom.localStorage.setItem(UI_PREFERENCES_KEY, '{"menuBarAutoHide":false}');
+  await flush(() => dom.dispatchEvent(new dom.StorageEvent("storage", { key: UI_PREFERENCES_KEY })));
+  assert.equal(dom.document.querySelector<HTMLElement>(".os-menubar-system")!.dataset.autoHide, "false");
+  assert.equal(dom.document.querySelector("textarea"), editor);
+}));
+test("keyboard context menu cancels with Escape, and coarse/narrow input remains permanently visible", async () => {
+  dom.localStorage.setItem(UI_PREFERENCES_KEY, '{"menuBarAutoHide":true}');
+  dom.happyDOM.setWindowSize({ width: 390, height: 800 }); await mount();
+  const system = dom.document.querySelector<HTMLElement>(".os-menubar-system")!;
+  assert.equal(system.dataset.autoHide, "false");
+  assert.equal(system.dataset.visible, "true");
+  const brand = button("返回简历工作室");
+  await flush(() => brand.focus());
+  await flush(() => brand.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "F10", shiftKey: true, bubbles: true, cancelable: true })));
+  assert.ok(dom.document.querySelector('[role="menuitemcheckbox"]'));
+  await flush(() => dom.document.activeElement!.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+  assert.equal(dom.document.querySelector('[role="menuitemcheckbox"]'), null);
+  assert.equal(dom.document.activeElement, brand);
+  assert.equal(JSON.parse(dom.localStorage.getItem(UI_PREFERENCES_KEY)!).menuBarAutoHide, true);
 });
 test("minimizing, restoring and navigating keep the same mounted editor node", async () => {
   await mount();

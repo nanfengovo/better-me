@@ -1,4 +1,5 @@
-import { getHighlightColor, type FactBase, type ResumeView, type TextStyleRange } from "@better-me/core";
+import { getHighlightColor, rebaseTextStyles, type FactBase, type ResumeView, type TextStyleRange } from "@better-me/core";
+export { rebaseTextStyles };
 
 export type TextStylePatch = Partial<Omit<TextStyleRange, "start" | "end">>;
 const STYLE_KEYS = ["bold", "italic", "underline", "highlight", "highlightColor", "fontScale"] as const;
@@ -39,23 +40,6 @@ export function formatSelection(
   return result;
 }
 
-/** Surviving original text keeps its style; inserted/replaced text starts plain. */
-export function rebaseTextStyles(previous: string, next: string, ranges: TextStyleRange[]): TextStyleRange[] {
-  if (previous === next) return ranges;
-  let prefix = 0;
-  while (prefix < Math.min(previous.length, next.length) && previous[prefix] === next[prefix]) prefix++;
-  let suffix = 0;
-  while (suffix < previous.length - prefix && suffix < next.length - prefix && previous[previous.length - suffix - 1] === next[next.length - suffix - 1]) suffix++;
-  const oldEnd = previous.length - suffix;
-  const delta = next.length - previous.length;
-  return ranges.flatMap((range) => {
-    const runs: TextStyleRange[] = [];
-    if (range.start < prefix) runs.push({ ...range, end: Math.min(range.end, prefix) });
-    if (range.end > oldEnd) runs.push({ ...range, start: Math.max(range.start, oldEnd) + delta, end: range.end + delta });
-    return runs.filter((run) => run.start < run.end);
-  });
-}
-
 function formattedFields(base: FactBase): Map<string, string> {
   const fields = new Map<string, string>();
   for (const locale of ["zh", "en"] as const) {
@@ -66,10 +50,11 @@ function formattedFields(base: FactBase): Map<string, string> {
   return fields;
 }
 
-export function rebaseViewTextStyles(previous: FactBase, next: FactBase, views: ResumeView[]): ResumeView[] {
+export function rebaseViewTextStyles(previous: FactBase, next: FactBase, views: ResumeView[], isolatedResumeId?: string): ResumeView[] {
   const before = formattedFields(previous);
   const after = formattedFields(next);
   return views.map((view) => {
+    if (isolatedResumeId !== undefined ? view.id !== isolatedResumeId || !view.isolatedFactBase : !!view.isolatedFactBase) return view;
     if (!view.textStyles) return view;
     const textStyles: Record<string, TextStyleRange[]> = {};
     for (const [key, ranges] of Object.entries(view.textStyles)) {

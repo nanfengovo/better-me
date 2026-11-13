@@ -10,7 +10,7 @@ export class ChatGptClientError extends Error {
 export function createChatGptClient(options: { baseUrl?: string; fetch?: typeof fetch } = {}) {
   async function request<Schema extends z.ZodTypeAny>(route: string, schema: Schema, body?: unknown, signal?: AbortSignal): Promise<z.output<Schema>> {
     const connection = readRuntimeConnection();
-    const timeout = AbortSignal.timeout(route === "/response" ? 185_000 : 30_000);
+    const timeout = AbortSignal.timeout(30_000);
     try {
       const response = await ownedFetch(`${options.baseUrl ?? agentOrigin()}/api/v1/agent/chatgpt${route}`, {
         method: body === undefined ? "GET" : "POST", signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
@@ -37,9 +37,9 @@ export function createChatGptClient(options: { baseUrl?: string; fetch?: typeof 
     models: async (profileId: string, signal?: AbortSignal) => (await request("/models", z.object({ models: z.array(ChatGptModelSchema) }), { profileId }, signal)).models,
     signOut: (profileId: string, signal?: AbortSignal) => request("/sign-out", z.object({ remoteRevoked: z.boolean(), state: ChatGptStateSchema }), { profileId }, signal),
     retry: (profileId: string, signal?: AbortSignal) => request("/retry", ChatGptStateSchema, { profileId }, signal),
-    respond: async (input: ChatGptResponseRequest, signal?: AbortSignal) => {
-      try { return await request("/response", z.object({ text: z.string().min(1), model: z.string(), profileId: z.string() }), input, signal); }
-      finally { if (typeof window !== "undefined") window.dispatchEvent(new window.Event("betterme:chatgpt-state")); }
+    /** @deprecated Account inference is a task; state/sign-in/catalogue remain available. */
+    respond: async (_input: ChatGptResponseRequest, _signal?: AbortSignal): Promise<{text:string;model:string;profileId:string}> => {
+      throw new ChatGptClientError("旧账号推理入口已退役，请使用统一任务；未发送资料、重试或改用 API Key。", {kind:"protocol",code:"chatgpt_response_moved_to_tasks",message:"请使用统一任务入口。",status:410});
     },
   };
 }

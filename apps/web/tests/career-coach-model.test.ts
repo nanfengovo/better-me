@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test, { afterEach, mock } from "node:test";
-import type { ChatCompletionResult, LlmConfig } from "@better-me/core";
+import { fetchChatCompletionResult, type ChatCompletionResult, type LlmConfig } from "@better-me/core";
 import type { ResumeEditContext } from "@better-me/agent-contracts";
-import { createCoachGenerator, generateCoach, type CoachTransport } from "../src/lib/career-coach/model";
+import { createCoachGenerator, type CoachTransport } from "../src/lib/career-coach/model";
 import { coachOutputSchema } from "../src/lib/career-coach/output-schema";
 import {
   DEFAULT_COACH_SETTINGS,
@@ -16,6 +16,7 @@ import {
 } from "../src/lib/career-coach/types";
 
 afterEach(() => mock.restoreAll());
+const generateCoach = createCoachGenerator(fetchChatCompletionResult);
 
 const config: LlmConfig = {
   provider: "openai-compatible", baseUrl: "https://example.invalid/v1", apiKey: "synthetic-model-key", model: "test-coach", temperature: 0.3,
@@ -374,7 +375,7 @@ test("a late cancellation cannot publish a valid model result", async () => {
   await assert.rejects(generate(request("analysis"), config, controller.signal), { name: "AbortError" });
 });
 
-test("the production transport uses the existing model endpoint and forwards cancellation to fetch", async () => {
+test("the explicit isolated transport seam forwards cancellation to fetch", async () => {
   let fetchSignal: AbortSignal | null | undefined;
   let endpoint = "";
   mock.method(globalThis, "fetch", async (input, init) => {

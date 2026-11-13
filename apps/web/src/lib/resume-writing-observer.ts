@@ -158,6 +158,18 @@ export function useWritingGeometry(shell: RefObject<HTMLElement | null>, card: R
 
 /** Explicit note navigation works even when automatic edit-follow is disabled.
  * Scroll only the paper canvas; never scrollIntoView() on a whole page. */
+function scrollPreviewRect(canvas: HTMLElement | null, rect: DOMRect, anchor: string): boolean {
+  if (!canvas || canvas.clientHeight <= 0) return false;
+  canvas.scrollTop = getPreviewScrollTop({ anchorTop: rect.top, anchorHeight: rect.height, canvasTop: canvas.getBoundingClientRect().top,
+    canvasBorderTop: canvas.clientTop, scrollTop: canvas.scrollTop, viewportHeight: canvas.clientHeight, scrollHeight: canvas.scrollHeight },
+  { anchor, source: "focus" });
+  return true;
+}
+export function revealEditionPreview(root: HTMLElement, key: string): boolean {
+  const canvas = root.querySelector<HTMLElement>(".resume-preview-canvas");
+  const anchor = [...(canvas?.querySelectorAll<HTMLElement>("[data-preview-anchor]") ?? [])].find(el => el.dataset.previewAnchor === key);
+  return !!anchor && scrollPreviewRect(canvas, anchor.getBoundingClientRect(), key);
+}
 export function revealWritingPreview(root: HTMLElement, source: WritingSource): boolean {
   const canvas = root.querySelector<HTMLElement>(".resume-preview-canvas");
   const anchor = [...root.querySelectorAll<HTMLElement>("[data-preview-anchor]")].find(element => element.dataset.previewAnchor === writingPreviewAnchor(source) && element.textContent === source.text);
@@ -165,10 +177,7 @@ export function revealWritingPreview(root: HTMLElement, source: WritingSource): 
   const quote = source.quote ? resolveWritingQuote(source.text, source.quote) : undefined;
   if (source.quote && !quote) return false;
   const rect = (quote && writingTextRange(anchor, quote.start, quote.end)?.getBoundingClientRect()) || anchor.getBoundingClientRect();
-  canvas.scrollTop = getPreviewScrollTop({ anchorTop: rect.top, anchorHeight: rect.height, canvasTop: canvas.getBoundingClientRect().top,
-    canvasBorderTop: canvas.clientTop, scrollTop: canvas.scrollTop, viewportHeight: canvas.clientHeight, scrollHeight: canvas.scrollHeight },
-  { anchor: writingPreviewAnchor(source), source: "focus" });
-  return true;
+  return scrollPreviewRect(canvas, rect, writingPreviewAnchor(source));
 }
 
 export function focusWritingSource(source: WritingSource) {

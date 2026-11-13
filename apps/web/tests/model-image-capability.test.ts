@@ -30,7 +30,7 @@ test("image capability copy distinguishes unsupported models from unverified mod
   assert.match(modelImageCapabilityDescription("unknown", translate), /可能被拒绝/);
 });
 
-test("chat request retains images for the active turn and omits image bytes from earlier turns", () => {
+test("chat request retains exact images for current and earlier authorized turns", () => {
   const firstImage: NonNullable<ChatMessage["attachments"]>[number] = {
     name: "resume.png",
     mimeType: "image/png",
@@ -47,10 +47,11 @@ test("chat request retains images for the active turn and omits image bytes from
 
   const requestMessages = chatMessagesForRequest(messages);
 
-  assert.equal(requestMessages[0]?.attachments, undefined);
+  assert.deepEqual(requestMessages[0]?.attachments, [firstImage]);
   assert.deepEqual(requestMessages[2]?.attachments, [activeImage]);
   assert.deepEqual(prior.attachments, [firstImage], "filtering must not mutate the visible transcript");
 
   const nextTurn = chatMessagesForRequest([...messages, { id: "u3", role: "user", content: "只问个文字问题" }]);
-  assert.ok(nextTurn.every((message) => !message.attachments), "images from earlier turns are not resent with a later text-only question");
+  assert.deepEqual(nextTurn[0]?.attachments,[firstImage]);
+  assert.deepEqual(nextTurn[2]?.attachments,[activeImage], "a later text-only question does not silently discard earlier images");
 });

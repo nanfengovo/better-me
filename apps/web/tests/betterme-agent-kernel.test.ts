@@ -15,6 +15,20 @@ async function setup() {
   return { agent, repository, setSession(value: typeof session) { session = value; }, reads: () => reads, memoryId: `project:${session.id}` };
 }
 
+test("authorized companion history and user goal are not shortened for model reuse", async () => {
+  const { agent, repository } = await setup();
+  const goal = "GOAL_START_" + "完整目标".repeat(2000) + "_GOAL_END";
+  agent.setGoal(goal);
+  for (let i = 0; i < 40; i++) agent.record({ id: `full-${i}`, origin: "companion", role: "user", text: `FULL_MESSAGE_${i}` });
+  assert.equal(agent.getSnapshot().data.goal, goal);
+  assert.equal(agent.reusableCompanionHistory().length, 40);
+  await agent.flush();
+  const restored = new BetterMeAgent("isolated-document", repository, async () => confirmed());
+  await restored.ready;
+  assert.equal(restored.getSnapshot().data.goal, goal);
+  assert.equal(restored.reusableCompanionHistory()[0]!.text, "FULL_MESSAGE_0");
+});
+
 test("task lifetime and complete history survive view unsubscribe and remount", async () => {
   const { agent, repository } = await setup(); const response = deferred<string>(), started = deferred<void>();
   const unsubscribe = agent.subscribe(() => {});
@@ -94,7 +108,7 @@ test("reload never silently retries billing; local tasks become interrupted", as
   const agent = new BetterMeAgent("reload-fixture", repository, async () => { reads++; return confirmed(); }); await agent.flush();
   assert.equal(agent.getSnapshot().data.tasks[0]?.status, "interrupted"); assert.equal(reads, 0);
 });
-test("history is durable beyond the model window; tracking is prospective and opt-in", async () => {
+test("durable authorized history is sent intact; tracking is prospective and opt-in", async () => {
   const { agent, repository } = await setup();
   for (let index = 0; index < 65; index++) agent.record({ id: `history-${index}`, origin: "companion", role: index % 2 ? "assistant" : "user", text: `合成历史${index}` });
   agent.track({ id: "before", kind: "evidence", label: "未授权追踪", origin: "growth" }); assert.equal(agent.getSnapshot().data.events.length, 0);
@@ -103,7 +117,7 @@ test("history is durable beyond the model window; tracking is prospective and op
   agent.track({ id: "after", kind: "evidence", label: "重复事件", origin: "growth" });
   agent.setTracking(false); agent.track({ id: "disabled", kind: "evidence", label: "停止之后", origin: "growth" });
   await agent.flush(); assert.equal(agent.getSnapshot().data.events.length, 1);
-  assert.equal(agent.reusableCompanionHistory().length, 24);
+  assert.equal(agent.reusableCompanionHistory().length, 65);
   assert.equal((await repository.load(agent.workspaceKey))?.messages.filter(message => message.origin === "companion").length, 65);
 });
 test("namespace isolation, explicit model changes, cancellation and duplicate-run guards", async () => {

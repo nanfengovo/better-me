@@ -6,16 +6,17 @@ import { Window, type HTMLButtonElement, type HTMLInputElement, type HTMLTextAre
 import { createInitialDocument } from "@better-me/storage";
 import { applyResumeProposal, createResumeAgentContext } from "../src/lib/resume-agent-context";
 import {
-  generateWritingReply, inspectWriting, newWritingNote, parseWritingReply, readWritingSession,
-  reconcileWritingNotes, saveWritingSession, writingSources, writingTargetKey, writingProposal, confirmedWritingProjectContext, type WritingSource, type WritingReply,
+  generateWritingReply, inspectWriting, newWritingNote, parseWritingReply, readWritingSession, writingMessages,
+  reconcileWritingNotes, saveWritingSession, writingSources, writingTargetKey, writingProjectSourceKey, writingProposal, confirmedWritingProjectContext, type WritingSource, type WritingReply,
 } from "../src/lib/resume-copilot";
 import { quoteWritingText } from "../src/lib/writing-anchor";
 import { fixtureSession, fixtureUnderstanding } from "./fixtures/project-understanding";
 import { BetterMeAgentProvider } from "../src/lib/betterme-agent/react";
 import { createMemoryAgentRepository, type AgentRepository } from "../src/lib/betterme-agent/storage";
 import type { UnderstandingClient } from "../src/services/understanding-client";
-import type { ChatGptState, ChatGptResponseRequest } from "@better-me/agent-contracts";
-import { ChatGptClientError, type ChatGptClient } from "../src/services/chatgpt-client";
+import type { ChatGptState } from "@better-me/agent-contracts";
+import type { ChatGptClient } from "../src/services/chatgpt-client";
+import { ExperienceRefineTaskError, defaultExperienceRefineTaskClient } from "../src/services/experience-refine-task-client";
 
 // Finish installing the DOM before registering any tests. Otherwise a fast
 // pure async test can let Node run teardown while React is still importing.
@@ -33,11 +34,26 @@ for (const [key, value] of Object.entries({ window: dom, document: dom.document,
 const { act, createElement: h } = React;
 const { createRoot } = await import("react-dom/client");
 const { ResumeWritingCopilot } = await import("../src/components/ResumeWritingCopilot");
+const { AgentSidebarProvider, useAgentSidebar } = await import("../src/components/AgentSidebar");
 const { observeResumeWriting } = await import("../src/lib/resume-writing-observer");
 const { understandingScope } = await import("../src/components/ProjectUnderstandingPanel");
 
 const source: WritingSource = { targetRef: { kind: "claim_text", experienceId: "fixture-exp", claimId: "fixture-claim", locale: "zh" }, text: "负责接口开发，参与系统维护", label: "虚构测试经历 · 要点 1" };
 const issue = inspectWriting(source, [source])!;
+test("isolated project memories have their own source namespace and cannot reopen another edition's field", async () => {
+  const key = writingTargetKey(source.targetRef);
+  assert.equal(writingProjectSourceKey(source.targetRef), key);
+  const mine = writingProjectSourceKey(source.targetRef, "edition-a");
+  const theirs = writingProjectSourceKey(source.targetRef, "edition-b");
+  assert.notEqual((await understandingScope("test", mine)).projectKey, (await understandingScope("test", theirs)).projectKey);
+  const focused: WritingSource[] = [];
+  await render({ isolatedResumeId: "edition-a", onFocus: item => { focused.push(item); } });
+  const { openProjectSource } = await import("../src/lib/agent-navigation");
+  for (const wrong of [key, theirs]) await act(async () => openProjectSource(wrong));
+  assert.equal(focused.length, 0);
+  await act(async () => openProjectSource(mine));
+  assert.equal(focused[0]?.text, source.text);
+});
 test("annotation navigation gives concurrent notes matching colors and numbers, and locates the selected source", async () => {
   const sources = [source, ...[2, 3].map(index => ({ ...source,
     targetRef: { kind: "claim_text" as const, experienceId: "fixture-exp", claimId: `fixture-claim-${index}`, locale: "zh" as const },
@@ -126,12 +142,13 @@ test("ChatGPT is an explicit Agent option; disconnected accounts cannot fall bac
 });
 
 test("ChatGPT account/model selection routes writing only to the account and retains supplement on quota failure", async () => {
-  let apiCalls = 0; const sent: ChatGptResponseRequest[] = [];
+  let apiCalls = 0, legacyCalls = 0; const sent: Parameters<typeof defaultExperienceRefineTaskClient.refine>[0][] = [];
   const state: ChatGptState = { profiles: [{ id: "synthetic-account", label: "虚构账号", state: "connected" }], usageUrl: "https://chatgpt.com/settings/usage", automaticBillingFallback: false };
   const client: ChatGptClient = { state: async () => structuredClone(state), models: async () => [{ slug: "synthetic-gpt", displayName: "虚构 GPT" }],
-    respond: async input => { sent.push(input); const issue = { kind: "limit" as const, code: "subscription_sharing_usage_limit_exceeded", message: "测试额度达到限制，未切换付费 API。" }; state.profiles[0]!.issue = issue; throw new ChatGptClientError(issue.message, issue); },
+    respond: async () => { legacyCalls++; throw new Error("legacy executor forbidden"); },
     signIn: async () => { throw new Error("No real login"); }, cancelSignIn: async () => state, signOut: async () => ({ remoteRevoked: true, state }), retry: async () => state };
-  await render({ chatGptClient: client, generate: async () => { apiCalls++; throw new Error("fallback forbidden"); } });
+  await render({ chatGptClient: client, generate: async () => { apiCalls++; throw new Error("fallback forbidden"); },
+    refinementClient:{...defaultExperienceRefineTaskClient,refine:async input=>{sent.push(input);throw new ExperienceRefineTaskError("测试额度达到限制，未切换付费 API。","subscription_sharing_usage_limit_exceeded");}} });
   const select = async (selector: string, value: string) => { await act(async () => { const field = dom.document.querySelector(selector)! as unknown as HTMLSelectElement; field.value = value; field.dispatchEvent(new dom.Event("change", { bubbles: true })); }); };
   await select('[aria-label="伴写 Agent 来源"]', "chatgpt");
   const selects = () => [...dom.document.querySelectorAll<HTMLSelectElement>(".chatgpt-agent-fields select")];
@@ -142,7 +159,9 @@ test("ChatGPT account/model selection routes writing only to the account and ret
   await act(async () => { const field = dom.document.querySelector("#writing-answer")!; Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype, "value")!.set!.call(field, text); field.dispatchEvent(new dom.Event("input", { bubbles: true })); });
   await act(async () => { const input = [...dom.document.querySelectorAll('input[type="checkbox"]')].find(node => node.parentElement?.textContent?.includes("我确认这段补充"))!; (input as unknown as HTMLInputElement).click(); });
   await click("整理候选表达");
-  assert.equal(sent.length, 1); assert.equal(sent[0]?.model, "synthetic-gpt"); assert.equal(apiCalls, 0);
+  assert.equal(sent.length, 1); assert.deepEqual(sent[0]?.runtime, {kind:"chatgpt",profileId:"synthetic-account",model:"synthetic-gpt"});
+  assert.deepEqual(sent[0]?.refinement.source,source);assert.equal(sent[0]?.supplement,text);assert.equal(sent[0]?.supplementConfirmed,true);
+  assert.equal(apiCalls, 0);assert.equal(legacyCalls,0);
   assert.match(dom.document.body.textContent ?? "", /测试额度达到限制/);
   assert.equal((dom.document.querySelector("#writing-answer") as unknown as HTMLTextAreaElement).value, text);
   assert.equal(dom.document.querySelector("#writing-proposal"), null);
@@ -164,6 +183,25 @@ test("session persistence restores answers and prevents late reopening of dismis
   const restored = saveWritingSession(store, "resume-a", { version: 1, mode: "quiet", notes: [{ ...note, updatedAt: note.updatedAt + 2 }] });
   assert.equal(restored.notes[0]?.state, "dismissed");
   values.set("bad", "invalid json"); assert.equal(readWritingSession(store, "bad").notes.length, 0);
+});
+test("long answers, model output and older notes survive sending and persistence intact", () => {
+  const answer = "START_" + "完整补充".repeat(5000) + "_END_我编写了重试逻辑";
+  const longSource = { ...source, text: "SOURCE_START_" + "完整原文".repeat(4000) + "_SOURCE_END" };
+  const proposedText = "编写重试逻辑。".repeat(2200);
+  const rationale = "完整说明".repeat(1000);
+  const reply = parseWritingReply(JSON.stringify({ questions: [], proposedText, rationale, evidenceQuotes: ["我编写了重试逻辑"] }), longSource, answer);
+  assert.equal(reply.proposedText, proposedText);
+  assert.equal(reply.rationale, rationale);
+  const sent = JSON.parse(writingMessages(longSource, answer)[1]!.content);
+  assert.equal(sent.originalText, longSource.text);
+  assert.equal(sent.confirmedSupplement, answer);
+  const values = new Map<string, string>();
+  const store = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value) };
+  const notes = Array.from({ length: 85 }, (_, index) => ({ ...newWritingNote(longSource, { kind: "context", title: "Synthetic", question: "Synthetic" }), id: `full-${index}`, answer, proposedText, rationale }));
+  saveWritingSession(store, "full", { version: 1, mode: "quiet", notes });
+  const restored = readWritingSession(store, "full");
+  assert.equal(restored.notes.length, 85);
+  for (const note of restored.notes) { assert.equal(note.answer, answer); assert.equal(note.proposedText, proposedText); assert.equal(note.rationale, rationale); }
 });
 test("model result must quote supplied evidence and cannot introduce a numeric claim", () => {
   const valid = { questions: [], proposedText: "编写接口重试逻辑", rationale: "明确动作", evidenceQuotes: ["接口开发", "编写了重试逻辑"] };
@@ -224,6 +262,44 @@ async function click(text: string) {
 }
 afterEach(async () => { await act(async () => { root?.unmount(); root = undefined; }); dom.document.body.replaceChildren(); dom.localStorage.clear(); });
 after(() => { dom.happyDOM.abort(); for (const [key, value] of originals) { if (value) Object.defineProperty(globalThis, key, value); else Reflect.deleteProperty(globalThis, key); } });
+
+test("production lightweight writing button dispatches experience_refine through tasks and continues the same kernel ledger",async t=>{
+  const {chatHost}=await import("./fixtures/free-chat-host");let calls=0,writes=0;
+  const supplement="本人按任务编号关联日志，定位设备回执问题。";
+  const host=await chatHost(t,async(prompt,_signal,phase)=>{
+    calls++;assert.equal(phase,"experience_refine");assert.ok(prompt.includes(source.text));
+    return JSON.stringify({questions:calls===1?["你亲手做了哪一步？"]:[],rationale:"合成内核回执。",evidenceQuotes:calls===1?[]:[supplement],...(calls===1?{}:{proposedText:"按任务编号关联日志，定位设备回执问题。"})});
+  });
+  await render({onApply:async()=>{writes++;return {ok:true,message:"unused"};}});
+  await click("检查当前简历");await click("一起完善");await click("进一步追问");
+  for(let i=0;i<100&&!dom.document.body.textContent?.includes("合成内核回执");i++)await act(async()=>{await new Promise(resolve=>setTimeout(resolve,10));});
+  assert.equal(calls,1);assert.match(dom.document.body.textContent??"",/合成内核回执/);
+  await act(async()=>{const field=dom.document.querySelector("#writing-answer")!;Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype,"value")!.set!.call(field,supplement);field.dispatchEvent(new dom.Event("input",{bubbles:true}));});
+  await act(async()=>{[...dom.document.querySelectorAll<HTMLInputElement>('input[type=checkbox]')].find(i=>i.parentElement?.textContent?.includes("我确认这段补充"))!.click();});
+  await click("整理候选表达");
+  for(let i=0;i<100&&!dom.document.querySelector("#writing-proposal");i++)await act(async()=>{await new Promise(resolve=>setTimeout(resolve,10));});
+  const tasks=await host.kernel.listTasks();assert.equal(tasks.length,1);const task=tasks[0]!;assert.equal(task.kind,"experience_refine");assert.equal(task.usage.modelCalls,2);assert.equal(writes,0);assert.equal(calls,2);
+  assert.ok(dom.document.querySelector("#writing-proposal"));assert.ok(host.requests.every(row=>row.path.startsWith("/api/v1/agent/tasks")));
+  const {privateStorage}=await import("../src/lib/identity");
+  assert.equal(readWritingSession(privateStorage,"betterme.writing.v1:test").notes[0]?.source.text,source.text);
+});
+
+test("JD-bound writing hands the exact field and confirmed statement to the shared task, never its old model or write path",async()=>{
+  let sidebar:ReturnType<typeof useAgentSidebar>,calls=0,writes=0;
+  function Probe(){sidebar=useAgentSidebar();return null;}
+  const job={id:"synthetic-job",title:"虚构测试岗",company:"演示",description:"核对接口测试。"};
+  const container=dom.document.createElement("main");dom.document.body.append(container);root=createRoot(container as unknown as Element);
+  await act(async()=>root!.render(h(AgentSidebarProvider,{children:[h(Probe,{key:"probe"}),h(ResumeWritingCopilot,{key:"writing",sessionKey:"test",sources:[source],config,active:true,
+    careerTask:{sourceResumeId:"synthetic-resume",sourceFingerprint:"source-one",job},onFocus(){},onApply:async()=>{writes++;return {ok:true,message:"unused"};},generate:async()=>{calls++;throw Error("legacy path must not run");},children:h("div",null,"合成预览")})]})));
+  await click("检查当前简历");await click("一起完善");
+  await act(async()=>{const field=dom.document.querySelector("#writing-answer")!;Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype,"value")!.set!.call(field,"我只做接口测试，没有负责上线。");field.dispatchEvent(new dom.Event("input",{bubbles:true}));});
+  await act(async()=>{[...dom.document.querySelectorAll<HTMLInputElement>('input[type=checkbox]')].find(i=>i.parentElement?.textContent?.includes("我确认这段补充"))!.click();});
+  await click("交给岗位任务取证与审阅");
+  assert.equal(calls,0);assert.equal(writes,0);assert.equal(sidebar!.conversation,"task");
+  assert.equal(sidebar!.taskRequest?.focus?.originalText,source.text);assert.deepEqual(sidebar!.taskRequest?.focus?.targetRef,source.targetRef);
+  assert.equal(sidebar!.taskRequest?.focus?.userStatement,"我只做接口测试，没有负责上线。");assert.deepEqual(sidebar!.taskRequest?.job,job);
+  assert.ok(!JSON.stringify(sidebar!.taskRequest).includes("apiKey"));assert.equal(sidebar!.taskRequest?.focus?.sourceFingerprint,"source-one");
+});
 
 test("project contribution handoff appends to the actual copilot and requires a fresh confirmation before generation or adoption", async () => {
   const scope = await understandingScope("test", writingTargetKey(source.targetRef));

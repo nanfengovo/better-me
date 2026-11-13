@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
+import { z } from "zod";
 import type { LlmConfig } from "@better-me/core";
-import type { ResumeEditContext } from "@better-me/agent-contracts";
+import type { CoachGuidanceTask, ResumeEditContext } from "@better-me/agent-contracts";
 import { ArrowRight, BookOpen, Check, Compass, Download, MessageSquare, ShieldCheck, Sparkles, Target, X } from "lucide-react";
 import type { DrawerJobContext } from "./JdMatchDrawer";
 import { findResumeContextSource, type ResumeProposalWrite } from "../lib/resume-agent-context";
-import { generateCoach, generateCoachWithChatGpt, generateCoachWithAgentBase } from "../lib/career-coach/model";
 import { addCoachRecord, addCoachSubmission, adoptCoachPlan, contextFingerprint, createCoachRecord, getCoachProgress, goalFingerprint, updateCoachTask } from "../lib/career-coach/state";
 import { confirmedGoal, confirmGoal, planChanges } from "../lib/career-coach/journey";
 import { CareerPractice } from "./CareerPractice";
@@ -17,7 +17,16 @@ import "./career-coach-layout.css";
 import { useBetterMeAgent } from "../lib/betterme-agent/react";
 import { AgentContinuityButton, AgentMemoryConsent, AgentModelControls } from "./BetterMeAgentCenter";
 import { defaultChatGptClient, type ChatGptClient } from "../services/chatgpt-client";
-import { agentBaseLabel, useAgentRouting } from "../lib/agent-routing";
+import { useAgentTaskRuntime } from "../lib/agent-task-runtime";
+import { defaultCoachGuidanceTaskClient } from "../services/coach-guidance-task-client";
+import { privateKey } from "../lib/private-storage";
+import { useRecoveryField, useWorkspaceRecovery } from "../lib/use-workspace-recovery";
+import { WorkspaceRecoveryNotice } from "./WorkspaceRecoveryNotice";
+import { COACH_MODES } from "../lib/career-coach/types";
+
+const CoachViewRecoverySchema = z.object({ mode: z.enum(COACH_MODES), inputs: z.record(z.string().max(12000)),
+  selectedRecords: z.record(z.string()), taskId: z.string(), evidence: z.record(z.string().max(12000)), minutes: z.number().min(0).max(1440), decisions: z.record(z.string()) }).strict();
+const initialCoachView = (): z.infer<typeof CoachViewRecoverySchema> => ({ mode: "analysis", inputs: {}, selectedRecords: {}, taskId: "", evidence: {}, minutes: 30, decisions: {} });
 
 export interface CareerCoachWorkspaceProps {
   workspaceKey: string;
@@ -34,6 +43,7 @@ export interface CareerCoachWorkspaceProps {
   repository?: CoachRepository;
   chatGptClient?: ChatGptClient;
   requestTimeoutMs?: number;
+  taskClient?: typeof defaultCoachGuidanceTaskClient;
 }
 
 const MODES = [
@@ -63,18 +73,21 @@ function PlanContent({ plan }: { plan: CoachPlan }) {
 }
 
 export function CareerCoachWorkspace(props: CareerCoachWorkspaceProps) {
-  return <CareerCoachSession key={props.workspaceKey} {...props} />;
+  return <CareerCoachSession key={privateKey(props.workspaceKey)} {...props} />;
 }
 
-function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, modeRequest, onModeChange, resumeEditContext, job, llmConfig, onOpenConfig, onApplyResumeProposal, generate = generateCoach, repository, chatGptClient = defaultChatGptClient, requestTimeoutMs = 120000 }: CareerCoachWorkspaceProps) {
+function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, modeRequest, onModeChange, resumeEditContext, job, llmConfig, onOpenConfig, onApplyResumeProposal, generate, repository, chatGptClient = defaultChatGptClient, requestTimeoutMs = 120000, taskClient = defaultCoachGuidanceTaskClient }: CareerCoachWorkspaceProps) {
   const { agent, snapshot: agentSnapshot } = useBetterMeAgent();
   const [shareAgentMemory, setShareAgentMemory] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
   const agentTask = useRef<string | undefined>(undefined);
-  const routing = useAgentRouting();
-  const account = !routing?.enabled && agentSnapshot?.data.selection.kind === "chatgpt";
+  const taskRuntime = useAgentTaskRuntime(llmConfig);
+  const hostTask = useRef<CoachGuidanceTask | undefined>(undefined);
+  const [resumeCandidate, setResumeCandidate] = useState<{request:CoachRequest;scope:string;task:CoachGuidanceTask;apply?:(next:CoachState,record:CoachRecord)=>CoachState}>();
+  const [resumeConsent, setResumeConsent] = useState(false);
   const { state, ready, persistenceError, conflict, update, reload, clear } = useCareerCoach(workspaceKey, repository);
-  const [mode, setMode] = useState<CoachMode>("analysis");
+  const recovery = useWorkspaceRecovery(`coach-view:${workspaceKey}`, CoachViewRecoverySchema, initialCoachView);
+  const [mode, setMode] = useRecoveryField(recovery, "mode");
   const workspaceElement = useRef<HTMLElement>(null);
   useEffect(() => { workspaceElement.current?.scrollTo({ top: 0 }); }, [mode]);
   const modeRef = useRef(mode); modeRef.current = mode;
@@ -82,18 +95,20 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
   useEffect(() => { notifyMode.current?.(mode); }, [mode]);
   const [shareResume, setShareResume] = useState(false);
   const [shareJob, setShareJob] = useState(false);
-  const [input, setInput] = useState("");
+  const input = recovery.value.inputs[mode] ?? "";
+  const setInput = (change: SetStateAction<string>, target: CoachMode = mode) => recovery.field("inputs", inputs => ({ ...inputs,
+    [target]: typeof change === "function" ? change(inputs[target] ?? "") : change }));
   const answer = state.interview?.draft ?? "";
-  const [evidence, setEvidence] = useState("");
-  const [minutes, setMinutes] = useState(30);
-  const [taskId, setTaskId] = useState("");
-  const [selectedRecordId, setSelectedRecordId] = useState("");
+  const [minutes, setMinutes] = useRecoveryField(recovery, "minutes");
+  const [taskId, setTaskId] = useRecoveryField(recovery, "taskId");
+  const selectedRecordId = recovery.value.selectedRecords[mode] ?? "";
+  const setSelectedRecordId = (id: string) => recovery.field("selectedRecords", records => ({ ...records, [mode]: id }));
   const [busy, setBusy] = useState(false);
   const [adaptiveInterview, setAdaptiveInterview] = useState(true);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
-  const [decisions, setDecisions] = useState<Record<string, string>>({});
+  const [decisions, setDecisions] = useRecoveryField(recovery, "decisions");
   const carriedSources = useRef<string[]>([]);
   const requestRef = useRef<{ id: number; controller?: AbortController; busy: boolean }>({ id: 0, busy: false });
   const applyingRef = useRef(false);
@@ -101,13 +116,13 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
     if (!modeRequest) return;
     if (requestRef.current.busy) { setNotice("当前任务仍在执行，未切换模式。请完成或停止后再选择任务。"); notifyMode.current?.(modeRef.current); return; }
     setMode(modeRequest.mode);
-  }, [modeRequest]);
+  }, [modeRequest, setMode]);
   const appliedContextFingerprints = useRef(new Map<string, string>());
   const stateRef = useRef(state); stateRef.current = state;
   const context = useMemo<CoachContext>(() => ({ ...(shareResume && resumeEditContext ? { resume: resumeEditContext } : {}),
     ...(shareJob && job ? { job: { title: job.title, company: job.company, description: job.description, location: job.location } } : {}) }), [shareResume, resumeEditContext, shareJob, job]);
   const fingerprint = contextFingerprint(context);
-  const scope = JSON.stringify([workspaceKey, agent ? undefined : mode, fingerprint, state.settings, llmConfig, agentSnapshot?.data.selection, shareAgentMemory]);
+  const scope = JSON.stringify([workspaceKey, agent ? undefined : mode, fingerprint, state.settings, taskRuntime.key, shareAgentMemory]);
   const scopeRef = useRef(scope); scopeRef.current = scope;
   const contextRef = useRef(context); contextRef.current = context;
   const goal = confirmedGoal(state, fingerprint);
@@ -115,12 +130,13 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
   const invalidate = useCallback((showNotice = false) => {
     const wasBusy = requestRef.current.busy;
     requestRef.current.controller?.abort();
+    if (hostTask.current) void taskClient.pause(hostTask.current.id).catch(failure => setError(`停止回执尚未确认：${messageOf(failure)} 请核对原任务，没有重发。`));
     if (agent && agentTask.current) void agent.stop(agentTask.current);
     agentTask.current = undefined;
     requestRef.current = { id: requestRef.current.id + 1, busy: false };
     setBusy(false);
     if (showNotice && wasBusy) setNotice("本次生成已取消，未采纳迟到结果；已提交的学习证据和面试回答仍保留。 ");
-  }, [agent]);
+  }, [agent, taskClient]);
   useEffect(() => {
     return () => { requestRef.current.controller?.abort(); if (agent && agentTask.current) void agent.stop(agentTask.current); requestRef.current = { id: requestRef.current.id + 1, busy: false }; };
   }, [agent]);
@@ -129,7 +145,7 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
     if (requestRef.current.busy) invalidate(true);
     // The serialized scope deliberately includes settings and permission changes.
   }, [scope, invalidate]);
-  useEffect(() => { setShareAgentMemory(false); }, [llmConfig.provider, llmConfig.baseUrl, llmConfig.model, llmConfig.apiKey, agentSnapshot?.data.selection.kind, agentSnapshot?.data.selection.profileId, agentSnapshot?.data.selection.model]);
+  useEffect(() => { setShareAgentMemory(false); setShareResume(false); setShareJob(false); setResumeConsent(false); }, [taskRuntime.key]);
 
   const mutate = (operation: (current: CoachState) => CoachState) => {
     try { update(operation); return true; } catch (failure) { setError(messageOf(failure)); return false; }
@@ -138,21 +154,21 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
   const changeSettings = (next: Partial<CoachSettings>) => { invalidate(true); if (mutate((current) => ({ ...current, settings: { ...current.settings, ...next } })) && next.goal !== undefined && agentSnapshot?.ready && !agentSnapshot.error) agent?.setGoal(next.goal); };
   const makeRequest = (targetMode: CoachMode, text = input): CoachRequest => ({ mode: targetMode, settings: stateRef.current.settings, input: text, context,
     ...(goal && targetMode !== "analysis" && targetMode !== "resume" ? { confirmedGoal: goal } : {}) });
-  const run = async (request: CoachRequest, apply?: (next: CoachState, record: CoachRecord) => CoachState) => {
+  const run = async (request: CoachRequest, apply?: (next: CoachState, record: CoachRecord) => CoachState, resume = false, resumeTaskId?:string) => {
     if (requestRef.current.busy || !ready || conflict) return;
-    if (routing?.blocked) { setError("本账号底座状态尚未确认；请刷新模型与工具。未使用旧 API 配置补发。"); return; }
+    if (taskRuntime.error) { setError(taskRuntime.error); return; }
     if (!request.settings.goal.trim()) { setError("请先填写本阶段目标，再开始这次任务。"); return; }
     if (request.mode === "plan" && !confirmedGoal(stateRef.current, fingerprint)) { setError("请先到规划分析核对目标与 Agent 的理解，并点击确认；不会直接替你决定方向。"); return; }
-    if (account && !agentSnapshot?.chatGptReady) { setError("请先完成 ChatGPT 授权与模型选择；不会自动改用 API 配置。"); return; }
-    if (!routing?.enabled && !account && (!llmConfig.baseUrl.trim() || !llmConfig.model.trim() || (llmConfig.provider !== "ollama" && !llmConfig.apiKey.trim()))) {
+    if (taskRuntime.runtime.kind === "model" && (!llmConfig.baseUrl.trim() || !llmConfig.model.trim() || (llmConfig.provider !== "ollama" && !llmConfig.apiKey.trim()))) {
       setError("请先打开模型配置，填写服务地址、模型名称和所需 API Key；Ollama 本地模型可不填 Key。"); return;
     }
     const id = requestRef.current.id + 1;
     const controller = new AbortController();
     const requestScope = scopeRef.current;
+    hostTask.current = undefined; setResumeCandidate(undefined); setResumeConsent(false);
     requestRef.current = { id, controller, busy: true }; setBusy(true); setError(undefined); setNotice(undefined);
     let timedOut = false;
-    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, requestTimeoutMs);
+    const timer = setTimeout(() => { timedOut = true; controller.abort(); if (hostTask.current) void taskClient.pause(hostTask.current.id).catch(() => {}); }, requestTimeoutMs);
     try {
       let effectiveRequest = request;
       const taskId = crypto.randomUUID(); agentTask.current = taskId;
@@ -167,26 +183,33 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
         }
       }
       const produce = (signal: AbortSignal) => new Promise<Awaited<ReturnType<CoachGenerate>>>((resolve, reject) => {
-        routing?.assertSelected();
+        taskRuntime.assertSelected();
         const abort = () => reject(timedOut ? new Error("模型响应超时，输入与历史保留；请手动重试，不会自动切换付费 API。") : new DOMException("本次生成已停止。", "AbortError"));
         if (signal.aborted) { abort(); return; }
         signal.addEventListener("abort", abort, { once: true });
-        const pending = routing?.enabled ? generateCoachWithAgentBase(effectiveRequest, routing.respond, signal) : account && agentSnapshot ? generateCoachWithChatGpt(effectiveRequest, chatGptClient, agentSnapshot.data.selection, signal) : generate(effectiveRequest, llmConfig, signal);
+        const parentTaskId=sourceRecords.map(record=>record?.basis.taskId).filter((value):value is string=>Boolean(value)).at(-1);
+        const pending = generate && taskRuntime.runtime.kind === "model" ? generate(effectiveRequest, llmConfig, signal)
+          : taskClient.generate({workspaceKey:`coach:${workspaceKey}`,rootScopeKey:agent?.workspaceKey??workspaceKey,parentTaskId,request:effectiveRequest,
+            runtime:taskRuntime.runtime,preferredRuntimeId:taskRuntime.preferredRuntimeId,signal,consent:true,resume,resumeTaskId,
+            onTask:task=>{hostTask.current=task;}});
         void pending.then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
       });
       const result = agent ? await agent.run({ id: taskId, origin: "growth", label: `职业成长 · ${MODES.find(item => item.id === request.mode)?.title}`, input: `${request.settings.goal}\n${request.input}`,
-        destination: routing?.enabled ? agentBaseLabel(routing.policy) : account ? `ChatGPT · ${agentSnapshot?.data.selection.model}` : `${llmConfig.provider} · ${llmConfig.model}`, shareMemories: shareAgentMemory },
+        destination: taskRuntime.label, shareMemories: shareAgentMemory },
         (signal, shared) => { effectiveRequest = { ...request, sharedProjectContext: shared.text || undefined, agentMemoryIds: shared.memoryIds }; return produce(AbortSignal.any([signal, controller.signal])); },
         value => JSON.stringify(value.payload)) : await produce(controller.signal);
       if (controller.signal.aborted || requestRef.current.id !== id || scopeRef.current !== requestScope) return;
+      taskRuntime.assertSelected();
       const record = createCoachRecord(result, effectiveRequest);
       if (request.mode === "plan" && request.plan) record.basis.parentPlanId = stateRef.current.activePlan?.id;
       update((current) => { const next = addCoachRecord(current, record); return apply ? apply(next, record) : next; });
       setSelectedRecordId("");
-      if (request.mode === "analysis") setInput("");
+      if (request.mode === "analysis") setInput("", "analysis");
       setNotice("已生成模型参考结果。需要采纳或修改的内容仍由你决定。");
     } catch (failure) {
       if ((!controller.signal.aborted || timedOut) && requestRef.current.id === id && scopeRef.current === requestScope) setError(timedOut ? "模型响应超时，输入和已提交回答保留；请手动重试，不会自动切换付费 API。" : messageOf(failure));
+      const task=(():CoachGuidanceTask|undefined=>hostTask.current)();
+      if(task&&["paused","interrupted","budget_exhausted","failed"].includes(task.status)&&scopeRef.current===requestScope) setResumeCandidate({request:task.request,scope:requestScope,task,apply});
     } finally { clearTimeout(timer); if (requestRef.current.id === id) { requestRef.current.busy = false; agentTask.current = undefined; setBusy(false); } }
   };
   const modeRecords = [...state.records].reverse().filter((record) => record.mode === mode);
@@ -197,6 +220,9 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
   const interviewSummary = state.records.find(record => record.id === state.interview?.summaryRecordId) ?? (latest?.payload.kind === "interview" ? latest : undefined);
   const tasks = state.activePlan?.plan.phases.flatMap((phase) => phase.tasks) ?? [];
   const selectedTask = tasks.find((task) => task.id === taskId) ?? tasks[0];
+  const evidenceKey = JSON.stringify([state.activePlan?.id, selectedTask?.id]);
+  const evidence = recovery.value.evidence[evidenceKey] ?? "";
+  const setEvidence = (text: string) => recovery.field("evidence", drafts => ({ ...drafts, [evidenceKey]: text }));
   const submissions = state.submissions.filter((item) => item.planId === state.activePlan?.id && item.taskId === selectedTask?.id);
   const progress = getCoachProgress(state);
   const interview = state.interview;
@@ -208,7 +234,7 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
   const carryToPlan = (text: string, source?: CoachRecord) => {
     if (source && source.basis.contextFingerprint !== fingerprint) { setError("该反馈的资料授权已变化，不能自动带入新请求；旧记录仍可回看。"); return; }
     carriedSources.current = source ? [source.id] : [];
-    invalidate(true); setMode("plan"); setSelectedRecordId(""); setInput(text.slice(0, 12000));
+    invalidate(true); setMode("plan"); recovery.field("selectedRecords", records => ({ ...records, plan: "" })); setInput(text, "plan");
     setNotice("已把这次结论放入学习重点。请先核对内容与授权，再点击生成；尚未发送或替换方案。");
   };
 
@@ -319,7 +345,7 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
     if (disabled || !session || session.status !== "active" || session.contextFingerprint !== fingerprint) return;
     if (!session.question) { requestInterview(session); return; }
     if (!answer.trim()) { setError("请先填写你自己的回答，再提交这一题。"); return; }
-    const nextSession = { ...session, question: undefined, draft: undefined, turns: [...session.turns, { question: session.question.text, answer: answer.trim() }] };
+    const nextSession = { ...session, question: undefined, draft: undefined, turns: [...session.turns, { question: session.question.text, answer }] };
     if (mutate((current) => ({ ...current, interview: nextSession }))) { setAnswer(""); requestInterview(nextSession); }
   };
   const exportState = () => {
@@ -330,7 +356,7 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
   const reset = async () => {
     if (!window.confirm("只清除当前简历视图的职业成长记录？将移除计划、学习提交和面试，不影响原简历与岗位库。此操作不可撤销，请先下载备份。")) return;
     invalidate();
-    try { await clear(); setInput(""); setAnswer(""); setEvidence(""); setDecisions({}); setNotice("已清除当前成长记录；原简历和岗位库未被改动。"); setError(undefined); } catch (failure) { setError(messageOf(failure)); }
+    try { await clear(); recovery.set(initialCoachView()); setNotice("已清除当前成长记录；原简历和岗位库未被改动。"); setError(undefined); } catch (failure) { setError(messageOf(failure)); }
   };
 
   const currentMode = MODES.find(item => item.id === mode)!;
@@ -342,7 +368,8 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
       <div className="coach-agent-controls"><AgentModelControls config={llmConfig} disabled={busy} client={chatGptClient} /><AgentContinuityButton /></div>
       <AgentMemoryConsent scope="growth" checked={shareAgentMemory} onChange={setShareAgentMemory} />
     </div></details>}
-    {visibleModes.length > 1 && <nav className="coach-tabs" aria-label="成长任务">{visibleModes.map(item => <button key={item.id} type="button" aria-pressed={mode === item.id} onClick={() => { if (!agent) invalidate(true); setMode(item.id); if (!busy) { setInput(""); carriedSources.current = []; } setError(undefined); }}><item.icon size={15} /><span>{item.title}</span></button>)}</nav>}
+    <WorkspaceRecoveryNotice {...recovery} />
+    {visibleModes.length > 1 && <nav className="coach-tabs" aria-label="成长任务">{visibleModes.map(item => <button key={item.id} type="button" aria-pressed={mode === item.id} onClick={() => { if (!agent) invalidate(true); setMode(item.id); if (!busy) carriedSources.current = []; setError(undefined); }}><item.icon size={15} /><span>{item.title}</span></button>)}</nav>}
     <div className="coach-layout"><details className="coach-setup" open={setupOpen} onToggle={event => setSetupOpen(event.currentTarget.open)}><summary><Target size={17} /><strong>目标与资料</strong><span>{state.settings.goal.trim() || "尚未设置目标，点击补充"}</span></summary><div className="coach-setup-body"><p className="coach-muted">各任务共用此目标，资料仅在你明确授权后发送。</p>
       {agentSnapshot?.data.goal && agentSnapshot.data.goal !== state.settings.goal && <button type="button" disabled={busy || !ready} onClick={() => changeSettings({ goal: agentSnapshot.data.goal })}>把统一目标带入本阶段（保留原计划）</button>}
       <fieldset disabled={!ready || conflict}><label>本阶段目标<textarea value={state.settings.goal} maxLength={4000} rows={3} placeholder="例如：8 周内补齐接口设计与测试，准备全栈岗位面试" onChange={(event) => changeSettings({ goal: event.target.value })} /></label>
@@ -358,6 +385,7 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
       {!ready && <p role="status">正在读取本地成长记录…</p>}
       {persistenceError && <div className="coach-alert" role="alert"><strong>{conflict ? "检测到跨窗口保存冲突" : "本地记录尚未可靠保存"}</strong><p>{persistenceError}</p><p>请先下载备份。重新读取会用已保存版本替换本页草稿。</p><button type="button" onClick={() => { if (window.confirm("已下载需要保留的草稿？重新读取会替换当前内容。")) { invalidate(); void reload(); } }}>重新读取记录</button></div>}
       {error && <div className="coach-alert" role="alert"><strong>这一步尚未完成</strong><p>{error}</p><button type="button" onClick={onOpenConfig}>检查模型配置</button></div>}
+      {resumeCandidate && resumeCandidate.scope===scope && <section className="coach-alert"><strong>核对原任务后恢复</strong><p>{resumeCandidate.task.id} · {resumeCandidate.task.status} · 已用模型 {resumeCandidate.task.rootLedger?.usage.modelCalls??resumeCandidate.task.usage.modelCalls} 次；恢复沿用原账本。</p><details><summary>查看本次完整请求与已有输出</summary><pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{JSON.stringify({request:resumeCandidate.request,partialOutput:resumeCandidate.task.partialOutput,outputArtifacts:resumeCandidate.task.outputArtifacts},null,2)}</pre></details><label><input type="checkbox" checked={resumeConsent} disabled={busy} onChange={event=>setResumeConsent(event.target.checked)} />我已核对以上目标、资料和当前底座，授权恢复原任务</label><button type="button" disabled={busy||!resumeConsent} onClick={()=>void run(resumeCandidate.request,resumeCandidate.apply,true,resumeCandidate.task.id)}>恢复原任务（保留已用额度）</button></section>}
       {notice && <p className="coach-notice" role="status">{notice}</p>}
       {(goal || state.activePlan || state.submissions.length > 0) && <div className="coach-journey" aria-label="成长进度"><span>{goal ? "目标已确认" : "目标待确认"}</span><span>{state.activePlan ? "方案已采纳" : "待制定学习方案"}</span><span>{state.submissions.length ? `已留存 ${state.submissions.length} 次实践` : "尚无实践记录"}</span></div>}
       {busy && <div className="coach-running" role="status"><span className="coach-busy-dot" />等待已选模型 · {elapsed} 秒{elapsed >= 30 ? " · 耗时较长，可停止后重试，未切换提供方" : ""}<button type="button" onClick={() => invalidate(true)}><X size={16} />取消生成</button></div>}
@@ -375,7 +403,7 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
       {latest && (mode === "analysis" || mode === "resume" || mode === "plan") && <div className="coach-result-meta"><span>模型参考 · {latest.model.name}</span><span>{new Date(latest.createdAt).toLocaleString()} · {latest.basis.resumeShared ? "含简历" : "无简历"} / {latest.basis.jobShared ? "含岗位" : "无岗位"}</span></div>}
       {mode === "analysis" && (analysis ? <section className="coach-result"><h3>本轮判断</h3><p className="coach-summary">{analysis.summary}</p><div className="coach-direction-grid">{analysis.directions.map((direction, index) => <article key={index}><span className="coach-kicker">方向 {index + 1}</span><h3>{direction.title}</h3><p>{direction.reason}</p><Points title="材料依据" items={direction.evidence} /><Points title="需要权衡" items={direction.tradeoffs} /></article>)}</div><Points title="已有优势" items={analysis.strengths} />
         {analysis.gaps.length > 0 && <div className="coach-gap-list"><h3>值得补充或练习</h3>{analysis.gaps.map((gap, index) => <div key={index}><span className="coach-badge">{gap.status === "unknown" ? "尚无依据，不代表不会" : "建议练习"}</span><strong>{gap.skill}</strong><p>{gap.reason}</p></div>)}</div>}
-        {analysis.questions.map((question, index) => <div className="coach-question" key={index}><h3>{question.question}</h3><p>{question.why}</p><div className="coach-choice-row">{[...question.options, "都不符合，我来补充"].map((option, choice) => <button type="button" key={choice} disabled={disabled} onClick={() => setInput((current) => `${current}${current ? "\n" : ""}${question.question}：${option}`.slice(0, 12000))}>{option}</button>)}</div></div>)}
+        {analysis.questions.map((question, index) => <div className="coach-question" key={index}><h3>{question.question}</h3><p>{question.why}</p><div className="coach-choice-row">{[...question.options, "都不符合，我来补充"].map((option, choice) => <button type="button" key={choice} disabled={disabled} onClick={() => setInput((current) => `${current}${current ? "\n" : ""}${question.question}：${option}`)}>{option}</button>)}</div></div>)}
         {analysis.questions.length > 0 && <p className="coach-note">选项只填入上方输入框，核对后点击「开始规划分析」提交；支持自由补充，不限制对齐轮数。</p>}<Points title="下一步行动" items={analysis.nextActions} />
         <div className="coach-inline-actions"><button type="button" className="coach-primary" disabled={disabled || goal?.recordId === latest?.id} onClick={() => void confirmUnderstanding()}>{goal?.recordId === latest?.id ? "已确认这版理解" : "我确认目标与理解一致"}</button>
           <button type="button" disabled={disabled || goal?.recordId !== latest?.id} onClick={() => carryToPlan(`请以本人确认的目标理解制定方案：\n${analysis.summary}\n${analysis.nextActions.join("\n")}\n用户已补充：${latest?.input ?? ""}`, latest)}>用本轮结论制定方案<ArrowRight size={16} /></button></div></section> : <Empty title="先把目标说清楚" text="填入你的阶段目标与背景，让模型提出有依据的方向、取舍和必要追问。未提供的信息会被标记为未知。" />)}

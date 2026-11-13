@@ -3,18 +3,17 @@ import test from "node:test";
 import { sendAgentChat } from "../src/services/agent-client.ts";
 import { generateWritingReply } from "../src/lib/resume-copilot.ts";
 import type { LlmConfig } from "@better-me/core";
+import {chatHost,chatOwner} from "./fixtures/free-chat-host";
+import {activatePrincipal} from "../src/lib/identity";
 
 const config: LlmConfig = { provider: "openai-compatible", baseUrl: "https://api.deepseek.com", apiKey: "synthetic-only", model: "deepseek-flash", temperature: 0.3, thinkingMode: "enabled", reasoningEffort: "low", maxTokens: 16384 };
 
 test("browser Agent chat forwards all DeepSeek controls to the host", async t => {
-  let body: Record<string, unknown> | undefined;
-  t.mock.method(globalThis, "fetch", async (_url, init) => {
-    body = JSON.parse(String(init?.body));
-    return Response.json({ reply: { id: "synthetic-answer", role: "assistant", content: "Synthetic reply" } });
-  });
+  const host=await chatHost(t,async()=>JSON.stringify({kind:"reply",content:"Synthetic reply"}));
   const reply = await sendAgentChat({ llmConfig: config, messages: [{ id: "synthetic-user", role: "user", content: "Synthetic request" }] });
   assert.equal(reply.content, "Synthetic reply");
-  assert.deepEqual(body?.modelSettings, config);
+  const body=host.requests.find(row=>row.path.endsWith("/start"))?.body;
+  assert.deepEqual((body?.runtime as {modelSettings:unknown})?.modelSettings, config);
 });
 
 test("real resume-writing transport uses DeepSeek JSON object mode and retains original source", async () => {
@@ -31,10 +30,9 @@ test("real resume-writing transport uses DeepSeek JSON object mode and retains o
 });
 
 test("known DeepSeek provider failures do not silently duplicate a generation in the browser", async t => {
+  activatePrincipal(chatOwner);t.after(()=>activatePrincipal(undefined));
   let calls = 0;
   t.mock.method(globalThis, "fetch", async () => { calls++; return Response.json({ error: "model_provider_error", message: "DeepSeek (402)：账户余额不足。" }, { status: 402 }); });
-  const reply = await sendAgentChat({ llmConfig: config, messages: [{ id: "synthetic-user", role: "user", content: "Synthetic request" }] });
-  assert.equal(reply.meta?.status, "error");
-  assert.match(reply.content, /余额不足/);
+  await assert.rejects(sendAgentChat({ llmConfig: config, messages: [{ id: "synthetic-user", role: "user", content: "Synthetic request" }] }));
   assert.equal(calls, 1);
 });

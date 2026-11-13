@@ -1,7 +1,11 @@
 /** @jsxRuntime automatic */
 import { useCallback, useEffect, useRef, useState, useMemo, type ChangeEvent } from "react";
 import { useUiPreferences } from "../lib/ui-preferences";
-import type { LlmConfig, ProjectedResume } from "@better-me/core";
+import { readChatImage, chatImageErrorMessage, MAX_CHAT_IMAGES } from "../lib/chat-images";
+import { useAgentRouting } from "../lib/agent-routing";
+import { useBetterMeAgent } from "../lib/betterme-agent/react";
+import { useAgentTaskRuntime } from "../lib/agent-task-runtime";
+import {alignJdWithResume,decomposeJdText,type InterviewDefenseStrategy,type LlmConfig,type ProjectedResume} from "@better-me/core";
 import type { ResumeEditContext, ResumeProposalTarget } from "@better-me/agent-contracts";
 import {
   AlertTriangle,
@@ -38,16 +42,16 @@ import {
 import { triggerAgentGuide } from "../lib/agent-guide";
 import { readRuntimeConnection } from "../lib/runtime-connection";
 import { isJdLinkOnly } from "../lib/jd-import";
-import { extractAndParseJobLink, type ParsedJobInfo } from "../lib/jd-link-parser";
+import { applyJdMetadata, extractAndParseJobLink, type ParsedJobInfo } from "../lib/jd-link-parser";
+import { defaultJdIntakeTaskClient } from "../services/jd-intake-task-client";
+import type { JdIntakeTask } from "@better-me/agent-contracts";
 import {
   startJdMatch,
   resumeJdMatch,
   sendAgentChat,
+  pauseAgentChatTask,
   chatMessagesForRequest,
-  checkAgentHostHealth,
   type MatchProposal,
-  type ProposalDecision,
-  type StructuredJd,
   type ChatMessage,
   type ResumeTextReference,
 } from "../services/agent-client";
@@ -60,10 +64,23 @@ import { AgentTaskNavigation, type AgentTaskView } from "./AgentTaskNavigation";
 import { AgentExternalHandoff } from "./AgentExternalHandoff";
 import { extractJobLink } from "../lib/job-link";
 import type { CoachMode } from "../lib/career-coach/types";
+import CareerTaskPanel, { type CareerTaskPanelProps } from "./CareerTaskPanel";
+import { useAgentSidebar } from "./AgentSidebar";
+import { isCareerTailoringRequest } from "../lib/career-task-intent";
+import { privateKey } from "../lib/private-storage";
+import { useRecoveryField, useWorkspaceRecovery } from "../lib/use-workspace-recovery";
+import { AdvisorRecoverySchema, initialAdvisorRecovery } from "../lib/advisor-recovery";
+import { WorkspaceRecoveryNotice } from "./WorkspaceRecoveryNotice";
+import { findResumeContextSource } from "../lib/resume-agent-context";
+import { jdMatchResumeMaterial } from "../services/jd-match-task-client";
+import {MockInterviewPanel} from "./MockInterviewPanel";
+import {createInterviewSelection,isInterviewSelectionCurrent,InterviewLaunchSchema,InterviewWorkspaceStateSchema,interviewLaunchEvent} from "../lib/mock-interview-launch";
 
 export interface AgentWorkspaceProps {
+  sendChat?:typeof sendAgentChat;
   workspaceKey?: string;
   active?: boolean;
+  onActivate?:()=>void;
   job: DrawerJobContext | null;
   resume: ProjectedResume | null;
   llmConfig: LlmConfig;
@@ -80,39 +97,7 @@ export interface AgentWorkspaceProps {
   onReferenceConsumed?: () => void;
   resumeEditContext?: ResumeEditContext;
   onApplyResumeProposal?: (proposal: { targetRef: ResumeProposalTarget; originalText: string; proposedText: string }) => Promise<{ ok: boolean; message?: string }>;
-}
-
-interface PendingChatImage {
-  name: string;
-  mimeType: string;
-  dataUrl: string;
-}
-
-async function prepareChatImage(file: File): Promise<PendingChatImage> {
-  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type.toLowerCase())) throw new Error("仅支持 PNG、JPEG 或 WebP 图片");
-  if (file.size > 15 * 1024 * 1024) throw new Error("单张图片不能超过 15 MB");
-  const bitmap = await createImageBitmap(file);
-  try {
-    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("无法处理这张图片");
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    let dataUrl = canvas.toDataURL("image/jpeg", 0.88);
-    let quality = 0.78;
-    while (dataUrl.length > 4_000_000 && quality >= 0.58) {
-      dataUrl = canvas.toDataURL("image/jpeg", quality);
-      quality -= 0.1;
-    }
-    if (dataUrl.length > 4_000_000) throw new Error("图片压缩后仍过大，请先裁剪后再上传");
-    return { name: file.name.slice(0, 160) || "resume-image.jpg", mimeType: "image/jpeg", dataUrl };
-  } finally {
-    bitmap.close();
-  }
+  careerTaskConfig?: Omit<CareerTaskPanelProps, "job" | "resumeFields" | "llmConfig" | "initialObjective">;
 }
 
 // 60fps spring-eased counter hook for score animation
@@ -143,9 +128,15 @@ function useAnimatedCounter(target: number, duration = 800) {
   return current;
 }
 
-export function AgentWorkspace({
+export function AgentWorkspace(props: AgentWorkspaceProps) {
+  return <AgentWorkspaceSession key={privateKey(props.workspaceKey ?? "active-resume")} {...props} />;
+}
+
+function AgentWorkspaceSession({
   workspaceKey = "active-resume",
+  sendChat=sendAgentChat,
   active = true,
+  onActivate,
   job,
   resume,
   llmConfig,
@@ -157,13 +148,26 @@ export function AgentWorkspace({
   onReferenceConsumed,
   resumeEditContext,
   onApplyResumeProposal,
+  careerTaskConfig,
 }: AgentWorkspaceProps) {
   const { t, theme } = useUiPreferences();
+  const {agent}=useBetterMeAgent();
+  const taskRuntime=useAgentTaskRuntime(llmConfig);
+  const sidebar=useAgentSidebar();
   const isDark = theme === "dark";
-  const [showCareerCoach, setShowCareerCoach] = useState(false);
-  const [taskView, setTaskView] = useState<AgentTaskView>("job");
+  const recovery = useWorkspaceRecovery(`advisor:${workspaceKey}`, AdvisorRecoverySchema, () => initialAdvisorRecovery(job));
+  const interviewWorkspaceKey=agent?.workspaceKey??workspaceKey;
+  const interviewRecovery=useWorkspaceRecovery(`interview-index:${interviewWorkspaceKey}`,InterviewWorkspaceStateSchema,()=>({open:false}));
+  const saveInterview=interviewRecovery.set,interviewStorageError=interviewRecovery.error;
+  const saveRecoveryField = recovery.field;
+  const [showCareerCoach, setShowCareerCoach] = useRecoveryField(recovery, "showCareerCoach");
+  const [showCareerTask, setShowCareerTask] = useState(false);
+  const [taskObjective, setTaskObjective] = useState<string>();
+  const [taskView, setTaskView] = useRecoveryField(recovery, "taskView");
   const [coachRequest, setCoachRequest] = useState<{ mode: CoachMode; id: number }>();
   function selectTask(view: AgentTaskView) {
+    interviewRecovery.field("open",false);
+    setShowCareerTask(false);
     setTaskView(view);
     const mode: CoachMode | undefined = view === "resume" ? "resume" : view === "career" ? "analysis" : view === "learning" ? "plan" : view === "practice" ? "interview" : undefined;
     setShowCareerCoach(Boolean(mode));
@@ -171,31 +175,41 @@ export function AgentWorkspace({
   }
   const [careerCoachInitialized, setCareerCoachInitialized] = useState(false);
   useEffect(() => { if (showCareerCoach) setCareerCoachInitialized(true); }, [showCareerCoach]);
-  useEffect(() => { const open = () => { setTaskView("career"); setShowCareerCoach(true); }; window.addEventListener("betterme:open-growth", open); return () => window.removeEventListener("betterme:open-growth", open); }, []);
+  useEffect(() => { const open = () => { setTaskView("career"); setShowCareerCoach(true); }; window.addEventListener("betterme:open-growth", open); return () => window.removeEventListener("betterme:open-growth", open); }, [setTaskView, setShowCareerCoach]);
 
   // Current Target Job state
-  const [currentJob, setCurrentJob] = useState<DrawerJobContext | null>(job);
+  const [currentJob, setCurrentJob] = useRecoveryField(recovery, "currentJob");
   const currentJobView: DrawerJobContext = currentJob ?? {
     title: t("简历讨论", "Resume discussion"),
     company: "",
     description: "",
   };
-  const [isEditingJob, setIsEditingJob] = useState(false);
+  const [isEditingJob, setIsEditingJob] = useRecoveryField(recovery, "isEditingJob");
   const isSetupMode = !currentJob?.description || isEditingJob;
-  const [inputTitle, setInputTitle] = useState(job?.title || "");
-  const [inputCompany, setInputCompany] = useState(job?.company || "");
-  const [inputSalary, setInputSalary] = useState(job?.salary || "");
-  const [inputLocation, setInputLocation] = useState(job?.location || "");
-  const [inputDescription, setInputDescription] = useState(job?.description || "");
+  const [inputTitle, setInputTitle] = useRecoveryField(recovery, "inputTitle");
+  const [inputCompany, setInputCompany] = useRecoveryField(recovery, "inputCompany");
+  const [inputSalary, setInputSalary] = useRecoveryField(recovery, "inputSalary");
+  const [inputLocation, setInputLocation] = useRecoveryField(recovery, "inputLocation");
+  const [inputDescription, setInputDescription] = useRecoveryField(recovery, "inputDescription");
 
   // Link import state
   const [isLinkInputOpen, setIsLinkInputOpen] = useState(true);
-  const [linkInputValue, setLinkInputValue] = useState("");
+  const [linkInputValue, setLinkInputValue] = useRecoveryField(recovery, "linkInputValue");
   const [isExtractingLink, setIsExtractingLink] = useState(false);
+  const intakeObserver=useRef<AbortController|undefined>(undefined);
+  const intakeVersion=useRef(0);
+  const [intakeTask,setIntakeTask]=useState<JdIntakeTask>();
+  const [intakeBase,setIntakeBase]=useState<ParsedJobInfo>();
+  const [intakeResumeConsent,setIntakeResumeConsent]=useState(false);
+  useEffect(()=>{intakeVersion.current++;intakeObserver.current?.abort();setIntakeTask(undefined);setIntakeBase(undefined);setIntakeResumeConsent(false);setIsExtractingLink(false);
+    // The cleanup invalidates the latest request generation, not a mounted DOM ref.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return ()=>{intakeVersion.current++;intakeObserver.current?.abort();};
+  },[taskRuntime.key]);
   const [linkError, setLinkError] = useState<string | null>(null);
   const [linkSuccessNotice, setLinkSuccessNotice] = useState<string | null>(null);
-  const [sourceUrl, setSourceUrl] = useState<string | undefined>(job?.sourceUrl);
-  const [sourcePlatform, setSourcePlatform] = useState<string | undefined>(job?.sourcePlatform);
+  const [sourceUrl, setSourceUrl] = useRecoveryField(recovery, "sourceUrl");
+  const [sourcePlatform, setSourcePlatform] = useRecoveryField(recovery, "sourcePlatform");
 
   // High-Tech Cyberpunk Stream / Handwriting Fill state
   const [isStreamingFill, setIsStreamingFill] = useState(false);
@@ -281,36 +295,39 @@ export function AgentWorkspace({
   const [isJobSpecFolded, setIsJobSpecFolded] = useState(false);
 
   // Matching state
-  const [threadId, setThreadId] = useState<string>("");
+  const [threadId, setThreadId] = useRecoveryField(recovery, "threadId");
   const [loading, setLoading] = useState(false);
-  const [structuredJd, setStructuredJd] = useState<StructuredJd | null>(null);
-  const [proposals, setProposals] = useState<MatchProposal[]>([]);
-  const [decisions, setDecisions] = useState<Record<string, ProposalDecision>>({});
-  const [editingProposalId, setEditingProposalId] = useState<string | null>(null);
-  const [editedText, setEditedText] = useState("");
+  const [structuredJd, setStructuredJd] = useRecoveryField(recovery, "structuredJd");
+  const [proposals, setProposals] = useRecoveryField(recovery, "proposals");
+  const [decisions, setDecisions] = useRecoveryField(recovery, "decisions");
+  const [editingProposalId, setEditingProposalId] = useRecoveryField(recovery, "editingProposalId");
+  const [editedText, setEditedText] = useRecoveryField(recovery, "editedText");
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
-  const [agentHostOnline, setAgentHostOnline] = useState<boolean | null>(null);
 
   // Proposal filter & detail view
   const [proposalFilter, setProposalFilter] = useState<"all" | "accepted" | "pending" | "rejected">("all");
   const [activeDiffProposalId, setActiveDiffProposalId] = useState<string | null>(null);
 
   // Chat state
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useRecoveryField(recovery, "messages");
   const [shareResumeForEditing, setShareResumeForEditing] = useState(false);
   const [resumeProposalStates, setResumeProposalStates] = useState<Record<string, { status: "saving" | "approved" | "rejected" | "conflict" | "error"; message?: string }>>({});
   const lastAssistantMessageId = [...messages].reverse().find((message) => message.role === "assistant")?.id;
-  const [inputMessage, setInputMessage] = useState("");
+  const [inputMessage, setInputMessage] = useRecoveryField(recovery, "inputMessage");
   const [chatLoading, setChatLoading] = useState(false);
-  const [chatNotice, setChatNotice] = useState("");
+  const [chatNotice, setChatNotice] = useState(recovery.value.pendingChatId ? "上次对话请求已中断，问题与已完成记录已保留。请核对后手动重试；未自动重发。" : "");
   const chatAbortRef = useRef<AbortController | null>(null);
+  const kernelChatId=useRef<string|undefined>(undefined);
+  const chatRouting=useAgentRouting();
   const pendingChatRef = useRef<ChatMessage | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [pendingAttachments, setPendingAttachments] = useState<PendingChatImage[]>([]);
-  const [pendingReferences, setPendingReferences] = useState<ResumeTextReference[]>([]);
+  const [pendingAttachments, setPendingAttachments] = useRecoveryField(recovery, "pendingAttachments");
+  const [pendingReferences, setPendingReferences] = useRecoveryField(recovery, "pendingReferences");
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const imageCapability = getModelImageCapability(llmConfig);
   const chatImageInputRef = useRef<HTMLInputElement>(null);
+  const chatImageRead = useRef(false);
+  const [readingChatImages, setReadingChatImages] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatComposerRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => () => chatAbortRef.current?.abort(), []);
@@ -320,7 +337,8 @@ export function AgentWorkspace({
       setResumeProposalStates((previous) => ({ ...previous, [key]: { status: "rejected", message: t("已拒绝；简历未修改。", "Rejected. The resume was not changed.") } }));
       return;
     }
-    if (action.type !== "resume_proposal" || !action.sourceVerified || !action.targetRef || !action.originalText || !action.proposedText || !onApplyResumeProposal) {
+    if (action.type !== "resume_proposal" || !shareResumeForEditing || !action.sourceVerified || !action.targetRef || !action.originalText || !action.proposedText || !onApplyResumeProposal
+      || !resumeEditContext || findResumeContextSource(resumeEditContext, action.targetRef) !== action.originalText) {
       setResumeProposalStates((previous) => ({ ...previous, [key]: { status: "error", message: t("缺少已核验的原文目标，无法批准写回。请开启简历字段共享后重新生成建议。", "No verified source field. Enable resume-field sharing and regenerate the proposal.") } }));
       return;
     }
@@ -345,7 +363,7 @@ export function AgentWorkspace({
     if (!initialReference) return;
     setPendingReferences((previous) => [...previous.filter((entry) => entry.text !== initialReference.text), initialReference]);
     onReferenceConsumedRef.current?.();
-  }, [initialReference]);
+  }, [initialReference, setPendingReferences]);
 
   // View state
   const [showGapsSummary, setShowGapsSummary] = useState(false);
@@ -408,11 +426,16 @@ export function AgentWorkspace({
       clearInterval(interval);
       window.removeEventListener("focus", onWindowFocus);
     };
-  }, [t]);
+  }, [t, setInputCompany, setInputDescription, setInputLocation, setInputSalary, setInputTitle, setSourceUrl]);
 
   // Sync prop job changes to local state
+  const previousJobSeed = useRef(JSON.stringify(recovery.value.jobSeed));
   useEffect(() => {
+    const fingerprint = JSON.stringify(job);
+    if (previousJobSeed.current === fingerprint) return;
+    previousJobSeed.current = fingerprint;
     if (job) {
+      saveRecoveryField("jobSeed", job);
       setCurrentJob(job);
       setInputTitle(job.title || "");
       setInputCompany(job.company || "");
@@ -423,7 +446,7 @@ export function AgentWorkspace({
       setSourcePlatform(job.sourcePlatform);
       setIsEditingJob(false);
     }
-  }, [job]);
+  }, [job, saveRecoveryField, setCurrentJob, setInputCompany, setInputDescription, setInputLocation, setInputSalary, setInputTitle, setIsEditingJob, setSourcePlatform, setSourceUrl]);
 
   const extractUrlFromText = extractJobLink;
 
@@ -551,9 +574,9 @@ export function AgentWorkspace({
     setStreamingField(null);
   };
 
-  const handleExtractLink = async (overrideInput?: string, forceMode?: "static" | "browser" | "auto-browser") => {
-    const raw = (overrideInput ?? linkInputValue).trim();
-    if (!raw) {
+  const handleExtractLink = async (overrideInput?: string, forceMode?: "static" | "browser" | "auto-browser", authorizeModel=false) => {
+    const raw = overrideInput ?? linkInputValue;
+    if (!raw.trim()) {
       setLinkError(t("请输入或粘贴岗位链接 / 招聘分享文字", "Please enter a job link or share message"));
       return;
     }
@@ -568,20 +591,20 @@ export function AgentWorkspace({
     const inputToProcess = raw.length < 300 && normalizedUrl ? normalizedUrl : raw;
 
     const controller = new AbortController();
+    intakeObserver.current?.abort();intakeObserver.current=controller;const version=++intakeVersion.current;
+    setIntakeTask(undefined);setIntakeBase(undefined);setIntakeResumeConsent(false);
     try {
       let parsed: ParsedJobInfo;
       if (forceMode === "auto-browser") {
         setExtractingStepMessage(t("🤖 正在启动自动化浏览器加载岗位...若遇安全验证请协助滑动，系统将自动读取！", "Automated browser active... If captcha appears, complete it and system will auto-read!"));
         parsed = await extractAndParseJobLink(inputToProcess, {
           signal: controller.signal,
-          llmConfig,
           mode: "auto-browser",
         });
       } else {
         try {
           parsed = await extractAndParseJobLink(inputToProcess, {
             signal: controller.signal,
-            llmConfig,
             mode: "static",
           });
         } catch {
@@ -589,17 +612,30 @@ export function AgentWorkspace({
           setExtractingStepMessage(t("🤖 已启动自动化浏览器接续抓取...若出现滑块验证，请在浏览器中拖动完成，系统将自动继续！", "Automated browser active... If captcha slider appears, please complete it; system will auto-resume!"));
           parsed = await extractAndParseJobLink(inputToProcess, {
             signal: controller.signal,
-            llmConfig,
             mode: "auto-browser",
           });
         }
+      }
+
+      if(version!==intakeVersion.current)return;
+      if(authorizeModel){
+        taskRuntime.assertSelected();setIntakeBase(parsed);
+        const task=await defaultJdIntakeTaskClient.generate({workspaceKey:`metadata:${workspaceKey}`,rootScopeKey:agent?.workspaceKey??workspaceKey,
+          request:{mode:"metadata",text:parsed.sourceText??parsed.description,...(parsed.sourceUrl?{sourceUrl:parsed.sourceUrl}:{})},
+          runtime:taskRuntime.runtime,preferredRuntimeId:taskRuntime.preferredRuntimeId,consent:true,signal:controller.signal,
+          onTask:next=>{if(version===intakeVersion.current)setIntakeTask(next);},
+        });
+        taskRuntime.assertSelected();if(version!==intakeVersion.current)return;
+        parsed=applyJdMetadata(parsed,task.result!);
       }
 
       // Populate form fields with high-tech stream animation
       const isTestContext = typeof process !== "undefined" && Boolean(process.env?.NODE_TEST_CONTEXT);
       const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-      if (isTestContext || prefersReducedMotion) {
+      // Authorized task output commits atomically after the runtime/version fence;
+      // a delayed typewriter must not keep writing after a source/runtime change.
+      if (authorizeModel || isTestContext || prefersReducedMotion) {
         commitParsedFields(parsed);
       } else {
         await playHighTechStreamFill(parsed);
@@ -625,20 +661,36 @@ export function AgentWorkspace({
         text: parsed.title,
       });
 
-      setTimeout(() => {
-        setIsLinkInputOpen(false);
-        setLinkSuccessNotice(null);
+      if(!authorizeModel)setTimeout(() => {
+        if(version!==intakeVersion.current)return;
+        setIsLinkInputOpen(false);setLinkSuccessNotice(null);
       }, 2500);
     } catch (err) {
+      if(version!==intakeVersion.current||controller.signal.aborted)return;
       const msg =
         err instanceof Error
           ? err.message
           : t("未能成功读取岗位链接，请检查网络或直接粘贴 JD 正文", "Failed to extract job link");
       setLinkError(msg);
     } finally {
-      setIsExtractingLink(false);
-      setExtractingStepMessage(null);
+      if(version===intakeVersion.current){setIsExtractingLink(false);setExtractingStepMessage(null);}
     }
+  };
+
+  const resumeMetadata=async()=>{
+    if(!intakeTask||!intakeBase||!intakeResumeConsent)return;
+    const original=intakeTask,base=intakeBase,version=++intakeVersion.current,controller=new AbortController();intakeObserver.current?.abort();intakeObserver.current=controller;
+    setIntakeResumeConsent(false);setIsExtractingLink(true);setLinkError(null);
+    try{
+      taskRuntime.assertSelected();
+      const task=await defaultJdIntakeTaskClient.generate({workspaceKey:`metadata:${workspaceKey}`,rootScopeKey:agent?.workspaceKey??workspaceKey,request:original.request,
+        runtime:taskRuntime.runtime,preferredRuntimeId:taskRuntime.preferredRuntimeId,consent:true,resumeTaskId:original.id,signal:controller.signal,
+        onTask:next=>{if(version===intakeVersion.current)setIntakeTask(next);},
+      });
+      taskRuntime.assertSelected();if(version!==intakeVersion.current)return;
+      commitParsedFields(applyJdMetadata(base,task.result!));setLinkSuccessNotice(t("原任务已返回可核对字段，请审阅表单。", "The original task returned source-backed fields. Review the form."));
+    }catch(failure){if(version===intakeVersion.current&&!controller.signal.aborted)setLinkError(failure instanceof Error?failure.message:"模型提取未完成，原任务保留。");}
+    finally{if(version===intakeVersion.current)setIsExtractingLink(false);}
   };
 
   const handlePasteClipboard = async () => {
@@ -669,11 +721,6 @@ export function AgentWorkspace({
     }
   };
 
-  // Check agent host daemon health
-  useEffect(() => {
-    void checkAgentHostHealth().then(setAgentHostOnline);
-  }, []);
-
   // Auto-scroll chat
   useEffect(() => {
     if (leftViewMode !== "jd") {
@@ -681,79 +728,25 @@ export function AgentWorkspace({
     }
   }, [messages, leftViewMode]);
 
-  const autoMatchAttempt = useRef<string | null>(null);
+  // Only an explicitly labeled user action grants this frozen JD + resume projection.
+  // Mount, navigation and history restoration never dispatch analysis.
   const runMatching = useCallback(async (jdText: string) => {
-    autoMatchAttempt.current = jdText;
-    setLoading(true);
-    setErrorNotice(null);
-    const newThreadId = `thread-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    setThreadId(newThreadId);
-
-    const allowedIds: string[] = [];
-    const sessionClaims: Record<string, string> = {};
-
-    if (resume) {
-      if (resume.profile.displayName) sessionClaims["candidate_name"] = resume.profile.displayName;
-      if (resume.profile.headline) sessionClaims["headline"] = resume.profile.headline;
-      if (resume.profile.education) sessionClaims["education"] = resume.profile.education;
-      if (resume.educationSummary) sessionClaims["education_summary"] = resume.educationSummary;
-      if (resume.profile.location) sessionClaims["location"] = resume.profile.location;
-      if (resume.skills && resume.skills.length > 0) sessionClaims["skills"] = resume.skills.join(", ");
-      if (resume.profile.traits && resume.profile.traits.length > 0) sessionClaims["traits"] = resume.profile.traits.join(", ");
-      if (resume.profile.targetRoles && resume.profile.targetRoles.length > 0) sessionClaims["target_roles"] = resume.profile.targetRoles.join(", ");
-
-      resume.experiences.forEach((exp, idx) => {
-        const typeLabel = exp.type === "opensource" ? "开源项目" : exp.type === "education" ? "教育经历" : "工作经历";
-        const key = `${typeLabel}_${idx + 1}_${exp.org || exp.projectName || "经历"}`;
-        const claimTexts = exp.claims.map((c) => {
-          allowedIds.push(c.id);
-          return `• [${c.id}] ${c.text}`;
-        });
-        const details = [
-          `${exp.title} (${exp.start} - ${exp.end || "至今"})`,
-          exp.projectName ? `项目名称: ${exp.projectName}` : null,
-          exp.techStack && exp.techStack.length > 0 ? `技术栈: ${exp.techStack.join(", ")}` : null,
-          claimTexts.length > 0 ? `具体经历与成果:\n${claimTexts.join("\n")}` : null,
-        ]
-          .filter(Boolean)
-          .join("\n");
-        sessionClaims[key] = details;
-      });
-    }
-
+    if(!active||loading)return;
+    setLoading(true);setErrorNotice(null);setProposals([]);setDecisions({});setStructuredJd(null);setThreadId("");
     try {
-      const res = await startJdMatch({
-        threadId: newThreadId,
-        rawJd: jdText,
-        allowedProfileEntryIds: allowedIds,
-        sessionClaims,
-        llmConfig,
+      if(chatRouting?.blocked)throw new Error("底座状态尚未确认；未使用旧 API 配置补发。");
+      taskRuntime.assertSelected();
+      const result=await startJdMatch({threadId:"explicit-jd-analysis",workspaceKey:agent?.workspaceKey??workspaceKey,rootScopeKey:agent?.workspaceKey??workspaceKey,
+        rawJd:jdText,...jdMatchResumeMaterial(resume),llmConfig,consent:true,
+        runtime:taskRuntime.runtime,preferredRuntimeId:taskRuntime.preferredRuntimeId,
+        onTask:task=>setThreadId(task.id),
       });
-
-      const loadedProposals = Array.isArray(res.proposals) ? res.proposals : [];
-      setProposals(loadedProposals);
-      if (res.structuredJd) {
-        setStructuredJd(res.structuredJd);
-      }
-
-      // Evidence classification is not user consent to change a resume.
-      setDecisions({});
-    } catch (err) {
-      setErrorNotice(err instanceof Error ? err.message : t("岗位匹配失败，请检查模型配置", "Job matching failed"));
-    } finally {
-      setLoading(false);
-    }
-  }, [resume, llmConfig, t]);
-
-  // One attempt per opened JD, even during StrictMode replay or an empty result.
-  // Explicit manual matching also records its attempt before changing state.
-  useEffect(() => {
-    if (!active || showCareerCoach) { autoMatchAttempt.current = null; return; }
-    const description = currentJob?.description;
-    if (description && autoMatchAttempt.current !== description && proposals.length === 0 && !loading && !errorNotice) {
-      void runMatching(description);
-    }
-  }, [currentJob?.description, active, showCareerCoach, proposals.length, loading, errorNotice, runMatching]);
+      taskRuntime.assertSelected();
+      setThreadId(result.threadId);setProposals(result.proposals);if(result.structuredJd)setStructuredJd(result.structuredJd);setDecisions({});
+    } catch(error) {
+      setErrorNotice(error instanceof Error?error.message:t("岗位分析未完成，原任务记录与用量保留。","Analysis not completed; task history and usage retained."));
+    } finally {setLoading(false);}
+  },[active,loading,chatRouting,taskRuntime,agent?.workspaceKey,workspaceKey,resume,llmConfig,t,setDecisions,setProposals,setStructuredJd,setThreadId]);
 
   const handleDecision = (proposalId: string, status: "accepted" | "rejected") => {
     setDecisions((prev) => ({
@@ -849,30 +842,40 @@ export function AgentWorkspace({
     const files = Array.from(event.currentTarget.files ?? []);
     event.currentTarget.value = "";
     if (!files.length) return;
-    setAttachmentError(null);
-    const room = Math.max(0, 3 - pendingAttachments.length);
-    if (room === 0) {
-      setAttachmentError(t("一条消息最多附加 3 张图片。", "Attach up to 3 images to a message."));
+    if (chatImageRead.current) {
+      setAttachmentError(t("正在读取上一批图片；本批未附加，请稍后重新选择。", "The previous images are still being read. This batch was not attached; choose it again shortly."));
       return;
     }
-    try {
-      const prepared = await Promise.all(files.slice(0, room).map(prepareChatImage));
-      setPendingAttachments((previous) => [...previous, ...prepared].slice(0, 3));
-    } catch (error) {
-      setAttachmentError(error instanceof Error ? error.message : t("图片读取失败，请重试。", "Could not read the image. Try again."));
+    setAttachmentError(null);
+    const room = Math.max(0, MAX_CHAT_IMAGES - pendingAttachments.length);
+    if (files.length > room) {
+      setAttachmentError(t("一条消息最多附加 3 张图片；本批未附加，请重新选择。", "Up to 3 images per message. This batch was not attached; choose it again."));
+      return;
     }
+    chatImageRead.current = true;
+    setReadingChatImages(true);
+    try {
+      const prepared = await Promise.all(files.map(readChatImage));
+      setPendingAttachments((previous) => [...previous, ...prepared]);
+    } catch (error) {
+      setAttachmentError(chatImageErrorMessage(error, t));
+    } finally { chatImageRead.current = false; setReadingChatImages(false); }
   };
 
   // Chat message submission
   const handleSendMessage = async (customText?: string) => {
+    if (chatImageRead.current) { setAttachmentError(t("图片尚未读取完成，本轮未发送。", "Images are still being read. Nothing was sent.")); return; }
     const selectedAttachments = customText ? [] : pendingAttachments;
+    if (selectedAttachments.length && taskRuntime.runtime.kind === "chatgpt") {
+      setAttachmentError("当前 ChatGPT 账号任务只支持文字；图片仍保留，本轮未发送。"); return;
+    }
     if (selectedAttachments.length && imageCapability === "unsupported") {
       setAttachmentError(modelImageCapabilityDescription(imageCapability, t));
       return;
     }
     const selectedReferences = pendingReferences;
     const typedText = customText ?? inputMessage;
-    const textToSend = typedText.trim() || (selectedAttachments.length ? t("请帮我分析这张图片。", "Please analyze the attached image.") : selectedReferences.length ? t("请结合引用的简历内容帮我分析。", "Please analyze the quoted resume text.") : "");
+    const textToSend = typedText.trim() ? typedText : (selectedAttachments.length ? t("请帮我分析这张图片。", "Please analyze the attached image.") : selectedReferences.length ? t("请结合引用的简历内容帮我分析。", "Please analyze the quoted resume text.") : "");
     if ((!textToSend && selectedAttachments.length === 0 && selectedReferences.length === 0) || chatLoading || chatAbortRef.current) return;
 
     if (leftViewMode === "jd") {
@@ -882,15 +885,24 @@ export function AgentWorkspace({
     const userMsg: ChatMessage = {
       id: `msg-user-${Date.now()}`,
       role: "user",
-      content: textToSend.trim(),
+      content: textToSend,
       ...(selectedAttachments.length ? { attachments: selectedAttachments } : {}),
       ...(selectedReferences.length ? { references: selectedReferences } : {}),
       createdAt: new Date().toISOString(),
     };
 
+    if (careerTaskConfig && isCareerTailoringRequest(textToSend)) {
+      openCareerTask(textToSend);
+      setMessages(prev => [...prev, userMsg, { id: `task-consent-${Date.now()}`, role: "assistant", content: t("已打开岗位定制任务。请先确认底座、材料范围和预算；尚未发送模型请求，也未保存或投递。", "The tailoring task is ready for your runtime, material and budget consent. No model request, save or submission has occurred.") }]);
+      if (!customText) setInputMessage("");
+      return;
+    }
+
     const controller = new AbortController();
     chatAbortRef.current = controller;
+    kernelChatId.current=undefined;
     pendingChatRef.current = userMsg;
+    recovery.field("pendingChatId", userMsg.id);
     setMessages((prev) => [...prev, userMsg]);
     if (!customText) {
       setInputMessage("");
@@ -902,7 +914,13 @@ export function AgentWorkspace({
     setChatNotice("");
 
     try {
-      const reply = await sendAgentChat({
+      if(chatRouting?.blocked)throw new Error("底座状态尚未确认；未使用旧 API 配置补发。");
+      taskRuntime.assertSelected();
+      const reply = await sendChat({
+        workspaceKey:`advisor:${workspaceKey}`,
+        rootScopeKey:agent?.workspaceKey??workspaceKey,
+        runtime:taskRuntime.runtime,preferredRuntimeId:taskRuntime.preferredRuntimeId,
+        onTask:task=>{kernelChatId.current=task.id;},
         messages: chatMessagesForRequest([...messages, userMsg]),
         llmConfig,
         signal: controller.signal,
@@ -919,8 +937,10 @@ export function AgentWorkspace({
         },
       });
       if (controller.signal.aborted || chatAbortRef.current !== controller) return;
+      taskRuntime.assertSelected();
       setMessages((prev) => [...prev, reply]);
       pendingChatRef.current = null;
+      recovery.field("pendingChatId", undefined);
     } catch (err) {
       if (controller.signal.aborted || chatAbortRef.current !== controller) return;
       const errorMsg: ChatMessage = {
@@ -930,6 +950,7 @@ export function AgentWorkspace({
       };
       setMessages((prev) => [...prev, errorMsg]);
       pendingChatRef.current = null;
+      recovery.field("pendingChatId", undefined);
     } finally {
       if (chatAbortRef.current === controller) {
         chatAbortRef.current = null;
@@ -943,8 +964,10 @@ export function AgentWorkspace({
     if (!controller) return;
     chatAbortRef.current = null;
     controller.abort();
+    if(kernelChatId.current)void pauseAgentChatTask(kernelChatId.current).catch(error=>setChatNotice(error instanceof Error?error.message:"停止结果尚未确认，请读取任务。"));
     const pending = pendingChatRef.current;
     pendingChatRef.current = null;
+    recovery.field("pendingChatId", undefined);
     if (pending) {
       setMessages((current) => current.filter((message) => message.id !== pending.id));
       setInputMessage((current) => current.trim() ? current : pending.content);
@@ -964,7 +987,12 @@ export function AgentWorkspace({
   };
 
   // Multi-step Guided Application Flow
-  const handleApply = () => {
+  const handleApply = async () => {
+    if (isApplying) return;
+    if (careerTaskConfig) {
+      openCareerTask(t("针对当前岗位准备定制简历，先查证再提交逐句差异与待确认项。", "Prepare a tailored resume for this job with evidence, per-sentence changes and unknowns."));
+      return;
+    }
     const acceptedList: MatchProposal[] = proposals
       .filter((p) => {
         const d = decisions[p.id];
@@ -984,7 +1012,12 @@ export function AgentWorkspace({
     const title = currentJob?.title || job?.title || t("岗位", "Job");
     const customResumeName = `${company} · ${title} 定制版`;
 
-    // Invoke onApplyToResume directly so state updates and tests are immediate
+    if(/^ct_[a-f0-9]{32}$/.test(threadId)){
+      setIsApplying(true);
+      try{await resumeJdMatch({threadId,decisions,currentProposals:proposals,llmConfig,matching:{rawJd:currentJob?.description??"",...jdMatchResumeMaterial(resume)}});}
+      catch(error){setErrorNotice(error instanceof Error?error.message:"任务选择未确认，未应用。 ");setIsApplying(false);return;}
+    }
+    // Workspace owns the business write, after the exact source and review gate.
     onApplyToResume({
       acceptedProposals: acceptedList,
       customResumeName,
@@ -994,15 +1027,6 @@ export function AgentWorkspace({
 
     setIsApplying(true);
     setApplyStep(1);
-
-    if (threadId && agentHostOnline) {
-      void resumeJdMatch({
-        threadId,
-        decisions,
-        currentProposals: proposals,
-        llmConfig,
-      }).catch(() => {});
-    }
 
     setTimeout(() => setApplyStep(2), 400);
     setTimeout(() => setApplyStep(3), 800);
@@ -1110,7 +1134,31 @@ export function AgentWorkspace({
     };
   }, [currentJob, isSetupMode, inputDescription, inputTitle, inputCompany, inputSalary, inputLocation, sourceUrl, sourcePlatform, t]);
 
+  function openCareerTask(objective?:string){
+    if(sidebar){sidebar.requestTask({job:careerCoachJob,objective});return;}
+    if(objective)setTaskObjective(objective);setShowCareerTask(true);setShowCareerCoach(false);
+  }
+
   // Circumference for radial progress gauge
+
+  const defenseOptions=useMemo(()=>currentJob?.description&&resume?alignJdWithResume(decomposeJdText(currentJob.description,{title:currentJob.title,company:currentJob.company,location:currentJob.location}),resume).interviewDefenses:[],[currentJob,resume]);
+  const startDefense=async(defense:InterviewDefenseStrategy)=>{
+    if(!currentJob?.description||!resume)return;
+    try{
+      const selection=await createInterviewSelection({matching:{rawJd:currentJob.description,...jdMatchResumeMaterial(resume)},focus:{question:defense.question,gapItem:defense.targetTopic,corePoints:[defense.coreDefenseStrategy,...defense.suggestedAnswerFramework]}});
+      interviewRecovery.set({selection,open:true});
+    }catch(error){setErrorNotice(error instanceof Error?error.message:"无法打开对练，未发送资料。");}
+  };
+  useEffect(()=>{
+    const openInterview=(event:Event)=>{
+      const request=InterviewLaunchSchema.safeParse((event as CustomEvent).detail);
+      if(!request.success||request.data.workspaceKey!==interviewWorkspaceKey||interviewStorageError)return;
+      if(!isInterviewSelectionCurrent(request.data.selection,resume))return;
+      saveInterview({selection:request.data.selection,open:true});event.preventDefault();onActivate?.();
+    };
+    window.addEventListener(interviewLaunchEvent,openInterview);
+    return ()=>window.removeEventListener(interviewLaunchEvent,openInterview);
+  },[interviewWorkspaceKey,interviewStorageError,saveInterview,resume,onActivate]);
 
   const careerCoachPanel = (showCareerCoach || careerCoachInitialized) && (
     <section className="career-coach-shell" hidden={!showCareerCoach} style={{ display: showCareerCoach ? undefined : "none" }}>
@@ -1122,11 +1170,19 @@ export function AgentWorkspace({
 
   return (
     <div className="advisor-workspace">
+    {interviewRecovery.value.open&&interviewRecovery.value.selection&&<MockInterviewPanel key={privateKey(interviewRecovery.value.selection.id)} workspaceKey={interviewWorkspaceKey} selection={interviewRecovery.value.selection} resume={resume} llmConfig={llmConfig} blockingError={interviewRecovery.error} onClose={()=>interviewRecovery.field("open",false)} onOpenConfig={onOpenConfig}/>}
+    <div hidden={interviewRecovery.value.open} style={{display:interviewRecovery.value.open?"none":"contents"}}>
+    {interviewRecovery.error&&<WorkspaceRecoveryNotice {...interviewRecovery}/>}
+    {(recovery.error || (!showCareerCoach && taskView !== "handoff")) && <WorkspaceRecoveryNotice {...recovery} />}
     <AgentTaskNavigation onBack={onNavigateToResume} onEdit={currentJob?.description && !isEditingJob ? handleOpenJobEdit : undefined} needsConfig={!llmConfig.apiKey?.trim() && llmConfig.provider !== "ollama"} onConfig={onOpenConfig} active={showCareerCoach ? (taskView === "job" ? "career" : taskView) : taskView} onSelect={selectTask} jobTitle={currentJob ? `${currentJob.company} · ${currentJob.title}` : undefined} />
-    {careerCoachPanel}
-    <div hidden={taskView !== "handoff"} style={{ display: taskView === "handoff" ? "flex" : "none", flex: 1, minHeight: 0 }}><AgentExternalHandoff job={currentJob} /></div>
+    {interviewRecovery.value.selection&&<button type="button" className="studio-button" onClick={()=>interviewRecovery.field("open",true)}>回到对练会话</button>}
+    {defenseOptions.length>0&&!showCareerCoach&&<details className="mock-interview-topics"><summary>面试攻防 · 选择题目开始对练</summary>{defenseOptions.map(defense=><article key={defense.id}><strong>{defense.targetTopic}</strong><p>{defense.question}</p><button type="button" disabled={Boolean(interviewRecovery.error)} onClick={()=>void startDefense(defense)}>与 Copilot 模拟对练这道题 →</button></article>)}</details>}
+    {careerTaskConfig && <div className="flex items-center gap-3 border-b border-[var(--ui-border)] px-4 py-2"><button type="button" aria-pressed={sidebar?sidebar.open&&sidebar.conversation==="task":showCareerTask} className="studio-button" onClick={() => openCareerTask()}><FileText size={14} />{t("岗位定制任务", "Resume tailoring task")}</button><span className="text-xs text-[var(--ui-muted)]">{t("同一宿主任务 · 审阅后另存 · 不自动投递", "One host task · Review before saving · No auto-apply")}</span></div>}
+    <div hidden={showCareerTask} style={{ display: showCareerTask ? "none" : "contents" }}>{careerCoachPanel}</div>
+    {careerTaskConfig && showCareerTask && <CareerTaskPanel {...careerTaskConfig} job={careerCoachJob ?? undefined} resumeFields={resumeEditContext} llmConfig={llmConfig} initialObjective={taskObjective} />}
+    <div hidden={taskView !== "handoff" || showCareerTask} style={{ display: taskView === "handoff" && !showCareerTask ? "flex" : "none", flex: 1, minHeight: 0 }}><AgentExternalHandoff workspaceKey={workspaceKey} job={currentJob} /></div>
     <section
-      style={{ display: showCareerCoach || taskView === "handoff" ? "none" : undefined }}
+      style={{ display: showCareerTask || showCareerCoach || taskView === "handoff" ? "none" : undefined }}
       className={`advisor-job-panel w-full h-full flex flex-col min-h-0 overflow-hidden font-sans transition-colors duration-200 ${
         isDark ? "bg-[var(--ui-canvas,#1a1a1f)] text-[var(--ui-text,#edeef4)]" : "bg-slate-100/90 text-slate-900"
       }`}
@@ -1216,6 +1272,7 @@ export function AgentWorkspace({
                       rows={2}
                       value={linkInputValue}
                       onChange={(e) => {
+                        intakeVersion.current++;intakeObserver.current?.abort();setIntakeTask(undefined);setIntakeBase(undefined);setIntakeResumeConsent(false);setIsExtractingLink(false);
                         setLinkInputValue(e.target.value);
                         setLinkError(null);
                       }}
@@ -1248,6 +1305,10 @@ export function AgentWorkspace({
                             : t("读取并自动填入", "Extract & Fill")}
                         </span>
                       </button>
+                      <button type="button" disabled={isExtractingLink||!linkInputValue.trim()} onClick={()=>void handleExtractLink(undefined,undefined,true)}
+                        className="agent-btn-press inline-flex items-center gap-1.5 rounded-lg border border-emerald-600/40 px-3 py-2 text-xs font-medium disabled:opacity-40">
+                        {t("授权模型提取并填入", "Authorize model extraction & fill")}
+                      </button>
                       <button
                         type="button"
                         disabled={isExtractingLink || !linkInputValue.trim()}
@@ -1259,6 +1320,19 @@ export function AgentWorkspace({
                         {t("用浏览器读取（验证码）", "Use browser (captcha)")}
                       </button>
                     </div>
+
+                    {intakeTask&&<section aria-label={t("岗位字段提取任务", "Job field extraction task")} className="space-y-2 rounded-lg border border-emerald-600/25 p-3 text-xs">
+                      <p>{intakeTask.id} · {intakeTask.status} · {taskRuntime.label} · {t("根累计模型调用", "Root model calls")} {intakeTask.rootLedger?.usage.modelCalls??intakeTask.usage.modelCalls}</p>
+                      <details><summary>{t("完整来源、字段坐标与已有输出", "Complete source, field coordinates and output")}</summary><pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify({request:intakeTask.request,result:intakeTask.result,partialOutput:intakeTask.partialOutput,outputArtifacts:intakeTask.outputArtifacts},null,2)}</pre></details>
+                      {["paused","interrupted","budget_exhausted","failed"].includes(intakeTask.status)&&<>
+                        <label className="flex items-start gap-2"><input type="checkbox" checked={intakeResumeConsent} disabled={isExtractingLink} onChange={event=>setIntakeResumeConsent(event.target.checked)}/>{t("我已核对完整来源和当前底座，授权恢复原提取任务", "I reviewed the complete source and runtime and authorize resuming the original task")}</label>
+                        <button type="button" disabled={isExtractingLink||!intakeResumeConsent} onClick={()=>void resumeMetadata()} className="rounded-lg border px-3 py-2 disabled:opacity-40">{t("恢复原字段提取任务", "Resume original extraction task")}</button>
+                      </>}
+                      {intakeTask.status==="running"&&<button type="button" onClick={()=>{
+                        const version=++intakeVersion.current;intakeObserver.current?.abort();setIsExtractingLink(false);
+                        void defaultJdIntakeTaskClient.pause(intakeTask.id).then(task=>{if(version===intakeVersion.current)setIntakeTask(task);}).catch(failure=>{if(version===intakeVersion.current)setLinkError(failure instanceof Error?failure.message:"停止结果尚未确认，请核对原任务。");});
+                      }} className="rounded-lg border px-3 py-2">{t("停止字段提取", "Pause field extraction")}</button>}
+                    </section>}
 
                     {isExtractingLink && extractingStepMessage && (
                       <p className={`text-[11px] flex items-center gap-1.5 ${isDark ? "text-emerald-300" : "text-emerald-800"}`}>
@@ -1571,8 +1645,8 @@ export function AgentWorkspace({
                         <Sparkles size={14} />
                         <span>
                           {isEditingJob
-                            ? t("保存并重新分析", "Save & Re-analyze")
-                            : t("开始拆解", "Start matching")}
+                            ? t("授权当前简历并重新分析", "Share current resume & re-analyze")
+                            : t("授权当前简历并开始拆解", "Share current resume & analyze")}
                         </span>
                       </>
                     )}
@@ -2010,7 +2084,7 @@ export function AgentWorkspace({
                         </h4>
                       </div>
                       <p className={`text-[11px] leading-relaxed mb-2.5 ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>
-                        {t("可随时协助调研雇主背景、按 STAR 原则修改经历细节、寻找同类机会或演练面试答辩。", "Ask me to inspect employers, polish resume claims with STAR, or prep interview strategies.")}
+                        {t("可以一起调研雇主、打磨一条项目经历，或准备面试追问。", "Research an employer, refine a project contribution, or prepare for interview questions.")}
                       </p>
 
                       {/* Quick Prompt Cards */}
@@ -2035,7 +2109,7 @@ export function AgentWorkspace({
                               section: "headline",
                               label: t("🤖 Agent 正在针对岗位优化个人优势", "🤖 Refining headline for job"),
                             });
-                            void handleSendMessage("根据当前目标岗位 JD，帮我按 STAR 原则优化最核心的一段项目经历 Bullet Point");
+                            void handleSendMessage(t("对照目标岗位，找一条最有依据的经历，写清交付对象和本人动作；缺少关键细节就先问我。", "Help me refine one supported contribution for the target role. Ask me for missing details before suggesting a rewrite."));
                           }}
                           className={`agent-btn-press p-2 rounded-lg border text-xs transition cursor-pointer flex items-center gap-1.5 ${
                             isDark
@@ -2044,7 +2118,7 @@ export function AgentWorkspace({
                           }`}
                         >
                           <span className="text-xs shrink-0">✍️</span>
-                          <span className={`font-semibold text-[11px] truncate ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-800"}`}>{t("STAR 润色", "STAR Polish")}</span>
+                          <span className={`font-semibold text-[11px] truncate ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-800"}`}>{t("打磨一条经历", "Refine a bullet")}</span>
                         </button>
 
                         <button
@@ -2392,7 +2466,7 @@ export function AgentWorkspace({
                   </button>
                   <button
                     type="button"
-                    onClick={() => void handleSendMessage(t("根据当前岗位的 JD 要求，按 STAR 原则优化我最核心的工作经历 Bullet Point", "Optimize key work experience bullet point with STAR method"))}
+                    onClick={() => void handleSendMessage(t("对照目标岗位，找一条最有依据的经历，写清交付对象和本人动作；缺少关键细节就先问我。", "Help me refine one supported contribution for the target role. Ask me for missing details before suggesting a rewrite."))}
                     disabled={chatLoading}
                     className={`agent-btn-press shrink-0 px-3 py-1 rounded-full border transition disabled:opacity-50 cursor-pointer shadow-xs ${
                       isDark
@@ -2400,7 +2474,7 @@ export function AgentWorkspace({
                         : "bg-white hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-200 border-slate-200 text-slate-700 shadow-2xs"
                     }`}
                   >
-                    ✍️ {t("按 STAR 润色核心经历", "Optimize resume with STAR")}
+                    ✍️ {t("打磨一条核心经历", "Refine a key contribution")}
                   </button>
                   <button
                     type="button"
@@ -2454,8 +2528,8 @@ export function AgentWorkspace({
                         }
                       }}
                       placeholder={t(
-                        "向 Copilot 提问或提出修改需求（例如：帮我查公司实控人、按 STAR 润色经历、推演面试考点）…",
-                        "Ask copilot anything (e.g. inspect employer, polish with STAR, interview prep)..."
+                        "向 Copilot 提问（例如：这条经历里，读者能看出哪一步是我做的吗？）…",
+                        "Ask the copilot (e.g. can a reader tell what I personally delivered here?)…"
                       )}
                       className={`agent-chat-textarea w-full px-2 py-1 text-xs sm:text-[13px] font-sans outline-none resize-none ${
                         isDark
@@ -2485,7 +2559,7 @@ export function AgentWorkspace({
                     {/* Composer Footer Actions */}
                     <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80">
                       <div className="flex min-w-0 items-center gap-1.5 text-[11px] select-none">
-                        <button type="button" disabled={chatLoading || pendingAttachments.length >= 3} onClick={() => chatImageInputRef.current?.click()} title={t("添加图片（最多 3 张）", "Attach images (up to 3)")} className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition disabled:opacity-40 ${isDark ? "border-[var(--ui-border,#484b58)] text-[var(--ui-text-secondary,#c7cad4)] hover:border-emerald-500/40 hover:text-emerald-300" : "border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700"}`} aria-label={t("上传图片", "Upload image")}><ImagePlus size={15} /></button>
+                        <button type="button" disabled={chatLoading || readingChatImages || pendingAttachments.length >= MAX_CHAT_IMAGES} onClick={() => chatImageInputRef.current?.click()} title={t("添加原始图片（最多 3 张，单张不超过 2 MB，不压缩）", "Attach original images (up to 3, at most 2 MB each, no compression)")} className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition disabled:opacity-40 ${isDark ? "border-[var(--ui-border,#484b58)] text-[var(--ui-text-secondary,#c7cad4)] hover:border-emerald-500/40 hover:text-emerald-300" : "border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700"}`} aria-label={t("上传图片", "Upload image")}><ImagePlus size={15} /></button>
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b981] animate-pulse" />
@@ -2502,7 +2576,7 @@ export function AgentWorkspace({
                       {chatLoading ? <button type="button" onClick={handleStopChat} aria-label={t("停止生成并编辑问题", "Stop generating and edit question")} className="agent-btn-press flex items-center gap-1.5 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-500"><Square size={13} /><span>{t("停止", "Stop")}</span></button> : <button
                         type="button"
                         onClick={() => void handleSendMessage()}
-                        disabled={(!inputMessage.trim() && !pendingAttachments.length && !pendingReferences.length) || (pendingAttachments.length > 0 && imageCapability === "unsupported")}
+                        disabled={readingChatImages || (!inputMessage.trim() && !pendingAttachments.length && !pendingReferences.length) || (pendingAttachments.length > 0 && imageCapability === "unsupported")}
                         className={`agent-btn-press flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer select-none ${
                           (inputMessage.trim() || pendingAttachments.length || pendingReferences.length) && !chatLoading
                             ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-500/25 active:scale-95"
@@ -2869,7 +2943,7 @@ export function AgentWorkspace({
                   }`}
                 >
                   <RefreshCw size={12} className={loading ? "animate-spin text-emerald-500" : ""} />
-                  <span>{loading ? t("分析中…", "Analyzing…") : t("重新分析", "Re-match")}</span>
+                  <span>{loading ? t("分析中…", "Analyzing…") : t("授权当前简历并分析", "Share resume & analyze")}</span>
                 </button>
 
                 <button
@@ -2971,7 +3045,7 @@ export function AgentWorkspace({
               {!loading && proposals.length === 0 && (
                 <div className={`py-12 text-center space-y-2 ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-400"}`}>
                   <Target size={28} className={`mx-auto ${isDark ? "text-[var(--ui-border,#484b58)]" : "text-slate-300"}`} />
-                  <p className="text-xs">{t("暂无提案。设定岗位后点击「开始拆解」", "No proposals yet. Set a job and start matching.")}</p>
+                  <p className="text-xs">{t("暂无提案。点击「授权当前简历并分析」后生成，结果仍需逐条审阅。", "No proposals yet. Share the current resume to analyze; review each result before applying.")}</p>
                 </div>
               )}
 
@@ -3378,7 +3452,7 @@ export function AgentWorkspace({
                 >
                   {applyStep > 2 ? <Check size={12} /> : "2"}
                 </span>
-                <span className="font-semibold">注入 {stats.acceptedCount} 项采纳的真实经历与量化成果</span>
+                <span className="font-semibold">整理 {stats.acceptedCount} 项已审阅的表达建议</span>
               </div>
 
               <div
@@ -3405,6 +3479,6 @@ export function AgentWorkspace({
           </div>
         </div>
       )}
-    </section></div>
+    </section></div></div>
   );
 }

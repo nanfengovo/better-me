@@ -12,9 +12,12 @@ import { privateStorage as localStorage } from "../lib/private-storage";
 import { useUiPreferences } from "../lib/ui-preferences";
 import { openSystemSettings } from "../lib/settings-navigation";
 import type { UnderstandingClient } from "../services/understanding-client";
+import type { CareerTask } from "@better-me/agent-contracts";
+import type { CareerWritingFocus } from "../lib/career-task-focus";
 
 type Tab = "conversation" | "memory" | "settings";
-type Conversation = "writing" | "companion";
+type Conversation = "writing" | "companion" | "task";
+type TaskRequest={job?:{id?:string;title:string;company?:string;description:string}|null;objective?:string;focus?:CareerWritingFocus};
 type Surface = Conversation | "memory" | "writing-settings" | "companion-settings" | "tools";
 type Sidebar = {
   open: boolean; tab: Tab; conversation: Conversation;
@@ -24,6 +27,8 @@ type Sidebar = {
   learn: (lesson?: AgentLesson) => void;
   readerRuntime: string; setReaderRuntime: (runtime: string) => void;
   understandingClient?: UnderstandingClient;
+  taskRequest?:TaskRequest;requestTask:(request:TaskRequest)=>void;
+  taskState?:Pick<CareerTask,"id"|"status">;setTaskState:(state:Pick<CareerTask,"id"|"status">|undefined)=>void;
 };
 const Context = createContext<Sidebar | null>(null);
 const AGENT_WIDTH_KEY = "betterme.agent.sidebar-width.v1";
@@ -42,7 +47,7 @@ export function AgentSurface({ name, children }: { name: Surface; children: Reac
   const target = sidebar.slots[name];
   return target ? createPortal(children, target) : null;
 }
-export function AgentSettingsPanel({ understandingClient }: { understandingClient?: UnderstandingClient }) {
+export function AgentSettingsPanel({ understandingClient, active = true }: { understandingClient?: UnderstandingClient; active?: boolean }) {
   const { t } = useUiPreferences();
   const sidebar = useAgentSidebar();
   if (!sidebar) return null;
@@ -50,7 +55,7 @@ export function AgentSettingsPanel({ understandingClient }: { understandingClien
   return <div className="agent-sidebar-settings unified-agent-settings">
     <h3>{t("统一推理与对话授权", "Inference & conversation access")}</h3><Slot name="companion-settings" /><Slot name="tools" />
     <h3>{t("伴写参与方式", "Writing participation")}</h3><Slot name="writing-settings" />
-    <h3>{t("已安装 Agent 与受控取证", "Installed agents & evidence tools")}</h3><AgentReaderTools client={understandingClient} />
+    <h3>{t("已安装 Agent 与受控取证", "Installed agents & evidence tools")}</h3><AgentReaderTools client={understandingClient} active={active} />
   </div>;
 }
 function Slot({ name }: { name: Surface }) {
@@ -69,6 +74,8 @@ export function AgentSidebarProvider({ children, understandingClient }: { childr
   const [resizing, setResizing] = useState(false);
   const resizeStart = useRef<{ x: number; width: number } | null>(null);
   const [slots, setSlots] = useState<Sidebar["slots"]>({});
+  const [taskRequest,setTaskRequest]=useState<TaskRequest>();
+  const [taskState,setTaskState]=useState<Sidebar["taskState"]>();
   const [coversApp, setCoversApp] = useState(() => window.matchMedia("(max-width: 840px), (max-height: 500px)").matches);
   const panel = useRef<HTMLElement>(null), close = useRef<HTMLButtonElement>(null), trigger = useRef<HTMLElement | null>(null);
   const launcher = useRef<HTMLButtonElement>(null), wasOpen = useRef(false), closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -98,7 +105,7 @@ export function AgentSidebarProvider({ children, understandingClient }: { childr
     setReader(runtime);
     try { localStorage.setItem(readerKey, runtime); setPreferenceError(""); } catch { setPreferenceError("本次工具选择仅在本页有效，浏览器未能保存偏好。"); }
   }, [readerKey, snapshot?.data.tasks]);
-  const running = snapshot?.data.tasks.filter(task => task.status === "running").length ?? 0;
+  const running = (snapshot?.data.tasks.filter(task => task.status === "running").length ?? 0)+(taskState?.status==="running"?1:0);
   const id = useId();
   useEffect(() => {
     const media = window.matchMedia("(max-width: 840px), (max-height: 500px)");
@@ -115,6 +122,7 @@ export function AgentSidebarProvider({ children, understandingClient }: { childr
     if (closeTimer.current) clearTimeout(closeTimer.current);
     setMounted(true); setTab(nextTab); setGuide(null); setHelpOpen(false); if (nextConversation) setConversation(nextConversation); setOpen(true);
   }, []);
+  const requestTask=useCallback((request:TaskRequest)=>{setTaskRequest(request);show("conversation","task");},[show]);
   const prepareGuide = useCallback((index: number) => {
     const next = Math.max(0, Math.min(AGENT_LESSONS.length - 1, index));
     const destination = AGENT_LESSONS[next]!.destination;
@@ -158,7 +166,7 @@ export function AgentSidebarProvider({ children, understandingClient }: { childr
   }, [open]);
   // Older producers may still request the shared memory view through the kernel.
   useEffect(() => { if (snapshot?.centerOpen) { show("memory"); agent?.setCenterOpen(false); } }, [snapshot?.centerOpen, show, agent]);
-  const value = useMemo(() => ({ open, tab, conversation, show, hide, slots, register, learn, readerRuntime, setReaderRuntime, understandingClient }), [open, tab, conversation, show, hide, slots, register, learn, readerRuntime, setReaderRuntime, understandingClient]);
+  const value = useMemo(() => ({ open, tab, conversation, show, hide, slots, register, learn, readerRuntime, setReaderRuntime, understandingClient,taskRequest,requestTask,taskState,setTaskState }), [open, tab, conversation, show, hide, slots, register, learn, readerRuntime, setReaderRuntime, understandingClient,taskRequest,requestTask,taskState]);
   const tabs = [["conversation", t("伴写对话", "Writing & chat")], ["memory", t("共识与进度", "Shared memory")], ["settings", t("模型与工具", "Models & tools")]] as const;
   // Layout/visibility only; no model selection, authorization or autosave mutations here.
   const commitSidebarWidth = (width: number) => {
@@ -199,9 +207,10 @@ export function AgentSidebarProvider({ children, understandingClient }: { childr
         setTab(tabs[index]![0]); event.currentTarget.querySelectorAll<HTMLButtonElement>("button")[index]?.focus();
       }}>{tabs.map(([key, label]) => <button type="button" role="tab" key={key} id={`${id}-${key}`} aria-controls={`${id}-${key}-panel`} aria-selected={tab === key} tabIndex={tab === key ? 0 : -1} onClick={() => setTab(key)}>{label}</button>)}</div>
       <section role="tabpanel" id={`${id}-conversation-panel`} aria-labelledby={`${id}-conversation`} hidden={tab !== "conversation"} className="agent-sidebar-conversation">
-        <div className="agent-sidebar-context" role="group" aria-label={t("对话上下文", "Conversation context")}><button type="button" aria-pressed={conversation === "writing"} onClick={() => setConversation("writing")}>{t("当前经历", "Current experience")}</button><button type="button" aria-pressed={conversation === "companion"} onClick={() => setConversation("companion")}>{t("自由对话", "Free chat")}</button></div>
+        <div className="agent-sidebar-context" role="group" aria-label={t("对话上下文", "Conversation context")}><button type="button" aria-pressed={conversation === "writing"} onClick={() => setConversation("writing")}>{t("当前经历", "Current experience")}</button><button type="button" aria-pressed={conversation === "task"} onClick={() => setConversation("task")}>{t("岗位任务", "Job task")}{taskState?.status==="awaiting_review"?" · 待审阅":taskState?.status==="running"?" · 执行中":""}</button><button type="button" aria-pressed={conversation === "companion"} onClick={() => setConversation("companion")}>{t("自由对话", "Free chat")}</button></div>
         <div hidden={conversation !== "writing"} className="agent-sidebar-conversation-body"><Slot name="writing" /></div>
         <div hidden={conversation !== "companion"} className="agent-sidebar-conversation-body"><Slot name="companion" /></div>
+        <div hidden={conversation !== "task"} className="agent-sidebar-conversation-body"><Slot name="task" /></div>
       </section>
       <section role="tabpanel" id={`${id}-memory-panel`} aria-labelledby={`${id}-memory`} hidden={tab !== "memory"} className="agent-sidebar-memory"><Slot name="memory" /></section>
       <section role="tabpanel" id={`${id}-settings-panel`} aria-labelledby={`${id}-settings`} hidden={tab !== "settings"} className="agent-sidebar-settings">

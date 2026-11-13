@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createInitialDocument } from "@better-me/storage";
+import { careerTaskSourceFingerprint, createCareerTaskResume } from "@better-me/core";
 import { addResumeView, duplicateResumeView, removeResumeView, resumeNamesByOpportunity } from "../src/lib/resume-views";
 
 test("multiple views keep one factual source and distinct stable identities", () => {
@@ -10,6 +11,21 @@ test("multiple views keep one factual source and distinct stable identities", ()
   assert.equal(new Set(next.resumeViews.map((view) => view.id)).size, 3);
   assert.equal(next.factBase, original.factBase);
   assert.equal(original.resumeViews.length, 1);
+});
+
+test("a manual duplicate of a task edition retains independent facts but cannot claim the original approval receipt", async () => {
+  const doc = createInitialDocument("2026-01-01T00:00:00.000Z");
+  const sourceId = doc.activeResumeId;
+  const { document, receipt } = await createCareerTaskResume(doc, { taskId: "copy-test", sourceResumeId: sourceId,
+    sourceFingerprint: await careerTaskSourceFingerprint(doc, sourceId), name: "合成专用版", job: { title: "虚构测试岗位" },
+    patches: [{ targetRef: { kind: "profile_headline", locale: "zh" }, originalText: doc.factBase.profile.headline!.zh,
+      proposedText: "虚构岗位版简介", evidenceIds: ["synthetic-source"] }] });
+  const next = duplicateResumeView(document, receipt.resumeId);
+  const copy = next.resumeViews.at(-1)!;
+  assert.equal(copy.careerTaskReceipt, undefined);
+  assert.deepEqual(copy.isolatedFactBase, document.resumeViews.at(-1)?.isolatedFactBase);
+  assert.notEqual(copy.isolatedFactBase, document.resumeViews.at(-1)?.isolatedFactBase);
+  assert.equal(next.resumeViews.filter(v => v.careerTaskReceipt?.taskId === "copy-test").length, 1);
 });
 
 test("a job-specific copy preserves deliberate exclusions and isolates nested presentation edits", () => {

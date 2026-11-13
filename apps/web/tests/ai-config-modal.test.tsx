@@ -3,6 +3,10 @@ import test, { after, afterEach } from "node:test";
 import { setImmediate as nextTurn } from "node:timers/promises";
 import { Window } from "happy-dom";
 import type { LlmConfig } from "@better-me/core";
+import {registerHooks} from "node:module";
+
+const css=registerHooks({load(url,context,next){return url.endsWith(".css")?{format:"module",source:"",shortCircuit:true}:next(url,context);}});
+const React=await import("react");
 
 // Mount the real modal and AI client. Only synthetic model-list responses are used.
 const dom = new Window({ url: "http://127.0.0.1:5199" });
@@ -11,6 +15,7 @@ const globals = {
   localStorage: dom.localStorage, HTMLElement: dom.HTMLElement,
   HTMLInputElement: dom.HTMLInputElement, HTMLSelectElement: dom.HTMLSelectElement,
   IS_REACT_ACT_ENVIRONMENT: true,
+  React,
 };
 const descriptors = new Map(Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
@@ -58,19 +63,15 @@ async function mount(policy: (request: Request, index: number) => Response | Pro
   let currentConfig = initialConfig;
   globalThis.fetch = async (url, init) => {
     const request = { url: String(url), init };
-    assert.match(request.url, /^https:\/\/(?:ai-fixture\.invalid\/v[12]|api\.deepseek\.com(?:\/v1)?)\/(?:models|chat\/completions)$/, "all model requests are synthetic");
-    if (init?.method === "POST") {
-      assert.deepEqual(JSON.parse(String(init.body)).messages, [{ role: "user", content: "Reply with only: BETTERME_OK" }], "probe must not send a resume or history");
-    } else {
-      assert.equal(init?.body, undefined);
-    }
+    assert.match(request.url, /^https:\/\/(?:ai-fixture\.invalid\/v[12]|api\.deepseek\.com(?:\/v1)?)\/models$/, "browser can only read the synthetic model catalog, never infer");
+    assert.equal(init?.body, undefined);
     calls.push(request);
     return policy(request, calls.length - 1);
   };
   dom.document.body.innerHTML = '<main id="fixture"></main>';
   root = createRoot(dom.document.getElementById("fixture")! as unknown as Element);
   const renderCurrent = () => root!.render(createElement(AiConfigModal, {
-    isOpen: visible, config: currentConfig,
+    isOpen: visible, config: currentConfig,rootScopeKey:"synthetic-config-scope",
     onClose() { visible = false; renderCurrent(); },
     onSave(value: LlmConfig) { saved.push(value); },
   }));
@@ -100,6 +101,7 @@ afterEach(async () => {
   globalThis.fetch = originalFetch;
 });
 after(async () => {
+  css.deregister();
   await dom.happyDOM.close();
   for (const [key, descriptor] of descriptors) {
     if (descriptor) Object.defineProperty(globalThis, key, descriptor);
@@ -243,28 +245,29 @@ test("DeepSeek 预设使用当前官方模型，跨服务商不携带旧 Key，�
   assert.equal(calls.length, 0);
 });
 
-test("旧 DeepSeek 配置打开不迁移模型或 Key，生成探针只在明确点击后发送", async () => {
+test("旧 DeepSeek 配置不迁移模型或 Key，生成按钮只打开待授权任务，不直连模型", async () => {
   const oldConfig = { ...config, baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat" };
   const { calls } = await mount(() => response({ choices: [{ message: { content: "BETTERME_OK" }, finish_reason: "stop" }] }), oldConfig);
   assert.equal(modelSelect().value, "deepseek-chat");
   assert.equal(keyInput().value, config.apiKey);
   assert.equal(calls.length, 0);
-  assert.match(dom.document.body.textContent ?? "", /可能产生少量费用/);
-  await click("测试文本生成（少量 tokens）");
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0]!.init?.method, "POST");
-  assert.match(dom.document.querySelector('[role="status"]')?.textContent ?? "", /文本生成已验证/);
+  assert.match(dom.document.body.textContent ?? "", /可能产生费用/);
+  await click("测试文本生成（计入总额度）");
+  assert.equal(calls.length, 0);
+  assert.ok(dom.document.querySelector('[aria-label="模型配置生成测试"]'));
+  assert.equal([...dom.document.querySelectorAll("button")].find(item=>item.textContent?.trim()==="开始运行")!.disabled,true);
   assert.equal(modelSelect().value, "deepseek-chat");
   await flush(() => { modelSelect().value = "deepseek-flash"; modelSelect().dispatchEvent(new dom.Event("change", { bubbles: true })); });
-  assert.equal(dom.document.querySelector('[role="status"]'), null, "a generation result must not validate a different model");
+  assert.equal(dom.document.querySelector('[aria-label="模型配置生成测试"]'),null,"changed configuration must require another explicit probe review");
 });
 
-test("生成测试余额不足不重试，也不展示成功或泄露 Key", async () => {
+test("未登录 BetterMe 时生成测试不派送，也不回退浏览器请求或泄露 Key", async () => {
   const { calls } = await mount(() => response({ error: { message: config.apiKey } }, 402), { ...config, baseUrl: "https://api.deepseek.com", model: "deepseek-flash" });
-  await click("测试文本生成（少量 tokens）");
-  assert.equal(calls.length, 1);
-  assert.match(alertText(), /余额不足/);
-  assert.match(alertText(), /文本生成未通过/);
+  await click("测试文本生成（计入总额度）");
+  await flush(()=>dom.document.querySelector<HTMLInputElement>('.agent-companion-run input[type="checkbox"]')!.click());
+  await click("开始运行");
+  assert.equal(calls.length, 0);
+  assert.match(alertText(), /登录 BetterMe/);
   assert.ok(!alertText().includes(config.apiKey));
 });
 
@@ -280,7 +283,7 @@ test("DeepSeek 误填 Tracking ID 时在本地阻止列表、生成和保存，�
   assert.equal(keyInput().getAttribute("aria-invalid"), "true");
   await click("刷新列表");
   assert.match(alertText(), /Tracking ID/);
-  await click("测试文本生成（少量 tokens）");
+  await click("测试文本生成（计入总额度）");
   assert.match(alertText(), /Tracking ID/);
   await click("保存配置");
   assert.equal(calls.length, 0, "a tracking identifier must never be sent as a credential");

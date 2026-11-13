@@ -218,9 +218,12 @@
   .resume-sheet.resume-document { font-size: var(--resume-body-size) !important; line-height: var(--resume-line-height) !important; padding: 0 !important; box-shadow: none; }
   .resume-sheet .resume-header, .resume-sheet .resume-experience-heading { break-inside: avoid; page-break-inside: avoid; }
   .resume-sheet .resume-section, .resume-sheet .resume-experience, .resume-sheet .resume-claims { break-inside: auto; }
-  .resume-sheet .resume-section h2, .resume-sheet .resume-experience-heading,
-  .resume-sheet .resume-project-name, .resume-sheet .resume-experience-url,
-  .resume-sheet .resume-tech { break-after: avoid; page-break-after: avoid; }
+  /* Imported lead-ins (e.g. 内容 → 核心项目) are headings, not body. Keep
+     them with the next line, but never glue a final label to the next job. */
+  .resume-sheet .resume-section h2,
+  .resume-sheet .resume-experience > :is(.resume-experience-heading, .resume-project-name, .resume-experience-url, .resume-tech):not(:last-child),
+  .resume-sheet .resume-claims > :is(.resume-claim-subheading, .resume-claim-project-title):not(:last-child) { break-after: avoid; page-break-after: avoid; }
+  .resume-sheet .resume-claims > li:first-child { break-before: avoid; page-break-before: avoid; }
   .resume-sheet .resume-claims > li { break-inside: avoid; page-break-inside: avoid; }
   .resume-sheet p, .resume-sheet li { orphans: 2; widows: 2; }
   .resume-sheet.resume-template-clean-modern .resume-summary { display: block; }

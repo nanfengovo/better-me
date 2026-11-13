@@ -7,22 +7,22 @@ import { nativeToolStatus } from "../lib/native-tool-status";
 import { NativeToolConnections } from "./NativeToolConnections";
 import { agentBaseLabel, useAgentRouting } from "../lib/agent-routing";
 
-export function AgentReaderTools({ client = defaultUnderstandingClient }: { client?: UnderstandingClient }) {
+export function AgentReaderTools({ client = defaultUnderstandingClient, active = true }: { client?: UnderstandingClient; active?: boolean }) {
   const sidebar = useAgentSidebar();
   const { snapshot } = useBetterMeAgent();
   const routing = useAgentRouting();
   const [items, setItems] = useState<UnderstandingCapability[]>([]), [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false), [version, setVersion] = useState(0);
   const refresh = useCallback(() => { setVersion(value => value + 1); window.dispatchEvent(new Event("betterme:native-tools-changed")); }, []);
-  const shown = sidebar?.open && sidebar.tab === "settings";
+  const hasSidebar = Boolean(sidebar);
   useEffect(() => {
-    if (!shown) return;
+    if (!active || !hasSidebar) return;
     const controller = new AbortController(); setLoading(true);
     void client.getCapabilities(controller.signal).then(result => { if (!controller.signal.aborted) { setItems(result); setNotice(result.length ? "已核对本机工具能力。" : "未发现可用于受控阅读的本机 Agent；仍可明确选择配置模型。"); } }).catch(() => {
       if (!controller.signal.aborted) { setItems([]); setNotice("暂时无法连接本机 Agent，未自动改用其他工具。请检查配套服务后刷新。"); }
     }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [client, shown, version]);
+  }, [active, client, hasSidebar, version]);
   if (!sidebar) return null;
   const selected = items.find(item => item.id === sidebar.readerRuntime);
   const unavailable = sidebar.readerRuntime !== "model" && !selected;

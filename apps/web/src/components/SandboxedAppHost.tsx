@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pin, PinOff, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useUiPreferences } from "../lib/ui-preferences";
+import { sandboxOfferProjection } from "../lib/sandbox-offer-projection";
 import { DesktopWindow } from "./desktop/DesktopWindow";
 import {
-  projectOffersFromOpportunityLibrary,
   revokeAndUninstallMicroApp,
   togglePinMicroApp,
   type InstalledMicroApp,
@@ -16,6 +16,7 @@ export interface SandboxedAppDecisionEvent {
   company: string;
   offerId: string;
 }
+
 
 export function SandboxedAppHost({
   app,
@@ -37,8 +38,7 @@ export function SandboxedAppHost({
     const win = iframeRef.current?.contentWindow;
     if (!win) return;
     // Only send data projections that match the app's explicitly granted scopes.
-    const resolvedOffers = offers ?? projectOffersFromOpportunityLibrary();
-    const allowedOffers = app.grantedScopes.includes("selected_offers") ? resolvedOffers : [];
+    const allowedOffers = sandboxOfferProjection(app.grantedScopes, offers);
     win.postMessage(
       {
         jsonrpc: "2.0",
@@ -75,23 +75,25 @@ export function SandboxedAppHost({
           company?: string;
           offerId?: string;
         };
-        if ((action === "onboard" || action === "negotiate") && typeof company === "string" && typeof offerId === "string") {
+        if ((action === "onboard" || action === "negotiate") && typeof company === "string" && typeof offerId === "string"
+          && app.grantedScopes.includes("selected_offers") && offers?.slice(0,20).some(o => o.id === offerId && o.company === company)) {
           onDecision?.({ appId: app.appId, action, company, offerId });
         }
       }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [app.appId, onDecision, pushAuthorizedProjection]);
+  }, [app.appId, app.grantedScopes, offers, onDecision, pushAuthorizedProjection]);
 
   function handleTogglePin() {
+    if (app.sessionOnly) return;
     const next = !pinned;
     setPinned(next);
     togglePinMicroApp(app.appId, next);
   }
 
   function handleRevoke() {
-    revokeAndUninstallMicroApp(app.appId);
+    if (!app.sessionOnly) revokeAndUninstallMicroApp(app.appId);
     onClose();
   }
 
@@ -115,6 +117,7 @@ export function SandboxedAppHost({
             type="button"
             className="os-toolbar-icon-btn"
             onClick={handleTogglePin}
+            hidden={app.sessionOnly === true}
             title={pinned ? t("从 Dock 取消固定", "Unpin from Dock") : t("固定到 Dock", "Pin to Dock")}
           >
             {pinned ? <PinOff size={12} /> : <Pin size={12} />}
@@ -125,7 +128,7 @@ export function SandboxedAppHost({
             className="os-toolbar-icon-btn"
             style={{ borderColor: "rgba(239, 68, 68, 0.35)", color: "#f87171" }}
             onClick={handleRevoke}
-            title={t("撤权并卸载微应用", "Revoke and uninstall micro-app")}
+            title={app.sessionOnly ? t("结束本次预览", "End this preview") : t("撤权并卸载微应用", "Revoke and uninstall micro-app")}
           >
             <ShieldAlert size={12} />
             <span>{t("撤权", "Revoke")}</span>

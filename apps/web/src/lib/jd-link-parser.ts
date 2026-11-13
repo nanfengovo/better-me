@@ -1,7 +1,7 @@
-import { fetchChatCompletion, type LlmConfig } from "@better-me/core";
 import { extractJdLink, extractJdLinkWithAutoBrowser, isJdLinkOnly, type JdImportResult } from "./jd-import";
 import type { JdProvenance } from "./jd-source";
 import type { PlatformDetailLocations } from "@better-me/source-adapters/platform-detail-locations";
+import type { JdIntakeResult } from "@better-me/agent-contracts";
 
 export interface ParsedJobInfo {
   title: string;
@@ -11,6 +11,14 @@ export interface ParsedJobInfo {
   description: string;
   sourceUrl?: string;
   sourcePlatform?: string;
+  /** Exact imported body, before local form heuristics; never a model excerpt. */
+  sourceText?: string;
+}
+
+/** Model values already passed Host exact-span validation. Unknown stays empty. */
+export function applyJdMetadata(base: ParsedJobInfo, result: JdIntakeResult): ParsedJobInfo {
+  const { title, company, salary, location } = result.fields;
+  return { ...base, title: title?.value ?? "", company: company?.value ?? "", salary: salary?.value ?? "", location: location?.value ?? "" };
 }
 
 const COMMON_PLATFORM_SUFFIXES = [
@@ -253,68 +261,8 @@ export function parseJobTextHeuristics(
     description,
     sourceUrl: provenance?.url,
     sourcePlatform: provenance?.platform,
+    sourceText: extractedText || rawInput,
   };
-}
-
-export async function parseJobWithLlm(
-  text: string,
-  llmConfig: LlmConfig,
-  baseInfo: ParsedJobInfo,
-  _signal?: AbortSignal
-): Promise<ParsedJobInfo> {
-  if (!llmConfig.apiKey?.trim() && llmConfig.provider !== "ollama") {
-    return baseInfo;
-  }
-
-  const needsRefinement =
-    baseInfo.title === "目标职位" ||
-    baseInfo.company === "目标企业" ||
-    !baseInfo.salary ||
-    !baseInfo.location;
-
-  if (!needsRefinement) {
-    return baseInfo;
-  }
-
-  const prompt = `请从以下招聘信息或JD中精确提取职位名称、公司名称、薪资范围、工作地点。
-请直接返回JSON对象，包含且仅包含以下四个字段：
-{
-  "title": "职位名称（如资深前端工程师）",
-  "company": "招聘企业名称（如某某科技）",
-  "salary": "薪资待遇（如30k-50k·16薪，无明确说明则留空字符串）",
-  "location": "工作地点或城市（如上海浦东，无明确说明则留空字符串）"
-}
-
-招聘信息文本：
-${text.slice(0, 3000)}`;
-
-  try {
-    const content = await fetchChatCompletion(llmConfig, [
-      { role: "system", content: "You are a professional HR data extraction assistant. Output pure JSON only." },
-      { role: "user", content: prompt },
-    ]);
-
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]) as {
-        title?: string;
-        company?: string;
-        salary?: string;
-        location?: string;
-      };
-      return {
-        ...baseInfo,
-        title: (parsed.title?.trim() && parsed.title !== "目标职位") ? parsed.title.trim() : baseInfo.title,
-        company: (parsed.company?.trim() && parsed.company !== "目标企业") ? parsed.company.trim() : baseInfo.company,
-        salary: parsed.salary?.trim() || baseInfo.salary,
-        location: parsed.location?.trim() || baseInfo.location,
-      };
-    }
-  } catch {
-    // If LLM times out or errors, fall back to base heuristics gracefully
-  }
-
-  return baseInfo;
 }
 
 export async function extractAndParseJobLink(
@@ -322,7 +270,6 @@ export async function extractAndParseJobLink(
   options: {
     signal: AbortSignal;
     mode?: "static" | "browser" | "auto-browser";
-    llmConfig?: LlmConfig;
   }
 ): Promise<ParsedJobInfo> {
   const trimmed = input.trim();
@@ -360,19 +307,13 @@ export async function extractAndParseJobLink(
       importResult.detailLocations
     );
 
-    if (options.llmConfig) {
-      return await parseJobWithLlm(importResult.text, options.llmConfig, heuristics, options.signal);
-    }
     return heuristics;
   }
 
   // If extraction failed because of unsupported domain or plain text with link:
   // Check if user pasted job description text or mobile share containing text
   if (trimmed.length >= 20 && !isJdLinkOnly(trimmed)) {
-    const heuristics = parseJobTextHeuristics(trimmed, trimmed, null);
-    if (options.llmConfig) {
-      return await parseJobWithLlm(trimmed, options.llmConfig, heuristics, options.signal);
-    }
+    const heuristics = parseJobTextHeuristics(input, input, null);
     return heuristics;
   }
 

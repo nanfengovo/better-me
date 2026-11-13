@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CheckCircle2, ShieldCheck, Lock, X, Code2, AlertTriangle, Pin } from "lucide-react";
 import { useUiPreferences } from "../lib/ui-preferences";
-import type { BuiltMicroAppArtifact } from "../services/sandbox-build-client";
+import { presetCanRun, type BuiltMicroAppArtifact } from "../services/sandbox-build-client";
 
 interface MicroAppPermissionModalProps {
   artifact: BuiltMicroAppArtifact | null;
@@ -22,12 +22,15 @@ export function MicroAppPermissionModal({
   if (!isOpen || !artifact) return null;
 
   const isDark = theme === "dark";
+  const canRun = presetCanRun(artifact);
+  const checks = artifact.verification.checks;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
+      aria-label={t("内置预设运行授权", "Built-in preset permissions")}
     >
       <div
         className={`w-full max-w-xl rounded-2xl border shadow-2xl overflow-hidden flex flex-col transition-all ${
@@ -61,11 +64,12 @@ export function MicroAppPermissionModal({
                 </span>
               </div>
               <p className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-                {artifact.description || t("Agent 自动化工坊构建的微应用", "Micro-app built by Agent Autopilot")}
+                {artifact.description || t("手工选择的内置微应用", "Manually selected built-in app")}
               </p>
             </div>
           </div>
           <button
+            aria-label={t("关闭", "Close")}
             onClick={onClose}
             className={`p-1.5 rounded-lg transition-colors ${
               isDark ? "hover:bg-white/10 text-slate-400" : "hover:bg-slate-200 text-slate-500"
@@ -92,7 +96,7 @@ export function MicroAppPermissionModal({
               </span>
             </div>
             <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 font-bold">
-              ESBUILD · IIFE 零外链
+              {t("构建摘要，非发布签名", "Build digest, not a signature")}
             </span>
           </div>
 
@@ -100,19 +104,19 @@ export function MicroAppPermissionModal({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? "text-slate-400" : "text-slate-600"}`}>
-                {t("预检沙箱自动化审计 (Pre-flight Tests)", "Pre-flight Automated Audit")}
+                {t("宿主对内置预设的检查", "Host checks for this preset")}
               </span>
-              <span className="text-xs text-emerald-500 font-bold flex items-center gap-1">
-                <CheckCircle2 size={13} />
-                3/3 {t("全部通过", "All Passed")}
+              <span role="status" className={`text-xs font-bold flex items-center gap-1 ${canRun ? "text-emerald-500" : "text-amber-600"}`}>
+                {canRun ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}
+                {checks.filter(check => check.passed).length}/{checks.length} · {canRun ? t("通过", "Passed") : t("无有效回执，禁止运行", "No valid receipt, cannot run")}
               </span>
             </div>
             <div className={`divide-y rounded-xl border overflow-hidden ${
               isDark ? "divide-white/5 border-white/10 bg-black/30" : "divide-slate-100 border-slate-200 bg-slate-50/50"
             }`}>
-              {artifact.verification.checks.map((check) => (
+              {checks.map((check) => (
                 <div key={check.id} className="p-3 flex items-start gap-3 text-xs">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                  {check.passed ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" /> : <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />}
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold">{check.name}</div>
                     <div className={`text-[11px] mt-0.5 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
@@ -138,9 +142,9 @@ export function MicroAppPermissionModal({
                   <span className="font-mono font-bold text-cyan-500">{scope}</span>
                   <span className={`text-[11px] ${isDark ? "text-slate-400" : "text-slate-500"}`}>
                     {scope === "selected_offers"
-                      ? "— 仅按需只读投递与 Offer 薪酬折算投影（脱敏，不含真实凭证与完整简历）"
+                      ? "— 授权读取工作区的 Offer 投影，包括公司、岗位和部分薪酬或备注字段"
                       : scope === "backcheck_summary"
-                      ? "— 仅读取企业合规与舆情背调聚合标签"
+                      ? "— 授权读取背调摘要和备注；其中可能含有你填写的内容"
                       : "— 仅限局部工作区只读快照"}
                   </span>
                 </div>
@@ -150,7 +154,7 @@ export function MicroAppPermissionModal({
               }`}>
                 <AlertTriangle size={13} className="shrink-0" />
                 <span>
-                  严格运行在 <code>&lt;iframe sandbox="allow-scripts"&gt;</code> 中，禁止 <code>allow-same-origin</code>，无法访问宿主 Cookie、LocalStorage 与私有密钥。
+                  浏览器用 <code>&lt;iframe sandbox="allow-scripts"&gt;</code> 隔离页面；权限桥仍可提供以上授权数据。模板和编译检查不是全面安全证明。
                 </span>
               </div>
             </div>
@@ -193,13 +197,14 @@ export function MicroAppPermissionModal({
               isDark ? "text-slate-400 hover:bg-white/10" : "text-slate-600 hover:bg-slate-200"
             }`}
           >
-            {t("拒绝并销毁", "Reject & Destroy")}
+            {t("拒绝并关闭", "Reject & Close")}
           </button>
 
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => onApprove(artifact, false)}
+              disabled={!canRun}
+              onClick={() => { if (canRun) onApprove(artifact, false); }}
               className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
                 isDark
                   ? "border-white/20 text-slate-200 hover:bg-white/10"
@@ -210,7 +215,8 @@ export function MicroAppPermissionModal({
             </button>
             <button
               type="button"
-              onClick={() => onApprove(artifact, true)}
+              disabled={!canRun}
+              onClick={() => { if (canRun) onApprove(artifact, true); }}
               className="px-5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 hover:brightness-110 shadow-lg flex items-center gap-1.5 transition-all"
             >
               <Pin size={13} />

@@ -1,21 +1,27 @@
 import assert from "node:assert/strict";
 import test, { afterEach, mock } from "node:test";
-import { startLocalAgentRun, streamLocalAgentRun } from "../src/services/agent-client.ts";
+import { startLocalAgentRun, streamLocalAgentRun,startCareerWorkflow,resumeCareerWorkflow,getLegacyCareerWorkflow } from "../src/services/agent-client.ts";
 
 afterEach(() => mock.restoreAll());
 
-test("starts a local run with an explicit ContextPack and sandbox mode", async () => {
-  let request: RequestInit | undefined;
-  mock.method(globalThis, "fetch", async (_url, options) => {
-    request = options;
-    return Response.json({ run: { id: "run_1", status: "running" }, eventsUrl: "/events", statusUrl: "/status" }, { status: 202 });
-  });
-  const result = await startLocalAgentRun({ runtimeId: "codex", prompt: "读岗位", sandboxMode: "required", contextPack: { role: "test", task: "读岗位", content: { source: "fixture" } } });
-  assert.equal(result.run.id, "run_1");
-  assert.equal(new Headers(request?.headers).get("Authorization"), "Bearer better-me-agent-token");
-  const body = JSON.parse(String(request?.body));
-  assert.equal(body.sandboxMode, "required");
-  assert.equal(body.contextPack.content.source, "fixture");
+test("retired local execution refuses before any network request", async () => {
+  let calls=0;
+  mock.method(globalThis,"fetch",async()=>{calls++;throw Error("retired client must not fetch");});
+  await assert.rejects(startLocalAgentRun({runtimeId:"codex",prompt:"完整原文"}),error=>error instanceof Error&&"code" in error&&error.code==="runtime_run_moved_to_tasks");
+  assert.equal(calls,0);
+});
+
+test("retired career start/resume refuse before fetch; legacy checkpoint reads full data and rejects mismatched responses",async()=>{
+  let calls=0;mock.method(globalThis,"fetch",async()=>{calls++;throw Error("no retired execution request");});
+  const input={threadId:"legacy",task:"  原文😀  "};
+  await assert.rejects(startCareerWorkflow(input),error=>error instanceof Error&&"code" in error&&error.code==="career_workflow_moved_to_tasks");
+  await assert.rejects(resumeCareerWorkflow({threadId:"legacy",approval:{status:"approved",actorScope:"synthetic",idempotencyKey:"synthetic-key"}}),error=>error instanceof Error&&"code" in error&&error.code==="career_workflow_moved_to_tasks");
+  await assert.rejects(getLegacyCareerWorkflow({threadId:"../foreign"}),/标识无效/);assert.equal(calls,0);
+  const full="  完整历史😀\r\n"+"不裁剪。".repeat(10000)+"END  ",record={legacy:true,readOnly:true,threadId:"legacy",checkpointId:"synthetic-checkpoint",state:{task:full,artifacts:[{payload:{task:full}}]},pendingWrites:[["interrupt",full]]};
+  mock.method(globalThis,"fetch",async(url,init)=>{calls++;assert.match(String(url),/\/workflows\/career\/state\/legacy$/);assert.equal(init?.body,undefined);assert.equal(init?.method??"GET","GET");return Response.json(record);});
+  assert.deepEqual(await getLegacyCareerWorkflow({threadId:"legacy"}),record);assert.equal(calls,1);
+  mock.method(globalThis,"fetch",async()=>Response.json({...record,threadId:"other"}));
+  await assert.rejects(getLegacyCareerWorkflow({threadId:"legacy"}),/格式不完整/);
 });
 
 test("parses chunked SSE frames and ignores keepalives", async () => {

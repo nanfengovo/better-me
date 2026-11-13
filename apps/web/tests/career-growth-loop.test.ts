@@ -6,6 +6,8 @@ import { gradePractice, PRACTICE_CASES, practiceBundle, practiceEvidence, readPr
 import { IndexedDbCoachRepository } from "../src/lib/career-coach/storage";
 import { parseCoachPayload, validateCoachRequest } from "../src/lib/career-coach/model";
 import { CoachStateSchema, type CoachPayload, type CoachRequest, type CoachState } from "../src/lib/career-coach/types";
+import { buildCoachMessages } from "@better-me/agent-contracts/career-coach-protocol";
+import { ResumeEditContextSchema } from "@better-me/agent-contracts";
 
 const model = { provider: "isolated", name: "fixture", generatedAt: "2026-11-01T00:00:00.000Z" };
 const fp = contextFingerprint({});
@@ -27,6 +29,37 @@ test("goal confirmation binds the analysis, budget and explicit context; unknown
   }
   assert.equal(confirmedGoal(state, contextFingerprint({ job: { title: "新岗位" } })), undefined);
   assert.equal(confirmedGoal({ ...state, settings: { ...state.settings, interviewRounds: 7 } }, fp)?.id, goal.id, "interview budget is not a goal change");
+});
+
+test("resumed Host-normalized context confirms against the same UI source without ignoring real changes", () => {
+  const resume = {
+    locale: "zh" as const,
+    profile: { skills: ["C#", ".NET"], headline: { text: "  合成原文\r\nEND🚧  ", targetRef: { locale: "zh" as const, kind: "profile_headline" as const } } },
+    experiences: [],
+  };
+  const context = { resume, job: { description: "完整合成岗位", title: "工程师" } };
+  const parsedContext = { job: { title: "工程师", description: "完整合成岗位" }, resume: ResumeEditContextSchema.parse(resume) };
+  assert.notEqual(JSON.stringify(context), JSON.stringify(parsedContext), "exercise the actual Host schema reordering on recovery");
+  const state = initial();
+  const recovered = createCoachRecord({ payload: analysis, model, task: { id: "ct_" + "a".repeat(32), revision: 2, rootTaskId: "ct_" + "b".repeat(32) } },
+    { mode: "analysis", settings: state.settings, input: "完整恢复输入", context: parsedContext });
+  const next = confirmGoal(addCoachRecord(state, recovered), recovered.id, contextFingerprint(context));
+  assert.equal(confirmedGoal(next, contextFingerprint(context))?.recordId, recovered.id);
+  assert.equal(contextFingerprint({ ...context, job: undefined }), contextFingerprint({ resume }), "JSON-omitted undefined is not new shared material");
+  for (const changed of [
+    { ...context, resume: { ...resume, profile: { ...resume.profile, headline: { ...resume.profile.headline, text: resume.profile.headline.text.trim() } } } },
+    { ...context, resume: { ...resume, profile: { ...resume.profile, skills: [...resume.profile.skills].reverse() } } },
+    { ...context, job: { ...context.job, description: context.job.description + "新内容" } },
+    { resume }, { job: context.job }, {},
+  ]) {
+    assert.notEqual(contextFingerprint(changed), contextFingerprint(context));
+    assert.equal(confirmedGoal(next, contextFingerprint(changed)), undefined);
+    assert.throws(() => confirmGoal(next, recovered.id, contextFingerprint(changed)), /变化/);
+  }
+  const legacy = { ...recovered, basis: { ...recovered.basis, contextFingerprint: "context-v1-legacy-order-dependent" } };
+  const legacyState = CoachStateSchema.parse(addCoachRecord(state, legacy));
+  assert.equal(legacyState.records[0]?.basis.contextFingerprint, legacy.basis.contextFingerprint, "legacy records remain readable without silently rewriting their approval basis");
+  assert.throws(() => confirmGoal(legacyState, legacy.id, contextFingerprint(context)), /变化/);
 });
 
 test("plan replacement archives full progress and submissions, not just the old model response", () => {
@@ -74,16 +107,21 @@ test("exercise imports only code from matching bounded bundles, no file paths or
   assert.throws(() => readPracticeBundle(" ".repeat(128001)), /过大/);
 });
 
-test("maximum code stays complete in receipt while model evidence is bounded; duplicate receipts do not duplicate submissions", () => {
+test("maximum code and all checks stay complete through saved evidence and the model prompt; duplicate receipts do not duplicate submissions", () => {
   const receipt = { id: "run-max", exerciseId: "state-transitions", version: "1", sourceHash: "a".repeat(64), source: "/".repeat(20000),
     at: model.generatedAt, runner: "opaque-browser-worker" as const,
     checks: gradePractice(Array.from({ length: 11 }, () => "x".repeat(400))) };
   const evidence = practiceEvidence(receipt);
-  assert.ok(evidence.length <= 12000); assert.match(evidence, /仅摘录前5000字/);
+  assert.ok(evidence.length > 20000); assert.ok(evidence.endsWith(receipt.source)); assert.doesNotMatch(evidence, /仅摘录/);
   const next = addCoachSubmission(adopted(), { taskId: "task-1", evidence, minutes: 0, practice: receipt });
   assert.equal(next.submissions[0]?.practice?.source.length, 20000);
   assert.equal(addCoachSubmission(next, { taskId: "task-1", evidence, minutes: 0, practice: receipt }), next);
   assert.equal(next.activePlan?.progress["task-1"]?.status, "submitted", "a receipt is not self-completion");
+  const request = validateCoachRequest({ mode: "review", settings: next.settings, input: "完整实践复盘", plan, task: plan.phases[0]!.tasks[0], submission: { evidence, minutes: 0 } });
+  assert.equal(request.submission?.evidence, evidence);
+  assert.ok(buildCoachMessages(request).some(message => message.content.includes(JSON.stringify(evidence))));
+  assert.throws(() => addCoachSubmission(next, { taskId: "task-1", evidence: "x".repeat(64001), minutes: 0 }));
+  assert.throws(() => validateCoachRequest({ ...request, submission: { evidence: "x".repeat(64001), minutes: 0 } }));
 });
 
 test("storage budget still fails closed before opening IndexedDB and never trims history", async () => {
@@ -95,11 +133,15 @@ test("storage budget still fails closed before opening IndexedDB and never trims
 
 const question = { text: "为什么失败后应保留原状态？", skill: "状态边界", why: "关联目标", criteria: ["解释不变量"] };
 test("drill saves answers before assessment; duplicate retry does not mutate original evidence", () => {
-  let state: CoachState = agreed(), r = record({ kind: "drill", question }, state);
+  let state: CoachState = agreed();
+  const r = record({ kind: "drill", question }, state);
   state = createDrill(addCoachRecord(state, r), r, "状态边界", fp);
   const id = state.drills![0]!.id;
-  state = saveDrillAnswer(state, id, "避免非法迁移破坏不变量。");
-  assert.equal(saveDrillAnswer(state, id, "避免非法迁移破坏不变量。"), state);
+  const answer = "  避免非法迁移破坏不变量。\r\n完整作答🚧END  ";
+  state = saveDrillAnswer(state, id, answer);
+  assert.equal(state.drills![0]!.answer, answer);
+  assert.equal(saveDrillAnswer(state, id, answer), state);
+  assert.throws(() => saveDrillAnswer(state, id, answer.trim()), /不覆盖/);
   assert.throws(() => saveDrillAnswer(state, id, "覆盖旧答案"), /不覆盖/);
   const feedback = record({ kind: "drill", feedback: { verdict: "supported", quote: "不变量", explanation: "回答说明失败边界，仍未证明生产实践。", nextAction: "增加反例" } }, state);
   state = evaluateDrill(addCoachRecord(state, feedback), id, feedback);

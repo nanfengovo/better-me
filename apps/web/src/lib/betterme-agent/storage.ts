@@ -28,7 +28,7 @@ export const AgentStateSchema = z.object({
   version: z.literal(1), workspaceKey: z.string(), revision: z.number().int().nonnegative(),
   ownerId: z.string().uuid().optional(),
   messages: z.array(Message), memories: z.array(Memory), tasks: z.array(Task), events: z.array(GrowthEvent),
-  tracking: z.boolean(), goal: z.string().max(4000).default(""), contextRevision: z.number().int().default(0),
+  tracking: z.boolean(), goal: z.string().default(""), contextRevision: z.number().int().default(0),
   selection: z.object({ kind: z.enum(["current", "chatgpt"]), profileId: z.string(), model: z.string() }).strict(),
 }).strict();
 export type AgentState = z.infer<typeof AgentStateSchema>;

@@ -24,6 +24,7 @@ const FOLLOW_PREFERENCE_KEY = "betterme.preview.follow.v1";
 
 export function ResumePreview({ resume, onTemplateChange, view, onViewChange, followTarget }: Props) {
   const { t, locale } = useUiPreferences();
+  const printHint = t("在打印窗口选择「另存为 PDF」。如果预览出现日期、标题或网址，请关闭「页眉和页脚」（Chrome：更多设置），并逐页检查。", "Choose Save as PDF in the print dialog. If a date, title or URL appears, turn off Headers and footers (Chrome: More settings) and check each page.");
 
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState("");
@@ -280,11 +281,12 @@ export function ResumePreview({ resume, onTemplateChange, view, onViewChange, fo
               {isHelpOpen && <div ref={helpPanelRef} id={helpId} className="preview-help-panel" role="region" aria-label={t("预览与导出说明", "Preview and export information")}>
                 <strong>{template.name}</strong><p>{template.description}</p>
                 <p>{t("缩放仅影响预览。DOCX 为可编辑单栏正文，不含照片；PDF 保留所选模板。", "Zoom affects preview only. DOCX is editable single-column content without photos; PDF keeps the selected template.")}</p>
+                <p>{printHint}</p>
               </div>}
             </div>
             <div className="preview-export" ref={exportMenuRef} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setIsExportMenuOpen(false); }}>
               <div className="preview-export-split">
-                <button type="button" onClick={() => window.print()} className="preview-export-primary" aria-label={t("导出 PDF / 打印", "Export PDF / Print")}><Printer size={15} aria-hidden="true" /><span>{t("导出", "Export")}</span></button>
+                <button type="button" onClick={() => window.print()} className="preview-export-primary" title={printHint} aria-description={printHint} aria-label={t("导出 PDF / 打印", "Export PDF / Print")}><Printer size={15} aria-hidden="true" /><span>{t("导出", "Export")}</span></button>
                 <button ref={exportTriggerRef} type="button" className="preview-export-toggle" aria-label={t("更多导出格式", "More export formats")} aria-haspopup="menu" aria-expanded={isExportMenuOpen} aria-controls={exportMenuId} onClick={() => { setIsExportMenuOpen((value) => !value); setIsHelpOpen(false); }} onKeyDown={(event) => {
                   if (event.key === "ArrowDown" || event.key === "ArrowUp") {
                     event.preventDefault();

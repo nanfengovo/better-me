@@ -80,7 +80,7 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
     const text = target.value.slice(start, end).trim();
     if (!text) return;
     const fieldLabel = target.getAttribute("aria-label") || t("当前简历字段", "Current resume field");
-    setSelectedResumeText({ text: text.slice(0, 12_000), sourceLabel: `简历 · ${fieldLabel}` });
+    setSelectedResumeText({ text, sourceLabel: `简历 · ${fieldLabel}` });
   }, [onAskAgentReference, t]);
 
   const issueExperience = issueNavigation && factBase.experiences.find((item) => item.id === issueNavigation.issue.experienceId);

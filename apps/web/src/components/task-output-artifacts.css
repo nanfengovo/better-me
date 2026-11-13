@@ -1,0 +1,17 @@
+.task-output-artifacts { min-width: 0; margin-block: 12px; }
+.task-output-artifact { min-width: 0; padding: 12px; border: 1px solid var(--ui-border, #cbd0d9); border-radius: 10px; color: var(--ui-text, #202735); background: var(--ui-surface, white); }
+.task-output-artifact + .task-output-artifact { margin-top: 10px; }
+.task-output-artifact-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; }
+.task-output-artifact-heading span, .task-output-artifact-note { color: var(--ui-text-muted, #667085); font-size: 12px; }
+.task-output-artifact details { margin-block: 8px; font-size: 12px; }
+.task-output-artifact summary { min-height: 32px; cursor: pointer; line-height: 1.6; padding-block: 6px; }
+.task-output-artifact dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 12px; }
+.task-output-artifact dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.task-output-artifact-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.task-output-artifact-actions button { min-height: 32px; padding: 6px 10px; border: 1px solid var(--ui-border, #cbd0d9); border-radius: 8px; background: var(--ui-canvas, #f5f6f8); color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
+.task-output-artifact-actions button:disabled { opacity: .55; cursor: not-allowed; }
+.task-output-artifact-actions button:active:not(:disabled) { transform: scale(.97); }
+.task-output-artifact :is(button,summary,pre):focus-visible { outline: 2px solid var(--ui-accent, #244f42); outline-offset: 3px; }
+.task-output-artifact pre { max-height: min(480px, 60dvh); overflow: auto; overscroll-behavior: contain; white-space: pre-wrap; overflow-wrap: anywhere; word-break: normal; font-size: 12px; line-height: 1.65; padding: 10px; border-radius: 8px; background: var(--ui-canvas, #f5f6f8); }
+.task-output-artifact p { font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+@media (max-width:840px),(pointer:coarse) { .task-output-artifact :is(button,summary) { min-height: 44px; } }

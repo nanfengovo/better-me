@@ -5,21 +5,22 @@ import type { LlmConfig } from "@better-me/core";
 import type { ResumeProposalTarget, UnderstandingSession } from "@better-me/agent-contracts";
 import {
   generateWritingReply, inspectWriting, isLocalWritingModel, newWritingNote, readWritingSession, reconcileWritingNotes,
-  saveWritingSession, writingTargetKey, writingOriginal, writingProposal, WritingReplyError, confirmedWritingProjectContext,
+  saveWritingSession, writingTargetKey, writingProjectSourceKey, writingOriginal, writingProposal, WritingReplyError, confirmedWritingProjectContext,
   type ConfirmedWritingProjectContext, type WritingMode, type WritingNote, type WritingSource,
-  writingMessages, parseWritingReply,
 } from "../lib/resume-copilot";
 import type { ResumeProposalWrite } from "../lib/resume-agent-context";
-import { focusWritingSource, observeResumeWriting, readWritingPreviewSelection, revealWritingPreview, useWritingGeometry, type WritingActivity } from "../lib/resume-writing-observer";
+import type { EditorialFinding } from "../lib/resume-editorial-review";
+import { focusWritingSource, observeResumeWriting, readWritingPreviewSelection, revealEditionPreview, revealWritingPreview, useWritingGeometry, type WritingActivity } from "../lib/resume-writing-observer";
 import { quoteWritingText, resolveWritingQuote } from "../lib/writing-anchor";
 import { writingAnnotations } from "../lib/writing-annotations";
 import { extractUnderstandingUserSupplement, ProjectUnderstandingPanel } from "./ProjectUnderstandingPanel";
 import { defaultUnderstandingClient, type UnderstandingClient } from "../services/understanding-client";
 import "./resume-writing-copilot.css";
 import "./writing-annotations.css";
+import { ResumeWritingExamples } from "./ResumeWritingExamples";
 import { ChatGptAgentControls } from "./ChatGptAgentControls";
 import { defaultChatGptClient, ChatGptClientError, type ChatGptClient, type ChatGptChoice } from "../services/chatgpt-client";
-import { generateChatGptWritingReply } from "../lib/chatgpt-writing";
+import { useAgentTaskRuntime } from "../lib/agent-task-runtime";
 import { useBetterMeAgent } from "../lib/betterme-agent/react";
 import { AgentContinuityButton, AgentMemoryConsent } from "./BetterMeAgentCenter";
 import { AgentSurface, useAgentSidebar } from "./AgentSidebar";
@@ -27,26 +28,36 @@ import { OPEN_PROJECT_EVENT } from "../lib/agent-navigation";
 import { useUiPreferences } from "../lib/ui-preferences";
 import { agentBaseLabel, useAgentRouting } from "../lib/agent-routing";
 import { AgentRoutingClientError } from "../services/agent-routing-client";
+import { defaultExperienceRefineTaskClient, ExperienceRefineTaskError } from "../services/experience-refine-task-client";
 
 type Props = {
   sessionKey: string; sources: WritingSource[]; config: LlmConfig; active: boolean; children: ReactNode;
+  editorialFindings?: EditorialFinding[];
+  isolatedResumeId?: string;
   onApply: (proposal: ResumeProposalWrite) => Promise<{ ok: boolean; message: string }>;
   onFocus: (source: WritingSource) => void;
   generate?: typeof generateWritingReply;
+  refinementClient?: typeof defaultExperienceRefineTaskClient;
   understandingClient?: UnderstandingClient;
   chatGptClient?: ChatGptClient;
+  careerTask?: { sourceResumeId: string; sourceFingerprint?: string; job?: {id?:string;title:string;company?:string;description:string} | null };
 };
 
 /** Owns the review session, never the resume. Writes cross the existing approved CAS interface. */
-export function ResumeWritingCopilot({ sessionKey, sources, config, active, onApply, onFocus, children, generate = generateWritingReply, understandingClient = defaultUnderstandingClient, chatGptClient = defaultChatGptClient }: Props) {
-  return <WritingCopilotSession key={sessionKey} {...{ sessionKey, sources, config, active, onApply, onFocus, children, generate, understandingClient, chatGptClient }} />;
+export function ResumeWritingCopilot(props: Props) {
+  return <WritingCopilotSession key={props.sessionKey} {...props} />;
 }
 
 function experienceKeyOf(target: ResumeProposalTarget): string {
   return target.kind === "claim_text" ? `exp:${target.experienceId}:${target.locale}` : writingTargetKey(target);
 }
-function sameExperienceTargetKey(aKey: string | undefined, bKey: string | undefined): boolean {
+function sameExperienceTargetKey(aKey: string | undefined, bKey: string | undefined, isolatedResumeId?: string): boolean {
   if (!aKey || !bKey) return false;
+  if (isolatedResumeId) {
+    const prefix = `isolated:${isolatedResumeId}:`;
+    if (!aKey.startsWith(prefix)) return false;
+    aKey = aKey.slice(prefix.length);
+  }
   if (aKey === bKey) return true;
   try {
     const a = JSON.parse(aKey), b = JSON.parse(bKey);
@@ -54,18 +65,23 @@ function sameExperienceTargetKey(aKey: string | undefined, bKey: string | undefi
   } catch { return false; }
 }
 
-function WritingCopilotSession({ sessionKey, sources, config, active, onApply, onFocus, children, generate = generateWritingReply, understandingClient = defaultUnderstandingClient, chatGptClient = defaultChatGptClient }: Props) {
+function WritingCopilotSession({ sessionKey, isolatedResumeId, sources, editorialFindings, config, active, onApply, onFocus, children, careerTask, generate, refinementClient = defaultExperienceRefineTaskClient, understandingClient = defaultUnderstandingClient, chatGptClient = defaultChatGptClient }: Props) {
   const { t } = useUiPreferences();
   const { agent, snapshot: agentSnapshot } = useBetterMeAgent();
   const routing = useAgentRouting();
   const sidebar = useAgentSidebar();
+  const taskJob = sidebar?.taskRequest?.job ?? careerTask?.job;
+  // Migrate JD-bound writing, not unscoped chats or old project-understanding sessions.
+  const hostWriting = !!(careerTask && sidebar && (taskJob?.description.trim() || sidebar.taskState));
   const [shareAgentMemory, setShareAgentMemory] = useState(false);
   const sharedTask = useRef<string | undefined>(undefined);
+  const hostRefinementTask = useRef<string | undefined>(undefined);
   const storageKey = `betterme.writing.v1:${sessionKey}`;
   const [session, setSession] = useState(() => readWritingSession(localStorage, storageKey));
   const [selected, setSelected] = useState<string>();
   const [keyboardNavigation, setKeyboardNavigation] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [showEditionReview, setShowEditionReview] = useState(false);
   const [agentCollapsed, setAgentCollapsed] = useState(false);
   const agentPaneId = useId();
   const collapseButton = useRef<HTMLButtonElement>(null);
@@ -87,6 +103,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
   const agentKind = agentSnapshot?.data.selection.kind ?? localAgentKind;
   const chatGptChoice = agentSnapshot?.data.selection ?? localChoice;
   const chatGptReady = agentSnapshot?.chatGptReady ?? localReady;
+  const taskRuntime = useAgentTaskRuntime(config, { kind:agentKind, profileId:chatGptChoice.profileId, model:chatGptChoice.model, ready:chatGptReady });
   const setAgentKind = (kind: "current" | "chatgpt") => agent ? agent.setSelection({ kind, profileId: "", model: "" }) : setLocalAgentKind(kind);
   const setChatGptChoice = (choice: ChatGptChoice) => agent ? agent.setSelection({ kind: "chatgpt", ...choice }) : setLocalChoice(choice);
   const setChatGptReady = agent?.setChatGptReady ?? setLocalReady;
@@ -128,8 +145,8 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
   ));
   const usableContext = focusedContextOriginValid ? focusedContext?.context : undefined;
   const linkedUnderstandingSession = focusedNote ? (understandingSessions[focusedTargetKey] ?? understandingSessions[focusedExpKey]) : undefined;
-  const linkedAgentTask = focusedNote ? agentSnapshot?.data.tasks.filter(task => task.origin === "understanding" && sameExperienceTargetKey(task.remote?.targetKey, focusedTargetKey)).at(-1) : undefined;
-  const linkedAgentMemory = focusedNote ? agentSnapshot?.data.memories.find(mem => mem.valid && sameExperienceTargetKey(mem.targetKey, focusedTargetKey)) : undefined;
+  const linkedAgentTask = focusedNote ? agentSnapshot?.data.tasks.filter(task => task.origin === "understanding" && sameExperienceTargetKey(task.remote?.targetKey, focusedTargetKey, isolatedResumeId)).at(-1) : undefined;
+  const linkedAgentMemory = focusedNote ? agentSnapshot?.data.memories.find(mem => mem.valid && sameExperienceTargetKey(mem.targetKey, focusedTargetKey, isolatedResumeId)) : undefined;
   const linkedUserSupplement = useMemo(() => {
     if (!focusedNote) return "";
     const fromSession = extractUnderstandingUserSupplement(linkedUnderstandingSession);
@@ -143,7 +160,8 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
     return [...new Set(msgs)].join("\n");
   }, [focusedNote, linkedUnderstandingSession, linkedAgentTask, agentSnapshot?.data.messages]);
   const linkedSummary = usableContext?.understanding.summary ?? linkedUnderstandingSession?.understanding?.summary ?? linkedAgentMemory?.summary;
-  const hasAgentContent = Boolean(focusedNote && visible || agentKind === "chatgpt" || understandingSource || applied || archived.length || storageError || message);
+  const reviewedEdition = visible && showEditionReview && editorialFindings !== undefined;
+  const hasAgentContent = Boolean(focusedNote && visible || reviewedEdition || agentKind === "chatgpt" || understandingSource || applied || archived.length || storageError || message);
   const showAgentPane = sidebar ? sidebar.open && sidebar.tab === "conversation" && sidebar.conversation === "writing" : hasAgentContent && !agentCollapsed;
   const compactHint = !expanded && !understandingSource && !busy && agentKind !== "chatgpt";
   const geometry = useWritingGeometry(shell, understandingSource ? understandingCard : card, active && visible && showAgentPane ? liveUnderstandingSource ?? focusedNote?.source : undefined, annotations, focusedNote?.id);
@@ -168,16 +186,16 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
       const key = (event as CustomEvent<{ targetKey?: string }>).detail?.targetKey;
       if (!key) return;
       if (navigation.current.busy || navigation.current.understandingRunning) { setMessage("当前一轮仍在运行，未切换原文或打断任务；完成后再打开对应项目。"); return; }
-      const source = latest.current.sources.find(item => writingTargetKey(item.targetRef) === key);
+      const source = latest.current.sources.find(item => writingProjectSourceKey(item.targetRef, isolatedResumeId) === key);
       if (!source) { setMessage("此共识对应的原文未载入或已移除，请先核对当前简历；没有使用旧理解生成内容。"); return; }
-      const existing = latest.current.session.notes.find(note => note.state === "open" && writingTargetKey(note.source.targetRef) === key && note.source.text === source.text);
+      const existing = latest.current.session.notes.find(note => note.state === "open" && writingProjectSourceKey(note.source.targetRef, isolatedResumeId) === key && note.source.text === source.text);
       const note = existing ?? newWritingNote(source, inspectWriting(source, latest.current.sources) ?? { kind: "selection", title: "一起打磨这段表达", question: "哪些动作是你本人完成的？" });
-      if (!existing) setSession(value => ({ ...value, notes: [note, ...value.notes].slice(0, 80) }));
+      if (!existing) setSession(value => ({ ...value, notes: [note, ...value.notes] }));
       setSelected(note.id); setUnderstandingSource(source); setExpanded(true); setAgentCollapsed(false);
       navigation.current.onFocus(source);
     };
     window.addEventListener(OPEN_PROJECT_EVENT, open); return () => window.removeEventListener(OPEN_PROJECT_EVENT, open);
-  }, []);
+  }, [isolatedResumeId]);
 
   function collapseAgent() {
     if (sidebar) { sidebar.hide(); return; }
@@ -186,7 +204,19 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
     collapseButton.current?.focus();
   }
 
-  const stop = useCallback(() => { epoch.current++; request.current?.controller.abort(); request.current = null; if (agent && sharedTask.current) void agent.stop(sharedTask.current); sharedTask.current = undefined; setBusy(false); }, [agent]);
+  const stop = useCallback(() => {
+    const generation=++epoch.current,hostId=hostRefinementTask.current;hostRefinementTask.current=undefined;
+    request.current?.controller.abort();request.current=null;
+    if(hostId)void refinementClient.pause(hostId).catch(()=>{if(alive.current&&epoch.current===generation)setMessage("任务停止结果尚未确认，请核对本机任务；没有自动重发。");});
+    if(agent&&sharedTask.current)void agent.stop(sharedTask.current);sharedTask.current=undefined;setBusy(false);
+  },[agent,refinementClient]);
+  const previousSpace = useRef(isolatedResumeId);
+  useEffect(() => {
+    if (previousSpace.current === isolatedResumeId) return;
+    previousSpace.current = isolatedResumeId;
+    stop(); setUnderstandingSource(undefined); setUnderstandingSessions({}); setProjectContexts({});
+    setShareProjectContext(false); setShareAgentMemory(false);
+  }, [isolatedResumeId, stop]);
   function changeNote(id: string, change: Partial<WritingNote>) {
     setSession(current => ({ ...current, notes: current.notes.map(n => n.id === id ? { ...n, ...change, updatedAt: Date.now() } : n) }));
   }
@@ -200,17 +230,16 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
         if (!issue || next.some(n => !n.source.quote && writingTargetKey(n.source.targetRef) === writingTargetKey(source.targetRef) && n.source.text === source.text && n.issue.kind === issue.kind)) continue;
         next.unshift(newWritingNote(source, issue));
       }
-      return { ...state, notes: next.slice(0, 80) };
+      return { ...state, notes: next };
     });
   }
   function checkSelection() {
     if (!selectionSource || !selectionQuote || session.mode === "paused") return;
-    if (selectionQuote.exact.length > 12000) { setMessage("选中文字过长，请缩小到一个要点或片段后再完善。"); return; }
     stop();
     const source = { ...selectionSource, quote: selectionQuote };
     const existing = session.notes.find(n => n.state === "open" && writingTargetKey(n.source.targetRef) === writingTargetKey(source.targetRef) && n.source.text === source.text && n.source.quote?.start === selectionQuote.start && n.source.quote.exact === selectionQuote.exact);
     const note = existing ?? newWritingNote(source, inspectWriting(source, sources) ?? { kind: "selection", title: "一起打磨这段表达", question: "这段话中，哪些是你亲手做的动作？当时为什么这样处理？有没有可观察的结果或用途？" });
-    if (!existing) setSession(s => ({ ...s, notes: [note, ...s.notes].slice(0, 80) }));
+    if (!existing) setSession(s => ({ ...s, notes: [note, ...s.notes] }));
     pendingExpand.current = note.id; setSelected(note.id); setExpanded(true); setAgentCollapsed(false);
     sidebar?.show("conversation", "writing");
   }
@@ -225,7 +254,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
         const remote = readWritingSession(localStorage, storageKey);
         const merged = new Map(current.notes.map(note => [note.id, note]));
         for (const note of remote.notes) if (!merged.has(note.id) || merged.get(note.id)!.updatedAt <= note.updatedAt) merged.set(note.id, note);
-        return { ...remote, notes: [...merged.values()].slice(0, 80) };
+        return { ...remote, notes: [...merged.values()] };
       });
     };
     window.addEventListener("storage", sync); return () => window.removeEventListener("storage", sync);
@@ -239,8 +268,8 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
     }
   }, [sources, stop]);
   useEffect(() => {
-    if (agentSnapshot?.ready && !agentSnapshot.error) agent?.reconcileSources(sources.map(source => ({ key: writingTargetKey(source.targetRef), text: source.text })));
-  }, [agent, agentSnapshot?.ready, agentSnapshot?.error, sources]);
+    if (agentSnapshot?.ready && !agentSnapshot.error) agent?.reconcileSources(sources.map(source => ({ key: writingProjectSourceKey(source.targetRef, isolatedResumeId), text: source.text })));
+  }, [agent, agentSnapshot?.ready, agentSnapshot?.error, sources, isolatedResumeId]);
   useEffect(() => {
     const editor = document.getElementById("resume-editor-panel");
     if (!editor || !active || session.mode === "paused") return;
@@ -266,13 +295,13 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
   useEffect(() => { stop(); setShareAgentMemory(false); }, [config.provider, config.baseUrl, config.model, config.apiKey, stop]);
   useEffect(() => { stop(); setConfirmedAnswer(false); setShareProjectContext(false); setShareAgentMemory(false); }, [agentKind, chatGptChoice.profileId, chatGptChoice.model, routing?.policy?.revision, stop]);
   useEffect(() => {
-    if (!active || session.mode !== "proactive" || !session.autoLocalModel || !canAutoModel || !focusedNote || focusedNote.autoAsked || focusedNote.answer || focusedNote.questions) return;
+    if (hostWriting || !active || session.mode !== "proactive" || !session.autoLocalModel || !canAutoModel || !focusedNote || focusedNote.autoAsked || focusedNote.answer || focusedNote.questions) return;
     changeNote(focusedNote.id, { autoAsked: true });
     const key = writingTargetKey(focusedNote.source.targetRef), now = Date.now();
     if (now - (autoBudget.current.get(key) ?? 0) < 60000) return;
     autoBudget.current.set(key, now);
     void autoAsk.current(focusedNote, false);
-  }, [active, session.mode, session.autoLocalModel, canAutoModel, focusedNote]);
+  }, [active, session.mode, session.autoLocalModel, canAutoModel, focusedNote, hostWriting]);
   useEffect(() => { alive.current = true; const generation = epoch; return () => { alive.current = false; generation.current++; request.current?.controller.abort(); clearTimeout(timer.current); }; }, []);
   useEffect(() => {
     if (request.current && request.current.noteId !== focusedNote?.id) stop();
@@ -282,6 +311,14 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
   function mode(value: WritingMode) { stop(); setSession(s => ({ ...s, mode: value })); }
   async function ask(note: WritingNote, openOnReturn = true) {
     stop(); setMessage(""); setConfirmedProposal(false);
+    if (hostWriting && careerTask && sidebar) {
+      if (!careerTask.sourceFingerprint) { setMessage("源简历版本尚未核对，未创建或启动任务。请稍后重新选择这条经历。"); return; }
+      if (note.answer.trim() && !confirmedAnswer) { setMessage("请先核对本人补充；不会把未确认文字交给岗位任务。"); return; }
+      sidebar.requestTask({job:taskJob,objective:`针对所选岗位核对「${note.source.label}」，仅对授权字段提出有依据的修改；缺关键事实先问我，交付逐句差异与待确认项，批准后另存岗位版。`,
+        focus:{id:crypto.randomUUID(),sourceResumeId:careerTask.sourceResumeId,sourceFingerprint:careerTask.sourceFingerprint,targetRef:note.source.targetRef,
+          originalText:note.source.text,label:note.source.label,...(note.answer.trim()?{userStatement:note.answer.trim()}:{})}});
+      return; // no legacy model call, memory sharing, adoption or new task budget here
+    }
     if (routing?.blocked) { setMessage("本账号底座状态尚未确认；请刷新模型与工具。未使用旧 API 配置补发。"); return; }
     if (!routing?.enabled && agentKind === "chatgpt" && !chatGptReady) { setMessage("请先完成 ChatGPT 授权、选择可用模型并检查额度状态；不会改用当前 API 配置。"); return; }
     if (note.answer.trim() && !confirmedAnswer) { setMessage("请先核对补充内容是否真实；它不会自动变成已核实事实。"); return; }
@@ -301,15 +338,17 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
         }
       }
       const produce = async (signal: AbortSignal, sharedText?: string) => {
-        routing?.assertSelected();
-        const nativeReply = async () => {
-          const messages = writingMessages(note.source, note.answer, context, sharedText);
-          const reply = await routing!.respond(messages.filter(message => message.role === "system").map(message => message.content).join("\n"), messages.filter(message => message.role === "user").map(message => ({ role: "user" as const, content: message.content })), signal);
-          signal.throwIfAborted(); return parseWritingReply(reply.text, note.source, note.answer);
-        };
-        const result = await (routing?.enabled ? nativeReply() : agentKind === "chatgpt"
-          ? generateChatGptWritingReply(chatGptClient, chatGptChoice, note.source, note.answer, signal, context, sharedText)
-          : generate(config, note.source, note.answer, signal, undefined, context, sharedText));
+        taskRuntime.assertSelected();
+        const result = await (generate && !routing?.enabled && agentKind !== "chatgpt"
+            ? generate(config, note.source, note.answer, signal, undefined, context, sharedText) // Explicit test seam only; no production browser fallback.
+            : refinementClient.refine({workspaceKey:`writing:${sessionKey}:${note.id}`,rootScopeKey:agent?.workspaceKey??sessionKey,
+              ...(context?.sessionId.startsWith("ct_")?{parentTaskId:context.sessionId}:{}),
+              refinement:{source:note.source,...(context?{projectContext:context}:{}),...(sharedText?{sharedProjectBackgroundOnly:sharedText}:{})},
+              supplement:note.answer,supplementConfirmed:true,signal,
+              runtime:taskRuntime.runtime,preferredRuntimeId:taskRuntime.preferredRuntimeId,
+              onTask:task=>{if(epoch.current===id&&!signal.aborted)hostRefinementTask.current=task.id;else void refinementClient.pause(task.id).catch(()=>{});},
+            }));
+        signal.throwIfAborted();taskRuntime.assertSelected();
         if (context && focusedContext) {
           const fresh = await understandingClient.getSession(context.sessionId, signal);
           const confirmed = confirmedWritingProjectContext(fresh);
@@ -334,9 +373,9 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
       if (openOnReturn) setExpanded(true);
     } catch (error) {
       if (epoch.current === id) setMessage(controller.signal.aborted
-        ? "本次分析等待超时，原文和补充已保留。可重试，或先根据本地追问继续写。"
-        : error instanceof WritingReplyError || error instanceof ChatGptClientError || error instanceof AgentRoutingClientError ? error.message : "模型暂时没有给出可核对的完整建议。原文未改动；可以重试或按本地追问自行补充。");
-    } finally { clearTimeout(timeout); if (epoch.current === id) { request.current = null; sharedTask.current = undefined; setBusy(false); } }
+        ? "本页已停止等待，原文和补充已保留。再次进入会先读取原任务结果，不会自动重发计费。"
+        : error instanceof WritingReplyError || error instanceof ChatGptClientError || error instanceof AgentRoutingClientError || error instanceof ExperienceRefineTaskError ? error.message : "模型暂时没有给出可核对的完整建议。原文未改动；可以重试或按本地追问自行补充。");
+    } finally { clearTimeout(timeout); if (epoch.current === id) { request.current = null; sharedTask.current = undefined;hostRefinementTask.current=undefined;setBusy(false); } }
   }
   autoAsk.current = ask;
   async function apply(note: WritingNote, undo = false) {
@@ -368,7 +407,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
     if (prior?.questions?.length) restored.questions = prior.questions;
     if (prior?.rationale) restored.rationale = prior.rationale;
     pendingExpand.current = restored.id;
-    setSession(s => ({ ...s, notes: [restored, ...s.notes.filter(item => item.id !== prior?.id)].slice(0, 80) }));
+    setSession(s => ({ ...s, notes: [restored, ...s.notes.filter(item => item.id !== prior?.id)] }));
     setSelected(restored.id); setExpanded(true); setAgentCollapsed(false);
     sidebar?.show("conversation", "writing");
   }
@@ -418,7 +457,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
       <AgentMemoryConsent scope="writing" checked={shareAgentMemory} onChange={value => { if (!value) stop(); setShareAgentMemory(value); }} />
       </div>
       </details></AgentSurface>
-      <button data-agent-guide="writing-check" onClick={() => { check(); setExpanded(false); setAgentCollapsed(false); sidebar?.show("conversation", "writing"); }} disabled={session.mode === "paused"}><Sparkles size={13} />{t("检查当前简历", "Review resume")}</button>
+      <button data-agent-guide="writing-check" onClick={() => { check(); setShowEditionReview(true); setExpanded(false); setAgentCollapsed(false); sidebar?.show("conversation", "writing"); }} disabled={session.mode === "paused"}><Sparkles size={13} />{t("检查当前简历", "Review resume")}</button>
       {selectionQuote && <button onClick={checkSelection} disabled={session.mode === "paused"}>{t("完善选中文字", "Polish selection")}</button>}
       {!selectionQuote && selectionSource && !notes.some(n => writingTargetKey(n.source.targetRef) === writingTargetKey(selectionSource.targetRef)) && <button onClick={() => reopenSourceNote(selectionSource)} disabled={session.mode === "paused"}>{t(`打开/补充批注 · ${selectionSource.label}`, `Open/refine · ${selectionSource.label}`)}</button>}
       <span className="writing-count">{session.mode === "paused" ? <><Pause size={13} />{t("已暂停", "Paused")}</> : t(`${notes.length} 条待完善`, `${notes.length} to refine`)}</span>
@@ -434,8 +473,20 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
       {agentKind === "chatgpt" && !routing?.enabled && !sidebar && <ChatGptAgentControls value={chatGptChoice} onChange={choice => { stop(); setChatGptChoice(choice); }} onReady={setChatGptReady} client={chatGptClient} disabled={busy || understandingRunning} />}
       {storageError && <p className="writing-message" role="status">{storageError}</p>}
       {message && <p className="writing-message" role="status">{message}</p>}
+      {reviewedEdition && !expanded && !understandingSource && <details className="writing-archive" data-edition-review="" open>
+        <summary>{t(`全篇写作检查（${editorialFindings.length}）`, `Whole-resume review (${editorialFindings.length})`)}</summary>
+        {!editorialFindings.length && <p>{t("没有触发本组结构提醒；这不是对所有内容的核实。", "None of these structural checks triggered; this is not verification of every claim.")}</p>}
+        {editorialFindings.map(finding => <article key={finding.kind}>
+          <strong>{finding.title}</strong><p>{finding.advice}</p>
+          {finding.previewAnchor && <button type="button" onClick={() => {
+            if (sidebar && window.matchMedia("(max-width: 840px), (max-height: 500px)").matches) sidebar.hide();
+            cancelAnimationFrame(revealFrame.current);
+            revealFrame.current = requestAnimationFrame(() => { if (shell.current && !revealEditionPreview(shell.current, finding.previewAnchor!)) setMessage(t("本版预览中找不到这个位置，请核对内容或版式。", "The location wasn’t found in this preview. Check the content or layout.")); });
+          }}>{t("在预览中定位", "Locate in preview")}</button>}
+        </article>)}
+      </details>}
       {understandingSource && liveUnderstandingSource && understandingOriginal !== undefined && <div ref={understandingCard} className="writing-understanding-anchor"><nav className="writing-understanding-navigation" aria-label={t("当前项目导航", "Current project navigation")}>{sidebar && <button type="button" className="writing-return" disabled={understandingRunning} onClick={() => setUnderstandingSource(undefined)}><ChevronLeft size={14} />{t("返回伴写建议", "Back to suggestions")}</button>}<button type="button" className="writing-source" onClick={() => { onFocus(liveUnderstandingSource); if (sidebar && window.matchMedia("(max-width: 840px), (max-height: 500px)").matches) sidebar.hide(); focusWritingSource(liveUnderstandingSource); }}>{t("定位原文", "Locate source")} · {liveUnderstandingSource.label}</button></nav><ProjectUnderstandingPanel
-        key={writingTargetKey(understandingSource.targetRef)} workspaceKey={sessionKey} projectKey={writingTargetKey(understandingSource.targetRef)}
+        key={writingProjectSourceKey(understandingSource.targetRef, isolatedResumeId)} workspaceKey={sessionKey} projectKey={writingProjectSourceKey(understandingSource.targetRef, isolatedResumeId)}
         label={liveUnderstandingSource.label} sourceText={understandingOriginal} config={config} client={understandingClient}
         chatGpt={agentKind === "chatgpt" ? { ...chatGptChoice, ready: chatGptReady } : undefined}
         onRunningChange={setUnderstandingRunning}
@@ -457,7 +508,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
             [expKey]: { sourceKey: targetKey, sourceText: understandingOriginal, context },
           }));
           if (note) {
-            const answer = supplement && !note.answer.includes(supplement) ? [note.answer, supplement].filter(Boolean).join("\n\n").slice(0, 6000) : note.answer;
+            const answer = supplement && !note.answer.includes(supplement) ? [note.answer, supplement].filter(Boolean).join("\n\n") : note.answer;
             changeNote(note.id, { answer, proposedText: undefined, evidenceQuotes: undefined });
             setSelected(note.id);
             setConfirmedAnswer(Boolean(answer.trim()));
@@ -547,7 +598,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
       </div>
       {expanded && <div className="writing-review">
         <div className="writing-review-body" role="region" aria-label="伴写建议与修改对照" tabIndex={0}>
-        {(linkedSummary || linkedUserSupplement) && <section className="writing-linked-memory" aria-label="已关联项目理解与对话记忆" style={{ display: "grid", gap: "6px", padding: "10px 12px", borderRadius: "10px", background: "color-mix(in srgb, var(--color-accent, #2563eb) 7%, var(--color-panel, #fff))", border: "1px solid color-mix(in srgb, var(--color-accent, #2563eb) 28%, var(--color-line, #e2e8f0))", fontSize: "12px" }}>
+        {!hostWriting && (linkedSummary || linkedUserSupplement) && <section className="writing-linked-memory" aria-label="已关联项目理解与对话记忆" style={{ display: "grid", gap: "6px", padding: "10px 12px", borderRadius: "10px", background: "color-mix(in srgb, var(--color-accent, #2563eb) 7%, var(--color-panel, #fff))", border: "1px solid color-mix(in srgb, var(--color-accent, #2563eb) 28%, var(--color-line, #e2e8f0))", fontSize: "12px" }}>
           <strong style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
             <span>🧠 已识别本段经历的项目理解与对话记忆</span>
             {usableContext && <span style={{ fontSize: "11px", opacity: 0.8 }}>{shareProjectContext ? "✓ 已勾选携带共识" : "可勾选携带共识"}</span>}
@@ -557,7 +608,7 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
           {((linkedUserSupplement && !focusedNote.answer.includes(linkedUserSupplement)) || (usableContext && !shareProjectContext)) && <button type="button" onClick={() => {
             stop();
             const nextAnswer = linkedUserSupplement && !focusedNote.answer.includes(linkedUserSupplement)
-              ? [focusedNote.answer, linkedUserSupplement].filter(Boolean).join("\n\n").slice(0, 6000)
+              ? [focusedNote.answer, linkedUserSupplement].filter(Boolean).join("\n\n")
               : focusedNote.answer;
             changeNote(focusedNote.id, { answer: nextAnswer, proposedText: undefined, evidenceQuotes: undefined });
             if (nextAnswer.trim()) setConfirmedAnswer(true);
@@ -566,17 +617,18 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
           }}>📥 一键同步项目理解与我的多轮补充到下方</button>}
         </section>}
         {(focusedNote.questions?.length ? focusedNote.questions : [focusedNote.issue.question]).map((question, index) => <p className="writing-question" key={index}>{question}</p>)}
-        <details className="writing-send-details"><summary>本次发送范围与授权</summary><small>发送本条原文、本人补充{shareProjectContext && usableContext ? "及已确认项目术语背景" : ""}。不自动附带姓名、联系方式或其他简历字段；共享记忆由「模型与工具」中的简历伴写开关单独控制。项目共识、文件只读授权、本人贡献确认不能互相代替。请勿填入敏感信息。</small></details>
+        <ResumeWritingExamples />
+        <details className="writing-send-details"><summary>本次发送范围与授权</summary><small>{hostWriting?"原句与本人补充仅交接到同一岗位任务面板，核对资料、底座和预算后再启动；不借用旧项目共识、记忆或目录授权。已有任务不会重置预算或自动扩大范围。":<>发送本条原文、本人补充{shareProjectContext && usableContext ? "及已确认项目术语背景" : ""}。不自动附带姓名、联系方式或其他简历字段；共享记忆由「模型与工具」中的简历伴写开关单独控制。项目共识、文件只读授权、本人贡献确认不能互相代替。请勿填入敏感信息。</>}</small></details>
         {focusedNote.rationale && <p>{focusedNote.rationale}</p>}
-        {focusedNote.answer.trim() && !focusedNote.proposedText && <button disabled={!confirmedAnswer} onClick={() => { stop(); changeNote(focusedNote.id, { proposedText: focusedNote.answer.trim(), evidenceQuotes: [focusedNote.answer.trim()], rationale: "候选直接来自你本人核对的补充，未由模型扩写；请继续检查表达和事实。" }); setConfirmedProposal(false); }}>用我的补充作为可编辑草稿</button>}
+        {!hostWriting && focusedNote.answer.trim() && !focusedNote.proposedText && <button disabled={!confirmedAnswer} onClick={() => { stop(); changeNote(focusedNote.id, { proposedText: focusedNote.answer.trim(), evidenceQuotes: [focusedNote.answer.trim()], rationale: "候选直接来自你本人核对的补充，未由模型扩写；请继续检查表达和事实。" }); setConfirmedProposal(false); }}>用我的补充作为可编辑草稿</button>}
         {focusedNote.proposedText && <section className="writing-diff" aria-label="修改对照">
           <label>原文</label><del>{writingOriginal(focusedNote.source)}</del>
           <label htmlFor="writing-proposal">候选表达 · 可继续编辑</label>
           <textarea id="writing-proposal" rows={4} maxLength={12000} value={focusedNote.proposedText} onChange={e => { stop(); changeNote(focusedNote.id, { proposedText: e.target.value, evidenceQuotes: undefined }); setConfirmedProposal(false); }} />
           <details className="writing-candidate-evidence" open><summary>候选引用依据 · 请逐句核对</summary>{focusedNote.evidenceQuotes?.length ? focusedNote.evidenceQuotes.map((quote, index) => <blockquote key={index}>{quote}</blockquote>) : <p>候选已手动编辑或没有保留引用，请重新核对与原文、本人补充是否一致。</p>}<small>引用已校验来自本条原文或你的补充；这不是外部事实认证，也不能证明候选每句话都成立。项目代码、设计方案与 Agent 猜测不作为个人成果依据。</small></details>
           <label className="writing-check"><input type="checkbox" checked={confirmedProposal} onChange={e => setConfirmedProposal(e.target.checked)} />我已逐字核对，没有夸大或新增不实事实</label>
-          <button className="writing-primary" disabled={applying || !confirmedProposal || !focusedNote.proposedText.trim()} onClick={() => void apply(focusedNote)}>{applying ? "正在保护版本并保存…" : "确认采用到简历"}</button>
-          <small>仅替换这一字段，不改变事实核实状态。手动编辑原文后本建议失效。</small>
+          {!hostWriting&&<button className="writing-primary" disabled={applying || !confirmedProposal || !focusedNote.proposedText.trim()} onClick={() => void apply(focusedNote)}>{applying ? "正在保护版本并保存…" : "确认采用到简历"}</button>}
+          <small>{hostWriting?"旧旁写候选保留供查看，未作为本人陈述发送。请从原句与本人补充交给岗位任务重新取证审阅，批准后另存岗位版。":"仅替换这一字段，不改变事实核实状态。手动编辑原文后本建议失效。"}</small>
         </section>}
         <button onClick={collapseAgent}>收起，继续写</button>
         </div>
@@ -584,9 +636,9 @@ function WritingCopilotSession({ sessionKey, sources, config, active, onApply, o
           <label htmlFor="writing-answer">补充你实际做过的事情</label>
           <textarea id="writing-answer" data-agent-guide="writing-answer" rows={2} maxLength={6000} value={focusedNote.answer} placeholder="可以说不知道或没有数据，不需要编造结果。" onChange={e => { stop(); changeNote(focusedNote.id, { answer: e.target.value, proposedText: undefined, evidenceQuotes: undefined }); setConfirmedAnswer(false); setConfirmedProposal(false); }} />
           {focusedNote.answer.trim() && <label className="writing-check"><input type="checkbox" checked={confirmedAnswer} onChange={e => setConfirmedAnswer(e.target.checked)} />我确认这段补充来自实际经历</label>}
-          {usableContext && <label className="writing-check"><input type="checkbox" checked={shareProjectContext} onChange={event => { stop(); setShareProjectContext(event.target.checked); }} />本次携带已确认项目共识（仅术语和边界，不证明个人贡献）</label>}
-          <small>发送至：{routing?.enabled ? agentBaseLabel(routing.policy) : agentKind === "chatgpt" ? `ChatGPT · ${chatGptChoice.model || "未选择模型"}` : `${config.provider} · ${config.model || "未配置"}`}{shareAgentMemory ? " · 简历伴写记忆已授权" : " · 未共享记忆"}</small>
-          {busy ? <button className="writing-primary" onClick={() => { stop(); setMessage("已停止分析，补充内容留在输入框中。"); }}><Square size={12} />停止分析</button> : <button className="writing-primary" onClick={() => void ask(focusedNote)} disabled={!routing?.enabled && agentKind === "chatgpt" && !chatGptReady || !!focusedNote.answer.trim() && !confirmedAnswer}>{focusedNote.answer.trim() ? "请 Agent 整理候选表达" : "请 Agent 进一步追问"}</button>}
+          {!hostWriting && usableContext && <label className="writing-check"><input type="checkbox" checked={shareProjectContext} onChange={event => { stop(); setShareProjectContext(event.target.checked); }} />本次携带已确认项目共识（仅术语和边界，不证明个人贡献）</label>}
+          <small>{hostWriting?"下一步核对岗位任务授权；此处不会直接调用模型或保存简历。":<>发送至：{routing?.enabled ? agentBaseLabel(routing.policy) : agentKind === "chatgpt" ? `ChatGPT · ${chatGptChoice.model || "未选择模型"}` : `${config.provider} · ${config.model || "未配置"}`}{shareAgentMemory ? " · 简历伴写记忆已授权" : " · 未共享记忆"}</>}</small>
+          {busy ? <button className="writing-primary" onClick={() => { stop(); setMessage("已停止分析，补充内容留在输入框中。"); }}><Square size={12} />停止分析</button> : <button className="writing-primary" onClick={() => void ask(focusedNote)} disabled={!hostWriting && !routing?.enabled && agentKind === "chatgpt" && !chatGptReady || !!focusedNote.answer.trim() && !confirmedAnswer}>{hostWriting?"交给岗位任务取证与审阅":focusedNote.answer.trim() ? "请 Agent 整理候选表达" : "请 Agent 进一步追问"}</button>}
         </div>
       </div>}
       {notes.length > 1 && <footer><button aria-label="上一条批注" disabled={busy || understandingRunning || applying} onClick={event => selectNote(notes[(notes.indexOf(focusedNote) - 1 + notes.length) % notes.length]!, event.detail === 0)}><ChevronLeft size={13} /></button><span>{t(`第 ${focusedAnnotation?.number} 条 / 共 ${notes.length} 条`, `Note ${focusedAnnotation?.number} / ${notes.length}`)}</span><button aria-label="下一条批注" disabled={busy || understandingRunning || applying} onClick={event => selectNote(notes[(notes.indexOf(focusedNote) + 1) % notes.length]!, event.detail === 0)}><ChevronRight size={13} /></button></footer>}

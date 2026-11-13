@@ -104,7 +104,7 @@ test("submitting evidence is distinct from self-completion and never implies ver
   const initial = adopted();
   const submitted = addCoachSubmission(initial, { taskId: "task-a", evidence: "  可复查的合成测试输出  ", minutes: 60 });
   assert.equal(submitted.activePlan?.progress["task-a"]?.status, "submitted");
-  assert.equal(submitted.submissions[0]?.evidence, "可复查的合成测试输出");
+  assert.equal(submitted.submissions[0]?.evidence, "  可复查的合成测试输出  ");
   assert.equal(submitted.submissions[0]?.planId, "plan-a");
   const summary = getCoachProgress(submitted, new Date(2026, 9, 23));
   assert.equal(summary.submitted, 1); assert.equal(summary.selfCompleted, 0); assert.equal(summary.totalMinutes, 60);

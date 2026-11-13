@@ -1,6 +1,9 @@
 /** @jsxRuntime automatic */
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useUiPreferences } from "../lib/ui-preferences";
+import { useBetterMeAgent } from "../lib/betterme-agent/react";
+import { useAgentRouting } from "../lib/agent-routing";
+import { jdMatchResumeMaterial } from "../services/jd-match-task-client";
 import {
   type LlmConfig,
   type ProjectedResume,
@@ -46,12 +49,16 @@ import {
   sendAgentChat,
   checkAgentHostHealth,
   type MatchProposal,
-  type ProposalDecision,
-  type StructuredJd,
   type ChatMessage,
 } from "../services/agent-client";
 import { AgentMarkdownRenderer } from "./AgentMarkdownRenderer";
 import { AgentReplyMeta } from "./AgentReplyMeta";
+import { useRecoveryField, useWorkspaceRecovery } from "../lib/use-workspace-recovery";
+import { AdvisorRecoverySchema, initialAdvisorRecovery } from "../lib/advisor-recovery";
+import { privateKey } from "../lib/private-storage";
+import { contextFingerprint } from "../lib/career-coach/state";
+import { WorkspaceRecoveryNotice } from "./WorkspaceRecoveryNotice";
+import {createInterviewSelection,requestMockInterview} from "../lib/mock-interview-launch";
 
 export interface DrawerJobContext {
   id?: string;
@@ -65,6 +72,7 @@ export interface DrawerJobContext {
 }
 
 export interface JdMatchDrawerProps {
+  workspaceKey?: string;
   isOpen: boolean;
   onClose: () => void;
   job: DrawerJobContext | null;
@@ -80,7 +88,14 @@ export interface JdMatchDrawerProps {
   onSaveOpportunity?: (job: DrawerJobContext) => void;
 }
 
-export function JdMatchDrawer({
+export function JdMatchDrawer(props: JdMatchDrawerProps) {
+  const scope = JSON.stringify([props.workspaceKey ?? "active-resume", props.job?.id ?? contextFingerprint({ job: props.job ?? undefined })]);
+  return <JdMatchDrawerSession key={privateKey(scope)} recoveryKey={scope} {...props} />;
+}
+
+function JdMatchDrawerSession({
+  workspaceKey="active-resume",
+  recoveryKey,
   isOpen,
   onClose,
   job,
@@ -89,18 +104,21 @@ export function JdMatchDrawer({
   onOpenConfig,
   onApplyToResume,
   onSaveOpportunity,
-}: JdMatchDrawerProps) {
+}: JdMatchDrawerProps & { recoveryKey: string }) {
   const { t } = useUiPreferences();
+  const {agent}=useBetterMeAgent();
+  const routing=useAgentRouting();
+  const recovery = useWorkspaceRecovery(`jd-drawer:${recoveryKey}`, AdvisorRecoverySchema, () => initialAdvisorRecovery(job));
   const [activeTab, setActiveTab] = useState<"proposals" | "decomposition" | "defenses" | "chat">("proposals");
 
   // Current Target Job state
-  const [currentJob, setCurrentJob] = useState<DrawerJobContext | null>(job);
-  const [isEditingJob, setIsEditingJob] = useState(false);
-  const [inputTitle, setInputTitle] = useState(job?.title || "");
-  const [inputCompany, setInputCompany] = useState(job?.company || "");
-  const [inputSalary, setInputSalary] = useState(job?.salary || "");
-  const [inputLocation, setInputLocation] = useState(job?.location || "");
-  const [inputDescription, setInputDescription] = useState(job?.description || "");
+  const [currentJob, setCurrentJob] = useRecoveryField(recovery, "currentJob");
+  const [isEditingJob, setIsEditingJob] = useRecoveryField(recovery, "isEditingJob");
+  const [inputTitle, setInputTitle] = useRecoveryField(recovery, "inputTitle");
+  const [inputCompany, setInputCompany] = useRecoveryField(recovery, "inputCompany");
+  const [inputSalary, setInputSalary] = useRecoveryField(recovery, "inputSalary");
+  const [inputLocation, setInputLocation] = useRecoveryField(recovery, "inputLocation");
+  const [inputDescription, setInputDescription] = useRecoveryField(recovery, "inputDescription");
 
   // Deterministic JD Decomposition & Evidence Alignment
   const decomposedJd = useMemo<DecomposedJd | null>(() => {
@@ -119,14 +137,14 @@ export function JdMatchDrawer({
   }, [decomposedJd, resume]);
 
   // Matching state
-  const [threadId, setThreadId] = useState<string>("");
+  const [threadId, setThreadId] = useRecoveryField(recovery, "threadId");
   const [loading, setLoading] = useState(false);
   const [resuming, setResuming] = useState(false);
-  const [structuredJd, setStructuredJd] = useState<StructuredJd | null>(null);
-  const [proposals, setProposals] = useState<MatchProposal[]>([]);
-  const [decisions, setDecisions] = useState<Record<string, ProposalDecision>>({});
-  const [editingProposalId, setEditingProposalId] = useState<string | null>(null);
-  const [editedText, setEditedText] = useState("");
+  const [structuredJd, setStructuredJd] = useRecoveryField(recovery, "structuredJd");
+  const [proposals, setProposals] = useRecoveryField(recovery, "proposals");
+  const [decisions, setDecisions] = useRecoveryField(recovery, "decisions");
+  const [editingProposalId, setEditingProposalId] = useRecoveryField(recovery, "editingProposalId");
+  const [editedText, setEditedText] = useRecoveryField(recovery, "editedText");
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [agentHostOnline, setAgentHostOnline] = useState<boolean | null>(null);
 
@@ -136,27 +154,23 @@ export function JdMatchDrawer({
       const generatedProposals: MatchProposal[] = alignmentReport.alignments.map((a) => ({
         id: a.id,
         jdItem: a.jdItem.originalQuote,
-        evidenceType: a.status === "verified_match" ? "verified" : a.status === "weak_expression" ? "claimed" : "gap",
+        evidenceType: a.status === "gap" ? "gap" : "claimed",
         profileEntryId: a.matchedClaimId,
         suggestion: a.suggestedText || a.currentResumeText || a.jdItem.summary,
         rationale: a.rationale,
       }));
       setProposals(generatedProposals);
-      const initialDecisions: Record<string, ProposalDecision> = {};
-      for (const p of generatedProposals) {
-        if (p.evidenceType === "verified") {
-          initialDecisions[p.id] = { status: "accepted" };
-        }
-      }
-      setDecisions(initialDecisions);
+      setDecisions({});
     }
-  }, [alignmentReport, proposals.length, loading]);
+  }, [alignmentReport, proposals.length, loading, setDecisions, setProposals]);
 
   // Chat state
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useRecoveryField(recovery, "messages");
   const lastAssistantMessageId = [...messages].reverse().find((message) => message.role === "assistant")?.id;
-  const [inputMessage, setInputMessage] = useState("");
+  const [inputMessage, setInputMessage] = useRecoveryField(recovery, "inputMessage");
   const [chatLoading, setChatLoading] = useState(false);
+  const chatAbort = useRef<AbortController | undefined>(undefined);
+  useEffect(() => () => chatAbort.current?.abort(), []);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -166,7 +180,10 @@ export function JdMatchDrawer({
   const [showGapsSummary, setShowGapsSummary] = useState(true);
 
   // Sync prop job changes to local currentJob
+  const previousJob = useRef(job);
   useEffect(() => {
+    if (previousJob.current === job) return;
+    previousJob.current = job;
     if (job) {
       setCurrentJob(job);
       setInputTitle(job.title || "");
@@ -176,7 +193,7 @@ export function JdMatchDrawer({
       setInputDescription(job.description || "");
       setIsEditingJob(false);
     }
-  }, [job]);
+  }, [job, setCurrentJob, setInputCompany, setInputDescription, setInputLocation, setInputSalary, setInputTitle, setIsEditingJob]);
 
   // Check agent host health on open
   useEffect(() => {
@@ -203,84 +220,24 @@ export function JdMatchDrawer({
     }
   }, [messages, activeTab]);
 
-  const autoMatchAttempt = useRef<string | null>(null);
+  // Only an explicitly labeled user action grants this frozen JD + resume projection.
+  // Mount, navigation and history restoration never dispatch analysis.
   const runMatching = useCallback(async (jdText: string) => {
-    autoMatchAttempt.current = jdText;
-    setLoading(true);
-    setErrorNotice(null);
-    const newThreadId = `thread-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    setThreadId(newThreadId);
-
-    const allowedIds: string[] = [];
-    const sessionClaims: Record<string, string> = {};
-
-    if (resume) {
-      if (resume.profile.displayName) sessionClaims["candidate_name"] = resume.profile.displayName;
-      if (resume.profile.headline) sessionClaims["headline"] = resume.profile.headline;
-      if (resume.profile.education) sessionClaims["education"] = resume.profile.education;
-      if (resume.educationSummary) sessionClaims["education_summary"] = resume.educationSummary;
-      if (resume.profile.location) sessionClaims["location"] = resume.profile.location;
-      if (resume.skills && resume.skills.length > 0) sessionClaims["skills"] = resume.skills.join(", ");
-      if (resume.profile.traits && resume.profile.traits.length > 0) sessionClaims["traits"] = resume.profile.traits.join(", ");
-      if (resume.profile.targetRoles && resume.profile.targetRoles.length > 0) sessionClaims["target_roles"] = resume.profile.targetRoles.join(", ");
-
-      resume.experiences.forEach((exp, idx) => {
-        const typeLabel = exp.type === "opensource" ? "开源项目" : exp.type === "education" ? "教育经历" : "工作经历";
-        const key = `${typeLabel}_${idx + 1}_${exp.org || exp.projectName || "经历"}`;
-        const claimTexts = exp.claims.map((c) => {
-          allowedIds.push(c.id);
-          return `• [${c.id}] ${c.text}`;
-        });
-        const details = [
-          `${exp.title} (${exp.start} - ${exp.end || "至今"})`,
-          exp.projectName ? `项目名称: ${exp.projectName}` : null,
-          exp.techStack && exp.techStack.length > 0 ? `技术栈: ${exp.techStack.join(", ")}` : null,
-          claimTexts.length > 0 ? `具体经历与成果:\n${claimTexts.join("\n")}` : null,
-        ]
-          .filter(Boolean)
-          .join("\n");
-        sessionClaims[key] = details;
-      });
-    }
-
+    if(loading)return;
+    setLoading(true);setErrorNotice(null);setProposals([]);setDecisions({});setStructuredJd(null);setThreadId("");
     try {
-      const res = await startJdMatch({
-        threadId: newThreadId,
-        rawJd: jdText,
-        allowedProfileEntryIds: allowedIds,
-        sessionClaims,
-        llmConfig,
+      if(routing?.blocked)throw new Error("底座状态尚未确认；未使用旧 API 配置补发。");
+      routing?.assertSelected();
+      const result=await startJdMatch({threadId:"explicit-jd-analysis",workspaceKey:agent?.workspaceKey??workspaceKey,rootScopeKey:agent?.workspaceKey??workspaceKey,
+        rawJd:jdText,...jdMatchResumeMaterial(resume),llmConfig,consent:true,
+        ...(routing?.enabled&&routing.policy?{runtime:{kind:"unified" as const,expectedRevision:routing.policy.revision},preferredRuntimeId:routing.policy.preferred}:{}),
+        onTask:task=>setThreadId(task.id),
       });
-
-      const loadedProposals = Array.isArray(res.proposals) ? res.proposals : [];
-      setProposals(loadedProposals);
-      if (res.structuredJd) {
-        setStructuredJd(res.structuredJd);
-      }
-
-      // Default decisions: accept verified items, leave others undecided
-      const initialDecisions: Record<string, ProposalDecision> = {};
-      for (const p of loadedProposals) {
-        if (p.evidenceType === "verified") {
-          initialDecisions[p.id] = { status: "accepted" };
-        }
-      }
-      setDecisions(initialDecisions);
-    } catch (err) {
-      setErrorNotice(err instanceof Error ? err.message : t("岗位匹配失败，请检查模型配置", "Job matching failed"));
-    } finally {
-      setLoading(false);
-    }
-  }, [resume, llmConfig, t]);
-
-  // A completed empty response is not permission to repeatedly call the model.
-  useEffect(() => {
-    if (!isOpen) { autoMatchAttempt.current = null; return; }
-    const description = currentJob?.description;
-    if (description && autoMatchAttempt.current !== description && proposals.length === 0 && !loading && !errorNotice) {
-      void runMatching(description);
-    }
-  }, [isOpen, currentJob?.description, proposals.length, loading, errorNotice, runMatching]);
+      setThreadId(result.threadId);setProposals(result.proposals);if(result.structuredJd)setStructuredJd(result.structuredJd);setDecisions({});
+    } catch(error) {
+      setErrorNotice(error instanceof Error?error.message:t("岗位分析未完成，原任务记录与用量保留。","Analysis not completed; task history and usage retained."));
+    } finally {setLoading(false);}
+  },[loading,routing,agent?.workspaceKey,workspaceKey,resume,llmConfig,t,setDecisions,setProposals,setStructuredJd,setThreadId]);
 
   const handleDecision = (proposalId: string, status: "accepted" | "rejected") => {
     setDecisions((prev) => ({
@@ -343,9 +300,11 @@ export function JdMatchDrawer({
     setMessages((prev) => [...prev, userMsg]);
     if (!customText) setInputMessage("");
     setChatLoading(true);
+    const controller = new AbortController(); chatAbort.current = controller;
 
     try {
       const reply = await sendAgentChat({
+        signal: controller.signal,
         messages: [...messages, userMsg],
         llmConfig,
         context: {
@@ -369,8 +328,9 @@ export function JdMatchDrawer({
             : undefined,
         },
       });
-      setMessages((prev) => [...prev, reply]);
+      if (!controller.signal.aborted) setMessages((prev) => [...prev, reply]);
     } catch (err) {
+      if (controller.signal.aborted) return;
       const errorMsg: ChatMessage = {
         id: `msg-err-${Date.now()}`,
         role: "assistant",
@@ -378,7 +338,7 @@ export function JdMatchDrawer({
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
-      setChatLoading(false);
+      if (chatAbort.current === controller) { chatAbort.current = undefined; setChatLoading(false); }
     }
   };
 
@@ -390,7 +350,7 @@ export function JdMatchDrawer({
   };
 
   // Resume application
-  const handleApply = () => {
+  const handleApply = async () => {
     const acceptedList: MatchProposal[] = proposals
       .filter((p) => {
         const d = decisions[p.id];
@@ -404,20 +364,17 @@ export function JdMatchDrawer({
         return p;
       });
 
-    if (threadId && agentHostOnline) {
+    if(!acceptedList.length||resuming)return;
+    if (/^ct_[a-f0-9]{32}$/.test(threadId)) {
       setResuming(true);
-      void resumeJdMatch({
+      try{await resumeJdMatch({
         threadId,
         decisions,
         currentProposals: proposals,
         llmConfig,
-      })
-        .catch(() => {
-          // Non-blocking background sync
-        })
-        .finally(() => {
-          setResuming(false);
-        });
+        matching:{rawJd:currentJob?.description??"",...jdMatchResumeMaterial(resume)},
+      });}catch(error){setErrorNotice(error instanceof Error?error.message:"任务选择未确认，未应用。");return;}
+      finally{setResuming(false);}
     }
 
     const company = currentJob?.company || job?.company || "目标公司";
@@ -469,6 +426,7 @@ export function JdMatchDrawer({
           } bg-white shadow-[-12px_0_36px_rgba(0,0,0,0.14)] border-l border-slate-200 flex flex-col h-full transform transition-all ease-in-out duration-200 animate-in slide-in-from-right pointer-events-auto`}
         >
           {/* ── Top Header ────────────────────────────────────────────── */}
+          <WorkspaceRecoveryNotice {...recovery} />
           <header className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-900 text-white shrink-0">
             <div className="flex items-center gap-3 min-w-0">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
@@ -479,17 +437,14 @@ export function JdMatchDrawer({
                   <h2 id="drawer-title" className="text-base font-semibold truncate text-white">
                     {t("AI 岗位匹配与求职助手", "AI Job Match & Copilot")}
                   </h2>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    LangGraph
-                  </span>
                   {threadId && (
                     <span className="text-[10px] font-mono text-slate-400 px-1" title={threadId}>
                       #{threadId.slice(-6)}
                     </span>
                   )}
                   {agentHostOnline === false && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30" title="本地服务未启动，当前使用浏览器直连模式">
-                      {t("直连模式", "Direct mode")}
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30" title={t("本机服务连接尚未确认。模型请求仍只走统一任务，不会浏览器直连或自动切换 API。", "Host connection is unconfirmed. Inference uses tasks only, without direct-browser calls or automatic API fallback.")}>
+                      {t("连接待确认", "Connection unconfirmed")}
                     </span>
                   )}
                 </div>
@@ -655,7 +610,7 @@ export function JdMatchDrawer({
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition disabled:opacity-50 shadow-2xs cursor-pointer"
                   >
                     <Sparkles size={14} />
-                    <span>{t("开始智能拆解与匹配分析", "Start Smart Breakdown & Match")}</span>
+                    <span>{t("授权当前简历并开始分析", "Share current resume & analyze")}</span>
                   </button>
                 </div>
               </div>
@@ -779,7 +734,7 @@ export function JdMatchDrawer({
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:border-slate-300 transition disabled:opacity-50 cursor-pointer"
                 >
                   <RefreshCw size={12} className={loading ? "animate-spin text-emerald-600" : ""} />
-                  <span>{loading ? t("匹配分析中…", "Analyzing…") : t("重新分析", "Re-match")}</span>
+                  <span>{loading ? t("匹配分析中…", "Analyzing…") : t("授权当前简历并分析", "Share resume & analyze")}</span>
                 </button>
               </div>
             </div>
@@ -874,7 +829,7 @@ export function JdMatchDrawer({
                 {loading && (
                   <div className="py-12 flex flex-col items-center justify-center gap-3 text-slate-500">
                     <Loader2 size={28} className="animate-spin text-emerald-600" />
-                    <p className="text-xs font-medium">{t("LangGraph 状态机正在拆解岗位需求与对比履历…", "LangGraph orchestrating JD breakdown & fact checking…")}</p>
+                    <p className="text-xs font-medium">{t("正在逐条核对岗位要求与已授权经历…", "Checking each job requirement against the shared experience…")}</p>
                   </div>
                 )}
 
@@ -1241,8 +1196,8 @@ export function JdMatchDrawer({
                       </div>
                       <p className="text-[11px] text-amber-800/80 leading-relaxed">
                         {t(
-                          "基于岗位客观缺口、弱表达与核心要求自动推导。防编造原则：坦诚门槛差距，通过 3 年一线复杂系统落地实操、规范文档习惯与技术深度建立面试官信任。",
-                          "Derived from detected gaps and requirements. Anti-fabrication principle: acknowledge gaps honestly, defend with proven delivery track records."
+                          "根据岗位要求与当前自述生成提问方向，不代表已核实的能力或缺口。先核对本人经历；没有做过的内容按假设讨论，不补造年限、上线或量化成果。",
+                          "Questions come from the job and current self-report, not verified abilities or gaps. Confirm personal experience; frame unfamiliar work as hypothetical without inventing tenure, production delivery or metrics."
                         )}
                       </p>
                     </div>
@@ -1346,12 +1301,13 @@ export function JdMatchDrawer({
                             <div className="mt-3.5 pt-2.5 border-t border-dashed border-slate-200 flex justify-end">
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setActiveTab("chat");
-                                  void handleSendMessage(
-                                    `请作为本岗位的资深技术面试官，针对这一道面试题对进行模拟提问：“${defense.question}”。请你提出追问，并根据我的回答进行专业打分与回答调优辅导。`
-                                  );
-                                }}
+                                onClick={() => void (async()=>{
+                                  try{
+                                    const selection=await createInterviewSelection({matching:{rawJd:currentJob?.description||inputDescription,...jdMatchResumeMaterial(resume)},focus:{question:defense.question,gapItem:defense.targetTopic,corePoints:[defense.coreDefenseStrategy,...defense.suggestedAnswerFramework]}});
+                                    if(!requestMockInterview(agent?.workspaceKey??workspaceKey,selection))throw new Error("AI 职业顾问尚未就绪，请先打开顾问工作区；没有退回普通聊天或发送资料。");
+                                    onClose();
+                                  }catch(error){setErrorNotice(error instanceof Error?error.message:"对练会话未能打开，未发送资料。");}
+                                })()}
                                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
                               >
                                 <Bot size={13} />

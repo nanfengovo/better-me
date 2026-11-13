@@ -21,6 +21,7 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
     workspaceThemeId,
     setWorkspaceThemeId,
     dockAutoHide = true,
+    menuBarAutoHide = false,
     dockPosition = "bottom",
     dockSize = 48,
     dockMagnification = true,
@@ -235,6 +236,9 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
             </div>
           </div>
 
+          <SettingRow label={t("自动隐藏与显示菜单栏", "Automatically hide menu bar")}>
+            <Toggle label={t("自动隐藏菜单栏", "Auto-hide menu bar")} value={menuBarAutoHide} onChange={value => setDesktopPreferences({ menuBarAutoHide: value })} />
+          </SettingRow>
           {/* 6. 自动隐藏与显示 Dock */}
           <SettingRow label={t("自动隐藏与显示 Dock", "Automatically hide Dock")}>
             <Toggle
@@ -244,6 +248,7 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
             />
           </SettingRow>
         </div>
+        <p className="os-setting-note">{t("菜单栏隐藏后，鼠标移到顶部或按 F10 唤出；也可右击菜单栏切换。触屏和窄屏保持常显。", "Reveal the hidden menu bar at the top edge or press F10. Right-click it to toggle. It stays visible on touch and narrow screens.")}</p>
         <p className="os-setting-note">
           {dockPosition === "left"
             ? t("鼠标靠近屏幕左边缘时唤出。支持毛玻璃质感、悬浮放大和图标大小任意调节。", "Hover near left screen edge to reveal. Supports acrylic glass, magnification, and sizing.")
@@ -262,7 +267,7 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
         <div className="os-settings-card os-settings-links"><button type="button" onClick={onAiConfig}><SlidersHorizontal size={18} /><span>{t("模型与 AI 配置", "Models & AI configuration")}</span><ArrowUpRight size={16} /></button><button type="button" onClick={onNetwork}><Globe size={18} /><span>{t("网络与代理", "Network & proxy")}</span><ArrowUpRight size={16} /></button></div>
         <p className="os-setting-note">{t("打开现有设置表单；不会自动修改密钥、授权或模型选择。", "Opens the existing forms without changing credentials, permissions or model selection.")}</p>
       </>}
-      <section hidden={tab !== "tools"}><p className="os-setting-intro">{t("所有任务共用一份配置，资料授权仍由你逐项决定。", "Shared configuration, with explicit access to each source.")}</p><AgentSettingsPanel /></section>
+      <section hidden={tab !== "tools"}><p className="os-setting-intro">{t("所有任务共用一份配置，资料授权仍由你逐项决定。", "Shared configuration, with explicit access to each source.")}</p><AgentSettingsPanel active={tab === "tools"} /></section>
       {tab === "research" && <>
         <p className="os-setting-intro">{t("推理不等于检索，来源与时效需要单独核对。", "Inference is not retrieval. Verify sources and freshness separately.")}</p>
         <div className="os-settings-card">

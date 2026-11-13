@@ -69,7 +69,7 @@ after(() => {
 test("English AI configuration preserves unsaved model/key and exact saved values across UI language switches", async () => {
   const saved: LlmConfig[] = []; let requests = 0;
   globalThis.fetch = async () => { requests++; throw new Error("No requests expected"); };
-  await mount(h(AiConfigModal, { isOpen: true, config, onClose() {}, onSave(value) { saved.push(value); } }));
+  await mount(h(AiConfigModal, { isOpen: true, config, rootScopeKey:"synthetic-locale-scope", onClose() {}, onSave(value) { saved.push(value); } }));
   assert.match(dom.document.body.textContent ?? "", /AI model configuration/);
   await click("Enter manually");
   await editInput("ai-model", "private-custom-model");

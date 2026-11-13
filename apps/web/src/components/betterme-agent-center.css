@@ -18,6 +18,19 @@
 .betterme-agent-center input[type=checkbox] { width: 16px; height: 16px; margin: 0 8px 0 0; vertical-align: -3px; accent-color: var(--ui-accent); }
 .betterme-agent-center input:not([type=checkbox]), .betterme-agent-center textarea { display: block; width: 100%; padding: 8px; background: var(--ui-canvas, #f5f6f8); color: inherit; border: 1px solid var(--ui-border, #cbd0d9); border-radius: 8px; }
 .betterme-agent-history-text { white-space: pre-wrap; }
+.agent-task-ledger { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--ui-border); border-radius: 10px; font-size: 12px; }
+.agent-task-ledger > summary { cursor: pointer; min-height: 24px; display: list-item; line-height: 24px; }
+.agent-task-ledger-fields { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,120px),1fr)); gap: 8px; }
+.agent-task-ledger-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 8px; }
+.agent-task-ledger button { min-height: 32px; }
+.agent-legacy-scope { margin-top: 12px; border-top: 1px solid var(--ui-border); padding-top: 10px; }
+.agent-legacy-scope > summary { cursor: pointer; min-height: 32px; line-height: 32px; }
+.agent-legacy-scope fieldset { min-width: 0; border: 0; margin: 12px 0; padding: 0; }
+.agent-legacy-scope-candidate { display: flex; gap: 8px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--ui-border); }
+.agent-legacy-scope-candidate > span { min-width: 0; display: grid; gap: 4px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.agent-task-ledger button:active:not(:disabled) { transform: scale(.97); }
+.agent-task-ledger :is(button,input,summary):focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 3px; }
+@media (max-width:840px),(pointer:coarse) { .agent-task-ledger :is(button,summary) { min-height: 44px; } }
 .agent-storage-alert { margin: 8px 12px; padding: 12px; border: 1px solid var(--color-line); border-left: 3px solid #b78338; border-radius: 10px; background: var(--color-panel); color: var(--color-ink); flex-shrink: 0; max-height: 44dvh; overflow: auto; overflow-wrap: anywhere; font-size: 12px; }
 .agent-storage-alert strong { display: block; font-size: 13px; }
 .agent-storage-actions { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px; }
@@ -40,3 +53,51 @@
   .agent-companion .agent-companion-panel .agent-companion-tools-copy small { display: none; }
 }
 @media (max-width: 650px) { .betterme-agent-center { inset: 12px 8px; width: auto; } .betterme-agent-center > header, .betterme-agent-center > footer { padding: 14px; } }
+
+/* The docked memory view is one quiet work surface, not nested modal chrome. */
+.agent-sidebar .betterme-agent-center { padding: 0; font-size: 13px; }
+.betterme-agent-center .betterme-agent-save { display: flex; align-items: center; gap: 7px; margin: 0; padding: 14px 22px 10px; color: var(--ui-text-muted); font-size: 11px; line-height: 1.5; }
+.betterme-agent-save-dot { width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; background: var(--ui-accent); }
+.betterme-agent-save[data-state=saving] .betterme-agent-save-dot { background: var(--ui-text-muted); }
+.betterme-agent-save[data-state=error] { color: var(--ui-text); }
+.betterme-agent-save[data-state=error] .betterme-agent-save-dot { background: #b78338; }
+.betterme-agent-center > nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; margin: 0 22px 14px; padding: 3px; border-radius: 9px; background: var(--ui-canvas); }
+.betterme-agent-center > nav button { min-width: 0; min-height: 32px; padding: 5px 2px; border: 1px solid transparent; background: transparent; color: var(--ui-text-muted); font-size: 12px; white-space: nowrap; }
+.betterme-agent-center > nav button[aria-pressed=true] { border-color: var(--ui-border); background: var(--ui-surface); color: var(--ui-text); font-weight: 600; box-shadow: 0 1px 2px #00000008; }
+.betterme-agent-center .agent-backup { margin: 0 0 10px; padding: 0; border-color: var(--ui-border); background: transparent; }
+.betterme-agent-center .agent-backup > summary { padding: 11px 12px; color: var(--ui-text-muted); font-size: 12px; }
+.betterme-agent-center .agent-backup[open] { padding: 0 12px 10px; }
+.betterme-agent-center .agent-backup[open] > summary { margin: 0 -12px; color: var(--ui-text); }
+.betterme-agent-center .career-capability-task { padding: 0; border: 0; margin-bottom: 14px; }
+.betterme-agent-center .capability-disclosure { min-height: 40px; border-color: var(--ui-border); background: transparent; border-radius: 10px; padding: 9px 12px; color: var(--ui-text-muted); font-size: 12px; font-weight: 500; }
+.betterme-agent-center .betterme-agent-task-hint { margin: 0 0 16px; color: var(--ui-text-muted); font-size: 11px; line-height: 1.65; }
+.betterme-agent-task-list { display: grid; gap: 10px; }
+.betterme-agent-center .betterme-agent-task-card { margin: 0; padding: 16px; border-color: var(--ui-border); border-radius: 12px; background: var(--ui-surface); }
+.betterme-agent-task-heading { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; }
+.betterme-agent-task-heading > strong { min-width: 0; flex: 1 1 140px; font-size: 13px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; }
+.betterme-agent-task-status { display: inline-flex; align-items: center; gap: 5px; padding: 3px 7px; border-radius: 6px; background: var(--ui-canvas); color: var(--ui-text-muted); font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
+.betterme-agent-task-status::before { content: ""; width: 4px; height: 4px; flex: 0 0 4px; border-radius: 50%; background: currentColor; }
+.betterme-agent-task-status[data-status=completed] { color: var(--ui-accent); background: color-mix(in srgb, var(--ui-accent) 8%, var(--ui-surface)); }
+.betterme-agent-task-status[data-status=running], .betterme-agent-task-status[data-status=waiting] { color: var(--ui-accent); }
+.betterme-agent-task-status[data-status=failed], .betterme-agent-task-status[data-status=interrupted] { color: var(--ui-text); }
+.betterme-agent-center .betterme-agent-task-meta { margin-top: 5px; color: var(--ui-text-muted); opacity: 1; font-size: 11px; line-height: 1.65; overflow-wrap: anywhere; }
+.betterme-agent-center .betterme-agent-task-detail { margin: 12px 0 0; font-size: 12px; line-height: 1.8; white-space: pre-wrap; }
+.betterme-agent-center .betterme-agent-task-elapsed, .betterme-agent-center .betterme-agent-task-stale { margin: 8px 0 0; color: var(--ui-text-muted); font-size: 11px; }
+.betterme-agent-task-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.betterme-agent-center .betterme-agent-task-actions button { min-height: 32px; margin: 0; padding: 5px 10px; background: transparent; font-size: 11px; }
+.betterme-agent-task-actions button span { margin-left: 6px; color: var(--ui-text-muted); }
+.betterme-agent-empty { padding: 36px 16px; text-align: center; color: var(--ui-text-muted); }
+.betterme-agent-empty strong { color: var(--ui-text); font-size: 13px; font-weight: 550; }
+.betterme-agent-empty p { font-size: 12px; }
+.betterme-agent-center > footer { flex-wrap: wrap; justify-content: flex-start; gap: 8px 14px; padding: 12px 22px; border-top: 1px solid var(--ui-border); }
+.betterme-agent-center > footer button { min-height: 32px; padding: 5px 10px; background: transparent; font-size: 11px; }
+.betterme-agent-center > footer span { flex: 1 1 150px; color: var(--ui-text-muted); font-size: 10px; line-height: 1.6; opacity: 1; }
+.agent-sidebar .betterme-agent-center :is(.betterme-agent-save, .betterme-agent-center-body) { padding-inline: 16px; }
+.agent-sidebar .betterme-agent-center > nav { margin-inline: 16px; }
+.agent-sidebar .betterme-agent-center > footer { padding-inline: 16px; }
+@media (hover: hover) and (pointer: fine) {
+  .agent-sidebar .betterme-agent-center > nav button[aria-pressed=true]:hover { background: var(--ui-surface); color: var(--ui-text); }
+}
+@media (max-width: 840px), (pointer: coarse) {
+  .betterme-agent-center > nav button, .betterme-agent-center .betterme-agent-task-actions button, .betterme-agent-center > footer button { min-height: 44px; }
+}

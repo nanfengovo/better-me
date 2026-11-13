@@ -1,0 +1,121 @@
+import assert from "node:assert/strict";
+import test,{after} from "node:test";
+import {registerHooks} from "node:module";
+import {once} from "node:events";
+import {mkdtemp,rm} from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import type http from "node:http";
+import {setTimeout as delay} from "node:timers/promises";
+import {Window} from "happy-dom";
+import type {ProjectedResume} from "@better-me/core";
+import {AgentTaskSchema,careerRuntimeBinding,type MockInterviewTask,type JdMatchTask} from "@better-me/agent-contracts";
+import {createAgentServer} from "../../agent-host/src/server";
+import {MemorySaver} from "../../agent-host/tests/fixtures/checkpointer";
+import {registerTestIdentity} from "../../agent-host/tests/fixtures/identity";
+import {activatePrincipal} from "../src/lib/identity";
+import {createFreeChatTaskClient} from "../src/services/free-chat-task-client";
+import {createMockInterviewTaskClient} from "../src/services/mock-interview-task-client";
+import {understandingModelRuntime} from "../src/services/understanding-client";
+import {createInterviewSelection,requestMockInterview} from "../src/lib/mock-interview-launch";
+import {jdMatchResumeMaterial} from "../src/services/jd-match-task-client";
+
+const css=registerHooks({load(url,context,next){return url.endsWith(".css")?{source:"export {};",format:"module",shortCircuit:true}:next(url,context);}});
+const dom=new Window({url:"http://127.0.0.1:5198"}),globals={window:dom,document:dom.document,navigator:dom.navigator,localStorage:dom.localStorage,HTMLElement:dom.HTMLElement,
+  HTMLTextAreaElement:dom.HTMLTextAreaElement,CustomEvent:dom.CustomEvent,requestAnimationFrame:dom.requestAnimationFrame.bind(dom),cancelAnimationFrame:dom.cancelAnimationFrame.bind(dom),IS_REACT_ACT_ENVIRONMENT:true};
+const descriptors=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+for(const [key,value]of Object.entries(globals))Object.defineProperty(globalThis,key,{configurable:true,writable:true,value});
+const React=await import("react");descriptors.set("React",Object.getOwnPropertyDescriptor(globalThis,"React"));Object.defineProperty(globalThis,"React",{configurable:true,writable:true,value:React});
+const {createElement,act}=React,{createRoot}=await import("react-dom/client"),{AgentWorkspace}=await import("../src/components/AgentWorkspace"),{JdMatchDrawer}=await import("../src/components/JdMatchDrawer");
+const originalFetch=globalThis.fetch;
+after(()=>{css.deregister();dom.happyDOM.abort();for(const [key,descriptor]of descriptors)if(descriptor)Object.defineProperty(globalThis,key,descriptor);else Reflect.deleteProperty(globalThis,key);});
+const resume:ProjectedResume={locale:"zh",templateId:"zh-classic",profile:{displayName:"合成验收",links:[],traits:[],targetRoles:[]},experiences:[{id:"e1",type:"work",org:"合成设备部",title:"软件工程师",start:"2025-01",end:null,techStack:["C#"],claims:[{id:"c1",kind:"action",text:"只参与测试环境的接口校验，不负责生产上线。",tags:[]}]}]};
+const job={title:"接口测试工程师",company:"合成企业",description:"岗位要求\n熟悉 C# 与 .NET 接口测试。\n了解异常重试。"};
+const config={provider:"ollama" as const,baseUrl:"http://127.0.0.1:1/v1",model:"synthetic-interview-ui",apiKey:""},runtime=understandingModelRuntime(config);
+
+test("actual Workspace defense button -> production task client -> authenticated kernel -> answer/follow-up/manual receipt; reload only reads and retains independent drafts",async t=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),"betterme-interview-web-"));let server:http.Server|undefined,root:ReturnType<typeof createRoot>|undefined,drawerRoot:ReturnType<typeof createRoot>|undefined,calls=0,builds=0;
+  const wire:{path:string;method:string}[]=[];const token="synthetic-interview-web";let activeHeaders:Record<string,string>={},dropNextAnswer=false;
+  try{
+    server=createAgentServer({host:"127.0.0.1",port:0,authToken:token,allowedOrigins:[],runtimeDefinitions:[],identityDirectory:path.join(directory,"identity"),runsDirectory:path.join(directory,"runs"),understandingDirectory:path.join(directory,"understanding"),checkpointer:new MemorySaver() as never,
+      careerTaskReasoner:async()=>{builds++;return async(prompt,_signal,phase)=>{
+        calls++;if(phase==="free_chat")return JSON.stringify({kind:"reply",content:"合成顾问根。"});
+        assert.equal(phase,"mock_interview","JD parent preparation cannot run an analysis");
+        const state=JSON.parse(prompt.split("\n\n").at(-1)!);
+        if(state.phase==="interview")return JSON.stringify({kind:"question",content:state.conversation.messages.length?"你如何验证异常重试，哪些范围未覆盖？":"请说明接口测试中的本人职责？",evidenceIds:state.evidence.filter((e:{sourceId:string})=>e.sourceId.startsWith("claim:")).map((e:{id:string})=>e.id)});
+        return JSON.stringify({kind:"receipt",receipt:{summary:"面试攻防评估回执：仅对合成作答提供反馈。",answers:state.conversation.messages.filter((m:{role:string})=>m.role==="user").map((m:{id:string;content:string})=>({answerId:m.id,quote:m.content,assessment:"partial",gap:"缺少失败样本和未覆盖范围。",improvedExpression:m.content,evidenceIds:[state.evidence.find((e:{sourceId:string})=>e.sourceId==="answer:"+m.id).id]})),nextSteps:["补充实际观察，不补造生产规模。"]}});
+      };}});
+    await once(server,"listening");const address=server.address();assert.ok(address&&typeof address!=="string");const baseUrl=`http://127.0.0.1:${address.port}`;
+    const alice=await registerTestIdentity(baseUrl,token,"interview-web-alice"),bob=await registerTestIdentity(baseUrl,token,"interview-web-bob");activeHeaders=alice.headers;activatePrincipal(alice.principal);
+    const fetcher:typeof fetch=async(url,init)=>{
+      const pathname=new URL(String(url),baseUrl).pathname;
+      if(!pathname.startsWith("/api/v1/agent/tasks"))return Response.json({status:"unavailable"});
+      wire.push({path:pathname,method:init?.method??"GET"});const headers=new Headers(init?.headers);
+      if(dropNextAnswer&&pathname.endsWith("/answer")&&init?.method==="POST"){dropNextAnswer=false;throw new Error("synthetic transport outcome unknown");}
+      for(const [key,value]of Object.entries(activeHeaders))headers.set(key,value);headers.set("Authorization",`Bearer ${token}`);
+      return originalFetch(baseUrl+pathname,{...init,headers});
+    };
+    t.mock.method(globalThis,"fetch",fetcher);
+    const created=await fetcher(baseUrl+"/api/v1/agent/tasks",{method:"POST",body:JSON.stringify({kind:"free_chat",workspaceKey:"advisor-root",rootScopeKey:"interview-web-scope",objective:"合成顾问根",conversation:{messages:[{id:"root-user",role:"user",content:"核对本人边界。"}]},runtimeBinding:careerRuntimeBinding(runtime),budget:{maxModelCalls:5,maxToolCalls:8,maxActiveMs:60000},consent:true,idempotencyKey:"synthetic-interview-web-root"})});
+    const chatRoot=AgentTaskSchema.parse((await created.json()).task);
+    await createFreeChatTaskClient({baseUrl,pollMs:5}).send({workspaceKey:"advisor-root",rootScopeKey:"interview-web-scope",runtime,messages:[{id:"root-user",role:"user",content:"核对本人边界。"}]});assert.equal(calls,1);
+    const host=document.createElement("div");document.body.append(host);let activations=0;
+    const mount=async()=>{root=createRoot(host);await act(async()=>{root!.render(createElement(AgentWorkspace,{workspaceKey:"interview-web-scope",resume,llmConfig:config,job,onOpenConfig(){},onActivate(){activations++;},onNavigateToResume(){},onApplyToResume(){}}));await delay(20);});};
+    const until=async(predicate:()=>boolean)=>{for(let i=0;i<150;i++){if(predicate())return;await act(async()=>{await delay(20);});}assert.fail(host.textContent??"Missing UI");};
+    const button=(text:string)=>{const found=[...host.querySelectorAll("button")].find(b=>b.textContent?.trim()===text);assert.ok(found,`button ${text}`);return found;};
+    const click=async(text:string)=>{await act(async()=>{button(text).click();await delay(5);});};
+    const fill=async(input:HTMLTextAreaElement,value:string)=>{await act(async()=>{Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype,"value")!.set!.call(input,value);input.dispatchEvent(new dom.Event("input",{bubbles:true}));});};
+    const authorize=async()=>{const checkbox=host.querySelector<HTMLInputElement>(".mock-interview-consent input")!;assert.ok(checkbox);await act(async()=>checkbox.click());};
+    await mount();const originalComposer=[...host.querySelectorAll("textarea")].find(e=>e.placeholder.includes("聊聊"))??[...host.querySelectorAll("textarea")].at(-1)!;
+    const ordinaryDraft="普通顾问草稿，切换对练不能清空。";await fill(originalComposer,ordinaryDraft);
+    const beforeLaunchPosts=wire.filter(row=>row.method==="POST").length;
+    await click("与 Copilot 模拟对练这道题 →");await until(()=>Boolean(host.textContent?.includes("尚未开始。"))&&!host.textContent?.includes("正在只读恢复会话"));
+    assert.equal(calls,1);assert.equal(wire.filter(row=>row.method==="POST").length,beforeLaunchPosts,"selecting a question only navigates/reads");assert.equal(button("授权并开始对练").disabled,true);
+    await authorize();await click("授权并开始对练");await until(()=>host.textContent?.includes("会话状态：awaiting_answer")===true&&Boolean(host.textContent?.includes("请说明接口测试中的本人职责？")));
+    assert.equal(calls,2);assert.equal(builds,1);
+    const client=createMockInterviewTaskClient({baseUrl,pollMs:5});
+    const records=AgentTaskSchema.array().parse((await (await fetcher(baseUrl+"/api/v1/agent/tasks")).json()).tasks);
+    const interview=records.find(task=>task.kind==="mock_interview") as MockInterviewTask,parent=records.find(task=>task.kind==="jd_match") as JdMatchTask;
+    assert.ok(interview&&parent);assert.equal(parent.status,"ready");assert.equal(parent.usage.modelCalls,0);assert.deepEqual(parent.matching,JSON.parse(JSON.stringify({rawJd:job.description,...jdMatchResumeMaterial(resume)})));assert.equal(interview.parentTaskId,parent.id);assert.equal(interview.rootTaskId,chatRoot.id);
+    const answer1="我只参与测试环境的接口校验。\n"+"保留完整作答 😀\r\n".repeat(15)+"ANSWER_ONE_TAIL";
+    await fill(host.querySelector<HTMLTextAreaElement>(".mock-interview textarea")!,answer1);assert.equal(button("结束演练并生成回执").disabled,true,"finish never discards an unsent draft");
+    await click("返回顾问");assert.equal(originalComposer.value,ordinaryDraft);assert.ok(originalComposer.isConnected,"normal chat DOM is not replaced");
+    await click("回到对练会话");await until(()=>Boolean(host.querySelector(".mock-interview textarea")));
+    assert.equal(host.querySelector<HTMLTextAreaElement>(".mock-interview textarea")!.value,answer1);assert.equal(calls,2);
+    await act(async()=>root!.unmount());root=undefined;await mount();await until(()=>Boolean(host.querySelector(".mock-interview textarea")));
+    assert.equal(host.querySelector<HTMLTextAreaElement>(".mock-interview textarea")!.value,answer1);assert.equal(host.querySelector<HTMLInputElement>(".mock-interview-consent input")!.checked,false);assert.equal(calls,2,"reload restores no grant and replays no inference");
+    dropNextAnswer=true;await authorize();await click("提交回答并追问");await until(()=>host.textContent?.includes("未收到任务服务回执")===true);
+    assert.equal(calls,2);assert.equal(host.querySelector<HTMLTextAreaElement>(".mock-interview textarea")!.value,answer1);
+    await fill(host.querySelector<HTMLTextAreaElement>(".mock-interview textarea")!,answer1+"REVISED_DRAFT_TAIL");assert.equal(button("提交回答并追问").disabled,true);
+    await click("读取现有会话");await until(()=>host.textContent?.includes("会话状态：awaiting_answer")===true);
+    await click("已核对当前问题，重新编辑草稿");assert.equal(host.querySelector<HTMLInputElement>(".mock-interview-consent input")!.checked,false);assert.ok(host.querySelector<HTMLTextAreaElement>(".mock-interview textarea")!.value.endsWith("REVISED_DRAFT_TAIL"));
+    await fill(host.querySelector<HTMLTextAreaElement>(".mock-interview textarea")!,answer1);await authorize();await click("提交回答并追问");await until(()=>host.textContent?.includes("会话状态：awaiting_answer")===true&&host.querySelector<HTMLTextAreaElement>(".mock-interview textarea")?.value==="");
+    assert.equal(calls,3);assert.match(host.textContent!,/你如何验证异常重试/);assert.ok(host.textContent!.includes("ANSWER_ONE_TAIL"));
+    const stalePosts=wire.filter(row=>row.method==="POST").length;
+    const params={workspaceKey:"interview-web-scope",rootScopeKey:"interview-web-scope",matching:interview.matching,focus:interview.interview.focus,runtime};
+    await assert.rejects(client.answer(interview,params,"这是旧问题的回答。"),/状态已变化/);assert.equal(wire.filter(row=>row.method==="POST").length,stalePosts);
+    const answer2="我验证过测试环境的重复请求，生产环境的效果尚未核实。";
+    await fill(host.querySelector<HTMLTextAreaElement>(".mock-interview textarea")!,answer2);await click("提交回答并追问");await until(()=>host.textContent?.includes("会话状态：awaiting_answer")===true&&host.querySelector<HTMLTextAreaElement>(".mock-interview textarea")?.value==="");
+    assert.equal(calls,4);await click("结束演练并生成回执");await until(()=>Boolean(host.querySelector('[aria-label="面试攻防评估回执"]')));
+    assert.equal(calls,5);assert.equal(builds,1);const complete=await client.get(interview.id);assert.equal(complete.status,"completed");assert.equal(complete.interview.receipt!.answers.length,2);assert.equal(complete.rootLedger!.usage.modelCalls,5);assert.equal(complete.rootLedger!.memberCount,3);
+    assert.equal(complete.conversation.messages.find(m=>m.role==="user")!.content,answer1);assert.equal(complete.interview.receipt!.answers[1]!.quote,answer2);
+    const readStart=wire.length;assert.equal((await client.find(params))!.id,complete.id);await client.get(complete.id);assert.ok(wire.slice(readStart).every(row=>row.method==="GET"));assert.equal(calls,5);
+    await assert.rejects(client.answer(complete,{...params,matching:{...params.matching,sessionClaims:{c1:"changed"}}},"不得发旧资料"),/资料或攻防点已变化/);
+    await assert.rejects(client.finish(complete,{...params,runtime:{kind:"native",runtimeId:"codex"}}),/底座已变化/);assert.equal(calls,5);
+    await click("返回顾问");const selection=await createInterviewSelection({matching:complete.matching,focus:complete.interview.focus});
+    await act(async()=>{assert.equal(requestMockInterview("other-workspace",selection),false);});
+    const drawerHost=document.createElement("div");document.body.append(drawerHost);let closed=0;drawerRoot=createRoot(drawerHost);
+    await act(async()=>drawerRoot!.render(createElement(JdMatchDrawer,{workspaceKey:"interview-web-scope",isOpen:true,job,resume,llmConfig:config,onClose(){closed++;},onOpenConfig(){},onApplyToResume(){}})));
+    const defenses=[...drawerHost.querySelectorAll("button")].find(b=>b.textContent?.includes("面试攻防防御"));assert.ok(defenses);
+    await act(async()=>defenses.click());
+    const practice=[...drawerHost.querySelectorAll("button")].find(b=>b.textContent?.trim()==="与 Copilot 模拟对练这道题 →");assert.ok(practice);
+    await act(async()=>{practice.click();await delay(20);});
+    await until(()=>Boolean(host.querySelector('[aria-label="面试攻防评估回执"]')));assert.equal(activations,1);assert.equal(calls,5);
+    assert.equal(closed,1);await act(async()=>drawerRoot!.unmount());drawerRoot=undefined;
+    assert.ok(wire.every(row=>row.path.startsWith("/api/v1/agent/tasks")));
+    await act(async()=>root!.unmount());root=undefined;activeHeaders=bob.headers;activatePrincipal(bob.principal);await assert.rejects(client.get(complete.id),/HTTP 404/);assert.equal(calls,5);
+  }finally{
+    if(root)await act(async()=>root!.unmount());if(drawerRoot)await act(async()=>drawerRoot!.unmount());activatePrincipal(undefined);dom.localStorage.clear();
+    if(server){server.closeIdleConnections();const current=server;await new Promise<void>(resolve=>current.close(()=>resolve()));}await rm(directory,{recursive:true,force:true});
+  }
+});
