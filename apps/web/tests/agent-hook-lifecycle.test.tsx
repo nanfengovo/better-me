@@ -45,20 +45,10 @@ after(async () => {
 });
 
 for (const surface of ["workspace", "drawer"] as const) {
-  test(`${surface} auto-match is single-flight in StrictMode and does not retry empty results on rerender`, async () => {
-    const calls: Array<{ rawJd: string; modelSettings: LlmConfig }> = [];
+  test(`${surface} never dispatches inference on StrictMode mount, config change, JD change or reopen without task consent`, async () => {
+    const mutations: string[] = [];
     globalThis.fetch = async (input, init) => {
-      if (String(input).endsWith("/start")) {
-        calls.push(JSON.parse(String(init?.body)));
-        return new Promise<Response>(resolve => release.push(() => resolve(Response.json({ status: "awaiting_review", proposals: [] }))));
-      }
-      if (String(input).endsWith("/chat/completions")) {
-        assert.equal(String(input), "https://ai-fixture.invalid/v1/chat/completions");
-        const body = JSON.parse(String(init?.body));
-        const content = body.messages[0].content.includes("JSON 数组") ? []
-          : { title: "合成岗位", company: "合成公司", requirements: [], preferences: [], techStack: [] };
-        return Response.json({ choices: [{ message: { content: JSON.stringify(content) } }] });
-      }
+      if ((init?.method ?? "GET") !== "GET") mutations.push(String(input));
       return Response.json({ status: "ok" });
     };
     mountRoot();
@@ -71,20 +61,16 @@ for (const surface of ["workspace", "drawer"] as const) {
       root!.render(h(StrictMode, {}, child));
     });
     await render("合成岗位 A");
-    assert.equal(calls.length, 1, "StrictMode replay must not submit a second model request");
+    assert.deepEqual(mutations, [], "StrictMode mount is not inference consent");
     await render("合成岗位 A", true, "fixture-b");
-    assert.equal(calls.length, 1, "a new callback/config object must not restart an in-flight match");
-    await flush(() => { for (const resolve of release.splice(0)) resolve(); });
+    assert.deepEqual(mutations, [], "changing configuration is not inference consent");
     await render("合成岗位 A", true, "fixture-b");
-    assert.equal(calls.length, 1, "an empty successful result is not a request to match again");
+    assert.deepEqual(mutations, [], "an empty deterministic result must not trigger inference");
     await render("合成岗位 B", true, "fixture-b");
-    assert.equal(calls.length, 2);
-    assert.equal(calls[1]?.rawJd, "合成岗位 B");
-    assert.equal(calls[1]?.modelSettings.model, "fixture-b", "new work must use the latest model configuration");
-    await flush(() => { for (const resolve of release.splice(0)) resolve(); });
+    assert.deepEqual(mutations, [], "new JD text still needs explicit task consent");
     await render("合成岗位 B", false);
     await render("合成岗位 B", true);
-    assert.equal(calls.length, 3, "explicitly reopening an empty match may start a new attempt");
+    assert.deepEqual(mutations, [], "reopening must not silently restart retired inference");
   });
 }
 

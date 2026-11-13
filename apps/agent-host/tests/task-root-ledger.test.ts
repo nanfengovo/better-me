@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import {mkdtemp,rm} from "node:fs/promises";
 import {setTimeout as delay} from "node:timers/promises";
+import {setImmediate as nextTurn} from "node:timers/promises";
 import {careerRuntimeBinding,isCareerTask,type AgentTask,type FreeChatTaskCreate,type ExperienceRefineTaskCreate,type CareerTaskCreate} from "@better-me/agent-contracts";
 import {AgentTaskKernel,type CareerTaskRuntime} from "../src/kernel/service.js";
 import {readPrivateJson} from "../src/identity/private-json.js";
@@ -100,14 +101,18 @@ test("generated source repairs and QuickJS qualification debit the same ancestor
   }finally{await kernel.close();await rm(directory,{recursive:true,force:true});}
 });
 
-test("concurrent children share aggregate active time instead of each receiving a full root wall-clock lease",async()=>{
+test("concurrent children share aggregate active time instead of each receiving a full root wall-clock lease",async(t)=>{
+  t.mock.timers.enable({apis:["Date","setTimeout"],now:1000});
   const directory=await mkdtemp(path.join(os.tmpdir(),"betterme-root-time-")),kernel=new AgentTaskKernel({ownerId:"synthetic-owner",directory});const finish=Promise.withResolvers<string>();let calls=0;
+  const entered=Promise.withResolvers<void>();
   try{
     const root=await kernel.createTask({...input("time"),budget:{...budget,maxActiveMs:400}},access),a=await kernel.createTask(input("time-a",root.id),access),b=await kernel.createTask(input("time-b",root.id),access);
-    const runtime:CareerTaskRuntime={runtimeFingerprint:"one-owner-runtime",reasoner:async()=>{calls++;return finish.promise;}};
+    const runtime:CareerTaskRuntime={runtimeFingerprint:"one-owner-runtime",reasoner:async()=>{if(++calls===2)entered.resolve();return finish.promise;}};
     await Promise.all([kernel.run(a.id,"start",command(a),runtime,access),kernel.run(b.id,"start",command(b),runtime,access)]);
-    const results=await Promise.all([settled(kernel,a.id),settled(kernel,b.id)]);assert.equal(calls,2);assert.ok(results.every(task=>task.error==="active_time_budget"&&task.status==="budget_exhausted"));
+    await entered.promise;t.mock.timers.tick(200);
+    const settleWithoutMockedDelay=async(id:string)=>{for(let i=0;i<1000;i++){const task=await kernel.readTask(id);if(task.status!=="running")return task;await nextTurn();}throw Error("synthetic root task did not settle");};
+    const results=await Promise.all([settleWithoutMockedDelay(a.id),settleWithoutMockedDelay(b.id)]);assert.equal(calls,2);assert.ok(results.every(task=>task.error==="active_time_budget"&&task.status==="budget_exhausted"));
     assert.ok(results.every(task=>task.usage.activeMs<350),"each child must not receive its own 400ms allowance");
     const current=await kernel.readTask(root.id);assert.ok(current.rootLedger!.usage.activeMs>=380);await assert.rejects(kernel.createTask(input("time-c",root.id),access),/active_time_budget/);
-  }finally{finish.resolve(reply());await kernel.close();await rm(directory,{recursive:true,force:true});}
+  }finally{finish.resolve(reply());await kernel.close();await rm(directory,{recursive:true,force:true});t.mock.timers.reset();}
 });

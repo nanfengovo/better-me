@@ -35,7 +35,8 @@ test("rejected map module stays isolated; explicit retry creates a fresh lazy lo
 
 test("every page navigation initializes atlas, and reset remounts the failed renderer", () => {
   const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
-  assert.match(app, /function setPage\(next: typeof page\)\s*\{\s*if \(next === "atlas"\) setAtlasInitialized\(true\);\s*updatePage\(next\)/);
+  assert.match(app, /const \{ page, setPage,[^\n]*\} = useWorkspaceNavigation\(\)/);
+  assert.match(app, /useEffect\(\(\) => \{ if \(page === "atlas"\) setAtlasInitialized\(true\); \}, \[page\]\)/);
   assert.match(app, /onOpenAtlas=\{\(\) => setPage\("atlas"\)\}/);
   const workspace = readFileSync(new URL("../src/components/AtlasWorkspace.tsx", import.meta.url), "utf8");
   assert.match(workspace, /<AtlasMap key=\{mapKey\} resetRevision=\{mapKey\}/);

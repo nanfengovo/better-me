@@ -1,3 +1,8 @@
 # Preserve verified upstream license bytes, including original whitespace,
 # across Windows/Linux checkouts. The collector checks their pinned SHA-256.
 /docker/license-overrides/**/LICENSE -text -whitespace
+
+# The frozen benchmark manifest verifies exact bytes, not platform line endings.
+/evals/resume-quality/gold/v1/** -text
+# Keep the generated notice's pinned final newline and its manifest unchanged.
+/evals/resume-quality/gold/v1/NOTICES.md -whitespace

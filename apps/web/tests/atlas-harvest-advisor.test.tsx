@@ -31,7 +31,7 @@ after(() => { dom.happyDOM.abort(); for (const [key, descriptor] of descriptors)
   if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key);
 } });
 
-test("local Agent proactively checks browser health and analyses only structured receipts without executing recovery", async () => {
+test("browser health and structured receipts remain visible when legacy analysis lacks task authority; no inference or recovery is dispatched", async () => {
   globalThis.fetch = async (input, init) => {
     requests.push({ url: String(input), init });
     if (String(input).endsWith("/api/jd/real-chrome")) return new Response(JSON.stringify({ running: true, port: 9222, binaryFound: true, message: "就绪" }), { headers: { "Content-Type": "application/json" } });
@@ -41,12 +41,11 @@ test("local Agent proactively checks browser health and analyses only structured
   await render({ provider: "ollama", baseUrl: "http://127.0.0.1:11434", apiKey: "", model: "fixture", temperature: 0.3 });
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 850)); });
   assert.equal(requests.filter(request => request.url.endsWith("/api/jd/real-chrome")).length, 1);
-  assert.equal(requests.filter(request => request.url.endsWith("/api/v1/agent/chat")).length, 1);
-  const payload = String(requests.find(request => request.url.endsWith("/api/v1/agent/chat"))?.init?.body);
-  assert.doesNotMatch(payload, /do-not-send|Cookie|读取超时/);
+  assert.deepEqual(requests.map(request => request.url), ["/api/jd/real-chrome"], "pending harvester migration must fail closed, not revive legacy chat or create an unconsented task");
   assert.match(dom.document.body.textContent!, /已连接/);
-  assert.match(dom.document.body.textContent!, /已保存9张/);
+  assert.match(dom.document.body.textContent!, /已确认保存\s*9\s*张/);
   assert.match(dom.document.body.textContent!, /不会自动重试平台/);
+  assert.match(dom.document.body.textContent!, /模型暂不可用/);
 });
 
 test("a non-local model waits for an explicit analysis click", async () => {
