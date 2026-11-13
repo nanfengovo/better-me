@@ -53,7 +53,7 @@ for (const evidenceMode of [false, true]) test(`authenticated HTTP isolates A/B 
     assert.ok(!JSON.stringify(bState).includes("FIRST-ONLY-CANARY-7319"));
     if (evidenceMode) { assert.ok(!JSON.stringify(bState).includes("EVIDENCE-FIRST-ONLY-8421")); assert.ok(bState.tasks[0]?.evidenceReport); }
     assert.equal(await (await call(alice.headers, "/records/continuity?key=existing")).text(), before);
-    assert.equal((await call(alice.headers, "/runs", { runtimeId: "codex", workflow: "career", task: "unsafe", workspaceId: "same" })).status, 403);
+    assert.equal((await call(alice.headers, "/runs", { runtimeId: "codex", workflow: "career", task: "unsafe", workspaceId: "same" })).status, 410);
   } finally {
     buildResult.resolve(); await new Promise<void>(resolve => server.close(() => resolve()));
     // Host close asynchronously joins workers and releases its own lock before cleanup.

@@ -73,7 +73,7 @@ export const ChatMessageSchema = z.object({
   })).max(3).optional(),
   references: z.array(z.object({
     type: z.literal("resume_text"),
-    text: z.string().min(1).max(12_000),
+    text: z.string().min(1),
     sourceLabel: z.string().min(1).max(200),
   })).max(5).optional(),
   actions: z.array(AgentActionCardSchema).optional(),
@@ -99,7 +99,7 @@ export const ChatRequestBodySchema = z.object({
       skills: z.array(z.string()).optional(),
       recentExperience: z.string().optional(),
     }).optional(),
-    selectedText: z.string().max(12_000).optional(),
+    selectedText: z.string().optional(),
     resumeEditContext: ResumeEditContextSchema.optional(),
   }).optional(),
 });

@@ -19,6 +19,8 @@ export type NativeProcessInput = {
   onControlOutput?: (chunk: string) => void;
   /** Trusted login adapter only. No HTTP caller can set sandbox capabilities. */
   loopbackLoginListener?: boolean;
+  /** Trusted Codex adapter only: read its managed-policy preference domain. */
+  codexManagedPreferences?: boolean;
   onStdinReady?: (write: (text: string) => void) => void;
 };
 /** Trusted test/embedding seam. No part of this interface is accepted from HTTP. */
@@ -69,6 +71,9 @@ export function nativeEnvironment(directory: string): Record<string, string> {
     XDG_CACHE_HOME: path.join(directory, "cache"), XDG_STATE_HOME: path.join(directory, "state"),
     TMPDIR: path.join(directory, "tmp"), TMP: path.join(directory, "tmp"), TEMP: path.join(directory, "tmp"),
     LANG: "en_US.UTF-8", NO_COLOR: "1", CI: "1", DO_NOT_TRACK: "1", OPENSSL_CONF: "/dev/null",
+    // The sandbox already permits this public OS bundle. Make CA discovery
+    // explicit without importing owner keychains or disabling TLS validation.
+    ...(process.platform === "darwin" ? { SSL_CERT_FILE: "/private/etc/ssl/cert.pem" } : {}),
     DISABLE_AUTOUPDATER: "1", DISABLE_TELEMETRY: "1", DISABLE_ERROR_REPORTING: "1",
     OTEL_SDK_DISABLED: "true", CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
     CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1", CLAUDE_CODE_AUTO_CONNECT_IDE: "0",
@@ -101,7 +106,7 @@ export async function executablePlan(command: string) {
     readable: [...new Set([code, interpreter, ...(nodeFormula ? [nodeFormula] : []), ...dependencyCode])] };
 }
 
-export function nativeSandboxProfile(directory: string, readable: string[], proxyPort: number, loopbackLoginListener = false): string {
+export function nativeSandboxProfile(directory: string, readable: string[], proxyPort: number, loopbackLoginListener = false, codexManagedPreferences = false): string {
   const roots = [directory, "/System/Library", "/System/Cryptexes/OS/System", "/System/Cryptexes/App/System",
     "/System/Volumes/Preboot/Cryptexes/OS/System", "/System/Volumes/Preboot/Cryptexes/App/System",
     "/usr/lib", "/usr/share", "/usr/bin", "/bin", ...readable];
@@ -120,6 +125,14 @@ export function nativeSandboxProfile(directory: string, readable: string[], prox
       .map(value => `(allow file-read* (literal ${quote(value)}))`),
     `(allow file-write* (subpath ${quote(directory)}))`, "(allow file-write* (literal \"/dev/null\"))",
     "(allow mach-lookup (global-name \"com.apple.trustd.agent\") (global-name \"com.apple.trustd\") (global-name \"com.apple.system.logger\"))",
+    // CFPreferencesAppSynchronize must succeed before Codex loads forced MDM
+    // requirements. These exact read-only generation counters are not a grant
+    // to read other preference domains, write defaults, or read host files.
+    ...(codexManagedPreferences ? [
+      '(allow user-preference-read (preference-domain "com.openai.codex"))',
+      '(allow mach-lookup (global-name "com.apple.cfprefsd.daemon") (global-name "com.apple.cfprefsd.agent"))',
+      `(allow ipc-posix-shm-read-data ipc-posix-shm-read-metadata (ipc-posix-name "apple.cfprefs.${os.userInfo().uid}v1") (ipc-posix-name "apple.cfprefs.daemonv1"))`,
+    ] : []),
     ...(proxyPort ? [`(allow network-outbound (remote tcp "localhost:${proxyPort}"))`] : []),
     // Claude's official OAuth CLI binds an ephemeral IPv4 loopback listener even
     // for its manual-code flow. Login only; no LAN listener, outbound loopback,
@@ -273,7 +286,7 @@ export class IsolatedNativeProcess implements NativeProcessRunner {
       const environment = { ...nativeEnvironment(directory), ...input.environment,
         HTTP_PROXY: proxy.url, HTTPS_PROXY: proxy.url, ALL_PROXY: proxy.url, NO_PROXY: "" };
       return await execute({ ...input, directory }, "/usr/bin/sandbox-exec",
-        ["-p", nativeSandboxProfile(directory, plan.readable, proxy.port, input.loopbackLoginListener), plan.command, ...plan.prefix, ...input.args], environment);
+        ["-p", nativeSandboxProfile(directory, plan.readable, proxy.port, input.loopbackLoginListener, input.codexManagedPreferences), plan.command, ...plan.prefix, ...input.args], environment);
     } finally { await proxy.close(); }
   }
 }

@@ -10,6 +10,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { registerTestIdentity } from "./fixtures/identity.js";
+import {careerRuntimeBinding,FreeChatTaskSchema} from "@better-me/agent-contracts";
 
 const settings = { baseUrl: "https://api.deepseek.com", model: "deepseek-flash", apiKey: "synthetic-only", thinkingMode: "enabled" as const, reasoningEffort: "max" as const, maxTokens: 32768 };
 
@@ -89,7 +90,7 @@ test("pasted official DeepSeek endpoint paths resolve to the same model transpor
   assert.deepEqual(urls, ["https://api.deepseek.com/chat/completions", "https://api.deepseek.com/v1/chat/completions", "https://api.deepseek.com/beta/chat/completions"]);
 });
 
-test("authenticated Agent HTTP chat honors DeepSeek settings and returns safe provider errors", async t => {
+test("authenticated task chat honors DeepSeek controls and persists only safe provider failure codes", async t => {
   const originalFetch = globalThis.fetch;
   let calls = 0;
   t.mock.method(globalThis, "fetch", async (url, init) => {
@@ -99,7 +100,7 @@ test("authenticated Agent HTTP chat honors DeepSeek settings and returns safe pr
     assert.equal(body.reasoning_effort, "max");
     assert.equal(body.max_tokens, 32768);
     return calls === 1
-      ? Response.json({ id: "synthetic", object: "chat.completion", created: 1, model: settings.model, choices: [{ index: 0, message: { role: "assistant", content: "Synthetic HTTP response", reasoning_content: "never displayed" }, finish_reason: "stop" }] })
+      ? Response.json({ id: "synthetic", object: "chat.completion", created: 1, model: settings.model, choices: [{ index: 0, message: { role: "assistant", content: JSON.stringify({kind:"reply",content:"Synthetic HTTP response"}), reasoning_content: "never displayed" }, finish_reason: "stop" }] })
       : Response.json({ error: { message: settings.apiKey } }, { status: 402 });
   });
   const directory = await mkdtemp(path.join(os.tmpdir(), "betterme-deepseek-http-"));
@@ -109,22 +110,18 @@ test("authenticated Agent HTTP chat honors DeepSeek settings and returns safe pr
     const address = server.address();
     assert.ok(address && typeof address !== "string");
     const identity = await registerTestIdentity(`http://127.0.0.1:${address.port}`, "synthetic-host-token", "fixture-user", "http://127.0.0.1:5173");
-    const send = () => originalFetch(`http://127.0.0.1:${address.port}/api/v1/agent/chat`, {
-      method: "POST", headers: { ...identity.headers, "Content-Type": "application/json", Authorization: "Bearer synthetic-host-token", Origin: "http://127.0.0.1:5173" },
-      body: JSON.stringify({ modelSettings: settings, messages: [{ id: "synthetic", role: "user", content: "Synthetic HTTP request" }] }),
-    });
-    const first = await send();
-    assert.equal(first.status, 200);
-    const result = await first.json();
-    assert.equal(result.reply.content, "Synthetic HTTP response");
-    assert.equal(result.reply.meta.source, "agent-host");
-    assert.ok(!JSON.stringify(result).includes("never displayed"));
-    const second = await send();
-    assert.equal(second.status, 402);
-    const error = await second.json();
-    assert.equal(error.error, "model_provider_error");
-    assert.match(error.message, /余额不足/);
-    assert.ok(!JSON.stringify(error).includes(settings.apiKey));
+    const runtime={kind:"model" as const,modelSettings:settings},runtimeBinding=careerRuntimeBinding(runtime);
+    const request=(route:string,body?:unknown)=>originalFetch(`http://127.0.0.1:${address.port}/api/v1/agent${route}`,{method:body===undefined?"GET":"POST",headers:{...identity.headers,"Content-Type":"application/json",Authorization:"Bearer synthetic-host-token",Origin:"http://127.0.0.1:5173"},...(body===undefined?{}:{body:JSON.stringify(body)})});
+    const send=async(key:string)=>{
+      const created=await request("/tasks",{kind:"free_chat",workspaceKey:"synthetic-http",rootScopeKey:"synthetic-deepseek-root",objective:"合成HTTP传输回归",conversation:{messages:[{id:key,role:"user",content:"Synthetic HTTP request"}]},runtimeBinding,consent:true,idempotencyKey:key});
+      assert.equal(created.status,201,await created.clone().text());let task=FreeChatTaskSchema.parse((await created.json()).task);
+      const started=await request(`/tasks/${task.id}/start`,{expectedRevision:task.revision,sourceFingerprint:task.sourceFingerprint,runtimeBinding,consent:true,runtime});assert.equal(started.status,202,await started.clone().text());
+      for(let i=0;i<300;i++){task=FreeChatTaskSchema.parse((await(await request(`/tasks/${task.id}`)).json()).task);if(task.status!=="running")return task;await new Promise(resolve=>setTimeout(resolve,5));}
+      throw Error("synthetic DeepSeek task did not settle");
+    };
+    const first=await send("synthetic-first-request");assert.equal(first.status,"awaiting_answer");assert.equal(first.reply?.content,"Synthetic HTTP response");assert.equal(first.reply?.meta?.source,"agent-host");assert.ok(!JSON.stringify(first).includes("never displayed"));
+    const second=await send("synthetic-second-request");assert.equal(second.status,"failed");assert.equal(second.error,"model_provider_402");assert.equal(second.rootLedger!.usage.modelCalls,2);assert.ok(!JSON.stringify(second).includes(settings.apiKey));
+    const retired=await request("/chat",{modelSettings:settings,messages:[{id:"old",role:"user",content:"no inference"}]});assert.equal(retired.status,410);
     assert.equal(calls, 2);
   } finally { await new Promise<void>(resolve => server.close(() => resolve())); await rm(directory, { recursive: true, force: true }); }
 });

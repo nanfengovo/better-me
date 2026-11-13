@@ -1,7 +1,7 @@
 import type http from "node:http";
 import { z } from "zod";
 import {
-  UnderstandingCreateSchema, UnderstandingTurnSchema, UnderstandingConfirmSchema,
+  UnderstandingCreateSchema, UnderstandingConfirmSchema,
   UnderstandingDecisionSchema, type UnderstandingReasoner,
   ChatGptRuntimeSchema,
 } from "@better-me/agent-contracts";
@@ -15,29 +15,24 @@ import { failure } from "../chatgpt/errors.js";
 import { NativeAccountTools, type NativeLease } from "../native-tools/service.js";
 import { NativeToolError } from "../native-tools/process.js";
 import { DeviceAuthorization } from "../native-tools/adapters.js";
-import { AgentRouting, RoutingError } from "../routing/service.js";
+import { RoutingError } from "../routing/service.js";
 
-const RuntimeSchema = z.discriminatedUnion("kind", [
+const _RuntimeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("model"), modelSettings: ModelSettingsSchema }),
   z.object({ kind: z.literal("native"), runtimeId: z.string().min(1).max(120) }),
   ChatGptRuntimeSchema,
   z.object({ kind: z.literal("unified"), expectedRevision: z.number().int().nonnegative() }).strict(),
 ]);
-export type UnderstandingRuntime = z.infer<typeof RuntimeSchema>;
-const TurnRequestSchema = UnderstandingTurnSchema.extend({ runtime: RuntimeSchema });
+export type UnderstandingRuntime = z.infer<typeof _RuntimeSchema>;
 type Dependencies = {
   service: ProjectUnderstandingService;
   registry: RuntimeRegistry;
   ensureRuntimeScan: () => Promise<void>;
   readBody: (req: http.IncomingMessage) => Promise<unknown>;
   sendJson: (res: http.ServerResponse, status: number, value: unknown) => void;
-  /** Injection seam for embedded hosts and tests; never configurable by HTTP. */
-  reasoner?: (runtime: UnderstandingRuntime) => Promise<UnderstandingReasoner>;
-  chatGpt?: ChatGptPlanService;
   /** Account-scoped hosts must not inherit a shared OS user's native-model credentials. */
   allowNativeExecution?: boolean;
   nativeTools?: NativeAccountTools;
-  routing?: AgentRouting;
 };
 
 export async function createUnderstandingReasoner(runtime: UnderstandingRuntime, registry: RuntimeRegistry, chatGpt?: ChatGptPlanService): Promise<UnderstandingReasoner> {
@@ -125,30 +120,7 @@ export function createUnderstandingHandler(deps: Dependencies) {
       } else if (req.method === "DELETE" && action === "grants" && grantId) {
         deps.sendJson(res, 200, await deps.service.revoke(id, grantId));
       } else if (req.method === "POST" && action === "turns" && !grantId) {
-        const { runtime, ...input } = TurnRequestSchema.parse(await deps.readBody(req));
-        if (runtime.kind === "unified") {
-          if (!deps.routing || !lease) throw new RoutingError("routing_unavailable");
-          const reasoner = await deps.routing.reasoner(runtime.expectedRevision, lease);
-          const settled = await deps.routing.watchTurn(id, lease, () => deps.service.cancel(id));
-          try { deps.sendJson(res, 202, await deps.service.turn(id, input, reasoner, settled)); }
-          catch (error) { settled(); throw error; } return true;
-        }
-        if (runtime.kind === "native" && deps.nativeTools && lease) {
-          await deps.ensureRuntimeScan();
-          const reasoner = await deps.nativeTools.reasoner(runtime.runtimeId, lease);
-          const settled = deps.nativeTools.watchTurn(id, runtime.runtimeId, lease, () => deps.service.cancel(id));
-          try { deps.sendJson(res, 202, await deps.service.turn(id, input, reasoner, settled)); }
-          catch (error) { settled(); throw error; }
-          return true;
-        }
-        if (runtime.kind === "native" && deps.allowNativeExecution === false) {
-          deps.sendJson(res, 403, { error: "runtime_identity_isolation_required", message: "所选本机 CLI 尚未完成账号级凭据隔离，未启动、未继承他人授权，也未切换付费 API。" });
-          return true;
-        }
-        if (runtime.kind === "native") await deps.ensureRuntimeScan();
-        // The account route never enters a generic model/native override or fallback.
-        const reasoner = await (runtime.kind !== "chatgpt" && deps.reasoner ? deps.reasoner(runtime) : createUnderstandingReasoner(runtime, deps.registry, deps.chatGpt));
-        deps.sendJson(res, 202, await deps.service.turn(id, input, reasoner));
+        deps.sendJson(res, 410, { error: "project_understanding_moved_to_tasks", next: "/api/v1/agent/tasks" });
       } else if (req.method === "POST" && action === "confirm" && !grantId) {
         deps.sendJson(res, 200, await deps.service.confirm(id, UnderstandingConfirmSchema.parse(await deps.readBody(req))));
       } else if (req.method === "POST" && action === "source" && !grantId) {

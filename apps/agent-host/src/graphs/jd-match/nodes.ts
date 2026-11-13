@@ -11,6 +11,7 @@
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { interrupt } from "@langchain/langgraph";
+import { resumeWritingMethod } from "@better-me/core/resume-writing-method";
 import type {
   JdMatchState,
   StructuredJd,
@@ -155,7 +156,7 @@ ${claimsSummary || "（无）"}
 只输出 JSON 数组，不要解释。`;
 
       const response = await model.invoke([
-        new SystemMessage("你是一个精准的简历匹配助手。只输出 JSON，不要 markdown。"),
+        new SystemMessage(`你是一个精准的简历匹配助手。只输出 JSON，不要 markdown。\n${resumeWritingMethod("tailor")}`),
         new HumanMessage(prompt),
       ]);
 

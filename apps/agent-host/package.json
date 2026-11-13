@@ -18,19 +18,26 @@
     "@better-me/agent-contracts": "workspace:*",
     "@better-me/core": "workspace:*",
     "@better-me/opportunities": "workspace:*",
+    "@better-me/source-adapters": "workspace:*",
     "@langchain/core": "^1.2.20",
     "@langchain/langgraph": "^1.5.1",
     "@langchain/langgraph-checkpoint-sqlite": "^1.1.0",
     "@langchain/openai": "^1.6.3",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "esbuild": "^0.28.2",
+    "fflate": "0.8.3",
     "jose": "^6.2.14",
     "openid-client": "6.8.9",
+    "playwright-core": "1.64.1",
     "quickjs-emscripten": "0.32.0",
+    "saxes": "6.0.0",
+    "yauzl": "3.4.0",
     "zod": "^3.25.67"
   },
   "devDependencies": {
     "@better-me/storage": "workspace:*",
     "@types/node": "^24.19.2",
+    "@types/yauzl": "3.4.0",
     "tsx": "^4.23.15",
     "typescript": "^5.8.3"
   }

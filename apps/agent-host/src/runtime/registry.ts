@@ -17,6 +17,8 @@ export interface RuntimeProbeOptions {
   env?: NodeJS.ProcessEnv;
   platform?: NodeJS.Platform;
   homeDirectory?: string;
+  /** Known macOS application roots; executable discovery only, never auth import. */
+  applicationDirectories?: string[];
   timeoutMs?: number;
   now?: () => Date;
 }
@@ -49,6 +51,16 @@ function commandNames(command: string, platform: NodeJS.Platform): string[] {
   return [command, ...ext.map((suffix) => `${command}${suffix.toLowerCase()}`)];
 }
 
+function bundledCodexCandidates(command: string, options: RuntimeProbeOptions): string[] {
+  if (command !== "codex" || (options.platform ?? process.platform) !== "darwin") return [];
+  const home = options.homeDirectory ?? (options.env ?? process.env)["HOME"] ?? os.homedir();
+  const roots = options.applicationDirectories ?? ["/Applications", path.join(home, "Applications")];
+  return roots.flatMap(root => ["ChatGPT.app", "Codex.app"].flatMap(app => [
+    path.join(root, app, "Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"),
+    path.join(root, app, "Contents/Resources/codex"),
+  ]));
+}
+
 /** Resolve a binary without invoking a shell. This also covers Homebrew paths when PATH is stale. */
 export async function resolveExecutable(command: string, options: RuntimeProbeOptions = {}): Promise<string | undefined> {
   const platform = options.platform ?? process.platform;
@@ -71,6 +83,15 @@ export async function resolveExecutable(command: string, options: RuntimeProbeOp
         // Continue through fallback directories and names.
       }
     }
+  }
+  // Desktop installs need not add their bundled CLI to the GUI process's PATH.
+  // Preserve explicit/standard CLI priority and do not execute the app itself.
+  for (const candidate of bundledCodexCandidates(command, options)) {
+    try {
+      if (!(await fs.stat(candidate)).isFile()) continue;
+      await fs.access(candidate, fs.constants.X_OK);
+      return candidate;
+    } catch { /* A missing or non-executable bundle is not an installed CLI. */ }
   }
   return undefined;
 }

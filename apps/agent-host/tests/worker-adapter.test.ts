@@ -31,7 +31,7 @@ const contextPack: ContextPack = {
 };
 
 describe("worker adapters", () => {
-  it("injects only the bounded structured ContextPack into a native launch", () => {
+  it("injects the complete authorized structured ContextPack into a native launch", () => {
     const adapter = new WorkerAdapterRegistry().get(runtime());
     const launch = adapter.buildLaunch({ runtime: runtime(), prompt: "只读检索", contextPack });
     assert.equal(launch.command, "/usr/local/bin/claude");
@@ -49,6 +49,13 @@ describe("worker adapters", () => {
     const tool = adapter.parseLine(JSON.stringify({ type: "tool_use", name: "jobs.search.read", input: { q: "C#" } }), "stdout");
     assert.equal(tool[0]?.type, "tool.called");
     assert.equal(tool[0]?.payload["name"], "jobs.search.read");
+  });
+
+  it("retains all nested tool arguments, later properties and array items", () => {
+    const adapter = new WorkerAdapterRegistry().get(runtime());
+    const input = { properties: Object.fromEntries(Array.from({ length: 250 }, (_, i) => [`key_${i}`, `value_${i}`])), items: Array.from({ length: 650 }, (_, i) => ({ index: i, text: "x".repeat(100) })), deep: { a: { b: { c: { d: { e: { f: "DEEP_END" } } } } } } };
+    const events = adapter.parseLine(JSON.stringify({ type: "tool_use", name: "synthetic", input }), "stdout");
+    assert.deepEqual(events[0]?.payload["input"], input);
   });
 
   it("keeps only Claude assistant text and treats its final message as authoritative", () => {
@@ -103,14 +110,14 @@ describe("worker adapters", () => {
     assert.deepEqual(events, [{ type: "agent.output", payload: { stream: "stderr", text: "rate limited" } }]);
   });
 
-  it("caps an oversized ContextPack before passing it to a CLI", () => {
+  it("passes the complete ContextPack to a CLI, not a syntactically broken budget prefix", () => {
     const oversized = { ...contextPack, characterBudget: 20, content: { note: "x".repeat(2_000) } };
     const prompt = buildWorkerPrompt("task", oversized);
-    assert.ok(prompt.length < 200);
-    assert.match(prompt, /context truncated/);
+    assert.ok(prompt.includes(JSON.stringify(oversized.content)));
+    assert.doesNotMatch(prompt, /context truncated/);
   });
 
-  it("preserves long single-line final answers and marks only the hard output cap", () => {
+  it("preserves complete single-line final answers beyond the old output cap", () => {
     const adapter = new WorkerAdapterRegistry().get(runtime());
     const answer = "long-answer-".repeat(2_000);
     const events = adapter.parseLine(JSON.stringify({ type: "result", result: answer }), "stdout");
@@ -118,7 +125,7 @@ describe("worker adapters", () => {
     assert.equal(events[0]?.payload["truncated"], undefined);
 
     const capped = adapter.parseLine(JSON.stringify({ type: "result", result: "x".repeat(80_001) }), "stdout");
-    assert.equal(capped[0]?.payload["truncated"], true);
-    assert.match(String(capped[0]?.payload["text"]), /truncated at 80000 characters/);
+    assert.equal(capped[0]?.payload["truncated"], undefined);
+    assert.equal(capped[0]?.payload["text"], "x".repeat(80_001));
   });
 });

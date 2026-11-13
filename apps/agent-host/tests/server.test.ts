@@ -7,24 +7,26 @@ import path from "node:path";
 import { MemorySaver } from "@langchain/langgraph";
 import { createAgentServer } from "../src/server.js";
 import { registerTestIdentity } from "./fixtures/identity.js";
+import {seedLegacyCareer} from "./fixtures/legacy-career.js";
 
 describe("agent-host HTTP Server", () => {
   let server: http.Server;
   let directory: string;
   let identityHeaders: Record<string, string>;
+  let checkpointer: MemorySaver;
   const port = 5199;
   const token = "test-agent-secret-token";
   const baseUrl = `http://127.0.0.1:${port}`;
 
   before(async () => {
     directory = await fs.mkdtemp(path.join(os.tmpdir(), "betterme-http-identity-"));
-    const checkpointer = new MemorySaver() as any;
+    checkpointer = new MemorySaver();
     server = createAgentServer({
       port,
       host: "127.0.0.1",
       allowedOrigins: ["http://127.0.0.1:5173"],
       authToken: token,
-      checkpointer,
+      checkpointer:checkpointer as never,
       runsDirectory: directory,
     });
     await new Promise((resolve) => server.once("listening", resolve));
@@ -71,7 +73,7 @@ describe("agent-host HTTP Server", () => {
   });
 
   it("rejects request bodies larger than the bounded JSON limit", async () => {
-    const res = await fetch(`${baseUrl}/api/v1/agent/chat`, {
+    const res = await fetch(`${baseUrl}/api/v1/agent/tasks`, {
       method: "POST",
       headers: { ...identityHeaders, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: "x".repeat(16 * 1024 * 1024 + 1),
@@ -107,33 +109,38 @@ describe("agent-host HTTP Server", () => {
     assert.ok(body.runtimes.every((item: { status: string }) => ["available", "not-installed", "needs-config", "error"].includes(item.status)));
   });
 
-  it("runs the default career workflow through its approval gate", async () => {
+  it("retains full pending and approved workflow history but never restarts a retired graph", async () => {
+    const identity=await registerTestIdentity(baseUrl,token,"legacy-career-http");
+    const source="  旧工作流完整原文😀\r\n"+"真实未核实。".repeat(5000)+"HISTORY-END  ";
+    const seeded=await seedLegacyCareer(checkpointer,identity.principal.id,"career-http-test",source);
+    const before=JSON.stringify(seeded.tuple);
     const start = await fetch(`${baseUrl}/api/v1/agent/workflows/career/start`, {
       method: "POST",
-      headers: { ...identityHeaders, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { ...identity.headers, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ threadId: "career-http-test", task: "核实上海岗位与公司地点" }),
     });
-    assert.equal(start.status, 200);
-    const initial = await start.json();
-    assert.equal(initial.status, "awaiting_approval");
-    assert.equal(initial.workers.length, 5);
-    assert.equal(initial.artifacts.at(-1).type, "CoverageReceipt");
+    assert.equal(start.status, 410);
+    const read=()=>fetch(`${baseUrl}/api/v1/agent/workflows/career/state/career-http-test`,{headers:{...identity.headers,Authorization:`Bearer ${token}`}});
+    const initial=await(await read()).json();
+    assert.equal(initial.readOnly,true);assert.equal(initial.legacy,true);assert.equal(initial.state.task,source);
+    assert.equal(initial.state.workers.length,5);assert.equal(initial.state.artifacts[0].payload.task,source);assert.equal(initial.state.artifacts.at(-1).type,"CoverageReceipt");
+    assert.deepEqual(initial.pendingWrites,JSON.parse(before).pendingWrites);
 
     const resume = await fetch(`${baseUrl}/api/v1/agent/workflows/career/resume`, {
       method: "POST",
-      headers: { ...identityHeaders, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { ...identity.headers, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ threadId: "career-http-test", approval: { status: "approved", actorScope: "user", idempotencyKey: "career-http-12345678" } }),
     });
-    assert.equal(resume.status, 200);
-    const completed = await resume.json();
-    assert.equal(completed.status, "complete");
-    assert.equal(completed.stepLog.filter((step: string) => step.startsWith("intake:")).length, 1);
-    assert.deepEqual(completed.artifacts.map((item: { id: string }) => item.id), initial.artifacts.map((item: { id: string }) => item.id));
+    assert.equal(resume.status, 410);
+    assert.deepEqual(await(await read()).json(),initial);assert.equal(JSON.stringify(await checkpointer.getTuple(seeded.config)),before);
+    await seedLegacyCareer(checkpointer,identity.principal.id,"career-approved-test",source,true);
+    const approved=await(await fetch(`${baseUrl}/api/v1/agent/workflows/career/state/career-approved-test`,{headers:{...identity.headers,Authorization:`Bearer ${token}`}})).json();
+    assert.equal(approved.state.approval.actorScope,identity.principal.id);assert.equal(approved.state.task,source);assert.equal(approved.readOnly,true);
     const duplicate = await fetch(`${baseUrl}/api/v1/agent/workflows/career/resume`, {
       method: "POST", headers: { ...identityHeaders, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ threadId: "career-http-test", approval: { status: "approved", actorScope: "user", idempotencyKey: "career-http-12345678" } }),
     });
-    assert.equal(duplicate.status, 409, "a completed approval cannot restart the graph");
+    assert.equal(duplicate.status, 410, "even a repeated approval cannot restart a retired graph");
   });
 });
 
@@ -175,15 +182,21 @@ describe("agent-host runtime HTTP API", () => {
     await fs.rm(runsDirectory, { recursive: true, force: true });
   });
 
-  it("starts a local run and supports SSE replay", async () => {
+  it("refuses new local execution even in trusted mode but retains complete legacy output and SSE history", async () => {
+    const identity=await registerTestIdentity(baseUrl,token,"legacy-run-fixture");identityHeaders=identity.headers;
+    const runId="run_legacy_synthetic",now="2026-11-12T00:00:00.000Z";
+    const runDirectory=path.join(runsDirectory,"accounts-v1","owners",identity.principal.id,"runs",runId),outputDirectory=path.join(runDirectory,"output");
+    await fs.mkdir(outputDirectory,{recursive:true});
+    await fs.writeFile(path.join(runDirectory,"run.json"),JSON.stringify({id:runId,workflow:"http-test",runtimeId:"pi",status:"completed",createdAt:now,startedAt:now,finishedAt:now,runDirectory,outputDirectory,isolation:"process"}));
+    await fs.writeFile(path.join(outputDirectory,"result.json"),JSON.stringify({answer:"http-ok",output:"http-ok\n"}));
+    await fs.writeFile(path.join(runDirectory,"events.ndjson"),["run.started","run.completed"].map((type,index)=>JSON.stringify({id:`${runId}:${index+1}:synthetic`,runId,sequence:index+1,type,timestamp:now,payload:{}})).join("\n"));
     const start = await fetch(`${baseUrl}/api/v1/agent/runs`, {
       method: "POST",
       headers: { ...identityHeaders, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ runtimeId: "pi", workflow: "http-test", prompt: "hello" }),
     });
-    assert.equal(start.status, 202);
-    const started = await start.json();
-    const runId = started.run.id as string;
+    assert.equal(start.status, 410);
+    assert.deepEqual(await start.json(),{error:"runtime_run_moved_to_tasks",next:"/api/v1/agent/tasks"});
 
     let finalStatus: { run: { status: string }; output?: string; rawOutput?: string } | undefined;
     for (let i = 0; i < 50; i++) {

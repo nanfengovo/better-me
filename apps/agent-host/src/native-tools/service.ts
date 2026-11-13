@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { UnderstandingCapability, UnderstandingReasoner } from "@better-me/agent-contracts";
 import type { RuntimeRegistry } from "../runtime/registry.js";
 import { privateDirectory, readPrivateJson, writePrivateJson } from "../identity/private-json.js";
@@ -160,7 +160,7 @@ export class NativeAccountTools {
     pending.done = (async () => {
       try {
         await this.runner.run({ command, args: ["-c", "cli_auth_credentials_store=\"file\"", "login", "--device-auth"],
-          directory, hosts: ["auth.openai.com"], signal: controller.signal, timeoutMs: 10 * 60_000,
+          directory, hosts: ["auth.openai.com"], codexManagedPreferences: true, signal: controller.signal, timeoutMs: 10 * 60_000,
           onControlOutput: chunk => {
             // CLI ANSI control sequences, not user-authored text.
             // eslint-disable-next-line no-control-regex
@@ -298,6 +298,15 @@ export class NativeAccountTools {
       this.execution.set(id, next); void next.finally(() => { if (this.execution.get(id) === next) this.execution.delete(id); }).catch(() => undefined);
       return next;
     };
+  }
+  /** Opaque consent-generation pin. Never export credentials or ambient auth. */
+  async authorizationFingerprint(idValue: string, lease: NativeLease): Promise<string> {
+    await this.changes;
+    await this.assertLease(lease);
+    const credential = await this.current(NativeId.parse(idValue));
+    if (!credential) throw new NativeToolError("authorization_required", 403);
+    if (this.generation.has(idValue) && this.generation.get(idValue) !== credential.generation) throw new NativeToolError("authorization_changed", 409);
+    return createHash("sha256").update(JSON.stringify([idValue, credential.generation, credential.mode, credential.model, credential.endpoint])).digest("hex");
   }
   private async execute(id: NativeId, command: string, generation: string, prompt: string, signal: AbortSignal, lease: NativeLease): Promise<string> {
     signal.throwIfAborted(); await this.assertLease(lease);

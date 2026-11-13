@@ -43,6 +43,15 @@ test("production isolation never advertises an unsupported OS as sandboxed", asy
   assert.equal(typeof available, "boolean");
   if (process.platform !== "darwin") assert.equal(available, false, "Unsupported production isolation must remain fail-closed, independent of fixture file permissions");
 });
+test("isolated macOS CLI uses the explicit public system CA file without disabling TLS or importing owner trust material", () => {
+  const environment = nativeEnvironment("/synthetic/own");
+  assert.equal(environment["SSL_CERT_FILE"], process.platform === "darwin" ? "/private/etc/ssl/cert.pem" : undefined);
+  for (const name of ["NODE_TLS_REJECT_UNAUTHORIZED", "SSL_CERT_DIR", "CODEX_CA_CERTIFICATE"]) assert.equal(environment[name], undefined);
+  const profile = nativeSandboxProfile("/synthetic/own", [], 0, false, true);
+  assert.ok(profile.includes('(allow file-read* (literal "/private/etc/ssl/cert.pem"))'));
+  assert.ok(!profile.includes('(subpath "/Library/Keychains")'));
+  assert.ok(!profile.includes('(subpath "/private/etc")'));
+});
 test("provider proxy rejects local, reserved, translated and tunnel addresses but accepts public IPv4 and IPv6", () => {
   for (const address of ["127.0.0.1", "10.0.0.1", "172.16.1.1", "192.168.1.1", "169.254.169.254", "100.64.0.1", "198.18.0.1", "192.0.2.1", "::1", "fe80::1", "fd00::1", "::ffff:127.0.0.1", "64:ff9b::7f00:1", "2002:7f00:1::", "2001:db8::1", "2001:0000:7f00:0001:0000:0000:0000:0001"]) assert.equal(isPublicProviderAddress(address), false, address);
   for (const address of ["1.1.1.1", "8.8.8.8", "2001:4860:4860::8888", "2606:4700:4700::1111"]) assert.equal(isPublicProviderAddress(address), true, address);

@@ -13,6 +13,8 @@ const SCOPES = "openid profile email offline_access resource.invoke chatgpt.toke
 const tokenResponse = z.object({ access_token: z.string().min(1), id_token: z.string().min(1).optional(), refresh_token: z.string().min(1).optional(),
   token_type: z.string().refine(value => value.toLowerCase() === "bearer"), expires_in: z.number().positive().max(366 * 86400), scope: z.string().optional() });
 type Discovery = { issuer: string; authorization_endpoint: string; token_endpoint: string; jwks_uri: string; revocation_endpoint?: string };
+type AccountRequest = Omit<ChatGptResponseRequest, "consentToSend">;
+type AccountOutput = { text: string; model: string; profileId: string; finishReason: string; issue?: ChatGptIssue };
 type Attempt = NonNullable<ChatGptState["attempt"]> & { state: string; nonce: string; verifier: string; redirectUri: string; profileId: string;
   controller: AbortController; listener: http.Server; timer: ReturnType<typeof setTimeout> };
 const random = () => randomBytes(32).toString("base64url");
@@ -135,8 +137,11 @@ export class ChatGptPlanService {
         const profile = store.profiles.find(item => item.id === attempt.profileId)!;
         profile.subject = verified.payload.sub;
         profile.email = typeof verified.payload.email === "string" ? verified.payload.email.slice(0, 320) : undefined;
-        profile.tokens = tokens; profile.needsReauth = false;
+        profile.tokens = tokens; profile.needsReauth = false; profile.grantId = randomUUID();
       });
+      // Existing task closures may not borrow a replacement grant, even when
+      // the same person signs in again to the same registration.
+      this.controllers.get(attempt.profileId)?.forEach(controller => controller.abort());
       this.issues.delete(attempt.profileId);
       this.endAttempt(attempt, "completed");
       finish(200, "ChatGPT 授权已完成。请关闭此页并返回 BetterMe 选择模型；尚未发送项目或简历内容。");
@@ -147,18 +152,51 @@ export class ChatGptPlanService {
   }
 
   async models(profileId: string, signal?: AbortSignal): Promise<ChatGptModel[]> {
+    const grant = (await this.profile(profileId)).grantId;
     const tokens = await this.access(profileId);
     try {
       const payload = await this.json(`${RESOURCE}/models`, { headers: { Authorization: `Bearer ${tokens.accessToken}` }, signal });
+      if ((await this.profile(profileId)).grantId !== grant) throw failure("auth", "authorization_changed", "账号授权已替换，旧模型目录未采用。", 409);
       const catalog = z.object({ models: z.array(z.object({ slug: z.string().min(1).max(200), display_name: z.string().min(1).max(300), visibility: z.string() })).max(2000) }).safeParse(payload);
       if (!catalog.success) throw failure("protocol", "invalid_model_catalog", "ChatGPT 模型目录格式不完整，未使用缓存或猜测的模型。");
       const seen = new Set<string>();
       return catalog.data.models.filter(model => model.visibility === "list" && !seen.has(model.slug) && Boolean(seen.add(model.slug)))
         .map(model => ({ slug: model.slug, displayName: model.display_name }));
-    } catch (error) { throw this.record(profileId, error); }
+    } catch (error) {
+      if ((await this.profile(profileId)).grantId !== grant) throw failure("auth", "authorization_changed", "账号授权已替换，旧模型目录未采用。", 409);
+      throw this.record(profileId, error);
+    }
   }
 
-  async respond(input: Omit<ChatGptResponseRequest, "consentToSend">, signal: AbortSignal): Promise<{ text: string; model: string; profileId: string }> {
+  /** Opaque grant identity, stable through ordinary token refresh and restart.
+   * No token, subject, email or client ID is exposed to the task ledger. */
+  async authorizationFingerprint(profileId: string): Promise<string> {
+    const check = (profile: ChatGptProfile) => {
+      if (this.closed || this.disconnecting.has(profileId)) throw failure("auth", "account_disconnecting", "所选 ChatGPT 账号正在断开，未发送请求。", 401);
+      if (!profile.tokens) throw failure("auth", "authorization_required", "请先登录授权所选 ChatGPT 账号；不会使用 API Key 替代。", 401);
+      if (!["resource.invoke", "chatgpt.tokens.use.direct"].every(scope => profile.tokens!.scopes.includes(scope))) throw failure("permission", "plan_permission_missing", "所选 ChatGPT 账号尚未允许套餐推理。", 403);
+    };
+    let profile = await this.profile(profileId); check(profile);
+    if (!profile.grantId) profile = await this.store.transaction(state => {
+      const current = state.profiles.find(item => item.id === profileId)!; check(current);
+      current.grantId ??= randomUUID(); return structuredClone(current);
+    });
+    check(profile);
+    return createHash("sha256").update(JSON.stringify([profile.id, profile.clientId, profile.subject, profile.grantId, [...profile.tokens!.scopes].sort()])).digest("hex");
+  }
+
+  async respond(input: AccountRequest, signal: AbortSignal): Promise<{ text: string; model: string; profileId: string }> {
+    const { text, model, profileId } = await this.perform(input, signal);
+    return { text, model, profileId };
+  }
+
+  /** Exactly one inference dispatch. Kernel owns repair, continuation and
+   * budgets; incomplete text is returned intact for its private audit. */
+  async respondTask(input: AccountRequest, signal: AbortSignal, expectedAuthorization: string): Promise<AccountOutput> {
+    return this.perform(input, signal, expectedAuthorization);
+  }
+
+  private async perform(input: AccountRequest, signal: AbortSignal, expectedAuthorization?: string): Promise<AccountOutput> {
     const issue = this.issues.get(input.profileId);
     if (issue && ["limit", "eligibility", "permission"].includes(issue.kind)) throw new ChatGptError(issue);
     const controller = new AbortController();
@@ -166,19 +204,26 @@ export class ChatGptPlanService {
     const active = this.controllers.get(input.profileId) ?? new Set<AbortController>();
     active.add(controller); this.controllers.set(input.profileId, active);
     try {
+      const checkGrant = async () => {
+        if (expectedAuthorization && await this.authorizationFingerprint(input.profileId) !== expectedAuthorization) throw failure("auth", "authorization_changed", "ChatGPT 授权已变化，请核对原任务；不会使用新授权重发旧任务。", 409);
+      };
+      await checkGrant();
       const models = await this.models(input.profileId, combined);
       if (!models.some(model => model.slug === input.model)) throw failure("model", "model_not_available", "所选模型不在该账号的当前目录中。请刷新后主动选择，不会自动替换模型。", 422);
       const tokens = await this.access(input.profileId);
+      await checkGrant();
       combined.throwIfAborted();
       const response = await this.fetch(`${RESOURCE}/responses`, { method: "POST", redirect: "error", signal: combined,
         headers: { Authorization: `Bearer ${tokens.accessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({ model: input.model, instructions: input.instructions, input: input.input, store: false, stream: true }),
       });
       if (!response.ok) throw providerFailure(response.status, await this.body(response), response.headers.get("x-request-id") ?? undefined);
-      const text = await this.stream(response, combined);
+      const output = await this.stream(response, combined, Boolean(expectedAuthorization));
       combined.throwIfAborted();
+      await checkGrant();
+      if (output.issue) { this.issues.set(input.profileId, output.issue); return { ...output, model: input.model, profileId: input.profileId }; }
       this.issues.delete(input.profileId); this.completed.set(input.profileId, new Date().toISOString());
-      return { text, model: input.model, profileId: input.profileId };
+      return { ...output, model: input.model, profileId: input.profileId };
     } catch (error) {
       if (signal.aborted || controller.signal.aborted) throw failure("cancelled", "request_cancelled", "本轮已停止，输入和历史仍保留；不会自动重发。");
       throw this.record(input.profileId, error);
@@ -235,11 +280,18 @@ export class ChatGptPlanService {
       const data = await this.requestToken(new URLSearchParams({ grant_type: "refresh_token", client_id: profile.clientId, refresh_token: profile.tokens.refreshToken, resource: RESOURCE }));
       // Scope omission on refresh retains the original grant. If present, never infer additional scopes.
       const tokens = this.tokens(data, profile.tokens.idToken, profile.tokens);
-      await this.store.transaction(state => { const current = state.profiles.find(item => item.id === profile.id)!; current.tokens = tokens; current.needsReauth = false; });
+      await this.store.transaction(state => {
+        const current = state.profiles.find(item => item.id === profile.id)!;
+        if (current.grantId !== profile.grantId) throw failure("auth", "authorization_changed", "账号授权已替换，旧刷新结果未采用。", 409);
+        current.tokens = tokens; current.needsReauth = false;
+      });
       return tokens;
     } catch (error) {
+      // A late refresh failure belongs to the superseded grant, not the new
+      // account state. It must neither erase nor mark replacement tokens bad.
+      if ((await this.profile(profile.id)).grantId !== profile.grantId) throw failure("auth", "authorization_changed", "账号授权已替换，旧刷新结果未采用。", 409);
       const safe = this.record(profile.id, error);
-      if (safe.issue.kind === "auth") await this.store.transaction(state => { const current = state.profiles.find(item => item.id === profile.id)!; delete current.tokens; current.needsReauth = true; });
+      if (safe.issue.kind === "auth") await this.store.transaction(state => { const current = state.profiles.find(item => item.id === profile.id)!; if (current.grantId === profile.grantId) { delete current.tokens; current.needsReauth = true; } });
       throw safe;
     }
   }
@@ -287,7 +339,7 @@ export class ChatGptPlanService {
       try { return JSON.parse(text); } catch { return {}; }
     } finally { await reader.cancel().catch(() => undefined); reader.releaseLock(); }
   }
-  private async stream(response: Response, signal: AbortSignal): Promise<string> {
+  private async stream(response: Response, signal: AbortSignal, retainIncomplete = false): Promise<{ text: string; finishReason: string; issue?: ChatGptIssue }> {
     if (!response.body || !response.headers.get("content-type")?.includes("text/event-stream")) throw failure("protocol", "invalid_stream", "ChatGPT 未返回有效事件流，未采用结果。");
     const reader = response.body.getReader(), decoder = new TextDecoder();
     let buffer = "", total = 0, text = "", completed = false;
@@ -306,7 +358,7 @@ export class ChatGptPlanService {
           let event: Record<string, unknown>;
           try { event = JSON.parse(data) as Record<string, unknown>; } catch { throw failure("protocol", "invalid_event", "ChatGPT 事件格式不完整，未采用结果。"); }
           if (event.type === "response.output_text.delta" && typeof event.delta === "string") text += event.delta;
-          if (text.length > 100_000) throw failure("protocol", "output_too_large", "ChatGPT 答复过长，未采用结果。");
+          if (!retainIncomplete && text.length > 100_000) throw failure("protocol", "output_too_large", "ChatGPT 答复过长，未采用结果。");
           if (event.type === "response.failed" || event.type === "error") {
             const body = event.type === "response.failed" ? event.response : { error: event };
             const structured = body && typeof body === "object" && "error" in body ? body.error : undefined;
@@ -325,7 +377,12 @@ export class ChatGptPlanService {
         if (completed) break;
       }
       if (!completed || !text.trim()) throw failure("incomplete", "stream_interrupted", "ChatGPT 连接结束但未收到完整成功答复，未采用部分结果。可以保留输入后重试。");
-      return text;
+      return { text, finishReason: "stop" };
+    } catch (error) {
+      if (!retainIncomplete || signal.aborted || !text.length) throw error;
+      // Partial/invalid text is audit data, never a successful answer. The
+      // kernel pauses without repairing or replaying this transport failure.
+      return { text, finishReason: "incomplete", issue: safeFailure(error).issue };
     } finally { await reader.cancel().catch(() => undefined); reader.releaseLock(); }
   }
   private record(id: string, error: unknown): ChatGptError { const safe = safeFailure(error); this.issues.set(id, safe.issue); return safe; }

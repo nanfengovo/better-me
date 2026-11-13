@@ -7,7 +7,7 @@ import { failure } from "./errors.js";
 const Tokens = z.object({ accessToken: z.string().min(1), refreshToken: z.string().min(1).optional(),
   idToken: z.string().min(1), expiresAt: z.number().finite(), scopes: z.array(z.string()) });
 const Profile = z.object({ id: z.string(), clientId: z.string(), subject: z.string().optional(), email: z.string().optional(),
-  tokens: Tokens.optional(), needsReauth: z.boolean().optional() });
+  tokens: Tokens.optional(), needsReauth: z.boolean().optional(), grantId: z.string().uuid().optional() });
 const State = z.object({ version: z.literal(1), hostId: z.string().startsWith("urn:uuid:"), profiles: z.array(Profile).max(100) }).strict();
 export type StoredChatGpt = z.infer<typeof State>;
 export type ChatGptProfile = z.infer<typeof Profile>;

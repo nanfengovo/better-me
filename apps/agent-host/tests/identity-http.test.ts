@@ -8,13 +8,15 @@ import { MemorySaver } from "@langchain/langgraph";
 import { createAgentServer } from "../src/server.js";
 import { IdentityService } from "../src/identity/service.js";
 import { registerTestIdentity } from "./fixtures/identity.js";
+import {seedLegacyCareer} from "./fixtures/legacy-career.js";
 
 test("A/B private records, source grants, provider profiles, task IDs and thread IDs never cross owners", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "betterme-identity-http-"));
   const identityDirectory = path.join(directory, "private");
   const legacy = path.join(directory, "legacy"); await mkdir(legacy); await writeFile(path.join(legacy, "old.json"), '{"legacy":"must remain unchanged"}');
+  const checkpointer=new MemorySaver();
   const server = createAgentServer({ port: 0, host: "127.0.0.1", authToken: "fixture-transport", allowedOrigins: ["http://fixture.invalid"],
-    checkpointer: new MemorySaver() as never, identityDirectory, runtimeDefinitions: [], understandingDirectory: legacy,
+    checkpointer: checkpointer as never, identityDirectory, runtimeDefinitions: [], understandingDirectory: legacy,
   });
   await once(server, "listening"); const address = server.address(); assert.ok(address && typeof address !== "string");
   const base = `http://127.0.0.1:${address.port}`;
@@ -48,14 +50,14 @@ test("A/B private records, source grants, provider profiles, task IDs and thread
     assert.equal((await call(b.headers, `/understanding/sessions/${bSession.id}/turns`, {
       expectedRevision: 0, idempotencyKey: "shared-cli-isolation", answer: "do not inherit an OS account's credentials", consentToSend: true,
       runtime: { kind: "native", runtimeId: "shared-cli" },
-    })).status, 403, "controlled native reasoning must not inherit shared server credentials either");
+    })).status, 410, "legacy reasoning cannot bypass the task ledger even with explicit native credentials");
     assert.doesNotMatch(JSON.stringify(await (await call(b.headers, `/understanding/sessions/${bSession.id}`)).json()), /A-only contribution/);
     const source = path.join(directory, "source.ts"); await writeFile(source, "export const dispatch = 'fixture';\n");
     const granted = await (await call(a.headers, `/understanding/sessions/${session.id}/grants`, { path: source })).json();
     assert.equal(granted.grants.length, 1);
     assert.equal((await call(b.headers, `/understanding/sessions/${bSession.id}/grants/${granted.grants[0].id}`, undefined, "DELETE")).status, 404);
     assert.equal((await call(b.headers, `/understanding/sessions/${bSession.id}/grants`, { path: path.join(identityDirectory, "owners", a.principal.id, "understanding") })).status, 400);
-    assert.equal((await call(b.headers, "/runs", { runtimeId: "any", prompt: "read private records" })).status, 403, "unrestricted OS CLI is not a multi-user tool");
+    assert.equal((await call(b.headers, "/runs", { runtimeId: "any", prompt: "read private records" })).status, 410, "retired unrestricted CLI cannot bypass the owner task ledger");
 
     const value = { workspaceKey: "same", revision: 1, messages: ["A-secret"], ownerId: a.principal.id };
     assert.equal((await call(a.headers, "/records/continuity?key=same", { expectedRevision: 0, value })).status, 200);
@@ -69,11 +71,15 @@ test("A/B private records, source grants, provider profiles, task IDs and thread
     for (const route of ["/runs/stolen-id", "/runs/stolen-id/events"]) assert.equal((await call(b.headers, route)).status, 404);
     assert.equal((await call(b.headers, "/runs/stolen-id/cancel", {})).status, 404);
     const workflow = { threadId: "same-thread", task: "A-secret-goal", workspaceId: "same" };
-    assert.equal((await call(a.headers, "/workflows/career/start", workflow)).status, 200);
+    const seeded=await seedLegacyCareer(checkpointer,a.principal.id,workflow.threadId,workflow.task,true),before=JSON.stringify(seeded.tuple);
+    assert.equal((await call(a.headers, "/workflows/career/start", workflow)).status, 410);
     const approval = { threadId: "same-thread", approval: { status: "approved", actorScope: a.principal.id, idempotencyKey: "fixture-idempotency" } };
-    assert.equal((await call(b.headers, "/workflows/career/resume", approval)).status, 409);
-    const resumed = await (await call(a.headers, "/workflows/career/resume", approval)).json();
-    assert.equal(resumed.approval.actorScope, a.principal.id);
+    for(const account of [a,b])assert.equal((await call(account.headers,"/workflows/career/resume",approval)).status,410);
+    assert.equal((await call(b.headers,"/workflows/career/state/same-thread")).status,404);
+    const historical=await(await call(a.headers,"/workflows/career/state/same-thread")).json();
+    assert.equal(historical.state.approval.actorScope,a.principal.id);assert.equal(historical.state.task,workflow.task);assert.equal(historical.readOnly,true);
+    assert.equal((await call({...b.headers,"X-BetterMe-Owner":a.principal.id},"/workflows/career/state/same-thread")).status,409);
+    assert.equal(JSON.stringify(await checkpointer.getTuple(seeded.config)),before);
     assert.deepEqual((await (await call(b.headers, "/chatgpt/state")).json()).profiles, []);
     assert.equal((await call(b.headers, "/chatgpt/models", { profileId: "a-profile" })).status, 401);
     assert.equal((await call(a.headers, "/identity/sign-out", {})).status, 200);

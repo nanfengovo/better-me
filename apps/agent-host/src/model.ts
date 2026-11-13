@@ -87,7 +87,7 @@ class DeepSeekChatModel extends ChatOpenAICompletions {
   }
 }
 
-export function buildModel(settings: ModelSettings): BaseChatModel {
+export function buildModel(settings: ModelSettings, options: { maxRetries?: number } = {}): BaseChatModel {
   let baseURL = settings.baseUrl?.trim();
   if (baseURL) {
     baseURL = baseURL.replace(/\/chat\/completions\/?$/, "").replace(/\/+$/, "");
@@ -116,5 +116,8 @@ export function buildModel(settings: ModelSettings): BaseChatModel {
     temperature: settings.temperature ?? 0,
     // Do not stream inside graph nodes — the HTTP layer handles SSE framing.
     streaming: false,
+    // Durable tasks account for every dispatch themselves. Do not let an SDK
+    // retry consume unreported requests outside their shared task budget.
+    ...(options.maxRetries === undefined ? {} : { maxRetries: options.maxRetries }),
   });
 }

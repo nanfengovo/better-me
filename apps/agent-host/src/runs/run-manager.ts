@@ -55,9 +55,7 @@ function safeRunId(): string {
   return `run_${Date.now().toString(36)}_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
 }
 
-function capText(value: string, max = 80_000): string {
-  return value.length <= max ? value : `${value.slice(0, max)}\n...[truncated]`;
-}
+const MAX_RUN_OUTPUT_BYTES = 8 * 1024 * 1024;
 
 export class AgentRunManager {
   readonly events: AgentEventBus;
@@ -248,22 +246,29 @@ export class AgentRunManager {
 
   private handleOutput(run: ManagedRun, chunk: string, stream: "stdout" | "stderr"): void {
     const runId = run.record.id;
-    run.output = capText(`${run.output}${chunk}`, 80_000);
+    if (["completed", "failed", "cancelled"].includes(run.record.status)) return;
+    if (Buffer.byteLength(run.output) + Buffer.byteLength(chunk) > MAX_RUN_OUTPUT_BYTES) {
+      run.protocolFailure = "output_limit_exceeded:complete_answer_unavailable";
+      run.streamBuffers = { stdout: "", stderr: "" };
+      run.process?.kill("SIGTERM");
+      this.finish(runId, "failed", run.protocolFailure);
+      return;
+    }
+    run.output += chunk;
     const pending = `${run.streamBuffers[stream]}${chunk}`;
     const lines = pending.split(/\r?\n/);
     run.streamBuffers[stream] = lines.pop() ?? "";
     // Do not truncate by line count here: a single stdout chunk can contain
     // hundreds of legitimate answer lines, and the authoritative final answer
-    // may appear after the first 500. The raw output and assembled answer are
-    // independently character-bounded above/below, so parsing every complete
-    // line in this chunk does not make retained run output unbounded.
+    // may appear after the first 500. The total byte guard fails the run
+    // explicitly; a partial answer must never masquerade as complete output.
     for (const line of lines.map((item) => item.trim()).filter(Boolean)) {
       for (const event of run.adapter.parseLine(line, stream)) {
         if (event.failure) run.protocolFailure = event.failure;
         if (event.type === "text.delta" && typeof event.payload.text === "string") {
-          run.answer = capText(event.payload.replace === true
+          run.answer = event.payload.replace === true
             ? event.payload.text
-            : `${run.answer}${event.payload.text}`, 80_000);
+            : `${run.answer}${event.payload.text}`;
         }
         this.publish(runId, event.type, event.payload, run.record.runtimeId);
       }

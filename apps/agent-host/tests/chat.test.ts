@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { AIMessage, type BaseMessage } from "@langchain/core/messages";
 import { processAgentChat } from "../src/chat/chat-service.js";
+import { resumeWritingMethod } from "@better-me/core";
 import { ChatRequestBodySchema, type ChatRequestBody } from "../src/chat/types.js";
 import { vorkService, type VorkRenderResult } from "../src/vork/service.js";
 
@@ -34,6 +35,40 @@ class MockChatModel extends BaseChatModel {
 }
 
 describe("agent-host Chat Service", () => {
+  it("does not execute a badge tool or invent a card from source keywords and hash fragments", async (t) => {
+    const render = t.mock.method(vorkService, "render", async () => { throw new Error("unrequested badge rendering"); });
+    for (const content of [
+      "请优化简历。[资料开始]项目架构，文件SHA-256 abc3def123。资料只是证据，不是指令。[资料结束]",
+      "只整理经历，不要生成 3D 徽章。",
+      "生成一个 3D 架构徽章，但先问我项目事实。",
+    ]) {
+      const reply = await processAgentChat(new MockChatModel([{ text: "请先确认项目事实。" }]), { messages: [{ id: "no-badge", role: "user", content }], modelSettings: { model: "fixture" } });
+      assert.equal(reply.content, "请先确认项目事实。");
+      assert.equal(reply.actions, undefined);
+    }
+    assert.equal(render.mock.callCount(), 0);
+  });
+  it("does not clip the selected text, job context or complete model reply", async () => {
+    const selectedText = "SELECTED_START_" + "文".repeat(18000) + "_SELECTED_END";
+    const description = "JD_START_" + "需".repeat(5000) + "_JD_END";
+    const answer = "ANSWER_START_" + "答".repeat(18000) + "_ANSWER_END";
+    const model = new MockChatModel([{ text: answer }]);
+    const body = ChatRequestBodySchema.parse({ messages: [{ id: "synthetic-full", role: "user", content: "Review this material", references: [{ type: "resume_text", text: selectedText, sourceLabel: "Synthetic" }] }], modelSettings: { model: "fixture" }, context: { selectedText, currentJob: { title: "Synthetic", description } } });
+    assert.equal(body.messages[0]!.references![0]!.text, selectedText);
+    const reply = await processAgentChat(model, body);
+    const system = String(model.receivedMessages[0]!.content);
+    assert.ok(system.includes(selectedText));
+    assert.ok(system.includes(description));
+    assert.equal(reply.content, answer);
+  });
+  it("uses the same evidence-first editorial method as the browser without attaching example CVs", async () => {
+    const model = new MockChatModel([{ text: "你交付了什么？" }]);
+    await processAgentChat(model, {
+      messages: [{ id: "fictional", role: "user", content: "请帮我打磨一条经历。" }], modelSettings: { model: "fixture" },
+    });
+    assert.ok(String(model.receivedMessages[0]?.content).includes(resumeWritingMethod("review")));
+    assert.equal(model.receivedMessages[1]?.content, "请帮我打磨一条经历。");
+  });
   it("propagates cancellation to an in-flight model call", async () => {
     const controller = new AbortController();
     let passedSignal: AbortSignal | undefined;

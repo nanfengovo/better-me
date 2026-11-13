@@ -291,7 +291,7 @@ test("actual broker evidence grounds source claims and revocation prevents old d
   } finally { await service.dispose(); await fs.rm(directory, { recursive: true, force: true }); }
 });
 
-test("unlimited persisted interview turns use bounded recent context and can retrieve older corrections", async () => {
+test("all authorized interview history reaches the model intact and can also be retrieved", async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "understanding-history-"));
   const service = new ProjectUnderstandingService({ storageDir: directory });
   try {
@@ -303,7 +303,7 @@ test("unlimited persisted interview turns use bounded recent context and can ret
     let calls = 0;
     await service.turn(current.id, { expectedRevision: current.revision, idempotencyKey: "retrieve-old-correction", answer: "Recall the early correction", selectedOptionIds: [], consentToSend: true }, async prompt => {
       if (calls++ === 0) {
-        assert.equal(prompt.includes("EARLY_USER_CORRECTION"), false);
+        assert.equal(prompt.includes("EARLY_USER_CORRECTION"), true);
         assert.match(prompt, /omittedMessages/);
         return JSON.stringify({ kind: "read", requests: [{ grantId: "conversation", operation: "search", path: "", query: "EARLY_USER_CORRECTION" }] });
       }

@@ -9,7 +9,7 @@ export class EvidenceAccessError extends Error {
   constructor(readonly code: string, message: string) { super(message); this.name = "EvidenceAccessError"; }
 }
 
-export type EvidenceRequest = { operation: "list" | "search" | "read"; path?: string; query?: string; startLine?: number; endLine?: number };
+export type EvidenceRequest = { operation: "list" | "search" | "read"; path?: string; query?: string; startLine?: number; endLine?: number; offset?: number; length?: number };
 export type EvidenceResult = {
   evidence: UnderstandingEvidence[];
   entries?: { path: string; kind: "file" | "directory" }[];
@@ -105,7 +105,7 @@ export class EvidenceBroker {
       if (request.operation === "search") {
         if (!request.query?.trim() || request.query.length > 200) throw new EvidenceAccessError("query_invalid", "Provide a literal search query of 1–200 characters.");
         const source = await this.textFile(grant, relative, signal);
-        const matches = source.lines.flatMap((line, index) => line.toLowerCase().includes(request.query!.toLowerCase()) && line.length <= 2000 ? [this.record(grant, relative, source.hash, index + 1, index + 1, line)] : []);
+        const matches = source.lines.flatMap((line, index) => line.toLowerCase().includes(request.query!.toLowerCase()) && line.length <= 2000 ? [this.record(grant, relative, source.hash, index + 1, index + 1, line, source.text)] : []);
         return { evidence: matches.slice(0, 20), truncated: matches.length > 20 };
       }
     }
@@ -113,13 +113,23 @@ export class EvidenceBroker {
     if (request.operation === "read") {
       const source = await this.textFile(grant, relative, signal);
       const start = request.startLine ?? 1;
-      const end = request.endLine ?? start + 119;
+      const end = request.endLine ?? source.lines.length;
       if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 1 || end < start) throw new EvidenceAccessError("range_invalid", "Use a positive ordered line range.");
-      const boundedEnd = Math.min(end, start + 199, source.lines.length);
+      const boundedEnd = Math.min(end, source.lines.length);
       if (start > source.lines.length) throw new EvidenceAccessError("range_invalid", "The requested line is beyond this file.");
-      const excerpt = source.lines.slice(start - 1, boundedEnd).join("\n");
-      if (excerpt.length > 16000) throw new EvidenceAccessError("excerpt_too_large", "Request a smaller line range.");
-      return { evidence: [this.record(grant, relative, source.hash, start, boundedEnd, excerpt)], truncated: boundedEnd < end };
+      const breaks = [...source.text.matchAll(/\r?\n/g)];
+      const startOffset = request.offset ?? (start === 1 ? 0 : breaks[start - 2]!.index! + breaks[start - 2]![0].length);
+      if (!Number.isSafeInteger(startOffset) || startOffset < 0 || startOffset >= source.text.length && source.text.length > 0
+        || request.length !== undefined && (!Number.isSafeInteger(request.length) || request.length < 1 || request.length > 4000)) {
+        throw new EvidenceAccessError("range_invalid", "Use an in-source UTF-16 offset and a page length of 1–4000.");
+      }
+      const lineEnd = boundedEnd < source.lines.length ? breaks[boundedEnd - 1]!.index! : source.text.length;
+      const endOffset = Math.min(source.text.length, startOffset + (request.length ?? source.text.length), request.offset === undefined ? lineEnd : source.text.length);
+      const excerpt = source.text.slice(startOffset, endOffset);
+      const coordinates = { startOffset, endOffset, sourceLength: source.text.length };
+      const pageStartLine = source.text.slice(0, startOffset).split("\n").length;
+      const pageEndLine = source.text.slice(0, endOffset).split("\n").length;
+      return { evidence: [this.record(grant, relative, source.hash, pageStartLine, pageEndLine, excerpt, source.text, coordinates)], truncated: boundedEnd < end };
     }
     if (!(await fs.lstat(resolved)).isDirectory()) throw new EvidenceAccessError("directory_required", "List and search require a directory.");
     if (request.operation === "list") {
@@ -159,7 +169,7 @@ export class EvidenceBroker {
           const source = await this.textFile(grant, child, signal);
           for (let index = 0; index < source.lines.length && evidence.length < 20; index++) {
             const line = source.lines[index]!;
-            if (line.toLowerCase().includes(query) && line.length <= 2000) evidence.push(this.record(grant, child, source.hash, index + 1, index + 1, line));
+            if (line.toLowerCase().includes(query) && line.length <= 2000) evidence.push(this.record(grant, child, source.hash, index + 1, index + 1, line, source.text));
           }
         } catch (error) { signal?.throwIfAborted(); if (!(error instanceof EvidenceAccessError)) throw error; skipped++; }
       }
@@ -198,7 +208,7 @@ export class EvidenceBroker {
     if (!inside(grant.path, canonical)) throw new EvidenceAccessError("path_escape", "The path escapes its grant.");
     return canonical;
   }
-  private async textFile(grant: UnderstandingGrant, relative: string, signal?: AbortSignal): Promise<{ lines: string[]; hash: string }> {
+  private async textFile(grant: UnderstandingGrant, relative: string, signal?: AbortSignal): Promise<{ text: string; lines: string[]; hash: string }> {
     if (!relative || !this.isSource(relative)) throw new EvidenceAccessError("file_type_denied", "Only allowlisted source and text files may be read.");
     const filename = await this.resolve(grant, relative);
     const handle = await fs.open(filename, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
@@ -222,11 +232,15 @@ export class EvidenceBroker {
       try { text = new TextDecoder("utf-8", { fatal: true }).decode(data); } catch { throw new EvidenceAccessError("binary_denied", "Only UTF-8 text is supported."); }
       if (data.some(byte => byte <= 8 || (byte >= 14 && byte <= 31))) throw new EvidenceAccessError("binary_denied", "二进制内容不能作为源码材料读取。");
       if (secretContent.test(text)) throw new EvidenceAccessError("sensitive_content", "Potential credential content is excluded.");
-      return { lines: text.split(/\r?\n/), hash: createHash("sha256").update(data).digest("hex") };
+      return { text, lines: text.split(/\r?\n/), hash: createHash("sha256").update(data).digest("hex") };
     } finally { await handle.close(); }
   }
-  private record(grant: UnderstandingGrant, relative: string, hash: string, startLine: number, endLine: number, excerpt: string): UnderstandingEvidence {
+  private record(grant: UnderstandingGrant, relative: string, hash: string, startLine: number, endLine: number, excerpt: string, full: string,
+    coordinates?: { startOffset: number; endOffset: number; sourceLength: number }): UnderstandingEvidence {
     const sourcePath = relative.split(path.sep).join("/");
-    return { id: `ev_${createHash("sha256").update(`${grant.id}:${sourcePath}:${hash}:${startLine}:${endLine}`).digest("hex").slice(0, 24)}`, grantId: grant.id, path: sourcePath, hash, startLine, endLine, excerpt, collectedAt: new Date().toISOString() };
+    const breaks = [...full.matchAll(/\r?\n/g)];
+    const startOffset = coordinates?.startOffset ?? (startLine === 1 ? 0 : breaks[startLine - 2]!.index! + breaks[startLine - 2]![0].length);
+    const span = coordinates ?? { startOffset, endOffset: startOffset + excerpt.length, sourceLength: full.length };
+    return { id: `ev_${createHash("sha256").update(`${grant.id}:${sourcePath}:${hash}:${span.startOffset}:${span.endOffset}`).digest("hex").slice(0, 24)}`, grantId: grant.id, path: sourcePath, hash, startLine, endLine, excerpt, ...span, collectedAt: new Date().toISOString() };
   }
 }

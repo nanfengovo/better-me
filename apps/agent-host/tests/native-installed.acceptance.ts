@@ -20,6 +20,7 @@ import { AgentRouting } from "../src/routing/service.js";
 import { randomUUID } from "node:crypto";
 
 const answer = "synthetic-native-answer";
+const longAnswer = "OUTPUT_START_" + "完整输出".repeat(8000) + "_OUTPUT_END";
 const event = (name: string, data: unknown) => `event: ${name}\ndata: ${JSON.stringify(data)}\n\n`;
 test("actual installed CLIs exchange text with synthetic TLS providers inside the production OS sandbox", { skip: process.platform !== "darwin", timeout: 160_000 }, async t => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "betterme-native-installed-"));
@@ -28,10 +29,12 @@ test("actual installed CLIs exchange text with synthetic TLS providers inside th
     "-days", "1", "-subj", "/CN=fixture.invalid", "-addext", "subjectAltName=DNS:fixture.invalid"], { timeout: 20_000 });
   let current: NativeId = "codex";
   const requests: string[] = [], unknown: string[] = [];
-  let nativeClaude = false, nativeClaudeRequests = 0;
+  let nativeClaude = false, nativeClaudeRequests = 0, expectedPrompt: string | undefined, observedFullPrompt = false, providerAnswer = answer;
   const server = https.createServer({ cert: await fs.readFile(cert), key: await fs.readFile(key) }, async (req, res) => {
     const chunks: Buffer[] = []; try { for await (const chunk of req) chunks.push(Buffer.from(chunk)); } catch { return; }
     const input = JSON.parse(Buffer.concat(chunks).toString() || "{}");
+    const answer = providerAnswer;
+    if (expectedPrompt && req.url?.includes("/responses")) observedFullPrompt = JSON.stringify(input).includes(expectedPrompt);
     requests.push(`${current}:${req.url}`);
     if (nativeClaude && req.url?.includes("/messages")) {
       assert.equal(req.headers.authorization, "Bearer synthetic-native-claude-access-token");
@@ -46,7 +49,11 @@ test("actual installed CLIs exchange text with synthetic TLS providers inside th
     // functions. Any actual function or built-in provider tool remains denied.
     const definitions = Array.isArray(input.tools) ? input.tools.flatMap((tool: Record<string, unknown>) =>
       Object.keys(tool).length === 1 && Array.isArray(tool["functionDeclarations"]) ? tool["functionDeclarations"] : [tool]) : [];
-    assert.equal(definitions.length, 0, `${current} must not advertise native tools`);
+    // Current Codex always declares request_user_input even in exec. It has no
+    // host execution capability, and NativeOutput still rejects any invocation.
+    // Do not loosen this to permit shell, MCP, goals or code-mode declarations.
+    const executionDefinitions = current === "codex" ? definitions.filter((tool: Record<string, unknown>) => !(tool.type === "function" && tool.name === "request_user_input")) : definitions;
+    assert.equal(executionDefinitions.length, 0, `${current} must not advertise native execution tools: ${JSON.stringify(executionDefinitions.map((tool: Record<string, unknown>) => ({type:tool.type,name:tool.name,functionName:(tool.function as {name?:string}|undefined)?.name})))}`);
     if (req.url?.includes("count_tokens")) { res.setHeader("Content-Type", "application/json"); res.end('{"input_tokens":12}'); return; }
     if (req.url?.includes("/messages")) {
       res.setHeader("Content-Type", "text/event-stream");
@@ -121,7 +128,7 @@ test("actual installed CLIs exchange text with synthetic TLS providers inside th
       const command = registry.get(id)?.resolvedCommand; assert.ok(command, `${id} is not installed`);
       const own = path.join(directory, id); await fs.mkdir(own, { mode: 0o700 });
       const ownCert = path.join(own, "fixture-ca.pem"); await fs.copyFile(cert, ownCert);
-      const launch = await nativeLaunch(id, { generation: "synthetic", mode: "api-key", apiKey: "synthetic-unused-provider-key", model: id === "gemini-cli" ? "gemini-2.5-flash" : "synthetic-model", endpoint: `https://fixture.invalid${id === "codex" || id === "opencode" ? "/v1" : ""}` }, own);
+      const launch = await nativeLaunch(id, { generation: "synthetic", mode: "api-key", apiKey: "synthetic-unused-provider-key", model: id === "gemini-cli" ? "gemini-2.5-flash" : id === "codex" ? "gpt-5.4" : "synthetic-model", endpoint: `https://fixture.invalid${id === "codex" || id === "opencode" ? "/v1" : ""}` }, own);
       const decoder = new NativeOutput(id), frames: string[] = [], diagnostic: string[] = [];
       try {
         await runner.run({ command, ...launch, directory: own, environment: { ...launch.environment, SSL_CERT_FILE: ownCert, NODE_EXTRA_CA_CERTS: ownCert }, stdin: "Respond with a synthetic text-only answer. Never use tools.", timeoutMs: 30_000,
@@ -134,6 +141,27 @@ test("actual installed CLIs exchange text with synthetic TLS providers inside th
       }
       });
     }
+    await t.test("the normal owner-scoped Codex service passes complete long input and output through the installed CLI", { timeout: 40_000 }, async () => {
+      current = "codex";
+      const own = path.join(directory, "owner-codex-full-context"); await fs.mkdir(own, { mode: 0o700 });
+      const service = new NativeAccountTools({ directory: path.join(own, "accounts"), registry, runner: {
+        isolation: () => runner.isolation(),
+        run: async input => {
+          const runCert = path.join(input.directory, "fixture-ca.pem"); await fs.copyFile(cert, runCert);
+          return runner.run({ ...input, environment: { ...input.environment, SSL_CERT_FILE: runCert, NODE_EXTRA_CA_CERTS: runCert } });
+        },
+      } });
+      const lease = { session: "synthetic-owner-codex", valid: async () => true };
+      expectedPrompt = "INPUT_START_" + "完整输入".repeat(10000) + "_INPUT_END";
+      providerAnswer = longAnswer;
+      try {
+        await service.authorizeApi("codex", { mode: "api-key", consent: true, apiKey: "synthetic-unused-provider-key", model: "gpt-5.4", endpoint: "https://fixture.invalid/v1" }, lease);
+        const reasoner = await service.reasoner("codex", lease);
+        assert.equal(await reasoner(expectedPrompt, new AbortController().signal), longAnswer);
+        assert.equal(observedFullPrompt, true, "the provider receives every input character, not just tail markers");
+        assert.equal((await service.capabilities()).find(item => item.id === "codex")?.code, "ready");
+      } finally { expectedPrompt = undefined; providerAnswer = answer; await service.close(); }
+    });
     await t.test("native Claude uses only the isolated OAuth file, not an API key or host login", { timeout: 40_000 }, async () => {
       const command = registry.get("claude-code")?.resolvedCommand; assert.ok(command);
       const own = path.join(directory, "native-claude-oauth"); await fs.mkdir(path.join(own, "claude"), { recursive: true, mode: 0o700 });
@@ -180,7 +208,7 @@ test("actual installed CLIs exchange text with synthetic TLS providers inside th
         current = "opencode"; const id = randomUUID(), before = requests.length;
         const reply = await routing.run(id, policy.revision, "synthetic task, no native tools", new AbortController().signal, lease);
         assert.equal(reply.text, answer); assert.equal(reply.trace.runtimeId, "opencode");
-        assert.ok(reply.trace.attempts.some(attempt => attempt.runtimeId === "codex" && attempt.code === "managed_policy_unavailable"));
+        assert.ok(reply.trace.attempts.some(attempt => attempt.runtimeId === "codex" && attempt.status === "skipped"), "An installed but unconnected Codex is not implicitly authorized");
         assert.ok(requests.length > before);
         const count = requests.length; await routing.run(id, policy.revision, "synthetic task, no native tools", new AbortController().signal, lease); assert.equal(requests.length, count, "idempotent retry must not dispatch again");
       } finally { await routing.close(); await native.close(); }

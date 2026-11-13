@@ -28,6 +28,16 @@ test("explicit grants expose bounded source evidence but reject secrets, travers
   }
 });
 
+test("default source reading retains long files and long lines; explicit ranges remain exact", async () => {
+  const fixture = await fs.mkdtemp(path.join(os.tmpdir(), "understanding-full-evidence-"));
+  try {
+    const full = "START_" + "x".repeat(18000) + "\n" + Array.from({ length: 500 }, (_, index) => `LINE_${index}`).join("\n") + "_END";
+    await fs.writeFile(path.join(fixture, "full.ts"), full);
+    const broker = new EvidenceBroker(), grant = await broker.grant(fixture);
+    assert.equal((await broker.execute(grant, { operation: "read", path: "full.ts" })).evidence[0]?.excerpt, full);
+    assert.equal((await broker.execute(grant, { operation: "read", path: "full.ts", startLine: 500, endLine: 501 })).evidence[0]?.excerpt, "LINE_498\nLINE_499_END");
+  } finally { await fs.rm(fixture, { recursive: true, force: true }); }
+});
 test("exact-file grants never expand to siblings or a replacement directory", async () => {
   const fixture = await fs.mkdtemp(path.join(os.tmpdir(), "understanding-file-grant-"));
   try {

@@ -3,15 +3,10 @@
  *
  * Routes:
  *
- *   POST /api/v1/agent/jd-match/start
- *     Body: { threadId, modelSettings, rawJd, allowedProfileEntryIds, sessionClaims }
- *     → Runs the graph until it hits interrupt() at confirmProposals.
- *     → Returns { status: "awaiting_review", proposals: [...], threadId }
- *
- *   POST /api/v1/agent/jd-match/resume
- *     Body: { threadId, modelSettings, decisions: { [proposalId]: ProposalDecision } }
- *     → Resumes the graph with confirmed decisions.
- *     → Returns { status: "complete", accepted: [...], gaps: [...] }
+ *   POST /api/v1/agent/tasks, /:id/start, /:id/jd-review
+ *     → Owner-kernel JD analysis, explicit frozen-material grant, shared ledger.
+ *   POST /api/v1/agent/jd-match/{start,resume}
+ *     → 410. No legacy executor or fallback bypasses the task ledger.
  *
  *   GET  /api/v1/agent/jd-match/state/:threadId
  *     → Returns current checkpoint state for debugging / page-refresh recovery.
@@ -23,24 +18,16 @@
  */
 
 import http from "node:http";
+import { isDeepStrictEqual } from "node:util";
 import path from "node:path";
-import { Command } from "@langchain/langgraph";
 import { z } from "zod";
-import { buildModel, ModelSettingsSchema, DeepSeekApiError, type ModelSettings } from "./model.js";
-import { buildJdMatchGraph } from "./graphs/jd-match/graph.js";
-import type { JdMatchGraph } from "./graphs/jd-match/graph.js";
-import type { ProposalDecision } from "./graphs/jd-match/state.js";
+import { DeepSeekApiError } from "./model.js";
 import type { SqliteSaver } from "@langchain/langgraph-checkpoint-sqlite";
-import { ChatRequestBodySchema } from "./chat/types.js";
-import { processAgentChat } from "./chat/chat-service.js";
-import { ContextPackSchema } from "@better-me/agent-contracts";
 import { encodeSseEvent } from "./events/event-bus.js";
 import { AgentRunManager } from "./runs/run-manager.js";
 import type { SandboxMode } from "./runs/sandbox.js";
 import { RuntimeRegistry } from "./runtime/registry.js";
 import type { RuntimeAgentDef } from "@better-me/agent-contracts";
-import { buildCareerOrchestrator } from "./graphs/career/graph.js";
-import type { CareerApproval } from "./graphs/career/state.js";
 import { resolveCheckpointPath } from "./checkpointer.js";
 import { ProjectUnderstandingService } from "./understanding/service.js";
 import { createUnderstandingHandler, type UnderstandingRuntime } from "./understanding/http.js";
@@ -49,6 +36,11 @@ import { createRoutingHandler } from "./routing/http.js";
 import { NativeAccountTools } from "./native-tools/service.js";
 import type { NativeProcessRunner } from "./native-tools/process.js";
 import type { UnderstandingReasoner } from "@better-me/agent-contracts";
+import { studioAnalysisRuntime } from "@better-me/agent-contracts";
+import type { LocalOllamaClient } from "./privacy/local-ollama.js";
+import type { StudioLocalRuntime } from "@better-me/agent-contracts/career-studio";
+import { StudioError } from "./career-studio/storage.js";
+import { CareerTaskError } from "./tasks/evidence.js";
 import { ChatGptPlanService } from "./chatgpt/service.js";
 import { createChatGptHandler } from "./chatgpt/http.js";
 import { createHash } from "node:crypto";
@@ -62,55 +54,22 @@ import { vorkService } from "./vork/service.js";
 import { CareerCapabilities } from "./capabilities/service.js";
 import { handleCapabilities } from "./capabilities/http.js";
 import type { ToolBuilder } from "./capabilities/ollama.js";
-import { SandboxBuildService, type SandboxBuildInput } from "./sandbox/build-service.js";
-
-// ── Request schemas ───────────────────────────────────────────────────────────
-
-const StartBodySchema = z.object({
-  threadId: z.string().min(1).max(200).regex(/^[A-Za-z0-9._:-]+$/),
-  modelSettings: ModelSettingsSchema,
-  rawJd: z.string().min(1).max(50_000),
-  allowedProfileEntryIds: z.array(z.string()).max(500),
-  sessionClaims: z.record(z.string()).optional(),
-});
-
-const ResumeBodySchema = z.object({
-  threadId: z.string().min(1).max(200).regex(/^[A-Za-z0-9._:-]+$/),
-  modelSettings: ModelSettingsSchema,
-  decisions: z.record(z.union([
-    z.object({ status: z.literal("accepted") }),
-    z.object({ status: z.literal("rejected"), reason: z.string().optional() }),
-    z.object({ status: z.literal("edited"), editedSuggestion: z.string().min(1) }),
-  ])),
-});
-
-const StartRunBodySchema = z.object({
-  runtimeId: z.string().min(1).max(120),
-  workflow: z.string().min(1).max(120).default("career-orchestrator"),
-  prompt: z.string().min(1).max(20_000),
-  contextPack: ContextPackSchema.optional(),
-  allowedReadPaths: z.array(z.string().min(1).max(2_000)).max(20).default([]),
-  timeoutMs: z.number().int().min(1_000).max(60 * 60_000).optional(),
-  sandboxMode: z.enum(["auto", "required", "disabled"]).optional(),
-});
-
-const CareerStartBodySchema = z.object({
-  threadId: z.string().min(1).max(200).regex(/^[A-Za-z0-9._:-]+$/),
-  task: z.string().min(1).max(20_000),
-  workspaceId: z.string().min(1).max(200).default("default"),
-  requestedRuntimeId: z.string().min(1).max(120).optional(),
-});
-
-const CareerResumeBodySchema = z.object({
-  threadId: z.string().min(1).max(200).regex(/^[A-Za-z0-9._:-]+$/),
-  approval: z.object({
-    status: z.union([z.literal("approved"), z.literal("rejected")]),
-    approvedArtifactRefs: z.array(z.string().min(1)).max(500).optional(),
-    actorScope: z.string().min(1).max(200),
-    expectedRevision: z.number().int().nonnegative().optional(),
-    idempotencyKey: z.string().min(8).max(200),
-  }),
-});
+import { SandboxBuildService, SandboxBuildError } from "./sandbox/build-service.js";
+import { CodingTaskService, CodingTaskError } from "./sandbox/coding-tasks.js";
+import { CodingLeases } from "./sandbox/coding-leases.js";
+import { CodingAutoRuns } from "./sandbox/coding-auto.js";
+import { handleSandboxCoding } from "./sandbox/coding-http.js";
+import { AgentTaskKernel } from "./kernel/service.js";
+import { createCareerTaskHandler } from "./tasks/http.js";
+import { createCareerTaskRuntimeResolver } from "./tasks/runtime.js";
+import type { CareerTaskReasoner } from "./kernel/model-protocol.js";
+import { CareerStudio } from "./career-studio/service.js";
+import { createCareerStudioHttp } from "./career-studio/http.js";
+import type { CareerFinalExportRenderer } from "./career-studio/final-export-http.js";
+import type { VerifiedJobResolver } from "./career-studio/verified-jobs.js";
+import type { ConfiguredCareerMcpServer } from "./career-studio/mcp-client-http.js";
+import type { CloudPrivacyAdapter } from "./privacy/types.js";
+import type { loadCareerOperatorConfig } from "./career-studio/operator-config.js";
 
 // ── Server factory ────────────────────────────────────────────────────────────
 
@@ -131,7 +90,12 @@ export interface ServerOptions {
   /** Separate opt-in evidence/history store; never the resume or jobs database. */
   understandingDirectory?: string;
   understandingTurnTimeoutMs?: number;
+  /** @deprecated Legacy turns are retired. Use careerTaskReasoner for isolated task fixtures. */
   understandingReasoner?: (runtime: UnderstandingRuntime) => Promise<UnderstandingReasoner>;
+  /** Trusted synthetic task fixture only; never accepted from HTTP. */
+  careerTaskReasoner?: (runtime: UnderstandingRuntime) => Promise<CareerTaskReasoner>;
+  /** Trusted metadata fixture; never accepted from HTTP. */
+  careerStudioLocalClient?: (runtime: StudioLocalRuntime) => LocalOllamaClient;
   /** Separate OAuth store; never a resume/jobs database or a CLI auth directory. */
   chatGptDirectory?: string;
   chatGptAuthorizationUnavailableReason?: string;
@@ -147,6 +111,18 @@ export interface ServerOptions {
   nativeProcessRunner?: NativeProcessRunner;
   /** Trusted regression seam only; HTTP cannot supply executable source/builders. */
   capabilityBuilder?: ToolBuilder;
+  /** Local coding contract fixtures for trusted embeddings; never configurable by HTTP. */
+  sandboxCoding?: Pick<ConstructorParameters<typeof CodingTaskService>[0],"generate"|"resolveModel">;
+  /** Trusted operator configuration; HTTP/model output cannot install servers. */
+  careerMcpServers?: readonly ConfiguredCareerMcpServer[];
+  careerPrivacyCloud?: CloudPrivacyAdapter;
+  careerOperator?: Awaited<ReturnType<typeof loadCareerOperatorConfig>>;
+  /** Trusted Vork installation path only. Source scenes are never accepted. */
+  careerVorkBinary?: string;
+  /** Installation-owned renderer; browser requests cannot select executables. */
+  careerFinalExportRenderer?: CareerFinalExportRenderer;
+  /** Read-only JobService authority; HTTP coordinate flags are never trusted. */
+  careerVerifiedJobResolver?: VerifiedJobResolver;
 }
 
 function jsonResponse(res: http.ServerResponse, status: number, body: unknown): void {
@@ -158,9 +134,8 @@ function jsonResponse(res: http.ServerResponse, status: number, body: unknown): 
   res.end(payload);
 }
 
-async function readBody(req: http.IncomingMessage): Promise<unknown> {
+async function readBody(req: http.IncomingMessage, maxBytes = 16 * 1024 * 1024): Promise<unknown> {
   const chunks: Buffer[] = [];
-  const maxBytes = 16 * 1024 * 1024;
   let byteLength = 0;
   let oversized = false;
   for await (const chunk of req) {
@@ -173,7 +148,7 @@ async function readBody(req: http.IncomingMessage): Promise<unknown> {
     chunks.push(buffer);
   }
   if (oversized) {
-    const error = new Error("request_body_too_large");
+    const error = Object.assign(new Error("request_body_too_large"),{code:"request_body_too_large",status:413});
     error.name = "PayloadTooLargeError";
     throw error;
   }
@@ -182,13 +157,13 @@ async function readBody(req: http.IncomingMessage): Promise<unknown> {
 }
 
 export function createAgentServer(opts: ServerOptions): http.Server {
-  // Cache one compiled graph per process; thread safety via thread_id in checkpointer.
-  const careerGraph = buildCareerOrchestrator(opts.checkpointer);
   const runtimeRegistry = new RuntimeRegistry({ definitions: opts.runtimeDefinitions });
   const understandingRegistry = new RuntimeRegistry({ definitions: opts.runtimeDefinitions });
   let runtimeScan: Promise<unknown> | undefined;
   const identityRoot = opts.identityDirectory ?? path.join(opts.runsDirectory ?? path.dirname(resolveCheckpointPath()), "accounts-v1");
   const identities = new IdentityService(identityRoot);
+  const codingLeases = new CodingLeases(identityRoot);
+  const codingOwners = new Map<string,{tasks:CodingTaskService;auto:CodingAutoRuns}>();
   const oidc = opts.oidc ? new OidcService(opts.oidc, identities) : undefined;
   function makeOwner(principal: Principal) {
     // principal.id is server-generated and authenticated, never a request path/body field.
@@ -204,16 +179,64 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     const provider: ChatGptPlanService = opts.chatGptService && owners.size === 0 ? opts.chatGptService : chatGpt;
     const nativeTools = new NativeAccountTools({ directory: path.join(root, "native-tools-v1"), registry: understandingRegistry, runner: opts.nativeProcessRunner });
     const routing = new AgentRouting({ directory: path.join(root, "routing-v1"), native: nativeTools, scan: async () => { await understandingRegistry.discoverExecutables(); } });
-    return { understanding, nativeTools, routing, chatGpt: provider, recovery, store: new OwnedStore(path.join(root, "records"), principal.id,
+    const careerTasks = new AgentTaskKernel({ ownerId: principal.id, directory: path.join(root, "career-tasks-v1"),
+      validateStudioAnalysis: async (task, access) => {
+        try { await getStudioHttp().studio.validateAnalysis(task, access); }
+        catch (error) { if (error instanceof StudioError) throw new CareerTaskError(error.code, error.status); throw error; }
+      },
+      validateStudioCommittee: async (task, access) => {
+        try { return await getStudioHttp().studio.validateAnalysis(task, access); }
+        catch (error) { if (error instanceof StudioError) throw new CareerTaskError(error.code, error.status); throw error; }
+      },
+      broker: new EvidenceBroker({ forbiddenRoots: [identityRoot, path.dirname(resolveCheckpointPath()),
+        ...[opts.runsDirectory, opts.understandingDirectory, opts.chatGptDirectory].filter((value): value is string => Boolean(value))] }),
+    });
+    const taskRuntime = createCareerTaskRuntimeResolver({ nativeTools, routing, chatGpt: provider, reasoner: opts.careerTaskReasoner,
+      scan: async () => { await understandingRegistry.discoverExecutables(); } });
+    // Studio's private ledger is opt-in. Ordinary resume/routing requests must
+    // not create its stores or depend on its optional renderer/adapters.
+    let studioHttp: ReturnType<typeof createCareerStudioHttp> | undefined;
+    const getStudioHttp = () => {
+      if (studioHttp) return studioHttp;
+      const studioBroker = new EvidenceBroker({ forbiddenRoots: [identityRoot, path.dirname(resolveCheckpointPath()),
+        ...[opts.runsDirectory, opts.understandingDirectory, opts.chatGptDirectory].filter((value): value is string => Boolean(value))] });
+      const studio = new CareerStudio({ ownerId: principal.id, directory: path.join(root, "career-studio-v1"), vorkBinary: opts.careerVorkBinary, resolveVerifiedJob: opts.careerVerifiedJobResolver,
+        ...(opts.careerOperator ? { resolveVorkBinary: () => opts.careerOperator!.getVorkBinary() } : {}),
+        broker: studioBroker,
+        committeeTasks: {
+          get: async (id, access) => { if (!await access.valid()) throw new StudioError("studio_interaction_invalid", 403);
+            const task = await careerTasks.readTask(id); if (task.kind !== "studio_committee") throw new StudioError("studio_operation_not_found", 404); return task; },
+          list: async (contextId, access) => { if (!await access.valid()) throw new StudioError("studio_interaction_invalid", 403);
+            return (await careerTasks.listTasks()).filter((task): task is import("@better-me/agent-contracts").StudioCommitteeTask => task.kind === "studio_committee" && task.request.contextId === contextId); },
+          describe: (id, access) => careerTasks.describeStudioCommittee(id, access),
+          review: (id, access) => careerTasks.reviewStudioCommittee(id, access),
+        },
+        ...(opts.careerStudioLocalClient ? { localClient: opts.careerStudioLocalClient } : {}),
+      });
+      studioHttp = createCareerStudioHttp({ studio, ownerId: principal.id, baseURL: serverOrigin(), allowedOrigins: [...new Set([...opts.allowedOrigins, serverOrigin()])],
+        mcpServers: opts.careerMcpServers, cloud: opts.careerOperator?.configuredCloud ?? opts.careerPrivacyCloud,
+        ...(opts.careerOperator ? { getMcpServers: () => opts.careerOperator!.getMcpServers(), assertConfiguration: () => opts.careerOperator!.assertCurrent() } : {}),
+        privacyBroker: studioBroker, finalExportRenderer: opts.careerFinalExportRenderer, readBody, sendJson: jsonResponse });
+      return studioHttp;
+    };
+    return { understanding, nativeTools, routing, careerTasks, taskRuntime, getStudioHttp, peekStudioHttp: () => studioHttp, chatGpt: provider, recovery, store: new OwnedStore(path.join(root, "records"), principal.id,
       (namespace, key) => namespace === "continuity" ? recovery.continuity(key) : Promise.resolve(undefined)),
       runManager: new AgentRunManager({ registry: runtimeRegistry, rootDirectory: path.join(root, "runs"), sandboxMode: opts.sandboxMode }),
       handleChatGpt: createChatGptHandler({ service: provider, allowedOrigins: opts.allowedOrigins, readBody, sendJson: jsonResponse }),
       handleRouting: createRoutingHandler({ service: routing, readBody, sendJson: jsonResponse }),
+      handleCareerTasks: createCareerTaskHandler({ ownerId:principal.id, service: careerTasks, readBody, sendJson: jsonResponse,
+        resolveReasoner: async (runtime, lease, task, cancel) => {
+          if (task.kind === "studio_analysis" || task.kind === "studio_committee") {
+            if (!isDeepStrictEqual(runtime, studioAnalysisRuntime(task.request.runtime.model))) throw Object.assign(new Error("studio_task_runtime_mismatch"), { code: "studio_task_runtime_mismatch", status: 422 });
+            await getStudioHttp().studio.validateAnalysis(task, lease);
+          }
+          return taskRuntime(runtime, lease, task, cancel);
+        },
+      }),
       handleUnderstanding: createUnderstandingHandler({ service: understanding, registry: understandingRegistry,
         nativeTools: opts.trustedSingleUserRuntimeExecution ? undefined : nativeTools,
-        routing,
         allowNativeExecution: opts.trustedSingleUserRuntimeExecution === true,
-        ensureRuntimeScan: async () => { await understandingRegistry.discoverExecutables(); }, readBody, sendJson: jsonResponse, reasoner: opts.understandingReasoner, chatGpt: provider }),
+        ensureRuntimeScan: async () => { await understandingRegistry.discoverExecutables(); }, readBody, sendJson: jsonResponse }),
     };
   }
   const owners = new Map<string, ReturnType<typeof makeOwner>>();
@@ -225,9 +248,13 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     if (!cookie) return;
     const previous = await identities.authenticate(cookie);
     if (previous) {
+      owners.get(previous.id)?.taskRuntime.invalidateSession(capabilitySession(cookie));
+      await codingLeases.revoke(previous.id,capabilitySession(cookie));
       await capabilityOwners.get(previous.id)?.invalidateSession(capabilitySession(cookie));
       await owners.get(previous.id)?.nativeTools.invalidateSession(capabilitySession(cookie));
       await owners.get(previous.id)?.routing.invalidateSession(capabilitySession(cookie));
+      await owners.get(previous.id)?.careerTasks.invalidateSession(capabilitySession(cookie));
+      await owners.get(previous.id)?.peekStudioHttp()?.invalidateSession(capabilitySession(cookie));
     }
   };
 
@@ -237,21 +264,22 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     await runtimeScan;
   }
 
-  function getGraph(settings: ModelSettings): JdMatchGraph {
-    // Graph state belongs in the checkpointer, credentials and generation controls do not.
-    // Rebuilding honors key rotation and thinking settings on every request.
-    return buildJdMatchGraph(buildModel(settings), opts.checkpointer);
-  }
-
   const sandboxBuildService = new SandboxBuildService();
+
+  function serverOrigin() {
+    const address = server.address(), port = address && typeof address === "object" ? address.port : opts.port;
+    const host = opts.host === "0.0.0.0" || opts.host === "::" ? "127.0.0.1" : opts.host;
+    return `http://${host.includes(":") ? `[${host}]` : host}:${port}`;
+  }
 
   const server = http.createServer(async (req, res) => {
     // ── CORS ──────────────────────────────────────────────────────────────────
     const origin = req.headers["origin"] ?? "";
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Vary", "Origin");
-    if (origin && !opts.allowedOrigins.includes(origin)) return jsonResponse(res, 403, { error: "origin_rejected" });
-    if (typeof origin === "string" && opts.allowedOrigins.includes(origin)) {
+    const allowedOrigin = opts.allowedOrigins.includes(origin) || origin === serverOrigin();
+    if (origin && !allowedOrigin) return jsonResponse(res, 403, { error: "origin_rejected" });
+    if (typeof origin === "string" && allowedOrigin) {
       res.setHeader("Access-Control-Allow-Origin", origin);
       res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-BetterMe-Owner");
@@ -261,6 +289,12 @@ export function createAgentServer(opts: ServerOptions): http.Server {
 
     const url = new URL(req.url ?? "/", "http://127.0.0.1");
     const { pathname } = url;
+    // Capsule/MCP capabilities use their own narrow, expiring bearer tokens;
+    // never require or expose the private installation transport token here.
+    if (pathname.startsWith("/api/v1/agent/career-studio/public/")) {
+      for (const owner of owners.values()) if (await owner.peekStudioHttp()?.handlePublic(req, res, pathname)) return;
+      return jsonResponse(res, 404, { error: "public_capability_unavailable" });
+    }
     // Only the registered OIDC callback is a browser navigation without the transport token.
     // Its own one-use state + browser cookie + nonce + PKCE + signed JWT checks are mandatory.
     if (req.method === "GET" && pathname === OIDC_CALLBACK_PATH && oidc) {
@@ -337,20 +371,28 @@ export function createAgentServer(opts: ServerOptions): http.Server {
         return jsonResponse(res, 200, { signedOut: true });
       }
       if (req.method === "POST" && pathname === "/api/v1/agent/sandbox/build") {
-        try {
-          const body = await readBody(req);
-          const artifact = await sandboxBuildService.build(body as SandboxBuildInput);
-          return jsonResponse(res, 200, { ok: true, app: artifact, verification: artifact.verification });
-        } catch (buildError) {
-          return jsonResponse(res, 500, {
-            ok: false,
-            error: buildError instanceof Error ? buildError.message : String(buildError),
-          });
+        const artifact = await sandboxBuildService.build(await readBody(req,192*1024));
+        return jsonResponse(res, 200, { ok: true, app: artifact, verification: artifact.verification });
+      }
+      if (pathname.startsWith("/api/v1/agent/sandbox/coding/")) {
+        let coding=codingOwners.get(principal.id);
+        if (!coding) {
+          const tasks = new CodingTaskService({directory:path.join(identityRoot,"owners",principal.id,"sandbox-coding-v1"),
+            ownerId:principal.id,...opts.sandboxCoding});
+          coding={tasks,auto:new CodingAutoRuns(tasks)};
+          codingOwners.set(principal.id,coding);
         }
+        const cookie=req.headers.cookie,sessionId=capabilitySession(cookie),ownerId=principal.id;
+        const acquire=()=>codingLeases.open(ownerId,sessionId,async()=>(await identities.authenticate(cookie))?.id===ownerId);
+        const lease=acquire();
+        try { return await handleSandboxCoding(req,res,pathname,coding.tasks,coding.auto,lease.valid,acquire,readBody,jsonResponse); }
+        finally { lease.release(); }
       }
       let owner = owners.get(principal.id);
       if (!owner) { owner = makeOwner(principal); owners.set(principal.id, owner); }
       const { handleChatGpt, handleUnderstanding, runManager } = owner;
+      if (pathname.startsWith("/api/v1/agent/career-studio/") && await owner.getStudioHttp().handleOwner(req, res, pathname, { session: capabilitySession(req.headers.cookie),
+        valid: async () => (await identities.authenticate(req.headers.cookie))?.id === principal.id })) return;
       if (pathname.startsWith("/api/v1/agent/capabilities")) {
         let capabilities = capabilityOwners.get(principal.id);
         if (!capabilities) {
@@ -373,6 +415,8 @@ export function createAgentServer(opts: ServerOptions): http.Server {
         valid: async () => (await identities.authenticate(req.headers.cookie))?.id === principal.id })) return;
       if (await handleUnderstanding(req, res, pathname, { session: capabilitySession(req.headers.cookie),
         valid: async () => (await identities.authenticate(req.headers.cookie))?.id === principal.id })) return;
+      if (await owner.handleCareerTasks(req, res, pathname, { session: capabilitySession(req.headers.cookie),
+        valid: async () => (await identities.authenticate(req.headers.cookie))?.id === principal.id })) return;
       const recordMatch = pathname.match(/^\/api\/v1\/agent\/records\/(continuity|growth)$/);
       if (recordMatch) {
         const namespace = recordMatch[1] as "continuity" | "growth";
@@ -388,43 +432,17 @@ export function createAgentServer(opts: ServerOptions): http.Server {
         }
       }
 
-      // ── POST /api/v1/agent/workflows/career/start ───────────────────────
-      if (req.method === "POST" && pathname === "/api/v1/agent/workflows/career/start") {
-        const body = CareerStartBodySchema.parse(await readBody(req));
-        const result = await careerGraph.invoke({
-          task: body.task,
-          workspaceId: body.workspaceId,
-          requestedRuntimeId: body.requestedRuntimeId,
-        }, { configurable: { thread_id: thread("career", body.threadId) } });
-        const state = await careerGraph.getState({ configurable: { thread_id: thread("career", body.threadId) } });
-        return jsonResponse(res, 200, {
-          status: state.next.length > 0 ? "awaiting_approval" : "complete",
-          threadId: body.threadId,
-          workers: result.workers,
-          artifacts: result.artifacts,
-          coverage: result.coverage,
-          errors: result.errors,
-          stepLog: result.stepLog,
-        });
+      // Legacy graphs are history only, not a second executor / approval authority.
+      if (req.method === "POST" && ["/api/v1/agent/workflows/career/start", "/api/v1/agent/workflows/career/resume"].includes(pathname)) {
+        return jsonResponse(res, 410, { error: "career_workflow_moved_to_tasks", next: "/api/v1/agent/tasks" });
       }
-
-      // ── POST /api/v1/agent/workflows/career/resume ──────────────────────
-      if (req.method === "POST" && pathname === "/api/v1/agent/workflows/career/resume") {
-        const body = CareerResumeBodySchema.parse(await readBody(req));
-        const config = { configurable: { thread_id: thread("career", body.threadId) } };
-        const pending = await careerGraph.getState(config);
-        if (!pending.tasks.some(task => task.interrupts?.length)) return jsonResponse(res, 409, { error: "workflow_not_awaiting_approval" });
-        const result = await careerGraph.invoke(new Command({ resume: { ...body.approval, actorScope: principal.id } as CareerApproval }), config);
-        const state = await careerGraph.getState(config);
-        return jsonResponse(res, 200, {
-          status: state.next.length > 0 ? "awaiting_approval" : "complete",
-          threadId: body.threadId,
-          approval: result.approval,
-          artifacts: result.artifacts,
-          coverage: result.coverage,
-          errors: result.errors,
-          stepLog: result.stepLog,
-        });
+      const careerState = pathname.match(/^\/api\/v1\/agent\/workflows\/career\/state\/([A-Za-z0-9._:-]{1,200})$/);
+      if (req.method === "GET" && careerState) {
+        const threadId = careerState[1]!;
+        const tuple = await opts.checkpointer.getTuple({ configurable: { thread_id: thread("career", threadId) } });
+        if (!tuple) return jsonResponse(res, 404, { error: "thread_not_found" });
+        return jsonResponse(res, 200, { legacy: true, readOnly: true, threadId, checkpointId: tuple.checkpoint.id,
+          state: tuple.checkpoint.channel_values, pendingWrites: tuple.pendingWrites ?? [] });
       }
 
       // ── GET /api/v1/agent/runtimes ──────────────────────────────────────
@@ -443,27 +461,9 @@ export function createAgentServer(opts: ServerOptions): http.Server {
         }) });
       }
 
-      // ── POST /api/v1/agent/runs ─────────────────────────────────────────
+      // Legacy runs remain readable/cancellable; all new text execution is a task.
       if (req.method === "POST" && pathname === "/api/v1/agent/runs") {
-        // Existing CLI runs inherit an OS account and can read its files. A process directory or
-        // the current optional sandbox is NOT a multi-user read boundary. Keep the controlled
-        // understanding Broker; refuse unrestricted runs rather than exposing another owner's data.
-        if (!opts.trustedSingleUserRuntimeExecution) return jsonResponse(res, 403, { error: "runtime_identity_isolation_required" });
-        await runManager.ready();
-        const raw = await readBody(req);
-        const body = StartRunBodySchema.parse(raw);
-        await ensureRuntimeScan();
-        const runtime = runtimeRegistry.get(body.runtimeId);
-        if (!runtime) return jsonResponse(res, 404, { error: "runtime_not_found", runtimeId: body.runtimeId });
-        if (runtime.status !== "available") {
-          return jsonResponse(res, 409, { error: "runtime_not_available", runtime });
-        }
-        const run = await runManager.start({ ...body, runtime });
-        return jsonResponse(res, 202, {
-          run,
-          eventsUrl: `/api/v1/agent/runs/${run.id}/events`,
-          statusUrl: `/api/v1/agent/runs/${run.id}`,
-        });
+        return jsonResponse(res, 410, { error: "runtime_run_moved_to_tasks", next: "/api/v1/agent/tasks" });
       }
 
       // ── GET /api/v1/agent/runs ──────────────────────────────────────────
@@ -534,83 +534,10 @@ export function createAgentServer(opts: ServerOptions): http.Server {
         return jsonResponse(res, 202, { run });
       }
 
-      // ── POST /api/v1/agent/jd-match/start ────────────────────────────────
-      if (req.method === "POST" && pathname === "/api/v1/agent/jd-match/start") {
-        const raw = await readBody(req);
-        const body = StartBodySchema.parse(raw);
-        const graph = getGraph(body.modelSettings);
-
-        const result = await graph.invoke(
-          {
-            rawJd: body.rawJd,
-            allowedProfileEntryIds: body.allowedProfileEntryIds,
-            sessionClaims: body.sessionClaims ?? {},
-          },
-          {
-            configurable: { thread_id: thread("jd", body.threadId) },
-            // apiKey is in modelSettings only; not part of graph config
-          }
-        );
-
-        const threadState = await graph.getState({ configurable: { thread_id: thread("jd", body.threadId) } });
-        if (threadState.next.length > 0) {
-          // Graph hit interrupt/breakpoint at confirmProposals — return proposals for review
-          return jsonResponse(res, 200, {
-            status: "awaiting_review",
-            threadId: body.threadId,
-            proposals: result.proposals,
-            structuredJd: result.structuredJd,
-            errors: result.errors,
-          });
-        }
-
-        // Graph completed without interrupt (e.g. structureJd failed early)
-        return jsonResponse(res, 200, {
-          status: "complete",
-          threadId: body.threadId,
-          proposals: result.proposals,
-          decisions: result.decisions,
-          errors: result.errors,
-        });
-      }
-
-      // ── POST /api/v1/agent/jd-match/resume ───────────────────────────────
-      if (req.method === "POST" && pathname === "/api/v1/agent/jd-match/resume") {
-        const raw = await readBody(req);
-        const body = ResumeBodySchema.parse(raw);
-        const graph = getGraph(body.modelSettings);
-
-        const config = { configurable: { thread_id: thread("jd", body.threadId) } };
-        const pending = await graph.getState(config);
-        if (!pending.tasks.some(task => task.interrupts?.length)) return jsonResponse(res, 409, { error: "workflow_not_awaiting_review" });
-        const proposals = pending.values.proposals as Array<{ id: string }>;
-        if (proposals.some(proposal => !body.decisions[proposal.id]) || Object.keys(body.decisions).some(id => !proposals.some(proposal => proposal.id === id))) {
-          return jsonResponse(res, 400, { error: "review_decisions_must_match_proposals" });
-        }
-        const result = await graph.invoke(
-          new Command({ resume: body.decisions as Record<string, ProposalDecision> }),
-          config
-        );
-
-        const accepted = result.proposals.filter(
-          (p) => result.decisions[p.id]?.status === "accepted"
-        );
-        const edited = result.proposals
-          .filter((p) => result.decisions[p.id]?.status === "edited")
-          .map((p) => {
-            const d = result.decisions[p.id] as { status: "edited"; editedSuggestion: string };
-            return { ...p, suggestion: d.editedSuggestion };
-          });
-        const gaps = result.proposals.filter((p) => p.evidenceType === "gap");
-
-        return jsonResponse(res, 200, {
-          status: "complete",
-          threadId: body.threadId,
-          accepted,
-          edited,
-          gaps,
-          errors: result.errors,
-        });
+      // Legacy records remain readable below, but this route is no longer an
+      // independent executor or a fallback around the owner task ledger.
+      if (req.method === "POST" && ["/api/v1/agent/jd-match/start","/api/v1/agent/jd-match/resume"].includes(pathname)) {
+        return jsonResponse(res, 410, { error: "jd_match_moved_to_tasks", next: "/api/v1/agent/tasks" });
       }
 
       // ── GET /api/v1/agent/jd-match/state/:threadId ───────────────────────
@@ -631,29 +558,12 @@ export function createAgentServer(opts: ServerOptions): http.Server {
 
       // ── POST /api/v1/agent/chat ──────────────────────────────────────────
       if (req.method === "POST" && pathname === "/api/v1/agent/chat") {
-        const raw = await readBody(req);
-        const body = ChatRequestBodySchema.parse(raw);
-        const model = buildModel(body.modelSettings);
-        const controller = new AbortController();
-        const onAbort = () => controller.abort();
-        const onClose = () => { if (!res.writableEnded) controller.abort(); };
-        req.once("aborted", onAbort);
-        res.once("close", onClose);
-        try {
-          const reply = await processAgentChat(model, body, controller.signal);
-          if (controller.signal.aborted) return;
-          return jsonResponse(res, 200, { reply });
-        } catch (error) {
-          if (controller.signal.aborted) return;
-          throw error;
-        } finally {
-          req.off("aborted", onAbort);
-          res.off("close", onClose);
-        }
+        return jsonResponse(res, 410, { error: "free_chat_moved_to_tasks", next: "/api/v1/agent/tasks" });
       }
 
       return jsonResponse(res, 404, { error: "not_found" });
     } catch (err: any) {
+      if (err instanceof CodingTaskError || err instanceof SandboxBuildError) return jsonResponse(res, err.status, { error:err.code });
       if (err instanceof IdentityError) return jsonResponse(res, err.status, { error: err.code });
       if (err instanceof DeepSeekApiError) {
         return jsonResponse(res, err.status, { error: "model_provider_error", message: err.message });
@@ -671,11 +581,31 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     }
   });
 
-  server.once("close", () => { for (const owner of owners.values()) { void owner.routing.close(); void owner.nativeTools.close(); void owner.understanding.dispose(); owner.chatGpt.dispose(); } });
+  let draining:Promise<void>|undefined;
+  const drain=()=>draining??=(async()=>{
+    codingLeases.close();
+    const work:Promise<unknown>[]=[];
+    for(const owner of owners.values()){
+      owner.taskRuntime.close();
+      work.push(owner.careerTasks.close().finally(async()=>{
+        await Promise.allSettled([owner.peekStudioHttp()?.close(),owner.routing.close(),owner.nativeTools.close(),owner.understanding.dispose()]);
+        owner.chatGpt.dispose();
+      }));
+    }
+    for(const service of capabilityOwners.values())work.push(service.close());
+    for(const coding of codingOwners.values())work.push(coding.auto.close().finally(()=>coding.tasks.close()));
+    const results=await Promise.allSettled(work);
+    opts.careerOperator?.close();opts.careerFinalExportRenderer?.close();
+    if(results.some(result=>result.status==="rejected"))throw Error("agent_shutdown_failed");
+  })();
+  // The close callback is also the storage lifetime gate for embedded Hosts.
+  // Await kernel writers before a caller can release the private directories.
+  const close=server.close.bind(server);
+  server.close=callback=>close(error=>{void drain().then(()=>callback?.(error),()=>callback?.(error??Error("agent_shutdown_failed")));});
+  server.once("close",()=>{void drain().catch(()=>{ /* close callback reports a sanitized shutdown failure */ });});
   server.listen(opts.port, opts.host, () => {
     console.log(`[agent-host] listening on http://${opts.host}:${opts.port}`);
   });
 
-  server.once("close", () => { for (const service of capabilityOwners.values()) void service.close(); });
   return server;
 }

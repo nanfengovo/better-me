@@ -44,7 +44,7 @@ export async function nativeLaunch(id: NativeId, credential: NativeCredential, d
   const environment: Record<string, string> = {};
   let args: string[];
   if (id === "codex") {
-    const disabled = ["apps", "shell_tool", "multi_agent", "hooks", "code_mode", "code_mode_host", "js_repl", "view_image", "image_generation", "shell_snapshot", "external_agent_memory_import"];
+    const disabled = ["apps", "shell_tool", "unified_exec", "multi_agent", "multi_agent_v2", "hooks", "code_mode", "code_mode_host", "js_repl", "view_image", "image_generation", "shell_snapshot", "external_agent_memory_import", "plugins", "remote_plugin", "tool_suggest", "sleep_tool", "skill_search", "computer_use", "browser_use", "browser_use_external", "in_app_browser", "goals", "default_mode_request_user_input", "request_permissions_tool"];
     const config = ["cli_auth_credentials_store = \"file\"", "approval_policy = \"never\"", "sandbox_mode = \"read-only\"",
       "web_search = \"disabled\"", "project_root_markers = []", "mcp_servers = {}", "notify = []",
       "[history]", "persistence = \"none\"", "[features]", ...disabled.map(feature => `${feature} = false`),
@@ -101,13 +101,15 @@ export async function nativeLaunch(id: NativeId, credential: NativeCredential, d
     await fs.writeFile(policy, '[[rule]]\ntoolName = "*"\ndecision = "deny"\npriority = 999\n', { mode: 0o600 });
     args = ["--output-format", "stream-json", "--model", model, "--approval-mode", "default", "--policy", policy, "--prompt", instructions];
   }
-  return { args, environment, hosts };
+  return { args, environment, hosts, codexManagedPreferences: id === "codex" };
 }
 
 /** Fail closed on native tool/hook/plugin events, duplicate completion, bad
  * framing and partial answers. Reasoning is validated but never returned. */
 export class NativeOutput {
   private pending = ""; private answer = ""; private initialized = false; private completed = false;
+  private turnStarted = false; private disabledHelperWarning = false; private metadataWarning = false;
+  readonly diagnostics: string[] = [];
   constructor(private readonly id: NativeId) {}
   feed(chunk: string): void {
     this.pending += chunk;
@@ -127,11 +129,22 @@ export class NativeOutput {
     if (this.id === "codex") {
       if (type === "thread.started" && !this.initialized) { this.initialized = true; return; }
       if (!this.initialized) throw new NativeToolError("protocol_violation");
-      if (type === "turn.started") return;
+      if (type === "turn.started") { this.turnStarted = true; return; }
       if (type === "item.started" || type === "item.updated" || type === "item.completed") {
         const item = event["item"] as Record<string, unknown> | undefined;
+        // Current Codex emits this startup diagnostic even when the adapter
+        // deliberately disables the helper. It is not a model/tool result.
+        // Match once, before a turn; all other errors and tool events fail closed.
+        if (!this.turnStarted && !this.disabledHelperWarning && type === "item.completed" && item?.["type"] === "error"
+          && item["message"] === "Code Mode is unavailable because code-mode host is disabled. Code mode will fail closed; enable `features.code_mode_host` and install `codex-code-mode-host`.") {
+          this.disabledHelperWarning = true; this.diagnostics.push(String(item["message"])); return;
+        }
+        if (!this.turnStarted && !this.metadataWarning && type === "item.completed" && item?.["type"] === "error" && typeof item["message"] === "string"
+          && /^Model metadata for `[A-Za-z0-9_.:/-]+` not found\. Defaulting to fallback metadata; this can degrade performance and cause issues\.$/.test(item["message"])) {
+          this.metadataWarning = true; this.diagnostics.push(item["message"]); return;
+        }
         if (!item || !["reasoning", "agent_message"].includes(String(item["type"]))) throw new NativeToolError("native_tools_denied");
-        if (type === "item.completed" && item["type"] === "agent_message" && typeof item["text"] === "string") this.answer = item["text"];
+        if (type === "item.completed" && item["type"] === "agent_message" && typeof item["text"] === "string") this.answer += (this.answer ? "\n\n" : "") + item["text"];
         return;
       }
       if (type === "turn.completed") { this.completed = true; return; }

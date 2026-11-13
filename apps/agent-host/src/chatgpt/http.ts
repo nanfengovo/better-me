@@ -1,6 +1,5 @@
 import type http from "node:http";
 import { z } from "zod";
-import { ChatGptResponseRequestSchema } from "@better-me/agent-contracts";
 import { ChatGptPlanService } from "./service.js";
 import { safeFailure } from "./errors.js";
 
@@ -28,11 +27,7 @@ export function createChatGptHandler(deps: { service: ChatGptPlanService; allowe
         else if (route === "/retry") { deps.service.retry(profileId); deps.sendJson(res, 200, await deps.service.state()); }
         else deps.sendJson(res, 200, { ...await deps.service.signOut(profileId), state: await deps.service.state() });
       } else if (req.method === "POST" && route === "/response") {
-        const { consentToSend: _consent, ...input } = ChatGptResponseRequestSchema.parse(await deps.readBody(req));
-        const controller = new AbortController();
-        const cancel = () => controller.abort(); res.once("close", cancel);
-        try { deps.sendJson(res, 200, await deps.service.respond(input, controller.signal)); }
-        finally { res.off("close", cancel); }
+        deps.sendJson(res, 410, { error: "chatgpt_response_moved_to_tasks", next: "/api/v1/agent/tasks" });
       } else deps.sendJson(res, 404, { error: "not_found" });
     } catch (error) {
       if (res.destroyed || res.writableEnded) return true;

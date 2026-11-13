@@ -124,6 +124,29 @@ describe("agent event bus", () => {
 });
 
 describe("agent run manager", () => {
+  it("preserves large complete answers and explicitly fails byte exhaustion instead of successful clipped output", async () => {
+    for (const oversized of [false, true]) {
+      const root = await fs.mkdtemp(path.join(os.tmpdir(), "better-me-full-run-output-"));
+      const script = oversized ? "process.stdout.write('x'.repeat(9000000))" : "process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:'完整'.repeat(50000)+'_END'}})+'\\n')";
+      const runtimeDefinition = definition({ id: "codex", name: "Synthetic Codex", command: process.execPath, transport: "json-rpc", promptArgs: ["-e", script] });
+      const registry = new RuntimeRegistry({ definitions: [runtimeDefinition] });
+      const runtime = (await registry.scan())[0]! as RuntimeAgentInfo;
+      const manager = new AgentRunManager({ rootDirectory: root, registry, sandboxMode: "disabled" });
+      try {
+        const run = await manager.start({ runtime, workflow: "full-output", prompt: "synthetic", timeoutMs: 5000 });
+        for (let i = 0; i < 150 && manager.get(run.id)?.status === "running"; i++) await new Promise(resolve => setTimeout(resolve, 20));
+        await manager.flush(run.id);
+        if (oversized) {
+          assert.equal(manager.get(run.id)?.status, "failed");
+          assert.match(manager.get(run.id)?.error ?? "", /output_limit_exceeded/);
+          assert.equal(manager.events.get(run.id).some(event => event.type === "run.completed"), false);
+        } else {
+          assert.equal(manager.get(run.id)?.status, "completed");
+          assert.equal((await manager.getOutput(run.id)).output, "完整".repeat(50000) + "_END");
+        }
+      } finally { await fs.rm(root, { recursive: true, force: true }); }
+    }
+  });
   it("runs with an isolated directory and emits completion events", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "better-me-runs-"));
     const runtimeDefinition = definition({ command: process.execPath, promptArgs: ["-e", "process.stdout.write('hello\\n')"] });

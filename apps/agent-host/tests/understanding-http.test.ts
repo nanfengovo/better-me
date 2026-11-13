@@ -9,6 +9,8 @@ import type { RuntimeAgentDef, UnderstandingSession } from "@better-me/agent-con
 import { createAgentServer } from "../src/server.js";
 import { RuntimeRegistry } from "../src/runtime/registry.js";
 import { registerTestIdentity } from "./fixtures/identity.js";
+import {projectTaskHttp} from "./fixtures/project-task-http.js";
+import type {UnderstandingRuntime} from "../src/understanding/http.js";
 
 const summary = {
   summary: "虚构项目负责把外部运单转为内部搬运任务。", terms: [{ term: "RCS", meaning: "本项目的任务编排层，非车端运动控制器。", evidenceIds: [] }],
@@ -23,49 +25,40 @@ test("understanding HTTP authenticates, keeps consensus separate and guards exac
   let calls = 0;
   const server = createAgentServer({ port: 0, host: "127.0.0.1", authToken: "isolated-test-token", allowedOrigins: ["http://fixture.invalid"],
     checkpointer: new MemorySaver() as never, runsDirectory: path.join(dir, "runs"), understandingDirectory: path.join(dir, "sessions"),
-    runtimeDefinitions: [], understandingReasoner: async () => async () => reply(++calls > 1),
+    runtimeDefinitions: [], careerTaskReasoner: async () => async () => reply(++calls > 1),
   });
   await once(server, "listening");
   const address = server.address(); assert.ok(address && typeof address !== "string");
   const base = `http://127.0.0.1:${address.port}/api/v1/agent/understanding`;
   const identity = await registerTestIdentity(`http://127.0.0.1:${address.port}`, "isolated-test-token", "fixture-user", "http://fixture.invalid");
   const request = (url: string, method = "GET", body?: unknown) => fetch(base + url, { method, headers: { ...identity.headers, Authorization: "Bearer isolated-test-token", "Content-Type": "application/json", Origin: "http://fixture.invalid" }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
-  const settled = async (id: string): Promise<UnderstandingSession> => {
-    for (let i = 0; i < 100; i++) {
-      const state: UnderstandingSession = await (await request(`/sessions/${id}`)).json();
-      if (state.phase !== "running") return state;
-      await new Promise(resolve => setTimeout(resolve, 10));
-    }
-    throw new Error("test turn did not settle");
-  };
+  const taskApi=projectTaskHttp((route,body,method)=>fetch(`http://127.0.0.1:${address.port}/api/v1/agent${route}`,{method:method??(body===undefined?"GET":"POST"),headers:{...identity.headers,Authorization:"Bearer isolated-test-token","Content-Type":"application/json",Origin:"http://fixture.invalid"},...(body===undefined?{}:{body:JSON.stringify(body)})}));
   try {
     assert.equal((await fetch(`${base}/sessions/unknown`)).status, 401);
     const cors = await request("/sessions/unknown", "OPTIONS");
     assert.match(cors.headers.get("access-control-allow-methods") ?? "", /DELETE/);
-    const created = await request("/sessions", "POST", { workspaceKey: "synthetic", projectKey: "project", label: "虚构项目", sourceText: "RCS 搬运系统" });
-    assert.equal(created.status, 201);
-    let session: UnderstandingSession = await created.json();
-    const runtime = { kind: "model", modelSettings: { provider: "ollama", model: "fixture", apiKey: "NEVER-PERSIST-TEST-KEY" } };
-    assert.equal((await request(`/sessions/${session.id}/turns`, "POST", { expectedRevision: session.revision, idempotencyKey: "no-consent", answer: "开始", runtime })).status, 400);
+    const runtime:UnderstandingRuntime = { kind: "model", modelSettings: { provider: "ollama", model: "fixture",baseUrl:"http://127.0.0.1:1/v1", apiKey: "NEVER-PERSIST-TEST-KEY" } };
+    let session=await taskApi.create({workspaceKey:"synthetic",projectKey:"project",label:"虚构项目",sourceText:"RCS 搬运系统"},runtime);
+    assert.equal((await request(`/sessions/${session.id}/turns`, "POST", { expectedRevision: session.revision, idempotencyKey: "no-consent", answer: "开始", runtime })).status, 410);
     const initial = { expectedRevision: session.revision, idempotencyKey: "first-turn-key", answer: "请先理解项目", consentToSend: true, runtime };
-    assert.equal((await request(`/sessions/${session.id}/turns`, "POST", initial)).status, 202);
-    session = await settled(session.id);
+    const first=await taskApi.start(session.id,initial);assert.equal(first.status,202,await first.clone().text());
+    session = await taskApi.settled(session.id);
     assert.equal(session.phase, "awaiting-answer"); assert.ok(session.question);
-    assert.equal((await request(`/sessions/${session.id}/turns`, "POST", initial)).status, 202);
+    assert.equal((await taskApi.start(session.id,initial)).status, 200);
     assert.equal(calls, 1, "retrying delivery is not a new model run");
     const next = { expectedRevision: session.revision, idempotencyKey: "second-turn-key", answer: "准确，仅任务编排。", selectedOptionIds: ["orchestration"], consentToSend: true, runtime };
-    assert.equal((await request(`/sessions/${session.id}/turns`, "POST", next)).status, 202);
-    session = await settled(session.id); assert.equal(session.phase, "awaiting-confirmation");
-    assert.equal((await request(`/sessions/${session.id}/confirm`, "POST", { expectedRevision: session.revision - 1, summaryHash: session.summaryHash })).status, 409);
-    const confirmed = await request(`/sessions/${session.id}/confirm`, "POST", { expectedRevision: session.revision, summaryHash: session.summaryHash });
+    assert.equal((await taskApi.start(session.id,next)).status, 202);
+    session = await taskApi.settled(session.id); assert.equal(session.phase, "awaiting-confirmation");
+    assert.equal((await taskApi.mutate(session.id,"confirm",{ expectedRevision: session.revision - 1, summaryHash: session.summaryHash })).status, 409);
+    const confirmed = await taskApi.mutate(session.id,"confirm",{ expectedRevision: session.revision, summaryHash: session.summaryHash });
     assert.equal(confirmed.status, 200); session = await confirmed.json(); assert.equal(session.phase, "confirmed");
     assert.equal(session.confirmation?.revision, session.revision);
     const fixture = path.join(dir, "sample.ts"); await writeFile(fixture, "export const taskType = 'fetch-and-put';\n");
-    const granted = await request(`/sessions/${session.id}/grants`, "POST", { path: fixture });
+    const granted = await taskApi.mutate(session.id,"grants",{expectedRevision:session.revision,path:fixture});
     assert.equal(granted.status, 200); session = await granted.json(); assert.equal(session.confirmation, undefined);
-    const revoked = await request(`/sessions/${session.id}/grants/${session.grants[0]!.id}`, "DELETE");
+    const revoked = await taskApi.mutate(session.id,"revoke-grant",{expectedRevision:session.revision,grantId:session.grants[0]!.id});
     assert.equal(revoked.status, 200);
-    const ownedDirectory = path.join(dir, "runs", "accounts-v1", "owners", identity.principal.id, "understanding");
+    const ownedDirectory = path.join(dir, "runs", "accounts-v1", "owners", identity.principal.id, "career-tasks-v1");
     const persisted = await Promise.all((await readdir(ownedDirectory)).filter(name => name.endsWith(".json")).map(name => readFile(path.join(ownedDirectory, name), "utf8")));
     assert.ok(persisted.length); assert.ok(persisted.every(text => !text.includes("NEVER-PERSIST-TEST-KEY")));
     assert.equal((await request("/sessions/../outside")).status, 404);
@@ -119,8 +112,8 @@ test("understanding HTTP discovers unsupported runtimes without legacy probes an
       expectedRevision: session.revision, idempotencyKey: "unsupported-native-turn", answer: "Synthetic correction", consentToSend: true,
       runtime: { kind: "native", runtimeId: "fixture-native" },
     });
-    assert.equal(rejected.status, 422);
-    assert.equal((await rejected.json()).error, "native_runtime_unavailable");
+    assert.equal(rejected.status, 410);
+    assert.equal((await rejected.json()).error, "project_understanding_moved_to_tasks");
     const refreshed = await request(`/sessions/${session.id}`);
     assert.equal(refreshed.status, 200);
     assert.deepEqual(await refreshed.json(), session, "Rejected native turns must not alter revision, turn count or history");

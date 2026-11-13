@@ -2,30 +2,9 @@ import { HumanMessage, SystemMessage, AIMessage, BaseMessage } from "@langchain/
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { AgentActionCardSchema, type ChatRequestBody, type ChatMessage, type AgentActionCard } from "./types.js";
 import { vorkService } from "../vork/service.js";
+import { AGENT_CHAT_INSTRUCTIONS } from "./instructions.js";
 
-const SYSTEM_PROMPT = `你是一个内置于 BetterMe 个人求职与成长工作台的专属 Agent 职业顾问助手。
-你的任务是协助候选人深入分析目标岗位、调研雇主背景、优化简历表达、制定面试应对策略。回答要直接回应问题，给出可执行且有上下文的结论，不要只复述用户的问题或输出空泛模板。
-
-【真实性与完整性】
-- 如果没有联网检索或用户没有提供来源，不得声称“已经查询/核实”公司、岗位、薪资或招聘状态；明确区分已知事实、推断和待核实项。
-- 改写简历时只调整表达，不补造项目、技术、职责、百分比或业务结果。缺少事实时用问题标出需要用户补充的内容。
-- 先给结论，再说明依据、限制和下一步；涉及多个对象时逐项覆盖，不要只给一个例子后省略其余内容。
-- 输出尽可能完整；若确实受上下文或模型输出长度限制，明确说明缺失部分并给出续问建议，不要用省略号伪装完整结论。
-- 将对话当作连续协作：记住本轮已经确认的目标与限制；信息不足时先给能确定的分析，再提出至多两个与下一步直接相关的澄清问题，不要每轮重复问已回答的内容。
-- 用户想规划、学习或模拟面试时，按目标澄清 → 可执行步骤/练习 → 用户反馈 → 调整下一步推进；每轮末尾只给一个自然的可选下一步，不要替用户决定或声称已经执行。
-
-你可以执行以下专业任务，并在回答中按规范输出结构化动作卡片（Action Cards）：
-1. 查公司资料：分析其控股背景（民营/国企/外企）、业务方向、稳定性及潜在风险。
-2. 优化简历细节：针对目标 JD 将口语化、扁平的经历改写为符合 STAR 原则、量化且突出技术难点的 Bullet Point。
-3. 岗位匹配与缺口攻防：分析简历在目标岗位的优势与盲区，提供面试应答防守策略。
-4. 3D 物理光追架构徽章生成：当用户希望对核心项目、高并发系统或重大突破生成立体成果展示（如“生成 3D 徽章”、“生成架构徽章”）时，输出 3D 徽章卡片。
-
-【简历定点修改协议】
-- 仅当当前请求提供了“用户明确授权的可编辑简历字段”时，才可提出简历修改卡；普通聊天、简历概况、引用摘录都不授权写回。
-- 只针对输入字段中的一个现有目标提出修改；targetRef 必须逐字复制该字段的 targetRef，targetSection 写清个人简介或公司/职位/经历要点。
-- originalText 必须与该目标字段原文完全一致；不得自造目标、id、原文或新经历。 proposedText 只调整措辞，不新增原文没有的事实、技术、数字、责任或结果。
-- 字段缺少可证实内容时，不要给可写回卡片，改为向用户提问。建议卡仅供审阅，绝不表示自动修改。
-- 卡片格式增加 targetRef，例如 {"kind":"claim_text","experienceId":"...","claimId":"...","locale":"zh"} 或 {"kind":"profile_headline","locale":"zh"}。
+const SYSTEM_PROMPT = `${AGENT_CHAT_INSTRUCTIONS}
 
 【输出规范】：
 请用专业、诚恳、富有建设性的语气回答用户。不要为了凑格式重复正文，也不要返回示例占位数据。
@@ -160,7 +139,7 @@ export async function processAgentChat(
 职位：${job.title || "未披露"}
 公司：${job.company || "未披露"}
 地点：${job.location || "未披露"}
-JD 描述：${job.description ? job.description.slice(0, 1500) : "未提供"}`);
+JD 描述：${job.description || "未提供"}`);
   }
 
   if (body.context?.resumeSummary) {
@@ -172,7 +151,7 @@ JD 描述：${job.description ? job.description.slice(0, 1500) : "未提供"}`);
   }
 
   if (body.context?.selectedText?.trim()) {
-    contextNotes.push(`【用户选中的文本】：\n${body.context.selectedText.slice(0, 12_000)}`);
+    contextNotes.push(`【用户选中的文本】：\n${body.context.selectedText}`);
   }
 
   if (body.context?.resumeEditContext) {
@@ -251,35 +230,8 @@ JD 描述：${job.description ? job.description.slice(0, 1500) : "未提供"}`);
     }
   }
 
-  // 兜底支持：当用户显式提出 3D 徽章诉求，而模型未按 fenced 规范输出动作卡片时自动唤起
-  const lastUserMsg = body.messages.filter((m) => m.role === "user").slice(-1)[0]?.content ?? "";
-  const isBadgeRequest = /(3D|3d|三维)/.test(lastUserMsg) && /(徽章|架构|badge)/.test(lastUserMsg);
-  if (isBadgeRequest && !parsed.actions?.some((a) => a.type === "badge_3d")) {
-    try {
-      const style = /(赛博|黑曜石|neon)/i.test(lastUserMsg)
-        ? "cyber_neon"
-        : /(暮光|落日|浮岛|sunset)/i.test(lastUserMsg)
-          ? "sunset_solitude"
-          : "quantum_prism";
-      const renderRes = await vorkService.render({
-        presetId: style,
-        resolution: [1280, 720],
-        profile: "std/draft",
-      });
-      const badgeCard: AgentActionCard = {
-        type: "badge_3d",
-        title: "高并发分布式系统重构 · 3D 物理光追架构徽章",
-        highlight: "千万级 TPS 削峰 · 毫秒级事务一致性 · OpenPBR 物理光追",
-        style: style as any,
-        imageUrl: renderRes.dataUrl,
-        renderDurationMs: renderRes.durationMs,
-        rationale: "由 Apple Silicon Metal GPU 硬件加速光线追踪实时渲染，呈现微表面色散折射与高反光金属质感。",
-      };
-      parsed.actions = [...(parsed.actions ?? []), badgeCard];
-    } catch (vorkErr) {
-      console.warn("[vork-tool] 自动生成 3D 徽章失败:", vorkErr);
-    }
-  }
+  // A text response (including a clarification) is not a tool request. Never
+  // manufacture actions or project achievements from keywords in user data.
   const lengthLimited = wasLengthLimited(finishReason);
   const empty = !parsed.content && !parsed.actions?.length;
   const warning = [

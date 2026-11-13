@@ -12,6 +12,7 @@
  *   --runs-dir <path>         Override isolated Agent run directory
  *   --sandbox <mode>          OS sandbox mode: auto, required, or disabled
  *   --token <string>          Bearer token (falls back to AGENT_HOST_TOKEN env)
+ *   --career-config <path>    Explicit private operator MCP/cloud/Vork manifest
  */
 
 import { resolveCheckpointPath, createCheckpointer } from "./checkpointer.js";
@@ -19,6 +20,10 @@ import { createAgentServer } from "./server.js";
 import path from "node:path";
 import { loadIdentityDeployment, publicOrigins } from "./identity/deployment.js";
 import { ensureBuiltinOrConfiguredOidc } from "./identity/builtin-idp.js";
+import { loadCareerOperatorConfig } from "./career-studio/operator-config.js";
+import { createConfiguredPrivacyProviderFromEnvironment } from "./career-studio/operator-provider.js";
+import { careerExportRendererFromEnvironment } from "./career-studio/export-config.js";
+import { createLoopbackVerifiedJobResolver, type VerifiedJobResolver } from "./career-studio/verified-jobs.js";
 
 function parseArgs(argv: string[]): {
   port: number;
@@ -28,6 +33,7 @@ function parseArgs(argv: string[]): {
   runsDirectory?: string;
   sandboxMode: "auto" | "required" | "disabled";
   token: string;
+  careerConfigPath?: string;
 } {
   const args = argv.slice(2);
   let port = 5179;
@@ -37,6 +43,7 @@ function parseArgs(argv: string[]): {
   let runsDirectory: string | undefined;
   let sandboxMode: "auto" | "required" | "disabled" = "auto";
   let token = process.env["AGENT_HOST_TOKEN"] ?? "";
+  let careerConfigPath = process.env["BETTERME_CAREER_OPERATOR_CONFIG"];
 
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
@@ -48,6 +55,7 @@ function parseArgs(argv: string[]): {
     else if (flag === "--runs-dir" && next) { runsDirectory = next; i++; }
     else if (flag === "--sandbox" && next && ["auto", "required", "disabled"].includes(next)) { sandboxMode = next as typeof sandboxMode; i++; }
     else if (flag === "--token" && next) { token = next; i++; }
+    else if (flag === "--career-config" && next) { careerConfigPath = next; i++; }
   }
 
   if (!token) {
@@ -55,11 +63,31 @@ function parseArgs(argv: string[]): {
     process.exit(1);
   }
 
-  return { port, host, origins, checkpointDir, runsDirectory, sandboxMode, token };
+  return { port, host, origins, checkpointDir, runsDirectory, sandboxMode, token, careerConfigPath };
 }
 
-const { port, host, origins, checkpointDir, runsDirectory, sandboxMode, token } = parseArgs(process.argv);
+const { port, host, origins, checkpointDir, runsDirectory, sandboxMode, token, careerConfigPath } = parseArgs(process.argv);
+// No implicit provider, key discovery or community executable installation.
+// Invalid optional integrations stay unavailable without disabling old flows.
+let careerOperator: Awaited<ReturnType<typeof loadCareerOperatorConfig>> | undefined;
+if (careerConfigPath) {
+  try { careerOperator = await loadCareerOperatorConfig({ configPath: careerConfigPath, resolvePrivacyProvider: createConfiguredPrivacyProviderFromEnvironment() }); }
+  catch { console.error("[career-studio] Operator configuration is unavailable or invalid; optional MCP/cloud/Vork integrations were not enabled."); }
+}
 const cpPath = resolveCheckpointPath(checkpointDir);
+let careerFinalExportRenderer: ReturnType<typeof careerExportRendererFromEnvironment>;
+try { careerFinalExportRenderer = careerExportRendererFromEnvironment(); }
+catch { console.error("[career-studio] Final export renderer configuration is invalid; optional file checks were not enabled."); }
+let careerVerifiedJobResolver: VerifiedJobResolver | undefined;
+// A named, explicitly supplied environment reference only. Do not discover or
+// read the user's existing JobService token files/browser connection state.
+const jobTokenReference = process.env.BETTERME_CAREER_JOB_AUTHORITY_TOKEN_ENV;
+if (jobTokenReference) {
+  try {
+    if (!/^[A-Z][A-Z0-9_]{0,100}$/.test(jobTokenReference)) throw new Error("invalid_job_authority_reference");
+    careerVerifiedJobResolver = createLoopbackVerifiedJobResolver({ token: process.env[jobTokenReference] ?? "" });
+  } catch { console.error("[career-studio] Read-only job authority is unavailable; office links remain unknown."); }
+}
 console.log(`[agent-host] checkpoint: ${cpPath}`);
 const checkpointer = createCheckpointer(cpPath);
 const allowedOrigins = publicOrigins(process.env, origins.length > 0 ? origins : ["http://localhost:5173", "http://127.0.0.1:5173"]);
@@ -86,6 +114,9 @@ const server = createAgentServer({
   runsDirectory,
   sandboxMode,
   oidc,
+  careerOperator,
+  careerFinalExportRenderer,
+  careerVerifiedJobResolver,
 });
 server.once("close", () => {
   void builtinHandle?.close();
