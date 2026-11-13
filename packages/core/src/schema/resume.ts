@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { LocaleSchema } from "./locale.js";
+import { FactBaseSchema } from "./fact.js";
 import { ResumeThemeIdSchema, ResumeThemeOverridesSchema } from "./resume-theme.js";
 
 export const ResumeSectionIdSchema = z.enum([
@@ -53,10 +54,23 @@ export function getHighlightColor(style: Pick<ResumeTextStyle, "highlight" | "hi
     ? style.highlightColor.toLowerCase() : DEFAULT_HIGHLIGHT_COLOR;
 }
 
-/**
- * A resume is a *view* over FactBase — selection + ordering + template.
- * Never a second inventing source of truth.
- */
+export const CareerTaskJobSchema = z.object({
+  id: z.string().trim().min(1).max(300).optional(), title: z.string().trim().min(1).max(500),
+  company: z.string().trim().max(500).optional(), version: z.string().trim().min(1).max(300).optional(),
+  fingerprint: z.string().regex(/^[0-9a-f]{64}$/).optional(),
+}).strict();
+export type CareerTaskJob = z.infer<typeof CareerTaskJobSchema>;
+export const CareerTaskResumeReceiptSchema = z.object({
+  id: z.string().min(1), taskId: z.string().min(1).max(300), resumeId: z.string().min(1), sourceResumeId: z.string().min(1),
+  sourceFingerprint: z.string().regex(/^[0-9a-f]{64}$/), approvalHash: z.string().regex(/^[0-9a-f]{64}$/),
+  contentHash: z.string().regex(/^[0-9a-f]{64}$/), snapshotHash: z.string().regex(/^[0-9a-f]{64}$/),
+  /** New receipts can recover the exact selection even if the browser delivery pointer is lost. */
+  approvedPatchIds: z.array(z.string().min(1).max(300)).min(1).max(100).optional(),
+  job: CareerTaskJobSchema, savedAt: z.string().datetime(),
+}).strict();
+export type CareerTaskResumeReceipt = z.infer<typeof CareerTaskResumeReceiptSchema>;
+
+/** A regular view follows the shared base; a saved job edition owns its local frozen facts. */
 export const ResumeViewSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -83,7 +97,13 @@ export const ResumeViewSchema = z.object({
   layout: ResumeLayoutSchema.optional(),
   textStyles: z.record(z.array(TextStyleRangeSchema)).optional(),
   targetJdId: z.string().optional(),
+  /** A job-specific wording snapshot, never a promotion into long-term career facts. */
+  isolatedFactBase: FactBaseSchema.optional(),
+  /** Only the originally committed edition owns this receipt; a new copy must not inherit it. */
+  careerTaskReceipt: CareerTaskResumeReceiptSchema.optional(),
   updatedAt: z.string().datetime(),
+}).refine(view => !view.careerTaskReceipt || (view.isolatedFactBase && view.careerTaskReceipt.resumeId === view.id), {
+  path: ["careerTaskReceipt"], message: "岗位版回执必须绑定本视图及独立快照，不能降级为共享事实。",
 });
 
 export type ResumeView = z.infer<typeof ResumeViewSchema>;

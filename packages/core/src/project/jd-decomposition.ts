@@ -321,7 +321,7 @@ export function alignJdWithResume(
           id: `align-${jdItem.id}`,
           status: "gap",
           jdItem,
-          rationale: `JD明确要求本科及以上学历，候选人当前学历为大专（${eduStr || "大专"}）。防编造铁律：严禁在简历中篡改学历。建议在求职沟通与面试中，通过强调3年一线核心上位机/MES系统复杂项目落地成果与技术深度来建立信任。`,
+          rationale: `岗位学历原句为「${jdItem.originalQuote}」，当前教育自述为「${eduStr}」。请本人核对门槛与真实学历；不篡改学历，也不补写未提供的年限、领域或交付成果。`,
           confidence: 0.95,
         });
         continue;
@@ -331,7 +331,7 @@ export function alignJdWithResume(
           id: `align-${jdItem.id}`,
           status: "verified_match",
           jdItem,
-          rationale: `候选人教育背景（${eduStr}）与职位专业大类契合。`,
+          rationale: `已提供教育自述「${eduStr}」，仍需本人逐项核对「${jdItem.originalQuote}」的学历、专业与其他限定；文字存在不等同于资格已核实。`,
           confidence: 0.85,
         });
         continue;
@@ -388,14 +388,12 @@ export function alignJdWithResume(
           matchedExperienceOrg: bestMatch.expOrg,
           matchedExperienceTitle: bestMatch.expTitle,
           currentResumeText: bestMatch.text,
-          rationale: `在经历「${bestMatch.expOrg} · ${bestMatch.expTitle}」中有充分对应的实践证明（匹配度良好）。`,
+          rationale: `经历「${bestMatch.expOrg} · ${bestMatch.expTitle}」的自述与该要求有较多文字关联；这不是独立核实的实践证明，仍需本人核对实际参与范围。`,
           confidence: Math.min(1, 0.6 + maxOverlap * 0.08),
         });
       } else {
         weakCount++;
-        const suggested = bestMatch.text.includes("。")
-          ? `${bestMatch.text}（建议结合 JD 关键要求补充量化产出或架构职责）`
-          : `${bestMatch.text}，深度覆盖相关核心机制。`;
+        const suggested = bestMatch.text;
 
         alignments.push({
           id: `align-${jdItem.id}`,
@@ -407,14 +405,14 @@ export function alignJdWithResume(
           matchedExperienceTitle: bestMatch.expTitle,
           currentResumeText: bestMatch.text,
           suggestedText: suggested,
-          rationale: `经历库中虽有涉及「${itemKeywords.join(", ") || jdItem.summary.slice(0, 15)}」，但成果呈现较平淡，建议强化关键产出或贴合 JD 语境。`,
+          rationale: `自述与「${itemKeywords.join(", ") || jdItem.originalQuote}」有文字关联；原句保持不变。请先确认本人动作、实际验证结果与未覆盖范围，再决定是否改写，不强行补数字或架构职责。`,
           confidence: Math.min(1, 0.5 + maxOverlap * 0.06),
         });
       }
     } else if (maxOverlap >= 1.5 && bestMatch) {
       // Partial match: Candidate has relevant tech or task, but expression in resume is weak
       weakCount++;
-      const suggested = `基于${itemKeywords.slice(0, 2).join("/") || "相关工控/系统"}技术，在${bestMatch.expOrg}项目中负责${jdItem.summary.slice(0, 25)}，实现稳定上线与指标提升。`;
+      const suggested = bestMatch.text;
       alignments.push({
         id: `align-${jdItem.id}`,
         status: "weak_expression",
@@ -425,7 +423,7 @@ export function alignJdWithResume(
         matchedExperienceTitle: bestMatch.expTitle,
         currentResumeText: bestMatch.text,
         suggestedText: suggested,
-        rationale: `候选人在「${bestMatch.expOrg}」中有相关技术与业务交集，但当前简历描述未明确聚焦该项核心要求，建议一键采纳增强表达。`,
+        rationale: `「${bestMatch.expOrg}」的自述仅有部分文字关联，不能据此认定承担过该岗位职责。保留完整原句，请先补充真实参与范围、观察结果与尚未核实之处。`,
         confidence: 0.65,
       });
     } else {
@@ -457,15 +455,14 @@ export function alignJdWithResume(
     interviewDefenses.push({
       id: `defense-${defenseIdx++}`,
       targetTopic: "学历门槛与工程规范素养",
-      question: `岗位明确要求${eduGap.jdItem.summary.includes("本科") ? "统招本科及以上学历" : "更高学历门槛"}，你的履历为大专，如何证明能达到高要求的研发与规范标准？`,
+      question: `岗位学历要求为「${eduGap.jdItem.originalQuote}」。请先说明你已确认的学历与是否满足门槛；若不满足或尚未核实，你会如何如实说明？`,
       category: "education_gap",
       riskLevel: "high",
-      coreDefenseStrategy: "坦诚交代学历背景不闪烁其词，主打“毕业即深耕工业自动化与上位机一线研发、具备 3 年 0 到 1 复杂调度与 PLC 联调实战交付能力”。以规范的技术设计文档、接口定义习惯与零致命故障交付记录，打消对工程素养与文档规范的疑虑。",
+      coreDefenseStrategy: "先核对本人学历与岗位门槛，不从资料缺失推断学历不足。仅讨论已确认的实践、学习或材料；不承诺未做过的交付、年限或故障指标。",
       suggestedAnswerFramework: [
-        "1. 坦诚事实：明确承认大专学历背景，展现坦荡与诚信品质；",
-        "2. 实操战绩：强调 3 年专注智能制造/上位机一线，独立交付多款核心系统，到岗立即可接手设备通讯与调试；",
-        "3. 规范交付：列举主导编写的架构说明书、PLC接口协议与严格单元测试习惯，证明个人工程严谨度完全不输统招本科；",
-        "4. 持续学习：说明平时对新技术（如工业AI Agent、现代.NET 8、分布式锁）的主动钻研与自驱力。"
+        "1. 说明已确认的学历事实，未提供或尚待核实的信息保持未知；",
+        "2. 如有相关实践，说明个人参与边界和能够提供的原始材料；没有则坦诚说明；",
+        "3. 将已完成的学习与未来计划分开，不把计划写成既有能力。"
       ]
     });
   }
@@ -489,11 +486,11 @@ export function alignJdWithResume(
         question: `在车间或生产现场上位机与底层设备（如 ${keywords.slice(0, 2).join("/") || "PLC"}）通讯发生偶发性丢包、通信延迟或PLC无响应时，你通常如何排查并设计容错机制？`,
         category: "scenario_troubleshooting",
         riskLevel: "medium",
-        coreDefenseStrategy: "物理层、传输层到应用层的分层排障法 + 心跳重连、指数退避、独立采集线程与环形缓存队列防丢包设计。",
+        coreDefenseStrategy: "先区分真实现场经历与假设题。依据已知协议、现场条件和观察证据提出排查顺序；未实践的机制只能作为待验证方案。",
         suggestedAnswerFramework: [
-          "1. 物理层定界：排查屏蔽层接地、网线/485干扰与终端电阻；",
-          "2. 传输与协议层：利用抓包或协议测试工具查看丢包率，采用心跳检测 + 指数退避重试防打崩 PLC；",
-          "3. 应用层防御：通信线程与 UI/计算逻辑完全解耦，引入环形队列缓存状态，防止通信阻塞影响实时控制。"
+          "1. 说明实际遇到的症状、现场条件和个人负责范围；没有现场经验时明确按假设讨论；",
+          "2. 根据实际协议与可用日志说明排查证据，不预设已经使用某个工具或实现某种机制；",
+          "3. 将已验证结果、未覆盖风险与下一步验证计划分开。"
         ]
       });
     } else if (isBackend) {
@@ -503,25 +500,25 @@ export function alignJdWithResume(
         question: `在设备高频上传或多任务并发调度时，如何保障系统数据一致性与数据库/缓存的稳定性？`,
         category: "deep_tech_dive",
         riskLevel: "medium",
-        coreDefenseStrategy: "削峰缓冲 + 分布式锁消解死锁 + 异步状态机调度 + 数据库索引与执行计划专项优化。",
+        coreDefenseStrategy: "先说明实际并发场景与个人动作，再依据可引用证据讨论一致性约束、失败情况和方案取舍；没有经验时明确按假设方案讨论。",
         suggestedAnswerFramework: [
-          "1. 削峰缓冲：高频数据先入内存/Redis缓冲队列，批量定时刷盘；",
-          "2. 竞态处理：利用分布式锁或乐观锁确保关键资源调度唯一性；",
-          "3. 慢查询优化：分析执行计划，合理设计复合索引，避免全表扫描。"
+          "1. 明确场景、约束和本人实际负责范围，不假设已达到高并发规模；",
+          "2. 解释实际方案的取舍与观察证据，未采用的工具只作备选，不写成用过；",
+          "3. 说明验证方法、失败样本与尚未覆盖的风险；无可信数字时保留定性结果。"
         ]
       });
     } else if (keywords.length > 0 || item.jdItem.summary.length > 6) {
       interviewDefenses.push({
         id: `defense-${defenseIdx++}`,
         targetTopic: `${keywords.join("/") || item.jdItem.summary.slice(0, 12)} 业务实操`,
-        question: `针对岗位要求的「${item.jdItem.summary.slice(0, 28)}」，你在过往项目中是如何落地的？遇到过什么挑战？`,
+        question: `针对岗位要求的「${item.jdItem.originalQuote}」，你是否有相关经历？如有，请说明本人动作与可核对的结果；如无，请明确按假设讨论。`,
         category: "deep_tech_dive",
         riskLevel: "low",
-        coreDefenseStrategy: "遵循 STAR 法则：阐明背景情境、明确核心挑战、展示具体技术动作与量化业务收益。",
+        coreDefenseStrategy: "按背景、任务、本人动作与实际结果组织作答；结果可以是有依据的定性观察，不强制量化，也不把测试或计划升级为生产交付。",
         suggestedAnswerFramework: [
           "1. 明确背景与业务目标；",
           "2. 突出技术难点与个人关键决策；",
-          "3. 给出可验证的量化上线成效。"
+          "3. 说明可核对的实际结果与未覆盖范围；没有可信数字或上线证据时不要补写。"
         ]
       });
     }
@@ -539,7 +536,7 @@ export function alignJdWithResume(
       gapCount,
       coverageRate,
     },
-    summary: `本次分析共拆解 ${allJdItems.length} 项 JD 核心要求。已核实有力证据 ${verifiedCount} 项，表达待增强 ${weakCount} 项，暂未覆盖缺口 ${gapCount} 项。`,
+    summary: `本次本地分析共拆解 ${allJdItems.length} 项 JD 核心要求。自述文字关联较强 ${verifiedCount} 项，待进一步核对 ${weakCount} 项，暂未发现对应原句 ${gapCount} 项；这些关联不代表独立核实的经历或能力。`,
     defenseQuestions,
     interviewDefenses,
   };

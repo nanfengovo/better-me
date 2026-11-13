@@ -41,7 +41,7 @@ export const ProjectUnderstandingSchema = z.object({
 export type ProjectUnderstanding = z.infer<typeof ProjectUnderstandingSchema>;
 
 export type UnderstandingGrant = { id: string; path: string; label: string; createdAt: string; revokedAt?: string };
-export type UnderstandingEvidence = { id: string; grantId: string; path: string; hash: string; startLine: number; endLine: number; excerpt: string; collectedAt: string };
+export type UnderstandingEvidence = { id: string; grantId: string; path: string; hash: string; startLine: number; endLine: number; excerpt: string; collectedAt: string; startOffset?: number; endOffset?: number; sourceLength?: number };
 export type UnderstandingEvent = { sequence: number; at: string; label: string; kind: "reading" | "thinking" | "waiting" | "completed" | "error" | "cancelled" };
 export type UnderstandingMessage = { id: string; role: "user" | "agent" | "system"; text: string; at: string; question?: UnderstandingQuestion; selectedOptionIds?: string[] };
 export type UnderstandingSession = {
@@ -80,7 +80,7 @@ export const UnderstandingSessionSchema = z.object({
   phase: z.enum(["idle", "running", "awaiting-answer", "awaiting-confirmation", "confirmed", "error", "cancelled"]),
   turnCount: z.number().int().nonnegative(), createdAt: z.string(), updatedAt: z.string(),
   grants: z.array(z.object({ id: z.string(), path: z.string(), label: z.string(), createdAt: z.string(), revokedAt: z.string().optional() })),
-  evidence: z.array(z.object({ id: z.string(), grantId: z.string(), path: z.string(), hash: z.string(), startLine: z.number().int(), endLine: z.number().int(), excerpt: z.string(), collectedAt: z.string() })),
+  evidence: z.array(z.object({ id: z.string(), grantId: z.string(), path: z.string(), hash: z.string(), startLine: z.number().int(), endLine: z.number().int(), excerpt: z.string(), collectedAt: z.string(), startOffset: z.number().int().nonnegative().optional(), endOffset: z.number().int().nonnegative().optional(), sourceLength: z.number().int().nonnegative().optional() })),
   messages: z.array(z.object({ id: z.string(), role: z.enum(["user", "agent", "system"]), text: z.string(), at: z.string(), question: UnderstandingQuestionSchema.optional(), selectedOptionIds: z.array(z.string()).optional() })),
   events: z.array(z.object({ sequence: z.number().int(), at: z.string(), label: z.string(), kind: z.enum(["reading", "thinking", "waiting", "completed", "error", "cancelled"]) })),
   understanding: ProjectUnderstandingSchema.optional(), summaryHash: z.string().optional(), question: UnderstandingQuestionSchema.optional(),

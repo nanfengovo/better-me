@@ -7,6 +7,28 @@ import {
   JdEvidenceAlignmentReportSchema,
 } from "../dist/index.js";
 
+test("local JD keyword alignment never manufactures ownership, production results or mechanism depth",()=>{
+  for(const text of ["为设备告警接口编写输入校验，并补充自动化回归测试。","参与 C# .NET 接口测试","参与 C# .NET 接口测试。"]){
+    const resume={locale:"zh",templateId:"zh-classic",profile:{displayName:"合成",links:[],targetRoles:[],traits:[]},experiences:[{id:"e",type:"work",org:"合成设备部",title:"软件工程师",start:"2025-01",end:null,techStack:["C#",".NET"],claims:[{id:"c",kind:"action",text,tags:[]}]}]};
+    const result=alignJdWithResume(decomposeJdText("岗位要求\n了解 C# 与 .NET 接口测试。\n能核对测试环境行为。"),resume);
+    assert.ok(result.alignments.some(item=>item.status!=="gap"));
+    for(const item of result.alignments){
+      if(item.suggestedText)assert.equal(item.suggestedText,item.currentResumeText,"deterministic keyword retrieval is not permission to rewrite a fact");
+      assert.doesNotMatch(item.rationale,/充分对应的实践证明/);
+    }
+  }
+});
+
+test("interview topics do not infer a candidate diploma, years, delivery record or mandatory numeric results",()=>{
+  const jd=decomposeJdText("任职要求\n本科及以上学历。\n具备设备日志分析能力，并能解释本人负责的验证过程及未覆盖范围。"),result=alignJdWithResume(jd,sampleResume);
+  assert.ok(result.interviewDefenses.some(item=>item.category==="education_gap"));
+  const text=JSON.stringify(result.interviewDefenses);
+  assert.doesNotMatch(text,/你的履历为大专|3 年|独立交付多款|零致命故障|明确承认大专|可验证的量化上线成效/);
+  for(const defense of result.interviewDefenses.filter(item=>item.category==="education_gap"))assert.match(defense.question,/请先说明你已确认的学历/);
+  const source=[...jd.responsibilities,...jd.hardRequirements].find(item=>item.originalQuote.includes("设备日志"));assert.ok(source);
+  assert.ok(result.interviewDefenses.some(item=>item.question.includes(source.originalQuote)),"full requirement quote must survive the interview handoff");
+});
+
 const sampleJdText = `
 【岗位职责】
 1. 负责核心业务分布式后端服务的架构设计与核心研发。

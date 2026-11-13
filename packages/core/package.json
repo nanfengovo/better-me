@@ -6,6 +6,10 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
+    "./experience-writing": { "types": "./src/ai/experience-writing.ts", "import": "./src/ai/experience-writing.ts", "default": "./dist/ai/experience-writing.js" },
+    "./writing-grounding": { "types": "./src/ai/writing-grounding.ts", "import": "./src/ai/writing-grounding.ts", "default": "./dist/ai/writing-grounding.js" },
+    "./resume-writing-method": { "types": "./src/ai/resume-writing-method.ts", "import": "./src/ai/resume-writing-method.ts", "default": "./dist/ai/resume-writing-method.js" },
+    "./career-intelligence": { "types": "./src/career-intelligence/index.ts", "import": "./src/career-intelligence/index.ts", "default": "./dist/career-intelligence/index.js" },
     "./resume-business": { "types": "./src/project/resume-business.ts", "import": "./src/project/resume-business.ts", "default": "./dist/project/resume-business.js" },
     "./document": { "types": "./src/schema/document.ts", "import": "./src/schema/document.ts", "default": "./dist/schema/document.js" },
     ".": {

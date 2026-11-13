@@ -64,11 +64,40 @@ function includeClaim(view: ResumeView, claimId: string): boolean {
   return view.includedClaimIds.includes(claimId);
 }
 
+/** Both editors and projections must honor a job edition's private snapshot. */
+export function resolveResumeFactBase(base: FactBase, view: ResumeView): FactBase {
+  if (view.careerTaskReceipt && (!view.isolatedFactBase || view.careerTaskReceipt.resumeId !== view.id)) throw new Error("invalid_career_resume_binding");
+  return view.isolatedFactBase ?? base;
+}
+
+/** Private edition content, never raw imports or the long-term statement ledger. */
+export function snapshotResumeFacts(base: FactBase, updatedAt = base.updatedAt): FactBase {
+  return { schemaVersion: 1, updatedAt, profile: structuredClone(base.profile), experiences: structuredClone(base.experiences) };
+}
+
+/** Surviving original text keeps its style; inserted/replaced text starts plain. */
+export function rebaseTextStyles(previous: string, next: string, ranges: TextStyleRange[]): TextStyleRange[] {
+  if (previous === next) return ranges;
+  let prefix = 0;
+  while (prefix < Math.min(previous.length, next.length) && previous[prefix] === next[prefix]) prefix++;
+  let suffix = 0;
+  while (suffix < previous.length - prefix && suffix < next.length - prefix && previous[previous.length - suffix - 1] === next[next.length - suffix - 1]) suffix++;
+  const oldEnd = previous.length - suffix;
+  const delta = next.length - previous.length;
+  return ranges.flatMap((range) => {
+    const runs: TextStyleRange[] = [];
+    if (range.start < prefix) runs.push({ ...range, end: Math.min(range.end, prefix) });
+    if (range.end > oldEnd) runs.push({ ...range, start: Math.max(range.start, oldEnd) + delta, end: range.end + delta });
+    return runs.filter((run) => run.start < run.end);
+  });
+}
+
 /** Project FactBase → resume view for a locale/template (no invention). */
 export function projectResume(
   base: FactBase,
   view: ResumeView,
 ): ProjectedResume {
+  base = resolveResumeFactBase(base, view);
   const locale = view.locale;
   // A translated view may fall back to Chinese. Formatting follows the actual source text.
   const textStyles = view.textStyles ? { ...view.textStyles } : undefined;
@@ -190,6 +219,7 @@ export function syncResumeViewsWithFactBase(
   next: FactBase,
   views: ResumeView[],
   activeResumeId: string,
+  scope: "shared" | "isolated" = "shared",
 ): ResumeView[] {
   const previousIds = new Set(previous.experiences.map((e) => e.id));
   const nextIds = new Set(next.experiences.map((e) => e.id));
@@ -198,6 +228,10 @@ export function syncResumeViewsWithFactBase(
   const nextClaimIds = new Set(next.experiences.flatMap((e) => e.claims.map((c) => c.id)));
   const addedClaimIds = [...nextClaimIds].filter((id) => !previousClaimIds.has(id));
   return views.map((view) => {
+    if (scope === "isolated") {
+      if (!view.isolatedFactBase || view.id !== activeResumeId) return view;
+      view = { ...view, isolatedFactBase: next, updatedAt: next.updatedAt };
+    } else if (view.isolatedFactBase) return view;
     const claimsAll = view.claimSelection === "all" || (!view.claimSelection && view.includedClaimIds.length === 0);
     const claimIds = view.includedClaimIds.filter((id) => nextClaimIds.has(id));
     if (!claimsAll && view.id === activeResumeId) claimIds.push(...addedClaimIds);

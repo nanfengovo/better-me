@@ -1,5 +1,6 @@
 import type { ProjectedResume } from "../project/resume-projection.js";
 import { getJdMatchReadiness } from "../project/jd-match-readiness.js";
+import { resumeWritingMethod } from "./resume-writing-method.js";
 import { isOfficialDeepSeek, deepSeekRequestParameters, deepSeekErrorMessage, jsonObjectOptions } from "./deepseek.js";
 import {
   type LlmConfig,
@@ -94,8 +95,11 @@ async function fetchAiEndpoint(
   catch (error) { throw aiTransportError(error, label, apiKey); }
 }
 
+function jsonObject(value:unknown):Record<string,unknown>{
+  return value!==null&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:{};
+}
 async function readAiJson(response: Response, label: string, apiKey?: string) {
-  try { return await response.json(); }
+  try { return jsonObject(await response.json()); }
   catch (error) { throw aiTransportError(error, label, apiKey); }
 }
 
@@ -211,8 +215,8 @@ export async function fetchChatCompletionResult(
     }
 
     const json = await readAiJson(response, "AI 生成请求", config.apiKey);
-    const choice = json.choices?.[0];
-    const content = choice?.message?.content;
+    const choice = jsonObject(Array.isArray(json.choices)?json.choices[0]:undefined);
+    const content = jsonObject(choice.message).content;
     if (typeof content !== "string" || !content.trim()) {
       if (deepSeek) throw new Error(choice?.finish_reason === "length"
         ? "DeepSeek 输出达到 token 上限但未返回完整答复，请提高输出上限或关闭思考模式后重试；原文未改动。"
@@ -250,6 +254,7 @@ export async function analyzeJdMatch(
 你的任务是比较当前选择的简历文本与用户提供的【目标岗位招聘需求 (JD)】，输出文字层面的参考报告。简历内容由用户提供，未经独立核实；结构校验不能证明事实真实。你无法判断用户未在本次材料中展示的实际能力。
 
 【报告约束】：
+${resumeWritingMethod("tailor")}
 1. 不得添加材料未提供的项目经历、技术栈、责任范围、业务场景、成果或量化数字，也不得把 JD 要求改写为用户已具备的事实。
 2. 未提及不等于不会。对没有依据的技能或条件，只能写“当前材料未提供相关依据，需本人确认”，不能断言用户不会、能力不足或没有经验。隐藏或未选择的简历内容同样属于未知。
 3. 亮点只列材料中有依据的内容，可以为空；missingGaps 中的材料缺失项必须明确标为待确认，不能冒充已经证实的能力缺口。评分仅是本次文本的 AI 参考评分，不是能力认证或录用概率。
@@ -330,12 +335,13 @@ export async function fetchAvailableModels(config: LlmConfig, options: AiRequest
       const data = await readAiJson(res, "获取模型列表", config.apiKey);
       if (Array.isArray(data.models)) {
         const models = data.models
-          .filter((m: { supportedGenerationMethods?: string[] }) => {
-            const methods = m.supportedGenerationMethods || [];
-            return methods.includes("generateContent");
+          .map(jsonObject)
+          .filter(m => {
+            const methods = m.supportedGenerationMethods;
+            return Array.isArray(methods)&&methods.includes("generateContent");
           })
-          .map((m: { name?: string }) => {
-            const rawName: string = m.name || "";
+          .map(m => {
+            const rawName = typeof m.name==="string"?m.name:"";
             return rawName.replace(/^models\//, "");
           })
           .filter(Boolean);
@@ -370,10 +376,10 @@ export async function fetchAvailableModels(config: LlmConfig, options: AiRequest
 
     const data = await readAiJson(res, "获取模型列表", config.apiKey);
     if (Array.isArray(data.data)) {
-      return data.data.map((m: { id?: string }) => m.id).filter((id: unknown) => typeof id === "string" && Boolean(id.trim()));
+      return data.data.map(jsonObject).map(m => m.id).filter((id):id is string => typeof id === "string" && Boolean(id.trim()));
     }
     if (Array.isArray(data.models)) {
-      return data.models.map((m: { name?: string; id?: string }) => m.name || m.id).filter((id: unknown) => typeof id === "string" && Boolean(id.trim()));
+      return data.models.map(jsonObject).map(m => m.name || m.id).filter((id):id is string => typeof id === "string" && Boolean(id.trim()));
     }
 
     return [];

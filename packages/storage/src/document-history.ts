@@ -329,6 +329,16 @@ export type PersistenceStatus = {
   hasPendingChanges: boolean;
 };
 export type PersistenceState = { doc: BetterMeDocument | null; ready: boolean; loadError: string | null; status: PersistenceStatus };
+type ReviewAuthorization = () => void | Promise<void>;
+type ReviewedWrite = { expected: BetterMeDocument; baseline: BetterMeDocument | null; assertAuthorized?: ReviewAuthorization };
+// Supplied by the owner/space-scoped browser adapter; a process-local Promise
+// queue alone is not a cross-tab commit lock.
+type OfficialCommitLock = (write: () => Promise<boolean>) => Promise<boolean>;
+// Compared documents have passed the same schema. Unlike history deduplication,
+// a reviewed write/receipt also checks timestamps and the embedded receipt.
+function sameOfficial(a: BetterMeDocument | null, b: BetterMeDocument | null): boolean {
+  return a === b || (a !== null && b !== null && JSON.stringify(a) === JSON.stringify(b));
+}
 
 export class LocalDocumentHistory {
   private queue: Promise<unknown> = Promise.resolve();
@@ -379,6 +389,7 @@ export class DocumentPersistenceController {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private operation = 0;
   private saveQueue: Promise<unknown> = Promise.resolve();
+  private readonly commitLock?: OfficialCommitLock;
   private draftBackupQueue: Promise<void> = Promise.resolve();
   private externalVersion: BetterMeDocument | null = null;
   private store: LocalJsonStore;
@@ -387,10 +398,12 @@ export class DocumentPersistenceController {
   private autoSave: AutoSaveSettings;
   private autoSaveRevision = 0;
   private persistedFingerprint: string | null = null;
+  private persistedDocument: BetterMeDocument | null = null;
   private draftTimestamp = 0;
   private storage: Pick<Storage, "getItem" | "setItem" | "removeItem">;
-  constructor(options: { history?: LocalDocumentHistory; store?: LocalJsonStore; storage?: Pick<Storage, "getItem" | "setItem" | "removeItem">; draftRepository?: DraftRepository; previousDraftRepository?: DraftRepository; delayMs?: number; autoSave?: AutoSaveSettings } = {}) {
+  constructor(options: { history?: LocalDocumentHistory; store?: LocalJsonStore; storage?: Pick<Storage, "getItem" | "setItem" | "removeItem">; draftRepository?: DraftRepository; previousDraftRepository?: DraftRepository; delayMs?: number; autoSave?: AutoSaveSettings; commitLock?: OfficialCommitLock } = {}) {
     this.storage = options.storage ?? globalThis.localStorage;
+    this.commitLock = options.commitLock;
     this.history = options.history ?? new LocalDocumentHistory();
     this.store = options.store ?? new LocalJsonStore(STORAGE_KEY, this.storage);
     this.draftRepository = options.draftRepository ?? new IndexedDbDraftRepository();
@@ -412,6 +425,10 @@ export class DocumentPersistenceController {
   }
   private hasPendingChanges(document = this.state.doc): boolean {
     return document !== null && documentFingerprint(document) !== this.persistedFingerprint;
+  }
+  private rememberPersisted(document: BetterMeDocument | null): void {
+    this.persistedDocument = document;
+    this.persistedFingerprint = document && documentFingerprint(document);
   }
   private waitingMessage(document: BetterMeDocument): string {
     const incomplete = !DocumentSchema.safeParse(document).success;
@@ -502,7 +519,7 @@ export class DocumentPersistenceController {
     }
     const doc = draft ?? official ?? (loadError ? null : createInitialDocument());
     const valid = doc ? DocumentSchema.safeParse(doc).success : false;
-    this.persistedFingerprint = official ? documentFingerprint(official) : null;
+    this.rememberPersisted(official);
     const hasPendingChanges = this.hasPendingChanges(doc);
     this.emit({ doc, ready: true, loadError: doc ? null : loadError, status: {
       kind: doc ? hasPendingChanges || !valid ? "draft" : "saved" : "error",
@@ -604,11 +621,57 @@ export class DocumentPersistenceController {
     this.emit({ doc: next, status: conflict ? { ...status, kind: "error", hasPendingChanges: true, externalConflict: true, message: "另一窗口修改了这份简历。当前编辑草稿已保护；自动保存仍暂停，请手动保存以采用当前窗口内容。" } : unchanged ? { ...status, kind: "saved", message: "内容与已保存版本一致" } : status });
     this.scheduleAutoSave();
   }
-  private async writeOfficial(document: BetterMeDocument, operation: number, autoSaveRevision?: number): Promise<boolean> {
-    const task = this.saveQueue.then(async () => {
-      if (operation !== this.operation || autoSaveRevision !== undefined && autoSaveRevision !== this.autoSaveRevision) return false;
+  private async writeOfficial(document: BetterMeDocument, operation: number, autoSaveRevision?: number, review?: ReviewedWrite, recoverCorrupt = false): Promise<boolean> {
+    const current = () => operation === this.operation && (autoSaveRevision === undefined || autoSaveRevision === this.autoSaveRevision)
+      && (!review || (this.state.doc === review.expected && !this.state.status.externalConflict));
+    const write = async () => {
+      if (!current()) return false;
+      if (review) {
+        // A remote grant may have changed while protecting the draft/queuing.
+        try { await review.assertAuthorized?.(); } catch { return false; }
+        if (!current()) return false;
+      }
+      if (this.commitLock) {
+        // Every official writer participates, including autosave and restores.
+        // Storage events are asynchronous: absence of a conflict event is not CAS.
+        const baseline = review ? review.baseline : this.persistedDocument;
+        let actual: BetterMeDocument | null;
+        try { actual = await this.store.load(); }
+        catch (error) {
+          // Only an explicit recovery may replace the exact damaged bytes
+          // already protected during load, never another tab's newer bytes.
+          const raw = this.state.status.rawOfficialRecovery;
+          if (!recoverCorrupt || review || baseline !== null || raw === undefined || this.storage.getItem(STORAGE_KEY) !== raw) throw error;
+          actual = null;
+        }
+        if (!current()) return false;
+        if (!sameOfficial(actual, baseline)) {
+          this.handleStorageChange(STORAGE_KEY, actual && JSON.stringify(actual));
+          return false;
+        }
+      }
       await this.store.save(document);
-      return operation === this.operation;
+      if (review) {
+        // Do not publish the winning editor version until it was read back
+        // from the authoritative store inside the same exclusive section.
+        if (!current() || !sameOfficial(await this.store.load(), document) || !current()) return false;
+      }
+      // An ordinary write that started before a newer same-tab edit may
+      // nevertheless have committed. Its successor must compare to that value.
+      this.persistedDocument = document;
+      return current();
+    };
+    const task = this.saveQueue.then(async () => {
+      if (!this.commitLock) return review ? false : write();
+      let entered = false;
+      try { return await this.commitLock(() => { entered = true; return write(); }); }
+      catch (error) {
+        if (review && !entered) {
+          if (current()) this.reportUnavailableReviewLock();
+          return false;
+        }
+        throw error; // Never retry a possibly committed write without the lock.
+      }
     });
     this.saveQueue = task.catch(() => undefined);
     return task;
@@ -621,10 +684,14 @@ export class DocumentPersistenceController {
       const incoming = key === DRAFT_STORAGE_KEY
         ? DraftEnvelopeSchema.parse(decodeDraft(raw ?? "null")).document as BetterMeDocument
         : DocumentSchema.parse(JSON.parse(raw ?? "null")) as BetterMeDocument;
+      if (key === STORAGE_KEY) this.persistedDocument = incoming;
       if (documentFingerprint(incoming) === documentFingerprint(current)) return;
       const validIncoming = DocumentSchema.safeParse(incoming);
       this.externalVersion = validIncoming.success ? validIncoming.data as BetterMeDocument : null;
-    } catch { /* Removed or damaged data in another tab is also a real conflict. */ }
+    } catch {
+      if (key === STORAGE_KEY && raw === null) this.persistedDocument = null;
+      // Removed or damaged data in another tab is also a real conflict.
+    }
     ++this.operation;
     clearTimeout(this.timer);
     let rawPreviousDraftRecovery = this.state.status.rawPreviousDraftRecovery;
@@ -676,7 +743,7 @@ export class DocumentPersistenceController {
     try {
       if (!await this.protectExternalVersion(operation)) return false;
       if (!await this.writeOfficial(parsed.data as BetterMeDocument, operation, autoSaveRevision)) return false;
-      this.persistedFingerprint = documentFingerprint(parsed.data as BetterMeDocument);
+      this.rememberPersisted(parsed.data as BetterMeDocument);
       const savedAt = new Date().toISOString();
       const draftStatus = this.writeDraft(next);
       this.emit({ status: { ...draftStatus, kind: "saved", hasPendingChanges: false, message: force ? "所有修改已手动保存" : "所有修改已自动保存", savedAt, historyError: draftStatus.kind === "error" ? "完整版本已保存；草稿保护失败，请检查存储空间。" : draftStatus.historyError } });
@@ -695,7 +762,12 @@ export class DocumentPersistenceController {
       return false;
     }
   }
-  async replace(next: BetterMeDocument, label = "导入简历", kind: VersionKind = "import"): Promise<boolean> {
+  async replace(next: BetterMeDocument, label = "导入简历", kind: VersionKind = "import", expected?: BetterMeDocument, assertAuthorized?: ReviewAuthorization): Promise<boolean> {
+    // Reviewed agent saves cannot silently resolve a cross-window conflict or
+    // replace edits made after the user reviewed the source snapshot.
+    if (expected && (this.state.doc !== expected || this.state.status.externalConflict)) return false;
+    if (expected && !this.commitLock) { this.reportUnavailableReviewLock(); return false; }
+    const review = expected && { expected, baseline: this.persistedDocument, assertAuthorized };
     clearTimeout(this.timer);
     const operation = ++this.operation;
     const parsed = DocumentSchema.safeParse(next);
@@ -723,19 +795,57 @@ export class DocumentPersistenceController {
       }
       // Official storage is atomic. Failure leaves both the editor and protected draft intact.
       if (!await this.protectExternalVersion(operation)) return false;
-      if (!await this.writeOfficial(parsed.data as BetterMeDocument, operation)) return false;
-      this.persistedFingerprint = documentFingerprint(parsed.data as BetterMeDocument);
+      if (expected && (this.state.doc !== expected || this.state.status.externalConflict)) return false;
+      if (!await this.writeOfficial(parsed.data as BetterMeDocument, operation, undefined, review, !expected) || operation !== this.operation) return false;
+      this.rememberPersisted(parsed.data as BetterMeDocument);
       const draftStatus = this.writeDraft(parsed.data as BetterMeDocument);
       this.emit({ doc: parsed.data as BetterMeDocument, loadError: null, status: { ...draftStatus, kind: "saved", hasPendingChanges: false, message: "已保存为新的当前版本", savedAt: new Date().toISOString(), historyError: draftStatus.kind === "error" ? "完整版本已保存；草稿保护失败，请检查存储空间。" : undefined } });
       try { await this.history.append(parsed.data as BetterMeDocument, label, kind); }
       catch (error) {
         if (operation === this.operation) this.emit({ status: { ...this.state.status, historyError: error instanceof Error ? error.message : "版本保存失败。" } });
       }
-      return true;
+      return !review || operation === this.operation && !this.state.status.externalConflict;
     } catch (error) {
       if (operation === this.operation) this.emit({ status: { ...this.state.status, kind: "error", message: `${storageError(error)} 当前简历未被替换。` } });
       return false;
     }
+  }
+  private reportUnavailableReviewLock(): void {
+    this.emit({ status: { ...this.state.status, kind: "error", message: "当前环境没有可用的跨窗口独占写锁，无法安全提交审阅结果。请在支持 Web Locks 的同源安全页面或桌面端重新打开；未写入正式版本。" } });
+  }
+  /** Read a durable receipt without acknowledging a write, updating the editor,
+   * scheduling a save, or copying a pending edit into official storage. */
+  async readOfficialForReview(expected: BetterMeDocument): Promise<BetterMeDocument | null> {
+    const operation = this.operation;
+    const assertCurrent = () => {
+      if (!this.state.ready || operation !== this.operation || this.state.doc !== expected || this.state.status.externalConflict) {
+        throw new Error("当前编辑、账号或窗口数据已变化，无法核对正式回执，请刷新后重试。");
+      }
+    };
+    assertCurrent();
+    const official = await this.store.load();
+    assertCurrent();
+    return official === null ? null : DocumentSchema.parse(official) as BetterMeDocument;
+  }
+  /** Durable, read-back-confirmed write used for an explicitly reviewed version.
+   * A failed/unknown write never becomes a successful agent save receipt. */
+  async saveReviewedVersion(next: BetterMeDocument, expected: BetterMeDocument, label: string, assertAuthorized?: ReviewAuthorization): Promise<boolean> {
+    if (this.state.doc !== expected || this.state.status.externalConflict) return false;
+    if (!this.commitLock) { this.reportUnavailableReviewLock(); return false; }
+    try {
+      // A previously saved receipt is evidence to read, not permission to
+      // rewrite an entire document or to promote a newer user's pending edits.
+      if (next !== expected && !await this.replace(next, label, "checkpoint", expected, assertAuthorized)) return false;
+      const operation = this.operation;
+      await assertAuthorized?.();
+      if (operation !== this.operation || this.state.status.externalConflict) return false;
+      const stored = await this.store.load();
+      const parsed = DocumentSchema.safeParse(next);
+      return operation === this.operation && !this.state.status.externalConflict && parsed.success
+        && sameOfficial(stored, parsed.data as BetterMeDocument) && this.state.doc !== null
+        && (this.state.doc === next || sameOfficial(this.state.doc, parsed.data as BetterMeDocument));
+    } catch { return false; }
+    finally { if (this.state.status.hasPendingChanges) this.scheduleAutoSave(); }
   }
   /** Restore a single compared field against the current editor, never a stale whole document. */
   async restoreField(change: DocumentFieldChange, label = "恢复单项差异"): Promise<boolean> {
@@ -804,7 +914,7 @@ export class DocumentPersistenceController {
     }
     assertCurrent();
     const complete = validNext.data as BetterMeDocument;
-    this.persistedFingerprint = documentFingerprint(complete);
+    this.rememberPersisted(complete);
     const draftStatus = this.writeDraft(complete);
     this.emit({ doc: complete, loadError: null, status: {
       ...draftStatus, kind: "saved", hasPendingChanges: false,

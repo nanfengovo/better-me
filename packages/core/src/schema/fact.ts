@@ -100,12 +100,25 @@ export const ResumeImportSourceSchema = z.object({
 
 export type ResumeImportSource = z.infer<typeof ResumeImportSourceSchema>;
 
+/** An explicitly reviewed long-term user statement is not independently
+ * verified evidence and is never projected into a resume automatically. */
+export const PersonalStatementSchema = z.object({
+  id: z.string().min(1).max(500), text: z.string().trim().min(1).max(12000),
+  kind: z.literal("user_statement"), taskId: z.string().min(1).max(300),
+  evidence: z.array(z.object({ id: z.string().min(1).max(300), hash: z.string().min(1).max(300),
+    excerpt: z.string().max(12000), label: z.string().max(500), kind: z.enum(["job", "resume", "user_statement", "source", "design"]),
+  }).strict()).min(1).max(40),
+  approvedAt: z.string().datetime(), supersedes: z.string().min(1).max(500).optional(),
+}).strict();
+export type PersonalStatement = z.infer<typeof PersonalStatementSchema>;
+
 export const FactBaseSchema = z.object({
   schemaVersion: z.literal(1),
   updatedAt: z.string().datetime(),
   profile: ProfileSchema,
   experiences: z.array(ExperienceSchema).default([]),
   importSource: ResumeImportSourceSchema.optional(),
+  personalStatements: z.array(PersonalStatementSchema).max(2000).optional(),
 });
 
 export type FactBase = z.infer<typeof FactBaseSchema>;

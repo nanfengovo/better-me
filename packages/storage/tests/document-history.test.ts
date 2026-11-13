@@ -9,6 +9,7 @@ import {
   LocalDocumentHistory,
   LocalJsonStore,
   createInitialDocument,
+  getDocumentFieldChanges,
   type DocumentVersion,
   type VersionRepository,
   DEFAULT_AUTO_SAVE_SETTINGS,
@@ -45,11 +46,219 @@ async function setup(t: any) {
   await store.save(doc);
   const repository = new MemoryVersions();
   const history = new LocalDocumentHistory(repository);
-  const controller = new DocumentPersistenceController({ store, history, delayMs: 60_000 });
+  const controller = new DocumentPersistenceController({ store, history, commitLock: serialCommitLock(), delayMs: 60_000 });
   t.after(() => controller.dispose());
   await controller.load();
   return { ...fixture, doc, store, repository, history, controller };
 }
+
+function serialCommitLock(onRequest = () => {}) {
+  let queue = Promise.resolve();
+  return (write: () => Promise<boolean>) => {
+    onRequest();
+    const result = queue.then(write);
+    queue = result.then(() => {}, () => {});
+    return result;
+  };
+}
+function signal() {
+  let release!: () => void;
+  const promise = new Promise<void>(resolve => { release = resolve; });
+  return { promise, release };
+}
+test("two tabs approving different editions from one baseline cannot both write or publish a losing edition", async t => {
+  const { store, history } = await setup(t);
+  const writing = signal(), releaseFirst = signal(), secondEntered = signal();
+  let requests = 0;
+  const commitLock = serialCommitLock(() => { if (++requests === 2) secondEntered.release(); });
+  const open = async () => {
+    const tab = new DocumentPersistenceController({ store, history, commitLock, delayMs: 60_000 });
+    t.after(() => tab.dispose()); await tab.load(); return tab;
+  };
+  const first = await open(), second = await open();
+  const beforeA = first.getState().doc!, beforeB = second.getState().doc!;
+  const nextA = structuredClone(beforeA), nextB = structuredClone(beforeB);
+  nextA.resumeViews[0]!.name = "approved A"; nextB.resumeViews[0]!.name = "approved B";
+  const save = store.save.bind(store), writes: string[] = [];
+  store.save = async doc => {
+    const name = doc.resumeViews[0]!.name; writes.push(name);
+    if (name === "approved A") { writing.release(); await releaseFirst.promise; }
+    else secondEntered.release(); // unprotected implementation enters here
+    await save(doc);
+  };
+  const a = first.saveReviewedVersion(nextA, beforeA, "task A");
+  await writing.promise;
+  const b = second.saveReviewedVersion(nextB, beforeB, "task B");
+  await secondEntered.promise; releaseFirst.release();
+  assert.deepEqual(await Promise.all([a, b]), [true, false]);
+  assert.deepEqual(writes, ["approved A"]);
+  assert.equal((await store.load())?.resumeViews[0]?.name, "approved A");
+  assert.equal(first.getState().doc?.resumeViews[0]?.name, "approved A");
+  assert.equal(second.getState().doc, beforeB);
+  assert.equal(second.getState().status.externalConflict, true);
+});
+
+test("reviewed version uses exact current document and readback before acknowledgement", async (t) => {
+  const { controller, store } = await setup(t);
+  const expected = controller.getState().doc!;
+  const next = structuredClone(expected); next.resumeViews[0]!.name = "Synthetic reviewed edition";
+  assert.equal(await controller.saveReviewedVersion(next, expected, "Synthetic task"), true);
+  assert.equal((await store.load())?.resumeViews[0]?.name, "Synthetic reviewed edition");
+  assert.equal(await controller.saveReviewedVersion(next, expected, "stale source"), false);
+});
+test("each ordinary official writer respects the same lock as a concurrent approved edition without waiting for a storage event", async t => {
+  for (const mode of ["autosave", "manual", "replace", "single-field restore"] as const) await t.test(mode, async t => {
+    const { store, history } = await setup(t);
+    const entered = signal(), release = signal(), queued = signal();
+    let requests = 0;
+    const commitLock = serialCommitLock(() => { if (++requests === 2) queued.release(); });
+    const a = new DocumentPersistenceController({ store, history, commitLock, delayMs: 60_000 });
+    const b = new DocumentPersistenceController({ store, history, commitLock, delayMs: 60_000 });
+    t.after(() => { a.dispose(); b.dispose(); }); await Promise.all([a.load(), b.load()]);
+    const initial = a.getState().doc!, theirs = b.getState().doc!;
+    const approved = structuredClone(initial), stale = structuredClone(theirs);
+    approved.factBase.profile.phone = "approved value"; stale.factBase.profile.phone = "stale tab input";
+    const save = store.save.bind(store);
+    const values: string[] = [];
+    store.save = async doc => {
+      const value = doc.factBase.profile.phone!; values.push(value);
+      if (value === "approved value") { entered.release(); await release.promise; } else queued.release();
+      await save(doc);
+    };
+    const first = a.saveReviewedVersion(approved, initial, "approved");
+    await entered.promise;
+    const other = (async () => {
+      if (mode === "replace") return b.replace(stale, "import");
+      if (mode === "single-field restore") {
+        const change = getDocumentFieldChanges(theirs, stale).find(item => item.label === "电话")!;
+        return b.restoreField(change).catch(() => false);
+      }
+      b.update(stale); return b.flush(mode === "manual");
+    })();
+    await queued.promise; release.release();
+    assert.deepEqual(await Promise.all([first, other]), [true, false]);
+    assert.deepEqual(values, ["approved value"]);
+    assert.equal((await store.load())?.factBase.profile.phone, "approved value");
+    assert.equal(b.getState().status.externalConflict, true);
+  });
+});
+test("without a cross-tab lock a new review fails closed with an explanation but ordinary explicit saves are still available", async t => {
+  const { store, history } = await setup(t);
+  const tab = new DocumentPersistenceController({ store, history, delayMs: 60_000 });
+  t.after(() => tab.dispose()); await tab.load();
+  const before = tab.getState().doc!, next = structuredClone(before);
+  next.resumeViews[0]!.name = "ordinary explicit save";
+  const save = t.mock.method(store, "save");
+  assert.equal(await tab.saveReviewedVersion(next, before, "review"), false);
+  assert.equal(await tab.saveReviewedVersion(before, before, "review replay"), false);
+  assert.deepEqual(await tab.readOfficialForReview(before), before); // explicitly read-only remains possible
+  assert.match(tab.getState().status.message, /跨窗口独占写锁/);
+  assert.equal(tab.getState().doc, before);
+  assert.equal(save.mock.callCount(), 0);
+  tab.update(next);
+  assert.equal(await tab.flush(true), true);
+  assert.equal((await store.load())?.resumeViews[0]?.name, "ordinary explicit save");
+});
+test("a denied cross-tab lock is not treated as permission for an unprotected review", async t => {
+  const { store, history } = await setup(t);
+  const tab = new DocumentPersistenceController({ store, history, commitLock: async () => { throw new Error("synthetic lock denied"); } });
+  t.after(() => tab.dispose()); await tab.load();
+  const expected = tab.getState().doc!, target = structuredClone(expected);
+  target.resumeViews[0]!.name = "not committed";
+  const save = t.mock.method(store, "save");
+  assert.equal(await tab.saveReviewedVersion(target, expected, "blocked"), false);
+  assert.equal(save.mock.callCount(), 0);
+  assert.match(tab.getState().status.message, /跨窗口独占写锁/);
+  assert.equal(tab.getState().doc, expected);
+});
+test("receipt inspection reads only official storage; a changed editor or an uncertain read never confirms a pending draft", async t => {
+  const { store, history, controller, data } = await setup(t);
+  const base = controller.getState().doc!, pending = structuredClone(base);
+  pending.resumeViews[0]!.name = "pending only"; controller.update(pending);
+  const bytes = [...data], histories = (await history.list()).length;
+  const save = t.mock.method(store, "save"), load = store.load.bind(store);
+  assert.deepEqual(await controller.readOfficialForReview(pending), base);
+  assert.deepEqual([...data], bytes);
+  assert.equal(save.mock.callCount(), 0);
+  assert.equal((await history.list()).length, histories);
+  const entered = signal(), release = signal();
+  store.load = async () => { entered.release(); await release.promise; return load(); };
+  const reading = controller.readOfficialForReview(pending); await entered.promise;
+  controller.update(structuredClone(pending)); release.release();
+  await assert.rejects(reading, /已变化/);
+  const current = controller.getState().doc!;
+  store.load = async () => { throw new Error("synthetic unreadable"); };
+  await assert.rejects(controller.readOfficialForReview(current), /synthetic unreadable/);
+  store.load = async () => null;
+  assert.equal(await controller.readOfficialForReview(current), null);
+  assert.equal(save.mock.callCount(), 0);
+});
+test("reviewed version does not resolve external conflict or acknowledge unknown durable readback", async (t) => {
+  const { controller, store } = await setup(t);
+  const expected = controller.getState().doc!;
+  const incoming = structuredClone(expected); incoming.resumeViews[0]!.name = "Other window";
+  controller.handleStorageChange(STORAGE_KEY, JSON.stringify(incoming));
+  assert.equal(await controller.saveReviewedVersion(incoming, expected, "must refuse conflict"), false);
+  const isolated = new DocumentPersistenceController({ store, history: controller.history, commitLock: serialCommitLock(), delayMs: 60000 });
+  t.after(() => isolated.dispose()); await isolated.load();
+  const source = isolated.getState().doc!;
+  const next = structuredClone(source); next.resumeViews[0]!.name = "Unknown readback";
+  let reads = 0;
+  const originalLoad = store.load.bind(store);
+  store.load = async () => ++reads === 1 ? originalLoad() : null;
+  assert.equal(await isolated.saveReviewedVersion(next, source, "readback failure"), false);
+  assert.equal(reads, 2);
+});
+
+test("reviewed durable save awaits final authorization and does not write after revocation or a local edit", async t => {
+  for (const change of ["revoke", "edit", "external"] as const) {
+    await t.test(change, async t => {
+      const { controller, store } = await setup(t);
+      const expected = controller.getState().doc!;
+      const proposed = structuredClone(expected); proposed.resumeViews[0]!.name = "Approved proposal";
+      let enter!: () => void, resume!: () => void;
+      const guardStarted = new Promise<void>(resolve => { enter = resolve; });
+      const gate = new Promise<void>(resolve => { resume = resolve; });
+      const pending = controller.saveReviewedVersion(proposed, expected, "review gate", async () => {
+        enter(); await gate;
+        if (change === "revoke") throw new Error("consent revoked");
+      });
+      await Promise.race([guardStarted, pending]);
+      const edit = structuredClone(expected); edit.resumeViews[0]!.name = "Independent edit";
+      if (change === "edit") controller.update(edit);
+      if (change === "external") await store.save(edit); // storage event not received yet
+      resume();
+      assert.equal(await pending, false);
+      assert.equal((await store.load())?.resumeViews[0]?.name, change === "external" ? "Independent edit" : expected.resumeViews[0]!.name);
+      assert.equal(controller.getState().doc, change === "edit" ? edit : expected);
+    });
+  }
+});
+test("idempotent reviewed readback never rewrites the document or creates another checkpoint", async t => {
+  const { controller, store, history } = await setup(t);
+  const expected = controller.getState().doc!;
+  const save = t.mock.method(store, "save");
+  const before = (await history.list()).length;
+  assert.equal(await controller.saveReviewedVersion(expected, expected, "existing receipt"), true);
+  assert.equal(save.mock.callCount(), 0);
+  assert.equal((await history.list()).length, before);
+  const external = structuredClone(expected); external.resumeViews[0]!.name = "Changed elsewhere";
+  await store.save(external);
+  assert.equal(await controller.saveReviewedVersion(expected, expected, "late replay"), false);
+  assert.equal(save.mock.callCount(), 1);
+  assert.equal((await store.load())?.resumeViews[0]?.name, "Changed elsewhere");
+});
+test("a reviewed save with an unknown readback preserves intervening editor input and never acknowledges it", async t => {
+  const { controller, store } = await setup(t);
+  const expected = controller.getState().doc!;
+  const proposed = structuredClone(expected); proposed.resumeViews[0]!.name = "Saved edition";
+  const newer = structuredClone(expected); newer.resumeViews[0]!.name = "Newer in-flight edit";
+  const load = store.load.bind(store);
+  let reads = 0;
+  store.load = async () => { const value = await load(); if (++reads === 2) controller.update(newer); return value; };
+  assert.equal(await controller.saveReviewedVersion(proposed, expected, "readback changed"), false);
+  assert.equal(controller.getState().doc, newer);
+});
 
 test("approved writing protects an incomplete draft without forcing official save or autosave on", async (t) => {
   const { doc, controller, data } = await setup(t);

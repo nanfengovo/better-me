@@ -13,6 +13,12 @@ const config = {
 };
 const messages = [{ role: "user", content: "example request" }];
 
+test("non-object provider JSON is not trusted as a typed response",async t=>{
+  t.mock.method(globalThis,"fetch",async()=>Response.json(null));
+  await assert.rejects(fetchChatCompletion(config,messages),/未返回有效/);
+  assert.deepEqual(await fetchAvailableModels(config),[]);
+});
+
 test("structured callers may opt into response_format without changing ordinary chat requests", async (t) => {
   const bodies = [];
   t.mock.method(globalThis, "fetch", async (_url, init) => {
