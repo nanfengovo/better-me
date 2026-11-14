@@ -7,6 +7,7 @@ import {
 } from "../lib/micro-app-registry";
 import {
   readOpportunityLibrary,
+  type Opportunity,
 } from "../lib/opportunities";
 import { useUiPreferences } from "../lib/ui-preferences";
 import { captureIdentityLease } from "../lib/identity";
@@ -43,6 +44,7 @@ import {
   Loader2,
   CheckCircle2,
   Mic,
+  ExternalLink,
 } from "lucide-react";
 import { openSystemSettings } from "../lib/settings-navigation";
 import { useLocalAgentRuntime } from "../lib/local-agent-runtime";
@@ -1619,39 +1621,84 @@ function CyberJobCard3D({
 // ============================================================================
 // 9. 主工作区组件：AutopilotStudioWorkspace
 // ============================================================================
-export function AutopilotStudioWorkspace(props: Parameters<typeof AutopilotDemoWorkspace>[0]) {
-  const { t } = useUiPreferences();
-  const [demo, setDemo] = useState(false);
-  const { data: libraryState } = useSWR("studio:opportunity-library", () => readOpportunityLibrary(), { refreshInterval: 5_000 });
+type AutopilotStudioWorkspaceProps = Parameters<typeof AutopilotWorkbenchPrototype>[0] & {
+  onOpenOpportunitySources?: () => void;
+  onAnalyzeOpportunity?: (job: Opportunity) => void;
+};
+
+export function AutopilotStudioWorkspace(props: AutopilotStudioWorkspaceProps) {
+  const { t, locale } = useUiPreferences();
+  const { data: libraryState, mutate } = useSWR("studio:opportunity-library", () => readOpportunityLibrary(), { refreshInterval: 5_000 });
   const library = libraryState?.library;
+  const jobs = library?.jobs ?? [];
   const claims = props.factBase?.experiences.reduce((sum, experience) => sum + experience.claims.length, 0) ?? 0;
-  if (demo) return <div className="studio-demo-shell">
-    <div className="workspace-notice" role="note"><strong>{t("示例，非真实招聘", "Demo, not real recruitment")}</strong> · {t("所有分数、背调、终端及流程状态仅为演示，不是任务回执。", "Scores, research, terminal output and flow states are examples, not task receipts.")}
-      <button type="button" onClick={() => setDemo(false)}>{t("返回真实岗位", "Back to saved jobs")}</button>
-    </div>
-    <AutopilotDemoWorkspace {...props} factBase={undefined} initialOpportunityId={undefined} />
-  </div>;
+  const sourcedJobs = jobs.filter(job => Boolean(job.sourceUrl)).length;
+  const stageLabels: Record<Opportunity["application"]["stage"], string> = {
+    saved: t("已收藏", "Saved"), evaluating: t("待评估", "Evaluating"), preparing: t("准备中", "Preparing"),
+    applied: t("已投递", "Applied"), interview: t("面试中", "Interviewing"), offer: "Offer",
+    rejected: t("未通过", "Rejected"), withdrawn: t("已撤回", "Withdrawn"),
+  };
+  const formatUpdatedAt = (value: string) => new Intl.DateTimeFormat(locale === "en" ? "en-US" : "zh-CN", {
+    timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
+  }).format(new Date(value));
+
   return <section className="workspace-reading studio-real-workspace" aria-label={t("自动化工坊", "Automation studio")}>
-    <header><h2>{t("自动化工坊", "Automation studio")}</h2><p>{t(`事实库共 ${claims} 条要点；以下仅显示机会库原始记录。`, `${claims} factual claims; only saved opportunity records are shown below.`)}</p></header>
-    <p className="workspace-notice">{t("尚无本工坊的 ATS、匹配或企业背调任务回执，不生成分数或通过结论。请打开岗位核对来源，再进入顾问执行已授权任务。", "No ATS, matching or company research receipts exist for this studio. Open a job to review its sources before authorizing a task in the advisor.")}</p>
-    <div className="workspace-card-grid">{library?.jobs.map(job => <article className="workspace-card" key={job.id} data-job-id={job.id}>
-      <h3>{job.title}</h3><p>{job.company}</p>
-      <dl><div><dt>{t("薪资", "Salary")}</dt><dd>{job.salaryText || t("未披露", "Not disclosed")}</dd></div>
-        <div><dt>{t("地点", "Location")}</dt><dd>{[job.location.city, job.location.region].filter(Boolean).join(" · ") || t("未披露", "Not disclosed")}</dd></div>
-        <div><dt>{t("来源", "Source")}</dt><dd>{job.sourcePlatform || t("待核验", "Unverified")}</dd></div>
-        <div><dt>{t("记录更新", "Record updated")}</dt><dd>{job.updatedAt}</dd></div>
-      </dl>
-      <p>{job.application.nextAction || t("下一步：核对岗位原文", "Next: review the original posting")}</p>
-      {props.onOpenOpportunity && <button type="button" onClick={() => props.onOpenOpportunity?.(job.id)}>{t("打开岗位与来源", "Open job and sources")}</button>}
-    </article>)}</div>
-    {!libraryState && <p role="status">{t("正在读取机会库…", "Reading saved opportunities…")}</p>}
+    <header className="studio-live-header">
+      <div>
+        <span className="studio-live-kicker">{t("真实数据通道", "LIVE DATA PIPELINE")}</span>
+        <h2>{t("自动化工坊 · 真实岗位控制台", "Automation studio · Real opportunity console")}</h2>
+        <p>{t("直接读取机会空间中已保存的岗位、原始来源与实际跟进状态，不注入演示数据。", "Reads saved opportunities, original sources and actual follow-up states directly. No demo data is injected.")}</p>
+      </div>
+      <div className="studio-live-actions">
+        <button type="button" onClick={() => void mutate()}><RotateCw size={15} />{t("刷新", "Refresh")}</button>
+        {props.onOpenOpportunitySources && <button className="studio-live-primary" type="button" onClick={props.onOpenOpportunitySources}>{t("接入真实岗位", "Connect real opportunities")}<ChevronRight size={15} /></button>}
+      </div>
+    </header>
+
+    <div className="studio-live-summary" aria-label={t("真实数据概览", "Real data summary")}>
+      <div><span>{t("已保存岗位", "Saved opportunities")}</span><strong>{jobs.length}</strong></div>
+      <div><span>{t("带原始来源", "With original sources")}</span><strong>{sourcedJobs}</strong></div>
+      <div><span>{t("事实库要点", "Fact-base claims")}</span><strong>{claims}</strong></div>
+    </div>
+
+    <div className="workspace-notice studio-live-boundary" role="note">
+      <ShieldCheck size={18} aria-hidden="true" />
+      <div><strong>{t("真实数据边界", "Real-data boundary")}</strong><p>{t("仅展示机会库原始记录。ATS、匹配与企业背调只有在顾问实际执行并返回回执后才会显示；当前不会伪造分数或通过结论。", "Only original opportunity records are shown. ATS, matching and company research appear only after an advisor actually runs and returns a receipt; no scores or pass results are fabricated.")}</p></div>
+    </div>
+
+    {!libraryState && <p role="status"><Loader2 size={15} className="animate-spin" />{t("正在读取真实机会库…", "Reading the real opportunity library…")}</p>}
     {libraryState?.error && <p role="alert">{libraryState.error}</p>}
-    {library && !libraryState?.error && !library.jobs.length && <p>{t("机会库暂无岗位。不会用演示岗位填充你的队列。", "No saved jobs. Demo jobs will not be added to your queue.")}</p>}
-    <button type="button" onClick={() => setDemo(true)}>{t("查看隔离演示（非真实招聘）", "View isolated demo (not real recruitment)")}</button>
+
+    {jobs.length > 0 && <div className="workspace-card-grid studio-live-grid">{jobs.map(job => <article className="workspace-card studio-live-card" key={job.id} data-job-id={job.id}>
+      <div className="studio-live-card-heading">
+        <span className="studio-live-source">{job.sourcePlatform || t("来源待核验", "Source unverified")}</span>
+        <h3>{job.title}</h3>
+        <p>{job.company}</p>
+      </div>
+      <dl>
+        <div><dt>{t("薪资", "Salary")}</dt><dd>{job.salaryText || t("未披露", "Not disclosed")}</dd></div>
+        <div><dt>{t("地点", "Location")}</dt><dd>{[job.location.city, job.location.region].filter(Boolean).join(" · ") || t("未披露", "Not disclosed")}</dd></div>
+        <div><dt>{t("投递阶段", "Application stage")}</dt><dd>{stageLabels[job.application.stage]}</dd></div>
+        <div><dt>{t("记录更新", "Record updated")}</dt><dd>{formatUpdatedAt(job.updatedAt)}</dd></div>
+      </dl>
+      <p className="studio-live-next">{job.application.nextAction || t("下一步：核对岗位原文与申请入口", "Next: review the original posting and application entry")}</p>
+      <div className="studio-live-card-actions">
+        {job.sourceUrl && <a href={job.sourceUrl} target="_blank" rel="noreferrer">{t("原始招聘页", "Original posting")}<ExternalLink size={14} /></a>}
+        {props.onOpenOpportunity && <button type="button" onClick={() => props.onOpenOpportunity?.(job.id)}>{t("核对岗位记录", "Review record")}</button>}
+        {props.onAnalyzeOpportunity && <button className="studio-live-primary" type="button" onClick={() => props.onAnalyzeOpportunity?.(job)}>{t("送入顾问", "Send to advisor")}<ChevronRight size={14} /></button>}
+      </div>
+    </article>)}</div>}
+
+    {library && !libraryState?.error && jobs.length === 0 && <div className="studio-live-empty">
+      <span className="studio-live-empty-icon"><BookmarkCheck size={21} aria-hidden="true" /></span>
+      <h3>{t("还没有接入真实岗位", "No real opportunities connected yet")}</h3>
+      <p>{t("前往机会空间，从腾讯招聘官网、Greenhouse、Lever 读取公开职位，或导入真实 JD。收藏后会自动出现在这里。", "Open Opportunity Space to read public roles from Tencent Careers, Greenhouse or Lever, or import a real job description. Saved roles appear here automatically.")}</p>
+      {props.onOpenOpportunitySources && <button className="studio-live-primary" type="button" onClick={props.onOpenOpportunitySources}>{t("打开真实岗位来源", "Open real opportunity sources")}<ChevronRight size={15} /></button>}
+    </div>}
   </section>;
 }
 
-function AutopilotDemoWorkspace({
+export function AutopilotWorkbenchPrototype({
   factBase,
   resume: _resume,
   projectedResume: _projectedResume,

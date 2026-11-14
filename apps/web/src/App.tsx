@@ -356,6 +356,7 @@ export function App() {
   function openAgentWorkspace(job?: DrawerJobContext) {
     if (job) {
       setAgentDrawerJob(job);
+      setAgentMode("advisor");
     }
     setPage("agent");
   }
@@ -582,9 +583,21 @@ export function App() {
           factBase={visibleFacts}
           resume={projected}
           onOpenMicroApp={app => window.dispatchEvent(new window.CustomEvent("betterme:open-micro-app", { detail: app }))}
+          onOpenOpportunitySources={() => setPage("opportunities")}
+          onOpenOpportunity={() => setPage("opportunities")}
+          onAnalyzeOpportunity={(job) => openAgentWorkspace({
+            id: job.id,
+            title: job.title,
+            company: job.company,
+            location: [job.location.city, job.location.region].filter(Boolean).join(" · ") || undefined,
+            salary: job.salaryText || undefined,
+            description: job.description,
+            sourceUrl: job.sourceUrl || undefined,
+            sourcePlatform: job.sourcePlatform,
+          })}
         />
       </div>
-      <footer className="studio-footer no-print"><span><ShieldCheck size={12} />{t("资料存于本机 · 真实经历由你核实", "Stored on this device · You verify your experience")}</span><span>{page === "resume" ? t(`${autoSaveDescription} · Ctrl + S 立即保存`, `${autoSaveDescription} · Ctrl + S to save now`) : page === "opportunities" ? t("岗位信息与跟进需点击保存", "Click Save to keep job details and follow-ups") : page === "atlas" ? t("地图、列表与统计使用同一查询 · 来源与事实需核实", "Map, list and statistics share one query · Verify source facts") : page === "agent" ? t("本地 Agent 编排 · 逐条核实履历 · 真实推理由你掌控", "Local Agent orchestration · Verify claims item-by-item · Full user control") : page === "autopilot" ? t("多岗位队列 (Prefetch=2) · 投递后异步挂起 · Offer 全网背调 · 三层沙箱微应用", "Multi-job queue (Prefetch=2) · Async hibernation · Offer reverse due diligence · 3-layer sandboxed micro-apps") : t("查看原始出处，按需使用资料", "Visit original sources and use resources as needed")}</span></footer>
+      <footer className="studio-footer no-print"><span><ShieldCheck size={12} />{t("资料存于本机 · 真实经历由你核实", "Stored on this device · You verify your experience")}</span><span>{page === "resume" ? t(`${autoSaveDescription} · Ctrl + S 立即保存`, `${autoSaveDescription} · Ctrl + S to save now`) : page === "opportunities" ? t("岗位信息与跟进需点击保存", "Click Save to keep job details and follow-ups") : page === "atlas" ? t("地图、列表与统计使用同一查询 · 来源与事实需核实", "Map, list and statistics share one query · Verify source facts") : page === "agent" ? t("本地 Agent 编排 · 逐条核实履历 · 真实推理由你掌控", "Local Agent orchestration · Verify claims item-by-item · Full user control") : page === "autopilot" ? t("真实岗位队列 · 原始来源可核验 · 顾问任务需明确授权", "Real opportunity queue · Verifiable original sources · Advisor tasks require explicit authorization") : t("查看原始出处，按需使用资料", "Visit original sources and use resources as needed")}</span></footer>
     </div></div></DesktopShell>
     <div className="no-print">
       <NetworkSettingsModal isOpen={isNetworkSettingsOpen} onClose={() => setIsNetworkSettingsOpen(false)} />

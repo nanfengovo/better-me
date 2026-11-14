@@ -18,7 +18,6 @@ for(const [k,v] of Object.entries({window:win,document:win.document,localStorage
 const {createRoot}=await import("react-dom/client");
 const {SandboxCodingLab}=await import("../src/components/SandboxCodingLab");
 const {UiPreferencesProvider}=await import("../src/lib/ui-preferences");
-const {AutopilotStudioWorkspace}=await import("../src/components/AutopilotStudioWorkspace");
 const {MicroAppPermissionModal}=await import("../src/components/MicroAppPermissionModal");
 const {openReviewedPreset}=await import("../src/services/sandbox-build-client");
 const {loadInstalledMicroApps,MICRO_APPS_STORAGE_KEY}=await import("../src/lib/micro-app-registry");
@@ -131,27 +130,6 @@ test("permission denial blocks run and pin, and a granted one-off preview cannot
   await render(sample);await click(/仅单次运行/);assert.equal(opens,1);assert.equal(store.getItem(MICRO_APPS_STORAGE_KEY),originalRecords);
   await click(/批准并固定/);assert.equal(opens,2);assert.deepEqual(loadInstalledMicroApps().map(a=>a.appId),["preexisting-synthetic","synthetic-preset"]);
   assert.deepEqual(sessionOnly,[true,false]);
-});
-
-test("the shared studio node exposes the real lab separately from manual presets, and a rejecting Host opens nothing",async()=>{
-  const calls:string[]=[],guard=globalThis.fetch;
-  globalThis.fetch=async(url,options)=>{calls.push((options?.method??"GET")+" "+new URL(String(url)).pathname);
-    return String(url).endsWith("/sandbox/build")?Response.json({error:"unreviewed_sandbox_template"},{status:422}):Response.json({tasks:[]});};
-  try{
-    let opened=0;
-    const host=win.document.createElement("div");win.document.body.append(host);root=createRoot(host as unknown as HTMLElement);
-    await settle(()=>root!.render(React.createElement(AutopilotStudioWorkspace,{onOpenMicroApp:()=>{opened++;}})));
-    await click(/查看隔离演示/);
-    const entry=win.document.querySelector('[data-node-id="20"]');assert.ok(entry instanceof win.HTMLButtonElement);
-    assert.equal(entry.tagName,"BUTTON", "native buttons own keyboard activation; a DOM keydown alone does not synthesize a click");
-    await settle(()=>entry.click());
-    assert.ok(win.document.querySelector('section[aria-label="本地模型编码实验台"]'));
-    assert.match(body(),/内置微应用 · 手工选择预设/);assert.doesNotMatch(body(),/Agent 生成并构建|3\/3 VM/);
-    await click(/编译并审阅权限/);
-    assert.equal(opened,0);assert.equal(win.document.querySelector('[role="dialog"]'),null);
-    assert.match(body(),/HTTP 422/);assert.deepEqual(calls,["GET /api/v1/agent/runtimes","GET /api/v1/agent/sandbox/coding/tasks","POST /api/v1/agent/sandbox/build"]);
-    assert.equal(capturePrivateStorage().getItem(MICRO_APPS_STORAGE_KEY),null);
-  } finally {globalThis.fetch=guard;}
 });
 
 test("one bounded run authorization survives a read-only remount, polls between rounds and stops at a review receipt",async()=>{

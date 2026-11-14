@@ -11,9 +11,6 @@
 .workspace-notice button:focus-visible,.workspace-reading button:focus-visible,.workspace-search input:focus-visible { outline:2px solid var(--ui-focus); outline-offset:3px; }
 .workspace-help { font-size:var(--workspace-caption-size,12px); line-height:1.5; color:var(--ui-text-secondary); }
 .workspace-search { display:flex; flex-direction:column; gap:8px; font-size:var(--workspace-body-size,14px); }
-.studio-demo-shell { display:flex; flex-direction:column; height:100%; min-height:0; }
-.studio-demo-shell>.workspace-notice { flex:none; }
-.studio-demo-shell>.studio-workshop { flex:1; }
 .resume-import-dialog { margin:auto; padding:0; border:0; border-radius:16px; width:min(896px,calc(100vw - 32px)); max-width:100%; background:var(--ui-surface); color:var(--ui-text); }
 .resume-import-dialog::backdrop { background:color-mix(in srgb,var(--ui-text) 45%,transparent); backdrop-filter:blur(3px); }
 .design-advanced>summary { cursor:pointer; min-height:44px; }

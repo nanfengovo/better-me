@@ -130,7 +130,7 @@ test("F01: saved jobs never inherit demo salary, ATS scores or company research"
   const { AutopilotStudioWorkspace } = await import("../src/components/AutopilotStudioWorkspace");
   const job = createOpportunity({ company: "合成未披露公司", title: "合成待核验岗位" });
   const host = await mount(h(SWRConfig, { value: { provider: () => new Map(), revalidateOnMount: false, isPaused: () => true, fallback: { "studio:opportunity-library": { library: { schemaVersion: 1, revision: 1, updatedAt: job.updatedAt, jobs: [job] } } } } }, h(AutopilotStudioWorkspace)));
-  assert.match(host.textContent, /合成待核验岗位/); assert.match(host.textContent, /事实库共 0 条/);
+  assert.match(host.textContent, /合成待核验岗位/); assert.match(host.querySelector(".studio-live-summary")!.textContent, /事实库要点0/);
   assert.match(host.querySelector("[data-job-id]")!.textContent, /未披露/);
   assert.doesNotMatch(host.textContent, /35k|525k|99\.2|100%|ATS 核验通过|S级|09:00/);
   assert.equal(host.querySelector(".studio-workshop"), null);

@@ -1266,3 +1266,206 @@
   --ap-tone-39: #CBD5E1;
   --ap-tone-40: #CBD5E1;
 }
+
+/* Real opportunity pipeline */
+.studio-real-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: clamp(20px, 3vw, 36px);
+}
+
+.studio-live-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.studio-live-header h2,
+.studio-live-header p,
+.studio-live-card h3,
+.studio-live-card p,
+.studio-live-empty h3,
+.studio-live-empty p {
+  margin: 0;
+}
+
+.studio-live-header > div:first-child {
+  display: grid;
+  gap: 6px;
+  max-width: 720px;
+}
+
+.studio-live-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  color: var(--ui-accent);
+  font: 700 var(--workspace-caption-size, 12px) var(--font-mono, monospace);
+  letter-spacing: .08em;
+}
+
+.studio-live-kicker::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ui-success, var(--ui-accent));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ui-success, var(--ui-accent)) 14%, transparent);
+}
+
+.studio-live-actions,
+.studio-live-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.studio-real-workspace .studio-live-primary {
+  border-color: var(--ui-accent);
+  background: var(--ui-accent);
+  color: var(--ui-on-accent, var(--workspace-on-action));
+  font-weight: 700;
+}
+
+.studio-live-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--workspace-card-radius, 12px);
+  background: var(--ui-border);
+}
+
+.studio-live-summary > div {
+  display: grid;
+  gap: 4px;
+  padding: 16px 18px;
+  background: var(--ui-surface);
+}
+
+.studio-live-summary span {
+  color: var(--ui-text-secondary);
+  font-size: var(--workspace-caption-size, 12px);
+}
+
+.studio-live-summary strong {
+  color: var(--ui-text);
+  font: 700 22px/1 var(--font-mono, monospace);
+}
+
+.studio-live-boundary {
+  align-items: flex-start;
+  border-color: var(--ui-info-border);
+  background: var(--ui-info-soft);
+  color: var(--ui-info);
+}
+
+.studio-live-boundary svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.studio-live-boundary > div {
+  display: grid;
+  gap: 3px;
+}
+
+.studio-live-grid {
+  margin: 0;
+}
+
+.studio-live-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 250px;
+}
+
+.studio-live-card-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.studio-live-source {
+  width: fit-content;
+  padding: 3px 7px;
+  border: 1px solid var(--ui-border);
+  border-radius: 999px;
+  background: var(--ui-surface-soft);
+  color: var(--ui-text-secondary);
+  font-size: var(--workspace-caption-size, 12px);
+}
+
+.studio-live-card dl {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+}
+
+.studio-live-card dl > div {
+  justify-content: space-between;
+  border-bottom: 1px solid var(--ui-border);
+  padding-bottom: 7px;
+}
+
+.studio-live-card dd {
+  text-align: end;
+}
+
+.studio-live-next {
+  color: var(--ui-text-secondary);
+}
+
+.studio-live-card-actions {
+  margin-top: auto;
+}
+
+.studio-live-card-actions a {
+  display: inline-flex;
+  min-height: var(--workspace-control-height, 44px);
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--ui-text);
+  background: var(--ui-input);
+  text-decoration: none;
+}
+
+.studio-live-empty {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  max-width: 680px;
+  padding: clamp(24px, 4vw, 44px);
+  border: 1px dashed var(--ui-border-strong, var(--ui-border));
+  border-radius: var(--workspace-card-radius, 12px);
+  background: var(--ui-surface);
+}
+
+.studio-live-empty-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--ui-surface-soft);
+  color: var(--ui-accent);
+}
+
+@media (max-width: 760px) {
+  .studio-live-header { flex-direction: column; }
+  .studio-live-summary { grid-template-columns: 1fr; }
+  .studio-live-actions,
+  .studio-live-card-actions { width: 100%; }
+  .studio-live-actions > *,
+  .studio-live-card-actions > * { flex: 1; justify-content: center; }
+}
