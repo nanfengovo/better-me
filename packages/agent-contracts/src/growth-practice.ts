@@ -5,6 +5,7 @@ import { CareerTaskBudgetSchema, CareerTaskStatusSchema, TaskRootLedgerSchema, t
 const sha256 = (value: string) => hash.sha256().update(value).digest("hex");
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
 const id = z.string().trim().min(1).max(300);
+const sourceId = z.string().regex(/^(?:checkpoint-note-v1|ls_[a-f0-9]{64})$/);
 
 export const GROWTH_PRACTICE_SOURCE_ID = "checkpoint-note-v1" as const;
 export const GROWTH_PRACTICE_EXAMPLE_SOURCE = "检查点会保存已经完成的工具结果。恢复时先读取检查点，不重复调用已经完成的工具。";
@@ -35,14 +36,17 @@ export const GrowthPracticeRuntimeSchema = z.object({
 }).strict();
 
 export const GrowthPracticeRequestSchema = z.object({
-  sourceId: z.literal(GROWTH_PRACTICE_SOURCE_ID),
+  sourceId,
   sourceText: z.string().min(1).max(16_000),
   sourceHash: digest,
   sourceCode: z.string().min(1).max(64 * 1024),
   answer: z.string().min(1).max(12_000),
   explanation: z.string().min(1).max(12_000),
+  scenario: z.literal("lost_receipt").optional(),
+  scenarioCase: z.literal("new_operation").optional(),
 }).strict().superRefine((value, ctx) => {
   if (sha256(value.sourceText) !== value.sourceHash) ctx.addIssue({ code: "custom", path: ["sourceHash"], message: "source hash mismatch" });
+  if (value.scenarioCase && value.scenario !== "lost_receipt") ctx.addIssue({ code: "custom", path: ["scenarioCase"], message: "receipt scenario required" });
 });
 export type GrowthPracticeRequest = z.infer<typeof GrowthPracticeRequestSchema>;
 export const growthPracticeRequestHash = (value: GrowthPracticeRequest) =>
@@ -52,11 +56,14 @@ export const GrowthPracticeDecisionInputSchema = z.object({
   sourceId: z.string().min(1).max(300),
   answer: z.string().max(12_000),
   explanation: z.string().max(12_000),
+  delivery: z.enum(["confirmed", "unknown"]).optional(),
+  operationId: z.string().min(1).max(300).optional(),
   checkpoint: z.object({ noteId: z.string().min(1).max(300), result: z.string().max(16_000), resultHash: digest }).strict().nullable(),
 }).strict();
 export type GrowthPracticeDecisionInput = z.infer<typeof GrowthPracticeDecisionInputSchema>;
 
 export const GrowthPracticeDecisionSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("reconcile"), operationId: z.string().min(1).max(300) }).strict(),
   z.object({ kind: z.literal("lookup"), noteId: z.string().min(1).max(300) }).strict(),
   z.object({ kind: z.literal("finish"), answer: z.string().max(12_000), explanation: z.string().max(12_000),
     citedSourceId: z.string().min(1).max(300), citedResultHash: digest }).strict(),
@@ -66,7 +73,7 @@ export const growthPracticeResultHash = (value: GrowthPracticeDecision | null) =
   sha256(JSON.stringify(value === null ? null : GrowthPracticeDecisionSchema.parse(value)));
 
 export const GrowthPracticeCheckpointSchema = z.object({
-  stepId: z.literal("lookup-note-v1"), noteId: z.literal(GROWTH_PRACTICE_SOURCE_ID), result: z.string().min(1).max(16_000),
+  stepId: z.literal("lookup-note-v1"), noteId: sourceId, result: z.string().min(1).max(16_000),
   resultHash: digest, lookupCalls: z.literal(1), savedAt: z.string().datetime(),
 }).strict().superRefine((value, ctx) => {
   if (sha256(value.result) !== value.resultHash) ctx.addIssue({ code: "custom", path: ["resultHash"], message: "checkpoint result hash mismatch" });
@@ -79,10 +86,11 @@ export const GrowthPracticeCheckIdSchema = z.enum([
   "correct-reference", "unknown-explicit", "forbidden-tool-rejected", "resume-uses-checkpoint",
 ]);
 export const GrowthPracticeVerificationSchema = z.object({
-  verifierVersion: z.literal("growth-practice-quickjs-v1"), sourceHash: digest, sourceCodeHash: digest,
+  verifierVersion: z.enum(["growth-practice-quickjs-v1", "growth-practice-receipt-v2", "growth-practice-receipt-v3"]), sourceHash: digest, sourceCodeHash: digest,
   checkpointHash: digest, resultHash: digest,
   checks: z.array(z.object({ id: GrowthPracticeCheckIdSchema, passed: z.boolean() }).strict()).length(4),
   passed: z.number().int().min(0).max(4), total: z.literal(4), verifiedAt: z.string().datetime(),
+  observations: z.array(z.object({ caseId: z.string().max(100), inputHash: digest, decision: GrowthPracticeDecisionSchema.nullable() }).strict()).max(4).optional(),
 }).strict().superRefine((value, ctx) => {
   if (new Set(value.checks.map(check => check.id)).size !== 4 || value.passed !== value.checks.filter(check => check.passed).length) {
     ctx.addIssue({ code: "custom", message: "verification check summary mismatch" });

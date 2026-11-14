@@ -1,7 +1,7 @@
 import type { ChatMessage } from "../services/agent-client";
 
 export type SpeechPhase = "idle" | "starting" | "speaking";
-export type SpeechIssue = "unavailable" | "voice_missing" | "failed" | "empty";
+export type SpeechIssue = "unavailable" | "voice_missing" | "failed" | "empty" | "access_revoked";
 export type SpeechSnapshot = { phase: SpeechPhase; key?: string; issue?: SpeechIssue };
 export type SpeechEnvironment = {
   engine(): SpeechSynthesis | undefined;
@@ -60,12 +60,17 @@ export class LocalSpeech {
   };
   read = (scope: string, message: ChatMessage): void => {
     if (!canReadReply(message)) return;
-    const key = `${scope}\0${message.id}`;
+    this.readText(scope, message.id, message.content);
+  };
+  /** Explicit prose reading is also used by selected learning passages/questions.
+   * A material grant is checked afresh before each chunk, never persisted. */
+  readText = (scope: string, id: string, content: string, authorize?: () => Promise<boolean>): void => {
+    const key = `${scope}\0${id}`;
     if (this.state.key === key && this.state.phase !== "idle") { this.stop(); return; }
     this.stop();
     const engine = this.environment.engine();
     if (!engine) { this.publish({ phase: "idle", key, issue: "unavailable" }); return; }
-    const chunks = speechChunks(message.content);
+    const chunks = speechChunks(content);
     let voices: SpeechSynthesisVoice[];
     try { voices = engine.getVoices().filter(voice => voice.localService === true); }
     catch { this.publish({ phase: "idle", key, issue: "unavailable" }); return; }
@@ -79,11 +84,21 @@ export class LocalSpeech {
       if (generation !== this.generation) return;
       this.stop(); this.publish({ phase: "idle", key, issue: "failed" });
     };
-    const next = (index: number) => {
+    const next = (index: number, authorized = false) => {
       if (generation !== this.generation) return;
       clearTimeout(this.startupTimer);
       const chunk = planned[index];
       if (!chunk) { this.current = undefined; this.publish({ phase: "idle" }); return; }
+      if (authorize && !authorized) {
+        this.publish({ phase: "starting", key });
+        this.startupTimer = setTimeout(failed, 10_000);
+        void authorize().then(allowed => {
+          if (generation !== this.generation) return;
+          if (allowed) next(index, true);
+          else { this.stop(); this.publish({ phase: "idle", key, issue: "access_revoked" }); }
+        }, () => { if (generation === this.generation) { this.stop(); this.publish({ phase: "idle", key, issue: "access_revoked" }); } });
+        return;
+      }
       try {
         const utterance = this.environment.utterance(chunk.text);
         utterance.voice = chunk.voice!; utterance.lang = chunk.voice!.lang; utterance.rate = 1;

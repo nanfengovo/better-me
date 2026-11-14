@@ -20,7 +20,8 @@
   "dependencies": {
     "@better-me/agent-host": "workspace:*",
     "@better-me/job-service": "workspace:*",
-    "better-sqlite3": "13.0.0"
+    "better-sqlite3": "13.0.0",
+    "pdfjs-dist": "^6.4.299"
   },
   "devDependencies": {
     "@types/node": "^22.13.0",

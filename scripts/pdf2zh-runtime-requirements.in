@@ -1,0 +1,3 @@
+# Optional, operator-managed runtime; never installed by a normal app request.
+pdf2zh-next==2.10.2
+babeldoc==0.7.1

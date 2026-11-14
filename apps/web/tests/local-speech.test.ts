@@ -72,3 +72,22 @@ test("silent engine startup times out without queuing retries", t => {
   speech.read("owner", reply()); assert.equal(speech.snapshot().phase, "starting");
   t.mock.timers.tick(10_000); assert.equal(speech.snapshot().issue, "failed"); assert.equal(speech.snapshot().phase, "idle");
 });
+
+test("a selected passage rechecks permission before every spoken chunk and revocation stops the queue", async () => {
+  const f = fixture(); let allowed = true, checks = 0;
+  f.speech.readText("material-owner", "selected-passage", "先保存回执。不要重复执行。", async () => { checks++; return allowed; });
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(f.utterances.length, 1); assert.equal(checks, 1);
+  allowed = false; f.finish(0);
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(checks, 2); assert.equal(f.utterances.length, 1); assert.equal(f.speech.snapshot().issue, "access_revoked");
+  f.finish(0); assert.equal(f.utterances.length, 1, "late callbacks cannot resume revoked speech");
+});
+
+test("stopping a passage while its permission is pending cannot start late or autoplay after reopening", async () => {
+  const f = fixture(); const permission = Promise.withResolvers<boolean>();
+  f.speech.readText("material-owner", "passage", "原文选段。", () => permission.promise);
+  f.speech.stop("material-owner"); permission.resolve(true);
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(f.utterances.length, 0); assert.equal(f.speech.snapshot().phase, "idle");
+});

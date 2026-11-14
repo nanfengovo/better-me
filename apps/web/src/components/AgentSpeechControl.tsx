@@ -27,7 +27,9 @@ export function useAgentSpeech(scope: string, active: boolean) {
     document.addEventListener("visibilitychange", visibility);
     return () => { window.removeEventListener("pagehide", stop); document.removeEventListener("visibilitychange", visibility); stop(); };
   }, [speech, scope, active]);
-  return { state, read: (message: ChatMessage) => { if (active) speech.read(scope, message); }, scope };
+  return { state, read: (message: ChatMessage) => { if (active) speech.read(scope, message); },
+    readText: (id: string, text: string, authorize?: () => Promise<boolean>) => { if (active) speech.readText(scope, id, text, authorize); },
+    stop: () => speech.stop(scope), scope };
 }
 
 const issues: Record<SpeechIssue, [string, string]> = {
@@ -35,6 +37,7 @@ const issues: Record<SpeechIssue, [string, string]> = {
   voice_missing: ["本机音色尚未就绪，或缺少对应语言。请稍后重试或在系统中安装音色；未改用云端。", "Local voices are not ready or this language is missing. Try again shortly or install a local voice. No cloud fallback was used."],
   failed: ["本机朗读未能完成，请重试；未改用云端。", "Local speech could not finish. Try again; no cloud fallback was used."],
   empty: ["这条回复没有可朗读的正文。", "This reply has no readable prose."],
+  access_revoked: ["资料权限已撤回或无法核对，朗读已停止。", "Material access was revoked or could not be checked; reading stopped."],
 };
 export function AgentSpeechControl({ message, speech }: { message: ChatMessage; speech: ReturnType<typeof useAgentSpeech> }) {
   const { t } = useUiPreferences();

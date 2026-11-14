@@ -6,3 +6,7 @@
 /evals/resume-quality/gold/v1/** -text
 # Keep the generated notice's pinned final newline and its manifest unchanged.
 /evals/resume-quality/gold/v1/NOTICES.md -whitespace
+
+# Original learning PDFs and the upstream font licence must retain their exact bytes.
+/apps/agent-host/tests/fixtures/learning/*.pdf binary
+/apps/agent-host/tests/fixtures/learning/OFL.txt -text -whitespace

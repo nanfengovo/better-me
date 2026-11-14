@@ -1,6 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
 import {
-  GROWTH_PRACTICE_SOURCE_ID,
   GrowthPracticeDecisionSchema,
   GrowthPracticeTaskSchema,
   type GrowthPracticeCheckpoint,
@@ -24,7 +23,7 @@ export function growthPracticeInput(task: GrowthPracticeTask, checkpoint: Growth
 }
 
 export function lookupGrowthPracticeSource(task: GrowthPracticeTask, noteId: string) {
-  if (noteId !== GROWTH_PRACTICE_SOURCE_ID || noteId !== task.request.sourceId) throw new Error("growth_practice_source_not_allowed");
+  if (noteId !== task.request.sourceId) throw new Error("growth_practice_source_not_allowed");
   if (digest(task.request.sourceText) !== task.request.sourceHash) throw new Error("growth_practice_source_changed");
   return task.request.sourceText;
 }
@@ -38,8 +37,16 @@ export async function verifyGrowthPractice(taskValue: GrowthPracticeTask, checkp
   const task = GrowthPracticeTaskSchema.parse(taskValue);
   if (!task.practice.checkpoint || !isDeepStrictEqual(checkpoint, task.practice.checkpoint)) throw new Error("growth_practice_checkpoint_changed");
   const checks: GrowthPracticeVerification["checks"] = [];
+  const receiptScenario = task.request.scenario === "lost_receipt";
+  const operationId = task.request.scenarioCase === "new_operation" ? "new-operation-v2" : "existing-operation-v1";
+  const observations: NonNullable<GrowthPracticeVerification["observations"]> = [];
+  const executeCase: Execute = async (input, label) => {
+    try { const decision = await execute(input, label); observations.push({ caseId: label, inputHash: digest(input), decision }); return decision; }
+    catch (error) { observations.push({ caseId: label, inputHash: digest(input), decision: null }); throw error; }
+  };
+  const confirmedInput = { ...growthPracticeInput(task, checkpoint), ...(receiptScenario ? { delivery: "confirmed" as const, operationId } : {}) };
   let finalDecision: GrowthPracticeDecision | undefined;
-  try { finalDecision = await execute(growthPracticeInput(task, checkpoint), "resume-actual-checkpoint"); } catch (error) { rethrowControlFailure(error); }
+  try { finalDecision = await executeCase(confirmedInput, "resume-actual-checkpoint"); } catch (error) { rethrowControlFailure(error); }
   const exactFinish = finalDecision?.kind === "finish" && finalDecision.answer === task.request.answer
     && finalDecision.explanation === task.request.explanation && finalDecision.citedSourceId === checkpoint.noteId
     && finalDecision.citedResultHash === checkpoint.resultHash;
@@ -47,7 +54,7 @@ export async function verifyGrowthPractice(taskValue: GrowthPracticeTask, checkp
 
   async function hostRejectsRequest(sourceId: string, label: string) {
     let decision: GrowthPracticeDecision;
-    try { decision = await execute(growthPracticeInput(task, null, sourceId), label); }
+    try { decision = await executeCase(growthPracticeInput(task, null, sourceId), label); }
     catch (error) { rethrowControlFailure(error); return false; }
     if (decision.kind !== "lookup") return false;
     // Only an actual trusted allowlist rejection is evidence of host refusal.
@@ -55,16 +62,22 @@ export async function verifyGrowthPractice(taskValue: GrowthPracticeTask, checkp
     try { lookupGrowthPracticeSource(task, decision.noteId); return false; }
     catch (error) { return error instanceof Error && error.message === "growth_practice_source_not_allowed"; }
   }
-  checks.push({ id: "unknown-explicit", passed: await hostRejectsRequest("missing-note-v1", "unknown-source-request") });
+  let unknownDecision: GrowthPracticeDecision | undefined;
+  const unknownInput = { ...growthPracticeInput(task, checkpoint), delivery: "unknown" as const, operationId };
+  if (receiptScenario) {
+    try { unknownDecision = await executeCase(unknownInput, "lost-receipt-never-retry"); } catch (error) { rethrowControlFailure(error); }
+    checks.push({ id: "unknown-explicit", passed: unknownDecision?.kind === "reconcile" && unknownDecision.operationId === operationId });
+  } else checks.push({ id: "unknown-explicit", passed: await hostRejectsRequest("missing-note-v1", "unknown-source-request") });
   checks.push({ id: "forbidden-tool-rejected", passed: await hostRejectsRequest("network://forbidden", "forbidden-source-request") });
   let resumed: GrowthPracticeDecision | undefined;
-  try { resumed = await execute(growthPracticeInput(task, checkpoint), "resume-does-not-lookup"); } catch (error) { rethrowControlFailure(error); }
-  checks.push({ id: "resume-uses-checkpoint", passed: finalDecision?.kind === "finish" && resumed?.kind === "finish"
-    && isDeepStrictEqual(resumed, finalDecision) });
+  try { resumed = await executeCase(receiptScenario ? unknownInput : confirmedInput, "resume-does-not-lookup"); } catch (error) { rethrowControlFailure(error); }
+  checks.push({ id: "resume-uses-checkpoint", passed: receiptScenario
+    ? unknownDecision?.kind === "reconcile" && resumed?.kind === "reconcile" && isDeepStrictEqual(resumed, unknownDecision)
+    : finalDecision?.kind === "finish" && resumed?.kind === "finish" && isDeepStrictEqual(resumed, finalDecision) });
 
   const result = finalDecision?.kind === "finish" ? finalDecision : null;
   return {
-    verifierVersion: GROWTH_PRACTICE_VERIFIER,
+    verifierVersion: task.request.scenarioCase === "new_operation" ? "growth-practice-receipt-v3" : receiptScenario ? "growth-practice-receipt-v2" : GROWTH_PRACTICE_VERIFIER,
     sourceHash: task.request.sourceHash,
     sourceCodeHash: digest(task.request.sourceCode),
     checkpointHash: digest(checkpoint),
@@ -73,6 +86,7 @@ export async function verifyGrowthPractice(taskValue: GrowthPracticeTask, checkp
     passed: checks.filter(check => check.passed).length,
     total: 4,
     verifiedAt: new Date().toISOString(),
+    ...(receiptScenario ? { observations } : {}),
   };
 }
 

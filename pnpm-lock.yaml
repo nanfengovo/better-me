@@ -75,6 +75,9 @@ importers:
       openid-client:
         specifier: 6.8.9
         version: 6.8.9
+      pdfjs-dist:
+        specifier: ^6.4.299
+        version: 6.4.299
       playwright-core:
         specifier: 1.64.1
         version: 1.64.1
@@ -118,6 +121,9 @@ importers:
       better-sqlite3:
         specifier: 13.0.0
         version: 13.0.0
+      pdfjs-dist:
+        specifier: ^6.4.299
+        version: 6.4.299
     devDependencies:
       '@types/node':
         specifier: ^22.13.0

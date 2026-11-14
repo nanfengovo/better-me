@@ -72,6 +72,10 @@ import type { CloudPrivacyAdapter } from "./privacy/types.js";
 import type { loadCareerOperatorConfig } from "./career-studio/operator-config.js";
 import { GrowthJourneys, GrowthJourneyError } from "./growth/service.js";
 import { handleGrowthJourneys } from "./growth/http.js";
+import { LearningPaths } from "./growth/learning-service.js";
+import { handleLearning } from "./growth/learning-http.js";
+import type { LearningTranslationEngine } from "./growth/learning-translations.js";
+import { createPdf2zhEngine } from "./growth/pdf2zh-engine.js";
 
 // ── Server factory ────────────────────────────────────────────────────────────
 
@@ -105,6 +109,10 @@ export interface ServerOptions {
   chatGptService?: ChatGptPlanService;
   /** New owner-only root. Legacy runs, sessions, credentials and checkpoints are never claimed. */
   identityDirectory?: string;
+  /** Controlled-clock acceptance seam; never exposed in production HTTP or CLI. */
+  learningClock?: () => number;
+  /** Trusted PDF converter installation/QA seam. No HTTP executable, URL or credentials. */
+  learningTranslationEngine?: LearningTranslationEngine;
   /** Trusted installation configuration, never accepted from an HTTP request. */
   oidc?: OidcOptions;
   /** Trusted single-OS-user embedding only. Not exposed by CLI or HTTP. Unsafe for account isolation. */
@@ -223,15 +231,22 @@ export function createAgentServer(opts: ServerOptions): http.Server {
     };
     let growthJourneys: GrowthJourneys | undefined;
     let growthKernel: AgentTaskKernel | undefined;
+    let learning: LearningPaths | undefined;
+    let learningKernel: AgentTaskKernel | undefined;
+    const getLearning = () => {
+      learningKernel ??= new AgentTaskKernel({ ownerId: principal.id, directory: path.join(root, "growth-material-tasks-v1") });
+      return learning ??= new LearningPaths({ ownerId: principal.id, directory: path.join(root, "growth-learning-v1"), kernel: learningKernel, clock: opts.learningClock,
+        translationEngine: opts.learningTranslationEngine ?? createPdf2zhEngine({ python: process.env["BETTERME_PDF2ZH_PYTHON"], assets: process.env["BETTERME_PDF2ZH_ASSETS"] }) });
+    };
     const getGrowthJourneys = () => {
       // Synthetic validation uses the existing Kernel implementation, but never
       // scans or claims the user's real career-task history or root ledger.
       growthKernel ??= new AgentTaskKernel({ ownerId: principal.id, directory: path.join(root, "growth-synthetic-tasks-v1") });
       return growthJourneys ??= new GrowthJourneys({ ownerId: principal.id, directory: path.join(root, "growth-journeys-v1"), kernel: growthKernel });
     };
-    const closeGrowthJourneys = async () => { try { await growthJourneys?.close(); } finally { await growthKernel?.close(); } };
-    const invalidateGrowthSession = async (session: string) => { growthJourneys?.invalidateSession(session); await growthKernel?.invalidateSession(session); };
-    return { understanding, nativeTools, routing, careerTasks, taskRuntime, getGrowthJourneys, closeGrowthJourneys, invalidateGrowthSession, getStudioHttp, peekStudioHttp: () => studioHttp, chatGpt: provider, recovery, store: new OwnedStore(path.join(root, "records"), principal.id,
+    const closeGrowthJourneys = async () => { try { await growthJourneys?.close(); await learning?.close(); } finally { await growthKernel?.close(); await learningKernel?.close(); } };
+    const invalidateGrowthSession = async (session: string) => { growthJourneys?.invalidateSession(session); learning?.invalidateSession(session); await growthKernel?.invalidateSession(session); await learningKernel?.invalidateSession(session); };
+    return { understanding, nativeTools, routing, careerTasks, taskRuntime, getGrowthJourneys, getLearning, closeGrowthJourneys, invalidateGrowthSession, getStudioHttp, peekStudioHttp: () => studioHttp, chatGpt: provider, recovery, store: new OwnedStore(path.join(root, "records"), principal.id,
       (namespace, key) => namespace === "continuity" ? recovery.continuity(key) : Promise.resolve(undefined)),
       runManager: new AgentRunManager({ registry: runtimeRegistry, rootDirectory: path.join(root, "runs"), sandboxMode: opts.sandboxMode }),
       handleChatGpt: createChatGptHandler({ service: provider, allowedOrigins: opts.allowedOrigins, readBody, sendJson: jsonResponse }),
@@ -404,6 +419,9 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       let owner = owners.get(principal.id);
       if (!owner) { owner = makeOwner(principal); owners.set(principal.id, owner); }
       const { handleChatGpt, handleUnderstanding, runManager } = owner;
+      if (pathname.startsWith("/api/v1/agent/growth/learning/")) return await handleLearning(req, res, pathname, owner.getLearning(), {
+        session: capabilitySession(req.headers.cookie), valid: async () => (await identities.authenticate(req.headers.cookie))?.id === principal.id,
+      }, readBody, jsonResponse);
       if (pathname.startsWith("/api/v1/agent/growth/")) return await handleGrowthJourneys(req, res, pathname, owner.getGrowthJourneys(), {
         session: capabilitySession(req.headers.cookie), valid: async () => (await identities.authenticate(req.headers.cookie))?.id === principal.id,
       }, readBody, jsonResponse);
