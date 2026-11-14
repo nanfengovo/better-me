@@ -793,20 +793,69 @@
 
 /* Menubar & Menus Dynamic Acrylic Glass */
 .os-menubar-system > .os-menubar {
-  --os-menubar-tint: #101923;
-  --os-menubar-opacity: clamp(0.60, calc(var(--os-menu-opacity, 0.90) * 0.68), 0.72);
+  --os-menubar-opacity: clamp(0.18, calc(var(--os-menu-opacity, 0.90) * 0.25), 0.32);
+  --os-menubar-blur: clamp(3px, calc(var(--os-menu-blur, 24px) * 0.25), 10px);
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 5px;
   color: #fff;
-  background: linear-gradient(180deg, #ffffff0a, #ffffff00), color-mix(in srgb, var(--os-menubar-tint) calc(var(--os-menubar-opacity) * 100%), transparent) !important;
-  backdrop-filter: blur(var(--os-menu-blur, 24px)) saturate(1.35) !important;
-  -webkit-backdrop-filter: blur(var(--os-menu-blur, 24px)) saturate(1.35) !important;
-  border-bottom: 1px solid #ffffff30 !important;
-  box-shadow: inset 0 1px 0 #ffffff26, 0 1px 0 #08111d40, 0 3px 12px #08111d1f;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+}
+
+.os-menubar > .os-menubar-glass {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 999px;
+}
+
+.os-menubar > .os-menubar-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border: 1px solid #071019b3;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #ffffff0a, #ffffff00 55%), rgb(16 25 35 / var(--os-menubar-opacity));
+  backdrop-filter: blur(var(--os-menubar-blur)) saturate(1.25) brightness(0.55);
+  -webkit-backdrop-filter: blur(var(--os-menubar-blur)) saturate(1.25) brightness(0.55);
+  box-shadow: inset 0 1px 0 #ffffff40, inset 0 -1px 0 #ffffff18, 0 1px 3px #00000026;
+}
+
+.os-menubar > .os-menubar-status {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.os-menubar-glass > :is(button, time),
+.os-menubar-glass > .os-app-menu > summary,
+.os-menubar-glass > .os-menu-shortcuts > button {
+  text-shadow: 0 1px 2px #0009;
+}
+
+.os-menubar-glass > .os-system-brand { padding-block: 2px; }
+.os-menubar-glass > .os-menu-shortcuts { margin-left: 0; }
+
+@media (max-width: 600px) {
+  .os-menubar > .os-menubar-glass { gap: 4px; padding-inline: 6px; }
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .os-menubar-system > .os-menubar {
-    --os-menubar-opacity: 0.84;
-  }
+  .os-menubar-system > .os-menubar { --os-menubar-opacity: 0.80; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .os-menubar-system > .os-menubar { --os-menubar-opacity: 0.92; }
 }
 
 .os-app-menu>nav {

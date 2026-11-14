@@ -76,6 +76,12 @@ test("atlas and jobs share the app menu and have independent Dock entries withou
   const mark = dom.document.querySelector<HTMLImageElement>(".os-system-brand .betterme-product-mark");
   assert.equal(mark?.getAttribute("src"), "/brand/betterme-icon.png");
   assert.equal(mark?.getAttribute("alt"), "", "the adjacent product label supplies the accessible name");
+  const menuBar = dom.document.querySelector(".os-menubar")!;
+  assert.equal(menuBar.querySelectorAll(":scope > .os-menubar-glass").length, 2);
+  assert.ok(menuBar.querySelector(".os-menubar-apps > .os-system-brand"));
+  assert.ok(menuBar.querySelector(".os-menubar-apps > .os-app-menu"));
+  assert.ok(menuBar.querySelector(".os-menubar-status > .os-menu-shortcuts"));
+  assert.ok(menuBar.querySelector(".os-menubar-status > time"));
   const editor = dom.document.querySelector("textarea");
   await flush(() => dom.document.querySelector<HTMLButtonElement>('[data-dock-app="atlas"]')!.click());
   assert.equal(dom.document.querySelector("output")!.textContent, "atlas");

@@ -89,10 +89,14 @@ export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, 
       ) : null}
     </div>
     <DesktopMenuBar>
-      <button type="button" className="os-system-brand" onClick={() => navigate("resume")} aria-label={t("返回简历工作室", "Go to resume studio")}><ProductMark size={22} />BetterMe</button>
-      <DesktopAppMenu page={page} title={settingsOpen ? t("系统设置", "System settings") : titles[page]} onNavigate={navigate} />
-      <div className="os-menu-shortcuts"><button type="button" data-onboarding="atlas" onClick={() => navigate("atlas")}><Globe size={13} />{t("地图", "Atlas")}</button><button type="button" onClick={() => setSettingsOpen(true)} aria-label={t("打开系统设置", "Open system settings")}><Settings2 size={14} /></button></div>
-      <time dateTime={now.toISOString()}>{new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-US", { month: "short", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(now)}</time>
+      <div className="os-menubar-glass os-menubar-apps">
+        <button type="button" className="os-system-brand" onClick={() => navigate("resume")} aria-label={t("返回简历工作室", "Go to resume studio")}><ProductMark size={22} />BetterMe</button>
+        <DesktopAppMenu page={page} title={settingsOpen ? t("系统设置", "System settings") : titles[page]} onNavigate={navigate} />
+      </div>
+      <div className="os-menubar-glass os-menubar-status">
+        <div className="os-menu-shortcuts"><button type="button" data-onboarding="atlas" onClick={() => navigate("atlas")}><Globe size={13} />{t("地图", "Atlas")}</button><button type="button" onClick={() => setSettingsOpen(true)} aria-label={t("打开系统设置", "Open system settings")}><Settings2 size={14} /></button></div>
+        <time dateTime={now.toISOString()}>{new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-US", { month: "short", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(now)}</time>
+      </div>
     </DesktopMenuBar>
     <div className="os-stage">
       <DesktopWindow layoutKey={page} title={titles[page]} hidden={mainHidden} onHide={() => { setMainHidden(true); focusDock(page); }} actions={<>{page === "resume" ? <><div className="studio-mode-switch" role="group" aria-label={t("工作室模式", "Studio mode")}><button type="button" aria-pressed={resumeTab === "content"} aria-controls="content-panel" onClick={() => onContent ? onContent() : navigate("resume")}>{t("内容", "Content")}</button><button type="button" aria-pressed={resumeTab === "design"} aria-controls="design-panel" onClick={onDesign}>{t("设计", "Design")}</button></div><button type="button" className="studio-writing-trigger" aria-expanded={sidebar?.open && sidebar.conversation === "writing"} onClick={() => sidebar?.open && sidebar.conversation === "writing" ? sidebar.hide() : sidebar?.show("conversation", "writing")}><Sparkles size={14} /><span>{t("写作助手", "Writing assistant")}</span></button></> : page === "atlas" || page === "opportunities" ? <div className="os-job-app-switch" role="group" aria-label={t("岗位应用", "Job applications")}><button type="button" aria-pressed={page === "opportunities"} onClick={() => navigate("opportunities")}>{t("岗位与投递", "Jobs")}</button><button type="button" aria-pressed={page === "atlas"} onClick={() => navigate("atlas")}>{t("地图", "Map")}</button></div> : <><button type="button" onClick={() => { navigate("resume"); onDesign(); }}><Palette size={14} /><span>{t("排版设计", "Design")}</span></button><button type="button" onClick={onHistory}><History size={14} /><span>{t("版本", "History")}</span></button></>}{accountControls}</>}>
