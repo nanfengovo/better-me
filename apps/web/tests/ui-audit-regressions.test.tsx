@@ -273,6 +273,15 @@ test("F21: autopilot workspace labels, toasts and stage names are translated whi
   assert.doesNotMatch(component, /\{st\.slice\(0, 4\)\}/);
   for (const bare of [/>\s*深度工件舱/, />\s*系统设置</, />\s*重新构建\s*</, /title="上一步"/, /title="下一步"/]) assert.doesNotMatch(component, bare);
 });
+test("Autopilot Dock mirrors the top bar surface treatment and keeps responsive groups", async () => {
+  const component = await readFile(new URL("../src/components/AutopilotStudioWorkspace.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../src/components/autopilot-studio.css", import.meta.url), "utf8");
+  assert.match(component, /className="studio-dock [^"]*"/);
+  for (const group of ["status", "modes", "controls"]) assert.match(component, new RegExp(`studio-dock__panel studio-dock__${group}`));
+  assert.match(styles, /\.studio-dock__panel \{[^}]*var\(--ap-tone-32\)[^}]*var\(--ap-tone-31\)[^}]*backdrop-filter: blur\(18px\)/s);
+  assert.match(styles, /\.studio-workshop\[data-theme="light"\] \.studio-dock__panel/);
+  assert.match(styles, /@media \(max-width: 650px\)[^{]*\{[^}]*\.studio-dock__status \{ display: none; \}/s);
+});
 test("F23: learning surfaces consume shared action and alert tokens, without touching paper", async () => {
   for (const name of ["growth-journey-workspace.css", "learning-path-workspace.css", "CareerStudioWorkspace.css"]) {
     const source = await readFile(new URL(`../src/components/${name}`, import.meta.url), "utf8");

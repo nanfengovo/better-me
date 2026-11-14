@@ -3033,15 +3033,11 @@ function AutopilotDemoWorkspace({
           3. 底部 CONTROL TRAY & DOCK 栏
          ==================================================================== */}
       <footer
-        style={{
-          backgroundColor: "var(--ap-tone-34)",
-          borderColor: "var(--ap-tone-40)",
-          boxShadow: theme === "light" ? "0 -2px 10px rgba(0,0,0,0.03)" : undefined,
-        }}
-        className="relative z-30 px-4 py-2 border-t flex items-center justify-between gap-4 shrink-0 font-mono text-xs select-none"
+        aria-label={t("工坊控制 Dock", "Studio control Dock")}
+        className="studio-dock relative z-30 px-4 pt-1 pb-2 flex items-center justify-between gap-3 shrink-0 font-mono text-xs select-none"
       >
         {/* 左侧：当前循环节点信息 */}
-        <div className="flex items-center gap-3">
+        <div className="studio-dock__panel studio-dock__status flex items-center gap-3">
           <div className="flex items-center gap-1.5 font-bold" style={{ color: currentAgent.primaryHex }}>
             <span>✦</span>
             <span>{currentAgent.shortName}: The loop</span>
@@ -3052,8 +3048,8 @@ function AutopilotDemoWorkspace({
         </div>
 
         {/* 中间：ASCII 进度条与模式切换 */}
-        <div className="hidden md:flex items-center gap-4">
-          <div className={`flex items-center gap-2 text-[11px] ${
+        <div className="studio-dock__panel studio-dock__modes hidden md:flex items-center gap-3">
+          <div className={`hidden xl:flex items-center gap-2 text-[11px] ${
             theme === "light" ? "text-slate-600" : "text-slate-400"
           }`}>
             <span className={`font-bold ${theme === "light" ? "text-cyan-700" : "text-cyan-400"}`}>{asciiBar}</span>
@@ -3110,7 +3106,7 @@ function AutopilotDemoWorkspace({
         </div>
 
         {/* 右侧：步进控制器与 Dock 入口 */}
-        <div className="flex items-center gap-2">
+        <div className="studio-dock__panel studio-dock__controls flex items-center gap-2">
           <div className="flex items-center gap-1">
             <button
               onClick={() => {
@@ -3173,7 +3169,7 @@ function AutopilotDemoWorkspace({
           </button>
 
           {/* 沙箱微应用挂载提示 */}
-          <div className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10.5px] ${
+          <div className={`hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10.5px] ${
             theme === "light"
               ? "bg-slate-100 border-slate-300 text-slate-800"
               : "bg-[#0E1724] border-[#1E2E42] text-slate-300"
