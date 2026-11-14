@@ -42,6 +42,8 @@ test("guest login renders without loading private workspace modules", async () =
   try {
     await act(async () => root.render(<IdentityGate><RecoverableModule load={load} componentProps={{}} label="Workspace" /></IdentityGate>));
     assert.match(container.querySelector("h1")?.textContent ?? "", /欢迎回来/);
+    assert.ok(container.querySelector(".login-globe-fallback"), "unsupported or automated renderers keep the login usable with a static globe");
+    assert.ok(container.querySelector(".login-globe-canvas")?.hasAttribute("hidden"));
     assert.equal(loads, 0);
   } finally { await act(async () => root.unmount()); container.remove(); }
 });
