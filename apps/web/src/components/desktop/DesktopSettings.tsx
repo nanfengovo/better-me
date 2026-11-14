@@ -27,7 +27,7 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
     dockSize = 48,
     dockMagnification = true,
     dockMagScale = 1.45,
-    dockOpacity = 0.85,
+    dockOpacity = 0.28,
     dockBlur = 24,
     reduceMotion = false,
     setDesktopPreferences,
@@ -191,9 +191,9 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
             <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 180 }}>
               <input
                 type="range"
-                min="0.2"
+                min="0.1"
                 max="1.0"
-                step="0.05"
+                step="0.02"
                 value={dockOpacity}
                 onChange={(e) => setDesktopPreferences({ dockOpacity: parseFloat(e.target.value) })}
                 className="os-effect-slider"
@@ -205,10 +205,10 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
           {/* Dock 透明度预设挡位 */}
           <div className="os-opacity-presets" role="group" aria-label={t("Dock 透明度预设", "Dock opacity presets")} style={{ padding: "0 15px 12px", marginTop: -4 }}>
             {[
-              { val: 1.0, label: t("100% 实体", "100% Solid") },
-              { val: 0.85, label: t("85% 毛玻璃", "85% Frosted") },
-              { val: 0.65, label: t("65% 晶莹", "65% Crystal") },
-              { val: 0.40, label: t("40% 极透", "40% Ghost") },
+              { val: 0.65, label: t("65% 深色", "65% Deep") },
+              { val: 0.45, label: t("45% 毛玻璃", "45% Frosted") },
+              { val: 0.28, label: t("28% 轻透", "28% Clear") },
+              { val: 0.12, label: t("12% 极透", "12% Ghost") },
             ].map((p) => (
               <button
                 key={p.val}

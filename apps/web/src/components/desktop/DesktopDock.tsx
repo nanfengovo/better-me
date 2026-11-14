@@ -68,7 +68,7 @@ export function DesktopDock({
     dockSize = 48,
     dockMagnification = true,
     dockMagScale = 1.45,
-    dockOpacity = 0.85,
+    dockOpacity = 0.28,
     dockBlur = 24,
     reduceMotion = false,
   } = useUiPreferences();

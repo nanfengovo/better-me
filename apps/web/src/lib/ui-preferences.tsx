@@ -45,7 +45,7 @@ const DEFAULT_PREFERENCES: UiPreferences = {
   dockSize: 48,
   dockMagnification: true,
   dockMagScale: 1.45,
-  dockOpacity: 0.85,
+  dockOpacity: 0.28,
   dockBlur: 24,
   dockAutoHide: true,
   menuBarAutoHide: false,
@@ -70,7 +70,9 @@ export function parseUiPreferences(raw: string | null): UiPreferences {
       ...(typeof saved.dockSize === "number" && saved.dockSize >= 32 && saved.dockSize <= 80 ? { dockSize: saved.dockSize } : {}),
       ...(typeof saved.dockMagnification === "boolean" ? { dockMagnification: saved.dockMagnification } : {}),
       ...(typeof saved.dockMagScale === "number" && saved.dockMagScale >= 1.0 && saved.dockMagScale <= 2.2 ? { dockMagScale: saved.dockMagScale } : {}),
-      ...(typeof saved.dockOpacity === "number" && saved.dockOpacity >= 0.1 && saved.dockOpacity <= 1 ? { dockOpacity: saved.dockOpacity } : {}),
+      ...(typeof saved.dockOpacity === "number" && saved.dockOpacity >= 0.1 && saved.dockOpacity <= 1
+        ? { dockOpacity: saved.dockOpacity === 0.85 ? DEFAULT_PREFERENCES.dockOpacity : saved.dockOpacity }
+        : {}),
       ...(typeof saved.dockBlur === "number" && saved.dockBlur >= 0 && saved.dockBlur <= 40 ? { dockBlur: saved.dockBlur } : {}),
       ...(typeof saved.reduceMotion === "boolean" ? { reduceMotion: saved.reduceMotion } : {}),
       ...(typeof saved.wallpaper === "string" ? { wallpaper: saved.wallpaper } : {}),
@@ -101,7 +103,7 @@ export function applyUiAppearance(preferences: UiPreferences): void {
   const winBlur = preferences.windowBlur ?? 24;
   const menuOpacity = preferences.menuOpacity ?? 0.90;
   const dockPosition = preferences.dockPosition ?? "bottom";
-  const dockOpacity = preferences.dockOpacity ?? 0.85;
+  const dockOpacity = preferences.dockOpacity ?? 0.28;
   const dockBlur = preferences.dockBlur ?? 24;
   const dockSize = preferences.dockSize ?? 48;
   document.documentElement.dataset.dockPosition = dockPosition;
