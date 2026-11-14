@@ -2,6 +2,8 @@
 
 ## 当前焦点
 
+2026-11-14 灵动岛 UI 细节优化：将中间灵动岛升级为与左右菜单胶囊统一的深烟色毛玻璃材质（`backdrop-filter: blur(28px) saturate(1.55)`、顶部镜面高光与暗边轮廓）；展开态重构为平衡顶栏 + 两张内嵌玻璃卡片（「服务与引擎」彩色状态胶囊、「今日 Token 消耗」总量数字 + 输入/输出双色比例条 + 各模型类型标签与占比条），支持中英文切换、面板外点击收起、减少动态效果偏好，并修正首次加载误弹异常横幅与 Esc 收起残留提示。`desktop-shell.test.tsx` 31/31、Web 类型检查、零 warning lint、双端构建 9/9、桌面测试 22/22 均通过；847×826 真实 CSS 夹具已核对空闲/运行中/展开三态截图。卡点不变：完整登录页动态模块加载在自动化浏览器中仍受阻，运行中的 Agent Host 需重启一次以暴露 `/api/v1/agent/usage`，Linux 无法实测 macOS `BetterMe.app`。本轮必读附加：无。
+
 2026-11-14 顶部灵动岛与服务状态：Host 在统一任务模型派送缝 `tasks/runtime.ts` 加每账号内存 `ModelUsageMeter`（`tasks/usage-meter.ts`），只读 `GET /api/v1/agent/usage`；直连模型 token 取自 provider usage_metadata，ChatGPT账号/本机CLI 只计调用并标 `metered:false`，不估算；按本地日期重置，Host 重启清零（`since` 标明）。Web `DynamicIsland`+`StatusDots`（SWR 30–60s，运行中3s）：代理=网络设置/探测，引擎=Agent Host健康+runtimes+vork，模型=今日真实调用成败（不发付费探测）。宿主类型/lint、计量2/2、Host runtime/task 182/182、桌面壳31/31、双端构建9/9、桌面22/22通过；847px 展开态CSS夹具截图已核对。未验：运行中的 Host 需重启才有新接口；真实登录页及macOS app未实测。继续沿agent-os。本轮必读附加：无。
 
 2026-11-14 菜单栏截图细化：本人再次强调参考整张截图最顶部的系统菜单。现按左右两块28px圆角玻璃胶囊实现，中间/整条header完全透明，保持34px总高度；仅DesktopShell菜单内容增加左右包裹，desktop.css改为约22.5%薄色层、6px默认模糊、暗轮廓/内高光，保留浅色壁纸白字对比及减少透明度降级。菜单结构回归、桌面构建、桌面测试均通过。1097×826/390×844真实CSS隔离夹具截图已核对分组/透底/无溢出；夹具不等于登录应用验收，浏览器缺中文字形，完整应用动态模块导入仍失败。Linux无法刷新/实测macOS BetterMe.app。下一步只需正常预览里确认真实菜单观感；继续沿agent-os，不新建分支。本轮必读附加：无。下文上一版整条磨砂方案已被本次替代。

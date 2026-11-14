@@ -80,8 +80,16 @@ test("atlas and jobs share the app menu and have independent Dock entries withou
   assert.equal(menuBar.querySelectorAll(":scope > .os-menubar-glass").length, 2);
   assert.ok(menuBar.querySelector(".os-menubar-apps > .os-system-brand"));
   assert.ok(menuBar.querySelector(".os-menubar-apps > .os-app-menu"));
+  assert.ok(menuBar.querySelector(".os-menubar-status > .os-status-dots"));
   assert.ok(menuBar.querySelector(".os-menubar-status > .os-menu-shortcuts"));
   assert.ok(menuBar.querySelector(".os-menubar-status > time"));
+  const island = menuBar.querySelector<HTMLElement>(".os-island")!;
+  assert.equal(island.dataset.state, "idle");
+  await flush(() => menuBar.querySelector<HTMLButtonElement>(".os-status-dots")!.click());
+  assert.equal(island.dataset.state, "expanded");
+  assert.equal(island.querySelectorAll(".os-island-section").length, 2);
+  await flush(() => island.dispatchEvent(new dom.KeyboardEvent("keydown", { bubbles: true, key: "Escape" })));
+  assert.equal(island.dataset.state, "idle");
   const editor = dom.document.querySelector("textarea");
   await flush(() => dom.document.querySelector<HTMLButtonElement>('[data-dock-app="atlas"]')!.click());
   assert.equal(dom.document.querySelector("output")!.textContent, "atlas");
