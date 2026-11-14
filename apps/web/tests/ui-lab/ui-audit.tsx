@@ -6,6 +6,11 @@ import { DynamicIsland } from "../../src/components/desktop/DynamicIsland";
 import { OpportunityCard3D } from "../../src/components/OpportunityCard3D";
 import { ResumeImportModal } from "../../src/components/ResumeImportModal";
 import { ResourceLibrary } from "../../src/components/ResourceLibrary";
+import { AgentTaskNavigation, type AgentTaskView } from "../../src/components/AgentTaskNavigation";
+import { WorkspaceTaskSummary } from "../../src/components/WorkspaceTaskSummary";
+import { GrowthJourneyWorkspace } from "../../src/components/GrowthJourneyWorkspace";
+import "../../src/components/CareerStudioWorkspace.css";
+import "../../src/components/learning-path-workspace.css";
 import { createOpportunity } from "../../src/lib/opportunities";
 import "../../src/index.css";
 import "../../src/theme.css";
@@ -26,9 +31,10 @@ job.application.nextAction = "核对原始招聘页面、确认工作地点与�
 function Fixture() {
   const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get("panel") ?? "cards"), [modal, setModal] = useState(false), [compact, setCompact] = useState(false);
   const { t, locale, setLocale, theme, setTheme } = useUiPreferences();
+  const [task, setTask] = useState<AgentTaskView | "growth" | "studio">("job");
   return <main style={{ minHeight: "100dvh", background: "var(--ui-canvas)", color: "var(--ui-text)", padding: 16 }}>
     <header style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}><strong>隔离合成验收 · 不读取私人资料</strong>
-      {["cards", "island", "import", "resources"].map(value => <button type="button" key={value} onClick={() => setTab(value)}>{value}</button>)}
+      {["cards", "island", "import", "resources", "navigation", "growth"].map(value => <button type="button" key={value} onClick={() => setTab(value)}>{value}</button>)}
       <button type="button" onClick={() => setLocale(locale === "zh" ? "en" : "zh")}>语言</button>
       <button type="button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>主题</button>
     </header>
@@ -36,6 +42,8 @@ function Fixture() {
     {tab === "island" && <div style={{ position: "relative", height: "calc(100dvh - 110px)" }}><DynamicIsland /></div>}
     {tab === "import" && <><button type="button" id="import-trigger" onClick={() => setModal(true)}>{t("打开导入窗口", "Open import dialog")}</button><button type="button">背景控件</button><ResumeImportModal isOpen={modal} onClose={() => setModal(false)} llmConfig={{ provider: "ollama", model: "synthetic", apiKey: "", baseUrl: "http://invalid.invalid" }} onImportSuccess={() => { throw new Error("Fixture never adopts private data"); }} onOpenAiConfig={() => {}} /></>}
     {tab === "resources" && <ResourceLibrary />}
+    {tab === "navigation" && <section><AgentTaskNavigation active={task} onSelect={setTask} onOpenArea={setTask} jobTitle="Synthetic long target job for layout validation only" onBack={() => setTask("job")} onTailor={() => setTask("resume")} /><WorkspaceTaskSummary goal={t("合成岗位与练习目标", "Synthetic job and practice goal")} material={t("未共享简历 · 未授权模型", "Resume not shared · Model not authorized")} status={t(`当前选择：${task}，未发送任务`, `Selected: ${task}; no task submitted`)} next={t("核对材料并明确授权", "Review material and authorize explicitly")} /></section>}
+    {tab === "growth" && <GrowthJourneyWorkspace />}
   </main>;
 }
 createRoot(document.getElementById("root")!).render(<SWRConfig value={{ provider: () => new Map(), fallback, revalidateOnMount: false, revalidateOnFocus: false, isPaused: () => true }}><UiPreferencesProvider initialPreferences={{ locale: "zh", theme: "dark", reduceMotion: true }}><Fixture /></UiPreferencesProvider></SWRConfig>);

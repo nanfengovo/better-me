@@ -62,6 +62,7 @@ import { AgentSpeechControl, useAgentSpeech } from "./AgentSpeechControl";
 import { AgentReplyMeta } from "./AgentReplyMeta";
 import { CareerCoachWorkspace } from "./CareerCoachWorkspace";
 import { AgentTaskNavigation, type AgentTaskView } from "./AgentTaskNavigation";
+import { WorkspaceTaskSummary } from "./WorkspaceTaskSummary";
 import { AgentExternalHandoff } from "./AgentExternalHandoff";
 import { extractJobLink } from "../lib/job-link";
 import type { CoachMode } from "../lib/career-coach/types";
@@ -82,6 +83,8 @@ export interface AgentWorkspaceProps {
   workspaceKey?: string;
   active?: boolean;
   onActivate?:()=>void;
+  navigationRequest?: { view: AgentTaskView; id: number };
+  onOpenArea?: (area: "growth" | "studio") => void;
   job: DrawerJobContext | null;
   resume: ProjectedResume | null;
   llmConfig: LlmConfig;
@@ -138,6 +141,8 @@ function AgentWorkspaceSession({
   sendChat=sendAgentChat,
   active = true,
   onActivate,
+  navigationRequest,
+  onOpenArea,
   job,
   resume,
   llmConfig,
@@ -175,6 +180,9 @@ function AgentWorkspaceSession({
     setShowCareerCoach(Boolean(mode));
     if (mode) setCoachRequest(previous => ({ mode, id: (previous?.id ?? 0) + 1 }));
   }
+  const selectTaskRef = useRef(selectTask);
+  selectTaskRef.current = selectTask;
+  useEffect(() => { if (navigationRequest) selectTaskRef.current(navigationRequest.view); }, [navigationRequest]);
   const [careerCoachInitialized, setCareerCoachInitialized] = useState(false);
   useEffect(() => { if (showCareerCoach) setCareerCoachInitialized(true); }, [showCareerCoach]);
   useEffect(() => { const open = () => { setTaskView("career"); setShowCareerCoach(true); }; window.addEventListener("betterme:open-growth", open); return () => window.removeEventListener("betterme:open-growth", open); }, [setTaskView, setShowCareerCoach]);
@@ -1172,19 +1180,19 @@ function AgentWorkspaceSession({
 
   return (
     <div className="advisor-workspace">
-    <dl className="advisor-task-summary" aria-label={t("当前任务概览", "Current task overview")}>
-      <div><dt>{t("当前目标", "Current goal")}</dt><dd>{currentJob ? `${currentJob.company} · ${currentJob.title}` : t("选择目标岗位或顾问任务", "Choose a target job or advisor task")}</dd></div>
-      <div><dt>{t("可用材料", "Available material")}</dt><dd>{t(`${currentJob?.description ? "岗位原文" : "尚无岗位原文"} · ${resume ? "当前简历" : "尚无简历"}`, `${currentJob?.description ? "Job description" : "No job description"} · ${resume ? "Current resume" : "No resume"}`)}</dd></div>
-      <div><dt>{t("运行状态与下一步", "Status and next step")}</dt><dd>{loading ? t("正在生成岗位建议；请等待结果", "Generating job suggestions; wait for results") : chatLoading ? t("顾问对话生成中；可使用停止操作", "Advisor response in progress; Stop is available") : t("建议生成与对话空闲；其他任务状态见对应面板。核对材料与授权后继续", "Suggestions and chat are idle; other task statuses are shown in their panels. Review material and permissions before continuing")}</dd></div>
-    </dl>
+    {!showCareerCoach && !showCareerTask && !interviewRecovery.value.open && taskView === "job" && <WorkspaceTaskSummary
+      goal={careerCoachJob ? `${careerCoachJob.company} · ${careerCoachJob.title}` : t("选择目标岗位", "Choose a target job")}
+      material={t(`${careerCoachJob?.description ? "岗位原文" : "尚无岗位原文"} · ${resume ? "当前简历" : "尚无简历"}（发送范围以操作授权为准）`, `${careerCoachJob?.description ? "Job description" : "No job description"} · ${resume ? "Current resume" : "No resume"} (sharing requires action-specific consent)`)}
+      status={loading ? t("岗位建议生成中", "Generating job suggestions") : chatLoading ? t("顾问回复中", "Advisor is responding") : isExtractingLink ? t("正在读取岗位", "Reading the job") : t("当前未生成", "Not generating")}
+      next={loading || chatLoading || isExtractingLink ? t("等待回执，或使用任务内停止按钮", "Wait for a receipt or use the task's Stop button") : isSetupMode ? t("核对岗位原文并确认字段", "Review the job source and confirm its fields") : t("选择建议或对话；修改需逐条确认", "Review suggestions or chat; approve edits individually")}
+    />}
     {interviewRecovery.value.open&&interviewRecovery.value.selection&&<MockInterviewPanel key={privateKey(interviewRecovery.value.selection.id)} workspaceKey={interviewWorkspaceKey} selection={interviewRecovery.value.selection} resume={resume} llmConfig={llmConfig} blockingError={interviewRecovery.error} onClose={()=>interviewRecovery.field("open",false)} onOpenConfig={onOpenConfig}/>}
     <div hidden={interviewRecovery.value.open} style={{display:interviewRecovery.value.open?"none":"contents"}}>
     {interviewRecovery.error&&<WorkspaceRecoveryNotice {...interviewRecovery}/>}
     {(recovery.error || (!showCareerCoach && taskView !== "handoff")) && <WorkspaceRecoveryNotice {...recovery} />}
-    <AgentTaskNavigation onBack={onNavigateToResume} onEdit={currentJob?.description && !isEditingJob ? handleOpenJobEdit : undefined} needsConfig={!llmConfig.apiKey?.trim() && llmConfig.provider !== "ollama"} onConfig={onOpenConfig} active={showCareerCoach ? (taskView === "job" ? "career" : taskView) : taskView} onSelect={selectTask} jobTitle={currentJob ? `${currentJob.company} · ${currentJob.title}` : undefined} />
-    {interviewRecovery.value.selection&&<button type="button" className="studio-button" onClick={()=>interviewRecovery.field("open",true)}>回到对练会话</button>}
-    {defenseOptions.length>0&&!showCareerCoach&&<details className="mock-interview-topics"><summary>面试攻防 · 选择题目开始对练</summary>{defenseOptions.map(defense=><article key={defense.id}><strong>{defense.targetTopic}</strong><p>{defense.question}</p><button type="button" disabled={Boolean(interviewRecovery.error)} onClick={()=>void startDefense(defense)}>{t("与 AI 顾问对练这道题", "Practice this question with the AI advisor")}</button></article>)}</details>}
-    {careerTaskConfig && <div className="flex items-center gap-3 border-b border-[var(--ui-border)] px-4 py-2"><button type="button" aria-pressed={sidebar?sidebar.open&&sidebar.conversation==="task":showCareerTask} className="studio-button" onClick={() => openCareerTask()}><FileText size={14} />{t("岗位定制任务", "Resume tailoring task")}</button><span className="text-xs text-[var(--ui-muted)]">{t("同一宿主任务 · 审阅后另存 · 不自动投递", "One host task · Review before saving · No auto-apply")}</span></div>}
+    <AgentTaskNavigation onOpenArea={onOpenArea} onTailor={careerTaskConfig ? () => openCareerTask() : undefined} tailoring={sidebar ? sidebar.open && sidebar.conversation === "task" : showCareerTask} onBack={onNavigateToResume} onEdit={currentJob?.description && !isEditingJob ? handleOpenJobEdit : undefined} needsConfig={!llmConfig.apiKey?.trim() && llmConfig.provider !== "ollama"} onConfig={onOpenConfig} active={showCareerCoach ? (taskView === "job" ? "career" : taskView) : taskView} onSelect={selectTask} jobTitle={currentJob ? `${currentJob.company} · ${currentJob.title}` : undefined} />
+    {interviewRecovery.value.selection&&<button type="button" className="studio-button" onClick={()=>interviewRecovery.field("open",true)}>{t("回到对练会话", "Return to interview practice")}</button>}
+    {defenseOptions.length>0&&!showCareerCoach&&<details className="mock-interview-topics"><summary>{t("面试攻防 · 选择题目开始对练", "Interview practice · Choose a question")}</summary>{defenseOptions.map(defense=><article key={defense.id}><strong>{defense.targetTopic}</strong><p>{defense.question}</p><button type="button" disabled={Boolean(interviewRecovery.error)} onClick={()=>void startDefense(defense)}>{t("与 AI 顾问对练这道题", "Practice this question with the AI advisor")}</button></article>)}</details>}
     <div hidden={showCareerTask} style={{ display: showCareerTask ? "none" : "contents" }}>{careerCoachPanel}</div>
     {careerTaskConfig && showCareerTask && <CareerTaskPanel {...careerTaskConfig} job={careerCoachJob ?? undefined} resumeFields={resumeEditContext} llmConfig={llmConfig} initialObjective={taskObjective} />}
     <div hidden={taskView !== "handoff" || showCareerTask} style={{ display: taskView === "handoff" && !showCareerTask ? "flex" : "none", flex: 1, minHeight: 0 }}><AgentExternalHandoff workspaceKey={workspaceKey} job={currentJob} /></div>

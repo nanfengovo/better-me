@@ -53,6 +53,20 @@ after(() => {
   }
 });
 
+test("English badges distinguish missing, conflicting and normalized amounts without changing source data", async () => {
+  const { formatCardSalaryRMB, formatCardDistance, formatCardPublication } = await import("../src/components/atlas/card-badges");
+  const { item } = await fixture();
+  const missing = { ...item, salary: undefined, salarySelection: undefined, salaryCandidates: [] };
+  assert.equal(formatCardSalaryRMB(missing, "en").label, "Salary undisclosed");
+  assert.equal(formatCardDistance({ ...item, distance: undefined }, false, "en").label, "Home not set");
+  assert.equal(formatCardPublication(missing, [], undefined, "en").label, "Publication unknown");
+  const disclosed = { ...item, salary: { ...item.salary!, cnyAnnual: { min: 120000, max: 240000 } } };
+  const before = JSON.stringify(disclosed);
+  assert.equal(formatCardSalaryRMB(disclosed, "en").label, "CNY 120,000–240,000/year");
+  assert.equal(formatCardSalaryRMB(disclosed).label, "¥12–24万/年");
+  assert.equal(JSON.stringify(disclosed), before);
+});
+
 test("card reading content stays cached for parent selection, filters and currency-control changes", async () => {
   const props: AtlasJobCardContentProps = await fixture();
   const present = createAtlasListingPresenter(props.data!, { now: "2026-10-28T00:00:00Z" });

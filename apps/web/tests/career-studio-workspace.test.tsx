@@ -186,7 +186,7 @@ test("micro-card form requires a personal quote and a separate reviewed adoption
     // A reviewed business receipt may arrive after many event-loop turns.
     await delay(150); return { versionId: "readback-version-ui", statementId: adopted.statementId };
   } });
-  await selectScope(); await click(/^高光收件箱06$/); assert.equal(calls.some(call => call.route === "/harvest/inbox"), false);
+  await selectScope(); await click(/^高光收件箱$/); assert.equal(calls.some(call => call.route === "/harvest/inbox"), false);
   await click(/^刷新收件箱与订阅状态$/); await click(/^打开卡片并核对来源$/); await choose(/^本人贡献边界/, "implementation");
   await fill(/^本人实际贡献原话/, personalQuote); await fill(/^角色边界/, "参与实现"); await fill(/^部署\/未上线说明/, "仅本地，未上线");
   await click(/^保存这次贡献审阅$/); await waitFor(() => !button(/^生成待审长期陈述提案/).disabled); assert.equal(adoptions, 0);

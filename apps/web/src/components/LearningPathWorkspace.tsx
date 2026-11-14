@@ -19,7 +19,7 @@ import {
 import { LearningOriginalPage } from "./LearningOriginalPage";
 import { LearningTranslationPanel } from "./LearningTranslationPanel";
 import { useAgentSpeech } from "./AgentSpeechControl";
-import { useReducedMotion } from "../lib/ui-preferences";
+import { useReducedMotion, useUiPreferences } from "../lib/ui-preferences";
 import "./learning-path-workspace.css";
 
 const Draft = z
@@ -145,6 +145,7 @@ export function LearningPathWorkspace({
   client?: LearningClient;
   cloudConfig?: import("@better-me/core").LlmConfig;
 }) {
+  const { t } = useUiPreferences();
   const generation = useSyncExternalStore(
     subscribeIdentity,
     identitySnapshot,
@@ -153,11 +154,8 @@ export function LearningPathWorkspace({
   if (!generation)
     return (
       <section className="learning-workspace">
-        <h2>把读过的资料，变成可验证的进步</h2>
-        <p>
-          请先登录
-          BetterMe。资料和练习只属于当前账号，不会读取旧简历或求职记录。
-        </p>
+        <h2>{t("把读过的资料，变成可验证的进步", "Turn reading into verifiable progress")}</h2>
+        <p>{t("请先登录 BetterMe。资料和练习只属于当前账号，不会读取旧简历或求职记录。", "Sign in to BetterMe. Materials and exercises belong only to this account; existing resumes and career records are not read.")}</p>
       </section>
     );
   if (!keys.has(generation)) keys.set(generation, ++sequence);
@@ -165,6 +163,8 @@ export function LearningPathWorkspace({
 }
 
 function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudConfig?:import("@better-me/core").LlmConfig }) {
+  const { t } = useUiPreferences();
+  const stageLabel = (stage: LearningPath["stage"]) => t(statusLabels[stage], { choose_source: "Choose material", practice: "Practicing", checkpoint_saved: "Checkpoint saved", pending_retest: "Awaiting delayed retest", retest_due: "Retest due", review: "Weekly review due", project: "Project review due", completed: "Learning project accepted", outcome_unknown: "Outcome needs reconciliation", source_revoked: "Material access revoked" }[stage]);
   const reducedMotion = useReducedMotion();
   const [scope] = useState(() => ({
     lease: captureIdentityLease(),
@@ -547,34 +547,34 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   return (
-    <section className="learning-workspace" aria-label="资料与隔时复测">
+    <section className="learning-workspace" aria-label={t("资料与隔时复测", "Materials and delayed retest")}>
       <header className="learning-heading">
         <div>
           <span className="learning-eyebrow">
             <BookOpen size={15} />
-            一次有出处的进步
+            {t("一次有出处的进步", "Progress backed by sources")}
           </span>
-          <h2>{record?.title ?? "把读过的资料，变成可验证的进步"}</h2>
+          <h2>{record?.title ?? t("把读过的资料，变成可验证的进步", "Turn reading into verifiable progress")}</h2>
           <p>
-            一份资料，一次练习，再用不同情境验证。学习记录独立保存，不写入简历或求职数据。
+            {t("一份资料，一次练习，再用不同情境验证。学习记录独立保存，不写入简历或求职数据。", "One source, one exercise, then a check in a different context. Learning records stay separate from resumes and career data.")}
           </p>
         </div>
         {record && (
-          <span className="learning-badge">{statusLabels[record.stage]}</span>
+          <span className="learning-badge">{stageLabel(record.stage)}</span>
         )}
       </header>
       {record && (
-        <div className="learning-next" aria-label="今天的下一步">
+        <div className="learning-next" aria-label={t("今天的下一步", "Today's next step")}>
           <div>
-            <span>上次停在 · {statusLabels[record.stage]}</span>
+            <span>{t("上次停在", "Last stage")} · {stageLabel(record.stage)}</span>
             <h3>{record.next.title}</h3>
             <p>{record.next.reason}</p>
           </div>
           <div className="learning-next-action">
             <span className="learning-time">
               {record.next.minutes
-                ? `约 ${record.next.minutes} 分钟`
-                : "按自己的节奏"}
+                ? t(`约 ${record.next.minutes} 分钟`, `About ${record.next.minutes} minutes`)
+                : t("按自己的节奏", "At your own pace")}
             </span>
             {attempt && !record.sourceRevoked && (
               <button
@@ -586,14 +586,14 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
                 }
               >
                 {["practice", "checkpoint_saved"].includes(record.stage)
-                  ? "前往当前练习"
-                  : "查看原答与检查"}
+                  ? t("前往当前练习", "Go to current exercise")
+                  : t("查看原答与检查", "View answer and checks")}
               </button>
             )}
           </div>
         </div>
       )}
-      {!loaded && <p role="status">正在读取本账号的资料与练习…</p>}
+      {!loaded && <p role="status">{t("正在读取本账号的资料与练习…", "Loading this account's material and exercises…")}</p>}
       {notice && (
         <p role="status" className="learning-notice">
           {notice}
@@ -602,26 +602,26 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
       {(error || recovery.error) && (
         <div role="alert" className="learning-error">
           {error || recovery.error}
-          <button onClick={recovery.download}>下载本页草稿备份</button>
+          <button onClick={recovery.download}>{t("下载本页草稿备份", "Download this draft backup")}</button>
         </div>
       )}
       {pending && (
         <div className="learning-warning" role="alert">
-          <h3>上次动作的回执还需核对</h3>
-          <p>先读取已有结果；只有你明确确认后才能继续。重开页面不会重发。</p>
+          <h3>{t("上次动作的回执还需核对", "The previous action's receipt needs reconciliation")}</h3>
+          <p>{t("先读取已有结果；只有你明确确认后才能继续。重开页面不会重发。", "Read existing results first; continuing requires explicit confirmation. Reopening never resends.")}</p>
           <details><summary>技术与审计详情</summary><p>原操作编号：{pending.id}</p></details>
           <div className="learning-actions">
             <button
               disabled={busy}
               onClick={() => void guarded(() => refresh())}
             >
-              只读取已有结果
+              {t("只读取已有结果", "Read existing results only")}
             </button>
             <button
               disabled={busy || !!recovery.error}
               onClick={() => void guarded(() => dispatch(pending))}
             >
-              使用原编号核对并继续
+              {t("使用原编号核对并继续", "Reconcile using the original ID and continue")}
             </button>
             <button
               disabled={busy}
@@ -640,7 +640,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
                 })
               }
             >
-              重新读取后结束本机核对
+              {t("重新读取后结束本机核对", "Reload and close the local reconciliation")}
             </button>
           </div>
         </div>
@@ -664,7 +664,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
               );
             }}
           >
-            明确核对并继续
+            {t("明确核对并继续", "Explicitly reconcile and continue")}
           </button>
         </div>
       )}
@@ -688,16 +688,16 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
           }}
         >
           <div>
-            <h3>先定一个小目标</h3>
-            <p>本轮聚焦一个技能：实现可恢复的小 Agent。</p>
+            <h3>{t("先定一个小目标", "Start with a small goal")}</h3>
+            <p>{t("本轮聚焦一个技能：实现可恢复的小 Agent。", "Focus on one skill: building a small resumable agent.")}</p>
           </div>
           <label>
-            目标名称
+            {t("目标名称", "Goal name")}
             <textarea
               name="learning-goal"
               rows={2}
               value={recovery.value.title}
-              placeholder="例如：做出能复用回执、识别未知结果的小 Agent"
+              placeholder={t("例如：做出能复用回执、识别未知结果的小 Agent", "For example: an agent that reuses receipts and recognizes unknown outcomes")}
               onChange={(event) => {
                 if (event.target.value.length <= 1000)
                   recovery.field("title", event.target.value);
@@ -706,7 +706,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
             />
           </label>
           <label>
-            每周投入（小时）
+            {t("每周投入（小时）", "Weekly commitment (hours)")}
             <input
               name="learning-hours"
               type="number"
@@ -724,7 +724,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
             className="learning-primary"
             disabled={blocked || !recovery.value.title.trim()}
           >
-            保存目标，不执行练习
+            {t("保存目标，不执行练习", "Save goal without running an exercise")}
           </button>
         </form>
       )}
@@ -743,7 +743,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
           <div className="learning-import">
             <label className="learning-file">
               <FilePlus2 size={18} />
-              选择 PDF / UTF-8 文本
+              {t("选择 PDF / UTF-8 文本", "Choose PDF / UTF-8 text")}
               <input
                 type="file"
                 accept=".pdf,.txt"
@@ -770,18 +770,18 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
                 checked={importConsent}
                 onChange={(event) => setImportConsent(event.target.checked)}
               />
-              只授权导入当前账号隔离区，不等于朗读或模型授权
+              {t("只授权导入当前账号隔离区，不等于朗读或模型授权", "Authorize import to this account only, not speech or model access")}
             </label>
             <button
               disabled={busy || !file || !importConsent || !!recovery.error}
               onClick={() => void importFile()}
             >
-              导入选定资料
+              {t("导入选定资料", "Import selected material")}
             </button>
           </div>
           {materials.length === 0 && (
             <p className="learning-muted">
-              尚未导入资料。不会自动扫描你的文件。
+              {t("尚未导入资料。不会自动扫描你的文件。", "No materials imported. Your files are never scanned automatically.")}
             </p>
           )}
           <div className="learning-versions">
@@ -829,7 +829,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
               disabled={busy}
               onClick={() => setRevokeConfirm((value) => !value)}
             >
-              撤回资料使用权限
+                {t("撤回资料使用权限", "Revoke material access")}
             </button>
           </div>
           {revokeConfirm && (
@@ -851,15 +851,15 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
                     )
                   }
                 >
-                  确认撤回这个版本
+                  {t("确认撤回这个版本", "Confirm revoking this version")}
                 </button>
                 <button disabled={busy} onClick={() => setRevokeConfirm(false)}>
-                  保留权限
+                  {t("保留权限", "Keep access")}
                 </button>
               </div>
             </div>
           )}
-          <nav className="learning-pages" aria-label="资料页码">
+          <nav className="learning-pages" aria-label={t("资料页码", "Material pages")}>
             {material.pages.map((item) => (
               <button
                 key={item.number}
@@ -925,7 +925,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
                           }
                         >
                           <Volume2 size={15} />
-                          点播选段
+                          {t("点播选段", "Read selected passage aloud")}
                         </button>
                         <button
                           onClick={() => setShowOriginal((value) => !value)}
@@ -944,7 +944,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
                             send({ kind: "select_passage", citation })
                           }
                         >
-                          明确将这段用于本地练习
+                          {t("明确将这段用于本地练习", "Use this passage for local practice")}
                         </button>
                       )}
                       <p className="learning-muted">
@@ -1001,7 +1001,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
               setShowOriginal(true);
             }}
           >
-            回到这次练习的原处
+              {t("回到这次练习的原处", "Return to this exercise's source")}
           </button>
           {record.attempts.length > 0 && (
             <span>出处已冻结，同名新版本不会替换它。</span>
@@ -1019,7 +1019,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
               send({ kind: "start_attempt", questionId: "receipt-present-v1" })
             }
           >
-            开始首次练习
+            {t("开始首次练习", "Start the first exercise")}
           </button>
         )}
       {record &&
@@ -1070,7 +1070,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
               onClick={() => read(`question:${attempt.id}`, attempt.prompt)}
             >
               <Volume2 size={15} />
-              点播这道题
+              {t("点播这道题", "Read this question aloud")}
             </button>
           </div>
           <p className="learning-prompt">{attempt.prompt}</p>
@@ -1087,11 +1087,11 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
                     })
                   }
                 >
-                  保存当前原答，再看提示
+                  {t("保存当前原答，再看提示", "Save my answer before viewing a hint")}
                 </button>
                 {attempt.questionId === "receipt-present-v1" && (
                   <button disabled={blocked} onClick={() => void example()}>
-                    载入辅助代码（记录提示）
+                    {t("载入辅助代码（记录提示）", "Load assisted code (hint recorded)")}
                   </button>
                 )}
               </div>
@@ -1105,7 +1105,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
                 </aside>
               ))}
               <label>
-                我的原答
+                {t("我的原答", "My original answer")}
                 <textarea
                   name="learning-answer"
                   rows={3}
@@ -1114,7 +1114,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
                 />
               </label>
               <label>
-                我的决定
+                {t("我的决定", "My decision")}
                 <select
                   name="learning-decision"
                   value={draft.decision}
@@ -1128,7 +1128,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
                 </select>
               </label>
               <label>
-                为什么这样做
+                {t("为什么这样做", "Why this decision")}
                 <textarea
                   name="learning-explanation"
                   rows={3}
@@ -1139,7 +1139,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
                 />
               </label>
               <label>
-                可运行的 decide(input) 代码
+                {t("可运行的 decide(input) 代码", "Executable decide(input) code")}
                 <textarea
                   name="learning-code"
                   className="learning-code"
@@ -1150,7 +1150,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
                 />
               </label>
               <label>
-                内容归属
+                {t("内容归属", "Content attribution")}
                 <select
                   value={draft.attribution}
                   onChange={(event) =>
@@ -1158,7 +1158,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
                   }
                 >
                   <option value="self_reported">
-                    本人自述（不是独立完成认证）
+                    {t("本人自述（不是独立完成认证）", "Self-reported (not independently certified)")}
                   </option>
                   <option value="guided_example">教学辅助样例</option>
                 </select>
@@ -1183,7 +1183,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
                   })
                 }
               >
-                冻结原答与代码，尚不执行
+                {t("冻结原答与代码，尚不执行", "Freeze answer and code without executing")}
               </button>
             </>
           ) : (
@@ -1336,7 +1336,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
               disabled={blocked}
               onClick={() => send({ kind: "propose_review" })}
             >
-              生成有据周复盘建议（本地规则）
+                  {t("生成有据周复盘建议（本地规则）", "Generate evidence-based weekly review (local rules)")}
             </button>
           )}
           {review && (
@@ -1391,7 +1391,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
                       })
                     }
                   >
-                    采纳为新版计划
+                      {t("采纳为新版计划", "Adopt as a new plan version")}
                   </button>
                   <button
                     disabled={blocked}
@@ -1403,7 +1403,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
                       })
                     }
                   >
-                    拒绝建议，保留历史
+                      {t("拒绝建议，保留历史", "Reject suggestion and keep history")}
                   </button>
                 </div>
               )}
@@ -1460,7 +1460,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
               })
             }
           >
-            本人确认验收，仅保存为学习项目
+              {t("本人确认验收，仅保存为学习项目", "Accept and save as a learning project only")}
           </button>
         </div>
       )}
@@ -1501,7 +1501,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
               disabled={busy}
               onClick={() => void guarded(() => refresh())}
             >
-              只读刷新
+                {t("只读刷新", "Read-only refresh")}
             </button>
             <button onClick={exportRecord}>导出学习回执</button>
             <button
@@ -1513,7 +1513,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
                 setShowOriginal(false);
               }}
             >
-              返回目标列表
+                {t("返回目标列表", "Back to goals")}
             </button>
           </div>
         </footer>
@@ -1563,7 +1563,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
           </span>
           <button onClick={speech.stop}>
             <Pause size={15} />
-            停止朗读
+            {t("停止朗读", "Stop reading aloud")}
           </button>
         </div>
       )}
@@ -1579,7 +1579,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
         )}
       {busy && (
         <p role="status" className="learning-muted">
-          正在等待持久化回执…
+          {t("正在等待持久化回执…", "Waiting for a persisted receipt…")}
         </p>
       )}
     </section>

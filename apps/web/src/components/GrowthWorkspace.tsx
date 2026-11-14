@@ -25,7 +25,7 @@ export function GrowthWorkspace({cloudConfig}:{cloudConfig?:LlmConfig}={}) {
   });
   return (
     <div className="growth-workspace">
-      <nav className="learning-tabs" aria-label="成长练习方式">
+      <nav className="learning-tabs" aria-label={t("成长练习方式", "Learning exercise type")}>
         <button
           type="button"
           aria-pressed={tab === "materials"}

@@ -31,10 +31,14 @@ export function formatCardPublication(
   item: JobSearchItem,
   presentations?: readonly AtlasListingPresentation[],
   dataset?: AtlasDataset | null,
+  locale: "zh" | "en" = "zh",
 ): { label: string; tooltip: string; days?: number } {
   const pub = presentations?.[0]?.publication ?? (dataset ? createAtlasListingPresenter(dataset)(item)[0]?.publication : undefined) ?? formatAtlasPublication({});
   // Discovery and collection clocks are not source publication evidence.
-  if (pub.status === "review" || pub.status === "unknown") return { label: pub.label, tooltip: pub.raw ? pub.label + " · 来源原文：" + pub.raw : pub.label };
+  if (pub.status === "review" || pub.status === "unknown") {
+    const label = locale === "en" ? pub.status === "review" ? "Publication needs review" : "Publication unknown" : pub.label;
+    return { label, tooltip: pub.raw ? label + (locale === "en" ? " · Source text: " : " · 来源原文：") + pub.raw : label };
+  }
   let days: number | undefined;
   if (pub.publishedAt) {
     const at = Date.parse(pub.publishedAt);
@@ -44,9 +48,9 @@ export function formatCardPublication(
     const at = Date.parse(pub.calendarDate + "T00:00:00Z");
     if (Number.isFinite(at)) days = Math.floor((Date.parse(today + "T00:00:00Z") - at) / 86400000);
   }
-  if (days === undefined || !Number.isFinite(days) || days < 0) return { label: "发布时间未知", tooltip: "来源没有可确认的发布时间" };
+  if (days === undefined || !Number.isFinite(days) || days < 0) return locale === "en" ? { label: "Publication unknown", tooltip: "No verifiable source publication date" } : { label: "发布时间未知", tooltip: "来源没有可确认的发布时间" };
   const date = pub.calendarDate ?? pub.publishedAt!.slice(0, 10);
-  return { label: days > 90 ? date : days === 0 ? "今天" : days + "天前", tooltip: pub.label, days };
+  return { label: days > 90 ? date : days === 0 ? (locale === "en" ? "Today" : "今天") : locale === "en" ? `${days} days ago` : days + "天前", tooltip: locale === "en" ? `Published ${date}${pub.precision === "date" ? " (date only)" : ""}` : pub.label, days };
 
 }
 
@@ -56,7 +60,15 @@ export function formatCardPublication(
 export function formatCardDistance(
   item: JobSearchItem,
   hasAnchor: boolean,
+  locale: "zh" | "en" = "zh",
 ): { label: string; tooltip: string } {
+  if (locale === "en") {
+    if (item.distance?.km !== undefined) {
+      const { km, estimated } = item.distance;
+      return { label: `${estimated ? "~" : ""}${km < 1 ? "<1" : Math.round(km)} km from home`, tooltip: `${km.toFixed(1)} km from home (${estimated ? "city-centre estimate" : "precise workplace coordinates"})` };
+    }
+    return hasAnchor ? { label: "Distance unavailable", tooltip: "No workplace coordinates to calculate straight-line distance" } : { label: "Home not set", tooltip: "Set a home reference point in filters to calculate distance" };
+  }
   if (item.distance?.km !== undefined) {
     const km = item.distance.km;
     const isEst = item.distance.estimated;
@@ -83,11 +95,26 @@ export function formatCardDistance(
 /**
  * 4. 优先显示已归一化人民币薪资，否则保留来源原币种，不猜币种或面议。
  */
-export function formatCardSalaryRMB(item: JobSearchItem): {
+export function formatCardSalaryRMB(item: JobSearchItem, locale: "zh" | "en" = "zh"): {
   label: string;
   isNegotiable: boolean;
   tooltip: string;
 } {
+  if (locale === "en") {
+    const raw = salaryRaw(item);
+    if (item.salarySelection === "ambiguous") return { label: "Multiple salaries need review", isNegotiable: false, tooltip: "Multiple locations or disclosures; no single comparable amount. See source records." };
+    if (item.salary?.verification === "conflicting") return { label: "Salary needs review", isNegotiable: false, tooltip: `Conflicting salary evidence. Source: ${raw}` };
+    const annual = item.salary?.cnyAnnual;
+    if (annual && validSalaryBounds(annual)) {
+      const amount = (value: number) => new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value);
+      const label = annual.min !== undefined && annual.max !== undefined ? annual.min === annual.max ? `CNY ${amount(annual.min)}/year` : `CNY ${amount(annual.min)}–${amount(annual.max)}/year` : annual.min !== undefined ? `CNY ≥${amount(annual.min)}/year` : `CNY ≤${amount(annual.max!)}/year`;
+      return { label, isNegotiable: false, tooltip: `Fixed pre-tax annual salary: ${label}` };
+    }
+    if (!raw) return { label: "Salary undisclosed", isNegotiable: false, tooltip: "No salary disclosed; this does not mean negotiable" };
+    if (corruptSalary(raw) || !/\d|面议|协商/.test(raw)) return { label: "Salary needs review", isNegotiable: false, tooltip: `Unverified source text: ${raw}` };
+    if (/面议|协商/.test(raw) && !/\d/.test(raw)) return { label: "Negotiable", isNegotiable: true, tooltip: `Explicit source disclosure: ${raw}` };
+    return { label: raw, isNegotiable: false, tooltip: `Original salary disclosure: ${raw} (${isCnySalary(item, raw) ? "CNY; annual salary not inferred" : "original currency retained; not converted to CNY"})` };
+  }
   if (item.salarySelection === "ambiguous") return { label: "多种薪资待核实", isNegotiable: false, tooltip: "多地或多种薪资披露，没有单一可比较金额；请查看详情中的来源记录" };
   if (item.salary?.verification === "conflicting") return { label: "薪资待核实", isNegotiable: false, tooltip: "薪资证据有冲突；来源原文：" + item.salary.raw };
   // 1. If normalized cnyAnnual exists

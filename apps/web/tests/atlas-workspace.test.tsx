@@ -599,7 +599,10 @@ test("live snapshot list loads beyond the first page and keeps loaded jobs after
   assert.ok([...origin.options].some((option) => option.value === "CH"), "manual controller origin must be selectable even when absent from raw controllers");
   await flush(() => { origin.value = "CH"; origin.dispatchEvent(new dom.Event("change", { bubbles: true })); });
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, data.jobs.filter((job) => job.companyId === corrected.id).length);
-  assert.ok(dom.document.querySelector(".atlas-job-classification")!.textContent!.includes("瑞士"));
+  const selectedCard = dom.document.querySelector<HTMLButtonElement>(".atlas-job-card")!;
+  await flush(() => pointerClick(selectedCard, 0));
+  const originTerm = [...dom.document.querySelectorAll(".atlas-job-detail dt")].find(node => node.textContent === "控股来源");
+  assert.match(originTerm?.nextElementSibling?.textContent ?? "", /瑞士/, "controller origin remains available in the reading detail");
   await flush(() => { origin.value = ""; origin.dispatchEvent(new dom.Event("change", { bubbles: true })); });
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 30);
   await flush(() => button("下一页").click());

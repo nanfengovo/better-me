@@ -32,6 +32,20 @@ const { act } = React;
 const { IdentityGate } = await import("../src/components/IdentityGate");
 const { WorkspaceBoot } = await import("../src/components/WorkspaceBoot");
 
+test("guest login renders without loading private workspace modules", async () => {
+  session = undefined; activatePrincipal(undefined);
+  const container = dom.document.createElement("div"); dom.document.body.append(container);
+  const root = createRoot(container as unknown as Element);
+  const { RecoverableModule } = await import("../src/components/atlas/RecoverableModule");
+  let loads = 0;
+  const load = async () => { loads++; throw new Error("Workspace must not load before sign-in"); };
+  try {
+    await act(async () => root.render(<IdentityGate><RecoverableModule load={load} componentProps={{}} label="Workspace" /></IdentityGate>));
+    assert.match(container.querySelector("h1")?.textContent ?? "", /欢迎回来/);
+    assert.equal(loads, 0);
+  } finally { await act(async () => root.unmount()); container.remove(); }
+});
+
 test("boot finishes automatically and respects system reduced motion", async () => {
   const container = dom.document.createElement("div"); dom.document.body.append(container);
   const root = createRoot(container as unknown as Element);

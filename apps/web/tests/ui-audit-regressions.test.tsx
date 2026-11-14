@@ -19,6 +19,7 @@ Object.defineProperty(globalThis, "__auditStatus", { configurable: true, value: 
 }) });
 const hooks = registerHooks({ load(url, context, next) {
   if (url.endsWith(".css")) return { format: "module", source: "", shortCircuit: true };
+  if (url.endsWith("/src/components/LearningOriginalPage.tsx")) return { format: "module", source: 'export function LearningOriginalPage() { throw new Error("The unauthenticated language test must not render private material"); } export const LearningPdfPreview = LearningOriginalPage;', shortCircuit: true };
   if (url.endsWith("/src/lib/use-system-status.ts")) return { format: "module", source: "export const useSystemStatus = () => globalThis.__auditStatus();", shortCircuit: true };
   return next(url, context);
 } });
@@ -133,6 +134,80 @@ test("F01: saved jobs never inherit demo salary, ATS scores or company research"
   assert.match(host.querySelector("[data-job-id]")!.textContent, /未披露/);
   assert.doesNotMatch(host.textContent, /35k|525k|99\.2|100%|ATS 核验通过|S级|09:00/);
   assert.equal(host.querySelector(".studio-workshop"), null);
+});
+
+test("F04: dialog tab boundaries wrap and exclude hidden or disabled controls", async () => {
+  const { trapDialogTab } = await import("../src/lib/dialog-focus");
+  const dialog = dom.document.createElement("dialog");
+  dialog.innerHTML = '<button id="first">First</button><button hidden>Hidden</button><button disabled>Disabled</button><button id="last">Last</button>';
+  dom.document.body.append(dialog);
+  const original = Object.getOwnPropertyDescriptor(globalThis, "getComputedStyle");
+  Object.defineProperty(globalThis, "getComputedStyle", { configurable: true, value: () => ({ visibility: "visible" }) });
+  for (const button of dialog.querySelectorAll("button")) button.getClientRects = () => [{ width: 40, height: 44 }] as never;
+  try {
+    const first = dialog.querySelector<HTMLButtonElement>("#first")!, last = dialog.querySelector<HTMLButtonElement>("#last")!;
+    let prevented = 0;
+    const press = (shiftKey: boolean) => trapDialogTab({ key: "Tab", shiftKey, currentTarget: dialog, preventDefault() { prevented++; } } as never);
+    first.focus(); press(true); assert.equal(dom.document.activeElement, last);
+    press(false); assert.equal(dom.document.activeElement, first);
+    assert.equal(prevented, 2);
+  } finally {
+    if (original) Object.defineProperty(globalThis, "getComputedStyle", original);
+    else Reflect.deleteProperty(globalThis, "getComputedStyle");
+  }
+});
+
+test("F17: one task navigation exposes advisor, learning, evidence and tailoring without starting work", async () => {
+  const { AgentTaskNavigation } = await import("../src/components/AgentTaskNavigation");
+  const selections: string[] = [];
+  const host = await mount(h(UiPreferencesProvider, { initialPreferences: { locale: "en", theme: "dark" } }, h(AgentTaskNavigation, { active: "growth", onSelect: view => selections.push(view), onOpenArea: area => selections.push(area), onTailor: () => selections.push("tailoring"), onBack() {} })));
+  assert.equal(host.querySelectorAll("nav").length, 1);
+  assert.equal(host.querySelectorAll('[aria-current="page"]').length, 1);
+  assert.match(host.querySelector('[aria-current="page"]')!.textContent, /Materials & exercises/);
+  assert.doesNotMatch(host.textContent, /[\u3400-\u9fff]/);
+  assert.deepEqual(selections, []);
+  const button = (label: string) => [...host.querySelectorAll<HTMLButtonElement>("button")].find(node => node.textContent === label)!;
+  await flush(() => button("Practice & evidence").click());
+  await flush(() => button("Resume tailoring task").click());
+  await flush(() => button("Job analysis").click());
+  assert.deepEqual(selections, ["studio", "tailoring", "job"]);
+});
+
+test("F17: shared task summary preserves material and changes only reported task state", async () => {
+  const { WorkspaceTaskSummary } = await import("../src/components/WorkspaceTaskSummary");
+  const view = (status: string) => h(UiPreferencesProvider, { initialPreferences: { locale: "en", theme: "dark" } }, h(WorkspaceTaskSummary, { goal: "Original goal", material: "Resume not shared", status, next: "Review before resuming" }));
+  const host = await mount(view("Restoring records"));
+  assert.equal(host.querySelectorAll("dt").length, 4);
+  await flush(() => root!.render(view("Original task paused")));
+  assert.equal(host.querySelector('[role="status"]')!.textContent, "Original task paused");
+  assert.match(host.textContent, /Resume not shared/);
+  assert.doesNotMatch(host.textContent, /[\u3400-\u9fff]/);
+});
+
+test("F21: synthetic learning gate is translated without reading private records", async () => {
+  const { GrowthJourneyWorkspace } = await import("../src/components/GrowthJourneyWorkspace");
+  const host = await mount(h(UiPreferencesProvider, { initialPreferences: { locale: "en", theme: "dark" } }, h(GrowthJourneyWorkspace)));
+  assert.match(host.textContent, /Not proof of mastery/);
+  assert.match(host.textContent, /Sign in/);
+  assert.doesNotMatch(host.textContent, /[\u3400-\u9fff]/);
+});
+
+test("F21: material learning gate explains account isolation in English", async () => {
+  const { LearningPathWorkspace } = await import("../src/components/LearningPathWorkspace");
+  const host = await mount(h(UiPreferencesProvider, { initialPreferences: { locale: "en", theme: "dark" } }, h(LearningPathWorkspace)));
+  assert.match(host.textContent, /Sign in to BetterMe/);
+  assert.match(host.textContent, /career records are not read/);
+  assert.doesNotMatch(host.textContent, /[\u3400-\u9fff]/);
+});
+
+test("F23: learning surfaces consume shared action and alert tokens, without touching paper", async () => {
+  for (const name of ["growth-journey-workspace.css", "learning-path-workspace.css", "CareerStudioWorkspace.css"]) {
+    const source = await readFile(new URL(`../src/components/${name}`, import.meta.url), "utf8");
+    assert.match(source, /var\(--workspace-control-height\)/);
+    assert.match(source, /var\(--ui-danger-border\)/);
+    assert.match(source, /var\(--ui-info-soft\)/);
+    assert.doesNotMatch(source, /\.a4-sheet|\.resume-document|@media\s*print/);
+  }
 });
 
 test("F03: every submit keyboard handler rejects both native composition and Safari 229", async () => {

@@ -23,6 +23,7 @@ for (const [key, value] of Object.entries({ window: dom, document: dom.document,
 }
 const { createRoot } = await import("react-dom/client");
 const { GrowthJourneyWorkspace } = await import("../src/components/GrowthJourneyWorkspace");
+const { UiPreferencesProvider } = await import("../src/lib/ui-preferences");
 let root: ReturnType<typeof createRoot> | undefined;
 const owner = { id: "11111111-1111-4111-8111-111111111111", username: "synthetic-growth", displayName: "合成成长用户" };
 const sha = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -70,9 +71,9 @@ function journey(stage: "choose_source" | "practice" | "checkpoint_saved" | "ver
 async function settle(action: () => unknown = () => {}) {
   await React.act(async () => { action(); await tick(); await tick(); await tick(); });
 }
-async function mount(client: GrowthJourneyClient) {
+async function mount(client: GrowthJourneyClient, locale: "zh" | "en" = "zh") {
   const host = dom.document.createElement("main"); dom.document.body.append(host); root = createRoot(host as unknown as Element);
-  await settle(() => root!.render(React.createElement(GrowthJourneyWorkspace, { client })));
+  await settle(() => root!.render(<UiPreferencesProvider initialPreferences={{ locale, theme: "dark", reduceMotion: true }}><GrowthJourneyWorkspace client={client} /></UiPreferencesProvider>));
 }
 async function unmount() { await settle(() => root?.unmount()); root = undefined; dom.document.body.replaceChildren(); }
 function body() { return dom.document.body.textContent ?? ""; }
@@ -88,6 +89,35 @@ async function fill(name: string, value: string) {
 beforeEach(() => activatePrincipal(owner));
 afterEach(async () => { await unmount(); activatePrincipal(undefined); dom.localStorage.clear(); });
 after(() => dom.happyDOM.abort());
+
+for (const [stage, expected] of [
+  ["choose_source", "Select this synthetic material"], ["practice", "Synthetic exercise code"],
+  ["checkpoint_saved", "Continue fixed checks"], ["verification_failed", "Revise and start a new attempt"],
+  ["ready_for_acceptance", "Accept this synthetic project"], ["completed", "Synthetic project accepted"],
+] as const) {
+  test(`English ${stage} view translates controls while preserving source and remaining read-only`, async () => {
+    const current = journey(stage, stage === "practice" ? 2 : 5);
+    capturePrivateStorage().setItem("growth-journey.active.v1", current.id);
+    let writes = 0;
+    const client: GrowthJourneyClient = {
+      sources: async () => [source], list: async () => [current], get: async () => current,
+      create: async () => { writes++; throw new Error("Must remain read-only"); },
+      command: async () => { writes++; throw new Error("Must remain read-only"); },
+    };
+    await mount(client, "en");
+    assert.ok(body().includes(expected), body());
+    assert.match(body(), /Current goal/);
+    assert.match(body(), /Records restored without re-execution/);
+    assert.doesNotMatch(body(), /当前目标|选择这份合成资料|固定验收已通过|技术与审计详情|继续固定验收|尝试历史/);
+    assert.ok(body().includes(sourceText), "material stays verbatim rather than being silently translated");
+    if (current.task) {
+      assert.ok(body().includes(submittedCode)); assert.ok(body().includes(submittedAnswer));
+      assert.ok(body().includes(submittedExplanation));
+    }
+    if (stage === "ready_for_acceptance" || stage === "completed") assert.match(body(), /Reuses the checkpoint on resume/);
+    assert.equal(writes, 0, "changing UI language or restoring does not execute or adopt anything");
+  });
+}
 
 test("a synthetic growth journey reaches a verified project and reopening is read-only without repeating lookup", async () => {
   let current = journey("choose_source", 1); const calls: string[] = []; const writes: unknown[] = [];
@@ -106,7 +136,7 @@ test("a synthetic growth journey reaches a verified project and reopening is rea
     },
   };
 
-  await mount(client); assert.match(body(), /第一条成长闭环/); assert.doesNotMatch(body(), /lookup 调用 1 次/);
+  await mount(client); assert.match(body(), /演示练习 · 非掌握证明/); assert.doesNotMatch(body(), /lookup 调用 1 次/);
   await fill("growth-goal", goal.title); await click("growth-create");
   await click("growth-source"); assert.match(body(), /合成教材 · 第 1 节 · 保存断点/);
   await click("growth-example");

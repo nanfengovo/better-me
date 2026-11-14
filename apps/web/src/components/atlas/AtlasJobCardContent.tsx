@@ -21,15 +21,15 @@ export type AtlasJobCardContentProps = {
 export const AtlasJobCardContent = memo(function AtlasJobCardContent({
   item, presentListing, data, hasAnchor, keyword,
 }: AtlasJobCardContentProps) {
-  const { t } = useUiPreferences();
+  const { t, locale } = useUiPreferences();
   // Keep these element identities while typing. Only the small keyword-rule badge
   // depends on the raw keyword; salary, disclosure and address do not.
   const content = useMemo(() => {
     const presentations = presentListing?.(item) ?? [];
     const platformLabel = formatCardPlatform(item);
-    const pubBadge = formatCardPublication(item, presentations, data);
-    const distanceBadge = formatCardDistance(item, hasAnchor);
-    const salaryBadge = formatCardSalaryRMB(item);
+    const pubBadge = formatCardPublication(item, presentations, data, locale);
+    const distanceBadge = formatCardDistance(item, hasAnchor, locale);
+    const salaryBadge = formatCardSalaryRMB(item, locale);
     return {
       heading: <>
         <span className="atlas-company-line">
@@ -60,11 +60,11 @@ export const AtlasJobCardContent = memo(function AtlasJobCardContent({
           : t("位置可能为城市估算，非已核验办公点；来源、精度及风险见详情", "Location may be a city estimate, not a verified office. See details for sources, precision and risks.")}</span>
       </>,
     };
-  }, [item, presentListing, data, hasAnchor, t]);
+  }, [item, presentListing, data, hasAnchor, t, locale]);
   const aiRelevance = useMemo(() => analyzeAiJobRelevance(item.job, keyword, item.company.names[0]), [item.job, keyword, item.company.names]);
   return <>
     {content.heading}
-    {aiRelevance.isPenetrated && <div className="atlas-ai-penetration-tag" title={aiRelevance.reason}>
+    {aiRelevance.isPenetrated && <div className="atlas-ai-penetration-tag" title={t(aiRelevance.reason, "Matched using keyword rules, not model inference. Review the source excerpt.")}>
       <span className="atlas-ai-badge-pill"><Sparkles size={11} className="atlas-ai-sparkle-icon" />{t("关键词规则命中", "Keyword rule match")}</span>
       <span className="atlas-ai-skill-text">{aiRelevance.extractedTechStack.join(" · ")}</span>
       {aiRelevance.highlightSnippet && <span className="atlas-ai-evidence-pill" title={aiRelevance.highlightSnippet}>{t("原文片段见详情", "Source excerpt in details")}</span>}

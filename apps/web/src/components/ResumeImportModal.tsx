@@ -1,4 +1,5 @@
 import { useUiPreferences } from "../lib/ui-preferences";
+import { trapDialogTab } from "../lib/dialog-focus";
 import { useState, useRef, useEffect } from "react";
 import {
   type FactBase,
@@ -376,7 +377,7 @@ export function ResumeImportModal({
   const canUseAi = llmConfig.provider !== "gemini" || Boolean(llmConfig.apiKey.trim());
 
   return (
-    <dialog ref={dialogRef} aria-labelledby="resume-import-title" onCancel={event => { event.preventDefault(); if (!isImporting) onClose(); }} className="resume-import-dialog">
+    <dialog ref={dialogRef} tabIndex={-1} onKeyDown={trapDialogTab} aria-labelledby="resume-import-title" onCancel={event => { event.preventDefault(); if (!isImporting) onClose(); }} className="resume-import-dialog">
       <div className="flex h-[90vh] max-h-[820px] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50/80">
