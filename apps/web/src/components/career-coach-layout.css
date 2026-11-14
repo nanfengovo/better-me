@@ -71,7 +71,6 @@
 }
 @container coach-workspace (max-width: 600px) {
   .career-coach .coach-header { padding: 14px 16px; align-items: flex-start; flex-wrap: wrap; gap: 10px; }
-  .career-coach .coach-header h1 { font-size: 18px; }
   .career-coach .coach-header-actions { margin-left: auto; }
   .career-coach .coach-agent-bar { padding: 0 16px; }
   .career-coach .coach-tabs { padding: 10px 12px 0; }
@@ -83,3 +82,15 @@
   .career-coach textarea, .career-coach input:not([type=checkbox]), .career-coach select { font-size: 16px; }
   .career-coach .coach-agent-controls .betterme-agent-entry { margin-left: 0; }
 }
+
+/* Keep every advisor task on the shared workspace type scale. */
+.career-coach { font-size: var(--workspace-body-size, 14px); line-height: var(--workspace-line-height, 1.5); }
+.career-coach .coach-header h1,
+.career-coach .coach-panel-heading h2 { font-size: var(--workspace-page-title-size, 24px); line-height: 1.35; }
+.career-coach .coach-section-heading h2,
+.career-coach .coach-result > h3,
+.career-coach .coach-empty h3,
+.career-coach .coach-final-summary h3 { font-size: var(--workspace-section-title-size, 18px); line-height: 1.4; }
+.career-coach :is(.coach-section-heading h3, .coach-direction-grid h3, .coach-gap-list > h3, .coach-question h3, .coach-phase h3, .coach-proposal h3, .coach-interview-turn h3) { font-size: var(--workspace-subtitle-size, 16px); line-height: 1.45; }
+.career-coach :is(.coach-header p, .coach-header-actions button, .coach-tabs button > span, .coach-setup > summary, .coach-compose > p, .coach-compose label, .coach-primary, .coach-empty p, .coach-direction-grid p, .coach-points ul, .coach-gap-list strong, .coach-task, .coach-diff p, .coach-prewrap, .coach-feedback, .coach-summary) { font-size: var(--workspace-body-size, 14px); }
+.career-coach :is(.coach-agent-bar > summary, .coach-journey, .coach-prerequisite, .coach-prerequisite button, .coach-result-meta, .coach-note, .coach-badge, .coach-adopted p, .coach-pill-row span, .coach-step, .coach-metrics span, .coach-footer, small) { font-size: var(--workspace-caption-size, 12px); }

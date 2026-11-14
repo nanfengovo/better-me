@@ -751,3 +751,33 @@ html[data-theme="dark"] .learning-original {
     padding: 12px;
   }
 }
+
+/* Align learning, material and growth views to the shared workspace type scale. */
+.learning-workspace {
+  font-size: var(--workspace-body-size, 14px);
+  line-height: var(--workspace-line-height, 1.5);
+}
+.learning-workspace h2,
+.learning-heading h2 {
+  font-size: var(--workspace-page-title-size, 24px);
+  line-height: 1.35;
+}
+.learning-workspace h3,
+.learning-next h3 {
+  font-size: var(--workspace-section-title-size, 18px);
+  line-height: 1.4;
+}
+.learning-workspace h4,
+.translation-body h4 {
+  font-size: var(--workspace-subtitle-size, 16px);
+  line-height: 1.45;
+}
+.learning-tabs button,
+.learning-workspace :is(p, label, button, input, textarea, select, blockquote, dd),
+.learning-prompt,
+.learning-selection blockquote {
+  font-size: var(--workspace-body-size, 14px);
+}
+.learning-workspace :is(.learning-eyebrow, .learning-badge, .learning-time, .learning-next > div > span, .learning-versions span, .learning-pages button span, .learning-blocks button > span:first-child, .learning-original figcaption, .learning-history code, .learning-review dt, .learning-footer > span, .learning-boundaries, .learning-citation) {
+  font-size: var(--workspace-caption-size, 12px);
+}

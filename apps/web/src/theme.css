@@ -1,8 +1,12 @@
 /* Workspace appearance only. Import after the existing component styles.
    Screen-only overrides and explicit paper exclusions keep export colors stable. */
 :root {
+  --workspace-page-title-size: 24px;
+  --workspace-section-title-size: 18px;
+  --workspace-subtitle-size: 16px;
   --workspace-body-size: 14px;
   --workspace-caption-size: 12px;
+  --workspace-micro-size: 11px;
   --workspace-line-height: 1.5;
   --workspace-control-height: 44px;
   --workspace-card-radius: 12px;
