@@ -23,7 +23,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    allowedHosts: [".vercel.run"],
+    allowedHosts: [".vercel.run", "3-web.v0.build"],
     // The browser talks to this same-origin dev proxy. Normalize its upstream Origin so
     // preview hostnames do not need to be copied into the local Agent Host allowlist.
     proxy: { "/api/v1/agent": {
