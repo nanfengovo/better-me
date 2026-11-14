@@ -14,6 +14,11 @@ export function LazyResumeImportModal(props: ResumeImportModalProps) {
   const [attempt, setAttempt] = useState(0);
   const loadingDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
+    if (!props.isOpen) return;
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => { if (trigger?.isConnected) trigger.focus(); };
+  }, [props.isOpen]);
+  useEffect(() => {
     if (props.isOpen && !Component) loadingDialog.current?.showModal();
   }, [props.isOpen, Component]);
   useEffect(() => {

@@ -1067,7 +1067,7 @@ test("AI penetration counts follow Shanghai and overseas filters and include mat
   await waitFor(() => penetrationCount() === 2, "only Shanghai implicit matches, including its unlocated job");
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 3);
   assert.match(dom.document.querySelector(".atlas-ai-banner-headline")!.textContent!, /当前筛选内.*2/);
-  await flush(() => button("仅看 AI 穿透命中 (2)").click());
+  await flush(() => button("仅看关键词规则命中 (2)").click());
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 2);
   assert.ok(jobCard("合成软件工程师 1"), "Shanghai's unlocated match must remain in the AI-filtered list");
 

@@ -612,6 +612,20 @@ test("failed preference writes apply in-session and show the existing warning", 
     assert.match(dom.document.querySelector(".os-preference-error")!.textContent!, /未能保存/);
   } finally { Object.defineProperty(globalThis, "localStorage", original); }
 });
+test("F20 Dock position uses one Tab stop, arrow keys and pressed opacity presets", async () => {
+  await mount(); await click("打开系统设置"); await click("桌面与 Dock");
+  const radios = [...dom.document.querySelectorAll<HTMLButtonElement>('.os-dock-position-switch [role="radio"]')];
+  assert.deepEqual(radios.map(button => button.tabIndex), [-1, 0, -1]);
+  await flush(() => radios[1]!.dispatchEvent(new dom.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })));
+  assert.equal(dom.document.activeElement, radios[2]);
+  assert.equal(radios[2]!.getAttribute("aria-checked"), "true");
+  assert.deepEqual(radios.map(button => button.tabIndex), [-1, -1, 0]);
+  const preset = [...dom.document.querySelectorAll<HTMLButtonElement>('[aria-label="Dock 透明度预设"] button')].find(button => button.textContent?.trim() === "65% 晶莹")!;
+  await flush(() => preset.click());
+  assert.equal(preset.getAttribute("aria-pressed"), "true");
+  assert.equal(dom.document.querySelector('.os-settings-search input')!.getAttribute("placeholder"), "搜索分类名称");
+});
+
 test("model and network buttons invoke existing callbacks only after explicit clicks", async () => {
   await mount(); await click("打开系统设置"); await click("模型与推理");
   assert.equal(aiOpens + networkOpens, 0);

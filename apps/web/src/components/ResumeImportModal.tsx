@@ -95,6 +95,23 @@ export function ResumeImportModal({
   const [previewTab, setPreviewTab] = useState<"text" | "images">("text");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    const dialog = dialogRef.current;
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (dialog && !dialog.open) dialog.showModal();
+    return () => { dialog?.close(); if (trigger?.isConnected) trigger.focus(); };
+  }, [isOpen]);
+
+  function cancelPendingParse() {
+    operationRef.current += 1;
+    setIsParsing(false);
+    setIsExtracting(false);
+    setParseStatusMsg("");
+    if (!extracted) setExtractError(t("已停止等待，可重新选择文件。", "Stopped waiting. You can choose another file."));
+    setParseError(t("已停止接收结果，已读取内容保留。已发出的请求可能仍在运行，不会自动采用。", "Stopped accepting results; extracted content is retained. An already sent request may still run; its result will not be adopted."));
+  }
 
   // Reset state on modal open/close
   useEffect(() => {
@@ -359,7 +376,7 @@ export function ResumeImportModal({
   const canUseAi = llmConfig.provider !== "gemini" || Boolean(llmConfig.apiKey.trim());
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+    <dialog ref={dialogRef} aria-labelledby="resume-import-title" onCancel={event => { event.preventDefault(); if (!isImporting) onClose(); }} className="resume-import-dialog">
       <div className="flex h-[90vh] max-h-[820px] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50/80">
@@ -368,7 +385,7 @@ export function ResumeImportModal({
               <UploadCloud className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">
+              <h2 id="resume-import-title" className="text-base font-bold text-slate-900">
                 {t("导入简历与自动结构化", "Import and structure a resume")}
               </h2>
               <p className="text-xs text-slate-500">
@@ -377,6 +394,9 @@ export function ResumeImportModal({
             </div>
           </div>
           <button
+            type="button"
+            disabled={isImporting}
+            aria-label={t("关闭导入窗口", "Close import dialog")}
             onClick={onClose}
             className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700 transition"
           >
@@ -384,6 +404,7 @@ export function ResumeImportModal({
           </button>
         </div>
 
+        {(isParsing || isExtracting) && <div className="workspace-notice" role="status"><button type="button" onClick={cancelPendingParse}>{t("停止等待，保留已读取内容", "Stop waiting; keep extracted content")}</button></div>}
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
           {/* Step 1: Upload Dropzone if no file selected yet */}
@@ -394,7 +415,6 @@ export function ResumeImportModal({
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
                 className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-10 text-center transition cursor-pointer ${
                   dragActive
                     ? "border-blue-500 bg-blue-50/60"
@@ -412,9 +432,9 @@ export function ResumeImportModal({
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 text-blue-600 mb-3">
                   <UploadCloud className="h-7 w-7" />
                 </div>
-                <h3 className="text-sm font-bold text-slate-800 mb-1">
-                  {t("点击浏览或拖拽简历文件到此处", "Browse or drop a resume file here")}
-                </h3>
+                <button type="button" className="studio-button" disabled={isExtracting} onClick={() => fileInputRef.current?.click()}>
+                  {t("选择简历文件（也可拖放）", "Choose a resume file (or drop it here)")}
+                </button>
                 <p className="text-xs text-slate-500 max-w-md mb-4">
                   {t("提取文本后可选择离线规则或 AI 解析，核对后保存为结构化事实库（FactBase）。", "Extract text, choose offline or AI parsing, then review it before saving to your structured fact base.")}
                 </p>
@@ -920,6 +940,9 @@ export function ResumeImportModal({
         <div className="border-t border-slate-200 bg-slate-50 px-6 py-3 flex items-center justify-between text-xs text-slate-500">
           <span>{t("本地保存 · 离线规则不联网 · AI 解析将文本或页面图片直发所选模型服务商", "Saved locally · Offline rules use no network · AI sends text or page images directly to your selected provider")}</span>
           <button
+            type="button"
+            disabled={isImporting}
+            aria-label={t("关闭导入窗口", "Close import dialog")}
             onClick={onClose}
             className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-100 transition"
           >
@@ -947,7 +970,7 @@ export function ResumeImportModal({
         onClose={() => setIsRegionCropperOpen(false)}
         onApplyCrop={(image) => { if (cropFileOperation !== operationRef.current) return; setRecognitionImage(image); setParsedFactBase(null); setUnparsedLines([]); setParseWarnings([]); setParseError(null); setPreviewTab("images"); }}
       />}
-    </div>
+    </dialog>
   );
 }
 

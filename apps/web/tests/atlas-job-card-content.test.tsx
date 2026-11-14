@@ -62,18 +62,18 @@ test("card reading content stays cached for parent selection, filters and curren
   const card = await render(props);
   const before = card.innerHTML;
   assert.equal(presentations, 1);
-  assert.equal(countries, 1);
+  assert.equal(countries, 0);
   for (let index = 0; index < 10; index++) {
     await render(props, { selected: index % 2 === 1, filtersOpen: index % 2 === 0, originalCurrency: index % 2 === 1 });
   }
   assert.equal(card.getAttribute("aria-expanded"), "true", "the parent still updates selection immediately");
   assert.equal(card.innerHTML, before, "reading content and RMB card salary preserve their established semantics");
   assert.equal(presentations, 1, "parent-only state never calls the real listing presenter again");
-  assert.equal(countries, 1, "parent-only state never rebuilds static country labels");
+  assert.equal(countries, 0, "parent-only state never rebuilds static country labels");
   assert.equal(dom.document.querySelectorAll("button").length, 1, "the content seam adds no nested button or interaction owner");
 });
 
-test("raw keyword changes update the AI match fragment without rebuilding heading, salary and disclosures", async () => {
+test("raw keyword changes update the rule match fragment without rebuilding heading, salary and accuracy summary", async () => {
   const props: AtlasJobCardContentProps = await fixture();
   const present = createAtlasListingPresenter(props.data!);
   let presentations = 0, countries = 0;
@@ -82,17 +82,17 @@ test("raw keyword changes update the AI match fragment without rebuilding headin
   const card = await render(props);
   const title = card.querySelector("strong");
   const salary = card.querySelector(".atlas-job-salary");
-  const disclosure = card.querySelector(".job-source-badges");
+  const disclosure = card.querySelector(".atlas-card-hint");
   assert.equal(card.querySelector(".atlas-ai-penetration-tag"), null);
   await render({ ...props, keyword: "C#" });
-  assert.match(card.querySelector(".atlas-ai-penetration-tag")?.textContent ?? "", /AI 穿透命中/);
+  assert.match(card.querySelector(".atlas-ai-penetration-tag")?.textContent ?? "", /关键词规则命中/);
   await render({ ...props, keyword: "Java" });
   assert.equal(card.querySelector(".atlas-ai-penetration-tag"), null, "keywords are never debounced or held stale by the presentation cache");
   assert.equal(card.querySelector("strong"), title);
   assert.equal(card.querySelector(".atlas-job-salary"), salary);
-  assert.equal(card.querySelector(".job-source-badges"), disclosure);
+  assert.equal(card.querySelector(".atlas-card-hint"), disclosure);
   assert.equal(presentations, 1);
-  assert.equal(countries, 1);
+  assert.equal(countries, 0);
 });
 
 test("a source city-only location retains its more specific published text without claiming an office address", async () => {
@@ -103,10 +103,11 @@ test("a source city-only location retains its more specific published text witho
   assert.doesNotMatch(card.querySelector(".atlas-job-meta")!.textContent!, /办公地址/);
 });
 
-test("immutable item, data, anchor, presenter and country formatter changes remain visible", async () => {
+test("immutable item, data, anchor and publication changes remain visible while classification stays in details", async () => {
   let props: AtlasJobCardContentProps = await fixture();
   const card = await render(props);
-  assert.match(card.querySelector(".atlas-badge-distance")!.textContent, /未设家坐标/);
+  assert.equal(card.querySelector(".atlas-badge-distance"), null, "distance is hidden until a reference point is chosen");
+  assert.match(card.querySelector(".atlas-card-hint")!.textContent, /非已核验办公点/);
   props = { ...props, hasAnchor: true };
   await render(props);
   assert.match(card.querySelector(".atlas-badge-distance")!.textContent, /距家 待定位/);
@@ -125,8 +126,9 @@ test("immutable item, data, anchor, presenter and country formatter changes rema
   await render(props);
   assert.equal(card.querySelector(".atlas-badge-publication")!.textContent, "2025-01-12");
   const present = createAtlasListingPresenter(props.data!);
-  props = { ...props, presentListing: item => present(item).map(presentation => ({ ...presentation, label: "已更新来源披露" })), countryName: () => "更新后的国家名称" };
+  props = { ...props, presentListing: item => present(item).map(presentation => ({ ...presentation, publication: { ...presentation.publication, label: "已更新来源日期" } })), countryName: () => "更新后的国家名称" };
   await render(props);
-  assert.match(card.querySelector(".job-source-badges")!.textContent, /已更新来源披露/);
-  assert.match(card.querySelector(".atlas-job-classification")!.textContent, /更新后的国家名称/);
+  assert.match(card.querySelector(".job-publication-badge")!.textContent, /已更新来源日期/);
+  assert.equal(card.querySelector(".atlas-job-classification"), null, "classification belongs in the detail view");
+  assert.match(card.querySelector(".atlas-card-hint")!.textContent, /来源、精度及风险见详情/);
 });

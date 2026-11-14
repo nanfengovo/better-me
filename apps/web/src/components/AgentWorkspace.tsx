@@ -1172,13 +1172,18 @@ function AgentWorkspaceSession({
 
   return (
     <div className="advisor-workspace">
+    <dl className="advisor-task-summary" aria-label={t("当前任务概览", "Current task overview")}>
+      <div><dt>{t("当前目标", "Current goal")}</dt><dd>{currentJob ? `${currentJob.company} · ${currentJob.title}` : t("选择目标岗位或顾问任务", "Choose a target job or advisor task")}</dd></div>
+      <div><dt>{t("可用材料", "Available material")}</dt><dd>{t(`${currentJob?.description ? "岗位原文" : "尚无岗位原文"} · ${resume ? "当前简历" : "尚无简历"}`, `${currentJob?.description ? "Job description" : "No job description"} · ${resume ? "Current resume" : "No resume"}`)}</dd></div>
+      <div><dt>{t("运行状态与下一步", "Status and next step")}</dt><dd>{loading ? t("正在生成岗位建议；请等待结果", "Generating job suggestions; wait for results") : chatLoading ? t("顾问对话生成中；可使用停止操作", "Advisor response in progress; Stop is available") : t("建议生成与对话空闲；其他任务状态见对应面板。核对材料与授权后继续", "Suggestions and chat are idle; other task statuses are shown in their panels. Review material and permissions before continuing")}</dd></div>
+    </dl>
     {interviewRecovery.value.open&&interviewRecovery.value.selection&&<MockInterviewPanel key={privateKey(interviewRecovery.value.selection.id)} workspaceKey={interviewWorkspaceKey} selection={interviewRecovery.value.selection} resume={resume} llmConfig={llmConfig} blockingError={interviewRecovery.error} onClose={()=>interviewRecovery.field("open",false)} onOpenConfig={onOpenConfig}/>}
     <div hidden={interviewRecovery.value.open} style={{display:interviewRecovery.value.open?"none":"contents"}}>
     {interviewRecovery.error&&<WorkspaceRecoveryNotice {...interviewRecovery}/>}
     {(recovery.error || (!showCareerCoach && taskView !== "handoff")) && <WorkspaceRecoveryNotice {...recovery} />}
     <AgentTaskNavigation onBack={onNavigateToResume} onEdit={currentJob?.description && !isEditingJob ? handleOpenJobEdit : undefined} needsConfig={!llmConfig.apiKey?.trim() && llmConfig.provider !== "ollama"} onConfig={onOpenConfig} active={showCareerCoach ? (taskView === "job" ? "career" : taskView) : taskView} onSelect={selectTask} jobTitle={currentJob ? `${currentJob.company} · ${currentJob.title}` : undefined} />
     {interviewRecovery.value.selection&&<button type="button" className="studio-button" onClick={()=>interviewRecovery.field("open",true)}>回到对练会话</button>}
-    {defenseOptions.length>0&&!showCareerCoach&&<details className="mock-interview-topics"><summary>面试攻防 · 选择题目开始对练</summary>{defenseOptions.map(defense=><article key={defense.id}><strong>{defense.targetTopic}</strong><p>{defense.question}</p><button type="button" disabled={Boolean(interviewRecovery.error)} onClick={()=>void startDefense(defense)}>与 Copilot 模拟对练这道题 →</button></article>)}</details>}
+    {defenseOptions.length>0&&!showCareerCoach&&<details className="mock-interview-topics"><summary>面试攻防 · 选择题目开始对练</summary>{defenseOptions.map(defense=><article key={defense.id}><strong>{defense.targetTopic}</strong><p>{defense.question}</p><button type="button" disabled={Boolean(interviewRecovery.error)} onClick={()=>void startDefense(defense)}>{t("与 AI 顾问对练这道题", "Practice this question with the AI advisor")}</button></article>)}</details>}
     {careerTaskConfig && <div className="flex items-center gap-3 border-b border-[var(--ui-border)] px-4 py-2"><button type="button" aria-pressed={sidebar?sidebar.open&&sidebar.conversation==="task":showCareerTask} className="studio-button" onClick={() => openCareerTask()}><FileText size={14} />{t("岗位定制任务", "Resume tailoring task")}</button><span className="text-xs text-[var(--ui-muted)]">{t("同一宿主任务 · 审阅后另存 · 不自动投递", "One host task · Review before saving · No auto-apply")}</span></div>}
     <div hidden={showCareerTask} style={{ display: showCareerTask ? "none" : "contents" }}>{careerCoachPanel}</div>
     {careerTaskConfig && showCareerTask && <CareerTaskPanel {...careerTaskConfig} job={careerCoachJob ?? undefined} resumeFields={resumeEditContext} llmConfig={llmConfig} initialObjective={taskObjective} />}
@@ -1279,6 +1284,7 @@ function AgentWorkspaceSession({
                         setLinkError(null);
                       }}
                       onKeyDown={(e) => {
+                          if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
                         if (e.key === "Enter" && !e.shiftKey && !isExtractingLink) {
                           e.preventDefault();
                           void handleExtractLink();
@@ -1586,6 +1592,7 @@ function AgentWorkspaceSession({
                       setInputDescription(e.target.value);
                     }}
                     onKeyDown={(e) => {
+                          if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
                       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                         e.preventDefault();
                         handleSubmitJobSetup();
@@ -2525,13 +2532,14 @@ function AgentWorkspaceSession({
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
                       onKeyDown={(e) => {
+                          if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
                           void handleSendMessage();
                         }
                       }}
                       placeholder={t(
-                        "向 Copilot 提问（例如：这条经历里，读者能看出哪一步是我做的吗？）…",
+                        "向 AI 顾问提问（例如：这条经历里，读者能看出哪一步是我做的吗？）…",
                         "Ask the copilot (e.g. can a reader tell what I personally delivered here?)…"
                       )}
                       className={`agent-chat-textarea w-full px-2 py-1 text-xs sm:text-[13px] font-sans outline-none resize-none ${

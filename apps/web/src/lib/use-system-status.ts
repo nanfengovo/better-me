@@ -21,6 +21,11 @@ export function useSystemStatus() {
   const totals = (usage.data?.models ?? []).reduce((sum, model) => ({
     input: sum.input + model.inputTokens, output: sum.output + model.outputTokens, calls: sum.calls + model.calls,
   }), { input: 0, output: 0, calls: 0 });
-  return { groups, overall: worstHealth(all), issues: all.filter(item => item.health === "down" || item.health === "warn"),
-    usage: usage.data, totals, loading: !host.data };
+  const usageState = usage.data === null ? "unauthorized" : usage.error ? (usage.data ? "stale" : "error")
+    : host.data?.health !== "ok" ? "unavailable" : usage.isLoading ? "loading" : usage.data ? "ready" : "unknown";
+  const issues = all.filter(item => item.health === "down" || item.health === "warn");
+  return { groups, overall: worstHealth(all), issues, usageState,
+    usage: usage.data, totals, loading: host.isLoading, refreshing: usage.isValidating,
+    retry: () => Promise.all([host.mutate(), proxy.mutate(), engines.mutate(), usage.mutate()]),
+  };
 }

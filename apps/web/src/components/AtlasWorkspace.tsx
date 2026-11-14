@@ -280,7 +280,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
     if (aiPenetratedOnly) {
       list.push({
         key: "aiPenetrated",
-        label: "🤖 仅看 AI 穿透命中",
+        label: t("仅看关键词规则命中", "Keyword rule matches only"),
         onClear: () => setAiPenetratedOnly(false),
       });
     }
@@ -331,7 +331,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
       });
     }
     return list;
-  }, [aiPenetratedOnly, ownership, origin, platformFilter, salaryFilter, distanceFilter, pubFilter]);
+  }, [aiPenetratedOnly, ownership, origin, platformFilter, salaryFilter, distanceFilter, pubFilter, t]);
 
   const activeFilterCount = activeFilterPills.length;
 
@@ -1966,7 +1966,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
         </div>
         {text.trim() && penetratedCount > 0 && (
           <div className="atlas-filter-row">
-            <span className="atlas-filter-label is-ai"><Sparkles size={11} />穿透</span>
+            <span className="atlas-filter-label is-ai"><Sparkles size={11} />{t("规则", "Rules")}</span>
             <div className="atlas-filter-pills">
               <button
                 type="button"
@@ -1981,7 +1981,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
                 onClick={() => setAiPenetratedOnly(true)}
               >
                 <Sparkles size={11} className="atlas-ai-sparkle-icon" />
-                仅看 AI 穿透命中 ({penetratedCount})
+                {t("仅看关键词规则命中", "Keyword rule matches only")} ({penetratedCount})
               </button>
             </div>
           </div>
@@ -2002,7 +2002,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
             <div className="atlas-ai-banner-badge-group">
               <span className="atlas-ai-badge-pill">
                 <Sparkles size={11} className="atlas-ai-sparkle-icon" />
-                AI 穿透定位
+                {t("关键词规则线索", "Keyword rule leads")}
               </span>
               <span className="atlas-ai-banner-headline">
                 当前筛选内 <strong>{penetratedCount}</strong> 个技术栈匹配的通用标题岗位
@@ -2013,14 +2013,14 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
               className="atlas-ai-banner-close-btn"
               onClick={() => setAiBannerDismissed(true)}
               title="收起此提示（可在上方筛选器恢复）"
-              aria-label="收起 AI 穿透提示"
+              aria-label={t("收起关键词规则提示", "Dismiss keyword rule notice")}
             >
               <X size={13} />
             </button>
           </div>
           <div className="atlas-ai-banner-footer">
             <span className="atlas-ai-banner-desc">
-              JD 包含 “<strong>{text.trim()}</strong>” 相关技术栈；“仅看穿透”会隐藏标题直接命中的岗位。
+              {t("关键词／别名规则，不是模型分析：", "Keyword and alias rules, not model analysis: ")}<strong>{text.trim()}</strong>{t("。仅看规则线索会隐藏标题直接命中的岗位；请在详情核对原文。", ". This filter hides direct-title matches. Review the source in job details.")}
             </span>
             <div className="atlas-ai-banner-actions">
               <button
@@ -2029,7 +2029,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
                 onClick={() => setAiPenetratedOnly((prev) => !prev)}
               >
                 <Sparkles size={11} className="atlas-ai-sparkle-icon" />
-                {aiPenetratedOnly ? "恢复全部岗位" : `仅看 AI 穿透岗位 (${penetratedCount})`}
+                {aiPenetratedOnly ? t("恢复全部岗位", "Show all jobs") : t(`仅看规则线索 (${penetratedCount})`, `Rule leads only (${penetratedCount})`)}
               </button>
               <button
                 type="button"
@@ -2060,10 +2060,10 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
                 type="button"
                 className="atlas-compact-refresh-btn"
                 onClick={() => setAiBannerDismissed(false)}
-                title="展开 AI 穿透定位提示"
+                title={t("展开关键词规则提示", "Show keyword rule notice")}
               >
                 <Sparkles size={11} className="text-indigo-500" />
-                AI 穿透 ({penetratedCount})
+                {t("规则线索", "Rule leads")} ({penetratedCount})
               </button>
             )}
             <button

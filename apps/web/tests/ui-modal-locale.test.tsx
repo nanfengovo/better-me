@@ -118,7 +118,12 @@ test("English import UI opens without a network request or changing resume/confi
   await mount(h(ResumeImportModal, { isOpen: true, llmConfig: config, onClose() {}, onImportSuccess() { imported = true; }, onOpenAiConfig() {} }));
   const content = dom.document.body.textContent ?? "";
   assert.match(content, /Import and structure a resume/);
-  assert.match(content, /Browse or drop a resume file here/);
+  assert.match(content, /Choose a resume file \(or drop it here\)/);
+  const dialog = dom.document.querySelector<HTMLDialogElement>(".resume-import-dialog")!;
+  assert.ok(dialog.open);
+  assert.equal(dialog.getAttribute("aria-labelledby"), "resume-import-title");
+  assert.ok(dialog.querySelector('button[aria-label="Close import dialog"]'));
+  assert.ok([...dialog.querySelectorAll("button")].some(button => button.textContent?.includes("Choose a resume file")));
   await click("fixture-zh");
   assert.match(dom.document.body.textContent ?? "", /导入简历与自动结构化/);
   await click("fixture-en");

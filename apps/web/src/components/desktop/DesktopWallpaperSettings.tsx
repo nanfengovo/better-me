@@ -205,6 +205,7 @@ export function DesktopWallpaperSettings() {
               <button
                 key={p.val}
                 type="button"
+                aria-pressed={Math.abs(wallpaperOpacity - p.val) < 0.03}
                 className={`os-opacity-pill ${Math.abs(wallpaperOpacity - p.val) < 0.03 ? "is-selected" : ""}`}
                 onClick={() => setDesktopPreferences({ wallpaperOpacity: p.val })}
               >
@@ -290,6 +291,7 @@ export function DesktopWallpaperSettings() {
               <button
                 key={p.val}
                 type="button"
+                aria-pressed={Math.abs(windowOpacity - p.val) < 0.03}
                 className={`os-opacity-pill ${Math.abs(windowOpacity - p.val) < 0.03 ? "is-selected" : ""}`}
                 onClick={() => setDesktopPreferences({ windowOpacity: p.val })}
               >
@@ -351,6 +353,7 @@ export function DesktopWallpaperSettings() {
               <button
                 key={p.val}
                 type="button"
+                aria-pressed={Math.abs(menuOpacity - p.val) < 0.03}
                 className={`os-opacity-pill ${Math.abs(menuOpacity - p.val) < 0.03 ? "is-selected" : ""}`}
                 onClick={() => setDesktopPreferences({ menuOpacity: p.val })}
               >

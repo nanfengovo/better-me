@@ -112,25 +112,25 @@ export function AtlasJobDetail({ item, data, demo, originalCurrency, presentatio
 
     <div ref={body} className="atlas-job-detail-body">
       {aiRelevance.isPenetrated && (
-        <section className="atlas-job-detail-section atlas-job-detail-ai-penetration" aria-label="AI 智能技术栈穿透解析">
+        <section className="atlas-job-detail-section atlas-job-detail-ai-penetration" aria-label={t("关键词规则与原文证据", "Keyword rules and source evidence")}>
           <div className="atlas-ai-deep-insight-box">
             <div className="atlas-ai-insight-header">
               <span className="atlas-ai-sparkle-pill">
                 <Sparkles size={14} className="atlas-ai-sparkle-icon" />
-                AI 智能技术栈穿透解析
+                {t("关键词规则命中", "Keyword rule match")}
               </span>
-              <span className="atlas-ai-confidence">匹配置信度 {aiRelevance.confidence}%</span>
+              <span className="atlas-ai-confidence">{t("非模型分析", "Not model analysis")}</span>
             </div>
-            <p className="atlas-ai-insight-reason">{aiRelevance.reason}</p>
+            <p className="atlas-ai-insight-reason">{t(aiRelevance.reason, "Keyword rules matched this posting. This is not a calibrated relevance score; review the original wording.")}</p>
             {aiRelevance.highlightSnippet && (
               <div className="atlas-ai-insight-evidence">
-                <div className="atlas-ai-evidence-label">🎯 任职要求深度定位：</div>
+                <div className="atlas-ai-evidence-label">{t("命中的原文片段", "Matching source excerpt")}</div>
                 <blockquote>{aiRelevance.highlightSnippet}</blockquote>
               </div>
             )}
             {aiRelevance.extractedTechStack.length > 0 && (
               <div className="atlas-ai-extracted-skills">
-                <span className="skills-label">提取核心技能栈：</span>
+                <span className="skills-label">{t("命中词：", "Matched terms:")}</span>
                 <div className="skills-pill-group">
                   {aiRelevance.extractedTechStack.map((skill) => (
                     <span key={skill} className="skill-pill">{skill}</span>

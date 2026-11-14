@@ -37,6 +37,10 @@ test("studio and settings share runtime identity, availability and neutral state
   try {
     await flush(() => root.render(h(LocalAgentRuntimeProvider, null,
       h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" } }, h(SettingsProbe), h(AutopilotStudioWorkspace)))));
+    assert.ok(container.querySelector(".studio-real-workspace"));
+    assert.equal(container.querySelector(".studio-agent-trigger"), null);
+    await flush(() => [...container.querySelectorAll("button")].find(button => button.textContent.includes("查看隔离演示"))!.click());
+    assert.match(container.querySelector(".workspace-notice")!.textContent, /示例，非真实招聘/);
     assert.match(container.querySelector(".studio-agent-trigger")!.textContent, /未配置 Agent/);
     assert.equal(container.querySelector('[data-testid="studio-agent-courier"]')!.hasAttribute("hidden"), true);
     assert.equal(container.querySelectorAll('[data-node-id]').length, 20);

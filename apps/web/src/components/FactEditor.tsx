@@ -59,6 +59,7 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
   const [collapsedExps, setCollapsedExps] = useState<Record<string, boolean>>({});
   const [newExperienceType, setNewExperienceType] = useState<Experience["type"]>("work");
   const [avatarError, setAvatarError] = useState("");
+  const [deletedClaims, setDeletedClaims] = useState<Array<{ expId: string; claim: FactClaim; index: number }>>([]);
   const [selectedResumeText, setSelectedResumeText] = useState<{ text: string; sourceLabel: string } | null>(null);
   const factBaseRef = useRef(factBase);
   const onChangeRef = useRef(onChange);
@@ -361,6 +362,11 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
   };
 
   const deleteClaim = (expId: string, claimId: string) => {
+    const experience = factBaseRef.current.experiences.find(item => item.id === expId);
+    const index = experience?.claims.findIndex(item => item.id === claimId) ?? -1;
+    const claim = experience?.claims[index];
+    if (!claim) return;
+    setDeletedClaims(previous => [...previous, { expId, claim, index }]);
     updateExperiences((exps) =>
       exps.map((e) => {
         if (e.id !== expId) return e;
@@ -382,6 +388,20 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
       onKeyUpCapture={captureResumeSelection}
       className="fact-editor flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] shadow-sm"
     >
+      {deletedClaims.length > 0 && <div className="workspace-notice" role="status">
+        <span>{t(`已删除 ${deletedClaims.length} 条要点。离开编辑器前可逐条撤销。`, `${deletedClaims.length} entries deleted. Undo is available until leaving the editor.`)}</span>
+        <button type="button" disabled={!factBase.experiences.some(experience => experience.id === deletedClaims[deletedClaims.length - 1]?.expId)} onClick={() => {
+          const removed = deletedClaims[deletedClaims.length - 1];
+          if (!removed) return;
+          updateExperiences(experiences => experiences.map(experience => {
+            if (experience.id !== removed.expId || experience.claims.some(claim => claim.id === removed.claim.id)) return experience;
+            const claims = [...experience.claims]; claims.splice(Math.min(removed.index, claims.length), 0, removed.claim);
+            return { ...experience, claims };
+          }));
+          setDeletedClaims(previous => previous.slice(0, -1));
+        }}>{t("撤销上次删除", "Undo last deletion")}</button>
+        <button type="button" onClick={() => setDeletedClaims([])}>{t("关闭提示", "Dismiss")}</button>
+      </div>}
       {/* Editor Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-line)] px-5 py-3.5 bg-slate-50/50">
         <div className="flex items-center gap-2">
@@ -1206,7 +1226,8 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
 
                               {/* Metric Sub-Form */}
                               {(claim.kind === "metric" || claim.metric) && (
-                                <div className="rounded-md border border-amber-200/80 bg-amber-50/40 p-2.5 space-y-2 text-xs">
+                                <details className="workspace-metric-details" open={issueNavigation?.issue.claimId === claim.id || undefined}>
+                                  <summary>{t("量化数值、基线与因果说明", "Metric value, baseline and attribution")}</summary>
                                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                     <div>
                                       <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
@@ -1297,7 +1318,7 @@ export function FactEditor({ factBase, onChange, onAskAgentReference, textStyles
                                       />
                                     </div>
                                   </div>
-                                </div>
+                                </details>
                               )}
                             </div>
                           ))}

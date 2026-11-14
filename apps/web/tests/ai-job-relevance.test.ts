@@ -41,7 +41,10 @@ test("Tesla C# Graduate Developer: AI Agent accurately penetrates generic title 
   assert.equal(result.isImplicitMatch, true);
   assert.equal(result.isPenetrated, true);
   assert.equal(result.matchKind, "implicit-tech-penetration");
-  assert.ok(result.confidence >= 95, "Confidence should be >= 95%");
+  assert.equal(result.method, "keyword-rules");
+  assert.equal("confidence" in result, false, "Uncalibrated percentages must not be emitted");
+  assert.doesNotMatch(result.badgeLabel, /AI/);
+  assert.doesNotMatch(result.reason, /语义穿透|强相关/);
   assert.ok(result.highlightSkillText.includes("C#"), "Highlight text should contain C#");
   assert.ok(result.highlightSkillText.includes("ASP.NET Core") || result.highlightSkillText.includes(".NET"), "Highlight text should contain .NET/ASP.NET Core");
   assert.ok(result.highlightSnippet?.includes("熟练掌握 C# 编程语言"), "Snippet should quote the exact requirement");

@@ -199,6 +199,15 @@ body:has(.identity-screen) {
 .login-spinner { animation:login-spin .9s linear infinite; }
 .login-new-field { animation:login-scene-enter .25s ease-out both; }
 .is-paused .login-art img,.is-paused .login-scene-chip,.is-paused .login-floating-card,.login-layout:has(input:focus) .login-art img,.login-layout:has(input:focus) .login-scene-chip,.login-layout:has(input:focus) .login-floating-card { animation-play-state:paused; }
+.identity-screen .identity-card :is(input,label,.studio-button,.social-login-button) { font-size:var(--workspace-body-size,14px); }
+.identity-screen .identity-card :is(input,.studio-button,.social-login-button) { min-height:var(--workspace-control-height,44px); }
+.identity-screen .identity-card :is(.workspace-help,.social-login-status,.social-login-refresh,summary,.social-login-button small) { font-size:var(--workspace-caption-size,12px); line-height:1.5; }
+.identity-screen .identity-card .identity-alert { font-size:var(--workspace-body-size,14px); }
+@media(max-width:680px) {
+  .identity-screen[data-register="true"] .login-showcase { min-height:0; padding:16px 24px; }
+  .identity-screen[data-register="true"] .login-story,.identity-screen[data-register="true"] .login-art,.identity-screen[data-register="true"] .login-globe-stage { display:none; }
+  .identity-screen .identity-card .social-login-grid { grid-template-columns:1fr; }
+}
 @keyframes login-spin { to { transform:rotate(360deg); } }
 @keyframes login-float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-7px); } }
 @keyframes login-art-drift { from { transform:scale(1); } to { transform:scale(1.045) translateY(-5px); } }

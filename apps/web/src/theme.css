@@ -1,6 +1,11 @@
 /* Workspace appearance only. Import after the existing component styles.
    Screen-only overrides and explicit paper exclusions keep export colors stable. */
 :root {
+  --workspace-body-size: 14px;
+  --workspace-caption-size: 12px;
+  --workspace-line-height: 1.5;
+  --workspace-control-height: 44px;
+  --workspace-card-radius: 12px;
   --ui-canvas: #f6f6f0;
   --ui-surface: #fffefa;
   --ui-surface-raised: #fcfcf8;

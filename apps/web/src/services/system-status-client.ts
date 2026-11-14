@@ -25,6 +25,7 @@ export type ModelUsage = {
   lastAt: string;
 };
 export type UsageSnapshot = {
+  receivedAt?: string;
   day: string;
   since: string;
   models: ModelUsage[];
@@ -101,7 +102,7 @@ export async function fetchEngineStatus(): Promise<StatusItem[]> {
         meta: runtime.version,
         badge: runtimeDetail[runtime.status],
       }))
-    : [{ id: "runtimes", label: "本机 CLI", health: "unknown", detail: "登录后可查看", badge: "待登录" }];
+    : [{ id: "runtimes", label: "本机 CLI", health: "unknown", detail: "读取失败，请检查连接或登录状态", badge: "未知" }];
   if (vork.status === "fulfilled") {
     items.push({
       id: "vork",
@@ -123,7 +124,9 @@ export async function fetchUsage(): Promise<UsageSnapshot | null> {
   if (response.status === 401) return null;
   if (!response.ok) throw new Error(`usage_${response.status}`);
   const data = await response.json() as Partial<UsageSnapshot>;
+  if (!Array.isArray(data.models) || !Array.isArray(data.active) || typeof data.since !== "string") throw new Error("usage_invalid_response");
   return {
+    receivedAt: new Date().toISOString(),
     day: String(data.day ?? ""),
     since: String(data.since ?? ""),
     models: Array.isArray(data.models) ? data.models.map(item => ({
@@ -142,7 +145,7 @@ export async function fetchUsage(): Promise<UsageSnapshot | null> {
 
 /** Model health is the outcome of real calls already made; never a paid probe. */
 export function modelStatus(usage: UsageSnapshot | null | undefined): StatusItem[] {
-  if (!usage) return [{ id: "models", label: "模型通道", health: "unknown", detail: "登录后可查看", badge: "待登录" }];
+  if (!usage) return [{ id: "models", label: "模型通道", health: "unknown", detail: usage === null ? "登录已失效" : "用量尚未读取", badge: usage === null ? "待登录" : "未知" }];
   if (!usage.models.length) return [{ id: "models", label: "模型通道", health: "unknown", detail: "今日尚未调用", badge: "待调用" }];
   return usage.models.map(model => ({
     id: `model:${model.label}`,
@@ -157,6 +160,7 @@ export function modelStatus(usage: UsageSnapshot | null | undefined): StatusItem
 export function worstHealth(items: StatusItem[]): Health {
   if (items.some(item => item.health === "down")) return "down";
   if (items.some(item => item.health === "warn")) return "warn";
+  if (!items.length || items.some(item => item.health === "unknown")) return "unknown";
   if (items.some(item => item.health === "ok")) return "ok";
   return "unknown";
 }

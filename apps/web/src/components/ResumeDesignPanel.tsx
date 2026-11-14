@@ -27,7 +27,7 @@ export function ResumeDesignPanel({ view, factBase, onChange }: Props) {
   const [dragging, setDragging] = useState<ResumeSectionId | null>(null);
   const [templateSource, setTemplateSource] = useState<"all" | TemplateSourceId>("all");
   const [templateSearch, setTemplateSearch] = useState("");
-  const [templatePage, setTemplatePage] = useState(0);
+  const [templatePage, setTemplatePage] = useState(() => Math.floor(Math.max(0, RESUME_TEMPLATES.findIndex(template => template.id === resolveResumeTemplate(view.templateId))) / 12));
   const selectedTemplateId = resolveResumeTemplate(view.templateId);
   const selectedTemplate = getResumeTemplate(selectedTemplateId);
   const selectedMetadata = getTemplateUiMetadata(selectedTemplateId, locale);
@@ -86,7 +86,7 @@ export function ResumeDesignPanel({ view, factBase, onChange }: Props) {
       <div className="template-gallery">{visibleTemplates.map((template) => {
         const metadata = getTemplateUiMetadata(template.id, locale);
         const definition = getResumeTemplate(template.id);
-        const selected = view.templateId === template.id;
+        const selected = selectedTemplateId === template.id;
         return <button type="button" key={template.id} data-template-choice={template.id} className={`template-card${selected ? " is-selected" : ""}`} onClick={() => change({ templateId: template.id })} aria-pressed={selected} aria-label={`${metadata.name} ${template.label} · ${metadata.tag}`} title={metadata.description}>
           <span className="template-card-stage"><span className="template-card-index" aria-hidden="true">{String(RESUME_TEMPLATES.findIndex((item) => item.id === template.id) + 1).padStart(2, "0")}</span><TemplateThumbnail id={template.id} locale={locale} /><span className="template-card-status" aria-hidden="true">{selected && <Check size={12} strokeWidth={2.6} />}</span></span>
           <span className="template-card-info"><span className="template-card-name">{metadata.name}</span><span className="template-card-label">{template.label} · {metadata.tag}</span>{definition.usageRestriction && <span className="template-license-restriction">{definition.usageRestriction[locale]}</span>}<span className="template-card-origin">{template.source === "original" ? t("自研", "Original") : (definition.licenseLabel ?? "MIT") + " · " + TEMPLATE_SOURCES.find((source) => source.id === template.source)!.name}</span></span>
@@ -110,18 +110,18 @@ export function ResumeDesignPanel({ view, factBase, onChange }: Props) {
 
     <section className="design-card"><div className="design-card-title"><Eye size={17} /><h3>{t("个人信息开关", "Personal information visibility")}</h3></div>
       <div className="design-presets"><button type="button" onClick={() => change({ profileVisibility: { ...view.profileVisibility, photo: true, education: false } })}>{t("国内投递 · 可带照片", "Domestic applications · photo optional")}</button><button type="button" onClick={() => change({ profileVisibility: { ...view.profileVisibility, photo: false, education: false } })}>{t("海外投递 · 不带照片", "International applications · no photo")}</button></div>
-      <div className="design-toggle-grid">{PROFILE_FIELDS.map(({ field, label }) => <Toggle key={field} label={label} checked={field === "photo" && view.templateId === "en-ats" ? false : isResumeProfileVisible(view, field)} disabled={field === "photo" && view.templateId === "en-ats"} onChange={() => change({ profileVisibility: { ...view.profileVisibility, [field]: !isResumeProfileVisible(view, field) } })} />)}</div>
+      <div className="design-toggle-grid">{PROFILE_FIELDS.map(({ field, label }) => <Toggle key={field} label={label} checked={field === "photo" && selectedTemplateId === "en-ats" ? false : isResumeProfileVisible(view, field)} disabled={field === "photo" && selectedTemplateId === "en-ats"} onChange={() => change({ profileVisibility: { ...view.profileVisibility, [field]: !isResumeProfileVisible(view, field) } })} />)}</div>
       <p className="design-help">{t("抬头学历与「教育背景」分节独立控制。ATS 模板固定不显示照片；开关控制已有内容，不会补造信息。", "Header education and the Education section are independent. ATS always hides photos. Toggles only control existing information.")}</p>
     </section>
 
-    <section className="design-card"><div className="design-card-title"><Palette size={17} /><h3>{t("字形与留白", "Typography & spacing")}</h3><SlidersHorizontal size={15} className="design-title-end" /></div>
+    <details className="design-card design-advanced"><summary className="design-card-title"><Palette size={17} /><span>{t("高级：字形与留白", "Advanced: typography & spacing")}</span><SlidersHorizontal size={15} className="design-title-end" /></summary>
       <div className="design-color-row"><span>{t("主题色", "Accent color")}</span><div className="design-swatches">{COLORS.map((color) => <button key={color} type="button" style={{ backgroundColor: color }} aria-label={t(`主题色 ${color}`, `Accent color ${color}`)} aria-pressed={layout.accentColor === color} onClick={() => layoutChange({ accentColor: color })}>{layout.accentColor === color && <Check size={12} />}</button>)}<input type="color" value={layout.accentColor} aria-label={t("自定义主题色", "Custom accent color")} onChange={(event) => layoutChange({ accentColor: event.target.value })} /></div></div>
       <label className="design-font-row"><span>{t("字体风格", "Font style")}</span><select value={layout.fontFamily} onChange={(event) => layoutChange({ fontFamily: event.target.value as ResumeLayout["fontFamily"] })}><option value="sans">{t("现代无衬线", "Modern sans serif")}</option><option value="serif">{t("书刊衬线", "Editorial serif")}</option><option value="mono">{t("技术等宽", "Technical monospace")}</option></select></label>
       <div className="design-sliders">{sliders.map(({ field, label, min, max, step, unit }) => <label className="design-slider" key={field}><span>{label}<output>{typeof layout[field] === "number" ? Number((layout[field] as number).toFixed(2)) : layout[field]} {unit}</output></span><input type="range" min={min} max={max} step={step} value={layout[field] as number} onChange={(event) => layoutChange({ [field]: Number(event.target.value) })} /></label>)}</div>
       <p className="design-help">{t("文字编辑时选中片段，可加粗、斜体、下划线、高亮和放大。字号与边距影响预览和 PDF；Markdown 保留结构与强调。", "Select text to apply bold, italics, underline, highlight or size. Font size and margins affect preview and PDF; Markdown preserves structure and emphasis.")}</p>
-    </section>
+    </details>
 
-    <section className="design-card"><div className="design-card-title"><ListChecks size={17} /><h3>{t("选择经历与要点", "Choose experiences & entries")}</h3></div><p className="design-help">{t("隐藏仅影响这份简历，事实库仍保留完整内容。", "Hiding affects this resume only. The fact base keeps all content.")}</p>
+    <details className="design-card design-advanced"><summary className="design-card-title"><ListChecks size={17} /><span>{t("高级：选择经历与要点", "Advanced: choose experiences & entries")}</span></summary><p className="design-help">{t("隐藏仅影响这份简历，事实库仍保留完整内容。", "Hiding affects this resume only. The fact base keeps all content.")}</p>
       {factBase.experiences.length === 0 ? <p className="design-empty">{t("先在「内容」中添加经历，再选择本次投递需要的部分。", "Add experience in Content, then choose what to include in this application.")}</p> : <div className="design-fact-list">{factBase.experiences.map((experience) => {
         const included = allExperiences || view.includedExperienceIds.includes(experience.id);
         return <details className="design-experience-select" key={experience.id}><summary><input type="checkbox" checked={included} aria-label={t(`包含经历 ${pickLocale(experience.org, view.locale)}`, `Include experience ${pickLocale(experience.org, view.locale)}`)} onClick={(event) => event.stopPropagation()} onChange={() => toggleExperience(experience.id)} /><span>{pickLocale(experience.org, view.locale) || t("未命名经历", "Untitled experience")}<small>{pickLocale(experience.title, view.locale)} · {experience.start || t("日期待补", "Date not entered")}</small></span><span className="design-claim-count">{experience.claims.length} {t(" 条", "entries")}</span></summary><div className="design-claim-select-list">
@@ -129,6 +129,6 @@ export function ResumeDesignPanel({ view, factBase, onChange }: Props) {
           {experience.claims.length === 0 && <p className="design-empty">{t("这段经历暂无事实要点。", "This experience has no fact entries yet.")}</p>}
         </div></details>;
       })}</div>}
-    </section>
+    </details>
   </div>;
 }

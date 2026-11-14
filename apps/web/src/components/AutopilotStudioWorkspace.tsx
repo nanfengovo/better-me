@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import type { FactBase, ProjectedResume } from "@better-me/core";
+import useSWR from "swr";
 import {
   useInstalledMicroApps,
   type InstalledMicroApp,
@@ -792,7 +793,7 @@ export interface JobPipelineItem {
   };
 }
 
-const DEFAULT_REAL_JOBS: JobPipelineItem[] = [
+const DEFAULT_DEMO_JOBS: JobPipelineItem[] = [
   {
     id: "job-siemens-rcs",
     queueRank: "#1",
@@ -1608,7 +1609,39 @@ function CyberJobCard3D({
 // ============================================================================
 // 9. 主工作区组件：AutopilotStudioWorkspace
 // ============================================================================
-export function AutopilotStudioWorkspace({
+export function AutopilotStudioWorkspace(props: Parameters<typeof AutopilotDemoWorkspace>[0]) {
+  const { t } = useUiPreferences();
+  const [demo, setDemo] = useState(false);
+  const { data: libraryState } = useSWR("studio:opportunity-library", () => readOpportunityLibrary(), { refreshInterval: 5_000 });
+  const library = libraryState?.library;
+  const claims = props.factBase?.experiences.reduce((sum, experience) => sum + experience.claims.length, 0) ?? 0;
+  if (demo) return <div className="studio-demo-shell">
+    <div className="workspace-notice" role="note"><strong>{t("示例，非真实招聘", "Demo, not real recruitment")}</strong> · {t("所有分数、背调、终端及流程状态仅为演示，不是任务回执。", "Scores, research, terminal output and flow states are examples, not task receipts.")}
+      <button type="button" onClick={() => setDemo(false)}>{t("返回真实岗位", "Back to saved jobs")}</button>
+    </div>
+    <AutopilotDemoWorkspace {...props} factBase={undefined} initialOpportunityId={undefined} />
+  </div>;
+  return <section className="workspace-reading studio-real-workspace" aria-label={t("自动化工坊", "Automation studio")}>
+    <header><h2>{t("自动化工坊", "Automation studio")}</h2><p>{t(`事实库共 ${claims} 条要点；以下仅显示机会库原始记录。`, `${claims} factual claims; only saved opportunity records are shown below.`)}</p></header>
+    <p className="workspace-notice">{t("尚无本工坊的 ATS、匹配或企业背调任务回执，不生成分数或通过结论。请打开岗位核对来源，再进入顾问执行已授权任务。", "No ATS, matching or company research receipts exist for this studio. Open a job to review its sources before authorizing a task in the advisor.")}</p>
+    <div className="workspace-card-grid">{library?.jobs.map(job => <article className="workspace-card" key={job.id} data-job-id={job.id}>
+      <h3>{job.title}</h3><p>{job.company}</p>
+      <dl><div><dt>{t("薪资", "Salary")}</dt><dd>{job.salaryText || t("未披露", "Not disclosed")}</dd></div>
+        <div><dt>{t("地点", "Location")}</dt><dd>{[job.location.city, job.location.region].filter(Boolean).join(" · ") || t("未披露", "Not disclosed")}</dd></div>
+        <div><dt>{t("来源", "Source")}</dt><dd>{job.sourcePlatform || t("待核验", "Unverified")}</dd></div>
+        <div><dt>{t("记录更新", "Record updated")}</dt><dd>{job.updatedAt}</dd></div>
+      </dl>
+      <p>{job.application.nextAction || t("下一步：核对岗位原文", "Next: review the original posting")}</p>
+      {props.onOpenOpportunity && <button type="button" onClick={() => props.onOpenOpportunity?.(job.id)}>{t("打开岗位与来源", "Open job and sources")}</button>}
+    </article>)}</div>
+    {!libraryState && <p role="status">{t("正在读取机会库…", "Reading saved opportunities…")}</p>}
+    {libraryState?.error && <p role="alert">{libraryState.error}</p>}
+    {library && !libraryState?.error && !library.jobs.length && <p>{t("机会库暂无岗位。不会用演示岗位填充你的队列。", "No saved jobs. Demo jobs will not be added to your queue.")}</p>}
+    <button type="button" onClick={() => setDemo(true)}>{t("查看隔离演示（非真实招聘）", "View isolated demo (not real recruitment)")}</button>
+  </section>;
+}
+
+function AutopilotDemoWorkspace({
   factBase,
   resume: _resume,
   projectedResume: _projectedResume,
@@ -1661,50 +1694,7 @@ export function AutopilotStudioWorkspace({
   const [terminalTab, setTerminalTab] = useState<"terminal" | "inspector">("terminal");
 
   // 4. 岗位队列与 3D 卡状态
-  const [jobs, setJobs] = useState<JobPipelineItem[]>(() => {
-    // Merge real opportunities from library if available (filter out any placeholder names)
-    const existingLib = readOpportunityLibrary().library;
-    const validJobs = existingLib.jobs.filter(
-      (j) => j.company && !j.company.includes("待核实") && !j.company.includes("未命名") && j.company.trim().length > 1
-    );
-    if (validJobs.length > 0) {
-      const converted: JobPipelineItem[] = validJobs.slice(0, 4).map((j, idx) => ({
-        id: j.id,
-        queueRank: `#${idx + 1}`,
-        tier: idx === 0 ? "S级" : idx === 1 ? "S级" : "A级",
-        matchScore: Math.max(82, 96 - idx * 3),
-        company: j.company,
-        shortName: j.company.slice(0, 8),
-        logoText: j.company.slice(0, 2).toUpperCase(),
-        logoGradient: idx === 0
-          ? "linear-gradient(135deg, #06B6D4 0%, #0284C7 55%, #1E3A8A 100%)"
-          : "linear-gradient(135deg, #F59E0B 0%, #EA580C 55%, #9A3412 100%)",
-        glowColor: idx === 0 ? "rgba(34, 211, 238, 0.45)" : "rgba(245, 158, 11, 0.45)",
-        role: j.title,
-        city: [j.location.city, j.location.region].filter(Boolean).join(" · ") || "上海",
-        salary: j.salaryText || "35k - 50k · 15薪",
-        annualTotal: "¥525k - ¥750k / 年",
-        hourlyNet: 260 - idx * 10,
-        workHours: "09:00 - 17:00 · 弹性双休",
-        sourcePlatform: j.sourcePlatform || "机会库实证",
-        collectedIn3D: true,
-        isNewMint: false,
-        stage3D: j.application.stage === "offer" ? "Offer 发放" : j.application.stage === "interview" ? "面试中" : "ATS 核验通过",
-        tags: [".NET 10 / RCS", "16:30 班车", "Zero On-call"],
-        atsMetrics: {
-          parseRate: 99.2,
-          pageFill: 93.8,
-          keywordMatched: 15,
-          keywordTotal: 16,
-          missingKeyword: "OPC UA 工业协议",
-        },
-        diffItems: DEFAULT_REAL_JOBS[0]!.diffItems,
-        triageDossier: DEFAULT_REAL_JOBS[0]!.triageDossier,
-      }));
-      return [...converted, ...DEFAULT_REAL_JOBS.slice(converted.length)];
-    }
-    return DEFAULT_REAL_JOBS;
-  });
+  const [jobs, setJobs] = useState<JobPipelineItem[]>(DEFAULT_DEMO_JOBS);
 
   const [activeJobId, setActiveJobId] = useState<string>(() => initialOpportunityId || jobs[0]?.id || "job-siemens-rcs");
   const [flipped3DMap, setFlipped3DMap] = useState<Record<string, boolean>>({});
@@ -1738,11 +1728,11 @@ export function AutopilotStudioWorkspace({
     if (factBase?.experiences) {
       for (const exp of factBase.experiences) count += exp.claims?.length || 0;
     }
-    return Math.max(38, count);
+    return count;
   }, [factBase]);
 
-  const operatorName = factBase?.profile?.displayName?.zh || factBase?.profile?.displayName?.en || "haidong";
-  const operatorRole = factBase?.profile?.targetRoles?.[0]?.zh || "C# / .NET 10 / RCS Architect";
+  const operatorName = factBase?.profile?.displayName?.zh || factBase?.profile?.displayName?.en || "示例用户";
+  const operatorRole = factBase?.profile?.targetRoles?.[0]?.zh || "职业方向未填写";
 
   const triggerToast = useCallback((title: string, desc: string) => {
     setToast({ title, desc });
@@ -2623,7 +2613,7 @@ export function AutopilotStudioWorkspace({
                             theme === "light" ? "text-slate-900" : "text-cyan-300"
                           }`}>
                             <Activity className="w-4 h-4 text-cyan-500" />
-                            <span>真实工时净时薪精算模型 (True Net Hourly Wage)</span>
+                            <span>假设模拟：按税前总包的 88%、每年工作 50 周折算</span>
                           </h3>
                           <span className={`text-[10px] font-bold ${
                             theme === "light" ? "text-amber-800" : "text-amber-300"
@@ -2658,7 +2648,7 @@ export function AutopilotStudioWorkspace({
                               WLB S+ 级别
                             </span>
                             <div className={`text-[10px] mt-1 ${theme === "light" ? "text-slate-600" : "text-slate-400"}`}>
-                              较 996 大厂实际时薪溢价 +38%
+                              非实际到手收入或岗位待遇承诺
                             </div>
                           </div>
                         </div>

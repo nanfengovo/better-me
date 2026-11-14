@@ -7,8 +7,8 @@ export type AiJobRelevanceResult = {
   isImplicitMatch: boolean;
   /** Whether this job was surfaced via AI Tech-Stack Penetration */
   isPenetrated: boolean;
-  /** Confidence score between 0 and 100 */
-  confidence: number;
+  /** Rule matches are not calibrated probabilities. */
+  method: "keyword-rules";
   /** Brief punchy badge label: e.g. "🤖 AI技术栈穿透" */
   badgeLabel: string;
   /** Core extracted skills/requirements: e.g. "核心要求: C# · ASP.NET Core" */
@@ -164,7 +164,7 @@ function extractKeyRequirementSnippet(
   }
 
   // Also check database & other tech keywords mentioned alongside
-  if (/(?:mysql|sql server|postgresql|redis|mongodb)/i.test(description)) {
+  if (rawMatches.length > 0 && /(?:mysql|sql server|postgresql|redis|mongodb)/i.test(description)) {
     const dbs = description.match(/\b(?:MySQL|SQL\s*Server|PostgreSQL|Redis|MongoDB)\b/gi) || [];
     for (const db of dbs) normalizedSet.add(db.trim());
   }
@@ -205,14 +205,14 @@ function extractKeyRequirementSnippet(
 
   let snippet: string | undefined;
   if (bestSentence) {
-    snippet = bestSentence.length > 120 ? `${bestSentence.slice(0, 118)}…` : bestSentence;
+    snippet = bestSentence;
   }
 
   return { snippet, extractedSkills };
 }
 
 /**
- * AI Agent Semantic Job Relevance & Tech-Stack Penetration Analyzer
+ * Legacy export name retained for callers; this function only matches keyword rules.
  */
 export function analyzeAiJobRelevance(
   job: CanonicalJob,
@@ -232,7 +232,7 @@ export function analyzeAiJobRelevance(
       isGenericTitle: false,
       isImplicitMatch: false,
       isPenetrated: false,
-      confidence: hasTitle ? 95 : 70,
+      method: "keyword-rules",
       badgeLabel: "标准匹配",
       highlightSkillText: effectiveQuery,
       reason: hasTitle ? "职位标题直接匹配检索词" : "常规岗位检索",
@@ -253,7 +253,7 @@ export function analyzeAiJobRelevance(
       isGenericTitle: false,
       isImplicitMatch: false,
       isPenetrated: false,
-      confidence: 99,
+      method: "keyword-rules",
       badgeLabel: "显式标题命中",
       highlightSkillText: `标题直属 ${domain.domain.toUpperCase()}`,
       reason: `岗位标题【${title}】已直接标明 ${domain.domain.toUpperCase()} 技术栈。`,
@@ -269,15 +269,15 @@ export function analyzeAiJobRelevance(
   if (extractedSkills.length > 0 || (snippet && snippet.length > 0)) {
     const topSkillsText = extractedSkills.slice(0, 3).join(" · ") || domain.domain.toUpperCase();
     const companyDisplay = companyName ? `${companyName}的` : "";
-    const reason = `${companyDisplay}职位名称虽为【${title}】，但任职要求明确指出需熟练运用 ${topSkillsText}，经 AI Agent 技术栈语义穿透识别为强相关岗位。`;
+    const reason = `${companyDisplay}岗位【${title}】的正文命中 ${topSkillsText} 关键词规则；命中不代表熟练度要求、语义理解或个人匹配结论，请核对原文。`;
 
     return {
       isGenericTitle: isGeneric,
       isImplicitMatch: true,
       isPenetrated: true,
-      confidence: 96,
-      badgeLabel: "🤖 AI 技术栈穿透",
-      highlightSkillText: `核心要求: ${topSkillsText}`,
+      method: "keyword-rules",
+      badgeLabel: "正文关键词命中",
+      highlightSkillText: `命中词: ${topSkillsText}`,
       reason,
       highlightSnippet: snippet ? `“${snippet}”` : undefined,
       extractedTechStack: extractedSkills,
@@ -292,8 +292,8 @@ export function analyzeAiJobRelevance(
       isGenericTitle: isGeneric,
       isImplicitMatch: true,
       isPenetrated: true,
-      confidence: 90,
-      badgeLabel: "🤖 AI 意图命中",
+      method: "keyword-rules",
+      badgeLabel: "平台检索线索",
       highlightSkillText: `检索意图: ${effectiveQuery}`,
       reason: `原站搜索命中 ${effectiveQuery}，职位原名【${title}】。`,
       extractedTechStack: [effectiveQuery],
@@ -305,7 +305,7 @@ export function analyzeAiJobRelevance(
     isGenericTitle: isGeneric,
     isImplicitMatch: false,
     isPenetrated: false,
-    confidence: 60,
+    method: "keyword-rules",
     badgeLabel: "通用匹配",
     highlightSkillText: effectiveQuery,
     reason: `职位未明确展示 ${effectiveQuery} 专属技术栈。`,

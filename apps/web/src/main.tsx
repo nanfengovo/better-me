@@ -9,6 +9,7 @@ import "./index.css";
 import "./studio.css";
 import "./components/confirmation.css";
 import "./theme.css";
+import "./components/workspace-ui.css";
 import "./components/resume-paper.css";
 import "./components/templates/rendercv-themes.css";
 import "./components/templates/jsonresume-themes.css";

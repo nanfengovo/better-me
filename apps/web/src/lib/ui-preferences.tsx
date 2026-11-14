@@ -1,6 +1,20 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { DEFAULT_WORKSPACE_THEME_ID, getWorkspaceTheme, isWorkspaceThemeId, workspaceThemeVariables, type WorkspaceThemeId } from "../themes/workspace-theme";
 
+export function useReducedMotion() {
+  const { reduceMotion } = useUiPreferences();
+  const [system, setSystem] = useState(() => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setSystem(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  return Boolean(reduceMotion || system);
+}
+
 export type UiLocale = "zh" | "en";
 export type UiTheme = "light" | "dark";
 export type DockPosition = "bottom" | "left" | "right";

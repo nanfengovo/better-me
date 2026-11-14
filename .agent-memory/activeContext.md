@@ -2,6 +2,10 @@
 
 ## 当前焦点
 
+2026-11-14 全站 UI 审计修复（本轮最新）：按 F01–F23 修复真实岗位混入演示数据、规则伪称 AI、IME、原生导入弹窗、灵动岛计时/焦点/未知用量、卡面 inert、模板回退、要点撤销、资料搜索与设置键盘；渐进布局及共享样式已接入。最终 UI 定向56/56、地图定向4/4、桌面22/22、类型/lint/diff、双端构建9/9通过。地图完整大套件首次120秒截止中断，不能以定向通过冒充全绿。
+
+本轮卡点：浏览器导入夹具仍仅 Vite 连接后空白（模块HTTP200不证明加载成功），完整登录态/200%缩放及macOS BetterMe.app未验；Linux不能刷新Mac安装包。本轮剩余：F17全部导航整合、F21全站英语、F23历史样式迁移仍部分完成，不能声称23项全部关闭。下一步沿agent-os继续这些明确剩余项与完整视觉验收，不自动执行旧成长/模型任务。未写私人资料或调用收费模型。必读附加：无；原审查与逐项修复快照在聊天附件 BetterMe UI 审计报告，永久回归在 apps/web/tests/ui-audit-regressions.test.tsx。
+
 2026-11-14 灵动岛 UI 细节优化：将中间灵动岛升级为与左右菜单胶囊统一的深烟色毛玻璃材质（`backdrop-filter: blur(28px) saturate(1.55)`、顶部镜面高光与暗边轮廓）；展开态重构为平衡顶栏 + 两张内嵌玻璃卡片（「服务与引擎」彩色状态胶囊、「今日 Token 消耗」总量数字 + 输入/输出双色比例条 + 各模型类型标签与占比条），支持中英文切换、面板外点击收起、减少动态效果偏好，并修正首次加载误弹异常横幅与 Esc 收起残留提示。`desktop-shell.test.tsx` 31/31、Web 类型检查、零 warning lint、双端构建 9/9、桌面测试 22/22 均通过；847×826 真实 CSS 夹具已核对空闲/运行中/展开三态截图。卡点不变：完整登录页动态模块加载在自动化浏览器中仍受阻，运行中的 Agent Host 需重启一次以暴露 `/api/v1/agent/usage`，Linux 无法实测 macOS `BetterMe.app`。本轮必读附加：无。
 
 2026-11-14 顶部灵动岛与服务状态：Host 在统一任务模型派送缝 `tasks/runtime.ts` 加每账号内存 `ModelUsageMeter`（`tasks/usage-meter.ts`），只读 `GET /api/v1/agent/usage`；直连模型 token 取自 provider usage_metadata，ChatGPT账号/本机CLI 只计调用并标 `metered:false`，不估算；按本地日期重置，Host 重启清零（`since` 标明）。Web `DynamicIsland`+`StatusDots`（SWR 30–60s，运行中3s）：代理=网络设置/探测，引擎=Agent Host健康+runtimes+vork，模型=今日真实调用成败（不发付费探测）。宿主类型/lint、计量2/2、Host runtime/task 182/182、桌面壳31/31、双端构建9/9、桌面22/22通过；847px 展开态CSS夹具截图已核对。未验：运行中的 Host 需重启才有新接口；真实登录页及macOS app未实测。继续沿agent-os。本轮必读附加：无。

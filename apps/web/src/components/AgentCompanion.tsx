@@ -812,6 +812,7 @@ function AgentCompanionSession({ workspaceKey = "active-resume", onOpenWorkspace
                     void handleAddChatImages(files);
                   }}
                   onKeyDown={(event) => {
+              if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
                       void handleSendChat();

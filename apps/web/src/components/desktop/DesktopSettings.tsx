@@ -51,7 +51,7 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
   return <div className="os-settings" data-detail={mobileDetail}>
     <aside className="os-settings-sidebar">
       <div className="os-settings-identity"><ProductMark size={38} /><div><strong>BetterMe</strong><small>{t("你的职业工作空间", "Your career workspace")}</small></div></div>
-      <label className="os-settings-search"><Search size={14} /><input value={query} onChange={e => setQuery(e.target.value)} aria-label={t("搜索设置分类", "Search settings categories")} placeholder={t("搜索设置", "Search settings")} /></label>
+      <label className="os-settings-search"><Search size={14} /><input value={query} onChange={e => setQuery(e.target.value)} aria-label={t("搜索设置分类", "Search settings categories")} placeholder={t("搜索分类名称", "Search category names")} /></label>
       <nav aria-label={t("设置分类", "Settings categories")}>{tabs.filter(item => item.name.toLowerCase().includes(query.toLowerCase())).map(item => <button key={item.id} type="button" aria-current={tab === item.id ? "page" : undefined} onClick={() => { setTab(item.id); setMobileDetail(true); }}><span className={`os-category-icon ${item.id}`}><item.icon size={15} /></span>{item.name}</button>)}</nav>
       {query && !tabs.some(item => item.name.toLowerCase().includes(query.toLowerCase())) && <p className="os-setting-note">{t("没有匹配的设置分类", "No matching settings")}</p>}
     </aside>
@@ -95,6 +95,16 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
                   type="button"
                   role="radio"
                   aria-checked={dockPosition === pos.id}
+                  tabIndex={dockPosition === pos.id ? 0 : -1}
+                  onKeyDown={event => {
+                    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+                    event.preventDefault();
+                    const positions = ["left", "bottom", "right"] as const;
+                    const current = positions.indexOf(dockPosition);
+                    const next = event.key === "Home" ? 0 : event.key === "End" ? 2 : (current + (["ArrowLeft", "ArrowUp"].includes(event.key) ? 2 : 1)) % 3;
+                    setDesktopPreferences({ dockPosition: positions[next] });
+                    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("[role=radio]")[next]?.focus();
+                  }}
                   className={`os-dock-pos-btn ${dockPosition === pos.id ? "is-active" : ""}`}
                   onClick={() => setDesktopPreferences({ dockPosition: pos.id as any })}
                 >
@@ -125,7 +135,7 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
                 value={dockSize}
                 onChange={(e) => setDesktopPreferences({ dockSize: parseInt(e.target.value, 10) })}
                 className="os-effect-slider"
-                aria-label="Dock 大小"
+                aria-label={t("Dock 大小", "Dock size")} aria-valuetext={`${dockSize} px`}
               />
               <span style={{ fontSize: 10, color: "var(--os-muted)" }}>{t("大", "Large")}</span>
             </div>
@@ -158,7 +168,7 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
                   value={dockMagScale}
                   onChange={(e) => setDesktopPreferences({ dockMagScale: parseFloat(e.target.value) })}
                   className="os-effect-slider"
-                  aria-label="Dock 放大倍率"
+                  aria-label={t("Dock 放大倍率", "Dock magnification")} aria-valuetext={t(`${dockMagScale} 倍`, `${dockMagScale} times`)}
                 />
                 <span style={{ fontSize: 11, fontWeight: 700, minWidth: 32, textAlign: "right" }}>
                   {dockMagScale.toFixed(2)}x
@@ -187,13 +197,13 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
                 value={dockOpacity}
                 onChange={(e) => setDesktopPreferences({ dockOpacity: parseFloat(e.target.value) })}
                 className="os-effect-slider"
-                aria-label="Dock 不透明度"
+                aria-label={t("Dock 不透明度", "Dock opacity")} aria-valuetext={`${Math.round(dockOpacity * 100)}%`}
               />
             </div>
           </div>
 
           {/* Dock 透明度预设挡位 */}
-          <div className="os-opacity-presets" style={{ padding: "0 15px 12px", marginTop: -4 }}>
+          <div className="os-opacity-presets" role="group" aria-label={t("Dock 透明度预设", "Dock opacity presets")} style={{ padding: "0 15px 12px", marginTop: -4 }}>
             {[
               { val: 1.0, label: t("100% 实体", "100% Solid") },
               { val: 0.85, label: t("85% 毛玻璃", "85% Frosted") },
@@ -204,6 +214,7 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
                 key={p.val}
                 type="button"
                 className={`os-opacity-pill ${Math.abs(dockOpacity - p.val) < 0.03 ? "is-selected" : ""}`}
+                aria-pressed={Math.abs(dockOpacity - p.val) < 0.03}
                 onClick={() => setDesktopPreferences({ dockOpacity: p.val })}
               >
                 {p.label}
@@ -231,7 +242,7 @@ export function DesktopSettings({ onAiConfig, onNetwork, request }: { onAiConfig
                 value={dockBlur}
                 onChange={(e) => setDesktopPreferences({ dockBlur: parseInt(e.target.value, 10) })}
                 className="os-effect-slider"
-                aria-label="Dock 虚化度"
+                aria-label={t("Dock 虚化度", "Dock blur")} aria-valuetext={`${dockBlur} px`}
               />
               <span style={{ fontSize: 11, fontWeight: 700, minWidth: 32, textAlign: "right" }}>{dockBlur}px</span>
             </div>

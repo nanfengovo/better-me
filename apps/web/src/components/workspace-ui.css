@@ -1,0 +1,26 @@
+.workspace-reading { color:var(--ui-text); background:var(--ui-canvas); font-size:var(--workspace-body-size,14px); line-height:var(--workspace-line-height,1.5); padding:24px; overflow:auto; min-height:0; }
+.workspace-reading h2,.workspace-reading h3 { text-wrap:balance; }
+.workspace-card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr)); gap:16px; margin-block:20px; }
+.workspace-card { border:1px solid var(--ui-border); border-radius:var(--workspace-card-radius,12px); background:var(--ui-surface); color:var(--ui-text); padding:20px; overflow-wrap:anywhere; }
+.workspace-card dl>div { display:flex; flex-wrap:wrap; gap:8px; }
+.workspace-card dt { color:var(--ui-text-secondary); }
+.workspace-card dd { margin:0; }
+.workspace-notice { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:12px 16px; border:1px solid var(--ui-border); background:var(--ui-surface-soft); color:var(--ui-text); font-size:var(--workspace-body-size,14px); line-height:1.5; }
+.workspace-notice p { margin:0; }
+.workspace-notice button,.workspace-reading button,.workspace-search input { min-height:var(--workspace-control-height,44px); border:1px solid var(--ui-border); border-radius:8px; color:var(--ui-text); background:var(--ui-input); padding:8px 12px; font:inherit; }
+.workspace-notice button:focus-visible,.workspace-reading button:focus-visible,.workspace-search input:focus-visible { outline:2px solid var(--ui-focus); outline-offset:3px; }
+.workspace-help { font-size:var(--workspace-caption-size,12px); line-height:1.5; color:var(--ui-text-secondary); }
+.workspace-search { display:flex; flex-direction:column; gap:8px; font-size:var(--workspace-body-size,14px); }
+.studio-demo-shell { display:flex; flex-direction:column; height:100%; min-height:0; }
+.studio-demo-shell>.workspace-notice { flex:none; }
+.studio-demo-shell>.studio-workshop { flex:1; }
+.resume-import-dialog { margin:auto; padding:0; border:0; border-radius:16px; width:min(896px,calc(100vw - 32px)); max-width:100%; background:var(--ui-surface); color:var(--ui-text); }
+.resume-import-dialog::backdrop { background:color-mix(in srgb,var(--ui-text) 45%,transparent); backdrop-filter:blur(3px); }
+.design-advanced>summary { cursor:pointer; min-height:44px; }
+.workspace-metric-details { border:1px solid var(--ui-warning-border); border-radius:8px; padding:12px; background:var(--ui-warning-soft); color:var(--ui-text); font-size:var(--workspace-body-size,14px); }
+.workspace-metric-details>summary { cursor:pointer; min-height:44px; line-height:1.5; }
+.workspace-metric-details[open]>summary { margin-bottom:12px; }
+.advisor-task-summary { flex:none; display:flex; flex-wrap:wrap; gap:12px 24px; padding:12px 16px; background:var(--ui-surface); color:var(--ui-text); border-bottom:1px solid var(--ui-border); font-size:var(--workspace-body-size,14px); line-height:1.5; }
+.advisor-task-summary>div { min-width:0; flex:1 1 170px; overflow-wrap:anywhere; }
+.advisor-task-summary dt { font-size:var(--workspace-caption-size,12px); color:var(--ui-text-secondary); }
+.advisor-task-summary dd { margin:0; }

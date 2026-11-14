@@ -19,6 +19,7 @@ import {
 import { LearningOriginalPage } from "./LearningOriginalPage";
 import { LearningTranslationPanel } from "./LearningTranslationPanel";
 import { useAgentSpeech } from "./AgentSpeechControl";
+import { useReducedMotion } from "../lib/ui-preferences";
 import "./learning-path-workspace.css";
 
 const Draft = z
@@ -164,6 +165,7 @@ export function LearningPathWorkspace({
 }
 
 function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudConfig?:import("@better-me/core").LlmConfig }) {
+  const reducedMotion = useReducedMotion();
   const [scope] = useState(() => ({
     lease: captureIdentityLease(),
     store: capturePrivateStorage(),
@@ -579,11 +581,7 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
                 onClick={() =>
                   practiceRef.current?.scrollIntoView({
                     block: "start",
-                    behavior: window.matchMedia(
-                      "(prefers-reduced-motion: reduce)",
-                    ).matches
-                      ? "instant"
-                      : "smooth",
+                    behavior: reducedMotion ? "instant" : "smooth",
                   })
                 }
               >
@@ -610,7 +608,8 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
       {pending && (
         <div className="learning-warning" role="alert">
           <h3>上次动作的回执还需核对</h3>
-          <p>原编号 {pending.id}。不会在重开时重发，不能直接发起新动作。</p>
+          <p>先读取已有结果；只有你明确确认后才能继续。重开页面不会重发。</p>
+          <details><summary>技术与审计详情</summary><p>原操作编号：{pending.id}</p></details>
           <div className="learning-actions">
             <button
               disabled={busy}
@@ -648,11 +647,9 @@ function LearningSession({ client,cloudConfig }: { client: LearningClient;cloudC
       )}
       {record?.pendingCommand && !pending && (
         <div className="learning-warning">
-          <h3>Host 保留了未确认动作</h3>
-          <p>
-            {record.pendingCommand.kind} · {record.pendingCommand.requestId}
-            。只用原编号核对，不创建新动作。
-          </p>
+          <h3>有一个结果尚未确认的操作</h3>
+          <p>仅核对原操作，不创建新动作或自动重试。</p>
+          <details><summary>技术与审计详情</summary><p>{record.pendingCommand.kind} · {record.pendingCommand.requestId}</p></details>
           <button
             disabled={busy || !!recovery.error}
             onClick={() => {

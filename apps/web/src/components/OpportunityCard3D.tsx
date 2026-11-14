@@ -1,9 +1,11 @@
-import { useState, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { useReducedMotion } from "../lib/ui-preferences";
 import { ArrowUpRight, MapPin, RotateCcw } from "lucide-react";
 import type { Opportunity } from "../lib/opportunities";
 import { SourcePublicationBadges } from "./atlas/JobSourceBadges";
 
 type Props = {
+  compact?: boolean;
   job: Opportunity;
   location: string;
   modeLabel: string;
@@ -22,6 +24,7 @@ type Props = {
 };
 
 export function OpportunityCard3D({
+  compact = false,
   job,
   location,
   modeLabel,
@@ -38,10 +41,20 @@ export function OpportunityCard3D({
   onOpen,
   onStageChange,
 }: Props) {
-  const [flipped, setFlipped] = useState(false);
+  const [backVisible, setFlipped] = useState(false);
+  const flipped = !compact && backVisible;
+  const reducedMotion = useReducedMotion();
+  const frontTrigger = useRef<HTMLButtonElement>(null);
+  const backAction = useRef<HTMLButtonElement>(null);
+  const moveFocus = useRef(false);
+  const flip = (value: boolean) => { moveFocus.current = true; setFlipped(value); };
+  useEffect(() => {
+    if (moveFocus.current) (flipped ? backAction : frontTrigger).current?.focus();
+    moveFocus.current = false;
+  }, [flipped]);
 
   function updatePerspective(event: PointerEvent<HTMLElement>) {
-    if (event.pointerType === "touch" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (compact || event.pointerType === "touch" || reducedMotion) { resetPerspective(event); return; }
     const rect = event.currentTarget.getBoundingClientRect();
     const x = (event.clientX - rect.left) / rect.width;
     const y = (event.clientY - rect.top) / rect.height;
@@ -63,10 +76,10 @@ export function OpportunityCard3D({
   const description = job.description.trim().replace(/\s+/g, " ");
 
   return (
-    <article className={`opportunity-row opportunity-3d-card stage-${job.application.stage}${flipped ? " is-flipped" : ""}`}>
+    <article data-reduce-motion={reducedMotion} className={`opportunity-row opportunity-3d-card stage-${job.application.stage}${flipped ? " is-flipped" : ""}`}>
       <div className="opportunity-card-scene" onPointerMove={updatePerspective} onPointerLeave={resetPerspective}>
         <div className="opportunity-card-object">
-          <section className="opportunity-card-face opportunity-card-front" aria-hidden={flipped}>
+          <section className="opportunity-card-face opportunity-card-front" aria-hidden={flipped} inert={flipped}>
             <button className="opportunity-row-main" onClick={onOpen} tabIndex={flipped ? -1 : 0}>
               <span className="company-initial" aria-hidden="true">{job.company.slice(0, 2).toUpperCase()}</span>
               <span>
@@ -76,6 +89,7 @@ export function OpportunityCard3D({
                 <SourcePublicationBadges sourceLabel={job.sourcePlatform} publishedAt={job.sourcePublishedAt} publishedRaw={job.sourcePublishedText} />
               </span>
             </button>
+            <p className="opportunity-card-next">{job.application.nextAction || nextActionFallback}</p>
             <div className="opportunity-row-side">
               <span className={`job-status ${job.status}`}>{statusLabel}</span>
               <select aria-label={`${job.title} ${stageLabel}`} value={job.application.stage} disabled={disabled} onChange={(event) => onStageChange(event.target.value as Opportunity["application"]["stage"])}>
@@ -83,12 +97,12 @@ export function OpportunityCard3D({
               </select>
               {job.applicationDeadlineDate && <small className="application-deadline-list">{deadlineLabel} {job.applicationDeadlineDate}</small>}
             </div>
-            <button className="opportunity-card-flip" aria-label={`${backLabel}：${job.title}`} aria-pressed={flipped} onClick={() => setFlipped(true)} tabIndex={flipped ? -1 : 0}>
-              <RotateCcw />{backLabel}
+            <button className="opportunity-card-flip" aria-label={`${compact ? detailsLabel : backLabel}：${job.title}`} aria-pressed={flipped} ref={frontTrigger} onClick={() => compact ? onOpen() : flip(true)} tabIndex={flipped ? -1 : 0}>
+              <RotateCcw />{compact ? detailsLabel : backLabel}
             </button>
           </section>
 
-          <section className="opportunity-card-face opportunity-card-back" aria-hidden={!flipped}>
+          <section className="opportunity-card-face opportunity-card-back" aria-hidden={!flipped} inert={!flipped}>
             <header>
               <span className="opportunity-card-stage">{stageLabel} · {job.application.stage}</span>
               <strong>{job.title}</strong>
@@ -99,8 +113,8 @@ export function OpportunityCard3D({
               <p>{description || nextActionFallback}</p>
             </div>
             <footer>
-              <button className="opportunity-card-detail" onClick={onOpen} tabIndex={flipped ? 0 : -1}>{detailsLabel}<ArrowUpRight /></button>
-              <button className="opportunity-card-flip" aria-label={`${frontLabel}：${job.title}`} onClick={() => setFlipped(false)} tabIndex={flipped ? 0 : -1}><RotateCcw />{frontLabel}</button>
+              <button className="opportunity-card-detail" ref={backAction} onClick={onOpen} tabIndex={flipped ? 0 : -1}>{detailsLabel}<ArrowUpRight /></button>
+              <button className="opportunity-card-flip" aria-label={`${frontLabel}：${job.title}`} onClick={() => flip(false)} tabIndex={flipped ? 0 : -1}><RotateCcw />{frontLabel}</button>
             </footer>
           </section>
         </div>
