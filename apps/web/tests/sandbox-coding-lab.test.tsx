@@ -17,6 +17,7 @@ for(const [k,v] of Object.entries({window:win,document:win.document,localStorage
 }
 const {createRoot}=await import("react-dom/client");
 const {SandboxCodingLab}=await import("../src/components/SandboxCodingLab");
+const {UiPreferencesProvider}=await import("../src/lib/ui-preferences");
 const {AutopilotStudioWorkspace}=await import("../src/components/AutopilotStudioWorkspace");
 const {MicroAppPermissionModal}=await import("../src/components/MicroAppPermissionModal");
 const {openReviewedPreset}=await import("../src/services/sandbox-build-client");
@@ -27,9 +28,9 @@ const cases=[{id:"zero",input:0,expected:0},{id:"two",input:2,expected:4}];
 const job=(overrides:Partial<CodingTask>={}):CodingTask=>({id:"fixture-task",goal:"将数字加倍",model:"fixture-local",modelDigest:"fixture-digest",
   cases,revision:1,attemptsUsed:0,maxAttempts:3,maxActiveMs:180000,activeMs:0,status:"ready",createdAt:"2026-01-02T00:00:00Z",updatedAt:"2026-01-02T00:00:00Z",...overrides});
 async function settle(fn:()=>unknown=()=>{}){await React.act(async()=>{fn();await tick();await tick();await tick();});}
-async function mount(client:Partial<SandboxCodingClient>){
+async function mount(client:Partial<SandboxCodingClient>,locale:"zh"|"en"="zh"){
   const node=win.document.createElement("div");win.document.body.append(node);root=createRoot(node as unknown as HTMLElement);
-  await settle(()=>root!.render(React.createElement(SandboxCodingLab,{client:client as SandboxCodingClient})));
+  await settle(()=>root!.render(React.createElement(UiPreferencesProvider,{initialPreferences:{locale,theme:"light"}},React.createElement(SandboxCodingLab,{client:client as SandboxCodingClient}))));
 }
 async function unmount(){await settle(()=>root?.unmount());root=undefined;win.document.body.replaceChildren();}
 const body=()=>win.document.body.textContent??"";
@@ -43,6 +44,14 @@ async function fill(id:string,value:string) {
 beforeEach(()=>activatePrincipal(owner));
 afterEach(async()=>{await unmount();activatePrincipal(undefined);win.localStorage.clear();assert.equal(network,0);});
 after(()=>{win.happyDOM.abort();for(const [k,d] of original){if(d)Object.defineProperty(globalThis,k,d);else Reflect.deleteProperty(globalThis,k);}});
+
+test("English locale covers the deep coding lab surface without changing task behavior",async()=>{
+  await mount({list:async()=>[]},"en");
+  assert.match(body(),/Local model coding lab/);
+  assert.match(body(),/Experiments for this account \(0\)/);
+  assert.match(body(),/Create experiment \(no model call\)/);
+  assert.doesNotMatch(body(),/本地模型编码实验台|刷新任务目录|创建实验/);
+});
 
 test("create grants immutable synthetic cases but never dispatches a model; each step needs an explicit action",async()=>{
   let created:CodingInput|undefined,steps=0;
@@ -132,6 +141,7 @@ test("the shared studio node exposes the real lab separately from manual presets
     let opened=0;
     const host=win.document.createElement("div");win.document.body.append(host);root=createRoot(host as unknown as HTMLElement);
     await settle(()=>root!.render(React.createElement(AutopilotStudioWorkspace,{onOpenMicroApp:()=>{opened++;}})));
+    await click(/查看隔离演示/);
     const entry=win.document.querySelector('[data-node-id="20"]');assert.ok(entry instanceof win.HTMLButtonElement);
     assert.equal(entry.tagName,"BUTTON", "native buttons own keyboard activation; a DOM keydown alone does not synthesize a click");
     await settle(()=>entry.click());

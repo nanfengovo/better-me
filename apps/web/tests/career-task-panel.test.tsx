@@ -22,6 +22,7 @@ for (const [key, value] of Object.entries({ window: win, document: win.document,
 }
 const { createRoot } = await import("react-dom/client");
 const { default: Panel } = await import("../src/components/CareerTaskPanel");
+const { UiPreferencesProvider } = await import("../src/lib/ui-preferences");
 const { AgentSidebarProvider, AgentSurface, useAgentSidebar } = await import("../src/components/AgentSidebar");
 const owner = "11111111-1111-4111-8111-111111111111";
 const context: ResumeEditContext = { locale: "zh", profile: { headline: { targetRef: { kind: "profile_headline", locale: "zh" }, text: "合成标题" }, skills: [] },
@@ -32,9 +33,9 @@ const props: CareerTaskPanelProps = { workspaceKey:"fixture-workspace", job:{id:
   llmConfig:{provider:"ollama",baseUrl:"http://127.0.0.1:11434/v1",model:"demo-model",temperature:0,apiKey:""},onSave:async()=>({versionId:"new-v1"}) };
 let root: ReturnType<typeof createRoot> | undefined;
 async function settle(action = () => {}) { await React.act(async () => { action(); await next(); await next(); await next(); }); }
-async function mount(client: Partial<CareerTaskClient>, changes: Partial<CareerTaskPanelProps> = {}) {
+async function mount(client: Partial<CareerTaskClient>, changes: Partial<CareerTaskPanelProps> = {}, locale: "zh"|"en" = "zh") {
   if (!root) { const container = win.document.createElement("div"); win.document.body.append(container); root = createRoot(container as unknown as HTMLElement); }
-  await settle(() => root!.render(React.createElement(Panel,{ ...props, ...changes, client: client as CareerTaskClient })));
+  await settle(() => root!.render(React.createElement(UiPreferencesProvider,{initialPreferences:{locale,theme:"light"}},React.createElement(Panel,{ ...props, ...changes, client: client as CareerTaskClient }))));
 }
 async function unmount() { await settle(() => { root?.unmount(); root = undefined; }); win.document.body.replaceChildren(); }
 beforeEach(() => activatePrincipal({ id:owner,username:"fixture",displayName:"Fixture" }));
@@ -49,6 +50,15 @@ async function fill(label:RegExp,value:string){
   await settle(()=>{const proto=el.tagName==="TEXTAREA"?win.HTMLTextAreaElement.prototype:win.HTMLInputElement.prototype;
     Object.getOwnPropertyDescriptor(proto,"value")!.set!.call(el,value);el.dispatchEvent(new win.Event("input",{bubbles:true}));});
 }
+
+test("English locale covers the career task setup and service states", async () => {
+  await mount({ list: async () => [] }, {}, "en");
+  assert.match(win.document.body.textContent!, /Career task/);
+  assert.match(win.document.body.textContent!, /Task agreement/);
+  assert.match(win.document.body.textContent!, /Execution and budget/);
+  assert.match(win.document.body.textContent!, /Authorize and start task/);
+  assert.doesNotMatch(win.document.body.textContent!, /职业任务|任务约定|执行与预算|授权并启动任务/);
+});
 
 test("opening a task never starts a model: only the individually selected fields are sent after consent", async () => {
   let input: CareerTaskInput | undefined, ran = 0; let task: CareerTask;
