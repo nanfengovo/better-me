@@ -16,6 +16,7 @@ const { createElement: h, act, StrictMode } = React;
 const { createRoot } = await import("react-dom/client");
 const { NativeToolConnections } = await import("../src/components/NativeToolConnections");
 const { nativeToolStatus } = await import("../src/lib/native-tool-status");
+const { UiPreferencesProvider } = await import("../src/lib/ui-preferences");
 const items: UnderstandingCapability[] = [
   { id: "codex", name: "Codex", available: true, supported: false, code: "needs_authorization", authMethods: ["device", "api-key"], reason: "请为本账号单独登录。" },
   { id: "opencode", name: "OpenCode", available: true, supported: true, code: "needs_verification", authMethods: ["api-key"], reason: "保存凭据不代表供应商已连接。" },
@@ -54,6 +55,18 @@ test("all unavailable reasons have distinct labels; rendering does not initiate 
   const codes = ["ready", "needs_authorization", "needs_verification", "authorization_pending", "not_installed", "adapter_missing", "sandbox_unavailable", "protocol_incompatible", "managed_policy_unavailable", "runtime_terminated"] as const;
   assert.equal(new Set(codes.map(code => nativeToolStatus({ ...items[0]!, code }))).size, codes.length);
   assert.match(dom.document.body.textContent!, /待本账号授权/); assert.match(dom.document.body.textContent!, /未安装/);
+});
+test("F21: English UI shows no Chinese in tool status, actions or the API form", async () => {
+  const codes = ["ready", "needs_authorization", "needs_verification", "authorization_pending", "not_installed", "adapter_missing", "sandbox_unavailable", "protocol_incompatible", "managed_policy_unavailable", "runtime_terminated"] as const;
+  const translate = (_zh: string, en: string) => en;
+  const english = codes.map(code => nativeToolStatus({ ...items[0]!, code }, translate));
+  assert.equal(new Set(english).size, codes.length); for (const label of english) assert.doesNotMatch(label, /[\u4e00-\u9fff]/);
+  const f = fixture(); const main = dom.document.createElement("main"); dom.document.body.append(main); root = createRoot(main as unknown as Element);
+  const english2 = items.map(({ reason: _reason, ...item }) => item);
+  await flush(() => root!.render(h(UiPreferencesProvider, { initialPreferences: { locale: "en", theme: "light", reduceMotion: true } }, h(NativeToolConnections, { items: english2, client: f.client, onChange: f.onChange }))));
+  assert.ok(button("Sign in to Codex for this account")); await flush(() => button("Separate API authorization").click());
+  assert.doesNotMatch(dom.document.body.textContent!, /[\u4e00-\u9fff]/); assert.match(dom.document.body.textContent!, /Save authorization for this account/);
+  assert.equal(f.loginStarts, 0); assert.equal(f.saved.length, 0);
 });
 test("native Codex login is explicit, scoped and cancellable under React StrictMode", async () => {
   const f = fixture(); await render(f); await flush(() => button("为本账号登录 Codex").click());

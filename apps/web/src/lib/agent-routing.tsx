@@ -58,4 +58,6 @@ export function AgentRoutingProvider({ children, client = defaultAgentRoutingCli
   return <Context.Provider value={{ policy, trace, error, busy, enabled: Boolean(policy && policy.mode !== "legacy"), blocked: Boolean((currentPrincipal() || client !== defaultAgentRoutingClient) && !policy), refresh, update, respond, assertSelected }}>{children}</Context.Provider>;
 }
 export function useAgentRouting() { return useContext(Context); }
-export function agentBaseLabel(policy?: AgentRoutingPolicy) { return !policy || policy.mode === "legacy" ? "明确配置的模型" : policy.mode === "auto" ? `自动底座 · 首选 ${policy.preferred}` : `Agent 底座 · ${policy.preferred}`; }
+export function agentBaseLabel(policy?: AgentRoutingPolicy, t: (chinese: string, english: string) => string = chinese => chinese) {
+  return !policy || policy.mode === "legacy" ? t("明确配置的模型", "Explicitly configured model") : policy.mode === "auto" ? `${t("自动底座 · 首选", "Auto base · preferred")} ${policy.preferred}` : `${t("Agent 底座", "Agent base")} · ${policy.preferred}`;
+}
