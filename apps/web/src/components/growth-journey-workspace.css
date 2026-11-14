@@ -64,9 +64,24 @@
 .growth-journey :is(h2,h3,h4,p,strong,blockquote,button,code) { overflow-wrap:anywhere; }
 .growth-journey :is(article,details,.growth-heading>div,.growth-card-heading>div) { min-width:0; }
 .growth-journey :is(button,input,textarea,select,summary):focus-visible { outline:2px solid var(--ui-focus); outline-offset:3px; }
+.growth-journey { max-width:1280px; gap:16px; padding:28px 30px 36px; font-size:13px; }
+.growth-heading { align-items:center; padding-bottom:20px; border-bottom:1px solid var(--growth-line); }
+.growth-heading h2 { margin:3px 0 5px; font-size:24px; font-weight:620; }
+.growth-heading p { font-size:13px; }
+.growth-heading small,.growth-goal-summary small,.growth-complete small { font-size:10px; letter-spacing:.08em; text-transform:uppercase; }
+.growth-mode { padding:6px 9px; border-color:color-mix(in srgb,var(--growth-line) 78%,transparent); border-radius:7px; background:var(--ui-surface); font-size:10px; color:var(--ui-text-secondary); }
+.growth-steps { gap:0; border-bottom:1px solid var(--growth-line); }
+.growth-steps li { min-height:48px; padding:10px 8px; border:0; border-bottom:2px solid transparent; border-radius:0; background:transparent; font-size:11px; }
+.growth-steps li span { width:20px; height:20px; border-radius:6px; font-size:10px; }
+.growth-steps li[data-state=current] { border-color:var(--growth-accent); background:transparent; }
+.growth-steps li[data-state=done] { background:transparent; color:var(--growth-accent); }
+.growth-card,.growth-citation,.growth-goal-summary,.growth-complete { padding:18px; border-radius:12px; }
+.growth-card h3,.growth-complete h3 { font-size:15px; font-weight:600; }
+.growth-source-list article { border-radius:10px; }
+
 @media(max-width:720px) {
-  .growth-journey { padding:16px; }
-  .growth-heading { display:grid; }
+  .growth-journey { padding:18px 16px 28px; }
+  .growth-heading { display:grid; padding-bottom:16px; }
   .growth-mode { justify-self:start; }
   .growth-steps { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .growth-bounds,.growth-source-list { grid-template-columns:minmax(0,1fr); }

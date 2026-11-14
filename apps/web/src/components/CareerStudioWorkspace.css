@@ -10,4 +10,20 @@
 .career-studio .cs-proposal del{color:var(--ui-danger,#e5afa4)}
 .career-studio .cs-proposal ins{color:var(--ui-accent,#add2c1)}
 @media(max-width:720px){.cs-header{align-items:flex-start;flex-direction:column;gap:12px}.cs-boundary{font-size:10px}.cs-tabs button{flex:1 1 125px}.cs-snapshot-bar{align-items:flex-start;flex-direction:column}.cs-report{padding:13px}.cs-content{padding:18px 0}.career-studio fieldset{padding:12px}.cs-header p{font-size:var(--workspace-body-size)}.career-studio th,.career-studio td{padding:7px}.cs-app-switch{padding:7px 10px}}
+.career-studio{max-width:1320px;padding:28px 30px 36px;font-size:13px}
+.cs-header{padding-bottom:20px;align-items:center}
+.cs-header h1{margin:5px 0 4px;font-size:24px;font-weight:620}
+.cs-header p{margin:0;font-size:13px}
+.cs-eyebrow{font-size:9px;letter-spacing:.12em}
+.cs-boundary{padding:6px 9px;border-radius:7px;background:transparent;font-size:10px;color:var(--cs-muted)}
+.cs-setup,.cs-content{padding:22px 0}
+.cs-setup{max-width:1080px}
+.career-studio h2{font-size:19px;font-weight:620}
+.career-studio h3{font-size:14px}
+.career-studio details{border-radius:10px;padding:13px 15px;background:color-mix(in srgb,var(--cs-surface) 72%,transparent)}
+.cs-tabs{gap:2px;padding:4px;border-radius:9px;background:transparent}
+.cs-tabs button{border-radius:6px;background:transparent}
+.cs-tabs button[aria-current=page]{background:var(--ui-accent-soft);border-color:transparent;color:var(--cs-accent)}
+.cs-footer{padding-top:14px;font-size:10px}
+
 @media(prefers-reduced-motion:reduce){.career-studio button{transition:none}}

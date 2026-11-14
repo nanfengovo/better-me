@@ -62,7 +62,6 @@ import { AgentSpeechControl, useAgentSpeech } from "./AgentSpeechControl";
 import { AgentReplyMeta } from "./AgentReplyMeta";
 import { CareerCoachWorkspace } from "./CareerCoachWorkspace";
 import { AgentTaskNavigation, type AgentTaskView } from "./AgentTaskNavigation";
-import { WorkspaceTaskSummary } from "./WorkspaceTaskSummary";
 import { AgentExternalHandoff } from "./AgentExternalHandoff";
 import { extractJobLink } from "../lib/job-link";
 import type { CoachMode } from "../lib/career-coach/types";
@@ -1180,12 +1179,6 @@ function AgentWorkspaceSession({
 
   return (
     <div className="advisor-workspace">
-    {!showCareerCoach && !showCareerTask && !interviewRecovery.value.open && taskView === "job" && <WorkspaceTaskSummary
-      goal={careerCoachJob ? `${careerCoachJob.company} · ${careerCoachJob.title}` : t("选择目标岗位", "Choose a target job")}
-      material={t(`${careerCoachJob?.description ? "岗位原文" : "尚无岗位原文"} · ${resume ? "当前简历" : "尚无简历"}（发送范围以操作授权为准）`, `${careerCoachJob?.description ? "Job description" : "No job description"} · ${resume ? "Current resume" : "No resume"} (sharing requires action-specific consent)`)}
-      status={loading ? t("岗位建议生成中", "Generating job suggestions") : chatLoading ? t("顾问回复中", "Advisor is responding") : isExtractingLink ? t("正在读取岗位", "Reading the job") : t("当前未生成", "Not generating")}
-      next={loading || chatLoading || isExtractingLink ? t("等待回执，或使用任务内停止按钮", "Wait for a receipt or use the task's Stop button") : isSetupMode ? t("核对岗位原文并确认字段", "Review the job source and confirm its fields") : t("选择建议或对话；修改需逐条确认", "Review suggestions or chat; approve edits individually")}
-    />}
     {interviewRecovery.value.open&&interviewRecovery.value.selection&&<MockInterviewPanel key={privateKey(interviewRecovery.value.selection.id)} workspaceKey={interviewWorkspaceKey} selection={interviewRecovery.value.selection} resume={resume} llmConfig={llmConfig} blockingError={interviewRecovery.error} onClose={()=>interviewRecovery.field("open",false)} onOpenConfig={onOpenConfig}/>}
     <div hidden={interviewRecovery.value.open} style={{display:interviewRecovery.value.open?"none":"contents"}}>
     {interviewRecovery.error&&<WorkspaceRecoveryNotice {...interviewRecovery}/>}
@@ -1235,10 +1228,10 @@ function AgentWorkspaceSession({
               >
                 <div className="min-w-0">
                   <h3 className={`text-sm font-semibold truncate ${isDark ? "text-[var(--ui-text,#edeef4)]" : "text-slate-900"}`}>
-                    {isEditingJob ? t("编辑 / 更换目标岗位", "Edit / Change Target Job") : t("设定目标岗位与完整 JD", "Set Target Job & Full JD")}
+                    {isEditingJob ? t("编辑目标岗位", "Edit target role") : t("目标岗位", "Target role")}
                   </h3>
                   <p className={`text-[11px] mt-0.5 ${isDark ? "text-[var(--ui-text-muted,#a7adbd)]" : "text-slate-500"}`}>
-                    {t("粘贴链接或 JD，确认字段后开始拆解", "Paste a link or JD, then start matching")}
+                    {t("粘贴招聘链接或 JD 原文", "Paste a job link or description")}
                   </p>
                 </div>
                 {isEditingJob && currentJob?.description ? (
@@ -2726,7 +2719,7 @@ function AgentWorkspaceSession({
               </div>
 
               <div className="flex-1 min-h-0 overflow-y-auto agent-custom-scrollbar p-4 space-y-5">
-                {!inputDescription.trim() && <div className="advisor-import-guide"><span className="advisor-guide-step">01 / {t("准备材料", "PREPARE")}</span><h4>{t("粘贴链接，或直接放入 JD", "Paste a link or the job description")}</h4><p>{t("支持招聘页面链接与岗位正文。链接无法读取时，可以复制正文继续。", "Use a job URL or paste the description if extraction is unavailable.")}</p><span className="advisor-guide-step">02 / {t("核对来源", "VERIFY")}</span><p>{t("提取后核对职位、公司和正文完整性，再开始分析；网页里的推荐岗位不应混入。", "Verify the role, company and completeness before analysis. Exclude unrelated recommendations.")}</p><div className="advisor-guide-note">{t("没有目标岗位？可以直接进入职业规划。", "No target job yet? Start with career planning.")}</div></div>}
+                {!inputDescription.trim() && <div className="advisor-import-guide"><FileText size={22} aria-hidden="true" /><h4>{t("添加岗位原文", "Add a job description")}</h4><p>{t("粘贴招聘链接或 JD 文本后，这里会显示岗位摘要。", "Paste a job link or description to see its summary here.")}</p></div>}
                 <div hidden={!inputDescription.trim()} className="space-y-3 text-xs">
                   {(
                     [

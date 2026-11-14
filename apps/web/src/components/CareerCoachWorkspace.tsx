@@ -28,7 +28,6 @@ const CoachViewRecoverySchema = z.object({ mode: z.enum(COACH_MODES), inputs: z.
   selectedRecords: z.record(z.string()), taskId: z.string(), evidence: z.record(z.string().max(12000)), minutes: z.number().min(0).max(1440), decisions: z.record(z.string()) }).strict();
 const initialCoachView = (): z.infer<typeof CoachViewRecoverySchema> => ({ mode: "analysis", inputs: {}, selectedRecords: {}, taskId: "", evidence: {}, minutes: 30, decisions: {} });
 
-import { WorkspaceTaskSummary } from "./WorkspaceTaskSummary";
 import { useUiPreferences } from "../lib/ui-preferences";
 
 export interface CareerCoachWorkspaceProps {
@@ -368,10 +367,6 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
   const currentMode = localizedModes.find(item => item.id === mode)!;
   const visibleModes = embedded ? localizedModes.filter(item => mode === "plan" || mode === "review" ? item.id === "plan" || item.id === "review" : mode === "drill" || mode === "interview" ? item.id === "drill" || item.id === "interview" : item.id === mode) : localizedModes;
   return <section ref={workspaceElement} className="career-coach" aria-label={t("成长工作区", "Learning workspace")} data-mode={mode}>
-    <WorkspaceTaskSummary goal={state.settings.goal.trim() || t("尚未设置目标", "No goal set")}
-      material={t(`${shareResume && resumeEditContext ? "已授权简历" : "简历未共享"} · ${shareJob && job ? `已授权岗位：${job.company} · ${job.title}` : "岗位未共享"}`, `${shareResume && resumeEditContext ? "Resume authorized" : "Resume not shared"} · ${shareJob && job ? `Job authorized: ${job.company} · ${job.title}` : "Job not shared"}`)}
-      status={!ready ? t("正在恢复记录", "Restoring records") : conflict ? t("保存冲突，等待核对", "Save conflict; review required") : busy ? t("当前任务执行中", "Current task running") : resumeCandidate ? t("原任务暂停，等待核对", "Original task paused; review required") : latest ? t("已有结果，尚需本人审阅", "Result available for your review") : t("当前未提交", "Not submitted")}
-      next={busy ? t("等待回执或取消生成", "Wait for a receipt or cancel generation") : resumeCandidate ? t("核对原任务并重新授权后恢复", "Review and reauthorize the original task before resuming") : t("核对目标、材料与授权，再明确发起任务", "Review the goal, material and permissions, then start explicitly")} />
     <header className="coach-header"><div className="coach-title"><currentMode.icon size={22} aria-hidden="true" /><div><h1>{currentMode.title}</h1><p>{currentMode.subtitle}</p></div></div>
       <div className="coach-header-actions">{onOpenResume && <button type="button" onClick={onOpenResume}>{t("打开简历", "Open resume")}</button>}<button type="button" onClick={exportState} disabled={!ready}><Download size={15} />{t("下载备份", "Download backup")}</button></div></header>
     {agent && <details className="coach-agent-bar"><summary>模型与记忆授权<span>{shareAgentMemory ? "已授权成长记忆" : "未共享成长记忆"}</span></summary><div role="group" aria-label="本轮 Agent 与授权">
@@ -403,7 +398,7 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
       {(mode === "analysis" || mode === "resume" || mode === "plan") && modeRecords.length > 1 && <label>查看本类历史结果<select value={latest?.id ?? ""} disabled={disabled} onChange={(event) => setSelectedRecordId(event.target.value)}>{modeRecords.map((record) => <option key={record.id} value={record.id}>{new Date(record.createdAt).toLocaleString()} · {record.payload.kind === "plan" ? record.payload.title : record.payload.kind === "analysis" || record.payload.kind === "resume" ? record.payload.summary.slice(0, 45) : record.mode}</option>)}</select></label>}
       {(mode === "analysis" || mode === "resume" || mode === "plan") && <section className="coach-compose">
         {mode === "plan" && !goal && <p className="coach-note">需要先核对目标理解。<button type="button" onClick={() => setMode("analysis")}>去对齐目标</button></p>}
-        <p>{mode === "analysis" ? "先看证据，再做判断。你可以讨论职业方向，也可以分析当前方案的可行性。" : mode === "resume" ? "只优化已授权的真实原文，不添加项目、数字或未证实的技能。每条修改由你核对后应用。" : "生成覆盖每周的长期方案，包括交付物、验收条件和复盘节奏。生成不等于采纳。"}</p>
+        <p>        {mode === "analysis" ? "从目标、约束和证据出发。" : mode === "resume" ? "只调整表达，不改变事实。" : "把目标拆成可执行的周期。"}</p>
         {mode === "plan" && state.activePlan && <p className="coach-note">{reusablePlan ? `本次会一并发送已采纳方案「${state.activePlan.plan.title}」用于调整；发送前核对来源授权，不会自动替换。` : "旧计划源资料的共享范围已变化，本次不发送旧计划；仍保留在本地，可在当前授权下生成新方案。"}</p>}
         <label>{mode === "analysis" ? "本轮问题或补充回答" : mode === "resume" ? "希望怎样改善表达" : "本轮学习重点"}<textarea value={input} rows={3} maxLength={12000} disabled={disabled} placeholder={mode === "analysis" ? "例如：我想提高收入，但希望保持可持续的工作节奏，应该先补什么？" : mode === "resume" ? "例如：让职责描述更明确，保持事实与原意" : "例如：优先练接口设计、异常处理和自动化测试"} onChange={(event) => setInput(event.target.value)} /></label>
         <button type="button" className="coach-primary" disabled={disabled || (mode === "resume" && !shareResume)} onClick={() => mode === "analysis" ? generateAnalysis() : void run({ ...makeRequest(mode), ...(mode === "plan" ? { plan: reusablePlan } : {}) })}><Sparkles size={17} />{mode === "analysis" ? "开始规划分析" : "resume" === mode ? "生成修改建议" : "生成学习方案"}<ArrowRight size={16} /></button>
