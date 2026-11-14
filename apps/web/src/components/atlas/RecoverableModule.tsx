@@ -16,7 +16,7 @@ class ModuleBoundary extends Component<{ children: ReactNode; label: string; ret
   }
 }
 
-export function RecoverableModule<P extends object>({ load, componentProps, label, onExit, loadingHint }: {
+export function RecoverableModule<P extends object>({ load, componentProps, label, onExit }: {
   load: () => Promise<{ default: ComponentType<P> }>; componentProps: P; label: string; onExit?: () => void; loadingHint?: string;
 }) {
   const { t } = useUiPreferences();
@@ -28,7 +28,7 @@ export function RecoverableModule<P extends object>({ load, componentProps, labe
     setAttempt(value => value + 1);
   }
   return <ModuleBoundary key={attempt} label={label} retry={retry} onExit={onExit} t={t}>
-    <Suspense fallback={<section className="atlas-module-state" role="status" aria-live="polite"><strong>{t(`正在打开${label}…`, `Opening ${label}…`)}</strong><p>{loadingHint ?? t("首次加载需要准备地图资源。", "Preparing map resources for the first load.")}</p>{onExit && <button type="button" onClick={onExit}>{t("先浏览机会列表", "Browse opportunities first")}</button>}</section>}>
+    <Suspense fallback={null}>
       <Loaded {...componentProps} />
     </Suspense>
   </ModuleBoundary>;
