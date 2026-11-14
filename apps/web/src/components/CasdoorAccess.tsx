@@ -33,9 +33,9 @@ export function CasdoorAccess({ link = false }: { link?: boolean }) {
       if (account) setMethods(LoginMethodsSchema.parse(account));
       setError("");
     } catch {
-      if (current === generation.value) { setCatalog(undefined); setError("暂时无法读取登录方式，请重试；本机账号和已有资料不受影响。"); }
+      if (current === generation.value) { setCatalog(undefined); setError(t("暂时无法读取登录方式，请重试；本机账号和已有资料不受影响。", "Sign-in methods could not be loaded. Try again; your local account and existing data are unaffected.")); }
     } finally { if (current === generation.value) setLoading(false); }
-  }, [generation, link]);
+  }, [generation, link, t]);
   useEffect(() => { void load(); return () => { generation.value++; }; }, [generation, load]);
 
   async function start(provider?: SocialProviderId, intent: "login" | "link" | "manage" = link ? "link" : "login", form?: HTMLFormElement) {
@@ -43,7 +43,7 @@ export function CasdoorAccess({ link = false }: { link?: boolean }) {
     starting.current = true;
     const current = generation.value, assert = intent === "login" ? captureIdentityTransition() : captureIdentity();
     const password = form ? new FormData(form).get("localPassword") : undefined;
-    setBusy(true); setError(""); setSelected(intent === "manage" ? "账号中心" : catalog.channels.find(channel => channel.id === provider)?.label ?? "统一账号");
+    setBusy(true); setError(""); setSelected(intent === "manage" ? t("账号中心", "Account Center") : catalog.channels.find(channel => channel.id === provider)?.label ?? t("统一账号", "unified account"));
     try {
       const pending: Promise<void>[] = [];
       window.dispatchEvent(new CustomEvent("betterme:before-sign-out", { detail: pending }));
@@ -52,11 +52,11 @@ export function CasdoorAccess({ link = false }: { link?: boolean }) {
       assert();
       if (current !== generation.value) return;
       const url = typeof result.url === "string" ? new URL(result.url) : undefined;
-      if (!url || !["https:", "http:"].includes(url.protocol) || url.origin !== catalog.authorizeOrigin) throw new Error("登录地址未通过核对，未离开 BetterMe。");
+      if (!url || !["https:", "http:"].includes(url.protocol) || url.origin !== catalog.authorizeOrigin) throw new Error(t("登录地址未通过核对，未离开 BetterMe。", "The sign-in address failed verification. BetterMe was not left."));
       form?.reset(); window.location.assign(url.href);
     } catch (failure) {
       starting.current = false;
-      if (current === generation.value) { setError(failure instanceof Error ? failure.message : "登录未完成，请重试。资料未移动，账号未切换。"); setBusy(false); }
+      if (current === generation.value) { setError(failure instanceof Error ? failure.message : t("登录未完成，请重试。资料未移动，账号未切换。", "Sign-in did not finish. Try again; data was not moved and the account was not switched.")); setBusy(false); }
     } finally { form?.reset(); }
   }
   function submit(event: FormEvent<HTMLFormElement>) {

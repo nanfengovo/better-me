@@ -200,6 +200,60 @@ test("F21: material learning gate explains account isolation in English", async 
   assert.doesNotMatch(host.textContent, /[\u3400-\u9fff]/);
 });
 
+test("F21: historical host notices and archived output controls switch fully to English", async () => {
+  const { WorkspaceRecoveryNotice } = await import("../src/components/WorkspaceRecoveryNotice");
+  const { TaskOutputArtifacts } = await import("../src/components/TaskOutputArtifacts");
+  const host = await mount(h(UiPreferencesProvider, { initialPreferences: { locale: "en", theme: "dark" } },
+    h(React.Fragment, null,
+      h(WorkspaceRecoveryNotice, { error: "", restored: true, download() {} }),
+      h(TaskOutputArtifacts, { task: { id: `ct_${"a".repeat(32)}`, ownerId: "11111111-1111-4111-8111-111111111111", outputArtifacts: [{ id: `out_${"b".repeat(32)}`, bytes: 128, hash: "c".repeat(64), createdAt: "2026-11-14T00:00:00Z" }] } })
+    )));
+  assert.match(host.textContent, /Local records restored/);
+  assert.match(host.textContent, /Full raw output/);
+  assert.match(host.textContent, /Read full text/);
+  assert.doesNotMatch(host.textContent, /[\u3400-\u9fff]/);
+});
+
+test("F21: help and external handoff use English without sending or adopting content", async () => {
+  const { AgentHelpHome } = await import("../src/components/AgentHelpHome");
+  const { AgentExternalHandoff } = await import("../src/components/AgentExternalHandoff");
+  const selections: string[] = [];
+  const host = await mount(h(UiPreferencesProvider, { initialPreferences: { locale: "en", theme: "dark" } },
+    h(React.Fragment, null,
+      h(AgentHelpHome, { context: "conversation", onLesson: lesson => selections.push(lesson), onClose() {} }),
+      h(AgentExternalHandoff, { job: null, workspaceKey: "synthetic-audit" })
+    )));
+  assert.match(dom.document.querySelector("dialog.agent-help-home")!.textContent, /What do you need help with/);
+  assert.match(host.textContent, /Use an external model and bring back verifiable results/);
+  assert.match(host.querySelector<HTMLTextAreaElement>("textarea")!.value, /Review the job requirements/);
+  assert.doesNotMatch(`${dom.document.querySelector("dialog.agent-help-home")!.textContent}${host.textContent}`, /[\u3400-\u9fff]/);
+  assert.deepEqual(selections, []);
+});
+
+test("F21: shared ledger and legacy association explain their inactive state in English", async () => {
+  const { AgentTaskLedger } = await import("../src/components/AgentTaskLedger");
+  const client = {
+    read: async () => undefined,
+    budget: async () => { throw new Error("must not run"); },
+    pause: async () => { throw new Error("must not run"); },
+    legacy: async () => { throw new Error("must not run"); },
+    associate: async () => { throw new Error("must not run"); },
+  };
+  const host = await mount(h(UiPreferencesProvider, { initialPreferences: { locale: "en", theme: "dark" } }, h(AgentTaskLedger, { rootScopeKey: "synthetic-audit", client })));
+  assert.match(host.textContent, /Shared workspace budget/);
+  assert.match(host.textContent, /No shared root ledger exists yet/);
+  assert.match(host.textContent, /Associate legacy task records/);
+  assert.doesNotMatch(host.textContent, /[\u3400-\u9fff]/);
+});
+
+test("F23: recovery archive uses shared surface tokens without inline legacy colors", async () => {
+  const component = await readFile(new URL("../src/components/RecoveryArchives.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../src/components/workspace-chrome.css", import.meta.url), "utf8");
+  assert.doesNotMatch(component, /style=\{\{/);
+  assert.match(styles, /\.recovery-session\{[^}]*var\(--ui-surface/);
+  assert.match(styles, /var\(--workspace-control-height/);
+});
+
 test("F23: learning surfaces consume shared action and alert tokens, without touching paper", async () => {
   for (const name of ["growth-journey-workspace.css", "learning-path-workspace.css", "CareerStudioWorkspace.css"]) {
     const source = await readFile(new URL(`../src/components/${name}`, import.meta.url), "utf8");
