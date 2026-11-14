@@ -997,6 +997,14 @@ const DEFAULT_DEMO_JOBS: JobPipelineItem[] = [
 // ============================================================================
 // 7. 内凹微缩蓝图舱 (CNC-Milled Inset Chamber with Living Telemetry Motion)
 // ============================================================================
+type Translate = (chinese: string, english: string) => string;
+const STAGE_TEXT: Record<string, readonly [string, string]> = {
+  "已收藏": ["Saved", "Saved"], "简历润色中": ["Polishing resume", "Polish"],
+  "ATS 核验通过": ["ATS check passed", "ATS ok"], "面试攻防准备": ["Interview prep", "Prep"],
+};
+const stageLabel = (stage: string, t: Translate) => t(stage, STAGE_TEXT[stage]?.[0] ?? stage);
+const stageShort = (stage: string, t: Translate) => t(stage.slice(0, 4), STAGE_TEXT[stage]?.[1] ?? stage);
+
 function BlueprintMicroChamber({
   type,
   isSpotlight,
@@ -1010,6 +1018,7 @@ function BlueprintMicroChamber({
   agent: AgentKernelConfig;
   theme?: "light" | "dark";
 }) {
+  const { t } = useUiPreferences();
   const isLight = theme === "light";
   const cPrimary = isLight ? (agent.id === "opus-5.5" ? "#B45309" : agent.primaryHex) : agent.primaryHex;
   const cSecondary = isLight ? (agent.id === "opus-5.5" ? "#0284C7" : agent.secondaryHex) : agent.secondaryHex;
@@ -1050,21 +1059,21 @@ function BlueprintMicroChamber({
             <line x1="64" y1="18" x2="22" y2="28" stroke={cSecondary} strokeWidth="1.2" strokeDasharray="3 3" style={{ animation: "ap-dash-flow 1.5s linear infinite" }} />
             <line x1="64" y1="18" x2="106" y2="8" stroke={cPrimary} strokeWidth="1.2" strokeDasharray="3 3" style={{ animation: "ap-dash-flow 1.5s linear infinite" }} />
             <line x1="64" y1="18" x2="106" y2="28" stroke={cSecondary} strokeWidth="1.2" strokeDasharray="3 3" style={{ animation: "ap-dash-flow 1.5s linear infinite" }} />
-            <rect x="6" y="4" width="22" height="9" rx="2" fill={isLight ? "#FFFFFF" : "#0B131E"} stroke={cSecondary} strokeWidth="0.9" />
-            <rect x="6" y="23" width="22" height="9" rx="2" fill={isLight ? "#FFFFFF" : "#0B131E"} stroke={isLight ? "#94A3B8" : "#334155"} strokeWidth="0.9" />
-            <rect x="46" y="11" width="36" height="14" rx="3" fill={isLight ? "#EFF6FF" : "#131E2E"} stroke={cPrimary} strokeWidth="1.3" />
-            <text x="64" y="20.5" textAnchor="middle" fill={isLight ? "#0F172A" : "#F8FAFC"} fontSize="6.5" fontFamily="monospace" fontWeight="bold">
+            <rect x="6" y="4" width="22" height="9" rx="2" fill={"var(--ap-tone-1)"} stroke={cSecondary} strokeWidth="0.9" />
+            <rect x="6" y="23" width="22" height="9" rx="2" fill={"var(--ap-tone-1)"} stroke={"var(--ap-tone-2)"} strokeWidth="0.9" />
+            <rect x="46" y="11" width="36" height="14" rx="3" fill={"var(--ap-tone-3)"} stroke={cPrimary} strokeWidth="1.3" />
+            <text x="64" y="20.5" textAnchor="middle" fill={"var(--ap-tone-4)"} fontSize="6.5" fontFamily="monospace" fontWeight="bold">
               AGENT
             </text>
-            <rect x="98" y="4" width="24" height="9" rx="2" fill={isLight ? "#FFFFFF" : "#0B131E"} stroke={cPrimary} strokeWidth="0.9" />
-            <rect x="98" y="23" width="24" height="9" rx="2" fill={isLight ? "#FFFFFF" : "#0B131E"} stroke={cSecondary} strokeWidth="0.9" />
+            <rect x="98" y="4" width="24" height="9" rx="2" fill={"var(--ap-tone-1)"} stroke={cPrimary} strokeWidth="0.9" />
+            <rect x="98" y="23" width="24" height="9" rx="2" fill={"var(--ap-tone-1)"} stroke={cSecondary} strokeWidth="0.9" />
           </svg>
         )}
 
         {type === "bridge" && (
           <svg viewBox="0 0 136 36" className="w-full h-8 overflow-visible">
-            <rect x="6" y="11" width="38" height="14" rx="3.5" fill={isLight ? "#FFFFFF" : "#0A121C"} stroke={cSecondary} strokeWidth="1" />
-            <text x="25" y="20.5" textAnchor="middle" fill={isLight ? "#334155" : "#94A3B8"} fontSize="6" fontFamily="monospace" fontWeight="bold">
+            <rect x="6" y="11" width="38" height="14" rx="3.5" fill={"var(--ap-tone-5)"} stroke={cSecondary} strokeWidth="1" />
+            <text x="25" y="20.5" textAnchor="middle" fill={"var(--ap-tone-6)"} fontSize="6" fontFamily="monospace" fontWeight="bold">
               {code === "12" ? "DRAFT" : "CARD"}
             </text>
             <line x1="44" y1="15" x2="78" y2="15" stroke={cPrimary} strokeWidth="1.1" />
@@ -1078,8 +1087,8 @@ function BlueprintMicroChamber({
               strokeDasharray="3 3"
               style={{ animation: "ap-dash-flow 1.2s linear infinite" }}
             />
-            <rect x="78" y="11" width="44" height="14" rx="3.5" fill={isLight ? "#EFF6FF" : "#0F1B29"} stroke={cPrimary} strokeWidth="1.1" />
-            <text x="100" y="20.5" textAnchor="middle" fill={isLight ? "#0F172A" : "#F8FAFC"} fontSize="6" fontFamily="monospace" fontWeight="bold">
+            <rect x="78" y="11" width="44" height="14" rx="3.5" fill={"var(--ap-tone-7)"} stroke={cPrimary} strokeWidth="1.1" />
+            <text x="100" y="20.5" textAnchor="middle" fill={"var(--ap-tone-4)"} fontSize="6" fontFamily="monospace" fontWeight="bold">
               {code === "12" ? "REVIEW" : "VERIFY"}
             </text>
           </svg>
@@ -1114,19 +1123,19 @@ function BlueprintMicroChamber({
 
         {type === "docscan" && (
           <svg viewBox="0 0 136 36" className="w-full h-8 overflow-hidden">
-            <rect x="8" y="3" width="22" height="30" rx="2" fill={isLight ? "#FFFFFF" : "#0A121E"} stroke={cSecondary} strokeWidth="1.1" />
+            <rect x="8" y="3" width="22" height="30" rx="2" fill={"var(--ap-tone-8)"} stroke={cSecondary} strokeWidth="1.1" />
             <line x1="12" y1="9" x2="26" y2="9" stroke={cSecondary} strokeWidth="1.3" />
-            <line x1="12" y1="14" x2="24" y2="14" stroke={isLight ? "#94A3B8" : "#64748B"} strokeWidth="1.1" />
+            <line x1="12" y1="14" x2="24" y2="14" stroke={"var(--ap-tone-9)"} strokeWidth="1.1" />
             <line x1="12" y1="19" x2="26" y2="19" stroke={cPrimary} strokeWidth="1.3" />
-            <line x1="12" y1="24" x2="22" y2="24" stroke={isLight ? "#94A3B8" : "#64748B"} strokeWidth="1.1" />
+            <line x1="12" y1="24" x2="22" y2="24" stroke={"var(--ap-tone-9)"} strokeWidth="1.1" />
             {/* Animated Laser Beam */}
             <g style={{ animation: "ap-laser-scan 2.2s ease-in-out infinite alternate" }}>
               <line x1="7" y1="5" x2="31" y2="5" stroke="#06B6D4" strokeWidth="1.5" strokeLinecap="round" />
               <line x1="9" y1="5" x2="29" y2="5" stroke="#FFFFFF" strokeWidth="0.8" />
             </g>
             <path d="M32 18H56" stroke={cSecondary} strokeWidth="1" strokeDasharray="2 2" style={{ animation: "ap-dash-flow 1.2s linear infinite" }} />
-            <rect x="56" y="7" width="64" height="22" rx="3.5" fill={isLight ? "#FFFFFF" : "#0C1624"} stroke={cSecondary} strokeWidth="1" />
-            <text x="88" y="16" textAnchor="middle" fill={isLight ? "#334155" : "#E2E8F0"} fontSize="6.5" fontFamily="monospace">
+            <rect x="56" y="7" width="64" height="22" rx="3.5" fill={"var(--ap-tone-10)"} stroke={cSecondary} strokeWidth="1" />
+            <text x="88" y="16" textAnchor="middle" fill={"var(--ap-tone-11)"} fontSize="6.5" fontFamily="monospace">
               1 page · A4
             </text>
             <text x="88" y="25" textAnchor="middle" fill={isLight ? "#0284C7" : cSecondary} fontSize="6.5" fontFamily="monospace" fontWeight="bold">
@@ -1152,16 +1161,16 @@ function BlueprintMicroChamber({
             />
             {/* Animated Rotating Radar Sweep Ray */}
             <g style={{ transformOrigin: "24px 17px", animation: "ap-radar-sweep 2.8s linear infinite" }}>
-              <line x1="24" y1="17" x2="38" y2="17" stroke={isLight ? "#0284C7" : "#38BDF8"} strokeWidth="1.6" strokeLinecap="round" />
-              <polygon points="24,17 38,13 38,21" fill={isLight ? "rgba(2,132,199,0.18)" : "rgba(56,189,248,0.22)"} />
+              <line x1="24" y1="17" x2="38" y2="17" stroke={"var(--ap-tone-12)"} strokeWidth="1.6" strokeLinecap="round" />
+              <polygon points="24,17 38,13 38,21" fill={"var(--ap-tone-13)"} />
             </g>
             {/* Blinking Target Ping */}
-            <circle cx="31" cy="11" r="2.2" fill={isLight ? "#059669" : "#10B981"} style={{ animation: "ap-led-ping 1.4s ease-in-out infinite" }} />
-            <text x="48" y="15" fill={isLight ? "#334155" : "#94A3B8"} fontSize="6.5" fontFamily="monospace" fontWeight="600">
-              Tier 1-3 交叉核验
+            <circle cx="31" cy="11" r="2.2" fill={"var(--ap-tone-14)"} style={{ animation: "ap-led-ping 1.4s ease-in-out infinite" }} />
+            <text x="48" y="15" fill={"var(--ap-tone-6)"} fontSize="6.5" fontFamily="monospace" fontWeight="600">
+              Tier 1-3 {t("交叉核验", "cross-check")}
             </text>
             <text x="48" y="26" fill={isLight ? "#0284C7" : cSecondary} fontSize="7" fontFamily="monospace" fontWeight="bold">
-              仲裁: 0 · 16:30下班
+              {t("仲裁: 0 · 16:30下班", "Arbitration: 0 · off at 16:30")}
             </text>
           </svg>
         )}
@@ -1178,7 +1187,7 @@ function BlueprintMicroChamber({
                   cx={12 + col * 14}
                   cy={8 + row * 10}
                   r={active ? 2.4 : 1.2}
-                  fill={active ? (i % 2 === 0 ? (isLight ? "#D97706" : cPrimary) : (isLight ? "#0284C7" : cSecondary)) : (isLight ? "#CBD5E1" : "#334155")}
+                  fill={active ? (i % 2 === 0 ? (isLight ? "#D97706" : cPrimary) : (isLight ? "#0284C7" : cSecondary)) : ("var(--ap-tone-15)")}
                   style={active ? { animation: `ap-led-ping ${1.2 + (i % 3) * 0.4}s ease-in-out infinite alternate` } : undefined}
                 />
               );
@@ -1189,7 +1198,7 @@ function BlueprintMicroChamber({
         {type === "wagebars" && (
           <svg viewBox="0 0 136 36" className="w-full h-8 overflow-visible">
             <g style={{ transformOrigin: "12px 32px", animation: "ap-bar-pulse-1 1.6s ease-in-out infinite alternate" }}>
-              <rect x="8" y="18" width="9" height="14" rx="1.5" fill={isLight ? "#94A3B8" : "#334155"} />
+              <rect x="8" y="18" width="9" height="14" rx="1.5" fill={"var(--ap-tone-2)"} />
             </g>
             <g style={{ transformOrigin: "26px 32px", animation: "ap-bar-pulse-2 1.8s ease-in-out infinite alternate 0.2s" }}>
               <rect x="22" y="12" width="9" height="20" rx="1.5" fill={isLight ? "#0284C7" : cSecondary} />
@@ -1203,8 +1212,8 @@ function BlueprintMicroChamber({
             <text x="66" y="16" fill={isLight ? "#B45309" : cPrimary} fontSize="7.5" fontFamily="monospace" fontWeight="bold">
               ¥268/hr
             </text>
-            <text x="66" y="26" fill={isLight ? "#334155" : "#94A3B8"} fontSize="6.5" fontFamily="monospace" fontWeight="600">
-              WLB S+ 净时薪
+            <text x="66" y="26" fill={"var(--ap-tone-6)"} fontSize="6.5" fontFamily="monospace" fontWeight="600">
+              {t("WLB S+ 净时薪", "WLB S+ net hourly")}
             </text>
           </svg>
         )}
@@ -1231,7 +1240,7 @@ function BlueprintMicroChamber({
                   width="16"
                   height="16"
                   rx="3"
-                  fill={isLight ? "#FFFFFF" : "#0C1522"}
+                  fill={"var(--ap-tone-16)"}
                   stroke={idx === 2 ? cPrimary : cSecondary}
                   strokeWidth="1.1"
                 />
@@ -1239,7 +1248,7 @@ function BlueprintMicroChamber({
                   x={16 + idx * 30}
                   y="20.5"
                   textAnchor="middle"
-                  fill={isLight ? "#0F172A" : "#F8FAFC"}
+                  fill={"var(--ap-tone-4)"}
                   fontSize="7"
                   fontFamily="monospace"
                   fontWeight="bold"
@@ -1256,32 +1265,32 @@ function BlueprintMicroChamber({
             <g style={{ transformOrigin: "24px 17px", animation: "ap-spin-slow 10s linear infinite" }}>
               <polygon
                 points="24,4 39,11 35,29 14,30 9,13"
-                fill={isLight ? "rgba(168, 85, 247, 0.12)" : "rgba(168, 85, 247, 0.25)"}
-                stroke={isLight ? "#9333EA" : "#C084FC"}
+                fill={"var(--ap-tone-17)"}
+                stroke={"var(--ap-tone-18)"}
                 strokeWidth="1.2"
               />
-              <circle cx="24" cy="4" r="2.2" fill={isLight ? "#0284C7" : "#38BDF8"} />
-              <circle cx="39" cy="11" r="2.2" fill={isLight ? "#D97706" : "#F59E0B"} />
+              <circle cx="24" cy="4" r="2.2" fill={"var(--ap-tone-12)"} />
+              <circle cx="39" cy="11" r="2.2" fill={"var(--ap-tone-19)"} />
             </g>
-            <text x="48" y="15" fill={isLight ? "#1E293B" : "#E2E8F0"} fontSize="7" fontFamily="monospace" fontWeight="bold">
+            <text x="48" y="15" fill={"var(--ap-tone-20)"} fontSize="7" fontFamily="monospace" fontWeight="bold">
               esbuild · QuickJS
             </text>
-            <text x="48" y="26" fill={isLight ? "#7E22CE" : "#C084FC"} fontSize="6.5" fontFamily="monospace" fontWeight="600">
-              预设 / 本机编码
+            <text x="48" y="26" fill={"var(--ap-tone-21)"} fontSize="6.5" fontFamily="monospace" fontWeight="600">
+              {t("预设 / 本机编码", "Preset / local coding")}
             </text>
           </svg>
         )}
 
         {!["hub", "bridge", "diff", "docscan", "radar", "dotmatrix", "wagebars", "star", "polygon"].includes(type) && (
           <svg viewBox="0 0 136 36" className="w-full h-8 overflow-visible">
-            <rect x="6" y="8" width="44" height="6" rx="2" fill={isLight ? "#CBD5E1" : "#1E293B"} />
+            <rect x="6" y="8" width="44" height="6" rx="2" fill={"var(--ap-tone-22)"} />
             <rect x="6" y="8" width="32" height="6" rx="2" fill={cSecondary} />
-            <rect x="6" y="20" width="58" height="6" rx="2" fill={isLight ? "#CBD5E1" : "#1E293B"} />
+            <rect x="6" y="20" width="58" height="6" rx="2" fill={"var(--ap-tone-22)"} />
             <rect x="6" y="20" width="46" height="6" rx="2" fill={cPrimary} />
-            <circle cx="78" cy="17" r="3.5" fill={isLight ? "#FFFFFF" : "#0B131E"} stroke={cSecondary} strokeWidth="1.2" />
+            <circle cx="78" cy="17" r="3.5" fill={"var(--ap-tone-1)"} stroke={cSecondary} strokeWidth="1.2" />
             <line x1="82" y1="17" x2="98" y2="17" stroke={cSecondary} strokeWidth="1" strokeDasharray="2 2" style={{ animation: "ap-dash-flow 1.5s linear infinite" }} />
-            <rect x="98" y="10" width="26" height="14" rx="3" fill={isLight ? "#FFFFFF" : "#0C1522"} stroke={cPrimary} strokeWidth="1.1" />
-            <text x="111" y="19.5" textAnchor="middle" fill={isLight ? "#0F172A" : "#F8FAFC"} fontSize="6.5" fontFamily="monospace" fontWeight="bold">
+            <rect x="98" y="10" width="26" height="14" rx="3" fill={"var(--ap-tone-16)"} stroke={cPrimary} strokeWidth="1.1" />
+            <text x="111" y="19.5" textAnchor="middle" fill={"var(--ap-tone-4)"} fontSize="6.5" fontFamily="monospace" fontWeight="bold">
               #{code}
             </text>
           </svg>
@@ -1290,11 +1299,11 @@ function BlueprintMicroChamber({
 
       <div
         style={{
-          borderColor: isSpotlight ? cSecondary : (isLight ? "#CBD5E1" : "#223247"),
+          borderColor: isSpotlight ? cSecondary : ("var(--ap-tone-23)"),
           backgroundColor: isSpotlight
             ? (isLight ? "#ECFDF5" : `${cSecondary}22`)
-            : (isLight ? "#FFFFFF" : "#0B121C"),
-          color: isSpotlight ? (isLight ? "#047857" : "#FFF") : (isLight ? "#94A3B8" : "#64748B"),
+            : ("var(--ap-tone-24)"),
+          color: isSpotlight ? ("var(--ap-tone-25)") : ("var(--ap-tone-9)"),
           boxShadow: isSpotlight ? `0 0 10px ${cSecondary}55` : "none",
           animation: isSpotlight ? "ap-glow-pulse 2s ease-in-out infinite" : undefined,
         }}
@@ -1326,6 +1335,7 @@ function CyberJobCard3D({
   onInspectInStudio: (id: string) => void;
   theme?: "light" | "dark";
 }) {
+  const { t } = useUiPreferences();
   const isLight = theme === "light";
   const cardRef = useRef<HTMLDivElement>(null);
   const [tilt, setTilt] = useState({ rotateX: 0, rotateY: 0, glareX: 50, glareY: 30, hover: false });
@@ -1390,7 +1400,7 @@ function CyberJobCard3D({
             WebkitBackfaceVisibility: "hidden",
             transformStyle: "preserve-3d",
             backdropFilter: "blur(28px) saturate(190%)",
-            backgroundColor: isLight ? "rgba(255, 255, 255, 0.96)" : "rgba(11, 17, 26, 0.88)",
+            backgroundColor: "var(--ap-tone-26)",
             boxShadow: tilt.hover
               ? isLight
                 ? `0 22px 48px -10px rgba(0,0,0,0.14), 0 0 0 1.5px ${agent.primaryHex}cc, inset 0 1px 0 rgba(255,255,255,0.95)`
@@ -1472,7 +1482,7 @@ function CyberJobCard3D({
               <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10.5px] font-bold ${
                 isLight ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
               }`}>
-                净时薪 ¥{job.hourlyNet}/h
+                {t("净时薪", "Net hourly")} ¥{job.hourlyNet}/h
               </div>
               <div className={`text-[10px] mt-1 ${isLight ? "text-slate-600 font-medium" : "text-cyan-300/90"}`}>{job.workHours}</div>
             </div>
@@ -1500,11 +1510,11 @@ function CyberJobCard3D({
             <div className="flex items-center gap-1.5">
               <StudioRuntimeIcon agentId={agent.id} className="w-4 h-4" />
               <span className={isLight ? "text-slate-600" : "text-slate-300"}>{agent.shortName}:</span>
-              <span className={`font-bold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>{job.stage3D}</span>
+              <span className={`font-bold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>{stageLabel(job.stage3D, t)}</span>
             </div>
             <div className={`flex items-center gap-1 font-medium ${isLight ? "text-cyan-700 hover:text-cyan-900" : "text-cyan-300"}`}>
               <RotateCw className="w-3 h-3 transition-transform duration-500 group-hover:rotate-180" />
-              <span>180° 翻转背调</span>
+              <span>{t("180° 翻转背调", "Flip 180° for research")}</span>
             </div>
           </div>
         </div>
@@ -1517,7 +1527,7 @@ function CyberJobCard3D({
             transform: "rotateY(180deg)",
             transformStyle: "preserve-3d",
             backdropFilter: "blur(30px) saturate(200%)",
-            backgroundColor: isLight ? "rgba(255, 255, 255, 0.98)" : "rgba(8, 13, 21, 0.96)",
+            backgroundColor: "var(--ap-tone-27)",
             boxShadow: isLight
               ? `0 24px 50px -12px rgba(0,0,0,0.15), 0 0 0 1.5px ${agent.primaryHex}cc, inset 0 1px 0 rgba(255,255,255,0.9)`
               : `0 24px 50px -12px rgba(0,0,0,0.92), 0 0 0 1.5px ${agent.primaryHex}aa, inset 0 1px 0 rgba(255,255,255,0.22)`,
@@ -1529,14 +1539,14 @@ function CyberJobCard3D({
           }`}>
             <div className="flex items-center gap-2 font-mono text-xs font-bold" style={{ color: isLight ? (agent.id === "opus-5.5" ? "#B45309" : agent.primaryHex) : agent.primaryHex }}>
               <StudioRuntimeIcon agentId={agent.id} className="w-5 h-5" />
-              <span>{agent.shortName} RECON // 背调实证</span>
+              <span>{agent.shortName} RECON // {t("背调实证", "verified research")}</span>
             </div>
             <span className={`font-mono text-[10px] px-2 py-0.5 rounded border ${
               isLight
                 ? "bg-emerald-50 text-emerald-800 border-emerald-300"
                 : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
             }`}>
-              仲裁 0 起
+              {t("仲裁 0 起", "Arbitration: 0 cases")}
             </span>
           </div>
 
@@ -1549,7 +1559,7 @@ function CyberJobCard3D({
               <div className={`font-mono font-bold text-[10.5px] mb-0.5 ${
                 isLight ? "text-emerald-800" : "text-emerald-300"
               }`}>
-                ✓ 真实作息核验 ({job.workHours})
+                ✓ {t("真实作息核验", "Verified working hours")} ({job.workHours})
               </div>
               <p className="line-clamp-2 opacity-95">{job.triageDossier.wlbVerification}</p>
             </div>
@@ -1561,7 +1571,7 @@ function CyberJobCard3D({
               <div className={`font-mono font-bold text-[10.5px] mb-0.5 flex items-center gap-1.5 ${
                 isLight ? "text-cyan-800" : "text-cyan-300"
               }`}>
-                <span>✦ {agent.mascotName} 决胜诊断</span>
+                <span>✦ {agent.mascotName} {t("决胜诊断", "decisive diagnosis")}</span>
               </div>
               <p className="line-clamp-2 opacity-95">{job.triageDossier.agentVerdict}</p>
             </div>
@@ -1586,7 +1596,7 @@ function CyberJobCard3D({
                       : "text-slate-400 hover:text-white"
                 }`}
               >
-                {st.slice(0, 4)}
+                {stageShort(st, t)}
               </button>
             ))}
           </div>
@@ -1597,7 +1607,7 @@ function CyberJobCard3D({
               className="w-full py-2 px-3 rounded-xl font-mono text-xs font-bold text-slate-950 bg-gradient-to-r from-amber-400 via-amber-300 to-cyan-300 hover:brightness-110 shadow-lg flex items-center justify-center gap-1.5 transition"
             >
               <Terminal className="w-3.5 h-3.5" />
-              <span>载入 {agent.shortName} 20-Node 工坊 ➔</span>
+              <span>{t(`载入 ${agent.shortName} 20-Node 工坊`, `Open ${agent.shortName} in the 20-Node studio`)} ➔</span>
             </button>
           </div>
         </div>
@@ -1664,25 +1674,25 @@ function AutopilotDemoWorkspace({
   onNavigateToDraft?: () => void;
   onClose?: () => void;
 }) {
-  const { theme, setTheme } = useUiPreferences();
+  const { theme, setTheme, t } = useUiPreferences();
 
   // 1. 工坊身份跟随系统设置；视觉配色不再决定执行运行时。
   const { selectedRuntime, selectedRuntimeId, ready: runtimeReady, loading: runtimeLoading, online } = useLocalAgentRuntime();
-  const runtimeName = selectedRuntime?.name ?? (selectedRuntimeId ? "所选 Agent 暂不可用" : "未配置 Agent");
-  const runtimeStatus = runtimeLoading ? "正在检测" : online === false ? "Host 未连接" : runtimeReady ? "本机可用" : selectedRuntimeId ? "暂不可用" : "待配置";
+  const runtimeName = selectedRuntime?.name ?? (selectedRuntimeId ? t("所选 Agent 暂不可用", "Selected Agent is unavailable") : t("未配置 Agent", "No Agent configured"));
+  const runtimeStatus = runtimeLoading ? t("正在检测", "Detecting") : online === false ? t("Host 未连接", "Host not connected") : runtimeReady ? t("本机可用", "Available locally") : selectedRuntimeId ? t("暂不可用", "Unavailable") : t("待配置", "Needs setup");
   const currentAgent: AgentKernelConfig = {
     ...AGENT_KERNELS["opus-5.5"]!,
     id: selectedRuntimeId || "unconfigured",
     shortName: runtimeName, brandName: runtimeName, fullTitle: runtimeName,
-    cliHeaderTitle: runtimeName, cliVersion: selectedRuntime?.version ?? "版本未提供",
+    cliHeaderTitle: runtimeName, cliVersion: selectedRuntime?.version ?? t("版本未提供", "Version not provided"),
     heroBannerPrefix: `${runtimeName} + FACTBASE`, mascotName: runtimeName,
-    mascotRole: "跟随系统设置 · 本机执行入口",
-    modelSpec: selectedRuntime?.version ?? "模型由运行时配置",
-    computeBadge: runtimeStatus, signatureQuote: "执行入口与系统设置保持一致。",
+    mascotRole: t("跟随系统设置 · 本机执行入口", "Follows system settings · local run entry"),
+    modelSpec: selectedRuntime?.version ?? t("模型由运行时配置", "Model set by the runtime"),
+    computeBadge: runtimeStatus, signatureQuote: t("执行入口与系统设置保持一致。", "The run entry matches system settings."),
   };
   const studioNodes = useMemo(() => STUDIO_20_NODES.map(node => node.id === 1
-    ? { ...node, name: runtimeName, sub: `系统设置 · ${runtimeStatus}` }
-    : node), [runtimeName, runtimeStatus]);
+    ? { ...node, name: runtimeName, sub: t(`系统设置 · ${runtimeStatus}`, `System settings · ${runtimeStatus}`) }
+    : node), [runtimeName, runtimeStatus, t]);
 
   // 2. 工作台模式 ('studio' | 'space3d' | 'split')
   const [workspaceMode, setWorkspaceMode] = useState<"studio" | "space3d" | "split">("studio");
@@ -1731,8 +1741,8 @@ function AutopilotDemoWorkspace({
     return count;
   }, [factBase]);
 
-  const operatorName = factBase?.profile?.displayName?.zh || factBase?.profile?.displayName?.en || "示例用户";
-  const operatorRole = factBase?.profile?.targetRoles?.[0]?.zh || "职业方向未填写";
+  const operatorName = factBase?.profile?.displayName?.zh || factBase?.profile?.displayName?.en || t("示例用户", "Sample user");
+  const operatorRole = factBase?.profile?.targetRoles?.[0]?.zh || t("职业方向未填写", "Target role not set");
 
   const triggerToast = useCallback((title: string, desc: string) => {
     setToast({ title, desc });
@@ -1814,8 +1824,8 @@ function AutopilotDemoWorkspace({
       )
     );
     triggerToast(
-      `✦ ${currentAgent.shortName} 已铸造「${targetJob.shortName}」3D 毛玻璃卡`,
-      "已推入 3D 机会金库，背面已加盖当前 AI 助手专属背调印章。"
+      t(`✦ ${currentAgent.shortName} 已铸造「${targetJob.shortName}」3D 毛玻璃卡`, `${currentAgent.shortName} minted a frosted 3D card for ${targetJob.shortName}`),
+      t("已推入 3D 机会金库，背面已加盖当前 AI 助手专属背调印章。", "Pushed into the 3D opportunity vault; the back carries the research stamp of the current AI assistant.")
     );
   };
 
@@ -1835,19 +1845,19 @@ function AutopilotDemoWorkspace({
     setIsPermissionModalOpen(false);
     setBuildingAppId(appId);
     setBuildStatus("building");
-    setBuildingStep("正在请求本机宿主核对内置模板并编译…");
+    setBuildingStep(t("正在请求本机宿主核对内置模板并编译…", "Asking the local host to check and compile the built-in template…"));
     try {
       const artifact = await buildSandboxedMicroApp({ appId, ...template });
       lease.assert();
       if (pendingBuild.current !== lease) return;
-      setBuildingStep("宿主检查通过，等待你的运行或固定授权。");
+      setBuildingStep(t("宿主检查通过，等待你的运行或固定授权。", "Host check passed; waiting for you to run it or authorize pinning."));
       setPendingArtifact(artifact);
       setBuildStatus("success");
       setIsPermissionModalOpen(true);
     } catch (err) {
       if (lease.signal.aborted || pendingBuild.current !== lease) return;
       setBuildStatus("error");
-      triggerToast("预设未构建", err instanceof Error ? err.message : String(err));
+      triggerToast(t("预设未构建", "Preset not built"), err instanceof Error ? err.message : String(err));
     } finally {
       if (pendingBuild.current === lease) setBuildingAppId(null);
     }
@@ -1858,9 +1868,9 @@ function AutopilotDemoWorkspace({
     try {
       pendingBuild.current.assert();
       openReviewedPreset(artifact, pinToDock, openArtifact);
-      triggerToast(`已打开「${artifact.name}」`, pinToDock ? "已按你的授权固定到应用 Dock。" : "仅本次打开，未写入应用列表。");
+      triggerToast(t(`已打开「${artifact.name}」`, `Opened ${artifact.name}`), pinToDock ? t("已按你的授权固定到应用 Dock。", "Pinned to the app Dock as you authorized.") : t("仅本次打开，未写入应用列表。", "Opened this time only; not added to the app list."));
     } catch (err) {
-      triggerToast("预设未打开", err instanceof Error ? err.message : String(err));
+      triggerToast(t("预设未打开", "Preset not opened"), err instanceof Error ? err.message : String(err));
     } finally {
       setIsPermissionModalOpen(false);
       setPendingArtifact(null);
@@ -1883,12 +1893,12 @@ function AutopilotDemoWorkspace({
   return (
     <div
       style={{
-        backgroundColor: theme === "light" ? "#F4F6F8" : "#05080D",
+        backgroundColor: "var(--ap-tone-28)",
         backgroundImage: `
           ${currentAgent.ambientBg},
-          radial-gradient(${theme === "light" ? "rgba(71, 85, 105, 0.12)" : "rgba(148, 163, 184, 0.11)"} 1px, transparent 0),
-          linear-gradient(to right, ${theme === "light" ? "rgba(226, 232, 240, 0.65)" : "rgba(30, 41, 59, 0.18)"} 1px, transparent 1px),
-          linear-gradient(to bottom, ${theme === "light" ? "rgba(226, 232, 240, 0.65)" : "rgba(30, 41, 59, 0.18)"} 1px, transparent 1px)
+          radial-gradient(${"var(--ap-tone-29)"} 1px, transparent 0),
+          linear-gradient(to right, ${"var(--ap-tone-30)"} 1px, transparent 1px),
+          linear-gradient(to bottom, ${"var(--ap-tone-30)"} 1px, transparent 1px)
         `,
         backgroundSize: "100% 100%, 16px 16px, 64px 64px, 64px 64px",
       }}
@@ -1924,9 +1934,9 @@ function AutopilotDemoWorkspace({
         <div className="flex items-center gap-3">
           <div
             style={{
-              backgroundColor: theme === "light" ? "#FFFFFF" : "#0A1018",
+              backgroundColor: "var(--ap-tone-31)",
               boxShadow: theme === "light" ? "0 4px 14px rgba(0,0,0,0.06)" : "0 10px 28px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.1)",
-              borderColor: theme === "light" ? "#E2E8F0" : "#1E2E42",
+              borderColor: "var(--ap-tone-32)",
             }}
             className="px-3 py-1.5 rounded-xl border flex items-center gap-2.5"
           >
@@ -1966,7 +1976,7 @@ function AutopilotDemoWorkspace({
                   key={j.id}
                   onClick={() => {
                     setActiveJobId(j.id);
-                    triggerToast(`✦ 目标切换：${j.company}`, `岗位「${j.role}」已装入求职拓扑中枢`);
+                    triggerToast(t(`✦ 目标切换：${j.company}`, `Target switched: ${j.company}`), t(`岗位「${j.role}」已装入求职拓扑中枢`, `${j.role} loaded into the job-search hub`));
                   }}
                   className={`px-2 py-0.5 rounded text-[10px] transition ${
                     activeJobId === j.id
@@ -2000,18 +2010,18 @@ function AutopilotDemoWorkspace({
           <h1 className="text-base md:text-lg xl:text-xl font-black italic tracking-tight mt-0.5 whitespace-nowrap">
             <span className="text-cyan-500">BETTERME AUTOPILOT ·</span>{" "}
             <span className={theme === "light" ? "text-slate-900" : "text-white"}>
-              求职全链路自动化工坊
+              {t("求职全链路自动化工坊", "End-to-end job-search automation studio")}
             </span>
           </h1>
 
           <div className="text-[10px] tracking-wider flex items-center justify-center gap-2 mt-0.5 font-mono whitespace-nowrap">
-            <span className="text-emerald-500 font-bold">20 节点拓扑闭环</span>
+            <span className="text-emerald-500 font-bold">{t("20 节点拓扑闭环", "20-node closed loop")}</span>
             <span className="text-slate-400">•</span>
-            <span className="text-amber-500 font-bold">事实证据链锚定</span>
+            <span className="text-amber-500 font-bold">{t("事实证据链锚定", "Anchored to a fact evidence chain")}</span>
             <span className="text-slate-400">•</span>
-            <span className="text-cyan-500 font-bold">投递后异步挂起</span>
+            <span className="text-cyan-500 font-bold">{t("投递后异步挂起", "Async hold after applying")}</span>
             <span className="text-slate-400">•</span>
-            <span className="text-purple-500 font-bold">沙箱微应用生态</span>
+            <span className="text-purple-500 font-bold">{t("沙箱微应用生态", "Sandboxed micro-app ecosystem")}</span>
           </div>
         </div>
 
@@ -2030,7 +2040,7 @@ function AutopilotDemoWorkspace({
             <span className="opacity-30">•</span>
             <span className="text-amber-500 font-semibold shrink-0">Prefetch=2</span>
             <span className="opacity-30">•</span>
-            <span className="text-cyan-500 font-semibold shrink-0">{claimCount}条证据锁</span>
+            <span className="text-cyan-500 font-semibold shrink-0">{claimCount}{t("条证据锁", " evidence locks")}</span>
           </div>
 
           {/* 系统设置快捷入口 (配置 CLI Agent 与模型) */}
@@ -2042,10 +2052,10 @@ function AutopilotDemoWorkspace({
                 ? "bg-white border-slate-300 text-slate-800 hover:bg-slate-50 shadow-sm"
                 : "bg-[#0A1018] border-[#1E2E42] text-slate-200 hover:bg-[#121c2a]"
             }`}
-            title="在系统设置中配置本地 CLI Agent 与大模型内核"
+            title={t("在系统设置中配置本地 CLI Agent 与大模型内核", "Configure local CLI agents and model kernels in System settings")}
           >
             <Sliders className="w-3.5 h-3.5 text-cyan-500" />
-            <span>系统设置</span>
+            <span>{t("系统设置", "System settings")}</span>
           </button>
 
           {/* 浅色/深色模式一键切换 */}
@@ -2057,7 +2067,7 @@ function AutopilotDemoWorkspace({
                 ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
                 : "bg-[#0A1018] border-[#1E2E42] text-slate-300 hover:bg-[#121c2a]"
             }`}
-            title={theme === "light" ? "切换深色黑曜石工业风" : "切换浅色钛金风"}
+            title={theme === "light" ? t("切换深色黑曜石工业风", "Switch to the dark obsidian industrial look") : t("切换浅色钛金风", "Switch to the light titanium look")}
           >
             {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
           </button>
@@ -2090,7 +2100,7 @@ function AutopilotDemoWorkspace({
                 aria-pressed={isSpotlight}
                 key={node.id}
                 data-node-id={node.id}
-                aria-label={`打开 ${node.code} ${node.name}`}
+                aria-label={t(`打开 ${node.code} ${node.name}`, `Open ${node.code} ${node.name}`)}
                 onClick={() => {
                   setAutoLoopPlaying(false);
                   setActiveNodeIdx(nodeIndex);
@@ -2105,12 +2115,8 @@ function AutopilotDemoWorkspace({
                       ? "rgba(18, 28, 44, 0.98)"
                       : "rgba(10, 16, 26, 0.92)",
                   borderColor: isSpotlight
-                    ? theme === "light"
-                      ? "#0284C7"
-                      : "#38BDF8"
-                    : theme === "light"
-                      ? "#CBD5E1"
-                      : "#1E2D40",
+                    ? "var(--ap-tone-12)"
+                    : "var(--ap-tone-33)",
                   boxShadow: isSpotlight
                     ? theme === "light"
                       ? "0 0 0 2px rgba(14, 165, 233, 0.45), 0 14px 34px -4px rgba(14, 165, 233, 0.35), 0 4px 12px rgba(15, 23, 42, 0.08), inset 0 1px 0 #FFFFFF"
@@ -2185,7 +2191,7 @@ function AutopilotDemoWorkspace({
             {/* 中央 4x4 控制台/深度工件工作台 */}
             <div
               style={{
-                backgroundColor: theme === "light" ? "#FFFFFF" : "#070B11",
+                backgroundColor: "var(--ap-tone-34)",
                 borderColor: currentAgent.borderAccent,
                 boxShadow: `0 24px 70px -16px rgba(0,0,0,0.92), 0 0 32px ${currentAgent.glowRgba}`,
               }}
@@ -2194,14 +2200,14 @@ function AutopilotDemoWorkspace({
               {/* 控制台顶栏 */}
               <div
                 style={{
-                  backgroundColor: theme === "light" ? "#F1F5F9" : "#0B111A",
-                  borderColor: theme === "light" ? "#CBD5E1" : "#1B2A3D",
+                  backgroundColor: "var(--ap-tone-35)",
+                  borderColor: "var(--ap-tone-36)",
                 }}
                 className="h-10 px-4 border-b flex items-center justify-between shrink-0 font-mono text-xs select-none"
               >
                 {/* 顶栏左侧品牌 */}
                 <div className="flex items-center gap-3">
-                  <button type="button" onClick={() => openSystemSettings("tools")} aria-label={`${runtimeName}，打开 Agent 设置`} className="studio-agent-trigger flex items-center gap-1.5 font-bold" style={{ color: theme === "light" ? "#925509" : currentAgent.primaryHex }}>
+                  <button type="button" onClick={() => openSystemSettings("tools")} aria-label={t(`${runtimeName}，打开 Agent 设置`, `${runtimeName}, open Agent settings`)} className="studio-agent-trigger flex items-center gap-1.5 font-bold" style={{ color: theme === "light" ? "#925509" : currentAgent.primaryHex }}>
                     <StudioRuntimeIcon agentId={currentAgent.id} className="w-6 h-6" />
                     <span>{currentAgent.cliHeaderTitle}</span>
                     <Sliders className="w-3 h-3" aria-hidden="true" />
@@ -2224,7 +2230,7 @@ function AutopilotDemoWorkspace({
                       }`}
                     >
                       <Terminal className="w-3 h-3" />
-                      <span>实时终端树 (CLI)</span>
+                      <span>{t("实时终端树 (CLI)", "Live terminal tree (CLI)")}</span>
                     </button>
                     <button
                       onClick={() => setTerminalTab("inspector")}
@@ -2237,7 +2243,7 @@ function AutopilotDemoWorkspace({
                       }`}
                     >
                       <Eye className="w-3 h-3" />
-                      <span>深度工件舱 (#{activeNode.code})</span>
+                      <span>{t("深度工件舱", "Artifact inspector")} (#{activeNode.code})</span>
                     </button>
                   </div>
                 </div>
@@ -2253,7 +2259,7 @@ function AutopilotDemoWorkspace({
                     }`}
                   >
                     <Zap className="w-3 h-3" />
-                    <span>铸造 3D 机会卡</span>
+                    <span>{t("铸造 3D 机会卡", "Mint 3D job card")}</span>
                   </button>
 
                   <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
@@ -2270,7 +2276,7 @@ function AutopilotDemoWorkspace({
                     {/* Welcome Banner */}
                     <div
                       style={{
-                        backgroundColor: theme === "light" ? "#F8FAFC" : "#05090F",
+                        backgroundColor: "var(--ap-tone-37)",
                         borderColor: theme === "light" ? "#E2E8F0" : currentAgent.borderAccent,
                         boxShadow: theme === "light" ? "0 4px 16px rgba(0,0,0,0.03)" : undefined,
                       }}
@@ -2282,13 +2288,13 @@ function AutopilotDemoWorkspace({
                           <h2 className={`text-sm font-bold flex items-center gap-2 ${
                             theme === "light" ? "text-slate-900" : "text-white"
                           }`}>
-                            <span>BetterMe Autopilot 工作台 · {operatorName}</span>
+                            <span>{t("BetterMe Autopilot 工作台", "BetterMe Autopilot workbench")} · {operatorName}</span>
                             <span className={`text-xs px-2 py-0.5 rounded border ${
                               theme === "light"
                                 ? "bg-cyan-50 text-cyan-800 border-cyan-300 font-bold"
                                 : "bg-cyan-500/20 text-cyan-300 border-cyan-500/30"
                             }`}>
-                              工序预览 · {runtimeStatus}
+                              {t("工序预览", "Process preview")} · {runtimeStatus}
                             </span>
                           </h2>
                           <div className={`flex items-center gap-1 text-[11px] font-bold ${
@@ -2304,35 +2310,35 @@ function AutopilotDemoWorkspace({
                         <div className={`text-[11px] flex items-center gap-3 ${
                           theme === "light" ? "text-slate-600" : "text-slate-400"
                         }`}>
-                          <span>求职角色：{operatorRole}</span>
+                          <span>{t("求职角色：", "Target role: ")}{operatorRole}</span>
                           <span>•</span>
                           <span className={theme === "light" ? "text-cyan-800 font-semibold" : "text-cyan-300"}>
-                            FactBase 事实库锁已激活
+                            {t("FactBase 事实库锁已激活", "FactBase fact lock active")}
                           </span>
                         </div>
 
                         <p className={`text-[11px] pt-1 ${
                           theme === "light" ? "text-slate-700 font-medium" : "text-slate-300/90"
                         }`}>
-                          以全网客观事实与本地真实经历，构建无幻觉、端到端闭环的职业工程中枢。
+                          {t("以全网客观事实与本地真实经历，构建无幻觉、端到端闭环的职业工程中枢。", "Builds a hallucination-free, end-to-end career engineering hub from objective facts on the web and your real local experience.")}
                         </p>
 
                         {/* 系统模型与工具配置指引 */}
                         <div className="pt-2 flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className={`text-[10px] font-mono ${theme === "light" ? "text-slate-500" : "text-slate-400"}`}>
-                              执行内核：当前已连接系统配置的本地 CLI / 模型调度
+                              {t("执行内核：当前已连接系统配置的本地 CLI / 模型调度", "Run kernel: connected to the local CLI / model dispatch set in system settings")}
                             </span>
                             <button
                               onClick={() => openSystemSettings("tools")}
                               className="text-[10px] text-cyan-600 hover:text-cyan-500 underline font-bold flex items-center gap-1 font-mono"
                             >
                               <Sliders className="w-2.5 h-2.5" />
-                              <span>前往系统设置配置模型与工具 &gt;</span>
+                              <span>{t("前往系统设置配置模型与工具", "Configure models and tools in System settings")} &gt;</span>
                             </button>
                           </div>
                           <div className={`text-[10px] font-mono ${theme === "light" ? "text-slate-500" : "text-slate-400"}`}>
-                            Prefetch: 2 并发 · 三层沙箱隔离
+                            {t("Prefetch: 2 并发 · 三层沙箱隔离", "Prefetch: 2 concurrent · three-layer sandbox isolation")}
                           </div>
                         </div>
                       </div>
@@ -2356,7 +2362,7 @@ function AutopilotDemoWorkspace({
                           theme === "light" ? "text-amber-700" : "text-amber-300"
                         }`}
                       >
-                        <span>[展开 #{activeNode.code} 工件]</span>
+                        <span>{t(`[展开 #${activeNode.code} 工件]`, `[Expand #${activeNode.code} artifact]`)}</span>
                         <ChevronRight className="w-3 h-3" />
                       </button>
                     </div>
@@ -2397,7 +2403,7 @@ function AutopilotDemoWorkspace({
                                 theme === "light" ? "text-cyan-700 hover:text-cyan-900" : "text-cyan-400"
                               }`}
                             >
-                              [Diff / 实证 ➔]
+                              {t("[Diff / 实证 ➔]", "[Diff / evidence ➔]")}
                             </button>
                           </div>
                         </div>
@@ -2417,14 +2423,14 @@ function AutopilotDemoWorkspace({
                             theme === "light" ? "text-slate-900" : "text-cyan-300"
                           }`}>
                             <Code2 className="w-4 h-4 text-cyan-500" />
-                            <span>结构化 Diff 审查台 · 对齐事实锁 [FB-01..38]</span>
+                            <span>{t("结构化 Diff 审查台 · 对齐事实锁 [FB-01..38]", "Structured diff review · aligned to fact locks [FB-01..38]")}</span>
                           </h3>
                           <span className={`text-[10px] px-2 py-0.5 rounded border ${
                             theme === "light"
                               ? "bg-emerald-100 text-emerald-900 border-emerald-300 font-bold"
                               : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
                           }`}>
-                            0 虚构参数 · 100% 履历锚定
+                            {t("0 虚构参数 · 100% 履历锚定", "0 invented parameters · 100% anchored to your history")}
                           </span>
                         </div>
 
@@ -2469,7 +2475,7 @@ function AutopilotDemoWorkspace({
                             <div className={`text-[10px] pt-1 ${
                               theme === "light" ? "text-cyan-900 font-semibold" : "text-cyan-300/80"
                             }`}>
-                              ✦ 成果量化：{item.impactMetric}
+                              ✦ {t("成果量化：", "Quantified result: ")}{item.impactMetric}
                             </div>
                           </div>
                         ))}
@@ -2486,12 +2492,12 @@ function AutopilotDemoWorkspace({
                             theme === "light" ? "text-slate-900" : "text-cyan-300"
                           }`}>
                             <BookmarkCheck className="w-4 h-4 text-cyan-500" />
-                            <span>Workday ATS 机器解析与单页 A4 版式体检</span>
+                            <span>{t("Workday ATS 机器解析与单页 A4 版式体检", "Workday ATS machine parsing and single-page A4 layout check")}</span>
                           </h3>
                           <span className={`text-[10px] font-bold ${
                             theme === "light" ? "text-emerald-700" : "text-emerald-400"
                           }`}>
-                            ✓ 工业标准校验通过
+                            ✓ {t("工业标准校验通过", "Passed industry-standard checks")}
                           </span>
                         </div>
 
@@ -2503,7 +2509,7 @@ function AutopilotDemoWorkspace({
                               {activeJob.atsMetrics.parseRate}%
                             </div>
                             <div className={`text-[10px] mt-1 ${theme === "light" ? "text-slate-600" : "text-slate-400"}`}>
-                              DOM 文本解析率
+                              {t("DOM 文本解析率", "DOM text parse rate")}
                             </div>
                           </div>
                           <div className={`p-3 rounded-xl border text-center ${
@@ -2513,7 +2519,7 @@ function AutopilotDemoWorkspace({
                               {activeJob.atsMetrics.pageFill}%
                             </div>
                             <div className={`text-[10px] mt-1 ${theme === "light" ? "text-slate-600" : "text-slate-400"}`}>
-                              A4 单页填充率 (零跨页)
+                              {t("A4 单页填充率 (零跨页)", "A4 single-page fill rate (no page break)")}
                             </div>
                           </div>
                           <div className={`p-3 rounded-xl border text-center ${
@@ -2523,7 +2529,7 @@ function AutopilotDemoWorkspace({
                               {activeJob.atsMetrics.keywordMatched}/{activeJob.atsMetrics.keywordTotal}
                             </div>
                             <div className={`text-[10px] mt-1 ${theme === "light" ? "text-slate-600" : "text-slate-400"}`}>
-                              核心关键词命中
+                              {t("核心关键词命中", "Core keyword hits")}
                             </div>
                           </div>
                         </div>
@@ -2532,10 +2538,10 @@ function AutopilotDemoWorkspace({
                           theme === "light" ? "bg-amber-50 border-amber-200 text-amber-950" : "bg-[#0B121C] border-[#1E2E42]"
                         }`}>
                           <div className={`font-bold ${theme === "light" ? "text-slate-900" : "text-slate-200"}`}>
-                            待补充隐性关键词：
+                            {t("待补充隐性关键词：", "Implicit keywords still to add: ")}
                           </div>
                           <div className={`font-mono ${theme === "light" ? "text-amber-800 font-semibold" : "text-amber-300"}`}>
-                            ⚠ {activeJob.atsMetrics.missingKeyword}（建议在「架构演进」段落自然植入）
+                            ⚠ {activeJob.atsMetrics.missingKeyword}{t("（建议在「架构演进」段落自然植入）", " (consider weaving it into the Architecture evolution section)")}
                           </div>
                         </div>
                       </div>
@@ -2551,12 +2557,12 @@ function AutopilotDemoWorkspace({
                             theme === "light" ? "text-slate-900" : "text-cyan-300"
                           }`}>
                             <ShieldCheck className="w-4 h-4 text-cyan-500" />
-                            <span>{activeJob.company} · 全网背调实证档案</span>
+                            <span>{activeJob.company} · {t("全网背调实证档案", "verified web background research file")}</span>
                           </h3>
                           <span className={`text-[10px] font-bold ${
                             theme === "light" ? "text-emerald-700" : "text-emerald-400"
                           }`}>
-                            裁判文书 / 工商 100% 真实核验
+                            {t("裁判文书 / 工商 100% 真实核验", "Court records / business registry 100% verified")}
                           </span>
                         </div>
 
@@ -2564,7 +2570,7 @@ function AutopilotDemoWorkspace({
                           <div className={`p-3 rounded-xl border ${
                             theme === "light" ? "bg-slate-50 border-slate-200" : "bg-black/40 border-white/10"
                           }`}>
-                            <span className={theme === "light" ? "text-slate-500" : "text-slate-400"}>注册资本 (实缴)：</span>
+                            <span className={theme === "light" ? "text-slate-500" : "text-slate-400"}>{t("注册资本 (实缴)：", "Registered capital (paid-in): ")}</span>
                             <div className={`font-bold mt-1 ${theme === "light" ? "text-slate-900" : "text-white"}`}>
                               {activeJob.triageDossier.regCapital}
                             </div>
@@ -2572,7 +2578,7 @@ function AutopilotDemoWorkspace({
                           <div className={`p-3 rounded-xl border ${
                             theme === "light" ? "bg-slate-50 border-slate-200" : "bg-black/40 border-white/10"
                           }`}>
-                            <span className={theme === "light" ? "text-slate-500" : "text-slate-400"}>历史劳动仲裁：</span>
+                            <span className={theme === "light" ? "text-slate-500" : "text-slate-400"}>{t("历史劳动仲裁：", "Past labor arbitration: ")}</span>
                             <div className={`font-bold mt-1 ${theme === "light" ? "text-emerald-700" : "text-emerald-400"}`}>
                               {activeJob.triageDossier.laborDisputes}
                             </div>
@@ -2585,7 +2591,7 @@ function AutopilotDemoWorkspace({
                             : "bg-emerald-950/25 border-emerald-500/30 text-emerald-200"
                         }`}>
                           <div className={`font-bold mb-1 ${theme === "light" ? "text-emerald-800" : "text-emerald-400"}`}>
-                            ✓ WLB 现员工实证：
+                            ✓ {t("WLB 现员工实证：", "WLB evidence from current employees: ")}
                           </div>
                           <p>{activeJob.triageDossier.wlbVerification}</p>
                         </div>
@@ -2596,7 +2602,7 @@ function AutopilotDemoWorkspace({
                             : "bg-cyan-950/25 border-cyan-500/30 text-cyan-200"
                         }`}>
                           <div className={`font-bold mb-1 ${theme === "light" ? "text-cyan-800" : "text-cyan-400"}`}>
-                            ✦ AI 决胜结论：
+                            ✦ {t("AI 决胜结论：", "AI verdict: ")}
                           </div>
                           <p>{activeJob.triageDossier.agentVerdict}</p>
                         </div>
@@ -2613,25 +2619,25 @@ function AutopilotDemoWorkspace({
                             theme === "light" ? "text-slate-900" : "text-cyan-300"
                           }`}>
                             <Activity className="w-4 h-4 text-cyan-500" />
-                            <span>假设模拟：按税前总包的 88%、每年工作 50 周折算</span>
+                            <span>{t("假设模拟：按税前总包的 88%、每年工作 50 周折算", "Simulated assumption: 88% of the pre-tax package, 50 working weeks a year")}</span>
                           </h3>
                           <span className={`text-[10px] font-bold ${
                             theme === "light" ? "text-amber-800" : "text-amber-300"
                           }`}>
-                            拒接 996 伪高薪
+                            {t("拒接 996 伪高薪", "Decline 996 pseudo-high pay")}
                           </span>
                         </div>
 
                         <div
                           style={{
-                            backgroundColor: theme === "light" ? "#F8FAFC" : "#090E17",
-                            borderColor: theme === "light" ? "#CBD5E1" : "rgba(34, 211, 238, 0.3)",
+                            backgroundColor: "var(--ap-tone-38)",
+                            borderColor: "var(--ap-tone-39)",
                           }}
                           className="p-4 rounded-xl border flex items-center justify-between"
                         >
                           <div>
                             <div className={`text-[10px] ${theme === "light" ? "text-slate-600" : "text-slate-400"}`}>
-                              折算真实净时薪 (税后+公积金 / 真实年工时)
+                              {t("折算真实净时薪 (税后+公积金 / 真实年工时)", "Real net hourly rate (after tax + housing fund / real annual hours)")}
                             </div>
                             <div className={`text-3xl font-black mt-1 ${
                               theme === "light" ? "text-amber-600" : "text-amber-400"
@@ -2645,10 +2651,10 @@ function AutopilotDemoWorkspace({
                                 ? "bg-emerald-100 text-emerald-900 border-emerald-300"
                                 : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
                             }`}>
-                              WLB S+ 级别
+                              {t("WLB S+ 级别", "WLB S+ tier")}
                             </span>
                             <div className={`text-[10px] mt-1 ${theme === "light" ? "text-slate-600" : "text-slate-400"}`}>
-                              非实际到手收入或岗位待遇承诺
+                              {t("非实际到手收入或岗位待遇承诺", "Not actual take-home pay or a promise of job benefits")}
                             </div>
                           </div>
                         </div>
@@ -2659,9 +2665,9 @@ function AutopilotDemoWorkspace({
                             <div className={`flex justify-between mb-1 ${
                               theme === "light" ? "text-slate-700 font-bold" : "text-slate-300"
                             }`}>
-                              <span>月薪 Base: {simBaseK}k</span>
+                              <span>{t(`月薪 Base: ${simBaseK}k`, `Monthly base: ${simBaseK}k`)}</span>
                               <span className={theme === "light" ? "text-cyan-800" : "text-cyan-400"}>
-                                年总包: ¥{simBaseK * simMonths}k
+                                {t(`年总包: ¥${simBaseK * simMonths}k`, `Annual package: ¥${simBaseK * simMonths}k`)}
                               </span>
                             </div>
                             <input
@@ -2678,9 +2684,9 @@ function AutopilotDemoWorkspace({
                             <div className={`flex justify-between mb-1 ${
                               theme === "light" ? "text-slate-700 font-bold" : "text-slate-300"
                             }`}>
-                              <span>年终月数: {simMonths} 薪</span>
+                              <span>{t(`年终月数: ${simMonths} 薪`, `Bonus months: ${simMonths}`)}</span>
                               <span className={theme === "light" ? "text-cyan-800" : "text-cyan-400"}>
-                                {simMonths >= 15 ? "外企弹性" : "基准"}
+                                {simMonths >= 15 ? t("外企弹性", "Flexible (foreign firm)") : t("基准", "Baseline")}
                               </span>
                             </div>
                             <input
@@ -2697,9 +2703,9 @@ function AutopilotDemoWorkspace({
                             <div className={`flex justify-between mb-1 ${
                               theme === "light" ? "text-slate-700 font-bold" : "text-slate-300"
                             }`}>
-                              <span>每周真实工作时长: {simWeeklyHours} 小时/周</span>
+                              <span>{t(`每周真实工作时长: ${simWeeklyHours} 小时/周`, `Real weekly working hours: ${simWeeklyHours} h/week`)}</span>
                               <span className={theme === "light" ? "text-emerald-700" : "text-emerald-400"}>
-                                16:30 准点下班
+                                {t("16:30 准点下班", "Off at 16:30 sharp")}
                               </span>
                             </div>
                             <input
@@ -2728,14 +2734,14 @@ function AutopilotDemoWorkspace({
                               theme === "light" ? "text-slate-900" : "text-cyan-300"
                             }`}>
                               <Layers className="w-4 h-4 text-cyan-500" />
-                              <span>内置微应用 · 手工选择预设</span>
+                              <span>{t("内置微应用 · 手工选择预设", "Built-in micro-apps · pick a preset manually")}</span>
                             </h3>
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                               theme === "light"
                                 ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
                                 : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                             }`}>
-                              不调用模型
+                              {t("不调用模型", "No model call")}
                             </span>
                           </div>
 
@@ -2744,19 +2750,19 @@ function AutopilotDemoWorkspace({
                             <span className={`px-2 py-0.5 rounded border ${
                               theme === "light" ? "bg-slate-100 text-slate-700 border-slate-300" : "bg-white/5 text-slate-300 border-white/10"
                             }`}>
-                              ① 核对内置模板
+                              {t("① 核对内置模板", "1. Check the built-in template")}
                             </span>
                             <span className="text-slate-400">➔</span>
                             <span className={`px-2 py-0.5 rounded border ${
                               theme === "light" ? "bg-cyan-50 text-cyan-800 border-cyan-300" : "bg-cyan-950/40 text-cyan-300 border-cyan-500/30"
                             }`}>
-                              ② 宿主编译与回执
+                              {t("② 宿主编译与回执", "2. Host compiles and returns a receipt")}
                             </span>
                             <span className="text-slate-400">➔</span>
                             <span className={`px-2 py-0.5 rounded border ${
                               theme === "light" ? "bg-amber-50 text-amber-800 border-amber-300" : "bg-amber-950/40 text-amber-300 border-amber-500/30"
                             }`}>
-                              ③ 你批准后打开
+                              {t("③ 你批准后打开", "3. Opens after you approve")}
                             </span>
                           </div>
                         </div>
@@ -2770,7 +2776,7 @@ function AutopilotDemoWorkspace({
                           }`}>
                             <Loader2 className="w-4 h-4 animate-spin text-cyan-500 shrink-0" />
                             <div className="text-xs font-mono">
-                              <div className="font-bold">正在等待内置预设构建回执</div>
+                              <div className="font-bold">{t("正在等待内置预设构建回执", "Waiting for the built-in preset build receipt")}</div>
                               <div className="text-[11px] opacity-80 mt-0.5">{buildingStep}</div>
                             </div>
                           </div>
@@ -2812,7 +2818,7 @@ function AutopilotDemoWorkspace({
                                         {isInstalled && (
                                           <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
                                             <CheckCircle2 size={11} />
-                                            {installedApp?.pinnedToDock ? "已固定到 Dock" : "已安装"}
+                                            {installedApp?.pinnedToDock ? t("已固定到 Dock", "Pinned to Dock") : t("已安装", "Installed")}
                                           </span>
                                         )}
                                       </div>
@@ -2830,7 +2836,7 @@ function AutopilotDemoWorkspace({
                                           onClick={() => handleOpenInstalledApp(installedApp)}
                                           className="px-2.5 py-1 rounded-lg text-xs font-bold bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 hover:brightness-110 shadow flex items-center gap-1"
                                         >
-                                          <span>唤起沙箱 ➔</span>
+                                          <span>{t("唤起沙箱", "Launch sandbox")} ➔</span>
                                         </button>
                                         <button
                                           type="button"
@@ -2841,9 +2847,9 @@ function AutopilotDemoWorkspace({
                                               ? "border-slate-300 text-slate-600 hover:bg-slate-100"
                                               : "border-white/10 text-slate-400 hover:bg-white/10"
                                           }`}
-                                          title="请宿主重新核对并编译内置模板"
+                                          title={t("请宿主重新核对并编译内置模板", "Ask the host to re-check and compile the built-in template")}
                                         >
-                                          重新构建
+                                          {t("重新构建", "Rebuild")}
                                         </button>
                                       </>
                                     ) : (
@@ -2856,12 +2862,12 @@ function AutopilotDemoWorkspace({
                                         {isCompilingThis ? (
                                           <>
                                             <Loader2 size={12} className="animate-spin" />
-                                            <span>等待宿主回执…</span>
+                                            <span>{t("等待宿主回执…", "Waiting for the host receipt…")}</span>
                                           </>
                                         ) : (
                                           <>
                                             <Zap size={12} />
-                                            <span>编译并审阅权限 ➔</span>
+                                            <span>{t("编译并审阅权限", "Compile and review permissions")} ➔</span>
                                           </>
                                         )}
                                       </button>
@@ -2872,7 +2878,7 @@ function AutopilotDemoWorkspace({
                                 {/* 权限范围标签 */}
                                 <div className="mt-2 pt-2 border-t flex items-center gap-1.5 flex-wrap text-[10px] font-mono opacity-80 border-black/5 dark:border-white/5">
                                   <Lock size={10} className="text-cyan-500" />
-                                  <span className="text-slate-500 dark:text-slate-400">授权边界:</span>
+                                  <span className="text-slate-500 dark:text-slate-400">{t("授权边界:", "Authorization boundary:")}</span>
                                   {tmpl.grantedScopes.map((scope) => (
                                     <span
                                       key={scope}
@@ -2886,7 +2892,7 @@ function AutopilotDemoWorkspace({
                                     </span>
                                   ))}
                                   <span className="ml-auto text-[10px] text-emerald-600 dark:text-emerald-400">
-                                    运行于隔离 iframe
+                                    {t("运行于隔离 iframe", "Runs in an isolated iframe")}
                                   </span>
                                 </div>
                               </div>
@@ -2905,7 +2911,7 @@ function AutopilotDemoWorkspace({
                       }`}>
                         <div className="flex items-center justify-between">
                           <span className={`font-bold ${theme === "light" ? "text-slate-900" : "text-white"}`}>
-                            #{activeNode.code} {activeNode.name} 运行时状态
+                            #{activeNode.code} {activeNode.name} {t("运行时状态", "runtime status")}
                           </span>
                           <span className={`px-2 py-0.5 rounded text-[10px] ${
                             theme === "light"
@@ -2934,8 +2940,8 @@ function AutopilotDemoWorkspace({
               {/* 控制台底部状态栏 */}
               <div
                 style={{
-                  backgroundColor: theme === "light" ? "#F1F5F9" : "#0B111A",
-                  borderColor: theme === "light" ? "#CBD5E1" : "#1B2A3D",
+                  backgroundColor: "var(--ap-tone-35)",
+                  borderColor: "var(--ap-tone-36)",
                 }}
                 className="h-8 px-4 border-t flex items-center justify-between font-mono text-[10px] text-slate-400 shrink-0"
               >
@@ -2970,10 +2976,10 @@ function AutopilotDemoWorkspace({
                   theme === "light" ? "text-slate-900" : "text-white"
                 }`}>
                   <Orbit className="w-4 h-4 text-cyan-500" />
-                  <span>3D 机会金库 · 立体背调卡册 ({collected3DJobs.length})</span>
+                  <span>{t(`3D 机会金库 · 立体背调卡册 (${collected3DJobs.length})`, `3D opportunity vault · research card album (${collected3DJobs.length})`)}</span>
                 </h2>
                 <p className={`text-[11px] ${theme === "light" ? "text-slate-600" : "text-slate-400"}`}>
-                  支持鼠标悬停 3D 拟真光影与 180° 翻转背调签章；每一张卡片均加盖当前所选 AI Agent 专属实证印章。
+                  {t("支持鼠标悬停 3D 拟真光影与 180° 翻转背调签章；每一张卡片均加盖当前所选 AI Agent 专属实证印章。", "Hover for realistic 3D lighting and flip a card 180° to see its research seal; every card carries the stamp of the currently selected AI Agent.")}
                 </p>
               </div>
 
@@ -2986,13 +2992,13 @@ function AutopilotDemoWorkspace({
                       : "bg-white/[0.05] border-white/10 text-slate-300 hover:text-white"
                   }`}
                 >
-                  {space3DLayout === "grid" ? "切换 3D 环视轮播" : "切换 2x2 网格"}
+                  {space3DLayout === "grid" ? t("切换 3D 环视轮播", "Switch to 3D carousel") : t("切换 2x2 网格", "Switch to 2x2 grid")}
                 </button>
                 <button
                   onClick={() => setWorkspaceMode("studio")}
                   className="px-3 py-1 rounded-lg text-xs font-mono font-bold bg-cyan-500 text-slate-950 hover:bg-cyan-400 shadow"
                 >
-                  返回 20-Node 工坊
+                  {t("返回 20-Node 工坊", "Back to the 20-Node studio")}
                 </button>
               </div>
             </div>
@@ -3008,12 +3014,12 @@ function AutopilotDemoWorkspace({
                   onToggleFlip={() => setFlipped3DMap((p) => ({ ...p, [j.id]: !p[j.id] }))}
                   onChangeStage={(id, st) => {
                     setJobs((prev) => prev.map((item) => (item.id === id ? { ...item, stage3D: st } : item)));
-                    triggerToast(`✦ 阶段更新：${st}`, `「${j.shortName}」已推进至 ${st}`);
+                    triggerToast(t(`✦ 阶段更新：${st}`, `Stage updated: ${stageLabel(st, t)}`), t(`「${j.shortName}」已推进至 ${st}`, `${j.shortName} moved to ${stageLabel(st, t)}`));
                   }}
                   onInspectInStudio={(id) => {
                     setActiveJobId(id);
                     setWorkspaceMode("studio");
-                    triggerToast(`✦ 载入工坊：${j.company}`, "已展开深度工件与执行树");
+                    triggerToast(t(`✦ 载入工坊：${j.company}`, `Studio loaded: ${j.company}`), t("已展开深度工件与执行树", "Artifacts and run tree expanded"));
                   }}
                   theme={theme}
                 />
@@ -3028,8 +3034,8 @@ function AutopilotDemoWorkspace({
          ==================================================================== */}
       <footer
         style={{
-          backgroundColor: theme === "light" ? "#FFFFFF" : "#070B11",
-          borderColor: theme === "light" ? "#CBD5E1" : "#1A2636",
+          backgroundColor: "var(--ap-tone-34)",
+          borderColor: "var(--ap-tone-40)",
           boxShadow: theme === "light" ? "0 -2px 10px rgba(0,0,0,0.03)" : undefined,
         }}
         className="relative z-30 px-4 py-2 border-t flex items-center justify-between gap-4 shrink-0 font-mono text-xs select-none"
@@ -3067,7 +3073,7 @@ function AutopilotDemoWorkspace({
                     : "text-slate-400 hover:text-white"
               }`}
             >
-              20-Node 工坊
+              {t("20-Node 工坊", "20-Node studio")}
             </button>
             <button
               onClick={() => setWorkspaceMode("space3d")}
@@ -3079,7 +3085,7 @@ function AutopilotDemoWorkspace({
                     : "text-slate-400 hover:text-white"
               }`}
             >
-              3D 机会金库 ({collected3DJobs.length})
+              {t(`3D 机会金库 (${collected3DJobs.length})`, `3D opportunity vault (${collected3DJobs.length})`)}
             </button>
             <button
               type="button"
@@ -3087,7 +3093,7 @@ function AutopilotDemoWorkspace({
                 if (typeof window !== "undefined" && (window as any).desktopApi?.toggleStarPrompterHud) {
                   (window as any).desktopApi.toggleStarPrompterHud();
                 } else {
-                  triggerToast("🎙 STAR 提词 HUD", "桌面端专享：全局置顶、毛玻璃半透明、多屏跟随悬浮提词窗 (快捷键 ⌘+Shift+H)");
+                  triggerToast(t("🎙 STAR 提词 HUD", "STAR prompter HUD"), t("桌面端专享：全局置顶、毛玻璃半透明、多屏跟随悬浮提词窗 (快捷键 ⌘+Shift+H)", "Desktop only: an always-on-top, frosted translucent prompter window that follows you across screens (shortcut ⌘+Shift+H)"));
                 }
               }}
               className={`px-2.5 py-1 rounded text-[10.5px] font-bold flex items-center gap-1.5 transition ${
@@ -3095,10 +3101,10 @@ function AutopilotDemoWorkspace({
                   ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
                   : "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
               }`}
-              title="切换/呼出 STAR 面试全局置顶提词 HUD 悬浮窗 (桌面端快捷键 ⌘+Shift+H)"
+              title={t("切换/呼出 STAR 面试全局置顶提词 HUD 悬浮窗 (桌面端快捷键 ⌘+Shift+H)", "Toggle the always-on-top STAR interview prompter HUD (desktop shortcut ⌘+Shift+H)")}
             >
               <Mic className="w-3 h-3 text-emerald-500" />
-              <span>STAR 提词 HUD</span>
+              <span>{t("STAR 提词 HUD", "STAR prompter HUD")}</span>
             </button>
           </div>
         </div>
@@ -3116,7 +3122,7 @@ function AutopilotDemoWorkspace({
                   ? "bg-slate-100 border-slate-300 hover:bg-slate-200 text-slate-700"
                   : "bg-white/[0.05] border-white/10 hover:bg-white/10 text-slate-300"
               }`}
-              title="上一步"
+              title={t("上一步", "Previous")}
             >
               <SkipBack className="w-3.5 h-3.5" />
             </button>
@@ -3124,7 +3130,7 @@ function AutopilotDemoWorkspace({
             <button
               onClick={() => setAutoLoopPlaying((p) => !p)}
               disabled={!runtimeReady}
-              title={runtimeReady ? "仅预览工序，不执行真实任务" : "请先在系统设置中配置可用 Agent"}
+              title={runtimeReady ? t("仅预览工序，不执行真实任务", "Preview the process only; no real task is run") : t("请先在系统设置中配置可用 Agent", "Configure an available Agent in System settings first")}
               className={`px-3 py-1 rounded-lg font-bold flex items-center gap-1.5 transition disabled:opacity-50 disabled:cursor-not-allowed ${
                 autoLoopPlaying
                   ? "bg-amber-400 text-slate-950 shadow"
@@ -3134,7 +3140,7 @@ function AutopilotDemoWorkspace({
               }`}
             >
               {autoLoopPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-              <span>{!runtimeReady ? "Agent 未就绪" : autoLoopPlaying ? "预览中" : "播放工序"}</span>
+              <span>{!runtimeReady ? t("Agent 未就绪", "Agent not ready") : autoLoopPlaying ? t("预览中", "Previewing") : t("播放工序", "Play process")}</span>
             </button>
 
             <button
@@ -3147,7 +3153,7 @@ function AutopilotDemoWorkspace({
                   ? "bg-slate-100 border-slate-300 hover:bg-slate-200 text-slate-700"
                   : "bg-white/[0.05] border-white/10 hover:bg-white/10 text-slate-300"
               }`}
-              title="下一步"
+              title={t("下一步", "Next")}
             >
               <SkipForward className="w-3.5 h-3.5" />
             </button>
@@ -3163,7 +3169,7 @@ function AutopilotDemoWorkspace({
                   : "bg-white/[0.05] text-slate-400 border-white/10"
             }`}
           >
-            履带旋转: {conveyorShiftMode ? "ON" : "OFF"}
+            {t("履带旋转: ", "Conveyor rotation: ")}{conveyorShiftMode ? "ON" : "OFF"}
           </button>
 
           {/* 沙箱微应用挂载提示 */}
@@ -3173,7 +3179,7 @@ function AutopilotDemoWorkspace({
               : "bg-[#0E1724] border-[#1E2E42] text-slate-300"
           }`}>
             <Layers className="w-3 h-3 text-cyan-500" />
-            <span>已安装微应用 ({installedMicroApps.length})</span>
+            <span>{t(`已安装微应用 (${installedMicroApps.length})`, `Installed micro-apps (${installedMicroApps.length})`)}</span>
           </div>
         </div>
       </footer>

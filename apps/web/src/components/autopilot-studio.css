@@ -1152,3 +1152,89 @@
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-4px); }
 }
+
+/* Theme tones for the Autopilot diagrams and cards; these light/dark pairs used to be inline isLight ternaries in the component. */
+.studio-workshop {
+  --ap-tone-1: #0B131E;
+  --ap-tone-2: #334155;
+  --ap-tone-3: #131E2E;
+  --ap-tone-4: #F8FAFC;
+  --ap-tone-5: #0A121C;
+  --ap-tone-6: #94A3B8;
+  --ap-tone-7: #0F1B29;
+  --ap-tone-8: #0A121E;
+  --ap-tone-9: #64748B;
+  --ap-tone-10: #0C1624;
+  --ap-tone-11: #E2E8F0;
+  --ap-tone-12: #38BDF8;
+  --ap-tone-13: rgba(56,189,248,0.22);
+  --ap-tone-14: #10B981;
+  --ap-tone-15: #334155;
+  --ap-tone-16: #0C1522;
+  --ap-tone-17: rgba(168, 85, 247, 0.25);
+  --ap-tone-18: #C084FC;
+  --ap-tone-19: #F59E0B;
+  --ap-tone-20: #E2E8F0;
+  --ap-tone-21: #C084FC;
+  --ap-tone-22: #1E293B;
+  --ap-tone-23: #223247;
+  --ap-tone-24: #0B121C;
+  --ap-tone-25: #FFF;
+  --ap-tone-26: rgba(11, 17, 26, 0.88);
+  --ap-tone-27: rgba(8, 13, 21, 0.96);
+  --ap-tone-28: #05080D;
+  --ap-tone-29: rgba(148, 163, 184, 0.11);
+  --ap-tone-30: rgba(30, 41, 59, 0.18);
+  --ap-tone-31: #0A1018;
+  --ap-tone-32: #1E2E42;
+  --ap-tone-33: #1E2D40;
+  --ap-tone-34: #070B11;
+  --ap-tone-35: #0B111A;
+  --ap-tone-36: #1B2A3D;
+  --ap-tone-37: #05090F;
+  --ap-tone-38: #090E17;
+  --ap-tone-39: rgba(34, 211, 238, 0.3);
+  --ap-tone-40: #1A2636;
+}
+.studio-workshop[data-theme="light"] {
+  --ap-tone-1: #FFFFFF;
+  --ap-tone-2: #94A3B8;
+  --ap-tone-3: #EFF6FF;
+  --ap-tone-4: #0F172A;
+  --ap-tone-5: #FFFFFF;
+  --ap-tone-6: #334155;
+  --ap-tone-7: #EFF6FF;
+  --ap-tone-8: #FFFFFF;
+  --ap-tone-9: #94A3B8;
+  --ap-tone-10: #FFFFFF;
+  --ap-tone-11: #334155;
+  --ap-tone-12: #0284C7;
+  --ap-tone-13: rgba(2,132,199,0.18);
+  --ap-tone-14: #059669;
+  --ap-tone-15: #CBD5E1;
+  --ap-tone-16: #FFFFFF;
+  --ap-tone-17: rgba(168, 85, 247, 0.12);
+  --ap-tone-18: #9333EA;
+  --ap-tone-19: #D97706;
+  --ap-tone-20: #1E293B;
+  --ap-tone-21: #7E22CE;
+  --ap-tone-22: #CBD5E1;
+  --ap-tone-23: #CBD5E1;
+  --ap-tone-24: #FFFFFF;
+  --ap-tone-25: #047857;
+  --ap-tone-26: rgba(255, 255, 255, 0.96);
+  --ap-tone-27: rgba(255, 255, 255, 0.98);
+  --ap-tone-28: #F4F6F8;
+  --ap-tone-29: rgba(71, 85, 105, 0.12);
+  --ap-tone-30: rgba(226, 232, 240, 0.65);
+  --ap-tone-31: #FFFFFF;
+  --ap-tone-32: #E2E8F0;
+  --ap-tone-33: #CBD5E1;
+  --ap-tone-34: #FFFFFF;
+  --ap-tone-35: #F1F5F9;
+  --ap-tone-36: #CBD5E1;
+  --ap-tone-37: #F8FAFC;
+  --ap-tone-38: #F8FAFC;
+  --ap-tone-39: #CBD5E1;
+  --ap-tone-40: #CBD5E1;
+}

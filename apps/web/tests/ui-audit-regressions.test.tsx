@@ -254,6 +254,25 @@ test("F23: recovery archive uses shared surface tokens without inline legacy col
   assert.match(styles, /var\(--workspace-control-height/);
 });
 
+test("F23: autopilot light/dark colour pairs live in theme tokens defined for both themes", async () => {
+  const component = await readFile(new URL("../src/components/AutopilotStudioWorkspace.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../src/components/autopilot-studio.css", import.meta.url), "utf8");
+  assert.doesNotMatch(component, /(?<![!\w])(?:isLight|theme === "light")\s*\?\s*"(?:#[0-9A-Fa-f]{3,8}|rgba?\()[^"]*"\s*:\s*"(?:#[0-9A-Fa-f]{3,8}|rgba?\()/);
+  const used = new Set([...component.matchAll(/var\(--ap-tone-(\d+)\)/g)].map(match => match[1]));
+  assert.ok(used.size > 0);
+  const dark = styles.match(/\.studio-workshop \{([^}]*)\}/g)?.join("") ?? "";
+  const light = styles.match(/\.studio-workshop\[data-theme="light"\] \{([^}]*)\}/g)?.join("") ?? "";
+  for (const id of used) { assert.match(dark, new RegExp(`--ap-tone-${id}:`), `dark tone ${id}`); assert.match(light, new RegExp(`--ap-tone-${id}:`), `light tone ${id}`); }
+});
+test("F21: autopilot workspace labels, toasts and stage names are translated while stage values stay stable", async () => {
+  const component = await readFile(new URL("../src/components/AutopilotStudioWorkspace.tsx", import.meta.url), "utf8");
+  for (const text of ["End-to-end job-search automation studio", "Artifact inspector", "Configure models and tools in System settings", "Waiting for the built-in preset build receipt", "STAR prompter HUD", "Conveyor rotation: "]) assert.ok(component.includes(`"${text}"`), text);
+  assert.match(component, /stage3D: "ATS 核验通过"/, "stage values remain the stored Chinese identifiers");
+  assert.match(component, /stageLabel\(job\.stage3D, t\)/);
+  assert.match(component, /stageShort\(st, t\)/);
+  assert.doesNotMatch(component, /\{st\.slice\(0, 4\)\}/);
+  for (const bare of [/>\s*深度工件舱/, />\s*系统设置</, />\s*重新构建\s*</, /title="上一步"/, /title="下一步"/]) assert.doesNotMatch(component, bare);
+});
 test("F23: learning surfaces consume shared action and alert tokens, without touching paper", async () => {
   for (const name of ["growth-journey-workspace.css", "learning-path-workspace.css", "CareerStudioWorkspace.css"]) {
     const source = await readFile(new URL(`../src/components/${name}`, import.meta.url), "utf8");
