@@ -792,11 +792,21 @@
 .os-window.is-maximized .os-resize-handle { display: none !important; }
 
 /* Menubar & Menus Dynamic Acrylic Glass */
-.os-menubar {
-  background: color-mix(in srgb, var(--os-panel, #0b0e14) calc(var(--os-menu-opacity, 0.90) * 100%), transparent) !important;
-  backdrop-filter: blur(var(--os-menu-blur, 24px)) saturate(1.5) !important;
-  -webkit-backdrop-filter: blur(var(--os-menu-blur, 24px)) saturate(1.5) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14) !important;
+.os-menubar-system > .os-menubar {
+  --os-menubar-tint: #101923;
+  --os-menubar-opacity: clamp(0.60, calc(var(--os-menu-opacity, 0.90) * 0.68), 0.72);
+  color: #fff;
+  background: linear-gradient(180deg, #ffffff0a, #ffffff00), color-mix(in srgb, var(--os-menubar-tint) calc(var(--os-menubar-opacity) * 100%), transparent) !important;
+  backdrop-filter: blur(var(--os-menu-blur, 24px)) saturate(1.35) !important;
+  -webkit-backdrop-filter: blur(var(--os-menu-blur, 24px)) saturate(1.35) !important;
+  border-bottom: 1px solid #ffffff30 !important;
+  box-shadow: inset 0 1px 0 #ffffff26, 0 1px 0 #08111d40, 0 3px 12px #08111d1f;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .os-menubar-system > .os-menubar {
+    --os-menubar-opacity: 0.84;
+  }
 }
 
 .os-app-menu>nav {
