@@ -2,6 +2,8 @@
 
 ## 当前焦点
 
+2026-11-14 顶部灵动岛与服务状态：Host 在统一任务模型派送缝 `tasks/runtime.ts` 加每账号内存 `ModelUsageMeter`（`tasks/usage-meter.ts`），只读 `GET /api/v1/agent/usage`；直连模型 token 取自 provider usage_metadata，ChatGPT账号/本机CLI 只计调用并标 `metered:false`，不估算；按本地日期重置，Host 重启清零（`since` 标明）。Web `DynamicIsland`+`StatusDots`（SWR 30–60s，运行中3s）：代理=网络设置/探测，引擎=Agent Host健康+runtimes+vork，模型=今日真实调用成败（不发付费探测）。宿主类型/lint、计量2/2、Host runtime/task 182/182、桌面壳31/31、双端构建9/9、桌面22/22通过；847px 展开态CSS夹具截图已核对。未验：运行中的 Host 需重启才有新接口；真实登录页及macOS app未实测。继续沿agent-os。本轮必读附加：无。
+
 2026-11-14 菜单栏截图细化：本人再次强调参考整张截图最顶部的系统菜单。现按左右两块28px圆角玻璃胶囊实现，中间/整条header完全透明，保持34px总高度；仅DesktopShell菜单内容增加左右包裹，desktop.css改为约22.5%薄色层、6px默认模糊、暗轮廓/内高光，保留浅色壁纸白字对比及减少透明度降级。菜单结构回归、桌面构建、桌面测试均通过。1097×826/390×844真实CSS隔离夹具截图已核对分组/透底/无溢出；夹具不等于登录应用验收，浏览器缺中文字形，完整应用动态模块导入仍失败。Linux无法刷新/实测macOS BetterMe.app。下一步只需正常预览里确认真实菜单观感；继续沿agent-os，不新建分支。本轮必读附加：无。下文上一版整条磨砂方案已被本次替代。
 
 2026-11-14 菜单栏玻璃样式：按本人截图仅调整 `desktop.css` 中 `.os-menubar-system > .os-menubar`，改为深色半透明底、背景模糊、细高光边缘，保持白字对比度及现有尺寸/交互，下拉菜单与其他区域不变。此前预览修复已合并到 `agent-os`，临时分支已删除；本人要求后续直接在 `agent-os` 修改，不新建分支。本轮菜单栏回归、`pnpm desktop:build`、`pnpm test:desktop` 与 diff 检查通过。当前卡点：自动化浏览器主页面空白，隔离导入真实菜单栏组件也报动态模块加载失败，不能声称视觉已通过；Linux 无法刷新或实测 macOS BetterMe.app。下一步：在正常登录的预览里核对菜单栏玻璃效果，不扩展其他功能。本轮必读附加：无。以下历史停点保留。

@@ -62,6 +62,7 @@ import { handleSandboxCoding } from "./sandbox/coding-http.js";
 import { AgentTaskKernel } from "./kernel/service.js";
 import { createCareerTaskHandler } from "./tasks/http.js";
 import { createCareerTaskRuntimeResolver } from "./tasks/runtime.js";
+import { ModelUsageMeter } from "./tasks/usage-meter.js";
 import type { CareerTaskReasoner } from "./kernel/model-protocol.js";
 import { CareerStudio } from "./career-studio/service.js";
 import { createCareerStudioHttp } from "./career-studio/http.js";
@@ -201,7 +202,8 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       broker: new EvidenceBroker({ forbiddenRoots: [identityRoot, path.dirname(resolveCheckpointPath()),
         ...[opts.runsDirectory, opts.understandingDirectory, opts.chatGptDirectory].filter((value): value is string => Boolean(value))] }),
     });
-    const taskRuntime = createCareerTaskRuntimeResolver({ nativeTools, routing, chatGpt: provider, reasoner: opts.careerTaskReasoner,
+    const modelUsage = new ModelUsageMeter();
+  const taskRuntime = createCareerTaskRuntimeResolver({ nativeTools, routing, chatGpt: provider, usage: modelUsage, reasoner: opts.careerTaskReasoner,
       scan: async () => { await understandingRegistry.discoverExecutables(); } });
     // Studio's private ledger is opt-in. Ordinary resume/routing requests must
     // not create its stores or depend on its optional renderer/adapters.
@@ -251,6 +253,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       runManager: new AgentRunManager({ registry: runtimeRegistry, rootDirectory: path.join(root, "runs"), sandboxMode: opts.sandboxMode }),
       handleChatGpt: createChatGptHandler({ service: provider, allowedOrigins: opts.allowedOrigins, readBody, sendJson: jsonResponse }),
       handleRouting: createRoutingHandler({ service: routing, readBody, sendJson: jsonResponse }),
+  modelUsage,
       handleCareerTasks: createCareerTaskHandler({ ownerId:principal.id, service: careerTasks, readBody, sendJson: jsonResponse,
         resolveReasoner: async (runtime, lease, task, cancel) => {
           if (task.kind === "studio_analysis" || task.kind === "studio_committee") {
@@ -437,6 +440,7 @@ export function createAgentServer(opts: ServerOptions): http.Server {
         if (await handleCapabilities(req, res, pathname, capabilities, { session: capabilitySession(req.headers.cookie),
           valid: async () => (await identities.authenticate(req.headers.cookie))?.id === principal.id }, readBody, jsonResponse)) return;
       }
+      if (req.method === "GET" && pathname === "/api/v1/agent/usage") return jsonResponse(res, 200, { ownerId: principal.id, ...owner.modelUsage.snapshot() });
       if (req.method === "GET" && pathname === "/api/v1/agent/recovery") return jsonResponse(res, 200, { ownerId: principal.id, archives: await owner.recovery.list() });
       const recoveryDocument = pathname.match(/^\/api\/v1\/agent\/recovery\/([a-f0-9]{32})\/documents\/([a-zA-Z0-9_-]{1,100})$/);
       if (req.method === "GET" && recoveryDocument) return jsonResponse(res, 200, { ownerId: principal.id, document: await owner.recovery.document(recoveryDocument[1]!, recoveryDocument[2]!) });

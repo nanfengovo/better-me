@@ -7,6 +7,7 @@ import { DesktopWindow } from "./DesktopWindow";
 import { DesktopSettings } from "./DesktopSettings";
 import { DesktopAppMenu } from "./DesktopAppMenu";
 import { DesktopMenuBar } from "./DesktopMenuBar";
+import { DynamicIsland, StatusDots } from "./DynamicIsland";
 import { useDesktopWallpaper } from "../../lib/use-desktop-wallpaper";
 import { useInstalledMicroApps, type InstalledMicroApp } from "../../lib/micro-app-registry";
 import { SandboxedAppHost } from "../SandboxedAppHost";
@@ -93,7 +94,9 @@ export function DesktopShell({ children, page, onNavigate, onDesign, onHistory, 
         <button type="button" className="os-system-brand" onClick={() => navigate("resume")} aria-label={t("返回简历工作室", "Go to resume studio")}><ProductMark size={22} />BetterMe</button>
         <DesktopAppMenu page={page} title={settingsOpen ? t("系统设置", "System settings") : titles[page]} onNavigate={navigate} />
       </div>
+      <DynamicIsland />
       <div className="os-menubar-glass os-menubar-status">
+        <StatusDots />
         <div className="os-menu-shortcuts"><button type="button" data-onboarding="atlas" onClick={() => navigate("atlas")}><Globe size={13} />{t("地图", "Atlas")}</button><button type="button" onClick={() => setSettingsOpen(true)} aria-label={t("打开系统设置", "Open system settings")}><Settings2 size={14} /></button></div>
         <time dateTime={now.toISOString()}>{new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-US", { month: "short", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(now)}</time>
       </div>

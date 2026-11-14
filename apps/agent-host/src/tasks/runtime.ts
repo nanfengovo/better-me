@@ -10,14 +10,18 @@ import { NativeToolError } from "../native-tools/process.js";
 import type { AgentRouting } from "../routing/service.js";
 import type { ChatGptPlanService } from "../chatgpt/service.js";
 import { ChatGptError } from "../chatgpt/errors.js";
+import { providerTokenUsage, type ModelUsageEntry, type ModelUsageMeter, type ProviderTokenUsage } from "./usage-meter.js";
 
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+/** Side channel so provider token counts never enter durable task output. */
+const reportedUsage = new WeakMap<object, ProviderTokenUsage>();
 
 /** One task, one explicitly chosen runtime. SDK retries and routing fallbacks are
  * disabled: every subsequent dispatch must pass the task's own budget gate. */
 export function createCareerTaskRuntimeResolver(deps: {
   nativeTools: NativeAccountTools; routing: AgentRouting; scan: () => Promise<void>;
   chatGpt?: ChatGptPlanService;
+  usage?: ModelUsageMeter;
   /** Trusted offline test seam. HTTP cannot inject a reasoner. */
   reasoner?: (runtime: UnderstandingRuntime) => Promise<CareerTaskReasoner>;
 }) {
@@ -49,6 +53,8 @@ export function createCareerTaskRuntimeResolver(deps: {
     let preferred: string | undefined;
     let authorization: { id: string; fingerprint: string } | undefined;
     let chatGptAuthorization: string | undefined;
+    let usageLabel: string;
+    let usageKind: ModelUsageEntry["kind"];
     const accountCall = async <T>(action: () => Promise<T>) => {
       try { return await action(); }
       catch (error) { if (error instanceof ChatGptError) throw new NativeToolError(error.issue.code, error.issue.status ?? 502); throw error; }
@@ -65,6 +71,7 @@ export function createCareerTaskRuntimeResolver(deps: {
       if (!account) throw new NativeToolError("chatgpt_runtime_unavailable", 422);
       chatGptAuthorization = await accountCall(() => account.authorizationFingerprint(runtime.profileId));
       const pin = chatGptAuthorization;
+      usageLabel = `ChatGPT · ${runtime.model}`; usageKind = "chatgpt";
       runtimeFingerprint = hash(["owner-chatgpt-v1", runtime.profileId, runtime.model, pin]);
       reasoner = await adapter(runtimeFingerprint, async () => async (prompt, signal, phase, images, candidateSource, analysisContract) => {
         if (images?.length) throw new NativeToolError("task_images_not_supported", 422);
@@ -82,6 +89,7 @@ export function createCareerTaskRuntimeResolver(deps: {
       // Only an opaque digest survives in task state; runtime configuration and
       // credentials stay in this run's memory, never in the task JSON.
       runtimeFingerprint = hash(["configured-model-v1", settings]);
+      usageLabel = settings.model; usageKind = "model";
       reasoner = await adapter(runtimeFingerprint, async () => {
         if (deps.reasoner) return deps.reasoner(structuredClone(runtime));
         const model = buildModel(settings, { maxRetries: 0 });
@@ -99,12 +107,15 @@ export function createCareerTaskRuntimeResolver(deps: {
           });
           const text=typeof response.content === "string" ? response.content : response.content.filter(part => part.type === "text").map(part => "text" in part ? String(part.text) : "").join("\n");
           const finishReason=typeof response.response_metadata?.finish_reason==="string"?response.response_metadata.finish_reason:undefined;
-          return {text,finishReason};
+          const output={text,finishReason},usage=providerTokenUsage(response.usage_metadata);
+          if(usage)reportedUsage.set(output,usage);
+          return output;
         };
       });
     } else {
       await deps.scan();
       const selected = runtime.kind === "native" ? runtime.runtimeId : preferred!;
+      usageLabel = selected; usageKind = "native";
       const pin = await deps.nativeTools.authorizationFingerprint(selected, lease);
       authorization = { id: selected, fingerprint: pin };
       runtimeFingerprint = hash(["owner-native-v1", selected, pin, runtime.kind === "unified" ? runtime.expectedRevision : null]);
@@ -137,7 +148,11 @@ export function createCareerTaskRuntimeResolver(deps: {
       try{
         careerTaskProtocol(phase, candidateSource, analysisContract);
         signal.throwIfAborted(); await checkBinding();
-        const output = await inner(prompt, signal, phase, images, candidateSource, analysisContract);
+        const finishUsage = deps.usage?.begin(usageLabel, usageKind);
+        let output: Awaited<ReturnType<CareerTaskReasoner>>;
+        try { output = await inner(prompt, signal, phase, images, candidateSource, analysisContract); }
+        catch (error) { finishUsage?.({ ok: false }); throw error; }
+        finishUsage?.({ ok: true, usage: typeof output === "object" ? reportedUsage.get(output) : undefined });
         try {
           if(signal.aborted)throw new CareerTaskError("stale_task_turn",409);
           await checkBinding();
