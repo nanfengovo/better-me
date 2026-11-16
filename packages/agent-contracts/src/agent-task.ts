@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { InventoryProbeRequestSchema, InventoryProbeResultSchema } from "./career-inventory.js";
 import { ResumeCandidateResponseContractSchema, ResumeCandidateSourceBindingSchema, validateResumeCandidateBinding } from "./resume-candidate.js";
 export * from "./resume-candidate.js";
 import { WritingReplySchema, type WritingReply } from "@better-me/core/experience-writing";
@@ -160,11 +161,15 @@ export type StudioCommitteeTask=Omit<StudioAnalysisTask,"kind"|"request"|"result
 export const StudioCommitteeTaskSchema:z.ZodType<StudioCommitteeTask,z.ZodTypeDef,unknown>=conversationTaskRecord.omit({conversation:true,reply:true}).extend({
   kind:z.literal("studio_committee"),request:StudioCommitteeRequestSchema,result:CommitteeReportSchema.optional(),
 });
-export type AgentTask=CareerTask|ConversationTask|ProjectUnderstandingTask|JdMatchTask|MockInterviewTask|CoachGuidanceTask|JdIntakeTask|JdOcrTask|StudioAnalysisTask|StudioCommitteeTask|GrowthPracticeTask;
-export type AgentTaskCreate=import("./career-task.js").CareerTaskCreate|FreeChatTaskCreate|ExperienceRefineTaskCreate|ProjectUnderstandingTaskCreate|JdMatchTaskCreate|MockInterviewTaskCreate|CoachGuidanceTaskCreate|JdIntakeTaskCreate|JdOcrTaskCreate|StudioAnalysisTaskCreate|StudioCommitteeTaskCreate|GrowthPracticeTaskCreate;
-export const AgentTaskSchema=z.union([CareerTaskSchema,FreeChatTaskSchema,ExperienceRefineTaskSchema,ProjectUnderstandingTaskSchema,JdMatchTaskSchema,MockInterviewTaskSchema,CoachGuidanceTaskSchema,JdIntakeTaskSchema,JdOcrTaskSchema,StudioAnalysisTaskSchema,StudioCommitteeTaskSchema,GrowthPracticeTaskSchema]);
-export const AgentTaskCreateSchema=z.union([CareerTaskCreateSchema,FreeChatTaskCreateSchema,ExperienceRefineTaskCreateSchema,ProjectUnderstandingTaskCreateSchema,JdMatchTaskCreateSchema,MockInterviewTaskCreateSchema,CoachGuidanceTaskCreateSchema,JdIntakeTaskCreateSchema,JdOcrTaskCreateSchema,StudioAnalysisTaskCreateSchema,StudioCommitteeTaskCreateSchema,GrowthPracticeTaskCreateSchema]);
+export const InventoryTaskCreateSchema=JdIntakeTaskCreateSchema.extend({kind:z.literal("career_inventory"),request:InventoryProbeRequestSchema});
+export type InventoryTaskCreate=z.input<typeof InventoryTaskCreateSchema>;
+export type InventoryTask=Omit<JdIntakeTask,"kind"|"request"|"result"> & {kind:"career_inventory";request:z.infer<typeof InventoryProbeRequestSchema>;result?:z.infer<typeof InventoryProbeResultSchema>};
+export const InventoryTaskSchema:z.ZodType<InventoryTask,z.ZodTypeDef,unknown>=conversationTaskRecord.omit({conversation:true,reply:true}).extend({kind:z.literal("career_inventory"),request:InventoryProbeRequestSchema,result:InventoryProbeResultSchema.optional()});
+export type AgentTask=CareerTask|ConversationTask|ProjectUnderstandingTask|JdMatchTask|MockInterviewTask|CoachGuidanceTask|JdIntakeTask|JdOcrTask|StudioAnalysisTask|StudioCommitteeTask|GrowthPracticeTask|InventoryTask;
+export type AgentTaskCreate=import("./career-task.js").CareerTaskCreate|FreeChatTaskCreate|ExperienceRefineTaskCreate|ProjectUnderstandingTaskCreate|JdMatchTaskCreate|MockInterviewTaskCreate|CoachGuidanceTaskCreate|JdIntakeTaskCreate|JdOcrTaskCreate|StudioAnalysisTaskCreate|StudioCommitteeTaskCreate|GrowthPracticeTaskCreate|InventoryTaskCreate;
+export const AgentTaskSchema=z.union([CareerTaskSchema,FreeChatTaskSchema,ExperienceRefineTaskSchema,ProjectUnderstandingTaskSchema,JdMatchTaskSchema,MockInterviewTaskSchema,CoachGuidanceTaskSchema,JdIntakeTaskSchema,JdOcrTaskSchema,StudioAnalysisTaskSchema,StudioCommitteeTaskSchema,GrowthPracticeTaskSchema,InventoryTaskSchema]);
+export const AgentTaskCreateSchema=z.union([CareerTaskCreateSchema,FreeChatTaskCreateSchema,ExperienceRefineTaskCreateSchema,ProjectUnderstandingTaskCreateSchema,JdMatchTaskCreateSchema,MockInterviewTaskCreateSchema,CoachGuidanceTaskCreateSchema,JdIntakeTaskCreateSchema,JdOcrTaskCreateSchema,StudioAnalysisTaskCreateSchema,StudioCommitteeTaskCreateSchema,GrowthPracticeTaskCreateSchema,InventoryTaskCreateSchema]);
 export const AgentTaskRunSchema=CareerTaskRunSchema.extend({message:ChatMessageSchema.optional(),supplementConfirmed:z.literal(true).optional(),projectTurn:UnderstandingTurnSchema.optional(),interviewAction:z.enum(["answer","finish"]).optional()}).strict();
-export function isCareerTask(task:AgentTask):task is CareerTask{return !("kind" in task&&["free_chat","experience_refine","project_understanding","jd_match","mock_interview","career_coach","jd_intake","jd_ocr","studio_analysis","studio_committee","growth_practice"].includes(task.kind??""));}
+export function isCareerTask(task:AgentTask):task is CareerTask{return !task.kind || task.kind==="resume_tailor";}
 export function isConversationTask(task:AgentTask):task is ConversationTask{return task.kind==="free_chat"||task.kind==="experience_refine";}
 export function agentTaskSourceFingerprint(task:AgentTask){return isCareerTask(task)?task.resume.sourceFingerprint:task.sourceFingerprint;}

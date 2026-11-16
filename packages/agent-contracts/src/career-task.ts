@@ -43,11 +43,19 @@ export const CareerResumeSchema = z.object({ id, name: text(500), sourceFingerpr
   id, targetRef: target, originalText: text(12000),
 }).strict()).min(1).max(300) }).strict();
 export const CareerMaterialSchema = z.object({ id, label: text(300), text: text(64000), kind: z.enum(["user_statement", "source", "design"]) }).strict();
+export const WritingMaterialPlanSchema=z.object({
+  kind:z.literal("material_plan"),
+  selections:z.array(z.object({fieldId:id,include:z.boolean(),reason:text(2000),evidenceIds:z.array(id).min(1).max(40)}).strict()).min(1).max(300),
+  questions:z.array(z.object({id,fieldId:id,question:text(2000),evidenceIds:z.array(id).min(1).max(40)}).strict()).max(5),
+}).strict();
+export const WritingConfirmationSchema=z.object({planHash:id,selectedFieldIds:z.array(id).min(1).max(300),answers:z.array(z.object({questionId:id,text:text(4000)}).strict()).max(5),confirmed:z.literal(true)}).strict();
+export type WritingConfirmation=z.infer<typeof WritingConfirmationSchema>;
 export const CareerToolPolicySchema=z.object({allowBuild:z.boolean(),installedVersionIds:z.array(z.string().regex(/^tool_[a-f0-9]{32}$/)).max(20)}).strict();
 export const CareerToolArtifactSchema=z.object({versionId:z.string().regex(/^tool_[a-f0-9]{32}$/),recipeId:z.literal("material-lines-v1"),label:text(300),source:text(32000),sourceHash:z.string().regex(/^[a-f0-9]{64}$/),profile:z.literal("quickjs-wasm-json-v1"),status:z.literal("qualified"),testsPassed:z.number().int().positive(),testsTotal:z.number().int().positive(),createdAt:z.string()}).strict();
 export type CareerToolArtifact=z.infer<typeof CareerToolArtifactSchema>;
 export const CareerTaskCreateSchema = z.object({
   kind:z.literal("resume_tailor").optional(),
+  workflow:z.literal("text_v1").optional(),
   parentTaskId:id.optional(),rootScopeKey:id.optional(),
   workspaceKey: id, objective: text(12000), job: CareerJobSchema, resume: CareerResumeSchema,
   materials: z.array(CareerMaterialSchema).max(40).default([]),
@@ -85,6 +93,9 @@ export type CareerTaskDecision = z.infer<typeof CareerTaskDecisionSchema>;
 export type CareerTaskEvent = { sequence: number; at: string; kind: "created"|"started"|"model"|"tool_call"|"tool_result"|"decision"|"question"|"answer"|"draft"|"stopped"|"budget"|"receipt"|"fact"; detail: string };
 export type CareerTask = TaskLineage & {
   kind?:"resume_tailor";
+  workflow?:"text_v1";
+  writingPlan?:(z.infer<typeof WritingMaterialPlanSchema>&{hash:string});
+  writingConfirmation?:WritingConfirmation;
   id: string; ownerId: string; workspaceKey: string; objective: string; revision: number; status: CareerTaskStatus;
   createdAt: string; updatedAt: string; job: CareerTaskInput["job"]; resume: CareerTaskInput["resume"];
   materials: CareerTaskInput["materials"]; directories: {id:string;label:string}[]; runtimeBinding: CareerRuntimeBinding;
@@ -100,6 +111,8 @@ export const CareerTaskRunSchema = CareerTaskMutationSchema.extend({sourceFinger
 export const CareerTaskReceiptSchema = CareerTaskMutationSchema.extend({draftHash:id,versionId:id,receiptId:id.optional(),approvedPatchIds:z.array(id).min(1).max(100)}).strict();
 export const CareerTaskSchema: z.ZodType<CareerTask> = z.object({
   kind:z.literal("resume_tailor").optional(),
+  workflow:z.literal("text_v1").optional(),
+  writingPlan:WritingMaterialPlanSchema.extend({hash:id}).optional(),writingConfirmation:WritingConfirmationSchema.optional(),
   rootScopeKey:id.optional(),rootTaskId:id.optional(),parentTaskId:id.optional(),rootLedger:TaskRootLedgerSchema.optional(),
   id, ownerId:id, workspaceKey:id, objective:text(12000), revision:z.number().int().positive(), status:CareerTaskStatusSchema,
   createdAt:z.string(), updatedAt:z.string(), job:CareerJobSchema, resume:CareerResumeSchema, materials:z.array(CareerMaterialSchema),

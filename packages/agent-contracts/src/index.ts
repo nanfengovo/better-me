@@ -1,6 +1,7 @@
 import { z } from "zod";
 export * from "./chatgpt-plan.js";
 export * from "./social-login.js";
+export * from "./career-inventory.js";
 export * from "./agent-routing.js";
 
 /** JSON values accepted at process and persistence boundaries. */

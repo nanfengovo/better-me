@@ -92,6 +92,8 @@ export type Profile = z.infer<typeof ProfileSchema>;
 export const ResumeImportSourceSchema = z.object({
   fileName: z.string().min(1),
   importedAt: z.string().datetime(),
+  /** File metadata is a hint only; it is not the date the user says the contents cover. */
+  fileModifiedAt: z.string().datetime().optional(),
   rawText: z.string(),
   /** Model transcription is a review aid, not ground truth from the original image. */
   ocrText: z.string().optional(),
@@ -109,6 +111,11 @@ export const PersonalStatementSchema = z.object({
     excerpt: z.string().max(12000), label: z.string().max(500), kind: z.enum(["job", "resume", "user_statement", "source", "design"]),
   }).strict()).min(1).max(40),
   approvedAt: z.string().datetime(), supersedes: z.string().min(1).max(500).optional(),
+  inventoryBinding: z.object({
+    documentId: z.string().min(1).max(512), resumeId: z.string().min(1).max(512),
+    fingerprint: z.string().regex(/^[a-f0-9]{64}$/), groupId: z.string().min(1).max(512),
+    experienceId: z.string().min(1).max(512).optional(),
+  }).strict().optional(),
 }).strict();
 export type PersonalStatement = z.infer<typeof PersonalStatementSchema>;
 
