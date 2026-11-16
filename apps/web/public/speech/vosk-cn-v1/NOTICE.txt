@@ -1,0 +1,20 @@
+BetterMe local Mandarin dictation, asset set vosk-cn-v1
+
+vosk.js is the unmodified browser distribution of vosk-browser 0.0.8
+(npm: https://registry.npmjs.org/vosk-browser/-/vosk-browser-0.0.8.tgz).
+Project: https://github.com/lichess-org/vosk-browser
+Author: Ciaran O'Reilly. Based on the Vosk API, Kaldi and the WASM work of
+Denis Treskunov. See UPSTREAM-NOTICE.txt for full third-party notices,
+LICENSE-APACHE-2.0.txt, LICENSE-UUID.txt and the inline tslib license.
+Engine SHA-256: 29504515526e974f4cb053cf08811c4de5fb2a74007c0a5a957db50eaa8d5d0c
+
+small-cn-0.22.tar.gz contains the unmodified model files from Alpha Cephei's
+vosk-model-small-cn-0.22. Model and original evaluation README included.
+Source: https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip
+License as listed at https://alphacephei.com/vosk/models : Apache-2.0.
+BetterMe changed only the archive format and the top-level directory name.
+Upstream ZIP SHA-256: 3af8b0e7e0f835ae9d414ce5df580237a3cfb08d586c9fbbb0f7ff29ad5b14ba
+Shipped tar.gz SHA-256: 096ead2d82a3fb2568d0e583bb4b376b6fc26491fb65600b1838269d9864315a
+Reproduce from pinned inputs using scripts/pack-inventory-speech.py.
+
+capture.js is BetterMe's mono AudioWorklet, not part of the upstream library.

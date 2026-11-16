@@ -59,6 +59,7 @@ export function ResumeImportModal({
 
   const [dragActive, setDragActive] = useState(false);
   const [extracted, setExtracted] = useState<ExtractedFileResult | null>(null);
+  const fileDate = useRef<string | undefined>(undefined);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
 
@@ -142,6 +143,7 @@ export function ResumeImportModal({
   async function handleFileProcess(file: File) {
     if (isImporting) return;
     const operation = ++operationRef.current;
+    fileDate.current = Number.isFinite(file.lastModified) && file.lastModified > 0 ? new Date(file.lastModified).toISOString() : undefined;
     avatarOperationRef.current += 1;
     avatarChoiceRef.current = { value: null, changed: false };
     setIsExtracting(true);
@@ -330,7 +332,7 @@ export function ResumeImportModal({
     return {
       ...parsedFactBase,
       ...(extracted.fileType !== "json" ? {
-        importSource: { fileName: extracted.fileName, importedAt: new Date().toISOString(), rawText: extracted.rawText, ...(ocrText ? { ocrText } : {}), unparsedLines },
+        importSource: { fileName: extracted.fileName, importedAt: new Date().toISOString(), ...(fileDate.current ? { fileModifiedAt: fileDate.current } : {}), rawText: extracted.rawText, ...(ocrText ? { ocrText } : {}), unparsedLines },
       } : {}),
       profile: { ...parsedFactBase.profile, avatarUrl: avatarChoiceRef.current.changed ? avatarChoiceRef.current.value ?? undefined : customAvatar ?? parsedFactBase.profile.avatarUrl },
     };
@@ -927,7 +929,7 @@ export function ResumeImportModal({
                       disabled={isImporting}
                       className="flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2 shadow-xs transition"
                     >
-                      <span>{isImporting ? t("正在保存…", "Saving…") : t("确认替换简历并推荐岗位", "Replace resume and recommend jobs")}</span>
+                      <span>{isImporting ? t("正在保存…", "Saving…") : t("确认替换简历并选择下一步", "Replace resume and choose next step")}</span>
                       <ArrowRight className="h-3.5 w-3.5" />
                     </button>
                   </div>

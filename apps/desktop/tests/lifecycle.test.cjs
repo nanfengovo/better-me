@@ -26,7 +26,7 @@ async function desktop({ externalHost = false, packaged = false, foreignWeb = fa
     constructor() {
       super(); live.add(this); created.push(this);
       this.messages = [];
-      this.webContents = Object.assign(new EventEmitter(), { setWindowOpenHandler() {}, send: (...args) => this.messages.push(args), session: { setPermissionRequestHandler() {} } });
+      this.webContents = Object.assign(new EventEmitter(), { setWindowOpenHandler() {}, send: (...args) => this.messages.push(args), ipc: { handle() {}, on() {} }, session: { setPermissionCheckHandler() {}, setPermissionRequestHandler() {} } });
     }
     static getAllWindows() { return Array.from(live); }
     async loadURL(url) { this.url = url; }

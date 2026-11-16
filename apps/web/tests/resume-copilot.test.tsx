@@ -346,6 +346,28 @@ test("unified writing keeps its pending task and result when the resume page bec
   assert.match(dom.document.body.textContent ?? "", /换页后继续核对个人动作/);
   assert.equal((await repository.load("isolated-unified-writing"))?.tasks.at(-1)?.status, "completed");
 });
+test("opening a reviewed inventory field is navigation, including with proactive local questions enabled",async()=>{
+  const control=React.createRef<{openField:(field:WritingSource)=>void}>();
+  const seen:WritingSource[]=[];let calls=0,writes=0;
+  const {privateStorage}=await import("../src/lib/identity");
+  saveWritingSession(privateStorage,"betterme.writing.v1:test",{version:1,mode:"proactive",autoLocalModel:true,notes:[]});
+  const options={inventoryControl:control,onFocus:(f:WritingSource)=>seen.push(f),generate:async()=>{calls++;throw Error("navigation called a model");},
+    onApply:async()=>{writes++;return {ok:true,message:"unused"};}};
+  await render({...options,active:false}); // picker covers the resume until the handoff
+  assert.throws(()=>control.current!.openField({...source,text:"旧句"}),/已经变化/);
+  await act(async()=>control.current!.openField(source));await render(options);
+  assert.equal(dom.document.querySelector("blockquote")?.textContent,source.text);
+  assert.equal(dom.document.querySelector("textarea")?.value,"");assert.deepEqual(seen,[source]);
+  assert.equal(calls,0);assert.equal(writes,0);
+});
+test("a paused copilot does not resume or take a note when a strategy field is selected",async()=>{
+  const {privateStorage}=await import("../src/lib/identity");
+  saveWritingSession(privateStorage,"betterme.writing.v1:test",{version:1,mode:"paused",notes:[]});
+  const control=React.createRef<{openField:(field:WritingSource)=>void}>();
+  await render({inventoryControl:control,onFocus:()=>assert.fail("must not change focus")});
+  assert.throws(()=>control.current!.openField(source),/已暂停/);
+  assert.deepEqual(readWritingSession(privateStorage,"betterme.writing.v1:test").notes,[]);
+});
 test("explicit scan and local progressive questions never call a model without a click", async () => {
   let calls = 0;
   await render({ generate: async () => { calls++; return { questions: ["哪个接口？"], rationale: "需要场景", evidenceQuotes: [] }; } });

@@ -1,0 +1,29 @@
+.inventory-dialog{color:var(--ui-text,#172738);background:var(--color-panel,#fff);border:1px solid var(--color-line,#cdd7df);border-radius:18px;padding:0;margin:auto;width:min(660px,calc(100vw - 28px));max-height:min(86dvh,850px);box-shadow:0 22px 80px #13223730;overflow:auto;overflow-wrap:anywhere}
+.inventory-dialog::backdrop{background:#11223876}
+.inventory-dialog>header{display:flex;align-items:center;justify-content:space-between;padding:12px 24px 6px}
+.iv-eyebrow,.iv-actions,.iv-footer,.iv-options,.iv-steps,.iv-steps li,.inventory-dialog button{display:flex;gap:8px;align-items:center}
+.iv-eyebrow{color:var(--color-accent,#315c93);font-weight:650;font-size:.84rem}
+.iv-body{padding:4px clamp(15px,4vw,28px) 24px}
+.iv-body h2{font-size:clamp(1.3rem,4vw,1.7rem);line-height:1.3;font-weight:720;margin:16px 0 10px}
+.iv-body h3,.iv-row strong{font-weight:650}.iv-body p{line-height:1.55;margin:6px 0 11px;white-space:pre-wrap}
+.iv-steps{padding:0;margin:6px 0;list-style:none;flex-wrap:wrap;gap:6px 13px;font-size:.76rem}.iv-steps li{gap:4px;opacity:.68}.iv-steps li[aria-current]{opacity:1;font-weight:700;color:var(--color-accent,#315c93)}
+.iv-steps span,.iv-tag{font-size:.75rem;background:color-mix(in srgb,currentColor 8%,transparent);border-radius:5px;padding:2px 6px}
+.iv-context,.iv-row,.iv-options{border:1px solid var(--color-line,#cdd7df);border-radius:10px;padding:12px;margin:12px 0;min-width:0}
+.iv-context{background:color-mix(in srgb,var(--color-accent,#315c93) 5%,var(--color-panel,#fff))}.iv-context summary{cursor:pointer;font-weight:600}
+.iv-row>.iv-tag{margin-left:8px}.iv-row input,.iv-options input{margin-right:6px}.iv-field,.iv-row textarea{display:grid;gap:5px;margin:10px 0;width:100%}
+.inventory-dialog textarea,.inventory-dialog select,.inventory-dialog input:not([type=checkbox]){font:inherit;background:var(--color-panel,#fff);color:inherit;border:1px solid var(--color-line,#b1bfcd);border-radius:8px;padding:8px;max-width:100%;min-height:44px}
+.inventory-dialog textarea{width:100%;min-height:84px;resize:vertical}.iv-actions,.iv-options,.iv-footer{flex-wrap:wrap}.iv-actions{margin-top:16px}
+.inventory-dialog button,.iv-invite button{font:inherit;font-size:.86rem;min-height:44px;padding:7px 12px;justify-content:center;background:transparent;color:inherit;border:1px solid var(--color-line,#cdd7df);border-radius:8px;cursor:pointer}
+.inventory-dialog button:disabled{opacity:.5;cursor:default}.inventory-dialog .iv-primary,.iv-invite .iv-primary{background:var(--color-accent,#315c93);color:var(--color-on-accent,white);border-color:transparent}
+.iv-footer{justify-content:space-between;margin-top:16px;border-top:1px solid var(--color-line,#ccd7df);padding-top:10px}
+.iv-error{padding:10px;border-left:3px solid #c17b40}.iv-error button{display:inline-flex}.iv-body :focus-visible,.iv-invite :focus-visible{outline:3px solid var(--color-accent,#336aac);outline-offset:2px}
+.iv-invite{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 15px;border:1px solid var(--color-line,#ccd7df);background:var(--color-panel,#fff);border-radius:12px}
+.iv-invite strong{margin-right:auto}.iv-body blockquote{white-space:pre-wrap;border-left:2px solid var(--color-accent,#315c93);padding-left:10px}
+.iv-eyebrow,.iv-steps li[aria-current]{color:var(--ui-accent,#285b44)}
+.iv-voice{display:flex;align-items:center;gap:5px 10px;flex-wrap:wrap;margin:3px 0 14px}.iv-voice small{color:var(--ui-text-secondary,currentColor);font-size:.8rem}.iv-voice small:empty{display:none}.iv-voice .iv-actions{margin:0}
+.iv-voice-hold{touch-action:none;user-select:none;-webkit-user-select:none}.iv-voice-hold[aria-pressed=true]{background:var(--ui-accent-soft,#e7efdf);border-color:var(--ui-accent,#285b44)}
+.iv-review-marks{display:flex;align-items:center;flex-wrap:wrap;gap:6px;flex-basis:100%;min-width:0}
+.iv-review-marks button{font-size:.8rem;max-width:100%;overflow-wrap:anywhere}.iv-review-marks summary{cursor:pointer;padding:10px 0}
+.iv-refine summary{cursor:pointer;font-weight:600;padding:10px 0;min-height:44px}.iv-refine small{display:block;margin-bottom:7px}.inventory-dialog .iv-refine button{width:100%;justify-content:flex-start;text-align:start;overflow-wrap:anywhere;margin-top:6px}
+@media(max-width:480px){.inventory-dialog>header{padding:8px 14px}.iv-steps{display:grid;grid-template-columns:1fr 1fr}.iv-invite strong{width:100%}}
+@media print{.inventory-dialog,.iv-invite{display:none!important}}

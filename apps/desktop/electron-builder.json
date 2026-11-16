@@ -9,6 +9,11 @@
   "publish": null,
   "mac": {
     "category": "public.app-category.productivity",
+    "extendInfo": {
+      "NSMicrophoneUsageDescription": "仅在你按住履历盘点的说话按钮时，用于本机普通话转写；不会上传录音。",
+      "NSLocationWhenInUseUsageDescription": "BetterMe 岗位地图需要您的位置，以在地图上标定您所在的精确街道及计算通勤距离。",
+      "NSLocationUsageDescription": "BetterMe 岗位地图需要您的位置，以在地图上标定您所在的精确街道及计算通勤距离。"
+    },
     "identity": "-",
     "target": ["dmg", "zip"],
     "artifactName": "BetterMe-${version}-macos-${arch}.${ext}"

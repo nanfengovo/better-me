@@ -47,6 +47,7 @@
 .has-writing-review .writing-note-context{flex:0 1 auto;max-height:80px;overflow:auto;gap:4px}
 .has-writing-review .writing-note-context>.agent-flow-status,.has-writing-review .writing-note-context>blockquote,.has-writing-review .writing-note-context>h3{display:none}
 .has-writing-review .writing-note-actions{display:flex}
+.writing-inventory-original{border-inline-start:3px solid var(--ui-accent,#285b44);padding:5px 9px}.writing-inventory-original p{white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0 0}
 .has-writing-review .writing-note-actions>[data-agent-guide="understanding-start"]{width:auto;min-height:26px;padding:3px 8px;font-size:11px}
 .has-writing-review .writing-review{display:flex;flex-direction:column;flex:1;min-height:0;gap:6px}
 .writing-review-body{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:8px}

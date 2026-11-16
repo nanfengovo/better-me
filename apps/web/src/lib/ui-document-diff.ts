@@ -10,7 +10,7 @@ const PROFILE_FIELDS: Record<TargetField<"profile">, string> = {
   targetRoles: "Target roles", constraints: "Job search constraints", salaryRange: "Salary expectations",
 };
 const SOURCE_FIELDS: Record<TargetField<"source">, string> = {
-  fileName: "Source filename", importedAt: "Import time", rawText: "Original imported text",
+  fileName: "Source filename", importedAt: "Import time", fileModifiedAt:"File modification time (metadata only)", rawText: "Original imported text",
   ocrText: "Visual transcription (unverified)", unparsedLines: "Original text awaiting review",
 };
 const EXPERIENCE_FIELDS: Record<TargetField<"experience">, string> = {

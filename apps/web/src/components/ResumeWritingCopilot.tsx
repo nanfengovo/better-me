@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
 import { createPortal } from "react-dom";
 import { Bot, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, LocateFixed, Pause, RotateCcw, Settings2, Sparkles, Square, X } from "lucide-react";
 import type { LlmConfig } from "@better-me/core";
+import type { InventorySession } from "@better-me/agent-contracts";
+import { inventoryRefinements } from "../lib/inventory-refinements";
+import { choiceLabels } from "../lib/inventory-interview";
 import type { ResumeProposalTarget, UnderstandingSession } from "@better-me/agent-contracts";
 import {
   generateWritingReply, inspectWriting, isLocalWritingModel, newWritingNote, readWritingSession, reconcileWritingNotes,
@@ -30,9 +33,12 @@ import { agentBaseLabel, useAgentRouting } from "../lib/agent-routing";
 import { AgentRoutingClientError } from "../services/agent-routing-client";
 import { defaultExperienceRefineTaskClient, ExperienceRefineTaskError } from "../services/experience-refine-task-client";
 
+export type InventoryWritingControl = { openField: (field: WritingSource) => void };
 type Props = {
   sessionKey: string; sources: WritingSource[]; config: LlmConfig; active: boolean; children: ReactNode;
   editorialFindings?: EditorialFinding[];
+  inventorySession?: InventorySession;
+  inventoryControl?: Ref<InventoryWritingControl>;
   isolatedResumeId?: string;
   onApply: (proposal: ResumeProposalWrite) => Promise<{ ok: boolean; message: string }>;
   onFocus: (source: WritingSource) => void;
@@ -65,7 +71,7 @@ function sameExperienceTargetKey(aKey: string | undefined, bKey: string | undefi
   } catch { return false; }
 }
 
-function WritingCopilotSession({ sessionKey, isolatedResumeId, sources, editorialFindings, config, active, onApply, onFocus, children, careerTask, generate, refinementClient = defaultExperienceRefineTaskClient, understandingClient = defaultUnderstandingClient, chatGptClient = defaultChatGptClient }: Props) {
+function WritingCopilotSession({ sessionKey, isolatedResumeId, sources, editorialFindings, inventorySession, inventoryControl, config, active, onApply, onFocus, children, careerTask, generate, refinementClient = defaultExperienceRefineTaskClient, understandingClient = defaultUnderstandingClient, chatGptClient = defaultChatGptClient }: Props) {
   const { t } = useUiPreferences();
   const { agent, snapshot: agentSnapshot } = useBetterMeAgent();
   const routing = useAgentRouting();
@@ -125,6 +131,10 @@ function WritingCopilotSession({ sessionKey, isolatedResumeId, sources, editoria
   const focusedNote = notes.find(n => n.id === selected) ?? notes.find(n => writingTargetKey(n.source.targetRef) === activity?.key)
     ?? notes.find(n => firstSourceWithNote && writingTargetKey(n.source.targetRef) === writingTargetKey(firstSourceWithNote.targetRef)) ?? notes[0];
   const focusedAnnotation = annotations.find(annotation => annotation.id === focusedNote?.id);
+  const inventoryLinks = useMemo(() => inventoryRefinements(inventorySession, sources), [inventorySession, sources]);
+  const focusedTarget = focusedNote && writingTargetKey(focusedNote.source.targetRef);
+  const linkedMaterial = [...inventoryLinks.values()].find(group => group.fields.some(f =>
+    writingTargetKey(f.targetRef) === focusedTarget && f.text === focusedNote?.source.text));
   const applied = session.notes.find(n => n.state === "applied" && sources.some(s => writingTargetKey(s.targetRef) === writingTargetKey(n.source.targetRef) && s.text === writingProposal(n)?.proposedText));
   const archived = session.notes.filter(n => n.state !== "open");
   const selectionSource = activity && sources.find(s => writingTargetKey(s.targetRef) === activity.key && s.text === activity.text);
@@ -243,6 +253,23 @@ function WritingCopilotSession({ sessionKey, isolatedResumeId, sources, editoria
     pendingExpand.current = note.id; setSelected(note.id); setExpanded(true); setAgentCollapsed(false);
     sidebar?.show("conversation", "writing");
   }
+  useImperativeHandle(inventoryControl, () => ({ openField(field) {
+    if (session.mode === "paused") throw Error("伴写已暂停。请先恢复伴写，或返回编辑器手动修改。");
+    if (busy || applying || understandingRunning || writeLock.current || request.current) throw Error("伴写正在处理另一项操作，请稍后再选原句。");
+    const key = writingTargetKey(field.targetRef), matches = sources.filter(s => writingTargetKey(s.targetRef) === key);
+    const source = matches[0];
+    if (!source || matches.length !== 1 || source.targetRef.kind !== "claim_text" || source.text !== field.text)
+      throw Error("这条原句已经变化，请重新核对后选择。");
+    const existing = session.notes.find(n => n.state === "open" && !n.source.quote && writingTargetKey(n.source.targetRef) === key && n.source.text === source.text);
+    const note = existing ?? newWritingNote(source, inspectWriting(source, sources) ?? {
+      kind: "context", title: "结合盘点精修这条原句", question: "结合这条原句，盘点中的哪些动作是你亲自做的？哪些不属于你的职责？",
+    });
+    // Picking a field is navigation, even if the user previously enabled automatic local questions.
+    setSession(s => ({ ...s, notes: existing ? s.notes.map(n => n.id === note.id ? { ...n, autoAsked: true } : n) : [{ ...note, autoAsked: true }, ...s.notes] }));
+    pendingExpand.current = note.id; setSelected(note.id); setExpanded(true); setAgentCollapsed(false); setShowEditionReview(false);
+    setUnderstandingSource(undefined); setConfirmedAnswer(false); setConfirmedProposal(false); setShareProjectContext(false); setShareAgentMemory(false); setMessage("");
+    sidebar?.show("conversation", "writing"); onFocus(source);
+  } }));
   useEffect(() => {
     try { saveWritingSession(localStorage, storageKey, session); setStorageError(""); }
     catch { setStorageError("伴写记录暂未保存（浏览器空间不足或存储受限）。简历仍由原保存流程保护，请勿关闭页面以免丢失追问进度。"); }
@@ -598,6 +625,15 @@ function WritingCopilotSession({ sessionKey, isolatedResumeId, sources, editoria
       </div>
       {expanded && <div className="writing-review">
         <div className="writing-review-body" role="region" aria-label="伴写建议与修改对照" tabIndex={0}>
+        {linkedMaterial&&<div className="writing-inventory-original" role="group" aria-label="本次精修原句">
+          <strong>本版策略：{choiceLabels[linkedMaterial.disposition]}</strong><p>{writingOriginal(focusedNote.source)}</p>
+        </div>}
+        {linkedMaterial?.statements.map(s=>
+          <div key={s.id} className="writing-linked-memory"><strong>盘点时你对这段经历说过</strong><p>{s.text}</p>
+            <button disabled={busy||focusedNote.answer.includes(s.text)} onClick={()=>{
+              const answer=[focusedNote.answer,s.text].filter(Boolean).join("\n\n");if(answer.length>6000){setMessage("补充合计超过输入上限，请手动选取相关原话，不会自动裁剪。");return;}
+              stop();changeNote(focusedNote.id,{answer,proposedText:undefined,evidenceQuotes:undefined,questions:undefined,rationale:undefined,autoAsked:true});setConfirmedAnswer(false);setConfirmedProposal(false);
+            }}>引用到本轮补充，稍后核对</button></div>)}
         {!hostWriting && (linkedSummary || linkedUserSupplement) && <section className="writing-linked-memory" aria-label="已关联项目理解与对话记忆" style={{ display: "grid", gap: "6px", padding: "10px 12px", borderRadius: "10px", background: "color-mix(in srgb, var(--color-accent, #2563eb) 7%, var(--color-panel, #fff))", border: "1px solid color-mix(in srgb, var(--color-accent, #2563eb) 28%, var(--color-line, #e2e8f0))", fontSize: "12px" }}>
           <strong style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
             <span>🧠 已识别本段经历的项目理解与对话记忆</span>

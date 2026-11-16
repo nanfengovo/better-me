@@ -1,5 +1,6 @@
 import { BrowserWindow, shell, nativeTheme, Menu, app, dialog } from "electron";
 import { externalUrl } from "./launch-policy.js";
+import { installInventoryMic } from "./inventory-microphone.js";
 
 export interface MainWindowOptions {
   preloadPath: string;
@@ -54,8 +55,8 @@ export function createMainWindow(options: MainWindowOptions): BrowserWindow {
     };
     win.webContents.on("will-navigate", stayOnWorkspace);
     win.webContents.on("will-redirect", stayOnWorkspace);
-    win.webContents.session.setPermissionRequestHandler((_contents, permission, callback) => callback(permission === "clipboard-sanitized-write"));
   }
+  installInventoryMic(win,options.workspaceUrl);
   void win.loadURL(options.workspaceUrl).catch(() => {
     if (win.isDestroyed()) return;
     dialog.showErrorBox("无法打开 BetterMe 工作台", "本机工作台页面加载失败。请检查本机 BetterMe Web 服务后重新打开窗口。");
