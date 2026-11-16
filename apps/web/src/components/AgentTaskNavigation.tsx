@@ -27,7 +27,7 @@ export function AgentTaskNavigation({ active, onSelect, jobTitle, onBack, onEdit
       <span className="advisor-target" title={jobTitle}>{jobTitle || t("未选择目标岗位", "No target role")}</span>
       <span className="advisor-context-spacer" />
       {onEdit && <button type="button" className="advisor-context-action" onClick={onEdit}><Pencil size={12} />{t("编辑岗位", "Edit role")}</button>}
-      {onTailor && <button type="button" className="advisor-context-action" aria-pressed={tailoring} onClick={onTailor}><FileCheck2 size={14} />{t("定制简历", "Tailor resume")}</button>}
+      {onTailor && <button type="button" className="advisor-context-action" aria-pressed={tailoring} onClick={onTailor}><FileCheck2 size={14} />{t("定制简历", "Resume tailoring task")}</button>}
       {needsConfig && <button type="button" className="advisor-context-action advisor-config-state" onClick={onConfig}><Settings2 size={12} />{t("配置模型", "Configure model")}</button>}
     </div>
   </header>;

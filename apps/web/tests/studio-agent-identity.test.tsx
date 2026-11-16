@@ -28,10 +28,10 @@ test("autopilot exposes the real opportunity pipeline without a demo branch", as
   try {
     await flush(() => root.render(h(LocalAgentRuntimeProvider, null,
       h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" } }, h(AutopilotStudioWorkspace, { onOpenOpportunitySources: () => { opened += 1; } })))));
-    assert.ok(container.querySelector(".studio-real-workspace"));
-    assert.match(container.textContent, /真实岗位控制台/);
-    assert.doesNotMatch(container.textContent, /隔离演示|示例，非真实招聘/);
-    assert.equal(container.querySelector(".studio-workshop"), null);
+    assert.ok(container.querySelector(".studio-workshop"));
+    assert.match(container.textContent, /求职全链路自动化工坊/);
+    assert.match(container.textContent, /当前还没有接入真实岗位/);
+    assert.doesNotMatch(container.textContent, /35k|525k|99\.2|99\.4|100%|ATS 核验通过|S级|09:00|16:30|西门子|具身智能|隔离演示|示例，非真实招聘|FB-01|18\.8k/);
     await flush(() => [...container.querySelectorAll("button")].find(button => button.textContent.includes("接入真实岗位"))!.click());
     assert.equal(opened, 1);
   } finally { await flush(() => root.unmount()); globalThis.fetch = originalFetch; container.remove(); await dom.happyDOM.cancelAsync(); }

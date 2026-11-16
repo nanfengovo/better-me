@@ -39,7 +39,7 @@ export function DomesticDeliveryPanel({ job, disabled, onDirtyChange, onPrepare,
   return <details className="delivery-panel" data-delivery-assistant>
     <summary><Smartphone size={18} /><span>{t("国内平台 · 投递行动卡", "China platforms · Application action cards")}</span><span className="delivery-count">{job.deliveryPlans?.length ?? 0}</span></summary>
     <div className="delivery-panel-body">
-      <div className="delivery-intro"><strong>{t("准备充分，再由你发送", "Prepare carefully. You stay in control.")}</strong><p>{t("当前支持准备、站内待办和本人回执；不采集手机、不自动点击或群发，也不保证防封。打开链接不算已投递。", "Preparation, in-app follow-ups and personal receipts only. No phone capture, automated taps or bulk sending. Account safety is not guaranteed. Opening a link is not applying.")}</p></div>
+      <div className="delivery-intro"><strong>{t("投递准备", "Application preparation")}</strong><p>{t("整理平台账号、材料快照与沟通话术，确认后手动前往官方平台完成投递。", "Prepare platform details, snapshots and messages before submitting on the platform.")}</p></div>
       <div className="delivery-cards">{(job.deliveryPlans ?? []).slice().reverse().map(plan => <DeliveryCard key={plan.id} job={job} plan={plan} disabled={disabled} actionLabel={actionLabels[plan.action]} onDirtyChange={receiptDirtyChanged} onCommand={onCommand} />)}</div>
       {!platform ? <p className="delivery-warning">{t("先在岗位信息中填写 BOSS、51job 或猎聘的 HTTPS 官方岗位链接；不接受短链或其他平台链接。", "Add a BOSS, 51job or Liepin HTTPS job URL in job details first. Short links and other platforms are not supported.")}</p> : <form className="delivery-form" onSubmit={prepare}>
         <div className="delivery-form-grid">
@@ -54,10 +54,9 @@ export function DomesticDeliveryPanel({ job, disabled, onDirtyChange, onPrepare,
         {platform === "51job" && <p className="delivery-warning">{t("51job 的快速申请默认版本可能不同，在线简历与已上传附件也可能同时可见。请在官方平台逐项检查，不能只核对本地快照。", "51job quick-apply defaults may differ. Online and uploaded resumes may both be visible. Check the actual platform, not only this local snapshot.")}</p>}
         {action !== "greeting" && !job.materials.length && <p className="delivery-warning">{t("尚无材料快照。先在下方“投递材料快照”记录当前简历，再准备共享或申请。快照是 Markdown 核对件，不是已经上传的 PDF。", "Save a resume under Material snapshots below first. It is a Markdown reference, not an uploaded PDF.")}</p>}
         <label>{t("待发文案（不会自动发送）", "Message draft (not sent automatically)")}<textarea rows={3} maxLength={5000} value={message} onChange={event => setMessage(event.target.value)} /></label>
-        <div className="delivery-buttons"><button type="submit" className="studio-button" disabled={disabled}>{t("保存行动草稿", "Save action draft")}</button><span>{t("账号标记不是登录凭据；不保存 Cookie。", "An account label is not a credential. Cookies are not saved.")}</span></div>
+        <div className="delivery-buttons"><button type="submit" className="studio-button" disabled={disabled}>{t("保存行动草稿", "Save action draft")}</button></div>
       </form>}
       {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
-      <p className="delivery-footnote">{t("手机桥接 / OpenCV / 无人值守发送尚未接入。人工确认不能替代平台许可。", "Phone bridging, OpenCV and unattended sending are not connected. Personal approval does not replace platform permission.")}</p>
     </div>
   </details>;
 }
@@ -112,5 +111,5 @@ export function DeliveryAttentionQueue({ jobs, onOpen }: { jobs: Opportunity[]; 
   const { t } = useUiPreferences();
   const items = deliveryAttention(jobs);
   if (!items.length) return null;
-  return <section className="delivery-attention" aria-label={t("投递站内待办", "Application follow-ups")}><header><BellRing size={16} /><strong>{t("投递待核实", "Application checks")}</strong><span>{items.length}</span></header><p>{t("站内提醒，不发送系统通知；关闭页面后不会继续执行。结果不明时先核实，不自动重发。", "In-app only, no system notifications or execution after closing. Verify unknown results before retrying.")}</p><ul>{items.slice(0, 8).map(item => <li key={item.planId}><button type="button" onClick={() => { const job = jobs.find(job => job.id === item.jobId); if (job) onOpen(job); }}><span>{item.title}</span><small>{item.kind === "stale" ? t("材料已变更", "Materials changed") : item.kind === "unknown" ? t("结果不明", "Unknown result") : t("核实平台结果", "Check platform result")}</small></button></li>)}</ul></section>;
+  return <section className="delivery-attention" aria-label={t("投递站内待办", "Application follow-ups")}><header><BellRing size={16} /><strong>{t("投递待核实", "Application checks")}</strong><span>{items.length}</span></header><ul>{items.slice(0, 8).map(item => <li key={item.planId}><button type="button" onClick={() => { const job = jobs.find(job => job.id === item.jobId); if (job) onOpen(job); }}><span>{item.title}</span><small>{item.kind === "stale" ? t("材料已变更", "Materials changed") : item.kind === "unknown" ? t("结果不明", "Unknown result") : t("核实平台结果", "Check platform result")}</small></button></li>)}</ul></section>;
 }

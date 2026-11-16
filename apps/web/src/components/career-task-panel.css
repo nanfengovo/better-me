@@ -39,3 +39,8 @@
 .ct-diff p { white-space:pre-wrap }
 @media (hover:hover) and (pointer:fine) { .career-task-panel button:enabled:hover:not(.ct-primary) { background:var(--color-accent-soft) } }
 @media (pointer:coarse) { .career-task-panel button,.career-task-panel .ct-check,.career-task-panel summary { min-height:44px } }
+.ct-writing-steps { display:flex; flex-wrap:wrap; gap:6px 14px; list-style:none; padding:0; margin:0 0 16px; font-size:13px; }
+.ct-writing-steps li { color:var(--ui-text-muted); }
+.ct-writing-steps li[aria-current="step"] { color:var(--ui-text); font-weight:650; border-bottom:2px solid currentColor; }
+.ct-writing-plan textarea { min-height:100px; }
+.ct-writing-plan .ct-diff { overflow-wrap:anywhere; }

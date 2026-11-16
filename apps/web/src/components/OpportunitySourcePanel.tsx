@@ -51,7 +51,7 @@ export function OpportunitySourcePanel({ onImport, disabled, onOpenNetworkSettin
   }
   return <details className="opportunity-source-panel">
     <summary>{t("从公司公开招聘页发现机会", "Discover opportunities on public company career pages")} <span>{t("腾讯招聘 / Greenhouse / Lever", "Tencent Careers / Greenhouse / Lever")}</span></summary>
-    <p>{t("先查看官网公开结果，再勾选收藏到机会库。国内官网试点目前为腾讯招聘。", "Preview public career page results, then select jobs to save. Tencent Careers is the current China pilot.")}</p>
+    <p>{t("浏览公司公开招聘页并勾选保存到岗位库。", "Browse public career pages and save matching roles.")}</p>
     <form onSubmit={(event) => void load(event)}>
       <select aria-label={t("公司招聘系统", "Company hiring system")} value={provider} onChange={(event) => { invalidate(); setProvider(event.target.value as Result["provider"]); }}>
         <option value="greenhouse">Greenhouse</option><option value="lever">Lever</option><option value="tencent">{t("腾讯招聘官网", "Tencent Careers")}</option>
@@ -61,12 +61,10 @@ export function OpportunitySourcePanel({ onImport, disabled, onOpenNetworkSettin
         : <input aria-label={t("公司招聘页链接或标识", "Company career page URL or identifier")} required value={company} placeholder={provider === "greenhouse" ? t("https://job-boards.greenhouse.io/公司标识", "https://job-boards.greenhouse.io/company") : t("https://jobs.lever.co/公司标识", "https://jobs.lever.co/company")} onChange={(event) => { invalidate(); setCompany(event.target.value); }} />}
       <button className="studio-button" type="submit" disabled={busy || disabled}>{busy ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}{busy ? t("读取中…", "Reading…") : t("查看公开岗位", "View public jobs")}</button>
     </form>
-    {provider === "tencent" && <p>{t("单次仅读取官网搜索结果第 1 页，最多 100 条；可用关键词缩小范围。结果中的岗位职责为摘录，完整任职要求请到原岗位核对。未登录、未自动投递。", "Reads only the first search page, up to 100 jobs. Narrow results with keywords. Responsibilities are excerpts; check complete requirements on the original job page. No login or application is performed.")}</p>}
     {error && <div role="alert" className="opportunity-muted">{error} <button type="button" className="studio-button" onClick={onOpenNetworkSettings}>{t("网络与代理设置", "Network & proxy settings")}</button></div>}
     {message && <div role="status" className="opportunity-muted">{message}</div>}
     {result && <div className="opportunity-source-results">
       <div><strong>{t("返回", "Returned")} {result.jobs.length} {t("个岗位", "jobs")}{result.truncated ? t("（仅本次预览，来源仍有更多结果）", "(preview only; the source has more results)") : ""}</strong><a href={result.sourceUrl} target="_blank" rel="noreferrer">{t("查看公开来源", "View public source")}<ExternalLink size={12} /></a></div>
-      <p>{result.provider === "tencent" ? t("国家和单个城市按官网字段保留；只有国家明确为“中国”时归入国内，其余市场请核对。官网的最后更新日期原文保留在职责摘录中，不作为原始发布日期。", "Country and city follow the official fields. Only an explicit China country value is classified as domestic; review other markets. The site's last update date stays in the description excerpt and is not treated as the original publication date.") : t("地点原文保留在 JD 中；市场、具体城市和远程资格请核对后填写。公司名称可能仍是招聘页标识。", "Original location wording stays in the JD. Review the market, city and remote eligibility before entering them. The company name may still be its career page identifier.")}</p>
       <div className="opportunity-source-select">
         <label><input type="checkbox" checked={result.jobs.length > 0 && checked.length === result.jobs.length} onChange={(event) => setChecked(event.target.checked ? result.jobs.map((_, index) => index) : [])} />{t("选择全部", "Select all")}</label>
         <button className="studio-button primary" disabled={!checked.length || disabled} onClick={() => { if (onImport(result.jobs.filter((_, index) => checked.includes(index)))) { setChecked([]); setMessage(t("已处理所选岗位。已有相同来源的记录会保留，不会覆盖投递进度。", "Selected jobs processed. Existing source records and application progress are kept.")); } }}><Download size={13} />{t("收藏所选", "Save selected")} {checked.length} {t("个", "items")}</button>

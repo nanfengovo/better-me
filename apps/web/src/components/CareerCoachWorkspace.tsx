@@ -65,7 +65,7 @@ function Points({ title, items }: { title: string; items: string[] }) {
 function Feedback({ value }: { value: CoachInterviewFeedback }) {
   return <div className="coach-feedback"><p>{value.summary}</p><Points title="回答中的优势" items={value.strengths} /><Points title="下一次可以改进" items={value.improvements} />
     <div className="coach-rubric">{value.rubric.map((item, index) => <div key={index}><strong>{item.criterion} · {item.score}/4</strong><p>{item.comment}</p></div>)}</div>
-    <small>仅基于本次回答的模型练习反馈，不是能力认证或录用结论。</small></div>;
+    <small>基于本次回答的练习反馈。</small></div>;
 }
 function PlanContent({ plan }: { plan: CoachPlan }) {
   return <><p>{plan.goal}</p><div className="coach-pill-row"><span>{plan.durationWeeks} 周</span><span>每周 ≤ {plan.weeklyHours} 小时</span><span>{plan.phases.flatMap((phase) => phase.tasks).length} 项任务</span></div>
@@ -384,7 +384,7 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
       </fieldset>
       <div className="coach-permissions"><h3><ShieldCheck size={16} />本次资料授权</h3><label><input type="checkbox" checked={shareResume} disabled={!resumeEditContext} onChange={(event) => { invalidate(true); setShareResume(event.target.checked); }} /><span>共享当前简历字段<small>{resumeEditContext ? "仅当前视图允许的简介、技能和经历" : "当前没有可共享的简历"}</small></span></label>
         <label><input type="checkbox" checked={shareJob} disabled={!job} onChange={(event) => { invalidate(true); setShareJob(event.target.checked); }} /><span>共享当前目标岗位<small>{job ? [job.company, job.title].filter(Boolean).join(" · ") : "可先回 JD 工作区选择岗位"}</small></span></label>
-        <p>默认不共享。点击生成后，已选资料与本次输入会发送给你配置的模型服务。关闭授权不删除已有私人记录。</p></div>
+        <p>仅在点击生成时发送已选资料与本次输入，关闭授权不影响已有记录。</p></div>
       <div className="coach-storage"><strong>只保存在此浏览器 · 当前简历视图</strong><p>{state.records.length} 条模型记录 · {state.submissions.length} 条学习提交</p><button type="button" className="coach-text-button" onClick={() => void reset()} disabled={!ready || busy}>清除成长记录</button></div>
     </div></details><main className="coach-main">
       {!ready && <p role="status">正在读取本地成长记录…</p>}
@@ -424,12 +424,12 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
         </details>)}</div></details>}</>}
       {mode === "review" && (state.activePlan ? <>
         <div className="coach-metrics"><div><strong>{progress.selfCompleted}/{progress.total}</strong><span>本人自评完成</span></div><div><strong>{progress.submitted}</strong><span>待本人核对的提交</span></div><div><strong>{progress.overdue}</strong><span>已过计划周界</span></div><div><strong>{progress.totalMinutes}</strong><span>记录投入 / 分钟</span></div></div>
-        <p className="coach-note">当前方案：{state.activePlan.plan.title}。打开页面时计算逾期，不在后台监控、提醒或自动认证完成。</p>
+        <p className="coach-note">当前方案：{state.activePlan.plan.title}</p>
         <section className="coach-compose"><label>选择学习任务<select value={selectedTask?.id ?? ""} onChange={(event) => setTaskId(event.target.value)} disabled={disabled}>{tasks.map((task) => <option key={task.id} value={task.id}>第 {task.week} 周 · {task.title}</option>)}</select></label>
           {selectedTask && <><p><strong>交付物：</strong>{selectedTask.deliverable}</p><Points title="本人验收条件" items={selectedTask.acceptanceCriteria} /><label>任务状态<select aria-label="任务状态" value={state.activePlan.progress[selectedTask.id]?.status ?? "todo"} disabled={disabled} onChange={(event) => changeTaskStatus(event.target.value as CoachTaskStatus)}>{Object.entries(STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></>}
           <label>学习证据<textarea value={evidence} onChange={(event) => setEvidence(event.target.value)} maxLength={12000} rows={5} placeholder="粘贴实际实现说明、代码片段、测试结果或自己的解释。只有链接时，模型不能宣称已访问验证。" /></label>
           <label>本次投入分钟<input type="number" min={0} max={1440} value={minutes} onChange={(event) => setMinutes(Math.min(1440, Math.max(0, Math.round(Number(event.target.value) || 0))))} /></label>
-          <button type="button" className="coach-primary" disabled={disabled} onClick={saveSubmission}><Check size={17} />保存学习提交</button><small>先保存证据，再按需请求模型反馈；两步独立，不把失败反馈记成完成。</small>
+          <button type="button" className="coach-primary" disabled={disabled} onClick={saveSubmission}><Check size={17} />保存学习提交</button><small>保存后可按需请求模型反馈。</small>
         </section><section className="coach-result"><h3>当前任务的学习提交</h3>{submissions.length === 0 && <p>还没有提交。完成一小步后，把可阅读的证据留在这里。</p>}{[...submissions].reverse().map((submission) => {
           const record = state.records.find((item) => item.id === submission.feedbackRecordId);
           const feedback = record?.payload.kind === "review" ? record.payload : undefined;
@@ -438,7 +438,7 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
         })}</section></> : <Empty title="先采纳一份学习方案" text="学习监督只跟踪你明确采纳的任务。到学习方案生成并采纳后，再提交证据、复盘和自评完成。" action={<button type="button" className="coach-primary" onClick={() => setMode("plan")}>去制定学习方案<ArrowRight size={16} /></button>} />)}
       {mode === "interview" && <>
         {!state.settings.goal.trim() && <div className="coach-prerequisite"><Target size={16} /><span>设置目标岗位或想练习的方向，再开始面试。</span><button type="button" onClick={() => setSetupOpen(true)}>设置目标</button></div>}
-        <div className="coach-compose"><p>每次只问一道题，等你的实际回答后评价。本场上限 {interview?.totalRounds ?? state.settings.interviewRounds} 轮；自适应模式可在取得本场足够材料后提前总结，结束不等于能力认证。</p><label className="coach-consent"><input type="checkbox" checked={adaptiveInterview} disabled={disabled} onChange={event => setAdaptiveInterview(event.target.checked)} />新一场启用自适应追问与提前总结</label><div className="coach-inline-actions"><button type="button" className="coach-primary" disabled={disabled} onClick={startInterview}><MessageSquare size={17} />{interview ? "重新开始面试" : "开始模拟面试"}</button>{interview?.status === "active" && <button type="button" onClick={() => { invalidate(true); mutate((current) => ({ ...current, interview: current.interview ? { ...current.interview, status: "stopped" } : undefined })); }}>停止本轮面试</button>}</div></div>
+        <div className="coach-compose"><p>每轮一题，本场上限 {interview?.totalRounds ?? state.settings.interviewRounds} 轮。</p><label className="coach-consent"><input type="checkbox" checked={adaptiveInterview} disabled={disabled} onChange={event => setAdaptiveInterview(event.target.checked)} />新一场启用自适应追问与提前总结</label><div className="coach-inline-actions"><button type="button" className="coach-primary" disabled={disabled} onClick={startInterview}><MessageSquare size={17} />{interview ? "重新开始面试" : "开始模拟面试"}</button>{interview?.status === "active" && <button type="button" onClick={() => { invalidate(true); mutate((current) => ({ ...current, interview: current.interview ? { ...current.interview, status: "stopped" } : undefined })); }}>停止本轮面试</button>}</div></div>
         {interviewChanged && <p className="coach-alert" role="alert">面试使用的简历或岗位授权已变化。请恢复原资料授权后继续，或下载记录后重新开始；不会把新旧上下文静默混合。</p>}
         {!interview && <Empty title="把“我做过”讲成有证据的回答" text="练习项目细节、方案取舍和异常处理。先自行回答，再看模型基于文本提供的评分依据。" />}
         {interview && <section className="coach-result"><div className="coach-section-heading"><h3>本轮面试</h3><span className="coach-badge">已作答 {interview.turns.length}/{interview.totalRounds} · {({ active: "进行中", completed: "已完成", stopped: "已停止" })[interview.status]}</span></div>
@@ -464,7 +464,7 @@ function CareerCoachSession({ workspaceKey, embedded = false, onOpenResume, mode
           }} />
       </div>}
       <div hidden={mode !== "drill"}><CareerDrills state={state} context={fingerprint} disabled={disabled || !goal} mutate={mutate} request={makeRequest} run={run} onPlan={carryToPlan} />{!goal && <p className="coach-note">先在规划分析确认目标理解，再开始出题。</p>}</div>
-      <footer className="coach-footer"><ShieldCheck size={15} /><span>模型建议 ≠ 已核实事实。所有写回、采纳和完成判断由你掌握。</span></footer>
+      <footer className="coach-footer"><ShieldCheck size={15} /><span>{t("采纳的建议才会写入简历或学习记录。", "Adopted items update your resume or learning records.")}</span></footer>
     </main></div>
   </section>;
 }

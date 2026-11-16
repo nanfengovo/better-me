@@ -1,4 +1,5 @@
 import { useUiPreferences } from "../lib/ui-preferences";
+import { InventoryJobCheck } from "./InventoryJobCheck";
 /** @jsxRuntime automatic */
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { isBossDescriptionCollapsed, snapshotFailureMessage } from "../lib/jd-capture-diagnostics";
@@ -993,6 +994,7 @@ ${report.interviewDefenseTips.map((tip) => `- ${tip}`).join("\n")}
             </div>}
 
             <div id="jd-text-panel" role={tab === "text" ? "tabpanel" : undefined} className="space-y-3">
+              {jdText.trim() && !isJdLinkOnly(jdText) && <InventoryJobCheck description={jdText}/>}
               <div className="flex flex-wrap items-center justify-between gap-2"><label htmlFor="jd-text" className="flex items-center gap-1.5 text-xs font-semibold text-slate-800"><FileText className="h-3.5 w-3.5 text-slate-500" />{t("用于匹配的岗位正文", "Job description used for matching")}</label><button type="button" disabled={closingBrowser} onClick={() => { requestVersion.current += 1; invalidateAcquisition(); setJdText(SAMPLE_JD); setDraftEdited(true); setProvenance({ kind: "text", title: t("工业软件工程师范例（演示）", "Industrial software engineer example (demo)"), observedAt: new Date().toISOString() }); setTab("text"); }} className="text-[11px] text-[#244e43] hover:underline disabled:opacity-45">{t("填入演示 JD", "Insert demo JD")}</button></div>
               <textarea id="jd-text" value={jdText} disabled={closingBrowser} onChange={(event) => changeJdText(event.target.value)} rows={tab === "text" ? 9 : 5} placeholder={t("粘贴岗位职责与任职要求，或通过上方链接/截图提取。你可以在这里继续修改和核对原文。", "Paste responsibilities and requirements, or extract them from a link or screenshot above. Edit and review the original text here.")} className="w-full resize-y rounded-lg border border-slate-200 bg-[#fdfdfb] p-3 text-xs leading-relaxed outline-none focus:border-[#244e43] disabled:opacity-45" />
               {isJdLinkOnly(jdText) && <p role="status" className="text-xs text-amber-800">{t("这里目前只有链接，还没有岗位正文。请在“分享链接”中读取并确认正文，再开始匹配或收藏。", "Only a link is present. Read and confirm its description under Shared link before matching or saving.")}</p>}

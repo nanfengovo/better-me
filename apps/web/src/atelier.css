@@ -371,7 +371,7 @@
     html .studio-app .jd-workspace-invite:hover > svg { transform: translate(2px, -2px); }
     html .studio-app .jd-workspace-invite:hover .jd-invite-icon { transform: scale(1.04); }
   }
-  html .studio-app .studio-footer { padding: 12px var(--atelier-gutter); gap: 12px; font-size: 10px; color: var(--ui-text-muted); letter-spacing: 0; line-height: 1.5; }
+  html .studio-app .studio-footer { padding: 12px max(76px, var(--atelier-gutter)) 12px var(--atelier-gutter); gap: 12px; font-size: 10px; color: var(--ui-text-muted); letter-spacing: 0; line-height: 1.5; }
   html .studio-app .studio-footer span { min-width: 0; }
   html .studio-app .studio-footer svg { flex-shrink: 0; }
 

@@ -29,7 +29,7 @@ export const PRESET_WALLPAPERS: PresetWallpaperItem[] = [
     title: { zh: "vork · 量子光学棱镜与金环", en: "vork · Quantum Prism & Gold" },
     subtitle: { zh: "Metal GPU 硬件加速光线追踪 · OpenPBR 光学色散与反射", en: "Metal Raytraced · OpenPBR Dispersion Glass" },
     url: "/wallpapers/vork_quantum_prism.png",
-    thumb: "/wallpapers/vork_quantum_prism.png",
+    thumb: "/wallpapers/thumbs/vork_quantum_prism.jpg",
     badge: "vork Metal 光追",
   },
   {
@@ -38,7 +38,7 @@ export const PRESET_WALLPAPERS: PresetWallpaperItem[] = [
     title: { zh: "vork · 赛博黑曜石巨碑", en: "vork · Cyber Obsidian Monolith" },
     subtitle: { zh: "Apple Silicon Metal 实时渲染 · 宝石红透光与矩阵青光", en: "Metal Raytraced · Cyberpunk Monolith" },
     url: "/wallpapers/vork_cyber_neon.png",
-    thumb: "/wallpapers/vork_cyber_neon.png",
+    thumb: "/wallpapers/thumbs/vork_cyber_neon.jpg",
     badge: "vork Metal 光追",
   },
   {
@@ -47,7 +47,7 @@ export const PRESET_WALLPAPERS: PresetWallpaperItem[] = [
     title: { zh: "vork · 暮光深渊浮岛", en: "vork · Sunset Solitude" },
     subtitle: { zh: "Slang 着色器几何微表面 · 暖金与深蓝微光漫射", en: "Metal Raytraced · Sunset Abyss" },
     url: "/wallpapers/vork_sunset_solitude.png",
-    thumb: "/wallpapers/vork_sunset_solitude.png",
+    thumb: "/wallpapers/thumbs/vork_sunset_solitude.jpg",
     badge: "vork Metal 光追",
   },
   // ================= 1. 动漫二次元 (Anime & ACG) =================

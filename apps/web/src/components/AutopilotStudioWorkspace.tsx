@@ -44,7 +44,6 @@ import {
   Loader2,
   CheckCircle2,
   Mic,
-  ExternalLink,
 } from "lucide-react";
 import { openSystemSettings } from "../lib/settings-navigation";
 import { useLocalAgentRuntime } from "../lib/local-agent-runtime";
@@ -97,7 +96,7 @@ export const AGENT_KERNELS: Record<string, AgentKernelConfig> = {
     terminalBoxBorder: "rgba(245, 158, 11, 0.45)",
     ambientBg:
       "radial-gradient(circle at 50% 8%, rgba(245, 158, 11, 0.11) 0%, rgba(34, 211, 238, 0.06) 35%, transparent 65%)",
-    signatureQuote: "Every resume claim is cryptographically locked to local FactBase [FB-01..38].",
+    signatureQuote: "Every resume claim is grounded in the local FactBase.",
   },
   "deepseek-r2": {
     id: "deepseek-r2",
@@ -152,7 +151,7 @@ export const AGENT_KERNELS: Record<string, AgentKernelConfig> = {
     cliVersion: "v0.9.8-cuda",
     heroBannerPrefix: "QWEN3 LOCAL + FACTBASE",
     mascotName: "Tensor-Q3",
-    mascotRole: "机甲羊驼算力核 · 100% 离线隐私沙箱",
+    mascotRole: "机甲羊驼算力核 · 全隔离本地隐私沙箱",
     modelSpec: "qwen3-coder:32b-q4_K_M · CUDA:0",
     computeBadge: "Local RTX 4060 · Air-Gapped Privacy",
     primaryHex: "#A855F7",
@@ -163,7 +162,7 @@ export const AGENT_KERNELS: Record<string, AgentKernelConfig> = {
     terminalBoxBorder: "rgba(168, 85, 247, 0.48)",
     ambientBg:
       "radial-gradient(circle at 50% 8%, rgba(168, 85, 247, 0.14) 0%, rgba(236, 72, 153, 0.07) 36%, transparent 65%)",
-    signatureQuote: "100% air-gapped local tensor inference — your resume never leaves localhost.",
+    signatureQuote: "Air-gapped local tensor inference — your resume stays on localhost.",
   },
 };
 
@@ -489,11 +488,11 @@ export const STUDIO_20_NODES: ReadonlyArray<StudioNode> = [
     tag: "CORE",
     sub: "多内核编排 · 调度全部 20 项能力",
     vizType: "hub",
-    latency: "38ms",
-    tokens: "0.4k",
+    latency: "Ready",
+    tokens: "Local",
     bulletColor: "#F59E0B",
-    cmdTitle: "kernel.orchestrate(skills=20, prefetch=2)",
-    cmdDetail: "38 FactBase claims locked · Active target queue initialized",
+    cmdTitle: "kernel.orchestrate(skills=20, mode='local-first')",
+    cmdDetail: "FactBase lock & saved opportunity library ready for advisor execution",
   },
   {
     id: 2,
@@ -502,11 +501,11 @@ export const STUDIO_20_NODES: ReadonlyArray<StudioNode> = [
     tag: "SOURCING",
     sub: "公开岗位卡 · SimHash 语义去重",
     vizType: "bars",
-    latency: "610ms",
-    tokens: "0.8k",
+    latency: "待运行",
+    tokens: "—",
     bulletColor: "#38BDF8",
-    cmdTitle: 'sourcing.query(role="Senior .NET / RCS", city="Shanghai")',
-    cmdDetail: "42 raw postings scanned ➔ 11 high-signal roles deduplicated",
+    cmdTitle: "sourcing.query(sources=['careers', 'greenhouse', 'lever'])",
+    cmdDetail: "Reads verified public sources configured in Opportunity Space",
   },
   {
     id: 3,
@@ -515,37 +514,37 @@ export const STUDIO_20_NODES: ReadonlyArray<StudioNode> = [
     tag: "SOURCING",
     sub: "只读公开卡片 · 绝不自动代发打招呼",
     vizType: "bridge",
-    latency: "490ms",
-    tokens: "0.6k",
+    latency: "只读",
+    tokens: "—",
     bulletColor: "#10B981",
-    cmdTitle: "cdp.boss_readonly(port=9222, auto_send=false)",
-    cmdDetail: "Extracted HR active timestamps · 0 account ban risk",
+    cmdTitle: "cdp.boss_readonly(auto_send=false)",
+    cmdDetail: "Read-only capture with user confirmation; zero auto-messaging",
   },
   {
     id: 4,
     code: "04",
     name: "企业官网",
     tag: "SOURCING",
-    sub: "Careers / Workday ATS 直连发现",
+    sub: "Careers / ATS 公开招聘直连",
     vizType: "tree3",
-    latency: "720ms",
-    tokens: "0.5k",
+    latency: "待运行",
+    tokens: "—",
     bulletColor: "#22D3EE",
-    cmdTitle: 'ats.probe_official(portals=["Siemens", "NXP", "EmbodiedX"])',
-    cmdDetail: "Verified official Workday requisition #WD-8841",
+    cmdTitle: "ats.probe_official(mode='public_api')",
+    cmdDetail: "Fetches official postings via authenticated / public adapters",
   },
   {
     id: 5,
     code: "05",
     name: "LinkedIn",
     tag: "SOURCING",
-    sub: "外企上海研发中心 · 远程与混合办公",
+    sub: "外企研发中心 · 远程与混合办公筛选",
     vizType: "dotmatrix",
-    latency: "580ms",
-    tokens: "0.7k",
+    latency: "待运行",
+    tokens: "—",
     bulletColor: "#60A5FA",
-    cmdTitle: 'linkedin.scan_wlb(region="Shanghai", off_work="<=17:00")',
-    cmdDetail: "Matched 3 European/US R&D hubs with 15+ days annual leave",
+    cmdTitle: "linkedin.read_public_card(filter_work_mode=true)",
+    cmdDetail: "Preserves original URL and publication timestamp verbatim",
   },
   {
     id: 6,
@@ -554,24 +553,24 @@ export const STUDIO_20_NODES: ReadonlyArray<StudioNode> = [
     tag: "GUARD",
     sub: "隐藏指令剥离 · 零宽字符清洗",
     vizType: "guard",
-    latency: "85ms",
-    tokens: "0.2k",
+    latency: "Guard",
+    tokens: "—",
     bulletColor: "#F59E0B",
     cmdTitle: "jd_guard.sanitize(strip_zero_width=true)",
-    cmdDetail: "Neutralized 2 adversarial prompt injection strings in JD",
+    cmdDetail: "Isolates untrusted JD markup before prompt construction",
   },
   {
     id: 7,
     code: "07",
     name: "JD 原句拆解",
     tag: "ANALYSIS",
-    sub: "职责权重 · 硬性红线 · 隐性加分项",
+    sub: "职责权重 · 硬性门槛 · 隐性加分项",
     vizType: "splitbars",
-    latency: "410ms",
-    tokens: "1.1k",
+    latency: "待执行",
+    tokens: "—",
     bulletColor: "#38BDF8",
-    cmdTitle: 'jd.decompose_ast(core=["C#", ".NET 10", "RCS", "SLAM"])',
-    cmdDetail: "16 mandatory specs & 4 wafer-fab bonus weights extracted",
+    cmdTitle: "jd.decompose_requirements(source='saved_opportunity')",
+    cmdDetail: "Send job to Advisor to generate structured requirement breakdown",
   },
   {
     id: 8,
@@ -580,154 +579,154 @@ export const STUDIO_20_NODES: ReadonlyArray<StudioNode> = [
     tag: "ANALYSIS",
     sub: "FactBase 实证 · 弱表达诊断 · 缺口",
     vizType: "spectrum",
-    latency: "310ms",
-    tokens: "1.4k",
+    latency: "待执行",
+    tokens: "—",
     bulletColor: "#10B981",
-    cmdTitle: 'factbase.align(locks=["FB-01 SanDisk", "FB-04 NXP"])',
-    cmdDetail: "96.4% factual overlap · 0 fabricated metrics",
+    cmdTitle: "factbase.align(ground_truth_only=true)",
+    cmdDetail: "Links resume phrasing directly to saved FactBase claims",
   },
   {
     id: 9,
     code: "09",
     name: "机会评级",
     tag: "TRIAGE",
-    sub: "S / A / B / C 四维分层决策",
+    sub: "按真实需求与阶段做人工分层",
     vizType: "tiers",
-    latency: "230ms",
-    tokens: "0.9k",
+    latency: "人工/顾问",
+    tokens: "—",
     bulletColor: "#F59E0B",
-    cmdTitle: 'triage.evaluate_tier(target="Siemens_Digital")',
-    cmdDetail: "Rated [S-Tier · 96%] · High architectural resonance + WLB S+",
+    cmdTitle: "triage.evaluate(requires_advisor_receipt=true)",
+    cmdDetail: "Scores appear only after explicit Advisor execution receipt",
   },
   {
     id: 10,
     code: "10",
-    name: "企业全网背调",
+    name: "企业来源核对",
     tag: "TRIAGE",
-    sub: "工商实缴 / 劳动仲裁 / 脉脉小红书作息",
+    sub: "发布主体 / 原始链接 / 时间核验",
     vizType: "radar",
-    latency: "980ms",
-    tokens: "1.6k",
+    latency: "待核验",
+    tokens: "—",
     bulletColor: "#A855F7",
-    cmdTitle: 'recon.deep_audit(sources=["工商", "裁判文书", "脉脉"])',
-    cmdDetail: "0 labor disputes in 36m · Confirmed 16:30 shuttle bus",
+    cmdTitle: "recon.inspect_provenance(source='opportunity_record')",
+    cmdDetail: "Displays verified origin metadata without fabricated verdicts",
   },
   {
     id: 11,
     code: "11",
     name: "简历润色",
     tag: "TAILOR",
-    sub: "结构化 old ➔ new · 绑定证据编号",
+    sub: "结构化 old -> new · 绑定真实经历",
     vizType: "diff",
-    latency: "840ms",
-    tokens: "1.5k",
+    latency: "待执行",
+    tokens: "—",
     bulletColor: "#22D3EE",
-    cmdTitle: 'tailor.git_diff(evidence=["FB-01", "FB-04"])',
-    cmdDetail: "Rewrote 2 core RCS paragraphs · ATS keyword coverage +38%",
+    cmdTitle: "tailor.prepare_diff(grounded_in_factbase=true)",
+    cmdDetail: "Open job in Advisor to review candidate rewrite proposals",
   },
   {
     id: 12,
     code: "12",
     name: "Reviewer",
     tag: "TAILOR",
-    sub: "独立双盲上下文挑刺 · 去 AI 塑料味",
+    sub: "独立复核 · 拒绝虚构参数",
     vizType: "bridge",
-    latency: "520ms",
-    tokens: "0.9k",
+    latency: "待执行",
+    tokens: "—",
     bulletColor: "#10B981",
-    cmdTitle: "reviewer.adversarial_check(plastic_tone_limit=0)",
-    cmdDetail: "Approved by independent Reviewer context · 100% authentic",
+    cmdTitle: "reviewer.verify_claims(allow_invented=false)",
+    cmdDetail: "Verifies every tailored bullet against your local FactBase",
   },
   {
     id: 13,
     code: "13",
     name: "ATS / 版式",
     tag: "VERIFY",
-    sub: "单页填充率 · DOM 文本层 · 关键词",
+    sub: "简历材料快照 · 单页版式与 DOM 检查",
     vizType: "docscan",
-    latency: "340ms",
-    tokens: "0.4k",
+    latency: "Ready",
+    tokens: "—",
     bulletColor: "#38BDF8",
-    cmdTitle: 'verify.ats_dom(parser="Workday", layout="1_PAGE_A4")',
-    cmdDetail: "99.4% parse fidelity · 94.2% A4 fill · 15/16 keywords hit",
+    cmdTitle: "verify.check_materials(target='saved_opportunity')",
+    cmdDetail: "Inspect saved resume snapshots or run Advisor ATS check",
   },
   {
     id: 14,
     code: "14",
     name: "材料快照",
     tag: "DELIVERY",
-    sub: "所投即所存 · SHA-256 不可篡改归档",
+    sub: "所投即所存 · 独立 Markdown 快照归档",
     vizType: "stack",
-    latency: "170ms",
-    tokens: "0.2k",
+    latency: "Local",
+    tokens: "—",
     bulletColor: "#60A5FA",
-    cmdTitle: 'snapshot.freeze(sha256="9f8a7c..e41b")',
-    cmdDetail: "Archived exact PDF & tailored cover note for interview defense",
+    cmdTitle: "snapshot.record_material(immutable_copy=true)",
+    cmdDetail: "Subsequent resume edits never mutate archived job snapshots",
   },
   {
     id: 15,
     code: "15",
     name: "本人交接",
     tag: "DELIVERY",
-    sub: "自动预填官网表单 · 由你最终点发送",
+    sub: "保留原申请页入口 · 由本人确认投递",
     vizType: "handover",
-    latency: "110ms",
-    tokens: "0.2k",
+    latency: "Human",
+    tokens: "—",
     bulletColor: "#F59E0B",
-    cmdTitle: 'delivery.handover_browser(portal="Siemens_Careers")',
-    cmdDetail: "Fields pre-filled locally · Waiting for human final click",
+    cmdTitle: "delivery.human_confirm(require_explicit_submit=true)",
+    cmdDetail: "Opening a link never fakes an applied status",
   },
   {
     id: 16,
     code: "16",
-    name: "异步缓存挂起",
+    name: "投递追踪",
     tag: "TRACKING",
-    sub: "投递后休眠释放内存 · HR 信号唤醒",
+    sub: "收藏 -> 投递 -> 面试 -> Offer 阶段树",
     vizType: "wave",
-    latency: "65ms",
-    tokens: "0.1k",
+    latency: "Local",
+    tokens: "—",
     bulletColor: "#10B981",
-    cmdTitle: 'tracking.sleep_until(events=["HR_VIEW", "INTERVIEW_MAIL"])',
-    cmdDetail: "Context serialized · Webhook listener armed",
+    cmdTitle: "tracking.stage_history(local_storage=true)",
+    cmdDetail: "Tracks real stage transitions and user follow-up reminders",
   },
   {
     id: 17,
     code: "17",
     name: "面试攻防",
     tag: "INTERVIEW",
-    sub: "高风险深水区追问预案 · 架构白板",
+    sub: "基于真实项目经历组织深挖预案",
     vizType: "qa",
-    latency: "430ms",
-    tokens: "1.2k",
+    latency: "待执行",
+    tokens: "—",
     bulletColor: "#A855F7",
-    cmdTitle: 'interview.defense_tree(topic="100+ AMR Deadlock Resolution")',
-    cmdDetail: "Compiled 12 architecture defense cards anchored to FB-01",
+    cmdTitle: "interview.prepare(source='factbase')",
+    cmdDetail: "Send job to Advisor for tailored interview drill",
   },
   {
     id: 18,
     code: "18",
     name: "STAR 对练",
     tag: "INTERVIEW",
-    sub: "S-T-A-R 结构化计时作答演练",
+    sub: "S-T-A-R 结构化复盘演练",
     vizType: "star",
-    latency: "290ms",
-    tokens: "0.8k",
+    latency: "待执行",
+    tokens: "—",
     bulletColor: "#22D3EE",
-    cmdTitle: 'interview.star_chain(nodes=["S", "T", "A", "R"])',
-    cmdDetail: "Bilingual English/Chinese technical scripts verified",
+    cmdTitle: "interview.star_chain(nodes=['S', 'T', 'A', 'R'])",
+    cmdDetail: "Builds structured STAR prompts around your verified work",
   },
   {
     id: 19,
     code: "19",
-    name: "薪酬与时薪",
+    name: "薪酬测算",
     tag: "DECISION",
-    sub: "Base · 年终兑现率 · 真实工时净时薪",
+    sub: "用户假设模拟 · 非岗位实际待遇承诺",
     vizType: "wagebars",
-    latency: "125ms",
-    tokens: "0.3k",
+    latency: "Sim",
+    tokens: "—",
     bulletColor: "#F59E0B",
-    cmdTitle: 'decision.net_hourly(pkg="42k*15", work_hours="37.5h/wk")',
-    cmdDetail: "Net Hourly: ¥268/hr (+38% vs 996 Big-Tech) · WLB Grade S+",
+    cmdTitle: "decision.simulate_hourly(tax_assumption=0.88)",
+    cmdDetail: "Hypothetical calculator based on user sliders only",
   },
   {
     id: 20,
@@ -748,13 +747,12 @@ export const STUDIO_20_NODES: ReadonlyArray<StudioNode> = [
 export const AUTOPILOT_CARDS = STUDIO_20_NODES.map((n) => [n.tag, n.name, n.sub, `node-${n.code}`, n.vizType] as const);
 
 // ============================================================================
-// 6. 真实的工业级求职数据模型与初始状态
+// 6. 真实机会库映射（不注入任何演示岗位或虚构指标）
 // ============================================================================
 export interface JobPipelineItem {
   id: string;
   queueRank: string;
   tier: string;
-  matchScore: number;
   company: string;
   shortName: string;
   logoText: string;
@@ -764,248 +762,115 @@ export interface JobPipelineItem {
   city: string;
   salary: string;
   annualTotal: string;
-  hourlyNet: number;
   workHours: string;
   sourcePlatform: string;
+  sourceUrl: string;
+  description: string;
+  nextAction: string;
+  updatedAt: string;
+  materialsCount: number;
+  communicationsCount: number;
   collectedIn3D: boolean;
   isNewMint: boolean;
   stage3D: string;
   tags: string[];
-  atsMetrics: {
-    parseRate: number;
-    pageFill: number;
-    keywordMatched: number;
-    keywordTotal: number;
-    missingKeyword: string;
-  };
-  diffItems: Array<{
-    id: string;
-    section: string;
-    oldText: string;
-    newText: string;
-    factId: string;
-    factTitle: string;
-    impactMetric: string;
-  }>;
-  triageDossier: {
-    regCapital: string;
-    laborDisputes: string;
-    wlbVerification: string;
-    agentVerdict: string;
-  };
+  sourceJob: Opportunity;
 }
 
-const DEFAULT_DEMO_JOBS: JobPipelineItem[] = [
-  {
-    id: "job-siemens-rcs",
-    queueRank: "#1",
-    tier: "S级",
-    matchScore: 96,
-    company: "西门子数字工业软件 (上海研发中心)",
-    shortName: "西门子工业软件",
-    logoText: "SI",
-    logoGradient: "linear-gradient(135deg, #06B6D4 0%, #0284C7 55%, #1E3A8A 100%)",
-    glowColor: "rgba(34, 211, 238, 0.45)",
-    role: "Senior .NET / 工业自动化架构师",
-    city: "上海浦东张江 · 混合办公 (每周2天居家)",
-    salary: "36k - 48k · 15薪",
-    annualTotal: "¥540k - ¥720k / 年",
-    hourlyNet: 268,
-    workHours: "09:00 - 16:30 · Zero On-call",
-    sourcePlatform: "企业官网 Workday ATS (#WD-8841)",
+const STUDIO_STAGE_ZH: Record<Opportunity["application"]["stage"], string> = {
+  saved: "已收藏",
+  evaluating: "待评估",
+  preparing: "准备中",
+  applied: "已投递",
+  interview: "面试中",
+  offer: "Offer",
+  rejected: "未通过",
+  withdrawn: "已撤回",
+};
+
+const STUDIO_WORK_MODE_TEXT: Record<Opportunity["workMode"], readonly [string, string]> = {
+  remote: ["远程办公", "Remote"],
+  hybrid: ["混合办公", "Hybrid"],
+  "on-site": ["现场办公", "On-site"],
+  unknown: ["办公方式待核", "Work mode unverified"],
+};
+
+const STUDIO_EMP_TEXT: Record<Opportunity["employmentType"], readonly [string, string]> = {
+  social: ["社招", "Experienced"],
+  campus: ["校招", "New grad"],
+  internship: ["实习", "Internship"],
+  unknown: ["招聘类型待核", "Type unverified"],
+};
+
+const CARD_PALETTES = [
+  { gradient: "linear-gradient(135deg, #06B6D4 0%, #0284C7 55%, #1E3A8A 100%)", glow: "rgba(34, 211, 238, 0.42)" },
+  { gradient: "linear-gradient(135deg, #F59E0B 0%, #EA580C 55%, #9A3412 100%)", glow: "rgba(245, 158, 11, 0.42)" },
+  { gradient: "linear-gradient(135deg, #10B981 0%, #059669 55%, #065F46 100%)", glow: "rgba(16, 185, 129, 0.42)" },
+  { gradient: "linear-gradient(135deg, #A855F7 0%, #7E22CE 55%, #3B0764 100%)", glow: "rgba(168, 85, 247, 0.42)" },
+] as const;
+
+function companyMonogram(company: string): string {
+  const cleaned = company.trim().replace(/[^\p{L}\p{N}]/gu, "");
+  return (cleaned.slice(0, 2) || "BM").toUpperCase();
+}
+
+function opportunityToPipelineItem(job: Opportunity, index: number, t: Translate): JobPipelineItem {
+  const palette = CARD_PALETTES[index % CARD_PALETTES.length]!;
+  const city = [job.location.city, job.location.region, job.location.country].filter(Boolean).join(" · ") || t("地点未披露", "Location not disclosed");
+  const modePair = STUDIO_WORK_MODE_TEXT[job.workMode];
+  const empPair = STUDIO_EMP_TEXT[job.employmentType];
+  const stage3D = STUDIO_STAGE_ZH[job.application.stage];
+  return {
+    id: job.id,
+    queueRank: `#${index + 1}`,
+    tier: stageLabel(stage3D, t),
+    company: job.company,
+    shortName: job.company.slice(0, 12),
+    logoText: companyMonogram(job.company),
+    logoGradient: palette.gradient,
+    glowColor: palette.glow,
+    role: job.title,
+    city,
+    salary: job.salaryText || t("未披露", "Not disclosed"),
+    annualTotal: job.sourcePlatform || t("来源待核验", "Source unverified"),
+    workHours: t(`${modePair[0]} · ${empPair[0]}`, `${modePair[1]} · ${empPair[1]}`),
+    sourcePlatform: job.sourcePlatform || t("手动录入 / 待核验", "Manual / unverified"),
+    sourceUrl: job.sourceUrl || "",
+    description: job.description || "",
+    nextAction: job.application.nextAction || t("下一步：核对岗位原文与申请入口", "Next: review original posting and application link"),
+    updatedAt: job.updatedAt,
+    materialsCount: job.materials.length,
+    communicationsCount: job.application.communications.length,
     collectedIn3D: true,
-    isNewMint: false,
-    stage3D: "ATS 核验通过",
-    tags: ["16:30 准点班车", "Zero On-call", ".NET 10 / ABP vNext / RCS"],
-    atsMetrics: {
-      parseRate: 99.4,
-      pageFill: 94.2,
-      keywordMatched: 15,
-      keywordTotal: 16,
-      missingKeyword: "OPC UA 双向安全证书配置",
-    },
-    diffItems: [
-      {
-        id: "diff-1",
-        section: "核心项目经历 · 智能晶圆厂 AMR/AGV 集群调度系统 (RCS 3.0)",
-        oldText: "负责中科新松 RCS 系统后端开发，使用 C#、ABP vNext 和 SignalR 实现 AGV 小车状态监控与任务下发。",
-        newText:
-          "主导构建基于 .NET 10 与 ABP vNext 的分布式工业 RCS 3.0 调度内核，引入高并发路径死锁消解算法与 SignalR 毫秒级遥测总线，支撑晟碟 (SanDisk) 晶圆厂百台级 AMR 7×24h 零故障协同。",
-        factId: "FB-01",
-        factTitle: "中科新松 · 晟碟 (SanDisk) 半导体 AGV 调度交付实证",
-        impactMetric: "ATS 关键词覆盖率 +38% · 量化指标 +2 项",
-      },
-      {
-        id: "diff-2",
-        section: "架构演进 · 跨楼层激光 SLAM 拓扑地图与机台交管锁",
-        oldText: "参与恩智浦半导体项目的二楼激光地图对接和机台分布点位配置，使用 Redis 缓存数据。",
-        newText:
-          "设计跨楼层激光 SLAM 拓扑地图热加载与机台工位动态锁机制，基于 Redis 分布式锁与 SQL Server 2022 保障 NXP 产线多车并发交管零碰撞，指令端到端延迟压降至 18ms。",
-        factId: "FB-04",
-        factTitle: "恩智浦 (NXP) 二楼机台分布与激光地图现场工程记录",
-        impactMetric: "精准命中「高可用工业控制 / 低延迟通信」",
-      },
-    ],
-    triageDossier: {
-      regCapital: "25,000 万美元 (实缴 100%)",
-      laborDisputes: "0 起 (近 36 个月零劳动仲裁)",
-      wlbVerification: "张江研发中心 14 条现员工实证：下午 16:30 班车准点发车，全年无周末值班，18天带薪病假 + 15天年假。",
-      agentVerdict: "S级首选目标：您的半导体 RCS 交付履历与该团队产线物流平台重构诉求 1:1 咬合，完美符合 16:30 下班红线。",
-    },
-  },
-  {
-    id: "job-embodied-rcs",
-    queueRank: "#2",
-    tier: "S级",
-    matchScore: 95,
-    company: "具身智能先锋实验室 (Embodied X)",
-    shortName: "具身智能实验室",
-    logoText: "EX",
-    logoGradient: "linear-gradient(135deg, #F59E0B 0%, #EA580C 55%, #9A3412 100%)",
-    glowColor: "rgba(245, 158, 11, 0.45)",
-    role: "RCS 群智调度与 AGV 算法平台主程",
-    city: "上海徐汇西岸 · 弹性不打卡",
-    salary: "42k - 58k · 16薪 + 期权",
-    annualTotal: "¥670k - ¥930k / 年",
-    hourlyNet: 242,
-    workHours: "10:00 - 19:00 · 双休保障",
-    sourcePlatform: "BOSS直聘 高管直招 (已清洗隐形指令)",
-    collectedIn3D: true,
-    isNewMint: false,
-    stage3D: "简历润色中",
-    tags: ["异构机器人群智调度", "C# / WebRTC 遥操作", "早期核心期权池"],
-    atsMetrics: {
-      parseRate: 98.5,
-      pageFill: 92.0,
-      keywordMatched: 14,
-      keywordTotal: 15,
-      missingKeyword: "ROS2 DDS 跨网段桥接",
-    },
-    diffItems: [
-      {
-        id: "diff-ex-1",
-        section: "异构机器人集群调度与 Vue 3 全息监控座舱",
-        oldText: "开发 AGV 调度后台和 Vue 3 前端监控页面，显示小车位置和电量。",
-        newText:
-          "构建吞吐千级并发节点的异构 AMR/AGV 实时调度中枢，打通 .NET 高性能状态机与 Vue 3 全息监控态势舱，支持动态重规划与毫秒级异常熔断。",
-        factId: "FB-12",
-        factTitle: "SIASUN RCS 3.0 & Erack API 核心代码库实证",
-        impactMetric: "突出全栈架构闭环 · 匹配主程高定级要求",
-      },
-    ],
-    triageDossier: {
-      regCapital: "8,500 万人民币 (红杉/源码领投)",
-      laborDisputes: "0 起 · 顶尖机器人工程团队",
-      wlbVerification: "双休严格保障，不搞形式主义日报周报；现金总包已达一线大厂 P8 水平。",
-      agentVerdict: "高成长溢价目标：可将您的工业级 RCS 调度经验无缝迁移至具身智能赛道。",
-    },
-  },
-  {
-    id: "job-nxp-semi",
-    queueRank: "#3",
-    tier: "A+级",
-    matchScore: 93,
-    company: "恩智浦半导体 (NXP 亚太研发中心)",
-    shortName: "恩智浦 NXP",
-    logoText: "NX",
-    logoGradient: "linear-gradient(135deg, #10B981 0%, #059669 55%, #065F46 100%)",
-    glowColor: "rgba(168, 85, 129, 0.45)",
-    role: "Staff 工业物联网与天车/AGV 调度专家",
-    city: "上海浦东金桥 · 混合办公",
-    salary: "34k - 45k · 15薪",
-    annualTotal: "¥510k - ¥675k / 年",
-    hourlyNet: 256,
-    workHours: "09:00 - 16:45 · 20天带薪年假",
-    sourcePlatform: "LinkedIn 猎头直通 + 校友内推",
-    collectedIn3D: true,
-    isNewMint: false,
-    stage3D: "面试攻防准备",
-    tags: ["曾交付该司产线项目", "16:45 下班", "全额商业养老险"],
-    atsMetrics: {
-      parseRate: 99.2,
-      pageFill: 93.4,
-      keywordMatched: 15,
-      keywordTotal: 15,
-      missingKeyword: "全部核心词已 100% 覆盖",
-    },
-    diffItems: [
-      {
-        id: "diff-nxp-1",
-        section: "历史交付背书 · NXP 半导体产线跨楼层自动化改造",
-        oldText: "曾参与 NXP 产线 AGV 对接项目。",
-        newText:
-          "作为核心研发交付恩智浦 (NXP) 半导体产线跨楼层 AGV 自动化物流系统，深度熟悉洁净室 SECS/GEM 通信规约与高可用容灾标准。",
-        factId: "FB-04",
-        factTitle: "NXP 产线交付记录与二楼激光地图配置档案",
-        impactMetric: "乙方转甲方天然信任背书 · 免除业务适应期",
-      },
-    ],
-    triageDossier: {
-      regCapital: "跨国半导体巨头独资研发中心",
-      laborDisputes: "0 起 · 外企最佳雇主",
-      wlbVerification: "您曾作为乙方为其交付过 RCS 系统，内部工程文化极其温和，16:45 后办公室基本清空。",
-      agentVerdict: "极高把握度：拥有历史项目直接交付背书，简历初筛通过率预计 >92%。",
-    },
-  },
-  {
-    id: "job-zurich-quant",
-    queueRank: "#4",
-    tier: "A级",
-    matchScore: 91,
-    company: "苏黎世环球量化科技 (上海研发中心)",
-    shortName: "苏黎世量化",
-    logoText: "ZQ",
-    logoGradient: "linear-gradient(135deg, #A855F7 0%, #7E22CE 55%, #3B0764 100%)",
-    glowColor: "rgba(168, 85, 247, 0.45)",
-    role: "Principal C# 低延迟交易与实时风控工程师",
-    city: "上海陆家嘴 · 17:00 准点下班",
-    salary: "45k - 60k · 16薪",
-    annualTotal: "¥720k - ¥960k / 年",
-    hourlyNet: 295,
-    workHours: "08:30 - 17:00 · 瑞士总部标准",
-    sourcePlatform: "LinkedIn 国际直聘 (#ZH-209)",
-    collectedIn3D: true,
-    isNewMint: false,
-    stage3D: "已收藏",
-    tags: ["C# 高并发内存池", "17:00 收盘即下班", "22天带薪假"],
-    atsMetrics: {
-      parseRate: 97.8,
-      pageFill: 91.5,
-      keywordMatched: 13,
-      keywordTotal: 15,
-      missingKeyword: "FIX 4.4 协议栈零拷贝优化",
-    },
-    diffItems: [
-      {
-        id: "diff-zq-1",
-        section: "高并发实时状态机与毫秒级遥测分发",
-        oldText: "优化 RCS 系统中的小车通信延迟。",
-        newText:
-          "基于 .NET 高性能 Span<T> 与无锁环形队列重构实时状态分发引擎，将百节点并发指令端到端延迟稳定控制在 18ms 以内。",
-        factId: "FB-01",
-        factTitle: "工业级高可靠并发状态机压测记录",
-        impactMetric: "跨行业映射至高频低延迟风控场景",
-      },
-    ],
-    triageDossier: {
-      regCapital: "5,000 万瑞士法郎 (外资独资)",
-      laborDisputes: "0 起 · 欧洲金融工程标准",
-      wlbVerification: "收盘后绝无无效加班，净时薪高达 ¥295/h，技术栈纯粹。",
-      agentVerdict: "高时薪外企备选：您的工业级并发控制经验可降维迁移。",
-    },
-  },
-];
+    isNewMint: index === 0,
+    stage3D,
+    tags: [
+      job.sourcePlatform || t("来源待核验", "Source unverified"),
+      t(modePair[0], modePair[1]),
+      job.employmentType !== "unknown" ? t(empPair[0], empPair[1]) : "",
+    ].filter(Boolean),
+    sourceJob: job,
+  };
+}
 
 // ============================================================================
 // 7. 内凹微缩蓝图舱 (CNC-Milled Inset Chamber with Living Telemetry Motion)
 // ============================================================================
 type Translate = (chinese: string, english: string) => string;
 const STAGE_TEXT: Record<string, readonly [string, string]> = {
-  "已收藏": ["Saved", "Saved"], "简历润色中": ["Polishing resume", "Polish"],
-  "ATS 核验通过": ["ATS check passed", "ATS ok"], "面试攻防准备": ["Interview prep", "Prep"],
+  "已收藏": ["Saved", "Saved"],
+  "待评估": ["Evaluating", "Eval"],
+  "准备中": ["Preparing", "Prep"],
+  "已投递": ["Applied", "Sent"],
+  "面试中": ["Interviewing", "Intv"],
+  "Offer": ["Offer", "Offer"],
+  "未通过": ["Rejected", "Decl"],
+  "已撤回": ["Withdrawn", "Wdr"],
+  "简历润色中": ["Polishing resume", "Polish"],
+  "ATS 核验通过": ["ATS check passed", "ATS ok"],
+  "面试攻防准备": ["Interview prep", "Prep"],
 };
 const stageLabel = (stage: string, t: Translate) => t(stage, STAGE_TEXT[stage]?.[0] ?? stage);
-const stageShort = (stage: string, t: Translate) => t(stage.slice(0, 4), STAGE_TEXT[stage]?.[1] ?? stage);
 
 function BlueprintMicroChamber({
   type,
@@ -1141,7 +1006,7 @@ function BlueprintMicroChamber({
               1 page · A4
             </text>
             <text x="88" y="25" textAnchor="middle" fill={isLight ? "#0284C7" : cSecondary} fontSize="6.5" fontFamily="monospace" fontWeight="bold">
-              ATS 99.4% ✓
+              {t("待顾问核验", "Advisor check")}
             </text>
           </svg>
         )}
@@ -1169,10 +1034,10 @@ function BlueprintMicroChamber({
             {/* Blinking Target Ping */}
             <circle cx="31" cy="11" r="2.2" fill={"var(--ap-tone-14)"} style={{ animation: "ap-led-ping 1.4s ease-in-out infinite" }} />
             <text x="48" y="15" fill={"var(--ap-tone-6)"} fontSize="6.5" fontFamily="monospace" fontWeight="600">
-              Tier 1-3 {t("交叉核验", "cross-check")}
+              {t("来源与发布方", "Origin audit")}
             </text>
             <text x="48" y="26" fill={isLight ? "#0284C7" : cSecondary} fontSize="7" fontFamily="monospace" fontWeight="bold">
-              {t("仲裁: 0 · 16:30下班", "Arbitration: 0 · off at 16:30")}
+              {t("核对原始链接", "Inspect source")}
             </text>
           </svg>
         )}
@@ -1212,10 +1077,10 @@ function BlueprintMicroChamber({
               <rect x="50" y="9" width="9" height="23" rx="1.5" fill="#10B981" />
             </g>
             <text x="66" y="16" fill={isLight ? "#B45309" : cPrimary} fontSize="7.5" fontFamily="monospace" fontWeight="bold">
-              ¥268/hr
+              {t("假设测算", "Simulator")}
             </text>
             <text x="66" y="26" fill={"var(--ap-tone-6)"} fontSize="6.5" fontFamily="monospace" fontWeight="600">
-              {t("WLB S+ 净时薪", "WLB S+ net hourly")}
+              {t("用户滑块折算", "Slider only")}
             </text>
           </svg>
         )}
@@ -1325,25 +1190,27 @@ function CyberJobCard3D({
   agent,
   isFlipped,
   onToggleFlip,
-  onChangeStage,
   onInspectInStudio,
+  onAnalyze,
+  onOpenRecord,
   theme = "dark",
 }: {
   job: JobPipelineItem;
   agent: AgentKernelConfig;
   isFlipped: boolean;
   onToggleFlip: () => void;
-  onChangeStage: (id: string, stage: string) => void;
   onInspectInStudio: (id: string) => void;
+  onAnalyze?: (job: Opportunity) => void;
+  onOpenRecord?: (id: string) => void;
   theme?: "light" | "dark";
 }) {
-  const { t } = useUiPreferences();
+  const { t, locale } = useUiPreferences();
   const isLight = theme === "light";
   const cardRef = useRef<HTMLDivElement>(null);
   const [tilt, setTilt] = useState({ rotateX: 0, rotateY: 0, glareX: 50, glareY: 30, hover: false });
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
+    if (isFlipped || !cardRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -1362,7 +1229,12 @@ function CyberJobCard3D({
     setTilt({ rotateX: 0, rotateY: 0, glareX: 50, glareY: 25, hover: false });
   };
 
-  const totalRotateY = (isFlipped ? 180 : 0) + (isFlipped ? -tilt.rotateY : tilt.rotateY);
+  const activeTiltX = isFlipped ? 0 : tilt.rotateX;
+  const activeTiltY = isFlipped ? 0 : tilt.rotateY;
+  const totalRotateY = (isFlipped ? 180 : 0) + activeTiltY;
+  const updatedText = new Intl.DateTimeFormat(locale === "en" ? "en-US" : "zh-CN", {
+    timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
+  }).format(new Date(job.updatedAt));
 
   return (
     <div
@@ -1372,15 +1244,16 @@ function CyberJobCard3D({
       onClick={onToggleFlip}
       style={{ perspective: "1400px" }}
       data-cyber-card-id={job.id}
-      className="cyber-3d-card group relative w-full h-[346px] select-none cursor-pointer"
+      data-job-id={job.id}
+      className="cyber-3d-card group relative w-full h-[356px] select-none cursor-pointer"
     >
       <div
         style={{
           background: job.glowColor,
-          transform: `translate3d(${-tilt.rotateY * 1.2}px, ${12 + tilt.rotateX}px, -30px) scale(${
-            tilt.hover ? 0.96 : 0.86
+          transform: `translate3d(${-activeTiltY * 1.2}px, ${12 + activeTiltX}px, -30px) scale(${
+            tilt.hover && !isFlipped ? 0.96 : 0.86
           })`,
-          opacity: tilt.hover ? 0.58 : 0.24,
+          opacity: tilt.hover && !isFlipped ? 0.58 : 0.24,
         }}
         className="pointer-events-none absolute inset-x-6 bottom-1 h-20 rounded-3xl blur-2xl transition-all duration-300"
       />
@@ -1388,8 +1261,8 @@ function CyberJobCard3D({
       <div
         style={{
           transformStyle: "preserve-3d",
-          transform: `translateZ(${tilt.hover ? 14 : 0}px) rotateX(${tilt.rotateX}deg) rotateY(${totalRotateY}deg)`,
-          transition: tilt.hover
+          transform: `translateZ(${tilt.hover && !isFlipped ? 14 : 0}px) rotateX(${activeTiltX}deg) rotateY(${totalRotateY}deg)`,
+          transition: tilt.hover && !isFlipped
             ? "transform 110ms cubic-bezier(0.2, 0.85, 0.3, 1)"
             : "transform 650ms cubic-bezier(0.22, 1, 0.36, 1)",
         }}
@@ -1403,7 +1276,8 @@ function CyberJobCard3D({
             transformStyle: "preserve-3d",
             backdropFilter: "blur(28px) saturate(190%)",
             backgroundColor: "var(--ap-tone-26)",
-            boxShadow: tilt.hover
+            pointerEvents: isFlipped ? "none" : "auto",
+            boxShadow: tilt.hover && !isFlipped
               ? isLight
                 ? `0 22px 48px -10px rgba(0,0,0,0.14), 0 0 0 1.5px ${agent.primaryHex}cc, inset 0 1px 0 rgba(255,255,255,0.95)`
                 : `0 24px 50px -12px rgba(0,0,0,0.9), 0 0 0 1.5px ${agent.secondaryHex}aa, inset 0 1px 0 rgba(255,255,255,0.24)`
@@ -1430,11 +1304,6 @@ function CyberJobCard3D({
                 className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-mono font-black text-sm shrink-0 relative"
               >
                 {job.logoText}
-                {job.isNewMint && (
-                  <span className="absolute -top-1.5 -left-1.5 px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 font-mono text-[9px] font-black">
-                    NEW
-                  </span>
-                )}
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
@@ -1443,7 +1312,7 @@ function CyberJobCard3D({
                       ? "bg-amber-100 text-amber-900 border-amber-300"
                       : "bg-amber-400/15 text-amber-300 border-amber-400/30"
                   }`}>
-                    {job.tier}
+                    {job.queueRank} · {stageLabel(job.stage3D, t)}
                   </span>
                   <span className={`text-xs font-medium truncate ${isLight ? "text-slate-600 font-semibold" : "text-slate-300"}`}>
                     {job.company}
@@ -1462,8 +1331,8 @@ function CyberJobCard3D({
             <div className={`shrink-0 font-mono text-center px-2.5 py-1.5 rounded-xl border ${
               isLight ? "bg-cyan-50 border-cyan-200" : "bg-cyan-400/10 border-cyan-400/30"
             }`}>
-              <div className={`text-xs font-black ${isLight ? "text-cyan-800" : "text-cyan-300"}`}>{job.matchScore}%</div>
-              <div className={`text-[9px] ${isLight ? "text-slate-500" : "text-slate-400"}`}>MATCH</div>
+              <div className={`text-xs font-black ${isLight ? "text-cyan-800" : "text-cyan-300"}`}>{job.materialsCount}</div>
+              <div className={`text-[9px] ${isLight ? "text-slate-500" : "text-slate-400"}`}>{t("快照", "SNAP")}</div>
             </div>
           </div>
 
@@ -1472,33 +1341,33 @@ function CyberJobCard3D({
               transform: "translateZ(22px)",
               boxShadow: isLight ? "inset 0 1px 3px rgba(0,0,0,0.06)" : "inset 0 2px 6px rgba(0,0,0,0.9)",
             }}
-            className={`relative rounded-xl p-3 border flex items-center justify-between font-mono ${
+            className={`relative rounded-xl p-3 border flex items-center justify-between gap-2 font-mono ${
               isLight ? "bg-slate-50 border-slate-200" : "bg-[#05080D] border-[#182638]"
             }`}
           >
-            <div>
-              <div className={`text-[10px] ${isLight ? "text-slate-500" : "text-slate-400"}`}>{job.annualTotal}</div>
-              <div className={`text-base font-extrabold mt-0.5 ${isLight ? "text-amber-800" : "text-amber-400"}`}>{job.salary}</div>
+            <div className="min-w-0">
+              <div className={`text-[10px] truncate ${isLight ? "text-slate-500" : "text-slate-400"}`}>{job.annualTotal}</div>
+              <div className={`text-sm font-extrabold mt-0.5 truncate ${isLight ? "text-amber-800" : "text-amber-400"}`}>{job.salary}</div>
             </div>
-            <div className="text-right">
-              <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10.5px] font-bold ${
+            <div className="text-right shrink-0">
+              <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-bold ${
                 isLight ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
               }`}>
-                {t("净时薪", "Net hourly")} ¥{job.hourlyNet}/h
+                {updatedText}
               </div>
               <div className={`text-[10px] mt-1 ${isLight ? "text-slate-600 font-medium" : "text-cyan-300/90"}`}>{job.workHours}</div>
             </div>
           </div>
 
           <div style={{ transform: "translateZ(18px)" }} className="relative flex flex-wrap gap-1.5">
-            {job.tags.map((t, i) => (
+            {job.tags.map((tag, i) => (
               <span
                 key={i}
                 className={`px-2 py-0.5 rounded-md text-[10.5px] font-mono border ${
                   isLight ? "bg-slate-100 border-slate-200 text-slate-700" : "bg-[#0E1724] border-[#1E3048] text-slate-200"
                 }`}
               >
-                {t}
+                {tag}
               </span>
             ))}
           </div>
@@ -1509,14 +1378,13 @@ function CyberJobCard3D({
               isLight ? "border-slate-200" : "border-white/[0.08]"
             }`}
           >
-            <div className="flex items-center gap-1.5">
-              <StudioRuntimeIcon agentId={agent.id} className="w-4 h-4" />
-              <span className={isLight ? "text-slate-600" : "text-slate-300"}>{agent.shortName}:</span>
-              <span className={`font-bold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>{stageLabel(job.stage3D, t)}</span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <StudioRuntimeIcon agentId={agent.id} className="w-4 h-4 shrink-0" />
+              <span className={`truncate ${isLight ? "text-slate-600" : "text-slate-300"}`}>{agent.shortName}</span>
             </div>
-            <div className={`flex items-center gap-1 font-medium ${isLight ? "text-cyan-700 hover:text-cyan-900" : "text-cyan-300"}`}>
+            <div className={`flex items-center gap-1 font-medium shrink-0 ${isLight ? "text-cyan-700 hover:text-cyan-900" : "text-cyan-300"}`}>
               <RotateCw className="w-3 h-3 transition-transform duration-500 group-hover:rotate-180" />
-              <span>{t("180° 翻转背调", "Flip 180° for research")}</span>
+              <span>{t("180° 翻转详情", "Flip 180° details")}</span>
             </div>
           </div>
         </div>
@@ -1530,25 +1398,26 @@ function CyberJobCard3D({
             transformStyle: "preserve-3d",
             backdropFilter: "blur(30px) saturate(200%)",
             backgroundColor: "var(--ap-tone-27)",
+            pointerEvents: isFlipped ? "auto" : "none",
             boxShadow: isLight
               ? `0 24px 50px -12px rgba(0,0,0,0.15), 0 0 0 1.5px ${agent.primaryHex}cc, inset 0 1px 0 rgba(255,255,255,0.9)`
               : `0 24px 50px -12px rgba(0,0,0,0.92), 0 0 0 1.5px ${agent.primaryHex}aa, inset 0 1px 0 rgba(255,255,255,0.22)`,
           }}
           className="absolute inset-0 rounded-2xl p-5 flex flex-col justify-between overflow-hidden"
         >
-          <div style={{ transform: "translateZ(24px)" }} className={`flex items-center justify-between border-b pb-2 ${
+          <div style={{ transform: "translateZ(24px)" }} className={`flex items-center justify-between border-b pb-2 gap-2 ${
             isLight ? "border-slate-200" : "border-white/10"
           }`}>
-            <div className="flex items-center gap-2 font-mono text-xs font-bold" style={{ color: isLight ? (agent.id === "opus-5.5" ? "#B45309" : agent.primaryHex) : agent.primaryHex }}>
-              <StudioRuntimeIcon agentId={agent.id} className="w-5 h-5" />
-              <span>{agent.shortName} RECON // {t("背调实证", "verified research")}</span>
+            <div className="flex items-center gap-2 font-mono text-xs font-bold truncate" style={{ color: isLight ? (agent.id === "opus-5.5" ? "#B45309" : agent.primaryHex) : agent.primaryHex }}>
+              <StudioRuntimeIcon agentId={agent.id} className="w-5 h-5 shrink-0" />
+              <span className="truncate">{job.sourcePlatform}</span>
             </div>
-            <span className={`font-mono text-[10px] px-2 py-0.5 rounded border ${
+            <span className={`font-mono text-[10px] px-2 py-0.5 rounded border shrink-0 ${
               isLight
                 ? "bg-emerald-50 text-emerald-800 border-emerald-300"
                 : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
             }`}>
-              {t("仲裁 0 起", "Arbitration: 0 cases")}
+              {stageLabel(job.stage3D, t)}
             </span>
           </div>
 
@@ -1561,52 +1430,54 @@ function CyberJobCard3D({
               <div className={`font-mono font-bold text-[10.5px] mb-0.5 ${
                 isLight ? "text-emerald-800" : "text-emerald-300"
               }`}>
-                ✓ {t("真实作息核验", "Verified working hours")} ({job.workHours})
+                {t("下一步跟进", "Next follow-up")}
               </div>
-              <p className="line-clamp-2 opacity-95">{job.triageDossier.wlbVerification}</p>
+              <p className="line-clamp-2 opacity-95">{job.nextAction}</p>
             </div>
             <div className={`p-2.5 rounded-xl border ${
               isLight
                 ? "bg-cyan-50 border-cyan-200 text-cyan-950"
                 : "bg-cyan-950/35 border-cyan-500/30 text-cyan-100"
             }`}>
-              <div className={`font-mono font-bold text-[10.5px] mb-0.5 flex items-center gap-1.5 ${
+              <div className={`font-mono font-bold text-[10.5px] mb-0.5 ${
                 isLight ? "text-cyan-800" : "text-cyan-300"
               }`}>
-                <span>✦ {agent.mascotName} {t("决胜诊断", "decisive diagnosis")}</span>
+                {t(`沟通 ${job.communicationsCount} · 材料 ${job.materialsCount}`, `Comms ${job.communicationsCount} · Snapshots ${job.materialsCount}`)}
               </div>
-              <p className="line-clamp-2 opacity-95">{job.triageDossier.agentVerdict}</p>
+              <p className="line-clamp-2 opacity-95">
+                {job.description ? job.description : t("尚未保存 JD 正文；背调与匹配需送入顾问执行后生成真实回执。", "No description saved yet; run Advisor for real research and match receipts.")}
+              </p>
             </div>
           </div>
 
-          <div
-            style={{ transform: "translateZ(22px)" }}
-            onClick={(e) => e.stopPropagation()}
-            className={`flex items-center gap-1 p-1 rounded-xl border font-mono ${
-              isLight ? "bg-slate-100 border-slate-200" : "bg-[#05080D] border-[#1B2A3D]"
-            }`}
-          >
-            {["已收藏", "简历润色中", "ATS 核验通过", "面试攻防准备"].map((st) => (
+          <div style={{ transform: "translateZ(30px)" }} onClick={(e) => e.stopPropagation()} className="grid grid-cols-2 gap-2">
+            {onOpenRecord && (
               <button
-                key={st}
-                onClick={() => onChangeStage(job.id, st)}
-                className={`flex-1 py-1 rounded-lg text-[10px] font-bold transition ${
-                  job.stage3D === st
-                    ? "bg-cyan-500 text-white shadow-xs"
-                    : isLight
-                      ? "text-slate-600 hover:text-slate-900"
-                      : "text-slate-400 hover:text-white"
+                type="button"
+                onClick={() => onOpenRecord(job.id)}
+                className={`py-1.5 px-2.5 rounded-xl font-mono text-[11px] font-bold border transition ${
+                  isLight ? "bg-slate-100 border-slate-300 text-slate-800 hover:bg-slate-200" : "bg-white/10 border-white/15 text-slate-100 hover:bg-white/15"
                 }`}
               >
-                {stageShort(st, t)}
+                {t("核对岗位记录", "Review record")}
               </button>
-            ))}
-          </div>
-
-          <div style={{ transform: "translateZ(30px)" }} onClick={(e) => e.stopPropagation()}>
+            )}
+            {onAnalyze && (
+              <button
+                type="button"
+                onClick={() => onAnalyze(job.sourceJob)}
+                className="py-1.5 px-2.5 rounded-xl font-mono text-[11px] font-bold text-slate-950 bg-gradient-to-r from-amber-400 via-amber-300 to-cyan-300 hover:brightness-110 shadow flex items-center justify-center gap-1 transition"
+              >
+                <span>{t("送入顾问", "Send to advisor")}</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
             <button
+              type="button"
               onClick={() => onInspectInStudio(job.id)}
-              className="w-full py-2 px-3 rounded-xl font-mono text-xs font-bold text-slate-950 bg-gradient-to-r from-amber-400 via-amber-300 to-cyan-300 hover:brightness-110 shadow-lg flex items-center justify-center gap-1.5 transition"
+              className={`col-span-2 py-1.5 px-3 rounded-xl font-mono text-[11px] font-bold border flex items-center justify-center gap-1.5 transition ${
+                isLight ? "bg-cyan-50 border-cyan-300 text-cyan-900 hover:bg-cyan-100" : "bg-cyan-500/15 border-cyan-500/30 text-cyan-200 hover:bg-cyan-500/25"
+              }`}
             >
               <Terminal className="w-3.5 h-3.5" />
               <span>{t(`载入 ${agent.shortName} 20-Node 工坊`, `Open ${agent.shortName} in the 20-Node studio`)} ➔</span>
@@ -1621,95 +1492,7 @@ function CyberJobCard3D({
 // ============================================================================
 // 9. 主工作区组件：AutopilotStudioWorkspace
 // ============================================================================
-type AutopilotStudioWorkspaceProps = Parameters<typeof AutopilotWorkbenchPrototype>[0] & {
-  onOpenOpportunitySources?: () => void;
-  onAnalyzeOpportunity?: (job: Opportunity) => void;
-};
-
-export function AutopilotStudioWorkspace(props: AutopilotStudioWorkspaceProps) {
-  const { t, locale } = useUiPreferences();
-  const { data: libraryState, mutate } = useSWR("studio:opportunity-library", () => readOpportunityLibrary(), { refreshInterval: 5_000 });
-  const library = libraryState?.library;
-  const jobs = library?.jobs ?? [];
-  const claims = props.factBase?.experiences.reduce((sum, experience) => sum + experience.claims.length, 0) ?? 0;
-  const sourcedJobs = jobs.filter(job => Boolean(job.sourceUrl)).length;
-  const stageLabels: Record<Opportunity["application"]["stage"], string> = {
-    saved: t("已收藏", "Saved"), evaluating: t("待评估", "Evaluating"), preparing: t("准备中", "Preparing"),
-    applied: t("已投递", "Applied"), interview: t("面试中", "Interviewing"), offer: "Offer",
-    rejected: t("未通过", "Rejected"), withdrawn: t("已撤回", "Withdrawn"),
-  };
-  const formatUpdatedAt = (value: string) => new Intl.DateTimeFormat(locale === "en" ? "en-US" : "zh-CN", {
-    timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
-  }).format(new Date(value));
-
-  return <section className="workspace-reading studio-real-workspace" aria-label={t("自动化工坊", "Automation studio")}>
-    <header className="studio-live-header">
-      <div>
-        <span className="studio-live-kicker">{t("真实数据通道", "LIVE DATA PIPELINE")}</span>
-        <h2>{t("自动化工坊 · 真实岗位控制台", "Automation studio · Real opportunity console")}</h2>
-        <p>{t("直接读取机会空间中已保存的岗位、原始来源与实际跟进状态，不注入演示数据。", "Reads saved opportunities, original sources and actual follow-up states directly. No demo data is injected.")}</p>
-      </div>
-      <div className="studio-live-actions">
-        <button type="button" onClick={() => void mutate()}><RotateCw size={15} />{t("刷新", "Refresh")}</button>
-        {props.onOpenOpportunitySources && <button className="studio-live-primary" type="button" onClick={props.onOpenOpportunitySources}>{t("接入真实岗位", "Connect real opportunities")}<ChevronRight size={15} /></button>}
-      </div>
-    </header>
-
-    <div className="studio-live-summary" aria-label={t("真实数据概览", "Real data summary")}>
-      <div><span>{t("已保存岗位", "Saved opportunities")}</span><strong>{jobs.length}</strong></div>
-      <div><span>{t("带原始来源", "With original sources")}</span><strong>{sourcedJobs}</strong></div>
-      <div><span>{t("事实库要点", "Fact-base claims")}</span><strong>{claims}</strong></div>
-    </div>
-
-    <div className="workspace-notice studio-live-boundary" role="note">
-      <ShieldCheck size={18} aria-hidden="true" />
-      <div><strong>{t("真实数据边界", "Real-data boundary")}</strong><p>{t("仅展示机会库原始记录。ATS、匹配与企业背调只有在顾问实际执行并返回回执后才会显示；当前不会伪造分数或通过结论。", "Only original opportunity records are shown. ATS, matching and company research appear only after an advisor actually runs and returns a receipt; no scores or pass results are fabricated.")}</p></div>
-    </div>
-
-    {!libraryState && <p role="status"><Loader2 size={15} className="animate-spin" />{t("正在读取真实机会库…", "Reading the real opportunity library…")}</p>}
-    {libraryState?.error && <p role="alert">{libraryState.error}</p>}
-
-    {jobs.length > 0 && <div className="workspace-card-grid studio-live-grid">{jobs.map(job => <article className="workspace-card studio-live-card" key={job.id} data-job-id={job.id}>
-      <div className="studio-live-card-heading">
-        <span className="studio-live-source">{job.sourcePlatform || t("来源待核验", "Source unverified")}</span>
-        <h3>{job.title}</h3>
-        <p>{job.company}</p>
-      </div>
-      <dl>
-        <div><dt>{t("薪资", "Salary")}</dt><dd>{job.salaryText || t("未披露", "Not disclosed")}</dd></div>
-        <div><dt>{t("地点", "Location")}</dt><dd>{[job.location.city, job.location.region].filter(Boolean).join(" · ") || t("未披露", "Not disclosed")}</dd></div>
-        <div><dt>{t("投递阶段", "Application stage")}</dt><dd>{stageLabels[job.application.stage]}</dd></div>
-        <div><dt>{t("记录更新", "Record updated")}</dt><dd>{formatUpdatedAt(job.updatedAt)}</dd></div>
-      </dl>
-      <p className="studio-live-next">{job.application.nextAction || t("下一步：核对岗位原文与申请入口", "Next: review the original posting and application entry")}</p>
-      <div className="studio-live-card-actions">
-        {job.sourceUrl && <a href={job.sourceUrl} target="_blank" rel="noreferrer">{t("原始招聘页", "Original posting")}<ExternalLink size={14} /></a>}
-        {props.onOpenOpportunity && <button type="button" onClick={() => props.onOpenOpportunity?.(job.id)}>{t("核对岗位记录", "Review record")}</button>}
-        {props.onAnalyzeOpportunity && <button className="studio-live-primary" type="button" onClick={() => props.onAnalyzeOpportunity?.(job)}>{t("送入顾问", "Send to advisor")}<ChevronRight size={14} /></button>}
-      </div>
-    </article>)}</div>}
-
-    {library && !libraryState?.error && jobs.length === 0 && <div className="studio-live-empty">
-      <span className="studio-live-empty-icon"><BookmarkCheck size={21} aria-hidden="true" /></span>
-      <h3>{t("还没有接入真实岗位", "No real opportunities connected yet")}</h3>
-      <p>{t("前往机会空间，从腾讯招聘官网、Greenhouse、Lever 读取公开职位，或导入真实 JD。收藏后会自动出现在这里。", "Open Opportunity Space to read public roles from Tencent Careers, Greenhouse or Lever, or import a real job description. Saved roles appear here automatically.")}</p>
-      {props.onOpenOpportunitySources && <button className="studio-live-primary" type="button" onClick={props.onOpenOpportunitySources}>{t("打开真实岗位来源", "Open real opportunity sources")}<ChevronRight size={15} /></button>}
-    </div>}
-  </section>;
-}
-
-export function AutopilotWorkbenchPrototype({
-  factBase,
-  resume: _resume,
-  projectedResume: _projectedResume,
-  targetQuery: _targetQuery = "",
-  initialOpportunityId,
-  onOpenMicroApp,
-  onOpenOpportunity: _onOpenOpportunity,
-  onOpenApp: _onOpenApp,
-  onNavigateToDraft: _onNavigateToDraft,
-  onClose: _onClose,
-}: {
+export type AutopilotStudioWorkspaceProps = {
   factBase?: FactBase;
   resume?: ProjectedResume;
   projectedResume?: ProjectedResume;
@@ -1717,9 +1500,58 @@ export function AutopilotWorkbenchPrototype({
   initialOpportunityId?: string;
   onOpenMicroApp?: (app: InstalledMicroApp) => void;
   onOpenOpportunity?: (id: string) => void;
+  onOpenOpportunitySources?: () => void;
+  onAnalyzeOpportunity?: (job: Opportunity) => void;
   onOpenApp?: (appId: string) => void;
   onNavigateToDraft?: () => void;
   onClose?: () => void;
+};
+
+export function AutopilotStudioWorkspace(props: AutopilotStudioWorkspaceProps) {
+  const { data: libraryState, mutate } = useSWR("studio:opportunity-library", () => readOpportunityLibrary(), { refreshInterval: 5_000 });
+  useEffect(() => {
+    const sync = () => { void mutate(); };
+    window.addEventListener("betterme:opportunities-updated", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("betterme:opportunities-updated", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, [mutate]);
+  const jobs = libraryState?.library?.jobs ?? [];
+  return (
+    <AutopilotWorkbenchPrototype
+      {...props}
+      opportunities={jobs}
+      loadingOpportunities={!libraryState}
+      opportunityError={libraryState?.error}
+      onRefreshOpportunities={() => { void mutate(); }}
+    />
+  );
+}
+
+export function AutopilotWorkbenchPrototype({
+  factBase,
+  resume,
+  projectedResume,
+  targetQuery: _targetQuery = "",
+  initialOpportunityId,
+  opportunities = [],
+  loadingOpportunities = false,
+  opportunityError = "",
+  onRefreshOpportunities,
+  onOpenMicroApp,
+  onOpenOpportunity,
+  onOpenOpportunitySources,
+  onAnalyzeOpportunity,
+  onOpenApp: _onOpenApp,
+  onNavigateToDraft: _onNavigateToDraft,
+  onClose: _onClose,
+}: AutopilotStudioWorkspaceProps & {
+  opportunities?: Opportunity[];
+  loadingOpportunities?: boolean;
+  opportunityError?: string;
+  onRefreshOpportunities?: () => void;
 }) {
   const { theme, setTheme, t } = useUiPreferences();
 
@@ -1750,10 +1582,11 @@ export function AutopilotWorkbenchPrototype({
   const [activeNodeIdx, setActiveNodeIdx] = useState(12); // 默认聚焦 #13 ATS / 版式
   const [terminalTab, setTerminalTab] = useState<"terminal" | "inspector">("terminal");
 
-  // 4. 岗位队列与 3D 卡状态
-  const [jobs, setJobs] = useState<JobPipelineItem[]>(DEFAULT_DEMO_JOBS);
+  // 4. 真实岗位队列与 3D 卡状态
+  const jobs = useMemo(() => opportunities.map((job, idx) => opportunityToPipelineItem(job, idx, t)), [opportunities, t]);
+  const sourcedJobsCount = useMemo(() => opportunities.filter((job) => Boolean(job.sourceUrl)).length, [opportunities]);
 
-  const [activeJobId, setActiveJobId] = useState<string>(() => initialOpportunityId || jobs[0]?.id || "job-siemens-rcs");
+  const [activeJobId, setActiveJobId] = useState<string>(() => initialOpportunityId || opportunities[0]?.id || "");
   const [flipped3DMap, setFlipped3DMap] = useState<Record<string, boolean>>({});
   const [space3DLayout, setSpace3DLayout] = useState<"grid" | "carousel">("grid");
 
@@ -1775,9 +1608,11 @@ export function AutopilotWorkbenchPrototype({
   const toastTimer = useRef<number | null>(null);
   useEffect(() => () => { if (toastTimer.current !== null) window.clearTimeout(toastTimer.current); }, []);
 
-  const activeJob = useMemo(() => jobs.find((j) => j.id === activeJobId) || jobs[0]!, [jobs, activeJobId]);
+  const activeJob = useMemo(() => jobs.find((j) => j.id === activeJobId) || jobs[0] || null, [jobs, activeJobId]);
   const activeNode = studioNodes[activeNodeIdx]!;
-  const collected3DJobs = useMemo(() => jobs.filter((j) => j.collectedIn3D), [jobs]);
+  const collected3DJobs = jobs;
+  const activeResumeProjection = projectedResume ?? resume;
+  const resumeSectionCount = activeResumeProjection?.experiences?.length ?? 0;
 
   // FactBase claim count & summary
   const claimCount = useMemo(() => {
@@ -1788,7 +1623,7 @@ export function AutopilotWorkbenchPrototype({
     return count;
   }, [factBase]);
 
-  const operatorName = factBase?.profile?.displayName?.zh || factBase?.profile?.displayName?.en || t("示例用户", "Sample user");
+  const operatorName = factBase?.profile?.displayName?.zh || factBase?.profile?.displayName?.en || t("本地用户", "Local user");
   const operatorRole = factBase?.profile?.targetRoles?.[0]?.zh || t("职业方向未填写", "Target role not set");
 
   const triggerToast = useCallback((title: string, desc: string) => {
@@ -1863,16 +1698,12 @@ export function AutopilotWorkbenchPrototype({
     return list;
   }, [activeNodeIdx, studioNodes]);
 
-  // 铸造 3D 机会卡
-  const handleMint3DCard = (targetJob = activeJob) => {
-    setJobs((prev) =>
-      prev.map((j) =>
-        j.id === targetJob.id ? { ...j, collectedIn3D: true, isNewMint: true } : { ...j, isNewMint: false }
-      )
-    );
+  // 切换至 3D 机会金库查看已收藏卡片
+  const handleOpen3DVault = () => {
+    setWorkspaceMode("space3d");
     triggerToast(
-      t(`✦ ${currentAgent.shortName} 已铸造「${targetJob.shortName}」3D 毛玻璃卡`, `${currentAgent.shortName} minted a frosted 3D card for ${targetJob.shortName}`),
-      t("已推入 3D 机会金库，背面已加盖当前 AI 助手专属背调印章。", "Pushed into the 3D opportunity vault; the back carries the research stamp of the current AI assistant.")
+      t(`✦ 已切换至 3D 机会金库 (${collected3DJobs.length})`, `Switched to 3D opportunity vault (${collected3DJobs.length})`),
+      t("仅展示本地机会库已保存的真实岗位与当前状态。", "Showing only real saved opportunities and current stages from your local library.")
     );
   };
 
@@ -1950,7 +1781,7 @@ export function AutopilotWorkbenchPrototype({
         backgroundSize: "100% 100%, 16px 16px, 64px 64px, 64px 64px",
       }}
       data-theme={theme}
-      className="studio-workshop relative w-full h-full min-h-0 overflow-hidden flex flex-col justify-between text-slate-100 select-none transition-colors duration-500 font-sans"
+      className={`studio-workshop relative w-full h-full min-h-0 overflow-hidden flex flex-col justify-between select-none transition-colors duration-500 font-sans ${theme === "light" ? "text-slate-900" : "text-slate-100"}`}
     >
       {/* Toast 提示横幅 */}
       {toast && (
@@ -2016,28 +1847,45 @@ export function AutopilotWorkbenchPrototype({
 
           {/* 队列岗位快速切换胶囊 */}
           <div className="hidden xl:flex flex-col gap-0.5 font-mono">
-            <span className="text-[9px] text-slate-500 uppercase tracking-widest">TARGET PIPELINE QUEUE</span>
+            <span className="text-[9px] text-slate-500 uppercase tracking-widest">{t("真实岗位队列", "LIVE OPPORTUNITY QUEUE")}</span>
             <div className={`flex items-center gap-1 p-0.5 rounded-lg ${theme === "light" ? "bg-white border-slate-200" : "bg-[#0A1018] border-[#1B2A3D]"} border`}>
-              {jobs.map((j) => (
+              {jobs.length > 0 ? (
+                jobs.slice(0, 4).map((j) => (
+                  <button
+                    key={j.id}
+                    type="button"
+                    data-queue-job-id={j.id}
+                    onClick={() => {
+                      setActiveJobId(j.id);
+                      triggerToast(t(`✦ 目标切换：${j.company}`, `Target switched: ${j.company}`), t(`岗位「${j.role}」已载入控制台`, `${j.role} loaded into console`));
+                    }}
+                    className={`px-2 py-0.5 rounded text-[10px] transition ${
+                      activeJob?.id === j.id
+                        ? theme === "light"
+                          ? "bg-amber-100 text-amber-900 border border-amber-300 font-bold shadow-sm"
+                          : "bg-amber-400/20 text-amber-300 border border-amber-400/40 font-bold"
+                        : theme === "light"
+                          ? "text-slate-600 hover:text-slate-900"
+                          : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {j.shortName}
+                  </button>
+                ))
+              ) : (
+                <span className={`px-2 py-0.5 text-[10px] ${theme === "light" ? "text-slate-500" : "text-slate-400"}`}>
+                  {t("未接入真实岗位", "No real jobs yet")}
+                </span>
+              )}
+              {onOpenOpportunitySources && (
                 <button
-                  key={j.id}
-                  onClick={() => {
-                    setActiveJobId(j.id);
-                    triggerToast(t(`✦ 目标切换：${j.company}`, `Target switched: ${j.company}`), t(`岗位「${j.role}」已装入求职拓扑中枢`, `${j.role} loaded into the job-search hub`));
-                  }}
-                  className={`px-2 py-0.5 rounded text-[10px] transition ${
-                    activeJobId === j.id
-                      ? theme === "light"
-                        ? "bg-amber-100 text-amber-900 border border-amber-300 font-bold shadow-sm"
-                        : "bg-amber-400/20 text-amber-300 border border-amber-400/40 font-bold"
-                      : theme === "light"
-                        ? "text-slate-600 hover:text-slate-900"
-                        : "text-slate-400 hover:text-slate-200"
-                  }`}
+                  type="button"
+                  onClick={onOpenOpportunitySources}
+                  className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500 text-slate-950 hover:bg-cyan-400 transition"
                 >
-                  {j.shortName}
+                  {t("接入真实岗位", "Connect real opportunities")}
                 </button>
-              ))}
+              )}
             </div>
           </div>
         </div>
@@ -2072,23 +1920,38 @@ export function AutopilotWorkbenchPrototype({
           </div>
         </div>
 
-        {/* 右侧：遥测指标舱 + 前往系统设置 (模型/工具配置) + 主题切换 */}
+        {/* 右侧：遥测指标舱 + 刷新 + 前往系统设置 + 主题切换 */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* 实时遥测指标胶囊 */}
-          <div className={`hidden md:flex items-center gap-2 px-2.5 py-1.5 rounded-xl border font-mono text-[11px] whitespace-nowrap shrink-0 ${
+          {/* 实时真实数据计数胶囊 */}
+          <div className={`studio-live-summary hidden md:flex items-center gap-2 px-2.5 py-1.5 rounded-xl border font-mono text-[11px] whitespace-nowrap shrink-0 ${
             theme === "light"
               ? "bg-white border-slate-200 text-slate-700 shadow-sm"
               : "bg-[#0A1018] border-[#1E2E42] text-slate-300"
-          }`}>
+          }`} aria-label={t("真实数据概览", "Real data summary")}>
             <span className="flex items-center gap-1.5 shrink-0">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-semibold">:9222 CDP</span>
+              <span className={`w-2 h-2 rounded-full ${jobs.length > 0 ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`} />
+              <span className="font-semibold">{jobs.length}{t(" 岗位", " jobs")}</span>
             </span>
             <span className="opacity-30">•</span>
-            <span className="text-amber-500 font-semibold shrink-0">Prefetch=2</span>
+            <span className="text-amber-500 font-semibold shrink-0">{sourcedJobsCount}{t(" 带来源", " sourced")}</span>
             <span className="opacity-30">•</span>
-            <span className="text-cyan-500 font-semibold shrink-0">{claimCount}{t("条证据锁", " evidence locks")}</span>
+            <span className="text-cyan-500 font-semibold shrink-0">{t(`事实库要点${claimCount}`, `${claimCount} fact claims`)}</span>
           </div>
+
+          {onRefreshOpportunities && (
+            <button
+              type="button"
+              onClick={onRefreshOpportunities}
+              className={`px-2.5 py-1.5 rounded-xl border flex items-center gap-1.5 font-mono text-xs font-bold transition ${
+                theme === "light"
+                  ? "bg-white border-slate-300 text-slate-800 hover:bg-slate-50 shadow-sm"
+                  : "bg-[#0A1018] border-[#1E2E42] text-slate-200 hover:bg-[#121c2a]"
+              }`}
+            >
+              <RotateCw className="w-3.5 h-3.5 text-emerald-500" />
+              <span>{t("刷新", "Refresh")}</span>
+            </button>
+          )}
 
           {/* 系统设置快捷入口 (配置 CLI Agent 与模型) */}
           <button
@@ -2220,7 +2083,7 @@ export function AutopilotWorkbenchPrototype({
                   <div className="flex items-center gap-2 mt-0.5 text-[9px] font-mono text-slate-500">
                     <span className={theme === "light" ? "text-slate-600 font-semibold" : "text-slate-400"}>{node.latency}</span>
                     <span>•</span>
-                    <span>{node.tokens} tokens</span>
+                    <span>{node.tokens === "—" ? t("按需触发", "On demand") : node.tokens}</span>
                   </div>
                 </div>
 
@@ -2298,15 +2161,16 @@ export function AutopilotWorkbenchPrototype({
                 {/* 顶栏右侧快捷操作 */}
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => handleMint3DCard()}
+                    type="button"
+                    onClick={handleOpen3DVault}
                     className={`px-2.5 py-1 rounded-lg text-[11px] font-bold font-mono transition flex items-center gap-1 ${
                       theme === "light"
                         ? "text-amber-900 bg-amber-100 border border-amber-300 hover:bg-amber-200"
                         : "text-amber-300 bg-amber-400/15 border border-amber-400/35 hover:bg-amber-400/25"
                     }`}
                   >
-                    <Zap className="w-3 h-3" />
-                    <span>{t("铸造 3D 机会卡", "Mint 3D job card")}</span>
+                    <Orbit className="w-3 h-3" />
+                    <span>{t(`3D 机会金库 (${collected3DJobs.length})`, `3D opportunity vault (${collected3DJobs.length})`)}</span>
                   </button>
 
                   <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
@@ -2324,14 +2188,14 @@ export function AutopilotWorkbenchPrototype({
                     <div
                       style={{
                         backgroundColor: "var(--ap-tone-37)",
-                        borderColor: theme === "light" ? "#E2E8F0" : currentAgent.borderAccent,
+                        borderColor: theme === "light" ? "var(--ap-tone-36)" : currentAgent.borderAccent,
                         boxShadow: theme === "light" ? "0 4px 16px rgba(0,0,0,0.03)" : undefined,
                       }}
                       className="p-4 rounded-xl border flex items-start gap-4"
                     >
                       <StudioRuntimeIcon agentId={currentAgent.id} className="w-14 h-14 shrink-0" />
                       <div className="min-w-0 flex-1 space-y-1">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
                           <h2 className={`text-sm font-bold flex items-center gap-2 ${
                             theme === "light" ? "text-slate-900" : "text-white"
                           }`}>
@@ -2341,7 +2205,7 @@ export function AutopilotWorkbenchPrototype({
                                 ? "bg-cyan-50 text-cyan-800 border-cyan-300 font-bold"
                                 : "bg-cyan-500/20 text-cyan-300 border-cyan-500/30"
                             }`}>
-                              {t("工序预览", "Process preview")} · {runtimeStatus}
+                              {t("真实数据模式", "Real data mode")} · {runtimeStatus}
                             </span>
                           </h2>
                           <div className={`flex items-center gap-1 text-[11px] font-bold ${
@@ -2350,17 +2214,17 @@ export function AutopilotWorkbenchPrototype({
                               : "text-emerald-400"
                           }`}>
                             <Lock className="w-3 h-3" />
-                            <span>FactBase {claimCount}/{claimCount} Locked</span>
+                            <span>{t(`FactBase ${claimCount} 条要点 · ${resumeSectionCount} 段经历`, `FactBase ${claimCount} claims · ${resumeSectionCount} entries`)}</span>
                           </div>
                         </div>
 
-                        <div className={`text-[11px] flex items-center gap-3 ${
+                        <div className={`text-[11px] flex items-center gap-3 flex-wrap ${
                           theme === "light" ? "text-slate-600" : "text-slate-400"
                         }`}>
                           <span>{t("求职角色：", "Target role: ")}{operatorRole}</span>
                           <span>•</span>
                           <span className={theme === "light" ? "text-cyan-800 font-semibold" : "text-cyan-300"}>
-                            {t("FactBase 事实库锁已激活", "FactBase fact lock active")}
+                            {t("只读取本地真实机会与经历，零虚构指标", "Reads local opportunities & facts only, zero invented telemetry")}
                           </span>
                         </div>
 
@@ -2371,12 +2235,13 @@ export function AutopilotWorkbenchPrototype({
                         </p>
 
                         {/* 系统模型与工具配置指引 */}
-                        <div className="pt-2 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
+                        <div className="pt-2 flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className={`text-[10px] font-mono ${theme === "light" ? "text-slate-500" : "text-slate-400"}`}>
-                              {t("执行内核：当前已连接系统配置的本地 CLI / 模型调度", "Run kernel: connected to the local CLI / model dispatch set in system settings")}
+                              {t("执行内核：连接系统设置配置的本地 Agent", "Run kernel: connected to configured local Agent")}
                             </span>
                             <button
+                              type="button"
                               onClick={() => openSystemSettings("tools")}
                               className="text-[10px] text-cyan-600 hover:text-cyan-500 underline font-bold flex items-center gap-1 font-mono"
                             >
@@ -2385,34 +2250,191 @@ export function AutopilotWorkbenchPrototype({
                             </button>
                           </div>
                           <div className={`text-[10px] font-mono ${theme === "light" ? "text-slate-500" : "text-slate-400"}`}>
-                            {t("Prefetch: 2 并发 · 三层沙箱隔离", "Prefetch: 2 concurrent · three-layer sandbox isolation")}
+                            {t("沙箱边界受控 · 本人确认投递", "Sandboxed runtime · Human-confirmed delivery")}
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* 当前执行指令与动态目标 */}
-                    <div className={`p-3 rounded-xl border flex items-center justify-between ${
-                      theme === "light"
-                        ? "bg-slate-50 border-slate-200 text-slate-800"
-                        : "bg-black/40 border-white/10 text-cyan-300"
-                    }`}>
-                      <div className={`flex items-center gap-2 font-mono ${
-                        theme === "light" ? "text-slate-900 font-semibold" : "text-cyan-300"
-                      }`}>
-                        <span className="font-bold text-cyan-600">&gt;</span>
-                        <span>/autopilot --target="{activeJob.company}" --pipeline=full</span>
-                      </div>
-                      <button
-                        onClick={() => setTerminalTab("inspector")}
-                        className={`text-[10px] hover:underline flex items-center gap-1 font-mono font-bold ${
-                          theme === "light" ? "text-amber-700" : "text-amber-300"
+                    {opportunityError && (
+                      <div
+                        role="alert"
+                        className={`p-3 rounded-xl border text-xs font-mono ${
+                          theme === "light"
+                            ? "bg-rose-50 border-rose-200 text-rose-800"
+                            : "bg-rose-950/30 border-rose-500/35 text-rose-200"
                         }`}
                       >
-                        <span>{t(`[展开 #${activeNode.code} 工件]`, `[Expand #${activeNode.code} artifact]`)}</span>
-                        <ChevronRight className="w-3 h-3" />
-                      </button>
-                    </div>
+                        <strong>{t("读取本地机会库失败：", "Failed to read local opportunity library: ")}</strong>
+                        <span>{opportunityError}</span>
+                      </div>
+                    )}
+
+                    {/* 当前聚焦的真实岗位摘要或空状态引导 */}
+                    {activeJob ? (
+                      <div className="space-y-2.5">
+                        <div className={`p-3 rounded-xl border flex items-center justify-between gap-2 flex-wrap ${
+                          theme === "light"
+                            ? "bg-slate-50 border-slate-200 text-slate-800"
+                            : "bg-black/40 border-white/10 text-cyan-300"
+                        }`}>
+                          <div className={`flex items-center gap-2 font-mono min-w-0 ${
+                            theme === "light" ? "text-slate-900 font-semibold" : "text-cyan-300"
+                          }`}>
+                            <span className="font-bold text-cyan-600">&gt;</span>
+                            <span className="truncate">/autopilot --target="{activeJob.company}" --pipeline=real</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setTerminalTab("inspector")}
+                            className={`text-[10px] hover:underline flex items-center gap-1 font-mono font-bold shrink-0 ${
+                              theme === "light" ? "text-amber-700" : "text-amber-300"
+                            }`}
+                          >
+                            <span>{t(`[展开 #${activeNode.code} 工件]`, `[Expand #${activeNode.code} artifact]`)}</span>
+                            <ChevronRight className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        {jobs.length > 1 && (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {jobs.map((j) => (
+                              <button
+                                key={j.id}
+                                type="button"
+                                onClick={() => setActiveJobId(j.id)}
+                                className={`px-2 py-1 rounded-lg border text-[10.5px] font-mono transition ${
+                                  activeJob.id === j.id
+                                    ? "bg-cyan-500 text-slate-950 border-cyan-400 font-bold"
+                                    : theme === "light"
+                                      ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                                      : "bg-white/[0.04] border-white/10 text-slate-300 hover:bg-white/[0.08]"
+                                }`}
+                              >
+                                {j.company} · {j.role}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        <div
+                          data-job-id={activeJob.id}
+                          className={`p-3.5 rounded-xl border space-y-2 ${
+                            theme === "light"
+                              ? "bg-white border-slate-200 shadow-sm text-slate-800"
+                              : "bg-black/45 border-white/10 text-slate-200"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2 flex-wrap">
+                            <div className="min-w-0">
+                              <div className={`text-sm font-bold truncate ${theme === "light" ? "text-slate-900" : "text-white"}`}>
+                                {activeJob.role}
+                              </div>
+                              <div className={`text-[11px] ${theme === "light" ? "text-slate-600" : "text-slate-400"}`}>
+                                {activeJob.company} · {activeJob.sourcePlatform}
+                              </div>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                              theme === "light"
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                            }`}>
+                              {stageLabel(activeJob.stage3D, t)}
+                            </span>
+                          </div>
+
+                          <div className={`flex flex-wrap gap-2 text-[10.5px] font-mono ${theme === "light" ? "text-slate-600" : "text-slate-300"}`}>
+                            <span>{t("地点: ", "Location: ")}{activeJob.city}</span>
+                            <span>•</span>
+                            <span>{t("薪资: ", "Salary: ")}{activeJob.salary}</span>
+                            <span>•</span>
+                            <span>{activeJob.workHours}</span>
+                            <span>•</span>
+                            <span>{t(`材料 ${activeJob.materialsCount} · 沟通 ${activeJob.communicationsCount}`, `Materials ${activeJob.materialsCount} · Comms ${activeJob.communicationsCount}`)}</span>
+                          </div>
+
+                          <div className={`text-[11px] ${theme === "light" ? "text-slate-700" : "text-slate-300"}`}>
+                            {activeJob.nextAction}
+                          </div>
+
+                          <div className="pt-1 flex items-center gap-2 flex-wrap">
+                            {onAnalyzeOpportunity && (
+                              <button
+                                type="button"
+                                onClick={() => onAnalyzeOpportunity(activeJob.sourceJob)}
+                                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-gradient-to-r from-amber-400 to-cyan-400 text-slate-950 hover:brightness-110 shadow transition"
+                              >
+                                {t("送入顾问核验", "Run Advisor review")} ➔
+                              </button>
+                            )}
+                            {onOpenOpportunity && (
+                              <button
+                                type="button"
+                                onClick={() => onOpenOpportunity(activeJob.id)}
+                                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
+                                  theme === "light"
+                                    ? "bg-slate-100 border-slate-300 text-slate-800 hover:bg-slate-200"
+                                    : "bg-white/10 border-white/15 text-slate-100 hover:bg-white/15"
+                                }`}
+                              >
+                                {t("核对岗位记录", "Open saved record")}
+                              </button>
+                            )}
+                            {activeJob.sourceUrl && (
+                              <a
+                                href={activeJob.sourceUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[11px] text-cyan-500 hover:underline font-mono ml-auto"
+                              >
+                                {t("查看原始发布链接", "Original source URL")} ↗
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : loadingOpportunities ? (
+                      <div className={`p-4 rounded-xl border text-xs font-mono ${
+                        theme === "light" ? "bg-slate-50 border-slate-200 text-slate-600" : "bg-black/40 border-white/10 text-slate-400"
+                      }`}>
+                        {t("正在读取本地已保存的真实岗位…", "Loading locally saved opportunities…")}
+                      </div>
+                    ) : (
+                      <div className={`p-4 rounded-xl border space-y-2.5 ${
+                        theme === "light" ? "bg-slate-50 border-slate-200 text-slate-700" : "bg-black/45 border-white/10 text-slate-300"
+                      }`}>
+                        <div className={`text-sm font-bold ${theme === "light" ? "text-slate-900" : "text-white"}`}>
+                          {t("当前还没有接入真实岗位", "No real opportunities saved yet")}
+                        </div>
+                        <p className="text-[11px] leading-relaxed opacity-90">
+                          {t("本工坊严格只绑定本地真实机会库与 FactBase 事实经历；在保存首批岗位前，不注入任何模拟公司、薪资、ATS 分数或背调结论。", "This studio binds strictly to your saved opportunities and local FactBase—no demo companies, salaries, ATS scores, or synthetic checks are generated.")}
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap pt-1">
+                          {onOpenOpportunitySources && (
+                            <button
+                              type="button"
+                              onClick={onOpenOpportunitySources}
+                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 hover:bg-cyan-400 shadow transition"
+                            >
+                              {t("接入真实岗位", "Connect real opportunities")}
+                            </button>
+                          )}
+                          {onRefreshOpportunities && (
+                            <button
+                              type="button"
+                              onClick={onRefreshOpportunities}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition ${
+                                theme === "light"
+                                  ? "bg-white border-slate-300 text-slate-700 hover:bg-slate-100"
+                                  : "bg-white/10 border-white/15 text-slate-200 hover:bg-white/15"
+                              }`}
+                            >
+                              {t("刷新机会库", "Refresh library")}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* 树状调用日志流 */}
                     <div className="space-y-2 pt-1 font-mono">
@@ -2442,6 +2464,7 @@ export function AutopilotWorkbenchPrototype({
                           }`}>
                             <span>⎿ {item.cmdDetail}</span>
                             <button
+                              type="button"
                               onClick={() => {
                                 setActiveNodeIdx(item.id - 1);
                                 setTerminalTab("inspector");
@@ -2450,7 +2473,7 @@ export function AutopilotWorkbenchPrototype({
                                 theme === "light" ? "text-cyan-700 hover:text-cyan-900" : "text-cyan-400"
                               }`}
                             >
-                              {t("[Diff / 实证 ➔]", "[Diff / evidence ➔]")}
+                              {t("[查看工件 ➔]", "[Inspect node ➔]")}
                             </button>
                           </div>
                         </div>
@@ -2460,91 +2483,93 @@ export function AutopilotWorkbenchPrototype({
                 ) : (
                   /* 深度工件舱 (Inspector) */
                   <div className="space-y-4">
-                    {/* Node 11: 简历润色 Git Diff */}
+                    {/* Node 11: 简历润色 FactBase 绑定视图 */}
                     {activeNode.id === 11 && (
                       <div className="space-y-3">
-                        <div className={`flex items-center justify-between pb-2 border-b ${
+                        <div className={`flex items-center justify-between pb-2 border-b gap-2 flex-wrap ${
                           theme === "light" ? "border-slate-200" : "border-white/10"
                         }`}>
                           <h3 className={`text-sm font-bold flex items-center gap-2 ${
                             theme === "light" ? "text-slate-900" : "text-cyan-300"
                           }`}>
                             <Code2 className="w-4 h-4 text-cyan-500" />
-                            <span>{t("结构化 Diff 审查台 · 对齐事实锁 [FB-01..38]", "Structured diff review · aligned to fact locks [FB-01..38]")}</span>
+                            <span>{t(`结构化 Diff 准备 · 绑定本地 FactBase (${claimCount} 条要点)`, `Structured diff setup · linked to local FactBase (${claimCount} claims)`)}</span>
                           </h3>
                           <span className={`text-[10px] px-2 py-0.5 rounded border ${
                             theme === "light"
                               ? "bg-emerald-100 text-emerald-900 border-emerald-300 font-bold"
                               : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
                           }`}>
-                            {t("0 虚构参数 · 100% 履历锚定", "0 invented parameters · 100% anchored to your history")}
+                            {t("0 虚构参数 · 仅保留事实锚定", "0 invented parameters · grounded in FactBase only")}
                           </span>
                         </div>
 
-                        {activeJob.diffItems.map((item) => (
-                          <div
-                            key={item.id}
-                            className={`p-3 rounded-xl border space-y-2 ${
-                              theme === "light" ? "bg-slate-50 border-slate-200 shadow-sm" : "bg-black/50 border-white/10"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between text-[11px]">
-                              <span className={`font-bold ${theme === "light" ? "text-slate-800" : "text-slate-200"}`}>
-                                {item.section}
+                        {activeJob ? (
+                          <div className={`p-3.5 rounded-xl border space-y-2.5 ${
+                            theme === "light" ? "bg-slate-50 border-slate-200 shadow-sm" : "bg-black/50 border-white/10"
+                          }`}>
+                            <div className="flex items-center justify-between text-[11px] gap-2 flex-wrap">
+                              <span className={`font-bold ${theme === "light" ? "text-slate-900" : "text-white"}`}>
+                                {activeJob.company} · {activeJob.role}
                               </span>
-                              <span className={`px-1.5 py-0.2 rounded text-[10px] ${
-                                theme === "light"
-                                  ? "bg-amber-100 text-amber-900 border border-amber-300 font-bold"
-                                  : "bg-amber-400/20 text-amber-300"
-                              }`}>
-                                {item.factId}: {item.factTitle}
+                              <span className="text-cyan-500 font-mono">
+                                {t(`已存档材料 ${activeJob.materialsCount} 份 · 当前简历 ${resumeSectionCount} 段经历`, `Archived materials: ${activeJob.materialsCount} · Resume entries: ${resumeSectionCount}`)}
                               </span>
                             </div>
-
-                            <div className={`p-2 rounded-lg border text-xs ${
-                              theme === "light"
-                                ? "bg-rose-50 border-rose-200 text-rose-900"
-                                : "bg-rose-950/25 border-rose-500/30 text-rose-300"
-                            }`}>
-                              <span className={`font-bold mr-2 ${theme === "light" ? "text-rose-600" : "text-rose-400"}`}>-</span>
-                              <span>{item.oldText}</span>
-                            </div>
-
-                            <div className={`p-2 rounded-lg border text-xs ${
-                              theme === "light"
-                                ? "bg-emerald-50 border-emerald-200 text-emerald-950 font-medium"
-                                : "bg-emerald-950/25 border-emerald-500/30 text-emerald-300"
-                            }`}>
-                              <span className={`font-bold mr-2 ${theme === "light" ? "text-emerald-700" : "text-emerald-400"}`}>+</span>
-                              <span>{item.newText}</span>
-                            </div>
-
-                            <div className={`text-[10px] pt-1 ${
-                              theme === "light" ? "text-cyan-900 font-semibold" : "text-cyan-300/80"
-                            }`}>
-                              ✦ {t("成果量化：", "Quantified result: ")}{item.impactMetric}
+                            <p className={`text-[11px] leading-relaxed ${theme === "light" ? "text-slate-600" : "text-slate-300"}`}>
+                              {t("结构化 old -> new 改写 Diff 仅在你将此真实岗位送入本地顾问并完成 FactBase 对齐后生成，此处不预设虚构改写结果。", "Structured old -> new rewrite diffs are produced only after Advisor reviews this saved job against your FactBase; no synthetic rewrites are pre-filled.")}
+                            </p>
+                            <div className="flex items-center gap-2 flex-wrap pt-1">
+                              {onAnalyzeOpportunity && (
+                                <button
+                                  type="button"
+                                  onClick={() => onAnalyzeOpportunity(activeJob.sourceJob)}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 hover:bg-cyan-400 transition"
+                                >
+                                  {t("送入顾问生成 Diff 建议", "Send to Advisor for rewrite diffs")}
+                                </button>
+                              )}
+                              {onOpenOpportunity && (
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenOpportunity(activeJob.id)}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition ${
+                                    theme === "light"
+                                      ? "bg-white border-slate-300 text-slate-700 hover:bg-slate-100"
+                                      : "bg-white/10 border-white/15 text-slate-200 hover:bg-white/15"
+                                  }`}
+                                >
+                                  {t("查看岗位与已存档材料", "View job & materials")}
+                                </button>
+                              )}
                             </div>
                           </div>
-                        ))}
+                        ) : (
+                          <div className={`p-3.5 rounded-xl border text-[11px] ${
+                            theme === "light" ? "bg-slate-50 border-slate-200 text-slate-600" : "bg-black/40 border-white/10 text-slate-400"
+                          }`}>
+                            {t("请先保存并选择一个真实岗位，再生成基于 FactBase 的结构化简历润色 Diff。", "Save and select a real opportunity first before generating FactBase-anchored resume diffs.")}
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    {/* Node 13: ATS / 版式体检矩阵 */}
+                    {/* Node 13: ATS / 版式与真实材料体检 */}
                     {activeNode.id === 13 && (
                       <div className="space-y-3">
-                        <div className={`flex items-center justify-between pb-2 border-b ${
+                        <div className={`flex items-center justify-between pb-2 border-b gap-2 flex-wrap ${
                           theme === "light" ? "border-slate-200" : "border-white/10"
                         }`}>
                           <h3 className={`text-sm font-bold flex items-center gap-2 ${
                             theme === "light" ? "text-slate-900" : "text-cyan-300"
                           }`}>
                             <BookmarkCheck className="w-4 h-4 text-cyan-500" />
-                            <span>{t("Workday ATS 机器解析与单页 A4 版式体检", "Workday ATS machine parsing and single-page A4 layout check")}</span>
+                            <span>{t("简历版式与真实投递材料状态", "Resume layout and real application material status")}</span>
                           </h3>
                           <span className={`text-[10px] font-bold ${
                             theme === "light" ? "text-emerald-700" : "text-emerald-400"
                           }`}>
-                            ✓ {t("工业标准校验通过", "Passed industry-standard checks")}
+                            {t("只展示本地真实计数 · 无预填评分", "Live local counts only · no pre-filled scores")}
                           </span>
                         </div>
 
@@ -2553,106 +2578,134 @@ export function AutopilotWorkbenchPrototype({
                             theme === "light" ? "bg-slate-50 border-slate-200" : "bg-black/40 border-white/10"
                           }`}>
                             <div className={`text-xl font-black ${theme === "light" ? "text-emerald-700" : "text-emerald-400"}`}>
-                              {activeJob.atsMetrics.parseRate}%
+                              {resumeSectionCount}
                             </div>
                             <div className={`text-[10px] mt-1 ${theme === "light" ? "text-slate-600" : "text-slate-400"}`}>
-                              {t("DOM 文本解析率", "DOM text parse rate")}
+                              {t("当前投影简历经历", "Projected resume entries")}
                             </div>
                           </div>
                           <div className={`p-3 rounded-xl border text-center ${
                             theme === "light" ? "bg-slate-50 border-slate-200" : "bg-black/40 border-white/10"
                           }`}>
                             <div className={`text-xl font-black ${theme === "light" ? "text-cyan-700" : "text-cyan-400"}`}>
-                              {activeJob.atsMetrics.pageFill}%
+                              {claimCount}
                             </div>
                             <div className={`text-[10px] mt-1 ${theme === "light" ? "text-slate-600" : "text-slate-400"}`}>
-                              {t("A4 单页填充率 (零跨页)", "A4 single-page fill rate (no page break)")}
+                              {t("FactBase 可用事实要点", "Available FactBase claims")}
                             </div>
                           </div>
                           <div className={`p-3 rounded-xl border text-center ${
                             theme === "light" ? "bg-slate-50 border-slate-200" : "bg-black/40 border-white/10"
                           }`}>
                             <div className={`text-xl font-black ${theme === "light" ? "text-amber-700" : "text-amber-400"}`}>
-                              {activeJob.atsMetrics.keywordMatched}/{activeJob.atsMetrics.keywordTotal}
+                              {activeJob ? activeJob.materialsCount : 0}
                             </div>
                             <div className={`text-[10px] mt-1 ${theme === "light" ? "text-slate-600" : "text-slate-400"}`}>
-                              {t("核心关键词命中", "Core keyword hits")}
+                              {t("该岗位已存档材料快照", "Archived job snapshots")}
                             </div>
                           </div>
                         </div>
 
-                        <div className={`p-3 rounded-xl border text-[11px] space-y-1 ${
-                          theme === "light" ? "bg-amber-50 border-amber-200 text-amber-950" : "bg-[#0B121C] border-[#1E2E42]"
+                        <div className={`p-3 rounded-xl border text-[11px] space-y-2 ${
+                          theme === "light" ? "bg-slate-50 border-slate-200 text-slate-700" : "bg-[#0B121C] border-[#1E2E42] text-slate-300"
                         }`}>
-                          <div className={`font-bold ${theme === "light" ? "text-slate-900" : "text-slate-200"}`}>
-                            {t("待补充隐性关键词：", "Implicit keywords still to add: ")}
-                          </div>
-                          <div className={`font-mono ${theme === "light" ? "text-amber-800 font-semibold" : "text-amber-300"}`}>
-                            ⚠ {activeJob.atsMetrics.missingKeyword}{t("（建议在「架构演进」段落自然植入）", " (consider weaving it into the Architecture evolution section)")}
-                          </div>
+                          {activeJob ? (
+                            <>
+                              <div className="font-bold">
+                                {activeJob.company} · {activeJob.role}
+                              </div>
+                              <div>
+                                {t("如需核查该岗位的关键词覆盖与版式适配，请送入顾问运行实时比对，不要依赖预设虚假百分比。", "Run Advisor against this saved job to inspect keyword fit and formatting with real execution receipts.")}
+                              </div>
+                            </>
+                          ) : (
+                            <div>
+                              {t("保存真实岗位并在顾问中心执行分析后，这里会关联对应岗位的材料快照数量。", "Save a real opportunity and analyze it in Advisor to track archived material snapshots here.")}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
 
-                    {/* Node 10: 企业全网背调实证雷达 */}
+                    {/* Node 10: 企业来源与原始链接核对 */}
                     {activeNode.id === 10 && (
                       <div className="space-y-3">
-                        <div className={`flex items-center justify-between pb-2 border-b ${
+                        <div className={`flex items-center justify-between pb-2 border-b gap-2 flex-wrap ${
                           theme === "light" ? "border-slate-200" : "border-white/10"
                         }`}>
                           <h3 className={`text-sm font-bold flex items-center gap-2 ${
                             theme === "light" ? "text-slate-900" : "text-cyan-300"
                           }`}>
                             <ShieldCheck className="w-4 h-4 text-cyan-500" />
-                            <span>{activeJob.company} · {t("全网背调实证档案", "verified web background research file")}</span>
+                            <span>
+                              {activeJob
+                                ? `${activeJob.company} · ${t("来源与原始记录核对", "Source and provenance check")}`
+                                : t("企业来源与原始记录核对", "Source and provenance check")}
+                            </span>
                           </h3>
                           <span className={`text-[10px] font-bold ${
                             theme === "light" ? "text-emerald-700" : "text-emerald-400"
                           }`}>
-                            {t("裁判文书 / 工商 100% 真实核验", "Court records / business registry 100% verified")}
+                            {t("以已保存记录与原链接为准", "Grounded in saved record & source URL")}
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 text-[11px]">
-                          <div className={`p-3 rounded-xl border ${
-                            theme === "light" ? "bg-slate-50 border-slate-200" : "bg-black/40 border-white/10"
-                          }`}>
-                            <span className={theme === "light" ? "text-slate-500" : "text-slate-400"}>{t("注册资本 (实缴)：", "Registered capital (paid-in): ")}</span>
-                            <div className={`font-bold mt-1 ${theme === "light" ? "text-slate-900" : "text-white"}`}>
-                              {activeJob.triageDossier.regCapital}
+                        {activeJob ? (
+                          <>
+                            <div className="grid grid-cols-2 gap-3 text-[11px]">
+                              <div className={`p-3 rounded-xl border ${
+                                theme === "light" ? "bg-slate-50 border-slate-200" : "bg-black/40 border-white/10"
+                              }`}>
+                                <span className={theme === "light" ? "text-slate-500" : "text-slate-400"}>{t("采集来源平台：", "Source platform: ")}</span>
+                                <div className={`font-bold mt-1 ${theme === "light" ? "text-slate-900" : "text-white"}`}>
+                                  {activeJob.sourcePlatform}
+                                </div>
+                              </div>
+                              <div className={`p-3 rounded-xl border ${
+                                theme === "light" ? "bg-slate-50 border-slate-200" : "bg-black/40 border-white/10"
+                              }`}>
+                                <span className={theme === "light" ? "text-slate-500" : "text-slate-400"}>{t("地点 / 披露薪资：", "Location / disclosed salary: ")}</span>
+                                <div className={`font-bold mt-1 ${theme === "light" ? "text-slate-900" : "text-white"}`}>
+                                  {activeJob.city} · {activeJob.salary}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                          <div className={`p-3 rounded-xl border ${
-                            theme === "light" ? "bg-slate-50 border-slate-200" : "bg-black/40 border-white/10"
-                          }`}>
-                            <span className={theme === "light" ? "text-slate-500" : "text-slate-400"}>{t("历史劳动仲裁：", "Past labor arbitration: ")}</span>
-                            <div className={`font-bold mt-1 ${theme === "light" ? "text-emerald-700" : "text-emerald-400"}`}>
-                              {activeJob.triageDossier.laborDisputes}
+
+                            <div className={`p-3 rounded-xl border text-[11px] ${
+                              theme === "light"
+                                ? "bg-cyan-50 border-cyan-200 text-cyan-950"
+                                : "bg-cyan-950/25 border-cyan-500/30 text-cyan-200"
+                            }`}>
+                              <div className={`font-bold mb-1 ${theme === "light" ? "text-cyan-800" : "text-cyan-400"}`}>
+                                {t("原始发布链接：", "Original posting URL: ")}
+                              </div>
+                              {activeJob.sourceUrl ? (
+                                <a href={activeJob.sourceUrl} target="_blank" rel="noreferrer" className="underline break-all">
+                                  {activeJob.sourceUrl}
+                                </a>
+                              ) : (
+                                <p>{t("未附带原始链接；工商信息、劳动仲裁与真伪验证需打开原站点或由用户自行补录。", "No source URL saved yet; verify company registration and original posting manually or link its URL.")}</p>
+                              )}
                             </div>
-                          </div>
-                        </div>
 
-                        <div className={`p-3 rounded-xl border text-[11px] ${
-                          theme === "light"
-                            ? "bg-emerald-50 border-emerald-200 text-emerald-950"
-                            : "bg-emerald-950/25 border-emerald-500/30 text-emerald-200"
-                        }`}>
-                          <div className={`font-bold mb-1 ${theme === "light" ? "text-emerald-800" : "text-emerald-400"}`}>
-                            ✓ {t("WLB 现员工实证：", "WLB evidence from current employees: ")}
+                            <div className={`p-3 rounded-xl border text-[11px] space-y-2 ${
+                              theme === "light"
+                                ? "bg-slate-50 border-slate-200 text-slate-700"
+                                : "bg-black/40 border-white/10 text-slate-300"
+                            }`}>
+                              <div className="font-bold">
+                                {t(`沟通记录 (${activeJob.communicationsCount}) · 下一步跟进：`, `Communications (${activeJob.communicationsCount}) · Next action:`)}
+                              </div>
+                              <p>{activeJob.nextAction}</p>
+                            </div>
+                          </>
+                        ) : (
+                          <div className={`p-3.5 rounded-xl border text-[11px] ${
+                            theme === "light" ? "bg-slate-50 border-slate-200 text-slate-600" : "bg-black/40 border-white/10 text-slate-400"
+                          }`}>
+                            {t("保存真实岗位后，此处会展示其采集来源、发布链接与沟通记录。", "Save a real opportunity to inspect its source platform, original link, and follow-up records here.")}
                           </div>
-                          <p>{activeJob.triageDossier.wlbVerification}</p>
-                        </div>
-
-                        <div className={`p-3 rounded-xl border text-[11px] ${
-                          theme === "light"
-                            ? "bg-cyan-50 border-cyan-200 text-cyan-950"
-                            : "bg-cyan-950/25 border-cyan-500/30 text-cyan-200"
-                        }`}>
-                          <div className={`font-bold mb-1 ${theme === "light" ? "text-cyan-800" : "text-cyan-400"}`}>
-                            ✦ {t("AI 决胜结论：", "AI verdict: ")}
-                          </div>
-                          <p>{activeJob.triageDossier.agentVerdict}</p>
-                        </div>
+                        )}
                       </div>
                     )}
 
@@ -2671,9 +2724,18 @@ export function AutopilotWorkbenchPrototype({
                           <span className={`text-[10px] font-bold ${
                             theme === "light" ? "text-amber-800" : "text-amber-300"
                           }`}>
-                            {t("拒接 996 伪高薪", "Decline 996 pseudo-high pay")}
+                            {t("纯本地假设计算器", "Local hypothetical calculator")}
                           </span>
                         </div>
+
+                        {activeJob && (
+                          <div className={`p-2.5 rounded-xl border text-[11px] flex items-center justify-between gap-2 ${
+                            theme === "light" ? "bg-slate-50 border-slate-200 text-slate-700" : "bg-black/35 border-white/10 text-slate-300"
+                          }`}>
+                            <span>{t(`参考岗位 (${activeJob.company}) 披露薪资：`, `Disclosed salary for ${activeJob.company}: `)}</span>
+                            <strong>{activeJob.salary}</strong>
+                          </div>
+                        )}
 
                         <div
                           style={{
@@ -2684,7 +2746,7 @@ export function AutopilotWorkbenchPrototype({
                         >
                           <div>
                             <div className={`text-[10px] ${theme === "light" ? "text-slate-600" : "text-slate-400"}`}>
-                              {t("折算真实净时薪 (税后+公积金 / 真实年工时)", "Real net hourly rate (after tax + housing fund / real annual hours)")}
+                              {t("折算假设净时薪 (滑块参数 / 每年 50 周)", "Assumed net hourly rate (slider inputs / 50 weeks)")}
                             </div>
                             <div className={`text-3xl font-black mt-1 ${
                               theme === "light" ? "text-amber-600" : "text-amber-400"
@@ -2698,7 +2760,7 @@ export function AutopilotWorkbenchPrototype({
                                 ? "bg-emerald-100 text-emerald-900 border-emerald-300"
                                 : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
                             }`}>
-                              {t("WLB S+ 级别", "WLB S+ tier")}
+                              {t(`按每周 ${simWeeklyHours}h 折算`, `Based on ${simWeeklyHours} h/week`)}
                             </span>
                             <div className={`text-[10px] mt-1 ${theme === "light" ? "text-slate-600" : "text-slate-400"}`}>
                               {t("非实际到手收入或岗位待遇承诺", "Not actual take-home pay or a promise of job benefits")}
@@ -2733,7 +2795,7 @@ export function AutopilotWorkbenchPrototype({
                             }`}>
                               <span>{t(`年终月数: ${simMonths} 薪`, `Bonus months: ${simMonths}`)}</span>
                               <span className={theme === "light" ? "text-cyan-800" : "text-cyan-400"}>
-                                {simMonths >= 15 ? t("外企弹性", "Flexible (foreign firm)") : t("基准", "Baseline")}
+                                {simMonths >= 15 ? t("含年终假设", "Includes bonus assumption") : t("基准", "Baseline")}
                               </span>
                             </div>
                             <input
@@ -2750,9 +2812,9 @@ export function AutopilotWorkbenchPrototype({
                             <div className={`flex justify-between mb-1 ${
                               theme === "light" ? "text-slate-700 font-bold" : "text-slate-300"
                             }`}>
-                              <span>{t(`每周真实工作时长: ${simWeeklyHours} 小时/周`, `Real weekly working hours: ${simWeeklyHours} h/week`)}</span>
+                              <span>{t(`每周假设工作时长: ${simWeeklyHours} 小时/周`, `Assumed weekly hours: ${simWeeklyHours} h/week`)}</span>
                               <span className={theme === "light" ? "text-emerald-700" : "text-emerald-400"}>
-                                {t("16:30 准点下班", "Off at 16:30 sharp")}
+                                {t("按滑块假设工时测算", "Calculated from slider hours")}
                               </span>
                             </div>
                             <input
@@ -2956,7 +3018,7 @@ export function AutopilotWorkbenchPrototype({
                       <div className={`p-4 rounded-xl border space-y-2 ${
                         theme === "light" ? "bg-slate-50 border-slate-200" : "bg-black/40 border-white/10"
                       }`}>
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
                           <span className={`font-bold ${theme === "light" ? "text-slate-900" : "text-white"}`}>
                             #{activeNode.code} {activeNode.name} {t("运行时状态", "runtime status")}
                           </span>
@@ -2965,7 +3027,7 @@ export function AutopilotWorkbenchPrototype({
                               ? "bg-cyan-100 text-cyan-900 border border-cyan-300 font-bold"
                               : "bg-cyan-400/20 text-cyan-300"
                           }`}>
-                            {activeNode.latency} • {activeNode.tokens} tokens
+                            {activeNode.latency} • {activeNode.tokens === "—" ? t("按需触发", "On demand") : activeNode.tokens}
                           </span>
                         </div>
                         <div className={`text-[11px] ${theme === "light" ? "text-slate-600" : "text-slate-300"}`}>
@@ -2976,7 +3038,7 @@ export function AutopilotWorkbenchPrototype({
                             ? "bg-slate-100 text-slate-700 border-slate-200"
                             : "bg-black/60 text-slate-400 border-white/5"
                         }`}>
-                          payload: {JSON.stringify({ skill: activeNode.cmdTitle, target: activeJob.company, lockedEvidence: "FB-01..38" }, null, 2)}
+                          payload: {JSON.stringify({ skill: activeNode.cmdTitle, target: activeJob?.company ?? null, savedJobs: jobs.length, factBaseClaims: claimCount }, null, 2)}
                         </div>
                       </div>
                     )}
@@ -2999,7 +3061,7 @@ export function AutopilotWorkbenchPrototype({
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span>18.8k tokens</span>
+                  <span>{jobs.length}{t(" 岗位", " jobs")} · FactBase {claimCount}</span>
                   <span>•</span>
                   <span style={{ color: currentAgent.primaryHex }} className="font-bold">
                     {currentAgent.shortName}
@@ -3015,7 +3077,7 @@ export function AutopilotWorkbenchPrototype({
         {/* 3D 机会金库模式 */}
         {(workspaceMode === "space3d" || workspaceMode === "split") && (
           <div className="w-full h-full max-w-[1400px] overflow-y-auto p-4 flex flex-col justify-between">
-            <div className={`flex items-center justify-between pb-3 border-b ${
+            <div className={`flex items-center justify-between pb-3 border-b gap-2 flex-wrap ${
               theme === "light" ? "border-slate-200" : "border-white/10"
             }`}>
               <div className="font-mono">
@@ -3026,12 +3088,13 @@ export function AutopilotWorkbenchPrototype({
                   <span>{t(`3D 机会金库 · 立体背调卡册 (${collected3DJobs.length})`, `3D opportunity vault · research card album (${collected3DJobs.length})`)}</span>
                 </h2>
                 <p className={`text-[11px] ${theme === "light" ? "text-slate-600" : "text-slate-400"}`}>
-                  {t("支持鼠标悬停 3D 拟真光影与 180° 翻转背调签章；每一张卡片均加盖当前所选 AI Agent 专属实证印章。", "Hover for realistic 3D lighting and flip a card 180° to see its research seal; every card carries the stamp of the currently selected AI Agent.")}
+                  {t("仅展示本地机会库已保存的真实岗位；支持 3D 悬停光影、180° 翻转查看跟进与材料快照，并一键送入顾问。", "Displays only real saved opportunities; hover for 3D lighting, flip 180° for follow-up & materials, or send directly to Advisor.")}
                 </p>
               </div>
 
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   onClick={() => setSpace3DLayout(space3DLayout === "grid" ? "carousel" : "grid")}
                   className={`px-3 py-1 rounded-lg text-xs font-mono border transition ${
                     theme === "light"
@@ -3042,6 +3105,7 @@ export function AutopilotWorkbenchPrototype({
                   {space3DLayout === "grid" ? t("切换 3D 环视轮播", "Switch to 3D carousel") : t("切换 2x2 网格", "Switch to 2x2 grid")}
                 </button>
                 <button
+                  type="button"
                   onClick={() => setWorkspaceMode("studio")}
                   className="px-3 py-1 rounded-lg text-xs font-mono font-bold bg-cyan-500 text-slate-950 hover:bg-cyan-400 shadow"
                 >
@@ -3050,28 +3114,63 @@ export function AutopilotWorkbenchPrototype({
               </div>
             </div>
 
-            {/* 3D 卡片网格 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 my-auto py-4">
-              {collected3DJobs.map((j) => (
-                <CyberJobCard3D
-                  key={j.id}
-                  job={j}
-                  agent={currentAgent}
-                  isFlipped={Boolean(flipped3DMap[j.id])}
-                  onToggleFlip={() => setFlipped3DMap((p) => ({ ...p, [j.id]: !p[j.id] }))}
-                  onChangeStage={(id, st) => {
-                    setJobs((prev) => prev.map((item) => (item.id === id ? { ...item, stage3D: st } : item)));
-                    triggerToast(t(`✦ 阶段更新：${st}`, `Stage updated: ${stageLabel(st, t)}`), t(`「${j.shortName}」已推进至 ${st}`, `${j.shortName} moved to ${stageLabel(st, t)}`));
-                  }}
-                  onInspectInStudio={(id) => {
-                    setActiveJobId(id);
-                    setWorkspaceMode("studio");
-                    triggerToast(t(`✦ 载入工坊：${j.company}`, `Studio loaded: ${j.company}`), t("已展开深度工件与执行树", "Artifacts and run tree expanded"));
-                  }}
-                  theme={theme}
-                />
-              ))}
-            </div>
+            {/* 3D 卡片网格或真实空状态 */}
+            {collected3DJobs.length > 0 ? (
+              <div className={`grid gap-4 my-auto py-4 ${
+                space3DLayout === "carousel"
+                  ? "grid-cols-1 md:grid-cols-2 max-w-[920px] mx-auto w-full"
+                  : "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
+              }`}>
+                {collected3DJobs.map((j) => (
+                  <CyberJobCard3D
+                    key={j.id}
+                    job={j}
+                    agent={currentAgent}
+                    isFlipped={Boolean(flipped3DMap[j.id])}
+                    onToggleFlip={() => setFlipped3DMap((p) => ({ ...p, [j.id]: !p[j.id] }))}
+                    onAnalyze={onAnalyzeOpportunity}
+                    onOpenRecord={onOpenOpportunity}
+                    onInspectInStudio={(id) => {
+                      setActiveJobId(id);
+                      setWorkspaceMode("studio");
+                      triggerToast(t(`✦ 载入工坊：${j.company}`, `Studio loaded: ${j.company}`), t("已载入该真实岗位与执行节点", "Loaded saved opportunity into studio"));
+                    }}
+                    theme={theme}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className={`my-auto mx-auto max-w-lg p-6 rounded-2xl border text-center space-y-3 ${
+                theme === "light" ? "bg-white border-slate-200 shadow-sm text-slate-700" : "bg-[#0B121D] border-[#1E2E42] text-slate-300"
+              }`}>
+                <div className={`text-base font-bold ${theme === "light" ? "text-slate-900" : "text-white"}`}>
+                  {t("3D 机会金库暂无真实收藏岗位", "No real saved opportunities in the 3D vault yet")}
+                </div>
+                <p className="text-xs leading-relaxed opacity-85">
+                  {t("接入并保存任意真实招聘岗位后，系统会在这里生成对应 3D 机会立体卡，零虚构公司与薪资。", "Save any real job opportunity to see its 3D opportunity card here—no demo companies or fabricated pay are injected.")}
+                </p>
+                <div className="flex items-center justify-center gap-2 pt-1">
+                  {onOpenOpportunitySources && (
+                    <button
+                      type="button"
+                      onClick={onOpenOpportunitySources}
+                      className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950 hover:bg-cyan-400 transition"
+                    >
+                      {t("接入真实岗位", "Connect real opportunities")}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setWorkspaceMode("studio")}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold border transition ${
+                      theme === "light" ? "bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200" : "bg-white/10 border-white/15 text-slate-200 hover:bg-white/15"
+                    }`}
+                  >
+                    {t("返回 20-Node 工坊", "Back to the 20-Node studio")}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

@@ -81,7 +81,7 @@
   .preview-bottom .preview-display-controls { flex-wrap:wrap; gap:5px; }
   .preview-bottom .preview-display-controls button { min-height:24px; padding:3px 5px; font-size:10px; }
   .preview-bottom>span { white-space:nowrap; }
-  html .os-desktop[data-studio=true] .studio-footer { min-height:24px; padding:5px 16px; gap:10px; font-size:9px; border-top:1px solid var(--ui-border); background:var(--ui-surface); color:var(--ui-text-secondary); }
+  html .os-desktop[data-studio=true] .studio-footer { min-height:24px; padding:5px 76px 5px 16px; gap:10px; font-size:9px; border-top:1px solid var(--ui-border); background:var(--ui-surface); color:var(--ui-text-secondary); }
   html .os-desktop[data-studio=true] .studio-footer>span { min-width:0; overflow-wrap:anywhere; }
   .studio-issues-popover { position:relative; min-width:0; }
   .studio-issues-popover .issues-summary { padding:0; }

@@ -103,7 +103,7 @@
 .resume-preview-canvas { background:radial-gradient(ellipse at 50% 20%,#f0f2eb,#e7eadf); }
 .resume-preview-stage { padding:28px; }
 .a4-sheet { box-shadow:0 8px 36px #33472812,0 1px 5px #32442a12; }
-.studio-footer { display:flex; justify-content:space-between; flex-shrink:0; padding:12px 32px; font-size:9px; color:#97a28b; letter-spacing:.02em; }
+.studio-footer { display:flex; justify-content:space-between; flex-shrink:0; padding:12px 76px 12px 32px; font-size:9px; color:#97a28b; letter-spacing:.02em; }
 .studio-footer span { display:flex; gap:5px; align-items:center; }
 .formatted-field { border:1px solid #dfe5d7; border-radius:7px; background:#fffefb; overflow:hidden; transition:border-color .15s; }
 .formatted-field:focus-within { border-color:#8daa7e; box-shadow:0 0 0 2px #a6bf8915; }

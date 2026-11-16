@@ -132,8 +132,8 @@ test("F01: saved jobs never inherit demo salary, ATS scores or company research"
   const host = await mount(h(SWRConfig, { value: { provider: () => new Map(), revalidateOnMount: false, isPaused: () => true, fallback: { "studio:opportunity-library": { library: { schemaVersion: 1, revision: 1, updatedAt: job.updatedAt, jobs: [job] } } } } }, h(AutopilotStudioWorkspace)));
   assert.match(host.textContent, /合成待核验岗位/); assert.match(host.querySelector(".studio-live-summary")!.textContent, /事实库要点0/);
   assert.match(host.querySelector("[data-job-id]")!.textContent, /未披露/);
-  assert.doesNotMatch(host.textContent, /35k|525k|99\.2|100%|ATS 核验通过|S级|09:00/);
-  assert.equal(host.querySelector(".studio-workshop"), null);
+  assert.doesNotMatch(host.textContent, /35k|525k|99\.2|99\.4|100%|ATS 核验通过|S级|09:00|16:30|西门子|具身智能|FB-01|18\.8k/);
+  assert.ok(host.querySelector(".studio-workshop"), "renders the orbital studio workshop backed by real saved opportunities");
 });
 
 test("F04: dialog tab boundaries wrap and exclude hidden or disabled controls", async () => {
@@ -267,9 +267,8 @@ test("F23: autopilot light/dark colour pairs live in theme tokens defined for bo
 test("F21: autopilot workspace labels, toasts and stage names are translated while stage values stay stable", async () => {
   const component = await readFile(new URL("../src/components/AutopilotStudioWorkspace.tsx", import.meta.url), "utf8");
   for (const text of ["End-to-end job-search automation studio", "Artifact inspector", "Configure models and tools in System settings", "Waiting for the built-in preset build receipt", "STAR prompter HUD", "Conveyor rotation: "]) assert.ok(component.includes(`"${text}"`), text);
-  assert.match(component, /stage3D: "ATS 核验通过"/, "stage values remain the stored Chinese identifiers");
-  assert.match(component, /stageLabel\(job\.stage3D, t\)/);
-  assert.match(component, /stageShort\(st, t\)/);
+  assert.match(component, /"ATS 核验通过": \["ATS check passed", "ATS ok"\]/, "stage translation table retains stored Chinese identifiers");
+  assert.match(component, /stageLabel\((?:job|activeJob)\.stage3D, t\)/);
   assert.doesNotMatch(component, /\{st\.slice\(0, 4\)\}/);
   for (const bare of [/>\s*深度工件舱/, />\s*系统设置</, />\s*重新构建\s*</, /title="上一步"/, /title="下一步"/]) assert.doesNotMatch(component, bare);
 });
@@ -312,4 +311,47 @@ test("F03: every submit keyboard handler rejects both native composition and Saf
       }
     }
   }
+});
+
+test("OpportunityCard3D supports unsaving from front button, compact mode, and stage select", async () => {
+  const job = createOpportunity({ company: "核验公司", title: "全栈工程师" });
+  let removes = 0;
+  const baseProps = {
+    job,
+    location: "上海",
+    modeLabel: "混合办公",
+    statusLabel: "社招",
+    stageLabel: "已收藏",
+    salaryFallback: "未披露",
+    nextActionFallback: "下一步待补",
+    detailsLabel: "详情",
+    frontLabel: "正面",
+    backLabel: "背面",
+    deadlineLabel: "截止",
+    removeLabel: "取消收藏",
+    disabled: false,
+    stageOptions: [["saved", "已收藏"], ["evaluating", "待评估"]] as [typeof job.application.stage, string][],
+    onOpen() {},
+    onStageChange() {},
+    onRemove() { removes++; },
+  };
+  const host = await mount(h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" } }, h(OpportunityCard3D, baseProps)));
+  const frontRemove = host.querySelector<HTMLButtonElement>(".opportunity-card-front .opportunity-card-remove-front");
+  assert.ok(frontRemove, "front face renders direct unsave control");
+  await flush(() => frontRemove!.click());
+  assert.equal(removes, 1);
+
+  const select = host.querySelector<HTMLSelectElement>(".opportunity-card-front select")!;
+  await flush(() => {
+    select.value = "__unsave__";
+    select.dispatchEvent(new dom.Event("change", { bubbles: true }));
+  });
+  assert.equal(removes, 2);
+  assert.equal(select.value, "saved", "selecting unsave keeps stage select at current stage when aborted/pending");
+
+  await flush(() => root!.render(h(UiPreferencesProvider, { initialPreferences: { locale: "zh", theme: "light" } }, h(OpportunityCard3D, { ...baseProps, compact: true }))));
+  const compactRemove = host.querySelector<HTMLButtonElement>(".opportunity-card-remove-front");
+  assert.ok(compactRemove, "compact card also exposes unsave button");
+  await flush(() => compactRemove!.click());
+  assert.equal(removes, 3);
 });

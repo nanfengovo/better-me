@@ -53,6 +53,7 @@ import {
 } from "../services/agent-client";
 import { AgentMarkdownRenderer } from "./AgentMarkdownRenderer";
 import { AgentReplyMeta } from "./AgentReplyMeta";
+import { InventoryJobCheck } from "./InventoryJobCheck";
 import { useRecoveryField, useWorkspaceRecovery } from "../lib/use-workspace-recovery";
 import { AdvisorRecoverySchema, initialAdvisorRecovery } from "../lib/advisor-recovery";
 import { privateKey } from "../lib/private-storage";
@@ -672,6 +673,7 @@ function JdMatchDrawerSession({
                   </div>
                 </div>
 
+                <InventoryJobCheck description={currentJob.description}/>
                 {showRawJd && (
                   <div className="mt-2 p-2.5 bg-slate-50 rounded-lg text-xs text-slate-700 whitespace-pre-wrap max-h-40 overflow-y-auto font-mono border border-slate-200">
                     {currentJob.description}

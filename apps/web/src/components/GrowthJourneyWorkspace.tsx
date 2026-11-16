@@ -177,7 +177,7 @@ function GrowthJourneySession({ client }: { client: GrowthJourneyClient }) {
   const budgetExhausted = task?.status === "budget_exhausted";
   const needsPractice = !budgetExhausted && (journey?.stage === "verification_failed" || journey?.stage === "practice" && !task);
   return <section className="growth-journey" aria-label={t("个人成长闭环", "Personal learning journey")}>
-    <header className="growth-heading"><div><small>{t("独立练习", "Independent practice")}</small><h2>{t("资料与练习", "Materials & exercises")}</h2><p>{t("设定目标，选择资料，完成练习与验收。", "Set a goal, choose material, then complete practice and review.")}</p></div><span className="growth-mode">{t("合成数据", "Synthetic data")}</span></header>
+    <header className="growth-heading"><div><h2>{t("资料与练习", "Materials & exercises")}</h2><p>{t("围绕目标选定资料并完成可验证的实践练习。", "Set a goal, choose material, and complete verifiable exercises.")}</p></div><span className="growth-mode">{t("合成数据", "Synthetic data")}</span></header>
     <ol className="growth-steps" aria-label={t("成长闭环进度", "Learning progress")}>{stages.map((step, index) => <li key={step.id} aria-current={index === progress ? "step" : undefined} data-state={index < progress ? "done" : index === progress ? "current" : "next"}><span>{index + 1}</span>{t(step.label, { goal: "Set goal", source: "Select material", practice: "Practice", project: "Review project" }[step.id])}</li>)}</ol>
     {restored && <p className="growth-restored" role="status">{t("已恢复记录，未重新执行。所有推进仍需你明确点击。", "Records restored without re-execution. Every next action still requires your explicit confirmation.")}</p>}
     {recovery.error && <p className="growth-warning" role="alert">{recovery.error}<button type="button" onClick={recovery.download}>{t("下载本页草稿", "Download draft")}</button></p>}

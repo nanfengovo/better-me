@@ -31,17 +31,15 @@ export function ResourceLibrary() {
   const filtered = RESOURCES.filter(resource => (category === "all" || resource.category === category) &&
     `${resource.name} ${resource.description} ${resource.context} ${CATEGORIES[resource.category]}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   return <section className="resource-workspace" aria-label={t("求职资料库", "Career resource library")}>
-    <div className="opportunity-heading"><div><h1>{t("求职资料库", "Career resource library")}</h1><p>{t("外部参考导航，非内置能力；运行要求和许可请查看原项目。", "External references, not built-in features. Check each project's setup requirements and license.")}</p></div><BookOpen size={25} /></div>
+    <div className="opportunity-heading"><div><h1>{t("求职资料库", "Career resource library")}</h1><p>{t("常用招聘平台、技术社区与求职工具导航。", "Direct links to job platforms, engineering communities, and career tools.")}</p></div><BookOpen size={25} /></div>
     <label className="workspace-search">{t("搜索名称或用途", "Search name or purpose")}<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={t("例如：面试、Python、模板", "For example: interview, Python, templates")} /></label>
     <div className="resource-tabs" aria-label={t("资料分类", "Resource categories")}>{Object.entries(CATEGORIES).map(([key, label]) => <button key={key} aria-pressed={category === key} onClick={() => setCategory(key as keyof typeof CATEGORIES)}>{label}</button>)}</div>
     <p role="status">{t(`找到 ${filtered.length} 条资料`, `${filtered.length} resources found`)}</p>
     <div className="resource-grid">{filtered.map(resource => <article className="resource-card" key={resource.url}>
-      <span>{CATEGORIES[resource.category]} · {t("外部参考", "External reference")}</span><h2>{resource.name}</h2><p>{resource.description}</p>
-      <small>{t("未作为内置服务接入", "Not integrated as a built-in service")}</small>
-      {resource.url.includes("Hopetree") ? <p className="workspace-notice">{resource.context}</p> : <details><summary>{t("适用范围与运行要求", "Scope and setup requirements")}</summary><p>{resource.context}</p></details>}
+      <span>{CATEGORIES[resource.category]}</span><h2>{resource.name}</h2><p>{resource.description}</p>
+      {resource.url.includes("Hopetree") ? <p className="workspace-notice">{resource.context}</p> : <details><summary>{t("适用说明", "Usage notes")}</summary><p>{resource.context}</p></details>}
       <a href={resource.url} target="_blank" rel="noopener noreferrer" aria-label={t(`打开 ${resource.name}（新窗口）`, `Open ${resource.name} (new window)`)}>{t("查看原项目", "View source project")} · {new URL(resource.url).hostname}<ArrowUpRight size={14} /></a>
     </article>)}</div>
     {!filtered.length && <p>{t("没有匹配资料。请更换关键词或分类。", "No matches. Try another keyword or category.")}</p>}
-    <p className="opportunity-coverage">{t("岗位要求、开放状态与申请条件以原始招聘页面为准。", "Check requirements, availability and eligibility on original career pages.")}</p>
   </section>;
 }
