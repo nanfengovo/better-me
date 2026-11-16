@@ -3,7 +3,7 @@ import type { PDFOperatorList, PDFPageProxy, TextItem } from "pdfjs-dist/types/s
 import { FINAL_LAYOUT_LIMITS, normalizeFinalLayoutBody, type FinalLayoutExpectedDocument, type FinalPdfParser } from "./final-artifact";
 import { mmToCssPx, printGeometry, type LayoutBlock, type LayoutLine, type LayoutRect } from "./types";
 
-type PdfJsSdk = Pick<typeof import("pdfjs-dist"), "getDocument" | "Util" | "OPS" | "version">;
+type PdfJsSdk = Pick<typeof import("pdfjs-dist/legacy/build/pdf.mjs"), "getDocument" | "Util" | "OPS" | "version">;
 type Matrix = [number, number, number, number, number, number];
 interface TextAtom { text: string; rect: LayoutRect; pageNumber: number; order: number; start: number; end: number }
 const matrix = (value: unknown): value is Matrix => Array.isArray(value) && value.length === 6 && value.every(item => typeof item === "number" && Number.isFinite(item));
@@ -13,9 +13,9 @@ const union = (rects: readonly LayoutRect[]): LayoutRect => {
 };
 
 const loadBrowserPdfJs = async (): Promise<PdfJsSdk> => {
-  const sdk = await import("pdfjs-dist");
+  const sdk = await import("pdfjs-dist/legacy/build/pdf.mjs");
   if (typeof window !== "undefined") {
-    const { default: workerUrl } = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
+    const { default: workerUrl } = await import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url");
     sdk.GlobalWorkerOptions.workerSrc = workerUrl;
   }
   return sdk;

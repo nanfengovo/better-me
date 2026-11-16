@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="connect-src http://127.0.0.1:5340; object-src 'none'; base-uri 'none'" />
+    <title>BetterMe · 公开五例云端对照</title>
+    <style>
+      :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+      body { max-width: 760px; margin: 48px auto; padding: 0 24px; line-height: 1.7; }
+      h1 { font-size: 26px; } dt { font-weight: 600; } dd { margin: 0 0 16px; overflow-wrap: anywhere; }
+      button { min-height: 44px; padding: 8px 20px; font: inherit; }
+      pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+    </style>
+  </head>
+  <body>
+    <h1>公开五例 · 云端模型对照</h1>
+    <p>只读取本机模型配置，不读取简历、岗位、账号会话或事实库。五例使用固定公开脱敏材料与临时评测账号。</p>
+    <p>点击后仅授权本批五例，每例最多一次模型请求、300 秒；失败不自动重试，不切换供应商。重开只读原批次进展。费用按现有提供商账号计费，金额未测量时保持未知。</p>
+    <dl id="configuration"></dl>
+    <p id="status" role="status">正在只读检查模型配置…</p>
+    <button id="run" type="button" disabled>运行五个公开脱敏案例</button>
+    <pre id="results" aria-label="评测进展"></pre>
+    <script type="module" src="./configured-gold.ts?campaign=v1"></script>
+  </body>
+</html>

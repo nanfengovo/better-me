@@ -22,6 +22,16 @@ pnpm evals:resume-quality --cases /absolute/cases --runs /absolute/runs --out /a
 
 ## 显式本机采样与完整批次回执
 
+### 已配置云端的单批次入口
+
+`collect-configured.mjs` 是另一个**显式产生真实推理**的入口，只读取调用者已明确选择并传入内存的配置，不寻找环境Key或默认用户账号。独立Host/benchmark身份经同一tasks/resolver执行固定五例，每例1次调用/300秒，原输出目录不可复用；模型设置声明排除凭据，失败照原样归档。测试专用loopback供应商只能在代码中显式启用，不是HTTP输入选项。
+
+`serve-configured.mjs` 与 `apps/web/tests/ui-lab/configured-gold.html` 提供当前配置的本机操作页：明确指定页面Origin、云端接收方、模型和声明版本，操作者核对并点击一次才发送公开五例。设置由页面闭包读取，不展示Key；不要把Key放在CLI、URL、截图或报告。`dispatch-claim.json` 在任何调用前独占写入；页面刷新、并发点击、连接丢失或桥重启均只核对原批次，不能再次派送。未知状态保留停止线，不靠删除claim恢复重试。
+
+2026-11-14实际五例与旧v7的完整对照、拒绝原因、新文本流程和待完成双端门见[本片回执](../../docs/reports/resume-cloud-text-loop-2026-11-14.md)。4/5冻结不是完整质量排名，也不是确认后成稿协议的云端验收；旧批次与Gold不改。
+
+### 本机采样
+
 先用只读容量探针检查现有模型配置，再决定是否真正推理：
 
 ```sh
