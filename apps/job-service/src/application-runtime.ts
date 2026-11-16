@@ -73,13 +73,52 @@ function createLane(config: RuntimeConfig, onFailure: () => void) {
 export async function startJobApplicationRuntime(config: Omit<RuntimeConfig, "readOnly">) {
   let failed = false;
   const writer = createLane({ ...config, readOnly: false }, () => { failed = true; });
-  let reader: ReturnType<typeof createLane> | undefined;
+  let reader: { execute: ReturnType<typeof createLane>["execute"]; close: () => Promise<void> } | undefined;
+  const readPool: Array<ReturnType<typeof createLane>> = [];
   try {
     await writer.ready;
     const { officeGeocoder: _office, careerSearch: _career, ...readConfig } = config.config;
-    reader = createLane({ ...config, config: readConfig, readOnly: true }, () => { failed = true; });
-    await reader.ready;
-  } catch (error) { await Promise.allSettled([writer.close(), reader?.close()]); throw error; }
+    // Two read-only WAL workers let fast status/cached reads bypass cold searches without duplicating caches under c=1 load.
+    const READ_POOL_SIZE = 2;
+    for (let i = 0; i < READ_POOL_SIZE; i++) {
+      readPool.push(createLane({ ...config, config: readConfig, readOnly: true }, () => { failed = true; }));
+    }
+    await Promise.all(readPool.map((lane) => lane.ready));
+    const inFlight = new Array<number>(readPool.length).fill(0);
+    let tieBreaker = 0;
+    reader = {
+      async execute(tool, input, context) {
+        let chosen = 0;
+        let minFlight = inFlight[0]!;
+        for (let i = 1; i < readPool.length; i++) {
+          if (inFlight[i]! < minFlight) {
+            minFlight = inFlight[i]!;
+            chosen = i;
+          }
+        }
+        // Keep sequential c=1 reads pinned to an idle worker 0; load-balance minimum-flight ties when saturated.
+        if (minFlight > 0) {
+          const start = tieBreaker++ % readPool.length;
+          for (let offset = 0; offset < readPool.length; offset++) {
+            const idx = (start + offset) % readPool.length;
+            if (inFlight[idx]! === minFlight) {
+              chosen = idx;
+              break;
+            }
+          }
+        }
+        inFlight[chosen]!++;
+        try {
+          return await readPool[chosen]!.execute(tool, input, context);
+        } finally {
+          inFlight[chosen]!--;
+        }
+      },
+      async close() {
+        await Promise.allSettled(readPool.map((lane) => lane.close()));
+      },
+    };
+  } catch (error) { await Promise.allSettled([writer.close(), ...readPool.map((lane) => lane.close())]); throw error; }
   async function executeSerialized(tool: string, input: unknown, context: TrustedToolContext) {
     if (failed) return fixedFailure(context, "internal-error");
     return (READ_LANE_TOOLS.has(tool) ? reader! : writer).execute(tool, input, context);

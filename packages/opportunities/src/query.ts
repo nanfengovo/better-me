@@ -7,7 +7,7 @@ import { classifyCompany, CompanyColorConfigSchema, resolveCompanyColor, type Co
 import { normalizeGeographicName } from "./geocoding.js";
 import { MapReferencesResultSchema, type MapReferencesResult } from "./map-references.js";
 import { buildCityReferenceBuckets, prepareCityMapReferences, type ResolvedCityMapReference } from "./query-map-references.js";
-import type { QueryIndexContext } from "./query-index.js";
+import { createJobQueryIndex, type JobQueryIndex, type QueryIndexContext } from "./query-index.js";
 
 const ids = () => z.array(z.string().trim().min(1).max(240)).max(200).default([]);
 const entityIds = () => z.array(EntityIdSchema).max(200).default([]);
@@ -255,24 +255,28 @@ function lookupAliases(term: string, aliases?: Record<string, string[]>): string
 
 function searchScore(job: CanonicalJob, company: Company, locations: JobLocation[], query: JobQuery, alternatives: string[][], index?: QueryIndexContext, wordMatches?: Map<string, Map<string, boolean>>): { score: number; fields: string[] } | undefined {
   if (!query.search?.text) return { score: 0, fields: [] };
-  const fields: Array<[string, number, string]> = [
+  const normalized = index?.fields(job, company, locations) ?? ([
     ["title", 5, job.title.value], ["company", 4, company.names.join(" ")],
     ["role", 3, [job.roleFamily?.value, job.seniority?.value].filter(Boolean).join(" ")],
     ["location", 2, locations.map((l) => [l.raw, l.countryCode, l.region, l.city].filter(Boolean).join(" ")).join(" ")],
     ["description", 1, job.description],
-  ];
-  const normalized = index?.fields(job, company, locations) ?? fields.map(([field, weight, value]) => ({ field, weight, value: normalizeSearchText(value) }));
+  ] as Array<[string, number, string]>).map(([field, weight, value]) => ({ field, weight, value: normalizeSearchText(value) }));
   if (!alternatives.length) return { score: 0, fields: [] };
   let score = 0;
   const matched = new Set<string>();
   for (const candidates of alternatives) {
     let best = 0;
     for (const field of normalized) {
-      const quality = Math.max(...candidates.map((candidate) => {
+      let quality = 0;
+      for (const candidate of candidates) {
         let words = wordMatches?.get(candidate);
         if (wordMatches && !words) { words = new Map(); wordMatches.set(candidate, words); }
-        return matchQuality(field.value, candidate, query.search!.mode === "fuzzy", words);
-      }));
+        const candidateQuality = matchQuality(field.value, candidate, query.search!.mode === "fuzzy", words);
+        if (candidateQuality > quality) {
+          quality = candidateQuality;
+          if (quality === 1) break;
+        }
+      }
       if (quality) { matched.add(field.field); best = Math.max(best, quality * field.weight); }
     }
     if (!best) return undefined;
@@ -365,7 +369,7 @@ function buildMapBuckets(items: JobSearchItem[], level: JobQuery["mapLevel"]): M
       buckets.set(id, bucket);
     } else if (displayGradeRank[grade] < displayGradeRank[bucket.grade]) bucket.grade = grade;
     if (location.officeResolution) bucket.coordinateMeaning = location.officeResolution.coordinateMeaning;
-    const pin = JSON.stringify([item.job.id, location.id]);
+    const pin = `${item.job.id}\0${location.id}`;
     if (!bucket.pins.has(pin)) bucket.points.push(location.coordinates);
     bucket.jobs.add(item.job.id); bucket.locations.add(location.id); bucket.pins.add(pin);
     let category = bucket.categories.get(item.color.ruleId);
@@ -551,6 +555,16 @@ async function computeMatches(dataset: AtlasDataset, query: JobQuery, options: z
   };
 }
 
+function compareUpdatedDesc(a: JobSearchItem, b: JobSearchItem): number {
+  const left = Date.parse(a.job.updatedAt);
+  const right = Date.parse(b.job.updatedAt);
+  const leftValid = Number.isFinite(left);
+  const rightValid = Number.isFinite(right);
+  if (leftValid && rightValid) return right - left;
+  if (leftValid !== rightValid) return leftValid ? -1 : 1;
+  return 0;
+}
+
 function sortQueryItems(input: JobSearchItem[], query: JobQuery): JobSearchItem[] {
   const field = query.sort.field;
   const direction = query.sort.direction === "asc" ? 1 : -1;
@@ -559,10 +573,53 @@ function sortQueryItems(input: JobSearchItem[], query: JobQuery): JobSearchItem[
     const right = field === "salary" ? b.salaryCny : field === "distance" ? b.distance?.km : field === "updated" ? Date.parse(b.job.updatedAt) : b.relevance;
     if (left === undefined && right !== undefined) return 1;
     if (right === undefined && left !== undefined) return -1;
-    return (left !== undefined && right !== undefined ? (left - right) * direction : 0) || compareIds(a.job.id, b.job.id);
+    return (left !== undefined && right !== undefined ? (left - right) * direction : 0)
+      || (field === "relevance" ? compareUpdatedDesc(a, b) : 0)
+      || compareIds(a.job.id, b.job.id);
   });
 }
 
 export function createJobQueryService(repository: { readSnapshot(): Promise<AtlasDataset> }) {
-  return { search: async (input: JobQueryInput, options?: QueryOptions) => queryJobs(await repository.readSnapshot(), input, options) };
+  // Reuse the indexed view across repeated searches against the same snapshot reference
+  // while guarding against revision or entity-array mutations.
+  const indexes = new WeakMap<AtlasDataset, {
+    revision: number;
+    jobCount: number;
+    companyCount: number;
+    locationCount: number;
+    listingCount: number;
+    observationCount: number;
+    sourceCount: number;
+    index: JobQueryIndex;
+  }>();
+  return {
+    search: async (input: JobQueryInput, options?: QueryOptions) => {
+      const snapshot = await repository.readSnapshot();
+      const cached = indexes.get(snapshot);
+      if (
+        cached
+        && cached.revision === snapshot.revision
+        && cached.jobCount === snapshot.jobs.length
+        && cached.companyCount === snapshot.companies.length
+        && cached.locationCount === snapshot.locations.length
+        && cached.listingCount === snapshot.listings.length
+        && cached.observationCount === snapshot.observations.length
+        && cached.sourceCount === snapshot.sources.length
+      ) {
+        return cached.index.search(input, options);
+      }
+      const index = createJobQueryIndex(snapshot);
+      indexes.set(snapshot, {
+        revision: snapshot.revision,
+        jobCount: snapshot.jobs.length,
+        companyCount: snapshot.companies.length,
+        locationCount: snapshot.locations.length,
+        listingCount: snapshot.listings.length,
+        observationCount: snapshot.observations.length,
+        sourceCount: snapshot.sources.length,
+        index,
+      });
+      return index.search(input, options);
+    },
+  };
 }

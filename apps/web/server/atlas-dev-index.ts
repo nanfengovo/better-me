@@ -30,11 +30,12 @@ export function defaultJobAtlasDataDirectory(home = homedir()): string {
   return join(home, "Library", "Application Support", "BetterMe", "job-atlas");
 }
 
-export function jobServiceLaunchArgs(spec: { dataDirectory: string; port: string; origins: readonly string[]; cliPath: string; tsxLoader: string; officeGeocoder?: string }): string[] {
+export function jobServiceLaunchArgs(spec: { dataDirectory: string; port: string; origins: readonly string[]; cliPath: string; tsxLoader: string; officeGeocoder?: string; proxy?: string }): string[] {
   return [
     "--import", spec.tsxLoader, spec.cliPath,
     "--data-dir", spec.dataDirectory, "--host", "127.0.0.1", "--port", spec.port,
     ...spec.origins.flatMap((origin) => ["--origin", origin]),
+    ...(spec.proxy ? ["--proxy", spec.proxy] : []),
     ...(spec.officeGeocoder ? ["--office-geocoder", spec.officeGeocoder] : []),
   ];
 }
@@ -91,6 +92,7 @@ function launchJobService(spec: JobServiceStartSpec): StartedJobService {
     origins: spec.origins,
     cliPath: join(directory, "src", "cli.ts"),
     tsxLoader: loader,
+    proxy: "auto",
     ...(hasAmap ? { officeGeocoder: "amap" } : {}),
   }), { cwd: directory, stdio: ["ignore", "ignore", "pipe"] });
   let stderr = "";

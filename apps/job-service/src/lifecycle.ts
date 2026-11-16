@@ -10,6 +10,7 @@ import { openJobRepository, type JobRepository } from "./repository.js";
 import { OfficeGeocoderConfigSchema, type OfficeGeocoderConfig } from "./office-address-provider.js";
 import { configuredApplicationOptions } from "./configured-application.js";
 import { startJobApplicationRuntime } from "./application-runtime.js";
+import { isValidProxySetting } from "./proxy.js";
 
 export class LocalJobServiceError extends Error {
   constructor(public readonly code: "invalid-config" | "data-directory-unavailable" | "data-directory-busy" | "invalid-lock" | "lock-ownership-changed" | "invalid-token" | "startup-failed" | "shutdown-failed", message: string) {
@@ -23,15 +24,17 @@ export type JobServiceConfig = {
   port?: number;
   allowedOrigins: readonly string[];
   dns?: "system" | "google-doh";
+  proxy?: string;
   careerSearch?: CareerWebSearchConfig;
   officeGeocoder?: OfficeGeocoderConfig;
 };
-export type ValidatedJobServiceConfig = Required<Omit<JobServiceConfig, "careerSearch" | "officeGeocoder">> & Pick<JobServiceConfig, "careerSearch" | "officeGeocoder">;
+export type ValidatedJobServiceConfig = Required<Omit<JobServiceConfig, "careerSearch" | "officeGeocoder" | "proxy">> & Pick<JobServiceConfig, "careerSearch" | "officeGeocoder" | "proxy">;
 export function validateJobServiceConfig(config: JobServiceConfig): ValidatedJobServiceConfig {
   if (typeof config.dataDirectory !== "string" || !isAbsolute(config.dataDirectory) || config.dataDirectory.includes("\0")) throw new LocalJobServiceError("invalid-config", "Choose an explicit absolute data directory.");
   const host = config.host ?? "127.0.0.1";
   const port = config.port ?? 5178;
   const dns = config.dns ?? "system";
+  if (config.proxy !== undefined && !isValidProxySetting(config.proxy)) throw new LocalJobServiceError("invalid-config", "Invalid proxy configuration. Choose auto, direct, or an HTTP(S) proxy URL.");
   const careerSearch = config.careerSearch === undefined ? undefined : CareerWebSearchConfigSchema.safeParse(config.careerSearch);
   if (careerSearch && !careerSearch.success) throw new LocalJobServiceError("invalid-config", "Invalid career search configuration. Choose a supported provider and its permitted endpoint options.");
   const officeGeocoder = config.officeGeocoder === undefined ? undefined : OfficeGeocoderConfigSchema.safeParse(config.officeGeocoder);
@@ -44,7 +47,7 @@ export function validateJobServiceConfig(config: JobServiceConfig): ValidatedJob
       if (!["http:", "https:"].includes(parsed.protocol) || parsed.origin !== origin || parsed.username || parsed.password || parsed.hostname.includes("*")) throw new Error();
     } catch { throw new LocalJobServiceError("invalid-config", "UI origins must be exact HTTP(S) origins without a path or wildcard."); }
   }
-  return { dataDirectory: resolve(config.dataDirectory), host, port, allowedOrigins: [...new Set(config.allowedOrigins)], dns, ...(careerSearch?.success ? { careerSearch: careerSearch.data } : {}), ...(officeGeocoder?.success ? { officeGeocoder: officeGeocoder.data } : {}) };
+  return { dataDirectory: resolve(config.dataDirectory), host, port, allowedOrigins: [...new Set(config.allowedOrigins)], dns, ...(config.proxy !== undefined ? { proxy: config.proxy } : {}), ...(careerSearch?.success ? { careerSearch: careerSearch.data } : {}), ...(officeGeocoder?.success ? { officeGeocoder: officeGeocoder.data } : {}) };
 }
 
 const LOCK_NAME = ".job-service.lock";

@@ -798,3 +798,18 @@ test("query service and direct domain calls share the same authoritative result"
   assert.deepEqual(await service.search(query, OPTIONS), await queryJobs(dataset, query, OPTIONS));
   assert.equal(reads, 1);
 });
+
+test("default relevance sorting breaks ties by updatedAt descending", async () => {
+  const dataset = datasetFor([
+    { id: "a-old", title: "Platform Engineer" },
+    { id: "b-newest", title: "Platform Engineer" },
+    { id: "c-mid", title: "Platform Engineer" },
+  ]);
+  dataset.jobs[0]!.updatedAt = "2026-10-01T00:00:00.000Z";
+  dataset.jobs[1]!.updatedAt = "2026-11-15T12:00:00.000Z";
+  dataset.jobs[2]!.updatedAt = "2026-11-01T00:00:00.000Z";
+  const browse = await queryJobs(dataset, {}, OPTIONS);
+  assert.deepEqual(ids(browse), ["job-b-newest", "job-c-mid", "job-a-old"]);
+  const searched = await queryJobs(dataset, { search: { text: "Platform" } }, OPTIONS);
+  assert.deepEqual(ids(searched), ["job-b-newest", "job-c-mid", "job-a-old"]);
+});

@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { LocalJobServiceError, startLocalJobService, validateJobServiceConfig, type JobServiceConfig, type LocalJobServiceHandle } from "./lifecycle.js";
+import { formatProxyLogLabel } from "./proxy.js";
 
 export const JOB_SERVICE_USAGE = `BetterMe local job service
 
@@ -15,6 +16,7 @@ Options:
   --host <address>       127.0.0.1 (default) or ::1 only.
   --port <number>        5178 by default; 1-65535.
   --dns <provider>       system (default) or google-doh; applies only inside this service.
+  --proxy <mode>         direct (default), auto, or an HTTP(S) proxy URL; applies only inside this service.
   --career-search <id>   Optional duckduckgo-html or searxng; disabled by default.
   --career-search-endpoint <https-url>  Required only for searxng; no API keys are supported.
   --office-geocoder <id> Optional nominatim or amap address lookup; disabled by default, explicit per-address queries only.
@@ -35,7 +37,7 @@ export function parseJobServiceArgs(args: readonly string[]): { help: true } | {
   if (args.length === 1 && ["--help", "-h"].includes(args[0]!)) return { help: true };
   const values = new Map<string, string>();
   const origins: string[] = [];
-  const supported = new Set(["--data-dir", "--origin", "--host", "--port", "--dns", "--career-search", "--career-search-endpoint", "--office-geocoder", "--amap-key"]);
+  const supported = new Set(["--data-dir", "--origin", "--host", "--port", "--dns", "--proxy", "--career-search", "--career-search-endpoint", "--office-geocoder", "--amap-key"]);
   for (let index = 0; index < args.length; index += 2) {
     const flag = args[index]!;
     const value = args[index + 1];
@@ -53,12 +55,14 @@ export function parseJobServiceArgs(args: readonly string[]): { help: true } | {
   if (officeProvider !== undefined && !["nominatim", "amap"].includes(officeProvider)) throw new LocalJobServiceError("invalid-config", "Office geocoding supports nominatim or amap only; omit the option to disable external address queries.");
   const amapKey = values.get("--amap-key");
   if (amapKey !== undefined && officeProvider !== "amap") throw new LocalJobServiceError("invalid-config", "The --amap-key option requires --office-geocoder amap.");
+  const proxy = values.get("--proxy");
   const config = validateJobServiceConfig({
     dataDirectory: values.get("--data-dir") ?? "",
     host: (values.get("--host") ?? "127.0.0.1") as JobServiceConfig["host"],
     port: rawPort === undefined ? 5178 : Number(rawPort),
     allowedOrigins: origins,
     dns: (values.get("--dns") ?? "system") as JobServiceConfig["dns"],
+    ...(proxy !== undefined ? { proxy } : {}),
     ...(careerSearch ? { careerSearch } : {}),
     ...(officeProvider === "nominatim" ? { officeGeocoder: { provider: "nominatim" as const } } : {}),
     ...(officeProvider === "amap" ? { officeGeocoder: { provider: "amap" as const, ...(amapKey ? { key: amapKey } : {}) } } : {}),
@@ -88,7 +92,7 @@ export async function runJobServiceCli(args: readonly string[], options: {
   signals.on("SIGTERM", notifyStop);
   try {
     const service = await (options.start ?? startLocalJobService)(parsed.config);
-    output(`BetterMe job service: ${service.url}\nData directory: ${JSON.stringify(service.dataDirectory)}\nDatabase: ${JSON.stringify(service.databasePath)}\nToken file: ${JSON.stringify(service.tokenPath)}\nAllowed UI origins: ${JSON.stringify(service.allowedOrigins)}\nDNS provider: ${service.dns}\nCareer search: ${parsed.config.careerSearch?.provider ?? "disabled"}\nOffice address lookup: ${parsed.config.officeGeocoder?.provider ?? "disabled"}\nRecovered interrupted runs: ${service.recoveredRuns}\n`);
+    output(`BetterMe job service: ${service.url}\nData directory: ${JSON.stringify(service.dataDirectory)}\nDatabase: ${JSON.stringify(service.databasePath)}\nToken file: ${JSON.stringify(service.tokenPath)}\nAllowed UI origins: ${JSON.stringify(service.allowedOrigins)}\nDNS provider: ${service.dns}\nProxy: ${formatProxyLogLabel(parsed.config.proxy)}\nCareer search: ${parsed.config.careerSearch?.provider ?? "disabled"}\nOffice address lookup: ${parsed.config.officeGeocoder?.provider ?? "disabled"}\nRecovered interrupted runs: ${service.recoveredRuns}\n`);
     await stopRequested;
     await service.close();
     output("Job service stopped after pending writes finished.\n");

@@ -245,6 +245,7 @@ export function openJobRepository(path: string, options: { now?: () => string; r
       catch (error) { db.exec("ROLLBACK"); throw error; }
     }
     if (!options.readOnly) db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;");
+    db.exec("PRAGMA temp_store=MEMORY; PRAGMA cache_size=-32000;");
     // Opening a file with a matching user_version is not sufficient proof of this schema.
     db.prepare("SELECT value FROM metadata WHERE key='revision'").get();
     for (const table of TABLES) db.prepare(`SELECT id,document FROM ${table} LIMIT 0`).all();
@@ -262,13 +263,48 @@ export function openJobRepository(path: string, options: { now?: () => string; r
   } catch (error) { db.close(); throw error instanceof RepositoryError ? error : new RepositoryError("storage-error"); }
 
   function ensureOpen() { if (closed) throw new RepositoryError("closed"); }
-  function transaction<T>(work: () => T): T {
+  const statements = new Map<string, ReturnType<typeof db.prepare>>();
+  let localWriteGen = 0;
+  let activeTxReadOnly = false;
+  let cachedRead: { localWriteGen: number; dataVersion: number; revision: number; dataset: AtlasDataset } | undefined;
+  let cachedSnapshot: { localWriteGen: number; dataVersion: number; revision: number; snapshot: AtlasDataset } | undefined;
+  function prep(sql: string) {
+    let statement = statements.get(sql);
+    if (!statement) {
+      statement = db.prepare(sql);
+      statements.set(sql, statement);
+    }
+    return statement;
+  }
+  function snapshotKey() {
+    // Reading revision first forces deferred BEGIN to acquire the WAL snapshot before querying PRAGMA data_version.
+    const currentRevision = revision();
+    const row = prep("PRAGMA data_version").get() as { data_version?: number } | undefined;
+    return { revision: currentRevision, dataVersion: Number(row?.data_version ?? 0) };
+  }
+  function transaction<T>(work: () => T, txReadOnly = Boolean(options.readOnly)): T {
     // A WAL reader observes one committed revision without taking the writer lock.
-    ensureOpen(); db.exec(options.readOnly ? "BEGIN" : "BEGIN IMMEDIATE");
+    ensureOpen();
+    const readonly = Boolean(options.readOnly || txReadOnly);
+    if (!readonly) {
+      localWriteGen++;
+      cachedRead = undefined;
+      cachedSnapshot = undefined;
+    }
+    activeTxReadOnly = readonly;
+    db.exec(readonly ? "BEGIN" : "BEGIN IMMEDIATE");
     try { const result = work(); db.exec("COMMIT"); return result; }
     catch (error) { try { db.exec("ROLLBACK"); } catch { /* preserve fixed error below */ } throw error instanceof RepositoryError ? error : new RepositoryError("storage-error"); }
+    finally {
+      activeTxReadOnly = false;
+      if (!readonly) {
+        localWriteGen++;
+        cachedRead = undefined;
+        cachedSnapshot = undefined;
+      }
+    }
   }
-  function revision() { return Number((db.prepare("SELECT value FROM metadata WHERE key='revision'").get() as { value: string }).value); }
+  function revision() { return Number((prep("SELECT value FROM metadata WHERE key='revision'").get() as { value: string }).value); }
   const projectionSlice = createProjectionSlice(db, input => { const data = checked(AtlasDatasetSchema, input); verifyContentHashes(data); return data; });
   const projectionDependencies = createProjectionDependencies(db);
   function publicSyncRows(rows: DatasetUpserts): DatasetUpserts {
@@ -327,13 +363,22 @@ export function openJobRepository(path: string, options: { now?: () => string; r
       ...(exhausted ? { errorCode: "attempts-exhausted" as const } : state === "failed" ? { errorCode: "planning-failed" as const, nextRetryAt: new Date(Date.parse(at) + 1000 * 2 ** task.attempts).toISOString() } : {}) };
   }
   function read(): AtlasDataset {
-    ensureOpen(); const dataset = emptyDataset(revision());
+    ensureOpen();
+    const key = activeTxReadOnly ? snapshotKey() : undefined;
+    if (key && cachedRead && cachedRead.localWriteGen === localWriteGen && cachedRead.dataVersion === key.dataVersion && cachedRead.revision === key.revision) {
+      return cachedRead.dataset;
+    }
+    const dataset = emptyDataset(key ? key.revision : revision());
     for (const table of TABLES) {
-      const rows = db.prepare(`SELECT document FROM ${table} ORDER BY id`).all() as Array<{ document: string }>;
+      const rows = prep(`SELECT document FROM ${table} ORDER BY id`).all() as Array<{ document: string }>;
       (dataset[table] as unknown[]) = rows.map((row) => JSON.parse(row.document) as unknown);
     }
     const validated = checked(AtlasDatasetSchema, dataset);
-    verifyContentHashes(validated); return validated;
+    verifyContentHashes(validated);
+    if (key) {
+      cachedRead = { localWriteGen, dataVersion: key.dataVersion, revision: key.revision, dataset: validated };
+    }
+    return validated;
   }
   function receipt<T>(actorScope: string, tool: string, idempotencyKey: string, expectedSignature: string): T | undefined {
     const row = db.prepare("SELECT signature,response FROM receipts WHERE actor_scope=? AND tool=? AND idempotency_key=?").get(actorScope, tool, idempotencyKey) as { signature: string; response: string } | undefined;
@@ -810,10 +855,20 @@ export function openJobRepository(path: string, options: { now?: () => string; r
         throw error;
       }
     },
-    async readSnapshot(): Promise<AtlasDataset> { return transaction(() => projectPublicOfficeLocations(read(), officeDecisions())); },
+    async readSnapshot(): Promise<AtlasDataset> {
+      return transaction(() => {
+        const key = snapshotKey();
+        if (cachedSnapshot && cachedSnapshot.localWriteGen === localWriteGen && cachedSnapshot.dataVersion === key.dataVersion && cachedSnapshot.revision === key.revision) {
+          return cachedSnapshot.snapshot;
+        }
+        const snapshot = projectPublicOfficeLocations(read(), officeDecisions());
+        cachedSnapshot = { localWriteGen, dataVersion: key.dataVersion, revision: key.revision, snapshot };
+        return snapshot;
+      }, true);
+    },
     async syncSnapshot(input: DatasetSyncRequest = {}, paged = false): Promise<DatasetSyncResponse> {
       const request = checked(DatasetSyncRequestSchema, input);
-      return transaction(() => datasetSync.read(request, paged));
+      return transaction(() => datasetSync.read(request, paged), true);
     },
     async readBaselinePage(input: BaselineRequest = {}, actorScope = "local-owner"): Promise<BaselineResponse> {
       ensureOpen(); return baselineStore.read(checked(BaselineRequestSchema, input), actorScope);
