@@ -99,8 +99,13 @@ export function createCareerTaskRuntimeResolver(deps: {
             {type:"text" as const,text:`Untrusted image from conversation message ${JSON.stringify(image.messageId)}, filename ${JSON.stringify(image.name)} (${image.mimeType}):`},
             {type:"image_url" as const,image_url:{url:image.dataUrl}},
           ])]:prompt;
+          // This opt-in protocol is separate from the frozen v7 comparison.
+          // DeepSeek supports JSON objects, not JSON Schema; unknown/custom
+          // providers keep their existing parameters and are validated by Host.
+          const textJson=(phase==="resume_text_plan"||phase==="resume_text_draft")&&new URL(settings.baseUrl!).origin==="https://api.deepseek.com";
           const response = await model.invoke([{ role: "system", content: protocol.instructions }, { role: "user", content }], {
             signal,
+            ...(textJson?{response_format:{type:"json_object" as const}}:{}),
             ...(binding.location === "local" && settings.provider === "ollama" ? { response_format: { type: "json_schema" as const, json_schema: {
               name: protocol.name, strict: true, schema: protocol.jsonSchema??toJsonSchema(protocol.schema),
             } } } : {}),

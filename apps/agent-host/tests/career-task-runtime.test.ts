@@ -18,6 +18,19 @@ const lease={session:"test-session",valid:async()=>true};
 const model=(baseUrl:string):Extract<UnderstandingRuntime,{kind:"model"}>=>({kind:"model",modelSettings:{provider:"custom",model:"fixture-model",baseUrl,apiKey:"never-a-real-key"}});
 const sample=(runtime:UnderstandingRuntime,preferred?:string)=>({id:"synthetic",runtimeBinding:careerRuntimeBinding(runtime,preferred)} as CareerTask);
 const none=async()=>{};
+test("text writing uses JSON-object mode only for the explicitly selected official DeepSeek endpoint; legacy and other providers keep their transport",async t=>{
+  const sent:{model:string;format:unknown}[]=[];
+  t.mock.method(globalThis,"fetch",async(_url,init)=>{const body=JSON.parse(String(init?.body));sent.push({model:body.model,format:body.response_format});return Response.json({id:"synthetic",object:"chat.completion",model:body.model,choices:[{index:0,message:{role:"assistant",content:'{"kind":"material_plan","selections":[],"questions":[]}'},finish_reason:"stop"}]});});
+  const resolve=createCareerTaskRuntimeResolver({nativeTools:{} as NativeAccountTools,routing:{} as AgentRouting,scan:none});
+  try{
+    for(const endpoint of ["https://api.deepseek.com","https://deepseek.fixture.invalid/v1"]){
+      const rt=model(endpoint),runtime=await resolve(rt,lease,sample(rt),none);
+      for(const phase of ["resume_text_plan","resume_text_draft","resume_candidate"] as const)await runtime.reasoner("Full authorized JSON text.",new AbortController().signal,phase);
+    }
+    assert.deepEqual(sent.map(s=>s.format),[{type:"json_object"},{type:"json_object"},undefined,undefined,undefined,undefined]);
+    assert.ok(sent.every(s=>s.model==="fixture-model"));
+  }finally{resolve.close();}
+});
 test("Studio uses the full frozen JSON grammar and one shared SDK dispatch, not an independent local completion", async t => {
   const rt={kind:"model" as const,modelSettings:{provider:"ollama" as const,model:"synthetic-studio",baseUrl:"http://127.0.0.1:1/v1"}},contract={type:"object",additionalProperties:false,properties:{id:{type:"string",enum:["exact-evidence-id"]}},required:["id"]};let calls=0;
   t.mock.method(globalThis,"fetch",async(url,init)=>{calls++;assert.equal(String(url),"http://127.0.0.1:1/v1/chat/completions");const body=JSON.parse(String(init?.body));

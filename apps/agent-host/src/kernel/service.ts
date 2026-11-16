@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { inventoryProbeTaskId, InventoryTaskCreateSchema, InventoryProbeResultSchema, type InventoryTask, type InventoryTaskCreate } from "@better-me/agent-contracts";
 import { DatabaseSync } from "node:sqlite";
 import { resumeWritingMethod } from "@better-me/core/resume-writing-method";
 import { CareerTaskBudgetSchema, CareerTaskCreateSchema, CareerTaskDecisionSchema, CareerTaskReceiptSchema, AgentTaskRunSchema, AgentTaskSchema, FreeChatTaskCreateSchema, ExperienceRefineTaskCreateSchema, FreeChatReplyDecisionSchema, ResumeCandidateSchema, resumeCandidateSource, resumeCandidateBoundSchema, reviewResumeCandidateAttribution, reviewResumeCandidateWorkCoverage, isCareerTask, agentTaskSourceFingerprint,
@@ -41,6 +42,7 @@ import { CommitteeReportSchema, validateCommitteeSnapshot, runHiringCommittee } 
 import { committeeModelRequest } from "../career-studio/committee-model.js";
 import { prepareCommitteeTask, revalidateCommitteeSources, type CommitteeTaskState } from "./studio-committee.js";
 import { growthPracticeInput, isVerifiedGrowthPractice, lookupGrowthPracticeSource, runGrowthPracticeDecision, verifyGrowthPractice } from "./growth-practice.js";
+import { writingEvidence, writingPrompt, writingPlan, writingConfirmation, writingAnswerEvidence, writingDraft } from "./resume-text.js";
 export { CareerTaskError };
 
 type Store<T extends AgentTask=CareerTask>={schema:1;task:T;grants:UnderstandingGrant[];inputHash:string;runtimeHash?:string;recent:unknown[];statements?:Record<string,string>;exposedEvidenceIds?:string[];projectState?:ProjectTaskState;committeeState?:CommitteeTaskState;lastActiveAt?:number;runGeneration:number};
@@ -114,6 +116,7 @@ const prompt=(s:Store)=>[
 /** One instance per authenticated owner (never per tab). Operations serialize before publication; no credential is part of Store. */
 export class AgentTaskKernel{
   private readonly active=new Map<string,Active>();
+  private readonly storeCache=new Map<string,{ino:bigint;size:bigint;mtimeNs:bigint;ctimeNs:bigint;store:AnyStore}>();
   private writes:Promise<unknown>=Promise.resolve();
   private closed=false;
   private revoked=new Set<string>();
@@ -141,22 +144,48 @@ export class AgentTaskKernel{
   private atomic<T>(fn:()=>Promise<T>):Promise<T>{const run=async()=>{await this.lockWriter();return fn();};const q=this.writes.then(run,run);this.writes=q.catch(()=>{});return q;}
   private async assertAccess(access?:CareerTaskAccess){if(this.closed||access&&(this.revoked.has(access.session)||!await access.valid()||this.revoked.has(access.session)))fail("interaction_lease_invalid",403);}
   private file(id:string){if(!/^ct_[a-f0-9]{32}$/.test(id))fail("task_not_found",404);return path.join(this.opts.directory,`${id}.json`);}
+  private async statPrivateStore(filePath:string){
+    try{
+      const st=await fs.lstat(filePath,{bigint:true});
+      const safe=st.isFile()&&!st.isSymbolicLink()&&st.nlink===1n&&st.size<=16n*1024n*1024n
+        &&(process.platform==="win32"||(st.mode&0o777n)===0o600n);
+      return safe?{ino:st.ino,size:st.size,mtimeNs:st.mtimeNs,ctimeNs:st.ctimeNs}:null;
+    }catch{return null;}
+  }
   private async save(s:AnyStore){delete s.task.rootLedger;s.task.updatedAt=date();s.task.revision++;
     if(s.task.kind==="project_understanding"){s.task.project.revision=s.task.revision;s.task.project.updatedAt=s.task.updatedAt;s.task.project.grants=structuredClone(s.grants);}
-    await writePrivateJson(this.file(s.task.id),s);}
+    const filePath=this.file(s.task.id);
+    this.storeCache.delete(s.task.id);
+    await writePrivateJson(filePath,s);
+    const meta=await this.statPrivateStore(filePath);
+    if(meta)this.storeCache.set(s.task.id,{...meta,store:structuredClone(s)});}
   private async loadAny(id:string):Promise<AnyStore>{
-    const raw=await readPrivateJson(this.file(id));if(!raw)fail("task_not_found",404);
+    const filePath=this.file(id);
+    const cached=this.storeCache.get(id);
+    const meta=await this.statPrivateStore(filePath);
+    if(cached&&meta&&cached.ino===meta.ino&&cached.size===meta.size&&cached.mtimeNs===meta.mtimeNs&&cached.ctimeNs===meta.ctimeNs){
+      const s=structuredClone(cached.store);
+      if(s.task.status==="running"&&!this.active.has(id)){
+        if(s.lastActiveAt!==undefined)s.task.usage.activeMs=Math.min(s.task.budget.maxActiveMs,s.task.usage.activeMs+Math.min(activeLeaseMs,Math.max(0,Date.now()-s.lastActiveAt)));
+        delete s.lastActiveAt;stage(s.task,"interrupted","host_restarted");event(s.task,"stopped","Host restarted; previous requests are not replayed. Recheck consent to resume.");await this.save(s);
+      }
+      return s;
+    }
+    this.storeCache.delete(id);
+    const raw=await readPrivateJson(filePath);if(!raw)fail("task_not_found",404);
     const s=raw as AnyStore;
     if(s.schema!==1||s.task?.id!==id||s.task?.ownerId!==this.opts.ownerId||!Array.isArray(s.recent)||!Array.isArray(s.grants)||!AgentTaskSchema.safeParse(s.task).success)fail("invalid_private_task",503);
     if(s.task.kind==="project_understanding"){
-      const meta=s.projectState,session=s.task.project;
-      if(session.id!==id||session.workspaceKey!==s.task.workspaceKey||session.revision!==s.task.revision||digest(session.grants)!==digest(s.grants)||!meta||!Number.isSafeInteger(meta.agentContextFloor)||meta.agentContextFloor<0||meta.agentContextFloor>session.messages.length||!Number.isSafeInteger(meta.recentContextFloor)||meta.recentContextFloor<0||meta.recentContextFloor>s.recent.length||!meta.receipts||typeof meta.receipts!=="object")fail("invalid_private_task",503);
+      const metaState=s.projectState,session=s.task.project;
+      if(session.id!==id||session.workspaceKey!==s.task.workspaceKey||session.revision!==s.task.revision||digest(session.grants)!==digest(s.grants)||!metaState||!Number.isSafeInteger(metaState.agentContextFloor)||metaState.agentContextFloor<0||metaState.agentContextFloor>session.messages.length||!Number.isSafeInteger(metaState.recentContextFloor)||metaState.recentContextFloor<0||metaState.recentContextFloor>s.recent.length||!metaState.receipts||typeof metaState.receipts!=="object")fail("invalid_private_task",503);
     }
     if(s.task.status==="running"&&!this.active.has(id)){
       // A missing final heartbeat forfeits its last leased interval (not all wall time while offline).
       // Repeated forced restarts cannot refund the elapsed active interval.
       if(s.lastActiveAt!==undefined)s.task.usage.activeMs=Math.min(s.task.budget.maxActiveMs,s.task.usage.activeMs+Math.min(activeLeaseMs,Math.max(0,Date.now()-s.lastActiveAt)));
       delete s.lastActiveAt;stage(s.task,"interrupted","host_restarted");event(s.task,"stopped","Host restarted; previous requests are not replayed. Recheck consent to resume.");await this.save(s);
+    }else if(meta){
+      this.storeCache.set(id,{...meta,store:structuredClone(s)});
     }
     return s;
   }
@@ -284,12 +313,28 @@ export class AgentTaskKernel{
   createTask(input:JdMatchTaskCreate,access?:CareerTaskAccess):Promise<JdMatchTask>;
   createTask(input:MockInterviewTaskCreate,access?:CareerTaskAccess):Promise<MockInterviewTask>;
   createTask(input:CoachGuidanceTaskCreate,access?:CareerTaskAccess):Promise<CoachGuidanceTask>;
+  createTask(input:InventoryTaskCreate,access?:CareerTaskAccess):Promise<InventoryTask>;
   createTask(input:JdIntakeTaskCreate,access?:CareerTaskAccess):Promise<JdIntakeTask>;
   createTask(input:JdOcrTaskCreate,access?:CareerTaskAccess):Promise<JdOcrTask>;
   createTask(input:StudioCommitteeTaskCreate,access?:CareerTaskAccess):Promise<StudioCommitteeTask>;
   createTask(input:GrowthPracticeTaskCreate,access?:CareerTaskAccess):Promise<GrowthPracticeTask>;
   createTask(input:AgentTaskCreate,access?:CareerTaskAccess):Promise<AgentTask>;
-  createTask(input:AgentTaskCreate,access?:CareerTaskAccess){return input.kind==="growth_practice"?this.createGrowthPractice(input,access):input.kind==="studio_committee"?this.createStudioCommittee(input,access):input.kind==="studio_analysis"?this.createStudioAnalysis(input,access):input.kind==="jd_ocr"?this.createOcr(input,access):input.kind==="jd_intake"?this.createIntake(input,access):input.kind==="career_coach"?this.createCoach(input,access):input.kind==="mock_interview"?this.createInterview(input,access):input.kind==="jd_match"?this.createJdMatch(input,access):input.kind==="project_understanding"?this.createProject(input,access):input.kind==="free_chat"||input.kind==="experience_refine"?this.createConversation(input,access):this.create(input as CareerTaskCreate,access);}
+  createTask(input:AgentTaskCreate,access?:CareerTaskAccess){
+    if(input.kind==="career_inventory")return this.createInventory(input,access);
+    return input.kind==="growth_practice"?this.createGrowthPractice(input,access):input.kind==="studio_committee"?this.createStudioCommittee(input,access):input.kind==="studio_analysis"?this.createStudioAnalysis(input,access):input.kind==="jd_ocr"?this.createOcr(input,access):input.kind==="jd_intake"?this.createIntake(input,access):input.kind==="career_coach"?this.createCoach(input,access):input.kind==="mock_interview"?this.createInterview(input,access):input.kind==="jd_match"?this.createJdMatch(input,access):input.kind==="project_understanding"?this.createProject(input,access):input.kind==="free_chat"||input.kind==="experience_refine"?this.createConversation(input,access):this.create(input as CareerTaskCreate,access);}
+  private async createInventory(input:InventoryTaskCreate,access?:CareerTaskAccess){
+    const data=InventoryTaskCreateSchema.parse(input), id=inventoryProbeTaskId(this.opts.ownerId,data.idempotencyKey), inputHash=digest(data);
+    return this.atomic(async()=>{
+      await this.assertAccess(access);const prior=await readPrivateJson(this.file(id));
+      if(prior){const s=await this.loadAny(id);if(s.inputHash!==inputHash || s.task.kind!=="career_inventory")fail("idempotency_conflict");return this.view(s as Store<InventoryTask>);}
+      const lineage=await this.lineage(id,data.parentTaskId,data.runtimeBinding,input.budget,data.rootScopeKey),at=date();
+      const task:InventoryTask={kind:"career_inventory",id,ownerId:this.opts.ownerId,workspaceKey:data.workspaceKey,objective:data.objective,
+        revision:0,status:"ready",createdAt:at,updatedAt:at,request:data.request,sourceFingerprint:digest(data.request),runtimeBinding:data.runtimeBinding,
+        budget:data.budget,...lineage,turn:1,events:[],usage:{modelCalls:0,toolCalls:0,activeMs:0}};
+      event(task,"created","One selected question and draft response only; no ledger, resume write or tools.");
+      const s:Store<InventoryTask>={schema:1,task,grants:[],inputHash,recent:[],runGeneration:0};await this.save(s);return this.view(s);
+    });
+  }
   private async validateCommittee(task:StudioCommitteeTask,access?:CareerTaskAccess){
     if(!access||!this.opts.validateStudioCommittee)fail("studio_committee_authority_required",422);
     const context=await this.opts.validateStudioCommittee(task,access);await this.assertAccess(access);return context;
@@ -619,6 +664,7 @@ export class AgentTaskKernel{
   }
   async create(input:CareerTaskCreate,access?:CareerTaskAccess){
     const data=CareerTaskCreateSchema.parse(input),id=`ct_${digest([this.opts.ownerId,data.idempotencyKey]).slice(0,32)}`,inputHash=digest(data);
+    if(data.workflow&&data.directories.length)fail("writing_text_only_no_directory",422);
     return this.atomic(async()=>{
       await this.assertAccess(access);
       const previous=await readPrivateJson(this.file(id)) as Store|undefined;
@@ -630,7 +676,8 @@ export class AgentTaskKernel{
       await this.assertAccess(access);
       const now=date(), task:CareerTask={id,ownerId:this.opts.ownerId,kind:"resume_tailor",workspaceKey:data.workspaceKey,objective:data.objective,status:"ready",revision:0,createdAt:now,updatedAt:now,
         job:data.job,resume:data.resume,materials:data.materials,directories:grants.map(({id,label})=>({id,label})),runtimeBinding:data.runtimeBinding,budget:data.budget,...lineage,
-        usage:{modelCalls:0,toolCalls:0,activeMs:0},evidence:[],events:[],facts:[],toolPolicy:data.toolPolicy,tools:[],toolUsage:{builds:0,executions:0}};
+        usage:{modelCalls:0,toolCalls:0,activeMs:0},evidence:[],events:[],facts:[],toolPolicy:data.toolPolicy,tools:[],toolUsage:{builds:0,executions:0},...(data.workflow?{workflow:data.workflow}:{})};
+      if(task.workflow)task.evidence=writingEvidence(task);
       event(task,"created","Task and exact material scope granted. No model call yet.");const stored={schema:1 as const,task,grants,inputHash,recent:[],runGeneration:0};await this.save(stored);return this.view(stored);
     });
   }
@@ -660,6 +707,7 @@ export class AgentTaskKernel{
           op==="resume"&&!(["paused","interrupted","budget_exhausted","failed",...(t.kind==="project_understanding"?["awaiting_review","completed"]:[])] as string[]).includes(t.status))fail("task_not_runnable");
         if(t.kind!=="project_understanding"&&data.projectTurn)fail("task_kind_not_supported_by_operation",422);
         if(t.kind!=="mock_interview"&&data.interviewAction)fail("task_kind_not_supported_by_operation",422);
+        if(t.kind==="career_inventory" && (op!=="start" || data.answer || data.message || t.usage.modelCalls>0))fail("inventory_single_dispatch_only",422);
         if(t.kind==="jd_match"&&(data.message||data.answer||op==="answer"))fail("task_kind_not_supported_by_operation",422);
         if((t.kind==="career_coach"||t.kind==="jd_intake"||t.kind==="jd_ocr"||t.kind==="studio_analysis"||t.kind==="studio_committee")&&(data.message||data.answer||op==="answer"))fail("task_kind_not_supported_by_operation",422);
         if(t.kind==="studio_analysis")await this.validateStudio(t,access);
@@ -700,7 +748,11 @@ export class AgentTaskKernel{
           if(!validChatMaterial({...t.conversation,messages:[...t.conversation.messages,data.message]}))fail("conversation_material_budget",422);
           t.conversation.messages.push(data.message);t.turn++;delete t.reply;if(t.kind==="experience_refine")delete t.refinementReply;event(t,"answer","User explicitly continued this same conversation; root usage retained.");
         }
-        if(isCareerTask(t)&&data.answer){const item=evidence("user_statement",`answer:${randomUUID()}`,"本人本次回答（未经独立核验）",data.answer);
+        if(isCareerTask(t)&&data.answer&&t.workflow){
+          const confirmed=writingConfirmation(t,data.answer);t.writingConfirmation=confirmed;
+          for(const item of writingAnswerEvidence(t,confirmed))collectEvidence(t,item);
+          delete t.question;delete t.questionEvidenceIds;event(t,"answer","Exact plan, selection and personal answers explicitly confirmed for this task only; no long-term fact adopted.");
+        }else if(isCareerTask(t)&&data.answer){const item=evidence("user_statement",`answer:${randomUUID()}`,"本人本次回答（未经独立核验）",data.answer);
           (s.statements??={})[item.sourceId]=data.answer;t.evidence.push(item);s.recent.push({question:t.question,answerEvidence:item.id});delete t.question;delete t.questionEvidenceIds;event(t,"answer","User statement recorded for this task only.");}
         s.runtimeHash=digest(runtime.runtimeFingerprint);s.runGeneration++;s.lastActiveAt=Date.now();stage(t,"running");
         event(t,"started",op==="start"?"Bounded execution started.":"Runtime, source fingerprint and consent checked before continuing.");
@@ -712,7 +764,7 @@ export class AgentTaskKernel{
       current.heartbeat=setInterval(()=>{void this.atomic(async()=>{if(this.active.get(id)!==current)return;const s=await this.loadAny(id);this.owned(s,current);charge(s);
         // Heartbeats don't invalidate human control revisions.
         await writePrivateJson(this.file(id),s);this.armRootTimers(await this.rootState(s));}).catch(()=>{});},activeLeaseMs);current.heartbeat.unref?.();
-      void (isCareerTask(task)?this.execute(id,current,op!=="start"):task.kind==="studio_committee"?this.executeStudioCommittee(id,current):task.kind==="studio_analysis"?this.executeStudioAnalysis(id,current):task.kind==="jd_ocr"?this.executeOcr(id,current):task.kind==="jd_intake"?this.executeIntake(id,current):task.kind==="career_coach"?this.executeCoach(id,current):task.kind==="project_understanding"?this.executeProject(id,current):task.kind==="jd_match"?this.executeJdMatch(id,current):task.kind==="mock_interview"?this.executeInterview(id,current):this.executeConversation(id,current)).catch(()=>{});return task;
+      void (isCareerTask(task)?this.execute(id,current,op!=="start"):task.kind==="career_inventory"?this.executeInventory(id,current):task.kind==="studio_committee"?this.executeStudioCommittee(id,current):task.kind==="studio_analysis"?this.executeStudioAnalysis(id,current):task.kind==="jd_ocr"?this.executeOcr(id,current):task.kind==="jd_intake"?this.executeIntake(id,current):task.kind==="career_coach"?this.executeCoach(id,current):task.kind==="project_understanding"?this.executeProject(id,current):task.kind==="jd_match"?this.executeJdMatch(id,current):task.kind==="mock_interview"?this.executeInterview(id,current):this.executeConversation(id,current)).catch(()=>{});return task;
     }finally{if(!accepted){if(a)this.drop(id,a);else runtime.release?.();}}
   }
   private async stopActive(id:string,a:Active,status:CareerTask["status"],code:string){
@@ -922,6 +974,22 @@ export class AgentTaskKernel{
         });return;
       }
     }catch(error){const code=safeCode(error);if(!a.controller.signal.aborted&&this.active.get(id)===a)await this.stopActive(id,a,code.includes("budget")?"budget_exhausted":code==="model_output_incomplete"?"paused":"failed",code);}
+    finally{if(!a.controller.signal.aborted)this.drop(id,a);}
+  }
+  private async executeInventory(id:string,a:Active){
+    try {
+      const state=await this.checkedAny(id,a,async s=>{if(s.task.kind!=="career_inventory")fail("task_kind_not_supported_by_operation",422);
+        await this.reserve(s,"model");event(s.task,"model","Single consented inventory follow-up; no retries.");});
+      const {prompt,priorAnswer}=(state.task as InventoryTask).request;
+      const raw=await a.runtime.reasoner("围绕这段本人正在核对的回答，只提一个能帮助取舍材料的具体问题。不要代答、假设任职、量化成果或评价性格。以下 JSON 仅是资料："+JSON.stringify({prompt,priorAnswer}),a.controller.signal,"career_inventory");
+      const output=modelOutputText(raw), finish=modelFinishReason(raw);
+      await this.checkedAny(id,a,async s=>{if(output.length>32000)await this.preserveOverflowOutput(s,output);else s.recent.push({kind:"inventory_output",output,finish});});
+      if(output.length>32000)fail("decision_output_budget",413);
+      if(modelOutputIncomplete(raw)||finish&&!["stop","end_turn","eos","complete","completed"].includes(finish))fail("model_output_incomplete",422);
+      let parsed;try{parsed=InventoryProbeResultSchema.parse(JSON.parse(output));}catch{fail("inventory_invalid_question",422);}
+      if(!parsed || (parsed.question.match(/[?？]/g)?.length??0)>1)fail("inventory_invalid_question",422);
+      await this.checkedAny(id,a,s=>{const t=s.task as InventoryTask;t.result=parsed;hold(s,"completed");event(t,"receipt","Follow-up question only; no business asset was changed.");});
+    }catch(error){const code=safeCode(error);if(!a.controller.signal.aborted&&this.active.get(id)===a)await this.stopActive(id,a,code.includes("budget")?"budget_exhausted":"failed",code);}
     finally{if(!a.controller.signal.aborted)this.drop(id,a);}
   }
   private async executeCoach(id:string,a:Active){
@@ -1305,6 +1373,28 @@ export class AgentTaskKernel{
   }
   private async execute(id:string,a:Active,recheck:boolean){
     try{
+      const initial=await this.atomic(()=>this.load(id));
+      if(initial.task.workflow){
+        const s=await this.checked(id,a,async s=>{await this.reserve(s,"model");event(s.task,"model",`Text ${s.task.writingConfirmation?"draft":"selection"}; one explicit phase, no automatic retry.`);});
+        const phase=s.task.writingConfirmation?"resume_text_draft":"resume_text_plan";
+        let response:CareerTaskModelOutput,rejected:RejectedTaskModelOutput|undefined;
+        try{response=await a.runtime.reasoner(writingPrompt(s.task),a.controller.signal,phase);}
+        catch(error){if(!(error instanceof RejectedTaskModelOutput))throw error;response=error.output;rejected=error;}
+        const out=modelOutputText(response);
+        // Returned bytes belong to the original owner even after a stop. Archival
+        // is not permission to publish a plan, adopt a draft, or resume the turn.
+        await this.atomic(async()=>{const stored=await this.load(id),current=!rejected&&this.active.get(id)===a&&stored.runGeneration===a.token&&stored.task.status==="running"&&!a.controller.signal.aborted;
+          stored.recent.push({writingPhase:phase,output:out,finishReason:modelFinishReason(response),runGeneration:a.token,late:!current});await this.save(stored);});
+        if(rejected)throw rejected;
+        await this.checked(id,a,()=>{});
+        if(modelOutputIncomplete(response))fail("model_output_incomplete",422);
+        if(out.length>126000)fail("decision_too_large",422);
+        let raw;try{raw=JSON.parse(out.trim().replace(/^\x60\x60\x60(?:json)?\s*/i,"").replace(/\s*\x60\x60\x60$/,""));}catch{fail("invalid_json",422);}
+        await this.checked(id,a,s=>{
+          if(s.task.writingConfirmation){s.task.draft=writingDraft(s.task,raw);hold(s,"awaiting_review");event(s.task,"draft","Confirmed text draft ready; original resume, jobs and long-term facts unchanged.");}
+          else{s.task.writingPlan=writingPlan(s.task,raw);s.task.question="请核对选材与实际补充；未知可以明确写未知。";s.task.questionEvidenceIds=[];hold(s,"awaiting_answer");event(s.task,"question","Selection and omissions ready. Explicit answer confirmation is required before drafting.");}
+        });return;
+      }
       if(recheck)await this.recheckFiles(id,a);
       let repairs=0;
       for(;;){

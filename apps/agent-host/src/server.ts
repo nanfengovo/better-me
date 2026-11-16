@@ -46,6 +46,7 @@ import { createChatGptHandler } from "./chatgpt/http.js";
 import { createHash } from "node:crypto";
 import { IdentityService, IdentityError, type Principal } from "./identity/service.js";
 import { OwnedStore } from "./identity/owned-store.js";
+import { handleInventory } from "./inventory/http.js";
 import { RecoveryCatalog } from "./identity/recovery.js";
 import { OidcService, OIDC_CALLBACK_PATH, type OidcOptions } from "./identity/oidc.js";
 import { unconfiguredSocialLogin } from "./identity/social-login.js";
@@ -422,6 +423,8 @@ export function createAgentServer(opts: ServerOptions): http.Server {
       let owner = owners.get(principal.id);
       if (!owner) { owner = makeOwner(principal); owners.set(principal.id, owner); }
       const { handleChatGpt, handleUnderstanding, runManager } = owner;
+      if (pathname.startsWith("/api/v1/agent/inventory/")) return await handleInventory(req,res,pathname,owner.store,principal.id,
+        async () => (await identities.authenticate(req.headers.cookie))?.id === principal.id,readBody,jsonResponse);
       if (pathname.startsWith("/api/v1/agent/growth/learning/")) return await handleLearning(req, res, pathname, owner.getLearning(), {
         session: capabilitySession(req.headers.cookie), valid: async () => (await identities.authenticate(req.headers.cookie))?.id === principal.id,
       }, readBody, jsonResponse);

@@ -57,7 +57,7 @@ const teamOrPlan=/(?:团队|项目计划|拟建|计划|方案|仅设计|设计�
 // A personal subject does not become "team context" simply by appending 团队.
 // 明确否定/计划语气 can stay as caveats; it is never positive personal proof.
 const individual=/(?:我(?:本人|独立|主导|牵头|带领|负责|交付|实现|开发|部署|推进|推动)|本人|个人|由我|\bI\s+(?:led|owned|implemented|built|deployed)|\bmy\s+(?:role|responsibility))/i;
-const qualifier=/(?:计划|目标是|设计稿|仅设计|尚未|并未|未(?:上线|投产|落地|实现|部署|实施)|不(?:是本人|负责)|提议|planned|proposal|not (?:implemented|deployed|delivered))/i;
+const qualifier=/(?:计划|目标是|设计稿|仅设计|尚未|并未|未(?:上线|投产|落地|实现|部署|实施)|(?:未|没有)(?:负责|参与|承担)|不(?:是本人|负责)|提议|planned|proposal|not (?:implemented|deployed|delivered))/i;
 const nonPersonal=(s:string)=>qualifier.test(s)||teamOrPlan.test(s)&&!individual.test(s);
 const strengthened=[/(?:主导|牵头|带领|领衔|led\b|owned\b)/i,/(?:独立|独自|solely|single.hand)/i,/(?:上线|投产|投运|生产部署|production|deployed)/i];
 const tech=(s:string)=>s.match(/[A-Za-z][A-Za-z0-9.+#_-]{2,}/g)??[];
