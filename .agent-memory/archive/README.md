@@ -10,6 +10,8 @@
 4. `activeContext-history-20261112-pre-studio-review.md`：2026-11-07后至v7进行中工作阶段累积的138行停点；其“当前资源/下一步”为历史快照，当前权威只读根activeContext指针。
 5. `activeContext-before-workspace-publish-20261113.md`：本地功能分组发布前的 2026-11-12 暂停停点；保留原 R1–R8 未完和真实资料边界。
 6. `activeContext-remote-before-workspace-publish-20261113.md`：整合前远端 `121500e` 的上下文；其 Linux/未同步 App 状态仅代表当时环境，不覆盖本轮 macOS 验收。
+7. `progress-history-20261111.md`：2026-11-11 及此前累积的进度清单与待办路线无损归档。
+8. `decisionLog-history-20261106.md`：2026-11-06 及此前架构/交互决策记录无损归档。
 
 ## 查阅说明
 
