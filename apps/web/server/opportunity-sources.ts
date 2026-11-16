@@ -6,7 +6,7 @@ import { getNetworkFetch } from "./network-proxy";
 const MAX_REQUEST_BYTES = 32_000;
 const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
 const MAX_JOBS = 300;
-const TIMEOUT_MS = 15_000;
+const TIMEOUT_MS = 65_000;
 const GREENHOUSE_HOST = "boards-api.greenhouse.io";
 const LEVER_HOST = "api.lever.co";
 const TENCENT_HOST = "careers.tencent.com";
@@ -48,7 +48,7 @@ function endpoint(input: OpportunitySourceRequest): string {
   const encoded = encodeURIComponent(input.company);
   return input.provider === "greenhouse"
     ? `https://${GREENHOUSE_HOST}/v1/boards/${encoded}/jobs?content=true`
-    : `https://${LEVER_HOST}/v0/postings/${encoded}?mode=json`;
+    : `https://${LEVER_HOST}/v0/postings/${encoded}?mode=json&limit=${MAX_JOBS + 1}`;
 }
 
 function decodeEntities(value: string): string {
@@ -114,7 +114,7 @@ function firstText(...values: unknown[]): string {
 function baseJob(input: OpportunitySourceRequest, observedAt: string, values: {
   id?: unknown; title?: unknown; description?: unknown; sourceUrl?: unknown; applicationUrl?: unknown;
   sourcePublishedAt?: unknown; sourceUpdatedAt?: unknown; locationText?: unknown; workMode?: WorkMode;
-  company?: unknown;
+  company?: unknown; discoveryUrl?: string;
 }): OpportunityInput {
   const title = text(values.title);
   const company = text(values.company) || input.company;
@@ -122,12 +122,14 @@ function baseJob(input: OpportunitySourceRequest, observedAt: string, values: {
   const place = text(values.locationText);
   const description = place ? `工作地点（原文）：${place}\n\n${details}`.trim() : details;
   const sourceUrl = publicLink(values.sourceUrl);
-  const applicationUrl = publicLink(values.applicationUrl ?? sourceUrl);
+  const applicationUrl = values.applicationUrl === undefined || values.applicationUrl === values.sourceUrl
+    ? sourceUrl
+    : publicLink(values.applicationUrl);
   if (!title || title.length > 500 || company.length > 300 || description.length > 120_000) throw new Error("招聘来源包含缺失或过长的职位信息，请打开原页面核对。");
   const sourceJobId = typeof values.id === "string" || typeof values.id === "number" ? String(values.id) : undefined;
   if (sourceJobId && sourceJobId.length > 300) throw new Error("招聘来源岗位编号过长。");
   const job: OpportunityInput = {
-    company, title, description, sourceUrl, applicationUrl, discoveryUrl: endpoint(input),
+    company, title, description, sourceUrl, applicationUrl, discoveryUrl: values.discoveryUrl ?? endpoint(input),
     sourcePlatform: input.provider === "greenhouse" ? "Greenhouse" : input.provider === "lever" ? "Lever" : "腾讯招聘官网",
     publisherType: "company", market: "unknown", workMode: values.workMode ?? "unknown",
     location: { country: "", region: "", city: "" }, remoteEligibleRegions: [], salaryText: "", employmentType: "unknown",
@@ -139,28 +141,50 @@ function baseJob(input: OpportunitySourceRequest, observedAt: string, values: {
   return job;
 }
 
+function recordTimestamp(value: unknown): number {
+  const iso = isoDate(value);
+  return iso ? Date.parse(iso) : Number.NEGATIVE_INFINITY;
+}
+
+function newestRawSlice(rows: readonly unknown[], getTime: (row: Record<string, unknown>) => unknown): Record<string, unknown>[] {
+  const items = rows.map((value, index) => ({
+    row: value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {},
+    index,
+  }));
+  if (items.length <= MAX_JOBS) return items.map(({ row }) => row);
+  return items
+    .sort((left, right) => {
+      const leftTs = recordTimestamp(getTime(left.row));
+      const rightTs = recordTimestamp(getTime(right.row));
+      if (leftTs === rightTs) return left.index - right.index;
+      return leftTs > rightTs ? -1 : 1;
+    })
+    .slice(0, MAX_JOBS)
+    .map(({ row }) => row);
+}
+
 function greenhouseJobs(input: OpportunitySourceRequest, payload: unknown, observedAt: string): OpportunityInput[] {
   if (!payload || typeof payload !== "object" || Array.isArray(payload) || !Array.isArray((payload as Record<string, unknown>).jobs)) throw new Error("Greenhouse 返回格式不正确。");
-  return ((payload as { jobs: unknown[] }).jobs).slice(0, MAX_JOBS).map((value) => {
-    const job = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const discoveryUrl = endpoint(input);
+  return newestRawSlice((payload as { jobs: unknown[] }).jobs, (job) => job.updated_at ?? job.first_published).map((job) => {
     const location = locationText(job.location);
     const departments = Array.isArray(job.departments) ? job.departments.map((item) => item && typeof item === "object" ? (item as Record<string, unknown>).name : "").filter((item): item is string => typeof item === "string" && Boolean(item)).join(", ") : "";
     const description = departments ? `${departments}\n\n${typeof job.content === "string" ? job.content : ""}` : job.content;
-    return baseJob(input, observedAt, { id: job.id, title: job.title, company: job.company_name, description, sourceUrl: job.absolute_url, applicationUrl: job.absolute_url, sourcePublishedAt: job.first_published, sourceUpdatedAt: job.updated_at, locationText: location });
+    return baseJob(input, observedAt, { id: job.id, title: job.title, company: job.company_name, description, sourceUrl: job.absolute_url, applicationUrl: job.absolute_url, sourcePublishedAt: job.first_published, sourceUpdatedAt: job.updated_at, locationText: location, discoveryUrl });
   });
 }
 
 function leverJobs(input: OpportunitySourceRequest, payload: unknown, observedAt: string): OpportunityInput[] {
   if (!Array.isArray(payload)) throw new Error("Lever 返回格式不正确。");
-  return payload.slice(0, MAX_JOBS).map((value) => {
-    const job = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const discoveryUrl = endpoint(input);
+  return newestRawSlice(payload, (job) => job.createdAt).map((job) => {
     const categories = job.categories && typeof job.categories === "object" && !Array.isArray(job.categories) ? job.categories as Record<string, unknown> : {};
     const allLocations = Array.isArray(categories.allLocations) ? categories.allLocations.filter((item): item is string => typeof item === "string") : [];
     const location = allLocations.length ? allLocations.join(", ") : locationText(categories.location);
     const workplace = typeof job.workplaceType === "string" ? job.workplaceType.toLowerCase() : "";
     const workType: WorkMode = workplace === "remote" ? "remote" : workplace === "hybrid" ? "hybrid" : ["onsite", "on-site"].includes(workplace) ? "on-site" : "unknown";
     const sections = [firstText(job.descriptionPlain, job.openingPlain, job.description, job.opening), ...(Array.isArray(job.lists) ? job.lists.map((item) => item && typeof item === "object" ? `${firstText((item as Record<string, unknown>).text)}\n${firstText((item as Record<string, unknown>).content)}` : "") : []), firstText(job.additionalPlain, job.additional)].filter((item) => item.trim()).join("\n\n");
-    return baseJob(input, observedAt, { id: job.id, title: job.text, description: sections, sourceUrl: job.hostedUrl, applicationUrl: job.applyUrl ?? job.hostedUrl, sourcePublishedAt: job.createdAt, locationText: location, workMode: workType });
+    return baseJob(input, observedAt, { id: job.id, title: job.text, description: sections, sourceUrl: job.hostedUrl, applicationUrl: job.applyUrl ?? job.hostedUrl, sourcePublishedAt: job.createdAt, locationText: location, workMode: workType, discoveryUrl });
   });
 }
 
@@ -189,6 +213,7 @@ function tencentPostUrl(post: Record<string, unknown>): string {
 }
 
 function tencentJobs(input: OpportunitySourceRequest, payload: unknown, observedAt: string): OpportunityInput[] {
+  const discoveryUrl = endpoint(input);
   return tencentData(payload).Posts.slice(0, TENCENT_PAGE_SIZE).map((value) => {
     const post = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
     const country = text(post.CountryName), city = text(post.LocationName);
@@ -201,7 +226,7 @@ function tencentJobs(input: OpportunitySourceRequest, payload: unknown, observed
       text(post.LastUpdateTime) && `来源最后更新日期（原文）：${text(post.LastUpdateTime)}。来源未给出时分秒和时区，未补造精确时间；此日期不是原始发布日期。`,
       text(post.Responsibility),
     ].filter(Boolean).join("\n\n");
-    const job = baseJob(input, observedAt, { id: post.PostId, title: post.RecruitPostName, company: "腾讯", description: details, sourceUrl: tencentPostUrl(post), locationText: [country, city].filter(Boolean).join(" · ") });
+    const job = baseJob(input, observedAt, { id: post.PostId, title: post.RecruitPostName, company: "腾讯", description: details, sourceUrl: tencentPostUrl(post), locationText: [country, city].filter(Boolean).join(" · "), discoveryUrl });
     job.location = { country, region: "", city: /[,，、/;；\n]/.test(city) ? "" : city };
     // Only this exact source country value has a defined domestic interpretation here.
     // Other country/region labels remain available verbatim for the user to classify.

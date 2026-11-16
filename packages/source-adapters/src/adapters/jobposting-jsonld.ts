@@ -64,9 +64,14 @@ export const jobPostingJsonLdAdapter: SourceAdapter = {
 
     const urls: string[] = [], seen = new Set<string>(), warnings: string[] = [];
     let truncated = false, emptyManifest = false;
-    for (const url of options.enumerationUrls) {
-      const text = await readText(request, url, options.enumerationKind === "sitemap-urlset"
-        ? "application/xml, text/xml;q=0.9" : "text/html, application/xhtml+xml;q=0.9");
+    const accept = options.enumerationKind === "sitemap-urlset"
+      ? "application/xml, text/xml;q=0.9"
+      : "text/html, application/xhtml+xml;q=0.9";
+    const manifestPages = await Promise.all(
+      options.enumerationUrls.map(async (url) => ({ url, text: await readText(request, url, accept) })),
+    );
+    request.context.throwIfCancelled();
+    for (const { url, text } of manifestPages) {
       const result = enumerateJobPostingUrls(text, url, options);
       request.context.throwIfCancelled();
       truncated ||= result.truncated;

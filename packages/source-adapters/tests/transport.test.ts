@@ -170,3 +170,31 @@ test('DoH cannot bless private DNS answers, redirect its fixed provider or run w
   await assert.rejects(redirected('careers.example.com', context().value, new AbortController().signal));
   await assert.rejects(privateResolver('careers.example.com'), (error: unknown) => error instanceof ToolError && error.code === 'invalid-context');
 });
+
+test('host proxy routing enforces URL allowlists, respects bypass rules, and rejects disallowed redirects before proxy dial', async () => {
+  const seen: Array<{ url: string; proxyUrl?: string }> = [];
+  let dnsLookups = 0;
+  const transport = createControlledSourceTransport({
+    resolve: async () => { dnsLookups++; return [{ address: '93.184.216.34', family: 4 }]; },
+    resolveProxy: () => ({ url: 'http://127.0.0.1:7890', bypass: 'direct.example.com' }),
+    send: async (request) => {
+      seen.push({ url: request.url.toString(), ...(request.proxyUrl ? { proxyUrl: request.proxyUrl.toString() } : {}) });
+      return response(200, ['ok']).value;
+    },
+  });
+  const proxied = await transport.request({ source: source(), context: context().value, url: 'https://careers.example.com/jobs' });
+  assert.equal(proxied.text, 'ok');
+  assert.equal(dnsLookups, 0);
+  assert.deepEqual(seen[0], { url: 'https://careers.example.com/jobs', proxyUrl: 'http://127.0.0.1:7890/' });
+
+  const bypassedSource = { ...source(), endpointPolicy: { ...source().endpointPolicy, allowedHosts: ['direct.example.com'] } };
+  const direct = await transport.request({ source: bypassedSource, context: context().value, url: 'https://direct.example.com/jobs' });
+  assert.equal(direct.text, 'ok');
+  assert.equal(dnsLookups, 1);
+  assert.deepEqual(seen[1], { url: 'https://direct.example.com/jobs' });
+
+  await assert.rejects(
+    transport.request({ source: source(), context: context().value, url: 'https://10.0.0.1/jobs' }),
+    (error: unknown) => error instanceof SourceTransportError && error.code === 'unsafe-endpoint',
+  );
+});

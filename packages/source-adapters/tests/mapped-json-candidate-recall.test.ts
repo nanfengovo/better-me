@@ -121,3 +121,14 @@ test('default ISO mapping does not guess numeric epoch units and retains timezon
   assert.equal(result.records[1]!.sourcePublishedRaw, '2026-10-18T16:33:07+00:00'); assert.equal(result.records[1]!.sourcePublishedAt, '2026-10-18T16:33:07.000Z');
   assert.equal(result.records[2]!.sourcePublishedRaw, '2026-10-18'); assert.equal(result.records[2]!.sourcePublishedAt, undefined);
 });
+
+test('quota allocation prefers newest published records within a match tier while retaining source order', async () => {
+  const { request } = fixture([
+    { ...row('old', 'C#'), published: '2026-10-01T00:00:00Z' },
+    { ...row('newest', 'C#'), published: '2026-11-15T12:00:00Z' },
+    { ...row('mid', 'C#'), published: '2026-11-01T00:00:00Z' },
+  ], 2);
+  request.source.options = { ...request.source.options, publishedPath: 'published' };
+  const result = await mappedJsonAdapter.list(request);
+  assert.deepEqual(result.records.map((record) => record.sourceRecordId), ['newest', 'mid']);
+});

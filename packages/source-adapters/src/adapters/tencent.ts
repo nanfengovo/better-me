@@ -5,6 +5,7 @@ import { SourcePageSchema, type SourceAdapter, type SourceJobRecord } from "../c
 import { TencentSourceOptionsSchema } from "../tencent-contracts.js";
 import { SourceTransportError } from "../transport.js";
 import { assessSourceScopeMatch, countSourceScopeMatches } from "../local-match.js";
+import { compareRecordRecencyDesc } from "./bounded-records.js";
 import { baseRecord, jsonResponse, page, plainText, publicUrl, record, timeValue } from "./common.js";
 
 const QUERY_PATH = "/tencentcareer/api/post/Query";
@@ -107,7 +108,7 @@ export const tencentAdapter: SourceAdapter = {
       // Sort a separate work list: the source's original record order is evidence.
       const detailCandidates = records.map((job, index) => ({ job, index, match: assessSourceScopeMatch(job, request.scope) }))
         .filter(({ match }) => match.nonRoleMatch)
-        .sort((left, right) => Number(left.match.roleMatch) - Number(right.match.roleMatch) || left.index - right.index);
+        .sort((left, right) => Number(left.match.roleMatch) - Number(right.match.roleMatch) || compareRecordRecencyDesc(left.job, right.job) || left.index - right.index);
       // Sequential and bounded: details consume the same host budget, rate window and cancellation.
       for (const { job } of detailCandidates.slice(0, options.maxDetailRequestsPerPage)) {
         request.context.throwIfCancelled();

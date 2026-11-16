@@ -96,7 +96,7 @@ test("缺失或不合法的来源发布日期不会用更新时间和采集时�
 
 test("Lever 保留原申请链接、毫秒创建时间、多地点和完整正文但不把 remote 当工作授权", async () => {
   const result = await fetchOpportunitySource({ provider: "lever", company: "example" }, async (url) => {
-    assert.equal(String(url), "https://api.lever.co/v0/postings/example?mode=json");
+    assert.equal(String(url), "https://api.lever.co/v0/postings/example?mode=json&limit=301");
     return json([lever]);
   }, options);
   const job = result.jobs[0]!;

@@ -154,7 +154,7 @@ export function createJobSessionRouter(standard: JobSessionBackend, liepin: JobS
     // Waiter cancellation only detaches that HTTP call. Exact cancellation,
     // lifecycle cleanup, or the finite logical deadline owns this launch.
     const timer = setTimeout(() => { request.ended = true; request.abort.abort(expired()); }, options.requestOptions?.startTimeoutMs ?? 60_000);
-    timer.unref?.();
+    request.abort.signal.addEventListener("abort", () => clearTimeout(timer), { once: true });
     request.pending = source.open(request.abort.signal).then(async info => {
       request.info = info;
       if (request.ended || request.abort.signal.aborted) { await cleanupRequest(request); throw request.abort.signal.reason ?? expired(); }

@@ -1928,9 +1928,16 @@ export function buildLiveBatchSearchPlans(rawInput: unknown) {
         ? { regionId: resolvedRegion.id }
         : {}),
     });
-    return input.regionId && (!resolvedRegion || resolvedRegion.platforms[provider] === undefined)
-      ? { ...plan, warnings: [...plan.warnings, `请求地区“${input.regionId}”没有该平台的已配置映射；使用平台默认地区读取，返回卡片必须按披露地点复核，不代表已覆盖请求地区。`] }
+    const sortedPlan = provider === "linkedin"
+      ? (() => {
+          const url = new URL(plan.url);
+          url.searchParams.set("sortBy", "DD");
+          return { ...plan, url: url.toString() };
+        })()
       : plan;
+    return input.regionId && (!resolvedRegion || resolvedRegion.platforms[provider] === undefined)
+      ? { ...sortedPlan, warnings: [...sortedPlan.warnings, `请求地区“${input.regionId}”没有该平台的已配置映射；使用平台默认地区读取，返回卡片必须按披露地点复核，不代表已覆盖请求地区。`] }
+      : sortedPlan;
   });
   return plans;
 }
@@ -1999,7 +2006,7 @@ export async function runLiveBatchSearch(
       // Each provider gets an owned background target. A small concurrency cap
       // reduces additive cross-platform latency without opening an unbounded
       // number of tabs or making per-provider pagination less strict.
-      browserResults = await mapWithConcurrency(browserPlans, 2, async (plan) => {
+      browserResults = await mapWithConcurrency(browserPlans, 3, async (plan) => {
         if (signal?.aborted) return undefined;
         await safelyReport(() => callbacks.onProviderStart?.(plan.provider, plan.platform));
         try {
