@@ -4,7 +4,7 @@ import { Window } from "happy-dom";
 import { GeocodingCandidateSchema, LocationDistanceSchema, evaluateLocationDistance, queryJobs, type JobSearchItem } from "@better-me/opportunities";
 import { createAtlasDemo } from "../src/components/atlas/demo.ts";
 import { createMapReferenceFixture } from "./fixtures/atlas-map-references.ts";
-import { activeMapFocus, createJobMapFocus, createMapFocusMarker, mapFocusCameraOptions, mapFocusPrecisionLabel, validMapFocus } from "../src/components/atlas/map-focus.ts";
+import { activeMapFocus, createJobMapFocus, createMapFocusMarker, mapFocusCameraOptions, mapFocusCompactPrecisionLabel, mapFocusPrecisionLabel, validMapFocus } from "../src/components/atlas/map-focus.ts";
 
 async function item(): Promise<JobSearchItem> {
   const data = createAtlasDemo();
@@ -164,5 +164,29 @@ test("marker content is safe text with precision and configurable validated comp
   const invalid = createMapFocusMarker(dom.document as unknown as Document, { longitude: 120, latitude: 30, color: "red;position:fixed" }, false);
   assert.equal(invalid.style.getPropertyValue("--atlas-focus-color"), "#b6f1da");
   assert.match(invalid.textContent!, /位置精度未说明.*待核实/);
+  dom.happyDOM.abort();
+});
+
+test("createMapFocusMarker separates landmark from street context safely and mapFocusCompactPrecisionLabel stays compact", () => {
+  const dom = new Window({ url: "http://synthetic-focus-marker-hierarchy.invalid" });
+  const target = {
+    jobId: "job-tx",
+    label: "腾讯地图-Agent工程师",
+    locationLabel: "北京市海淀区西北旺东路10号院西区9号楼腾讯北京总部大楼<script>bad</script>",
+    longitude: 116.28,
+    latitude: 40.05,
+    precision: "address" as const,
+    estimated: false,
+  };
+  const marker = createMapFocusMarker(dom.document as unknown as Document, target, false);
+  assert.equal(marker.querySelector("script,img"), null);
+  assert.equal(marker.querySelector(".atlas-focus-place")?.textContent, "腾讯北京总部大楼<script>bad</script>");
+  assert.equal(marker.querySelector(".atlas-focus-street")?.textContent, "北京市海淀区 · 西北旺东路10号院西区9号楼");
+
+  assert.equal(mapFocusCompactPrecisionLabel(target), "地址坐标 · 待核实");
+  assert.equal(mapFocusCompactPrecisionLabel({ ...target, verification: "verified" }), "地址坐标 · 已核验");
+  assert.equal(mapFocusCompactPrecisionLabel({ ...target, precision: "street" }), "街道坐标 · 待核实");
+  assert.equal(mapFocusCompactPrecisionLabel({ ...target, positionBasis: "city-reference", precision: "city", estimated: true }), "城市参考 · 城市估算 · 待核实");
+  assert.equal(mapFocusCompactPrecisionLabel({ longitude: 120, latitude: 30, estimated: false }), "精度未明 · 待核实");
   dom.happyDOM.abort();
 });

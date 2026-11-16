@@ -1,7 +1,8 @@
 import type { MapBucket } from "@better-me/opportunities";
+import { formatAtlasAddress } from "../address-format";
 import { bucketRadius, categories, validBuckets } from "./types";
 
-export type BucketGeoJSON = { type: "FeatureCollection"; features: Array<{ type: "Feature"; properties: { bucketId: string; kind: string; color: string; radius: number; label: string; fullLabel: string; labelVisible: boolean; grade: string; stackLocationCount?: number; stackJobCount?: number; stackLabel?: string }; geometry: { type: "Point"; coordinates: [number, number] } }> };
+export type BucketGeoJSON = { type: "FeatureCollection"; features: Array<{ type: "Feature"; properties: { featureId: string; bucketId: string; kind: string; color: string; radius: number; label: string; fullLabel: string; labelVisible: boolean; grade: string; stackLocationCount?: number; stackJobCount?: number; stackLabel?: string }; geometry: { type: "Point"; coordinates: [number, number] } }> };
 export type AtlasMapGeometry = { data: BucketGeoJSON; signature: string; officeBucketIds: string[]; coordinateStacks: AtlasCoordinateStack[] };
 
 export function mapBucketPrecisionLabel(bucket: MapBucket): string {
@@ -65,10 +66,11 @@ export function atlasBucketData(input: readonly MapBucket[]): BucketGeoJSON {
     const precision = mapBucketPrecisionLabel(bucket);
     const place = bucket.label.length > 28 ? `${bucket.label.slice(0, 26)}…` : bucket.label;
     const label = `${place} · ${bucket.jobCount}${precision ? ` · ${precision}` : ""}`;
-    const fullLabel = `${bucket.label} · ${bucket.jobCount}`;
+    const conciseDetail = formatAtlasAddress(bucket.label).conciseLabel || bucket.label;
+    const fullLabel = `${conciseDetail} · ${bucket.jobCount}`;
     const grade = bucket.displayGrade ?? (bucket.positionBasis === "city-reference" ? "city" : "");
-    features.push({ type: "Feature", geometry: point, properties: { bucketId: bucket.id, kind: "core", color: colors.length === 1 ? colors[0]!.color : "#a5bbb6", radius: base * .46, label, fullLabel, labelVisible: labelIds.has(bucket.id), grade } });
-    colors.forEach((category, index) => features.push({ type: "Feature", geometry: point, properties: { bucketId: bucket.id, kind: "category", color: category.color, radius: base * .58 + index * 2.1, label, fullLabel, labelVisible: false, grade } }));
+    features.push({ type: "Feature", geometry: point, properties: { featureId: `core:${bucket.id}`, bucketId: bucket.id, kind: "core", color: colors.length === 1 ? colors[0]!.color : "#a5bbb6", radius: base * .46, label, fullLabel, labelVisible: labelIds.has(bucket.id), grade } });
+    colors.forEach((category, index) => features.push({ type: "Feature", geometry: point, properties: { featureId: `category:${bucket.id}:${index}`, bucketId: bucket.id, kind: "category", color: category.color, radius: base * .58 + index * 2.1, label, fullLabel, labelVisible: false, grade } }));
   }
   const bucketsById = new Map(buckets.map(bucket => [bucket.id, bucket]));
   for (const stack of atlasCoordinateStacks(buckets)) {
@@ -78,7 +80,7 @@ export function atlasBucketData(input: readonly MapBucket[]): BucketGeoJSON {
       type: "Feature",
       geometry: { type: "Point", coordinates: [stack.longitude, stack.latitude] },
       properties: {
-        bucketId: first.id, kind: "stack", color: "#d5f4e8", radius,
+        featureId: `stack:${stack.id}`, bucketId: first.id, kind: "stack", color: "#d5f4e8", radius,
         label: `${stack.locationCount} 个来源地址 · ${stack.jobCount} 个岗位`, fullLabel: `${stack.locationCount} 个来源地址 · ${stack.jobCount} 个岗位`,
         labelVisible: false, grade: first.displayGrade ?? "address",
         stackLocationCount: stack.locationCount, stackJobCount: stack.jobCount, stackLabel: `${stack.locationCount}址 · ${stack.jobCount}岗`,

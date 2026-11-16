@@ -125,9 +125,12 @@ async function loadGeoJsonAsset(
 ): Promise<GeoJsonFeatureCollection> {
   let geoJson: GeoJsonFeatureCollection;
   if (typeof window === "undefined") {
-    const fs = await import("node:fs");
-    const path = await import("node:path");
-    const { fileURLToPath } = await import("node:url");
+    const fsModuleId = "node:fs";
+    const pathModuleId = "node:path";
+    const urlModuleId = "node:url";
+    const fs = await import(/* @vite-ignore */ fsModuleId);
+    const path = await import(/* @vite-ignore */ pathModuleId);
+    const { fileURLToPath } = await import(/* @vite-ignore */ urlModuleId);
     const fullPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), relativePath);
     geoJson = JSON.parse(fs.readFileSync(fullPath, "utf-8")) as GeoJsonFeatureCollection;
   } else {

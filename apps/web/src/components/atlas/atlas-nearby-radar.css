@@ -1,0 +1,371 @@
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-workbench-pane-body > .atlas-results {
+  overflow-y: auto;
+}
+
+.atlas-workspace.atlas-experience[data-pane-layout] .atlas-workbench-pane-body .atlas-job-list {
+  flex: 1 0 auto;
+  min-height: 210px;
+}
+
+.atlas-nearby-radar {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 7px 11px 8px;
+  border-bottom: 1px solid var(--color-line);
+  background: color-mix(in srgb, var(--color-accent-soft) 36%, var(--color-panel));
+}
+
+[data-theme="dark"] .atlas-nearby-radar {
+  background: color-mix(in srgb, rgba(56, 189, 248, 0.14) 45%, var(--color-panel));
+}
+
+.atlas-nearby-radar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.atlas-nearby-radar-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 200px;
+  flex-wrap: wrap;
+}
+
+.atlas-nearby-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.16);
+  color: #0369a1;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .atlas-nearby-badge {
+  background: rgba(56, 189, 248, 0.18);
+  color: #7dd3fc;
+}
+
+.atlas-nearby-radar-title > strong {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--color-ink);
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.atlas-nearby-summary {
+  font-size: 10.5px;
+  color: var(--color-ink-muted);
+  white-space: nowrap;
+}
+
+.atlas-nearby-radar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.atlas-workspace .atlas-nearby-anchor-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 42%, var(--color-line));
+  background: var(--color-panel);
+  color: var(--color-accent);
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.atlas-workspace .atlas-nearby-anchor-btn.is-active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #ffffff;
+}
+
+.atlas-workspace .atlas-nearby-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  border-radius: 7px;
+  border: 1px solid var(--color-line);
+  background: var(--color-panel);
+  color: var(--color-ink-muted);
+  cursor: pointer;
+}
+
+.atlas-workspace .atlas-nearby-icon-btn:hover {
+  color: var(--color-ink);
+  border-color: var(--color-accent);
+}
+
+.atlas-nearby-radar-body {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.atlas-nearby-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.atlas-nearby-toolbar-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+}
+
+.atlas-nearby-radius-group {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 999px;
+  border: 1px solid var(--color-line);
+  background: var(--color-panel);
+  gap: 2px;
+}
+
+.atlas-workspace .atlas-nearby-radius-group > button {
+  height: 20px;
+  min-height: 20px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-ink-muted);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.atlas-workspace .atlas-nearby-radius-group > button.is-active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.atlas-nearby-bucket-pills {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.atlas-workspace .atlas-nearby-bucket-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  min-height: 22px;
+  max-width: 210px;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(16, 185, 129, 0.36);
+  background: rgba(16, 185, 129, 0.1);
+  color: #047857;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+[data-theme="dark"] .atlas-workspace .atlas-nearby-bucket-pill {
+  color: #6ee7b7;
+}
+
+.atlas-nearby-bucket-pill > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.atlas-nearby-bucket-pill > strong {
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.atlas-nearby-city-hint,
+.atlas-nearby-error,
+.atlas-nearby-empty {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-ink-muted);
+}
+
+.atlas-nearby-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 3px;
+  scrollbar-width: thin;
+}
+
+.atlas-nearby-card {
+  flex: 0 0 192px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 5px;
+  padding: 6px 8px;
+  border-radius: 9px;
+  border: 1px solid var(--color-line);
+  background: var(--color-panel);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.atlas-nearby-card.has-indexed-jobs {
+  border-color: rgba(16, 185, 129, 0.42);
+}
+
+.atlas-nearby-card.is-selected {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.35);
+}
+
+.atlas-workspace .atlas-nearby-card-select {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 0;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.atlas-nearby-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.atlas-nearby-card-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.atlas-nearby-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.atlas-nearby-card-name > strong {
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--color-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.atlas-nearby-card-dist {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #0284c7;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .atlas-nearby-card-dist {
+  color: #38bdf8;
+}
+
+.atlas-nearby-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: 10px;
+  color: var(--color-ink-muted);
+}
+
+.atlas-nearby-ownership {
+  flex: none;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-accent-soft) 55%, var(--color-panel));
+  color: var(--color-ink);
+  font-weight: 550;
+}
+
+.atlas-nearby-street {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.atlas-nearby-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.atlas-workspace .atlas-nearby-job-btn,
+.atlas-workspace .atlas-nearby-harvest-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  height: 23px;
+  min-height: 23px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.atlas-workspace .atlas-nearby-job-btn {
+  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, var(--color-line));
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.atlas-workspace .atlas-nearby-harvest-btn {
+  border: 1px solid var(--color-line);
+  background: transparent;
+  color: var(--color-ink-muted);
+}
+
+.atlas-workspace .atlas-nearby-harvest-btn:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-ink);
+}

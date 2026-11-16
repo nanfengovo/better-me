@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { MapBucket } from "@better-me/opportunities";
+import { formatAtlasAddress, splitAtlasAddressDisplay } from "../src/components/atlas/address-format.ts";
 import { atlasBucketData, atlasCoordinateStacks, prepareAtlasMapGeometry, createAtlasHover, createAtlasMapUpdates, isMappableOfficeBucket, mapBucketPrecisionLabel, mappableOfficeBuckets, positionMapPickMenu, rankAtlasBucketHits } from "../src/components/atlas/prototypes/map-performance.ts";
 
 const bucket = (id: string, jobCount = 1): MapBucket => ({ id, label: `Synthetic ${id}`, latitude: 31, longitude: 121, jobCount,
@@ -143,4 +144,78 @@ test("100 high-frequency mouse moves trigger one hit test using the latest point
   moving = false; hover.queue(101); moving = true; flush(); assert.deepEqual(hits, [99]);
   moving = false; hover.queue(102); hover.cancel(); flush(); assert.deepEqual(hits, [99]);
   hover.queue(103); flush(); assert.deepEqual(hits, [99, 103]);
+});
+
+test("formatAtlasAddress splits regional prefixes, street numbers and landmarks cleanly and atlasBucketData emits concise labels + featureIds", () => {
+  const tencent = formatAtlasAddress("北京市海淀区西北旺东路10号院西区9号楼腾讯北京总部大楼");
+  assert.deepEqual(tencent, {
+    regionPrefix: "北京市海淀区",
+    streetDetail: "西北旺东路10号院西区9号楼",
+    landmark: "腾讯北京总部大楼",
+    conciseLabel: "腾讯北京总部大楼",
+    fullText: "北京市海淀区西北旺东路10号院西区9号楼腾讯北京总部大楼",
+  });
+  assert.deepEqual(splitAtlasAddressDisplay(tencent.fullText), {
+    primary: "腾讯北京总部大楼",
+    secondary: "北京市海淀区 · 西北旺东路10号院西区9号楼",
+  });
+
+  const streetOnly = formatAtlasAddress("上海市浦东新区科苑路 399 号");
+  assert.equal(streetOnly.regionPrefix, "上海市浦东新区");
+  assert.equal(streetOnly.streetDetail, "科苑路 399 号");
+  assert.equal(streetOnly.landmark, "");
+  assert.equal(streetOnly.conciseLabel, "科苑路 399 号");
+  assert.deepEqual(splitAtlasAddressDisplay(streetOnly.fullText), {
+    primary: "科苑路 399 号",
+    secondary: "上海市浦东新区",
+  });
+
+  const alibaba = formatAtlasAddress("杭州西湖区文一西路969号阿里巴巴西溪园区");
+  assert.equal(alibaba.regionPrefix, "杭州西湖区");
+  assert.equal(alibaba.streetDetail, "文一西路969号");
+  assert.equal(alibaba.landmark, "阿里巴巴西溪园区");
+  assert.equal(alibaba.conciseLabel, "阿里巴巴西溪园区");
+
+  // Park wing names must not be misparsed as municipal districts when no city/province precedes them.
+  const parkWing = formatAtlasAddress("西区9号楼腾讯北京总部大楼");
+  assert.equal(parkWing.regionPrefix, "");
+  const secondPhaseWing = formatAtlasAddress("二期东区12号楼百度科技园");
+  assert.equal(secondPhaseWing.regionPrefix, "");
+
+  // Floor/unit noise alone is not treated as a building landmark.
+  const floorNoise = formatAtlasAddress("北京市朝阳区建国路87号12层");
+  assert.equal(floorNoise.landmark, "");
+  assert.equal(floorNoise.conciseLabel, "建国路87号12层");
+
+  const english = formatAtlasAddress("1600 Amphitheatre Parkway, Mountain View");
+  assert.equal(english.regionPrefix, "");
+  assert.equal(english.landmark, "");
+  assert.ok(english.conciseLabel.length <= 28);
+
+  const collection = atlasBucketData([
+    {
+      ...bucket("tx-hq", 12),
+      label: "北京市海淀区西北旺东路10号院西区9号楼腾讯北京总部大楼",
+      longitude: 116.28,
+      latitude: 40.05,
+      displayGrade: "building",
+      categories: [{ id: "backend", label: "Backend", color: "#38bdf8", jobCount: 5 }],
+    } as MapBucket,
+    {
+      ...bucket("tx-wing", 3),
+      label: "北京市海淀区西北旺东路10号院4号楼云研发中心",
+      longitude: 116.28,
+      latitude: 40.05,
+      displayGrade: "building",
+    } as MapBucket,
+  ]);
+
+  const featureIds = collection.features.map(feature => feature.properties.featureId);
+  assert.equal(new Set(featureIds).size, featureIds.length);
+  const core = collection.features.find(feature => feature.properties.featureId === "core:tx-hq");
+  assert.ok(core);
+  assert.equal(core.properties.fullLabel, "腾讯北京总部大楼 · 12");
+  assert.equal(core.properties.label, "北京市海淀区西北旺东路10号院西区9号楼腾讯北京总部大楼 · 12 · 办公楼级来源坐标");
+  assert.ok(collection.features.some(feature => feature.properties.featureId === "category:tx-hq:0"));
+  assert.ok(collection.features.some(feature => feature.properties.featureId === "stack:116.28,40.05"));
 });

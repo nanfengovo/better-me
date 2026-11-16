@@ -1,4 +1,5 @@
 import type { GeocodingCandidate, JobLocation, JobSearchItem, LocationPrecision } from "@better-me/opportunities";
+import { splitAtlasAddressDisplay } from "./address-format";
 
 /** A camera request and its transient highlight, never a persisted geocoding result. */
 export type AtlasMapFocus = {
@@ -94,6 +95,19 @@ export function mapFocusPrecisionLabel(target: AtlasMapFocus): string {
   return label;
 }
 
+export function mapFocusCompactPrecisionLabel(target: AtlasMapFocus): string {
+  const precision: Record<LocationPrecision, string> = {
+    country: "国家概略", region: "地区概略", city: "城市估算",
+    street: "街道坐标", address: "地址坐标", manual: "手动定位", unknown: "精度未明",
+  };
+  const parts = [
+    target.positionBasis === "city-reference" ? "城市参考" : target.positionBasis === "office-confirmation" ? "本人核对" : "",
+    precision[target.precision ?? "unknown"],
+    target.verification === "conflicting" ? "来源冲突" : target.verification !== "verified" ? "待核实" : "已核验",
+  ].filter(Boolean);
+  return parts.join(" · ");
+}
+
 /** Limit the camera to the actual precision, even if a caller requests building zoom for a city. */
 export function mapFocusCameraOptions(target: AtlasMapFocus, maxZoom: number, reducedMotion: boolean) {
   if (!validMapFocus(target)) return null;
@@ -120,7 +134,21 @@ export function createMapFocusMarker(document: Document, target: AtlasMapFocus, 
   pin.appendChild(document.createElement("i"));
   const label = document.createElement("span"); label.className = "atlas-focus-label";
   const title = document.createElement("strong"); title.textContent = target.label || "已定位位置";
-  const location = document.createElement("span"); location.textContent = target.locationLabel || `${target.latitude.toFixed(4)}, ${target.longitude.toFixed(4)}`;
+  const location = document.createElement("span");
+  location.className = "atlas-focus-address";
+  const rawLocation = target.locationLabel || `${target.latitude.toFixed(4)}, ${target.longitude.toFixed(4)}`;
+  const { primary, secondary } = splitAtlasAddressDisplay(rawLocation);
+  if (secondary) {
+    const place = document.createElement("span");
+    place.className = "atlas-focus-place";
+    place.textContent = primary;
+    const street = document.createElement("span");
+    street.className = "atlas-focus-street";
+    street.textContent = secondary;
+    location.append(place, street);
+  } else {
+    location.textContent = primary;
+  }
   const precision = document.createElement("small"); precision.textContent = mapFocusPrecisionLabel(target);
   label.append(title, location, precision); root.append(pin, label);
   return root;

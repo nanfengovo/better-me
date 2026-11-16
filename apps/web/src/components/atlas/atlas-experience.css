@@ -85,8 +85,11 @@
 .atlas-experience [hidden] { display: none !important; }
 .atlas-experience .atlas-filter-pills button { height: 26px; font-size: 11px; padding-inline: 9px; }
 .atlas-experience .atlas-collapsed-filter-summary { animation: none; }
-.atlas-experience[data-pane-layout="wide"] .atlas-job-list { padding: 5px 9px; gap: 3px; scrollbar-width: thin; scrollbar-color: var(--color-line) transparent; }
-.atlas-experience[data-pane-layout="wide"] .atlas-job-card { padding: 13px 12px !important; row-gap: 5px !important; border-radius: 11px !important; transition: background-color 140ms var(--atelier-ease, cubic-bezier(.23, 1, .32, 1)), border-color 140ms var(--atelier-ease, cubic-bezier(.23, 1, .32, 1)); }
+.atlas-experience[data-pane-layout="wide"] .atlas-job-list { padding: 5px 9px; gap: 3px; scrollbar-width: thin; scrollbar-color: var(--color-line) transparent; contain: layout style paint; transform: translateZ(0); overscroll-behavior: contain; }
+.atlas-experience[data-pane-layout="wide"] .atlas-job-card-row { contain: layout style; content-visibility: auto; contain-intrinsic-block-size: auto 108px; }
+.atlas-experience .atlas-job-list.is-scrolling .atlas-job-card-row { pointer-events: none; }
+.atlas-experience .atlas-job-card { animation: none; }
+.atlas-experience[data-pane-layout="wide"] .atlas-job-card { padding: 13px 12px !important; row-gap: 5px !important; border-radius: 11px !important; animation: none; transition: background-color 140ms var(--atelier-ease, cubic-bezier(.23, 1, .32, 1)), border-color 140ms var(--atelier-ease, cubic-bezier(.23, 1, .32, 1)); }
 .atlas-experience[data-pane-layout="wide"] .atlas-company-line { font-size: 11px; line-height: 1.4; }
 .atlas-experience[data-pane-layout="wide"] .atlas-job-card > strong { font-size: 14px; line-height: 1.45; -webkit-line-clamp: 2; font-weight: 600; }
 .atlas-experience[data-pane-layout="wide"] .atlas-job-meta { font-size: 11px; opacity: 1; }

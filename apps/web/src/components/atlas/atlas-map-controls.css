@@ -151,3 +151,38 @@
     height: 44px;
   }
 }
+
+/* Harmonize MapLibre overlay controls with the dark globe/map surface. */
+.atlas-workspace.atlas-experience .atlas-map-card:not(.light) .maplibregl-ctrl-group {
+  background: #0c1721;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.atlas-workspace.atlas-experience .atlas-map-card:not(.light) .maplibregl-ctrl-group button {
+  background: transparent;
+  border-color: rgba(148, 163, 184, 0.14);
+}
+.atlas-workspace.atlas-experience .atlas-map-card:not(.light) .maplibregl-ctrl-group button:hover {
+  background: rgba(56, 189, 248, 0.14);
+}
+.atlas-workspace.atlas-experience .atlas-map-card:not(.light) .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.15);
+}
+.atlas-workspace.atlas-experience .atlas-map-card:not(.light) .maplibregl-ctrl-scale {
+  background: #0c1721;
+  border-color: rgba(203, 213, 225, 0.72);
+  color: #f1f5f9;
+  border-radius: 0 4px 4px 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.atlas-workspace.atlas-experience .atlas-map-card:not(.light) .maplibregl-ctrl-attrib {
+  background: #0c1721;
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+}
+.atlas-workspace.atlas-experience .atlas-map-card:not(.light) .maplibregl-ctrl-attrib a {
+  color: #e2e8f0;
+}

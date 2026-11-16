@@ -4,6 +4,7 @@ import type { AtlasBasemapConfig } from "./basemaps";
 import type { AtlasMapFocus } from "../map-focus";
 import type { AdminBoundaryHighlight } from "../admin-boundary-service";
 import type { AtlasMapGeometry } from "./map-performance";
+import type { NearbyCompanyHit, UserGeolocationFix } from "./user-location";
 
 export type AtlasMode = "global" | "domestic";
 export type AtlasRegionSelection = { id: string; name: string; countryCode?: string };
@@ -27,6 +28,31 @@ export type AtlasPrototypeProps = {
   /** Undefined uses the registered default. Null explicitly selects local overview geometry only. */
   basemap?: AtlasBasemapConfig | null;
   focus?: AtlasMapFocus;
+  /** Live user street/browser location emitted back to Atlas workspace for nearby job radar. */
+  onUserLocationChange?: (fix: UserGeolocationFix | null) => void;
+  /** Surrounding real companies discovered near active street or scanned viewport center. */
+  nearbyCompanies?: readonly NearbyCompanyHit[];
+  selectedNearbyCompanyId?: string;
+  radarCenter?: {
+    longitude: number;
+    latitude: number;
+    label?: string;
+    origin?: "user-location" | "map-viewport";
+  };
+  /** Focus request triggered by clicking a company card in the nearby radar list. */
+  focusNearbyCompany?: { id: string; requestId: string; longitude: number; latitude: number };
+  onSelectNearbyCompany?: (company: NearbyCompanyHit | null) => void;
+  onFilterNearbyCompanyJobs?: (company: NearbyCompanyHit) => void;
+  onSearchNearbyCompanyJobs?: (company: NearbyCompanyHit) => void;
+  onScanViewportArea?: (target: {
+    longitude: number;
+    latitude: number;
+    placeLabel?: string;
+    streetLabel?: string;
+    road?: string;
+    district?: string;
+    subdistrict?: string;
+  }) => void;
   /** Restore the camera when the GPU instance is rebuilt; this is not a live fly-to command. */
   initialView?: AtlasCamera;
   onViewChange?: (view: AtlasCamera & { bounds: [west: number, south: number, east: number, north: number] }) => void;
