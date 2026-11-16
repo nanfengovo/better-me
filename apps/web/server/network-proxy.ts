@@ -11,6 +11,12 @@ import {
   DEFAULT_NETWORK_SETTINGS, normalizeProxyUrl, validateNetworkSettings,
   type NetworkDetectionResult, type NetworkRoute, type NetworkSettings, type NetworkTestResult, type NetworkTestTarget,
 } from "../src/lib/network-settings";
+import {
+  detectHostNetworkLocation,
+  handleLocalLocationRoute,
+  type LocalLocationRouteDeps,
+  type NetworkGeolocateResult,
+} from "./network-geolocate";
 
 export type SystemProxy = { enabled: boolean; server?: string; override?: string; pac?: boolean };
 export type NetworkOperation = { fetch: typeof fetch; routeFor: (url: URL) => NetworkRoute };
@@ -32,6 +38,61 @@ const TEST_URLS: Record<NetworkTestTarget, string> = {
   lever: "https://api.lever.co/v0/postings/spotify?mode=json&limit=1",
   tencent: "https://careers.tencent.com/tencentcareer/api/post/Query?pageIndex=1&pageSize=1",
 };
+
+/** Parses `scutil --proxy` output into a normalized SystemProxy without invoking a shell. */
+export function parseMacProxyOutput(stdout: string): SystemProxy & { source?: string } {
+  const values: Record<string, string> = {};
+  const exceptions: string[] = [];
+  let inExceptions = false;
+  for (const line of stdout.split(/\r?\n/)) {
+    if (inExceptions) {
+      if (/^\s*\}/.test(line)) { inExceptions = false; continue; }
+      const item = line.match(/^\s*\d+\s*:\s*(.+)$/);
+      if (item?.[1]?.trim()) exceptions.push(item[1].trim());
+      continue;
+    }
+    if (/^\s*ExceptionsList\s*:\s*<array>\s*\{/.test(line)) { inExceptions = true; continue; }
+    const entry = line.match(/^\s*([A-Za-z0-9_]+)\s*:\s*(.+)$/);
+    if (!entry) continue;
+    const [, key, raw] = entry;
+    const value = raw!.trim();
+    if (!value.startsWith("<")) values[key!] = value;
+  }
+  const servers: string[] = [];
+  if (values.HTTPEnable === "1" && values.HTTPProxy && values.HTTPPort) servers.push(`http=${values.HTTPProxy}:${values.HTTPPort}`);
+  if (values.HTTPSEnable === "1" && values.HTTPSProxy && values.HTTPSPort) servers.push(`https=${values.HTTPSProxy}:${values.HTTPSPort}`);
+  if (values.SOCKSEnable === "1" && values.SOCKSProxy && values.SOCKSPort) servers.push(`socks=${values.SOCKSProxy}:${values.SOCKSPort}`);
+  const enabled = servers.length > 0;
+  const pac = values.ProxyAutoConfigEnable === "1" || values.ProxyAutoDiscoveryEnable === "1";
+  const override = exceptions.length ? exceptions.join(",") : undefined;
+  if (!enabled && !pac) return { enabled: false };
+  return {
+    enabled,
+    ...(servers.length ? { server: servers.join(";") } : {}),
+    ...(override ? { override } : {}),
+    ...(pac ? { pac } : {}),
+    source: "macOS 系统代理",
+  };
+}
+
+/** Reads macOS dynamic store proxy settings via `scutil --proxy`; never mutates OS config. */
+export async function readMacProxy(): Promise<SystemProxy> {
+  if (process.platform !== "darwin") return { enabled: false };
+  try {
+    const execFileAsync = promisify(execFile);
+    const { stdout } = await execFileAsync("/usr/sbin/scutil", ["--proxy"], { timeout: 2_000, windowsHide: true });
+    return parseMacProxyOutput(stdout);
+  } catch {
+    return { enabled: false };
+  }
+}
+
+/** Reads active OS proxy settings for Windows (`win32`) or macOS (`darwin`). */
+export async function readSystemProxy(): Promise<SystemProxy> {
+  if (process.platform === "win32") return readWindowsProxy();
+  if (process.platform === "darwin") return readMacProxy();
+  return { enabled: false };
+}
 
 /** Reads only current-user Internet Settings; never invokes a shell or changes the OS proxy. */
 export async function readWindowsProxy(): Promise<SystemProxy> {
@@ -66,8 +127,12 @@ export function bypassesProxy(target: URL, rules: string): boolean {
     if (rule === "<local>") return !hostname.includes(".") && !hostname.includes(":");
     const withPort = rule.match(/^(\[[\da-f:]+\]|[^:]+):(\d+)$/i);
     if (withPort) { if (withPort[2] !== port) return false; rule = withPort[1]!; }
-    rule = rule.replace(/^\[|\]$/g, "").replace(/^\*?\./, "");
-    return hostname === rule || (!hostname.includes(":") && hostname.endsWith(`.${rule}`));
+    rule = rule.replace(/^\[|\]$/g, "");
+    if (rule.endsWith("*") && !rule.slice(0, -1).includes("*")) {
+      return hostname.startsWith(rule.slice(0, -1));
+    }
+    rule = rule.replace(/^(?:\*+\.?|\.)/, "");
+    return Boolean(rule) && (hostname === rule || (!hostname.includes(":") && hostname.endsWith(`.${rule}`)));
   });
 }
 
@@ -81,14 +146,18 @@ function systemProxyFor(system: SystemProxy, protocol: string): string | undefin
   return value.includes("://") ? value.trim() : `http://${value.trim()}`;
 }
 
-function automaticProxy(snapshot: ProxyEnvironment, protocol: string): { value?: string; source: string } {
+function systemProxySource(system: SystemProxy): string {
+  return (system as SystemProxy & { source?: string }).source ?? "Windows 系统代理";
+}
+
+function automaticProxy(snapshot: ProxyEnvironment, protocol: string): { value?: string; source: string; fromSystem?: boolean } {
   const { env, system } = snapshot;
   const candidates = protocol === "https:"
     ? [[env.HTTPS_PROXY ?? env.https_proxy, "HTTPS_PROXY"], [env.HTTP_PROXY ?? env.http_proxy, "HTTP_PROXY"], [env.ALL_PROXY ?? env.all_proxy, "ALL_PROXY"]]
     : [[env.HTTP_PROXY ?? env.http_proxy, "HTTP_PROXY"], [env.ALL_PROXY ?? env.all_proxy, "ALL_PROXY"]];
   for (const [value, source] of candidates) if (value?.trim()) return { value, source: `环境变量 ${source}` };
   const value = systemProxyFor(system, protocol);
-  if (value) return { value, source: "Windows 系统代理" };
+  if (value) return { value, source: systemProxySource(system), fromSystem: true };
   if (system.enabled && system.server && /(?:^|;)socks=/i.test(system.server)) throw new Error("系统只配置了 SOCKS 代理；当前请在软件中选择 HTTP / HTTPS 代理端口。");
   if (system.pac) throw new Error("系统启用了 PAC / 自动配置；当前服务无法执行 PAC，请在网络设置中手动指定 HTTP / HTTPS 代理端口，或明确选择直接连接。");
   return { source: "未发现已启用的代理，直接连接" };
@@ -102,7 +171,7 @@ export function resolveNetworkRoute(settings: NetworkSettings, target: URL, snap
   const sharedBypass = [settings.bypass, settings.mode === "auto" ? snapshot.env.NO_PROXY ?? snapshot.env.no_proxy : undefined].filter(Boolean).join(",");
   if (bypassesProxy(target, sharedBypass)) return { mode: settings.mode, source: "命中绕过代理规则，直接连接" };
   const automatic = settings.mode === "auto" ? automaticProxy(snapshot, target.protocol) : undefined;
-  if (automatic?.source === "Windows 系统代理" && bypassesProxy(target, snapshot.system.override ?? "")) return { mode: settings.mode, source: "命中系统绕过代理规则，直接连接" };
+  if (automatic?.fromSystem && bypassesProxy(target, snapshot.system.override ?? "")) return { mode: settings.mode, source: "命中系统绕过代理规则，直接连接" };
   if (settings.mode === "manual") return { mode: "manual", source: "手动代理", proxyUrl: normalizeProxyUrl(settings.proxyUrl) };
   return { mode: "auto", source: automatic!.source, ...(automatic!.value ? { proxyUrl: normalizeProxyUrl(automatic!.value) } : {}) };
 }
@@ -126,19 +195,65 @@ function transportReason(error: unknown): string {
 export function createNetworkRuntime(options: RuntimeOptions) {
   const dispatchers = new Map<string, Dispatcher>();
   let saves = Promise.resolve();
-  async function snapshot(): Promise<ProxyEnvironment> {
+  let cachedSettings: { statsKey: string; settings: NetworkSettings } | undefined;
+  let cachedSystemProxy: { value: SystemProxy; expiresAt: number } | undefined;
+  let inFlightSystemProxy: Promise<SystemProxy> | undefined;
+  const SYSTEM_PROXY_CACHE_TTL_MS = 1_500;
+
+  function settingsStatsKey(info: { dev: bigint; ino: bigint; size: bigint; mtimeNs: bigint; ctimeNs: bigint }): string {
+    return `${info.dev}:${info.ino}:${info.size}:${info.mtimeNs}:${info.ctimeNs}`;
+  }
+
+  async function readCachedDefaultSystemProxy(fresh: boolean): Promise<SystemProxy> {
+    if (!fresh && cachedSystemProxy && cachedSystemProxy.expiresAt > Date.now()) {
+      return cachedSystemProxy.value;
+    }
+    if (!fresh && inFlightSystemProxy) {
+      return await inFlightSystemProxy;
+    }
+    const pending = readSystemProxy().then((value) => {
+      const copy = { ...value };
+      cachedSystemProxy = { value: copy, expiresAt: Date.now() + SYSTEM_PROXY_CACHE_TTL_MS };
+      return copy;
+    });
+    if (!fresh) {
+      const tracked: Promise<SystemProxy> = pending.finally(() => {
+        if (inFlightSystemProxy === tracked) inFlightSystemProxy = undefined;
+      });
+      inFlightSystemProxy = tracked;
+      return await tracked;
+    }
+    return await pending;
+  }
+
+  async function snapshot(fresh = false): Promise<ProxyEnvironment> {
     const warnings: string[] = [];
     let system: SystemProxy = { enabled: false };
-    try { system = { ...await (options.readSystemProxy ?? readWindowsProxy)() }; }
+    try {
+      // Cache and coalesce default OS proxy inspections (scutil/reg.exe) under concurrency while preserving
+      // direct calls to injected test doubles and explicit fresh scans.
+      system = { ...await (options.readSystemProxy ? options.readSystemProxy() : readCachedDefaultSystemProxy(fresh)) };
+    }
     catch { warnings.push("无法读取本机系统代理，仍可使用环境变量或手动配置。"); }
     if (system.pac) warnings.push("检测到 PAC / 自动配置：当前服务不执行 PAC 脚本，请填写本机 HTTP / HTTPS 代理端口，或使用系统 TUN 网络。");
     return { env: { ...(options.readEnv ?? (() => process.env))() }, system, warnings };
   }
   async function readSettings(): Promise<NetworkSettings> {
     try {
-      if ((await stat(options.settingsFile)).size > 8192) throw new Error("oversize");
-      return validateNetworkSettings(JSON.parse(await readFile(options.settingsFile, "utf8")));
+      const info = await stat(options.settingsFile, { bigint: true });
+      if (info.size > 8192n) {
+        cachedSettings = undefined;
+        throw new Error("oversize");
+      }
+      const statsKey = settingsStatsKey(info);
+      if (cachedSettings && cachedSettings.statsKey === statsKey) {
+        return { ...cachedSettings.settings };
+      }
+      const settings = validateNetworkSettings(JSON.parse(await readFile(options.settingsFile, "utf8")));
+      cachedSettings = { statsKey, settings };
+      return { ...settings };
     } catch (error) {
+      cachedSettings = undefined;
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return { ...DEFAULT_NETWORK_SETTINGS };
       throw new Error("本机网络配置文件无法读取，请在网络设置中重新保存配置。", { cause: error });
     }
@@ -148,20 +263,24 @@ export function createNetworkRuntime(options: RuntimeOptions) {
     const operation = saves.catch(() => undefined).then(async () => {
       await mkdir(path.dirname(options.settingsFile), { recursive: true });
       const temporary = `${options.settingsFile}.${randomUUID()}.tmp`;
-      try { await writeFile(temporary, `${JSON.stringify(settings, null, 2)}\n`, { mode: 0o600 }); await rename(temporary, options.settingsFile); }
-      finally { await unlink(temporary).catch(() => undefined); }
+      try {
+        await writeFile(temporary, `${JSON.stringify(settings, null, 2)}\n`, { mode: 0o600 });
+        await rename(temporary, options.settingsFile);
+        const info = await stat(options.settingsFile, { bigint: true });
+        cachedSettings = { statsKey: settingsStatsKey(info), settings };
+      } finally { await unlink(temporary).catch(() => undefined); }
     });
     saves = operation;
     await operation;
-    return settings;
+    return { ...settings };
   }
   function dispatcher(proxyUrl?: string): Dispatcher {
     const key = proxyUrl ?? "direct";
     const existing = dispatchers.get(key);
     if (existing) return existing;
     const instance = proxyUrl
-      ? new ProxyAgent({ uri: proxyUrl, connections: 8, connectTimeout: 10_000, headersTimeout: 15_000, bodyTimeout: 15_000 })
-      : new Agent({ connections: 8, connect: { timeout: 10_000 }, headersTimeout: 15_000, bodyTimeout: 15_000 });
+      ? new ProxyAgent({ uri: proxyUrl, connections: 8, connectTimeout: 10_000, headersTimeout: 65_000, bodyTimeout: 65_000 })
+      : new Agent({ connections: 8, connect: { timeout: 10_000 }, headersTimeout: 65_000, bodyTimeout: 65_000 });
     if (dispatchers.size >= 8) {
       const first = dispatchers.entries().next().value;
       if (first) { dispatchers.delete(first[0]); void first[1].close().catch(() => undefined); }
@@ -201,7 +320,7 @@ export function createNetworkRuntime(options: RuntimeOptions) {
     return (await getOperation(settingsOverride)).fetch;
   }
   async function detect(): Promise<NetworkDetectionResult> {
-    const context = await snapshot();
+    const context = await snapshot(true);
     const candidates: NetworkDetectionResult["candidates"] = [];
     const pending = new Map<string, string>();
     for (const key of ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY", "https_proxy", "http_proxy", "all_proxy"]) {
@@ -213,7 +332,7 @@ export function createNetworkRuntime(options: RuntimeOptions) {
     for (const protocol of ["https:", "http:"]) {
       const value = systemProxyFor(context.system, protocol);
       if (!value) continue;
-      try { const url = normalizeProxyUrl(value); if (!pending.has(url)) pending.set(url, "Windows 系统代理"); }
+      try { const url = normalizeProxyUrl(value); if (!pending.has(url)) pending.set(url, systemProxySource(context.system)); }
       catch { context.warnings.push("系统代理格式不受支持，请手动指定 HTTP / HTTPS 代理。"); }
     }
     for (const port of COMMON_PORTS) { const url = `http://127.0.0.1:${port}`; if (!pending.has(url)) pending.set(url, "常见本机端口（仅检测监听，需手动选择并测试）"); }
@@ -284,16 +403,47 @@ function readJson(request: IncomingMessage): Promise<unknown> {
     request.on("data", onData); request.on("end", onEnd); request.on("error", onError); request.on("aborted", onAborted);
   });
 }
-export function createNetworkMiddleware(runtime: NetworkRuntime) {
+export function createNetworkMiddleware(
+  runtime: NetworkRuntime,
+  options?: { geolocate?: (opts?: { allowPrompt?: boolean }) => Promise<NetworkGeolocateResult> } & Omit<LocalLocationRouteDeps, "geolocate">,
+) {
+  const inflightByPrompt = new Map<boolean, Promise<NetworkGeolocateResult>>();
+  const runGeolocate = (opts?: { allowPrompt?: boolean }): Promise<NetworkGeolocateResult> => {
+    if (options?.geolocate) {
+      return options.geolocate(opts);
+    }
+    const allowPrompt = Boolean(opts?.allowPrompt);
+    const existing = inflightByPrompt.get(allowPrompt);
+    if (existing) {
+      return existing;
+    }
+    const pending = detectHostNetworkLocation({ allowPrompt }).finally(() => {
+      inflightByPrompt.delete(allowPrompt);
+    });
+    inflightByPrompt.set(allowPrompt, pending);
+    return pending;
+  };
+
   return async (request: IncomingMessage, response: ServerResponse, next: () => void): Promise<void> => {
-    const pathname = request.url?.split("?")[0];
-    if (!pathname?.startsWith("/api/network/")) { next(); return; }
+    const parsedUrl = new URL(request.url ?? "/", "http://127.0.0.1");
+    const pathname = parsedUrl.pathname;
+    if (!pathname.startsWith("/api/network/")) { next(); return; }
     response.setHeader("Content-Type", "application/json; charset=utf-8"); response.setHeader("Cache-Control", "no-store"); response.setHeader("X-Content-Type-Options", "nosniff");
     const send = (status: number, value: unknown) => { response.statusCode = status; response.end(JSON.stringify(value)); };
     if (!isTrustedLocalRequest(request)) { send(403, { error: "网络设置仅允许本机页面同源访问。" }); return; }
     try {
       if (pathname === "/api/network/settings" && request.method === "GET") { send(200, { settings: await runtime.readSettings() }); return; }
       if (pathname === "/api/network/detect" && request.method === "GET") { send(200, await runtime.detect()); return; }
+      const locationResponse = await handleLocalLocationRoute(pathname, parsedUrl.searchParams, request.method, {
+        geolocate: runGeolocate,
+        reverseGeocode: options?.reverseGeocode,
+        searchLocations: options?.searchLocations,
+        nearbyCompanies: options?.nearbyCompanies,
+      });
+      if (locationResponse) {
+        send(locationResponse.status, locationResponse.body);
+        return;
+      }
       if (pathname === "/api/network/settings" && request.method === "PUT") {
         const body = await readJson(request) as { settings?: unknown };
         const settings = validateNetworkSettings(body?.settings);

@@ -3,6 +3,7 @@ import { readFile, realpath, stat } from "node:fs/promises";
 import { createServer, request as httpRequest, type IncomingMessage, type ServerResponse } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import { extname, resolve, sep } from "node:path";
+import { handleLocalLocationRoute } from "./network-geolocate";
 
 export type GatewayOptions = {
   mode?: "docker" | "desktop";
@@ -94,6 +95,12 @@ export function createRuntimeGateway(options: GatewayOptions) {
     if (url.pathname === "/__better-me/dev/local-job-index") {
       if (req.method !== "GET") return sendRuntimeJson(res, 405, { error: "method_not_allowed" });
       return sendRuntimeJson(res, 200, { endpoint: configured, token: options.jobToken });
+    }
+    if (options.mode === "desktop") {
+      const locationResponse = await handleLocalLocationRoute(url.pathname, url.searchParams, req.method);
+      if (locationResponse) {
+        return sendRuntimeJson(res, locationResponse.status, locationResponse.body);
+      }
     }
     if (url.pathname.startsWith("/api/v1/")) {
       const agent = url.pathname.startsWith("/api/v1/agent/");
