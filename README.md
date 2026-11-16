@@ -1,160 +1,163 @@
+<div align="center">
+  <img src="apps/web/public/brand/betterme-icon.png" alt="BetterMe 资产之核图标" width="108" />
+
+  <h1>BetterMe · 迈向更好</h1>
+
+  <p>
+    <strong>本地优先的 Personal Career OS & 全链路求职 Agent 工作台</strong><br/>
+    让真实经历成为可积累的职业资产，让 Agent 在可追溯、可核对的边界内帮你把目标推进到有依据的结果。
+  </p>
+
+  <p>
+    <sub>Local-first Career Workspace & Personal Agent OS — ground experience in evidence, explore opportunities in 3D, and stay in control of your data.</sub>
+  </p>
+
+  <p>
+    <a href="https://github.com/nanfengovo/better-me/actions/workflows/ci-pages.yml"><img src="https://github.com/nanfengovo/better-me/actions/workflows/ci-pages.yml/badge.svg?branch=agent-os" alt="agent-os CI" /></a>
+    <a href="https://github.com/nanfengovo/better-me/releases"><img src="https://img.shields.io/github/v/release/nanfengovo/better-me" alt="Release" /></a>
+    <img src="https://img.shields.io/badge/Local--First-SQLite%20%2B%20IndexedDB-0f766e" alt="Local-First" />
+    <img src="https://img.shields.io/badge/3D%20Atlas-MapLibre%20WebGL2%20%2B%20Cesium-0284c7" alt="3D Atlas" />
+    <img src="https://img.shields.io/badge/Desktop-Electron%20%28macOS%20%2F%20Win%20%2F%20Linux%29-475569" alt="Desktop" />
+  </p>
+
+  <p>
+    <a href="#-实机动态演示">🎬 动态演示</a> ·
+    <a href="#-核心工作区与实拍界面">✨ 核心界面</a> ·
+    <a href="#-三种运行方式">🚀 快速运行</a> ·
+    <a href="#-桌面客户端下载与安装">📦 桌面安装包</a> ·
+    <a href="#-系统架构与源码开发">📐 架构与开发</a> ·
+    <a href="CONTEXT.md">产品边界</a> ·
+    <a href="docs/ROADMAP.md">路线图</a>
+  </p>
+</div>
+
 <p align="center">
-  <img src="apps/web/public/brand/betterme-icon.png" alt="BetterMe 资产之核图标" width="112" />
+  <img src="docs/media/showcase-20261116/showcase-overview.gif" alt="BetterMe 实机交互总览动图：简历工作室、AI 伴写、3D 岗位地图与周边企业雷达、Career Studio 与 Autopilot 工坊" width="900" />
 </p>
 
-# BetterMe 个人职业工作台与 Agent
+<p align="center">
+  🎬 <a href="docs/media/showcase-20261116/betterme-walkthrough-20261116.webm"><strong>观看 / 下载完整无剪辑实机录屏 walkthrough (WebM, 960×600)</strong></a> ·
+  📄 <a href="docs/media/showcase-20261116/manifest.json">查看自动化录制清单</a>
+</p>
 
-**让真实经历成为可积累的职业资产，让 Agent 帮你把目标推进到有依据的结果。**
+---
 
-BetterMe（迈向更好）是一个本地优先的 Personal Career OS。Career Workspace 管理事实、证据、简历、岗位与版本；Personal Career Agent 围绕你的目标理解项目、分析差距、提出修改并执行经过授权的任务。模型的建议不是事实，工具执行成功也不等于业务已经完成：重要变更需要核对、确认和可追溯的结果。
+## 为什么做 BetterMe？
 
-Local-first career workspace and personal agent. Ground experience in evidence, tailor applications, and retain control over your data and decisions.
+市面上大多数「AI 写简历」工具只是单次对话改写器：模型随手补数字、换个模板数据散落、投完就忘，也不知道真实企业到底分布在哪里。
 
-[![agent-os CI](https://github.com/nanfengovo/better-me/actions/workflows/ci-pages.yml/badge.svg?branch=agent-os)](https://github.com/nanfengovo/better-me/actions/workflows/ci-pages.yml)
-[![Release](https://img.shields.io/github/v/release/nanfengovo/better-me)](https://github.com/nanfengovo/better-me/releases)
+**BetterMe 把「职业资产管理」和「受控 Agent 执行」分成两个职责清晰的层：**
 
-[下载安装包](https://github.com/nanfengovo/better-me/releases) · [网页预览](https://nanfengovo.github.io/better-me/) · [源码运行](#源码开发) · [产品边界](CONTEXT.md) · [路线图](docs/ROADMAP.md)
+- **Career Workspace（职业工作台）** 是唯一事实源：统一沉淀个人经历 `FactBase`、多版本简历视图、检查点历史、投递记录与来源证据。
+- **Personal Career Agent（个人职业 Agent）** 是受控协作引擎：围绕目标岗位拆解 JD、发起基于证据的伴写提问、多角色模拟演练、管理本地/云端模型与根预算，**绝不静默改写未经本人确认的职业事实**。
 
-## 你可以用它做什么
+---
 
-- **整理真实经历**：导入 PDF、DOCX、图片或文本，核对提取结果；将事实与展示方式分开，避免把模型补充当成个人经历。
-- **与 Agent 一起理解项目**：先对齐业务背景、个人职责、技术选择和证据，再生成候选表达；查看差异后决定是否采用。
-- **面向目标岗位修改简历**：拆解 JD 原句，逐项关联已有证据，区分已展示的能力、表达不足和需要进一步确认的差距。
-- **维护多份简历与历史**：复用职业资料，管理不同目标的简历视图、命名检查点与版本恢复；导出 PDF、DOCX、Markdown、JSON 和 RenderCV YAML。
-- **管理求职机会**：关联岗位来源、投递材料、联系人、跟进状态与地图。地点精度取决于来源证据，不把城市中心当成真实办公地址。
-- **按需连接模型和工具**：使用自行配置的云模型或本机 Ollama；原生 CLI、招聘浏览器与实验性渲染能力按当前平台、授权和实际探测结果开放。
+## 🎬 实机动态演示
 
-> 岗位链接可能需要登录或人工验证；读不到正文时可粘贴原文。匹配结果不是录用概率，简历表达优化也不会自动提高真实能力。
+> 以下动图与截图均由仓库内置自动化脚本通过真实 Chromium + WebGL2 录制（使用**隔离测试账号**与**合成示例简历「林致远（示例）」**，搭配本地岗位索引示例与公开地图实体探测，无任何个人隐私外泄与伪造数据）。
 
-## agent-os 功能明细（2026-11-13）
+### 1. 简历工作室 & 证据锚定 AI 伴写 + 119 套版式切换
 
-以下描述当前源码工作区。既有 Release 附件不会因分支推送自动更新；实验能力、合成测试和实际模型效果分别记录。
+- **双栏实时联动**：左侧结构化编辑经历/行动/量化指标与因果依据，右侧 A4 实时分页预览与焦点高亮同步。
+- **AI 伴写锚点连线**：逐条诊断缺少上下文或未经确认的数据，先对齐项目贡献与本人补充，再生成对照 Diff 草稿。
+- **履历盘点（Career Inventory）**：支持语音（本机离线普通话识别）或文字回溯经历变化，沉淀选材策略而不污染原始事实。
 
-本轮功能分组提交、远端整合取舍、验证结果与本机资源回退记录见 [2026-11-13 工作区发布回执](docs/reports/agent-os-workspace-publish-2026-11-13.md)。
+<p align="center">
+  <img src="docs/media/showcase-20261116/showcase-resume-copilot.gif" alt="BetterMe 简历编辑、119 套模板库切换与 Writing Copilot 批注联动演示" width="840" />
+</p>
 
-### 1. 统一 Agent 任务与可追溯执行
+<details>
+<summary>查看高分辨率界面截图：登录页 / 简历工作室 / AI 伴写锚点 / 119 套版式库</summary>
+<br/>
 
-- **统一任务内核**：顾问与伴侣聊天、经历润色、项目理解、JD 匹配、岗位元数据提取、截图 OCR、职业指导、模拟面试，以及 Studio 分析和委员会审阅通过任务协议执行。
-- **同根预算**：父子任务继承固定运行时与根额度，模型、工具、修复与证据读取分别计量；暂停、重开和恢复不会清零原账。
-- **显式授权与恢复**：校验账号、来源快照和运行时代次。读取历史不自动执行；未知创建结果先核对，恢复需要本人明确操作，账号变化拒绝迟到采用。
-- **完整输出**：保存原始输入、回复、修复与失败记录；超长输出可按完整 artifact 读取、复制和下载，并核对字节数与 SHA-256。容量超限明确失败，不把截短文本当完整成功。
-- **旧入口兼容**：旧的独立推理、职业 workflow 和委员会生成 HTTP 返回 410；配置、模型目录、登录及已有历史仍保留。兼容历史不是重新执行许可。
+| 入口展示与本机隔离认证 | 双栏编辑与实时 A4 分页联动 |
+| :---: | :---: |
+| <img src="docs/media/showcase-20261116/01-login-showcase.png" alt="BetterMe 登录与工作空间入口" width="430" /> | <img src="docs/media/showcase-20261116/02-resume-studio.png" alt="简历工作室双栏编辑与高亮跟随" width="430" /> |
 
-实现与验收：[统一内核](docs/reports/unified-agent-kernel-2026-11-10.md)、[全入口迁移与剩余清单](docs/reports/unified-agent-expansion-2026-11-11.md)、[旧推理退役](docs/reports/legacy-inference-retirement-2026-11-12.md)、[输出全文读取](docs/reports/task-output-artifact-reader-2026-11-12.md)。
+| AI 伴写批注与正文精准连线 | 119 套排版模板（自研 / RenderCV / JSON Resume） |
+| :---: | :---: |
+| <img src="docs/media/showcase-20261116/03-writing-copilot.png" alt="AI 伴写悬浮锚点定位与贡献边界" width="430" /> | <img src="docs/media/showcase-20261116/04-resume-design.png" alt="119 套排版模板库与主题设置" width="430" /> |
 
-### 2. 有依据的写作、岗位对齐与面试
+</details>
 
-- **共享写作方法**：项目背景、个人动作、可证结果分别表达；缺少指标先澄清，不把团队规模、项目目的或工具能力改写成个人业绩。
-- **来源绑定候选**：候选引用对应来源 ID、全文 hash 与精确位置；检查跨组借用、任职遗漏、日期和明显来源冲突。候选仍需本人逐条核对，规则不保证识别所有语义错引。
-- **JD 原句拆解**：区分职责、硬性资格、优先条件和约束，展示原句与已有证据；岗位定制采用独立简历视图，不直接覆盖原版事实。
-- **岗位链接与截图**：规则提取不调用模型；模型辅助元数据与 OCR 走授权任务。截图保留原图字节与来源，识别结果先供核对，再决定采用。
-- **多轮模拟面试**：由 JD 攻防入口进入独立子任务，保留材料、逐轮作答、追问、手动结束与完整回执下载；普通顾问草稿不被替换。
-- **职业成长指导**：规划、练习及反馈沿用统一任务与证据协议；练习观察、模型建议和已确认事实分开保存。
+---
 
-参见 [写作方法](docs/reports/resume-writing-method-2026-11-10.md)、[JD 匹配](docs/reports/jd-match-kernel-2026-11-12.md)、[JD 元数据](docs/reports/jd-intake-task-runtime-2026-11-12.md)、[截图 OCR](docs/reports/jd-ocr-task-runtime-2026-11-12.md)、[模拟面试](docs/reports/mock-interview-kernel-2026-11-12.md)。
+### 2. 3D 岗位地图（Job Atlas）× 街道级精准定位 × 全行业周边企业雷达
 
-### 3. Career Studio 与证据资产（含实验能力）
+- **连续多尺度 3D 渲染**：支持 **MapLibre GL WebGL2（全景地球 → 国内省域 → 街道 → 自定义 3D 建筑挤出、FBO 阴影与环境光遮蔽 AO）** 与 **Cesium 三维地球**，并在无外网/离线环境下毫秒级回退本地 Natural Earth 边界渲染。
+- **高精度位置与全行业企业雷达（Nearby Company Radar）**：一键获取街道级位置或自由缩放视野，直接探测 **1.5km / 2.5km / 5km** 范围内所有真实企业与产业园区（不限于已入库或软件研发岗），显示控股性质标签，并支持一键跨平台检索全职能岗位。
+- **跨平台实时采集与 WebWorker 检索**：本地索引由 WebWorker 异步计算分桶与重叠点堆叠，保持多平台 SSE 流式采集期间地图与列表交互流畅不阻塞。
 
-- **证据收件箱与岗位观察**：保存来源、观察和待核对项；Git 证据采集受授权范围约束，公开岗位与已核验观察分开管理。
-- **多角色委员会**：围绕证据完成角色审阅、交叉检查和裁决；生产调用与实际证据复用计入原任务根账，旧 SQLite 历史仅作只读兼容。
-- **架构白板与技能星图**：提供结构化架构模型、故障分析与技能关系视图；推断不自动变成个人履历事实。
-- **布局编译与成品诊断**：将来源、布局约束、诊断和最终产物关联，检查实际分页与成品，不通过裁页或缩小文字伪装一页简历。
-- **回放与反馈**：保留决策、反事实分析和结果反馈；没有真实结果时维持未知。
-- **隐私、发布与 MCP**：区分本机私有材料与允许披露的摘要；候选分身、架构图及徽章发布需要审阅与来源校验，MCP 访问单独授权。
+<p align="center">
+  <img src="docs/media/showcase-20261116/showcase-atlas-3d-radar.gif" alt="Job Atlas 3D 地图缩放、精准定位与周边全行业企业雷达探测演示" width="840" />
+</p>
 
-参见 [运行配置与边界](docs/reports/career-os-runtime-configuration-2026-11-09.md)、[委员会阶段闭环](docs/reports/committee-retirement-2026-11-12.md)、[布局编译器](apps/web/src/lib/layout-compiler/README.md)、[架构实验台](apps/web/src/lib/architecture-lab/README.md)、[技能星图](apps/web/src/lib/skill-constellation/README.md)。
+| 全国/全球 3D 岗位集群全景 | 街道定位（±24m）× 周边 39 家企业雷达与企业实体浮窗 |
+| :---: | :---: |
+| <img src="docs/media/showcase-20261116/05-atlas-panorama.png" alt="3D 岗位地图全国全景与实时聚合点位" width="430" /> | <img src="docs/media/showcase-20261116/06-atlas-3d-nearby-radar.png" alt="街道精确定位与周边企业实体雷达探测" width="430" /> |
 
-### 4. 受审沙箱工具成长（实验能力）
+---
 
-- 将内置预设编译与模型写代码分开；使用冻结用例、固定模型指纹与独立 QuickJS 验证候选。
-- 支持针对失败项修复、全用例回归、最佳候选与持久检查点；账号 lease、预算、取消和进程重启后的接手均有边界。
-- 生成成功只代表待审候选；安装精确版本与新任务使用仍需分别授权。QuickJS 是受限 JSON 工具环境，不是任意 npm、React 应用或通用系统命令沙箱。
+### 3. AI 职业顾问 × Career Studio 演练 × 20 节点 Autopilot 自动化工坊
 
-使用说明：[Coding Sandbox](docs/sandbox-coding-lab.md)。该路径的循环尚未全部迁入统一内核，不把脚本化模型验收当成真实模型编程成绩。
+- **AI 顾问工作台**：支持粘贴 BOSS直聘 / 猎聘 / 51Job / LinkedIn 链接或原文拆解 JD，覆盖岗位研判、简历定制、职业规划、隔时复习训练与模拟面试，所有任务共享同一 `AgentTaskKernel` 与根额度账本。
+- **Career Studio（演练与证据）**：提供多角色**抗压测试委员会**、**技能推演**、**排版闭环编译**、**证据星图**、**架构面试白板**与**隐私发布校验**；进入前明确锁定 30 分钟只读授权快照。
+- **机会空间 & 20-Node Autopilot DAG 工坊**：以 3D 卡片管理全阶段投递与沟通跟进，并用可视化 20 节点有向无环图编排检索、Guard 清洗、定制、ATS 验版与沙箱微应用（QuickJS）扩展。
 
-### 5. 草稿恢复与桌面交互
+<p align="center">
+  <img src="docs/media/showcase-20261116/showcase-agent-autopilot.gif" alt="AI 顾问、Career Studio 演练与证据、机会空间及 20 节点 Autopilot 工坊切换演示" width="840" />
+</p>
 
-- 顾问、伴侣、岗位抽屉、成长模式和外部协作草稿按账号与工作区隔离；导航、刷新与重开后可恢复已落盘内容，不自动恢复许可或重发请求。
-- 存储失败、坏记录与跨窗口冲突保留原记录并提示备份；不会认领无主历史，也不能找回从未保存的旧内容。
-- 公共菜单栏可显式开启自动隐藏，以顶边或 F10 唤出；窄屏与触屏常显，保留业务组件与草稿挂载。
-- 工作区右侧/底部贴边、侧栏分隔、完整任务详情与浅深色主题同步调整；macOS 关窗与重新打开不重复注册 IPC 或重启已有任务。
-- 发行包使用内置持久化后台；本机旧版源码关联 App 保留开发壳路径。隔离 QA 使用全新 profile，不连接真实账号和生产端口。
+<details>
+<summary>查看高分辨率界面截图：AI 顾问 / 演练与证据 / 3D 机会空间 / Autopilot 自动化工坊</summary>
+<br/>
 
-参见 [桌面菜单栏](docs/reports/desktop-menubar-autohide-2026-11-10.md)、[工作区边界](docs/reports/desktop-workspace-edges-2026-11-11.md)、[Agent 面板](docs/reports/agent-panel-polish-2026-11-11.md)。
+| AI 顾问 · JD 智能拆解与匹配准备 | Career Studio · 只读快照与贡献边界授权 |
+| :---: | :---: |
+| <img src="docs/media/showcase-20261116/07-ai-advisor.png" alt="AI 顾问工作台与 JD 摘要拆解" width="430" /> | <img src="docs/media/showcase-20261116/08-career-studio.png" alt="Career Studio 演练与证据授权范围设置" width="430" /> |
 
-### 6. 可复现的简历质量评测
+| 机会与投递管理 · 3D 卡片与地点分布 | Autopilot Studio · 20 节点全链路工坊与玻璃 Dock |
+| :---: | :---: |
+| <img src="docs/media/showcase-20261116/09-opportunities.png" alt="机会空间 3D 岗位卡片与跟进看板" width="430" /> | <img src="docs/media/showcase-20261116/10-autopilot-studio.png" alt="BetterMe Autopilot 20 节点 DAG 自动化工坊" width="430" /> |
 
-- 独立评估 JD/证据对齐、事实与来源风险、STAR 编辑信号和实际 A4 排版；结构通过或来源内支持不等于简历优秀。
-- 从真实任务完整记录冻结只读候选，包含失败、修复、超量与无输出的原计划分母；可重建归档、源审和报告，不覆盖旧成绩。
-- 五组公开来源脱敏配对保留原版本、映射和许可说明；原始个人联系方式与私有快照不进仓库。它们是构造的评测组合，不是原作者真实申请记录。
-- 批次比较核对协议、预算、材料及实际模型权重；同权重不同别名不算第二模型，条件不同时不排名。有限离线重算不是常驻调度或新增模型推理。
+</details>
 
-运行入口：`pnpm test:resume-quality`、`pnpm evals:resume-quality`、`pnpm evals:career`。详细参数见 [评测说明](evals/resume-quality/README.md) 与 [数据集许可](evals/resume-quality/gold/v1/NOTICES.md)。采样脚本会执行模型请求，应先核对授权、端点及预算，不是默认测试步骤。
+---
 
-### 7. 合成成长闭环
+## ✨ 核心功能模块明细
 
-- **入口**：Agent 工作区 → 成长闭环。本人设目标、选内置合成资料、保存原代码与作答，再明确运行、继续检查和接受项目。
-- **可恢复实践**：真实受限 QuickJS 执行一次白名单 lookup，保存工具结果与断点；重开只读取，明确继续才执行固定验证，已保存步骤不重派。
-- **完整尝试与验收**：失败尝试不覆盖，修正仍沿原根累计预算；源码、原答、解释、辅助归属和报告可回查与本地导出。4/4 只代表本次固定程序检查，能力仍待复测。
-- **隔离边界**：仅新建 owner 范围的合成记录，不扫描或采用现有简历、岗位和投递资料；语音、OXR、PDF 翻译及 DeepTutor 真实引擎尚未开启。
+1. **统一 Agent 任务内核（`AgentTaskKernel`）**
+   - 顾问聊天、经历润色、项目对齐、JD 拆解、链接/截图 OCR、模拟面试与 Studio 委员会共用同一任务协议与根额度账户。
+   - 支持暂停、恢复与断线核对，超长输出按完整 Artifact 存储并校验 SHA-256，不将截断内容或工具报错伪装成完成。
+2. **有依据的简历写作、盘点与多格式导出**
+   - 区分工作/开源/教育经历的「行动」与「可证量化指标」；不把团队成果、外部基准写成个人业绩。
+   - 支持 PDF、DOCX、Markdown、JSON 及 RenderCV YAML 导出；包含命名版本检查点、字段级 Diff 与一键回溯恢复。
+3. **3D 岗位地图与实时岗位采集流水线**
+   - `job-service` 基于 SQLite 持久化多源职位与公司控股结构，前端通过 `compute-worker` 离线程计算距离、薪资区间与地图聚类。
+   - 多平台实时检索通过 SSE 流式回传卡片与进度，登录与反爬验证码明确交还用户本人处理，绝不静默代投。
+4. **Career Studio 与受审沙箱工具（实验能力）**
+   - 包含多角色审阅委员会、架构白板、技能星图与真实分页布局诊断（拒绝通过缩字裁页伪造“一页简历”）。
+   - Coding Sandbox 在隔离 QuickJS 运行时验证白名单微应用，安装或调用均须单独人工授权。
+5. **macOS 风格桌面壳 & 草稿隔离保护**
+   - 集成灵动岛（Dynamic Island）实时 Token/状态指示、弹性缩放玻璃 Dock、自定义壁纸与自动隐藏菜单栏。
+   - 所有编辑草稿、盘点进度与沟通记录按本机账号严格隔离，支持外部变更冲突检测与损坏恢复备份。
+6. **可复现的简历质量评测与合成成长闭环**
+   - 内置脱敏评测基线检查 JD 对齐度、STAR 信号与真实 A4 分页：`pnpm test:resume-quality`、`pnpm evals:resume-quality`、`pnpm evals:career`。
 
-实现范围、恢复语义和双端验收见 [合成成长闭环实现与验收](docs/reports/personal-growth-first-loop-2026-11-13.md)。
+---
 
-### 尚未完成的验收
-
-回放、采集器、隐私模型步骤和 Coding Sandbox 等剩余循环迁移；新任务类型的检索与精确位置逐类验收；更广的多根/授权版本接手；真正不同模型的同条件比较，以及整体审计仍待完成。现有源审也发现项目遗漏、通用职责照搬及部分错引风险，不能宣称写作质量已整体过关。Personal Growth OS 整体仍是分阶段设计；上述第一条合成成长闭环不代表其全部领域和外部引擎已交付。
-
-完整范围以 [R1–R8 清单](docs/reports/unified-agent-expansion-2026-11-11.md) 为准，阶段完成与整体完成分别记录。
-
-## 桌面安装
-
-从 [GitHub Releases](https://github.com/nanfengovo/better-me/releases) 下载对应系统和架构的附件。**附件上传完成才代表该平台已经发行**；源码 ZIP 和 CI 通过标志不等于安装包。
-
-| 平台 | 发行格式 | 架构 |
-| --- | --- | --- |
-| macOS | `.dmg`、`.zip` | Apple Silicon arm64、Intel x64 分开提供 |
-| Windows | `.exe` 安装程序 | x64 |
-| Linux | `.AppImage` | glibc x64，要求 glibc ≥ 2.34；CI 使用 Ubuntu 22.04 |
-
-桌面包包含 Electron 运行时、应用页面及本地后台依赖，不需要另行安装 Node、pnpm 或 Docker。云模型、Ollama、招聘浏览器、CLI 和 vork 等外部能力不随安装包自动配置或授权。
-
-### 安装与首次使用
-
-1. 下载与你的系统匹配的文件，并与同一 Release 的 `SHA256SUMS-*` 文件核对 SHA-256。
-2. macOS 将应用拖到“应用程序”；Windows 运行安装程序；Linux 给 AppImage 添加执行权限后启动。
-3. 在应用内创建或登录本机账号，导入资料并核对原文，再配置需要的模型。
-
-当前桌面发行使用 macOS ad-hoc 签名；**没有 Apple Developer ID 公证或 Windows Authenticode 发布者证书**。系统可能显示未知开发者提示。请只从本仓库官方 Release 下载，按系统提供的人工确认流程操作，不要全局关闭安全保护。哈希用于核对文件完整性，不代替发布者签名。
-
-### 数据位置与更新
-
-- 应用使用系统分配的 BetterMe 用户数据目录；桌面会话与后台资料分开存放。
-- 工作台通过稳定的本机地址 `http://127.0.0.1:32741` 提供页面；后台服务只绑定 loopback。端口被占用时会停止启动，不接管其他进程或静默切换资料库。
-- 卸载程序不主动删除职业资料。更新前建议先导出 JSON 备份；不要手动删除用户数据目录来解决启动问题。
-- 浏览器版、旧开发版和桌面版不自动认领彼此的草稿或账号。需要迁移时，先从原环境导出，再在目标环境明确导入。
-- 目前不包含自动更新器；下载新版本后正常更新应用即可，保留原用户数据目录。
-
-## 三种运行方式
+## 🚀 三种运行方式
 
 | 方式 | 适用场景 | 能力边界 |
 | --- | --- | --- |
-| 桌面客户端 | 日常本地使用 | 页面与后台一起启动；外部能力另行配置 |
-| Docker 完整版 | 自托管或浏览器使用 | Web、Agent Host、岗位 SQLite；容器不接管宿主机浏览器登录态 |
-| GitHub Pages | 快速预览界面与编辑器 | 静态站点，不自带本机后台或招聘浏览器 |
+| **桌面客户端（Electron）** | 日常本地使用 | 应用窗口与本机后台一体启动；云模型/外部 CLI 另行配置 |
+| **Docker 完整版** | 自托管或浏览器访问 | 启动 Web、Agent Host 与岗位 SQLite；容器不接管宿主机浏览器登录态 |
+| **GitHub Pages 在线预览** | 快速体验 UI 与编辑器 | 纯静态站点（[网页预览](https://nanfengovo.github.io/better-me/)），不带本机后台与招聘抓取 |
 
-### Docker 本机运行
+### 源码本地开发（推荐）
 
-```sh
-git clone --branch agent-os https://github.com/nanfengovo/better-me.git
-cd better-me
-docker compose up -d --build --wait
-```
-
-打开 `http://127.0.0.1:8080/`。`docker compose down` 停止服务并保留命名卷；不要使用删除卷的选项作为普通更新步骤。详见 [Docker 部署](docs/deployment.md)。
-
-### 源码开发
-
-需要 Node.js `^24.15.0 || >=26` 和 pnpm `11.9.0`。
+环境要求：**Node.js `^24.15.0 || >=26`** 与 **pnpm `11.9.0`**。
 
 ```sh
 git clone --branch agent-os https://github.com/nanfengovo/better-me.git
@@ -163,87 +166,107 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-开发入口为 `http://127.0.0.1:5173/`，Agent Host 和岗位服务由开发入口管理。不要用正式桌面包的数据目录运行开发测试。
+启动后访问 `http://localhost:5173/`（或 `http://127.0.0.1:5173/`），开发入口将自动拉起前端工作台、`agent-host (5179)` 与 `job-service (5178)`。
+
+#### 自动重制本 README 演示截图与动图 / 视频
+
+启动 `pnpm dev` 后，可执行仓库内置自动化脚本一键重采最新实机素材（默认输出到 `docs/media/showcase-20261116/`）：
 
 ```sh
-pnpm desktop          # Electron 开发窗口
-pnpm desktop:build    # 编译页面、主进程、预加载脚本与后台入口
-pnpm desktop:dist     # 在当前系统和当前架构上制作安装包
-pnpm desktop:smoke    # 用全新临时资料目录验收已打包的客户端
+node scripts/capture-readme-showcase.mjs
+python3 scripts/render-readme-gifs.py
 ```
 
-在目标系统原生构建：macOS arm64、macOS x64、Windows x64 和 Linux x64 分别由 CI runner 制作并验证，避免混入其他架构的原生依赖。产物位于 `release/<platform>-<arch>/`。
+### Docker Compose 一键运行
 
-## 可信协作流程
+```sh
+git clone --branch agent-os https://github.com/nanfengovo/better-me.git
+cd better-me
+docker compose up -d --build --wait
+```
 
-1. **确认目标与范围**：选定岗位、项目和允许使用的资料。
-2. **理解与核对**：保留来源，澄清个人贡献、工程细节及未知信息。
-3. **产生候选**：生成建议、差异与理由，不静默改写职业事实。
-4. **人工决定**：核对后逐项采用，重要修改保留业务版本与回执。
-5. **持续积累**：将真实反馈带回工作台；模型推断与已确认事实继续分开。
+访问 `http://127.0.0.1:8080/`。停止服务请使用 `docker compose down`（保留数据卷）；完整配置说明见 [Docker 部署文档](docs/deployment.md)。
 
-职业资产归 Workspace 管理。Agent 是受控执行者，不是第二套个人事实库，也不承诺自动获得 Offer、零幻觉或未经授权的自动投递。
+### 桌面端开发与打包
 
-## 数据与隐私
+```sh
+pnpm desktop          # 启动 Electron 开发窗口
+pnpm desktop:build    # 编译 Web 页面、主进程、预加载脚本与后台服务
+pnpm desktop:dist     # 为当前系统与架构构建安装包（输出至 release/）
+pnpm desktop:smoke    # 使用全新临时目录对打包成品做真实启动烟测
+```
 
-“本地优先”指主要职业资料保存在本机，**不等于所有操作都离线、不等于启用云模型后资料不出本机**。
+---
 
-| 操作 | 资料去向 |
-| --- | --- |
-| 本地编辑、规则检查、版本与导出 | 当前浏览器或桌面应用的数据目录 |
-| 云模型分析、AI OCR、生成建议 | 授权内容及请求参数发送到你选择的模型服务商 |
-| 本机 Ollama | 发送到配置的本地模型端点；其他外部工具仍有自己的边界 |
-| 招聘来源、地图与在线字体 | 可能请求相应第三方服务，受网络、来源和许可约束 |
-| 原生 CLI 与外部工具 | 需要独立安装、明确授权和通过对应平台的隔离检查 |
+## 📦 桌面客户端下载与安装
 
-不要提交 `.env`、API Key、账号凭据、真实简历、SQLite 数据库或个人导出文件。构建与 CI 使用隔离目录和合成资料，不导入开发者的真实账号与求职记录。
+从 [GitHub Releases](https://github.com/nanfengovo/better-me/releases) 下载对应平台安装包（附件上传完成代表正式发行，可配合同页 `SHA256SUMS-*` 校验完整性）：
 
-## 架构
+| 平台 | 发行格式 | 支持架构 |
+| --- | --- | --- |
+| macOS | `.dmg`、`.zip` | Apple Silicon `arm64`、Intel `x64` 分开提供 |
+| Windows | `.exe` 安装程序 | `x64` |
+| Linux | `.AppImage` | `glibc x64`（要求 glibc ≥ 2.34；CI 基于 Ubuntu 22.04） |
+
+- 桌面包已内置 Electron 运行时、应用前端及本地后台依赖，无需预先安装 Node、pnpm 或 Docker；本机服务默认仅绑定 loopback（`http://127.0.0.1:32741`）。
+- 当前桌面端采用 macOS ad-hoc 签名，**暂未配备 Apple Developer ID 公证或 Windows Authenticode 证书**。请仅从官方 Releases 下载并按系统自带人工确认流程信任运行，勿全局关闭系统防护。
+- 升级保留原用户数据目录；更新前建议先导出 JSON 备份。
+
+---
+
+## 🔒 可信协作流程与数据隐私边界
 
 ```text
-apps/web          职业工作台、简历编辑预览、岗位地图与同源网关
-apps/desktop      Electron 外壳、打包、私有本机后台与发行验收
-apps/agent-host   Agent 路由、资料授权、执行记录与能力服务
-apps/job-service  岗位来源、索引与 SQLite 持久化
-packages/core     事实规则、简历投影、JD 拆解与业务逻辑
-packages/storage  文档、历史、恢复与存储适配
-packages/*        岗位领域、来源适配及跨进程契约
-evals/            简历质量、来源审阅与职业分析的隔离评测
+[1. 确认目标与范围] ──▶ [2. 理解与来源核对] ──▶ [3. 生成候选与差异] ──▶ [4. 人工逐项采纳] ──▶ [5. 持续复盘沉淀]
 ```
 
-新图标采用“资产之核”：中心代表用户持有的职业资产，外围结构提供支撑与连接，金色接点代表经过核对后接受的成果。三个非字母化探索方向保存在 [品牌概念目录](docs/branding/concepts/)。
+“本地优先”指个人核心职业资产与草稿保存在本机数据目录，**不等于所有联网步骤都离线**：
 
-## 质量与发行
+| 操作类型 | 数据去向与控制策略 |
+| --- | --- |
+| 本地编辑、规则检查、版本与导出 | 仅保存在当前浏览器 / 桌面应用账号隔离目录 |
+| 云模型分析、AI OCR、智能伴写 | 仅在本人显式授权后，将选定片段发送至所配模型端点 |
+| 本机 Ollama 模型 | 仅通信本机配置的 Ollama 服务端口，不出本机 |
+| 招聘平台采集与地图周边探测 | 访问对应公开平台 / OSM / 高德接口；登录或验证码交由用户本人完成 |
+| 原生 CLI 与受审微应用沙箱 | 受限于平台隔离检查与显式批准；不私自读取外部个人隐私目录 |
+
+> ⚠️ 切勿向公共仓库提交 `.env`、API Key、登录凭据、真实个人简历或私人 SQLite 数据库。
+
+---
+
+## 📐 系统架构与质量门禁
+
+```text
+apps/web          职业工作台、简历编辑预览、3D 岗位地图（MapLibre + Cesium）与 Dev 网关
+apps/desktop      Electron 桌面壳、macOS/Win/Linux 打包与私有持久化后台
+apps/agent-host   统一 AgentTaskKernel、身份隔离存储、能力路由与执行记录
+apps/job-service  多源岗位抓取、企业控股归类、地理编码与 SQLite 持久化
+packages/core     个人事实模型 FactBase、规则检查、JD 拆解与简历投影
+packages/storage  版本检查点、字段级 Diff 恢复与持久化存储适配
+packages/*        岗位查询领域引擎、来源适配器与跨进程契约
+evals/            简历质量基线、脱敏金标对比与职业分析评测集
+scripts/          自动化视觉基线、README 实机录屏与 GIF 编译脚本
+```
+
+全量研发质量检查命令：
 
 ```sh
-pnpm memory:check
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm test:runtime
-pnpm test:desktop
-pnpm desktop:build
+pnpm lint             # ESLint 全仓零警告检查
+pnpm typecheck        # TypeScript 多包联合类型检查
+pnpm test             # 单元测试与脱敏简历质量回归
+pnpm test:runtime     # 运行时网关与桌面接口测试
+pnpm test:desktop     # Electron 生命周期与隔离烟测
 ```
 
-CI 分别检查 Windows 质量门禁、Linux 生产构建与 Docker，以及四组原生桌面包。SQLite 使用稳定 Node-API 依赖，另测检查点与待完成写入跨连接恢复、事务回滚；正式桌面启动不接受内存回退。桌面烟测启动真实打包客户端，检查界面挂载、后台健康和退出清理；不把它当作所有输入格式、招聘站、模型或设备都已验收。
+---
 
-版本标签必须与 `package.json` 一致。只有质量、Docker、生产构建和全部桌面包门禁通过，才上传版本 Release；发布前再次核对平台附件集合及 SHA-256。参见 [发行流程](.github/workflows/ci-pages.yml) 和 [v1.1.0 说明](docs/releases/v1.1.0.md)。
+## 📎 当前边界与延伸文档
 
-## 当前边界
-
-- 复杂扫描件、多栏原稿和 DOCX 的跨环境版式仍需逐份核对；模板重排不等于原稿保真编辑。
-- 地图真实办公坐标覆盖、招聘来源稳定性和通勤信息受来源条件限制。
-- vork/Metal 为可选实验能力，不是 Windows、Linux 或所有 Mac 都默认可用的功能。
-- 原生工具的可用性取决于平台隔离、版本和授权，不因“已安装”就自动开放。
-- [路线图](docs/ROADMAP.md) 与设计文档中的研究项不等于当前发行能力。
-
-## 文档与许可
-
-- [领域语言与产品定位](CONTEXT.md)
-- [开发路线图](docs/ROADMAP.md)
-- [模板与授权目录](templates/CATALOG.md)
-- [部署说明](docs/deployment.md)
-- [账号与身份部署](docs/deployment-auth.md)
-- [版本发布记录](https://github.com/nanfengovo/better-me/releases)
-
-第三方代码、模板、地图数据和图标资源遵循各自的 LICENSE / NOTICE，安装包保留相应授权资料。仓库目前未声明项目整体的统一开源许可证；公开可读不代表所有资源采用相同授权。欢迎通过 Issue 或 Pull Request 讨论问题和改进。
+- **已知边界**：复杂多栏/扫描件 PDF 原稿仍需人工核对提取结果；岗位坐标、周边企业披露与薪资范围受制于招聘源与开放地图数据覆盖；`vork/Metal`、Career Studio 演练与 Coding Sandbox 仍在持续演进中，不替代本人对真实经历与投递行为的最终判断。
+- **核心文档索引**：
+  - [产品领域语言与边界 (CONTEXT.md)](CONTEXT.md) · [开发路线图 (ROADMAP.md)](docs/ROADMAP.md)
+  - [岗位地图专题文档](docs/job-atlas.md) · [模板与授权目录](templates/CATALOG.md)
+  - [部署说明](docs/deployment.md) · [账号与身份部署](docs/deployment-auth.md)
+  - [实机媒体清单与历史截图说明](docs/media/README.md) · [过往版本报告目录](docs/images/README.md)
+  - [工作区功能验收汇总 (2026-11-13)](docs/reports/agent-os-workspace-publish-2026-11-13.md) · [履历盘点 (2026-11-14)](docs/reports/career-inventory-2026-11-14.md)
+- **许可说明**：仓库内置第三方代码、排版模板、地图数据与图标资源均遵循各自 `LICENSE / NOTICE`。目前项目整体尚未声明单一开源许可证；欢迎通过 Issue 或 Pull Request 交流建议与贡献改进。

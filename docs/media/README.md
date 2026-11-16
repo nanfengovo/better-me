@@ -1,5 +1,19 @@
 # 工作台图片与操作视频
 
+## 2026-11-16 全功能自动化实机演示（README 宣传素材）
+
+- [完整无剪辑高清录屏：betterme-walkthrough-20261116.webm](showcase-20261116/betterme-walkthrough-20261116.webm)（1440×900 浏览器视口 / 960×600 WebM 录制，0 控制台错误）
+- 动态图精选：
+  - [全工作台总览：showcase-overview.gif](showcase-20261116/showcase-overview.gif)
+  - [简历编辑 × 119 套版式 × AI 伴写：showcase-resume-copilot.gif](showcase-20261116/showcase-resume-copilot.gif)
+  - [3D 岗位地图 × 街道定位 × 周边全行业企业雷达：showcase-atlas-3d-radar.gif](showcase-20261116/showcase-atlas-3d-radar.gif)
+  - [AI 顾问 × Career Studio × 20 节点 Autopilot：showcase-agent-autopilot.gif](showcase-20261116/showcase-agent-autopilot.gif)
+- 10 张 1440×900 原始高清 PNG 截图、尺寸与字节校验清单见 [manifest.json](showcase-20261116/manifest.json)。由内置脚本 [`scripts/capture-readme-showcase.mjs`](../../scripts/capture-readme-showcase.mjs) 与 [`scripts/render-readme-gifs.py`](../../scripts/render-readme-gifs.py) 在隔离合成账号下捕获（展示数据为「林致远（示例）」合成简历与示例收藏岗位，无任何真实私人账号信息）。
+
+---
+
+## 历史录屏 · 2026-10-30
+
 [观看 / 下载视频：betterme-workflow-20261030.webm](betterme-workflow-20261030.webm)
 
 2026-10-30 录制，WebM / VP8，1600 × 1000，15 fps，时长 97.4 秒，无音轨。视频未剪辑、未加速，包含正常操作间隔和工具绘制的鼠标指针/章节标记。GitHub 不一定内嵌播放 WebM；可点击下载后在支持 WebM 的浏览器或播放器中播放。

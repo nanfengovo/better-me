@@ -1,0 +1,61 @@
+{
+  "capturedAt": "2026-11-16T05:34:55.664Z",
+  "targetUrl": "http://localhost:5173/",
+  "screenshots": [
+    "01-login-showcase.png",
+    "02-resume-studio.png",
+    "04-resume-design.png",
+    "03-writing-copilot.png",
+    "09-opportunities.png",
+    "07-ai-advisor.png",
+    "08-career-studio.png",
+    "10-autopilot-studio.png",
+    "05-atlas-panorama.png",
+    "06-atlas-3d-nearby-radar.png"
+  ],
+  "clips": {
+    "clip-resume-copilot": 34,
+    "clip-agent-autopilot": 28,
+    "clip-atlas-3d": 60
+  },
+  "video": {
+    "file": "betterme-walkthrough-20261116.webm",
+    "bytes": 13752332
+  },
+  "consoleErrorCount": 0,
+  "consoleErrors": [],
+  "gifs": [
+    {
+      "file": "showcase-overview.gif",
+      "rawFrames": 27,
+      "frames": 20,
+      "width": 840,
+      "height": 525,
+      "bytes": 1917182
+    },
+    {
+      "file": "showcase-resume-copilot.gif",
+      "rawFrames": 34,
+      "frames": 11,
+      "width": 840,
+      "height": 525,
+      "bytes": 947267
+    },
+    {
+      "file": "showcase-atlas-3d-radar.gif",
+      "rawFrames": 60,
+      "frames": 17,
+      "width": 840,
+      "height": 525,
+      "bytes": 1641016
+    },
+    {
+      "file": "showcase-agent-autopilot.gif",
+      "rawFrames": 28,
+      "frames": 16,
+      "width": 840,
+      "height": 525,
+      "bytes": 2080630
+    }
+  ]
+}
