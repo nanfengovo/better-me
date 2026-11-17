@@ -59,7 +59,7 @@ export const JobQuerySchema = z.object({
 export type JobQuery = z.infer<typeof JobQuerySchema>;
 export type JobQueryInput = z.input<typeof JobQuerySchema>;
 
-const QueryOptionsSchema = z.object({
+export const QueryOptionsSchema = z.object({
   domesticCountryCodes: z.array(z.string().regex(/^[A-Z]{2}$/)).max(300).optional(),
   fx: FxSnapshotSchema.optional(),
   now: z.string().datetime({ offset: true }).optional(),

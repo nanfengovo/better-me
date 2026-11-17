@@ -60,6 +60,77 @@ function response(results: LiveBatchProviderResultClient[], streaming: boolean):
   ].map(event => `data: ${JSON.stringify(event)}\n\n`).join(""), { headers: { "Content-Type": "text/event-stream" } });
 }
 
+for (const failure of ["login", "verification", "platform_limit"] as const) {
+  test(`a ${failure} gate suspends only that provider for later terms and explicit continuation retries once`, async () => {
+    const stored = memoryCheckpoint(["Java", "Spring Boot", "后端架构"]);
+    const originalFetch = globalThis.fetch;
+    const requests: Array<{ keyword: string; providers: HarvestProvider[] }> = [];
+    let blocked = true;
+    globalThis.fetch = async (_url, init) => {
+      const request = JSON.parse(String(init?.body));
+      requests.push(request.input);
+      return response(request.input.providers.map((provider: HarvestProvider) => {
+        const value = result(provider);
+        return provider === "liepin" && blocked ? { ...value,
+          status: failure === "login" ? "login_required" : failure === "verification" ? "verification_required" : "error",
+          coverage: { ...value.coverage, stopReason: "gate", partial: true, failureKind: failure },
+        } : value;
+      }), request.action.endsWith("stream"));
+    };
+    try {
+      const run = () => new OpportunityHarvestChainedClientPipeline({ client: client().service, checkpoint: stored.checkpoint,
+        keyword: "Java", enrichAfterCommit: false }).execute();
+      const summary = await run();
+      assert.equal(requests.filter(request => request.providers.includes("liepin")).length, 1,
+        "one gate must not generate another browser visit for each expanded term");
+      assert.equal(requests.filter(request => request.providers.includes("boss")).length, 3, "healthy providers keep running");
+      assert.equal(stored.state.run.state, "needs-attention");
+      assert.equal(stored.state.providers.filter(value => value.result.provider === "liepin").length, 1,
+        "skipped terms must not receive fabricated provider receipts");
+      assert.equal(summary.platformCoverage.find(value => value.provider === "liepin")?.coverage.partial, true);
+      blocked = false;
+      requests.length = 0;
+      await stored.checkpoint.resume();
+      await run();
+      assert.equal(requests.length, 3, "an explicit continuation reads the unfinished term/provider pairs");
+      assert.ok(requests.every(request => request.providers.length === 1 && request.providers[0] === "liepin"),
+        "continuation must not recollect healthy completed providers");
+      assert.equal(stored.state.run.state, "completed");
+    } finally { globalThis.fetch = originalFetch; }
+  });
+}
+
+test("expanded queries share one acknowledged browser capability and release it once, even after cancellation", async () => {
+  for (const cancelled of [false, true]) {
+    const stored = memoryCheckpoint(["Java", "Spring Boot", "后端架构"]);
+    const originalFetch = globalThis.fetch;
+    const controller = new AbortController();
+    const requests: Array<Record<string, unknown>> = [];
+    const ids: string[] = [];
+    globalThis.fetch = async (_url, init) => {
+      const request = JSON.parse(String(init?.body)); requests.push(request);
+      if (request.action === "release-live-search-tabs") {
+        assert.equal(init?.signal?.aborted, false, "cleanup must not inherit cancellation");
+        assert.equal(request.collectionSessionId, ids[0]);
+        return Response.json({ closed: true });
+      }
+      ids.push(request.input.collectionSessionId);
+      return Response.json({ capturedAt, collectionSessionId: request.input.collectionSessionId,
+        results: request.input.providers.map((provider: HarvestProvider) => result(provider)) });
+    };
+    try {
+      const pipeline = new OpportunityHarvestChainedClientPipeline({ client: client().service, checkpoint: stored.checkpoint,
+        keyword: "Java", enrichAfterCommit: false, signal: controller.signal,
+        onLiveResults: () => { if (cancelled && ids.length) controller.abort(); } });
+      if (cancelled) await assert.rejects(pipeline.execute()); else await pipeline.execute();
+      assert.equal(new Set(ids).size, 1);
+      assert.equal(ids.length, cancelled ? 1 : 3);
+      assert.equal(requests.filter(value => value.action === "release-live-search-tabs").length, 1);
+      assert.equal(JSON.stringify(stored.state).includes(ids[0]!), false, "ephemeral browser ownership is not saved in the journal");
+    } finally { globalThis.fetch = originalFetch; }
+  }
+});
+
 test("recovery uses frozen terms and skips already-read providers without erasing partial warnings", async () => {
   const stored = memoryCheckpoint(["Frozen Rust"]);
   stored.state.providers.push({ term: "Frozen Rust", capturedAt, result: result("liepin", true) });
@@ -78,6 +149,55 @@ test("recovery uses frozen terms and skips already-read providers without erasin
     assert.equal(summary.platformCoverage.find(item => item.provider === "liepin")!.coverage.partial, true);
     assert.ok(restoredWarnings.includes("Synthetic page budget is partial"));
     assert.equal(stored.state.run.state, "completed");
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("visual sharing is explicitly forwarded for one invocation and is not saved or restored", async () => {
+  const stored = memoryCheckpoint(["Java", "Spring"]);
+  const originalFetch = globalThis.fetch;
+  const requests: Array<{ visualFallback?: boolean }> = [];
+  globalThis.fetch = async (_url, init) => {
+    const request = JSON.parse(String(init?.body)); requests.push(request.input);
+    return response(request.input.providers.map((provider: HarvestProvider) => ({ ...result(provider),
+      status: "unknown_layout", coverage: { ...result(provider).coverage, stopReason: "no_progress", partial: true } })), false);
+  };
+  try {
+    await new OpportunityHarvestChainedClientPipeline({ client: client().service, checkpoint: stored.checkpoint, keyword: "Java", enrichAfterCommit: false, visualFallback: true }).execute();
+    assert.ok(requests.length > 1); assert.ok(requests.every(input => input.visualFallback === true));
+    assert.ok(!("visualFallback" in stored.state.run.input));
+    requests.length = 0;
+    await new OpportunityHarvestChainedClientPipeline({ client: client().service, checkpoint: stored.checkpoint, keyword: "Java", enrichAfterCommit: false }).execute();
+    assert.ok(requests.length > 0); assert.ok(requests.every(input => input.visualFallback === false));
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("continuation settles the original receipt lookup before opening any remaining platform", async () => {
+  const stored = memoryCheckpoint();
+  const recovered = result("liepin", true);
+  stored.state.batches.push({ id: "original-ambiguous-write", provider: "liepin", platform: "猎聘", pageUrl: recovered.pageUrl, capturedAt, cards: recovered.cards,
+    command: { input: { provider: "liepin", pageUrl: recovered.pageUrl, capturedAt, cards: recovered.cards,
+      expectedRevision: 1, previewFingerprint: "synthetic-original-preview", reviewed: true }, idempotencyKey: "synthetic-original-key" } });
+  const service = client();
+  let checked = false, searchedBeforeLookup = false, searches = 0;
+  service.service.lookupReviewedCardsReceipt = async () => {
+    await new Promise<void>(resolve => setImmediate(resolve));
+    checked = true;
+    return { receipt: { ok: true, revision: 2, jobIds: [], snapshotIds: [], counts: {
+      newJobs: 1, updatedJobs: 0, unchangedJobs: 0, newListings: 1, newObservations: 1, newSnapshots: 1,
+    } } };
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, init) => {
+    searches++; searchedBeforeLookup ||= !checked;
+    const request = JSON.parse(String(init?.body));
+    return response(request.input.providers.map((provider: HarvestProvider) => result(provider)), false);
+  };
+  try {
+    await new OpportunityHarvestChainedClientPipeline({ client: service.service, checkpoint: stored.checkpoint, keyword: "Rust", enrichAfterCommit: false }).execute();
+    assert.equal(searchedBeforeLookup, false, "the one-click recovery checks its original commit before opening new pages");
+    assert.equal(searches, 1);
+    assert.equal(service.imports(), 0);
+    assert.ok(stored.state.batches[0]!.receipt);
   } finally { globalThis.fetch = originalFetch; }
 });
 

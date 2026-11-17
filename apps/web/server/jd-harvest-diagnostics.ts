@@ -51,12 +51,17 @@ export function classifyHarvestFailure(error: unknown, status?: number): z.infer
   return "unknown";
 }
 
-export async function retainHarvestDiagnostic(input: HarvestDiagnostic, directory = fileURLToPath(new URL("../../../output/harvest-diagnostics/", import.meta.url))): Promise<string | undefined> {
+export type HarvestDiagnosticRetention = string | { reason: "capacity" } | undefined;
+export function harvestDiagnosticRetentionLabel(result: HarvestDiagnosticRetention): string {
+  return typeof result === "string" ? ` ${result}` : result?.reason === "capacity"
+    ? "未落盘（已达 200 份保留上限，历史证据未删除）" : "保存失败";
+}
+export async function retainHarvestDiagnostic(input: HarvestDiagnostic, directory = fileURLToPath(new URL("../../../output/harvest-diagnostics/", import.meta.url))): Promise<HarvestDiagnosticRetention> {
   try {
     const safe = HarvestDiagnosticSchema.parse(input);
     await mkdir(directory, { recursive: true, mode: 0o700 });
     // Do not delete earlier evidence, and do not permit unbounded retention.
-    if ((await readdir(directory)).filter(name => name.endsWith(".json")).length >= 200) return undefined;
+    if ((await readdir(directory)).filter(name => name.endsWith(".json")).length >= 200) return { reason: "capacity" };
     const id = randomUUID();
     await writeFile(join(directory, `${id}.json`), JSON.stringify({ id, capturedAt: new Date().toISOString(), ...safe }, null, 2), { mode: 0o600, flag: "wx" });
     return id;

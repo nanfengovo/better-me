@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, readFile, readdir, stat } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runInNewContext } from "node:vm";
@@ -20,6 +20,15 @@ test("retained diagnostics allow only fixed labels and numbers, never page secre
   if (process.platform !== "win32") assert.equal((await stat(path)).mode & 0o777, 0o600);
   assert.equal(await retainHarvestDiagnostic({ ...safe, observations: Array(101).fill(safe.observations[0]) }, directory), undefined);
   assert.equal((await readdir(directory)).length, 1);
+});
+
+test("a full diagnostic store reports capacity without deleting historical evidence", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "betterme-full-diagnostic-"));
+  await Promise.all(Array.from({ length: 200 }, (_, n) => writeFile(join(directory, `${n}.json`), "historical-evidence")));
+  const result = await retainHarvestDiagnostic({ provider: "51job", observations: [{ page: 1, phase: "initial", failure: "timeout" }] }, directory);
+  assert.deepEqual(result, { reason: "capacity" });
+  assert.equal((await readdir(directory)).length, 200);
+  assert.equal(await readFile(join(directory, "0.json"), "utf8"), "historical-evidence");
 });
 
 test("owned-page probe returns only structural evidence even on an account page", async () => {

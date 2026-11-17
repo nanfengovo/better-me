@@ -69,7 +69,7 @@ function ReconciliationSession({ endpoint, token, data, onClose, onSnapshot }: A
   function invalidatePair() { setPreview(undefined); setReviewed(false); setRevokePreview(undefined); setRevokeReviewed(false); setError(""); }
   function choosePair(left: string, right: string) { if (locked) return; setTarget(left); setSource(right); setReason(""); setCompanyConfirmed(false); setRevokeId(""); invalidatePair(); }
   const loadOverview = () => run(async signal => {
-    const [fresh, candidates, history] = await Promise.all([client.snapshot({ signal }), client.listMergeCandidates({ limit: 50 }, { signal }), client.listMergeDecisions({ limit: 50 }, { signal })]);
+    const [fresh, candidates, history] = await Promise.all([client.browseSnapshot({ signal }), client.listMergeCandidates({ limit: 50 }, { signal }), client.listMergeDecisions({ limit: 50 }, { signal })]);
     alive(signal);
     if (fresh.revision !== candidates.snapshotRevision || fresh.revision !== history.snapshotRevision || saved && fresh.revision < saved.revision) throw new Error("读取期间索引发生变化，请重新读取候选与记录。");
     setOverview({ data: fresh, candidates, history }); setSaved(undefined); setRevokeId(""); setRevokePreview(undefined); setRevokeReason(""); setRevokeReviewed(false);
@@ -102,10 +102,10 @@ function ReconciliationSession({ endpoint, token, data, onClose, onSnapshot }: A
       throw problem;
     }
     alive(signal); setSaved(receipt); setPending(undefined);
-    try { const fresh = await client.snapshot({ signal }); alive(signal); if (fresh.revision < receipt.revision) throw new Error("索引尚未返回已保存的版本。"); onSnapshot(fresh); }
+    try { const fresh = await client.browseSnapshot({ signal }); alive(signal); if (fresh.revision < receipt.revision) throw new Error("索引尚未返回已保存的版本。"); onSnapshot(fresh); }
     catch (problem) { alive(signal); throw new Error(`已保存到索引版本 ${receipt.revision}，页面读取尚未完成，请重新读取索引。`, { cause: problem }); }
   });
-  const refreshSnapshot = () => run(async signal => { const fresh = await client.snapshot({ signal }); alive(signal); if (saved && fresh.revision < saved.revision) throw new Error("索引尚未返回已保存的版本，请重试读取。"); onSnapshot(fresh); });
+  const refreshSnapshot = () => run(async signal => { const fresh = await client.browseSnapshot({ signal }); alive(signal); if (saved && fresh.revision < saved.revision) throw new Error("索引尚未返回已保存的版本，请重试读取。"); onSnapshot(fresh); });
   function close() { current.current?.abort(); current.current = null; onClose(); }
   return <section ref={section} className="atlas-merge-review" aria-label="重复岗位核对" aria-busy={busy}>
     <header><div><span className="atlas-eyebrow">KEEP THE EVIDENCE</span><h3><GitMerge size={18} />重复岗位核对</h3></div><button type="button" aria-label="关闭重复岗位核对" onClick={close}><X size={16} /></button></header>

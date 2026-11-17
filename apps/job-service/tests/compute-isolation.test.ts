@@ -57,6 +57,12 @@ test("isolated runtime preserves CAS, exact idempotent receipts, cancellation an
     assert.equal(aborted.ok, false); if (!aborted.ok) assert.equal(aborted.error.code, "cancelled");
     const read = await runtime.registry.execute<{ jobs: unknown[] }>("jobs.export-public", {}, context("read"));
     assert.equal(read.ok, true); if (read.ok) assert.equal(read.value.jobs.length, 3);
+    const views = await Promise.all(Array.from({ length: 4 }, (_, index) => runtime.registry.execute<{ snapshot: string }>("jobs.browse", {}, context(`browse-${index}`))));
+    assert.ok(views.every(view => view.ok));
+    const snapshot = views[0]!.ok ? views[0]!.value.snapshot : "";
+    assert.ok(views.every(view => view.ok && view.value.snapshot === snapshot), "concurrent readers share a captured browse identity");
+    const pages = await Promise.all(Array.from({ length: 4 }, (_, index) => runtime.registry.execute<{ summary: { totalJobs: number } }>("jobs.browse-query", { snapshot, query: {} }, context(`page-${index}`))));
+    assert.ok(pages.every(page => page.ok && page.value.summary.totalJobs === 3), "parallel browse calls must stay on their owning read lane");
     await runtime.shutdown();
     assert.equal((await runtime.registry.execute("jobs.export-public", {}, context("closed"))).ok, false);
   } finally { await runtime.shutdown(); await rm(directory, { recursive: true, force: true }); }

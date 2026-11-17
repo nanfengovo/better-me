@@ -1,3 +1,4 @@
+import { mockLegacyAtlasFetch } from "./atlas-legacy-fetch";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -19,7 +20,7 @@ const origins = ["http://127.0.0.1:5173", "http://localhost:5173", "http://127.0
 afterEach(() => mock.restoreAll());
 
 test("a dev page missing the index helper explains the one-command startup instead of asking for a token", async () => {
-  mock.method(globalThis, "fetch", async () => new Response("<!doctype html><title>BetterMe</title>", { status: 200, headers: { "content-type": "text/html" } }));
+  mockLegacyAtlasFetch(async () => new Response("<!doctype html><title>BetterMe</title>", { status: 200, headers: { "content-type": "text/html" } }));
   const result = await requestDevJobIndex(new AbortController().signal);
   assert.deepEqual(result, { ok: false, error: "本机岗位自动连接尚未就绪。请先保存当前编辑，再启动或重启 pnpm dev；独立验收入口使用 pnpm dev:isolated。无需手填访问令牌。" });
 });

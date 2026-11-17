@@ -7,6 +7,7 @@ import { streamLiveBatchSearch } from "../server/jd-search-api.ts";
 import type { LiveBatchSearchCallbacks, LiveBatchSearchResult } from "../server/jd-live-batch-search.ts";
 import type { JobSessionBackend } from "../server/jd-session-router.ts";
 import { createJdStartRequestId } from "../src/lib/jd-start-request.ts";
+import { liveSearchTabsFor, idleLiveSearchTabs } from "../server/jd-live-search-tabs.ts";
 
 test("real loopback search HTTP checks same-origin, bounded JSON and input before any browser call", async () => {
   const calls: unknown[] = [];
@@ -20,9 +21,22 @@ test("real loopback search HTTP checks same-origin, bounded JSON and input befor
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`, headers = { origin: url, "content-type": "application/json" };
   const send = (body: unknown, extra: Record<string, string> = {}) => fetch(url, { method: "POST", headers: { ...headers, ...extra }, body: JSON.stringify(body) });
   try {
+    assert.equal((await send({ action: "harvest-visual-status" }, { origin: "https://unrelated.invalid" })).status, 403);
+    const visualStatus = await send({ action: "harvest-visual-status" });
+    assert.equal(visualStatus.status, 200);
+    const safeStatus = await visualStatus.json();
+    assert.deepEqual(Object.keys(safeStatus).sort(), ["configured", "maxCalls", "maxOutputTokensPerCall", "model", "ocr"]);
     assert.equal((await send({ action: "start", input: { provider: "liepin", keyword: "" } }, { origin: "https://unrelated.invalid" })).status, 403);
     assert.equal((await send({ action: "start", input: { provider: "liepin", keyword: "C#", url: "http://127.0.0.1/private" } })).status, 400);
     assert.equal((await send({ action: "read", sessionId: "bad" })).status, 400);
+    assert.equal((await send({ action: "release-live-search-tabs", collectionSessionId: "not-a-capability" })).status, 400);
+    const capability = "cddba1af-e9f8-4d5f-8223-0a2dc7b01111";
+    assert.equal((await send({ action: "release-live-search-tabs", collectionSessionId: capability }, { origin: "https://unrelated.invalid" })).status, 403);
+    liveSearchTabsFor(capability, "another-origin");
+    assert.equal((await send({ action: "release-live-search-tabs", collectionSessionId: capability })).status, 409);
+    idleLiveSearchTabs(capability, "another-origin"); // Empty synthetic collection: no CDP connection.
+    const cleaned = await send({ action: "release-live-search-tabs", collectionSessionId: capability });
+    assert.equal(cleaned.status, 200); assert.deepEqual(await cleaned.json(), { closed: true });
     assert.equal(calls.length, 0);
     const requestId = createJdStartRequestId();
     const input = { provider: "liepin", keyword: "", regionId: "cn-shanghai" };

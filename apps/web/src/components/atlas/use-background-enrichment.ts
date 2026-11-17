@@ -4,7 +4,7 @@ import {
   readBackgroundEnrichmentStatus,
   type BackgroundEnrichmentStatus,
 } from "../../lib/background-enrichment-client";
-import { readAtlasSnapshot } from "./client";
+import { readAtlasBrowseSnapshot } from "./client";
 
 export type BackgroundEnrichmentState = {
   status?: BackgroundEnrichmentStatus;
@@ -100,7 +100,7 @@ export function useBackgroundEnrichment(input: BackgroundEnrichmentInput): Backg
       void (async () => {
         let succeeded = false;
         try {
-          const next = await readAtlasSnapshot(endpoint, token, { signal: controller.signal });
+          const next = await readAtlasBrowseSnapshot(endpoint, token, { signal: controller.signal });
           if (!visible() || snapshotRequest !== controller || controller.signal.aborted) return;
           if (next.revision < requestedRevision) throw new Error("stale snapshot");
           // A foreground import may have already published a newer revision while

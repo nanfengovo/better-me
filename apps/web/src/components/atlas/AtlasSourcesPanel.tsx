@@ -101,7 +101,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose }: Atla
     if (!config) return;
     const identity = JSON.stringify(["register", config]);
     if (!pending.current.has(identity)) {
-      const snapshot = await client.snapshot({ signal }); signal.throwIfAborted();
+      const snapshot = await client.browseSnapshot({ signal }); signal.throwIfAborted();
       pending.current.set(identity, { identity, key: crypto.randomUUID(), registration: { ...config, expectedRevision: config.expectedRevision ?? snapshot.revision } });
     }
     const write = pending.current.get(identity)!;
@@ -115,7 +115,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose }: Atla
     signal.throwIfAborted(); pending.current.delete(identity);
     setNotice(t(`来源已保存，索引版本 ${receipt.revision}。`, `Source saved at index revision ${receipt.revision}.`));
     await loadCatalog(signal);
-    const snapshot = await client.snapshot({ signal }); signal.throwIfAborted(); onSnapshot(snapshot);
+    const snapshot = await client.browseSnapshot({ signal }); signal.throwIfAborted(); onSnapshot(snapshot);
   }
   async function installCatalogSources(sources: SourceDefinition[], signal: AbortSignal) {
     let added = 0;
@@ -124,7 +124,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose }: Atla
       const source: SourceDefinition = { ...preset, enabled: true, status: "active" };
       const identity = JSON.stringify(["catalog-register", source]);
       if (!pending.current.has(identity)) {
-        const snapshot = await client.snapshot({ signal }); signal.throwIfAborted();
+        const snapshot = await client.browseSnapshot({ signal }); signal.throwIfAborted();
         if (snapshot.sources.some((entry) => entry.sourceId === source.sourceId || sourceCatalogIdentity(entry) === sourceCatalogIdentity(source))) continue;
         pending.current.set(identity, { identity, key: crypto.randomUUID(), registration: { source, expectedRevision: snapshot.revision } });
       }
@@ -137,7 +137,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose }: Atla
       }
       signal.throwIfAborted(); pending.current.delete(identity); added++;
       await loadCatalog(signal);
-      const snapshot = await client.snapshot({ signal }); signal.throwIfAborted(); onSnapshot(snapshot);
+      const snapshot = await client.browseSnapshot({ signal }); signal.throwIfAborted(); onSnapshot(snapshot);
       setNotice(`已添加 ${added}/${sources.length} 个来源；尚未采集岗位。`);
     }
     setNotice(`已添加 ${added} 个来源，已有配置未覆盖。关闭来源工具后，主搜索可同时查询已启用来源。`);
@@ -171,7 +171,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose }: Atla
     <div className="atlas-sources-actions">
       <button type="button" disabled={!usable || Boolean(busy)} onClick={() => void operation(t("读取来源", "Read sources"), loadCatalog)}><RefreshCw size={14} />{t("重新读取来源", "Reload sources")}</button>
       <button type="button" disabled={!usable || Boolean(busy)} onClick={() => void operation(t("读取公开快照", "Read public snapshot"), async (signal) => {
-        const snapshot = await client.snapshot({ signal }); signal.throwIfAborted(); onSnapshot(snapshot); setNotice(t(`地图已读取 ${snapshot.jobs.length} 个规范岗位。`, `Map loaded ${snapshot.jobs.length} canonical jobs.`));
+        const snapshot = await client.browseSnapshot({ signal }); signal.throwIfAborted(); onSnapshot(snapshot); setNotice(t(`地图已读取 ${snapshot.jobs.length} 个规范岗位。`, `Map loaded ${snapshot.jobs.length} canonical jobs.`));
       })}>{t("更新地图快照", "Update map snapshot")}</button>
     </div>
 
@@ -203,7 +203,7 @@ export function AtlasSourcesPanel({ endpoint, token, onSnapshot, onClose }: Atla
           const options = scopeInput(); const identity = JSON.stringify(["sync", sourceId, options]);
           if (!pending.current.has(identity)) pending.current.set(identity, { identity, key: crypto.randomUUID() });
           const value = await client.sync(sourceId, options, { signal, idempotencyKey: pending.current.get(identity)!.key }); signal.throwIfAborted(); pending.current.delete(identity); setSync(value); setPreview(undefined);
-          const snapshot = await client.snapshot({ signal }); signal.throwIfAborted(); onSnapshot(snapshot);
+          const snapshot = await client.browseSnapshot({ signal }); signal.throwIfAborted(); onSnapshot(snapshot);
         })}>{t("手动刷新并更新地图", "Refresh and update map")}</button></div>
       {preview && <div className="atlas-sources-result"><strong>{t("预览结果", "Preview result")} · {preview.sourceId}</strong>
         <p>{t("上游读取", "Upstream fetched")}: {preview.value.page.coverage.fetchedRecords} · {t("返回", "Returned")}: {preview.value.page.records.length} · {t("本地条件匹配", "Local matches")}: {preview.value.localMatchedRecords}</p>

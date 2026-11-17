@@ -1,3 +1,4 @@
+import { mockLegacyAtlasFetch } from "./atlas-legacy-fetch";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test, { after, afterEach, mock } from "node:test";
@@ -90,7 +91,7 @@ const hooks = registerHooks({
     if (specifier === "./atlas/AtlasSourcesPanel") return { url: "data:text/javascript,export const AtlasSourcesPanel = globalThis.__atlasSourcesProbe", shortCircuit: true };
     if (specifier === "./atlas/AtlasJobDetail") return { url: "data:text/javascript,export const AtlasJobDetail = globalThis.__atlasDetailProbe", shortCircuit: true };
     if (specifier === "./atlas/AtlasOfficeAddressConfirmation" || specifier === "./AtlasOfficeAddressConfirmation") return { url: "data:text/javascript,export const AtlasOfficeAddressConfirmation = globalThis.__atlasOfficeProbe", shortCircuit: true };
-    if (specifier === "./atlas/client") return { url: `data:text/javascript,export {buildAtlasJobAction} from ${JSON.stringify(new URL("../src/components/atlas/client.ts", import.meta.url).href)};export const readAtlasSnapshot=globalThis.__atlasWorkspaceRead;export const queryAtlasPage=globalThis.__atlasWorkspacePage`, shortCircuit: true };
+    if (specifier === "./atlas/client") return { url: `data:text/javascript,export {buildAtlasJobAction} from ${JSON.stringify(new URL("../src/components/atlas/client.ts", import.meta.url).href)};export const readAtlasSnapshot=globalThis.__atlasWorkspaceRead;export const readAtlasBrowseSnapshot=globalThis.__atlasWorkspaceRead;export const queryAtlasPage=globalThis.__atlasWorkspacePage`, shortCircuit: true };
     return nextResolve(specifier, context);
   },
   load(url, context, nextLoad) {
@@ -232,7 +233,7 @@ const sourceResponse = (value: unknown) => new Response(JSON.stringify({ ok: tru
 // Existing scenarios return an explicit unresolved projection; city-reference scenarios supply their own response.
 function installWorkspaceFetch(handler: typeof fetch, mapReply?: (input: { expectedRevision: number }, init?: RequestInit) => Response | Promise<Response>) {
   let latest: AtlasDataset | undefined;
-  return mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  return mockLegacyAtlasFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url), dom.location.href).pathname;
     if (path === "/api/v1/enrichment/status") return backgroundStatusReply?.()
       ?? sourceResponse({ revision: latest?.revision ?? 0, pending: 0, running: 0, completed: 0, failed: 0 });
@@ -250,6 +251,14 @@ function installWorkspaceFetch(handler: typeof fetch, mapReply?: (input: { expec
     }
     return response;
   });
+}
+// Opening the explicit collection dialog may read local visual capabilities;
+// this is not a source read, model call, snapshot read, or collection command.
+function acquisitionCalls(fetcher: ReturnType<typeof mockLegacyAtlasFetch>) {
+  return fetcher.mock.calls.filter(call => {
+    const body = call.arguments[1]?.body;
+    try { return !body || JSON.parse(String(body)).action !== "harvest-visual-status"; } catch { return true; }
+  }).length;
 }
 const sourceReceipt = (scope: unknown) => ({ run: { runId: "synthetic-main-search-run", sourceId: "atlas-demo", actorScope: "local-owner", generation: 1,
   scope: {}, status: "partial", startedAt: "2026-10-18T12:00:00.000Z", summary: { records: 9, pages: 1, partial: true } }, localFilters: scope, warnings: ["Synthetic bounded fixture, not real recruitment coverage"] });
@@ -1015,7 +1024,7 @@ test("main search without a connection opens connection settings and never sends
   await render(true, false);
   await flush(() => changeInput(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!, "C#"));
   await openCollection(); await flush(() => button("确认开始采集").click());
-  assert.equal(fetcher.mock.callCount(), 0);
+  assert.equal(acquisitionCalls(fetcher), 0);
   assert.equal(dom.document.querySelector(".atlas-settings h2")!.textContent, "连接你的本机岗位索引");
   assert.match(dom.document.querySelector(".atlas-search-notice")!.textContent!, /先连接本机来源服务/);
   assert.equal(dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!.value, "C#");
@@ -1028,14 +1037,14 @@ test("Enter, keyword chips and cancelled collection only filter the index; acqui
   const input = dom.document.querySelector<HTMLInputElement>('[aria-label="搜索地图岗位"]')!;
   await flush(() => changeInput(input, "C#"));
   await flush(() => input.closest("form")!.dispatchEvent(new dom.Event("submit", { bubbles: true, cancelable: true })));
-  assert.equal(fetcher.mock.callCount(), 0);
+  assert.equal(acquisitionCalls(fetcher), 0);
   await openCollection();
   assert.equal(dom.document.querySelector("dialog")?.getAttribute("aria-modal"), "true");
   assert.match(dom.document.querySelector(".atlas-collection-scope")!.textContent!, /C#.*地区.*来源.*预算上限/s);
-  assert.equal(fetcher.mock.callCount(), 0);
+  assert.equal(acquisitionCalls(fetcher), 0);
   await flush(() => button("暂不采集").click());
   assert.equal(dom.document.querySelector("dialog"), null);
-  assert.equal(fetcher.mock.callCount(), 0);
+  assert.equal(acquisitionCalls(fetcher), 0);
   assert.equal(input.value, "C#");
 });
 
@@ -1857,7 +1866,7 @@ test("default aggregate search exposes fast source results before a slow source 
 
 
 test("an empty real opportunity library offers acquisition instead of a vacant reading column or clear-only loop", async () => {
-  const external = mock.method(globalThis, "fetch", async () => { throw new Error("No external request before explicit connection"); });
+  const external = mockLegacyAtlasFetch(async () => { throw new Error("No external request before explicit connection"); });
   await render(true, false);
   await waitFor(() => !!dom.document.querySelector(".atlas-main-grid.is-empty-index"), "empty local projection");
   assert.equal(dom.document.querySelectorAll(".atlas-job-card").length, 0);
@@ -1867,12 +1876,12 @@ test("an empty real opportunity library offers acquisition instead of a vacant r
   assert.equal([...dom.document.querySelectorAll(".atlas-empty button")].some(node => node.textContent === "清除筛选"), false);
   await openCollection(); await flush(() => button("确认开始采集").click());
   assert.ok(dom.document.querySelector(".atlas-settings input[type=password]"));
-  assert.equal(external.mock.callCount(), 0, "opening connection never collects or fabricates jobs");
+  assert.equal(acquisitionCalls(external), 0, "opening connection never collects or fabricates jobs");
   assert.equal(dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!.value, "local");
 });
 
 test("the live index is selectable before connecting and opens connection settings without network requests", async () => {
-  const external = mock.method(globalThis, "fetch", async () => { throw new Error("Unexpected external request"); });
+  const external = mockLegacyAtlasFetch(async () => { throw new Error("Unexpected external request"); });
   await render(true, false);
   const view = dom.document.querySelector<HTMLSelectElement>('[aria-label="岗位数据视图"]')!;
   assert.ok([...view.options].some(option => option.value === "live"));

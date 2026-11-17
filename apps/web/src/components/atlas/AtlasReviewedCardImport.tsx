@@ -74,7 +74,7 @@ export function AtlasReviewedCardImport({ endpoint, token, capture, revision, on
   });
   const refresh = () => run(async signal => {
     closeLocationReview();
-    const snapshot = await binding.client.snapshot({ signal }); alive(signal); publishSnapshot(snapshot);
+    const snapshot = await binding.client.browseSnapshot({ signal }); alive(signal); publishSnapshot(snapshot);
     if (!committed) { setPreview(undefined); setConfirmation(undefined); }
   });
   const commit = () => run(async signal => {
@@ -90,7 +90,7 @@ export function AtlasReviewedCardImport({ endpoint, token, capture, revision, on
       throw problem;
     }
     alive(signal); setSaved({ binding, value: { revision: receipt.revision, added: receipt.counts.newJobs, updated: receipt.counts.updatedJobs, jobIds: receipt.jobIds, conflicts: receipt.conflicts } }); setPending(undefined); setIndex(undefined);
-    try { const snapshot = await binding.client.snapshot({ signal }); alive(signal); publishSnapshot(snapshot); }
+    try { const snapshot = await binding.client.browseSnapshot({ signal }); alive(signal); publishSnapshot(snapshot); }
     catch (problem) { alive(signal); throw new Error(`岗位已写入索引版本 ${receipt.revision}，页面刷新未完成。请点击“重新读取索引”。${problem instanceof Error ? problem.message : ""}`, { cause: problem }); }
   });
   function close() { latest.current.closed = true; current.current?.controller.abort(); current.current = null; closeLocationReview(); setIndex(undefined); setDismissed(binding); onClose(); }

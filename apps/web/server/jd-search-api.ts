@@ -4,6 +4,9 @@ import type { JobSessionBackend } from "./jd-session-router";
 import { isTrustedLocalRequest } from "./network-proxy";
 import { JdExtractionError } from "../src/lib/jd-errors";
 import { isJdStartRequestId } from "../src/lib/jd-start-request";
+import { z } from "zod";
+import { releaseLiveSearchTabs } from "./jd-live-search-tabs";
+import { harvestVisualStatus } from "./jd-harvest-visual-runtime";
 import {
   LiveBatchSearchInputSchema,
   liveBatchCardBudget,
@@ -37,6 +40,7 @@ export async function streamLiveBatchSearch(
   input: LiveBatchSearchInput,
   operation: AbortController,
   runner: typeof runLiveBatchSearch = runLiveBatchSearch,
+  owner = "internal",
 ): Promise<void> {
   const { signal } = operation;
   response.writeHead(200, {
@@ -107,9 +111,10 @@ export async function streamLiveBatchSearch(
     async onProviderResult(result) { await writeEvent({ type: "provider-result", result }); },
   };
   try {
-    const result = await runner(input, signal, callbacks);
+    const result = await runner(input, signal, callbacks, owner);
     if (signal.aborted) throw signal.reason;
-    await writeEvent({ type: "complete", capturedAt: result.capturedAt, providers: result.results.map((entry) => entry.provider) });
+    await writeEvent({ type: "complete", capturedAt: result.capturedAt, providers: result.results.map((entry) => entry.provider),
+      ...(result.collectionSessionId ? { collectionSessionId: result.collectionSessionId } : {}) });
     if (!response.destroyed && !response.writableEnded) response.end();
   } catch (error) {
     if (response.destroyed || response.writableEnded) return;
@@ -149,7 +154,9 @@ export async function jobSearchMiddleware(request: IncomingMessage, response: Se
     } catch { send(response, 400, { error: "搜索请求必须是有效 JSON。" }); return; }
     operation.signal.throwIfAborted();
     const owner = `${request.headers.origin}\n${request.headers.host}`;
-    if (body.action === "start") {
+    if (body.action === "harvest-visual-status") {
+      send(response, 200, await harvestVisualStatus());
+    } else if (body.action === "start") {
       const input = PlatformSearchInputSchema.safeParse(body.input);
       if (!input.success) { send(response, 400, { error: "平台、关键词或地区参数无效。" }); return; }
       if (!isJdStartRequestId(body.requestId)) { send(response, 400, { error: "搜索启动标识无效。" }); return; }
@@ -167,12 +174,17 @@ export async function jobSearchMiddleware(request: IncomingMessage, response: Se
     } else if (body.action === "live-batch-search") {
       const input = LiveBatchSearchInputSchema.safeParse(body.input);
       if (!input.success) { send(response, 400, { error: "多平台实时搜索关键词或地区参数无效。" }); return; }
-      const result = await runLiveBatchSearch(input.data, operation.signal);
+      const result = await runLiveBatchSearch(input.data, operation.signal, undefined, owner);
       send(response, 200, result);
     } else if (body.action === "live-batch-search-stream") {
       const input = LiveBatchSearchInputSchema.safeParse(body.input);
       if (!input.success) { send(response, 400, { error: "多平台实时搜索关键词或地区参数无效。" }); return; }
-      await streamLiveBatchSearch(response, input.data, operation);
+      await streamLiveBatchSearch(response, input.data, operation, undefined, owner);
+    } else if (body.action === "release-live-search-tabs") {
+      const id = z.string().uuid().safeParse(body.collectionSessionId);
+      if (!id.success) { send(response, 400, { error: "采集后台会话标识无效，未操作其他页面。" }); return; }
+      const closed = await releaseLiveSearchTabs(id.data, owner);
+      send(response, closed ? 200 : 409, { closed });
     } else if (body.action === "company-intelligence") {
       const input = CompanyIntelligenceLookupInputSchema.safeParse(body.input);
       if (!input.success) { send(response, 400, { error: "企业性质与办公地址查询参数无效。" }); return; }

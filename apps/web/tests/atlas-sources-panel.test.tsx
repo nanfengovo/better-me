@@ -1,3 +1,4 @@
+import { mockLegacyAtlasFetch } from "./atlas-legacy-fetch";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { registerHooks } from "node:module";
@@ -49,7 +50,7 @@ afterEach(async () => { if (root) await act(async () => root!.unmount()); root =
 after(() => { hooks.deregister(); dom.happyDOM.abort(); for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } });
 
 test("missing token leaves real tools inactive and does not request localhost", async () => {
-  const fetcher = mock.method(globalThis, "fetch", async () => { throw new Error("must not fetch"); });
+  const fetcher = mockLegacyAtlasFetch(async () => { throw new Error("must not fetch"); });
   await render(""); assert.match(dom.document.body.textContent!, /请先在“本机服务”/); assert.equal(fetcher.mock.callCount(), 0);
   assert.equal(button("更新地图快照").disabled, true);
 });
@@ -58,7 +59,7 @@ test("catalog addition is explicit, preserves unknown-write identity and never f
   const preset = sourceCatalog[0]; assert.ok(preset, "a verified real catalog preset must be present");
   const installed = [source]; const writes: Array<{ body: any; key: string | null }> = [];
   const paths: string[] = []; let updates = 0;
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  mockLegacyAtlasFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname; paths.push(path);
     if (path === "/api/v1/sources" && !init?.body) return response({ sources: installed, adapters });
     if (path === "/api/v1/dataset/export") return response({ ...snapshot, sources: [...snapshot.sources, ...installed] });
@@ -86,7 +87,7 @@ test("catalog addition is explicit, preserves unknown-write identity and never f
 
 test("company website discovery displays incomplete coverage without treating an entry as a job or registering it", async () => {
   const paths: string[] = []; let updates = 0;
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  mockLegacyAtlasFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname; paths.push(path);
     if (path === "/api/v1/sources") return response({ sources: [discoverySource], adapters });
     assert.equal(path, "/api/v1/companies/discover-careers");
@@ -106,7 +107,7 @@ test("company website discovery displays incomplete coverage without treating an
 });
 
 test("discovery-only policy cannot trigger job preview or sync despite its compatibility list-jobs flag", async () => {
-  const fetcher = mock.method(globalThis, "fetch", async () => response({ sources: [discoverySource], adapters }));
+  const fetcher = mockLegacyAtlasFetch(async () => response({ sources: [discoverySource], adapters }));
   await render();
   assert.equal(button("预览一页 · 不写入").disabled, true); assert.equal(button("手动刷新并更新地图").disabled, true);
   assert.match(dom.document.body.textContent!, /未提供可列举岗位的端点或字段映射/);
@@ -115,7 +116,7 @@ test("discovery-only policy cannot trigger job preview or sync despite its compa
 
 test("scope preview and finite sync use real routes and update the map only with the public snapshot", async () => {
   const requests: Array<{ path: string; body?: any; init?: RequestInit }> = []; let received: AtlasDataset | undefined;
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  mockLegacyAtlasFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname; const body = init?.body ? JSON.parse(String(init.body)) : undefined; requests.push({ path, body, init });
     if (path.endsWith("/preview")) return response({ page: { records: [], observedAt: at, coverage: { complete: true, partial: false, fetchedRecords: 0, appliedFilters: [], ignoredFilters: ["roles", "regions", "companyNames"] }, warnings: [] }, localMatchedRecords: 0, localFilters: body.scope });
     if (path.endsWith("/sync")) return response({ run: { runId: "synthetic-run", sourceId: source.sourceId, actorScope: "local-owner", generation: 1, scope: {}, status: "partial", startedAt: at, summary: { records: 4, pages: 2, leads: 1, partial: true } }, localFilters: body.scope, warnings: ["Synthetic page limit reached"] });
@@ -137,7 +138,7 @@ test("scope preview and finite sync use real routes and update the map only with
 
 test("JSON array requires per-source review and ambiguous registration retries reuse the exact body and key", async () => {
   const writes: Array<{ body: any; key: string | null }> = []; let snapshots = 0;
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  mockLegacyAtlasFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname;
     if (path.endsWith("/dataset/export")) { snapshots++; return response(snapshot); }
     if (init?.method === "POST") { writes.push({ body: JSON.parse(String(init.body)), key: new Headers(init.headers).get("Idempotency-Key") }); if (writes.length === 1) throw new TypeError("synthetic response lost after submit"); return response(receipt); }
@@ -156,7 +157,7 @@ test("GitHub candidates show original provenance and unknown license; inspection
   const candidate = { candidateId: "synthetic-candidate", provider: "github-repositories", homeUrl: "https://github.com/example/jobs", discoveredAt: at, status: "needs-review", repository: { fullName: "example/jobs", description: "Synthetic source metadata" }, entryHints: [], evidenceUrls: ["https://github.com/example/jobs"], warnings: ["License must be reviewed"] };
   const sample = { url: "https://raw.githubusercontent.com/example/jobs/main/jobs.json", format: "json", sampledRecords: 3, truncated: false, fields: [{ path: "title", types: ["string"], present: 3 }], coverage: { identity: true, title: true, url: true, description: false, locations: false, salary: false, recordTime: false }, warnings: [] };
   const paths: string[] = [];
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  mockLegacyAtlasFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url)).pathname; paths.push(`${init?.method ?? "GET"} ${path}`);
     if (path.endsWith("/discover")) return response({ candidates: [candidate], observedAt: at, totalAvailable: 1, partial: false, warnings: [] });
     if (path.endsWith("/inspect")) return response({ candidateId: candidate.candidateId, inspectedAt: at, samples: [sample], discoveredEntries: [], partial: false, warnings: [] });
@@ -172,7 +173,7 @@ test("GitHub candidates show original provenance and unknown license; inspection
 
 test("unmount cancels an in-flight tool and prevents late snapshot delivery", async () => {
   let pendingSignal: AbortSignal | undefined; let callbackCount = 0;
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  mockLegacyAtlasFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     if (String(url).endsWith("/dataset/export")) {
       pendingSignal = init?.signal as AbortSignal;
       return new Promise<Response>((_resolve, reject) => pendingSignal!.addEventListener("abort", () => reject(pendingSignal!.reason), { once: true }));

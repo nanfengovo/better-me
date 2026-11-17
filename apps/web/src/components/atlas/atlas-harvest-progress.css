@@ -130,3 +130,8 @@
   .atlas-harvest-progress .atlas-harvest-progress-cancel,
   .atlas-live-harvest-results .atlas-live-harvest-pagination button { transition: none !important; transform: none !important; }
 }
+.atlas-visual-consent { display: grid; gap: 6px; padding: 12px 0; max-width: 76ch; }
+.atlas-visual-consent label { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
+.atlas-visual-consent input { flex: 0 0 auto; margin-top: 4px; accent-color: var(--atlas-accent, #245b4b); }
+.atlas-visual-consent small { line-height: 1.6; color: var(--color-ink-muted); }
+.atlas-visual-consent summary { cursor: pointer; color: var(--color-ink-muted); font-size: 11px; }

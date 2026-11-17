@@ -4,6 +4,7 @@ import type { JobServiceConfig } from "./lifecycle.js";
 // A small audited set of public reads uses a separate read-only WAL connection.
 // All mutation/preview/external-source orchestration stays with the single writer.
 export const READ_LANE_TOOLS: ReadonlySet<string> = new Set([
+  "jobs.browse", "jobs.browse-query", "jobs.browse-penetration", "jobs.browse-detail",
   "jobs.search", "jobs.export-public", "jobs.sync-public", "jobs.sync-pages", "jobs.baseline-page", "jobs.baseline-close", "jobs.read-detail", "enrichment.status", "sources.list", "runs.list", "runs.read", "leads.list",
 ]);
 export type RuntimeConfig = { databasePath: string; config: JobServiceConfig; readOnly: boolean };

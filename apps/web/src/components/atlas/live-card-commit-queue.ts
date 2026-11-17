@@ -9,7 +9,7 @@ import type { HarvestBatchCheckpoint, HarvestCheckpoint, HarvestImportReceipt, H
 type Client = ReturnType<typeof createAtlasSourceClient>;
 type Provider = LiveBatchProviderResultClient["provider"];
 type Card = LiveBatchProviderResultClient["cards"][number];
-type Batch = HarvestBatchCheckpoint & { bytes: number; released?: boolean };
+type Batch = HarvestBatchCheckpoint & { bytes: number; released?: boolean; checkReceipt?: boolean };
 
 export class HarvestCheckpointError extends Error {
   constructor(error: unknown) {
@@ -60,6 +60,8 @@ export class LiveCardCommitQueue {
   private snapshotRead?: Promise<AtlasDataset>;
   private publication?: Promise<void>;
   private revision = 0;
+  private revisionReady = false;
+  private snapshotRefreshError?: unknown;
   private lastSnapshotAt = 0;
   private published = false;
   private publishedRevision = -1;
@@ -120,6 +122,7 @@ export class LiveCardCommitQueue {
 
   private accountReceipt(batch: HarvestBatchCheckpoint, receipt: HarvestImportReceipt): void {
     this.revision = Math.max(this.revision, receipt.revision);
+    this.revisionReady = true;
     this.counts.totalAdded += receipt.counts.newJobs;
     this.counts.totalUpdated += receipt.counts.updatedJobs;
     this.counts.totalUnchanged += receipt.counts.unchangedJobs ?? 0;
@@ -160,7 +163,7 @@ export class LiveCardCommitQueue {
       return;
     }
     await this.reserveCapacity(bytes, batch.cards.length);
-    this.queue.push({ ...batch, bytes });
+    this.queue.push({ ...batch, bytes, checkReceipt: Boolean(batch.command) });
     this.notify();
     this.startWorker();
   }
@@ -259,6 +262,7 @@ export class LiveCardCommitQueue {
           if (!this.snapshot || snapshot.revision >= this.snapshot.revision) this.snapshot = snapshot;
           // A publication begun before the next commit must never roll back CAS.
           this.revision = Math.max(this.revision, snapshot.revision);
+          this.revisionReady = true;
           return snapshot;
         }).finally(() => { if (this.snapshotRead === read) this.snapshotRead = undefined; });
         this.snapshotRead = read;
@@ -275,6 +279,7 @@ export class LiveCardCommitQueue {
     this.lastSnapshotAt = this.now();
     this.published = true;
     this.publishedRevision = snapshot.revision;
+    this.snapshotRefreshError = undefined;
     // Capture counters at request start: later receipts may not be in this view.
     try { this.options.onSnapshot?.(snapshot, stats); } catch { /* Keep a committed receipt authoritative. */ }
   }
@@ -284,17 +289,30 @@ export class LiveCardCommitQueue {
     if (this.snapshotAttempted && this.now() - this.lastSnapshotAt < (this.options.snapshotIntervalMs ?? 1_500)) return;
     this.snapshotAttempted = true;
     this.lastSnapshotAt = this.now();
-    this.publication = this.publishSnapshot().catch(() => {
+    this.publication = this.publishSnapshot().catch(error => {
+      this.snapshotRefreshError = error;
       // The final drain retries once and requires a current authoritative view.
     }).finally(() => { this.publication = undefined; });
+  }
+
+  private async readCommitRevision(): Promise<void> {
+    // Older services/test clients may not expose metadata yet. Never fall back
+    // from an authorization/transport failure to a guessed revision.
+    if (!this.options.client.indexRevision) { await this.readSnapshot(); return; }
+    const current = await this.options.client.indexRevision({ signal: this.options.signal });
+    this.assertHealthy();
+    if (!Number.isSafeInteger(current.revision) || current.revision < this.revision) throw new Error("岗位索引版本核验失败，未提交卡片。");
+    this.revision = current.revision;
+    this.revisionReady = true;
   }
 
   private async commit(batch: Batch): Promise<void> {
     for (let attempt = 0; attempt < 3; attempt++) {
       this.assertHealthy();
+      let checkingReceipt = false;
       try {
         if (!batch.command) {
-          if (!this.snapshot) await this.readSnapshot();
+          if (!this.revisionReady) await this.readCommitRevision();
           this.assertHealthy();
           const input = { provider: batch.provider, pageUrl: batch.pageUrl, capturedAt: batch.capturedAt, cards: batch.cards, expectedRevision: this.revision };
           const preview = await this.options.client.previewReviewedCards(input, { signal: this.options.signal });
@@ -307,7 +325,17 @@ export class LiveCardCommitQueue {
         this.assertHealthy();
         // Only a definitive stale-version rejection can reach a new preview/key.
         // A recovered ambiguous command first uses its exact persisted body/key.
-        const receipt = await this.options.client.importReviewedCards(batch.command.input,
+        let recovered: HarvestImportReceipt | null = null;
+        if (batch.checkReceipt && this.options.client.lookupReviewedCardsReceipt) {
+          checkingReceipt = true;
+          const result = await this.options.client.lookupReviewedCardsReceipt(batch.command.input,
+            { signal: this.options.signal, idempotencyKey: batch.command.idempotencyKey });
+          this.assertHealthy();
+          recovered = result.receipt;
+          batch.checkReceipt = false;
+          checkingReceipt = false;
+        }
+        const receipt = recovered ?? await this.options.client.importReviewedCards(batch.command.input,
           { signal: this.options.signal, idempotencyKey: batch.command.idempotencyKey });
         if (this.options.checkpoint) {
           // Even an abort after a successful HTTP response should durably save
@@ -325,9 +353,11 @@ export class LiveCardCommitQueue {
       } catch (error) {
         this.assertHealthy();
         const stale = error !== null && typeof error === "object" && "code" in error && error.code === "stale-version";
-        if (!stale || attempt === 2) throw error;
+        // A lookup rejection says nothing about whether the original write
+        // committed. Only a definitive import rejection may authorize new CAS.
+        if (checkingReceipt || !stale || attempt === 2) throw error;
         batch.command = undefined;
-        await this.readSnapshot();
+        await this.readCommitRevision();
       }
     }
   }
@@ -355,15 +385,25 @@ export class LiveCardCommitQueue {
     return this.finishPromise ??= this.drain();
   }
 
+  /** Recovery barrier, without finalizing the queue needed by later live pages. */
+  async waitForPending(): Promise<void> {
+    while (this.worker) await this.worker;
+    this.assertHealthy();
+  }
+
   private async drain(): Promise<LiveCardCommitResult> {
     while (this.worker) await this.worker;
     await this.publication;
     this.assertHealthy();
-    if (this.snapshot && (!this.published || this.publishedRevision < this.revision)) {
+    if ((this.snapshot || this.counts.committedCards > 0) && (!this.published || this.publishedRevision < this.revision)) {
       // One bounded retry recovers a transient post-commit read without ever
       // replaying the already committed batch or enriching a stale snapshot.
       for (let attempt = 0; attempt < 2; attempt++) {
-        try { await this.publishSnapshot(); break; }
+        try {
+          // A deterministic byte cap is not repaired by repeating a full read.
+          if (this.snapshotRefreshError && typeof this.snapshotRefreshError === "object" && "code" in this.snapshotRefreshError && this.snapshotRefreshError.code === "too-large") throw this.snapshotRefreshError;
+          await this.publishSnapshot(); break;
+        }
         catch (error) {
           this.checkCancelled();
           if (attempt === 1) throw new Error(`岗位已提交，但索引快照刷新失败（新增 ${this.counts.totalAdded} 岗、更新 ${this.counts.totalUpdated} 岗）：${error instanceof Error ? error.message : "未取得最新索引"}`, { cause: error });

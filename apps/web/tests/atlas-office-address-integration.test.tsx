@@ -9,6 +9,7 @@ import { createJobHttpServer } from "../../job-service/src/http.ts";
 import { openJobRepository } from "../../job-service/src/repository.ts";
 import { projectSourcePage } from "../../job-service/src/projection.ts";
 import type { AtlasOfficeAddressConfirmationProps } from "../src/components/atlas/AtlasOfficeAddressConfirmation.tsx";
+import { projectBrowseRows } from "../../job-service/src/browse-contract.ts";
 
 const dom = new Window({ url: "http://synthetic-office-integration.invalid" });
 const React = await import("react");
@@ -90,6 +91,7 @@ test("React explicitly queries, previews, confirms and revokes an office through
   const snapshots: AtlasDataset[] = [];
   try {
     const before = await repository.readSnapshot(), sourceLocation = before.locations[0]!, job = before.jobs[0]!;
+    const browseLocation = projectBrowseRows(before).locations.find(location => location.id === sourceLocation.id)!;
     const props: AtlasOfficeAddressConfirmationProps = { endpoint: url, token: TOKEN, jobId: job.id, location: sourceLocation,
       revision: before.revision, onClose() {}, onSnapshot: data => { snapshots.push(data); } };
     await act(async () => root.render(h(AtlasOfficeAddressConfirmation, props)));
@@ -125,7 +127,8 @@ test("React explicitly queries, previews, confirms and revokes an office through
     const confirmed = snapshots[0]!, point = confirmed.locations.find(value => value.id === sourceLocation.id)!;
     assert.equal(confirmed.revision, before.revision + 1); assert.deepEqual(point.coordinates, proposal.coordinates);
     assert.equal(point.precision, "address"); assert.equal(point.verification, "unverified"); assert.ok(point.officeResolution);
-    assert.equal(point.raw, sourceLocation.raw); assert.deepEqual(point.evidence, sourceLocation.evidence);
+    assert.equal(point.raw, sourceLocation.raw); assert.deepEqual(point.evidence, browseLocation.evidence);
+    assert.deepEqual((await repository.readSnapshot()).locations.find(location => location.id === sourceLocation.id)!.evidence, sourceLocation.evidence, "light refresh must not strip durable source excerpts");
     assert.deepEqual((await repository.readProjectionSnapshot()).locations, before.locations);
     assert.equal((await repository.backup()).officeDecisions.length, 1); assert.equal(providerReads, 2);
 
@@ -134,7 +137,8 @@ test("React explicitly queries, previews, confirms and revokes an office through
     await check(".atlas-office-revoke"); await click("撤销当前办公地址确认"); await settled(() => snapshots.length === 2);
     const revoked = snapshots[1]!;
     assert.equal(revoked.revision, confirmed.revision + 1);
-    assert.deepEqual(revoked.locations.find(value => value.id === sourceLocation.id), sourceLocation);
+    assert.deepEqual(revoked.locations.find(value => value.id === sourceLocation.id), browseLocation);
+    assert.deepEqual((await repository.readSnapshot()).locations.find(value => value.id === sourceLocation.id), sourceLocation);
     assert.equal((await repository.backup()).officeDecisions.length, 2); assert.equal(providerReads, 2);
     assert.match(dom.document.querySelector(".atlas-office-saved")!.textContent!, /已恢复/);
   } finally {

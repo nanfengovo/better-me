@@ -17,6 +17,8 @@ export type AtlasJobDetailProps = {
   originalCurrency: boolean;
   presentations: readonly AtlasListingPresentation[];
   searchQuery?: string;
+  evidenceLoading?: boolean;
+  evidenceError?: string;
   onClose: () => void;
   onLocate: (locationId?: string) => void;
   onSave: () => void;
@@ -71,7 +73,7 @@ function sourcesForDetail(item: JobSearchItem, data: AtlasDataset, presentations
 }
 
 /** A non-modal reading pane. It never moves focus, locks the page or intercepts card clicks. */
-export function AtlasJobDetail({ item, data, demo, originalCurrency, presentations, searchQuery, onClose, onLocate, onSave, onAnalyze, onConfirmLocation, onConfirmOffice, onReadLocations, children }: AtlasJobDetailProps) {
+export function AtlasJobDetail({ item, data, demo, originalCurrency, presentations, searchQuery, evidenceLoading, evidenceError, onClose, onLocate, onSave, onAnalyze, onConfirmLocation, onConfirmOffice, onReadLocations, children }: AtlasJobDetailProps) {
   const { t, locale } = useUiPreferences();
   const titleId = useId();
   const body = useRef<HTMLDivElement>(null);
@@ -111,6 +113,8 @@ export function AtlasJobDetail({ item, data, demo, originalCurrency, presentatio
     </header>
 
     <div ref={body} className="atlas-job-detail-body">
+      {evidenceLoading && <p role="status">{t("正在按需读取这条岗位的完整来源与历史…", "Loading this job’s complete sources and history…")}</p>}
+      {evidenceError && <p role="alert">{evidenceError}</p>}
       {aiRelevance.isPenetrated && (
         <section className="atlas-job-detail-section atlas-job-detail-ai-penetration" aria-label={t("关键词规则与原文证据", "Keyword rules and source evidence")}>
           <div className="atlas-ai-deep-insight-box">
@@ -203,8 +207,8 @@ export function AtlasJobDetail({ item, data, demo, originalCurrency, presentatio
     </div>
 
     <footer className="atlas-job-detail-footer">
-      <button type="button" className="atlas-job-detail-save" disabled={demo} onClick={onSave}><BookmarkPlus size={15} />{t("收藏到机会与投递", "Save to opportunities")}</button>
-      <button type="button" className="atlas-job-detail-analyze" disabled={demo || !hasDescription} onClick={onAnalyze}><FileSearch size={15} />{t("用这份 JD 分析简历", "Analyze resume with this JD")}</button>
+      <button type="button" className="atlas-job-detail-save" disabled={demo || evidenceLoading || Boolean(evidenceError)} onClick={onSave}><BookmarkPlus size={15} />{t("收藏到机会与投递", "Save to opportunities")}</button>
+      <button type="button" className="atlas-job-detail-analyze" disabled={demo || !hasDescription || evidenceLoading || Boolean(evidenceError)} onClick={onAnalyze}><FileSearch size={15} />{t("用这份 JD 分析简历", "Analyze resume with this JD")}</button>
       {demo && <p>{t("演示内容仅供查看，连接真实索引后可进入求职流程。", "Demo content is read-only. Connect a real index to use career actions.")}</p>}
     </footer>
   </aside>;

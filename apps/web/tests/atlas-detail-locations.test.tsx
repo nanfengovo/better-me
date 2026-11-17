@@ -1,3 +1,4 @@
+import { mockLegacyAtlasFetch } from "./atlas-legacy-fetch";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test, { after, afterEach, mock } from "node:test";
@@ -108,7 +109,7 @@ function defaultResponse(call: Call): Response {
 }
 function installFetch(handler: (call: Call, calls: Call[]) => Response | Promise<Response> = defaultResponse) {
   const calls: Call[] = [];
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  mockLegacyAtlasFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const call = { path: new URL(String(url), dom.location.href).pathname, init,
       ...(init?.body ? { body: JSON.parse(String(init.body)) } : {}), key: new Headers(init?.headers).get("Idempotency-Key") };
     calls.push(call); return handler(call, calls);
@@ -562,7 +563,7 @@ test("React extracts a same-job address then explicitly imports it through stric
     // Compare read-only UI actions only after that writer has become idle.
     await waitForNormalization();
     const before = await repository.readSnapshot(), job = before.jobs[0]!, listing = before.listings[0]!;
-    mock.method(globalThis, "fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    mockLegacyAtlasFetch(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = new URL(String(input), dom.location.href).pathname; requestPaths.push(path);
       if (path === paths.extract) return rawResponse({ ...extracted, provenance: { kind: "link", platform: "猎聘", url: JOB_URL, observedAt: DETAIL_AT } });
       const response = await nativeFetch(input, init);

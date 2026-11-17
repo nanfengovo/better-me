@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test, { afterEach, mock } from "node:test";
 import { buildPlatformSearchRequest } from "@better-me/source-adapters/browser-contracts";
-import { readPlatformSearch, runLivePlatformBatchSearch, startPlatformSearch } from "../src/lib/platform-search-client.ts";
+import { readPlatformSearch, runLivePlatformBatchSearch, startPlatformSearch, releaseLivePlatformSearchTabs } from "../src/lib/platform-search-client.ts";
 import { createJdStartRequestId } from "../src/lib/jd-start-request.ts";
 
 const input = { provider: "liepin", keyword: "C#", regionId: "cn-shanghai" } as const;
@@ -10,6 +10,29 @@ const session = { sessionId: "synthetic-search-session-1234", platform: plan.pla
 const card = { platform: "猎聘", title: "Synthetic engineer", url: "https://www.liepin.com/job/1999999999.shtml", company: "Synthetic employer", cardText: "Synthetic list excerpt", evidence: { pageUrl: plan.url, cardSelector: ".job-card-pc-container", fields: [] } };
 const receipt = () => ({ status: "ready", platform: "猎聘", url: plan.url, cards: [card], partial: true, warnings: ["Single page only"], capturedAt: "2026-10-18T17:00:00Z" });
 afterEach(() => mock.restoreAll());
+
+test("background collection capabilities are acknowledged exactly and cleanup has an independent signal", async () => {
+  const id = "245083a7-594e-43fa-897c-d901ad334ca4";
+  const other = "245083a7-594e-43fa-897c-d901ad334ca5";
+  let returned = id;
+  const calls: RequestInit[] = [];
+  mock.method(globalThis, "fetch", async (_url, init) => {
+    calls.push(init!);
+    const body = JSON.parse(String(init?.body));
+    return Response.json(body.action === "release-live-search-tabs" ? { closed: true }
+      : { capturedAt: "2026-11-16T00:00:00Z", results: [], collectionSessionId: returned });
+  });
+  assert.equal((await runLivePlatformBatchSearch({ keyword: "Rust", collectionSessionId: id })).collectionSessionId, id);
+  returned = other;
+  await assert.rejects(runLivePlatformBatchSearch({ keyword: "Rust", collectionSessionId: id }), /会话与本轮请求不一致/);
+  await releaseLivePlatformSearchTabs(id);
+  assert.deepEqual(JSON.parse(String(calls.at(-1)?.body)), { action: "release-live-search-tabs", collectionSessionId: id });
+  assert.equal(calls.at(-1)?.keepalive, true);
+  assert.equal(calls.at(-1)?.signal?.aborted, false);
+  const before = calls.length;
+  await assert.rejects(releaseLivePlatformSearchTabs("not-a-session"), /标识无效/);
+  assert.equal(calls.length, before);
+});
 
 test("platform client preserves exact search input and validates the returned session", async () => {
   const calls: unknown[] = [];

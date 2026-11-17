@@ -9,7 +9,8 @@ import type { AtlasCamera } from "./atlas/prototypes/types";
 import { isMappableOfficeBucket, mapBucketPrecisionLabel } from "./atlas/prototypes/map-performance";
 import type { AtlasMapGeometry } from "./atlas/prototypes/map-performance";
 import { ATLAS_BASEMAPS } from "./atlas/prototypes/basemaps";
-import { buildAtlasJobAction, queryAtlasPage, readAtlasSnapshot, type AtlasJobAction } from "./atlas/client";
+import { buildAtlasJobAction, queryAtlasPage, readAtlasBrowseSnapshot as readAtlasSnapshot, type AtlasJobAction } from "./atlas/client";
+import { useAtlasJobEvidence } from "./atlas/use-atlas-job-evidence";
 import { AtlasBaselineStatus } from "./atlas/AtlasBaselineStatus";
 import type { BaselineProgress } from "../../../job-service/src/dataset-baseline-contract";
 import { shouldAutoReconnectAtlas } from "./atlas/connection-recovery";
@@ -51,6 +52,7 @@ import { executeOpportunityHarvestChainedPipeline, type ClientPipelineProgress }
 import { AtlasLiveHarvestResults } from "./atlas/AtlasLiveHarvestResults";
 import { applyLiveBatchStreamEvent, buildLiveHarvestView, liveHarvestStopReasonLabel, matchesLiveHarvestQuery, mergeLiveHarvestViews, settleLiveHarvestView, type LiveHarvestView } from "./atlas/live-harvest-view";
 import { AtlasHarvestProgress } from "./atlas/AtlasHarvestProgress";
+import { HarvestVisualConsent } from "./atlas/HarvestVisualConsent";
 import { sanitizeHarvestDiagnostic } from "./atlas/harvest-issue-presentation";
 import { useBackgroundEnrichment } from "./atlas/use-background-enrichment";
 import { AtlasBackgroundEnrichmentStatus } from "./atlas/AtlasBackgroundEnrichmentStatus";
@@ -264,12 +266,13 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
   const recoveredOfficeSelection = useRef<{ data: AtlasDataset; selectionKey: string; jobId: string } | undefined>(undefined);
   function cancelOfficeFocus() { officeFocusAbort.current?.abort(); officeFocusAbort.current = null; setOfficeFocusRequest(undefined); recoveredOfficeSelection.current = undefined; }
   const [searchDepth, setSearchDepth] = useState<"quick" | "standard" | "deep">("standard");
+  const [allowVisualFallback, setAllowVisualFallback] = useState(false);
   const [searchConcurrency, setSearchConcurrency] = useState<number>(() => {
     try {
       const saved = localStorage.getItem("better-me:atlas-concurrency");
-      return saved ? Number(saved) : 9;
+      return saved ? Number(saved) : 4;
     } catch {
-      return 9;
+      return 4;
     }
   });
   const [sourceSearchMessage, setSourceSearchMessage] = useState("");
@@ -391,6 +394,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
   useEffect(() => { if (!active) { setSettings(null); setCollectionOpen(false); } }, [active]);
   const [endpoint, setEndpoint] = useState(initialConnection?.dataMode === "live" ? initialConnection.endpoint : DEFAULT_ATLAS_ENDPOINT);
   const [token, setToken] = useState(initialConnection?.dataMode === "live" ? initialConnection.token : "");
+  useEffect(() => { setAllowVisualFallback(false); }, [endpoint, token, active]);
   useEffect(() => { setDetailReviewJobId(""); setEnrichmentScope(null); }, [endpoint, token, dataMode, active]);
   const [connecting, setConnecting] = useState(false);
   const connectionAbort = useRef<AbortController | null>(null);
@@ -998,6 +1002,8 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
       setSourceSearchError("来源搜索关键词最多 300 个字符。");
       return;
     }
+    const visualFallback = allowVisualFallback;
+    setAllowVisualFallback(false);
     searchAbort.current?.abort();
     const abort = new AbortController();
     searchAbort.current = abort;
@@ -1023,6 +1029,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
           client,
           checkpoint,
           keyword: savedInput.keyword,
+          visualFallback,
           region: savedInput.region || (savedInput.view.mode === "domestic" ? "中国" : savedInput.view.country ? countryName(savedInput.view.country) : undefined),
           depth: savedInput.depth,
           enrichAfterCommit: false,
@@ -1106,6 +1113,8 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
     if (!connected) { setSettings("connection"); setSourceSearchMessage("先连接本机来源服务，再按关键词从已配置来源获取岗位。"); return; }
     const effectiveText = (overrideKeyword !== undefined ? overrideKeyword : text).trim();
     if (effectiveText.length > 300) { setSourceSearchError("来源搜索关键词最多 300 个字符。"); return; }
+    const visualFallback = allowVisualFallback;
+    setAllowVisualFallback(false);
     searchAbort.current?.abort(); const abort = new AbortController(); searchAbort.current = abort;
     setSourceSearching(true); setSourceSearchError(""); setSourceSearchMessage(""); setSourceReview(undefined); setBucket(null); setIntervenePlatforms([]); setLiveHarvest(null);
     setPreferLiveResults(true); setLiveCommitStats(undefined); setSearchProgress(null); setHarvestStage(null); setHarvestCancelled(false); setHarvestFailed(false);
@@ -1127,7 +1136,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
       const timeout = new AbortController();
       const timer = setTimeout(() => timeout.abort(), 20000);
       try {
-        const snapshot = await client.snapshot({ signal: AbortSignal.any([abort.signal, timeout.signal]) });
+        const snapshot = await client.browseSnapshot({ signal: AbortSignal.any([abort.signal, timeout.signal]) });
         if (abort.signal.aborted || searchAbort.current !== abort) return;
         publishLiveSnapshot(snapshot); setDataMode("live");
         refreshedThroughReceipt = throughReceipt;
@@ -1147,6 +1156,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
             client,
             checkpoint,
             keyword: liveKeyword,
+            visualFallback,
             region: liveInput.region,
             depth: searchDepth,
             enrichAfterCommit: false,
@@ -1338,6 +1348,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
   const selected = result && listPage?.totalJobs !== 0 && listResultIdentity === listIdentity ? visibleItems.find((item) => item.job.id === selectedId)
     ?? (recheckedSelection?.data === data && recheckedSelection.identity === listIdentity && recheckedSelection.item.job.id === selectedId ? recheckedSelection.item : undefined)
     ?? (selectedCard.current?.job.id === selectedId && data?.jobs.some((job) => job.id === selectedId) ? selectedCard.current : undefined) : undefined;
+  const selectedEvidence = useAtlasJobEvidence(displayedData ?? data, active ? selected?.job.id : undefined);
   useEffect(() => {
     const request = officeFocusRequest;
     if (!request) return;
@@ -1473,7 +1484,8 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
   function routeJob(item: JobSearchItem, analyze: boolean) {
     if (dataMode === "demo") return;
     if (!data || resultData !== data || !data.jobs.some((job) => job.id === item.job.id)) return;
-    const input = buildAtlasJobAction(data, item);
+    if (selectedEvidence.loading || selectedEvidence.error || !selectedEvidence.data) return;
+    const input = buildAtlasJobAction(selectedEvidence.data, item);
     if (analyze) onAnalyze(input);
     else onSaveOpportunity({ token: crypto.randomUUID(), title: item.job.title.value, description: item.job.description, sourceUrl: input.url, sourcePlatform: input.platform, collectedAt: input.observedAt, sourcePublishedAt: input.sourcePublishedAt, sourcePublishedText: input.sourcePublishedText });
   }
@@ -1763,11 +1775,12 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
         </div>
       </form>
     </div>
-    {collectionOpen && active && <AtlasSettingsDialog title="采集新岗位" onClose={() => setCollectionOpen(false)} closeLabel="取消岗位采集">
+    {collectionOpen && active && <AtlasSettingsDialog title="采集新岗位" onClose={() => { setAllowVisualFallback(false); setCollectionOpen(false); }} closeLabel="取消岗位采集">
+      <HarvestVisualConsent checked={allowVisualFallback} onChange={setAllowVisualFallback} />
       <p>这会访问招聘来源，并把返回的岗位收录到当前索引。仅浏览或筛选已有岗位不需要采集。</p>
       <dl className="atlas-collection-scope"><div><dt>关键词</dt><dd>{text.trim() || (!searchSourceId && import.meta.env?.DEV ? resumePrefill.targetRole || "软件工程师（实时平台默认词）" : "未指定（来源默认范围）")}</dd></div><div><dt>地区</dt><dd>{mode === "domestic" ? ["中国", chinaFilter.selectedProvince?.name, chinaFilter.selectedCity?.name].filter(Boolean).join(" / ") : [country ? countryName(country) : "所有国家 / 地区", regionText || region].filter(Boolean).join(" / ")}</dd></div><div><dt>来源</dt><dd>{searchableSources.find(entry => entry.sourceId === searchSourceId)?.attribution.label ?? (searchableSources.length ? "已配置来源（" + searchableSources.length + "）" + (!searchSourceId && import.meta.env?.DEV ? " + 实时平台（BOSS / 猎聘 / 51Job / 领英）" : "") : "连接后读取已配置来源")}</dd></div><div><dt>预算上限</dt><dd>{searchDepth === "deep" ? "每平台 50 页 / 3000 岗" : searchDepth === "standard" ? "每平台 20 页 / 1500 岗" : "每平台 5 页 / 500 岗"} · {searchConcurrency} 源并发</dd></div></dl>
       <p className="atlas-small">上限不是预期新增量；登录、来源限制或无新增会提前结束。可取消并保留已收到的结果。</p>
-      <div className="atlas-collection-actions"><button type="button" onClick={() => { setCollectionOpen(false); setCommandOpen(true); }}>调整范围</button><button type="button" onClick={() => setCollectionOpen(false)}>暂不采集</button><button type="button" onClick={() => { setCollectionOpen(false); void searchSourceJobs(); }}>确认开始采集</button></div>
+      <div className="atlas-collection-actions"><button type="button" onClick={() => { setAllowVisualFallback(false); setCollectionOpen(false); setCommandOpen(true); }}>调整范围</button><button type="button" onClick={() => { setAllowVisualFallback(false); setCollectionOpen(false); }}>暂不采集</button><button type="button" onClick={() => { setCollectionOpen(false); void searchSourceJobs(); }}>确认开始采集</button></div>
     </AtlasSettingsDialog>}
     {connectionError && dataMode === "live" && <div className="atlas-connection-alert" role="alert">
       <AlertTriangle size={18} aria-hidden="true" />
@@ -2046,6 +2059,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
     </details>
     </AtlasSettingsDialog>
     {showHarvestStatus && <AtlasHarvestProgress
+      visualConsent={<HarvestVisualConsent checked={allowVisualFallback} onChange={setAllowVisualFallback} />}
       agentConfig={agentConfig}
       active={active}
       onAskAgent={onAskAgentAboutHarvest}
@@ -2523,7 +2537,7 @@ export default function AtlasWorkspace({ active = true, resume, factBase, agentC
       searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot);
       setSourceSearchMessage(`办公位置已读取，索引版本 ${snapshot.revision}。符合当前筛选时会定位高亮，也可双击岗位再次定位。`);
     }} /></Suspense></div></aside>}
-    {!enrichmentScope && !detailReviewJobId && selected && data && <AtlasJobDetail key={selected.job.id} item={selected} data={displayedData ?? data} searchQuery={text} demo={dataMode === "demo"} originalCurrency={originalCurrency} presentations={presentListing?.(selected) ?? []} onClose={closeJob} onLocate={(locationId) => void locateJob(selected, locationId)} onSave={() => routeJob(selected, false)} onAnalyze={() => routeJob(selected, true)} onConfirmLocation={connected && resultData === data ? location => { setOfficeReview(undefined); setLocationReview({ jobId: selected.job.id, location }); } : undefined} onConfirmOffice={connected && resultData === data ? location => { setLocationReview(undefined); setOfficeReview({ jobId: selected.job.id, location }); } : undefined} onReadLocations={connected && selected.job.listingIds.some(id => data.listings.find(listing => listing.id === id)?.sourceId.startsWith("reviewed-platform-")) ? () => setDetailReviewJobId(selected.job.id) : undefined}>
+    {!enrichmentScope && !detailReviewJobId && selected && data && <AtlasJobDetail key={selected.job.id} item={selected} data={selectedEvidence.data ?? displayedData ?? data} evidenceLoading={selectedEvidence.loading} evidenceError={selectedEvidence.error} searchQuery={text} demo={dataMode === "demo"} originalCurrency={originalCurrency} presentations={presentListing?.(selected) ?? []} onClose={closeJob} onLocate={(locationId) => void locateJob(selected, locationId)} onSave={() => routeJob(selected, false)} onAnalyze={() => routeJob(selected, true)} onConfirmLocation={connected && resultData === data ? location => { setOfficeReview(undefined); setLocationReview({ jobId: selected.job.id, location }); } : undefined} onConfirmOffice={connected && resultData === data ? location => { setLocationReview(undefined); setOfficeReview({ jobId: selected.job.id, location }); } : undefined} onReadLocations={connected && selected.job.listingIds.some(id => data.listings.find(listing => listing.id === id)?.sourceId.startsWith("reviewed-platform-")) ? () => setDetailReviewJobId(selected.job.id) : undefined}>
       {locationReview?.jobId === selected.job.id && connected && liveData && <Suspense fallback={<p role="status">正在打开地区核对…</p>}><AtlasLocationConfirmation key={`${locationReview.jobId}:${locationReview.location.id}:${endpoint}`} endpoint={endpoint} token={token} jobId={locationReview.jobId} location={locationReview.location} revision={liveData.revision} onClose={() => setLocationReview(undefined)} onSnapshot={snapshot => {
         searchAbort.current?.abort(); setLiveData(current => current && current.revision > snapshot.revision ? current : snapshot); setDataMode("live");
         setSourceSearchMessage(`已读取地区记录，索引版本 ${snapshot.revision}。当前筛选会按最新确认结果重新计算；不再符合条件的岗位会退出列表。`);

@@ -1,3 +1,4 @@
+import { mockLegacyAtlasFetch } from "./atlas-legacy-fetch";
 import assert from "node:assert/strict";
 import test, { after, afterEach, mock } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
@@ -35,7 +36,7 @@ afterEach(clean);
 after(() => { dom.happyDOM.abort(); for (const [key, descriptor] of descriptors) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } });
 
 test("local, demo, inactive, disconnected and already coordinated data do not invoke the service", async () => {
-  const fetcher = mock.method(globalThis, "fetch", async () => { throw new Error("must not fetch"); });
+  const fetcher = mockLegacyAtlasFetch(async () => { throw new Error("must not fetch"); });
   const props = fixture();
   for (const change of [{ dataMode: "local" }, { dataMode: "demo" }, { active: false }, { connected: false }, { snapshot: null }, { snapshot: createAtlasDemo() }] as const) {
     await render({ ...props, ...change }); assert.equal(state.result, undefined); assert.equal(state.loading, false);
@@ -49,7 +50,7 @@ test("local, demo, inactive, disconnected and already coordinated data do not in
 
 test("one snapshot read is cached across unrelated renders and activation, without changing source coordinates", async () => {
   const props = fixture(), before = structuredClone(props.snapshot), batch = await createMapReferenceFixture(props.snapshot!);
-  const fetcher = mock.method(globalThis, "fetch", async () => response(batch));
+  const fetcher = mockLegacyAtlasFetch(async () => response(batch));
   await render(props); await settle(); assert.equal(state.loading, false); assert.deepEqual(state.result, batch);
   await render({ ...props }); await render({ ...props, active: false }); assert.equal(state.result, undefined);
   await render(props); assert.deepEqual(state.result, batch); assert.equal(fetcher.mock.callCount(), 1);
@@ -67,7 +68,7 @@ test("endpoint, token, snapshot, view, activation and unmount cancel a pending r
   for (const change of changes) {
     const props = fixture(), batch = await createMapReferenceFixture(props.snapshot!), late = deferred<Response>();
     const signals: AbortSignal[] = [];
-    mock.method(globalThis, "fetch", async (_url: RequestInfo | URL, init?: RequestInit) => { signals.push(init!.signal as AbortSignal); return signals.length === 1 ? late.promise : new Promise<Response>(() => {}); });
+    mockLegacyAtlasFetch(async (_url: RequestInfo | URL, init?: RequestInit) => { signals.push(init!.signal as AbortSignal); return signals.length === 1 ? late.promise : new Promise<Response>(() => {}); });
     await render(props); assert.equal(state.loading, true); assert.equal(signals[0]!.aborted, false);
     await change(props); assert.equal(signals[0]!.aborted, true);
     await act(async () => late.resolve(response(batch))); assert.equal(state.result, undefined);
@@ -77,7 +78,7 @@ test("endpoint, token, snapshot, view, activation and unmount cancel a pending r
 
 test("an old service produces a useful upgrade message and explicit retry performs only the read route", async () => {
   const props = fixture(), batch = await createMapReferenceFixture(props.snapshot!); let calls = 0;
-  const fetcher = mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  const fetcher = mockLegacyAtlasFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     assert.equal(new URL(String(url)).pathname, "/api/v1/locations/map-references"); assert.equal(init!.method, "POST");
     return ++calls === 1 ? new Response(JSON.stringify({ ok: false, requestId: "synthetic-old-service", error: { code: "not-found", message: "PRIVATE_SERVER_MESSAGE" } }), { status: 404 }) : response(batch);
   });
@@ -89,7 +90,7 @@ test("an old service produces a useful upgrade message and explicit retry perfor
 test("explicit cancel leaves a retryable state and ignores a transport that finishes after cancellation", async () => {
   const props = fixture(), batch = await createMapReferenceFixture(props.snapshot!), late = deferred<Response>();
   let signal: AbortSignal | undefined, calls = 0;
-  mock.method(globalThis, "fetch", async (_url: RequestInfo | URL, init?: RequestInit) => { signal = init!.signal as AbortSignal; return ++calls === 1 ? late.promise : response(batch); });
+  mockLegacyAtlasFetch(async (_url: RequestInfo | URL, init?: RequestInit) => { signal = init!.signal as AbortSignal; return ++calls === 1 ? late.promise : response(batch); });
   await render(props); await act(async () => state.cancel()); assert.equal(signal!.aborted, true); assert.equal(state.loading, false); assert.match(state.error!, /已取消/);
   await act(async () => late.resolve(response(batch))); assert.equal(state.result, undefined); assert.equal(calls, 1);
   await act(async () => state.retry()); await settle(); assert.deepEqual(state.result, batch); assert.equal(calls, 2);
@@ -98,17 +99,17 @@ test("explicit cancel leaves a retryable state and ignores a transport that fini
 test("a structurally valid result for changed source evidence is rejected before it can poison the shared list query", async () => {
   const props = fixture(), batch = await createMapReferenceFixture(props.snapshot!);
   batch.references[0]!.locationFingerprint = "c".repeat(64);
-  mock.method(globalThis, "fetch", async () => response(batch));
+  mockLegacyAtlasFetch(async () => response(batch));
   await render(props); await settle(); assert.equal(state.result, undefined); assert.equal(state.loading, false); assert.match(state.error!, /当前索引地点不一致.*岗位列表仍可使用/);
 });
 
 test("a stale response remains an error and a timed out read cannot publish late city points", async () => {
   const props = fixture(), batch = await createMapReferenceFixture(props.snapshot!);
-  const fetcher = mock.method(globalThis, "fetch", async () => response({ ...batch, snapshotRevision: batch.snapshotRevision + 1 }));
+  const fetcher = mockLegacyAtlasFetch(async () => response({ ...batch, snapshotRevision: batch.snapshotRevision + 1 }));
   await render(props); assert.equal(state.result, undefined); assert.match(state.error!, /索引版本不一致/); fetcher.mock.restore();
   mock.timers.enable({ apis: ["setTimeout"] }); let signal: AbortSignal | undefined;
   const late = deferred<Response>();
-  mock.method(globalThis, "fetch", async (_url: RequestInfo | URL, init?: RequestInit) => {
+  mockLegacyAtlasFetch(async (_url: RequestInfo | URL, init?: RequestInit) => {
     signal = init!.signal as AbortSignal;
     return new Promise<Response>((resolve, reject) => { signal!.addEventListener("abort", () => reject(signal!.reason), { once: true }); void late.promise.then(resolve); });
   });

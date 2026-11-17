@@ -7,12 +7,14 @@ export * from "./query-map-references.js";
 export * from "./map-references.js";
 export * from "./colors.js";
 export {
-  JobQuerySchema, JobQueryError, DEFAULT_TECHNICAL_ALIASES, normalizeSearchText,
+  JobQuerySchema, QueryOptionsSchema, JobQueryError, DEFAULT_TECHNICAL_ALIASES, normalizeSearchText,
   includesSearchText, getSearchTermMatchQuality, locationDisplayGrade, queryJobs, createJobQueryService,
   type JobQuery, type JobQueryInput, type QueryOptions, type JobSearchItem,
   type MapDisplayGrade, type MapBucket, type JobQueryResult,
 } from "./query.js";
 export { createJobQueryIndex, type JobQueryIndex } from "./query-index.js";
+export { queryJobPage } from "./query-page.js";
+export * from "./ai-job-relevance.js";
 export * from "./query-output.js";
 export * from "./services.js";
 export * from "./tools.js";

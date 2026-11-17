@@ -46,6 +46,21 @@ test("receipt-confirmed import errors are visible without guessing source failur
   assert.doesNotMatch(markup, /<details[^>]+open/);
 });
 
+test("one-click background continuation is visible before diagnostics and is never dispatched by rendering", () => {
+  let continuations = 0;
+  const markup = renderToStaticMarkup(React.createElement(AtlasHarvestProgress, {
+    progress: { stage: "completed", stageIndex: 5, totalStages: 5, message: "部分未完成", stats: { committedCards: 0, failedCards: 3 } },
+    failed: true, busy: false, onResume: () => { continuations++; },
+  }));
+  assert.match(markup.slice(0, markup.indexOf("<details")), />后台核对并继续<\/button>/);
+  assert.equal((markup.match(/>后台核对并继续<\/button>/g) ?? []).length, 1);
+  assert.equal(continuations, 0);
+  const busy = renderToStaticMarkup(React.createElement(AtlasHarvestProgress, {
+    progress: null, busy: true, onResume: () => { continuations++; },
+  }));
+  assert.doesNotMatch(busy, />后台核对并继续<\/button>/);
+});
+
 test("settled counters and background metrics stay available but do not compete with the cause", () => {
   const markup = renderToStaticMarkup(React.createElement(AtlasHarvestProgress, {
     progress: { stage: "completed", stageIndex: 5, totalStages: 5, message: "读取结束", stats: { committedCards: 1122, pendingCards: 0, totalAdded: 2, totalUpdated: 243 } },

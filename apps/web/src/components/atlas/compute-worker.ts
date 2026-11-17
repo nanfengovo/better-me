@@ -6,6 +6,7 @@ import { analyzeAiJobRelevance } from "./ai-job-relevance";
 import { prepareAtlasMapGeometry } from "./prototypes/map-performance";
 import { ATLAS_CHUNK_SIZE, ATLAS_TABLES, emptyComputeSnapshot, type ComputeRequest, type ComputeResponse, type AtlasTable } from "./compute-protocol";
 import { datasetEntityId } from "../../../../job-service/src/dataset-sync-contract";
+import { createAtlasBrowseReader } from "./browse-reader";
 
 type WorkerPort = { postMessage(message: ComputeResponse): void; onmessage: ((event: { data: ComputeRequest }) => void) | null };
 const yieldTask = () => new Promise<void>(resolve => setTimeout(resolve, 0));
@@ -15,6 +16,7 @@ export function startAtlasComputeWorker(port: WorkerPort) {
   const snapshots = new Map<string, AtlasDataset>();
   const snapshotKeys = new WeakMap<AtlasDataset, string>();
   const synchronizer = createAtlasSnapshotSynchronizer();
+  const browse = createAtlasBrowseReader();
   const pages = new WeakMap<AtlasDataset, Map<string, Promise<AtlasPageResult>>>();
   const geometries = new WeakMap<AtlasPageResult["summary"]["mapBuckets"], ReturnType<typeof prepareAtlasMapGeometry>>();
   const coverages = new WeakMap<AtlasDataset, { key: string; value: ReturnType<typeof getAtlasDataCoverage> }>();
@@ -65,7 +67,8 @@ export function startAtlasComputeWorker(port: WorkerPort) {
       if (operation.kind === "snapshot") {
         let previewKey: string | undefined;
         const relayed = new Map(ATLAS_TABLES.map(table => [table, new Set<string>()]));
-        const { dataset, base, delta } = await synchronizer.read(operation.endpoint, operation.token, { signal: controller.signal, maxBytes: operation.maxBytes,
+        const browseResult = operation.view === "browse" ? await browse.read(operation.endpoint, operation.token, { signal: controller.signal, maxBytes: operation.maxBytes }) : undefined;
+        const { dataset, base, delta } = browseResult ?? await synchronizer.read(operation.endpoint, operation.token, { signal: controller.signal, maxBytes: operation.maxBytes,
           onProgress: async (partial, progress) => {
             controller.signal.throwIfAborted();
             const key = `service-${++snapshotSequence}`; put(key, partial); previewKey = key;
@@ -99,7 +102,7 @@ export function startAtlasComputeWorker(port: WorkerPort) {
         } else {
           // A cancelled/evicted UI transfer can be repaired from this worker's
           // validated baseline without forcing another full HTTP download.
-          port.postMessage({ type: "begin-snapshot", id, snapshot: key, header: { schemaVersion: dataset.schemaVersion, revision: dataset.revision } });
+          port.postMessage({ type: "begin-snapshot", id, snapshot: key, header: { schemaVersion: dataset.schemaVersion, revision: dataset.revision, ...("view" in dataset && dataset.view === "browse" ? { view: "browse" as const } : {}) } });
           for (const table of ATLAS_TABLES) await chunks(id, table, dataset[table], controller.signal);
         }
       } else if (operation.kind === "page") {
@@ -111,7 +114,8 @@ export function startAtlasComputeWorker(port: WorkerPort) {
         if (!computation) {
           // A caller's cancellation cannot cancel a shared read. Each observer
           // still discards its own late result; no mutation runs in this worker.
-          computation = queryAtlasPageDirect(dataset, operation.query, operation.options, operation.page)
+          if ("view" in dataset && dataset.view === "browse" && !browse.has(dataset)) throw Object.assign(new Error("岗位浏览会话已释放，请重新读取索引。"), { code: "snapshot-missing" });
+          computation = (browse.has(dataset) ? browse.query(dataset, operation.query, operation.options, { ...operation.page, signal: AbortSignal.timeout(30_000) }) : queryAtlasPageDirect(dataset, operation.query, operation.options, operation.page))
             .then(async value => {
               let geometry = geometries.get(value.summary.mapBuckets);
               if (!geometry) { geometry = prepareAtlasMapGeometry(value.summary.mapBuckets); geometries.set(value.summary.mapBuckets, geometry); }
@@ -134,11 +138,19 @@ export function startAtlasComputeWorker(port: WorkerPort) {
           await chunks(id, "officeBucketIds", result.geometry.officeBucketIds, controller.signal);
           await chunks(id, "coordinateStacks", result.geometry.coordinateStacks, controller.signal);
         }
+      } else if (operation.kind === "detail") {
+        const value = await browse.detail(get(operation.snapshot), operation.jobId, controller.signal);
+        controller.signal.throwIfAborted(); port.postMessage({ type: "result", id, value }); return;
       } else {
         const dataset = get(operation.snapshot);
+        if ("view" in dataset && dataset.view === "browse" && !browse.has(dataset)) throw Object.assign(new Error("岗位浏览会话已释放，请重新读取索引。"), { code: "snapshot-missing" });
         const key = JSON.stringify(operation.options), previous = coverages.get(dataset);
         const coverage = operation.options.now && previous?.key === key ? previous.value : getAtlasDataCoverage(dataset, operation.options);
         if (operation.options.now) coverages.set(dataset, { key, value: coverage });
+        if (browse.has(dataset)) {
+          const penetratedIds = operation.text.trim() ? await browse.penetration(dataset, operation.text, controller.signal) : [];
+          controller.signal.throwIfAborted(); port.postMessage({ type: "result", id, value: { coverage, penetratedIds } }); return;
+        }
         const companies = new Map(dataset.companies.map(company => [company.id, company]));
         const penetratedIds: string[] = [];
         if (operation.text.trim()) for (let index = 0; index < dataset.jobs.length; index++) {

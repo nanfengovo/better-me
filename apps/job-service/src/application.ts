@@ -31,6 +31,8 @@ import { createCompensationAuditTools } from "./compensation-audit.js";
 import { startBackgroundEnrichmentWorker } from "./background-enrichment-worker.js";
 import { DatasetSyncRequestSchema, DatasetSyncResponseSchema } from "./dataset-sync-contract.js";
 import { BaselineRequestSchema, BaselineResponseSchema, BaselineCloseSchema } from "./dataset-baseline-contract.js";
+import { createAtlasBrowse } from "./browse.js";
+import { BrowseRequestSchema, BrowseResponseSchema, BrowseQuerySchema, BrowseQueryResultSchema, BrowsePenetrationSchema, BrowsePenetrationResultSchema, BrowseDetailInputSchema, AtlasJobEvidenceSchema } from "./browse-contract.js";
 
 const emptyInput = z.object({}).strict();
 // Name-only discovery has no permission to follow arbitrary URLs. This host policy is
@@ -88,6 +90,7 @@ export function createJobApplication(options: JobApplicationOptions) {
   const sources = createSourceRegistry(options.adapters ?? [greenhouseAdapter, leverAdapter, ashbyAdapter, mappedJsonAdapter, githubJsonAdapter, tencentAdapter, smartRecruitersAdapter, discoveryPolicyAdapter, jobPostingJsonLdAdapter]);
   const transport = options.transport ?? createControlledSourceTransport({ timeoutMs: 65_000 });
   const query = createJobQueryService(repository);
+  const browse = createAtlasBrowse(repository);
   const running = new Map<string, AbortController>();
   const pending = new Set<Promise<unknown>>();
   const stopSignal = new AbortController();
@@ -135,6 +138,14 @@ export function createJobApplication(options: JobApplicationOptions) {
     ...(input.mapCityReferences ? { mapReferences: await mapReferenceTool.execute({ expectedRevision: (await repository.readSnapshot()).revision, limit: 1000 }, context) } : {}),
   }));
   const definitions: ToolDefinition<any, any>[] = [
+    defineTool({ name: "jobs.browse", version: 1, description: "读取不含JD正文与历史原文的浏览投影；不是完整备份。", effect: "read-index", inputSchema: BrowseRequestSchema, outputSchema: BrowseResponseSchema,
+      execute: (input, context) => guarded(async () => { context.throwIfCancelled(); return JSON.parse(JSON.stringify(await browse.read(input))); }) }),
+    defineTool({ name: "jobs.browse-query", version: 1, description: "在已捕获完整索引上查询全量统计/地图与当前页，不触发采集。", effect: "read-index", inputSchema: BrowseQuerySchema, outputSchema: BrowseQueryResultSchema,
+      execute: (input, context) => guarded(() => browse.query(input, context)) }),
+    defineTool({ name: "jobs.browse-penetration", version: 1, description: "在同一完整索引上执行正文关键词规则，返回岗位ID，不调用模型。", effect: "read-index", inputSchema: BrowsePenetrationSchema, outputSchema: BrowsePenetrationResultSchema,
+      execute: (input, context) => guarded(() => browse.penetration(input, context)) }),
+    defineTool({ name: "jobs.browse-detail", version: 1, description: "按需读取浏览版本中单个岗位的完整JD与历史证据，不混入新版本。", effect: "read-index", inputSchema: BrowseDetailInputSchema, outputSchema: AtlasJobEvidenceSchema,
+      execute: (input, context) => guarded(() => browse.detail(input, context)) }),
     defineTool({ name: "enrichment.status", version: 1, description: "查看当前身份的后台来源事实补全计数，不返回岗位内容或凭据。", effect: "read-index", inputSchema: emptyInput,
       outputSchema: z.object({ revision: RevisionSchema, pending: z.number().int().nonnegative(), running: z.number().int().nonnegative(),
         completed: z.number().int().nonnegative(), failed: z.number().int().nonnegative(), nextRetryAt: z.string().datetime({ offset: true }).optional(),

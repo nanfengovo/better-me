@@ -38,6 +38,33 @@ async function preview(repository: JobRepository, input = capture()) {
   return { tools, result, command: { ...input, expectedRevision, previewFingerprint: result.previewFingerprint, reviewed: true as const } };
 }
 
+test("receipt lookup is read-only, request-and-owner-bound, and survives a repository reopen", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "better-me-receipt-lookup-"));
+  const file = join(dir, "isolated.sqlite");
+  let repo = openJobRepository(file, { now: () => at });
+  try {
+    const { tools, command } = await preview(repo);
+    const before = await repo.readSnapshot();
+    assert.deepEqual(await tools[2].execute(command, context("lost-reply")), { receipt: null });
+    assert.deepEqual(await repo.readSnapshot(), before, "a missing receipt is not an import");
+    const receipt = await tools[1].execute(command, context("lost-reply"));
+    repo.close(); repo = openJobRepository(file, { now: () => at });
+    const after = await repo.readSnapshot();
+    const lookup = makeTools(repo)[2];
+    assert.equal(lookup.effect, "read-index");
+    assert.deepEqual(await lookup.execute(command, context("lost-reply")), { receipt });
+    assert.deepEqual(await lookup.execute(command, { ...context("lost-reply"), actorScope: "other-owner" }), { receipt: null });
+    assert.deepEqual(await lookup.execute(command, context("unused-key")), { receipt: null });
+    await assert.rejects(lookup.execute({ ...command, capturedAt: "2026-10-18T00:00:00.000Z" }, context("lost-reply")), hasCode("stale-version"));
+    assert.deepEqual(await repo.readSnapshot(), after, "lookup never changes the revision or imports a job");
+    const registry = createToolRegistry(makeTools(repo));
+    const checked = await registry.execute(lookup.name, command, { requestId: "read-only-lookup", actorScope: context().actorScope,
+      idempotencyKey: "lost-reply", allowedEffects: ["read-index"], signal: new AbortController().signal,
+      budget: { requests: 0, bytes: 2_000_000, timeoutMs: 30_000 } });
+    assert.equal(checked.ok, true, "recovery lookup requires no write or external-read permission");
+  } finally { repo.close(); await rm(dir, { recursive: true, force: true }); }
+});
+
 test("one employer conflict in forty cards is retained while thirty-nine jobs and their source locations commit", async () => {
   const dir = await mkdtemp(join(tmpdir(), "better-me-company-conflict-"));
   const path = join(dir, "isolated.sqlite");

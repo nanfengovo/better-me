@@ -18,11 +18,13 @@ import {
   mapWithConcurrency,
   LiveBatchSearchInputSchema,
   getPlatformExpandedUrls,
+  isHarvestBootstrapRequest,
   sanitizeProgressCardBatches,
   sanitizeReviewedCards,
 } from "../server/jd-live-batch-search";
 import type { NativeCdp } from "../server/jd-native-cdp";
 import type { JobSearchCard } from "../server/jd-search-capture";
+import { HarvestVisualRecovery } from "../server/jd-harvest-visual";
 
 function cdpReturning(value: unknown, shouldThrow = false): NativeCdp {
   return {
@@ -34,6 +36,80 @@ function cdpReturning(value: unknown, shouldThrow = false): NativeCdp {
     close() {},
     connected: true,
   };
+}
+
+test("bootstrap waiting recognizes only exact HTTPS platform hosts and bounded request types", () => {
+  assert.equal(isHarvestBootstrapRequest("51job", "XHR", "https://cupid.51job.com/open/noauth/dictionary/batch-dictionary"), true);
+  assert.equal(isHarvestBootstrapRequest("boss", "Script", "https://static.zhipin.com/app.js"), true);
+  for (const url of ["http://cupid.51job.com/a", "https://cupid.51job.com.evil.test/a", "https://u:p@cupid.51job.com/a", "https://cupid.51job.com:444/a", "chrome-extension://example/a", "invalid"]) {
+    assert.equal(isHarvestBootstrapRequest("51job", "XHR", url), false);
+  }
+  assert.equal(isHarvestBootstrapRequest("51job", "Image", "https://cupid.51job.com/a"), false);
+});
+
+for (const completion of ["empty", "login", "hung", "unrelated"] as const) {
+  test(`first-party bootstrap grace handles ${completion} without reload, focus or unbounded waiting`, async t => {
+    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1000 });
+    const url = "https://we.51job.com/pc/search?keyword=C%23&jobArea=020000&searchType=2";
+    const started = Date.now();
+    let navigations = 0, focused = 0;
+    let listener: Parameters<NativeCdp["on"]>[0] = () => {};
+    const cdp: NativeCdp = { ...cdpReturning(undefined), on(callback) { listener = callback; return () => {}; }, async send<T>(method: string, params?: Record<string, unknown>): Promise<T> {
+      const complete = completion !== "hung" && Date.now() - started >= 32_000;
+      if (method === "Target.createTarget") return { targetId: "readiness-target" } as T;
+      if (method === "Target.attachToTarget") return { sessionId: "bootstrap-session" } as T;
+      if (method === "Target.activateTarget") focused++;
+      if (method === "Page.navigate") { navigations++; listener({ method: "Network.requestWillBeSent", sessionId: "bootstrap-session", params: { requestId: "dictionary", type: "XHR", request: { url: completion === "unrelated" ? "https://analytics.example.test/pixel" : "https://cupid.51job.com/open/noauth/dictionary/batch-dictionary" } } }); }
+      if (method === "DOMSnapshot.captureSnapshot") return readinessSnapshot(url, complete && completion === "empty" ? "暂无匹配岗位" : "合成初始化界面") as T;
+      if (method === "Runtime.evaluate") return { result: { value: String(params?.expression).includes("marker:") ? { url, marker: "" }
+        : String(params?.expression).includes("candidateLinks:") ? { readyState: "complete", route: "search", failure: complete && completion === "login" ? "login" : "unknown", loadingIndicators: 0 }
+        : [] } } as T;
+      return {} as T;
+    } };
+    let settled = false;
+    const pending = captureProviderViaNativeCdp(cdp, { provider: "51job", platform: "51JOB", url }, [], "C#", undefined, 0, "quick", 1,
+      async () => { focused++; return true; }, undefined, async () => undefined).finally(() => { settled = true; });
+    for (let n = 0; n < 200 && !settled; n++) { t.mock.timers.tick(250); await new Promise<void>(resolve => setImmediate(resolve)); }
+    assert.equal(settled, true);
+    const result = await pending;
+    assert.equal(result.status, completion === "empty" ? "empty" : completion === "login" ? "login_required" : "unknown_layout");
+    assert.equal(navigations, 1); assert.equal(focused, 0);
+    assert.ok(Date.now() - started < 45_000);
+    if (completion === "unrelated") assert.ok(Date.now() - started < 12_000, "analytics cannot extend readiness");
+  });
+}
+
+for (const outcome of ["recovered", "gate", "declined", "not-enabled"] as const) {
+  test(`unknown-layout collector visual seam handles ${outcome} without fabricating cards or focusing Chrome`, async t => {
+    t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1000 });
+    const pageUrl = "https://we.51job.com/pc/search?keyword=Java&jobArea=020000&searchType=2";
+    let recovered = false, visualCalls = 0, focused = 0;
+    const recovery = new HarvestVisualRecovery();
+    recovery.recover = async () => { visualCalls++; recovered = outcome === "recovered" && visualCalls === 1;
+      return { changed: recovered, reason: "synthetic", ...(outcome === "gate" ? { gate: "verification" as const } : {}) }; };
+    const cdp: NativeCdp = { ...cdpReturning(undefined), async send<T>(method: string, params?: Record<string, unknown>): Promise<T> {
+      if (method === "Target.createTarget") return { targetId: "readiness-target" } as T;
+      if (method === "Target.attachToTarget") return { sessionId: "owned-visual-session" } as T;
+      if (method === "Target.getTargets") return { targetInfos: [{ targetId: "readiness-target", type: "page", url: pageUrl }] } as T;
+      if (method === "Target.activateTarget") focused++;
+      if (method === "DOMSnapshot.captureSnapshot") return readinessSnapshot(pageUrl, recovered ? "暂无匹配岗位" : "合成未知界面") as T;
+      if (method === "Runtime.evaluate") { const expression = String(params?.expression);
+        return { result: { value: expression.includes("marker:") ? { url: pageUrl, marker: "" }
+          : expression.includes("candidateLinks:") ? { readyState: "complete", route: "search", failure: "unknown", loadingIndicators: 0 }
+          : [] } } as T;
+      }
+      return {} as T;
+    } };
+    let settled = false;
+    const pending = captureProviderViaNativeCdp(cdp, { provider: "51job", platform: "51JOB", url: pageUrl }, [], "Java", undefined, 0, "quick", 1,
+      async () => { focused++; return true; }, undefined, () => {}, undefined, outcome === "not-enabled" ? undefined : recovery).finally(() => { settled = true; });
+    for (let n = 0; n < 160 && !settled; n++) { t.mock.timers.tick(250); await new Promise<void>(resolve => setImmediate(resolve)); }
+    const result = await pending;
+    assert.equal(visualCalls, outcome === "not-enabled" ? 0 : 1);
+    assert.equal(focused, 0); assert.equal(result.cards.length, 0);
+    assert.equal(result.status, outcome === "recovered" ? "empty" : outcome === "gate" ? "verification_required" : "unknown_layout");
+    assert.equal(result.coverage.stopReason, outcome === "recovered" ? "exhausted" : outcome === "gate" ? "gate" : "no_progress");
+  });
 }
 
 function card(index: number, pageUrl: string): JobSearchCard {
@@ -57,6 +133,8 @@ function card(index: number, pageUrl: string): JobSearchCard {
 }
 
 test("live batch accepts the actual standard and deep page budgets", () => {
+  assert.equal(LiveBatchSearchInputSchema.safeParse({ keyword: "Java", visualFallback: true }).success, false);
+  assert.equal(LiveBatchSearchInputSchema.safeParse({ keyword: "Java", visualFallback: true, collectionSessionId: "4d5d9792-76b2-48ed-b724-a2e6f5ae211a" }).success, true);
   for (const maxPages of [15, 30, 50]) {
     assert.equal(LiveBatchSearchInputSchema.safeParse({ keyword: "Java", depth: "deep", maxPages }).success, true);
   }

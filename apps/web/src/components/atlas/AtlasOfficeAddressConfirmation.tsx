@@ -109,7 +109,7 @@ function OfficeAddressSession({ endpoint, token, jobId, location, revision, onCl
     setPreview({ input: input.data, value: result }); setReviewed(false); setRevokeReviewed(false);
   });
   const refresh = () => run(async signal => {
-    const data = await client.snapshot({ signal }); alive(signal);
+    const data = await client.browseSnapshot({ signal }); alive(signal);
     if (data.revision < Math.max(latestRevision.current, saved?.revision ?? 0)) throw new Error("尚未读取到当前或已保存的索引版本，请重试读取。");
     onSnapshot(data);
   });
@@ -131,7 +131,7 @@ function OfficeAddressSession({ endpoint, token, jobId, location, revision, onCl
       throw problem;
     }
     alive(signal); setSaved(receipt); setPending(undefined);
-    try { const data = await client.snapshot({ signal }); alive(signal);
+    try { const data = await client.browseSnapshot({ signal }); alive(signal);
       if (data.revision < Math.max(latestRevision.current, receipt.revision)) throw new Error("尚未读取到当前或写入后的版本。"); onSnapshot(data);
     } catch (problem) { alive(signal); throw new Error(`已保存到索引版本 ${receipt.revision}，页面刷新未完成。请重新读取索引。`, { cause: problem }); }
   });

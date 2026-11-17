@@ -1,6 +1,7 @@
 import type { AtlasDataset } from "@better-me/opportunities";
 import {
   runLivePlatformBatchSearch,
+  releaseLivePlatformSearchTabs,
   type LiveBatchProviderResultClient,
   type LiveBatchSearchReceipt,
   type LiveBatchSearchStreamEvent,
@@ -151,6 +152,8 @@ export type OpportunityHarvestClientPipelineOptions = {
   enableWebSearch?: boolean;
   /** Keep enrichment available separately when capture should finish at commit. Default: true. */
   enrichAfterCommit?: boolean;
+  /** Explicit per-run screenshot sharing. Never restored from the checkpoint. */
+  visualFallback?: boolean;
   initialSnapshot?: AtlasDataset;
   depth?: "quick" | "standard" | "deep";
   maxPages?: number;
@@ -183,6 +186,7 @@ export class OpportunityHarvestChainedClientPipeline {
   private marketScope?: OpportunityHarvestClientPipelineOptions["marketScope"];
   private enableWebSearch?: boolean;
   private enrichAfterCommit: boolean;
+  private visualFallback: boolean;
   private depth?: "quick" | "standard" | "deep";
   private maxPages?: number;
   private signal?: AbortSignal;
@@ -224,6 +228,7 @@ export class OpportunityHarvestChainedClientPipeline {
     this.marketScope = options.marketScope;
     this.enableWebSearch = options.enableWebSearch;
     this.enrichAfterCommit = options.enrichAfterCommit ?? true;
+    this.visualFallback = options.visualFallback === true;
     this.depth = options.depth;
     this.maxPages = options.maxPages;
     this.callerSignal = options.signal;
@@ -315,6 +320,9 @@ export class OpportunityHarvestChainedClientPipeline {
       ));
       if (this.batchReceipt.results.length) this.publishLiveResults();
       await this.commitQueue.restore(this.checkpointSnapshot.batches);
+      // Complete original receipt reconciliation before new browser work.
+      // This is a barrier, not finish(): live page batches still use this queue.
+      await this.commitQueue.waitForPending();
     })();
   }
 
@@ -422,6 +430,20 @@ export class OpportunityHarvestChainedClientPipeline {
    * Stage 2: Multi-Platform Concurrent Live Harvest
    */
   async stage2_HarvestLivePlatforms(): Promise<this> {
+    const collectionSessionId = crypto.randomUUID();
+    let acknowledged = false;
+    try {
+      return await this.harvestLivePlatforms(collectionSessionId, () => { acknowledged = true; });
+    } finally {
+      // Older local services omit the capability acknowledgement. Never infer
+      // ownership from an arbitrary returned target or release another run.
+      if (acknowledged) await releaseLivePlatformSearchTabs(collectionSessionId).catch(() => {
+        console.warn("[pipeline] 采集后台页清理尚未确认；服务保留所有权并有界重试，不影响已保存岗位。");
+      });
+    }
+  }
+
+  private async harvestLivePlatforms(collectionSessionId: string, acknowledge: () => void): Promise<this> {
     await this.initializeCheckpoint();
     if (this.domainSynonyms.length === 0) this.stage1_ExpandIntent();
 
@@ -443,6 +465,19 @@ export class OpportunityHarvestChainedClientPipeline {
     }
     const failedTerms: string[] = [];
     const failedTermDetails: Array<{ term: string; error: string }> = [];
+    // A gate belongs to a platform session, not to a keyword. Keep this set
+    // invocation-local: only an explicit continuation may try that platform
+    // again. Never manufacture receipts for terms that were not visited.
+    const suspendedProviders = new Set<LiveBatchProviderResultClient["provider"]>();
+    const suspendGatedProvider = (result: LiveBatchProviderResultClient) => {
+      if (result.status === "login_required" || result.status === "verification_required"
+        || result.coverage.stopReason === "gate"
+        || result.coverage.failureKind === "platform_limit" || result.coverage.failureKind === "login"
+        || result.coverage.failureKind === "verification") {
+        suspendedProviders.add(result.provider);
+        this.harvestHasErrors = true;
+      }
+    };
 
     const providerOutcomeStats = () => {
       const providers = mergeLiveBatchSearchReceipts(
@@ -489,10 +524,13 @@ export class OpportunityHarvestChainedClientPipeline {
       this.commitQueue?.assertHealthy();
       const priorReceipt = receipts[receiptIndexes.get(queryTerm) ?? -1];
       const currentQueryResults = new Map(priorReceipt?.results.map(result => [result.provider, result]));
-      const providers = HARVEST_PROVIDERS.filter(provider => !this.checkpoint || !this.providerReadComplete(currentQueryResults.get(provider)));
+      const providers = HARVEST_PROVIDERS.filter(provider => !suspendedProviders.has(provider)
+        && (!this.checkpoint || !this.providerReadComplete(currentQueryResults.get(provider))));
       if (!providers.length) {
         completedTerms.add(queryTerm);
-        this.emit("platform-harvest", 2, `已恢复技术词 ${index + 1}/${queryTermTotal} 的已读平台回执：${queryTerm}（保留原有覆盖限制）。`,
+        this.emit("platform-harvest", 2, suspendedProviders.size
+          ? `技术词 ${index + 1}/${queryTermTotal} 暂不重复访问受限平台：${queryTerm}；其余已读回执保留，未读部分不计作覆盖。`
+          : `已恢复技术词 ${index + 1}/${queryTermTotal} 的已读平台回执：${queryTerm}（保留原有覆盖限制）。`,
           queryTermStats(index + 1, queryTerm, "completed"));
         continue;
       }
@@ -511,6 +549,7 @@ export class OpportunityHarvestChainedClientPipeline {
           // captured card. Page cards travel separately on the progress event.
           if (event.type === "provider-result") {
             await this.persistProvider(queryTerm, event.result, capturedAt);
+            suspendGatedProvider(event.result);
             currentQueryResults.set(event.result.provider, event.result);
             upsertReceipt(queryTerm, { capturedAt, results: [...currentQueryResults.values()] });
             accumulatedReceipt = this.includeRecoveredCards(mergeLiveBatchSearchReceipts(receipts, queryTerms, failedTerms, failedTermDetails));
@@ -528,7 +567,9 @@ export class OpportunityHarvestChainedClientPipeline {
         const receipt = await runLivePlatformBatchSearch(
           {
             keyword: queryTerm,
-            ...(this.checkpoint ? { providers: [...providers] } : {}),
+            collectionSessionId,
+            visualFallback: this.visualFallback,
+            providers: [...providers],
             ...(this.region ? { regionId: this.region } : {}),
             ...(this.chinaSelection?.districtCode ? { districtCode: this.chinaSelection.districtCode } : {}),
             depth: this.depth ?? "standard",
@@ -537,8 +578,10 @@ export class OpportunityHarvestChainedClientPipeline {
           this.signal,
           this.onLiveProgressCallback ? { onEvent: publishStreamProgress } : undefined,
         );
+        if (receipt.collectionSessionId === collectionSessionId) acknowledge();
         for (const result of receipt.results) {
           await this.persistProvider(queryTerm, result, receipt.capturedAt);
+          suspendGatedProvider(result);
           currentQueryResults.set(result.provider, result);
         }
         upsertReceipt(queryTerm, { capturedAt: receipt.capturedAt, results: [...currentQueryResults.values()] });

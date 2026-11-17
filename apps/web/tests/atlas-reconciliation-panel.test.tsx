@@ -1,3 +1,4 @@
+import { mockLegacyAtlasFetch } from "./atlas-legacy-fetch";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test, { after, afterEach, mock } from "node:test";
@@ -44,7 +45,7 @@ const response = (value: unknown) => new Response(JSON.stringify({ ok: true, req
 type Call = { path: string; body: Record<string, unknown>; key: string | null; init: RequestInit };
 function installFetch(handler?: (call: Call) => Response | Promise<Response> | undefined) {
   const calls: Call[] = [];
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init: RequestInit = {}) => {
+  mockLegacyAtlasFetch(async (url: RequestInfo | URL, init: RequestInit = {}) => {
     const call: Call = { path: new URL(String(url)).pathname.split("/").at(-1)!, body: init.body ? JSON.parse(String(init.body)) : {}, key: new Headers(init.headers).get("Idempotency-Key"), init };
     calls.push(call); const custom = await handler?.(call); if (custom) return custom;
     if (call.path === "export") return response(calls.some(entry => ["merge", "reject", "revoke"].includes(entry.path)) ? updated : base);

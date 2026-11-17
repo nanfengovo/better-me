@@ -1,0 +1,60 @@
+import { DEFAULT_TECHNICAL_ALIASES, JobQueryError, JobQuerySchema, queryJobs, type JobQueryInput, type JobQueryResult, type QueryOptions } from "./query.js";
+import type { AtlasDataset } from "./schema.js";
+import * as opportunityQueries from "./query-index.js";
+export type AtlasPageOptions = { cursor?: string; pageIndex?: number; selectedJobIds?: readonly string[]; signal?: AbortSignal };
+export type AtlasPageResult = { summary: JobQueryResult; page: JobQueryResult; pageIndex?: number };
+
+// Snapshots are replaced atomically by the synchronizer. Never key by revision
+// alone: separate repositories may legitimately have the same revision number.
+type SnapshotQueryIndex = { search(input: JobQueryInput, options?: QueryOptions): Promise<JobQueryResult> };
+const queryIndexes = new WeakMap<AtlasDataset, SnapshotQueryIndex>();
+function createSnapshotQueryIndex(data: AtlasDataset): SnapshotQueryIndex {
+  // A running dev session may still have the previous workspace-package build.
+  // It stays usable until the next deliberate build; do not force a restart or
+  // reference a missing static export just to activate this optimization.
+  const createIndex = Reflect.get(opportunityQueries, "createJobQueryIndex") as ((data: AtlasDataset) => SnapshotQueryIndex) | undefined;
+  return typeof createIndex === "function" ? createIndex(data) : { search: (query, options) => queryJobs(data, query, options) };
+}
+
+export async function queryJobPage(data: AtlasDataset, query: JobQueryInput, options: QueryOptions = {}, { cursor, pageIndex, selectedJobIds, signal }: AtlasPageOptions = {}): Promise<AtlasPageResult> {
+  signal?.throwIfAborted();
+  if (pageIndex !== undefined && (!Number.isSafeInteger(pageIndex) || pageIndex < 0 || cursor)) {
+    throw new JobQueryError("invalid-query", "页码必须是非负整数，且不能与旧版本游标混用。");
+  }
+  let index = queryIndexes.get(data);
+  if (!index) { index = createSnapshotQueryIndex(data); queryIndexes.set(data, index); }
+  const search = index.search;
+  const effectiveOptions: QueryOptions = {
+    ...options,
+    aliases: options.aliases ?? DEFAULT_TECHNICAL_ALIASES,
+  };
+  const baseQuery: JobQueryInput = { ...query, page: { limit: query.page?.limit } };
+  // A refreshed snapshot has a new cursor identity. Resolve it once, then resume
+  // the visible page instead of treating every background commit as a new search.
+  async function resumePage(first: JobQueryResult, selectedQuery: JobQueryInput): Promise<{ page: JobQueryResult; pageIndex?: number }> {
+    if (pageIndex === undefined) return { page: first };
+    const limit = first.normalizedQuery.page.limit;
+    const index = Math.min(pageIndex, Math.max(0, Math.ceil(first.totalJobs / limit) - 1));
+    if (index === 0) return { page: first, pageIndex: 0 };
+    signal?.throwIfAborted();
+    const page = await search({ ...selectedQuery, page: { limit, cursor: `${first.queryId}:${index * limit}` } }, effectiveOptions);
+    signal?.throwIfAborted();
+    return { page, pageIndex: index };
+  }
+  if (selectedJobIds === undefined) {
+    const result = await search({ ...baseQuery, page: { ...baseQuery.page, ...(cursor ? { cursor } : {}) } }, effectiveOptions);
+    signal?.throwIfAborted();
+    const resumed = await resumePage(result, baseQuery);
+    return { ...resumed, summary: resumed.page };
+  }
+  const selection = JobQuerySchema.shape.jobIds.safeParse(selectedJobIds);
+  if (!selection.success) throw new JobQueryError("invalid-query", "所选岗位 ID 不符合岗位查询契约。");
+  const summary = await search(baseQuery, effectiveOptions);
+  signal?.throwIfAborted();
+  const baseIds = query.jobIds === undefined ? undefined : new Set(query.jobIds);
+  const jobIds = [...new Set(selection.data)].filter((id) => !baseIds || baseIds.has(id)).sort();
+  const selectedQuery = { ...baseQuery, jobIds, page: { ...baseQuery.page, ...(cursor ? { cursor } : {}) } };
+  const page = await search(selectedQuery, effectiveOptions);
+  signal?.throwIfAborted();
+  return { summary, ...await resumePage(page, selectedQuery) };
+}

@@ -15,7 +15,9 @@ import { NATIVE_ROOT_SCROLL_STYLES, projectNativeDomSnapshot } from "./jd-cdp-do
 import { extractJobSearchCards, type JobSearchCard } from "./jd-search-capture";
 import { getNetworkFetch } from "./network-proxy";
 import type { JobPlatform } from "../src/lib/jd-source";
-import { classifyHarvestFailure, HARVEST_PAGE_OBSERVATION, HarvestDiagnosticSchema, retainHarvestDiagnostic, type HarvestDiagnostic } from "./jd-harvest-diagnostics";
+import { classifyHarvestFailure, HARVEST_PAGE_OBSERVATION, HarvestDiagnosticSchema, retainHarvestDiagnostic, harvestDiagnosticRetentionLabel, type HarvestDiagnostic } from "./jd-harvest-diagnostics";
+import { idleLiveSearchTabs, liveSearchTabsFor, type LiveSearchTabs, type LiveSearchTabLease } from "./jd-live-search-tabs";
+import { nativeVisualDriver, type HarvestVisualRecovery } from "./jd-harvest-visual";
 
 export const LiveBatchSearchInputSchema = z.object({
   keyword: z.string().trim().min(1).max(120),
@@ -27,8 +29,24 @@ export const LiveBatchSearchInputSchema = z.object({
   interactiveWaitMs: z.number().int().min(0).max(120_000).optional(),
   depth: z.enum(["quick", "standard", "deep"]).optional(),
   maxPages: z.number().int().min(1).max(50).optional(),
+  collectionSessionId: z.string().uuid().optional(),
+  visualFallback: z.boolean().optional(),
+}).refine(input => !input.visualFallback || Boolean(input.collectionSessionId), {
+  path: ["collectionSessionId"], message: "视觉兜底需要本轮后台采集会话，不能独立操作其他页面。",
 });
 export type LiveBatchSearchInput = z.infer<typeof LiveBatchSearchInputSchema>;
+
+/** A bounded initialization grace, never a retry or a way around a platform gate. */
+export function isHarvestBootstrapRequest(provider: PlatformSearchProvider, type: string, value: unknown): boolean {
+  if (!["Document", "Script", "XHR", "Fetch"].includes(type) || typeof value !== "string") return false;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.username || url.password || url.port) return false;
+    if (provider === "51job") return ["we.51job.com", "oauth.51job.com", "cupid.51job.com", "vapi.51job.com", "fccdn.51jobcdn.com", "fecdn.51jobcdn.com"].includes(url.hostname);
+    if (provider === "boss") return ["www.zhipin.com", "static.zhipin.com", "img.bosszhipin.com"].includes(url.hostname);
+    return false;
+  } catch { return false; }
+}
 
 export type LiveBatchStopReason = "exhausted" | "page_limit" | "scroll_limit" | "card_limit" | "no_progress" | "gate" | "error" | "cancelled";
 export type LiveBatchCoverage = {
@@ -182,6 +200,7 @@ async function safelyReport(callback: (() => void | Promise<void>) | undefined) 
 }
 
 export type LiveBatchSearchResult = {
+  collectionSessionId?: string;
   capturedAt: string;
   results: LiveBatchProviderResult[];
 };
@@ -1189,7 +1208,7 @@ export async function fetchLinkedInDirect(
       });
       if (observations.length) {
         const id = await retainHarvestDiagnostic({ provider: "linkedin", observations });
-        warnings.push(`脱敏诊断${id ? ` ${id}` : "保存失败"}：${[...new Set(observations.map(o => o.failure))].join("、")}；未保存页面正文或身份信息。`);
+        warnings.push(`脱敏诊断${harvestDiagnosticRetentionLabel(id)}：${[...new Set(observations.map(o => o.failure))].join("、")}；未保存页面正文或身份信息。`);
       }
       const allRawCards: JobSearchCard[] = [];
       let primaryUrl = plan.url;
@@ -1277,6 +1296,8 @@ export async function captureProviderViaNativeCdp(
   focusForInteractiveWait: (port: number) => Promise<boolean> = focusRealChromeWindow,
   onProviderProgress?: (progress: LiveBatchProviderProgress) => void | Promise<void>,
   retainDiagnostic: typeof retainHarvestDiagnostic = retainHarvestDiagnostic,
+  tabs?: LiveSearchTabs,
+  visualRecovery?: HarvestVisualRecovery,
 ): Promise<LiveBatchProviderResult> {
   let targetId: string | undefined;
   let ownsTarget = false;
@@ -1284,15 +1305,19 @@ export async function captureProviderViaNativeCdp(
   let sessionId: string | undefined;
   let unsubscribe: (() => void) | undefined;
   const pendingRequests = new Set<string>();
+  const pendingBootstrapRequests = new Set<string>();
   const requestTypes = new Map<string, string>();
   let failedRequests = 0;
   let failedDocuments = 0, failedScripts = 0, failedDataRequests = 0, limitedDataResponses = 0;
   let documentStatus: number | undefined;
+  let lease: LiveSearchTabLease | undefined;
+  let reusable = false;
 
   try {
     // Never attach to an arbitrary platform tab. Even a matching query can be
     // scrolled by the virtual-list reader; stale queries would also be navigated.
-    const created = await cdp.send<{ targetId?: string }>(
+    lease = tabs ? await tabs.acquire(cdp, plan.provider, plan.url) : undefined;
+    const created = lease ?? await cdp.send<{ targetId?: string }>(
       "Target.createTarget",
       // Attach Network/Page observers before navigation. Creating at the real
       // URL then stopping an apparently blank target races Chrome's first load.
@@ -1344,6 +1369,7 @@ export async function captureProviderViaNativeCdp(
       const id = typeof params.requestId === "string" ? params.requestId : "";
       if (event.method === "Network.requestWillBeSent" && ["Document", "XHR", "Fetch", "Script"].includes(String(params.type)) && pendingRequests.size < 10000) {
         pendingRequests.add(id); requestTypes.set(id, String(params.type));
+        if (isHarvestBootstrapRequest(plan.provider, String(params.type), (params.request as { url?: unknown } | undefined)?.url)) pendingBootstrapRequests.add(id);
       }
       if (event.method === "Network.loadingFinished" || event.method === "Network.loadingFailed") {
         if (event.method === "Network.loadingFailed" && pendingRequests.has(id)) {
@@ -1353,7 +1379,7 @@ export async function captureProviderViaNativeCdp(
           if (type === "Script") failedScripts = Math.min(10000, failedScripts + 1);
           if (type === "XHR" || type === "Fetch") failedDataRequests = Math.min(10000, failedDataRequests + 1);
         }
-        pendingRequests.delete(id); requestTypes.delete(id);
+        pendingRequests.delete(id); pendingBootstrapRequests.delete(id); requestTypes.delete(id);
       }
       // A restricted ad/analytics XHR alone is not a blocked jobs API.
       if (event.method === "Network.responseReceived" && ["XHR", "Fetch"].includes(String(params.type))
@@ -1419,6 +1445,7 @@ export async function captureProviderViaNativeCdp(
     };
 
     let pageReadinessDeadline = Date.now() + 8_000;
+    let pageReadinessBudgetMs = 8_000;
     let readinessExtended = false;
     let blankRecoveryUsed = false;
     let navigationCommandFailed = false;
@@ -1472,7 +1499,7 @@ export async function captureProviderViaNativeCdp(
       if (signal?.aborted) { stopReason = "cancelled"; break; }
       if (allRawCards.length >= maxCardCap) { stopReason = "card_limit"; break; }
       if (lastVisitedPage !== page) {
-        if (lastVisitedPage > 0) { pageReadinessDeadline = Date.now() + 8_000; readinessExtended = false; }
+        if (lastVisitedPage > 0) { pageReadinessDeadline = Date.now() + 8_000; pageReadinessBudgetMs = 8_000; readinessExtended = false; }
         pagesVisited++;
         lastVisitedPage = page;
         pageHasCards = false;
@@ -1595,6 +1622,7 @@ export async function captureProviderViaNativeCdp(
             if (userResolved) {
               await cdp.send("Page.navigate", { url: plan.url }, sessionId, 5000).catch(() => {});
               pageReadinessDeadline = Date.now() + 8_000;
+              pageReadinessBudgetMs = 8_000;
               readinessExtended = false;
               pageHasCards = false;
               pageScrolled = false;
@@ -1631,9 +1659,14 @@ export async function captureProviderViaNativeCdp(
           if (captureStatus !== "unknown_layout") { lastStatus = captureStatus; stopReason = "error"; break; }
           // A loading SPA shell is not an empty result page. Keep reading this
           // page within one absolute grace period before any pagination input.
-          if (Date.now() >= pageReadinessDeadline && !readinessExtended && (evidence.readyState === "loading" || Number(evidence.loadingIndicators) > 0)) {
-            pageReadinessDeadline += 12_000;
+          if (Date.now() >= pageReadinessDeadline && !readinessExtended && (evidence.readyState === "loading" || Number(evidence.loadingIndicators) > 0 || page === 1 && pendingBootstrapRequests.size > 0)) {
+            // Real 51JOB dictionary initialization can take ~30s while the
+            // document reports complete and has no visible loading indicator.
+            const extra = page === 1 && pendingBootstrapRequests.size > 0 ? 32_000 : 12_000;
+            pageReadinessDeadline += extra;
+            pageReadinessBudgetMs += extra;
             readinessExtended = true;
+            if (extra === 32_000) allWarnings.push("平台初始化资源尚在返回，已在后台有界延长首次读取至最多 40 秒；未刷新页面或跳过登录验证。");
           }
           if (Date.now() < pageReadinessDeadline) {
             await pauseLiveSearchReadiness(Math.min(250, pageReadinessDeadline - Date.now()), signal);
@@ -1641,13 +1674,34 @@ export async function captureProviderViaNativeCdp(
           }
           if (await recoverScriptShell(page, lastPageUrl, pageFailedScriptsBaseline)) {
             pageReadinessDeadline = Date.now() + 8_000;
+            pageReadinessBudgetMs = 8_000;
             readinessExtended = false;
             pageScrolled = false;
             continue;
           }
+          if (visualRecovery) {
+            const visual = await visualRecovery.recover(nativeVisualDriver(cdp, sessionId!, signal), plan.url, plan.provider, signal);
+            const usage = visualRecovery.usage;
+            allWarnings.push(`本轮视觉预算：已分配 ${usage.reservedCalls}/${usage.maxCalls} 次模型调用；已返回用量 ${usage.inputTokens} 输入 / ${usage.outputTokens} 输出 token。超时调用的服务端计费可能尚未返回。`);
+            if (visual.gate) {
+              lastStatus = visual.gate === "login" ? "login_required" : visual.gate === "verification" ? "verification_required" : "error";
+              stopReason = "gate";
+              allWarnings.push("视觉检查发现登录、验证或访问限制，已停止自动操作；请在平台登录态入口处理后继续。");
+              break;
+            }
+            if (visual.changed) {
+              allWarnings.push("视觉兜底已执行一次受限后台操作，正在重新核验结构化岗位证据；操作回执不代表采集成功。");
+              pageReadinessDeadline = Date.now() + 4_000;
+              pageReadinessBudgetMs = 4_000;
+              readinessExtended = true;
+              pageScrolled = false;
+              continue;
+            }
+            allWarnings.push(`视觉兜底未继续操作（${visual.reason}）；未生成或补造岗位。`);
+          }
           lastStatus = "unknown_layout";
           stopReason = "no_progress";
-          allWarnings.push(`搜索页面在 ${readinessExtended ? 20 : 8} 秒内仍未出现可核对的岗位卡片或明确空结果；未跳过当前页或将其计为零岗位，已停止本平台采集。`);
+          allWarnings.push(`搜索页面在 ${pageReadinessBudgetMs / 1000} 秒内仍未出现可核对的岗位卡片或明确空结果；未跳过当前页或将其计为零岗位，已停止本平台采集。`);
           break;
         }
         if (allRawCards.length > 0) {
@@ -1861,8 +1915,10 @@ export async function captureProviderViaNativeCdp(
       const parsed = HarvestDiagnosticSchema.safeParse({ provider: plan.provider, observations: diagnosticObservations });
       const id = parsed.success ? await retainDiagnostic(parsed.data) : undefined;
       if (failureKind) failureKind = parsed.success ? parsed.data.observations.at(-1)?.failure : "unknown";
-      allWarnings.push(`脱敏诊断${id ? ` ${id}` : "保存失败"}：${failureKind ?? "加载中断后已恢复"}；仅保留加载、限制与翻页结构证据，不保存页面正文或身份信息。`);
+      allWarnings.push(`脱敏诊断${harvestDiagnosticRetentionLabel(id)}：${failureKind ?? "加载中断后已恢复"}；仅保留加载、限制与翻页结构证据，不保存页面正文或身份信息。`);
     }
+    reusable = !signal?.aborted && !["gate", "error", "cancelled", "no_progress"].includes(stopReason)
+      && (cards.length > 0 || lastStatus === "empty");
 
     if (cards.length > 0) {
       return {
@@ -1907,9 +1963,11 @@ export async function captureProviderViaNativeCdp(
   } finally {
     unsubscribe?.();
     if (sessionId) {
-      await cdp.send("Target.detachFromTarget", { sessionId }, undefined, 1500).catch(() => {});
+      await cdp.send("Target.detachFromTarget", { sessionId }, undefined, 1500).catch(() => { reusable = false; });
     }
-    if (ownsTarget && targetId && !preserveTargetForInteractiveLogin) {
+    if (lease) {
+      await lease.release(reusable, preserveTargetForInteractiveLogin).catch(() => {});
+    } else if (ownsTarget && targetId && !preserveTargetForInteractiveLogin) {
       await cdp.send("Target.closeTarget", { targetId }, undefined, 1500).catch(() => {});
     }
   }
@@ -1946,6 +2004,7 @@ export async function runLiveBatchSearch(
   rawInput: unknown,
   signal?: AbortSignal,
   callbacks: LiveBatchSearchCallbacks = {},
+  owner = "internal",
 ): Promise<LiveBatchSearchResult> {
   const input = LiveBatchSearchInputSchema.parse(rawInput);
   const plans = buildLiveBatchSearchPlans(input);
@@ -1997,16 +2056,19 @@ export async function runLiveBatchSearch(
   if (browserPlans.length > 0) {
     const isRunning = await checkCdpRunning(9222);
     if (!isRunning) {
-      await launchRealChromeCdp(9222, browserPlans[0]!.url);
+      // The launch page is a neutral keep-alive, never a duplicate search.
+      await launchRealChromeCdp(9222, "about:blank");
     }
     let cdp: NativeCdp | undefined;
+    let tabs: LiveSearchTabs | undefined;
     try {
+      tabs = input.collectionSessionId ? liveSearchTabsFor(input.collectionSessionId, owner, input.visualFallback === true) : undefined;
       cdp = await connectNativeCdp(9222);
       const targets = await cdp.send<NativeTargetList>("Target.getTargets", {}, undefined, 3000);
       // Each provider gets an owned background target. A small concurrency cap
       // reduces additive cross-platform latency without opening an unbounded
       // number of tabs or making per-provider pagination less strict.
-      browserResults = await mapWithConcurrency(browserPlans, 3, async (plan) => {
+      browserResults = await mapWithConcurrency(browserPlans, 2, async (plan) => {
         if (signal?.aborted) return undefined;
         await safelyReport(() => callbacks.onProviderStart?.(plan.provider, plan.platform));
         try {
@@ -2021,6 +2083,9 @@ export async function runLiveBatchSearch(
             input.maxPages,
             focusRealChromeWindow,
             callbacks.onProviderProgress,
+            undefined,
+            tabs,
+            input.visualFallback ? tabs?.visualRecovery : undefined,
           );
           await reportResult(res);
           return res;
@@ -2057,7 +2122,9 @@ export async function runLiveBatchSearch(
         await reportResult(result);
       }
     } finally {
+      if (signal?.aborted && cdp) await tabs?.close(cdp);
       cdp?.close();
+      if (input.collectionSessionId) idleLiveSearchTabs(input.collectionSessionId, owner);
     }
   }
 
@@ -2079,5 +2146,6 @@ export async function runLiveBatchSearch(
   return {
     capturedAt,
     results,
+    ...(input.collectionSessionId ? { collectionSessionId: input.collectionSessionId } : {}),
   };
 }

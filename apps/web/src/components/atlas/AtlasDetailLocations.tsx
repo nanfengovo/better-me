@@ -141,7 +141,7 @@ function DetailLocationReader({ endpoint, token, data, target, onSnapshot, onOff
     if (next.revision < Math.max(latest.current.revision, minimumRevision)) throw new Error("读取的索引早于已保存或当前版本，请重新读取索引。");
     recoverableWrites.delete(scope); setFresh(next); latest.current.onSnapshot(next);
   }
-  function refresh() { return run("正在重新读取索引…", async signal => { const next = await client.snapshot({ signal }); alive(signal); publish(next); }); }
+  function refresh() { return run("正在重新读取索引…", async signal => { const next = await client.browseSnapshot({ signal }); alive(signal); publish(next); }); }
   function commit() { return run("正在保存来源地点…", async signal => {
     if (!pending && (!capture || !preview || !confirmed || preview.expectedRevision !== latest.current.revision)) return;
     const request = pending ?? { input: { jobId: target.jobId, listingId: target.listingId, capture: capture!, expectedRevision: preview!.expectedRevision, previewFingerprint: preview!.previewFingerprint, reviewed: true as const }, key: `detail-address-${crypto.randomUUID()}` };
@@ -156,7 +156,7 @@ function DetailLocationReader({ endpoint, token, data, target, onSnapshot, onOff
     const result = { revision: receipt.revision, locationIds: preview?.newLocations.map(location => location.id) ?? [] };
     recoverableWrites.set(scope, { saved: result, capture, preview });
     alive(signal); setSaved(result); setPending(undefined); setFresh(undefined);
-    try { const next = await client.snapshot({ signal }); alive(signal); publish(next, receipt.revision); }
+    try { const next = await client.browseSnapshot({ signal }); alive(signal); publish(next, receipt.revision); }
     catch (problem) { alive(signal); throw new Error(`地点已保存至版本 ${receipt.revision}。请重新读取索引后继续核对办公位置。`, { cause: problem }); }
   }); }
   const locations = saved && fresh && fresh.revision >= saved.revision && fresh.revision >= data.revision

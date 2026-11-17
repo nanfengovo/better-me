@@ -5,6 +5,7 @@ import { finiteProgressStat, harvestStageHeadline, harvestStageName, harvestStep
 import type { LiveHarvestProvider } from "./live-harvest-view";
 import { summarizeHarvestIssues, sanitizeHarvestDiagnostic, type HarvestIssueInput } from "./harvest-issue-presentation";
 import { AtlasHarvestAdvisor } from "./AtlasHarvestAdvisor";
+import type { ReactNode } from "react";
 
 const STAGE_COUNT = 5;
 
@@ -18,6 +19,7 @@ export function AtlasHarvestProgress({
   providers,
   onResume,
   onOpenLogin,
+  visualConsent,
   recoveryMessage,
   recoveryPhase,
   importFailures,
@@ -36,6 +38,7 @@ export function AtlasHarvestProgress({
   providers?: readonly LiveHarvestProvider[];
   onResume?: () => void;
   onOpenLogin?: () => void;
+  visualConsent?: ReactNode;
   recoveryMessage?: string;
   recoveryPhase?: string;
   importFailures?: HarvestIssueInput["importFailures"];
@@ -114,6 +117,11 @@ export function AtlasHarvestProgress({
         {busy && progress?.message && <span className="atlas-harvest-progress-current">{sanitizeHarvestDiagnostic(progress.message)}</span>}
       </div>}
 
+      {showResume && visualConsent}
+      {!busy && (showResume || needsLogin && onOpenLogin) && <div className="atlas-harvest-actions" aria-label="继续处理本轮采集">
+        {showResume && <button type="button" onClick={onResume} title="先核对原提交回执，再继续未完成的平台；不重复采集已完成项，不自动处理验证码。">后台核对并继续</button>}
+        {needsLogin && onOpenLogin && <button type="button" onClick={onOpenLogin}>处理登录 / 验证</button>}
+      </div>}
       {!busy && issues.length > 0 && <AtlasHarvestAdvisor issues={issues} saved={committedCards} config={agentConfig} active={active} onAskAgent={onAskAgent} />}
       {visibleIssues.length > 0 && <ul className="atlas-harvest-issues" aria-label="本轮未完成原因">
         {visibleIssues.map(issue => <li className="atlas-harvest-issue" key={issue.id} data-severity={issue.severity}>
@@ -181,10 +189,6 @@ export function AtlasHarvestProgress({
         {failed && !busy && <p className="atlas-harvest-progress-count-note">未返回的平台或页面不计作已覆盖。</p>}
         {stopped && <p className="atlas-harvest-progress-count-note">已请求停止，保留本轮已收到的实时岗位和入库结果；未返回的页面不计作已覆盖。</p>}
       </details>
-      {!busy && (showResume || needsLogin && onOpenLogin) && <div className="atlas-harvest-actions">
-        {needsLogin && onOpenLogin && <button type="button" onClick={onOpenLogin}>检查平台登录</button>}
-        {showResume && <button type="button" onClick={onResume}>继续上次采集</button>}
-      </div>}
       </div>
     </section>
   );

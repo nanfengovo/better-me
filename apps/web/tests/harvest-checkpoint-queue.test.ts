@@ -58,6 +58,27 @@ function client(events: string[] = []) {
   return { service, imports: () => imports };
 }
 
+test("an oversized historical index cannot prevent a bounded card commit or erase its confirmed receipt", async () => {
+  const stored = checkpoint();
+  const service = client(stored.events).service;
+  let imports = 0, revisionReads = 0;
+  Object.assign(service, { indexRevision: async () => { revisionReads++; return { revision: 7 }; } });
+  service.snapshot = async () => { throw Object.assign(new Error("Synthetic public index exceeds 96 MiB"), { code: "too-large" }); };
+  service.previewReviewedCards = async input => {
+    assert.equal(input.expectedRevision, 7);
+    return { expectedRevision: 7, previewFingerprint: "synthetic-preview" } as never;
+  };
+  service.importReviewedCards = async () => { imports++; return receipt(8); };
+  const stats: number[] = [];
+  const queue = new LiveCardCommitQueue({ client: service, checkpoint: stored.journal, onStats: value => stats.push(value.committedCards) });
+  await queue.enqueue({ ...batch(), cardLimit: 500 });
+  await assert.rejects(queue.finish(), /岗位已提交，但索引快照刷新失败.*新增 1 岗/);
+  assert.equal(revisionReads, 1);
+  assert.equal(imports, 1, "a failed full-index refresh never replays the write");
+  assert.equal(stored.state.batches[0]?.receipt?.revision, 8);
+  assert.equal(stats.at(-1), 1);
+});
+
 test("captured batches resume preview and persist the exact command before import", async () => {
   const stored = checkpoint([batch()]);
   const service = client(stored.events);
@@ -89,6 +110,78 @@ test("receipt-lost prepared commands replay the identical key/body before any pr
   assert.equal(imports, 1);
   assert.equal(result.stats.totalAdded, 1);
   assert.deepEqual(stored.state.batches[0]!.receipt, receipt());
+});
+
+test("a lost import response is recovered by read-only receipt lookup without another import", async () => {
+  const prepared = { ...batch(), command: command() };
+  const stored = checkpoint([prepared]);
+  const service = client().service;
+  let lookups = 0, imports = 0;
+  service.lookupReviewedCardsReceipt = async (input, options) => {
+    lookups++;
+    assert.deepEqual(input, prepared.command.input);
+    assert.equal(options.idempotencyKey, prepared.command.idempotencyKey);
+    return { receipt: receipt() };
+  };
+  service.importReviewedCards = async () => { imports++; throw new Error("a confirmed write must not be replayed"); };
+  const queue = new LiveCardCommitQueue({ client: service, checkpoint: stored.journal });
+  await queue.restore(stored.state.batches);
+  const result = await queue.finish();
+  assert.equal(lookups, 1);
+  assert.equal(imports, 0);
+  assert.equal(result.stats.committedCards, 1);
+  assert.deepEqual(stored.state.batches[0]!.receipt, receipt());
+});
+
+test("an unavailable receipt lookup does not guess a negative result or issue a write", async () => {
+  const stored = checkpoint([{ ...batch(), command: command() }]);
+  const service = client().service;
+  let imports = 0;
+  service.lookupReviewedCardsReceipt = async () => { throw new Error("synthetic lookup unavailable"); };
+  service.importReviewedCards = async () => { imports++; return receipt(); };
+  const queue = new LiveCardCommitQueue({ client: service, checkpoint: stored.journal });
+  await queue.restore(stored.state.batches);
+  const result = await queue.finish();
+  assert.equal(imports, 0);
+  assert.equal(result.stats.committedCards, 0);
+  assert.equal(result.stats.failedCards, 1);
+  assert.equal(stored.state.batches[0]!.receipt, undefined);
+});
+
+test("a rejected original receipt lookup never clears the command or previews a new write", async () => {
+  const prepared = { ...batch(), command: command() };
+  const stored = checkpoint([prepared]);
+  const service = client().service;
+  let previews = 0, imports = 0;
+  service.lookupReviewedCardsReceipt = async () => { throw Object.assign(new Error("original fingerprint rejected"), { code: "stale-version" }); };
+  service.previewReviewedCards = async () => { previews++; throw new Error("must preserve the ambiguous command"); };
+  service.importReviewedCards = async () => { imports++; return receipt(); };
+  const queue = new LiveCardCommitQueue({ client: service, checkpoint: stored.journal });
+  await queue.restore(stored.state.batches);
+  const result = await queue.finish();
+  assert.equal(previews, 0);
+  assert.equal(imports, 0);
+  assert.equal(result.stats.failedCards, 1);
+  assert.deepEqual(stored.state.batches[0]!.command, prepared.command);
+});
+
+test("an authoritative missing receipt permits only the original idempotent command", async () => {
+  const prepared = { ...batch(), command: command() };
+  const stored = checkpoint([prepared]);
+  const service = client().service;
+  const events: string[] = [];
+  service.lookupReviewedCardsReceipt = async () => { events.push("lookup"); return { receipt: null }; };
+  service.previewReviewedCards = async () => { throw new Error("must not re-preview before replay"); };
+  service.importReviewedCards = async (input, options) => {
+    events.push("import");
+    assert.deepEqual(input, prepared.command.input);
+    assert.equal(options.idempotencyKey, prepared.command.idempotencyKey);
+    return receipt();
+  };
+  const queue = new LiveCardCommitQueue({ client: service, checkpoint: stored.journal });
+  await queue.restore(stored.state.batches);
+  assert.equal((await queue.finish()).stats.committedCards, 1);
+  assert.deepEqual(events, ["lookup", "import"]);
 });
 
 test("confirmed batches seed counters and identities but never replay HTTP writes", async () => {

@@ -12,7 +12,7 @@ import {
   PreviewDetailLocationsInputSchema, ImportDetailLocationsInputSchema, DetailLocationsPreviewSchema,
   type PreviewDetailLocationsInput, type ImportDetailLocationsInput,
 } from "@better-me/source-adapters/browser-contracts";
-import { AtlasClientError, readAtlasSnapshot } from "./client";
+import { AtlasClientError, readAtlasSnapshot, readAtlasBrowseSnapshot } from "./client";
 import {
   PreviewLocationConfirmationInputSchema, ConfirmLocationInputSchema, RevokeLocationConfirmationInputSchema,
   LocationConfirmationPreviewSchema, LocationConfirmationReceiptSchema,
@@ -365,6 +365,10 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
       return result;
     },
     snapshot: (options: Options = {}) => readAtlasSnapshot(endpoint, token, options),
+    browseSnapshot: (options: Options = {}) => readAtlasBrowseSnapshot(endpoint, token, options),
+    // Reuse the authenticated metadata route. CAS does not require downloading
+    // every historical job/snapshot, and this read never starts enrichment.
+    indexRevision: (options: Options = {}) => request("enrichment/status", z.object({ revision: count().max(Number.MAX_SAFE_INTEGER) }).strip(), options),
     previewDetailLocations: async (value: PreviewDetailLocationsInput, options: Options = {}) => {
       const query = input(PreviewDetailLocationsInputSchema, value);
       const result = await request("jobs/detail-locations/preview", DetailLocationsPreviewSchema, options, query);
@@ -390,6 +394,12 @@ export function createAtlasSourceClient(endpoint: string, token: string) {
       return result;
     },
     previewReviewedCards: (value: PreviewReviewedCardsInput, options: Options = {}) => request("jobs/reviewed-cards/preview", ReviewedCardsPreviewSchema, options, input(PreviewReviewedCardsInputSchema, value)),
+    lookupReviewedCardsReceipt: async (value: ImportReviewedCardsInput, options: WriteOptions) => {
+      const result = await request("jobs/reviewed-cards/receipt", z.object({ receipt: ReceiptSchema.nullable() }).strict(), options,
+        input(ImportReviewedCardsInputSchema, value), input(KeySchema, options.idempotencyKey));
+      if (result.receipt && !reviewedCompanyConflictsMatchCapture(value, result.receipt.conflicts)) throw new AtlasSourceServiceError("invalid-response", "入库回执与原卡片提交不一致，未重新写入。");
+      return result;
+    },
     importReviewedCards: async (value: ImportReviewedCardsInput, options: WriteOptions) => {
       const receipt = await request("jobs/reviewed-cards/import", ReceiptSchema, options, input(ImportReviewedCardsInputSchema, value), input(KeySchema, options.idempotencyKey));
       if (!reviewedCompanyConflictsMatchCapture(value, receipt.conflicts)) throw new AtlasSourceServiceError("invalid-response", "冲突回执与本次来源卡片不一致，保存结果待核对。");

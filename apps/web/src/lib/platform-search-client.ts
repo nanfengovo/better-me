@@ -75,6 +75,7 @@ const liveBatchProviderResult = z.object({
 const liveBatchReceipt = z.object({
   capturedAt: z.string().datetime({ offset: true }),
   results: z.array(liveBatchProviderResult).max(7),
+  collectionSessionId: z.string().uuid().optional(),
 }).strict();
 export type PlatformSearchCard = z.infer<typeof card>;
 export type PlatformSearchReceipt = z.infer<typeof result>;
@@ -147,6 +148,7 @@ export type LiveBatchProviderResultClient = {
 export type LiveBatchSearchReceipt = {
   capturedAt: string;
   results: LiveBatchProviderResultClient[];
+  collectionSessionId?: string;
 };
 
 export type LiveBatchProviderProgressClient = {
@@ -254,7 +256,8 @@ async function runLivePlatformBatchSearchStream(
       results.set(event.data.result.provider, event.data.result);
       await callbacks.onEvent?.(event.data);
     } else if (payload.type === "complete") {
-      const event = z.object({ type: z.literal("complete"), capturedAt: z.string().datetime({ offset: true }), providers: z.array(PlatformSearchInputSchema.shape.provider).max(7) }).strict().safeParse(payload);
+      const event = z.object({ type: z.literal("complete"), capturedAt: z.string().datetime({ offset: true }), providers: z.array(PlatformSearchInputSchema.shape.provider).max(7),
+        collectionSessionId: z.string().uuid().optional() }).strict().safeParse(payload);
       if (!event.success || new Set(event.data?.providers ?? []).size !== (event.data?.providers.length ?? 0)) throw error("实时搜索最终回执无效，不能将其当作空结果。");
       if (completed) throw error("实时搜索进度流重复返回结束回执。");
       const expected = requestedProviders ? [...requestedProviders] : event.data.providers;
@@ -266,7 +269,9 @@ async function runLivePlatformBatchSearchStream(
         || expected.length !== results.size || expected.some((provider) => !results.has(provider))) {
         throw error("实时搜索结束时缺少平台最终回执，不能将其当作空结果。");
       }
-      completed = liveBatchReceipt.parse({ capturedAt: event.data.capturedAt, results: expected.map((provider) => results.get(provider)) });
+      if (event.data.collectionSessionId && event.data.collectionSessionId !== input.collectionSessionId) throw error("实时采集后台会话与本轮请求不一致。");
+      completed = liveBatchReceipt.parse({ capturedAt: event.data.capturedAt, results: expected.map((provider) => results.get(provider)),
+        ...(event.data.collectionSessionId ? { collectionSessionId: event.data.collectionSessionId } : {}) });
     } else if (payload.type === "error") {
       const event = z.object({ type: z.literal("error"), message: z.string().max(2_000) }).safeParse(payload);
       if (!event.success) throw error("实时搜索失败回执格式无效。");
@@ -306,6 +311,11 @@ async function runLivePlatformBatchSearchStream(
   return completed;
 }
 
+export async function readHarvestVisualStatus(signal?: AbortSignal) {
+  const payload = await request({ action: "harvest-visual-status" }, signal);
+  return z.object({ configured: z.boolean(), ocr: z.boolean(), model: z.string(), maxCalls: z.number(), maxOutputTokensPerCall: z.number() }).parse(payload);
+}
+
 export async function runLivePlatformBatchSearch(
   input: {
     keyword: string;
@@ -314,6 +324,8 @@ export async function runLivePlatformBatchSearch(
     providers?: PlatformSearchInput["provider"][];
     depth?: "quick" | "standard" | "deep";
     maxPages?: number;
+    collectionSessionId?: string;
+    visualFallback?: boolean;
   },
   signal?: AbortSignal,
   callbacks?: LiveBatchSearchCallbacks,
@@ -322,7 +334,15 @@ export async function runLivePlatformBatchSearch(
   const payload = await request({ action: "live-batch-search", input }, signal, false, 24 * 1024 * 1024);
   const parsed = liveBatchReceipt.safeParse(payload);
   if (!parsed.success) throw error("实时采集响应缺少有效结果或覆盖信息；不能把无效响应当成空岗位。");
+  if (parsed.data.collectionSessionId && parsed.data.collectionSessionId !== input.collectionSessionId) throw error("实时采集后台会话与本轮请求不一致。");
   return parsed.data;
+}
+
+/** Independent of the collection's aborted signal; releases only acknowledged owned tabs. */
+export async function releaseLivePlatformSearchTabs(collectionSessionId: string): Promise<void> {
+  if (!z.string().uuid().safeParse(collectionSessionId).success) throw error("采集后台会话标识无效。");
+  const payload = await request({ action: "release-live-search-tabs", collectionSessionId }, AbortSignal.timeout(10_000), true);
+  if (payload.closed !== true) throw error("本轮采集后台页尚未确认关闭，已保留跟踪供清理。");
 }
 
 export type DynamicCompanyIntelligenceItem = {

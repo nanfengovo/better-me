@@ -88,6 +88,14 @@ export async function startJobApplicationRuntime(config: Omit<RuntimeConfig, "re
     let tieBreaker = 0;
     reader = {
       async execute(tool, input, context) {
+        // Browse handles name bounded, captured views owned by one read worker.
+        // Keep the whole browse family together even under overlapping searches;
+        // other public reads can still use the independent second WAL lane.
+        if (tool.startsWith("jobs.browse")) {
+          inFlight[0]!++;
+          try { return await readPool[0]!.execute(tool, input, context); }
+          finally { inFlight[0]!--; }
+        }
         let chosen = 0;
         let minFlight = inFlight[0]!;
         for (let i = 1; i < readPool.length; i++) {

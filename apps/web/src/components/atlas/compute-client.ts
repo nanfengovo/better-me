@@ -6,6 +6,7 @@ import { ATLAS_CHUNK_SIZE, ATLAS_TABLES, emptyComputeSnapshot, type AtlasMetadat
 import { applyDatasetTableDelta, emptyDatasetUpserts, type DatasetDelta } from "../../../../job-service/src/dataset-sync-contract";
 import type { DatasetUpserts } from "../../../../job-service/src/dataset-sync-contract";
 import type { BaselineProgress } from "../../../../job-service/src/dataset-baseline-contract";
+import type { AtlasJobEvidence } from "../../../../job-service/src/browse-contract";
 
 export type AtlasComputePort = {
   postMessage(message: ComputeRequest): void;
@@ -182,9 +183,9 @@ export function createAtlasComputeClient(port: AtlasComputePort, options: { yiel
       }
     }
   }
-  function readSnapshot(endpoint: string, token: string, { signal, maxBytes, onProgress }: SnapshotOptions = {}): Promise<AtlasDataset> {
+  function readSnapshot(endpoint: string, token: string, { signal, maxBytes, onProgress, view }: SnapshotOptions = {}): Promise<AtlasDataset> {
     if (signal?.aborted) return Promise.reject(signal.reason);
-    const key = JSON.stringify([endpoint, token, maxBytes]);
+    const key = JSON.stringify([endpoint, token, maxBytes, view]);
     let sharedRead = reads.get(key);
     if (!sharedRead) {
       const controller = new AbortController();
@@ -198,7 +199,7 @@ export function createAtlasComputeClient(port: AtlasComputePort, options: { yiel
           // A presentation callback cannot poison another observer's shared read.
           await Promise.all([...listeners].map(async listener => { try { await listener(data, progress); } catch { /* observer owns presentation failure */ } }));
         };
-        port.postMessage({ type: "run", id, operation: { kind: "snapshot", endpoint, token, maxBytes, knownSnapshots: [...known.keys()] } });
+        port.postMessage({ type: "run", id, operation: { kind: "snapshot", endpoint, token, maxBytes, view, knownSnapshots: [...known.keys()] } });
       }, controller.signal);
       sharedRead = { promise, controller, observers: 0, settled: false, listeners }; reads.set(key, sharedRead);
       const captured = sharedRead;
@@ -230,6 +231,9 @@ export function createAtlasComputeClient(port: AtlasComputePort, options: { yiel
   }
   return {
     readSnapshot,
+    detail(data: AtlasDataset, jobId: string, signal?: AbortSignal) {
+      return onSnapshot<AtlasJobEvidence>(data, snapshot => ({ kind: "detail", snapshot, jobId }), signal);
+    },
     queryPage(data: AtlasDataset, query: JobQueryInput, queryOptions: QueryOptions = {}, { signal, ...page }: AtlasPageOptions = {}) {
       return onSnapshot<AtlasPageResult>(data, snapshot => ({ kind: "page", snapshot, query, options: queryOptions, page }), signal);
     },
@@ -249,6 +253,7 @@ function client() {
   return shared;
 }
 export const atlasCompute = {
+  detail: async (...args: Parameters<ReturnType<typeof createAtlasComputeClient>["detail"]>) => client().detail(...args),
   readSnapshot: async (...args: Parameters<ReturnType<typeof createAtlasComputeClient>["readSnapshot"]>) => client().readSnapshot(...args),
   queryPage: async (...args: Parameters<ReturnType<typeof createAtlasComputeClient>["queryPage"]>) => client().queryPage(...args),
   metadata: async (...args: Parameters<ReturnType<typeof createAtlasComputeClient>["metadata"]>) => client().metadata(...args),

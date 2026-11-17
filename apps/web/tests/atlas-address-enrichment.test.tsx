@@ -1,3 +1,4 @@
+import { mockLegacyAtlasFetch } from "./atlas-legacy-fetch";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test, { after, afterEach, mock } from "node:test";
@@ -84,7 +85,7 @@ const response = (value: unknown) => new Response(JSON.stringify({ ok: true, req
 const raw = (value: unknown) => new Response(JSON.stringify(value));
 function installFetch(handler: (call: Call, calls: Call[]) => Response | Promise<Response>) {
   const calls: Call[] = [];
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  mockLegacyAtlasFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const call = { path: new URL(String(url), dom.location.href).pathname, init, body: init?.body ? JSON.parse(String(init.body)) : {}, key: new Headers(init?.headers).get("Idempotency-Key") };
     calls.push(call); return handler(call, calls);
   });
@@ -328,7 +329,7 @@ test("the bounded read deadline aborts the queue without accepting late address 
 test("terminal write rejection clears the checkbox and forces an explicit new read", async () => {
   const calls = savingFetch();
   const original = globalThis.fetch;
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => new URL(String(url), dom.location.href).pathname === paths.write
+  mockLegacyAtlasFetch(async (url: RequestInfo | URL, init?: RequestInit) => new URL(String(url), dom.location.href).pathname === paths.write
     ? new Response(JSON.stringify({ ok: false, requestId: "synthetic-terminal-rejection", error: { code: "stale-version", message: "Synthetic index version has changed" } }), { status: 409 })
     : original(url, init));
   await prepared(); await check(); await click(labels.save);
@@ -424,7 +425,7 @@ test("stopping an in-flight save retains the original request and rejects its la
   const calls = savingFetch(), original = globalThis.fetch, waiting = deferred<Response>();
   const writes: Array<{ body: unknown; key: string | null; signal: AbortSignal | null | undefined }> = [];
   let hold = true;
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  mockLegacyAtlasFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     if (new URL(String(url), dom.location.href).pathname === paths.write) {
       writes.push({ body: JSON.parse(String(init!.body)), key: new Headers(init!.headers).get("Idempotency-Key"), signal: init!.signal });
       if (hold) return waiting.promise;
@@ -445,7 +446,7 @@ test("stopping an in-flight save retains the original request and rejects its la
 test("a snapshot older than the committed receipt stays unpublished and can be recovered through GET only", async () => {
   const calls = savingFetch(), original = globalThis.fetch;
   let written = false, returnedOld = false;
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  mockLegacyAtlasFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url), dom.location.href).pathname;
     if (path === paths.write) written = true;
     if (path === paths.snapshot && written && !returnedOld) { returnedOld = true; return response(BASE); }
@@ -501,7 +502,7 @@ test("internal office save publishes the exact fresh office and job once while s
       jobId: JOB.id, listingId: listing().id, locationId: source.id, revision: snapshots[0]!.revision + 1,
       reason: "Synthetic explicit office confirmation", sourceLocation: source, proposal });
   }
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  mockLegacyAtlasFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url), dom.location.href).pathname;
     if (path === "/api/v1/locations/office-address/preview") {
       const source = snapshots[0]!.locations.find(value => value.id === location().id)!;

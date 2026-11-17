@@ -2,7 +2,7 @@ import { AtlasDatasetSchema, type AtlasDataset } from "@better-me/opportunities"
 import { AtlasClientError } from "./client-error";
 import type { BaselineProgress } from "../../../../job-service/src/dataset-baseline-contract";
 
-export type SnapshotOptions = { signal?: AbortSignal; maxBytes?: number; onProgress?: (dataset: AtlasDataset, progress: BaselineProgress) => void | Promise<void> };
+export type SnapshotOptions = { signal?: AbortSignal; maxBytes?: number; view?: "browse"; onProgress?: (dataset: AtlasDataset, progress: BaselineProgress) => void | Promise<void> };
 const DEFAULT_MAX_BYTES = 96 * 1024 * 1024;
 async function readSmallToolError(response: Response): Promise<string | undefined> {
   const declared = response.headers.get("Content-Length");
@@ -57,9 +57,10 @@ export async function readAtlasEnvelope(endpoint: string, token: string, { signa
     return { supported: false };
   }
   if (!response.ok || response.redirected) {
-    const errorCode = response.status === 422 ? await readSmallToolError(response) : undefined;
+    const errorCode = [409, 422].includes(response.status) ? await readSmallToolError(response) : undefined;
     void response.body?.cancel().catch(() => {});
     if (errorCode === "budget-exceeded") throw new AtlasClientError("too-large", "公开岗位索引超过单次快照预算；服务仍在线。请缩小采集范围或升级增量读取方式。");
+    if (errorCode === "stale-version") throw new AtlasClientError("http-error", "岗位浏览版本已过期，请重新读取索引；已入库岗位和历史证据不受影响。");
     throw new AtlasClientError("http-error", [401, 403].includes(response.status)
       ? `服务返回 ${response.status}。请核对令牌和当前网页的允许 Origin。`
       : `岗位索引服务返回 ${response.status}。请检查本机服务状态后重试。`);

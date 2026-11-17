@@ -3,14 +3,17 @@ import type { AtlasPageOptions, AtlasPageResult } from "./client";
 import type { AtlasCoverageOptions, AtlasDataCoverage } from "./coverage";
 import type { DatasetDelta } from "../../../../job-service/src/dataset-sync-contract";
 import type { BaselineProgress } from "../../../../job-service/src/dataset-baseline-contract";
+import type { AtlasJobEvidence } from "../../../../job-service/src/browse-contract";
 
 export const ATLAS_TABLES = ["sources", "companies", "jobs", "locations", "compensations", "listings", "observations", "snapshots"] as const;
 export type AtlasTable = typeof ATLAS_TABLES[number];
 export const ATLAS_CHUNK_SIZE = 128;
 export type AtlasMetadata = { coverage: AtlasDataCoverage; penetratedIds: string[] };
+export type ComputeHeader = Pick<AtlasDataset, "schemaVersion" | "revision"> & { view?: "browse" };
 export type ComputeOperation =
-  | { kind: "snapshot"; endpoint: string; token: string; maxBytes?: number; knownSnapshots?: string[] }
+  | { kind: "snapshot"; endpoint: string; token: string; maxBytes?: number; view?: "browse"; knownSnapshots?: string[] }
   | { kind: "page"; snapshot: string; query: JobQueryInput; options: QueryOptions; page: Omit<AtlasPageOptions, "signal"> }
+  | { kind: "detail"; snapshot: string; jobId: string }
   | { kind: "metadata"; snapshot: string; options: AtlasCoverageOptions; text: string };
 export type ComputeRequest =
   | { type: "run"; id: number; operation: ComputeOperation }
@@ -23,14 +26,14 @@ export type ComputeResponse =
   | { type: "evicted"; snapshot: string }
   | { type: "begin-baseline"; id: number; snapshot: string; header: Pick<AtlasDataset, "schemaVersion" | "revision"> }
   | { type: "baseline-checkpoint"; id: number; sequence: number; progress: BaselineProgress }
-  | { type: "begin-snapshot"; id: number; snapshot: string; header: Pick<AtlasDataset, "schemaVersion" | "revision"> }
+  | { type: "begin-snapshot"; id: number; snapshot: string; header: ComputeHeader }
   | { type: "begin-delta"; id: number; snapshot: string; base: string; delta: Omit<DatasetDelta, "upserts"> }
   | { type: "use-snapshot"; id: number; snapshot: string }
   | { type: "begin-page"; id: number; value: AtlasPageResult }
   | { type: "chunk"; id: number; sequence: number; target: AtlasTable | "summaryBuckets" | "pageBuckets" | "mapFeatures" | "officeBucketIds" | "coordinateStacks"; values: unknown[] }
-  | { type: "result"; id: number; value?: AtlasMetadata }
+  | { type: "result"; id: number; value?: AtlasMetadata | AtlasJobEvidence }
   | { type: "error"; id: number; name: string; message: string; code?: string };
 
-export function emptyComputeSnapshot(header: Pick<AtlasDataset, "schemaVersion" | "revision">): AtlasDataset {
+export function emptyComputeSnapshot(header: ComputeHeader): AtlasDataset {
   return { ...header, sources: [], companies: [], jobs: [], locations: [], compensations: [], listings: [], observations: [], snapshots: [] };
 }

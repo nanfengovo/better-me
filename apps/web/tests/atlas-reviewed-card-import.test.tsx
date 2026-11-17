@@ -1,3 +1,4 @@
+import { mockLegacyAtlasFetch } from "./atlas-legacy-fetch";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test, { after, afterEach, mock } from "node:test";
@@ -57,7 +58,7 @@ type Call = { path: string; init?: RequestInit; body?: Record<string, unknown>; 
 const response = (value: unknown) => new Response(JSON.stringify({ ok: true, requestId: "synthetic-reviewed-request", value }));
 function installFetch(handler?: (call: Call, calls: Call[]) => Response | Promise<Response>) {
   const calls: Call[] = [];
-  mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+  mockLegacyAtlasFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
     const call = { path: new URL(String(url)).pathname, init, ...(init?.body ? { body: JSON.parse(String(init.body)) } : {}), key: new Headers(init?.headers).get("Idempotency-Key") };
     calls.push(call);
     if (handler) return handler(call, calls);

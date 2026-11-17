@@ -6,10 +6,15 @@ import tailwindcss from "@tailwindcss/vite";
 import { cesiumAssetsPlugin } from "../../server/cesium-assets";
 import { syntheticTiles3d } from "./tiles3d-fixture";
 import { advanceLab, createLabState, LAB_STREAM_MAX_BATCHES, syncLab, type LabScenario, type LabState } from "./data";
+import { createAtlasBrowse } from "../../../job-service/src/browse";
+import { BrowseQuerySchema, BrowsePenetrationSchema, BrowseDetailInputSchema, BrowseRequestSchema } from "../../../job-service/src/browse-contract";
+import { DATASET_SYNC_PROTOCOL } from "../../../job-service/src/dataset-sync-contract";
+import type { ToolHandlerContext } from "@better-me/opportunities";
 
 const webRoot = fileURLToPath(new URL("../../", import.meta.url));
 const repositoryRoot = fileURLToPath(new URL("../../../../", import.meta.url));
 const sessions = new Map<string, LabState>();
+const browseViews = new WeakMap<LabState, ReturnType<typeof createAtlasBrowse>>();
 const scenarios = new Set<LabScenario>(["ready", "empty", "unlocated", "attention", "loading"]);
 const synthetic3d = syntheticTiles3d();
 function labApi(): Plugin {
@@ -28,8 +33,11 @@ function labApi(): Plugin {
         if (request.method === "GET" && path === "/__atlas-ui-lab/3d-fixture/box.glb") { response.setHeader("content-type", "model/gltf-binary"); response.end(synthetic3d.bytes); return; }
         if (request.method === "GET" && path === "/__atlas-ui-lab/3d-fixture/quota.json") { json({error:"synthetic quota response"},429); return; }
         let raw = "";
-        for await (const chunk of request) { raw += chunk.toString(); if (raw.length > 4096) { json({ error: "lab-input-too-large" }, 413); return; } }
+        for await (const chunk of request) { raw += chunk.toString(); if (Buffer.byteLength(raw) > 1024 * 1024) { json({ error: "lab-input-too-large" }, 413); return; } }
         const body = raw ? JSON.parse(raw) : {};
+        if (path === "/api/jd/search-session" && request.method === "POST" && body.action === "harvest-visual-status") {
+          json({ configured: true, model: "gpt-6.1-sol", ocr: true, maxCalls: 4, maxOutputTokensPerCall: 1200 }); return;
+        }
         if (path === "/__atlas-ui-lab/session" && request.method === "POST") {
           const size = body.size === 15000 ? 15000 : 5000;
           const scenario = scenarios.has(body.scenario) ? body.scenario as LabScenario : "ready";
@@ -44,6 +52,23 @@ function labApi(): Plugin {
         const state = token && sessions.get(token);
         if (!state) { json({ error: "isolated-ui-lab-session-required",
           reason: token ? "unknown-session" : "missing-authorization", activeSessions: sessions.size }, 401); return; }
+        if (path.startsWith("/api/v1/atlas/")) {
+          let browse = browseViews.get(state);
+          if (!browse) {
+            browse = createAtlasBrowse({ readSnapshot: async () => structuredClone(state.data), syncSnapshot: async () => ({
+              protocol: DATASET_SYNC_PROTOCOL, kind: "baseline-required", reason: "initial", cursor: { epoch: state.epoch, revision: state.data.revision },
+            }) });
+            browseViews.set(state, browse);
+          }
+          const signal = AbortSignal.timeout(30_000);
+          const context: ToolHandlerContext = { requestId: "synthetic-ui-lab", actorScope: "synthetic-ui-lab", signal,
+            budget: { requests: 0, bytes: 96 * 1024 * 1024, timeoutMs: 30_000 },
+            consumeRequests() { throw new Error("External requests are forbidden in this lab."); }, consumeBytes() {}, throwIfCancelled() { signal.throwIfAborted(); } };
+          if (path === "/api/v1/atlas/browse") { if (state.scenario === "loading") await new Promise(resolve => setTimeout(resolve, 5000)); envelope(await browse.read(BrowseRequestSchema.parse(body))); return; }
+          if (path === "/api/v1/atlas/query") { envelope(await browse.query(BrowseQuerySchema.parse(body), context)); return; }
+          if (path === "/api/v1/atlas/penetration") { envelope(await browse.penetration(BrowsePenetrationSchema.parse(body), context)); return; }
+          if (path === "/api/v1/atlas/detail") { envelope(await browse.detail(BrowseDetailInputSchema.parse(body), context)); return; }
+        }
         if (path === "/__atlas-ui-lab/close" && request.method === "POST") {
           clearInterval(state.timer); sessions.delete(token!); json({ closed: true }); return;
         }

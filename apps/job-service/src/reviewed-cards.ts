@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { z } from "zod";
 import {
   defineTool, SourceDefinitionSchema, TimestampSchema, ToolError,
   type SourceDefinition, type ToolHandlerContext,
@@ -157,6 +158,21 @@ export function createReviewedCardsTools(options: { repository: JobRepository; n
           if (!committed) throw error;
           return committed;
         }
+      },
+    }),
+    defineTool({ name: "jobs.lookup-reviewed-cards-receipt", version: VERSION, effect: "read-index",
+      description: "只读核对原卡片提交的持久回执；绑定原执行身份、完整请求和幂等键，不写入或重新采集。",
+      inputSchema: ImportReviewedCardsInputSchema,
+      outputSchema: z.object({ receipt: ImportReceiptSchema.nullable() }).strict(),
+      execute: async (input, context) => {
+        context.throwIfCancelled();
+        if (!context.idempotencyKey) throw new ToolError("invalid-context");
+        if (reviewedCardsPreviewFingerprint(previewInput(input)) !== input.previewFingerprint) throw new ToolError("stale-version");
+        const receipt = await repository.findImportReceipt({ actorScope: context.actorScope,
+          idempotencyKey: `reviewed-cards:${digest(context.idempotencyKey)}`,
+          requestFingerprint: digest({ version: VERSION, input }), expectedRevision: input.expectedRevision });
+        context.throwIfCancelled();
+        return { receipt: receipt ?? null };
       },
     }),
   ] as const;

@@ -64,7 +64,7 @@ export function AtlasLocationConfirmation({ endpoint, token, jobId, location, re
         : problem instanceof Error ? problem.message : "本次地点核对未完成。" });
     } finally { clearTimeout(timeout); if (current.current === active) { current.current = null; setOperation(undefined); } }
   }
-  const refresh = () => run(async signal => { const data = await binding.client.snapshot({ signal }); alive(signal); onSnapshot(data); });
+  const refresh = () => run(async signal => { const data = await binding.client.browseSnapshot({ signal }); alive(signal); onSnapshot(data); });
   const readPreview = () => run(async signal => {
     const area = draft.country === "CN" && draft.china.provinceCode ? { kind: "china-catalog" as const, ...draft.china } : {
       kind: "manual-area" as const,
@@ -91,7 +91,7 @@ export function AtlasLocationConfirmation({ endpoint, token, jobId, location, re
       throw problem;
     }
     alive(signal); setSaved({ binding, receipt }); setPending(undefined);
-    try { const data = await binding.client.snapshot({ signal }); alive(signal); onSnapshot(data); }
+    try { const data = await binding.client.browseSnapshot({ signal }); alive(signal); onSnapshot(data); }
     catch (problem) { alive(signal); throw new Error(`已保存到索引版本 ${receipt.revision}，页面刷新未完成。请重新读取索引。`, { cause: problem }); }
   });
   function close() { current.current?.controller.abort(); current.current = null; onClose(); }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { AtlasHarvestProgress } from "../../src/components/atlas/AtlasHarvestProgress";
+import { HarvestVisualConsent } from "../../src/components/atlas/HarvestVisualConsent";
 import { AtlasLiveHarvestResults } from "../../src/components/atlas/AtlasLiveHarvestResults";
 import { AtlasBackgroundEnrichmentStatus } from "../../src/components/atlas/AtlasBackgroundEnrichmentStatus";
 import type { HarvestProgressState } from "../../src/components/atlas/harvest-progress-presentation";
@@ -190,6 +191,7 @@ function ClarityFixture() {
   const initial = params.get("scenario");
   const [scenario, setScenario] = useState<Scenario>(scenarios.some(([key]) => key === initial) ? initial as Scenario : "partial");
   const [background, setBackground] = useState<BackgroundScenario>("working");
+  const [visualConsent, setVisualConsent] = useState(false);
   const [compact, setCompact] = useState(params.get("width") === "380");
   const [mobile, setMobile] = useState(() => matchMedia("(max-width:760px)").matches);
   const [action, setAction] = useState("尚未操作。所有按钮回调只在本验收页内记录，不发出采集、登录或入库请求。");
@@ -206,7 +208,9 @@ function ClarityFixture() {
   const busy = scenario === "running";
   const failed = !busy && scenario !== "success" && scenario !== "cancelled";
   const actionProps = { providers,
-    onResume: () => setAction("模拟动作：继续本轮未完成采集。未调用任何平台、服务或持久化写入。"),
+    visualConsent: <HarvestVisualConsent checked={visualConsent} onChange={setVisualConsent} />,
+    onResume: scenario === "success" || busy ? undefined
+      : () => { setAction(`模拟动作：后台核对原提交回执，再继续本轮未完成采集。视觉授权：${visualConsent ? "仅本轮允许" : "未授权"}。未调用任何平台、服务或持久化写入。`); setVisualConsent(false); },
     onOpenLogin: () => setAction("模拟动作：打开平台登录／验证入口。未打开真实浏览器或读取登录态。"),
     recoveryMessage: failed || scenario === "cancelled" ? "仍有待核对回执，可继续上次采集；已收到的岗位保留。" : undefined,
     recoveryPhase: failed ? "needs-attention" : scenario === "cancelled" ? "cancelled" : undefined,

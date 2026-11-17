@@ -31,8 +31,14 @@ test("reviewed cards use the authenticated application routes and become searcha
     const preview = await request("jobs/reviewed-cards/preview", input);
     assert.equal((await repository.readSnapshot()).jobs.length, 0);
     const command = { ...input, previewFingerprint: preview.previewFingerprint, reviewed: true };
+    assert.deepEqual(await request("jobs/reviewed-cards/receipt", command, "synthetic-reviewed-key"), { receipt: null });
+    assert.equal((await repository.readSnapshot()).jobs.length, 0, "receipt lookup must not create the missing import");
     const receipt = await request("jobs/reviewed-cards/import", command, "synthetic-reviewed-key");
     assert.equal(receipt.counts.newJobs, 1);
+    const committedSnapshot = await repository.readSnapshot();
+    assert.deepEqual(await request("jobs/reviewed-cards/receipt", command, "synthetic-reviewed-key"), { receipt });
+    assert.deepEqual(await request("jobs/reviewed-cards/receipt", command, "different-key"), { receipt: null });
+    assert.deepEqual(await repository.readSnapshot(), committedSnapshot);
     assert.deepEqual(await request("jobs/reviewed-cards/import", command, "synthetic-reviewed-key"), receipt);
     const result = await request("jobs/search", { search: { text: "C# 上海", mode: "fuzzy" }, market: "global" });
     assert.equal(result.totalJobs, 1);

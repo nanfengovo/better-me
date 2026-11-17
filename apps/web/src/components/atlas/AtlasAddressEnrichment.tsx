@@ -198,7 +198,7 @@ function EnrichmentSession({ endpoint, token, data, jobIds, scope, loadedJobs, o
       recovery.set(scope, current); if (!closed.current) setPending(current);
     }
     alive(signal);
-    const snapshot = await client.snapshot({ signal }); await publish(snapshot, current.receipt!.revision, signal); alive(signal);
+    const snapshot = await client.browseSnapshot({ signal }); await publish(snapshot, current.receipt!.revision, signal); alive(signal);
     const listing = snapshot.listings.find(entry => entry.id === current.capture.listingId && entry.canonicalJobId === current.capture.jobId);
     const ids = (listing?.locationIds ?? []).filter(id => current.locationIds.includes(id));
     update(current.capture.jobId, row => ({ ...row,
@@ -213,7 +213,7 @@ function EnrichmentSession({ endpoint, token, data, jobIds, scope, loadedJobs, o
     const captures = rowsRef.current.flatMap(row => row.captures.filter(capture => !row.savedCaptureKeys?.includes(keyFor(capture)))).filter(capture => selected.includes(keyFor(capture)));
     for (const capture of captures) {
       alive(signal);
-      const snapshot = await client.snapshot({ signal }); alive(signal);
+      const snapshot = await client.browseSnapshot({ signal }); alive(signal);
       if (snapshot.revision !== knownRevision.current) {
         setStale(true); setSelected([]);
         throw new Error("索引版本已改变，原地址选择已清除；请重新读取本批岗位。");

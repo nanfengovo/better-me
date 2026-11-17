@@ -17,6 +17,10 @@ export interface JobHttpOptions {
 }
 
 const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }> = [
+  { method: "POST", path: /^\/api\/v1\/atlas\/browse$/, tool: "jobs.browse" },
+  { method: "POST", path: /^\/api\/v1\/atlas\/query$/, tool: "jobs.browse-query" },
+  { method: "POST", path: /^\/api\/v1\/atlas\/penetration$/, tool: "jobs.browse-penetration" },
+  { method: "POST", path: /^\/api\/v1\/atlas\/detail$/, tool: "jobs.browse-detail" },
   { method: "GET", path: /^\/api\/v1\/enrichment\/status$/, tool: "enrichment.status" },
   { method: "POST", path: /^\/api\/v1\/jobs\/address-enrichment\/plan$/, tool: "jobs.plan-address-enrichment" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reconciliation\/candidates$/, tool: "jobs.list-merge-candidates" },
@@ -29,6 +33,7 @@ const ROUTES: Array<{ method: string; path: RegExp; tool: string; key?: string }
   { method: "POST", path: /^\/api\/v1\/jobs\/search$/, tool: "jobs.search" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reviewed-cards\/preview$/, tool: "jobs.preview-reviewed-cards" },
   { method: "POST", path: /^\/api\/v1\/jobs\/reviewed-cards\/import$/, tool: "jobs.import-reviewed-cards" },
+  { method: "POST", path: /^\/api\/v1\/jobs\/reviewed-cards\/receipt$/, tool: "jobs.lookup-reviewed-cards-receipt" },
   { method: "POST", path: /^\/api\/v1\/jobs\/detail-locations\/preview$/, tool: "jobs.preview-detail-locations" },
   { method: "POST", path: /^\/api\/v1\/jobs\/detail-locations\/import$/, tool: "jobs.import-detail-locations" },
   { method: "POST", path: /^\/api\/v1\/locations\/geocode-candidates$/, tool: "locations.geocode-candidates" },
