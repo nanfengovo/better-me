@@ -9,7 +9,7 @@ const defaultDesktopPreferences = {
   dockSize: 48,
   dockMagnification: true,
   dockMagScale: 1.45,
-  dockOpacity: 0.85,
+  dockOpacity: 0.28,
   dockBlur: 24,
   dockAutoHide: true,
   menuBarAutoHide: false,
@@ -86,6 +86,14 @@ test("saved appearance is applied before React mount and survives remount", asyn
   await mount();
   assert.equal(button("English").getAttribute("aria-pressed"), "true");
   assert.equal(button("Dark theme").getAttribute("aria-pressed"), "true");
+});
+
+test("the legacy Dock default migrates to 28% without rewriting other opacity choices", () => {
+  assert.equal(parseUiPreferences(null).dockOpacity, 0.28);
+  assert.equal(parseUiPreferences('{"dockOpacity":0.85}').dockOpacity, 0.28);
+  for (const dockOpacity of [0.12, 0.28, 0.45, 0.65]) {
+    assert.equal(parseUiPreferences(JSON.stringify({ dockOpacity })).dockOpacity, dockOpacity);
+  }
 });
 
 test("global controls change only browser preferences while Chinese resume content stays intact", async () => {

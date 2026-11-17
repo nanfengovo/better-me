@@ -93,7 +93,7 @@ after(() => dom.happyDOM.abort());
 for (const [stage, expected] of [
   ["choose_source", "Select this synthetic material"], ["practice", "Synthetic exercise code"],
   ["checkpoint_saved", "Continue fixed checks"], ["verification_failed", "Revise and start a new attempt"],
-  ["ready_for_acceptance", "Accept this synthetic project"], ["completed", "Synthetic project accepted"],
+  ["ready_for_acceptance", "Accept this synthetic project"], ["completed", "Practice accepted"],
 ] as const) {
   test(`English ${stage} view translates controls while preserving source and remaining read-only`, async () => {
     const current = journey(stage, stage === "practice" ? 2 : 5);
@@ -136,7 +136,7 @@ test("a synthetic growth journey reaches a verified project and reopening is rea
     },
   };
 
-  await mount(client); assert.match(body(), /演示练习 · 非掌握证明/); assert.doesNotMatch(body(), /lookup 调用 1 次/);
+  await mount(client); assert.equal(dom.document.querySelector(".growth-mode")?.textContent, "合成数据"); assert.doesNotMatch(body(), /lookup 调用 1 次/);
   await fill("growth-goal", goal.title); await click("growth-create");
   await click("growth-source"); assert.match(body(), /合成教材 · 第 1 节 · 保存断点/);
   await click("growth-example");
@@ -145,14 +145,15 @@ test("a synthetic growth journey reaches a verified project and reopening is rea
   await click("growth-submit"); assert.doesNotMatch(body(), /lookup 调用 1 次/);
   await click("growth-step"); assert.match(body(), /lookup 调用 1 次/); assert.match(body(), /现在可以关闭/);
   await click("growth-step"); assert.match(body(), /固定验收 4\/4/); assert.match(body(), /待本人验收/);
-  await click("growth-accept"); assert.match(body(), /项目已验收/); assert.match(body(), /待隔时复测/);
+  await click("growth-accept"); assert.match(body(), /练习已验收/); assert.match(body(), /不是生产经验或永久掌握证明/);
+  assert.equal(current.project?.mastery, "pending_retest", "acceptance is not lasting mastery");
   assert.equal(calls.filter(call => call === "command:step_practice").length, 2);
   const writesBeforeReopen = writes.length;
 
   await unmount(); await mount(client);
   assert.equal(writes.length, writesBeforeReopen, "reopening must not issue a command");
   assert.deepEqual(calls.slice(-3), ["sources", "list", "get"]);
-  assert.match(body(), /已恢复记录，未重新执行/); assert.match(body(), /lookup 调用 1 次/); assert.match(body(), /项目已验收/);
+  assert.match(body(), /已恢复记录，未重新执行/); assert.match(body(), /lookup 调用 1 次/); assert.match(body(), /练习已验收/);
 });
 
 test("a failed verification keeps its receipt and starts a new attempt only after an explicit resubmission", async () => {

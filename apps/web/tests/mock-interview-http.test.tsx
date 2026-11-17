@@ -69,7 +69,7 @@ test("actual Workspace defense button -> production task client -> authenticated
     await mount();const originalComposer=[...host.querySelectorAll("textarea")].find(e=>e.placeholder.includes("聊聊"))??[...host.querySelectorAll("textarea")].at(-1)!;
     const ordinaryDraft="普通顾问草稿，切换对练不能清空。";await fill(originalComposer,ordinaryDraft);
     const beforeLaunchPosts=wire.filter(row=>row.method==="POST").length;
-    await click("与 Copilot 模拟对练这道题 →");await until(()=>Boolean(host.textContent?.includes("尚未开始。"))&&!host.textContent?.includes("正在只读恢复会话"));
+    await click("与 AI 顾问对练这道题");await until(()=>Boolean(host.textContent?.includes("尚未开始。"))&&!host.textContent?.includes("正在只读恢复会话"));
     assert.equal(calls,1);assert.equal(wire.filter(row=>row.method==="POST").length,beforeLaunchPosts,"selecting a question only navigates/reads");assert.equal(button("授权并开始对练").disabled,true);
     await authorize();await click("授权并开始对练");await until(()=>host.textContent?.includes("会话状态：awaiting_answer")===true&&Boolean(host.textContent?.includes("请说明接口测试中的本人职责？")));
     assert.equal(calls,2);assert.equal(builds,1);

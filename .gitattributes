@@ -10,3 +10,7 @@
 # Original learning PDFs and the upstream font licence must retain their exact bytes.
 /apps/agent-host/tests/fixtures/learning/*.pdf binary
 /apps/agent-host/tests/fixtures/learning/OFL.txt -text -whitespace
+
+# The upstream speech bundle is hash-pinned with its original mixed line endings.
+# Neither input normalization nor Windows CRLF checkout may rewrite its bytes.
+/apps/web/public/speech/vosk-cn-v1/vosk.js -text -whitespace

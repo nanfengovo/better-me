@@ -56,6 +56,14 @@ const hash=text=>createHash('sha256').update(text).digest('hex');
 })().catch(error=>parentPort.postMessage({ok:false,code:['learning_pdf_page_limit','learning_pdf_text_limit'].includes(error.message)?error.message:'learning_pdf_unreadable'}));
 `;
 
+export function learningPdfAssetDirectories(assets: string, paths: Pick<typeof path, "join" | "sep"> = path) {
+  return {
+    // PDF.js requires '/' even on Windows; Node accepts it after a native path.
+    cmaps: paths.join(assets, "cmaps") + "/",
+    fonts: paths.join(assets, "standard_fonts") + "/",
+  };
+}
+
 export async function extractLearningPdf(bytes: Uint8Array) {
   const require = createRequire(import.meta.url),
     assets = path.dirname(require.resolve("pdfjs-dist/package.json"));
@@ -74,8 +82,7 @@ export async function extractLearningPdf(bytes: Uint8Array) {
         engine: pathToFileURL(
           require.resolve("pdfjs-dist/legacy/build/pdf.mjs"),
         ).href,
-        cmaps: path.join(assets, "cmaps") + path.sep,
-        fonts: path.join(assets, "standard_fonts") + path.sep,
+        ...learningPdfAssetDirectories(assets),
       },
     });
     let settled = false;

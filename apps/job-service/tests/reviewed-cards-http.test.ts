@@ -8,7 +8,9 @@ test("reviewed cards use the authenticated application routes and become searcha
   const at = "2026-10-19T02:00:00Z";
   const token = "synthetic-reviewed-http-token-0123456789";
   const repository = openJobRepository(":memory:", { now: () => at });
-  const app = createJobApplication({ repository, now: () => at });
+  // This test proves receipt reads and command replay do not write. Independent
+  // background enrichment has its own tests and must not mutate this baseline.
+  const app = createJobApplication({ repository, now: () => at, backgroundEnrichment: false });
   const server = createJobHttpServer({ registry: app.registry, token, allowedOrigins: ["http://atlas-ui.invalid"], port: 0 });
   const { url } = await server.listen();
   const pageUrl = "https://www.liepin.com/zhaopin/?key=C%23&city=020&dq=020";

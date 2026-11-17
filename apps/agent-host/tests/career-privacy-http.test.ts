@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { once } from "node:events";
 import { createServer, type Server } from "node:http";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { createPrivacyHttp, PRIVACY_OPERATION_KIND } from "../src/career-studio/privacy-http.js";
 import type { PrivacyStudioContext, StoredPrivacyOperation } from "../src/career-studio/privacy-http.js";
 import { StudioArtifactStore } from "../src/career-studio/storage.js";
@@ -15,7 +15,7 @@ const auth = { ownerId: "owner-1", sessionId: "session-1", sessionGeneration: 1,
 const deferred = <T>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { resolve, promise }; };
 async function listen(server: Server) { server.listen(0, "127.0.0.1"); await once(server, "listening"); const address = server.address(); assert.ok(address && typeof address === "object"); return `http://127.0.0.1:${address.port}`; }
 async function stop(server: Server) { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
-async function fixture(t: { after(fn: () => Promise<void> | void): void }, input: { noCloud?: boolean; wait?: Promise<void>; localCalls?: number } = {}) {
+async function fixture(t: { after(fn: () => Promise<void> | void): void }, input: { noCloud?: boolean; wait?: Promise<void>; localCalls?: number; maxActiveMs?: number } = {}) {
   const directory = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "betterme-privacy-http-"))), store = new StudioArtifactStore("owner-1", directory);
   const cloudBodies: string[] = [], modelPrompts: string[] = [], started = deferred<void>();
   const cloudServer = createServer(async (request, response) => { const chunks: Buffer[] = []; for await (const chunk of request) chunks.push(Buffer.from(chunk)); cloudBodies.push(Buffer.concat(chunks).toString("utf8")); started.resolve(); await input.wait; if (!response.destroyed) { response.setHeader("content-type", "application/json"); response.end(JSON.stringify({ text: "CAS evidence supports idempotent state restoration.", sourceIds: ["fact-1"], unknowns: ["No performance metric supplied."] })); } });
@@ -32,7 +32,9 @@ async function fixture(t: { after(fn: () => Promise<void> | void): void }, input
   const local = createOllamaPrivacyAdapter(client, { budget: { maxInputBytes: 100_000, maxOutputBytes: 16_000, maxActiveMs: 5000 } });
   const configuredCloud = input.noCloud ? undefined : createJsonHttpCloudAdapter({ endpoint: `${cloudBase}/reason`, recipientId: "synthetic-cloud", model: "synthetic-reasoner", allowLoopbackHttpFixture: true });
   let revision = 1, generation = 1;
-  const context: PrivacyStudioContext = { taskRevision: 1, policy: { version: "policy-v1", allowedFields: ["evidence"], privateTerms: [], maxFieldCharacters: 4000 }, sources: [{ id: "fact-1", revision: "v1", classification: "summary_allowed", kind: "fact", text: "Implemented CAS guarded idempotent state restoration." }, { id: "raw-1", revision: "v1", classification: "local_only", kind: "source", text: `${localOnly}\napi_key="SYNTHETIC_SECRET_1928364"\n/Users/synthetic/private.ts` }], budget: { revision: 1, maxLocalCalls: input.localCalls ?? 3, maxCloudCalls: 1, maxInputBytes: 100_000, maxOutputBytes: 16_000, maxActiveMs: 5000 } };
+  // Positive cases exercise consent/storage, not a five-second CI disk race.
+  // The explicit short-deadline regression below retains the fail-closed gate.
+  const context: PrivacyStudioContext = { taskRevision: 1, policy: { version: "policy-v1", allowedFields: ["evidence"], privateTerms: [], maxFieldCharacters: 4000 }, sources: [{ id: "fact-1", revision: "v1", classification: "summary_allowed", kind: "fact", text: "Implemented CAS guarded idempotent state restoration." }, { id: "raw-1", revision: "v1", classification: "local_only", kind: "source", text: `${localOnly}\napi_key="SYNTHETIC_SECRET_1928364"\n/Users/synthetic/private.ts` }], budget: { revision: 1, maxLocalCalls: input.localCalls ?? 3, maxCloudCalls: 1, maxInputBytes: 100_000, maxOutputBytes: 16_000, maxActiveMs: input.maxActiveMs ?? 30_000 } };
   const makeRuntime = () => createPrivacyHttp({ ownerId: "owner-1", store, translateAccess: async (stamp: typeof auth) => ({ ...stamp, valid: async () => stamp.sessionGeneration === generation }), getContext: async () => ({ ...structuredClone(context), taskRevision: revision }), selectedLocal: async () => local, configuredCloud, readBody: async request => { const chunks: Buffer[] = []; for await (const chunk of request) chunks.push(Buffer.from(chunk)); return JSON.parse(Buffer.concat(chunks).toString("utf8")); }, sendJson: (response, status, data) => { response.writeHead(status, { "content-type": "application/json" }); response.end(JSON.stringify(data)); } });
   let runtime = makeRuntime();
   const server = createServer(async (request, response) => { if (!await runtime.handleOwner(request, response, new URL(request.url!, "http://127.0.0.1").pathname, auth)) { response.writeHead(404); response.end(); } });
@@ -91,10 +93,42 @@ test("privacy persisted unknown dispatch claim survives restart and refuses repl
 
 test("privacy storage failure and exhausted local budget stop before cloud/model dispatch without fallback", async t => {
   const f = await fixture(t, { localCalls: 1 }), exhausted = await f.prepare(); assert.equal(exhausted.status, 409); assert.equal(exhausted.data.error, "local_budget_exhausted"); assert.equal(f.modelPrompts.length, 0); assert.equal(f.cloudBodies.length, 0);
-  const g = await fixture(t), prepared = await g.prepare(), approved = await g.approve(prepared.data), original = g.store.put;
+  const g = await fixture(t), prepared = await g.prepare();
+  assert.equal(prepared.status, 200, `storage-denial setup must prepare successfully: ${prepared.data.error ?? "unknown error"}`);
+  const approved = await g.approve(prepared.data); assert.equal(approved.status, 200);
+  const original = g.store.put;
   g.store.put = () => { throw new Error('disk full api_key="SYNTHETIC_CANARY_17823"'); };
   const denied = await g.dispatch(prepared.data, approved.data); assert.equal(denied.status, 409); assert.equal(denied.data.error, "cloud_dispatch_gate_unavailable"); assert.equal(JSON.stringify(denied).includes("SYNTHETIC_CANARY"), false); assert.equal(g.cloudBodies.length, 0);
   g.store.put = original;
+});
+
+async function slowReservationFixture(t: TestContext, maxActiveMs?: number) {
+  const now = Date.now; let elapsed = 0, writes = 0;
+  t.mock.method(Date, "now", () => now() + elapsed);
+  const f = await fixture(t, { maxActiveMs }), put = f.store.put;
+  t.mock.method(f.store, "put", function (this: StudioArtifactStore, ...args: Parameters<StudioArtifactStore["put"]>) {
+    // Advance only the first durable reservation, after the pipeline deadline
+    // has started. No real sleep, production clock or timeout is changed.
+    if (++writes === 2) elapsed += 5500;
+    return put.apply(this, args);
+  });
+  return f;
+}
+
+test("privacy storage-denial fixture reaches the dispatch gate after a slow durable reservation", async t => {
+  const f = await slowReservationFixture(t), prepared = await f.prepare();
+  assert.equal(prepared.status, 200, `slow setup must still prepare: ${prepared.data.error ?? "unknown error"}`);
+  const approved = await f.approve(prepared.data); assert.equal(approved.status, 200);
+  f.store.put = () => { throw new Error("synthetic disk full"); };
+  const denied = await f.dispatch(prepared.data, approved.data);
+  assert.equal(denied.status, 409); assert.equal(denied.data.error, "cloud_dispatch_gate_unavailable");
+  assert.equal(f.modelPrompts.length, 1); assert.equal(f.cloudBodies.length, 0);
+});
+
+test("privacy short deadline still refuses dispatch after the same slow durable reservation", async t => {
+  const f = await slowReservationFixture(t, 5000), prepared = await f.prepare();
+  assert.equal(prepared.status, 409); assert.equal(prepared.data.error, "privacy_deadline_exceeded");
+  assert.equal(prepared.data.draft, undefined); assert.equal(f.modelPrompts.length, 0); assert.equal(f.cloudBodies.length, 0);
 });
 
 test("privacy context version drift and online revoke reject sends/results but preserve unknown history", async t => {

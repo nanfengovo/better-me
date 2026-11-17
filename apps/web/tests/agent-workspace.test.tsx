@@ -153,7 +153,11 @@ test.afterEach(async () => { if (root) await flush(() => root!.unmount()); root 
 
 test("external handoff shares no job by default, preserves drafts across tabs, and never auto-imports answers", async () => {
   await mount(h(AgentWorkspace, {...{sendChat:widgetChat}, job: null, resume: dummyResume, llmConfig: dummyLlmConfig, onOpenConfig() {}, onNavigateToResume() {}, onApplyToResume() { assert.fail("handoff must not write a resume"); } }));
-  const findButton = (name: string) => [...dom.document.querySelectorAll('button')].find(b => b.textContent?.includes(name))!;
+  const findButton = (name: string) => {
+    const button = [...dom.document.querySelectorAll('button')].find(b => (b.getAttribute('aria-label') ?? b.textContent)?.includes(name));
+    assert.ok(button, `Button with accessible name ${name} must exist`);
+    return button;
+  };
   await flush(() => findButton('外部协作').click());
   const panel = dom.document.querySelector('.advisor-handoff-panel')!;
   assert.ok(panel);
@@ -520,7 +524,7 @@ test("AgentWorkspace displays API Key notice banner when key is missing and navi
 
   // Banner should warn about missing API key
   assert.ok(
-    fixture.querySelector(".advisor-context")?.textContent?.includes("推理待配置"),
+    fixture.querySelector(".advisor-context .advisor-config-state")?.textContent?.includes("配置模型"),
     "Should display API key warning banner"
   );
 
@@ -534,7 +538,7 @@ test("AgentWorkspace displays API Key notice banner when key is missing and navi
   assert.equal(navigatedToResume, true, "Should trigger onNavigateToResume callback");
 
   // Click Configure button
-  const configBtn = buttons.find((btn) => btn.textContent?.includes("推理待配置"));
+  const configBtn = buttons.find((btn) => btn.matches(".advisor-config-state"));
   assert.ok(configBtn, "Config button should exist in banner");
   await flush(() => {
     configBtn?.click();
@@ -631,11 +635,11 @@ test("AgentWorkspace isolates setup view during JD creation/editing without squa
   assert.ok(fixture !== null);
 
   // During setup mode, the left pane should render the dedicated setup view
-  assert.ok(fixture.textContent?.includes("设定目标岗位与完整 JD"), "Should show dedicated setup header");
+  assert.equal(fixture.querySelector(".advisor-job-panel h3")?.textContent?.trim(), "目标岗位", "Should show dedicated setup header");
   assert.ok(fixture.textContent?.includes("开始拆解"), "Should show primary submit button");
   assert.ok(fixture.textContent?.includes("从一份真实岗位开始"), "Should guide input before any job content exists");
   // It should NOT render the squashed chat input or header during setup
-  assert.ok(!fixture.textContent?.includes("向 Copilot 提问"), "Should not render chat input in setup mode");
+  assert.equal(fixture.querySelector(".agent-chat-textarea"), null, "Should not render chat input in setup mode");
   assert.ok(!fixture.textContent?.includes("助理协同对话 (Career Copilot)"), "Should not render copilot header in setup mode");
 
   // Load sample JD via chip
@@ -668,7 +672,7 @@ test("AgentWorkspace isolates setup view during JD creation/editing without squa
   // Now active mode should be rendered: compact banner + Copilot chat
   assert.ok(fixture.textContent?.includes("资深前端/全栈架构师"), "Active job title should be displayed");
   assert.ok(fixture.textContent?.includes("助理协同对话 (Career Copilot)"), "Copilot chat should now be active");
-  assert.ok(fixture.querySelector(':is(input, textarea)[placeholder*="向 Copilot 提问"]'), "Chat input should now be available");
+  assert.ok(fixture.querySelector('textarea.agent-chat-textarea'), "Chat input should now be available");
 
   // Edit job button should be present in compact banner
   const editJobBtn = Array.from(fixture.querySelectorAll("button")).find((btn) =>
@@ -681,7 +685,7 @@ test("AgentWorkspace isolates setup view during JD creation/editing without squa
   });
 
   // Should switch back to editing mode
-  assert.ok(fixture.textContent?.includes("编辑 / 更换目标岗位"), "Should switch back to editing view");
+  assert.equal(fixture.querySelector(".advisor-job-panel h3")?.textContent?.trim(), "编辑目标岗位", "Should switch back to editing view");
   assert.ok(fixture.textContent?.includes("取消修改"), "Should show cancel edit button");
 });
 
@@ -857,7 +861,8 @@ test("full Agent workspace stops an in-flight chat and restores its editable que
       onReferenceConsumed: () => {}, onOpenConfig: () => {}, onNavigateToResume: () => {}, onApplyToResume: () => {},
     }));
     const fixture = dom.document.getElementById("fixture")!;
-    const composer = fixture.querySelector<HTMLTextAreaElement>('textarea[placeholder*="向 Copilot 提问"]')!;
+    const composer = fixture.querySelector<HTMLTextAreaElement>('textarea.agent-chat-textarea');
+    assert.ok(composer, "The existing chat composer must be available");
     await flush(() => {
       Object.getOwnPropertyDescriptor(dom.HTMLTextAreaElement.prototype, "value")!.set!.call(composer, "分析这个示例");
       composer.dispatchEvent(new dom.Event("input", { bubbles: true }));
@@ -985,7 +990,7 @@ test("career growth makes the entered JD available for separate opt-in without r
   const back = Array.from(fixture.querySelectorAll("button")).find((button) => button.textContent?.trim() === "岗位研判");
   assert.ok(back);
   await flush(() => back.click());
-  assert.ok(fixture.textContent?.includes("设定目标岗位与完整 JD"), "the old JD flow must stay unsubmitted");
+  assert.equal(fixture.querySelector(".advisor-job-panel h3")?.textContent?.trim(), "目标岗位", "the old JD flow must stay unsubmitted");
 });
 
 

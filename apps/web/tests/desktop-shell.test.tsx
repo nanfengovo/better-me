@@ -10,7 +10,7 @@ import "fake-indexeddb/auto";
 const dom = new Window({ url: "http://desktop-fixture.invalid", width: 1280, height: 900 });
 const defaultDesktopPreferences = {
   dockPosition: "bottom", dockSize: 48, dockMagnification: true, dockMagScale: 1.45,
-  dockOpacity: 0.85, dockBlur: 24, dockAutoHide: true, menuBarAutoHide: false, wallpaperOpacity: 1,
+  dockOpacity: 0.28, dockBlur: 24, dockAutoHide: true, menuBarAutoHide: false, wallpaperOpacity: 1,
   wallpaperBlur: 0, windowOpacity: 0.92, windowBlur: 24, menuOpacity: 0.9,
 };
 const React = await import("react");
@@ -620,9 +620,11 @@ test("F20 Dock position uses one Tab stop, arrow keys and pressed opacity preset
   assert.equal(dom.document.activeElement, radios[2]);
   assert.equal(radios[2]!.getAttribute("aria-checked"), "true");
   assert.deepEqual(radios.map(button => button.tabIndex), [-1, -1, 0]);
-  const preset = [...dom.document.querySelectorAll<HTMLButtonElement>('[aria-label="Dock 透明度预设"] button')].find(button => button.textContent?.trim() === "65% 晶莹")!;
+  const preset = [...dom.document.querySelectorAll<HTMLButtonElement>('[aria-label="Dock 透明度预设"] button')].find(button => button.textContent?.trim() === "65% 深色");
+  assert.ok(preset, "the current 65% opacity preset must be selectable");
   await flush(() => preset.click());
   assert.equal(preset.getAttribute("aria-pressed"), "true");
+  assert.equal(JSON.parse(dom.localStorage.getItem(UI_PREFERENCES_KEY)!).dockOpacity, 0.65);
   assert.equal(dom.document.querySelector('.os-settings-search input')!.getAttribute("placeholder"), "搜索分类名称");
 });
 
